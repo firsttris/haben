@@ -823,6 +823,15 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
 }
 
 /**
+ * Gegenkonto einer Zahlung, die über ein privates Konto läuft (#866): Ein Eingang fließt ins Private (Entnahme,
+ * § 4 Abs. 1 Satz 2 EStG), ein Ausgang hat eine betriebliche Schuld aus privatem Geld bezahlt (Einlage). In GmbH
+ * und UG steht dort in beiden Richtungen das Gesellschafter-Verrechnungskonto.
+ */
+export function privatZahlung(amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): string {
+  return ownerAccount(kontenrahmen, rechtsform, amount > 0 ? "entnahme" : "einlage");
+}
+
+/**
  * Umsatzsteuer-Erstattung, die auf einem privaten Konto eingeht (#866): Die Forderung gegen das
  * Finanzamt wird erfüllt, das Geld fließt aber ins Private. Gebucht wird deshalb gegen die
  * Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto,
@@ -830,8 +839,9 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
  */
 export function ustPrivatPosting(amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
-  const owner = ownerAccount(kontenrahmen, rechtsform, amount < 0 ? "einlage" : "entnahme");
-  return [side(owner, amount, true, null), side(accounts.ustVorauszahlung, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
+  return [side(privatZahlung(amount, kontenrahmen, rechtsform), amount, true, null), side(accounts.ustVorauszahlung, amount, false, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
 }
 
 /** Kassenbuchungen ohne Beleg: Einlage und Entnahme, Geld von der Bank in die Kasse und zurück */
