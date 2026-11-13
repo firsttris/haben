@@ -140,4 +140,21 @@ describe("Grenzen beim Entpacken (Zip-Bombe)", () => {
     const result = read({ [STAPEL]: stapel(rechnung), [AUSGANG]: inner }, { maxEntries: 40 });
     expect(result).toEqual({ ok: false, reason: "Die ZIP-Datei hat mehr als 40 Einträge." });
   });
+
+  it("bricht nach der Grenze für Einträge ab, auch wenn das Verzeichnis 100 Millionen nennt", () => {
+    // 98 Bytes: nur das Ende einer ZIP64-Datei (Record, Locator, EOCD), deren Verzeichnis 100 Millionen Einträge nennt
+    const ende = new Uint8Array(56 + 20 + 22);
+    const view = new DataView(ende.buffer);
+    view.setUint32(0, 0x06064b50, true);
+    view.setUint32(32, 100_000_000, true);
+    view.setUint32(56, 0x07064b50, true);
+    view.setUint32(76, 0x06054b50, true);
+    view.setUint16(84, 0xffff, true);
+    view.setUint16(86, 0xffff, true);
+    const start = performance.now();
+    const result = readSevdeskExport(ende, { kontenrahmen: "SKR03" });
+    const dauer = performance.now() - start;
+    expect(result).toEqual({ ok: false, reason: "Die ZIP-Datei hat mehr als 20000 Einträge." });
+    expect(dauer).toBeLessThan(1000);
+  });
 });
