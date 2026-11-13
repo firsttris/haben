@@ -4,12 +4,12 @@ import { db, schema } from "../../db/index.ts";
 
 /*
  * Zu welcher Rechnung bzw. welchem Beleg eine Buchung gehört, für den DATEV-Export: Rechnungen und Belege direkt,
- * Zahlungen (allocation), Ausbuchungen wie Skonto und Forderungsausfall (ausbuchung) und Bareinnahmen im Kassenbuch
- * (kasse) über die zugeordnete Rechnung bzw. den Beleg. Daraus kommen Belegfeld 1 und das Personenkonto (#327).
- * Verrechnungen zweier Belege (#274) stehen nicht hier: Sie buchen nichts (Verbindlichkeiten an Verbindlichkeiten).
- * Seit #786 erzeugen sie nur dann eine Zeile in `journal_entries`, wenn sie die Vorsteuer einer Gutschrift aus dem
- * Zwischenkonto umbuchen; ein Personenkonto bekommt diese Buchung mit der Verrechnung als zwei Buchungen je Belegseite
- * (#785). Bis dahin bleibt sie im Stapel ohne Bezug.
+ * Zahlungen (allocation), Ausbuchungen wie Skonto und Forderungsausfall (ausbuchung), Bareinnahmen im Kassenbuch
+ * (kasse) über die zugeordnete Rechnung bzw. den Beleg und Verrechnungen zweier Belege (#274) über ihre Zeile in
+ * `document_settlements`. Daraus kommen Belegfeld 1 und das Personenkonto (#327).
+ * Seit #786 bucht eine Verrechnung je Belegseite (Verbindlichkeiten gegen das Verrechnungskonto, an der Gutschrift
+ * zusätzlich die Umbuchung der Vorsteuer). Jede dieser Buchungen trägt die Zeile ihrer Seite als Quelle und damit den
+ * Beleg, an dem das Personenkonto hängt; eine gemeinsame Sammelbuchung ohne Beleg ginge am Personenkonto vorbei.
  */
 
 type Entry = Pick<typeof schema.journalEntries.$inferSelect, "sourceType" | "sourceId">;
@@ -49,6 +49,7 @@ async function links(entries: readonly Entry[]): Promise<Map<string, { invoiceId
   const allocationIds = ids("allocation");
   const writeOffIds = ids("ausbuchung");
   const cashIds = ids("kasse");
+  const settlementIds = ids("verrechnung");
   const rows = [
     ...ids("invoice").map((id) => ({ id, invoiceId: id, documentId: null })),
     ...ids("document").map((id) => ({ id, invoiceId: null, documentId: id })),
@@ -73,6 +74,15 @@ async function links(entries: readonly Entry[]): Promise<Map<string, { invoiceId
             .from(schema.cashEntries)
             .where(inArray(schema.cashEntries.id, cashIds))
         ).map((c) => ({ ...c, documentId: null }))
+      : []),
+    // Verrechnung zweier Belege: Die Buchung je Seite hängt an ihrer Zeile in document_settlements, die Zeile an ihrem Beleg
+    ...(settlementIds.length
+      ? (
+          await db
+            .select({ id: schema.documentSettlements.id, documentId: schema.documentSettlements.documentId })
+            .from(schema.documentSettlements)
+            .where(inArray(schema.documentSettlements.id, settlementIds))
+        ).map((s) => ({ id: s.id, invoiceId: null, documentId: s.documentId }))
       : []),
   ];
   return new Map(rows.map((r) => [r.id, { invoiceId: r.invoiceId, documentId: r.documentId }]));

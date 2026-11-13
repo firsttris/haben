@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { formatEuro, type Kontenrahmen, type PostingLine } from "@haben/core";
+import { formatEuro, verrechnungPosting, type Kontenrahmen, type PostingLine } from "@haben/core";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -15,6 +15,12 @@ import { belegTotals, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
  * oder mehrere Rechnungen aus. Beide Belege bleiben erhalten, es entsteht kein Bankumsatz und kein
  * Kassenstand ändert sich. Je Verrechnung zwei Zeilen in `document_settlements`, damit jede Seite für
  * sich als erledigt zählt; aufgehoben wird per Gegenzeile wie bei den Ausbuchungen.
+ *
+ * Gebucht wird je Belegseite eine eigene Buchung, jede mit ihrem Beleg (source_type 'verrechnung',
+ * source_id der Zeile in `document_settlements`): Verbindlichkeiten gegen das Verrechnungskonto. Erst damit
+ * trägt die Verrechnung einen Vorgangsbezug, den der DATEV-Export für das Personenkonto braucht; eine
+ * gemeinsame Sammelbuchung über zwei Belege (früher #785) hätte ihn nicht. Die Seite der Gutschrift trägt
+ * zusätzlich die Umbuchung der Vorsteuer aus dem Zwischenkonto (#786).
  *
  * Beide Zeilen einer Verrechnung tragen dieselbe `settlement_id`: Aufheben trifft damit genau dieses Paar,
  * auch wenn zwischen denselben Belegen mehrfach derselbe Betrag verrechnet wurde. Die Gegenzeilen einer
@@ -55,6 +61,8 @@ async function beleg(tx: Tx, id: string, sperren = false) {
       id: schema.documents.id,
       date: schema.documents.documentDate,
       supplier: schema.documents.supplierName,
+      invoiceNumber: schema.documents.invoiceNumber,
+      filename: schema.documents.filename,
       net: schema.documents.net,
       tax: schema.documents.tax,
       gross: schema.documents.gross,
@@ -141,43 +149,53 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
     const date = parsed.date;
     // Gemeinsame Kennung für beide Zeilen: die Aufhebung findet das Paar damit eindeutig
     const settlementId = randomUUID();
-    // Vorsteuer einer Gutschrift „erstattet bereits Bezahltes“ (#786): Die Aufrechnung ist der Ausgleich, der sie mindert,
-    // also geht der verrechnete Anteil vom Zwischenkonto auf die Vorsteuer (§ 17 Abs. 1 Satz 2 und 8 UStG). Gebucht wird
-    // nur diese Umbuchung; die Verrechnung selbst bleibt ohne Buchung, die zwei Buchungen je Belegseite folgen mit #785.
-    // Die Zeilen stehen vor dem Einfügen der Verrechnung fest: sonst zählte der verrechnete Betrag schon als erledigt.
     const company = await openBooks(tx);
-    const umbuchungen: { seite: number; doc: typeof a; lines: PostingLine[] }[] = [];
+    // Betrag je Seite mit dem Vorzeichen der Zeile in document_settlements: negativ bei der Rechnung, deren
+    // Verbindlichkeit sinkt, positiv bei der Gutschrift. Aus dem offenen Rest, nicht aus der Rolle des Belegs: sonst
+    // wäre es falsch, sobald der geöffnete Beleg die Gutschrift ist (negativer Rest) und der Rest wüchse auf beiden Seiten.
+    const betraege = [-Math.sign(restA) * parsed.amount, -Math.sign(restB) * parsed.amount];
+    // Vorsteuer einer Gutschrift „erstattet bereits Bezahltes“ (#786): Die Aufrechnung ist der Ausgleich, der sie mindert,
+    // also geht der verrechnete Anteil vom Zwischenkonto auf die Vorsteuer (§ 17 Abs. 1 Satz 2 und 8 UStG). Die Zeilen
+    // stehen vor dem Einfügen der Verrechnung fest: sonst zählte der verrechnete Betrag schon als erledigt.
+    const steuer: PostingLine[][] = [];
     for (const [seite, doc] of [a, b].entries()) {
-      if (!doc.erstattetBezahltes) continue;
-      const betrag = -Math.sign(seite === 0 ? restA : restB) * parsed.amount;
-      const lines = await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), betrag, company.kontenrahmen);
-      if (lines.length > 0) umbuchungen.push({ seite, doc, lines });
+      steuer.push(doc.erstattetBezahltes ? await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), betraege[seite]!, company.kontenrahmen) : []);
     }
-    // Das Vorzeichen kommt aus dem offenen Rest, nicht aus der Rolle des Belegs: die Zeile muss den Rest
-    // gegen Null bewegen. Fest an documentId/counterDocumentId gebunden waere es falsch, sobald der geoeffnete
-    // Beleg die Gutschrift ist (negativer Rest) — dann waechst der offene Rest auf beiden Seiten.
     const rows = await tx
       .insert(schema.documentSettlements)
       .values([
-        { documentId: a.id, counterDocumentId: b.id, settlementId, date, amount: -Math.sign(restA) * parsed.amount, note: parsed.note, createdBy: actor },
-        { documentId: b.id, counterDocumentId: a.id, settlementId, date, amount: -Math.sign(restB) * parsed.amount, note: parsed.note, createdBy: actor },
+        { documentId: a.id, counterDocumentId: b.id, settlementId, date, amount: betraege[0]!, note: parsed.note, createdBy: actor },
+        { documentId: b.id, counterDocumentId: a.id, settlementId, date, amount: betraege[1]!, note: parsed.note, createdBy: actor },
       ])
       .returning({ id: schema.documentSettlements.id });
-    for (const { seite, doc, lines } of umbuchungen) {
+    // Zwei Buchungen, je Belegseite eine (#786): Die Zeile in document_settlements ist ihre Quelle, damit der DATEV-Export
+    // den Beleg und daran das Personenkonto findet. Die Steuerzeilen der Gutschrift stehen in derselben Buchung; so dreht
+    // eine Aufhebung beide zusammen um.
+    for (const [seite, doc] of [a, b].entries()) {
       await post(tx, company, {
         date,
-        description: `Vorsteuer aus Verrechnung · Beleg ${doc.date ?? ""} · ${doc.supplier}`,
+        description: `Verrechnung · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplier}`,
         sourceType: "verrechnung",
         sourceId: rows[seite]!.id,
-        lines,
+        lines: [...verrechnungPosting(betraege[seite]!, company.kontenrahmen), ...steuer[seite]!],
       });
     }
     return { ids: rows.map((r) => r.id), amount: parsed.amount, date };
   });
 }
 
-/** Gegenbuchung der Umbuchung einer Verrechnung (#786): dieselben Zeilen, Soll und Haben getauscht, am Tag der Aufhebung */
-async function storniereUmbuchung(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, verrechnungId: string, gegenId: string, date: string): Promise<void> {
+/**
+ * Gegenbuchung einer Verrechnungsbuchung (#786): dieselben Zeilen, Soll und Haben getauscht, am Tag der Aufhebung. Eine
+ * Buchung von vor dieser Etappe (nur die Umbuchung der Vorsteuer) wird genauso umgedreht; eine Verrechnung ganz ohne
+ * Buchung bleibt ohne Gegenbuchung, sie lässt sich nicht rückwirkend nachbuchen.
+ */
+async function storniereVerrechnung(
+  tx: Tx,
+  company: Awaited<ReturnType<typeof openBooks>>,
+  verrechnungId: string,
+  gegenId: string,
+  date: string,
+): Promise<void> {
   const [original] = await tx
     .select({ id: schema.journalEntries.id, description: schema.journalEntries.description, kontenrahmen: schema.journalEntries.kontenrahmen })
     .from(schema.journalEntries)
@@ -277,9 +295,10 @@ export async function reverseSettlement(actor: string, id: string, date: string,
         },
       ])
       .returning({ id: schema.documentSettlements.id });
-    // Die Umbuchung vom Zwischenkonto (#786) fällt mit der Aufhebung: Gegenbuchung am Tag der Aufhebung, nicht rückwirkend
+    // Die Buchungen beider Seiten (#786) fallen mit der Aufhebung: je Seite eine Gegenbuchung am Tag der Aufhebung,
+    // nicht rückwirkend. Ältere Verrechnungen ohne Buchung bleiben ohne Gegenbuchung.
     const company = await openBooks(tx);
-    for (const [i, verrechnung] of [row, partner].entries()) await storniereUmbuchung(tx, company, verrechnung.id, gegen[i]!.id, parsed.date);
+    for (const [i, verrechnung] of [row, partner].entries()) await storniereVerrechnung(tx, company, verrechnung.id, gegen[i]!.id, parsed.date);
     return { ok: true as const, date: parsed.date };
   });
 }

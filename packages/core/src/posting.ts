@@ -44,6 +44,12 @@ export const ACCOUNTS = {
     verbindlichkeiten: "1600",
     /** DATEV SKR03 2026, Art.-Nr. 11174, S. 10: Anzahlungen ohne AM-Funktion; Umsatzsteuer wird separat gebucht. */
     erhalteneAnzahlungen: "1710",
+    /**
+     * Verrechnungskonto für zwei Belege ohne Zahlung (#274, #786): DATEV-Kontenrahmen 2026, SKR03 1590 „Durchlaufende
+     * Posten“ (sonstige Vermögensgegenstände oder sonstige Verbindlichkeiten). Je Verrechnung bucht jede Belegseite ihren
+     * Anteil hierher, Rechnung und Gutschrift zusammen auf null; kein Automatikkonto, die Buchung trägt keine Steuer.
+     */
+    verrechnung: "1590",
     privateinlagen: "1890",
     privatentnahmen: "1800",
     /** Spenden aus dem Betrieb, im Einzelunternehmen privat (Sonderausgabe, § 10b EStG); DATEV SKR03 1840 „Zuwendungen, Spenden“ */
@@ -96,6 +102,8 @@ export const ACCOUNTS = {
     verbindlichkeiten: "3300",
     /** DATEV SKR04 2026, Art.-Nr. 11175, S. 11: Anzahlungen ohne AM-Funktion; Umsatzsteuer wird separat gebucht. */
     erhalteneAnzahlungen: "3250",
+    /** Verrechnungskonto wie SKR03 1590; DATEV-Kontenrahmen 2026, SKR04 1370 „Durchlaufende Posten“ */
+    verrechnung: "1370",
     privateinlagen: "2180",
     privatentnahmen: "2100",
     /** DATEV SKR04 2250 „Zuwendungen, Spenden“ */
@@ -216,6 +224,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1776": "Umsatzsteuer 19 %",
     "1787": "Umsatzsteuer nach § 13b UStG",
     "1548": "Vorsteuer in Folgeperiode/im Folgejahr abziehbar",
+    "1590": "Verrechnungskonto (durchlaufende Posten)",
     "1572": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb",
     "1574": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 %",
     "1772": "Umsatzsteuer aus innergemeinschaftlichem Erwerb",
@@ -259,6 +268,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "3806": "Umsatzsteuer 19 %",
     "3837": "Umsatzsteuer nach § 13b UStG",
     "1434": "Vorsteuer in Folgeperiode/im Folgejahr abziehbar",
+    "1370": "Verrechnungskonto (durchlaufende Posten)",
     "1402": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb",
     "1404": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 %",
     "3802": "Umsatzsteuer aus innergemeinschaftlichem Erwerb",
@@ -746,6 +756,22 @@ export function documentWriteOffPosting(
     }
   }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Eine Seite einer Verrechnung zweier Belege ohne Zahlung (#274, #786): Die Seite bucht ihren Anteil aus dem offenen
+ * Posten aus, Verbindlichkeiten gegen das Verrechnungskonto (SKR03 1590, SKR04 1370). `amount` trägt das Vorzeichen der
+ * Zeile in `document_settlements`: negativ bei der Rechnung, deren Verbindlichkeit sinkt (Soll Verbindlichkeiten), positiv
+ * bei der Gutschrift, deren Soll-Saldo sinkt (Haben Verbindlichkeiten). Zusammen mit der Buchung der anderen Seite steht
+ * das Verrechnungskonto auf null. Ohne Steuerzeile: Die Vorsteuer einer Gutschrift „erstattet bereits Bezahltes“ zieht
+ * erst die Umbuchung beim Ausgleich um (vorsteuerAusgleichPosting). Gebucht wird je Belegseite, damit jeder Vorgang seinen
+ * Beleg trägt und der DATEV-Export das Personenkonto bilden kann.
+ */
+export function verrechnungPosting(amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  return [side(accounts.verbindlichkeiten, -amount, true, null), side(accounts.verrechnung, amount, true, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
 }
 
 /**
