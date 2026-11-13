@@ -64,7 +64,7 @@ Die Browser-Erweiterung „Haben für Mein ELSTER“ (Manifest V3, TypeScript, g
 | `src/server/db/` | Drizzle-Schema (`schema.ts`, `auth-schema.ts`), Verbindung, `withActor` für das Audit-Log, Migrationsskript |
 | `apps/web/drizzle/` | SQL-Migrationen; Trigger und Funktionen stehen in eigenen Dateien (`0001_festschreibung.sql`, `*_trigger.sql`) |
 | `src/styles/`, `styles.css` | Globales Stylesheet und seitenbezogene Stylesheets (Auswertungen, Archiv). Farben stehen als CSS-Variablen in `:root`; ein Theme überschreibt sie per `[data-theme="…"]`. Klassen, die mehr als eine Seite nutzt, gehören ins globale Stylesheet, sonst fehlen sie auf Seiten, die das seitenbezogene nicht laden |
-| `src/lib/theme.ts` | Themes: Liste, Speicherung im `localStorage` und ein Inline-Skript, das `<html data-theme>` vor dem ersten Zeichnen setzt (`__root.tsx`) |
+| `src/lib/theme.ts` | Farbe und Modus: Listen, Speicherung im `localStorage` und ein Inline-Skript, das `<html data-theme data-mode>` vor dem ersten Zeichnen setzt (`__root.tsx`) |
 | `vite.config.ts` | Setzt `__HABEN_VERSION__` aus der Root-`package.json`; die Navigation zeigt so die ausgelieferte Version. Das Plugin `redact()` ersetzt React beim Bauen durch TanStack Redact |
 | `src/lib/` | Formatierung und Better-Auth-Client für den Browser |
 

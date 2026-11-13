@@ -1,4 +1,4 @@
-// Rendert hero.html in Wald und Nacht nach docs/hero-hell.png und docs/hero-dunkel.png (1280 × 360 bei 2×).
+// Rendert hero.html in Wald hell und dunkel nach docs/hero-hell.png und docs/hero-dunkel.png (1280 × 360 bei 2×).
 // Bricht ab, wenn etwas aus dem Bild ragt oder überläuft. Aufruf: bun run docs:hero
 import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";

@@ -186,7 +186,8 @@ export async function faktenZeigen(page: Page, ...zeilen: string[]): Promise<voi
 const DESKTOP = { width: 1440, height: 900 };
 const HANDY_AXE = { width: 320, height: 720 };
 const HANDY_BREITE = { width: 390, height: 844 };
-const THEMES = ["ozean", "pflaume", "graphit", "nacht", "tiefsee"];
+/** Die Farben außer Wald hell, als „Farbe“ oder „Farbe:dunkel“ wie in barrierefreiheit.spec.ts */
+const THEMES = ["ozean", "pflaume", "graphit", "wald:dunkel", "ozean:dunkel", "pflaume:dunkel", "graphit:dunkel"];
 
 export async function axeVerstoesse(page: Page, rules?: string[]): Promise<string[]> {
   const builder = new AxeBuilder({ page }).withTags(WCAG);
@@ -223,13 +224,20 @@ export async function ohneAxeVerstoesse(page: Page, paths: string[]): Promise<vo
 /** Farbkontraste in den übrigen Themes wie die THEME_PAGES in barrierefreiheit.spec.ts, für Seiten, deren Daten hier entstehen */
 export async function kontrasteInThemes(page: Page, paths: string[]): Promise<void> {
   for (const theme of THEMES) {
-    await page.evaluate((t) => localStorage.setItem("haben-theme", t), theme);
+    await page.evaluate((t) => {
+      const [farbe, modus = "hell"] = t.split(":");
+      localStorage.setItem("haben-theme", farbe!);
+      localStorage.setItem("haben-modus", modus);
+    }, theme);
     for (const path of paths) {
       await gehe(page, path);
       expect.soft(await axeVerstoesse(page, ["color-contrast", "link-in-text-block"]), `${theme} ${path}`).toEqual([]);
     }
   }
-  await page.evaluate(() => localStorage.removeItem("haben-theme"));
+  await page.evaluate(() => {
+    localStorage.removeItem("haben-theme");
+    localStorage.removeItem("haben-modus");
+  });
 }
 
 /** Erfundene Mobilfunkrechnung als JPEG, gerendert im Browser */
