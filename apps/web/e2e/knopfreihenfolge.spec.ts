@@ -149,3 +149,13 @@ test("Knopfzeilen auf den Seiten mit Formularen und Rückfragen", async ({ page 
   }
   expect(befunde).toEqual([]);
 });
+
+test("Abgabe vermerken: Knopfzeile im Dialog rechtsbündig wie im Kontaktdialog", async ({ page }) => {
+  await gehe(page, `/jahreserklaerung/${YEAR - 1}`);
+  await page.getByRole("button", { name: "Abgabe vermerken", exact: true }).first().click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  const vermerken = dialog.getByRole("button", { name: "Vermerken", exact: true });
+  // DESIGN.md, Reihenfolge der Knöpfe: „im Dialog rechtsbündig“
+  expect(await abstandZumRand(dialog.locator(".actions").last(), vermerken)).toBeLessThanOrEqual(1);
+});
