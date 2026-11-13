@@ -46,8 +46,10 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
     await admin`alter role ${admin(appRole)} set session_replication_role = replica`;
     const connection = postgres(appUrl, { max: 1, onnotice: () => {} });
     try {
-      expect(await connection`select current_setting('session_replication_role') as mode,
-        has_parameter_privilege(current_user, 'session_replication_role', 'SET') as "canSet"`).toEqual([{ mode: "replica", canSet: false }]);
+      expect(
+        await connection`select current_setting('session_replication_role') as mode,
+        has_parameter_privilege(current_user, 'session_replication_role', 'SET') as "canSet"`,
+      ).toEqual([{ mode: "replica", canSet: false }]);
       await check(connection);
     } finally {
       await connection.end();

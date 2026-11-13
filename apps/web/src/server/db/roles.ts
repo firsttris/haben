@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 
 type Reader = postgres.Sql | postgres.TransactionSql;
+const REPLICA_PROBLEM = "Der Replikationsmodus dieser App-Sitzung ist replica; die normalen Sperr- und Audit-Trigger sind ausgeschaltet.";
 
 export interface DatabaseAccessInfo {
   role: string;
@@ -13,11 +14,13 @@ interface Identity {
   role: string;
   loginRole: string;
   database: string;
+  replicationMode: string;
 }
 
 /** Eine echte Anmeldung statt SET ROLE: RESET ROLE darf keinen Eigentümerzugang eröffnen. */
 async function identity(sql: Reader): Promise<Identity> {
-  const [row] = await sql<Identity[]>`select current_user as role, session_user as "loginRole", current_database() as database`;
+  const [row] = await sql<Identity[]>`select current_user as role, session_user as "loginRole", current_database() as database,
+    current_setting('session_replication_role') as "replicationMode"`;
   return row!;
 }
 
@@ -60,6 +63,7 @@ async function accessFor(sql: Reader, who: Identity): Promise<DatabaseAccessInfo
         and c.relkind in ('r', 'p', 'v', 'f') and has_table_privilege(r.oid, c.oid, 'TRIGGER')) as triggers`;
   const problems: string[] = [];
   if (who.role !== who.loginRole) problems.push("Die Sitzung verwendet einen Rollenwechsel statt einer eigenen App-Anmeldung.");
+  if (who.replicationMode === "replica") problems.push(REPLICA_PROBLEM);
   if (rights!.admin) {
     problems.push("Die Anmeldung oder eine erreichbare Rolle hat administrative Datenbankrechte.");
   } else if (rights!.owner) {
@@ -86,6 +90,8 @@ export async function checkApplicationConnection(owner: postgres.Sql, applicatio
   if (app.role !== app.loginRole || app.loginRole === migration.loginRole) {
     throw new Error("App und Migration müssen unterschiedliche echte Datenbankanmeldungen verwenden.");
   }
+  // Login-Defaults wirken auch ohne SET-Recht: https://www.postgresql.org/docs/18/sql-alterrole.html
+  if (app.replicationMode === "replica") throw new Error(REPLICA_PROBLEM);
   const [backend] = await owner<{ pid: number }[]>`select pg_backend_pid() as pid`;
   // Dieselbe Datenbank muss die bereits gehaltene Migrationssperre sehen, auch über einen anderen Verbindungsweg.
   // pg_locks ist ohne Eigentümer-/Superuserrechte lesbar: https://www.postgresql.org/docs/18/view-pg-locks.html
