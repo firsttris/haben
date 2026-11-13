@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firmenSicht, parseFirmen } from "./firmen.ts";
+import { andereFirmen, parseFirmen } from "./firmen.ts";
 
 const LISTE = "Studio Nord|https://nord.example.de; Werkstatt Süd|https://sued.example.de/ ;";
 
@@ -70,30 +70,28 @@ describe("parseFirmen", () => {
   });
 });
 
-describe("firmenSicht", () => {
-  it("zeigt dem Inhaber die eigene Firma und die übrigen zum Wechseln", () => {
-    expect(firmenSicht(LISTE, "https://nord.example.de", "inhaber")).toEqual({
-      aktuell: "Studio Nord",
-      andere: [{ name: "Werkstatt Süd", url: "https://sued.example.de" }],
-    });
+describe("andereFirmen", () => {
+  it("gibt dem Inhaber die übrigen Firmen zum Wechseln, ohne die eigene", () => {
+    expect(andereFirmen(LISTE, "https://nord.example.de", "inhaber")).toEqual([{ name: "Werkstatt Süd", url: "https://sued.example.de" }]);
   });
 
-  it("zeigt der Steuerberatung nur den Namen der eigenen Firma, nicht die übrigen", () => {
-    expect(firmenSicht(LISTE, "https://nord.example.de", "steuerberatung")).toEqual({ aktuell: "Studio Nord", andere: [] });
+  it("gibt nichts, wenn nur die eigene Firma in der Liste steht", () => {
+    expect(andereFirmen("Studio Nord|https://nord.example.de", "https://nord.example.de/", "inhaber")).toEqual([]);
+  });
+
+  it("gibt der Steuerberatung nichts", () => {
+    expect(andereFirmen(LISTE, "https://nord.example.de", "steuerberatung")).toEqual([]);
   });
 
   it("listet alle zum Wechseln, wenn die eigene Adresse fehlt", () => {
-    expect(firmenSicht(LISTE, "https://dritte.example.de", "inhaber")).toEqual({
-      aktuell: null,
-      andere: [
-        { name: "Studio Nord", url: "https://nord.example.de" },
-        { name: "Werkstatt Süd", url: "https://sued.example.de" },
-      ],
-    });
+    expect(andereFirmen(LISTE, "https://dritte.example.de", "inhaber")).toEqual([
+      { name: "Studio Nord", url: "https://nord.example.de" },
+      { name: "Werkstatt Süd", url: "https://sued.example.de" },
+    ]);
   });
 
-  it("zeigt ohne oder mit ungültiger Angabe nichts", () => {
-    expect(firmenSicht(undefined, "https://nord.example.de", "inhaber")).toEqual({ aktuell: null, andere: [] });
-    expect(firmenSicht("kaputt", "https://nord.example.de", "inhaber")).toEqual({ aktuell: null, andere: [] });
+  it("gibt ohne oder mit ungültiger Angabe nichts", () => {
+    expect(andereFirmen(undefined, "https://nord.example.de", "inhaber")).toEqual([]);
+    expect(andereFirmen("kaputt", "https://nord.example.de", "inhaber")).toEqual([]);
   });
 });
