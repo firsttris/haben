@@ -56,15 +56,6 @@
   filter: drop-shadow(0 1.2rem 3.2rem rgb(0 0 0 / 22%));
 }
 
-/* Das Archiv ist eine lange Seite: nur ihr oberer Teil im Format der anderen Bilder, unten ausgeblendet, weil der
-   Rahmen im Bild dort abgeschnitten ist */
-.md-typeset .showcase-shot--crop img {
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
-  object-position: top;
-  mask-image: linear-gradient(to bottom, #000 80%, transparent);
-}
-
 .md-typeset .showcase-phone img {
   max-width: 16rem;
   margin: 0 auto;

@@ -252,6 +252,8 @@ test("Umsatzsteuer, Auswertungen und Archiv", async () => {
   await go("/auswertungen");
   await shot("auswertungen");
   await go("/archiv");
+  // Der obere Teil für die Startseite der Doku, mit eigenem Rahmen; die ganze Seite für die übrigen Seiten
+  await shot("archiv-oben");
   await shot("archiv", true);
 });
 
