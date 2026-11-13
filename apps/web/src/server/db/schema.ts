@@ -1895,6 +1895,13 @@ export const documents = pgTable(
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
     privateShare: smallint("private_share").notNull().default(0),
     /**
+     * Gutschrift erstattet bereits Bezahltes (#786), etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
+     * schon bezahlte Rechnung: Die Vorsteuerminderung wird nach § 17 Abs. 1 Satz 2 und 8 UStG erst gezogen, wenn das Geld
+     * zurückkommt oder verrechnet wird, und steht bis dahin auf dem Zwischenkonto. Ausdrückliche Angabe, nicht aus dem
+     * Zahlungsstand abgeleitet. Nur an Gutschriften (negativer Beleg).
+     */
+    erstattetBezahltes: boolean("erstattet_bezahltes").notNull().default(false),
+    /**
      * § 13b (eu, drittland) oder innergemeinschaftlicher Erwerb (ig_erwerb, § 1a UStG): Die Steuer schuldest du selbst.
      * Die Beträge tragen die selbst berechnete Steuer, gezahlt wird nur netto (gross = net).
      */

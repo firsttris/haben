@@ -352,6 +352,33 @@ Die Zahlung selbst buchst du im Bankabgleich: Verbindlichkeiten an Bank (siehe [
 
 Bist du in den Einstellungen als Kleinunternehmer nach § 19 UStG eingetragen, ziehst du keine Vorsteuer ab. Haben bucht dann den Bruttobetrag auf das Aufwandskonto, ohne Vorsteuerzeile und mit dem Steuerschlüssel `keineVSt`. Im Beispiel oben stünden 119,00 € auf 4964 bzw. 6837. Ob ein Beleg mit oder ohne Vorsteuerabzug gebucht wurde, hält Haben beim Buchen am Beleg fest. Spätere Auswertungen bleiben so richtig, auch wenn sich die Einstellung ändert.
 
+### Gutschrift für schon Bezahltes
+
+Eine Gutschrift mindert entweder ein noch offenes Entgelt (Storno, Preisnachlass vor der Zahlung) oder eines, das du
+schon bezahlt hast (Guthaben aus einer Jahresabrechnung, Bonus). Der Unterschied entscheidet, **wann** die Vorsteuer
+berichtigt wird, nicht die Versteuerungsart: Ist und Soll regeln nach § 20 UStG nur die Umsatzsteuer auf deine eigenen
+Umsätze, der Vorsteuerabzug hängt nicht an der Zahlung. Bei einem schon bezahlten Entgelt ist die Berichtigung erst
+fällig, wenn das Geld zurückkommt oder verrechnet wird (§ 17 Abs. 1 Satz 2 und 8 UStG).
+
+Deshalb setzt du an der Gutschrift den Haken **Erstattet bereits Bezahltes**. Er steht nur an negativen Belegen. Haben
+bucht die Vorsteuerminderung dann nicht im Belegmonat auf die Vorsteuer, sondern auf ein Zwischenkonto, mit
+Steuerschlüssel und Bemessungsgrundlage:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 4964 Software und Lizenzen | 6837 Software und Lizenzen | | 100,00 |
+| 1548 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 1434 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | | 19,00 |
+| 1600 Verbindlichkeiten | 3300 Verbindlichkeiten | 119,00 | |
+
+Das Konto steht wie „Umsatzsteuer nicht fällig“ (1766/1761) auf der Erlösseite in keiner Kennzahl: Kz 66 mindert erst
+die Umbuchung beim Ausgleich. Ohne den Haken bleibt alles wie bisher, die Gutschrift mindert die Vorsteuer im
+Belegmonat. Den Haken setzt du ausdrücklich; Haben leitet ihn nicht aus dem Zahlungsstand ab, denn der kann sich nach
+dem Belegdatum noch ändern.
+
+Ein gemeldeter Zeitraum nimmt die Angabe nicht mehr an: Steht der Belegmonat schon in einer abgegebenen Voranmeldung
+oder ist das Jahr abgeschlossen, lehnt Haben das Speichern und das Buchen ab. Das Ausgleichen einer solchen Gutschrift
+bucht den Anteil noch nicht vom Zwischenkonto auf die Vorsteuer um; das folgt.
+
 ## Belege nacheinander prüfen
 
 Nach einem Import liegen oft viele Belege auf „Zu prüfen“. Damit du sie ohne Umweg über die Liste abarbeitest, steht oben in der Detailansicht **‹ Vorheriger**, die Position („3 von 17“) und **Nächster ›**. Die Reihenfolge ist die der Liste: offene zuerst, dann nach Belegdatum.

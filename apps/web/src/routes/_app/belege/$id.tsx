@@ -327,6 +327,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [category, setCategory] = useState(doc.category ?? "");
   const [payment, setPayment] = useState(doc.payment);
   const [privateShare, setPrivateShare] = useState(doc.privateShare ? String(doc.privateShare) : "");
+  // Gutschrift erstattet bereits Bezahltes (#786): die Vorsteuerminderung wartet auf den Ausgleich
+  const [erstattetBezahltes, setErstattetBezahltes] = useState(doc.erstattetBezahltes);
   // Angaben zur Anlage bei Kategorie „anlage“; Vorschläge laut AfA-Tabelle
   const [assetName, setAssetName] = useState(doc.asset?.name ?? "");
   const [assetKind, setAssetKind] = useState<AssetKind>(doc.asset?.kind ?? "edv");
@@ -474,6 +476,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           payment,
           note,
           privateShare: privateShareValue,
+          // Nur an einer Gutschrift sinnvoll; ein positiver Beleg schickt immer „nein“ (#786)
+          erstattetBezahltes: gross !== null && gross < 0 ? erstattetBezahltes : false,
           reverseCharge,
           currency: currencyCode,
           exchangeRate: foreign ? exchangeRate : null,
@@ -1013,6 +1017,19 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <input type="radio" name="payment" checked={payment === "kasse"} onChange={() => touch(setPayment)("kasse")} />
           Bar aus der Kasse (Zeile im Kassenbuch)
         </label>
+        {/* Nur an einer Gutschrift: sie mindert ein schon bezahltes Entgelt, die Vorsteuer wartet auf den Ausgleich */}
+        {gross !== null && gross < 0 && (
+          <div>
+            <label className="checkbox">
+              <input type="checkbox" checked={erstattetBezahltes} onChange={(e) => touch(setErstattetBezahltes)(e.target.checked)} />
+              Erstattet bereits Bezahltes (Guthaben aus einer Jahresabrechnung, Bonus)
+            </label>
+            <span className="small muted">
+              Dann mindert die Gutschrift die Vorsteuer erst, wenn das Geld zurückkommt oder verrechnet wird; bis dahin steht sie auf dem Zwischenkonto (SKR03
+              1548, SKR04 1434). Ohne Haken mindert sie die Vorsteuer im Belegmonat.
+            </span>
+          </div>
+        )}
         {data.paymentHint && (
           <span className="small">
             Bisher{" "}

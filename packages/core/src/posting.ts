@@ -25,6 +25,13 @@ export const ACCOUNTS = {
     ust: { 1900: "1776", 700: "1771" },
     ustNichtFaellig: { 1900: "1766", 700: "1761" },
     vorsteuer: { 1900: "1576", 700: "1571" },
+    /**
+     * Zwischenkonto für die Vorsteuer einer Gutschrift, die bereits Bezahltes erstattet (#786): Die Berichtigung wird nach
+     * § 17 Abs. 1 Satz 2 und 8 UStG erst gezogen, wenn das Geld zurückkommt oder verrechnet wird. DATEV-Kontenrahmen 2026,
+     * SKR03 1548 „Vorsteuer in Folgeperiode/im Folgejahr abziehbar“ (sonstige Vermögensgegenstände; kein Automatikkonto,
+     * keine eigene Kennzahl, also nicht in Kz 66).
+     */
+    vorsteuerNochNichtAbziehbar: "1548",
     /** § 13b: selbst geschuldete Umsatzsteuer und die Vorsteuer daraus */
     ustRc: "1787",
     vorsteuerRc: "1577",
@@ -79,6 +86,8 @@ export const ACCOUNTS = {
     ust: { 1900: "3806", 700: "3801" },
     ustNichtFaellig: { 1900: "3816", 700: "3811" },
     vorsteuer: { 1900: "1406", 700: "1401" },
+    /** Zwischenkonto wie SKR03 1548; DATEV-Kontenrahmen 2026, SKR04 1434 „Vorsteuer in Folgeperiode/im Folgejahr abziehbar“ */
+    vorsteuerNochNichtAbziehbar: "1434",
     ustRc: "3837",
     vorsteuerRc: "1407",
     /** Innergemeinschaftlicher Erwerb (DATEV-Kontenrahmen SKR04 2026; 3802 und 1402 ohne Satz, für 7 %) */
@@ -206,6 +215,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1771": "Umsatzsteuer 7 %",
     "1776": "Umsatzsteuer 19 %",
     "1787": "Umsatzsteuer nach § 13b UStG",
+    "1548": "Vorsteuer in Folgeperiode/im Folgejahr abziehbar",
     "1572": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb",
     "1574": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 %",
     "1772": "Umsatzsteuer aus innergemeinschaftlichem Erwerb",
@@ -248,6 +258,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "3801": "Umsatzsteuer 7 %",
     "3806": "Umsatzsteuer 19 %",
     "3837": "Umsatzsteuer nach § 13b UStG",
+    "1434": "Vorsteuer in Folgeperiode/im Folgejahr abziehbar",
     "1402": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb",
     "1404": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 %",
     "3802": "Umsatzsteuer aus innergemeinschaftlichem Erwerb",
@@ -431,10 +442,21 @@ export function documentPosting(
    * Beim innergemeinschaftlichen Erwerb (ig_erwerb) ebenso, auf die Konten der Erwerbsteuer und Erwerbsvorsteuer.
    */
   reverseCharge: SelfAssessedTax | null = null,
+  /**
+   * Gutschrift erstattet bereits Bezahltes (#786): Die Vorsteuerminderung wird nicht im Belegmonat gezogen, sondern erst
+   * mit der Erstattung, Verrechnung oder Ausbuchung (§ 17 Abs. 1 Satz 2 und 8 UStG), und steht bis dahin auf dem
+   * Zwischenkonto. Nur an Gutschriften (negativer Beleg); ohne die Angabe bleibt alles wie bisher.
+   */
+  erstattetBezahltes = false,
 ): PostingLine[] {
   // Privat genutzt ist bei einer GmbH keine Entnahme, sondern Arbeitslohn oder verdeckte Gewinnausschüttung
   if (privateShare !== 0 && isKapitalgesellschaft(rechtsform)) throw new RangeError("Privatanteil gibt es nur im Einzelunternehmen");
   const accounts = ACCOUNTS[kontenrahmen];
+  if (erstattetBezahltes) {
+    if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
+    if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
+    if (category === "einfuhrumsatzsteuer") throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls");
+  }
   if (category === "einfuhrumsatzsteuer")
     return einfuhrumsatzsteuerPosting(totals, kontenrahmen, rechtsform, payment, vorsteuerAbzug, privateShare, reverseCharge);
   const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
@@ -474,7 +496,11 @@ export function documentPosting(
     }
     const code = inputTaxCode(rate);
     if (base !== 0) lines.push(side(expense, base, true, code));
-    if (tax !== 0) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, true, code));
+    if (tax !== 0) {
+      // Mit der Angabe bleibt die Vorsteuerminderung auf dem Zwischenkonto, mit Steuerschlüssel und Bemessungsgrundlage
+      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[vatRate(rate)];
+      lines.push(side(konto, tax, true, code));
+    }
   }
   // Der private Teil ist eine Entnahme; privat bezahlt heben sich Einlage und Entnahme insoweit auf
   if (privatePart !== 0) lines.push(side(accounts.privatentnahmen, privatePart, true, null));

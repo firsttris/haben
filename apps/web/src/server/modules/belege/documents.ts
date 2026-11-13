@@ -35,7 +35,7 @@ import { documentOwnAccountProblems, loadOwnAccountNumbers } from "../eigene-kon
 import { contactRoleProblem, loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
+import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { fileInUse } from "../../db/file-in-use.ts";
 import { today } from "../../today.ts";
@@ -73,6 +73,12 @@ export const documentInputSchema = z.object({
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
   privateShare: z.number().int().min(0).max(100).default(0),
+  /**
+   * Gutschrift erstattet bereits Bezahltes (#786): etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
+   * schon bezahlte Rechnung. Die Vorsteuerminderung wird dann erst mit der Erstattung oder Verrechnung gezogen
+   * (§ 17 Abs. 1 Satz 2 und 8 UStG) und steht bis dahin auf dem Zwischenkonto. Nur an Gutschriften.
+   */
+  erstattetBezahltes: z.boolean().default(false),
   /** § 13b oder innergemeinschaftlicher Erwerb: Steuer schuldest du selbst; die Beträge tragen die selbst berechnete Steuer */
   reverseCharge: z.enum(SELF_ASSESSED_TAX_KEYS).nullable().default(null),
   /** Nur bei Kategorie „anlage“ */
@@ -151,6 +157,18 @@ export function euroAmounts(input: {
 }
 
 export type DocumentInput = z.input<typeof documentInputSchema>;
+
+/**
+ * Warum „erstattet bereits Bezahltes“ an diesem Beleg nicht geht; null = in Ordnung. Die Angabe sagt, was die Gutschrift
+ * mindert, und wird ausdrücklich gesetzt, nie aus dem Zahlungsstand abgeleitet: Der kann sich nach dem Belegdatum noch
+ * ändern, und die Voranmeldung des Belegmonats ist dann womöglich schon abgegeben (#786).
+ */
+function erstattetBezahltesProblem(summen: { gross: Cents }, reverseCharge: string | null, category?: string | null): string | null {
+  if (summen.gross >= 0) return "„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg";
+  if (reverseCharge) return "„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb";
+  if (category === "einfuhrumsatzsteuer") return "„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls";
+  return null;
+}
 
 /** Kurs eines Fremdwährungsbelegs: Monat laut Belegdatum (siehe resolveExchangeRate) */
 function resolveRate(
@@ -495,6 +513,16 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
     if (kontoProblem) throw new DocumentError(kontoProblem);
     const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
     const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
+    if (parsed.erstattetBezahltes) {
+      const problem = erstattetBezahltesProblem(totalsOf(amounts, parsed.reverseCharge), parsed.reverseCharge, parsed.category);
+      if (problem) throw new DocumentError(problem);
+      // Dieselbe Sperre wie bei jeder Änderung am gebuchten Beleg: Ein gemeldeter Zeitraum bleibt unberührt (#786)
+      if (!previous.erstattetBezahltes && parsed.documentDate && (await periodReported(tx, parsed.documentDate))) {
+        throw new DocumentError(
+          "Der Belegmonat ist schon gemeldet; die Vorsteuerminderung ließe sich nach § 17 Abs. 1 Satz 2 UStG nicht mehr in ihm ziehen. Lass die Angabe weg oder nimm ein Belegdatum im laufenden Zeitraum.",
+        );
+      }
+    }
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
     if (amounts.length > 0) {
       await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
@@ -691,6 +719,14 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
     issues.push(...einfuhrumsatzsteuerIssues({ taxes: rows }, !company.kleinunternehmer, doc.privateShare, doc.reverseCharge));
   }
   if (splits.some((s) => s.category === "einfuhrumsatzsteuer")) issues.push("Die Einfuhrumsatzsteuer lässt sich nicht mit anderen Kategorien aufteilen");
+  // Gutschrift, die bereits Bezahltes erstattet (#786): nur an einer Gutschrift und nur im noch nicht gemeldeten Zeitraum
+  if (doc.erstattetBezahltes) {
+    const problem = erstattetBezahltesProblem(totalsOf(amounts, doc.reverseCharge), doc.reverseCharge, doc.category);
+    if (problem) issues.push(problem);
+    else if (doc.documentDate && (await periodReported(tx, doc.documentDate))) {
+      issues.push("Der Belegmonat ist schon gemeldet; die Vorsteuerminderung nach § 17 Abs. 1 Satz 2 UStG lässt sich nicht mehr in ihm ziehen");
+    }
+  }
   // Eigene Sachkonten (#270): Kontenrahmen oder Kategorie können sich seit dem Speichern geändert haben; das Konto selbst darf archiviert sein
   const gespeichert = { beleg: doc.ownAccountId, zeilen: splits.map((s) => s.ownAccountId) };
   issues.push(...(await documentOwnAccountProblems(tx, doc, splits, gespeichert)).map((p) => p.replace(/.$/, "")));
