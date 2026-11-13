@@ -1,4 +1,11 @@
-import { advanceBalanceDifference, advanceVatDifference, invoicePaymentPosting, totalsFromTaxes } from "@haben/core";
+import {
+  advanceBalanceDifference,
+  advanceReportingPosting,
+  advanceUsesPayments,
+  advanceVatDifference,
+  invoicePaymentPosting,
+  totalsFromTaxes,
+} from "@haben/core";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
@@ -57,18 +64,22 @@ export async function withAdvanceVatChange<T>(tx: Tx, invoiceId: string | null, 
   const result = await work();
   for (const [i, original] of originals.entries()) {
     const after = await loadAdvanceVatPlan(original, tx);
-    const changes = advanceVatDifference(before[i]!.changes, after.changes);
+    const changes = advanceVatDifference(before[i]!.postingChanges, after.postingChanges);
     const balanceChanges = advanceBalanceDifference(before[i]!.balanceChanges, after.balanceChanges);
     if (!changes.length && !balanceChanges.length) continue;
     const books = await openBooks(tx);
     for (const { date, shares } of changes) {
+      const lines = advanceUsesPayments(after.original.taxTreatment)
+        ? invoicePaymentPosting(totalsFromTaxes(shares), 0, books.kontenrahmen, "ist", shares, after.original.taxTreatment)
+        : advanceReportingPosting(shares, books.kontenrahmen, after.original.taxTreatment);
+      if (!lines.length) continue;
       await post(tx, books, {
         date,
         description: `Umsatzsteuer Anzahlung ${after.original.number}`,
         sourceType: "invoice",
         sourceId: original.id,
         // Nur Steuerumbuchung, Bank/Kasse und Forderung bleiben in der normalen Zahlungsbuchung.
-        lines: invoicePaymentPosting(totalsFromTaxes(shares), 0, books.kontenrahmen, "ist", shares, after.original.taxTreatment),
+        lines,
       });
     }
     for (const { date, lines } of balanceChanges) {

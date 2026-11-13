@@ -1177,24 +1177,27 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   );
 
   const versteuerung = await invoicePostingMode(invoice, tx);
-  const booking =
+  const bookings =
     invoice.advanceAccounting === "deferred"
       ? await advanceInvoicePosting(invoice, totals, company.kontenrahmen, tx)
-      : {
-          date: await invoiceVatDate(invoice, tx),
-          // Übernommene Erlöse stehen in den alten Büchern; auch spätere Korrektur-Stornos folgen deren Ursprung.
-          lines: (await correctsLegacyInvoice(tx, corrects))
-            ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
-            : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
-        };
-  if (booking?.lines.length)
-    await post(tx, company, {
-      date: booking.date,
-      description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
-      sourceType: "invoice",
-      sourceId: id,
-      lines: booking.lines,
-    });
+      : [
+          {
+            date: await invoiceVatDate(invoice, tx),
+            // Übernommene Erlöse stehen in den alten Büchern; auch spätere Korrektur-Stornos folgen deren Ursprung.
+            lines: (await correctsLegacyInvoice(tx, corrects))
+              ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
+              : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
+          },
+        ];
+  for (const booking of bookings)
+    if (booking.lines.length)
+      await post(tx, company, {
+        date: booking.date,
+        description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
+        sourceType: "invoice",
+        sourceId: id,
+        lines: booking.lines,
+      });
   // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
   await syncQuoteBilling(tx, quoteIds);
 

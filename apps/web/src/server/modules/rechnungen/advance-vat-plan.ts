@@ -2,6 +2,7 @@ import {
   advanceBalancePlan,
   advanceUsesPayments,
   advanceVatPlan,
+  advanceVatDifference,
   recordedTaxShares,
   type AdvanceBalanceChange,
   type AdvanceBalanceEvent,
@@ -79,7 +80,9 @@ async function performanceEvents(original: Invoice, q: Db | Tx, taxes: ReturnTyp
       // https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
       // Steuerzeitpunkt: https://www.gesetze-im-internet.de/ustg_1980/__13.html
       if (original.advanceAccounting === "deferred") balanceEvents.push({ date, performance: 1 });
-      if ((await taxes.companyMode(invoice)) === "soll") events.push({ date, performance: 1 });
+      if (!advanceUsesPayments(original.taxTreatment) || (await taxes.companyMode(invoice)) === "soll") {
+        events.push({ date: advanceUsesPayments(original.taxTreatment) ? date : await taxes.date(invoice), performance: 1 });
+      }
       continue;
     }
     if ((await taxes.companyMode(invoice)) !== "soll") continue;
@@ -97,6 +100,8 @@ export interface ManagedAdvancePlan {
   original: Invoice;
   invoiceIds: Set<string>;
   changes: AdvanceVatChange[];
+  /** Sonderumsätze: normale Ausbuchungsbasis abziehen, damit deren Neutralisierung nicht doppelt gemeldet wird. */
+  postingChanges: AdvanceVatChange[];
   balanceChanges: AdvanceBalanceChange[];
 }
 
@@ -117,10 +122,21 @@ export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db |
   }
   const total = totals.get(original.id)!.taxes;
   const [company] = await q.select({ kontenrahmen: schema.company.kontenrahmen }).from(schema.company).where(eq(schema.company.id, 1));
+  // Sonderumsätze verwenden denselben Plan, aber keine Zahlungsereignisse (§ 18b UStG).
+  const special = original.advanceAccounting === "deferred" && ["reverse_charge", "ig_lieferung", "drittland"].includes(original.taxTreatment);
+  const changes = advanceUsesPayments(original.taxTreatment)
+    ? advanceVatPlan(total, [...events, ...performance.vat])
+    : special
+      ? advanceVatPlan(total, [...events.filter((event) => !event.paid), ...performance.vat])
+      : [];
+  const normalWriteOffs = events.flatMap((event) =>
+    event.writtenOff?.length ? [{ date: event.date, shares: event.writtenOff.map((share) => ({ ...share, base: -share.base, tax: -share.tax })) }] : [],
+  );
   return {
     original,
     invoiceIds: new Set(invoices.map((i) => i.id)),
-    changes: advanceUsesPayments(original.taxTreatment) ? advanceVatPlan(total, [...events, ...performance.vat]) : [],
+    changes,
+    postingChanges: special ? advanceVatDifference(normalWriteOffs, changes) : changes,
     balanceChanges:
       original.advanceAccounting === "deferred"
         ? advanceBalancePlan(total, [...events, ...performance.balance], company!.kontenrahmen, original.taxTreatment)
@@ -136,7 +152,8 @@ export async function advanceVatPlans(q: Db | Tx, year: number, taxes = invoiceT
   // Historie je Quartal ausrechnen: Nur Kandidaten-IDs ermitteln, dann deren zusammenhängenden Plan laden.
   const candidates = await q.execute<{ id: string }>(sql`with recursive family(root_id, id) as (
     select id, id from invoices where advance_type = 'anzahlung' and status = 'final'
-      and tax_treatment in ('regulaer', 'steuerfrei', 'ausfuhr')
+      and (tax_treatment in ('regulaer', 'steuerfrei', 'ausfuhr')
+        or (advance_accounting = 'deferred' and tax_treatment in ('reverse_charge', 'ig_lieferung', 'drittland')))
     union all select f.root_id, i.id from family f join invoices i on i.corrects_id = f.id where i.status = 'final'
   ), relevant as (
     select f.root_id from family f join invoices i on i.id = f.id where i.issue_date >= ${start} and i.issue_date < ${end}
@@ -148,6 +165,7 @@ export async function advanceVatPlans(q: Db | Tx, year: number, taxes = invoiceT
       join invoices i on i.id = l.invoice_id and i.status = 'final'
       left join invoices c on c.corrects_id = i.id and c.kind = 'storno' and c.status = 'final'
       where (coalesce(i.service_to, i.service_from, i.issue_date) >= ${start} and coalesce(i.service_to, i.service_from, i.issue_date) < ${end})
+        or (i.issue_date >= ${start} and i.issue_date < ${end})
         or (c.issue_date >= ${start} and c.issue_date < ${end})
   ) select distinct root_id as id from relevant`);
   if (!candidates.length) return [];

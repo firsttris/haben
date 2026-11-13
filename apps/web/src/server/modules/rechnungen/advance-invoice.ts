@@ -1,7 +1,7 @@
-import { invoicePosting, type InvoiceTotals, type Kontenrahmen } from "@haben/core";
+import { advanceReportingPosting, invoicePosting, type InvoiceTotals, type Kontenrahmen } from "@haben/core";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
-import { invoicePostingMode, invoiceTaxReader } from "./invoice-tax.ts";
+import { invoicePostingMode, invoiceTaxReader, invoiceVatDate } from "./invoice-tax.ts";
 
 type Invoice = typeof schema.invoices.$inferSelect;
 
@@ -40,8 +40,17 @@ export async function unbilledAdvanceRequest(invoice: Invoice, date: string, tx:
  */
 export async function advanceInvoicePosting(invoice: Invoice, totals: InvoiceTotals, frame: Kontenrahmen, tx: Tx) {
   const original = await invoiceTaxReader(tx).original(invoice);
-  if (original.advanceType === "anzahlung" || invoice.replacesInvoiceId || (invoice.kind === "storno" && original.variant === "schluss")) return null;
+  if (original.advanceType === "anzahlung" || invoice.replacesInvoiceId || (invoice.kind === "storno" && original.variant === "schluss")) return [];
   const lines = invoicePosting(totals, frame, await invoicePostingMode(invoice, tx), invoice.taxTreatment);
-  if (!lines.length) return null;
-  return { date: invoice.kind === "rechnung" ? (invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate) : invoice.issueDate, lines };
+  if (!lines.length) return [];
+  const date = invoice.kind === "rechnung" ? (invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate) : invoice.issueDate;
+  const reporting = advanceReportingPosting(totals.taxes, frame, invoice.taxTreatment);
+  // Erlös und Meldung können unterschiedliche Monate haben (IGL, § 18b UStG). Der bestehende Steuerleser bestimmt
+  // den Meldezeitpunkt; dieselben gespeicherten Centanteile tragen die Basis ohne erneute Erlös-/Zahlungsbuchung.
+  return reporting.length
+    ? [
+        { date, lines: lines.map((line) => ({ ...line, taxCode: null })) },
+        { date: await invoiceVatDate(invoice, tx), lines: reporting },
+      ]
+    : [{ date, lines }];
 }

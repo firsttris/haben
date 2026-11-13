@@ -1,6 +1,6 @@
 import type { AdvanceVatEvent } from "./anzahlung-steuer.ts";
 import { totalsFromTaxes } from "./invoice.ts";
-import { ACCOUNTS, invoicePosting, invoiceWriteOffPosting, side, type Kontenrahmen, type PostingLine, type TaxShare } from "./posting.ts";
+import { ACCOUNTS, invoicePosting, invoiceWriteOffPosting, revenueTaxCode, side, type Kontenrahmen, type PostingLine, type TaxShare } from "./posting.ts";
 import type { TaxTreatment } from "./treatment.ts";
 import type { Cents } from "./money.ts";
 
@@ -41,6 +41,24 @@ export interface AdvanceBalanceEvent extends AdvanceVatEvent {
 export interface AdvanceBalanceChange {
   date: string;
   lines: PostingLine[];
+}
+
+/**
+ * EU-/Drittlandumsätze werden unabhängig vom Zufluss gemeldet. Die Nettoabgrenzung bleibt steuerneutral;
+ * diese reine Meldebasis verwendet die vorhandenen Schlüssel und gespeicherten Anteile ohne zweite Geldbewegung.
+ * EU-Leistungen: Leistungsmonat; IGL: Rechnungsmonat (§ 18b UStG), https://www.gesetze-im-internet.de/ustg_1980/__18b.html
+ */
+export function advanceReportingPosting(shares: readonly TaxShare[], frame: Kontenrahmen, treatment: TaxTreatment): PostingLine[] {
+  if (treatment !== "reverse_charge" && treatment !== "ig_lieferung" && treatment !== "drittland") return [];
+  return shares
+    .filter((share) => share.base !== 0)
+    .map((share) => ({
+      account: ACCOUNTS[frame].forderungen,
+      debit: 0,
+      credit: 0,
+      taxCode: revenueTaxCode(share.rate, treatment),
+      basis: share.base,
+    }));
 }
 
 /** Datierte Differenz zweier eigener Abgrenzungspläne, ohne Rücklesen des Journals. */

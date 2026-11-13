@@ -45,7 +45,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     ).id;
   });
 
-  async function chain(treatment: "reverse_charge" | "ig_lieferung" | "drittland", skonto = false, date = "2027-01-20") {
+  async function chain(treatment: "reverse_charge" | "ig_lieferung" | "drittland", skonto = false, date = "2027-01-20", performed = "2027-01-20") {
     if (treatment === "drittland") await sql`update contacts set land='US', ust_id='' where id=${contactId}`;
     const request = await invoices.finalizeInvoice(
       actor,
@@ -67,18 +67,18 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     );
     expect(request.advanceAccounting).toBe("deferred");
     await bank.createCashInvoiceEntry(actor, { invoiceId: request.id, date: "2026-12-12", amount: skonto ? 29_400 : 30_000, skonto }, "2026-12-12");
-    const final = await finalInvoice(request.id, treatment, date);
+    const final = await finalInvoice(request.id, treatment, date, performed);
     return { request, final };
   }
 
-  async function finalInvoice(requestId: string, treatment: "reverse_charge" | "ig_lieferung" | "drittland", date = "2027-01-20") {
+  async function finalInvoice(requestId: string, treatment: "reverse_charge" | "ig_lieferung" | "drittland", date = "2027-01-20", performed = "2027-01-20") {
     const final = await invoices.finalizeInvoice(
       actor,
       (
         await invoices.createDraft(actor, {
           contactId,
           issueDate: date,
-          serviceFrom: "2027-01-20",
+          serviceFrom: performed,
           serviceTo: null,
           paymentTermDays: 14,
           format: "zugferd",
@@ -172,5 +172,20 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
       where e.date >= '2027-01-01' and e.date < '2027-02-01' and l.account='8125'`;
     expect(january!.revenue).toBe(100_000);
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
+
+  it("IGL: auch über den Jahreswechsel lädt das Meldejahr den vorherigen Anzahlungsanteil", async () => {
+    await chain("ig_lieferung", false, "2027-01-10", "2026-12-20");
+    const periods = await Promise.all(
+      [
+        { year: 2026, month: 12 },
+        { year: 2027, month: 1 },
+      ].map((period) => vat.computeVatFigures(period)),
+    );
+    expect(periods.map((period) => ({ journal: period.kz41, source: period.nebenbuecher?.kz41 }))).toEqual([
+      { journal: 0, source: 0 },
+      { journal: 100_000, source: 100_000 },
+    ]);
+    expect((await vat.zmOverview({ year: 2027, month: 41 })).zeilen).toEqual([{ ustId: "ATU12345678", art: "L", betrag: 100_000 }]);
   });
 });
