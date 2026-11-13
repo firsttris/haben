@@ -97,7 +97,8 @@ Im Router gibst du nichts frei. Stattdessen zeigt derselbe Name im Heimnetz auf 
   Ausnahme eingetragen ist.
 
 Das Zertifikat bleibt gültig, weil der Name derselbe ist. Die IP der Synology oder ein selbst signiertes Zertifikat
-reichen nicht: Der Browser warnt, Passkeys verweigert er, und die Anmeldung erwartet die Adresse aus `BETTER_AUTH_URL`.
+reichen nicht: Der Browser warnt, und Passkeys gehen nur unter dem Namen aus `BETTER_AUTH_URL`, siehe
+[Passkeys und Domain](installation.md#passkeys-und-domain).
 
 ### Auch aus dem Internet
 
