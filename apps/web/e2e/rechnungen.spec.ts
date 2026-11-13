@@ -1824,6 +1824,8 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   const context = await browser.newContext({ storageState: await page.context().storageState() });
   const axePage = await context.newPage();
   await axePage.goto(new URL("/csv-import?art=kontakte", page.url()).toString());
+  // Erst nach der Hydration wählen; sonst verwirft React die gewählte Datei
+  await axePage.waitForLoadState("networkidle");
   await axePage.getByLabel("CSV-Datei").setInputFiles([{ name: "kontakte.csv", mimeType: "text/csv", buffer: Buffer.from(kontakte, "latin1") }]);
   await axePage.getByRole("button", { name: "Vorschau" }).click();
   await expect(axePage.getByRole("region", { name: "Vorschau" })).toContainText("mit Fehlern");

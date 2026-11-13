@@ -232,6 +232,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-actions > .banner { flex: 0 0 100%; }
+/* Knopfzeilen (#394, DESIGN.md): Hauptaktion zuletzt im Markup; im Dialog rechtsbündig, sonst an der Kante der Felder */
+dialog .form-footer { justify-content: flex-end; }
 /* Ein Hauch Schatten hebt die Karte vom Grund ab; auf Dunkel trägt ihn kaum etwas, dort hält die Linie die Kante */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-xs); }
 /* Kachel als Link (Übersicht): sieht aus wie eine Karte, der Rahmen zeigt beim Überfahren, dass sie klickbar ist */
@@ -802,6 +804,9 @@ fieldset.card > legend + * { clear: both; }
 .kpi-value { white-space: nowrap; }
 
 @media (max-width: 720px) {
+  /* Knopfzeilen: Knöpfe füllen die Zeile, die Hauptaktion steht rechts im Daumenbereich; kleine Knöpfe in Tabellen bleiben.
+     Vor dem Kopf, damit dessen gleich spezifische Regeln gewinnen: dort scrollt die Zeile seitlich statt zu schrumpfen */
+  .actions > .btn:not(.btn-sm) { flex: 1 1 auto; }
   /* Kopf kompakt, weil er stehen bleibt: Titel oben, Aktionen darunter in einer Zeile, die seitlich scrollt, statt
      mehrerer Zeilen voller Knöpfe. Wenige Knöpfe füllen die Breite wie bisher. 4px Innenabstand halten den Fokusrahmen
      in der scrollenden Zeile sichtbar */

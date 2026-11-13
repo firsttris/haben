@@ -327,12 +327,12 @@ function PreviewCard({
         </p>
       )}
       <div className="actions">
-        <button type="button" className="btn btn-primary" disabled={busy || taken === 0 || preview.problem !== null} onClick={onImport}>
-          {taken} {taken === 1 ? meta.singular : meta.plural} übernehmen
-        </button>
         <Link to={meta.list} className="btn">
           {meta.back}
         </Link>
+        <button type="button" className="btn btn-primary" disabled={busy || taken === 0 || preview.problem !== null} onClick={onImport}>
+          {taken} {taken === 1 ? meta.singular : meta.plural} übernehmen
+        </button>
       </div>
     </section>
   );

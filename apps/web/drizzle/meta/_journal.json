@@ -1562,6 +1562,20 @@
       "when": 1794562426655,
       "tag": "0222_leistungen_abgerechnet_sperre",
       "breakpoints": true
+    },
+    {
+      "idx": 223,
+      "version": "7",
+      "when": 1794575514495,
+      "tag": "0223_anzahlung_bilanz",
+      "breakpoints": true
+    },
+    {
+      "idx": 224,
+      "version": "7",
+      "when": 1794575516087,
+      "tag": "0224_anzahlung_rechtsform",
+      "breakpoints": true
     }
   ]
 }

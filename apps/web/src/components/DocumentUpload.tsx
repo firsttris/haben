@@ -86,6 +86,9 @@ export function DocumentUpload({ aiAvailable }: { aiAvailable: boolean }) {
           {aiAvailable ? ", andere Belege liest die KI vor; du bestätigst immer selbst." : "; andere Belege füllst du von Hand aus."}
         </p>
         <div className="actions" style={{ justifyContent: "center" }}>
+          <UploadButton className="btn camera-only" accept="image/*" capture="environment" disabled={busy} inputLabel="Foto aufnehmen" onFiles={send}>
+            Foto aufnehmen
+          </UploadButton>
           <UploadButton
             className="btn btn-primary"
             multiple
@@ -96,9 +99,6 @@ export function DocumentUpload({ aiAvailable }: { aiAvailable: boolean }) {
             onFiles={send}
           >
             Dateien auswählen
-          </UploadButton>
-          <UploadButton className="btn camera-only" accept="image/*" capture="environment" disabled={busy} inputLabel="Foto aufnehmen" onFiles={send}>
-            Foto aufnehmen
           </UploadButton>
         </div>
       </div>

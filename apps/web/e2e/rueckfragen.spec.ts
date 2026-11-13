@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Locator, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { currentDay, day, USER } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
@@ -404,6 +404,98 @@ test("Passkey entfernen fragt nach", async () => {
   await bestaetigen(page, "Entfernen");
   await expect(page.getByText("Passkey entfernt.")).toBeVisible();
   await expect(karte.getByText("Laptop")).toHaveCount(0);
+});
+
+test("Bankabgleich: Formular Verrechnen hat die Hauptaktion zuletzt (#394)", async () => {
+  await go("/bank");
+  await page.locator('input[type=file][aria-label="Kontoauszugsdateien"]').setInputFiles([
+    {
+      name: "zweitpruefung.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        auszug([
+          ["PAYPAL *EBAY DE", "Zweitpruefung", "-2,00"],
+          ["PAYPAL *EBAY DE", "Rueckbuchung Zweitpruefung", "2,00"],
+        ]),
+      ),
+    },
+  ]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await go("/bank");
+  await page.getByRole("link", { name: /Rueckbuchung Zweitpruefung/ }).click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await panel.getByRole("button", { name: "Mit Gegenumsatz verrechnen" }).click();
+  const form = panel.getByRole("form", { name: "Mit Gegenumsatz verrechnen" });
+  await expect(form.locator(".actions > .btn")).toHaveText(["Abbrechen", "Verrechnen"]);
+});
+
+/** Fokus auf das letzte Bedienelement vor der Knopfzeile der Karte: von dort führt Tab auf den ersten Knopf der Zeile */
+async function fokusVorKnopfzeile(karte: Locator) {
+  await karte.evaluate((form) => {
+    const zeile = form.querySelector(".actions:has(> .btn-primary)")!;
+    const vorher = [...form.querySelectorAll<HTMLElement>("input, select, textarea, button, summary, a[href]")].filter(
+      (el) => el.checkVisibility() && zeile.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING,
+    );
+    vorher.at(-1)!.focus();
+  });
+}
+
+/** Tab aus dem letzten Feld, dann Enter: Das darf einen gespeicherten Zugang nicht ohne Rückfrage löschen (#394, #404) */
+async function tabUndEnterBehaeltZugang(karte: Locator, knopfNurMitZugang: string) {
+  await fokusVorKnopfzeile(karte);
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  // Die Meldung steht erst da, wenn der Server fertig ist; ein neuer Seitenaufruf zeigt dann, was wirklich gespeichert ist
+  await expect(karte.getByRole("status").or(page.getByRole("dialog"))).toBeVisible();
+  await page.keyboard.press("Escape");
+  await go("/einstellungen?bereich=email");
+  await expect(karte.getByRole("button", { name: knopfNurMitZugang })).toBeVisible();
+}
+
+test("Belege per E-Mail: Tab aus dem letzten Feld und Enter entfernt das Postfach nicht (#394)", async () => {
+  await go("/einstellungen?bereich=email");
+  const karte = page.getByRole("form", { name: "Belege per E-Mail" });
+  await karte.getByLabel("IMAP-Server").fill("127.0.0.1");
+  await karte.getByLabel("Benutzername", { exact: true }).fill("max");
+  await karte.getByLabel("Passwort", { exact: true }).fill("geheim");
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status")).toHaveText("Postfach gespeichert.");
+  await go("/einstellungen?bereich=email");
+  await tabUndEnterBehaeltZugang(page.getByRole("form", { name: "Belege per E-Mail" }), "Jetzt abrufen");
+});
+
+test("E-Mail-Versand: Tab aus dem letzten Feld und Enter entfernt den Zugang nicht (#394)", async () => {
+  await go("/einstellungen?bereich=email");
+  const karte = page.getByRole("form", { name: "E-Mail-Versand" });
+  await karte.getByLabel("SMTP-Server", { exact: true }).fill("127.0.0.1");
+  await karte.getByLabel("Port", { exact: true }).fill("1");
+  await karte.getByLabel("Benutzername", { exact: true }).fill("max");
+  await karte.getByLabel("Passwort", { exact: true }).fill("geheim");
+  await karte.getByLabel("Absender", { exact: true }).fill("rechnung@nordlicht.example");
+  await karte.getByLabel("Erinnerungen an", { exact: true }).fill("max@nordlicht.example");
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status")).toHaveText("E-Mail-Zugang gespeichert.");
+  await go("/einstellungen?bereich=email");
+  await tabUndEnterBehaeltZugang(page.getByRole("form", { name: "E-Mail-Versand" }), "Test-Mail senden");
+});
+
+test("Postfach und E-Mail-Zugang entfernen fragen nach (#394, #404)", async () => {
+  await go("/einstellungen?bereich=email");
+  for (const [form, knopf, titel, meldung] of [
+    ["Belege per E-Mail", "Jetzt abrufen", "Postfach entfernen?", "Postfach entfernt."],
+    ["E-Mail-Versand", "Test-Mail senden", "E-Mail-Zugang entfernen?", "E-Mail-Zugang entfernt."],
+  ] as const) {
+    const karte = page.getByRole("form", { name: form });
+    const entfernen = karte.getByRole("button", { name: "Entfernen", exact: true });
+    await entfernen.click();
+    await abbrechen(titel);
+    await expect(karte.getByRole("button", { name: knopf })).toBeVisible();
+    await entfernen.click();
+    await bestaetigen(page, "Entfernen");
+    await expect(karte.getByRole("status")).toHaveText(meldung);
+    await expect(karte.getByRole("button", { name: knopf })).toHaveCount(0);
+  }
 });
 
 test("Stichjahr vorziehen fragt nach; danach rechnet das laufende Jahr aus dem Journal", async () => {
