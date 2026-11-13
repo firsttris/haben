@@ -131,6 +131,27 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
     }, 30_000);
   }
 
+  it("Voranmeldung und Nebenbücher bleiben im Monat der Zahlung gleich, die Gegenzeile steht im Juli", async () => {
+    const invoice = await marchInvoice();
+    const { allocationId } = await marchPayment(invoice.id);
+    const vat = await import("../umsatzsteuer/index.ts");
+    const abgleich = await import("../auswertungen/abgleich.ts");
+    const maerz = await vat.computeVatFigures({ year: 2026, month: 3 });
+    expect(maerz.kz81).toBe(100_000);
+
+    await bank.reverseAllocation(actor, allocationId, "2026-07-10");
+
+    // Der März behält Zahlung und Steuer; vor dem eigenen Datum der Gegenzeile zogen die Nebenbücher sie hier ab und
+    // der Abgleich meldete den März als Abweichung zum Journal
+    const maerzNachher = await vat.computeVatFigures({ year: 2026, month: 3 });
+    expect({ kz81: maerzNachher.kz81, tax81: maerzNachher.tax81 }).toEqual({ kz81: 100_000, tax81: 19_000 });
+    expect(maerzNachher.nebenbuecher?.kz81).toBe(100_000);
+    const juli = await vat.computeVatFigures({ year: 2026, month: 7 });
+    expect({ kz81: juli.kz81, tax81: juli.tax81 }).toEqual({ kz81: -100_000, tax81: -19_000 });
+    expect(juli.nebenbuecher?.kz81).toBe(-100_000);
+    for (const month of [3, 7]) expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month })).zeilen)).toEqual([]);
+  }, 60_000);
+
   it("ohne Datum gilt heute", async () => {
     const invoice = await marchInvoice();
     const { allocationId } = await marchPayment(invoice.id);

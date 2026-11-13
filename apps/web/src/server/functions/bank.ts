@@ -280,7 +280,11 @@ export const reverseWriteOffFn = createServerFn({ method: "POST" })
   });
 
 /** Aufhebung einer Zuordnung: Pflicht ist der Tag, an dem sie erklärt wird (#782); er ist nicht rückdatiert */
-const reverseAllocationSchema = z.object({ id: z.uuid(), date: z.iso.date() });
+const reverseAllocationSchema = z.object({
+  id: z.uuid(),
+  // In der Zukunft aufheben kann niemand; den Rückfall auf das Buchungsdatum verhindert der Tag selbst
+  date: z.iso.date().refine((d) => d <= today(), "Das Datum der Aufhebung liegt in der Zukunft."),
+});
 
 export const reverseTransactionAllocation = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

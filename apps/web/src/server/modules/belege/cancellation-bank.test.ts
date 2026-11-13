@@ -157,7 +157,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         await expect(cancellation.cancelDocument(actor, id, {}, "2026-10-05")).rejects.toThrow(/Zuordnung auf/);
         expect(await counts()).toEqual(before);
       });
-      it(`abgeschlossenes Zahlungsjahr: gesamte Aktion ohne Teilstorno zurückrollen (${profile})`, async () => {
+      it(`abgeschlossenes Zahlungsjahr: die Gegenbuchungen fallen ins offene Jahr, 2026 bleibt unberührt (${profile})`, async () => {
         await reset(kr, vat);
         await sql`update company set rechtsform = 'gmbh' where id = 1`;
         const id = await receipt();
@@ -165,10 +165,20 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         await bank.allocateWithRest("fixture", { transactionId: tx, target: { kind: "document", documentId: id }, rest: "skontoErhalten" });
         const allocationIds = await ids(tx);
         await sql`insert into year_closings (year) values (2026)`;
-        const before = await counts();
-        await expect(cancellation.cancelDocument(actor, id, { allocationIds }, "2027-01-05")).rejects.toThrow(/2026 ist abgeschlossen/);
-        expect(await counts()).toEqual(before);
-        expect(await ids(tx)).toEqual(allocationIds);
+        // Storno im Folgejahr: Der Beleg bleibt im abgeschlossenen Jahr stehen, die Gegenzeilen wirken 2027 (#782).
+        // Früher trugen sie das Datum der Zahlung und liefen deshalb in die Sperre des abgeschlossenen Jahres.
+        const geschlossen = async () =>
+          (
+            await sql`select count(*)::int as n, coalesce(sum(l.debit), 0)::int as debit, coalesce(sum(l.credit), 0)::int as credit
+            from journal_lines l join journal_entries e on e.id = l.entry_id where e.date < '2027-01-01'`
+          )[0];
+        const vorher = await geschlossen();
+        await cancellation.cancelDocument(actor, id, { allocationIds }, "2027-01-05");
+        expect(await geschlossen()).toEqual(vorher);
+        expect((await sql`select date from journal_entries where date >= '2027-01-01'`).every((r) => r.date === "2027-01-05")).toBe(true);
+        expect(await ids(tx)).toEqual([]);
+        expect(Number((await sql`select coalesce(sum(amount), 0) as amount from allocations where document_id = ${id}`)[0]!.amount)).toBe(0);
+        expect((await sql`select id from document_cancellations where document_id = ${id}`).length).toBe(1);
       });
     }
   it("nach der Rückfrage hinzugekommene Zahlung verlangt eine neue Bestätigung", async () => {

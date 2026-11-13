@@ -1329,8 +1329,9 @@ export async function allocateSplit(actor: string, input: SplitInput): Promise<v
  * berichtigen. Den Belegstorno bedient reverseAllocationIn mit dem Datum aus cancellationDate.
  */
 export async function reverseAllocation(actor: string, allocationId: string, date = today()): Promise<void> {
+  // Liegt die Aufhebung in der Zukunft, weist der Weg über die Oberfläche sie ab (server/functions/bank.ts): Ein
+  // vorgehaltener Auszug kann selbst in der Zukunft liegen, dort wäre ein Datum in seinem Zeitraum richtig.
   const heute = today();
-  if (date > heute) throw new BankError("Das Datum der Aufhebung liegt in der Zukunft.");
   await withActor(actor, async (tx) => {
     // Die Zuordnung steht buchhalterisch am Buchungsdatum ihres Umsatzes; früher kann die Aufhebung nicht wirken.
     // Liegt die Zahlung selbst in der Zukunft (vorgehaltener Auszug), ist heute schon der früheste Tag.
@@ -1430,6 +1431,8 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
     amount: -allocation.amount,
     splitId: allocation.splitId,
     reversesId: allocation.id,
+    // Gegenzeile trägt ihren eigenen Tag (#782): Sie wirkt, wenn aufgehoben wird, nicht am Tag des Umsatzes
+    date,
     taxShares: negatedShares(allocation.taxShares),
     taxSharesInvoiceId: allocation.taxSharesInvoiceId,
   });
