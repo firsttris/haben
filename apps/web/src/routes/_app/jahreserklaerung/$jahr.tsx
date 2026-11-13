@@ -293,10 +293,10 @@ function EuerSection({ data }: { data: Data }) {
                       <td className="num small muted">
                         {a.gruppe === "kfz" ? "Kfz" : a.gruppe === "buero" ? "Büro" : a.gruppe === "sammelposten" ? "Sammelposten" : "Andere"}
                       </td>
-                      <td className="num mono">{formatEuro(a.buchwertBeginn)}</td>
-                      <td className="num mono">{formatEuro(a.afa)}</td>
-                      <td className="num mono">{a.abgang ? formatEuro(a.abgang) : "–"}</td>
-                      <td className="num mono">{formatEuro(a.buchwertEnde)}</td>
+                      <td className="num">{formatEuro(a.buchwertBeginn)}</td>
+                      <td className="num">{formatEuro(a.afa)}</td>
+                      <td className="num">{a.abgang ? formatEuro(a.abgang) : "–"}</td>
+                      <td className="num">{formatEuro(a.buchwertEnde)}</td>
                     </tr>
                   ))}
                 </tbody>

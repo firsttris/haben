@@ -57,6 +57,10 @@
   /* Unterkante des stehenden Kopfs: darunter beginnen Unternavigation, Belegansicht, Tabellenköpfe und Sprungziele */
   --below-head: calc(var(--nav-height) + var(--page-head-height));
   --main-pad-x: 40px;
+  /* Feiner Schatten unter Karten und Knöpfen, Fläche beim Überfahren, Dauer der Übergänge */
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.05);
+  --hover: var(--line-soft);
+  --fade: 0.15s ease;
 }
 @media (pointer: coarse) { :root { --control-h: 44px; } }
 /* Safari auf dem iPhone vergrößert die Seite beim Fokus in ein Feld mit weniger als 16 px Schrift und bleibt vergrößert:
@@ -221,7 +225,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-actions > .banner { flex: 0 0 100%; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+/* Ein Hauch Schatten hebt die Karte vom Grund ab; auf Dunkel trägt ihn kaum etwas, dort hält die Linie die Kante */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-xs); }
 /* Kachel als Link (Übersicht): sieht aus wie eine Karte, der Rahmen zeigt beim Überfahren, dass sie klickbar ist */
 .card-link { color: inherit; text-decoration: none; }
 .card-link:hover { border-color: var(--line-strong); }
@@ -239,14 +244,21 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 
 /* Zweizeilige Beschriftungen schieben die Zahl nicht aus der Reihe */
 .kpi-label { font-size: 13px; color: var(--muted); min-height: 2.6em; }
-.kpi-value { font-family: var(--mono); font-size: 24px; font-weight: 500; }
+.kpi-value { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-h); padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; }
-.btn:hover { color: var(--ink); border-color: var(--muted); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-h); padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; box-shadow: var(--shadow-xs); transition: background-color var(--fade), border-color var(--fade), color var(--fade), box-shadow var(--fade); }
+/* Beim Überfahren färbt sich die Fläche, nicht nur der Rahmen */
+.btn:hover:not(:disabled) { color: var(--ink); background: var(--hover); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+/* Nebenaktionen in Werkzeugleisten (Blättern, Vorschau): ohne Rahmen, Fläche erst beim Überfahren */
+.btn-ghost { border-color: transparent; background: transparent; box-shadow: none; }
+.btn-ghost:hover:not(:disabled) { border-color: transparent; }
+/* Quadratisch, nur mit Symbol; der Name steht in aria-label */
+.btn-icon { width: var(--control-h); padding: 0; }
+.btn-icon.btn-sm { width: 36px; }
 /* Nur für „+ Zeile hinzufügen“ */
-.btn-dashed { border-style: dashed; background: transparent; }
+.btn-dashed { border-style: dashed; background: transparent; box-shadow: none; }
 /* Suchfeld mit Trefferliste (Combobox.tsx); die Pfeile und Maße wie bei den Auswahlfeldern */
 .field-label { align-self: flex-start; }
 /* Feldname links neben dem Feld statt darüber, etwa „Konto“ neben der Auswahl */
@@ -254,7 +266,6 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .field-inline > .field-label { align-self: center; }
 .combobox { position: relative; min-width: 0; }
 .combobox input { width: 100%; min-height: var(--control-h); padding: 0 36px 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); background-image: var(--select-arrow); background-position: right 14px center; background-size: 12px 8px; background-repeat: no-repeat; text-overflow: ellipsis; }
-.combobox input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .combobox input[aria-invalid="true"] { border-color: var(--danger-ink); }
 .combobox input:disabled { opacity: 0.7; }
 .line-row .combobox input { padding: 0 36px 0 8px; }
@@ -272,13 +283,14 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .combobox-popup > .combobox-note:first-child { border-top: 0; }
 /* Löschen, Entfernen, Stornieren, Widerrufen */
 .btn-danger { color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger-ink) 45%, var(--line-strong)); }
-.btn-danger:hover { color: var(--danger-ink); border-color: var(--danger-ink); background: var(--danger-soft); }
+.btn-danger:hover:not(:disabled) { color: var(--danger-ink); border-color: var(--danger-ink); background: var(--danger-soft); }
 /* Bestätigung von Unumkehrbarem im ConfirmDialog: voll in Rot; die Schrift nimmt die Fläche, weil --danger-ink im dunklen Theme hell ist */
 .btn-destructive { background: var(--danger-ink); border-color: var(--danger-ink); color: var(--surface); }
-.btn-destructive:hover { background: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); border-color: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); color: var(--surface); }
+.btn-destructive:hover:not(:disabled) { background: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); border-color: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); color: var(--surface); }
 /* Klein: in Bannern, Tabellenzeilen und Trefferkarten */
 .btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+/* Gesperrt: Die Hover-Regeln oben gelten nur für :not(:disabled); Zeiger-Ereignisse bleiben, damit ein title den Grund nennen kann */
+.btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
 .field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--muted); }
 .field input { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
@@ -290,7 +302,10 @@ select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--
 .field input:is([type="date"], [type="month"])::-webkit-date-and-time-value { text-align: start; }
 /* Lange Texte wachsen mit dem Inhalt, wo der Browser das kann */
 textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
-.field input:focus-visible, select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.field input, select, textarea, .combobox input { transition: border-color var(--fade), box-shadow var(--fade); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Bei Feldern liegt der Fokusring auf dem eigenen Rahmen statt als zweiter Rahmen daneben */
+.field input:focus-visible, select:focus-visible, textarea:focus-visible, .combobox input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
 .field-error { color: var(--danger-ink); font-size: 13px; }
 /* Einstellungen: Bereiche links, Inhalt rechts in einer Spalte */
 .settings-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -409,7 +424,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .kz-row.head { min-height: 32px; border-top: 0; font-size: 13px; color: var(--muted); }
 .kz-row.total { border-top: 2px solid var(--ink); font-weight: 600; }
 .kz-num { font-family: var(--mono); font-size: 13px; color: var(--muted); }
-.kz-amount { text-align: right; font-family: var(--mono); font-size: 14px; }
+.kz-amount { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
 .kz-row input { width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; font-family: var(--mono); font-size: 14px; text-align: right; color: var(--ink); background-color: var(--surface); }
 .kz-row input:read-only { border-color: transparent; background: transparent; }
 .kz-row input[aria-invalid="true"] { border-color: var(--danger-ink); }
@@ -447,7 +462,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .table-row { display: grid; gap: 12px; align-items: center; min-height: 52px; padding: 0 12px; border-top: 1px solid var(--line-soft); color: var(--ink); text-decoration: none; }
 a.table-row:hover { background: var(--ground); color: var(--ink); }
 .table-row.head { min-height: 32px; border-top: 0; font-size: 13px; color: var(--muted); }
-.table-row.head .num { font-family: var(--sans); font-size: 12px; }
+.table-row.head .num { font-size: 13px; }
 .invoice-cols { grid-template-columns: 110px minmax(0, 1fr) 100px 130px 120px; }
 .cash-cols { grid-template-columns: 48px 96px minmax(0, 1fr) 120px 120px 150px; padding-top: 8px; padding-bottom: 8px; }
 .article-cols { grid-template-columns: minmax(0, 1fr) 160px 60px auto; }
@@ -462,7 +477,9 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .transfer-cols { grid-template-columns: 28px 96px minmax(0, 1.3fr) minmax(0, 1fr) 130px; padding-top: 8px; padding-bottom: 8px; }
 .row-check { width: 18px; height: 18px; accent-color: var(--accent); }
 .sepa-file-cols { grid-template-columns: 150px 110px minmax(0, 1fr) 130px auto; padding-top: 8px; padding-bottom: 8px; }
-.num { text-align: right; font-family: var(--mono); font-size: 13px; }
+/* Beträge in der Grundschrift mit gleich breiten Ziffern: stehen bündig untereinander, ohne Schreibmaschinenschrift */
+.num { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+.amount { font-family: var(--sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
 @media (max-width: 760px) {
   /* Kunde links, Betrag rechts, Status darunter rechts */
   .invoice-cols { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding-top: 8px; padding-bottom: 8px; }
@@ -661,7 +678,7 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 /* Im Fluss statt fest unten: Ein hoher eigener Fuß schiebt das Blatt länger, statt den Text zu verdecken */
 .paper-totals { display: grid; grid-template-columns: auto 120px; gap: 4px 16px; margin: 0 0 0 auto; }
 .paper-totals dt { text-align: right; color: var(--muted); }
-.paper-totals dd { margin: 0; text-align: right; font-family: var(--mono); }
+.paper-totals dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .paper-totals .strong { color: var(--ink); font-weight: 600; border-top: 1px solid var(--ink); padding-top: 4px; }
 .pdf-frame { width: 100%; height: var(--viewer-height); min-height: 520px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
 .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; margin: 0; }
@@ -886,7 +903,7 @@ summary { cursor: pointer; min-height: 24px; }
 .plan-share { display: flex; gap: 6px; }
 .plan-share input { flex: 1 1 auto; min-width: 0; }
 .plan-share select { flex: 0 0 auto; width: auto; }
-.plan-amount { align-self: center; color: var(--muted); font-family: var(--mono); }
+.plan-amount { align-self: center; color: var(--muted); font-variant-numeric: tabular-nums; }
 /* Auswahl des Kunden im Angebot und Vorlagen in den Einstellungen */
 .choice-group { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .choice-group > legend:not(.visually-hidden) { padding: 0; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
