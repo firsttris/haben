@@ -10,7 +10,7 @@ description: >-
 Für ein Einzelunternehmen mit EÜR bietet sich der Wechsel zum **1. Januar** an: Das letzte Jahr bleibt in WISO, das neue beginnt in Haben. Kontakte, Artikel und Anlagen kannst du heute über selbst vorbereitete CSV-Dateien mit Vorschau übernehmen.
 
 > [!IMPORTANT]
-> Haben bietet als Rechtsform nur Einzelunternehmen, GmbH und UG an. Eine Partnerschaft ist damit derzeit nicht abgedeckt; richte sie nicht ersatzweise als Einzelunternehmen ein. GmbH und UG bilanzieren in Haben, dieser EÜR-Ablauf gilt für sie nicht. Bei einer anderen Rechtsform oder einem Wechsel der Gewinnermittlung klärst du zuerst die Eignung mit der Steuerberatung; siehe [Einrichtung](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug).
+> Haben bietet als Rechtsform nur Einzelunternehmen, GmbH und UG an. Eine Partnerschaft ist damit derzeit nicht abgedeckt; richte sie nicht ersatzweise als Einzelunternehmen ein. GmbH und UG bilanzieren in Haben, dieser EÜR-Ablauf gilt für sie nicht. Bei einem Wechsel der Gewinnermittlung klärst du zuerst die Eignung mit der Steuerberatung; siehe [Einrichtung](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug).
 
 ## Was heute geht
 
