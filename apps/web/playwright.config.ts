@@ -125,6 +125,7 @@ export default defineConfig({
         "beenden.spec.ts",
         "doku-startseite.spec.ts",
         "knoepfe.spec.ts",
+        "navigation-kontrast.spec.ts",
       ],
       use: chromium,
     },

@@ -16,7 +16,7 @@ Nur Testdaten zeigen, nie echte Belege, Steuernummern, IBANs oder Zugangsdaten: 
 - App starten: mit Bun `bun run dev`, sonst Dev-Container mit eigener Instanz (Skill `checks`, Schritt 2). Erstes Konto mit dem Einrichtungscode aus dem Log.
 - Testdaten so anlegen, dass die betroffene Ansicht etwas zeigt, und sich merken, wie (dieselben Daten für „nachher“).
 - Mit einem Browser-Werkzeug (Browserfenster der Session, Playwright o. Ä.) je betroffene Ansicht:
-  - helles und dunkles Theme (Einstellungen › Darstellung oder `prefers-color-scheme`);
+  - hell und dunkel: unten in der Navigation den Modus wählen oder vor dem Laden `localStorage` `haben-modus` auf `hell` bzw. `dunkel` setzen; `prefers-color-scheme` allein reicht nicht, der Standard ist „Hell“;
   - Desktop (etwa 1280 breit) und, wo es darauf ankommt, Handy (375 × 812);
   - nur der relevante Ausschnitt, wenn die Seite lang ist.
 - Dateien benennen: `<ansicht>-<hell|dunkel>-<desktop|handy>-vorher.png`, im Scratchpad ablegen, nicht im Repository von Haben.

@@ -1,13 +1,13 @@
 <!doctype html>
 <!-- Bild oben in der README, 1280 × 360 bei doppelter Auflösung. Aufbau nach einem Entwurf von Codex; der Slogan in IBM Plex Serif aus packages/einvoice/fonts, alles andere in Plex Sans wie die App.
-     Farben und Schriften wie in apps/web/src/styles.css: ohne Hash Wald (hell), mit #nacht das dunkle Theme.
+     Farben und Schriften wie in apps/web/src/styles.css: ohne Hash Wald (hell), mit #dunkel der dunkle Modus.
      Rendern: bun run docs:hero → docs/hero-hell.png und docs/hero-dunkel.png -->
 <html lang="de">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=1280, initial-scale=1">
   <title>Haben: Deine Bücher. Dein Server.</title>
-  <script>document.documentElement.classList.toggle("nacht", location.hash === "#nacht");</script>
+  <script>document.documentElement.classList.toggle("dunkel", location.hash === "#dunkel");</script>
   <style>
     @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
     @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
@@ -33,7 +33,7 @@
       --mono: "IBM Plex Mono", ui-monospace, monospace;
       --serif: "IBM Plex Serif", Georgia, serif;
     }
-    html.nacht {
+    html.dunkel {
       color-scheme: dark;
       --ink: #f4f4f5; --ink-2: #d4d4d8; --muted: #a1a1aa;
       --ground: #111113; --surface: #1a1a1d;
@@ -41,7 +41,7 @@
       --accent: #4cc29a; --accent-hover: #6dd0ad; --accent-ink: #7fd3b5;
       --accent-soft: #193a2f; --accent-tint: #162a23;
       --link: var(--accent-ink); --link-hover: var(--ink);
-      --brand: #3fa284; --nav: #111113; --nav-active: #232327; --nav-ink: #a1a1aa;
+      --brand: #3fa284; --nav: #111113; --nav-active: #232327; --nav-ink: #b4b4bb;
       --warn-ink: #f0bd8c; --warn-soft: #30241a; --warn-dot: #e08a3c;
       --info-ink: #a3c4ee; --info-soft: #1a2536;
       --danger-ink: #f2a8a8; --danger-soft: #371d1e;
