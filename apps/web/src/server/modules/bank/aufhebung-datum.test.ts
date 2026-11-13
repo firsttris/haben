@@ -111,6 +111,13 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
     sql`select e.id, e.date, e.description from journal_entries e join allocations a on a.id = e.source_id
         where e.source_type = 'allocation' and a.reverses_id = ${allocationId}`;
 
+  /** Morgen in Deutschland; für die Sperre „nicht in der Zukunft“ in der Server-Funktion */
+  function morgen(): string {
+    const tag = new Date(`${today()}T12:00:00Z`);
+    tag.setUTCDate(tag.getUTCDate() + 1);
+    return tag.toISOString().slice(0, 10);
+  }
+
   for (const kontenrahmen of KONTENRAHMEN) {
     it(`Aufhebung im Juli bucht im Juli, die Zeilen des März bleiben unverändert (${kontenrahmen})`, async () => {
       await setKontenrahmen(kontenrahmen);
@@ -372,5 +379,25 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
     expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(0);
     const [dezember] = await sql`select count(*)::int as n from journal_entries where date = '2026-11-02'`;
     expect(dezember?.n).toBeGreaterThan(0);
+  }, 30_000);
+
+  it("ein Datum in der Zukunft weist die Server-Funktion ab, ohne Gegenzeile", async () => {
+    const { reverseAllocationSchema } = await import("../../functions/bank.ts");
+    const invoice = await marchInvoice();
+    const { allocationId } = await marchPayment(invoice.id);
+    const geprueft = reverseAllocationSchema.safeParse({ id: allocationId, date: morgen() });
+    expect(geprueft.success).toBe(false);
+    expect(geprueft.error?.issues[0]?.message).toBe("Das Datum der Aufhebung liegt in der Zukunft.");
+    // Erst ein erfolgreicher Validator erreicht den Handler; der Aufruf entsteht hier also nicht
+    if (geprueft.success) await bank.reverseAllocation(actor, allocationId, geprueft.data.date);
+    expect(await sql`select id from allocations where reverses_id is not null`).toHaveLength(0);
+  }, 30_000);
+
+  it("ein Datum vor dem Buchungsdatum der Zahlung weist reverseAllocation ab, ohne Gegenzeile", async () => {
+    const invoice = await marchInvoice();
+    const { allocationId } = await marchPayment(invoice.id);
+    await expect(bank.reverseAllocation(actor, allocationId, "2026-03-19")).rejects.toThrow(/vor dem Buchungsdatum der Zahlung/);
+    expect(await sql`select id from allocations where reverses_id is not null`).toHaveLength(0);
+    expect(await sql`select id from journal_entries where reverses_id is not null`).toHaveLength(0);
   }, 30_000);
 });
