@@ -229,4 +229,14 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
     const abweichungen = abgleich.abgleichIssues(jahr).filter((i) => i.tone === "warn" && i.text.includes("Vorsteuer (Kz 66)"));
     expect(abweichungen).toEqual([]);
   }, 120_000);
+  it("eine später zugeordnete, frühere Teilerstattung verschiebt keinen Cent zwischen den Monaten", async () => {
+    await firma("SKR03", "ist");
+    const id = await beleg("2026-01-15", [{ taxRate: 1900, net: -10_000, tax: -1_900 }], { erstattetBezahltes: true, nummer: "GS-REIHE-1" });
+    // Erst der Auszug vom April, dann ein älterer vom Februar nachgereicht
+    await zahle("2026-04-20", "Teil April", 5_000, id);
+    await zahle("2026-02-20", "Teil Februar", 3_967, id);
+    await zahle("2026-05-20", "Rest Mai", 2_933, id);
+    const werte = await pruefeJahr(2026, 5);
+    expect(summe(werte)).toBe(-1_900);
+  }, 60_000);
 });
