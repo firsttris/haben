@@ -143,7 +143,7 @@ describe.skipIf(!testDatabaseUrl)("Wirksame Rollenmitgliedschaften (Postgres, #6
           if (privilege === "create") await tx`create table public.membership619_created (id integer)`;
           if (privilege === "temporary") await tx`create temp table membership619_temp (id integer)`;
           if (privilege === "replication") await tx`set local session_replication_role = replica`;
-          if (privilege === "files") expect(await tx`select pg_read_file('/etc/hostname') as hostname`).toHaveLength(1);
+          if (privilege === "files") expect(await tx`select pg_read_file('PG_VERSION') as version`).toHaveLength(1);
           if (privilege === "trigger")
             await tx`create trigger membership619_trigger before insert on public.journal_entries
           for each row execute function public.haben_audit()`;
