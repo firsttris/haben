@@ -71,7 +71,6 @@ export function nachbau() {
     if (eingabe !== undefined) eingaben.push({ aufruf, eingabe });
     if (programm !== "docker") return { code: 127, stdout: "", stderr: `${programm}: not found` };
     if (z.tot) return { code: 1, stdout: "", stderr: "permission denied while trying to connect to the Docker daemon socket" };
-    const text = args.join(" ");
     if (args[0] === "volume") return ok(z.volumen.join("\n"));
     if (args[0] === "network") {
       const netz = args.at(-1) ?? "";

@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { docker } from "./ausfuehren.ts";
 import { instanzen } from "./instanzen.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
-import { proxyDir } from "./proxy.ts";
+import { netzFuer, proxyDir } from "./proxy.ts";
 
 export interface NeuAngaben {
   name: string;
@@ -89,4 +89,11 @@ export async function pruefeTrennung(k: Kontext, name: string, domain: string): 
   if (volumes.code !== 0) abbrechen(DOCKER_TOT);
   const vorhanden = volumes.stdout.split("\n").filter((v) => v.trim() !== "");
   if (vorhanden.length > 0) abbrechen(`Es gibt schon Volumes des Compose-Projekts ${projekt} (${vorhanden.join(" ")}); bitte einen anderen Namen wählen.`);
+  // Im Netz der Instanz dürfen nur ihre App und der Proxy hängen; ein vorhandenes gehört einer gelöschten Instanz
+  // oder jemand anderem
+  const netz = netzFuer(name);
+  const netze = await docker(k, ["network", "ls", "--format", "{{.Name}}"]);
+  if (netze.code !== 0) abbrechen(DOCKER_TOT);
+  if (netze.stdout.split("\n").some((n) => n.trim() === netz))
+    abbrechen(`Das Netz ${netz} gibt es schon; nichts angelegt. Ist es von einer gelöschten Instanz übrig: docker network rm ${netz}`);
 }
