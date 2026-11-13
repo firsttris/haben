@@ -421,9 +421,13 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 
-Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu und baut den Caddy-Container neu auf; dabei sind alle Instanzen einige Sekunden nicht erreichbar.
+Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Das gilt für Docker unter Linux, das Bridge-Netze mit Firewall-Regeln voneinander trennt; Laufzeiten wie OrbStack trennen sie nicht, dort erreicht eine App die andere über deren IP-Adresse. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu und baut den Caddy-Container neu auf; dabei sind alle Instanzen einige Sekunden nicht erreichbar.
 
-Wer eine Instanz löscht, entfernt auch ihre Datei in `proxy/sites/` und ihr Netz: die beiden Einträge in `proxy/compose.override.yml` (war es das einzige Netz darin, die Datei), dann `docker compose up -d` in `proxy/` und `docker network rm haben-proxy-<name>`.
+Eine Instanz löschst du in dieser Reihenfolge:
+
+1. In ihrem Verzeichnis `docker compose down -v` (entfernt auch Datenbank und Belege), dann das Verzeichnis löschen.
+2. Ihre Datei in `proxy/sites/` und die beiden Einträge ihres Netzes in `proxy/compose.override.yml` entfernen; war es das einzige Netz darin, die Datei löschen.
+3. `docker compose up -d` in `proxy/`, dann `docker network rm haben-proxy-<name>`.
 
 `update` und `status` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
 
@@ -453,7 +457,7 @@ Optionen für `neu`:
 | `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy-<name>` der Instanz an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy). `docker network connect haben-proxy-<name> <proxy>` hält bis zum Neuaufbau des Proxy-Containers; dauerhaft steht das Netz in seiner Compose-Datei, wie unter [Von Hand](#von-hand) |
 | `--sso --oidc-issuer URL --oidc-client-id ID` | ausschließlich [Single Sign-on](installation-sso.md), mit Gruppen nur für diese Instanz (siehe unten); `--oidc-name` setzt den Anzeigenamen (Vorgabe Authelia). Dazu das Clientsecret aus genau einer Quelle (nächste Zeile) |
 | `--oidc-client-secret-file PFAD` oder `--oidc-client-secret-stdin` | das Clientsecret für `--sso`: aus einer Datei, die nur du lesen kannst, oder von der Standardeingabe (`pass show haben/firma1 \| bun … --oidc-client-secret-stdin`); ohne Pipe fragt das Werkzeug am Terminal danach und zeigt die Eingabe nicht an. Ein Zeilenumbruch am Ende zählt nicht dazu. Als Argument gibt es das Secret nicht: Es stünde in der Prozessliste und in der Shell-Historie |
-| `--nicht-starten` | legt nur die Dateien an, etwa um `.env` vor dem Start zu ergänzen. Den ersten Start machst du dann selbst: gemeinsamer Caddy bzw. Netz `haben-proxy-<name>`, Datenbank, App-Rolle, App; das Werkzeug nennt die Befehle, ebenso, wenn `neu` abbricht, bevor es die Rolle gibt |
+| `--nicht-starten` | legt nur die Dateien an, etwa um `.env` vor dem Start zu ergänzen. Den ersten Start machst du dann selbst: gemeinsamer Caddy bzw. Netz `haben-proxy-<name>`, Datenbank, App-Rolle, App; das Werkzeug nennt die Befehle und wo danach der Einrichtungscode steht (`docker compose logs app`). Die Befehle nennt es auch, wenn `neu` abbricht, bevor es die Rolle gibt |
 
 `ENCRYPTION_KEY` und `RESTIC_PASSWORD` jeder Instanz sicherst du wie bei einer einzelnen zusätzlich an einem zweiten Ort; ohne sie sind Zertifikat, Zugangsdaten und Backup nach einem Verlust des Servers nicht mehr zu öffnen. Weitere Einstellungen (Backup auf einem zweiten System, KI-Auslesung, Kontoabruf) trägst du danach in die `.env` der Instanz ein und startest sie mit `docker compose up -d` in ihrem Verzeichnis neu.
 
