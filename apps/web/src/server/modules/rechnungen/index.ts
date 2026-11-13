@@ -51,6 +51,7 @@ export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVat
 export { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
 export { advanceVatPlans } from "./advance-vat-plan.ts";
 export { invoicePaymentGroup, invoicePaymentGroups, paperCancellationIds } from "./advance-payment-group.ts";
+export { advanceReceivablesAt } from "./advance-receivables.ts";
 export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,

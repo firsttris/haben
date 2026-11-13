@@ -85,8 +85,10 @@ describe.skipIf(!testDatabaseUrl)("Neues Anzahlungsverfahren zum historischen St
     expect(stand.positions).toMatchObject([{ id: invoice.id, party: "Musterkunde GmbH", kind: "request", open: 35_700 }]);
     const reports = await import("../auswertungen/index.ts");
     expect(await reports.openPositions("2025-12-31")).toMatchObject({
-      receivables: [], receivablesTotal: 0,
-      advanceRequests: [{ id: invoice.id, open: 35_700 }], advanceRequestsTotal: 35_700,
+      receivables: [],
+      receivablesTotal: 0,
+      advanceRequests: [{ id: invoice.id, open: 35_700 }],
+      advanceRequestsTotal: 35_700,
     });
   });
 
@@ -116,9 +118,12 @@ describe.skipIf(!testDatabaseUrl)("Neues Anzahlungsverfahren zum historischen St
     expect(stands[3]!.positions.find((p) => p.originId === f.id)).toMatchObject({ id: r.id, kind: "receivable", dueDate: "2026-03-26", open: 73_300 });
     const reports = await import("../auswertungen/index.ts");
     expect(await reports.openPositions("2026-02-28")).toMatchObject({
-      receivables: [{ id: a.id, open: 23_800 }], receivablesTotal: 97_100,
-      unbilledReceivables: [{ id: f.id, open: 73_300 }], unbilledReceivablesTotal: 73_300,
-      advanceRequests: [], advanceRequestsTotal: 0,
+      receivables: [{ id: a.id, open: 23_800 }],
+      receivablesTotal: 97_100,
+      unbilledReceivables: [{ id: f.id, open: 73_300 }],
+      unbilledReceivablesTotal: 73_300,
+      advanceRequests: [],
+      advanceRequestsTotal: 0,
     });
     expect(await sql`select * from cash_entries order by number`).toEqual(unchanged);
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
