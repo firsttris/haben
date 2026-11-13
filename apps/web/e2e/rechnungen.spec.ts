@@ -2201,7 +2201,8 @@ test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschre
   await aendern.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Ansprechpartner gespeichert.")).toBeVisible();
   await karte.getByRole("button", { name: "Mara Beispielmann deaktivieren" }).click();
-  await expect(karte.getByText("Deaktiviert")).toBeVisible();
+  // exact: sonst trifft der Substring auch den Hinweis „Wer nicht mehr dabei ist, wird deaktiviert.“ (#881)
+  await expect(karte.getByText("Deaktiviert", { exact: true })).toBeVisible();
   expect(buyer(await (await page.request.get(`/api/rechnung/${id}/xml`)).text())).toContain("<ram:PersonName>Mara Beispiel</ram:PersonName>");
 
   // Eine deaktivierte Person wird im neuen Entwurf nicht mehr angeboten
