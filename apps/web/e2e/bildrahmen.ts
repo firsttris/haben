@@ -4,13 +4,14 @@ import type { Browser } from "@playwright/test";
  * Rahmen um die Bilder in README und Doku. Die Ränder der Screenshots sind fast so hell wie GitHub hell (#f4f5f2 auf
  * #ffffff) und fast so dunkel wie GitHub dunkel (#111113 auf #0d1117); ohne Rahmen verschwindet die Bildkante.
  * GitHub nimmt kein CSS an, deshalb steckt der Rahmen im PNG: feine Kante (dunkel hell wie .brand-mark-kante in
- * styles.css), weicher Schatten oder Schein, abgerundete Ecken und ein transparenter Rand, auf dem er ausläuft.
- * Hell und dunkel sind dadurch gleich groß. Die Doku zeichnet um diese Bilder keinen eigenen Rahmen (extra.css).
+ * styles.css), abgerundete Ecken und ein transparenter Rand; hell ein Schatten nach unten, damit das Bild über der
+ * Seite schwebt, dunkel ein Schein. Unten ist der Rand für den Schatten breiter; hell und dunkel sind gleich groß.
+ * Die Doku zeichnet um diese Bilder keinen eigenen Rahmen (extra.css).
  */
-export const RAHMEN_RAND = 24;
+export const RAHMEN_RAND = { oben: 24, seite: 32, unten: 48 };
 
 const RAHMEN = {
-  hell: "0 0 0 1px rgb(0 0 0 / 0.08), 0 4px 16px rgb(0 0 0 / 0.10)",
+  hell: "0 0 0 1px rgb(0 0 0 / 0.08), 0 12px 28px rgb(0 0 0 / 0.16)",
   dunkel: "0 0 0 1px rgb(255 255 255 / 0.16), 0 0 20px 1px rgb(255 255 255 / 0.08)",
 } as const;
 
@@ -30,12 +31,12 @@ export async function mitRahmen(browser: Browser, png: Buffer, modus: Modus, { s
   const w = width / scale;
   const h = height / scale;
   const page = await browser.newPage({
-    viewport: { width: w + 2 * RAHMEN_RAND, height: h + 2 * RAHMEN_RAND },
+    viewport: { width: w + 2 * RAHMEN_RAND.seite, height: h + RAHMEN_RAND.oben + RAHMEN_RAND.unten },
     deviceScaleFactor: scale,
   });
   try {
     await page.setContent(
-      `<body style="margin:0;background:transparent"><img alt="" style="display:block;margin:${RAHMEN_RAND}px;width:${w}px;height:${h}px;border-radius:${radius}px;box-shadow:${RAHMEN[modus]}" src="data:image/png;base64,${png.toString("base64")}"></body>`,
+      `<body style="margin:0;background:transparent"><img alt="" style="display:block;margin:${RAHMEN_RAND.oben}px ${RAHMEN_RAND.seite}px ${RAHMEN_RAND.unten}px;width:${w}px;height:${h}px;border-radius:${radius}px;box-shadow:${RAHMEN[modus]}" src="data:image/png;base64,${png.toString("base64")}"></body>`,
     );
     await page.locator("img").evaluate((img: HTMLImageElement) => img.decode());
     return await page.screenshot({ omitBackground: true, type: "png" });
