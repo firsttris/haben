@@ -191,7 +191,7 @@ export function AbgabeVermerken({
           <Field label="Übermittlungsprotokoll (PDF, optional)">
             {(control) => <FilePicker {...control} accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />}
           </Field>
-          <div className="actions">
+          <div className="actions form-footer">
             <button type="button" className="btn" disabled={busy} onClick={() => setOpen(false)}>
               Abbrechen
             </button>
