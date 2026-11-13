@@ -1534,6 +1534,13 @@
       "when": 1794521593045,
       "tag": "0218_zeichen_navigation",
       "breakpoints": true
+    },
+    {
+      "idx": 219,
+      "version": "7",
+      "when": 1794527959879,
+      "tag": "0219_anzahlung_bilanz",
+      "breakpoints": true
     }
   ]
 }
