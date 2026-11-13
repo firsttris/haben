@@ -40,7 +40,9 @@ function fokusSichtbarHalten(event: FocusEvent<HTMLDialogElement>) {
   const form = event.currentTarget.querySelector<HTMLElement>(":scope > form");
   const knopfzeile = form?.querySelector(":scope > .actions:last-child");
   const ziel = event.target;
-  if (!form || !knopfzeile || !(ziel instanceof Element) || knopfzeile.contains(ziel)) return;
+  // Das Formular selbst bekommt den Fokus, wenn es scrollt (Chrome macht Scrollbereiche fokussierbar, showModal() nimmt
+  // dann es statt des ersten Felds); dann nichts verschieben, sonst rutscht das erste Feld aus dem Bild
+  if (!form || !knopfzeile || !(ziel instanceof Element) || ziel === form || !form.contains(ziel) || knopfzeile.contains(ziel)) return;
   // Der FilePicker versteckt sein <input type="file">; zu sehen ist der Knopf daneben
   const sichtbar = (ziel.closest(".file-picker") ?? ziel).getBoundingClientRect();
   const unten = knopfzeile.getBoundingClientRect().top - 16;
