@@ -193,7 +193,7 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   const pruefwert = (await card.locator("code").textContent())!;
   expect(pruefwert).toMatch(/^Nr\. \d+ · [0-9a-f]{64}$/);
   await card.getByRole("button", { name: "Kette prüfen" }).click();
-  await expect(card.getByRole("status")).toContainText("Kette und Siegel sind unverändert");
+  await expect(card.getByRole("status")).toContainText("Kette, Siegel und Sperren sind unverändert");
   const field = card.getByLabel("Prüfwert aus Mail oder Jahresarchiv");
   await field.fill(pruefwert);
   await card.getByRole("button", { name: "Vergleichen" }).click();
