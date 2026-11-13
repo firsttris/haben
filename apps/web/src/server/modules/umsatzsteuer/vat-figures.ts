@@ -561,8 +561,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       }
     }
   }
-  // Erstattung oder Verrechnung einer Gutschrift: die Vorsteuer mindert sich im Monat des Vorgangs (§ 17 UStG), je
-  // Zahlung, Verrechnung und Ausbuchung ein Eintrag mit deren Datum (gutschrift.ts)
+  // Erstattung oder Verrechnung einer Gutschrift: die Vorsteuer mindert sich im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG),
+  // je Zahlung, Verrechnung und Ausbuchung ein Eintrag mit deren Datum (gutschrift.ts)
   inputTax.push(...(await gutschriftAnteile(period, q)));
   // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
   const reverseCharge: ReverseChargeSource[] = amounts
