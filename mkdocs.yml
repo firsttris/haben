@@ -39,34 +39,41 @@ nav:
       - Single Sign-on: installation-sso.md
       - Backup und Updates: installation-backup.md
       - Häufige Probleme: installation-probleme.md
+  - Einrichten:
       - Erste Schritte: einrichtung.md
       - ELSTER einrichten: einrichtung-elster.md
       - E-Mail-Versand: einrichtung-email.md
-  - Im Alltag:
+      - Zugang für die Steuerberatung: steuerberatung.md
+      - Barrierefreiheit und Tastatur: barrierefreiheit.md
+  - Verkauf:
       - Rechnungen und E-Rechnung: rechnungen.md
       - Zahlung und Mahnung: rechnungen-zahlung.md
-      - Eigene Belegvorlagen: belegvorlagen.md
       - Angebote: angebote.md
       - Kontakte: kontakte.md
+      - Leistungen und Zeiteinträge: leistungen.md
+      - Eigene Belegvorlagen: belegvorlagen.md
+  - Ausgaben und Bank:
       - Belege: belege.md
       - Pauschalen: pauschalen.md
-      - Leistungen und Zeiteinträge: leistungen.md
       - Kassenbuch: kasse.md
       - Anlagen und AfA: anlagen.md
       - Bankimport und Abgleich: bank.md
       - Zahlungsdienstleister: bank-zahlungsdienstleister.md
       - Steuerzahlungen und Darlehen: bank-steuern-darlehen.md
+  - Steuern und Auswertungen:
       - Umsatzsteuer-Voranmeldung: umsatzsteuer.md
-      - Finanzamt: finanzamt.md
-      - Fristen: fristen.md
       - Jahreserklärungen: jahreserklaerung.md
-      - GmbH und UG: gmbh.md
-      - Abschluss für GmbH und UG: gmbh-abschluss.md
+      - Auswertungen und Jahresexport: auswertungen.md
+      - Fristen: fristen.md
+      - Finanzamt: finanzamt.md
       - Lohn: lohn.md
       - Abgabe an ELSTER: elster-abgabe.md
       - Mein ELSTER mit Erweiterung: elster-mit-erweiterung.md
       - Mein ELSTER mit KI-Assistent: elster-mit-assistent.md
-      - Auswertungen und Jahresexport: auswertungen.md
+  - GmbH und UG:
+      - GmbH und UG: gmbh.md
+      - Abschluss für GmbH und UG: gmbh-abschluss.md
+  - Umzug und Import:
       - Umzug aus Lexoffice: lexoffice.md
       - Umzug aus sevDesk: sevdesk.md
       - Umzug aus BuchhaltungsButler: buchhaltungsbutler.md
@@ -74,11 +81,10 @@ nav:
       - Umzug aus WISO EÜR & Kasse: wiso.md
       - CSV-Import: csv-import.md
       - Belegimport: belegimport.md
+  - Schnittstellen:
       - KI-Assistenten (MCP): ki-assistenten.md
       - REST-API: api.md
       - Eigene Seiten: eigene-seiten.md
-      - Zugang für die Steuerberatung: steuerberatung.md
-      - Barrierefreiheit und Tastatur: barrierefreiheit.md
   - Hintergrund:
       - Buchhaltung in Haben: buchhaltung.md
       - Architektur: architektur.md
