@@ -201,8 +201,9 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
         const januar = await pruefeJahr(2027, 1);
         expect(januar[0]!.journal).toBe(-1_900);
 
-        // Über das Jahr abgezogen ist genau das, was erstattet oder verrechnet wurde
-        expect(summe(werte) + summe(januar)).toBe(-(7_018 + 570 + 9_850 + 1_757 + 1_900));
+        // Über das Jahr abgezogen ist genau das, was erstattet oder verrechnet wurde; die Rechnung im April bringt
+        // ihre eigene Vorsteuer von 9,50 € mit und bleibt dabei unberührt
+        expect(summe(werte) + summe(januar)).toBe(-(7_018 + 570 + 9_850 + 1_757 + 1_900) + 950);
       }, 120_000);
     }
   }
