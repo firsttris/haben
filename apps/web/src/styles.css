@@ -477,6 +477,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .service-cols { grid-template-columns: 90px minmax(0, 1fr) 90px 90px 100px auto; }
 .proof-cols { grid-template-columns: 90px minmax(0, 1fr) 90px; }
 .own-account-cols { grid-template-columns: 70px minmax(0, 1fr) minmax(0, 0.8fr) auto; }
+.own-account-rename input { flex: 1 1 140px; min-width: 0; }
 .contact-cols { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) 200px; }
 .table-row .row-title { font-weight: 500; color: var(--accent-ink); }
 .plan-cols { grid-template-columns: 60px repeat(5, minmax(0, 1fr)) 80px; }

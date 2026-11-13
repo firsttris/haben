@@ -74,6 +74,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["einstellungen-bank", "/einstellungen?bereich=bank"],
     ["einstellungen-ki", "/einstellungen?bereich=ki"],
     ["einstellungen-export", "/einstellungen?bereich=export"],
+    ["einstellungen-konten", "/einstellungen?bereich=konten"],
     ["einstellungen-seiten", "/einstellungen?bereich=seiten"],
     ["einstellungen-sicherheit", "/einstellungen?bereich=sicherheit"],
     ["steuerberatung", "/steuerberatung"],
