@@ -9,11 +9,11 @@ Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, di
 
 ## 0. Wer reviewt?
 
-Zeigt `git diff --name-only origin/main...<branch>` nur `*.md` und `mkdocs.yml`, gilt Skill `doku-pruefen` statt dieses Skills. Ändert der PR Code und Markdown, prüft dieser Skill nur den Code; die Markdown-Dateien prüft parallel ein zweiter Agent nach `doku-pruefen`. Gemergt wird erst, wenn beide fertig sind (Schritt 6).
+Zeigt `git diff --name-only origin/main...<branch>` nur `*.md` und `mkdocs.yml`, gilt Skill `doku-pruefen` statt dieses Skills. Ändert der PR Code und Markdown, prüft dieser Skill nur den Code; für die Markdown-Dateien zugleich einen frischen Subagenten mit `doku-pruefen`, PR-Nummer und Branch starten. Gemergt wird erst, wenn beide fertig sind (Schritt 6).
 
 Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agent oder Mensch, nicht das Konto: Ein frischer Agent ohne den Verlauf der Entstehung ist unabhängig, auch wenn ihn der Autor gestartet hat (`docs/entwicklung.md`, Review, Punkt 1).
 
-- **In dieser Session wurde am Code gearbeitet:** nicht selbst reviewen, sondern einen **separaten Subagenten** starten, der die Entstehung nicht gesehen hat. Ihm nur Repo, PR-Nummer, Branch, Basis-Branch und die Schritte 1–4 geben, keine eigene Einschätzung; ändert der PR auch Markdown, zugleich einen zweiten mit `doku-pruefen`. Gibt es noch keinen PR, vorher Branch pushen und PR anlegen. Der Subagent arbeitet in einem eigenen Worktree auf dem Branch des PR und mit einer eigenen Compose-Instanz samt Test-Datenbank (Skill `checks`, Schritt 2: eigener Projektname und Ports), nie im Checkout oder in der `haben-dev`-Umgebung der Person; am Ende räumt er beides ab. Bei mehreren parallelen Reviews je eine eigene Instanz. Danach weiter mit Schritt 5.
+- **In dieser Session wurde am Code gearbeitet:** nicht selbst reviewen, sondern einen **separaten Subagenten** starten, der die Entstehung nicht gesehen hat. Ihm nur Repo, PR-Nummer, Branch, Basis-Branch und die Schritte 1–4 geben, keine eigene Einschätzung. Gibt es noch keinen PR, vorher Branch pushen und PR anlegen. Der Subagent arbeitet in einem eigenen Worktree auf dem Branch des PR und mit einer eigenen Compose-Instanz samt Test-Datenbank (Skill `checks`, Schritt 2: eigener Projektname und Ports), nie im Checkout oder in der `haben-dev`-Umgebung der Person; am Ende räumt er beides ab. Bei mehreren parallelen Reviews je eine eigene Instanz. Danach weiter mit Schritt 5.
 - **Frische Session, nur ein PR genannt:** Diese Session ist unabhängig; direkt mit Schritt 1 beginnen.
 
 ## 1. Direkt reviewen
