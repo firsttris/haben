@@ -141,6 +141,8 @@ jobs:
           POSTGRES_USER: haben
           POSTGRES_PASSWORD: haben
           POSTGRES_DB: haben_e2e
+          # Zehn Appserver samt Runtimeproben brauchen mehr Verbindungen als das Standardlimit von 100.
+          POSTGRES_INITDB_ARGS: "--set=max_connections=250"
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U haben -d haben_e2e"
