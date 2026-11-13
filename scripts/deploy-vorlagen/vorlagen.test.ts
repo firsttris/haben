@@ -49,9 +49,9 @@ const unraid = () => ({
 
 const haupt = compose("deploy/compose.yml");
 
-// SSO braucht einen eingerichteten Anbieter, ERiC von Hand oder emuliert eine Shell, der Kontoabruf eine eingehängte
-// Schlüsseldatei; wer das braucht, ergänzt es nach docs/installation.md
-const ohneShell = [
+// SSO in einer Compose-Datei nachzutragen, die man im Feld einer Oberfläche bearbeitet, ist fehleranfällig; in den
+// Unraid-Vorlagen stehen dafür eigene Felder
+const sso = [
   "OIDC_ONLY",
   "OIDC_ISSUER",
   "OIDC_CLIENT_ID",
@@ -61,6 +61,10 @@ const ohneShell = [
   "OIDC_GROUPS_CLAIM",
   "OIDC_GROUP_INHABER",
   "OIDC_GROUP_STEUERBERATUNG",
+];
+// ERiC von Hand oder emuliert braucht eine Shell, der Kontoabruf eine eingehängte Schlüsseldatei, der Rest wird selten
+// gebraucht; wer das braucht, ergänzt es nach docs/installation.md
+const ohneShell = [
   "ERIC_HOME",
   "ERIC_SHA256",
   "ERIC_WORKER_COMMAND",
@@ -82,8 +86,16 @@ const vorlagen = [
     dienste: compose("deploy/synology/compose.yml"),
     // Setzt der Einstiegspunkt der App aus den erzeugten Schlüsseln
     ausSchluesseln: ["DATABASE_URL", "BETTER_AUTH_SECRET", "HABEN_ENCRYPTION_KEY"],
-    ausgelassen: ohneShell,
+    ausgelassen: [...sso, ...ohneShell],
     // Backup und Restore lesen diese Geheimnisse aus Dateien im Volume schluessel
+    backupAlsDatei: { PGPASSWORD: "PGPASSFILE", RESTIC_PASSWORD: "RESTIC_PASSWORD_FILE" } as Record<string, string>,
+  },
+  {
+    name: "deploy/truenas/compose.yml",
+    dienste: compose("deploy/truenas/compose.yml"),
+    // Wie die Synology-Vorlage
+    ausSchluesseln: ["DATABASE_URL", "BETTER_AUTH_SECRET", "HABEN_ENCRYPTION_KEY"],
+    ausgelassen: [...sso, ...ohneShell],
     backupAlsDatei: { PGPASSWORD: "PGPASSFILE", RESTIC_PASSWORD: "RESTIC_PASSWORD_FILE" } as Record<string, string>,
   },
   {
