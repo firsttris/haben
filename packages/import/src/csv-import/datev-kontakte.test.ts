@@ -213,6 +213,13 @@ describe("planDatevContacts", () => {
     ]);
   });
 
+  it("schlägt bei gleicher Kundennummer keinen Kontakt mit anderer USt-IdNr. vor", () => {
+    const contacts = [stock({ id: "a", name: "Ostwind Werkzeuge GmbH", kundennummer: "K-7", ustId: "DE111111125" })];
+    expect(plan([gp(3, { nr: 10001, name: "Westwind Maschinen AG", kundennummer: "K-7", ustId: "DE136695976" })], contacts)).toEqual([
+      [[3], "fehler", "„Ostwind Werkzeuge GmbH“ mit gleicher Kundennummer hat eine andere USt-IdNr. (DE111111125)"],
+    ]);
+  });
+
   it("übernimmt Fehler und Dubletten der Datei", () => {
     expect(plan([gp(3, { nr: 10001, name: "A" }), gp(4, { nr: 10001, name: "A" }), gp(5, { name: "B", errors: ["Konto fehlt"] })])).toEqual([
       [[3], "neu", null],
