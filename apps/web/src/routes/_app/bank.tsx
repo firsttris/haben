@@ -89,7 +89,8 @@ type Detail = NonNullable<Data["detail"]>;
 type Allocation = Detail["allocations"][number];
 
 const HINT: Record<"vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "verrechnet", StatusLook> = {
-  vorschlag: { text: "Vorschlag", tone: "info" },
+  // Ein Klick erledigt den Umsatz: hebt die Zeilen hervor, die ohne Suchen gehen
+  vorschlag: { text: "Vorschlag", tone: "info", emphasis: "notice" },
   // Eine Arbeitsliste: viele Zeilen sind offen, deshalb „notice“ und nicht „urgent“ (DESIGN.md › Status)
   belegFehlt: { text: "Beleg fehlt", tone: "warn", emphasis: "notice" },
   offen: { text: "Offen" },

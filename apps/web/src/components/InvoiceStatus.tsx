@@ -34,8 +34,9 @@ const LOOK: Record<InvoiceListStatus, StatusLook> = {
 /** Auskunft unter dem Status: was er für diese Rechnung gerade heißt */
 export function invoiceStatusDetail(i: InvoiceStatusFacts): string | null {
   switch (i.listStatus) {
+    // Der leere Ring sagt schon, dass nichts festgeschrieben ist
     case "entwurf":
-      return "noch nicht festgeschrieben";
+      return null;
     case "offen":
       return `fällig ${formatDayMonth(i.dueDate)}`;
     case "teilbezahlt":

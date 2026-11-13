@@ -100,10 +100,10 @@ Auf der Seite des Angebots hältst du die Antwort des Kunden fest:
 
 | Status | Bedeutung | Darunter in der Liste |
 | --- | --- | --- |
-| Entwurf | noch nicht festgeschrieben | noch nicht festgeschrieben |
+| Entwurf | noch nicht festgeschrieben | – |
 | Offen | festgeschrieben, Gültigkeit läuft | wie viele Tage es noch gilt |
 | Abgelaufen | keine Antwort und „Gültig bis“ ist vorbei | seit wie vielen Tagen |
-| Angenommen | als angenommen markiert | noch nicht abgerechnet |
+| Angenommen | als angenommen markiert; das Wort steht in Grün, weil die Rechnung ansteht | noch nicht abgerechnet |
 | Abgelehnt | als abgelehnt markiert | – |
 | Abgerechnet | aus dem Angebot ist eine Rechnung entstanden | Nummer der Rechnung, sobald sie festgeschrieben ist |
 

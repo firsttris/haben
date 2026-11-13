@@ -38,7 +38,12 @@ export function DocumentStatus({
         Prüfen
       </Status>
     );
-  return <Status detail={uploadedAt ? `hochgeladen ${formatDayMonth(uploadedAt)}` : null}>Zu prüfen</Status>;
+  // Der Eingang wartet auf dich, wie „3 zu prüfen“ im Seitenkopf
+  return (
+    <Status tone="warn" emphasis="notice" detail={uploadedAt ? `hochgeladen ${formatDayMonth(uploadedAt)}` : null}>
+      Zu prüfen
+    </Status>
+  );
 }
 
 export const SOURCE_LABEL = { zugferd: "ZUGFeRD", xrechnung: "XRechnung", ki: "KI", manuell: "Hand" } as const;

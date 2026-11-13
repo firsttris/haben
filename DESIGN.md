@@ -95,25 +95,25 @@ Den Zustand eines Objekts (Rechnung, Angebot, Beleg, Umsatz, Bankverbindung, Fri
 
 | Ton | Wofür | Beispiele |
 | --- | --- | --- |
-| `neutral` | Wartet, ohne dass etwas fehlt | Offen, Zu prüfen, Getrennt, Storno |
+| `neutral` | Wartet, ohne dass etwas fehlt | Offen, Getrennt, Storno |
 | `ok` | Erledigt, gültig, angenommen | Bezahlt, Gebucht, Aktiv, Gesendet, OK |
 | `info` | Läuft oder ist zur Hälfte da | Teilbezahlt, Wird ausgelesen, Vorschlag, Hinweis |
-| `warn` | Etwas fehlt oder ist abgelaufen | Überfällig, Beleg fehlt, Abgelaufen, Prüfen |
+| `warn` | Etwas fehlt oder ist abgelaufen | Überfällig, Beleg fehlt, Zu prüfen, Abgelaufen, Prüfen |
 | `danger` | Aufgehoben oder fehlgeschlagen | Storniert, Abgelehnt, Fehler, Fehlgeschlagen |
 
-**Entwurf (`draft`):** Der Punkt wird ein leerer Ring: noch nicht festgeschrieben. Nach dem Festschreiben ist er voll. Das gilt für jeden Entwurf, ob Rechnung, Angebot, Voranmeldung oder Lohn.
+**Entwurf (`draft`):** Der Punkt wird ein leerer Ring: noch nicht festgeschrieben. Nach dem Festschreiben ist er voll. Das gilt für jeden Entwurf, ob Rechnung, Angebot, Voranmeldung oder Lohn. Der Ring sagt das schon, eine Auskunft „noch nicht festgeschrieben“ gibt es deshalb nicht.
 
 **Stufe (`emphasis`):** Sie entscheidet, wie laut der Status ist. Weil fast alles ruhig ist, springt das Dringende heraus; deshalb ist „dringend“ selten.
 
 | Stufe | Wann | Aussehen |
 | --- | --- | --- |
 | ohne | Der Normalfall, auch Erledigtes und Storniertes: das ist Geschichte, keine Aufgabe | Nur der Punkt trägt die Farbe |
-| `notice` | Es ist etwas zu tun, aber ohne Frist; typisch für Arbeitslisten wie Bank und Belege | Das Wort steht in der Farbe des Tons |
+| `notice` | Du bist am Zug und der nächste Schritt ist klar, aber ohne Frist: Vorschlag bestätigen, Beleg zuordnen oder prüfen, angenommenes Angebot abrechnen, Lohn gegenprüfen | Das Wort steht in der Farbe des Tons |
 | `urgent` | Eine Frist ist überschritten oder kommt in höchstens 7 Tagen, Geld steht aus, etwas ist fehlgeschlagen | Das Wort auf weicher Fläche, die Auskunft in der Farbe |
 
-Die Grenze von 7 Tagen ist dieselbe wie auf der Seite Fristen. Eine Liste, in der jede zweite Zeile dringend ist, hat die Stufe falsch gewählt: Dann ist der Zustand der Normalfall dieser Liste und bekommt `notice`.
+Die Grenze von 7 Tagen ist dieselbe wie auf der Seite Fristen. Was nur wartet, ohne dass du etwas tun kannst (Offen, Teilbezahlt, Wird ausgelesen, Hinweis), bleibt ruhig, auch wenn es noch nicht erledigt ist. Eine Liste, in der jede zweite Zeile dringend ist, hat die Stufe falsch gewählt: Dann ist der Zustand der Normalfall dieser Liste und bekommt `notice`.
 
-**Anordnung:** In Tabellen steht der Status in der letzten Spalte, Punkt über Punkt, die Auskunft darunter. Im Seitenkopf (`.title-with-status`) und mit `inline` steht die Auskunft in derselben Zeile. Ein Status steht nie allein für die Bedeutung: Das Wort trägt sie, der Punkt ist Zusatz.
+**Anordnung:** In Tabellen steht der Status in der letzten Spalte, Punkt über Punkt, die Auskunft darunter, mit 12px mehr Abstand zur Spalte davor; eine Trennlinie davor gibt es nicht. Alle Zellen der Zeile stehen auf der ersten Grundlinie (`align-items: first baseline`), so liegt das Statuswort auf der Textzeile daneben, und jede Zeile reserviert zwei Zeilen für den Status, damit Zeilen mit und ohne Auskunft gleich hoch sind. Am Handy stehen Wort und Auskunft nebeneinander in der zweiten Zeile, eine zu lange Auskunft endet mit „…“; die Zeile bleibt zweizeilig. Wo links zwei Zeilen stehen, wie Lieferant und Rechnungsnummer bei den Belegen, zeigt das Handy nur das Wort. Im Seitenkopf (`.title-with-status`) und mit `inline` steht die Auskunft in derselben Zeile. Ein Status steht nie allein für die Bedeutung: Das Wort trägt sie, der Punkt ist Zusatz.
 
 **Merkmal (`Tag`):** Eine Eigenschaft ohne Zustand, etwa Lieferant, eine Rolle, archiviert, inaktiv oder Test, ist kein Status. Sie bekommt keinen Punkt und keine Farbe, nur eine Haarlinie. Ein Verweis auf ein anderes Objekt, etwa die Quelle einer Buchung, ist ein normaler Link.
 

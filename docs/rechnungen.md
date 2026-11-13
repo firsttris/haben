@@ -441,7 +441,7 @@ Unter dem Status steht in Grau, was er für diese Rechnung gerade heißt. Überf
 
 | Status | Bedeutung | Darunter |
 | --- | --- | --- |
-| Entwurf | Noch nicht festgeschrieben, ohne Nummer. | noch nicht festgeschrieben |
+| Entwurf | Noch nicht festgeschrieben, ohne Nummer. | – |
 | Offen | Festgeschrieben, nicht fällig, noch keine Zahlung zugeordnet. | fällig am |
 | Teilbezahlt | Ein Teil ist bezahlt, die Fälligkeit ist noch nicht überschritten. | gezahlt von brutto |
 | Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet oder bar im Kassenbuch eingenommen, gegebenenfalls abzüglich eines ausgebuchten Skontos. | Tag der letzten Zahlung |

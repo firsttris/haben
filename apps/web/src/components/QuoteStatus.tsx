@@ -14,7 +14,8 @@ const LOOK: Record<QuoteListStatus, StatusLook> = {
   offen: { text: "Offen" },
   // Nachfassen lohnt sich, eine Frist gibt es nicht
   abgelaufen: { text: "Abgelaufen", tone: "warn", emphasis: "notice" },
-  angenommen: { text: "Angenommen", tone: "ok" },
+  // Du bist am Zug: die Rechnung schreiben
+  angenommen: { text: "Angenommen", tone: "ok", emphasis: "notice" },
   abgelehnt: { text: "Abgelehnt", tone: "danger" },
   abgerechnet: { text: "Abgerechnet", tone: "ok" },
 };
@@ -22,8 +23,9 @@ const LOOK: Record<QuoteListStatus, StatusLook> = {
 /** Auskunft unter dem Status; das Datum „Gültig bis“ steht in der Liste daneben, deshalb hier der Abstand */
 export function quoteStatusDetail(q: QuoteStatusFacts): string | null {
   switch (q.listStatus) {
+    // Der leere Ring sagt schon, dass nichts festgeschrieben ist
     case "entwurf":
-      return "noch nicht festgeschrieben";
+      return null;
     case "offen": {
       const days = daysUntil(q.validUntil);
       return days === 0 ? "gilt bis heute" : `gilt noch ${days === 1 ? "1 Tag" : `${days} Tage`}`;
@@ -44,6 +46,25 @@ export function QuoteStatus({ quote, inline = false }: { quote: QuoteStatusFacts
   return (
     <Status {...look} inline={inline} detail={inline ? null : quoteStatusDetail(quote)}>
       {text}
+    </Status>
+  );
+}
+
+/** Status einer Rechnung zum Angebot (Abschläge, Schlussrechnung): Entwurf, festgeschrieben oder storniert */
+export function BillingStatus({ cancelled, final }: { cancelled: boolean; final: boolean }) {
+  if (cancelled)
+    return (
+      <Status tone="danger" inline>
+        Storniert
+      </Status>
+    );
+  return final ? (
+    <Status tone="ok" inline>
+      Festgeschrieben
+    </Status>
+  ) : (
+    <Status draft inline>
+      Entwurf
     </Status>
   );
 }

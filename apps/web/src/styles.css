@@ -416,17 +416,26 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .status-draft .status-label::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--status-dot); }
 .status-detail { padding-left: 16px; font-size: 12px; line-height: 16px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .status-notice .status-label { color: var(--status-ink); }
-.status-urgent .status-label { margin: -2px 0 -2px -6px; padding: 2px 8px 2px 6px; border-radius: 6px; background: var(--status-soft); color: var(--status-ink); font-weight: 500; }
-.status-urgent .status-detail { margin-top: 2px; color: var(--status-ink); }
+.status-urgent .status-label { margin-left: -6px; padding: 2px 8px 2px 6px; line-height: 16px; border-radius: 6px; background: var(--status-soft); color: var(--status-ink); font-weight: 500; }
+.status-urgent .status-detail { color: var(--status-ink); }
 /* Im Seitenkopf und in Fließtext eine Zeile, die Auskunft daneben */
 .title-with-status .status, .status-inline { flex-direction: row; align-items: center; gap: 12px; }
 .title-with-status .status-label { font-size: 14px; }
 .title-with-status .status-detail, .status-inline .status-detail { padding-left: 0; font-size: 13px; line-height: 20px; }
-.title-with-status .status-urgent .status-detail, .status-inline.status-urgent .status-detail { margin-top: 0; }
-/* Am Handy steht der Status in Listen rechts unter dem Betrag: an der rechten Kante ausgerichtet */
+/* Listen mit Status (DESIGN.md › Status): Alle Zellen stehen auf der ersten Grundlinie, so liegt das Statuswort auf der
+   Textzeile daneben und die Auskunft hängt darunter. Zwei Zeilen Platz sind immer reserviert, damit Zeilen mit und ohne
+   Auskunft gleich hoch sind; vor der Spalte 12px mehr Luft zum Betrag. */
+:is(.invoice-cols, .invoice-cols-compact, .document-cols, .tx-cols):not(.head) { align-items: first baseline; min-height: 0; padding-top: 8px; padding-bottom: 8px; }
+:is(.invoice-cols, .invoice-cols-compact, .document-cols, .tx-cols):not(.head) .status { min-height: 38px; vertical-align: baseline; }
+:is(.invoice-cols, .document-cols, .tx-cols) > :last-child { margin-left: 12px; }
+/* Am Handy bleibt jede Zeile zweizeilig: Wort und Auskunft nebeneinander, eine zu lange Auskunft endet mit „…“ */
 @media (max-width: 760px) {
-  :is(.invoice-cols, .document-cols, .tx-cols, .invoice-cols-compact) > :last-child .status { align-items: flex-end; text-align: right; }
-  :is(.invoice-cols, .document-cols, .tx-cols, .invoice-cols-compact) > :last-child .status-detail { padding-left: 0; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols, .tx-cols) > :last-child { margin-left: 0; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) { row-gap: 4px; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child { justify-self: end; min-width: 0; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) > :last-child .status { flex-direction: row; align-items: baseline; gap: 6px; min-height: 0; max-width: 100%; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-label { flex: none; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-detail { padding-left: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 /* Merkmal: Eigenschaft ohne Zustand (Lieferant, Rolle, archiviert) */
 .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); font-size: 12px; line-height: 1; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
@@ -515,12 +524,14 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 @media (max-width: 760px) {
   /* Kunde links, Betrag rechts, Status darunter rechts */
   .invoice-cols { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding-top: 8px; padding-bottom: 8px; }
+  .invoice-cols:not(.head) > :nth-child(1) { grid-column: 1; grid-row: 2; }
+  .invoice-cols:not(.head) > :nth-child(2) { grid-column: 1; grid-row: 1; }
+  .invoice-cols:not(.head) > :nth-child(5) { grid-column: 1 / -1; grid-row: 2; max-width: calc(100% - 88px); }
   /* Nummer klein über dem Kunden, Betrag und Status rechts */
   .invoice-cols > :nth-child(3) { display: none; }
-  .invoice-cols > :nth-child(1) { grid-column: 1; grid-row: 1; font-size: 12px; color: var(--muted); }
-  .invoice-cols > :nth-child(2) { grid-column: 1; grid-row: 2; }
+  .invoice-cols > :nth-child(1) { font-size: 12px; color: var(--muted); }
   .invoice-cols > :nth-child(4) { grid-column: 2; grid-row: 1; }
-  .invoice-cols > :nth-child(5) { grid-column: 2; grid-row: 2; justify-self: end; }
+
   .table-row.head.invoice-cols > :nth-child(1) { display: none; }
   .table-row.head.invoice-cols > :nth-child(2) { grid-row: 1; }
   .table-row.head.invoice-cols > :nth-child(5) { display: none; }
@@ -743,8 +754,11 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 @media (max-width: 760px) {
   .document-cols { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding-top: 8px; padding-bottom: 8px; }
   .document-cols > :nth-child(1), .document-cols > :nth-child(3) { display: none; }
-  .document-cols > :nth-child(2) { grid-row: 1 / span 2; }
-  .document-cols > :nth-child(5) { grid-column: 2; justify-self: end; }
+  .document-cols > :nth-child(2) { grid-column: 1; grid-row: 1 / span 2; }
+  .document-cols > :nth-child(4) { grid-column: 2; grid-row: 1; }
+  /* Lieferant und Zusatzzeile brauchen die Breite: am Handy nur das Wort, die Auskunft steht auf der Seite des Belegs */
+  .document-cols > :nth-child(5) { grid-column: 2; grid-row: 2; }
+  .document-cols > :nth-child(5) .status-detail { display: none; }
   .table-row.head.document-cols > :nth-child(5) { display: none; }
 }
 .doc-preview { width: 100%; height: var(--viewer-height); min-height: 520px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }

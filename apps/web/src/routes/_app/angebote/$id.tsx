@@ -7,13 +7,13 @@ import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { QuoteChoices } from "../../../components/QuoteChoices.tsx";
 import { QuotePlan } from "../../../components/QuotePlan.tsx";
-import { QuoteStatus } from "../../../components/QuoteStatus.tsx";
+import { BillingStatus, QuoteStatus } from "../../../components/QuoteStatus.tsx";
 import { SendMailForm } from "../../../components/SendMail.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { copyQuoteFn, decideQuote, getQuoteDetail, invoiceFromQuote } from "../../../server/functions/quotes.ts";
-import { OutcomeStatus, Status } from "../../../components/Status.tsx";
+import { OutcomeStatus } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/angebote/$id")({
   loader: ({ params }) => getQuoteDetail({ data: params.id }),
@@ -279,9 +279,7 @@ function FinalQuote({ data }: { data: Detail }) {
                       {formatDate(b.issueDate)} · <span className="amount">{formatEuro(b.gross)}</span>
                     </span>
                   </span>
-                  <Status inline {...(b.cancelled ? { tone: "danger" } : b.status === "final" ? { tone: "ok" } : { draft: true })}>
-                    {b.cancelled ? "Storniert" : b.status === "final" ? "Festgeschrieben" : "Entwurf"}
-                  </Status>
+                  <BillingStatus cancelled={b.cancelled} final={b.status === "final"} />
                 </div>
               ))}
               {finalAbschlaege.length > 0 && (
