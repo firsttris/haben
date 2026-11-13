@@ -3,7 +3,7 @@
 # PostgreSQL 18: sql-altertable.html, sql-set-role.html und runtime-config-client.html#GUC-SESSION-REPLICATION-ROLE.
 set -eu
 container=${1:?Aufruf: rollen-pruefen.sh <App-Container>}
-docker exec -i -w /app/apps/web "$container" bun -e "$(cat <<'JAVASCRIPT'
+docker exec --user bun -i -w /app/apps/web "$container" bun -e "$(cat <<'JAVASCRIPT'
 const { default: postgres } = await import("postgres");
 const sql = postgres(process.env.DATABASE_URL, { max: 1, onnotice: () => {} });
 const failures = [];
