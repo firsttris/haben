@@ -22,8 +22,8 @@ tägliche Backup, dazu der kurze Dienst `schluessel`, der die Schlüssel anlegt.
 - Für die Übermittlung an ELSTER ein Modell mit Intel- oder AMD-Prozessor. Auf ARM läuft alles andere, ELSTER nur
   emuliert und mit Shell, siehe [ELSTER auf arm64](installation.md#elster-auf-arm64).
 - Eine Adresse mit HTTPS, sonst funktionieren Passkeys und die Installation als App nicht. Am einfachsten ist ein Name bei
-  Synology DDNS (`deinname.synology.me`) mit dem Zertifikat von Let's Encrypt, das DSM selbst holt und erneuert. Das
-  gilt auch, wenn Haben nur im Heimnetz laufen soll; im Router gibst du dafür nichts frei.
+  Synology DDNS (`deinname.synology.me`) mit dem Zertifikat von Let's Encrypt, das DSM selbst holt und erneuert, auch
+  [nur fürs Heimnetz](#nur-im-heimnetz-ohne-internet).
 
 ## Adresse und Zertifikat
 
