@@ -1,11 +1,11 @@
+import { insertCashEntry } from "./settlement-store.ts";
 import { formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist } from "@haben/core";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
-import { versteuerungForYear } from "../stammdaten/index.ts";
+import { invoicePaymentPostingMode, invoiceTotalsById, lockInvoice } from "../rechnungen/index.ts";
 import { bookWriteOff, invoiceTaxShares, openItems, settledOn } from "./bank.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
 import { bareinnahmeSteuerSchema, bookCashIncome } from "./cash-income.ts";
@@ -47,8 +47,9 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
     // Erst die Kasse, dann Rechnung und Buchungen sperren (lockCash)
     await lockCash(tx);
     const books = await openBooks(tx);
-    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, parsed.invoiceId)).for("update");
+    const invoice = await lockInvoice(tx, parsed.invoiceId);
     if (invoice?.status !== "final") throw new CashError("Rechnung nicht gefunden.");
+
     if (invoice.kind === "storno") throw new CashError("Eine Stornorechnung lässt sich nicht bar kassieren.");
     if (invoice.currency !== "EUR") throw new CashError("Bar kassieren geht nur bei Rechnungen in Euro.");
     // Ein Datum vor dem Rechnungsdatum ist erlaubt (#455), wie im Bankabgleich: Der Kunde hat bar bezahlt, die Rechnung
@@ -82,26 +83,23 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
         totals,
         parsed.amount,
         books.kontenrahmen,
-        await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+        await invoicePaymentPostingMode(invoice, tx),
         taxShares,
         invoice.taxTreatment,
       ),
     });
-    const [row] = await tx
-      .insert(schema.cashEntries)
-      .values({
-        id,
-        number: await nextNumber(tx),
-        date: parsed.date,
-        amount: parsed.amount,
-        kind: "rechnung",
-        text,
-        invoiceId: invoice.id,
-        taxShares,
-        taxSharesInvoiceId: invoice.id,
-        journalEntryId,
-      })
-      .returning();
+    const [row] = await insertCashEntry(tx, {
+      id,
+      number: await nextNumber(tx),
+      date: parsed.date,
+      amount: parsed.amount,
+      kind: "rechnung",
+      text,
+      invoiceId: invoice.id,
+      taxShares,
+      taxSharesInvoiceId: invoice.id,
+      journalEntryId,
+    });
     if (parsed.skonto) await bookWriteOff(tx, books, { kind: "skonto", invoiceId: invoice.id, date: parsed.date, cashEntryId: id });
     // Der Teil über dem Rechnungsbetrag ist eine eigene Zeile mit der nächsten Nummer, gebucht wie eine Bareinnahme ohne
     // Rechnung; scheitert sie (etwa am Kleinunternehmer-Stand), bucht die Transaktion auch den Rechnungsteil nicht

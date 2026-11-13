@@ -64,6 +64,15 @@ describe.skipIf(!testDatabaseUrl)("Vorschau aus dem Formular (Postgres)", () => 
     expect(text((await preview.documentPreview(input())).text)).toContain("238,00");
   });
 
+  it("zeigt den Aufbewahrungshinweis nur bei gesetztem Haken neben dem freien Fußtext", async () => {
+    const selected = input({ ...{ propertyRetention: true }, note: "Individueller Fußtext" });
+    expect(selected).toMatchObject({ propertyRetention: true });
+    const result = text((await preview.documentPreview(selected)).text);
+    expect(result).toMatch(/§\s*14b/);
+    expect(result).toContain("Individueller Fußtext");
+    expect(text((await preview.documentPreview(input())).text)).not.toMatch(/§\s*14b/);
+  });
+
   it("zeigt ungespeicherte Gestaltung, ohne etwas zu speichern", async () => {
     const standard = await preview.documentPreview(input());
     const farbig = await preview.documentPreview(input({ design: { accent: "#9B1C1C" } }));

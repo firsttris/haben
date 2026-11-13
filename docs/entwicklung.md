@@ -119,9 +119,10 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
 | `bun run --cwd packages/einvoice zugferd [ausgabeverzeichnis]` | ZUGFeRD-PDFs der Beispielrechnungen erzeugen und mit dem Mustang-Validator prüfen ([ZUGFeRD-PDFs](#zugferd-pdfs)) |
 | `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Regeln für die Seiten unter der Tabelle |
-| `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
+| `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, hell und dunkel, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)), danach Vorschaubild und Hero |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
+| `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (1280 × 360 bei doppelter Auflösung, Bild oben in der README; Slogan in IBM Plex Serif aus `packages/einvoice/fonts`) |
 
 Seiten der Doku:
 
@@ -132,7 +133,7 @@ Seiten der Doku:
 
 ## Tests
 
-Die Tests laufen mit Vitest (`vitest.config.ts`), jede Datei in einem eigenen Worker, in der CI in vier Teilen (`bun run test --shard=<n>/4`).
+Die Tests laufen mit Vitest (`vitest.config.ts`), jede Datei in einem eigenen Worker, in der CI in vier Teilen (`bun run test --shard=<n>/4`). Aus `apps/web` heraus gestartet gilt dieselbe Konfiguration (`apps/web/vitest.config.ts`), ohne die Server-Plugins der App.
 
 ```sh
 bun run test
@@ -221,7 +222,7 @@ Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, w
 
 ### Bilder für README und Doku
 
-Die Bilder in README und Doku (`docs/screenshot-*.png`) nimmt `e2e/zz-doku-screenshots.spec.ts` mit den Daten von `app.spec.ts` auf; ohne `DOKU_SCREENSHOTS=1` überspringt es sich, die CI wird also nicht langsamer.
+Die Bilder in README und Doku (`docs/screenshot-*.png`) nimmt `e2e/zz-doku-screenshots.spec.ts` mit den Daten von `app.spec.ts` auf; `bun run docs:screenshots` startet nur diese beiden Dateien, nicht die ganze Suite. Ohne `DOKU_SCREENSHOTS=1` überspringt sich die Spec, die CI wird also nicht langsamer. Jedes Bild entsteht in Wald hell und dunkel (`screenshot-<name>-dunkel.png`); die README wählt per `<picture>` und `prefers-color-scheme`, die Doku per `#only-light` und `#only-dark`. Die Hinweise zur Einrichtung von ERiC und Hersteller-ID blendet die Spec aus, damit die Bilder Haben eingerichtet zeigen.
 
 ```sh
 E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run docs:screenshots
@@ -284,6 +285,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 - **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)). Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
 - **Quellen statt Gedächtnis:** Details richten sich nach der Quelle, und wo sie ein Detail entscheidet, steht sie im Kommentar und in der Commit-Nachricht. E-Rechnung: EN 16931 und XRechnung (Business Terms wie BT-22), geprüft vom KoSIT-Validator mit `itplr-kosit/validator-configuration-xrechnung` (Versionen in `.github/workflows/ci.yml`). ELSTER: die [Entwicklerdokumentation von ERiC](https://www.elster.de/elsterweb/entwickler/infoseite/eric). DATEV: die Formatbeschreibung für EXTF/Buchungsstapel; Exporte von Lexware Office weichen davon ab ([Lexoffice](lexoffice.md)). Kontenrahmen: SKR03 und SKR04 von DATEV in dem Stand, den `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` nennt (Kontonummer, Bezeichnung, Funktion); DATEV entscheidet nur über Format und Kontenrahmen. Widerspricht eine Kontenfunktion dem Gesetz, einer ELSTER-Kennzahl oder der Taxonomie der E-Bilanz, gilt die Norm. [Enable Banking](https://enablebanking.com/docs/api/reference/), [Lexware Office](https://developers.lexware.io/docs/).
+- **Neue Systemkonten:** Bei neuen Kategorien oder Kontenfunktionen prüfen, dass `reservedAccountNumbers` (`packages/core/src/own-accounts.ts`) die Nummern erfasst. Eine beim Anlegen freie Nummer kann bereits in `own_accounts` stehen, auch archiviert oder in einem früheren Kontenrahmen. „Kette prüfen“ meldet solche [Kontenkollisionen](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel). Bestehende Kontenzuordnungen und Buchungszeilen nicht automatisch umdeuten oder umschreiben; dafür braucht es einen gesondert abgestimmten Umgang mit dem Bestand.
 
 ## Projektstruktur
 
@@ -361,7 +363,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 - Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request, kurz und für Menschen; Schritte für Agenten gehören in einen Skill, Interna eines Skripts in seine Kommentare (siehe [Befehle](#befehle), „Kurz halten“). Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Texte in der Oberfläche auf Deutsch.
-- Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, hell und dunkel, wo es darauf ankommt auch am Handy; die Bilder für „vorher“ entstehen vor der ersten Änderung und kommen als Anhang, nie als Branch im Haupt-Repository (Skill [`pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md)). Die Bilder in README und Doku erneuert danach [Update screenshots](#bilder-für-readme-und-doku).
+- Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, hell und dunkel, wo es darauf ankommt auch am Handy; die Bilder für „vorher“ entstehen vor der ersten Änderung. Wer in [`firsttris/haben-bilder`](https://github.com/firsttris/haben-bilder) schreiben darf (Maintainer, Collaborators), legt sie dort ab, je Pull Request ein Ordner `pr-<n>/`; alle anderen hängen sie als Anhang an, nie als Branch im Haupt-Repository (Skill [`pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md)). Die Bilder in README und Doku erneuert danach [Update screenshots](#bilder-für-readme-und-doku).
 
 ### Etwas übernehmen
 
@@ -427,7 +429,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Issues mit `Umgesetzt #…` oder `Refs #…`, nicht `Closes` oder `Fixes` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
-| Selbstprüfung und unabhängiges Review mitbringen ([Beiträge annehmen](#beiträge-annehmen)) | `scripts/pr-regeln/`: Pull Request außerhalb des Entwurfs von jemandem ohne Schreibrecht, nennt `doku-pruefen` (nur Markdown, `docs/`, `mkdocs.yml`, `LICENSE`) oder `tdd-review` | Hinweis |
+| Selbstprüfung und unabhängiges Review mitbringen ([Beiträge annehmen](#beiträge-annehmen)) | `scripts/pr-regeln/`: Pull Request außerhalb des Entwurfs von jemandem ohne Schreibrecht, nennt `tdd-review` für Code, `doku-pruefen` für Markdown (`docs/`, `mkdocs.yml`, `LICENSE`), bei beidem beide | Hinweis |
 | Jedes Feld der Belegvorlagen im Feldvertrag, mit Beschreibung | `layout-schema.test.ts` in `bun run test` | Fehler |
 | Kein Feld einer Version fällt weg, wird umbenannt oder wechselt den Typ | `layout-schema.test.ts` gegen `layout-schema.v<n>.json` | Fehler |
 | Alte Layouts ergeben mit heutigen Daten ein PDF | `layout-kompatibel.test.ts` mit `templates/kompatibel/` | Fehler |
@@ -498,7 +500,7 @@ Rückmeldungen folgen dem [Verhaltenskodex](https://github.com/firsttris/haben/b
 
 ### Review
 
-Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**, einer ohne Code eine [Doku-Prüfung](#pull-requests-ohne-code). Mit Claude Code führt der Skill `tdd-review` durch.
+Jeder Pull Request mit Code bekommt vor dem Merge ein unabhängiges **TDD-Review**, jeder mit Markdown eine [Doku-Prüfung](#doku-prüfung); ändert er beides, laufen beide nebeneinander, von zwei Prüfern. Mit Claude Code führt der Skill `tdd-review` durch.
 
 1. **Unabhängig:** Wer den Code geschrieben hat, reviewt ihn nicht selbst. Ein KI-Agent, der mitgeschrieben hat, startet dafür einen neuen Agenten ohne diesen Verlauf; der ist unabhängig, auch wenn ihn der Autor gestartet hat. Ein mitgebrachtes Review dieser Art (Schritte 2 bis 5 im Pull Request erkennbar) zählt, außer wir haben selbst Commits ergänzt oder ein fachlicher Zweifel bleibt.
 2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework. Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund. Stil und Namen sind keiner.
@@ -511,9 +513,9 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**, einer
 
 Haben steht unter der AGPL-3.0.
 
-#### Pull Requests ohne Code
+#### Doku-Prüfung
 
-Ändert ein Pull Request nur Markdown (Doku, Skills, `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`), gibt es keinen roten Test. Statt des TDD-Reviews prüft ihn jemand, der den Text nicht geschrieben hat. Ein Befund braucht ein Zitat und den Beleg dagegen: Code, Quelle oder die andere Stelle. Ändert ein Pull Request Code und Markdown, prüft das TDD-Review die Markdown-Dateien in derselben Runde ebenso. Mit Claude Code führt der Skill `doku-pruefen` durch.
+Für Markdown (Doku, Skills, `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`) gibt es keinen roten Test. Die Markdown-Dateien eines Pull Requests prüft deshalb jemand, der den Text nicht geschrieben hat. Ein Befund braucht ein Zitat und den Beleg dagegen: Code, Quelle oder die andere Stelle. Mit Claude Code führt der Skill `doku-pruefen` durch.
 
 - **Stimmt:** mit dem Code und mit der genannten Quelle.
 - **Kurz:** „Kurz halten“ unter [Befehle](#befehle).

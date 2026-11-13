@@ -8,6 +8,7 @@ import { addImportedCashEntries, lockCash, type ImportedCashEntry } from "../ban
 import { openBooks, post } from "../buchhaltung/index.ts";
 import type { ExternalImport, ExternalInvoice, ExternalQuote } from "./external-schema.ts";
 import { ExternalImportError, validateExternalImport } from "./external-validation.ts";
+import { prepareExternalSettlements, storeExternalSettlements } from "./external-settlement-store.ts";
 
 /** Quellidentität und Hash sind unabhängig von JSON-Eigenschaftsreihenfolgen. */
 export function importPayloadHash(value: unknown): string {
@@ -29,6 +30,7 @@ export function importPayloadHash(value: unknown): string {
 export interface ExternalImportResult {
   created: number;
   duplicates: number;
+  settlements: { created: number; duplicates: number };
   items: { kind: "quote" | "invoice" | "journal"; externalId: string; id: string }[];
 }
 
@@ -128,6 +130,7 @@ export async function runExternalImport(
     if (company.kontenrahmen !== parsed.kontenrahmen) throw new ExternalImportError("Paket und Firma verwenden unterschiedliche Kontenrahmen.");
     const previous = await tx.select().from(schema.externalImports).where(eq(schema.externalImports.source, parsed.source));
     const known = new Map(previous.map((r) => [`${r.kind}:${r.externalId}`, r]));
+    const settlements = await prepareExternalSettlements(tx, parsed.source, company.kontenrahmen, parsed, previous);
     if (parsed.entries.some((e) => e.kind === "journal" && !known.has(`journal:${e.externalId}`))) {
       const [taken] = await tx.execute<{ id: string }>(sql`select v.id from external_imports o
         join lexoffice_vouchers v on v.id=o.voucher_id where o.source=${parsed.source}
@@ -135,7 +138,7 @@ export async function runExternalImport(
           or exists (select 1 from documents d where d.lexoffice_voucher_id=v.id)) limit 1`);
       if (taken) throw new ExternalImportError("Offene Posten dieser Quelle sind schon nativ übernommen. Originaljournal vor weiteren Buchungen abgleichen.");
     }
-    const result: ExternalImportResult = { created: 0, duplicates: 0, items: [] };
+    const result: ExternalImportResult = { created: 0, duplicates: 0, settlements: { created: 0, duplicates: 0 }, items: [] };
     const cash: ImportedCashEntry[] = [];
     let importId: string | undefined;
     for (const entry of parsed.entries) {
@@ -176,6 +179,8 @@ export async function runExternalImport(
       result.created++;
       result.items.push({ kind: entry.kind, externalId: entry.externalId, id: (target.voucherId ?? target.orderDocumentId ?? target.entryId)! });
     }
+    const createdSettlements = await storeExternalSettlements(tx, parsed.source, settlements);
+    result.settlements = { created: createdSettlements, duplicates: settlements.size - createdSettlements };
     await addImportedCashEntries(tx, cash);
     if (importId)
       await tx

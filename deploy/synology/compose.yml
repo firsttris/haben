@@ -1,0 +1,162 @@
+# Haben auf einer Synology: Container Manager › Projekt › Erstellen, diese Datei einfügen (docs/synology.md).
+#
+# Vor dem Erstellen nur BETTER_AUTH_URL unten auf deine Adresse ändern. Die Schlüssel erzeugt der Dienst
+# schluessel beim ersten Start selbst; danach stehen sie im Protokoll des Containers haben-schluessel und gehören
+# in deinen Passwortmanager. HTTPS übernimmt der Reverse Proxy von DSM, deshalb gibt es hier keinen Caddy.
+#
+# Gegenüber deploy/compose.yml: Schlüssel aus dem Volume schluessel statt aus .env, die App nur auf 127.0.0.1:3000,
+# ohne Caddy, feste Containernamen. Alles liegt in Volumes, damit es ohne vorher angelegte Ordner startet.
+
+name: haben
+
+# Gemeinsam für das tägliche Backup und das Wiederherstellen (Image aus deploy/backup)
+x-backup: &backup
+  image: tristanteu/haben-backup:latest
+  depends_on:
+    db:
+      condition: service_healthy
+  environment:
+    # Passwort der Datenbank für pg_dump und psql, auch bei docker compose exec
+    PGPASSFILE: /run/haben/pgpass
+    # Standard: Volume backups auf der Synology. Besser ein zweites System: s3:… oder rest:… (docs/installation.md)
+    RESTIC_REPOSITORY: /backups
+    RESTIC_PASSWORD_FILE: /run/haben/backup-passwort
+    BACKUP_HOST: haben
+    BACKUP_TIME: "03:15"
+    RESTORE_CHECK_DAYS: "7"
+    # Zugangsdaten für ein Repository auf S3, sonst leer
+    AWS_ACCESS_KEY_ID: ""
+    AWS_SECRET_ACCESS_KEY: ""
+
+services:
+  # Erzeugt beim ersten Start die Schlüssel und zeigt bei jedem Start die beiden, die du sichern musst
+  schluessel:
+    image: tristanteu/haben-backup:latest
+    container_name: haben-schluessel
+    restart: "no"
+    volumes:
+      - schluessel:/run/haben
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -eu
+        cd /run/haben
+        # Zufällig, nur einmal: ein vorhandener Schlüssel wird nie überschrieben
+        neu() { [ -s "$$1" ] || { head -c 32 /dev/urandom | base64 | tr -d '\n' > "$$1.neu" && mv "$$1.neu" "$$1"; }; }
+        # Das Datenbank-Passwort steht in der Verbindungs-URL der App, deshalb nur Ziffern und a bis f
+        [ -s db-passwort ] || { head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > db-passwort.neu && mv db-passwort.neu db-passwort; }
+        neu auth-secret
+        neu encryption-key
+        neu backup-passwort
+        # Die App läuft als Nutzer 1000; Datenbank und Backup lesen als root
+        chown 1000:1000 db-passwort auth-secret encryption-key backup-passwort
+        chmod 400 db-passwort auth-secret encryption-key backup-passwort
+        # Für pg_dump und psql im Backup (root); libpq liest die Datei nur, wenn andere sie nicht lesen dürfen
+        printf '*:*:*:haben:%s\n' "$$(cat db-passwort)" > pgpass
+        chmod 600 pgpass
+        echo "Diese beiden Schlüssel jetzt im Passwortmanager sichern. Ohne sie sind Backup,"
+        echo "ELSTER-Zertifikat und gespeicherte Zugangsdaten nach einer Wiederherstellung verloren."
+        echo "ENCRYPTION_KEY=$$(cat encryption-key)"
+        echo "RESTIC_PASSWORD=$$(cat backup-passwort)"
+
+  db:
+    # postgres mit automatischem Upgrade älterer Bestände beim Start (deploy/db)
+    image: tristanteu/haben-db:latest
+    container_name: haben-db
+    restart: unless-stopped
+    depends_on:
+      schluessel:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_USER: haben
+      POSTGRES_DB: haben
+      POSTGRES_PASSWORD_FILE: /run/haben/db-passwort
+    volumes:
+      - db:/var/lib/postgresql/data
+      - schluessel:/run/haben:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "haben"]
+      interval: 5s
+      retries: 20
+      start_period: 10m
+
+  app:
+    image: tristanteu/haben:latest
+    container_name: haben-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # Gehärtet wie in deploy/compose.yml
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Nur für den Reverse Proxy von DSM erreichbar; ist Port 3000 belegt, die linke Zahl ändern
+    ports:
+      - "127.0.0.1:3000:3000"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        export BETTER_AUTH_SECRET="$$(cat /run/haben/auth-secret)"
+        export HABEN_ENCRYPTION_KEY="$$(cat /run/haben/encryption-key)"
+        export DATABASE_URL="postgres://haben:$$(cat /run/haben/db-passwort)@db:5432/haben"
+        exec haben-entrypoint
+    environment:
+      # HIER ÄNDERN: die Adresse, unter der du Haben aufrufst, mit https://. Passkeys hängen daran; später nicht mehr ändern.
+      BETTER_AUTH_URL: https://haben.DEINNAME.synology.me
+      # Optional: ERiC beim Start von download.elster.de laden (ja = Zustimmung zu den Nutzungsbedingungen von ERiC),
+      # nur auf Geräten mit Intel- oder AMD-Prozessor. Alternativ unter Einstellungen › ELSTER › ERiC per Knopf.
+      ERIC_AUTO_INSTALL: ""
+      # Optional: eigene Hersteller-ID, erst nach erfolgreicher Testübermittlung
+      ELSTER_HERSTELLER_ID: ""
+      # Optional: KI-Auslesung von Belegen mit Claude (Anthropic-API)
+      ANTHROPIC_API_KEY: ""
+      # Oder über eine OpenAI-kompatible Schnittstelle (Ollama, OpenRouter, …), siehe docs/installation.md
+      EXTRACTION_BASE_URL: ""
+      EXTRACTION_MODEL: ""
+      EXTRACTION_API_KEY: ""
+    volumes:
+      - schluessel:/run/haben:ro
+      # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
+      - belege:/var/lib/haben/belege
+      - eric-log:/var/lib/haben/eric-log
+      - eric:/var/lib/haben/eric
+
+  # Tägliches Backup von Datenbank und Belegen mit restic
+  backup:
+    <<: *backup
+    container_name: haben-backup
+    restart: unless-stopped
+    volumes:
+      - belege:/belege:ro
+      - schluessel:/run/haben:ro
+      - backups:/backups
+    healthcheck:
+      # Ungesund, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief; vor dem ersten Lauf gesund
+      test: ["CMD-SHELL", "s=/var/lib/haben-backup/status; [ ! -f $$s ] || { grep -q '^ok' $$s && [ -n \"$$(find $$s -mmin -2880)\" ]; }"]
+      interval: 5m
+
+  # Wiederherstellen per SSH im Projektordner, startet nicht mit dem Projekt:
+  #   sudo docker compose stop app && sudo docker compose run --rm restore latest
+  restore:
+    <<: *backup
+    profiles: [restore]
+    entrypoint: ["restore.sh"]
+    volumes:
+      - belege:/belege
+      - schluessel:/run/haben:ro
+      - backups:/backups
+
+volumes:
+  db:
+  belege:
+  eric-log:
+  eric:
+  schluessel:
+  # restic-Repository, wenn RESTIC_REPOSITORY oben nicht geändert ist
+  backups:

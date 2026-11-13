@@ -4,14 +4,58 @@ export const DEFAULT_ACCENT = "#1F6F5C";
 /** Hex-Farbe #RRGGBB, wie sie das Farbfeld des Browsers liefert */
 export const ACCENT_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
-/** Kontrast einer Farbe #RRGGBB zu weißem Papier nach WCAG 2.2 (relative Leuchtdichte), 1 bis 21 */
-export function contrastOnWhite(hex: string): number {
+/** Relative Leuchtdichte einer Farbe #RRGGBB nach WCAG 2.2, 0 (Schwarz) bis 1 (Weiß) */
+function luminance(hex: string): number {
   const channel = (offset: number) => {
     const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
     return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
   };
-  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-  return 1.05 / (luminance + 0.05);
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+/** Kontrast einer Farbe #RRGGBB zu weißem Papier nach WCAG 2.2 (relative Leuchtdichte), 1 bis 21 */
+export function contrastOnWhite(hex: string): number {
+  return 1.05 / (luminance(hex) + 0.05);
+}
+
+/**
+ * Dunkle Schrift auf hellen Farben. Schwarz, nicht der Text der Vorlagen (#16211C): Nur mit Schwarz hält die bessere
+ * der beiden Schriften für jede Farbe 4,5 : 1 (mindestens 4,58 : 1 um #777777); mit #16211C wären es dort nur 4,08 : 1.
+ */
+const INK_ON_LIGHT = "#000000";
+
+/**
+ * Schrift auf einer farbigen Fläche, etwa dem „H“ in der eigenen Farbe der Navigation (#504): Weiß oder Schwarz, je
+ * nachdem, was nach WCAG 2.2 den höheren Kontrast hat
+ */
+export function inkOnAccent(hex: string): "#FFFFFF" | "#000000" {
+  const accent = luminance(hex);
+  const onWhite = 1.05 / (accent + 0.05);
+  const onDark = (accent + 0.05) / (luminance(INK_ON_LIGHT) + 0.05);
+  return onWhite >= onDark ? "#FFFFFF" : INK_ON_LIGHT;
+}
+
+/** Kontrast zweier Farben #RRGGBB nach WCAG 2.2, 1 bis 21 */
+function contrast(a: string, b: string): number {
+  const [hell, dunkel] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (hell + 0.05) / (dunkel + 0.05);
+}
+
+/**
+ * Hintergrund der Navigation in den vier Farben (Wald, Ozean, Pflaume, Graphit) im hellen Modus und im dunklen Modus,
+ * der für alle Farben gleich ist. Muss mit `--nav` in apps/web/src/styles.css übereinstimmen; navigation.test.ts prüft das.
+ */
+export const NAV_BACKGROUNDS = ["#16211C", "#131C2B", "#1F1624", "#15191D", "#111113"] as const;
+
+/** WCAG 2.2, 1.4.11: 3 : 1 für Grafik, die man erkennen muss */
+const MIN_GRAPHIC_CONTRAST = 3;
+
+/**
+ * Braucht das „H“ in eigener Farbe (#504) eine helle Innenkante? Ja, wenn sich die Kachel in einem der Themes nicht
+ * mit 3 : 1 von der Navigation abhebt. Farbe und Modus wählt der Browser, deshalb gegen alle.
+ */
+export function needsEdgeOnNav(hex: string): boolean {
+  return Math.min(...NAV_BACKGROUNDS.map((nav) => contrast(hex, nav))) < MIN_GRAPHIC_CONTRAST;
 }
 
 /** WCAG 2.2, 1.4.3: 4,5 : 1 für kleine Schrift; die Spaltenköpfe stehen in 8 pt */

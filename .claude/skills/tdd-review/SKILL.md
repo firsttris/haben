@@ -1,6 +1,6 @@
 ---
 name: "tdd-review"
-description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request mit Code vor dem Merge; ohne Code doku-pruefen."
+description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request mit Code vor dem Merge; Markdown prüft doku-pruefen, bei Code und Markdown parallel."
 ---
 
 # TDD-Review
@@ -9,7 +9,7 @@ Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, di
 
 ## 0. Wer reviewt?
 
-Zeigt `git diff --name-only origin/main...<branch>` nur `*.md` und `mkdocs.yml`, gilt Skill `doku-pruefen` statt dieses Skills. Ändert der PR Code und Markdown, prüft derselbe Reviewer in derselben Runde die Markdown-Dateien nach `doku-pruefen`, Schritte 2 bis 6; diese Befunde brauchen keinen roten Test und stehen im selben Kommentar (Schritt 3).
+Zeigt `git diff --name-only origin/main...<branch>` nur `*.md` und `mkdocs.yml`, gilt Skill `doku-pruefen` statt dieses Skills. Ändert der PR Code und Markdown, prüft dieser Skill nur den Code; für die Markdown-Dateien zugleich einen frischen Subagenten mit `doku-pruefen`, PR-Nummer und Branch starten. Gemergt wird erst, wenn beide fertig sind (Schritt 6).
 
 Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agent oder Mensch, nicht das Konto: Ein frischer Agent ohne den Verlauf der Entstehung ist unabhängig, auch wenn ihn der Autor gestartet hat (`docs/entwicklung.md`, Review, Punkt 1).
 
@@ -72,7 +72,7 @@ Die Regel steht in `docs/entwicklung.md`, Review, „Runden“. Schritte 1 bis 5
 ## 6. Merge (Maintainer oder Collaborator mit Zustimmung)
 
 - Mergen darf, wer Maintainer von Haben ist und das ausdrücklich will, oder ein Collaborator mit Zustimmung des Maintainers. Wer sonst beiträgt, hört nach Schritt 5 auf.
-- Vor dem Merge prüfen: alle Findings behoben oder nach „Wie viele Runden“ notiert, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`, Titel und Beschreibung passen zum Stand (sie werden der Squash-Commit auf `main`).
+- Vor dem Merge prüfen: alle Findings behoben oder nach „Wie viele Runden“ notiert, bei Markdown im PR auch `doku-pruefen` abgeschlossen, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`, Titel und Beschreibung passen zum Stand (sie werden der Squash-Commit auf `main`).
 - Merge-Methode nach `docs/entwicklung.md`, „Review“, Schritt 6: immer **Squash** des Pull Requests selbst.
 - **Nicht mergen**, wenn ein zu behebendes Finding offen ist, Checks rot bleiben oder der Fix eine fachliche Entscheidung braucht – dann zurückmelden und fragen.
 

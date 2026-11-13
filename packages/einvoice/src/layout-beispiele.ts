@@ -101,6 +101,7 @@ export function layoutBeispiele(): LayoutBeispiel[] {
     rechnungBeleg("Rechnung mit Bruttopreisen, Rabatt und 40 Positionen", pdfData(brutto), briefkopf()),
     rechnungBeleg("Rechnung in Fremdwährung", pdfData(fremd)),
     rechnungBeleg("Rechnung als Kleinunternehmer", pdfData(klein)),
+    rechnungBeleg("Rechnung mit Aufbewahrungshinweis", pdfData({ ...rechnung, propertyRetention: true }), kopf),
     rechnungBeleg("Stornorechnung", pdfData(storno)),
     beleg("Angebot", quotePdfData(angebot), kopf),
     beleg("Auftragsbestätigung", confirmationPdfData(angebot, "2026-10-05"), kopf),

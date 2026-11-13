@@ -49,7 +49,8 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Bankumsatz „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“ | Buchungstag | Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung; eine Rückzahlung mindert sie ([Lohn](lohn.md#buchung)) |
 | Kursdifferenz beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung | Buchungstag | Erträge bzw. Aufwendungen aus Kursdifferenzen; die Rechnung bzw. der Beleg zählt dafür in voller Höhe ([Bankabgleich](bank.md#kursdifferenz-bei-fremdwährung)). In der Anlage EÜR: nicht steuerbare Einnahmen bzw. übrige Ausgaben |
 | Beleg mit Kategorie „Anlagegut“, bezahlt | Buchungstag bzw. Belegdatum | nur die Vorsteuer; der Kaufpreis wirkt über die AfA |
-| [Manuelle oder freie Buchung](buchhaltung.md#manuelle-und-freie-buchungen), im Einzelunternehmen ab dem Stichjahr; ebenso eine Buchung aus dem [Datenimport](belegimport.md#zahlungen-journal-und-eür) | Datum der Buchung | nach ihren Konten: Erlös als Einnahme, Aufwand in der Zeile seines Kontos, Umsatzsteuer als vereinnahmte Umsatzsteuer; Privatkonten zählen nicht |
+| [Manuelle oder freie Buchung](buchhaltung.md#manuelle-und-freie-buchungen), im Einzelunternehmen ab dem Stichjahr | Datum der Buchung | nach ihren Konten: Erlös als Einnahme, Aufwand in der Zeile seines Kontos, Umsatzsteuer als vereinnahmte Umsatzsteuer; Privatkonten zählen nicht |
+| Journalbuchung aus dem [Datenimport](belegimport.md#zahlungen-journal-und-eür), ab dem Stichjahr | bei offenen Forderungen/Verbindlichkeiten erst am Tag der zugeordneten Zahlung, sonst Buchungsdatum | nach den ursprünglichen Konten; Teilzahlungen anteilig. Fehlende Zahlungsbezüge bleiben ungeklärt und können ausdrücklich nachgepflegt werden |
 | [Sachentnahme](buchhaltung.md#manuelle-und-freie-buchungen) (freie Buchung mit Steuerschlüssel) | Datum der Buchung | Sonstige Sach-, Nutzungs- und Leistungsentnahmen (netto) und die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | [Pauschale](pauschalen.md) | Datum der Pauschale | Ausgabe je Pauschale (Homeoffice, Fahrten, Verpflegung) |
 | Anlagenverzeichnis | Jahr laut Abschreibungsplan | AfA, Sofortabschreibung GWG, Auflösung Sammelposten, Restbuchwert bei Abgang ([Anlagen und AfA](anlagen.md)) |
@@ -139,7 +140,8 @@ Unter **Einstellungen › Export › DATEV-Export** lädst du die Buchungen eine
 - **Kopfdaten:** Berater- und Mandantennummer (von der Kanzlei), Wirtschaftsjahr ist das Kalenderjahr, Sachkontenlänge 4, Kontenrahmen SKR03 bzw. SKR04 wie in Haben.
 - **Buchungssätze:** Jede Buchung aus dem Journal wird in Buchungssätze „Konto an Gegenkonto“ zerlegt. Die Summe je Konto ist danach genau die aus der [Saldenliste](buchhaltung.md#die-seite-konten); mit Personenkonten steht die Summe von Forderungen bzw. Verbindlichkeiten auf den Debitoren bzw. Kreditoren.
 - **Umsatzsteuer:** Haben bucht die Steuer als eigene Zeile, bei Ist-Versteuerung zuerst auf „Umsatzsteuer nicht fällig“. Damit DATEV sie nicht ein zweites Mal aus den Erlösen herausrechnet, tragen Buchungen auf Automatikkonten (SKR03 8400 und 8300, SKR04 4400 und 4300, dazu die Sachentnahme SKR03 8910 und 8915, SKR04 4620 und 4610, früher auch 4630, und die private Kfz-Nutzung mit Umsatzsteuer SKR03 8921, SKR04 4645) den BU-Schlüssel 40 (Aufhebung der Automatik). Die Kfz-Nutzung ohne Umsatzsteuer (SKR03 8924, SKR04 4639) ist ein Konto ohne Automatik und bleibt ohne Schlüssel (DATEV-Kontenrahmen SKR03 und SKR04, gültig für 2026).
-- **Belegfeld 1:** die Rechnungsnummer bzw. die Belegnummer des Lieferanten; **Buchungstext:** wie im Journal, auf 60 Zeichen gekürzt.
+- **Belegfeld 1:** die Rechnungsnummer bzw. die Belegnummer des Lieferanten, bei Zahlungen die der bezahlten Rechnung bzw. des Belegs; darüber gleicht DATEV offene Posten aus. DATEV erlaubt dort nur Ziffern, Buchstaben und `$ & % * + - /`, höchstens 36 Zeichen (DATEV, [ASCII-Import: Feldbeschreibungen für Standardformate](https://apps.datev.de/help-center/documents/1003221), Dok.-Nr. 1003221, Stand 13.08.2026, Feld 11 des Buchungsstapels). Haben ersetzt den Punkt durch `-` (`RE.2026.001` wird `RE-2026-001`), lässt alle anderen Zeichen außerhalb der Liste weg, etwa Leerzeichen, Umlaute und `_`, und kürzt danach auf 36 Zeichen. Ergeben zwei verschiedene Nummern dabei dasselbe Belegfeld, nennt die Seite nach dem Herunterladen beide.
+- **Buchungstext:** wie im Journal, auf 60 Zeichen gekürzt.
 - **Festschreibung:** gesetzt, wie in Haben.
 - **Personenkonten:** auf Wunsch statt der Sammelkonten, siehe unten.
 
@@ -199,6 +201,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `protokoll/audit.csv` | Änderungsprotokoll des Jahres mit altem und neuem Wert als JSON, in der Reihenfolge der Hash-Kette mit Ketten-Nr., Vorgänger-Hash und Hash |
 | `protokoll/pruefwert.txt` | Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am Ende des Jahres, zum Aufbewahren außerhalb des Servers |
 | `FEHLER.txt` | Nur wenn eine Datei nicht lesbar war, mit Liste der betroffenen Belege |
+| `index.xml` | Beschreibung aller CSV-Dateien für die Prüfsoftware, siehe [index.xml für die Prüfsoftware](#indexxml-für-die-prüfsoftware) |
 | `pruefsummen.sha256` | SHA-256 jeder anderen Datei im Archiv |
 
 Die Stammdaten sind nicht nach Jahr gefiltert, sondern der Stand beim Export.
@@ -224,6 +227,16 @@ Alle CSV-Dateien im Archiv sind gleich aufgebaut:
 - Datumsangaben als `JJJJ-MM-TT`, Zeitpunkte in UTC nach ISO 8601
 - Felder mit Semikolon, Anführungszeichen oder Zeilenumbruch in Anführungszeichen, Anführungszeichen verdoppelt (RFC 4180)
 - Wahrheitswerte als `ja` bzw. `nein`
+
+### index.xml für die Prüfsoftware
+
+Bei einer Außenprüfung kann die Finanzverwaltung die Daten auf einem Datenträger verlangen (Datenüberlassung, Z3, § 147 Abs. 6 AO). Prüfsoftware wie IDEA liest sie ohne Handarbeit ein, wenn eine Beschreibungsdatei `index.xml` nach dem Beschreibungsstandard der Finanzverwaltung (GDPdU, Version 1.6 von 2019) dabeiliegt. Das Jahresarchiv enthält sie: Zu jeder CSV-Datei, die Haben selbst erzeugt (nicht zu unveränderten Originalen aus dem Altbestand oder hochgeladenen Anhängen, auch wenn deren Name auf `.csv` endet), steht dort ihr Pfad, der Zeichensatz (UTF-8), das Dezimalkomma, das Semikolon als Trenner, das Anführungszeichen für Felder, die übersprungene Kopfzeile und jede Spalte mit ihrem Namen. Betragsspalten (`1234,56`) und Datumsspalten (`JJJJ-MM-TT`) sind als Zahl mit zwei Nachkommastellen bzw. als Datum beschrieben, soweit Haben sie so schreibt, etwa bei Rechnungen, Belegen, Journal, Bankumsätzen und dem Kassenbuch (Einnahme, Ausgabe und Bestand); alles andere gilt als Text, damit Nummern ihre führenden Nullen behalten. Zeitpunkte sind Text, der Standard kennt keine Uhrzeit. Pro Jahr gibt es eine eigene `index.xml`; einen gemeinsamen Datenträger für mehrere Jahre stellt Haben nicht zusammen.
+
+> [!IMPORTANT]
+> Die `index.xml` verweist auf die Datei `gdpdu-01-03-2019.dtd`, legt sie aber **nicht** bei: Die DTD darf nicht verändert werden, und Haben hat keine Originalfassung. Sie gehört mit der `index.xml` zusammen auf den Datenträger. Die Prüfsoftware bringt sie meist mit; sonst gibt CaseWare Germany sie kostenlos heraus (Beschreibungsstandard, [Haufe](https://www.haufe.de/id/norm/grundsaetze-zur-ordnungsmaessigen-fuehrung-und-aufbewahrung-1-beschreibungsstandard-fuer-die-datenueberlassung-HI16888200.html)).
+
+> [!WARNING]
+> **Ungeprüft:** Ob IDEA oder eine andere Prüfsoftware die `index.xml` annimmt, hat niemand ausprobiert. Haben prüft den Aufbau gegen die Inhaltsmodelle der DTD und die Werte jeder Betrags- und Datumsspalte gegen das erzeugte Archiv, mehr nicht. Die CSV-Dateien beginnen mit einem Byte Order Mark (damit Tabellenprogramme sie öffnen); ob die Prüfsoftware es verträgt, ist ebenfalls offen. Leere Felder in Zahl- und Datumsspalten stehen für „kein Wert“, und negative Beträge (Stornos, Gutschriften, Abgänge auf dem Konto) stehen mit Minus (`-45,90`); ob die Prüfsoftware beides annimmt, ist offen. Beziehungen zwischen Tabellen (`ForeignKey`) und Zuordnungen von Werten (`Map`) beschreibt die Datei noch nicht.
 
 ### Prüfsummen prüfen
 

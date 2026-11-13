@@ -3,6 +3,7 @@ import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { TYPISIERTE_SPALTEN } from "./beschreibung.ts";
 
 // Keine KI-Auslesung im Test
 vi.mock("../belege/extraction.ts", async (importOriginal) => ({
@@ -40,6 +41,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     const contacts = await import("../stammdaten/contacts.ts");
     const documents = await import("../belege/documents.ts");
     const bank = await import("../bank/bank.ts");
+    const cash = await import("../bank/cash.ts");
 
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -127,6 +129,10 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     await bank.allocate(actor, { kind: "invoice", transactionId: tx2026in.id, invoiceId: invoice.id, amount: 476_000 });
     await bank.allocate(actor, { kind: "document", transactionId: tx2026out.id, documentId, amount: -4590 });
 
+    // Kassenbuch (#546): eine Einlage und eine Entnahme im Jahr, damit kasse/kassenbuch.csv Zeilen hat
+    await cash.createCashEntry(actor, { kind: "einlage", date: "2026-10-03", amount: 15_000, text: "Wechselgeld" }, "2026-10-31");
+    await cash.createCashEntry(actor, { kind: "entnahme", date: "2026-10-10", amount: 2_550 }, "2026-10-31");
+
     const [vatReturn] = await sql`insert into vat_returns (year, month, kz81, kz66, kz83, status)
       values (2026, 9, 400000, 733, 75267, 'draft') returning id`;
     await sql`insert into vat_return_submissions (vat_return_id, kind, ok, code, message, transfer_ticket, request_xml, response_xml, server_response_xml, protocol_pdf, created_at)
@@ -176,6 +182,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(names).toEqual(
       [
         "LIESMICH.txt",
+        "index.xml",
         `rechnungen/${invoice.number}.pdf`,
         `rechnungen/${invoice.number}.xml`,
         "rechnungen/rechnungen.csv",
@@ -183,6 +190,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
         "belege/belege.csv",
         "buchungen/journal.csv",
         "anlagen/anlagenverzeichnis.csv",
+        "kasse/kassenbuch.csv",
         "bank/DE12120300001234567890/umsaetze.csv",
         "bank/zuordnungen.csv",
         "bank/importe.csv",
@@ -264,6 +272,105 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
       `2026-10-02T08:00:00.000Z;Prüfung;ja;0;"Plausibel; ohne Fehler";;2026-10-02_validate_${vatSubmissionPrefix}_protokoll.pdf;`,
     );
     expect(text(files[`umsatzsteuer/2026-09/2026-10-02_validate_${vatSubmissionPrefix}_anfrage.xml`])).toBe("<Elster>anfrage</Elster>");
+  });
+
+  describe("index.xml (#546)", () => {
+    /** Zeilen einer CSV des Archivs, mit mehrzeiligen Feldern in Anführungszeichen */
+    function zeilen(bytes: Uint8Array): string[][] {
+      const t = text(bytes).replace(/^\uFEFF/, "");
+      const rows: string[][] = [];
+      let row: string[] = [];
+      let feld = "";
+      let an = false;
+      for (let i = 0; i < t.length; i++) {
+        const c = t[i]!;
+        if (an) {
+          if (c === '"' && t[i + 1] === '"') {
+            feld += c;
+            i++;
+          } else if (c === '"') an = false;
+          else feld += c;
+        } else if (c === '"') an = true;
+        else if (c === ";") {
+          row.push(feld);
+          feld = "";
+        } else if (c === "\n") {
+          row.push(feld.replace(/\r$/, ""));
+          rows.push(row);
+          row = [];
+          feld = "";
+        } else feld += c;
+      }
+      return rows;
+    }
+
+    it("beschreibt jede CSV des Archivs mit ihren Spalten in Dateireihenfolge und verweist auf die DTD", () => {
+      const xml = text(files["index.xml"]);
+      expect(xml).toContain('<!DOCTYPE DataSet SYSTEM "gdpdu-01-03-2019.dtd">');
+      const csvs = Object.keys(files)
+        .filter((n) => n.endsWith(".csv"))
+        .sort();
+      expect(csvs.length).toBeGreaterThan(8);
+      const urls = [...xml.matchAll(/<URL>([^<]+)<\/URL>/g)].map((m) => m[1]);
+      expect(urls).toEqual(csvs);
+      for (const pfad of csvs) {
+        const kopf = zeilen(files[pfad]!)[0]!;
+        const teil = xml.slice(xml.indexOf(`<URL>${pfad}</URL>`), xml.indexOf("</Table>", xml.indexOf(`<URL>${pfad}</URL>`)));
+        const namen = [...teil.matchAll(/<VariableColumn>\s*<Name>([^<]*)<\/Name>/g)].map((m) =>
+          m[1]!.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"),
+        );
+        expect(namen, pfad).toEqual(kopf);
+      }
+    });
+
+    it("Betrags- und Datumsspalten passen zu allen Werten der Datei; Kopfzeile und Überschriften stehen in der Datei", () => {
+      let geprueft = 0;
+      for (const t of TYPISIERTE_SPALTEN) {
+        for (const pfad of Object.keys(files).filter((n) => t.pfad.test(n))) {
+          const [kopf, ...daten] = zeilen(files[pfad]!);
+          for (const [spalten, muster] of [
+            [t.zahlen, /^-?\d+,\d{2}$/],
+            [t.daten, /^\d{4}-\d{2}-\d{2}$/],
+          ] as const) {
+            for (const name of spalten) {
+              const i = kopf!.indexOf(name);
+              expect(i, `${pfad}: Spalte „${name}“ fehlt`).toBeGreaterThanOrEqual(0);
+              for (const row of daten) {
+                if (row.length === 1 && row[0] === "") continue;
+                expect(row[i] === "" || muster.test(row[i]!), `${pfad}: ${name} = ${row[i]}`).toBe(true);
+                geprueft++;
+              }
+            }
+          }
+        }
+      }
+      // Rechnungen, Belege, Journal, Umsätze und Zuordnungen haben im Test Zeilen
+      expect(geprueft).toBeGreaterThan(30);
+    });
+
+    it("das Kassenbuch ist beschrieben: Beträge als Numeric, Datum als Date, Nummer und Text als AlphaNumeric (#546)", () => {
+      const pfad = "kasse/kassenbuch.csv";
+      const [kopf, ...daten] = zeilen(files[pfad]!);
+      // Anfangsbestand, Einlage und Entnahme
+      expect(daten.filter((r) => r.length > 1).length).toBe(3);
+      const xml = text(files["index.xml"]);
+      const teil = xml.slice(xml.indexOf(`<URL>${pfad}</URL>`), xml.indexOf("</Table>", xml.indexOf(`<URL>${pfad}</URL>`)));
+      const art = (spalte: string) => {
+        const von = teil.indexOf(`<Name>${spalte}</Name>`);
+        expect(von, spalte).toBeGreaterThanOrEqual(0);
+        // Die index.xml ist eingerückt; verglichen wird ohne Leerraum
+        return teil.slice(von, teil.indexOf("</VariableColumn>", von)).replace(/\s+/g, "");
+      };
+      for (const spalte of ["Einnahme", "Ausgabe", "Bestand"]) expect(art(spalte), spalte).toContain("<Numeric><Accuracy>2</Accuracy></Numeric>");
+      expect(art("Datum")).toContain("<Date><Format>YYYY-MM-DD</Format></Date>");
+      expect(art("Nr.")).toContain("<AlphaNumeric/>");
+      expect(kopf).toContain("Einnahme");
+    });
+
+    it("steht in der LIESMICH und in den Prüfsummen", () => {
+      expect(text(files["LIESMICH.txt"])).toContain("index.xml");
+      expect(text(files["pruefsummen.sha256"])).toMatch(/^[0-9a-f]{64} {2}index\.xml$/m);
+    });
   });
 
   it("Prüfsummen passen zu jeder Datei", () => {

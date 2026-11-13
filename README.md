@@ -2,7 +2,10 @@
 
 <h1>Haben: Open-Source-Buchhaltung, selbst gehostet</h1>
 
-<img src="docs/banner.png" alt="Haben: Rechnung 2026-031 festgeschrieben, Zahlungseingang zugeordnet, Voranmeldung September an ELSTER übermittelt" width="900">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dunkel.png">
+  <img src="docs/hero-hell.png" alt="Haben, Deine Bücher. Dein Server.: E-Rechnung über 1.725,50 € festgeschrieben, Zahlungseingang zugeordnet, in der Voranmeldung Oktober mit Kennzahl 81 enthalten und an ELSTER übermittelt" width="900">
+</picture>
 
 **Die Buchhaltungssoftware für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs, die du selbst betreibst.**<br>
 Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR oder Bilanz mit E-Bilanz und die Steuern
@@ -32,7 +35,10 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 
 <sub>English: self-hosted open-source bookkeeping for German freelancers, small businesses and small limited companies (GmbH, UG), with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR or balance sheet with E-Bilanz, and VAT, corporate and trade tax returns via ELSTER. The app and its [documentation](https://haben.app/) are in German.</sub>
 
-<img src="docs/screenshot-uebersicht.png" alt="Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben" width="900">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-uebersicht-dunkel.png">
+  <img src="docs/screenshot-uebersicht.png" alt="Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben" width="900">
+</picture>
 
 </div>
 
@@ -99,12 +105,12 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshot-rechnung.png" alt="Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts"><br><sub><b>Rechnung schreiben</b>: Vorschau des PDFs, während du tippst</sub></td>
-    <td width="50%"><img src="docs/screenshot-bank.png" alt="Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen"><br><sub><b>Bankabgleich</b>: Vorschlag mit Begründung, Enter ordnet zu</sub></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-rechnung-dunkel.png"><img src="docs/screenshot-rechnung.png" alt="Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts"></picture><br><sub><b>Rechnung schreiben</b>: Vorschau des PDFs, während du tippst</sub></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-bank-dunkel.png"><img src="docs/screenshot-bank.png" alt="Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen"></picture><br><sub><b>Bankabgleich</b>: Vorschlag mit Begründung, Enter ordnet zu</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshot-umsatzsteuer.png" alt="Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER"><br><sub><b>Voranmeldung</b>: aus den Buchungen berechnet, direkt an ELSTER</sub></td>
-    <td width="50%"><img src="docs/screenshot-auswertungen.png" alt="Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm"><br><sub><b>Auswertungen</b>: EÜR nach Zufluss und Abfluss</sub></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-umsatzsteuer-dunkel.png"><img src="docs/screenshot-umsatzsteuer.png" alt="Voranmeldung mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER"></picture><br><sub><b>Voranmeldung</b>: aus den Buchungen berechnet, direkt an ELSTER</sub></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-auswertungen-dunkel.png"><img src="docs/screenshot-auswertungen.png" alt="Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm"></picture><br><sub><b>Auswertungen</b>: EÜR nach Zufluss und Abfluss</sub></td>
   </tr>
 </table>
 
@@ -114,6 +120,7 @@ Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), 
 tägliches Backup mit restic.
 Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
 denn Passkeys funktionieren nur über HTTPS.
+Vorlagen gibt es für [Synology](https://haben.app/synology.html) und [TrueNAS](https://haben.app/truenas.html) (beide ohne Kommandozeile), [Unraid](https://haben.app/unraid.html) und [Coolify](https://haben.app/coolify.html).
 
 ### 1. Von einem Agenten aufsetzen lassen
 
@@ -279,7 +286,7 @@ Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist ein
 
 Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
-- **Einstieg:** [Betrieb und Installation](https://haben.app/installation.html) (Docker Compose, Podman, Backup, Updates),
+- **Einstieg:** [Betrieb und Installation](https://haben.app/installation.html) (Docker Compose, Podman, Synology, TrueNAS, Unraid, Coolify, Backup, Updates),
   [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten, ELSTER und Hersteller-ID) und
   [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
 - **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
@@ -326,7 +333,7 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 
 Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und meldet sich im Issue ([Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen)). Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
 kennt, und Rückmeldungen zur ELSTER-Übermittlung. Ein Pull Request bringt seine Selbstprüfung (`beitrag-pruefen`) und ein
-unabhängiges Review mit (`tdd-review`, ohne Code `doku-pruefen`). Was vor einem Pull Request laufen muss und was er
+unabhängiges Review mit (`tdd-review` für Code, `doku-pruefen` für Markdown). Was vor einem Pull Request laufen muss und was er
 enthält, steht unter [Mitwirken](https://haben.app/entwicklung.html#mitwirken).
 
 ## Sterne im Verlauf

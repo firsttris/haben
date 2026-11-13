@@ -10,25 +10,31 @@ Die Oberfläche ist schlichtes CSS mit Variablen, ohne Komponentenbibliothek. Ha
 
 Keine Verläufe, Leuchteffekte oder Endlos-Animationen; Farbe trägt Bedeutung (Akzent, Status, Diagrammreihen).
 
-Farben kommen aus den Variablen in `:root` von `styles.css`; die Themes überschreiben sie unter `[data-theme="…"]`:
+Farben kommen aus den Variablen in `:root` von `styles.css`; die Farben überschreiben sie unter `[data-theme="…"]`, der dunkle Modus unter `[data-mode="dark"]`:
 
 | Rolle | Variablen |
 | --- | --- |
 | Text | `--ink`, `--ink-2`, `--muted` |
 | Flächen | `--ground`, `--surface` |
 | Linien | `--line`, `--line-soft`, `--line-strong` |
-| Akzent | `--accent`, `--accent-hover`, `--accent-ink`, `--accent-soft`, `--accent-tint` |
+| Akzent | `--accent`, `--accent-hover`, `--accent-ink`, `--accent-soft`, `--accent-tint`, `--accent-fg` (Schrift auf Akzentfläche) |
 | Links | `--link`, `--link-hover` |
 | Navigation | `--brand`, `--nav`, `--nav-active`, `--nav-ink` |
 | Status | `--warn-ink`, `--warn-soft`, `--warn-dot`, `--info-ink`, `--info-soft`, `--danger-ink`, `--danger-soft` |
 
-Die Themes stehen in `apps/web/src/lib/theme.ts`: Wald (Standard), Ozean, Pflaume, Graphit, Nacht und Tiefsee (beide dunkel), dazu „Automatisch“, das der Systemeinstellung folgt.
+Einzige Ausnahme ist das Zeichen der Firma links neben „Haben“ (`NavMarkSymbol`), eine eigene Einstellung der Instanz unter Einstellungen › Firma, getrennt von der Beleggestaltung. Ein „H“ in eigener Farbe bekommt Fläche und Schrift als Inline-Style, die Schrift wählt `inkOnAccent` (`packages/core/src/accent.ts`): Weiß oder Schwarz, je nachdem, was den höheren Kontrast hat, so hält jede Farbe mindestens 4,5 : 1. Ein Logo steht auf weißer Fläche (`.brand-logo`), weil Logos für Papier gemacht sind und ein dunkles auf der dunklen Navigation verschwände, verkleinert in dieselbe quadratische Kachel wie das „H“ (`object-fit: contain`). Ab Werk bleibt `--brand` des Themes.
+
+Farbe und Modus wählt man getrennt (`apps/web/src/lib/theme.ts`): Wald (Standard), Ozean, Pflaume oder Graphit, jede hell, dunkel oder nach der Einstellung des Geräts („System“). Im hellen Modus hat jede Farbe ihre eigene dunkle Navigation.
+
+Der dunkle Modus ist für alle Farben gleich aufgebaut: neutrale Flächen ohne Farbstich (`--ground`, `--surface`, Linien und Text in Grau), Farbe nur im Akzent. Der Akzent ist dort heller als im hellen Modus und trägt dunkle Schrift (`--accent-fg`), damit er auf dem Grund leuchtet; Links nehmen das noch hellere `--accent-ink`. Die Navigation hat den Ton des Grunds und trennt sich mit einer Linie ab. Eine neue Farbe braucht deshalb im dunklen Modus nur ihre fünf Akzentwerte.
 
 ## Schrift und Abstände
 
 Abstände auf dem 4px-Raster, Schriftgrößen aus 12, 13, 14, 16, 18, 24 und 28px, Beschriftungen und Tabellenköpfe in Satzschreibung statt Versalien mit Sperrung.
 
 Die Schriften stehen in `--sans` und `--mono`, die einheitliche Höhe von Eingabefeldern, Auswahllisten und Knöpfen in `--control-h`.
+
+Beträge und Kennzahlen stehen in `--sans` mit gleich breiten Ziffern (`font-variant-numeric: tabular-nums`), damit sie bündig untereinander stehen: in Tabellen `.num`, im Fließtext `.amount`. `--mono` bleibt für Kennungen und Code wie IBAN, Token, Kennzahlen der Formulare und Eingaben, deren Zeichen man einzeln prüft.
 
 ## Komponenten
 
@@ -43,7 +49,13 @@ Die Knopfarten (#30, `styles.css`):
 | `btn btn-danger` | Löschen, Entfernen, Stornieren, Widerrufen, Abo beenden, Ausschalten. |
 | `btn btn-destructive` | Bestätigung von Unumkehrbarem im `ConfirmDialog` (`danger`): voll in Rot. |
 | `btn btn-dashed` | Nur zum Anfügen einer Zeile oder eines Eintrags im Formular, etwa „+ Position“, „+ Steuersatz“, „+ Kind“. |
+| `btn btn-ghost` | Nebenaktion in einer Werkzeugleiste, etwa Blättern oder Vergrößern und Ausblenden der Vorschau: ohne Rahmen, Fläche erst beim Überfahren. Nie für die Hauptaktion. |
+| `btn-icon` | Quadratischer Knopf nur mit Symbol, mit `aria-label`; zusammen mit `btn-ghost` oder `btn-sm`. |
 | `btn-sm` | Kleiner Knopf; ersetzt Inline-`minHeight`. |
+
+Knöpfe und Karten tragen einen feinen Schatten (`--shadow-xs`), randlose Knöpfe (`btn-ghost`, `btn-dashed`) keinen. Beim Überfahren färbt sich die Fläche (`--hover`), Übergänge dauern `--fade`; ein gesperrter Knopf färbt sich beim Überfahren nicht.
+
+Der Fokusring der Knöpfe steht mit 2px Abstand außen. Bei Feldern (Eingabe, Auswahlliste, Textfeld, Combobox) liegt er auf dem eigenen Rahmen, der dabei die Akzentfarbe annimmt, statt als zweiter Rahmen daneben.
 
 ### Symbole
 
@@ -51,7 +63,7 @@ Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
 
 ### Navigation
 
-Oben in der Navigation steht die Marke: das „H“ und „Haben“ (18px, halbfett). Hat die Firma in den Firmendaten einen Namen, steht er darunter (13px, mittel, in `--nav-ink`, dem Grau der Menüpunkte, damit „Haben“ die Hauptzeile bleibt), denn er zeigt, in welcher Instanz man bucht (#504). Am Desktop nimmt er bis zu zwei Zeilen, damit auch lange Namen passen, am Handy eine, weil die Leiste dort `--nav-height` (60px) hoch bleibt; was nicht passt, endet mit Auslassungszeichen. Am Desktop klappt der Name dann beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf (Fläche `--nav-active`, weiße Schrift, über den ersten Menüpunkten), Escape und das Verlassen schließen ihn; ein `title` gibt es nicht, weil er nicht zu gestalten und nicht per Tastatur zu erreichen ist.
+Oben in der Navigation steht die Marke: das Zeichen und „Haben“ (18px, halbfett). Das Zeichen ist fest quadratisch und voll gefüllt, am Desktop 40px, am Handy 36px, für das „H“ wie für ein Logo (auf weißer Fläche, weil Logos für Papier gemacht sind); ein breites Logo nimmt dem Namen so keinen Platz, und nichts springt, wenn das Bild lädt. Hebt sich ein „H“ in eigener Farbe in einem der Themes nicht mit 3 : 1 von der Navigation ab (WCAG 1.4.11), bekommt die Kachel eine feine helle Innenkante (1px, `--nav-ink` mit 60 % Deckkraft); die Hintergründe der Themes stehen dafür auch in `NAV_BACKGROUNDS` (`packages/core/src/accent.ts`) und müssen mit `--nav` übereinstimmen. Die Kachel steht bündig mit den Symbolen der Menüpunkte, rechts hat die Marke am Desktop keinen Innenabstand, am Handy 8px zum Menüknopf. Hat die Firma in den Firmendaten einen Namen, steht er darunter (13px, mittel, in `--nav-ink`, dem Grau der Menüpunkte, damit „Haben“ die Hauptzeile bleibt), denn er zeigt, in welcher Instanz man bucht (#504). Am Desktop nimmt er bis zu zwei Zeilen, damit auch lange Namen passen, am Handy eine, weil die Leiste dort `--nav-height` (60px) hoch bleibt; was nicht passt, endet mit Auslassungszeichen. Am Desktop klappt der Name dann beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf (Fläche `--nav-active`, weiße Schrift, über den ersten Menüpunkten), Escape und das Verlassen schließen ihn; ein `title` gibt es nicht, weil er nicht zu gestalten und nicht per Tastatur zu erreichen ist.
 
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
 
@@ -81,7 +93,7 @@ Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgü
 
 ### Karten
 
-Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3` und `.grid-4` in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
+Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3` und `.grid-4` in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
 
 Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `NewContactDialog`).
 
@@ -130,7 +142,7 @@ Barrierefrei und per Tastatur bedienbar: echte Knöpfe und Links, ein Label für
 Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an die Regel.
 
 - **4px-Raster:** In `apps/web/src/**/*.css` haben manche `padding`, `margin` und `gap` px-Werte, die nicht durch 4 teilbar sind (meist 1 oder 2px, auch 6, 10 oder 14px).
-- **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Akzent- und Navigationsflächen (`.btn-primary`, `.brand`, `.nav-link:hover`).
+- **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Navigationsflächen (`.brand`, `.nav-link:hover`).
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.
 - **Verläufe:** `styles.css` nutzt `linear-gradient` für den auslaufenden Rand des Blatts in der Vorschau (`.preview-pane-body`, `.preview-dialog-body`, `.sheet-frame::before` und `::after`) und `conic-gradient` für das Farbfeld „Eigene Farbe“ (`.color-swatch-custom`).
-- **Symbole:** Als Unicode-Zeichen statt über `Icon` stehen `▾` und `▸` (mit `aria-hidden`) im aufklappbaren Abschnitt in `routes/_app/umsatzsteuer/$zeitraum.tsx`, `›` als Aufklapp-Pfeil (`.chevron` in `components/BilanzGuv.tsx`, `routes/_app/konten/index.tsx`, `routes/_app/buchungen/index.tsx`; `.est-block > summary::before` in `styles/auswertungen.css`), `‹` und `›` an Blätter-Knöpfen (`components/archiv/DatevBookings.tsx`, `routes/_app/auswertungen.tsx`, `routes/_app/buchungen/index.tsx`, `routes/_app/belege/$id.tsx`), `›` als Trenner im Pfad über dem Seitentitel und `→` in `routes/_app/kasse.tsx`.
+- **Symbole:** Als Unicode-Zeichen statt über `Icon` stehen `▾` und `▸` (mit `aria-hidden`) im aufklappbaren Abschnitt in `routes/_app/umsatzsteuer/$zeitraum.tsx`, `›` als Aufklapp-Pfeil (`.chevron` in `components/BilanzGuv.tsx`, `routes/_app/konten/index.tsx`, `routes/_app/buchungen/index.tsx`; `.est-block > summary::before` in `styles/auswertungen.css`), `›` als Trenner im Pfad über dem Seitentitel und `→` in `routes/_app/kasse.tsx`.

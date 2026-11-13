@@ -94,19 +94,19 @@ test.beforeAll(async ({ browser }) => {
 
 test("Kleinunternehmer-Ersteinrichtung: Übersicht ohne reguläre UStVA-Aufforderung in Hell/Dunkel und am Handy", async () => {
   const viewport = page.viewportSize()!;
-  const originalTheme = await page.evaluate(() => localStorage.getItem("haben-theme"));
+  const originalMode = await page.evaluate(() => localStorage.getItem("haben-modus"));
   try {
     for (const size of [
       { width: 1280, height: 1000 },
       { width: 375, height: 812 },
     ]) {
       await page.setViewportSize(size);
-      for (const theme of ["wald", "nacht"]) {
+      for (const modus of ["hell", "dunkel"]) {
         await gehe(page, "/");
         await page.evaluate((value) => {
-          localStorage.setItem("haben-theme", value);
-          document.documentElement.dataset.theme = value;
-        }, theme);
+          localStorage.setItem("haben-modus", value);
+          document.documentElement.dataset.mode = value === "dunkel" ? "dark" : "light";
+        }, modus);
         await expect(page.getByRole("heading", { name: "Übersicht", exact: true })).toBeVisible();
         await expect(page.getByRole("link", { name: /^Voranmeldung / })).toHaveCount(0);
         await expect(page.getByText(/^Voranmeldung .* senden$/)).toHaveCount(0);
@@ -121,10 +121,10 @@ test("Kleinunternehmer-Ersteinrichtung: Übersicht ohne reguläre UStVA-Aufforde
   } finally {
     await page.setViewportSize(viewport);
     await page.evaluate((value) => {
-      if (value === null) localStorage.removeItem("haben-theme");
-      else localStorage.setItem("haben-theme", value);
-      document.documentElement.dataset.theme = value ?? "wald";
-    }, originalTheme);
+      if (value === null) localStorage.removeItem("haben-modus");
+      else localStorage.setItem("haben-modus", value);
+      document.documentElement.dataset.mode = value === "dunkel" ? "dark" : "light";
+    }, originalMode);
   }
 });
 
@@ -191,13 +191,13 @@ async function checkImportedInvoiceSources() {
     if (invoice.label === "sevDesk" && process.env.IMPORT_SCREENSHOTS) {
       const dir = "/tmp/haben-pr-import-source";
       await mkdir(dir, { recursive: true });
-      for (const theme of ["wald", "nacht"])
+      for (const theme of ["light", "dark"])
         for (const [device, width, height] of [
           ["desktop", 1440, 900],
           ["handy", 390, 844],
         ] as const) {
           await page.setViewportSize({ width, height });
-          await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+          await page.evaluate((value) => document.documentElement.setAttribute("data-mode", value), theme);
           await page
             .locator(".card")
             .filter({ has: page.getByText("Format", { exact: true }) })
@@ -216,7 +216,7 @@ async function checkImportedInvoiceSources() {
     ).toHaveText(`Original aus ${invoice.label}`);
   }
   await page.setViewportSize(viewport);
-  await page.evaluate(() => document.documentElement.removeAttribute("data-theme"));
+  await page.evaluate(() => document.documentElement.setAttribute("data-mode", "light"));
 }
 
 test("Originale nutzen das gemeinsame Archiv mit tatsächlicher Quelle und unverändertem PDF", async () => {
@@ -275,13 +275,13 @@ test("Gemeinsame Ansichten sind auf Desktop und Handy in beiden Themes bedienbar
   ] as const) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
-    for (const theme of ["wald", "nacht"])
+    for (const theme of ["light", "dark"])
       for (const [device, viewport] of [
         ["desktop", { width: 1440, height: 900 }],
         ["handy", { width: 390, height: 844 }],
       ] as const) {
         await page.setViewportSize(viewport);
-        await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+        await page.evaluate((value) => document.documentElement.setAttribute("data-mode", value), theme);
         if (process.env.IMPORT_SCREENSHOTS) {
           const dir = "/tmp/haben-pr-common-import";
           await mkdir(dir, { recursive: true });

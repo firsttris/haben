@@ -30,6 +30,10 @@ nav:
   - Übersicht: ueberblick.md
   - Betrieb:
       - Betrieb und Installation: installation.md
+      - Synology: synology.md
+      - TrueNAS SCALE: truenas.md
+      - Unraid: unraid.md
+      - Coolify: coolify.md
       - Erste Schritte: einrichtung.md
   - Im Alltag:
       - Rechnungen und E-Rechnung: rechnungen.md
@@ -37,6 +41,7 @@ nav:
       - Angebote: angebote.md
       - Belege: belege.md
       - Pauschalen: pauschalen.md
+      - Leistungen und Zeiteinträge: leistungen.md
       - Kassenbuch: kasse.md
       - Anlagen und AfA: anlagen.md
       - Bankimport und Abgleich: bank.md

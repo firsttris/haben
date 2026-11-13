@@ -20,7 +20,7 @@ Haben läuft als vier Container in einem eigenen Netz:
 | `backup` / `haben-backup` | `tristanteu/haben-backup:latest` | Tägliches Backup von Datenbank und Belegen mit restic, Repository im Volume `backups` bzw. `haben-backups` oder auf einem zweiten System, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
 | `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy`. Läuft bei dir schon ein Reverse Proxy, entfällt er, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
 
-Es gibt zwei Wege, sie zu betreiben:
+Es gibt zwei Wege, sie zu betreiben, dazu Vorlagen für [Synology](synology.md), [TrueNAS SCALE](truenas.md), [Unraid](unraid.md) und [Coolify](coolify.md):
 
 | Weg | Gut für | Dateien |
 | --- | --- | --- |
@@ -355,6 +355,8 @@ backend haben-app
 ## Mehrere Instanzen
 
 Haben führt genau eine Buchhaltung: ein Unternehmen, im Standardmodus ein Inhaber (im [SSO-Modus](#single-sign-on-mit-openid-connect) auch mehrere), auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy. In welcher Instanz du gerade bist, zeigt die Navigation mit dem Namen aus den [Firmendaten](einrichtung.md#firmendaten).
+
+Damit du die Instanzen in der Oberfläche auseinanderhältst, gib jeder ein eigenes [Zeichen in der Navigation](einrichtung.md#zeichen-in-der-navigation), etwa eine eigene Farbe.
 
 ```
 haben-firma1/

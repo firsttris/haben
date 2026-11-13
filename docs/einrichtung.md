@@ -49,7 +49,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
 
-Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
+Ebenfalls unten links wählst du **Farbe** und **Modus**: Wald (Grün, Standard), Ozean, Pflaume oder Graphit, jeweils hell, dunkel oder **System**, das der Einstellung deines Geräts folgt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jeder Farbe gleich.
 
 Darunter steht die **Version** von Haben, die auf dem Server läuft, verlinkt mit den Versionshinweisen auf GitHub. Nach einem Update siehst du dort, ob der neue Stand angekommen ist.
 
@@ -106,6 +106,16 @@ Die Umrechnung der Steuernummer prüft die Länge je Bundesland. Passt sie nicht
 Mehr zu den Pflichtangaben auf Rechnungen steht in [Rechnungen](rechnungen.md).
 
 Unter dem Formular steht die Karte **Voranmeldung und EÜR aus dem Journal**. Sie zeigt das Stichjahr, ab dem Haben Voranmeldung und EÜR wie DATEV aus dem Journal rechnet, und ob das laufende Jahr noch aus Rechnungen, Belegen und Zahlungen rechnet. Liegt das Stichjahr nach dem laufenden Jahr, lässt es sich mit **Ab ‹Jahr› aus dem Journal** auf das laufende Jahr vorziehen, solange für das Jahr keine Voranmeldung gesendet ist und sich dadurch keine Zahl ändert; sonst nennt die Karte die Gründe. Zurück geht es nicht. Einzelheiten: [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen).
+
+### Zeichen in der Navigation
+
+Unter **Einstellungen › Firma › Zeichen in der Navigation** wählst du, woran du die Firma oben links in der Navigation erkennst. Das hilft vor allem, wenn du [mehrere Firmen als eigene Instanzen](installation.md#mehrere-instanzen) führst.
+
+- **„H“ in der Farbe des Themes:** wie ab Werk.
+- **„H“ in eigener Farbe:** mit dem Farbfeld oder als Hex-Wert `#RRGGBB`. Die Schrift darauf ist weiß oder schwarz, je nachdem, was sich besser liest; so ist das „H“ in jeder Farbe lesbar (Kontrast mindestens 4,5 : 1 nach WCAG). Hebt sich eine sehr dunkle Farbe kaum von der Navigation ab, bekommt die Kachel eine feine helle Kante.
+- **Logo aus der Beleggestaltung:** statt des „H“ steht das [Logo](#logo) der Belege auf weißer Fläche, in einem Quadrat so groß wie das „H“. Am besten wirkt ein quadratisches Bildzeichen; ein breiter Schriftzug wird darin klein. Das geht nur, wenn ein Logo hochgeladen ist, und es ändert sich mit diesem Logo. Wird es entfernt, zeigt die Navigation wieder die eigene Farbe bzw. das „H“ des Themes.
+
+Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](steuerberatung.md), und hängt nicht an der Beleggestaltung: Ändern sich [Akzentfarbe](#akzentfarbe), Layout oder Logo-Einstellungen der Belege, bleibt die eigene Farbe, und Firmen mit gleich aussehenden Belegen haben trotzdem verschiedene Zeichen. Das Theme (Hell, Dunkel, Farbe der Oberfläche) wählt dagegen jeder Zugang für sich. Die Änderung steht im Änderungsprotokoll.
 
 ### Logo
 

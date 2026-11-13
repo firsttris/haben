@@ -73,6 +73,12 @@ describe.skipIf(!testDatabaseUrl)("Dauerfriständerung nach übermittelter EÜR/
       });
     }
 
+  it("Eintragen nennt auch eine außerhalb von Haben abgegebene und vermerkte EÜR (#760)", async () => {
+    await payment();
+    await filed(2026, "euer", "vermerk");
+    expect(await save(true)).toMatchObject({ euerHinweis: expect.stringContaining("EÜR 2026") });
+  });
+
   for (const scenario of [
     "keine Abgabe",
     "nur geprüft",

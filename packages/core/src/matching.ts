@@ -33,6 +33,11 @@ export interface OpenItem {
   currency?: string;
   /** EndToEndIds der SEPA-Überweisungen, die Haben für den Beleg erzeugt hat */
   references?: string[];
+  /**
+   * Nur bei Rechnungen: Bestellnummern, unter denen die Zahlung beim Dienstleister erscheint (externe Referenz einer
+   * Plattform wie Etsy, Bestellnummer des Kunden, eigene Auftragsnummer)
+   */
+  orderReferences?: string[];
   /** Nur bei eigenen, noch ganz offenen Rechnungen in Euro: das angebotene Skonto je Stufe */
   skonto?: SkontoZahlfrist[];
   /** Nur bei Voranmeldungen: der Zeitraum, den die Finanzkasse im Verwendungszweck nennt */
@@ -90,11 +95,13 @@ function daysBetween(a: string, b: string): number {
 /**
  * Rechnungsnummer im Verwendungszweck, unabhängig von Leerzeichen und Trennzeichen.
  * Direkt davor und danach darf keine Ziffer stehen, sonst steckte 2026-100 in 2026-1000.
+ * Bei Bestellnummern gehören auch angrenzende Buchstaben zur Nummer (AU2026042 ist nicht AU2026042A).
  */
-export function purposeContainsNumber(purpose: string, number: string): boolean {
+export function purposeContainsNumber(purpose: string, number: string, boundary: "digits" | "alphanumeric" = "digits"): boolean {
   const needle = compact(number);
   if (needle.length < 3) return false;
-  const pattern = new RegExp(`(?<![0-9])${[...needle].join("[^a-z0-9]*")}(?![0-9])`);
+  const adjacent = boundary === "alphanumeric" ? "[a-z0-9]" : "[0-9]";
+  const pattern = new RegExp(`(?<!${adjacent})${[...needle].join("[^a-z0-9]*")}(?!${adjacent})`);
   return pattern.test(purpose.toLowerCase());
 }
 
@@ -152,6 +159,15 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
     if (purposeContainsNumber(tx.purpose, item.number)) {
       score += 40;
       reasons.push("Rechnungsnummer im Verwendungszweck");
+    }
+    // Zahlungsdienstleister nennen die Bestellnummer statt der Rechnungsnummer („Payment for Order #…“). Sie entscheidet,
+    // wenn mehrere Rechnungen denselben Betrag haben, und zählt deshalb wie die Referenz einer Überweisung aus Haben.
+    // Nur bei exaktem Betrag: Gebühren, Gebühren-Gutschriften und Karteneinzüge nennen dieselbe Bestellnummer, gehören
+    // aber nicht zur Rechnung (Teilzahlungen gibt es bei Plattformen nicht, der Verkauf kommt in voller Höhe).
+    const order = exact ? item.orderReferences?.find((r) => compact(r).length >= 5 && purposeContainsNumber(tx.purpose, r, "alphanumeric")) : undefined;
+    if (order) {
+      score += 60;
+      reasons.push(`Bestellnummer im Verwendungszweck (${order})`);
     }
     if (iban && item.partyIbans.some((i) => i.replace(/\s/g, "").toUpperCase() === iban)) {
       score += 30;

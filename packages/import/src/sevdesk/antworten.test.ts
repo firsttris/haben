@@ -250,18 +250,21 @@ describe("Gutschrift (CreditNote) in Buchhaltungsversion 1.0", () => {
   const nachArt = (art: string) => gutschriftV1.find((g) => g.creditNote.bookingCategory === art)!.creditNote;
 
   it("kennt je Buchungsart ein Beispiel", () => {
-    expect(gutschriftV1.map((g) => g.creditNote.bookingCategory).sort()).toEqual([
+    expect([...new Set(gutschriftV1.map((g) => g.creditNote.bookingCategory))].sort()).toEqual([
       "ACCOUNTING_TYPE",
       "PROVISION",
       "ROYALTY_ASSIGNED",
       "ROYALTY_UNASSIGNED",
       "UNDERACHIEVEMENT",
     ]);
+    // Buchungskonto einmal mit Erlös- und einmal mit Aufwandskonto
+    expect(gutschriftV1.filter((g) => g.creditNote.bookingCategory === "ACCOUNTING_TYPE")).toHaveLength(2);
   });
 
   it("übernimmt alle fertiggestellten Gutschriften", () => {
     for (const { creditNote } of gutschriftV1) {
-      expect(creditNote).toMatchObject({ status: "200", sendType: "VPDF" });
+      // Fertiggestellt 200, nach der Zahlung 1000 mit payDate
+      expect(creditNote).toMatchObject({ status: creditNote.payDate ? "1000" : "200", sendType: "VPDF" });
       expect(creditNote.sendDate).not.toBeNull();
       expect(isSevCreditNoteImportable(sevCreditNoteSchema.parse(creditNote))).toBe(true);
     }

@@ -122,6 +122,7 @@ function buildDocument() {
       { name: "Kontakte", description: "Kunden; versioniert, nicht löschbar" },
       { name: "Rechnungen", description: "Alle Rechnungen lesen, Entwürfe anlegen, ändern und löschen" },
       { name: "Belege", description: "Eingangsbelege hochladen und ihren Stand lesen; geprüft und gebucht wird in Haben" },
+      { name: "Leistungen", description: "Zeiteinträge je Kunde, auch aus Zeiterfassungsprogrammen wie Kimai; abgerechnet wird in Haben" },
     ],
     paths,
     components: {

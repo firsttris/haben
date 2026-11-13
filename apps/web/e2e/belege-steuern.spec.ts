@@ -203,6 +203,29 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
 });
 
+test("Änderungsprotokoll: Kontenkollisionen getrennt von Manipulation melden (#787)", async () => {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    // Bestand, dessen Nummern erst eine spätere Haben-Version reserviert hat; auch archivierte Konten wirken weiter.
+    await sql`insert into own_accounts (kontenrahmen, account, name, parent_category, archived_at, created_by)
+      values ('SKR03', '4920', 'Eigene Software 03', 'software', null, 'test-user'),
+        ('SKR04', '6805', 'Eigene Software 04', 'software', now(), 'test-user')`;
+    await go("/einstellungen?bereich=export");
+    const card = page.getByRole("region", { name: "Änderungsprotokoll prüfen" });
+    await card.getByRole("button", { name: "Kette prüfen" }).click();
+    await expect(card.getByRole("status")).toContainText("2 Kontenkollisionen");
+    await expect(card.getByRole("status")).toHaveClass(/banner-info/);
+    await expect(card.getByRole("alert")).toHaveCount(0);
+    const collisions = card.getByRole("region", { name: "Kontenkollisionen" });
+    await expect(collisions).toContainText("SKR03 · 4920 · Eigene Software 03");
+    await expect(collisions).toContainText("SKR04 · 6805 · Eigene Software 04");
+    await expect(collisions).toContainText("Archivieren allein löst die Kollision nicht");
+  } finally {
+    await sql`delete from own_accounts where created_by = 'test-user' and name in ('Eigene Software 03', 'Eigene Software 04')`;
+    await sql.end();
+  }
+});
+
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
   await go("/einstellungen?bereich=email");
   const card = page.getByRole("form", { name: "Belege per E-Mail" });
@@ -296,17 +319,24 @@ test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer
   }
 });
 
-test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation", async () => {
+test("Farbe und Modus wechseln, bleiben nach dem Neuladen, Version unten in der Navigation", async () => {
   await go("/");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await expect(nav.getByRole("link", { name: /^Haben \d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/ })).toBeVisible();
-  await nav.getByLabel("Theme").selectOption("tiefsee");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "tiefsee");
+  const html = page.locator("html");
+  await nav.getByLabel("Farbe").selectOption("pflaume");
+  await nav.getByLabel("Modus").selectOption("dunkel");
+  await expect(html).toHaveAttribute("data-theme", "pflaume");
+  await expect(html).toHaveAttribute("data-mode", "dark");
   await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "tiefsee");
-  await expect(nav.getByLabel("Theme")).toHaveValue("tiefsee");
-  await nav.getByLabel("Theme").selectOption("wald");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "wald");
+  await expect(html).toHaveAttribute("data-theme", "pflaume");
+  await expect(html).toHaveAttribute("data-mode", "dark");
+  await expect(nav.getByLabel("Farbe")).toHaveValue("pflaume");
+  await expect(nav.getByLabel("Modus")).toHaveValue("dunkel");
+  await nav.getByLabel("Farbe").selectOption("wald");
+  await nav.getByLabel("Modus").selectOption("hell");
+  await expect(html).toHaveAttribute("data-theme", "wald");
+  await expect(html).toHaveAttribute("data-mode", "light");
 });
 
 test("Fristen und Kalender-Abo", async () => {
@@ -1968,6 +1998,45 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(zeile).toContainText("DE02 1203 0000 0000 2020 51");
   await go(new URL(kontaktUrl).pathname);
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
+});
+
+test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
+  const jahr = YEAR - 1;
+  await go(`/jahreserklaerung/${jahr}`);
+  const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
+  // Die Karte traegt Formular und Jahr im Namen, weil sie auf der Seite zweimal vorkommt (USt und EÜR)
+  const karte = ust.getByRole("region", { name: `Abgabe außerhalb von Haben: Umsatzsteuererklärung ${jahr}`, exact: true });
+  await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
+  // Der Abgabetag liegt im Folgejahr: eine Jahreserklärung kann nicht vor dem Jahresende abgegeben werden
+  await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr + 1}-01-02`);
+  await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");
+  await dialog.getByLabel("Betrag", { exact: true }).fill("0,00");
+  await dialog.getByLabel("Begründung", { exact: true }).fill("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  const protokollFeld = dialog.locator(".field", { has: page.getByText("Übermittlungsprotokoll (PDF, optional)", { exact: true }) });
+  const protokollDialog = await filePickerPruefen(page, protokollFeld, "Übermittlungsprotokoll");
+  await protokollDialog.setFiles({
+    name: "Uebermittlungsprotokoll.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n% Übermittlungsprotokoll\n%%EOF\n"),
+  });
+  // Weicht der Betrag vom gerechneten Wert ab, verlangt der Dialog eine ausdrueckliche Bestaetigung
+  const haken = dialog.getByLabel("Abweichung geprüft und bewusst übernommen");
+  if (await haken.count()) await haken.check();
+  await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
+
+  // Danach gilt die Erklärung als abgegeben; Tag und Begründung stehen in der Karte, ein zweiter Vermerk fehlt
+  await expect(ust.getByText(`Außerhalb abgegeben 02.01.${jahr + 1}`)).toBeVisible();
+  await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
+  await expect(karte).toContainText("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
+  const protokoll = await page.request.get((await karte.getByRole("link", { name: "Übermittlungsprotokoll" }).getAttribute("href"))!);
+  expect(protokoll.headers()["content-type"]).toContain("application/pdf");
+
+  // Auch nach dem Neuladen bleibt der Vermerk stehen
+  await go(`/jahreserklaerung/${jahr}`);
+  await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben 02.01.${jahr + 1}`)).toBeVisible();
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {

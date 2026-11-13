@@ -1,3 +1,4 @@
+import { insertAllocation, insertWriteOff } from "./settlement-store.ts";
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
@@ -57,9 +58,9 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
-import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoicePaymentPostingMode, invoiceTotalsById, invoicePostingMode, lockInvoice } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
-import { kleinunternehmerHistory, lastDayOfMonth, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
+import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
@@ -461,12 +462,19 @@ export async function invoiceLosses(ids: string[], q: Db | Tx = db): Promise<Map
   return new Map(rows.map((r) => [r.id!, Number(r.sum)]));
 }
 
+/** Bestellnummern einer Rechnung für den Abgleich: externe Referenz, Bestellnummer des Kunden, eigene Auftragsnummer */
+function orderReferencesOf(inv: { externalId: string | null; buyerOrderReference: string; sellerOrderReference: string }, externalId = inv.externalId) {
+  const refs = [...new Set([externalId ?? "", inv.buyerOrderReference, inv.sellerOrderReference].map((r) => r.trim()).filter(Boolean))];
+  return refs.length > 0 ? { orderReferences: refs } : {};
+}
+
 /** Offene Rechnungen und Belege für den Abgleich */
 export async function openItems(): Promise<OpenItem[]> {
   const invoices = await db
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
+      correctsId: schema.invoices.correctsId,
       number: schema.invoices.number,
       issueDate: schema.invoices.issueDate,
       dueDate: schema.invoices.dueDate,
@@ -475,6 +483,9 @@ export async function openItems(): Promise<OpenItem[]> {
       skonto: schema.invoices.skonto,
       buyer: schema.invoices.buyer,
       contactIban: schema.contacts.iban,
+      externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
@@ -487,11 +498,19 @@ export async function openItems(): Promise<OpenItem[]> {
       issueDate: schema.invoices.issueDate,
       buyer: schema.invoices.buyer,
       contactIban: schema.contacts.iban,
+      externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
   const cancelled = new Set(stornos.map((r) => r.correctsId));
+  // Die eindeutige externe Referenz bleibt am Original. Für den Abgleich zählen Korrektur und Storno zur selben Bestellung.
+  const externalIds = new Map(invoices.map((inv) => [inv.id, inv.externalId]));
+  for (const inv of invoices) {
+    if (inv.correctsId && !inv.externalId) externalIds.set(inv.id, externalIds.get(inv.correctsId) ?? null);
+  }
   const invoicePaid = await paidByTarget("invoice_id", [...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
   // EndToEndIds der Lastschriften aus Haben (#445): ein Einzelumsatz aus einem CAMT-Auszug findet so seine Rechnung
   const directDebitRefs = await directDebitReferences(invoices.map((i) => i.id));
@@ -537,6 +556,7 @@ export async function openItems(): Promise<OpenItem[]> {
       partyName: inv.buyer?.name ?? "",
       partyIbans: inv.contactIban ? [inv.contactIban] : [],
       ...(directDebitRefs.has(inv.id) ? { references: directDebitRefs.get(inv.id) } : {}),
+      ...orderReferencesOf(inv, externalIds.get(inv.id)),
       currency: inv.currency,
       ...(skonto.length > 0 ? { skonto } : {}),
     });
@@ -561,6 +581,8 @@ export async function openItems(): Promise<OpenItem[]> {
       open,
       partyName: storno.buyer?.name ?? "",
       partyIbans: storno.contactIban ? [storno.contactIban] : [],
+      // Storno erbt die Bestellnummer der Rechnung (#389): die Erstattung beim Dienstleister findet es darüber
+      ...orderReferencesOf(storno, externalIds.get(storno.correctsId!)),
     });
   }
   for (const doc of documents) {
@@ -924,7 +946,7 @@ export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferS
       }
     }
     for (const bank of rows) {
-      const [allocation] = await tx.insert(schema.allocations).values({ transactionId: bank.id, kind: "geldtransit", amount: bank.amount }).returning();
+      const [allocation] = await insertAllocation(tx, { transactionId: bank.id, kind: "geldtransit", amount: bank.amount });
       await post(tx, company, {
         date: bank.bookingDate,
         description: `${bank.counterpartyName || "Bankumsatz"} · geldtransit`,
@@ -1099,21 +1121,15 @@ async function returnBooking(
   bank: LockedTransaction,
   part: { invoiceId: string; directDebitItemId: string; amount: number },
 ) {
-  const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
+  const invoice = await lockInvoice(tx, part.invoiceId);
   if (invoice?.status !== "final" || invoice.kind !== "rechnung") throw new BankError("Rechnung nicht zuordenbar.");
+
   const paid = await settledOn(tx, "invoice_id", invoice.id);
   if (part.amount >= 0 || -part.amount > paid) throw new BankError(`Rechnung ${invoice.number} ist nur über ${paid / 100} € bezahlt.`);
   const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
   const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
   return {
-    lines: invoicePaymentPosting(
-      totals,
-      part.amount,
-      company.kontenrahmen,
-      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
-      taxShares,
-      invoice.taxTreatment,
-    ),
+    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, await invoicePaymentPostingMode(invoice, tx), taxShares, invoice.taxTreatment),
     description: `Rücklastschrift ${invoice.number} · ${bank.counterpartyName}`,
     target: { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id, directDebitItemId: part.directDebitItemId },
   };
@@ -1143,8 +1159,9 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   } = {};
 
   if (part.kind === "invoice") {
-    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
+    const invoice = await lockInvoice(tx, part.invoiceId);
     if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+
     const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);
     let open: number;
     if (invoice.kind === "storno") {
@@ -1163,14 +1180,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
-    lines = invoicePaymentPosting(
-      totals,
-      part.amount,
-      company.kontenrahmen,
-      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
-      taxShares,
-      invoice.taxTreatment,
-    );
+    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, await invoicePaymentPostingMode(invoice, tx), taxShares, invoice.taxTreatment);
     description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
     target = { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id };
     // IBAN des Kunden für künftige Vorschläge merken
@@ -1219,10 +1229,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   }
 
   const kind = part.kind === "ustva" ? "ustVorauszahlung" : part.kind === "ruecklastschrift" ? "invoice" : part.kind;
-  const [allocation] = await tx
-    .insert(schema.allocations)
-    .values({ transactionId: bank.id, kind, amount: part.amount, splitId, ...target })
-    .returning();
+  const [allocation] = await insertAllocation(tx, { transactionId: bank.id, kind, amount: part.amount, splitId, ...target });
   await post(tx, company, {
     date: bank.bookingDate,
     description,
@@ -1333,6 +1340,7 @@ async function assertNoReturnWithoutPayment(tx: Tx, parts: (typeof schema.alloca
 }
 
 async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect) {
+  if (allocation.invoiceId) await lockInvoice(tx, allocation.invoiceId);
   const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocation.id));
   if (already) return;
   const [entry] = await tx
@@ -1342,29 +1350,26 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       and(eq(schema.journalEntries.sourceType, "allocation"), eq(schema.journalEntries.sourceId, allocation.id), isNull(schema.journalEntries.reversesId)),
     );
   const lines = entry ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id)) : [];
-  const [reversal] = await tx
-    .insert(schema.allocations)
-    .values({
-      transactionId: allocation.transactionId,
-      kind: allocation.kind,
-      invoiceId: allocation.invoiceId,
-      documentId: allocation.documentId,
-      vatReturnId: allocation.vatReturnId,
-      taxType: allocation.taxType,
-      taxYear: allocation.taxYear,
-      taxItem: allocation.taxItem,
-      loanId: allocation.loanId,
-      loanPart: allocation.loanPart,
-      category: allocation.category,
-      taxRate: allocation.taxRate,
-      directDebitItemId: allocation.directDebitItemId,
-      amount: -allocation.amount,
-      splitId: allocation.splitId,
-      reversesId: allocation.id,
-      taxShares: negatedShares(allocation.taxShares),
-      taxSharesInvoiceId: allocation.taxSharesInvoiceId,
-    })
-    .returning();
+  const [reversal] = await insertAllocation(tx, {
+    transactionId: allocation.transactionId,
+    kind: allocation.kind,
+    invoiceId: allocation.invoiceId,
+    documentId: allocation.documentId,
+    vatReturnId: allocation.vatReturnId,
+    taxType: allocation.taxType,
+    taxYear: allocation.taxYear,
+    taxItem: allocation.taxItem,
+    loanId: allocation.loanId,
+    loanPart: allocation.loanPart,
+    category: allocation.category,
+    taxRate: allocation.taxRate,
+    directDebitItemId: allocation.directDebitItemId,
+    amount: -allocation.amount,
+    splitId: allocation.splitId,
+    reversesId: allocation.id,
+    taxShares: negatedShares(allocation.taxShares),
+    taxSharesInvoiceId: allocation.taxSharesInvoiceId,
+  });
   if (entry) {
     const [bank] = await tx
       .select({ bookingDate: schema.bankTransactions.bookingDate })
@@ -1462,7 +1467,7 @@ export async function bookWriteOff(
   let target: { invoiceId: string | null; documentId: string | null; taxShares?: TaxShare[]; taxSharesInvoiceId?: string };
   if (input.kind === "kursdifferenz") {
     if ("invoiceId" in input) {
-      const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
+      const invoice = await lockInvoice(tx, input.invoiceId);
       if (invoice?.status !== "final") throw new BankError("Rechnung nicht gefunden.");
       if (invoice.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Rechnungen in Fremdwährung.");
       amount = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
@@ -1472,7 +1477,7 @@ export async function bookWriteOff(
         {
           kind: "invoice",
           totals,
-          versteuerung: await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+          versteuerung: await invoicePaymentPostingMode(invoice, tx),
           shares: taxShares,
           treatment: invoice.taxTreatment,
         },
@@ -1512,8 +1517,9 @@ export async function bookWriteOff(
     description = `Skonto erhalten · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { invoiceId: null, documentId: doc.id };
   } else {
-    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
+    const invoice = await lockInvoice(tx, input.invoiceId);
     if (invoice?.status !== "final") throw new BankError("Rechnung nicht gefunden.");
+
     if (invoice.kind === "storno") throw new BankError("Eine Stornorechnung lässt sich nicht ausbuchen.");
     const [storno] = await tx
       .select({ id: schema.invoices.id })
@@ -1527,29 +1533,18 @@ export async function bookWriteOff(
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
-    lines = invoiceWriteOffPosting(
-      input.kind,
-      totals,
-      amount,
-      company.kontenrahmen,
-      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
-      invoice.taxTreatment,
-      taxShares,
-    );
+    lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, await invoicePostingMode(invoice, tx), invoice.taxTreatment, taxShares);
     description = `${WRITE_OFF_KINDS[input.kind]} · Rechnung ${invoice.number}`;
     target = { invoiceId: invoice.id, documentId: null, taxShares, taxSharesInvoiceId: invoice.id };
   }
-  const [row] = await tx
-    .insert(schema.writeOffs)
-    .values({
-      kind: input.kind,
-      ...target,
-      date: input.date,
-      amount,
-      transactionId: input.transactionId ?? null,
-      cashEntryId: "cashEntryId" in input ? (input.cashEntryId ?? null) : null,
-    })
-    .returning();
+  const [row] = await insertWriteOff(tx, {
+    kind: input.kind,
+    ...target,
+    date: input.date,
+    amount,
+    transactionId: input.transactionId ?? null,
+    cashEntryId: "cashEntryId" in input ? (input.cashEntryId ?? null) : null,
+  });
   await post(tx, company, { date: input.date, description, sourceType: "ausbuchung", sourceId: row!.id, lines });
   return amount;
 }
@@ -1676,6 +1671,7 @@ export async function reverseWriteOff(actor: string, id: string, date: string): 
 
 /** Gegenzeile einer Ausbuchung; mit einer Zuordnung zusammen am Datum der Ausbuchung (= Buchungsdatum des Umsatzes) */
 export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect, date = row.date) {
+  if (row.invoiceId) await lockInvoice(tx, row.invoiceId);
   const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, row.id));
   if (already) return;
   const [entry] = await tx
@@ -1683,21 +1679,18 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
     .from(schema.journalEntries)
     .where(and(eq(schema.journalEntries.sourceType, "ausbuchung"), eq(schema.journalEntries.sourceId, row.id), isNull(schema.journalEntries.reversesId)));
   const lines = entry ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id)) : [];
-  const [reversal] = await tx
-    .insert(schema.writeOffs)
-    .values({
-      kind: row.kind,
-      invoiceId: row.invoiceId,
-      documentId: row.documentId,
-      date,
-      amount: -row.amount,
-      transactionId: row.transactionId,
-      cashEntryId: row.cashEntryId,
-      reversesId: row.id,
-      taxShares: negatedShares(row.taxShares),
-      taxSharesInvoiceId: row.taxSharesInvoiceId,
-    })
-    .returning();
+  const [reversal] = await insertWriteOff(tx, {
+    kind: row.kind,
+    invoiceId: row.invoiceId,
+    documentId: row.documentId,
+    date,
+    amount: -row.amount,
+    transactionId: row.transactionId,
+    cashEntryId: row.cashEntryId,
+    reversesId: row.id,
+    taxShares: negatedShares(row.taxShares),
+    taxSharesInvoiceId: row.taxSharesInvoiceId,
+  });
   if (entry) {
     const books = await openBooks(tx);
     await post(tx, books, {

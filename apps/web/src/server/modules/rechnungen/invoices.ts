@@ -53,7 +53,8 @@ import { documentReferences, referenceColumns, referenceFieldsSchema } from "./o
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns } from "./lastschrift.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
-import { invoiceTaxYear } from "./invoice-tax-year.ts";
+import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
+import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
 import {
@@ -88,6 +89,7 @@ export const draftSchema = z
     /** Einleitung über den Positionen, etwa aus einem Textbaustein */
     intro: z.string().max(2000).default(""),
     note: z.string().max(2000),
+    propertyRetention: z.boolean().default(false),
     /** Bestellnummer des Kunden, eigene Auftragsnummer und Lieferschein (BT-13, BT-14, BT-16); leer = keine */
     ...referenceFieldsSchema,
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
@@ -98,6 +100,7 @@ export const draftSchema = z
     language: z.enum(["de", "en"]).default("de"),
     /** Abschlags- oder Schlussrechnung; null = normale Rechnung */
     variant: z.enum(["abschlag", "schluss"]).nullable().default(null),
+    advanceType: z.enum(["anzahlung", "teilleistung"]).nullable().optional(),
     /** Schlussrechnung: abzuziehende Abschlagsrechnungen */
     deducts: z.array(z.uuid()).max(50).default([]),
     /** Angebot, zu dem die Rechnung gehört (Abschlags- und Schlussrechnung, Rechnung aus dem Angebot) */
@@ -299,6 +302,8 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null, q: D
     quoteId: r.quoteId,
     number: r.number!,
     issueDate: r.issueDate,
+    advanceType: r.advanceType,
+    propertyRetention: r.propertyRetention,
     taxTreatment: r.taxTreatment,
     priceMode: r.priceMode,
     net: r.net,
@@ -509,7 +514,7 @@ export async function applyPublishedRatesToDrafts(actor: string): Promise<number
   let count = 0;
   for (const { id } of drafts) {
     const changed = await withActor(actor, async (tx) => {
-      const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+      const invoice = await lockInvoice(tx, id);
       return invoice ? applyRateToDraft(tx, invoice) : false;
     });
     if (changed) count++;
@@ -542,12 +547,14 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     format: input.format,
     intro: input.intro ?? "",
     note: input.note,
+    propertyRetention: input.propertyRetention ?? false,
     ...referenceColumns(input),
     taxTreatment: input.taxTreatment ?? "regulaer",
     exemptionReason: input.taxTreatment && input.taxTreatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
     priceMode,
     language: input.language ?? "de",
     variant: input.variant ?? null,
+    advanceType: input.variant === "abschlag" ? (input.advanceType ?? "anzahlung") : null,
     quoteId: input.quoteId ?? null,
     ...discountColumns(input.discount),
     ...paymentColumns(input, kind),
@@ -580,6 +587,9 @@ export async function createDraft(actor: string, input: DraftInput, extra: Draft
 /** Legt einen Entwurf in einer laufenden Transaktion an, z. B. zusammen mit dem Festschreiben (Storno) */
 export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra = {}): Promise<Invoice> {
   await lockQuotes(tx, input.quoteId ? [input.quoteId] : []);
+  // Vor dem ersten Audit-Eintrag sperren: Der Fremdschlüssel der Abzugsposition braucht sonst erst danach den
+  // Abschlag, während dessen parallele Zahlung auf die Audit-Kette wartet.
+  for (const id of [...new Set([...(input.deducts ?? []), ...(extra.correctsId ? [extra.correctsId] : [])])].sort()) await lockInvoice(tx, id);
   const { bundesland } = await loadCompany(tx);
   await checkQuote(tx, input.quoteId);
   const lines = await allLines(tx, null, input);
@@ -598,7 +608,7 @@ export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra =
 }
 
 export async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
-  const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+  const invoice = await lockInvoice(tx, id);
   if (!invoice) throw new InvoiceError("Rechnung nicht gefunden.");
   const problem = invoiceEditProblem(invoice);
   if (problem) throw new InvoiceError(problem);
@@ -609,6 +619,7 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
   return withActor(actor, async (tx) => {
     const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id], [input.quoteId]));
     const draft = await lockDraft(tx, id);
+    for (const reference of [...new Set(input.deducts ?? [])].sort()) await lockInvoice(tx, reference);
     // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Rechnung
     if (input.contactId !== draft.contactId) await assertCustomer(tx, input.contactId);
     await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
@@ -620,7 +631,7 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     const rate = await draftRate(tx, input, draft.correctsId, draft);
     const { values, calculation, taxes } = draftValues(
       // Storno und Korrektur zahlt der Kunde nicht, also auch kein Skonto
-      draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode, quoteId: null, skonto: [] },
+      draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode, propertyRetention: draft.propertyRetention, quoteId: null, skonto: [] },
       bundesland,
       lines,
       rate,
@@ -674,6 +685,7 @@ export async function newDraftDefaults(today: string) {
     format: company.defaultFormat,
     intro: company.invoiceIntro,
     note: "",
+    propertyRetention: false,
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",
     priceMode: "netto" as PriceMode,
@@ -877,6 +889,7 @@ export function documentFor(
     ...(corrects ? { corrects } : {}),
     ...(invoice.intro ? { intro: invoice.intro } : {}),
     ...(invoice.note ? { note: invoice.note } : {}),
+    ...(invoice.propertyRetention ? { propertyRetention: true } : {}),
     ...documentReferences(invoice),
     ...(invoice.taxTreatment !== "regulaer" ? { taxTreatment: invoice.taxTreatment } : {}),
     ...(invoice.exemptionReason ? { exemptionReason: invoice.exemptionReason } : {}),
@@ -945,6 +958,13 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
     }
   }
   if (!contact) issues.push("Kunde fehlt");
+  if (invoice.advanceType === "teilleistung") {
+    if (!invoice.serviceFrom) issues.push("Leistungsdatum der erbrachten Teilleistung fehlt");
+    if ((invoice.serviceTo ?? invoice.serviceFrom ?? "") > invoice.issueDate) issues.push("Die Teilleistung ist am Rechnungsdatum noch nicht erbracht");
+  }
+  if (invoice.variant === "schluss" && (await invoiceVatDate(invoice, q)) > invoice.issueDate) {
+    issues.push("Die Schlussleistung ist am Rechnungsdatum noch nicht erbracht");
+  }
   if (lines.length === 0) issues.push("Keine Positionen");
   if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (invoice.correctsId) {
@@ -1056,6 +1076,9 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   await assertQuotesLocked(tx, quoteIds, [id, invoice.correctsId]);
   // Inzwischen veröffentlichten Kurs übernehmen, bevor geprüft wird
   if (await applyRateToDraft(tx, invoice)) invoice = await lockDraft(tx, id);
+  // Nur bereits festgeschriebene Altabschläge behalten ihr Verfahren; offene Altentwürfe erhalten die neue Vorgabe.
+  // Erst mit der Festschreibung speichern, damit die Audit-Kette nicht vor der Nummernkreissperre gehalten wird.
+  if (invoice.variant === "abschlag" && invoice.advanceType === null) invoice = { ...invoice, advanceType: "anzahlung" };
   const issues = await finalizeIssues(id, tx);
   if (issues.length > 0) throw new InvoiceError(`Noch nicht bereit: ${issues.join(", ")}.`);
   const company = await openBooks(tx);
@@ -1109,36 +1132,41 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
   );
+  // Das Original ist gesperrt; cancelInvoice hat Ausbuchungen ausgeschlossen. Der Text hält diesen Zahlstand fest.
+  if (invoice.kind === "storno" && corrects) doc.hasPayments = ((await invoicePayments([corrects.id], tx)).get(corrects.id) ?? 0) > 0;
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
   await takeNumber(tx, "rechnung", circle, counter);
-  const [finalized] = await tx
-    .update(schema.invoices)
-    .set({
-      status: "final",
-      number,
-      numberYear: circle,
-      numberCounter: counter,
-      contactVersion: contact!.version,
-      seller,
-      buyer,
-      net: totals.net,
-      tax: totals.tax,
-      gross: totals.gross,
-      pdf: Buffer.from(rendered.pdf),
-      pdfSha256: sha256(rendered.pdf),
-      xml: rendered.xml,
-      xmlSha256: sha256(rendered.xml),
-      lockedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(schema.invoices.id, id))
-    .returning();
+  const [finalized] = await withAdvanceVatChange(tx, id, () =>
+    tx
+      .update(schema.invoices)
+      .set({
+        status: "final",
+        advanceType: invoice.advanceType,
+        number,
+        numberYear: circle,
+        numberCounter: counter,
+        contactVersion: contact!.version,
+        seller,
+        buyer,
+        net: totals.net,
+        tax: totals.tax,
+        gross: totals.gross,
+        pdf: Buffer.from(rendered.pdf),
+        pdfSha256: sha256(rendered.pdf),
+        xml: rendered.xml,
+        xmlSha256: sha256(rendered.xml),
+        lockedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(schema.invoices.id, id))
+      .returning(),
+  );
 
-  const versteuerung = invoice.correctsId ? await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx) : company.versteuerung;
+  const versteuerung = await invoicePostingMode(invoice, tx);
   await post(tx, company, {
-    date: invoice.issueDate,
+    date: await invoiceVatDate(invoice, tx),
     description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
     sourceType: "invoice",
     sourceId: id,
@@ -1240,7 +1268,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     await lockQuotes(tx, await quotesTouching(tx, [id]));
     // Original zuerst: Ein zweites Storno wartet hier und sieht danach das erste. Erst mit dem Entwurf (Fremdschlüssel
     // auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
-    await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+    await lockInvoice(tx, id);
     // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts). Das PDF entsteht hier nach dem
     // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
     await lockNumbering(tx, "rechnung", await circleFor(tx, "rechnung", today));
@@ -1271,6 +1299,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
           paymentTermDays: 0,
           format: target.format,
           note: "",
+          propertyRetention: target.propertyRetention,
           // Storno und Korrektur beziehen sich auf dieselbe Bestellung wie die Rechnung (#389)
           ...referenceColumns(target),
           taxTreatment: target.taxTreatment,
@@ -1310,6 +1339,7 @@ export async function createCorrection(actor: string, id: string, today: string)
       paymentTermDays: 0,
       format: invoice.format,
       note: "",
+      propertyRetention: invoice.propertyRetention,
       ...referenceColumns(invoice),
       taxTreatment: invoice.taxTreatment,
       exemptionReason: invoice.exemptionReason,

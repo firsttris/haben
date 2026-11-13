@@ -89,6 +89,8 @@ export const contactSchema = z.object({
   /** DATEV-Personenkonten (#327); null = keins, fehlt = unverändert */
   debitorNr: personenkonto("debitor"),
   kreditorNr: personenkonto("kreditor"),
+  /** Stundensatz in Cent für Leistungseinträge (#417); null = keiner, fehlt = unverändert */
+  hourlyRateCents: z.optional(z.nullable(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00))),
 });
 
 export type ContactRole = "kunde" | "lieferant";

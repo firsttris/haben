@@ -53,6 +53,71 @@ test("Einrichtung mit drei Kunden und einer festgeschriebenen Rechnung", async (
   await rechnungFestschreiben(page, INVOICES[0]!);
 });
 
+test("Grundstücksleistung: fester Aufbewahrungshinweis, Entwurf speichern und erneut laden (#718)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Beschreibung Position 1").fill("Terrassenrenovierung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("1200");
+  const haken = page.getByRole("checkbox", { name: "Leistung an einem Grundstück für einen Privatkunden (§ 14 Abs. 4 Nr. 9 UStG)" });
+  const vorschau = page.getByLabel("Vorschau der Rechnung");
+  await expect(haken).not.toBeChecked();
+  await expect(vorschau).not.toContainText("zwei Jahre aufzubewahren");
+  await haken.focus();
+  await page.keyboard.press("Space");
+  await expect(haken).toBeChecked();
+  await expect(vorschau).toContainText("zwei Jahre aufzubewahren");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await expect(page).toHaveURL(/\/rechnungen\/[0-9a-f-]{36}$/);
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(haken).toBeChecked();
+  await haken.uncheck();
+  await expect(vorschau).not.toContainText("zwei Jahre aufzubewahren");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Entwurf gespeichert." })).toBeVisible();
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(haken).not.toBeChecked();
+  await page.getByRole("button", { name: "Entwurf löschen", exact: true }).click();
+  await bestaetigen(page, "Entwurf löschen");
+  await expect(page).toHaveURL(/\/rechnungen(?:\?.*)?$/);
+
+  await go("/rechnungen/wiederkehrend/neu");
+  await expect(haken).not.toBeChecked();
+  await haken.check();
+  await expect(haken).toBeChecked();
+  await expect(haken).toHaveAccessibleDescription(/zweijährigen Aufbewahrung/);
+  await go("/angebote/neu");
+  await expect(haken).toHaveCount(0);
+});
+
+test("Abschlag: Anzahlung ist Vorgabe, erbrachte Teilleistung braucht ein Leistungsdatum (#622)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
+  const erbracht = page.getByRole("checkbox", { name: "Teilleistung bereits erbracht" });
+  await expect(erbracht).not.toBeChecked();
+  await expect(
+    page.getByText("Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung.", { exact: true }),
+  ).toBeVisible();
+  await erbracht.check();
+  await expect(page.getByLabel("Leistung von", { exact: true })).toHaveAttribute("required", "");
+  await expect(page.getByText("Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung.", { exact: true })).toBeVisible();
+  await erbracht.uncheck();
+  await expect(page.getByLabel("Leistung von", { exact: true })).not.toHaveAttribute("required");
+  for (const treatment of ["reverse_charge", "ig_lieferung", "drittland"]) {
+    await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption(treatment);
+    await expect(erbracht).toHaveAccessibleDescription(
+      "Für diese Steuerbehandlung gelten die bisherigen Meldezeitpunkte; die Zahlungsregel für inländische Anzahlungen gilt hier nicht.",
+    );
+  }
+  for (const treatment of ["ausfuhr", "steuerfrei"]) {
+    await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption(treatment);
+    await expect(erbracht).toHaveAccessibleDescription(
+      "Steuerfreie Anzahlung ohne Umsatzsteuerausweis. Der Meldezeitpunkt richtet sich nach Zahlung und Schlussleistung.",
+    );
+  }
+  await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption("regulaer");
+});
+
 test("Kontaktseite: Rechnungen des Kunden mit Summe je Jahr (#587)", async () => {
   const jahr = INVOICES[0]!.date.slice(0, 4);
   await go("/kontakte");
@@ -247,7 +312,7 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await dialog.getByLabel("Ort").fill("Bremen");
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByLabel("Kunde")).toHaveValue("Dialogkunde GmbH · Bremen");
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveValue("Dialogkunde GmbH · Bremen");
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Barrierefreiheit");
 
   // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
@@ -1055,10 +1120,10 @@ test("Trefferliste ist barrierefrei, hell und dunkel (#359)", async () => {
     expect(await axeVerstoesse(page)).toEqual([]);
   };
   await pruefen();
-  await page.evaluate(() => localStorage.setItem("haben-theme", "nacht"));
+  await page.evaluate(() => localStorage.setItem("haben-modus", "dunkel"));
   await go("/rechnungen/neu");
   await pruefen();
-  await page.evaluate(() => localStorage.removeItem("haben-theme"));
+  await page.evaluate(() => localStorage.removeItem("haben-modus"));
 });
 
 test("Angebot festschreiben, annehmen und abrechnen", async () => {
@@ -1424,7 +1489,7 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
   await page.getByRole("link", { name: "Schlussrechnung erstellen" }).click();
   await page.waitForURL(/rechnungen\/neu\?schluss=/);
   await expect(page.getByRole("heading", { name: /^Schlussrechnung /, level: 1 })).toBeVisible();
-  await expect(page.getByLabel("Kunde")).toHaveValue("Rheinpixel GmbH · Köln");
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveValue("Rheinpixel GmbH · Köln");
   const abzug = page.getByRole("checkbox", { name: new RegExp(`Abschlagsrechnung ${number}`) });
   await expect(abzug).toBeChecked();
   await page.getByLabel("Beschreibung Position 1").fill("Relaunch Website gesamt");
@@ -2152,6 +2217,74 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
     "/einstellungen?bereich=email",
     "/einstellungen?bereich=ki",
   ]);
+});
+
+test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde filtern und löschen (#417)", async () => {
+  await go("/leistungen");
+  await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
+  await page.getByRole("button", { name: "Neuer Eintrag" }).click();
+  const neu = page.getByRole("form", { name: "Neuer Eintrag" });
+  await neu.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH" });
+  await neu.getByLabel("Dauer", { exact: true }).fill("1:30");
+  await neu.getByLabel(/Stundensatz/).fill("95");
+  await neu.getByLabel(/Tätigkeit/).fill("Konzept Datenmodell");
+  await neu.getByLabel(/Projekt/).fill("Relaunch Shop");
+  await neu.getByLabel(/Abrechenbare Dauer/).fill("1:00");
+  await neu.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByText("Eintrag angelegt.")).toBeVisible();
+
+  const liste = page.getByRole("region", { name: "Leistungsliste" });
+  await expect(liste).toContainText("Rheinpixel GmbH");
+  await expect(liste).toContainText("Konzept Datenmodell");
+  await expect(liste).toContainText("1:30 Std.");
+  await expect(liste).toContainText("Relaunch Shop");
+  // Berechnet wird die abrechenbare Stunde, nicht die erfassten 90 Minuten
+  await expect(liste).toContainText("abrechenbar 1:00");
+  await expect(liste).toContainText("95,00");
+  await expect(liste).not.toContainText("142,50");
+  // Mit Eintrag: keine axe-Verstöße, am Handy nicht breiter als der Bildschirm
+  await ohneAxeVerstoesse(page, ["/leistungen"]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  // Dauer unlesbar: Meldung, nichts gespeichert
+  await liste.getByRole("button", { name: /bearbeiten/ }).click();
+  const aendern = page.getByRole("form", { name: "Eintrag ändern" });
+  await aendern.getByLabel("Dauer", { exact: true }).fill("abc");
+  await aendern.getByRole("button", { name: "Speichern" }).click();
+  await expect(aendern.getByRole("alert")).toContainText("Die Dauer ist nicht lesbar");
+  await aendern.getByLabel("Dauer", { exact: true }).fill("2");
+  await aendern.getByLabel(/Abrechenbare Dauer/).fill("");
+  await aendern.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Eintrag gespeichert.")).toBeVisible();
+  await expect(liste).toContainText("2:00 Std.");
+  await expect(liste).toContainText("190,00");
+
+  // Der Filter nach Kunde blendet fremde Einträge aus
+  await page.getByRole("group", { name: "Filter" }).getByLabel("Kunde").selectOption({ label: "Nordwerk Software GmbH" });
+  await expect(liste).toContainText("Keine Einträge für diesen Filter.");
+  await page.getByRole("group", { name: "Filter" }).getByLabel("Kunde").selectOption({ label: "Alle Kunden" });
+  await expect(liste).toContainText("Konzept Datenmodell");
+
+  // Nicht abrechenbar: erfasst, aber ohne Betrag
+  await liste.getByRole("button", { name: /bearbeiten/ }).click();
+  await page
+    .getByRole("form", { name: "Eintrag ändern" })
+    .getByLabel(/Nicht abrechenbar/)
+    .check();
+  await page.getByRole("form", { name: "Eintrag ändern" }).getByRole("button", { name: "Speichern" }).click();
+  await expect(liste).toContainText("nicht abrechenbar");
+  await expect(liste).toContainText("davon abrechenbar 0:00 Std. mit 0,00");
+
+  // Löschen fragt vorher nach; Abbrechen löscht nichts
+  await liste.getByRole("button", { name: /löschen/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Eintrag löschen?" });
+  await expect(dialog).toContainText("Rheinpixel GmbH");
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(liste).toContainText("Konzept Datenmodell");
+  await liste.getByRole("button", { name: /löschen/ }).click();
+  await page.getByRole("dialog", { name: "Eintrag löschen?" }).getByRole("button", { name: "Löschen" }).click();
+  await expect(page.getByText("Eintrag gelöscht.")).toBeVisible();
+  await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
 });
 
 test("Keine Fehler im Browser", async () => {

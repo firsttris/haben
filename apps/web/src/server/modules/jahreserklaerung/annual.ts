@@ -506,6 +506,9 @@ export async function submissions(year: number) {
         code: schema.annualSubmissions.code,
         message: schema.annualSubmissions.message,
         transferTicket: schema.annualSubmissions.transferTicket,
+        filedOn: schema.annualSubmissions.filedOn,
+        note: schema.annualSubmissions.note,
+        amount: sql<number | null>`(${schema.annualSubmissions.figures}->>'amount')::bigint`.mapWith(Number),
         hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
         createdAt: schema.annualSubmissions.createdAt,
       })
@@ -526,11 +529,24 @@ export async function annualOverview(year: number, today: string) {
     ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen" })),
   ];
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
+  // Eine außerhalb von Haben abgegebene Erklärung zählt als erledigt und trägt ihren Betrag (Umsatzsteuer: Abschlusszahlung, EÜR: Gewinn)
+  const submitted = (form: AnnualForm) => {
+    const vermerk = history.find((h) => h.form === form && h.kind === "vermerk" && h.ok);
+    if (!vermerk) return null;
+    return {
+      id: vermerk.id,
+      filedOn: vermerk.filedOn,
+      transferTicket: vermerk.transferTicket,
+      note: vermerk.note,
+      amount: vermerk.amount,
+      hasPdf: vermerk.hasPdf,
+    };
+  };
   return {
     year,
-    ust: { ...ust, issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year)], sent: sent("ust") },
-    euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer") },
-    est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est") },
+    ust: { ...ust, issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year)], sent: sent("ust"), submitted: submitted("ust") },
+    euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer"), submitted: submitted("euer") },
+    est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est"), submitted: submitted("est") },
     history,
     versteuerung: await versteuerungForYear(year),
     rechtsform: company.rechtsform,
@@ -574,6 +590,14 @@ export function submitAnnual(actor: string, form: AnnualForm, year: number, clie
 
 /** Unter der Sendesperre: Prüfungen, schon übermittelt?, XML und die gespeicherten Werte */
 async function prepare(form: AnnualForm, year: number, options: AnnualSubmitOptions, test: boolean, herstellerId: string) {
+  // Eine außerhalb von Haben abgegebene Erklärung ersetzt die Echtübermittlung; beides zugleich wäre eine doppelte Abgabe
+  if (options.kind === "send") {
+    const [vermerkt] = await db
+      .select({ id: schema.annualSubmissions.id })
+      .from(schema.annualSubmissions)
+      .where(and(eq(schema.annualSubmissions.form, form), eq(schema.annualSubmissions.year, year), eq(schema.annualSubmissions.kind, "vermerk")));
+    if (vermerkt) throw new AnnualError("Die Erklärung ist außerhalb von Haben abgegeben; eine Übermittlung aus Haben ist nicht mehr vorgesehen.");
+  }
   const checked = await checkAnnual(form, year, options.today);
   const [already] = await db
     .select({ id: schema.annualSubmissions.id })

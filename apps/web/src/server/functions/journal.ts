@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { refreshOwnAccountNames } from "../modules/eigene-konten/index.ts";
 import { createManualEntry, knownAccounts, loadJournal, manualEntrySchema, reverseManualEntry } from "../modules/buchhaltung/index.ts";
 import { bookDatevEroeffnung, datevEroeffnung, datevEroeffnungSchema } from "../modules/archiv/index.ts";
 import { checkCashReversal } from "../modules/bank/index.ts";
@@ -23,6 +24,7 @@ export const getManualEntryForm = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const company = await loadCompany();
+    await refreshOwnAccountNames();
     return {
       today: today(),
       kontenrahmen: company.kontenrahmen,

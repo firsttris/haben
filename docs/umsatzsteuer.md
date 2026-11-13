@@ -140,7 +140,7 @@ Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr
 
 | Umsatz | Quartal |
 | --- | --- |
-| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 21 |
+| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Bei neuen ausdrücklich erbrachten Teilleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung, wie Kz 21 |
 | Rechnung mit **Innergemeinschaftliche Lieferung**, Umsatzart L (Lieferung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 41 |
 | Storno und Rechnungskorrektur (Gutschrift) dazu | ihr eigenes Datum: Sie mindern das Quartal, in dem sie ausgestellt sind (§ 18a Abs. 7 Satz 2 mit § 17 UStG); überwiegen sie, steht die Zeile negativ |
 | Skonto und Forderungsausfall dazu | Datum der Ausbuchung |
@@ -179,7 +179,7 @@ Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` fü
 
 - Sonstige Leistungen (§ 3a Abs. 2 UStG, Umsatzart S) und innergemeinschaftliche Lieferungen (Umsatzart L). Keine Dreiecksgeschäfte (Umsatzart D, § 25b UStG): Die Rechnungen von Haben kennen sie nicht.
 - Keine Monatsmeldung: Liegen die Lieferungen im Quartal oder in einem der vier vorangegangenen über 50.000 €, ist monatlich zu melden (§ 18a Abs. 1 Satz 2 UStG). Über 50.000 € im Quartal sperrt Haben das Senden; die vorangegangenen Quartale prüft es nicht.
-- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist bzw. die Rechnung für die Lieferung ausgestellt, spätestens der Folgemonat (§ 18a Abs. 8 UStG). Haben nimmt dafür das Rechnungsdatum, wie bei Kz 21 und 41.
+- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist bzw. die Rechnung für die Lieferung ausgestellt, spätestens der Folgemonat (§ 18a Abs. 8 UStG). Haben nimmt dafür bei neuen ausdrücklich erbrachten EU-Teilleistungen das Leistungsdatum, sonst das Rechnungsdatum, wie bei Kz 21 und 41.
 - Die Meldung geht nur für ganze Quartale, nicht monatlich nach § 18a Abs. 3 UStG.
 
 ## Wie die Kennzahlen entstehen
@@ -193,7 +193,7 @@ Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 | Versteuerung | Maßgeblich | Quelle |
 | --- | --- | --- |
 | Ist (vereinnahmte Entgelte) | Buchungsdatum des Zahlungseingangs | Zuordnungen im [Bankabgleich](bank.md). Bei Teilzahlungen zählt der Anteil der Zahlung, bei mehreren Steuersätzen anteilig je Satz. Aufgehobene Zuordnungen heben sich mit ihrer Gegenzeile auf. |
-| Soll (vereinbarte Entgelte) | Rechnungsdatum | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
+| Soll (vereinbarte Entgelte) | Rechnungsdatum; Ausnahme: [neue Abschläge und erbrachte Teilleistungen](rechnungen.md#abschlags--und-schlussrechnung) | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
 
 Bankumsätze, die im Bankabgleich [direkt auf eine Einnahmekategorie](bank.md#auf-eine-kategorie-buchen) gebucht sind, zählen ohne Rechnung bei Ist und Soll am Buchungstag des Umsatzes, mit Netto und Steuer aus dem Betrag und dem gewählten Steuersatz. In den Quellen stehen sie als „Direktbuchung“.
 
@@ -207,13 +207,13 @@ Rechnungen ohne Steuerausweis (siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf
 
 | Kennzahl | Umsatzsteuer an der Rechnung | Maßgeblich |
 | --- | --- | --- |
-| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
+| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | bei neuen ausdrücklich erbrachten Teilleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
 | 41 | Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
 | 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 | 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
 | 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 
-Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Haben nimmt das Rechnungsdatum als Näherung dafür. Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
+Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Bei neuen ausdrücklich erbrachten Teilleistungen nimmt Haben das Leistungsdatum, sonst weiterhin das Rechnungsdatum als Näherung dafür ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
 
 In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nicht null sind oder du die Werte von Hand überschreibst.
 

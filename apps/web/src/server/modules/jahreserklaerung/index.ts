@@ -5,7 +5,7 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
-export { annualOverview, loadAnnualProtocol, submitAnnual } from "./annual.ts";
+export { AnnualError, annualOverview, loadAnnualProtocol, submitAnnual } from "./annual.ts";
 export { ebilanzOverview, submitEbilanz } from "./ebilanz.ts";
 export { kapgErklaerungen, submitKapg, type KapgForm } from "./kapg-erklaerung.ts";
 export {
@@ -21,3 +21,4 @@ export {
 } from "./koerperschaft.ts";
 export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./income-tax.ts";
 export { meinElsterWerte } from "./mein-elster.ts";
+export { vermerkPruefung, vermerkeJahresabgabe } from "./vermerk.ts";

@@ -32,7 +32,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 7. Unter **Preise** wählen, ob die Einzelpreise netto oder brutto inklusive Umsatzsteuer gelten (siehe [Netto- oder Bruttopreise](#nettopreise-oder-bruttopreise)). Vorgabe ist netto.
 8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Rahmenvertrag oder Anrede; Bestell-, Auftrags- und Lieferscheinnummer haben eigene Felder. Vorbelegt ist sie mit der Standard-Einleitung für Rechnungen aus den [Firmendaten](einrichtung.md). **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
 9. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
-10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein.
+10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein. Für private Grundstücksleistungen darunter den [Aufbewahrungshinweis](#aufbewahrungshinweis-bei-grundstücksleistungen) einschalten.
 11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt in einem Dialog nach und nennt Nummer, Kunde und Betrag; erst **Festschreiben** dort führt es aus.
 
 Die [Vorschau](#vorschau) zeigt die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
@@ -244,6 +244,16 @@ Der Editor listet alles auf, was noch fehlt. Geprüft werden:
 | E-Mail-Adresse oder Leitweg-ID des Kunden | – | Pflicht |
 | Bezug zur ursprünglichen Rechnung (Storno, Korrektur) | Pflicht | Pflicht |
 
+## Aufbewahrungshinweis bei Grundstücksleistungen
+
+Bei steuerpflichtigen Werklieferungen oder sonstigen Leistungen im Zusammenhang mit einem Grundstück für den privaten Bereich, etwa Gartenpflege oder Handwerk, ist der Hinweis auf die Aufbewahrungspflicht eine Pflichtangabe ([§ 14 Abs. 4 Satz 1 Nr. 9 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14.html)). Der Empfänger muss die Rechnung, einen Zahlungsbeleg oder eine andere beweiskräftige Unterlage zwei Jahre aufbewahren; die Frist beginnt mit dem Schluss des Ausstellungsjahres ([§ 14b Abs. 1 Satz 5 mit Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14b.html)). Eine Rechnung vom November 2026 ist damit bis Ende 2028 aufzubewahren.
+
+- Im Rechnungseditor **Leistung an einem Grundstück für einen Privatkunden (§ 14 Abs. 4 Nr. 9 UStG)** anhaken. Haben erkennt den privaten Leistungsbezug nicht selbst; ohne Haken erscheint kein zusätzlicher Text.
+- Der feste, nicht bearbeitbare Hinweis steht unter den Summen im PDF, auch in eigenen Layouts über das Pflichtfeld `taxNote`, und als BT-22 in ZUGFeRD und XRechnung. Der freie Fußtext und Hinweise zur Umsatzsteuer bleiben erhalten. Auf Englisch erscheint auch der feste Hinweis auf Englisch.
+- Wiederkehrende Rechnungen haben denselben Haken; jede daraus erzeugte Rechnung übernimmt ihn. Die REST-API verwendet `propertyRetention` ([API](api.md)).
+- Nach dem Festschreiben ist die Auswahl gesperrt. Storno und Rechnungskorrektur übernehmen sie unveränderlich aus der ursprünglichen Rechnung. Bestehende Belegdateien ändern sich nicht.
+- Für Kleinunternehmer bleibt die Auswahl freiwillig verfügbar. [§ 34a UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__34a.html) nennt den Hinweis nicht unter den Mindestangaben einer Kleinunternehmerrechnung; Haben setzt ihn dort nicht automatisch.
+
 ## Was beim Festschreiben passiert
 
 Alles läuft in einer einzigen Datenbanktransaktion. Schlägt ein Schritt fehl, bleibt der Entwurf ohne Nummer zurück und im Nummernkreis entsteht keine Lücke. PDF und XML entstehen, bevor Haben etwas speichert; andere Vorgänge, etwa ein gleichzeitig gebuchter Beleg, warten so nicht auf das Erzeugen der Dateien.
@@ -405,7 +415,11 @@ Bei größeren Aufträgen rechnest du in Teilen ab: zuerst Abschlagsrechnungen, 
 1. **Abschlagsrechnung:** Neue Rechnung, unter **Rechnungsart** „Abschlagsrechnung“ wählen und den Teilbetrag als Position eintragen, z. B. „1. Abschlag 30 % gemäß Angebot AN-2026-004“. Sie wird wie jede Rechnung festgeschrieben, gebucht, bezahlt und gemahnt. Im XML trägt sie den Typ 326 (Teilrechnung). Gibt es ein Angebot zum Auftrag, wählst du es unter **Angebot** aus, oder du legst den Abschlag gleich im Angebot mit **Abschlagsrechnung erstellen** an (siehe [angebote.md](angebote.md#in-abschlägen-abrechnen)). Hat das Angebot einen [Zahlungsplan](angebote.md#zahlungsplan), rechnet Haben den Betrag je Zeile selbst aus, anteilig je Steuersatz.
 2. **Schlussrechnung:** In der festgeschriebenen Abschlagsrechnung bzw. im Angebot auf **Schlussrechnung erstellen** klicken oder bei einer neuen Rechnung „Schlussrechnung“ wählen. Gehört die Schlussrechnung zu einem Angebot, schlägt Haben dessen offene Abschlagsrechnungen zum Abzug vor, sonst alle offenen Abschlagsrechnungen des Kunden. Per Häkchen wählst du sie ab oder wieder an, auch die anderer Aufträge. Unter **Positionen** steht die gesamte Leistung.
 
-Die Abzüge setzt Haben selbst als eigene Positionen darunter, je Abschlagsrechnung und Steuersatz eine, mit Netto und Umsatzsteuer der Abschlagsrechnung, z. B. „Abzüglich Abschlagsrechnung 2026-031 vom 15.09.2026 (netto 3.000,00 €, USt 570,00 €)“. So weist die Schlussrechnung nur noch die Umsatzsteuer auf den Rest aus (§ 14 Abs. 5 UStG), und gebucht wird nur der Restbetrag; die Abschläge sind schon als Erlös gebucht. Im XML verweist die Schlussrechnung auf jede abgezogene Abschlagsrechnung.
+Die Abzüge setzt Haben selbst als eigene Positionen darunter, je Abschlagsrechnung und Steuersatz eine, mit Netto und Umsatzsteuer der Abschlagsrechnung, z. B. „Abzüglich Abschlagsrechnung 2026-031 vom 15.09.2026 (netto 3.000,00 €, USt 570,00 €)“. Die Schlussrechnung weist den Restbetrag aus und verweist im XML auf jede abgezogene Abschlagsrechnung. Offene Abschlagsforderungen bleiben separat bestehen.
+
+Ein neuer Abschlag ist vorbelegt eine **Anzahlung vor Leistung**. Bei regulärer Besteuerung entsteht seine Umsatzsteuer mit dem tatsächlichen Zahlungseingang, bei Teilzahlungen anteilig; bei Soll-Versteuerung spätestens mit der Schlussleistung. Für eine schon erbrachte Teilleistung setzt du **Teilleistung bereits erbracht** und trägst den Leistungstag unter **Leistung von** ein; bei einem Zeitraum zählt **Leistung bis**. Bei Soll entsteht die Steuer dann mit der Teilleistung. Das Datum darf nicht nach dem Rechnungsdatum liegen. Grundlage sind [§ 13 Abs. 1 Nr. 1 Buchst. a UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html) und [Abschnitt 13.5 UStAE](https://ao.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/IV-Steuer-und-Vorsteuer/Paragraf-13/ae-13-5.html).
+
+Mit der Schlussleistung wird bei Soll auch die Steuer auf noch unbezahlte neue Anzahlungsrechnungen fällig; spätere Zahlungen versteuern sie nicht nochmals. Für eine solche Schlussrechnung zählt der eingetragene Leistungstag, sonst ihr Rechnungsdatum. Bei der Übernahme aus einem Angebot schlägt der Entwurf dafür den heutigen Tag vor; geplante Leistungsdaten des Angebots gelten nicht automatisch als tatsächlich erbrachte Schlussleistung. Prüfe das Datum und passe es vor der Festschreibung an den tatsächlichen Leistungstag beziehungsweise das Ende des Leistungszeitraums an. Ist-Versteuerung bleibt zahlungsbezogen. Bei neuen erbrachten Teil- und Schlussleistungen bleibt nach einem Verfahrenswechsel das Verfahren des Leistungsjahres maßgeblich ([UStAE 13.6 Abs. 3](https://ao.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/IV-Steuer-und-Vorsteuer/Paragraf-13/ae-13-6.html)). Ausdrücklich erbrachte EU-Teilleistungen mit Reverse Charge werden unabhängig von Ist/Soll im Leistungsmonat gemeldet ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Die übrigen Auslands-Meldezeitpunkte bleiben erhalten. Vor diesem Update festgeschriebene Abschläge und ihre Korrekturen behalten ihre bisherige Versteuerung. Die Buchung und den Umgang mit später zugeordneten Zahlungen beschreibt [Buchhaltung](buchhaltung.md#anzahlungen-vor-leistung).
 
 Regeln:
 
@@ -428,7 +442,7 @@ Auf Englisch erscheinen:
 
 Das englische Monatskürzel für September ist auf allen Plattformen einheitlich „Sept“, sowohl im PDF als auch in E-Mails.
 
-Stornorechnung und Rechnungskorrektur übernehmen die Sprache der ursprünglichen Rechnung, wiederkehrende Rechnungen die Sprache des Kontakts. Das XML der E-Rechnung ist sprachunabhängig und bleibt gleich. Mahnungen bleiben deutsch. Ein selbst eingetragener Hinweis zur Steuerbefreiung erscheint so, wie du ihn schreibst.
+Stornorechnung und Rechnungskorrektur übernehmen die Sprache der ursprünglichen Rechnung, wiederkehrende Rechnungen die Sprache des Kontakts. Das XML-Format bleibt sprachunabhängig; der feste Aufbewahrungshinweis (BT-22) folgt der Belegsprache. Mahnungen bleiben deutsch. Ein selbst eingetragener Hinweis zur Steuerbefreiung erscheint so, wie du ihn schreibst.
 
 ## Wiederkehrende Rechnungen
 
@@ -443,7 +457,7 @@ Für Monatspauschalen, Wartungsverträge oder Hosting legst du unter **Rechnunge
 | Leistungszeitraum | **Laufend:** die Monate ab dem Rechnungsmonat (Vorauszahlung). **Vergangen:** die Monate davor (Abrechnung). **Keiner:** ohne Leistungszeitraum, dann gilt das Rechnungsdatum. |
 | Was am Termin passiert | **Entwurf anlegen:** du prüfst und schreibst selbst fest. **Direkt festschreiben:** Nummer, PDF, XML und Buchung wie beim Festschreiben von Hand; auf Wunsch **und per E-Mail an den Kunden schicken** (Vorlage und Adresse wie beim [Versand von Hand](#per-e-mail-versenden)). |
 | Aktiv | Ohne Häkchen erzeugt die Vorlage keine Rechnungen. |
-| Kunde, Einleitung, Positionen mit Text zur Position, Zahlungsziel, Format, Umsatzsteuer, Preise (netto oder brutto), Hinweis | wie im Rechnungseditor |
+| Kunde, Einleitung, Positionen mit Text zur Position, Zahlungsziel, Format, Umsatzsteuer, Preise (netto oder brutto), Hinweis, Aufbewahrungshinweis | wie im Rechnungseditor |
 | Zahlungsart | Überweisung oder SEPA-Lastschrift; bei Lastschrift wählt jeder Lauf das Mandat selbst, siehe [Lastschrift](#lastschrift) |
 
 In Einleitung, Beschreibungen, Texten zur Position und Hinweis ersetzt Haben Platzhalter:
@@ -623,9 +637,11 @@ Für beide gilt:
 - Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar.
 - Sie übernehmen die Umsatzsteuer-Behandlung und den Hinweis der ursprünglichen Rechnung, dazu [Bestell-, Auftrags- und Lieferscheinnummer](#bestellnummer-auftrag-und-lieferschein).
 - PDF und XML verweisen auf die ursprüngliche Rechnung („zur Rechnung 2026-034 vom …“, im XML als BillingReference).
-- Im XML erscheinen sie als Gutschrift (Typcode 381) mit positiven Beträgen; der Zahlungsweg ist offen gelassen, das PDF sagt „Der Betrag wird Ihnen erstattet.“
+- Im XML erscheinen sie als Gutschrift (Typcode 381) mit positiven Beträgen; der Zahlungsweg ist offen gelassen.
 - Eine bereits stornierte Rechnung lässt sich nicht noch einmal stornieren oder korrigieren. Storno und Korrektur selbst lassen sich nicht weiter korrigieren.
 - War die Rechnung schon (teilweise) bezahlt, ist die Stornorechnung im Bankabgleich mit dem gezahlten Betrag offen. Die Rückzahlung an den Kunden ordnest du dort der Stornorechnung zu; bei Ist-Versteuerung mindert sie im Monat der Rückzahlung die Umsatzsteuer.
+
+Der Zahlungssatz im Storno richtet sich nach dem Zahlstand beim Erstellen: Ohne Zahlung steht dort „Es ist keine Zahlung erforderlich“, bei Teil- oder Vollzahlung „Bereits geleistete Zahlungen werden erstattet“. Eine Rechnungskorrektur beschreibt die Minderung der ursprünglichen Rechnung und sagt keine pauschale Auszahlung zu. PDF und E-Rechnung verwenden denselben Inhalt; das englische PDF entsprechend übersetzt. Bereits gespeicherte Belege behalten ihren bisherigen Text.
 
 Die ursprüngliche Rechnung zeigt unter **Korrekturen** alle Stornos und Korrekturen, die sich auf sie beziehen, eine stornierte Rechnung zusätzlich einen roten Hinweis mit Link zur Stornorechnung.
 
