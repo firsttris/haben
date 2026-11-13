@@ -20,6 +20,7 @@ import {
   neuenLieferantenOeffnen,
   ohneAxeVerstoesse,
   trefferliste,
+  randImDialog,
 } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
@@ -2029,6 +2030,7 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
+  await randImDialog(dialog, [dialog.getByLabel("Transferticket", { exact: true }), dialog.getByRole("button", { name: "Vermerken", exact: true })]);
   // Der Abgabetag liegt im Folgejahr: eine Jahreserklärung kann nicht vor dem Jahresende abgegeben werden
   await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr + 1}-01-02`);
   await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");

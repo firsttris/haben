@@ -165,6 +165,7 @@ function legacyVoucher(v: LegacyVoucherForVat) {
     steuersaetze: v.taxes.map((t) => ({ satz: t.rate / 100, netto: euro(t.net), steuer: euro(t.tax) })),
     zahlungen: v.payments.map((p) => ({ datum: p.date, betrag: euro(p.amount) })),
     zahlungshistorieHinweis: v.paymentHistoryIssue,
+    buchungskontoHinweis: v.accountingTypeIssue,
     dateien: v.files,
     link: link(`/archiv/beleg/${v.id}`),
   };
@@ -804,6 +805,7 @@ export const MCP_TOOLS: McpTool[] = [
           steuer: euro(voucher.tax),
           brutto: euro(voucher.gross),
           abgerufen: voucher.createdAt,
+          buchungskontoHinweis: voucher.accountingTypeIssue,
           steuersaetze: voucher.taxes.map((t) => ({ satz: t.rate / 100, netto: euro(t.net), steuer: euro(t.tax) })),
           kategorien: voucher.categories.map((c) => ({ kategorie: c.name, satz: c.rate / 100, netto: euro(c.net), steuer: euro(c.tax) })),
           zahlungsstatus: voucher.payment && {

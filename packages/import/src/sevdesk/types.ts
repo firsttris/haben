@@ -205,6 +205,22 @@ export const sevOrderSchema = z.looseObject({
   sumGrossForeignCurrency: numeric,
 });
 export type SevOrder = z.infer<typeof sevOrderSchema>;
+// ---------------------------------------------------------------- Buchungskonten
+
+/**
+ * Kontostamm (GET /AccountingType/{id}), nur in Buchhaltungsversion 1.0. Der Pfad fehlt unter den Pfaden der OpenAPI und
+ * steht nur im Abschnitt „Accounting type“ (Tag Voucher). Typisiert sind nur die Felder, die Haben liest; `type` und
+ * `translationCode` entscheiden nichts (#472).
+ */
+export const sevAccountingTypeSchema = z.looseObject({
+  id,
+  skr03: str,
+  skr04: str,
+  parent: ref,
+  translationCode: str,
+});
+export type SevAccountingType = z.infer<typeof sevAccountingTypeSchema>;
+
 // ---------------------------------------------------------------- Zahlungen
 
 /** Zahlungskonto (Bank, Kasse, Zahlungsdienst) */

@@ -78,7 +78,7 @@ interface Line {
 }
 
 /** CSV mit ";" und "" als Escape, wie parseCsv, aber mit Zeilennummern. */
-function splitLines(text: string): Line[] {
+function splitLines(text: string, maxLines = Infinity): Line[] {
   const lines: Line[] = [];
   let fields: string[] = [];
   let field = "";
@@ -108,6 +108,7 @@ function splitLines(text: string): Line[] {
     } else if (c === "\n" || c === "\r") {
       fields.push(field);
       lines.push({ line: start, fields });
+      if (lines.length === maxLines) return lines;
       fields = [];
       field = "";
       if (c === "\r" && text[i + 1] === "\n") i++;
@@ -188,8 +189,11 @@ const categoryName = (category: number, nameInHeader: string) => CATEGORIES[cate
  */
 export function otherDatevExportName(bytes: Uint8Array): string | null {
   if (!isDatevFile(bytes)) return null;
-  // Formatkategorie und Name stehen in Feld 3 und 4, ganz vorn in der Kopfzeile
-  const fields = splitLines(stripBom(decodeText(bytes.subarray(0, 512))))[0]?.fields ?? [];
+  // Vollständig dekodieren: Eine Bytegrenze kann UTF-8 teilen und den Windows-1252-Fallback auslösen (RFC 3629 § 3).
+  // https://www.rfc-editor.org/rfc/rfc3629#section-3
+  // Nur den ersten CSV-Datensatz lesen; Zeilenumbrüche in einem zitierten Feld gehören noch zur Kopfzeile.
+  // https://www.rfc-editor.org/rfc/rfc4180#section-2
+  const fields = splitLines(stripBom(decodeText(bytes)), 1)[0]?.fields ?? [];
   const category = (fields[2] ?? "").trim();
   if (!/^\d+$/.test(category) || Number(category) === BUCHUNGSSTAPEL) return null;
   return categoryName(Number(category), (fields[3] ?? "").trim());

@@ -709,6 +709,79 @@ test("Auftragsarchiv: suchen, Original-PDF nachreichen und unverändert herunter
   await expect(page.getByRole("row").filter({ hasText: "AN-ARCHIV-1" })).toContainText("1 vorhanden");
 });
 
+// #472: Gutschrift auf ein Buchungskonto aus sevDesk folgt dem Kontostamm; ohne erkannte Kontoart markiert Haben sie. Die Daten
+// stehen in 2019 und werden danach wieder entfernt, damit spätere Tests und Bilder das Archiv wie vorher sehen.
+test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift oder Hinweis „Buchungskonto nicht erkannt“", async ({ browser }) => {
+  const sql = postgres(databaseUrlFuer(), { max: 1 });
+  const note = (id: string, accountingTypeId: string) => ({
+    id,
+    bookingCategory: "ACCOUNTING_TYPE",
+    accountingType: { id: accountingTypeId, objectName: "AccountingType" },
+  });
+  let runId = "";
+  try {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('haben.actor', 'e2e', true)`;
+      const [run] = await tx`insert into lexoffice_imports (source, status, progress)
+        values ('sevdesk', 'fertig', '{"phase":"fertig","contacts":0,"contactsLinked":0,"listed":2,"imported":2,"skipped":0,"files":0,"failed":[]}') returning id`;
+      runId = run!.id as string;
+      await tx`insert into sevdesk_accounting_types (import_id, accounting_type_id, raw)
+        values (${runId}, 'E2E-1', '{"id":"E2E-1","objectName":"AccountingType","skr03":"3100","skr04":"5900"}')`;
+      for (const [id, number, accountingTypeId] of [
+        ["901", "GS-E2E-1", "E2E-1"],
+        ["902", "GS-E2E-2", "E2E-2"],
+      ])
+        await tx`insert into lexoffice_vouchers (lexoffice_id, source, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
+          values (${`creditnote/${id}`}, 'sevdesk', ${runId}, 'creditnote', 'einnahme', ${number}, '2019-03-10', 'open', 'Erfundene Agentur', -10000, -1900, -11900,
+          '[{"rate":1900,"net":-10000,"tax":-1900}]', '[]', '{"status":"open","openAmount":-11900,"paidDate":null,"items":[]}', ${tx.json(note(id!, accountingTypeId!))})`;
+    });
+    await go("/archiv?ansicht=belege&jahr=2019");
+    await expect(page.getByRole("link", { name: /GS-E2E-1/ })).toContainText("Ausgabe-Gutschrift");
+    await expect(page.getByRole("link", { name: /GS-E2E-1/ })).not.toContainText("Buchungskonto nicht erkannt");
+    await expect(page.getByRole("link", { name: /GS-E2E-2/ })).toContainText("Buchungskonto nicht erkannt");
+    await page.getByRole("link", { name: /GS-E2E-2/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "GS-E2E-2" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Buchungskonto nicht erkannt" })).toContainText("„Erneut abrufen“");
+    // Markierung und Hinweis prüft axe am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
+    const context = await browser.newContext({ storageState: await page.context().storageState() });
+    const axePage = await context.newPage();
+    // 320 px ist die schmalste Breite nach WCAG 1.4.10, wie in barrierefreiheit.spec.ts
+    for (const url of ["/archiv?ansicht=belege&jahr=2019", page.url()])
+      for (const width of [1440, 390, 320]) {
+        await axePage.setViewportSize({ width, height: 900 });
+        await axePage.goto(new URL(url, page.url()).toString());
+        await axePage.waitForLoadState("networkidle");
+        // Die Markierung steht ganz in ihrer Spalte, auch am Handy, wo Kontakt und Art schmal sind
+        if (url.startsWith("/archiv?"))
+          expect(
+            await axePage.getByText("Buchungskonto nicht erkannt").evaluate((el) => {
+              const cell = el.closest(".table-row > div")!.getBoundingClientRect();
+              const pill = el.getBoundingClientRect();
+              return pill.left >= cell.left - 0.5 && pill.right <= cell.right + 0.5;
+            }),
+            `Markierung ganz sichtbar bei ${width} px`,
+          ).toBe(true);
+        const { violations } = await new AxeBuilder({ page: axePage })
+          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+          .analyze();
+        expect(
+          violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+          `${url} bei ${width} px`,
+        ).toEqual([]);
+      }
+    await context.close();
+  } finally {
+    if (runId)
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`delete from sevdesk_accounting_types where import_id = ${runId}`;
+        await tx`delete from lexoffice_vouchers where import_id = ${runId}`;
+        await tx`delete from lexoffice_imports where id = ${runId}`;
+      });
+    await sql.end();
+  }
+});
+
 test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfernen", async () => {
   await fakeEigeneSeite(page);
   await page.route("https://lager.example/**", (route) =>

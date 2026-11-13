@@ -148,9 +148,9 @@ export function ArticleForm({
 
   if (inDialog) {
     return (
-      <form className="card form-card contact-form" onSubmit={onSubmit} aria-label={name}>
-        <div className="form-section">{fields}</div>
-        <div className="actions form-footer">{buttons}</div>
+      <form onSubmit={onSubmit} aria-label={name}>
+        {fields}
+        <div className="actions">{buttons}</div>
       </form>
     );
   }
