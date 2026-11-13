@@ -712,8 +712,11 @@ test("Auftragsarchiv: suchen, Original-PDF nachreichen und unverändert herunter
 // stehen in 2019 und werden danach wieder entfernt, damit spätere Tests und Bilder das Archiv wie vorher sehen.
 test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift oder Hinweis „Buchungskonto nicht erkannt“", async ({ browser }) => {
   const sql = postgres(databaseUrlFuer(), { max: 1 });
-  const note = (id: string, accountingTypeId: string) =>
-    JSON.stringify({ id, bookingCategory: "ACCOUNTING_TYPE", accountingType: { id: accountingTypeId, objectName: "AccountingType" } });
+  const note = (id: string, accountingTypeId: string) => ({
+    id,
+    bookingCategory: "ACCOUNTING_TYPE",
+    accountingType: { id: accountingTypeId, objectName: "AccountingType" },
+  });
   let runId = "";
   try {
     await sql.begin(async (tx) => {
@@ -729,7 +732,7 @@ test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift oder Hinweis „B
       ])
         await tx`insert into lexoffice_vouchers (lexoffice_id, source, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
           values (${`creditnote/${id}`}, 'sevdesk', ${runId}, 'creditnote', 'einnahme', ${number}, '2019-03-10', 'open', 'Erfundene Agentur', -10000, -1900, -11900,
-          '[{"rate":1900,"net":-10000,"tax":-1900}]', '[]', '{"status":"open","openAmount":-11900,"paidDate":null,"items":[]}', ${note(id, accountingTypeId!)}::jsonb)`;
+          '[{"rate":1900,"net":-10000,"tax":-1900}]', '[]', '{"status":"open","openAmount":-11900,"paidDate":null,"items":[]}', ${tx.json(note(id!, accountingTypeId!))})`;
     });
     await go("/archiv?ansicht=belege&jahr=2019");
     await expect(page.getByRole("link", { name: /GS-E2E-1/ })).toContainText("Ausgabe-Gutschrift");
