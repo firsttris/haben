@@ -54,6 +54,7 @@ Haben legt nichts doppelt an und überschreibt nichts:
 | Art | Wiedererkannt an |
 | --- | --- |
 | Kontakte | Kundennummer, Lieferantennummer, Debitor, Kreditor, jeder E-Mail-Adresse, USt-IdNr. oder Name (Groß- und Kleinschreibung egal) |
+| Kontakte aus DATEV | Debitor oder Kreditor, nicht am Namen ([Kontakte aus DATEV](#kontakte-aus-datev)) |
 | Artikel | Artikelnummer; eine Zeile ohne Nummer an der Bezeichnung, auch gegen einen Artikel mit Nummer |
 | Anlagen | Bezeichnung, Anschaffungsdatum und Anschaffungskosten zusammen |
 
