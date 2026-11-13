@@ -235,9 +235,9 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .firma-wechsler .firma-suche input::placeholder { color: var(--nav-ink); }
 .firma-leer { margin: 0; padding: 0 12px; color: var(--nav-ink); font-size: 13px; }
 .firma-leer:not(:empty) { padding-bottom: 12px; }
-/* Die Zeile rückt an die Marke: 12px statt der 28px, die sonst vor „Übersicht“ stehen */
+/* Die Zeile rückt an die Marke: 8px statt der 28px, die sonst vor „Übersicht“ stehen */
 @media (min-width: 861px) {
-  .nav:has(.firma-wechsler) .brand { padding-bottom: 12px; }
+  .nav:has(.firma-wechsler) .brand { padding-bottom: 8px; }
 }
 @media (max-width: 860px) {
   .firma-wechsler { --firma-zeile: 44px; }
