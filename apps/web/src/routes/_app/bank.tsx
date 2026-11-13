@@ -13,7 +13,7 @@ import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type S
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
 import { KategorieFelder, kategorieWahlFuer, type KategorieOptionen, type KategorieWahl } from "../../components/KategorieFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
-import { errorMessage, formatDate, formatDateTime, formatDayMonth, daysUntil, relativeDays } from "../../lib/format.ts";
+import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
   addBankAccount,
