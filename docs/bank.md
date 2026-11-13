@@ -471,6 +471,8 @@ Der Tag der Aufhebung darf nicht in der Zukunft liegen. Als Untergrenze gilt das
 
 Eine Aufhebung in einem schon gemeldeten Zeitraum bleibt erlaubt. Die Gegenbuchung wirkt an ihrem Tag, die abgegebene Voranmeldung ändert sich nicht nachträglich.
 
+Liegt die Zahlung selbst in einem abgeschlossenen Jahr, lehnt Haben die Aufhebung ab: Die Zuordnung ließe sich danach nicht neu buchen, und das Bankkonto wiche ab. Korrigiere den Vorgang stattdessen mit einer Buchung im offenen Jahr, etwa einer Stornorechnung mit Datum im offenen Jahr oder einer Direktbuchung auf die betroffene Kategorie.
+
 Zwei Fälle sind zu unterscheiden.
 
 **Die Bemessungsgrundlage ändert sich nachträglich**, etwa durch Rückzahlung, Storno oder Ausfall. Dann greift [§ 17 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html), und die Berichtigung gehört in den Zeitraum, in dem die Änderung eintritt. Dafür ist der Tag der Aufhebung richtig.

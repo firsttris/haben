@@ -1365,6 +1365,19 @@ export async function reverseAllocationIn(tx: Tx, allocationId: string, date: st
     .from(schema.bankTransactions)
     .where(eq(schema.bankTransactions.id, allocation.transactionId));
   const tag = zahlung && date < zahlung.bookingDate && zahlung.bookingDate <= heute ? zahlung.bookingDate : date;
+  // Liegt die Zahlung in einem abgeschlossenen Jahr, bleibt die Aufhebung gesperrt (Entscheidung des Maintainers zu #782).
+  // Eine anschließende Neu-Zuordnung bucht am Buchungsdatum der Zahlung (bookPart) und fiele damit ins gesperrte Jahr:
+  // der Vorgang bliebe halb offen und das Bankkonto wiche ab. Die Sperre greift vor dem ersten Schreibvorgang, für den
+  // Bankweg und den gemeinsamen Belegstorno gleichermaßen; korrigiert wird stattdessen im offenen Jahr.
+  if (zahlung) {
+    const zahlungsJahr = Number(zahlung.bookingDate.slice(0, 4));
+    const [geschlossen] = await tx.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, zahlungsJahr));
+    if (geschlossen) {
+      throw new BankError(
+        `Die Zahlung vom ${zahlung.bookingDate} liegt im abgeschlossenen Jahr ${zahlungsJahr}. Eine Aufhebung ist dort nicht mehr möglich, weil sich die Zuordnung danach nicht neu buchen ließe. Korrigiere den Vorgang stattdessen mit einer Buchung im offenen Jahr.`,
+      );
+    }
+  }
   // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
   const parts = allocation.splitId
     ? await tx

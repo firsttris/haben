@@ -402,27 +402,31 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
   }, 30_000);
 
   /*
-   * Befund zu Punkt 3 der fachlichen Einschätzung im PR: Wird eine Zahlung aus einem abgeschlossenen Jahr nach einem
-   * Storno neu zugeordnet, entsteht die Buchung am Buchungsdatum des Umsatzes und fällt damit in das abgeschlossene
-   * Jahr. Der Test hält das heutige Verhalten fest, damit die Entscheidung (Sperre lassen oder am Tag der Aufhebung
-   * buchen) auf einer belegten Grundlage fällt.
+   * Punkt 3 der fachlichen Einschätzung im PR, entschieden vom Maintainer zu #782: Es gilt (a), die Sperre bleibt wie auf
+   * main. Liegt die Zahlung in einem abgeschlossenen Jahr, ist die Aufhebung nicht möglich: Eine anschließende
+   * Neu-Zuordnung bucht am Buchungsdatum der Zahlung (bookPart) und stößt damit auf die Jahressperre (ledger.ts), der
+   * Vorgang bliebe halb offen und das Bankkonto wiche ab. Die Ablehnung kommt vor dem ersten Schreibvorgang.
    */
-  it("Neu-Zuordnung nach Aufhebung in einem abgeschlossenen Jahr: Verhalten festgehalten (#782)", async () => {
+  it("eine Zahlung aus einem abgeschlossenen Jahr lässt sich nicht aufheben, Bankkonto und Journal bleiben unverändert (#782)", async () => {
     const invoice = await marchInvoice();
     const { allocationId, transactionId } = await marchPayment(invoice.id);
     await sql`insert into year_closings (year) values (2026)`;
+    // Bankkonto je Kontenrahmen: SKR03 1200, SKR04 1800
+    const banksaldo = async () =>
+      (
+        await sql`select coalesce(sum(l.debit - l.credit), 0)::int as saldo from journal_lines l
+          where l.account in ('1200', '1800')`
+      )[0]!.saldo;
+    const saldoVorher = await banksaldo();
+    const zeilenVorher = await zeilenBis("2027-12-31");
 
-    await bank.reverseAllocation(actor, allocationId, "2027-01-15");
-    expect(await sql`select id from allocations where reverses_id is not null`).toHaveLength(1);
+    await expect(bank.reverseAllocation(actor, allocationId, "2027-01-15")).rejects.toThrow(/abgeschlossenen Jahr 2026/);
 
-    let ergebnis = "gebucht";
-    try {
-      await bank.allocate(actor, { kind: "invoice", transactionId, invoiceId: invoice.id, amount: 119_000 });
-    } catch (fehler) {
-      ergebnis = fehler instanceof Error ? fehler.message : String(fehler);
-    }
-    // Festgehalten, nicht bewertet: heute scheitert die Neu-Zuordnung an der Jahressperre
-    console.log("Neu-Zuordnung nach Jahressperre:", ergebnis);
-    expect(ergebnis).toBeTruthy();
+    // Nichts geschrieben: keine Gegenzeile, keine Gegenbuchung, Bank und Journal unverändert, der Umsatz bleibt zugeordnet
+    expect(await sql`select id from allocations where reverses_id is not null`).toHaveLength(0);
+    expect(await sql`select id from journal_entries where reverses_id is not null`).toHaveLength(0);
+    expect(await banksaldo()).toBe(saldoVorher);
+    expect(await zeilenBis("2027-12-31")).toEqual(zeilenVorher);
+    expect((await bank.transactionDetail(transactionId))!.transaction.open).toBe(0);
   }, 30_000);
 });

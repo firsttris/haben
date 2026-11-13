@@ -157,7 +157,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         await expect(cancellation.cancelDocument(actor, id, {}, "2026-10-05")).rejects.toThrow(/Zuordnung auf/);
         expect(await counts()).toEqual(before);
       });
-      it(`abgeschlossenes Zahlungsjahr: die Gegenbuchungen fallen ins offene Jahr, 2026 bleibt unberührt (${profile})`, async () => {
+      it(`abgeschlossenes Zahlungsjahr: der Storno wird abgelehnt, Beleg, Journal und offene Posten bleiben unverändert (${profile})`, async () => {
         await reset(kr, vat);
         await sql`update company set rechtsform = 'gmbh' where id = 1`;
         const id = await receipt();
@@ -165,24 +165,16 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         await bank.allocateWithRest("fixture", { transactionId: tx, target: { kind: "document", documentId: id }, rest: "skontoErhalten" });
         const allocationIds = await ids(tx);
         await sql`insert into year_closings (year) values (2026)`;
-        // Storno im Folgejahr: Der Beleg bleibt im abgeschlossenen Jahr stehen, die Gegenzeilen wirken 2027 (#782).
-        // Früher trugen sie das Datum der Zahlung und liefen deshalb in die Sperre des abgeschlossenen Jahres.
-        const geschlossen = async () =>
-          (
-            await sql`select count(*)::int as n, coalesce(sum(l.debit), 0)::int as debit, coalesce(sum(l.credit), 0)::int as credit
-            from journal_lines l join journal_entries e on e.id = l.entry_id where e.date < '2027-01-01'`
-          )[0];
-        const vorher = await geschlossen();
-        await cancellation.cancelDocument(actor, id, { allocationIds }, "2027-01-05");
-        expect(await geschlossen()).toEqual(vorher);
-        // Beleggegenbuchung, Bankgegenzeile und Skonto-Gegenzeile: drei Buchungen im offenen Jahr. Ohne die Zahl
-        // bestünde die Prüfung unten auch dann, wenn gar keine Gegenbuchung entstünde.
-        const offeneJahr = await sql`select date from journal_entries where date >= '2027-01-01'`;
-        expect(offeneJahr).toHaveLength(3);
-        expect(offeneJahr.every((r) => r.date === "2027-01-05")).toBe(true);
-        expect(await ids(tx)).toEqual([]);
-        expect(Number((await sql`select coalesce(sum(amount), 0) as amount from allocations where document_id = ${id}`)[0]!.amount)).toBe(0);
-        expect((await sql`select id from document_cancellations where document_id = ${id}`).length).toBe(1);
+        // Entscheidung des Maintainers zu #782: Die Sperre bleibt wie auf main. Liegt die Zahlung im abgeschlossenen Jahr,
+        // ließe sich die Zuordnung nach der Aufhebung nicht neu buchen (bookPart bucht am Buchungsdatum der Zahlung), der
+        // Vorgang bliebe halb offen und das Bankkonto wiche ab. Die Ablehnung kommt vor dem ersten Schreibvorgang.
+        const vorher = await counts();
+        await expect(cancellation.cancelDocument(actor, id, { allocationIds }, "2027-01-05")).rejects.toThrow(/abgeschlossenen Jahr 2026/);
+        expect(await counts()).toEqual(vorher);
+        expect(await ids(tx)).toEqual(allocationIds);
+        expect(await sql`select id from journal_entries where date >= '2027-01-01'`).toHaveLength(0);
+        expect((await sql`select id from document_cancellations where document_id = ${id}`).length).toBe(0);
+        expect((await bank.transactionDetail(tx))!.transaction.open).toBe(0);
       });
     }
   it("nach der Rückfrage hinzugekommene Zahlung verlangt eine neue Bestätigung", async () => {
