@@ -14,7 +14,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
 | `year_closings` | Abgeschlossene Geschäftsjahre (GmbH, UG) mit Zahl und Prüfwert der Buchungen | Nur anhängen; Buchungen mit Datum in einem abgeschlossenen Jahr abgelehnt; Audit |
-| `company` | Firmendaten mit Gläubiger-ID für Lastschriften, Rechtsform, Versteuerungsart, Kontenrahmen, Zahlungsziel, Rechnungsformat, Standard-Einleitung für Rechnungen und Angebote, Zeichen in der Navigation (`nav_color`, `nav_logo`); genau eine Zeile | Kontenrahmen, Versteuerung und Einschalten von § 19 gesperrt, sobald im laufenden Jahr gebucht ist; Rechtsform ab der ersten Buchung, bei GmbH und UG auch der Kontenrahmen; Löschen ab der ersten Buchung abgelehnt, damit Löschen und neu Anlegen danach die Sperren nicht umgeht; `nav_color` nur `#RRGGBB` in Großbuchstaben; Audit |
+| `company` | Firmendaten mit Gläubiger-ID für Lastschriften, Rechtsform, Versteuerungsart, Kontenrahmen, Zahlungsziel, Rechnungsformat, Standard-Einleitung für Rechnungen und Angebote, Zeichen in der Navigation (`nav_color`, `nav_logo`); genau eine Zeile | Kontenrahmen, Versteuerung und Einschalten von § 19 gesperrt, sobald im laufenden Jahr gebucht ist; Rechtsform ab der ersten Buchung irgendeines Jahres oder einer festgeschriebenen neuen Anzahlungsanforderung im Bilanzverfahren, Kontenrahmen bei GmbH und UG ab der ersten Buchung; Löschen ab der ersten Buchung abgelehnt, damit Löschen und neu Anlegen danach die Sperren nicht umgeht; `nav_color` nur `#RRGGBB` in Großbuchstaben; Audit |
 | `elster_certificates` | ELSTER-Zertifikatsdatei, verschlüsselt; auf Wunsch die PIN für den automatischen Postfachabruf, ebenfalls verschlüsselt | Audit ohne Chiffrat und PIN |
 | `contacts` | Kunden und Lieferanten, mit Herkunft aus Lexoffice; DATEV-Debitor und -Kreditor (`debitor_nr`, `kreditor_nr`, eindeutig, Bereich per CHECK) | nicht löschbar, versioniert, Audit |
 | `contact_versions` | Stand eines Kontakts je Version | nur anhängen |
@@ -134,6 +134,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `lexoffice_vouchers` | Rechnungen und Belege aller Umzugsquellen (`source`) mit vollständiger Quellantwort beziehungsweise Originalpaket | nur anhängen |
 | `lexoffice_voucher_files` | Dateien zu einem Lexoffice-Beleg | nur anhängen |
 | `legacy_voucher_payments` | Belegte Einzelzahlungen aus sevDesk oder lokalen Paketen mit Datum, Betrag, Konto und Herkunft; eindeutig je Zuordnung | nur anhängen, Audit |
+| `sevdesk_accounting_types` | Kontostamm der Buchungskonten aus sevDesk (`GET /AccountingType/{id}`), unverändert; eindeutig je Konto und Stand | nur anhängen, Audit, TRUNCATE gesperrt |
 | `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk oder lokalen Paketen mit Positionen und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit |
 | `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer V1-Auftrags-PDF-Abrufe | nur anhängen, Audit |
 | `legacy_order_files` | Automatisch abgerufene oder manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |

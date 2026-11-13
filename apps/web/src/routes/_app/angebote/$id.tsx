@@ -189,8 +189,16 @@ function FinalQuote({ data }: { data: Detail }) {
                       : "Nimmt der Kunde an, entsteht aus dem Angebot ein Rechnungsentwurf mit denselben Positionen, den du vor dem Festschreiben noch anpassen kannst."}
                 </p>
                 <div className="actions" style={{ flexWrap: "wrap" }}>
+                  {quote.decision !== null && (
+                    <button type="button" className="btn" onClick={() => void setDecision(null)} disabled={busy}>
+                      Antwort zurücknehmen
+                    </button>
+                  )}
                   {quote.decision !== "abgelehnt" && (
                     <>
+                      <button type="button" className="btn" onClick={() => void onInvoice("abschlag")} disabled={busy}>
+                        Abschlagsrechnung erstellen
+                      </button>
                       {finalAbschlaege.length > 0 ? (
                         <button type="button" className="btn btn-primary" onClick={() => void onInvoice("schluss")} disabled={busy}>
                           Schlussrechnung erstellen
@@ -200,9 +208,6 @@ function FinalQuote({ data }: { data: Detail }) {
                           Rechnung erstellen
                         </button>
                       )}
-                      <button type="button" className="btn" onClick={() => void onInvoice("abschlag")} disabled={busy}>
-                        Abschlagsrechnung erstellen
-                      </button>
                     </>
                   )}
                   {quote.decision === null && (
@@ -215,11 +220,6 @@ function FinalQuote({ data }: { data: Detail }) {
                         Abgelehnt
                       </button>
                     </div>
-                  )}
-                  {quote.decision !== null && (
-                    <button type="button" className="btn" onClick={() => void setDecision(null)} disabled={busy}>
-                      Antwort zurücknehmen
-                    </button>
                   )}
                 </div>
               </>

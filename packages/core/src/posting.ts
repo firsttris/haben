@@ -35,6 +35,8 @@ export const ACCOUNTS = {
     ustIge: { 1900: "1774", 700: "1772" },
     vorsteuerIge: { 1900: "1574", 700: "1572" },
     verbindlichkeiten: "1600",
+    /** DATEV SKR03 2026, Art.-Nr. 11174, S. 10: Anzahlungen ohne AM-Funktion; Umsatzsteuer wird separat gebucht. */
+    erhalteneAnzahlungen: "1710",
     privateinlagen: "1890",
     privatentnahmen: "1800",
     /** Spenden aus dem Betrieb, im Einzelunternehmen privat (Sonderausgabe, § 10b EStG); DATEV SKR03 1840 „Zuwendungen, Spenden“ */
@@ -83,6 +85,8 @@ export const ACCOUNTS = {
     ustIge: { 1900: "3804", 700: "3802" },
     vorsteuerIge: { 1900: "1404", 700: "1402" },
     verbindlichkeiten: "3300",
+    /** DATEV SKR04 2026, Art.-Nr. 11175, S. 11: Anzahlungen ohne AM-Funktion; Umsatzsteuer wird separat gebucht. */
+    erhalteneAnzahlungen: "3250",
     privateinlagen: "2180",
     privatentnahmen: "2100",
     /** DATEV SKR04 2250 „Zuwendungen, Spenden“ */
@@ -820,6 +824,28 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
                     ? accounts.zinsertraege
                     : accounts.nebenkostenGeldverkehr;
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Gegenkonto einer Zahlung, die über ein privates Konto läuft (#866): Ein Eingang fließt ins Private (Entnahme,
+ * § 4 Abs. 1 Satz 2 EStG), ein Ausgang hat eine betriebliche Schuld aus privatem Geld bezahlt (Einlage). In GmbH
+ * und UG steht dort in beiden Richtungen das Gesellschafter-Verrechnungskonto.
+ */
+export function privatZahlung(amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): string {
+  return ownerAccount(kontenrahmen, rechtsform, amount > 0 ? "entnahme" : "einlage");
+}
+
+/**
+ * Umsatzsteuer-Erstattung, die auf einem privaten Konto eingeht (#866): Die Forderung gegen das
+ * Finanzamt wird erfüllt, das Geld fließt aber ins Private. Gebucht wird deshalb gegen die
+ * Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto,
+ * nicht gegen die Bank. Auf einem Geschäftskonto bleibt es bei directPosting.
+ */
+export function ustPrivatPosting(amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  return [side(privatZahlung(amount, kontenrahmen, rechtsform), amount, true, null), side(accounts.ustVorauszahlung, amount, false, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
 }
 
 /** Kassenbuchungen ohne Beleg: Einlage und Entnahme, Geld von der Bank in die Kasse und zurück */

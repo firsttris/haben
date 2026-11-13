@@ -21,6 +21,7 @@ import {
   ohneAxeVerstoesse,
   rechnungFestschreiben,
   trefferliste,
+  randImDialog,
 } from "./einrichtung.ts";
 import { receiptJpeg } from "./belegbild.ts";
 
@@ -301,6 +302,7 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
   await neuenKontaktOeffnen(page);
   await expect(dialog).toBeVisible();
+  await randImDialog(dialog, [dialog.getByLabel("Name oder Firma"), dialog.getByRole("button", { name: "Kontakt anlegen" })]);
   await expect(dialog.getByLabel("Kunde", { exact: true })).toBeChecked();
   await expect(dialog.getByLabel("Lieferant", { exact: true })).not.toBeChecked();
   await dialog.getByRole("button", { name: "Abbrechen" }).click();
@@ -982,6 +984,7 @@ test("Artikel in der Position suchen: übernimmt Preis, Einheit und USt, bleibt 
   await trefferliste(page).getByRole("option", { name: "„Lektorat Fachtext“ als neuen Artikel anlegen" }).click();
   const dialog = page.getByRole("dialog", { name: "Neuen Artikel anlegen" });
   await expect(dialog.getByLabel("Bezeichnung")).toHaveValue("Lektorat Fachtext");
+  await randImDialog(dialog, [dialog.getByLabel("Bezeichnung"), dialog.getByRole("button", { name: "Anlegen" })]);
   await dialog.getByLabel("Artikelnummer (optional)").fill("L-07");
   await dialog.getByLabel("Einheit").selectOption("Stk.");
   await dialog.getByLabel("Preis (€)").fill("45,00");
@@ -1823,6 +1826,8 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   const context = await browser.newContext({ storageState: await page.context().storageState() });
   const axePage = await context.newPage();
   await axePage.goto(new URL("/csv-import?art=kontakte", page.url()).toString());
+  // Erst nach der Hydration wählen; sonst verwirft React die gewählte Datei
+  await axePage.waitForLoadState("networkidle");
   await axePage.getByLabel("CSV-Datei").setInputFiles([{ name: "kontakte.csv", mimeType: "text/csv", buffer: Buffer.from(kontakte, "latin1") }]);
   await axePage.getByRole("button", { name: "Vorschau" }).click();
   await expect(axePage.getByRole("region", { name: "Vorschau" })).toContainText("mit Fehlern");

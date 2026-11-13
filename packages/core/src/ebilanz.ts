@@ -263,6 +263,10 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     // Im Haben: Überzahlungen von Kunden; Verbindlichkeiten im Soll: Guthaben bei Lieferanten (DATEV „A oder B“)
     [a.forderungen, ["bs.ass.currAss.receiv.trade.other", "bs.eqLiab.liab.other.other"]],
     [a.verbindlichkeiten, ["bs.ass.currAss.receiv.other.other", "bs.eqLiab.liab.trade.genOther"]],
+    // HGB-Taxonomien 6.9/6.10: Hauptposten „erhaltene Anzahlungen auf Bestellungen“ (§ 266 Abs. 3 C.3 HGB).
+    // Amtliche Originale: https://www.esteuer.de/download/taxonomie_20250618/german-gaap-taxonomy-v6.9-2025-04-01-xbrl.zip
+    // https://www.esteuer.de/download/taxonomie_20260615/germany-gaap-taxonomy-v6.10-2026-04-01-xbrl.zip
+    [a.erhalteneAnzahlungen, ["bs.eqLiab.liab.advPaym"]],
     ...[
       ...Object.values(a.vorsteuer),
       a.vorsteuerRc,

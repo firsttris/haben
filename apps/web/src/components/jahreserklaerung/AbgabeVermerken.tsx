@@ -137,7 +137,7 @@ export function AbgabeVermerken({
         </button>
       </div>
       <FormDialog open={open} title={`${LABEL[art]} ${year} als abgegeben vermerken`} onClose={() => !busy && setOpen(false)}>
-        <form className="stack" style={{ gap: 12 }} onSubmit={absenden}>
+        <form onSubmit={absenden}>
           <Field label="Tag der Abgabe">
             {(control) => <input {...control} type="date" value={filedOn} max={today} onChange={(event) => setFiledOn(event.target.value)} required />}
           </Field>
@@ -191,15 +191,15 @@ export function AbgabeVermerken({
           <Field label="Übermittlungsprotokoll (PDF, optional)">
             {(control) => <FilePicker {...control} accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />}
           </Field>
+          <NoticeBanner notice={notice} />
           <div className="actions">
-            <button type="submit" className="btn btn-primary" disabled={busy || !ready}>
-              Vermerken
-            </button>
             <button type="button" className="btn" disabled={busy} onClick={() => setOpen(false)}>
               Abbrechen
             </button>
+            <button type="submit" className="btn btn-primary" disabled={busy || !ready}>
+              Vermerken
+            </button>
           </div>
-          <NoticeBanner notice={notice} />
         </form>
       </FormDialog>
     </section>
