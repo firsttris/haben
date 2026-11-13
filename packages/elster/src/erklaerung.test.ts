@@ -189,6 +189,14 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     // Positive Beträge bleiben unverändert im XML
     const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: 19_000 }, anlagen: [] });
     expect(tag(xml, "E6005101")).toBe("190,00");
+    // Grenze: 0,00 und ein fehlender Wert sind keine negativen Betraege und duerfen nicht gemeldet werden
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: 0, erstatteteUst: 0 })).toEqual([]);
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined })).toEqual([]);
+    // Beide Zeilen negativ: zwei Meldungen in einem Wurf, beide im Text des Fehlers
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -1, erstatteteUst: -1 })).toHaveLength(2);
+    expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: -1, erstatteteUst: -1 }, anlagen: [] })).toThrow(
+      /Zeile 58[\s\S]*Zeile 18/,
+    );
   });
 
   it("listet Anlagen je Gruppe in der AVEÜR", () => {

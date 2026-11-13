@@ -280,12 +280,19 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         .euerIssues(company, data)
         .map((i) => i.text)
         .join(" ");
+    // Der Grund muss tone fehler tragen: checkAnnual bricht nur darauf ab und wuerde sonst weiter senden.
+    // Der Test setzt oben einkunftsart auf null, deshalb zaehlen hier nur die Meldungen zu Zeile 18 und 58.
+    const fehler = (data: typeof euer) => annual.euerIssues(company, data).filter((i) => i.tone === "fehler" && /Zeile (58|18) \(Kz/.test(i.text));
     // Die Anlage EÜR nimmt in Zeile 58 (E6005101) kein Vorzeichen an: der Versand wird vor ERiC gestoppt
     expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
     expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/steuerlich zu klären/);
     expect(texte({ ...euer, figures: { ...euer.figures, erstatteteUst: -19_000 } })).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
     // Ohne negativen Betrag bleibt die Vorprüfung still
     expect(texte(euer)).not.toMatch(/Zeile 58|Zeile 18 \(Kz/);
+    expect(fehler({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toHaveLength(1);
+    expect(fehler({ ...euer, figures: { ...euer.figures, erstatteteUst: -19_000 } })).toHaveLength(1);
+    expect(fehler({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000, erstatteteUst: -19_000 } })).toHaveLength(2);
+    expect(fehler(euer)).toHaveLength(0);
   });
 
   it.each([
