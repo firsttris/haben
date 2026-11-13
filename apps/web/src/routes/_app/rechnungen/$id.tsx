@@ -258,7 +258,7 @@ function FinalInvoice({ data }: { data: Detail }) {
               <dt>Umsatzsteuer</dt>
               <dd className="amount">{formatEuro(invoice.tax)}</dd>
               <dt>Brutto</dt>
-              <dd className="mono" style={{ fontWeight: 600 }}>
+              <dd className="amount" style={{ fontWeight: 600 }}>
                 {formatEuro(invoice.gross)}
               </dd>
               {invoice.currency !== "EUR" && (

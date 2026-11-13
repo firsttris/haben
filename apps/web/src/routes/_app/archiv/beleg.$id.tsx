@@ -116,7 +116,7 @@ function LegacyVoucherPage() {
                 <TaxRow key={t.rate} rate={t.rate} net={t.net} tax={t.tax} />
               ))}
               <dt>Brutto</dt>
-              <dd className="mono" style={{ fontWeight: 600 }}>
+              <dd className="amount" style={{ fontWeight: 600 }}>
                 {formatEuro(voucher.gross)}
                 {voucher.currency !== "EUR" ? ` (${voucher.currency})` : ""}
               </dd>

@@ -248,12 +248,12 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-h); padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; box-shadow: var(--shadow-xs); transition: background-color var(--fade), border-color var(--fade), color var(--fade), box-shadow var(--fade); }
 /* Beim Überfahren färbt sich die Fläche, nicht nur der Rahmen */
-.btn:hover { color: var(--ink); background: var(--hover); }
+.btn:hover:not(:disabled) { color: var(--ink); background: var(--hover); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
 /* Nebenaktionen in Werkzeugleisten (Blättern, Vorschau): ohne Rahmen, Fläche erst beim Überfahren */
 .btn-ghost { border-color: transparent; background: transparent; box-shadow: none; }
-.btn-ghost:hover { border-color: transparent; }
+.btn-ghost:hover:not(:disabled) { border-color: transparent; }
 /* Quadratisch, nur mit Symbol; der Name steht in aria-label */
 .btn-icon { width: var(--control-h); padding: 0; }
 .btn-icon.btn-sm { width: 36px; }
@@ -283,16 +283,14 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .combobox-popup > .combobox-note:first-child { border-top: 0; }
 /* Löschen, Entfernen, Stornieren, Widerrufen */
 .btn-danger { color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger-ink) 45%, var(--line-strong)); }
-.btn-danger:hover { color: var(--danger-ink); border-color: var(--danger-ink); background: var(--danger-soft); }
+.btn-danger:hover:not(:disabled) { color: var(--danger-ink); border-color: var(--danger-ink); background: var(--danger-soft); }
 /* Bestätigung von Unumkehrbarem im ConfirmDialog: voll in Rot; die Schrift nimmt die Fläche, weil --danger-ink im dunklen Theme hell ist */
 .btn-destructive { background: var(--danger-ink); border-color: var(--danger-ink); color: var(--surface); }
-.btn-destructive:hover { background: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); border-color: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); color: var(--surface); }
+.btn-destructive:hover:not(:disabled) { background: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); border-color: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); color: var(--surface); }
 /* Klein: in Bannern, Tabellenzeilen und Trefferkarten */
 .btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
-/* Gesperrt ohne Hover-Fläche; Zeiger-Ereignisse bleiben, damit ein title den Grund nennen kann */
+/* Gesperrt: Die Hover-Regeln oben gelten nur für :not(:disabled); Zeiger-Ereignisse bleiben, damit ein title den Grund nennen kann */
 .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
-.btn:not(.btn-primary, .btn-destructive):disabled:hover { background: var(--surface); }
-.btn-ghost:disabled:hover, .btn-dashed:disabled:hover { background: transparent; }
 
 .field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--muted); }
 .field input { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }

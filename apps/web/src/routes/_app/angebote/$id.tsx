@@ -305,7 +305,7 @@ function FinalQuote({ data }: { data: Detail }) {
               <dt>Umsatzsteuer</dt>
               <dd className="amount">{formatEuro(quote.tax)}</dd>
               <dt>Brutto</dt>
-              <dd className="mono" style={{ fontWeight: 600 }}>
+              <dd className="amount" style={{ fontWeight: 600 }}>
                 {formatEuro(quote.gross)}
               </dd>
               {quote.priceMode === "brutto" && (

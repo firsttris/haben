@@ -934,7 +934,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           </button>
           <div style={{ textAlign: "right" }}>
             <span className="muted small">{reverseCharge ? "Zu zahlen (netto) " : "Gesamt "}</span>
-            <span className="mono" style={{ fontWeight: 600 }}>
+            <span className="amount" style={{ fontWeight: 600 }}>
               {gross === null ? "–" : foreign ? `${formatDecimal(gross)} ${currencyCode}` : formatEuro(gross)}
             </span>
             {foreign && (
@@ -942,7 +942,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 {euroRows ? (
                   <>
                     in Euro{" "}
-                    <span className="mono" style={{ fontWeight: 600 }}>
+                    <span className="amount" style={{ fontWeight: 600 }}>
                       {formatEuro(euroGross!)}
                     </span>
                     {euroRows.length > 0 && (
