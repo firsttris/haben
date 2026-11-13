@@ -60,6 +60,7 @@ function invoiceOut(row: ListRow, invoice: Invoice, lines: InvoiceLine[], baseUr
     format: invoice.format,
     intro: invoice.intro,
     note: invoice.note,
+    propertyRetention: invoice.propertyRetention,
     buyerOrderReference: invoice.buyerOrderReference,
     sellerOrderReference: invoice.sellerOrderReference,
     despatchAdviceReference: invoice.despatchAdviceReference,

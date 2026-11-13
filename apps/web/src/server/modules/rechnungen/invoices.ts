@@ -89,6 +89,7 @@ export const draftSchema = z
     /** Einleitung über den Positionen, etwa aus einem Textbaustein */
     intro: z.string().max(2000).default(""),
     note: z.string().max(2000),
+    propertyRetention: z.boolean().default(false),
     /** Bestellnummer des Kunden, eigene Auftragsnummer und Lieferschein (BT-13, BT-14, BT-16); leer = keine */
     ...referenceFieldsSchema,
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
@@ -302,6 +303,7 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null, q: D
     number: r.number!,
     issueDate: r.issueDate,
     advanceType: r.advanceType,
+    propertyRetention: r.propertyRetention,
     taxTreatment: r.taxTreatment,
     priceMode: r.priceMode,
     net: r.net,
@@ -545,6 +547,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     format: input.format,
     intro: input.intro ?? "",
     note: input.note,
+    propertyRetention: input.propertyRetention ?? false,
     ...referenceColumns(input),
     taxTreatment: input.taxTreatment ?? "regulaer",
     exemptionReason: input.taxTreatment && input.taxTreatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
@@ -628,7 +631,7 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     const rate = await draftRate(tx, input, draft.correctsId, draft);
     const { values, calculation, taxes } = draftValues(
       // Storno und Korrektur zahlt der Kunde nicht, also auch kein Skonto
-      draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode, quoteId: null, skonto: [] },
+      draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode, propertyRetention: draft.propertyRetention, quoteId: null, skonto: [] },
       bundesland,
       lines,
       rate,
@@ -682,6 +685,7 @@ export async function newDraftDefaults(today: string) {
     format: company.defaultFormat,
     intro: company.invoiceIntro,
     note: "",
+    propertyRetention: false,
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",
     priceMode: "netto" as PriceMode,
@@ -885,6 +889,7 @@ export function documentFor(
     ...(corrects ? { corrects } : {}),
     ...(invoice.intro ? { intro: invoice.intro } : {}),
     ...(invoice.note ? { note: invoice.note } : {}),
+    ...(invoice.propertyRetention ? { propertyRetention: true } : {}),
     ...documentReferences(invoice),
     ...(invoice.taxTreatment !== "regulaer" ? { taxTreatment: invoice.taxTreatment } : {}),
     ...(invoice.exemptionReason ? { exemptionReason: invoice.exemptionReason } : {}),
@@ -1294,6 +1299,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
           paymentTermDays: 0,
           format: target.format,
           note: "",
+          propertyRetention: target.propertyRetention,
           // Storno und Korrektur beziehen sich auf dieselbe Bestellung wie die Rechnung (#389)
           ...referenceColumns(target),
           taxTreatment: target.taxTreatment,
@@ -1333,6 +1339,7 @@ export async function createCorrection(actor: string, id: string, today: string)
       paymentTermDays: 0,
       format: invoice.format,
       note: "",
+      propertyRetention: invoice.propertyRetention,
       ...referenceColumns(invoice),
       taxTreatment: invoice.taxTreatment,
       exemptionReason: invoice.exemptionReason,

@@ -32,7 +32,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 7. Unter **Preise** wählen, ob die Einzelpreise netto oder brutto inklusive Umsatzsteuer gelten (siehe [Netto- oder Bruttopreise](#nettopreise-oder-bruttopreise)). Vorgabe ist netto.
 8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Rahmenvertrag oder Anrede; Bestell-, Auftrags- und Lieferscheinnummer haben eigene Felder. Vorbelegt ist sie mit der Standard-Einleitung für Rechnungen aus den [Firmendaten](einrichtung.md). **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
 9. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
-10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein.
+10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein. Für private Grundstücksleistungen darunter den [Aufbewahrungshinweis](#aufbewahrungshinweis-bei-grundstücksleistungen) einschalten.
 11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt in einem Dialog nach und nennt Nummer, Kunde und Betrag; erst **Festschreiben** dort führt es aus.
 
 Die [Vorschau](#vorschau) zeigt die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
@@ -244,6 +244,16 @@ Der Editor listet alles auf, was noch fehlt. Geprüft werden:
 | E-Mail-Adresse oder Leitweg-ID des Kunden | – | Pflicht |
 | Bezug zur ursprünglichen Rechnung (Storno, Korrektur) | Pflicht | Pflicht |
 
+## Aufbewahrungshinweis bei Grundstücksleistungen
+
+Bei steuerpflichtigen Werklieferungen oder sonstigen Leistungen im Zusammenhang mit einem Grundstück für den privaten Bereich, etwa Gartenpflege oder Handwerk, ist der Hinweis auf die Aufbewahrungspflicht eine Pflichtangabe ([§ 14 Abs. 4 Satz 1 Nr. 9 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14.html)). Der Empfänger muss die Rechnung, einen Zahlungsbeleg oder eine andere beweiskräftige Unterlage zwei Jahre aufbewahren; die Frist beginnt mit dem Schluss des Ausstellungsjahres ([§ 14b Abs. 1 Satz 5 mit Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__14b.html)). Eine Rechnung vom November 2026 ist damit bis Ende 2028 aufzubewahren.
+
+- Im Rechnungseditor **Leistung an einem Grundstück für einen Privatkunden (§ 14 Abs. 4 Nr. 9 UStG)** anhaken. Haben erkennt den privaten Leistungsbezug nicht selbst; ohne Haken erscheint kein zusätzlicher Text.
+- Der feste, nicht bearbeitbare Hinweis steht unter den Summen im PDF, auch in eigenen Layouts über das Pflichtfeld `taxNote`, und als BT-22 in ZUGFeRD und XRechnung. Der freie Fußtext und Hinweise zur Umsatzsteuer bleiben erhalten. Auf Englisch erscheint auch der feste Hinweis auf Englisch.
+- Wiederkehrende Rechnungen haben denselben Haken; jede daraus erzeugte Rechnung übernimmt ihn. Die REST-API verwendet `propertyRetention` ([API](api.md)).
+- Nach dem Festschreiben ist die Auswahl gesperrt. Storno und Rechnungskorrektur übernehmen sie unveränderlich aus der ursprünglichen Rechnung. Bestehende Belegdateien ändern sich nicht.
+- Für Kleinunternehmer bleibt die Auswahl freiwillig verfügbar. [§ 34a UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__34a.html) nennt den Hinweis nicht unter den Mindestangaben einer Kleinunternehmerrechnung; Haben setzt ihn dort nicht automatisch.
+
 ## Was beim Festschreiben passiert
 
 Alles läuft in einer einzigen Datenbanktransaktion. Schlägt ein Schritt fehl, bleibt der Entwurf ohne Nummer zurück und im Nummernkreis entsteht keine Lücke. PDF und XML entstehen, bevor Haben etwas speichert; andere Vorgänge, etwa ein gleichzeitig gebuchter Beleg, warten so nicht auf das Erzeugen der Dateien.
@@ -432,7 +442,7 @@ Auf Englisch erscheinen:
 
 Das englische Monatskürzel für September ist auf allen Plattformen einheitlich „Sept“, sowohl im PDF als auch in E-Mails.
 
-Stornorechnung und Rechnungskorrektur übernehmen die Sprache der ursprünglichen Rechnung, wiederkehrende Rechnungen die Sprache des Kontakts. Das XML der E-Rechnung ist sprachunabhängig und bleibt gleich. Mahnungen bleiben deutsch. Ein selbst eingetragener Hinweis zur Steuerbefreiung erscheint so, wie du ihn schreibst.
+Stornorechnung und Rechnungskorrektur übernehmen die Sprache der ursprünglichen Rechnung, wiederkehrende Rechnungen die Sprache des Kontakts. Das XML-Format bleibt sprachunabhängig; der feste Aufbewahrungshinweis (BT-22) folgt der Belegsprache. Mahnungen bleiben deutsch. Ein selbst eingetragener Hinweis zur Steuerbefreiung erscheint so, wie du ihn schreibst.
 
 ## Wiederkehrende Rechnungen
 
@@ -447,7 +457,7 @@ Für Monatspauschalen, Wartungsverträge oder Hosting legst du unter **Rechnunge
 | Leistungszeitraum | **Laufend:** die Monate ab dem Rechnungsmonat (Vorauszahlung). **Vergangen:** die Monate davor (Abrechnung). **Keiner:** ohne Leistungszeitraum, dann gilt das Rechnungsdatum. |
 | Was am Termin passiert | **Entwurf anlegen:** du prüfst und schreibst selbst fest. **Direkt festschreiben:** Nummer, PDF, XML und Buchung wie beim Festschreiben von Hand; auf Wunsch **und per E-Mail an den Kunden schicken** (Vorlage und Adresse wie beim [Versand von Hand](#per-e-mail-versenden)). |
 | Aktiv | Ohne Häkchen erzeugt die Vorlage keine Rechnungen. |
-| Kunde, Einleitung, Positionen mit Text zur Position, Zahlungsziel, Format, Umsatzsteuer, Preise (netto oder brutto), Hinweis | wie im Rechnungseditor |
+| Kunde, Einleitung, Positionen mit Text zur Position, Zahlungsziel, Format, Umsatzsteuer, Preise (netto oder brutto), Hinweis, Aufbewahrungshinweis | wie im Rechnungseditor |
 | Zahlungsart | Überweisung oder SEPA-Lastschrift; bei Lastschrift wählt jeder Lauf das Mandat selbst, siehe [Lastschrift](#lastschrift) |
 
 In Einleitung, Beschreibungen, Texten zur Position und Hinweis ersetzt Haben Platzhalter:

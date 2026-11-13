@@ -67,6 +67,18 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
     expect(rows.map((r) => ({ ...r }))).toEqual([{ intro: "Leistungen September 2026 gemäß Wartungsvertrag", note: "Abrechnung September 2026" }]);
   });
 
+  it("übernimmt den gewählten Aufbewahrungshinweis aus der Vorlage in jeden Lauf und lässt ihn wieder ausschalten", async () => {
+    const input = template({ ...{ propertyRetention: true }, nextDate: "2026-09-30", endDate: "2026-10-30" });
+    const created = await recurring.createRecurring(actor, input);
+    expect(created).toMatchObject({ propertyRetention: true });
+    expect((await recurring.runDueRecurring("2026-09-30")).created).toBe(1);
+    const disabled = { ...input, propertyRetention: false, nextDate: "2026-10-30" };
+    await recurring.updateRecurring(actor, created.id, disabled);
+    expect((await recurring.runDueRecurring("2026-10-30")).created).toBe(1);
+    const rows = await sql`select property_retention from invoices order by issue_date`;
+    expect(rows.map((row) => row.property_retention)).toEqual([true, false]);
+  });
+
   it("übernimmt den Text zur Position mit Platzhaltern in die Rechnung", async () => {
     const lines = [{ ...template().lines[0]!, detail: "Leistungszeitraum {zeitraum}\nlaut Wartungsvertrag" }];
     await recurring.createRecurring(actor, template({ lines, nextDate: "2026-09-30", endDate: "2026-09-30" }));

@@ -168,6 +168,8 @@ export interface InvoiceDocument extends Letterhead {
   intro?: string;
   /** Hinweis unter den Summen (Fußtext) */
   note?: string;
+  /** Fester Aufbewahrungshinweis für private Grundstücksleistungen (§ 14 Abs. 4 Nr. 9, § 14b Abs. 1 Satz 5 UStG); fehlt = aus */
+  propertyRetention?: boolean;
   /** Fehlt = regulär besteuert */
   taxTreatment?: TaxTreatment;
   /** Fehlt = Nettopreise; brutto nur bei regulärer Besteuerung */
