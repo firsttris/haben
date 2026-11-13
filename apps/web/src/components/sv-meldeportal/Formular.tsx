@@ -41,7 +41,7 @@ function AbschnittTabelle({ abschnitt }: { abschnitt: Abschnitt }) {
               <td data-label="Eintragen" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600, overflowWrap: "anywhere" }}>
                 {f.wert ||
                   (f.fehlt ? (
-                    <Status tone="danger" emphasis="notice">
+                    <Status tone="warn" emphasis="notice">
                       Fehlt
                     </Status>
                   ) : (
