@@ -114,6 +114,7 @@ test("Formulare, die erst nach einem Klick aufgehen: Hauptaktion zuletzt", async
   for (const [url, knopf, formular] of [
     ...(kontakt ? [[kontakt, "Ansprechpartner hinzufügen", "Neuer Ansprechpartner"] as const] : []),
     ["/leistungen", "Neuer Eintrag", "Neuer Eintrag"],
+    ["/leistungen", "Abrechnen", "Leistungen abrechnen"],
     [`/jahreserklaerung/${YEAR - 1}`, "Abgabe vermerken", null],
   ] as const) {
     await gehe(page, url);
