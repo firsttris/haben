@@ -57,6 +57,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | | |
 |---|---|
 | [Buchhaltung in Haben](buchhaltung.md) | Grundsätze, GoBD und Festschreibung, Ist und Soll, Kontenrahmen, alle Buchungssätze, Steuerschlüssel |
+| [Abschluss für GmbH und UG](gmbh-abschluss.md) | Eröffnung, Jahresabschluss mit Vermerken, Hinterlegung beim Unternehmensregister, Körperschaft- und Gewerbesteuer, Gewinnausschüttung, E-Bilanz |
 | [Architektur](architektur.md) | Module, Datenmodell, Ablauf von Anfragen, Dateiablage, ERiC-Worker, E-Rechnung, Sicherheit |
 | [Entwicklung](entwicklung.md) | Lokale Umgebung, Befehle, Tests, Migrationen, Konventionen, neue Bankformate |
 | [Mitwirken](mitwirken.md) | Aufgabe übernehmen, Branches und Commits, KI-Werkzeuge, automatische Prüfungen, Issues, Beiträge annehmen, Review |
