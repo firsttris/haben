@@ -108,7 +108,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung in beiden Kontenrahmen und Verste
 
   for (const profil of profile) {
     describe(`${profil.kr}, ${profil.versteuerung === "ist" ? "Ist" : "Soll"}-Versteuerung`, () => {
-      it("gleicht vollständig aus: beide Reste 0, keine Buchung, nichts mehr offen", async () => {
+      it("gleicht vollständig aus: beide Reste 0, eine Buchung, nichts mehr offen", async () => {
         await firma(profil);
         const rechnung = await beleg("2026-02-10", 10_000, 1_900); // 119,00 EUR
         // Journal in den Konten des eingestellten Kontenrahmens; Ist und Soll ändern daran nichts
@@ -132,8 +132,8 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung in beiden Kontenrahmen und Verste
 
         expect(await verrechnung.openAmount(rechnung)).toBe(0);
         expect(await verrechnung.openAmount(gutschrift)).toBe(0);
-        // Die Entscheidung im Code: keine Buchung, weil kein Geld fließt
-        expect(await buchungen()).toBe(journalVorher);
+        // Der Ausgleich ist steuerlich eine Zahlung und steht seit #785 als eigene Buchung im Journal
+        expect(await buchungen()).toBe(journalVorher + 1);
         const offen = await reports.openPositions("2026-02-20");
         expect(offen.payables).toEqual([]);
         expect(await bank.transferCandidates()).toEqual([]);
