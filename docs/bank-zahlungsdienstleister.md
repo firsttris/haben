@@ -1,7 +1,7 @@
 ---
 title: "PayPal, Stripe, Google Play und App Store in Haben"
 description: >-
-  Konten bei Zahlungsdienstleistern wie PayPal, Stripe, Shopify Payments, eBay, Etsy, SumUp, Google Play und App Store importieren und abgleichen, mit Gebühren und Auszahlungen.
+  PayPal, Stripe, Shopify Payments, eBay, Etsy, Google Play und App Store als eigenes Konto importieren und abgleichen, mit Gebühren und Auszahlungen.
 ---
 
 # Zahlungsdienstleister
