@@ -13,7 +13,7 @@ export const MARKER = "<!-- haben:pr-regeln -->";
 
 export type Ergebnis = { pr: number; headSha: string; reports: Report[] };
 
-/** Abschnitt in docs/entwicklung.md mit dem, was bei jeder Meldung zu tun ist */
+/** Abschnitt in docs/mitwirken.md mit dem, was bei jeder Meldung zu tun ist */
 export const ANLEITUNG = "[Wenn eine Prüfung anschlägt](https://haben.app/mitwirken.html#wenn-eine-prüfung-anschlägt)";
 
 const MAX_REPORTS = 50;

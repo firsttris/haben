@@ -1,6 +1,6 @@
 /*
  * Regeln für das Project „Roadmap“ (https://github.com/users/firsttris/projects/2) und das Schließen von Issues
- * beim Release, ohne Zugriff auf GitHub. Der Ablauf steht in docs/entwicklung.md unter „Issues in der Beschreibung“:
+ * beim Release, ohne Zugriff auf GitHub. Der Ablauf steht in docs/mitwirken.md unter „Issues in der Beschreibung“:
  * `Refs #…` verweist auf einen Teil, `Umgesetzt #…` heißt fertig. Geschlossen wird erst mit einer fertigen Version.
  */
 
