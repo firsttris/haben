@@ -1,0 +1,154 @@
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import postgres from "postgres";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
+
+describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, #619)", () => {
+  let admin: postgres.Sql;
+  let app: postgres.Sql;
+  const appRole = `role619-app-${process.pid}`;
+  const externalOwner = `role619_owner_${process.pid}`;
+  const externalDb = `role619_external_${process.pid}`;
+  let appUrl: string;
+  let started: Promise<void> | undefined;
+
+  const loginUrl = (role: string, database?: string) => {
+    const url = new URL(testDatabaseUrl!);
+    url.username = role;
+    url.password = "rollen-test-619";
+    if (database) url.pathname = `/${database}`;
+    return url.toString();
+  };
+
+  async function migrate(runtimeUrl: string, migrationUrl?: string, script = fileURLToPath(new URL("./migrate.ts", import.meta.url)), expectedExit = 0) {
+    const child = Bun.spawn([Bun.which("bun")!, script], {
+      env: { ...globalThis.process.env, DATABASE_URL: runtimeUrl, MIGRATION_DATABASE_URL: migrationUrl ?? "" },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, stderr, exit] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+    expect(exit, `${stdout}\n${stderr}`).toBe(expectedExit);
+    expect(`${stdout}\n${stderr}`).not.toContain("rollen-test-619");
+  }
+
+  // Alle Rechteproben gehen erst durch den echten CLI-Start, nicht durch eine im Test vorab abgesicherte Rolle.
+  const start = () => (started ??= migrate(appUrl, testDatabaseUrl));
+
+  beforeAll(async () => {
+    admin = await setupTestDb();
+    await admin`create role ${admin(appRole)} login password 'rollen-test-619' nosuperuser nocreatedb nocreaterole`;
+    await admin`create role ${admin(externalOwner)} login password 'rollen-test-619' nosuperuser nocreatedb nocreaterole`;
+    await admin`create database ${admin(externalDb)} owner ${admin(externalOwner)}`;
+    appUrl = loginUrl(appRole);
+    app = postgres(appUrl, { max: 1, onnotice: () => {} });
+  }, 30_000);
+
+  afterAll(async () => {
+    await app?.end();
+    if (!admin) return;
+    await admin`drop database if exists ${admin(externalDb)} with (force)`;
+    await admin`drop owned by ${admin(appRole)}`;
+    await admin`drop role if exists ${admin(appRole)}`;
+    await admin`drop role if exists ${admin(externalOwner)}`;
+    await admin.end();
+  });
+
+  it("verwendet die Eigentümerverbindung für die Migration und lässt den bisherigen Einrollenstart zu", async () => {
+    await migrate(testDatabaseUrl!);
+    await start();
+    expect(await app`select current_user as role, session_user as login`).toEqual([{ role: appRole, login: appRole }]);
+  });
+
+  it("sperrt DDL, Replikationsparameter, Eigentümerwechsel und Schattenrelationen für die echte App-Anmeldung", async () => {
+    await start();
+    const [owner] = await admin`select current_user as name`;
+    const rollback = new Error("nur zurückgerollte Rechteprobe");
+    const statements = [
+      "alter table public.journal_lines disable trigger journal_lines_locked",
+      "set local session_replication_role = replica",
+      "alter table public.journal_lines add column role619_probe integer",
+      "drop table public.journal_lines cascade",
+      "alter function public.haben_audit() rename to role619_probe",
+      "drop function public.haben_audit() cascade",
+      "create temp table audit_log (id integer)",
+      "create table public.role619_probe (id integer)",
+      `set role "${owner!.name.replaceAll('"', '""')}"`,
+    ];
+    for (const statement of statements) {
+      await expect(
+        app.begin(async (tx) => {
+          await tx.unsafe(statement);
+          throw rollback;
+        }),
+        statement,
+      ).rejects.toMatchObject({ code: "42501" });
+    }
+    await app`reset role`;
+    expect(await app`select current_user as role`).toEqual([{ role: appRole }]);
+  });
+
+  it("erlaubt Buchung, Audit und Siegel weiter, ohne die Festschreibung aufzuheben", async () => {
+    await start();
+    const entry = await app.begin(async (tx) => {
+      await tx`select set_config('haben.actor', 'rollen-test-619', true)`;
+      await tx`insert into company (id, name, kontenrahmen) values (1, 'Rollen-Testfirma', 'SKR03') on conflict (id) do nothing`;
+      const [row] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values ('2026-01-10', 'Rechteprobe', 'manuell', gen_random_uuid(), 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit)
+        values (${row!.id}, '4920', 10000, 0), (${row!.id}, '1200', 0, 10000)`;
+      await tx`update journal_entries set locked_at = now() where id = ${row!.id}`;
+      return row!.id as string;
+    });
+    expect(await app`select actor from audit_log where table_name = 'journal_entries' and row_id = ${entry}`).toEqual([
+      { actor: "rollen-test-619" },
+      { actor: "rollen-test-619" },
+    ]);
+    expect(await app`select table_name from seals where row_id = ${entry}`).toEqual([{ table_name: "journal_entries" }]);
+    await expect(app`update journal_lines set debit = 1 where entry_id = ${entry} and debit > 0`).rejects.toThrow();
+    expect(await app`select * from haben_integrity_problems()`).toEqual([]);
+  });
+
+  it("vergibt nach einer weiteren echten Migration Tabellen- und Sequenzrechte erneut", async () => {
+    await start();
+    const fixture = mkdtempSync(join(tmpdir(), "haben-migration-619-"));
+    const source = fileURLToPath(new URL("./", import.meta.url));
+    const db = join(fixture, "src/server/db");
+    const meta = join(fixture, "drizzle/meta");
+    mkdirSync(db, { recursive: true });
+    mkdirSync(meta, { recursive: true });
+    for (const name of ["migrate.ts", "roles.ts"]) if (existsSync(join(source, name))) copyFileSync(join(source, name), join(db, name));
+    symlinkSync(fileURLToPath(new URL("../../../node_modules", import.meta.url)), join(fixture, "node_modules"), "junction");
+    // Nur eine synthetische Folgemigration; der ausgelieferte Migrationsbestand bleibt unverändert.
+    writeFileSync(
+      join(meta, "_journal.json"),
+      JSON.stringify({
+        version: "7",
+        dialect: "postgresql",
+        entries: [{ idx: 0, version: "7", when: 9_000_000_000_000, tag: "0000_role619_future", breakpoints: false }],
+      }),
+    );
+    writeFileSync(join(fixture, "drizzle/0000_role619_future.sql"), "create table public.role619_future (id bigserial primary key, value text not null);");
+    await migrate(appUrl, testDatabaseUrl, join(db, "migrate.ts"));
+    expect(await app`insert into role619_future (value) values ('neue Tabelle') returning id, value`).toEqual([{ id: "1", value: "neue Tabelle" }]);
+    await migrate(appUrl, testDatabaseUrl);
+    expect(await app`insert into role619_future (value) values ('erneuter Start') returning id`).toEqual([{ id: "2" }]);
+  });
+
+  it("migriert mit einer extern verwalteten Eigentümerrolle ohne Superuser und CREATEROLE", async () => {
+    await migrate(loginUrl(appRole, externalDb), loginUrl(externalOwner, externalDb));
+    const external = postgres(loginUrl(appRole, externalDb), { max: 1, onnotice: () => {} });
+    try {
+      expect(await external`select count(*)::integer as n from journal_entries`).toEqual([{ n: 0 }]);
+      expect(await external`select current_user as role`).toEqual([{ role: appRole }]);
+    } finally {
+      await external.end();
+    }
+  }, 30_000);
+
+  it("startet bei ausdrücklich konfigurierter, aber identischer Eigentümer-/App-Anmeldung nicht weiter", async () => {
+    await migrate(testDatabaseUrl!, testDatabaseUrl!, undefined, 1);
+  });
+});
