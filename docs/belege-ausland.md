@@ -6,6 +6,8 @@ description: >-
 
 # Belege aus dem Ausland
 
+Was Haben bei § 13b und beim innergemeinschaftlichen Erwerb nicht abdeckt, steht unter [Belege › Grenzen](belege.md#grenzen).
+
 ## Reverse Charge als Leistungsempfänger (§ 13b)
 
 Viele Anbieter von Software und Cloud-Diensten aus dem EU-Ausland (Google, Microsoft, AWS, JetBrains, Adobe aus Irland oder den Niederlanden) stellen Unternehmern Rechnungen ohne Umsatzsteuer mit dem Hinweis „Reverse Charge“. Die Steuer schuldest dann du (§ 13b UStG) und ziehst sie im selben Zug als Vorsteuer wieder ab.

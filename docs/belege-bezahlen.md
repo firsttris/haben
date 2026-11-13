@@ -1,12 +1,14 @@
 ---
 title: "Belege bezahlen: Überweisung per SEPA-Datei, Verrechnen"
 description: >-
-  Eingangsrechnungen in Haben bezahlen: Zahlungsstatus, Überweisungen als SEPA-Datei für die Bank, Skonto und Verrechnen ohne Zahlung.
+  Eingangsrechnungen in Haben bezahlen: über Geschäftskonto, privat oder Kasse, Überweisungen als SEPA-Datei für die Bank, Skonto und Verrechnen ohne Zahlung.
 ---
 
 # Belege bezahlen
 
 ## Bezahlung
+
+Unter **Bezahlung** am Beleg wählst du, wie er bezahlt wurde:
 
 | Auswahl | Gegenkonto | Folge |
 | --- | --- | --- |
