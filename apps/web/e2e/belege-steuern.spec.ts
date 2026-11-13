@@ -2059,6 +2059,42 @@ test("Abgabe vermerken bei niedrigem Fenster: Tab hält jedes Feld über der Kno
   await page.setViewportSize({ width: 1440, height: 900 });
 });
 
+test("Formular-Dialog bei niedrigem Fenster: Beim Öffnen bleibt das erste Feld oben sichtbar, das Formular scrollt nicht (#880)", async () => {
+  const jahr = YEAR - 1;
+  await page.setViewportSize({ width: 1280, height: 420 });
+  const pruefen = async (dialog: ReturnType<Page["getByRole"]>, erstesFeld: string) => {
+    await expect(dialog).toBeVisible();
+    // Chrome macht das scrollende Formular selbst fokussierbar, showModal() fokussiert dann das Formular, kein Feld.
+    // Zwei Frames abwarten, damit ein Scrollen danach schon passiert ist
+    const lage = await dialog.evaluate(async (d, feld) => {
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const form = d.querySelector(":scope > form") as HTMLElement;
+      const label = [...d.querySelectorAll("label")].find((l) => l.textContent?.startsWith(feld))!;
+      return {
+        scrollTop: form.scrollTop,
+        feldOben: label.getBoundingClientRect().top,
+        formOben: form.getBoundingClientRect().top,
+        scrollbar: form.scrollHeight > form.clientHeight,
+      };
+    }, erstesFeld);
+    expect(lage.scrollbar, `${erstesFeld}: das Formular muss scrollen, sonst prüft der Test nichts`).toBe(true);
+    expect(lage.scrollTop, `${erstesFeld}: das Formular ist beim Öffnen schon gescrollt`).toBe(0);
+    expect(lage.feldOben, `${erstesFeld}: liegt über dem oberen Rand`).toBeGreaterThanOrEqual(lage.formOben);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  };
+  await go(`/jahreserklaerung/${jahr}`);
+  await page
+    .getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${jahr}`, exact: true })
+    .getByRole("button", { name: "Abgabe vermerken", exact: true })
+    .click();
+  await pruefen(page.getByRole("dialog", { name: `Anlage EÜR ${jahr} als abgegeben vermerken` }), "Tag der Abgabe");
+  await go("/dauerbelege/neu");
+  await neuenLieferantenOeffnen(page);
+  await pruefen(page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" }), "Name oder Firma");
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
 test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);
