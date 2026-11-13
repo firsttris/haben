@@ -79,9 +79,17 @@ const wordsAt = (sha: string, file: string) => {
     return 0; // in diesem Stand gibt es die Seite nicht
   }
 };
+// Eine umbenannte Seite zählt vorher unter ihrem alten Namen, sonst gälte sie als neu (Review von #854)
+const renamedFrom: Record<string, string> = Object.fromEntries(
+  git("diff", "--name-status", "-M", range, "--", "docs/")
+    .split("\n")
+    .map((line) => line.split("\t"))
+    .filter(([status]) => status?.startsWith("R"))
+    .map(([, from, to]) => [to, from]),
+);
 const docPages = files
   .filter((file) => file.startsWith("docs/") && file.endsWith(".md"))
-  .map((file) => ({ file, before: wordsAt(mergeBase, file), after: wordsAt(pr.head.sha, file) }));
+  .map((file) => ({ file, before: wordsAt(mergeBase, renamedFrom[file] ?? file), after: wordsAt(pr.head.sha, file) }));
 
 const reports: Report[] = [
   ...(isBot(pr.user) || pr.title === null ? [] : [...checkTitle(pr.title), ...checkBody(pr.body)]),
