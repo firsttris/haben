@@ -158,4 +158,39 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
     await migrate(testDatabaseUrl!, testDatabaseUrl!, script, 1);
     expect(await admin`select to_regclass('public.role619_wrong_start')::text as name`).toEqual([{ name: null }]);
   });
+
+  it.each(["owner", "replication", "temporary", "schema"] as const)("weist eine nachträglich unsichere App-Rolle zurück: %s", async (kind) => {
+    await start();
+    const [context] = await admin`select current_user as owner, current_database() as database`;
+    if (kind === "owner") await admin`grant ${admin(context!.owner)} to ${admin(appRole)} with inherit false`;
+    if (kind === "replication") await admin`grant set on parameter session_replication_role to ${admin(appRole)}`;
+    if (kind === "temporary") await admin`grant temporary on database ${admin(context!.database)} to ${admin(appRole)}`;
+    const ownSchema = `pga619_${process.pid}`;
+    if (kind === "schema") await admin`create schema ${admin(ownSchema)} authorization ${admin(appRole)}`;
+    const probe = postgres(appUrl, { max: 1, onnotice: () => {} });
+    try {
+      const rollback = new Error("nur zurückgerollte Gegenprobe");
+      await expect(probe.begin(async (tx) => {
+        if (kind === "owner") {
+          await tx`set role ${tx(context!.owner)}`;
+          expect(await tx`select current_user as role`).toEqual([{ role: context!.owner }]);
+        }
+        if (kind === "replication") {
+          await tx`set local session_replication_role = replica`;
+          expect(await tx`select current_setting('session_replication_role') as mode`).toEqual([{ mode: "replica" }]);
+        }
+        if (kind === "temporary") await tx`create temp table audit_log (id integer)`;
+        if (kind === "schema") await tx`create table ${tx(ownSchema)}.audit_log (id integer)`;
+        throw rollback;
+      })).rejects.toBe(rollback);
+      await migrate(appUrl, testDatabaseUrl, undefined, 1);
+    } finally {
+      await probe.end();
+      if (kind === "owner") await admin`revoke ${admin(context!.owner)} from ${admin(appRole)}`;
+      if (kind === "replication") await admin`revoke set on parameter session_replication_role from ${admin(appRole)}`;
+      if (kind === "temporary") await admin`revoke temporary on database ${admin(context!.database)} from ${admin(appRole)}`;
+      if (kind === "schema") await admin`drop schema ${admin(ownSchema)} cascade`;
+    }
+    await migrate(appUrl, testDatabaseUrl);
+  });
 });
