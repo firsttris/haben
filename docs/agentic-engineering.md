@@ -78,7 +78,7 @@ flowchart TB
   class Issue,Geplant,Zuweisen,CI,Naechstes,Erledigt auto
 ```
 
-Die Farben sind dieselben wie bei den Karten oben, die Namen in den Kästen sind die [Skills](https://github.com/firsttris/haben/tree/main/.claude/skills) und Workflows im Repository. „Frisch“ heißt: ein neuer Agent ohne den Verlauf dessen, der den Code geschrieben hat. Er kennt nur den Pull Request und das Repository und prüft deshalb, was dasteht. Was gemeint war, weiß er nicht.
+Die Farben sind dieselben wie bei den Karten oben, kleingeschriebene Namen wie `board-pflegen` oder `tdd-review` sind [Skills](https://github.com/firsttris/haben/tree/main/.claude/skills) im Repository. „Frisch“ heißt: ein neuer Agent ohne den Verlauf dessen, der den Code geschrieben hat. Er kennt nur den Pull Request und das Repository und prüft deshalb, was dasteht. Was gemeint war, weiß er nicht.
 
 ## Ein Beispiel: der Satz auf dem Storno { #beispiel }
 
