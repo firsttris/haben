@@ -2021,6 +2021,44 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
 });
 
+test("Abgabe vermerken bei niedrigem Fenster: Tab hält jedes Feld über der Knopfzeile, der Dialog selbst scrollt nicht (WCAG 2.4.11)", async () => {
+  const jahr = YEAR - 1;
+  for (const [breite, hoehe] of [
+    [1280, 420],
+    [375, 600],
+  ] as const) {
+    await page.setViewportSize({ width: breite, height: hoehe });
+    await go(`/jahreserklaerung/${jahr}`);
+    const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${jahr}`, exact: true });
+    await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: `Anlage EÜR ${jahr} als abgegeben vermerken` });
+    // Das Datumsfeld hat drei Tab-Stopps (Tag, Monat, Jahr); der Lauf beginnt beim Ticket
+    await dialog.getByLabel("Transferticket", { exact: true }).focus();
+    for (const name of ["Betrag", "Begründung", "Übermittlungsprotokoll (PDF, optional)"]) {
+      await page.keyboard.press("Tab");
+      const lage = await dialog.evaluate((d) => {
+        const aktiv = document.activeElement as HTMLInputElement;
+        // Der FilePicker versteckt sein <input type="file">; zu sehen ist der Knopf daneben
+        const sichtbar = (aktiv.closest(".file-picker") ?? aktiv).getBoundingClientRect();
+        return {
+          label: aktiv.labels?.[0]?.textContent ?? aktiv.tagName,
+          unten: sichtbar.bottom,
+          knopfzeile: d.querySelector(":scope > form > .actions:last-child")!.getBoundingClientRect().top,
+          dialogScroll: d.scrollTop,
+        };
+      });
+      const wo = `${breite}×${hoehe}, ${name}`;
+      expect(lage.label, wo).toBe(name);
+      expect(lage.unten, `${wo}: hinter der Knopfzeile`).toBeLessThanOrEqual(lage.knopfzeile + 0.5);
+      expect(lage.dialogScroll, `${wo}: der Dialog selbst scrollt`).toBe(0);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  }
+  // Wie playwright.config.ts (chromium), damit die folgenden Tests im selben Fenster laufen
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
 test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);
