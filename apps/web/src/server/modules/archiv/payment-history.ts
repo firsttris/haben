@@ -21,7 +21,8 @@ type PaymentSource = {
 const unpaid = (alias: string) => `coalesce(${alias}.raw->>'paidAmount', '') ~ '^0*([.,]0*)?$' and coalesce(${alias}.raw->>'payDate', '') = ''`;
 /**
  * Die Stornorechnung darf ein payDate tragen: sevDesk markiert sie beim Stornieren teils als bezahlt, ohne dass Geld floss
- * (#472, Entscheidung im Issue). Dann zählt nur ein ausdrücklich genanntes paidAmount von 0.
+ * (#472, Entscheidung im Issue). Dann zählt nur ein ausdrücklich genanntes paidAmount von 0. Ebenso legt sevDesk beim Stornieren
+ * teils einen Eintrag in CheckAccountTransactionLog mit amountPaid 0 an; eine Zuordnung über 0 € ist keine Zahlung.
  */
 const stornoUnpaid = (alias: string) => `(${unpaid(alias)} or ${alias}.raw->>'paidAmount' ~ '^0+([.,]0*)?$')`;
 const STORNO_PAIRS = sql.raw(`(select coalesce(jsonb_object_agg(member.id, storno.date), '{}'::jsonb)
@@ -33,7 +34,7 @@ const STORNO_PAIRS = sql.raw(`(select coalesce(jsonb_object_agg(member.id, storn
     and ${stornoUnpaid("storno")} and ${unpaid("original")}
     and not exists (select 1 from lexoffice_vouchers other where other.id <> storno.id and other.source = 'sevdesk'
       and upper(other.raw->>'invoiceType') = 'SR' and other.raw->'origin'->>'id' = storno.raw->'origin'->>'id')
-    and not exists (select 1 from legacy_voucher_payments paid where paid.voucher_id in (storno.id, original.id)))`);
+    and not exists (select 1 from legacy_voucher_payments paid where paid.voucher_id in (storno.id, original.id) and paid.amount <> 0))`);
 
 /**
  * Zahlungsstand mit den belegten Einzelzahlungen aus legacy_voucher_payments statt der gespeicherten Verdichtung.
