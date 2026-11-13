@@ -2,7 +2,8 @@ import { euerZuordnung } from "./journal-euer.ts";
 import { kontoart } from "./ledger.ts";
 import { FREIE_STEUERSCHLUESSEL, isPrivateAccount, type ManualLine } from "./manual.ts";
 import { roundHalfAwayFromZero } from "./money.ts";
-import { ACCOUNTS, type Kontenrahmen, type PostingLine } from "./posting.ts";
+import { resolveOwnAccount } from "./own-accounts.ts";
+import { ACCOUNTS, type ExpenseCategory, type Kontenrahmen, type PostingLine } from "./posting.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
 
 /*
@@ -20,6 +21,8 @@ export interface FreieBuchungKontext {
   kleinunternehmer: boolean;
   /** Voranmeldung und EÜR rechnen im Jahr der Buchung aus dem Journal (Jahr ≥ Stichjahr) */
   ausDemJournal: boolean;
+  /** Eigene Sachkonten (#270) des Kontenrahmens: Nummer → Elternkategorie; sie haben die Zeile der EÜR ihrer Elternkategorie */
+  eigene?: ReadonlyMap<string, ExpenseCategory>;
 }
 
 /**
@@ -42,7 +45,8 @@ export function freieBuchungIssues(lines: readonly ManualLine[], k: FreieBuchung
   for (const [index, line] of lines.entries()) {
     const row = `Zeile ${index + 1}`;
     if (line.taxCode && !(line.taxCode in FREIE_STEUERSCHLUESSEL)) issues.push(`${row}: Steuerschlüssel ${line.taxCode} ist hier nicht erlaubt`);
-    if (!gmbh && erfolg(line.account) && euerZuordnung(k.kontenrahmen, line.account) === null) {
+    const konto = resolveOwnAccount(k.kontenrahmen, line.account, k.eigene ?? new Map());
+    if (!gmbh && erfolg(line.account) && euerZuordnung(k.kontenrahmen, konto) === null) {
       issues.push(`${row}: Konto ${line.account} hat keine Zeile in der EÜR`);
     }
     if (mitSchluessel && !line.taxCode) {

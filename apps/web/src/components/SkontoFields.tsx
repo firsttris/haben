@@ -53,7 +53,8 @@ export function SkontoFields({
   const describedBy = [hint ? `${id}-hint` : null, problem ? `${id}-problem` : null].filter(Boolean).join(" ") || undefined;
   return (
     <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8, gridColumn: "1 / -1" }} aria-describedby={describedBy}>
-      <legend style={{ padding: 0, fontWeight: 600 }}>Skonto</legend>
+      {/* Die Legende nimmt nicht am gap des Flex-Containers teil, daher der eigene Abstand */}
+      <legend style={{ padding: 0, marginBottom: 8, fontWeight: 600 }}>Skonto</legend>
       {rows.map((row, index) => {
         const stufe = parseRow(row);
         const filled = row.percent.trim() !== "" || row.days.trim() !== "";
@@ -105,7 +106,7 @@ export function SkontoFields({
       })}
       {rows.length < MAX_SKONTO_STUFEN && (
         <div>
-          <button type="button" className="btn" onClick={() => onChange([...rows, { key: nextKey++, percent: "", days: "" }])} disabled={disabled}>
+          <button type="button" className="btn btn-dashed" onClick={() => onChange([...rows, { key: nextKey++, percent: "", days: "" }])} disabled={disabled}>
             <Icon name="plus" size={16} /> Skontostufe hinzufügen
           </button>
         </div>

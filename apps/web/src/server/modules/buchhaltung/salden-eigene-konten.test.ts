@@ -75,6 +75,21 @@ describe.skipIf(!testDatabaseUrl)("Saldenliste mit eigenen Konten (Postgres, #27
     expect(aufgeloest.filter((r) => r.account.startsWith("6")).map((r) => [r.account, r.saldo])).toEqual([["6837", 15000]]);
   });
 
+  it("eine manuelle Buchung im Einzelunternehmen auf ein eigenes Konto geht (es hat die Zeile seiner Elternkategorie in der EÜR), auf ein unbekanntes nicht", async () => {
+    const manual = await import("./manual.ts");
+    await sql`update company set journal_ab = 2026, rechtsform = 'einzelunternehmen'`;
+    const buchung = (account: string) => ({
+      date: "2026-03-10",
+      description: "Umbuchung auf das eigene Konto",
+      lines: [
+        { account, debit: 5_000, credit: 0 },
+        { account: "1800", debit: 0, credit: 5_000 },
+      ],
+    });
+    await manual.createManualEntry(actor, buchung("4999"), "2026-11-12");
+    await expect(manual.createManualEntry(actor, buchung("4998"), "2026-11-12")).rejects.toThrow(/Konto 4998 hat keine Zeile in der EÜR/);
+  });
+
   it("aufgelöst liegt das eigene Konto auf dem Konto der Elternkategorie, summiert mit dessen Buchungen", async () => {
     const rows = await ledger.saldenliste(range(), { aufgeloest: true });
     expect(rows.filter((r) => r.account.startsWith("49")).map((r) => [r.account, r.saldo, r.soll, r.sollJahr])).toEqual([["4964", 15000, 15000, 15000]]);

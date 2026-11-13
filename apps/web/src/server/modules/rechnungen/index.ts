@@ -53,6 +53,7 @@ export { advanceVatPlans } from "./advance-vat-plan.ts";
 export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,
+  assertCustomer,
   buyerFrom,
   cancelInvoice,
   createCorrection,
@@ -64,6 +65,7 @@ export {
   finalizeIssues,
   getInvoice,
   InvoiceError,
+  insertDraft,
   invoiceSummary,
   listInvoices,
   newDraftDefaults,

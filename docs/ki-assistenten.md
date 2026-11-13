@@ -142,4 +142,4 @@ Unter **Letzte Aufrufe** steht, welcher Assistent wann welches Werkzeug benutzt 
 
 Im Änderungsprotokoll stehen das Ein- und Ausschalten des Zugangs und wer ein Token angelegt, übernommen, widerrufen oder deaktiviert hat. Das Token selbst und sein Hash sind Zugangsdaten wie die Passkeys und stehen nicht darin.
 
-Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).
+Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation-sso.md#tokens-nach-gruppenentzug).

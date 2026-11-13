@@ -56,7 +56,7 @@ export function QuoteChoices({
                   onChange={() => pick(main.position, l.position)}
                 />
                 <span>
-                  Pos. {l.position} {l.description} · <span className="mono">{formatEuro(l.net)}</span> netto
+                  Pos. {l.position} {l.description} · <span className="amount">{formatEuro(l.net)}</span> netto
                 </span>
               </label>
             ))}
@@ -70,7 +70,7 @@ export function QuoteChoices({
             <label key={l.position} className="checkbox">
               <input type="checkbox" checked={chosen.includes(l.position)} disabled={locked} onChange={(e) => toggle(l.position, e.target.checked)} />
               <span>
-                Pos. {l.position} {l.description} · <span className="mono">{formatEuro(l.net)}</span> netto
+                Pos. {l.position} {l.description} · <span className="amount">{formatEuro(l.net)}</span> netto
               </span>
             </label>
           ))}

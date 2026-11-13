@@ -68,7 +68,17 @@ export interface ServiceEntry {
   project: string;
   source: string | null;
   externalId: string | null;
+  /** Rechnung, auf der der Eintrag steht (Entwurf oder festgeschrieben); null = offen, auch nach dem Storno der Rechnung */
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+  invoiceStatus: "draft" | "final" | null;
 }
+
+/** Rechnungen, die durch eine festgeschriebene Stornorechnung aufgehoben sind (wie bei der Abrechnung von Angeboten) */
+const cancelledInvoices = sql`select corrects_id from invoices where kind = 'storno' and status = 'final' and corrects_id is not null`;
+
+/** Der Eintrag steht auf einer Rechnung, die gilt: Entwurf oder festgeschrieben und nicht storniert */
+export const onActiveInvoice = sql<boolean>`(${schema.serviceEntries.invoiceId} is not null and ${schema.serviceEntries.invoiceId} not in (${cancelledInvoices}))`;
 
 const columns = {
   id: schema.serviceEntries.id,
@@ -82,13 +92,20 @@ const columns = {
   project: schema.serviceEntries.project,
   source: schema.serviceEntries.externalSource,
   externalId: schema.serviceEntries.externalId,
+  invoiceId: sql<string | null>`case when ${onActiveInvoice} then ${schema.serviceEntries.invoiceId} end`,
+  invoiceNumber: sql<string | null>`case when ${onActiveInvoice} then ${schema.invoices.number} end`,
+  invoiceStatus: sql<"draft" | "final" | null>`case when ${onActiveInvoice} then ${schema.invoices.status} end`,
 };
+
+const withInvoice = eq(schema.invoices.id, schema.serviceEntries.invoiceId);
 
 export interface ServiceEntryFilter {
   contactId?: string;
   /** Arbeitstage von bis einschließlich, JJJJ-MM-TT */
   from?: string;
   to?: string;
+  /** offen = abrechenbar und auf keiner Rechnung; abgerechnet = auf einer Rechnung (Entwurf oder festgeschrieben); nicht abrechenbar */
+  status?: "offen" | "abgerechnet" | "nicht-abrechenbar";
 }
 
 /** Einträge, die neuesten Arbeitstage zuerst */
@@ -96,8 +113,12 @@ export async function listServiceEntries(filter: ServiceEntryFilter = {}): Promi
   return db
     .select(columns)
     .from(schema.serviceEntries)
+    .leftJoin(schema.invoices, withInvoice)
     .where(
       and(
+        filter.status === "offen" ? and(eq(schema.serviceEntries.nonBillable, false), sql`not ${onActiveInvoice}`) : undefined,
+        filter.status === "abgerechnet" ? onActiveInvoice : undefined,
+        filter.status === "nicht-abrechenbar" ? eq(schema.serviceEntries.nonBillable, true) : undefined,
         filter.contactId ? eq(schema.serviceEntries.contactId, filter.contactId) : undefined,
         filter.from ? gte(schema.serviceEntries.workedOn, filter.from) : undefined,
         filter.to ? lte(schema.serviceEntries.workedOn, filter.to) : undefined,
@@ -127,8 +148,33 @@ export async function listEntryCustomers(): Promise<EntryCustomer[]> {
 
 /** Ein Eintrag; null, wenn es ihn nicht gibt */
 export async function getServiceEntry(id: string): Promise<ServiceEntry | null> {
-  const [row] = await db.select(columns).from(schema.serviceEntries).where(eq(schema.serviceEntries.id, id));
+  const [row] = await db.select(columns).from(schema.serviceEntries).leftJoin(schema.invoices, withInvoice).where(eq(schema.serviceEntries.id, id));
   return row ?? null;
+}
+
+/** Sperrt den Eintrag und lehnt ab, wenn er auf einer Rechnung steht, die gilt: erst den Entwurf löschen bzw. die Rechnung stornieren */
+async function lockOpenEntry(tx: Tx, id: string): Promise<{ id: string; contactId: string }> {
+  const [entry] = await tx
+    .select({
+      id: schema.serviceEntries.id,
+      contactId: schema.serviceEntries.contactId,
+      number: schema.invoices.number,
+      status: schema.invoices.status,
+      billed: onActiveInvoice,
+    })
+    .from(schema.serviceEntries)
+    .leftJoin(schema.invoices, withInvoice)
+    .where(eq(schema.serviceEntries.id, id))
+    .for("update", { of: schema.serviceEntries });
+  if (!entry) throw new ServiceEntryError("Eintrag nicht gefunden.");
+  if (entry.billed) {
+    throw new ServiceEntryError(
+      entry.status === "draft"
+        ? "Der Eintrag steht auf einem Rechnungsentwurf. Lösche den Entwurf, dann lässt er sich wieder ändern."
+        : `Der Eintrag ist mit der Rechnung ${entry.number} abgerechnet. Erst ein Storno der Rechnung macht ihn wieder änderbar.`,
+    );
+  }
+  return entry;
 }
 
 /** Der Stundensatz des Kunden; wirft, wenn es den Kunden nicht gibt, er keiner (nur Lieferant) oder archiviert ist */
@@ -166,12 +212,7 @@ export async function createServiceEntry(actor: string, input: ServiceEntryInput
 export async function updateServiceEntry(actor: string, id: string, input: ServiceEntryInput): Promise<void> {
   const data = serviceEntrySchema.parse(input);
   await withActor(actor, async (tx) => {
-    const [entry] = await tx
-      .select({ id: schema.serviceEntries.id, contactId: schema.serviceEntries.contactId })
-      .from(schema.serviceEntries)
-      .where(eq(schema.serviceEntries.id, id))
-      .for("update");
-    if (!entry) throw new ServiceEntryError("Eintrag nicht gefunden.");
+    const entry = await lockOpenEntry(tx, id);
     // Ein Eintrag bleibt änderbar, auch wenn der Kunde inzwischen archiviert ist; ein anderer Kunde muss passen
     if (entry.contactId !== data.contactId) await contactRate(tx, data.contactId);
     await tx
@@ -183,8 +224,7 @@ export async function updateServiceEntry(actor: string, id: string, input: Servi
 
 export async function deleteServiceEntry(actor: string, id: string): Promise<void> {
   await withActor(actor, async (tx) => {
-    const [entry] = await tx.select({ id: schema.serviceEntries.id }).from(schema.serviceEntries).where(eq(schema.serviceEntries.id, id)).for("update");
-    if (!entry) throw new ServiceEntryError("Eintrag nicht gefunden.");
+    await lockOpenEntry(tx, id);
     await tx.delete(schema.serviceEntries).where(eq(schema.serviceEntries.id, id));
   });
 }
@@ -196,6 +236,13 @@ export async function deleteServiceEntry(actor: string, id: string): Promise<voi
 export async function upsertExternalServiceEntry(actor: string, input: ExternalServiceEntryInput): Promise<{ id: string; created: boolean }> {
   const { source, externalId, ...rest } = externalSchema.parse(input);
   return withActor(actor, async (tx) => {
+    // Ein schon abgerechneter Eintrag bleibt, wie er ist: ein erneuter Abruf aus dem Zeiterfassungsprogramm ändert ihn nicht, meldet aber keinen Fehler
+    const [existing] = await tx
+      .select({ id: schema.serviceEntries.id, billed: onActiveInvoice })
+      .from(schema.serviceEntries)
+      .where(and(eq(schema.serviceEntries.externalSource, source), eq(schema.serviceEntries.externalId, externalId)))
+      .for("update");
+    if (existing?.billed) return { id: existing.id, created: false };
     const contactDefault = await contactRate(tx, rest.contactId);
     const rate = rest.hourlyRateCents ?? contactDefault;
     const [row] = await tx

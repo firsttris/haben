@@ -121,7 +121,7 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
 
     it("Vorjahr mit Beständen, die wie dokumentiert gegen 9000 übernommen sind (Eröffnung und Umzug)", async () => {
       await setup("gmbh", kontenrahmen, "soll");
-      // Eröffnungsbuchung: Bank 20.000 an 9000, 9000 an Gezeichnetes Kapital 25.000 (docs/buchhaltung.md)
+      // Eröffnungsbuchung: Bank 20.000 an 9000, 9000 an Gezeichnetes Kapital 25.000 (docs/gmbh-abschluss.md)
       await manual.createManualEntry(
         actor,
         {

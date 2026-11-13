@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { type ChildProcess, spawn } from "node:child_process";
+import { appDatabaseUrlFuer } from "./durchlaeufe.ts";
+import { serverEnvironment } from "./server-env.ts";
 
 /*
  * Der gebaute Server muss sich auf SIGTERM selbst beenden. podman stop und docker stop warten zehn Sekunden
@@ -45,16 +47,16 @@ test.beforeAll(async () => {
   // exec: kill() trifft den Server selbst, nicht nur die Shell
   server = spawn("sh", ["-c", `exec ${command}`], {
     stdio: "ignore",
-    env: {
+    env: serverEnvironment({
       ...process.env,
-      DATABASE_URL: process.env.E2E_DATABASE_URL ?? "",
+      DATABASE_URL: appDatabaseUrlFuer(undefined, "beenden"),
       PORT: String(port),
       BETTER_AUTH_URL: `http://localhost:${port}`,
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-geheimnis-mindestens-zweiunddreissig-zeichen",
       HABEN_ENCRYPTION_KEY: process.env.HABEN_ENCRYPTION_KEY ?? Buffer.alloc(32, 7).toString("base64"),
       HABEN_SCHEDULER: "off",
       HABEN_SETUP_CODE: "e2e-einrichtungscode",
-    },
+    }),
   });
   await waitForServer(`http://localhost:${port}/login`);
 });

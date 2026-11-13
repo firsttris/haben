@@ -1,0 +1,2 @@
+ALTER TABLE "invoices" ADD COLUMN "property_retention" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "recurring_invoices" ADD COLUMN "property_retention" boolean DEFAULT false NOT NULL;

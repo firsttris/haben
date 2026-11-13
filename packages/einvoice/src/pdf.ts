@@ -183,6 +183,8 @@ export function pdfData(doc: InvoiceDocument) {
     : null;
   return {
     ...body,
+    // Bestehendes Pflichtfeld des Feldvertrags: auch eingefrorene v1-Layouts drucken und prüfen diesen Text.
+    taxNote: [body.taxNote, doc.propertyRetention ? t.propertyRetention : null].filter(Boolean).join("\n") || null,
     docTitle: `${title} ${doc.number}`,
     title,
     reference: doc.corrects ? t.reference(doc.corrects.number, t.date(doc.corrects.issueDate)) : null,

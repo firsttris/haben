@@ -24,11 +24,13 @@ ohne Abo und ohne fremden Dienst, der jede Rechnung sieht.</p>
 
 [Rundgang starten](#rundgang){ .md-button .md-button--primary } [Installieren](installation.md){ .md-button } [Alle Funktionen im Detail](ueberblick.md){ .md-button }
 
+<p class="showcase-hinweis">Haben ist noch in der Beta: vor jedem Update ein Backup.</p>
+
 </div>
 
 <div class="showcase-shot showcase-shot--hero" markdown>
-![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht.png#only-light){ width="1440" height="900" }
-![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht-dunkel.png#only-dark){ width="1440" height="900" }
+![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht.png#only-light){ width="1504" height="972" }
+![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht-dunkel.png#only-dark){ width="1504" height="972" }
 </div>
 
 <div class="showcase-feature" id="rundgang" markdown>
@@ -44,8 +46,8 @@ Rechnungen, Mahnungen und Versand per E-Mail gehören dazu.
 [Rechnungen und E-Rechnung](rechnungen.md)
 </div>
 <div class="showcase-shot" markdown>
-![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung.png#only-light){ width="1440" height="900" loading="lazy" }
-![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung.png#only-light){ width="1504" height="972" loading="lazy" }
+![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -62,8 +64,8 @@ Du prüfst, wählst die Kategorie und buchst.
 [Belege](belege.md)
 </div>
 <div class="showcase-shot" markdown>
-![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege.png#only-light){ width="1440" height="900" loading="lazy" }
-![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege.png#only-light){ width="1504" height="972" loading="lazy" }
+![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -80,8 +82,8 @@ Rechnungsnummer, IBAN, Name.
 [Bankimport und Abgleich](bank.md)
 </div>
 <div class="showcase-shot" markdown>
-![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank.png#only-light){ width="1440" height="900" loading="lazy" }
-![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank.png#only-light){ width="1504" height="972" loading="lazy" }
+![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -97,8 +99,8 @@ Gesendet wird direkt per ERiC an ELSTER oder, ganz ohne Hersteller-ID, über Mei
 [Umsatzsteuer-Voranmeldung](umsatzsteuer.md)
 </div>
 <div class="showcase-shot" markdown>
-![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer.png#only-light){ width="1440" height="900" loading="lazy" }
-![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer.png#only-light){ width="1504" height="972" loading="lazy" }
+![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -114,8 +116,8 @@ ganze Jahr als ZIP mit Prüfsummen – für die Aufbewahrung und für die Steuer
 [Auswertungen und Jahresexport](auswertungen.md)
 </div>
 <div class="showcase-shot" markdown>
-![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen.png#only-light){ width="1440" height="900" loading="lazy" }
-![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen.png#only-light){ width="1504" height="972" loading="lazy" }
+![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -123,16 +125,18 @@ ganze Jahr als ZIP mit Prüfsummen – für die Aufbewahrung und für die Steuer
 <div markdown>
 <span class="showcase-kicker">Umzug</span>
 
-## Aus Lexware Office oder sevDesk, ohne etwas zu verlieren
+## Umziehen, ohne etwas zu verlieren
 
-Rechnungen, Belege, Buchungen und Kontakte kommen mit, die Originale bleiben im Archiv. Ein
-Abgleich je Jahr zeigt, dass alles da ist, bevor du kündigst.
+Aus Lexware Office und sevDesk kommen Rechnungen, Belege, Buchungen und Kontakte mit, aus
+BuchhaltungsButler und Accountable Buchungen und Belege; die Originale bleiben im Archiv. Ein
+Abgleich je Jahr zeigt, dass alles da ist, bevor du kündigst. Kontakte, Artikel und Anlagen gehen
+auch per CSV.
 
-[Umzug aus Lexoffice](lexoffice.md) · [Umzug aus sevDesk](sevdesk.md)
+[Lexoffice](lexoffice.md) · [sevDesk](sevdesk.md) · [BuchhaltungsButler](buchhaltungsbutler.md) · [Accountable](accountable.md) · [CSV-Import](csv-import.md)
 </div>
-<div class="showcase-shot showcase-shot--crop" markdown>
-![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv.png#only-light){ width="1440" height="2918" loading="lazy" }
-![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv-dunkel.png#only-dark){ width="1440" height="2918" loading="lazy" }
+<div class="showcase-shot" markdown>
+![Archiv mit Umzug aus Lexware Office](screenshot-archiv-oben.png#only-light){ width="1504" height="972" loading="lazy" }
+![Archiv mit Umzug aus Lexware Office](screenshot-archiv-oben-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -148,8 +152,8 @@ teilst du direkt hinein, die Übersicht hast du unterwegs dabei.
 [Als App installieren](einrichtung.md#als-app-installieren)
 </div>
 <div class="showcase-phone" markdown>
-![Übersicht auf dem Smartphone](screenshot-mobil.png#only-light){ width="390" height="844" loading="lazy" }
-![Übersicht auf dem Smartphone](screenshot-mobil-dunkel.png#only-dark){ width="390" height="844" loading="lazy" }
+![Übersicht auf dem Smartphone](screenshot-mobil.png#only-light){ width="454" height="916" loading="lazy" }
+![Übersicht auf dem Smartphone](screenshot-mobil-dunkel.png#only-dark){ width="454" height="916" loading="lazy" }
 </div>
 </div>
 
@@ -181,6 +185,19 @@ Festschreibung in der Datenbank, Audit-Log, Korrekturen nur per Storno.
 Voranmeldung, Zusammenfassende Meldung und Jahreserklärungen über ELSTER.
 </div>
 <div markdown>
+**🧮 Zahlen zum Nachrechnen**
+
+Unter jeder Kennzahl die Belege dahinter, Voranmeldung und EÜR
+[doppelt gerechnet](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür), vor dem Umzug
+[deine alten Jahre zum Vergleich](lexoffice.md#schritt-5-abgleich-je-jahr).
+</div>
+<div markdown>
+**🤝 Mit deiner Steuerberatung**
+
+[Eigener Zugang](steuerberatung.md), der nur lesen kann, oder
+[DATEV-Export](auswertungen.md#datev-export-für-die-steuerberatung) in SKR03 oder SKR04.
+</div>
+<div markdown>
 **🏢 Auch für GmbH und UG**
 
 Bilanz und GuV, E-Bilanz, Körperschaft- und Gewerbesteuer, Gewinnausschüttung.
@@ -204,10 +221,47 @@ Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 
 <div class="showcase-hero" markdown>
 
-## Gemacht für alle, die lieber arbeiten als buchen
+## Gebaut mit Agenten. <span class="showcase-akzent">Gemergt von Menschen.</span>
 
-<p class="showcase-claim">Freiberufler · Selbstständige · Kleinunternehmer · kleine GmbHs und UGs.
-Haben ist noch in der Beta: vor jedem Update ein Backup.</p>
+<p class="showcase-claim">Haben entsteht offen mit Coding-Agenten: rote Tests zuerst, frische Agenten im Review,
+ein Mensch beim Merge. Wie das zusammenspielt, an einem echten Pull Request.</p>
+
+[Agentic Engineering bei Haben](agentic-engineering.md){ .md-button .md-button--primary }
+
+</div>
+
+<div class="showcase-center" markdown>
+
+## Was du brauchst
+
+</div>
+
+<div class="showcase-cards" markdown>
+<div markdown>
+**🖥️ Einen Server**
+
+Linux mit Docker oder Podman, etwa ein VPS ab rund 5 € im Monat, und eine Domain für HTTPS.
+[Installation](installation.md)
+</div>
+<div markdown>
+**📦 Oder dein NAS**
+
+Vorlagen für [Synology](synology.md) und [TrueNAS](truenas.md) ohne Kommandozeile, dazu
+[Unraid](unraid.md) und [Coolify](coolify.md).
+</div>
+<div markdown>
+**🤖 Oder einen Agenten**
+
+Gib Claude Code oder einem anderen Agenten SSH-Zugang und die [Installationsanleitung](installation.md).
+</div>
+</div>
+
+<div class="showcase-hero" markdown>
+
+## Deine Bücher. <span class="showcase-akzent">Dein Server.</span>
+
+<p class="showcase-claim">Gemacht für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs
+und UGs – für alle, die lieber arbeiten als buchen.</p>
 
 [Installieren](installation.md){ .md-button .md-button--primary } [Erste Schritte](einrichtung.md){ .md-button } [Quellcode auf GitHub](https://github.com/firsttris/haben){ .md-button }
 

@@ -365,7 +365,10 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     // Mit einer Kopfzeile, die je Eintrag geändert wird, wären es rund 15 s; jetzt etwa 1,5 s (Luft für langsame CI)
     expect(performance.now() - started).toBeLessThan(10_000);
     expect(await problems()).toEqual([]);
-  });
+    // Eigener Rahmen: Die Grenze oben erlaubt bis 10 s, der Standard von Vitest bricht schon nach 5 s ab. Im CI lief der
+    // Fall bis 3071 ms (Review von #845); nach einem Abbruch liefe sein Insert auf der einen Verbindung weiter und hielte
+    // die folgenden Fälle auf.
+  }, 20_000);
 
   it("hängt nicht von Zeitzone oder späteren Spalten ab", async () => {
     await lockedInvoice();

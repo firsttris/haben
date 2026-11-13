@@ -17,7 +17,7 @@
     "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all", "arrowParentheses": "always" }
   },
   "assist": { "enabled": false },
-  // Eigene Regeln als GritQL-Muster; siehe docs/entwicklung.md, Automatische Prüfungen der Regeln
+  // Eigene Regeln als GritQL-Muster; siehe docs/mitwirken.md, Automatische Prüfungen der Regeln
   "plugins": ["./scripts/felder/kein-label-field.grit", "./scripts/felder/keine-nackte-auswahl.grit"],
   "linter": {
     "enabled": true,

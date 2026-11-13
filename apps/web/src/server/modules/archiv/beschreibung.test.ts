@@ -133,6 +133,14 @@ describe("spaltenTyp", () => {
     expect(spaltenTyp("rechnungen/rechnungen.csv", "Festgeschrieben")).toEqual({ art: "text" });
     expect(spaltenTyp("kasse/kassenbuch.csv", "Betrag")).toEqual({ art: "text" });
   });
+
+  it("beschreibt das Kassenbuch mit Beträgen und Datum; Nummer, Text und Verweise bleiben Text (#546)", () => {
+    for (const spalte of ["Einnahme", "Ausgabe", "Bestand"])
+      expect(spaltenTyp("kasse/kassenbuch.csv", spalte), spalte).toEqual({ art: "zahl", nachkommastellen: 2 });
+    expect(spaltenTyp("kasse/kassenbuch.csv", "Datum")).toEqual({ art: "datum" });
+    for (const spalte of ["Nr.", "Art", "Text", "Beleg-ID", "Storno von", "Rechnung", "Steuer"])
+      expect(spaltenTyp("kasse/kassenbuch.csv", spalte), spalte).toEqual({ art: "text" });
+  });
 });
 
 describe("indexXml", () => {

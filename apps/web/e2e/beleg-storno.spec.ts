@@ -98,20 +98,20 @@ test("Bankzuordnung im Stornodialog bestätigen und zusammen mit dem Beleg zurü
   const phase = process.env.STORNO_SCREENSHOTS;
   if (phase) {
     await mkdir("test-results/storno-bilder", { recursive: true });
-    for (const theme of ["wald", "nacht"])
+    for (const theme of ["light", "dark"])
       for (const [device, viewport] of [
         ["desktop", { width: 1440, height: 900 }],
         ["handy", { width: 390, height: 844 }],
       ] as const) {
         await page.setViewportSize(viewport);
         await page.evaluate((t) => {
-          document.documentElement.dataset.theme = t;
+          document.documentElement.dataset.mode = t;
         }, theme);
         await dialog.screenshot({ path: `test-results/storno-bilder/storno-${theme}-${device}-${phase}.png` });
       }
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(() => {
-      document.documentElement.dataset.theme = "wald";
+      document.documentElement.dataset.mode = "light";
     });
   }
   await dialog.getByRole("button", { name: "Abbrechen", exact: true }).click();
@@ -166,7 +166,7 @@ test("Fehlermeldung bei abgeschlossenem Jahr bleibt vor der Aktionsleiste vollst
   const [counts] = await sql`select (select count(*) from journal_entries) as journal, (select count(*) from document_cancellations) as cancellations`;
   await sql`insert into year_closings (year) values (${Number(currentDay().slice(0, 4))})`;
   const hidden: string[] = [];
-  for (const theme of ["wald", "nacht"])
+  for (const theme of ["light", "dark"])
     for (const [device, viewport] of [
       ["desktop", { width: 1440, height: 900 }],
       ["handy", { width: 390, height: 844 }],
@@ -174,7 +174,7 @@ test("Fehlermeldung bei abgeschlossenem Jahr bleibt vor der Aktionsleiste vollst
       await page.setViewportSize(viewport);
       await page.goto(`/belege/${unpaidDocumentId}`);
       await page.evaluate((t) => {
-        document.documentElement.dataset.theme = t;
+        document.documentElement.dataset.mode = t;
       }, theme);
       await page.getByRole("button", { name: "Beleg stornieren", exact: true }).click();
       await page.getByRole("dialog").getByRole("button", { name: "Stornieren", exact: true }).click();

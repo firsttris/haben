@@ -19,7 +19,7 @@ export interface EricProcessClientOptions extends EricConfig {
   /**
    * Befehl, der den Worker startet (worker.ts kommt als letztes Argument dazu); ohne Angabe dieselbe Laufzeit wie
    * die App. ERiC gibt es nur für Linux x86_64: Auf anderen Rechnern startet ein solcher Befehl den Worker als
-   * x86_64-Prozess, etwa emuliert mit QEMU (ERIC_WORKER_COMMAND, siehe docs/installation.md).
+   * x86_64-Prozess, etwa emuliert mit QEMU (ERIC_WORKER_COMMAND, siehe docs/installation-anbindungen.md).
    */
   workerCommand?: readonly string[] | undefined;
 }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-/* Review PR #479: Konfiguration der Betriebsart, Zusagen aus env.ts-Kommentar und docs/installation.md */
+/* Review PR #479: Konfiguration der Betriebsart, Zusagen aus env.ts-Kommentar und docs/installation-konfiguration.md */
 const OIDC_KEYS = [
   "OIDC_ONLY",
   "OIDC_ISSUER",
@@ -24,7 +24,7 @@ describe("Review: Konfiguration der Betriebsart", () => {
   afterEach(() => vi.unstubAllEnvs());
   const load = async () => (await import("./env.ts")).env();
 
-  // docs/installation.md: OIDC_ISSUER „im Standardmodus ohne Wirkung“; env.ts: Anbieterwerte „werden im Standardmodus nicht gelesen“
+  // docs/installation-konfiguration.md: OIDC_ISSUER „im Standardmodus ohne Wirkung“; env.ts: Anbieterwerte „werden im Standardmodus nicht gelesen“
   it.each([
     ["OIDC_ISSUER", "auth.example.de"],
     ["OIDC_GROUPS_CLAIM", "realm_access.roles"],

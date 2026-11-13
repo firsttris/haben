@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- Tägliches Backup von Haben für Unraid (docs/unraid.md): Datenbank und Belege mit restic. -->
+<Container version="2">
+  <Name>haben-backup</Name>
+  <Repository>tristanteu/haben-backup:latest</Repository>
+  <Registry>https://hub.docker.com/r/tristanteu/haben-backup</Registry>
+  <Network>haben</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/firsttris/haben/issues</Support>
+  <Project>https://haben.app/</Project>
+  <Overview>Tägliches Backup von Haben: Datenbank und Belege, verschlüsselt mit restic, mit Test-Restore. Ersetzt nicht das Plugin Appdata Backup und umgekehrt.[br][br]Daily encrypted backup (restic) of Haben's database and receipts, with restore checks.</Overview>
+  <Category>Backup: Productivity:</Category>
+  <TemplateURL>https://raw.githubusercontent.com/firsttris/haben/main/deploy/unraid/haben-backup.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/firsttris/haben/main/apps/web/public/icon-512.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <Requires>haben-db und haben: https://haben.app/unraid.html</Requires>
+  <Config Name="Datenbank-Passwort" Target="PGPASSWORD" Default="" Mode="" Description="Dasselbe Passwort wie in haben-db" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Backup-Passwort" Target="RESTIC_PASSWORD" Default="" Mode="" Description="Verschlüsselt das Backup, im Terminal: openssl rand -base64 32. Im Passwortmanager sichern, ohne es ist das Backup wertlos." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Belege" Target="/belege" Default="/mnt/user/appdata/haben/belege" Mode="ro" Description="Derselbe Ordner wie Belege in haben" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/haben/belege</Config>
+  <Config Name="Backup-Ziel" Target="/backups" Default="/mnt/user/appdata/haben/backups" Mode="rw" Description="restic-Repository, wenn RESTIC_REPOSITORY /backups ist. Besser zusätzlich ein zweites System." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/haben/backups</Config>
+  <Config Name="Repository" Target="RESTIC_REPOSITORY" Default="/backups" Mode="" Description="/backups oder ein zweites System: s3:…, rest:…, sftp:… (https://haben.app/installation-backup.html#repository-auf-einem-zweiten-system)" Type="Variable" Display="advanced" Required="true" Mask="false">/backups</Config>
+  <Config Name="Datenbank-Host" Target="PGHOST" Default="haben-db" Mode="" Description="Name des Datenbank-Containers" Type="Variable" Display="advanced" Required="true" Mask="false">haben-db</Config>
+  <Config Name="Uhrzeit" Target="BACKUP_TIME" Default="03:15" Mode="" Description="Tägliches Backup um HH:MM" Type="Variable" Display="advanced" Required="true" Mask="false">03:15</Config>
+  <Config Name="Test-Restore alle Tage" Target="RESTORE_CHECK_DAYS" Default="7" Mode="" Description="0 schaltet ihn ab" Type="Variable" Display="advanced" Required="false" Mask="false">7</Config>
+  <Config Name="Name im Repository" Target="BACKUP_HOST" Default="haben" Mode="" Description="Eigener Name je Instanz, wenn mehrere ein Repository teilen" Type="Variable" Display="advanced" Required="false" Mask="false">haben</Config>
+  <Config Name="S3: Access Key" Target="AWS_ACCESS_KEY_ID" Default="" Mode="" Description="Nur für ein Repository auf S3" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="S3: Secret Key" Target="AWS_SECRET_ACCESS_KEY" Default="" Mode="" Description="Nur für ein Repository auf S3" Type="Variable" Display="advanced" Required="false" Mask="true"/>
+</Container>

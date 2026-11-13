@@ -1538,15 +1538,43 @@
     {
       "idx": 219,
       "version": "7",
-      "when": 1794531520241,
-      "tag": "0219_sevdesk_buchungskonten",
+      "when": 1794524285491,
+      "tag": "0219_grundstuecksleistung_aufbewahrung",
       "breakpoints": true
     },
     {
       "idx": 220,
       "version": "7",
-      "when": 1794531526952,
-      "tag": "0220_sevdesk_buchungskonten_trigger",
+      "when": 1794555341075,
+      "tag": "0220_eigene_konten_belege",
+      "breakpoints": true
+    },
+    {
+      "idx": 221,
+      "version": "7",
+      "when": 1794562424324,
+      "tag": "0221_leistungen_rechnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 222,
+      "version": "7",
+      "when": 1794562426655,
+      "tag": "0222_leistungen_abgerechnet_sperre",
+      "breakpoints": true
+    },
+    {
+      "idx": 223,
+      "version": "7",
+      "when": 1794596398752,
+      "tag": "0223_sevdesk_buchungskonten",
+      "breakpoints": true
+    },
+    {
+      "idx": 224,
+      "version": "7",
+      "when": 1794596399670,
+      "tag": "0224_sevdesk_buchungskonten_trigger",
       "breakpoints": true
     }
   ]
