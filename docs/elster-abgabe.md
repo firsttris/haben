@@ -34,7 +34,7 @@ Diese Seite behandelt die vier Formulare der Tabelle. Weitere Verfahren sendet H
 
 ## Direkt aus Haben
 
-Haben sendet über ERiC, die Bibliothek der Finanzverwaltung, mit deinem Zertifikat. Einrichten: [Erste Schritte › ELSTER einrichten](einrichtung-elster.md).
+Haben sendet über ERiC, die Bibliothek der Finanzverwaltung, mit deinem Zertifikat. Einrichten: [ELSTER einrichten](einrichtung-elster.md).
 
 | Du brauchst | Woher |
 | --- | --- |

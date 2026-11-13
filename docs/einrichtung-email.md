@@ -1,11 +1,11 @@
 ---
 title: "E-Mail-Versand in Haben einrichten: SMTP oder Microsoft 365"
 description: >-
-  Rechnungen, Angebote, Mahnungen und Erinnerungen an Fristen per E-Mail versenden: Zugang über SMTP
-  oder für Postfächer in Microsoft 365 über Microsoft Graph einrichten.
+  Rechnungen, Angebote, Mahnungen und Fristerinnerungen per E-Mail versenden: Zugang über SMTP
+  oder für Microsoft 365 über Microsoft Graph einrichten.
 ---
 
-# E-Mail
+# E-Mail-Versand
 
 Für [Rechnungen, Angebote und Mahnungen per E-Mail](rechnungen.md#per-e-mail-versenden) und [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail) braucht Haben einen E-Mail-Zugang über SMTP oder, für Postfächer in Microsoft 365, über [Microsoft Graph](#e-mail-über-microsoft-365). Unter **Einstellungen › E-Mail › E-Mail-Versand** den Anbieter wählen (Gmail, GMX, web.de, Posteo, mailbox.org belegen Server, Port und Verschlüsselung vor) oder einen eigenen Server eintragen, dazu Benutzername, Passwort, Absender und den Empfänger der Erinnerungen. Der **Absendername** steht beim Empfänger vor der Adresse; bleibt er leer, nimmt Haben den Firmennamen aus den Firmendaten, ohne Firmennamen „Haben“. **Test-Mail senden** prüft den Zugang. Solange „Prüfwert des Änderungsprotokolls wöchentlich mailen“ eingeschaltet ist, kommt an dieselbe Adresse einmal pro Woche der aktuelle Prüfwert, wenn sich etwas geändert hat. Bewahre diese Mails auf: Mit ihnen lässt sich später zeigen, dass das Protokoll bis dahin nicht nachträglich verändert wurde (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)).
 

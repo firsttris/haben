@@ -1,8 +1,8 @@
 ---
-title: "Erste Schritte: Firmendaten, Kontenrahmen, ELSTER einrichten"
+title: "Erste Schritte: Konto, Firmendaten, Kontenrahmen"
 description: >-
   Haben nach der Installation einrichten: Konto und Passkey, Firmendaten, Ist- oder Soll-
-  Versteuerung, SKR03 oder SKR04, Rechnungsnummern, ELSTER und KI-Auslesung.
+  Versteuerung, SKR03 oder SKR04, Rechnungsnummern und KI-Auslesung.
 ---
 
 # Erste Schritte
@@ -18,7 +18,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
 5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert Tage bis Wochen, siehe [Was du brauchst](einrichtung-elster.md#was-du-brauchst)
-6. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
+6. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken, siehe [Schritte](einrichtung-elster.md#schritte)
 7. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
 8. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
 9. Optional: KI-Auslesung für Belege einschalten, mit Claude oder einem Modell über eine OpenAI-kompatible Schnittstelle (selbst betrieben oder ein Cloud-Dienst wie OpenRouter)
@@ -403,7 +403,7 @@ Unter **Einstellungen › Rechnungen › Kundennummern** legst du ein Format fes
 
 ## E-Mail
 
-<a id="e-mail-über-microsoft-365"></a>Der E-Mail-Versand über SMTP oder Microsoft 365 steht unter [E-Mail](einrichtung-email.md).
+<a id="e-mail-über-microsoft-365"></a>Der E-Mail-Versand über SMTP oder Microsoft 365 steht unter [E-Mail-Versand](einrichtung-email.md).
 
 ## KI-Auslesung von Belegen
 

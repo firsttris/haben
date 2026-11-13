@@ -42,7 +42,7 @@ Die Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen erscheinen
 
 ## Erinnerungen per E-Mail
 
-Mit einem E-Mail-Zugang (siehe [Einrichtung](einrichtung-email.md)) schickt Haben Erinnerungen:
+Mit einem E-Mail-Zugang (siehe [E-Mail-Versand](einrichtung-email.md)) schickt Haben Erinnerungen:
 
 - zu den eingestellten Tagen vor einer offenen Frist (Vorgabe: 7 Tage und 1 Tag vorher, wählbar 14, 7, 3, 1 Tag oder am Tag),
 - einmal, wenn eine Frist überfällig ist, außer bei Einspruchsfristen und reinen Hinweisen wie den Einkommensteuer-Vorauszahlungen,

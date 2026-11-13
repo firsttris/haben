@@ -7,7 +7,7 @@ description: >-
 
 # In Mein ELSTER mit der Erweiterung abgeben
 
-Ohne eigene **Hersteller-ID** sendet Haben nicht selbst an das Finanzamt ([einrichtung.md › Hersteller-ID](einrichtung-elster.md#hersteller-id-wer-ist-hersteller)). Die Erklärungen gibst du dann im Portal **Mein ELSTER** ab. Die Browser-Erweiterung **Haben für Mein ELSTER** trägt die Werte aus Haben dort ein, für alle vier Formulare:
+Ohne eigene **Hersteller-ID** sendet Haben nicht selbst an das Finanzamt ([ELSTER einrichten › Hersteller-ID](einrichtung-elster.md#hersteller-id-wer-ist-hersteller)). Die Erklärungen gibst du dann im Portal **Mein ELSTER** ab. Die Browser-Erweiterung **Haben für Mein ELSTER** trägt die Werte aus Haben dort ein, für alle vier Formulare:
 
 | Formular in Mein ELSTER | Werte in Haben | Weitere Wege ohne Hersteller-ID |
 | --- | --- | --- |
