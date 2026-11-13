@@ -120,11 +120,11 @@ export function VerrechnenFormular({
         )}
       </Field>
       <div className="actions">
-        <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }} disabled={busy || !notiz.trim()}>
-          Verrechnen
-        </button>
         <button type="button" className="btn" onClick={() => setOffen(false)} disabled={busy}>
           Abbrechen
+        </button>
+        <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }} disabled={busy || !notiz.trim()}>
+          Verrechnen
         </button>
       </div>
     </form>
