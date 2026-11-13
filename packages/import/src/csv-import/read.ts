@@ -40,7 +40,7 @@ export interface CsvTable {
 
 export type CsvReadResult = { ok: true; table: CsvTable } | { ok: false; error: string };
 
-function decode(bytes: Uint8Array, choice: CsvEncodingChoice): { text: string; encoding: CsvEncoding } | { error: string } {
+export function decodeCsvBytes(bytes: Uint8Array, choice: CsvEncodingChoice): { text: string; encoding: CsvEncoding } | { error: string } {
   const [b0, b1, b2] = bytes;
   // Ein BOM sagt die Kodierung sicher an, auch gegen eine falsche Auswahl
   if (b0 === 0xef && b1 === 0xbb && b2 === 0xbf) return { text: new TextDecoder("utf-8").decode(bytes.subarray(3)), encoding: "utf-8-bom" };
@@ -78,7 +78,7 @@ export function detectDelimiter(text: string): CsvDelimiter {
 export function readCsvTable(bytes: Uint8Array, options: { encoding: CsvEncodingChoice; delimiter: CsvDelimiterChoice }): CsvReadResult {
   if (bytes.length === 0) return { ok: false, error: "Die Datei ist leer." };
   if (bytes.length > MAX_IMPORT_BYTES) return { ok: false, error: "Die Datei ist größer als 5 MB." };
-  const decoded = decode(bytes, options.encoding);
+  const decoded = decodeCsvBytes(bytes, options.encoding);
   if ("error" in decoded) return { ok: false, error: decoded.error };
   const delimiter = options.delimiter === "auto" ? detectDelimiter(decoded.text) : options.delimiter;
   const records = parseCsv(decoded.text, delimiter).map((cells, i) => ({ line: i + 1, cells }));

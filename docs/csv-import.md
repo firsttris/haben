@@ -18,7 +18,7 @@ Für selbst vorbereitete Listen aus WISO EÜR & Kasse beachtest du die [Hinweise
 1. **Datei wählen.** Bis 5 MB und 5.000 Zeilen; die erste nicht leere Zeile enthält die Spaltennamen. Trennzeichen und Kodierung erkennt Haben selbst, du kannst sie aber festlegen.
 2. **Vorschau.** Haben ordnet die Spalten nach ihren Namen den Feldern zu und prüft jede Zeile. Änderst du danach Trennzeichen, Kodierung oder Stichtag, verschwindet die Vorschau; übernommen wird nur, was eine Vorschau gezeigt hat.
 3. **Spalten zuordnen.** Passt eine Zuordnung nicht, wählst du je Feld die richtige Spalte oder „nicht übernehmen“. Die Vorschau rechnet nach jeder Änderung neu.
-4. **Übernehmen.** Der Knopf nennt, wie viele Datensätze neu angelegt werden. Danach steht da, wie viele übernommen und wie viele übersprungen wurden.
+4. **Übernehmen.** Der Knopf nennt, wie viele Datensätze neu angelegt werden, bei [Kontakten aus DATEV](#kontakte-aus-datev) samt den bestätigten Vorschlägen. Danach steht da, wie viele übernommen und wie viele übersprungen wurden.
 
 ## Datei
 
@@ -48,12 +48,13 @@ Haben legt nichts doppelt an und überschreibt nichts:
 - **Dublette:** Gibt es den Datensatz schon in Haben (auch archiviert) oder steht er weiter oben in derselben Datei, überspringt Haben die Zeile. Die Vorschau nennt das Merkmal, etwa „Gibt es schon (Kundennummer 10001)“ oder „Wie Zeile 3 (E-Mail …)“.
 - **Fehler:** Zeilen mit Fehlern übernimmt Haben nicht; die Vorschau nennt jeden Fehler mit dem Feld. Korrigiere die Datei und lade sie noch einmal: Was schon übernommen ist, zählt dann als Dublette.
 - **Alles oder nichts:** Alle neuen Zeilen entstehen in einer Transaktion. Scheitert eine beim Speichern, wird keine angelegt.
-- Die Vorschau zeigt bis zu 200 Zeilen, Fehler und Dubletten zuerst.
+- Die Vorschau zeigt bis zu 200 Zeilen, Fehler und Dubletten zuerst; Vorschläge aus [DATEV-Stammdaten](#kontakte-aus-datev) stehen immer alle darin, damit du jeden bestätigen kannst.
 - Jede angelegte Zeile steht wie beim Anlegen von Hand im Änderungsprotokoll.
 
 | Art | Wiedererkannt an |
 | --- | --- |
 | Kontakte | Kundennummer, Lieferantennummer, Debitor, Kreditor, jeder E-Mail-Adresse, USt-IdNr. oder Name (Groß- und Kleinschreibung egal) |
+| Kontakte aus DATEV | Debitor oder Kreditor, nicht am Namen ([Kontakte aus DATEV](#kontakte-aus-datev)) |
 | Artikel | Artikelnummer; eine Zeile ohne Nummer an der Bezeichnung, auch gegen einen Artikel mit Nummer |
 | Anlagen | Bezeichnung, Anschaffungsdatum und Anschaffungskosten zusammen |
 
@@ -82,6 +83,30 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 Rechnungsformat, Sprache und Skonto übernimmt Haben nicht; sie stehen wie bei einem neuen Kontakt auf „wie in den Einstellungen“, Deutsch und der Vorgabe aus den Firmendaten.
 
 Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten) und dem [Kontakt-Export](https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office) von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …).
+
+## Kontakte aus DATEV
+
+Eine Datei „Debitoren/Kreditoren“ aus einem DATEV-Export (EXTF, Formatkategorie 16), etwa `EXTF_GP_Stamm_….csv` aus dem [Export von sevDesk](sevdesk.md#ohne-rest-api), wählst du wie jede andere Datei unter **Kontakte**. Haben erkennt sie an der Kopfzeile und liest die Spalten nach ihren Namen im DATEV-Format; zuzuordnen gibt es nichts. Kodierung wie oben, Windows-1252 oder UTF-8.
+
+| Spalte | In Haben |
+| --- | --- |
+| Konto | Debitor (10000 bis 69999, macht zum Kunden) oder Kreditor (70000 bis 99999, macht zum Lieferanten); ein anderes Konto ist ein Fehler |
+| Name (Adressatentyp Unternehmen), Vorname und Name (Adressatentyp natürl. Person), Name (Adressatentyp keine Angabe), Kurzbezeichnung | Name: die erste belegte Spalte in dieser Reihenfolge |
+| EU-Mitgliedstaat und EU-UStId. | USt-IdNr., zusammengesetzt (`DE` und `136695976` ergibt `DE136695976`) und geprüft wie in [Kontakte](#kontakte) |
+| Straße, Postleitzahl, Ort, Land, E-Mail, IBAN-Nr. 1 | wie in [Kontakte](#kontakte) |
+| Telefon | wie in [Kontakte](#kontakte); ein `'` am Anfang, mit dem sevDesk Telefonnummern als Text kennzeichnet, lässt Haben weg |
+| Kundennummer | Kundennummer, nur beim Debitor; was die Spalte beim Kreditor meint, ist nicht belegt (im Export von sevDesk ist sie leer) |
+| Steuernummer | nur zum Zusammenführen, Haben speichert sie nicht |
+
+Haben führt Personenkonten fünfstellig ([Kontakte](kontakte.md)). Nennt die Kopfzeile eine andere Sachkontenlänge als 4, lehnt Haben die Datei ab, statt Nummern zu kürzen; exportiere sie dann mit Sachkontenlänge 4.
+
+Wiedererkannt wird ein Kontakt am Personenkonto, nicht am Namen:
+
+- **Zweiter Import:** Trägt ein Kontakt schon alle Personenkonten des Partners, ist die Zeile eine Dublette, auch wenn sich der Name geändert hat. Derselbe Import ein zweites Mal ändert nichts.
+- **Debitor und Kreditor eines Partners:** Haben sie dieselbe USt-IdNr. oder Steuernummer, wird daraus ein Kontakt mit beiden Rollen; die Vorschau zeigt beide Zeilen. Leere Felder des Debitors füllt der Kreditor, die Anschrift aber nur ganz: Straße, PLZ, Ort und Land kommen aus derselben Zeile.
+- **Gleicher Name allein** führt nicht zusammen, denn zwei Kunden dürfen gleich heißen: Die Zeile wird ein eigener Kontakt, die Vorschau nennt den gleichnamigen.
+- **Vorhandener Kontakt ohne Personenkonto für die Rolle,** mit gleicher USt-IdNr. oder Kundennummer oder mit dem anderen Personenkonto desselben Partners: Die Vorschau zeigt einen Vorschlag. Die Nummer bekommt der Kontakt nur, wenn du ihn mit **Bestätigen** annimmst; er wird dabei Kunde bzw. Lieferant, sonst ändert sich nichts an ihm. Ohne Bestätigung überspringt Haben die Zeile und legt keinen zweiten Kontakt an.
+- **Fehler:** Trägt ein Kontakt mit anderer USt-IdNr. die Nummer oder dieselbe Kundennummer schon, hat der passende Kontakt für diese Rolle eine andere Nummer oder passen mehrere Kontakte, übernimmt Haben die Zeile nicht. Eine Nummer, die schon in einem DATEV-Export stand, bleibt fest.
 
 ## Artikel
 

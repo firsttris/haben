@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
@@ -1883,6 +1884,97 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText("1 Anlage übernommen, 1 fehlerhafte Zeile übersprungen.");
   await go(`/anlagen?jahr=${YEAR}`);
   await expect(page.getByText("Lastenrad").first()).toBeVisible();
+});
+
+test("CSV-Import: Debitoren und Kreditoren aus DATEV-Stammdaten, Vorschlag nur mit Bestätigung (#472)", async ({ browser }) => {
+  // Kopf und Spalten wie EXTF_GP_Stamm_*.csv aus sevDesk, Zeilen erfunden; Brückenbau Süd GmbH (K-900) kam im Test davor
+  const spalten = readFileSync(new URL("../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/extf-gp-stamm.csv", import.meta.url), "utf-8")
+    .split(/\r?\n/)[1]!
+    .split(";");
+  const zeile = (werte: Record<string, string>) => spalten.map((name) => werte[name] ?? "").join(";");
+  const firma = (konto: string, name: string, werte: Record<string, string> = {}) =>
+    zeile({ Konto: konto, "Name (Adressatentyp Unternehmen)": name, ...werte });
+  const gpStamm = [
+    `"EXTF";700;16;"Debitoren/Kreditoren";5;;;;;;1;1;${YEAR}0101;4;;;;;;;;;;;;;;;;;`,
+    spalten.join(";"),
+    firma("10901", "Nordlicht Design GmbH", { "EU-Mitgliedstaat": "DE", "EU-UStId.": "136695976", Ort: "Kiel" }),
+    firma("70901", "Nordlicht Design GmbH", { "EU-Mitgliedstaat": "DE", "EU-UStId.": "136695976" }),
+    firma("10902", "Brückenbau Süd", { Kundennummer: "K-900" }),
+    firma("8400", "Erlöse 19 %"),
+  ].join("\r\n");
+  const datei = [{ name: `EXTF_GP_Stamm_${YEAR}.csv`, mimeType: "text/csv", buffer: Buffer.from(gpStamm) }];
+  await go("/csv-import?art=kontakte");
+  await page.getByLabel("CSV-Datei").setInputFiles(datei);
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  const preview = page.getByRole("region", { name: "Vorschau" });
+  await expect(preview).toContainText("Erkannt: DATEV-Stammdaten Debitoren/Kreditoren, UTF-8");
+  await expect(page.getByRole("region", { name: "Spalten zuordnen" })).toHaveCount(0);
+  await expect(preview).toContainText("1 neu, 1 Vorschlag zum Bestätigen, 0 Dubletten, 1 mit Fehlern");
+  await expect(preview.getByRole("row", { name: /Nordlicht Design GmbH/ })).toContainText("Debitor 10901 und Kreditor 70901: gleiche USt-IdNr. DE136695976");
+  await expect(preview).toContainText("Debitor 10902 an „Brückenbau Süd GmbH“ vergeben (gleiche Kundennummer)");
+  await expect(preview).toContainText("„8400“ ist kein Personenkonto");
+  // Barrierefreiheit mit dem Kontrollkästchen in der Tabelle, in eigenem Kontext wie im Test davor
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  await axePage.goto(new URL("/csv-import?art=kontakte", page.url()).toString());
+  await axePage.getByLabel("CSV-Datei").setInputFiles(datei);
+  await axePage.getByRole("button", { name: "Vorschau" }).click();
+  await expect(axePage.getByRole("checkbox", { name: "Bestätigen" })).toBeVisible();
+  expect(await axeVerstoesse(axePage)).toEqual([]);
+  await context.close();
+  // Ohne Bestätigung bleibt der Vorschlag liegen; mit ihr bekommt der vorhandene Kontakt den Debitor
+  await preview.getByRole("button", { name: "1 Kontakt übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText(
+    "1 Kontakt übernommen, 1 nicht bestätigter Vorschlag und 1 fehlerhafte Zeile übersprungen.",
+  );
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await expect(preview).toContainText("0 neu, 1 Vorschlag zum Bestätigen, 1 Dublette, 1 mit Fehlern");
+  await expect(preview.getByRole("button", { name: "0 Kontakte übernehmen" })).toBeDisabled();
+  await preview.getByRole("checkbox", { name: "Bestätigen" }).check();
+  await preview.getByRole("button", { name: "1 Kontakt übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText(
+    "0 Kontakte übernommen, 1 Personenkonto zugeordnet, 1 Dublette und 1 fehlerhafte Zeile übersprungen.",
+  );
+  // Ein zweiter Import findet jede Nummer wieder und ändert nichts
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await expect(preview).toContainText("0 neu, 2 Dubletten, 1 mit Fehlern");
+  await expect(preview).toContainText("Gibt es schon („Brückenbau Süd GmbH“, Debitor 10902)");
+  await expect(preview.getByRole("button", { name: "0 Kontakte übernehmen" })).toBeDisabled();
+  await go("/kontakte");
+  const liste = page.getByRole("region", { name: "Kontaktliste" });
+  await expect(liste.getByText("Nordlicht Design GmbH")).toHaveCount(1);
+});
+
+test("CSV-Import: Bei mehr als 200 Zeilen bleibt jeder Vorschlag aus DATEV-Stammdaten bestätigbar (#472)", async () => {
+  // 201 vorhandene Kontakte mit Kundennummer, der GP-Stamm nennt sie mit Debitor: jede Zeile ein Vorschlag
+  const anzahl = 201;
+  const spalten = readFileSync(new URL("../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/extf-gp-stamm.csv", import.meta.url), "utf-8")
+    .split(/\r?\n/)[1]!
+    .split(";");
+  const zeile = (werte: Record<string, string>) => spalten.map((name) => werte[name] ?? "").join(";");
+  const nummern = Array.from({ length: anzahl }, (_, i) => i + 1);
+  const gpStamm = [
+    `"EXTF";700;16;"Debitoren/Kreditoren";5;;;;;;1;1;${YEAR}0101;4;;;;;;;;;;;;;;;;;`,
+    spalten.join(";"),
+    ...nummern.map((n) => zeile({ Konto: String(12000 + n), "Name (Adressatentyp Unternehmen)": `Vorschlagskunde ${n}`, Kundennummer: `VS-${n}` })),
+  ].join("\r\n");
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  try {
+    const angelegt = await sql<{ id: string }[]>`insert into contacts (name, land, kundennummer, is_customer, is_supplier)
+      select 'Vorschlagskunde ' || n, 'DE', 'VS-' || n, true, false from generate_series(1, ${anzahl}) as n returning id`;
+    try {
+      await go("/csv-import?art=kontakte");
+      await page.getByLabel("CSV-Datei").setInputFiles([{ name: `EXTF_GP_Stamm_${YEAR}.csv`, mimeType: "text/csv", buffer: Buffer.from(gpStamm) }]);
+      await page.getByRole("button", { name: "Vorschau" }).click();
+      const preview = page.getByRole("region", { name: "Vorschau" });
+      await expect(preview).toContainText(`0 neu, ${anzahl} Vorschläge zum Bestätigen`);
+      await expect(preview.getByRole("checkbox", { name: "Bestätigen" })).toHaveCount(anzahl);
+    } finally {
+      await sql`update contacts set archived_at = now() where id in ${sql(angelegt.map((k) => k.id))}`;
+    }
+  } finally {
+    await sql.end();
+  }
 });
 
 test("Ein langes Wort im Titel des Dialogs wird umbrochen, nicht abgeschnitten", async () => {

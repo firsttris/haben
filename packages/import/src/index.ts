@@ -19,6 +19,7 @@ export { datevSalden, hasOpeningBalances, type DatevSaldenBooking, type DatevSal
 export { buildDatevBuchungsstapel, DATEV_AUTOMATIC_ACCOUNTS, type DatevExportEntry } from "./datev-export.ts";
 export { type PersonenkontoBezug, personenkontenEinsetzen } from "./datev-personenkonten.ts";
 export type { DatevHeader, DatevBooking, DatevStack, DatevYearSums } from "./datev.ts";
+export { isDatevStammdaten, parseDatevStammdaten, type DatevGpRow, type DatevStammdatenResult } from "./datev-stammdaten.ts";
 export * from "./lexoffice/index.ts";
 export * from "./sevdesk/index.ts";
 export * from "./accountable/index.ts";
