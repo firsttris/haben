@@ -130,4 +130,33 @@ describe.skipIf(!testDatabaseUrl)("Gutschrift „erstattet bereits Bezahltes“ 
     expect(await salden()).toEqual({ [k.aufwand]: -5_000, [k.privat]: -5_950, [k.bank]: 11_900, [k.vorsteuer]: -950 });
     expect((await vat.computeVatFigures({ year: 2026, month: 2 })).kz66).toBe(-950);
   }, 30_000);
+  it("drei Drittel mit Privatanteil in drei Monaten: Voranmeldung und Journal je Monat gleich, zusammen der geschäftliche Teil", async () => {
+    const p = { kr: "SKR03", versteuerung: "ist" } as const;
+    await firma(p);
+    // Stichjahr 2027: 2026 rechnet die Voranmeldung aus den Nebenbüchern (gutschrift.ts), das Journal steht daneben
+    await sql`update company set journal_ab = 2027 where id = 1`;
+    const k = KONTEN.SKR03;
+    const id = await beleg(50);
+
+    // 119,00 € in Dritteln (39,67 + 39,67 + 39,66): je Monat ein Teil
+    const monate = [
+      { datum: "2026-02-20", betrag: 3_967, monat: 2 },
+      { datum: "2026-03-20", betrag: 3_967, monat: 3 },
+      { datum: "2026-04-20", betrag: 3_966, monat: 4 },
+    ];
+    for (const m of monate) await zahlung(id, m.betrag, m.datum);
+
+    const vorsteuerImMonat = async (monat: number) => {
+      const start = `2026-${String(monat).padStart(2, "0")}-01`;
+      const [r] = await sql`select coalesce(sum(l.debit - l.credit), 0)::int as saldo from journal_lines l
+        join journal_entries e on e.id = l.entry_id
+        where l.account = ${k.vorsteuer} and e.date >= ${start}::date and e.date < (${start}::date + interval '1 month')`;
+      return Number(r!.saldo);
+    };
+    const je = [];
+    for (const m of monate) je.push({ monat: m.monat, journal: await vorsteuerImMonat(m.monat), quelle: (await vat.computeVatFigures({ year: 2026, month: m.monat })).kz66 });
+    for (const w of je) expect(w).toEqual({ ...w, quelle: w.journal });
+    expect(je.reduce((s, w) => s + w.quelle, 0)).toBe(-950);
+    expect(await salden()).not.toHaveProperty(k.zwischen);
+  }, 30_000);
 });
