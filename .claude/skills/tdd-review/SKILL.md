@@ -37,7 +37,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 ## 3. Findings in den PR posten
 
 - Ein Kommentar im PR: je Finding Titel, Datei/Zeile, Testname, Ausgabe des roten Tests, kurze Erklärung; dazu die verworfenen Verdachte in je einem Satz.
-- Ändert der PR Markdown, im selben Kommentar ein Abschnitt „Markdown (doku-pruefen 2–6)“ mit einer Zeile je Schritt: Befund mit Zitat und Beleg oder „ohne Befund“ und was geprüft wurde. Ein Satz für alle Schritte zusammen reicht nicht.
+- Ändert der PR Markdown, im selben Kommentar ein Abschnitt „Markdown (doku-pruefen 2–6)“ mit einer Zeile je Schritt: Befund mit Zitat und Beleg oder „ohne Befund“ und was geprüft wurde.
 - Keine Findings: das kurz im PR vermerken und weiter mit Schritt 5.
 - Sprache Deutsch.
 
