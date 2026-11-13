@@ -103,7 +103,6 @@ describe.skipIf(!testDatabaseUrl)("Zahlungssatz bei Storno und Korrektur (Postgr
     expect(correction.xml).not.toContain("Der Betrag wird Ihnen erstattet.");
   });
 
-
   async function refund(invoiceId: string, amount: number) {
     const purpose = `Erstattung ${invoiceId}`;
     const value = `-${Math.floor(amount / 100)},${String(amount % 100).padStart(2, "0")}`;
@@ -128,7 +127,15 @@ describe.skipIf(!testDatabaseUrl)("Zahlungssatz bei Storno und Korrektur (Postgr
     const invoice = await original(payment, language, format);
     const draft = await invoices.createCorrection(actor, invoice.id, "2026-11-11");
     await invoices.updateDraft(actor, draft.id, {
-      contactId, issueDate: "2026-11-11", serviceFrom: null, serviceTo: null, paymentTermDays: 0, format, language, note: "", taxTreatment: "kleinunternehmer",
+      contactId,
+      issueDate: "2026-11-11",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 0,
+      format,
+      language,
+      note: "",
+      taxTreatment: "kleinunternehmer",
       lines: [{ description: "Korrektur", quantity: 1000, unit: "Psch.", unitPrice: -20, taxRate: 0 }],
     });
     const correction = await invoices.finalizeInvoice(actor, draft.id);

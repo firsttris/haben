@@ -1,5 +1,5 @@
 import { skontoFristen, type SkontoFrist } from "@haben/core";
-import { texts, type Texts } from "./i18n.ts";
+import { TEXTS, type Texts } from "./i18n.ts";
 import type { DirectDebit, InvoiceDocument, OrderReferences, Seller } from "./types.ts";
 
 /** "2026-10-02" → "02.10.2026" */
@@ -31,7 +31,7 @@ export function servicePeriod(doc: InvoiceDocument): { from: string; to: string 
   return { from, to };
 }
 
-type PaymentFields = Pick<InvoiceDocument, "kind" | "totals" | "issueDate" | "dueDate" | "skonto" | "directDebit" | "hasPayments" | "customerBalance">;
+type PaymentFields = Pick<InvoiceDocument, "kind" | "totals" | "issueDate" | "dueDate" | "skonto" | "directDebit">;
 
 /** Lastschrift nur auf einer Rechnung mit Zahlbetrag; Storno und Erstattung laufen nicht über das Mandat */
 export function collectedByDirectDebit(doc: Pick<InvoiceDocument, "kind" | "totals" | "directDebit">): doc is typeof doc & { directDebit: DirectDebit } {
@@ -44,15 +44,9 @@ export function invoiceSkonto(doc: PaymentFields): SkontoFrist[] {
 }
 
 /** Zahlungssatz unter der Summe, mit Skonto je Stufe; das XML bleibt wie BT-20 und BT-120 deutsch (siehe i18n.ts) */
-export function paymentSentence(doc: PaymentFields, t = texts("de")): string {
-  // Rechnerischer OPOS-Saldo, keine Aufrechnung oder Zahlungszusage (§§ 387, 388 BGB, siehe storno-saldo.ts).
-  // Auch das positive Storno einer Korrektur beschreibt den gemeinsamen Endstand, nicht seinen Belegbetrag als Zahlziel.
-  if (doc.kind === "storno") {
-    if (doc.customerBalance === undefined) return t.cancellation;
-    if (doc.customerBalance > 0) return t.cancellationDebit(t.euro(Math.abs(doc.customerBalance)));
-    if (doc.customerBalance < 0) return t.cancellationCredit(t.euro(Math.abs(doc.customerBalance)));
-    return t.cancellationBalanced;
-  }
+export function paymentSentence(doc: PaymentFields, t: Texts = TEXTS.de): string {
+  // Auch ein positives Korrekturstorno bestätigt nur die Stornierung (https://github.com/firsttris/haben/pull/821#issuecomment-6849630322).
+  if (doc.kind === "storno") return t.cancellation;
   // Eine Rechnungskorrektur belegt eine Minderung, noch keine Auszahlung (Verrechnung: #274).
   if (doc.totals.gross < 0 && doc.kind === "korrektur") return t.correction;
   if (doc.totals.gross < 0) return t.noPayment;

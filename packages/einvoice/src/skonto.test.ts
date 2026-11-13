@@ -40,7 +40,7 @@ describe("Skonto auf der Ausgangsrechnung", () => {
   it("druckt ohne Skonto das Zahlungsziel und beim Storno den passenden Zahlungssatz", () => {
     expect(pdfData(sampleDocument()).payment).toBe("Bitte überweisen Sie den Betrag bis zum 16.10.2026 unter Angabe der Rechnungsnummer.");
     expect(pdfData({ ...sampleDocument({ kind: "storno" }), skonto }).payment).toBe("Die ursprüngliche Rechnung wird storniert.");
-    expect(pdfData({ ...sampleDocument({ kind: "storno" }), skonto, hasPayments: true }).payment).toBe("Die ursprüngliche Rechnung wird storniert.");
+    expect(pdfData({ ...sampleDocument(), kind: "storno", skonto }).payment).toBe("Die ursprüngliche Rechnung wird storniert.");
   });
 
   it.each(["xrechnung-ubl", "xrechnung-cii", "zugferd"] as const)(
