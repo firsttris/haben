@@ -34,7 +34,7 @@ test.afterAll(async () => {
 /** Die Karte der Beleg-Detailseite (section mit aria-labelledby auf den Titel „Verrechnung“) */
 const karte = () => page.getByRole("region", { name: "Verrechnung" });
 /** Der offene Rest, den die Karte oben nennt */
-const offen = () => karte().locator("p.small.muted .mono");
+const offen = () => karte().locator("p.small.muted .amount");
 
 /**
  * Beleg als JPEG im Browser rendern, über die Ablagefläche der Belegliste ablegen, die Felder füllen und buchen;

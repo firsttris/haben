@@ -28,6 +28,8 @@
   /* Zweite Zeile in der Markenfarbe, wie im Hero der README */
   .claim span { color: var(--brand); }
   .sub { margin-top: 16px; font-size: 20px; line-height: 28px; }
+  /* Nicht am Bindestrich trennen: „Open-Source-“ allein am Zeilenende liest sich schlecht */
+  .am-stueck { white-space: nowrap; }
   /* Was Haben kann, als Liste wie im Hero der README statt Badges */
   dl { margin-top: auto; display: grid; grid-template-columns: 104px 1fr; gap: 6px 12px; font-size: 17px; line-height: 24px; }
   dt { font-weight: 600; color: var(--brand); }
@@ -56,8 +58,8 @@
   <aside class="side">
     <div class="brand"><div class="logo">H</div><div class="name">Haben</div></div>
     <p class="claim">Deine Bücher.<br><span>Dein Server.</span></p>
-    <p class="sub">Kostenlose Open-Source-Buchhaltung für Freiberufler, Selbstständige und kleine GmbHs.</p>
-    <dl><dt>E-Rechnung</dt><dd>ZUGFeRD und XRechnung</dd><dt>Bank</dt><dd>Zahlungen zuordnen</dd><dt>GoBD</dt><dd>Festgeschrieben</dd><dt>ELSTER</dt><dd>Voranmeldung direkt</dd><dt>EÜR</dt><dd>oder Bilanz</dd></dl>
+    <p class="sub"><span class="am-stueck">Open-Source-Buchhaltung</span> für Freiberufler, Selbstständige und kleine GmbHs.</p>
+    <dl><dt>E-Rechnung</dt><dd>ZUGFeRD und XRechnung</dd><dt>Bank</dt><dd>Zahlungen zuordnen</dd><dt>ELSTER</dt><dd>Voranmeldung senden</dd><dt>Abschluss</dt><dd>EÜR oder Bilanz</dd><dt>GoBD</dt><dd>Storno statt Löschen</dd></dl>
   </aside>
   <div class="shot"><img src="../../docs/screenshot-uebersicht.png" alt=""></div>
   <div class="phone"><div class="screen"><img src="../../docs/screenshot-mobil.png" alt=""><div class="island"></div><div class="time">9:41</div><div class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:10px"></i></div></div></div>

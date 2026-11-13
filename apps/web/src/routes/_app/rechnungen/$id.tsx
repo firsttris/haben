@@ -64,6 +64,7 @@ function InvoicePage() {
           format: invoice.format,
           intro: invoice.intro,
           note: invoice.note,
+          propertyRetention: invoice.propertyRetention,
           buyerOrderReference: invoice.buyerOrderReference,
           sellerOrderReference: invoice.sellerOrderReference,
           despatchAdviceReference: invoice.despatchAdviceReference,
@@ -254,11 +255,11 @@ function FinalInvoice({ data }: { data: Detail }) {
                 </>
               )}
               <dt>Netto</dt>
-              <dd className="mono">{formatEuro(invoice.net)}</dd>
+              <dd className="amount">{formatEuro(invoice.net)}</dd>
               <dt>Umsatzsteuer</dt>
-              <dd className="mono">{formatEuro(invoice.tax)}</dd>
+              <dd className="amount">{formatEuro(invoice.tax)}</dd>
               <dt>Brutto</dt>
-              <dd className="mono" style={{ fontWeight: 600 }}>
+              <dd className="amount" style={{ fontWeight: 600 }}>
                 {formatEuro(invoice.gross)}
               </dd>
               {invoice.currency !== "EUR" && (

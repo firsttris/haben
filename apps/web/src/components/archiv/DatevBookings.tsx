@@ -2,6 +2,7 @@ import { formatEuro } from "@haben/core";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../../lib/format.ts";
+import { Icon } from "../Icon.tsx";
 import type { ArchiveSearch } from "../../routes/_app/archiv/index.tsx";
 import type { getDatevBookings } from "../../server/functions/archive.ts";
 import { DatevAbschluss } from "./DatevAbschluss.tsx";
@@ -79,8 +80,8 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
                     <td className="mono">{row.account}</td>
                     <td className="mono">{row.contraAccount}</td>
                     <td className="mono">{row.buKey}</td>
-                    <td className="num mono">{row.side === "S" ? formatEuro(row.amount) : ""}</td>
-                    <td className="num mono">{row.side === "H" ? formatEuro(row.amount) : ""}</td>
+                    <td className="num">{row.side === "S" ? formatEuro(row.amount) : ""}</td>
+                    <td className="num">{row.side === "H" ? formatEuro(row.amount) : ""}</td>
                   </tr>
                 ))}
               </tbody>
@@ -91,7 +92,8 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
           <nav className="archive-filter" aria-label="Seiten">
             {page > 0 && (
               <Link to="/archiv" activeProps={{}} search={{ ...search, seite: page - 1 || undefined }} className="btn">
-                ‹ zurück
+                <Icon name="chevron-left" size={16} />
+                zurück
               </Link>
             )}
             <span className="small muted">
@@ -99,7 +101,8 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
             </span>
             {page + 1 < pages && (
               <Link to="/archiv" activeProps={{}} search={{ ...search, seite: page + 1 }} className="btn">
-                weiter ›
+                weiter
+                <Icon name="chevron-right" size={16} />
               </Link>
             )}
           </nav>
@@ -128,9 +131,9 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
                 {data.totals.map((row) => (
                   <tr key={row.account}>
                     <td className="mono">{row.account}</td>
-                    <td className="num mono">{formatEuro(row.debit)}</td>
-                    <td className="num mono">{formatEuro(row.credit)}</td>
-                    <td className="num mono">
+                    <td className="num">{formatEuro(row.debit)}</td>
+                    <td className="num">{formatEuro(row.credit)}</td>
+                    <td className="num">
                       {formatEuro(Math.abs(row.debit - row.credit))} {row.debit >= row.credit ? "S" : "H"}
                     </td>
                   </tr>

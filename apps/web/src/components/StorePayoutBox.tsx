@@ -69,7 +69,7 @@ export function StorePayoutBox({
           <label key={month.id} className="checkbox">
             <input type="checkbox" checked={chosen.has(month.id)} onChange={() => toggle(month.id)} disabled={busy} />
             <span>
-              {formatDate(month.bookingDate)} · <span className="mono">{formatEuro(month.amount)}</span>
+              {formatDate(month.bookingDate)} · <span className="amount">{formatEuro(month.amount)}</span>
               <span className="small muted" style={{ display: "block" }}>
                 {month.purpose}
               </span>
@@ -77,11 +77,11 @@ export function StorePayoutBox({
           </label>
         ))}
         <p className="small" style={{ margin: 0 }}>
-          Gewählt <span className="mono">{formatEuro(sum)}</span>, Eingang <span className="mono">{formatEuro(amount)}</span>
+          Gewählt <span className="amount">{formatEuro(sum)}</span>, Eingang <span className="amount">{formatEuro(amount)}</span>
           {difference !== 0 && (
             <>
               {view.store === "appstore" ? " · Kursdifferenz " : " · Abweichung "}
-              <span className="mono">{formatEuro(difference)}</span>
+              <span className="amount">{formatEuro(difference)}</span>
             </>
           )}
         </p>

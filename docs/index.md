@@ -138,27 +138,6 @@ Abgleich je Jahr zeigt, dass alles da ist, bevor du kündigst.
 
 <div class="showcase-feature" markdown>
 <div markdown>
-<span class="showcase-kicker">Themes</span>
-
-## Hell, dunkel oder wie dein System
-
-Sechs Themes, zwei davon dunkel; „Automatisch“ wechselt mit der Einstellung deines Geräts zwischen
-Wald und Nacht. Zieh am H, um beide zu vergleichen. Rechnungen und PDFs bleiben in jedem Theme gleich.
-
-[Theme wählen](einrichtung.md#einstellungen-und-darstellung)
-</div>
-<div class="showcase-shot" markdown>
-<div class="theme-vergleich">
-  <img src="screenshot-uebersicht.png" alt="Übersicht im hellen Theme Wald" width="1440" height="900" loading="lazy">
-  <img class="theme-vergleich-dunkel" src="screenshot-uebersicht-dunkel.png" alt="Übersicht im dunklen Theme Nacht" width="1440" height="900" loading="lazy">
-  <div class="theme-vergleich-linie" aria-hidden="true"></div>
-  <div class="theme-vergleich-griff" role="slider" tabindex="0" aria-label="Helles und dunkles Theme vergleichen" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-valuetext="50 % hell">H</div>
-</div>
-</div>
-</div>
-
-<div class="showcase-feature" markdown>
-<div markdown>
 <span class="showcase-kicker">Am Handy</span>
 
 ## Wie eine App. Ohne App Store.

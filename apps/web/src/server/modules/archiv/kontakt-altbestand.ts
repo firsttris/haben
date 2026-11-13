@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "../../db/index.ts";
 import type { LegacySource } from "../../db/schema.ts";
-import { effectiveDirection, effectiveType } from "./sevdesk-richtung.ts";
+import { effectiveAmount, effectiveDirection, effectiveType } from "./sevdesk-richtung.ts";
 
 /**
  * Archivierte Belege eines Kontakts für die Kontaktseite (#587): über die Kontakt-ID, mit Richtung und Art wie unter
@@ -21,7 +21,7 @@ export async function legacyVouchersForContact(contactId: string) {
     gross: number;
   }>(sql`
     select v.id, v.source, case when v.source = 'import' then v.raw->>'sourceName' end as source_name,
-      ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.net, v.gross
+      ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "gross")} as gross
     from lexoffice_vouchers v
     where v.contact_id = ${contactId}
       and not exists (select 1 from invoices i where i.lexoffice_voucher_id = v.id)

@@ -49,22 +49,26 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 1280px; height: 360px; }
     body { background: var(--ground); color: var(--ink); font: 400 16px/24px var(--sans); }
-    main { width: 1280px; height: 360px; padding: 36px 64px; display: grid; grid-template-columns: 540px 1fr; gap: 80px; align-items: center; }
+    main { width: 1280px; height: 360px; padding: 36px 64px; display: grid; grid-template-columns: 500px 1fr; gap: 72px; align-items: center; }
     .brand { display: flex; align-items: center; gap: 12px; font-size: 24px; line-height: 36px; font-weight: 600; }
     .brand-mark { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: var(--brand); color: #fff; font-size: 24px; }
     h1 { margin: 16px 0 12px; font: 600 58px/70px var(--serif); letter-spacing: -1px; }
     h1 span { display: block; color: var(--accent-ink); }
     .beschreibung { margin: 0; color: var(--ink-2); font-size: 17px; line-height: 26px; }
-    /* Rechts wie ein Auszug, ohne Kasten: die Linie in der Markenfarbe hält Rechnung und Zahlung zusammen */
-    .auszug { padding-left: 22px; border-left: 3px solid var(--brand); }
-    .zeile { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; padding: 8px 0 10px; }
-    .zeile + .zeile { border-top: 1px solid var(--line); }
-    .was { font-size: 17px; font-weight: 500; line-height: 24px; }
+    /* Rechts der Weg eines Betrags als Zeitleiste: Punkte auf einer Linie in der Markenfarbe, je Schritt ein Wert */
+    .weg { list-style: none; margin: 0; padding: 0; position: relative; }
+    .weg::before { content: ""; position: absolute; left: 7px; top: 22px; bottom: 22px; width: 2px; background: var(--line-strong); }
+    .schritt { position: relative; display: grid; grid-template-columns: 16px 1fr auto; column-gap: 20px; align-items: center; padding: 11px 0; }
+    .schritt + .schritt { border-top: 1px solid var(--line-soft); }
+    .punkt { width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid var(--brand); position: relative; z-index: 1; }
+    .schritt:last-child .punkt { background: var(--brand); }
+    .was { font-size: 18px; font-weight: 500; line-height: 24px; }
     .wer { font-size: 14px; line-height: 20px; color: var(--muted); }
-    .betrag { font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    dl { display: grid; grid-template-columns: 76px 1fr; gap: 4px 12px; margin: 12px 0 0; font-size: 14px; line-height: 20px; }
-    dt { font-weight: 600; color: var(--accent-ink); }
-    dd { margin: 0; color: var(--ink-2); }
+    .wert { font: 600 23px/28px var(--sans); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+    .wert.ein { color: var(--accent-ink); }
+    .wert small { font: 500 14px/20px var(--sans); color: var(--muted); margin-right: 8px; }
+    .ok { display: inline-flex; align-items: center; gap: 8px; font: 600 18px/28px var(--sans); color: var(--accent-ink); }
+    .ok svg { width: 20px; height: 20px; }
   </style>
 </head>
 <body>
@@ -72,18 +76,14 @@
     <section>
       <div class="brand"><span class="brand-mark">H</span>Haben</div>
       <h1>Deine Bücher.<span>Dein Server.</span></h1>
-      <p class="beschreibung">Kostenlose Open-Source-Buchhaltung für Freiberufler, Selbstständige und kleine GmbHs, von der E-Rechnung bis zur EÜR.</p>
+      <p class="beschreibung">Kostenlose Open-Source-Buchhaltung für Freiberufler, Selbstständige und kleine GmbHs.</p>
     </section>
-    <section class="auszug">
-      <div class="zeile"><div><div class="was">E-Rechnung 2026-034</div><div class="wer">Studio Linde, Webdesign, ZUGFeRD</div></div><div class="betrag">1.725,50 €</div></div>
-      <div class="zeile"><div><div class="was">Zahlungseingang am 14.10.2026</div><div class="wer">Girokonto, Verwendungszweck RE 2026-034</div></div><div class="betrag">1.725,50 €</div></div>
-      <dl>
-        <dt>Abgleich</dt><dd>Zahlung der Rechnung zugeordnet</dd>
-        <dt>GoBD</dt><dd>Festgeschrieben, Korrektur nur per Storno</dd>
-        <dt>ELSTER</dt><dd>Voranmeldung Oktober, Kennzahl 81: 1.450 €</dd>
-        <dt>EÜR</dt><dd>Einnahme im Oktober nach Zufluss</dd>
-      </dl>
-    </section>
+    <ol class="weg" aria-label="Weg einer Rechnung durch Haben">
+      <li class="schritt"><span class="punkt"></span><div><div class="was">E-Rechnung 2026-034 festgeschrieben</div><div class="wer">Studio Linde, ZUGFeRD, nach GoBD unveränderbar</div></div><div class="wert">1.725,50 €</div></li>
+      <li class="schritt"><span class="punkt"></span><div><div class="was">Zahlungseingang zugeordnet</div><div class="wer">Girokonto, 14.10.2026, Verwendungszweck erkannt</div></div><div class="wert ein">+1.725,50 €</div></li>
+      <li class="schritt"><span class="punkt"></span><div><div class="was">Umsatzsteuer-Voranmeldung Oktober</div><div class="wer">Umsatz zu 19 %, Steuer 275,50 €</div></div><div class="wert"><small>Kz 81</small>1.450 €</div></li>
+      <li class="schritt"><span class="punkt"></span><div><div class="was">An ELSTER übermittelt</div><div class="wer">Protokoll gespeichert, Einnahme in der EÜR</div></div><div class="ok"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>gesendet</div></li>
+    </ol>
   </main>
 </body>
 </html>

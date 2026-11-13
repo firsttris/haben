@@ -42,6 +42,7 @@ export const recurringInputSchema = z.object({
   /** Einleitung über den Positionen; Platzhalter wie bei den Positionen */
   intro: z.string().max(2000).default(""),
   note: z.string().max(2000),
+  propertyRetention: z.boolean().default(false),
   taxTreatment: z.enum(TAX_TREATMENT_KEYS),
   exemptionReason: z.string().trim().max(300),
   /** Einzelpreise netto oder brutto inkl. USt */
@@ -169,6 +170,7 @@ export function invoiceForDate(
     format: recurring.format,
     intro: fillPlaceholders(recurring.intro, reference),
     note: fillPlaceholders(recurring.note, reference),
+    propertyRetention: recurring.propertyRetention,
     taxTreatment: recurring.taxTreatment,
     exemptionReason: recurring.exemptionReason,
     priceMode: recurring.priceMode,

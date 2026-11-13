@@ -71,6 +71,7 @@ import { Field } from "./Field.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 
 interface ContactOption {
   id: string;
@@ -102,6 +103,7 @@ export interface AbschlagOption {
   rates: { rate: number; base: number; tax: number }[];
   taxTreatment: TaxTreatment;
   priceMode: PriceMode;
+  propertyRetention: boolean;
 }
 
 /** Festgeschriebenes Angebot, zu dem eine Abschlags- oder Schlussrechnung gehören kann */
@@ -225,6 +227,7 @@ export function InvoiceEditor({
   const [intro, setIntro] = useState(initial.intro ?? "");
   const [references, setReferences] = useState(() => orderReferenceValues(initial));
   const [note, setNote] = useState(initial.note);
+  const [propertyRetention, setPropertyRetention] = useState(initial.propertyRetention ?? false);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode ?? "netto");
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
@@ -479,6 +482,7 @@ export function InvoiceEditor({
       format,
       intro,
       note,
+      propertyRetention: !quote && propertyRetention,
       ...references,
       taxTreatment,
       exemptionReason: special ? exemptionReason : "",
@@ -509,6 +513,7 @@ export function InvoiceEditor({
       quoteId: _quote,
       paymentMethod: _method,
       sepaMandateId: _mandate,
+      propertyRetention: _propertyRetention,
       ...common
     } = draft();
     const quoteLines = parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, ...line }) => line);
@@ -718,6 +723,7 @@ export function InvoiceEditor({
               plan: planIssue ? [] : plan.rows,
               intro,
               note,
+              propertyRetention: !quote && propertyRetention,
               taxTreatment,
               exemptionReason: special ? exemptionReason : "",
               priceMode: grossPrices ? "brutto" : "netto",
@@ -1291,6 +1297,7 @@ export function InvoiceEditor({
               blocks={textBlocks}
               contactId={contactId || null}
             />
+            {!quote && <PropertyRetentionField checked={propertyRetention} onChange={touch(setPropertyRetention)} inherited={!editable} />}
           </section>
 
           {quote && (

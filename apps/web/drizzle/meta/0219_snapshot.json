@@ -1,5 +1,5 @@
 {
-  "id": "c34d33c6-c887-45f4-bd91-93652b8f5361",
+  "id": "88bd66c6-f76a-4962-b2ce-11c231f9ca2e",
   "prevId": "a189a95d-665f-4d7b-81e5-cec36e2da8b8",
   "version": "7",
   "dialect": "postgresql",
@@ -4379,12 +4379,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "own_account_id": {
-          "name": "own_account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "tax_rate": {
           "name": "tax_rate",
           "type": "smallint",
@@ -4439,19 +4433,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "document_splits_own_account_id_own_accounts_id_fk": {
-          "name": "document_splits_own_account_id_own_accounts_id_fk",
-          "tableFrom": "document_splits",
-          "tableTo": "own_accounts",
-          "columnsFrom": [
-            "own_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -4572,12 +4553,6 @@
         "category": {
           "name": "category",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "own_account_id": {
-          "name": "own_account_id",
-          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -4806,19 +4781,6 @@
           "tableTo": "contacts",
           "columnsFrom": [
             "supplier_contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "documents_own_account_id_own_accounts_id_fk": {
-          "name": "documents_own_account_id_own_accounts_id_fk",
-          "tableFrom": "documents",
-          "tableTo": "own_accounts",
-          "columnsFrom": [
-            "own_account_id"
           ],
           "columnsTo": [
             "id"
@@ -6662,6 +6624,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "property_retention": {
+          "name": "property_retention",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "buyer_order_reference": {
           "name": "buyer_order_reference",
@@ -11561,6 +11530,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "property_retention": {
+          "name": "property_retention",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "tax_treatment": {
           "name": "tax_treatment",
