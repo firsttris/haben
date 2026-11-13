@@ -223,7 +223,7 @@ es nicht. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
 Direkt aus Haben oder über das Portal Mein ELSTER ([alle Wege im Vergleich](https://haben.app/elster-abgabe.html)):
 - **Direkt aus Haben** per ERiC, für Voranmeldung, Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer, dazu Bescheide
   aus dem ELSTER-Postfach. Dafür brauchst du eine eigene Hersteller-ID; die Beantragung dauert Tage bis Wochen
-  ([Erste Schritte](https://haben.app/einrichtung.html#elster-einrichten)).
+  ([Erste Schritte](https://haben.app/einrichtung-elster.html)).
 - **Über Mein ELSTER**, ohne Hersteller-ID: Die Voranmeldung lädst du als XML-Datei hoch. Alle vier Formulare trägt
   die Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html)
   ein, oder ein [KI-Assistent](https://haben.app/elster-mit-assistent.html) wie Claude in Chrome.

@@ -17,7 +17,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 2. Firmendaten ausfüllen, Rechtsform, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten; gibst du nicht monatlich ab, unter Umsatzsteuer den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) einstellen
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
-5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert Tage bis Wochen, siehe [Was du brauchst](#was-du-brauchst)
+5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert Tage bis Wochen, siehe [Was du brauchst](einrichtung-elster.md#was-du-brauchst)
 6. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
 7. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
 8. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
@@ -399,173 +399,11 @@ Unter **Einstellungen › Rechnungen › Kundennummern** legst du ein Format fes
 
 ## ELSTER einrichten
 
-Haben übermittelt Voranmeldung, Jahreserklärungen und Nachrichten über ERiC, die offizielle Bibliothek der Steuerverwaltung, und holt darüber Bescheide aus dem ELSTER-Postfach. Ohne ERiC laufen Prüfen und Senden simuliert, und die Oberfläche weist darauf hin. Welcher Weg zum Finanzamt ohne Hersteller-ID bleibt, steht in [Abgabe an ELSTER](elster-abgabe.md).
-
-### Was du brauchst
-
-| | Wofür | Woher | Dauer |
-| --- | --- | --- | --- |
-| **ERiC** | Bibliothek der Finanzverwaltung: prüft, verschlüsselt und überträgt | Haben lädt sie selbst, siehe [Schritte](#schritte) | Minuten |
-| **Hersteller-ID** (fünf Ziffern) | Kennung der Software in jeder Übermittlung; ERiC verlangt sie seit Version 43 schon fürs Prüfen | ELSTER-Entwicklerbereich: auf elster.de als Entwickler registrieren, das Bayerische Landesamt für Steuern prüft den Antrag | Tage bis Wochen |
-| **Zertifikatsdatei** (.pfx) und PIN | unterschreibt jede Übermittlung | ELSTER-Benutzerkonto mit der Anmeldeart „Zertifikatsdatei“, siehe [unten](#zertifikatsdatei-statt-elster-secure) | ein bis zwei Wochen (Brief) |
-
-Bis Hersteller-ID und Zertifikat da sind, arbeitest du normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER: die Voranmeldung per XML-Import, alle Formulare mit der Erweiterung „Haben für Mein ELSTER“, mit einem KI-Assistenten oder von Hand. Die Wege im Vergleich: [Abgabe an ELSTER](elster-abgabe.md).
-
-### Zertifikatsdatei statt ELSTER Secure
-
-Haben unterschreibt über ERiC, und ERiC braucht eine Zertifikatsdatei mit PIN. Mit der App ELSTER Secure meldest du dich nur im Browser bei Mein ELSTER an; Programme wie Haben können sie nicht nutzen.
-
-Ein ELSTER-Benutzerkonto hat genau eine Anmeldeart. Du legst deshalb ein zweites Konto an; dein bisheriges bleibt:
-
-1. Auf elster.de **Benutzerkonto erstellen**, Anmeldeart **Zertifikatsdatei**, **Für mich** mit deiner Steuer-ID. Das persönliche Konto reicht auch für Umsatzsteuer und EÜR deines Einzelunternehmens und ist für den [Belegabruf](jahreserklaerung.md) zur Einkommensteuer nötig.
-2. Die Aktivierungs-ID kommt per E-Mail, der Aktivierungscode per Post.
-3. Mit beiden das Konto aktivieren, die `.pfx`-Datei herunterladen und die PIN festlegen. Das Zertifikat gilt drei Jahre.
-
-### Hersteller-ID: wer ist Hersteller?
-
-Die Hersteller-ID gehört dem Softwarehersteller, nicht dem Steuerpflichtigen. Bei gekaufter Software senden alle Kunden mit der ID des Anbieters. Bei Haben ist jeder, der es betreibt, selbst Hersteller: Jede Installation trägt ihre eigene ID in `ELSTER_HERSTELLER_ID` ein, Haben bringt keine mit.
-
-Betreibst du Haben für andere mit deiner ID, bist du für sie Softwarehersteller im Sinne des ERiC-Lizenzvertrags (`lizenz.pdf` im ERiC-Paket):
-
-- Den Support für diese Nutzer leistest du (§ 7).
-- Du setzt mindestens die Mindestversion von ERiC ein, die ELSTER vorgibt (§ 5).
-- Die Nutzer bestätigen vor der ersten Nutzung die Datenschutzhinweise der Finanzverwaltung (§ 5); das fragt Haben unter **Einstellungen › ELSTER › ERiC** ab.
-
-Bei Verstößen kann das Landesamt die Hersteller-ID sperren (§ 9); dann kann niemand mehr damit senden. Wer Haben verändert und weitergibt, braucht eine eigene ID (§ 4). Die Hersteller-ID ist kein Geheimnis, sie steht in jeder Übermittlung. Trag sie trotzdem nur in `.env` bzw. `haben.env` ein, nicht ins Repository oder Image.
-
-### Open Source und die Hersteller-ID
-
-Die Hersteller-ID ist für Software gedacht, hinter der ein Hersteller mit einem Produkt steht. Für ein freies Projekt wie Haben passt das schlecht: Jeder, der es betreibt oder verändert, ist selbst Hersteller und braucht eine eigene ID. Eine gemeinsame ID für ein Open-Source-Projekt sieht ELSTER nicht vor. Das ist seit Langem bekannt; schon 2005 kritisierte [netzpolitik.org](https://netzpolitik.org/2005/elster-in-der-kritik/), dass die Hersteller-ID an Produkt und Hersteller gebunden ist und freie Software damit kaum vorgesehen ist.
-
-Eine offizielle Aussage der Finanzverwaltung zu Open-Source-Projekten haben wir nicht gefunden. Zuständig ist das Bayerische Landesamt für Steuern, das ELSTER bundesweit koordiniert. Registrierung und Hersteller-ID laufen über die [ELSTER-Entwicklerseite](https://www.elster.de/eportal/infoseite/entwickler); mit dem Zugang zum Entwicklerbereich kannst du dort auch nachfragen, wie das Landesamt freie Software sieht. Erfährst du dabei etwas, freuen wir uns über ein Issue, damit es hier stehen kann.
-
-### Warum Lexoffice ohne dein Zertifikat sendet
-
-Cloud-Dienste wie Lexware Office übermitteln in deinem Auftrag mit ihrem eigenen Zertifikat (Datenübermittlung im Auftrag, § 87d AO). Der Anbieter muss dafür seine Auftraggeber identifizieren und die Übermittlungen aufbewahren. Haben läuft auf deinem eigenen Server, ohne Anbieter dazwischen: Du sendest selbst und brauchst dein eigenes Zertifikat.
-
-### Schritte
-
-1. **ERiC laden:** unter **Einstellungen › ELSTER › ERiC** den Nutzungsbedingungen zustimmen und **Herunterladen und einrichten** klicken. ERiC darf nicht weitergegeben werden und liegt deshalb weder im Repository noch im Image; Haben holt es direkt von der Finanzverwaltung (Linux x86_64).
-2. **Oder von Hand:** das Paket z. B. nach `/opt/eric` entpacken (darin `lib/libericapi.so` und `lib/plugins/`) und `ERIC_HOME` setzen. Beides steht in [ERiC einbinden](installation-anbindungen.md#eric-einbinden).
-3. **Hersteller-ID eintragen.** Die eigene Hersteller-ID aus dem ELSTER-Entwicklerbereich ([siehe oben](#was-du-brauchst)) als `ELSTER_HERSTELLER_ID` (fünf Ziffern) eintragen. Seit ERiC 43 ist die frühere Test-Hersteller-ID `74931` gesperrt; ERiC lehnt ohne eigene ID schon das Prüfen ab („Bitte verwenden Sie Ihre eigene Hersteller-ID auch für Testfälle“). Ohne ERiC laufen Prüfen und Testübermittlung weiter simuliert.
-4. **Datenschutzhinweise bestätigen.** Unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung lesen und bestätigen. Der ERiC-Lizenzvertrag verlangt das vor der ersten Nutzung; ohne Bestätigung lehnt Haben jeden Aufruf von ERiC ab. Die Bestätigung gilt für die Installation und steht im Änderungsprotokoll.
-5. **Zertifikat hochladen.** Die `.pfx`-Datei aus deinem Konto mit Anmeldeart Zertifikatsdatei ([siehe oben](#zertifikatsdatei-statt-elster-secure)) unter **Einstellungen › ELSTER › ELSTER-Zertifikat** hochladen (höchstens 64 KB). Haben speichert die Datei AES-256-GCM-verschlüsselt in der Datenbank. Trägst du „Gültig bis“ ein, warnt die Übersicht 30 Tage vor Ablauf. Ein neues Zertifikat ersetzt das alte.
-6. **Formate prüfen.** Unter **Einstellungen › ELSTER › ERiC** lässt **Formate mit ERiC prüfen** ERiC alle Nachrichten von Belegabruf, Berechtigung und Postfach gegen seine Schemas prüfen, ohne etwas zu senden. Diese Formate stammen aus freien Projekten (erica, viking) statt aus der amtlichen Jahresdokumentation; die Prüfung zeigt sofort, ob eine Version oder ein Feldname nicht mehr passt. Bemängelt ERiC etwas, bitte die Meldungen als Issue melden.
-7. **Nur prüfen.** Auf der Seite einer Voranmeldung lässt „Nur prüfen“ ERiC die Daten auf Plausibilität prüfen. Dafür braucht es weder Zertifikat noch PIN.
-8. **Testübermittlung.** Mit gesetztem Haken „Nur Testübermittlung“, PIN und „Prüfen und testweise senden“. Die Testübermittlung läuft mit deiner Hersteller-ID und dem Testmerker `700000004`; der ELSTER-Server nimmt sie an, leitet sie aber nicht an das Finanzamt weiter. Die Anmeldung bleibt ein Entwurf. Erst danach den Haken „Nur Testübermittlung“ entfernen.
-9. **Echtübermittlung.** Ohne Haken fragt Haben in einem Dialog nach („Verbindlich senden“). Nach erfolgreicher Übermittlung ist die Voranmeldung festgeschrieben; eine Korrektur ist eine neue, berichtigte Anmeldung.
-
-Die PIN fragt Haben bei jeder Übermittlung ab. Nur für den automatischen Postfach-Abruf kannst du sie verschlüsselt speichern, siehe [Finanzamt](finanzamt.md#automatisch-abrufen). Für den Versand legt Haben das entschlüsselte Zertifikat kurz in ein temporäres Verzeichnis (Rechte `0600`) und löscht es danach. Jede Prüfung und Übermittlung landet mit Transfer-Ticket und ERiC-Protokoll-PDF im Verlauf der Voranmeldung.
-
-Vor dem Senden prüft Haben die Firmendaten: Name, Anschrift, Bundesland und eine gültige Steuernummer müssen vorhanden sein.
-
-> [!IMPORTANT]
-> Die ERiC-Anbindung ist mit ERiC 44.3.6.0, 45.1.5.0 und 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und PIN mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
-
-### Welche ERiC-Version
-
-Haben lädt vorgeschlagen ERiC 44.3.6.0, die neueste für Echtfälle freigegebene Version. Haben arbeitet mit ERiC 43 bis 45 und erkennt die Version selbst; eine andere trägst du ins Feld **Version** ein.
-
-ERiC 45.1.5.0 ist ein BETA-Release: Damit gehen nur Testübermittlungen mit Testmerker, Echtfälle lehnt ERiC ab (ERiC-Entwicklerhandbuch, Kap. 5.4.3). Nimm sie nur zum Ausprobieren der Formulare 2027. Das Hauptrelease 45.2 kündigt ELSTER für Mitte November an (Kap. 2.3); es bringt die Jahresversionen unten für Echtfälle, und dann hebt Haben den Vorschlag darauf.
-
-| Was | ab ERiC |
-| --- | --- |
-| Voranmeldung, Dauerfristverlängerung und Sondervorauszahlung 2027, Kapitalertragsteuer-Anmeldung 2027, Anlage EÜR und Einkommensteuer 2026 | 45 |
-| Sonstige Nachricht als Echtfall (Version 22) | 43.5 |
-| E-Bilanz ohne rechtsformfremde Angaben | jede; ERiC prüft das ab 43.5 |
-| Postfach und Belegabruf (Datenabholung Version 32) | 43.4 |
-
-Mit dem Mindestversionswechsel im April sperrt ELSTER die Versionen 43 und 44 für den Versand (ERiC-Entwicklerhandbuch, Kap. 2.3); bis dahin brauchst du die 45.
-
-Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatzsteuer](umsatzsteuer.md). Gibst du nicht monatlich ab, stellst du dort den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) ein: vierteljährlich oder keine Voranmeldung, so wie es das Finanzamt festgelegt hat.
+<a id="was-du-brauchst"></a><a id="zertifikatsdatei-statt-elster-secure"></a><a id="hersteller-id-wer-ist-hersteller"></a><a id="open-source-und-die-hersteller-id"></a><a id="warum-lexoffice-ohne-dein-zertifikat-sendet"></a><a id="schritte"></a><a id="welche-eric-version"></a>Zertifikat, Hersteller-ID und ERiC-Version stehen unter [ELSTER einrichten](einrichtung-elster.md).
 
 ## E-Mail
 
-Für [Rechnungen, Angebote und Mahnungen per E-Mail](rechnungen.md#per-e-mail-versenden) und [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail) braucht Haben einen E-Mail-Zugang über SMTP oder, für Postfächer in Microsoft 365, über [Microsoft Graph](#e-mail-über-microsoft-365). Unter **Einstellungen › E-Mail › E-Mail-Versand** den Anbieter wählen (Gmail, GMX, web.de, Posteo, mailbox.org belegen Server, Port und Verschlüsselung vor) oder einen eigenen Server eintragen, dazu Benutzername, Passwort, Absender und den Empfänger der Erinnerungen. Der **Absendername** steht beim Empfänger vor der Adresse; bleibt er leer, nimmt Haben den Firmennamen aus den Firmendaten, ohne Firmennamen „Haben“. **Test-Mail senden** prüft den Zugang. Solange „Prüfwert des Änderungsprotokolls wöchentlich mailen“ eingeschaltet ist, kommt an dieselbe Adresse einmal pro Woche der aktuelle Prüfwert, wenn sich etwas geändert hat. Bewahre diese Mails auf: Mit ihnen lässt sich später zeigen, dass das Protokoll bis dahin nicht nachträglich verändert wurde (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)).
-
-- **Gmail:** Zwei-Faktor-Anmeldung einschalten und unter myaccount.google.com › Sicherheit › App-Passwörter ein App-Passwort erzeugen; das ist das Passwort für Haben, Benutzername ist die Gmail-Adresse. Eine eigene Gmail-Anbindung über die Google-API braucht es nicht.
-- **GMX und web.de:** im Postfach unter Einstellungen › POP3/IMAP den Zugriff per externem Programm erlauben.
-
-Unter **Vorlagen** legst du Betreff und Text der E-Mails je Art und Sprache fest (siehe [Per E-Mail versenden](rechnungen.md#per-e-mail-versenden)).
-
-Das Passwort speichert Haben AES-256-GCM-verschlüsselt wie das ELSTER-Zertifikat; es steht nicht im Audit-Log und wird nie angezeigt. Zum Ändern anderer Angaben das Passwortfeld leer lassen.
-
-### E-Mail über Microsoft 365
-
-Microsoft schaltet Basic Auth für SMTP AUTH in Exchange Online ab. Für Postfächer in Microsoft 365 verschickt Haben deshalb auch über **Microsoft Graph**. Haben meldet sich dabei als App ohne Benutzer bei Microsoft Entra ID an (Client Credentials) und sendet mit `POST /users/{Postfach}/sendMail`. Das geht aus einem Benutzerpostfach und aus einer **Shared Mailbox**; die Mail steht danach in „Gesendete Elemente“ dieses Postfachs. SMTP bleibt unverändert, der Versandweg ist unter **Einstellungen › E-Mail › E-Mail-Versand** wählbar. Für die Einrichtung brauchst du Administratorrechte im Tenant (Entra ID und Exchange Online).
-
-> [!WARNING]
-> Die Berechtigung `Mail.Send` (Application) mit Administratorzustimmung erlaubt der App, **als jedes Postfach des Tenants** zu senden. Beschränke sie auf die Postfächer, aus denen Haben senden soll (Schritt 5).
-
-**1. App registrieren.** Im Entra-Admin-Center unter **Anwendungen › App-Registrierungen › Neue Registrierung** einen Namen wählen (etwa „Haben Mailversand“), Konten nur in diesem Verzeichnis, keine Umleitungs-URI. Auf der Übersicht stehen **Anwendungs-ID (Client)** und **Verzeichnis-ID (Mandant)**; beide trägst du in Haben ein.
-
-**2. Zertifikat erzeugen und hochladen (empfohlen).** Ein Zertifikat ersetzt das Secret, das nach höchstens 24 Monaten abläuft. Auf einem beliebigen Rechner:
-
-```sh
-openssl req -x509 -newkey rsa:2048 -nodes -keyout haben-mail.key -out haben-mail.crt -days 730 -subj "/CN=Haben Mailversand"
-```
-
-`haben-mail.crt` lädst du in der App-Registrierung unter **Zertifikate & Geheimnisse › Zertifikate** hoch. In Haben wählst du **Zertifikat** als Anmeldung und gibst beide Dateien an (`.crt` und `.key`, ohne Passwort). Haben prüft, dass Schlüssel und Zertifikat zusammengehören und das Zertifikat nicht abgelaufen ist, speichert den privaten Schlüssel AES-256-GCM-verschlüsselt und zeigt danach nur noch den Fingerabdruck. Lösche `haben-mail.key` anschließend vom Rechner. Das Zertifikat läuft nach 730 Tagen ab; Haben erinnert nicht daran, trage den Termin in deinen Kalender ein.
-
-*Alternative Client Secret:* unter **Zertifikate & Geheimnisse › Geheimnisse › Neues Clientgeheimnis** erzeugen, den **Wert** (nicht die ID) sofort kopieren und in Haben unter **Client Secret** eintragen.
-
-**3. Berechtigung vergeben.** Es gibt zwei Wege:
-
-- **Eingeschränkt (empfohlen):** Die Rechte kommen aus **Exchange Online** (RBAC für Anwendungen), die App bekommt in Entra ID **keine** Graph-Berechtigung. Weiter mit Schritt 4 und 5.
-- **Tenantweit (schnell, nicht empfohlen):** In der App-Registrierung unter **API-Berechtigungen › Berechtigung hinzufügen › Microsoft Graph › Anwendungsberechtigungen** `Mail.Send` wählen und **Administratorzustimmung erteilen**. Danach darf die App aus jedem Postfach senden. Eine Einschränkung nach Schritt 5 wirkt dann **nicht**, weil Microsoft die Rechte aus Entra ID und aus Exchange vereinigt.
-
-**4. Dienstprinzipal in Exchange Online anlegen.** In PowerShell mit dem Modul `ExchangeOnlineManagement` als Administrator:
-
-```powershell
-Connect-ExchangeOnline
-# AppId = Anwendungs-ID (Client). ObjectId = Objekt-ID der *Unternehmensanwendung* (Entra ID › Unternehmensanwendungen),
-# nicht die Objekt-ID der App-Registrierung: Beide Seiten zeigen verschiedene Werte.
-New-ServicePrincipal -AppId <Anwendungs-ID> -ObjectId <Objekt-ID der Unternehmensanwendung> -DisplayName "Haben Mailversand"
-```
-
-**5. Auf bestimmte Postfächer beschränken.** Ein Verwaltungsbereich nennt die erlaubten Postfächer, die Rollenzuweisung gibt der App `Mail.Send` nur dafür:
-
-```powershell
-New-ManagementScope -Name "Haben Postfächer" -RecipientRestrictionFilter "PrimarySmtpAddress -eq 'rechnung@firma.example'"
-New-ManagementRoleAssignment -App <Objekt-ID der Unternehmensanwendung> -Role "Application Mail.Send" -CustomResourceScope "Haben Postfächer"
-Test-ServicePrincipalAuthorization -Identity <Objekt-ID der Unternehmensanwendung> -Resource rechnung@firma.example
-```
-
-Mehrere Postfächer verbindest du im Filter mit `-or`; statt eines Filters geht auch eine Administrative Unit (`-RecipientAdministrativeUnitScope`). `InScope` muss bei `Test-ServicePrincipalAuthorization` für das Postfach `True` sein und für ein anderes `False`. Änderungen wirken laut Microsoft nach 30 Minuten bis 2 Stunden; der Testbefehl umgeht diesen Zwischenspeicher. Ältere Anleitungen nennen **Application Access Policies**; Microsoft hat sie durch RBAC für Anwendungen ersetzt. Quellen: [RBAC for Applications in Exchange Online](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac), [user: sendMail](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0).
-
-**6. In Haben eintragen.** Unter **Einstellungen › E-Mail › E-Mail-Versand** den Versandweg **Microsoft 365 (Graph)** wählen und eintragen:
-
-| Feld | Inhalt |
-| --- | --- |
-| Verzeichnis-ID (Tenant) | GUID oder Domäne des Tenants (`firma.onmicrosoft.com`) |
-| Anwendungs-ID (Client) | GUID der App-Registrierung |
-| Anmeldung | Zertifikat oder Client Secret |
-| Absender | Adresse des Postfachs, aus dem gesendet wird, auch die einer Shared Mailbox |
-| Postfach | Nur nötig, wenn es von der Absenderadresse abweicht: Benutzerprinzipalname (UPN) oder Objekt-ID, etwa bei einer Alias-Adresse |
-
-Dann **Speichern** und **Test-Mail senden**; sie geht an die Adresse für Erinnerungen. Beim Ändern anderer Angaben lässt du Secret oder Zertifikat leer, dann bleibt das gespeicherte. Beim Wechsel des Versandwegs oder der Anmeldeart musst du das Geheimnis neu angeben.
-
-**Shared Mailbox als Absender.** Trage die Adresse der Shared Mailbox als **Absender** ein. Die Mail geht als diese Mailbox hinaus und liegt in deren „Gesendeten Elementen“. Die Shared Mailbox braucht keine Anmeldung; die Rechte der App in Schritt 5 müssen sie einschließen. „Blindkopie an mich“ schickt die Kopie an diese Adresse.
-
-**Grenzen gegenüber SMTP:**
-
-- **Anhänge:** höchstens 2,5 MB zusammen. Darüber lehnt Haben den Versand vor dem Senden mit einer Meldung ab. Größere Anhänge bräuchten zusätzlich `Mail.ReadWrite` (die App könnte dann alle Mails der erlaubten Postfächer lesen); das hat Haben bewusst nicht eingebaut. Bei größeren Anhängen nutze SMTP.
-- **Nur HTML:** Eine Nachricht über Graph hat einen Inhalt. Haben sendet den HTML-Teil, einen Nur-Text-Teil daneben gibt es nicht.
-- **Absendername:** Haben schickt den Namen aus den Einstellungen mit. Ob Exchange ihn übernimmt oder den Anzeigenamen des Postfachs verwendet, ist nicht geprüft.
-- **Ungeprüft:** Haben ist gegen einen gemockten Endpunkt getestet, nicht gegen einen echten Tenant. Meldet sich etwas anders als hier beschrieben, bitte als Issue melden (ohne Tenant-IDs und Adressen).
-
-**Fehlerbilder.** Jeder Versuch steht im Versandprotokoll mit dem Versandweg. Die Meldung nennt dahinter den Fehlercode und die Anfrage-ID von Microsoft; mit ihr findet der Support die Anfrage.
-
-| Meldung | Ursache und Abhilfe |
-| --- | --- |
-| „Die Anmeldung bei Microsoft Entra ID ist fehlgeschlagen … AADSTS…“ | Tenant, Client-ID, Secret oder Zertifikat stimmen nicht, das Secret ist abgelaufen oder das Zertifikat fehlt in Entra ID. Den Code (AADSTS) in der [Fehlerliste von Microsoft](https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes) nachschlagen |
-| „Die App darf nicht aus dem Postfach … senden“ (403) | Die Rolle `Application Mail.Send` fehlt, das Postfach liegt nicht im Verwaltungsbereich, oder die Änderung ist noch nicht wirksam (bis zu 2 Stunden). Mit `Test-ServicePrincipalAuthorization` prüfen |
-| „Das Postfach … gibt es nicht“ (404) | Absenderadresse oder Feld Postfach falsch; bei einer Alias-Adresse den Benutzerprinzipalnamen eintragen |
-| „Microsoft 365 hat die Mail abgelehnt“ (400) | Ungültiger Empfänger oder Inhalt |
-| „Microsoft 365 ist überlastet“ (429) | Haben hat nach der Wartezeit von Microsoft dreimal versucht (höchstens 30 Sekunden). Später erneut senden. Für Outlook gelten je App und Postfach 10 000 Anfragen in 10 Minuten und vier gleichzeitige ([Limits](https://learn.microsoft.com/en-us/graph/throttling-limits)) |
-| „Keine Verbindung zu Microsoft 365“ | Netzwerk oder Zeitüberschreitung. Haben wiederholt dann **nicht** von selbst: Die Mail ist vielleicht doch angekommen, prüfe „Gesendete Elemente“, bevor du erneut sendest |
-
-Client Secret und privater Schlüssel liegen wie das SMTP-Passwort AES-256-GCM-verschlüsselt in der Datenbank; sie stehen nicht im Audit-Log und werden nie angezeigt. Tenant, Client, Fingerabdruck und Postfach stehen im Audit-Log, sie sind keine Geheimnisse. Sichere `HABEN_ENCRYPTION_KEY` wie sonst getrennt vom Backup.
+<a id="e-mail-über-microsoft-365"></a>Der E-Mail-Versand über SMTP oder Microsoft 365 steht unter [E-Mail](einrichtung-email.md).
 
 ## KI-Auslesung von Belegen
 

@@ -11,7 +11,7 @@ description: >-
 Entwurf stehen im Abschnitt „Entschieden und offen“. **Stand:** `main` bei `93124e3`, Microsoft-Doku am 10. November 2026
 gelesen.
 **Bezug:** [Roadmap S17](../roadmap.md) („E-Mail-Versand über Google oder Microsoft“, ohne Issue),
-[E-Mail einrichten](../einrichtung.md#e-mail).
+[E-Mail einrichten](../einrichtung-email.md).
 
 ## Ausgangslage
 

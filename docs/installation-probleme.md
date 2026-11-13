@@ -28,7 +28,7 @@ description: >-
 
 **Auf arm64: „ERiC-Prozess abgestürzt“ mit `ERIC_WORKER_COMMAND`.** Steht „x86_64-Laufzeit für ERiC ist Version …“ dabei, `einrichten.sh` mit der Version der App wiederholen. „QEMU internal SIGSEGV“ heißt: QEMU ist älter als Version 9. „MemoryExhaustion“ kommt, wenn der Worker ohne `worker.sh` direkt mit QEMU gestartet wird. Exit-Code 127: Der Pfad in `ERIC_WORKER_COMMAND` stimmt nicht oder das Verzeichnis ist nicht gemountet. Siehe [ELSTER auf arm64](installation-anbindungen.md#elster-auf-arm64).
 
-**Echtübermittlung ist ausgegraut.** Es fehlt `ELSTER_HERSTELLER_ID`. Siehe [Erste Schritte](einrichtung.md#elster-einrichten).
+**Echtübermittlung ist ausgegraut.** Es fehlt `ELSTER_HERSTELLER_ID`. Siehe [Erste Schritte](einrichtung-elster.md).
 
 **Belege werden nicht automatisch ausgelesen.** Ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` liest Haben nur E-Rechnungen. Ist eins davon gesetzt, steht der Grund eines Fehlers am Beleg. Welcher Anbieter gilt, zeigt **Einstellungen › KI-Assistenten und API**.
 
