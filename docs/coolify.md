@@ -23,7 +23,8 @@ erzeugt Coolify beim Anlegen, Domain und HTTPS übernimmt sein Proxy. Den mitgel
    dein Konto an; weiter geht es in [Erste Schritte](einrichtung.md).
 
 Die übrigen Einstellungen aus [Umgebungsvariablen](installation.md#umgebungsvariablen), etwa `ERIC_AUTO_INSTALL=ja` oder
-die KI-Auslesung, trägst du unter **Environment Variables** ein.
+die KI-Auslesung, trägst du unter **Environment Variables** ein. ELSTER geht nur auf einem Server mit Intel- oder
+AMD-Prozessor, siehe [ERiC einbinden](installation.md#eric-einbinden).
 
 ## Schlüssel sichern
 
@@ -58,7 +59,7 @@ Ein Backup von Hand, etwa vor einem Update: im **Terminal** von Coolify den Cont
 ausführen.
 
 Zum Wiederherstellen per SSH auf dem Server in den Ordner des Dienstes wechseln; die ID steht in der Adresse des Dienstes
-in Coolify:
+in Coolify hinter `/service/`:
 
 ```sh
 cd /data/coolify/services/<id>
