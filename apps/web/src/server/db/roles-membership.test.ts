@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Wirksame Rollenmitgliedschaften (Postgres, #6
     const [context] = await admin`select current_database() as database`;
     database = context!.database;
     await admin`create role ${admin(appRole)} login password 'mitgliedschaft-test-619'`;
-    await grantApplicationAccess(admin, { role: appRole, loginRole: appRole, database });
+    await grantApplicationAccess(admin, { role: appRole, loginRole: appRole, database, replicationMode: "origin" });
     const url = new URL(testDatabaseUrl!);
     url.username = appRole;
     url.password = "mitgliedschaft-test-619";
@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("Wirksame Rollenmitgliedschaften (Postgres, #6
       await expect(app`set role ${app(target)}`).rejects.toMatchObject({ code: "42501" });
       await expect(app`grant ${app(target)} to ${app(delegate)}`).rejects.toMatchObject({ code: "42501" });
       await expectRestricted(true);
-      await grantApplicationAccess(admin, { role: appRole, loginRole: appRole, database });
+      await grantApplicationAccess(admin, { role: appRole, loginRole: appRole, database, replicationMode: "origin" });
     });
   });
 
