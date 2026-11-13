@@ -1045,6 +1045,20 @@
     },
     {
       "table": "public.invoices",
+      "name": "invoices_advance_rechtsform",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_advance_rechtsform BEFORE UPDATE OF locked_at ON public.invoices FOR EACH ROW WHEN (((old.locked_at IS NULL) AND (new.locked_at IS NOT NULL) AND (new.status = 'final'::public.invoice_status) AND (new.kind = 'rechnung'::public.invoice_kind) AND (new.variant = 'abschlag'::text) AND (new.advance_type = 'anzahlung'::text) AND (new.advance_accounting = 'deferred'::text))) EXECUTE FUNCTION public.haben_check_advance_rechtsform()",
+      "function": "public.haben_check_advance_rechtsform()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_advance_rechtsform_insert",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_advance_rechtsform_insert BEFORE INSERT ON public.invoices FOR EACH ROW WHEN (((new.locked_at IS NOT NULL) AND (new.status = 'final'::public.invoice_status) AND (new.kind = 'rechnung'::public.invoice_kind) AND (new.variant = 'abschlag'::text) AND (new.advance_type = 'anzahlung'::text) AND (new.advance_accounting = 'deferred'::text))) EXECUTE FUNCTION public.haben_check_advance_rechtsform()",
+      "function": "public.haben_check_advance_rechtsform()"
+    },
+    {
+      "table": "public.invoices",
       "name": "invoices_audit",
       "enabled": "O",
       "definition": "CREATE TRIGGER invoices_audit AFTER INSERT OR DELETE OR UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
@@ -2598,6 +2612,14 @@
       "definitionHash": "83ad96d541f4c323f1138692083876e0aa748638fd4619b212e17c19cf821aad"
     },
     {
+      "name": "public.haben_check_advance_rechtsform()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "cff0b008af389a3a81bd118099f89f99590e9ca2896adfcfcfea767f5d499f8e",
+      "definitionHash": "3622b9e96ffb1e26928d8c7dab5cbe6ee9ca32b0639142e70212d849401821d1"
+    },
+    {
       "name": "public.haben_check_allocation()",
       "config": [],
       "language": "plpgsql",
@@ -2650,8 +2672,8 @@
       "config": [],
       "language": "plpgsql",
       "securityDefiner": false,
-      "sourceHash": "c5438cf30a0729116b796abd79747c60d02ef1f22ebf97635db699a9a3aa1831",
-      "definitionHash": "0579cf6f80fc778960f42fb1357f4bf03994966e8dc434f83562beedcb95fc88"
+      "sourceHash": "38b35992c01a10967ec6fc6c6531ca74900dee66d6e6877dbd0d4bac2050c5a1",
+      "definitionHash": "32eba468900e72355c6af191085b223b82d295d10b17427f81193f3bca58dbcb"
     },
     {
       "name": "public.haben_check_company_settings()",
