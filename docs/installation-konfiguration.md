@@ -69,7 +69,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `LAYOUTS_MAX_MB` | nein | Speicher für eigene Belegvorlagen in MB, Quelltexte und freigegebene Pakete zusammen. Ohne Angabe unbegrenzt; eine einzelne Vorlage hat höchstens 256 KB | `50` |
 | `LAYOUTS_PACKAGES_URL` | nein | Andere Quelle für die Typst-Pakete eigener Belegvorlagen, etwa ein Spiegel ohne Zugang ins Internet; darunter je Paket `<name>-<version>.tar.gz`. Standard `https://packages.typst.org/preview` | `https://spiegel.example/typst/preview` |
 | `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (u. a. wiederkehrende Rechnungen, Dauerbelege, Kontoabruf, ELSTER-Postfach, Umrechnungskurse, Belege per E-Mail, Fristen-Erinnerungen), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
-| `HABEN_FIRMEN` | nein | Instanzen der eigenen Firmen zum Wechseln in der Navigation: Name und Adresse je Firma, Format unter [Firma wechseln](installation.md#firma-wechseln) | siehe dort |
+| `HABEN_FIRMEN` | nein | Instanzen der eigenen Firmen für die Zeile „Firma wechseln“ in der Navigation: Name und Adresse je Firma, Format unter [Firma wechseln](installation.md#firma-wechseln) | siehe dort |
 | `ENABLE_BANKING_APP_ID` | nein | Application ID der Enable-Banking-Anwendung. Schaltet zusammen mit dem Schlüssel den automatischen Kontoabruf ein. Einfacher: unter Einstellungen › Bank hochladen; das geht dann vor | `0b7c3f1e-…` |
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
 | `ENABLE_BANKING_KEY` | nein | Alternativ der Schlüssel selbst; Zeilenumbrüche als `\n` erlaubt | `-----BEGIN PRIVATE KEY-----\n…` |
