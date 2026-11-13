@@ -175,6 +175,7 @@ export async function neu(k: Kontext, a: NeuAngaben): Promise<void> {
   if (!a.starten) {
     k.aus(`Nicht gestartet (--nicht-starten). Der erste Start, ${zumErstenStart(a, dir)}`);
     for (const zeile of ersterStart(k, a, dir)) k.aus(zeile);
+    if (!a.sso) k.aus("Den Einrichtungscode zeigt danach: docker compose logs app");
     return;
   }
   await starten(k, a, dir);

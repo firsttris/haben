@@ -75,6 +75,15 @@ function netzeDatei(netze: string[]): string {
 }
 
 /**
+ * Der Wert einer Zeile `name: …`, wie Compose ihn liest: ohne Anführungszeichen und ohne Kommentar am Zeilenende.
+ * Wer eine Instanz von Hand umstellt, schreibt die Zeile nicht immer wie das Werkzeug; fehlte ihr Netz deshalb beim
+ * Caddy, wäre sie ohne Meldung nicht mehr erreichbar.
+ */
+function netzname(zeile: string): string | undefined {
+  return /^\s*name:\s*(["']?)([^"'#\s]+)\1\s*(#.*)?$/.exec(zeile)?.[2];
+}
+
+/**
  * Instanzen hinter dem gemeinsamen Caddy (Datei in sites/), deren Override-Datei das eigene Netz nennt. Eine Instanz
  * von vor #872 hängt im gemeinsamen Netz haben-proxy aus compose.yml und fehlt hier, bis sie umgestellt ist.
  */
@@ -84,7 +93,7 @@ async function netzeDerInstanzen(k: Kontext): Promise<string[]> {
   for (const name of namen.sort()) {
     const override = join(k.basis, name, "compose.override.yml");
     const zeilen = existsSync(override) ? (await readFile(override, "utf8")).split("\n") : [];
-    if (zeilen.some((z) => z.trim() === `name: ${netzFuer(name)}`)) netze.push(netzFuer(name));
+    if (zeilen.some((z) => netzname(z) === netzFuer(name))) netze.push(netzFuer(name));
   }
   return netze;
 }
