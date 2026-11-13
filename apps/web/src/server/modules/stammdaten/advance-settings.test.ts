@@ -1,7 +1,20 @@
 import { eq } from "drizzle-orm";
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+
+const rendering = vi.hoisted(() => ({ hook: null as null | (() => Promise<void>) }));
+
+vi.mock("@haben/einvoice", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@haben/einvoice")>();
+  return {
+    ...original,
+    buildEInvoice: async (...args: Parameters<typeof original.buildEInvoice>) => {
+      await rendering.hook?.();
+      return original.buildEInvoice(...args);
+    },
+  };
+});
 
 /**
  * #750: Eine unbezahlte Anforderung hat noch keine Journalbuchung, ihr festgeschriebenes Bilanzverfahren gehört aber
@@ -33,6 +46,7 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
     await sql?.end();
   });
   beforeEach(async () => {
+    rendering.hook = null;
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung, rechtsform, journal_ab)
       values (1, 'Muster GmbH', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
@@ -135,5 +149,32 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
     expect((await company.loadCompany()).rechtsform).toBe("einzelunternehmen");
     expect(await sql`select advance_accounting from invoices where id = ${old.id}`).toEqual([{ advance_accounting: null }]);
     expect(await sql`select id from journal_entries`).toEqual([]);
+  });
+
+  it("ein während des Renderns bereits abgeschlossener Rechtsformwechsel verhindert den veralteten GmbH-Marker", async () => {
+    const created = await draft();
+    const current = company.companySchema.parse(await company.loadCompany());
+    let switched = false;
+    rendering.hook = async () => {
+      rendering.hook = null;
+      // Wie festschreiben.test.ts: vor dem ersten Audit-Schreiben ist die Kette frei. Kein Timing mit Sleeps:
+      // Die zweite echte Transaktion muss committed sein, bevor die erste ihre Festschreibung fortsetzt.
+      expect(await sql`select status, advance_accounting from invoices where id = ${created.id}`).toEqual([{ status: "draft", advance_accounting: null }]);
+      expect(await sql`select id from journal_entries`).toEqual([]);
+      await guard.saveCompany(actor, { ...current, rechtsform: "einzelunternehmen" }, today);
+      switched = true;
+    };
+    const failure = await invoices.finalizeInvoice(actor, created.id).then(
+      () => null,
+      (error: Error & { cause?: Error }) => `${error.message} ${error.cause?.message ?? ""}`,
+    );
+    expect(switched).toBe(true);
+    expect(failure).toMatch(/Rechtsform.*(geändert|GmbH|UG)/);
+    expect((await company.loadCompany()).rechtsform).toBe("einzelunternehmen");
+    expect(await sql`select status, advance_accounting, number, locked_at from invoices where id = ${created.id}`).toEqual([
+      { status: "draft", advance_accounting: null, number: null, locked_at: null },
+    ]);
+    expect(await sql`select id from journal_entries`).toEqual([]);
+    expect(await sql`select row_id from seals where table_name = 'invoices' and row_id = ${created.id}`).toEqual([]);
   });
 });
