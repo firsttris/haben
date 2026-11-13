@@ -211,6 +211,14 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
     });
   });
 
+  it("der Entwurf übernimmt Format, Sprache und Skonto des Kunden wie der Rechnungseditor", async () => {
+    await sql`update contacts set leitweg_id = '04011000-12345-67', language = 'en', skonto = '[{"days":7,"percent":200}]'::jsonb where id = ${kunde}`;
+    await eintrag();
+    const { invoiceId } = await abrechnen_();
+    const [invoice] = await sql`select format, language, skonto from invoices where id = ${invoiceId}`;
+    expect(invoice).toMatchObject({ format: "xrechnung-cii", language: "en", skonto: [{ days: 7, percent: 200 }] });
+  });
+
   it("Filter nach Stand: offen, abgerechnet, nicht abrechenbar", async () => {
     const offen = await eintrag({ workedOn: "2026-02-10" });
     const nicht = await eintrag({ workedOn: "2026-02-11", nonBillable: true });
