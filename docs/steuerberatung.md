@@ -26,7 +26,7 @@ Die Steuerberatung sieht:
 
 Nicht für die Steuerberatung sind: buchen, festschreiben, stornieren, ändern, löschen, hochladen, senden an ELSTER oder per E-Mail, die Einstellungen (Firmendaten, Nummernkreise, E-Mail, Eigene Seiten), ELSTER-Zertifikat und PIN, Bankzugang und SEPA-Überweisungen, API-Tokens für [KI-Assistenten](ki-assistenten.md) und die [REST-API](api.md), die Verwaltung der Zugänge. Ebenfalls beim Inhaber bleiben in dieser ersten Stufe Angebote, Bank, Kasse, Anlagen, Lohn, Umsatzsteuer, Jahreserklärungen, Finanzamt, Jahresabschluss und das Archiv aus dem Umzug; was davon für die Steuerberatung zählt, steht im Jahresarchiv.
 
-Was die Steuerberatung nicht darf, blendet Haben aus. Das allein schützt aber nichts: Der Server prüft bei jeder Anfrage die Rolle (siehe [Architektur](architektur.md#anmeldung)) und lehnt alles Schreibende der Steuerberatung ab, auch wenn jemand die Anfrage von Hand stellt.
+Was die Steuerberatung nicht darf, blendet Haben aus. Das allein schützt aber nichts: Der Server prüft bei jeder Anfrage die Rolle (siehe [Anmeldung](architektur-anmeldung.md#anmeldung)) und lehnt alles Schreibende der Steuerberatung ab, auch wenn jemand die Anfrage von Hand stellt.
 
 ## Einladen
 
@@ -77,10 +77,10 @@ Läuft Haben mit `OIDC_ONLY=true`, entscheiden die Gruppen im Anmeldedienst (etw
 - **Einstellungen › Zugänge** zeigt statt „Sicherheit“ die schon angemeldeten Konten mit ihrer zuletzt bestätigten Rolle. Einladen, Sperren und Entfernen gibt es dort nicht; das geschieht über die Gruppen.
 - Wer aus der Gruppe genommen wird, verliert den Zugang bei der nächsten Anmeldung sofort, sonst spätestens nach 15 Minuten. Eine Abmeldung in Authelia beendet die Haben-Sitzung nicht sofort.
 - Die Steuerberatung kann eine neue Instanz nicht erstmals einrichten; das macht ein Inhaber.
-- Wird ein Inhaber zur Steuerberatung herabgestuft, deaktiviert Haben die Tokens, für die er verantwortlich ist; die Steuerberatung kann sie nicht reaktivieren, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).
+- Wird ein Inhaber zur Steuerberatung herabgestuft, deaktiviert Haben die Tokens, für die er verantwortlich ist; die Steuerberatung kann sie nicht reaktivieren, siehe [Tokens nach Gruppenentzug](installation-sso.md#tokens-nach-gruppenentzug).
 - Anmeldungen ohne Pause von mehr als sechs Stunden zählen als ein Besuch. „Seit deinem letzten Besuch“ reicht deshalb bis zur letzten Anmeldung vor dieser Pause, auch wenn die 15-Minuten-Frist zwischendurch neue Anmeldungen verlangt.
 - Alte Einladungslinks zeigen „Einladungen nicht verfügbar“.
 
-Einrichtung, Authelia-Beispiel und Umstellung bestehender Konten: [Single Sign-on mit OpenID Connect](installation.md#single-sign-on-mit-openid-connect).
+Einrichtung, Authelia-Beispiel und Umstellung bestehender Konten: [Single Sign-on mit OpenID Connect](installation-sso.md).
 
 [Zurück zur Übersicht](ueberblick.md)

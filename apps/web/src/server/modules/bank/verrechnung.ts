@@ -95,7 +95,7 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
       if (d.status !== "gebucht") throw new SettlementError(`Beleg ${d.date ?? ""} ist nicht gebucht.`);
       if (d.payment !== "bank") throw new SettlementError(`Beleg ${d.date ?? ""} läuft nicht über die Bank und hat keinen offenen Posten.`);
     }
-    // Eine Gutschrift gleicht nur Belege desselben Lieferanten aus (docs/belege.md); die Kandidatenliste filtert danach,
+    // Eine Gutschrift gleicht nur Belege desselben Lieferanten aus (docs/belege-bezahlen.md); die Kandidatenliste filtert danach,
     // der Server muss es selbst prüfen.
     const nameA = lieferant(a.supplier);
     const nameB = lieferant(b.supplier);
@@ -268,7 +268,7 @@ export async function settlementCandidates(documentId: string, q: Db | Tx = db) 
   // jeden Beleg ohne Lieferanten (siehe `lieferant`).
   const name = lieferant(doc.supplier);
   if (!name) return [];
-  // Ein stornierter Beleg lässt sich nicht verrechnen; die Liste bietet ihn deshalb auch nicht an (docs/belege.md)
+  // Ein stornierter Beleg lässt sich nicht verrechnen; die Liste bietet ihn deshalb auch nicht an (docs/belege-bezahlen.md)
   const storniert = await q.execute<{ id: string }>(sql`select id from document_cancellations where document_id = ${documentId} limit 1`);
   if (storniert.length > 0) return [];
   const rows = await q.execute<{

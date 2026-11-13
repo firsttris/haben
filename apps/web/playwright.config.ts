@@ -1,10 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, LAYOUT_PAKETE_PORT, portFuer } from "./e2e/durchlaeufe.ts";
+import { appDatabaseUrlFuer, DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, LAYOUT_PAKETE_PORT, portFuer } from "./e2e/durchlaeufe.ts";
 
 /**
  * Ende-zu-Ende-Tests gegen einen echten Server mit eigener, leerer Datenbank.
  * E2E_DATABASE_URL muss auf eine Datenbank zeigen, deren Name auf „e2e“ endet; sie wird geleert.
+ * E2E_APP_DATABASE_URL trennt optional die echte App-Anmeldung von den Betreiberzugriffen auf dieselbe Datenbank.
  * Lokal startet Playwright den Entwicklungsserver, in der CI den gebauten Server (E2E_SERVER_COMMAND).
  * Lokal ohne heruntergeladene Browser: PLAYWRIGHT_CHROMIUM_EXECUTABLE auf ein vorhandenes Chromium setzen.
  */
@@ -19,14 +20,15 @@ function webServer(durchlauf?: Durchlauf) {
   const suffix = durchlauf ? `-${durchlauf}` : "";
   const serverURL = `http://localhost:${serverPort}`;
   return {
-    command: `bun e2e/reset-db.ts && bun run db:migrate && ${process.env.E2E_SERVER_COMMAND ?? `bun --bun vite dev --port ${serverPort}`}`,
+    command: "bun e2e/reset-db.ts && bun run db:migrate && bun e2e/start-server.ts",
     url: `${serverURL}/login`,
     timeout: 180_000,
     reuseExistingServer: false,
     stdout: "pipe" as const,
     env: {
       ...(process.env as Record<string, string>),
-      DATABASE_URL: databaseUrlFuer(durchlauf),
+      DATABASE_URL: appDatabaseUrlFuer(durchlauf),
+      MIGRATION_DATABASE_URL: process.env.E2E_APP_DATABASE_URL ? databaseUrlFuer(durchlauf) : "",
       PORT: String(serverPort),
       BETTER_AUTH_URL: serverURL,
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-geheimnis-mindestens-zweiunddreissig-zeichen",
@@ -125,7 +127,9 @@ export default defineConfig({
         "langsame-anfrage.spec.ts",
         "beenden.spec.ts",
         "doku-startseite.spec.ts",
+        "datenbankrolle.spec.ts",
         "knoepfe.spec.ts",
+        "navigation-kontrast.spec.ts",
       ],
       use: chromium,
     },

@@ -10,7 +10,7 @@ description: >-
 Haben läuft auf einer Synology im Container Manager als Projekt aus einer einzigen Datei,
 [`deploy/synology/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/synology/compose.yml). Du änderst darin
 eine Zeile, die Adresse. Die Schlüssel erzeugt das Projekt beim ersten Start selbst, HTTPS übernimmt der Reverse Proxy von
-DSM. Eine Kommandozeile brauchst du dafür nicht, nur zum Wiederherstellen eines Backups.
+DSM. Für die Grundeinrichtung brauchst du keine Kommandozeile.
 
 Gestartet werden dieselben Images wie mit [Docker Compose](installation.md#docker-compose): App, Datenbank und das
 tägliche Backup, dazu der kurze Dienst `schluessel`, der die Schlüssel anlegt.
@@ -20,10 +20,10 @@ tägliche Backup, dazu der kurze Dienst `schluessel`, der die Schlüssel anlegt.
 - DSM 7.2 oder neuer mit dem Paket **Container Manager** (Paket-Zentrum). Es gibt ihn für Modelle mit Intel- oder
   AMD-Prozessor und für einige mit ARMv8, etwa DS223 und DS124.
 - Für die Übermittlung an ELSTER ein Modell mit Intel- oder AMD-Prozessor. Auf ARM läuft alles andere, ELSTER nur
-  emuliert und mit Shell, siehe [ELSTER auf arm64](installation.md#elster-auf-arm64).
+  emuliert und mit Shell, siehe [ELSTER auf arm64](installation-anbindungen.md#elster-auf-arm64).
 - Eine Adresse mit HTTPS, sonst funktionieren Passkeys und die Installation als App nicht. Am einfachsten ist ein Name bei
-  Synology DDNS (`deinname.synology.me`) mit dem Zertifikat von Let's Encrypt, das DSM selbst holt und erneuert.
-  Erreichbar aus dem Internet ist Haben dann nur, wenn dein Router Port 443 an die Synology weiterleitet.
+  Synology DDNS (`deinname.synology.me`) mit dem Zertifikat von Let's Encrypt, das DSM selbst holt und erneuert, auch
+  [nur fürs Heimnetz](#nur-im-heimnetz-ohne-internet).
 
 ## Adresse und Zertifikat
 
@@ -48,6 +48,11 @@ Haben bekommt so eine eigene Subdomain, etwa `https://haben.deinname.synology.me
 4. Die Webportal-Einstellungen überspringen, „Projekt nach der Erstellung starten“ anhaken und fertigstellen. Der erste
    Start lädt die Images, das dauert ein paar Minuten.
 
+Optional kannst du mit der Kommandozeile [getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) einrichten.
+Lege die App-Rolle vorher selbst an und trage unter `app.environment` `DATABASE_URL` für den App-Zugang und
+`MIGRATION_DATABASE_URL` für den Eigentümerzugang zur selben Datenbank ein. Der bisherige Eigentümerzugang verwendet das
+erzeugte `db-passwort` aus dem Volume `schluessel`. Bleiben beide Werte leer, startet Haben unverändert mit diesem Zugang.
+
 ## Schlüssel sichern
 
 **Container Manager › Container › `haben-schluessel` › Details › Protokoll** zeigt `ENCRYPTION_KEY` und
@@ -64,7 +69,7 @@ Haben bekommt so eine eigene Subdomain, etwa `https://haben.deinname.synology.me
 | Feld | Quelle | Ziel |
 | --- | --- | --- |
 | Protokoll | HTTPS | HTTP |
-| Hostname | `haben.deinname.synology.me` | `localhost` |
+| Hostname | `haben.deinname.synology.me` | `127.0.0.1` |
 | Port | 443 | 3000 |
 
 Dazu HSTS aktivieren. In den erweiterten Einstellungen den Proxy-Lese-Timeout auf 300 Sekunden setzen: Eine Übermittlung an
@@ -73,8 +78,39 @@ ELSTER wartet in der Anfrage auf ERiC, mit dem Standard bräche sie nach 60 Seku
 Danach unter **Systemsteuerung › Sicherheit › Zertifikat › Einstellungen** für `haben.deinname.synology.me` das
 Zertifikat aus dem ersten Abschnitt wählen.
 
-Die App ist nur auf der Synology selbst unter `localhost:3000` erreichbar, nicht im Netz. Ist Port 3000 schon belegt, änderst
-du im Projekt die linke Zahl in `127.0.0.1:3000:3000` und nimmst sie auch im Reverse Proxy.
+Die App ist nur auf der Synology selbst unter `127.0.0.1:3000` erreichbar, nicht im Netz; `localhost:3000` oder die IP
+der Synology im Browser deines Rechners führen deshalb nicht zu Haben. Als Ziel `127.0.0.1` statt `localhost`: Der Port
+ist nur auf dieser IPv4-Adresse veröffentlicht, `localhost` kann auf `::1` (IPv6) zeigen. Ist Port 3000 schon belegt,
+änderst du im Projekt die linke Zahl in `127.0.0.1:3000:3000` und nimmst sie auch im Reverse Proxy.
+
+## Nur im Heimnetz oder auch aus dem Internet
+
+Über Synology DDNS zeigt `haben.deinname.synology.me` auf die öffentliche Adresse deines Anschlusses, also von außen auf
+deinen Router. Ob Haben nur zu Hause oder auch unterwegs erreichbar ist, entscheidest du mit einem der beiden Wege. Ohne
+einen davon endet der Aufruf mit einer Zeitüberschreitung (`ERR_CONNECTION_TIMED_OUT`).
+
+### Nur im Heimnetz, ohne Internet
+
+Im Router gibst du nichts frei. Stattdessen zeigt derselbe Name im Heimnetz auf die Synology:
+
+- **Ein Rechner:** in der hosts-Datei eine Zeile mit der IP der Synology im Heimnetz und dem Namen, etwa
+  `192.168.178.20 haben.deinname.synology.me`. Unter Windows ist das `C:\Windows\System32\drivers\etc\hosts`, mit dem
+  Editor als Administrator geöffnet, unter macOS und Linux `/etc/hosts`.
+- **Alle Geräte, auch Handys:** ein DNS-Eintrag im Heimnetz, etwa mit dem Paket **DNS Server** der Synology, mit Pi-hole
+  oder AdGuard Home, den der Router als DNS-Server verteilt. Fragt stattdessen eine Fritzbox diesen DNS-Server für ihre
+  Geräte, lässt sie die Antwort mit einer Adresse aus dem Heimnetz nur durch, wenn der Name beim DNS-Rebind-Schutz als
+  Ausnahme eingetragen ist.
+
+Das Zertifikat bleibt gültig, weil der Name derselbe ist. Die IP der Synology oder ein selbst signiertes Zertifikat
+reichen nicht: Der Browser warnt, und Passkeys gehen nur unter dem Namen aus `BETTER_AUTH_URL`, siehe
+[Passkeys und Domain](installation.md#passkeys-und-domain).
+
+### Auch aus dem Internet
+
+Der Router leitet Port 443 an die Synology weiter (Fritzbox: **Internet › Freigaben**). Die Anmeldeseite ist dann aus dem
+Internet erreichbar. Ein Gerät im Heimnetz erreicht Haben über die öffentliche Adresse nur, wenn der Router solche
+Anfragen ins Heimnetz zurückleitet; nicht jeder kann das, dann hilft der Eintrag aus dem Weg oben zusätzlich. Ohne eigene
+öffentliche IPv4-Adresse (DS-Lite, bei manchen Kabelanschlüssen) geht die Freigabe über IPv4 nicht.
 
 ## Konto anlegen
 
@@ -83,7 +119,7 @@ Einrichtungscode. Ruf deine Adresse auf, gib den Code ein und leg dein Konto an;
 [Erste Schritte](einrichtung.md).
 
 ERiC für ELSTER lädst du unter **Einstellungen › ELSTER › ERiC** per Knopf herunter, siehe
-[ERiC einbinden](installation.md#eric-einbinden).
+[ERiC einbinden](installation-anbindungen.md#eric-einbinden).
 
 ## Backup
 
@@ -91,7 +127,7 @@ Der Container `haben-backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr
 auf dieselbe Synology. Ob es lief, zeigt Haben unter **Einstellungen › Export**; die Übersicht warnt, wenn ein Lauf fehlschlug. Gegen einen Defekt der Synology hilft nur
 ein zweiter Ort: Trag im Projekt (**Projekt › haben › YAML-Konfiguration**) bei `RESTIC_REPOSITORY` ein zweites System
 ein, etwa einen S3-Speicher (dazu `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY`) oder einen restic REST-Server, siehe
-[Repository auf einem zweiten System](installation.md#repository-auf-einem-zweiten-system). SFTP braucht einen
+[Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system). SFTP braucht einen
 eingehängten SSH-Schlüssel und damit die Kommandozeile.
 
 Ein Backup von Hand, etwa vor einem Update: **Container › `haben-backup` › Details › Terminal**, dort `backup.sh`
@@ -106,10 +142,10 @@ sudo docker compose run --rm restore latest
 sudo docker compose start app
 ```
 
-Was dabei passiert und wie du einen älteren Stand wählst, steht unter [Wiederherstellen](installation.md#wiederherstellen).
+Was dabei passiert und wie du einen älteren Stand wählst, steht unter [Wiederherstellen](installation-backup.md#wiederherstellen).
 
 ## Updates
 
 Erst ein Backup von Hand wie oben, dann im **Container Manager › Projekt › haben** das Projekt stoppen, unter **Image** die
 Images `tristanteu/haben`, `tristanteu/haben-db` und `tristanteu/haben-backup` aktualisieren und das Projekt wieder
-starten. Migrationen laufen beim Start der App, siehe [Updates](installation.md#updates).
+starten. Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).

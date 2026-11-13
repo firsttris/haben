@@ -5,7 +5,7 @@ description: "Eine neue Version von Haben veröffentlichen: Art des Releases vor
 
 # Release
 
-Wie Haben veröffentlicht wird, steht in [`docs/entwicklung.md`](../../../docs/entwicklung.md) unter „Veröffentlichen“ und „Release Candidates“; was mit den Issues passiert, unter „Branches, Titel und Commits“ (Vom Issue zum Release). Image, Tags, GitHub-Release und das Schließen der Issues macht `.github/workflows/release.yml`, sobald der Tag da ist. Dieser Skill entscheidet, prüft und kontrolliert.
+Wie Haben veröffentlicht wird, steht in [`docs/entwicklung.md`](../../../docs/entwicklung.md) unter „Veröffentlichen“ und „Release Candidates“; was mit den Issues passiert, in [`docs/mitwirken.md`](../../../docs/mitwirken.md) unter „Branches, Titel und Commits“ (Vom Issue zum Release). Image, Tags, GitHub-Release und das Schließen der Issues macht `.github/workflows/release.yml`, sobald der Tag da ist. Dieser Skill entscheidet, prüft und kontrolliert.
 
 **Ausgelöst wird nur nach ausdrücklichem OK des Maintainers.** Ein Release geht an alle Nutzer, und ob ein RC stabil ist, entscheidet er nach seinem Test.
 

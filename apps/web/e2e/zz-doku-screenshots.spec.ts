@@ -9,7 +9,8 @@ import { dkb, kundeWaehlen, type Rechnung, rechnungFestschreiben } from "./einri
  * davor angelegt hat: Kunden, festgeschriebene Rechnungen, ein gebuchter Beleg, der Kontoauszug mit
  * dem noch offenen Zahlungseingang von Rheinpixel. Läuft nur mit DOKU_SCREENSHOTS=1
  * (bun run docs:screenshots, Workflow „Update screenshots“), im Projekt „mit-daten“ nach app.spec.ts
- * (playwright.config.ts). Weil app.spec.ts nur anlegt, was die Tests brauchen, ergänzt der erste Test
+ * (playwright.config.ts). docs:screenshots startet nur diese Datei und damit app.spec.ts, nicht die ganze Suite:
+ * Alle Durchläufe gleichzeitig in einem Job brauchen mehr Verbindungen, als Postgres zulässt (100). Weil app.spec.ts nur anlegt, was die Tests brauchen, ergänzt der erste Test
  * Rechnungen über mehrere Monate mit Zahlungseingängen und Pauschalen, damit Übersicht, Umsatzsteuer und Auswertungen nach
  * Betrieb aussehen; die CI braucht diese Daten nicht und überspringt die Datei.
  */
@@ -47,11 +48,11 @@ async function go(path: string) {
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
 }
 
-/** Setzt das Theme ohne Neuladen, damit Eingaben und Auswahl der Seite stehen bleiben */
-async function theme(id: "wald" | "nacht") {
-  await page.evaluate((t) => {
-    document.documentElement.dataset.theme = t;
-  }, id);
+/** Setzt den Modus ohne Neuladen, damit Eingaben und Auswahl der Seite stehen bleiben; die Farbe bleibt Wald */
+async function theme(mode: "light" | "dark") {
+  await page.evaluate((m) => {
+    document.documentElement.dataset.mode = m;
+  }, mode);
   // Ein Bild erst, wenn der Browser mit den neuen Farben gezeichnet hat
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
@@ -70,19 +71,19 @@ async function einrichtungshinweiseAusblenden() {
   }, EINRICHTUNGSHINWEISE);
 }
 
-/** Jedes Bild hell (Wald) und dunkel (Nacht); README und Doku zeigen das passende zur Systemeinstellung */
+/** Jedes Bild in Wald hell und dunkel; README und Doku zeigen das passende zur Systemeinstellung */
 async function shot(name: string, fullPage = false) {
   await einrichtungshinweiseAusblenden();
   for (const [id, suffix] of [
-    ["wald", ""],
-    ["nacht", "-dunkel"],
+    ["light", ""],
+    ["dark", "-dunkel"],
   ] as const) {
     await theme(id);
     // Kein blinkender Cursor, keine halb abgelaufene Animation im Bild
     const options = { path: `${DOCS}/screenshot-${name}${suffix}.png`, animations: "disabled", caret: "hide" } as const;
     await (fullPage ? fullPageScreenshot(page, options) : page.screenshot(options));
   }
-  await theme("wald");
+  await theme("light");
 }
 
 /** Rechnungen in den Monaten davor, nur im Jahr der übrigen Daten; alle bis auf die letzte nach zwölf Tagen bezahlt */

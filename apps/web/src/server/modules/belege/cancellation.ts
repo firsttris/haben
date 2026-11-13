@@ -5,6 +5,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { documentBankAllocations, lockCash, reverseAllocationIn, reverseDocumentCashEntry } from "../bank/index.ts";
+import { loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { journalAbJahr } from "../stammdaten/index.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { belegZeilen } from "./belegbuchung.ts";
@@ -115,9 +116,10 @@ function heutigeBelegZeilen(
   amounts: { taxRate: number; net: number; tax: number }[],
   splits: Awaited<ReturnType<typeof loadSplits>>,
   books: Awaited<ReturnType<typeof openBooks>>,
+  eigene: ReadonlyMap<string, string>,
 ): PostingLine[] | null {
   try {
-    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAbzug);
+    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAbzug, eigene);
   } catch {
     return null;
   }
@@ -171,7 +173,9 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
     const gebucht: PostingLine[] = lines.map((l) => ({ ...l, taxCode: l.taxCode as TaxCode | null }));
     const vorStichjahr = Number(original.date.slice(0, 4)) < (await journalAbJahr(tx));
     const amounts = vorStichjahr ? await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)) : [];
-    const zeilen = vorStichjahr ? zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books) ?? []) : gebucht;
+    const zeilen = vorStichjahr
+      ? zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books, await loadOwnAccountNumbers(tx)) ?? [])
+      : gebucht;
     const date = await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
     const journalEntryId = await post(tx, books, {
       date,
@@ -238,6 +242,7 @@ export async function reenterDocument(actor: string, id: string): Promise<string
           documentDate: d.documentDate,
           dueDate: d.dueDate,
           category: d.category,
+          ownAccountId: d.ownAccountId,
           payment: d.payment,
           note: d.note,
           currency: d.currency,

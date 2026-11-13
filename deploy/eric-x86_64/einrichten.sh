@@ -1,7 +1,7 @@
 #!/bin/sh
 # ERiC auf einem Server ohne Linux x86_64 (arm64: Raspberry Pi, Jetson, Ampere): legt die x86_64-Laufzeit an, mit
 # der Haben den ERiC-Worker unter QEMU startet. Die App selbst läuft weiter nativ; emuliert wird nur der kurzlebige
-# Worker je ELSTER-Aufruf. Auf dem Host als root ausführen, danach in der App einbinden (docs/installation.md,
+# Worker je ELSTER-Aufruf. Auf dem Host als root ausführen, danach in der App einbinden (docs/installation-anbindungen.md,
 # „ELSTER auf arm64“):
 #
 #   sudo sh deploy/eric-x86_64/einrichten.sh 0.6.3            # dieselbe Version wie das App-Image
@@ -103,4 +103,4 @@ mv "$neu" "$ZIEL/root"
 rm -rf "$ZIEL/root.alt"
 
 echo "Fertig: $ZIEL (Haben $VERSION für x86_64, $("$QEMU" --version | head -n 1))."
-echo "In der App einbinden: Volume $ZIEL:$ZIEL:ro und ERIC_WORKER_COMMAND=$ZIEL/worker.sh, siehe docs/installation.md."
+echo "In der App einbinden: Volume $ZIEL:$ZIEL:ro und ERIC_WORKER_COMMAND=$ZIEL/worker.sh, siehe docs/installation-anbindungen.md."

@@ -60,3 +60,16 @@
   margin-top: 2.5em;
   color: var(--md-default-fg-color--light);
 }
+/* Agentic Engineering (agentic-engineering.md): Karten in den Farben des Ablaufdiagramms, Mensch gelb, Agent blau,
+   Automatik grün */
+.md-typeset .showcase-cards > .rolle {
+  border-top: 4px solid var(--rolle-farbe);
+  background: color-mix(in srgb, var(--rolle-farbe) 8%, transparent);
+}
+.rolle--mensch { --rolle-farbe: #d97706; }
+.rolle--agent { --rolle-farbe: #6366f1; }
+.rolle--auto { --rolle-farbe: #059669; }
+/* Drei Karten nebeneinander, auch neben dem Inhaltsverzeichnis; am Handy untereinander */
+.showcase-cards.showcase-cards--drei {
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}

@@ -29,44 +29,73 @@ nav:
   - Start: index.md
   - Übersicht: ueberblick.md
   - Betrieb:
-      - Betrieb und Installation: installation.md
+      - Installation: installation.md
       - Synology: synology.md
+      - TrueNAS SCALE: truenas.md
+      - Unraid: unraid.md
+      - Coolify: coolify.md
+      - Konfiguration: installation-konfiguration.md
+      - Anbindungen: installation-anbindungen.md
+      - Single Sign-on: installation-sso.md
+      - Backup und Updates: installation-backup.md
+      - Häufige Probleme: installation-probleme.md
+  - Einrichten:
       - Erste Schritte: einrichtung.md
-  - Im Alltag:
+      - ELSTER einrichten: einrichtung-elster.md
+      - E-Mail-Versand: einrichtung-email.md
+      - Zugang für die Steuerberatung: steuerberatung.md
+      - Barrierefreiheit und Tastatur: barrierefreiheit.md
+  - Verkauf:
       - Rechnungen und E-Rechnung: rechnungen.md
-      - Eigene Belegvorlagen: belegvorlagen.md
+      - Zahlung und Mahnung: rechnungen-zahlung.md
       - Angebote: angebote.md
-      - Belege: belege.md
-      - Pauschalen: pauschalen.md
+      - Kontakte: kontakte.md
       - Leistungen und Zeiteinträge: leistungen.md
+      - Eigene Belegvorlagen: belegvorlagen.md
+  - Ausgaben und Bank:
+      - Belege: belege.md
+      - Belege aus dem Ausland: belege-ausland.md
+      - Belege bezahlen: belege-bezahlen.md
+      - Pauschalen: pauschalen.md
       - Kassenbuch: kasse.md
       - Anlagen und AfA: anlagen.md
       - Bankimport und Abgleich: bank.md
+      - Zahlungsdienstleister: bank-zahlungsdienstleister.md
+      - Steuerzahlungen und Darlehen: bank-steuern-darlehen.md
+  - Steuern und Auswertungen:
       - Umsatzsteuer-Voranmeldung: umsatzsteuer.md
-      - Finanzamt: finanzamt.md
-      - Fristen: fristen.md
       - Jahreserklärungen: jahreserklaerung.md
-      - GmbH und UG: gmbh.md
+      - Auswertungen und Jahresexport: auswertungen.md
+      - Fristen: fristen.md
+      - Finanzamt: finanzamt.md
       - Lohn: lohn.md
       - Abgabe an ELSTER: elster-abgabe.md
       - Mein ELSTER mit Erweiterung: elster-mit-erweiterung.md
       - Mein ELSTER mit KI-Assistent: elster-mit-assistent.md
-      - Auswertungen und Jahresexport: auswertungen.md
+  - GmbH und UG:
+      - GmbH und UG: gmbh.md
+      - Abschluss für GmbH und UG: gmbh-abschluss.md
+  - Umzug und Import:
       - Umzug aus Lexoffice: lexoffice.md
       - Umzug aus sevDesk: sevdesk.md
       - Umzug aus BuchhaltungsButler: buchhaltungsbutler.md
       - Umzug aus Accountable: accountable.md
+      - Umzug aus WISO EÜR & Kasse: wiso.md
       - CSV-Import: csv-import.md
       - Belegimport: belegimport.md
+  - Schnittstellen:
       - KI-Assistenten (MCP): ki-assistenten.md
       - REST-API: api.md
       - Eigene Seiten: eigene-seiten.md
-      - Zugang für die Steuerberatung: steuerberatung.md
-      - Barrierefreiheit und Tastatur: barrierefreiheit.md
   - Hintergrund:
       - Buchhaltung in Haben: buchhaltung.md
+      - Buchungssätze: buchhaltung-buchungssaetze.md
       - Architektur: architektur.md
+      - Datenmodell: architektur-datenmodell.md
+      - Anmeldung und SSO-Modus: architektur-anmeldung.md
+      - Agentic Engineering: agentic-engineering.md
       - Entwicklung: entwicklung.md
+      - Mitwirken: mitwirken.md
       - Roadmap: roadmap.md
       - Lohn (Plan): lohn-plan.md
 

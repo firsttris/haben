@@ -35,7 +35,7 @@ export function StoreReportsCard({ connections, contacts }: { connections: Conne
       <p className="small muted" style={{ margin: 0 }}>
         Haben holt die monatlichen Finanzberichte der Stores selbst, legt sie unverändert ins Archiv und übernimmt je Monat den Auszahlungsanspruch in das
         Zahlungsdienstleister-Konto des Stores (unter Bank anlegen, Anbieter Google Play bzw. App Store).{" "}
-        <a href="https://github.com/firsttris/haben/blob/main/docs/bank.md#google-play-und-app-store" target="_blank" rel="noreferrer">
+        <a href="https://github.com/firsttris/haben/blob/main/docs/bank-zahlungsdienstleister.md#google-play-und-app-store" target="_blank" rel="noreferrer">
           Anleitung
         </a>
       </p>

@@ -10,21 +10,23 @@ Die Oberfläche ist schlichtes CSS mit Variablen, ohne Komponentenbibliothek. Ha
 
 Keine Verläufe, Leuchteffekte oder Endlos-Animationen; Farbe trägt Bedeutung (Akzent, Status, Diagrammreihen).
 
-Farben kommen aus den Variablen in `:root` von `styles.css`; die Themes überschreiben sie unter `[data-theme="…"]`:
+Farben kommen aus den Variablen in `:root` von `styles.css`; die Farben überschreiben sie unter `[data-theme="…"]`, der dunkle Modus unter `[data-mode="dark"]`:
 
 | Rolle | Variablen |
 | --- | --- |
 | Text | `--ink`, `--ink-2`, `--muted` |
 | Flächen | `--ground`, `--surface` |
 | Linien | `--line`, `--line-soft`, `--line-strong` |
-| Akzent | `--accent`, `--accent-hover`, `--accent-ink`, `--accent-soft`, `--accent-tint` |
+| Akzent | `--accent`, `--accent-hover`, `--accent-ink`, `--accent-soft`, `--accent-tint`, `--accent-fg` (Schrift auf Akzentfläche) |
 | Links | `--link`, `--link-hover` |
 | Navigation | `--brand`, `--nav`, `--nav-active`, `--nav-ink` |
 | Status | `--warn-ink`, `--warn-soft`, `--warn-dot`, `--info-ink`, `--info-soft`, `--danger-ink`, `--danger-soft` |
 
 Einzige Ausnahme ist das Zeichen der Firma links neben „Haben“ (`NavMarkSymbol`), eine eigene Einstellung der Instanz unter Einstellungen › Firma, getrennt von der Beleggestaltung. Ein „H“ in eigener Farbe bekommt Fläche und Schrift als Inline-Style, die Schrift wählt `inkOnAccent` (`packages/core/src/accent.ts`): Weiß oder Schwarz, je nachdem, was den höheren Kontrast hat, so hält jede Farbe mindestens 4,5 : 1. Ein Logo steht auf weißer Fläche (`.brand-logo`), weil Logos für Papier gemacht sind und ein dunkles auf der dunklen Navigation verschwände, verkleinert in dieselbe quadratische Kachel wie das „H“ (`object-fit: contain`). Ab Werk bleibt `--brand` des Themes.
 
-Die Themes stehen in `apps/web/src/lib/theme.ts`: Wald (Standard), Ozean, Pflaume, Graphit, Nacht und Tiefsee (beide dunkel), dazu „Automatisch“, das der Systemeinstellung folgt.
+Farbe und Modus wählt man getrennt (`apps/web/src/lib/theme.ts`): Wald (Standard), Ozean, Pflaume oder Graphit, jede hell, dunkel oder nach der Einstellung des Geräts („System“). Im hellen Modus hat jede Farbe ihre eigene dunkle Navigation.
+
+Der dunkle Modus ist für alle Farben gleich aufgebaut: neutrale Flächen ohne Farbstich (`--ground`, `--surface`, Linien und Text in Grau), Farbe nur im Akzent. Der Akzent ist dort heller als im hellen Modus und trägt dunkle Schrift (`--accent-fg`), damit er auf dem Grund leuchtet; Links nehmen das noch hellere `--accent-ink`. Die Navigation hat den Ton des Grunds und trennt sich mit einer Linie ab. Eine neue Farbe braucht deshalb im dunklen Modus nur ihre fünf Akzentwerte.
 
 ## Schrift und Abstände
 
@@ -150,7 +152,7 @@ Barrierefrei und per Tastatur bedienbar: echte Knöpfe und Links, ein Label für
 Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an die Regel.
 
 - **4px-Raster:** In `apps/web/src/**/*.css` haben manche `padding`, `margin` und `gap` px-Werte, die nicht durch 4 teilbar sind (meist 1 oder 2px, auch 6, 10 oder 14px).
-- **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Akzent- und Navigationsflächen (`.btn-primary`, `.brand`, `.nav-link:hover`).
+- **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Navigationsflächen (`.brand`, `.nav-link:hover`).
 - **Gefahrknöpfe ohne Rückfrage:** „Entfernen“ an Logo und Bildern (`components/ImageUpload.tsx`) und „Entwurf löschen“ an der Lohnabrechnung (`components/lohn/AbrechnungKarte.tsx`) löschen sofort.
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.
 - **Verläufe:** `styles.css` nutzt `linear-gradient` für den auslaufenden Rand des Blatts in der Vorschau (`.preview-pane-body`, `.preview-dialog-body`, `.sheet-frame::before` und `::after`) und `conic-gradient` für das Farbfeld „Eigene Farbe“ (`.color-swatch-custom`).

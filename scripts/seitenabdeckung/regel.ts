@@ -1,6 +1,6 @@
 /*
  * Jede Seite der App gehört in die Routenliste von e2e/seiten.spec.ts und in e2e/barrierefreiheit.spec.ts
- * (docs/entwicklung.md, Mitwirken). Diese Regel vergleicht die Seiten aus dem Routenbaum von TanStack Router
+ * (docs/mitwirken.md). Diese Regel vergleicht die Seiten aus dem Routenbaum von TanStack Router
  * mit den Pfaden, die in einer Spec-Datei vorkommen. Das ist ein Textvergleich: Er sieht, ob ein Pfad in der Datei
  * steht, nicht, ob ein Test die Seite wirklich lädt (Review von #463). Ein Aufruf, der nur eine 404 erwartet, zählt
  * deshalb als Treffer; solche Seiten stehen mit Grund in ausnahmen.ts.

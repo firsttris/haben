@@ -1,0 +1,10 @@
+# Betreiber-Migrationsschritt auf dem CI-Host; nur die Wegwerf-Datenbank ist auf Loopback erreichbar.
+services:
+  db:
+    image: ${HABEN_TEST_DB_IMAGE:-tristanteu/haben-db:latest}
+    ports:
+      - "127.0.0.1:${HABEN_TEST_DB_PORT:-5886}:5432"
+  backup:
+    image: ${HABEN_TEST_BACKUP_IMAGE:-tristanteu/haben-backup:latest}
+  restore:
+    image: ${HABEN_TEST_BACKUP_IMAGE:-tristanteu/haben-backup:latest}

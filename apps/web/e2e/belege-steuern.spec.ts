@@ -6,7 +6,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
-import { databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
+import { appDatabaseUrlFuer, databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
   bestaetigen,
   faktenZeigen,
@@ -19,10 +19,10 @@ import {
   lieferantWaehlen,
   neuenLieferantenOeffnen,
   ohneAxeVerstoesse,
-  receiptJpeg,
   trefferliste,
 } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
+import { receiptJpeg } from "./belegbild.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -203,6 +203,26 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
 });
 
+test("Datenbankzugriff: tatsächliche Verbindungsrollen in den Einstellungen anzeigen (#619)", async () => {
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("region", { name: "Datenbankzugriff", exact: true });
+  await expect(card).toBeVisible();
+  const sql = postgres(appDatabaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    const [connection] = await sql<{ role: string; login_role: string }[]>`select current_user as role, session_user as login_role`;
+    await expect(card.locator("dt")).toHaveText(["Aktuelle Rolle", "Anmelderolle"]);
+    await expect(card.locator("dd")).toHaveText([connection!.role, connection!.login_role]);
+    await expect(card).toContainText(/Appbetrieb mit eingeschränkten Rechten|Verbindung mit weitergehenden Rechten/);
+    await expect(card.getByRole("link", { name: "Getrennte Datenbankrollen einrichten" })).toHaveAttribute(
+      "href",
+      "https://haben.app/installation-konfiguration.html#getrennte-datenbankrollen",
+    );
+    await expect(card.locator("input, textarea, select, button")).toHaveCount(0);
+  } finally {
+    await sql.end();
+  }
+});
+
 test("Änderungsprotokoll: Kontenkollisionen getrennt von Manipulation melden (#787)", async () => {
   const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
   try {
@@ -319,17 +339,24 @@ test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer
   }
 });
 
-test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation", async () => {
+test("Farbe und Modus wechseln, bleiben nach dem Neuladen, Version unten in der Navigation", async () => {
   await go("/");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await expect(nav.getByRole("link", { name: /^Haben \d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/ })).toBeVisible();
-  await nav.getByLabel("Theme").selectOption("tiefsee");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "tiefsee");
+  const html = page.locator("html");
+  await nav.getByLabel("Farbe").selectOption("pflaume");
+  await nav.getByLabel("Modus").selectOption("dunkel");
+  await expect(html).toHaveAttribute("data-theme", "pflaume");
+  await expect(html).toHaveAttribute("data-mode", "dark");
   await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "tiefsee");
-  await expect(nav.getByLabel("Theme")).toHaveValue("tiefsee");
-  await nav.getByLabel("Theme").selectOption("wald");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "wald");
+  await expect(html).toHaveAttribute("data-theme", "pflaume");
+  await expect(html).toHaveAttribute("data-mode", "dark");
+  await expect(nav.getByLabel("Farbe")).toHaveValue("pflaume");
+  await expect(nav.getByLabel("Modus")).toHaveValue("dunkel");
+  await nav.getByLabel("Farbe").selectOption("wald");
+  await nav.getByLabel("Modus").selectOption("hell");
+  await expect(html).toHaveAttribute("data-theme", "wald");
+  await expect(html).toHaveAttribute("data-mode", "light");
 });
 
 test("Fristen und Kalender-Abo", async () => {
