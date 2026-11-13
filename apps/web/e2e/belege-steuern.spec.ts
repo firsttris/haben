@@ -2075,11 +2075,14 @@ test("Formular-Dialog bei niedrigem Fenster: Beim Öffnen bleibt das erste Feld 
         feldOben: label.getBoundingClientRect().top,
         formOben: form.getBoundingClientRect().top,
         scrollbar: form.scrollHeight > form.clientHeight,
+        fokusAufFeld: label.control !== null && label.control === document.activeElement,
       };
     }, erstesFeld);
     expect(lage.scrollbar, `${erstesFeld}: das Formular muss scrollen, sonst prüft der Test nichts`).toBe(true);
     expect(lage.scrollTop, `${erstesFeld}: das Formular ist beim Öffnen schon gescrollt`).toBe(0);
     expect(lage.feldOben, `${erstesFeld}: liegt über dem oberen Rand`).toBeGreaterThanOrEqual(lage.formOben);
+    // Der Fokus steht auf dem ersten Feld, nicht auf dem Formular als Scrollbereich
+    expect(lage.fokusAufFeld, `${erstesFeld}: hat beim Öffnen den Fokus`).toBe(true);
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
   };
