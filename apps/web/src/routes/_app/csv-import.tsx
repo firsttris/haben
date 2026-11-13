@@ -137,7 +137,7 @@ function CsvImport({ kind }: { kind: Kind }) {
       setPreview(null);
       const assigned = result.assigned ? `, ${result.assigned} ${result.assigned === 1 ? "Personenkonto" : "Personenkonten"} zugeordnet` : "";
       const skipped = [
-        result.unconfirmed && `${result.unconfirmed} nicht bestätigte ${result.unconfirmed === 1 ? "Vorschlag" : "Vorschläge"}`,
+        result.unconfirmed && `${result.unconfirmed} nicht ${result.unconfirmed === 1 ? "bestätigter Vorschlag" : "bestätigte Vorschläge"}`,
         result.duplicates > 0 && `${result.duplicates} ${result.duplicates === 1 ? "Dublette" : "Dubletten"}`,
         result.failed > 0 && `${result.failed} fehlerhafte ${result.failed === 1 ? "Zeile" : "Zeilen"}`,
       ]

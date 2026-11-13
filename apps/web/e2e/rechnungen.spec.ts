@@ -1917,12 +1917,18 @@ test("CSV-Import: Debitoren und Kreditoren aus DATEV-Stammdaten, Vorschlag nur m
   await expect(axePage.getByRole("checkbox", { name: "Bestätigen" })).toBeVisible();
   expect(await axeVerstoesse(axePage)).toEqual([]);
   await context.close();
-  // Ohne Bestätigung bliebe der Vorschlag liegen; mit ihr bekommt der vorhandene Kontakt den Debitor
-  await expect(preview.getByRole("button", { name: "1 Kontakt übernehmen" })).toBeEnabled();
-  await preview.getByRole("checkbox", { name: "Bestätigen" }).check();
-  await preview.getByRole("button", { name: "2 Kontakte übernehmen" }).click();
+  // Ohne Bestätigung bleibt der Vorschlag liegen; mit ihr bekommt der vorhandene Kontakt den Debitor
+  await preview.getByRole("button", { name: "1 Kontakt übernehmen" }).click();
   await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText(
-    "1 Kontakt übernommen, 1 Personenkonto zugeordnet, 1 fehlerhafte Zeile übersprungen.",
+    "1 Kontakt übernommen, 1 nicht bestätigter Vorschlag und 1 fehlerhafte Zeile übersprungen.",
+  );
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await expect(preview).toContainText("0 neu, 1 Vorschlag zum Bestätigen, 1 Dublette, 1 mit Fehlern");
+  await expect(preview.getByRole("button", { name: "0 Kontakte übernehmen" })).toBeDisabled();
+  await preview.getByRole("checkbox", { name: "Bestätigen" }).check();
+  await preview.getByRole("button", { name: "1 Kontakt übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText(
+    "0 Kontakte übernommen, 1 Personenkonto zugeordnet, 1 Dublette und 1 fehlerhafte Zeile übersprungen.",
   );
   // Ein zweiter Import findet jede Nummer wieder und ändert nichts
   await page.getByRole("button", { name: "Vorschau" }).click();
