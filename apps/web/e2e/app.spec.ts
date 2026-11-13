@@ -745,8 +745,9 @@ test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift oder Hinweis „B
     // Markierung und Hinweis prüft axe am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
     const context = await browser.newContext({ storageState: await page.context().storageState() });
     const axePage = await context.newPage();
+    // 320 px ist die schmalste Breite nach WCAG 1.4.10, wie in barrierefreiheit.spec.ts
     for (const url of ["/archiv?ansicht=belege&jahr=2019", page.url()])
-      for (const width of [1440, 390]) {
+      for (const width of [1440, 390, 320]) {
         await axePage.setViewportSize({ width, height: 900 });
         await axePage.goto(new URL(url, page.url()).toString());
         await axePage.waitForLoadState("networkidle");
