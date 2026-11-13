@@ -34,6 +34,9 @@ async function identity(sql: Reader): Promise<Identity> {
  * https://www.postgresql.org/docs/18/sql-grant.html#SQL-GRANT-ROLES
  * https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/adt/acl.c
  * https://www.postgresql.org/docs/18/runtime-config-client.html#GUC-SESSION-REPLICATION-ROLE
+ * Direkte EXECUTE-Grants auf Dateifunktionen brauchen keine Mitgliedschaft in den Dateirollen:
+ * https://www.postgresql.org/docs/18/lo-funcs.html
+ * https://www.postgresql.org/docs/18/functions-admin.html#FUNCTIONS-ADMIN-GENFILE
  * Eigentümer kommen aus dem Katalog statt aus einer Liste von Objekttypen oder Schema-Präfixen:
  * https://www.postgresql.org/docs/18/catalog-pg-shdepend.html
  */
@@ -68,7 +71,11 @@ async function accessFor(sql: Reader, who: Identity): Promise<DatabaseAccessInfo
       exists(select 1 from reachable r where has_parameter_privilege(r.oid, 'session_replication_role', 'SET,ALTER SYSTEM')) as replication,
       exists(select 1 from reachable r cross join pg_roles f
         where f.rolname in ('pg_read_server_files', 'pg_write_server_files', 'pg_execute_server_program')
-          and pg_has_role(r.oid, f.oid, 'USAGE')) as files,
+          and pg_has_role(r.oid, f.oid, 'USAGE'))
+        or exists(select 1 from reachable r cross join pg_proc p
+          where p.pronamespace = 'pg_catalog'::regnamespace
+            and p.proname in ('lo_import', 'lo_export', 'pg_read_file', 'pg_read_binary_file')
+            and has_function_privilege(r.oid, p.oid, 'EXECUTE')) as files,
       exists(select 1 from reachable r cross join pg_class c where c.relnamespace = 'public'::regnamespace
         and c.relkind in ('r', 'p', 'v', 'f') and has_table_privilege(r.oid, c.oid, 'TRIGGER')) as triggers`;
   const problems: string[] = [];
