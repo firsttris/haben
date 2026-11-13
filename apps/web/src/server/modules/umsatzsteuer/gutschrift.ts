@@ -1,4 +1,4 @@
-import { periodRange, settlementTaxShares, splitPrivateShare, type Cents, type TaxShare, type VatPeriod } from "@haben/core";
+import { paidTaxShares, periodRange, splitPrivateShare, type Cents, type TaxShare, type VatPeriod } from "@haben/core";
 import { and, eq, inArray, isNull, lt } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
@@ -10,7 +10,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
  * UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12).
  * Ausgebuchtes Skonto zählt nicht mit: Es erstattet nichts, sondern erlässt den Rest, und wird deshalb vom
  * Zwischenkonto abgeschrieben, ohne die Vorsteuer zu ändern (vorsteuer-ausgleich.ts).
- * Anteilig je Steuersatz wie beim erhaltenen Skonto, aber fortgeschrieben wie eine Teilzahlung (settlementTaxShares):
+ * Anteilig je Steuersatz wie beim erhaltenen Skonto, aber fortgeschrieben wie eine Teilzahlung (paidTaxShares kumuliert):
  * Alle Vorgänge einer Gutschrift ergeben zusammen genau ihre Vorsteuer, auch über mehrere Zeiträume und nach einer
  * Aufhebung.
  *
@@ -73,7 +73,7 @@ interface Vorgang {
  * Buchungstag des Bankumsatzes, Verrechnungen mit dem Tag der Aufrechnung, Ausbuchungen mit ihrem Datum.
  *
  * Gelesen werden alle Vorgänge bis zum Ende des Zeitraums, nicht nur die im Zeitraum: Der Anteil eines Vorgangs ist
- * der Stand nach ihm abzüglich dessen, was die früheren schon erfasst haben (settlementTaxShares), damit die Anteile
+ * der geschäftliche Teil des Stands nach ihm abzüglich dessen, was die früheren schon erfasst haben, damit die Anteile
  * zusammen genau die Vorsteuer der Gutschrift ergeben. Ausgegeben werden nur die Vorgänge im Zeitraum.
  */
 export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Promise<GutschriftAnteil[]> {
@@ -117,18 +117,26 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
     const betrag = -v.amount;
     const vorher = ausgeglichen.get(v.documentId) ?? 0;
     const bisher = erfasst.get(v.documentId) ?? [];
-    const neu = settlementTaxShares(totals, vorher, bisher, betrag);
+    // Fortgeschrieben wird der geschäftliche Teil des kumulierten Anteils, wie die Umbuchung im Journal
+    // (vorsteuer-ausgleich.ts): Den Privatanteil je Vorgang zu runden ließe über mehrere Teilerstattungen einen Cent
+    // neben der Vorsteuer, die beim Buchen auf dem Zwischenkonto steht (drei Drittel bei 50 %: 316 + 317 + 316 statt 950).
+    const neu = paidTaxShares(totals, vorher + betrag).map((t) => {
+      const recorded = bisher.filter((r) => r.rate === t.rate);
+      return {
+        rate: t.rate,
+        base: splitPrivateShare(t.base, v.privateShare).business - recorded.reduce((sum, r) => sum + r.base, 0),
+        tax: splitPrivateShare(t.tax, v.privateShare).business - recorded.reduce((sum, r) => sum + r.tax, 0),
+      };
+    });
     ausgeglichen.set(v.documentId, vorher + betrag);
     erfasst.set(
       v.documentId,
       [...bisher, ...neu].filter((s) => s.base !== 0 || s.tax !== 0),
     );
     if (v.date < start) continue;
-    for (const share of neu) {
-      const base = splitPrivateShare(share.base, v.privateShare).business;
-      const tax = splitPrivateShare(share.tax, v.privateShare).business;
+    for (const { rate, base, tax } of neu) {
       if (tax === 0) continue;
-      anteile.push({ documentId: v.documentId, date: v.date, supplier: v.supplier, number: v.number, rate: share.rate, base, tax });
+      anteile.push({ documentId: v.documentId, date: v.date, supplier: v.supplier, number: v.number, rate, base, tax });
     }
   }
   return anteile;
