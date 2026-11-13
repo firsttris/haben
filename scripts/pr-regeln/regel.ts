@@ -77,7 +77,8 @@ export function hints(files: string[], commitSubjects: string[]): Report[] {
  * Nur Markdown, docs/, mkdocs.yml oder LICENSE: die Grenze des Jobs `changes` in ci.yml (ohne dessen Sonderfall für
  * Gelöschtes) und dazu mkdocs.yml, das nach tdd-review, Schritt 0, ebenfalls zu doku-pruefen gehört
  */
-const isDocsOnly = (files: string[]) => files.length > 0 && files.every((file) => /\.md$|^docs\/|^mkdocs\.yml$|^LICENSE$/.test(file));
+const DOCS = /\.md$|^docs\/|^mkdocs\.yml$|^LICENSE$/;
+const isDocsOnly = (files: string[]) => files.length > 0 && files.every((file) => DOCS.test(file));
 /** Wer Haben pflegt, prüft und mergt selbst; author_association aus dem Ereignis von GitHub */
 const MAINTAINERS = ["OWNER", "MEMBER", "COLLABORATOR"];
 
@@ -88,7 +89,7 @@ const MAINTAINERS = ["OWNER", "MEMBER", "COLLABORATOR"];
  */
 export function reviewHint(pr: { draft?: boolean; author_association?: string; user: { login: string; type?: string } }, files: string[]): Report[] {
   if (pr.draft || isBot(pr.user) || MAINTAINERS.includes(pr.author_association ?? "")) return [];
-  const hasDocs = files.some((file) => /\.md$|^docs\/|^mkdocs\.yml$/.test(file));
+  const hasDocs = files.some((file) => DOCS.test(file));
   // Code und Markdown: zwei Prüfer nebeneinander (tdd-review, Schritt 0)
   const review = isDocsOnly(files)
     ? "`doku-pruefen` (nur Doku geändert)"
