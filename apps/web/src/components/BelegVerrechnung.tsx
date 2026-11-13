@@ -92,7 +92,7 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
     <section className="card" aria-labelledby="verrechnung-titel">
       <h2 id="verrechnung-titel">Verrechnung</h2>
       <p className="small muted">
-        Gutschrift und Rechnung desselben Lieferanten gleichen sich ohne Zahlung aus. Offen: <span className="mono">{formatEuro(daten.open)}</span>
+        Gutschrift und Rechnung desselben Lieferanten gleichen sich ohne Zahlung aus. Offen: <span className="amount">{formatEuro(daten.open)}</span>
       </p>
       {sichtbar.length > 0 && (
         <ul className="plain-list">
@@ -102,7 +102,7 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
               <span>
                 mit Beleg vom {tag(s.counterDate)} · {s.counterSupplier ?? supplier ?? ""} · {formatEuro(s.counterGross ?? 0)}
               </span>
-              <span className="mono">{formatEuro(s.amount)}</span>
+              <span className="amount">{formatEuro(s.amount)}</span>
               {s.note && <span className="small muted">{s.note}</span>}
               {!readOnly && aufhebenId !== s.id && (
                 <button

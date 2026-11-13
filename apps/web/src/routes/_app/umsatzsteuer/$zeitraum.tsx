@@ -902,7 +902,7 @@ function History({ data }: { data: PageData }) {
                 </Link>
                 <span className="small muted">gesendet {formatDate(entry.sentAt!)}</span>
               </div>
-              <span className="mono">{formatEuro(entry.kz83)}</span>
+              <span className="amount">{formatEuro(entry.kz83)}</span>
             </div>
           ))}
         </>

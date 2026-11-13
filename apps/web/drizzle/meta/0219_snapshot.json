@@ -1,5 +1,5 @@
 {
-  "id": "931c0680-e3e2-4d67-b8f1-9acced79e20f",
+  "id": "88bd66c6-f76a-4962-b2ce-11c231f9ca2e",
   "prevId": "a189a95d-665f-4d7b-81e5-cec36e2da8b8",
   "version": "7",
   "dialect": "postgresql",
@@ -6625,6 +6625,13 @@
           "notNull": true,
           "default": "''"
         },
+        "property_retention": {
+          "name": "property_retention",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "buyer_order_reference": {
           "name": "buyer_order_reference",
           "type": "text",
@@ -11524,6 +11531,13 @@
           "notNull": true,
           "default": "''"
         },
+        "property_retention": {
+          "name": "property_retention",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "tax_treatment": {
           "name": "tax_treatment",
           "type": "text",
@@ -12666,12 +12680,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "invoice_id": {
-          "name": "invoice_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by": {
           "name": "created_by",
           "type": "text",
@@ -12735,21 +12743,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "service_entries_invoice": {
-          "name": "service_entries_invoice",
-          "columns": [
-            {
-              "expression": "invoice_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -12764,19 +12757,6 @@
             "id"
           ],
           "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "service_entries_invoice_id_invoices_id_fk": {
-          "name": "service_entries_invoice_id_invoices_id_fk",
-          "tableFrom": "service_entries",
-          "tableTo": "invoices",
-          "columnsFrom": [
-            "invoice_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

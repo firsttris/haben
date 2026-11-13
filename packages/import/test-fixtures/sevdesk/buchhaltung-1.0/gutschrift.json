@@ -1,7 +1,7 @@
 [
   {
     "creditNote": {
-      "id": "ID_64",
+      "id": "ID_62",
       "objectName": "CreditNote",
       "additionalInformation": null,
       "creditNoteNumber": "<anon>",
@@ -58,7 +58,7 @@
       "addressParentName2": null,
       "addressName2": null,
       "accountingType": {
-        "id": "ID_65",
+        "id": "ID_63",
         "objectName": "AccountingType",
         "name": "Einnahmen / Erlöse / Verkäufe"
       },
@@ -93,13 +93,13 @@
     },
     "positions": [
       {
-        "id": "ID_66",
+        "id": "ID_64",
         "objectName": "CreditNotePos",
         "additionalInformation": null,
         "create": "2024-01-15T12:00:00+01:00",
         "update": "2024-01-15T12:00:00+01:00",
         "creditNote": {
-          "id": "ID_64",
+          "id": "ID_62",
           "objectName": "CreditNote"
         },
         "quantity": "1",
@@ -141,7 +141,7 @@
   },
   {
     "creditNote": {
-      "id": "ID_67",
+      "id": "ID_65",
       "objectName": "CreditNote",
       "additionalInformation": null,
       "creditNoteNumber": "<anon>",
@@ -166,7 +166,7 @@
         "id": "1",
         "objectName": "StaticCountry"
       },
-      "payDate": null,
+      "payDate": "2024-01-15T12:00:00+01:00",
       "createUser": {
         "id": "ID_17",
         "objectName": "SevUser"
@@ -176,7 +176,7 @@
         "objectName": "SevClient"
       },
       "deliveryDate": "2024-01-15T12:00:00+01:00",
-      "status": "200",
+      "status": "1000",
       "smallSettlement": "0",
       "contactPerson": {
         "id": "ID_17",
@@ -198,7 +198,7 @@
       "addressParentName2": null,
       "addressName2": null,
       "accountingType": {
-        "id": "ID_68",
+        "id": "ID_66",
         "objectName": "AccountingType",
         "name": "Dienstleister / Agenturen / Freelancer"
       },
@@ -233,13 +233,13 @@
     },
     "positions": [
       {
-        "id": "ID_69",
+        "id": "ID_67",
         "objectName": "CreditNotePos",
         "additionalInformation": null,
         "create": "2024-01-15T12:00:00+01:00",
         "update": "2024-01-15T12:00:00+01:00",
         "creditNote": {
-          "id": "ID_67",
+          "id": "ID_65",
           "objectName": "CreditNote"
         },
         "quantity": "1",
@@ -281,7 +281,7 @@
   },
   {
     "creditNote": {
-      "id": "ID_70",
+      "id": "ID_68",
       "objectName": "CreditNote",
       "additionalInformation": null,
       "creditNoteNumber": "<anon>",
@@ -328,7 +328,7 @@
       "taxType": "default",
       "sendDate": "2024-01-15T12:00:00+01:00",
       "origin": {
-        "id": "ID_71",
+        "id": "ID_69",
         "objectName": "Invoice"
       },
       "creditNoteType": "CN",
@@ -365,7 +365,7 @@
       "bookingCategory": "UNDERACHIEVEMENT",
       "deliveryDateUntil": null,
       "refSrcInvoice": {
-        "id": "ID_71",
+        "id": "ID_69",
         "objectName": "Invoice"
       },
       "isTransferred": "0",
@@ -376,13 +376,13 @@
     },
     "positions": [
       {
-        "id": "ID_72",
+        "id": "ID_70",
         "objectName": "CreditNotePos",
         "additionalInformation": null,
         "create": "2024-01-15T12:00:00+01:00",
         "update": "2024-01-15T12:00:00+01:00",
         "creditNote": {
-          "id": "ID_70",
+          "id": "ID_68",
           "objectName": "CreditNote"
         },
         "part": {
@@ -394,7 +394,7 @@
         "name": "<anon>",
         "priority": "100",
         "unity": {
-          "id": "ID_901",
+          "id": "479997",
           "objectName": "Unity"
         },
         "sevClient": {
@@ -425,13 +425,13 @@
         "createNextPart": null
       },
       {
-        "id": "ID_73",
+        "id": "ID_71",
         "objectName": "CreditNotePos",
         "additionalInformation": null,
         "create": "2024-01-15T12:00:00+01:00",
         "update": "2024-01-15T12:00:00+01:00",
         "creditNote": {
-          "id": "ID_70",
+          "id": "ID_68",
           "objectName": "CreditNote"
         },
         "part": {
@@ -443,7 +443,7 @@
         "name": "<anon>",
         "priority": "100",
         "unity": {
-          "id": "ID_901",
+          "id": "479997",
           "objectName": "Unity"
         },
         "sevClient": {
@@ -477,7 +477,7 @@
   },
   {
     "creditNote": {
-      "id": "ID_74",
+      "id": "ID_72",
       "objectName": "CreditNote",
       "additionalInformation": null,
       "creditNoteNumber": "<anon>",
@@ -534,7 +534,7 @@
       "addressParentName2": null,
       "addressName2": null,
       "accountingType": {
-        "id": "ID_75",
+        "id": "ID_73",
         "objectName": "AccountingType",
         "name": "Verkaufsprovision"
       },
@@ -569,13 +569,13 @@
     },
     "positions": [
       {
-        "id": "ID_76",
+        "id": "ID_74",
         "objectName": "CreditNotePos",
         "additionalInformation": null,
         "create": "2024-01-15T12:00:00+01:00",
         "update": "2024-01-15T12:00:00+01:00",
         "creditNote": {
-          "id": "ID_74",
+          "id": "ID_72",
           "objectName": "CreditNote"
         },
         "quantity": "1",
@@ -617,7 +617,7 @@
   },
   {
     "creditNote": {
-      "id": "ID_77",
+      "id": "ID_75",
       "objectName": "CreditNote",
       "additionalInformation": null,
       "creditNoteNumber": "<anon>",
@@ -632,6 +632,146 @@
       "headText": null,
       "footText": null,
       "timeToPay": "14",
+      "discountTime": "0",
+      "discount": "0",
+      "addressName": "<anon>",
+      "addressStreet": "<anon>",
+      "addressZip": "1",
+      "addressCity": "<anon>",
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": "2024-01-15T12:00:00+01:00",
+      "createUser": {
+        "id": "ID_17",
+        "objectName": "SevUser"
+      },
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "deliveryDate": "2024-01-15T12:00:00+01:00",
+      "status": "1000",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_17",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": "0",
+      "addressParentName": null,
+      "taxType": "default",
+      "sendDate": "2024-01-15T12:00:00+01:00",
+      "creditNoteType": "CN",
+      "accountIntervall": null,
+      "accountLastCreditNote": null,
+      "accountNextCreditNote": null,
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": null,
+      "addressParentName2": null,
+      "addressName2": null,
+      "accountingType": {
+        "id": "ID_76",
+        "objectName": "AccountingType",
+        "name": "Fremdarbeiten/Fremdleistungen "
+      },
+      "addressGender": null,
+      "accountEndDate": null,
+      "address": "<anon>",
+      "currency": "EUR",
+      "sumNet": "100.00",
+      "sumTax": "100.00",
+      "sumGross": "100",
+      "sumDiscounts": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountsForeignCurrency": "0",
+      "sumNetAccounting": "100.00",
+      "sumTaxAccounting": "100.00",
+      "sumGrossAccounting": "100",
+      "customerInternalNote": null,
+      "taxNumber": "1",
+      "vatNumber": "<anon>",
+      "showNet": "0",
+      "enshrined": null,
+      "sendType": "VPDF",
+      "bookingCategory": "ROYALTY_UNASSIGNED",
+      "deliveryDateUntil": null,
+      "isTransferred": "0",
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0"
+    },
+    "positions": [
+      {
+        "id": "ID_77",
+        "objectName": "CreditNotePos",
+        "additionalInformation": null,
+        "create": "2024-01-15T12:00:00+01:00",
+        "update": "2024-01-15T12:00:00+01:00",
+        "creditNote": {
+          "id": "ID_75",
+          "objectName": "CreditNote"
+        },
+        "quantity": "1",
+        "price": "100",
+        "name": "<anon>",
+        "priority": "100",
+        "unity": {
+          "id": "1",
+          "objectName": "Unity"
+        },
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "positionNumber": "0",
+        "text": null,
+        "discount": "0",
+        "isPercentage": "1",
+        "discountedValue": null,
+        "taxRate": "19",
+        "temporary": "0",
+        "sumNet": "100.00",
+        "sumGross": "100",
+        "sumDiscount": "0",
+        "sumTax": "100.00",
+        "sumNetAccounting": "100.00",
+        "sumTaxAccounting": "100.00",
+        "sumGrossAccounting": "100",
+        "priceNet": "100.00000000",
+        "priceGross": "100",
+        "priceTax": "100.00000000",
+        "sumNetForeignCurrency": "0",
+        "sumTaxForeignCurrency": "0",
+        "sumGrossForeignCurrency": "0",
+        "sumDiscountForeignCurrency": "0",
+        "createNextPart": null
+      }
+    ]
+  },
+  {
+    "creditNote": {
+      "id": "ID_78",
+      "objectName": "CreditNote",
+      "additionalInformation": null,
+      "creditNoteNumber": "<anon>",
+      "contact": {
+        "id": "ID_16",
+        "objectName": "Contact"
+      },
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "creditNoteDate": "2024-01-15T12:00:00+01:00",
+      "header": "<anon>",
+      "headText": null,
+      "footText": null,
+      "timeToPay": null,
       "discountTime": "0",
       "discount": "0",
       "addressName": "<anon>",
@@ -674,9 +814,9 @@
       "addressParentName2": null,
       "addressName2": null,
       "accountingType": {
-        "id": "ID_78",
+        "id": "ID_66",
         "objectName": "AccountingType",
-        "name": "Fremdarbeiten/Fremdleistungen "
+        "name": "Dienstleister / Agenturen / Freelancer"
       },
       "addressGender": null,
       "accountEndDate": null,
@@ -694,12 +834,12 @@
       "sumTaxAccounting": "100.00",
       "sumGrossAccounting": "100",
       "customerInternalNote": null,
-      "taxNumber": "1",
+      "taxNumber": "<anon>",
       "vatNumber": "<anon>",
       "showNet": "0",
       "enshrined": null,
       "sendType": "VPDF",
-      "bookingCategory": "ROYALTY_UNASSIGNED",
+      "bookingCategory": "ACCOUNTING_TYPE",
       "deliveryDateUntil": null,
       "isTransferred": "0",
       "sumDiscountNet": "0",
@@ -715,7 +855,7 @@
         "create": "2024-01-15T12:00:00+01:00",
         "update": "2024-01-15T12:00:00+01:00",
         "creditNote": {
-          "id": "ID_77",
+          "id": "ID_78",
           "objectName": "CreditNote"
         },
         "quantity": "1",

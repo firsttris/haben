@@ -1240,6 +1240,8 @@ export const invoices = pgTable(
     intro: text("intro").notNull().default(""),
     /** Hinweis unter den Summen (Fußtext) */
     note: text("note").notNull().default(""),
+    /** Aufbewahrungshinweis für Grundstücksleistungen (§ 14 Abs. 4 Satz 1 Nr. 9 UStG), getrennt vom freien Fußtext */
+    propertyRetention: boolean("property_retention").notNull().default(false),
     /**
      * Referenzen nach EN 16931 (#389), leer = keine: Bestellnummer des Kunden (BT-13), eigene Auftragsnummer (BT-14) und
      * Lieferschein (BT-16). Im XML an ihrem eigenen Feld, im PDF im Kopfblock.
@@ -3007,6 +3009,7 @@ export const recurringInvoices = pgTable(
     /** Einleitung über den Positionen; Platzhalter wie bei den Positionen */
     intro: text("intro").notNull().default(""),
     note: text("note").notNull().default(""),
+    propertyRetention: boolean("property_retention").notNull().default(false),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),
     /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */

@@ -71,7 +71,12 @@ export default defineConfig({
     timezoneId: "Europe/Berlin",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {},
+    launchOptions: {
+      ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}),
+      // Datumsfelder zeigt Chromium in der Sprache des Browsers, nicht in locale: Ohne --lang stehen in den Bildern
+      // für README und Doku auf macOS „11/11/2026“, unter Linux je nach LANG. Nur für die Bilder, die Tests bleiben unberührt
+      ...(process.env.DOKU_SCREENSHOTS ? { args: ["--lang=de-DE"] } : {}),
+    },
   },
   projects: [
     // Der Betrieb in der leeren Datenbank, Schritt für Schritt (test.describe.configure serial in der Datei); legt
@@ -113,7 +118,14 @@ export default defineConfig({
     // Braucht keine Daten aus der App
     {
       name: "ohne-daten",
-      testMatch: ["elster-helfer.spec.ts", "elster-helfer-erweiterung.spec.ts", "langsame-anfrage.spec.ts", "beenden.spec.ts"],
+      testMatch: [
+        "elster-helfer.spec.ts",
+        "elster-helfer-erweiterung.spec.ts",
+        "langsame-anfrage.spec.ts",
+        "beenden.spec.ts",
+        "doku-startseite.spec.ts",
+        "knoepfe.spec.ts",
+      ],
       use: chromium,
     },
   ],
