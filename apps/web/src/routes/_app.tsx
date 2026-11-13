@@ -6,6 +6,7 @@ import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
 import { navLinkSichtbar, type NavBedingung } from "../lib/navigation.ts";
 import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
+import { FirmaWechsler } from "../components/FirmaWechsler.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
@@ -192,7 +193,7 @@ function AppLayout() {
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
         <Link
           to={inhaber ? "/" : STEUERBERATUNG_START}
-          className="brand"
+          className={firmen.andere.length > 0 ? "brand brand-mit-wechsler" : "brand"}
           onPointerEnter={firmaAufklappen}
           onFocus={firmaAufklappen}
           onPointerLeave={firmaZeigerWeg}
@@ -228,6 +229,10 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
+          {/* Firma wechseln (#504): jede Firma ist eine eigene Instanz mit eigener Adresse und eigener Anmeldung. Der Knopf
+              steht als Erstes im Menü, also in der Tab-Reihenfolge gleich nach der Marke: am Desktop rechts am
+              Firmennamen (absolut, neben dem Link der Marke, nicht darin), am Handy als erste Zeile des offenen Menüs */}
+          {firmen.andere.length > 0 && <FirmaWechsler aktuell={firmen.aktuell ?? firma} andere={firmen.andere} />}
           <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
             <Icon name="overview" />
             Übersicht
@@ -268,20 +273,6 @@ function AppLayout() {
                   </Link>
                 ),
               )}
-            </div>
-          )}
-          {/* Firmen wechseln (#504): jede Firma ist eine eigene Instanz mit eigener Adresse und eigener Anmeldung */}
-          {firmen.andere.length > 0 && (
-            <div className="nav-group" role="group" aria-label="Firma wechseln">
-              <div className="nav-group-label" aria-hidden="true">
-                Firma wechseln
-              </div>
-              {firmen.andere.map((andere) => (
-                <a key={andere.url} href={andere.url} className="nav-link">
-                  <Icon name="external" />
-                  {andere.name}
-                </a>
-              ))}
             </div>
           )}
           <div className="nav-spacer" />
