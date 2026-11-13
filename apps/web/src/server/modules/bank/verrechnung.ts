@@ -68,6 +68,7 @@ async function beleg(tx: Tx, id: string, sperren = false) {
       gross: schema.documents.gross,
       payment: schema.documents.payment,
       status: schema.documents.status,
+      privateShare: schema.documents.privateShare,
       erstattetBezahltes: schema.documents.erstattetBezahltes,
     })
     .from(schema.documents)

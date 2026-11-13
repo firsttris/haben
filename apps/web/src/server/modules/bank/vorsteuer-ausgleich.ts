@@ -1,4 +1,14 @@
-import { ACCOUNTS, settlementTaxShares, vorsteuerAusgleichPosting, type InvoiceTotals, type Kontenrahmen, type PostingLine, type TaxShare } from "@haben/core";
+import {
+  ACCOUNTS,
+  paidTaxShares,
+  splitPrivateShare,
+  vorsteuerAusgleichPosting,
+  type Cents,
+  type InvoiceTotals,
+  type Kontenrahmen,
+  type PostingLine,
+  type TaxShare,
+} from "@haben/core";
 import { eq, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 
@@ -23,6 +33,11 @@ export async function belegTotals(tx: Tx, doc: { id: string; net: number; tax: n
   const rows = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, doc.id));
   const taxes = rows.map((r) => ({ rate: r.taxRate, base: r.net, tax: r.tax })).sort((a, b) => b.rate - a.rate);
   return { net: doc.net, tax: doc.tax, gross: doc.gross, taxes };
+}
+
+/** Der geschäftliche Teil eines Betrags, gerundet wie beim Buchen (splitPrivateShare) */
+function geschaeftlich(betrag: Cents, privateShare: number): Cents {
+  return privateShare === 0 ? betrag : splitPrivateShare(betrag, privateShare).business;
 }
 
 /** Steuersatz zum Steuerschlüssel der Vorsteuer; das Zwischenkonto trägt nur 19 % und 7 % */
@@ -93,7 +108,7 @@ async function bisherUmgebucht(tx: Tx, documentId: string): Promise<TaxShare[]> 
  */
 export async function vorsteuerAusgleich(
   tx: Tx,
-  doc: { id: string; erstattetBezahltes: boolean },
+  doc: { id: string; erstattetBezahltes: boolean; privateShare: number },
   totals: InvoiceTotals,
   amount: number,
   kontenrahmen: Kontenrahmen,
@@ -111,7 +126,7 @@ export async function vorsteuerAusgleich(
  */
 export async function vorsteuerAbschreibung(
   tx: Tx,
-  doc: { id: string; erstattetBezahltes: boolean },
+  doc: { id: string; erstattetBezahltes: boolean; privateShare: number },
   totals: InvoiceTotals,
   amount: number,
 ): Promise<TaxShare[] | null> {
@@ -120,11 +135,31 @@ export async function vorsteuerAbschreibung(
 }
 
 /** Der Anteil dieses Ausgleichs je Steuersatz, mit dem Vorzeichen des Ausgleichs; null ohne Zwischenkonto-Buchung */
-async function vorsteuerRest(tx: Tx, doc: { id: string; erstattetBezahltes: boolean }, totals: InvoiceTotals, amount: number): Promise<TaxShare[] | null> {
+async function vorsteuerRest(
+  tx: Tx,
+  doc: { id: string; erstattetBezahltes: boolean; privateShare: number },
+  totals: InvoiceTotals,
+  amount: number,
+): Promise<TaxShare[] | null> {
   if (!doc.erstattetBezahltes) return null;
   // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; die Umbuchung selbst
   // bucht dann im eingestellten Rahmen, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht
   if (!(await aufDemZwischenkonto(tx, doc.id))) return null;
   const bisher = await bisherUmgebucht(tx, doc.id);
-  return settlementTaxShares(totals, await steuerlichAusgeglichen(tx, doc.id), bisher, amount);
+  // Der Privatanteil steht schon beim Buchen nicht auf dem Zwischenkonto: Der geschäftliche Teil des Ziels wird
+  // deshalb vor dem Abzug der bisherigen Umbuchungen gebildet. So schreiben die Ausgleiche zusammen genau den
+  // geschäftlichen Teil der Vorsteuer fort, und das Konto endet bei null statt um den Privatanteil im Soll.
+  const ziel = paidTaxShares(totals, (await steuerlichAusgeglichen(tx, doc.id)) + amount).map((s) => ({
+    rate: s.rate,
+    base: geschaeftlich(s.base, doc.privateShare),
+    tax: geschaeftlich(s.tax, doc.privateShare),
+  }));
+  return ziel.map((t) => {
+    const recorded = bisher.filter((r) => r.rate === t.rate);
+    return {
+      rate: t.rate,
+      base: t.base - recorded.reduce((sum, r) => sum + r.base, 0),
+      tax: t.tax - recorded.reduce((sum, r) => sum + r.tax, 0),
+    };
+  });
 }
