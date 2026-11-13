@@ -65,12 +65,24 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
       lastBackup: "2026-10-19T01:15:00.000Z",
       failed: [{ kind: "backup", at: "2026-10-20T01:15:00.000Z" }],
     });
-    expect(s.summary.backup).toBe("2026-10-19 03:15 (letzter Lauf fehlgeschlagen)");
+    expect(s.summary.backup).toBe("2026-10-19 03:15 (letztes Backup fehlgeschlagen)");
+  });
+
+  it("gelungene Sicherung, fehlgeschlagener Test-Restore: nennt den Test-Restore, nicht das Backup", async () => {
+    await run("backup", true, "2026-10-20T01:15:00Z");
+    await run("restore_check", false, "2026-10-20T01:20:00Z");
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false });
+    expect(s.backup.lastBackup).toBe("2026-10-20T01:15:00.000Z");
+    expect(s.summary.backup).toBe("2026-10-20 03:15 (Test-Restore fehlgeschlagen)");
+  });
+
+  it("nennt das Format der Ausgabe, damit Skripte eine Änderung erkennen", async () => {
+    expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).schema).toBe(1);
   });
 
   it("nur fehlgeschlagene Sicherungen: keine erfolgreiche", async () => {
     await run("backup", false, "2026-10-20T01:15:00Z");
-    expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).summary.backup).toBe("keine (letzter Lauf fehlgeschlagen)");
+    expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).summary.backup).toBe("keine (letztes Backup fehlgeschlagen)");
   });
 
   it("ERiC über ERIC_HOME ohne Versionsdatei: von Hand eingebunden", async () => {
