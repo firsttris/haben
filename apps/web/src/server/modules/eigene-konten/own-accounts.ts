@@ -165,6 +165,36 @@ export async function ownAccountAssignmentProblem(
   return null;
 }
 
+/** Eigenes Konto und Kategorie eines Belegs oder einer Zeile seiner Aufteilung */
+export interface OwnAccountUse {
+  ownAccountId: string | null;
+  category: string | null;
+}
+
+/**
+ * Probleme der eigenen Konten eines Belegs und seiner Zeilen (ownAccountAssignmentProblem), der Beleg zuerst, dann die Zeilen in
+ * ihrer Reihenfolge. Ein archiviertes Konto nimmt der Beleg nur, wenn es `bisher.beleg` ist, eine Zeile nur, wenn eine der
+ * bisherigen Zeilen es hatte; beim Buchen ist „bisher“ der gespeicherte Stand.
+ */
+export async function documentOwnAccountProblems(
+  q: Db | Tx,
+  beleg: OwnAccountUse,
+  zeilen: readonly OwnAccountUse[],
+  bisher: { beleg: string | null; zeilen: readonly (string | null)[] },
+): Promise<string[]> {
+  const bisherZeilen = new Set(bisher.zeilen);
+  const pruefungen = [
+    [beleg, bisher.beleg] as const,
+    ...zeilen.map((z) => [z, z.ownAccountId !== null && bisherZeilen.has(z.ownAccountId) ? z.ownAccountId : null] as const),
+  ];
+  const problems: string[] = [];
+  for (const [{ ownAccountId, category }, current] of pruefungen) {
+    const problem = await ownAccountAssignmentProblem(q, ownAccountId, category, current);
+    if (problem) problems.push(problem);
+  }
+  return problems;
+}
+
 /** Löscht ein Konto, auf das noch nichts zeigt (nach einem Vertippen) */
 export async function deleteOwnAccount(actor: string, id: string): Promise<void> {
   await withActor(actor, async (tx) => {

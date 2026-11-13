@@ -7,6 +7,7 @@
 export {
   createOwnAccount,
   deleteOwnAccount,
+  documentOwnAccountProblems,
   listOwnAccounts,
   loadOwnAccountNumbers,
   loadOwnAccountParents,

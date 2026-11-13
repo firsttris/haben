@@ -31,7 +31,7 @@ import {
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { loadOwnAccountNumbers, ownAccountAssignmentProblem } from "../eigene-konten/index.ts";
+import { documentOwnAccountProblems, loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { contactRoleProblem, loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
@@ -489,24 +489,10 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
       if (problem) throw new DocumentError(problem);
     }
     // Eigene Sachkonten (#270): am Beleg oder je Zeile, passend zur Kategorie; ein archiviertes nur, wenn schon gewählt
-    const mitAufteilung = parsed.splits.length > 0;
-    const belegProblem = await ownAccountAssignmentProblem(
-      tx,
-      mitAufteilung ? null : parsed.ownAccountId,
-      mitAufteilung ? null : parsed.category,
-      previous.ownAccountId,
-    );
-    if (belegProblem) throw new DocumentError(belegProblem);
-    const bisher = new Set((await loadSplits(id, tx)).flatMap((s) => (s.ownAccountId ? [s.ownAccountId] : [])));
-    for (const zeile of parsed.splits) {
-      const problem = await ownAccountAssignmentProblem(
-        tx,
-        zeile.ownAccountId,
-        zeile.category,
-        zeile.ownAccountId && bisher.has(zeile.ownAccountId) ? zeile.ownAccountId : null,
-      );
-      if (problem) throw new DocumentError(problem);
-    }
+    const beleg = parsed.splits.length > 0 ? { ownAccountId: null, category: null } : parsed;
+    const bisher = { beleg: previous.ownAccountId, zeilen: (await loadSplits(id, tx)).map((s) => s.ownAccountId) };
+    const [kontoProblem] = await documentOwnAccountProblems(tx, beleg, parsed.splits, bisher);
+    if (kontoProblem) throw new DocumentError(kontoProblem);
     const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
     const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
@@ -706,10 +692,8 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   }
   if (splits.some((s) => s.category === "einfuhrumsatzsteuer")) issues.push("Die Einfuhrumsatzsteuer lässt sich nicht mit anderen Kategorien aufteilen");
   // Eigene Sachkonten (#270): Kontenrahmen oder Kategorie können sich seit dem Speichern geändert haben; das Konto selbst darf archiviert sein
-  for (const [kontoId, kategorie] of [[doc.ownAccountId, doc.category] as const, ...splits.map((s) => [s.ownAccountId, s.category] as const)]) {
-    const problem = await ownAccountAssignmentProblem(tx, kontoId, kategorie, kontoId);
-    if (problem) issues.push(problem.replace(/.$/, ""));
-  }
+  const gespeichert = { beleg: doc.ownAccountId, zeilen: splits.map((s) => s.ownAccountId) };
+  issues.push(...(await documentOwnAccountProblems(tx, doc, splits, gespeichert)).map((p) => p.replace(/.$/, "")));
   if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
