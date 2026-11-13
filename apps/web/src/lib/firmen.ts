@@ -20,6 +20,9 @@ export interface FirmenSicht {
 const MAX_FIRMEN = 50;
 const MAX_NAME = 60;
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+// Zeichen einer Domain (Umlaute stehen nach new URL als Punycode da). Die URL-Norm lässt im Host auch ' " ! und
+// ähnliche zu; so bliebe ein Anführungszeichen aus der .env unbemerkt an der letzten Adresse hängen
+const DOMAIN = /^[a-z0-9._-]+$/;
 
 /**
  * Liest HABEN_FIRMEN: Einträge „Name|https://adresse“, getrennt durch „;“. Nur die Adresse der Instanz (Origin) ohne
@@ -42,7 +45,8 @@ export function parseFirmen(text: string): { firmen: Firma[] } | { fehler: strin
     if (!URL.canParse(adresse)) return { fehler: `„${name}“: keine gültige Adresse` };
     const url = new URL(adresse);
     const https = url.protocol === "https:" || (url.protocol === "http:" && LOOPBACK.has(url.hostname));
-    if (!https || url.username || url.password || url.search || url.hash || url.pathname !== "/" || adresse.includes("?") || adresse.includes("#")) {
+    const host = DOMAIN.test(url.hostname) || LOOPBACK.has(url.hostname);
+    if (!https || !host || url.username || url.password || url.search || url.hash || url.pathname !== "/" || adresse.includes("?") || adresse.includes("#")) {
       return { fehler: `„${name}“: nur https://domain ohne Pfad, Query und Zugangsdaten (http nur für localhost)` };
     }
     if (firmen.some((f) => f.url === url.origin)) return { fehler: `${url.origin} steht mehrfach in der Liste` };
