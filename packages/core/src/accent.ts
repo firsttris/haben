@@ -42,17 +42,17 @@ function contrast(a: string, b: string): number {
 }
 
 /**
- * Hintergrund der Navigation in den sechs Themes (Wald, Ozean, Pflaume, Graphit, Nacht, Tiefsee). Muss mit `--nav` in
- * apps/web/src/styles.css übereinstimmen; navigation.test.ts prüft das.
+ * Hintergrund der Navigation in den vier Farben (Wald, Ozean, Pflaume, Graphit) im hellen Modus und im dunklen Modus,
+ * der für alle Farben gleich ist. Muss mit `--nav` in apps/web/src/styles.css übereinstimmen; navigation.test.ts prüft das.
  */
-export const NAV_BACKGROUNDS = ["#16211C", "#131C2B", "#1F1624", "#15191D", "#0D1210", "#0B1017"] as const;
+export const NAV_BACKGROUNDS = ["#16211C", "#131C2B", "#1F1624", "#15191D", "#111113"] as const;
 
 /** WCAG 2.2, 1.4.11: 3 : 1 für Grafik, die man erkennen muss */
 const MIN_GRAPHIC_CONTRAST = 3;
 
 /**
  * Braucht das „H“ in eigener Farbe (#504) eine helle Innenkante? Ja, wenn sich die Kachel in einem der Themes nicht
- * mit 3 : 1 von der Navigation abhebt. Das Theme wählt der Browser, deshalb gegen alle sechs.
+ * mit 3 : 1 von der Navigation abhebt. Farbe und Modus wählt der Browser, deshalb gegen alle.
  */
 export function needsEdgeOnNav(hex: string): boolean {
   return Math.min(...NAV_BACKGROUNDS.map((nav) => contrast(hex, nav))) < MIN_GRAPHIC_CONTRAST;

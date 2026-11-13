@@ -1,4 +1,4 @@
-// Rendert hero.html in Wald und Nacht nach docs/hero-hell.png und docs/hero-dunkel.png (1280 × 360 bei 2×).
+// Rendert hero.html in Wald hell und dunkel nach docs/hero-hell.png und docs/hero-dunkel.png (1280 × 360 bei 2×).
 // Bricht ab, wenn etwas aus dem Bild ragt oder überläuft. Aufruf: bun run docs:hero
 import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -14,7 +14,7 @@ const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { execut
 try {
   for (const [name, hash] of [
     ["hell", ""],
-    ["dunkel", "#nacht"],
+    ["dunkel", "#dunkel"],
   ]) {
     // Ein neues Dokument führt das Inline-Skript auch für die Hash-Variante aus.
     const page = await browser.newPage({

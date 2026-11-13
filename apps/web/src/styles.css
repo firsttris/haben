@@ -32,7 +32,9 @@
   --accent-ink: #17574a;
   --accent-soft: #e5f1ec;
   --accent-tint: #eef4f1;
-  /* Text in Akzentfarbe (Links, Aktionen): in den dunklen Themes das helle accent-ink, sonst reicht der Kontrast nicht */
+  /* Schrift auf Akzentfläche (Hauptknopf): Weiß, im dunklen Modus dunkel auf dem hellen Akzent */
+  --accent-fg: #fff;
+  /* Text in Akzentfarbe (Links, Aktionen): im dunklen Modus das helle accent-ink, sonst reicht der Kontrast nicht */
   --link: var(--accent);
   --link-hover: var(--accent-hover);
   --brand: #3fa284;
@@ -74,7 +76,7 @@ html { scroll-padding-top: calc(var(--below-head) + 16px); }
    hier mit. Handys quer haben mindestens 320 px Höhe und behalten ihn. */
 @media (max-height: 300px) { :root { --below-head: var(--nav-height); } }
 
-/* Themes: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald. */
+/* Farben: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald, ohne data-mode hell. */
 :root { color-scheme: light; }
 [data-theme="ozean"] {
   --accent: #1d5fa8; --accent-hover: #164a84; --accent-ink: #174d8a; --accent-soft: #e4eefa; --accent-tint: #eef4fb;
@@ -91,27 +93,27 @@ html { scroll-padding-top: calc(var(--below-head) + 16px); }
   --brand: #8a98a6; --nav: #15191d; --nav-active: #2a3037; --nav-ink: #b8bfc6;
   --ink: #181c20; --ink-2: #40474e; --muted: #5c646c; --ground: #f4f5f6; --line: #dee1e4; --line-soft: #eef0f1; --line-strong: #c9cdd2;
 }
-[data-theme="nacht"], [data-theme="tiefsee"] {
+/* Dunkler Modus (data-mode, lib/theme.ts) für jede Farbe: neutrale Flächen ohne Farbstich, Farbe nur im Akzent.
+   Der Akzent ist heller als im hellen Modus und trägt dunkle Schrift (--accent-fg), damit er auf dem Grund leuchtet. */
+[data-mode="dark"] {
   color-scheme: dark;
   /* Auf Dunkel trägt der Schatten kaum, die helle Haarlinie hält die Kante des Papiers */
   --paper-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 32px -8px rgb(0 0 0 / 0.6), 0 32px 64px -16px rgb(0 0 0 / 0.5);
+  --ink: #f4f4f5; --ink-2: #d4d4d8; --muted: #a1a1aa; --ground: #111113; --surface: #1a1a1d;
+  --line: #2c2c31; --line-soft: #232327; --line-strong: #3f3f46;
+  /* Die Navigation hat den Ton des Grunds und trennt sich mit einer Linie ab (.nav unten), statt als eigener Block */
+  /* --nav-ink heller als --muted: Gruppennamen, Rolle und Version tragen opacity 0.7 und brauchen trotzdem 4,5 : 1 */
+  --nav: #111113; --nav-active: #232327; --nav-ink: #b4b4bb;
   --link: var(--accent-ink); --link-hover: var(--ink);
-  --warn-ink: #f2b880; --warn-soft: #3a2615; --warn-dot: #e08a3c;
-  --info-ink: #9cc3f0; --info-soft: #172a42;
-  --danger-ink: #f3a5a5; --danger-soft: #3d1a1a;
+  --accent: #4cc29a; --accent-hover: #6dd0ad; --accent-ink: #7fd3b5; --accent-soft: #193a2f; --accent-tint: #162a23; --accent-fg: #111113;
+  --warn-ink: #f0bd8c; --warn-soft: #30241a; --warn-dot: #e08a3c;
+  --info-ink: #a3c4ee; --info-soft: #1a2536;
+  --danger-ink: #f2a8a8; --danger-soft: #371d1e;
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
 }
-[data-theme="nacht"] {
-  --ink: #e4ebe7; --ink-2: #c3cec8; --muted: #93a19a; --ground: #121815; --surface: #1a221e;
-  --line: #2c3732; --line-soft: #222b27; --line-strong: #3a4741;
-  --accent: #2a7f65; --accent-hover: #236b55; --accent-ink: #7fd3b5; --accent-soft: #1d3a31; --accent-tint: #19302a;
-  --brand: #3fa284; --nav: #0d1210; --nav-active: #1f2a25; --nav-ink: #a9b6af;
-}
-[data-theme="tiefsee"] {
-  --ink: #e3e9f1; --ink-2: #c0cad6; --muted: #8f9cad; --ground: #10151d; --surface: #18202b;
-  --line: #2a3544; --line-soft: #202936; --line-strong: #384558;
-  --accent: #3a78c2; --accent-hover: #4a8ad6; --accent-ink: #93bdf0; --accent-soft: #1a2d47; --accent-tint: #172538;
-  --brand: #5a9be0; --nav: #0b1017; --nav-active: #1e2a3a; --nav-ink: #a7b4c4;
-}
+[data-theme="ozean"][data-mode="dark"] { --accent: #6aa8f0; --accent-hover: #8cbcf5; --accent-ink: #93bdf0; --accent-soft: #1b2d47; --accent-tint: #172338; }
+[data-theme="pflaume"][data-mode="dark"] { --accent: #c99ad8; --accent-hover: #d8b2e4; --accent-ink: #d7aee5; --accent-soft: #35233d; --accent-tint: #281d2e; }
+[data-theme="graphit"][data-mode="dark"] { --accent: #e4e4e7; --accent-hover: #fafafa; --accent-ink: #e4e4e7; --accent-soft: #2c2c31; --accent-tint: #222226; }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 14px; }
@@ -174,14 +176,19 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .nav-user-meta { font-size: 12px; opacity: 0.7; }
 .nav-foot-link { min-height: 36px; font-size: 13px; }
 button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-.nav-theme { display: flex; flex-direction: column; gap: 4px; margin: 10px 12px 0; font-size: 12px; }
-.nav-theme select { min-height: 32px; padding: 0 8px; border: 1px solid var(--nav-active); border-radius: 8px; background-color: var(--nav-active); color: #fff; font: inherit; font-size: 13px; color-scheme: dark; }
+/* Farbe und Modus nebeneinander, je mit Namen darüber */
+.nav-theme { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 12px 0; font-size: 12px; }
+.nav-theme > label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.nav-theme select { width: 100%; min-width: 0; min-height: 32px; padding: 0 8px; border: 1px solid var(--nav-active); border-radius: 8px; background-color: var(--nav-active); color: #fff; font: inherit; font-size: 13px; color-scheme: dark; }
 .nav-theme select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .nav-version { margin: 8px 12px 0; color: inherit; font-size: 12px; opacity: 0.7; text-decoration: none; font-variant-numeric: tabular-nums; }
 .nav-version:hover { opacity: 1; color: #fff; }
 .main { flex-grow: 1; min-width: 0; padding: 32px var(--main-pad-x); display: flex; flex-direction: column; gap: 24px; }
 
 .nav-body { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
+/* Im dunklen Modus hat die Navigation den Ton des Grunds; die Linie trennt sie vom Inhalt, am Handy unten statt rechts */
+[data-mode="dark"] .nav { border-right: 1px solid var(--line); }
+@media (max-width: 860px) { [data-mode="dark"] .nav { border-right: 0; border-bottom: 1px solid var(--line); } }
 .nav-toggle { display: none; }
 
 @media (max-width: 860px) {
@@ -249,8 +256,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-h); padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; box-shadow: var(--shadow-xs); transition: background-color var(--fade), border-color var(--fade), color var(--fade), box-shadow var(--fade); }
 /* Beim Überfahren färbt sich die Fläche, nicht nur der Rahmen */
 .btn:hover:not(:disabled) { color: var(--ink); background: var(--hover); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-fg); }
 /* Nebenaktionen in Werkzeugleisten (Blättern, Vorschau): ohne Rahmen, Fläche erst beim Überfahren */
 .btn-ghost { border-color: transparent; background: transparent; box-shadow: none; }
 .btn-ghost:hover:not(:disabled) { border-color: transparent; }
@@ -882,7 +889,7 @@ fieldset.card > legend + * { clear: both; }
 select:not([multiple], [size]) { appearance: none; padding-right: 36px; background-image: var(--select-arrow); background-position: right 14px center; background-size: 12px 8px; background-repeat: no-repeat; text-overflow: ellipsis; }
 .nav-theme select:not([multiple], [size]) { padding-right: 30px; background-image: var(--select-arrow-dark); background-position: right 10px center; }
 :root { --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2356625c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); --select-arrow-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23b9c4be' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
-[data-theme="nacht"], [data-theme="tiefsee"] { --select-arrow: var(--select-arrow-dark); }
+[data-mode="dark"] { --select-arrow: var(--select-arrow-dark); }
 
 /* Tippflächen mindestens 24 px hoch (WCAG 2.5.8): aufklappbare Abschnitte überall, Links in Tabellenzellen auf dem Handy */
 summary { cursor: pointer; min-height: 24px; }
