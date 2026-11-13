@@ -51,7 +51,7 @@ Die Knopfarten (#30, `styles.css`):
 | `btn-icon` | Quadratischer Knopf nur mit Symbol, mit `aria-label`; zusammen mit `btn-ghost` oder `btn-sm`. |
 | `btn-sm` | Kleiner Knopf; ersetzt Inline-`minHeight`. |
 
-Knöpfe und Karten tragen einen feinen Schatten (`--shadow-xs`), randlose Knöpfe (`btn-ghost`, `btn-dashed`) keinen. Beim Überfahren färbt sich die Fläche (`--hover`), Übergänge dauern `--fade`; ein gesperrter Knopf reagiert nicht auf den Zeiger.
+Knöpfe und Karten tragen einen feinen Schatten (`--shadow-xs`), randlose Knöpfe (`btn-ghost`, `btn-dashed`) keinen. Beim Überfahren färbt sich die Fläche (`--hover`), Übergänge dauern `--fade`; ein gesperrter Knopf färbt sich beim Überfahren nicht.
 
 Der Fokusring der Knöpfe steht mit 2px Abstand außen. Bei Feldern (Eingabe, Auswahlliste, Textfeld, Combobox) liegt er auf dem eigenen Rahmen, der dabei die Akzentfarbe annimmt, statt als zweiter Rahmen daneben.
 

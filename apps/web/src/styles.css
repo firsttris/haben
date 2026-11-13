@@ -289,8 +289,10 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .btn-destructive:hover { background: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); border-color: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); color: var(--surface); }
 /* Klein: in Bannern, Tabellenzeilen und Trefferkarten */
 .btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
-/* Ohne Zeiger-Ereignisse kein Hover auf Gesperrtem; den Grund nennt der Text daneben, nicht ein title */
-.btn:disabled { opacity: 0.5; pointer-events: none; box-shadow: none; }
+/* Gesperrt ohne Hover-Fläche; Zeiger-Ereignisse bleiben, damit ein title den Grund nennen kann */
+.btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+.btn:not(.btn-primary, .btn-destructive):disabled:hover { background: var(--surface); }
+.btn-ghost:disabled:hover, .btn-dashed:disabled:hover { background: transparent; }
 
 .field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--muted); }
 .field input { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
