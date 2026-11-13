@@ -32,19 +32,28 @@ export interface JahresvermerkInput {
   note: string;
   /** Abweichung zum gerechneten Wert ausdrücklich bestätigt; ohne sie wird ein abweichender Betrag abgelehnt */
   abweichungBestaetigt?: boolean;
-  /** Übermittlungsprotokoll (PDF), optional */
-  file?: { bytes: Uint8Array; filename: string };
+  /** Übermittlungsprotokoll (PDF), optional; den Dateinamen der Auslieferung baut loadAnnualProtocol */
+  file?: { bytes: Uint8Array };
 }
 
-const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
+/** Betrag in Cent; die Grenze hält einen Tippfehler davon ab, den Jahresüberblick zu sprengen */
+export const vermerkBetrag = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
 
-export const vermerkSchema = z.object({
+/**
+ * Die Feldregeln des Vermerks an einer Stelle: Der Validator der Server-Funktion (functions/annual.ts) und das Modul
+ * prüfen damit gleich, samt der Meldungen, die die Oberfläche anzeigt.
+ */
+export const vermerkFelder = {
   filedOn: z.iso.date("Bitte den Tag der Abgabe angeben."),
   transferTicket: z.string().trim().min(10, "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben.").max(64, "Das Transferticket ist zu lang."),
-  amount: centsSchema,
+  amount: vermerkBetrag,
   note: z.string().trim().min(10, "Bitte kurz begründen, warum außerhalb von Haben abgegeben wurde.").max(2000, "Die Begründung ist zu lang."),
+};
+
+export const vermerkSchema = z.object({
+  ...vermerkFelder,
   abweichungBestaetigt: z.boolean().optional(),
-  file: z.object({ bytes: z.instanceof(Uint8Array), filename: z.string().min(1).max(200) }).optional(),
+  file: z.object({ bytes: z.instanceof(Uint8Array) }).optional(),
 });
 
 /** Was gegen die Eingaben spricht, die ohne Datenbank prüfbar sind, oder null */

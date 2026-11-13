@@ -10,6 +10,8 @@ import {
   saveKapgErklaerungAngaben,
   submitAnnual,
   submitKapg,
+  vermerkBetrag,
+  vermerkFelder,
   vermerkPruefung,
   vermerkeJahresabgabe,
 } from "../modules/jahreserklaerung/index.ts";
@@ -33,8 +35,6 @@ import {
 import { yearSchema } from "./schemas.ts";
 import { UserError } from "../errors.ts";
 import { MAX_DOCUMENT_SIZE } from "../modules/belege/index.ts";
-
-const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
 
 /** Zeilen der Anlage EÜR mit Feldkennung und amtlichem Text, nur belegte */
 function euerRows(figures: EuerFigures, keys: readonly (keyof typeof EUER_FIELDS)[]) {
@@ -121,10 +121,9 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
         form: z.enum(["ust", "euer"]),
         // FormData liefert Text; die Jahresgrenzen prüft yearSchema
         year: z.coerce.number().pipe(yearSchema),
-        filedOn: z.iso.date("Bitte den Tag der Abgabe angeben."),
-        transferTicket: z.string().trim().min(10, "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben.").max(64),
-        amount: z.coerce.number().int().pipe(centsSchema),
-        note: z.string().trim().min(10, "Bitte kurz begründen, warum außerhalb von Haben abgegeben wurde.").max(2000),
+        // Tag, Ticket, Betrag und Begründung prüfen wie das Modul; hier nur die Form des FormData-Felds davor
+        ...vermerkFelder,
+        amount: z.coerce.number().int().pipe(vermerkBetrag),
         // Der Haken kommt als "1" oder "on"; fehlt er, ist die Abweichung nicht bestätigt
         abweichungBestaetigt: z
           .string()
@@ -146,7 +145,7 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
         amount: data.amount,
         note: data.note,
         abweichungBestaetigt: data.abweichungBestaetigt,
-        ...(data.file && bytes ? { file: { bytes, filename: data.file.name } } : {}),
+        ...(data.file && bytes ? { file: { bytes } } : {}),
       });
       // Der Vergleich ist nur ein Hinweis: Scheitert er, bleibt der Vermerk trotzdem gespeichert
       const pruefung = await vermerkPruefung(data.form, data.year, data.amount).catch(() => null);

@@ -51,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
       actor,
       "euer",
       2025,
-      { ...eingabe("ABC123456789", { abweichungBestaetigt: true }), file: { bytes: pdf("EUER 2025"), filename: "uebermittlung.pdf" } },
+      { ...eingabe("ABC123456789", { abweichungBestaetigt: true }), file: { bytes: pdf("EUER 2025") } },
       TODAY,
     );
     expect(row).toMatchObject({ form: "euer", year: 2025, filedOn: "2026-05-20", amount: 12_345, hasPdf: true });
