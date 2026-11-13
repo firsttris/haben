@@ -471,7 +471,11 @@ Der Tag der Aufhebung darf nicht in der Zukunft liegen. Als Untergrenze gilt das
 
 Eine Aufhebung in einem schon gemeldeten Zeitraum bleibt erlaubt. Die Gegenbuchung wirkt an ihrem Tag, die abgegebene Voranmeldung ändert sich nicht nachträglich.
 
-[§ 17 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html) greift, wenn sich die Bemessungsgrundlage nachträglich ändert, also bei Rückzahlung, Storno oder Ausfall. Dann gehört die Berichtigung in den Zeitraum, in dem die Änderung eintritt. War die Zuordnung von Anfang an falsch, etwa auf die falsche Rechnung oder ohne jede Kundenzahlung, ist das keine Änderung der Bemessungsgrundlage, sondern ein Fehler im ursprünglichen Zeitraum: Dann den Tag der Zahlung wählen und, falls dieser Zeitraum schon gemeldet ist, die Voranmeldung berichtigen.
+Zwei Fälle sind zu unterscheiden.
+
+**Die Bemessungsgrundlage ändert sich nachträglich**, etwa durch Rückzahlung, Storno oder Ausfall. Dann greift [§ 17 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html), und die Berichtigung gehört in den Zeitraum, in dem die Änderung eintritt. Dafür ist der Tag der Aufhebung richtig.
+
+**Die Zuordnung war von Anfang an falsch**, etwa auf die falsche Rechnung oder ohne jede Kundenzahlung. Das ist keine Änderung der Bemessungsgrundlage, sondern die Berichtigung eines Erfassungsfehlers. Bei Ist-Versteuerung entsteht die Steuer mit der Vereinnahmung ([§ 13 Abs. 1 Nr. 1 Buchstabe b UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)), also gehört die Korrektur in den Monat der Zahlung; ist die Anmeldung dafür schon abgegeben, wird sie nach [§ 153 Abs. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html) berichtigt. Dafür den Tag der Zahlung wählen. Wer stattdessen den Tag der Aufhebung nimmt, hängt die Zahlung im Juli von Rechnung A auf B um, bekommt B im März und die Gegenzeile von A im Juli — bis dahin stehen die März-Umsatzsteuer und das Bankkonto doppelt.
 
 Beim [Stornieren eines Belegs](belege.md#stornieren-und-neu-erfassen) kann Haben dessen Bankzuordnungen in derselben bestätigten Aktion aufheben. Die Rückfrage nennt die Zuordnungen einschließlich aller Teile betroffener Aufteilungen. Mit der Zahlung verknüpfte Ausbuchungen wie Skonto werden mit aufgehoben. Scheitert die Rücknahme oder der Belegstorno, wird keiner der beiden Teile gespeichert.
 
