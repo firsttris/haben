@@ -83,6 +83,29 @@ Rechnungsformat, Sprache und Skonto übernimmt Haben nicht; sie stehen wie bei e
 
 Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten) und dem [Kontakt-Export](https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office) von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …).
 
+## Kontakte aus DATEV
+
+Eine Datei „Debitoren/Kreditoren“ aus einem DATEV-Export (EXTF, Formatkategorie 16), etwa `EXTF_GP_Stamm_….csv` aus dem [Export von sevDesk](sevdesk.md#ohne-rest-api), wählst du wie jede andere Datei unter **Kontakte**. Haben erkennt sie an der Kopfzeile und liest die Spalten nach ihren Namen im DATEV-Format; zuzuordnen gibt es nichts. Kodierung wie oben, Windows-1252 oder UTF-8.
+
+| Spalte | In Haben |
+| --- | --- |
+| Konto | Debitor (10000 bis 69999, macht zum Kunden) oder Kreditor (70000 bis 99999, macht zum Lieferanten); ein anderes Konto ist ein Fehler |
+| Name (Adressatentyp Unternehmen), Vorname und Name (Adressatentyp natürl. Person), Name (Adressatentyp keine Angabe), Kurzbezeichnung | Name: die erste belegte Spalte in dieser Reihenfolge |
+| EU-Mitgliedstaat und EU-UStId. | USt-IdNr., zusammengesetzt (`DE` und `136695976` ergibt `DE136695976`) und geprüft wie in [Kontakte](#kontakte) |
+| Straße, Postleitzahl, Ort, Land, Telefon, E-Mail, IBAN-Nr. 1 | wie in [Kontakte](#kontakte) |
+| Kundennummer | Kundennummer, nur beim Debitor; was die Spalte beim Kreditor meint, ist nicht belegt |
+| Steuernummer | nur zum Zusammenführen, Haben speichert sie nicht |
+
+Haben führt Personenkonten fünfstellig ([Kontakte](rechnungen.md#kontakte)). Nennt die Kopfzeile eine andere Sachkontenlänge als 4, lehnt Haben die Datei ab, statt Nummern zu kürzen; exportiere sie dann mit Sachkontenlänge 4.
+
+Wiedererkannt wird ein Kontakt am Personenkonto, nicht am Namen:
+
+- **Zweiter Import:** Eine Nummer, die schon ein Kontakt trägt, ist eine Dublette, auch wenn sich der Name geändert hat. Derselbe Import ein zweites Mal ändert nichts.
+- **Debitor und Kreditor eines Partners:** Haben sie dieselbe USt-IdNr. oder Steuernummer, wird daraus ein Kontakt mit beiden Rollen; die Vorschau zeigt beide Zeilen.
+- **Gleicher Name allein** führt nicht zusammen, denn zwei Kunden dürfen gleich heißen: Die Zeile wird ein eigener Kontakt, die Vorschau nennt den gleichnamigen.
+- **Vorhandener Kontakt ohne Personenkonto** mit gleicher USt-IdNr. oder Kundennummer: Die Vorschau zeigt einen Vorschlag. Die Nummer bekommt der Kontakt nur, wenn du ihn mit **Bestätigen** annimmst; er wird dabei Kunde bzw. Lieferant, sonst ändert sich nichts an ihm. Ohne Bestätigung überspringt Haben die Zeile und legt keinen zweiten Kontakt an.
+- **Fehler:** Trägt ein Kontakt mit anderer USt-IdNr. die Nummer schon, hat der passende Kontakt für diese Rolle eine andere Nummer oder passen mehrere Kontakte, übernimmt Haben die Zeile nicht. Eine Nummer, die schon in einem DATEV-Export stand, bleibt fest.
+
 ## Artikel
 
 | Feld | Spaltennamen, die Haben vorschlägt | Prüfung |

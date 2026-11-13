@@ -78,7 +78,7 @@ interface Line {
 }
 
 /** CSV mit ";" und "" als Escape, wie parseCsv, aber mit Zeilennummern. */
-function splitLines(text: string): Line[] {
+export function splitLines(text: string): Line[] {
   const lines: Line[] = [];
   let fields: string[] = [];
   let field = "";
@@ -129,7 +129,7 @@ function splitLines(text: string): Line[] {
  * Bindestriche. Lexware Office schreibt etwa „BU-Schluessel“ statt „BU-Schlüssel“ und
  * „Basisumsatz“ statt „Basis-Umsatz“.
  */
-function normalizeName(value: string): string {
+export function normalizeName(value: string): string {
   return value
     .toLowerCase()
     .replace(/ä/g, "ae")
