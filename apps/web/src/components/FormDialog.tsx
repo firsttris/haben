@@ -21,7 +21,13 @@ function OpenFormDialog({ title, onClose, children }: { title: string; onClose: 
 
   useEffect(() => {
     const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    // Scrollt das Formular, macht Chrome es selbst fokussierbar, und showModal() fokussiert dann das Formular statt des
+    // ersten Felds; dann bekommt das erste Feld den Fokus, wie bei einem Dialog, der nicht scrollt
+    if (document.activeElement === dialog.querySelector(":scope > form")) {
+      dialog.querySelector<HTMLElement>(':scope > form :is(input:not([type="hidden"]), select, textarea):not(:disabled)')?.focus();
+    }
   }, []);
 
   return (
