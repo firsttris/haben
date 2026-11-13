@@ -320,8 +320,12 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
     });
     const vorher = await sql`select count(*)::int as n from journal_entries`;
     await verrechnung.reverseSettlement(actor, ids[0]!, "2026-07-10");
+    // Je Seite eine Buchung (#786), also zwei Gegenbuchungen — beide am Tag der Aufhebung
     const [nachher] = await sql`select count(*)::int as n from journal_entries`;
-    expect(nachher?.n).toBe(vorher![0]!.n);
+    expect(nachher?.n).toBe(vorher![0]!.n + 2);
+    const gegenVerrechnung = await sql`select date from journal_entries
+      where source_type = 'verrechnung' and reverses_id is not null order by date`;
+    expect(gegenVerrechnung.map((g) => g.date)).toEqual(["2026-07-10", "2026-07-10"]);
     const [paar] = await sql`select distinct date from document_settlements where reverses_id is not null`;
     expect(paar?.date).toBe("2026-07-10");
   }, 30_000);
