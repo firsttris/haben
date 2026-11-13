@@ -1,4 +1,5 @@
 import { formatEuro } from "@haben/core";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Field } from "./Field.tsx";
@@ -102,8 +103,8 @@ function AufhebenDialog({ ziel, onConfirm, onClose }: { ziel: AufzuhebendeZuordn
       </Field>
       {ziel.gemeldet && (
         <p className="small muted" style={{ margin: 0 }}>
-          Der Zeitraum der Zahlung ist schon gemeldet. Die Gegenbuchung wirkt deshalb heute und lässt die abgegebene Voranmeldung unberührt; wird sie gebraucht,
-          reichst du sie als berichtigte Anmeldung nach.
+          Der Zeitraum der Zahlung ist schon gemeldet. Die Gegenbuchung lässt die abgegebene Voranmeldung unberührt; wird sie gebraucht, reichst du sie als{" "}
+          <Link to="/umsatzsteuer">berichtigte Anmeldung</Link> nach.
         </p>
       )}
     </ConfirmDialog>
