@@ -33,6 +33,8 @@ export const TEXTS = {
     variants: { abschlag: "Abschlagsrechnung", schluss: "Schlussrechnung" },
     confirmation: "Auftragsbestätigung",
     deliveryNote: "Lieferschein",
+    /** Zeile im Empfängerblock: der Ansprechpartner des Kunden (#424) */
+    attention: (name: string) => `z. Hd. ${name}`,
     date_: "Datum",
     quoteRef: "Zu Angebot",
     invoiceRef: "Zu Rechnung",
@@ -123,6 +125,7 @@ export const TEXTS = {
     variants: { abschlag: "Partial invoice", schluss: "Final invoice" },
     confirmation: "Order confirmation",
     deliveryNote: "Delivery note",
+    attention: (name: string) => `FAO ${name}`,
     date_: "Date",
     quoteRef: "Quote",
     invoiceRef: "Invoice",

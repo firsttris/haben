@@ -15,6 +15,7 @@ import belege from "../../../../../../packages/import/test-fixtures/sevdesk/buch
 import belegeZuBuchungen from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/belege-zu-buchungen.json";
 import stornoV1 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/storno-paar.json";
 import belegeV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/belege-credit-debit.json";
+import belegeSteuerregelV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/belege-steuerregel.json";
 import gutschriftV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/gutschrift.json";
 import rechnungenSteuerV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/rechnungen-steuerregel.json";
 import stornoFolgejahrV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/storno-paar-folgejahr.json";
@@ -161,6 +162,19 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Antworten je Buchhaltungsversion (Pos
     const counts: Record<string, number> = {};
     for (const { taxTypes } of years) for (const { taxType, count } of taxTypes) counts[taxType] = (counts[taxType] ?? 0) + count;
     expect(counts).toEqual({ net: 3, vatfree: 2, "sevdesk:noteu": 1 });
+  });
+
+  it("rechnet Belege mit taxRule 12 und 14 aus Version 2.0 heute als Ausgaben ohne Vorsteuer", async () => {
+    for (const beleg of belegeSteuerregelV2) await insertVoucher(beleg);
+    const { years } = await lexoffice.reconciliation();
+    expect(years.reduce((sum, y) => sum + y.ausgaben.count, 0)).toBe(4);
+    const vorsteuer = (regel: string) => {
+      const monat = belegeSteuerregelV2.find((b) => b.voucher.taxRule.id === regel)!.voucher.voucherDate.slice(0, 7);
+      return years.flatMap((y) => y.vat).find((m) => m.month === monat)?.kz66;
+    };
+    expect(vorsteuer("12")).toBe(0);
+    expect(vorsteuer("14")).toBe(0);
+    expect(vorsteuer("9")).toBe(10000);
   });
 
   it("findet zu jeder Buchung mit Belegnummer aus Version 1.0 ihren Beleg", async () => {

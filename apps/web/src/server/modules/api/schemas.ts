@@ -17,9 +17,9 @@ import { contactSchema as contactInputSchema } from "../stammdaten/index.ts";
 export const requestSchemas = z.registry<{ id: string }>();
 export const responseSchemas = z.registry<{ id: string }>();
 
-const CENTS = "Betrag in ganzen Cent (Euro), z. B. 5712 = 57,12 €";
-const isoDate = z.iso.date();
-const timestamp = z.iso.datetime({ offset: true }).describe("Zeitpunkt nach ISO 8601");
+export const CENTS = "Betrag in ganzen Cent (Euro), z. B. 5712 = 57,12 €";
+export const isoDate = z.iso.date();
+export const timestamp = z.iso.datetime({ offset: true }).describe("Zeitpunkt nach ISO 8601");
 
 // ── Fehler ────────────────────────────────────────────────────────────────────
 
@@ -56,12 +56,12 @@ export const errorSchema = z
 
 // ── Listen ────────────────────────────────────────────────────────────────────
 
-const pageQuery = {
+export const pageQuery = {
   limit: z.coerce.number().int().min(1).max(500).default(100).describe("Höchstens so viele Einträge, 1 bis 500"),
   offset: z.coerce.number().int().min(0).default(0).describe("So viele Einträge überspringen"),
 };
 
-const page = <T extends z.ZodType>(item: T) =>
+export const page = <T extends z.ZodType>(item: T) =>
   z.object({
     data: z.array(item),
     total: z.number().int().describe("Anzahl aller Treffer, unabhängig von limit und offset"),
@@ -117,6 +117,7 @@ export const contactSchema = z
     ustId: z.string(),
     iban: z.string(),
     leitwegId: z.string(),
+    hourlyRateCents: z.number().int().nullable().describe("Stundensatz für Leistungseinträge in Cent; null: keiner hinterlegt"),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
     language: z.enum(["de", "en"]),
     version: z.number().int().describe("Steigt mit jeder Änderung; alte Stände bleiben in Haben erhalten"),

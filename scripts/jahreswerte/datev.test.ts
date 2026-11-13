@@ -32,6 +32,12 @@ describe("DATEV-Kontenrahmen", () => {
     expect(e.befunde[0]?.text).toContain("HABEN_KONTENRAHMEN_STAND");
   });
 
+  it("verweist im Issue auf die Schritte im Skill", async () => {
+    const e = await pruefeKontenrahmen(nachgestellt({ [SKR03]: html(seite("Januar 2027")), [SKR04]: html(seite("Januar 2027")) }), "Januar 2026");
+    expect(e.befunde).toHaveLength(2);
+    for (const b of e.befunde) expect(b.text).toContain("skills/jahreswerte/SKILL.md#kontenrahmen");
+  });
+
   it("macht aus einer Seite ohne Stand oder ohne Antwort eine Warnung", async () => {
     const e = await pruefeKontenrahmen(nachgestellt({ [SKR03]: html("<html>umgebaut</html>"), [SKR04]: netzwerkfehler }));
     expect(e.befunde).toEqual([]);

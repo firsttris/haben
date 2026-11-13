@@ -2,26 +2,23 @@ import {
   type LetterheadDesign,
   type PaymentMethod,
   computeInvoice,
+  advanceUsesPayments,
   ITEM_NUMBER_MAX,
   convertPrice,
   CURRENCY_CODE,
   discountedLineAmount,
   discountInput,
   documentDiscountProblem,
-  lineDiscountProblem,
   orderRateAmounts,
   parseDiscount,
   planSchedule,
   quoteLineKindProblem,
-  type Discount,
   type PaymentPlanRow,
   type PlanTemplate,
-  type QuoteLineKind,
   formatDecimal,
   formatEuro,
   counterCircle,
   formatDocumentNumber,
-  formatQuantity,
   invoiceDueDate,
   LINE_DETAIL_MAX,
   parseEuro,
@@ -32,7 +29,6 @@ import {
   TAX_TREATMENTS,
   UNITS,
   type Bundesland,
-  type InvoiceLineInput,
   type PriceMode,
   type SkontoStufe,
   type TaxTreatment,
@@ -47,6 +43,7 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
+import { emptyLine, type EditorLine, type LineState, type ParsedLine, parseLine, sameText, toLineState } from "../lib/editor-lines.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
@@ -60,6 +57,7 @@ import type { ArticlePrefill } from "./ArticleForm.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
 import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
+import { ContactPersonField, type ContactPersonOption } from "./ContactPersonField.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -114,26 +112,6 @@ export interface QuoteOption {
   issueDate: string;
 }
 
-interface LineState {
-  key: number;
-  description: string;
-  /** Mehrzeilige Beschreibung unter der Bezeichnung */
-  detail: string;
-  /** Artikelnummer (BT-155), aus dem Artikel kopiert und änderbar */
-  itemNumber: string;
-  quantity: string;
-  unit: UnitLabel;
-  unitPrice: string;
-  taxRate: 1900 | 700 | 0;
-  /** Positionsrabatt wie eingegeben, „10 %“ oder „50,00“ */
-  discount: string;
-  /** Nur im Angebot: optional oder Alternative zur Hauptposition davor */
-  kind: QuoteLineKind | null;
-}
-
-/** Position im Entwurf; im Angebot zusätzlich die Art */
-type EditorLine = DraftInput["lines"][number] & { kind?: QuoteLineKind | null };
-
 /** Werte beim Öffnen; beim Angebot zusätzlich Gültigkeit und Zahlungsplan */
 export type EditorInitial = Omit<DraftInput, "lines"> & {
   lines: EditorLine[];
@@ -141,72 +119,6 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
   paymentPlan?: PaymentPlanRow[];
   paymentPlanInConfirmation?: boolean;
 };
-
-let nextKey = 1;
-
-/** Bezeichnungen vergleichen, ohne dass Zeilenumbrüche und doppelte Leerzeichen zählen */
-const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
-
-function toLineState(line: EditorLine): LineState {
-  return {
-    key: nextKey++,
-    description: line.description,
-    detail: line.detail ?? "",
-    itemNumber: line.itemNumber ?? "",
-    quantity: formatQuantity(line.quantity),
-    unit: line.unit,
-    unitPrice: line.unitPrice === 0 ? "" : formatDecimal(line.unitPrice),
-    taxRate: line.taxRate,
-    discount: discountInput(line.discount),
-    kind: line.kind ?? null,
-  };
-}
-
-/** Leere Zeile mit Einheit und Satz der letzten */
-const emptyLine = (unit: UnitLabel, taxRate: 1900 | 700 | 0): LineState => ({
-  key: nextKey++,
-  description: "",
-  detail: "",
-  itemNumber: "",
-  quantity: "1",
-  unit,
-  unitPrice: "",
-  taxRate,
-  discount: "",
-  kind: null,
-});
-
-type ParsedLine = InvoiceLineInput & {
-  detail: string;
-  itemNumber: string;
-  discount: Discount | null;
-  kind: QuoteLineKind | null;
-  valid: boolean;
-  discountError: boolean;
-};
-
-function parseLine(line: LineState): ParsedLine {
-  const quantity = parseQuantity(line.quantity);
-  const unitPrice = parseEuro(line.unitPrice);
-  const discount = parseDiscount(line.discount);
-  const parsed = {
-    description: line.description.trim(),
-    detail: line.detail.trim(),
-    itemNumber: line.itemNumber.trim(),
-    quantity: quantity ?? 0,
-    unit: line.unit,
-    unitPrice: unitPrice ?? 0,
-    taxRate: line.taxRate,
-    discount: discount === "ungültig" ? null : discount,
-    kind: line.kind,
-  };
-  const discountError = discount === "ungültig" || lineDiscountProblem(parsed) !== null;
-  return {
-    ...parsed,
-    discountError,
-    valid: quantity !== null && quantity > 0 && unitPrice !== null && line.description.trim() !== "" && !discountError,
-  };
-}
 
 export function InvoiceEditor({
   id,
@@ -233,6 +145,7 @@ export function InvoiceEditor({
   attachments = null,
   planTemplates = [],
   mandates = [],
+  contactPersons = [],
   keptDeductions = [],
   action: sharedAction,
 }: {
@@ -279,6 +192,8 @@ export function InvoiceEditor({
   planTemplates?: PlanTemplate[];
   /** Gültige Lastschriftmandate aller Kunden (#445), für die Zahlungsart der Rechnung */
   mandates?: MandateOption[];
+  /** Ansprechpartner aller Kunden (#424), für die Auswahl unter „Kunde“ */
+  contactPersons?: ContactPersonOption[];
   /** Korrektur einer Schlussrechnung: die übernommenen Abzüge, fest; Haben behält sie beim Speichern */
   keptDeductions?: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
 }) {
@@ -296,6 +211,7 @@ export function InvoiceEditor({
   const editable = kind === "rechnung" || quote;
 
   const [contactId, setContactId] = useState(initial.contactId ?? "");
+  const [contactPersonId, setContactPersonId] = useState(initial.contactPersonId ?? "");
   /** Offener Dialog „Neuer Kunde“ mit dem vorgetragenen Namen; null = geschlossen */
   const [newContactName, setNewContactName] = useState<string | null>(null);
   /** Offener Dialog „Neuer Artikel“ und die Position, die ihn danach übernimmt */
@@ -317,6 +233,7 @@ export function InvoiceEditor({
   const [exchangeRate, setExchangeRate] = useState(initial.exchangeRate ?? "");
   const [exchangeRateDate, setExchangeRateDate] = useState(initial.exchangeRateDate ?? "");
   const [variant, setVariant] = useState<"abschlag" | "schluss" | null>(initial.variant ?? null);
+  const [advanceType, setAdvanceType] = useState<"anzahlung" | "teilleistung">(initial.advanceType ?? "anzahlung");
   const [deducts, setDeducts] = useState<string[]>(initial.deducts ?? []);
   const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
@@ -517,6 +434,8 @@ export function InvoiceEditor({
   /** saved: gerade im Dialog angelegt, steht also noch nicht in contacts */
   function chooseContact(value: string, saved?: SavedContact) {
     touch(setContactId)(value);
+    // Ein Ansprechpartner gehört zu genau einem Kunden
+    if (value !== contactId) setContactPersonId("");
     const chosen = saved ?? contacts.find((c) => c.id === value);
     if (chosen?.defaultFormat) setFormat(chosen.defaultFormat);
     else if (chosen?.leitwegId) setFormat("xrechnung-cii");
@@ -551,6 +470,7 @@ export function InvoiceEditor({
   function draft(): DraftInput {
     return {
       contactId: contactId || null,
+      contactPersonId: contactPersonId || null,
       issueDate,
       serviceFrom: serviceFrom || null,
       serviceTo: serviceTo || null,
@@ -565,6 +485,7 @@ export function InvoiceEditor({
       priceMode: grossPrices ? "brutto" : "netto",
       language,
       variant: kind === "rechnung" ? variant : null,
+      advanceType: kind === "rechnung" && variant === "abschlag" ? advanceType : null,
       deducts: schluss ? deducted.map((a) => a.id) : [],
       quoteId: kind === "rechnung" && quoteId ? quoteId : null,
       currency: currencyCode,
@@ -777,6 +698,7 @@ export function InvoiceEditor({
               serviceTo: serviceTo || null,
               paymentTermDays: termValid ? term : 0,
               contactId: contactId || null,
+              contactPersonId: contactPersonId || null,
               ...references,
               lines: [...parsed, ...deductionPreview]
                 .filter((l) => l.valid)
@@ -820,7 +742,7 @@ export function InvoiceEditor({
                   hint={
                     variant &&
                     (variant === "abschlag"
-                      ? "Über einen Teil der Leistung, z. B. 30 % bei Auftrag; wird gebucht wie eine Rechnung."
+                      ? "Anzahlung vor Leistung oder Rechnung über eine bereits erbrachte Teilleistung."
                       : "Über die gesamte Leistung; die gewählten Abschlagsrechnungen werden mit Netto und Umsatzsteuer abgezogen.")
                   }
                   style={{ gridColumn: "1 / -1" }}
@@ -833,6 +755,33 @@ export function InvoiceEditor({
                     </select>
                   )}
                 </Field>
+              )}
+              {kind === "rechnung" && variant === "abschlag" && (
+                <div className="checkbox-hinted" style={{ gridColumn: "1 / -1" }}>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={advanceType === "teilleistung"}
+                      disabled={!editable}
+                      aria-describedby="invoice-advance-hint"
+                      onChange={(e) => touch(setAdvanceType)(e.target.checked ? "teilleistung" : "anzahlung")}
+                    />
+                    Teilleistung bereits erbracht
+                  </label>
+                  <span id="invoice-advance-hint" className="field-hint">
+                    {advanceType === "teilleistung"
+                      ? taxTreatment === "regulaer"
+                        ? "Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung."
+                        : "Tatsächliches Leistungsdatum der Teilleistung angeben. Der Meldezeitpunkt richtet sich nach der gewählten Steuerbehandlung."
+                      : taxTreatment === "regulaer"
+                        ? "Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung."
+                        : taxTreatment === "kleinunternehmer"
+                          ? "Als Kleinunternehmer weist du auf der Anzahlung keine Umsatzsteuer aus."
+                          : advanceUsesPayments(taxTreatment)
+                            ? "Steuerfreie Anzahlung ohne Umsatzsteuerausweis. Der Meldezeitpunkt richtet sich nach Zahlung und Schlussleistung."
+                            : "Für diese Steuerbehandlung gelten die bisherigen Meldezeitpunkte; die Zahlungsregel für inländische Anzahlungen gilt hier nicht."}
+                  </span>
+                </div>
               )}
               <Field label="Kunde" style={{ gridColumn: "1 / -1" }}>
                 {(control) => (
@@ -847,6 +796,13 @@ export function InvoiceEditor({
                   />
                 )}
               </Field>
+              <ContactPersonField
+                persons={contactPersons}
+                contactId={contactId}
+                value={contactPersonId}
+                disabled={!editable}
+                onChange={touch(setContactPersonId)}
+              />
               {kind === "rechnung" && (variant || quoteId) && (
                 <Field
                   label="Angebot"
@@ -925,7 +881,15 @@ export function InvoiceEditor({
                 />
               )}
               <Field label="Leistung von">
-                {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
+                {(control) => (
+                  <input
+                    {...control}
+                    type="date"
+                    value={serviceFrom}
+                    onChange={(e) => touch(setServiceFrom)(e.target.value)}
+                    required={variant === "abschlag" && advanceType === "teilleistung"}
+                  />
+                )}
               </Field>
               <Field label="Leistung bis">
                 {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}

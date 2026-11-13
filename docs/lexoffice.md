@@ -65,7 +65,7 @@ Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufend
 
 ## Umzug ohne Public API (Tarife S, M und L)
 
-Ohne Tarif XL gibt es keinen API-Schlüssel. Dieselben Daten holst du dann über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
+Dieselben Daten holst du über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
 
 ### Sicherung aus der Web-Oberfläche
 
@@ -222,7 +222,7 @@ Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben
 | Rechnung, Soll-Versteuerung | Forderung an Saldenvortrag | Schon in Lexware Office angemeldet; Haben zählt sie nicht noch einmal |
 | Eingangsbeleg | Saldenvortrag an Verbindlichkeiten | Vorsteuer schon in Lexware Office angemeldet; Haben zählt sie nicht noch einmal |
 
-So wird keine Steuer doppelt angemeldet. In der EÜR von Haben zählt die Zahlung, wenn sie in Haben eingeht oder abfließt, wie jede andere Zahlung. Das ist im Einzelunternehmen auch für eine Rechnung vom Dezember richtig, die im Januar bezahlt wird: In der EÜR zählt der Zufluss (§ 11 Abs. 1 Satz 1 EStG), bei Ist-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem das Entgelt vereinnahmt wird (§ 13 Abs. 1 Nr. 1 Buchst. b UStG); beides gehört zum ersten Jahr in Haben und fehlt in der EÜR und den Voranmeldungen von Lexware Office. Die Buchung gegen 9000 berührt die EÜR nicht.
+In der EÜR von Haben zählt die Zahlung, wenn sie in Haben eingeht oder abfließt, wie jede andere Zahlung. Das ist im Einzelunternehmen auch für eine Rechnung vom Dezember richtig, die im Januar bezahlt wird: In der EÜR zählt der Zufluss (§ 11 Abs. 1 Satz 1 EStG), bei Ist-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem das Entgelt vereinnahmt wird (§ 13 Abs. 1 Nr. 1 Buchst. b UStG); beides gehört zum ersten Jahr in Haben und fehlt in der EÜR und den Voranmeldungen von Lexware Office. Die Buchung gegen 9000 berührt die EÜR nicht.
 
 Die Zahlung muss in Haben ankommen: Ruft Haben die Bank erst ab einem späteren Tag ab als dem ersten Tag in Haben, lädst du den Kontoauszug für die Tage davor als Datei hoch (siehe [Bank](bank.md)).
 
@@ -266,7 +266,7 @@ Jede Datei bleibt byte-genau erhalten und liegt unter ihrem SHA-256. Dieselbe Da
 
 ### DATEV-Buchungsstapel
 
-Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewählt hast. Erwartet wird das DATEV-Format EXTF (oder DTVF), Formatkategorie 21 „Buchungsstapel“, Version 7xx. Andere DATEV-Exporte, etwa Kontenbeschriftungen oder Debitoren/Kreditoren, werden mit Namen abgelehnt.
+Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewählt hast. Erwartet wird das DATEV-Format EXTF (oder DTVF), Formatkategorie 21 „Buchungsstapel“, Version 7xx. Andere DATEV-Exporte, etwa Kontenbeschriftungen oder Debitoren/Kreditoren, liest Haben nicht ein: Sie liegen als Originale unter der gewählten Art im Archiv. Hast du **DATEV-Buchungsstapel** gewählt, legt Haben sie als **Sonstiges** ab und sagt es dir; das Geschäftsjahr gibst du dann selbst an. Ein beschädigter Buchungsstapel wird weiter abgelehnt.
 
 - **Kodierung:** UTF-8 (mit oder ohne BOM), UTF-16 mit BOM; alles andere liest Haben als Windows-1252.
 - **Spalten:** Haben sucht die Spalten über ihren Namen, nicht ihre Position. Pflicht sind Umsatz, Soll/Haben-Kennzeichen, Konto, Gegenkonto und Belegdatum. Beim Vergleich der Namen zählen Groß- und Kleinschreibung, Leerzeichen und Bindestriche nicht, und „ae“, „oe“, „ue“, „ss“ gelten wie „ä“, „ö“, „ü“, „ß“. So passen auch die vereinfachten Namen aus Lexware Office wie „Umsatz“, „Gegenkonto“, „BU-Schluessel“ oder „Basisumsatz“. Übernommen werden außerdem Währung, BU-Schlüssel, Belegfeld 1 und 2, Buchungstext und Beleglink; alle anderen nicht leeren Spalten bleiben je Zeile unverändert gespeichert.
@@ -404,6 +404,8 @@ Im laufenden Jahr erinnert die Karte daran, die nächste Rechnungsnummer in den 
 Abgerufene Belege, ihre Dateien, archivierte Exporte und DATEV-Buchungen kann niemand mehr ändern oder löschen, auch nicht direkt in der Datenbank: Postgres-Trigger lehnen `UPDATE` und `DELETE` ab. Das Ablegen jeder Datei und jeder Abruf stehen im Änderungsprotokoll. Ändern dürfen sich nur der gespeicherte Schlüssel und der Fortschritt eines laufenden Abrufs.
 
 Unter **Belege** findest du den Altbestand je Jahr, filterbar nach Einnahmen und Ausgaben, nach Nummer, Kontakt oder Notiz durchsuchbar und mit dem Filter „ohne Datei“. Jeder Beleg zeigt die Beträge je Steuersatz, die Kategorien, den Zahlungsstatus und seine Dateien. Unter **Originaldateien** liegen die hochgeladenen Exporte zum Herunterladen.
+
+Archivierte Belege mit Kontakt stehen außerdem auf dessen Kontaktseite, zusammen mit den Rechnungen und Belegen aus Haben und mit Summen je Jahr ([Rechnungen und Belege am Kontakt](rechnungen.md#rechnungen-und-belege-am-kontakt)).
 
 Im [Jahresexport](auswertungen.md#jahresexport) steht der Altbestand jedes Jahres unter `lexoffice/`: Belege mit Originaldateien, `belege.csv`, `datev-buchungen.csv` und die Originalexporte unter `originale/`.
 

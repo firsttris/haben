@@ -13,6 +13,7 @@ import {
 } from "@haben/core";
 import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
+import { ownAccountName, ownAccountNames, refreshOwnAccountNames } from "../eigene-konten/index.ts";
 
 const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
@@ -22,6 +23,7 @@ const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     [ACCOUNTS.SKR03.verbindlichkeiten]: "Verbindlichkeiten aus Lieferungen und Leistungen",
     [ACCOUNTS.SKR03.privateinlagen]: "Privateinlagen",
     [ACCOUNTS.SKR03.privatentnahmen]: "Privatentnahmen",
+    [ACCOUNTS.SKR03.spenden]: "Zuwendungen, Spenden",
     [ACCOUNTS.SKR03.geldtransit]: "Geldtransit",
     [ACCOUNTS.SKR03.ustVorauszahlung]: "Umsatzsteuer-Vorauszahlungen",
     ...Object.fromEntries(Object.values(EXPENSE_CATEGORIES).map((c) => [c.SKR03, c.label])),
@@ -40,6 +42,7 @@ const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     [ACCOUNTS.SKR04.verbindlichkeiten]: "Verbindlichkeiten aus Lieferungen und Leistungen",
     [ACCOUNTS.SKR04.privateinlagen]: "Privateinlagen",
     [ACCOUNTS.SKR04.privatentnahmen]: "Privatentnahmen",
+    [ACCOUNTS.SKR04.spenden]: "Zuwendungen, Spenden",
     [ACCOUNTS.SKR04.geldtransit]: "Geldtransit",
     [ACCOUNTS.SKR04.ustVorauszahlung]: "Umsatzsteuer-Vorauszahlungen",
     ...Object.fromEntries(Object.values(EXPENSE_CATEGORIES).map((c) => [c.SKR04, c.label])),
@@ -54,16 +57,17 @@ const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
 };
 
 export function accountName(kontenrahmen: Kontenrahmen, account: string): string {
-  return ACCOUNT_NAMES[kontenrahmen][account] ?? EXTRA_NAMES[kontenrahmen][account] ?? "";
+  return ACCOUNT_NAMES[kontenrahmen][account] ?? EXTRA_NAMES[kontenrahmen][account] ?? ownAccountName(kontenrahmen, account) ?? "";
 }
 
 /** Alle Konten mit Namen, die Haben kennt, z. B. als Hilfe beim Erfassen einer manuellen Buchung */
 export function knownAccounts(kontenrahmen: Kontenrahmen): Record<string, string> {
-  return { ...EXTRA_NAMES[kontenrahmen], ...ACCOUNT_NAMES[kontenrahmen] };
+  return { ...ownAccountNames(kontenrahmen), ...EXTRA_NAMES[kontenrahmen], ...ACCOUNT_NAMES[kontenrahmen] };
 }
 
 /** Buchungen eines Monats mit ihren Zeilen, nur lesend */
 export async function loadJournal(year: number, month: number) {
+  await refreshOwnAccountNames();
   const start = `${year}-${String(month).padStart(2, "0")}-01`;
   const end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
   const entries = await db

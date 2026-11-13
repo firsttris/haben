@@ -1,6 +1,8 @@
+import { isC24Header, parseC24 } from "./c24.ts";
 import { isCamt053, parseCamt053 } from "./camt.ts";
 import { parseCsv } from "./csv.ts";
 import { decodeText } from "./decode.ts";
+import { isCommerzbankHeader, parseCommerzbank } from "./commerzbank.ts";
 import { isDkbAltHeader, isDkbHeader, parseDkb, parseDkbAlt } from "./dkb.ts";
 import { isEbayHeader, parseEbay } from "./ebay.ts";
 import { StatementParseError } from "./errors.ts";
@@ -37,10 +39,14 @@ function detect(text: string, label: string): Detected {
   if (dkb >= 0) return { format: "dkb-csv", rows: parseCsv(text, ";"), headerRow: dkb };
   const dkbAlt = findHeaderRow(semicolon, isDkbAltHeader);
   if (dkbAlt >= 0) return { format: "dkb-csv-alt", rows: parseCsv(text, ";"), headerRow: dkbAlt };
+  const commerzbank = findHeaderRow(semicolon, isCommerzbankHeader);
+  if (commerzbank >= 0) return { format: "commerzbank-csv", rows: parseCsv(text, ";"), headerRow: commerzbank };
   const ebaySemicolon = findHeaderRow(semicolon, isEbayHeader);
   if (ebaySemicolon >= 0) return { format: "ebay-csv", rows: parseCsv(text, ";"), headerRow: ebaySemicolon };
 
   const comma = parseCsv(head, ",");
+  const c24 = findHeaderRow(comma, isC24Header);
+  if (c24 >= 0) return { format: "c24-csv", rows: parseCsv(text, ","), headerRow: c24 };
   // Swan vor N26: dessen Kopfblock traegt Datum/Name/Verwendungszweck, die N26-Erkennung
   // wuerde an einer solchen Datei nicht greifen, aber die Reihenfolge soll eindeutig sein.
   const swan = findHeaderRow(comma, isSwanHeader);
@@ -60,7 +66,7 @@ function detect(text: string, label: string): Detected {
   if (etsy >= 0) return { format: "etsy-csv", rows: parseCsv(text, ","), headerRow: etsy };
 
   throw new StatementParseError(
-    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB, N26 und Swan, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe, Shopify Payments, der Transaktionsbericht von eBay und die Monatsabrechnung von Etsy.`,
+    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB, Commerzbank, C24, N26 und Swan, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe, Shopify Payments, der Transaktionsbericht von eBay und die Monatsabrechnung von Etsy.`,
   );
 }
 
@@ -86,6 +92,10 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
       return parseN26(detected.rows, detected.headerRow);
     case "swan-csv":
       return parseSwan(detected.rows, detected.headerRow);
+    case "commerzbank-csv":
+      return parseCommerzbank(detected.rows, detected.headerRow);
+    case "c24-csv":
+      return parseC24(detected.rows, detected.headerRow);
     case "paypal-csv":
       return parsePayPal(detected.rows, detected.headerRow);
     case "stripe-csv":

@@ -2,7 +2,8 @@
 
 Issues und Pull Requests sind willkommen. Haben ist eine selbst gehostete Buchhaltung für Freiberufler und kleine
 Firmen. Wie die Teile zusammenhängen, steht in der [Architektur](https://haben.app/architektur.html),
-wie du es lokal startest, in der [Entwicklung](https://haben.app/entwicklung.html).
+wie du es lokal startest, in der [Entwicklung](https://haben.app/entwicklung.html). Für alle, die mitmachen, gilt
+unser [Verhaltenskodex](CODE_OF_CONDUCT.md).
 
 ## Fehler und Wünsche melden
 
@@ -18,7 +19,7 @@ bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 
 Such dir eine Karte aus „Geplant“ im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, für den
 Einstieg gern mit dem Label [`einstieg`](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg), und
-schreib im Issue, dass du es übernimmst; ein Maintainer weist es dir zu. Wie das genau abläuft, steht unter
+kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau abläuft, steht unter
 [Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen).
 
 ## Pull Requests
@@ -40,10 +41,17 @@ schreib im Issue, dass du es übernimmst; ein Maintainer weist es dir zu. Wie da
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
   [Mit KI-Werkzeugen](https://haben.app/entwicklung.html#mit-ki-werkzeugen).
 - Sprache: Deutsch für Kommentare, Doku, Commits und alles, was Nutzer sehen. Bezeichner bleiben Englisch.
-- Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**: Ein Befund zählt nur mit einem Test, der
-  auf dem Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf. Gemergt wird von einem
-  Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Die Schritte stehen unter
-  [Review](https://haben.app/entwicklung.html#review).
+- Vor „Ready for review“ die **Selbstprüfung** (mit KI-Agenten Skill `beitrag-pruefen`): passt die Änderung zu
+  Haben, ist sie gegen die Quellen geprüft, die einfachste Lösung, mit Tests und Doku? Das Ergebnis kommt als
+  Kommentar in den Pull Request; ein Maintainer oder Collaborator prüft es nur nach
+  ([Beiträge annehmen](https://haben.app/entwicklung.html#beiträge-annehmen)).
+- Vor dem Merge ein unabhängiges **TDD-Review** (`tdd-review`), ohne Code eine **Doku-Prüfung** (`doku-pruefen`),
+  durch jemand anderen oder einen frischen Agenten. Im TDD-Review zählt ein Befund nur mit einem Test, der auf dem
+  Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf
+  ([Review](https://haben.app/entwicklung.html#review)). Bringst du es mit, reviewen wir nicht noch einmal.
+- Fehlt beides, machen wir alles selbst noch einmal, und weil jeder Merge über uns läuft, wartet dein Pull Request
+  dann länger. Gemergt wird von einem Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Ein Issue vorab
+  spart dir Arbeit an etwas, das wir nicht übernehmen können.
 
 Die vollständigen Regeln (Codestil, Geld in Cent, GoBD-Sperren, Migrationen, Modulgrenzen) stehen unter
 [Konventionen](https://haben.app/entwicklung.html#konventionen) und

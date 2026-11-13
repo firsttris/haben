@@ -18,6 +18,7 @@ Die API **bucht nichts, schreibt nichts fest und versendet nichts**. Ein Entwurf
 | Kontakte | auflisten und suchen, lesen, anlegen, ändern (nicht löschen: Kontakte sind versioniert) |
 | Rechnungen | alle lesen, auch festgeschriebene; Entwürfe anlegen, ändern und löschen, solange sie Entwurf sind |
 | Belege | hochladen (landen als „Zu prüfen“), auflisten und lesen, ob sie schon geprüft und gebucht sind; nicht ändern oder löschen |
+| Leistungen | Zeiteinträge je Kunde auflisten, lesen, anlegen (mit Kennung wiederholbar) und löschen, etwa aus Kimai |
 
 Die vollständige Beschreibung als OpenAPI 3.1 liefert Haben selbst unter `https://<deine Adresse>/api/v1/openapi.json`, ohne Token. Werkzeuge wie Swagger UI, Bruno oder Postman lesen sie ein.
 
@@ -37,6 +38,8 @@ Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was e
 | `rechnungen:entwuerfe` | dazu `POST /rechnungen`, `PATCH /rechnungen/{id}`, `DELETE /rechnungen/{id}` |
 | `belege:lesen` | `GET /belege`, `GET /belege/{id}` |
 | `belege:anlegen` | dazu `POST /belege` |
+| `leistungen:lesen` | `GET /leistungen`, `GET /leistungen/{id}` |
+| `leistungen:schreiben` | dazu `POST /leistungen`, `DELETE /leistungen/{id}` |
 | `haben:lesen` | nur die Werkzeuge über [MCP](ki-assistenten.md), nicht die REST-API |
 
 Schreiben und anlegen schließen lesen ein. Ein Token ohne das nötige Recht bekommt `403`.
@@ -167,12 +170,47 @@ Ist die Rechnung schon festgeschrieben, antworten Ändern und Löschen mit `409`
 
 ## Ablauf für Bestellungen
 
-Ein Ablauf für Bestellungen sieht typischerweise so aus:
-
 1. Neue Bestellungen von der Plattform holen (Trigger oder Zeitplan).
 2. `GET /kontakte?q=<E-Mail>`; ist `total` 0, den Kontakt mit `POST /kontakte` anlegen.
 3. `POST /rechnungen` mit `contactId`, `externalSource`, `externalId` und den Positionen. Läuft der Abruf doppelt, kommt `200` mit der vorhandenen Rechnung statt eines Duplikats.
 4. In Haben die Entwürfe prüfen und festschreiben, dann wie gewohnt versenden.
+
+## Leistungen und Zeiterfassung
+
+Ein Zeiterfassungsprogramm wie Kimai oder Toggl schickt seine Zeiteinträge mit `POST /leistungen` an Haben; sie stehen dort unter [Leistungen](leistungen.md). Der Eintrag gehört einem Kunden (`contactId`), hat einen Arbeitstag (`workedOn`), eine Dauer in ganzen Minuten (`minutes`, 1 bis 1440) und optional `description`, `hourlyRateCents`, `project` (freier Text), `billableMinutes` (abrechenbare Dauer, wenn sie von der erfassten abweicht) und `nonBillable` (`true`: erfasst, kommt aber nie in einen Rechnungsentwurf). Der Kontakt muss ein Kunde und darf nicht archiviert sein, sonst `422`. Ohne Stundensatz nimmt Haben den des Kunden; er bleibt als Kopie am Eintrag. Den Satz am Kunden setzt `PATCH /kontakte/{id}` mit `hourlyRateCents`.
+
+Mit `source` und `externalId` ist der Aufruf wiederholbar: Die Kennung der Zeile in der Quelle steht in `externalId`, der Name der Quelle in `source`. Gibt es die Kennung schon, antwortet Haben mit `200` und dem aktualisierten Eintrag, sonst mit `201`. Fehlen Stundensatz, `project`, `billableMinutes` oder `nonBillable` im Aufruf, behält ein vorhandener Eintrag seine Werte; `billableMinutes: null` nimmt eine abrechenbare Dauer zurück. Den Stundensatz des Kunden liefert `GET /kontakte/{id}` als `hourlyRateCents`.
+
+```sh
+curl -X POST "$HABEN/leistungen" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"contactId":"<Kunden-ID>","workedOn":"2026-03-02","minutes":90,"description":"Konzept Datenmodell","source":"kimai","externalId":"4711"}'
+```
+
+Gelöscht wird mit `DELETE /leistungen/{id}`, gelesen mit `GET /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from` und `to` listet.
+
+### Zeitbuchungen aus Kimai holen
+
+Kimai hat eine eigene [REST-API](https://www.kimai.org/documentation/rest-api.html): Anmeldung mit `Authorization: Bearer <Kimai-Token>` (das Token aus dem Profil in Kimai, nicht das Passwort), Basis `https://<deine Kimai-Adresse>/api`, die vollständige Beschreibung unter `/api/doc` der eigenen Installation. Die Zeitbuchungen holt `GET /api/timesheets`; laut Quelltext von Kimai nimmt die Liste unter anderem `begin` und `end` (lokale Zeit, `JJJJ-MM-TTThh:mm:ss`), `customer`, `project`, `exported` (0 oder 1), `billable` (0 oder 1), `active` (0 = beendet), `modified_after` (UTC), `size` (höchstens 500) und `page`; `full=1` liefert Kunde und Projekt mit Namen statt nur mit ID.
+
+Ein Skript ruft regelmäßig die beendeten, noch nicht exportierten Zeitbuchungen ab und schickt jede an Haben:
+
+| Kimai | Haben (`POST /api/v1/leistungen`) |
+| --- | --- |
+| `id` der Zeitbuchung | `externalId`, dazu `source`: `kimai` |
+| Kunde der Zeitbuchung | `contactId`: der Kontakt in Haben, den das Skript über `GET /kontakte?q=<Name oder Kundennummer>` findet |
+| Datum von `begin` | `workedOn` |
+| `duration` (Sekunden) | `minutes`: auf ganze Minuten gerundet, mindestens 1 |
+| `description` | `description` |
+| Projekt (mit `full=1` der Name) | `project` |
+| `billable` ist `false` | `nonBillable`: `true` |
+
+`hourlyRateCents` lässt das Skript weg: Dann gilt der Satz des Kunden in Haben. Weil die Kennung der Zeitbuchung `externalId` ist, ändert ein erneuter Abruf, etwa nach `modified_after`, vorhandene Einträge statt neue anzulegen. Wer eine Zeitbuchung in Kimai nachträglich ändert, schickt sie noch einmal.
+
+Kimai merkt sich, was schon abgerechnet ist, mit dem Kennzeichen `exported` (`PATCH /api/timesheets/{id}/export` schaltet es um). Setzen soll es der Abgleich, sobald Haben die Einträge zu einer Rechnung gemacht hat; das kommt mit dem Abrechnen, einem späteren Teil von [#417](https://github.com/firsttris/haben/issues/417).
+
+> [!NOTE]
+> Diese Zuordnung folgt der Kimai-Dokumentation und dem Quelltext von Kimai. Sie ist noch nicht gegen eine laufende Kimai-Installation ausprobiert; welche Felder die Antwort genau enthält, zeigt `/api/doc` der eigenen Installation.
 
 ## Belege
 

@@ -9,7 +9,8 @@ import {
   type VatPeriod,
   type Versteuerung,
 } from "@haben/core";
-import { and, asc, eq, gte, lt, notInArray } from "drizzle-orm";
+import { and, asc, eq, gte, lt, notInArray, or } from "drizzle-orm";
+import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
@@ -25,24 +26,60 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
   const e = schema.journalEntries;
   const l = schema.journalLines;
   const rows = await q
-    .select({ id: e.id, kontenrahmen: e.kontenrahmen, account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode, basis: l.basis })
+    .select({
+      id: e.id,
+      kontenrahmen: e.kontenrahmen,
+      account: l.account,
+      debit: l.debit,
+      credit: l.credit,
+      taxCode: l.taxCode,
+      basis: l.basis,
+      invoiceDate: schema.invoices.issueDate,
+      correctsId: schema.invoices.correctsId,
+      advanceType: schema.invoices.advanceType,
+      invoiceId: schema.invoices.id,
+      variant: schema.invoices.variant,
+      serviceFrom: schema.invoices.serviceFrom,
+      serviceTo: schema.invoices.serviceTo,
+      treatment: schema.invoices.taxTreatment,
+    })
     .from(l)
     .innerJoin(e, eq(e.id, l.entryId))
+    .leftJoin(schema.writeOffs, and(eq(e.sourceType, "ausbuchung"), eq(e.sourceId, schema.writeOffs.id)))
+    .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
     .where(and(gte(e.date, start), lt(e.date, end), nurManuell ? eq(e.sourceType, "manuell") : notInArray(e.sourceType, ["eroeffnung", "asset"])))
     .orderBy(asc(e.id));
-  const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; zeilen: JournalZeile[] }>();
+  const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; zeilen: JournalZeile[] }>();
+  const taxes = invoiceTaxReader(q);
   for (const r of rows) {
-    const b = buchungen.get(r.id) ?? { kontenrahmen: r.kontenrahmen as Kontenrahmen, zeilen: [] };
+    let b = buchungen.get(r.id);
+    if (!b) {
+      // Auch Storno und Korrektur folgen der ursprünglichen Rechnung.
+      const mode = r.invoiceDate
+        ? await taxes.postingMode({
+            issueDate: r.invoiceDate,
+            correctsId: r.correctsId,
+            advanceType: r.advanceType,
+            id: r.invoiceId ?? undefined,
+            variant: r.variant,
+            serviceFrom: r.serviceFrom,
+            serviceTo: r.serviceTo,
+            taxTreatment: r.treatment ?? "regulaer",
+          })
+        : versteuerung;
+      b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, zeilen: [] };
+      buchungen.set(r.id, b);
+    }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode as JournalZeile["taxCode"], basis: r.basis });
-    buchungen.set(r.id, b);
   }
   const summe = leereJournalKennzahlen();
   // Ein Jahr hat einen Kontenrahmen; je Kontenrahmen gerechnet, falls ein Zeitraum doch beide sieht
-  for (const kr of ["SKR03", "SKR04"] as const) {
-    const eigene = [...buchungen.values()].filter((b) => b.kontenrahmen === kr).map((b) => b.zeilen);
-    if (eigene.length === 0) continue;
-    const k = kennzahlenAusJournal(kr, versteuerung, eigene);
-    for (const feld of JOURNAL_KENNZAHLEN) summe[feld] += k[feld];
-  }
+  for (const kr of ["SKR03", "SKR04"] as const)
+    for (const mode of ["ist", "soll"] as const) {
+      const eigene = [...buchungen.values()].filter((b) => b.kontenrahmen === kr && b.versteuerung === mode).map((b) => b.zeilen);
+      if (eigene.length === 0) continue;
+      const k = kennzahlenAusJournal(kr, mode, eigene);
+      for (const feld of JOURNAL_KENNZAHLEN) summe[feld] += k[feld];
+    }
   return summe;
 }

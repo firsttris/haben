@@ -1,3 +1,4 @@
+import { insertAllocation, insertWriteOff } from "./settlement-store.ts";
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
@@ -57,7 +58,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoicePaymentPostingMode, invoiceTotalsById, invoicePostingMode, lockInvoice } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
@@ -68,6 +69,8 @@ import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { quellenHinweis } from "./quellen.ts";
+import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 
 export class BankError extends UserError {}
 
@@ -191,6 +194,8 @@ export interface ImportResult {
   skipped: number;
   warnings: string[];
   gap: string | null;
+  /** Meldung, wenn im Zeitraum schon Umsätze aus einem anderen Dateiformat liegen (#632) */
+  quelle: string | null;
 }
 
 /**
@@ -324,6 +329,7 @@ export async function storeStatement(
     skipped: transactions.length - added,
     warnings: statement.warnings,
     gap: continuity.ok ? null : (continuity.message ?? "Lücke zum vorigen Import"),
+    quelle: await quellenHinweis(tx, account.id, statement.format, added, statement.periodFrom, statement.periodTo, transactions),
   };
 }
 
@@ -344,7 +350,8 @@ const openAmountSql = bankOpenAmountSql;
 
 export type TransactionFilter = "offen" | "zugeordnet" | "alle";
 
-export async function listTransactions(accountId: string, filter: TransactionFilter, search: string) {
+/** Höchstens 500 Umsätze, sortiert vor der Grenze (umsatzliste.ts); ohne Sortierung der neueste oben */
+export async function listTransactions(accountId: string, filter: TransactionFilter, search: string, sortierung: UmsatzSortierung = STANDARD_SORTIERUNG) {
   const conditions = [eq(schema.bankTransactions.bankAccountId, accountId)];
   if (filter === "offen") conditions.push(sql`${openAmountSql} <> 0`);
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
@@ -373,7 +380,7 @@ export async function listTransactions(accountId: string, filter: TransactionFil
     })
     .from(schema.bankTransactions)
     .where(and(...conditions))
-    .orderBy(desc(schema.bankTransactions.bookingDate), desc(schema.bankTransactions.createdAt))
+    .orderBy(...umsatzReihenfolge(sortierung))
     .limit(500);
 }
 
@@ -386,10 +393,13 @@ async function paidByTarget(column: "invoice_id" | "document_id", ids: string[],
   if (ids.length === 0) return new Map();
   const col = sql.raw(column);
   const cash = column === "invoice_id" ? sql`union all select invoice_id as id, amount from cash_entries where invoice_id in ${ids}` : sql``;
+  // Verrechnungen gibt es nur zwischen Belegen, Rechnungen kennen keine Gegenrechnung
+  const verrechnet = column === "document_id" ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}` : sql``;
   const rows = await q.execute<{ id: string; paid: string }>(
     sql`select id, sum(amount) as paid from (
           select ${col} as id, amount from allocations where ${col} in ${ids}
           union all select ${col} as id, amount from write_offs where ${col} in ${ids}
+          ${verrechnet}
           ${cash}
         ) settled group by 1`,
   );
@@ -915,7 +925,7 @@ export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferS
       }
     }
     for (const bank of rows) {
-      const [allocation] = await tx.insert(schema.allocations).values({ transactionId: bank.id, kind: "geldtransit", amount: bank.amount }).returning();
+      const [allocation] = await insertAllocation(tx, { transactionId: bank.id, kind: "geldtransit", amount: bank.amount });
       await post(tx, company, {
         date: bank.bookingDate,
         description: `${bank.counterpartyName || "Bankumsatz"} · geldtransit`,
@@ -972,6 +982,7 @@ export function reverseLinesIn(von: Kontenrahmen, nach: Kontenrahmen, lines: Pos
 
 const DIRECT_KINDS = [
   "privat",
+  "spende",
   "geldtransit",
   "ustVorauszahlung",
   "sondervorauszahlung",
@@ -1089,14 +1100,15 @@ async function returnBooking(
   bank: LockedTransaction,
   part: { invoiceId: string; directDebitItemId: string; amount: number },
 ) {
-  const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
+  const invoice = await lockInvoice(tx, part.invoiceId);
   if (invoice?.status !== "final" || invoice.kind !== "rechnung") throw new BankError("Rechnung nicht zuordenbar.");
+
   const paid = await settledOn(tx, "invoice_id", invoice.id);
   if (part.amount >= 0 || -part.amount > paid) throw new BankError(`Rechnung ${invoice.number} ist nur über ${paid / 100} € bezahlt.`);
   const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
   const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
   return {
-    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares, invoice.taxTreatment),
+    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, await invoicePaymentPostingMode(invoice, tx), taxShares, invoice.taxTreatment),
     description: `Rücklastschrift ${invoice.number} · ${bank.counterpartyName}`,
     target: { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id, directDebitItemId: part.directDebitItemId },
   };
@@ -1126,8 +1138,9 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   } = {};
 
   if (part.kind === "invoice") {
-    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
+    const invoice = await lockInvoice(tx, part.invoiceId);
     if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+
     const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);
     let open: number;
     if (invoice.kind === "storno") {
@@ -1146,7 +1159,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
-    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares, invoice.taxTreatment);
+    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, await invoicePaymentPostingMode(invoice, tx), taxShares, invoice.taxTreatment);
     description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
     target = { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id };
     // IBAN des Kunden für künftige Vorschläge merken
@@ -1195,10 +1208,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   }
 
   const kind = part.kind === "ustva" ? "ustVorauszahlung" : part.kind === "ruecklastschrift" ? "invoice" : part.kind;
-  const [allocation] = await tx
-    .insert(schema.allocations)
-    .values({ transactionId: bank.id, kind, amount: part.amount, splitId, ...target })
-    .returning();
+  const [allocation] = await insertAllocation(tx, { transactionId: bank.id, kind, amount: part.amount, splitId, ...target });
   await post(tx, company, {
     date: bank.bookingDate,
     description,
@@ -1251,40 +1261,43 @@ export async function allocateSplit(actor: string, input: SplitInput): Promise<v
 
 /** Hebt eine Zuordnung per Gegenzeile und Gegenbuchung auf; Teile einer Aufteilung nur alle zusammen. */
 export async function reverseAllocation(actor: string, allocationId: string): Promise<void> {
-  await withActor(actor, async (tx) => {
-    const [allocation] = await tx.select().from(schema.allocations).where(eq(schema.allocations.id, allocationId)).for("update");
-    if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
-    const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
-    if (already) throw new BankError("Die Zuordnung ist bereits aufgehoben.");
-    // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
-    const parts = allocation.splitId
-      ? await tx
-          .select()
-          .from(schema.allocations)
-          .where(and(eq(schema.allocations.splitId, allocation.splitId), isNull(schema.allocations.reversesId)))
-          .orderBy(asc(schema.allocations.createdAt))
-          .for("update")
-      : [allocation];
-    await darlehenAufhebenPruefen(tx, parts);
-    for (const part of parts) await reverseOne(tx, part);
-    // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
-    const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
-    if (targets.length > 0) {
-      const linked = await tx
+  await withActor(actor, (tx) => reverseAllocationIn(tx, allocationId));
+}
+
+/** Wie reverseAllocation, innerhalb der withActor-Transaktion des Aufrufers (z. B. gemeinsamer Belegstorno). */
+export async function reverseAllocationIn(tx: Tx, allocationId: string): Promise<void> {
+  const [allocation] = await tx.select().from(schema.allocations).where(eq(schema.allocations.id, allocationId)).for("update");
+  if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
+  const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
+  if (already) throw new BankError("Die Zuordnung ist bereits aufgehoben.");
+  // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
+  const parts = allocation.splitId
+    ? await tx
         .select()
-        .from(schema.writeOffs)
-        .where(
-          and(
-            eq(schema.writeOffs.transactionId, allocation.transactionId),
-            isNull(schema.writeOffs.reversesId),
-            or(inArray(schema.writeOffs.invoiceId, targets), inArray(schema.writeOffs.documentId, targets)),
-          ),
-        )
-        .for("update");
-      for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
-    }
-    await assertNoReturnWithoutPayment(tx, parts);
-  });
+        .from(schema.allocations)
+        .where(and(eq(schema.allocations.splitId, allocation.splitId), isNull(schema.allocations.reversesId)))
+        .orderBy(asc(schema.allocations.createdAt))
+        .for("update")
+    : [allocation];
+  await darlehenAufhebenPruefen(tx, parts);
+  for (const part of parts) await reverseOne(tx, part);
+  // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
+  const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
+  if (targets.length > 0) {
+    const linked = await tx
+      .select()
+      .from(schema.writeOffs)
+      .where(
+        and(
+          eq(schema.writeOffs.transactionId, allocation.transactionId),
+          isNull(schema.writeOffs.reversesId),
+          or(inArray(schema.writeOffs.invoiceId, targets), inArray(schema.writeOffs.documentId, targets)),
+        ),
+      )
+      .for("update");
+    for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
+  }
+  await assertNoReturnWithoutPayment(tx, parts);
 }
 
 /**
@@ -1306,6 +1319,7 @@ async function assertNoReturnWithoutPayment(tx: Tx, parts: (typeof schema.alloca
 }
 
 async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect) {
+  if (allocation.invoiceId) await lockInvoice(tx, allocation.invoiceId);
   const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocation.id));
   if (already) return;
   const [entry] = await tx
@@ -1315,29 +1329,26 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       and(eq(schema.journalEntries.sourceType, "allocation"), eq(schema.journalEntries.sourceId, allocation.id), isNull(schema.journalEntries.reversesId)),
     );
   const lines = entry ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id)) : [];
-  const [reversal] = await tx
-    .insert(schema.allocations)
-    .values({
-      transactionId: allocation.transactionId,
-      kind: allocation.kind,
-      invoiceId: allocation.invoiceId,
-      documentId: allocation.documentId,
-      vatReturnId: allocation.vatReturnId,
-      taxType: allocation.taxType,
-      taxYear: allocation.taxYear,
-      taxItem: allocation.taxItem,
-      loanId: allocation.loanId,
-      loanPart: allocation.loanPart,
-      category: allocation.category,
-      taxRate: allocation.taxRate,
-      directDebitItemId: allocation.directDebitItemId,
-      amount: -allocation.amount,
-      splitId: allocation.splitId,
-      reversesId: allocation.id,
-      taxShares: negatedShares(allocation.taxShares),
-      taxSharesInvoiceId: allocation.taxSharesInvoiceId,
-    })
-    .returning();
+  const [reversal] = await insertAllocation(tx, {
+    transactionId: allocation.transactionId,
+    kind: allocation.kind,
+    invoiceId: allocation.invoiceId,
+    documentId: allocation.documentId,
+    vatReturnId: allocation.vatReturnId,
+    taxType: allocation.taxType,
+    taxYear: allocation.taxYear,
+    taxItem: allocation.taxItem,
+    loanId: allocation.loanId,
+    loanPart: allocation.loanPart,
+    category: allocation.category,
+    taxRate: allocation.taxRate,
+    directDebitItemId: allocation.directDebitItemId,
+    amount: -allocation.amount,
+    splitId: allocation.splitId,
+    reversesId: allocation.id,
+    taxShares: negatedShares(allocation.taxShares),
+    taxSharesInvoiceId: allocation.taxSharesInvoiceId,
+  });
   if (entry) {
     const [bank] = await tx
       .select({ bookingDate: schema.bankTransactions.bookingDate })
@@ -1435,14 +1446,20 @@ export async function bookWriteOff(
   let target: { invoiceId: string | null; documentId: string | null; taxShares?: TaxShare[]; taxSharesInvoiceId?: string };
   if (input.kind === "kursdifferenz") {
     if ("invoiceId" in input) {
-      const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
+      const invoice = await lockInvoice(tx, input.invoiceId);
       if (invoice?.status !== "final") throw new BankError("Rechnung nicht gefunden.");
       if (invoice.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Rechnungen in Fremdwährung.");
       amount = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
       const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
       const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
       lines = exchangeDifferencePosting(
-        { kind: "invoice", totals, versteuerung: company.versteuerung, shares: taxShares, treatment: invoice.taxTreatment },
+        {
+          kind: "invoice",
+          totals,
+          versteuerung: await invoicePaymentPostingMode(invoice, tx),
+          shares: taxShares,
+          treatment: invoice.taxTreatment,
+        },
         amount,
         company.kontenrahmen,
       );
@@ -1479,8 +1496,9 @@ export async function bookWriteOff(
     description = `Skonto erhalten · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { invoiceId: null, documentId: doc.id };
   } else {
-    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
+    const invoice = await lockInvoice(tx, input.invoiceId);
     if (invoice?.status !== "final") throw new BankError("Rechnung nicht gefunden.");
+
     if (invoice.kind === "storno") throw new BankError("Eine Stornorechnung lässt sich nicht ausbuchen.");
     const [storno] = await tx
       .select({ id: schema.invoices.id })
@@ -1494,21 +1512,18 @@ export async function bookWriteOff(
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
-    lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, company.versteuerung, invoice.taxTreatment, taxShares);
+    lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, await invoicePostingMode(invoice, tx), invoice.taxTreatment, taxShares);
     description = `${WRITE_OFF_KINDS[input.kind]} · Rechnung ${invoice.number}`;
     target = { invoiceId: invoice.id, documentId: null, taxShares, taxSharesInvoiceId: invoice.id };
   }
-  const [row] = await tx
-    .insert(schema.writeOffs)
-    .values({
-      kind: input.kind,
-      ...target,
-      date: input.date,
-      amount,
-      transactionId: input.transactionId ?? null,
-      cashEntryId: "cashEntryId" in input ? (input.cashEntryId ?? null) : null,
-    })
-    .returning();
+  const [row] = await insertWriteOff(tx, {
+    kind: input.kind,
+    ...target,
+    date: input.date,
+    amount,
+    transactionId: input.transactionId ?? null,
+    cashEntryId: "cashEntryId" in input ? (input.cashEntryId ?? null) : null,
+  });
   await post(tx, company, { date: input.date, description, sourceType: "ausbuchung", sourceId: row!.id, lines });
   return amount;
 }
@@ -1635,6 +1650,7 @@ export async function reverseWriteOff(actor: string, id: string, date: string): 
 
 /** Gegenzeile einer Ausbuchung; mit einer Zuordnung zusammen am Datum der Ausbuchung (= Buchungsdatum des Umsatzes) */
 export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect, date = row.date) {
+  if (row.invoiceId) await lockInvoice(tx, row.invoiceId);
   const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, row.id));
   if (already) return;
   const [entry] = await tx
@@ -1642,21 +1658,18 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
     .from(schema.journalEntries)
     .where(and(eq(schema.journalEntries.sourceType, "ausbuchung"), eq(schema.journalEntries.sourceId, row.id), isNull(schema.journalEntries.reversesId)));
   const lines = entry ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id)) : [];
-  const [reversal] = await tx
-    .insert(schema.writeOffs)
-    .values({
-      kind: row.kind,
-      invoiceId: row.invoiceId,
-      documentId: row.documentId,
-      date,
-      amount: -row.amount,
-      transactionId: row.transactionId,
-      cashEntryId: row.cashEntryId,
-      reversesId: row.id,
-      taxShares: negatedShares(row.taxShares),
-      taxSharesInvoiceId: row.taxSharesInvoiceId,
-    })
-    .returning();
+  const [reversal] = await insertWriteOff(tx, {
+    kind: row.kind,
+    invoiceId: row.invoiceId,
+    documentId: row.documentId,
+    date,
+    amount: -row.amount,
+    transactionId: row.transactionId,
+    cashEntryId: row.cashEntryId,
+    reversesId: row.id,
+    taxShares: negatedShares(row.taxShares),
+    taxSharesInvoiceId: row.taxSharesInvoiceId,
+  });
   if (entry) {
     const books = await openBooks(tx);
     await post(tx, books, {

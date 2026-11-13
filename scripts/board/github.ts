@@ -9,8 +9,8 @@ export const PROJECT = { owner: "firsttris", number: 2 };
 
 const API = "https://api.github.com";
 
-async function anfrage<T>(token: string, pfad: string, init: RequestInit = {}): Promise<T> {
-  const antwort = await fetch(`${API}${pfad}`, {
+async function holen(token: string, url: string, init: RequestInit = {}): Promise<Response> {
+  const antwort = await fetch(url, {
     ...init,
     headers: {
       authorization: `Bearer ${token}`,
@@ -19,8 +19,26 @@ async function anfrage<T>(token: string, pfad: string, init: RequestInit = {}): 
       "user-agent": "haben-board",
     },
   });
-  if (!antwort.ok) throw new Error(`GitHub ${init.method ?? "GET"} ${pfad}: ${antwort.status} ${await antwort.text()}`);
-  return (await antwort.json()) as T;
+  if (!antwort.ok) throw new Error(`GitHub ${init.method ?? "GET"} ${url.slice(API.length)}: ${antwort.status} ${await antwort.text()}`);
+  return antwort;
+}
+
+async function anfrage<T>(token: string, pfad: string, init: RequestInit = {}): Promise<T> {
+  return (await (await holen(token, `${API}${pfad}`, init)).json()) as T;
+}
+
+/** Eine Liste über alle Seiten: GitHub nennt die nächste im Header `Link` mit rel="next" */
+async function alleSeiten<T>(token: string, pfad: string): Promise<T[]> {
+  const liste: T[] = [];
+  let url: string | undefined = `${API}${pfad}`;
+  while (url) {
+    const antwort = await holen(token, url);
+    liste.push(...((await antwort.json()) as T[]));
+    url = antwort.headers.get("link")?.match(/<([^>]+)>;\s*rel="next"/)?.[1];
+    // Das Token geht nur an die API, auch wenn der Header etwas anderes nennte
+    if (url && !url.startsWith(`${API}/`)) throw new Error(`GitHub nennt eine nächste Seite außerhalb der API: ${url}`);
+  }
+  return liste;
 }
 
 export async function graphql<T>(token: string, query: string, variables: Record<string, unknown>): Promise<T> {
@@ -135,4 +153,71 @@ export async function schliessen(token: string, repo: string, nummer: number): P
     method: "PATCH",
     body: JSON.stringify({ state: "closed", state_reason: "completed" }),
   });
+}
+
+/* Übernehmen und Freigeben (scripts/board/befehl.ts, erinnerung.ts), REST mit GITHUB_TOKEN */
+
+type Person = { login: string; type?: string };
+
+/** Zuweisungen, wie sie jetzt sind; die im Ereignis sind beim Lauf womöglich schon überholt */
+export async function zugewiesenLesen(token: string, repo: string, nummer: number): Promise<string[]> {
+  const issue = await anfrage<{ assignees: Person[] }>(token, `/repos/${repo}/issues/${nummer}`);
+  return issue.assignees.map((p) => p.login);
+}
+
+export async function zuweisen(token: string, repo: string, nummer: number, person: string): Promise<string[]> {
+  const issue = await anfrage<{ assignees: Person[] }>(token, `/repos/${repo}/issues/${nummer}/assignees`, {
+    method: "POST",
+    body: JSON.stringify({ assignees: [person] }),
+  });
+  return issue.assignees.map((p) => p.login);
+}
+
+export async function zuweisungAufheben(token: string, repo: string, nummer: number, personen: string[]): Promise<void> {
+  await anfrage(token, `/repos/${repo}/issues/${nummer}/assignees`, { method: "DELETE", body: JSON.stringify({ assignees: personen }) });
+}
+
+/** Collaborator des Repositorys (Schreibrecht); im Zweifel nein */
+export async function istCollaborator(token: string, repo: string, person: string): Promise<boolean> {
+  const antwort = await fetch(`${API}/repos/${repo}/collaborators/${person}`, {
+    headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "haben-board" },
+  });
+  return antwort.status === 204;
+}
+
+export type IssueMitZuweisung = { number: number; assignees: string[] };
+
+/** Offene Issues mit mindestens einer Zuweisung, ohne Pull Requests */
+export async function zugewieseneIssues(token: string, repo: string): Promise<IssueMitZuweisung[]> {
+  const liste: IssueMitZuweisung[] = [];
+  for (let seite = 1; ; seite++) {
+    const teil = await anfrage<{ number: number; assignees: Person[]; pull_request?: unknown }[]>(
+      token,
+      `/repos/${repo}/issues?state=open&assignee=*&per_page=100&page=${seite}`,
+    );
+    liste.push(...teil.filter((i) => !i.pull_request).map((i) => ({ number: i.number, assignees: i.assignees.map((p) => p.login) })));
+    if (teil.length < 100) return liste;
+  }
+}
+
+/** Zeitpunkt der letzten Zuweisung an eine der Personen; GitHub liefert die Ereignisse vom ältesten an, die letzte kann auf einer späteren Seite stehen */
+export async function zugewiesenAm(token: string, repo: string, nummer: number, personen: string[]): Promise<Date | null> {
+  const ereignisse = await alleSeiten<{ event: string; created_at: string; assignee?: Person }>(token, `/repos/${repo}/issues/${nummer}/events?per_page=100`);
+  const daten = ereignisse.filter((e) => e.event === "assigned" && e.assignee && personen.includes(e.assignee.login)).map((e) => new Date(e.created_at));
+  return daten.length > 0 ? new Date(Math.max(...daten.map((d) => d.getTime()))) : null;
+}
+
+/** Alle Kommentare seit dem Zeitpunkt; ein Lebenszeichen kann auf einer späteren Seite stehen */
+export async function kommentareSeit(token: string, repo: string, nummer: number, seit: Date) {
+  const liste = await alleSeiten<{ user: Person; created_at: string; body: string }>(
+    token,
+    `/repos/${repo}/issues/${nummer}/comments?since=${seit.toISOString()}&per_page=100`,
+  );
+  return liste.map((k) => ({ person: k.user.login, bot: k.user.type === "Bot", am: new Date(k.created_at), text: k.body }));
+}
+
+/** Beschreibungen der offenen Pull Requests */
+export async function offenePrs(token: string, repo: string): Promise<string[]> {
+  const liste = await anfrage<{ body: string | null }[]>(token, `/repos/${repo}/pulls?state=open&per_page=100`);
+  return liste.map((pr) => pr.body ?? "");
 }
