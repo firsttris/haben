@@ -68,6 +68,9 @@ export const documentInputSchema = z.object({
   invoiceNumber: z.string().trim().max(100),
   documentDate: isoDate.nullable(),
   dueDate: isoDate.nullable(),
+  /** Leistungszeitraum aus dem Beleg (#693): „ausgeführt am“ ist der letzte Tag, siehe leistungsdatum() in @haben/core */
+  serviceFrom: isoDate.nullable().default(null),
+  serviceTo: isoDate.nullable().default(null),
   category: z.enum(EXPENSE_CATEGORY_KEYS).nullable(),
   /** Eigenes Sachkonto (#270) der Kategorie; fehlt = das Konto der Kategorie. Mit Aufteilung stehen die Konten in den Zeilen */
   ownAccountId: z.uuid().nullable().default(null),
@@ -280,6 +283,8 @@ async function applyFields(
         invoiceNumber: fields.invoiceNumber,
         documentDate: fields.documentDate,
         dueDate: fields.dueDate,
+        serviceFrom: fields.serviceFrom,
+        serviceTo: fields.serviceTo,
         currency: fields.currency,
         ...rate,
         category,
