@@ -29,6 +29,7 @@ import {
   allocateSplit,
   allocationSchema,
   BankError,
+  gemeldeteVoranmeldungen,
   createAccount,
   createProviderAccount,
   providerAccountSchema,
@@ -123,6 +124,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const detail = selectedId ? await transactionDetail(selectedId) : null;
     return {
       accounts,
+      /** Monate mit abgegebener Voranmeldung: danach ist der Tag der Aufhebung vorbelegt (#782) */
+      gemeldeteMonate: await gemeldeteVoranmeldungen(),
       accountId: account?.id ?? null,
       excludeBlockedBy,
       excludedAccounts: (await listExcludedAccounts()).map((a) => ({ ...a, excludedAt: a.excludedAt?.toISOString() ?? null })),

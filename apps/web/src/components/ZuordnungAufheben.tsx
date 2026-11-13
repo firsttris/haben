@@ -15,6 +15,8 @@ export type AufzuhebendeZuordnung = {
   mitBeleg: boolean;
   /** Buchungsdatum des Umsatzes (YYYY-MM-DD): früher kann die Aufhebung nicht wirken */
   tag: string;
+  /** Ist der Zeitraum der Zahlung schon gemeldet, ist heute vorbelegt statt der Buchungstag (#782) */
+  gemeldet: boolean;
 };
 
 /** Rückfrage vor dem Aufheben im Bankabgleich (#404): Die Gegenbuchungen bleiben in den Büchern stehen */
@@ -36,7 +38,7 @@ function AufhebenDialog({ ziel, onConfirm, onClose }: { ziel: AufzuhebendeZuordn
   const aktion = ziel.aufteilung ? "Aufteilung aufheben" : "Zuordnung aufheben";
   // Eine Aufhebung wirkt an dem Tag, an dem sie erklärt wird, nicht am Buchungsdatum des Umsatzes (#782)
   const [heute] = useState(() => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }));
-  const [datum, setDatum] = useState(heute);
+  const [datum, setDatum] = useState(() => (ziel.gemeldet ? heute : ziel.tag));
   const [fehler, setFehler] = useState<string | null>(null);
   // ConfirmDialog hat kein <form> und ruft onClose vor onConfirm; deshalb prüft der Dialog das Datum selbst, statt sich
   // auf required/min zu verlassen. Schließt er wirklich, gibt er die Rückfrage frei; bei einem Verstoß bleibt er offen.

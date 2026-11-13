@@ -55,6 +55,7 @@ import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseErro
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
+import { monatsschluessel } from "./aufhebung-vorbelegung.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -1792,4 +1793,16 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
       reversesId: entry.id,
     });
   }
+}
+
+/**
+ * Monate, für die eine Voranmeldung als abgegeben vermerkt ist (#782). Danach richtet sich die Vorbelegung des
+ * Tags der Aufhebung: Ein gemeldeter Zeitraum bleibt unverändert, die Gegenbuchung wirkt heute.
+ */
+export async function gemeldeteVoranmeldungen(): Promise<string[]> {
+  const rows = await db
+    .select({ jahr: schema.vatReturns.year, monat: schema.vatReturns.month })
+    .from(schema.vatReturns)
+    .where(eq(schema.vatReturns.status, "sent"));
+  return rows.map((r) => monatsschluessel(r.jahr, r.monat));
 }
