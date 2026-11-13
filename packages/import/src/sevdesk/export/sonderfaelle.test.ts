@@ -91,6 +91,30 @@ describe("Sonderfälle im Export von sevDesk", () => {
     expect(data.hints.filter((h) => h.includes("nicht in Euro umgerechnet"))).toEqual([`${STAPEL}, Zeile 4: Umsatz in USD, nicht in Euro umgerechnet.`]);
   });
 
+  // Echte Exporte (#472, Kommentar in #810): Bei Fremdwährung steht im Umsatz der Betrag in Fremdwährung
+  // (sumGrossForeignCurrency), Netto und Steuer der Beleginfo in Euro (sumGross); Kurs und Basis-Umsatz bleiben leer
+  it("nimmt bei Fremdwährung den Euro-Betrag aus Beleginfo und behält den Betrag in Fremdwährung", () => {
+    const usd = ausgabe.replace(/^100,00;"H";"EUR";/, '106,00;"H";"USD";');
+    expect(usd).not.toBe(ausgabe);
+    const data = ok(read({ [STAPEL]: stapel(usd), [EINGANG]: eingangDoc() }));
+    expect(data.vouchers[0]).toMatchObject({ currency: "USD", amount: 10000, foreignAmount: 10600, net: 8403, tax: 1597 });
+    expect(data.vouchers[0]!.lines[0]).toMatchObject({ amount: 10000, foreignAmount: 10600 });
+    expect(data.hints.filter((h) => h.includes("Umsatz"))).toEqual([]);
+  });
+
+  it("nimmt bei Fremdwährung ohne Steuer das Netto aus Beleginfo als Euro-Betrag", () => {
+    const usd = ausgabe.replace(/^100,00;"H";"EUR";/, '106,00;"H";"USD";').replace('"Steuerbetrag";15,97;', '"Steuerbetrag";;').replace('"Nettobetrag";84,03;', '"Nettobetrag";100,00;');
+    const data = ok(read({ [STAPEL]: stapel(usd), [EINGANG]: eingangDoc() }));
+    expect(data.vouchers[0]).toMatchObject({ currency: "USD", amount: 10000, foreignAmount: 10600 });
+  });
+
+  it("lässt den Betrag bei Fremdwährung ohne Beleginfo in Fremdwährung und meldet das", () => {
+    const usd = ausgabe.replace(/^100,00;"H";"EUR";/, '106,00;"H";"USD";').replace('"Steuerbetrag";15,97;', '"Steuerbetrag";;').replace('"Nettobetrag";84,03;', '"Nettobetrag";;');
+    const data = ok(read({ [STAPEL]: stapel(usd), [EINGANG]: eingangDoc() }));
+    expect(data.vouchers[0]).toMatchObject({ currency: "USD", amount: 10600, foreignAmount: 10600 });
+    expect(data.hints.filter((h) => h.includes("nicht in Euro umgerechnet"))).toHaveLength(1);
+  });
+
   it("nimmt den Kontenrahmen aus dem Kopf, sonst aus den Einstellungen", () => {
     const data = ok(read({ [STAPEL]: stapel(rechnung), [AUSGANG]: ausgangDoc() }));
     expect(data.stacks[0]!.kontenrahmen).toBe("SKR03");
