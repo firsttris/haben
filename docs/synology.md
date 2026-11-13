@@ -64,7 +64,7 @@ Haben bekommt so eine eigene Subdomain, etwa `https://haben.deinname.synology.me
 | Feld | Quelle | Ziel |
 | --- | --- | --- |
 | Protokoll | HTTPS | HTTP |
-| Hostname | `haben.deinname.synology.me` | `localhost` |
+| Hostname | `haben.deinname.synology.me` | `127.0.0.1` |
 | Port | 443 | 3000 |
 
 Dazu HSTS aktivieren. In den erweiterten Einstellungen den Proxy-Lese-Timeout auf 300 Sekunden setzen: Eine Übermittlung an
@@ -73,7 +73,8 @@ ELSTER wartet in der Anfrage auf ERiC, mit dem Standard bräche sie nach 60 Seku
 Danach unter **Systemsteuerung › Sicherheit › Zertifikat › Einstellungen** für `haben.deinname.synology.me` das
 Zertifikat aus dem ersten Abschnitt wählen.
 
-Die App ist nur auf der Synology selbst unter `localhost:3000` erreichbar, nicht im Netz. Ist Port 3000 schon belegt, änderst
+Die App ist nur auf der Synology selbst unter `127.0.0.1:3000` erreichbar, nicht im Netz. Als Ziel `127.0.0.1` statt
+`localhost`: Der Port ist nur auf dieser IPv4-Adresse veröffentlicht, `localhost` kann auf `::1` (IPv6) zeigen. Ist Port 3000 schon belegt, änderst
 du im Projekt die linke Zahl in `127.0.0.1:3000:3000` und nimmst sie auch im Reverse Proxy.
 
 ## Konto anlegen
