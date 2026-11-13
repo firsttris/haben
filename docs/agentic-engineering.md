@@ -130,7 +130,7 @@ Was die Automatik nicht sieht, also neue Issues einordnen, offene Gespräche fin
 
 ## Ein Beispiel: der Satz auf dem Storno { #beispiel }
 
-Issue [#716](https://github.com/firsttris/haben/issues/716) und Pull Request [#821](https://github.com/firsttris/haben/pull/821), vom `/übernehmen` bis zum Merge in gut acht Stunden.
+Issue [#716](https://github.com/firsttris/haben/issues/716) mit den Pull Requests [#814](https://github.com/firsttris/haben/pull/814) und [#821](https://github.com/firsttris/haben/pull/821), vom `/übernehmen` bis zum letzten Merge in gut acht Stunden.
 
 ```mermaid
 sequenceDiagram
@@ -145,6 +145,9 @@ sequenceDiagram
   M->>B: nachgestellt, „Geplant“
   C->>B: /übernehmen
   B-->>C: zugewiesen, „In Arbeit“
+  C->>P: PR #35;814 nach Zahlstand
+  P-->>C: Selbstprüfung, TDD-Review: kein Befund
+  M->>B: Merge, „Im nächsten Release“
   C->>P: PR #35;821 mit Saldo-Satz
   P-->>C: TDD-Review: kein Befund
   C->>M: Beitragsprüfung
@@ -158,19 +161,20 @@ sequenceDiagram
   end
   C->>CI: neuer Stand
   CI-->>M: grün
-  M->>B: Merge, „Im nächsten Release“
+  M->>C: Merge per Squash
 ```
 
 1. **Issue:** Ein Nutzer meldet, dass das Storno einer unbezahlten Rechnung über 1 € verspricht: „Der Betrag wird Ihnen erstattet.“ Der Maintainer stellt den Fehler nach und setzt die Karte nach „Geplant“.
-2. **Übernehmen:** Ein Collaborator kommentiert `/übernehmen` mit einem kurzen Plan. Eine Minute später ist das Issue ihm zugewiesen und die Karte steht in „In Arbeit“.
-3. **Erste Fassung:** Sein Agent baut einen Satz, der den Saldo des Kundenkontos auf dem Storno nennt („Ihr Kundenkonto weist ein Guthaben i. H. v. … aus“). Zuerst kommen rote Tests, dann der Fix. Zwei Runden TDD-Review durch frische Agenten finden nichts. Für jeden Verdacht schrieben sie einen eigenen Test, und jeder blieb grün.
-4. **Der Mensch entscheidet:** In der Beitragsprüfung rechnet der Maintainer den Saldo selbst nach. Er stimmt. Gemergt wird trotzdem nicht: Das Storno wird festgeschrieben und geht an den Kunden. Der Saldo stimmt aber nur, wenn der Bankabgleich vollständig ist. Bei einer eingegangenen, noch nicht zugeordneten Zahlung würde Haben dem Kunden schriftlich eine Forderung bescheinigen, die es nicht gibt. Sein Vorschlag lautet deshalb: nur „Die ursprüngliche Rechnung wird storniert.“
-5. **Umbau:** Wieder kommt der rote Test zuerst, dann der Fix. Die Berechnung des Saldos fällt ganz weg. Weil sich der Ansatz geändert hat, läuft die Selbstprüfung neu.
-6. **Code und Markdown getrennt geprüft:** `tdd-review` und `doku-pruefen` laufen nebeneinander, je in einem frischen Agenten. Das TDD-Review schreibt 25 eigene Tests für Grenzfälle und ältere Belege, die Doku-Prüfung gleicht `docs/rechnungen.md` mit Code und Entscheidung ab. Keiner findet einen Befund.
-7. **Merge:** Die CI ist grün, der Maintainer merged per Squash. Die Karte wandert nach „Im nächsten Release“, das Issue bleibt offen, bis das Release es schließt.
+2. **Übernehmen:** Ein Collaborator kommentiert `/übernehmen` mit einem kurzen Plan. Sekunden später ist das Issue ihm zugewiesen und die Karte steht in „In Arbeit“.
+3. **Erster Pull Request:** #814 richtet den Satz am Zahlstand aus, ohne Zahlung sagt das Storno keine Erstattung mehr zu. Zuerst kommen rote Tests, dann der Fix; Selbstprüfung und TDD-Review finden nichts. Der Maintainer prüft nach und merged. Wegen `Umgesetzt #716` wandert die Karte nach „Im nächsten Release“.
+4. **Zweite Fassung:** Danach soll das Storno auch den Saldo des Kundenkontos nennen. Der Agent baut in #821 einen Satz dafür („Ihr Kundenkonto weist ein Guthaben i. H. v. … aus“), wieder mit roten Tests zuerst. Zwei Runden TDD-Review durch frische Agenten finden nichts. Für jeden Verdacht schrieben sie einen eigenen Test, und jeder blieb grün.
+5. **Der Mensch entscheidet:** In der Beitragsprüfung rechnet der Maintainer den Saldo selbst nach. Er stimmt. Gemergt wird trotzdem nicht: Das Storno wird festgeschrieben und geht an den Kunden. Der Saldo stimmt aber nur, wenn der Bankabgleich vollständig ist. Bei einer eingegangenen, noch nicht zugeordneten Zahlung würde Haben dem Kunden schriftlich eine Forderung bescheinigen, die es nicht gibt. Sein Vorschlag lautet deshalb: nur „Die ursprüngliche Rechnung wird storniert.“
+6. **Umbau:** Wieder kommt der rote Test zuerst, dann der Fix. Die Berechnung des Saldos fällt ganz weg. Weil sich der Ansatz geändert hat, läuft die Selbstprüfung neu.
+7. **Code und Markdown getrennt geprüft:** `tdd-review` und `doku-pruefen` laufen nebeneinander, je in einem frischen Agenten. Das TDD-Review schreibt 25 eigene Tests für Grenzfälle und ältere Belege, die Doku-Prüfung gleicht `docs/rechnungen.md` mit Code und Entscheidung ab. Keiner findet einen Befund.
+8. **Merge:** Die CI ist grün, der Maintainer merged per Squash. #821 verweist nur mit `Refs #716`, umgesetzt war das Issue schon mit #814. Es bleibt offen, bis das nächste Release es schließt.
 
 > [!IMPORTANT]
-> **Alle Tests grün, und trotzdem falsch.** Code und Tests waren in beiden Fassungen richtig. Falsch war die fachliche Annahme, dass Haben auf einem festgeschriebenen Beleg über den Kontostand sprechen darf. Das prüft kein Test, das musste ein Mensch entscheiden.
+> **Alle Tests grün, und trotzdem falsch.** Code und Tests der Saldo-Fassung waren richtig. Falsch war die fachliche Annahme, dass Haben auf einem festgeschriebenen Beleg über den Kontostand sprechen darf. Das prüft kein Test, das musste ein Mensch entscheiden.
 
 ## Leitplanken für Agenten
 
