@@ -27,6 +27,12 @@ und bei der Übermittlung an ELSTER.
 Probleme in PostgreSQL, Caddy, ERiC oder anderen eingebundenen Programmen gehören zu diesen Projekten; macht erst die
 Konfiguration von Haben in `deploy/` sie ausnutzbar, bitte hier melden.
 
+## Getrennte Datenbankrollen
+
+Bei [getrennten Rollen](https://haben.app/installation.html#getrennte-datenbankrollen) verwendet die laufende App eine eigene Anmeldung ohne Eigentümer- oder Administrationsrechte. Nur der Migrationsschritt verwendet die Eigentümerverbindung und vergibt anschließend die benötigten Rechte neu. Die mitgelieferten Container-Startskripte geben deren private Verbindungsadresse nicht an den Server weiter. Bestehende Installationen mit einer Adresse bleiben nutzbar; **Einstellungen › Export › Datenbankzugriff** zeigt die tatsächlich wirksamen Rechte.
+
+Die Trennung verhindert, dass die App Sperr-Trigger abschaltet oder Anwendungsobjekte per DDL verändert. Erlaubte Datenänderungen prüfen weiterhin die vorhandenen Trigger. Sie schützt nicht gegen den Betreiber mit Server- oder Eigentümerzugang; dafür bleiben Prüfwerte außerhalb des Servers und Backups erforderlich.
+
 ## Abhängigkeiten aktuell halten
 
 Die Abhängigkeiten hält [Renovate](https://github.com/apps/renovate) aktuell (`.github/renovate.json5`, gemeinsame

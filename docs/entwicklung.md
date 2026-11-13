@@ -85,6 +85,8 @@ docker compose run --rm -u bun -e TEST_DATABASE_URL=postgres://haben:haben@db:54
 
 Im Container ist `db` der Name des Datenbankservers, nicht `localhost`. Die Ende-zu-Ende-Tests brauchen die Browser von Playwright, die der Container nicht hat; sie laufen in der CI oder mit Bun auf dem Rechner.
 
+Mit [getrennten Datenbankrollen](installation.md#getrennte-datenbankrollen) bleibt `DATABASE_URL` die App-Anmeldung; `MIGRATION_DATABASE_URL` führt Migration und Rechtevergabe aus. `TEST_DATABASE_URL` braucht weiterhin einen Betreiber mit Superuser- und `CREATEDB`-Rechten für die isolierten Testdatenbanken. Für den abgesicherten Browserlauf bleibt `E2E_DATABASE_URL` die Betreiberbasis; `E2E_APP_DATABASE_URL` ergänzt die echte Serveranmeldung. Der E2E-Reset legt ausschließlich Testrollen namens `haben_e2e_app` oder `haben_e2e_app_<kennung>` an. Ohne die zusätzliche Adresse bleibt der bisherige Testweg erhalten.
+
 Die Doku baut ein Container mit Python, wie in der CI mit Zensical. Er läuft unter der eigenen Nutzerkennung, damit `site/` und `.cache/` danach nicht `root` gehören. Git braucht er nicht, der Befehl geht also auch in einem Git-Worktree; ohne git im Container fehlt nur das Änderungsdatum unter den Seiten:
 
 ```sh
