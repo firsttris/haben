@@ -1576,6 +1576,20 @@
       "when": 1794575516087,
       "tag": "0224_anzahlung_rechtsform",
       "breakpoints": true
+    },
+    {
+      "idx": 225,
+      "version": "7",
+      "when": 1794597893345,
+      "tag": "0225_sevdesk_buchungskonten",
+      "breakpoints": true
+    },
+    {
+      "idx": 226,
+      "version": "7",
+      "when": 1794597894109,
+      "tag": "0226_sevdesk_buchungskonten_trigger",
+      "breakpoints": true
     }
   ]
 }
