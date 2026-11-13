@@ -61,7 +61,7 @@ Bereits im alten Programm abgegebene Voranmeldungen sind mit ihrem Protokoll üb
 
 Zahlungsbuchungen auf einen offenen Posten erhalten `settles`: die `externalId` der ursprünglichen Journalbuchung derselben Quelle, auch aus einer früheren Importdatei. Jede Zahlungsbuchung gleicht genau einen Posten aus; Sammelzahlungen und zusätzliche Aufwands-/Erlösbuchungen sind dafür aufzuteilen. Teilzahlungen und Rückzahlungen werden anteilig nach den ursprünglichen Konten gerechnet. Bei Anlagenrechnungen zählt die gezahlte abziehbare Vorsteuer; die Anschaffung wirkt über die [Anlagen und AfA](anlagen.md) ([§ 9b Abs. 1 EStG](https://www.gesetze-im-internet.de/estg/__9b.html)). Ein Zahlungseingang im Folgejahr wirkt erst dort, auch wenn die Rechnung vor dem Stichjahr liegt ([§ 11 EStG](https://www.gesetze-im-internet.de/estg/__11.html)).
 
-Reine Zahlungsbuchungen ohne Bezug nennt der Abgleich als ungeklärt. Fehlende Bezüge lassen sich nach Prüfung über `settlements` nachpflegen; deren Schutz steht im [Datenmodell](architektur.md#archiv-und-umzug). Das Jahresarchiv enthält die Bezüge unter `importe/zahlungszuordnungen.json`.
+Reine Zahlungsbuchungen ohne Bezug nennt der Abgleich als ungeklärt. Fehlende Bezüge lassen sich nach Prüfung über `settlements` nachpflegen; deren Schutz steht im [Datenmodell](architektur-datenmodell.md#archiv-und-umzug). Das Jahresarchiv enthält die Bezüge unter `importe/zahlungszuordnungen.json`.
 
 Kassenbewegungen auf 1000 (SKR03) beziehungsweise 1600 (SKR04) werden im bestehenden Kassenbuch mit derselben Journalreferenz ergänzt. Der gesamte Tagesbestand wird geprüft; negative Bestände werden abgewiesen. Es entsteht keine zweite Journalbuchung oder zusätzliche Rechnungszahlung.
 

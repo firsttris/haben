@@ -121,7 +121,9 @@ export const belegDatenSchema = z
     hideVatColumn: flag("Spalte Steuersatz weglassen (ein einziger Satz, abgewählt); fehlt auf dem Lieferschein").optional(),
     lines: z.array(line).describe("Positionen"),
     totals: totalsBlock.nullable().describe("Summenblock; null auf dem Lieferschein"),
-    taxNote: text("Pflichthinweis ohne Steuerausweis, etwa Kleinunternehmer oder Reverse Charge; null sonst").nullable(),
+    taxNote: text(
+      "Feste Pflichthinweise unter den Summen: ohne Steuerausweis (etwa Kleinunternehmer, Reverse Charge) und zur Aufbewahrung privater Grundstücksleistungen; null ohne",
+    ).nullable(),
     intro: text("Einleitung über den Positionen ohne Auszeichnungszeichen; null ohne, fehlt auf dem Lieferschein").nullable().optional(),
     introFormatted: runs.nullable().optional().describe("Einleitung mit Auszeichnungen; null ohne, fehlt auf dem Lieferschein"),
     note: text("Hinweis unter den Summen ohne Auszeichnungszeichen; null ohne").nullable(),

@@ -8,7 +8,8 @@ import { ElsterSubmit, type ElsterSetup } from "./ElsterSubmit.tsx";
 
 interface EbilanzEntry {
   id: string;
-  kind: "validate" | "test" | "send";
+  /** Art des Versuchs mit dem Etikett aus ELSTER_KIND_LABEL; der Verlauf der E-Bilanz zeigt Prüfung, Test und Sendung */
+  kind: keyof typeof ELSTER_KIND_LABEL;
   ok: boolean;
   code: number;
   message: string;

@@ -3,6 +3,7 @@ import { freieBuchungIssues, freieBuchungPosting } from "./freie-buchung.ts";
 import { kennzahlenAusJournal } from "./journal-kennzahlen.ts";
 import { datevFormelKonto, euerAusZeilen, euerZuordnung } from "./journal-euer.ts";
 import { kontoImKontenrahmen } from "./kontenrahmen-wechsel.ts";
+import type { ExpenseCategory } from "./posting.ts";
 import { manualPostingIssues, reverseManualPosting, type ManualLine } from "./manual.ts";
 
 /* Freie Buchungen mit Steuerschlüssel (#502; docs/adr/journal-als-quelle.md, Entscheidung 4) */
@@ -169,5 +170,21 @@ describe("SKR04 4630 neu buchen", () => {
     ];
     expect(manualPostingIssues(zeilen("USt7"), "SKR04", "einzelunternehmen").join(" ")).toContain("4610");
     expect(manualPostingIssues(zeilen(null), "SKR04", "einzelunternehmen").join(" ")).toContain("Konto 4630");
+  });
+});
+
+const ACCOUNTS_PRIVAT = { SKR03: "1800", SKR04: "2100" } as const;
+
+describe.each(["SKR03", "SKR04"] as const)("Eigene Sachkonten (#270) in manuellen Buchungen im Einzelunternehmen (%s)", (kr) => {
+  const eigenes = kr === "SKR03" ? "4999" : "6999";
+  const lines: ManualLine[] = [
+    { account: eigenes, debit: 5000, credit: 0 },
+    { account: ACCOUNTS_PRIVAT[kr], debit: 0, credit: 5000 },
+  ];
+  const mit = { ...kontext(kr), eigene: new Map<string, ExpenseCategory>([[eigenes, "software"]]) };
+
+  it("ein eigenes Konto hat die Zeile seiner Elternkategorie in der EÜR; ohne bekanntes eigenes Konto bleibt es abgelehnt", () => {
+    expect(freieBuchungIssues(lines, mit)).toEqual([]);
+    expect(freieBuchungIssues(lines, kontext(kr)).join(" ")).toContain(`Konto ${eigenes} hat keine Zeile in der EÜR`);
   });
 });

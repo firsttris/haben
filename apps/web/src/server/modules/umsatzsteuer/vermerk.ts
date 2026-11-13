@@ -1,4 +1,5 @@
 import { formatEuro, periodKey, periodRange, vatReturnSendProblem, type Cents } from "@haben/core";
+import { transferticketProblem } from "@haben/elster";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { lockFileUse } from "../../db/file-in-use.ts";
@@ -27,15 +28,14 @@ export interface VermerkInput {
   file: { bytes: Uint8Array; filename: string };
 }
 
-/** Transfertickets von ELSTER bestehen aus Buchstaben und Ziffern; Bindestrich und Punkt lassen wir zu */
-const TICKET = /^[A-Za-z0-9][A-Za-z0-9.-]{3,63}$/;
-
 /** Was gegen die Eingaben spricht, die ohne Datenbank prüfbar sind, oder null */
 export function vermerkProblem(input: VermerkInput, period: { year: number; month: number }, heute: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.filedOn) || Number.isNaN(Date.parse(input.filedOn))) return "Bitte den Tag der Abgabe angeben.";
   if (input.filedOn > heute) return "Der Tag der Abgabe liegt in der Zukunft.";
   if (input.filedOn < periodRange(period).start) return "Der Tag der Abgabe liegt vor Beginn des Zeitraums.";
-  if (!TICKET.test(input.transferTicket.trim())) return "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben (Buchstaben und Ziffern).";
+  // Dasselbe Muster wie im Jahresvermerk aus @haben/elster; die Meldung nennen beide gleich
+  const ticketProblem = transferticketProblem(input.transferTicket);
+  if (ticketProblem) return ticketProblem;
   if (input.file.bytes.byteLength === 0) return "Die Datei des Protokolls ist leer.";
   if (input.file.bytes.byteLength > MAX_DOCUMENT_SIZE) return "Das Protokoll ist größer als 20 MB.";
   if (sniff(input.file.bytes)?.kind !== "pdf") return "Das Übermittlungsprotokoll muss eine PDF-Datei sein.";

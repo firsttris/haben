@@ -6,6 +6,15 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export {
+  billingSchema,
+  billServiceEntries,
+  previewBilling,
+  serviceEntriesOfInvoice,
+  type BillingInput,
+  type BillingLine,
+  type BillingPreview,
+} from "./abrechnen.ts";
+export {
   createServiceEntry,
   deleteServiceEntry,
   getServiceEntry,

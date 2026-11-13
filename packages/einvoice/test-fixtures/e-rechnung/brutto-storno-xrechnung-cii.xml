@@ -207,7 +207,7 @@
 				</ram:EndDateTime>
 			</ram:BillingSpecifiedPeriod>
 			<ram:SpecifiedTradePaymentTerms>
-				<ram:Description>Der Betrag wird Ihnen erstattet.</ram:Description>
+				<ram:Description>Die ursprüngliche Rechnung wird storniert.</ram:Description>
 			</ram:SpecifiedTradePaymentTerms>
 			<ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 				<ram:LineTotalAmount>387.05</ram:LineTotalAmount>

@@ -1,4 +1,4 @@
-# Karten im Project „Roadmap“ übernehmen und freigeben (docs/entwicklung.md, „Etwas übernehmen“):
+# Karten im Project „Roadmap“ übernehmen und freigeben (docs/mitwirken.md, „Etwas übernehmen“):
 # - `/übernehmen` in einem Issue-Kommentar weist das Issue der Person zu und schiebt die Karte nach „In Arbeit“,
 #   `/freigeben` hebt die Zuweisung auf (scripts/board/befehl.ts, Regeln in scripts/board/uebernahme.ts).
 # - Täglich: Erinnerung nach 14 Tagen ohne Pull Request und ohne Kommentar, Freigabe sieben Tage danach

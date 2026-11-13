@@ -89,7 +89,7 @@
 		<cbc:PaymentID>2026-035</cbc:PaymentID>
 	</cac:PaymentMeans>
 	<cac:PaymentTerms>
-		<cbc:Note>Der Betrag wird Ihnen erstattet.</cbc:Note>
+		<cbc:Note>Die ursprüngliche Rechnung wird storniert.</cbc:Note>
 	</cac:PaymentTerms>
 	<cac:TaxTotal>
 		<cbc:TaxAmount currencyID="EUR">2779.68</cbc:TaxAmount>

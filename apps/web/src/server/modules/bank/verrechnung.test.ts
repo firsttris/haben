@@ -273,7 +273,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     const gutschrift = await beleg("2026-09-12", -3_000, -570);
     await cancellation.cancelDocument(actor, gutschrift, { reason: "Doppelt erfasst" }, "2026-09-13");
 
-    // docs/belege.md, „Verrechnen ohne Zahlung“: Beide Belege sind gebucht, laufen über die Bank und sind nicht storniert
+    // docs/belege-bezahlen.md, „Verrechnen ohne Zahlung“: Beide Belege sind gebucht, laufen über die Bank und sind nicht storniert
     expect((await verrechnung.settlementCandidates(rechnung)).map((k) => k.id)).not.toContain(gutschrift);
     expect(await verrechnung.settlementCandidates(gutschrift)).toEqual([]);
     // Der Server lehnt sie ab; genau deshalb darf die Liste sie nicht anbieten

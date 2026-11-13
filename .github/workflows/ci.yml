@@ -141,6 +141,8 @@ jobs:
           POSTGRES_USER: haben
           POSTGRES_PASSWORD: haben
           POSTGRES_DB: haben_e2e
+          # Zehn Appserver samt Runtimeproben brauchen mehr Verbindungen als das Standardlimit von 100.
+          POSTGRES_INITDB_ARGS: "--set=max_connections=250"
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U haben -d haben_e2e"
@@ -179,6 +181,7 @@ jobs:
         run: bun run e2e --shard=${{ matrix.teil }}/5
         env:
           E2E_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_e2e
+          E2E_APP_DATABASE_URL: postgres://haben_e2e_app:erfundenes-e2e-passwort@localhost:5432/haben_e2e
           # Der gebaute Server statt des Entwicklungsservers
           E2E_SERVER_COMMAND: bun .output/server/index.mjs
       - name: SSO-Ende-zu-Ende mit Produktionsbuild und TLS
@@ -186,6 +189,7 @@ jobs:
         run: bun run e2e --config playwright.sso-only.config.ts
         env:
           E2E_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_sso_e2e
+          E2E_APP_DATABASE_URL: postgres://haben_e2e_app:erfundenes-e2e-passwort@localhost:5432/haben_sso_e2e
           E2E_SERVER_COMMAND: bun .output/server/index.mjs
       - if: always()
         uses: actions/upload-artifact@v7
@@ -305,30 +309,11 @@ jobs:
         with:
           dockerfile: Containerfile
           tags: haben:ci
-      - name: Mit PostgreSQL starten
-        run: |
-          docker network create haben
-          docker run -d --name haben-db --network haben -e POSTGRES_USER=haben -e POSTGRES_PASSWORD=haben -e POSTGRES_DB=haben postgres:18
-          # Das Postgres-Image startet nach der Initialisierung einmal neu; erst danach ist es bereit
-          for i in $(seq 1 60); do [ "$(docker logs haben-db 2>&1 | grep -c 'ready to accept connections')" -ge 2 ] && break; sleep 1; done
-          # Gehärtet wie in deploy/compose.yml: schreibgeschützt bis auf /tmp und die Volumes, ohne Capabilities
-          docker run -d --name haben-app --network haben -p 3000:3000 \
-            --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
-            -v belege:/var/lib/haben/belege -v eric-log:/var/lib/haben/eric-log -v eric:/var/lib/haben/eric \
-            -e DATABASE_URL=postgres://haben:haben@haben-db:5432/haben \
-            -e BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
-            -e BETTER_AUTH_URL=http://localhost:3000 \
-            -e HABEN_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
-            -e ELSTER_HERSTELLER_ID= \
-            haben:ci
-      - name: Prüfen
-        run: |
-          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 2; done
-          curl -sf -o /dev/null http://localhost:3000/login
-          docker logs haben-app 2>&1 | grep -q "Migrationen angewendet"
-          # Alle Pakete, die zur Laufzeit geladen werden, auch ohne Peer-Abhängigkeiten (Containerfile), und poppler
-          docker exec -i haben-app sh -c 'cat > /tmp/externe-module.ts && bun /tmp/externe-module.ts' < scripts/container/externe-module.ts
-          docker exec -i haben-app sh < scripts/container/pdf-werkzeuge.sh
+      - name: Ausgelieferte Compose-Konfiguration mit App-Rolle und Legacy-Zugang prüfen
+        run: bash deploy/tests/rollen-start.sh
+        env:
+          COMPOSE_PROJECT_NAME: haben-ci-rollen
+          HABEN_TEST_PORT: 3000
       # Werkzeug für mehrere Instanzen (#504) mit dem Image dieses Laufs: zwei Firmen, getrennte Datenbanken.
       # Es läuft wie beim Betreiber mit Bun direkt aus dem Checkout, ohne bun install
       - uses: oven-sh/setup-bun@v2
@@ -359,16 +344,22 @@ jobs:
           bun deploy/instanzen/haben-instanzen.ts status | tee "$RUNNER_TEMP/status.txt"
           grep -E "^firma1 +firma1\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
           grep -E "^firma2 +firma2\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
-      - if: failure()
-        run: docker logs haben-app || true
 
   # Die Entwicklungsumgebung aus compose.yml im Hauptordner: startet sie, läuft der Dev-Server mit Datenbank
   dev-compose:
     needs: changes
     if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: haben-ci-dev-rollen
+      DATABASE_URL: postgres://haben_app:ci_app@db:5432/haben
+      MIGRATION_DATABASE_URL: postgres://haben:haben@db:5432/haben
     steps:
       - uses: actions/checkout@v7
+      - name: Datenbank und einmalige App-Rolle vorbereiten
+        run: |
+          docker compose up -d --wait db
+          printf 'ci_app\nci_app\n' | docker compose exec -T db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app
       # Wie unter Linux üblich: erst `docker compose up` mit der Vorgabe-ID 1000, dann nach docs/entwicklung.md
       # mit der eigenen ID neu bauen. Die Volumes gehören danach noch der alten ID; der Start muss trotzdem gehen.
       - name: Erster Start mit der Vorgabe-ID
@@ -387,6 +378,8 @@ jobs:
           curl -sf -o /dev/null http://localhost:3000/login
           docker compose logs app | grep -q "Migrationen angewendet"
           docker compose logs app | grep -q "Einrichtungscode"
+          sh deploy/tests/rollen-pruefen.sh "$(docker compose ps -q app)"
+          docker compose exec -T --user bun app sh deploy/tests/rollen-env.sh
       - if: failure()
         run: docker compose logs
 
@@ -398,6 +391,10 @@ jobs:
       run:
         working-directory: deploy
     env:
+      COMPOSE_PROJECT_NAME: haben-ci-backup
+      COMPOSE_FILE: compose.yml:tests/rollen-db-compose.yml
+      DATABASE_URL: postgres://haben_app:ci_app@localhost:5886/haben
+      MIGRATION_DATABASE_URL: postgres://haben:haben@localhost:5886/haben
       DOMAIN: haben.test
       DB_PASSWORD: haben
       AUTH_SECRET: ci
@@ -405,6 +402,11 @@ jobs:
       RESTIC_PASSWORD: ci
     steps:
       - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+        working-directory: ${{ github.workspace }}
       - name: Images bauen
         run: |
           docker build -t tristanteu/haben-backup:latest -f backup/Containerfile backup
@@ -414,8 +416,10 @@ jobs:
         run: |
           set -x
           docker compose up -d db backup
-          # Schema der App wie nach dem Start, damit Test-Restore, Kette und Stand in backup_status mitlaufen
-          for f in ../apps/web/drizzle/*.sql; do docker compose exec -T db psql -U haben -d haben -X -q -v ON_ERROR_STOP=1 < "$f" > /dev/null; done
+          # Einmalige Betreiber-Rollenanlage, danach derselbe Migrations-/Rechteweg wie beim App-Start.
+          printf 'ci_app\nci_app\n' | docker compose exec -T db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app
+          bun ../apps/web/src/server/db/migrate.ts
+          docker compose exec -T db psql -U haben_app -d haben -X -q < tests/rollen-db.sql
           docker compose exec -T db psql -U haben -d haben -qc "CREATE TABLE t (x text); INSERT INTO t VALUES ('vorher')"
           docker compose run --rm --no-deps -T --entrypoint sh restore -c 'mkdir -p /belege/ab && echo beleg > /belege/ab/cd && chown -R 1000:1000 /belege'
           # Ein Beleg unter seinem SHA-256 wie in der App, für die Stichprobe des Test-Restores
@@ -443,6 +447,11 @@ jobs:
             "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'haben' AND query LIKE '%pg_sleep(300)%' AND pid <> pg_backend_pid()"
           echo ja | docker compose run --rm -T restore latest
           test "$(docker compose exec -T db psql -U haben -d haben -Atc 'SELECT x FROM t')" = vorher
+          # pg_dump enthält ACLs, aber keine Rollendefinitionen. Die vorhandene App-Rolle behält ihre Grants.
+          test "$(docker compose exec -T db psql -U haben_app -d haben -Atc "SELECT has_table_privilege(current_user, 'journal_entries', 'INSERT') AND has_sequence_privilege(current_user, 'audit_log_id_seq', 'USAGE')")" = t
+          # Wie beim anschließenden App-Start: Datenbankrechte werden nach dem Restore erneut gesetzt.
+          bun ../apps/web/src/server/db/migrate.ts
+          docker compose exec -T db psql -U haben_app -d haben -X -q < tests/rollen-db.sql
           docker compose run --rm --no-deps -T --entrypoint sh restore -c \
             'test "$(cat /belege/ab/cd)" = beleg && test ! -e /belege/neu && test "$(stat -c %u /belege/ab/cd)" = 1000'
       - if: failure()
@@ -458,6 +467,10 @@ jobs:
       run:
         working-directory: deploy
     env:
+      COMPOSE_PROJECT_NAME: haben-ci-db-upgrade
+      COMPOSE_FILE: compose.yml:tests/rollen-db-compose.yml
+      DATABASE_URL: postgres://haben_app:ci_app@localhost:5886/haben
+      MIGRATION_DATABASE_URL: postgres://haben:haben@localhost:5886/haben
       DOMAIN: haben.test
       DB_PASSWORD: haben
       AUTH_SECRET: ci
@@ -465,6 +478,11 @@ jobs:
       RESTIC_PASSWORD: ci
     steps:
       - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+        working-directory: ${{ github.workspace }}
       - name: Images bauen
         run: |
           docker build -t tristanteu/haben-backup:latest -f backup/Containerfile backup
@@ -473,8 +491,10 @@ jobs:
         run: |
           set -x
           printf 'services:\n  db:\n    image: postgres:16\n' > alt.yml
-          docker compose -f compose.yml -f alt.yml up -d db backup
-          for f in ../apps/web/drizzle/*.sql; do docker compose exec -T db psql -U haben -d haben -X -q -v ON_ERROR_STOP=1 < "$f" > /dev/null; done
+          docker compose -f compose.yml -f tests/rollen-db-compose.yml -f alt.yml up -d db backup
+          printf 'ci_app\nci_app\n' | docker compose exec -T db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app
+          bun ../apps/web/src/server/db/migrate.ts
+          docker compose exec -T db psql -U haben_app -d haben -X -q < tests/rollen-db.sql
           docker compose exec -T db psql -U haben -d haben -qc "CREATE TABLE t (x text); INSERT INTO t VALUES ('vorher')"
           # Das Backup-Image mit pg_dump 18 sichert die Datenbank 16 mit pg_dump 16; sonst scheitert der
           # Test-Restore am Einspielen in die Datenbank 16
@@ -487,6 +507,8 @@ jobs:
           docker compose logs db | grep -q "Upgrade auf PostgreSQL 18 fertig"
           test "$(docker compose exec -T db psql -U haben -d haben -Atc "SELECT current_setting('server_version_num')::int / 10000")" = 18
           test "$(docker compose exec -T db psql -U haben -d haben -Atc 'SELECT x FROM t')" = vorher
+          # Rollen und Rechte stammen aus dem Cluster-Upgrade, nicht aus einer erneuten Rollenanlage.
+          docker compose exec -T db psql -U haben_app -d haben -X -q < tests/rollen-db.sql
           # Der alte Bestand liegt unverändert daneben, der neue in 18/docker
           docker compose exec -T db test -s /var/lib/postgresql/data/16/docker/PG_VERSION
           docker compose exec -T db test ! -e /var/lib/postgresql/data/PG_VERSION
@@ -499,5 +521,45 @@ jobs:
           docker compose exec -T backup restore-check.sh
           test "$(docker compose exec -T db psql -U haben -d haben -Atc "SELECT string_agg(kind || '=' || ok, ',' ORDER BY id) FROM backup_status")" \
             = "backup=true,restore_check=true,backup=true,restore_check=true"
+      - if: failure()
+        run: docker compose logs
+
+  # Die Vorlage für Synology (deploy/synology/compose.yml): Schlüssel erzeugen, App starten, Backup und
+  # Wiederherstellen ohne .env; ein Neustart behält die Schlüssel
+  synology:
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' && needs.changes.outputs.deploy != 'false' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy/synology
+    steps:
+      - uses: actions/checkout@v7
+      - name: Images bauen
+        run: |
+          docker build -t tristanteu/haben-backup:latest -f ../backup/Containerfile ../backup
+          docker build -t tristanteu/haben-db:latest -f ../db/Containerfile ../db
+      - name: Starten, sichern, wiederherstellen
+        run: |
+          set -x
+          docker compose up -d --wait db app
+          docker compose up -d backup
+          docker logs haben-schluessel | grep -q '^ENCRYPTION_KEY='
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3000/login && break; sleep 2; done
+          curl -sf -o /dev/null http://127.0.0.1:3000/login
+          docker logs haben-app 2>&1 | grep -q "Einrichtungscode"
+          vorher="$(docker logs haben-schluessel | grep '^ENCRYPTION_KEY=' | tail -n1)"
+          docker compose exec -T backup backup.sh
+          test "$(docker compose exec -T db psql -U haben -d haben -Atc "SELECT string_agg(kind || '=' || ok, ',' ORDER BY id) FROM backup_status")" \
+            = "backup=true,restore_check=true"
+          docker compose exec -T db psql -U haben -d haben -qc "CREATE TABLE t (x text)"
+          docker compose stop app
+          echo ja | docker compose run --rm -T restore latest
+          test "$(docker compose exec -T db psql -U haben -d haben -Atc "SELECT to_regclass('t') IS NULL")" = t
+          docker compose down
+          docker compose up -d --wait db app
+          test "$(docker logs haben-schluessel | grep '^ENCRYPTION_KEY=' | tail -n1)" = "$vorher"
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3000/login && break; sleep 2; done
+          curl -sf -o /dev/null http://127.0.0.1:3000/login
       - if: failure()
         run: docker compose logs

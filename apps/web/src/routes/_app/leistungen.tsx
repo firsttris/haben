@@ -1,22 +1,28 @@
 import { billableAmount, billableMinutes, formatDuration, formatEuro, germanDay } from "@haben/core";
-import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { z } from "zod";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { Field } from "../../components/Field.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import { ServiceBillingForm } from "../../components/ServiceBillingForm.tsx";
 import { ServiceEntryForm, type ServiceEntryRow } from "../../components/ServiceEntryForm.tsx";
 import { errorMessage, formatDate } from "../../lib/format.ts";
 import type { Notice } from "../../lib/use-action.ts";
 import { getServiceEntries, removeServiceEntry } from "../../server/functions/leistungen.ts";
 
-const searchSchema = z.object({ kunde: z.uuid().optional(), von: z.iso.date().optional(), bis: z.iso.date().optional() });
+const searchSchema = z.object({
+  kunde: z.uuid().optional(),
+  von: z.iso.date().optional(),
+  bis: z.iso.date().optional(),
+  stand: z.enum(["offen", "abgerechnet", "nicht-abrechenbar"]).optional(),
+});
 
 export const Route = createFileRoute("/_app/leistungen")({
   validateSearch: searchSchema,
-  loaderDeps: ({ search }) => ({ kunde: search.kunde, von: search.von, bis: search.bis }),
-  loader: ({ deps }) => getServiceEntries({ data: { contactId: deps.kunde, from: deps.von, to: deps.bis } }),
+  loaderDeps: ({ search }) => ({ kunde: search.kunde, von: search.von, bis: search.bis, stand: search.stand }),
+  loader: ({ deps }) => getServiceEntries({ data: { contactId: deps.kunde, from: deps.von, to: deps.bis, status: deps.stand } }),
   head: () => ({ meta: [{ title: "Leistungen · Haben" }] }),
   component: ServiceEntriesPage,
 });
@@ -29,10 +35,11 @@ function ServiceEntriesPage() {
   const remove = useServerFn(removeServiceEntry);
   const [editing, setEditing] = useState<ServiceEntryRow | null>(null);
   const [creating, setCreating] = useState(false);
+  const [billing, setBilling] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [confirm, setConfirm] = useState<ServiceEntryRow | null>(null);
   const names = new Map(customers.map((c) => [c.id, c.name]));
-  const formOpen = creating || editing !== null;
+  const formOpen = creating || editing !== null || billing;
   const totalMinutes = entries.reduce((sum, e) => sum + e.minutes, 0);
   const totalBillable = entries.reduce((sum, e) => sum + billableMinutes(e), 0);
   const totalCents = entries.reduce((sum, e) => sum + billableAmount(e), 0);
@@ -61,9 +68,22 @@ function ServiceEntriesPage() {
           <div className="actions">
             <button
               type="button"
+              className="btn"
+              onClick={() => {
+                setEditing(null);
+                setCreating(false);
+                setBilling(true);
+                setNotice(null);
+              }}
+            >
+              Abrechnen
+            </button>
+            <button
+              type="button"
               className="btn btn-primary"
               onClick={() => {
                 setEditing(null);
+                setBilling(false);
                 setCreating(true);
                 setNotice(null);
               }}
@@ -77,7 +97,10 @@ function ServiceEntriesPage() {
         Zeiteinträge je Kunde, von Hand oder aus einem Zeiterfassungsprogramm wie Kimai über die REST-API. Jeder Eintrag behält den Stundensatz vom Anlegen.
       </p>
       <div className="stack" style={{ gap: 16 }}>
-        {formOpen && (
+        {billing && (
+          <ServiceBillingForm customers={customers} today={germanDay(new Date())} defaultContactId={search.kunde} onClose={() => setBilling(false)} />
+        )}
+        {(creating || editing !== null) && (
           <ServiceEntryForm
             key={editing?.id ?? "neu"}
             entry={editing}
@@ -112,7 +135,7 @@ function ServiceEntriesPage() {
           <p>Der Eintrag wird gelöscht. Das steht im Änderungsprotokoll.</p>
         </ConfirmDialog>
         <section className="card" aria-label="Leistungsliste">
-          <div className="form-row cols-3" role="group" aria-label="Filter">
+          <div className="form-row cols-4" role="group" aria-label="Filter">
             <Field label="Kunde">
               {(control) => (
                 <select {...control} value={search.kunde ?? ""} onChange={(e) => filter({ kunde: e.target.value || undefined })}>
@@ -125,6 +148,16 @@ function ServiceEntriesPage() {
                 </select>
               )}
             </Field>
+            <Field label="Stand">
+              {(control) => (
+                <select {...control} value={search.stand ?? ""} onChange={(e) => filter({ stand: (e.target.value || undefined) as typeof search.stand })}>
+                  <option value="">Alle</option>
+                  <option value="offen">Offen</option>
+                  <option value="abgerechnet">Abgerechnet</option>
+                  <option value="nicht-abrechenbar">Nicht abrechenbar</option>
+                </select>
+              )}
+            </Field>
             <Field label="Von">
               {(control) => <input {...control} type="date" value={search.von ?? ""} onChange={(e) => filter({ von: e.target.value || undefined })} />}
             </Field>
@@ -134,7 +167,9 @@ function ServiceEntriesPage() {
           </div>
           {entries.length === 0 ? (
             <p className="muted" style={{ margin: 0 }}>
-              {search.kunde || search.von || search.bis ? "Keine Einträge für diesen Filter." : "Noch keine Einträge. Lege den ersten mit „Neuer Eintrag“ an."}
+              {search.kunde || search.von || search.bis || search.stand
+                ? "Keine Einträge für diesen Filter."
+                : "Noch keine Einträge. Lege den ersten mit „Neuer Eintrag“ an."}
             </p>
           ) : (
             <>
@@ -165,6 +200,13 @@ function ServiceEntriesPage() {
                         </div>
                       )}
                       {e.source && <div className="small muted">aus {e.source}</div>}
+                      {e.invoiceId && (
+                        <div className="small">
+                          <Link to="/rechnungen/$id" params={{ id: e.invoiceId }}>
+                            {e.invoiceNumber ? `Rechnung ${e.invoiceNumber}` : "Rechnungsentwurf"}
+                          </Link>
+                        </div>
+                      )}
                     </div>
                     <div className="num">
                       {formatDuration(e.minutes)} Std.
@@ -176,6 +218,8 @@ function ServiceEntriesPage() {
                       <button
                         type="button"
                         className="btn btn-sm"
+                        disabled={e.invoiceId !== null}
+                        title={e.invoiceId ? "Auf einer Rechnung: erst den Entwurf löschen oder die Rechnung stornieren" : undefined}
                         aria-label={`Eintrag vom ${formatDate(e.workedOn)} bearbeiten`}
                         onClick={() => {
                           setCreating(false);
@@ -187,6 +231,8 @@ function ServiceEntriesPage() {
                       <button
                         type="button"
                         className="btn btn-sm btn-danger"
+                        disabled={e.invoiceId !== null}
+                        title={e.invoiceId ? "Auf einer Rechnung: erst den Entwurf löschen oder die Rechnung stornieren" : undefined}
                         aria-label={`Eintrag vom ${formatDate(e.workedOn)} löschen`}
                         onClick={() => setConfirm(e)}
                       >

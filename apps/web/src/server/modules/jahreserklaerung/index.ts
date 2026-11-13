@@ -21,4 +21,4 @@ export {
 } from "./koerperschaft.ts";
 export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./income-tax.ts";
 export { meinElsterWerte } from "./mein-elster.ts";
-export { vermerkPruefung, vermerkeJahresabgabe } from "./vermerk.ts";
+export { vermerkBetrag, vermerkFelder, vermerkPruefung, vermerkeJahresabgabe } from "./vermerk.ts";

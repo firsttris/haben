@@ -61,9 +61,11 @@ for (const pfad of FORMULARE) {
   });
 }
 
-test("Die Themenauswahl im Handy-Menü zoomt die Seite nicht", async ({ page }) => {
+test("Die Auswahl von Farbe und Modus im Handy-Menü zoomt die Seite nicht", async ({ page }) => {
   await laden(page, "/");
   await page.getByRole("button", { name: "Menü" }).click();
-  await expect(page.locator(".nav-theme select")).toBeVisible();
+  // Farbe und Modus
+  await expect(page.locator(".nav-theme select")).toHaveCount(2);
+  for (const auswahl of await page.locator(".nav-theme select").all()) await expect(auswahl).toBeVisible();
   expect(await zuKleineFelder(page)).toEqual([]);
 });

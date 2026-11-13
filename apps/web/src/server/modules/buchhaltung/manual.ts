@@ -18,6 +18,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
+import { loadOwnAccountParents } from "../eigene-konten/index.ts";
 import { journalAbJahr, kleinunternehmerHistory } from "../stammdaten/index.ts";
 import { today } from "../../today.ts";
 import { activeOpenings, lockOpenings, openingDependents } from "./eroeffnung.ts";
@@ -80,7 +81,10 @@ export async function createManualEntry(actor: string, input: ManualEntryInput, 
     if (!gmbh || mitSchluessel) {
       const kleinunternehmer = (await kleinunternehmerHistory(tx))(parsed.date);
       const ausDemJournal = Number(parsed.date.slice(0, 4)) >= (await journalAbJahr(tx));
-      issues.push(...freieBuchungIssues(parsed.lines, { kontenrahmen: books.kontenrahmen, rechtsform: books.rechtsform, kleinunternehmer, ausDemJournal }));
+      const eigene = await loadOwnAccountParents(books.kontenrahmen, tx);
+      issues.push(
+        ...freieBuchungIssues(parsed.lines, { kontenrahmen: books.kontenrahmen, rechtsform: books.rechtsform, kleinunternehmer, ausDemJournal, eigene }),
+      );
       if (await periodReported(tx, parsed.date)) issues.push("Der Zeitraum des Datums ist schon gemeldet; die Buchung gehört in den laufenden Zeitraum");
     }
     if (issues.length > 0) throw new ManualEntryError(`${issues.join(". ")}.`);

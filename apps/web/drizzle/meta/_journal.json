@@ -1534,6 +1534,34 @@
       "when": 1794521593045,
       "tag": "0218_zeichen_navigation",
       "breakpoints": true
+    },
+    {
+      "idx": 219,
+      "version": "7",
+      "when": 1794524285491,
+      "tag": "0219_grundstuecksleistung_aufbewahrung",
+      "breakpoints": true
+    },
+    {
+      "idx": 220,
+      "version": "7",
+      "when": 1794555341075,
+      "tag": "0220_eigene_konten_belege",
+      "breakpoints": true
+    },
+    {
+      "idx": 221,
+      "version": "7",
+      "when": 1794562424324,
+      "tag": "0221_leistungen_rechnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 222,
+      "version": "7",
+      "when": 1794562426655,
+      "tag": "0222_leistungen_abgerechnet_sperre",
+      "breakpoints": true
     }
   ]
 }

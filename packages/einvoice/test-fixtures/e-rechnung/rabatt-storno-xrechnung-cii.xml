@@ -225,7 +225,7 @@
 				</ram:CategoryTradeTax>
 			</ram:SpecifiedTradeAllowanceCharge>
 			<ram:SpecifiedTradePaymentTerms>
-				<ram:Description>Der Betrag wird Ihnen erstattet.</ram:Description>
+				<ram:Description>Die ursprüngliche Rechnung wird storniert.</ram:Description>
 			</ram:SpecifiedTradePaymentTerms>
 			<ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 				<ram:LineTotalAmount>13595.70</ram:LineTotalAmount>

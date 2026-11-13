@@ -46,6 +46,12 @@ export const serviceEntrySchemaOut = z
     project: z.string(),
     source: z.string().nullable(),
     externalId: z.string().nullable(),
+    invoiceId: z
+      .uuid()
+      .nullable()
+      .describe("Rechnung, auf der der Eintrag steht (Entwurf oder festgeschrieben); null: offen, auch nach dem Storno der Rechnung"),
+    invoiceNumber: z.string().nullable().describe("Nummer dieser Rechnung; null bei einem Entwurf"),
+    invoiceStatus: z.enum(["draft", "final"]).nullable().describe("Stand dieser Rechnung: draft = Entwurf, final = festgeschrieben"),
   })
   .register(responseSchemas, { id: "ServiceEntry" });
 
@@ -55,5 +61,9 @@ export const serviceEntryQuerySchema = z.object({
   contactId: z.uuid().optional().describe("Nur Einträge dieses Kunden"),
   from: isoDate.refine(isRealDate, "Datum ungültig").optional().describe("Arbeitstag ab einschließlich"),
   to: isoDate.refine(isRealDate, "Datum ungültig").optional().describe("Arbeitstag bis einschließlich"),
+  status: z
+    .enum(["offen", "abgerechnet", "nicht-abrechenbar"])
+    .optional()
+    .describe("offen: abrechenbar und auf keiner Rechnung; abgerechnet: auf einer Rechnung (Entwurf oder festgeschrieben)"),
   ...pageQuery,
 });

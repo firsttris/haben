@@ -45,7 +45,11 @@ export function invoiceSkonto(doc: PaymentFields): SkontoFrist[] {
 
 /** Zahlungssatz unter der Summe, mit Skonto je Stufe; das XML bleibt wie BT-20 und BT-120 deutsch (siehe i18n.ts) */
 export function paymentSentence(doc: PaymentFields, t: Texts = TEXTS.de): string {
-  if (doc.totals.gross < 0) return t.refund;
+  // Auch ein positives Korrekturstorno bestätigt nur die Stornierung (https://github.com/firsttris/haben/pull/821#issuecomment-6849630322).
+  if (doc.kind === "storno") return t.cancellation;
+  // Eine Rechnungskorrektur belegt eine Minderung, noch keine Auszahlung (Verrechnung: #274).
+  if (doc.totals.gross < 0 && doc.kind === "korrektur") return t.correction;
+  if (doc.totals.gross < 0) return t.noPayment;
   if (doc.totals.gross === 0) return t.noPayment;
   if (collectedByDirectDebit(doc)) {
     const d = doc.directDebit;

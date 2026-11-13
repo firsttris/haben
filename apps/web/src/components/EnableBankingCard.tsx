@@ -59,7 +59,7 @@ export function EnableBankingCard({ data }: { data: Data }) {
         holt Haben die Umsätze täglich selbst. Lege dort im Kontrollzentrum unter „API applications“ eine Anwendung an, trage als Redirect URL{" "}
         <code>{data.callbackUrl}</code> ein und lass den Schlüssel im Browser erzeugen. Die heruntergeladene .pem-Datei lädst du hier hoch; sie liegt
         verschlüsselt in der Datenbank.{" "}
-        <a href="https://github.com/firsttris/haben/blob/main/docs/installation.md#kontoabruf-enable-banking" target="_blank" rel="noreferrer">
+        <a href="https://github.com/firsttris/haben/blob/main/docs/installation-anbindungen.md#kontoabruf-enable-banking" target="_blank" rel="noreferrer">
           Anleitung
         </a>
       </p>

@@ -121,7 +121,7 @@ describe("pdfData", () => {
     const data = pdfData(sampleDocument({ kind: "storno", lines: mixedRateLines }));
     expect(data.title).toBe("Stornorechnung");
     expect(data.reference).toBe("zur Rechnung 2026-034 vom 30.09.2026");
-    expect(data.payment).toBe("Der Betrag wird Ihnen erstattet.");
+    expect(data.payment).toBe("Die ursprüngliche Rechnung wird storniert.");
     // Kein GiroCode für Erstattungen
     expect(data.qr).toBeNull();
     expect(data.totals.rows.map((r) => r.label)).toEqual(["Summe netto", "Umsatzsteuer 19 % auf -2.486,25\u00a0€", "Umsatzsteuer 7 % auf -149,70\u00a0€"]);

@@ -14,7 +14,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Kontenrahmen (DATEV SKR03/SKR04 2026, Konten in packages/core/src/posting.ts, ACCOUNTS); der erste Fall prüft sie, damit ein
  * Fehler im Kontenrahmen nicht von den gleichen Beträgen verdeckt wird. In der EÜR zählt die Verrechnung wie eine
  * Zahlung am Tag der Aufrechnung: Die Aufrechnung mit einer fälligen Gegenforderung ist eine Leistung im Sinne des
- * § 11 Abs. 2 EStG (H 11 EStH „Aufrechnung“, BFH vom 19.04.1977, BStBl II S. 601; docs/belege.md).
+ * § 11 Abs. 2 EStG (H 11 EStH „Aufrechnung“, BFH vom 19.04.1977, BStBl II S. 601; docs/belege-bezahlen.md).
  */
 type Profil = { kr: "SKR03" | "SKR04"; versteuerung: "ist" | "soll" };
 

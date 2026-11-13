@@ -66,7 +66,7 @@ Eine festgeschriebene Abrechnung korrigierst du mit **Stornieren**: Haben hält 
 
 ## Buchung
 
-Beim Festschreiben bucht Haben den Aufwand des Monats an die Verbindlichkeiten gegenüber Beschäftigtem, Finanzamt und Krankenkasse bzw. Minijob-Zentrale. Gebucht wird auf den letzten Tag des abgerechneten Monats, auch wenn der Zahltag im Folgemonat liegt: Der Lohn ist Aufwand des Monats, für den er gezahlt wird. Herkunft im [Journal](buchhaltung.md#die-seite-buchungen) ist „Lohn“, der Buchungstext `Lohn <Monat> · <Name>`. Konten und Buchungssätze stehen unter [Buchhaltung](buchhaltung.md#lohnabrechnung).
+Beim Festschreiben bucht Haben den Aufwand des Monats an die Verbindlichkeiten gegenüber Beschäftigtem, Finanzamt und Krankenkasse bzw. Minijob-Zentrale. Gebucht wird auf den letzten Tag des abgerechneten Monats, auch wenn der Zahltag im Folgemonat liegt: Der Lohn ist Aufwand des Monats, für den er gezahlt wird. Herkunft im [Journal](buchhaltung.md#die-seite-buchungen) ist „Lohn“, der Buchungstext `Lohn <Monat> · <Name>`. Konten und Buchungssätze stehen unter [Buchungssätze](buchhaltung-buchungssaetze.md#lohnabrechnung).
 
 | Beschäftigung | Aufwand (Soll) | Verbindlichkeiten (Haben) |
 | --- | --- | --- |

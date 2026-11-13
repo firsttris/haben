@@ -41,6 +41,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     const contacts = await import("../stammdaten/contacts.ts");
     const documents = await import("../belege/documents.ts");
     const bank = await import("../bank/bank.ts");
+    const cash = await import("../bank/cash.ts");
 
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -128,6 +129,10 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     await bank.allocate(actor, { kind: "invoice", transactionId: tx2026in.id, invoiceId: invoice.id, amount: 476_000 });
     await bank.allocate(actor, { kind: "document", transactionId: tx2026out.id, documentId, amount: -4590 });
 
+    // Kassenbuch (#546): eine Einlage und eine Entnahme im Jahr, damit kasse/kassenbuch.csv Zeilen hat
+    await cash.createCashEntry(actor, { kind: "einlage", date: "2026-10-03", amount: 15_000, text: "Wechselgeld" }, "2026-10-31");
+    await cash.createCashEntry(actor, { kind: "entnahme", date: "2026-10-10", amount: 2_550 }, "2026-10-31");
+
     const [vatReturn] = await sql`insert into vat_returns (year, month, kz81, kz66, kz83, status)
       values (2026, 9, 400000, 733, 75267, 'draft') returning id`;
     await sql`insert into vat_return_submissions (vat_return_id, kind, ok, code, message, transfer_ticket, request_xml, response_xml, server_response_xml, protocol_pdf, created_at)
@@ -135,6 +140,22 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     await sql`insert into vat_returns (year, month, kz81, status) values (2025, 12, 1, 'draft')`;
     const [submission] = await sql`select id from vat_return_submissions`;
     vatSubmissionPrefix = String(submission!.id).slice(0, 8);
+
+    // Eine Buchung aus dem Datenimport: ihre Herkunft „import“ muss in der Spalte Quelle als Name stehen
+    const ledger = await import("../buchhaltung/ledger.ts");
+    const { db } = await import("../../db/index.ts");
+    await db.transaction(async (tx) => {
+      await ledger.post(tx, await ledger.openBooks(tx), {
+        date: "2026-08-01",
+        description: "Übernommene Buchung aus der Vorsoftware",
+        sourceType: "import",
+        sourceId: crypto.randomUUID(),
+        lines: [
+          { account: "1200", debit: 100_000, credit: 0, taxCode: null },
+          { account: "8400", debit: 0, credit: 100_000, taxCode: null },
+        ],
+      });
+    });
 
     const chunks: Uint8Array[] = [];
     for await (const chunk of exporter.exportYear(2026, new Date("2026-10-02T10:00:00Z"))) chunks.push(chunk);
@@ -177,6 +198,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
         "belege/belege.csv",
         "buchungen/journal.csv",
         "anlagen/anlagenverzeichnis.csv",
+        "kasse/kassenbuch.csv",
         "bank/DE12120300001234567890/umsaetze.csv",
         "bank/zuordnungen.csv",
         "bank/importe.csv",
@@ -220,6 +242,9 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(belege).toContain(`${sha256(JPEG)};quittung foto.jpg;2026-09-29_Mueller-Buero-GmbH-Filiale_${documentId.slice(0, 8)}.jpg`);
 
     const journal = text(files["buchungen/journal.csv"]);
+    // Die Herkunft „import“ nennt ihren Namen; der rohe Enum-Wert darf nicht in der Spalte Quelle stehen
+    expect(journal).toContain(";Übernommene Buchung aus der Vorsoftware;Import;");
+    expect(journal).not.toContain(";Übernommene Buchung aus der Vorsoftware;import;");
     expect(journal).toContain(";1400;Forderungen aus Lieferungen und Leistungen;4760,00;;");
     expect(journal).toContain(";4920;Telefon;38,57;;VSt19;");
     // Nur Buchungen des Jahres: die erste Spalte ist das Datum. Nicht über den ganzen Text prüfen, zufällige UUIDs
@@ -332,6 +357,25 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
       }
       // Rechnungen, Belege, Journal, Umsätze und Zuordnungen haben im Test Zeilen
       expect(geprueft).toBeGreaterThan(30);
+    });
+
+    it("das Kassenbuch ist beschrieben: Beträge als Numeric, Datum als Date, Nummer und Text als AlphaNumeric (#546)", () => {
+      const pfad = "kasse/kassenbuch.csv";
+      const [kopf, ...daten] = zeilen(files[pfad]!);
+      // Anfangsbestand, Einlage und Entnahme
+      expect(daten.filter((r) => r.length > 1).length).toBe(3);
+      const xml = text(files["index.xml"]);
+      const teil = xml.slice(xml.indexOf(`<URL>${pfad}</URL>`), xml.indexOf("</Table>", xml.indexOf(`<URL>${pfad}</URL>`)));
+      const art = (spalte: string) => {
+        const von = teil.indexOf(`<Name>${spalte}</Name>`);
+        expect(von, spalte).toBeGreaterThanOrEqual(0);
+        // Die index.xml ist eingerückt; verglichen wird ohne Leerraum
+        return teil.slice(von, teil.indexOf("</VariableColumn>", von)).replace(/\s+/g, "");
+      };
+      for (const spalte of ["Einnahme", "Ausgabe", "Bestand"]) expect(art(spalte), spalte).toContain("<Numeric><Accuracy>2</Accuracy></Numeric>");
+      expect(art("Datum")).toContain("<Date><Format>YYYY-MM-DD</Format></Date>");
+      expect(art("Nr.")).toContain("<AlphaNumeric/>");
+      expect(kopf).toContain("Einnahme");
     });
 
     it("steht in der LIESMICH und in den Prüfsummen", () => {

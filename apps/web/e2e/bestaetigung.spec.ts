@@ -36,7 +36,7 @@ test("Der Dialog ist modal, nennt die Folgen und hat den Fokus auf Abbrechen, di
 
 test("Festschreiben nennt Nummer, Kunde und Betrag über den Folgen", async ({ page }) => {
   const ausloeser = await neuerEntwurf(page);
-  const kunde = (await page.getByLabel("Kunde").inputValue()).split(" · ")[0]!.trim();
+  const kunde = (await page.getByRole("combobox", { name: "Kunde", exact: true }).inputValue()).split(" · ")[0]!.trim();
   await ausloeser.click();
   const dialog = rueckfrage(page);
   await expect(dialog.locator("dt")).toHaveText(["Nummer", "Kunde", "Betrag"]);
@@ -154,9 +154,9 @@ for (const [name, viewport] of [
   ["Desktop", { width: 1440, height: 900 }],
   ["Handy", { width: 320, height: 720 }],
 ] as const) {
-  for (const theme of ["wald", "nacht"]) {
-    test(`Barrierefreiheit des Dialogs: ${name}, Theme ${theme}`, async ({ page }) => {
-      await page.addInitScript((t) => localStorage.setItem("haben-theme", t), theme);
+  for (const modus of ["hell", "dunkel"]) {
+    test(`Barrierefreiheit des Dialogs: ${name}, ${modus}`, async ({ page }) => {
+      await page.addInitScript((m) => localStorage.setItem("haben-modus", m), modus);
       await page.setViewportSize(viewport);
       const ausloeser = await neuerEntwurf(page);
       await ausloeser.click();

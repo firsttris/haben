@@ -5,7 +5,7 @@ description: "Eigene Commits (Fixes aus Review oder Beitragsprüfung, Ergänzung
 
 # Auf einen fremden Fork pushen
 
-Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst darum bitten oder als letzten Ausweg einen eigenen Pull Request anlegen (`docs/entwicklung.md`, „Review“, Schritt 4). Commits der beitragenden Person nie umschreiben, nie Force.
+Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst darum bitten oder als letzten Ausweg einen eigenen Pull Request anlegen (`docs/mitwirken.md`, „Review“, Schritt 4). Commits der beitragenden Person nie umschreiben, nie Force.
 
 **Lokal** (Claude Code auf dem eigenen Rechner): `git push` auf den Branch des Forks geht mit den eigenen Zugangsdaten. Der Rest dieses Skills betrifft nur die Cloud.
 
