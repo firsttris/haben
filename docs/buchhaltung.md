@@ -150,7 +150,7 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 % / 7 % | 1574 / 1572 | 1404 / 1402 |
 | Umsatzsteuer-Vorauszahlungen | 1780 | 3820 |
 | Sondervorauszahlung bei [Dauerfristverlängerung](umsatzsteuer.md#dauerfristverlängerung) (Umsatzsteuer-Vorauszahlung 1/11) | 1781 | 3830 |
-| Umsatzsteuerverbindlichkeiten Vorjahr bzw. frühere Jahre ([Steuerzahlungen](bank.md#steuerzahlungen)) | 1790 bzw. 1791 | 3841 bzw. 3845 |
+| Umsatzsteuerverbindlichkeiten Vorjahr bzw. frühere Jahre ([Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen)) | 1790 bzw. 1791 | 3841 bzw. 3845 |
 | Privatentnahmen | 1800 | 2100 |
 | Privatsteuern (Einkommen-, Kirchensteuer, Soli des Inhabers vom Geschäftskonto) | 1810 | 2150 |
 | Privateinlagen | 1890 | 2180 |
@@ -310,9 +310,9 @@ Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer dieser Arten
 | Kontoführung und Bankgebühren | 4970 | 6855 | Gebühren an Bank | Bank an Gebühren |
 | Mahngebühren und Verzugszinsen | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
-| Steuerzahlung oder Erstattung | nach Steuerart, Bezugsjahr und Teil, siehe [Steuerzahlungen](bank.md#steuerzahlungen) | ebenso | Steuerkonto an Bank | Bank an Steuerkonto |
+| Steuerzahlung oder Erstattung | nach Steuerart, Bezugsjahr und Teil, siehe [Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen) | ebenso | Steuerkonto an Bank | Bank an Steuerkonto |
 | Einnahme oder Ausgabe (Kategorie, Steuersatz) | Erlöse 8400/8300 mit Umsatzsteuer 1776/1771, Kleinunternehmer 8195, Ausgaben auf das Konto der Kategorie, siehe [Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen) | 4400/4300 mit 3806/3801, 4185, Konto der Kategorie | Aufwand an Bank (ohne Vorsteuer), Erlösminderung | Bank an Erlöse und Umsatzsteuer |
-| Darlehen: Auszahlung, Tilgung, Zinsen, Gebühren | Darlehenskonto (0630–0650, 1705–1708), Zinsen 2110/2120/2126, Gebühren 2141, siehe [Darlehen](bank.md#darlehen) | 3150–3170, 3560–3567, 7310/7320/7326, 7355 | Tilgung, Zinsen, Gebühren an Bank | Bank an Darlehen (Auszahlung) |
+| Darlehen: Auszahlung, Tilgung, Zinsen, Gebühren | Darlehenskonto (0630–0650, 1705–1708), Zinsen 2110/2120/2126, Gebühren 2141, siehe [Darlehen](bank-steuern-darlehen.md#darlehen) | 3150–3170, 3560–3567, 7310/7320/7326, 7355 | Tilgung, Zinsen, Gebühren an Bank | Bank an Darlehen (Auszahlung) |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Rückzahlung) |
 | Lohnsteuer an das Finanzamt | 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
 | SV-Beiträge an Krankenkasse oder Minijob-Zentrale | 1742 Verbindlichkeiten im Rahmen der sozialen Sicherheit | 3740 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
