@@ -41,8 +41,8 @@ describe("Sonderfälle im Export von sevDesk", () => {
     const folgemonat = beleg.replace(";1501;", ";1502;");
     const data = ok(read({ [STAPEL]: stapel(beleg, beleg, folgemonat), [EINGANG]: eingangDoc() }));
     expect(data.vouchers.map((v) => [v.key, v.amount, v.direction, v.directionFrom])).toEqual([
-      ["1111111111111111112|2024-01-15", 20000, "eingang", "konten"],
-      ["1111111111111111112|2024-02-15", 10000, "eingang", "konten"],
+      ["1111111111111111112|2024-01-15|70002|aufwand", 20000, "eingang", "konten"],
+      ["1111111111111111112|2024-02-15|70002|aufwand", 10000, "eingang", "konten"],
     ]);
     expect(data.vouchers.every((v) => v.guid === null && v.document === null)).toBe(true);
   });

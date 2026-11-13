@@ -61,7 +61,7 @@ export interface SevExportLine {
 }
 
 export interface SevExportVoucher {
-  /** GUID aus dem Beleglink, ohne ihn `<Belegfeld 1>|<Belegdatum>` */
+  /** GUID aus dem Beleglink, ohne ihn `<Belegfeld 1>|<Belegdatum>|<Personenkonto>|<erloese oder aufwand>` */
   key: string;
   guid: string | null;
   /** Belegfeld 1 der ersten Zeile; von sevDesk gekürzt auf die letzten 36 Zeichen */

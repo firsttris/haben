@@ -8,7 +8,8 @@ import type { SevBelegInfo, SevExportDirection, SevExportDocument, SevExportLine
  * Jahresexport aus 1.0 gehört jede GUID zu genau einer Datei (docs/sevdesk.md). Zeilen ohne Beleglink werden nur
  * dann ein Beleg, wenn sie Netto, Steuer oder Satz in Beleginfo tragen und auf einem Erlös- oder Aufwandskonto
  * stehen; Zahlungen, Privat- und Umbuchungen tragen das nicht. Ihr Schlüssel ist Belegnummer plus Belegdatum,
- * denn wiederkehrende Belege teilen die Nummer.
+ * denn wiederkehrende Belege teilen die Nummer, dazu Personenkonto und Kontoart, denn zwei Lieferanten können
+ * dieselbe Rechnungsnummer am selben Tag vergeben.
  */
 
 type AccountKind = "erloese" | "aufwand";
@@ -80,7 +81,8 @@ function groupLines(stacks: SevExportStack[], hints: string[]): Map<string, Grou
           `${where}: Netto ${formatDecimal(info.net)} und Steuer ${formatDecimal(info.tax)} aus Beleginfo ergeben nicht den Umsatz ${formatDecimal(booking.amount)}.`,
         );
       }
-      const key = guid ?? (booking.voucherField1 ? `${booking.voucherField1}|${booking.date}` : `${name}:${booking.row}`);
+      const partner = [booking.account, booking.contraAccount].find((a) => isPersonenkonto(a, accountLength)) ?? "";
+      const key = guid ?? (booking.voucherField1 ? `${booking.voucherField1}|${booking.date}|${partner}|${sach.kind}` : `${name}:${booking.row}`);
       const group = groups.get(key) ?? { guid, lines: [] };
       group.lines.push({ stack: name, booking, info, sach });
       groups.set(key, group);
