@@ -255,6 +255,8 @@ export async function reenterDocument(actor: string, id: string): Promise<string
           asset: d.asset,
           privateShare: d.privateShare,
           reverseCharge: d.reverseCharge,
+          // Die Neuerfassung mindert dasselbe Entgelt; die Angabe „erstattet bereits Bezahltes“ bleibt (#786)
+          erstattetBezahltes: d.erstattetBezahltes,
           replacesDocumentId: id,
         })
         .returning({ id: schema.documents.id });

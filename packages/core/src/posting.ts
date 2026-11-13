@@ -25,6 +25,13 @@ export const ACCOUNTS = {
     ust: { 1900: "1776", 700: "1771" },
     ustNichtFaellig: { 1900: "1766", 700: "1761" },
     vorsteuer: { 1900: "1576", 700: "1571" },
+    /**
+     * Zwischenkonto für die Vorsteuer einer Gutschrift, die bereits Bezahltes erstattet (#786): Die Berichtigung wird nach
+     * § 17 Abs. 1 Satz 2 und 8 UStG erst gezogen, wenn das Geld zurückkommt oder verrechnet wird. DATEV-Kontenrahmen 2026,
+     * SKR03 1548 „Vorsteuer in Folgeperiode/im Folgejahr abziehbar“ (sonstige Vermögensgegenstände; kein Automatikkonto,
+     * keine eigene Kennzahl, also nicht in Kz 66).
+     */
+    vorsteuerNochNichtAbziehbar: "1548",
     /** § 13b: selbst geschuldete Umsatzsteuer und die Vorsteuer daraus */
     ustRc: "1787",
     vorsteuerRc: "1577",
@@ -37,6 +44,12 @@ export const ACCOUNTS = {
     verbindlichkeiten: "1600",
     /** DATEV SKR03 2026, Art.-Nr. 11174, S. 10: Anzahlungen ohne AM-Funktion; Umsatzsteuer wird separat gebucht. */
     erhalteneAnzahlungen: "1710",
+    /**
+     * Verrechnungskonto für zwei Belege ohne Zahlung (#274, #786): DATEV-Kontenrahmen 2026, SKR03 1590 „Durchlaufende
+     * Posten“ (sonstige Vermögensgegenstände oder sonstige Verbindlichkeiten). Je Verrechnung bucht jede Belegseite ihren
+     * Anteil hierher, Rechnung und Gutschrift zusammen auf null; kein Automatikkonto, die Buchung trägt keine Steuer.
+     */
+    verrechnung: "1590",
     privateinlagen: "1890",
     privatentnahmen: "1800",
     /** Spenden aus dem Betrieb, im Einzelunternehmen privat (Sonderausgabe, § 10b EStG); DATEV SKR03 1840 „Zuwendungen, Spenden“ */
@@ -79,6 +92,8 @@ export const ACCOUNTS = {
     ust: { 1900: "3806", 700: "3801" },
     ustNichtFaellig: { 1900: "3816", 700: "3811" },
     vorsteuer: { 1900: "1406", 700: "1401" },
+    /** Zwischenkonto wie SKR03 1548; DATEV-Kontenrahmen 2026, SKR04 1434 „Vorsteuer in Folgeperiode/im Folgejahr abziehbar“ */
+    vorsteuerNochNichtAbziehbar: "1434",
     ustRc: "3837",
     vorsteuerRc: "1407",
     /** Innergemeinschaftlicher Erwerb (DATEV-Kontenrahmen SKR04 2026; 3802 und 1402 ohne Satz, für 7 %) */
@@ -87,6 +102,8 @@ export const ACCOUNTS = {
     verbindlichkeiten: "3300",
     /** DATEV SKR04 2026, Art.-Nr. 11175, S. 11: Anzahlungen ohne AM-Funktion; Umsatzsteuer wird separat gebucht. */
     erhalteneAnzahlungen: "3250",
+    /** Verrechnungskonto wie SKR03 1590; DATEV-Kontenrahmen 2026, SKR04 1370 „Durchlaufende Posten“ */
+    verrechnung: "1370",
     privateinlagen: "2180",
     privatentnahmen: "2100",
     /** DATEV SKR04 2250 „Zuwendungen, Spenden“ */
@@ -206,6 +223,8 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1771": "Umsatzsteuer 7 %",
     "1776": "Umsatzsteuer 19 %",
     "1787": "Umsatzsteuer nach § 13b UStG",
+    "1548": "Vorsteuer in Folgeperiode/im Folgejahr abziehbar",
+    "1590": "Verrechnungskonto (durchlaufende Posten)",
     "1572": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb",
     "1574": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 %",
     "1772": "Umsatzsteuer aus innergemeinschaftlichem Erwerb",
@@ -248,6 +267,8 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "3801": "Umsatzsteuer 7 %",
     "3806": "Umsatzsteuer 19 %",
     "3837": "Umsatzsteuer nach § 13b UStG",
+    "1434": "Vorsteuer in Folgeperiode/im Folgejahr abziehbar",
+    "1370": "Verrechnungskonto (durchlaufende Posten)",
     "1402": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb",
     "1404": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 %",
     "3802": "Umsatzsteuer aus innergemeinschaftlichem Erwerb",
@@ -431,10 +452,21 @@ export function documentPosting(
    * Beim innergemeinschaftlichen Erwerb (ig_erwerb) ebenso, auf die Konten der Erwerbsteuer und Erwerbsvorsteuer.
    */
   reverseCharge: SelfAssessedTax | null = null,
+  /**
+   * Gutschrift erstattet bereits Bezahltes (#786): Die Vorsteuerminderung wird nicht im Belegmonat gezogen, sondern erst
+   * mit der Erstattung, Verrechnung oder Ausbuchung (§ 17 Abs. 1 Satz 2 und 8 UStG), und steht bis dahin auf dem
+   * Zwischenkonto. Nur an Gutschriften (negativer Beleg); ohne die Angabe bleibt alles wie bisher.
+   */
+  erstattetBezahltes = false,
 ): PostingLine[] {
   // Privat genutzt ist bei einer GmbH keine Entnahme, sondern Arbeitslohn oder verdeckte Gewinnausschüttung
   if (privateShare !== 0 && isKapitalgesellschaft(rechtsform)) throw new RangeError("Privatanteil gibt es nur im Einzelunternehmen");
   const accounts = ACCOUNTS[kontenrahmen];
+  if (erstattetBezahltes) {
+    if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
+    if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
+    if (category === "einfuhrumsatzsteuer") throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls");
+  }
   if (category === "einfuhrumsatzsteuer")
     return einfuhrumsatzsteuerPosting(totals, kontenrahmen, rechtsform, payment, vorsteuerAbzug, privateShare, reverseCharge);
   const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
@@ -474,7 +506,11 @@ export function documentPosting(
     }
     const code = inputTaxCode(rate);
     if (base !== 0) lines.push(side(expense, base, true, code));
-    if (tax !== 0) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, true, code));
+    if (tax !== 0) {
+      // Mit der Angabe bleibt die Vorsteuerminderung auf dem Zwischenkonto, mit Steuerschlüssel und Bemessungsgrundlage
+      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[vatRate(rate)];
+      lines.push(side(konto, tax, true, code));
+    }
   }
   // Der private Teil ist eine Entnahme; privat bezahlt heben sich Einlage und Entnahme insoweit auf
   if (privatePart !== 0) lines.push(side(accounts.privatentnahmen, privatePart, true, null));
@@ -692,20 +728,75 @@ export function invoiceWriteOffPosting(
  * Erhaltenes Skonto auf einen Beleg, amount mit dem Vorzeichen einer Zahlung (Ausgang negativ):
  * Verbindlichkeiten an erhaltene Skonti und Vorsteuer, anteilig je Steuersatz. Ohne Vorsteuerabzug
  * (Kleinunternehmer) mindert das Skonto den Aufwand in voller Höhe.
+ *
+ * `zwischenkontoAnteile` (#786): Der Beleg ist eine Gutschrift, deren Vorsteuerminderung noch auf dem Zwischenkonto
+ * steht. Der ausgebuchte Rest erstattet nichts mehr, seine Steuer wird also nicht gezogen, sondern vom Zwischenkonto
+ * abgeschrieben — mit Steuerschlüssel und Bemessungsgrundlage, in der Richtung der bisherigen Steuerzeile. Die Anteile
+ * kommen fertig herein statt aus `paidTaxShares` dieses Betrags: Sonst rechnete die Ausbuchung für sich, und zusammen mit
+ * den vorherigen Teilerstattungen läge die Steuer einen Cent neben der des Belegs (etwa 5,80 € von 9,28 € erstattet und
+ * 3,48 € als Skonto ausgebucht: 93 + 56 statt 93 + 55).
  */
-export function documentWriteOffPosting(totals: InvoiceTotals, amount: Cents, kontenrahmen: Kontenrahmen, vorsteuerAbzug: boolean): PostingLine[] {
+export function documentWriteOffPosting(
+  totals: InvoiceTotals,
+  amount: Cents,
+  kontenrahmen: Kontenrahmen,
+  vorsteuerAbzug: boolean,
+  /** Anteile je Steuersatz, die vom Zwischenkonto abgeschrieben werden; null = Vorsteuer wie bisher */
+  zwischenkontoAnteile: readonly TaxShare[] | null = null,
+): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const lines: PostingLine[] = [side(accounts.verbindlichkeiten, -amount, true, null)];
-  for (const { rate, base, tax } of paidTaxShares(totals, -amount)) {
+  for (const { rate, base, tax } of zwischenkontoAnteile ?? paidTaxShares(totals, -amount)) {
     if (!vorsteuerAbzug || rate === 0) {
       if (base + tax !== 0) lines.push(side(accounts.skontiErhalten, base + tax, false, vorsteuerAbzug ? inputTaxCode(rate) : "keineVSt"));
       continue;
     }
     const code = inputTaxCode(rate);
     if (base !== 0) lines.push(side(accounts.skontiErhalten, base, false, code));
-    if (tax !== 0) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
+    if (tax !== 0) {
+      if (!zwischenkontoAnteile) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
+      // Auf dem Zwischenkonto mit der Bemessungsgrundlage, wie die Umbuchung beim Ausgleich (#786)
+      else lines.push({ ...side(accounts.vorsteuerNochNichtAbziehbar, tax, false, code), basis: base });
+    }
   }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Eine Seite einer Verrechnung zweier Belege ohne Zahlung (#274, #786): Die Seite bucht ihren Anteil aus dem offenen
+ * Posten aus, Verbindlichkeiten gegen das Verrechnungskonto (SKR03 1590, SKR04 1370). `amount` trägt das Vorzeichen der
+ * Zeile in `document_settlements`: negativ bei der Rechnung, deren Verbindlichkeit sinkt (Soll Verbindlichkeiten), positiv
+ * bei der Gutschrift, deren Soll-Saldo sinkt (Haben Verbindlichkeiten). Zusammen mit der Buchung der anderen Seite steht
+ * das Verrechnungskonto auf null. Ohne Steuerzeile: Die Vorsteuer einer Gutschrift „erstattet bereits Bezahltes“ zieht
+ * erst die Umbuchung beim Ausgleich um (vorsteuerAusgleichPosting). Gebucht wird je Belegseite, damit jeder Vorgang seinen
+ * Beleg trägt und der DATEV-Export das Personenkonto bilden kann.
+ */
+export function verrechnungPosting(amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  return [side(accounts.verbindlichkeiten, -amount, true, null), side(accounts.verrechnung, amount, true, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
+}
+
+/**
+ * Umbuchung beim Ausgleich einer Gutschrift, die bereits Bezahltes erstattet (#786): Der Anteil, der beim Buchen auf dem
+ * Zwischenkonto stand, geht auf das Vorsteuerkonto, mit Steuerschlüssel und Bemessungsgrundlage, damit Kz 66 die
+ * Minderung genau dann sieht. `shares` sind die Anteile des Ausgleichs in der Richtung der Berichtigung: bei einer
+ * Gutschrift positiv, also Soll Zwischenkonto / Haben Vorsteuer; eine Gegenbuchung dreht beide Seiten (reverseLines).
+ * Sätze ohne Steuer (0 %) bleiben weg, sie haben nichts auf dem Zwischenkonto.
+ */
+export function vorsteuerAusgleichPosting(shares: readonly TaxShare[], kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const lines: PostingLine[] = [];
+  for (const { rate, base, tax } of shares) {
+    // Auch der Rundungsrest einer 0 %-Zeile bleibt weg: Sie hat kein eigenes Konto (vatRate lehnt 0 ab), und die
+    // letzte Umbuchung zieht den Rest ohnehin nach, weil sie gegen das Journal fortschreibt
+    if (rate === 0 || tax === 0) continue;
+    const code = inputTaxCode(rate);
+    lines.push({ ...side(accounts.vorsteuerNochNichtAbziehbar, tax, true, code), basis: base });
+    lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
+  }
+  return lines;
 }
 
 /**
