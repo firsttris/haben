@@ -41,6 +41,7 @@ export const JOURNAL_SOURCE = {
   ausschuettung: "Ausschüttung",
   lohn: "Lohn",
   import: "Import",
+  verrechnung: "Verrechnung",
 } as const;
 export type JournalSource = keyof typeof JOURNAL_SOURCE;
 

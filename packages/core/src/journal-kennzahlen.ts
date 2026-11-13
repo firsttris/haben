@@ -93,6 +93,10 @@ function steuerkonto(
     case a.vorsteuer[1900]:
     case a.vorsteuer[700]:
       return { steuer: "kz66", seite: "soll" };
+    // Zwischenkonto einer Gutschrift, die bereits Bezahltes erstattet: keine Kennzahl, auch wenn die Zeile einen
+    // Steuerschlüssel trägt. Kz 66 mindert erst die Umbuchung beim Ausgleich (#786).
+    case a.vorsteuerNochNichtAbziehbar:
+      return null;
     case a.vorsteuerRc:
       return { steuer: "kz67", seite: "soll" };
     case a.vorsteuerIge[1900]:

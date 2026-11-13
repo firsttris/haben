@@ -236,6 +236,7 @@ const SOURCE_LABELS: Record<JournalSource, string> = {
   ausschuettung: "Ausschüttung",
   lohn: "Lohn",
   import: "Import",
+  verrechnung: "Verrechnung",
 };
 
 /**
