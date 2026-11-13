@@ -111,6 +111,12 @@ describe("reviewHint", () => {
     expect(report.message).toContain("`doku-pruefen`");
   });
 
+  it("nennt doku-pruefen auch bei Code und LICENSE, wie bei LICENSE allein", () => {
+    const [report] = reviewHint(fremd, ["apps/web/src/server/modules/bank/index.ts", "LICENSE"]);
+    expect(report.message).toContain("`tdd-review`");
+    expect(report.message).toContain("`doku-pruefen`");
+  });
+
   it("nennt doku-pruefen, wenn nur Markdown, docs/ oder LICENSE geändert sind", () => {
     const [report] = reviewHint({ ...fremd, author_association: "FIRST_TIME_CONTRIBUTOR" }, ["docs/ki-assistenten.md", "README.md"]);
     expect(report.message).toContain("`beitrag-pruefen`");
