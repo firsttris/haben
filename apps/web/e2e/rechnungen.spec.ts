@@ -19,10 +19,10 @@ import {
   kundeWaehlen,
   neuenKontaktOeffnen,
   ohneAxeVerstoesse,
-  receiptJpeg,
   rechnungFestschreiben,
   trefferliste,
 } from "./einrichtung.ts";
+import { receiptJpeg } from "./belegbild.ts";
 
 /**
  * Rechnungen, Angebote und Kasse in eigener, leerer Datenbank (Projekt „rechnungen“, e2e/durchlaeufe.ts), parallel zu

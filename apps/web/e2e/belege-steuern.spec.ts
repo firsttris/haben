@@ -19,10 +19,10 @@ import {
   lieferantWaehlen,
   neuenLieferantenOeffnen,
   ohneAxeVerstoesse,
-  receiptJpeg,
   trefferliste,
 } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
+import { receiptJpeg } from "./belegbild.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
