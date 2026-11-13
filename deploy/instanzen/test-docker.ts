@@ -28,6 +28,8 @@ export interface Zustaende {
   volumen: string[];
   /** docker erreicht den Daemon nicht */
   tot: boolean;
+  /** createuser scheitert, etwa weil es die Rolle schon gibt */
+  rolleKaputt: Set<string>;
 }
 
 export const STATUS_JSON = JSON.stringify({ version: "9.9.9", summary: { eric: "44.3.6.0", backup: "2026-11-10 03:15" } });
@@ -48,17 +50,21 @@ export function nachbau() {
     projekte: [],
     volumen: [],
     tot: false,
+    rolleKaputt: new Set(),
   };
   const aufrufe: string[] = [];
   const umgebungen: { aufruf: string; env: Record<string, string> }[] = [];
+  /** Was ein Aufruf auf der Standardeingabe bekam, etwa createuser das Passwort */
+  const eingaben: { aufruf: string; eingabe: string }[] = [];
   const neugestartet = new Set<string>();
 
-  const ausfuehren: Ausfuehren = async (befehl, { cwd, env }) => {
+  const ausfuehren: Ausfuehren = async (befehl, { cwd, env, eingabe }) => {
     const [programm, ...args] = befehl;
     const d = basename(cwd) || "-";
     const aufruf = `${d} ${args.join(" ")}`;
     aufrufe.push(aufruf);
     umgebungen.push({ aufruf, env });
+    if (eingabe !== undefined) eingaben.push({ aufruf, eingabe });
     if (programm !== "docker") return { code: 127, stdout: "", stderr: `${programm}: not found` };
     if (z.tot) return { code: 1, stdout: "", stderr: "permission denied while trying to connect to the Docker daemon socket" };
     const text = args.join(" ");
@@ -101,6 +107,8 @@ export function nachbau() {
     if (sub.startsWith("exec -T caddy caddy reload")) return ok();
     if (sub === "logs app") return ok("app-1  | Haben ist noch nicht eingerichtet. Einrichtungscode für https://x/setup: abcd-efgh\n");
     if (sub === "ls -a -q") return ok(z.projekte.join("\n"));
+    if (sub === "up -d --wait db") return ok();
+    if (sub.startsWith("exec -T db createuser ")) return { code: z.rolleKaputt.has(d) ? 1 : 0, stdout: "", stderr: "" };
     if (sub === "up -d") {
       if (z.kaputt.has(d)) neugestartet.add(d);
       return ok();
@@ -108,7 +116,7 @@ export function nachbau() {
     if (sub === "pull") return ok();
     return { code: 2, stdout: "", stderr: `unbekannt: ${sub}` };
   };
-  return { z, aufrufe, umgebungen, ausfuehren };
+  return { z, aufrufe, umgebungen, eingaben, ausfuehren };
 }
 
 /** Ein Testlauf: eigenes Verzeichnis, nachgebautes docker, Ausgaben eingesammelt */
