@@ -154,7 +154,8 @@ describe.skipIf(!testDatabaseUrl)("Gutschrift „erstattet bereits Bezahltes“ 
       return Number(r!.saldo);
     };
     const je = [];
-    for (const m of monate) je.push({ monat: m.monat, journal: await vorsteuerImMonat(m.monat), quelle: (await vat.computeVatFigures({ year: 2026, month: m.monat })).kz66 });
+    for (const m of monate)
+      je.push({ monat: m.monat, journal: await vorsteuerImMonat(m.monat), quelle: (await vat.computeVatFigures({ year: 2026, month: m.monat })).kz66 });
     for (const w of je) expect(w).toEqual({ ...w, quelle: w.journal });
     expect(je.reduce((s, w) => s + w.quelle, 0)).toBe(-950);
     expect(await salden()).not.toHaveProperty(k.zwischen);
