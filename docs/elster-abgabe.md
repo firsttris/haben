@@ -21,8 +21,8 @@ Diese Seite behandelt die vier Formulare der Tabelle. Weitere Verfahren sendet H
 
 - [Zusammenfassende Meldung](umsatzsteuer.md#zusammenfassende-meldung) und [Dauerfristverlängerung](umsatzsteuer.md#dauerfristverlängerung)
 - [Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung) und [Lohnsteuerbescheinigung](lohn.md#lohnsteuerbescheinigung)
-- [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug) und [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) (GmbH und UG)
-- [Kapitalertragsteuer-Anmeldung](buchhaltung.md#gewinnausschüttung-gmbh-und-ug) zu einer Ausschüttung
+- [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug) und [E-Bilanz](gmbh-abschluss.md#e-bilanz-gmbh-und-ug) (GmbH und UG)
+- [Kapitalertragsteuer-Anmeldung](gmbh-abschluss.md#gewinnausschüttung-gmbh-und-ug) zu einer Ausschüttung
 
 ## Welcher Weg passt?
 

@@ -226,7 +226,7 @@ async function saldenlisteRoh({ from, to }: LedgerRange): Promise<SaldenZeile[]>
 /**
  * Übernahmen im Jahr: Salden der Buchungen ohne Herkunft „Eröffnung“, die gegen 9000 Saldenvorträge buchen, etwa offene
  * Posten aus dem Umzug oder die Eröffnung einer übernommenen Anlage. Sie gehören zum Stand am 1. Januar wie die
- * Eröffnungsbuchung (docs/buchhaltung.md, „Saldenvortrag und Eröffnung“).
+ * Eröffnungsbuchung (docs/gmbh-abschluss.md, „Saldenvortrag und Eröffnung“).
  */
 export async function uebernahmen(year: number, kontenrahmen: Kontenrahmen): Promise<{ account: string; saldo: Cents }[]> {
   const e = schema.journalEntries;
