@@ -1,5 +1,5 @@
 {
-  "id": "b581c70a-a34b-4bfd-acfe-819ca17f2b39",
+  "id": "ca74e4d9-7960-4c2f-afd4-9526536c60b8",
   "prevId": "88bd66c6-f76a-4962-b2ce-11c231f9ca2e",
   "version": "7",
   "dialect": "postgresql",
@@ -4379,6 +4379,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "own_account_id": {
+          "name": "own_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "tax_rate": {
           "name": "tax_rate",
           "type": "smallint",
@@ -4433,6 +4439,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "document_splits_own_account_id_own_accounts_id_fk": {
+          "name": "document_splits_own_account_id_own_accounts_id_fk",
+          "tableFrom": "document_splits",
+          "tableTo": "own_accounts",
+          "columnsFrom": [
+            "own_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -4553,6 +4572,12 @@
         "category": {
           "name": "category",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "own_account_id": {
+          "name": "own_account_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -4781,6 +4806,19 @@
           "tableTo": "contacts",
           "columnsFrom": [
             "supplier_contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "documents_own_account_id_own_accounts_id_fk": {
+          "name": "documents_own_account_id_own_accounts_id_fk",
+          "tableFrom": "documents",
+          "tableTo": "own_accounts",
+          "columnsFrom": [
+            "own_account_id"
           ],
           "columnsTo": [
             "id"
@@ -12680,12 +12718,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "invoice_id": {
-          "name": "invoice_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by": {
           "name": "created_by",
           "type": "text",
@@ -12749,21 +12781,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "service_entries_invoice": {
-          "name": "service_entries_invoice",
-          "columns": [
-            {
-              "expression": "invoice_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -12778,19 +12795,6 @@
             "id"
           ],
           "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "service_entries_invoice_id_invoices_id_fk": {
-          "name": "service_entries_invoice_id_invoices_id_fk",
-          "tableFrom": "service_entries",
-          "tableTo": "invoices",
-          "columnsFrom": [
-            "invoice_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

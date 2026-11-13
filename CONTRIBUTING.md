@@ -45,7 +45,7 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
   Haben, ist sie gegen die Quellen geprüft, die einfachste Lösung, mit Tests und Doku? Das Ergebnis kommt als
   Kommentar in den Pull Request; ein Maintainer oder Collaborator prüft es nur nach
   ([Beiträge annehmen](https://haben.app/entwicklung.html#beiträge-annehmen)).
-- Vor dem Merge ein unabhängiges **TDD-Review** (`tdd-review`), ohne Code eine **Doku-Prüfung** (`doku-pruefen`),
+- Vor dem Merge ein unabhängiges **TDD-Review** (`tdd-review`) für Code, eine **Doku-Prüfung** (`doku-pruefen`) für Markdown,
   durch jemand anderen oder einen frischen Agenten. Im TDD-Review zählt ein Befund nur mit einem Test, der auf dem
   Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf
   ([Review](https://haben.app/entwicklung.html#review)). Bringst du es mit, reviewen wir nicht noch einmal.
