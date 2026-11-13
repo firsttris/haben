@@ -1354,6 +1354,16 @@ export async function reverseAllocationIn(tx: Tx, allocationId: string, date: st
   if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
   const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
   if (already) throw new BankError("Die Zuordnung ist bereits aufgehoben.");
+  // Die Gegenzeile kann nicht vor der Zahlung wirken: Der Belegstorno bringt sein Datum selbst mit (cancellationDate) und
+  // liegt damit vor dem Buchungsdatum der Zahlung, wenn der Beleg vor der Zahlung datiert ist. Dann gilt das Buchungsdatum
+  // der Zahlung, nicht der frühere Tag. Ein vorgehaltener Auszug (Zahlung selbst in der Zukunft) bleibt beim übergebenen
+  // Tag: Dort wäre ein Datum im Zeitraum des Auszugs richtig.
+  const heute = today();
+  const [zahlung] = await tx
+    .select({ bookingDate: schema.bankTransactions.bookingDate })
+    .from(schema.bankTransactions)
+    .where(eq(schema.bankTransactions.id, allocation.transactionId));
+  const tag = zahlung && date < zahlung.bookingDate && zahlung.bookingDate <= heute ? zahlung.bookingDate : date;
   // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
   const parts = allocation.splitId
     ? await tx
@@ -1364,7 +1374,7 @@ export async function reverseAllocationIn(tx: Tx, allocationId: string, date: st
         .for("update")
     : [allocation];
   await darlehenAufhebenPruefen(tx, parts);
-  for (const part of parts) await reverseOne(tx, part, date);
+  for (const part of parts) await reverseOne(tx, part, tag);
   // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
   const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
   if (targets.length > 0) {
@@ -1379,8 +1389,8 @@ export async function reverseAllocationIn(tx: Tx, allocationId: string, date: st
         ),
       )
       .for("update");
-    // Die mit der Zahlung ausgebuchte Restbuchung wirkt wie die Aufhebung selbst: am Tag der Aufhebung
-    for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff, date);
+    // Die mit der Zahlung ausgebuchte Restbuchung wirkt wie die Aufhebung selbst: an ihrem geklammerten Tag
+    for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff, tag);
   }
   await assertNoReturnWithoutPayment(tx, parts);
 }

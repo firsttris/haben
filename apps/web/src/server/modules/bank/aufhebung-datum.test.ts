@@ -318,4 +318,59 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
     const [paar] = await sql`select distinct date from document_settlements where reverses_id is not null`;
     expect(paar?.date).toBe("2026-07-10");
   }, 30_000);
+
+  it("Belegstorno vor der Zahlung: die Bankgegenzeile bleibt am Buchungsdatum der Zahlung", async () => {
+    sequence++;
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, sequence % 256, 37]);
+    const { id } = await documents.uploadDocument(actor, { bytes, filename: `beleg-${sequence}.jpg` });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Codewerk Lizenzen GmbH",
+      supplierUstId: "",
+      invoiceNumber: `L-${sequence}`,
+      // Der Beleg datiert vor der Zahlung: 28.10. gebucht, bezahlt erst am 02.11.
+      documentDate: "2026-10-28",
+      dueDate: null,
+      category: "software",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+    });
+    await documents.bookDocument(actor, id);
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          ["02.11.26", "02.11.26", "Gebucht", "Testfirma", "Codewerk Lizenzen GmbH", "L", "Ausgang", "DE02100100100006820101", "-119,00", "", "", ""],
+        ]),
+        filename: "zahlung-november.csv",
+      },
+      null,
+    );
+    const [tx] = await sql`select id from bank_transactions`;
+    await bank.allocate(actor, { kind: "document", transactionId: tx!.id as string, documentId: id, amount: -11_900 });
+    const allocationIds = (await bank.documentBankAllocations(id)).map((a) => a.id);
+    const reports = await import("../auswertungen/reports.ts");
+    const vat = await import("../umsatzsteuer/index.ts");
+    const imOktober = async () => (await reports.euerPayments(2026)).filter((p) => p.date >= "2026-10-01" && p.date < "2026-11-01");
+    const oktoberVorher = await imOktober();
+    expect(oktoberVorher).toEqual([]);
+    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(1_900);
+
+    // Der Oktober ist noch nicht gemeldet: Der Belegstorno selbst fällt in den Zeitraum des Belegs (28.10.). Die
+    // Bankgegenzeile darf aber nicht vor die Zahlung rutschen (02.11.), sonst zeigte der Oktober eine Zahlung, die dort
+    // nie positiv stand.
+    const row = await cancellation.cancelDocument(actor, id, { allocationIds }, "2026-11-05");
+    expect(row.date).toBe("2026-10-28");
+
+    const [gegen] = await sql`select date from allocations where reverses_id is not null`;
+    expect(gegen?.date).toBe("2026-11-02");
+    const gegenbuchungen = await sql`select e.date from journal_entries e join allocations a on a.id = e.source_id
+      where e.source_type = 'allocation' and a.reverses_id is not null`;
+    expect(gegenbuchungen.map((r) => r.date)).toEqual(["2026-11-02"]);
+    // Der Oktober behält nur den Belegstorno (Vorsteuer 0), keine Bankzahlung; die Gegenzeile steht im November
+    expect(await imOktober()).toEqual(oktoberVorher);
+    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(0);
+    const [dezember] = await sql`select count(*)::int as n from journal_entries where date = '2026-11-02'`;
+    expect(dezember?.n).toBeGreaterThan(0);
+  }, 30_000);
 });
