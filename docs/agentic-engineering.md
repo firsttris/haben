@@ -120,8 +120,8 @@ Dazu kommt `belegvorlage`. Mit diesem Skill schreiben Nutzer ihr eigenes Rechnun
 | --- | --- | --- |
 | Übernehmen | Kommentar `/übernehmen` oder `/freigeben`, täglich | weist zu, schiebt die Karte nach „In Arbeit“, fragt nach 14 Tagen nach, gibt nach weiteren sieben frei |
 | Board | Issue zugewiesen, Pull Request geöffnet oder gemergt | zieht die Karte nach `Refs` und `Umgesetzt` mit |
-| PR-Regeln, PR-Regeln Kommentar | jeder Push auf einen Pull Request | prüft Titel, Issue-Verweise, Dateigröße, Doku und Selbstprüfung, schreibt das Ergebnis als einen Kommentar |
-| CI | „Ready for review“, `main` | lint, Typen, Vitest mit Postgres, Playwright, KoSIT, ZUGFeRD, Container |
+| PR-Regeln, PR-Regeln Kommentar | jeder Push auf einen Pull Request, geänderter Titel oder Beschreibung | prüft Titel und Issue-Verweise, warnt bei gewachsenen Dateien und fehlender Doku, erinnert an Selbstprüfung und Review, schreibt das Ergebnis als einen Kommentar |
+| CI | Pull Request außerhalb des Entwurfs, `main` | lint, Typen, Vitest mit Postgres, Playwright, KoSIT, ZUGFeRD, Container |
 | Docs | Pull Request, `main` | baut diese Seiten, auf `main` auch veröffentlichen |
 | Bump version, Release | Maintainer löst aus | Version, Image, GitHub-Release, schließt die umgesetzten Issues |
 | Jahreswerte prüfen | montags | öffnet je neuem amtlichem Wert, neuer ERiC-Version oder geänderter Norm ein Issue |
