@@ -45,7 +45,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     ).id;
   });
 
-  async function chain(treatment: "reverse_charge" | "ig_lieferung" | "drittland", skonto = false) {
+  async function chain(treatment: "reverse_charge" | "ig_lieferung" | "drittland", skonto = false, date = "2027-01-20") {
     if (treatment === "drittland") await sql`update contacts set land='US', ust_id='' where id=${contactId}`;
     const request = await invoices.finalizeInvoice(
       actor,
@@ -67,7 +67,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     );
     expect(request.advanceAccounting).toBe("deferred");
     await bank.createCashInvoiceEntry(actor, { invoiceId: request.id, date: "2026-12-12", amount: skonto ? 29_400 : 30_000, skonto }, "2026-12-12");
-    const final = await finalInvoice(request.id, treatment);
+    const final = await finalInvoice(request.id, treatment, date);
     return { request, final };
   }
 
@@ -109,6 +109,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
       january: 100_000,
       source: 100_000,
     });
+    await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2027-01-25", amount: 10_000 }, "2027-01-25");
     if (treatment !== "drittland") {
       expect((await vat.zmOverview({ year: 2027, month: 41 })).zeilen).toEqual([
         { ustId: "ATU12345678", art: treatment === "reverse_charge" ? "S" : "L", betrag: 100_000 },
@@ -131,5 +132,45 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
       january: 99_400,
       sourceJanuary: 99_400,
     });
+  });
+
+  it("Korrektur der EU-Schlussleistung mindert im Änderungsmonat, eine spätere Zahlung meldet nichts doppelt", async () => {
+    const { final } = await chain("reverse_charge");
+    const correction = await invoices.createCorrection(actor, final.id, "2027-02-12");
+    await invoices.finalizeInvoice(actor, correction.id);
+    await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2027-03-12", amount: 70_000 }, "2027-03-12");
+    const periods = await Promise.all([1, 2, 3].map((month) => vat.computeVatFigures({ year: 2027, month })));
+    expect(periods.map((period) => ({ journal: period.kz21, source: period.nebenbuecher?.kz21 }))).toEqual([
+      { journal: 100_000, source: 100_000 },
+      { journal: -70_000, source: -70_000 },
+      { journal: 0, source: 0 },
+    ]);
+    expect((await vat.zmOverview({ year: 2027, month: 41 })).zeilen).toEqual([{ ustId: "ATU12345678", art: "S", betrag: 30_000 }]);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
+
+  it("SKR04/Ist: Forderungsausfall nach der EU-Leistung mindert die vollständige Meldebasis nur einmal", async () => {
+    await sql`update company set kontenrahmen='SKR04', versteuerung='ist'`;
+    const { final } = await chain("reverse_charge");
+    await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: final.id, date: "2027-02-12", amount: 500 });
+    const periods = await Promise.all([1, 2].map((month) => vat.computeVatFigures({ year: 2027, month })));
+    expect(periods.map((period) => ({ journal: period.kz21, source: period.nebenbuecher?.kz21 }))).toEqual([
+      { journal: 100_000, source: 100_000 },
+      { journal: -500, source: -500 },
+    ]);
+    expect((await vat.zmOverview({ year: 2027, month: 41 })).zeilen).toEqual([{ ustId: "ATU12345678", art: "S", betrag: 99_500 }]);
+  });
+
+  it("IGL: Januarerlös und erst im Februar ausgestellte Schlussrechnung behalten unterschiedliche Meldezeitpunkte", async () => {
+    await chain("ig_lieferung", false, "2027-02-10");
+    const periods = await Promise.all([1, 2].map((month) => vat.computeVatFigures({ year: 2027, month })));
+    expect(periods.map((period) => ({ journal: period.kz41, source: period.nebenbuecher?.kz41 }))).toEqual([
+      { journal: 0, source: 0 },
+      { journal: 100_000, source: 100_000 },
+    ]);
+    const [january] = await sql`select sum(l.credit-l.debit)::int as revenue from journal_entries e join journal_lines l on l.entry_id=e.id
+      where e.date >= '2027-01-01' and e.date < '2027-02-01' and l.account='8125'`;
+    expect(january!.revenue).toBe(100_000);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
 });
