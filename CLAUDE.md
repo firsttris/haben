@@ -28,7 +28,7 @@ the change before starting.
 | Yearly official values (PAP, social insurance, ERiC, taxonomy, laws) | `entwicklung.md`: Jahreswerte | `jahreswerte` |
 | Rules a script checks | `mitwirken.md`: Automatische Prüfungen der Regeln | |
 
-Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user page of the area
+Modules, the audit hash chain and seals: `docs/architektur.md`, tables: `docs/architektur-datenmodell.md`; the user page of the area
 (`rechnungen.md`, `bank.md`, `umsatzsteuer.md`, …) for behaviour. README links point to the site
 (<https://haben.app/>), not to `docs/*.md`.
 

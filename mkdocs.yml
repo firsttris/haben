@@ -88,6 +88,8 @@ nav:
   - Hintergrund:
       - Buchhaltung in Haben: buchhaltung.md
       - Architektur: architektur.md
+      - Datenmodell: architektur-datenmodell.md
+      - Anmeldung und SSO-Modus: architektur-anmeldung.md
       - Agentic Engineering: agentic-engineering.md
       - Entwicklung: entwicklung.md
       - Mitwirken: mitwirken.md

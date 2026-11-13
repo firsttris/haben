@@ -95,7 +95,9 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | | |
 |---|---|
 | [Buchhaltung in Haben](buchhaltung.md) | Grundsätze, GoBD und Festschreibung, Ist und Soll, Kontenrahmen, alle Buchungssätze, Steuerschlüssel |
-| [Architektur](architektur.md) | Module, Datenmodell, Ablauf von Anfragen, Dateiablage, ERiC-Worker, E-Rechnung, Sicherheit |
+| [Architektur](architektur.md) | Module, Ablauf von Anfragen, Dateiablage, ERiC-Worker, E-Rechnung, Sicherheit |
+| [Datenmodell](architektur-datenmodell.md) | Alle Tabellen nach Bereichen, mit Zweck und Schutz durch Trigger |
+| [Anmeldung und SSO-Modus](architektur-anmeldung.md) | Rollen Inhaber und Steuerberatung, Passwort, Passkeys, SSO über OpenID Connect |
 | [Agentic Engineering](agentic-engineering.md) | Wie Haben mit KI-Agenten entsteht: Board und Issues, Skills, TDD-Review mit rotem Test, Doku-Prüfung, Merge durch einen Menschen, an einem echten Pull Request |
 | [Entwicklung](entwicklung.md) | Lokale Umgebung, Befehle, Tests, Migrationen, Konventionen, neue Bankformate |
 | [Mitwirken](mitwirken.md) | Aufgabe übernehmen, Branches und Commits, KI-Werkzeuge, automatische Prüfungen, Issues, Beiträge annehmen, Review |
