@@ -61,10 +61,22 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     await leeren(sql)`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, vat_return_submissions,
       vat_returns, elster_certificates, company cascade`;
+    // `company` bleibt im Truncate: Ein Upsert setzt nur die Spalten zurück, die er ausdrücklich nennt. rechtsform
+    // (finanzamt/fristen.test.ts stellt auf 'gmbh'), journal_ab, taxpayer und finanzamt stünden sonst noch aus früheren
+    // Dateien desselben Workers in der Zeile. Das Insert darunter bekommt trotzdem `on conflict … do update set`: Läuft
+    // ein Test in den Timeout, arbeitet sein Code weiter und legt die Firma in genau dem Fenster zwischen Truncate und
+    // Insert neu an – ohne den Zusatz wäre das ein company_pkey-Fehler. Genannt sind alle Spalten, die das Leeren
+    // vorher zurückgesetzt hat, plus die, die einzelne Tests weiter unten ändern (kleinunternehmer, kontenrahmen,
+    // versteuerung, einkunftsart).
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,
-              einkunftsart, taetigkeit)
+              einkunftsart, taetigkeit, kleinunternehmer)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 'selbstaendig', 'Softwareentwicklung')`;
+              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 'selbstaendig', 'Softwareentwicklung', false)
+      on conflict (id) do update set
+        name = excluded.name, strasse = excluded.strasse, plz = excluded.plz, ort = excluded.ort, email = excluded.email,
+        telefon = excluded.telefon, steuernummer = excluded.steuernummer, ust_id = excluded.ust_id, bundesland = excluded.bundesland,
+        iban = excluded.iban, versteuerung = excluded.versteuerung, kontenrahmen = excluded.kontenrahmen,
+        einkunftsart = excluded.einkunftsart, taetigkeit = excluded.taetigkeit, kleinunternehmer = excluded.kleinunternehmer`;
   });
 
   async function bookedDocument(
@@ -200,7 +212,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(issue(false, 2025)).not.toMatch(/Kleinunternehmer/);
     // Als Kleinunternehmer kein Hinweis auf fehlende Voranmeldungen
     expect(issue(true, 2025)).not.toMatch(/gesendete Voranmeldung/);
-  });
+    // Eigener Rahmen nur für diesen Test: Er baut ein volles Geschäftsjahr auf (Rechnung, fünf Belege, Bankimport,
+    // Anlagegut) und ist unter paralleler Last auf derselben Datenbank zu langsam für die 5 s von Vitest. Läuft er in
+    // den Timeout, arbeitet sein Code weiter und legt die Firma in genau dem Fenster zwischen Truncate und Insert des
+    // nächsten `beforeEach` an – daher kommt der Flake, nicht aus dem Upsert selbst.
+  }, 20_000);
 
   it("Anlage EÜR: Zeilen, Gewinn wie in den Auswertungen, Entnahmen, Einlagen und Anlagenverzeichnis", async () => {
     const { car } = await year2025();
