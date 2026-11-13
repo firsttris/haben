@@ -30,6 +30,8 @@ export interface Zustaende {
   tot: boolean;
   /** createuser scheitert, etwa weil es die Rolle schon gibt */
   rolleKaputt: Set<string>;
+  /** Die Datenbank startet nicht, etwa weil sich ihr Image nicht laden lässt */
+  dbKaputt: Set<string>;
 }
 
 export const STATUS_JSON = JSON.stringify({ version: "9.9.9", summary: { eric: "44.3.6.0", backup: "2026-11-10 03:15" } });
@@ -51,6 +53,7 @@ export function nachbau() {
     volumen: [],
     tot: false,
     rolleKaputt: new Set(),
+    dbKaputt: new Set(),
   };
   const aufrufe: string[] = [];
   const umgebungen: { aufruf: string; env: Record<string, string> }[] = [];
@@ -107,7 +110,7 @@ export function nachbau() {
     if (sub.startsWith("exec -T caddy caddy reload")) return ok();
     if (sub === "logs app") return ok("app-1  | Haben ist noch nicht eingerichtet. Einrichtungscode für https://x/setup: abcd-efgh\n");
     if (sub === "ls -a -q") return ok(z.projekte.join("\n"));
-    if (sub === "up -d --wait db") return ok();
+    if (sub === "up -d --wait db") return { code: z.dbKaputt.has(d) ? 1 : 0, stdout: "", stderr: "" };
     if (sub.startsWith("exec -T db createuser ")) return { code: z.rolleKaputt.has(d) ? 1 : 0, stdout: "", stderr: "" };
     if (sub === "up -d") {
       if (z.kaputt.has(d)) neugestartet.add(d);
