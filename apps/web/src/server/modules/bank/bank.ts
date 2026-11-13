@@ -463,8 +463,8 @@ export async function invoiceLosses(ids: string[], q: Db | Tx = db): Promise<Map
 }
 
 /** Bestellnummern einer Rechnung für den Abgleich: externe Referenz, Bestellnummer des Kunden, eigene Auftragsnummer */
-function orderReferencesOf(inv: { externalId: string | null; buyerOrderReference: string; sellerOrderReference: string }) {
-  const refs = [...new Set([inv.externalId ?? "", inv.buyerOrderReference, inv.sellerOrderReference].map((r) => r.trim()).filter(Boolean))];
+function orderReferencesOf(inv: { externalId: string | null; buyerOrderReference: string; sellerOrderReference: string }, externalId = inv.externalId) {
+  const refs = [...new Set([externalId ?? "", inv.buyerOrderReference, inv.sellerOrderReference].map((r) => r.trim()).filter(Boolean))];
   return refs.length > 0 ? { orderReferences: refs } : {};
 }
 
@@ -474,6 +474,7 @@ export async function openItems(): Promise<OpenItem[]> {
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
+      correctsId: schema.invoices.correctsId,
       number: schema.invoices.number,
       issueDate: schema.invoices.issueDate,
       dueDate: schema.invoices.dueDate,
@@ -505,6 +506,11 @@ export async function openItems(): Promise<OpenItem[]> {
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
   const cancelled = new Set(stornos.map((r) => r.correctsId));
+  // Die eindeutige externe Referenz bleibt am Original. Für den Abgleich zählen Korrektur und Storno zur selben Bestellung.
+  const externalIds = new Map(invoices.map((inv) => [inv.id, inv.externalId]));
+  for (const inv of invoices) {
+    if (inv.correctsId && !inv.externalId) externalIds.set(inv.id, externalIds.get(inv.correctsId) ?? null);
+  }
   const invoicePaid = await paidByTarget("invoice_id", [...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
   // EndToEndIds der Lastschriften aus Haben (#445): ein Einzelumsatz aus einem CAMT-Auszug findet so seine Rechnung
   const directDebitRefs = await directDebitReferences(invoices.map((i) => i.id));
@@ -550,7 +556,7 @@ export async function openItems(): Promise<OpenItem[]> {
       partyName: inv.buyer?.name ?? "",
       partyIbans: inv.contactIban ? [inv.contactIban] : [],
       ...(directDebitRefs.has(inv.id) ? { references: directDebitRefs.get(inv.id) } : {}),
-      ...orderReferencesOf(inv),
+      ...orderReferencesOf(inv, externalIds.get(inv.id)),
       currency: inv.currency,
       ...(skonto.length > 0 ? { skonto } : {}),
     });
@@ -576,7 +582,7 @@ export async function openItems(): Promise<OpenItem[]> {
       partyName: storno.buyer?.name ?? "",
       partyIbans: storno.contactIban ? [storno.contactIban] : [],
       // Storno erbt die Bestellnummer der Rechnung (#389): die Erstattung beim Dienstleister findet es darüber
-      ...orderReferencesOf(storno),
+      ...orderReferencesOf(storno, externalIds.get(storno.correctsId!)),
     });
   }
   for (const doc of documents) {
