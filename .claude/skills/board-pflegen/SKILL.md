@@ -1,6 +1,6 @@
 ---
 name: "board-pflegen"
-description: "Project „Roadmap“ von Haben pflegen (https://github.com/users/firsttris/projects/2): offene Gespräche und Übernahme-Wünsche in Issues finden, neue Issues prüfen (wollen wir das, erledigt, Duplikat, genug Angaben) und einordnen, Karten aufräumen, nach einem Release prüfen; das Ergebnis bekommt jedes fremde Issue als kurzen Kommentar. Mit gh und gh api graphql. Vorschläge an den Maintainer, umsetzen und kommentieren erst nach seinem OK. Wenn neue Issues da sind, einmal pro Woche oder nach einem Release."
+description: "Project „Roadmap“ von Haben pflegen (https://github.com/users/firsttris/projects/2): offene Gespräche und Übernahme-Wünsche in Issues finden, neue Issues prüfen (wollen wir das, erledigt, Duplikat, genug Angaben) und einordnen, Fragen an den Maintainer mit Empfehlung und Antwortentwurf vorlegen, angekündigte Folge-Issues anlegen, Karten aufräumen, nach einem Release prüfen; das Ergebnis bekommt jedes fremde Issue als kurzen Kommentar. Mit gh und gh api graphql. Vorschläge an den Maintainer, umsetzen und kommentieren erst nach seinem OK. Wenn neue Issues da sind, einmal pro Woche oder nach einem Release."
 ---
 
 # Board pflegen
@@ -61,9 +61,15 @@ Jedes offene Issue ohne Karte lesen, mit Kommentaren (`gh issue view <n> --json 
 
 Bei `steuer`-Issues und Fehlern bei Buchung oder Steuer die fachliche Aussage an der Primärquelle prüfen, die das Issue nennt. Stimmt sie nicht oder ist sie unsicher, ist das eine Rückfrage, keine Karte.
 
+Vor jeder Rückfrage, auch in offenen Gesprächen, alle Kommentare lesen: Steht die Angabe schon da, ist es keine Rückfrage.
+
 ### 3. Vorschlagen
 
-Eine Tabelle an den Maintainer, je Zeile: Issue, Titel, Ergebnis aus Schritt 2, bei „Aufnehmen“ Spalte, Position „nach #…“, Aufwand, Bereich, Hinweis, Labels (Typ und Thema), `einstieg` ja/nein, dazu ein Satz Begründung und ob ein Kommentar kommt (Schritt 5). Eigene Abschnitte für die übrigen Funde aus Schritt 1, darunter eine Tabelle „Labels ergänzen“ (Issue, Vorschlag) für Issues ohne Typ-Label. Die offenen Gespräche kommen als eigene Tabelle mit Antwortentwurf; **Übernahmen stehen ganz oben**, weil die Person laut „Etwas übernehmen“ auf die Zuweisung wartet. Dazu je Übernahme: bisherige PRs der Person (`gh pr list --state all --author <login>`), wie viele Karten sie schon hat, offene Fragen in ihrer Skizze. Was nur der Maintainer entscheiden kann (Registrierungen, Verträge, Rechtsfragen, Reihenfolge), steht als Frage an ihn in der Tabelle, nicht als Antwortentwurf. Die Rangfolge in „Geplant“ entscheidet der Maintainer. Erledigtes ohne `Umgesetzt` schließt der Maintainer von Hand mit Hinweis auf das Release.
+Eine Tabelle an den Maintainer, je Zeile: Issue, Titel, Ergebnis aus Schritt 2, bei „Aufnehmen“ Spalte, Position „nach #…“, Aufwand, Bereich, Hinweis, Labels (Typ und Thema), `einstieg` ja/nein, dazu ein Satz Begründung und ob ein Kommentar kommt (Schritt 5). Eigene Abschnitte für die übrigen Funde aus Schritt 1, darunter eine Tabelle „Labels ergänzen“ (Issue, Vorschlag) für Issues ohne Typ-Label. Die offenen Gespräche kommen als eigene Tabelle mit Antwortentwurf; **Übernahmen stehen ganz oben**, weil die Person laut „Etwas übernehmen“ auf die Zuweisung wartet. Dazu je Übernahme: bisherige PRs der Person (`gh pr list --state all --author <login>`), wie viele Karten sie schon hat, offene Fragen in ihrer Skizze. Was nur der Maintainer entscheiden kann (Registrierungen, Verträge, Rechtsfragen, Reihenfolge), steht als Frage an ihn in der Tabelle, nicht als Antwortentwurf.
+
+**Fragen an den Maintainer mit Empfehlung.** Fachliche und technische Fragen, die Mitwirkende an den Maintainer stellen (Feld oder Einstellung, ein oder zwei Konten, Sperre oder Hinweis, Merge-Reihenfolge, offene Punkte im PR), kommen nicht als nackte Frage in die Tabelle. Vorher Issue, verlinkte Issues und PRs, Code auf `origin/main` und Doku lesen; dann je Frage eine Empfehlung mit Beleg (Code-Stelle, Abschnitt der Doku, Primärquelle) und ein Antwortentwurf, nummeriert entlang der Punkte der Person. Bevorzugt die einfachste Lösung, die bestehende Daten und gemeldete Zahlen nicht ändert und zu vorhandenem Code passt. Hängen mehrere Issues an derselben Entscheidung (etwa eine gemeinsame Definition), einmal entscheiden und in jeder Antwort gleich formulieren. Was rechtlich unsicher bleibt, markieren; diese Punkte bleiben Fragen. Kündigt ein Entwurf ein eigenes Issue an („bitte als eigenes Issue“, „ausgeklammert“), steht das Folge-Issue mit Titel, Labels, Spalte und Position in einer Tabelle „Folge-Issues“.
+
+Die Rangfolge in „Geplant“ entscheidet der Maintainer. Erledigtes ohne `Umgesetzt` schließt der Maintainer von Hand mit Hinweis auf das Release.
 
 ### 4. Umsetzen, nach OK
 
@@ -108,7 +114,9 @@ Wer ein Issue schreibt, soll wissen, dass es gelesen und wie es eingeordnet wurd
 | Nicht ins Board | Danke! Das planen wir nicht: [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), Zeile „…“. Kurz der Grund … |
 | Erledigt | Danke! Das gibt es seit v… ([Release](https://github.com/firsttris/haben/releases/tag/v…), PR #…). |
 
-Antworten in offenen Gesprächen (Schritt 1) gehen genauso nach OK, mit dem freigegebenen Entwurf. Bei einer Übernahme: @-Erwähnung, „gehört dir“, Umfang in einem Satz (bei einer Skizze: „Die Skizze passt so“ oder was abweicht), Hinweis auf „In Arbeit“.
+Antworten in offenen Gesprächen (Schritt 1) und die Antworten auf Fragen an den Maintainer (Schritt 3) gehen genauso nach OK, mit dem freigegebenen Entwurf; Fragen zu einem PR als Kommentar im PR, nicht im Issue. Bei einer Übernahme: @-Erwähnung, „gehört dir“, Umfang in einem Satz (bei einer Skizze: „Die Skizze passt so“ oder was abweicht), Hinweis auf „In Arbeit“.
+
+**Folge-Issues, nach OK:** Jedes in einer freigegebenen Antwort angekündigte Issue gleich anlegen (`gh issue create --repo firsttris/haben --title "…" --body-file <datei> --label <typ>,<thema>`): Problem, Regel bzw. Vorschlag, Akzeptanzkriterien und ein Link auf den Kommentar mit der Entscheidung. Danach wie „Aufnehmen“ ins Board (Schritt 4) mit Hinweis, etwa wem es angeboten ist; zugewiesen wird erst nach `/übernehmen`.
 
 Schließen bleibt beim Maintainer, ebenso die Labels `rückmeldung`, `sammlung` und `verbesserung`.
 
@@ -118,7 +126,7 @@ Schließen bleibt beim Maintainer, ebenso die Labels `rückmeldung`, `sammlung` 
 
 ## Grenzen
 
-- Kommentare nur die aus Schritt 5 und nur nach OK; zuweisen nur nach OK; Issues schließen oder anlegen nur auf Auftrag; Labels nur nach OK.
+- Kommentare nur die aus Schritt 5 und nur nach OK; zuweisen nur nach OK; Issues schließen oder anlegen nur auf Auftrag, außer den Folge-Issues aus Schritt 5; Labels nur nach OK.
 - Die Spalten nicht umbenennen: `scripts/board/regel.ts` und der Workflow „Board“ hängen an den Namen.
 - Keine Karte zurückschieben, die der Workflow nach vorn gesetzt hat, außer der Maintainer will es.
 - Nach einem Release: prüfen, dass der Job `issues-schliessen` lief und die Karten in „Erledigt“ stehen; das Release selbst ist Skill `release`.
