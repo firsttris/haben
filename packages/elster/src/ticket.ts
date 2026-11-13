@@ -5,8 +5,10 @@ export function parseTransferTicket(serverResponseXml: string): string | undefin
 }
 
 /**
- * Muster eines Transfertickets aus dem Übermittlungsprotokoll: Buchstaben und Ziffern, dazwischen Bindestrich und Punkt.
- * Ein Ticket steht dort so, wie ELSTER es vergeben hat; das Muster hält Tippfehler und eingefügte Leerzeichen fest.
+ * Muster für ein von Hand eingetragenes Transferticket. Amtlich ist es eine 32-stellige ETID
+ * (`TransferTicketSType` in `ElsterBasisSchema/Schema/headerbasis_datentypen.xsd` der ERiC-Dokumentation 45.1.5.0:
+ * `[0-9a-km-z]{2}[0-9]{3}[0-9a-km-z]{27}`). Haben prüft bewusst toleranter (Groß- und Kleinbuchstaben, Ziffern, Bindestrich
+ * und Punkt, 4 bis 64 Zeichen), damit jedes amtliche Ticket passt und nur Tippfehler und Leerzeichen auffallen.
  */
 export const TRANSFERTICKET_MUSTER = /^[A-Za-z0-9][A-Za-z0-9.-]{3,63}$/;
 

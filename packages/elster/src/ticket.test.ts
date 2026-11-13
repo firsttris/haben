@@ -20,7 +20,7 @@ describe("parseTransferTicket", () => {
 
 describe("transferticketProblem", () => {
   it("lässt die Tickets aus dem Übermittlungsprotokoll durch", () => {
-    // So vergeben ELSTER und die Testumgebung: Buchstaben und Ziffern, teils mit Bindestrich
+    // Amtlich ist die ETID 32-stellig (TransferTicketSType, siehe ticket.ts); Haben lässt auch kürzere und solche mit Bindestrich oder Punkt zu
     for (const ticket of ["et7a1b2c3d4e5f", "ABC123456789", "et-2026-0001234", "e2.a9"]) {
       expect(transferticketProblem(ticket)).toBeNull();
       expect(TRANSFERTICKET_MUSTER.test(ticket)).toBe(true);
