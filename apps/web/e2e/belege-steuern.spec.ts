@@ -6,7 +6,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
-import { databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
+import { appDatabaseUrlFuer, databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
   bestaetigen,
   faktenZeigen,
@@ -201,6 +201,26 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await field.fill(pruefwert.slice(0, -1) + (pruefwert.endsWith("0") ? "1" : "0"));
   await card.getByRole("button", { name: "Vergleichen" }).click();
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
+});
+
+test("Datenbankzugriff: tatsächliche Verbindungsrollen in den Einstellungen anzeigen (#619)", async () => {
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("region", { name: "Datenbankzugriff", exact: true });
+  await expect(card).toBeVisible();
+  const sql = postgres(appDatabaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    const [connection] = await sql<{ role: string; login_role: string }[]>`select current_user as role, session_user as login_role`;
+    await expect(card.locator("dt")).toHaveText(["Aktuelle Rolle", "Anmelderolle"]);
+    await expect(card.locator("dd")).toHaveText([connection!.role, connection!.login_role]);
+    await expect(card).toContainText(/Appbetrieb mit eingeschränkten Rechten|Verbindung mit weitergehenden Rechten/);
+    await expect(card.getByRole("link", { name: "Getrennte Datenbankrollen einrichten" })).toHaveAttribute(
+      "href",
+      "https://haben.app/installation.html#getrennte-datenbankrollen",
+    );
+    await expect(card.locator("input, textarea, select, button")).toHaveCount(0);
+  } finally {
+    await sql.end();
+  }
 });
 
 test("Änderungsprotokoll: Kontenkollisionen getrennt von Manipulation melden (#787)", async () => {

@@ -26,6 +26,11 @@ Die übrigen Einstellungen aus [Umgebungsvariablen](installation.md#umgebungsvar
 die KI-Auslesung, trägst du unter **Environment Variables** ein. ELSTER geht nur auf einem Server mit Intel- oder
 AMD-Prozessor, siehe [ERiC einbinden](installation.md#eric-einbinden).
 
+Für [getrennte Datenbankrollen](installation.md#getrennte-datenbankrollen) legst du die App-Rolle vorher selbst an und
+setzt unter **Environment Variables** `DATABASE_URL` auf den App-Zugang und `MIGRATION_DATABASE_URL` auf den
+Eigentümerzugang zur selben Datenbank. Bleiben beide Werte leer, nutzt Haben den bisherigen Eigentümerzugang mit dem von
+Coolify erzeugten `SERVICE_HEX_64_POSTGRES`.
+
 ## Schlüssel sichern
 
 Unter **Environment Variables** stehen die erzeugten Werte. Zwei davon gehören zusätzlich in deinen Passwortmanager:

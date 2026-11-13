@@ -1,7 +1,9 @@
 // Die Vorlagen für einzelne Plattformen (#414) beschreiben denselben Stack wie deploy/compose.yml. Kommt dort eine
 // Umgebungsvariable der App oder des Backups hinzu oder fällt weg, muss jede Vorlage sie übernehmen oder hier bewusst
 // auslassen.
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
@@ -141,5 +143,44 @@ describe.each(vorlagen)("$name", ({ dienste, ausSchluesseln, ausgelassen, backup
     for (const name of ["db", "app", "backup"] as const) expect(dienste[name].image).toBe(haupt[name].image);
     const ziele = (dienst: Dienst) => dienst.ziele.filter((ziel) => ziel.startsWith("/var/lib/haben")).sort();
     expect(ziele(dienste.app)).toEqual(ziele(haupt.app));
+  });
+});
+
+describe.each(["deploy/synology/compose.yml", "deploy/truenas/compose.yml"])("%s – Datenbankzugänge", (datei) => {
+  const vorlage = (Bun.YAML.parse(text(datei)) as Compose).services;
+
+  test.each([
+    { fall: "ohne getrennte Zugänge", adresse: "", migration: "", erwartet: "postgres://haben:test-db-passwort@db:5432/haben" },
+    {
+      fall: "mit getrennten Zugängen",
+      adresse: "postgres://haben_app:test-app-passwort@db:5432/haben",
+      migration: "postgres://haben:test-db-passwort@db:5432/haben",
+      erwartet: "postgres://haben_app:test-app-passwort@db:5432/haben",
+    },
+  ])("übergibt die Datenbankzugänge $fall an haben-entrypoint", ({ adresse, migration, erwartet }) => {
+    const ordner = mkdtempSync(join(tmpdir(), "haben-vorlage-"));
+    try {
+      writeFileSync(join(ordner, "db-passwort"), "test-db-passwort");
+      writeFileSync(join(ordner, "auth-secret"), "test-auth-secret");
+      writeFileSync(join(ordner, "encryption-key"), "test-encryption-key");
+      writeFileSync(
+        join(ordner, "haben-entrypoint"),
+        '#!/bin/sh\nprintf "%s\\n" "$DATABASE_URL" "$MIGRATION_DATABASE_URL" "$BETTER_AUTH_SECRET" "$HABEN_ENCRYPTION_KEY"\n',
+        { mode: 0o700 },
+      );
+      // Compose löst $$ zu $ auf; nur der Schlüsselpfad zeigt hier auf künstliche Dateien.
+      const skript = (vorlage.app.entrypoint?.[2] ?? "").replaceAll("$$", "$").replaceAll("/run/haben", ordner);
+      const lauf = spawnSync("sh", ["-c", skript], {
+        env: { ...process.env, DATABASE_URL: adresse, MIGRATION_DATABASE_URL: migration, PATH: `${ordner}:${process.env.PATH}` },
+        encoding: "utf8",
+        timeout: 5_000,
+      });
+      expect(lauf.error).toBeUndefined();
+      expect(lauf.status).toBe(0);
+      expect(lauf.stderr).toBe("");
+      expect(lauf.stdout.trimEnd().split("\n")).toEqual([erwartet, migration, "test-auth-secret", "test-encryption-key"]);
+    } finally {
+      rmSync(ordner, { recursive: true, force: true });
+    }
   });
 });

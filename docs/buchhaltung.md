@@ -19,7 +19,7 @@ Diese Seite richtet sich an Nutzer, die ihre Buchungen nachvollziehen wollen, un
 
 ## GoBD: Unveränderbarkeit in der Datenbank
 
-Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres (`apps/web/drizzle/0001_festschreibung.sql` und folgende `*_trigger.sql`). Sie greifen also auch bei SQL von Hand, etwa mit `psql`. Gegen Absicht schützen sie nicht: Wer als Eigentümer der Tabellen verbunden ist, wie die App selbst, kann Trigger abschalten. Bei einer selbst gehosteten Installation hat der Betreiber ohnehin vollen Zugriff auf den Server; die Trigger verhindern Versehen und Programmfehler.
+Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres (`apps/web/drizzle/0001_festschreibung.sql` und folgende `*_trigger.sql`). Sie greifen auch bei SQL von Hand, etwa mit `psql`. Mit [getrennten Datenbankrollen](installation.md#getrennte-datenbankrollen) kann die laufende App diese Trigger weder abschalten noch Tabellen und Funktionen ändern oder löschen. Die Eigentümerverbindung bleibt für Migration und Betrieb vorgesehen. Ohne die Trennung hat die App weiterhin Eigentümerrechte; **Einstellungen › Export › Datenbankzugriff** zeigt diesen Stand. Der Betreiber hat weiterhin vollen Zugriff auf Server und Datenbank; den Nachweis tragen zusätzlich Prüfwerte und Backups.
 
 | Art | Tabellen | Wirkung |
 | --- | --- | --- |

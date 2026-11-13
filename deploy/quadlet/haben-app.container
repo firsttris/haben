@@ -28,6 +28,8 @@ Volume=haben-eric.volume:/var/lib/haben/eric
 # OIDC_SCOPES in haben.env legt bei Bedarf die angefragten Scopes fest.
 EnvironmentFile=%h/.config/haben/haben.env
 Secret=haben-database-url,type=env,target=DATABASE_URL
+# Bei getrennten Datenbankrollen einkommentieren (neue Installationen): Eigentümerzugang nur für Migrationen.
+# Secret=haben-migration-database-url,type=env,target=MIGRATION_DATABASE_URL
 Secret=haben-auth-secret,type=env,target=BETTER_AUTH_SECRET
 Secret=haben-encryption-key,type=env,target=HABEN_ENCRYPTION_KEY
 # Optional: SSO-Modus (OIDC_ONLY=true); übrige OIDC-Werte und Gruppen stehen in haben.env
