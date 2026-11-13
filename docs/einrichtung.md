@@ -221,7 +221,7 @@ Den Ablauf eines Jahres für eine GmbH oder UG zeigt [GmbH und UG](gmbh.md).
 > [!WARNING]
 > **Nur das Kalenderjahr als Wirtschaftsjahr:** Haben rechnet jedes Geschäftsjahr vom 1. Januar bis 31. Dezember. Ein abweichendes Wirtschaftsjahr unterstützt Haben nicht. Das betrifft eine GmbH, UG oder einen im Handelsregister eingetragenen Gewerbetreibenden, die mit dem Finanzamt einen anderen Abschlussstichtag vereinbart haben (§ 4a Abs. 1 Satz 2 Nr. 2 EStG, § 7 Abs. 4 KStG), und das Wirtschaftsjahr von Land- und Forstwirten (Nr. 1). In diesen Fällen wären [Jahresabschluss](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug), [Hinterlegung](gmbh-abschluss.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug), [E-Bilanz](gmbh-abschluss.md#e-bilanz-gmbh-und-ug), Körperschaft- und Gewerbesteuer und der [DATEV-Export](auswertungen.md) falsch. Freiberufler und nicht eingetragene Gewerbetreibende rechnen ohnehin im Kalenderjahr (§ 4a Abs. 1 Satz 1 und Satz 2 Nr. 3 EStG). Für die Umsatzsteuer gilt immer das Kalenderjahr (§ 16 Abs. 1 Satz 2 UStG).
 
-Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
+Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Bei neuen Anzahlungsanforderungen im Bilanzverfahren von GmbH und UG bindet bereits das Festschreiben die Rechtsform, auch ohne Zahlung oder Journalbuchung. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
 
 > [!IMPORTANT]
 > Das Gesellschafter-Verrechnungskonto ist das Sammelkonto „Verbindlichkeiten gegenüber Gesellschaftern“ aus dem DATEV-Kontenrahmen. Im Abschluss steht sein Saldo je nach Seite unter den Verbindlichkeiten oder Forderungen, jeweils mit dem Vermerk „gegenüber Gesellschaftern“ (§ 42 Abs. 3 GmbHG); welcher Teil länger als ein Jahr läuft, bestätigst du beim [Jahresabschluss](gmbh-abschluss.md#vermerke-unter-der-bilanz). Stimme die Konten vor dem Echtbetrieb mit der Steuerberatung ab.
@@ -313,7 +313,7 @@ Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Ges
 | Versteuerung (Ist oder Soll) | im laufenden Jahr gebucht wurde oder Rechnungen noch offen sind; ihre Umsatzsteuer würde sonst doppelt oder gar nicht angemeldet |
 | Kleinunternehmer einschalten | im laufenden Jahr gebucht wurde |
 | Kleinunternehmer ausschalten | nie |
-| Rechtsform | überhaupt schon gebucht wurde, in irgendeinem Jahr |
+| Rechtsform | überhaupt schon gebucht wurde oder eine neue Anzahlungsanforderung im Bilanzverfahren festgeschrieben ist |
 
 Umstellen kannst du also nur zum Jahreswechsel, bevor im neuen Jahr die erste Buchung entsteht. Das Vorjahr rechnet danach weiter nach der alten Versteuerung, auch die Umsatzsteuererklärung dafür. Ebenso beim Kleinunternehmerstatus: Wer zum 1. Januar Kleinunternehmer wird, sieht die Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres weiter als Frist und kann sie abgeben; maßgeblich ist der Stand im jeweiligen Monat bzw. Jahr laut Änderungsprotokoll.
 
