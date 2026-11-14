@@ -414,24 +414,49 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 
 | Befehl | Was es tut |
 | --- | --- |
-| `neu <name> <domain>` | Verzeichnis, `.env` mit eigenen Zufallswerten für `DB_PASSWORD`, das Passwort der App-Rolle in `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`, die Override-Datei und der Eintrag im gemeinsamen Caddy. Startet den Proxy, dann die Datenbank, legt die App-Rolle `haben_app` an ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)), startet die App und nennt den Einrichtungscode. Gibt es das Verzeichnis oder das Compose-Projekt `haben-<name>` schon (auch nur noch seine Volumes) oder gehört die Domain einer anderen Instanz oder einem übrig gebliebenen Eintrag in `proxy/sites/`, bricht es ab und ändert nichts; ebenso, wenn docker nicht antwortet. Der Name besteht aus a–z, 0–9 und `-`; `proxy`, `app` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben |
-| `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Schlägt ein Schritt fehl, etwa eine Migration, hält es an, nennt die Instanz und lässt die folgenden unverändert. Gestoppte Instanzen überspringt es und nennt sie am Ende; startet eine App ständig neu oder meldet Compose für eine Instanz einen Fehler, hält es dort an. Die Instanz, an der es anhält, bleibt, wie sie ist; zurück kommst du mit dem Backup, das `update` davor angelegt hat, siehe [Update zurücknehmen](installation-backup.md#update-zurücknehmen) |
-| `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC-Version und letzte erfolgreiche Sicherung. Version, ERiC und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste. Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“. Skripte lesen `haben status --json`; das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert |
+| `neu <name> <domain>` | Legt Verzeichnis, `.env` mit eigenen Zufallswerten, Override-Datei und den Eintrag im gemeinsamen Caddy an. Startet den Proxy, dann die Datenbank, legt die App-Rolle `haben_app` an ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)), startet die App und nennt den Einrichtungscode |
+| `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Beim ersten Fehler hält es an |
+| `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC und letzte erfolgreiche Sicherung |
 | `liste` | Name, Domain und Verzeichnis |
+
+`neu` setzt in der `.env` eigene Zufallswerte für `DB_PASSWORD`, das Passwort der App-Rolle in `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`. Der Name besteht aus a–z, 0–9 und `-`, höchstens 31 Zeichen, am Anfang und Ende ein Buchstabe oder eine Ziffer; `proxy`, `app` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben. `neu` bricht ab und ändert nichts, wenn
+
+- es das Verzeichnis oder das Compose-Projekt `haben-<name>` schon gibt (auch nur noch seine Volumes),
+- die Domain einer anderen Instanz oder einem übrig gebliebenen Eintrag in `proxy/sites/` gehört,
+- es das Netz `haben-proxy-<name>` schon gibt, etwa von einer gelöschten Instanz,
+- docker nicht antwortet.
+
+`update`:
+
+- Schlägt ein Schritt fehl, etwa eine Migration, hält es an, nennt die Instanz und lässt die folgenden unverändert; ebenso, wenn eine App ständig neu startet oder Compose für eine Instanz einen Fehler meldet.
+- Gestoppte Instanzen überspringt es und nennt sie am Ende.
+- Die Instanz, an der es anhält, bleibt, wie sie ist; zurück kommst du mit dem Backup, das `update` davor angelegt hat, siehe [Update zurücknehmen](installation-backup.md#update-zurücknehmen).
+
+`status`:
+
+- Version, ERiC und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste.
+- Bei ERiC steht die Version, „von Hand“ bei einem mit `ERIC_HOME` eingebundenen Paket ohne Versionsdatei oder „fehlt“ ohne ERiC.
+- Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“.
+- Skripte lesen `haben status --json`; das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert.
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 
 Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Das gilt für Docker unter Linux, das Bridge-Netze mit Firewall-Regeln voneinander trennt; Laufzeiten wie OrbStack trennen sie nicht, dort erreicht eine App die andere über deren IP-Adresse. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu und baut den Caddy-Container neu auf; dabei sind alle Instanzen einige Sekunden nicht erreichbar.
 
-Eine Instanz löschst du in dieser Reihenfolge:
+Eine Instanz löschst du in dieser Reihenfolge. `docker compose down -v` entfernt alle Volumes der Instanz: Datenbank, Belege und, solange `RESTIC_REPOSITORY` nicht auf ein zweites System zeigt, auch das Backup im Volume `backups`. Vorher gehören deshalb der [Jahresexport](auswertungen.md#jahresexport) jedes Jahres und ein Backup an einen zweiten Ort ([Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system)); Bücher und Aufzeichnungen bewahrst du 10 Jahre auf, Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO), siehe [Aufbewahrung](auswertungen.md#aufbewahrung).
 
-1. In ihrem Verzeichnis `docker compose down -v` (entfernt auch Datenbank und Belege), dann das Verzeichnis löschen.
+1. In ihrem Verzeichnis `docker compose down -v`, dann das Verzeichnis löschen.
 2. Ihre Datei in `proxy/sites/` und die beiden Einträge ihres Netzes in `proxy/compose.override.yml` entfernen; war es das einzige Netz darin, die Datei löschen.
 3. `docker compose up -d` in `proxy/`, dann `docker network rm haben-proxy-<name>`.
 
-`update` und `status` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
+Zwei Fälle weichen bei Schritt 2 und 3 ab:
 
-Eine Instanz, die ein älterer Stand des Werkzeugs im gemeinsamen Netz `haben-proxy` angelegt hat, läuft weiter, und `update`, `status` und `liste` erfassen sie wie bisher. Auf ein eigenes Netz stellst du sie von Hand um, hier `firma1`:
+- **Mit `--eigener-proxy`** gibt es kein `proxy/`: den Block der Domain und das Netz aus der Konfiguration deines Proxys entfernen, ihn neu aufbauen, dann `docker network rm haben-proxy-<name>`.
+- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht, und `up -d` baut den Caddy deshalb nicht neu auf. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose restart caddy`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart.
+
+`update`, `status` und `liste` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
+
+Eine Instanz, die ein älterer Stand des Werkzeugs im gemeinsamen Netz `haben-proxy` angelegt hat, läuft weiter und bleibt in `update`, `status` und `liste`. Auf ein eigenes Netz stellst du sie von Hand um, hier `firma1`:
 
 1. In `firma1/compose.override.yml` die Zeile `name: haben-proxy` durch `name: haben-proxy-firma1` ersetzen.
 2. In `proxy/compose.override.yml` das Netz eintragen, neben denen der anderen Instanzen; fehlt die Datei, legst du sie an:
@@ -448,20 +473,24 @@ Eine Instanz, die ein älterer Stand des Werkzeugs im gemeinsamen Netz `haben-pr
 3. `docker compose up -d` erst in `proxy/`, dann in `firma1/`.
 4. Hängt keine Instanz mehr in `haben-proxy`: in `proxy/compose.yml` die Zeile `networks: [proxy]` und den Block `networks:` entfernen, `docker compose up -d`, dann `docker network rm haben-proxy`.
 
+Mit eigenem Proxy statt des gemeinsamen Caddy entfällt Schritt 2: Leg das Netz mit `docker network create haben-proxy-firma1` an, trag es in die Compose-Datei deines Proxys ein wie unter [Von Hand](#von-hand) und bau erst ihn, dann `firma1/` mit `docker compose up -d` neu auf. Statt Schritt 4 nimmst du `haben-proxy` aus der Compose-Datei deines Proxys, sobald keine Instanz mehr darin hängt, baust ihn neu auf, dann `docker network rm haben-proxy`.
+
 Optionen für `neu`:
 
 | Option | Wirkung |
 | --- | --- |
 | `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID` (fünf Ziffern). Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
-| `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden). Ob ein gemeinsames ERiC als Weitergabe gilt, wenn du Instanzen [für andere betreibst](#für-andere-betreiben), ist nicht geklärt |
+| `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`, siehe [Weitere Punkte](#weitere-punkte) |
 | `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy-<name>` der Instanz an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy). `docker network connect haben-proxy-<name> <proxy>` hält bis zum Neuaufbau des Proxy-Containers; dauerhaft steht das Netz in seiner Compose-Datei, wie unter [Von Hand](#von-hand) |
-| `--sso --oidc-issuer URL --oidc-client-id ID` | ausschließlich [Single Sign-on](installation-sso.md), mit Gruppen nur für diese Instanz (siehe unten); `--oidc-name` setzt den Anzeigenamen (Vorgabe Authelia). Dazu das Clientsecret aus genau einer Quelle (nächste Zeile) |
-| `--oidc-client-secret-file PFAD` oder `--oidc-client-secret-stdin` | das Clientsecret für `--sso`: aus einer Datei, die nur du lesen kannst, oder von der Standardeingabe (`pass show haben/firma1 \| bun … --oidc-client-secret-stdin`); ohne Pipe fragt das Werkzeug am Terminal danach und zeigt die Eingabe nicht an. Ein Zeilenumbruch am Ende zählt nicht dazu. Als Argument gibt es das Secret nicht: Es stünde in der Prozessliste und in der Shell-Historie |
+| `--sso --oidc-issuer URL --oidc-client-id ID` | ausschließlich [Single Sign-on](installation-sso.md), mit Gruppen nur für diese Instanz; `--oidc-name` setzt den Anzeigenamen (Vorgabe Authelia). Dazu das Clientsecret aus genau einer Quelle (nächste Zeile), siehe „Mit SSO“ unten |
+| `--oidc-client-secret-file PFAD` oder `--oidc-client-secret-stdin` | das Clientsecret für `--sso`: aus einer Datei, die nur du lesen kannst, oder von der Standardeingabe |
 | `--nicht-starten` | legt nur die Dateien an, etwa um `.env` vor dem Start zu ergänzen. Den ersten Start machst du dann selbst: gemeinsamer Caddy bzw. Netz `haben-proxy-<name>`, Datenbank, App-Rolle, App; das Werkzeug nennt die Befehle und wo danach der Einrichtungscode steht (`docker compose logs app`). Die Befehle nennt es auch, wenn `neu` abbricht, bevor es die Rolle gibt |
 
 `ENCRYPTION_KEY` und `RESTIC_PASSWORD` jeder Instanz sicherst du wie bei einer einzelnen zusätzlich an einem zweiten Ort; ohne sie sind Zertifikat, Zugangsdaten und Backup nach einem Verlust des Servers nicht mehr zu öffnen. Weitere Einstellungen (Backup auf einem zweiten System, KI-Auslesung, Kontoabruf) trägst du danach in die `.env` der Instanz ein und startest sie mit `docker compose up -d` in ihrem Verzeichnis neu.
 
 **Mit SSO:** Jede Instanz ist ein eigener Client beim Anmeldedienst und bekommt eigene Gruppen, `haben-<name>-inhaber` und `haben-<name>-steuerberatung`. Teilen sich Instanzen einen Anmeldedienst und dieselben Gruppennamen, wäre jedes Mitglied der Inhaber-Gruppe Inhaber in allen Firmen. Das Werkzeug nennt nach `neu` die Gruppen und die Redirect-URI `https://<domain>/api/auth/callback/oidc`; den Client legst du wie unter [Authelia konfigurieren](installation-sso.md#authelia-konfigurieren) an, je Instanz mit eigener `client_id` und eigenem Secret. Wer in mehreren Firmen arbeitet, ist Mitglied in den Gruppen jeder dieser Firmen und meldet sich beim Anmeldedienst nur einmal an.
+
+Das Clientsecret kommt von der Standardeingabe etwa aus dem Passwortmanager (`pass show haben/firma1 | bun … --oidc-client-secret-stdin`); ohne Pipe fragt das Werkzeug am Terminal danach und zeigt die Eingabe nicht an. Ein Zeilenumbruch am Ende zählt nicht dazu. Als Argument gibt es das Secret nicht: Es stünde in der Prozessliste und in der Shell-Historie.
 
 ### Von Hand
 
@@ -481,7 +510,7 @@ Je Instanz unterscheiden sich drei Dinge:
 | Wo | Was | Beispiel |
 | --- | --- | --- |
 | `.env` | `COMPOSE_PROJECT_NAME`: trennt Container, Netz und Volumes der Instanzen (Vorrang vor `name: haben` in `compose.yml`) | `COMPOSE_PROJECT_NAME=haben-firma1` |
-| `.env` | eigene `DOMAIN`, eigenes `DB_PASSWORD`, eigene Schlüssel (`AUTH_SECRET`, `ENCRYPTION_KEY`) | `DOMAIN=firma1.example.de` |
+| `.env` | eigene `DOMAIN`, eigenes `DB_PASSWORD`, eigenes Passwort der App-Rolle in `DATABASE_URL`, eigene Schlüssel (`AUTH_SECRET`, `ENCRYPTION_KEY`, `RESTIC_PASSWORD`) | `DOMAIN=firma1.example.de` |
 | `compose.override.yml` | eigenes Netz zum Proxy und eigener Name darin: `DEIN_PROXY_NETZ` und den Alias `haben-app` ersetzen | `name: haben-proxy-firma1`, `aliases: [haben-firma1]` |
 
 Der mitgelieferte Caddy belegt Port 80 und 443 und kann deshalb nur einmal laufen. Mit mehreren Instanzen nutzt jede die `compose.override.yml` aus [Eigener Reverse Proxy](#eigener-reverse-proxy), und ein gemeinsamer Proxy verteilt die Subdomains, etwa mit Caddy:
@@ -503,7 +532,7 @@ firma2.example.de {
 
 (Header wie im Beispiel unter [Eigener Reverse Proxy](#beispiele).)
 
-Jede Instanz bekommt ein eigenes Netz zum Proxy (`docker network create haben-proxy-firma1`), der Proxy hängt in allen. In einem gemeinsamen Netz erreichte jede App jede andere auf Port 3000, am Proxy vorbei. Trag die Netze in der Compose-Datei des Proxys ein; `docker network connect` allein hält nur bis zum Neuaufbau seines Containers:
+Jede Instanz bekommt ein eigenes Netz zum Proxy (`docker network create haben-proxy-firma1`), der Proxy hängt in allen; den Grund nennt [Mit dem Werkzeug](#mit-dem-werkzeug). Trag die Netze in der Compose-Datei des Proxys ein:
 
 ```yaml
 services:
@@ -516,11 +545,13 @@ networks:
     external: true
 ```
 
+Mit `external: true` legt Compose das Netz nicht an und bricht ab, wenn es fehlt; du legst es vorher mit `docker network create` an. Das Werkzeug schreibt für den gemeinsamen Caddy stattdessen `name:` ohne `external`: Dort legt der Caddy die Netze beim Start selbst an.
+
 Starten, aktualisieren und sichern machst du im Verzeichnis der jeweiligen Instanz wie oben unter [Docker Compose](#docker-compose); die Volumes heißen dann `haben-firma1_belege` usw. statt `haben_belege`. Jede Instanz hat ihren eigenen Dienst `backup`. Teilen sich mehrere Instanzen ein restic-Repository, braucht jede in `.env` ein eigenes `BACKUP_HOST` (z. B. `BACKUP_HOST=haben-firma1`), sonst räumt das Aufräumen der einen die Stände der anderen ab und `restore latest` nimmt den falschen Stand.
 
 ### Weitere Punkte
 
-- **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden); mit dem Werkzeug über `--eric-home /opt/eric`.
+- **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden); mit dem Werkzeug über `--eric-home /opt/eric`. Ob ein gemeinsames ERiC als Weitergabe gilt, wenn du Instanzen [für andere betreibst](#für-andere-betreiben), ist nicht geklärt.
 - **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, kommen Pflichten dazu, siehe [Für andere betreiben](#für-andere-betreiben).
 - **Quadlets** sind auf eine Instanz ausgelegt (feste Namen wie `haben-app`). Für mehrere Instanzen ist Compose einfacher.
 
@@ -528,13 +559,18 @@ Eine Instanz mit mehreren Mandanten gibt es bewusst nicht: Eine gemeinsame Daten
 
 ### Firma wechseln
 
-Mit `HABEN_FIRMEN` kennt jede Instanz die übrigen: In der Navigation steht unter „Haben“ die Zeile **Firma wechseln**, die die anderen Firmen aufklappt, ab 20 mit Suchfeld; die Firma, in der du gerade arbeitest, steht nicht in der Liste, sondern wie immer mit dem Namen aus den [Firmendaten](einrichtung.md#firmendaten) unter „Haben“. Ein Klick öffnet die Instanz der anderen Firma unter ihrer eigenen Adresse; Daten wandern dabei nicht, jede Instanz hat ihre eigene Anmeldung. Mit [SSO](installation-sso.md) bist du dort meist sofort angemeldet, sonst meldest du dich einmal je Firma an (Passkeys gelten je Domain).
+Mit `HABEN_FIRMEN` kennt jede Instanz die übrigen: In der Navigation steht unter „Haben“ die Zeile **Firma wechseln**, die die anderen Firmen aufklappt, ab 20 mit Suchfeld; die Firma, in der du gerade arbeitest, steht nicht in der Liste. Ein Klick öffnet die Instanz der anderen Firma unter ihrer eigenen Adresse; Daten wandern dabei nicht, jede Instanz hat ihre eigene Anmeldung. Mit [SSO](installation-sso.md) genügt dort ein Klick auf die Anmeldung, solange du beim Anmeldedienst angemeldet bist; sonst meldest du dich einmal je Firma an (Passkeys gelten je Domain).
 
 ```dotenv
 HABEN_FIRMEN='Studio Nord|https://nord.example.de;Werkstatt Süd|https://werkstatt.example.de'
 ```
 
-Je Firma `Name|Adresse`, getrennt durch `;`, in der `.env` jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`. Erlaubt sind nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal, höchstens 50 Firmen; sonst startet die App nicht und nennt den Fehler im Log. Nach einer Änderung startest du die App jeder Instanz neu (`docker compose up -d`). In den Vorlagen für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld. Die Zeile sieht nur der Inhaber, und nur wenn die Liste andere Firmen nennt; der [Zugang für die Steuerberatung](steuerberatung.md) erfährt nicht, welche anderen es gibt.
+- **Format:** je Firma `Name|Adresse`, getrennt durch `;`, in der `.env` jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`.
+- **Anführungszeichen** um die Liste nur in der `.env` von Compose, das sie entfernt. In `haben.env` der Quadlets und in den Feldern von Unraid oder Coolify blieben sie im Wert, und die App lehnte die Liste ab; dort ohne.
+- **Grenzen:** nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal, höchstens 50 Firmen; sonst startet die App nicht und nennt den Fehler im Log.
+- **Nach einer Änderung** startest du die App jeder Instanz neu (`docker compose up -d`).
+- **Vorlagen:** Für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld.
+- **Wer sie sieht:** nur der Inhaber, und nur wenn die Liste andere Firmen nennt; der [Zugang für die Steuerberatung](steuerberatung.md) erfährt nicht, welche anderen es gibt.
 
 ### Für andere betreiben
 
@@ -543,7 +579,7 @@ Betreibst du Haben nicht nur für dich, sondern für andere, etwa als gehostete 
 - **Softwarehersteller nach der ERiC-Lizenz.** Mit deiner Hersteller-ID bist du für deine Kunden Hersteller im Sinne des ERiC-Lizenzvertrags (`lizenz.pdf` im ERiC-Paket): Du leistest den Support (§ 7), hältst die Mindestversion von ERiC ein (§ 5), und jeder Nutzer bestätigt vor der ersten Nutzung die Datenschutzhinweise der Finanzverwaltung (§ 5). Bei Verstößen kann das Landesamt die ID sperren (§ 9); dann sendet keine Instanz mehr, die sie trägt, auch deine eigene nicht. Hast du Haben verändert, brauchst du eine eigene ID (§ 4). Mehr unter [Hersteller-ID: wer ist Hersteller?](einrichtung-elster.md#hersteller-id-wer-ist-hersteller).
 - **Auftragsverarbeiter nach DSGVO.** In einer Buchhaltung stehen Namen, Anschriften, Bankverbindungen, Steuernummern und Umsätze von Kunden und Lieferanten. Wer sie für andere hostet, verarbeitet sie in deren Auftrag und braucht mit jedem Kunden einen Vertrag nach Art. 28 DSGVO mit den technischen und organisatorischen Maßnahmen (Art. 32 DSGVO): Verschlüsselung, Backups, Zugriff, Löschung. Dasselbe gilt für Dienste, die du dazuschaltest, etwa die [KI-Auslesung](installation-anbindungen.md#ki-auslesung-anthropic) bei einem Cloud-Anbieter; sie sind dann deine Unterauftragsverarbeiter.
 - **Jeder sendet mit seinem eigenen Zertifikat.** Haben übermittelt mit dem ELSTER-Zertifikat, das in der Instanz hinterlegt ist. Bleibt es das Zertifikat des Kunden, sendet er selbst. Sendest du für Kunden mit deinem eigenen Zertifikat, wie es Cloud-Dienste tun, ist das Datenübermittlung im Auftrag nach [§ 87d AO](https://www.gesetze-im-internet.de/ao_1977/__87d.html): Du musst deine Auftraggeber identifizieren, die Aufzeichnungen dazu fünf Jahre aufbewahren und ihnen die Daten zur Zustimmung vorlegen (siehe [Warum Lexoffice ohne dein Zertifikat sendet](einrichtung-elster.md#warum-lexoffice-ohne-dein-zertifikat-sendet)). Dafür ist Haben nicht gebaut.
-- **Aufbewahrung und Datenzugriff.** Für die Bücher bleibt der Kunde verantwortlich. Er muss sie 8 bis 10 Jahre aufbewahren und dem Finanzamt bei einer Außenprüfung Zugriff geben (§ 147 Abs. 3 und 6 AO, siehe [Aufbewahrung](auswertungen.md#aufbewahrung)). Regle deshalb im Vertrag, wie er an seine Daten kommt, wenn er kündigt oder du den Dienst einstellst: mindestens das [Jahresarchiv](auswertungen.md) und das Änderungsprotokoll, rechtzeitig vor dem Löschen.
+- **Aufbewahrung und Datenzugriff.** Für die Bücher bleibt der Kunde verantwortlich. Er muss Bücher und Aufzeichnungen 10 Jahre aufbewahren, Buchungsbelege 8 Jahre, und dem Finanzamt bei einer Außenprüfung Zugriff geben (§ 147 Abs. 3 und 6 AO, siehe [Aufbewahrung](auswertungen.md#aufbewahrung)). Regle deshalb im Vertrag, wie er an seine Daten kommt, wenn er kündigt oder du den Dienst einstellst: mindestens das [Jahresarchiv](auswertungen.md) und das Änderungsprotokoll, rechtzeitig vor dem Löschen.
 - **Du hast vollen Zugriff.** Die GoBD-Trigger schützen vor Versehen, nicht vor Absicht: Wer Server und Datenbank betreibt, kann sie abschalten (siehe [Architektur › Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen)). Bei einer eigenen Instanz ist das der Steuerpflichtige selbst, hier bist du es. Sag das deinen Kunden. Den Nachweis, dass nachträglich nichts verändert wurde, tragen der wöchentliche Prüfwert des Änderungsprotokolls an die Adresse des Kunden und seine eigenen Exporte, nicht dein Wort.
 - **Betrieb und Haftung.** Updates, Backups mit Test-Restore, Erneuerung von ERiC und Überwachung liegen bei dir. Fällt deine Instanz vor einer Frist aus, etwa am Tag der Voranmeldung, trifft der Verspätungszuschlag den Kunden. Leg im Vertrag fest, was du zusagst (Verfügbarkeit, Wiederherstellung, Haftung), und sag ihm, wie er im Notfall in Mein ELSTER abgibt (siehe [Abgabe an ELSTER](elster-abgabe.md)).
 - **Nur Software, keine Steuerberatung.** Bucht der Kunde selbst, stellst du nur Software und Server bereit. Buchst du für ihn, erstellst seine Voranmeldung oder berätst ihn, ist das Hilfeleistung in Steuersachen, die das Steuerberatungsgesetz nur bestimmten Personen erlaubt (§§ 2 bis 6 StBerG).
