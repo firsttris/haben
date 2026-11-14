@@ -91,6 +91,27 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect((await documents.getDocument(id))!.document.supplierContactId).toBeNull();
   });
 
+  it("speichert den Leistungszeitraum von Hand und lehnt ein Ende vor dem Beginn ab, wie bei Rechnungen (#693)", async () => {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 97]), filename: "leistungszeitraum.jpg" });
+    const input = {
+      supplierName: "Hetzner Online GmbH",
+      supplierUstId: "",
+      invoiceNumber: "R7",
+      documentDate: "2026-03-05",
+      dueDate: null,
+      category: "software" as const,
+      payment: "bank" as const,
+      note: "",
+      amounts: [{ taxRate: 1900 as const, net: 1_000, tax: 190 }],
+    };
+    await documents.updateDocument(actor, id, { ...input, serviceFrom: "2026-02-01", serviceTo: "2026-02-28" });
+    expect((await documents.getDocument(id))!.document).toMatchObject({ serviceFrom: "2026-02-01", serviceTo: "2026-02-28" });
+    await expect(documents.updateDocument(actor, id, { ...input, serviceFrom: "2026-02-28", serviceTo: "2026-02-01" })).rejects.toThrow(
+      /Leistungszeitraum endet vor seinem Beginn/,
+    );
+    expect((await documents.getDocument(id))!.document).toMatchObject({ serviceFrom: "2026-02-01", serviceTo: "2026-02-28" });
+  });
+
   it("erneutes Auslesen mit anderem Lieferanten löst die Verknüpfung zum Kontakt", async () => {
     const stammdaten = await import("../stammdaten/index.ts");
     const hetzner = await stammdaten.createContact(actor, {
