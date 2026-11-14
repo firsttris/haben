@@ -18,6 +18,7 @@ import { useAction } from "../../../../lib/use-action.ts";
 import { saveBase64File } from "../../../../lib/download.ts";
 import { createDunningFn, dunningDraftPdfFn, getDunningDraft } from "../../../../server/functions/dunning.ts";
 import { Field } from "../../../../components/Field.tsx";
+import { useSubmitCheck } from "../../../../lib/use-submit-check.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/mahnwesen/$id")({
   loader: ({ params }) => getDunningDraft({ data: params.id }),
@@ -53,6 +54,11 @@ function NewDunningPage() {
     interestRate,
   });
   const valid = parsedFee !== null && parsedFee >= 0 && dueDate > draft.date && intro.trim() !== "";
+  const { form, error, check } = useSubmitCheck({
+    dueDate: dueDate > draft.date ? null : `Wähle einen Tag nach dem ${formatDate(draft.date)}.`,
+    fee: parsedFee !== null && parsedFee >= 0 ? null : "Trag die Mahngebühr als Betrag ein, etwa 5,00, oder lass das Feld leer.",
+    intro: intro.trim() === "" ? "Trag eine Einleitung ein." : null,
+  });
 
   function chooseLevel(next: DunningLevel) {
     setLevel(next);
@@ -64,13 +70,13 @@ function NewDunningPage() {
 
   // Prüfausdruck mit dem Vermerk ENTWURF; gespeichert wird nichts, die Stufe bleibt frei
   function onDraftPdf() {
-    if (!valid) return;
+    if (!check() || !valid) return;
     void run(async () => saveBase64File(await draftPdf({ data: input() }), "application/pdf"));
   }
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!valid) return;
+    if (!check() || !valid) return;
     void run(async () => {
       const result = await create({ data: input() });
       window.open(`/api/mahnung/${result.id}`, "_blank", "noopener");
@@ -89,7 +95,7 @@ function NewDunningPage() {
         </div>
       </div>
       <NoticeBanner notice={notice} />
-      <form className="editor-grid" onSubmit={onSubmit}>
+      <form ref={form} className="editor-grid" onSubmit={onSubmit} noValidate>
         <section className="card stack" aria-label="Mahnung">
           <p className="small muted" style={{ margin: 0 }}>
             Rechnung {draft.invoice.number} an {draft.invoice.customer} vom {formatDate(draft.invoice.issueDate)}, fällig seit{" "}
@@ -109,22 +115,11 @@ function NewDunningPage() {
                 </select>
               )}
             </Field>
-            <Field label="Neue Zahlungsfrist">
-              {(control) => (
-                <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-invalid={dueDate <= draft.date} />
-              )}
+            <Field label="Neue Zahlungsfrist" error={error("dueDate")}>
+              {(control) => <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />}
             </Field>
-            <Field label="Mahngebühr (€)">
-              {(control) => (
-                <input
-                  {...control}
-                  inputMode="decimal"
-                  value={fee}
-                  placeholder="0,00"
-                  onChange={(e) => setFee(e.target.value)}
-                  aria-invalid={parsedFee === null}
-                />
-              )}
+            <Field label="Mahngebühr (€)" error={error("fee")}>
+              {(control) => <input {...control} inputMode="decimal" value={fee} placeholder="0,00" onChange={(e) => setFee(e.target.value)} />}
             </Field>
             <Field
               label="Verzugszinsen"
@@ -150,7 +145,7 @@ function NewDunningPage() {
               <input type="checkbox" checked={flatFee} onChange={(e) => setFlatFee(e.target.checked)} />
               Verzugspauschale 40 € (nur bei Geschäftskunden, § 288 Abs. 5 BGB)
             </label>
-            <Field label="Einleitung" style={{ gridColumn: "1 / -1" }}>
+            <Field label="Einleitung" error={error("intro")} style={{ gridColumn: "1 / -1" }}>
               {(control) => <FormattedTextarea {...control} value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={2000} rows={4} />}
             </Field>
             <Field label="Schluss" style={{ gridColumn: "1 / -1" }}>
@@ -191,10 +186,10 @@ function NewDunningPage() {
             du den Mehrbetrag im Bankabgleich „Mahngebühren und Verzugszinsen“ zu.
           </p>
           <div className="actions">
-            <button type="button" className="btn" disabled={busy || !valid} onClick={onDraftPdf}>
+            <button type="button" className="btn" disabled={busy} onClick={onDraftPdf}>
               Entwurf als PDF
             </button>
-            <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
               {DUNNING_LEVELS[level].label} erstellen
             </button>
           </div>

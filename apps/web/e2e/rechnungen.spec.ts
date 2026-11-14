@@ -328,9 +328,12 @@ test("Wiederkehrende Rechnung: Kunde suchen, ohne Kunde nicht speicherbar, neuen
   await go("/rechnungen/wiederkehrend/neu");
   await page.getByLabel("Bezeichnung").fill("Wartungsvertrag Test");
   const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
-  // Pflichtfeld: Ohne gewählten Kunden meldet der Browser das Feld und speichert nichts
+  // Pflichtfeld: Ohne gewählten Kunden speichert „Vorlage anlegen“ nicht, sondern sagt es am Feld (DESIGN.md, Gesperrte Knöpfe)
   expect(await kunde.evaluate((feld: HTMLInputElement) => feld.validity.valueMissing)).toBe(true);
-  await expect(page.getByRole("button", { name: "Vorlage anlegen" })).toBeDisabled();
+  await page.getByRole("button", { name: "Vorlage anlegen" }).click();
+  await expect(kunde).toBeFocused();
+  await expect(kunde).toHaveAccessibleDescription(/Wähle den Kunden\./);
+  await expect(page).toHaveURL(/\/rechnungen\/wiederkehrend\/neu$/);
 
   // Suche nach Name; nur Kunden stehen zur Auswahl
   await kunde.fill("Nordwerk");
@@ -1271,7 +1274,10 @@ test("Rechnung mit Positions- und Gesamtrabatt in der Vorschau", async () => {
   await expect(vorschau).toContainText("1.017,45 €");
   await page.getByLabel("Gesamtrabatt (optional)").fill("2000");
   await expect(page.getByText("Der Gesamtrabatt ist höher als die Summe der Positionen")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Entwurf speichern" })).toBeDisabled();
+  // „Entwurf speichern“ speichert nicht, sondern setzt den Fokus auf den Rabatt (DESIGN.md, Gesperrte Knöpfe)
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await expect(page.getByLabel("Gesamtrabatt (optional)")).toBeFocused();
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
 });
 
 test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", async () => {
@@ -1944,6 +1950,11 @@ test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fe
   await page.setViewportSize(LAPTOP);
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
   await kundeWaehlen(page);
+  // Leere Position: „Festschreiben“ fragt nicht nach, sondern nennt unter der Position, was fehlt (DESIGN.md, Gesperrte Knöpfe)
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(page.getByLabel("Beschreibung Position 1")).toBeFocused();
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveAccessibleDescription("Trag die Beschreibung und den Einzelpreis ein.");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
