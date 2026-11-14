@@ -89,6 +89,8 @@ Gibt es Instanzen anderer Firmen (`HABEN_FIRMEN`, #504), beginnt der rollende Me
 
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
 
+Die festen Menüpunkte (`NAV_GROUPS`, `STEUERBERATUNG_NAV`) haben je ein eigenes Symbol; eins teilen nur die Punkte, die `GETEILTE_SYMBOLE` in `lib/navigation.test.ts` nennt.
+
 Ist die Navigation höher als das Fenster, bleibt am Desktop die Marke mit dem Firmennamen stehen und nur die Menüpunkte darunter rollen. Die Leiste, auch die der Liste unter „Firma wechseln“, ist schmal, erscheint nur beim Rollen, wo das System es so vorsieht, und hat in `--nav-ink` mit 55 % Deckkraft mindestens 3 : 1 gegen `--nav` (WCAG 1.4.11).
 
 **Einfahrbare Seitenleiste (Desktop):** Oberhalb von 860 px Breite klappt der letzte Knopf der Leiste (`sidebar-close`, eingeklappt `sidebar-open`), ausgeklappt wie eingeklappt ganz unten, die Seitenleiste auf 64 px ein (168 px mehr Breite für Tabellen und Belegvorschau). `NAV_SCRIPT` setzt `data-nav="collapsed"` schon vor dem ersten Zeichnen aus `localStorage` (analog zu `THEME_SCRIPT` in `lib/theme.ts`); der Server liefert beide Fassungen, CSS zeigt eine, sodass beim Laden nichts springt oder nachrückt. Eingeklappt bleiben das Markenzeichen, die Lupe der Schnellsuche, `Übersicht`, die Arbeitsbereiche, optional `Firma wechseln` und `Eigene Seiten`, `Einstellungen` und `Konto & Darstellung` als Symbole stehen. Jeder Arbeitsbereich hat ein eigenes Symbol, das kein Menüpunkt wiederholt.
