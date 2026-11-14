@@ -55,8 +55,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     note: "",
     lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 100_000, taxRate: 1900 as const }],
   });
-  const abweichungen = async (year: number, month: number) =>
-    (await reports.vatAbgleich({ year, month })).zeilen.filter((r) => r.journal !== r.quelle);
+  const abweichungen = async (year: number, month: number) => (await reports.vatAbgleich({ year, month })).zeilen.filter((r) => r.journal !== r.quelle);
   const buchungstage = async (id: string) =>
     (await sql`select date::text as date from journal_entries where source_type = 'invoice' and source_id = ${id} order by id`).map((r) => r.date);
 
@@ -66,18 +65,22 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     await expect(sql`update invoices set service_date = '2026-07-20' where id = ${final.id}`).rejects.toThrow();
   }, 30_000);
 
-  it.each(["SKR03", "SKR04"] as const)("Jahreswechsel %s: Leistung im Dezember, Rechnung im Januar → Dezember, Journal = Nebenbuch", async (kr) => {
-    await sql`update company set kontenrahmen = ${kr}`;
-    const final = await invoices.finalizeInvoice(
-      actor,
-      (await invoices.createDraft(actor, { ...input(), issueDate: "2026-01-08", serviceFrom: "2025-12-01", serviceTo: "2025-12-31" })).id,
-    );
-    expect(await buchungstage(final.id)).toEqual(["2025-12-31"]);
-    expect(await vat.computeVatFigures({ year: 2025, month: 12 })).toMatchObject({ kz81: 100_000, tax81: 19_000 });
-    expect(await vat.computeVatFigures({ year: 2026, month: 1 })).toMatchObject({ kz81: 0, tax81: 0 });
-    expect(await abweichungen(2025, 12)).toEqual([]);
-    expect(await abweichungen(2026, 1)).toEqual([]);
-  }, 30_000);
+  it.each(["SKR03", "SKR04"] as const)(
+    "Jahreswechsel %s: Leistung im Dezember, Rechnung im Januar → Dezember, Journal = Nebenbuch",
+    async (kr) => {
+      await sql`update company set kontenrahmen = ${kr}`;
+      const final = await invoices.finalizeInvoice(
+        actor,
+        (await invoices.createDraft(actor, { ...input(), issueDate: "2026-01-08", serviceFrom: "2025-12-01", serviceTo: "2025-12-31" })).id,
+      );
+      expect(await buchungstage(final.id)).toEqual(["2025-12-31"]);
+      expect(await vat.computeVatFigures({ year: 2025, month: 12 })).toMatchObject({ kz81: 100_000, tax81: 19_000 });
+      expect(await vat.computeVatFigures({ year: 2026, month: 1 })).toMatchObject({ kz81: 0, tax81: 0 });
+      expect(await abweichungen(2025, 12)).toEqual([]);
+      expect(await abweichungen(2026, 1)).toEqual([]);
+    },
+    30_000,
+  );
 
   it("Anzahlungsrechnung bei Soll (Einzelunternehmen) bleibt am Rechnungsdatum, auch wenn die Leistung später endet", async () => {
     const advance = await invoices.finalizeInvoice(
@@ -126,4 +129,40 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     expect(await vat.computeVatFigures({ year: 2026, month: 8 })).toMatchObject({ kz81: -100_000, tax81: -19_000 });
     for (const month of [5, 7, 8]) expect(await abweichungen(2026, month)).toEqual([]);
   }, 30_000);
+  describe("Hinweis bei schon übermitteltem Zeitraum", () => {
+    const meldeQ2 = () =>
+      sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 0, 0, 0, 0, '2026-07-10T08:00:00Z')`;
+
+    it("führt zur berichtigten Anmeldung des Leistungszeitraums, nennt Betrag und Abgabe (§ 18b Satz 5 UStG, § 153 AO)", async () => {
+      await meldeQ2();
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      const hinweis = await invoices.leistungsmonatHinweisFuer(final);
+      expect(hinweis).toContain("berichtigte Anmeldung");
+      expect(hinweis).toContain("Q2/2026");
+      expect(hinweis).toContain("10.07.2026");
+      expect(hinweis).toContain("190,00");
+      expect(hinweis).not.toContain("nächste Voranmeldung");
+      // Die nächste Voranmeldung enthält die Steuer nicht: Ein Verweis dorthin ließe sie unangemeldet
+      expect(await vat.computeVatFigures({ year: 2026, month: 43 })).toMatchObject({ kz81: 0, tax81: 0 });
+    }, 30_000);
+
+    it("schweigt bei Anzahlung und Storno, die nicht nach dem Leistungstag gemeldet werden", async () => {
+      await meldeQ2();
+      const soll = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      const storno = await invoices.cancelInvoice(actor, soll.id, "2026-08-05");
+      expect(await invoices.leistungsmonatHinweisFuer(storno)).toBeNull();
+      const anzahlung = await invoices.finalizeInvoice(
+        actor,
+        (await invoices.createDraft(actor, { ...input(), variant: "abschlag", advanceType: "anzahlung" })).id,
+      );
+      expect(await invoices.leistungsmonatHinweisFuer(anzahlung)).toBeNull();
+    }, 30_000);
+
+    it("schweigt bei Ist-Versteuerung", async () => {
+      await sql`update company set versteuerung = 'ist'`;
+      await meldeQ2();
+      const ist = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      expect(await invoices.leistungsmonatHinweisFuer(ist)).toBeNull();
+    }, 30_000);
+  });
 });
