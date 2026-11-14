@@ -41,7 +41,8 @@ export interface EtsyLedgerEntry {
   created_timestamp?: number;
   ledger_type: string;
   reference_type?: string;
-  reference_id?: string;
+  /** Objektkennung; Etsy liefert sie je Typ als Text oder als Zahl */
+  reference_id?: string | number;
   parent_entry_id?: number;
 }
 
@@ -208,9 +209,12 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
       if (entry.amount === 0) return;
       const order =
         kind === "verkauf" || kind === "erstattung"
-          ? options.orderFor?.(entry.reference_id ?? "")
+          ? // Etsy liefert die Kennung je Typ als Text oder als Zahl; der Abruf liefert Texte, deshalb angleichen
+            options.orderFor?.(entry.reference_id === undefined ? "" : String(entry.reference_id))
           : kind === "steuer" || kind === "versand"
-            ? entry.reference_id
+            ? entry.reference_id === undefined
+              ? undefined
+              : String(entry.reference_id)
             : undefined;
       const bucket = kind ? BUCKETS[kind] : undefined;
       if (sammelzeilen && kind && bucket) {

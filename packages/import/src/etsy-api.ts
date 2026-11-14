@@ -97,8 +97,8 @@ export interface EtsyShop {
 export interface EtsyClient {
   /** Der Verlauf im Zeitraum (Epoch-Sekunden), aufsteigend nach Zeitstempel */
   ledger(from: number, to: number): Promise<EtsyLedgerEntry[]>;
-  /** Zahlungs- und Erstattungsnummer → Bestellnummer, für die gegebenen Kennungen */
-  ordersFor(referenceIds: string[]): Promise<Map<string, string>>;
+  /** Zahlungs- und Erstattungsnummer → Bestellnummer, für die gegebenen Verlaufszeilen (`entry_id`) */
+  ordersFor(ledgerEntryIds: string[]): Promise<Map<string, string>>;
   /** Shop des angemeldeten Kontos; er wird beim Verbinden einmal ermittelt */
   shop(): Promise<EtsyShop>;
   tokens(): EtsyTokens;
@@ -177,12 +177,22 @@ export function createEtsyClient(options: EtsyClientOptions): EtsyClient {
     tokens: () => tokens,
 
     async shop(): Promise<EtsyShop> {
-      const me = await request<{ user_id?: number }>("/users/me");
+      const me = await request<{ user_id?: number; shop_id?: number }>("/users/me");
       if (!me.user_id) throw new EtsyApiError("Etsy nennt kein Konto zum Zugangstoken.", 400, "/users/me");
-      const shops = await request<{ count: number; results: { shop_id?: number; shop_name?: string }[] }>(`/users/${me.user_id}/shops`);
-      const shop = (shops.results ?? [])[0];
-      if (!shop?.shop_id) throw new EtsyApiError("Zum Etsy-Konto gehört kein Shop.", 404, "/users/me/shops");
-      return { shopId: String(shop.shop_id), shopName: shop.shop_name ?? "" };
+      const answer = await request<unknown>(`/users/${me.user_id}/shops`);
+      // Etsy antwortet hier je nach App mit einer Liste ({ count, results }) oder mit einem einzelnen Shop
+      const liste = Array.isArray(answer)
+        ? answer
+        : Array.isArray((answer as { results?: unknown[] }).results)
+          ? (answer as { results: unknown[] }).results
+          : [answer];
+      const shop = liste.find((eintrag): eintrag is { shop_id?: number; shop_name?: string } =>
+        Boolean(eintrag && typeof eintrag === "object" && (eintrag as { shop_id?: number }).shop_id),
+      );
+      // /users/me nennt die Kennung des Shops schon selbst; sie gilt, wenn die Abfrage nichts hergibt
+      const shopId = shop?.shop_id ?? me.shop_id;
+      if (!shopId) throw new EtsyApiError("Zum Etsy-Konto gehört kein Shop.", 404, "/users/me/shops");
+      return { shopId: String(shopId), shopName: shop?.shop_name ?? "" };
     },
 
     async ledger(from: number, to: number): Promise<EtsyLedgerEntry[]> {
@@ -205,9 +215,14 @@ export function createEtsyClient(options: EtsyClientOptions): EtsyClient {
       return out.sort((a, b) => (a.created_timestamp ?? 0) - (b.created_timestamp ?? 0));
     },
 
-    async ordersFor(referenceIds: string[]): Promise<Map<string, string>> {
+    /**
+     * Bestellnummern zu Verkaufs- und Erstattungszeilen. Etsy will hier die Kennung der Verlaufszeile
+     * (`entry_id`), nicht die Zahlungsnummer aus `reference_id`; die Antwort nennt je Zahlung die
+     * Bestellnummer und die Zahlungs- bzw. Erstattungsnummer, über die der Aufrufer sie zuordnet.
+     */
+    async ordersFor(ledgerEntryIds: string[]): Promise<Map<string, string>> {
       const out = new Map<string, string>();
-      const eindeutig = [...new Set(referenceIds.filter(Boolean))];
+      const eindeutig = [...new Set(ledgerEntryIds.filter(Boolean))];
       for (let i = 0; i < eindeutig.length; i += PAYMENT_BATCH) {
         const teil = eindeutig.slice(i, i + PAYMENT_BATCH);
         const answer = await request<{ results: EtsyPayment[] }>(`/shops/${options.shopId}/payment-account/ledger-entries/payments`, {

@@ -72,12 +72,13 @@ export async function syncEtsy(actor: string, now = new Date()): Promise<EtsySyn
     });
     const entries = await client.ledger(von, bis);
     result.entries = entries.length;
-    // Verkauf und Erstattung tragen nur die Zahlungs- bzw. Erstattungsnummer; die Bestellung holt Haben nach
-    const kennungen = entries
+    // Verkauf und Erstattung tragen nur die Zahlungs- bzw. Erstattungsnummer; die Bestellung holt Haben nach.
+    // Etsy will dabei die Kennung der Verlaufszeile (entry_id), nicht die Nummer aus reference_id.
+    const verlaufsKennungen = entries
       .filter((entry) => entry.ledger_type === "PAYMENT_GROSS" || entry.ledger_type === "REFUND_GROSS")
-      .map((entry) => entry.reference_id ?? "")
+      .map((entry) => (entry.entry_id === undefined ? "" : String(entry.entry_id)))
       .filter(Boolean);
-    const orders = kennungen.length > 0 ? await client.ordersFor(kennungen) : new Map<string, string>();
+    const orders = verlaufsKennungen.length > 0 ? await client.ordersFor(verlaufsKennungen) : new Map<string, string>();
     const imported: EtsyImportResult = await importEtsyLedger(actor, entries, {
       orderFor: (referenceId) => orders.get(referenceId),
       sammelzeilen: connection.row.sammelzeilen,

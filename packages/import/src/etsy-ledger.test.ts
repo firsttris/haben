@@ -254,6 +254,24 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
     expect(statement.transactions.filter((t) => t.type === "Auszahlung")).toHaveLength(1);
   });
 
+  it("findet die Bestellnummer auch, wenn Etsy die Kennung als Zahl liefert", () => {
+    const zahl = 5000000003;
+    const statement = parseEtsyLedger(
+      [
+        {
+          entry_id: 900000200,
+          amount: 1000,
+          currency: "EUR",
+          ledger_type: "PAYMENT_GROSS",
+          reference_id: zahl,
+          created_timestamp: am("2023-06-10"),
+        },
+      ],
+      { orderFor: (referenceId) => (referenceId === String(zahl) ? "1000000009" : undefined) },
+    );
+    expect(statement.transactions[0]?.purpose).toBe("Verkauf · Etsy Bestellung 1000000009");
+  });
+
   it("setzt den Zeitraum aus den Buchungstagen", () => {
     const statement = parseEtsyLedger(zeilen, { orderFor });
     expect(statement.periodFrom).toBe("2023-06-07");

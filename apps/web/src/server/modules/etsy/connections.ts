@@ -168,11 +168,12 @@ export async function completeEtsyConnection(
   const connection = await loadEtsyConnection();
   if (!connection) throw new EtsyError("Die Verbindung ist nicht eingerichtet.");
   const pending = connection.secret.pending;
-  if (input.error) return { ok: false, message: `Etsy meldet: ${input.errorDescription ?? input.error}` };
-  if (!pending || pending.state !== input.state) return { ok: false, message: "Die Rückleitung von Etsy passt nicht zur offenen Anmeldung." };
-  if (!input.code) return { ok: false, message: "In der Rückleitung von Etsy fehlt der Code." };
+  const fehlschlag = (text: string) => merkeFehler(actor, text);
+  if (input.error) return fehlschlag(`Etsy meldet: ${input.errorDescription ?? input.error}`);
+  if (!pending || pending.state !== input.state) return fehlschlag("Die Rückleitung von Etsy passt nicht zur offenen Anmeldung.");
+  if (!input.code) return fehlschlag("In der Rückleitung von Etsy fehlt der Code.");
   // Eine Anmeldung gilt 15 Minuten; danach neu verbinden
-  if (Date.now() - pending.ts > 15 * 60 * 1000) return { ok: false, message: "Die Anmeldung bei Etsy ist abgelaufen. Bitte erneut verbinden." };
+  if (Date.now() - pending.ts > 15 * 60 * 1000) return fehlschlag("Die Anmeldung bei Etsy ist abgelaufen. Bitte erneut verbinden.");
 
   let tokens: { accessToken: string; refreshToken: string; expiresAt: number };
   try {
@@ -184,16 +185,18 @@ export async function completeEtsyConnection(
       tokenUrl: env().ETSY_TOKEN_URL,
     });
   } catch (error) {
-    return { ok: false, message: `Etsy nimmt die Freigabe nicht an: ${message(error)}` };
+    return fehlschlag(`Etsy nimmt die Freigabe nicht an: ${message(error)}`);
   }
   const secret: EtsySecret = { ...connection.secret, ...tokens };
   delete secret.pending;
+  // Die Freigabe zuerst sichern: schlägt die Shop-Abfrage fehl, muss nicht neu freigegeben werden
+  await storeEtsySecret(actor, secret, { lastError: null });
   const client = etsyClientFor({ row: connection.row, secret });
   let shop: { shopId: string; shopName: string };
   try {
     shop = await client.shop();
   } catch (error) {
-    return { ok: false, message: `Verbunden, aber der Shop ließ sich nicht ermitteln: ${message(error)}` };
+    return fehlschlag(`Freigegeben, aber der Shop ließ sich nicht ermitteln: ${message(error)}`);
   }
   await storeEtsySecret(actor, secret, { shopId: shop.shopId, shopName: shop.shopName, lastError: null });
   return { ok: true, message: `Verbunden mit ${shop.shopName || "dem Shop"} (${shop.shopId}).` };
@@ -228,6 +231,17 @@ export async function etsySummary() {
     lastError: connection?.row.lastError ?? null,
     updatedAt: connection?.row.updatedAt ?? null,
   };
+}
+
+/**
+ * Merkt eine gescheiterte Freigabe am Zugang. Die Rückleitung schickt den Browser nur zurück in die
+ * Einstellungen, deshalb wäre die Meldung sonst verloren und die Karte bliebe stumm.
+ */
+async function merkeFehler(actor: string, text: string): Promise<{ ok: false; message: string }> {
+  await withActor(actor, (tx) =>
+    tx.update(schema.etsyConnections).set({ lastError: text, updatedAt: new Date() }).where(eq(schema.etsyConnections.id, "etsy")),
+  );
+  return { ok: false, message: text };
 }
 
 function message(error: unknown): string {

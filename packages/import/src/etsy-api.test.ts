@@ -130,6 +130,38 @@ describe("Etsy-Client", () => {
     await expect(client.ledger(1, 2)).rejects.toThrow(/neu hergestellt/);
   });
 
+  it("findet den Shop auch, wenn Etsy ihn einzeln statt als Liste liefert", async () => {
+    const antworten: Record<string, unknown> = {
+      "/users/me": { user_id: 126878829, shop_id: 35160089 },
+      "/users/126878829/shops": { shop_id: 35160089, shop_name: "NiruHobbyArt" },
+    };
+    const { fetch } = mockFetch((ruf) => antworten[new URL(ruf.url).pathname.replace("/v3/application", "")] ?? {});
+    const client = createEtsyClient({
+      keystring: "abc",
+      shopId: "",
+      tokens: GUELTIG,
+      baseUrl: "https://etsy.test/v3/application",
+      runtime: { ...lauf, fetch },
+    });
+    expect(await client.shop()).toEqual({ shopId: "35160089", shopName: "NiruHobbyArt" });
+  });
+
+  it("nimmt die Kennung aus /users/me, wenn die Shop-Abfrage leer bleibt", async () => {
+    const antworten: Record<string, unknown> = {
+      "/users/me": { user_id: 126878829, shop_id: 35160089 },
+      "/users/126878829/shops": { count: 0, results: [] },
+    };
+    const { fetch } = mockFetch((ruf) => antworten[new URL(ruf.url).pathname.replace("/v3/application", "")] ?? {});
+    const client = createEtsyClient({
+      keystring: "abc",
+      shopId: "",
+      tokens: GUELTIG,
+      baseUrl: "https://etsy.test/v3/application",
+      runtime: { ...lauf, fetch },
+    });
+    expect(await client.shop()).toEqual({ shopId: "35160089", shopName: "" });
+  });
+
   it("baut die Anmeldeadresse und die PKCE-Challenge", () => {
     const { verifier, challenge } = createPkce((size) => new Uint8Array(size).fill(7));
     expect(createHash("sha256").update(verifier).digest("base64url")).toBe(challenge);
