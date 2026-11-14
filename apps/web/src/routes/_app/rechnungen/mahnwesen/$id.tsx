@@ -4,6 +4,7 @@ import {
   dunningAmounts,
   formatDecimal,
   formatEuro,
+  MAX_DUNNING_FEE,
   parseEuro,
   type CustomerType,
   type DunningLevel,
@@ -51,19 +52,27 @@ function NewDunningPage() {
   const [logo, setLogo] = useLoadedState(draft.logo);
 
   const parsedFee = fee.trim() ? parseEuro(fee) : 0;
+  const feeError =
+    parsedFee === null || parsedFee < 0
+      ? "Trag die Mahngebühr als Betrag ein, etwa 5,00, oder lass das Feld leer."
+      : parsedFee > MAX_DUNNING_FEE
+        ? `Die Mahngebühr beträgt höchstens ${formatEuro(MAX_DUNNING_FEE)}.`
+        : null;
+  // Eine ungültige Gebühr zählt nirgends: Forderung, Vorschau und Knöpfe gehen von derselben Gebühr aus
+  const validFee = feeError === null ? (parsedFee ?? 0) : 0;
   const interestRate = interest && draft.baseRate !== null ? draft.baseRate + DEFAULT_INTEREST_MARKUP[interest] : null;
   const amounts = dunningAmounts({
     open: draft.invoice.open,
     dueDate: draft.invoice.dueDate,
     date: draft.date,
-    fee: parsedFee ?? 0,
+    fee: validFee,
     flatFee,
     interestRate,
   });
-  const valid = parsedFee !== null && parsedFee >= 0 && dueDate > draft.date && intro.trim() !== "";
+  const valid = feeError === null && dueDate > draft.date && intro.trim() !== "";
   const { form, error, check } = useSubmitCheck({
     dueDate: dueDate > draft.date ? null : `Wähle einen Tag nach dem ${formatDate(draft.date)}.`,
-    fee: parsedFee !== null && parsedFee >= 0 ? null : "Trag die Mahngebühr als Betrag ein, etwa 5,00, oder lass das Feld leer.",
+    fee: feeError,
     intro: intro.trim() === "" ? "Trag eine Einleitung ein." : null,
   });
 
@@ -73,7 +82,7 @@ function NewDunningPage() {
     setClosing(draft.texts[next].closing);
   }
 
-  const input = () => ({ invoiceId: draft.invoice.id, level, dueDate, fee: parsedFee ?? 0, flatFee, interest: interest || null, intro, closing });
+  const input = () => ({ invoiceId: draft.invoice.id, level, dueDate, fee: validFee, flatFee, interest: interest || null, intro, closing });
 
   // Prüfausdruck mit dem Vermerk ENTWURF; gespeichert wird nichts, die Stufe bleibt frei
   function onDraftPdf() {
@@ -113,7 +122,10 @@ function NewDunningPage() {
       <NoticeBanner notice={notice} />
       <PreviewLayout
         preview={preview}
-        design={{ panel: <DesignPanel draft={designDraft} vatRates={0} logo={logo} onLogoChanged={setLogo} />, onClosed: designDraft.discard }}
+        design={{
+          panel: <DesignPanel draft={designDraft} vatRates={0} positions={false} logo={logo} onLogoChanged={setLogo} />,
+          onClosed: designDraft.discard,
+        }}
         label="Vorschau"
         caption="PDF"
         sheet={<RenderedSheet label="Vorschau der Mahnung" render={renderDunningPreview} revision={logo} input={{ ...input(), design: designDraft.changes }} />}

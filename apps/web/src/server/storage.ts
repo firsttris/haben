@@ -10,3 +10,4 @@ const speicher = dateispeicher({ verzeichnis: () => env().DOCUMENTS_DIR, bezeich
 export const storeFile = speicher.speichern;
 export const loadFile = speicher.laden;
 export const removeFile = speicher.entfernen;
+export const checkFiles = speicher.pruefenAlle;

@@ -1,5 +1,14 @@
 import { UserError } from "../../errors.ts";
-import { addDays, DEFAULT_INTEREST_MARKUP, DUNNING_LEVELS, DUNNING_TEXTS, dunningAmounts, type DunningLevel, letterheadDesignInputSchema } from "@haben/core";
+import {
+  addDays,
+  DEFAULT_INTEREST_MARKUP,
+  DUNNING_LEVELS,
+  DUNNING_TEXTS,
+  dunningAmounts,
+  type DunningLevel,
+  letterheadDesignInputSchema,
+  MAX_DUNNING_FEE,
+} from "@haben/core";
 import { asDraft, buildDunningDraftPdf, buildDunningPdf, type DraftPdf, type DunningDocument, dunningPdfData, dunningSheetText, texts } from "@haben/einvoice";
 import { desc, eq, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
@@ -127,7 +136,7 @@ export const dunningInputSchema = z.object({
   invoiceId: z.uuid(),
   level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   dueDate: z.iso.date(),
-  fee: z.number().int().min(0).max(100_000),
+  fee: z.number().int().min(0).max(MAX_DUNNING_FEE),
   flatFee: z.boolean(),
   /** Verzugszinsen: Aufschlag auf den Basiszinssatz nach Kundenart, null = keine */
   interest: z.enum(["geschaeftskunde", "verbraucher"]).nullable(),
@@ -138,12 +147,11 @@ export const dunningInputSchema = z.object({
 export type DunningInput = z.infer<typeof dunningInputSchema>;
 
 /**
- * Stand des Formulars für die Vorschau: Beim Tippen ist manches noch unfertig (Frist leer oder vorbei, Einleitung leer,
- * Gebühr unlesbar); das Blatt zeigt es trotzdem, die Prüfung kommt beim Erstellen
+ * Stand des Formulars für die Vorschau: Beim Tippen ist manches noch unfertig (Frist leer oder vorbei, Einleitung leer);
+ * das Blatt zeigt es trotzdem, die Prüfung kommt beim Erstellen. Die Gebühr prüft es wie Entwurf und Erstellen
  */
 export const dunningPreviewSchema = dunningInputSchema.extend({
   dueDate: z.iso.date().or(z.literal("")),
-  fee: z.number().int().min(0).max(100_000).catch(0),
   intro: z.string().max(2000),
   closing: z.string().max(2000),
   design: letterheadDesignInputSchema,

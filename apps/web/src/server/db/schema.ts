@@ -491,6 +491,30 @@ export const annualSubmissions = pgTable(
 );
 
 /**
+ * Zeilenwerte einer außerhalb von Haben abgegebenen Jahreserklärung, je Feldkennung (#997).
+ *
+ * Die Zeilen kommen aus dem Übermittlungsprotokoll und lassen sich nicht an `annual_submissions` hängen:
+ * der Vermerk ist `append_only`, ein späteres UPDATE scheitert. Sie stehen deshalb daneben, verknüpft
+ * über die Übermittlung. Nur anhängbar, auditiert und gegen TRUNCATE gesperrt wie der Vermerk selbst
+ * (0235).
+ */
+export const annualSubmissionFigures = pgTable(
+  "annual_submission_figures",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => annualSubmissions.id, { onDelete: "restrict" }),
+    /** Schlüssel der Erklärung wie in der Übermittlung: `steuerpflichtig`, `base19`, `gewinn`, … */
+    field: text("field").notNull(),
+    /** Betrag in Cent */
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("annual_submission_figures_eindeutig").on(t.submissionId, t.field)],
+);
+
+/**
  * Nachrichten an das Finanzamt über ELSTER (Sonstige Nachricht), etwa der Antrag auf Herabsetzung der
  * Vorauszahlungen; jede Prüfung und Übermittlung mit XML, nur anhängen.
  */
@@ -3205,6 +3229,40 @@ export const backupStatus = pgTable(
     message: text("message").notNull().default(""),
   },
   (t) => [check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`), index("backup_status_kind_at").on(t.kind, t.at)],
+);
+
+/**
+ * Befund der Vollprüfung: eine Datei im Dokumentenspeicher, die fehlt, verändert oder nicht lesbar ist, mit dem ersten
+ * Datensatz, der auf sie verweist (Reihenfolge von FILE_REFERENCES), und der Zahl der weiteren
+ */
+export interface FileCheckProblem {
+  tabelle: string;
+  /** Bezeichnung aus FILE_REFERENCES, etwa „Beleg“ */
+  art: string;
+  zeile: string;
+  datei: string;
+  sha256: string;
+  befund: "fehlt" | "beschädigt" | "nicht lesbar";
+  weitere: number;
+}
+
+/**
+ * Läufe der Vollprüfung der Dateien im Dokumentenspeicher (modules/auswertungen/file-integrity.ts, #857): Zeitpunkt,
+ * Anzahl der geprüften Dateien und die ersten Befunde. „Kette prüfen“ und die Wochenmail zeigen den letzten Lauf.
+ * Betriebsdaten wie backup_status: ohne Audit-Log und Siegel, sonst stünde jeder Lauf in der Kette.
+ */
+export const fileChecks = pgTable(
+  "file_checks",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    /** Geprüfte Dateien; eine Datei mit mehreren Verweisen zählt einmal */
+    files: integer("files").notNull(),
+    /** Dateien mit Befund; gespeichert sind höchstens die ersten MAX_FILE_PROBLEMS */
+    problemCount: integer("problem_count").notNull(),
+    problems: jsonb("problems").$type<FileCheckProblem[]>().notNull(),
+  },
+  (t) => [index("file_checks_at").on(t.at)],
 );
 
 /**

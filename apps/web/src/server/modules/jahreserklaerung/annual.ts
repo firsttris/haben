@@ -1,4 +1,3 @@
-import { UserError } from "../../errors.ts";
 import { fehlendeMonate } from "./fehlende-voranmeldungen.ts";
 import {
   ACCOUNTS,
@@ -11,6 +10,7 @@ import {
   type ExpenseCategory,
   type PauschaleArt,
   filingPeriodsOfYear,
+  formatEuro,
   homeofficeSatz,
   isKapitalgesellschaft,
   monthsOfPeriod,
@@ -59,7 +59,9 @@ import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzste
 import { kz48Einordnen, type Kz48Gesperrt } from "./kz48.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
-export class AnnualError extends UserError {}
+export { AnnualError } from "./fehler.ts";
+import { AnnualError } from "./fehler.ts";
+import { erklaerteZeilen } from "./zeilenwerte.ts";
 
 export type AnnualForm = "ust" | "euer" | "est";
 
@@ -610,6 +612,22 @@ export async function submissions(year: number) {
   );
 }
 
+/**
+ * Weicht die erklärte Schlusszeile vom Betrag des Vermerks ab, sagt die Seite das als Hinweis (#997). Gesperrt
+ * wird nichts: Was beim Finanzamt liegt, steht im Übermittlungsprotokoll.
+ */
+function abweichungHinweis(form: "ust" | "euer", zeilen: Record<string, number>, vermerk: { amount: number | null } | null): Issue[] {
+  const erklaert = zeilen[form === "ust" ? "abschluss" : "gewinn"];
+  if (erklaert === undefined || !vermerk || vermerk.amount === null || erklaert === vermerk.amount) return [];
+  const zeile = form === "ust" ? "Abschlusszahlung" : "Gewinn";
+  return [
+    {
+      tone: "hinweis",
+      text: `Im Übermittlungsprotokoll steht eine ${zeile} von ${formatEuro(erklaert)}, der Vermerk nennt ${formatEuro(vermerk.amount)}.`,
+    },
+  ];
+}
+
 export async function annualOverview(year: number, today: string) {
   const company = await loadCompany();
   const [ust, euer, history] = await Promise.all([ustYear(year), euerYear(year), submissions(year)]);
@@ -635,15 +653,27 @@ export async function annualOverview(year: number, today: string) {
   // Ein Vermerk „außerhalb von Haben abgegeben“ nimmt den Meldungen zu Habens leerem Jahr den Grund (#869)
   const ustVermerk = submitted("ust");
   const euerVermerk = submitted("euer");
+  const [ustZeilen, euerZeilen] = await Promise.all([erklaerteZeilen(ustVermerk?.id ?? null), erklaerteZeilen(euerVermerk?.id ?? null)]);
   return {
     year,
     ust: {
       ...ust,
-      issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year, { vermerkt: ustVermerk !== null })],
+      issues: [
+        ...base,
+        ...ustIssues(await kleinunternehmerForYear(year), ust, year, { vermerkt: ustVermerk !== null }),
+        ...abweichungHinweis("ust", ustZeilen, ustVermerk),
+      ],
       sent: sent("ust"),
       submitted: ustVermerk,
+      erklaert: ustZeilen,
     },
-    euer: { ...euer, issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null })], sent: sent("euer"), submitted: euerVermerk },
+    euer: {
+      ...euer,
+      issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null }), ...abweichungHinweis("euer", euerZeilen, euerVermerk)],
+      sent: sent("euer"),
+      submitted: euerVermerk,
+      erklaert: euerZeilen,
+    },
     // Für die Einkommensteuererklärung gibt es keinen Vermerk: Was außerhalb von Haben abgegeben wurde, weiß
     // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
     est: {

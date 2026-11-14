@@ -340,6 +340,30 @@ test("Änderungsprotokoll: Kontenkollisionen getrennt von Manipulation melden (#
   }
 });
 
+test("Änderungsprotokoll: Dateien prüfen meldet eine fehlende Belegdatei (#857)", async () => {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  const sha256 = "e2e0".repeat(16);
+  const card = page.getByRole("region", { name: "Änderungsprotokoll prüfen" });
+  try {
+    // Ein Beleg, dessen Datei im Speicher fehlt, etwa weil jemand sie im Dateisystem gelöscht hat
+    await sql`insert into documents (sha256, filename, mime_type, size) values (${sha256}, 'verschwunden.pdf', 'application/pdf', 1)`;
+    await go("/einstellungen?bereich=export");
+    await card.getByRole("button", { name: "Dateien prüfen" }).click();
+    await expect(card.getByRole("alert")).toContainText("Kette, Siegel und Sperren sind unverändert, aber 1 Datei fehlt oder ist verändert");
+    await expect(card.getByRole("listitem").filter({ hasText: "verschwunden.pdf" })).toHaveText("Beleg verschwunden.pdf: fehlt");
+  } finally {
+    await sql`delete from documents where sha256 = ${sha256}`;
+    await sql.end();
+  }
+  // „Kette prüfen“ liest die Dateien nicht erneut, sondern zeigt den gespeicherten Lauf
+  await go("/einstellungen?bereich=export");
+  await card.getByRole("button", { name: "Kette prüfen" }).click();
+  await expect(card.getByRole("alert")).toContainText("1 Datei fehlt oder ist verändert");
+  await card.getByRole("button", { name: "Dateien prüfen" }).click();
+  await expect(card.getByRole("status")).toContainText("Kette, Siegel und Sperren sind unverändert:");
+  await expect(card).toContainText("alle vorhanden und unverändert");
+});
+
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
   await go("/einstellungen?bereich=email");
   const card = page.getByRole("form", { name: "Belege per E-Mail" });
@@ -537,7 +561,11 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await expect(liste.getByRole("row")).toHaveCount(4);
   const zeile = liste.getByRole("row").filter({ hasText: "Karlsruhe" });
   await zeile.getByRole("button", { name: "Stornieren" }).click();
-  await faktenZeigen(page, "Datum", "Betrag");
+  // Ein Storno nennt dasselbe wie das, was es zurücknimmt (DESIGN.md, Rückfragen): Anlass, Strecke und Fahrzeug wie in der Liste
+  await faktenZeigen(page, "Datum", "Anlass und Ziel", "Angaben", "Betrag");
+  await expect(page.getByRole("dialog")).toContainText("Workshop Nordwerk, Karlsruhe");
+  await expect(page.getByRole("dialog")).toContainText("85 km (hin und zurück) · Auto");
+  await expect(page.getByRole("dialog").locator("dd").first()).toHaveText(/^\d{2}\.\d{2}\.\d{4}$/);
   await bestaetigen(page, "Stornieren");
   await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
@@ -621,7 +649,12 @@ test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno 
   const zeile = liste.getByRole("row").filter({ hasText: "Praxis Musterstadt" });
   await expect(zeile).toHaveCount(1);
   await zeile.getByRole("button", { name: "Stornieren" }).click();
-  await faktenZeigen(page, "Datum", "Betrag");
+  // Der Monat mit Jahr, dazu Betriebsstätte, Tage und Kilometer wie bei der Buchung
+  await faktenZeigen(page, "Monat", "Betriebsstätte", "Angaben", "Betrag");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Praxis Musterstadt");
+  await expect(dialog).toContainText("15 Tage × 12 km einfache Entfernung");
+  await expect(dialog.locator("dd").first()).toHaveText(/^[A-ZÄÖÜ][a-zä]+ \d{4}$/);
   await bestaetigen(page, "Stornieren");
   await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
 });
@@ -2626,4 +2659,43 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
   await belegdatum.waitFor({ state: "visible", timeout: 30_000 });
   await expect(page.getByLabel("Leistung von")).toHaveValue(day(-24));
   await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
+});
+
+test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+
+  // Der Durchlauf hat die Anlage EÜR weiter oben schon vermerkt; ohne Vermerk gäbe es keine Erklärung, zu
+  // der Zeilen gehören können. Falls nicht, hier anlegen.
+  const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${YEAR - 1}` });
+  const vermerken = karte.getByRole("button", { name: "Abgabe vermerken" });
+  if (await vermerken.isVisible().catch(() => false)) {
+    await vermerken.click();
+    const dialog = page.getByRole("dialog", { name: `Anlage EÜR ${YEAR - 1} als abgegeben vermerken` });
+    await dialog.getByLabel("Transferticket").fill("ABC123456789");
+    await dialog.getByLabel("Begründung").fill("Anlage EÜR außerhalb von Haben mit WISO abgegeben.");
+    // Der Betrag bleibt der aus den Buchungen gerechnete, damit keine Abweichung bestätigt werden muss
+    await dialog.getByRole("button", { name: "Vermerken" }).click();
+  }
+
+  // Die Maske der Anlage EÜR, nicht die der Umsatzsteuer: nur dort steht die Gewinnzeile
+  const erfassen = page
+    .locator("details", { hasText: "Zeilenwerte aus dem Übermittlungsprotokoll" })
+    .filter({ has: page.getByLabel("Steuerpflichtiger Gewinn / Verlust (gewinn)") })
+    .last();
+  await expect(erfassen).toBeVisible({ timeout: 15_000 });
+  await erfassen.locator("summary").first().click();
+  await erfassen.getByLabel("Steuerpflichtiger Gewinn / Verlust (gewinn)").fill("1.234,56");
+  await erfassen.getByRole("button", { name: "Zeilenwerte speichern" }).click();
+
+  // Die erklärten Werte ersetzen Habens Rechnung und nennen ihre Herkunft
+  await expect(page.getByText("Diese Zahlen stammen aus dem Übermittlungsprotokoll", { exact: false })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("1.234,56\u00a0€").first()).toBeVisible();
+
+  // Habens Rechnung bleibt stehen, und die Maske nimmt die noch fehlenden Zeilen auf (Review zu #997).
+  // Vorher verschwand beides, sobald eine Zeile gespeichert war.
+  await expect(page.getByText("Habens Rechnung aus den Buchungen", { exact: false }).first()).toBeVisible();
+  const nachtragen = page.locator("details", { hasText: "Zeilenwerte aus dem Übermittlungsprotokoll" }).filter({ hasText: "Zeilen offen" }).first();
+  await expect(nachtragen).toBeVisible();
+  await nachtragen.locator("summary").first().click();
+  await expect(nachtragen.getByLabel("Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben (vereinnahmteUst)")).toBeVisible();
 });

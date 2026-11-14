@@ -2,9 +2,10 @@ import { formatEuro } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
-import { useAction, type Notice } from "../lib/use-action.ts";
+import { integrityNotice, weitereText } from "../lib/pruefbericht.ts";
+import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
-import { comparePruefwert, runIntegrityCheck, type getChainHead } from "../server/functions/integrity.ts";
+import { comparePruefwert, runFileAndIntegrityCheck, runIntegrityCheck, type getChainHead } from "../server/functions/integrity.ts";
 import type { IntegrityReport } from "../server/modules/auswertungen/index.ts";
 import { Field } from "./Field.tsx";
 
@@ -23,39 +24,52 @@ const TABELLEN: Record<string, string> = {
   asset_depreciations: "AfA",
 };
 
-function checkNotice(result: IntegrityReport): Notice {
-  const differences = result.abgleich.abweichungen.length;
-  const collisions = result.accountCollisions.length;
-  if (result.problems.length > 0)
-    return {
-      tone: "danger",
-      text: `${result.problems.length}${result.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`,
-    };
-  if (differences > 0)
-    return {
-      tone: "danger",
-      text: `Kette, Siegel und Sperren sind unverändert, aber Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
-    };
-  if (collisions > 0)
-    return {
-      tone: "info",
-      text: `Kette, Siegel und Sperren sind unverändert. ${collisions} ${collisions === 1 ? "Kontenkollision" : "Kontenkollisionen"}: Bitte kläre die Kontenzuordnung.`,
-    };
-  return {
-    tone: "ok",
-    text: `Kette, Siegel und Sperren sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Die geprüften Journal-, Steuer- und OPOS-Werte stimmen überein.`,
-  };
+/** Letzte Vollprüfung der Dateien im Dokumentenspeicher: Zeitpunkt, Anzahl und je Datei mit Befund Art und Name */
+function FileCheckResult({ files }: { files: IntegrityReport["files"] }) {
+  if (!files) return <p className="small muted">Belegdateien: noch nicht vollständig geprüft. Haben prüft sie einmal am Tag.</p>;
+  return (
+    <div className="small">
+      <div className="muted">
+        Belegdateien, zuletzt vollständig geprüft am {formatDateTime(files.at)}: {files.files} {files.files === 1 ? "Datei" : "Dateien"}
+        {files.problemCount === 0 ? ", alle vorhanden und unverändert." : `, ${files.problemCount} ${files.problemCount === 1 ? "Befund" : "Befunde"}:`}
+      </div>
+      {files.problems.length > 0 && (
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
+          {files.problems.map((p) => (
+            <li key={`${p.tabelle}:${p.zeile}`} style={{ overflowWrap: "anywhere" }}>
+              <strong>{p.art}</strong> {p.datei}: {p.befund}
+              {weitereText(p.weitere)}
+            </li>
+          ))}
+          {files.problemCount > files.problems.length && <li className="muted">und {files.problemCount - files.problems.length} weitere</li>}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 /** Hash-Kette des Audit-Logs und Siegel festgeschriebener Datensätze prüfen (Einstellungen → Export) */
 export function IntegrityCard({ head }: { head: Head }) {
   const check = useServerFn(runIntegrityCheck);
+  const checkFiles = useServerFn(runFileAndIntegrityCheck);
   const compare = useServerFn(comparePruefwert);
   const [report, setReport] = useState<IntegrityReport | null>(null);
+  const [running, setRunning] = useState<"kette" | "dateien" | null>(null);
   const [text, setText] = useState("");
   const action = useAction();
   const { busy, notice } = action;
   const current = report?.head ?? head;
+
+  function onCheck(kind: "kette" | "dateien") {
+    setRunning(kind);
+    void action
+      .run(async () => {
+        const result = await (kind === "dateien" ? checkFiles() : check());
+        setReport(result);
+        action.setNotice(integrityNotice(result));
+      })
+      .finally(() => setRunning(null));
+  }
 
   function onCompare(event: FormEvent) {
     event.preventDefault();
@@ -92,8 +106,10 @@ export function IntegrityCard({ head }: { head: Head }) {
         Jede Änderung steht im Audit-Log, jeder Eintrag ist per SHA-256 mit seinem Vorgänger verkettet. Festgeschriebene Buchungen, Rechnungen, Belege,
         Voranmeldungen, Kassenbuch, Zuordnungen, Pauschalen und AfA tragen zusätzlich ein Siegel über ihren Inhalt. Außerdem gleicht die Prüfung das Journal mit
         Umsatzsteuer, EÜR und den neuen Anzahlungsbeständen ab und meldet Kontenkollisionen sowie abgeschaltete, fehlende oder veränderte Sperrtrigger und
-        Funktionen. Sie findet nachträgliche Änderungen an der Datenbank, verhindert sie aber nicht. Wer die Datenbank ändern kann, kann auch die Kette neu
-        berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
+        Funktionen. Belege, Anhänge und andere Dateien liegen außerhalb der Datenbank unter ihrem SHA-256; Haben prüft einmal am Tag, ob jede vorhanden und
+        unverändert ist, „Dateien prüfen“ sofort. Die Prüfung findet nachträgliche Änderungen, verhindert sie aber nicht. Wer die Datenbank ändern kann, kann
+        auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail,
+        Jahresarchiv).
       </p>
       {current && (
         <div className="small">
@@ -105,19 +121,11 @@ export function IntegrityCard({ head }: { head: Head }) {
         </div>
       )}
       <div className="actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={busy}
-          onClick={() =>
-            void action.run(async () => {
-              const result = await check();
-              setReport(result);
-              action.setNotice(checkNotice(result));
-            })
-          }
-        >
-          {busy ? "Prüft …" : "Kette prüfen"}
+        <button type="button" className="btn" disabled={busy} onClick={() => onCheck("dateien")}>
+          {running === "dateien" ? "Prüft Dateien …" : "Dateien prüfen"}
+        </button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => onCheck("kette")}>
+          {running === "kette" ? "Prüft …" : "Kette prüfen"}
         </button>
       </div>
       {report && report.problems.length > 0 && (
@@ -143,6 +151,7 @@ export function IntegrityCard({ head }: { head: Head }) {
           </ul>
         </div>
       )}
+      {report && <FileCheckResult files={report.files} />}
       {report && (report.abgleich.abweichungen.length > 0 || report.abgleich.hinweise.length > 0) && (
         <div className="small">
           <div className="muted">Abgleich von Journal, Umsatzsteuer, EÜR und Anzahlungsbeständen</div>

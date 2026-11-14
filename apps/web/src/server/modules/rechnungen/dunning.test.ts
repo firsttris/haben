@@ -145,6 +145,12 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
       await expect(dunning.createDunning(actor, input, "2026-10-15")).rejects.toThrow("in der Zukunft");
     }, 60_000);
 
+    it("lehnt eine Gebühr über der Grenze ab wie Entwurf und Erstellen, statt sie wegzulassen", () => {
+      const eingabe = { invoiceId, level: 1, dueDate: "2026-10-25", fee: 100_001, flatFee: false, interest: null, intro: "x", closing: "" };
+      expect(dunning.dunningInputSchema.safeParse(eingabe).success).toBe(false);
+      expect(dunning.dunningPreviewSchema.safeParse({ ...eingabe, design: {} }).success).toBe(false);
+    });
+
     it("setzt mit dem eigenen Layout für Mahnungen", async () => {
       const eingebaut = await dunning.dunningPreview(form(), "2026-10-15");
       const source = `${startvorlage("mahnung")}\n#place(top + left, dx: 5mm, dy: 5mm, rect(width: 30mm, height: 10mm, fill: rgb("#123456")))\n`;

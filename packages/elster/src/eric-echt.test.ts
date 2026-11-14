@@ -420,6 +420,26 @@ const faelle: [string, () => string][] = [
         }),
     ],
     [
+      // Zeilen, deren Summen sich aufheben: Gutschriften zu 19 % gegen 7 %, negative Rechnungsvorsteuer gegen Einfuhrumsatzsteuer
+      `USt-Erklärung ${year} mit sich aufhebenden Zeilen`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "soll",
+          figures: {
+            base19: -70_000,
+            tax19: -13_300,
+            base7: 190_000,
+            tax7: 13_300,
+            vorsteuer: -19_000,
+            kz62: 19_000,
+            kz47: 9_500,
+            kz46: 50_000,
+            vorauszahlungen: 9_500,
+          },
+        }),
+    ],
+    [
       `USt-Erklärung ${year} steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48)`,
       () =>
         buildUstErklaerungXml({
