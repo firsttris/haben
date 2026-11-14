@@ -314,8 +314,7 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
     const brutto = an && an.bescheinigungen.length > 0 ? arbeitslohnErgebnis(year, an).brutto : 0;
     return Math.max(0, (leistung ?? 0) - Math.max(0, pausch - brutto));
   };
-  const leistungen =
-    leistungenVon(x.ersatzleistungen?.a, x.arbeitnehmer?.a) + (zusammen ? leistungenVon(x.ersatzleistungen?.b, x.arbeitnehmer?.b) : 0);
+  const leistungen = leistungenVon(x.ersatzleistungen?.a, x.arbeitnehmer?.a) + (zusammen ? leistungenVon(x.ersatzleistungen?.b, x.arbeitnehmer?.b) : 0);
   const satz = (basis: number) =>
     leistungen > 0 && basis + leistungen > 0
       ? Math.floor((einkommensteuer(basis + leistungen, year, zusammen) * basis) / (basis + leistungen))
