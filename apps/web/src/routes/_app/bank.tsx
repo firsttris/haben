@@ -56,6 +56,7 @@ import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrech
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
 import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
+import { Kuerzel } from "../../components/Kuerzel.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -1482,7 +1483,9 @@ function AllocationPanel({
             // Bleibt beim Umsatz: Er zeigt danach die Verrechnung; der nächste offene könnte gerade der Gegenumsatz sein
             onSubmit={(input) => void run(() => neutralizeFn({ data: { transactionId: tx.id, ...input } }))}
           />
-          <div className="small muted pointer-fine">Tastatur: Enter ordnet zu, J und K springen zum nächsten Umsatz.</div>
+          <div className="small muted pointer-fine">
+            Tastatur: <Kuerzel tasten={["Enter"]} /> ordnet zu, <Kuerzel tasten={["J"]} /> und <Kuerzel tasten={["K"]} /> wechseln den Umsatz.
+          </div>
         </>
       )}
     </aside>

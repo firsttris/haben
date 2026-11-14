@@ -1,4 +1,4 @@
-import { altersvorsorgeQuote, arbeitslohnErgebnis, type Arbeitslohn } from "./arbeitnehmer.ts";
+import { altersvorsorgeQuote, arbeitnehmerPauschbetrag, arbeitslohnErgebnis, type Arbeitslohn } from "./arbeitnehmer.ts";
 import { kirchensteuerSatzBasispunkte } from "./lohnsteuer/kirchensteuer.ts";
 import type { Cents } from "./money.ts";
 import type { Bundesland } from "./steuernummer.ts";
@@ -149,6 +149,14 @@ export interface PrognoseVorsorge {
   pkv?: Cents;
   ppv?: Cents;
   pkvErstattung?: Cents;
+  /** Zertifizierte Basisrente (Rürup); zählt zur Altersvorsorge, nicht zum Höchstbetrag der übrigen Vorsorge */
+  basisrente?: Cents;
+  /** Privat: Wahlleistungen über der Basisabsicherung; gehört zur übrigen Vorsorge */
+  pkvWahlleistungen?: Cents;
+  /** Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung; mindert den abzugsfähigen Betrag */
+  agZuschussKv?: Cents;
+  /** Steuerfreier Arbeitgeberzuschuss zur privaten Pflegeversicherung; mindert den abzugsfähigen Betrag */
+  agZuschussPv?: Cents;
 }
 
 export interface PrognoseAngaben {
@@ -157,6 +165,8 @@ export interface PrognoseAngaben {
   krankheitskosten?: Cents;
   haushaltsnah: { minijobs?: Cents; dienstleistungen?: Cents; handwerker?: Cents };
   kinder: { kinderbetreuung?: Cents }[];
+  /** Einkommensersatzleistungen je Person, die dem Progressionsvorbehalt unterliegen (§ 32b EStG) */
+  ersatzleistungen?: { a?: Cents; b?: Cents };
   /** Arbeitslohn je Person (Anlage N) */
   arbeitnehmer?: { a?: Arbeitslohn; b?: Arbeitslohn };
 }
@@ -207,13 +217,16 @@ const sum = (...values: (Cents | undefined)[]) => values.reduce<number>((acc, v)
  * Höchstbetrag des Jahres, davon der Arbeitgeberanteil ab. Übrige Vorsorge: Höchstbetrag 2.800 € für
  * Selbständige, 1.900 € für Arbeitnehmer (Zuschuss des Arbeitgebers zur Krankenversicherung). Beiträge
  * laut Lohnsteuerbescheinigung: Rentenversicherung mit Arbeitgeberanteil abzüglich dieses Anteils,
- * Krankenversicherung ohne den Anteil für Krankengeld (4 %).
+ * Krankenversicherung ohne den Anteil für Krankengeld (4 %). Rürup-Beiträge zählen zur Altersvorsorge und
+ * teilen sich den Höchstbetrag mit der gesetzlichen Rentenversicherung. Wahlleistungen einer privaten
+ * Krankenversicherung gehören zur übrigen Vorsorge, die steuerfreien Arbeitgeberzuschüsse mindern den
+ * abzugsfähigen Betrag der Basisabsicherung.
  */
 function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbeitslohn }[], sonstige: Cents | undefined): Cents {
   const lstb = (an: Arbeitslohn | undefined, pick: (b: Arbeitslohn["bescheinigungen"][number]) => Cents | undefined) =>
     an ? sum(...an.bescheinigungen.map(pick)) : 0;
   const ag = sum(...personen.map(({ an }) => lstb(an, (b) => b.rvArbeitgeber)));
-  const eigen = sum(...personen.map(({ v, an }) => lstb(an, (b) => b.rvArbeitnehmer) + (v.rentenversicherung ?? 0)));
+  const eigen = sum(...personen.map(({ v, an }) => lstb(an, (b) => b.rvArbeitnehmer) + (v.rentenversicherung ?? 0) + (v.basisrente ?? 0)));
   const hoechstAlter = tarif(year).altersvorsorgeHoechst * personen.length * 100;
   const alter = Math.max(0, Math.floor(Math.min(eigen + ag, hoechstAlter) * altersvorsorgeQuote(year)) - ag);
   const basis = Math.max(
@@ -229,7 +242,10 @@ function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbei
             v.ppv,
             Math.floor(kvAn * 0.96),
             lstb(an, (b) => b.pvArbeitnehmer),
-          ) - (v.pkvErstattung ?? 0)
+          ) -
+          (v.pkvErstattung ?? 0) -
+          (v.agZuschussKv ?? 0) -
+          (v.agZuschussPv ?? 0)
         );
       }),
     ),
@@ -240,6 +256,7 @@ function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbei
       const kvAn = lstb(an, (b) => b.kvArbeitnehmer);
       return sum(
         v.gkvZusatz,
+        v.pkvWahlleistungen,
         kvAn - Math.floor(kvAn * 0.96),
         lstb(an, (b) => b.avArbeitnehmer),
       );
@@ -304,8 +321,21 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
   const anteil = zusammen ? 1 : 0.5;
   const kfb = Math.round(kinder * t.kinderfreibetrag * anteil) * 100;
   const kindergeld = Math.round(kinder * t.kindergeld * 12 * anteil) * 100;
-  const ohneKfb = einkommensteuer(einkommen, year, zusammen);
-  const mitKfb = einkommensteuer(Math.max(0, einkommen - kfb), year, zusammen);
+  // § 32b: Der besondere Steuersatz kommt aus der Steuer auf zvE plus Leistungen, angewandt auf das zvE.
+  // Je Person mindert der Arbeitnehmer-Pauschbetrag ihre Leistungen, soweit er nicht beim Arbeitslohn
+  // abziehbar ist (§ 32b Abs. 2 Satz 1 Nr. 1 EStG): ohne Arbeitslohn voll, sonst um den Teil über dem Lohn.
+  const pausch = arbeitnehmerPauschbetrag(year);
+  const leistungenVon = (leistung: Cents | undefined, an: Arbeitslohn | undefined) => {
+    const brutto = an && an.bescheinigungen.length > 0 ? arbeitslohnErgebnis(year, an).brutto : 0;
+    return Math.max(0, (leistung ?? 0) - Math.max(0, pausch - brutto));
+  };
+  const leistungen = leistungenVon(x.ersatzleistungen?.a, x.arbeitnehmer?.a) + (zusammen ? leistungenVon(x.ersatzleistungen?.b, x.arbeitnehmer?.b) : 0);
+  const satz = (basis: number) =>
+    leistungen > 0 && basis + leistungen > 0
+      ? Math.floor((einkommensteuer(basis + leistungen, year, zusammen) * basis) / (basis + leistungen))
+      : einkommensteuer(basis, year, zusammen);
+  const ohneKfb = satz(einkommen);
+  const mitKfb = satz(Math.max(0, einkommen - kfb));
   const kinderfreibetrag = kinder > 0 && ohneKfb - mitKfb > kindergeld;
   const zvE = kinderfreibetrag ? Math.max(0, einkommen - kfb) : einkommen;
   const tariflich = kinderfreibetrag ? mitKfb + kindergeld : ohneKfb;

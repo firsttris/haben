@@ -24,7 +24,18 @@ export {
 } from "./quote-default-attachments.ts";
 export { fetchBaseRate } from "./base-rate.ts";
 export { runDueBaseRate } from "./base-rate-job.ts";
-export { createDunning, dunningDraft, dunningDraftPdf, dunningInputSchema, dunningsFor, loadDunningPdf, overdueInvoices } from "./dunning.ts";
+export {
+  createDunning,
+  dunningDraft,
+  dunningDraftPdf,
+  dunningInputSchema,
+  dunningPreview,
+  type DunningPreviewInput,
+  dunningPreviewSchema,
+  dunningsFor,
+  loadDunningPdf,
+  overdueInvoices,
+} from "./dunning.ts";
 export {
   dunningMailDraft,
   invoiceMailDraft,

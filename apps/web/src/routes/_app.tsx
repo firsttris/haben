@@ -1,13 +1,15 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
-import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react";
-import { ThemePicker } from "../components/ThemePicker.tsx";
+import { type PointerEvent, type RefObject, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "../components/Icon.tsx";
+import { NavExpandedBody, NavRailBody } from "../components/NavMenu.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
-import { CommandPalette } from "../components/CommandPalette.tsx";
-import { NAV_GROUPS, STEUERBERATUNG_NAV, type NavLink, navLinkSichtbar } from "../lib/navigation.ts";
+import { CommandPalette, PALETTE_KUERZEL } from "../components/CommandPalette.tsx";
+import { Kuerzel } from "../components/Kuerzel.tsx";
+import { ariaKuerzel } from "../lib/tastatur.ts";
+import { NAV_GROUPS, STEUERBERATUNG_NAV, navLinkSichtbar } from "../lib/navigation.ts";
+import { readNavCollapsed, saveNavCollapsed, subscribeNavCollapsed } from "../lib/nav-rail.ts";
 import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
-import { FirmaWechsler } from "../components/FirmaWechsler.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
@@ -35,6 +37,7 @@ export const Route = createFileRoute("/_app")({
 function useFirmaBrand() {
   const firmaRef = useRef<HTMLSpanElement>(null);
   const [firmaVoll, setFirmaVoll] = useState<string | null>(null);
+  // Den vollen Namen nur zeigen, wenn die Marke ihn kürzt (zwei Zeilen am Desktop); am Handy gibt es kein Aufklappen
   function firmaAufklappen() {
     const name = firmaRef.current;
     if (name && window.matchMedia("(min-width: 861px)").matches && name.scrollHeight > name.clientHeight + 1) setFirmaVoll(name.textContent);
@@ -60,20 +63,36 @@ function useFirmaBrand() {
   return { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg };
 }
 
-function useShortcutLabel() {
-  const [shortcutLabel, setShortcutLabel] = useState("Strg K");
+function useRailState() {
+  const collapsed = useSyncExternalStore(subscribeNavCollapsed, readNavCollapsed, () => false);
+  const [desktop, setDesktop] = useState(false);
+  const [openFlyout, setOpenFlyout] = useState<string | null>(null);
+  const railMode = collapsed && desktop;
+
   useEffect(() => {
-    if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) setShortcutLabel("⌘ K");
+    const mq = window.matchMedia("(min-width: 861px)");
+    const sync = () => {
+      setDesktop(mq.matches);
+      if (!mq.matches) setOpenFlyout(null);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
   }, []);
-  return shortcutLabel;
+
+  useEffect(() => {
+    if (!railMode) setOpenFlyout(null);
+  }, [railMode]);
+
+  return { collapsed, railMode, openFlyout, setOpenFlyout };
 }
 
 function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: () => void, toggle: RefObject<HTMLButtonElement | null>) {
   useEffect(() => {
     if (!menuOpen || paletteOpen) return;
     function onKey(event: KeyboardEvent) {
-      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst
-      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]')) return;
+      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst; der Desktop-Umschalter blockiert Esc nicht
+      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]:not(.nav-collapse-btn)')) return;
       // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
       event.preventDefault();
       onClose();
@@ -92,11 +111,17 @@ function AppLayout() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const { collapsed, railMode, openFlyout, setOpenFlyout } = useRailState();
   // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const firstPath = useRef(pathname);
+  const sichtbareGruppen = groups
+    .map((group) => ({ ...group, links: group.links.filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })) }))
+    .filter((group) => group.links.length > 0);
+  const userInitial = user.name.trim().charAt(0).toUpperCase() || "?";
+  const userMeta = inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`;
   usePageHeadHeight(main);
   const scrolled = useScrolled();
 
@@ -105,8 +130,9 @@ function AppLayout() {
   useEffect(() => {
     if (pathname === firstPath.current) return;
     firstPath.current = pathname;
+    setOpenFlyout(null);
     if (!main.current?.contains(document.activeElement)) main.current?.focus({ preventScroll: true });
-  }, [pathname]);
+  }, [pathname, setOpenFlyout]);
 
   useMobileMenuEscape(menuOpen, paletteOpen, () => setMenuOpen(false), toggle);
 
@@ -137,15 +163,31 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im rollenden Menü */}
-          {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
-          <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
-            <Icon name="overview" />
-            Übersicht
-          </Link>
-          <NavGroups groups={groups} gesellschaft={gesellschaft} hatMitarbeiter={hatMitarbeiter} eigeneSeiten={eigeneSeiten} />
-          <div className="nav-spacer" />
-          <NavFoot user={user} inhaber={inhaber} onSignOut={signOut} />
+          {(() => {
+            const bodyProps = {
+              collapsed,
+              onToggleCollapse: () => saveNavCollapsed(!collapsed),
+              inhaber,
+              firmen,
+              sichtbareGruppen,
+              eigeneSeiten,
+              userName: user.name,
+              userInitial,
+              userMeta,
+              onSignOut: signOut,
+            };
+            return railMode ? (
+              <NavRailBody
+                {...bodyProps}
+                pathname={pathname}
+                openFlyout={openFlyout}
+                onFlyoutToggle={(key) => setOpenFlyout((cur) => (cur === key ? null : key))}
+                onFlyoutClose={() => setOpenFlyout(null)}
+              />
+            ) : (
+              <NavExpandedBody {...bodyProps} />
+            );
+          })()}
         </div>
       </nav>
       <main className="main" id="inhalt" ref={main} tabIndex={-1}>
@@ -200,7 +242,6 @@ function NavBrand({ inhaber }: { inhaber: boolean }) {
 }
 
 function NavSearch({ onOpen }: { onOpen: () => void }) {
-  const shortcutLabel = useShortcutLabel();
   return (
     <button
       type="button"
@@ -209,106 +250,11 @@ function NavSearch({ onOpen }: { onOpen: () => void }) {
         event.currentTarget.focus();
         onOpen();
       }}
-      aria-keyshortcuts="Control+K Meta+K"
+      aria-keyshortcuts={ariaKuerzel(PALETTE_KUERZEL)}
     >
       <Icon name="search" size={18} />
       <span className="nav-search-label">Schnellsuche</span>
-      <kbd className="nav-kbd" aria-hidden="true">
-        {shortcutLabel}
-      </kbd>
+      <Kuerzel tasten={PALETTE_KUERZEL} className="nav-kbd" aria-hidden="true" />
     </button>
-  );
-}
-
-function NavFoot({ user, inhaber, onSignOut }: { user: { name: string; role: keyof typeof ROLLEN_LABEL }; inhaber: boolean; onSignOut: () => void }) {
-  return (
-    <div className="nav-foot">
-      <div className="nav-user">
-        <span className="nav-avatar" aria-hidden="true">
-          {user.name.trim().charAt(0).toUpperCase() || "?"}
-        </span>
-        <span className="nav-user-text">
-          <span className="nav-user-name">{user.name}</span>
-          <span className="nav-user-meta">{inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}</span>
-        </span>
-      </div>
-      {inhaber && (
-        <Link to="/einstellungen" className="nav-link nav-foot-link">
-          <Icon name="settings" />
-          Einstellungen
-        </Link>
-      )}
-      <a href="https://haben.app/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
-        <Icon name="docs" />
-        Dokumentation
-      </a>
-      {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
-      <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
-        <Icon name="code" />
-        Quellcode (AGPL)
-      </a>
-      <button type="button" className="nav-link nav-foot-link" onClick={onSignOut}>
-        <Icon name="logout" />
-        Abmelden
-      </button>
-      <ThemePicker />
-      <a className="nav-version" href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`} title="Versionshinweise auf GitHub">
-        Haben {__HABEN_VERSION__}
-      </a>
-    </div>
-  );
-}
-
-function NavGroups({
-  groups,
-  gesellschaft,
-  hatMitarbeiter,
-  eigeneSeiten,
-}: {
-  groups: typeof NAV_GROUPS | typeof STEUERBERATUNG_NAV;
-  gesellschaft: boolean;
-  hatMitarbeiter: boolean;
-  eigeneSeiten: readonly { id: string; name: string; url: string; openInNewTab: boolean }[];
-}) {
-  return (
-    <>
-      {groups.map((group) => (
-        <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
-          <div className="nav-group-label" aria-hidden="true">
-            {group.label}
-          </div>
-          {(group.links as readonly NavLink[])
-            .filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter }))
-            .map((link) => (
-              <Link key={link.to} to={link.to} className="nav-link">
-                <Icon name={link.icon} />
-                {link.label}
-              </Link>
-            ))}
-        </div>
-      ))}
-      {/* Eigene Seiten (#199): Seiten außerhalb von Haben, unter Einstellungen angelegt */}
-      {eigeneSeiten.length > 0 && (
-        <div className="nav-group" role="group" aria-label="Eigene Seiten">
-          <div className="nav-group-label" aria-hidden="true">
-            Eigene Seiten
-          </div>
-          {eigeneSeiten.map((seite) =>
-            seite.openInNewTab ? (
-              <a key={seite.id} href={seite.url} target="_blank" rel="noreferrer" className="nav-link">
-                <Icon name="external" />
-                {seite.name}
-                <span className="visually-hidden"> (öffnet in neuem Tab)</span>
-              </a>
-            ) : (
-              <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
-                <Icon name="embed" />
-                {seite.name}
-              </Link>
-            ),
-          )}
-        </div>
-      )}
-    </>
   );
 }
