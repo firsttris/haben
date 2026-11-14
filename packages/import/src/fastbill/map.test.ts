@@ -110,7 +110,7 @@ describe("mapFbInvoice", () => {
   it("bildet eine offene Rechnung in Cent mit Steuer je Satz ab", () => {
     const { voucher, payment } = mapFbInvoice(invoice());
     expect(voucher).toEqual({
-      lexofficeId: "invoice/11",
+      lexofficeId: "fastbill/invoice/11",
       type: "invoice",
       direction: "einnahme",
       number: "RE-2025-7",
@@ -218,7 +218,7 @@ describe("mapFbInvoice", () => {
   it("bildet die Stornorechnung als negative Gutschrift ab, die die stornierte Rechnung aufhebt", () => {
     expect(isFbCancellation(storno, stornierte)).toBe(true);
     const { voucher, payment } = mapFbInvoice(storno, stornierte);
-    expect(voucher).toMatchObject({ lexofficeId: "invoice/12", type: "creditnote", status: "voided", gross: -119_000, dueDate: null });
+    expect(voucher).toMatchObject({ lexofficeId: "fastbill/invoice/12", type: "creditnote", status: "voided", gross: -119_000, dueDate: null });
     expect(voucher.taxes).toEqual([{ rate: 1900, net: -100_000, tax: -19_000 }]);
     expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: null, items: [] });
   });
@@ -310,7 +310,7 @@ describe("mapFbExpense", () => {
   it("bildet eine bezahlte Ausgabe mit Kategorie und Datei ab", () => {
     const { voucher, payment } = mapFbExpense(expense());
     expect(voucher).toEqual({
-      lexofficeId: "expense/11",
+      lexofficeId: "fastbill/expense/11",
       type: "purchaseinvoice",
       direction: "ausgabe",
       number: "L-881",
@@ -327,7 +327,7 @@ describe("mapFbExpense", () => {
       gross: 5950,
       taxes: [{ rate: 1900, net: 5000, tax: 950 }],
       categories: [{ categoryId: "Büromaterial", net: 5000, tax: 950, rate: 1900 }],
-      fileIds: ["expense/11"],
+      fileIds: ["fastbill/expense/11"],
       remark: "Papier",
     });
     expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: "2025-02-05", items: [] });

@@ -1269,6 +1269,7 @@ const LEGACY_SOURCE_LABELS = {
   buchhaltungsbutler: "BuchhaltungsButler",
   accountable: "Accountable",
   import: "JSON-Import",
+  fastbill: "FastBill",
 } as const;
 
 const LEGACY_TYPE_LABELS: Record<string, string> = {

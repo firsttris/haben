@@ -47,6 +47,15 @@ import {
   sevdeskConnectionStatus,
   startSevdeskImport as startSevdesk,
 } from "../modules/archiv/index.ts";
+import {
+  cancelFastbillImport as cancelFastbill,
+  FASTBILL_PLANS,
+  fastbillConnectionStatus,
+  latestFastbillImport,
+  removeFastbillKey,
+  saveFastbillKey,
+  startFastbillImport as startFastbill,
+} from "../modules/archiv/index.ts";
 import { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "../modules/archiv/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
@@ -71,6 +80,8 @@ export const getMigration = createServerFn({ method: "GET" })
       orderArchive,
       externalImports,
       bbImport,
+      fastbillConnection,
+      fastbillImport,
     ] = await Promise.all([
       connectionStatus(),
       reconciliation(),
@@ -82,11 +93,16 @@ export const getMigration = createServerFn({ method: "GET" })
       orderArchiveOverview(),
       externalImportOverview(),
       latestBuchhaltungsbutlerImport(),
+      fastbillConnectionStatus(),
+      latestFastbillImport(),
     ]);
     return {
       connection,
       sevdeskConnection,
       sevdeskImport,
+      fastbillConnection,
+      fastbillImport,
+      fastbillPlans: FASTBILL_PLANS.map((p) => ({ ...p })),
       bbImport,
       accountableImport,
       openItems,
@@ -107,8 +123,8 @@ export const getMigration = createServerFn({ method: "GET" })
 
 export const getImportStatus = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.object({ source: z.enum(["lexoffice", "sevdesk"]) }))
-  .handler(async ({ data }) => (data.source === "sevdesk" ? latestSevdeskImport() : latestImport()));
+  .validator(z.object({ source: z.enum(["lexoffice", "sevdesk", "fastbill"]) }))
+  .handler(async ({ data }) => (data.source === "sevdesk" ? latestSevdeskImport() : data.source === "fastbill" ? latestFastbillImport() : latestImport()));
 
 export const saveLexofficeKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -167,6 +183,33 @@ export const cancelSevdeskImport = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => ({ cancelled: cancelSevdesk(data.id) }));
+
+export const saveFastbillLogin = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(
+    z.object({
+      email: z.string().trim().min(3, "Login-E-Mail fehlt").max(200),
+      apiKey: z.string().trim().min(1, "API-Schlüssel fehlt").max(200),
+      callsPerHour: z.number().int(),
+    }),
+  )
+  .handler(async ({ data, context }) => saveFastbillKey(context.user.id, data));
+
+export const removeFastbillLogin = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await removeFastbillKey(context.user.id);
+    return { ok: true };
+  });
+
+export const startFastbillImport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => ({ id: await startFastbill(context.user.id) }));
+
+export const cancelFastbillImport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => ({ cancelled: cancelFastbill(data.id) }));
 
 function bbFiles(input: unknown): { files: File[] } {
   if (!(input instanceof FormData)) throw new UserError("FormData erwartet");

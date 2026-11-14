@@ -6,7 +6,8 @@ import type { FbCustomer, FbExpense, FbInvoice, FbInvoiceItem, FbPayment, FbVatI
  * Reine Abbildungen der FastBill-Antworten auf dieselben Strukturen wie beim Lexoffice- und sevDesk-Import,
  * damit Archiv, Abgleich, offene Posten und Jahresexport alle Quellen gleich behandeln.
  *
- * Die Kennung eines Belegs ist "<art>/<id>" (invoice/123, expense/45): Rechnungen und Ausgaben tragen beide
+ * Die Kennung eines Belegs ist "fastbill/<art>/<id>" (fastbill/invoice/123, fastbill/expense/45): Sie ist über alle
+ * Quellen eindeutig, sevDesk nutzt "invoice/<id>". Rechnungen und Ausgaben tragen beide
  * ein Feld INVOICE_ID, ob die Zahlen getrennt zählen, sagt die Doku nicht.
  *
  * Grundlage sind die API-Doku (https://apidocs.fastbill.com/fastbill/en/invoice.html, expense.html) und die
@@ -203,7 +204,7 @@ export function mapFbInvoice(i: FbInvoice, referenced?: FbInvoice): FbMappedVouc
 
   return {
     voucher: {
-      lexofficeId: `invoice/${id}`,
+      lexofficeId: `fastbill/invoice/${id}`,
       type,
       direction: "einnahme",
       number: text(i.INVOICE_NUMBER),
@@ -242,7 +243,7 @@ function categoryName(value: FbExpense["CATEGORY"]): string {
 
 /**
  * Eingangsbeleg. Negative Summen sind Gutschriften des Lieferanten und bleiben negativ, wie beim Lexoffice-Import.
- * Die Kategorie aus FastBill steht als categoryId an jedem Steuersatz. fileIds trägt "expense/<id>", wenn FastBill
+ * Die Kategorie aus FastBill steht als categoryId an jedem Steuersatz. fileIds trägt die Kennung des Belegs, wenn FastBill
  * eine DOCUMENT_URL nennt; die Datei lädt der Umzug über diese Adresse.
  */
 export function mapFbExpense(e: FbExpense): FbMappedVoucher {
@@ -258,7 +259,7 @@ export function mapFbExpense(e: FbExpense): FbMappedVoucher {
 
   return {
     voucher: {
-      lexofficeId: `expense/${id}`,
+      lexofficeId: `fastbill/expense/${id}`,
       type: credit ? "purchasecreditnote" : "purchaseinvoice",
       direction: "ausgabe",
       number: text(e.INVOICE_NUMBER),
@@ -275,7 +276,7 @@ export function mapFbExpense(e: FbExpense): FbMappedVoucher {
       gross,
       taxes: buckets,
       categories: category ? buckets.map((b) => ({ categoryId: category, net: b.net, tax: b.tax, rate: b.rate })) : [],
-      fileIds: e.DOCUMENT_URL?.trim() ? [`expense/${id}`] : [],
+      fileIds: e.DOCUMENT_URL?.trim() ? [`fastbill/expense/${id}`] : [],
       remark: e.NOTE?.trim() ?? "",
     },
     payment: payments(gross, [], paidDate ? "paid" : null, paidDate),

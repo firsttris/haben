@@ -1006,6 +1006,8 @@ export const contacts = pgTable(
     lexofficeId: text("lexoffice_id").unique(),
     /** Herkunft aus dem sevDesk-Import */
     sevdeskId: text("sevdesk_id").unique(),
+    /** Herkunft aus dem FastBill-Import (CUSTOMER_ID) */
+    fastbillId: text("fastbill_id").unique(),
     /**
      * DATEV-Personenkonten für den Buchungsstapel (#327), getrennt von Kunden- und Lieferantennummer; beide an einem
      * Kontakt möglich. Bereiche bei vierstelligen Sachkonten nach DATEV-Kontenrahmen SKR 03/04 2026, S. 36.
@@ -2783,8 +2785,24 @@ export const sevdeskConnection = pgTable(
   (t) => [check("sevdesk_connection_single_row", sql`${t.id} = 1`)],
 );
 
+/**
+ * Zugang zur FastBill-API: Login-E-Mail und API-Schlüssel, der Schlüssel AES-256-GCM-verschlüsselt; eine Zeile.
+ * callsPerHour ist die Stundengrenze des Tarifs (Solo 50, Solo-Plus 100, Pro 500, Premium 1000).
+ */
+export const fastbillConnection = pgTable(
+  "fastbill_connection",
+  {
+    id: smallint("id").primaryKey().default(1),
+    email: text("email").notNull(),
+    ciphertext: bytea("ciphertext").notNull(),
+    callsPerHour: integer("calls_per_hour").notNull().default(50),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("fastbill_connection_single_row", sql`${t.id} = 1`), check("fastbill_connection_calls_per_hour", sql`${t.callsPerHour} between 1 and 10000`)],
+);
+
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import"] as const;
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import", "fastbill"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 /**
@@ -2825,6 +2843,10 @@ export type LexofficeImportProgress = {
   datevFileIds?: string[];
   /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */
   accountable?: AccountableProgress;
+  /** FastBill: Startzeiten der API-Aufrufe der letzten Stunde (ms), damit ein neuer Lauf die Stundengrenze einhält */
+  fastbillCalls?: number[];
+  /** FastBill: wartet wegen der Stundengrenze bis zu diesem Zeitpunkt (ISO) */
+  waitingUntil?: string | null;
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
