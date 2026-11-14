@@ -158,6 +158,20 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
       expect(await vat.computeVatFigures({ year: 2026, month: 43 })).toMatchObject({ kz81: 0, tax81: 0 });
     }, 30_000);
 
+    it("schweigt, wenn die Voranmeldung erst nach dem Festschreiben übermittelt wurde: Sie enthält die Rechnung", async () => {
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      await sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 0, 0, 0, 0, now() + interval '1 minute')`;
+      expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
+    }, 30_000);
+
+    it("schweigt nach der berichtigten Anmeldung des Leistungszeitraums", async () => {
+      await meldeQ2();
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      expect(await invoices.leistungsmonatHinweisFuer(final)).toContain("Q2/2026");
+      await sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 100000, 0, 0, 19000, now() + interval '1 minute')`;
+      expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
+    }, 30_000);
+
     it("schweigt bei Anzahlung und Storno, die nicht nach dem Leistungstag gemeldet werden", async () => {
       await meldeQ2();
       const soll = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
