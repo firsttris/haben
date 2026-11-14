@@ -42,16 +42,21 @@ test("Passwort ändern, Passkey-Sitzung abmelden und den Passkey weiterverwenden
     const card = page.getByRole("region", { name: "Passwort ändern" });
     const newPassword = "mein-neues-e2e-passwort";
     await card.getByLabel("Bisheriges Passwort").fill("ein-falsches-passwort");
-    await card.getByLabel("Neues Passwort").fill(newPassword);
+    await card.getByLabel("Neues Passwort", { exact: true }).fill(newPassword);
+    await card.getByLabel("Neues Passwort bestätigen").fill(newPassword);
     await card.getByRole("button", { name: "Passwort ändern" }).click();
     await expect(card.getByRole("alert")).toHaveText("Das bisherige Passwort stimmt nicht.");
 
     await card.getByLabel("Bisheriges Passwort").fill(USER.password);
+    await card.getByLabel("Neues Passwort bestätigen").fill("abweichendes-e2e-passwort");
     await card.getByRole("button", { name: "Passwort ändern" }).click();
-    await expect(card.getByText("Passwort geändert. Andere Sitzungen wurden abgemeldet.")).toBeVisible();
-    await expect(card.getByLabel("Neues Passwort")).toHaveValue("");
-    await page.reload();
-    await expect(card).toBeVisible();
+    await expect(card.getByRole("alert")).toHaveText("Die neuen Passwörter stimmen nicht überein.");
+
+    await card.getByLabel("Neues Passwort bestätigen").fill(newPassword);
+    await card.getByRole("button", { name: "Passwort ändern" }).click();
+    await expect(page).toHaveURL(/\/login/);
+    await gehe(page, "/einstellungen?bereich=sicherheit");
+    await expect(page).toHaveURL(/\/login/);
 
     await gehe(otherPage, "/einstellungen?bereich=sicherheit");
     await expect(otherPage).toHaveURL(/\/login/);

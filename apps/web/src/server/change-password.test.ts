@@ -71,8 +71,11 @@ describe.skipIf(!testDatabaseUrl)("Passwortwechsel (Postgres)", () => {
 
     const changed = await change();
     expect(changed.ok).toBe(true);
+    expect(await changed.json()).toMatchObject({ token: null });
+    expect(changed.headers.getSetCookie()).toEqual([]);
+    expect(await database`select id from session where user_id = ${user.id}`).toHaveLength(0);
+    expect(await (await request("/get-session", undefined, { cookie })).json()).toBeNull();
     expect(await (await request("/get-session", undefined, { cookie: otherCookie })).json()).toBeNull();
-    expect(await (await request("/get-session", undefined, { cookie: cookieOf(changed.headers) })).json()).toMatchObject({ user: { id: user.id } });
     expect((await request("/sign-in/email", { email, password: currentPassword })).ok).toBe(false);
     expect((await request("/sign-in/email", { email, password: newPassword })).ok).toBe(true);
     expect(await audit()).toEqual([{ actor: user.id, row_id: user.id, old_value: null, new_value: { ereignis: "passwort_geaendert" } }]);

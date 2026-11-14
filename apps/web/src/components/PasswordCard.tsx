@@ -18,35 +18,37 @@ export function PasswordCard() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
-    const form = event.currentTarget;
-    const values = new FormData(form);
+    const values = new FormData(event.currentTarget);
+    const newPassword = String(values.get("newPassword"));
     await run(async () => {
+      if (newPassword !== values.get("confirmPassword")) throw new Error("Die neuen Passwörter stimmen nicht überein.");
       const { error } = await authClient.changePassword({
         currentPassword: String(values.get("currentPassword")),
-        newPassword: String(values.get("newPassword")),
+        newPassword,
         revokeOtherSessions: true,
       });
       if (error) {
         if (error.status === 401) throw new Error("Bitte erneut anmelden.");
         throw new Error(errorMessages[error.code ?? ""] ?? "Das Passwort konnte nicht geändert werden.");
       }
-      form.reset();
-    }, "Passwort geändert. Andere Sitzungen wurden abgemeldet.");
+      window.location.assign("/login");
+    });
   }
 
   return (
     <section className="card" aria-labelledby="password-heading">
       <h2 id="password-heading">Passwort ändern</h2>
-      <p className="small muted">Beim Ändern des Passworts werden alle anderen Sitzungen abgemeldet.</p>
-      <form method="post" onSubmit={onSubmit}>
-        <div className="stack">
-          <Field label="Bisheriges Passwort">
-            {(control) => <input {...control} name="currentPassword" type="password" autoComplete="current-password" required />}
-          </Field>
-          <Field label="Neues Passwort" hint="Mindestens 12 Zeichen.">
-            {(control) => <input {...control} name="newPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required />}
-          </Field>
-        </div>
+      <p className="small muted">Beim Ändern des Passworts wirst du auf allen Geräten abgemeldet, auch in diesem Browser.</p>
+      <form className="stack" method="post" onSubmit={onSubmit}>
+        <Field label="Bisheriges Passwort">
+          {(control) => <input {...control} name="currentPassword" type="password" autoComplete="current-password" required />}
+        </Field>
+        <Field label="Neues Passwort" hint="Mindestens 12 Zeichen.">
+          {(control) => <input {...control} name="newPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required />}
+        </Field>
+        <Field label="Neues Passwort bestätigen">
+          {(control) => <input {...control} name="confirmPassword" type="password" autoComplete="new-password" required />}
+        </Field>
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={busy}>
             Passwort ändern

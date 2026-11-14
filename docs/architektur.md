@@ -275,7 +275,7 @@ Haben hat zwei strikt getrennte Betriebsarten, umgeschaltet nur über `OIDC_ONLY
 
 Im Standardmodus meldet man sich per Passkey an, das Passwort bleibt Rückfallebene. Better Auth begrenzt Anmeldeversuche (20 je Minute) und liest die Client-Adresse hinter Caddy aus `X-Forwarded-For`.
 
-Beim Passwortwechsel schreibt Haben den neuen Hash, den Sitzungswechsel und das Ereignis `passwort_geaendert` in derselben Transaktion. Der Eintrag im Änderungsprotokoll enthält die Konto-ID und das Ereignis.
+Beim Passwortwechsel speichert Haben den neuen Hash, widerruft alle Sitzungen des Kontos und schreibt das Ereignis `passwort_geaendert` in derselben Transaktion. Der Eintrag im Änderungsprotokoll enthält die Konto-ID und das Ereignis.
 
 Geschützt wird an vier Stellen:
 

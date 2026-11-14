@@ -41,7 +41,7 @@ Auf der Anmeldeseite wählst du „Mit Passkey anmelden“. Über „Passwort ve
 
 Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weitere hinzufügen (z. B. für Handy und Laptop) oder alte nach einer Rückfrage entfernen. Passkeys hängen an der Domain aus `BETTER_AUTH_URL`; bei einem Domainwechsel musst du sie neu anlegen.
 
-Unter **Einstellungen › Sicherheit › Passwort ändern** gibst du dein bisheriges und ein neues Passwort mit mindestens 12 Zeichen ein. Du bleibst im aktuellen Browser angemeldet. Alle anderen Sitzungen enden, auch die per Passkey eröffneten. Mit einem vorhandenen Passkey kannst du dich danach wieder anmelden. Im Änderungsprotokoll steht der Wechsel ohne Passwort oder Hash.
+Unter **Einstellungen › Sicherheit › Passwort ändern** gibst du dein bisheriges Passwort ein und bestätigst das neue Passwort mit mindestens 12 Zeichen durch erneute Eingabe. Alle Sitzungen enden, auch die im aktuellen Browser und die per Passkey eröffneten. Danach kannst du dich mit dem neuen Passwort oder einem vorhandenen Passkey anmelden. Im Änderungsprotokoll steht der Wechsel ohne Passwort oder Hash.
 
 Hast du dein Passwort vergessen, kannst du dich mit einem vorhandenen Passkey anmelden. Für ein neues Inhaberpasswort brauchst du den [Betreiberzugriff auf die Instanz](installation.md#inhaberpasswort-vergessen). Haben bietet keine Wiederherstellung per E-Mail.
 
