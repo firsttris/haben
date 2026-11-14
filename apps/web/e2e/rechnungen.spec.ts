@@ -2013,6 +2013,9 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
 
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
   await kundeWaehlen(page, "Alpenblick Media AG · München");
+  // Fällig in 7 Tagen: Auch wenn ein Wochenende oder Ostern die Fälligkeit um bis zu 4 Tage verschiebt, liegt sie
+  // weniger als 14 Tage entfernt, und der nächste Test kann die Lastschrift sofort einreichen (#904)
+  await page.getByLabel("Rechnungsdatum").fill(day(-7));
   await page.getByLabel("Zahlungsart").selectOption("lastschrift");
   // Das jüngste gültige Mandat des Kunden ist vorgewählt; Skonto entfällt bei Lastschrift
   // Über die Rolle: getByLabel mit exact vergleicht den ganzen Text des umschließenden Labels samt gewählter Option
