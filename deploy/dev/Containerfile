@@ -14,7 +14,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 # Die Ziele der Volumes vorher anlegen: Ein neues Volume übernimmt Besitzer und Rechte des Ordners im Image
 RUN groupmod -o -g "$GID" bun && usermod -o -u "$UID" -g "$GID" bun \
- && mkdir -p /app/node_modules /app/apps/web/node_modules /app/apps/elster-helfer/node_modules \
+ && mkdir -p /app/node_modules /app/apps/web/node_modules /app/apps/elster-helfer/node_modules /app/apps/portal/node_modules \
       /app/packages/core/node_modules /app/packages/einvoice/node_modules \
       /app/packages/elster/node_modules /app/packages/gobd-kern/node_modules /app/packages/import/node_modules \
       /var/lib/haben /home/bun/.cache \
