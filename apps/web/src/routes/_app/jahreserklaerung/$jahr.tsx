@@ -104,6 +104,7 @@ function AnnualPage() {
       </nav>
 
       <div className="stack" style={{ gap: 24 }}>
+        <StatusUebersicht data={data} />
         <UstSection data={data} />
         {!gesellschaft && <EuerSection data={data} />}
         {!gesellschaft && <EstSection key={data.year} data={data} />}
@@ -283,6 +284,46 @@ function ErklaerteZeilen({ zeilen, reihenfolge, kern }: { zeilen: Record<string,
         </details>
       )}
     </>
+  );
+}
+
+/**
+ * Stand der drei Erklärungen auf einen Blick. Verlinkt in den jeweiligen Abschnitt, damit die
+ * Seite nicht durchsucht werden muss (#869).
+ */
+function StatusUebersicht({ data }: { data: Data }) {
+  const zeilen = [
+    { id: "ust", label: "Umsatzsteuer", teil: data.ust },
+    { id: "euer", label: "Anlage EÜR", teil: data.euer },
+    { id: "est", label: "Einkommensteuer", teil: data.est },
+  ];
+  return (
+    <section className="card" aria-label="Stand der Erklärungen">
+      <table className="report-table stack-table">
+        <thead>
+          <tr>
+            <th scope="col">Erklärung</th>
+            <th scope="col">Stand</th>
+            <th scope="col" className="num">
+              Betrag
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((z) => (
+            <tr key={z.id}>
+              <th scope="row">
+                <a href={`#${z.id}`}>{z.label}</a>
+              </th>
+              <td>
+                <SentPill sent={z.teil.sent} submitted={z.teil.submitted} verwaltet={"verwaltet" in z.teil ? z.teil.verwaltet : false} />
+              </td>
+              <td className="num">{z.teil.submitted?.amount === null || z.teil.submitted?.amount === undefined ? "–" : formatEuro(z.teil.submitted.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }
 
@@ -590,6 +631,11 @@ function EstSection({ data }: { data: Data }) {
           <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
         </div>
         <Issues issues={est.issues} />
+        {hatErklaert(est.erklaert) && (
+          <div style={{ marginBottom: 12 }}>
+            <ErklaerteZeilen zeilen={est.erklaert} reihenfolge={EST_ZEILEN} kern={["est_zve", "est_festgesetzt", "est_erstattung"]} />
+          </div>
+        )}
         <ScrollTable className="report-table">
           <tbody>
             <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
@@ -777,6 +823,7 @@ function EstSection({ data }: { data: Data }) {
           </div>
         </div>
       </form>
+      <AbgabeVermerken art="est" year={data.year} today={data.today} berechnet={est.prognose.verbleibend} vermerkt={est.submitted} />
       <SubmitPanel form="est" data={data} blocked={blocked} sent={Boolean(est.sent)} submitted={est.submitted} />
     </section>
   );

@@ -21,7 +21,7 @@ export interface JahresvermerkStand {
   hasPdf: boolean;
 }
 
-const LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR" } as const;
+const LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" } as const;
 
 /**
  * Abgabe außerhalb von Haben vermerken: Tag, Transferticket, Betrag, Begründung und optional das Protokoll. Ist die
@@ -37,7 +37,7 @@ export function AbgabeVermerken({
   berechnet,
   vermerkt,
 }: {
-  art: "ust" | "euer";
+  art: "ust" | "euer" | "est";
   year: number;
   today: string;
   /** Betrag aus den Buchungen; dient als Vorschlag und zum Vergleich */
