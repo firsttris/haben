@@ -421,8 +421,26 @@ dialog .form-footer, .form-dialog > form > .actions:last-child { justify-content
 select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
 /* iOS Safari zeichnet Datumsfelder sonst als Menüknopf und überschreibt dabei min-height und box-sizing
    (WebKit, RenderThemeIOS: adjustMenuListButtonStyle, adjustInputElementButtonStyle); den Wert zentriert es (html.css) */
-.field input:is([type="date"], [type="month"]) { appearance: none; }
-.field input:is([type="date"], [type="month"])::-webkit-date-and-time-value { text-align: start; }
+.field input[type="date"] { appearance: none; }
+.field input[type="date"]::-webkit-date-and-time-value { text-align: start; }
+/* Monatsauswahl (MonthPicker.tsx): einheitlich in allen Browsern */
+.month-picker { position: relative; min-width: 0; }
+.month-picker-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); cursor: pointer; text-align: left; transition: border-color var(--fade), box-shadow var(--fade); }
+.month-picker-trigger svg { flex: none; color: var(--muted); }
+.month-picker-trigger[aria-invalid="true"] { border-color: var(--danger-ink); }
+.month-picker-trigger:disabled { opacity: 0.7; cursor: not-allowed; }
+.month-picker-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.month-picker-placeholder { color: var(--muted); }
+.month-picker-popup { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; width: max(100%, 256px); max-width: calc(100vw - 32px); padding: 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); display: flex; flex-direction: column; gap: 8px; }
+.month-picker-header { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.month-picker-year { font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.month-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.month-picker-cell { min-height: var(--control-h); padding: 0 8px; border: 0; border-radius: 6px; font: inherit; font-size: 13px; color: var(--ink); background: transparent; cursor: pointer; transition: background-color var(--fade), color var(--fade); }
+.month-picker-cell:hover:not(:disabled) { background: var(--accent-tint); }
+.month-picker-cell.active { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.month-picker-cell.active:hover:not(:disabled) { background: var(--accent-hover); }
+.month-picker-cell:disabled { opacity: 0.4; cursor: not-allowed; }
+.month-picker-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 /* Lange Texte wachsen mit dem Inhalt, wo der Browser das kann */
 textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .field input, select, textarea, .combobox input { transition: border-color var(--fade), box-shadow var(--fade); }

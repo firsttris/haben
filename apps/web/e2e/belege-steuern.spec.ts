@@ -691,6 +691,24 @@ test("Pauschalen: jeder Reiter ohne axe-Verstöße, hell und dunkel, am Desktop 
   if (vorher) await page.setViewportSize(vorher);
 });
 
+test("Pauschalen: Homeoffice-Monat über die Monatsauswahl wählen (#928)", async () => {
+  await go("/pauschalen");
+  const homeoffice = page.getByRole("region", { name: "Pauschale eintragen" }).getByRole("form", { name: "Homeoffice-Pauschale" });
+  const monat = homeoffice.getByLabel("Monat", { exact: true });
+  await monat.click();
+  const dialog = page.getByRole("dialog", { name: "Monat wählen" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Vorheriges Jahr" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Nächstes Jahr" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(monat).toBeFocused();
+  await monat.click();
+  await dialog.getByRole("button", { name: `Januar ${YEAR}` }).click();
+  await expect(dialog).toBeHidden();
+  await expect(monat).toContainText(`Januar ${YEAR}`);
+});
+
 test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
   // Zwei Spalten am Handy (DESIGN.md, Karten): Die fünfte Karte der Pauschalen und die dritte der Kasse standen allein in halber Breite
   const vorher = page.viewportSize();

@@ -205,6 +205,10 @@ Eine Datei, die mit einem Formular abgeschickt wird, wählt `FilePicker` (`compo
 
 Wird eine Datei sofort hochgeladen, ohne Formular (Belege, Kontoauszüge, Anhänge, Logo, Mandat), ist das eine Aktion: `UploadButton` (`components/UploadButton.tsx`), ein echter Knopf mit unsichtbarem Eingabefeld dahinter, das weder per Tab noch für Screenreader erreichbar ist. Kein `label.btn` um ein Eingabefeld.
 
+### Monatsauswahl
+
+Monate (`JJJJ-MM`) wählt `MonthPicker` (`components/MonthPicker.tsx`) in einem `Field`, nicht `<input type="month">`: Firefox kennt diesen Feldtyp nicht und zeigt sonst ein Textfeld. Der Auslöser zeigt den gewählten Monat als deutschen Monatsnamen mit Jahr und öffnet ein 3×4-Monatsraster mit Jahreswechsel und `min`/`max`-Grenzen.
+
 ### Felder mit Auszeichnungen
 
 Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `FormattedTextarea` eingegeben, nicht mit einer eigenen Werkzeugleiste. Die Knöpfe F, K und U (`.format-bar`) schweben an der Markierung, auf Touchgeräten rechts über dem Feld, weil das System sein Menü an die Auswahl legt. Dazu gelten Strg+B, I und U, am Mac mit ⌘. In der Leiste wechseln die Pfeiltasten den Knopf. Solange die Leiste zu sehen ist, schließt Esc nur sie; ein umgebender Dialog bleibt offen.
