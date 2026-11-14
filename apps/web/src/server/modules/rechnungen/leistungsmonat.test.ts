@@ -40,4 +40,18 @@ describe("Leistungsmonat gegen gemeldete Voranmeldungen", () => {
   it("schweigt, wenn der Zeitraum offen ist", () => {
     expect(leistungsmonatHinweis("2026-08-15", [q2], betrag)).toBeNull();
   });
+
+  it("schweigt, wenn die Rechnung vor der Übermittlung festgeschrieben war: Die Voranmeldung enthält sie", () => {
+    const juli = { year: 2026, month: 7, sentAt: new Date("2026-08-10T08:00:00Z") };
+    expect(leistungsmonatHinweis("2026-07-15", [juli], betrag, new Date("2026-07-20T09:00:00Z"))).toBeNull();
+  });
+
+  it("schweigt nach der Berichtigung: Die zuletzt übermittelte Anmeldung des Zeitraums zählt", () => {
+    const erst = { ...q2, sentAt: new Date("2026-07-10T08:00:00Z") };
+    const berichtigt = { ...q2, sentAt: new Date("2026-08-03T08:00:00Z") };
+    const festgeschrieben = new Date("2026-07-20T09:00:00Z");
+    expect(leistungsmonatHinweis("2026-05-31", [erst], betrag, festgeschrieben)).toContain("übermittelt am 10.07.2026");
+    expect(leistungsmonatHinweis("2026-05-31", [erst, berichtigt], betrag, festgeschrieben)).toBeNull();
+    expect(leistungsmonatHinweis("2026-05-31", [berichtigt, erst], betrag, festgeschrieben)).toBeNull();
+  });
 });
