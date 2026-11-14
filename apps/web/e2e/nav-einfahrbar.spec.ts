@@ -271,3 +271,43 @@ test("eingeklappt: ein Klick heftet das überfahrene Flyout an, Esc hält den Hi
   await page.waitForTimeout(100);
   await expect(hinweis).toBeHidden();
 });
+
+test("eingeklappt: ein per Fokus gezeigter und mit Esc ausgeblendeter Hinweis bleibt aus, wenn die Maus über die Seite zieht", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  const uebersicht = nav(page).getByRole("link", { name: "Übersicht" });
+  const hinweis = uebersicht.locator(".nav-tip");
+  await page.mouse.move(900, 600);
+  await uebersicht.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(uebersicht).toBeFocused();
+  await expect(hinweis).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(hinweis).toBeHidden();
+  // Von Element zu Element auf der Seite, weit weg vom Symbol
+  await page.mouse.move(400, 150, { steps: 10 });
+  await page.mouse.move(1100, 700, { steps: 10 });
+  await page.waitForTimeout(100);
+  await expect(hinweis).toBeHidden();
+});
+
+test("eingeklappt gespeichert, aber schmal: Esc über der Marke geht an die Seite, weil kein Hinweis zu sehen ist", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  await page.setViewportSize({ width: 800, height: 800 });
+  await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
+  // Steht für die Tasten der Seite, etwa Esc in der Belegansicht zurück zur Liste
+  await page.evaluate(() => {
+    const w = window as unknown as { escAnSeite: number };
+    w.escAnSeite = 0;
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !event.defaultPrevented) w.escAnSeite++;
+    });
+  });
+  await nav(page).locator(".brand").hover();
+  await page.keyboard.press("Escape");
+  expect(await page.evaluate(() => (window as unknown as { escAnSeite: number }).escAnSeite)).toBe(1);
+});
