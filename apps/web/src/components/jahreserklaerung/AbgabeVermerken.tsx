@@ -1,9 +1,10 @@
 import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { formatDate } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
+import { datumFehler, useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { fileAnnualElsewhere } from "../../server/functions/annual.ts";
 import { Field } from "../Field.tsx";
 import { FilePicker } from "../FilePicker.tsx";
@@ -60,11 +61,19 @@ export function AbgabeVermerken({
   const cents = parseEuro(betrag);
   const differenz = cents === null ? 0 : cents - berechnet;
   const weichtAb = cents !== null && differenz !== 0;
-  const ready = filedOn !== "" && ticket.trim().length >= 10 && cents !== null && begruendung.trim().length >= 10 && (!weichtAb || bestaetigt);
+  const { form, error, check } = useSubmitCheck({
+    // Frühestens am 1. Januar des Folgejahres, wie der Server prüft (server/modules/jahreserklaerung/vermerk.ts)
+    filedOn: datumFehler(filedOn, `${year + 1}-01-01`, today),
+    ticket: ticket.trim().length >= 10 ? null : "Trag das Transferticket aus dem Übermittlungsprotokoll ein, mindestens 10 Zeichen.",
+    betrag: cents === null ? "Trag den Betrag laut Protokoll ein, etwa 1.234,56." : null,
+    bestaetigt: weichtAb && !bestaetigt ? "Bestätige die Abweichung oder gleiche den Betrag an." : null,
+    begruendung: begruendung.trim().length >= 10 ? null : "Trag eine Begründung mit mindestens 10 Zeichen ein.",
+  });
+  const bestaetigtFehlerId = useId();
 
   async function absenden(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!ready || cents === null) return;
+    if (!check() || cents === null) return;
     await run(async () => {
       const data = new FormData();
       data.append("form", art);
@@ -153,17 +162,24 @@ export function AbgabeVermerken({
         Hast du {LABEL[art]} {year} in WISO, Accountable oder im ELSTER-Portal abgegeben, hältst du das hier mit Tag, Transferticket und Betrag fest. Die Frist
         ist damit erledigt, und der Vorgang erscheint im Verlauf.
       </p>
-      <div className="actions">
-        <button type="button" className="btn" onClick={() => setOpen(true)}>
-          Abgabe vermerken
-        </button>
-      </div>
+      {/* Im laufenden Jahr gibt es noch keinen gültigen Abgabetag: kein Knopf, der Grund steht da (DESIGN.md, Gesperrte Knöpfe) */}
+      {today < `${year + 1}-01-01` ? (
+        <p className="small" style={{ margin: 0 }}>
+          Vermerken geht erst nach Ablauf des Jahres {year}.
+        </p>
+      ) : (
+        <div className="actions">
+          <button type="button" className="btn" onClick={() => setOpen(true)}>
+            Abgabe vermerken
+          </button>
+        </div>
+      )}
       <FormDialog open={open} title={`${LABEL[art]} ${year} als abgegeben vermerken`} onClose={() => !busy && setOpen(false)}>
-        <form onSubmit={absenden}>
-          <Field label="Tag der Abgabe">
+        <form ref={form} onSubmit={absenden} noValidate>
+          <Field label="Tag der Abgabe" error={error("filedOn")}>
             {(control) => <input {...control} type="date" value={filedOn} max={today} onChange={(event) => setFiledOn(event.target.value)} required />}
           </Field>
-          <Field label="Transferticket" hint="Steht im Übermittlungsprotokoll; mindestens 10 Zeichen.">
+          <Field label="Transferticket" hint="Steht im Übermittlungsprotokoll; mindestens 10 Zeichen." error={error("ticket")}>
             {(control) => (
               <input
                 {...control}
@@ -176,7 +192,7 @@ export function AbgabeVermerken({
               />
             )}
           </Field>
-          <Field label="Betrag" hint={`Aus den Buchungen gerechnet: ${formatEuro(berechnet)}.`}>
+          <Field label="Betrag" hint={`Aus den Buchungen gerechnet: ${formatEuro(berechnet)}.`} error={error("betrag")}>
             {(control) => (
               <input
                 {...control}
@@ -188,7 +204,6 @@ export function AbgabeVermerken({
                   // Ein neuer Betrag ist eine neue Abweichung; der alte Haken darf nicht weiter gelten
                   setBestaetigt(false);
                 }}
-                aria-invalid={(betrag !== "" && cents === null) || undefined}
                 required
               />
             )}
@@ -199,13 +214,27 @@ export function AbgabeVermerken({
                 Der Betrag weicht um {formatEuro(Math.abs(differenz))} vom in Haben gerechneten Wert ({formatEuro(berechnet)}) ab. Der Betrag laut Protokoll
                 wird gespeichert; die Abweichung bleibt am Vermerk stehen.
               </p>
-              <label className="checkbox">
-                <input type="checkbox" checked={bestaetigt} onChange={(event) => setBestaetigt(event.target.checked)} required />
-                Abweichung geprüft und bewusst übernommen
-              </label>
+              <div className="checkbox-hinted">
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={bestaetigt}
+                    onChange={(event) => setBestaetigt(event.target.checked)}
+                    required
+                    aria-invalid={error("bestaetigt") ? true : undefined}
+                    aria-describedby={error("bestaetigt") ? bestaetigtFehlerId : undefined}
+                  />
+                  Abweichung geprüft und bewusst übernommen
+                </label>
+                {error("bestaetigt") && (
+                  <span id={bestaetigtFehlerId} className="field-error">
+                    {error("bestaetigt")}
+                  </span>
+                )}
+              </div>
             </>
           )}
-          <Field label="Begründung" hint="Warum außerhalb von Haben, mindestens 10 Zeichen.">
+          <Field label="Begründung" hint="Warum außerhalb von Haben, mindestens 10 Zeichen." error={error("begruendung")}>
             {(control) => (
               <textarea {...control} value={begruendung} onChange={(event) => setBegruendung(event.target.value)} rows={3} maxLength={2000} required />
             )}
@@ -218,7 +247,7 @@ export function AbgabeVermerken({
             <button type="button" className="btn" disabled={busy} onClick={() => setOpen(false)}>
               Abbrechen
             </button>
-            <button type="submit" className="btn btn-primary" disabled={busy || !ready}>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
               Vermerken
             </button>
           </div>

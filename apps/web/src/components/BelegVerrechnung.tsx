@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { formatDate } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { getDocumentSettlements, reverseSettlementFn, settleDocumentsFn } from "../server/functions/documents.ts";
 import { Field } from "./Field.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
@@ -48,15 +49,27 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
 
   const kandidat = daten?.candidates.find((c) => c.id === counterId);
   const moeglich = daten && kandidat ? Math.min(Math.abs(daten.open), Math.abs(kandidat.rest)) : 0;
+  const cents = parseEuro(betrag);
+  const verrechnenPruefung = useSubmitCheck({
+    counter: counterId ? null : "Wähle den Gegenbeleg.",
+    betrag: cents !== null && cents > 0 ? null : "Trag einen Betrag über 0 ein, etwa 49,90.",
+    datum: datum ? null : "Wähle den Tag der Aufrechnung.",
+    grund: grund.trim() ? null : "Trag den Grund der Verrechnung ein, etwa „Gutschrift Rechnung 12345“.",
+  });
+  // Die Aufhebung wirkt frühestens am Tag der Verrechnung
+  const aufhebenAb = daten?.settlements.find((s) => s.id === aufhebenId)?.date ?? "";
+  const aufhebenPruefung = useSubmitCheck({
+    datum: !aufhebenDatum
+      ? "Wähle den Tag der Aufhebung."
+      : aufhebenDatum < aufhebenAb
+        ? `Wähle einen Tag ab dem ${tag(aufhebenAb)}, dem Tag der Verrechnung.`
+        : null,
+  });
 
   const speichern = () =>
     action
       .run(async () => {
-        const cents = parseEuro(betrag);
-        if (!counterId) throw new Error("Bitte den Gegenbeleg wählen.");
-        if (cents === null || cents <= 0) throw new Error("Bitte einen Betrag größer null eintragen.");
-        if (!datum) throw new Error("Bitte den Tag der Aufrechnung angeben.");
-        if (!grund.trim()) throw new Error("Bitte den Grund der Verrechnung angeben.");
+        if (cents === null) return;
         await verrechnen({ data: { documentId, counterDocumentId: counterId, amount: cents, date: datum, note: grund.trim() } });
         setOffen(false);
         setCounterId("");
@@ -70,7 +83,6 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
   const aufhebenAktion = (id: string) =>
     action
       .run(async () => {
-        if (!aufhebenDatum) throw new Error("Bitte den Tag der Aufhebung angeben.");
         await aufheben({ data: { id, date: aufhebenDatum, ...(aufhebenGrund.trim() ? { note: aufhebenGrund.trim() } : {}) } });
         setAufhebenId(null);
         setAufhebenGrund("");
@@ -120,13 +132,15 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
               )}
               {!readOnly && aufhebenId === s.id && (
                 <form
+                  ref={aufhebenPruefung.form}
+                  noValidate
                   onSubmit={(e) => {
                     e.preventDefault();
-                    void aufhebenAktion(s.id);
+                    if (aufhebenPruefung.check()) void aufhebenAktion(s.id);
                   }}
                   style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", flexBasis: "100%" }}
                 >
-                  <Field label="Tag der Aufhebung" hint="die Aufhebung wirkt an diesem Tag, nicht rückwirkend">
+                  <Field label="Tag der Aufhebung" hint="die Aufhebung wirkt an diesem Tag, nicht rückwirkend" error={aufhebenPruefung.error("datum")}>
                     {(control) => (
                       <input {...control} type="date" required min={s.date} value={aufhebenDatum} onChange={(e) => setAufhebenDatum(e.target.value)} />
                     )}
@@ -153,13 +167,15 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
       )}
       {offen && (
         <form
+          ref={verrechnenPruefung.form}
+          noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            void speichern();
+            if (verrechnenPruefung.check()) void speichern();
           }}
           style={{ display: "grid", gap: 12, marginTop: 12 }}
         >
-          <Field label="Gegenbeleg" hint="Offene Belege desselben Lieferanten mit umgekehrtem Vorzeichen">
+          <Field label="Gegenbeleg" hint="Offene Belege desselben Lieferanten mit umgekehrtem Vorzeichen" error={verrechnenPruefung.error("counter")}>
             {(control) => (
               <select
                 {...control}
@@ -179,15 +195,15 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
               </select>
             )}
           </Field>
-          <Field label="Betrag" hint={moeglich > 0 ? `höchstens ${formatEuro(moeglich)}` : undefined}>
+          <Field label="Betrag" hint={moeglich > 0 ? `höchstens ${formatEuro(moeglich)}` : undefined} error={verrechnenPruefung.error("betrag")}>
             {(control) => (
               <input {...control} className="mono" inputMode="decimal" value={betrag} onChange={(e) => setBetrag(e.target.value)} placeholder="0,00" />
             )}
           </Field>
-          <Field label="Tag der Aufrechnung" hint="verrechnet wird an diesem Tag, nicht rückwirkend">
+          <Field label="Tag der Aufrechnung" hint="verrechnet wird an diesem Tag, nicht rückwirkend" error={verrechnenPruefung.error("datum")}>
             {(control) => <input {...control} type="date" required value={datum} onChange={(e) => setDatum(e.target.value)} />}
           </Field>
-          <Field label="Grund" hint="etwa „Gutschrift Rechnung 12345“">
+          <Field label="Grund" hint="etwa „Gutschrift Rechnung 12345“" error={verrechnenPruefung.error("grund")}>
             {(control) => <input {...control} required value={grund} onChange={(e) => setGrund(e.target.value)} />}
           </Field>
           <NoticeBanner notice={action.notice} />

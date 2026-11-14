@@ -22,6 +22,7 @@ import { today } from "../../server/today.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { Field } from "../../components/Field.tsx";
+import { useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/finanzamt")({
@@ -511,6 +512,7 @@ function Postfach({ data }: { data: Data }) {
   const [pin, setPin] = useState("");
   const [testOnly, setTestOnly] = useState(true);
   const { busy, notice, setNotice, run } = useAction();
+  const { form, error, check } = useSubmitCheck({ pin: pin.length === 0 ? "Trag die PIN des Zertifikats ein." : null });
   const live = !testOnly && data.herstellerIdConfigured;
   const pending = live ? data.pendingConfirmations.live : data.pendingConfirmations.test;
   const auto = data.autoFetch;
@@ -523,6 +525,7 @@ function Postfach({ data }: { data: Data }) {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!check()) return;
     void run(async () => {
       const result = live && savePin ? await enableAuto({ data: { pin } }) : await fetchPostfach({ data: { kind: live ? "send" : "test", pin } });
       if (live && savePin) setSavePin(false);
@@ -582,7 +585,7 @@ function Postfach({ data }: { data: Data }) {
           </ScrollTable>
         )}
       </section>
-      <form className="card" onSubmit={onSubmit} aria-label="Postfach abrufen">
+      <form ref={form} className="card" onSubmit={onSubmit} aria-label="Postfach abrufen" noValidate>
         <h2>Postfach abrufen</h2>
         <p className="small muted" style={{ margin: 0 }}>
           Holt alles Neue ab und bestätigt die Abholung gegenüber ELSTER.
@@ -595,7 +598,7 @@ function Postfach({ data }: { data: Data }) {
           </div>
         )}
         <CertificateStatus certificate={data.certificate} />
-        <Field label="Zertifikats-PIN">
+        <Field label="Zertifikats-PIN" error={error("pin")}>
           {(control) => <input {...control} type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" />}
         </Field>
         <TestOnlyToggle setup={data} testOnly={testOnly} onChange={setTestOnly} />
@@ -607,7 +610,7 @@ function Postfach({ data }: { data: Data }) {
         )}
         <NoticeBanner notice={notice} />
         <div className="actions">
-          <button type="submit" className="btn btn-primary" disabled={busy || !data.certificate || pin.length === 0} style={{ flexGrow: 1 }}>
+          <button type="submit" className="btn btn-primary" disabled={busy || !data.certificate} style={{ flexGrow: 1 }}>
             {busy ? "Läuft …" : live ? (savePin ? "Abrufen und automatisch einschalten" : "Postfach abrufen") : "Testweise abrufen"}
           </button>
         </div>

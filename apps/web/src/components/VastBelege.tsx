@@ -9,6 +9,8 @@ import type { getAnnualReturns } from "../server/functions/annual.ts";
 import { activateVastBerechtigung, fetchVast, refreshVastBerechtigung, requestVastBerechtigung, revokeVastBerechtigung } from "../server/functions/annual.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { CertificateStatus } from "./ElsterSubmit.tsx";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 import { Tag } from "./Status.tsx";
 
@@ -71,7 +73,7 @@ export function VastBelege({ data }: { data: Data }) {
   const live = !testOnly && data.herstellerIdConfigured;
   const canUseSavedPin = vast.pinSaved && live;
 
-  const canSend = Boolean(data.certificate) && (pin.length > 0 || canUseSavedPin);
+  const { form, error, check } = useSubmitCheck({ pin: pin.length > 0 || canUseSavedPin ? null : "Trag die PIN des Zertifikats ein." });
 
   /** Führt einen ELSTER-Schritt aus und zeigt das Ergebnis; die PIN wird danach geleert */
   const run = (work: (base: { kind: "test" | "send"; pin?: string }) => Promise<Notice>) =>
@@ -83,6 +85,7 @@ export function VastBelege({ data }: { data: Data }) {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!check()) return;
     void run(async (base) => {
       const result = await fetchBelege({ data: { year: data.year, person, ...base } });
       const parts = [result.message];
@@ -124,7 +127,7 @@ export function VastBelege({ data }: { data: Data }) {
           )}
         </div>
         {vast.personen.length > 0 && (
-          <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Belege abrufen">
+          <form ref={form} className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Belege abrufen" noValidate>
             {vast.personen.length > 1 && (
               <Field label="Für">
                 {(control) => (
@@ -138,7 +141,9 @@ export function VastBelege({ data }: { data: Data }) {
                 )}
               </Field>
             )}
-            <Field label="Zertifikats-PIN">
+            {/* Ohne Zertifikat sperrt der Abruf; der Grund steht hier über PIN und Knopf (DESIGN.md, Gesperrte Knöpfe) */}
+            <CertificateStatus certificate={data.certificate} />
+            <Field label="Zertifikats-PIN" error={error("pin")}>
               {(control) => (
                 <input
                   {...control}
@@ -175,12 +180,13 @@ export function VastBelege({ data }: { data: Data }) {
                 live={live}
                 name={vast.personen.find((p) => p.key === "b")?.name.split(" ")[0] ?? "Ehegatte"}
                 busy={busy}
-                canSend={canSend}
+                certificate={Boolean(data.certificate)}
+                checkPin={check}
                 run={run}
               />
             )}
             <NoticeBanner notice={notice} />
-            <button type="submit" className="btn btn-primary" disabled={busy || !canSend}>
+            <button type="submit" className="btn btn-primary" disabled={busy || !data.certificate}>
               {busy ? "Läuft …" : live ? "Belege abrufen" : "Testweise abrufen"}
             </button>
             <p className="small muted" style={{ margin: 0 }}>
@@ -212,14 +218,18 @@ function BerechtigungPanel({
   live,
   name,
   busy,
-  canSend,
+  certificate,
+  checkPin,
   run,
 }: {
   data: Data;
   live: boolean;
   name: string;
   busy: boolean;
-  canSend: boolean;
+  /** Ohne Zertifikat geht nichts, und der Status darüber sagt es (DESIGN.md, Gesperrte Knöpfe) */
+  certificate: boolean;
+  /** Prüfung des Abrufs: fehlt die PIN, steht der Fehler dort und der Fokus geht hin */
+  checkPin: () => boolean;
   run: (work: (base: { kind: "test" | "send"; pin?: string }) => Promise<Notice>) => Promise<unknown>;
 }) {
   const request = useServerFn(requestVastBerechtigung);
@@ -232,11 +242,24 @@ function BerechtigungPanel({
   const [code, setCode] = useState("");
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const status = current?.status;
-  const disabled = busy || !canSend;
+  const disabled = busy || !certificate;
+  const {
+    form: panel,
+    error,
+    check,
+  } = useSubmitCheck({
+    gueltigBis: gueltigBis ? null : "Wähle, bis wann die Berechtigung gelten soll.",
+    code: code.trim() ? null : "Trag den Freischaltcode aus dem Brief ein.",
+  });
+  // Erst die PIN im Formular darüber, dann die Angaben dieser Aktion
+  const mitPin = (ohne: readonly ("gueltigBis" | "code")[], work: Parameters<typeof run>[0]) => {
+    if (checkPin() && check(ohne)) void run(work);
+  };
   const tone = (ok: boolean) => (ok ? "ok" : "danger") as "ok" | "danger";
 
   return (
     <div
+      ref={panel}
       className="banner banner-info stack"
       role="group"
       aria-label={`Berechtigung für ${name}`}
@@ -270,13 +293,15 @@ function BerechtigungPanel({
             Für die Belege von {name} braucht dein Zertifikat ihre Zustimmung: Haben beantragt das Recht bei ELSTER, {name} bekommt einen Brief mit
             Freischaltcode, den du hier eingibst.
           </p>
-          <Field label="Gültig bis">{(control) => <input {...control} type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} />}</Field>
+          <Field label="Gültig bis" error={error("gueltigBis")}>
+            {(control) => <input {...control} type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} />}
+          </Field>
           <button
             type="button"
             className="btn btn-primary"
-            disabled={disabled || !gueltigBis}
+            disabled={disabled}
             onClick={() =>
-              void run(async (base) => {
+              mitPin(["code"], async (base) => {
                 const result = await request({ data: { ...base, gueltigBis } });
                 return { tone: tone(result.ok), text: result.message };
               })
@@ -288,15 +313,15 @@ function BerechtigungPanel({
       )}
       {status === "offen" && (
         <>
-          <Field label="Freischaltcode aus dem Brief">
+          <Field label="Freischaltcode aus dem Brief" error={error("code")}>
             {(control) => <input {...control} value={code} onChange={(e) => setCode(e.target.value)} placeholder="XXXX-XXXX-XXXX" autoComplete="off" />}
           </Field>
           <button
             type="button"
             className="btn btn-primary"
-            disabled={disabled || code.trim().length === 0}
+            disabled={disabled}
             onClick={() =>
-              void run(async (base) => {
+              mitPin(["gueltigBis"], async (base) => {
                 const result = await activate({ data: { ...base, freischaltcode: code } });
                 if (result.ok) setCode("");
                 return { tone: tone(result.ok), text: result.message };
@@ -313,7 +338,7 @@ function BerechtigungPanel({
           className="btn btn-sm"
           disabled={disabled}
           onClick={() =>
-            void run(async (base) => {
+            mitPin(["gueltigBis", "code"], async (base) => {
               const result = await refresh({ data: base });
               return { tone: tone(result.ok), text: result.message };
             })
@@ -322,7 +347,7 @@ function BerechtigungPanel({
           Stand bei ELSTER prüfen
         </button>
         {(status === "offen" || status === "genehmigt") && (
-          <button type="button" className="btn btn-sm btn-danger" disabled={disabled} onClick={() => setConfirmRevoke(true)}>
+          <button type="button" className="btn btn-sm btn-danger" disabled={disabled} onClick={() => checkPin() && setConfirmRevoke(true)}>
             {status === "offen" ? "Antrag zurückziehen" : "Widerrufen"}
           </button>
         )}
