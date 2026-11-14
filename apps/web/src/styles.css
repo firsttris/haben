@@ -192,7 +192,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .kuerzel kbd { padding: 0 5px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 4px; font-family: var(--sans); font-size: 12px; line-height: 1.4; color: inherit; }
 /* Suche / Befehlspalette (#617) oben in der Navigation */
 .nav .nav-search-btn { display: flex; flex: none; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; min-height: 36px; margin-bottom: 4px; padding: 0 10px 0 12px; border: 1px solid var(--nav-active); border-radius: 8px; background: color-mix(in srgb, var(--nav-active) 55%, transparent); color: var(--nav-ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-.nav .nav-search-btn:hover { color: var(--nav-ink-strong); border-color: color-mix(in srgb, var(--nav-ink) 45%, transparent); background: var(--nav-active); }
+/* Mit :not(:disabled) wie .btn:hover, sonst gewinnt dessen helle Fläche, weil sie später steht */
+.nav .nav-search-btn:hover:not(:disabled) { color: var(--nav-ink-strong); border-color: color-mix(in srgb, var(--nav-ink) 45%, transparent); background: var(--nav-active); }
 .nav .nav-search-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .nav-search-label { flex: 1; }
 .nav-kbd { color: var(--nav-ink); }
@@ -209,6 +210,9 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 /* Hinweis mit dem Namen eines Symbols, nur eingeklappt am Desktop (NavTip) */
 .nav-tip { display: none; }
 @media not all and (max-width: 860px) {
+  /* Die stehende Leiste bildet eine eigene Stapelebene; über dem Seitenkopf (.page-head, 10), damit Hinweise und
+     Flyouts, die aus ihr herausragen, nicht unter ihm liegen */
+  .nav { z-index: 11; }
   [data-nav="collapsed"] .nav { width: 64px; padding: 20px 12px; align-items: center; overflow-x: hidden; }
   [data-nav="collapsed"] .brand { width: 40px; padding: 4px 0 16px; justify-content: center; }
   [data-nav="collapsed"] .brand-text,

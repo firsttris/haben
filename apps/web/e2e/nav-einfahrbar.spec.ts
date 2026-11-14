@@ -219,3 +219,17 @@ test("eingeklappt liegen Hinweis und Flyout über dem stehenden Seitenkopf", asy
   // Nach dem Übergang (--fade)
   await expect.poll(flaeche).toBe(true);
 });
+
+test("eingeklappt zeigt die Marke beim Überfahren „Haben“ und die Firma, in der man bucht", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const firma = (await nav(page).locator(".brand-firma").textContent())?.trim();
+  expect(firma).toBeTruthy();
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  const marke = nav(page).locator(".brand");
+  await marke.hover();
+  const text = marke.locator(".brand-text");
+  await expect(text).toBeVisible();
+  await expect(text).toContainText(firma!);
+  expect(await text.evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(40);
+});
