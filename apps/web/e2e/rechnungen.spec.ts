@@ -324,6 +324,32 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
 
+test("Teilleistung ohne Leistungsdatum: Entwurf speichern nennt das Feld (Review #974)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
+  await page.getByRole("checkbox", { name: "Teilleistung bereits erbracht" }).check();
+  await page.getByLabel("Beschreibung Position 1").fill("1. Abschlag");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("1000");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  // Bisher hielt der Browser über required an; mit noValidate nennt useSubmitCheck das Feld
+  await expect(page.getByLabel("Leistung von", { exact: true })).toBeFocused();
+  await expect(page.getByLabel("Leistung von", { exact: true })).toHaveAccessibleDescription(/Teilleistung/);
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+});
+
+test("Festschreiben ohne Kunden nennt den Kunden am Feld statt der Rückfrage (Review #974)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toBeFocused();
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveAccessibleDescription("Wähle den Kunden.");
+});
+
 test("Wiederkehrende Rechnung: Kunde suchen, ohne Kunde nicht speicherbar, neuen Kunden direkt anlegen", async () => {
   await go("/rechnungen/wiederkehrend/neu");
   await page.getByLabel("Bezeichnung").fill("Wartungsvertrag Test");
