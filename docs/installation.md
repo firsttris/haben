@@ -566,6 +566,7 @@ HABEN_FIRMEN='Studio Nord|https://nord.example.de;Werkstatt Süd|https://werksta
 ```
 
 - **Format:** je Firma `Name|Adresse`, getrennt durch `;`, in der `.env` jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`.
+- **Anführungszeichen** um die Liste nur in der `.env` von Compose, das sie entfernt. In `haben.env` der Quadlets und in den Feldern von Unraid oder Coolify blieben sie im Wert, und die App lehnte die Liste ab; dort ohne.
 - **Grenzen:** nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal, höchstens 50 Firmen; sonst startet die App nicht und nennt den Fehler im Log.
 - **Nach einer Änderung** startest du die App jeder Instanz neu (`docker compose up -d`).
 - **Vorlagen:** Für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld.
