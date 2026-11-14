@@ -61,6 +61,21 @@ describe.skipIf(!testDatabaseUrl)("Versionsverlauf in app_versions (#841)", () =
     expect(await sql`select * from haben_integrity_problems()`).toEqual([]);
   });
 
+  it("schreibt eine Zeile, wenn bei gleicher Haben-Version ein anderer PostgreSQL-Server läuft", async () => {
+    // Stand nach einem Wechsel der PostgreSQL-Version: Der letzte Eintrag nennt noch den alten Server.
+    await sql`insert into app_versions (version, postgres_version) values ('0.8.2', '15.0')`;
+
+    expect(await recordAppVersion(sql, "0.8.2")).toBe(true);
+    expect(await recordAppVersion(sql, "0.8.2")).toBe(false);
+
+    const [server] = await sql`select current_setting('server_version') as version`;
+    const rows = await sql`select version, postgres_version from app_versions order by id asc`;
+    expect(rows).toEqual([
+      { version: "0.8.2", postgres_version: "15.0" },
+      { version: "0.8.2", postgres_version: server?.version },
+    ]);
+  });
+
   it("vermerkt auf Bestandsinstanzen ab dem ersten Eintrag das Fehlen früherer Aufzeichnungen", async () => {
     await sql`
       insert into "user" (id, name, email, email_verified, role, created_at, updated_at)
