@@ -386,6 +386,15 @@ function Amount({ name, label, value, hint }: { name: string; label: string; val
   );
 }
 
+/**
+ * Klappt die Blöcke um ein ungültiges Feld auf. Sonst kann der Browser ein leeres Pflichtfeld in einem zugeklappten
+ * Block nicht zeigen, und das Absenden bleibt ohne Rückmeldung stehen. `invalid` steigt nicht auf, deshalb in der
+ * Capture-Phase am Formular.
+ */
+function aufklappenBisZumFeld(event: FormEvent<HTMLFormElement>) {
+  for (let block = (event.target as HTMLElement).closest("details"); block; block = block.parentElement?.closest("details") ?? null) block.open = true;
+}
+
 /** Zuklappbarer Teil der Einkommensteuer-Angaben; im Titel steht, was gespeichert ist */
 function Block({ title, summary, open, children }: { title: string; summary: string; open: boolean; children: ReactNode }) {
   return (
@@ -507,7 +516,7 @@ function EstSection({ data }: { data: Data }) {
 
   return (
     <section className="grid-main jump-target" id="est" aria-labelledby="est-heading">
-      <form className="card" onSubmit={onSubmit} aria-label="Angaben zur Einkommensteuer">
+      <form className="card" onSubmit={onSubmit} onInvalidCapture={aufklappenBisZumFeld} aria-label="Angaben zur Einkommensteuer">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
           <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
           <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
