@@ -4,7 +4,7 @@ import type { AppVersionEntry } from "../server/modules/betrieb/index.ts";
 
 /**
  * Zeigt in Einstellungen › Export den protokollierten Verlauf der eingesetzten Haben- und PostgreSQL-Versionen
- * inklusive Erststart-Zeitpunkt und Link zu den Versionshinweisen.
+ * inklusive Startzeitpunkt und Link zu den Versionshinweisen.
  */
 export function VersionsCard({ versions }: { versions: AppVersionEntry[] }) {
   return (
@@ -37,7 +37,7 @@ export function VersionsCard({ versions }: { versions: AppVersionEntry[] }) {
                 <td data-label="Seit" style={{ fontVariantNumeric: "tabular-nums" }}>
                   <div>{formatDateTime(entry.startedAt)}</div>
                   {entry.note && (
-                    <div className="small muted" style={{ marginTop: 2 }}>
+                    <div className="small muted" style={{ marginTop: 4 }}>
                       {entry.note}
                     </div>
                   )}

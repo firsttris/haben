@@ -18,8 +18,8 @@ export function readAppVersion(packageJsonPath = PACKAGE_JSON_PATH): string | nu
 }
 
 /**
- * Hält die gestartete Haben- und PostgreSQL-Version fest, sobald die Haben-Version vom zuletzt
- * protokollierten Eintrag abweicht (inklusive Zurückrollen auf ältere Stände).
+ * Hält die gestartete Haben- und PostgreSQL-Version fest (GoBD, BMF-Schreiben vom 28.11.2019, Rz. 150 und Rz. 154),
+ * sobald die Haben-Version vom zuletzt protokollierten Eintrag abweicht (inklusive Zurückrollen auf ältere Stände).
  */
 export async function recordAppVersion(client: postgres.Sql, version = readAppVersion()): Promise<boolean> {
   if (!version) return false;
