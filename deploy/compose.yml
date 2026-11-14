@@ -77,6 +77,8 @@ services:
       OIDC_GROUPS_CLAIM: ${OIDC_GROUPS_CLAIM:-groups}
       OIDC_GROUP_INHABER: ${OIDC_GROUP_INHABER:-}
       OIDC_GROUP_STEUERBERATUNG: ${OIDC_GROUP_STEUERBERATUNG:-}
+      # Nur mit SSO und mehreren Firmen: Adresse des Portals für „Firma wechseln“ (statt HABEN_FIRMEN)
+      HABEN_PORTAL_URL: ${HABEN_PORTAL_URL:-}
       BETTER_AUTH_URL: https://${DOMAIN:?DOMAIN fehlt in .env}
       BETTER_AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET fehlt in .env}
       HABEN_ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY fehlt in .env}
