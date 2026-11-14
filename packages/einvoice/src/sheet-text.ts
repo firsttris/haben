@@ -98,6 +98,7 @@ export interface DunningSheetData {
   title: string;
   reference: string;
   meta: Row[];
+  salutation: string;
   introFormatted: FormattedTextRun[];
   invoices: { number: string; date: string; due: string; open: string }[];
   rows: Row[];
@@ -112,7 +113,10 @@ export interface DunningSheetData {
 /** Text des Blatts einer Mahnung, in denselben Teilen wie bei Rechnung und Angebot */
 export function dunningSheetText(data: DunningSheetData): SheetTextPart[] {
   const parts: SheetTextPart[] = [
-    { part: "kopf", lines: filled([data.senderLine, ...data.recipient, data.title, data.reference, ...data.meta.map(row), plain(data.introFormatted)]) },
+    {
+      part: "kopf",
+      lines: filled([data.senderLine, ...data.recipient, data.title, data.reference, ...data.meta.map(row), data.salutation, plain(data.introFormatted)]),
+    },
     { part: "positionen", lines: data.invoices.map((i) => filled([i.number, i.date, i.due, i.open]).join(" ")) },
     { part: "summen", lines: [...data.rows.map(row), row(data.total)] },
     { part: "hinweise", lines: filled([data.payment, plain(data.closingFormatted), data.greeting]) },

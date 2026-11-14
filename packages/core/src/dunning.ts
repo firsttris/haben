@@ -34,6 +34,9 @@ export const DEFAULT_INTEREST_MARKUP = { geschaeftskunde: 900, verbraucher: 500 
 
 export type CustomerType = keyof typeof DEFAULT_INTEREST_MARKUP;
 
+/** Höchste Mahngebühr je Mahnung; Grenze der Eingabe, keine gesetzliche */
+export const MAX_DUNNING_FEE: Cents = 100_000;
+
 /** Verzugspauschale für Geschäftskunden (§ 288 Abs. 5 BGB) */
 export const LATE_PAYMENT_FLAT_FEE: Cents = 4_000;
 

@@ -62,7 +62,7 @@ describe("Text des Blatts einer Mahnung", () => {
     const kopf = teil("kopf").join("\n");
     expect(kopf).toContain("Mahnung\nzur Rechnung");
     expect(kopf).toContain("zur Rechnung 2026-034 vom 02.09.2026");
-    expect(kopf).toContain("leider haben wir keinen Zahlungseingang erhalten.");
+    expect(kopf).toContain("Sehr geehrte Damen und Herren,\nleider haben wir keinen Zahlungseingang erhalten.");
     expect(teil("positionen")).toEqual(["2026-034 02.09.2026 16.09.2026 17.409,58 €"]);
   });
 

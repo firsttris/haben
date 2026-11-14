@@ -382,6 +382,35 @@ test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf (DESIGN.md, Rei
   await expect(knoepfe.last()).toBeFocused();
 });
 
+test("Mahnung: Eine Gebühr über der Grenze steht am Feld und zählt weder in Forderung noch Vorschau", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const blatt = page.getByLabel("Vorschau der Mahnung");
+  await page.getByLabel("Mahngebühr (€)").fill("1.500,00");
+  await page.getByRole("button", { name: "Zahlungserinnerung erstellen" }).click();
+  await expect(page.getByLabel("Mahngebühr (€)")).toBeFocused();
+  await expect(page.getByLabel("Mahngebühr (€)")).toHaveAccessibleDescription(/höchstens 1\.000,00\s€/);
+  await expect(page.getByRole("region", { name: "Forderung" }).getByText("Mahngebühr", { exact: true })).toHaveCount(0);
+  await expect(blatt.getByRole("img", { name: "Seite 1 von 1" })).toBeVisible();
+  await expect(blatt.locator('[data-teil="summen"]')).not.toContainText("Mahngebühr");
+});
+
+test("Mahnung: Das Zahnrad zeigt nur Schalter, die auf das Blatt wirken", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Gestaltung" }).first().click();
+  const gestaltung = page.getByRole("complementary", { name: "Gestaltung" });
+  for (const schalter of ["Falz- und Lochmarken", "GiroCode", "Kundennummer"]) await expect(gestaltung.getByRole("checkbox", { name: schalter })).toBeVisible();
+  // mahnung.typ hat keine Positionen
+  for (const schalter of ["Artikelnummer", "Spalte USt je Position"]) await expect(gestaltung.getByRole("checkbox", { name: schalter })).toHaveCount(0);
+  await expect(gestaltung).not.toContainText("Spalte USt");
+  await page.keyboard.press("Escape");
+});
+
 test("Mahnung: Einleitung und Schluss lassen sich mit den Knöpfen auszeichnen (#359)", async () => {
   await go("/rechnungen/mahnwesen");
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
