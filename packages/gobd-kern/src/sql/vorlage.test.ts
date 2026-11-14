@@ -103,6 +103,23 @@ describe.skipIf(!url)("SQL-Vorlage gegen Postgres", () => {
     await expect(sql.begin("isolation level repeatable read", (tx) => tx`insert into notizen (text) values ('x')`)).rejects.toThrow(/nur unter READ COMMITTED/);
   });
 
+  it("lehnt Ändern und Löschen der angemeldeten versiegelten Tabellen ab", async () => {
+    await expect(sql`delete from sealed_tables where table_name = 'belege'`).rejects.toThrow(/darf nur ergänzt werden/);
+    await expect(sql`update sealed_tables set locked_column = null where table_name = 'belege'`).rejects.toThrow(/darf nur ergänzt werden/);
+    expect(await befunde()).toEqual([]);
+  });
+
+  it("quotiert Tabellen- und Spaltennamen in den Anmelde-Funktionen und der Prüfung", async () => {
+    await sql.unsafe(`
+      CREATE TABLE "we'ird""tab" (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), "ge'heim" text, "lock'ed""at" timestamptz);
+      SELECT kern_seal_table('"we''ird""tab"', 'lock''ed"at');
+    `);
+    await mitAkteur("anna", (tx) => tx.unsafe(`insert into "we'ird""tab" ("ge'heim", "lock'ed""at") values ('x', now())`));
+    await expect(sql.unsafe(`update "we'ird""tab" set "ge'heim" = 'y'`)).rejects.toThrow(/ist festgeschrieben/);
+    expect(await sql`select 1 from seals where table_name = ${"we'ird\"tab"}`).toHaveLength(1);
+    expect(await befunde()).toEqual([]);
+  });
+
   it("meldet eine an den Triggern vorbei geänderte versiegelte Zeile und einen veränderten Eintrag im Audit-Log", async () => {
     const [b] = await mitAkteur("anna", (tx) => tx`insert into belege (betrag_cent, locked_at) values (2000, now()) returning id`);
     expect(await befunde()).toEqual([]);
@@ -114,6 +131,16 @@ describe.skipIf(!url)("SQL-Vorlage gegen Postgres", () => {
     const gefunden = await befunde();
     expect(gefunden).toContainEqual({ art: "siegel", tabelle: "belege", befund: "Inhalt passt nicht zum Siegel" });
     expect(gefunden).toContainEqual({ art: "kette", tabelle: "audit_log", befund: "Inhalt passt nicht zum Hash" });
+  });
+
+  it("meldet eine an den Triggern vorbei aus sealed_tables genommene Tabelle", async () => {
+    const [b] = await mitAkteur("anna", (tx) => tx`insert into belege (betrag_cent, locked_at) values (3000, now()) returning id`);
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`delete from sealed_tables where table_name = 'belege'`;
+      await tx`update belege set betrag_cent = 1 where id = ${b!.id}`;
+    });
+    expect(await befunde()).toContainEqual({ art: "siegel", tabelle: "belege", befund: "Angemeldete Tabelle fehlt in sealed_tables" });
   });
 });
 
