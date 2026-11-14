@@ -1618,6 +1618,13 @@
       "when": 1794645219072,
       "tag": "0230_beleg_leistungszeitraum",
       "breakpoints": true
+    },
+    {
+      "idx": 231,
+      "version": "7",
+      "when": 1794645575356,
+      "tag": "0231_rechnung_ausgefuehrt_am",
+      "breakpoints": true
     }
   ]
 }
