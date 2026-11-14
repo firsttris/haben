@@ -1625,6 +1625,20 @@
       "when": 1794664787301,
       "tag": "0231_rechnung_ausgefuehrt_am",
       "breakpoints": true
+    },
+    {
+      "idx": 232,
+      "version": "7",
+      "when": 1794673484284,
+      "tag": "0232_eigene_einheiten",
+      "breakpoints": true
+    },
+    {
+      "idx": 233,
+      "version": "7",
+      "when": 1794673489769,
+      "tag": "0233_eigene_einheiten_trigger",
+      "breakpoints": true
     }
   ]
 }
