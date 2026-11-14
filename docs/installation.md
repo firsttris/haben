@@ -606,19 +606,6 @@ Haben bringt ein Web-App-Manifest und einen minimalen Service Worker mit. Der Se
 - Die installierte App hat Kurzbefehle für „Beleg hochladen“ und „Neue Rechnung“.
 - Die App meldet sich als Teilen-Ziel an (`/api/belege/teilen`): Teilst du auf dem Handy ein PDF, Foto oder E-Rechnungs-XML mit Haben, wird es als Beleg hochgeladen. Höchstens 20 Dateien je Vorgang, je Datei bis 20 MB. Ob das Teilen-Menü Web-Apps anbietet, hängt vom Browser und Betriebssystem ab.
 
-## Inhaberpasswort vergessen
-
-Der Betreiber kann das Passwort des bestehenden lokalen Inhabers ohne altes Passwort und ohne Passkey neu setzen. `OIDC_ONLY` bleibt `false`. Erstelle ein Backup und stoppe alle Haben-App-Instanzen für diese Datenbank. PostgreSQL bleibt erreichbar. Führe die Befehle im Verzeichnis der Produktions-Compose-Datei auf dem Server aus.
-
-```sh
-docker compose exec backup backup.sh
-docker compose stop app
-docker compose run --rm --no-deps -T --entrypoint bun app apps/web/src/server/db/local-owner.ts --passwort-zuruecksetzen --passwort-stdin < /geschuetzt/passwort
-docker compose up -d app
-```
-
-Übergib das neue Passwort mit 12 bis 128 Zeichen über einen geschützten Eingabekanal wie eine nur für dich lesbare UTF-8-Datei ohne BOM. Lösche eine dafür angelegte Datei nach dem Vorgang. Haben speichert den Passwort-Hash und beendet die Sitzungen des Inhabers. Im Änderungsprotokoll stehen Konto-ID und Reset-Ereignis. Vorhandene Passkeys bleiben gültig. Bei reinem SSO setzt der Anmeldeanbieter das Passwort zurück.
-
 ## Passkeys und Domain
 
 Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben auf eine andere Domain um, funktionieren die alten Passkeys dort nicht mehr. Melde dich dann mit E-Mail und Passwort an und lege unter Einstellungen neue Passkeys an. `BETTER_AUTH_URL` muss genau die Adresse sein, die im Browser steht, inklusive `https://`.
