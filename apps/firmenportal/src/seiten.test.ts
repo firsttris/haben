@@ -56,9 +56,8 @@ describe("Seiten", () => {
   });
 
   it("trennen lange Namen nach Silben und heben das Überfahren im Dunkeln stärker ab", () => {
-    expect(STIL).toMatch(/\.firma-name \{[^}]*hyphens: auto/);
-    // Ältere Safari-Versionen kennen nur die Fassung mit Präfix
-    expect(STIL).toMatch(/\.firma-name \{[^}]*-webkit-hyphens: auto/);
+    // Safari und WebKit trennen damit ebenso, ohne Präfix (in #1006 in Safari 27 und WebKit geprüft)
+    expect(STIL).toMatch(/\.firma-name \{[^}]*[^-]hyphens: auto/);
     expect(STIL).toMatch(/\.firma:hover \{ background: var\(--firma-hover\)/);
     const dunkel = STIL.slice(STIL.indexOf("prefers-color-scheme: dark"));
     expect(dunkel).toMatch(/--firma-hover: var\(--line\)/);

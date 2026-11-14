@@ -10,7 +10,7 @@ import { type Browser, expect, type Page, test } from "@playwright/test";
 
 const BASE = `${process.env.E2E_SERVER_COMMAND ? "https" : "http"}://localhost:3218`;
 /** Wie in playwright.sso-only.config.ts */
-const PORTAL = "http://localhost:3217";
+const PORTAL = `${process.env.E2E_SERVER_COMMAND ? "https" : "http"}://localhost:3217`;
 
 /** Better Auth lässt je Adresse nur 3 Anmeldeversuche in 10 Sekunden zu (wie in sso-only.spec.ts) */
 let letzterStart = 0;

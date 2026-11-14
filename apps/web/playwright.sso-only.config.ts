@@ -10,8 +10,11 @@ const tls = production ? ssoTestTls() : undefined;
 const baseURL = `${production ? "https" : "http"}://localhost:3218`;
 const issuer = `${production ? "https" : "http"}://127.0.0.1:3216`;
 const tlsEnv = tls ? { SSO_E2E_TLS_CERT: tls.cert, SSO_E2E_TLS_KEY: tls.key, NODE_EXTRA_CA_CERTS: tls.cert } : {};
-/** Firmenportal (#504, Stufe 2) für e2e/sso-firmenportal.spec.ts; HTTP genügt auf localhost, das Firmenportal setzt Secure-Cookies */
-const PORTAL = "http://localhost:3217";
+/**
+ * Firmenportal (#504, Stufe 2) für e2e/sso-firmenportal.spec.ts. Im Produktionslauf wie Haben hinter TLS
+ * (e2e/sso-firmenportal-server.ts); über HTTP speichert nur Chromium die Secure-Cookies auf localhost, Safari und WebKit nicht
+ */
+const PORTAL = `${production ? "https" : "http"}://localhost:3217`;
 export default defineConfig({
   testDir: "e2e",
   workers: 1,
@@ -71,13 +74,15 @@ export default defineConfig({
       },
     },
     {
-      command: "bun ../firmenportal/src/main.ts",
+      command: production ? "bun e2e/sso-firmenportal-server.ts" : "bun ../firmenportal/src/main.ts",
       url: `${PORTAL}/gesund`,
+      ignoreHTTPSErrors: production,
       reuseExistingServer: false,
       env: {
         ...process.env,
         ...tlsEnv,
-        PORT: "3217",
+        // Mit TLS lauscht das Firmenportal intern auf 3221, davor der Proxy auf 3217
+        PORT: production ? "3221" : "3217",
         PORTAL_URL: PORTAL,
         PORTAL_SECRET: "e2e-portal-secret-mindestens-32-zeichen",
         // Diese Instanz und zwei, die es nicht geben muss

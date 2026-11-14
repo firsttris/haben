@@ -54,7 +54,7 @@ p { margin: 0; line-height: 1.5; }
 .firma:hover { background: var(--firma-hover); }
 .firma:focus-visible { outline-offset: -2px; }
 .firma-zeichen { flex-shrink: 0; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
-.firma-name { flex: 1; min-width: 0; overflow-wrap: break-word; -webkit-hyphens: auto; hyphens: auto; }
+.firma-name { flex: 1; min-width: 0; overflow-wrap: break-word; hyphens: auto; }
 .firma-pfeil { flex-shrink: 0; color: var(--muted); transition: transform var(--fade); }
 .firma:hover .firma-pfeil { transform: translateX(2px); color: var(--ink); }
 .fuss { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding-top: 16px; border-top: 1px solid var(--line-soft); }

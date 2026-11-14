@@ -68,7 +68,10 @@ export function cookieLesen(request: Request, name: string): string | undefined 
   return undefined;
 }
 
-/** __Host-: nur über HTTPS (oder localhost), nur für genau diesen Host, Pfad / */
+/**
+ * __Host-: nur über HTTPS, nur für genau diesen Host, Pfad /. Chromium speichert Secure-Cookies auch auf
+ * http://localhost, Safari und WebKit nicht; lokal mit Safari braucht das Firmenportal deshalb TLS davor.
+ */
 export function cookieSetzen(name: string, wert: string, maxAgeMs: number): string {
   return `${name}=${wert}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAgeMs / 1000)}`;
 }
