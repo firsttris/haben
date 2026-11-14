@@ -79,11 +79,13 @@ test("Firmenportal: die Steuerberatung sieht keine Firma", async ({ browser }) =
 
 test("Firmenportal: mit genau einer Firma geht es nach der Anmeldung direkt dorthin", async ({ browser }) => {
   const context = await browser.newContext();
-  await context.route("https://sued.example.de/**", (route) => route.fulfill({ contentType: "text/html", body: "<title>Süd</title>Werkstatt Süd" }));
   const page = await context.newPage();
   await page.goto(`${PORTAL}/`);
+  // Die Instanz gibt es nicht: Geprüft wird, dass der Browser sie aufruft, nicht was er dort lädt. Eine abgefangene
+  // Route auf die fremde Adresse lud in der CI nach der Weiterleitung statt der Seite chrome-error://
+  const ziel = page.waitForRequest("https://sued.example.de/login?anmelden=sso");
   await anbieter(page, "sued@example.de", "haben-sued-inhaber");
-  await page.waitForURL("https://sued.example.de/login?anmelden=sso");
+  await ziel;
   await context.close();
 });
 
@@ -112,6 +114,12 @@ test("Haben: „Zum Firmenportal“ führt ins Firmenportal, ohne aufzuklappen, 
   await expect(nav.getByText("Firma wechseln")).toHaveCount(0);
   await expect(wechseln).not.toHaveAttribute("target");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  // In der eingeklappten Seitenleiste (#939) ein einzelnes Symbol mit demselben Ziel, ohne Flyout
+  await nav.getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  const symbol = nav.getByRole("link", { name: "Zum Firmenportal" });
+  await expect(symbol).toHaveAttribute("href", `${PORTAL}/?von=haben`);
+  await expect(nav.getByRole("button", { name: /Firma wechseln|Zum Firmenportal/ })).toHaveCount(0);
+  await nav.getByRole("button", { name: "Seitenleiste ausklappen" }).click();
 
   await wechseln.click();
   await anbieter(page, "inhaberin@example.de", "haben-inhaber, haben-sued-inhaber");
