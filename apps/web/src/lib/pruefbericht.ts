@@ -1,7 +1,7 @@
 import type { FileProblem, IntegrityReport } from "../server/modules/auswertungen/index.ts";
 import type { Notice } from "./use-action.ts";
 
-/** Texte zur Prüfung von Kette, Siegeln und Dateien, gleich in „Änderungsprotokoll prüfen“ und der Wochenmail */
+/** Texte zur Prüfung von Kette, Siegeln, Sperren und Dateien, gleich in „Änderungsprotokoll prüfen“ und der Wochenmail */
 
 export const dateienText = (n: number) => (n === 1 ? "1 Datei fehlt oder ist verändert" : `${n} Dateien fehlen oder sind verändert`);
 
@@ -24,19 +24,19 @@ export function integrityNotice(result: IntegrityReport): NonNullable<Notice> {
       tone: "danger",
       text: `${result.problems.length}${result.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.${dateien}${abweichungen}`,
     };
-  if (fileProblems > 0) return { tone: "danger", text: `Kette und Siegel sind unverändert, aber ${dateienText(fileProblems)}.${abweichungen}` };
+  if (fileProblems > 0) return { tone: "danger", text: `Kette, Siegel und Sperren sind unverändert, aber ${dateienText(fileProblems)}.${abweichungen}` };
   if (differences > 0)
     return {
       tone: "danger",
-      text: `Kette und Siegel sind unverändert, aber Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
+      text: `Kette, Siegel und Sperren sind unverändert, aber Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
     };
   if (collisions > 0)
     return {
       tone: "info",
-      text: `Kette und Siegel sind unverändert. ${collisions} ${collisions === 1 ? "Kontenkollision" : "Kontenkollisionen"}: Bitte kläre die Kontenzuordnung.`,
+      text: `Kette, Siegel und Sperren sind unverändert. ${collisions} ${collisions === 1 ? "Kontenkollision" : "Kontenkollisionen"}: Bitte kläre die Kontenzuordnung.`,
     };
   return {
     tone: "ok",
-    text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Die geprüften Journal-, Steuer- und OPOS-Werte stimmen überein.`,
+    text: `Kette, Siegel und Sperren sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Die geprüften Journal-, Steuer- und OPOS-Werte stimmen überein.`,
   };
 }

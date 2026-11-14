@@ -40,7 +40,7 @@ describe("Prüfbericht", () => {
     const files = { at: new Date(), files: 4, problemCount: 2, problems: [fehlt] };
     expect(integrityNotice(bericht({ files }))).toEqual({
       tone: "danger",
-      text: "Kette und Siegel sind unverändert, aber 2 Dateien fehlen oder sind verändert.",
+      text: "Kette, Siegel und Sperren sind unverändert, aber 2 Dateien fehlen oder sind verändert.",
     });
     const beides = integrityNotice(bericht({ files, abgleich: { abweichungen: [abweichung], hinweise: [] } }));
     expect(beides.tone).toBe("danger");

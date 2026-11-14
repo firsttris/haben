@@ -315,7 +315,7 @@ test("Änderungsprotokoll: Dateien prüfen meldet eine fehlende Belegdatei (#857
     await sql`insert into documents (sha256, filename, mime_type, size) values (${sha256}, 'verschwunden.pdf', 'application/pdf', 1)`;
     await go("/einstellungen?bereich=export");
     await card.getByRole("button", { name: "Dateien prüfen" }).click();
-    await expect(card.getByRole("alert")).toContainText("Kette und Siegel sind unverändert, aber 1 Datei fehlt oder ist verändert");
+    await expect(card.getByRole("alert")).toContainText("Kette, Siegel und Sperren sind unverändert, aber 1 Datei fehlt oder ist verändert");
     await expect(card.getByRole("listitem").filter({ hasText: "verschwunden.pdf" })).toHaveText("Beleg verschwunden.pdf: fehlt");
   } finally {
     await sql`delete from documents where sha256 = ${sha256}`;
@@ -326,7 +326,7 @@ test("Änderungsprotokoll: Dateien prüfen meldet eine fehlende Belegdatei (#857
   await card.getByRole("button", { name: "Kette prüfen" }).click();
   await expect(card.getByRole("alert")).toContainText("1 Datei fehlt oder ist verändert");
   await card.getByRole("button", { name: "Dateien prüfen" }).click();
-  await expect(card.getByRole("status")).toContainText("Kette und Siegel sind unverändert:");
+  await expect(card.getByRole("status")).toContainText("Kette, Siegel und Sperren sind unverändert:");
   await expect(card).toContainText("alle vorhanden und unverändert");
 });
 
