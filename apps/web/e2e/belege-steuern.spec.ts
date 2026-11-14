@@ -2588,4 +2588,12 @@ test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997
   // Die erklärten Werte ersetzen Habens Rechnung und nennen ihre Herkunft
   await expect(page.getByText("Diese Zahlen stammen aus dem Übermittlungsprotokoll", { exact: false })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("1.234,56\u00a0€").first()).toBeVisible();
+
+  // Habens Rechnung bleibt stehen, und die Maske nimmt die noch fehlenden Zeilen auf (Review zu #997).
+  // Vorher verschwand beides, sobald eine Zeile gespeichert war.
+  await expect(page.getByText("Habens Rechnung aus den Buchungen", { exact: false }).first()).toBeVisible();
+  const nachtragen = page.locator("details", { hasText: "Zeilenwerte aus dem Übermittlungsprotokoll" }).filter({ hasText: "Zeilen offen" }).first();
+  await expect(nachtragen).toBeVisible();
+  await nachtragen.locator("summary").first().click();
+  await expect(nachtragen.getByLabel("Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben (vereinnahmteUst)")).toBeVisible();
 });

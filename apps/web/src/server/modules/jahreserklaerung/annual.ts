@@ -11,6 +11,7 @@ import {
   type ExpenseCategory,
   type PauschaleArt,
   filingPeriodsOfYear,
+  formatEuro,
   homeofficeSatz,
   isKapitalgesellschaft,
   monthsOfPeriod,
@@ -611,8 +612,8 @@ export async function submissions(year: number) {
 }
 
 /**
- * Zeilenwerte, die außerhalb von Haben erklärt wurden, je Feldkennung der Erklärung (`kz22`, `kz36`,
- * `einnahmen`, …). Leer, wenn zu diesem Vermerk nichts erfasst ist.
+ * Zeilenwerte, die außerhalb von Haben erklärt wurden, je Schlüssel der Erklärung (`steuerpflichtig`,
+ * `base19`, `gewinn`, …). Leer, wenn zu diesem Vermerk nichts erfasst ist.
  *
  * Sie stehen neben dem Vermerk, nicht darin: `annual_submissions` ist `append_only`, ein späteres UPDATE
  * scheitert also (#997).
@@ -624,6 +625,22 @@ async function erklaerteZeilen(submissionId: string | null): Promise<Record<stri
     .from(schema.annualSubmissionFigures)
     .where(eq(schema.annualSubmissionFigures.submissionId, submissionId));
   return Object.fromEntries(rows.map((r) => [r.field, r.amount]));
+}
+
+/**
+ * Weicht die erklärte Schlusszeile vom Betrag des Vermerks ab, sagt die Seite das als Hinweis (#997). Gesperrt
+ * wird nichts: Was beim Finanzamt liegt, steht im Übermittlungsprotokoll.
+ */
+function abweichungHinweis(form: "ust" | "euer", zeilen: Record<string, number>, vermerk: { amount: number | null } | null): Issue[] {
+  const erklaert = zeilen[form === "ust" ? "abschluss" : "gewinn"];
+  if (erklaert === undefined || !vermerk || vermerk.amount === null || erklaert === vermerk.amount) return [];
+  const zeile = form === "ust" ? "Abschlusszahlung" : "Gewinn";
+  return [
+    {
+      tone: "hinweis",
+      text: `Im Übermittlungsprotokoll steht eine ${zeile} von ${formatEuro(erklaert)}, der Vermerk nennt ${formatEuro(vermerk.amount)}.`,
+    },
+  ];
 }
 
 export async function annualOverview(year: number, today: string) {
@@ -656,14 +673,18 @@ export async function annualOverview(year: number, today: string) {
     year,
     ust: {
       ...ust,
-      issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year, { vermerkt: ustVermerk !== null })],
+      issues: [
+        ...base,
+        ...ustIssues(await kleinunternehmerForYear(year), ust, year, { vermerkt: ustVermerk !== null }),
+        ...abweichungHinweis("ust", ustZeilen, ustVermerk),
+      ],
       sent: sent("ust"),
       submitted: ustVermerk,
       erklaert: ustZeilen,
     },
     euer: {
       ...euer,
-      issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null })],
+      issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null }), ...abweichungHinweis("euer", euerZeilen, euerVermerk)],
       sent: sent("euer"),
       submitted: euerVermerk,
       erklaert: euerZeilen,

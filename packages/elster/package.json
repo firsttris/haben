@@ -6,7 +6,8 @@
   "license": "AGPL-3.0-only",
   "exports": {
     ".": "./src/index.ts",
-    "./felder": "./src/felder.ts"
+    "./felder": "./src/felder.ts",
+    "./euer-felder": "./src/euer-felder.ts"
   },
   "scripts": {
     "typecheck": "bun --bun tsc -p ."

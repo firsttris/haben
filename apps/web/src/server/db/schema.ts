@@ -496,7 +496,7 @@ export const annualSubmissions = pgTable(
  * Die Zeilen kommen aus dem Übermittlungsprotokoll und lassen sich nicht an `annual_submissions` hängen:
  * der Vermerk ist `append_only`, ein späteres UPDATE scheitert. Sie stehen deshalb daneben, verknüpft
  * über die Übermittlung. Nur anhängbar, auditiert und gegen TRUNCATE gesperrt wie der Vermerk selbst
- * (0237).
+ * (0235).
  */
 export const annualSubmissionFigures = pgTable(
   "annual_submission_figures",
@@ -505,7 +505,7 @@ export const annualSubmissionFigures = pgTable(
     submissionId: uuid("submission_id")
       .notNull()
       .references(() => annualSubmissions.id, { onDelete: "restrict" }),
-    /** Feldkennung der Erklärung: kz22, kz36, einnahmen, … */
+    /** Schlüssel der Erklärung wie in der Übermittlung: `steuerpflichtig`, `base19`, `gewinn`, … */
     field: text("field").notNull(),
     /** Betrag in Cent */
     amount: bigint("amount", { mode: "number" }).notNull(),
