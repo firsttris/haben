@@ -1,4 +1,4 @@
-import { entfernungspauschale, formatEuro, PAUSCHALE_LABEL } from "@haben/core";
+import { entfernungspauschale, formatEuro, PAUSCHALE_LABEL, volleKilometer } from "@haben/core";
 import { type FormEvent, useState } from "react";
 import { Field } from "./Field.tsx";
 
@@ -30,7 +30,8 @@ export function EntfernungForm({
   const [km, setKm] = useState("");
   const [betriebsstaette, setBetriebsstaette] = useState("");
   const jahr = Number(month.slice(0, 4)) || year;
-  const betrag = entfernungspauschale(jahr, Number(tage) || 0, Number(km) || 0);
+  const strecke = volleKilometer(km);
+  const betrag = entfernungspauschale(jahr, Number(tage) || 0, strecke);
   // Die Sätze des Jahres kommen aus dem Rechenkern: Satz bis zum 20. und ab dem 21. Kilometer
   const nah = entfernungspauschale(jahr, 1, 1);
   const fern = entfernungspauschale(jahr, 1, 21) - entfernungspauschale(jahr, 1, 20);
@@ -41,7 +42,7 @@ export function EntfernungForm({
 
   function senden(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void onSubmit({ month, tage: Number(tage), km: Number(km), betriebsstaette: betriebsstaette.trim() }, event.currentTarget).then((ok) => {
+    void onSubmit({ month, tage: Number(tage), km: strecke, betriebsstaette: betriebsstaette.trim() }, event.currentTarget).then((ok) => {
       if (!ok) return;
       setTage("");
       setKm("");
@@ -64,7 +65,7 @@ export function EntfernungForm({
           {(control) => <input {...control} value={tage} onChange={(e) => setTage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}
         </Field>
         <Field label="Kilometer einfach">
-          {(control) => <input {...control} value={km} onChange={(e) => setKm(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}
+          {(control) => <input {...control} value={km} onChange={(e) => setKm(e.target.value.replace(/[^\d,.]/g, ""))} inputMode="decimal" required />}
         </Field>
         <Field label="Betriebsstätte">
           {(control) => (
@@ -83,6 +84,7 @@ export function EntfernungForm({
         <button type="submit" className="btn btn-primary" disabled={busy || betrag === 0 || betriebsstaette.trim() === ""}>
           {betrag > 0 ? `${formatEuro(betrag)} buchen` : "Buchen"}
         </button>
+        {betrag > 0 && betriebsstaette.trim() === "" && <span className="small muted">Trag die Betriebsstätte ein, dann lässt sich buchen.</span>}
       </div>
     </form>
   );

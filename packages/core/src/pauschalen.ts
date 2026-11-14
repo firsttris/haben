@@ -34,6 +34,15 @@ export const KM_SATZ: Record<Fahrzeug, Cents> = { pkw: 30, andere: 20 };
 
 export const FAHRZEUG_LABEL: Record<Fahrzeug, string> = { pkw: "Auto", andere: "Motorrad, Roller oder Moped" };
 
+/**
+ * Kilometer aus einem Eingabefeld: Punkt als Tausenderpunkt, Komma als Dezimaltrenner (wie bei den Fahrten). Für die
+ * Entfernungspauschale zählen nur volle Kilometer der einfachen Strecke (§ 9 Abs. 1 Satz 3 Nr. 4 Satz 2 EStG), es wird abgerundet.
+ */
+export function volleKilometer(eingabe: string): number {
+  const km = Number(eingabe.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(km) && km > 0 ? Math.floor(km) : 0;
+}
+
 /** Betrag einer Fahrt; km mit einer Nachkommastelle, gerundet auf Cent */
 export function fahrtBetrag(km: number, fahrzeug: Fahrzeug): Cents {
   if (!(km > 0)) return 0;
