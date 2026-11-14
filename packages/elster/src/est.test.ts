@@ -84,6 +84,26 @@ describe("buildEstXml", () => {
     expect(xml).toContain("<E0800302>-1001</E0800302>");
   });
 
+  it("baut das häusliche Arbeitszimmer als Einzelaufwendung mit Summe", () => {
+    const base = estInput();
+    const xml = buildEstXml({
+      ...base,
+      angaben: {
+        ...base.angaben,
+        arbeitnehmer: {
+          a: {
+            bescheinigungen: [{ steuerklasse: 1, brutto: 5_000_000 }],
+            werbungskosten: { arbeitszimmer: 119_800 },
+          },
+        },
+      },
+    });
+    expect(checkXml(xml)).toBeUndefined();
+    const n = /<N>[\s\S]*?<\/N>/.exec(xml)![0];
+    // Einzelaufwendung mit Bezeichnung und Betrag, danach die Summe; ERiC lehnt eine Summe ohne Einzelposten ab
+    expect(n).toMatch(/<Arb_Zim>\s*<Einz>\s*<E0204503>Arbeitszimmer<\/E0204503>\s*<E0204505>1198<\/E0204505>\s*<\/Einz>\s*<Sum>\s*<E0204504>1198<\/E0204504>/);
+  });
+
   it("baut Anlage N je Person mit Lohnsteuerbescheinigungen, Werbungskosten und Vorsorge aus der Bescheinigung", () => {
     const base = estInput();
     const xml = buildEstXml({

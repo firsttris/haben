@@ -58,6 +58,7 @@ const arbeitnehmer = z.object({
       berufsverbaende: cents,
       gewerkschaft: cents,
       sonstige: cents,
+      arbeitszimmer: cents,
     })
     .default({}),
 });
