@@ -122,6 +122,7 @@ const GETEILTE_SYMBOLE: Partial<Record<IconName, readonly string[]>> = {
   annual: ["/abschluss", "/jahreserklaerung"],
   // Noch ohne eigenes Symbol
   calendar: ["/dauerbelege", "/fristen", "/leistungen"],
+  // Bargeld, in der Kasse und als Ausschüttung an die Gesellschafter
   cash: ["/ausschuettungen", "/kasse"],
 };
 
