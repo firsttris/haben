@@ -403,6 +403,16 @@ const faelle: [string, () => string][] = [
           figures: { base19: 0, tax19: 0, base7: 1_000_000, tax7: 70_000, vorsteuer: 0, vorauszahlungen: 70_000 },
         }),
     ],
+    [
+      // Innergemeinschaftlicher Erwerb von 0,90 €: Kz 89 in vollen Euro 0, Steuer 0,17 €
+      `USt-Erklärung ${year} mit Erwerb unter 1 €`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "soll",
+          figures: { base19: 100_000, tax19: 19_000, base7: 0, tax7: 0, vorsteuer: 0, kz89: 0, tax89: 17, kz61: 17, vorauszahlungen: 19_000 },
+        }),
+    ],
   ]),
   // Anlage EÜR
   ...jahre.flatMap((year): [string, () => string][] => [
