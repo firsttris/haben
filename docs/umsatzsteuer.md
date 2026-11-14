@@ -76,6 +76,8 @@ Gesendete Voranmeldungen bleiben, wie sie sind. Passt eine gesendete Voranmeldun
 
 Jede Änderung der Einstellung steht im Änderungsprotokoll.
 
+Ein Wechsel im laufenden Jahr ist kein Beginn der Tätigkeit. Wer seit 2024 monatlich abgibt und ab Juli 2025 vierteljährlich, hat im Jahr 2025 einen Eintrag ab Juli; die Tätigkeit begann aber nicht im Juli. Haben prüft deshalb weiterhin Januar bis Juni auf fehlende Voranmeldungen. Nur wenn für das Jahr noch gar kein Eintrag steht und auch kein früheres Jahr einen hat, beginnt die Prüfung mit dem ersten Eintrag des Jahres: Wer im Oktober anfängt, war im Januar nicht voranmeldepflichtig.
+
 ## Dauerfristverlängerung
 
 Mit der Dauerfristverlängerung gibst du jede Voranmeldung einen Monat später ab und zahlst auch einen Monat später (§ 46 UStDV): die für Oktober am 10. Dezember statt am 10. November, die für das 3. Quartal am 10. November statt am 10. Oktober. Das Finanzamt muss sie auf Antrag gewähren, außer der Steueranspruch erscheint gefährdet.
