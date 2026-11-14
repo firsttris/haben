@@ -12,7 +12,7 @@ import { parseSync, Visitor } from "oxc-parser";
  *   Abhängigkeit läuft nur von außen nach innen.
  *
  * - Pakete unter packages/ importieren nichts aus apps/ (weder relativ noch als @haben/web); der GoBD-Kern kennt
- *   zusätzlich keine Pakete von Haben (@haben/…), weil auch andere Apps ihn nutzen.
+ *   zusätzlich keine Pakete von Haben (@haben/… oder relativ außerhalb seines Ordners), weil auch andere Apps ihn nutzen.
  *
  * Biome kann das nicht selbst: seine Regeln vergleichen nur den Text des Imports, hier zählt der aufgelöste Pfad.
  * Tests sind ausgenommen (siehe pruefen.ts), sie dürfen in Dateien anderer Module greifen.
