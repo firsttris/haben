@@ -42,20 +42,10 @@ interface Zahlung {
   amount: Cents;
 }
 
-/** Zahlungen ohne aufgehobene: die Zeile selbst trägt reverses_id, oder eine andere Zeile hebt sie auf */
-function aktive<T extends { id: string; reversesId: string | null }>(rows: T[]): T[] {
-  const aufgehoben = new Set(rows.flatMap((r) => (r.reversesId ? [r.reversesId] : [])));
-  return rows.filter((r) => !r.reversesId && !aufgehoben.has(r.id));
-}
 
 /** Der spätere von zwei ISO-Tagen (JJJJ-MM-TT): Der Vergleich läuft über die Schreibweise, nicht über Zahlen. */
 function spaetererTag(a: string, b: string): string {
   return a.localeCompare(b) < 0 ? b : a;
-}
-
-/** Der frühere von zwei ISO-Tagen */
-function fruehererTag(a: string, b: string): string {
-  return a.localeCompare(b) < 0 ? a : b;
 }
 
 /**
@@ -119,7 +109,7 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
       .from(schema.documentCancellations)
       .where(inArray(schema.documentCancellations.documentId, ids)),
     q
-      .select({ id: a.id, documentId: a.documentId, reversesId: a.reversesId, amount: a.amount, date: t.bookingDate })
+      .select({ id: a.id, documentId: a.documentId, reversesId: a.reversesId, amount: a.amount, wirktAm: a.date, bookingDate: t.bookingDate })
       .from(a)
       .innerJoin(t, eq(t.id, a.transactionId))
       .where(inArray(a.documentId, ids)),
@@ -130,19 +120,22 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
       .where(and(inArray(c.documentId, ids), isNull(c.reversesId))),
   ]);
   const stornoAm = new Map(stornos.map((x) => [x.documentId, x.date]));
-  // Nur die Zahlungen auf diesen Beleg; Vorzeichen egal, verteilt wird nach Betrag. Bei einem stornierten Beleg hat der
-  // Storno die Zuordnungen aufgehoben; dort zählt der Stand vor dem Storno, damit die Vorsteuer dort zurückgenommen wird,
-  // wo sie stand (die Gegenzeile selbst trägt reverses_id und bleibt außen vor).
+  // Nur die Zahlungen auf diesen Beleg (Ausgang, negativ), verteilt wird nach Betrag. Eine aufgehobene Zuordnung bleibt am
+  // Tag der Zahlung stehen, ihre Gegenzeile nimmt den Anteil am Tag der Aufhebung zurück (allocations.date, #782), damit
+  // ein gemeldeter Zeitraum unverändert bleibt. Bei einem stornierten Beleg hat der Storno die Zuordnungen aufgehoben;
+  // dort zählt der Stand vor dem Storno, die Rücknahme übernimmt die Stornozeile weiter unten.
+  const zuordnungsTage = zuordnungen.map(({ wirktAm, bookingDate, ...z }) => ({ ...z, date: wirktAm ?? bookingDate }));
   const zahlungen = new Map<string, Zahlung[]>();
   const zahlungenVorStorno = new Map<string, Zahlung[]>();
-  const eintragen = (map: Map<string, Zahlung[]>, z: { documentId: string | null; date: string; amount: number }) => {
-    if (!z.documentId || z.amount >= 0) return;
+  const eintragen = (map: Map<string, Zahlung[]>, z: { documentId: string | null; reversesId: string | null; date: string; amount: number }) => {
+    // Zahlung: negativer Betrag; Gegenzeile einer Aufhebung: positiver Betrag mit reverses_id
+    if (!z.documentId || (z.reversesId ? z.amount <= 0 : z.amount >= 0)) return;
     map.set(z.documentId, [...(map.get(z.documentId) ?? []), { date: z.date, amount: -z.amount }]);
   };
-  for (const z of aktive(zuordnungen)) eintragen(zahlungen, z);
-  for (const z of aktive(verrechnungen)) eintragen(zahlungen, z);
-  for (const z of zuordnungen.filter((x) => !x.reversesId)) eintragen(zahlungenVorStorno, z);
-  for (const z of verrechnungen.filter((x) => !x.reversesId)) eintragen(zahlungenVorStorno, z);
+  for (const z of [...zuordnungsTage, ...verrechnungen]) {
+    eintragen(zahlungen, z);
+    if (!z.reversesId) eintragen(zahlungenVorStorno, z);
+  }
   const barAm = new Map(baren.flatMap((x) => (x.documentId ? [[x.documentId, x.date] as const] : [])));
 
   const zeilen: VorsteuerZeile[] = [];
@@ -168,32 +161,37 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
       const bar = barAm.get(k.id);
       zahlungenDesBelegs = bar ? [{ date: bar, amount: gross }] : [];
     } else {
-      zahlungenDesBelegs = [...((stornoAm.has(k.id) ? zahlungenVorStorno : zahlungen).get(k.id) ?? [])].sort((x, y) => x.date.localeCompare(y.date));
+      // Am selben Tag die Zahlung vor ihrer Aufhebung
+      zahlungenDesBelegs = [...((stornoAm.has(k.id) ? zahlungenVorStorno : zahlungen).get(k.id) ?? [])].sort(
+        (x, y) => x.date.localeCompare(y.date) || y.amount - x.amount,
+      );
     }
-    // Was bis zur Ausführung nicht gezahlt ist, zählt mit ihr: Dann sind Leistung und Rechnung da (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 1)
-    zahlungenDesBelegs.push({ date: ausgefuehrt, amount: gross });
+    // Was bis zur Ausführung nicht gezahlt ist, zählt mit ihr: Dann sind Leistung und Rechnung da (§ 15 Abs. 1 Satz 1 Nr. 1
+    // Satz 1). Spätere Zahlungen und Aufhebungen ändern an der Vorsteuer nichts mehr.
+    zahlungenDesBelegs = [...zahlungenDesBelegs.filter((z) => z.date.localeCompare(ausgefuehrt) <= 0), { date: ausgefuehrt, amount: gross }];
 
     const storno = stornoAm.get(k.id);
     const vorzeichen = k.tax < 0 ? -1 : 1;
     let erledigt = 0;
     for (const z of zahlungenDesBelegs) {
       const vorher = erledigt;
-      erledigt = Math.min(gross, erledigt + z.amount);
-      if (erledigt <= vorher) continue;
+      erledigt = Math.max(0, Math.min(gross, erledigt + z.amount));
+      if (erledigt === vorher) continue;
       const bis = paidTaxShares(totals, erledigt);
       const von = paidTaxShares(totals, vorher);
-      for (const anteil of bis) {
-        const vorheriger = von.find((x) => x.rate === anteil.rate);
-        const base = anteil.base - (vorheriger?.base ?? 0);
-        const tax = anteil.tax - (vorheriger?.tax ?? 0);
-        // Nie später als die Ausführung und nie früher als die Rechnung
-        const tag = spaetererTag(fruehererTag(z.date, ausgefuehrt), k.datum);
+      for (const { rate } of saetze) {
+        const nachher = bis.find((x) => x.rate === rate);
+        const vorheriger = von.find((x) => x.rate === rate);
+        const base = (nachher?.base ?? 0) - (vorheriger?.base ?? 0);
+        const tax = (nachher?.tax ?? 0) - (vorheriger?.tax ?? 0);
+        // Die Rechnung muss vorliegen: nie früher als ihr Datum
+        const tag = spaetererTag(z.date, k.datum);
         zeilen.push({
           documentId: k.id,
           date: tag,
           supplier: k.supplier,
           number: k.number,
-          rate: anteil.rate,
+          rate,
           base: vorzeichen * geschaeftlich(base, k.privateShare),
           tax: vorzeichen * geschaeftlich(tax, k.privateShare),
         });
@@ -205,7 +203,7 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
             date: spaetererTag(storno, tag),
             supplier: k.supplier,
             number: `Storno ${k.number}`.trim(),
-            rate: anteil.rate,
+            rate,
             base: -vorzeichen * geschaeftlich(base, k.privateShare),
             tax: -vorzeichen * geschaeftlich(tax, k.privateShare),
           });
