@@ -8,6 +8,7 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { elsterNotice, finanzamtFakten, type ElsterKind } from "../../lib/elster.ts";
 import type { ConfirmFact } from "../../components/ConfirmDialog.tsx";
 import { formatDate, formatDateTime, formatZeitraumAbJahresanfang } from "../../lib/format.ts";
+import { PURPOSE_SHORT } from "../../lib/kontozweck.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
   disablePostfachAutoFetch,
@@ -340,13 +341,6 @@ function MessageForm({
   );
 }
 
-const ZWECK_LABEL: Record<string, string> = {
-  geschaeft: "Geschäftskonto",
-  privat: "Privates Konto",
-  steuer: "Steuerkonto",
-  geldtransit: "Geldtransit",
-};
-
 function BankChangeForm({ data }: { data: Data }) {
   const send = useServerFn(sendFinanzamtBankChange);
   // Vorbelegung: das Konto mit dem Zweck "steuer", sonst die IBAN aus den Firmendaten.
@@ -376,7 +370,7 @@ function BankChangeForm({ data }: { data: Data }) {
           ? [
               {
                 label: "Konto",
-                value: `${gewaehltesKonto.name}${gewaehltesKonto.zweck ? ` (${ZWECK_LABEL[gewaehltesKonto.zweck] ?? gewaehltesKonto.zweck})` : ""}`,
+                value: `${gewaehltesKonto.name} (${PURPOSE_SHORT[gewaehltesKonto.zweck]})`,
               },
             ]
           : []),
@@ -421,7 +415,7 @@ function BankChangeForm({ data }: { data: Data }) {
                 {data.konten.map((k) => (
                   <option key={k.id} value={k.id}>
                     {k.name}
-                    {k.zweck ? ` · ${ZWECK_LABEL[k.zweck] ?? k.zweck}` : ""}
+                    {` · ${PURPOSE_SHORT[k.zweck]}`}
                     {` · ${k.iban.replace(/(.{4})/g, "$1 ").trim()}`}
                   </option>
                 ))}

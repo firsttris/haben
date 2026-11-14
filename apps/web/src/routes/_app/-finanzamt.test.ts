@@ -26,7 +26,7 @@ vi.mock("react", async (importOriginal) => {
 });
 import { Route } from "./finanzamt.tsx";
 
-type Konto = { id: string; name: string; iban: string; zweck: string | null };
+type Konto = { id: string; name: string; iban: string; zweck: string };
 
 function fixture(konten: Konto[], taxAccount: { name: string; iban: string } | null = null) {
   return {
