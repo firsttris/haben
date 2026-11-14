@@ -1,11 +1,13 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
+import { useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { importWiso, previewWisoImport, type getMigration } from "../../server/functions/archive.ts";
 import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { Field } from "../Field.tsx";
+import { FilePicker } from "../FilePicker.tsx";
 import { Icon } from "../Icon.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 
@@ -20,7 +22,9 @@ export function WisoImport({ initial }: { initial: ImportRow | null }) {
   const importFn = useServerFn(importWiso);
   const previewAction = useAction();
   const importAction = useAction();
+  const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const submitCheck = useSubmitCheck({ file: file ? null : "Bitte eine WISO-Buchungs-CSV auswählen." });
   const [preview, setPreview] = useState<Preview | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -32,6 +36,7 @@ export function WisoImport({ initial }: { initial: ImportRow | null }) {
   };
   const onPreview = (event: FormEvent) => {
     event.preventDefault();
+    if (!submitCheck.check()) return;
     void previewAction.run(async () => setPreview(await previewFn({ data: formData() })));
   };
   const onImport = () =>
@@ -55,12 +60,12 @@ export function WisoImport({ initial }: { initial: ImportRow | null }) {
         Wähle den CSV-Export der Buchungen aus WISO Steuer (Modul EÜR) oder WISO EÜR &amp; Kasse (<code>Daten Export › Buchungen als CSV-Datei</code>). Beide
         Programme nutzen dieselben 18 Spalten. Kontenrahmen, Rechtsform und Versteuerungsart liest Haben aus den Firmendaten.
       </p>
-      <form className="stack" onSubmit={onPreview}>
-        <Field label="WISO-Buchungs-CSV" hint="Der Testlauf schreibt noch nichts in die Datenbank.">
+      <form ref={submitCheck.form} className="stack" noValidate onSubmit={onPreview}>
+        <Field label="WISO-Buchungs-CSV" hint="Der Testlauf schreibt noch nichts in die Datenbank." error={submitCheck.error("file")}>
           {(control) => (
-            <input
+            <FilePicker
               {...control}
-              type="file"
+              inputRef={fileInput}
               accept=".csv"
               required
               onChange={(event) => {
@@ -72,7 +77,7 @@ export function WisoImport({ initial }: { initial: ImportRow | null }) {
           )}
         </Field>
         <div className="actions">
-          <button type="submit" className="btn" disabled={!file || previewAction.busy || importAction.busy}>
+          <button type="submit" className="btn" disabled={previewAction.busy || importAction.busy}>
             {previewAction.busy ? "Prüfe CSV …" : "Testlauf starten"}
           </button>
         </div>
@@ -143,7 +148,6 @@ function WisoConfirmDialog({ preview, open, onConfirm, onClose }: { preview: Pre
       open={open}
       title="WISO-Buchungen unveränderlich importieren?"
       confirmLabel="Import starten"
-      danger
       facts={
         preview
           ? [

@@ -97,4 +97,39 @@ describe("previewWisoExport", () => {
     const emptyRows = new TextEncoder().encode(HEADER);
     expect(() => previewWisoExport(emptyRows, "SKR03")).toThrow(WisoParseError);
   });
+
+  it("erkennt Vorzeichen und Sachkonto korrekt, wenn Bank in Konto und Erlös/Aufwand in Gegenkonto steht", () => {
+    const bytes = csvBytes([
+      "1;1;05.01.2026;05.01.2026;Honorar;1200;Bank;8400;Erlöse 19 % USt;119,00;0,00;USt 19 %;19,00;Umsatzsteuer 19 %;R1;05.01.2026;;0",
+      "2;1;06.01.2026;06.01.2026;Werbung;1200;Bank;4600;Werbekosten;0,00;119,00;VSt 19 %;19,00;Vorsteuer 19 %;E1;06.01.2026;;0",
+    ]);
+    const preview = previewWisoExport(bytes, "SKR03");
+    expect(preview.vouchers[0]!.voucher.type).toBe("salesinvoice");
+    expect(preview.vouchers[0]!.voucher.gross).toBe(11900);
+    expect(preview.vouchers[0]!.voucher.categories[0]!.categoryId).toBe("8400");
+    expect(preview.vouchers[1]!.voucher.type).toBe("purchaseinvoice");
+    expect(preview.vouchers[1]!.voucher.gross).toBe(11900);
+    expect(preview.vouchers[1]!.voucher.categories[0]!.categoryId).toBe("4600");
+  });
+
+  it("rundet Steuer bei §-13b-Storno symmetrisch zur Null (Beleg + Storno = 0)", () => {
+    const bytes = csvBytes([
+      "1;1;10.01.2026;10.01.2026;Lizenz;4806;Wartung;1200;Bank;0,50;0,00;13b 19% And;19,00;USt § 13b;B1;10.01.2026;;0",
+      "2;1;11.01.2026;11.01.2026;Storno Lizenz;4806;Wartung;1200;Bank;-0,50;0,00;13b 19% And;19,00;USt § 13b;B2;11.01.2026;;0",
+    ]);
+    const preview = previewWisoExport(bytes, "SKR03");
+    const sumTax = preview.vouchers[0]!.voucher.tax + preview.vouchers[1]!.voucher.tax;
+    expect(preview.vouchers[0]!.voucher.tax).toBe(10);
+    expect(preview.vouchers[1]!.voucher.tax).toBe(-10);
+    expect(sumTax).toBe(0);
+  });
+
+  it("addiert bei einer Splittbuchung mit Erlös und Ausgabe nicht die Ausgabe auf die Einnahme", () => {
+    const bytes = csvBytes([
+      "50;1;20.02.2026;20.02.2026;Zahlungseingang;8400;Erlöse 19 % USt;1200;Bank;0,00;100,00;USt 19 %;19,00;Umsatzsteuer 19 %;R50;20.02.2026;;0",
+      "50;2;20.02.2026;20.02.2026;Gebühr;4970;Nebenkosten des Geldverkehrs;1200;Bank;5,00;0,00;;0,00;;R50;20.02.2026;;0",
+    ]);
+    const preview = previewWisoExport(bytes, "SKR03");
+    expect(preview.vouchers[0]!.voucher.gross).toBe(9500);
+  });
 });

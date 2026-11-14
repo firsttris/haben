@@ -1,4 +1,4 @@
-import { postenOf, taxIncluded } from "@haben/core";
+import { postenOf, taxIncluded, taxOf } from "@haben/core";
 import { isBlankRow, parseCsv } from "../csv.ts";
 import type { Kontenrahmen } from "../datev.ts";
 import { decodeText } from "../decode.ts";
@@ -130,38 +130,46 @@ function accountKind(account: string, skr: Kontenrahmen): AccountKind {
   return "aufwand";
 }
 
-function classifyRow(row: WisoCsvRow, skr: Kontenrahmen): { direction: "einnahme" | "ausgabe"; positive: boolean; neutral: boolean } {
+function classifyRow(row: WisoCsvRow, skr: Kontenrahmen): { direction: "einnahme" | "ausgabe"; positive: boolean; neutral: boolean; categoryAccount: string } {
   if (row.konto === "9000" || row.gegenkonto === "9000") {
-    return { direction: row.soll >= row.haben ? "ausgabe" : "einnahme", positive: true, neutral: true };
+    return {
+      direction: row.soll >= row.haben ? "ausgabe" : "einnahme",
+      positive: true,
+      neutral: true,
+      categoryAccount: row.konto === "9000" ? row.gegenkonto : row.konto,
+    };
   }
   const debit = accountKind(row.konto, skr);
   const credit = accountKind(row.gegenkonto, skr);
-  const key = row.steuerschluessel;
-  if (/^USt\b/i.test(key)) {
-    return { direction: "einnahme", positive: row.haben >= row.soll, neutral: false };
-  }
-  if (/^(VSt|13b|EU\s+VSt)\b/i.test(key)) {
-    return { direction: "ausgabe", positive: row.soll >= row.haben, neutral: false };
-  }
   if (debit === "erloes" || credit === "erloes") {
     const positive = debit === "erloes" ? row.haben >= row.soll : row.soll >= row.haben;
-    return { direction: "einnahme", positive, neutral: false };
+    return { direction: "einnahme", positive, neutral: false, categoryAccount: debit === "erloes" ? row.konto : row.gegenkonto };
   }
   if (debit === "aufwand" || credit === "aufwand") {
     const positive = debit === "aufwand" ? row.soll >= row.haben : row.haben >= row.soll;
-    return { direction: "ausgabe", positive, neutral: false };
+    return { direction: "ausgabe", positive, neutral: false, categoryAccount: debit === "aufwand" ? row.konto : row.gegenkonto };
   }
   if (debit === "anlage" || credit === "anlage") {
     const direction = debit === "anlage" ? (row.soll >= row.haben ? "ausgabe" : "einnahme") : row.haben >= row.soll ? "ausgabe" : "einnahme";
-    return { direction, positive: true, neutral: false };
+    return { direction, positive: true, neutral: false, categoryAccount: debit === "anlage" ? row.konto : row.gegenkonto };
   }
   if (debit === "bank" && credit === "bank") {
-    return { direction: row.soll >= row.haben ? "ausgabe" : "einnahme", positive: true, neutral: true };
+    return { direction: row.soll >= row.haben ? "ausgabe" : "einnahme", positive: true, neutral: true, categoryAccount: row.konto };
+  }
+  const key = row.steuerschluessel;
+  if (/^USt\b/i.test(key)) {
+    const positive = debit === "bank" ? row.soll >= row.haben : row.haben >= row.soll;
+    return { direction: "einnahme", positive, neutral: false, categoryAccount: debit === "bank" ? row.gegenkonto : row.konto };
+  }
+  if (/^(VSt|13b|EU\s+VSt)\b/i.test(key)) {
+    const positive = debit === "bank" ? row.haben >= row.soll : row.soll >= row.haben;
+    return { direction: "ausgabe", positive, neutral: false, categoryAccount: debit === "bank" ? row.gegenkonto : row.konto };
   }
   return {
     direction: row.haben > row.soll ? "einnahme" : "ausgabe",
     positive: true,
     neutral: false,
+    categoryAccount: row.konto,
   };
 }
 
@@ -176,7 +184,7 @@ function computeRowAmounts(row: WisoCsvRow, positive: boolean, neutral: boolean)
   const isNetInCsv = /^(13b\b|EU\s+VSt\b)/i.test(row.steuerschluessel);
   if (isNetInCsv) {
     const net = sign * amount;
-    const tax = Math.round((net * row.steuersatz) / 10000);
+    const tax = taxOf(net, row.steuersatz);
     return { rate: row.steuersatz, net, tax, gross: net + tax };
   }
   const gross = sign * amount;
@@ -188,6 +196,7 @@ function buildGroupVoucher(key: string, group: WisoCsvRow[], skr: Kontenrahmen):
   const first = group[0]!;
   const year = Number(first.zahlungsdatum.slice(0, 4));
   const firstClass = classifyRow(first, skr);
+  const direction = firstClass.direction;
   const neutral = group.every((r) => classifyRow(r, skr).neutral);
 
   const taxByRate = new Map<number, { rate: number; net: number; tax: number }>();
@@ -198,7 +207,11 @@ function buildGroupVoucher(key: string, group: WisoCsvRow[], skr: Kontenrahmen):
 
   for (const row of group) {
     const rowClass = classifyRow(row, skr);
-    const { rate, net, tax, gross } = computeRowAmounts(row, rowClass.positive, rowClass.neutral);
+    const { rate, net: rowNet, tax: rowTax, gross: rowGross } = computeRowAmounts(row, rowClass.positive, rowClass.neutral);
+    const dirSign = rowClass.direction === direction ? 1 : -1;
+    const net = dirSign * rowNet;
+    const tax = dirSign * rowTax;
+    const gross = dirSign * rowGross;
     totalNet += net;
     totalTax += tax;
     totalGross += gross;
@@ -210,14 +223,13 @@ function buildGroupVoucher(key: string, group: WisoCsvRow[], skr: Kontenrahmen):
       taxByRate.set(rate, { rate, net, tax });
     }
     categories.push({
-      categoryId: row.konto,
+      categoryId: rowClass.categoryAccount,
       rate,
       net,
       tax,
     });
   }
 
-  const direction = firstClass.direction;
   const positive = totalGross >= 0;
   const type = direction === "einnahme" ? (positive ? "salesinvoice" : "salescreditnote") : positive ? "purchaseinvoice" : "purchasecreditnote";
 
