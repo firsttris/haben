@@ -179,7 +179,7 @@ Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` fü
 
 - Sonstige Leistungen (§ 3a Abs. 2 UStG, Umsatzart S) und innergemeinschaftliche Lieferungen (Umsatzart L). Keine Dreiecksgeschäfte (Umsatzart D, § 25b UStG): Die Rechnungen von Haben kennen sie nicht.
 - Keine Monatsmeldung: Liegen die Lieferungen im Quartal oder in einem der vier vorangegangenen über 50.000 €, ist monatlich zu melden (§ 18a Abs. 1 Satz 2 UStG). Über 50.000 € im Quartal sperrt Haben das Senden; die vorangegangenen Quartale prüft es nicht.
-- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist bzw. die Rechnung für die Lieferung ausgestellt, spätestens der Folgemonat (§ 18a Abs. 8 UStG). Haben nimmt dafür bei neuen ausdrücklich erbrachten EU-Teilleistungen das Leistungsdatum, sonst das Rechnungsdatum, wie bei Kz 21 und 41.
+- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist bzw. die Rechnung für die Lieferung ausgestellt, spätestens der Folgemonat (§ 18a Abs. 8 UStG). Haben nimmt dafür bei sonstigen Leistungen den [Leistungstag](#leistungstag-bei-soll-versteuerung), bei Lieferungen das Rechnungsdatum, wie bei Kz 21 und 41.
 - Die Meldung geht nur für ganze Quartale, nicht monatlich nach § 18a Abs. 3 UStG.
 
 ## Wie die Kennzahlen entstehen
@@ -193,7 +193,7 @@ Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 | Versteuerung | Maßgeblich | Quelle |
 | --- | --- | --- |
 | Ist (vereinnahmte Entgelte) | Buchungsdatum des Zahlungseingangs | Zuordnungen im [Bankabgleich](bank.md). Bei Teilzahlungen zählt der Anteil der Zahlung, bei mehreren Steuersätzen anteilig je Satz. Aufgehobene Zuordnungen wirken mit ihrer Gegenzeile am Tag der Aufhebung; ältere Zuordnungen ohne eigenes Datum am Buchungsdatum des Umsatzes (siehe [Zuordnung aufheben](bank.md#zuordnung-aufheben)). |
-| Soll (vereinbarte Entgelte) | Rechnungsdatum; Ausnahme: [neue Abschläge und erbrachte Teilleistungen](rechnungen.md#abschlags--und-schlussrechnung) | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
+| Soll (vereinbarte Entgelte) | [Leistungstag](#leistungstag-bei-soll-versteuerung), ohne Angabe das Rechnungsdatum; Ausnahme: [Anzahlungen](rechnungen.md#abschlags--und-schlussrechnung) | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
 
 Bankumsätze, die im Bankabgleich [direkt auf eine Einnahmekategorie](bank.md#auf-eine-kategorie-buchen) gebucht sind, zählen ohne Rechnung bei Ist und Soll am Buchungstag des Umsatzes, mit Netto und Steuer aus dem Betrag und dem gewählten Steuersatz. In den Quellen stehen sie als „Direktbuchung“.
 
@@ -209,11 +209,11 @@ Bei neuen Bilanz-Anzahlungs-/Schlussketten von GmbH und UG gehen reine Anforderu
 
 | Kennzahl | Umsatzsteuer an der Rechnung | Maßgeblich |
 | --- | --- | --- |
-| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | bei neuen ausdrücklich erbrachten Teil- und Schlussleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
+| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | [Leistungstag](#leistungstag-bei-soll-versteuerung); vor diesem Update festgeschriebene Rechnungen Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
 | 41 | Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
-| 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
+| 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Leistungstag |
 | 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
-| 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
+| 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Leistungstag |
 
 Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
 
@@ -221,13 +221,13 @@ In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nich
 
 ### Leistungstag bei Soll-Versteuerung
 
-Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Leistung, nicht mit der Zahlung (§ 13 Abs. 1 Nr. 1 Buchst. a UStG). Maßgeblich ist deshalb der **Leistungstag** an der Rechnung, nicht das Rechnungsdatum und nicht der Zahlungseingang. Fehlt ein abweichender Leistungstag, gilt das Rechnungsdatum.
+Bei Soll-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem die Leistung ausgeführt ist, nicht mit der Rechnung ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)). Haben nimmt dafür den **Leistungstag**: **Leistung bis**, ist nur **Leistung von** angegeben dieser Tag, ohne Angabe das Rechnungsdatum. Beispiel: Beratung im Oktober, Rechnung vom 03.11. mit Leistungszeitraum 01.10. bis 31.10.: Die Steuer gehört in die Voranmeldung für Oktober, auch die Buchung steht am 31.10. Das gilt ebenso für Kz 43 und 48 und, unabhängig von Ist und Soll, für Kz 21 und die ZM ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)).
 
-Haben schreibt den Leistungstag beim Buchen fest. Wer den Beleg später ändert, verschiebt damit keine Steuer in einen schon gemeldeten Monat: Die Buchung trägt den Stand, der beim Buchen galt, und die Änderung wirkt nur nach vorn.
+Haben schreibt den Leistungstag beim Festschreiben fest. Rechnungen, die vor diesem Update festgeschrieben wurden, haben keinen und zählen weiter nach Rechnungsdatum; gemeldete Zahlen ändern sich durch das Update nicht. Nicht nach dem Leistungstag zählen Anzahlungen vor der Leistung (die Steuer entsteht mit der Zahlung, [Abschlags- und Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung)), Stornos und Korrekturen (im Monat ihres Datums, § 17 UStG) und innergemeinschaftliche Lieferungen (Kz 41) und Leistungen ins Drittland (Kz 45), die beim Rechnungsdatum bleiben.
 
-Ist der Monat schon gemeldet, sagt Haben das beim Buchen und bucht trotzdem. Eine Sperre wäre hier falsch: Ob im gemeldeten Monat noch etwas nachzuziehen ist, entscheidet der Anwender, nicht das Programm. Der Hinweis nennt den Monat und den Betrag, damit die Korrektur in der nächsten Voranmeldung nachvollziehbar ist.
+Liegt der Leistungstag in einem Zeitraum, dessen Voranmeldung schon gesendet oder vermerkt ist, schreibt Haben die Rechnung trotzdem fest und zeigt an der Rechnung einen Hinweis mit Zeitraum, Abgabedatum und Betrag. Keine spätere Voranmeldung enthält die Rechnung; lege für den genannten Zeitraum eine [berichtigte Anmeldung](#berichtigte-anmeldung) an ([§ 153 Abs. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html)).
 
-**Teilleistungen** (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 3 UStG) brauchen kein eigenes Feld je Teilleistung: Das Feldpaar Leistung von/bis hängt am Beleg, und jede Teilleistung, die steuerlich für sich steht, wird als eigener Beleg erfasst. Wer eine Schlussrechnung über mehrere Abschläge schreibt, legt für jeden Abschlag einen Beleg an.
+Vereinbarte **Teilleistungen** (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 2 und 3 UStG) schreibst du als eigene Rechnungen, je Teilleistung mit ihrem Leistungszeitraum, oder als Abschlag mit **Teilleistung bereits erbracht**.
 
 ### Vorsteuer (Kz 66)
 
