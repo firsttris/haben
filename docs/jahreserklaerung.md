@@ -13,9 +13,7 @@ Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eig
 
 Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Die Einkommensteuererklärung kennt keinen Vermerk; solange Haben sie nicht gesendet hat, steht dort „Nicht aus Haben übermittelt“ — gesendet wird sie über den Kasten unter der Tabelle.
 
-Oben auf der Seite steht **Stand der Erklärungen** als Tabelle mit einer Zeile je Erklärung: der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt, sodass du von der Übersicht direkt bei der Erklärung landest.
-
-Die Blöcke der Einkommensteuer starten zugeklappt. Der Kopf jedes Blocks nennt in einer Zeile, was darin steht: bei der Anlage N die Anzahl der Bescheinigungen und die Summe der Werbungskosten, beim häuslichen Arbeitszimmer die Kosten, bei den Kindern der Stand. Aufgeklappt wird mit einem Klick auf den Kopf; die Angaben bleiben gespeichert und werden beim nächsten Aufruf wieder zusammengefasst.
+Oben auf der Seite steht **Stand der Erklärungen** als Tabelle mit einer Zeile je Erklärung: der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt, sodass du von der Übersicht direkt bei der Erklärung landest. Bei einer GmbH oder UG entfällt sie.
 
 Hinweise, die Habens eigene Rechnung beschreiben, erscheinen nur, wenn die Zahlen aus den Buchungen stammen. Die Gewinnzeile der Anlage EÜR steht nur, wenn es dazu Daten gibt, und die Meldungen zu einem leeren Jahr treten zurück, sobald die Erklärung vermerkt oder gesendet ist.
 
@@ -136,7 +134,7 @@ Die Einkommensteuererklärung (Datenart ESt, Vordruck E10) setzt Haben aus drei 
 
 Die eingetragenen Angaben speichert Haben je Jahr; jede Änderung steht im Audit-Log. Übermittelt wird, was gespeichert ist. Leere Anlagen schickt Haben nicht mit.
 
-Vorsorgeaufwand, Sonderausgaben, haushaltsnahe Aufwendungen, Kinder und Kapitalerträge sind zuklappbar; im Titel steht, was gespeichert ist (z. B. „Vorsorgeaufwand · 4.230,00 €“), Blöcke mit Angaben sind beim Öffnen aufgeklappt. **Angaben speichern** und die voraussichtliche Steuer bleiben am unteren Rand sichtbar. Über die Leiste oben springst du zwischen Umsatzsteuer, Anlage EÜR, Einkommensteuer, den Belegen von ELSTER und dem Verlauf.
+Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe Aufwendungen, Kinder und Kapitalerträge stehen zugeklappt; im Titel steht, was eingetragen ist (z. B. „Vorsorgeaufwand · 4.230,00 €“, bei der Anlage N Bruttoarbeitslohn und Lohnsteuer aller Bescheinigungen zusammen). In der Anlage N klappen auch jede Lohnsteuerbescheinigung und die Werbungskosten einzeln auf. Fehlt beim Speichern eine Pflichtangabe in einem zugeklappten Block, klappt Haben ihn auf und setzt den Cursor ins Feld. **Angaben speichern** und die voraussichtliche Steuer bleiben am unteren Rand sichtbar. Über die Leiste oben springst du zwischen Umsatzsteuer, Anlage EÜR, Einkommensteuer, den Belegen von ELSTER und dem Verlauf.
 
 | Anlage | Angaben |
 | --- | --- |
