@@ -32,12 +32,16 @@ function CollapseSidebarButton({ collapsed, onToggleCollapse }: CollapseButtonPr
       type="button"
       className="nav-link nav-collapse-btn nav-tip-anker"
       aria-expanded={!collapsed}
-      aria-label={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
+      // Ausgeklappt kommt der Name aus dem Text, sonst passte das sichtbare Kürzel nicht zu einem aria-label
+      // (axe: label-content-name-mismatch, WCAG 2.5.3); das Kürzel steht in aria-keyshortcuts
+      aria-label={collapsed ? "Seitenleiste ausklappen" : undefined}
       aria-keyshortcuts={ariaKuerzel(EINKLAPP_KUERZEL)}
       onClick={onToggleCollapse}
     >
       <Icon name={collapsed ? "sidebar-open" : "sidebar-close"} />
-      <span className="nav-collapse-label">Einklappen</span>
+      <span className="nav-collapse-label">
+        <span className="visually-hidden">Seitenleiste </span>Einklappen
+      </span>
       {!collapsed && <Kuerzel tasten={EINKLAPP_KUERZEL} className="nav-kbd" aria-hidden="true" />}
       {collapsed && (
         <NavTip>
