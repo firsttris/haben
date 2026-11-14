@@ -519,6 +519,33 @@ async function homeofficeIssues(year: number, est: EstYear): Promise<Issue[]> {
   ];
 }
 
+/**
+ * Für dieselbe Zeit gibt es entweder das Arbeitszimmer oder die Homeoffice-Tagespauschale (§ 4 Abs. 5 Satz 1 Nr. 6c
+ * Satz 3 EStG). Haben rechnet beides wie eingetragen; der Hinweis sagt, dass es doppelt ist, wenn der Zeitraum derselbe
+ * wäre. Das Kennzeichen „Mittelpunkt der gesamten Tätigkeit“ hat in der Anlage N kein ELSTER-Feld, deshalb bleibt es
+ * beim Hinweis.
+ */
+async function arbeitszimmerIssues(year: number, est: EstYear): Promise<Issue[]> {
+  type Person = NonNullable<NonNullable<EstAngaben["arbeitnehmer"]>["a"]>;
+  const personen = [est.angaben.arbeitnehmer?.a, est.zusammen ? est.angaben.arbeitnehmer?.b : undefined].filter((p): p is Person =>
+    Boolean(p && p.bescheinigungen.length > 0),
+  );
+  if (!personen.some((p) => (p.werbungskosten.arbeitszimmer ?? 0) > 0)) return [];
+  const imN = personen.reduce((s, p) => s + (p.werbungskosten.homeofficeTage ?? 0), 0);
+  const { homeoffice } = await listPauschalen(year);
+  if (imN === 0 && homeoffice.tage === 0) return [];
+  const wo = [imN > 0 ? `${imN} Homeoffice-Tage in der Anlage N` : null, homeoffice.tage > 0 ? `${homeoffice.tage} Tage in der EÜR` : null]
+    .filter(Boolean)
+    .join(" und ");
+  return [
+    {
+      tone: "hinweis",
+      text: `Arbeitszimmer und Homeoffice-Tagespauschale: ${wo} stehen neben dem Arbeitszimmer in der Anlage N. Für dieselbe Zeit gibt es nur eines von beidem; Haben schickt beides so, wie du es eingetragen hast.`,
+      link: "/pauschalen",
+    },
+  ];
+}
+
 // ------------------------------------------------------------------ Übersicht und Übermittlung
 
 function yearIssues(year: number, today: string): Issue[] {
@@ -590,7 +617,7 @@ export async function annualOverview(year: number, today: string) {
     // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
     est: {
       ...est,
-      issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))],
+      issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est)), ...(await arbeitszimmerIssues(year, est))],
       sent: sent("est"),
       submitted: submitted("est"),
       verwaltet: false,
