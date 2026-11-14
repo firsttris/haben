@@ -420,7 +420,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Beim ersten Fehler hält es an |
 | `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC und letzte erfolgreiche Sicherung |
 | `liste` | Name, Domain und Verzeichnis |
-| `firmen [<name> …]` | Schreibt die Liste für [Firma wechseln](#firma-wechseln) als `HABEN_FIRMEN` in jede Instanz, ohne Namen in alle der Basis, mit Namen nur in diese; die übrigen bleiben unverändert und stehen in keiner Liste. Je Instanz steht darin `HABEN_FIRMENNAME` aus ihrer `.env` (sonst ihr Name) mit `https://<DOMAIN>`. Vorher prüft es die Liste wie die App; bei einem Fehler, etwa einem doppelten Namen, nennt es die Instanz und ändert keine Datei. Ebenso, wenn die `compose.yml` einer Instanz `HABEN_FIRMEN` nicht an die App weitergibt (mit einem älteren Stand angelegt): dann die aktuelle aus `deploy/` dorthin kopieren. Danach startet es laufende Apps mit `up -d` neu und wartet, bis sie gesund sind; gestoppte bleiben gestoppt. Schlägt ein Neustart fehl, hält es an und nennt die Instanz. Nennt eine nicht gewählte Instanz in ihrer Liste noch gewählte, weist es darauf hin; ihre Liste leerst du von Hand oder gleichst sie mit `firmen` und ihrer eigenen Gruppe ab |
+| `firmen [<name> …]` | Schreibt die Liste für [Firma wechseln](#firma-wechseln) als `HABEN_FIRMEN` in die `.env` der Instanzen und startet laufende Apps neu |
 
 `neu` setzt in der `.env` eigene Zufallswerte für `DB_PASSWORD`, das Passwort der App-Rolle in `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`. Der Name besteht aus a–z, 0–9 und `-`, höchstens 31 Zeichen, am Anfang und Ende ein Buchstabe oder eine Ziffer; `proxy`, `app` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben. `neu` bricht ab und ändert nichts, wenn
 
@@ -441,6 +441,14 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 - Bei ERiC steht die Version, „von Hand“ bei einem mit `ERIC_HOME` eingebundenen Paket ohne Versionsdatei oder „fehlt“ ohne ERiC.
 - Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“.
 - Skripte lesen `haben status --json`, den Commit im Feld `commit` (`null` ohne Angabe beim Bauen); das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert.
+
+`firmen`:
+
+- Ohne Namen schreibt es die Liste in alle Instanzen der Basis, mit Namen nur in diese; die übrigen bleiben unverändert und stehen in keiner Liste.
+- Je Instanz steht darin `HABEN_FIRMENNAME` aus ihrer `.env` (sonst ihr Name) mit `https://<DOMAIN>`.
+- Vorher prüft es die Liste wie die App; bei einem Fehler, etwa einem doppelten Namen, nennt es die Instanz und ändert keine Datei. Ebenso, wenn die `compose.yml` einer Instanz `HABEN_FIRMEN` nicht an die App weitergibt (mit einem älteren Stand angelegt): dann die aktuelle aus `deploy/` dorthin kopieren.
+- Danach startet es laufende Apps mit `up -d` neu und wartet, bis sie gesund sind; gestoppte bleiben gestoppt. Schlägt ein Neustart fehl, hält es an und nennt die Instanz.
+- Nennt eine nicht gewählte Instanz in ihrer Liste noch gewählte, weist es darauf hin; ihre Liste leerst du von Hand oder gleichst sie mit `firmen` und ihrer eigenen Gruppe ab.
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 
