@@ -7,6 +7,10 @@ services:
     env_file: .env
     environment:
       PORT: "3000"
+      # Logos der Firmen aus PORTAL_FIRMEN (#1036), aus dem Verzeichnis logos/ neben dieser Datei
+      PORTAL_LOGOS: /logos
+    volumes:
+      - ./logos:/logos:ro
     # Gehärtet wie die App: schreibgeschützt, keine Capabilities, keine neuen Rechte. Das Firmenportal schreibt nichts
     read_only: true
     cap_drop: [ALL]

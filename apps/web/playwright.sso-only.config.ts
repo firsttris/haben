@@ -1,4 +1,5 @@
 import { ssoTestTls } from "./e2e/sso-tls.ts";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "@playwright/test";
 import { appDatabaseUrlFuer } from "./e2e/durchlaeufe.ts";
 
@@ -85,8 +86,10 @@ export default defineConfig({
         PORT: production ? "3221" : "3217",
         PORTAL_URL: PORTAL,
         PORTAL_SECRET: "e2e-portal-secret-mindestens-32-zeichen",
-        // Diese Instanz und zwei, die es nicht geben muss
-        PORTAL_FIRMEN: `Studio Nord|${baseURL}|haben-inhaber;Werkstatt Süd|https://sued.example.de|haben-sued-inhaber;Atelier West|https://west.example.de|haben-west-inhaber`,
+        // Diese Instanz mit Logo als Zeichen, eine in eigener Farbe und eine ohne beides; die beiden anderen muss es nicht geben
+        PORTAL_FIRMEN: `Studio Nord|${baseURL}|haben-inhaber||icon-192.png;Werkstatt Süd|https://sued.example.de|haben-sued-inhaber|#B45309;Atelier West|https://west.example.de|haben-west-inhaber`,
+        // Das Logo von Haben als Logo einer Firma (#1036)
+        PORTAL_LOGOS: fileURLToPath(new URL("./public", import.meta.url)),
         OIDC_ISSUER: issuer,
         OIDC_CLIENT_ID: "haben",
         OIDC_CLIENT_SECRET: "secret",

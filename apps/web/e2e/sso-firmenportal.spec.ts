@@ -77,7 +77,7 @@ test.describe.configure({ mode: "serial" });
 test("Firmenportal: Anmeldung zeigt nur die Firmen aus den eigenen Inhaber-Gruppen", async ({ browser }) => {
   const page = await portalAnmelden(browser, "familie, haben-inhaber, haben-sued-inhaber, haben-west-steuerberatung");
   await page.waitForURL(`${PORTAL}/`);
-  // Die Initiale vor dem Namen ist nur Schmuck (aria-hidden), der Name des Links bleibt der Name der Firma
+  // Logo oder Initiale vor dem Namen sind nur Schmuck (aria-hidden), der Name des Links bleibt der Name der Firma
   await expect(firmen(page)).toHaveCount(2);
   await expect(firmen(page).nth(0)).toHaveAccessibleName("Studio Nord");
   await expect(firmen(page).nth(1)).toHaveAccessibleName("Werkstatt Süd");
@@ -103,6 +103,35 @@ test("Firmenportal: nach einem Abbruch steht „Mit … anmelden“ rechts wie d
     await page.setViewportSize({ width, height: 812 });
     expect(await kanten(page, ".aktionen .btn"), `${width}px`).toEqual({ zeichen: 0, ueberschrift: 0, kachel: 0, knopf: 0 });
   }
+  await page.context().close();
+});
+
+test("Firmenportal: Kachel mit Logo oder in der Farbe der Firma (#1036)", async ({ browser }) => {
+  const page = await portalAnmelden(browser, "haben-inhaber, haben-sued-inhaber");
+  await page.waitForURL(`${PORTAL}/`);
+  // Studio Nord zeigt sein Logo statt des Buchstabens, vom Firmenportal selbst ausgeliefert
+  const logo = firmen(page).nth(0).locator(".firma-logo img");
+  await expect(logo).toBeVisible();
+  await expect(logo).toHaveAttribute("src", /^\/zeichen\/[0-9a-f]{16}\.png$/);
+  expect(await logo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  // Werkstatt Süd: Anfangsbuchstabe auf der eigenen Farbe, weiße Schrift (inkOnAccent)
+  const kachel = firmen(page).nth(1).locator(".firma-zeichen");
+  await expect(kachel).toHaveText("W");
+  await expect(kachel).toHaveCSS("background-color", "rgb(180, 83, 9)");
+  await expect(kachel).toHaveCSS("color", "rgb(255, 255, 255)");
+  // Die Links heißen weiter nur wie die Firmen
+  await expect(firmen(page).nth(0)).toHaveAccessibleName("Studio Nord");
+  await expect(firmen(page).nth(1)).toHaveAccessibleName("Werkstatt Süd");
+  await ohneVerstoesse(page);
+  // Das Logo bündig wie die Kacheln mit Buchstaben, am Desktop und am Handy
+  expect(await kanten(page, ".fuss .btn")).toEqual({ zeichen: 0, ueberschrift: 0, kachel: 0, knopf: 0 });
+  await page.setViewportSize({ width: 375, height: 812 });
+  expect(await kanten(page, ".fuss .btn")).toEqual({ zeichen: 0, ueberschrift: 0, kachel: 0, knopf: 0 });
+  // Ohne Sitzung gibt es das Logo nicht
+  const adresse = await logo.getAttribute("src");
+  const fremd = await (await browser.newContext()).newPage();
+  expect((await fremd.request.get(`${PORTAL}${adresse}`, { maxRedirects: 0 })).status()).toBe(404);
+  await fremd.context().close();
   await page.context().close();
 });
 
