@@ -695,6 +695,8 @@ function ConnectForm({
         : query.trim()
           ? `Keine Bank passt zu „${query.trim()}“. Ändere die Suche.`
           : "Keine Bank verfügbar.",
+    // Leer heißt Vorgabe (fetchFromForConnect); max prüft der Browser mit noValidate nicht mehr
+    fetchFrom: fetchFrom > today ? `Wähle einen Tag bis ${formatDate(today)} oder lass das Feld leer.` : null,
   });
 
   // Fällt die gewählte Bank aus den Treffern, rückt der erste Treffer nach und bleibt, wenn die Suche wieder weiter wird
@@ -767,6 +769,7 @@ function ConnectForm({
       )}
       <Field
         label="Umsätze abrufen ab"
+        error={fehler("fetchFrom")}
         hint={
           <>
             Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon da sind (etwa aus
@@ -1580,7 +1583,10 @@ function SplitForm({
             : parsed[i] === 0
               ? "Der Betrag darf nicht 0 sein."
               : i === rows.length - 1 && rest !== 0
-                ? `Zusammen fehlen noch ${signed(rest)} €.`
+                ? // rest mit dem Vorzeichen des Umsatzes fehlt noch, mit dem anderen ist zu viel verteilt
+                  Math.sign(rest) === Math.sign(tx.open)
+                  ? `Zusammen fehlen noch ${signed(rest)} €.`
+                  : `Zusammen sind ${formatDecimal(Math.abs(rest))} € zu viel verteilt.`
                 : null,
         ],
         [`jahr-${r.key}`, r.target === "steuer" && !steuerangabe(r.steuer) ? BEZUGSJAHR_FEHLER : null],
