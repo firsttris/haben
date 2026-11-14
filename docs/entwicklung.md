@@ -257,6 +257,8 @@ Trigger und Funktionen (Festschreibung, Versionierung, Audit-Log) kann drizzle-k
 cd apps/web && bun --bun drizzle-kit generate --custom --name=mein_trigger
 ```
 
+Ändert eine Migration Trigger oder `haben_*`-Funktionen, muss auch der ausgelieferte Sollbestand zur [Manipulationserkennung](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel) aktualisiert werden. `TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun apps/web/src/server/db/write-trigger-inventory.ts` erzeugt ihn ausschließlich aus einer dafür neu angelegten und frisch migrierten Testdatenbank. Der Test `apps/web/src/server/db/trigger-inventory.test.ts` schlägt fehl, solange `trigger-inventory.json` daneben abweicht. Erzeuge den Sollbestand auch beim Wechsel der PostgreSQL-Hauptversion neu, weil sich die von [`pg_get_functiondef`](https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE) rekonstruierte SQL-Darstellung ändern kann.
+
 Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen schon angewendet.
 
 ## Jahreswerte
