@@ -1,25 +1,37 @@
 import { sql } from "drizzle-orm";
 import type { Tx } from "./index.ts";
 
+/** Eine Spalte, deren SHA-256 auf eine Datei im Dokumentenspeicher zeigt, mit dem Dateinamen des Datensatzes */
+export interface FileReference {
+  table: string;
+  column: string;
+  nameColumn: string;
+}
+
 /**
- * Ob ein Datensatz die Datei im Dokumentenspeicher nutzt (Ablage nach Inhalt, also derselbe SHA-256). Belege,
- * Archivdateien, Lexoffice-Dateien, Bescheide, Anhänge von Rechnungen und Angeboten samt Standardanhängen, Protokolle vermerkter Voranmeldungen und Protokolle aus
- * dem SV-Meldeportal Verträge der Dauerbelege sowie unterschriebene Lastschriftmandate teilen sich den Speicher; gelöscht wird eine Datei
- * erst, wenn keiner sie mehr braucht.
+ * Alle Verweise auf Dateien im Dokumentenspeicher (Ablage nach Inhalt, also derselbe SHA-256 für dieselbe Datei).
+ * fileInUse, die Vollprüfung der Dateien und der Test-Restore (deploy/backup/restore-check.sh) lesen von hier;
+ * file-in-use.test.ts vergleicht die Liste mit allen SHA-256-Spalten im Schema.
  */
+export const FILE_REFERENCES: readonly FileReference[] = [
+  { table: "documents", column: "sha256", nameColumn: "filename" },
+  { table: "archive_files", column: "sha256", nameColumn: "filename" },
+  { table: "lexoffice_voucher_files", column: "sha256", nameColumn: "filename" },
+  { table: "legacy_order_files", column: "sha256", nameColumn: "filename" },
+  { table: "postfach_documents", column: "sha256", nameColumn: "filename" },
+  { table: "invoice_attachments", column: "sha256", nameColumn: "filename" },
+  { table: "quote_attachments", column: "sha256", nameColumn: "filename" },
+  { table: "quote_default_attachments", column: "sha256", nameColumn: "filename" },
+  { table: "vat_return_filings", column: "sha256", nameColumn: "filename" },
+  { table: "sv_portal_filings", column: "protokoll_sha256", nameColumn: "protokoll_dateiname" },
+  { table: "recurring_documents", column: "sha256", nameColumn: "filename" },
+  { table: "sepa_mandate_files", column: "sha256", nameColumn: "filename" },
+];
+
+/** Ob ein Datensatz die Datei nutzt; gelöscht wird eine Datei erst, wenn keiner sie mehr braucht. */
 export async function fileInUse(tx: Tx, sha256: string): Promise<boolean> {
-  const [use] = await tx.execute<{ used: boolean }>(sql`
-    select exists (select 1 from documents where sha256 = ${sha256})
-        or exists (select 1 from archive_files where sha256 = ${sha256})
-        or exists (select 1 from lexoffice_voucher_files where sha256 = ${sha256})
-        or exists (select 1 from postfach_documents where sha256 = ${sha256})
-        or exists (select 1 from invoice_attachments where sha256 = ${sha256})
-        or exists (select 1 from quote_attachments where sha256 = ${sha256})
-        or exists (select 1 from quote_default_attachments where sha256 = ${sha256})
-        or exists (select 1 from vat_return_filings where sha256 = ${sha256})
-        or exists (select 1 from sv_portal_filings where protokoll_sha256 = ${sha256})
-        or exists (select 1 from recurring_documents where sha256 = ${sha256})
-        or exists (select 1 from sepa_mandate_files where sha256 = ${sha256}) as used`);
+  const uses = FILE_REFERENCES.map((r) => sql`exists (select 1 from ${sql.identifier(r.table)} where ${sql.identifier(r.column)} = ${sha256})`);
+  const [use] = await tx.execute<{ used: boolean }>(sql`select ${sql.join(uses, sql` or `)} as used`);
   return Boolean(use?.used);
 }
 
