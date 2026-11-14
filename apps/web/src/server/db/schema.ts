@@ -2327,6 +2327,12 @@ export const allocations = pgTable(
       .notNull()
       .references(() => bankTransactions.id),
     kind: allocationKindEnum("kind").notNull(),
+    /**
+     * Tag, an dem die Zuordnung wirkt; leer heißt Buchungsdatum des Umsatzes. Gesetzt ist er bei der Gegenzeile einer
+     * Aufhebung (#782): Die wirkt am Tag der Aufhebung, auch wenn der Umsatz Monate älter ist. Ohne diese Spalte lägen
+     * Journal (Tag der Aufhebung) und Nebenbücher (Tag des Umsatzes) für den Zeitraum dazwischen auseinander.
+     */
+    date: date("date", { mode: "string" }),
     invoiceId: uuid("invoice_id").references(() => invoices.id),
     documentId: uuid("document_id").references(() => documents.id),
     /** Mit dem Vorzeichen des Umsatzes; Teile einer Aufteilung auch mit umgekehrtem (z. B. Gebühr in einer Auszahlung) */

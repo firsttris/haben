@@ -29,6 +29,7 @@ import {
   allocateSplit,
   allocationSchema,
   BankError,
+  gemeldeteVoranmeldungen,
   createAccount,
   createProviderAccount,
   providerAccountSchema,
@@ -123,6 +124,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const detail = selectedId ? await transactionDetail(selectedId) : null;
     return {
       accounts,
+      /** Monate mit abgegebener Voranmeldung: danach ist der Tag der Aufhebung vorbelegt (#782) */
+      gemeldeteMonate: await gemeldeteVoranmeldungen(),
       accountId: account?.id ?? null,
       excludeBlockedBy,
       excludedAccounts: (await listExcludedAccounts()).map((a) => ({ ...a, excludedAt: a.excludedAt?.toISOString() ?? null })),
@@ -279,11 +282,18 @@ export const reverseWriteOffFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Aufhebung einer Zuordnung: Pflicht ist der Tag, an dem sie erklärt wird (#782); er ist nicht rückdatiert */
+export const reverseAllocationSchema = z.object({
+  id: z.uuid(),
+  // In der Zukunft aufheben kann niemand; den Rückfall auf das Buchungsdatum verhindert der Tag selbst
+  date: z.iso.date().refine((d) => d <= today(), "Das Datum der Aufhebung liegt in der Zukunft."),
+});
+
 export const reverseTransactionAllocation = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(reverseAllocationSchema)
   .handler(async ({ data, context }) => {
-    await reverseAllocation(context.user.id, data);
+    await reverseAllocation(context.user.id, data.id, data.date);
     return { ok: true };
   });
 

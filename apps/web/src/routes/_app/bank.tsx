@@ -129,14 +129,26 @@ function zuordnungText(a: Allocation, gesellschaft: boolean): string {
 }
 
 /** Bei einer Aufteilung hebt der Server alle Teile auf, also nennt die Rückfrage auch alle */
-function zuAufhebendeZuordnung(a: Allocation, allocations: Allocation[], gesellschaft: boolean): AufzuhebendeZuordnung {
+function zuAufhebendeZuordnung(
+  a: Allocation,
+  allocations: Allocation[],
+  gesellschaft: boolean,
+  tag: string,
+  gemeldeteMonate: readonly string[],
+): AufzuhebendeZuordnung {
   const teile = a.splitId ? allocations.filter((other) => other.splitId === a.splitId && !other.reversed) : [a];
+  const heute = todayInGermany();
   return {
     id: a.id,
     bezeichnung: a.splitId ? `Aufteilung in ${teile.length} Teile` : zuordnungText(a, gesellschaft),
     betrag: teile.reduce((summe, teil) => summe + teil.amount, 0),
     aufteilung: a.splitId !== null,
     mitBeleg: teile.some((teil) => teil.kind === "invoice" || teil.kind === "document"),
+    // Die Zuordnung steht am Buchungsdatum ihres Umsatzes; früher kann die Aufhebung nicht wirken (#782). Liegt die
+    // Zahlung selbst in der Zukunft, ist heute der früheste Tag — dieselbe Grenze prüft der Server.
+    tag: tag <= heute ? tag : heute,
+    // Ist der Zeitraum der Zahlung gemeldet, wirkt die Aufhebung heute; sonst gehört die Korrektur dorthin (#782)
+    gemeldet: gemeldeteMonate.includes(tag.slice(0, 7)),
   };
 }
 
@@ -961,6 +973,8 @@ function AllocationPanel({
   const returnFn = useServerFn(allocateDirectDebitReturnFn);
   // Eine GmbH oder UG hat kein Privat; dieselbe Zuordnung geht dort auf das Gesellschafter-Verrechnungskonto
   const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
+  // Monate mit abgegebener Voranmeldung: sie entscheiden über die Vorbelegung des Aufhebungstags (#782)
+  const gemeldeteMonate = Route.useLoaderData().gemeldeteMonate;
   const best = suggestions[0];
   // Ein Treffer mit Rechnung geht vor; sonst der Vorschlag aus dem Zweck der Konten (Geldtransit, Umsatzsteuer, Privat)
   const [mode, setMode] = useState<"best" | "other" | "direct" | "split">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
@@ -1113,7 +1127,7 @@ function AllocationPanel({
                 <button
                   type="button"
                   className="btn btn-sm btn-danger"
-                  onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft))}
+                  onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft, tx.bookingDate, gemeldeteMonate))}
                   disabled={busy}
                 >
                   {a.splitId ? "Aufteilung aufheben" : "Aufheben"}
@@ -1131,7 +1145,7 @@ function AllocationPanel({
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
 
       <NoticeBanner notice={notice} />
-      <ZuordnungAufheben ziel={reversing} onConfirm={(id) => void run(() => reverseFn({ data: id }))} onClose={() => setReversing(null)} />
+      <ZuordnungAufheben ziel={reversing} onConfirm={(id, date) => void run(() => reverseFn({ data: { id, date } }))} onClose={() => setReversing(null)} />
 
       {tx.open !== 0 && mode === "split" && (
         <SplitForm
