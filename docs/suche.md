@@ -1,13 +1,13 @@
 ---
 title: "Suchen in Haben: Schnellsuche mit Strg+K"
 description: >-
-  Die Schnellsuche findet Seiten, Einstellungen, Kontakte, Rechnungen, Angebote und Belege von jeder
-  Seite aus, auch nach Nummer und Betrag.
+  Die Schnellsuche findet Seiten, Kontakte, Rechnungen, Belege, Bankumsätze, Buchungen und weitere
+  Bereiche von jeder Seite aus, auch nach Betrag und Datum.
 ---
 
 # Suchen
 
-Die Schnellsuche findet von jeder Seite aus, was in Haben steht: Seiten und Bereiche der Einstellungen, Kontakte, Rechnungen, Angebote und Belege.
+Die Schnellsuche findet von jeder Seite aus, was in Haben steht: Seiten, Einstellungen und alle Arbeitsbereiche – von Kontakten, Rechnungen und Belegen über Bankumsätze und Buchungen bis zu Meldungen und dem Umzugsarchiv.
 
 ## Öffnen
 

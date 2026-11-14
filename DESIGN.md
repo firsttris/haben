@@ -103,7 +103,7 @@ Ein Symbol ohne Unterpunkte (Marke, Schnellsuche, `Übersicht`, `Einstellungen`,
 
 ### Befehlspalette
 
-**Schnellsuche** sitzt am Desktop unter der Marke außerhalb des rollenden Menüs, am Handy als Lupe neben **Menü**. `Strg+K`, am Mac `⌘+K`, öffnet die Suche auf jeder Seite, solange kein anderer Dialog offen ist.
+**Schnellsuche** sitzt am Desktop unter der Marke außerhalb des rollenden Menüs, am Handy als Lupe neben **Menü**. `Strg+K`, am Mac `⌘+K`, oder `/` außerhalb von Eingabefeldern öffnet die Suche auf jeder Seite, solange kein anderer Dialog offen ist.
 
 `CommandPalette` übernimmt Fläche, Rahmen und Hintergrund der Formular-Dialoge. Sie ist bis zu 720px breit und bleibt beim Tippen am selben oberen Abstand. Im Kopf steht ein Feld mit Lupe und eigenem Fokusrahmen. Die Treffer rollen zwischen Kopf und festem Fuß. Am Handy füllt der Dialog den Bildschirm und **Abbrechen** steht neben dem Feld, der Fuß entfällt.
 
