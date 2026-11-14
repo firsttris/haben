@@ -157,3 +157,4 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `mcp_tokens` | API-Tokens für MCP und REST-API: Name, SHA-256 des Tokens, Anfang zum Wiedererkennen, Rechte, Ablauf, letzte Nutzung, Widerruf | ohne Audit (Zugangsdaten wie die Passkeys) |
 | `mcp_calls` | Aufrufe über MCP und REST-API ohne Inhalte: Token, Werkzeug, Erfolg, Dauer; nach 90 Tagen gelöscht | ohne Audit |
 | `backup_status` | Läufe des Backup-Containers (tägliches Backup, wöchentlicher Test-Restore) mit Ergebnis, Snapshot und Größe; der Container schreibt, die App liest | ohne Audit und Siegel (Betriebsdaten) |
+| `file_checks` | Läufe der Vollprüfung der Dateien im Dokumentenspeicher: Zeitpunkt, Anzahl der Dateien, Zahl der Befunde und die ersten 100 davon (Tabelle, Datensatz, Dateiname, Befund); nach 90 Tagen gelöscht | ohne Audit und Siegel (Betriebsdaten) |

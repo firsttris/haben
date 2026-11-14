@@ -247,6 +247,30 @@ test("Änderungsprotokoll: Kontenkollisionen getrennt von Manipulation melden (#
   }
 });
 
+test("Änderungsprotokoll: Dateien prüfen meldet eine fehlende Belegdatei (#857)", async () => {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  const sha256 = "e2e0".repeat(16);
+  const card = page.getByRole("region", { name: "Änderungsprotokoll prüfen" });
+  try {
+    // Ein Beleg, dessen Datei im Speicher fehlt, etwa weil jemand sie im Dateisystem gelöscht hat
+    await sql`insert into documents (sha256, filename, mime_type, size) values (${sha256}, 'verschwunden.pdf', 'application/pdf', 1)`;
+    await go("/einstellungen?bereich=export");
+    await card.getByRole("button", { name: "Dateien prüfen" }).click();
+    await expect(card.getByRole("alert")).toContainText("Kette und Siegel sind unverändert, aber 1 Datei fehlt oder ist verändert");
+    await expect(card.getByRole("listitem").filter({ hasText: "verschwunden.pdf" })).toHaveText("Beleg verschwunden.pdf: fehlt");
+  } finally {
+    await sql`delete from documents where sha256 = ${sha256}`;
+    await sql.end();
+  }
+  // „Kette prüfen“ liest die Dateien nicht erneut, sondern zeigt den gespeicherten Lauf
+  await go("/einstellungen?bereich=export");
+  await card.getByRole("button", { name: "Kette prüfen" }).click();
+  await expect(card.getByRole("alert")).toContainText("1 Datei fehlt oder ist verändert");
+  await card.getByRole("button", { name: "Dateien prüfen" }).click();
+  await expect(card.getByRole("status")).toContainText("Kette und Siegel sind unverändert:");
+  await expect(card).toContainText("alle vorhanden und unverändert");
+});
+
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
   await go("/einstellungen?bereich=email");
   const card = page.getByRole("form", { name: "Belege per E-Mail" });

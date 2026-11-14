@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
-import { comparePruefwert, runIntegrityCheck, type getChainHead } from "../server/functions/integrity.ts";
+import { comparePruefwert, runFileAndIntegrityCheck, runIntegrityCheck, type getChainHead } from "../server/functions/integrity.ts";
 import type { IntegrityReport } from "../server/modules/auswertungen/index.ts";
 import { Field } from "./Field.tsx";
 
@@ -21,17 +21,94 @@ const TABELLEN: Record<string, string> = {
   allocations: "Zuordnung",
   pauschalen: "Pauschale",
   asset_depreciations: "AfA",
+  archive_files: "Archivdatei",
+  lexoffice_voucher_files: "Datei aus dem Umzug",
+  legacy_order_files: "Auftrags-PDF aus dem Umzug",
+  postfach_documents: "Bescheid aus dem Postfach",
+  invoice_attachments: "Anhang einer Rechnung",
+  quote_attachments: "Anhang eines Angebots",
+  quote_default_attachments: "Standardanhang der Angebote",
+  vat_return_filings: "Protokoll einer Voranmeldung",
+  sv_portal_filings: "Protokoll aus dem SV-Meldeportal",
+  recurring_documents: "Vertrag eines Dauerbelegs",
+  sepa_mandate_files: "Lastschriftmandat",
 };
+
+const dateienText = (n: number) => (n === 1 ? "1 Datei fehlt oder ist verändert" : `${n} Dateien fehlen oder sind verändert`);
+
+/** Meldung nach „Kette prüfen“ oder „Dateien prüfen“: Befunde zuerst, dann Abweichungen, Kollisionen, sonst alles in Ordnung */
+function integrityNotice(result: IntegrityReport): { tone: "ok" | "info" | "danger"; text: string } {
+  const differences = result.abgleich.abweichungen.length;
+  const collisions = result.accountCollisions.length;
+  const fileProblems = result.files?.problemCount ?? 0;
+  const dateien = fileProblems > 0 ? ` ${dateienText(fileProblems)}.` : "";
+  if (result.problems.length > 0)
+    return {
+      tone: "danger",
+      text: `${result.problems.length}${result.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.${dateien}`,
+    };
+  if (fileProblems > 0) return { tone: "danger", text: `Kette und Siegel sind unverändert, aber ${dateienText(fileProblems)}.` };
+  if (differences > 0)
+    return {
+      tone: "danger",
+      text: `Kette und Siegel sind unverändert, aber Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
+    };
+  if (collisions > 0)
+    return {
+      tone: "info",
+      text: `Kette und Siegel sind unverändert. ${collisions} ${collisions === 1 ? "Kontenkollision" : "Kontenkollisionen"}: Bitte kläre die Kontenzuordnung.`,
+    };
+  return {
+    tone: "ok",
+    text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Die geprüften Journal-, Steuer- und OPOS-Werte stimmen überein.`,
+  };
+}
+
+/** Letzte Vollprüfung der Dateien im Dokumentenspeicher: Zeitpunkt, Anzahl und die Datensätze mit Befund */
+function FileCheckResult({ files }: { files: IntegrityReport["files"] }) {
+  if (!files) return <p className="small muted">Belegdateien: noch nicht vollständig geprüft. Haben prüft sie einmal am Tag.</p>;
+  return (
+    <div className="small">
+      <div className="muted">
+        Belegdateien, zuletzt vollständig geprüft am {formatDateTime(files.at)}: {files.files} {files.files === 1 ? "Datei" : "Dateien"}
+        {files.problemCount === 0 ? ", alle vorhanden und unverändert." : `, ${files.problemCount} ${files.problemCount === 1 ? "Befund" : "Befunde"}:`}
+      </div>
+      {files.problems.length > 0 && (
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
+          {files.problems.map((p) => (
+            <li key={`${p.tabelle}:${p.zeile}`} style={{ overflowWrap: "anywhere" }}>
+              <strong>{TABELLEN[p.tabelle] ?? p.tabelle}</strong> {p.datei}: {p.befund}
+            </li>
+          ))}
+          {files.problemCount > files.problems.length && <li className="muted">und {files.problemCount - files.problems.length} weitere</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /** Hash-Kette des Audit-Logs und Siegel festgeschriebener Datensätze prüfen (Einstellungen → Export) */
 export function IntegrityCard({ head }: { head: Head }) {
   const check = useServerFn(runIntegrityCheck);
+  const checkFiles = useServerFn(runFileAndIntegrityCheck);
   const compare = useServerFn(comparePruefwert);
   const [report, setReport] = useState<IntegrityReport | null>(null);
+  const [running, setRunning] = useState<"kette" | "dateien" | null>(null);
   const [text, setText] = useState("");
   const action = useAction();
   const { busy, notice } = action;
   const current = report?.head ?? head;
+
+  function onCheck(kind: "kette" | "dateien") {
+    setRunning(kind);
+    void action
+      .run(async () => {
+        const result = await (kind === "dateien" ? checkFiles() : check());
+        setReport(result);
+        action.setNotice(integrityNotice(result));
+      })
+      .finally(() => setRunning(null));
+  }
 
   function onCompare(event: FormEvent) {
     event.preventDefault();
@@ -67,9 +144,10 @@ export function IntegrityCard({ head }: { head: Head }) {
       <p className="small muted" style={{ margin: 0 }}>
         Jede Änderung steht im Audit-Log, jeder Eintrag ist per SHA-256 mit seinem Vorgänger verkettet. Festgeschriebene Buchungen, Rechnungen, Belege,
         Voranmeldungen, Kassenbuch, Zuordnungen, Pauschalen und AfA tragen zusätzlich ein Siegel über ihren Inhalt. Außerdem gleicht die Prüfung das Journal mit
-        Umsatzsteuer, EÜR und den neuen Anzahlungsbeständen ab und meldet Kontenkollisionen. Sie findet nachträgliche Änderungen an der Datenbank, verhindert
-        sie aber nicht. Wer die Datenbank ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des
-        Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
+        Umsatzsteuer, EÜR und den neuen Anzahlungsbeständen ab und meldet Kontenkollisionen. Belege, Anhänge und andere Dateien liegen außerhalb der Datenbank
+        unter ihrem SHA-256; Haben prüft einmal am Tag, ob jede vorhanden und unverändert ist, „Dateien prüfen“ sofort. Die Prüfung findet nachträgliche
+        Änderungen, verhindert sie aber nicht. Wer die Datenbank ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem
+        Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
       </p>
       {current && (
         <div className="small">
@@ -81,41 +159,11 @@ export function IntegrityCard({ head }: { head: Head }) {
         </div>
       )}
       <div className="actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={busy}
-          onClick={() =>
-            void action.run(async () => {
-              const result = await check();
-              setReport(result);
-              const differences = result.abgleich.abweichungen.length;
-              const collisions = result.accountCollisions.length;
-              action.setNotice(
-                result.problems.length > 0
-                  ? {
-                      tone: "danger",
-                      text: `${result.problems.length}${result.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`,
-                    }
-                  : differences > 0
-                    ? {
-                        tone: "danger",
-                        text: `Kette und Siegel sind unverändert, aber Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
-                      }
-                    : collisions > 0
-                      ? {
-                          tone: "info",
-                          text: `Kette und Siegel sind unverändert. ${collisions} ${collisions === 1 ? "Kontenkollision" : "Kontenkollisionen"}: Bitte kläre die Kontenzuordnung.`,
-                        }
-                      : {
-                          tone: "ok",
-                          text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Die geprüften Journal-, Steuer- und OPOS-Werte stimmen überein.`,
-                        },
-              );
-            })
-          }
-        >
-          {busy ? "Prüft …" : "Kette prüfen"}
+        <button type="button" className="btn" disabled={busy} onClick={() => onCheck("dateien")}>
+          {running === "dateien" ? "Prüft Dateien …" : "Dateien prüfen"}
+        </button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => onCheck("kette")}>
+          {running === "kette" ? "Prüft …" : "Kette prüfen"}
         </button>
       </div>
       {report && report.problems.length > 0 && (
@@ -129,6 +177,7 @@ export function IntegrityCard({ head }: { head: Head }) {
           ))}
         </ul>
       )}
+      {report && <FileCheckResult files={report.files} />}
       {report && (report.abgleich.abweichungen.length > 0 || report.abgleich.hinweise.length > 0) && (
         <div className="small">
           <div className="muted">Abgleich von Journal, Umsatzsteuer, EÜR und Anzahlungsbeständen</div>

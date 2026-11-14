@@ -79,8 +79,18 @@ if [ "$(q -d "$check_db" -c "SELECT to_regprocedure('haben_integrity_problems(in
   summary="$summary, Kette bis Nr. $seq geprüft und gleich der laufenden Datenbank"
 fi
 
-# Stichprobe der Belege: liegen unter /belege/<ersten zwei Zeichen>/<SHA-256>
-if [ "$samples" != 0 ] && [ "$(q -d "$check_db" -c "SELECT to_regclass('public.documents') IS NOT NULL")" = t ]; then
+# Stichprobe der Belege: liegen unter /belege/<ersten zwei Zeichen>/<SHA-256>. Tabelle:Spalte jedes Verweises auf eine
+# Datei, wie FILE_REFERENCES in apps/web/src/server/db/file-in-use.ts (restore-check.test.ts vergleicht beide); ältere
+# Backups haben noch nicht alle Tabellen
+refs="documents:sha256 archive_files:sha256 lexoffice_voucher_files:sha256 legacy_order_files:sha256 postfach_documents:sha256 invoice_attachments:sha256 quote_attachments:sha256 quote_default_attachments:sha256 vat_return_filings:sha256 sv_portal_filings:protokoll_sha256 recurring_documents:sha256 sepa_mandate_files:sha256"
+sources=()
+for ref in $refs; do
+  if [ "$(q -d "$check_db" -c "SELECT to_regclass('public.${ref%%:*}') IS NOT NULL")" = t ]; then
+    sources+=("SELECT ${ref#*:} AS sha256 FROM ${ref%%:*} WHERE ${ref#*:} IS NOT NULL")
+  fi
+done
+if [ "$samples" != 0 ] && [ "${#sources[@]}" -gt 0 ]; then
+  union="$(printf '%s UNION ' "${sources[@]}")"
   checked=0
   while read -r sha; do
     [ -n "$sha" ] || continue
@@ -88,8 +98,7 @@ if [ "$samples" != 0 ] && [ "$(q -d "$check_db" -c "SELECT to_regclass('public.d
       || fail "Beleg $sha fehlt im Snapshot $snapshot."
     [ "$actual" = "$sha" ] || fail "Beleg $sha im Snapshot $snapshot hat eine andere Prüfsumme ($actual)."
     checked=$((checked + 1))
-  done <<< "$(q -d "$check_db" -c "SELECT sha256 FROM (SELECT sha256 FROM documents UNION SELECT sha256 FROM archive_files) f
-    ORDER BY random() LIMIT $samples")"
+  done <<< "$(q -d "$check_db" -c "SELECT sha256 FROM (${union% UNION }) f ORDER BY random() LIMIT $samples")"
   [ "$checked" = 1 ] && word=Beleg || word=Belege
   summary="$summary, $checked $word"
 fi

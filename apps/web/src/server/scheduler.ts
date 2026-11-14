@@ -1,4 +1,5 @@
 import { formatDecimal } from "@haben/core";
+import { runDueFileCheck } from "./modules/auswertungen/index.ts";
 import { runDueBankSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
@@ -90,6 +91,13 @@ export async function runScheduledJobs(): Promise<void> {
     if (result?.sent) console.log(`Fristen-Erinnerung: ${result.sent} Frist(en) per E-Mail erinnert`);
   } catch (error) {
     console.error("Fristen-Erinnerung", error);
+  }
+  try {
+    // Vor der Prüfwert-Mail, damit sie den Stand dieses Tages nennt
+    const result = await runDueFileCheck();
+    if (result?.problemCount) console.warn(`Vollprüfung der Dateien: ${result.problemCount} von ${result.files} fehlen oder sind verändert`);
+  } catch (error) {
+    console.error("Vollprüfung der Dateien", error);
   }
   try {
     const result = await runDuePruefwertMail();

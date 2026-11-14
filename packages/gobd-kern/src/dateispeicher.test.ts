@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -59,6 +59,30 @@ describe("dateispeicher", () => {
     await speicher.entfernen(hash);
     await expect(speicher.laden(hash)).rejects.toThrow();
     await expect(speicher.entfernen(hash)).resolves.toBeUndefined();
+  });
+
+  it("prüft eine Datei gegen ihren Hash: vorhanden und unverändert, beschädigt oder fehlend", async () => {
+    const speicher = dateispeicher({ verzeichnis: () => dir });
+    const hash = await speicher.speichern(inhalt);
+    expect(await speicher.pruefen(hash)).toBe("ok");
+    await writeFile(speicher.pfad(hash), "verändert");
+    expect(await speicher.pruefen(hash)).toBe("beschädigt");
+    await rm(speicher.pfad(hash));
+    expect(await speicher.pruefen(hash)).toBe("fehlt");
+  });
+
+  it("prüft auch Dateien, die größer sind als ein Lesepuffer", async () => {
+    const speicher = dateispeicher({ verzeichnis: () => dir });
+    const gross = new Uint8Array(3 * 1024 * 1024).map((_, i) => i % 251);
+    const hash = await speicher.speichern(gross);
+    expect(await speicher.pruefen(hash)).toBe("ok");
+  });
+
+  it("meldet beim Prüfen andere Lesefehler als einen fehlenden Eintrag als Fehler", async () => {
+    const speicher = dateispeicher({ verzeichnis: () => dir });
+    const hash = sha256Of(inhalt);
+    await mkdir(speicher.pfad(hash), { recursive: true });
+    await expect(speicher.pruefen(hash)).rejects.toThrow();
   });
 
   it("liest das Verzeichnis erst beim Zugriff", async () => {

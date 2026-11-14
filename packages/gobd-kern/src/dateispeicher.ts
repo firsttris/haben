@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
@@ -20,6 +21,11 @@ export interface Dateispeicher {
   speichern(bytes: Uint8Array): Promise<string>;
   /** Liest die Datei und prüft ihren Hash; eine veränderte Datei wirft einen Fehler */
   laden(sha256: string): Promise<Buffer>;
+  /**
+   * Prüft die Datei gegen ihren Hash, ohne sie ganz in den Speicher zu laden. Andere Lesefehler als eine fehlende Datei,
+   * etwa fehlende Rechte, wirft sie.
+   */
+  pruefen(sha256: string): Promise<"ok" | "fehlt" | "beschädigt">;
   entfernen(sha256: string): Promise<void>;
 }
 
@@ -74,9 +80,20 @@ export function dateispeicher({ verzeichnis, bezeichnung = "Datei" }: Dateispeic
     return bytes;
   }
 
+  async function pruefen(sha256: string): Promise<"ok" | "fehlt" | "beschädigt"> {
+    const hash = createHash("sha256");
+    try {
+      for await (const chunk of createReadStream(pfad(sha256))) hash.update(chunk as Buffer);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return "fehlt";
+      throw error;
+    }
+    return hash.digest("hex") === sha256 ? "ok" : "beschädigt";
+  }
+
   async function entfernen(sha256: string): Promise<void> {
     await rm(pfad(sha256), { force: true });
   }
 
-  return { pfad, speichern, laden, entfernen };
+  return { pfad, speichern, laden, pruefen, entfernen };
 }

@@ -230,13 +230,16 @@ export async function runDuePruefwertMail(now = new Date()) {
   const lastNow = known ? await rowHashAt(lastSeq) : null;
   const rewritten = known && lastHash !== undefined && lastNow !== lastHash;
   const report = await checkIntegrity();
-  if (!changed && !rewritten && report.problems.length === 0 && report.abgleich.abweichungen.length === 0) {
+  const fileProblems = report.files?.problemCount ?? 0;
+  if (!changed && !rewritten && report.problems.length === 0 && report.abgleich.abweichungen.length === 0 && fileProblems === 0) {
     quietCheckAt = now.getTime();
     return null;
   }
 
   const pruefwert = formatPruefwert(head);
-  const stand = new Intl.DateTimeFormat("de-DE", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Berlin" }).format(now);
+  const zeitpunkt = new Intl.DateTimeFormat("de-DE", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Berlin" });
+  const stand = zeitpunkt.format(now);
+  const dateien = report.files && `Belegdateien (Prüfung vom ${zeitpunkt.format(report.files.at)})`;
   const findings = [
     ...(rewritten
       ? [
@@ -258,10 +261,13 @@ export async function runDuePruefwertMail(now = new Date()) {
             .join("; ")}${report.abgleich.abweichungen.length > 3 ? " …" : ""}).`,
         ]
       : []),
+    ...(fileProblems > 0
+      ? [`${dateien}: ${fileProblems === 1 ? "1 Datei fehlt oder ist verändert" : `${fileProblems} Dateien fehlen oder sind verändert`}.`]
+      : []),
   ];
   const befund =
     findings.length === 0
-      ? `Prüfung von Kette und Siegel: unverändert (${report.entries} Einträge, ${report.seals} Siegel).`
+      ? `Prüfung von Kette und Siegel: unverändert (${report.entries} Einträge, ${report.seals} Siegel).${dateien ? ` ${dateien}: ${report.files!.files} vorhanden und unverändert.` : ""}`
       : `${findings.join(" ")} Einzelheiten unter ${baseUrl()}/einstellungen?bereich=export`;
   const intro = `Prüfwert des Änderungsprotokolls von Haben (${baseUrl()}), Stand ${stand}:`;
   const aufbewahren =
