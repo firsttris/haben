@@ -939,6 +939,20 @@
       "function": "public.haben_external_imports_no_truncate()"
     },
     {
+      "table": "public.fastbill_connection",
+      "name": "fastbill_connection_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER fastbill_connection_audit AFTER INSERT OR DELETE OR UPDATE ON public.fastbill_connection FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.fastbill_connection",
+      "name": "fastbill_connection_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER fastbill_connection_no_truncate BEFORE TRUNCATE ON public.fastbill_connection FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.inbox_messages",
       "name": "inbox_messages_append_only",
       "enabled": "O",

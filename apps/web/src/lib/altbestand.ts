@@ -7,6 +7,7 @@ export const LEGACY_SOURCE: Record<LegacySource, { name: string; product: string
   buchhaltungsbutler: { name: "BuchhaltungsButler", product: "BuchhaltungsButler" },
   accountable: { name: "Accountable", product: "Accountable" },
   import: { name: "JSON-Import", product: "Quellprogramm" },
+  fastbill: { name: "FastBill", product: "FastBill" },
 };
 
 /** Beim JSON-Import nennt das Paket das Quellprogramm selbst */

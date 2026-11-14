@@ -479,9 +479,23 @@ function legacyPayments(v: { source: LegacySource; gross: number; status: string
  * Steuerart aus der gespeicherten API-Antwort, in den Werten von Lexoffice. Lexoffice: Rechnungsmodul unter taxConditions,
  * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
  * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt.
+ * FastBill: VAT_CASE der Rechnung (https://apidocs.fastbill.com/fastbill/en/invoice.html). Kleinunternehmer steuerfrei,
+ * Leistungen an Unternehmer im übrigen Gemeinschaftsgebiet wie Lexoffice „externalService13b“ (Kz 21), Lieferungen dorthin
+ * Kz 41, in Drittländer Kz 43 bzw. Leistungen Kz 45. Lieferungen an Privatpersonen in der EU (Fernverkauf) bleiben unbekannt:
+ * Ob sie über OSS liefen, steht nicht in der Antwort. Ein echtes Konto (November 2026) lieferte statt der Aufzählung 0/1
+ * („innergemeinschaftlich“): 1 ist bei Einnahmen eine Lieferung (Kz 41), bei Ausgaben ein Erwerb und bleibt unbekannt.
  */
 function taxTypeOf(t: string) {
-  return sql.raw(`case when ${t}.source = 'sevdesk' then
+  return sql.raw(`case when ${t}.source = 'fastbill' then
+      case coalesce(${t}.raw->>'VAT_CASE', '')
+        when 'standard' then 'net' when '' then 'net' when '0' then 'net'
+        when '1' then case when ${t}.direction = 'einnahme' then 'intraCommunitySupply' else 'fastbill:eu-erwerb' end
+        when 'small_business_regulation' then 'vatfree'
+        when 'b2b_eu_services' then 'externalService13b' when 'b2b_eu_goods' then 'intraCommunitySupply'
+        when 'b2b_noneu_goods' then 'thirdPartyCountryDelivery' when 'b2c_noneu_goods' then 'thirdPartyCountryDelivery'
+        when 'b2b_noneu_services' then 'thirdPartyCountryService'
+        else 'fastbill:' || (${t}.raw->>'VAT_CASE') end
+    when ${t}.source = 'sevdesk' then
       case coalesce(${t}.raw->'taxRule'->>'id', '')
         when '1' then 'net' when '2' then 'thirdPartyCountryDelivery' when '3' then 'intraCommunitySupply'
         when '4' then 'vatfree' when '11' then 'vatfree'
