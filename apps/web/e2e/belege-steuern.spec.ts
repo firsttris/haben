@@ -659,6 +659,37 @@ test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno 
   await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
 });
 
+test("Pauschalen: jeder Reiter ohne axe-Verstöße, hell und dunkel, am Desktop und am Handy", async () => {
+  // barrierefreiheit.spec.ts prüft /pauschalen nur mit dem ersten Reiter; die übrigen Formulare erscheinen erst per Klick
+  const vorher = page.viewportSize();
+  for (const modus of ["hell", "dunkel"]) {
+    for (const viewport of [LAPTOP, { width: 320, height: 720 }]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate((m) => localStorage.setItem("haben-modus", m), modus);
+      await go("/pauschalen");
+      const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+      for (const [reiter, formular] of [
+        ["Homeoffice", "Homeoffice-Pauschale"],
+        ["Fahrt", "Fahrt mit dem Privatfahrzeug"],
+        ["Verpflegung", "Verpflegungsmehraufwand"],
+        ["Wege zur Betriebsstätte", "Wege zwischen Wohnung und Betriebsstätte"],
+      ] as const) {
+        await neu.getByRole("button", { name: reiter, exact: true }).click();
+        await expect(neu.getByRole("form", { name: formular })).toBeVisible();
+        const { violations } = await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+          .analyze();
+        expect(
+          violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+          `${reiter}, ${modus}, ${viewport.width} px`,
+        ).toEqual([]);
+      }
+    }
+  }
+  await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
+  if (vorher) await page.setViewportSize(vorher);
+});
+
 test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ browser }) => {
   await go("/belege");
   await page
