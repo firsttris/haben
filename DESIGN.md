@@ -203,9 +203,9 @@ Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `Fo
 
 ### Vorschau der Belegeditoren
 
-Das Blatt setzt Typst aus derselben Vorlage wie das PDF (`RenderedSheet`), es gibt keinen Nachbau in HTML. Eine Änderung am Aussehen eines Belegs gehört deshalb in die Vorlage unter `packages/einvoice/templates/`. Das Papier bleibt in jedem Theme weiß und liegt wie eine Karte auf dem Grund (`--ground`), mit mehrstufigem Schatten aus `--paper-shadow`; in dunklen Themes hält eine helle Haarlinie die Kante, weil ein Schatten auf Dunkel kaum trägt. Das Bild ersetzt den Text nicht: Für Screenreader steht derselbe Inhalt versteckt daneben (`sheetText`).
+Das Blatt setzt Typst aus derselben Vorlage wie das PDF (`RenderedSheet`), es gibt keinen Nachbau in HTML. Eine Änderung am Aussehen eines Belegs gehört deshalb in die Vorlage unter `packages/einvoice/templates/`. Das Papier bleibt in jedem Theme weiß und liegt wie eine Karte auf dem Grund (`--ground`), mit mehrstufigem Schatten aus `--paper-shadow`; in dunklen Themes hält eine helle Haarlinie die Kante, weil ein Schatten auf Dunkel kaum trägt. Das Bild ersetzt den Text nicht: Für Screenreader steht derselbe Inhalt versteckt daneben (`sheetText`, bei der Mahnung `dunningSheetText`).
 
-`components/DocumentPreview.tsx` ist die Hülle für alle Editoren mit Dokumentvorschau (#357): `useDocumentPreview` hält den Modus, `PreviewButton` ist der Split-Button im Seitenkopf, `PreviewLayout` stellt Formular und Vorschau nebeneinander oder öffnet die Überblendung als `<dialog>`. Ob Anheften geht und was ohne gespeicherte Wahl gilt, entscheidet die Breite des Editors (`previewLayout` in `lib/vorschau.ts`, Mindestbreiten dort und in `.preview-layout`). Die Wahl liegt im `localStorage` (`haben-vorschau`). Die Vorschau steht nur im Dokument, wenn sie zu sehen ist.
+`components/DocumentPreview.tsx` ist die Hülle für alle Editoren mit Dokumentvorschau (#357), für Rechnung, Angebot und Mahnung: `useDocumentPreview` hält den Modus, `PreviewButton` ist der Split-Button im Seitenkopf, `PreviewLayout` stellt Formular und Vorschau nebeneinander oder öffnet die Überblendung als `<dialog>`. Ob Anheften geht und was ohne gespeicherte Wahl gilt, entscheidet die Breite des Editors (`previewLayout` in `lib/vorschau.ts`, Mindestbreiten dort und in `.preview-layout`). Die Wahl liegt im `localStorage` (`haben-vorschau`). Die Vorschau steht nur im Dokument, wenn sie zu sehen ist.
 
 ## Barrierefreiheit
 
@@ -215,7 +215,7 @@ Barrierefrei und per Tastatur bedienbar: echte Knöpfe und Links, ein Label für
 
 Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an die Regel.
 
-- **Gesperrte Knöpfe:** Viele Formulare sperren die Hauptaktion, solange Angaben fehlen, meist ohne Grund (etwa `AssetForm`, `RecurringForm`, `routes/_app/belege/$id.tsx`, `routes/_app/rechnungen/mahnwesen/$id.tsx`, Abruf und Versand mit PIN bei ELSTER).
+- **Gesperrte Knöpfe:** Viele Formulare sperren die Hauptaktion, solange Angaben fehlen, meist ohne Grund (etwa `RecurringForm`, `routes/_app/rechnungen/mahnwesen/$id.tsx`, Abruf und Versand mit PIN bei ELSTER).
 - **4px-Raster:** In `apps/web/src/**/*.css` haben manche `padding`, `margin` und `gap` px-Werte, die nicht durch 4 teilbar sind (meist 1 oder 2px, auch 6, 10 oder 14px).
 - **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Navigationsflächen (`.brand`, `.nav-link:hover`).
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.
