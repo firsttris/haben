@@ -380,7 +380,11 @@ async function deductionProblems(invoiceId: string | null, input: Pick<DraftInpu
     else if (abschlag.taxTreatment !== (input.taxTreatment ?? "regulaer"))
       problems.push(`Abschlagsrechnung ${abschlag.number} hat eine andere Umsatzsteuer-Behandlung`);
     else {
-      const conflict = outgoingTaxDetailConflict(input.taxTreatment ?? "regulaer", abschlag.taxDetails, input.taxDetails);
+      // Ungeklärte Angaben dürfen keinen bekannten Widerspruch zwischen anderen Abschlägen verdecken.
+      // Produktgrenze: https://github.com/firsttris/haben/issues/433#issuecomment-6853419682
+      const conflict = [input.taxDetails, ...chosen.map((a) => a.taxDetails)]
+        .map((details) => outgoingTaxDetailConflict(input.taxTreatment ?? "regulaer", abschlag.taxDetails, details))
+        .find((problem) => problem !== null);
       if (conflict === "exemption") problems.push(`Abschlagsrechnung ${abschlag.number} hat eine andere Befreiungsvorschrift`);
       else if (conflict === "foreignPlace") problems.push(`Abschlagsrechnung ${abschlag.number} hat einen anderen tatsächlichen Leistungsort`);
       else chosen.push(abschlag);
