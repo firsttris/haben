@@ -5,8 +5,8 @@ import type { Rechtsform } from "./rechtsform.ts";
 
 /*
  * Angebot im Bankabgleich je Kontozweck (#873): Auf einem privaten Konto entfallen genau vier Möglichkeiten —
- * Kontoführung und Bankgebühren, Zinserträge, Privat und Geldtransit. Die Umsätze dort bleiben zuordenbar; bezahlte
- * Geschäftsvorfälle laufen über Entnahme und Einlage, deshalb bleibt alles andere im Angebot.
+ * Kontoführung und Bankgebühren, Zinserträge, Privat und Geldtransit. Die Umsätze dort bleiben zuordenbar, deshalb bleibt
+ * alles andere im Angebot.
  */
 
 /** Wie der Server-Loader (apps/web/src/server/functions/bank.ts) die Optionen des Abgleichs zusammenstellt */
@@ -52,7 +52,7 @@ describe("Angebot im Bankabgleich je Kontozweck", () => {
   it("Kategorien: auf einem privaten Konto entfällt keine, Bankgebühren fehlen in beiden", () => {
     const geschaeft = angebot("einzelunternehmen", "geschaeft").kategorien;
     const privat = angebot("einzelunternehmen", "privat").kategorien;
-    // Geschäftsausgaben und Erlöse, die über das Privatkonto laufen, bleiben buchbar; sie sind Entnahme oder Einlage
+    // Geschäftsausgaben und Erlöse, die über das Privatkonto laufen, bleiben buchbar
     expect(privat).toEqual(geschaeft);
     expect(privat.map((k) => k.value)).toContain("telefon");
     expect(privat.map((k) => k.value)).toContain("erloese");
