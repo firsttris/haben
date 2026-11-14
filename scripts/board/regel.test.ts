@@ -6,6 +6,10 @@ describe("verweise", () => {
     expect(verweise("Refs #12\n\nUmgesetzt #13")).toEqual({ refs: [12], umgesetzt: [13] });
   });
 
+  it("zählt nichts aus HTML-Kommentaren, etwa aus einer Vorlage der Beschreibung", () => {
+    expect(verweise("<!-- Umgesetzt #12 -->\nRefs #13")).toEqual({ refs: [13], umgesetzt: [] });
+  });
+
   it("liest Listen mit Komma und „und“", () => {
     expect(verweise("Umgesetzt #1, #2 und #3\nRefs #4, #5")).toEqual({ refs: [4, 5], umgesetzt: [1, 2, 3] });
   });
@@ -27,6 +31,14 @@ describe("verweise", () => {
 
   it("zählt ein verneintes „nicht umgesetzt #…“ nicht als umgesetzt", () => {
     expect(verweise("Noch nicht umgesetzt: #14\nNicht umgesetzt #15, #16\nUmgesetzt #17")).toEqual({ refs: [], umgesetzt: [17] });
+  });
+
+  it("zählt es auch mit ein oder zwei Wörtern zwischen „nicht“ und dem Stichwort nicht", () => {
+    expect(verweise("Nicht vollständig umgesetzt #14\nnicht ganz fertig umgesetzt #15\nUmgesetzt #17")).toEqual({ refs: [], umgesetzt: [17] });
+  });
+
+  it("bleibt bei einem fernen „nicht“ im Satz davor beim Verweis", () => {
+    expect(verweise("Das Board schließt nicht. Umgesetzt #18")).toEqual({ refs: [], umgesetzt: [18] });
   });
 
   it("nimmt einen Doppelpunkt hin und ignoriert Groß- und Kleinschreibung", () => {
