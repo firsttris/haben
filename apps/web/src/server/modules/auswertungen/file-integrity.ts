@@ -1,5 +1,5 @@
 import { desc, gt, lt, sql } from "drizzle-orm";
-import { FILE_REFERENCES } from "../../db/file-in-use.ts";
+import { FILE_REFERENCES, fileInUse } from "../../db/file-in-use.ts";
 import { db, schema } from "../../db/index.ts";
 import type { FileCheckProblem } from "../../db/schema.ts";
 import { checkFile } from "../../storage.ts";
@@ -17,9 +17,9 @@ export interface FileCheck {
   at: Date;
   /** Geprüfte Dateien; eine Datei mit mehreren Verweisen zählt einmal */
   files: number;
-  /** Datensätze mit fehlender, veränderter oder nicht lesbarer Datei */
+  /** Dateien, die fehlen, verändert oder nicht lesbar sind */
   problemCount: number;
-  /** Die ersten MAX_FILE_PROBLEMS davon */
+  /** Die ersten MAX_FILE_PROBLEMS davon, je Datei mit dem ersten Datensatz, der auf sie verweist */
   problems: FileProblem[];
 }
 
@@ -32,31 +32,44 @@ const RETENTION_DAYS = 90;
 
 type Reference = {
   tabelle: string;
+  art: string;
   zeile: string;
   datei: string;
   sha256: string;
 };
 
-/** Alle Verweise aus FILE_REFERENCES, gruppiert nach Datei */
-async function referencesByFile(): Promise<Map<string, Reference[]>> {
+/** Je Datei der erste Verweis in der Reihenfolge von FILE_REFERENCES und die Zahl der weiteren */
+async function referencesByFile(): Promise<Map<string, { first: Reference; weitere: number }>> {
   const parts = FILE_REFERENCES.map(
-    (r) =>
-      sql`select cast(${r.table} as text) as tabelle, id::text as zeile, ${sql.identifier(r.nameColumn)} as datei, ${sql.identifier(r.column)} as sha256
+    (r, i) =>
+      sql`select ${i}::int as ord, cast(${r.table} as text) as tabelle, cast(${r.label} as text) as art, id::text as zeile,
+        ${sql.identifier(r.nameColumn)} as datei, ${sql.identifier(r.column)} as sha256
         from ${sql.identifier(r.table)} where ${sql.identifier(r.column)} is not null`,
   );
-  const rows = await db.execute<Reference>(sql`${sql.join(parts, sql` union all `)} order by sha256, tabelle, zeile`);
-  const byFile = new Map<string, Reference[]>();
-  for (const row of rows) byFile.set(row.sha256, [...(byFile.get(row.sha256) ?? []), row]);
+  const rows = await db.execute<Reference & { ord: number }>(sql`${sql.join(parts, sql` union all `)} order by sha256, ord, zeile`);
+  const byFile = new Map<string, { first: Reference; weitere: number }>();
+  for (const { ord: _ord, ...row } of rows) {
+    const known = byFile.get(row.sha256);
+    if (known) known.weitere++;
+    else byFile.set(row.sha256, { first: row, weitere: 0 });
+  }
   return byFile;
 }
 
 async function fileProblem(sha256: string): Promise<FileProblem["befund"] | null> {
+  let result: Awaited<ReturnType<typeof checkFile>>;
   try {
-    const result = await checkFile(sha256);
-    return result === "ok" ? null : result;
-  } catch {
+    result = await checkFile(sha256);
+  } catch (error) {
+    // Ohne Inhalt der Datei, nur die Ursache, etwa EACCES nach einer Änderung der Rechte im Volume
+    console.warn(`Vollprüfung der Dateien: ${sha256} nicht lesbar (${(error as NodeJS.ErrnoException).code ?? String(error)})`);
     return "nicht lesbar";
   }
+  if (result === "ok") return null;
+  // Erst der Datensatz, dann die Datei (deleteDocument): Ein Datensatz, der seit dem Lesen der Verweise gelöscht wurde,
+  // ist kein Befund
+  if (result === "fehlt" && !(await db.transaction((tx) => fileInUse(tx, sha256)))) return null;
+  return result;
 }
 
 /** Liest die Dateien nacheinander und gestreamt: Der Lauf hält keine andere Anfrage auf, nur er selbst dauert. */
@@ -64,13 +77,11 @@ async function check(now: Date): Promise<FileCheck> {
   const byFile = await referencesByFile();
   const problems: FileProblem[] = [];
   let problemCount = 0;
-  for (const [sha256, references] of byFile) {
+  for (const [sha256, { first, weitere }] of byFile) {
     const befund = await fileProblem(sha256);
     if (!befund) continue;
-    for (const reference of references) {
-      problemCount++;
-      if (problems.length < MAX_FILE_PROBLEMS) problems.push({ ...reference, befund });
-    }
+    problemCount++;
+    if (problems.length < MAX_FILE_PROBLEMS) problems.push({ ...first, befund, weitere });
   }
   const result: FileCheck = { at: now, files: byFile.size, problemCount, problems };
   await db.insert(schema.fileChecks).values(result);

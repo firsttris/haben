@@ -103,7 +103,7 @@ export async function runScheduledJobs(): Promise<void> {
     const result = await runDuePruefwertMail();
     if (result)
       console.log(
-        `Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde${result.rewritten ? ", Prüfwert der letzten Mail passt nicht mehr" : ""}`,
+        `Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde${result.fileProblems ? `, ${result.fileProblems} Dateien fehlen oder sind verändert` : ""}${result.rewritten ? ", Prüfwert der letzten Mail passt nicht mehr" : ""}`,
       );
   } catch (error) {
     console.error("Prüfwert-Mail", error);

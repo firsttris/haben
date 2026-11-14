@@ -3,8 +3,14 @@ import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import nodemailer from "nodemailer";
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+
+// Ein Datensatz, der während des Laufs gelöscht wird, lässt sich nur über den Zeitpunkt der Prüfung nachstellen
+vi.mock("../../storage.ts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../storage.ts")>();
+  return { ...original, checkFile: vi.fn(original.checkFile) };
+});
 
 const DAY = 24 * 60 * 60 * 1000;
 const pfad = (sha256: string) => join(process.env.DOCUMENTS_DIR!, sha256.slice(0, 2), sha256);
@@ -51,7 +57,7 @@ describe.skipIf(!testDatabaseUrl)("Vollprüfung der Belegdateien (Postgres)", ()
     return { id: row!.id, sha256 };
   }
 
-  it("meldet eine gelöschte und eine veränderte Datei mit Tabelle, Datensatz und Dateiname", async () => {
+  it("meldet eine gelöschte und eine veränderte Datei mit Art, Datensatz und Dateiname", async () => {
     const geloescht = await beleg("hosting.pdf");
     const veraendert = await beleg("buerobedarf.pdf");
     await beleg("telefon.pdf");
@@ -63,8 +69,8 @@ describe.skipIf(!testDatabaseUrl)("Vollprüfung der Belegdateien (Postgres)", ()
     expect(result.problemCount).toBe(2);
     expect(result.problems).toEqual(
       expect.arrayContaining([
-        { tabelle: "documents", zeile: geloescht.id, datei: "hosting.pdf", sha256: geloescht.sha256, befund: "fehlt" },
-        { tabelle: "documents", zeile: veraendert.id, datei: "buerobedarf.pdf", sha256: veraendert.sha256, befund: "beschädigt" },
+        { tabelle: "documents", art: "Beleg", zeile: geloescht.id, datei: "hosting.pdf", sha256: geloescht.sha256, befund: "fehlt", weitere: 0 },
+        { tabelle: "documents", art: "Beleg", zeile: veraendert.id, datei: "buerobedarf.pdf", sha256: veraendert.sha256, befund: "beschädigt", weitere: 0 },
       ]),
     );
   });
@@ -86,7 +92,29 @@ describe.skipIf(!testDatabaseUrl)("Vollprüfung der Belegdateien (Postgres)", ()
     expect(result).toMatchObject({ files: 2, problemCount: 0, problems: [] });
   });
 
-  it("nennt jeden Datensatz, der auf eine fehlende Datei verweist, und kürzt lange Listen", async () => {
+  it("zählt eine fehlende Datei mit mehreren Verweisen als einen Befund und nennt die Zahl der weiteren Datensätze", async () => {
+    const vertrag = await beleg("mietvertrag.pdf");
+    await auftragsPdf(vertrag.sha256, "AB-1002.pdf");
+    await auftragsPdf(vertrag.sha256, "AB-1003.pdf");
+    await rm(pfad(vertrag.sha256));
+    const result = await files.runFileCheck();
+    expect(result).toMatchObject({ files: 1, problemCount: 1 });
+    // Der Beleg zuerst, wie in FILE_REFERENCES
+    expect(result.problems).toEqual([expect.objectContaining({ tabelle: "documents", art: "Beleg", datei: "mietvertrag.pdf", befund: "fehlt", weitere: 2 })]);
+  });
+
+  it("meldet keine fehlende Datei, deren Datensatz während des Laufs gelöscht wurde", async () => {
+    const entwurf = await beleg("entwurf.pdf");
+    await rm(pfad(entwurf.sha256));
+    vi.mocked(storage.checkFile).mockImplementationOnce(async () => {
+      // Wie deleteDocument: erst der Datensatz, dann die Datei
+      await sql`delete from documents where id = ${entwurf.id}`;
+      return "fehlt";
+    });
+    expect(await files.runFileCheck()).toMatchObject({ files: 1, problemCount: 0, problems: [] });
+  });
+
+  it("kürzt lange Listen", async () => {
     // Ohne Dateien im Speicher, etwa weil das Volume nicht eingehängt ist
     await sql`insert into documents (sha256, filename, mime_type, size)
       select encode(sha256(i::text::bytea), 'hex'), 'beleg-' || i || '.pdf', 'application/pdf', 1 from generate_series(1, 120) i`;
@@ -143,15 +171,16 @@ describe.skipIf(!testDatabaseUrl)("Vollprüfung der Belegdateien (Postgres)", ()
     await files.runFileCheck();
     const now = new Date(Date.now() + 2 * DAY);
     now.setUTCHours(9, 0, 0, 0);
-    expect(await mail.runDuePruefwertMail(now)).toMatchObject({ problems: 0 });
+    expect(await mail.runDuePruefwertMail(now)).toMatchObject({ problems: 0, fileProblems: 1 });
     expect(sent.at(-1)!.subject).toMatch(/^Haben: Änderungsprotokoll mit Befunden/);
-    expect(sent.at(-1)!.text).toContain("Belegdateien");
-    expect(sent.at(-1)!.text).toContain("1 Datei fehlt oder ist verändert");
+    expect(sent.at(-1)!.text).toContain("1 Datei fehlt oder ist verändert (Beleg bahncard.pdf: fehlt)");
   });
 
   it("prüft die Dateien jeder Tabelle mit Dateiverweis, nicht nur die der Belege", async () => {
     await auftragsPdf(randomBytes(32).toString("hex"), "AB-1001.pdf");
     const result = await files.runFileCheck();
-    expect(result.problems).toEqual([expect.objectContaining({ tabelle: "legacy_order_files", datei: "AB-1001.pdf", befund: "fehlt" })]);
+    expect(result.problems).toEqual([
+      expect.objectContaining({ tabelle: "legacy_order_files", art: "Auftrags-PDF aus dem Umzug", datei: "AB-1001.pdf", befund: "fehlt" }),
+    ]);
   });
 });

@@ -2,6 +2,7 @@ import { formatEuro } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
+import { integrityNotice, weitereText } from "../lib/pruefbericht.ts";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { comparePruefwert, runFileAndIntegrityCheck, runIntegrityCheck, type getChainHead } from "../server/functions/integrity.ts";
@@ -21,50 +22,9 @@ const TABELLEN: Record<string, string> = {
   allocations: "Zuordnung",
   pauschalen: "Pauschale",
   asset_depreciations: "AfA",
-  archive_files: "Archivdatei",
-  lexoffice_voucher_files: "Datei aus dem Umzug",
-  legacy_order_files: "Auftrags-PDF aus dem Umzug",
-  postfach_documents: "Bescheid aus dem Postfach",
-  invoice_attachments: "Anhang einer Rechnung",
-  quote_attachments: "Anhang eines Angebots",
-  quote_default_attachments: "Standardanhang der Angebote",
-  vat_return_filings: "Protokoll einer Voranmeldung",
-  sv_portal_filings: "Protokoll aus dem SV-Meldeportal",
-  recurring_documents: "Vertrag eines Dauerbelegs",
-  sepa_mandate_files: "Lastschriftmandat",
 };
 
-const dateienText = (n: number) => (n === 1 ? "1 Datei fehlt oder ist verändert" : `${n} Dateien fehlen oder sind verändert`);
-
-/** Meldung nach „Kette prüfen“ oder „Dateien prüfen“: Befunde zuerst, dann Abweichungen, Kollisionen, sonst alles in Ordnung */
-function integrityNotice(result: IntegrityReport): { tone: "ok" | "info" | "danger"; text: string } {
-  const differences = result.abgleich.abweichungen.length;
-  const collisions = result.accountCollisions.length;
-  const fileProblems = result.files?.problemCount ?? 0;
-  const dateien = fileProblems > 0 ? ` ${dateienText(fileProblems)}.` : "";
-  if (result.problems.length > 0)
-    return {
-      tone: "danger",
-      text: `${result.problems.length}${result.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.${dateien}`,
-    };
-  if (fileProblems > 0) return { tone: "danger", text: `Kette und Siegel sind unverändert, aber ${dateienText(fileProblems)}.` };
-  if (differences > 0)
-    return {
-      tone: "danger",
-      text: `Kette und Siegel sind unverändert, aber Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
-    };
-  if (collisions > 0)
-    return {
-      tone: "info",
-      text: `Kette und Siegel sind unverändert. ${collisions} ${collisions === 1 ? "Kontenkollision" : "Kontenkollisionen"}: Bitte kläre die Kontenzuordnung.`,
-    };
-  return {
-    tone: "ok",
-    text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Die geprüften Journal-, Steuer- und OPOS-Werte stimmen überein.`,
-  };
-}
-
-/** Letzte Vollprüfung der Dateien im Dokumentenspeicher: Zeitpunkt, Anzahl und die Datensätze mit Befund */
+/** Letzte Vollprüfung der Dateien im Dokumentenspeicher: Zeitpunkt, Anzahl und je Datei mit Befund Art und Name */
 function FileCheckResult({ files }: { files: IntegrityReport["files"] }) {
   if (!files) return <p className="small muted">Belegdateien: noch nicht vollständig geprüft. Haben prüft sie einmal am Tag.</p>;
   return (
@@ -77,7 +37,8 @@ function FileCheckResult({ files }: { files: IntegrityReport["files"] }) {
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           {files.problems.map((p) => (
             <li key={`${p.tabelle}:${p.zeile}`} style={{ overflowWrap: "anywhere" }}>
-              <strong>{TABELLEN[p.tabelle] ?? p.tabelle}</strong> {p.datei}: {p.befund}
+              <strong>{p.art}</strong> {p.datei}: {p.befund}
+              {weitereText(p.weitere)}
             </li>
           ))}
           {files.problemCount > files.problems.length && <li className="muted">und {files.problemCount - files.problems.length} weitere</li>}

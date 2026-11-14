@@ -4,7 +4,8 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { env } from "../../env.ts";
 import { listFristen, type Frist } from "../finanzamt/index.ts";
-import { chainHead, checkIntegrity, formatPruefwert } from "../auswertungen/index.ts";
+import { dateiBefund, dateienText } from "../../../lib/pruefbericht.ts";
+import { chainHead, checkIntegrity, formatPruefwert, type IntegrityReport } from "../auswertungen/index.ts";
 import { MailError } from "./errors.ts";
 import { loadMailSettings } from "./settings.ts";
 import { transportFor } from "./transport.ts";
@@ -191,6 +192,17 @@ async function rowHashAt(seq: number): Promise<string | null> {
   return row ? row.hash.toString("hex") : null;
 }
 
+const zeitpunkt = new Intl.DateTimeFormat("de-DE", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Berlin" });
+
+/** Absatz zur letzten Vollprüfung der Dateien: Befund mit den ersten drei Dateien, sonst die Zahl der geprüften */
+function dateienAbsatz(files: IntegrityReport["files"]): { befund: string | null; unveraendert: string } {
+  if (!files) return { befund: null, unveraendert: "" };
+  const kopf = `Belegdateien (Prüfung vom ${zeitpunkt.format(files.at)})`;
+  if (files.problemCount === 0) return { befund: null, unveraendert: ` ${kopf}: ${files.files} vorhanden und unverändert.` };
+  const erste = files.problems.slice(0, 3).map(dateiBefund).join("; ");
+  return { befund: `${kopf}: ${dateienText(files.problemCount)} (${erste}${files.problemCount > 3 ? " …" : ""}).`, unveraendert: "" };
+}
+
 /** Prüfungen ohne Anlass für eine Mail höchstens einmal am Tag; im Prozess gemerkt */
 let quietCheckAt = 0;
 
@@ -237,9 +249,8 @@ export async function runDuePruefwertMail(now = new Date()) {
   }
 
   const pruefwert = formatPruefwert(head);
-  const zeitpunkt = new Intl.DateTimeFormat("de-DE", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Berlin" });
   const stand = zeitpunkt.format(now);
-  const dateien = report.files && `Belegdateien (Prüfung vom ${zeitpunkt.format(report.files.at)})`;
+  const dateien = dateienAbsatz(report.files);
   const findings = [
     ...(rewritten
       ? [
@@ -261,13 +272,11 @@ export async function runDuePruefwertMail(now = new Date()) {
             .join("; ")}${report.abgleich.abweichungen.length > 3 ? " …" : ""}).`,
         ]
       : []),
-    ...(fileProblems > 0
-      ? [`${dateien}: ${fileProblems === 1 ? "1 Datei fehlt oder ist verändert" : `${fileProblems} Dateien fehlen oder sind verändert`}.`]
-      : []),
+    ...(dateien.befund ? [dateien.befund] : []),
   ];
   const befund =
     findings.length === 0
-      ? `Prüfung von Kette und Siegel: unverändert (${report.entries} Einträge, ${report.seals} Siegel).${dateien ? ` ${dateien}: ${report.files!.files} vorhanden und unverändert.` : ""}`
+      ? `Prüfung von Kette und Siegel: unverändert (${report.entries} Einträge, ${report.seals} Siegel).${dateien.unveraendert}`
       : `${findings.join(" ")} Einzelheiten unter ${baseUrl()}/einstellungen?bereich=export`;
   const intro = `Prüfwert des Änderungsprotokolls von Haben (${baseUrl()}), Stand ${stand}:`;
   const aufbewahren =
@@ -286,7 +295,7 @@ export async function runDuePruefwertMail(now = new Date()) {
     findings.length === 0 ? `Haben: Prüfwert des Änderungsprotokolls (Nr. ${head.seq})` : `Haben: Änderungsprotokoll mit Befunden (Nr. ${head.seq})`;
   const result = await send(MAIL_ACTOR, { kind: "pruefwert", to: settings.reminderTo, subject, text, html, reminderKeys: [String(head.seq), head.hash] });
   if (!result.ok) throw new MailError(`Prüfwert nicht gesendet: ${result.error}`);
-  return { seq: head.seq, problems: report.problems.length, rewritten };
+  return { seq: head.seq, problems: report.problems.length, rewritten, fileProblems };
 }
 
 export async function lastMails(limit = 5) {

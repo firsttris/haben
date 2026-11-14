@@ -3207,13 +3207,19 @@ export const backupStatus = pgTable(
   (t) => [check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`), index("backup_status_kind_at").on(t.kind, t.at)],
 );
 
-/** Befund der Vollprüfung: ein Datensatz, dessen Datei im Dokumentenspeicher fehlt, verändert oder nicht lesbar ist */
+/**
+ * Befund der Vollprüfung: eine Datei im Dokumentenspeicher, die fehlt, verändert oder nicht lesbar ist, mit dem ersten
+ * Datensatz, der auf sie verweist (Reihenfolge von FILE_REFERENCES), und der Zahl der weiteren
+ */
 export interface FileCheckProblem {
   tabelle: string;
+  /** Bezeichnung aus FILE_REFERENCES, etwa „Beleg“ */
+  art: string;
   zeile: string;
   datei: string;
   sha256: string;
   befund: "fehlt" | "beschädigt" | "nicht lesbar";
+  weitere: number;
 }
 
 /**
@@ -3228,7 +3234,7 @@ export const fileChecks = pgTable(
     at: timestamp("at", { withTimezone: true }).notNull(),
     /** Geprüfte Dateien; eine Datei mit mehreren Verweisen zählt einmal */
     files: integer("files").notNull(),
-    /** Alle Befunde; gespeichert sind höchstens die ersten MAX_FILE_PROBLEMS */
+    /** Dateien mit Befund; gespeichert sind höchstens die ersten MAX_FILE_PROBLEMS */
     problemCount: integer("problem_count").notNull(),
     problems: jsonb("problems").$type<FileCheckProblem[]>().notNull(),
   },
