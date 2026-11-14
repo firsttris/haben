@@ -76,7 +76,7 @@ Gesendete Voranmeldungen bleiben, wie sie sind. Passt eine gesendete Voranmeldun
 
 Jede Änderung der Einstellung steht im Änderungsprotokoll.
 
-Ein Wechsel im laufenden Jahr ist kein Beginn der Tätigkeit. Wer seit 2024 monatlich abgibt und ab Juli 2025 vierteljährlich, hat im Jahr 2025 einen Eintrag ab Juli; die Tätigkeit begann aber nicht im Juli. Haben prüft deshalb weiterhin Januar bis Juni auf fehlende Voranmeldungen. Nur wenn für das Jahr noch gar kein Eintrag steht und auch kein früheres Jahr einen hat, beginnt die Prüfung mit dem ersten Eintrag des Jahres: Wer im Oktober anfängt, war im Januar nicht voranmeldepflichtig.
+Ein Wechsel im Jahr ist kein Beginn der Tätigkeit: Welche Monate die [Umsatzsteuererklärung](jahreserklaerung.md#umsatzsteuererklärung) als fehlend meldet, hängt davon ab, ob ein früheres Jahr einen Eintrag hat.
 
 ## Dauerfristverlängerung
 
