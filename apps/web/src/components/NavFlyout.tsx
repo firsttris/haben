@@ -21,9 +21,8 @@ interface NavFlyoutProps {
 }
 
 const RAND_ABSTAND = 12;
-// Öffnen erst nach kurzem Verweilen, damit der Zeiger auf dem Weg nach unten nicht jede Gruppe aufreißt;
-// Schließen mit Verzug, damit der Weg über die Lücke ins Flyout reicht (WCAG 1.4.13, „hoverable“)
-const OEFFNEN_NACH = 150;
+// Öffnen sofort wie bei GitLab; den schrägen Weg ins Flyout schützt der Zielkurs. Schließen mit Verzug, damit der
+// Weg über die Lücke ins Flyout reicht (WCAG 1.4.13, „hoverable“)
 const SCHLIESSEN_NACH = 300;
 // Hält der Zeiger Kurs auf ein offenes Flyout (lib/zielkurs.ts), prüft das gestreifte Symbol so oft nach
 const KURS_NACHPRUEFEN = 50;
@@ -156,7 +155,7 @@ export function NavFlyout({ label, icon, active, open, onOpen, onClose, zusatz, 
       if (unterwegsZuAnderem(root.current)) timer.current = setTimeout(oeffnen, KURS_NACHPRUEFEN);
       else onOpen("zeiger");
     };
-    timer.current = setTimeout(oeffnen, OEFFNEN_NACH);
+    oeffnen();
   }
   function zeigerRaus(event: PointerEvent) {
     if (event.pointerType !== "mouse") return;
