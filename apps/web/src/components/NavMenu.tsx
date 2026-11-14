@@ -269,16 +269,15 @@ export function NavExpandedBody({
   );
 }
 
-/** Beide Fassungen im DOM, CSS zeigt eine (display: contents, die Kinder bleiben Teil von .nav-body); so liefert der
- * Server die eingeklappte Leiste schon fertig */
-/** ↑/↓ wandern in der eingeklappten Leiste von Symbol zu Symbol; im Flyout übernimmt NavFlyout. Kein Pfeil aus der Leiste
- * erreicht die Seite (die Beleg-Ansicht blättert sonst mit ← →) */
-function symbolWechseln(event: KeyboardEvent<HTMLDivElement>) {
-  if (!event.key.startsWith("Arrow")) return;
+// Die Symbole der eingeklappten Leiste von oben nach unten: Marke und Lupe stehen vor den Fassungen in der Navigation
+const SYMBOLE = ".brand, .nav-search-btn, .nav-variante-rail :is(.nav-rail-trigger, .nav-rail-link, .nav-collapse-btn)";
+
+/** Eingeklappt am Desktop wandern ↑/↓ von Symbol zu Symbol, Marke und Lupe eingeschlossen; im Flyout übernimmt NavFlyout.
+ * Kein Pfeil aus der Leiste erreicht die Seite (die Beleg-Ansicht blättert sonst mit ← →). An der Navigation (`<nav>`) */
+export function symbolWechseln(event: KeyboardEvent<HTMLElement>) {
+  if (!event.key.startsWith("Arrow") || !document.documentElement.dataset.nav || !window.matchMedia("(min-width: 861px)").matches) return;
   const ziel = event.target as HTMLElement;
-  const symbole = [...event.currentTarget.querySelectorAll<HTMLElement>(".nav-rail-trigger, .nav-rail-link, .nav-collapse-btn")].filter(
-    (symbol) => !symbol.closest(".nav-flyout"),
-  );
+  const symbole = [...event.currentTarget.querySelectorAll<HTMLElement>(SYMBOLE)].filter((symbol) => !symbol.closest(".nav-flyout"));
   const amSymbol = symbole.includes(ziel);
   if (!amSymbol && !ziel.closest(".nav-flyout")) return;
   event.stopPropagation();
@@ -288,13 +287,15 @@ function symbolWechseln(event: KeyboardEvent<HTMLDivElement>) {
   weiter(symbole, schritt);
 }
 
+/** Beide Fassungen im DOM, CSS zeigt eine (display: contents, die Kinder bleiben Teil von .nav-body); so liefert der
+ * Server die eingeklappte Leiste schon fertig */
 export function NavVarianten(props: NavBodyProps) {
   return (
     <>
       <div className="nav-variante nav-variante-voll">
         <NavExpandedBody {...props} />
       </div>
-      <div className="nav-variante nav-variante-rail" onKeyDown={symbolWechseln}>
+      <div className="nav-variante nav-variante-rail">
         <NavRailBody {...props} />
       </div>
     </>

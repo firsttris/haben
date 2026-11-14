@@ -1,7 +1,7 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
 import { type PointerEvent, type RefObject, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { NavTip, NavVarianten } from "../components/NavMenu.tsx";
+import { NavTip, NavVarianten, symbolWechseln } from "../components/NavMenu.tsx";
 import type { FlyoutWeg } from "../components/NavFlyout.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
@@ -200,7 +200,7 @@ function AppLayout() {
       <a href="#inhalt" className="skip-link">
         Zum Inhalt springen
       </a>
-      <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
+      <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation" onKeyDown={symbolWechseln}>
         <NavBrand inhaber={inhaber} />
         <NavSearch onOpen={() => setPaletteOpen(true)} />
         <button
