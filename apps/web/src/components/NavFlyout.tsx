@@ -190,8 +190,10 @@ export function NavFlyout({ label, icon, active, open, onOpen, onClose, zusatz, 
     if (event.key !== "ArrowRight") return;
     event.preventDefault();
     event.stopPropagation();
-    if (open) panelRef.current?.querySelector<HTMLElement>(FOKUSSIERBAR)?.focus();
-    else onOpen("tastatur");
+    // Ein überfahrenes Flyout heftet → an wie ein Klick: das Verlassen mit der Maus schließt es samt Fokus nicht mehr
+    clearTimeout(timer.current);
+    if (open === null || open === "zeiger") onOpen("tastatur");
+    else panelRef.current?.querySelector<HTMLElement>(FOKUSSIERBAR)?.focus();
   }
   function tasteImFlyout(event: TastenEreignis) {
     if ((event.target as HTMLElement).closest("input, select, textarea")) return;
