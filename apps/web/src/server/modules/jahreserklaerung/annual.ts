@@ -1,4 +1,5 @@
 import { UserError } from "../../errors.ts";
+import { fehlendeMonate } from "./fehlende-voranmeldungen.ts";
 import {
   ACCOUNTS,
   taxOf,
@@ -9,7 +10,6 @@ import {
   type EuerResult,
   type ExpenseCategory,
   type PauschaleArt,
-  frequencyAt,
   filingPeriodsOfYear,
   homeofficeSatz,
   isKapitalgesellschaft,
@@ -165,7 +165,7 @@ export async function ustYear(year: number): Promise<UstYear> {
     figures,
     ...ustErklaerungResult(figures),
     kz48Gesperrt: kz48.gesperrt,
-    missingMonths: Array.from({ length: 12 }, (_, i) => i + 1).filter((m) => !covered.has(m) && frequencyAt(frequencies, { year, month: m }) !== "keine"),
+    missingMonths: fehlendeMonate(frequencies, year, covered),
     lastFilingPeriod: lastFilingPeriodKey(frequencies, year),
   };
 }

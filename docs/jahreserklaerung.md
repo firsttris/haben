@@ -54,6 +54,8 @@ Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 
 Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor dem Umzug aus Lexoffice), fehlen sie im Vorauszahlungssoll; Haben weist darauf hin. Dann stimmt die Abschlusszahlung nicht, und du gibst die Erklärung besser im ELSTER-Portal ab. Der Hinweis verlinkt den letzten Voranmeldungszeitraum des Jahres (2025-Q4 bei vierteljährlicher, 2025-12 bei monatlicher Abgabe), nicht den laufenden Zeitraum.
 
+Monate vor dem Beginn der Tätigkeit zählen nicht als fehlend. Als Beginn gilt der erste Eintrag des Jahres unter [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum), wenn kein früheres Jahr einen hat: Steht der erste Eintrag ab Oktober, fehlt für Januar bis September nichts. Hat ein früheres Jahr einen Eintrag, ist ein Eintrag im Jahr ein Wechsel, und alle Monate zählen. Wechselt das Finanzamt mitten im Jahr und hast du bisher nichts eingestellt (also monatlich), stell auch das Vorjahr ein, sonst gilt der Wechsel als Beginn.
+
 Abzugszeilen — Vorsteuer, Vorsteuer aus innergemeinschaftlichem Erwerb, Einfuhrumsatzsteuer und Vorauszahlungssoll — zeigen den Betrag mit umgekehrtem Vorzeichen: Ein Abzug steht negativ, eine Gutschrift in derselben Zeile positiv. Wer die Spalte zusammenzählt, kommt damit auf die Abschlusszahlung — solange die Zeilen für § 13b, innergemeinschaftliche Erwerbe und Einfuhr leer sind; die Summenzeile „Umsatzsteuer“ führt diese Kennzahlen nicht mit. Die Abschlusszeile trägt dagegen das Vorzeichen ihres Betrags; eine Erstattung steht deshalb negativ.
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
