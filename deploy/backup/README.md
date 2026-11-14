@@ -4,7 +4,7 @@ Backup für [Haben](https://github.com/firsttris/haben), die selbst gehostete Bu
 
 - Compose: Dienst `backup` in [`deploy/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.yml), sichert täglich um `BACKUP_TIME` (Standard 03:15).
 - Podman Quadlets: [`haben-backup.container`](https://github.com/firsttris/haben/blob/main/deploy/quadlet/haben-backup.container), gestartet von `haben-backup.timer`.
-- Aufbewahrung: 14 tägliche, 24 monatliche und 11 jährliche Stände (GoBD: 10 Jahre).
+- Aufbewahrung: 14 tägliche, 24 monatliche und 11 jährliche Stände (längste Frist: 10 Jahre für Bücher und Aufzeichnungen, § 147 Abs. 3 AO).
 - Repository standardmäßig im Volume unter `/backups`, mit `RESTIC_REPOSITORY` (`sftp:…`, `s3:…`, `rest:…`) auf einem zweiten System.
 
 | Befehl | |

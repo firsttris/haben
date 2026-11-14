@@ -19,7 +19,7 @@ NoNewPrivileges=true
 # Volume=/opt/eric:/opt/eric:ro
 # ELSTER auf arm64: x86_64-Laufzeit aus deploy/eric-x86_64/einrichten.sh, Zeile einkommentieren, ERIC_WORKER_COMMAND in haben.env
 # Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro
-# Belegdateien (GoBD: 10 Jahre aufbewahren, gehört ins Backup)
+# Belegdateien (nach § 147 Abs. 3 AO bis zu 10 Jahre aufbewahren, gehört ins Backup)
 Volume=haben-belege.volume:/var/lib/haben/belege
 # Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung
 Volume=haben-eric-log.volume:/var/lib/haben/eric-log

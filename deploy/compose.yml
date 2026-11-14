@@ -104,7 +104,7 @@ services:
       # Mehrere Firmen: die Instanzen zum Wechseln in der Navigation, „Name|https://adresse“ getrennt durch „;“
       HABEN_FIRMEN: ${HABEN_FIRMEN:-}
     volumes:
-      # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
+      # Belegdateien: gehören ins Backup, Aufbewahrung bis zu 10 Jahre (§ 147 Abs. 3 AO)
       - belege:/var/lib/haben/belege
       # Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung
       - eric-log:/var/lib/haben/eric-log
