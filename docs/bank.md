@@ -94,7 +94,9 @@ Viele Selbständige haben bei derselben Bank mehrere Konten, etwa ein Geschäfts
 | Geschäftskonto (Standard) | wie bisher; sein Kontostand steht in der Übersicht |
 | Steuerkonto | Vorbelegung für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern); Lastschriften und Erstattungen der Umsatzsteuer auf diesem Konto bekommen „Umsatzsteuer an das Finanzamt“ als Vorschlag; die Übersicht zeigt den Stand neben der noch offenen Zahllast (abzüglich schon zugeordneter Zahlungen an das Finanzamt nach Ende des Zeitraums) und warnt, wenn er nicht reicht |
 | Rücklagen- oder Sparkonto | Überträge zu und von eigenen Konten bekommen „Geldtransit“ als Vorschlag |
-| Privatkonto (nur zur Zuordnung) | Überweisungen dorthin oder von dort bekommen „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an; Umsätze importierst du nur, wenn du sie buchen willst, etwa eine Umsatzsteuer-Erstattung ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). |
+| Privatkonto | Umsätze dort sind erlaubt und bleiben zuordenbar; Geschäftsvorfälle laufen über Entnahme und Einlage. Überweisungen dorthin oder von dort bekommen „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an. |
+
+Auf einem Privatkonto entfallen im Abgleich genau vier Angebote: Kontoführung und Bankgebühren, Zinserträge, Privat und Geldtransit. Gebühren und Zinsen eines privaten Kontos sind privat: kein Betriebsaufwand und keine Betriebseinnahme; „Privat“ buchte privat gegen privat, und Geldtransit wäre bei zwei privaten Konten Entnahme gegen Entnahme. Alles andere bleibt buchbar, auch eine Umsatzsteuer-Erstattung ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)).
 
 Jedes Konto hat einen Zweck. Gebucht wird weiter auf das eine Bankkonto (1200 bzw. 1800); welche IBAN auf Rechnungen steht, bestimmen die Firmendaten.
 

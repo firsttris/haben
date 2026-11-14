@@ -85,6 +85,7 @@ export * from "./steuerbescheinigung.ts";
 export * from "./steuerzahlung.ts";
 export * from "./darlehen.ts";
 export * from "./direkt-kategorie.ts";
+export * from "./konto-angebot.ts";
 export * from "./bareinnahme.ts";
 export * from "./kleinunternehmer-stand.ts";
 export * from "./leistung.ts";

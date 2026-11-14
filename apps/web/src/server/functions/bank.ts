@@ -1,7 +1,7 @@
 import {
   ACCOUNT_PURPOSES,
-  directBookingsFor,
-  direktKategorienFuer,
+  direktBuchungenFuerKonto,
+  direktKategorienFuerKonto,
   PAYMENT_PROVIDERS,
   directBookingLabel,
   paymentProviderAccount,
@@ -136,13 +136,17 @@ export const getBankOverview = createServerFn({ method: "GET" })
           : null,
       directKinds: await (async () => {
         const { rechtsform } = await loadCompany();
-        return directBookingsFor(rechtsform).map((value) => ({ value, label: directBookingLabel(value, rechtsform) }));
+        // Auf einem privaten Konto entfallen vier Angebote (#873)
+        return direktBuchungenFuerKonto(rechtsform, account?.purpose ?? "geschaeft").map((value) => ({
+          value,
+          label: directBookingLabel(value, rechtsform),
+        }));
       })(),
       /** Steuerzahlung: Steuerarten der Rechtsform und Teile (Steuer, Zinsen, Zuschläge) */
       steuerarten: steuerartenFor((await loadCompany()).rechtsform).map((value) => ({ value, label: STEUERARTEN[value] })),
       steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
       /** Direkt buchen auf eine Kategorie: Einnahmen und die Ausgabekategorien, die ohne Beleg gehen (#324) */
-      kategorien: direktKategorienFuer(),
+      kategorien: direktKategorienFuerKonto(account?.purpose ?? "geschaeft"),
       kleinunternehmer: (await loadCompany()).kleinunternehmer,
       /** Darlehen mit Bestand und die Teile einer Rate */
       loans: (await listLoans()).map((l) => ({ value: l.id, label: `${l.name} · Bestand ${formatEuro(l.balance)}` })),
