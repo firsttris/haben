@@ -437,17 +437,19 @@ Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und eine
 
 Die Liste ist nach Rechnungsdatum sortiert, neueste zuerst, bei gleichem Datum nach Rechnungsnummer absteigend. In derselben Reihenfolge zeigt die Übersicht unter **Letzte Rechnungen** die fünf jüngsten festgeschriebenen Rechnungen.
 
-| Status | Bedeutung |
-| --- | --- |
-| Entwurf | Noch nicht festgeschrieben, ohne Nummer. |
-| Offen | Festgeschrieben, nicht fällig, noch keine Zahlung zugeordnet. |
-| Teilbezahlt | Ein Teil ist bezahlt, die Fälligkeit ist noch nicht überschritten. |
-| Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet oder bar im Kassenbuch eingenommen, gegebenenfalls abzüglich eines ausgebuchten Skontos. |
-| Ausgebucht | Erledigt, mit einem Forderungsausfall (siehe [Ausbuchen](#ausbuchen)). |
-| Überfällig | Fälligkeit überschritten und noch etwas offen, auch bei Teilzahlung. |
-| Storniert | Zu dieser Rechnung gibt es eine festgeschriebene Stornorechnung. |
-| Storno | Die Stornorechnung selbst. |
-| Korrektur | Eine Rechnungskorrektur. |
+Unter dem Status steht in Grau, was er für diese Rechnung gerade heißt. Überfällige Rechnungen sind farbig hinterlegt, auch die Zeile darunter, damit sie in der Liste auffallen; ein Entwurf hat einen leeren Ring statt eines Punkts.
+
+| Status | Bedeutung | Darunter |
+| --- | --- | --- |
+| Entwurf | Noch nicht festgeschrieben, ohne Nummer. | – |
+| Offen | Festgeschrieben, nicht fällig, noch keine Zahlung zugeordnet. | fällig am |
+| Teilbezahlt | Ein Teil ist bezahlt, die Fälligkeit ist noch nicht überschritten. | gezahlt von brutto |
+| Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet oder bar im Kassenbuch eingenommen, gegebenenfalls abzüglich eines ausgebuchten Skontos. | Tag der letzten Zahlung |
+| Ausgebucht | Erledigt, mit einem Forderungsausfall (siehe [Ausbuchen](#ausbuchen)). | als Forderungsausfall |
+| Überfällig | Fälligkeit überschritten und noch etwas offen, auch bei Teilzahlung. | seit wie vielen Tagen, bei Teilzahlung mit dem offenen Rest |
+| Storniert | Zu dieser Rechnung gibt es eine festgeschriebene Stornorechnung. | Nummer der Stornorechnung |
+| Storno | Die Stornorechnung selbst. | Nummer der stornierten Rechnung |
+| Korrektur | Eine Rechnungskorrektur. | Nummer der korrigierten Rechnung |
 
 ## Festgeschriebene Rechnung
 

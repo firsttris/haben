@@ -378,11 +378,11 @@ test("MCP-Token widerrufen fragt nach", async () => {
   await widerrufen.click();
   await expect(rueckfrage("Token „Claude am Laptop“ widerrufen?")).toContainText("neues Token");
   await abbrechen("Token „Claude am Laptop“ widerrufen?");
-  await expect(tokens.getByText("aktiv", { exact: true })).toBeVisible();
+  await expect(tokens.getByText("Aktiv", { exact: true })).toBeVisible();
 
   await widerrufen.click();
   await bestaetigen(page, "Widerrufen");
-  await expect(tokens.getByText("widerrufen", { exact: true })).toBeVisible();
+  await expect(tokens.getByText("Widerrufen", { exact: true })).toBeVisible();
   await expect(widerrufen).toHaveCount(0);
 });
 

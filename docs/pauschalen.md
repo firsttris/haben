@@ -1,8 +1,8 @@
 ---
-title: "Pauschalen ohne Beleg: Homeoffice, Fahrten, Verpflegung"
+title: "Pauschalen ohne Beleg: Homeoffice, Fahrten, Verpflegung, Entfernungspauschale"
 description: >-
   Betriebsausgaben ohne Rechnung buchen: Homeoffice-Pauschale, Fahrten mit dem eigenen Fahrzeug,
-  Verpflegungsmehraufwand und weitere Pauschalen.
+  Verpflegungsmehraufwand und Entfernungspauschale für Wege zur Betriebsstätte.
 ---
 
 # Pauschalen ohne Beleg
@@ -11,7 +11,8 @@ Unter **Pauschalen** trägst du Betriebsausgaben ein, für die es keine Rechnung
 
 - Homeoffice-Tage,
 - Fahrten mit dem eigenen Fahrzeug,
-- Verpflegungsmehraufwand auf Geschäftsreisen.
+- Verpflegungsmehraufwand auf Geschäftsreisen,
+- Wege zwischen Wohnung und Betriebsstätte (Entfernungspauschale).
 
 Pauschalen gibt es nur im Einzelunternehmen; bei einer GmbH oder UG fehlen sie im Menü (siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)). Haben bucht jede Pauschale sofort als Ausgabe an Privateinlage, weil du sie privat getragen hast. In der [Anlage EÜR](jahreserklaerung.md) landet sie in der passenden Zeile.
 
@@ -45,7 +46,7 @@ Für Fahrten zu Kunden und Terminen und auf Geschäftsreisen gelten diese Kilome
 - Konto: SKR03 4673, SKR04 6673.
 - Anlage EÜR: „Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage)“ (E6006103).
 
-Arbeitest du dauerhaft beim selben Kunden, kann dort eine Betriebsstätte entstehen. Dann zählt statt des Kilometersatzes die Entfernungspauschale für Fahrten zwischen Wohnung und Betriebsstätte. Die bildet Haben noch nicht ab. Die Drei-Monats-Grenze gilt nur für die Verpflegungspauschale.
+Arbeitest du dauerhaft beim selben Kunden, kann dort eine Betriebsstätte entstehen. Dann zählt statt des Kilometersatzes die [Entfernungspauschale](#wege-zwischen-wohnung-und-betriebsstätte). Die Drei-Monats-Grenze gilt nur für die Verpflegungspauschale.
 
 Ein Fahrzeug im Betriebsvermögen buchst du über seine Kosten und die [Privatnutzung](anlagen.md), nicht hier.
 
@@ -75,6 +76,32 @@ Die Pauschale wird dabei nie negativ; bleibt nach der Kürzung nichts übrig, le
 - Konto: SKR03 4674, SKR04 6674.
 - Anlage EÜR: „Verpflegungsmehraufwendungen“ unter den beschränkt abziehbaren Betriebsausgaben (E6005002).
 
+## Wege zwischen Wohnung und Betriebsstätte
+
+Für die Wege von der Wohnung zur Betriebsstätte, zum Beispiel zum gemieteten Praxisraum oder Atelier, zählt nicht der Kilometersatz der Fahrten, sondern nur die Entfernungspauschale: § 4 Abs. 5 Satz 1 Nr. 6 Satz 2 EStG verweist dafür auf § 9 Abs. 1 Satz 3 Nr. 4 EStG. Sie gilt für jeden Tag, an dem du die Betriebsstätte aufsuchst, einmal; Hin- und Rückweg sind damit abgegolten. Ein Beispiel für 2026: 15 Tage × 12 km × 0,38 € = 68,40 €. Als „Fahrt“ mit Hin- und Rückweg würden es 15 × 24 km × 0,30 € = 108,00 €, also 39,60 € zu viel.
+
+| Jahr | je vollem Kilometer der einfachen Strecke |
+|---|---|
+| ab 2026 | 0,38 € vom ersten Kilometer an |
+| 2022 bis 2025 | 0,30 € bis zum 20. Kilometer, ab dem 21. Kilometer 0,38 € |
+| 2021 | 0,30 € bis zum 20. Kilometer, ab dem 21. Kilometer 0,35 € |
+| bis 2020 | 0,30 € |
+
+Quelle: § 9 Abs. 1 Satz 3 Nr. 4 EStG; für 2025 die Anleitung zur Anlage EÜR 2025, Zeile 73.
+
+- Du trägst die Wege je Monat ein: **Monat**, **Tage an der Betriebsstätte** (höchstens so viele, wie der Monat hat, alle Einträge des Monats zusammen), **Kilometer einfach** und die **Betriebsstätte** als Text. Haben bucht zum Monatsletzten.
+- Es zählen nur volle Kilometer; Haben rundet ab.
+- Konto: SKR03 4678, SKR04 6688. Der DATEV-Kontenrahmen (SKR03 und SKR04, gültig für 2026) nennt sie „Fahrten zwischen Wohnung und Betriebsstätte und Familienheimfahrten (abziehbarer Anteil) – Fahrzeuge im Betriebsvermögen“ und kennt kein eigenes Konto für das Privatfahrzeug; die Wahl ist mit der Steuerberatung zu bestätigen.
+- Anlage EÜR: „Mindestens abziehbare Kraftfahrzeugkosten für Wege zwischen Wohnung und Betriebsstätte, Familienheimfahrten“ (Zeile 73 der Anlage EÜR 2025, Kennung E6003702), nicht die Nutzungseinlage der Fahrten.
+
+Haben rechnet nur Wege mit dem eigenen Fahrzeug, das nicht zum Betriebsvermögen gehört. Nicht abgebildet sind:
+
+- ein Fahrzeug im Betriebsvermögen mit nicht abziehbarem Anteil nach § 4 Abs. 5 Satz 1 Nr. 6 Satz 3 EStG (Anlage EÜR Zeile 72 kürzt dort die Kfz-Kosten); wer eines hat, trägt diese Art nicht zusätzlich ein, sonst zählen Kosten und Pauschale doppelt,
+- höhere tatsächliche Kosten für öffentliche Verkehrsmittel und der Höchstbetrag von 4.500 € für andere Verkehrsmittel als das eigene Auto,
+- Familienheimfahrten und doppelte Haushaltsführung.
+
+Haben prüft nicht, ob du für denselben Tag auch eine [Homeoffice-Pauschale](#homeoffice-tagespauschale) einträgst. Was als Betriebsstätte gilt, ist eine Frage des Einzelfalls und gehört in die Steuerberatung.
+
 ## Buchung und Storno
 
 Jede Pauschale wird beim Eintragen gebucht und festgeschrieben, zum Beispiel Homeoffice:
@@ -91,4 +118,4 @@ Eine falsche Eingabe hebst du mit **Stornieren** auf:
 - Das Original bleibt durchgestrichen stehen.
 - Danach trägst du die Pauschale richtig neu ein.
 
-Ändern oder Löschen geht nicht (GoBD). Ein Datum bzw. bei Homeoffice ein Monat in der Zukunft ist nicht möglich. Im [Jahresarchiv](auswertungen.md) stehen die Pauschalen mit allen Angaben in `pauschalen/pauschalen.csv`.
+Ändern oder Löschen geht nicht (GoBD). Ein Datum bzw. bei Homeoffice und Wegen zur Betriebsstätte ein Monat in der Zukunft ist nicht möglich. Im [Jahresarchiv](auswertungen.md) stehen die Pauschalen mit allen Angaben in `pauschalen/pauschalen.csv`.

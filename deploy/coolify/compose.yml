@@ -92,6 +92,8 @@ services:
       - LAYOUTS_MAX_COUNT=${LAYOUTS_MAX_COUNT:-}
       - LAYOUTS_MAX_MB=${LAYOUTS_MAX_MB:-}
       - LAYOUTS_PACKAGES_URL=${LAYOUTS_PACKAGES_URL:-}
+      # Mehrere Firmen: die Instanzen zum Wechseln in der Navigation, „Name|https://adresse“ getrennt durch „;“
+      - HABEN_FIRMEN=${HABEN_FIRMEN:-}
     volumes:
       # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
       - belege:/var/lib/haben/belege

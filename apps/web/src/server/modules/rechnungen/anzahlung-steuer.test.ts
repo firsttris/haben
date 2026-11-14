@@ -330,7 +330,8 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
     await bank.allocate(actor, { kind: "invoice", invoiceId: invoice.id, transactionId: transaction!.id, amount: 11_900 });
     await tax(2027, 1, 10_000, 1_900);
     const [allocation] = await sql`select id from allocations where invoice_id = ${invoice.id}`;
-    await bank.reverseAllocation(actor, allocation!.id);
+    // Aufhebung am Tag der Zahlung: Der Test prüft den Anteil, nicht den Zeitraum der Gegenzeile (#782)
+    await bank.reverseAllocation(actor, allocation!.id, "2027-01-12");
     await tax(2027, 1, 0, 0);
   });
 

@@ -1,5 +1,5 @@
 {
-  "id": "0286fb1a-490f-4d72-8281-29c91dc4211f",
+  "id": "86edb29e-1af1-454c-8eb6-c42e6ecdc68f",
   "prevId": "98e82725-b295-43c5-a26a-6565be4a4af9",
   "version": "7",
   "dialect": "postgresql",
@@ -172,6 +172,12 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
         },
         "invoice_id": {
           "name": "invoice_id",
@@ -2739,13 +2745,6 @@
           "notNull": true,
           "default": false
         },
-        "ohne_vorsteuerabzug": {
-          "name": "ohne_vorsteuerabzug",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "einkunftsart": {
           "name": "einkunftsart",
           "type": "text",
@@ -4661,12 +4660,6 @@
           "notNull": true,
           "default": true
         },
-        "vorsteuer_anteil": {
-          "name": "vorsteuer_anteil",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "private_share": {
           "name": "private_share",
           "type": "smallint",
@@ -4901,10 +4894,6 @@
         "documents_private_share_range": {
           "name": "documents_private_share_range",
           "value": "\"documents\".\"private_share\" between 0 and 100"
-        },
-        "documents_vorsteuer_anteil_range": {
-          "name": "documents_vorsteuer_anteil_range",
-          "value": "\"documents\".\"vorsteuer_anteil\" between 0 and 10000"
         },
         "documents_external_ref_pair": {
           "name": "documents_external_ref_pair",

@@ -156,13 +156,14 @@ Ein Beleg mit der Kategorie „Anlagegut“ bucht den Nettobetrag auf das Anlage
 
 ## Pauschalen ohne Beleg
 
-Homeoffice-Tage, Fahrten mit dem Privatfahrzeug und Verpflegungsmehraufwand bucht Haben beim Eintragen als Aufwand an Privateinlage (1890 bzw. 2180):
+Homeoffice-Tage, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand und Wege zur Betriebsstätte bucht Haben beim Eintragen als Aufwand an Privateinlage (1890 bzw. 2180):
 
 | Pauschale | SKR03 | SKR04 |
 | --- | --- | --- |
 | Homeoffice-Tagespauschale | 4288 | 6348 |
 | Fahrten mit dem Privatfahrzeug | 4673 | 6673 |
 | Verpflegungsmehraufwand | 4674 | 6674 |
+| Wege zwischen Wohnung und Betriebsstätte (Entfernungspauschale) | 4678 | 6688 |
 
 Ein Storno ist eine Gegenbuchung am selben Tag. Sätze und Grenzen stehen unter [Pauschalen](pauschalen.md).
 

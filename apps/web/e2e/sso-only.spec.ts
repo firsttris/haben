@@ -154,7 +154,7 @@ test("SSO-Modus: Einrichtung, automatische Anlage, Zugänge, Gruppenentzug und e
     await guest.goto(`${BASE}/steuerberatung`, { waitUntil: "networkidle" });
     await expect(guest).toHaveURL(/\/login/);
     await page.reload({ waitUntil: "networkidle" });
-    await expect(page.getByRole("region", { name: "Zugänge" })).toContainText("kein Zugang");
+    await expect(page.getByRole("region", { name: "Zugänge" })).toContainText("Kein Zugang");
 
     // Abgelaufene Berechtigung: Zugriff verweigert, Weg zur erneuten SSO-Anmeldung, keine automatische Schleife
     await sql`update session set sso_expires_at = now() - interval '1 second' where user_id = (select id from "user" where email = 'inhaberin@example.de')`;

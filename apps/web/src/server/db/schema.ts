@@ -842,19 +842,20 @@ export const mailLog = pgTable("mail_log", {
 });
 
 /**
- * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand),
- * gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
+ * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand,
+ * Entfernungspauschale für Wege zur Betriebsstätte), gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
  */
 export const pauschalen = pgTable(
   "pauschalen",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung"] }).notNull(),
-    /** Homeoffice: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
+    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung", "entfernung"] }).notNull(),
+    /** Homeoffice und Entfernungspauschale: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
     date: date("date", { mode: "string" }).notNull(),
     /** Anlass, Ziel, Kunde */
     description: text("description").notNull(),
-    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend } */
+    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend };
+     * Entfernung: { tage, km, betriebsstaette } */
     details: jsonb("details").$type<Record<string, string | number | boolean>>().notNull(),
     /** Cent; beim Storno negativ */
     amount: integer("amount").notNull(),
@@ -2336,6 +2337,12 @@ export const allocations = pgTable(
       .notNull()
       .references(() => bankTransactions.id),
     kind: allocationKindEnum("kind").notNull(),
+    /**
+     * Tag, an dem die Zuordnung wirkt; leer heißt Buchungsdatum des Umsatzes. Gesetzt ist er bei der Gegenzeile einer
+     * Aufhebung (#782): Die wirkt am Tag der Aufhebung, auch wenn der Umsatz Monate älter ist. Ohne diese Spalte lägen
+     * Journal (Tag der Aufhebung) und Nebenbücher (Tag des Umsatzes) für den Zeitraum dazwischen auseinander.
+     */
+    date: date("date", { mode: "string" }),
     invoiceId: uuid("invoice_id").references(() => invoices.id),
     documentId: uuid("document_id").references(() => documents.id),
     /** Mit dem Vorzeichen des Umsatzes; Teile einer Aufteilung auch mit umgekehrtem (z. B. Gebühr in einer Auszahlung) */

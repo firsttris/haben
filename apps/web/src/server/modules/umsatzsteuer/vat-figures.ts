@@ -192,9 +192,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     }
 
   {
+    // Tag der Zuordnung: die Gegenzeile einer Aufhebung wirkt an ihrem eigenen Tag (#782), sonst am Buchungsdatum
+    const zuordnungstag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
     const payments = await q
       .select({
-        date: schema.bankTransactions.bookingDate,
+        date: zuordnungstag,
         amount: schema.allocations.amount,
         taxShares: schema.allocations.taxShares,
         taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
@@ -215,8 +217,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       .where(
         and(
           eq(schema.allocations.kind, "invoice"),
-          gte(schema.bankTransactions.bookingDate, start),
-          lt(schema.bankTransactions.bookingDate, end),
+          gte(zuordnungstag, start),
+          lt(zuordnungstag, end),
           // Reverse Charge, innergemeinschaftliche Lieferung und Drittland zählen im Monat der Rechnung, auch bei Ist (siehe oben)
           notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM]),
         ),
@@ -393,9 +395,10 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   // Direkt auf eine Einnahmekategorie gebuchte Bankumsätze (#324): ohne Rechnung am Tag der Zahlung, bei Ist wie bei Soll
   // (packages/core/src/direkt-kategorie.ts); die Gegenzeile einer aufgehobenen Zuordnung mit umgekehrtem Vorzeichen
   {
+    const direktTag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
     const rows = await q
       .select({
-        date: schema.bankTransactions.bookingDate,
+        date: direktTag,
         transactionId: schema.allocations.transactionId,
         amount: schema.allocations.amount,
         category: schema.allocations.category,
@@ -404,7 +407,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       })
       .from(schema.allocations)
       .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
-      .where(and(eq(schema.allocations.kind, "kategorie"), gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end)));
+      .where(and(eq(schema.allocations.kind, "kategorie"), gte(direktTag, start), lt(direktTag, end)));
     for (const r of rows) {
       if (!r.category || r.taxRate === null || kategorieArt(r.category) !== "einnahme") continue;
       const { base, tax } = kategorieAnteil({ kategorie: r.category, steuersatz: r.taxRate }, r.amount);

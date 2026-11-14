@@ -1601,8 +1601,8 @@
     {
       "idx": 228,
       "version": "7",
-      "when": 1794607203598,
-      "tag": "0228_vorsteuerabzug_vorgabe",
+      "when": 1794605361767,
+      "tag": "0228_zuordnung_aufhebung_datum",
       "breakpoints": true
     }
   ]

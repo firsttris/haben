@@ -206,7 +206,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await zahlung(dez.id, "08.01.27");
     await uebermittelt(2026, await wieUebermittelt(2026));
     const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
-    await bank.reverseAllocation(actor, a!.id as string);
+    await bank.reverseAllocation(actor, a!.id as string, "2027-01-20");
     expect(await euer(2026)).toEqual(MIT_DEZEMBER);
     expect(await euer(2027)).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
     expect(zeilen(await reports.euerAusNebenbuechern(2027))).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
@@ -220,7 +220,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await zahlung(dez.id, "08.01.27");
     await uebermittelt(2026, await wieUebermittelt(2026));
     const [a] = await sql`select id, transaction_id from allocations where kind = 'ustVorauszahlung'`;
-    await bank.reverseAllocation(actor, a!.id as string);
+    await bank.reverseAllocation(actor, a!.id as string, "2027-01-20");
     await bank.allocate(actor, { kind: "ustva", transactionId: a!.transaction_id as string, vatReturnId: dez.id, amount: -19_000 });
     expect(await euer(2026)).toEqual(MIT_DEZEMBER);
     expect((await euer(2027)).gewinn).toBe(0);
@@ -261,7 +261,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await zahlung(dez.id, "08.01.27");
     await vermerkt(2026);
     const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
-    await bank.reverseAllocation(actor, a!.id as string);
+    await bank.reverseAllocation(actor, a!.id as string, "2027-01-20");
     expect(await euer(2026)).toEqual(MIT_DEZEMBER);
     expect(await euer(2027)).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
     await beideWegeGleich();

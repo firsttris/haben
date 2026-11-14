@@ -77,7 +77,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   const end = `${year + 1}-01-01`;
   // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar: zählt im Vorjahr (euer-jahreswechsel.ts)
   const { herein, hinaus } = await euerVerschiebung(year, q);
-  const imJahr = and(gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end));
+  // Tag der Zuordnung: die Gegenzeile einer Aufhebung wirkt an ihrem eigenen Tag (#782), sonst am Buchungsdatum
+  const zuordnungstag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
+  const imJahr = and(gte(zuordnungstag, start), lt(zuordnungstag, end));
   const allocations = await q
     .select({
       id: schema.allocations.id,
@@ -89,7 +91,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       invoiceId: schema.allocations.invoiceId,
       documentId: schema.allocations.documentId,
       transactionId: schema.allocations.transactionId,
-      date: schema.bankTransactions.bookingDate,
+      date: zuordnungstag,
       category: schema.documents.category,
       vorsteuerAbzug: schema.documents.vorsteuerAbzug,
       privateShare: schema.documents.privateShare,

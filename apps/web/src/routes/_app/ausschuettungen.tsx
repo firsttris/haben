@@ -18,6 +18,8 @@ import {
 import styles from "../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { Field } from "../../components/Field.tsx";
+import { OutcomeStatus } from "../../components/Status.tsx";
+import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/ausschuettungen")({
   validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional() }),
@@ -331,9 +333,19 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
         <h2 style={{ margin: 0 }}>
           {titel}: {formatEuro(a.brutto)}
         </h2>
-        <span className={`pill ${a.storniert ? "pill-danger" : a.angemeldet ? "pill-ok" : ""}`}>
-          {a.storniert ? "storniert" : a.angemeldet ? "angemeldet" : `anmelden bis ${formatDate(faellig)}`}
-        </span>
+        {a.storniert ? (
+          <Status tone="danger" inline>
+            Storniert
+          </Status>
+        ) : a.angemeldet ? (
+          <Status tone="ok" inline>
+            Angemeldet
+          </Status>
+        ) : (
+          <Status inline detail={`bis ${formatDate(faellig)}`}>
+            Anmelden
+          </Status>
+        )}
       </div>
       <p className="small muted">Zufluss am {formatDate(a.zufluss)}</p>
       <EmpfaengerTabelle empfaenger={a.empfaenger} />
@@ -367,8 +379,7 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
             {a.history.map((h) => (
               <div key={h.id} className="history-row">
                 <span className="small">
-                  {ELSTER_KIND_LABEL[h.kind]} <span className={`pill ${h.ok ? "pill-ok" : "pill-danger"}`}>{h.ok ? "OK" : `Fehler ${h.code}`}</span>{" "}
-                  {formatDateTime(h.createdAt)}
+                  {ELSTER_KIND_LABEL[h.kind]} <OutcomeStatus ok={h.ok}>{h.ok ? "OK" : `Fehler ${h.code}`}</OutcomeStatus> {formatDateTime(h.createdAt)}
                   {h.transferTicket ? ` · Ticket ${h.transferTicket}` : ""}
                 </span>
                 {h.ok && h.kind !== "validate" && (

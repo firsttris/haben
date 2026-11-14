@@ -55,13 +55,14 @@ describe("neu", () => {
     expect(neu.slice(vorlage.length - 1)).toEqual(["COMPOSE_PROJECT_NAME=haben-firma1", "BACKUP_HOST=haben-firma1", ""]);
   });
 
-  it("startet den Proxy vor der Instanz, lädt ihn danach nur neu und nennt den Einrichtungscode", async () => {
+  it("startet den Proxy vor der Instanz, baut ihn für die nächste neu auf und nennt den Einrichtungscode", async () => {
     const erste = await t.lauf("neu", "firma1", "firma1.example.de");
     expect(erste.stdout).toContain("Einrichtungscode für https://x/setup: abcd-efgh");
     expect(t.docker.aufrufe.filter((a) => a.includes(" up -d"))).toEqual(["proxy compose up -d", "firma1 compose up -d --wait db", "firma1 compose up -d"]);
     t.docker.z.caddyLaeuft = true;
     await t.lauf("neu", "firma2", "firma2.example.de");
-    expect(t.docker.aufrufe).toContain("proxy compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile");
+    // Kein caddy reload mehr: Erst der Neuaufbau mit up -d hängt den Caddy in das Netz der neuen Instanz (#872)
+    expect(t.docker.aufrufe.filter((a) => a.startsWith("proxy compose") && !a.includes(" ps "))).toEqual(["proxy compose up -d", "proxy compose up -d"]);
   });
 
   it("lässt ein vorhandenes Verzeichnis samt .env Byte für Byte unangetastet", async () => {
@@ -162,7 +163,7 @@ describe("neu", () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("reverse_proxy haben-firma1:3000");
     expect(existsSync(join(t.basis, "proxy"))).toBe(false);
-    expect(t.docker.aufrufe).toContain("- network create haben-proxy");
+    expect(t.docker.aufrufe).toContain("- network create haben-proxy-firma1");
   });
 
   it("bindet mit --eric-home ein gemeinsames ERiC lesend ein", async () => {
@@ -170,7 +171,11 @@ describe("neu", () => {
     expect(env("firma1").get("ERIC_HOME")).toBe("/opt/eric");
     expect(readFileSync(join(t.basis, "firma1", "compose.override.yml"), "utf8")).toContain("- /opt/eric:/opt/eric:ro");
     // Nur nachgesehen, welche Projekte es gibt; nichts gestartet
-    expect(t.docker.aufrufe).toEqual(["- compose ls -a -q", "- volume ls -q --filter label=com.docker.compose.project=haben-firma1"]);
+    expect(t.docker.aufrufe).toEqual([
+      "- compose ls -a -q",
+      "- volume ls -q --filter label=com.docker.compose.project=haben-firma1",
+      "- network ls --format {{.Name}}",
+    ]);
   });
 
   it("meldet eine App, die nicht gesund wird", async () => {

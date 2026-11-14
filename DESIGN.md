@@ -19,7 +19,7 @@ Farben kommen aus den Variablen in `:root` von `styles.css`; die Farben übersch
 | Linien | `--line`, `--line-soft`, `--line-strong` |
 | Akzent | `--accent`, `--accent-hover`, `--accent-ink`, `--accent-soft`, `--accent-tint`, `--accent-fg` (Schrift auf Akzentfläche) |
 | Links | `--link`, `--link-hover` |
-| Navigation | `--brand`, `--nav`, `--nav-active`, `--nav-ink` |
+| Navigation | `--brand`, `--nav`, `--nav-active`, `--nav-ink`, `--nav-ink-strong` (hervorgehobene Schrift, immer weiß) |
 | Status | `--warn-ink`, `--warn-soft`, `--warn-dot`, `--info-ink`, `--info-soft`, `--danger-ink`, `--danger-soft` |
 
 Einzige Ausnahme ist das Zeichen der Firma links neben „Haben“ (`NavMarkSymbol`), eine eigene Einstellung der Instanz unter Einstellungen › Firma, getrennt von der Beleggestaltung. Ein „H“ in eigener Farbe bekommt Fläche und Schrift als Inline-Style, die Schrift wählt `inkOnAccent` (`packages/core/src/accent.ts`): Weiß oder Schwarz, je nachdem, was den höheren Kontrast hat, so hält jede Farbe mindestens 4,5 : 1. Ein Logo steht auf weißer Fläche (`.brand-logo`), weil Logos für Papier gemacht sind und ein dunkles auf der dunklen Navigation verschwände, verkleinert in dieselbe quadratische Kachel wie das „H“ (`object-fit: contain`). Ab Werk bleibt `--brand` des Themes.
@@ -75,11 +75,55 @@ Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
 
 Oben in der Navigation steht die Marke: das Zeichen und „Haben“ (18px, halbfett). Das Zeichen ist fest quadratisch und voll gefüllt, am Desktop 40px, am Handy 36px, für das „H“ wie für ein Logo (auf weißer Fläche, weil Logos für Papier gemacht sind); ein breites Logo nimmt dem Namen so keinen Platz, und nichts springt, wenn das Bild lädt. Hebt sich ein „H“ in eigener Farbe in einem der Themes nicht mit 3 : 1 von der Navigation ab (WCAG 1.4.11), bekommt die Kachel eine feine helle Innenkante (1px, `--nav-ink` mit 60 % Deckkraft); die Hintergründe der Themes stehen dafür auch in `NAV_BACKGROUNDS` (`packages/core/src/accent.ts`) und müssen mit `--nav` übereinstimmen. Die Kachel steht bündig mit den Symbolen der Menüpunkte, rechts hat die Marke am Desktop keinen Innenabstand, am Handy 8px zum Menüknopf. Hat die Firma in den Firmendaten einen Namen, steht er darunter (13px, mittel, in `--nav-ink`, dem Grau der Menüpunkte, damit „Haben“ die Hauptzeile bleibt), denn er zeigt, in welcher Instanz man bucht (#504). Am Desktop nimmt er bis zu zwei Zeilen, damit auch lange Namen passen, am Handy eine, weil die Leiste dort `--nav-height` (60px) hoch bleibt; was nicht passt, endet mit Auslassungszeichen. Am Desktop klappt der Name dann beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf (Fläche `--nav-active`, weiße Schrift, über den ersten Menüpunkten), Escape und das Verlassen schließen ihn; ein `title` gibt es nicht, weil er nicht zu gestalten und nicht per Tastatur zu erreichen ist.
 
+Gibt es Instanzen anderer Firmen (`HABEN_FIRMEN`, #504), steht direkt unter der Marke die Zeile „Firma wechseln“ (`FirmaWechsler`), mit 8px Abstand zur Marke und einer Linie zu den Menüpunkten. Sie klappt die Liste der anderen Firmen im Fluss darunter auf, am Desktop wie am Handy, ohne schwebendes Fenster; die eigene Firma steht nicht darin, ihr Name steht schon unter „Haben“. Zeile und Firmen sehen aus wie Menüpunkte ohne Symbol (36px hoch, am Handy 44px), die offene Zeile trägt keine Fläche, damit sie nicht wie der aktive Menüpunkt aussieht. Die Firmen sind Links im selben Tab, weil man die Firma wechselt und nicht daneben eine Seite aufschlägt. Mehr als sechseinhalb Zeilen rollen in der Liste, ab 20 Firmen steht darüber ein Suchfeld in den Farben der Navigation. Beim Öffnen steht der Fokus im Suchfeld, sonst auf der ersten Firma; Escape, ein Klick daneben und Tab hinter die letzte Firma schließen, am Handy schließt Escape erst die Liste und dann das Menü.
+
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
 
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.
+
+### Status
+
+Den Zustand eines Objekts (Rechnung, Angebot, Beleg, Umsatz, Bankverbindung, Frist, Voranmeldung, Lohnabrechnung, Protokolleintrag) zeigt `Status` aus `components/Status.tsx`: ein Punkt in der Farbe des Tons, das Wort und darunter in Grau eine Auskunft, was der Status gerade heißt. Gefüllte Pillen gibt es nicht mehr.
+
+```tsx
+<Status tone="warn" emphasis="urgent" detail="seit 40 Tagen">Überfällig</Status>
+```
+
+**Auskunft (`detail`):** Sie beantwortet die Frage, die man beim Draufschauen hat, kurz und mit Zahl oder Datum: „fällig 23.11.“, „seit 40 Tagen“, „2.380,00 von 4.760,00 €“, „am 30.10.“, „durch RE-2026-0137“, „gilt noch 25 Tage“. Was ohnehin in einer Spalte daneben steht, wiederholt sie nicht. Fehlt die Angabe, bleibt die Zeile leer; eine Auskunft ohne Inhalt („Status: offen“) gibt es nicht.
+
+**Ton (`tone`):** Er sagt, welcher Art der Zustand ist, nicht wie dringend.
+
+| Ton | Wofür | Beispiele |
+| --- | --- | --- |
+| `neutral` | Wartet, ohne dass etwas fehlt | Offen, Getrennt, Storno |
+| `ok` | Erledigt, gültig, angenommen | Bezahlt, Gebucht, Aktiv, Gesendet, OK |
+| `info` | Läuft oder ist zur Hälfte da | Teilbezahlt, Wird ausgelesen, Vorschlag, Hinweis |
+| `warn` | Etwas fehlt oder ist abgelaufen | Überfällig, Beleg fehlt, Zu prüfen, Abgelaufen, Prüfen |
+| `danger` | Aufgehoben oder fehlgeschlagen | Storniert, Abgelehnt, Fehler, Fehlgeschlagen |
+
+**Entwurf (`draft`):** Der Punkt wird ein leerer Ring: noch nicht festgeschrieben. Nach dem Festschreiben ist er voll. Das gilt für jeden Entwurf, ob Rechnung, Angebot, Voranmeldung oder Lohn. Der Ring sagt das schon, eine Auskunft „noch nicht festgeschrieben“ gibt es deshalb nicht.
+
+**Stufe (`emphasis`):** Sie entscheidet, wie laut der Status ist. Weil fast alles ruhig ist, springt das Dringende heraus; deshalb ist „dringend“ selten.
+
+| Stufe | Wann | Aussehen |
+| --- | --- | --- |
+| ohne | Der Normalfall, auch Erledigtes und Storniertes: das ist Geschichte, keine Aufgabe | Nur der Punkt trägt die Farbe |
+| `notice` | Du bist am Zug und der nächste Schritt ist klar, aber ohne Frist: Vorschlag bestätigen, Beleg zuordnen oder prüfen, angenommenes Angebot abrechnen, abgelaufenes Angebot nachfassen, Lohn gegenprüfen, fehlende Angabe nachtragen | Das Wort steht in der Farbe des Tons |
+| `urgent` | Eine Frist ist überschritten oder kommt in höchstens 7 Tagen, Geld steht aus, etwas ist fehlgeschlagen | Das Wort auf weicher Fläche, die Auskunft in der Farbe |
+
+Die Grenze von 7 Tagen ist dieselbe wie auf der Seite Fristen. Was nur wartet, ohne dass du etwas tun kannst (Offen, Teilbezahlt, Wird ausgelesen, Hinweis), bleibt ruhig, auch wenn es noch nicht erledigt ist. Eine Liste, in der jede zweite Zeile dringend ist, hat die Stufe falsch gewählt: Dann ist der Zustand der Normalfall dieser Liste und bekommt `notice`.
+
+**Anordnung:** In Tabellen steht der Status in der letzten Spalte, Punkt über Punkt, die Auskunft darunter, mit 12px mehr Abstand zur Spalte davor; eine Trennlinie davor gibt es nicht. Alle Zellen der Zeile stehen auf der ersten Grundlinie (`align-items: first baseline`), so liegt das Statuswort auf der Textzeile daneben, und jede Zeile reserviert zwei Zeilen für den Status, damit Zeilen mit und ohne Auskunft gleich hoch sind. Am Handy stehen Auskunft und Wort nebeneinander in der zweiten Zeile, das Wort rechts an der Kante unter dem Betrag, damit es von Zeile zu Zeile an derselben Stelle steht; eine zu lange Auskunft endet mit „…“, die Zeile bleibt zweizeilig. Die Fläche eines dringenden Worts ragt in Listen in den Rand, am Desktop nach links, am Handy nach rechts, damit das Wort mit den ruhigen Wörtern fluchtet; im Seitenkopf und in Fließtext steht sie bündig mit Titel und Text. Das Brief-Symbol „per E-Mail versendet“ steht am Desktop hinter dem Status, am Handy vor der Auskunft. Wo links zwei Zeilen stehen, wie Lieferant und Rechnungsnummer bei den Belegen, zeigt das Handy nur das Wort. Im Seitenkopf (`.title-with-status`) und mit `inline` steht die Auskunft in derselben Zeile. Ein Status steht nie allein für die Bedeutung: Das Wort trägt sie, der Punkt ist Zusatz.
+
+**Wortlaut:** Ein Status beginnt groß („Offen“, „Gesperrt“, „Übermittelt“), ein Merkmal bleibt klein („archiviert“, „inaktiv“). Das Wort ist kurz; alles, was es genauer macht, gehört in die Auskunft, nicht ins Wort („Storniert“ mit „am 02.11.“, nicht „storniert am 02.11.“).
+
+**Merkmal (`Tag`):** Eine Eigenschaft ohne Zustand, etwa Lieferant, eine Rolle, archiviert, inaktiv oder Test, ist kein Status. Sie bekommt keinen Punkt und keine Farbe, nur eine Haarlinie. Ein Verweis auf ein anderes Objekt, etwa die Quelle einer Buchung, ist ein normaler Link.
+
+**Ergebnis im Protokoll (`OutcomeStatus`):** Einträge von ELSTER und E-Mail zeigen Erfolg ruhig und einen Fehler dringend, mit dem Fehlercode im Wort.
+
+**Hüllen:** Zustände, die an mehreren Stellen vorkommen, stehen einmal in einer Hülle mit einer Tabelle Zustand → Aussehen (`StatusLook`) und einer Funktion für die Auskunft: `InvoiceStatus`, `QuoteStatus` mit `BillingStatus`, `DocumentStatus` und `BankStatus.tsx`. Ein neuer Zustand dieser Bereiche kommt dort dazu; ein Status, den nur eine Seite kennt, steht als `<Status>` in der Seite.
 
 ### Seitenkopf
 
@@ -103,7 +147,7 @@ Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgü
 
 ### Karten
 
-Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3` und `.grid-4` in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
+Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3`, `.grid-4` und `.grid-5` (fünf Kennzahlen, am Desktop in einer Reihe, wenn sie passen) in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
 
 Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `NewContactDialog`).
 

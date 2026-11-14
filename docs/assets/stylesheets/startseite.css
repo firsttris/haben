@@ -15,7 +15,8 @@
   color: var(--md-default-fg-color);
 }
 
-.showcase-hero .showcase-claim {
+.showcase-hero .showcase-claim,
+.showcase-center .showcase-claim {
   margin: 0 auto 1.4rem;
   max-width: 36em;
   font-size: 1.05rem;

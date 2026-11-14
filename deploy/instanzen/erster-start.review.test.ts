@@ -15,7 +15,6 @@ afterEach(() => t.aufraeumen());
 
 const DB = "docker compose up -d --wait db";
 const CREATEUSER = "docker compose exec db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app";
-const RELOAD = "docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile";
 
 /** Die Stellen der Schritte in der Ausgabe, aufsteigend, wenn alle da sind und die Reihenfolge stimmt */
 function reihenfolge(text: string, schritte: string[]): void {
@@ -59,18 +58,53 @@ describe("abgebrochener Start, bevor es die App-Rolle gibt", () => {
 });
 
 describe("--nicht-starten", () => {
-  it("nennt vor Datenbank, Rolle und App den gemeinsamen Caddy: Ohne ihn fehlt das Netz haben-proxy, und er kennt die neue Domain nicht", async () => {
+  it("nennt vor Datenbank, Rolle und App den gemeinsamen Caddy: Ohne ihn fehlt das Netz haben-proxy-firma1, und er kennt die neue Domain nicht", async () => {
     const r = await t.lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
     expect(r.status).toBe(0);
     expect(t.docker.aufrufe.filter((a) => a.includes(" up ") || a.includes("network create"))).toEqual([]);
-    reihenfolge(r.stdout, [`cd ${t.basis}/proxy && docker compose up -d && ${RELOAD}`, `cd ${t.basis}/firma1 && ${DB}`, CREATEUSER]);
+    // up -d baut den Caddy mit dem Netz der Instanz neu auf und liest dabei sites/ ein; ein caddy reload danach entfällt (#872)
+    reihenfolge(r.stdout, ["haben-proxy-firma1", `cd ${t.basis}/proxy && docker compose up -d\n`, `cd ${t.basis}/firma1 && ${DB}`, CREATEUSER]);
+    expect(r.stdout).not.toContain("caddy reload");
   });
 
-  it("nennt mit --eigener-proxy das Anlegen des Netzes haben-proxy, das die Override-Datei als extern erwartet", async () => {
+  it("nennt mit --eigener-proxy das Anlegen des Netzes haben-proxy-firma1, das die Override-Datei als extern erwartet", async () => {
     const r = await t.lauf("neu", "firma1", "firma1.example.de", "--nicht-starten", "--eigener-proxy");
     expect(r.status).toBe(0);
     expect(t.docker.aufrufe.filter((a) => a.includes("network create"))).toEqual([]);
-    reihenfolge(r.stdout, ["docker network create haben-proxy", `cd ${t.basis}/firma1 && ${DB}`, CREATEUSER]);
+    reihenfolge(r.stdout, ["docker network create haben-proxy-firma1", `cd ${t.basis}/firma1 && ${DB}`, CREATEUSER]);
     expect(r.stdout).not.toContain("caddy reload");
+  });
+});
+
+describe("--nicht-starten nennt, wo nach dem ersten Start der Einrichtungscode steht", () => {
+  it("als letzten Schritt docker compose logs app: neu nennt den Code sonst selbst, hier startet es nichts", async () => {
+    const r = await t.lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    reihenfolge(r.stdout, [CREATEUSER, "  docker compose up -d\n", "Einrichtungscode", "docker compose logs app"]);
+  });
+
+  it("nicht mit --sso: Dort gibt es keinen Einrichtungscode", async () => {
+    t.eingabe("geheim\n");
+    const r = await t.lauf(
+      ...["neu", "firma1", "firma1.example.de", "--nicht-starten", "--sso", "--oidc-issuer", "https://auth.example.de"],
+      ...["--oidc-client-id", "haben-firma1", "--oidc-client-secret-stdin"],
+    );
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).not.toContain("Einrichtungscode");
+  });
+});
+
+describe("nach einem Abbruch nennen die Schritte das Netz der Instanz (#872)", () => {
+  it("mit gemeinsamem Caddy: Er legt haben-proxy-firma1 beim Start an", async () => {
+    t.docker.z.dbKaputt.add("firma1");
+    const r = await t.lauf("neu", "firma1", "firma1.example.de");
+    reihenfolge(r.stderr, ["haben-proxy-firma1", `cd ${t.basis}/proxy && docker compose up -d\n`, `cd ${t.basis}/firma1 && ${DB}`]);
+    expect(r.stderr).not.toContain("caddy reload");
+  });
+
+  it("mit --eigener-proxy: docker network create haben-proxy-firma1", async () => {
+    t.docker.z.dbKaputt.add("firma1");
+    const r = await t.lauf("neu", "firma1", "firma1.example.de", "--eigener-proxy");
+    reihenfolge(r.stderr, ["docker network create haben-proxy-firma1", `cd ${t.basis}/firma1 && ${DB}`]);
+    expect(r.stderr).not.toMatch(/haben-proxy(?!-firma1)/);
   });
 });

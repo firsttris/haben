@@ -30,6 +30,7 @@ import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
 import { Field } from "../Field.tsx";
+import { Status } from "../Status.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
@@ -551,7 +552,15 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
         <h3 id={`year-${year.year}`} style={{ margin: 0 }}>
           Geschäftsjahr {year.year}
         </h3>
-        <span className={year.ready ? "pill pill-ok" : "pill pill-warn"}>{year.ready ? "vollständig" : "unvollständig"}</span>
+        {year.ready ? (
+          <Status tone="ok" inline>
+            Vollständig
+          </Status>
+        ) : (
+          <Status tone="warn" emphasis="notice" inline>
+            Unvollständig
+          </Status>
+        )}
       </div>
       <div className="grid-main">
         <ul className="checks">

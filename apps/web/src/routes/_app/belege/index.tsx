@@ -3,6 +3,7 @@ import { ErrorBanner } from "../../../components/ErrorBanner.tsx";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
+import { Status } from "../../../components/Status.tsx";
 import { DocumentUpload } from "../../../components/DocumentUpload.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { getDocuments } from "../../../server/functions/documents.ts";
@@ -34,7 +35,11 @@ function DocumentsPage() {
           <div className="eyebrow">Eingangsrechnungen und Quittungen</div>
           <h1>Belege</h1>
         </div>
-        {open > 0 && <span className="pill pill-info">{open} zu prüfen</span>}
+        {open > 0 && (
+          <Status tone="warn" emphasis="notice">
+            {open} zu prüfen
+          </Status>
+        )}
       </div>
       {inhaber && <DocumentUpload aiAvailable={aiAvailable} />}
       {inbox ? (
@@ -95,7 +100,14 @@ function DocumentsPage() {
                 </div>
                 <div className="num">{doc.gross ? formatEuro(doc.gross) : "–"}</div>
                 <div>
-                  <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} cancelled={doc.cancelledOn !== null} />
+                  <DocumentStatus
+                    status={doc.status}
+                    extractionStatus={doc.extractionStatus}
+                    cancelled={doc.cancelledOn !== null}
+                    cancelledOn={doc.cancelledOn}
+                    lockedAt={doc.lockedAt}
+                    uploadedAt={doc.uploadedAt}
+                  />
                 </div>
               </Link>
             ))}
