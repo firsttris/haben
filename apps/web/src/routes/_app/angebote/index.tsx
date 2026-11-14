@@ -1,11 +1,15 @@
-import { formatEuro } from "@haben/core";
+import { formatEuro, parseEuroSearchCents } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { z } from "zod/mini";
+import { Field } from "../../../components/Field.tsx";
 import { QuoteStatus } from "../../../components/QuoteStatus.tsx";
 import { formatDate } from "../../../lib/format.ts";
 import { getQuotes } from "../../../server/functions/quotes.ts";
 import { Icon } from "../../../components/Icon.tsx";
 
 export const Route = createFileRoute("/_app/angebote/")({
+  validateSearch: z.object({ suche: z.optional(z.string()) }),
   loader: () => getQuotes(),
   head: () => ({ meta: [{ title: "Angebote · Haben" }] }),
   component: QuotesPage,
@@ -13,6 +17,16 @@ export const Route = createFileRoute("/_app/angebote/")({
 
 function QuotesPage() {
   const quotes = Route.useLoaderData();
+  const { suche } = Route.useSearch();
+  const [query, setQuery] = useState(suche ?? "");
+  useEffect(() => {
+    setQuery(suche ?? "");
+  }, [suche]);
+  const needle = query.trim().toLowerCase();
+  const cents = parseEuroSearchCents(query);
+  const shown = needle
+    ? quotes.filter((quote) => quote.gross === cents || [quote.number, quote.customer, quote.contactName].some((v) => v?.toLowerCase().includes(needle)))
+    : quotes;
   const offen = quotes.filter((q) => q.listStatus === "offen");
   return (
     <>
@@ -33,10 +47,21 @@ function QuotesPage() {
           netto.
         </p>
       )}
+      {quotes.length > 0 && (
+        <div className="filter-row" style={{ marginBottom: 0 }}>
+          <Field label="Angebote durchsuchen" hideLabel style={{ flex: "1 1 260px", maxWidth: 420 }}>
+            {(control) => <input {...control} type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen: Nummer oder Kunde" />}
+          </Field>
+        </div>
+      )}
       <section className="card" aria-label="Angebotsliste">
         {quotes.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
             Noch keine Angebote. Das erste legst du mit „Neues Angebot“ an; nimmt der Kunde an, wird daraus mit einem Klick eine Rechnung.
+          </p>
+        ) : shown.length === 0 ? (
+          <p className="muted" style={{ margin: 0 }}>
+            Kein Angebot passt zu „{query}“.
           </p>
         ) : (
           <div className="table">
@@ -47,7 +72,7 @@ function QuotesPage() {
               <div className="num">Brutto</div>
               <div>Status</div>
             </div>
-            {quotes.map((quote) => (
+            {shown.map((quote) => (
               <Link key={quote.id} to="/angebote/$id" params={{ id: quote.id }} className="table-row invoice-cols">
                 <div className="mono small">{quote.number ?? "–"}</div>
                 <div>{quote.customer}</div>
