@@ -136,8 +136,8 @@ test("eingeklappt: Überfahren öffnet die Gruppe, Hinweise statt title, aktiv a
   // Die Gruppe der aktiven Seite (Verkauf, zu) sieht anders aus als die offene Gruppe (Ausgaben)
   const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
   await expect(verkauf).toHaveAttribute("data-active", "true");
-  const schatten = (el: typeof verkauf) => el.evaluate((knopf) => getComputedStyle(knopf).boxShadow);
-  expect(await schatten(verkauf)).not.toBe(await schatten(ausgaben));
+  const flaeche = (el: typeof verkauf) => el.evaluate((knopf) => getComputedStyle(knopf).backgroundColor);
+  expect(await flaeche(verkauf)).not.toBe(await flaeche(ausgaben));
 
   // Flyout im Stil der Menüs: Ecken 8px, Kopf ohne Linie
   const flyout = nav(page).getByRole("group", { name: "Ausgaben" });
@@ -173,4 +173,20 @@ test("eingeklappt liefert schon der Server die schmale Leiste, damit beim Laden 
   await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
   const html = await (await page.request.get("/rechnungen")).text();
   expect(html).toContain("nav-rail-trigger");
+});
+
+test("eingeklappt: von Gruppe zu Gruppe bleibt das neue Flyout offen, das Schließen der alten trifft es nicht", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
+  const ausgaben = nav(page).getByRole("button", { name: "Ausgaben" });
+  await verkauf.hover();
+  await expect(verkauf).toHaveAttribute("aria-expanded", "true");
+  // Senkrecht nach unten aufs nächste Symbol, dann stehen bleiben: länger als der Verzug beim Schließen der alten Gruppe
+  await ausgaben.hover();
+  await expect(ausgaben).toHaveAttribute("aria-expanded", "true");
+  await page.waitForTimeout(600);
+  await expect(ausgaben).toHaveAttribute("aria-expanded", "true");
+  await expect(verkauf).toHaveAttribute("aria-expanded", "false");
 });
