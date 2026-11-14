@@ -18,9 +18,9 @@ Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den a
 | --- | --- |
 | `Tab` / `Umschalt+Tab` | Zum nächsten bzw. vorigen Bedienelement. Das Element mit dem Fokus hat immer einen sichtbaren Rahmen. |
 | `Enter` | Link öffnen, Knopf auslösen, Formular absenden |
-| `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt aufklappen |
+| `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt oder Gruppen-Flyout öffnen |
 | `Strg+K` / `⌘+K` | [Schnellsuche](suche.md) öffnen (am Handy auch über die Lupe neben **Menü**); darin `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` zum Öffnen |
-| `Esc` | Schließt das Menü auf dem Handy oder die Befehlspalette und gibt den Fokus an den Auslöser zurück |
+| `Esc` | Schließt ein Gruppen-Flyout der eingeklappten Seitenleiste, das Menü auf dem Handy oder die Befehlspalette und gibt den Fokus an den Auslöser zurück |
 
 - **Zum Inhalt springen:** Der erste `Tab` auf jeder Seite zeigt den Link **Zum Inhalt springen**. Mit `Enter` überspringst du die Navigation.
 - **Nach einem Seitenwechsel** steht der Fokus am Anfang des Inhalts, nicht mehr in der Navigation. Der nächste `Tab` führt zum ersten Element der neuen Seite. Filter und Suche ändern nur die Liste, der Fokus bleibt, wo er ist.

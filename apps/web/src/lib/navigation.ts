@@ -51,6 +51,8 @@ export interface NavLink extends NavBedingung {
 
 export interface NavGroup {
   label: string;
+  /** Symbol des Flyout-Knopfs in der eingeklappten Seitenleiste */
+  icon: IconName;
   links: readonly NavLink[];
 }
 
@@ -58,6 +60,7 @@ export interface NavGroup {
 export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: "Verkauf",
+    icon: "invoice",
     links: [
       { to: "/angebote", icon: "quote", label: "Angebote" },
       { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
@@ -70,6 +73,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Ausgaben",
+    icon: "receipt",
     links: [
       { to: "/belege", icon: "receipt", label: "Belege" },
       { to: "/dauerbelege", icon: "calendar", label: "Dauerbelege" },
@@ -81,6 +85,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Geld",
+    icon: "bank",
     links: [
       { to: "/bank", icon: "bank", label: "Bank" },
       { to: "/kasse", icon: "cash", label: "Kasse" },
@@ -89,6 +94,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Personal",
+    icon: "payroll",
     links: [
       { to: "/lohn", icon: "payroll", label: "Lohn" },
       // Lohn bleibt immer sichtbar, dort entsteht der erste Mitarbeiter
@@ -97,6 +103,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Steuern",
+    icon: "vat",
     links: [
       { to: "/umsatzsteuer", icon: "vat", label: "Umsatzsteuer" },
       { to: "/jahreserklaerung", icon: "annual", label: "Jahreserklärung" },
@@ -108,6 +115,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Buchhaltung",
+    icon: "reports",
     links: [
       { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
       { to: "/buchungen", icon: "journal", label: "Buchungen" },
@@ -123,6 +131,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 export const STEUERBERATUNG_NAV: readonly NavGroup[] = [
   {
     label: "Steuerberatung",
+    icon: "ledger",
     links: [
       { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
       { to: "/buchungen", icon: "journal", label: "Buchungen" },
