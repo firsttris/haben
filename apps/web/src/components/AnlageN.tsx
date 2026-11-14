@@ -229,10 +229,8 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
               <summary>
                 <span className="est-block-title">Werbungskosten</span>
                 <span className="small muted">
-                  {["arbeitsmittel", "fortbildung", "gewerkschaft", "berufsverbaende", "arbeitszimmer", "sonstige"].some(
-                    (k) => draft[k as keyof ArbeitnehmerDraft],
-                  )
-                    ? "Beträge eingetragen"
+                  {[draft.tage, draft.km, draft.homeofficeTage, ...WK_BETRAEGE.map(([k]) => draft[k])].some((v) => v.trim())
+                    ? "Angaben eingetragen"
                     : "nichts eingetragen"}
                 </span>
               </summary>
