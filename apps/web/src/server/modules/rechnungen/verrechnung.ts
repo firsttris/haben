@@ -295,3 +295,77 @@ export async function listInvoiceSettlements(invoiceId: string, q: Db | Tx = db)
     .where(eq(schema.invoiceSettlements.invoiceId, invoiceId))
     .orderBy(asc(schema.invoiceSettlements.date), asc(schema.invoiceSettlements.createdAt));
 }
+
+/** Ein Beleg, mit dem sich der geöffnete Beleg verrechnen lässt: die Korrektur zur Rechnung oder die Rechnung zur Korrektur */
+export interface SettlementCandidate {
+  id: string;
+  kind: "rechnung" | "korrektur";
+  number: string | null;
+  issueDate: string;
+  gross: number;
+  /** Offener Rest mit dem Vorzeichen des Belegs: negativ bei einer offenen Korrektur */
+  rest: number;
+}
+
+/**
+ * Was die Anzeige am Beleg über seine Verrechnungen weiß (#877): der offene Rest aus der Rechnungsliste, die einzelnen
+ * Zeilen und die Gegenbelege, mit denen er sich verrechnen ließe. Die Kandidaten folgen denselben Grenzen, die
+ * `settleInvoices` prüft: festgeschrieben, in Euro und mit offenem Rest in die andere Richtung. Ob der Beleg selbst
+ * noch offen ist, entscheidet die Anzeige am offenen Rest.
+ */
+export async function invoiceSettlementView(invoiceId: string, q: Db | Tx = db) {
+  const now = today();
+  const [listed] = await listInvoices(now, invoiceId, q);
+  const [beleg] = await q
+    .select({ kind: schema.invoices.kind, status: schema.invoices.status, currency: schema.invoices.currency, correctsId: schema.invoices.correctsId })
+    .from(schema.invoices)
+    .where(eq(schema.invoices.id, invoiceId));
+  if (!listed || !beleg) throw new InvoiceSettlementError("Rechnung nicht gefunden.");
+  // Ist der Beleg selbst ausgeglichen, gibt es nichts zu verrechnen — auch dann nicht, wenn die andere Seite offen wäre.
+  // Ohne diese Sperre böte eine bereits verrechnete Korrektur ihre Rechnung weiter als Gegenbeleg an (#877).
+  const ausgeglichen = beleg.kind === "korrektur" ? listed.open >= 0 : listed.open <= 0;
+  // Die andere Seite: die Korrektur einer Rechnung, zur Korrektur die Rechnung selbst
+  const ids = ausgeglichen
+    ? []
+    : beleg.kind === "korrektur"
+      ? beleg.correctsId
+        ? [beleg.correctsId]
+        : []
+      : (
+          await q
+            .select({ id: schema.invoices.id })
+            .from(schema.invoices)
+            .where(and(eq(schema.invoices.correctsId, invoiceId), eq(schema.invoices.kind, "korrektur"), eq(schema.invoices.status, "final")))
+        ).map((r: { id: string }) => r.id);
+  const candidates: SettlementCandidate[] = [];
+  for (const id of ids) {
+    const [row] = await q
+      .select({
+        kind: schema.invoices.kind,
+        status: schema.invoices.status,
+        currency: schema.invoices.currency,
+        number: schema.invoices.number,
+        issueDate: schema.invoices.issueDate,
+        gross: schema.invoices.gross,
+      })
+      .from(schema.invoices)
+      .where(eq(schema.invoices.id, id));
+    const [offen] = await listInvoices(now, id, q);
+    if (!row || !offen || row.status !== "final" || row.currency !== "EUR") continue;
+    const rest = offen.open;
+    // Verrechnet wird gegen den Rest der anderen Seite: eine offene Korrektur hat ein Guthaben, eine offene Rechnung eine Forderung
+    if (row.kind === "korrektur" ? rest >= 0 : rest <= 0) continue;
+    // Ein Storno ist kein Gegenbeleg: es hebt die Rechnung auf, statt sie zu verrechnen. Die Zeile oben kommt
+    // deshalb nur mit Rechnung oder Korrektur hier an, der Typ sagt es dem Aufrufer.
+    if (row.kind === "storno") continue;
+    candidates.push({ id, kind: row.kind, number: row.number, issueDate: row.issueDate, gross: row.gross, rest });
+  }
+  return {
+    open: listed.open,
+    kind: beleg.kind,
+    status: beleg.status,
+    currency: beleg.currency,
+    settlements: await listInvoiceSettlements(invoiceId, q),
+    candidates,
+  };
+}

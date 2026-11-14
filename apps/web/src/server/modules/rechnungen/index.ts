@@ -123,8 +123,10 @@ export {
   InvoiceSettlementError,
   invoiceSettlementReversalSchema,
   invoiceSettlementSchema,
+  invoiceSettlementView,
   listInvoiceSettlements,
   reverseInvoiceSettlement,
   settleInvoices,
   type InvoiceSettlementInput,
+  type SettlementCandidate,
 } from "./verrechnung.ts";

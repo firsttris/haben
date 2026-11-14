@@ -63,15 +63,15 @@ export async function overdueInvoices(today: string) {
 }
 
 /**
- * Was der Kunde je Rechnung schuldet: deren offener Betrag abzüglich der noch offenen Korrekturen (Gutschriften).
- * In der Rechnungsliste stehen beide getrennt, gemahnt wird nur der Rest.
+ * Was der Kunde je Rechnung schuldet. Der offene Rest kommt vollständig aus `listInvoices`: Dort mindern Zahlungen,
+ * Ausbuchungen und Verrechnungen den Betrag bereits, eine verrechnete Korrektur steht selbst auf 0 (#877).
+ *
+ * Bis #877 rechnete diese Stelle die noch offenen Korrekturen zusätzlich an. Das war eine zweite Wahrheit neben der
+ * Liste: eine bloß vorhandene Korrektur minderte den gemahnten Betrag, ohne dass jemand sie verrechnet hatte. Mit der
+ * Verrechnung über `invoice_settlements` gehört die Minderung dorthin, wo sie gebucht wird, und nicht in die Anzeige.
  */
 function owed(list: Awaited<ReturnType<typeof listInvoices>>) {
-  return list.map((invoice) => {
-    if (invoice.kind !== "rechnung") return invoice;
-    const corrections = list.filter((c) => c.kind === "korrektur" && c.correctsId === invoice.id);
-    return { ...invoice, open: invoice.open + corrections.reduce((sum, c) => sum + c.open, 0) };
-  });
+  return list;
 }
 
 /** Festgeschriebene Rechnung mit dem, was der Kunde schuldet; undefined, wenn es keine mit dieser Id gibt */

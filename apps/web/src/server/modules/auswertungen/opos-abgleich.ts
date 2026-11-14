@@ -19,6 +19,7 @@ export async function oposAbgleich(cutoff: string, q: Db | Tx = db): Promise<Abg
       union all select 'allocation',id from allocations where invoice_id in ${stand.invoiceIds}
       union all select 'kasse',id from cash_entries where invoice_id in ${stand.invoiceIds}
       union all select 'ausbuchung',id from write_offs where invoice_id in ${stand.invoiceIds}
+      union all select 'verrechnung',id from invoice_settlements where invoice_id in ${stand.invoiceIds}
     )
     select e.kontenrahmen,l.account,sum(l.debit-l.credit) as saldo
       from journal_entries e join journal_lines l on l.entry_id=e.id
