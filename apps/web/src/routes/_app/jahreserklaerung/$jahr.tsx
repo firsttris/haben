@@ -271,7 +271,6 @@ function UstSection({ data }: { data: Data }) {
             {(f.kz67 ?? 0) !== 0 && <Row label="Vorsteuer aus §-13b-Leistungen" kz="67" extra="" value={formatDeduction(f.kz67!)} />}
             <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
             <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatDeduction(f.vorauszahlungen)} />
-            {/* Bei einer Abgabe außerhalb von Haben zählt der erklärte Betrag, nicht Habens Rechnung (#869) */}
             <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(ust.abschluss)} total />
           </tbody>
         </table>
@@ -532,38 +531,33 @@ function EstSection({ data }: { data: Data }) {
             <Row label="Anlagen" value={est.anlagen.join(", ")} text />
           </tbody>
         </ScrollTable>
-        {(() => {
-          const prognose = (
-            <ScrollTable className="report-table">
-              <tbody>
-                {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
-                <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
+        <ScrollTable className="report-table">
+          <tbody>
+            {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
+            <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
+            <Row
+              label="Voraussichtliche Steuer"
+              value={formatEuro(est.prognose.gesamt)}
+              kz={[
+                `ESt ${formatEuro(est.prognose.einkommensteuer)}`,
+                est.prognose.soli ? `Soli ${formatEuro(est.prognose.soli)}` : "",
+                est.prognose.kirchensteuer ? `KiSt ${formatEuro(est.prognose.kirchensteuer)}` : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            />
+            {est.prognose.steuerabzug > 0 && (
+              <>
+                <Row label="Bereits einbehalten (Lohnsteuer, Soli, KiSt)" value={formatEuro(est.prognose.steuerabzug)} />
                 <Row
-                  label="Voraussichtliche Steuer"
-                  value={formatEuro(est.prognose.gesamt)}
-                  kz={[
-                    `ESt ${formatEuro(est.prognose.einkommensteuer)}`,
-                    est.prognose.soli ? `Soli ${formatEuro(est.prognose.soli)}` : "",
-                    est.prognose.kirchensteuer ? `KiSt ${formatEuro(est.prognose.kirchensteuer)}` : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  label={est.prognose.verbleibend >= 0 ? "Voraussichtlich nachzuzahlen" : "Voraussichtliche Erstattung"}
+                  value={formatEuro(Math.abs(est.prognose.verbleibend))}
+                  total
                 />
-                {est.prognose.steuerabzug > 0 && (
-                  <>
-                    <Row label="Bereits einbehalten (Lohnsteuer, Soli, KiSt)" value={formatEuro(est.prognose.steuerabzug)} />
-                    <Row
-                      label={est.prognose.verbleibend >= 0 ? "Voraussichtlich nachzuzahlen" : "Voraussichtliche Erstattung"}
-                      value={formatEuro(Math.abs(est.prognose.verbleibend))}
-                      total
-                    />
-                  </>
-                )}
-              </tbody>
-            </ScrollTable>
-          );
-          return prognose;
-        })()}
+              </>
+            )}
+          </tbody>
+        </ScrollTable>
 
         <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />
         {est.zusammen && <AnlageNFields wer={nameB} draft={anB} onChange={setAnB} />}
