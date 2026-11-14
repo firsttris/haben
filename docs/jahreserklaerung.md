@@ -13,6 +13,10 @@ Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eig
 
 Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Die Einkommensteuererklärung kennt keinen Vermerk; solange Haben sie nicht gesendet hat, steht dort „Nicht aus Haben übermittelt“ — gesendet wird sie über den Kasten unter der Tabelle.
 
+Oben auf der Seite steht **Stand der Erklärungen** als Tabelle mit einer Zeile je Erklärung: der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt, sodass du von der Übersicht direkt bei der Erklärung landest. Bei einer GmbH oder UG entfällt sie.
+
+Die Gewinnzeile der Anlage EÜR steht nur da, wenn Haben aus den Buchungen einen Gewinn hat. Die Meldung über ein leeres Jahr entfällt, sobald die Erklärung außerhalb von Haben vermerkt ist; das gilt für die Umsatzsteuer und die Anlage EÜR.
+
 Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](gmbh-abschluss.md#e-bilanz-gmbh-und-ug).
 
 ## Ablauf
@@ -43,7 +47,8 @@ Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 | --- | --- |
 | Umsätze zu 19 % und 7 % | Summe der zwölf Monate aus den Buchungen, wie in der Voranmeldung: Ist-Versteuerung nach Zahlungseingang, Soll nach Rechnungsdatum. Es zählt die Versteuerung des Jahres, auch wenn du sie zum Jahreswechsel umgestellt hast ([Ist- und Soll-Versteuerung](buchhaltung.md#ist--und-soll-versteuerung)). Bemessungsgrundlage in vollen Euro, die Steuer daraus. Die private Kfz-Nutzung ist in den 19 % enthalten |
 | Steuerfreie innergemeinschaftliche Lieferungen (Kz 41) und Ausfuhrlieferungen (Kz 43) | Summe der zwölf Monate, in vollen Euro |
-| Innergemeinschaftliche Erwerbe zu 19 % (Kz 89) und 7 % (Kz 93) | Bemessungsgrundlage in vollen Euro und die Erwerbsteuer laut Beleg; die Summe der Steuer steht in der Berechnung |
+| Innergemeinschaftliche Erwerbe zu 19 % (Kz 89) und 7 % (Kz 93) | Bemessungsgrundlage in vollen Euro und die Erwerbsteuer daraus, wie in der Voranmeldung; die Summe der Steuer steht in der Berechnung |
+| Steuerfreie Umsätze ohne Vorsteuerabzug: Vermietung nach § 4 Nr. 12 UStG (Zeile 46) und übrige nicht zum Gesamtumsatz gehörende (Zeile 47, mit den Nummern als Text) | Summe der zwölf Monate je Zeile, in vollen Euro; die Nummer liest Haben aus dem Befreiungsgrund der Rechnung |
 | §-13b-Leistungen aus dem EU-Ausland (Kz 46/47) und dem Drittland (Kz 84/85) | Bemessungsgrundlage in vollen Euro und die Steuer, die du als Leistungsempfänger schuldest; die Summe steht in der Berechnung |
 | Nicht steuerbare Leistungen, Ort im EU-Ausland (Kz 21), und nicht steuerbare Umsätze (Drittland, Kz 45) | Summe der zwölf Monate, in vollen Euro; ergänzende Angaben ohne Steuer |
 | Abziehbare Vorsteuer (Kz 66) | Summe der Vorsteuer aus gebuchten Belegen |
@@ -53,11 +58,13 @@ Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 
 Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor dem Umzug aus Lexoffice), fehlen sie im Vorauszahlungssoll; Haben weist darauf hin. Dann stimmt die Abschlusszahlung nicht, und du gibst die Erklärung besser im ELSTER-Portal ab. Der Hinweis verlinkt den letzten Voranmeldungszeitraum des Jahres (2025-Q4 bei vierteljährlicher, 2025-12 bei monatlicher Abgabe), nicht den laufenden Zeitraum.
 
+Monate vor dem Beginn der Tätigkeit zählen nicht als fehlend. Als Beginn gilt der erste Eintrag des Jahres unter [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum), wenn kein früheres Jahr einen hat: Steht der erste Eintrag ab Oktober, fehlt für Januar bis September nichts. Hat ein früheres Jahr einen Eintrag, ist ein Eintrag im Jahr ein Wechsel, und alle Monate zählen. Wechselt das Finanzamt mitten im Jahr und hast du bisher nichts eingestellt (also monatlich), stell auch das Vorjahr ein, sonst gilt der Wechsel als Beginn.
+
 Abzugszeilen — Vorsteuer, Vorsteuer aus innergemeinschaftlichem Erwerb, Einfuhrumsatzsteuer und Vorauszahlungssoll — zeigen den Betrag mit umgekehrtem Vorzeichen: Ein Abzug steht negativ, eine Gutschrift in derselben Zeile positiv. Wer die Spalte zusammenzählt, kommt damit auf die Abschlusszahlung — solange die Zeilen für § 13b, innergemeinschaftliche Erwerbe und Einfuhr leer sind; die Summenzeile „Umsatzsteuer“ führt diese Kennzahlen nicht mit. Die Abschlusszeile trägt dagegen das Vorzeichen ihres Betrags; eine Erstattung steht deshalb negativ.
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 
-- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält: Sie gehören je nach Nummer in § 4 UStG in verschiedene Zeilen, mit der Nummer als Text. Das kann Haben noch nicht übermitteln; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
+- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält, die Haben keiner Zeile zuordnen kann: ohne lesbare Nummer in § 4 UStG im Befreiungsgrund — eine Bareinnahme oder eine Buchung ohne Rechnung (etwa aus einem Umzug) hat keinen, ein Bereich wie „§ 4 Nr. 8 bis 29 UStG“ ist keine — oder nach § 4 Nr. 8 a bis h, 9 a und 10 UStG, denn ob diese Umsätze zum Gesamtumsatz gehören (Hilfsumsatz, UStAE 19.3 Abs. 2), kann Haben nicht entscheiden. Gib bei künftigen Rechnungen den Befreiungsgrund mit der Nummer an, etwa „Steuerfrei nach § 4 Nr. 21 UStG“; dieses Jahr gibst du im ELSTER-Portal ab.
 - du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf. Für 2023 brauchst du sie noch; die Angaben für Kleinunternehmer übermittelst du dann im ELSTER-Portal.
 - es weder Umsätze noch Vorsteuer gibt (Nullerklärung über das ELSTER-Portal).
 
@@ -130,7 +137,7 @@ Die Einkommensteuererklärung (Datenart ESt, Vordruck E10) setzt Haben aus drei 
 
 Die eingetragenen Angaben speichert Haben je Jahr; jede Änderung steht im Audit-Log. Übermittelt wird, was gespeichert ist. Leere Anlagen schickt Haben nicht mit.
 
-Vorsorgeaufwand, Sonderausgaben, haushaltsnahe Aufwendungen, Kinder und Kapitalerträge sind zuklappbar; im Titel steht, was gespeichert ist (z. B. „Vorsorgeaufwand · 4.230,00 €“), Blöcke mit Angaben sind beim Öffnen aufgeklappt. **Angaben speichern** und die voraussichtliche Steuer bleiben am unteren Rand sichtbar. Über die Leiste oben springst du zwischen Umsatzsteuer, Anlage EÜR, Einkommensteuer, den Belegen von ELSTER und dem Verlauf.
+Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe Aufwendungen, Kinder und Kapitalerträge stehen zugeklappt; im Titel steht, was eingetragen ist (z. B. „Vorsorgeaufwand · 4.230,00 €“, bei der Anlage N Bruttoarbeitslohn und Lohnsteuer aller Bescheinigungen zusammen). In der Anlage N klappen auch jede Lohnsteuerbescheinigung und die Werbungskosten einzeln auf. Fehlt beim Speichern eine Pflichtangabe in einem zugeklappten Block, klappt Haben ihn auf und setzt den Cursor ins Feld. **Angaben speichern** und die voraussichtliche Steuer bleiben am unteren Rand sichtbar. Über die Leiste oben springst du zwischen Umsatzsteuer, Anlage EÜR, Einkommensteuer, den Belegen von ELSTER und dem Verlauf.
 
 | Anlage | Angaben |
 | --- | --- |

@@ -41,6 +41,8 @@ import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
+import { Kuerzel } from "../../../components/Kuerzel.tsx";
+import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
 function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boolean): string {
@@ -68,6 +70,8 @@ let nextKey = 1;
 const EU_VAT_PREFIX = /^(AT|BE|BG|CY|CZ|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[0-9A-Z]{2,12}$/;
 
 const CONTINUE_KEY = "haben-belege-weiter";
+/** Bucht wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld */
+const BUCHEN_KUERZEL: readonly Taste[] = ["mod", "Enter"];
 
 /** Voreinstellung „nach dem Buchen weiter“: an, solange nichts anderes gemerkt ist; ohne Speicher (privates Fenster) einfach an */
 function readContinuePreference(): boolean {
@@ -297,6 +301,7 @@ function Preview({ doc }: { doc: Detail["document"] }) {
 }
 
 function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (dirty: boolean) => void }) {
+  const buchenText = useKuerzelText(BUCHEN_KUERZEL);
   const { document: doc, amounts, splits, categories, issues, aiAvailable, navigation } = data;
   const router = useRouter();
   const navigate = useNavigate();
@@ -545,7 +550,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     });
   };
 
-  // Strg+Enter (Mac: Cmd+Enter) wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld; gebucht wird
+  // Strg+Enter (Mac: ⌘+Enter) wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld; gebucht wird
   // erst im Dialog, nicht mit einem zweiten Strg+Enter, das den Hinweis überginge
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -1150,7 +1155,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               Mit KI neu auslesen
             </button>
           )}
-          <button type="button" className="btn btn-primary" onClick={() => check() && setConfirming(true)} disabled={busy || running} title="Strg+Enter">
+          <button type="button" className="btn btn-primary" onClick={() => check() && setConfirming(true)} disabled={busy || running} title={buchenText}>
             Bestätigen und buchen
           </button>
           <label className="checkbox small" style={{ flexBasis: "100%" }}>
@@ -1158,7 +1163,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             Nach dem Buchen zum nächsten offenen Beleg
           </label>
           <span className="small muted pointer-fine" style={{ flexBasis: "100%" }}>
-            Tastatur: Strg+Enter bucht, J und K wechseln den Beleg, Esc führt zurück zur Liste.
+            Tastatur: <Kuerzel tasten={BUCHEN_KUERZEL} /> bucht, <Kuerzel tasten={["J"]} /> und <Kuerzel tasten={["K"]} /> wechseln den Beleg,{" "}
+            <Kuerzel tasten={["Esc"]} /> führt zurück zur Liste.
           </span>
         </div>
       )}

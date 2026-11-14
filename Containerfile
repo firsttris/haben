@@ -72,5 +72,5 @@ USER bun
 EXPOSE 3000
 # Ohne curl im Image: Bun hat fetch eingebaut. Die Startphase deckt die Migrationen ab.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
-  CMD ["bun", "-e", "fetch('http://127.0.0.1:3000/login').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+  CMD ["bun", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 ENTRYPOINT ["haben-entrypoint"]
