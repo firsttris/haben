@@ -15,9 +15,10 @@ describe("paragraph4Nummer", () => {
     ["§ 4 Nr. 8 Buchstabe a", { nummer: 8, buchstabe: "a" }],
     ["§ 4 Nr. 9 b", { nummer: 9, buchstabe: "b" }],
     ["Steuerfrei nach § 4 Nr. 12 UStG (Vermietung)", { nummer: 12 }],
-    // ohne „§ 4“ bleibt die Nummer lesbar
-    ["Nr. 21", { nummer: 21 }],
-    ["befreit, Nr. 14", { nummer: 14 }],
+    ["Die Lehrtätigkeit an der Hochschule ist gem. § 4 Ziff. 21 des UStG von der Umsatzsteuer befreit.", { nummer: 21 }],
+    // ein Punkt hinter dem Buchstaben gehört zum Satz, nicht zur Nummer
+    ["Steuerfrei nach § 4 Nr. 21 u. a.", { nummer: 21 }],
+    ["§ 4 Nr. 8 a.", { nummer: 8 }],
   ])("erkennt %s", (text, erwartet) => {
     expect(paragraph4Nummer(text)).toEqual(erwartet);
   });
@@ -35,6 +36,12 @@ describe("paragraph4Nummer", () => {
     "§ 4b Abs. 2",
     "§ 14 Nr. 5 UStG",
     "§ 19 UStG (Kleinunternehmer)",
+    // ohne Paragraphenzeichen ist die Nummer nicht eingeordnet
+    "Nr. 21",
+    "befreit, Nr. 14",
+    // mehrere Paragraphen im selben Text
+    "§ 4 Nr. 21 i.V.m. § 4 Nr. 14 UStG",
+    "Steuerfrei nach § 4 Nr. 21 i.V.m. § 13b UStG",
     // § 4 hat 29 Nummern
     "§ 4 Nr. 33",
     "§ 4 Nr. 0",
