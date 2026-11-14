@@ -13,6 +13,9 @@ export interface DocumentHit {
   currency: string;
   status: typeof schema.documents.$inferSelect.status;
   cancelled: boolean;
+  cancelledOn: string | null;
+  lockedAt: Date | null;
+  uploadedAt: Date;
   extractionStatus: typeof schema.documents.$inferSelect.extractionStatus;
 }
 
@@ -32,6 +35,9 @@ export async function searchDocuments(query: string | { id: string }, limit = 5)
       status: schema.documents.status,
       cancelled: isNotNull(schema.documentCancellations.documentId).mapWith(Boolean),
       extractionStatus: schema.documents.extractionStatus,
+      cancelledOn: schema.documentCancellations.date,
+      lockedAt: schema.documents.lockedAt,
+      uploadedAt: schema.documents.uploadedAt,
     })
     .from(schema.documents)
     .leftJoin(schema.documentCancellations, eq(schema.documentCancellations.documentId, schema.documents.id))

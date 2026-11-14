@@ -57,15 +57,6 @@ export function invoiceStatusDetail(i: InvoiceStatusFacts): string | null {
   }
 }
 
-export function InvoiceStatusBadge({ status }: { status: InvoiceListStatus }) {
-  const { text, ...look } = LOOK[status];
-  return (
-    <Status {...look} inline>
-      {text}
-    </Status>
-  );
-}
-
 export function InvoiceStatus({ invoice }: { invoice: InvoiceStatusFacts }) {
   const { text, ...look } = LOOK[invoice.listStatus];
   return (

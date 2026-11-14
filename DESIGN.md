@@ -93,7 +93,7 @@ Ist die Navigation höher als das Fenster, bleibt am Desktop die Marke mit dem F
 
 `CommandPalette` übernimmt Fläche, Rahmen und Hintergrund der Formular-Dialoge. Sie ist bis zu 720px breit und bleibt beim Tippen am selben oberen Abstand. Im Kopf steht ein Feld mit Lupe und eigenem Fokusrahmen. Die Treffer rollen zwischen Kopf und festem Fuß. Am Handy füllt der Dialog den Bildschirm und **Abbrechen** steht neben dem Feld, der Fuß entfällt.
 
-Eine Trefferzeile zeigt Symbolkachel, Titel und darunter Kontext. Betrag und Status stehen am Desktop rechts. Die aktive Zeile zeigt die Fläche `--hover` und rechts einen Pfeil. Die Maus setzt denselben Zustand wie die Tastatur. Der Link **Alle anzeigen** steht in der Gruppenüberschrift und öffnet die gefilterte Liste.
+Eine Trefferzeile zeigt Symbolkachel, Titel und darunter Kontext. Am Desktop stehen Betrag und Status mit Auskunft in festen, rechtsbündigen Spalten. Am Handy teilen sie sich die dritte Zeile mit dem Betrag links und dem Status rechts. Die aktive Zeile zeigt die Fläche `--hover` und rechts einen Pfeil. Die Maus setzt denselben Zustand wie die Tastatur. Der Link **Alle anzeigen** steht in der Gruppenüberschrift und öffnet die gefilterte Liste.
 
 ### Kennzahlen
 

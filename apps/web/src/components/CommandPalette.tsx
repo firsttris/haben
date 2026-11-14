@@ -145,7 +145,7 @@ function PaletteHeader({
 
 function PaletteFooter() {
   return (
-    <div className="form-footer cmd-foot" aria-hidden="true">
+    <div className="cmd-foot" aria-hidden="true">
       <span>
         <kbd className="cmd-kbd">↑↓</kbd> Navigieren
       </span>

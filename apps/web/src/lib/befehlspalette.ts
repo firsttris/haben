@@ -1,4 +1,4 @@
-import { DUNNING_LEVELS, type DunningLevel, formatEuro, type InvoiceListStatus, type QuoteListStatus } from "@haben/core";
+import { DUNNING_LEVELS, type DunningLevel, formatEuro } from "@haben/core";
 import type { IconName } from "../components/Icon.tsx";
 import { searchOptions } from "./combobox.ts";
 import { formatDate } from "./format.ts";
@@ -25,8 +25,8 @@ export type PaletteItem =
       to: "/kontakte/$id" | "/rechnungen/$id" | "/angebote/$id" | "/belege/$id";
       entityId: string;
       amount?: string;
-      invoiceStatus?: InvoiceListStatus;
-      quoteStatus?: QuoteListStatus;
+      invoice?: CommandPaletteResult["invoices"]["hits"][number];
+      quote?: CommandPaletteResult["quotes"]["hits"][number];
       document?: CommandPaletteResult["documents"]["hits"][number];
     };
 
@@ -47,7 +47,7 @@ export function buildPageSection(pages: readonly SichtbareSeite[], query: string
       id: `page-${page.key}`,
       kind: "page",
       title: page.label,
-      meta: page.group,
+      meta: page.key === "uebersicht" ? "" : page.group,
       icon: page.icon,
       page,
     })),
@@ -85,7 +85,7 @@ export function buildRemoteSections(remote: CommandPaletteResult, inhaber: boole
         .filter(Boolean)
         .join(" · "),
       amount: formatEuro(inv.gross),
-      invoiceStatus: inv.listStatus,
+      invoice: inv,
       icon: "invoice",
       to: "/rechnungen/$id",
       entityId: inv.id,
@@ -100,7 +100,7 @@ export function buildRemoteSections(remote: CommandPaletteResult, inhaber: boole
       title: q.number ?? "Angebotsentwurf",
       meta: `${q.customer} · ${formatDate(q.issueDate)}`,
       amount: formatEuro(q.gross),
-      quoteStatus: q.listStatus,
+      quote: q,
       icon: "quote",
       to: "/angebote/$id",
       entityId: q.id,

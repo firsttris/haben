@@ -124,6 +124,7 @@ function AppLayout() {
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
         <NavBrand inhaber={inhaber} />
+        <NavSearch onOpen={() => setPaletteOpen(true)} />
         <button
           ref={toggle}
           type="button"
@@ -134,7 +135,6 @@ function AppLayout() {
         >
           <Icon name={menuOpen ? "close" : "menu"} /> Menü
         </button>
-        <NavSearch onOpen={() => setPaletteOpen(true)} />
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
           {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im rollenden Menü */}

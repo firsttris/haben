@@ -41,15 +41,6 @@ export function quoteStatusDetail(q: QuoteStatusFacts): string | null {
   }
 }
 
-export function QuoteStatusBadge({ status }: { status: QuoteListStatus }) {
-  const { text, ...look } = LOOK[status];
-  return (
-    <Status {...look} inline>
-      {text}
-    </Status>
-  );
-}
-
 export function QuoteStatus({ quote, inline = false }: { quote: QuoteStatusFacts; inline?: boolean }) {
   const { text, ...look } = LOOK[quote.listStatus];
   return (

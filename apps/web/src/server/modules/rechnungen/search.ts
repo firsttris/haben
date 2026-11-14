@@ -34,7 +34,7 @@ export async function searchInvoices(query: Lookup, { includeDrafts }: { include
   const hits = rows.slice(0, limit);
   const dunnings = await dunningsFor(hits.map((hit) => hit.id));
   return {
-    hits: hits.map(({ id, number, customer, gross, issueDate, status, kind, listStatus }) => {
+    hits: hits.map(({ id, number, customer, gross, issueDate, status, kind, listStatus, dueDate, paid, open, settledOn, cancelledBy, correctsNumber }) => {
       const dunning = dunnings.find((entry) => entry.invoiceId === id);
       return {
         id,
@@ -45,6 +45,12 @@ export async function searchInvoices(query: Lookup, { includeDrafts }: { include
         status,
         kind,
         listStatus,
+        dueDate,
+        paid,
+        open,
+        settledOn,
+        cancelledBy,
+        correctsNumber,
         dunning: dunning ? { level: dunning.level, dueDate: dunning.dueDate } : null,
       };
     }),
@@ -68,6 +74,7 @@ export async function searchQuotes(query: Lookup, limit = 5) {
       validUntil: quotes.validUntil,
       decision: quotes.decision,
       invoiceId: quotes.invoiceId,
+      invoiceNumber: sql<string | null>`(select i.number from invoices i where i.id = ${quotes.invoiceId})`,
       contactName: schema.contacts.name,
       buyerName: sql<string | null>`${quotes.buyer} ->> 'name'`,
     })
@@ -94,6 +101,8 @@ export async function searchQuotes(query: Lookup, limit = 5) {
       issueDate,
       customer: buyerName ?? contactName ?? "–",
       listStatus: quoteStatus(facts, date),
+      validUntil: facts.validUntil,
+      invoiceNumber: facts.invoiceNumber,
     })),
     more: rows.length > limit,
   };

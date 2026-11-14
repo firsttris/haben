@@ -27,12 +27,29 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
           issueDate: "2026-10-05",
           listStatus: "offen" as const,
           dunning: null,
+          dueDate: "2026-10-19",
+          paid: 0,
+          open: 17850,
+          settledOn: null,
+          cancelledBy: null,
+          correctsNumber: null,
         },
       ],
       more: false,
     },
     quotes: {
-      hits: [{ id: "q1", number: "AN-2026-002", customer: "Bergblick Software GmbH", gross: 9500, listStatus: "offen" as const, issueDate: "2026-10-05" }],
+      hits: [
+        {
+          id: "q1",
+          number: "AN-2026-002",
+          customer: "Bergblick Software GmbH",
+          gross: 9500,
+          listStatus: "offen" as const,
+          issueDate: "2026-10-05",
+          validUntil: "2026-10-31",
+          invoiceNumber: null,
+        },
+      ],
       more: false,
     },
     documents: {
@@ -48,6 +65,9 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
           status: "gebucht" as const,
           extractionStatus: "fertig" as const,
           cancelled: false,
+          cancelledOn: null,
+          lockedAt: new Date("2026-10-04"),
+          uploadedAt: new Date("2026-10-04"),
         },
       ],
       more: false,
@@ -56,6 +76,7 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
 
   it("filtert Seiten nach Suchbegriff und begrenzt ohne Suchbegriff auf 5", () => {
     expect(buildPageSection(seiten, "")?.items).toHaveLength(5);
+    expect(buildPageSection(seiten, "")?.items[0]).toMatchObject({ title: "Übersicht", meta: "" });
     const rechnungen = buildPageSection(seiten, "Rech");
     expect(rechnungen?.items.some((item) => item.title === "Rechnungen")).toBe(true);
     expect(buildPageSection(seiten, "zzzz-nicht-vorhanden")).toBeNull();

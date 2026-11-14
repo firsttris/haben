@@ -3,8 +3,8 @@ import type { RefObject } from "react";
 import type { PaletteItem, PaletteSection } from "../lib/befehlspalette.ts";
 import { DocumentStatus } from "./DocumentStatus.tsx";
 import { Icon } from "./Icon.tsx";
-import { InvoiceStatusBadge } from "./InvoiceStatus.tsx";
-import { QuoteStatusBadge } from "./QuoteStatus.tsx";
+import { InvoiceStatus } from "./InvoiceStatus.tsx";
+import { QuoteStatus } from "./QuoteStatus.tsx";
 
 interface PaletteListboxProps {
   baseId: string;
@@ -79,11 +79,13 @@ export function PaletteListbox({ baseId, listboxId, sections, loading, query, sa
                       <span className="cmd-option-title">{highlightMatch(item.title, query)}</span>
                       {item.meta && <span className="cmd-option-meta">{highlightMatch(item.meta, query)}</span>}
                     </span>
-                    {item.kind !== "page" && item.amount && <span className="amount">{highlightMatch(item.amount, query)}</span>}
-                    {item.kind !== "page" && (item.invoiceStatus || item.quoteStatus || item.document) && (
-                      <span className="cmd-option-status">
-                        <PaletteItemStatus item={item} />
-                      </span>
+                    {item.kind !== "page" && (item.amount !== undefined || item.document) && (
+                      <div className="cmd-option-facts">
+                        {item.amount !== undefined && <span className="amount">{highlightMatch(item.amount, query)}</span>}
+                        <span className="cmd-option-status">
+                          <PaletteItemStatus item={item} />
+                        </span>
+                      </div>
                     )}
                     <span className="cmd-option-arrow">
                       <Icon name="chevron-right" size={16} />
@@ -113,8 +115,8 @@ function highlightMatch(text: string, query: string) {
 }
 
 function PaletteItemStatus({ item }: { item: Exclude<PaletteItem, { kind: "page" }> }) {
-  if (item.invoiceStatus) return <InvoiceStatusBadge status={item.invoiceStatus} />;
-  if (item.quoteStatus) return <QuoteStatusBadge status={item.quoteStatus} />;
+  if (item.invoice) return <InvoiceStatus invoice={item.invoice} />;
+  if (item.quote) return <QuoteStatus quote={item.quote} />;
   if (item.document) return <DocumentStatus {...item.document} />;
   return null;
 }

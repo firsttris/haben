@@ -35,6 +35,8 @@ test("findet eine Rechnung über ihre Nummer und öffnet „Alle in Rechnungen a
   const ersteZeile = page.locator("section[aria-label='Rechnungsliste'] a.table-row").first();
   const nummer = (await ersteZeile.locator(".mono").textContent())?.trim() ?? "";
   expect(nummer).toMatch(/\d/);
+  const statusDetail = (await ersteZeile.locator(".status-detail").textContent())?.trim();
+  expect(statusDetail).toBeTruthy();
 
   await page.goto("/belege", { waitUntil: "networkidle" });
   await page.keyboard.press("Control+k");
@@ -43,7 +45,7 @@ test("findet eine Rechnung über ihre Nummer und öffnet „Alle in Rechnungen a
   await input.fill(nummer);
 
   const rechnungTreffer = dialog.getByRole("option", { name: new RegExp(nummer) });
-  await expect(rechnungTreffer).toBeVisible();
+  await expect(rechnungTreffer.locator(".status-detail")).toHaveText(statusDetail ?? "");
   const alle = dialog.getByRole("link", { name: "Alle anzeigen: Rechnungen" });
   await expect(alle).toBeVisible();
 
@@ -79,8 +81,12 @@ test("öffnet nicht über einem anderen bereits offenen Dialog", async ({ page }
 test("Schnellsuche ist am Handy neben dem geschlossenen Menü erreichbar", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.getByRole("button", { name: "Menü" })).toHaveAttribute("aria-expanded", "false");
+  const menu = page.getByRole("button", { name: "Menü" });
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
   const search = page.getByRole("button", { name: "Schnellsuche" });
+  const searchBox = await search.boundingBox();
+  const menuBox = await menu.boundingBox();
+  expect(searchBox!.x + searchBox!.width).toBeLessThan(menuBox!.x);
   await search.click();
   const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
   await expect(dialog.getByRole("combobox")).toBeFocused();
