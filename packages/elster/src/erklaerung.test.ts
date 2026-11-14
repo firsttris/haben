@@ -408,6 +408,24 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(euerUstUmgliedern({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined }).umgliederungen).toEqual([]);
   });
 
+  it.each([
+    // Jahresdokumentation E77 2023 bis 2026 (ERiC 45.1.5.0), Spalte Zeile: E6000701 steht 2023 in Zeile 17, sonst 18;
+    // E6005101 2023 in Zeile 56, 2024 und 2025 in Zeile 58, 2026 in Zeile 59 (Zeile 58 ist dort die Vorsteuer)
+    [2023, 17, 56],
+    [2025, 18, 58],
+    [2026, 18, 59],
+  ])("nennt in den Meldungen %i die Zeilen der Anlage EÜR dieses Jahres (Zeile %i und %i)", (year, erstattet, gezahlt) => {
+    const nach18 = euerUstUmgliedern({ ...figures, gezahlteUst: -19_000 }, year).umgliederungen[0];
+    expect(nach18).toMatch(new RegExp(`Zeile ${gezahlt} \\(Kz E6005101.*Zeile ${erstattet} \\(Kz E6000701`));
+    const nach58 = euerUstUmgliedern({ ...figures, erstatteteUst: -19_000 }, year).umgliederungen[0];
+    expect(nach58).toMatch(new RegExp(`Zeile ${erstattet} \\(Kz E6000701.*Zeile ${gezahlt} \\(Kz E6005101`));
+    const beide = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -19_000 }, year).umgliederungen[0];
+    expect(beide).toMatch(new RegExp(`Zeile ${gezahlt} \\(Kz E6005101.*Zeile ${erstattet} \\(Kz E6000701.*Betriebsausgabe in Zeile ${gezahlt},`));
+    const rueckfall = euerVorzeichenMeldungen({ ...figures, gezahlteUst: -1, erstatteteUst: -1 }, year);
+    expect(rueckfall[0]).toMatch(new RegExp(`^In Zeile ${gezahlt} \\(Kz E6005101`));
+    expect(rueckfall[1]).toMatch(new RegExp(`^In Zeile ${erstattet} \\(Kz E6000701`));
+  });
+
   it("meldet einen negativen Betrag weiterhin als Fehler, wenn das Umgliedern nicht greift", () => {
     // Rückfall aus #708/#835: euerVorzeichenMeldungen prüft, was tatsächlich ins XML geht
     expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -19_000 })).toHaveLength(1);
