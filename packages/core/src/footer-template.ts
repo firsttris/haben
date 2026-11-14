@@ -69,6 +69,9 @@ export function footerValues(seller: FooterSeller): FooterValues {
  */
 const WITHOUT_FONT = /[^\n\t -~ -ɏΆΈ-ΊΌΎ-ΡΣ-ώЀ-ѹҀ-ӿḀ-ẛẝ-ỿ‐-‧‰-⁕⁗₠-₯₱-₵₸-₺₼-₿№™←-↓−≈≠≤≥]/gu;
 
+/** Zeichen, die keine Belegschrift enthält, je einmal; leer = alles setzbar */
+export const charactersWithoutFont = (text: string): string[] => [...new Set(text.match(WITHOUT_FONT) ?? [])];
+
 const TAX_PLACEHOLDER = /\{(steuernummer|ustid)\}/;
 
 const placeholdersIn = (text: string): string[] => [...text.matchAll(/\{([^{}\s]*)\}/g)].map((match) => match[1]!);

@@ -10,7 +10,6 @@ import {
   type Discount,
   type InvoiceLineInput,
   type QuoteLineKind,
-  type UnitLabel,
 } from "@haben/core";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 
@@ -22,7 +21,7 @@ export interface LineState {
   /** Artikelnummer (BT-155), aus dem Artikel kopiert und änderbar */
   itemNumber: string;
   quantity: string;
-  unit: UnitLabel;
+  unit: string;
   unitPrice: string;
   taxRate: 1900 | 700 | 0;
   /** Positionsrabatt wie eingegeben, „10 %“ oder „50,00“ */
@@ -55,7 +54,7 @@ export function toLineState(line: EditorLine): LineState {
 }
 
 /** Leere Zeile mit Einheit und Satz der letzten */
-export const emptyLine = (unit: UnitLabel, taxRate: 1900 | 700 | 0): LineState => ({
+export const emptyLine = (unit: string, taxRate: 1900 | 700 | 0): LineState => ({
   key: nextKey++,
   description: "",
   detail: "",

@@ -124,6 +124,7 @@ function InvoicePage() {
           mandates={data.mandates}
           contactPersons={data.contactPersons}
           articles={data.articles}
+          units={data.units}
           textBlocks={data.textBlocks}
           abschlaege={data.abschlaege}
           quotes={data.quotes}

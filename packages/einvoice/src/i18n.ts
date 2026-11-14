@@ -114,7 +114,7 @@ export const TEXTS = {
     date: (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`,
     money: (cents: Cents) => formatEuro(cents),
     rate: (rate: number) => formatRate(rate),
-    quantity: (quantity: Millis, unit: UnitLabel) => `${formatQuantity(quantity)} ${unit}`,
+    quantity: (quantity: Millis, unit: string) => `${formatQuantity(quantity)} ${unit}`,
     note: (treatment: TaxTreatment, reason?: string | null) => treatmentNote(treatment, reason),
     // § 14b Abs. 1 Satz 5 mit Satz 3 UStG: zwei Jahre ab Schluss des Ausstellungsjahres; § 34a UStDV begründet keine pauschale Pflicht für KU.
     propertyRetention:
@@ -214,9 +214,10 @@ export const TEXTS = {
     },
     money: (cents: Cents) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(cents / 100),
     rate: (rate: number) => `${rate / 100} %`,
-    quantity: (quantity: Millis, unit: UnitLabel) => {
+    quantity: (quantity: Millis, unit: string) => {
       const value = quantity / 1000;
-      const [one, many] = EN_UNITS[unit];
+      // Eigene Einheiten (#748) stehen wie angelegt, ohne Übersetzung
+      const [one, many] = EN_UNITS[unit as UnitLabel] ?? [unit, unit];
       return `${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 3 }).format(value)} ${value === 1 ? one : many}`;
     },
     note: (treatment: TaxTreatment, reason?: string | null) => (treatment === "regulaer" ? null : reason?.trim() || EN_NOTES[treatment]),

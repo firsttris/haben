@@ -1,4 +1,4 @@
-import { formatDecimal, ITEM_NUMBER_MAX, LINE_DETAIL_MAX, parseEuro, UNITS, type UnitLabel } from "@haben/core";
+import { formatDecimal, ITEM_NUMBER_MAX, LINE_DETAIL_MAX, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -7,6 +7,7 @@ import type { Notice } from "../lib/use-action.ts";
 import { saveArticle, type getArticles } from "../server/functions/articles.ts";
 import type { ArticleOption } from "./ArticleCombobox.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
+import { unitOptions } from "../lib/units.ts";
 import { Field } from "./Field.tsx";
 
 type Article = Awaited<ReturnType<typeof getArticles>>[number];
@@ -24,12 +25,15 @@ export function ArticleForm({
   article,
   prefill,
   inDialog = false,
+  units = [],
   onDone,
 }: {
   article: Article | null;
   prefill?: ArticlePrefill;
   /** Im Dialog steht der Titel im Dialogkopf und die Knöpfe stehen im Fuß */
   inDialog?: boolean;
+  /** Eigene Einheiten (#748) neben den festen */
+  units?: readonly string[];
   onDone: (notice: Notice, saved?: ArticleOption) => void;
 }) {
   // Das Formular steht auch im Dialog über dem Rechnungseditor, feste IDs wären dort doppelt
@@ -55,7 +59,7 @@ export function ArticleForm({
         number: text("number"),
         description: text("description"),
         detail: text("detail"),
-        unit: text("unit") as UnitLabel,
+        unit: text("unit"),
         unitPrice: price,
         taxRate: Number(text("taxRate")) as 1900 | 700 | 0,
         priceIncludesTax: text("priceMode") === "brutto",
@@ -86,7 +90,7 @@ export function ArticleForm({
         <Field label="Einheit">
           {(control) => (
             <select {...control} name="unit" defaultValue={initial?.unit ?? "Std."}>
-              {Object.keys(UNITS).map((u) => (
+              {unitOptions(units, initial?.unit).map((u) => (
                 <option key={u}>{u}</option>
               ))}
             </select>

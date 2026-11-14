@@ -8,11 +8,11 @@ import {
   skontoPaymentTerms,
   TAX_TREATMENTS,
   treatmentNote,
-  UNITS,
   type Cents,
   type Millis,
 } from "@haben/core";
 import { ciiXml } from "./cii.ts";
+import { unitCodeOf } from "./einheit-code.ts";
 import { texts } from "./i18n.ts";
 import {
   accountHolder,
@@ -154,7 +154,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     return {
       "cbc:ID": String(line.position),
       "cbc:InvoicedQuantity": quantity(qty),
-      "cbc:InvoicedQuantity@unitCode": UNITS[line.unit],
+      "cbc:InvoicedQuantity@unitCode": unitCodeOf(line)!,
       "cbc:LineExtensionAmount": amount(net),
       "cbc:LineExtensionAmount@currencyID": currency,
       ...(allowance ? { "cac:AllowanceCharge": [allowance] } : {}),

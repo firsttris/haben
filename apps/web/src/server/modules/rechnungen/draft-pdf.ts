@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { directDebitFor } from "./lastschrift.ts";
 import { UserError } from "../../errors.ts";
-import { ansprechpartnerSnapshot, loadCompany, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
+import { ansprechpartnerSnapshot, loadCompany, loadLetterhead, loadUnitCodes, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceDocumentTotals, invoiceTotalsById } from "./invoice-taxes.ts";
 import { buyerFrom, deductedRefs, documentFor, getInvoice, sellerFrom } from "./invoices.ts";
 import { getQuote, quoteDocumentFor } from "./quotes.ts";
@@ -42,6 +42,7 @@ export async function invoiceDraftPdf(id: string): Promise<DraftPdf | null> {
     corrects?.number ? { number: corrects.number, issueDate: corrects.issueDate } : null,
     await deductedRefs(lines),
     await directDebitFor(invoice, company, db),
+    await loadUnitCodes(),
   );
   return withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => renderInvoiceDraftPdf({ ...doc, ...letterhead }));
 }

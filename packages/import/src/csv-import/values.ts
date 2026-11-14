@@ -71,13 +71,17 @@ const UNIT_ALIASES: Record<string, UnitLabel> = {
   kilometer: "km",
 };
 
-/** Einheit aus dem Katalog von Haben (UNITS); leer = Stück wie in Lexware Office */
-export function parseImportUnit(raw: string): Parsed<UnitLabel> {
+/** Einheit aus dem Katalog von Haben (UNITS) oder eine eigene (#748), an der Bezeichnung erkannt; leer = Stück wie in Lexware Office */
+export function parseImportUnit(raw: string, own: readonly string[] = []): Parsed<string> {
   const value = raw.trim();
   if (!value) return ok("Stk.");
   if (value in UNITS) return ok(value as UnitLabel);
+  const custom = own.find((label) => label.toLowerCase() === value.toLowerCase());
+  if (custom) return ok(custom);
   const unit = UNIT_ALIASES[value.toLowerCase().replace(/\./g, "")];
-  return unit ? ok(unit) : fail(`Einheit: „${raw}“; möglich sind ${Object.keys(UNITS).join(", ")}`);
+  return unit
+    ? ok(unit)
+    : fail(`Einheit: „${raw}“; möglich sind ${[...Object.keys(UNITS), ...own].join(", ")} oder eine neue unter Einstellungen › Rechnungen › Einheiten`);
 }
 
 const COUNTRIES: Record<string, string> = {

@@ -54,6 +54,7 @@ function NewInvoicePage() {
       kleinunternehmer={data.kleinunternehmer}
       companySkonto={data.companySkonto}
       articles={data.articles}
+      units={data.units}
       textBlocks={data.textBlocks}
       abschlaege={data.abschlaege}
       quotes={data.quotes}
