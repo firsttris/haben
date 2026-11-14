@@ -51,12 +51,16 @@ test("auch zwischen 860 und 861 Pixel Breite rollt die Navigation bis zum Fuß",
     await navigationLaden(page);
     await page.mouse.move(100, 300);
     await page.mouse.wheel(0, 5000);
-    const gemessen = await page.evaluate(() => {
-      const breite = document.documentElement.getBoundingClientRect().width;
-      const links = [...document.querySelectorAll<HTMLElement>(".nav-body .nav-link")];
-      return { zwischen: breite > 860 && breite < 861, abmeldenSichtbar: links.at(-1)!.getBoundingClientRect().bottom <= innerHeight };
-    });
-    expect(gemessen).toEqual({ zwischen: true, abmeldenSichtbar: true });
+    // mouse.wheel wartet nicht, bis das Rollen fertig ist (Playwright-Doku zu Mouse.wheel), daher wiederholt messen
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const breite = document.documentElement.getBoundingClientRect().width;
+          const links = [...document.querySelectorAll<HTMLElement>(".nav-body .nav-link")];
+          return { zwischen: breite > 860 && breite < 861, abmeldenSichtbar: links.at(-1)!.getBoundingClientRect().bottom <= innerHeight };
+        }),
+      )
+      .toEqual({ zwischen: true, abmeldenSichtbar: true });
   } finally {
     await browser.close();
   }
