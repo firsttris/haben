@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -61,6 +61,13 @@ export async function speichereErklaerteZeilen(
   if (!vermerk) throw new AnnualError("Für dieses Jahr gibt es keinen Vermerk, zu dem die Zeilen gehören.");
 
   await withActor(actor, async (tx) => {
+    // Gespeicherte Zeilen sind nur anhängbar; eine zweite Erfassung derselben Zeile wäre sonst ein Datenbankfehler
+    const vorhanden = await tx
+      .select({ field: schema.annualSubmissionFigures.field })
+      .from(schema.annualSubmissionFigures)
+      .where(and(eq(schema.annualSubmissionFigures.submissionId, vermerk.id), inArray(schema.annualSubmissionFigures.field, [...gesehen])));
+    if (vorhanden.length > 0)
+      throw new AnnualError(`Diese Zeile ist schon gespeichert und lässt sich nicht ändern: ${vorhanden.map((v) => v.field).join(", ")}`);
     await tx.insert(schema.annualSubmissionFigures).values(zeilen.map((z) => ({ submissionId: vermerk.id, field: z.field, amount: z.amount })));
   });
   return zeilen.length;
