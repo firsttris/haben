@@ -211,7 +211,7 @@ Barrierefrei und per Tastatur bedienbar: echte Knöpfe und Links, ein Label für
 
 Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an die Regel.
 
-- **Gesperrte Knöpfe:** Viele Formulare sperren die Hauptaktion, solange Angaben fehlen, meist ohne Grund (etwa `AssetForm`, `RecurringForm`, `routes/_app/belege/$id.tsx`, `routes/_app/rechnungen/mahnwesen/$id.tsx`, Abruf und Versand mit PIN bei ELSTER).
+- **Gesperrte Knöpfe:** Viele Formulare sperren die Hauptaktion, solange Angaben fehlen, meist ohne Grund (etwa `RecurringForm`, `routes/_app/rechnungen/mahnwesen/$id.tsx`, Abruf und Versand mit PIN bei ELSTER).
 - **4px-Raster:** In `apps/web/src/**/*.css` haben manche `padding`, `margin` und `gap` px-Werte, die nicht durch 4 teilbar sind (meist 1 oder 2px, auch 6, 10 oder 14px).
 - **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Navigationsflächen (`.brand`, `.nav-link:hover`).
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.
