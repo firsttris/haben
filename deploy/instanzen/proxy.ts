@@ -15,7 +15,10 @@ export function netzFuer(name: string): string {
   return `haben-proxy-${name}`;
 }
 
-/** Derselbe Block wie in compose.yml für eine einzelne Instanz, mit dem Alias als Ziel */
+/**
+ * Derselbe Block wie in compose.yml für eine einzelne Instanz und in deploy/Caddyfile, mit dem Alias als Ziel;
+ * caddy-block.test.ts vergleicht die drei Stellen
+ */
 export function caddyBlock(domain: string, name: string): string {
   return `${domain} {
 \tencode zstd gzip
