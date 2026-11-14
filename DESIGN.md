@@ -85,6 +85,8 @@ Gibt es Instanzen anderer Firmen (`HABEN_FIRMEN`, #504), steht direkt unter der 
 
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
 
+Ist die Navigation höher als das Fenster, bleibt am Desktop die Marke mit dem Firmennamen stehen und nur die Menüpunkte darunter rollen. Die Leiste, auch die der Liste unter „Firma wechseln“, ist schmal, erscheint nur beim Rollen, wo das System es so vorsieht, und hat in `--nav-ink` mit 55 % Deckkraft mindestens 3 : 1 gegen `--nav` (WCAG 1.4.11).
+
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.

@@ -36,6 +36,7 @@ import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
+import { aendereBetragszeile, betragszeileAus, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
 import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
@@ -59,15 +60,7 @@ export const Route = createFileRoute("/_app/belege/$id")({
 });
 
 type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
-type Rate = 1900 | 700 | 0;
-
-interface AmountState {
-  key: number;
-  taxRate: Rate;
-  net: string;
-  tax: string;
-  taxTouched: boolean;
-}
+type Rate = BetragsSatz;
 
 let nextKey = 1;
 
@@ -348,17 +341,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
   const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
   // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
-  const [rows, setRows] = useState<AmountState[]>(() =>
+  const [rows, setRows] = useState<Betragszeile[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null }]).map((a) => {
       const net = doc.currency === "EUR" ? a.net : (a.originalNet ?? 0);
       const tax = calculateInitialTax ? taxOf(net, a.taxRate) : doc.currency === "EUR" ? a.tax : (a.originalTax ?? 0);
-      return {
-        key: nextKey++,
-        taxRate: a.taxRate as Rate,
-        net: net === 0 && amounts.length === 0 ? "" : formatDecimal(net),
-        tax: tax === 0 && amounts.length === 0 ? "" : formatDecimal(tax),
-        taxTouched: amounts.length > 0,
-      };
+      return betragszeileAus(nextKey++, a.taxRate as Rate, net, tax, amounts.length === 0, amounts.length > 0);
     }),
   );
   // Aufteilung auf mehrere Kategorien (#271); leer = die Kategorie gilt für den ganzen Beleg
@@ -392,6 +379,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const parsedSplits = splitting ? parseSplitRows(splitRows) : [];
   const valid =
     parsed.every((p) => p.net !== null && p.tax !== null) &&
+    // Ein vertipptes Brutto lässt die vorigen Beträge stehen; bei § 13b gibt es kein Brutto
+    (Boolean(reverseCharge) || rows.every(bruttoLesbar)) &&
     new Set(rows.map((r) => r.taxRate)).size === rows.length &&
     privateShareValid &&
     currencyValid &&
@@ -403,6 +392,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         [`satz-${r.key}`, rows.findIndex((x) => x.taxRate === r.taxRate) < i ? "Diesen Satz gibt es schon in einer Zeile darüber." : null],
         [`netto-${r.key}`, parsed[i]!.net === null ? BETRAG_FEHLER : null],
         [`steuer-${r.key}`, parsed[i]!.tax === null ? BETRAG_FEHLER : null],
+        [`brutto-${r.key}`, reverseCharge || bruttoLesbar(r) ? null : BETRAG_FEHLER],
       ]),
     ),
     ...Object.fromEntries(
@@ -436,13 +426,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   function chooseReverseCharge(value: SelfAssessedTax | null) {
     touch(setReverseCharge)(value);
     // Die Steuer steht nicht auf der Rechnung; Haben rechnet sie aus dem Netto, 0 % gibt es bei § 13b und beim Erwerb nicht
+    // Gezahlt wird das Netto; ein vorher eingegebenes Brutto ist keine Grundlage mehr
     if (value) {
       setRows((prev) =>
-        prev.map((row) => {
-          const taxRate = row.taxRate === 0 ? 1900 : row.taxRate;
-          const net = parseEuro(row.net || "0");
-          return { ...row, taxRate, taxTouched: false, tax: net === null ? row.tax : formatDecimal(taxOf(net, taxRate)) };
-        }),
+        prev.map((row) => aendereBetragszeile(row, { taxRate: row.taxRate === 0 ? 1900 : row.taxRate, taxTouched: false, basis: "net" }, true)),
       );
     }
   }
@@ -461,19 +448,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     };
   }
 
-  function updateRow(key: number, patch: Partial<AmountState>) {
-    setRows((prev) =>
-      prev.map((row) => {
-        if (row.key !== key) return row;
-        const next = { ...row, ...patch };
-        // Selbst geschuldete Steuer immer berechnen; Vorsteuer laut Beleg nur bis zur manuellen Änderung vorschlagen.
-        if ((reverseCharge || !next.taxTouched) && ("net" in patch || "taxRate" in patch)) {
-          const net = parseEuro(next.net || "0");
-          next.tax = net === null ? next.tax : formatDecimal(taxOf(net, next.taxRate));
-        }
-        return next;
-      }),
-    );
+  function updateRow(key: number, patch: Partial<Omit<Betragszeile, "key">>) {
+    setRows((prev) => prev.map((row) => (row.key === key ? aendereBetragszeile(row, patch, Boolean(reverseCharge)) : row)));
     setDirty(true);
   }
 
@@ -899,7 +875,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           )}
         </div>
         {rows.map((row, index) => (
-          <div className="amount-row" key={row.key}>
+          <div className={reverseCharge ? "amount-row" : "amount-row with-gross"} key={row.key}>
             <Field label="Satz" error={error(`satz-${row.key}`)}>
               {(control) => (
                 <select {...control} value={row.taxRate} onChange={(e) => updateRow(row.key, { taxRate: Number(e.target.value) as Rate })}>
@@ -944,6 +920,21 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 />
               )}
             </Field>
+            {/* Brutto laut Beleg (#917): Eingabe rechnet Netto und Vorsteuer vor; bei § 13b gezahlt wird netto, also kein Brutto */}
+            {!reverseCharge && (
+              <Field label={foreign ? `Brutto ${currencyCode}` : "Brutto"} error={error(`brutto-${row.key}`)}>
+                {(control) => (
+                  <input
+                    {...control}
+                    className="mono"
+                    inputMode="decimal"
+                    value={row.gross}
+                    placeholder="0,00"
+                    onChange={(e) => updateRow(row.key, { gross: e.target.value })}
+                  />
+                )}
+              </Field>
+            )}
             <button
               type="button"
               className="icon-btn"
@@ -973,7 +964,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             onClick={() => {
               const used = new Set(rows.map((r) => r.taxRate));
               const rate = ([1900, 700, 0] as Rate[]).find((r) => !used.has(r)) ?? 0;
-              setRows((prev) => [...prev, { key: nextKey++, taxRate: rate, net: "", tax: "", taxTouched: false }]);
+              setRows((prev) => [...prev, betragszeileAus(nextKey++, rate, 0, 0, true, false)]);
             }}
           >
             + Steuersatz

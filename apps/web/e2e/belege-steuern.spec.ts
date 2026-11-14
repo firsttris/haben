@@ -607,6 +607,72 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.waitForURL(/\/belege$/);
 });
 
+test("Beleg mit Bruttobetrag: Netto und Vorsteuer vorgerechnet, Satzwechsel behält das Brutto (#917)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "tankstelle.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Tankstelle Nord") }]);
+  await expect(page.getByText("tankstelle.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /tankstelle\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const amounts = page.getByRole("group", { name: "Beträge je Steuersatz" });
+  await amounts.getByLabel("Brutto", { exact: true }).fill("119,00");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("100,00");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("19,00");
+  // Anderer Satz: das Brutto bleibt, Netto und Vorsteuer ändern sich
+  await amounts.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("111,21");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("7,79");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("119,00");
+  // Vorsteuer laut Rechnung von Hand: das Brutto folgt
+  await amounts.getByLabel("Vorsteuer", { exact: true }).fill("7,78");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
+  // Bei § 13b gibt es kein Brutto, gezahlt wird netto; die Steuer rechnet Haben aus dem Netto (111,21 € zu 7 % = 7,78 €)
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveCount(0);
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
+  // Nicht buchen: die folgenden Tests zählen die Belege und Auswertungen
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz zu lesen (#917)", async ({ browser }) => {
+  // 1280 px: Formular und Vorschau stehen ab 1201 px nebeneinander, die Zeile hat mit Brutto drei Betragsfelder
+  const context = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: 1280, height: 800 } });
+  const laptop = await context.newPage();
+  await laptop.goto("/belege");
+  await laptop.waitForLoadState("networkidle");
+  await laptop
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "laptop-betraege.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Bürohaus Nord GmbH") }]);
+  await expect(laptop.getByText("laptop-betraege.jpg: abgelegt.")).toBeVisible();
+  await laptop
+    .getByRole("link", { name: /laptop-betraege\.jpg/ })
+    .first()
+    .click();
+  await laptop.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await laptop.waitForLoadState("networkidle");
+  const amounts = laptop.getByRole("group", { name: "Beträge je Steuersatz" });
+  await amounts.getByLabel("Brutto", { exact: true }).fill("14.691,26");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("12.345,60");
+  const abgeschnitten = await laptop
+    .locator(".amount-row input[inputmode='decimal']")
+    .evaluateAll((felder) =>
+      (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
+    );
+  expect(abgeschnitten, "Netto, Vorsteuer und Brutto").toEqual([]);
+  await laptop.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(laptop, "Beleg löschen");
+  await laptop.waitForURL(/\/belege$/);
+  await context.close();
+});
+
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
   // Beispiel aus #271, je 19 %: 100 € Handelsware, 50 € Software, 20 € Bürobedarf = 170 € netto, 32,30 € Vorsteuer
   await go("/belege");
@@ -2310,12 +2376,22 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   if (await haken.count()) await haken.check();
   await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
 
-  // Danach gilt die Erklärung als abgegeben; Tag und Begründung stehen in der Karte, ein zweiter Vermerk fehlt
+  // Danach gilt die Erklärung als abgegeben; der Kopf nennt Tag, Betrag und Ticket, ein zweiter Vermerk fehlt (#871)
   await expect(ust.getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
+  await expect(karte.locator("p", { hasText: `Abgegeben am 02.01.${jahr + 1}` })).toBeVisible();
   await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
-  await expect(karte).toContainText("Umsatzsteuererklärung extern mit WISO abgegeben.");
   await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
-  const protokoll = await page.request.get((await karte.getByRole("link", { name: "Übermittlungsprotokoll" }).getAttribute("href"))!);
+  // Begründung und Protokoll stehen zugeklappt darunter: verdeckt heißt nicht sichtbar, also erst zugeklappt
+  // prüfen, dann aufklappen und Begründung wie Protokollverweis sichtbar nachsehen
+  const begruendung = karte.getByText("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  await expect(begruendung).toBeHidden();
+  await expect(karte.locator("details[open]")).toHaveCount(0);
+  await karte.locator("summary").click();
+  await expect(karte.locator("details[open]")).toHaveCount(1);
+  await expect(begruendung).toBeVisible();
+  const protokollLink = karte.getByRole("link", { name: /Übermittlungsprotokoll/ });
+  await expect(protokollLink).toBeVisible();
+  const protokoll = await page.request.get((await protokollLink.getAttribute("href"))!);
   expect(protokoll.headers()["content-type"]).toContain("application/pdf");
 
   // Auch nach dem Neuladen bleibt der Vermerk stehen
