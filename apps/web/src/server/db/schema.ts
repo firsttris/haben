@@ -491,6 +491,32 @@ export const annualSubmissions = pgTable(
 );
 
 /**
+ * Zeilenwerte einer außerhalb von Haben abgegebenen Jahreserklärung, je Vermerk und Feldkennung.
+ *
+ * Der Vermerk selbst ist append-only und speichert nur den Abschlussbetrag. Wer die Erklärung in WISO,
+ * Accountable oder im ELSTER-Portal abgibt, kennt die Zeilen (Einnahmen, Ausgaben, Umsätze, Vorsteuer) aus
+ * dem Übermittlungsprotokoll; Haben rechnet sie aus seinen Buchungen und liegt damit falsch, sobald das
+ * Jahr nicht vollständig in Haben liegt. Diese Tabelle hält die erklärten Werte daneben, damit die Anzeige
+ * sie zeigen kann statt einer leeren Rechnung (#869).
+ */
+export const annualSubmissionFigures = pgTable(
+  "annual_submission_figures",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => annualSubmissions.id),
+    /** Zeilenschlüssel der Erklärung, etwa `kz81` (Umsätze 19 %) oder `einnahmen` (EÜR Zeile 23) */
+    field: text("field").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("annual_submission_figures_eindeutig").on(t.submissionId, t.field)],
+);
+
+/**
  * Nachrichten an das Finanzamt über ELSTER (Sonstige Nachricht), etwa der Antrag auf Herabsetzung der
  * Vorauszahlungen; jede Prüfung und Übermittlung mit XML, nur anhängen.
  */

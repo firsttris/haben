@@ -99,6 +99,44 @@ export function lastFilingPeriodKey(settings: readonly VatFrequencySetting[], ye
   return last ? periodKey(last) : null;
 }
 
+/**
+ * Monate des Jahres, für die eine Voranmeldung fällig war und in Haben keine gesendet wurde.
+ *
+ * Monate vor dem ersten Frequenz-Eintrag des Jahres bleiben außen vor: Wer die Tätigkeit im Oktober
+ * beginnt, war im Januar nicht zur Voranmeldung verpflichtet, und eine fehlende Anmeldung ist dort kein
+ * Befund. Ohne Eintrag im Jahr gilt der gesetzliche Standard (monatlich) für alle zwölf Monate.
+ */
+export function fehlendeMonate(settings: readonly VatFrequencySetting[], year: number, covered: ReadonlySet<number>): number[] {
+  const beginn = beginnDerTaetigkeit(settings, year);
+  return Array.from({ length: 12 }, (_, i) => i + 1).filter(
+    (m) => !covered.has(m) && frequencyAt(settings, { year, month: m }) !== "keine" && (beginn === null || m >= beginn),
+  );
+}
+
+/**
+ * Zeilenwerte, die außerhalb von Haben erklärt wurden, je Vermerk. Schlüssel sind die Feldkennungen
+ * der Erklärung (`kz22`, `kz36`, `einnahmen`, …). Leer, wenn zu diesem Vermerk nichts hinterlegt ist.
+ */
+async function erklaerteZeilen(submissionId: string | null): Promise<Record<string, Cents>> {
+  if (!submissionId) return {};
+  const rows = await db
+    .select({ field: schema.annualSubmissionFigures.field, amount: schema.annualSubmissionFigures.amount })
+    .from(schema.annualSubmissionFigures)
+    .where(eq(schema.annualSubmissionFigures.submissionId, submissionId));
+  return Object.fromEntries(rows.map((r) => [r.field, r.amount]));
+}
+
+/**
+ * Erster Monat des Jahres, für den eine Voranmeldungs-Frequenz hinterlegt ist. Davor war die Tätigkeit
+ * noch nicht angemeldet: keine Voranmeldungspflicht, also auch keine fehlende Anmeldung. null, wenn für
+ * das Jahr nichts hinterlegt ist — dann gilt der gesetzliche Standard (monatlich) für alle Monate.
+ */
+function beginnDerTaetigkeit(settings: readonly VatFrequencySetting[], year: number): number | null {
+  const imJahr = settings.filter((s) => s.year === year);
+  if (imJahr.length === 0) return null;
+  return Math.min(...imJahr.map((s) => s.fromMonth));
+}
+
 /** Zahlen der Umsatzsteuererklärung: Summe der zwölf Monate aus den Buchungen, Vorauszahlungen aus den gesendeten Voranmeldungen */
 export async function ustYear(year: number): Promise<UstYear> {
   const months = await Promise.all(Array.from({ length: 12 }, (_, i) => computeVatFigures({ year, month: i + 1 })));
@@ -630,6 +668,13 @@ export async function annualOverview(year: number, today: string) {
   // Ein Vermerk „außerhalb von Haben abgegeben“ nimmt den Meldungen zu Habens leerem Jahr den Grund (#869)
   const ustVermerk = submitted("ust");
   const euerVermerk = submitted("euer");
+  const estVermerk = submitted("est");
+  // Die erklärten Zeilen stehen neben dem Vermerk, weil er selbst append-only ist
+  const [ustZeilen, euerZeilen, estZeilen] = await Promise.all([
+    erklaerteZeilen(ustVermerk?.id ?? null),
+    erklaerteZeilen(euerVermerk?.id ?? null),
+    erklaerteZeilen(estVermerk?.id ?? null),
+  ]);
   return {
     year,
     ust: {
@@ -637,15 +682,23 @@ export async function annualOverview(year: number, today: string) {
       issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year, { vermerkt: ustVermerk !== null })],
       sent: sent("ust"),
       submitted: ustVermerk,
+      erklaert: ustZeilen,
     },
-    euer: { ...euer, issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null })], sent: sent("euer"), submitted: euerVermerk },
-    // Für die Einkommensteuererklärung gibt es keinen Vermerk: Was außerhalb von Haben abgegeben wurde, weiß
+    euer: {
+      ...euer,
+      issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null })],
+      sent: sent("euer"),
+      submitted: euerVermerk,
+      erklaert: euerZeilen,
+    },
+    // Die Einkommensteuererklärung führt Haben nicht: es gibt keinen Vermerk, und was außerhalb abgegeben wurde, weiß
     // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
     est: {
       ...est,
       issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est)), ...(await arbeitszimmerIssues(year, est))],
       sent: sent("est"),
-      submitted: submitted("est"),
+      submitted: estVermerk,
+      erklaert: estZeilen,
       verwaltet: false,
     },
     history,
