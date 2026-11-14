@@ -44,13 +44,13 @@ Je Pull Request einen frischen Agenten mit `beitrag-pruefen` in der Rolle des Ma
 
 - eigener Worktree und eigene Test-Datenbank, nie die Compose-Instanz `haben-dev`
 - nichts posten, pushen oder mergen
-- jeder Befund als roter Test und Fix in eigenen Commits auf einem lokalen Branch
+- Fixes in eigenen Commits auf einem lokalen Branch, ein Fehler im Code mit rotem Test (`tdd-review`)
 - Bericht mit Befunden, Commits, HEAD und Tree, gelaufenen und übersprungenen Checks und „Red Flag ja/nein“
 
 Mit dem Bericht:
 
 - **Red Flag:** Ist fachlich etwas falsch, eine Sperre aufgeweicht, eine Migration falsch oder eine Grundsatzfrage offen, anhalten und den Maintainer mit Empfehlung fragen.
-- **Fixes von uns:** Vor dem Push den Head des Pull Requests erneut lesen, weil Autoren während der Prüfung force-pushen. Dann `fork-pushen`, danach den Tree des neuen Heads mit dem Tree des lokalen Branches vergleichen.
+- **Fixes von uns:** Vor dem Push den Head des Pull Requests erneut lesen, weil Autoren während der Prüfung force-pushen. Dann pushen, aus einem Fork nach `fork-pushen`, danach den Tree des neuen Heads mit dem Tree des lokalen Branches vergleichen.
 - **Autor muss liefern:** nur die Befunde posten, vor dem Merge nötig und Vorschläge getrennt
 - **Fertig:** siehe 4
 
