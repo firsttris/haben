@@ -9,6 +9,10 @@ if ("fehler" in ergebnis) {
   process.exit(1);
 }
 const port = Number(process.env.PORT ?? 3000);
-const runtime = globalThis as unknown as { Bun: { serve: (options: { port: number; fetch: (request: Request) => Promise<Response> }) => unknown } };
-runtime.Bun.serve({ port, fetch: portal(ergebnis.config) });
+type Server = { requestIP: (request: Request) => { address: string } | null };
+type Serve = (options: { port: number; fetch: (request: Request, server: Server) => Promise<Response> }) => unknown;
+const runtime = globalThis as unknown as { Bun: { serve: Serve } };
+const handler = portal(ergebnis.config);
+// Die Adresse der Verbindung zählt für die Begrenzung der Anmeldewege nur ohne X-Forwarded-For (grenze.ts)
+runtime.Bun.serve({ port, fetch: (request, server) => handler(request, server.requestIP(request)?.address) });
 console.log(`Firmenportal: ${ergebnis.config.firmen.length} Firmen, ${ergebnis.config.url} (Port ${port})`);

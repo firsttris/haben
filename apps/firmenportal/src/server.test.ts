@@ -255,6 +255,52 @@ describe("Sitzung", () => {
   });
 });
 
+// Rückmeldung in #1006: Wie Haben (rateLimit in apps/web/src/server/auth.ts) begrenzt das Firmenportal die Anmeldewege je
+// Client-Adresse; hinter dem Reverse Proxy kommt sie aus X-Forwarded-For, sonst von der Verbindung
+describe("Begrenzung der Anmeldewege", () => {
+  const von = (pfad: string, adresse: string) => new Request(`${PORTAL}${pfad}`, { headers: { "x-forwarded-for": adresse } });
+
+  it("lässt je Adresse und Minute 20 Starts der Anmeldung zu, dann 429 mit Retry-After", async () => {
+    let uhr = Date.now();
+    const handler = portal(config, () => uhr);
+    for (let i = 0; i < 20; i++) expect((await handler(von("/anmelden", "203.0.113.5"))).status).toBe(303);
+    const zuViel = await handler(von("/anmelden", "203.0.113.5"));
+    expect(zuViel.status).toBe(429);
+    expect(Number(zuViel.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect(zuViel.headers.getSetCookie()).toEqual([]);
+    expect(await zuViel.text()).toContain("Zu viele Anmeldeversuche");
+    // Andere Adresse, anderer Weg und nach Ablauf der Minute geht es weiter
+    expect((await handler(von("/anmelden", "203.0.113.6"))).status).toBe(303);
+    expect((await handler(von("/callback?error=access_denied", "203.0.113.5"))).status).toBe(400);
+    uhr += 60_001;
+    expect((await handler(von("/anmelden", "203.0.113.5"))).status).toBe(303);
+  });
+
+  it("begrenzt den Callback eigens, ohne Anfrage an den Anmeldedienst", async () => {
+    const handler = portal(config);
+    for (let i = 0; i < 20; i++) await handler(von("/callback?code=x&state=y", "203.0.113.7"));
+    expect((await handler(von("/callback?code=x&state=y", "203.0.113.7"))).status).toBe(429);
+  });
+
+  it("nimmt die letzte Adresse aus X-Forwarded-For, die der Reverse Proxy setzt", async () => {
+    const handler = portal(config);
+    for (let i = 0; i < 20; i++) await handler(von("/anmelden", `198.51.100.${i}, 203.0.113.8`));
+    expect((await handler(von("/anmelden", "203.0.113.8"))).status).toBe(429);
+  });
+
+  it("zählt ohne X-Forwarded-For die Adresse der Verbindung", async () => {
+    const handler = portal(config);
+    for (let i = 0; i < 20; i++) await handler(anfrage("/anmelden"), "192.0.2.1");
+    expect((await handler(anfrage("/anmelden"), "192.0.2.1")).status).toBe(429);
+    expect((await handler(anfrage("/anmelden"), "192.0.2.2")).status).toBe(303);
+  });
+
+  it("begrenzt Seiten außerhalb der Anmeldung nicht", async () => {
+    const handler = portal(config);
+    for (let i = 0; i < 25; i++) expect((await handler(von("/gesund", "203.0.113.9"))).status).toBe(200);
+  });
+});
+
 describe("Seiten", () => {
   it("setzen sichere Kopfzeilen und Cookies nur mit __Host-, Secure und HttpOnly", async () => {
     const start = await portal(config)(anfrage("/anmelden"));

@@ -1,5 +1,6 @@
 import { type Firma, portalFirmenFuer } from "@haben/core";
 import type { PortalConfig } from "./env.ts";
+import { type Begrenzer, begrenzer, clientAdresse } from "./grenze.ts";
 import { abschliessen, anmeldeAdresse, entdecken, istAnmeldeFehler } from "./oidc.ts";
 import { schrift } from "./schrift.ts";
 import { abgemeldetSeite, anmeldeSeite, fehlerSeite, firmenSeite } from "./seiten.ts";
@@ -133,10 +134,28 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
   return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Firmenportal nicht."), 404);
 }
 
-/** Der Request-Handler des Firmenportals; `jetzt` nur für Tests */
-export function portal(config: PortalConfig, jetzt: () => number = Date.now): (request: Request) => Promise<Response> {
-  return async (request) => {
+/** Die Wege der Anmeldung: Jeder Callback fragt den Token-Endpunkt an, deshalb begrenzt je Client-Adresse (grenze.ts) */
+const BEGRENZT = new Set(["/anmelden", "/callback"]);
+
+function zuViele(grenze: Begrenzer, request: Request, verbindung: string | undefined, jetzt: number): Response | null {
+  const { pathname } = new URL(request.url);
+  if (!BEGRENZT.has(pathname)) return null;
+  const ergebnis = grenze(`${pathname} ${clientAdresse(request, verbindung)}`, jetzt);
+  if (ergebnis.erlaubt) return null;
+  const seite = fehlerSeite("Zu viele Anmeldeversuche", "Von dieser Adresse kamen zu viele Anmeldeversuche. Bitte versuche es in einer Minute noch einmal.");
+  return antwort(seite, 429, { "retry-after": String(ergebnis.wiederInSekunden) });
+}
+
+/**
+ * Der Request-Handler des Firmenportals; `verbindung` ist die Adresse der Verbindung (Bun: server.requestIP), `jetzt`
+ * nur für Tests
+ */
+export function portal(config: PortalConfig, jetzt: () => number = Date.now): (request: Request, verbindung?: string) => Promise<Response> {
+  const grenze = begrenzer();
+  return async (request, verbindung) => {
     try {
+      const begrenzt = zuViele(grenze, request, verbindung, jetzt());
+      if (begrenzt) return begrenzt;
       return await route(config, request, jetzt());
     } catch (fehler) {
       if (istAnmeldeFehler(fehler)) {
