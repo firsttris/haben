@@ -825,6 +825,12 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
   .document-split-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .document-split-row .field:first-child { grid-column: 1 / -1; }
 }
+/* Neben der Vorschau (ab 1201 px) ist das Formular bis 1400 px zu schmal für drei Betragsfelder: zwei Spalten wie am Handy */
+@media (min-width: 1201px) and (max-width: 1400px) {
+  .amount-row.with-gross { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .amount-row.with-gross > .field:first-child { grid-column: 1; grid-row: 1; }
+  .amount-row.with-gross > .icon-btn { grid-column: 2; grid-row: 1; justify-self: end; }
+}
 .page-head .actions { align-items: center; }
 .doc-nav { display: flex; align-items: center; gap: 8px; }
 .doc-nav .small { min-width: 4.5em; text-align: center; white-space: nowrap; }
