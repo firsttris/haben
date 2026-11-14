@@ -47,6 +47,8 @@ describe("ladeKonfiguration", () => {
     ["Issuer über http auf localhost im Betrieb", { OIDC_ISSUER: "http://localhost:9091", NODE_ENV: "production" }, "OIDC_ISSUER"],
     ["fehlerhafte PORTAL_FIRMEN", { PORTAL_FIRMEN: "Nord|https://nord.example.de" }, "PORTAL_FIRMEN"],
     ["fehlendes Client-Secret", { OIDC_CLIENT_SECRET: "" }, "OIDC_CLIENT_SECRET"],
+    // Wie Haben (apps/web/src/server/env.ts): ohne openid käme kein ID-Token, jede Anmeldung schlüge fehl
+    ["OIDC_SCOPES ohne openid", { OIDC_SCOPES: "profile email groups" }, "OIDC_SCOPES"],
   ])("lehnt %s ab und nennt die Variable", (_fall, abweichung, variable) => {
     const ergebnis = ladeKonfiguration({ ...gueltig, ...abweichung });
     expect(ergebnis).toHaveProperty("fehler");
