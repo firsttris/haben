@@ -25,6 +25,8 @@ export const extractionSchema = z.object({
   empfaengerUstId: z.string().nullable().describe("USt-IdNr. des Rechnungsempfängers, falls angegeben"),
   rechnungsnummer: z.string().nullable(),
   belegdatum: z.string().nullable().describe("Rechnungs- bzw. Belegdatum als YYYY-MM-DD"),
+  leistungVon: z.string().nullable().default(null).describe("Erster Tag des Leistungszeitraums als YYYY-MM-DD, falls der Beleg ihn nennt"),
+  leistungBis: z.string().nullable().default(null).describe("Letzter Tag des Leistungszeitraums als YYYY-MM-DD, falls der Beleg ihn nennt"),
   faelligAm: z.string().nullable().describe("Fälligkeitsdatum als YYYY-MM-DD, falls angegeben"),
   waehrung: z.string().describe("ISO-Währungscode, z. B. EUR"),
   istGutschrift: z.boolean().describe("true bei Gutschrift oder Rechnungskorrektur zu unseren Gunsten"),
@@ -51,6 +53,9 @@ export interface ExtractedFields {
   invoiceNumber: string;
   documentDate: string | null;
   dueDate: string | null;
+  /** Leistungszeitraum aus dem Beleg (#693); „ausgeführt am“ ist der letzte Tag */
+  serviceFrom?: string | null;
+  serviceTo?: string | null;
   currency: string;
   category: (typeof EXPENSE_CATEGORY_KEYS)[number];
   amounts: { taxRate: 1900 | 700 | 0; net: Cents; tax: Cents }[];
@@ -143,6 +148,8 @@ export function toFields(extraction: Extraction): ExtractedFields {
     invoiceNumber: extraction.rechnungsnummer?.trim().slice(0, 100) ?? "",
     documentDate: isoDate(extraction.belegdatum),
     dueDate: isoDate(extraction.faelligAm),
+    serviceFrom: isoDate(extraction.leistungVon ?? null),
+    serviceTo: isoDate(extraction.leistungBis ?? null),
     currency,
     category: extraction.kategorie,
     amounts,

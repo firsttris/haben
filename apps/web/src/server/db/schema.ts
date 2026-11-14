@@ -1891,6 +1891,9 @@ export const documents = pgTable(
     invoiceNumber: text("invoice_number").notNull().default(""),
     documentDate: date("document_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),
+    /** Leistungszeitraum aus dem Beleg (#693); „ausgeführt am“ ist der letzte Tag, siehe leistungsdatum() in @haben/core */
+    serviceFrom: date("service_from", { mode: "string" }),
+    serviceTo: date("service_to", { mode: "string" }),
     category: text("category"),
     /** Eigenes Sachkonto (#270) der Kategorie; `category` bleibt die Elternkategorie, auf die Steuer und EÜR rechnen */
     ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
