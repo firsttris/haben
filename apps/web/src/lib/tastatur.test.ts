@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ariaKuerzel, istApple, kuerzelText, tastenNamen } from "./tastatur.ts";
+import { ariaKuerzel, istApple, kuerzelSprache, kuerzelText, tastenNamen } from "./tastatur.ts";
 
 const MAC_SAFARI = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
@@ -53,5 +53,15 @@ describe("Beschriftung", () => {
   it("nennt für aria-keyshortcuts Strg und Befehlstaste", () => {
     expect(ariaKuerzel(["mod", "K"])).toBe("Control+K Meta+K");
     expect(ariaKuerzel(["Escape"])).toBe("Escape");
+  });
+});
+
+describe("Textform für Screenreader", () => {
+  // Das Zeichen ⌘ liest nicht jeder Screenreader als Taste vor; versteckte Hinweise nennen die Taste als Wort
+  it("nennt mod als Befehlstaste bzw. Strg, ohne Zeichen", () => {
+    expect(kuerzelSprache(["mod"], true)).toBe("Befehlstaste");
+    expect(kuerzelSprache(["mod"], false)).toBe("Strg");
+    expect(kuerzelSprache(["mod", "Enter"], true)).toBe("Befehlstaste plus Enter");
+    expect(kuerzelSprache(["mod", "Enter"], true)).not.toContain("⌘");
   });
 });

@@ -1,7 +1,7 @@
 import { type ComponentProps, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { type TextEdit, type TextStyle, toggleTextStyle } from "@haben/core";
 import { caretPosition } from "../lib/textarea-caret.ts";
-import { ariaKuerzel, kuerzelText, useApple } from "../lib/tastatur.ts";
+import { ariaKuerzel, kuerzelSprache, kuerzelText, useApple } from "../lib/tastatur.ts";
 
 const BUTTONS: { style: TextStyle; label: string; glyph: React.ReactNode; key: string }[] = [
   { style: "bold", label: "Fett", glyph: <strong>F</strong>, key: "B" },
@@ -170,7 +170,7 @@ export function FormattedTextarea({
         }}
       />
       <span id={hintId} className="visually-hidden">
-        Text markieren, dann erscheinen Knöpfe zum Auszeichnen. Oder {kuerzelText(["mod"], apple)} mit B, I oder U.
+        Text markieren, dann erscheinen Knöpfe zum Auszeichnen. Oder {kuerzelSprache(["mod"], apple)} mit B, I oder U.
       </span>
       {anchor && (
         <span
