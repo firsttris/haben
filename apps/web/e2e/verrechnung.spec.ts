@@ -86,6 +86,11 @@ test("Verrechnen: Gegenbeleg wählen, Teilbetrag und Grund eintragen, Datum steh
   await expect(offen()).toHaveText(RECHNUNG.betrag);
 
   await karte().getByRole("button", { name: "Mit einem Beleg verrechnen" }).click();
+  // Ohne Angaben: die Fehler stehen an den Feldern, der Fokus im Gegenbeleg (DESIGN.md, Gesperrte Knöpfe)
+  await karte().getByRole("button", { name: "Verrechnen", exact: true }).click();
+  await expect(karte().getByLabel("Gegenbeleg")).toBeFocused();
+  await expect(karte().getByLabel("Gegenbeleg")).toHaveAccessibleDescription(/Wähle den Gegenbeleg\./);
+  await expect(karte().getByLabel("Grund", { exact: true })).toHaveAccessibleDescription(/Trag den Grund der Verrechnung ein/);
   await karte().getByLabel("Gegenbeleg").selectOption(gutschrift);
   // den ganzen Rest schlägt die Karte vor; verrechnet wird hier nur ein Teil, damit ein Rest offen bleibt
   await expect(karte().getByLabel("Betrag")).toHaveValue("35,70");
