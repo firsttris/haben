@@ -44,7 +44,7 @@ test("findet eine Rechnung über ihre Nummer und öffnet „Alle in Rechnungen a
   const input = dialog.getByRole("combobox");
   await input.fill(nummer);
 
-  const rechnungTreffer = dialog.getByRole("option", { name: new RegExp(nummer) });
+  const rechnungTreffer = dialog.getByRole("group", { name: "Rechnungen" }).getByRole("option", { name: new RegExp(nummer) });
   await expect(rechnungTreffer.locator(".status-detail")).toHaveText(statusDetail ?? "");
   const alle = dialog.getByRole("link", { name: "Alle anzeigen: Rechnungen" });
   await expect(alle).toBeVisible();
