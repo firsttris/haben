@@ -470,19 +470,22 @@ test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer
 test("Farbe und Modus wechseln, bleiben nach dem Neuladen, Version unten in der Navigation", async () => {
   await go("/");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
+  // Die eingeklappte Leiste steht verborgen daneben im DOM, mit eigener Auswahl von Farbe und Modus
+  const farbe = nav.getByLabel("Farbe").filter({ visible: true });
+  const modus = nav.getByLabel("Modus").filter({ visible: true });
   await expect(nav.getByRole("link", { name: /^Haben \d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/ })).toBeVisible();
   const html = page.locator("html");
-  await nav.getByLabel("Farbe").selectOption("pflaume");
-  await nav.getByLabel("Modus").selectOption("dunkel");
+  await farbe.selectOption("pflaume");
+  await modus.selectOption("dunkel");
   await expect(html).toHaveAttribute("data-theme", "pflaume");
   await expect(html).toHaveAttribute("data-mode", "dark");
   await page.reload();
   await expect(html).toHaveAttribute("data-theme", "pflaume");
   await expect(html).toHaveAttribute("data-mode", "dark");
-  await expect(nav.getByLabel("Farbe")).toHaveValue("pflaume");
-  await expect(nav.getByLabel("Modus")).toHaveValue("dunkel");
-  await nav.getByLabel("Farbe").selectOption("wald");
-  await nav.getByLabel("Modus").selectOption("hell");
+  await expect(farbe).toHaveValue("pflaume");
+  await expect(modus).toHaveValue("dunkel");
+  await farbe.selectOption("wald");
+  await modus.selectOption("hell");
   await expect(html).toHaveAttribute("data-theme", "wald");
   await expect(html).toHaveAttribute("data-mode", "light");
 });

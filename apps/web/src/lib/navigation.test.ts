@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { NAV_BACKGROUNDS } from "@haben/core";
 import { describe, expect, it } from "vitest";
-import { firmaInNavigation, type NavBedingung, navLinkSichtbar, navMark, sichtbareNavSeiten } from "./navigation.ts";
+import { firmaInNavigation, NAV_GROUPS, type NavBedingung, navLinkSichtbar, navMark, STEUERBERATUNG_NAV, sichtbareNavSeiten } from "./navigation.ts";
 
 /** Lohn ohne Bedingung */
 const lohn: NavBedingung = {};
@@ -110,5 +110,16 @@ describe("sichtbareNavSeiten", () => {
       eigeneSeiten: [{ id: "1", name: "Wiki", url: "https://wiki.example", openInNewTab: false }],
     });
     expect(stb.map((s) => s.to)).toEqual(["/steuerberatung", "/auswertungen", "/buchungen", "/konten", "/belege", "/rechnungen"]);
+  });
+});
+
+describe("Symbole der Arbeitsbereiche", () => {
+  it("sind verschieden und wiederholen keinen Menüpunkt, damit eingeklappt jede Gruppe erkennbar bleibt", () => {
+    for (const gruppen of [NAV_GROUPS, STEUERBERATUNG_NAV]) {
+      const gruppenSymbole = gruppen.map((gruppe) => gruppe.icon);
+      expect(new Set(gruppenSymbole).size).toBe(gruppenSymbole.length);
+      const linkSymbole = new Set(gruppen.flatMap((gruppe) => gruppe.links.map((link) => link.icon)));
+      expect(gruppenSymbole.filter((symbol) => linkSymbole.has(symbol))).toEqual([]);
+    }
   });
 });

@@ -60,7 +60,7 @@ export interface NavGroup {
 export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: "Verkauf",
-    icon: "invoice",
+    icon: "store",
     links: [
       { to: "/angebote", icon: "quote", label: "Angebote" },
       { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
@@ -73,7 +73,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Ausgaben",
-    icon: "receipt",
+    icon: "cart",
     links: [
       { to: "/belege", icon: "receipt", label: "Belege" },
       { to: "/dauerbelege", icon: "calendar", label: "Dauerbelege" },
@@ -85,7 +85,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Geld",
-    icon: "bank",
+    icon: "wallet",
     links: [
       { to: "/bank", icon: "bank", label: "Bank" },
       { to: "/kasse", icon: "cash", label: "Kasse" },
@@ -94,7 +94,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Personal",
-    icon: "payroll",
+    icon: "badge",
     links: [
       { to: "/lohn", icon: "payroll", label: "Lohn" },
       // Lohn bleibt immer sichtbar, dort entsteht der erste Mitarbeiter
@@ -103,7 +103,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Steuern",
-    icon: "vat",
+    icon: "calculator",
     links: [
       { to: "/umsatzsteuer", icon: "vat", label: "Umsatzsteuer" },
       { to: "/jahreserklaerung", icon: "annual", label: "Jahreserklärung" },
@@ -115,7 +115,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Buchhaltung",
-    icon: "reports",
+    icon: "book",
     links: [
       { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
       { to: "/buchungen", icon: "journal", label: "Buchungen" },
@@ -131,7 +131,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 export const STEUERBERATUNG_NAV: readonly NavGroup[] = [
   {
     label: "Steuerberatung",
-    icon: "ledger",
+    icon: "briefcase",
     links: [
       { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
       { to: "/buchungen", icon: "journal", label: "Buchungen" },

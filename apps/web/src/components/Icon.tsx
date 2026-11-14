@@ -86,6 +86,23 @@ const PATHS = {
   "chevron-down": <path d="M6 9l6 6 6-6" />,
   "chevron-left": <path d="M15 6l-6 6 6 6" />,
   "chevron-right": <path d="M9 6l6 6-6 6" />,
+  // Arbeitsbereiche der eingeklappten Leiste: eigene Symbole, keins wiederholt einen Menüpunkt
+  store: <path d="M4 9l1.5-5h13L20 9M4 9h16M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9M5 12v8h14v-8M10 20v-5h4v5" />,
+  cart: (
+    <>
+      <path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H6.2" />
+      <circle cx="9" cy="19" r="1.5" />
+      <circle cx="17" cy="19" r="1.5" />
+    </>
+  ),
+  wallet: <path d="M19 7V5a1 1 0 0 0-1-1H6a2 2 0 0 0 0 4h13a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V6M16 14h.01" />,
+  badge: <path d="M6 3h12v18H6zM12 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM9 17a3 3 0 0 1 6 0" />,
+  calculator: <path d="M6 3h12v18H6zM9 7h6M9 11h.01M12 11h.01M15 11h.01M9 14h.01M12 14h.01M15 14h.01M9 17h.01M12 17h.01M15 17h.01" />,
+  book: <path d="M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3zM21 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z" />,
+  briefcase: <path d="M4 7h16v12H4zM9 7V5h6v2M4 12h16" />,
+  // Seitenleiste ein- und ausklappen: Fenster mit Leiste links, der Pfeil zeigt die Richtung
+  "sidebar-close": <path d="M4 4h16v16H4zM9 4v16M16 9l-3 3 3 3" />,
+  "sidebar-open": <path d="M4 4h16v16H4zM9 4v16M13 9l3 3-3 3" />,
   eye: (
     <>
       <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
