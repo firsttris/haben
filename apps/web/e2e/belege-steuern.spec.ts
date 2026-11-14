@@ -2558,3 +2558,27 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
   await expect(page.getByLabel("Leistung von")).toHaveValue(day(-24));
   await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
 });
+
+test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+
+  // Ohne Vermerk gibt es keine Erklärung, zu der Zeilen gehören könnten: erst die Anlage EÜR vermerken
+  const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${YEAR - 1}` });
+  await karte.getByRole("button", { name: "Abgabe vermerken" }).click();
+  const dialog = page.getByRole("dialog", { name: `Anlage EÜR ${YEAR - 1} als abgegeben vermerken` });
+  await dialog.getByLabel("Transferticket").fill("ABC123456789");
+  await dialog.getByLabel("Begründung").fill("Anlage EÜR außerhalb von Haben mit WISO abgegeben.");
+  // Der Betrag bleibt der aus den Buchungen gerechnete, damit keine Abweichung bestätigt werden muss
+  await dialog.getByRole("button", { name: "Vermerken" }).click();
+
+  // Jetzt steht über der Tabelle die Erfassung
+  const erfassen = page.locator("details", { hasText: "Zeilenwerte aus dem Übermittlungsprotokoll" }).first();
+  await expect(erfassen).toBeVisible({ timeout: 15_000 });
+  await erfassen.locator("summary").first().click();
+  await erfassen.getByLabel("Steuerpflichtiger Gewinn / Verlust (gewinn)").fill("1.234,56");
+  await erfassen.getByRole("button", { name: "Zeilenwerte speichern" }).click();
+
+  // Die erklärten Werte ersetzen Habens Rechnung und nennen ihre Herkunft
+  await expect(page.getByText("Diese Zahlen stammen aus dem Übermittlungsprotokoll", { exact: false })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("1.234,56\u00a0€").first()).toBeVisible();
+});
