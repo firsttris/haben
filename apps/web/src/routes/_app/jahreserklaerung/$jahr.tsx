@@ -104,7 +104,7 @@ function AnnualPage() {
       </nav>
 
       <div className="stack" style={{ gap: 24 }}>
-        <StatusUebersicht data={data} />
+        {!gesellschaft && <StatusUebersicht data={data} />}
         <UstSection data={data} />
         {!gesellschaft && <EuerSection data={data} />}
         {!gesellschaft && <EstSection key={data.year} data={data} />}
