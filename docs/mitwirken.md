@@ -80,7 +80,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Seite unter `docs/` wächst über 8.000 Wörter oder darüber um 300 und mehr ([Seiten der Doku](entwicklung.md#befehle)) | `scripts/pr-regeln/` | Hinweis |
 | Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Issues mit `Umgesetzt #…` oder `Refs #…`, nicht `Closes` oder `Fixes` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
-| Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
+| Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src`, `apps/portal/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
 | Selbstprüfung und unabhängiges Review mitbringen ([Beiträge annehmen](#beiträge-annehmen)) | `scripts/pr-regeln/`: Pull Request außerhalb des Entwurfs von jemandem ohne Schreibrecht, nennt `tdd-review` für Code, `doku-pruefen` für Markdown (`docs/`, `mkdocs.yml`, `LICENSE`), bei beidem beide | Hinweis |
 | Jedes Feld der Belegvorlagen im Feldvertrag, mit Beschreibung | `layout-schema.test.ts` in `bun run test` | Fehler |

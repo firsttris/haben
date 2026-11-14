@@ -40,4 +40,5 @@
   <Config Name="SSO: Claim der Gruppen" Target="OIDC_GROUPS_CLAIM" Default="groups" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">groups</Config>
   <Config Name="SSO: Gruppe Inhaber" Target="OIDC_GROUP_INHABER" Default="" Mode="" Description="z. B. haben-inhaber" Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="SSO: Gruppe Steuerberatung" Target="OIDC_GROUP_STEUERBERATUNG" Default="" Mode="" Description="z. B. haben-steuerberatung" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="SSO: Portal" Target="HABEN_PORTAL_URL" Default="" Mode="" Description="Nur mit SSO und mehreren Firmen: Adresse des Portals, in das „Firma wechseln“ führt, z. B. https://portal.example.de. Nicht zusammen mit „Firmen zum Wechseln“. Siehe https://haben.app/installation.html#portal" Type="Variable" Display="advanced" Required="false" Mask="false"/>
 </Container>
