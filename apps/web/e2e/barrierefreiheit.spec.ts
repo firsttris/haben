@@ -756,6 +756,9 @@ test("Befehlspalette: Strg+K, Tastatursteuerung, Fokus-Rückgabe und axe in alle
   expect(danach).toBeTruthy();
   expect(danach).not.toBe(davor);
 
+  await page.keyboard.press("ArrowUp");
+  expect(await input.getAttribute("aria-activedescendant")).toBe(davor);
+
   await page.keyboard.press("End");
   const amEnde = await input.getAttribute("aria-activedescendant");
   expect(amEnde).toBeTruthy();
