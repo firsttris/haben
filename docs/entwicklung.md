@@ -338,6 +338,10 @@ Den Tag legt Actions → *Bump version* (`bump.yml`) mit patch, minor oder major
 
 Secrets: `DOCKER_PAT` (Docker-Hub-Token mit Schreibrecht für `tristanteu/haben`); für GHCR reicht `GITHUB_TOKEN`, das Paket muss nach dem ersten Push einmal auf öffentlich gestellt werden.
 
+### Paket `@firsttris/gobd-kern`
+
+`packages/gobd-kern` erscheint unabhängig von der App auf npm, damit auch andere Apps es nutzen ([#935](https://github.com/firsttris/haben/issues/935)): Version in `packages/gobd-kern/package.json` erhöhen, mergen, dann den Tag `gobd-kern-vX.Y.Z` auf diesen Commit setzen. `.github/workflows/gobd-kern.yml` prüft Tag und Version, führt Typecheck und die Tests des Pakets gegen Postgres aus und veröffentlicht mit dem Secret `NPM_TOKEN` (Token mit Schreibrecht für den Scope `@firsttris`). Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite.
+
 ### Release Candidates
 
 Größere Änderungen, etwa Migrationen oder Änderungen an Festschreibung, Audit-Log oder ELSTER, gehen vorher als Release Candidate raus. Alles bleibt auf `main`, die RCs sind nur Tags:

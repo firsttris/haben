@@ -40,4 +40,4 @@ Eine Transaktion setzt ihren Akteur mit `select set_config('belegt.actor', $1, t
 
 Getrennte Rollen (die App darf Trigger nicht abschalten) richtet das Projekt selbst ein, wie Haben unter [Getrennte Datenbankrollen](https://haben.app/installation-konfiguration.html#getrennte-datenbankrollen).
 
-Noch nicht auf npm veröffentlicht.
+Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite. Veröffentlicht wird es mit einem Tag `gobd-kern-vX.Y.Z` (Haben, `docs/entwicklung.md`, „Paket `@firsttris/gobd-kern`“).

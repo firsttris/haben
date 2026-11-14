@@ -1,10 +1,22 @@
 {
   "name": "@firsttris/gobd-kern",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
   "description": "Bausteine für unveränderbare Aufbewahrung nach GoBD: Dateispeicher unter SHA-256, Prüfwert der Hash-Kette, index.xml nach dem Beschreibungsstandard, SQL-Vorlage für Hash-Kette, Siegel und Sperren in Postgres",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firsttris/haben.git",
+    "directory": "packages/gobd-kern"
+  },
+  "homepage": "https://github.com/firsttris/haben/tree/main/packages/gobd-kern#readme",
+  "keywords": [
+    "gobd",
+    "archiv",
+    "hash-kette",
+    "postgres",
+    "beschreibungsstandard"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./dateispeicher": "./src/dateispeicher.ts",
@@ -13,11 +25,19 @@
     "./beschreibung": "./src/beschreibung.ts",
     "./sql": "./src/sql/vorlage.ts"
   },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "README.md"
+  ],
   "scripts": {
     "typecheck": "bun --bun tsc -p ."
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
     "postgres": "^4.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

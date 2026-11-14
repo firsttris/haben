@@ -1,0 +1,44 @@
+name: GoBD-Kern veröffentlichen
+
+# Ein Tag gobd-kern-vX.Y.Z veröffentlicht packages/gobd-kern als @firsttris/gobd-kern auf npm, unabhängig von den
+# Releases der App (Tags v*). Der Tag muss zur version in packages/gobd-kern/package.json passen; vorher laufen
+# Typecheck und die Tests des Pakets gegen Postgres. Secret: NPM_TOKEN (Automation-Token mit Schreibrecht für den
+# Scope @firsttris).
+on:
+  push:
+    tags: ["gobd-kern-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  veroeffentlichen:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: haben
+          POSTGRES_PASSWORD: haben
+          POSTGRES_DB: haben_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U haben -d haben_test" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Tag gegen die Version des Pakets prüfen
+        run: |
+          version="$(bun -e 'console.log(require("./packages/gobd-kern/package.json").version)')"
+          test "$GITHUB_REF_NAME" = "gobd-kern-v$version" || { echo "Tag $GITHUB_REF_NAME passt nicht zu Version $version"; exit 1; }
+      - run: bun run --cwd packages/gobd-kern typecheck
+      - run: bun --bun vitest run packages/gobd-kern
+        env:
+          TEST_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_test
+      - run: bun publish --access public
+        working-directory: packages/gobd-kern
+        env:
+          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
