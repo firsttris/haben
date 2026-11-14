@@ -1,9 +1,7 @@
 /* Statischer Docker-Compose-Generator für Haben (docs/compose-generator.md).
    Alle Schlüssel entstehen lokal im Browser über crypto.getRandomValues. */
 
-(function () {
-  "use strict";
-
+(() => {
   const HEX_ALPHABET = "0123456789abcdef";
 
   /** Erzeugt eine zufällige Hex-Zeichenkette (nur 0-9 und a-f, sicher für Datenbank-URLs). */
@@ -30,10 +28,12 @@
 
   /** Bereinigt die Domain: entfernt Protokoll, Schrägstriche und Leerzeichen. */
   function normalizeDomain(raw) {
-    return (raw || "")
-      .trim()
-      .replace(/^https?:\/\//i, "")
-      .replace(/\/+$/, "") || "haben.example.de";
+    return (
+      (raw || "")
+        .trim()
+        .replace(/^https?:\/\//i, "")
+        .replace(/\/+$/, "") || "haben.example.de"
+    );
   }
 
   /** Maskiert einfache Werte für YAML, wenn Sonderzeichen vorkommen. */
@@ -98,7 +98,7 @@
       "# Datenbank-Passwörter (nur Buchstaben und Ziffern für die Verbindungs-URL)",
       `DB_PASSWORD=${cfg.dbPassword}`,
       `DATABASE_URL=postgres://haben_app:${cfg.appDbPassword}@db:5432/haben`,
-      "MIGRATION_DATABASE_URL=postgres://haben:${DB_PASSWORD}@db:5432/haben",
+      `MIGRATION_DATABASE_URL=postgres://haben:\${DB_PASSWORD}@db:5432/haben`,
       "",
       "# Sitzungs- und Verschlüsselungsschlüssel (ENCRYPTION_KEY und RESTIC_PASSWORD sicher aufbewahren!)",
       `AUTH_SECRET=${cfg.authSecret}`,
