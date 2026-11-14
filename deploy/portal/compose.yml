@@ -1,0 +1,18 @@
+# Haben-Portal (#504, Stufe 2): neben den Instanzen der eigenen Firmen, nur mit SSO. Einrichtung in
+# docs/installation.md, Abschnitt „Portal“. Werte in .env daneben (Vorlage portal.env.example).
+services:
+  portal:
+    image: tristanteu/haben-portal:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "3000"
+    # Gehärtet wie die App: schreibgeschützt, keine Capabilities, keine neuen Rechte. Das Portal schreibt nichts
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Für den eigenen Reverse Proxy auf diesem Rechner; mit dem gemeinsamen Caddy aus deploy/instanzen statt der
+    # Zeile das Netz des Proxys eintragen (siehe Doku)
+    ports:
+      - "127.0.0.1:${PORTAL_PORT:-3010}:3000"

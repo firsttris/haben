@@ -17,6 +17,10 @@
     "apps/elster-helfer": {
       "entry": ["src/popup.ts", "src/content.ts"]
     },
+    // src/main.ts kennt knip aus dem Skript start in package.json
+    "apps/portal": {
+      "entry": ["src/**/*.test.ts"]
+    },
     "packages/*": {
       "entry": ["src/**/*.test.ts"]
     },

@@ -37,6 +37,8 @@ describe("hints", () => {
   it("weist auf Code ohne Doku hin", () => {
     const reports = hints(["apps/web/src/server/modules/bank/bank.ts"], ["feat(bank): x"]);
     expect(reports.map((r) => r.message)).toEqual([expect.stringContaining("nichts in docs/")]);
+    // Das Portal (#504) ist Code wie die App
+    expect(hints(["apps/portal/src/server.ts"], ["feat(portal): x"]).map((r) => r.message)).toEqual([expect.stringContaining("nichts in docs/")]);
   });
 
   it("schweigt, wenn die Doku mitkommt oder nur Tests geändert sind", () => {

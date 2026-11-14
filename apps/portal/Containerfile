@@ -1,0 +1,31 @@
+# Haben-Portal (#504, Stufe 2): Anmeldung per SSO und Links auf die Instanzen der eigenen Firmen. Keine Datenbank,
+# keine Buchhaltungsdaten. Kontext ist das Wurzelverzeichnis des Repositorys (wegen bun.lock und packages/core):
+#   docker build -f apps/portal/Containerfile -t haben-portal .
+FROM docker.io/oven/bun:1.4.4-slim AS build
+WORKDIR /app
+COPY bun.lock bunfig.toml package.json ./
+# Alle Workspace-Pakete, sonst passt bun.lock nicht (--frozen-lockfile)
+COPY apps/web/package.json apps/web/
+COPY apps/elster-helfer/package.json apps/elster-helfer/
+COPY apps/portal/package.json apps/portal/
+COPY packages/core/package.json packages/core/
+COPY packages/einvoice/package.json packages/einvoice/
+COPY packages/elster/package.json packages/elster/
+COPY packages/gobd-kern/package.json packages/gobd-kern/
+COPY packages/import/package.json packages/import/
+RUN bun install --frozen-lockfile
+COPY packages/core packages/core
+COPY apps/portal apps/portal
+# Eine Datei samt jose, zod und @haben/core; zur Laufzeit braucht es kein node_modules
+RUN bun build apps/portal/src/main.ts --target bun --outfile /app/portal.js
+
+FROM docker.io/oven/bun:1.4.4-slim
+WORKDIR /app
+COPY --from=build /app/portal.js ./portal.js
+ENV NODE_ENV=production \
+    PORT=3000
+USER bun
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
+  CMD ["bun", "-e", "fetch('http://127.0.0.1:3000/gesund').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+CMD ["bun", "portal.js"]
