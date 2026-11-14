@@ -2163,6 +2163,50 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
 });
 
+test("Vorgabe „Ohne Vorsteuerabzug“: der Beleg folgt ihr und weicht gespeichert ab (#852)", async ({ browser }) => {
+  // Vorgabe in den Firmendaten setzen
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await firma.getByLabel("Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)", { exact: true }).check();
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(firma.getByRole("status")).toContainText("Firmendaten gespeichert.");
+
+  // Ein neuer Beleg zeigt das Kästchen angehakt
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "apotheke.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Linden-Apotheke") }]);
+  await expect(page.getByText("apotheke.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /apotheke\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const ohne = page.getByLabel("Ohne Vorsteuerabzug", { exact: true });
+  await expect(ohne).toBeChecked();
+  await expect(page.getByText(/Vorgabe in den Firmendaten: ohne Vorsteuerabzug/)).toBeVisible();
+
+  // Am Beleg abweichend abgewählt: bleibt nach dem Speichern und Neuladen ab
+  await ohne.uncheck();
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(ohne).not.toBeChecked();
+
+  // Aufräumen: Beleg löschen und Vorgabe zurücknehmen, damit spätere Tests regulär rechnen
+  await page.getByRole("button", { name: "Löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
+  // Danach steht Haben auf dem nächsten offenen Beleg oder in der Liste
+  await page.waitForURL(/\/belege(\/[0-9a-f-]{36})?$/);
+  await go("/einstellungen");
+  await firma.getByLabel("Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)", { exact: true }).uncheck();
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(firma.getByRole("status")).toContainText("Firmendaten gespeichert.");
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/belege",
