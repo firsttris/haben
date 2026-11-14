@@ -48,6 +48,11 @@ function aktive<T extends { id: string; reversesId: string | null }>(rows: T[]):
   return rows.filter((r) => !r.reversesId && !aufgehoben.has(r.id));
 }
 
+/** Der spätere von zwei ISO-Tagen (JJJJ-MM-TT): Der Vergleich läuft über die Schreibweise, nicht über Zahlen. */
+function spaetererTag(a: string, b: string): string {
+  return a.localeCompare(b) < 0 ? b : a;
+}
+
 /**
  * Vorsteuer der Belege, deren Leistung erst nach dem Belegdatum ausgeführt ist (#693). `belege` enthält alle solche
  * Belege, damit die gewöhnliche Abfrage sie nicht zusätzlich nach dem Belegdatum zählt.
@@ -175,7 +180,7 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
         const base = anteil.base - (vorheriger?.base ?? 0);
         const tax = anteil.tax - (vorheriger?.tax ?? 0);
         // Die Rechnung muss vorliegen: nie früher als ihr Datum
-        const tag = z.date < k.datum ? k.datum : z.date;
+        const tag = spaetererTag(z.date, k.datum);
         zeilen.push({
           documentId: k.id,
           date: tag,
@@ -190,7 +195,7 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
         if (storno) {
           zeilen.push({
             documentId: k.id,
-            date: storno > tag ? storno : tag,
+            date: spaetererTag(storno, tag),
             supplier: k.supplier,
             number: `Storno ${k.number}`.trim(),
             rate: anteil.rate,
