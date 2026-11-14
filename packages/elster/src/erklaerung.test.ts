@@ -164,6 +164,19 @@ describe("Umsatzsteuererklärung (E50)", () => {
     expect(tag(xml, "E3010201")).toBe("0,00");
   });
 
+  it("schreibt Umsatzsteuer/Überschuss als 0,00, wenn der verbleibende Betrag 0 ist (USt_30914)", () => {
+    // Nur Leistungen ins EU-Ausland (Kz 21) und ein EU-Abo nach § 13b mit vollem Vorsteuerabzug: Steuer 0
+    const nur13b = { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0, kz21: 3_000_000, kz46: 24_000, kz47: 4_560, kz67: 4_560 };
+    // Umsatzsteuer gleich Vorsteuer
+    const ausgeglichen = { base19: 10_000, tax19: 1_900, base7: 0, tax7: 0, vorsteuer: 1_900, vorauszahlungen: 0 };
+    for (const figures of [nur13b, ausgeglichen]) {
+      const xml = buildUstErklaerungXml({ ...base, versteuerung: "ist", figures });
+      expect(tag(xml, "E3010201")).toBe("0,00");
+      // Regel USt_30914: Ist E3010201 angegeben, muss E3010601 angegeben sein (auch mit 0)
+      expect(tag(xml, "E3010601")).toBe("0,00");
+    }
+  });
+
   it("schreibt ein Jahr mit nur ergänzenden Angaben ohne Berechnungszeilen", () => {
     const xml = buildUstErklaerungXml({
       ...base,
