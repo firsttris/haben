@@ -213,7 +213,7 @@ function AppLayout() {
                     firma={firma ?? null}
                     openFlyout={openFlyout}
                     onFlyoutOpen={(key, weg) => setOpenFlyout({ key, weg })}
-                    onFlyoutClose={() => setOpenFlyout(null)}
+                    onFlyoutClose={(key) => setOpenFlyout((offen) => (offen?.key === key ? null : offen))}
                   />
                 </div>
               </>

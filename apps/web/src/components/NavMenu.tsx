@@ -51,7 +51,8 @@ interface NavBodyProps extends CollapseButtonProps {
   userMeta: string;
   openFlyout: { key: string; weg: FlyoutWeg } | null;
   onFlyoutOpen: (key: string, weg: FlyoutWeg) => void;
-  onFlyoutClose: () => void;
+  /** Schließt nur das Flyout mit diesem Schlüssel, nie ein inzwischen geöffnetes anderes */
+  onFlyoutClose: (key: string) => void;
   onSignOut: () => void;
 }
 
@@ -121,7 +122,7 @@ export function NavRailBody({
   const flyout = (key: string) => ({
     open: openFlyout?.key === key ? openFlyout.weg : null,
     onOpen: (weg: FlyoutWeg) => onFlyoutOpen(key, weg),
-    onClose: onFlyoutClose,
+    onClose: () => onFlyoutClose(key),
   });
   return (
     <>

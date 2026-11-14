@@ -143,6 +143,10 @@ export function NavFlyout({ label, icon, active, open, onOpen, onClose, zusatz, 
     zeigerVerfolgen();
     return () => clearTimeout(timer.current);
   }, []);
+  // Geht das Flyout von außen zu (eine andere Gruppe öffnet), verfällt ein noch laufender Verzug
+  useEffect(() => {
+    if (open === null) clearTimeout(timer.current);
+  }, [open]);
 
   function zeigerRein(event: PointerEvent) {
     if (event.pointerType !== "mouse") return;
