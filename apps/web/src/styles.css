@@ -820,7 +820,9 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .amount-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: end; }
 /* Beleg mit Brutto (#917): Satz, Netto, Vorsteuer, Brutto, Entfernen */
 .amount-row.with-gross { grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 40px; }
-.split-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 40px; gap: 8px; align-items: end; }
+/* Oben ausgerichtet: Ein Fehler unter einem Feld verschiebt sonst die Felder daneben */
+.split-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 40px; gap: 8px; align-items: start; }
+.split-row .icon-btn { margin-top: 26px; }
 .split-row select, .split-row input { width: 100%; min-width: 0; }
 .amount-row input, .amount-row select { width: 100%; min-width: 0; }
 /* Aufteilung eines Belegs (#271): Kategorie, Satz, Netto mit Vorsteuer darunter, Entfernen */

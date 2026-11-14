@@ -18,13 +18,14 @@ import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
-import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
+import { BEZUGSJAHR_FEHLER, SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
 import { KategorieFelder, kategorieWahlFuer, type KategorieOptionen, type KategorieWahl } from "../../components/KategorieFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import { PURPOSE_SHORT } from "../../lib/kontozweck.ts";
 import { useAction } from "../../lib/use-action.ts";
+import { useSubmitCheck } from "../../lib/use-submit-check.ts";
 import {
   addBankAccount,
   addProviderAccount,
@@ -389,6 +390,7 @@ function AccountSettings({
   const [name, setName] = useState(account.name);
   const [purpose, setPurpose] = useState(account.purpose);
   const { busy, notice, run } = useAction();
+  const { form, error, check } = useSubmitCheck({ name: name.trim() === "" ? "Trag einen Namen ein." : null });
 
   if (!editing) {
     return (
@@ -407,6 +409,7 @@ function AccountSettings({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!check()) return;
     void run(async () => {
       await updateFn({ data: { id: account.id, name, purpose: purpose === "zahlungsdienstleister" ? undefined : purpose } });
       // Konto fest in die Adresse: ohne „konto“ zeigt die Seite das alphabetisch erste, nach dem Umbenennen ein anderes
@@ -417,8 +420,15 @@ function AccountSettings({
   }
 
   return (
-    <form onSubmit={onSubmit} className="stack" style={{ gap: 8, margin: "8px 0 16px", maxWidth: 480 }} aria-label="Name und Zweck des Kontos">
-      <Field label="Name des Kontos">
+    <form
+      ref={form}
+      onSubmit={onSubmit}
+      className="stack"
+      style={{ gap: 8, margin: "8px 0 16px", maxWidth: 480 }}
+      aria-label="Name und Zweck des Kontos"
+      noValidate
+    >
+      <Field label="Name des Kontos" error={error("name")}>
         {(control) => <input {...control} value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} autoFocus />}
       </Field>
       {account.purpose !== "zahlungsdienstleister" && (
@@ -453,7 +463,7 @@ function AccountSettings({
         >
           Abbrechen
         </button>
-        <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()}>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
           Speichern
         </button>
       </div>
@@ -666,6 +676,21 @@ function ConnectForm({
   // erste. Ohne diesen Rückfall sah die einzige Bank nach der Suche gewählt aus, der Knopf blieb aber grau, und ein
   // Klick auf sie änderte nichts, weil der Browser sie schon für gewählt hielt (#555)
   const bank = visible.find((b) => b.name === selected) ?? visible[0];
+  const {
+    form,
+    error: fehler,
+    check,
+  } = useSubmitCheck({
+    bank: bank
+      ? null
+      : banks === null
+        ? "Die Liste der Banken lädt noch."
+        : query.trim()
+          ? `Keine Bank passt zu „${query.trim()}“. Ändere die Suche.`
+          : "Keine Bank verfügbar.",
+    // Leer heißt Vorgabe (fetchFromForConnect); max prüft der Browser mit noValidate nicht mehr
+    fetchFrom: fetchFrom > today ? `Wähle einen Tag bis ${formatDate(today)} oder lass das Feld leer.` : null,
+  });
 
   // Fällt die gewählte Bank aus den Treffern, rückt der erste Treffer nach und bleibt, wenn die Suche wieder weiter wird
   function onQueryChange(value: string) {
@@ -683,7 +708,7 @@ function ConnectForm({
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!bank || busy) return;
+    if (busy || !check() || !bank) return;
     setBusy(true);
     setError(null);
     try {
@@ -696,7 +721,7 @@ function ConnectForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="stack" style={{ gap: 12, maxWidth: 560 }}>
+    <form ref={form} onSubmit={onSubmit} className="stack" style={{ gap: 12, maxWidth: 560 }} noValidate>
       <Field label="Bank suchen">
         {(control) => (
           <input
@@ -710,7 +735,7 @@ function ConnectForm({
           />
         )}
       </Field>
-      <Field label="Bank">
+      <Field label="Bank" error={fehler("bank")}>
         {(control) => (
           <select {...control} size={8} value={bank?.name ?? ""} onChange={(e) => setSelected(e.target.value)} required aria-busy={banks === null}>
             {banks === null && !error && <option disabled>Lade Banken …</option>}
@@ -737,6 +762,7 @@ function ConnectForm({
       )}
       <Field
         label="Umsätze abrufen ab"
+        error={fehler("fetchFrom")}
         hint={
           <>
             Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon da sind (etwa aus
@@ -761,7 +787,7 @@ function ConnectForm({
         <button type="button" className="btn" onClick={onCancel} disabled={busy}>
           Abbrechen
         </button>
-        <button type="submit" className="btn btn-primary" disabled={!bank || busy}>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? "Weiterleiten …" : "Weiter zur Bank"}
         </button>
       </div>
@@ -1012,11 +1038,27 @@ function AllocationPanel({
       else await router.invalidate();
     });
 
+  const selectedCandidate = candidates.find((c) => `${c.type}:${c.id}` === candidate);
+  const {
+    form: panel,
+    error,
+    check,
+  } = useSubmitCheck({
+    amount: parsedAmount === null ? "Trag den Betrag ein, etwa 120,50." : parsedAmount === 0 ? "Der Betrag darf nicht 0 sein." : null,
+    candidate:
+      mode !== "other" || selectedCandidate
+        ? null
+        : candidates.length > 0
+          ? "Wähle eine Rechnung, einen Beleg oder eine Voranmeldung."
+          : "Hier gibt es nichts zuzuordnen; buche den Umsatz direkt oder teile ihn auf.",
+    jahr: mode === "direct" && directKind === "steuer" && !steuerangabe(steuer) ? BEZUGSJAHR_FEHLER : null,
+  });
+
   // Zahlung in der Skontofrist um genau das Skonto gekürzt: zuordnen und den Rest gleich als gewährtes Skonto ausbuchen
   const skontoRest = mode === "best" && best?.skonto && best.item.type === "invoice" && signedAmount === tx.open ? best.skonto : 0;
 
   function submitAllocation() {
-    if (signedAmount === null || signedAmount === 0) return;
+    if (!check() || signedAmount === null) return;
     const completes = signedAmount === tx.open;
     if (skontoRest !== 0 && best) {
       return runAndAdvance(() => restFn({ data: { transactionId: tx.id, target: { kind: "invoice", invoiceId: best.item.id }, rest: "skonto" } }), true);
@@ -1055,7 +1097,6 @@ function AllocationPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [tx.open]);
 
-  const selectedCandidate = candidates.find((c) => `${c.type}:${c.id}` === candidate);
   // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
   const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
@@ -1101,7 +1142,7 @@ function AllocationPanel({
   }
 
   return (
-    <aside className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
+    <aside ref={panel} className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
         <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
@@ -1231,6 +1272,7 @@ function AllocationPanel({
             <Field
               label="Rechnung, Beleg oder Voranmeldung"
               hint={candidates.length === 0 && "Keine offenen Rechnungen, gebuchten Belege oder Voranmeldungen in dieser Richtung."}
+              error={error("candidate")}
             >
               {(control) => (
                 <select
@@ -1322,13 +1364,15 @@ function AllocationPanel({
             </Field>
           )}
 
-          {mode === "direct" && directKind === "steuer" && <SteuerFelder options={steuerOptionen} value={steuer} onChange={setSteuer} />}
+          {mode === "direct" && directKind === "steuer" && (
+            <SteuerFelder options={steuerOptionen} value={steuer} onChange={setSteuer} jahrFehler={error("jahr")} />
+          )}
           {mode === "direct" && directKind === "darlehen" && <DarlehenFelder options={darlehenOptionen} value={darlehen} onChange={setDarlehen} />}
           {mode === "direct" && directKind === "kategorie" && (
             <KategorieFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
           )}
 
-          <Field label="Betrag">
+          <Field label="Betrag" error={error("amount")}>
             {(control) => (
               <input
                 {...control}
@@ -1336,7 +1380,6 @@ function AllocationPanel({
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                aria-invalid={parsedAmount === null}
                 style={{ textAlign: "right" }}
               />
             )}
@@ -1358,13 +1401,8 @@ function AllocationPanel({
               type="button"
               className="btn btn-primary"
               style={{ flexGrow: 1 }}
-              disabled={
-                busy ||
-                signedAmount === null ||
-                (mode === "other" && !selectedCandidate) ||
-                (mode === "direct" && directKind === "steuer" && !steuerangabe(steuer)) ||
-                (mode === "direct" && directKind === "darlehen" && !darlehen.loanId)
-              }
+              // Ohne Darlehen steht „Noch kein Darlehen angelegt“ mit Link darüber (DESIGN.md, Gesperrte Knöpfe)
+              disabled={busy || (mode === "direct" && directKind === "darlehen" && !darlehen.loanId)}
               onClick={() => void submitAllocation()}
             >
               {mode === "direct" ? "Buchen" : skontoRest !== 0 ? `Zuordnen, Rest ${formatEuro(Math.abs(skontoRest))} als Skonto` : "Zuordnen"}
@@ -1523,15 +1561,31 @@ function SplitForm({
   const parsed = rows.map((r) => parseEuro(r.amount));
   const sum = parsed.reduce<number>((s, p) => s + (p ?? 0), 0);
   const rest = tx.open - sum;
-  const complete =
-    rows.every(
-      (r, i) =>
-        r.target &&
-        parsed[i] !== null &&
-        parsed[i] !== 0 &&
-        (r.target !== "steuer" || steuerangabe(r.steuer) !== null) &&
-        (r.target !== "darlehen" || r.darlehen.loanId !== ""),
-    ) && rest === 0;
+  // Je Teil Ziel, Betrag und Bezugsjahr; was zur Summe fehlt, steht am Betrag des letzten Teils
+  const { form, error, check } = useSubmitCheck(
+    Object.fromEntries(
+      rows.flatMap((r, i) => [
+        [
+          `ziel-${r.key}`,
+          !r.target ? "Wähle, wohin der Teil gebucht wird." : r.target === "darlehen" && !r.darlehen.loanId ? "Noch kein Darlehen angelegt." : null,
+        ],
+        [
+          `betrag-${r.key}`,
+          parsed[i] === null
+            ? "Trag den Betrag ein, etwa -120,50."
+            : parsed[i] === 0
+              ? "Der Betrag darf nicht 0 sein."
+              : i === rows.length - 1 && rest !== 0
+                ? // rest mit dem Vorzeichen des Umsatzes fehlt noch, mit dem anderen ist zu viel verteilt
+                  Math.sign(rest) === Math.sign(tx.open)
+                  ? `Zusammen fehlen noch ${signed(rest)} €.`
+                  : `Zusammen sind ${formatDecimal(Math.abs(rest))} € zu viel verteilt.`
+                : null,
+        ],
+        [`jahr-${r.key}`, r.target === "steuer" && !steuerangabe(r.steuer) ? BEZUGSJAHR_FEHLER : null],
+      ]),
+    ) as Record<string, string | null>,
+  );
 
   function update(key: number, patch: Partial<SplitRow>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -1549,12 +1603,14 @@ function SplitForm({
 
   return (
     <form
+      ref={form}
       className="stack"
       style={{ gap: 10 }}
       aria-label="Umsatz aufteilen"
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        if (!complete) return;
+        if (!check()) return;
         onSubmit(rows.map((r, i) => toPart(r, parsed[i]!)));
       }}
     >
@@ -1565,7 +1621,7 @@ function SplitForm({
       </p>
       {rows.map((row, index) => (
         <div key={row.key} className="split-row">
-          <Field label={<>Teil {index + 1}</>}>
+          <Field label={<>Teil {index + 1}</>} error={error(`ziel-${row.key}`)}>
             {(control) => (
               <select
                 {...control}
@@ -1594,7 +1650,7 @@ function SplitForm({
               </select>
             )}
           </Field>
-          <Field label="Betrag">
+          <Field label="Betrag" error={error(`betrag-${row.key}`)}>
             {(control) => (
               <input
                 {...control}
@@ -1603,7 +1659,6 @@ function SplitForm({
                 value={row.amount}
                 placeholder="-0,00"
                 onChange={(e) => update(row.key, { amount: e.target.value })}
-                aria-invalid={parsed[index] === null}
                 style={{ textAlign: "right" }}
               />
             )}
@@ -1621,7 +1676,12 @@ function SplitForm({
           </button>
           {row.target === "steuer" && (
             <div style={{ gridColumn: "1 / -1" }}>
-              <SteuerFelder options={steuerOptionen} value={row.steuer} onChange={(steuer) => update(row.key, { steuer })} />
+              <SteuerFelder
+                options={steuerOptionen}
+                value={row.steuer}
+                onChange={(steuer) => update(row.key, { steuer })}
+                jahrFehler={error(`jahr-${row.key}`)}
+              />
             </div>
           )}
           {row.target === "darlehen" && (
@@ -1658,7 +1718,7 @@ function SplitForm({
         <button type="button" className="btn" onClick={onCancel} disabled={busy}>
           Abbrechen
         </button>
-        <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }} disabled={busy || !complete}>
+        <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }} disabled={busy}>
           Aufteilen und buchen
         </button>
       </div>
