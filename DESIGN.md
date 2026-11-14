@@ -79,7 +79,7 @@ Gibt es Instanzen anderer Firmen (`HABEN_FIRMEN`, #504), steht direkt unter der 
 
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
 
-**Scrollleiste:** Übersteigt die Navigation (`.nav`, am Handy `.nav-body` sowie `.firma-liste`) die Bildschirmhöhe, rollt sie eigenständig mit einer 10px breiten, barrierefreien Bildlaufleiste (Daumen-Radius 5px auf transparentem Hintergrund; `@supports not selector(::-webkit-scrollbar)` setzt `scrollbar-width: thin` und `scrollbar-color` für Firefox, damit Chromium die gestylten Regeln nicht überdeckt). Der Daumen nutzt `color-mix(in srgb, var(--nav-ink) 55%, transparent)` und erreicht damit in allen Farbschemata mindestens 3,5:1 Kontrast gegen `--nav` (WCAG 1.4.11 AA); beim Überfahren verstärkt er sich auf 80 % und beim Ziehen leuchtet er in `var(--brand)`. `color-scheme: dark` verhindert weiße Systemflächen, `@media (forced-colors: active)` bindet `ButtonFace` und `Highlight` an, `overscroll-behavior-y: contain` fängt Durchscrollen auf Touchgeräten ab und `scroll-padding: 8px 0` hält fokussierte Links beim Tabben mit Abstand zum Rand sichtbar.
+Ist die Navigation höher als das Fenster, bleibt am Desktop die Marke mit dem Firmennamen stehen und nur die Menüpunkte darunter rollen. Die Leiste ist schmal, erscheint nur beim Rollen, wo das System es so vorsieht, und hat in `--nav-ink` mindestens 3 : 1 gegen `--nav`.
 
 ### Kennzahlen
 

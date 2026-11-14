@@ -140,7 +140,7 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 /* Shell */
 .shell { display: flex; min-height: 100vh; }
 /* Navigation bleibt am Fenster stehen: sonst wächst sie mit langen Seiten mit und der Fuß rutscht nach unten */
-.nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; height: 100dvh; overflow-y: auto; overscroll-behavior-y: contain; scroll-padding: 8px 0; color-scheme: dark; }
+.nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; height: 100dvh; overflow: hidden; }
 /* Rechts ohne Innenabstand: Der Platz geht an den Namen, die 40px große Kachel kostet ihn so nicht (#504) */
 .brand { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 0 28px 12px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
 .brand:hover { color: #fff; }
@@ -192,27 +192,18 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 @media (max-width: 860px) { [data-mode="dark"] .nav { border-right: 0; border-bottom: 1px solid var(--line); } }
 .nav-toggle { display: none; }
 
-/* Scrollbalken der Navigation: 10px für gute Treffbarkeit, WCAG 1.4.11 AA (>= 3:1 Kontrast) und Systemfarben.
-   Standard-Eigenschaften nur dort setzen, wo :-webkit-scrollbar fehlt (Firefox), sonst unterdrückt Chromium sie. */
-@supports not selector(::-webkit-scrollbar) {
-  .nav, .nav-body, .firma-liste { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--nav-ink) 55%, transparent) transparent; }
-  @media (forced-colors: active) {
-    .nav, .nav-body, .firma-liste { scrollbar-color: ButtonFace transparent; }
-  }
+/* Unter der Marke rollt nur .nav-body, so bleibt der Firmenname stehen. Der Rand reicht bis an die Kanten der
+   Navigation, damit die Leiste außen sitzt und der Fokusring nicht abgeschnitten wird */
+@media (min-width: 861px) {
+  .nav-body { min-height: 0; overflow-y: auto; margin: -4px -16px -24px; padding: 4px 16px 24px; }
 }
-.nav::-webkit-scrollbar, .nav-body::-webkit-scrollbar, .firma-liste::-webkit-scrollbar { width: 10px; height: 10px; }
-.nav::-webkit-scrollbar-track, .nav-body::-webkit-scrollbar-track, .firma-liste::-webkit-scrollbar-track { background: transparent; }
-.nav::-webkit-scrollbar-thumb, .nav-body::-webkit-scrollbar-thumb, .firma-liste::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--nav-ink) 55%, transparent); border-radius: 5px; }
-.nav::-webkit-scrollbar-thumb:hover, .nav-body::-webkit-scrollbar-thumb:hover, .firma-liste::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--nav-ink) 80%, transparent); }
-.nav::-webkit-scrollbar-thumb:active, .nav-body::-webkit-scrollbar-thumb:active, .firma-liste::-webkit-scrollbar-thumb:active { background-color: var(--brand); }
-@media (forced-colors: active) {
-  .nav::-webkit-scrollbar-thumb, .nav-body::-webkit-scrollbar-thumb, .firma-liste::-webkit-scrollbar-thumb { background-color: ButtonFace; }
-  .nav::-webkit-scrollbar-thumb:hover, .nav-body::-webkit-scrollbar-thumb:hover, .firma-liste::-webkit-scrollbar-thumb:hover, .nav::-webkit-scrollbar-thumb:active, .nav-body::-webkit-scrollbar-thumb:active, .firma-liste::-webkit-scrollbar-thumb:active { background-color: Highlight; }
-}
+/* Schmale Leiste nur beim Rollen; der Daumen hat mindestens 3 : 1 gegen --nav (WCAG 1.4.11). color-scheme hilft
+   Browsern ohne scrollbar-color, im Kontrastmodus gilt die Systemleiste */
+.nav-body, .firma-liste { overscroll-behavior-y: contain; scroll-padding: 8px 0; color-scheme: dark; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--nav-ink) 55%, transparent) transparent; }
 
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
-  .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow-y: visible; }
+  .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow: visible; }
   /* Am Handy nimmt der Firmenname eine Zeile unter „Haben“ (22 + 16px), damit die Leiste --nav-height hoch bleibt;
      er wird gekürzt */
   /* Rechts 8px Abstand zum Menüknopf */
@@ -225,7 +216,7 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .nav-toggle { flex-shrink: 0; }
   .nav-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--nav-active); border-radius: 8px; background: none; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
   .nav-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-  .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); max-height: calc(100dvh - 64px); overflow-y: auto; overscroll-behavior-y: contain; scroll-padding: 8px 0; color-scheme: dark; }
+  .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); max-height: calc(100dvh - 64px); overflow-y: auto; }
   .nav.open .nav-body { display: flex; }
   .nav-link[aria-disabled="true"] { display: none; }
   .nav-spacer { display: none; }
