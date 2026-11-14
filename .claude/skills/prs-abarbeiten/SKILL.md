@@ -1,6 +1,6 @@
 ---
 name: "prs-abarbeiten"
-description: "Die offenen Pull Requests an Haben als Maintainer der Reihe nach abarbeiten: alle, die nicht Draft sind, als Rangliste von „am einfachsten zu mergen“ bis „wartet auf den Autor“, dann von oben nach unten je Pull Request beitrag-pruefen in einem frischen Agenten, Fixes auf den Branch, Befunde posten, bei grüner CI mergen und danach wieder von vorn. Bei Steuer, Buchung, ELSTER und GoBD erst nach OK des Maintainers. Wenn der Maintainer sagt „arbeite die Pull Requests ab“, „was können wir mergen?“ oder „gibt es Neues?“."
+description: "Die offenen Pull Requests an Haben als Maintainer der Reihe nach abarbeiten: alle, die nicht Draft sind, als Rangliste von „am einfachsten zu mergen“ bis „wartet auf den Autor“, dann von oben nach unten je Pull Request beitrag-pruefen in einem frischen Agenten, Fixes auf den Branch, Befunde posten, bei grüner CI mergen und danach wieder von vorn. Bei Steuer, Buchung, ELSTER und GoBD erst nach OK des Maintainers. Wenn der Maintainer sagt „arbeite die Pull Requests ab“; auf eine Frage wie „was können wir mergen?“ nur die Rangliste."
 ---
 
 # Pull Requests abarbeiten
@@ -35,6 +35,8 @@ Von oben nach unten, wie einfach der Merge ist:
 Gleich einfache Pull Requests nach Alter. Belegen zwei dieselbe Migrationsnummer, kommt der fertigere zuerst; der andere erzeugt seine Migration nach dem Merge neu.
 
 Die Rangliste geht als Tabelle an den Maintainer, mit einer Zeile je Pull Request: Platz, Nummer, Titel, Stand, nächster Schritt.
+
+Hat der Maintainer nur gefragt, endet der Skill hier; Schritt 3 erst auf sein Wort.
 
 ## 3. Von oben nach unten
 
