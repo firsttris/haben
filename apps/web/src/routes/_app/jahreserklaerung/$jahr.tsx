@@ -249,9 +249,12 @@ const hatErklaert = (zeilen: Record<string, number>) => Object.keys(zeilen ?? {}
  * vorliegt: Was beim Finanzamt liegt, ist die Wahrheit, nicht was Haben aus unvollständigen
  * Buchungen rechnet.
  */
-function ErklaerteZeilen({ zeilen, reihenfolge }: { zeilen: Record<string, number>; reihenfolge: readonly [string, string][] }) {
+function ErklaerteZeilen({ zeilen, reihenfolge, kern }: { zeilen: Record<string, number>; reihenfolge: readonly [string, string][]; kern: readonly string[] }) {
   const vorhanden = reihenfolge.filter(([feld]) => feld in zeilen);
-  return (
+  const sichtbar = vorhanden.filter(([feld]) => kern.includes(feld));
+  const rest = vorhanden.filter(([feld]) => !kern.includes(feld));
+
+  const tabelle = (rows: readonly [string, string][], letzteHervorheben: boolean) => (
     <table className="report-table stack-table">
       <thead>
         <tr>
@@ -262,11 +265,24 @@ function ErklaerteZeilen({ zeilen, reihenfolge }: { zeilen: Record<string, numbe
         </tr>
       </thead>
       <tbody>
-        {vorhanden.map(([feld, label], i) => (
-          <Row key={feld} label={label} kz={feld} value={formatEuro(zeilen[feld] ?? 0)} total={i === vorhanden.length - 1} />
+        {rows.map(([feld, label], i) => (
+          <Row key={feld} label={label} kz={feld} value={formatEuro(zeilen[feld] ?? 0)} total={letzteHervorheben && i === rows.length - 1} />
         ))}
       </tbody>
     </table>
+  );
+
+  return (
+    <>
+      {/* Der Kern steht immer: das Ergebnis, an dem die Erklärung geprüft wird */}
+      {tabelle(sichtbar, rest.length === 0)}
+      {rest.length > 0 && (
+        <details>
+          <summary className="small muted">Alle {vorhanden.length} Zeilen laut Übermittlungsprotokoll</summary>
+          <div style={{ marginTop: 8 }}>{tabelle(rest, true)}</div>
+        </details>
+      )}
+    </>
   );
 }
 
@@ -283,7 +299,7 @@ function UstSection({ data }: { data: Data }) {
           <SentPill sent={ust.sent} submitted={ust.submitted} />
         </div>
         <Issues issues={ust.issues} />
-        {hatErklaert(ust.erklaert) && <ErklaerteZeilen zeilen={ust.erklaert} reihenfolge={UST_ZEILEN} />}
+        {hatErklaert(ust.erklaert) && <ErklaerteZeilen zeilen={ust.erklaert} reihenfolge={UST_ZEILEN} kern={["kz22", "kz87", "kz119", "kz120"]} />}
         {!hatErklaert(ust.erklaert) && (
           <table className="report-table stack-table">
             <thead>
@@ -357,7 +373,7 @@ function EuerSection({ data }: { data: Data }) {
           <SentPill sent={euer.sent} submitted={euer.submitted} />
         </div>
         <Issues issues={euer.issues} />
-        {hatErklaert(euer.erklaert) && <ErklaerteZeilen zeilen={euer.erklaert} reihenfolge={EUER_ZEILEN} />}
+        {hatErklaert(euer.erklaert) && <ErklaerteZeilen zeilen={euer.erklaert} reihenfolge={EUER_ZEILEN} kern={["einnahmen", "ausgaben", "gewinn"]} />}
         {!hatErklaert(euer.erklaert) && (
           <ScrollTable className="report-table">
             <thead>
