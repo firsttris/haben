@@ -12,7 +12,6 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
   let figures: typeof import("./vat-figures.ts");
   let bank: typeof import("../bank/index.ts");
   let documents: typeof import("../belege/documents.ts");
-  let cancellation: typeof import("../belege/cancellation.ts");
   let sql: postgres.Sql;
   const actor = "leistungsdatum-review";
   let lauf = 0;
@@ -23,7 +22,6 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     figures = await import("./vat-figures.ts");
     bank = await import("../bank/index.ts");
     documents = await import("../belege/documents.ts");
-    cancellation = await import("../belege/cancellation.ts");
   }, 60_000);
 
   afterAll(async () => {
@@ -46,7 +44,6 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
   }
 
   type Betrag = { taxRate: 700 | 1900; net: number; tax: number };
-
 
   /** Gebuchter Eingangsbeleg; Leistungszeitraum nur, wenn angegeben */
   async function beleg(input: {
