@@ -59,6 +59,7 @@ const PATHS = {
       <path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6" />
     </>
   ),
+  company: <path d="M4 21V5a1 1 0 0 1 1-1h8v17M13 10h6a1 1 0 0 1 1 1v10M3 21h18M8 8h2M8 12h2M8 16h2M16 14h2M16 18h2" />,
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />

@@ -106,6 +106,7 @@ export default defineConfig({
         "firmenname.spec.ts",
         "gestaltung.spec.ts",
         "layouts.spec.ts",
+        "nav-einfahrbar.spec.ts",
         "handy-felder.spec.ts",
         "bank-sortierung.spec.ts",
         "basiszinssatz.spec.ts",
