@@ -76,6 +76,8 @@ import { NavMarkCard } from "../../components/NavMarkCard.tsx";
 import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
+import { UnitsCard } from "../../components/UnitsCard.tsx";
+import { getUnits } from "../../server/functions/units.ts";
 import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
@@ -109,6 +111,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       extraction,
       quoteDefaultAttachments,
       stichjahr,
+      units,
     ] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
@@ -134,6 +137,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
       getStichjahr(),
+      getUnits(),
     ]);
     return {
       ...company,
@@ -162,6 +166,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       extraction,
       quoteDefaultAttachments,
       stichjahr,
+      units,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -196,6 +201,7 @@ function SettingsPage() {
     extraction,
     quoteDefaultAttachments,
     stichjahr,
+    units,
   } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const areas = settingsAreas(oidc.only);
@@ -240,6 +246,7 @@ function SettingsPage() {
                 quoteRunning={company.quoteCounterRunning}
                 date={numbering.invoice.date}
               />
+              <UnitsCard units={units} />
               <PlanTemplatesCard templates={company.paymentPlanTemplates} />
               <InvoiceAttachments kind="standard" attachments={quoteDefaultAttachments} editable />
               <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} date={numbering.invoice.date} />

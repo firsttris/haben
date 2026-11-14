@@ -77,6 +77,7 @@ export * from "./personenkonten.ts";
 export * from "./telefon.ts";
 export * from "./accent.ts";
 export * from "./footer-template.ts";
+export * from "./units.ts";
 export * from "./letterhead-design.ts";
 export * from "./text-format.ts";
 export * from "./text-format-edit.ts";

@@ -16,6 +16,7 @@ import type { z } from "zod";
 import type { Db, Tx } from "../../db/index.ts";
 import { schema } from "../../db/index.ts";
 import { type ArticleInput, articleInputSchema, insertArticle } from "./articles.ts";
+import { listUnits } from "./units.ts";
 import { type ContactInput, contactSchema, insertContact } from "./contacts.ts";
 
 /*
@@ -80,7 +81,8 @@ async function articleKeysInStock(q: Db | Tx) {
 }
 
 export async function planArticleImport(q: Db | Tx, table: CsvTable, mapping: ColumnMapping): Promise<PlannedRow<z.output<typeof articleInputSchema>>[]> {
-  const candidates = articleCandidates(table, mapping).map((row) => validated(row, (a) => articleInputSchema.safeParse(a), ARTICLE_FIELDS));
+  const units = (await listUnits(q)).filter((unit) => !unit.archivedAt).map((unit) => unit.label);
+  const candidates = articleCandidates(table, mapping, units).map((row) => validated(row, (a) => articleInputSchema.safeParse(a), ARTICLE_FIELDS));
   return planRows(candidates, await articleKeysInStock(q));
 }
 

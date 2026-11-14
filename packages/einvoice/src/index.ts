@@ -52,3 +52,4 @@ export {
   type IncomingSeller,
   type IncomingTax,
 } from "./incoming.ts";
+export { EINHEITENCODES } from "./codelisten.ts";

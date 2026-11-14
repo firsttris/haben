@@ -82,6 +82,7 @@ function QuotePage() {
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}
         articles={data.articles}
+        units={data.units}
         textBlocks={data.textBlocks}
         attachments={<InvoiceAttachments kind="angebot" ownerId={quote.id} attachments={data.attachments} editable />}
       />

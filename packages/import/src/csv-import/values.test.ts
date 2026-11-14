@@ -72,6 +72,12 @@ describe("parseImportTaxRate, parseImportUnit, parseImportCountry", () => {
     expect(value(parseImportUnit("Liter"))).toMatch(/Einheit: „Liter“/);
   });
 
+  it("erkennt eigene Einheiten (#748) an der Bezeichnung, ohne Rücksicht auf Groß- und Kleinschreibung", () => {
+    expect(value(parseImportUnit("ue", ["UE", "m²"]))).toBe("UE");
+    expect(value(parseImportUnit("m²", ["UE", "m²"]))).toBe("m²");
+    expect(value(parseImportUnit("Karton", ["UE"]))).toMatch(/Std\., Tag, Monat, Stk\., Psch\., km, UE oder eine neue/);
+  });
+
   it("liest Ländercode, ISO-Ziffern und Namen", () => {
     expect(["de", "276", "Deutschland", "Österreich", ""].map((c) => value(parseImportCountry(c)))).toEqual(["DE", "DE", "DE", "AT", "DE"]);
     expect(value(parseImportCountry("Atlantis"))).toMatch(/Ländercode wie DE/);

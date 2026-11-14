@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/rechnungen/wiederkehrend/$id")({
 });
 
 function RecurringDetailPage() {
-  const { recurring, invoices, contacts, textBlocks, defaults } = Route.useLoaderData();
+  const { recurring, invoices, contacts, textBlocks, units, defaults } = Route.useLoaderData();
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveRecurring);
@@ -88,6 +88,7 @@ function RecurringDetailPage() {
           }}
           contacts={contacts}
           textBlocks={textBlocks}
+          units={units}
           kleinunternehmer={defaults.kleinunternehmer}
           busy={busy}
           submitLabel="Speichern"

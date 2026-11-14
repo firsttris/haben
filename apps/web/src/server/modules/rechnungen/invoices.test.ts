@@ -5,6 +5,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   let invoices: typeof import("./invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
+  let units: typeof import("../stammdaten/units.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let contactId: string;
@@ -12,7 +13,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   const line = (unitPrice: number, taxRate: 1900 | 700 | 0 = 1900, quantity = 1000) => ({
     description: "Frontend-Entwicklung",
     quantity,
-    unit: "Std." as const,
+    unit: "Std." as string,
     unitPrice,
     taxRate,
   });
@@ -32,6 +33,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     sql = await setupTestDb();
     invoices = await import("./invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
+    units = await import("../stammdaten/units.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -40,7 +42,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
 
   beforeEach(async () => {
     await leeren(sql)`truncate journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, exchange_rates,
-      company cascade`;
+      units, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
               '198/113/10010', 'DE123456789', 'BY', 'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;
@@ -58,6 +60,24 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
       defaultFormat: null,
     });
     contactId = contact.id;
+  });
+
+  // Eigene Mengeneinheiten (#748): Bezeichnung auf dem Blatt, Code nach UN/ECE Rec. 20/21 im XML (BT-130)
+  it("schreibt eine eigene Einheit mit ihrem Code ins XML, auch nach dem Archivieren und im Storno", async () => {
+    const ue = await units.createUnit(actor, { label: "UE", code: "C62" });
+    const created = await invoices.createDraft(actor, draft([{ ...line(2500, 0, 2000), unit: "UE" }]));
+    await units.setUnitArchived(actor, ue.id, true);
+    const final = await invoices.finalizeInvoice(actor, created.id);
+    expect(final.xml).toMatch(/unitCode="C62"/);
+    expect(final.xml).not.toMatch(/unitCode="(HUR|H87)"/);
+    const storno = await invoices.cancelInvoice(actor, final.id, "2026-10-05");
+    expect((await sql`select xml from invoices where id = ${storno.id}`)[0]!.xml).toMatch(/unitCode="C62"/);
+  });
+
+  it("meldet vor dem Festschreiben eine Einheit ohne Code, etwa aus der REST-API", async () => {
+    const created = await invoices.createDraft(actor, draft([{ ...line(100), unit: "Karton" }]));
+    expect(await invoices.finalizeIssues(created.id)).toContainEqual(expect.stringContaining("Einheit „Karton“"));
+    await expect(invoices.finalizeInvoice(actor, created.id)).rejects.toThrow("Karton");
   });
 
   it("speichert die Beschreibung einer Position, schreibt sie ins XML und übernimmt sie ins Storno", async () => {

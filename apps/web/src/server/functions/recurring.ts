@@ -1,7 +1,7 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { listTextBlocks, loadCompany } from "../modules/stammdaten/index.ts";
+import { listTextBlocks, listUnits, loadCompany } from "../modules/stammdaten/index.ts";
 import { listContacts } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
@@ -18,9 +18,11 @@ import { today } from "../today.ts";
 import { detailId } from "./schemas.ts";
 
 async function formContext() {
-  const [company, textBlocks] = await Promise.all([loadCompany(), listTextBlocks()]);
+  const [company, textBlocks, units] = await Promise.all([loadCompany(), listTextBlocks(), listUnits()]);
   return {
     textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
+    /** Eigene Einheiten (#748), ohne archivierte */
+    units: units.filter((unit) => !unit.archivedAt).map((unit) => unit.label),
     contacts: (await listContacts()).map((c) => ({
       id: c.id,
       name: c.name,

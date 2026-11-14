@@ -90,7 +90,7 @@ Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware
 | Artikelnummer | Artikelnummer, Art.-Nr., Produktnummer | |
 | Bezeichnung | Bezeichnung, Titel, Artikelname, Name | Pflicht |
 | Beschreibung | Beschreibung, Langtext | Mehrzeilig, bis 2000 Zeichen; der Text zur Position |
-| Einheit | Einheit, Mengeneinheit | Std., Tag, Monat, Stk., Psch. oder km, auch ausgeschrieben („Stunde“, „Stück“, „pauschal“). Leer ist Stück |
+| Einheit | Einheit, Mengeneinheit | Std., Tag, Monat, Stk., Psch. oder km, auch ausgeschrieben („Stunde“, „Stück“, „pauschal“), oder eine [eigene Einheit](rechnungen.md#eigene-einheiten) mit ihrer Bezeichnung; eine neue legst du vor dem Import an. Leer ist Stück |
 | Nettopreis | Nettopreis, Preis netto, Einzelpreis, Preis | |
 | Bruttopreis | Bruttopreis, Preis brutto | Nur ohne Nettopreis: dann ein Artikel mit Endpreis |
 | Steuersatz | Umsatzsteuer, Steuersatz, Steuerart, USt, MwSt | Pflicht, ohne stille Vorgabe: Kleinunternehmer brauchen 0 %, alle anderen meist 19 % |

@@ -13,13 +13,11 @@ import {
   SERVICE_PERIOD_MODES,
   servicePeriodFor,
   TAX_TREATMENTS,
-  UNITS,
   type PaymentMethod,
   type PriceMode,
   type RecurringInterval,
   type ServicePeriodMode,
   type TaxTreatment,
-  type UnitLabel,
 } from "@haben/core";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
@@ -32,6 +30,7 @@ import { Icon } from "./Icon.tsx";
 import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
 import { Field } from "./Field.tsx";
+import { unitOptions } from "../lib/units.ts";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 
 type Rate = 1900 | 700 | 0;
@@ -48,7 +47,7 @@ export interface RecurringValues {
   taxTreatment: TaxTreatment;
   exemptionReason: string;
   priceMode: PriceMode;
-  lines: { description: string; detail: string; itemNumber?: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: Rate }[];
+  lines: { description: string; detail: string; itemNumber?: string; quantity: number; unit: string; unitPrice: number; taxRate: Rate }[];
   intervalMonths: RecurringInterval;
   nextDate: string;
   endDate: string | null;
@@ -67,7 +66,7 @@ interface LineState {
   /** Artikelnummer (BT-155), geht in jede Rechnung aus der Vorlage */
   itemNumber: string;
   quantity: string;
-  unit: UnitLabel;
+  unit: string;
   unitPrice: string;
   taxRate: Rate;
 }
@@ -79,6 +78,7 @@ export function RecurringForm({
   initial,
   contacts,
   textBlocks = [],
+  units = [],
   kleinunternehmer,
   busy,
   submitLabel,
@@ -89,6 +89,8 @@ export function RecurringForm({
   contacts: ContactChoice[];
   /** Kopf- und Fußtexte zum Einfügen */
   textBlocks?: TextBlockOption[];
+  /** Eigene Einheiten (#748) neben den festen */
+  units?: readonly string[];
   kleinunternehmer: boolean;
   busy: boolean;
   submitLabel: string;
@@ -440,12 +442,8 @@ export function RecurringForm({
                 </LineCell>
                 <LineCell label="Einheit">
                   {/* biome-ignore lint/plugin: Zeile einer Positionstabelle: Spaltenkopf und aria-label benennen die Zelle, ein Feldname je Zelle gäbe jeder Zeile eine Hülle `.field` */}
-                  <select
-                    aria-label={`Einheit Position ${index + 1}`}
-                    value={line.unit}
-                    onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
-                  >
-                    {Object.keys(UNITS).map((unit) => (
+                  <select aria-label={`Einheit Position ${index + 1}`} value={line.unit} onChange={(e) => updateLine(line.key, { unit: e.target.value })}>
+                    {unitOptions(units, line.unit).map((unit) => (
                       <option key={unit}>{unit}</option>
                     ))}
                   </select>

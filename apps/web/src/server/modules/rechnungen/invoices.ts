@@ -23,6 +23,7 @@ import {
   type PriceMode,
   type TaxTreatment,
   type UnitLabel,
+  UNITS,
   cancellationProblem,
   invoiceEditProblem,
   invoiceListStatus,
@@ -44,7 +45,15 @@ import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
-import { ansprechpartnerSnapshot, type Contact, contactPersonProblem, contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
+import {
+  ansprechpartnerSnapshot,
+  type Contact,
+  contactPersonProblem,
+  contactRoleProblem,
+  loadLetterhead,
+  loadUnitCodes,
+  withCustomLayout,
+} from "../stammdaten/index.ts";
 import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -866,6 +875,8 @@ export function documentFor(
   corrects: { number: string; issueDate: string } | null,
   deducted: { number: string; issueDate: string }[] = [],
   directDebit?: DirectDebit,
+  /** Codes eigener Einheiten (#748) aus loadUnitCodes; feste Einheiten brauchen keinen */
+  unitCodes: Readonly<Record<string, string>> = {},
 ): InvoiceDocument {
   return {
     kind: invoice.kind,
@@ -896,7 +907,8 @@ export function documentFor(
       ...(line.detail ? { detail: line.detail } : {}),
       ...(line.itemNumber ? { itemNumber: line.itemNumber } : {}),
       quantity: line.quantity,
-      unit: line.unit as UnitLabel,
+      unit: line.unit,
+      ...(!Object.hasOwn(UNITS, line.unit) && unitCodes[line.unit] ? { unitCode: unitCodes[line.unit] } : {}),
       unitPrice: line.unitPrice,
       taxRate: line.taxRate,
       net: line.net,
@@ -1072,6 +1084,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
       await deductedRefs(lines, q),
       await directDebitFor(invoice, company, q),
+      await loadUnitCodes(q),
     );
     issues.push(...validateForFormat(preview));
   }
@@ -1158,6 +1171,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null,
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
+    await loadUnitCodes(tx),
   );
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();

@@ -29,6 +29,7 @@ import { backgroundInfo } from "./background.ts";
 import { logoInfo } from "./logo.ts";
 import { contactPersonOptions } from "./contact-persons.ts";
 import { mandateOptions } from "./sepa-mandate.ts";
+import { listUnits } from "./units.ts";
 import { today } from "../../today.ts";
 
 export const companySchema = z
@@ -277,7 +278,7 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
 export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, textBlocks, logo, background, design, mandates, contactPersons] = await Promise.all([
+  const [company, counters, contacts, articles, textBlocks, logo, background, design, mandates, contactPersons, units] = await Promise.all([
     loadCompany(),
     kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
     listContacts(),
@@ -288,6 +289,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     loadDesign(),
     kind === "rechnung" ? mandateOptions(today()) : Promise.resolve([]),
     contactPersonOptions(),
+    listUnits(),
   ]);
   const { name, strasse, plz, ort, email, telefon, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
   return {
@@ -307,6 +309,8 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       priceIncludesTax,
     })),
     textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
+    /** Eigene Einheiten (#748) für die Auswahl in den Positionen, ohne archivierte */
+    units: units.filter((unit) => !unit.archivedAt).map((unit) => unit.label),
     company: {
       name,
       strasse,

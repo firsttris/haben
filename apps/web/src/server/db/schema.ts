@@ -1682,6 +1682,24 @@ export const belegLayouts = pgTable(
   (t) => [uniqueIndex("beleg_layouts_name").on(t.name), check("beleg_layouts_name_laenge", sql`char_length(${t.name}) between 1 and 60`)],
 );
 
+/**
+ * Eigene Mengeneinheiten (#748) neben den festen (UNITS): Bezeichnung auf dem Beleg und Code nach UN/ECE Rec. 20/21 für die
+ * E-Rechnung (BT-130). Nie gelöscht oder umbenannt, nur archiviert: Entwürfe, Artikel und Vorlagen verweisen über die
+ * Bezeichnung darauf, festgeschriebene Rechnungen haben ihr XML schon.
+ */
+export const units = pgTable(
+  "units",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    label: text("label").notNull(),
+    code: text("code").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Groß- und Kleinschreibung zählen nicht: „M²“ und „m²“ wären auf dem Beleg nicht zu unterscheiden
+  (t) => [uniqueIndex("units_label").on(sql`lower(${t.label})`)],
+);
+
 /** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise in Cent, wie eingegeben */
 export const articles = pgTable("articles", {
   id: uuid("id").primaryKey().defaultRandom(),
