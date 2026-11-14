@@ -9,6 +9,11 @@ import { useRecentPalette } from "./use-recent-palette.ts";
 import { Field } from "./Field.tsx";
 import { PaletteListbox } from "./PaletteListbox.tsx";
 import { Icon } from "./Icon.tsx";
+import { Kuerzel } from "./Kuerzel.tsx";
+import type { Taste } from "../lib/tastatur.ts";
+
+/** Öffnet die Befehlspalette von jeder Seite; angezeigt in der Navigation */
+export const PALETTE_KUERZEL: readonly Taste[] = ["mod", "K"];
 
 export interface CommandPaletteProps {
   open: boolean;
@@ -147,13 +152,13 @@ function PaletteFooter() {
   return (
     <div className="cmd-foot" aria-hidden="true">
       <span>
-        <kbd className="cmd-kbd">↑↓</kbd> Navigieren
+        <Kuerzel tasten={["↑↓"]} /> Navigieren
       </span>
       <span>
-        <kbd className="cmd-kbd">Esc</kbd> Schließen
+        <Kuerzel tasten={["Esc"]} /> Schließen
       </span>
       <span>
-        <kbd className="cmd-kbd">↵</kbd> Öffnen
+        <Kuerzel tasten={["↵"]} /> Öffnen
       </span>
     </div>
   );

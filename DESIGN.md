@@ -77,6 +77,10 @@ Ausrichtung: auf der Seite linksbündig an der Kante der Felder, im Dialog recht
 
 Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
 
+### Tastenkürzel
+
+Die Oberfläche zeigt ein Kürzel immer mit `Kuerzel` (`components/Kuerzel.tsx`), je Taste ein Kästchen in der Schriftfarbe der Umgebung; `title`, Hinweistexte und `aria-keyshortcuts` kommen aus `useKuerzelText` und `ariaKuerzel` (`lib/tastatur.ts`). Nie fest „Strg“, „Cmd“ oder „⌘“ schreiben: Die Taste `mod` ist am Mac, iPhone und iPad ⌘, sonst Strg. Der Server kennt das System nicht und zeigt „Strg“, der Browser tauscht beim Laden.
+
 ### Navigation
 
 Oben in der Navigation steht die Marke: das Zeichen und „Haben“ (18px, halbfett). Das Zeichen ist fest quadratisch und voll gefüllt, am Desktop 40px, am Handy 36px, für das „H“ wie für ein Logo (auf weißer Fläche, weil Logos für Papier gemacht sind); ein breites Logo nimmt dem Namen so keinen Platz, und nichts springt, wenn das Bild lädt. Hebt sich ein „H“ in eigener Farbe in einem der Themes nicht mit 3 : 1 von der Navigation ab (WCAG 1.4.11), bekommt die Kachel eine feine helle Innenkante (1px, `--nav-ink` mit 60 % Deckkraft); die Hintergründe der Themes stehen dafür auch in `NAV_BACKGROUNDS` (`packages/core/src/accent.ts`) und müssen mit `--nav` übereinstimmen. Die Kachel steht bündig mit den Symbolen der Menüpunkte, rechts hat die Marke am Desktop keinen Innenabstand, am Handy 8px zur Lupe der Schnellsuche. Hat die Firma in den Firmendaten einen Namen, steht er darunter (13px, mittel, in `--nav-ink`, dem Grau der Menüpunkte, damit „Haben“ die Hauptzeile bleibt), denn er zeigt, in welcher Instanz man bucht (#504). Am Desktop nimmt er bis zu zwei Zeilen, damit auch lange Namen passen, am Handy eine, weil die Leiste dort `--nav-height` (60px) hoch bleibt; was nicht passt, endet mit Auslassungszeichen. Am Desktop klappt der Name dann beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf (Fläche `--nav-active`, weiße Schrift, über den ersten Menüpunkten), Escape und das Verlassen schließen ihn; ein `title` gibt es nicht, weil er nicht zu gestalten und nicht per Tastatur zu erreichen ist.
@@ -89,7 +93,7 @@ Ist die Navigation höher als das Fenster, bleibt am Desktop die Marke mit dem F
 
 ### Befehlspalette
 
-**Schnellsuche** sitzt am Desktop unter der Marke außerhalb des rollenden Menüs, am Handy als Lupe neben **Menü**. `Strg+K` bzw. `Cmd+K` öffnet die Suche auf jeder Seite, solange kein anderer Dialog offen ist.
+**Schnellsuche** sitzt am Desktop unter der Marke außerhalb des rollenden Menüs, am Handy als Lupe neben **Menü**. `Strg+K`, am Mac `⌘+K`, öffnet die Suche auf jeder Seite, solange kein anderer Dialog offen ist.
 
 `CommandPalette` übernimmt Fläche, Rahmen und Hintergrund der Formular-Dialoge. Sie ist bis zu 720px breit und bleibt beim Tippen am selben oberen Abstand. Im Kopf steht ein Feld mit Lupe und eigenem Fokusrahmen. Die Treffer rollen zwischen Kopf und festem Fuß. Am Handy füllt der Dialog den Bildschirm und **Abbrechen** steht neben dem Feld, der Fuß entfällt.
 
@@ -195,7 +199,7 @@ Wird eine Datei sofort hochgeladen, ohne Formular (Belege, Kontoauszüge, Anhän
 
 ### Felder mit Auszeichnungen
 
-Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `FormattedTextarea` eingegeben, nicht mit einer eigenen Werkzeugleiste. Die Knöpfe F, K und U (`.format-bar`) schweben an der Markierung, auf Touchgeräten rechts über dem Feld, weil das System sein Menü an die Auswahl legt. Dazu gelten Strg+B, I und U, am Mac mit Cmd. In der Leiste wechseln die Pfeiltasten den Knopf. Solange die Leiste zu sehen ist, schließt Esc nur sie; ein umgebender Dialog bleibt offen.
+Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `FormattedTextarea` eingegeben, nicht mit einer eigenen Werkzeugleiste. Die Knöpfe F, K und U (`.format-bar`) schweben an der Markierung, auf Touchgeräten rechts über dem Feld, weil das System sein Menü an die Auswahl legt. Dazu gelten Strg+B, I und U, am Mac mit ⌘. In der Leiste wechseln die Pfeiltasten den Knopf. Solange die Leiste zu sehen ist, schließt Esc nur sie; ein umgebender Dialog bleibt offen.
 
 ### Vorschau der Belegeditoren
 
