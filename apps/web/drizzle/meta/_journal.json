@@ -1615,15 +1615,22 @@
     {
       "idx": 230,
       "version": "7",
-      "when": 1794643583834,
-      "tag": "0230_vorsteuer_teilabzug",
+      "when": 1794645219072,
+      "tag": "0230_beleg_leistungszeitraum",
       "breakpoints": true
     },
     {
       "idx": 231,
       "version": "7",
-      "when": 1794643586074,
-      "tag": "0231_outgoing_tax_details",
+      "when": 1794664098066,
+      "tag": "0231_vorsteuer_teilabzug",
+      "breakpoints": true
+    },
+    {
+      "idx": 232,
+      "version": "7",
+      "when": 1794664100221,
+      "tag": "0232_outgoing_tax_details",
       "breakpoints": true
     }
   ]

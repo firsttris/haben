@@ -1,4 +1,4 @@
-import { RECHTSFORMEN, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
+import { RECHTSFORMEN, formatDecimal, formatDeduction, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -10,7 +10,7 @@ import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
-import { ELSTER_KIND_LABEL, elsterNotice } from "../../../lib/elster.ts";
+import { ELSTER_KIND_LABEL, abgabePille, elsterNotice } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
@@ -130,7 +130,15 @@ function Issues({ issues }: { issues: Issue[] }) {
         <div key={issue.text} className={`banner ${issue.tone === "hinweis" ? "banner-info" : ""}`} role="status">
           <Icon name={issue.tone === "hinweis" ? "info" : "alert"} />
           <span>
-            {issue.text} {issue.link && <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>}
+            {issue.text} {/* Ein Zeitraum führt auf den betroffenen Zeitraum statt auf den laufenden (#869) */}
+            {issue.link &&
+              (issue.zeitraum ? (
+                <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: issue.zeitraum }}>
+                  {LINK_LABEL[issue.link]}
+                </Link>
+              ) : (
+                <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>
+              ))}
           </span>
         </div>
       ))}
@@ -165,20 +173,14 @@ function Row({ label, kz, value, extra, total, text }: { label: string; kz?: str
   );
 }
 
-function SentPill({ sent, submitted }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"] }) {
-  if (sent)
-    return (
-      <Status tone="ok" inline detail={`am ${formatDate(sent.createdAt)}`}>
-        Übermittelt
-      </Status>
-    );
-  if (submitted)
-    return (
-      <Status tone="ok" inline detail={submitted.filedOn ? `am ${formatDate(submitted.filedOn)}` : null}>
-        Außerhalb abgegeben
-      </Status>
-    );
-  return <Status inline>Noch nicht übermittelt</Status>;
+/** Stand der Abgabe; `verwaltet` ist false für die Einkommensteuer, für die Haben keinen Vermerk kennt (#869) */
+function SentPill({ sent, submitted, verwaltet }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"]; verwaltet?: boolean }) {
+  const pille = abgabePille({ sent: sent?.createdAt ?? null, submitted, verwaltet });
+  return (
+    <Status tone={pille.ok ? "ok" : undefined} inline>
+      {pille.text}
+    </Status>
+  );
 }
 
 function UstSection({ data }: { data: Data }) {
@@ -218,15 +220,13 @@ function UstSection({ data }: { data: Data }) {
             {ust.igErwerb19 !== 0 && <Row label="Innergemeinschaftliche Erwerbe zu 19 %" extra={formatEuro(ust.igErwerb19)} value="–" />}
             {ust.igErwerb7 !== 0 && <Row label="Innergemeinschaftliche Erwerbe zu 7 %" extra={formatEuro(ust.igErwerb7)} value="–" />}
             {ust.igErwerbVorsteuer !== 0 && (
-              <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" extra="" value={`−${formatEuro(ust.igErwerbVorsteuer)}`} />
+              <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" extra="" value={formatDeduction(ust.igErwerbVorsteuer)} />
             )}
-            {ust.einfuhrumsatzsteuer !== 0 && (
-              <Row label="Entstandene Einfuhrumsatzsteuer (Kz 62)" extra="" value={`−${formatEuro(ust.einfuhrumsatzsteuer)}`} />
-            )}
-            <Row label="Abziehbare Vorsteuer" extra="" value={`−${formatEuro(f.vorsteuer)}`} />
+            {ust.einfuhrumsatzsteuer !== 0 && <Row label="Entstandene Einfuhrumsatzsteuer (Kz 62)" extra="" value={formatDeduction(ust.einfuhrumsatzsteuer)} />}
+            <Row label="Abziehbare Vorsteuer" extra="" value={formatDeduction(f.vorsteuer)} />
             <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
-            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={`−${formatEuro(f.vorauszahlungen)}`} />
-            <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(Math.abs(ust.abschluss))} total />
+            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatDeduction(f.vorauszahlungen)} />
+            <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(ust.abschluss)} total />
           </tbody>
         </table>
         <p className="small muted" style={{ margin: 0 }}>
@@ -464,7 +464,7 @@ function EstSection({ data }: { data: Data }) {
       <form className="card" onSubmit={onSubmit} aria-label="Angaben zur Einkommensteuer">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
           <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
-          <SentPill sent={est.sent} submitted={est.submitted} />
+          <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
         </div>
         <Issues issues={est.issues} />
         <ScrollTable className="report-table">

@@ -50,7 +50,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 
 ## Haben ist, was dir gehört.
 
-**Wir glauben, dass Deutschland und Europa ihre Software selbst in der Hand haben sollten.** 🇩🇪 🇪🇺
+**Digitale Souveränität fängt mit deinen eigenen Büchern an.** 🇩🇪 🇪🇺
 
 Rechnungen schreiben, Belege sammeln, Konto abgleichen, Voranmeldung schicken: Dafür braucht es kein Abo bei
 Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der jede Rechnung sieht. Haben ist die
@@ -311,6 +311,7 @@ Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.h
 | `packages/core` | Beträge, Zeiträume, Voranmeldung, EÜR, Buchungssätze, Zuordnungsvorschläge |
 | `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
 | `packages/elster` | ERiC-Anbindung im Worker-Prozess, XML für Voranmeldung, Jahreserklärungen und Nachrichten, Postfach, Belege von ELSTER |
+| `packages/gobd-kern` | Unveränderbare Ablage nach GoBD ohne Bezug auf Haben: Dateispeicher unter SHA-256, Dateityp, Prüfwert, `index.xml` nach dem Beschreibungsstandard |
 | `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, Commerzbank, C24, N26, Swan, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite): trägt die Werte aus Haben in die Formulare ein |
 

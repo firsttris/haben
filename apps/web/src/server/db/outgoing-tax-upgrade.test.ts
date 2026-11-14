@@ -13,7 +13,7 @@ const MIGRATIONS = fileURLToPath(new URL("../../../drizzle", import.meta.url));
 const TABLES = ["allocations", "cash_entries", "invoices", "quotes", "recurring_invoices"];
 const LEGACY_REASON = "Steuerfreie Heilbehandlung nach § 4 Nr. 14 Buchst. a UStG.";
 const TAX_DETAILS = { exemption: { number: "14", letter: "a" }, ancillary: null, foreignPlace: null, assetDisposal: false };
-const PDF = Buffer.from("%PDF-1.7\nFestgeschriebenes Original vor 0231\n%%EOF");
+const PDF = Buffer.from("%PDF-1.7\nFestgeschriebenes Original vor 0232\n%%EOF");
 const XML = '<?xml version="1.0" encoding="UTF-8"?><Rechnung nummer="2026-001">100.00</Rechnung>';
 const PDF_HASH = createHash("sha256").update(PDF).digest("hex");
 const XML_HASH = createHash("sha256").update(XML).digest("hex");
@@ -29,7 +29,7 @@ interface LegacyIds {
 
 async function lockedEntry(tx: postgres.TransactionSql, source: string, sourceId: string, kontenrahmen: string, debit: string, credit: string, amount: number) {
   const [entry] = await tx`insert into journal_entries(date,description,source_type,source_id,kontenrahmen)
-    values('2026-10-01','Altbestand vor 0231',${source},${sourceId},${kontenrahmen}) returning id`;
+    values('2026-10-01','Altbestand vor 0232',${source},${sourceId},${kontenrahmen}) returning id`;
   const id = entry!.id as string;
   await tx`insert into journal_lines(entry_id,account,debit,credit) values
     (${id},${debit},${amount},0),(${id},${credit},0,${amount})`;
@@ -42,7 +42,7 @@ async function legacyRows(sql: postgres.Sql, kontenrahmen: "SKR03" | "SKR04", ve
   return sql.begin(async (tx) => {
     await tx`select set_config('haben.actor','upgrade:altbestand',true)`;
     await tx`insert into company(id,name,kontenrahmen,versteuerung,journal_ab)
-      values(1,'Musterpraxis vor 0231',${kontenrahmen},${versteuerung},2026)`;
+      values(1,'Musterpraxis vor 0232',${kontenrahmen},${versteuerung},2026)`;
     const [contact] = await tx`insert into contacts(name) values('Musterkunde') returning id`;
     const [invoice] = await tx`insert into invoices(contact_id,issue_date,due_date,tax_treatment,exemption_reason,net,tax,gross,pdf,pdf_sha256,xml,xml_sha256)
       values(${contact!.id},'2026-10-01','2026-10-15','steuerfrei',${LEGACY_REASON},10000,0,10000,${PDF},${PDF_HASH},${XML},${XML_HASH}) returning id`;
@@ -58,9 +58,9 @@ async function legacyRows(sql: postgres.Sql, kontenrahmen: "SKR03" | "SKR04", ve
     await tx`update invoices set status='final',number='2026-001',locked_at=now() where id=${invoiceId}`;
     const [account] = await tx`insert into bank_accounts(name,iban) values('Giro','DE89370400440532013000') returning id`;
     const [imported] = await tx`insert into bank_imports(bank_account_id,filename,sha256,format,added,skipped)
-      values(${account!.id},'alt.csv','upgrade-0231','csv',1,0) returning id`;
+      values(${account!.id},'alt.csv','upgrade-0232','csv',1,0) returning id`;
     const [transaction] = await tx`insert into bank_transactions(bank_account_id,import_id,booking_date,amount,purpose,dedup_hash)
-      values(${account!.id},${imported!.id},'2026-10-01',6000,${LEGACY_REASON},'upgrade-0231') returning id`;
+      values(${account!.id},${imported!.id},'2026-10-01',6000,${LEGACY_REASON},'upgrade-0232') returning id`;
     const [allocation] = await tx`insert into allocations(transaction_id,kind,invoice_id,amount,tax_shares,tax_shares_invoice_id)
       values(${transaction!.id},'invoice',${invoiceId},6000,'[{"rate":0,"net":6000,"tax":0}]',${invoiceId}) returning id`;
     const bankEntry = await lockedEntry(tx, "bank", transaction!.id, kontenrahmen, bankAccount, receivable, 6000);
@@ -145,7 +145,7 @@ describe.skipIf(!testDatabaseUrl)("Migration der Ausgangszuordnung und unveränd
       const full = JSON.parse(readFileSync(join(MIGRATIONS, "meta/_journal.json"), "utf8")) as {
         entries: { idx: number; tag: string; when: number }[];
       };
-      const addition = full.entries.find((entry) => entry.tag === "0231_outgoing_tax_details");
+      const addition = full.entries.find((entry) => entry.tag === "0232_outgoing_tax_details");
       if (!addition) throw new Error("Migration der Ausgangszuordnung fehlt.");
       const older = full.entries.filter((entry) => entry.idx < addition.idx);
       writeFileSync(join(previous, "meta/_journal.json"), JSON.stringify({ ...full, entries: older }));

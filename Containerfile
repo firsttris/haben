@@ -9,6 +9,7 @@ COPY apps/elster-helfer/package.json apps/elster-helfer/
 COPY packages/core/package.json packages/core/
 COPY packages/einvoice/package.json packages/einvoice/
 COPY packages/elster/package.json packages/elster/
+COPY packages/gobd-kern/package.json packages/gobd-kern/
 COPY packages/import/package.json packages/import/
 RUN bun install --frozen-lockfile
 COPY . .

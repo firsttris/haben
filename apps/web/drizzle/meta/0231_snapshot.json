@@ -1,6 +1,6 @@
 {
-  "id": "ec3f4c86-cb88-4957-af09-cb432ec02c76",
-  "prevId": "23ff57f8-2fc2-4f8b-b940-88f71630a73e",
+  "id": "95fdf845-6ce0-4139-ad15-ffe6374d0e37",
+  "prevId": "52827897-7522-43e2-a56a-dadb838b5fa8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -266,12 +266,6 @@
         "tax_rate": {
           "name": "tax_rate",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -2380,12 +2374,6 @@
         "tax_rate": {
           "name": "tax_rate",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -4605,6 +4593,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "service_from": {
+          "name": "service_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "service_to": {
+          "name": "service_to",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "category": {
           "name": "category",
           "type": "text",
@@ -6789,12 +6789,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
-        },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "price_mode": {
           "name": "price_mode",
@@ -11173,12 +11167,6 @@
           "notNull": true,
           "default": "''"
         },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "price_mode": {
           "name": "price_mode",
           "type": "text",
@@ -11703,12 +11691,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
-        },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "price_mode": {
           "name": "price_mode",

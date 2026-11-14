@@ -20,6 +20,8 @@ const ANSWER: Extraction = {
   rechnungsnummer: "R0018834512",
   belegdatum: "2026-09-30",
   faelligAm: null,
+  leistungVon: null,
+  leistungBis: null,
   waehrung: "EUR",
   istGutschrift: false,
   betraege: [{ steuersatz: "19", netto: "32.40", steuer: "6.16" }],

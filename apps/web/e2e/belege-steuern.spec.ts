@@ -2233,3 +2233,36 @@ vorsteuerPruefen(() => page);
 test("Keine Fehler im Browser", async () => {
   expect(pageErrors).toEqual([]);
 });
+
+test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt (#693)", async ({ browser }) => {
+  test.setTimeout(180_000);
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "zeitraum.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("zeitraum.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /zeitraum\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  // Das Formular kommt nach networkidle aus einer Server-Function; ohne dieses Warten greift jeder
+  // Zugriff auf die Felder ins Leere und der Test hielte den Stand für einen ohne Leistungszeitraum
+  const belegdatum = page.getByLabel("Belegdatum");
+  await belegdatum.waitFor({ state: "visible", timeout: 30_000 });
+
+  await page.getByLabel("Lieferant", { exact: true }).fill("Funknetz Mobil GmbH");
+  await page.getByLabel("Belegdatum").fill(day(-9));
+  await page.getByLabel("Kategorie").selectOption("telefon");
+  await page.getByLabel("Netto", { exact: true }).fill("38,57");
+  await page.getByLabel("Leistung von").fill(day(-24));
+  await page.getByLabel("Leistung bis").fill(day(-9));
+  await page.getByRole("button", { name: "Speichern" }).click();
+  // Die Meldung ist Beiwerk; der Beweis ist, dass der Zeitraum nach dem Neuladen noch steht
+  await page.waitForTimeout(1500);
+
+  await page.reload();
+  await belegdatum.waitFor({ state: "visible", timeout: 30_000 });
+  await expect(page.getByLabel("Leistung von")).toHaveValue(day(-24));
+  await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
+});

@@ -39,7 +39,7 @@ async function snapshot(sql: postgres.Sql) {
   };
 }
 
-describe.skipIf(!testDatabaseUrl)("Migration 0230: Satzanteile ohne Änderung des Altbestands (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Migration 0231: Satzanteile ohne Änderung des Altbestands (Postgres)", () => {
   it("erhält beide alten Booleanfälle, Journal, Originalhash, Audit und Siegel; neue Satzanteile sind gesperrt", async () => {
     const name = decodeURIComponent(new URL(testDatabaseUrl!).pathname.slice(1));
     const admin = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });
@@ -49,11 +49,11 @@ describe.skipIf(!testDatabaseUrl)("Migration 0230: Satzanteile ohne Änderung de
     } finally {
       await admin.end();
     }
-    const previous = mkdtempSync(join(tmpdir(), "haben-0230-upgrade-"));
+    const previous = mkdtempSync(join(tmpdir(), "haben-0231-upgrade-"));
     cpSync(MIGRATIONS, previous, { recursive: true });
     const journal = JSON.parse(readFileSync(join(MIGRATIONS, "meta/_journal.json"), "utf8")) as { entries: { idx: number; tag: string }[] };
-    const added = journal.entries.find((e) => e.tag === "0230_vorsteuer_teilabzug");
-    if (!added) throw new Error("Migration 0230 fehlt.");
+    const added = journal.entries.find((e) => e.tag === "0231_vorsteuer_teilabzug");
+    if (!added) throw new Error("Migration 0231 fehlt.");
     writeFileSync(join(previous, "meta/_journal.json"), JSON.stringify({ ...journal, entries: journal.entries.filter((e) => e.idx < added.idx) }));
     const sql = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
     try {

@@ -326,6 +326,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [invoiceNumber, setInvoiceNumber] = useState(doc.invoiceNumber);
   const [documentDate, setDocumentDate] = useState(doc.documentDate ?? "");
   const [dueDate, setDueDate] = useState(doc.dueDate ?? "");
+  // Leistungszeitraum (#693): worauf sich die Leistung bezieht, nicht wann die Rechnung kam
+  const [serviceFrom, setServiceFrom] = useState(doc.serviceFrom ?? "");
+  const [serviceTo, setServiceTo] = useState(doc.serviceTo ?? "");
   const [category, setCategory] = useState(doc.category ?? "");
   const [payment, setPayment] = useState(doc.payment);
   const [privateShare, setPrivateShare] = useState(doc.privateShare ? String(doc.privateShare) : "");
@@ -483,6 +486,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           invoiceNumber,
           documentDate: documentDate || null,
           dueDate: dueDate || null,
+          serviceFrom: serviceFrom || null,
+          serviceTo: serviceTo || null,
           category: splitting ? null : ((category || null) as ExpenseCategory | null),
           payment,
           note,
@@ -645,6 +650,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             {(control) => <input {...control} type="date" value={documentDate} onChange={(e) => touch(setDocumentDate)(e.target.value)} />}
           </Field>
           <Field label="Fällig am">{(control) => <input {...control} type="date" value={dueDate} onChange={(e) => touch(setDueDate)(e.target.value)} />}</Field>
+          <Field label="Leistung von" describedBy="leistung-hint">
+            {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
+          </Field>
+          <Field label="Leistung bis" describedBy="leistung-hint">
+            {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
+          </Field>
+          <p className="small" id="leistung-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
+            Zeitraum, auf den sich die Leistung bezieht, wenn er vom Belegdatum abweicht. Bleibt er leer, gilt das Belegdatum.
+          </p>
           {splitting ? (
             <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
               <strong>Kategorie:</strong> aufgeteilt auf {splitRows.length} Zeilen, siehe <a href="#aufteilung">Aufteilung auf Kategorien</a>.
