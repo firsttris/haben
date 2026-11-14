@@ -1,0 +1,3044 @@
+{
+  "triggers": [
+    {
+      "table": "public.allocations",
+      "name": "allocations_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER allocations_append_only BEFORE DELETE OR UPDATE ON public.allocations FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.allocations",
+      "name": "allocations_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER allocations_audit AFTER INSERT ON public.allocations FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.allocations",
+      "name": "allocations_check",
+      "enabled": "O",
+      "definition": "CREATE CONSTRAINT TRIGGER allocations_check AFTER INSERT ON public.allocations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.haben_check_allocation()",
+      "function": "public.haben_check_allocation()"
+    },
+    {
+      "table": "public.allocations",
+      "name": "allocations_konto_aktiv",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER allocations_konto_aktiv BEFORE INSERT ON public.allocations FOR EACH ROW EXECUTE FUNCTION public.haben_check_account_included_for_transaction()",
+      "function": "public.haben_check_account_included_for_transaction()"
+    },
+    {
+      "table": "public.allocations",
+      "name": "allocations_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER allocations_no_truncate BEFORE TRUNCATE ON public.allocations FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.allocations",
+      "name": "allocations_not_neutralized",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER allocations_not_neutralized BEFORE INSERT ON public.allocations FOR EACH ROW EXECUTE FUNCTION public.haben_check_allocation_not_neutralized()",
+      "function": "public.haben_check_allocation_not_neutralized()"
+    },
+    {
+      "table": "public.allocations",
+      "name": "allocations_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER allocations_seal AFTER INSERT ON public.allocations FOR EACH ROW EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.allocations",
+      "name": "allocations_vat_return",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER allocations_vat_return BEFORE INSERT ON public.allocations FOR EACH ROW WHEN ((new.vat_return_id IS NOT NULL)) EXECUTE FUNCTION public.haben_allocation_vat_return()",
+      "function": "public.haben_allocation_vat_return()"
+    },
+    {
+      "table": "public.annual_submissions",
+      "name": "annual_submissions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER annual_submissions_append_only BEFORE DELETE OR UPDATE ON public.annual_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.annual_submissions",
+      "name": "annual_submissions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER annual_submissions_audit AFTER INSERT ON public.annual_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.annual_submissions",
+      "name": "annual_submissions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER annual_submissions_no_truncate BEFORE TRUNCATE ON public.annual_submissions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.archive_files",
+      "name": "archive_files_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER archive_files_append_only BEFORE DELETE OR UPDATE ON public.archive_files FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.archive_files",
+      "name": "archive_files_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER archive_files_audit AFTER INSERT ON public.archive_files FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.archive_files",
+      "name": "archive_files_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER archive_files_no_truncate BEFORE TRUNCATE ON public.archive_files FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.articles",
+      "name": "articles_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER articles_audit AFTER INSERT OR DELETE OR UPDATE ON public.articles FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.articles",
+      "name": "articles_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER articles_no_truncate BEFORE TRUNCATE ON public.articles FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.asset_depreciations",
+      "name": "asset_depreciations_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER asset_depreciations_append_only BEFORE DELETE OR UPDATE ON public.asset_depreciations FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.asset_depreciations",
+      "name": "asset_depreciations_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER asset_depreciations_audit AFTER INSERT ON public.asset_depreciations FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.asset_depreciations",
+      "name": "asset_depreciations_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER asset_depreciations_no_truncate BEFORE TRUNCATE ON public.asset_depreciations FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.asset_depreciations",
+      "name": "asset_depreciations_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER asset_depreciations_seal AFTER INSERT ON public.asset_depreciations FOR EACH ROW EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.assets",
+      "name": "assets_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assets_audit AFTER INSERT OR DELETE OR UPDATE ON public.assets FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.assets",
+      "name": "assets_booked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assets_booked BEFORE DELETE OR UPDATE ON public.assets FOR EACH ROW EXECUTE FUNCTION public.haben_reject_booked_asset()",
+      "function": "public.haben_reject_booked_asset()"
+    },
+    {
+      "table": "public.assets",
+      "name": "assets_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER assets_no_truncate BEFORE TRUNCATE ON public.assets FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.audit_chain",
+      "name": "audit_chain_guard",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER audit_chain_guard BEFORE DELETE OR UPDATE ON public.audit_chain FOR EACH ROW EXECUTE FUNCTION public.haben_audit_chain_guard()",
+      "function": "public.haben_audit_chain_guard()"
+    },
+    {
+      "table": "public.audit_chain",
+      "name": "audit_chain_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER audit_chain_no_truncate BEFORE TRUNCATE ON public.audit_chain FOR EACH STATEMENT EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.audit_log",
+      "name": "audit_log_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER audit_log_append_only BEFORE DELETE OR UPDATE OR TRUNCATE ON public.audit_log FOR EACH STATEMENT EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.audit_log",
+      "name": "audit_log_chain",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER audit_log_chain BEFORE INSERT ON public.audit_log FOR EACH ROW EXECUTE FUNCTION public.haben_audit_chain()",
+      "function": "public.haben_audit_chain()"
+    },
+    {
+      "table": "public.audit_log",
+      "name": "audit_log_chain_head",
+      "enabled": "O",
+      "definition": "CREATE CONSTRAINT TRIGGER audit_log_chain_head AFTER INSERT ON public.audit_log DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.haben_audit_chain_head()",
+      "function": "public.haben_audit_chain_head()"
+    },
+    {
+      "table": "public.bank_accounts",
+      "name": "bank_accounts_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_accounts_audit AFTER INSERT OR DELETE OR UPDATE ON public.bank_accounts FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.bank_accounts",
+      "name": "bank_accounts_exclusion",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_accounts_exclusion BEFORE UPDATE OF excluded_at ON public.bank_accounts FOR EACH ROW EXECUTE FUNCTION public.haben_check_bank_account_exclusion()",
+      "function": "public.haben_check_bank_account_exclusion()"
+    },
+    {
+      "table": "public.bank_accounts",
+      "name": "bank_accounts_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_accounts_no_truncate BEFORE TRUNCATE ON public.bank_accounts FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.bank_connections",
+      "name": "bank_connections_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_connections_audit AFTER INSERT OR DELETE OR UPDATE ON public.bank_connections FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.bank_connections",
+      "name": "bank_connections_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_connections_no_truncate BEFORE TRUNCATE ON public.bank_connections FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.bank_imports",
+      "name": "bank_imports_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_imports_append_only BEFORE DELETE OR UPDATE ON public.bank_imports FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.bank_imports",
+      "name": "bank_imports_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_imports_audit AFTER INSERT ON public.bank_imports FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.bank_imports",
+      "name": "bank_imports_konto_aktiv",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_imports_konto_aktiv BEFORE INSERT ON public.bank_imports FOR EACH ROW EXECUTE FUNCTION public.haben_check_account_included_for_import()",
+      "function": "public.haben_check_account_included_for_import()"
+    },
+    {
+      "table": "public.bank_imports",
+      "name": "bank_imports_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_imports_no_truncate BEFORE TRUNCATE ON public.bank_imports FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.bank_neutralizations",
+      "name": "bank_neutralizations_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_neutralizations_append_only BEFORE DELETE OR UPDATE ON public.bank_neutralizations FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.bank_neutralizations",
+      "name": "bank_neutralizations_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_neutralizations_audit AFTER INSERT ON public.bank_neutralizations FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.bank_neutralizations",
+      "name": "bank_neutralizations_check",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_neutralizations_check BEFORE INSERT ON public.bank_neutralizations FOR EACH ROW EXECUTE FUNCTION public.haben_check_bank_neutralization()",
+      "function": "public.haben_check_bank_neutralization()"
+    },
+    {
+      "table": "public.bank_neutralizations",
+      "name": "bank_neutralizations_konto_aktiv",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_neutralizations_konto_aktiv BEFORE INSERT ON public.bank_neutralizations FOR EACH ROW EXECUTE FUNCTION public.haben_check_account_included_for_transaction()",
+      "function": "public.haben_check_account_included_for_transaction()"
+    },
+    {
+      "table": "public.bank_neutralizations",
+      "name": "bank_neutralizations_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_neutralizations_no_truncate BEFORE TRUNCATE ON public.bank_neutralizations FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.bank_transactions",
+      "name": "bank_transactions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_transactions_append_only BEFORE DELETE OR UPDATE ON public.bank_transactions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.bank_transactions",
+      "name": "bank_transactions_konto_aktiv",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_transactions_konto_aktiv BEFORE INSERT ON public.bank_transactions FOR EACH ROW EXECUTE FUNCTION public.haben_check_account_included_for_import()",
+      "function": "public.haben_check_account_included_for_import()"
+    },
+    {
+      "table": "public.bank_transactions",
+      "name": "bank_transactions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_transactions_no_truncate BEFORE TRUNCATE ON public.bank_transactions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.beleg_layouts",
+      "name": "beleg_layouts_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER beleg_layouts_audit AFTER INSERT OR DELETE OR UPDATE ON public.beleg_layouts FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.beleg_layouts",
+      "name": "beleg_layouts_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER beleg_layouts_no_truncate BEFORE TRUNCATE ON public.beleg_layouts FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.brm_requests",
+      "name": "brm_requests_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER brm_requests_append_only BEFORE DELETE OR UPDATE ON public.brm_requests FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.brm_requests",
+      "name": "brm_requests_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER brm_requests_audit AFTER INSERT ON public.brm_requests FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.brm_requests",
+      "name": "brm_requests_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER brm_requests_no_truncate BEFORE TRUNCATE ON public.brm_requests FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.cash_entries",
+      "name": "cash_entries_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER cash_entries_append_only BEFORE DELETE OR UPDATE ON public.cash_entries FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.cash_entries",
+      "name": "cash_entries_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER cash_entries_audit AFTER INSERT ON public.cash_entries FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.cash_entries",
+      "name": "cash_entries_invoice",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER cash_entries_invoice BEFORE INSERT ON public.cash_entries FOR EACH ROW WHEN ((new.invoice_id IS NOT NULL)) EXECUTE FUNCTION public.haben_cash_entry_invoice()",
+      "function": "public.haben_cash_entry_invoice()"
+    },
+    {
+      "table": "public.cash_entries",
+      "name": "cash_entries_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER cash_entries_no_truncate BEFORE TRUNCATE ON public.cash_entries FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.cash_entries",
+      "name": "cash_entries_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER cash_entries_seal AFTER INSERT ON public.cash_entries FOR EACH ROW EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.company",
+      "name": "company_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER company_audit AFTER INSERT OR DELETE OR UPDATE ON public.company FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.company",
+      "name": "company_delete_lock",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER company_delete_lock BEFORE DELETE ON public.company FOR EACH ROW EXECUTE FUNCTION public.haben_check_company_delete()",
+      "function": "public.haben_check_company_delete()"
+    },
+    {
+      "table": "public.company",
+      "name": "company_kontenrahmen_kapg_lock",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER company_kontenrahmen_kapg_lock BEFORE UPDATE ON public.company FOR EACH ROW EXECUTE FUNCTION public.haben_check_company_kontenrahmen_kapg()",
+      "function": "public.haben_check_company_kontenrahmen_kapg()"
+    },
+    {
+      "table": "public.company",
+      "name": "company_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER company_no_truncate BEFORE TRUNCATE ON public.company FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.company",
+      "name": "company_rechtsform_lock",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER company_rechtsform_lock BEFORE UPDATE ON public.company FOR EACH ROW EXECUTE FUNCTION public.haben_check_company_rechtsform()",
+      "function": "public.haben_check_company_rechtsform()"
+    },
+    {
+      "table": "public.company",
+      "name": "company_settings_lock",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER company_settings_lock BEFORE UPDATE ON public.company FOR EACH ROW EXECUTE FUNCTION public.haben_check_company_settings()",
+      "function": "public.haben_check_company_settings()"
+    },
+    {
+      "table": "public.company_logo",
+      "name": "company_logo_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER company_logo_audit AFTER INSERT OR DELETE OR UPDATE ON public.company_logo FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.company_logo",
+      "name": "company_logo_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER company_logo_no_truncate BEFORE TRUNCATE ON public.company_logo FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.contact_persons",
+      "name": "contact_persons_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contact_persons_audit AFTER INSERT OR UPDATE ON public.contact_persons FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.contact_persons",
+      "name": "contact_persons_no_delete",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contact_persons_no_delete BEFORE DELETE ON public.contact_persons FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.contact_persons",
+      "name": "contact_persons_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contact_persons_no_truncate BEFORE TRUNCATE ON public.contact_persons FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.contact_versions",
+      "name": "contact_versions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contact_versions_append_only BEFORE DELETE OR UPDATE ON public.contact_versions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.contact_versions",
+      "name": "contact_versions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contact_versions_no_truncate BEFORE TRUNCATE ON public.contact_versions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.contacts",
+      "name": "contacts_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contacts_audit AFTER INSERT OR UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.contacts",
+      "name": "contacts_no_delete",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contacts_no_delete BEFORE DELETE ON public.contacts FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.contacts",
+      "name": "contacts_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contacts_no_truncate BEFORE TRUNCATE ON public.contacts FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.contacts",
+      "name": "contacts_personenkonto_fest",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contacts_personenkonto_fest BEFORE UPDATE OF debitor_nr, kreditor_nr ON public.contacts FOR EACH ROW EXECUTE FUNCTION public.haben_contact_personenkonto_fest()",
+      "function": "public.haben_contact_personenkonto_fest()"
+    },
+    {
+      "table": "public.contacts",
+      "name": "contacts_snapshot",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contacts_snapshot AFTER INSERT OR UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION public.haben_contact_snapshot()",
+      "function": "public.haben_contact_snapshot()"
+    },
+    {
+      "table": "public.contacts",
+      "name": "contacts_version",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER contacts_version BEFORE UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION public.haben_contact_version()",
+      "function": "public.haben_contact_version()"
+    },
+    {
+      "table": "public.corporate_tax_inputs",
+      "name": "corporate_tax_inputs_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER corporate_tax_inputs_audit AFTER INSERT OR DELETE OR UPDATE ON public.corporate_tax_inputs FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.corporate_tax_inputs",
+      "name": "corporate_tax_inputs_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER corporate_tax_inputs_no_truncate BEFORE TRUNCATE ON public.corporate_tax_inputs FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.custom_pages",
+      "name": "custom_pages_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER custom_pages_audit AFTER INSERT OR DELETE OR UPDATE ON public.custom_pages FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.custom_pages",
+      "name": "custom_pages_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER custom_pages_no_truncate BEFORE TRUNCATE ON public.custom_pages FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.datev_bookings",
+      "name": "datev_bookings_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER datev_bookings_append_only BEFORE DELETE OR UPDATE ON public.datev_bookings FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.datev_bookings",
+      "name": "datev_bookings_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER datev_bookings_no_truncate BEFORE TRUNCATE ON public.datev_bookings FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.datev_personenkonten",
+      "name": "datev_personenkonten_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER datev_personenkonten_append_only BEFORE DELETE OR UPDATE ON public.datev_personenkonten FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.datev_personenkonten",
+      "name": "datev_personenkonten_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER datev_personenkonten_audit AFTER INSERT ON public.datev_personenkonten FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.datev_personenkonten",
+      "name": "datev_personenkonten_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER datev_personenkonten_no_truncate BEFORE TRUNCATE ON public.datev_personenkonten FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.datev_personenkonten",
+      "name": "datev_personenkonten_passt",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER datev_personenkonten_passt BEFORE INSERT ON public.datev_personenkonten FOR EACH ROW EXECUTE FUNCTION public.haben_datev_personenkonto_passt()",
+      "function": "public.haben_datev_personenkonto_passt()"
+    },
+    {
+      "table": "public.dividends",
+      "name": "dividends_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER dividends_append_only BEFORE DELETE OR UPDATE ON public.dividends FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.dividends",
+      "name": "dividends_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER dividends_audit AFTER INSERT ON public.dividends FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.dividends",
+      "name": "dividends_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER dividends_no_truncate BEFORE TRUNCATE ON public.dividends FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.document_amounts",
+      "name": "document_amounts_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_amounts_locked BEFORE INSERT OR DELETE OR UPDATE ON public.document_amounts FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked_document_amount()",
+      "function": "public.haben_reject_locked_document_amount()"
+    },
+    {
+      "table": "public.document_amounts",
+      "name": "document_amounts_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_amounts_no_truncate BEFORE TRUNCATE ON public.document_amounts FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.document_cancellations",
+      "name": "document_cancellations_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_cancellations_append_only BEFORE DELETE OR UPDATE ON public.document_cancellations FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.document_cancellations",
+      "name": "document_cancellations_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_cancellations_audit AFTER INSERT ON public.document_cancellations FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.document_cancellations",
+      "name": "document_cancellations_check",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_cancellations_check BEFORE INSERT ON public.document_cancellations FOR EACH ROW EXECUTE FUNCTION public.haben_check_document_cancellation()",
+      "function": "public.haben_check_document_cancellation()"
+    },
+    {
+      "table": "public.document_cancellations",
+      "name": "document_cancellations_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_cancellations_no_truncate BEFORE TRUNCATE ON public.document_cancellations FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.document_cancellations",
+      "name": "document_cancellations_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_cancellations_seal AFTER INSERT ON public.document_cancellations FOR EACH ROW EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.document_iban_decisions",
+      "name": "document_iban_decisions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_iban_decisions_append_only BEFORE DELETE OR UPDATE ON public.document_iban_decisions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.document_iban_decisions",
+      "name": "document_iban_decisions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_iban_decisions_audit AFTER INSERT ON public.document_iban_decisions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.document_iban_decisions",
+      "name": "document_iban_decisions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_iban_decisions_no_truncate BEFORE TRUNCATE ON public.document_iban_decisions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.document_settlements",
+      "name": "document_settlements_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_settlements_append_only BEFORE DELETE OR UPDATE ON public.document_settlements FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.document_settlements",
+      "name": "document_settlements_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_settlements_audit AFTER INSERT ON public.document_settlements FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.document_settlements",
+      "name": "document_settlements_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_settlements_no_truncate BEFORE TRUNCATE ON public.document_settlements FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.document_splits",
+      "name": "document_splits_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_splits_audit AFTER INSERT OR DELETE OR UPDATE ON public.document_splits FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.document_splits",
+      "name": "document_splits_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_splits_locked BEFORE INSERT OR DELETE OR UPDATE ON public.document_splits FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked_document_amount()",
+      "function": "public.haben_reject_locked_document_amount()"
+    },
+    {
+      "table": "public.document_splits",
+      "name": "document_splits_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER document_splits_no_truncate BEFORE TRUNCATE ON public.document_splits FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.documents",
+      "name": "documents_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER documents_audit AFTER INSERT OR DELETE OR UPDATE ON public.documents FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.documents",
+      "name": "documents_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER documents_locked BEFORE DELETE OR UPDATE ON public.documents FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked()",
+      "function": "public.haben_reject_locked()"
+    },
+    {
+      "table": "public.documents",
+      "name": "documents_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER documents_no_truncate BEFORE TRUNCATE ON public.documents FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.documents",
+      "name": "documents_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER documents_seal AFTER UPDATE OF locked_at ON public.documents FOR EACH ROW WHEN (((old.locked_at IS NULL) AND (new.locked_at IS NOT NULL))) EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.documents",
+      "name": "documents_seal_insert",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER documents_seal_insert AFTER INSERT ON public.documents FOR EACH ROW WHEN ((new.locked_at IS NOT NULL)) EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.dunnings",
+      "name": "dunnings_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER dunnings_append_only BEFORE DELETE OR UPDATE ON public.dunnings FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.dunnings",
+      "name": "dunnings_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER dunnings_audit AFTER INSERT ON public.dunnings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.dunnings",
+      "name": "dunnings_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER dunnings_no_truncate BEFORE TRUNCATE ON public.dunnings FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.elster_certificates",
+      "name": "elster_certificates_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER elster_certificates_audit AFTER INSERT OR DELETE OR UPDATE ON public.elster_certificates FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.elster_certificates",
+      "name": "elster_certificates_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER elster_certificates_no_truncate BEFORE TRUNCATE ON public.elster_certificates FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.elster_messages",
+      "name": "elster_messages_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER elster_messages_append_only BEFORE DELETE OR UPDATE ON public.elster_messages FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.elster_messages",
+      "name": "elster_messages_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER elster_messages_audit AFTER INSERT ON public.elster_messages FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.elster_messages",
+      "name": "elster_messages_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER elster_messages_no_truncate BEFORE TRUNCATE ON public.elster_messages FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.employees",
+      "name": "employees_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER employees_audit AFTER INSERT OR DELETE OR UPDATE ON public.employees FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.employees",
+      "name": "employees_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER employees_no_truncate BEFORE TRUNCATE ON public.employees FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.enable_banking_settings",
+      "name": "enable_banking_settings_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER enable_banking_settings_audit AFTER INSERT OR DELETE OR UPDATE ON public.enable_banking_settings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.enable_banking_settings",
+      "name": "enable_banking_settings_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER enable_banking_settings_no_truncate BEFORE TRUNCATE ON public.enable_banking_settings FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.exchange_rates",
+      "name": "exchange_rates_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER exchange_rates_audit AFTER INSERT OR DELETE OR UPDATE ON public.exchange_rates FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.exchange_rates",
+      "name": "exchange_rates_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER exchange_rates_no_truncate BEFORE TRUNCATE ON public.exchange_rates FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.external_import_settlements",
+      "name": "external_import_settlements_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER external_import_settlements_append_only BEFORE DELETE OR UPDATE ON public.external_import_settlements FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.external_import_settlements",
+      "name": "external_import_settlements_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER external_import_settlements_audit AFTER INSERT ON public.external_import_settlements FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.external_import_settlements",
+      "name": "external_import_settlements_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER external_import_settlements_no_truncate BEFORE TRUNCATE ON public.external_import_settlements FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.external_imports",
+      "name": "external_imports_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER external_imports_append_only BEFORE DELETE OR UPDATE ON public.external_imports FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.external_imports",
+      "name": "external_imports_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER external_imports_audit AFTER INSERT ON public.external_imports FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.external_imports",
+      "name": "external_imports_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER external_imports_no_truncate BEFORE TRUNCATE ON public.external_imports FOR EACH STATEMENT EXECUTE FUNCTION public.haben_external_imports_no_truncate()",
+      "function": "public.haben_external_imports_no_truncate()"
+    },
+    {
+      "table": "public.inbox_messages",
+      "name": "inbox_messages_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER inbox_messages_append_only BEFORE DELETE OR UPDATE ON public.inbox_messages FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.inbox_messages",
+      "name": "inbox_messages_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER inbox_messages_audit AFTER INSERT ON public.inbox_messages FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.inbox_messages",
+      "name": "inbox_messages_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER inbox_messages_no_truncate BEFORE TRUNCATE ON public.inbox_messages FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.inbox_settings",
+      "name": "inbox_settings_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER inbox_settings_audit AFTER INSERT OR DELETE ON public.inbox_settings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.inbox_settings",
+      "name": "inbox_settings_audit_update",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER inbox_settings_audit_update AFTER UPDATE OF host, port, secure, username, ciphertext, folder, enabled ON public.inbox_settings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.inbox_settings",
+      "name": "inbox_settings_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER inbox_settings_no_truncate BEFORE TRUNCATE ON public.inbox_settings FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.income_tax_inputs",
+      "name": "income_tax_inputs_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER income_tax_inputs_audit AFTER INSERT OR DELETE OR UPDATE ON public.income_tax_inputs FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.income_tax_inputs",
+      "name": "income_tax_inputs_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER income_tax_inputs_no_truncate BEFORE TRUNCATE ON public.income_tax_inputs FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.invitations",
+      "name": "invitations_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invitations_audit AFTER INSERT OR UPDATE ON public.invitations FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.invitations",
+      "name": "invitations_check",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invitations_check BEFORE DELETE OR UPDATE ON public.invitations FOR EACH ROW EXECUTE FUNCTION public.haben_check_invitation_update()",
+      "function": "public.haben_check_invitation_update()"
+    },
+    {
+      "table": "public.invitations",
+      "name": "invitations_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invitations_no_truncate BEFORE TRUNCATE ON public.invitations FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.invoice_attachments",
+      "name": "invoice_attachments_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_attachments_audit AFTER INSERT OR DELETE OR UPDATE ON public.invoice_attachments FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.invoice_attachments",
+      "name": "invoice_attachments_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_attachments_locked BEFORE INSERT OR DELETE OR UPDATE ON public.invoice_attachments FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked_invoice_attachment()",
+      "function": "public.haben_reject_locked_invoice_attachment()"
+    },
+    {
+      "table": "public.invoice_attachments",
+      "name": "invoice_attachments_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_attachments_no_truncate BEFORE TRUNCATE ON public.invoice_attachments FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.invoice_lines",
+      "name": "invoice_lines_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_lines_locked BEFORE INSERT OR DELETE OR UPDATE ON public.invoice_lines FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked_invoice_line()",
+      "function": "public.haben_reject_locked_invoice_line()"
+    },
+    {
+      "table": "public.invoice_lines",
+      "name": "invoice_lines_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_lines_no_truncate BEFORE TRUNCATE ON public.invoice_lines FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.invoice_number_counters",
+      "name": "invoice_number_counters_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_number_counters_audit AFTER INSERT OR UPDATE ON public.invoice_number_counters FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.invoice_number_counters",
+      "name": "invoice_number_counters_monotonic",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_number_counters_monotonic BEFORE DELETE OR UPDATE ON public.invoice_number_counters FOR EACH ROW EXECUTE FUNCTION public.haben_counter_monotonic()",
+      "function": "public.haben_counter_monotonic()"
+    },
+    {
+      "table": "public.invoice_number_counters",
+      "name": "invoice_number_counters_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_number_counters_no_truncate BEFORE TRUNCATE ON public.invoice_number_counters FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.invoice_taxes",
+      "name": "invoice_taxes_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_taxes_locked BEFORE INSERT OR DELETE OR UPDATE ON public.invoice_taxes FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked_invoice_tax()",
+      "function": "public.haben_reject_locked_invoice_tax()"
+    },
+    {
+      "table": "public.invoice_taxes",
+      "name": "invoice_taxes_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_taxes_no_truncate BEFORE TRUNCATE ON public.invoice_taxes FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_advance_rechtsform",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_advance_rechtsform BEFORE UPDATE OF locked_at ON public.invoices FOR EACH ROW WHEN (((old.locked_at IS NULL) AND (new.locked_at IS NOT NULL) AND (new.status = 'final'::public.invoice_status) AND (new.kind = 'rechnung'::public.invoice_kind) AND (new.variant = 'abschlag'::text) AND (new.advance_type = 'anzahlung'::text) AND (new.advance_accounting = 'deferred'::text))) EXECUTE FUNCTION public.haben_check_advance_rechtsform()",
+      "function": "public.haben_check_advance_rechtsform()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_advance_rechtsform_insert",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_advance_rechtsform_insert BEFORE INSERT ON public.invoices FOR EACH ROW WHEN (((new.locked_at IS NOT NULL) AND (new.status = 'final'::public.invoice_status) AND (new.kind = 'rechnung'::public.invoice_kind) AND (new.variant = 'abschlag'::text) AND (new.advance_type = 'anzahlung'::text) AND (new.advance_accounting = 'deferred'::text))) EXECUTE FUNCTION public.haben_check_advance_rechtsform()",
+      "function": "public.haben_check_advance_rechtsform()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_audit AFTER INSERT OR DELETE OR UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_locked BEFORE DELETE OR UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked()",
+      "function": "public.haben_reject_locked()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_no_truncate BEFORE TRUNCATE ON public.invoices FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_seal AFTER UPDATE OF locked_at ON public.invoices FOR EACH ROW WHEN (((old.locked_at IS NULL) AND (new.locked_at IS NOT NULL))) EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.invoices",
+      "name": "invoices_seal_insert",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoices_seal_insert AFTER INSERT ON public.invoices FOR EACH ROW WHEN ((new.locked_at IS NOT NULL)) EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.journal_entries",
+      "name": "journal_entries_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_entries_audit AFTER INSERT OR UPDATE ON public.journal_entries FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.journal_entries",
+      "name": "journal_entries_balance",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_entries_balance BEFORE UPDATE OF locked_at ON public.journal_entries FOR EACH ROW EXECUTE FUNCTION public.haben_check_journal_balance()",
+      "function": "public.haben_check_journal_balance()"
+    },
+    {
+      "table": "public.journal_entries",
+      "name": "journal_entries_insert_unlocked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_entries_insert_unlocked BEFORE INSERT ON public.journal_entries FOR EACH ROW EXECUTE FUNCTION public.haben_check_journal_balance()",
+      "function": "public.haben_check_journal_balance()"
+    },
+    {
+      "table": "public.journal_entries",
+      "name": "journal_entries_kontenrahmen",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_entries_kontenrahmen BEFORE INSERT ON public.journal_entries FOR EACH ROW EXECUTE FUNCTION public.haben_check_entry_kontenrahmen()",
+      "function": "public.haben_check_entry_kontenrahmen()"
+    },
+    {
+      "table": "public.journal_entries",
+      "name": "journal_entries_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_entries_locked BEFORE DELETE OR UPDATE ON public.journal_entries FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked()",
+      "function": "public.haben_reject_locked()"
+    },
+    {
+      "table": "public.journal_entries",
+      "name": "journal_entries_locked_at_commit",
+      "enabled": "O",
+      "definition": "CREATE CONSTRAINT TRIGGER journal_entries_locked_at_commit AFTER INSERT ON public.journal_entries DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.haben_require_locked_entry()",
+      "function": "public.haben_require_locked_entry()"
+    },
+    {
+      "table": "public.journal_entries",
+      "name": "journal_entries_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_entries_no_truncate BEFORE TRUNCATE ON public.journal_entries FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.journal_entries",
+      "name": "journal_entries_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_entries_seal AFTER UPDATE OF locked_at ON public.journal_entries FOR EACH ROW WHEN (((old.locked_at IS NULL) AND (new.locked_at IS NOT NULL))) EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.journal_entries",
+      "name": "journal_entries_year_open",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_entries_year_open BEFORE INSERT ON public.journal_entries FOR EACH ROW EXECUTE FUNCTION public.haben_check_year_open()",
+      "function": "public.haben_check_year_open()"
+    },
+    {
+      "table": "public.journal_lines",
+      "name": "journal_lines_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_lines_locked BEFORE INSERT OR DELETE OR UPDATE ON public.journal_lines FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked_journal_line()",
+      "function": "public.haben_reject_locked_journal_line()"
+    },
+    {
+      "table": "public.journal_lines",
+      "name": "journal_lines_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_lines_no_truncate BEFORE TRUNCATE ON public.journal_lines FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.kapest_submissions",
+      "name": "kapest_submissions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER kapest_submissions_append_only BEFORE DELETE OR UPDATE ON public.kapest_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.kapest_submissions",
+      "name": "kapest_submissions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER kapest_submissions_audit AFTER INSERT ON public.kapest_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.kapest_submissions",
+      "name": "kapest_submissions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER kapest_submissions_no_truncate BEFORE TRUNCATE ON public.kapest_submissions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.legacy_order_documents",
+      "name": "legacy_order_documents_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_order_documents_append_only BEFORE DELETE OR UPDATE ON public.legacy_order_documents FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.legacy_order_documents",
+      "name": "legacy_order_documents_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_order_documents_audit AFTER INSERT ON public.legacy_order_documents FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.legacy_order_documents",
+      "name": "legacy_order_documents_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_order_documents_no_truncate BEFORE TRUNCATE ON public.legacy_order_documents FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.legacy_order_files",
+      "name": "legacy_order_files_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_order_files_append_only BEFORE DELETE OR UPDATE ON public.legacy_order_files FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.legacy_order_files",
+      "name": "legacy_order_files_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_order_files_audit AFTER INSERT ON public.legacy_order_files FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.legacy_order_files",
+      "name": "legacy_order_files_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_order_files_no_truncate BEFORE TRUNCATE ON public.legacy_order_files FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.legacy_order_pdf_attempts",
+      "name": "legacy_order_pdf_attempts_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_order_pdf_attempts_append_only BEFORE DELETE OR UPDATE ON public.legacy_order_pdf_attempts FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.legacy_order_pdf_attempts",
+      "name": "legacy_order_pdf_attempts_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_order_pdf_attempts_audit AFTER INSERT ON public.legacy_order_pdf_attempts FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.legacy_order_pdf_attempts",
+      "name": "legacy_order_pdf_attempts_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_order_pdf_attempts_no_truncate BEFORE TRUNCATE ON public.legacy_order_pdf_attempts FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.legacy_voucher_payments",
+      "name": "legacy_voucher_payments_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_voucher_payments_append_only BEFORE DELETE OR UPDATE ON public.legacy_voucher_payments FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.legacy_voucher_payments",
+      "name": "legacy_voucher_payments_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_voucher_payments_audit AFTER INSERT ON public.legacy_voucher_payments FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.legacy_voucher_payments",
+      "name": "legacy_voucher_payments_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_voucher_payments_no_truncate BEFORE TRUNCATE ON public.legacy_voucher_payments FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.letterhead_background",
+      "name": "letterhead_background_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER letterhead_background_audit AFTER INSERT OR DELETE OR UPDATE ON public.letterhead_background FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.letterhead_background",
+      "name": "letterhead_background_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER letterhead_background_no_truncate BEFORE TRUNCATE ON public.letterhead_background FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.letterhead_profiles",
+      "name": "letterhead_profiles_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER letterhead_profiles_audit AFTER INSERT OR DELETE OR UPDATE ON public.letterhead_profiles FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.letterhead_profiles",
+      "name": "letterhead_profiles_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER letterhead_profiles_no_truncate BEFORE TRUNCATE ON public.letterhead_profiles FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.lexoffice_connection",
+      "name": "lexoffice_connection_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lexoffice_connection_audit AFTER INSERT OR DELETE OR UPDATE ON public.lexoffice_connection FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.lexoffice_connection",
+      "name": "lexoffice_connection_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lexoffice_connection_no_truncate BEFORE TRUNCATE ON public.lexoffice_connection FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.lexoffice_imports",
+      "name": "lexoffice_imports_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lexoffice_imports_audit AFTER INSERT ON public.lexoffice_imports FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.lexoffice_voucher_files",
+      "name": "lexoffice_voucher_files_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lexoffice_voucher_files_append_only BEFORE DELETE OR UPDATE ON public.lexoffice_voucher_files FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.lexoffice_voucher_files",
+      "name": "lexoffice_voucher_files_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lexoffice_voucher_files_no_truncate BEFORE TRUNCATE ON public.lexoffice_voucher_files FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.lexoffice_vouchers",
+      "name": "lexoffice_vouchers_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lexoffice_vouchers_append_only BEFORE DELETE OR UPDATE ON public.lexoffice_vouchers FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.lexoffice_vouchers",
+      "name": "lexoffice_vouchers_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lexoffice_vouchers_no_truncate BEFORE TRUNCATE ON public.lexoffice_vouchers FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.loans",
+      "name": "loans_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER loans_audit AFTER INSERT OR DELETE OR UPDATE ON public.loans FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.loans",
+      "name": "loans_fixed",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER loans_fixed BEFORE UPDATE ON public.loans FOR EACH ROW EXECUTE FUNCTION public.haben_loan_fixed()",
+      "function": "public.haben_loan_fixed()"
+    },
+    {
+      "table": "public.loans",
+      "name": "loans_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER loans_no_truncate BEFORE TRUNCATE ON public.loans FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.local_owner_recoveries",
+      "name": "local_owner_recoveries_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER local_owner_recoveries_append_only BEFORE DELETE OR UPDATE ON public.local_owner_recoveries FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.local_owner_recoveries",
+      "name": "local_owner_recoveries_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER local_owner_recoveries_audit AFTER INSERT ON public.local_owner_recoveries FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.local_owner_recoveries",
+      "name": "local_owner_recoveries_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER local_owner_recoveries_no_truncate BEFORE TRUNCATE ON public.local_owner_recoveries FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.lsta_submissions",
+      "name": "lsta_submissions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lsta_submissions_append_only BEFORE DELETE OR UPDATE ON public.lsta_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.lsta_submissions",
+      "name": "lsta_submissions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lsta_submissions_audit AFTER INSERT ON public.lsta_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.lsta_submissions",
+      "name": "lsta_submissions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lsta_submissions_no_truncate BEFORE TRUNCATE ON public.lsta_submissions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.lsta_turnus",
+      "name": "lsta_turnus_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lsta_turnus_audit AFTER INSERT OR DELETE OR UPDATE ON public.lsta_turnus FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.lsta_turnus",
+      "name": "lsta_turnus_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lsta_turnus_no_truncate BEFORE TRUNCATE ON public.lsta_turnus FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.lstb_submissions",
+      "name": "lstb_submissions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lstb_submissions_append_only BEFORE DELETE OR UPDATE ON public.lstb_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.lstb_submissions",
+      "name": "lstb_submissions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lstb_submissions_audit AFTER INSERT ON public.lstb_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.lstb_submissions",
+      "name": "lstb_submissions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER lstb_submissions_no_truncate BEFORE TRUNCATE ON public.lstb_submissions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.mail_log",
+      "name": "mail_log_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER mail_log_append_only BEFORE DELETE OR UPDATE ON public.mail_log FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.mail_log",
+      "name": "mail_log_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER mail_log_audit AFTER INSERT ON public.mail_log FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.mail_log",
+      "name": "mail_log_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER mail_log_no_truncate BEFORE TRUNCATE ON public.mail_log FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.mail_settings",
+      "name": "mail_settings_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER mail_settings_audit AFTER INSERT OR DELETE OR UPDATE ON public.mail_settings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.mail_settings",
+      "name": "mail_settings_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER mail_settings_no_truncate BEFORE TRUNCATE ON public.mail_settings FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.own_accounts",
+      "name": "own_accounts_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER own_accounts_audit AFTER INSERT OR DELETE OR UPDATE ON public.own_accounts FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.own_accounts",
+      "name": "own_accounts_fest",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER own_accounts_fest BEFORE UPDATE ON public.own_accounts FOR EACH ROW EXECUTE FUNCTION public.haben_own_accounts_fest()",
+      "function": "public.haben_own_accounts_fest()"
+    },
+    {
+      "table": "public.own_accounts",
+      "name": "own_accounts_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER own_accounts_no_truncate BEFORE TRUNCATE ON public.own_accounts FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.pauschalen",
+      "name": "pauschalen_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER pauschalen_append_only BEFORE DELETE OR UPDATE ON public.pauschalen FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.pauschalen",
+      "name": "pauschalen_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER pauschalen_audit AFTER INSERT ON public.pauschalen FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.pauschalen",
+      "name": "pauschalen_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER pauschalen_no_truncate BEFORE TRUNCATE ON public.pauschalen FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.pauschalen",
+      "name": "pauschalen_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER pauschalen_seal AFTER INSERT ON public.pauschalen FOR EACH ROW EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.payroll_runs",
+      "name": "payroll_runs_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payroll_runs_audit AFTER INSERT OR DELETE OR UPDATE ON public.payroll_runs FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.payroll_runs",
+      "name": "payroll_runs_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payroll_runs_no_truncate BEFORE TRUNCATE ON public.payroll_runs FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.payslip_cancellations",
+      "name": "payslip_cancellations_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslip_cancellations_append_only BEFORE DELETE OR UPDATE ON public.payslip_cancellations FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.payslip_cancellations",
+      "name": "payslip_cancellations_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslip_cancellations_audit AFTER INSERT ON public.payslip_cancellations FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.payslip_cancellations",
+      "name": "payslip_cancellations_check",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslip_cancellations_check BEFORE INSERT ON public.payslip_cancellations FOR EACH ROW EXECUTE FUNCTION public.haben_check_payslip_cancellation()",
+      "function": "public.haben_check_payslip_cancellation()"
+    },
+    {
+      "table": "public.payslip_cancellations",
+      "name": "payslip_cancellations_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslip_cancellations_no_truncate BEFORE TRUNCATE ON public.payslip_cancellations FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.payslip_cancellations",
+      "name": "payslip_cancellations_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslip_cancellations_seal AFTER INSERT ON public.payslip_cancellations FOR EACH ROW EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.payslips",
+      "name": "payslips_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslips_audit AFTER INSERT OR DELETE OR UPDATE ON public.payslips FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.payslips",
+      "name": "payslips_check",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslips_check BEFORE INSERT OR UPDATE OF employee_id, year, month, replaces_id ON public.payslips FOR EACH ROW EXECUTE FUNCTION public.haben_check_payslip()",
+      "function": "public.haben_check_payslip()"
+    },
+    {
+      "table": "public.payslips",
+      "name": "payslips_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslips_locked BEFORE DELETE OR UPDATE ON public.payslips FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked()",
+      "function": "public.haben_reject_locked()"
+    },
+    {
+      "table": "public.payslips",
+      "name": "payslips_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslips_no_truncate BEFORE TRUNCATE ON public.payslips FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.payslips",
+      "name": "payslips_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslips_seal AFTER UPDATE OF locked_at ON public.payslips FOR EACH ROW WHEN (((old.locked_at IS NULL) AND (new.locked_at IS NOT NULL))) EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.payslips",
+      "name": "payslips_seal_insert",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER payslips_seal_insert AFTER INSERT ON public.payslips FOR EACH ROW WHEN ((new.locked_at IS NOT NULL)) EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.postfach_documents",
+      "name": "postfach_documents_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER postfach_documents_append_only BEFORE DELETE OR UPDATE ON public.postfach_documents FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.postfach_documents",
+      "name": "postfach_documents_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER postfach_documents_audit AFTER INSERT ON public.postfach_documents FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.postfach_documents",
+      "name": "postfach_documents_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER postfach_documents_no_truncate BEFORE TRUNCATE ON public.postfach_documents FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.postfach_requests",
+      "name": "postfach_requests_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER postfach_requests_append_only BEFORE DELETE OR UPDATE ON public.postfach_requests FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.postfach_requests",
+      "name": "postfach_requests_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER postfach_requests_audit AFTER INSERT ON public.postfach_requests FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.postfach_requests",
+      "name": "postfach_requests_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER postfach_requests_no_truncate BEFORE TRUNCATE ON public.postfach_requests FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.quote_attachments",
+      "name": "quote_attachments_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_attachments_audit AFTER INSERT OR DELETE OR UPDATE ON public.quote_attachments FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.quote_attachments",
+      "name": "quote_attachments_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_attachments_locked BEFORE INSERT OR DELETE OR UPDATE ON public.quote_attachments FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked_quote_attachment()",
+      "function": "public.haben_reject_locked_quote_attachment()"
+    },
+    {
+      "table": "public.quote_attachments",
+      "name": "quote_attachments_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_attachments_no_truncate BEFORE TRUNCATE ON public.quote_attachments FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.quote_choices",
+      "name": "quote_choices_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_choices_audit AFTER INSERT OR DELETE OR UPDATE ON public.quote_choices FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.quote_choices",
+      "name": "quote_choices_guard",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_choices_guard BEFORE INSERT OR DELETE OR UPDATE ON public.quote_choices FOR EACH ROW EXECUTE FUNCTION public.haben_quote_choice_guard()",
+      "function": "public.haben_quote_choice_guard()"
+    },
+    {
+      "table": "public.quote_choices",
+      "name": "quote_choices_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_choices_no_truncate BEFORE TRUNCATE ON public.quote_choices FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.quote_default_attachments",
+      "name": "quote_default_attachments_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_default_attachments_audit AFTER INSERT OR DELETE OR UPDATE ON public.quote_default_attachments FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.quote_default_attachments",
+      "name": "quote_default_attachments_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_default_attachments_no_truncate BEFORE TRUNCATE ON public.quote_default_attachments FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.quote_lines",
+      "name": "quote_lines_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_lines_locked BEFORE INSERT OR DELETE OR UPDATE ON public.quote_lines FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked_quote_line()",
+      "function": "public.haben_reject_locked_quote_line()"
+    },
+    {
+      "table": "public.quote_lines",
+      "name": "quote_lines_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_lines_no_truncate BEFORE TRUNCATE ON public.quote_lines FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.quote_number_counters",
+      "name": "quote_number_counters_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_number_counters_audit AFTER INSERT OR UPDATE ON public.quote_number_counters FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.quote_number_counters",
+      "name": "quote_number_counters_monotonic",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_number_counters_monotonic BEFORE DELETE OR UPDATE ON public.quote_number_counters FOR EACH ROW EXECUTE FUNCTION public.haben_counter_monotonic()",
+      "function": "public.haben_counter_monotonic()"
+    },
+    {
+      "table": "public.quote_number_counters",
+      "name": "quote_number_counters_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quote_number_counters_no_truncate BEFORE TRUNCATE ON public.quote_number_counters FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.quotes",
+      "name": "quotes_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quotes_audit AFTER INSERT OR DELETE OR UPDATE ON public.quotes FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.quotes",
+      "name": "quotes_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quotes_locked BEFORE DELETE OR UPDATE ON public.quotes FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked_quote()",
+      "function": "public.haben_reject_locked_quote()"
+    },
+    {
+      "table": "public.quotes",
+      "name": "quotes_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER quotes_no_truncate BEFORE TRUNCATE ON public.quotes FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.recurring_documents",
+      "name": "recurring_documents_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER recurring_documents_audit AFTER INSERT OR DELETE OR UPDATE ON public.recurring_documents FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.recurring_documents",
+      "name": "recurring_documents_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER recurring_documents_no_truncate BEFORE TRUNCATE ON public.recurring_documents FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.recurring_invoices",
+      "name": "recurring_invoices_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER recurring_invoices_audit AFTER INSERT OR DELETE OR UPDATE ON public.recurring_invoices FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.recurring_invoices",
+      "name": "recurring_invoices_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER recurring_invoices_no_truncate BEFORE TRUNCATE ON public.recurring_invoices FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.residual_terms",
+      "name": "residual_terms_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER residual_terms_audit AFTER INSERT OR DELETE OR UPDATE ON public.residual_terms FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.residual_terms",
+      "name": "residual_terms_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER residual_terms_no_truncate BEFORE TRUNCATE ON public.residual_terms FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.seals",
+      "name": "seals_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER seals_append_only BEFORE DELETE OR UPDATE ON public.seals FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.seals",
+      "name": "seals_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER seals_audit AFTER INSERT ON public.seals FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.seals",
+      "name": "seals_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER seals_no_truncate BEFORE TRUNCATE ON public.seals FOR EACH STATEMENT EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sepa_direct_debit_items",
+      "name": "sepa_direct_debit_items_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_direct_debit_items_append_only BEFORE DELETE OR UPDATE ON public.sepa_direct_debit_items FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sepa_direct_debit_items",
+      "name": "sepa_direct_debit_items_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_direct_debit_items_audit AFTER INSERT ON public.sepa_direct_debit_items FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sepa_direct_debit_items",
+      "name": "sepa_direct_debit_items_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_direct_debit_items_no_truncate BEFORE TRUNCATE ON public.sepa_direct_debit_items FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sepa_direct_debits",
+      "name": "sepa_direct_debits_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_direct_debits_append_only BEFORE DELETE OR UPDATE ON public.sepa_direct_debits FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sepa_direct_debits",
+      "name": "sepa_direct_debits_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_direct_debits_audit AFTER INSERT ON public.sepa_direct_debits FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sepa_direct_debits",
+      "name": "sepa_direct_debits_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_direct_debits_no_truncate BEFORE TRUNCATE ON public.sepa_direct_debits FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sepa_mandate_files",
+      "name": "sepa_mandate_files_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_mandate_files_append_only BEFORE DELETE OR UPDATE ON public.sepa_mandate_files FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sepa_mandate_files",
+      "name": "sepa_mandate_files_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_mandate_files_audit AFTER INSERT ON public.sepa_mandate_files FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sepa_mandate_files",
+      "name": "sepa_mandate_files_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_mandate_files_no_truncate BEFORE TRUNCATE ON public.sepa_mandate_files FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sepa_mandate_revocations",
+      "name": "sepa_mandate_revocations_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_mandate_revocations_append_only BEFORE DELETE OR UPDATE ON public.sepa_mandate_revocations FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sepa_mandate_revocations",
+      "name": "sepa_mandate_revocations_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_mandate_revocations_audit AFTER INSERT ON public.sepa_mandate_revocations FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sepa_mandate_revocations",
+      "name": "sepa_mandate_revocations_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_mandate_revocations_no_truncate BEFORE TRUNCATE ON public.sepa_mandate_revocations FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sepa_mandates",
+      "name": "sepa_mandates_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_mandates_append_only BEFORE DELETE OR UPDATE ON public.sepa_mandates FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sepa_mandates",
+      "name": "sepa_mandates_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_mandates_audit AFTER INSERT ON public.sepa_mandates FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sepa_mandates",
+      "name": "sepa_mandates_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_mandates_no_truncate BEFORE TRUNCATE ON public.sepa_mandates FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sepa_transfer_items",
+      "name": "sepa_transfer_items_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_transfer_items_append_only BEFORE DELETE OR UPDATE ON public.sepa_transfer_items FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sepa_transfer_items",
+      "name": "sepa_transfer_items_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_transfer_items_audit AFTER INSERT ON public.sepa_transfer_items FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sepa_transfer_items",
+      "name": "sepa_transfer_items_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_transfer_items_no_truncate BEFORE TRUNCATE ON public.sepa_transfer_items FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sepa_transfers",
+      "name": "sepa_transfers_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_transfers_append_only BEFORE DELETE OR UPDATE ON public.sepa_transfers FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sepa_transfers",
+      "name": "sepa_transfers_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_transfers_audit AFTER INSERT ON public.sepa_transfers FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sepa_transfers",
+      "name": "sepa_transfers_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sepa_transfers_no_truncate BEFORE TRUNCATE ON public.sepa_transfers FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.service_entries",
+      "name": "service_entries_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER service_entries_audit AFTER INSERT OR DELETE OR UPDATE ON public.service_entries FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.service_entries",
+      "name": "service_entries_billed",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER service_entries_billed BEFORE DELETE OR UPDATE ON public.service_entries FOR EACH ROW EXECUTE FUNCTION public.haben_reject_billed_service_entry()",
+      "function": "public.haben_reject_billed_service_entry()"
+    },
+    {
+      "table": "public.service_entries",
+      "name": "service_entries_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER service_entries_no_truncate BEFORE TRUNCATE ON public.service_entries FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sevdesk_accounting_types",
+      "name": "sevdesk_accounting_types_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_accounting_types_append_only BEFORE DELETE OR UPDATE ON public.sevdesk_accounting_types FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sevdesk_accounting_types",
+      "name": "sevdesk_accounting_types_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_accounting_types_audit AFTER INSERT ON public.sevdesk_accounting_types FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sevdesk_accounting_types",
+      "name": "sevdesk_accounting_types_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_accounting_types_no_truncate BEFORE TRUNCATE ON public.sevdesk_accounting_types FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sevdesk_connection",
+      "name": "sevdesk_connection_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_connection_audit AFTER INSERT OR DELETE OR UPDATE ON public.sevdesk_connection FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sevdesk_connection",
+      "name": "sevdesk_connection_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_connection_no_truncate BEFORE TRUNCATE ON public.sevdesk_connection FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sso_issuers",
+      "name": "sso_issuers_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sso_issuers_append_only BEFORE DELETE OR UPDATE ON public.sso_issuers FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sso_issuers",
+      "name": "sso_issuers_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sso_issuers_audit AFTER INSERT ON public.sso_issuers FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sso_issuers",
+      "name": "sso_issuers_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sso_issuers_no_truncate BEFORE TRUNCATE ON public.sso_issuers FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sso_roles",
+      "name": "sso_roles_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sso_roles_audit AFTER INSERT OR DELETE OR UPDATE ON public.sso_roles FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sso_roles",
+      "name": "sso_roles_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sso_roles_no_truncate BEFORE TRUNCATE ON public.sso_roles FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sso_takeovers",
+      "name": "sso_takeovers_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sso_takeovers_append_only BEFORE DELETE OR UPDATE ON public.sso_takeovers FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sso_takeovers",
+      "name": "sso_takeovers_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sso_takeovers_audit AFTER INSERT ON public.sso_takeovers FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sso_takeovers",
+      "name": "sso_takeovers_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sso_takeovers_no_truncate BEFORE TRUNCATE ON public.sso_takeovers FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.store_connections",
+      "name": "store_connections_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER store_connections_audit AFTER INSERT OR DELETE OR UPDATE ON public.store_connections FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.store_connections",
+      "name": "store_connections_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER store_connections_no_truncate BEFORE TRUNCATE ON public.store_connections FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.store_payouts",
+      "name": "store_payouts_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER store_payouts_append_only BEFORE DELETE OR UPDATE ON public.store_payouts FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.store_payouts",
+      "name": "store_payouts_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER store_payouts_audit AFTER INSERT ON public.store_payouts FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.store_payouts",
+      "name": "store_payouts_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER store_payouts_no_truncate BEFORE TRUNCATE ON public.store_payouts FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.store_reports",
+      "name": "store_reports_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER store_reports_append_only BEFORE DELETE OR UPDATE ON public.store_reports FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.store_reports",
+      "name": "store_reports_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER store_reports_audit AFTER INSERT ON public.store_reports FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.store_reports",
+      "name": "store_reports_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER store_reports_no_truncate BEFORE TRUNCATE ON public.store_reports FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sv_portal_filings",
+      "name": "sv_portal_filings_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sv_portal_filings_append_only BEFORE DELETE OR UPDATE ON public.sv_portal_filings FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sv_portal_filings",
+      "name": "sv_portal_filings_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sv_portal_filings_audit AFTER INSERT ON public.sv_portal_filings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sv_portal_filings",
+      "name": "sv_portal_filings_check",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sv_portal_filings_check BEFORE INSERT ON public.sv_portal_filings FOR EACH ROW EXECUTE FUNCTION public.haben_check_sv_portal_filing()",
+      "function": "public.haben_check_sv_portal_filing()"
+    },
+    {
+      "table": "public.sv_portal_filings",
+      "name": "sv_portal_filings_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sv_portal_filings_no_truncate BEFORE TRUNCATE ON public.sv_portal_filings FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.text_blocks",
+      "name": "text_blocks_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER text_blocks_audit AFTER INSERT OR DELETE OR UPDATE ON public.text_blocks FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.text_blocks",
+      "name": "text_blocks_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER text_blocks_no_truncate BEFORE TRUNCATE ON public.text_blocks FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.token_events",
+      "name": "token_events_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER token_events_append_only BEFORE DELETE OR UPDATE ON public.token_events FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.token_events",
+      "name": "token_events_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER token_events_audit AFTER INSERT ON public.token_events FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.token_events",
+      "name": "token_events_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER token_events_no_truncate BEFORE TRUNCATE ON public.token_events FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.\"user\"",
+      "name": "user_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER user_audit AFTER INSERT OR DELETE OR UPDATE ON public.\"user\" FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.\"user\"",
+      "name": "user_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER user_no_truncate BEFORE TRUNCATE ON public.\"user\" FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.\"user\"",
+      "name": "user_role_fixed",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER user_role_fixed BEFORE UPDATE ON public.\"user\" FOR EACH ROW EXECUTE FUNCTION public.haben_user_role_fixed()",
+      "function": "public.haben_user_role_fixed()"
+    },
+    {
+      "table": "public.user_logins",
+      "name": "user_logins_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER user_logins_append_only BEFORE DELETE OR UPDATE ON public.user_logins FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.user_logins",
+      "name": "user_logins_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER user_logins_audit AFTER INSERT ON public.user_logins FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.user_logins",
+      "name": "user_logins_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER user_logins_no_truncate BEFORE TRUNCATE ON public.user_logins FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vast_belege",
+      "name": "vast_belege_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vast_belege_append_only BEFORE DELETE OR UPDATE ON public.vast_belege FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.vast_belege",
+      "name": "vast_belege_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vast_belege_audit AFTER INSERT ON public.vast_belege FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vast_belege",
+      "name": "vast_belege_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vast_belege_no_truncate BEFORE TRUNCATE ON public.vast_belege FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vast_requests",
+      "name": "vast_requests_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vast_requests_append_only BEFORE DELETE OR UPDATE ON public.vast_requests FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.vast_requests",
+      "name": "vast_requests_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vast_requests_audit AFTER INSERT ON public.vast_requests FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vast_requests",
+      "name": "vast_requests_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vast_requests_no_truncate BEFORE TRUNCATE ON public.vast_requests FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vat_extension_submissions",
+      "name": "vat_extension_submissions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_extension_submissions_append_only BEFORE DELETE OR UPDATE ON public.vat_extension_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.vat_extension_submissions",
+      "name": "vat_extension_submissions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_extension_submissions_audit AFTER INSERT ON public.vat_extension_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vat_extension_submissions",
+      "name": "vat_extension_submissions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_extension_submissions_no_truncate BEFORE TRUNCATE ON public.vat_extension_submissions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vat_extensions",
+      "name": "vat_extensions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_extensions_audit AFTER INSERT OR DELETE OR UPDATE ON public.vat_extensions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vat_extensions",
+      "name": "vat_extensions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_extensions_no_truncate BEFORE TRUNCATE ON public.vat_extensions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vat_frequencies",
+      "name": "vat_frequencies_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_frequencies_audit AFTER INSERT OR DELETE OR UPDATE ON public.vat_frequencies FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vat_frequencies",
+      "name": "vat_frequencies_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_frequencies_no_truncate BEFORE TRUNCATE ON public.vat_frequencies FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vat_items_since",
+      "name": "vat_items_since_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_items_since_append_only BEFORE DELETE OR UPDATE ON public.vat_items_since FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.vat_items_since",
+      "name": "vat_items_since_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_items_since_audit AFTER INSERT ON public.vat_items_since FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vat_items_since",
+      "name": "vat_items_since_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_items_since_no_truncate BEFORE TRUNCATE ON public.vat_items_since FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vat_return_filings",
+      "name": "vat_return_filings_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_return_filings_append_only BEFORE DELETE OR UPDATE ON public.vat_return_filings FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.vat_return_filings",
+      "name": "vat_return_filings_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_return_filings_audit AFTER INSERT ON public.vat_return_filings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vat_return_filings",
+      "name": "vat_return_filings_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_return_filings_no_truncate BEFORE TRUNCATE ON public.vat_return_filings FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vat_return_filings",
+      "name": "vat_return_filings_sent",
+      "enabled": "O",
+      "definition": "CREATE CONSTRAINT TRIGGER vat_return_filings_sent AFTER INSERT ON public.vat_return_filings DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.haben_vat_return_filed()",
+      "function": "public.haben_vat_return_filed()"
+    },
+    {
+      "table": "public.vat_return_submissions",
+      "name": "vat_return_submissions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_return_submissions_append_only BEFORE DELETE OR UPDATE ON public.vat_return_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.vat_return_submissions",
+      "name": "vat_return_submissions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_return_submissions_audit AFTER INSERT ON public.vat_return_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vat_return_submissions",
+      "name": "vat_return_submissions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_return_submissions_no_truncate BEFORE TRUNCATE ON public.vat_return_submissions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vat_returns",
+      "name": "vat_returns_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_returns_audit AFTER INSERT OR DELETE OR UPDATE ON public.vat_returns FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.vat_returns",
+      "name": "vat_returns_locked",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_returns_locked BEFORE DELETE OR UPDATE ON public.vat_returns FOR EACH ROW EXECUTE FUNCTION public.haben_reject_locked()",
+      "function": "public.haben_reject_locked()"
+    },
+    {
+      "table": "public.vat_returns",
+      "name": "vat_returns_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_returns_no_truncate BEFORE TRUNCATE ON public.vat_returns FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.vat_returns",
+      "name": "vat_returns_seal",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_returns_seal AFTER UPDATE OF locked_at ON public.vat_returns FOR EACH ROW WHEN (((old.locked_at IS NULL) AND (new.locked_at IS NOT NULL))) EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.vat_returns",
+      "name": "vat_returns_seal_insert",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER vat_returns_seal_insert AFTER INSERT ON public.vat_returns FOR EACH ROW WHEN ((new.locked_at IS NOT NULL)) EXECUTE FUNCTION public.haben_seal()",
+      "function": "public.haben_seal()"
+    },
+    {
+      "table": "public.write_offs",
+      "name": "write_offs_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER write_offs_append_only BEFORE DELETE OR UPDATE ON public.write_offs FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.write_offs",
+      "name": "write_offs_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER write_offs_audit AFTER INSERT ON public.write_offs FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.write_offs",
+      "name": "write_offs_konto_aktiv",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER write_offs_konto_aktiv BEFORE INSERT ON public.write_offs FOR EACH ROW EXECUTE FUNCTION public.haben_check_account_included_for_transaction()",
+      "function": "public.haben_check_account_included_for_transaction()"
+    },
+    {
+      "table": "public.write_offs",
+      "name": "write_offs_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER write_offs_no_truncate BEFORE TRUNCATE ON public.write_offs FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.year_closings",
+      "name": "year_closings_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER year_closings_append_only BEFORE DELETE OR UPDATE ON public.year_closings FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.year_closings",
+      "name": "year_closings_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER year_closings_audit AFTER INSERT ON public.year_closings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.year_closings",
+      "name": "year_closings_close",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER year_closings_close BEFORE INSERT ON public.year_closings FOR EACH ROW EXECUTE FUNCTION public.haben_close_year()",
+      "function": "public.haben_close_year()"
+    },
+    {
+      "table": "public.year_closings",
+      "name": "year_closings_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER year_closings_no_truncate BEFORE TRUNCATE ON public.year_closings FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.zm_submissions",
+      "name": "zm_submissions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER zm_submissions_append_only BEFORE DELETE OR UPDATE ON public.zm_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.zm_submissions",
+      "name": "zm_submissions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER zm_submissions_audit AFTER INSERT ON public.zm_submissions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.zm_submissions",
+      "name": "zm_submissions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER zm_submissions_no_truncate BEFORE TRUNCATE ON public.zm_submissions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    }
+  ],
+  "functions": [
+    {
+      "name": "public.haben_allocation_vat_return()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "1e550c14dc9b5157874a314a526274fa4b9aa483adff4d5fdb66ccb9a138e958",
+      "definitionHash": "5a4a6cd70c3f463a5b074782f24851996705f853c96ab48b2bc96f6a721fe6f2"
+    },
+    {
+      "name": "public.haben_append_only()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "4c561fd55a101b48fb2664c3df09ef05d917d8cfcfeb15ee098ba6404fac6a20",
+      "definitionHash": "4f7325bd8acafb9bf3652c807b77981f2bd344fad035efe47a82f75054cac615"
+    },
+    {
+      "name": "public.haben_audit()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "3fa034bd7d5f5e163715c6fd1c7ccc5cd3d73b4069748dee2833cd1007ff6d64",
+      "definitionHash": "3c58cb52e36e13df0913e54071bb98b95f3ea98f95dbe1d8243eaa9c1f125104"
+    },
+    {
+      "name": "public.haben_audit_chain()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "021f8c94bc8e74f1a7338ef47355fbfba75d82042ebbffa316b40368712fb8aa",
+      "definitionHash": "7d9bea84483333171797213b3c828dcaae85b142030aecec3a2a79277fc709aa"
+    },
+    {
+      "name": "public.haben_audit_chain_guard()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "276b13c28a4646200834d958312655234f27a23b0a845cc21fcd3ed55cbc2025",
+      "definitionHash": "335c62c571f5ef6585e0935ca9d36787410361ff69980968e834eeb85e132c22"
+    },
+    {
+      "name": "public.haben_audit_chain_head()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "697a110aad7b820d2aee2f401c5a3fbac568bf58e79e75fc5250aa8fa4b83277",
+      "definitionHash": "4e118782cd92fb8ac0ddf4d3b4b8ce777cd12039532de191caaf82d453d5ec05"
+    },
+    {
+      "name": "public.haben_audit_genesis()",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "b6df26958ca2866ced71d03482d6c29955533e4bdc0bb4a5c1b6d0ff58e477c2",
+      "definitionHash": "6df3d2c12ea1bceed8355b7f22e535aff1f8f8b6f491ae38fcbbc05af7d03ce3"
+    },
+    {
+      "name": "public.haben_audit_hash(prev bytea, r public.audit_log)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "d08c867a2b358f4644a1270b885b8542dc6df7c6f8363a1e5af24e1f807ef571",
+      "definitionHash": "d7a24cb4e12a7da196676232214b2f4ec674e1d47c2203bf9c0695160f3bff48"
+    },
+    {
+      "name": "public.haben_bank_neutralized(tx_id uuid)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "ecdca07ef0639c088cb1bec620277a98790735cf3f3ea3f7558608889bfd7bf7",
+      "definitionHash": "5f9be8e9e60f0fb4d2a78c25050c2d5536a7c2231d4a46a5784d3710ac726b48"
+    },
+    {
+      "name": "public.haben_cash_entry_invoice()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "29ac3ff34d4e461b1dae002f8e55b9ab0bb7293015303efbb018729be2dfe8a8",
+      "definitionHash": "e499e47bf35844ce8d534b0907bbb8f8e41eb5c0eb86541154387345bf070464"
+    },
+    {
+      "name": "public.haben_check_account_included_for_import()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "be7aa50ae2bcf861fa3dfc99d25047d1bad184ce08c529ceda43f139be58505f",
+      "definitionHash": "b90f6f6949fbcfe2180b154f90d9499a79083156bb99f549662aa48a64441301"
+    },
+    {
+      "name": "public.haben_check_account_included_for_transaction()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "c8b79a409b2ac87e7b5335d552eac31608802e98ff30c9955e534406f7b9544f",
+      "definitionHash": "83ad96d541f4c323f1138692083876e0aa748638fd4619b212e17c19cf821aad"
+    },
+    {
+      "name": "public.haben_check_advance_rechtsform()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "cff0b008af389a3a81bd118099f89f99590e9ca2896adfcfcfea767f5d499f8e",
+      "definitionHash": "3622b9e96ffb1e26928d8c7dab5cbe6ee9ca32b0639142e70212d849401821d1"
+    },
+    {
+      "name": "public.haben_check_allocation()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "1da61478a1d8b8d813f797912e98594bc4c7bee80c17fea34e5d80e9e935c999",
+      "definitionHash": "f4a1c3102f530b534eb3c3894276d906cdc342cea2bc589504ee1bd602d0171c"
+    },
+    {
+      "name": "public.haben_check_allocation_not_neutralized()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "95c6ce8f02ab5fca919c108e6f9d70b02be135fc9b7d97dc31581da981aeb031",
+      "definitionHash": "75b2f5c93b7dfb0f07e56282ea5bb6fd981e7320323b23c2700369ced077a944"
+    },
+    {
+      "name": "public.haben_check_bank_account_exclusion()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "484c2ac361974179c9ac5f84e4a2f5d6b993e6e086b7e5de494b198fd19b2f1a",
+      "definitionHash": "ab9fc84e458daa36b2a310f69d6684d8f31e3c84edc3a77e798b0657f770829a"
+    },
+    {
+      "name": "public.haben_check_bank_neutralization()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "9bd083a02bb4bc714e7d5d5574fbd9286ab885b9b59acf45136a71cf7ab38fe4",
+      "definitionHash": "f0075f1aead27bd4ade54070158c6ed102cab4660b96d2b2e00a2afc82e58b74"
+    },
+    {
+      "name": "public.haben_check_company_delete()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "390f8318086c7f8958424484d56e1ed18993a4960cd0b4dcd2a3bd15e37e21e6",
+      "definitionHash": "79ae9b514650479f9e1356fa194f4d17bf3bcf70997a391727e848d540f7450f"
+    },
+    {
+      "name": "public.haben_check_company_kontenrahmen_kapg()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "05c76c9b08a792a4abd86dec7b3446ca29b06d6f9450edc6f2ca43f19b595773",
+      "definitionHash": "cd5968b20d62d0cb61df91722bb64c88880afbebcdfe7790a6d4aa3343a8641f"
+    },
+    {
+      "name": "public.haben_check_company_rechtsform()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "38b35992c01a10967ec6fc6c6531ca74900dee66d6e6877dbd0d4bac2050c5a1",
+      "definitionHash": "32eba468900e72355c6af191085b223b82d295d10b17427f81193f3bca58dbcb"
+    },
+    {
+      "name": "public.haben_check_company_settings()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "55c0e96a90ffe8fd32d50d8bad8aa44e862a16900fd21af6b5f062ff0d91418c",
+      "definitionHash": "859ac306980612815603d6dd420998f598e0814e8a9763f1b4f02759b5c0727f"
+    },
+    {
+      "name": "public.haben_check_document_cancellation()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "6e029ef57991891cc052038fa7e66ffa9e85628a4b5af63968954d3efcd2c230",
+      "definitionHash": "c20757950e7ff86547bbf787b35e755e795be458f9cfab3bf7297f2bb6c25a1e"
+    },
+    {
+      "name": "public.haben_check_entry_kontenrahmen()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "2ebeaccb71b9e005af0fc3b39525b131ca9dd5f661d05a80be7decdf6dee8555",
+      "definitionHash": "4c1b6cc32d7f1f8355622c9fa8f651333efa9cbb40703fb9a366df44c36b695f"
+    },
+    {
+      "name": "public.haben_check_invitation_update()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "9c6c336bc7ffccd30bc7d04321f364ef794375af5ce8848c440373e2688c33dc",
+      "definitionHash": "7ff94390936dd39de5000802a66ed629d6b61116a128c9eee311f72652c0f1f3"
+    },
+    {
+      "name": "public.haben_check_journal_balance()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "3814e74385b661d352d694c23dd0c3d001898023382972a4724fb18de602e602",
+      "definitionHash": "90e1d736e45199e07225c78c44f870d91d32b024a35df4ff9d572bd227f67d8b"
+    },
+    {
+      "name": "public.haben_check_payslip()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "8639955ac1f13e04880d7c5b8d7524150f77a6b6340597708b92e51341c90d8d",
+      "definitionHash": "905c5c74a56910f256d8b5c835cd3110693426158cd6e2fd39044faf34094329"
+    },
+    {
+      "name": "public.haben_check_payslip_cancellation()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "629638a3c97173dcbff9498658862a61c0a52427be5990e96533ed1bae6dc519",
+      "definitionHash": "8381e1372b105f5fdf467aeccdf49be18b1f080f78656d9a0f61acc6800e2252"
+    },
+    {
+      "name": "public.haben_check_sv_portal_filing()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "86462ecb414d36cf35a587eb235f4e74809ce9e82347ef82353781bbc716ad19",
+      "definitionHash": "dce0d19e3e5190820cbc41c9b7cf01951254234a965c0545dcc4911f4b44fc35"
+    },
+    {
+      "name": "public.haben_check_year_open()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "164f9d1c221bdd779b1a89dbd2ee69f0d3a6a788264fb2ff0aab212ec8071bb6",
+      "definitionHash": "fcbe38a442042c172f030f41b61f37606b47f9fe4ffa249023c4943eea5a5f04"
+    },
+    {
+      "name": "public.haben_close_year()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "baf0f164572ac0df3141419cbf9d4f12b666251e6bee9cd31d0ac2b8f7b7232d",
+      "definitionHash": "34415f19d13ad1e68980a64c3d9dea227c570664515eab39f45af5504af6752a"
+    },
+    {
+      "name": "public.haben_columns(tbl regclass)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "f545fca5d52e382b7a4c30b19567223f70cbc927b4a0a5c55a10adab14dc893d",
+      "definitionHash": "7848d54c581c226839ca9ab093654e4f9942d88f82f6611cf3daf2690db7e460"
+    },
+    {
+      "name": "public.haben_contact_personenkonto_fest()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "51f164ba3434612a48c74cbe488d9c174d84f8cdbf4033c002d846697c7bc8ea",
+      "definitionHash": "3481fc561737286a0d553a51fd2d4b82f2c234b76f2c974615dcc1a9131bd4a2"
+    },
+    {
+      "name": "public.haben_contact_snapshot()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "8192a1ad1f9bcab43097e9ff07c19293a57049c64252dd9d897c5612cc347b92",
+      "definitionHash": "b6d2a2d452d0019413dd388637a5171e12d76def0d2cc5abf5f3965233efbdb1"
+    },
+    {
+      "name": "public.haben_contact_version()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "acb9de27f8d43361009fb8dc53e05972302cc13a9456605e151d2ed1d72f1915",
+      "definitionHash": "286d2e9bbc22c7476d850865f0ba5e566c6280148b8caeb2e94b8eae2bd933e2"
+    },
+    {
+      "name": "public.haben_counter_monotonic()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "6a0692cddb3921614ccd938317fa2bb4d0ab29731d5f45d81281c7493f4ed0a6",
+      "definitionHash": "08b0d3adf14a6c213336cf53d97f2aa3cc322ad545f8d8d8ce1a0900b9020ce8"
+    },
+    {
+      "name": "public.haben_datev_personenkonto_passt()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "8faa7f498225c08ea61f4d5bcc39db0a2fa0fdaa85a976ed820449c922f167f1",
+      "definitionHash": "e90e7f1211b8da7e249d8f991f85280969a32e2264c79b2faa68a94aeb1b52ab"
+    },
+    {
+      "name": "public.haben_external_imports_no_truncate()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "20d8bd3a81ca3f8423cff14608dcc12c4449ffe157ff9bc239ba814012f35abd",
+      "definitionHash": "9f22d28e7fb4f43f27021f362327357fa3389c7bc54a9a17c054c9b8fd799bb3"
+    },
+    {
+      "name": "public.haben_integrity_problems(max_rows integer)",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "faca7792a417daf9e8225e7fc6b27064a38f239da103dd87fc5fb3c501062034",
+      "definitionHash": "6d99a42c263543ab93e0c318db924de2c5ca3a9d407471eaf1e95615fe3fb5ae"
+    },
+    {
+      "name": "public.haben_loan_fixed()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "87cf9aa76da8cf313fd65aa8e4fec0189de85aa61bdea1b1c5b47e927f4573d5",
+      "definitionHash": "172fd06e11e616ab876f84aed7a10715a061476aaca199353cffde8df5eed1c2"
+    },
+    {
+      "name": "public.haben_lock_audit_chain()",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "0f4cd123863508d1de1d74697b4211055caaa76d21c66d8d9a240a3a68761224",
+      "definitionHash": "5f667698226a2aac21928a0bde0998b52cfc915f58dafe2f06d155a2aa548819"
+    },
+    {
+      "name": "public.haben_own_accounts_fest()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "aaceea3615683b020bdab2811eca8848bd9829813320ad8e4aa790f418513151",
+      "definitionHash": "277763b02f9fb9ae62398deb63ae4b0f34dd44af76d2a292f0f30378e90bf2ea"
+    },
+    {
+      "name": "public.haben_pick(row_json jsonb, cols jsonb)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "c924f545a06b89d55bb1b47b6a110023b85ee210df2245e84d11b6372d448407",
+      "definitionHash": "a5655819601f088529f4c9348fe40c92c07c2f0b3edf3f9cd9b6ffd5805971e9"
+    },
+    {
+      "name": "public.haben_prepare_local_owner(target_id text)",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "bd34e0937ea604d21ae4f6e76a98925901be421c650e10ba3ef2b950593ddae6",
+      "definitionHash": "7e4999c4f954c9efa43988ab8e131134d853e3964fb7c57e2589d23fd12f284a"
+    },
+    {
+      "name": "public.haben_quote_choice_guard()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "7de1bff1651db2c595ece84d701b5c423f83817e625b49a070d0316220db2adf",
+      "definitionHash": "d711cd17399e2396f1329de6c8e93ebab7862964d4615051ae9bfdae3096b7b8"
+    },
+    {
+      "name": "public.haben_reject_billed_service_entry()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "9c9cf7e3db2c2152d2add07267924aeccde0fe1a8e3298c7c53e38ac60a03797",
+      "definitionHash": "ff70e8a3e3721b261a0a60bfaba5e7a4346fe6ca51f38bb8c8e6568c925bc6d7"
+    },
+    {
+      "name": "public.haben_reject_booked_asset()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "f627f7cf0829fc6abdeed98e7a584c0e6b6295d25e65336bddf96d734afb44f9",
+      "definitionHash": "4ae0722b8092ef458d0e6564521ffd631d9ab7ce7a7b0cf7d004cc141d1a6040"
+    },
+    {
+      "name": "public.haben_reject_locked()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "319aecbf6f9c6016b2f191ba7bc648d3b100447607ee91b93cdeb0edae551fc5",
+      "definitionHash": "03ffa49d6599eeef391c215404ec53b300ee72436a5ff6538845fe80769dbaac"
+    },
+    {
+      "name": "public.haben_reject_locked_document_amount()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "5be73a9410e90512703e87fd70a8da59a039d478fdfe1c4cd18e7f91f3bb66fa",
+      "definitionHash": "3ba1b3cb53729f5fff9067d142a0d507582e69fe7327fffb97538b286089e900"
+    },
+    {
+      "name": "public.haben_reject_locked_invoice_attachment()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "3692648d5094e00e87230c625d0afd0ff798a6792d4f8b3966853206c5b09a8b",
+      "definitionHash": "b095fe16729466d771d6e5b1f10d9c4a117d2ce990eb6c4759daf2b3094c3fde"
+    },
+    {
+      "name": "public.haben_reject_locked_invoice_line()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "8fa3f7c854dc654876fae402937d4c6553358b974856189c868408cbfb85c378",
+      "definitionHash": "a5a888632968d6badb5896db53588f24f20cfb776399839f81249a6f16fc44f0"
+    },
+    {
+      "name": "public.haben_reject_locked_invoice_tax()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "0587e466d46a748914d1ec408f39f550b10ad32f4380c11179cab5c40872da77",
+      "definitionHash": "e9b997072f713daf5378771d8d1a0065dbde8bee0d0eae07730cd05c2e808263"
+    },
+    {
+      "name": "public.haben_reject_locked_journal_line()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "b414acd4b0b48ff111a6b6a2c2ec8a5c8bb7394f6c5801e2adb80db4fdb4cb5e",
+      "definitionHash": "ef8064a58d5b0dca3230904f786639b2aca97ee6abb35c197942831cc65ea49f"
+    },
+    {
+      "name": "public.haben_reject_locked_quote()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "11cd84471bd3695f1b7ef9a5bfebc1814f1520d871ce5b14f3944ce3be9a5300",
+      "definitionHash": "d1a2cdf5f72e759fa92cff8bf5368df7dd151c61fd89d22c0d787d6a0f1b10af"
+    },
+    {
+      "name": "public.haben_reject_locked_quote_attachment()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "caaf9e44e920a9224c0de84f5ec7f36e7f8db44b4d9edead0b3bcf25e773cd1b",
+      "definitionHash": "a793886bc773b29c913fa5a97c3145913a85d273fc776b3e898608c18f5241cb"
+    },
+    {
+      "name": "public.haben_reject_locked_quote_line()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "5096c89b5233cfdbf7accefe50a90200fe797aad12d2a1c7165af9d3745bc9ab",
+      "definitionHash": "de4d271e36a325424168a31ac4cc586c1d95aed08b2ccf8aa89721ace742dc63"
+    },
+    {
+      "name": "public.haben_reject_truncate()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "303e96a95b4c33bef276779be7651063b09d39256bad689730c972d6bddb2706",
+      "definitionHash": "fd9bd236363f79c2d6d245b617e3b56927aaa3902065881d18d3428742b9191e"
+    },
+    {
+      "name": "public.haben_require_locked_entry()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "da9ce1c3dee14331d21d615d8558213e7ab571438f8ce243bef3be34a9326c3d",
+      "definitionHash": "b3789ddae2dbedba752d38549b3f00a8108eb73a61b9e1e4d0a6f2abe5562466"
+    },
+    {
+      "name": "public.haben_seal()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "25b0968460b7a4b6369e076c7e1d8b8842aee9f8ade91fdbc7b036b99781cf4e",
+      "definitionHash": "912489619def8c6ae7c0f8d943e27fd418f4533052906c9cd1198edea8de8cee"
+    },
+    {
+      "name": "public.haben_seal_columns(tbl text)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "fd8d1619eee9001c3192c07a2ef76aa571d2d759ec104b22a496bd4d766d4fe1",
+      "definitionHash": "44861cf946bc2d367e2ba7a43f9ab62cd94ab659ad269cd74091c63a2689ee48"
+    },
+    {
+      "name": "public.haben_seal_digest(tbl text, rid uuid, cols jsonb)",
+      "config": ["IntervalStyle=postgres", "TimeZone=UTC", "bytea_output=hex", "extra_float_digits=1"],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "8c5e6e300d07fac34b55c0aae1b86d57fc099b2c47050da93046609e699259b6",
+      "definitionHash": "6ff440a018bb3a717a65df0f5f4539288b3ccdc3c574cc7e6976faa6bdd67384"
+    },
+    {
+      "name": "public.haben_user_role_fixed()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "0a8d05597e08afd0b2e79488064f0416fce361db5f00f78289963d80b04b815d",
+      "definitionHash": "fadf7fd0df0e43aa3b0c8447b85174f8ee6040d13e2b316f260bac1a46ee46e0"
+    },
+    {
+      "name": "public.haben_vat_return_filed()",
+      "config": [],
+      "language": "plpgsql",
+      "securityDefiner": false,
+      "sourceHash": "c9981f4736df8aa52e63dda641fab0de1ebf0291ca4b4b0a630c42b2d7051601",
+      "definitionHash": "da5fac318a459a750b33ff7570eae2b65d661c3cd89f2495fdb60ed451e6daf1"
+    },
+    {
+      "name": "public.haben_year_digest(y integer, OUT entries integer, OUT digest text)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "88314bfb98aa3943e6a52f822077e51a080b353c9f1569a25b43ce16fd538ec5",
+      "definitionHash": "ff547426053244fabee4f51bfb81c8557295ee7d0e886176db96c613efa197c3"
+    }
+  ]
+}

@@ -142,7 +142,7 @@ Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe
 | Anlage | Angaben |
 | --- | --- |
 | N | Je Person mit Arbeitslohn: die Lohnsteuerbescheinigungen (Steuerklasse, Bruttoarbeitslohn, Lohnsteuer, Soli, Kirchensteuer) und Werbungskosten, siehe [Arbeitslohn](#arbeitslohn-anlage-n) |
-| Vorsorgeaufwand | Je Person: Beiträge laut Lohnsteuerbescheinigung (Rentenversicherung mit Arbeitgeberanteil, Kranken-, Pflege- und Arbeitslosenversicherung), gesetzliche Rentenversicherung, gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen; weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
+| Vorsorgeaufwand | Je Person: Beiträge laut Lohnsteuerbescheinigung (Rentenversicherung mit Arbeitgeberanteil, Kranken-, Pflege- und Arbeitslosenversicherung), gesetzliche Rentenversicherung, zertifizierte Basisrente (Rürup), gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen und Wahlleistungen, steuerfreie Arbeitgeberzuschüsse zur privaten KV und PV; weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
 | Einkommensersatzleistungen | Je Person Art und Betrag der steuerfreien Leistungen mit Progressionsvorbehalt (Arbeitslosengeld, Elterngeld, Insolvenzgeld, Krankengeld, Mutterschaftsgeld, Verdienstausfallentschädigung); gehen in den besonderen Steuersatz der Prognose ein |
 | Sonderausgaben | Gezahlte und erstattete Kirchensteuer, Spenden an steuerbegünstigte Empfänger im Inland; vom Geschäftskonto gezahlte Spenden stehen im Kontenblatt 1840 bzw. 2250 „Zuwendungen, Spenden“ ([Bank](bank.md#direkt-buchen)) |
 | Außergewöhnliche Belastungen | Selbst getragene Krankheitskosten |
@@ -151,6 +151,14 @@ Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe
 | KAP | Erträge mit und ohne inländischen Steuerabzug, ausländische Erträge, genutzter Sparer-Pauschbetrag, einbehaltene Kapitalertragsteuer, Solidaritätszuschlag und Kirchensteuer, Antrag auf Günstigerprüfung |
 
 Unter den Angaben zeigt Haben das geschätzte zu versteuernde Einkommen und die voraussichtliche Steuer, berechnet wie die [Steuerprognose](finanzamt.md#steuerprognose) mit dem tatsächlichen Gewinn des Jahres. Mit Arbeitslohn kommen die bereits einbehaltene Lohnsteuer samt Soli und Kirchensteuer und die voraussichtliche Nachzahlung bzw. Erstattung dazu.
+
+### Was die Vorsorgezeilen bedeuten
+
+Die Beiträge zur gesetzlichen Rentenversicherung und die einer zertifizierten Basisrente (Rürup) teilen sich denselben Höchstbetrag der Altersvorsorge; Haben rechnet beide zusammen und kappt erst danach.
+
+Wahlleistungen einer privaten Krankenversicherung, also was über die Basisabsicherung hinausgeht, gehören nicht zur Basisabsicherung, sondern zu den sonstigen Vorsorgeaufwendungen und damit in deren Höchstbetrag (2.800 € für Selbständige, 1.900 € für Arbeitnehmer).
+
+Die steuerfreien Arbeitgeberzuschüsse zur privaten Kranken- und Pflegeversicherung stehen getrennt in der Lohnsteuerbescheinigung (Nr. 24 b und 24 c). Sie mindern den abzugsfähigen Betrag, sie erhöhen ihn nicht. Trag sie ein, wenn deine Bescheinigung sie ausweist — und zwar beide: ERiC nimmt den Zuschuss zur Krankenversicherung (Nr. 24 b) nur zusammen mit dem zur Pflegeversicherung (Nr. 24 c) an (Regel 100240078). Bei privat versicherten Arbeitnehmern weist die Bescheinigung beide aus.
 
 ### Einkommensersatzleistungen
 
@@ -183,7 +191,7 @@ In der Prognose rechnet Haben die Entfernungspauschale mit 0,30 € je Kilometer
 
 Die Homeoffice-Pauschale gibt es je Person nur einmal im Jahr. Hast du als Person A auch [Homeoffice-Tage in der EÜR](pauschalen.md), weist Haben darauf hin, wenn beide zusammen mehr als 210 Tage ergeben.
 
-Nicht abgebildet sind Versorgungsbezüge, ermäßigt besteuerte Entschädigungen (Abfindungen), Arbeitslohn ohne Steuerabzug oder aus dem Ausland, Kurzarbeiter- und Elterngeld, Fahrtkostenersatz des Arbeitgebers, Reisekosten, doppelte Haushaltsführung und steuerfreie Zuschüsse zur privaten Krankenversicherung (Nr. 24 der Bescheinigung).
+Nicht abgebildet sind Versorgungsbezüge, ermäßigt besteuerte Entschädigungen (Abfindungen), Arbeitslohn ohne Steuerabzug oder aus dem Ausland, Kurzarbeiter- und Elterngeld, Fahrtkostenersatz des Arbeitgebers, Reisekosten, doppelte Haushaltsführung. Steuerfreie Zuschüsse zur privaten Kranken- und Pflegeversicherung (Nr. 24 b und 24 c) stehen in der Anlage Vorsorgeaufwand, siehe [Was die Vorsorgezeilen bedeuten](#was-die-vorsorgezeilen-bedeuten).
 
 Beträge gehen in vollen Euro an ELSTER, nur die Steuern auf Kapitalerträge mit Cent. Pflicht sind die IBAN in den Firmendaten und je Kind die Familienkasse. Lohn- und Kirchensteuer einer Lohnsteuerbescheinigung schickt Haben auch mit 0, wenn das Feld leer ist; so verlangt es ELSTER.
 

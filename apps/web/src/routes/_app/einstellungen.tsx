@@ -42,6 +42,7 @@ import { McpCard } from "../../components/McpCard.tsx";
 import { ExtractionCard } from "../../components/ExtractionCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { PasskeysCard } from "../../components/PasskeysCard.tsx";
+import { PasswordCard } from "../../components/PasswordCard.tsx";
 import { SsoZugaengeCard } from "../../components/SsoZugaengeCard.tsx";
 import { ZugaengeCard } from "../../components/ZugaengeCard.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/SkontoFields.tsx";
@@ -276,6 +277,7 @@ function SettingsPage() {
           {bereich === "sicherheit" && zugaenge.mode === "lokal" && (
             <>
               <PasskeysCard />
+              <PasswordCard />
               <ZugaengeCard data={zugaenge} />
             </>
           )}

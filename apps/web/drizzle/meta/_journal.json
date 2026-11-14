@@ -1639,6 +1639,20 @@
       "when": 1794671331147,
       "tag": "0233_search_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 234,
+      "version": "7",
+      "when": 1794681966642,
+      "tag": "0234_passwortwechsel",
+      "breakpoints": true
+    },
+    {
+      "idx": 235,
+      "version": "7",
+      "when": 1794681973469,
+      "tag": "0235_passwortwechsel_trigger",
+      "breakpoints": true
     }
   ]
 }

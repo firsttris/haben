@@ -265,8 +265,17 @@ const arbeitnehmer = (steuerklasse: 1 | 3 | 4): EstArbeitnehmer => ({
 /** Alle Angaben, die Haben kennt */
 const alleAngaben = (year: number): EstAngaben => ({
   vorsorge: {
-    a: { rentenversicherung: 300_000, pkv: 600_000, ppv: 40_049, pkvErstattung: 50_000 },
-    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000 },
+    a: {
+      rentenversicherung: 300_000,
+      pkv: 600_000,
+      ppv: 40_049,
+      pkvErstattung: 50_000,
+      basisrente: 200_000,
+      pkvWahlleistungen: 60_000,
+      agZuschussKv: 120_000,
+      agZuschussPv: 12_000,
+    },
+    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000, basisrente: 100_000 },
     sonstige: 25_000,
   },
   ersatzleistungen: {

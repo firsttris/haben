@@ -212,6 +212,33 @@ test("Anlage N: Pflichtfeld im zugeklappten Block wird beim Speichern sichtbar",
   await expect(brutto).toBeFocused();
 });
 
+test("Vorsorgeaufwand: Rürup, Wahlleistungen und Zuschüsse überstehen das Speichern (#943)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  // Über den Blocktitel, nicht über den Text: der Anlage-N-Block nennt die Vorsorgeaufwand-Zeilen ebenfalls.
+  const block = () => form.locator("details.est-block").filter({ has: page.locator(".est-block-title", { hasText: /^Vorsorgeaufwand$/ }) });
+  // Bei Zusammenveranlagung stehen die Felder beider Personen im Block; die der steuerpflichtigen Person trägt „a-“.
+  const feld = (name: string) => block().locator(`input[name="a-${name}"]`);
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("basisrente")).toHaveAccessibleName("Zertifizierte Basisrente (Rürup)");
+  await feld("basisrente").fill("3.000,00");
+  await feld("pkvWahlleistungen").fill("1.200,00");
+  await feld("agZuschussKv").fill("3.000,00");
+  await feld("agZuschussPv").fill("200,00");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  await expect(block().locator("summary")).toContainText(/4\.200,00\s€/);
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  // Nach dem Neuladen trägt der Blocktitel die Summe; die Blöcke starten zugeklappt, also aufklappen.
+  await expect(block().locator("summary")).toContainText(/4\.200,00\s€/);
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("basisrente")).toHaveValue("3.000,00");
+  await expect(feld("pkvWahlleistungen")).toHaveValue("1.200,00");
+  await expect(feld("agZuschussKv")).toHaveValue("3.000,00");
+  await expect(feld("agZuschussPv")).toHaveValue("200,00");
+});
+
 test("Einkommensersatzleistungen: eintragen, speichern, nach dem Neuladen wieder da (#941)", async () => {
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
@@ -251,7 +278,7 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   const pruefwert = (await card.locator("code").textContent())!;
   expect(pruefwert).toMatch(/^Nr\. \d+ · [0-9a-f]{64}$/);
   await card.getByRole("button", { name: "Kette prüfen" }).click();
-  await expect(card.getByRole("status")).toContainText("Kette und Siegel sind unverändert");
+  await expect(card.getByRole("status")).toContainText("Kette, Siegel und Sperren sind unverändert");
   const field = card.getByLabel("Prüfwert aus Mail oder Jahresarchiv");
   await field.fill(pruefwert);
   await card.getByRole("button", { name: "Vergleichen" }).click();
