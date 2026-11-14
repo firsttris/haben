@@ -21,6 +21,7 @@ the change before starting.
 | Screenshots of a change to the look | `mitwirken.md` | `pr-screenshots` |
 | Judge a contribution (do we want it, built from the sources and correct, simplest solution, rules): own pull request as self-check, someone else's as maintainer | `mitwirken.md`: Beiträge annehmen | `beitrag-pruefen` |
 | Review and merge | `mitwirken.md`: Review | `tdd-review` for code, `doku-pruefen` for Markdown, both in parallel if a PR has both |
+| Work through all open pull requests, ranked from easiest to merge | `mitwirken.md`: Beiträge annehmen, Review | `prs-abarbeiten` |
 | Pushing to someone else's fork (fixes, additions), above all from a cloud session | `mitwirken.md`: Review | `fork-pushen` |
 | Issues and labels | `mitwirken.md`: Issues schreiben | `issue-schreiben` |
 | Roadmap board (GitHub Project) | `mitwirken.md`: Etwas übernehmen, Vom Issue zum Release | `board-pflegen` |
