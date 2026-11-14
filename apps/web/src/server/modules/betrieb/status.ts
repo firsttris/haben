@@ -14,6 +14,8 @@ export interface BetriebsStatus {
   schema: 1;
   /** Version aus der package.json im Wurzelverzeichnis */
   version: string;
+  /** Commit, aus dem das Image gebaut ist (Build-Argument HABEN_COMMIT); null ohne Angabe beim Bauen */
+  commit: string | null;
   eric: {
     /** env: von Hand eingebunden (ERIC_HOME), download: von Haben heruntergeladen, null: kein ERiC */
     source: "env" | "download" | null;
@@ -38,11 +40,14 @@ export interface BetriebsStatusOptions {
   ericHome?: string | null;
   /** ERiC über ERIC_HOME eingebunden statt heruntergeladen */
   ericFromEnv?: boolean;
+  /** Commit des Builds; ohne Angabe aus HABEN_COMMIT */
+  commit?: string | null;
 }
 
 export async function betriebsStatus(options: BetriebsStatusOptions = {}): Promise<BetriebsStatus> {
   const home = options.ericHome !== undefined ? options.ericHome : (ericHome() ?? null);
   const fromEnv = options.ericFromEnv ?? Boolean(env().ERIC_HOME?.trim());
+  const commit = options.commit !== undefined ? options.commit : env().HABEN_COMMIT?.trim() || null;
   const overview = await backupOverview(options.now);
   const eric: BetriebsStatus["eric"] = {
     source: home ? (fromEnv ? "env" : "download") : null,
@@ -54,7 +59,7 @@ export async function betriebsStatus(options: BetriebsStatusOptions = {}): Promi
     lastBackup: overview.lastBackup?.at.toISOString() ?? null,
     failed: overview.failed.map(({ kind, run }) => ({ kind, at: run.at.toISOString() })),
   };
-  return { schema: 1, version: pkg.version, eric, backup, summary: { eric: ericKurz(eric), backup: sicherungKurz(backup) } };
+  return { schema: 1, version: pkg.version, commit, eric, backup, summary: { eric: ericKurz(eric), backup: sicherungKurz(backup) } };
 }
 
 const BERLIN = new Intl.DateTimeFormat("sv-SE", {
@@ -90,5 +95,6 @@ function sicherungKurz(backup: BetriebsStatus["backup"]): string {
 
 /** Für Menschen: je Zeile ein Wert */
 export function statusAlsText(status: BetriebsStatus): string {
-  return [`Version:          ${status.version}`, `ERiC:             ${status.summary.eric}`, `Letzte Sicherung: ${status.summary.backup}`].join("\n");
+  const version = status.commit ? `${status.version} (${status.commit.slice(0, 7)})` : status.version;
+  return [`Version:          ${version}`, `ERiC:             ${status.summary.eric}`, `Letzte Sicherung: ${status.summary.backup}`].join("\n");
 }

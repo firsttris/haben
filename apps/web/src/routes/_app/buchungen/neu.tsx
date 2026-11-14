@@ -100,7 +100,6 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
     ...(kind === "umbuchung" && (!gmbh || mitSchluessel)
       ? freieBuchungIssues(lines, { kontenrahmen: data.kontenrahmen, rechtsform: data.rechtsform, kleinunternehmer: data.kleinunternehmer, ausDemJournal })
       : []),
-    ...(kind === "eroeffnung" && !date.endsWith("-01-01") ? ["Eine Eröffnungsbuchung steht am 1. Januar"] : []),
   ];
   const sum = (side: "debit" | "credit") => lines.reduce((s, l) => s + (Number.isFinite(l[side]) ? l[side] : 0), 0);
   const difference = sum("debit") - sum("credit");
@@ -110,7 +109,14 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
   // Was an den Zeilen fehlt, steht als Liste unter der Tabelle; das Konto der ersten Zeile zeigt darauf und bekommt den Fokus
   const zeilenFehlerId = useId();
   const { form, error, check } = useSubmitCheck({
-    date: date === "" ? "Wähle das Datum." : date > data.today ? `Wähle einen Tag bis ${formatDate(data.today)}.` : null,
+    date:
+      date === ""
+        ? "Wähle das Datum."
+        : date > data.today
+          ? `Wähle einen Tag bis ${formatDate(data.today)}.`
+          : kind === "eroeffnung" && !date.endsWith("-01-01")
+            ? "Eine Eröffnungsbuchung steht am 1. Januar; wähle den 1. Januar des Jahres."
+            : null,
     description: description.trim().length < 3 ? "Trag einen Buchungstext mit mindestens 3 Zeichen ein." : null,
     // Steht nicht am Feld, sondern als Liste unter der Tabelle (zeilenFehlerId)
     zeilen: issues.length > 0 ? issues.join(" ") : null,

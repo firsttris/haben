@@ -92,54 +92,64 @@ export function AbgabeVermerken({
   }
 
   if (vermerkt) {
+    // Der Kopf trägt, was man beim Nachschauen braucht; Begründung und Protokoll klappen darunter auf
+    const kopf = [vermerkt.filedOn ? `Abgegeben am ${formatDate(vermerkt.filedOn)}` : "Tag der Abgabe nicht vermerkt"];
+    kopf.push(vermerkt.amount === null ? "Betrag nicht vermerkt" : formatEuro(vermerkt.amount));
     return (
       <section className="card" aria-label={`Abgabe außerhalb von Haben: ${LABEL[art]} ${year}`}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0 }}>Außerhalb von Haben abgegeben</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ margin: 0 }}>Außerhalb von Haben abgegeben</h2>
+            <p className="small muted" style={{ margin: "2px 0 0" }}>
+              {kopf.join(" · ")}
+              {vermerkt.transferTicket && (
+                <>
+                  {" "}
+                  · Ticket <span className="mono">{vermerkt.transferTicket}</span>
+                </>
+              )}
+            </p>
+          </div>
           <Status tone="ok" inline>
             Abgegeben
           </Status>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
-          {LABEL[art]} {year} wurde außerhalb von Haben abgegeben. Ein zweiter Vermerk ist nicht möglich.
+          Ein zweiter Vermerk ist nicht möglich.
         </p>
         {abweichung && (
           <p className="banner banner-info" role="status">
             {abweichung}
           </p>
         )}
-        {/* Als Tabelle statt als Dialog-Fakten: Die Begründung ist ein Satz, kein Wert, und läuft im
-            Zwei-Spalten-Layout des Dialogs unter das Label. Hier bricht sie in ihrer Spalte um (#869). */}
-        <table className="report-table stack-table">
-          <tbody>
-            <tr>
-              <th scope="row">Tag der Abgabe</th>
-              <td>{vermerkt.filedOn ? formatDate(vermerkt.filedOn) : "–"}</td>
-            </tr>
-            <tr>
-              <th scope="row">Transferticket</th>
-              <td className="mono">{vermerkt.transferTicket ?? "–"}</td>
-            </tr>
-            <tr>
-              <th scope="row">Betrag</th>
-              <td className="num">{vermerkt.amount === null ? "–" : formatEuro(vermerkt.amount)}</td>
-            </tr>
-            <tr>
-              <th scope="row">Begründung</th>
-              <td>{vermerkt.note ?? "–"}</td>
-            </tr>
-            {vermerkt.hasPdf && (
-              <tr>
-                <th scope="row">Protokoll</th>
-                <td>
-                  <a href={`/api/protokoll/${vermerkt.id}`} target="_blank" rel="noreferrer">
-                    Übermittlungsprotokoll (PDF)
-                  </a>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <details className="est-block">
+          <summary>
+            <span className="est-block-title">Begründung und Protokoll</span>
+            <span className="small muted">aufklappen</span>
+          </summary>
+          <div className="stack" style={{ gap: 12, paddingTop: 12 }}>
+            {/* Tabelle wie in #876: Die Begründung ist ein Satz, kein Wert, und bricht hier in ihrer
+                Spalte um. Tag, Ticket und Betrag stehen schon im Kopf, deshalb nur die zwei Zeilen. */}
+            <table className="report-table stack-table">
+              <tbody>
+                <tr>
+                  <th scope="row">Begründung</th>
+                  <td>{vermerkt.note ?? "–"}</td>
+                </tr>
+                {vermerkt.hasPdf && (
+                  <tr>
+                    <th scope="row">Protokoll</th>
+                    <td>
+                      <a href={`/api/protokoll/${vermerkt.id}`} target="_blank" rel="noreferrer">
+                        Übermittlungsprotokoll (PDF)
+                      </a>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </details>
       </section>
     );
   }

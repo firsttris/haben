@@ -14,6 +14,8 @@ import {
   type PrivateUseRate,
   usesUsefulLife,
   allowsMemoValue,
+  formatDegressiveRate,
+  maxDegressiveRate,
 } from "@haben/core";
 import { useState, type FormEvent } from "react";
 import { parseUsefulLifeMonths } from "../lib/format.ts";
@@ -131,12 +133,16 @@ export function AssetForm({
     if (suggestion.method === "linear") setYears(suggestion.usefulLifeYears ? String(suggestion.usefulLifeYears) : "");
   }
 
+  // Über dem Höchstsatz (§ 7 Abs. 2 EStG) ist ein Fehler am Satz, wie der Hinweis darunter sagt
+  const maxRate = method === "degressiv" && acquisitionDate && lifeMonths ? maxDegressiveRate(acquisitionDate, lifeMonths) : null;
+  const rateAboveMax =
+    parsedRate !== null && maxRate !== null && parsedRate > maxRate ? `Höchstens ${formatDegressiveRate(maxRate)}; leer lassen für den Höchstsatz.` : null;
   const { form, error, check } = useSubmitCheck({
     name: name.trim() === "" ? "Trag eine Bezeichnung ein." : null,
     acquisitionDate: acquisitionDate ? null : "Wähle das Anschaffungsdatum.",
     cost: parsedCost !== null && parsedCost > 0 ? null : "Trag die Anschaffungskosten netto ein, etwa 1.200,00.",
     years: lifeValid ? null : "Trag die Nutzungsdauer in Jahren ein, etwa 3 oder 2,5.",
-    rate: method === "degressiv" && Number.isNaN(parsedRate) ? "Trag den Satz als Zahl ein, etwa 20 oder 23,07." : null,
+    rate: method !== "degressiv" ? null : Number.isNaN(parsedRate) ? "Trag den Satz als Zahl ein, etwa 20 oder 23,07." : rateAboveMax,
     linearFrom: method === "degressiv" && Number.isNaN(parsedLinearFrom) ? "Trag das Jahr vierstellig ein, etwa 2027." : null,
     openingDate: showOpening && !openingDate ? "Wähle den Übernahmestichtag." : null,
     opening: showOpening && (parsedOpening === null || parsedOpening < 0) ? "Trag den Restbuchwert ein, etwa 850,00." : null,
