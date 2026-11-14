@@ -42,7 +42,6 @@ interface Zahlung {
   amount: Cents;
 }
 
-
 /** Der spätere von zwei ISO-Tagen (JJJJ-MM-TT): Der Vergleich läuft über die Schreibweise, nicht über Zahlen. */
 function spaetererTag(a: string, b: string): string {
   return a.localeCompare(b) < 0 ? b : a;
