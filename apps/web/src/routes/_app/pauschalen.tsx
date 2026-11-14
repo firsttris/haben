@@ -1,6 +1,5 @@
 import {
   currentYear,
-  entfernungspauschale,
   fahrtBetrag,
   FAHRZEUG_LABEL,
   formatEuro,
@@ -25,6 +24,7 @@ import { useAction, type Notice } from "../../lib/use-action.ts";
 import { createPauschaleFn, getPauschalen, reversePauschaleFn } from "../../server/functions/pauschalen.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
+import { EntfernungForm } from "../../components/EntfernungForm.tsx";
 import { Field } from "../../components/Field.tsx";
 import { Status } from "../../components/Status.tsx";
 
@@ -179,7 +179,7 @@ function PauschalenList() {
           {art === "homeoffice" && <HomeofficeForm data={data} onNotice={setNotice} />}
           {art === "fahrt" && <FahrtForm data={data} onNotice={setNotice} />}
           {art === "verpflegung" && <VerpflegungForm data={data} onNotice={setNotice} />}
-          {art === "entfernung" && <EntfernungForm data={data} onNotice={setNotice} />}
+          {art === "entfernung" && <EntfernungTab data={data} onNotice={setNotice} />}
           <NoticeBanner notice={notice} />
         </section>
 
@@ -336,81 +336,16 @@ function FahrtForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => vo
   );
 }
 
-function EntfernungForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => void }) {
+/** Wege zur Betriebsstätte: das Formular steht in `EntfernungForm`, hier hängt es an Senden und Meldung der Seite */
+function EntfernungTab({ data, onNotice }: { data: Data; onNotice: (n: Notice) => void }) {
   const { busy, submit } = useSubmit(onNotice);
-  const [month, setMonth] = useState(defaultDate(data).slice(0, 7));
-  const [tage, setTage] = useState("");
-  const [km, setKm] = useState("");
-  const [betriebsstaette, setBetriebsstaette] = useState("");
-  const jahr = Number(month.slice(0, 4)) || data.year;
-  const betrag = entfernungspauschale(jahr, Number(tage) || 0, Number(km) || 0);
-  // Die Sätze des Jahres kommen aus dem Rechenkern: Satz bis zum 20. und ab dem 21. Kilometer
-  const nah = entfernungspauschale(jahr, 1, 1);
-  const fern = entfernungspauschale(jahr, 1, 21) - entfernungspauschale(jahr, 1, 20);
-  const satzText =
-    nah === fern
-      ? `${formatEuro(nah)} je vollem Kilometer der einfachen Strecke.`
-      : `${formatEuro(nah)} je vollem Kilometer der einfachen Strecke, ab dem 21. Kilometer ${formatEuro(fern)}.`;
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    void submit({ art: "entfernung", month, tage: Number(tage), km: Number(km), betriebsstaette: betriebsstaette.trim() }, form, "Entfernungspauschale").then(
-      (ok) => {
-        if (!ok) return;
-        setTage("");
-        setKm("");
-        setBetriebsstaette("");
-      },
-    );
-  }
-
   return (
-    <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label={PAUSCHALE_LABEL.entfernung}>
-      <p className="small muted" style={{ margin: 0 }}>
-        Für jeden Tag, an dem du von der Wohnung zur Betriebsstätte fährst (zum Beispiel zum gemieteten Praxisraum oder Atelier), zählt die
-        Entfernungspauschale: {satzText} Hin- und Rückweg sind damit abgegolten. Haben rechnet für ein Fahrzeug, das nicht zu deinem Betriebsvermögen gehört.
-        Fahrten zu Kunden und auf Reisen trägst du als Fahrt ein. Ein Tag zählt nur einmal, auch bei mehreren Betriebsstätten.
-      </p>
-      <div className="form-grid">
-        <Field label="Monat">
-          {(control) => (
-            <input
-              {...control}
-              type="month"
-              value={month}
-              min={`${data.year}-01`}
-              max={defaultDate(data).slice(0, 7)}
-              onChange={(e) => setMonth(e.target.value)}
-              required
-            />
-          )}
-        </Field>
-        <Field label="Tage an der Betriebsstätte">
-          {(control) => <input {...control} value={tage} onChange={(e) => setTage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}
-        </Field>
-        <Field label="Kilometer einfach">
-          {(control) => <input {...control} value={km} onChange={(e) => setKm(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}
-        </Field>
-        <Field label="Betriebsstätte">
-          {(control) => (
-            <input
-              {...control}
-              value={betriebsstaette}
-              onChange={(e) => setBetriebsstaette(e.target.value)}
-              placeholder="Praxisraum, Musterstadt"
-              maxLength={300}
-              required
-            />
-          )}
-        </Field>
-      </div>
-      <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={busy || betrag === 0 || betriebsstaette.trim() === ""}>
-          {betrag > 0 ? `${formatEuro(betrag)} buchen` : "Buchen"}
-        </button>
-      </div>
-    </form>
+    <EntfernungForm
+      year={data.year}
+      monat={defaultDate(data).slice(0, 7)}
+      busy={busy}
+      onSubmit={(input, form) => submit({ art: "entfernung", ...input }, form, "Entfernungspauschale")}
+    />
   );
 }
 
