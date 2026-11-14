@@ -15,7 +15,7 @@ const PORTAL = "http://localhost:3217";
 export default defineConfig({
   testDir: "e2e",
   // sso-only zuerst: Es braucht eine frische Instanz, sso-portal richtet sie nur ein, falls nötig
-  testMatch: ["sso-only.spec.ts", "sso-portal.spec.ts"],
+  testMatch: ["sso-only.spec.ts", "sso-portal.spec.ts", "sso-portal-abmelden.spec.ts"],
   workers: 1,
   timeout: 60_000,
   use: {
