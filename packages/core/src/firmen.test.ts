@@ -13,9 +13,25 @@ describe("parsePortalFirmen", () => {
   it("liest Name, Origin und Gruppe je Firma", () => {
     expect(parsePortalFirmen(` ${NORD} ; ${SUED} ;`)).toEqual({
       firmen: [
-        { name: "Studio Nord", url: "https://nord.example.de", gruppe: "haben-nord-inhaber" },
-        { name: "Werkstatt Süd", url: "https://xn--sd-xka.example.de", gruppe: "haben-sued-inhaber" },
+        { name: "Studio Nord", url: "https://nord.example.de", gruppe: "haben-nord-inhaber", farbe: null, logo: null },
+        { name: "Werkstatt Süd", url: "https://xn--sd-xka.example.de", gruppe: "haben-sued-inhaber", farbe: null, logo: null },
       ],
+    });
+  });
+
+  it("liest Farbe und Logo hinter der Gruppe (#1036), die Farbe in Großbuchstaben", () => {
+    expect(parsePortalFirmen(`${NORD}|#1d4ed8|nord.png;${SUED}| |sued_2.jpg;Atelier West|https://west.example.de|haben-west|#B45309`)).toEqual({
+      firmen: [
+        { name: "Studio Nord", url: "https://nord.example.de", gruppe: "haben-nord-inhaber", farbe: "#1D4ED8", logo: "nord.png" },
+        { name: "Werkstatt Süd", url: "https://xn--sd-xka.example.de", gruppe: "haben-sued-inhaber", farbe: null, logo: "sued_2.jpg" },
+        { name: "Atelier West", url: "https://west.example.de", gruppe: "haben-west", farbe: "#B45309", logo: null },
+      ],
+    });
+  });
+
+  it("lässt Farbe und Logo leer zu, wie das Werkzeug sie schreibt", () => {
+    expect(parsePortalFirmen(`${NORD}||`)).toEqual({
+      firmen: [{ name: "Studio Nord", url: "https://nord.example.de", gruppe: "haben-nord-inhaber", farbe: null, logo: null }],
     });
   });
 
@@ -25,7 +41,16 @@ describe("parsePortalFirmen", () => {
 
   it.each([
     ["ohne Gruppe", "Studio Nord|https://nord.example.de", "Name|Adresse|Gruppe"],
-    ["mit vier Teilen", `${NORD}|mehr`, "Name|Adresse|Gruppe"],
+    ["mit sechs Teilen", `${NORD}|#1D4ED8|nord.png|mehr`, "Name|Adresse|Gruppe"],
+    ["mit einer Farbe ohne #", `${NORD}|1D4ED8`, "Farbe als #RRGGBB"],
+    ["mit einer kurzen Farbe", `${NORD}|#1D4`, "Farbe als #RRGGBB"],
+    ["mit einem Farbnamen", `${NORD}|blue`, "Farbe als #RRGGBB"],
+    ["mit einem Pfad als Logo", `${NORD}||../nord.png`, "Logo als Dateiname"],
+    ["mit einem Verzeichnis im Logo", `${NORD}||logos/nord.png`, "Logo als Dateiname"],
+    ["mit einem Logo ohne Namen", `${NORD}||.png`, "Logo als Dateiname"],
+    ["mit einem Logo als GIF", `${NORD}||nord.gif`, "Logo als Dateiname"],
+    ["mit einem Logo in Großbuchstaben", `${NORD}||Nord.PNG`, "Logo als Dateiname"],
+    ["mit Leerzeichen im Logo", `${NORD}||studio nord.png`, "Logo als Dateiname"],
     ["mit leerer Gruppe", "Studio Nord|https://nord.example.de| ", "Gruppe mit 1 bis 100"],
     ["mit Leerzeichen in der Gruppe", "Studio Nord|https://nord.example.de|haben nord", "ohne Leerzeichen"],
     ["mit Tabulator in der Gruppe", "Studio Nord|https://nord.example.de|haben\tnord", "ohne Leerzeichen"],
@@ -100,8 +125,15 @@ describe("portalFirmenFuer", () => {
 
   it("zeigt nur die Firmen aus den eigenen Gruppen, nach Namen sortiert und ohne Gruppe", () => {
     expect(portalFirmenFuer(["familie", "haben-sued-inhaber", "haben-nord-inhaber"], firmen)).toEqual([
-      { name: "Studio Nord", url: "https://nord.example.de" },
-      { name: "Werkstatt Süd", url: "https://xn--sd-xka.example.de" },
+      { name: "Studio Nord", url: "https://nord.example.de", farbe: null, logo: null },
+      { name: "Werkstatt Süd", url: "https://xn--sd-xka.example.de", farbe: null, logo: null },
+    ]);
+  });
+
+  it("gibt Farbe und Logo mit", () => {
+    const mitZeichen = (parsePortalFirmen(`${NORD}|#1D4ED8|nord.png`) as { firmen: never[] }).firmen;
+    expect(portalFirmenFuer(["haben-nord-inhaber"], mitZeichen)).toEqual([
+      { name: "Studio Nord", url: "https://nord.example.de", farbe: "#1D4ED8", logo: "nord.png" },
     ]);
   });
 
