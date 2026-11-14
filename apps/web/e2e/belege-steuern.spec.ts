@@ -662,6 +662,28 @@ test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno 
   await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
 });
 
+test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
+  // Zwei Spalten am Handy (DESIGN.md, Karten): Die fünfte Karte der Pauschalen und die dritte der Kasse standen allein in halber Breite
+  const vorher = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const [pfad, anzahl] of [
+    ["/pauschalen", 5],
+    ["/kasse", 3],
+  ] as const) {
+    await go(pfad);
+    const raster = page.locator(".grid-3, .grid-4, .grid-5").first();
+    await expect(raster.locator(":scope > .card")).toHaveCount(anzahl);
+    const breiten = await raster.evaluate((r) => ({
+      raster: r.getBoundingClientRect().width,
+      erste: (r.firstElementChild as HTMLElement).getBoundingClientRect().width,
+      letzte: (r.lastElementChild as HTMLElement).getBoundingClientRect().width,
+    }));
+    expect(breiten.erste, `${pfad}: zwei Spalten`).toBeLessThan(breiten.raster / 2);
+    expect(breiten.letzte, `${pfad}: letzte Karte über die ganze Breite`).toBeCloseTo(breiten.raster, 0);
+  }
+  if (vorher) await page.setViewportSize(vorher);
+});
+
 test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ browser }) => {
   await go("/belege");
   await page
