@@ -1,5 +1,6 @@
 import {
   ACCOUNT_PURPOSES,
+  aufKontoAngeboten,
   direktBuchungenFuerKonto,
   direktKategorienFuerKonto,
   PAYMENT_PROVIDERS,
@@ -104,7 +105,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
       const hasSuggestion =
         match !== undefined ||
         (row.open === row.amount && current !== undefined && isCertainDirect(suggestDirectBooking(row, current, own))) ||
-        learned.has(row.id);
+        // Gelernt, aber auf diesem Konto nicht buchbar (Gebühren auf dem Privatkonto, #873): kein Vorschlag
+        (learned.has(row.id) && aufKontoAngeboten(learned.get(row.id)!.kind, account?.purpose ?? null));
       return {
         ...row,
         // Wohin der Vorschlag passt, für die Auskunft unter dem Status; direkte und gelernte Vorschläge haben kein Ziel

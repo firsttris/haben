@@ -26,14 +26,19 @@ const PRIVAT_NICHT_ANGEBOTEN = ["gebuehren", "zinsertrag", "privat", "geldtransi
 
 const gesperrt = (wert: string) => (PRIVAT_NICHT_ANGEBOTEN as readonly string[]).includes(wert);
 
+/** Ob eine Buchungsart oder Kategorie auf einem Konto mit diesem Zweck gebucht werden darf; der Server prüft damit jede Zuordnung */
+export function aufKontoAngeboten(wert: string, zweck: AccountPurpose | null): boolean {
+  return zweck !== "privat" || !gesperrt(wert);
+}
+
 /** Buchungen ohne Beleg für ein Konto; auf einem privaten Konto ohne die vier, die dort keinen Sinn ergeben (#873) */
 export function direktBuchungenFuerKonto(rechtsform: Rechtsform, zweck: AccountPurpose | null): DirectBooking[] {
   const arten = directBookingsFor(rechtsform);
-  return zweck === "privat" ? arten.filter((art) => !gesperrt(art)) : arten;
+  return arten.filter((art) => aufKontoAngeboten(art, zweck));
 }
 
 /** Kategorien unter „Direkt buchen“ für ein Konto; auf einem privaten Konto ohne Bankgebühren (#873) */
 export function direktKategorienFuerKonto(zweck: AccountPurpose | null): ReturnType<typeof direktKategorienFuer> {
   const kategorien = direktKategorienFuer();
-  return zweck === "privat" ? kategorien.filter((kategorie) => !gesperrt(kategorie.value)) : kategorien;
+  return kategorien.filter((kategorie) => aufKontoAngeboten(kategorie.value, zweck));
 }
