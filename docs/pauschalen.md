@@ -46,7 +46,7 @@ Für Fahrten zu Kunden und Terminen und auf Geschäftsreisen gelten diese Kilome
 - Konto: SKR03 4673, SKR04 6673.
 - Anlage EÜR: „Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage)“ (E6006103).
 
-Arbeitest du dauerhaft beim selben Kunden, kann dort eine Betriebsstätte entstehen. Dann zählt statt des Kilometersatzes die [Entfernungspauschale](#wege-zwischen-wohnung-und-betriebsstatte). Die Drei-Monats-Grenze gilt nur für die Verpflegungspauschale.
+Arbeitest du dauerhaft beim selben Kunden, kann dort eine Betriebsstätte entstehen. Dann zählt statt des Kilometersatzes die [Entfernungspauschale](#wege-zwischen-wohnung-und-betriebsstätte). Die Drei-Monats-Grenze gilt nur für die Verpflegungspauschale.
 
 Ein Fahrzeug im Betriebsvermögen buchst du über seine Kosten und die [Privatnutzung](anlagen.md), nicht hier.
 
