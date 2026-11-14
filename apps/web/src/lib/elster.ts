@@ -27,8 +27,8 @@ export function abgabePille({
   submitted: { filedOn: string | null } | null;
   verwaltet?: boolean;
 }): AbgabePille {
-  if (sent) return { ok: true, text: `Übermittelt ${formatDate(sent)}` };
-  if (submitted) return { ok: true, text: `Außerhalb abgegeben${submitted.filedOn ? ` ${formatDate(submitted.filedOn)}` : ""}` };
+  if (sent) return { ok: true, text: `Übermittelt am ${formatDate(sent)}` };
+  if (submitted) return { ok: true, text: `Außerhalb abgegeben${submitted.filedOn ? ` am ${formatDate(submitted.filedOn)}` : ""}` };
   return { ok: false, text: verwaltet ? "Noch nicht übermittelt" : "Wird außerhalb von Haben abgegeben" };
 }
 

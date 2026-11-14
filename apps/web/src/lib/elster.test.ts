@@ -5,8 +5,8 @@ describe("abgabePille", () => {
   const vermerk = { filedOn: "2025-09-29" };
 
   it("meldet Übermittlung und Abgabe außerhalb mit Datum", () => {
-    expect(abgabePille({ sent: "2025-08-14T10:00:00Z", submitted: null })).toEqual({ ok: true, text: "Übermittelt 14.08.2025" });
-    expect(abgabePille({ sent: null, submitted: vermerk })).toEqual({ ok: true, text: "Außerhalb abgegeben 29.09.2025" });
+    expect(abgabePille({ sent: "2025-08-14T10:00:00Z", submitted: null })).toEqual({ ok: true, text: "Übermittelt am 14.08.2025" });
+    expect(abgabePille({ sent: null, submitted: vermerk })).toEqual({ ok: true, text: "Außerhalb abgegeben am 29.09.2025" });
     // Ohne Tag im Vermerk bleibt es beim Zustand allein
     expect(abgabePille({ sent: null, submitted: { filedOn: null } }).text).toBe("Außerhalb abgegeben");
   });
@@ -21,8 +21,8 @@ describe("abgabePille", () => {
   });
 
   it("bleibt bei einer Übermittlung aus Haben oder einem Vermerk genauer", () => {
-    expect(abgabePille({ sent: "2025-08-14T10:00:00Z", submitted: null, verwaltet: false }).text).toBe("Übermittelt 14.08.2025");
-    expect(abgabePille({ sent: null, submitted: vermerk, verwaltet: false }).text).toBe("Außerhalb abgegeben 29.09.2025");
+    expect(abgabePille({ sent: "2025-08-14T10:00:00Z", submitted: null, verwaltet: false }).text).toBe("Übermittelt am 14.08.2025");
+    expect(abgabePille({ sent: null, submitted: vermerk, verwaltet: false }).text).toBe("Außerhalb abgegeben am 29.09.2025");
   });
 });
 
