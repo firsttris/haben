@@ -90,7 +90,7 @@ Für die Wege von der Wohnung zur Betriebsstätte, zum Beispiel zum gemieteten P
 - Du trägst die Wege je Monat ein: **Monat**, **Tage an der Betriebsstätte** (höchstens so viele, wie der Monat hat, alle Einträge des Monats zusammen), **Kilometer einfach** und die **Betriebsstätte** als Text. Haben bucht zum Monatsletzten.
 - Es zählen nur volle Kilometer; Haben rundet ab.
 - Konto: SKR03 4678, SKR04 6688. Der DATEV-Kontenrahmen beschriftet diese Konten („abziehbarer Anteil“) für Fahrzeuge im Betriebsvermögen und kennt kein eigenes Konto für das Privatfahrzeug; die Wahl ist mit der Steuerberatung zu bestätigen.
-- Anlage EÜR: „Abziehbare Aufwendungen für Wege zwischen Wohnung und Betriebsstätte“ (Zeile 73 der Anlage EÜR 2025, Kennung E6003702), nicht die Nutzungseinlage der Fahrten.
+- Anlage EÜR: „Mindestens abziehbare Kraftfahrzeugkosten für Wege zwischen Wohnung und Betriebsstätte, Familienheimfahrten“ (Zeile 73 der Anlage EÜR 2025, Kennung E6003702), nicht die Nutzungseinlage der Fahrten. Zeile 72 derselben Anlage kürzt die Kfz-Kosten eines Fahrzeugs im Betriebsvermögen; für ein Privatfahrzeug bleibt sie leer.
 
 Haben rechnet nur Wege mit dem eigenen Fahrzeug, das nicht zum Betriebsvermögen gehört. Nicht abgebildet sind:
 
@@ -98,7 +98,7 @@ Haben rechnet nur Wege mit dem eigenen Fahrzeug, das nicht zum Betriebsvermögen
 - höhere tatsächliche Kosten für öffentliche Verkehrsmittel und der Höchstbetrag von 4.500 € für andere Verkehrsmittel als das eigene Auto,
 - Familienheimfahrten und doppelte Haushaltsführung.
 
-Haben prüft nicht, ob du für denselben Tag auch eine Homeoffice-Pauschale einträgst; achte darauf selbst. Was als Betriebsstätte gilt, ist eine Frage des Einzelfalls und gehört in die Steuerberatung.
+Hast du ein Fahrzeug im Betriebsvermögen, trag diese Art nicht zusätzlich ein, sonst zählen Kosten und Pauschale doppelt. Haben prüft auch nicht, ob du für denselben Tag eine Homeoffice-Pauschale einträgst; nach § 4 Abs. 5 Satz 1 Nr. 6c EStG gilt sie nur an Tagen, an denen du keine erste Tätigkeitsstätte aufsuchst. Achte darauf selbst. Was als Betriebsstätte gilt, ist eine Frage des Einzelfalls und gehört in die Steuerberatung.
 
 ## Buchung und Storno
 
