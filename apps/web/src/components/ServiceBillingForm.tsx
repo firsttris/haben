@@ -149,7 +149,7 @@ export function ServiceBillingForm({
         <button type="button" className="btn" onClick={onClose}>
           Abbrechen
         </button>
-        {/* Mit gültigen Angaben gesperrt, solange die Vorschau lädt oder nichts abzurechnen ist; der Grund steht darüber */}
+        {/* Mit gültigen Angaben gesperrt, solange die Vorschau lädt (einen Augenblick) oder nichts abzurechnen ist; dann steht der Grund darüber */}
         <button type="submit" className="btn btn-primary" disabled={busy || (valid && (result === null || empty || missing))}>
           Rechnungsentwurf anlegen
         </button>
