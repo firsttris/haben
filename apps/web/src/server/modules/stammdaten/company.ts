@@ -10,6 +10,7 @@ import {
   isKapitalgesellschaft,
   legalInfo,
   legalInfoGaps,
+  MAX_DUNNING_FEE,
   skontoProblem,
   skontoStufenSchema,
   toElsterSteuernummer,
@@ -109,7 +110,11 @@ export const companySchema = z
     dunning: z
       .object({
         baseRate: z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max).nullable(),
-        fees: z.object({ "1": z.number().int().min(0).max(100_000), "2": z.number().int().min(0).max(100_000), "3": z.number().int().min(0).max(100_000) }),
+        fees: z.object({
+          "1": z.number().int().min(0).max(MAX_DUNNING_FEE),
+          "2": z.number().int().min(0).max(MAX_DUNNING_FEE),
+          "3": z.number().int().min(0).max(MAX_DUNNING_FEE),
+        }),
         deadlineDays: z.number().int().min(1).max(60),
         /** Basiszinssatz zum 1. Januar und 1. Juli bei der Bundesbank abrufen (opt-in); fehlt = unverändert */
         autoBaseRate: z.boolean().optional(),
