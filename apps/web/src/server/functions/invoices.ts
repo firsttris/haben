@@ -1,5 +1,5 @@
 import { notFound } from "@tanstack/react-router";
-import { invoicesSentByMail, leistungsmonatHinweis, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
+import { invoicesSentByMail, leistungsmonatHinweisFuer, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
@@ -118,11 +118,7 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
     if (!result || (context.user.role !== "inhaber" && result.invoice.status === "draft")) throw notFound();
     const issues = result.invoice.status === "draft" ? await finalizeIssues(data) : [];
     // Hinweis statt Sperre (#694): Der Leistungsmonat kann in einer schon übermittelten Voranmeldung liegen.
-    const gemeldet = await db
-      .select({ year: schema.vatReturns.year, month: schema.vatReturns.month })
-      .from(schema.vatReturns)
-      .where(eq(schema.vatReturns.status, "sent"));
-    const leistungsmonat = result.invoice.status === "final" ? leistungsmonatHinweis(result.invoice.serviceDate, gemeldet) : null;
+    const leistungsmonat = await leistungsmonatHinweisFuer(result.invoice);
     // Mahnungen und ob die Rechnung gerade überfällig ist (offen und Fälligkeit vorbei)
     const listed = result.invoice.status === "final" ? (await listInvoices(today(), data))[0] : undefined;
     return {
@@ -192,17 +188,7 @@ export const finalizeInvoiceDraft = createServerFn({ method: "POST" })
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
     const invoice = await finalizeInvoice(context.user.id, data);
-    // Hinweis statt Sperre (#694): Liegt der Leistungsmonat in einer schon übermittelten Voranmeldung, bleibt die
-    // Rechnung gültig — die Steuer ist dort nur nicht mehr enthalten.
-    const gemeldet = await db
-      .select({ year: schema.vatReturns.year, month: schema.vatReturns.month })
-      .from(schema.vatReturns)
-      .where(eq(schema.vatReturns.status, "sent"));
-    return {
-      id: invoice.id,
-      number: invoice.number,
-      hinweis: leistungsmonatHinweis(invoice.serviceDate, gemeldet),
-    };
+    return { id: invoice.id, number: invoice.number };
   });
 
 export const cancelFinalInvoice = createServerFn({ method: "POST" })

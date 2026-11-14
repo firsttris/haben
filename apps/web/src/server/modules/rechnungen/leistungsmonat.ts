@@ -1,18 +1,16 @@
-import { monthsOfPeriod, type VatPeriod } from "@haben/core";
+import { formatEuro, monthsOfPeriod, type VatPeriod } from "@haben/core";
+import { eq } from "drizzle-orm";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { invoiceVatDate } from "./invoice-tax.ts";
 
 /** Ein bereits übermittelter Voranmeldungszeitraum; `month` ist der Zeitraum, nicht der Monat (Q1 = 41) */
 export interface GemeldeterZeitraum {
   year: number;
   month: number;
+  sentAt?: Date | null;
 }
 
-/**
- * Liegt der Tag in einem Zeitraum, dessen Voranmeldung schon übermittelt ist? Gibt diesen Zeitraum zurück, sonst null.
- *
- * Bei Soll-Versteuerung entscheidet der Leistungstag, in welcher Anmeldung die Umsatzsteuer steht. Ist diese Anmeldung
- * schon raus, lässt sie sich nicht mehr ändern: Die Buchung bleibt am Leistungstag, die Steuer erscheint dort aber nicht
- * mehr. Das ist kein Fehler, den man verhindern darf — eine Rechnung darf auch nach der Abgabe geschrieben werden.
- */
+/** Liegt der Tag in einem Zeitraum, dessen Voranmeldung schon übermittelt ist? Gibt diesen Zeitraum zurück, sonst null. */
 export function gemeldeterZeitraum(tag: string, zeitraeume: GemeldeterZeitraum[]): GemeldeterZeitraum | null {
   const [jahr, monat] = tag.split("-").map(Number);
   for (const zeitraum of zeitraeume) {
@@ -28,18 +26,44 @@ export function zeitraumLabel({ year, month }: GemeldeterZeitraum): string {
   return `${String(month).padStart(2, "0")}/${year}`;
 }
 
+const deutsch = (tag: string) => tag.split("-").reverse().join(".");
+
 /**
- * Hinweis für das Festschreiben: Der Leistungsmonat liegt in einer schon übermittelten Voranmeldung.
- * Bewusst ein Hinweis und keine Sperre (#694): Die Rechnung ist gültig, die Steuer wandert nur in die nächste Anmeldung.
+ * Hinweis statt Sperre (#694): Die Meldung der Rechnung gehört in einen Zeitraum, dessen Voranmeldung schon übermittelt
+ * ist. Eine spätere Voranmeldung enthält sie nicht, weil Haben nach dem Leistungstag zuordnet; die übermittelte ist zu
+ * berichtigen (§ 18b Satz 5 UStG, § 153 Abs. 1 AO).
  */
-export function leistungsmonatHinweis(serviceDate: string | null, zeitraeume: GemeldeterZeitraum[]): string | null {
-  if (!serviceDate) return null;
-  const zeitraum = gemeldeterZeitraum(serviceDate, zeitraeume);
+export function leistungsmonatHinweis(tag: string, zeitraeume: GemeldeterZeitraum[], betrag: { net: number; tax: number }): string | null {
+  const zeitraum = gemeldeterZeitraum(tag, zeitraeume);
   if (!zeitraum) return null;
-  const [jahr, monat] = serviceDate.split("-").map(Number);
+  const label = zeitraumLabel(zeitraum);
+  const abgabe = zeitraum.sentAt ? `, übermittelt am ${deutsch(zeitraum.sentAt.toISOString().slice(0, 10))}` : "";
   return (
-    `Der Leistungsmonat ${String(monat).padStart(2, "0")}/${jahr} liegt in der bereits übermittelten Voranmeldung ` +
-    `${zeitraumLabel(zeitraum)}. Die Buchung bleibt am Leistungstag, die Umsatzsteuer dieser Rechnung ist dort aber ` +
-    `nicht mehr enthalten — sie gehört in die nächste Voranmeldung.`
+    `Die Leistung vom ${deutsch(tag)} gehört in die Voranmeldung ${label}${abgabe}. Dort fehlt diese Rechnung ` +
+    `(netto ${formatEuro(betrag.net)}, Umsatzsteuer ${formatEuro(betrag.tax)}), und keine spätere Voranmeldung enthält sie. ` +
+    `Lege unter Umsatzsteuer für ${label} eine berichtigte Anmeldung an.`
   );
+}
+
+/**
+ * Hinweis zu einer festgeschriebenen Rechnung, nur wenn der Leistungstag ihre Meldung in einen schon übermittelten Zeitraum
+ * verschiebt. Ist-Versteuerung, Anzahlungen, Stornos und Korrekturen meldet Haben nicht nach dem Leistungstag.
+ */
+export async function leistungsmonatHinweisFuer(invoice: typeof schema.invoices.$inferSelect, q: Db | Tx = db): Promise<string | null> {
+  if (invoice.status !== "final" || invoice.kind !== "rechnung") return null;
+  const tag = await invoiceVatDate(invoice, q);
+  if (tag === invoice.issueDate) return null;
+  const gesendet = await q
+    .select({
+      year: schema.vatReturns.year,
+      month: schema.vatReturns.month,
+      sentAt: schema.vatReturns.sentAt,
+    })
+    .from(schema.vatReturns)
+    .where(eq(schema.vatReturns.status, "sent"))
+    .orderBy(schema.vatReturns.sentAt);
+  return leistungsmonatHinweis(tag, gesendet, {
+    net: invoice.net,
+    tax: invoice.tax,
+  });
 }
