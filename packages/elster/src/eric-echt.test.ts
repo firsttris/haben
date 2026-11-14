@@ -403,6 +403,26 @@ const faelle: [string, () => string][] = [
           figures: { base19: 0, tax19: 0, base7: 1_000_000, tax7: 70_000, vorsteuer: 0, vorauszahlungen: 70_000 },
         }),
     ],
+    [
+      // Zeilen, deren Summen sich aufheben: Gutschriften zu 19 % gegen 7 %, negative Rechnungsvorsteuer gegen Einfuhrumsatzsteuer
+      `USt-Erklärung ${year} mit sich aufhebenden Zeilen`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "soll",
+          figures: {
+            base19: -70_000,
+            tax19: -13_300,
+            base7: 190_000,
+            tax7: 13_300,
+            vorsteuer: -19_000,
+            kz62: 19_000,
+            kz47: 9_500,
+            kz46: 50_000,
+            vorauszahlungen: 9_500,
+          },
+        }),
+    ],
   ]),
   // Anlage EÜR
   ...jahre.flatMap((year): [string, () => string][] => [

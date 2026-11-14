@@ -190,6 +190,35 @@ describe("Umsatzsteuererklärung (E50)", () => {
     expect(tag(xml, "E3011401")).toBe("0,00");
   });
 
+  it("schreibt Vorsteuerzeilen auch, wenn sich ihre Summe aufhebt", () => {
+    // Berichtigte Rechnungsvorsteuer (Kz 66, § 17 UStG) negativ, Einfuhrumsatzsteuer (Kz 62) im selben Betrag
+    const xml = buildUstErklaerungXml({
+      ...base,
+      versteuerung: "soll",
+      figures: { base19: 100_000, tax19: 19_000, base7: 0, tax7: 0, vorsteuer: -19_000, kz62: 19_000, vorauszahlungen: 19_000 },
+    });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(tag(xml, "E3006201")).toBe("-190,00");
+    expect(tag(xml, "E3006401")).toBe("190,00");
+    expect(tag(xml, "E3006901")).toBe("0,00");
+    expect(tag(xml, "E3010201")).toBe("190,00");
+  });
+
+  it("schreibt Umsatzzeilen auch, wenn sich die Steuer zu 19 und 7 % aufhebt", () => {
+    // Gutschriften zu 19 % (−700 €, −133 €) und Umsätze zu 7 % (1.900 €, 133 €)
+    const xml = buildUstErklaerungXml({
+      ...base,
+      versteuerung: "soll",
+      figures: { base19: -70_000, tax19: -13_300, base7: 190_000, tax7: 13_300, vorsteuer: 5_000, vorauszahlungen: 0 },
+    });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(tag(xml, "E3003303")).toBe("-700");
+    expect(tag(xml, "E3003304")).toBe("-133,00");
+    expect(tag(xml, "E3004401")).toBe("1900");
+    expect(tag(xml, "E3004402")).toBe("133,00");
+    expect(tag(xml, "E3006001")).toBe("0,00");
+  });
+
   it("rechnet §-13b-Steuer, Erwerbsteuer und weitere Vorsteuer in das Ergebnis", () => {
     expect(
       ustErklaerungResult({
