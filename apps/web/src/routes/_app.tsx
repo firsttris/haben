@@ -198,8 +198,8 @@ function AppLayout() {
   useEffect(() => {
     if (!menuOpen) return;
     function onKey(event: KeyboardEvent) {
-      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst
-      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]')) return;
+      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst; der Desktop-Umschalter blockiert Esc nicht
+      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]:not(.nav-collapse-btn)')) return;
       // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
       event.preventDefault();
       setMenuOpen(false);
@@ -260,19 +260,10 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          <button
-            type="button"
-            className="nav-link nav-collapse-btn"
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
-            title={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
-            onClick={() => saveNavCollapsed(!collapsed)}
-          >
-            <Icon name={collapsed ? "chevron-right" : "chevron-left"} />
-            <span className="nav-collapse-label">Einklappen</span>
-          </button>
           {railMode ? (
             <NavRailBody
+              collapsed={collapsed}
+              onToggleCollapse={() => saveNavCollapsed(!collapsed)}
               inhaber={inhaber}
               pathname={pathname}
               firmen={firmen}
@@ -288,6 +279,8 @@ function AppLayout() {
             />
           ) : (
             <NavExpandedBody
+              collapsed={collapsed}
+              onToggleCollapse={() => saveNavCollapsed(!collapsed)}
               inhaber={inhaber}
               firmen={firmen}
               sichtbareGruppen={sichtbareGruppen}

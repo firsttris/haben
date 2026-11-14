@@ -26,7 +26,28 @@ export interface EigeneSeite {
   openInNewTab: boolean;
 }
 
-interface NavBodyProps {
+interface CollapseButtonProps {
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}
+
+function CollapseSidebarButton({ collapsed, onToggleCollapse }: CollapseButtonProps) {
+  return (
+    <button
+      type="button"
+      className="nav-link nav-collapse-btn"
+      aria-expanded={!collapsed}
+      aria-label={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
+      title={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
+      onClick={onToggleCollapse}
+    >
+      <Icon name={collapsed ? "chevron-right" : "chevron-left"} />
+      <span className="nav-collapse-label">Einklappen</span>
+    </button>
+  );
+}
+
+interface NavBodyProps extends CollapseButtonProps {
   inhaber: boolean;
   pathname: string;
   firmen: Firma[];
@@ -88,6 +109,8 @@ function NavAccountActions({ onSignOut }: { onSignOut: () => void }) {
 }
 
 export function NavRailBody({
+  collapsed,
+  onToggleCollapse,
   inhaber,
   pathname,
   firmen,
@@ -148,6 +171,7 @@ export function NavRailBody({
         </NavFlyout>
       )}
       <div className="nav-spacer" />
+      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
       <div className="nav-foot nav-foot-rail">
         {inhaber && (
           <Link to="/einstellungen" className="nav-link nav-rail-link" aria-label="Einstellungen" title="Einstellungen">
@@ -183,6 +207,8 @@ export function NavRailBody({
 }
 
 export function NavExpandedBody({
+  collapsed,
+  onToggleCollapse,
   inhaber,
   firmen,
   sichtbareGruppen,
@@ -223,6 +249,7 @@ export function NavExpandedBody({
         </div>
       )}
       <div className="nav-spacer" />
+      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
       <div className="nav-foot">
         <div className="nav-user">
           <span className="nav-avatar" aria-hidden="true">
