@@ -38,6 +38,13 @@ describe("bunAusfuehren", () => {
     expect(r).toEqual({ code: 0, stdout: "ge$heim\nge$heim\n", stderr: "" });
   });
 
+  it("gibt mit binaer die Bytes unverändert zurück, auch solche, die kein UTF-8 sind", async () => {
+    const r = await bunAusfuehren(["/bin/sh", "-c", "printf '\\211PNG\\377\\000\\001'"], { cwd: "/", env: {}, binaer: true });
+    expect(r.code).toBe(0);
+    expect(r.stdout).toBe("");
+    expect(r.daten).toEqual(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00, 0x01]));
+  });
+
   it("meldet ein fehlendes Programm mit Code 127", async () => {
     expect((await bunAusfuehren(["haben-gibt-es-nicht"], { cwd: "/", env: { PATH: "/nirgends" } })).code).toBe(127);
   });

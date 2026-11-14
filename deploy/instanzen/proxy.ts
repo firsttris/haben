@@ -98,6 +98,16 @@ async function netzeDerInstanzen(k: Kontext): Promise<string[]> {
   return netze;
 }
 
+/** Die Datei in sites/, die schon einen Block für `domain` hat, außer der von `name`; undefined, wenn keine */
+export async function domainImCaddy(k: Kontext, domain: string, name: string): Promise<string | undefined> {
+  const sites = join(proxyDir(k), "sites");
+  const dateien = existsSync(sites) ? (await readdir(sites)).filter((d) => d.endsWith(".caddy") && d !== `${name}.caddy`) : [];
+  for (const datei of dateien) {
+    if ((await readFile(join(sites, datei), "utf8")).split("\n").includes(`${domain} {`)) return join(sites, datei);
+  }
+  return undefined;
+}
+
 /** Legt proxy/ an, wenn es fehlt, schreibt den Eintrag der Instanz und die Netze des Caddy */
 export async function proxyEintragen(k: Kontext, name: string, domain: string): Promise<void> {
   const dir = proxyDir(k);

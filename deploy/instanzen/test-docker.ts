@@ -35,12 +35,36 @@ export interface Zustaende {
   upKaputt: Set<string>;
   /** Die Datenbank startet nicht, etwa weil sich ihr Image nicht laden lässt */
   dbKaputt: Set<string>;
+  /** Feld zeichen in `haben status --json` je Instanz (#1036); ohne Eintrag fehlt es, wie in einem älteren Image */
+  zeichen: Map<string, unknown>;
+  /** Was `haben kennzeichen` je Instanz ausgibt; ohne Eintrag Exit-Code 3 (kein Logo als Zeichen) */
+  logos: Map<string, Uint8Array>;
 }
 
 export const STATUS_JSON = JSON.stringify({ version: "9.9.9", summary: { eric: "44.3.6.0", backup: "2026-11-10 03:15" } });
 
 const ok = (stdout = ""): Ergebnis => ({ code: 0, stdout, stderr: "" });
 const ps = (dienste: [string, string, string][]) => dienste.map(([Service, State, Health]) => JSON.stringify({ Service, State, Health })).join("\n");
+
+/** Die Befehle im Container der App (haben status, haben kennzeichen) und der Neustart des Firmenportals */
+function habenBefehl(z: Zustaende, d: string, sub: string, binaer?: boolean): Ergebnis | undefined {
+  if (sub === "exec -T app haben status --json")
+    return z.zuAlt.has(d)
+      ? {
+          code: 127,
+          stdout: "",
+          stderr: 'OCI runtime exec failed: exec failed: unable to start container process: exec: "haben": executable file not found in $PATH',
+        }
+      : ok(z.zeichen.has(d) ? JSON.stringify({ ...JSON.parse(STATUS_JSON), zeichen: z.zeichen.get(d) }) : STATUS_JSON);
+  if (sub === "exec -T app haben kennzeichen") {
+    if (!binaer) return { code: 2, stdout: "", stderr: "kennzeichen nur als Bytes lesen" };
+    if (z.zuAlt.has(d)) return { code: 127, stdout: "", stderr: "executable file not found", daten: new Uint8Array() };
+    const logo = z.logos.get(d);
+    return logo ? { code: 0, stdout: "", stderr: "", daten: logo } : { code: 3, stdout: "", stderr: "Kein Logo als Zeichen gewählt", daten: new Uint8Array() };
+  }
+  if (sub === "restart firmenportal") return ok();
+  return undefined;
+}
 
 export function nachbau() {
   const z: Zustaende = {
@@ -58,14 +82,17 @@ export function nachbau() {
     rolleKaputt: new Set(),
     dbKaputt: new Set(),
     upKaputt: new Set(),
+    zeichen: new Map(),
+    logos: new Map(),
   };
   const aufrufe: string[] = [];
   const umgebungen: { aufruf: string; env: Record<string, string> }[] = [];
   /** Was ein Aufruf auf der Standardeingabe bekam, etwa createuser das Passwort */
   const eingaben: { aufruf: string; eingabe: string }[] = [];
   const neugestartet = new Set<string>();
+  const hochgefahren = new Set<string>();
 
-  const ausfuehren: Ausfuehren = async (befehl, { cwd, env, eingabe }) => {
+  const ausfuehren: Ausfuehren = async (befehl, { cwd, env, eingabe, binaer }) => {
     const [programm, ...args] = befehl;
     const d = basename(cwd) || "-";
     const aufruf = `${d} ${args.join(" ")}`;
@@ -89,6 +116,11 @@ export function nachbau() {
     const sub = args.slice(1).join(" ");
     if (sub === "ps -a --format json") {
       if (d === "proxy") return ok(z.caddyLaeuft ? ps([["caddy", "running", ""]]) : "");
+      // Den Container gibt es erst nach dem ersten up -d
+      if (d === "firmenportal") {
+        if (!hochgefahren.has(d)) return ok("");
+        return ok(ps([z.gestoppt.has(d) ? ["firmenportal", "exited", ""] : ["firmenportal", "running", "healthy"]]));
+      }
       if (z.gestoppt.has(d))
         return ok(
           ps([
@@ -106,20 +138,15 @@ export function nachbau() {
       );
     }
     if (sub === "exec -T backup backup.sh") return { code: z.backupKaputt.has(d) ? 1 : 0, stdout: "", stderr: "" };
-    if (sub === "exec -T app haben status --json")
-      return z.zuAlt.has(d)
-        ? {
-            code: 127,
-            stdout: "",
-            stderr: 'OCI runtime exec failed: exec failed: unable to start container process: exec: "haben": executable file not found in $PATH',
-          }
-        : ok(STATUS_JSON);
+    const haben = habenBefehl(z, d, sub, binaer);
+    if (haben) return haben;
     if (sub === "logs app") return ok("app-1  | Haben ist noch nicht eingerichtet. Einrichtungscode für https://x/setup: abcd-efgh\n");
     if (sub === "ls -a -q") return ok(z.projekte.join("\n"));
     if (sub === "up -d --wait db") return { code: z.dbKaputt.has(d) ? 1 : 0, stdout: "", stderr: "" };
     if (sub.startsWith("exec -T db createuser ")) return { code: z.rolleKaputt.has(d) ? 1 : 0, stdout: "", stderr: "" };
     if (sub === "up -d") {
       if (z.upKaputt.has(d)) return { code: 1, stdout: "", stderr: "pull access denied" };
+      hochgefahren.add(d);
       if (z.kaputt.has(d)) neugestartet.add(d);
       return ok();
     }
