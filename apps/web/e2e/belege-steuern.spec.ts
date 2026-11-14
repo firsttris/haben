@@ -324,6 +324,14 @@ test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer
     await expect(banken).toHaveValue("Fyrst");
     await expect(page.getByText("Du wirst zu Fyrst weitergeleitet")).toBeVisible();
 
+    // Abrufbeginn in der Zukunft: Mit noValidate prüft der Browser max nicht mehr, der Fehler steht am Feld (Review #970)
+    const ab = page.getByLabel("Umsätze abrufen ab");
+    await ab.fill(new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10));
+    await weiter.click();
+    await expect(ab).toBeFocused();
+    await expect(ab).toHaveAttribute("aria-invalid", "true");
+    await ab.fill("");
+
     // Kein Treffer: nichts gewählt; der Knopf bleibt bedienbar und sagt am Feld, warum es nicht weitergeht (DESIGN.md, Gesperrte Knöpfe)
     await page.getByLabel("Bank suchen").fill("Sparkasse");
     await expect(banken.getByRole("option")).toHaveCount(0);
@@ -1597,6 +1605,56 @@ test("Anlage anlegen: Erinnerungswert angehakt, dann zu Computer gewechselt, wir
   await form.getByRole("button", { name: "Anlage übernehmen" }).click();
   await page.waitForURL(/\/anlagen\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("region", { name: "Abschreibungsplan" })).not.toContainText("Erinnerungswert");
+});
+
+test("Aufteilen mit zu viel verteilt: der Fehler am Betrag sagt, wie viel zu viel ist (Review #970)", async () => {
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    [
+      dkb(day(0)),
+      dkb(day(0)),
+      "Gebucht",
+      "Max Mustermann",
+      "Kasse Überschuss",
+      "Zahlung Ueberschuss",
+      "Ausgang",
+      "DE91750500000000123456",
+      "-43,00",
+      "",
+      "",
+      "",
+    ]
+      .map((v) => `"${v}"`)
+      .join(";") +
+    "\n";
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "ueberschuss.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/1 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await page
+    .getByRole("link", { name: /Kasse Überschuss/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await panel.getByRole("button", { name: "Aufteilen" }).click();
+  const form = panel.getByRole("form", { name: "Umsatz aufteilen" });
+  const rows = form.locator(".split-row");
+  await rows.nth(0).locator("select").first().selectOption("privat");
+  await rows.nth(0).getByLabel("Betrag").fill("-40,00");
+  await rows.nth(1).locator("select").first().selectOption("privat");
+  // Zusammen -46,00 € bei einem Umsatz von -43,00 €: 3,00 € zu viel verteilt
+  await rows.nth(1).getByLabel("Betrag").fill("-6,00");
+  await form.getByRole("button", { name: "Aufteilen und buchen" }).click();
+  await expect(rows.nth(1).getByLabel("Betrag")).toBeFocused();
+  await expect(rows.nth(1).getByLabel("Betrag")).toHaveAccessibleDescription("Zusammen sind 3,00 € zu viel verteilt.");
+  // Richtig verteilt und gebucht, damit kein offener Umsatz für die folgenden Tests stehen bleibt
+  await rows.nth(1).getByLabel("Betrag").fill("-3,00");
+  await form.getByRole("button", { name: "Aufteilen und buchen" }).click();
+  await expect(panel.getByText("Zugeordnet")).toBeVisible();
 });
 
 test("Steuerzahlung im Bankabgleich: Gewerbesteuerbescheid auf Steuer und Verspätungszuschlag aufteilen, in der EÜR nur nachrichtlich", async () => {
