@@ -373,6 +373,34 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(tag(xml, "E6005101")).toBe(elsterDecimal(gezahltVorher + 19_000));
   });
 
+  it("nennt bei zwei seitenverkehrt gebuchten Zeilen die Beträge, die dort standen (#933)", () => {
+    // Beide Zeilen negativ: die Meldung muss die Ausgangsbeträge nennen, nicht den Zwischenstand der Umrechnung
+    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -19_000 });
+    expect(gegliedert.figures.gezahlteUst).toBe(14_000);
+    expect(gegliedert.figures.erstatteteUst).toBe(0);
+    expect(gegliedert.umgliederungen).toHaveLength(1);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 58 \(Kz E6005101.*50,00/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/140,00.*Umsatzsteuer gezahlt/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Betriebsausgabe in Zeile 58/);
+  });
+
+  it("nennt bei zwei seitenverkehrt gebuchten Zeilen mit Erstattungsüberschuss Zeile 18 als Ziel (#933)", () => {
+    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -19_000, erstatteteUst: -5_000 });
+    expect(gegliedert.figures.gezahlteUst).toBe(0);
+    expect(gegliedert.figures.erstatteteUst).toBe(14_000);
+    expect(gegliedert.umgliederungen[0]).toMatch(/140,00.*Umsatzsteuer erstattet/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Betriebseinnahme in Zeile 18/);
+    expect(gegliedert.umgliederungen[0]).not.toMatch(/Betriebsausgabe/);
+  });
+
+  it("lässt beide Zeilen leer, wenn sich zwei seitenverkehrte Beträge aufheben (#933)", () => {
+    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -5_000 });
+    expect(gegliedert.figures.gezahlteUst).toBe(0);
+    expect(gegliedert.figures.erstatteteUst).toBe(0);
+    expect(gegliedert.umgliederungen[0]).toMatch(/heben sich auf/);
+  });
+
   it("lässt positive Beträge unverändert und gliedert bei 0,00 nichts um", () => {
     const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: 19_000 }, anlagen: [] });
     expect(tag(xml, "E6005101")).toBe("190,00");
