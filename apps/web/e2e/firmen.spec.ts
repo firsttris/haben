@@ -100,6 +100,28 @@ test("schließt mit Klick, Escape, Tab aus der Liste und Klick daneben", async (
   await expect(auswahl()).toHaveCount(0);
 });
 
+// Review: Die Liste klappt im Fluss auf und schiebt die Menüpunkte nach unten. Schließt sie schon beim Drücken der
+// Maustaste, rutschen die Menüpunkte unter dem Zeiger weg, bevor die Taste losgelassen ist, und der Klick geht verloren
+test("ein Klick auf einen Menüpunkt unter der offenen Liste führt dorthin und schließt sie", async ({ browser }) => {
+  await gehe(page, "/");
+  await knopf().click();
+  await expect(auswahl()).toBeVisible();
+  await nav().getByRole("link", { name: "Belege", exact: true }).click();
+  await expect(page).toHaveURL(/\/belege$/);
+  await expect(auswahl()).toHaveCount(0);
+
+  // Am Handy im Menü ebenso, mit dem Finger
+  const context = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: 375, height: 812 }, hasTouch: true });
+  const handy = await context.newPage();
+  await gehe(handy, "/");
+  await nav(handy).getByRole("button", { name: "Menü" }).tap();
+  await knopf(handy).tap();
+  await expect(auswahl(handy)).toBeVisible();
+  await nav(handy).getByRole("link", { name: "Belege", exact: true }).tap();
+  await expect(handy).toHaveURL(/\/belege$/);
+  await context.close();
+});
+
 test("ein Klick auf eine Firma führt im selben Tab zu ihrer Adresse", async () => {
   // Die andere Instanz gibt es im Test nicht
   await page.route(`${SUED.url}/**`, (route) => route.fulfill({ contentType: "text/html", body: "<title>Werkstatt Süd</title>" }));
