@@ -114,9 +114,11 @@ describe("steuerPrognose", () => {
     const p0 = steuerPrognose(ohne);
     const leistung = 12_000_00;
     const mit = steuerPrognose({ ...ohne, angaben: { ...ohne.angaben, ersatzleistungen: { a: leistung } } });
-    // Das zu versteuernde Einkommen bleibt gleich, der Steuersatz steigt
+    // Das zu versteuernde Einkommen bleibt gleich, der Steuersatz steigt. Ohne Arbeitslohn mindert der volle
+    // Arbeitnehmer-Pauschbetrag von 1.230 € die Leistungen (§ 32b Abs. 2 Satz 1 Nr. 1 EStG).
+    const vermehrt = leistung - 1_230_00;
     expect(mit.zvE).toBe(p0.zvE);
-    expect(mit.einkommensteuer).toBe(Math.floor((einkommensteuer(mit.zvE + leistung, 2025, false) * mit.zvE) / (mit.zvE + leistung)));
+    expect(mit.einkommensteuer).toBe(Math.floor((einkommensteuer(mit.zvE + vermehrt, 2025, false) * mit.zvE) / (mit.zvE + vermehrt)));
     expect(mit.einkommensteuer).toBeGreaterThan(p0.einkommensteuer);
   });
 
@@ -139,6 +141,38 @@ describe("steuerPrognose", () => {
     };
     expect(steuerPrognose(mitArbeit).einkommensteuer).toBe(steuerPrognose(ohneLeistung).einkommensteuer);
   });
+
+  it("zieht ohne Arbeitslohn den vollen Arbeitnehmer-Pauschbetrag von den Leistungen ab (§ 32b Abs. 2 Satz 1 Nr. 1 EStG)", () => {
+    // Freiberufler mit 10.000 € Elterngeld: in den besonderen Steuersatz gehen 10.000 € − 1.230 € = 8.770 € ein
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      gewinn: 50_000_00,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: {} }, ersatzleistungen: { a: 10_000_00 } },
+    });
+    expect(p.zvE).toBe(50_000_00 - 36_00);
+    expect(p.einkommensteuer).toBe(Math.floor((einkommensteuer(p.zvE + 8_770_00, 2025) * p.zvE) / (p.zvE + 8_770_00)));
+    expect(p.einkommensteuer).toBe(11_844_90);
+  });
+
+  it("rechnet den Arbeitnehmer-Pauschbetrag je Person gegen deren Leistungen", () => {
+    // Person A: 500 € Lohn, keine Leistungen. Person B: kein Lohn, 5.000 € Elterngeld, davon gehen 3.770 € ein.
+    // Der Rest des Pauschbetrags von A mindert die Leistungen von B nicht.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {}, b: {} },
+        arbeitnehmer: { a: { bescheinigungen: [{ brutto: 500_00 }], werbungskosten: {} } },
+        ersatzleistungen: { b: 5_000_00 },
+      },
+    });
+    expect(p.einkommensteuer).toBe(Math.floor((einkommensteuer(p.zvE + 3_770_00, 2025, true) * p.zvE) / (p.zvE + 3_770_00)));
+  });
+
   it("rechnet Arbeitslohn des Ehegatten ein und die Lohnsteuer an", () => {
     const p = steuerPrognose({
       ...base,
