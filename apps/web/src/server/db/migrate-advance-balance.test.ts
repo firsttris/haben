@@ -118,7 +118,9 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       expect(await sql`select advance_accounting,replaces_invoice_id from invoices where id=${invoiceId}`).toEqual([
         { advance_accounting: null, replaces_invoice_id: null },
       ]);
-      expect(await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date')::text as bytes from invoices i order by id`).toEqual(old.invoice);
+      expect(await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date')::text as bytes from invoices i order by id`).toEqual(
+        old.invoice,
+      );
       expect(await sql`select to_jsonb(l)::text as bytes from invoice_lines l order by id`).toEqual(old.invoiceLines);
       expect(await sql`select to_jsonb(t)::text as bytes from invoice_taxes t order by invoice_id,rate`).toEqual(old.invoiceTaxes);
       expect(await sql`select to_jsonb(e)::text as bytes from journal_entries e where id=${entryId} order by id`).toEqual(old.entries);
