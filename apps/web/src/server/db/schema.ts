@@ -491,7 +491,7 @@ export const annualSubmissions = pgTable(
 );
 
 /**
- * Zeilenwerte einer außerhalb von Haben abgegebenen Jahreserklärung, je Feldkennung (§ 869).
+ * Zeilenwerte einer außerhalb von Haben abgegebenen Jahreserklärung, je Feldkennung (#997).
  *
  * Die Zeilen kommen aus dem Übermittlungsprotokoll und lassen sich nicht an `annual_submissions` hängen:
  * der Vermerk ist `append_only`, ein späteres UPDATE scheitert. Sie stehen deshalb daneben, verknüpft
