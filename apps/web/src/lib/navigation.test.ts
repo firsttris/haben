@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { NAV_BACKGROUNDS } from "@haben/core";
 import { describe, expect, it } from "vitest";
+import type { IconName } from "../components/Icon.tsx";
 import { firmaInNavigation, NAV_GROUPS, type NavBedingung, navLinkSichtbar, navMark, STEUERBERATUNG_NAV, sichtbareNavSeiten } from "./navigation.ts";
 
 /** Lohn ohne Bedingung */
@@ -110,6 +111,32 @@ describe("sichtbareNavSeiten", () => {
       eigeneSeiten: [{ id: "1", name: "Wiki", url: "https://wiki.example", openInNewTab: false }],
     });
     expect(stb.map((s) => s.to)).toEqual(["/steuerberatung", "/auswertungen", "/buchungen", "/konten", "/belege", "/rechnungen"]);
+  });
+});
+
+// Symbole, die mehrere Menüpunkte teilen; jeder andere Menüpunkt hat ein eigenes, damit man ihn am Symbol erkennt
+const GETEILTE_SYMBOLE: Partial<Record<IconName, readonly string[]>> = {
+  // Post an eine Behörde, einmal an die Sozialversicherung, einmal an das Finanzamt
+  mail: ["/finanzamt", "/sv-meldeportal"],
+  // Abschluss des Jahres, als Steuererklärung oder als Bilanz der Gesellschaft
+  annual: ["/abschluss", "/jahreserklaerung"],
+  // Noch ohne eigenes Symbol
+  calendar: ["/dauerbelege", "/fristen", "/leistungen"],
+  cash: ["/ausschuettungen", "/kasse"],
+};
+
+describe("Symbole der Menüpunkte", () => {
+  it("wiederholen sich nur, wo es GETEILTE_SYMBOLE nennt", () => {
+    for (const gruppen of [NAV_GROUPS, STEUERBERATUNG_NAV]) {
+      const nachSymbol = new Map<IconName, string[]>();
+      for (const link of gruppen.flatMap((gruppe) => gruppe.links)) {
+        nachSymbol.set(link.icon, [...(nachSymbol.get(link.icon) ?? []), link.to]);
+      }
+      for (const [symbol, pfade] of nachSymbol) {
+        if (pfade.length === 1) continue;
+        expect({ symbol, pfade: pfade.sort() }).toEqual({ symbol, pfade: GETEILTE_SYMBOLE[symbol] });
+      }
+    }
   });
 });
 
