@@ -43,4 +43,40 @@ describe.skipIf(!testDatabaseUrl)("Sperrprüfung und dauerhafte Voreinstellungen
       await sql`alter database ${sql(database)} reset session_replication_role`;
     }
   });
+
+  it.each([false, true])("meldet eine Rollenvorgabe auch außerhalb der prüfenden Rolle (datenbankgebunden: %s)", async (inDatabase) => {
+    const role = `haben_replica_${crypto.randomUUID().replaceAll("-", "")}`;
+    const rollback = new Error("Rollenvorgabe zurückrollen");
+    await expect(
+      drizzle(sql).transaction(async (tx) => {
+        await tx.execute(query`create role ${query.identifier(role)} nologin`);
+        await tx.execute(
+          inDatabase
+            ? query`alter role ${query.identifier(role)} in database ${query.identifier(database)} set session_replication_role = replica`
+            : query`alter role ${query.identifier(role)} set session_replication_role = replica`,
+        );
+        expect(await tx.execute(query`select current_setting('session_replication_role') as mode`)).toEqual([{ mode: "origin" }]);
+        expect((await inventory.checkTriggerIntegrity(tx)).problems).toContainEqual(
+          expect.objectContaining({ art: "sperre", befund: expect.stringContaining(role) }),
+        );
+        throw rollback;
+      }),
+    ).rejects.toBe(rollback);
+  });
+
+  it("akzeptiert local und ignoriert Vorgaben einer anderen Testdatenbank", async () => {
+    const otherDatabase = decodeURIComponent(new URL(process.env.TEST_DATABASE_URL!).pathname.slice(1));
+    expect(otherDatabase).not.toBe(database);
+    const rollback = new Error("Vorgaben zurückrollen");
+    await expect(
+      drizzle(sql).transaction(async (tx) => {
+        // ALTER DATABASE und ALTER ROLE sind transaktional: andere Testdateien sehen diese Vorgaben nie.
+        await tx.execute(query`alter database ${query.identifier(otherDatabase)} set session_replication_role = replica`);
+        await tx.execute(query`alter database ${query.identifier(database)} set session_replication_role = local`);
+        expect((await inventory.checkTriggerIntegrity(tx)).problems).toEqual([]);
+        throw rollback;
+      }),
+    ).rejects.toBe(rollback);
+  });
 });
+import { sql as query } from "drizzle-orm";
