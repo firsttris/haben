@@ -262,7 +262,7 @@ Mit **Anlagegut** wird der Beleg nicht zum Aufwand, sondern legt beim Buchen ein
 
 Bei Belegen mit deutscher Umsatzsteuer gibst du je Steuersatz Netto und Vorsteuer ein. Solange du die Vorsteuer nicht selbst geändert hast, rechnet Haben sie aus dem Netto vor. Beim Buchen übernimmt Haben die Vorsteuer genau so, wie sie im Formular steht, und rechnet nicht nach: maßgeblich ist der Betrag auf der Rechnung.
 
-Steht auf der Quittung nur der Endbetrag, trägst du ihn unter **Brutto** ein: Haben rechnet Netto und Vorsteuer daraus vor, kaufmännisch gerundet (11,90 € zu 19 % ergeben 10,00 € und 1,90 €). Wechselst du danach den Satz, bleibt das Brutto und Netto und Vorsteuer ändern sich. Weicht die Vorsteuer auf der Rechnung um einen Cent ab, korrigierst du sie von Hand; das Brutto folgt dann Netto und Vorsteuer. Bei § 13b und beim innergemeinschaftlichen Erwerb gibt es kein Brutto, gezahlt wird das Netto.
+Auf einer Kleinbetragsrechnung bis 250 € stehen oft nur Endbetrag und Steuersatz (§ 33 UStDV). Den Endbetrag trägst du unter **Brutto** ein: Haben teilt ihn in Netto und Vorsteuer auf (§ 35 Abs. 1 UStDV), kaufmännisch gerundet (11,90 € zu 19 % ergeben 10,00 € und 1,90 €). Auch bei größeren Rechnungen hilft das Brutto beim Erfassen; maßgeblich bleibt dort die ausgewiesene Steuer. Wechselst du danach den Satz, bleibt das Brutto und Netto und Vorsteuer ändern sich. Weicht die Vorsteuer auf der Rechnung um einen Cent ab, korrigierst du sie von Hand; das Brutto folgt dann Netto und Vorsteuer. Bei § 13b und beim innergemeinschaftlichen Erwerb gibt es kein Brutto, gezahlt wird das Netto.
 
 Gutschriften gibst du mit Minus ein.
 

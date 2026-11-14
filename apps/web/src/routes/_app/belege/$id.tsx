@@ -36,7 +36,7 @@ import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
-import { aendereBetragszeile, betragszeileAus, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
+import { aendereBetragszeile, betragszeileAus, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
@@ -375,6 +375,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const parsedSplits = splitting ? parseSplitRows(splitRows) : [];
   const valid =
     parsed.every((p) => p.net !== null && p.tax !== null) &&
+    // Ein vertipptes Brutto lässt die vorigen Beträge stehen; bei § 13b gibt es kein Brutto
+    (Boolean(reverseCharge) || rows.every(bruttoLesbar)) &&
     new Set(rows.map((r) => r.taxRate)).size === rows.length &&
     privateShareValid &&
     currencyValid &&
@@ -403,7 +405,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     // Gezahlt wird das Netto; ein vorher eingegebenes Brutto ist keine Grundlage mehr
     if (value) {
       setRows((prev) =>
-        prev.map((row) => aendereBetragszeile(row, { taxRate: row.taxRate === 0 ? 1900 : row.taxRate, taxTouched: false, basis: "net", net: row.net }, true)),
+        prev.map((row) => aendereBetragszeile(row, { taxRate: row.taxRate === 0 ? 1900 : row.taxRate, taxTouched: false, basis: "net" }, true)),
       );
     }
   }

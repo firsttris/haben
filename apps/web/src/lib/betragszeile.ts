@@ -16,10 +16,19 @@ export interface Betragszeile {
   basis: "net" | "gross";
 }
 
-/** Bruttobetrag in Netto und enthaltene Steuer zerlegen, wie bei Rechnungen mit Bruttopreisen: 11,90 € zu 19 % → 10,00 + 1,90 */
+/**
+ * Bruttobetrag in Entgelt (Netto) und enthaltene Steuer aufteilen, wie es § 35 Abs. 1 UStDV für Kleinbetragsrechnungen
+ * nach § 33 UStDV (bis 250 €, nur Endbetrag und Steuersatz) zum Vorsteuerabzug verlangt: 11,90 € zu 19 % → 10,00 + 1,90.
+ * Kaufmännisch gerundet wie `taxIncluded`; die UStDV regelt die Rundung nicht, eine Abweichung zur Rechnung korrigiert man von Hand.
+ */
 export function bruttoZerlegen(gross: Cents, taxRate: BetragsSatz): { net: Cents; tax: Cents } {
   const tax = taxIncluded(gross, taxRate);
   return { net: gross - tax, tax };
+}
+
+/** Brutto leer oder als Betrag lesbar; ein unlesbares Brutto sperrt Speichern wie ein unlesbares Netto */
+export function bruttoLesbar(row: Pick<Betragszeile, "gross">): boolean {
+  return row.gross.trim() === "" || parseEuro(row.gross) !== null;
 }
 
 /** Brutto aus Netto und Vorsteuer als Text; leer, solange beides leer ist, unverändert, solange eins nicht lesbar ist */

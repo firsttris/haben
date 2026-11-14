@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aendereBetragszeile, betragszeileAus, bruttoZerlegen, type Betragszeile } from "./betragszeile.ts";
+import { aendereBetragszeile, betragszeileAus, bruttoLesbar, bruttoZerlegen, type Betragszeile } from "./betragszeile.ts";
 
 const leer = (): Betragszeile => betragszeileAus(1, 1900, 0, 0, true, false);
 
@@ -18,6 +18,24 @@ describe("bruttoZerlegen", () => {
   it("rundet bei Gutschriften symmetrisch zur Null", () => {
     expect(bruttoZerlegen(-11_900, 1900)).toEqual({ net: -10_000, tax: -1_900 });
     expect(bruttoZerlegen(-980, 1900)).toEqual({ net: -824, tax: -156 });
+  });
+});
+
+describe("bruttoLesbar", () => {
+  it("leer und lesbare Beträge sind in Ordnung, unlesbare nicht", () => {
+    expect(bruttoLesbar({ gross: "" })).toBe(true);
+    expect(bruttoLesbar({ gross: "  " })).toBe(true);
+    expect(bruttoLesbar({ gross: "1.190,00" })).toBe(true);
+    expect(bruttoLesbar({ gross: "-11,90" })).toBe(true);
+    expect(bruttoLesbar({ gross: "1190,005" })).toBe(false);
+    expect(bruttoLesbar({ gross: "abc" })).toBe(false);
+  });
+
+  it("ein unlesbares Brutto lässt die vorigen Beträge stehen, deshalb muss es das Speichern sperren", () => {
+    const row = aendereBetragszeile(leer(), { gross: "119,00" }, false);
+    const vertippt = aendereBetragszeile(row, { gross: "1190,005" }, false);
+    expect(vertippt).toMatchObject({ net: "100,00", tax: "19,00" });
+    expect(bruttoLesbar(vertippt)).toBe(false);
   });
 });
 
