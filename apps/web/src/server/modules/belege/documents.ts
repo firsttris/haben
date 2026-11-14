@@ -34,7 +34,7 @@ import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { documentOwnAccountProblems, loadOwnAccountNumbers } from "../eigene-konten/index.ts";
-import { contactRoleProblem, loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
+import { contactRoleProblem, loadCompany, resolveExchangeRate, type Company } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
@@ -659,6 +659,21 @@ function igErwerbIssues(doc: Document, amounts: DocumentAmount[]): string[] {
   return issues;
 }
 
+// Sperren beim innergemeinschaftlichen Erwerb, die Firma oder wirksamen Abzug kennen: Wer nur steuerfreie Umsätze
+// ohne Vorsteuerabzug ausführt (auch Kleinunternehmer, § 19 Abs. 1 UStG), erwirbt nur oberhalb der Erwerbsschwelle
+// oder mit Verzicht steuerpflichtig (§ 1a Abs. 3 Nr. 1 Buchst. a und Abs. 4 UStG). Die Erwerbsteuer in den
+// Anschaffungskosten einer Anlage wirkt nur über AfA, die Zahlung ans Finanzamt läge in der EÜR sonst zusätzlich
+// als Ausgabe — doppelt (§ 9b Abs. 1, § 4 Abs. 3 Satz 3 EStG); bis die EÜR das trennt: sperren
+function igErwerbFirmaIssues(doc: Document, company: Company, vorsteuerAbzug: boolean): string[] {
+  if (doc.reverseCharge !== "ig_erwerb") return [];
+  if (company.kleinunternehmer || company.ohneVorsteuerabzug)
+    return [
+      "Innergemeinschaftlicher Erwerb als Kleinunternehmer oder mit nur steuerfreien Umsätzen (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt",
+    ];
+  if (doc.category === "anlage" && !vorsteuerAbzug) return ["Innergemeinschaftlicher Erwerb einer Anlage ohne Vorsteuerabzug wird nicht unterstützt"];
+  return [];
+}
+
 /** Was vor dem Buchen fehlt; leere Liste = bereit. Mit Aufteilung (splits) statt der Kategorie die Zeilen geprüft. */
 export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDate = today(), splits: DocumentSplit[] = []): string[] {
   const issues: string[] = [];
@@ -732,11 +747,7 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
   if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
   if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
-  // Erwerbsteuer in den Anschaffungskosten wirkt nur über AfA (§ 9b Abs. 1, § 4 Abs. 3 Satz 3 EStG); die Zahlung
-  // ans Finanzamt läge in der EÜR sonst zusätzlich als Ausgabe — doppelt. Bis die EÜR das trennt: sperren
-  if (doc.reverseCharge === "ig_erwerb" && doc.category === "anlage" && !vorsteuerAbzug) {
-    issues.push("Innergemeinschaftlicher Erwerb einer Anlage ohne Vorsteuerabzug wird nicht unterstützt");
-  }
+  issues.push(...igErwerbFirmaIssues(doc, company, vorsteuerAbzug));
   // Einfuhrumsatzsteuer (Kz 62): nur der Bescheid des Zolls allein, als Vorsteuer
   if (splits.length === 0 && doc.category === "einfuhrumsatzsteuer") {
     const rows = amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }));
@@ -758,13 +769,6 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
   const totals = belegSummen(doc, amounts);
-  // Wer nur steuerfreie Umsätze ohne Vorsteuerabzug ausführt (auch Kleinunternehmer, § 19 Abs. 1 UStG), erwirbt nur
-  // oberhalb der Erwerbsschwelle oder mit Verzicht steuerpflichtig (§ 1a Abs. 3 Nr. 1 Buchst. a und Abs. 4 UStG)
-  if (doc.reverseCharge === "ig_erwerb" && (company.kleinunternehmer || company.ohneVorsteuerabzug)) {
-    throw new DocumentError(
-      "Innergemeinschaftlicher Erwerb als Kleinunternehmer oder mit nur steuerfreien Umsätzen (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.",
-    );
-  }
   const asset = doc.category === "anlage" ? doc.asset : null;
   const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug, await loadOwnAccountNumbers(tx));
   const now = new Date();

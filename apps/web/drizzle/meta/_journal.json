@@ -1604,6 +1604,13 @@
       "when": 1794605361767,
       "tag": "0228_zuordnung_aufhebung_datum",
       "breakpoints": true
+    },
+    {
+      "idx": 229,
+      "version": "7",
+      "when": 1794642116585,
+      "tag": "0229_careful_mathemanic",
+      "breakpoints": true
     }
   ]
 }
