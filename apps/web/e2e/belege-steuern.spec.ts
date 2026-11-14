@@ -2352,6 +2352,24 @@ test("Formular-Dialog bei niedrigem Fenster: Beim Öffnen bleibt das erste Feld 
   await page.setViewportSize({ width: 1440, height: 900 });
 });
 
+test("Jahreserklärung: Abgabetag im Erklärungsjahr meldet das Feld, nicht erst der Server (Review #975)", async () => {
+  const jahr = YEAR - 1;
+  await go(`/jahreserklaerung/${jahr}`);
+  const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${jahr}`, exact: true });
+  await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: `Anlage EÜR ${jahr} als abgegeben vermerken` });
+  // Alles stimmt bis auf den Tag: Er liegt im Erklärungsjahr, der Server nimmt erst ab dem 1. Januar des Folgejahres an (vermerk.ts)
+  await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr}-06-30`);
+  await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");
+  await dialog.getByLabel("Begründung", { exact: true }).fill("Anlage EÜR extern mit WISO abgegeben.");
+  const haken = dialog.getByLabel("Abweichung geprüft und bewusst übernommen");
+  if (await haken.count()) await haken.check();
+  await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
+  await expect(dialog.getByLabel("Tag der Abgabe", { exact: true })).toBeFocused();
+  await expect(dialog.getByLabel("Tag der Abgabe", { exact: true })).toHaveAccessibleDescription(new RegExp(`01\\.01\\.${jahr + 1}`));
+  await page.keyboard.press("Escape");
+});
+
 test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);
