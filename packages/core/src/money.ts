@@ -35,6 +35,16 @@ export function formatDecimal(cents: Cents): string {
   return formatter.format(cents / 100 + 0);
 }
 
+/**
+ * Betrag einer Zeile, die vom Ergebnis abzieht: Vorsteuer, Einfuhrumsatzsteuer, Vorauszahlungssoll.
+ * Das Vorzeichen gehört zur Zeile, nicht zum Betrag: ein Abzug erscheint negativ, eine Gutschrift in
+ * derselben Zeile positiv. Sonst zeigt eine negative Vorsteuer ein Minus und wird beim Zusammenzählen
+ * der Spalte addiert statt abgezogen (#869).
+ */
+export function formatDeduction(cents: Cents): string {
+  return formatEuro(-cents);
+}
+
 /** Für CSV-Dateien: Dezimalkomma ohne Tausenderpunkt, 123456 → "1234,56", -5 → "-0,05" */
 export function csvDecimal(cents: Cents): string {
   const abs = Math.abs(cents);
