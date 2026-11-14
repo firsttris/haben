@@ -101,8 +101,9 @@ export function invoiceTaxReader(q: Db | Tx = db) {
       invoice.advanceType === "teilleistung" || (invoice.variant === "schluss" && invoice.id && (await hasNewAdvance(invoice.id, q)))
         ? (invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate)
         : null;
-    // Eingefrorener Tag aus dem Festschreiben (#694): gilt auch für die gewöhnliche Soll-Rechnung
-    if (invoice.serviceDate) return invoice.serviceDate;
+    // Eingefrorener Tag aus dem Festschreiben (#694): gilt auch für die gewöhnliche Soll-Rechnung. Nicht für die
+    // Anzahlung vor Leistung: Deren Steuer entsteht mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG).
+    if (invoice.serviceDate && invoice.advanceType !== "anzahlung") return invoice.serviceDate;
     if (!invoice.id) return load();
     let date = performances.get(invoice.id);
     if (!date) {
