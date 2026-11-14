@@ -74,7 +74,7 @@ export function vorsteuerPruefen(getPage: () => Page) {
 function einfuhrumsatzsteuerPruefen(getPage: () => Page) {
   test("Einfuhrumsatzsteuer: Zollbetrag ist Vorsteuer ohne Aufwand, kein Teilabzug (#433)", async ({ browser }) => {
     const page = getPage();
-    await belegAnlegen(page, browser);
+    const route = await belegAnlegen(page, browser);
     try {
       await page.getByLabel("Kategorie").selectOption("einfuhrumsatzsteuer");
       await page.getByLabel("Satz", { exact: true }).selectOption("0");
@@ -94,7 +94,15 @@ function einfuhrumsatzsteuerPruefen(getPage: () => Page) {
     } finally {
       await page.locator(".doc-actions").getByRole("button", { name: "Löschen", exact: true }).click();
       await bestaetigen(page, "Beleg löschen");
-      await page.waitForURL(/\/belege$/);
+      // Weitere offene Belege führen zum nächsten Beleg, sonst zur Liste; die eigene Fixture muss in beiden Fällen weg sein.
+      await page.waitForURL((url) => url.pathname !== route && /^\/belege(?:\/[0-9a-f-]{36})?$/.test(url.pathname));
+      const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+      try {
+        const id = route.split("/").at(-1)!;
+        await expect.poll(async () => (await sql`select id from documents where id=${id}`).length).toBe(0);
+      } finally {
+        await sql.end();
+      }
     }
   });
 }
