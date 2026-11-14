@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { checkXml } from "./fake-client.ts";
-import { buildEuerXml, buildUstErklaerungXml, euerTotals, euerVorzeichenMeldungen, ustErklaerungResult, type AveuerAnlage } from "./erklaerung.ts";
+import {
+  buildEuerXml,
+  buildUstErklaerungXml,
+  euerTotals,
+  euerVorzeichenMeldungen,
+  ustErklaerungLeer,
+  ustErklaerungResult,
+  type AveuerAnlage,
+} from "./erklaerung.ts";
 import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
 
 const base = {
@@ -186,6 +194,15 @@ describe("Umsatzsteuererklärung (E50)", () => {
         kz67: 90,
       }),
     ).toEqual({ steuer: 1_000 + 100 + 50 + 90 + 60 - (400 + 80 + 20 + 90), abschluss: 1_000 + 100 + 50 + 90 + 60 - (400 + 80 + 20 + 90) - 200 });
+  });
+
+  it("erkennt eine Erklärung ohne Beträge als leer", () => {
+    const leer = { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0 };
+    expect(ustErklaerungLeer(leer)).toBe(true);
+    // Das Vorauszahlungssoll zählt nicht als Betrag der Erklärung
+    expect(ustErklaerungLeer({ ...leer, vorauszahlungen: 50_000 })).toBe(true);
+    // Jeder einzelne Betrag hebt die Leere auf, hier nur eine ergänzende Angabe
+    expect(ustErklaerungLeer({ ...leer, kz45: 80_000 })).toBe(false);
   });
 });
 

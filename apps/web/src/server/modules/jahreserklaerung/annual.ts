@@ -25,6 +25,7 @@ import {
   ERSTES_ERKLAERUNGSJAHR,
   euerTotals,
   euerVorzeichenMeldungen,
+  ustErklaerungLeer,
   ustErklaerungResult,
   type AveuerAnlage,
   type ElsterClient,
@@ -125,17 +126,18 @@ export async function ustYear(year: number): Promise<UstYear> {
     vorsteuer: total("kz66"),
     // Vorauszahlungssoll einschließlich der Sondervorauszahlung: Um sie ist die Voranmeldung für Dezember gemindert (Kz 39)
     vorauszahlungen: [...latest.values()].reduce((s, v) => s + v, 0) + sondervorauszahlungFor(await loadDauerfrist(), year),
-    kz21: total("kz21"),
-    kz45: total("kz45"),
-    kz41: total("kz41"),
-    kz43: total("kz43"),
-    kz89: total("kz89"),
+    // Auch hier Bemessungsgrundlagen in vollen Euro; die Steuerbeträge bleiben centgenau
+    kz21: toWholeEuros(total("kz21")),
+    kz45: toWholeEuros(total("kz45")),
+    kz41: toWholeEuros(total("kz41")),
+    kz43: toWholeEuros(total("kz43")),
+    kz89: toWholeEuros(total("kz89")),
     tax89: total("tax89"),
-    kz93: total("kz93"),
+    kz93: toWholeEuros(total("kz93")),
     tax93: total("tax93"),
-    kz46: total("kz46"),
+    kz46: toWholeEuros(total("kz46")),
     kz47: total("kz47"),
-    kz84: total("kz84"),
+    kz84: toWholeEuros(total("kz84")),
     kz85: total("kz85"),
     kz61: total("kz61"),
     kz62: total("kz62"),
@@ -161,19 +163,14 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
           : `Für ${year} gibst du auch als Kleinunternehmer noch eine Umsatzsteuererklärung ab (erst ab 2024 nicht mehr). Die Angaben für Kleinunternehmer kann Haben nicht übermitteln; gib sie im ELSTER-Portal ab.`,
     });
   }
-  // Steuerfreie Umsätze ohne Vorsteuerabzug brauchen eine Vordruckzeile je Befreiungsvorschrift und die Nummer in § 4 UStG
+  // Steuerfreie Umsätze ohne Vorsteuerabzug gehören je nach Nummer in § 4 UStG in verschiedene Zeilen (46, 47, 49), mit der Nummer als Text
   if (data.kz48 !== 0) {
     issues.push({
       tone: "fehler",
       text: "Das Jahr enthält steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48). Diese Zeile kann Haben noch nicht übermitteln; gib die Erklärung mit den Werten unten im ELSTER-Portal ab.",
     });
   }
-  const f = data.figures;
-  const umsaetze =
-    f.base19 + f.base7 + (f.kz21 ?? 0) + (f.kz41 ?? 0) + (f.kz43 ?? 0) + (f.kz45 ?? 0) + (f.kz46 ?? 0) + (f.kz84 ?? 0) + (f.kz89 ?? 0) + (f.kz93 ?? 0);
-  const vorsteuer = f.vorsteuer + (f.kz61 ?? 0) + (f.kz62 ?? 0) + (f.kz67 ?? 0);
-  const steuer = f.tax19 + f.tax7 + (f.tax89 ?? 0) + (f.tax93 ?? 0) + (f.kz47 ?? 0) + (f.kz85 ?? 0);
-  if (umsaetze === 0 && vorsteuer === 0 && steuer === 0 && data.kz48 === 0) {
+  if (ustErklaerungLeer(data.figures) && data.kz48 === 0) {
     issues.push({ tone: "fehler", text: "Keine Umsätze und keine Vorsteuer: eine Nullerklärung geht über das ELSTER-Portal." });
   }
   if (data.missingMonths.length > 0 && !kleinunternehmer) {

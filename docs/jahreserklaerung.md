@@ -41,7 +41,7 @@ Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 | --- | --- |
 | Umsätze zu 19 % und 7 % | Summe der zwölf Monate aus den Buchungen, wie in der Voranmeldung: Ist-Versteuerung nach Zahlungseingang, Soll nach Rechnungsdatum. Es zählt die Versteuerung des Jahres, auch wenn du sie zum Jahreswechsel umgestellt hast ([Ist- und Soll-Versteuerung](buchhaltung.md#ist--und-soll-versteuerung)). Bemessungsgrundlage in vollen Euro, die Steuer daraus. Die private Kfz-Nutzung ist in den 19 % enthalten |
 | Steuerfreie innergemeinschaftliche Lieferungen (Kz 41) und Ausfuhrlieferungen (Kz 43) | Summe der zwölf Monate, in vollen Euro |
-| Innergemeinschaftliche Erwerbe zu 19 % (Kz 89) und 7 % (Kz 93) | Bemessungsgrundlage in vollen Euro und die Erwerbsteuer daraus; die Summe der Steuer steht in der Berechnung |
+| Innergemeinschaftliche Erwerbe zu 19 % (Kz 89) und 7 % (Kz 93) | Bemessungsgrundlage in vollen Euro und die Erwerbsteuer laut Beleg; die Summe der Steuer steht in der Berechnung |
 | §-13b-Leistungen aus dem EU-Ausland (Kz 46/47) und dem Drittland (Kz 84/85) | Bemessungsgrundlage in vollen Euro und die Steuer, die du als Leistungsempfänger schuldest; die Summe steht in der Berechnung |
 | Nicht steuerbare Leistungen, Ort im EU-Ausland (Kz 21), und nicht steuerbare Umsätze (Drittland, Kz 45) | Summe der zwölf Monate, in vollen Euro; ergänzende Angaben ohne Steuer |
 | Abziehbare Vorsteuer (Kz 66) | Summe der Vorsteuer aus gebuchten Belegen |
@@ -53,7 +53,7 @@ Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 
-- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält: Jede Befreiungsvorschrift bekommt eine eigene Zeile mit ihrer Nummer in § 4 UStG, und die Umsätze gehören teils zum Gesamtumsatz, teils nicht. Das kann Haben noch nicht übermitteln; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
+- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält: Sie gehören je nach Nummer in § 4 UStG in verschiedene Zeilen, mit der Nummer als Text. Das kann Haben noch nicht übermitteln; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
 - du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf. Für 2023 brauchst du sie noch; die Angaben für Kleinunternehmer übermittelst du dann im ELSTER-Portal.
 - es weder Umsätze noch Vorsteuer gibt (Nullerklärung über das ELSTER-Portal).
 
@@ -223,7 +223,7 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 
 ## Herkunft der Feldkennungen
 
-Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste.
+Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste. Die Felder der Umsatzsteuererklärung über Umsätze zu 19 und 7 % und die Vorsteuer aus Rechnungen hinaus (steuerfreie und nicht steuerbare Umsätze, innergemeinschaftliche Erwerbe, §-13b-Leistungen, weitere Vorsteuer) stammen direkt aus Feldliste, Regeln und Schema E50 der Jahre 2023 bis 2026 in ERiC 44.3.6.0.
 
 Die Elemente für Miete (`Raumkosten_u_sonst/Miete_Pacht`, `E6003201`) und Erhaltungsaufwendungen (`Sonst_unbeschraenkt/Erhaltungsaufwand`, `E6004313`) stammen direkt aus den Schemas E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0 und sind mit dem echten ERiC geprüft (`eric-echt.test.ts`).
 

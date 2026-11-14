@@ -244,7 +244,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     "%s, %s: § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer summiert die Jahreserklärung; nur Kz 48 sperrt",
     async (kontenrahmen, versteuerung) => {
       await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
-      await reverseCharge(11, "eu", "2025-03-10", 10_000);
+      await reverseCharge(11, "eu", "2025-03-10", 10_099);
       await reverseCharge(12, "drittland", "2025-04-10", 5_000);
       const { id: erwerbId } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 13]), filename: "erwerb-13.jpg" });
       await documents.updateDocument(actor, erwerbId, {
@@ -277,18 +277,19 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
 
       const ust = await annual.ustYear(2025);
       expect(ust.figures).toMatchObject({
+        // Bemessungsgrundlage in vollen Euro (10.099 Cent → 100 €), die Steuer bleibt centgenau
         kz46: 10_000,
-        kz47: 1_900,
+        kz47: 1_919,
         kz84: 5_000,
         kz85: 950,
-        kz67: 2_850,
+        kz67: 2_869,
         kz89: 20_000,
         tax89: 3_800,
         kz61: 3_800,
         kz62: 3_800,
       });
-      // Steuer 1.900 + 950 + 3.800, Vorsteuer 2.850 + 3.800 + 3.800
-      expect(ust.steuer).toBe(1_900 + 950 + 3_800 - (2_850 + 3_800 + 3_800));
+      // Steuer 1.919 + 950 + 3.800, Vorsteuer 2.869 + 3.800 + 3.800
+      expect(ust.steuer).toBe(1_919 + 950 + 3_800 - (2_869 + 3_800 + 3_800));
       // Keine Sperre mehr: Diese Kennzahlen gehen jetzt in die Erklärung
       expect(annual.ustIssues(false, ust, 2025).every((i) => i.tone !== "fehler")).toBe(true);
       // Mein ELSTER bekommt dieselben Feldkennungen wie das E50-XML
@@ -297,15 +298,15 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       const felder = new Map(werte.felder.map((f) => [f.kennung, f.wert]));
       for (const [kennung, wert] of [
         ["E3102205", "100"],
-        ["E3102206", "19,00"],
+        ["E3102206", "19,19"],
         ["E3102503", "50"],
         ["E3102504", "9,50"],
-        ["E3102601", "28,50"],
+        ["E3102601", "28,69"],
         ["E3100902", "200"],
         ["E3100903", "38,00"],
-        ["E3006502", "28,50"],
+        ["E3006502", "28,69"],
         ["E3006401", "38,00"],
-        ["E3006901", "104,50"],
+        ["E3006901", "104,69"],
         ["E3010201", "-38,00"],
       ] as const) {
         expect(felder.get(kennung), kennung).toBe(wert);

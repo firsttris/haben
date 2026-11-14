@@ -152,6 +152,33 @@ export function ustErklaerungResult(f: UstErklaerungFigures): UstErklaerungResul
   return { steuer, abschluss: steuer - f.vorauszahlungen };
 }
 
+/** true, wenn alle Beträge der Erklärung 0 sind (das Vorauszahlungssoll zählt nicht): eine Nullerklärung geht über das ELSTER-Portal */
+export function ustErklaerungLeer(f: UstErklaerungFigures): boolean {
+  const betraege: (Cents | undefined)[] = [
+    f.base19,
+    f.tax19,
+    f.base7,
+    f.tax7,
+    f.vorsteuer,
+    f.kz41,
+    f.kz43,
+    f.kz89,
+    f.tax89,
+    f.kz93,
+    f.tax93,
+    f.kz46,
+    f.kz47,
+    f.kz84,
+    f.kz85,
+    f.kz21,
+    f.kz45,
+    f.kz61,
+    f.kz62,
+    f.kz67,
+  ];
+  return betraege.every((betrag) => (betrag ?? 0) === 0);
+}
+
 export interface UstErklaerungXmlInput extends Omit<Envelope, "datenArt"> {
   versteuerung: "soll" | "ist";
   figures: UstErklaerungFigures;
@@ -311,8 +338,7 @@ export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
   const igErwerbSteuer = kz(f.tax89) + kz(f.tax93);
   const s13bSteuer = kz(f.kz47) + kz(f.kz85);
   const vorsteuer = f.vorsteuer + kz(f.kz61) + kz(f.kz62) + kz(f.kz67);
-  const umsaetze = f.base19 + f.base7 + kz(f.kz41) + kz(f.kz43) + kz(f.kz89) + kz(f.kz93) + kz(f.kz46) + kz(f.kz84) + kz(f.kz21) + kz(f.kz45);
-  if (umsaetze === 0 && vorsteuer === 0 && igErwerbSteuer === 0 && s13bSteuer === 0) {
+  if (ustErklaerungLeer(f)) {
     throw new ElsterEingabeError("Ohne Umsätze und Vorsteuer gibt es nichts zu erklären; eine Nullerklärung geht über das ELSTER-Portal.");
   }
   const { steuer, abschluss } = ustErklaerungResult(f);
