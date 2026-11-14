@@ -2602,3 +2602,42 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
   await expect(page.getByLabel("Leistung von")).toHaveValue(day(-24));
   await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
 });
+
+test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+
+  // Der Durchlauf hat die Anlage EÜR weiter oben schon vermerkt; ohne Vermerk gäbe es keine Erklärung, zu
+  // der Zeilen gehören können. Falls nicht, hier anlegen.
+  const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${YEAR - 1}` });
+  const vermerken = karte.getByRole("button", { name: "Abgabe vermerken" });
+  if (await vermerken.isVisible().catch(() => false)) {
+    await vermerken.click();
+    const dialog = page.getByRole("dialog", { name: `Anlage EÜR ${YEAR - 1} als abgegeben vermerken` });
+    await dialog.getByLabel("Transferticket").fill("ABC123456789");
+    await dialog.getByLabel("Begründung").fill("Anlage EÜR außerhalb von Haben mit WISO abgegeben.");
+    // Der Betrag bleibt der aus den Buchungen gerechnete, damit keine Abweichung bestätigt werden muss
+    await dialog.getByRole("button", { name: "Vermerken" }).click();
+  }
+
+  // Die Maske der Anlage EÜR, nicht die der Umsatzsteuer: nur dort steht die Gewinnzeile
+  const erfassen = page
+    .locator("details", { hasText: "Zeilenwerte aus dem Übermittlungsprotokoll" })
+    .filter({ has: page.getByLabel("Steuerpflichtiger Gewinn / Verlust (gewinn)") })
+    .last();
+  await expect(erfassen).toBeVisible({ timeout: 15_000 });
+  await erfassen.locator("summary").first().click();
+  await erfassen.getByLabel("Steuerpflichtiger Gewinn / Verlust (gewinn)").fill("1.234,56");
+  await erfassen.getByRole("button", { name: "Zeilenwerte speichern" }).click();
+
+  // Die erklärten Werte ersetzen Habens Rechnung und nennen ihre Herkunft
+  await expect(page.getByText("Diese Zahlen stammen aus dem Übermittlungsprotokoll", { exact: false })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("1.234,56\u00a0€").first()).toBeVisible();
+
+  // Habens Rechnung bleibt stehen, und die Maske nimmt die noch fehlenden Zeilen auf (Review zu #997).
+  // Vorher verschwand beides, sobald eine Zeile gespeichert war.
+  await expect(page.getByText("Habens Rechnung aus den Buchungen", { exact: false }).first()).toBeVisible();
+  const nachtragen = page.locator("details", { hasText: "Zeilenwerte aus dem Übermittlungsprotokoll" }).filter({ hasText: "Zeilen offen" }).first();
+  await expect(nachtragen).toBeVisible();
+  await nachtragen.locator("summary").first().click();
+  await expect(nachtragen.getByLabel("Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben (vereinnahmteUst)")).toBeVisible();
+});
