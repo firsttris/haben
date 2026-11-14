@@ -11,6 +11,9 @@ import { parseSync, Visitor } from "oxc-parser";
  * - Module importieren weder Server Functions noch Oberfläche (routes/, components/); src/lib/ ist erlaubt. Die
  *   Abhängigkeit läuft nur von außen nach innen.
  *
+ * - Pakete unter packages/ importieren nichts aus apps/ (weder relativ noch als @haben/web); der GoBD-Kern kennt
+ *   zusätzlich keine Pakete von Haben (@haben/…), weil auch andere Apps ihn nutzen.
+ *
  * Biome kann das nicht selbst: seine Regeln vergleichen nur den Text des Imports, hier zählt der aufgelöste Pfad.
  * Tests sind ausgenommen (siehe pruefen.ts), sie dürfen in Dateien anderer Module greifen.
  */
@@ -49,8 +52,30 @@ function isInfrastructure(file: string): boolean {
   return basename(file) !== "scheduler.ts";
 }
 
+const PACKAGES = `${sep}packages${sep}`;
+
+/** Name des Pakets unter packages/, oder null */
+function packageOf(file: string): string | null {
+  const at = file.lastIndexOf(PACKAGES);
+  return at < 0 ? null : (file.slice(at + PACKAGES.length).split(sep)[0] ?? null);
+}
+
+/** Pakete hängen nicht an der App; der GoBD-Kern auch nicht an anderen Paketen von Haben */
+function checkPackageImport(pkg: string, file: string, specifier: string): string | null {
+  const intoApps = specifier.startsWith(".") && resolve(dirname(file), specifier).includes(`${sep}apps${sep}`);
+  if (intoApps || specifier === "@haben/web" || specifier.startsWith("@haben/web/")) {
+    return `Ein Paket importiert nichts aus apps/ („${specifier}“). Was beide brauchen, gehört in das Paket.`;
+  }
+  if (pkg === "gobd-kern" && specifier.startsWith("@haben/")) {
+    return `Der GoBD-Kern kennt keine App und keine Pakete von Haben („${specifier}“).`;
+  }
+  return null;
+}
+
 /** Die Meldung für einen Import aus `file`, oder null, wenn er erlaubt ist */
 export function checkImport(file: string, specifier: string): string | null {
+  const pkg = packageOf(file);
+  if (pkg) return checkPackageImport(pkg, file, specifier);
   if (!specifier.startsWith(".")) return null;
   const own = moduleOf(file);
   const path = resolve(dirname(file), specifier);
