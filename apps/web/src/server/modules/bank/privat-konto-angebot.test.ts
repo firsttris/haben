@@ -78,9 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Privates Konto: Buchungsarten ohne Geschäfts
     const privat = await konto("privat", PRIVAT_IBAN);
     const transaction = await umsatz(privat, -25_00, "Spendenempfänger");
     // 1840 gegen 2250 ist privat gegen privat; auf einem privaten Konto hat das nichts zu suchen (#873)
-    await expect(bank.allocate(actor, { kind: "spende", transactionId: transaction, amount: -25_00 })).rejects.toThrow(
-      /privaten Konto/,
-    );
+    await expect(bank.allocate(actor, { kind: "spende", transactionId: transaction, amount: -25_00 })).rejects.toThrow(/privaten Konto/);
     expect(await journalzeilen()).toBe(0);
   });
 
