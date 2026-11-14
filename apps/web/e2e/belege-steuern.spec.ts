@@ -448,6 +448,9 @@ test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno 
   await wege.getByLabel("Tage an der Betriebsstätte", { exact: true }).fill("15");
   // Mit Komma wie bei „Fahrt“: 12,5 km zählen als 12 volle Kilometer, nicht als 125
   await wege.getByLabel("Kilometer einfach", { exact: true }).fill("12,5");
+  // Ohne Betriebsstätte bleibt „Buchen“ gesperrt, und das Feld sagt warum (Hinweis am Feld, nicht neben dem Knopf)
+  await expect(wege.getByRole("button", { name: "68,40 € buchen" })).toBeDisabled();
+  await expect(wege.getByLabel("Betriebsstätte", { exact: true })).toHaveAccessibleDescription(/Trag die Betriebsstätte ein/);
   await wege.getByLabel("Betriebsstätte", { exact: true }).fill("Praxis Musterstadt");
   // ab 2026 0,38 € je Kilometer: 15 Tage × 12 km
   await wege.getByRole("button", { name: "68,40 € buchen" }).click();
