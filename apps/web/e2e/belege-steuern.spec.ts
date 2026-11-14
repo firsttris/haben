@@ -574,6 +574,37 @@ test("Beleg mit Bruttobetrag: Netto und Vorsteuer vorgerechnet, Satzwechsel beh�
   await page.waitForURL(/\/belege$/);
 });
 
+test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz zu lesen (#917)", async ({ browser }) => {
+  // 1280 px: Formular und Vorschau stehen ab 1201 px nebeneinander, die Zeile hat mit Brutto drei Betragsfelder
+  const context = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: 1280, height: 800 } });
+  const laptop = await context.newPage();
+  await laptop.goto("/belege");
+  await laptop.waitForLoadState("networkidle");
+  await laptop
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "laptop-betraege.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Bürohaus Nord GmbH") }]);
+  await expect(laptop.getByText("laptop-betraege.jpg: abgelegt.")).toBeVisible();
+  await laptop
+    .getByRole("link", { name: /laptop-betraege\.jpg/ })
+    .first()
+    .click();
+  await laptop.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await laptop.waitForLoadState("networkidle");
+  const amounts = laptop.getByRole("group", { name: "Beträge je Steuersatz" });
+  await amounts.getByLabel("Brutto", { exact: true }).fill("14.691,26");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("12.345,60");
+  const abgeschnitten = await laptop
+    .locator(".amount-row input[inputmode='decimal']")
+    .evaluateAll((felder) =>
+      (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
+    );
+  expect(abgeschnitten, "Netto, Vorsteuer und Brutto").toEqual([]);
+  await laptop.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(laptop, "Beleg löschen");
+  await laptop.waitForURL(/\/belege$/);
+  await context.close();
+});
+
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
   // Beispiel aus #271, je 19 %: 100 € Handelsware, 50 € Software, 20 € Bürobedarf = 170 € netto, 32,30 € Vorsteuer
   await go("/belege");
