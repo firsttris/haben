@@ -11,13 +11,16 @@ export type FieldErrors<K extends string> = Record<K, string | null>;
  * `check` steht zuerst im onSubmit: false heißt abbrechen; dann bekommt das erste Feld mit `aria-invalid` den Fokus, und der
  * Screenreader liest dabei dessen Fehler über `aria-describedby`. Geht die Prüfung durch, verschwinden die Fehler wieder,
  * damit ein Formular, das sich nach dem Buchen leert, nicht sofort „fehlt“ meldet. `form` gehört an das `<form>`, das
- * `noValidate` trägt.
+ * `noValidate` trägt, oder, wo es kein Formular gibt (Zuordnung im Bankabgleich), an das Element um die Felder.
  */
 export function useSubmitCheck<K extends string>(errors: FieldErrors<K>) {
   const [shown, setShown] = useState(false);
-  const form = useRef<HTMLFormElement>(null);
+  const scope = useRef<HTMLElement | null>(null);
   return {
-    form,
+    // Als Funktion passt der Ref an jedes Element, ein Objekt-Ref nur an genau einen Elementtyp
+    form: (element: HTMLElement | null) => {
+      scope.current = element;
+    },
     error: (key: K): string | undefined => (shown ? (errors[key] ?? undefined) : undefined),
     check(): boolean {
       if (Object.values<string | null>(errors).every((e) => e === null)) {
@@ -26,7 +29,7 @@ export function useSubmitCheck<K extends string>(errors: FieldErrors<K>) {
       }
       // Sofort rendern, damit die Felder aria-invalid tragen, bevor der Fokus sie sucht
       flushSync(() => setShown(true));
-      form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      scope.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
       return false;
     },
   };

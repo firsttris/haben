@@ -324,10 +324,12 @@ test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer
     await expect(banken).toHaveValue("Fyrst");
     await expect(page.getByText("Du wirst zu Fyrst weitergeleitet")).toBeVisible();
 
-    // Kein Treffer: nichts gewählt
+    // Kein Treffer: nichts gewählt; der Knopf bleibt bedienbar und sagt am Feld, warum es nicht weitergeht (DESIGN.md, Gesperrte Knöpfe)
     await page.getByLabel("Bank suchen").fill("Sparkasse");
     await expect(banken.getByRole("option")).toHaveCount(0);
-    await expect(weiter).toBeDisabled();
+    await weiter.click();
+    await expect(banken).toBeFocused();
+    await expect(banken).toHaveAccessibleDescription("Keine Bank passt zu „Sparkasse“. Ändere die Suche.");
     await page.getByRole("button", { name: "Abbrechen" }).click();
 
     // Zugang wieder entfernen, damit die folgenden Tests die Bankseite wie zuvor sehen
@@ -1613,6 +1615,14 @@ test("Steuerzahlung im Bankabgleich: Gewerbesteuerbescheid auf Steuer und Versp�
   const panel = page.getByRole("complementary", { name: "Zuordnung" });
   await expect(panel.getByRole("heading", { name: "Stadtkasse Regensburg" })).toBeVisible();
 
+  // „Buchen“ bleibt bedienbar; ohne Bezugsjahr steht der Fehler am Feld, der Fokus dort, gebucht wird nichts (DESIGN.md, Gesperrte Knöpfe)
+  await panel.getByLabel("Buchen als").selectOption("steuer");
+  await panel.getByLabel("Bezugsjahr").fill("");
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await expect(panel.getByLabel("Bezugsjahr")).toBeFocused();
+  await expect(panel.getByLabel("Bezugsjahr")).toHaveAccessibleDescription("Trag das Bezugsjahr vierstellig ein, etwa 2025.");
+  await expect(panel.getByText("Zugeordnet")).toHaveCount(0);
+
   // Eine Zahlung, zwei Teile: die Steuer für ein Vorjahr und der Verspätungszuschlag, beide zur Gewerbesteuer
   await panel.getByRole("button", { name: "Aufteilen" }).click();
   const form = panel.getByRole("form", { name: "Umsatz aufteilen" });
@@ -1630,6 +1640,14 @@ test("Steuerzahlung im Bankabgleich: Gewerbesteuerbescheid auf Steuer und Versp�
     await row.getByLabel("Betrag").fill(betrag);
   }
   await expect(form.getByText("Keine Betriebsausgabe, auch nicht Zinsen und Zuschläge darauf (§ 4 Abs. 5b EStG)").first()).toBeVisible();
+
+  // Ergeben die Teile nicht den Umsatz, steht der fehlende Rest am Betrag des letzten Teils
+  await rows.nth(1).getByLabel("Betrag").fill("-40,00");
+  await form.getByRole("button", { name: "Aufteilen und buchen" }).click();
+  await expect(rows.nth(1).getByLabel("Betrag")).toBeFocused();
+  await expect(rows.nth(1).getByLabel("Betrag")).toHaveAccessibleDescription("Zusammen fehlen noch -3,00 €.");
+  await rows.nth(1).getByLabel("Betrag").fill("-43,00");
+  await expect(rows.nth(1).getByLabel("Betrag")).not.toHaveAttribute("aria-invalid");
   await form.getByRole("button", { name: "Aufteilen und buchen" }).click();
   await page.waitForLoadState("networkidle");
   await expect(panel.getByText(`Steuer: Gewerbesteuer ${bezugsjahr} · Zahlung`)).toBeVisible();
