@@ -221,8 +221,10 @@ test("Bankabgleich: gegenläufige Umsätze verrechnen ohne Buchung, Aufheben fra
   await panel.getByRole("button", { name: "Mit Gegenumsatz verrechnen" }).click();
   const form = panel.getByRole("form", { name: "Mit Gegenumsatz verrechnen" });
   await expect(form.getByLabel("Gegenumsatz")).toContainText("−1,00 €");
-  // Ohne Notiz bleibt der Knopf gesperrt
-  await expect(form.getByRole("button", { name: "Verrechnen" })).toBeDisabled();
+  // Ohne Notiz verrechnet der Knopf nicht, sondern sagt am Feld, was fehlt (DESIGN.md, Gesperrte Knöpfe)
+  await form.getByRole("button", { name: "Verrechnen" }).click();
+  await expect(form.getByLabel("Notiz")).toBeFocused();
+  await expect(form.getByLabel("Notiz")).toHaveAccessibleDescription(/^Steht mit der Verrechnung im Änderungsprotokoll\. Trag eine Notiz ein/);
   await form.getByLabel("Notiz").fill("PayPal-Autorisierung mit automatischer Rückbuchung");
   await form.getByRole("button", { name: "Verrechnen" }).click();
   await expect(panel.getByText("ohne Buchung · PayPal-Autorisierung mit automatischer Rückbuchung")).toBeVisible();
