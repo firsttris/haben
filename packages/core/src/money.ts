@@ -37,8 +37,8 @@ export function formatDecimal(cents: Cents): string {
 
 /**
  * Betrag einer Zeile, die vom Ergebnis abzieht: Vorsteuer, Einfuhrumsatzsteuer, Vorauszahlungssoll.
- * Das Vorzeichen gehoert zur Zeile, nicht zum Betrag: ein Abzug erscheint negativ, eine Gutschrift in
- * derselben Zeile positiv. Sonst zeigt eine negative Vorsteuer ein Minus und wird beim Zusammenzaehlen
+ * Das Vorzeichen gehört zur Zeile, nicht zum Betrag: ein Abzug erscheint negativ, eine Gutschrift in
+ * derselben Zeile positiv. Sonst zeigt eine negative Vorsteuer ein Minus und wird beim Zusammenzählen
  * der Spalte addiert statt abgezogen (#869).
  */
 export function formatDeduction(cents: Cents): string {

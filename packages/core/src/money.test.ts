@@ -36,7 +36,7 @@ describe("formatDeduction", () => {
     expect(formatDeduction(-24552).replace(/\s/g, " ")).toBe("245,52 €");
   });
 
-  it("traegt das Vorzeichen der Abschlusszeile unveraendert", () => {
+  it("trägt das Vorzeichen der Abschlusszeile unverändert", () => {
     expect(formatEuro(-5448).replace(/\s/g, " ")).toBe("-54,48 €");
     expect(formatEuro(20000).replace(/\s/g, " ")).toBe("200,00 €");
   });
