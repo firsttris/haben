@@ -146,6 +146,16 @@ describe.skipIf(!testDatabaseUrl)("Vollprüfung der Belegdateien (Postgres)", ()
     expect(await files.runDueFileCheck(new Date(start.getTime() + DAY + 60_000))).toMatchObject({ files: 1 });
   });
 
+  it("lässt sich von einem Lauf mit Zeitpunkt in der Zukunft nicht abschalten", async () => {
+    // Eine Uhr, die einmal vorging, oder eine eingeschleuste Zeile: file_checks hat kein Audit-Log, der nächste Lauf muss sie ablösen
+    const now = new Date("2026-11-14T03:00:00Z");
+    await sql`insert into file_checks (at, files, problem_count, problems) values ('2099-01-01T00:00:00Z', 0, 0, '[]'::jsonb)`;
+    const fehlt = await beleg("kfz-versicherung.pdf");
+    await rm(pfad(fehlt.sha256));
+    expect(await files.runDueFileCheck(now)).toMatchObject({ files: 1, problemCount: 1 });
+    expect((await files.lastFileCheck(now))?.problemCount).toBe(1);
+  });
+
   it("führt gleichzeitige Läufe zusammen", async () => {
     await beleg("porto.pdf");
     const [a, b] = await Promise.all([files.runFileCheck(), files.runFileCheck()]);
