@@ -509,9 +509,7 @@ export const annualSubmissionFigures = pgTable(
     /** Zeilenschlüssel der Erklärung, etwa `kz81` (Umsätze 19 %) oder `einnahmen` (EÜR Zeile 23) */
     field: text("field").notNull(),
     amount: bigint("amount", { mode: "number" }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("annual_submission_figures_eindeutig").on(t.submissionId, t.field)],
 );

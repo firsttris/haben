@@ -330,6 +330,10 @@ function StatusUebersicht({ data }: { data: Data }) {
 function UstSection({ data }: { data: Data }) {
   const { ust } = data;
   const f = ust.figures;
+  // Wurde außerhalb von Haben abgegeben, trägt der Vermerk den erklärten Betrag. Er gewinnt gegen die
+  // Rechnung aus den Buchungen: Er ist das, was beim Finanzamt liegt.
+  const erklaert = ust.submitted?.amount ?? null;
+  const abschluss = erklaert ?? ust.abschluss;
   return (
     <section className="grid-main jump-target" id="ust" aria-labelledby="ust-heading">
       <div className="card" style={{ gap: 12 }}>
@@ -380,7 +384,8 @@ function UstSection({ data }: { data: Data }) {
               {(f.kz67 ?? 0) !== 0 && <Row label="Vorsteuer aus §-13b-Leistungen" kz="67" extra="" value={formatDeduction(f.kz67!)} />}
               <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
               <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatDeduction(f.vorauszahlungen)} />
-              <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(ust.abschluss)} total />
+              {/* Bei einer Abgabe außerhalb von Haben zählt der erklärte Betrag, nicht Habens Rechnung (#869) */}
+              <Row label={abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(abschluss)} total />
             </tbody>
           </table>
         )}
