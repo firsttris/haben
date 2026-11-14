@@ -2127,13 +2127,20 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
 
   // Danach gilt die Erklärung als abgegeben; der Kopf nennt Tag, Betrag und Ticket, ein zweiter Vermerk fehlt (#871)
   await expect(ust.getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
-  await expect(karte).toContainText(`Abgegeben am 02.01.${jahr + 1}`);
+  await expect(karte.locator("p", { hasText: `Abgegeben am 02.01.${jahr + 1}` })).toBeVisible();
   await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
-  await expect(karte).toContainText("Umsatzsteuererklärung extern mit WISO abgegeben.");
   await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
-  // Begründung und Protokoll stehen zugeklappt darunter; der Verweis liegt hinter dem summary im Markup
+  // Begründung und Protokoll stehen zugeklappt darunter: verdeckt heißt nicht sichtbar, also erst zugeklappt
+  // prüfen, dann aufklappen und Begründung wie Protokollverweis sichtbar nachsehen
+  const begruendung = karte.getByText("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  await expect(begruendung).toBeHidden();
   await expect(karte.locator("details[open]")).toHaveCount(0);
-  const protokoll = await page.request.get((await karte.locator('a[href^="/api/protokoll/"]').getAttribute("href"))!);
+  await karte.locator("summary").click();
+  await expect(karte.locator("details[open]")).toHaveCount(1);
+  await expect(begruendung).toBeVisible();
+  const protokollLink = karte.getByRole("link", { name: /Übermittlungsprotokoll/ });
+  await expect(protokollLink).toBeVisible();
+  const protokoll = await page.request.get((await protokollLink.getAttribute("href"))!);
   expect(protokoll.headers()["content-type"]).toContain("application/pdf");
 
   // Auch nach dem Neuladen bleibt der Vermerk stehen
