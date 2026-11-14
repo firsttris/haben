@@ -60,7 +60,7 @@ import { Kuerzel } from "../../components/Kuerzel.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
-  filter: z.optional(z.enum(["offen", "zugeordnet", "alle"])),
+  filter: z.optional(z.enum(["offen", "zugeordnet", "alle", "vorschlag"])),
   suche: z.optional(z.string()),
   umsatz: z.optional(z.uuid()),
   /** Sortierung der Umsatzliste: Spalte und Richtung (#681) */
@@ -298,7 +298,7 @@ function BankPage() {
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">
               <div className="tx-toolbar">
                 <div role="group" aria-label="Filter" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {(["alle", "offen", "zugeordnet"] as const).map((f) => (
+                  {(["alle", "offen", "zugeordnet", "vorschlag"] as const).map((f) => (
                     <Link
                       key={f}
                       to="/bank"
@@ -306,7 +306,7 @@ function BankPage() {
                       className={`chip${filter === f ? " active" : ""}`}
                       aria-current={filter === f ? "page" : undefined}
                     >
-                      {f === "alle" ? "Alle" : f === "offen" ? `Offen · ${openCount}` : "Zugeordnet"}
+                      {f === "alle" ? "Alle" : f === "offen" ? `Offen · ${openCount}` : f === "zugeordnet" ? "Zugeordnet" : "Vorschlag"}
                     </Link>
                   ))}
                 </div>
@@ -316,7 +316,7 @@ function BankPage() {
               <BankSortierKopf sort={sortierung} dir={richtung} />
               {data.transactions.length === 0 && (
                 <p className="muted" style={{ margin: 0, padding: "16px 20px" }}>
-                  {filter === "offen" ? "Alles zugeordnet." : "Keine Umsätze."}
+                  {filter === "offen" ? "Alles zugeordnet." : filter === "vorschlag" ? "Keine Umsätze mit Vorschlag." : "Keine Umsätze."}
                 </p>
               )}
               {data.transactions.map((tx) => (
