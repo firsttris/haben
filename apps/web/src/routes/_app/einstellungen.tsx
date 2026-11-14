@@ -50,7 +50,7 @@ import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/Sk
 import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
-import { useSubmitCheck } from "../../lib/use-submit-check.ts";
+import { emailFehler, useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { getStoreConnections } from "../../server/functions/stores.ts";
@@ -318,11 +318,13 @@ function CompanyForm() {
   const [baseRate, setBaseRate] = useState(company.dunning.baseRate === null ? "" : formatDecimal(company.dunning.baseRate));
   const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
   const [fees, setFees] = useState({ "1": fee("1"), "2": fee("2"), "3": fee("3") });
+  const [email, setEmail] = useState(company.email);
   const {
     form: checkScope,
     error,
     check,
   } = useSubmitCheck({
+    email: emailFehler(email),
     "dunning-fee-1": dunningFeeError(fees["1"]),
     "dunning-fee-2": dunningFeeError(fees["2"]),
     "dunning-fee-3": dunningFeeError(fees["3"]),
@@ -395,7 +397,7 @@ function CompanyForm() {
   }
 
   return (
-    <form ref={checkScope} className="card form-card" onSubmit={onSubmit} aria-labelledby="company-heading">
+    <form ref={checkScope} className="card form-card" onSubmit={onSubmit} aria-labelledby="company-heading" noValidate>
       <div className="form-card-head">
         <h2 id="company-heading">Firmendaten</h2>
         {issues.length > 0 && <div className="banner">Für ELSTER fehlt noch: {issues.join(", ")}.</div>}
@@ -410,7 +412,9 @@ function CompanyForm() {
           </Field>
         </div>
         <div className="form-row cols-2">
-          <Field label="E-Mail">{(control) => <input {...control} name="email" type="email" defaultValue={company.email} autoComplete="email" />}</Field>
+          <Field label="E-Mail" error={error("email")}>
+            {(control) => <input {...control} name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />}
+          </Field>
           <Field label="Telefon (Pflicht für XRechnung)">
             {(control) => <input {...control} name="telefon" type="tel" defaultValue={company.telefon} autoComplete="tel" />}
           </Field>

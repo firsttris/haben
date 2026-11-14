@@ -118,3 +118,14 @@ test("Gebühr je Stufe: mehr als 1.000 € steht am Feld, gespeichert wird nicht
   await openDunning(page);
   await expect(page.getByLabel("Gebühr Zahlungserinnerung (€)")).toHaveValue(vorher);
 });
+
+test("Firmendaten: Fehler stehen am Feld statt in der Blase des Browsers, der Fokus geht aufs erste", async ({ page }) => {
+  await openDunning(page);
+  const email = page.getByLabel("E-Mail", { exact: true });
+  await email.fill("rechnung");
+  await page.getByLabel("Gebühr Zahlungserinnerung (€)").fill("1.500,00");
+  await page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" }).click();
+  await expect(email).toBeFocused();
+  await expect(email).toHaveAccessibleDescription(/gültige E-Mail-Adresse/);
+  await expect(page.getByLabel("Gebühr Zahlungserinnerung (€)")).toHaveAccessibleDescription(/höchstens 1\.000,00\s€/);
+});
