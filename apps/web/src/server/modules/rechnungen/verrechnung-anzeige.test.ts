@@ -108,7 +108,9 @@ describe.skipIf(!testDatabaseUrl)("Anzeige nach einer Verrechnung (Postgres)", (
 
   it("zeigt nach der Verrechnung überall 141,50 EUR offen statt 159,00 EUR", async () => {
     const { rechnung, korrektur } = await paar();
-    expect(await anzeigen(rechnung)).toEqual({ liste: 15_900, mahnwesen: 15_900, entwurf: 15_900, posten: 15_900 });
+    // Vor der Verrechnung: Liste und offene Posten nennen 159,00 €, gemahnt werden schon 141,50 € — eine
+    // festgeschriebene Korrektur mindert die Forderung, auch bevor jemand sie verrechnet (dunning.ts, owed())
+    expect(await anzeigen(rechnung)).toEqual({ liste: 15_900, mahnwesen: 14_150, entwurf: 14_150, posten: 15_900 });
 
     await verrechnung.settleInvoices(actor, {
       invoiceId: rechnung,
@@ -129,7 +131,8 @@ describe.skipIf(!testDatabaseUrl)("Anzeige nach einer Verrechnung (Postgres)", (
   it("zeigt 41,50 EUR offen, wenn 100,00 EUR bezahlt und dann 17,50 EUR verrechnet sind", async () => {
     const { rechnung, korrektur } = await paar();
     await zahle(rechnung, 10_000, "2026-11-11");
-    expect(await anzeigen(rechnung)).toEqual({ liste: 5_900, mahnwesen: 5_900, entwurf: 5_900, posten: 5_900 });
+    // 159,00 − 100,00 in der Liste, gemahnt abzüglich der offenen Korrektur: 59,00 − 17,50
+    expect(await anzeigen(rechnung)).toEqual({ liste: 5_900, mahnwesen: 4_150, entwurf: 4_150, posten: 5_900 });
 
     await verrechnung.settleInvoices(actor, {
       invoiceId: rechnung,
@@ -188,9 +191,9 @@ describe.skipIf(!testDatabaseUrl)("Anzeige nach einer Verrechnung (Postgres)", (
     });
     // Eine zweite, noch offene Korrektur mindert den Rest zusätzlich — die verrechnete nicht noch einmal
     expect((await verrechnung.invoiceSettlementView(rechnung)).candidates).toEqual([expect.objectContaining({ id: teil, rest: -1_750 })]);
-    // Die verrechnete Korrektur zählt nicht doppelt (die Rechnung kennt sie schon am offenen Rest).
-    // Die zweite, noch offene Korrektur mindert den gemahnten Betrag nicht mehr — gemahnt wird der Rest der
-    // Rechnung, und der ändert sich erst, wenn jemand diese Korrektur verrechnet (#877).
-    expect((await anzeigen(rechnung)).mahnwesen).toBe(14_150);
+    // Die verrechnete Korrektur zählt nicht doppelt (sie steht selbst auf 0, die Rechnung kennt die 17,50 € bereits).
+    // Die zweite, noch offene Korrektur mindert den gemahnten Betrag dagegen zusätzlich: gemahnt wird der Rest aus
+    // Rechnung und offenen Korrekturen, wie in der Rechnungsliste getrennt ausgewiesen (14_150 − 1_750 = 12_400).
+    expect((await anzeigen(rechnung)).mahnwesen).toBe(12_400);
   }, 60_000);
 });
