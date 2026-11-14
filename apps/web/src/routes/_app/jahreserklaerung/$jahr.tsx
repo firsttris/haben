@@ -104,6 +104,7 @@ function AnnualPage() {
       </nav>
 
       <div className="stack" style={{ gap: 24 }}>
+        <StatusUebersicht data={data} />
         <UstSection data={data} />
         {!gesellschaft && <EuerSection data={data} />}
         {!gesellschaft && <EstSection key={data.year} data={data} />}
@@ -183,6 +184,42 @@ function SentPill({ sent, submitted, verwaltet }: { sent: Data["ust"]["sent"]; s
   );
 }
 
+function StatusUebersicht({ data }: { data: Data }) {
+  const zeilen = [
+    { id: "ust", label: "Umsatzsteuer", teil: data.ust },
+    { id: "euer", label: "Anlage EÜR", teil: data.euer },
+    { id: "est", label: "Einkommensteuer", teil: data.est },
+  ];
+  return (
+    <section className="card" aria-label="Stand der Erklärungen">
+      <table className="report-table stack-table">
+        <thead>
+          <tr>
+            <th scope="col">Erklärung</th>
+            <th scope="col">Stand</th>
+            <th scope="col" className="num">
+              Betrag
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((z) => (
+            <tr key={z.id}>
+              <th scope="row">
+                <a href={`#${z.id}`}>{z.label}</a>
+              </th>
+              <td>
+                <SentPill sent={z.teil.sent} submitted={z.teil.submitted} verwaltet={"verwaltet" in z.teil ? z.teil.verwaltet : false} />
+              </td>
+              <td className="num">{z.teil.submitted?.amount === null || z.teil.submitted?.amount === undefined ? "–" : formatEuro(z.teil.submitted.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 function UstSection({ data }: { data: Data }) {
   const { ust } = data;
   const f = ust.figures;
@@ -234,6 +271,7 @@ function UstSection({ data }: { data: Data }) {
             {(f.kz67 ?? 0) !== 0 && <Row label="Vorsteuer aus §-13b-Leistungen" kz="67" extra="" value={formatDeduction(f.kz67!)} />}
             <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
             <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatDeduction(f.vorauszahlungen)} />
+            {/* Bei einer Abgabe außerhalb von Haben zählt der erklärte Betrag, nicht Habens Rechnung (#869) */}
             <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(ust.abschluss)} total />
           </tbody>
         </table>
@@ -479,33 +517,44 @@ function EstSection({ data }: { data: Data }) {
           <tbody>
             <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
             <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} text />
-            <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />
-            {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
+            {/* Ohne Buchungen im Jahr steht hier 0,00 — das ist keine Aussage über den Gewinn,
+                  sondern über Habens Datenlage (#869) */}
+            {est.gewinn !== 0 && <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />}
             <Row label="Anlagen" value={est.anlagen.join(", ")} text />
-            <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
-            <Row
-              label="Voraussichtliche Steuer"
-              value={formatEuro(est.prognose.gesamt)}
-              kz={[
-                `ESt ${formatEuro(est.prognose.einkommensteuer)}`,
-                est.prognose.soli ? `Soli ${formatEuro(est.prognose.soli)}` : "",
-                est.prognose.kirchensteuer ? `KiSt ${formatEuro(est.prognose.kirchensteuer)}` : "",
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            />
-            {est.prognose.steuerabzug > 0 && (
-              <>
-                <Row label="Bereits einbehalten (Lohnsteuer, Soli, KiSt)" value={formatEuro(est.prognose.steuerabzug)} />
-                <Row
-                  label={est.prognose.verbleibend >= 0 ? "Voraussichtlich nachzuzahlen" : "Voraussichtliche Erstattung"}
-                  value={formatEuro(Math.abs(est.prognose.verbleibend))}
-                  total
-                />
-              </>
-            )}
           </tbody>
         </ScrollTable>
+        {(() => {
+          const prognose = (
+            <ScrollTable className="report-table">
+              <tbody>
+                {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
+                <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
+                <Row
+                  label="Voraussichtliche Steuer"
+                  value={formatEuro(est.prognose.gesamt)}
+                  kz={[
+                    `ESt ${formatEuro(est.prognose.einkommensteuer)}`,
+                    est.prognose.soli ? `Soli ${formatEuro(est.prognose.soli)}` : "",
+                    est.prognose.kirchensteuer ? `KiSt ${formatEuro(est.prognose.kirchensteuer)}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                />
+                {est.prognose.steuerabzug > 0 && (
+                  <>
+                    <Row label="Bereits einbehalten (Lohnsteuer, Soli, KiSt)" value={formatEuro(est.prognose.steuerabzug)} />
+                    <Row
+                      label={est.prognose.verbleibend >= 0 ? "Voraussichtlich nachzuzahlen" : "Voraussichtliche Erstattung"}
+                      value={formatEuro(Math.abs(est.prognose.verbleibend))}
+                      total
+                    />
+                  </>
+                )}
+              </tbody>
+            </ScrollTable>
+          );
+          return prognose;
+        })()}
 
         <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />
         {est.zusammen && <AnlageNFields wer={nameB} draft={anB} onChange={setAnB} />}
@@ -517,7 +566,7 @@ function EstSection({ data }: { data: Data }) {
           };
           const total = v("a") + (est.zusammen ? v("b") : 0) + (a.vorsorge.sonstige ?? 0);
           return (
-            <Block title="Vorsorgeaufwand" summary={sumText(total)} open={total > 0}>
+            <Block title="Vorsorgeaufwand" summary={sumText(total)} open={false}>
               <h4 className="est-sub">{est.zusammen ? (est.person.a ?? "Person A") : "Beiträge"}</h4>
               {vorsorgeFields("a", a.vorsorge.a)}
               {est.zusammen && (
@@ -536,7 +585,7 @@ function EstSection({ data }: { data: Data }) {
         <Block
           title="Sonderausgaben und Belastungen"
           summary={sumText(sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.spenden, a.krankheitskosten))}
-          open={sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.kirchensteuerErstattet, a.sonderausgaben.spenden, a.krankheitskosten) > 0}
+          open={false}
         >
           <div className="form-grid">
             <Amount
@@ -554,7 +603,7 @@ function EstSection({ data }: { data: Data }) {
         <Block
           title="Haushaltsnahe Aufwendungen (§ 35a EStG)"
           summary={sumText(sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker))}
-          open={sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker) > 0}
+          open={false}
         >
           <div className="form-grid">
             <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
@@ -568,11 +617,7 @@ function EstSection({ data }: { data: Data }) {
           </div>
         </Block>
 
-        <Block
-          title="Kinder"
-          summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`}
-          open={a.kinder.length > 0}
-        >
+        <Block title="Kinder" summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`} open={false}>
           {kinder.map((k, index) => (
             <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
               <Field label="Vorname">
@@ -628,10 +673,7 @@ function EstSection({ data }: { data: Data }) {
         <Block
           title="Kapitalerträge (Anlage KAP)"
           summary={sumText(sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland))}
-          open={
-            sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland, a.kap?.kapitalertragsteuer) > 0 ||
-            Boolean(a.kap?.guenstigerpruefung)
-          }
+          open={false}
         >
           <div className="form-grid">
             <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />
