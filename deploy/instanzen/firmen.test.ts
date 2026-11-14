@@ -3,7 +3,7 @@
  * vorher geprüft wie die App, laufende Apps neu, gestoppte bleiben gestoppt. Fälle zum Teil aus dem früheren
  * Bash-Entwurf (#549) und seinen Review-Runden.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { envWerte } from "./env-datei.ts";
@@ -279,6 +279,28 @@ describe("neu --firmenname", () => {
 
   it("nennt den Befehl firmen auch mit --nicht-starten", async () => {
     expect((await t.lauf("neu", "firma1", "firma1.example.de", "--nicht-starten")).stdout).toContain("haben-instanzen.ts firmen");
+  });
+});
+
+describe("Review #911", () => {
+  it("ändert keine .env, wenn das Schreiben bei der dritten Instanz scheitert", async () => {
+    // Etwa voller Datenträger; nachgestellt mit einer Datei daneben, die sich nicht anlegen lässt
+    await anlegen("firma1", "firma2", "firma3");
+    const vorher = alle("firma1", "firma2", "firma3");
+    symlinkSync(join(t.basis, "fehlt", "x"), join(t.basis, "firma3", ".env.firmen-neu"));
+    const r = await t.lauf("firmen");
+    expect(r.status).not.toBe(0);
+    expect(alle("firma1", "firma2", "firma3")).toEqual(vorher);
+    expect(ups()).toEqual([]);
+  });
+
+  it("lehnt --firmenname mit \\ am Ende ab: Compose liest \\' als Zeichen, nicht als Ende des Werts", async () => {
+    // compose-go, dotenv/parser.go, extractVarValue: in '…' überspringt ein \ davor das schließende Anführungszeichen;
+    // die .env ließe sich dann nicht lesen („unterminated quoted value“)
+    const r = await t.lauf("neu", "firma1", "firma1.example.de", "--firmenname", "Nord\\", "--nicht-starten");
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toContain("--firmenname");
+    expect(existsSync(join(t.basis, "firma1"))).toBe(false);
   });
 });
 
