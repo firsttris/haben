@@ -37,6 +37,25 @@ describe.skipIf(!testDatabaseUrl)("Angaben zur Einkommensteuer (Postgres)", () =
     expect((await incomeTax.loadEstAngaben(2023)).arbeitnehmer?.a?.werbungskosten.arbeitszimmer).toBe(126_000);
   });
 
+  it("behält die Zeilen der Anlage Vorsorgeaufwand beim Speichern", async () => {
+    await incomeTax.saveEstAngaben(actor, 2022, {
+      vorsorge: {
+        a: {
+          basisrente: 1_200_000,
+          pkvWahlleistungen: 60_000,
+          agZuschussKv: 240_000,
+          agZuschussPv: 20_000,
+        },
+      },
+    });
+    expect((await incomeTax.loadEstAngaben(2022)).vorsorge?.a).toMatchObject({
+      basisrente: 1_200_000,
+      pkvWahlleistungen: 60_000,
+      agZuschussKv: 240_000,
+      agZuschussPv: 20_000,
+    });
+  });
+
   it("verwirft gespeicherte Angaben nicht, die ein verschärftes Schema ablehnt", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const data = {

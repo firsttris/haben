@@ -105,10 +105,10 @@ export function IntegrityCard({ head }: { head: Head }) {
       <p className="small muted" style={{ margin: 0 }}>
         Jede Änderung steht im Audit-Log, jeder Eintrag ist per SHA-256 mit seinem Vorgänger verkettet. Festgeschriebene Buchungen, Rechnungen, Belege,
         Voranmeldungen, Kassenbuch, Zuordnungen, Pauschalen und AfA tragen zusätzlich ein Siegel über ihren Inhalt. Außerdem gleicht die Prüfung das Journal mit
-        Umsatzsteuer, EÜR und den neuen Anzahlungsbeständen ab und meldet Kontenkollisionen. Belege, Anhänge und andere Dateien liegen außerhalb der Datenbank
-        unter ihrem SHA-256; Haben prüft einmal am Tag, ob jede vorhanden und unverändert ist, „Dateien prüfen“ sofort. Die Prüfung findet nachträgliche
-        Änderungen, verhindert sie aber nicht. Wer die Datenbank ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem
-        Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
+        Umsatzsteuer, EÜR und den neuen Anzahlungsbeständen ab und meldet Kontenkollisionen sowie abgeschaltete, fehlende oder veränderte Sperrtrigger und
+        Funktionen. Belege, Anhänge und andere Dateien liegen außerhalb der Datenbank unter ihrem SHA-256; Haben prüft einmal am Tag, ob jede vorhanden und
+        unverändert ist, „Dateien prüfen“ sofort. Die Prüfung findet nachträgliche Änderungen, verhindert sie aber nicht. Wer die Datenbank ändern kann, kann
+        auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
       </p>
       {current && (
         <div className="small">
@@ -137,6 +137,18 @@ export function IntegrityCard({ head }: { head: Head }) {
             </li>
           ))}
         </ul>
+      )}
+      {report && report.triggerHints.length > 0 && (
+        <div className="small">
+          <div className="muted">Hinweise zu Sperrtriggern</div>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {report.triggerHints.map((hint) => (
+              <li key={hint} className="muted" style={{ overflowWrap: "anywhere" }}>
+                {hint}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {report && <FileCheckResult files={report.files} />}
       {report && (report.abgleich.abweichungen.length > 0 || report.abgleich.hinweise.length > 0) && (

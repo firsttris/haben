@@ -1,5 +1,5 @@
 {
-  "id": "577b60ad-c2c5-4c9d-bf53-897f1208ae22",
+  "id": "ab976be4-366a-4eb3-ae50-55d25b0dfbf0",
   "prevId": "f66e9206-2ff5-4685-b319-160ed1bb7b12",
   "version": "7",
   "dialect": "postgresql",
@@ -6176,65 +6176,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.file_checks": {
-      "name": "file_checks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "bigserial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "at": {
-          "name": "at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "files": {
-          "name": "files",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "problem_count": {
-          "name": "problem_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "problems": {
-          "name": "problems",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "file_checks_at": {
-          "name": "file_checks_at",
-          "columns": [
-            {
-              "expression": "at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.inbox_messages": {
       "name": "inbox_messages",
       "schema": "",
@@ -10266,6 +10207,38 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.password_changes": {
+      "name": "password_changes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

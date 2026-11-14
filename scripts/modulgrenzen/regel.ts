@@ -11,6 +11,9 @@ import { parseSync, Visitor } from "oxc-parser";
  * - Module importieren weder Server Functions noch Oberfläche (routes/, components/); src/lib/ ist erlaubt. Die
  *   Abhängigkeit läuft nur von außen nach innen.
  *
+ * - Pakete unter packages/ importieren nichts aus apps/ (weder relativ noch als @haben/web); der GoBD-Kern kennt
+ *   zusätzlich keine Pakete von Haben (@haben/… oder relativ außerhalb seines Ordners), weil auch andere Apps ihn nutzen.
+ *
  * Biome kann das nicht selbst: seine Regeln vergleichen nur den Text des Imports, hier zählt der aufgelöste Pfad.
  * Tests sind ausgenommen (siehe pruefen.ts), sie dürfen in Dateien anderer Module greifen.
  */
@@ -49,8 +52,38 @@ function isInfrastructure(file: string): boolean {
   return basename(file) !== "scheduler.ts";
 }
 
+/**
+ * Das Paket, in dessen src/ die Datei liegt: Name, Paketordner und Wurzel des Repositorys; sonst null. Erst
+ * packages/<name>/src/ zählt, damit ein Ordner namens packages oberhalb des Repositorys nichts ändert.
+ */
+function packageOf(file: string): { name: string; dir: string; root: string } | null {
+  const parts = file.split(sep);
+  for (let i = parts.length - 3; i >= 0; i--) {
+    if (parts[i] === "packages" && parts[i + 2] === "src") {
+      const root = parts.slice(0, i).join(sep);
+      return { name: parts[i + 1] ?? "", dir: [root, "packages", parts[i + 1]].join(sep), root };
+    }
+  }
+  return null;
+}
+
+/** Pakete hängen nicht an der App; der GoBD-Kern auch nicht an anderen Paketen von Haben */
+function checkPackageImport(pkg: { name: string; dir: string; root: string }, file: string, specifier: string): string | null {
+  const path = specifier.startsWith(".") ? resolve(dirname(file), specifier) : null;
+  const leaves = path !== null && !path.startsWith(`${pkg.dir}${sep}`);
+  if ((leaves && path.startsWith(`${pkg.root}${sep}apps${sep}`)) || specifier === "@haben/web" || specifier.startsWith("@haben/web/")) {
+    return `Ein Paket importiert nichts aus apps/ („${specifier}“). Was beide brauchen, gehört in das Paket.`;
+  }
+  if (pkg.name === "gobd-kern" && (leaves || specifier.startsWith("@haben/"))) {
+    return `Der GoBD-Kern kennt keine App und keine Pakete von Haben („${specifier}“).`;
+  }
+  return null;
+}
+
 /** Die Meldung für einen Import aus `file`, oder null, wenn er erlaubt ist */
 export function checkImport(file: string, specifier: string): string | null {
+  const pkg = packageOf(file);
+  if (pkg) return checkPackageImport(pkg, file, specifier);
   if (!specifier.startsWith(".")) return null;
   const own = moduleOf(file);
   const path = resolve(dirname(file), specifier);

@@ -39,6 +39,14 @@ export interface EstVorsorgePerson {
   ppv?: Cents;
   /** Erstattungen der privaten Kranken- und Pflegeversicherung */
   pkvErstattung?: Cents;
+  /** Beiträge zu zertifizierten Basisrentenverträgen (Rürup, § 10 Abs. 1 Nr. 2 b EStG) */
+  basisrente?: Cents;
+  /** Privat: über die Basisabsicherung hinaus, also Wahlleistungen (§ 10 Abs. 1 Nr. 3 a EStG) */
+  pkvWahlleistungen?: Cents;
+  /** Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung (§ 3 Nr. 62 EStG, Nr. 24 b) */
+  agZuschussKv?: Cents;
+  /** Steuerfreier Arbeitgeberzuschuss zur privaten Pflegeversicherung (§ 3 Nr. 62 EStG, Nr. 24 c) */
+  agZuschussPv?: Cents;
 }
 
 export interface EstKind {
@@ -502,6 +510,8 @@ export function buildEstXml(input: EstXmlInput): string {
         const felder: XmlNode[] = [
           ["E2000401", euro(lstb(an, "rvArbeitnehmer"))],
           ["E2000601", euro(v?.rentenversicherung)],
+          // Zeile 8: zertifizierte Basisrentenverträge (Rürup), teilt den Höchstbetrag mit Zeile 4 bis 6
+          ["E2000701", euro(v?.basisrente)],
           ["E2000801", euro(lstb(an, "rvArbeitgeber"))],
         ];
         return felder.some((f) => f[1]) ? ["AVor", [["Person", person], ...felder]] : null;
@@ -538,15 +548,31 @@ export function buildEstXml(input: EstXmlInput): string {
           ],
         ];
       }),
+      ...vorsorgePersonen.map(([person, v]): XmlNode | null => {
+        // Zeile 27: über die Basisabsicherung hinaus, brutto; erstattete Beiträge stehen in Zeile 25 (E2003302)
+        // und sind hier deshalb nicht noch einmal abzuziehen
+        const wahl = euro(v?.pkvWahlleistungen);
+        if (!euro(v?.pkv) && !euro(v?.ppv) && !euro(v?.pkvErstattung) && !wahl) return null;
+        return [
+          "Beitr_p_KV_PV_Inl",
+          [
+            ["Person", person],
+            ["E2003104", euro(v?.pkv)],
+            ["E2003202", euro(v?.ppv)],
+            ["E2003302", euro(v?.pkvErstattung)],
+            wahl ? ["WL_Zvers", [["E2003502", wahl]]] : null,
+          ],
+        ];
+      }),
       ...vorsorgePersonen.map(([person, v]): XmlNode | null =>
-        euro(v?.pkv) || euro(v?.ppv) || euro(v?.pkvErstattung)
+        // Zeilen 35 und 36: steuerfreie Zuschüsse des Arbeitgebers laut Nr. 24 b und 24 c
+        euro(v?.agZuschussKv) || euro(v?.agZuschussPv)
           ? [
-              "Beitr_p_KV_PV_Inl",
+              "Stfr_AG_Zusch",
               [
                 ["Person", person],
-                ["E2003104", euro(v?.pkv)],
-                ["E2003202", euro(v?.ppv)],
-                ["E2003302", euro(v?.pkvErstattung)],
+                ["E2003807", euro(v?.agZuschussKv)],
+                ["E2003907", euro(v?.agZuschussPv)],
               ],
             ]
           : null,
