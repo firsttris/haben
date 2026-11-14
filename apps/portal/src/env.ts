@@ -52,6 +52,8 @@ export function ladeKonfiguration(quelle: Record<string, string | undefined>): {
   const env = ergebnis.data;
   const firmen = parsePortalFirmen(env.PORTAL_FIRMEN);
   if ("fehler" in firmen) return { fehler: [`PORTAL_FIRMEN: ${firmen.fehler}`] };
+  // Wie Haben: ohne openid käme kein ID-Token, jede Anmeldung schlüge erst dann fehl
+  if (env.OIDC_SCOPES && !env.OIDC_SCOPES.trim().split(/\s+/).includes("openid")) return { fehler: ["OIDC_SCOPES: muss openid enthalten"] };
   const httpLoopback = env.NODE_ENV !== "production";
   const issuer = new URL(env.OIDC_ISSUER);
   if (!(issuer.protocol === "https:" || (httpLoopback && issuer.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(issuer.hostname)))) {
