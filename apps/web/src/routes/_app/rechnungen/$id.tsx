@@ -243,6 +243,12 @@ function FinalInvoice({ data }: { data: Detail }) {
           </span>
         </div>
       )}
+      {data.leistungsmonat && (
+        <div className="banner banner-warn" role="status">
+          <Icon name="alert" />
+          <span>{data.leistungsmonat}</span>
+        </div>
+      )}
       <NoticeBanner notice={notice} />
 
       <div className="grid-main">
