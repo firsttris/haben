@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { fileURLToPath } from "node:url";
+import { recordAppVersion } from "./app-version.ts";
 import { checkApplicationConnection, grantApplicationAccess } from "./roles.ts";
 
 const applicationUrl = process.env.DATABASE_URL;
@@ -20,6 +21,7 @@ try {
     migrationsFolder: fileURLToPath(new URL("../../../drizzle", import.meta.url)),
   });
   if (app) await grantApplicationAccess(client, app);
+  await recordAppVersion(client);
   await client`select pg_advisory_unlock(${LOCK})`;
 } finally {
   await Promise.all([client.end(), application?.end()]);

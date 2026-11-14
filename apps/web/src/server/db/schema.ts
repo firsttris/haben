@@ -3631,3 +3631,16 @@ export const externalImportSettlements = pgTable(
     check("external_import_settlements_different", sql`${t.paymentImportId} <> ${t.originalImportId}`),
   ],
 );
+
+/**
+ * Eingesetzte Programm- und Datenbankversionen (#841): jeder Start einer neuen Version (auch eines älteren Stands beim Zurückrollen)
+ * hängt genau eine Zeile an. Nur anhängen (Trigger wie bei audit_log) und im Änderungsprotokoll (audit_log) mitgeschnitten, damit auch
+ * nachträglich feststeht, welche Programmlogik zu einem Buchungszeitpunkt galt (GoBD, Verfahrensdokumentation).
+ */
+export const appVersions = pgTable("app_versions", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  version: text("version").notNull(),
+  postgresVersion: text("postgres_version").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  note: text("note"),
+});
