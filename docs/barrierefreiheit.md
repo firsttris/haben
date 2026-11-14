@@ -38,7 +38,7 @@ Tastenkürzel einzelner Seiten:
 | [Bankabgleich](bank.md#zuordnen) | `Enter` ordnet zu, `J` nächster, `K` voriger Umsatz |
 | [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` / `⌘+Enter` bucht, `Esc` zurück zur Liste |
 
-Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` (Mac: `⌘+Enter`) bucht einen Beleg auch aus einem Eingabefeld. Haben zeigt die Kürzel so, wie sie auf deiner Tastatur stehen: am Mac, iPhone und iPad mit `⌘`, sonst mit `Strg`.
+Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` bucht einen Beleg auch aus einem Eingabefeld. Haben zeigt die Kürzel so, wie sie auf deiner Tastatur stehen: am Mac, iPhone und iPad mit `⌘`, sonst mit `Strg`.
 
 ## Darstellung
 
