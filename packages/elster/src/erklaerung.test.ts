@@ -266,8 +266,8 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
 
   it("übermittelt die Entfernungspauschale in Zeile 73 hinter den Fahrtkosten, nicht als Nutzungseinlage (#895)", () => {
     // Formularfeld „Abziehbare Aufwendungen für Wege zwischen Wohnung und Betriebsstätte“ (Zeile 73):
-    // EUER/BAus/KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt/Sum/E6003702 laut `elsterfeldname` in den EÜR-Formularen
-    // 2022 bis 2025 von EasyCash&Tax; Reihenfolge wie dort. Das Schema E77 selbst ist noch nicht geprüft.
+    // EUER/BAus/KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt/Sum/E6003702, Pfad und Reihenfolge wie im Schema
+    // E77-2025.xsd und E77-2026.xsd (ERiC-Dokumentation 44.3.6.0 und 45.1.5.0).
     const mitWegen = { ...figures, fahrtNutzungseinlage: 37_200, entfernungspauschale: 6_840 };
     const xml = buildEuerXml({ ...base, allgemein, figures: mitWegen, anlagen: [] });
     expect(checkXml(xml)).toBeUndefined();

@@ -416,9 +416,8 @@ export const EUER_FIELDS: Record<
   verpflegung: { kz: "E6005002", label: "Verpflegungsmehraufwendungen" },
   tagespauschale: { kz: "E6006405", label: "Tagespauschale für die Tätigkeit in der häuslichen Wohnung" },
   fahrtNutzungseinlage: { kz: "E6006103", label: "Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage)" },
-  // Zeile 73, `elsterfeldname` EUER/BAus/KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt/Sum/E6003702 in den EÜR-Formularen
-  // 2022 bis 2025 von EasyCash&Tax (Formularname dort „Abziehbare Aufwendungen für Wege …“); den Titel der Zeile 73 nennt die
-  // Anleitung zur Anlage EÜR 2025. Das Schema E77 selbst ist nicht geprüft
+  // EUER/BAus/KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt/Sum/E6003702 im Schema E77-2025.xsd und E77-2026.xsd
+  // (ERiC-Dokumentation 44.3.6.0 und 45.1.5.0); Zeile 73 der Anlage EÜR 2025, Zeile 74 der Anlage EÜR 2026
   entfernungspauschale: {
     kz: "E6003702",
     label: "Mindestens abziehbare Kraftfahrzeugkosten für Wege zwischen Wohnung und Betriebsstätte, Familienheimfahrten (Entfernungspauschale)",
