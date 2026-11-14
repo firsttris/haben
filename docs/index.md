@@ -220,7 +220,7 @@ Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 <div markdown>
 **🔓 Offen gebaut**
 
-Code, Roadmap und jedes Review öffentlich. Gebaut mit Agenten, gemergt von Menschen:
+Code, Roadmap und jedes Review öffentlich. Gebaut mit Agenten, geprüft von Menschen:
 [so entsteht Haben](agentic-engineering.md).
 </div>
 </div>
