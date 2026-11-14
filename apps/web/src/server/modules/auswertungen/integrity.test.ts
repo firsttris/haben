@@ -454,7 +454,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
     });
 
     const first = await mail.runDuePruefwertMail(at(1));
-    expect(first).toEqual({ seq: expect.any(Number), problems: 0, rewritten: false });
+    expect(first).toEqual({ seq: expect.any(Number), problems: 0, rewritten: false, fileProblems: 0 });
     expect(sent).toHaveLength(1);
     expect(sent[0]!.to).toBe("max@example.com");
     expect(sent[0]!.subject).toBe(`Haben: Prüfwert des Änderungsprotokolls (Nr. ${first!.seq})`);
@@ -469,7 +469,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
     await sql`insert into bank_accounts (name, iban) values ('Neu', 'DE00PRUEFWERT')`;
     expect(await mail.runDuePruefwertMail(at(9))).toBeNull();
     // Nach einer Änderung am nächsten Tag schon
-    expect(await mail.runDuePruefwertMail(at(10))).toEqual({ seq: expect.any(Number), problems: 0, rewritten: false });
+    expect(await mail.runDuePruefwertMail(at(10))).toEqual({ seq: expect.any(Number), problems: 0, rewritten: false, fileProblems: 0 });
     expect(sent).toHaveLength(2);
 
     // Ohne neuen Eintrag, aber neu verkettet: der Prüfwert der letzten Mail passt nicht mehr

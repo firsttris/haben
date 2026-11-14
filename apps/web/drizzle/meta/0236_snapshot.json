@@ -1,5 +1,5 @@
 {
-  "id": "5319f5d9-7e77-47ce-9f28-544a28048dcf",
+  "id": "caeca2f1-ec7d-4960-be63-5d63d7973e82",
   "prevId": "4d484743-c885-4e9c-8fb9-3cbbf3acf8da",
   "version": "7",
   "dialect": "postgresql",
@@ -512,87 +512,6 @@
           "value": "case when \"allocations\".\"kind\"::text = 'darlehen' then \"allocations\".\"loan_id\" is not null and \"allocations\".\"loan_part\" is not null else \"allocations\".\"loan_id\" is null and \"allocations\".\"loan_part\" is null end"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.annual_submission_figures": {
-      "name": "annual_submission_figures",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "submission_id": {
-          "name": "submission_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "field": {
-          "name": "field",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "annual_submission_figures_eindeutig": {
-          "name": "annual_submission_figures_eindeutig",
-          "columns": [
-            {
-              "expression": "submission_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "field",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "annual_submission_figures_submission_id_annual_submissions_id_fk": {
-          "name": "annual_submission_figures_submission_id_annual_submissions_id_fk",
-          "tableFrom": "annual_submission_figures",
-          "tableTo": "annual_submissions",
-          "columnsFrom": [
-            "submission_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.annual_submissions": {
@@ -6255,6 +6174,65 @@
           "value": "(\"external_imports\".\"kind\" = 'invoice' and \"external_imports\".\"voucher_id\" is not null and \"external_imports\".\"order_document_id\" is null and \"external_imports\".\"entry_id\" is null)\n      or (\"external_imports\".\"kind\" = 'quote' and \"external_imports\".\"order_document_id\" is not null and \"external_imports\".\"voucher_id\" is null and \"external_imports\".\"entry_id\" is null)\n      or (\"external_imports\".\"kind\" = 'journal' and \"external_imports\".\"entry_id\" is not null and \"external_imports\".\"voucher_id\" is null and \"external_imports\".\"order_document_id\" is null)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.file_checks": {
+      "name": "file_checks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "files": {
+          "name": "files",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "problem_count": {
+          "name": "problem_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "problems": {
+          "name": "problems",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "file_checks_at": {
+          "name": "file_checks_at",
+          "columns": [
+            {
+              "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.inbox_messages": {

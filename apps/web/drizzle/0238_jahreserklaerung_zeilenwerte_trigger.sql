@@ -9,3 +9,4 @@ CREATE TRIGGER annual_submission_figures_audit AFTER INSERT ON annual_submission
 --> statement-breakpoint
 CREATE TRIGGER annual_submission_figures_no_truncate BEFORE TRUNCATE ON annual_submission_figures
   FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+
