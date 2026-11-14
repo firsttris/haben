@@ -155,7 +155,7 @@ Ein Wechsel zum Jahreswechsel gilt nur für künftige Buchungen. Ein noch offene
 | Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG | 8125 | 4125 |
 | Steuerfreie Umsätze § 4 Nr. 1a UStG (Ausfuhr) | 8120 | 4120 |
 | Steuerfreie Umsätze § 4 Nr. 8 ff. UStG | 8100 | 4100 |
-| Erlöse als Kleinunternehmer § 19 UStG | 8195 | 4185 |
+| Erlöse als Kleinunternehmer § 19 UStG | 8192 | 4184 |
 | Umsatzsteuer 19 % | 1776 | 3806 |
 | Umsatzsteuer 7 % | 1771 | 3801 |
 | Umsatzsteuer nicht fällig 19 % | 1766 | 3816 |
@@ -183,6 +183,8 @@ Ein Wechsel zum Jahreswechsel gilt nur für künftige Buchungen. Ein noch offene
 | Saldenvorträge Sachkonten | 9000 | 9000 |
 
 Achtung bei der Nummer 1200: In SKR03 ist das die Bank, in SKR04 die Forderungen; in SKR03 ist 1800 die Privatentnahme, in SKR04 die Bank.
+
+Neue Kleinunternehmererlöse verwenden die Standardkonten 8192/4184 aus den DATEV-Kontenrahmen 2026 ([SKR03, Seite 26](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf#page=26), [SKR04, Seite 14](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf#page=14)). Bisherige Buchungen auf 8195/4185 bleiben unverändert und zählen in EÜR und E-Bilanz weiter als Kleinunternehmererlöse. Auch der DATEV-Export behält ihre Nummern. Stimme deren Kontenfunktion in der DATEV-Zielbuchhaltung mit der Steuerberatung ab: DATEV führt diese Nummern mit Kennzeichen R; sie sind dort erst nach Zuweisung einer anderen Kontenfunktion bebuchbar (Erläuterung auf Seite 37).
 
 In einer GmbH oder UG (siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)) bucht Haben überall, wo im Einzelunternehmen Privateinlage oder Privatentnahme stünde, auf das Gesellschafter-Verrechnungskonto: beim vom Gesellschafter ausgelegten Beleg, bei Bankumsätzen „Gesellschafter (Verrechnungskonto)“ und bei Kassenbuchungen vom und an den Gesellschafter. Privatanteile, Kfz-Privatnutzung und Pauschalen gibt es dort nicht.
 
