@@ -221,6 +221,18 @@ Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 
 <div class="showcase-hero" markdown>
 
+## Offen gebaut. <span class="showcase-akzent">Für alle nachprüfbar.</span>
+
+<p class="showcase-claim">Wir glauben, dass Open Source die Zukunft für Deutschland und Europa ist.
+Bei Haben sind Code, Roadmap und Reviews öffentlich, und jeder kann mitmachen, auch ohne zu programmieren.
+Deine Zahlen bleiben trotzdem auf deinem Server.</p>
+
+[Roadmap ansehen](https://github.com/users/firsttris/projects/2){ .md-button .md-button--primary } [Mitwirken](mitwirken.md){ .md-button }
+
+</div>
+
+<div class="showcase-hero" markdown>
+
 ## Gebaut mit Agenten. <span class="showcase-akzent">Gemergt von Menschen.</span>
 
 <p class="showcase-claim">Haben entsteht offen mit Coding-Agenten: rote Tests zuerst, frische Agenten im Review,
