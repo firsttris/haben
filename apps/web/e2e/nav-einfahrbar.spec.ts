@@ -355,3 +355,22 @@ test("eingeklappt: Pfeiltasten wandern durch Leiste und Flyout, → öffnet, ←
   // Die Seite bekommt die Pfeile nicht (die Beleg-Ansicht blättert sonst mit ← und →)
   await expect(page).toHaveURL(/\/$/);
 });
+
+test("eingeklappt: → in ein überfahrenes Flyout heftet es an, die Maus schließt es danach nicht", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+
+  const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
+  await verkauf.focus();
+  await verkauf.hover();
+  await expect(verkauf).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("ArrowRight");
+  const angebote = nav(page).getByRole("link", { name: "Angebote" });
+  await expect(angebote).toBeFocused();
+  await page.mouse.move(900, 600, { steps: 5 });
+  // Länger als der Verzug, nach dem Verlassen ein überfahrenes Flyout schließt
+  await page.waitForTimeout(600);
+  await expect(verkauf).toHaveAttribute("aria-expanded", "true");
+  await expect(angebote).toBeFocused();
+});
