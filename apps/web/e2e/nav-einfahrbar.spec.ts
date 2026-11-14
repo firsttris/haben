@@ -374,3 +374,31 @@ test("eingeklappt: → in ein überfahrenes Flyout heftet es an, die Maus schlie
   await expect(verkauf).toHaveAttribute("aria-expanded", "true");
   await expect(angebote).toBeFocused();
 });
+
+test("eingeklappt: kein Pfeil aus Leiste oder Flyout erreicht die Seite", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  // Steht für die Tasten der Seite, etwa ← → in der Beleg-Ansicht (vorheriger, nächster Beleg)
+  await page.evaluate(() => {
+    const w = window as unknown as { pfeileAnSeite: string[] };
+    w.pfeileAnSeite = [];
+    window.addEventListener("keydown", (event) => {
+      if (event.key.startsWith("Arrow")) w.pfeileAnSeite.push(event.key);
+    });
+  });
+
+  const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
+  await verkauf.focus();
+  await page.keyboard.press("ArrowRight");
+  // → auf einem Link im Flyout, ← schließt, ein zweites ← auf dem Symbol
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowLeft");
+  await expect(verkauf).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  // Symbol ohne Flyout
+  await nav(page).getByRole("link", { name: "Übersicht" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowLeft");
+  expect(await page.evaluate(() => (window as unknown as { pfeileAnSeite: string[] }).pfeileAnSeite)).toEqual([]);
+});
