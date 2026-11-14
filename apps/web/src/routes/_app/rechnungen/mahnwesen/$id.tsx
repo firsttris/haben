@@ -94,8 +94,14 @@ function NewDunningPage() {
           </div>
           <h1>{DUNNING_LEVELS[level].label}</h1>
         </div>
-        <div className="actions">
+        <div className="actions editor-actions">
           <PreviewButton preview={preview} />
+          <button type="button" className="btn" disabled={busy || !valid} onClick={onDraftPdf}>
+            Entwurf als PDF
+          </button>
+          <button type="submit" form="dunning-form" className="btn btn-primary" disabled={busy || !valid}>
+            {DUNNING_LEVELS[level].label} erstellen
+          </button>
         </div>
       </div>
       <NoticeBanner notice={notice} />
@@ -106,7 +112,7 @@ function NewDunningPage() {
         caption="PDF"
         sheet={<RenderedSheet label="Vorschau der Mahnung" render={renderDunningPreview} revision={logo} input={{ ...input(), design: designDraft.changes }} />}
       >
-        <form className="editor-grid" onSubmit={onSubmit}>
+        <form id="dunning-form" className="stack" onSubmit={onSubmit}>
           <section className="card stack" aria-label="Mahnung">
             <p className="small muted" style={{ margin: 0 }}>
               Rechnung {draft.invoice.number} an {draft.invoice.customer} vom {formatDate(draft.invoice.issueDate)}, fällig seit{" "}
@@ -207,14 +213,6 @@ function NewDunningPage() {
               Die Mahnung wird als PDF gespeichert und lässt sich danach nicht mehr ändern. Gebühren und Zinsen sind keine Rechnung: Zahlt der Kunde sie,
               ordnest du den Mehrbetrag im Bankabgleich „Mahngebühren und Verzugszinsen“ zu.
             </p>
-            <div className="actions">
-              <button type="button" className="btn" disabled={busy || !valid} onClick={onDraftPdf}>
-                Entwurf als PDF
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
-                {DUNNING_LEVELS[level].label} erstellen
-              </button>
-            </div>
           </section>
         </form>
       </PreviewLayout>
