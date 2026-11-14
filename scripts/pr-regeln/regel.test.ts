@@ -133,32 +133,44 @@ describe("checkBody", () => {
 });
 
 describe("checkTitleIssues", () => {
-  it("meldet ein Issue aus der Beschreibung, das im Titel fehlt (#954: Refs #357 ohne „(#357)“)", () => {
-    const reports = checkTitleIssues("Mahnung: Vorschau des Blatts wie bei Rechnung und Angebot", "Refs #357");
+  it("meldet ein umgesetztes Issue, das im Titel fehlt, als Fehler", () => {
+    const reports = checkTitleIssues("Mahnung: Vorschau des Blatts", "Umgesetzt #357");
     expect(reports).toHaveLength(1);
     expect(reports[0]).toMatchObject({ level: "error" });
     expect(reports[0].message).toContain("(#357)");
   });
 
-  it("lässt Titel durch, die jede Nummer aus Refs und Umgesetzt nennen, auch als Liste", () => {
+  it("meldet Refs ohne Nummer im Titel nur als Hinweis, weil Refs auch auf Pull Requests zeigt (#954)", () => {
+    const reports = checkTitleIssues("Mahnung: Vorschau des Blatts wie bei Rechnung und Angebot", "Refs #357");
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({ level: "warning" });
+    expect(reports[0].message).toContain("#357");
+  });
+
+  it("lässt Titel durch, die jede Nummer nennen, auch als Liste", () => {
     expect(checkTitleIssues("Mahnung: Vorschau (#357)", "Refs #357")).toEqual([]);
     expect(checkTitleIssues("Finanzamt: Zeitraum einheitlich (#968, #969)", "Umgesetzt #968, #969")).toEqual([]);
   });
 
-  it("nennt nur die fehlenden Nummern", () => {
-    const [report] = checkTitleIssues("Finanzamt: Zeitraum einheitlich (#968)", "Umgesetzt #968\nRefs #969");
-    expect(report.message).toContain("#969");
-    expect(report.message).not.toContain("#968,");
+  it("nennt nur die fehlenden Nummern, getrennt nach Fehler und Hinweis", () => {
+    const reports = checkTitleIssues("Finanzamt: Zeitraum einheitlich (#968)", "Umgesetzt #968, #970\nRefs #969");
+    expect(reports.map(({ level }) => level)).toEqual(["error", "warning"]);
+    expect(reports[0].message).toContain("#970");
+    expect(reports[0].message).not.toContain("#968");
+    expect(reports[1].message).toContain("#969");
   });
 
-  it("schweigt ohne Verweise, bei leerer Beschreibung und bei Beispielen in Code", () => {
+  it("schweigt ohne Verweise, bei leerer Beschreibung, bei Beispielen in Code und in HTML-Kommentaren", () => {
     expect(checkTitleIssues("Doku: Tippfehler", "Kein Issue.")).toEqual([]);
     expect(checkTitleIssues("Doku: Tippfehler", null)).toEqual([]);
-    expect(checkTitleIssues("Doku: Tippfehler", "Etwa `Refs #12` im Text")).toEqual([]);
+    expect(checkTitleIssues("Doku: Tippfehler", "Etwa `Umgesetzt #12` im Text")).toEqual([]);
+    expect(checkTitleIssues("Doku: Tippfehler", "<!-- Umgesetzt #12 -->")).toEqual([]);
   });
 
-  it("verwechselt #35 nicht mit #357", () => {
-    expect(checkTitleIssues("Mahnung: Vorschau (#357)", "Refs #35")).toHaveLength(1);
+  it("zählt im Titel nur eigene Nummern, nicht #35 für #357 und nicht owner/repo#12 oder Anker", () => {
+    expect(checkTitleIssues("Mahnung: Vorschau (#357)", "Umgesetzt #35")).toHaveLength(1);
+    expect(checkTitleIssues("Bilder: aus firsttris/haben-bilder#12", "Umgesetzt #12")).toHaveLength(1);
+    expect(checkTitleIssues("Doku: Link auf mitwirken.html#12", "Umgesetzt #12")).toHaveLength(1);
   });
 });
 
