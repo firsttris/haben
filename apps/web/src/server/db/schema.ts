@@ -141,6 +141,8 @@ export const company = pgTable(
     paymentPlanTemplates: jsonb("payment_plan_templates").$type<PlanTemplate[]>().notNull().default(DEFAULT_PLAN_TEMPLATES),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
+    /** Nur steuerfreie Umsätze, die den Vorsteuerabzug ausschließen (§ 15 Abs. 2 Satz 1 Nr. 1 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
+    ohneVorsteuerabzug: boolean("ohne_vorsteuerabzug").notNull().default(false),
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
@@ -840,19 +842,20 @@ export const mailLog = pgTable("mail_log", {
 });
 
 /**
- * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand),
- * gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
+ * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand,
+ * Entfernungspauschale für Wege zur Betriebsstätte), gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
  */
 export const pauschalen = pgTable(
   "pauschalen",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung"] }).notNull(),
-    /** Homeoffice: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
+    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung", "entfernung"] }).notNull(),
+    /** Homeoffice und Entfernungspauschale: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
     date: date("date", { mode: "string" }).notNull(),
     /** Anlass, Ziel, Kunde */
     description: text("description").notNull(),
-    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend } */
+    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend };
+     * Entfernung: { tage, km, betriebsstaette } */
     details: jsonb("details").$type<Record<string, string | number | boolean>>().notNull(),
     /** Cent; beim Storno negativ */
     amount: integer("amount").notNull(),
@@ -1888,6 +1891,9 @@ export const documents = pgTable(
     invoiceNumber: text("invoice_number").notNull().default(""),
     documentDate: date("document_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),
+    /** Leistungszeitraum aus dem Beleg (#693); „ausgeführt am“ ist der letzte Tag, siehe leistungsdatum() in @haben/core */
+    serviceFrom: date("service_from", { mode: "string" }),
+    serviceTo: date("service_to", { mode: "string" }),
     category: text("category"),
     /** Eigenes Sachkonto (#270) der Kategorie; `category` bleibt die Elternkategorie, auf die Steuer und EÜR rechnen */
     ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
@@ -1906,8 +1912,14 @@ export const documents = pgTable(
     gross: integer("gross").notNull().default(0),
     /** Bei Kategorie „anlage“: Angaben für die Anlage, die beim Buchen entsteht */
     asset: jsonb("asset").$type<{ name: string; kind: AssetKind; method: AssetMethod; usefulLifeMonths: number | null }>(),
-    /** Beim Buchen festgehalten: false bei Kleinunternehmern, dann ist die Steuer Teil des Aufwands */
+    /** Beim Buchen festgehalten: false ohne Vorsteuerabzug (Kleinunternehmer, Firmenvorgabe oder am Beleg), dann ist die Steuer Teil des Aufwands */
     vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
+    /**
+     * Abziehbarer Anteil der Vorsteuer in Basispunkten (10000 = voll, 0 = kein Abzug); null = Vorgabe der Firmendaten.
+     * Beim Buchen mit dem angewandten Wert festgehalten, zusammen mit vorsteuerAbzug (= Anteil > 0), den ältere Belege
+     * allein tragen. Stufe 1 (#852) nimmt nur 0 und 10000; Teilabzug nach § 15 Abs. 4 UStG folgt mit #433.
+     */
+    vorsteuerAnteil: smallint("vorsteuer_anteil"),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
     privateShare: smallint("private_share").notNull().default(0),
     /**
@@ -1950,6 +1962,7 @@ export const documents = pgTable(
   // in 0011 und 0016 von Hand angelegt
   (t) => [
     check("documents_private_share_range", sql`${t.privateShare} between 0 and 100`),
+    check("documents_vorsteuer_anteil_range", sql`${t.vorsteuerAnteil} between 0 and 10000`),
     foreignKey({ name: "documents_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
     // Externe Referenz nur vollständig: Quelle und Kennung zusammen
     check("documents_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
@@ -2327,6 +2340,12 @@ export const allocations = pgTable(
       .notNull()
       .references(() => bankTransactions.id),
     kind: allocationKindEnum("kind").notNull(),
+    /**
+     * Tag, an dem die Zuordnung wirkt; leer heißt Buchungsdatum des Umsatzes. Gesetzt ist er bei der Gegenzeile einer
+     * Aufhebung (#782): Die wirkt am Tag der Aufhebung, auch wenn der Umsatz Monate älter ist. Ohne diese Spalte lägen
+     * Journal (Tag der Aufhebung) und Nebenbücher (Tag des Umsatzes) für den Zeitraum dazwischen auseinander.
+     */
+    date: date("date", { mode: "string" }),
     invoiceId: uuid("invoice_id").references(() => invoices.id),
     documentId: uuid("document_id").references(() => documents.id),
     /** Mit dem Vorzeichen des Umsatzes; Teile einer Aufteilung auch mit umgekehrtem (z. B. Gebühr in einer Auszahlung) */

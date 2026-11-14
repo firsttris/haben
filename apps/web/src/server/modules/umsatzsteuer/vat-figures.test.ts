@@ -125,9 +125,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     expect(sep.kz81 + sep.tax81 + sep.kz86 + sep.tax86).toBe(50_000);
     expect(sep.kz66).toBe(190);
 
-    // Aufheben der Zuordnung nimmt die Umsatzsteuer wieder heraus
+    // Aufheben der Zuordnung nimmt die Umsatzsteuer wieder heraus; am selben Tag, damit der Monat die Gegenzeile trägt
     const [allocation] = await sql`select id from allocations where amount = 300000`;
-    await bank.reverseAllocation(actor, allocation!.id);
+    await bank.reverseAllocation(actor, allocation!.id, "2026-10-01");
     const after = await figures.computeVatFigures(october);
     expect(after.kz81 + after.tax81 + after.kz86 + after.tax86).toBe(0);
   }, 30_000);
@@ -171,7 +171,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
       for (const f of felder) expect(journal[f], `2026-${month} ${f}`).toBe(vat[f]);
     }
     const [allocation] = await sql`select id from allocations where amount = 300000`;
-    await bank.reverseAllocation(actor, allocation!.id);
+    // Der Monat des Journals soll die Gegenzeile tragen: Aufhebung am Tag der Zahlung
+    await bank.reverseAllocation(actor, allocation!.id, "2026-10-01");
     const journal = await ausJournal(10);
     expect(felder.map((f) => journal[f])).toEqual([0, 0, 0, 0]);
   }, 30_000);
@@ -192,9 +193,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     for (const f of ["kz81", "tax81", "kz86", "tax86"] as const) expect(journal[f], f).toBe(vatOct[f]);
     const abgleich = await import("../auswertungen/abgleich.ts");
     expect(abgleich.abweichungen((await abgleich.vatAbgleich(october)).zeilen)).toEqual([]);
-    // Aufheben der Zuordnung nimmt auch diese Bemessungsgrundlage wieder heraus
+    // Aufheben der Zuordnung nimmt auch diese Bemessungsgrundlage wieder heraus, am Tag der Zahlung
     const [allocation] = await sql`select id from allocations`;
-    await bank.reverseAllocation(actor, allocation!.id);
+    await bank.reverseAllocation(actor, allocation!.id, "2026-10-01");
     expect((await ausJournal(10)).kz86).toBe(0);
   }, 30_000);
 

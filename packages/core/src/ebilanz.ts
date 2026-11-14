@@ -2,7 +2,7 @@ import { ASSET_ACCOUNTS, type ScheduleAsset, type ScheduleYear } from "./afa.ts"
 import { postenForSaldo, type Posten } from "./hgb.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import type { Cents } from "./money.ts";
-import { ACCOUNTS, EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
+import { ACCOUNTS, EXPENSE_CATEGORIES, KLEINUNTERNEHMER_FRUEHERE_KONTEN, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
 import { STEUER_KONTEN } from "./steuerzahlung.ts";
 import { DARLEHEN_KONTEN } from "./darlehen.ts";
 
@@ -297,6 +297,7 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     [a.erloeseSonder.ausfuhr, [`${GS}.taxExemptUStG4_1a`]],
     [a.erloeseSonder.steuerfrei, [`${GS}.taxExemptUStG4_8.other`]],
     [a.erloeseSonder.kleinunternehmer, [`${GS}.taxExemptUStG19_1`]],
+    [KLEINUNTERNEHMER_FRUEHERE_KONTEN[kontenrahmen], [`${GS}.taxExemptUStG19_1`]],
     [a.skontiGewaehrt, [`${SALES}.reductionsFromGrossSales.unknownVAT`]],
     [a.skontiErhalten, [`${MAT}.misc`]],
     [a.mahnerloes, ["is.netIncome.regular.fin.netInterest.income.other"]],

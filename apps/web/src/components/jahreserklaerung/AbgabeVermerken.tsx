@@ -120,29 +120,26 @@ export function AbgabeVermerken({
             <span className="small muted">aufklappen</span>
           </summary>
           <div className="stack" style={{ gap: 12, paddingTop: 12 }}>
-            <dl className="confirm-dialog-facts">
-              <div>
-                <dt>Tag der Abgabe</dt>
-                <dd>{vermerkt.filedOn ? formatDate(vermerkt.filedOn) : "–"}</dd>
-              </div>
-              <div>
-                <dt>Transferticket</dt>
-                <dd className="mono">{vermerkt.transferTicket ?? "–"}</dd>
-              </div>
-              <div>
-                <dt>Betrag</dt>
-                <dd>{vermerkt.amount === null ? "–" : formatEuro(vermerkt.amount)}</dd>
-              </div>
-              <div>
-                <dt>Begründung</dt>
-                <dd>{vermerkt.note ?? "–"}</dd>
-              </div>
-            </dl>
-            {vermerkt.hasPdf && (
-              <a href={`/api/protokoll/${vermerkt.id}`} target="_blank" rel="noreferrer" className="small">
-                Übermittlungsprotokoll (PDF)
-              </a>
-            )}
+            {/* Tabelle wie in #876: Die Begründung ist ein Satz, kein Wert, und bricht hier in ihrer
+                Spalte um. Tag, Ticket und Betrag stehen schon im Kopf, deshalb nur die zwei Zeilen. */}
+            <table className="report-table stack-table">
+              <tbody>
+                <tr>
+                  <th scope="row">Begründung</th>
+                  <td>{vermerkt.note ?? "–"}</td>
+                </tr>
+                {vermerkt.hasPdf && (
+                  <tr>
+                    <th scope="row">Protokoll</th>
+                    <td>
+                      <a href={`/api/protokoll/${vermerkt.id}`} target="_blank" rel="noreferrer">
+                        Übermittlungsprotokoll (PDF)
+                      </a>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </details>
       </section>

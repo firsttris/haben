@@ -7,6 +7,8 @@ description: >-
 
 # Mitwirken
 
+**Programmieren musst du nicht.** Wissen zu Steuern und Buchhaltung hilft genauso: Fehler melden, die Doku korrigieren, neue Versionen testen. Ein [Issue](#issues-schreiben) genügt.
+
 Vor jedem Push dieselben Prüfungen wie in der CI (ohne Bun auf dem Rechner siehe [Prüfungen ohne Bun auf dem Rechner](entwicklung.md#prüfungen-ohne-bun-auf-dem-rechner)):
 
 ```sh

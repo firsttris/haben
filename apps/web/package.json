@@ -17,6 +17,7 @@
     "@anthropic-ai/sdk": "^1.0.0",
     "@azure/msal-node": "^7.2.1",
     "@better-auth/passkey": "^1.7.14",
+    "@firsttris/gobd-kern": "workspace:*",
     "@haben/core": "workspace:*",
     "@haben/einvoice": "workspace:*",
     "@haben/elster": "workspace:*",

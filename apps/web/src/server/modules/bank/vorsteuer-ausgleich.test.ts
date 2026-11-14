@@ -273,7 +273,8 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus dem Zwischenkonto beim Ausgleic
       expect(await salden()).toMatchObject({ [k.vorsteuer]: -1_900 });
       const [allocation] = await sql`select id from allocations where transaction_id = ${umsatz}`;
 
-      await bank.reverseAllocation(actor, allocation!.id as string);
+      // Die Aufhebung trägt ihr eigenes Datum (#782); ohne Datum bucht sie heute und der Juni bliebe gemindert
+      await bank.reverseAllocation(actor, allocation!.id as string, "2026-06-20");
 
       // Gegenbuchung am Tag des Stornos: der Zwischenkontosaldo steht wieder, die Vorsteuer ist unberührt
       expect(await salden()).toEqual({ [aufwand]: -10_000, [k.zwischen]: -1_900, [k.verbindlichkeiten]: 11_900 });
