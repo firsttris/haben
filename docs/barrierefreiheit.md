@@ -59,7 +59,7 @@ Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Str
 5. **Sichtbarer Fokus:** Der Test tabbt durch die wichtigsten Seiten. Jedes Element, das den Fokus bekommt, muss einen mindestens 2 px breiten Rahmen haben.
 6. **Handy-Menü:** öffnet mit Enter, Tab führt hinein, Esc schließt es und gibt den Fokus an den Menüknopf zurück.
 7. **Aktueller Bereich:** Im Archiv tragen nur der gewählte Bereich und die gewählten Filter `aria-current`.
-8. **Befehlspalette (`Strg+K` / `⌘+K`):** öffnet mit `Strg+K` bzw. `⌘+K`, lässt sich per `Pfeil hoch`/`runter` und `Home`/`End` navigieren, schließt mit `Esc` unter Rückgabe des Fokus und besteht axe in allen Themes sowie am Handy; Öffnen per Knopf **Schnellsuche** auf Desktop und Handy, Sperre über einem offenen Dialog und `Enter`-Auswahl prüft ergänzend `apps/web/e2e/befehlspalette.spec.ts`.
+8. **Befehlspalette (`Strg+K`):** öffnet mit `Strg+K`, lässt sich per `Pfeil hoch`/`runter` und `Home`/`End` navigieren, schließt mit `Esc` unter Rückgabe des Fokus und besteht axe in allen Themes sowie am Handy; Öffnen per Knopf **Schnellsuche** auf Desktop und Handy, Sperre über einem offenen Dialog und `Enter`-Auswahl prüft ergänzend `apps/web/e2e/befehlspalette.spec.ts`.
 
 Findet axe einen Verstoß, nennt der Testbericht Regel, Element und Grund. Wie du die Tests lokal startest, steht unter [Entwicklung](entwicklung.md#ende-zu-ende-tests-mit-playwright).
 
