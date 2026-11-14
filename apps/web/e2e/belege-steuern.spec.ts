@@ -481,6 +481,19 @@ test("Pauschalen: fehlende Angaben stehen nach dem Druck auf Buchen am Feld, geb
   await expect(liste.getByRole("row")).toHaveCount(zeilen);
 });
 
+test("Pauschalen: Fahrt übernimmt beim Wechsel des Jahres das Vorgabedatum des neuen Jahres", async () => {
+  await go("/pauschalen");
+  const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+  await neu.getByRole("button", { name: "Fahrt", exact: true }).click();
+  const fahrt = neu.getByRole("form", { name: "Fahrt mit dem Privatfahrzeug" });
+  await page
+    .getByRole("navigation", { name: "Jahr wählen" })
+    .getByRole("link", { name: String(YEAR - 1), exact: true })
+    .click();
+  await expect(page.getByRole("heading", { name: `Pauschalen ${YEAR - 1}`, level: 1 })).toBeVisible();
+  await expect(fahrt.getByLabel("Datum", { exact: true })).toHaveValue(`${YEAR - 1}-12-31`);
+});
+
 test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno (#895)", async () => {
   await go("/pauschalen");
   const neu = page.getByRole("region", { name: "Pauschale eintragen" });
