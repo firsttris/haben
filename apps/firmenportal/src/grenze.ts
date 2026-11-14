@@ -5,8 +5,8 @@
  * die des Clients); hängt ein Proxy an, gilt die letzte, die er selbst gesetzt hat.
  */
 
-export const GRENZE_ANZAHL = 20;
-export const GRENZE_FENSTER_MS = 60_000;
+const GRENZE_ANZAHL = 20;
+const GRENZE_FENSTER_MS = 60_000;
 /** Mehr Schlüssel hält der Speicher nicht; abgelaufene fallen vorher heraus */
 const HOECHSTENS = 10_000;
 
