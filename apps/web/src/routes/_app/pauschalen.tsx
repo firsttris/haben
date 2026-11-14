@@ -127,7 +127,7 @@ function PauschalenList() {
         </div>
       </nav>
 
-      <div className="grid-4" style={{ marginBottom: 16, gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
+      <div className="grid-5" style={{ marginBottom: 16 }}>
         <div className="card">
           <div className="kpi-label">Homeoffice</div>
           <div className="kpi-value">{formatEuro(totals.homeoffice)}</div>

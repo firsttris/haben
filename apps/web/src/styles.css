@@ -240,11 +240,12 @@ dialog .form-footer, .form-dialog > form > .actions:last-child { justify-content
 .card-link:hover { border-color: var(--line-strong); }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.grid-5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
 /* Kennzahlen auf dem Handy zu zweit nebeneinander statt einzeln untereinander */
 @media (max-width: 720px) {
-  .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .grid-3 > .card, .grid-4 > .card { padding: 16px; }
-  .grid-3 .kpi-value, .grid-4 .kpi-value { font-size: 18px !important; white-space: normal; overflow-wrap: anywhere; }
+  .grid-3, .grid-4, .grid-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .grid-3 > .card, .grid-4 > .card, .grid-5 > .card { padding: 16px; }
+  .grid-3 .kpi-value, .grid-4 .kpi-value, .grid-5 .kpi-value { font-size: 18px !important; white-space: normal; overflow-wrap: anywhere; }
 }
 .grid-main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
@@ -935,8 +936,8 @@ fieldset.card > legend + * { clear: both; }
 @media (max-width: 720px) {
   /* Kennzahlen auf dem Handy kompakt: eine Spalte, kein Platzhalter für zweizeilige Beschriftungen */
   .kpi-label { min-height: 0; }
-  .grid-4 > .card { padding: 16px; gap: 4px; }
-  .grid-4 .kpi-value { font-size: 18px; }
+  .grid-4 > .card, .grid-5 > .card { padding: 16px; gap: 4px; }
+  .grid-4 .kpi-value, .grid-5 .kpi-value { font-size: 18px; }
 }
 
 /* Am Dateiende, damit Padding und Hintergrund der Feld-Regeln oben den Pfeil nicht überschreiben. Eigener Pfeil statt des nativen: sitzt mit Abstand zum Rand und folgt der Textfarbe des Themes */
