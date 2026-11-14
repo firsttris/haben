@@ -9,6 +9,7 @@ import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { Icon } from "../../components/Icon.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
+import { Gesamtumsatz } from "../../components/Gesamtumsatz.tsx";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
 import { Status } from "../../components/Status.tsx";
 
@@ -25,7 +26,7 @@ type Data = Awaited<ReturnType<typeof getReports>>;
 const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
 function ReportsPage() {
-  const { euer, open, years, today, versteuerung } = Route.useLoaderData();
+  const { euer, open, years, today, versteuerung, gesamtumsatz } = Route.useLoaderData();
   // GmbH und UG bilanzieren (§ 238 HGB): Die Zahlen nach Zahlung sind dort keine EÜR, den Gewinn zeigt der Jahresabschluss
   const { rechtsform, user } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
@@ -109,6 +110,8 @@ function ReportsPage() {
           </div>
         </div>
       </div>
+
+      {gesamtumsatz && <Gesamtumsatz result={gesamtumsatz} />}
 
       <section className="card" aria-labelledby="monthly-heading">
         <div className="chart-head">

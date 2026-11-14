@@ -116,7 +116,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const period = servicePeriod(doc);
   const treatment = doc.taxTreatment ?? "regulaer";
   // BR-O-02: bei nicht steuerbaren Umsätzen keine USt-IdNr. von Verkäufer und Käufer
-  const outOfScope = treatment === "drittland";
+  const outOfScope = TAX_TREATMENTS[treatment].category === "O";
   const exemption = treatment === "regulaer" ? null : TAX_TREATMENTS[treatment];
 
   const sellerTax: { "cbc:CompanyID": string; "cac:TaxScheme": { "cbc:ID": string } }[] = [];

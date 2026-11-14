@@ -83,18 +83,22 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 async function invoiceEditorContext() {
   return {
     ...(await editorContext("rechnung")),
-    abschlaege: (await openAbschlaege()).map(({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, priceMode, propertyRetention }) => ({
-      id,
-      contactId,
-      quoteId,
-      number,
-      issueDate,
-      gross,
-      rates,
-      taxTreatment,
-      priceMode,
-      propertyRetention,
-    })),
+    abschlaege: (await openAbschlaege()).map(
+      ({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, taxDetails, exemptionReason, priceMode, propertyRetention }) => ({
+        id,
+        contactId,
+        quoteId,
+        number,
+        issueDate,
+        gross,
+        rates,
+        taxTreatment,
+        taxDetails,
+        exemptionReason,
+        priceMode,
+        propertyRetention,
+      }),
+    ),
     /** Festgeschriebene Angebote für den Bezug von Abschlags- und Schlussrechnungen */
     quotes: (
       await db

@@ -211,7 +211,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     if (u.uebernommen) uebernommen++;
     if (u.gesamt === 0) return summe;
     // betrag trägt das Vorzeichen des offenen Postens wie eine Buchung, ausgeglichen ist das Umgekehrte
-    if (u.beleg && v.betrag !== u.gesamt) belegTeilzahlung(year, u.beleg, -v.betrag, summe);
+    if (u.beleg && (u.beleg.effects?.has(v.id) || v.betrag !== u.gesamt)) belegTeilzahlung(year, u.beleg, -v.betrag, summe, v.id);
     else euerAusZeilen(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, v.betrag), u.herkunft, summe);
     return summe;
   }
@@ -274,7 +274,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     const anteil = u.anteile?.get(b.id);
     if (anteil) euerAusZeilen(u.kontenrahmen, alsZeilen(u.zeilen, anteil), u.herkunft, summe);
     // Teilzahlung auf einen Beleg mit Privatanteil oder ohne Vorsteuerabzug: gerundet wie computeEuer
-    else if (u.beleg && -ausgeglichen !== u.gesamt) belegTeilzahlung(year, u.beleg, ausgeglichen, summe);
+    else if (u.beleg && (u.beleg.effects?.has(b.sourceId) || -ausgeglichen !== u.gesamt)) belegTeilzahlung(year, u.beleg, ausgeglichen, summe, b.sourceId);
     // Beleg: jede Zahlung für sich (paidTaxShares)
     else euerAusZeilen(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, -ausgeglichen), u.herkunft, summe);
     return summe;

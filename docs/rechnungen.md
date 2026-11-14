@@ -185,6 +185,7 @@ Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt
 | Regulär (19 %, 7 % oder 0 %) | Normalfall | – | S, bei 0 % Z |
 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | Sonstige Leistung an ein Unternehmen mit USt-IdNr. in einem anderen EU-Land | Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL). | AE, Grund `VATEX-EU-AE` |
 | Leistung ins Nicht-EU-Ausland | Sonstige Leistung (Dienstleistung) mit Leistungsort im Drittland, im Inland nicht steuerbar | Im Inland nicht steuerbare Leistung (Leistungsort im Drittland). | O, Grund `VATEX-EU-O` |
+| Sonstige Leistung im EU-Ausland | Tatsächlicher Leistungsort und ausländische Behandlung sind geprüft; keine ausländische Umsatzsteuer auszuweisen | Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland). | O, Grund `VATEX-EU-O` |
 | Innergemeinschaftliche Lieferung | Ware, die zu einem Unternehmen mit USt-IdNr. in einem anderen EU-Land gelangt (§ 4 Nr. 1 Buchst. b, § 6a UStG) | Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG). | K, Grund `VATEX-EU-IC` |
 | Ausfuhrlieferung ins Drittland | Ware, die ins Drittland gelangt, etwa in die Schweiz oder die USA (§ 4 Nr. 1 Buchst. a, § 6 UStG) | Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1 Buchst. a, § 6 UStG). | G, Grund `VATEX-EU-G` |
 | Steuerfrei nach § 4 UStG | Steuerfreie Leistung, etwa nach § 4 Nr. 14 UStG | die Befreiungsvorschrift, die du einträgst | E |
@@ -193,7 +194,7 @@ Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt
 Außer bei „Regulär“ gilt:
 
 - Alle Positionen stehen auf 0 %, der Steuersatz lässt sich nicht ändern. In der Vorschau und im PDF steht in der Spalte für den Steuersatz „–“, und die Zeile „Umsatzsteuer 0 %“ entfällt.
-- Der Hinweis steht fett über dem Satz zur Zahlung. Im Feld **Hinweis zur Umsatzsteuer** kannst du einen eigenen Text eintragen, der den Standardtext ersetzt. Bei „Steuerfrei nach § 4 UStG“ heißt das Feld **Befreiungsvorschrift** und ist Pflicht, z. B. „Steuerfrei nach § 4 Nr. 14 UStG“.
+- Der Hinweis steht fett über dem Satz zur Zahlung. Im Feld **Hinweis zur Umsatzsteuer** kannst du einen eigenen Text eintragen, der den Standardtext ersetzt. Bei „Steuerfrei nach § 4 UStG“ ordnest du **§ 4 Nr. 14 Buchst. a** (Heilbehandlung) oder **Nr. 21** (Unterricht und Bildung) ausdrücklich zu; daraus entsteht der gespeicherte Hinweis. Die Auswahl setzt voraus, dass die Leistung die gesetzlichen Voraussetzungen erfüllt.
 - Im XML steht der Hinweis als Befreiungsgrund in der Steueraufschlüsselung.
 
 Bei Reverse Charge erinnert der Editor daran, dass die Leistung zusätzlich in die Zusammenfassende Meldung (ZM) an das Bundeszentralamt für Steuern gehört. Die ZM sendet Haben über ERiC ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Leistung ins Nicht-EU-Ausland“ lässt Haben im XML die USt-IdNr. von dir und vom Kunden weg (BR-O-02); als Kennung des Verkäufers dient dann die Steuernummer bzw. USt-IdNr. (BT-29). Den Steuersatz lässt Haben in den Positionen des XML weg; in der Steueraufschlüsselung steht 0, weil XRechnung ihn dort verlangt (BR-DE-14).
@@ -209,7 +210,11 @@ Zur innergemeinschaftlichen Lieferung:
 
 Zur Ausfuhrlieferung: Der Kunde sitzt außerhalb der EU, und die Rechnung braucht deine USt-IdNr. (EN 16931 BR-G-02). Steuerfrei ist sie nur mit Ausfuhrnachweis (§ 6 Abs. 4 UStG, §§ 8 bis 11 UStDV), in der Regel dem Ausgangsvermerk aus dem ATLAS-Verfahren des Zolls. Bei Ist-Versteuerung zählt sie wie Kz 81 mit dem Zahlungseingang.
 
-Bist du in den Einstellungen als Kleinunternehmer eingetragen, bekommen neue Rechnungen automatisch „Kleinunternehmer nach § 19 UStG“, und die Auswahl ist gesperrt. Siehe [Erste Schritte](einrichtung.md#kleinunternehmer).
+Bist du in den Einstellungen als Kleinunternehmer eingetragen, bekommen neue Rechnungen automatisch „Kleinunternehmer nach § 19 UStG“. Du kannst stattdessen die eigene Befreiung nach § 4 Nr. 14 Buchst. a oder Nr. 21 wählen oder einen geklärten ausländischen Leistungsort angeben. Die innergemeinschaftliche Lieferung wird damit nicht freigegeben ([§ 19 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)). Alle Positionen bleiben ohne deutschen Steuerausweis. Angebote, Serienvorlagen und die API verwenden dieselben Regeln.
+
+Für die sonstige EU-Leistung bestätigst du das Land des tatsächlichen Leistungsorts und dass keine ausländische Umsatzsteuer auszuweisen ist. Die Kundenanschrift allein bestimmt den Leistungsort nicht ([§ 3a UStG](https://www.gesetze-im-internet.de/ustg_1980/__3a.html)); eine Privatperson im EU-Ausland wird dadurch kein Reverse-Charge-Kunde. Ausländische Steuersätze, OSS und das besondere EU-Kleinunternehmerverfahren nach § 19a werden hier nicht abgewickelt.
+
+Alte Befreiungstexte werden nicht automatisch einer Vorschrift zugeordnet. Ihr gespeicherter Belegstand bleibt erhalten; die Einordnung für den [Gesamtumsatz](auswertungen.md#gesamtumsatz-nach--19-ustg) ist bis zur Klärung als ungeklärt sichtbar. Ein Verkauf von Anlagevermögen und ein Hilfsumsatz werden ausdrücklich gekennzeichnet. Den Anlagenabgang erfasst du weiterhin in der Anlagenverwaltung.
 
 ### Format wählen
 
@@ -377,7 +382,7 @@ Bei neuen Bilanz-Schlussketten von GmbH und UG lässt sich eine Bank- oder Barza
 
 Regeln:
 
-- Abziehen lassen sich nur festgeschriebene, nicht stornierte Abschlagsrechnungen desselben Kunden mit derselben Umsatzsteuer-Behandlung, jede nur in einer Schlussrechnung.
+- Abziehen lassen sich nur festgeschriebene, nicht stornierte Abschlagsrechnungen desselben Kunden mit derselben Umsatzsteuer-Behandlung, jede nur in einer Schlussrechnung. Ausdrücklich erfasste Befreiungsvorschriften und ausländische Leistungsorte müssen übereinstimmen; fehlende Altangaben bleiben ungeklärt.
 - Das Angebot einer Rechnung muss festgeschrieben sein, zum selben Kunden gehören und darf nicht abgelehnt sein; sonst lässt sich die Rechnung nicht festschreiben. Der Bezug wird mit der Rechnung festgeschrieben.
 - Eine Schlussrechnung zu einem Angebot muss alle festgeschriebenen Abschläge dieses Angebots abziehen, auch solche, die erst nach dem Anlegen des Entwurfs festgeschrieben wurden; beim Öffnen des Entwurfs schlägt Haben sie mit vor.
 - Ist ein Angebot mit einer Schlussrechnung oder einer Rechnung über alles abgerechnet, lässt sich keine weitere Rechnung und kein weiterer Abschlag dazu festschreiben. Wird diese Rechnung storniert, ist das Angebot wieder offen.

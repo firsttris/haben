@@ -23,6 +23,7 @@ import { contactRoleProblem, loadCompany, validMandateOn, type Company } from ".
 import { createDraft, effectivePriceMode, finalizeInvoice } from "./invoices.ts";
 import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
 import { MailError } from "../mail/index.ts";
+import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
 
 export type RecurringInvoice = typeof schema.recurringInvoices.$inferSelect;
 
@@ -45,6 +46,7 @@ export const recurringInputSchema = z.object({
   propertyRetention: z.boolean().default(false),
   taxTreatment: z.enum(TAX_TREATMENT_KEYS),
   exemptionReason: z.string().trim().max(300),
+  taxDetails: outgoingTaxDetailsSchema,
   /** Einzelpreise netto oder brutto inkl. USt */
   priceMode: z.enum(PRICE_MODES).default("netto"),
   lines: z.array(draftLineSchema).min(1, "Mindestens eine Position").max(200),
@@ -66,7 +68,7 @@ function values(raw: RecurringInput) {
   if (input.endDate && input.endDate < input.nextDate) throw new RecurringError("Das Enddatum liegt vor dem nächsten Termin.");
   return {
     ...input,
-    exemptionReason: input.taxTreatment === "regulaer" ? "" : input.exemptionReason,
+    ...outgoingTaxColumns(input),
     priceMode: effectivePriceMode(input),
     sendByMail: input.mode === "festschreiben" && input.sendByMail,
     anchorDay: Number(input.nextDate.slice(8, 10)),
@@ -173,6 +175,7 @@ export function invoiceForDate(
     propertyRetention: recurring.propertyRetention,
     taxTreatment: recurring.taxTreatment,
     exemptionReason: recurring.exemptionReason,
+    taxDetails: recurring.taxDetails,
     priceMode: recurring.priceMode,
     language,
     paymentMethod: recurring.paymentMethod,

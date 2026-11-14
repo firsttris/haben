@@ -4,20 +4,18 @@ import {
   kategorieArt,
   lastMonthOfPeriod,
   monthsOfPeriod,
-  paidTaxShares,
   periodRange,
   recordedTaxShares,
-  splitPrivateShare,
   type Cents,
   type TaxTreatment,
   type VatPeriod,
   JOURNAL_KENNZAHLEN,
   type JournalKennzahlen,
 } from "@haben/core";
-import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { journalAbJahr, kleinunternehmerForMonth } from "../stammdaten/index.ts";
-import { gutschriftAnteile } from "./gutschrift.ts";
+import { vorsteuerAusBelegen } from "./vorsteuer-belege.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
@@ -76,7 +74,7 @@ export interface IgErwerbSource extends InputTaxSource {
  * Leistungen ins Drittland (Kz 45): DATEV weist bei Ist-Versteuerung nur steuerpflichtige und steuerfreie inländische
  * Umsätze mit der Zahlung aus, nicht steuerbare Umsätze im Drittland schon mit der Rechnung (DATEV-Dok. 1080673).
  */
-export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung", "drittland"] as const satisfies readonly TaxTreatment[];
+export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung", "drittland", "eu_sonstige"] as const satisfies readonly TaxTreatment[];
 
 export interface VatFigures {
   versteuerung: "ist" | "soll";
@@ -477,126 +475,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     }
   }
 
-  // Belege nach Belegdatum; ein Storno (#237) zählt mit umgekehrtem Vorzeichen im Monat des Stornos (§ 17 Abs. 1 UStG)
-  const documentColumns = {
-    documentId: schema.documents.id,
-    supplier: schema.documents.supplierName,
-    number: schema.documents.invoiceNumber,
-    rate: schema.documentAmounts.taxRate,
-    base: schema.documentAmounts.net,
-    tax: schema.documentAmounts.tax,
-    erstattetBezahltes: schema.documents.erstattetBezahltes,
-    privateShare: schema.documents.privateShare,
-    vorsteuerAbzug: schema.documents.vorsteuerAbzug,
-    reverseCharge: schema.documents.reverseCharge,
-    category: schema.documents.category,
-  };
-  const booked = await q
-    .select({ ...documentColumns, date: schema.documents.documentDate })
-    .from(schema.documentAmounts)
-    .innerJoin(schema.documents, eq(schema.documents.id, schema.documentAmounts.documentId))
-    .where(
-      and(
-        eq(schema.documents.status, "gebucht"),
-        gte(schema.documents.documentDate, start),
-        lt(schema.documents.documentDate, end),
-        isNull(schema.documents.lexofficeVoucherId),
-      ),
-    );
-  const cancelled = await q
-    .select({ ...documentColumns, date: schema.documentCancellations.date })
-    .from(schema.documentAmounts)
-    .innerJoin(schema.documents, eq(schema.documents.id, schema.documentAmounts.documentId))
-    .innerJoin(schema.documentCancellations, eq(schema.documentCancellations.documentId, schema.documents.id))
-    .where(and(gte(schema.documentCancellations.date, start), lt(schema.documentCancellations.date, end)));
-  const amounts = [
-    ...booked.map((a) => ({ ...a, date: a.date!, sign: 1 })),
-    ...cancelled.map((a) => ({ ...a, number: `Storno ${a.number}`.trim(), sign: -1 })),
-  ];
-  // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
-  const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
-  // Eine Gutschrift „erstattet bereits Bezahltes“ mindert die Vorsteuer erst mit dem Ausgleich (#690, #786, gutschrift.ts);
-  // ohne die Angabe gilt wie bei jedem Beleg das Belegdatum
-  const inputTax = amounts
-    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && !a.erstattetBezahltes)
-    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, erstattetBezahltes: _e, sign, category: _category, ...a }) => ({
-      ...a,
-      base: business(a.base, privateShare, sign),
-      tax: business(a.tax, privateShare, sign),
-    }))
-    .filter((a) => a.tax !== 0);
-  // Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz
-  const discounts = await q
-    .select({
-      documentId: schema.documents.id,
-      date: schema.writeOffs.date,
-      amount: schema.writeOffs.amount,
-      supplier: schema.documents.supplierName,
-      number: schema.documents.invoiceNumber,
-      net: schema.documents.net,
-      tax: schema.documents.tax,
-      gross: schema.documents.gross,
-    })
-    .from(schema.writeOffs)
-    .innerJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
-    .where(
-      and(
-        gte(schema.writeOffs.date, start),
-        lt(schema.writeOffs.date, end),
-        eq(schema.writeOffs.kind, "skontoErhalten"),
-        // Ausgebuchtes Skonto an einer Gutschrift „erstattet bereits Bezahltes“ schreibt das Zwischenkonto ab, ohne die
-        // Vorsteuer zu mindern (vorsteuer-ausgleich.ts); es zählt deshalb nicht hier (#786)
-        eq(schema.documents.erstattetBezahltes, false),
-        eq(schema.documents.vorsteuerAbzug, true),
-      ),
-    );
-  if (discounts.length > 0) {
-    const docAmounts = await q
-      .select()
-      .from(schema.documentAmounts)
-      .where(inArray(schema.documentAmounts.documentId, [...new Set(discounts.map((d) => d.documentId))]));
-    for (const d of discounts) {
-      const taxes = docAmounts
-        .filter((a) => a.documentId === d.documentId)
-        .map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }))
-        .sort((a, b) => b.rate - a.rate);
-      for (const share of paidTaxShares({ net: d.net, tax: d.tax, gross: d.gross, taxes }, -d.amount)) {
-        if (share.tax === 0) continue;
-        inputTax.push({ documentId: d.documentId, date: d.date, supplier: d.supplier, number: d.number, rate: share.rate, base: -share.base, tax: -share.tax });
-      }
-    }
-  }
-  // Erstattung oder Verrechnung einer Gutschrift: die Vorsteuer mindert sich im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG),
-  // je Zahlung, Verrechnung und Ausbuchung ein Eintrag mit deren Datum (gutschrift.ts)
-  inputTax.push(...(await gutschriftAnteile(period, q)));
-  // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
-  const reverseCharge: ReverseChargeSource[] = amounts
-    .filter((a): a is typeof a & { reverseCharge: "eu" | "drittland" } => a.reverseCharge === "eu" || a.reverseCharge === "drittland")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, erstattetBezahltes: _e, sign, ...a }) => ({
-      ...a,
-      base: sign * a.base,
-      tax: sign * a.tax,
-      reverseCharge: rc,
-      deductible: vorsteuerAbzug ? business(a.tax, privateShare, sign) : 0,
-    }));
-  // Innergemeinschaftlicher Erwerb ebenso, nach Belegdatum auch bei Ist-Versteuerung: Die Steuer entsteht mit Ausstellung
-  // der Rechnung, spätestens mit Ablauf des Folgemonats (§ 13 Abs. 1 Nr. 6 UStG), nicht mit der Zahlung
-  const igErwerb: IgErwerbSource[] = amounts
-    .filter((a) => a.reverseCharge === "ig_erwerb")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: _rc, erstattetBezahltes: _e, sign, ...a }) => ({
-      ...a,
-      base: sign * a.base,
-      tax: sign * a.tax,
-      deductible: vorsteuerAbzug ? business(a.tax, privateShare, sign) : 0,
-    }));
-  // Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG): der Betrag des Bescheids ist die Steuer, abziehbar nach Belegdatum
-  const einfuhr: InputTaxSource[] = amounts
-    .filter((a) => a.category === "einfuhrumsatzsteuer" && a.vorsteuerAbzug && !a.reverseCharge)
-    .map(({ privateShare: _p, vorsteuerAbzug: _v, reverseCharge: _rc, category: _c, erstattetBezahltes: _e, sign, ...a }) => ({
-      ...a,
-      base: 0,
-      tax: sign * (a.base + a.tax),
-    }));
+  const { inputTax, reverseCharge, igErwerb, einfuhr } = await vorsteuerAusBelegen(period, q);
   const ige = (rate: number, key: "base" | "tax") => igErwerb.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
   const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") => reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
 
@@ -614,7 +493,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     kz86: sum(regular, 700, "base"),
     tax86: sum(regular, 700, "tax"),
     kz21: treated("reverse_charge"),
-    kz45: treated("drittland"),
+    kz45: treated("drittland") + treated("eu_sonstige"),
     kz48: treated("steuerfrei"),
     kz66: inputTax.reduce((s, a) => s + a.tax, 0),
     kz46: rcSum("eu", "base"),

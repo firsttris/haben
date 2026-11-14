@@ -74,6 +74,7 @@ function InvoicePage() {
             sellerOrderReference: invoice.sellerOrderReference,
             despatchAdviceReference: invoice.despatchAdviceReference,
             taxTreatment: invoice.taxTreatment,
+            taxDetails: invoice.taxDetails,
             exemptionReason: invoice.exemptionReason,
             priceMode: invoice.priceMode,
             language: invoice.language,

@@ -23,7 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
-import type { LetterheadDesign } from "@haben/core";
+import type { LetterheadDesign, OutgoingTaxDetails } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
@@ -897,6 +897,8 @@ export const cashEntries = pgTable(
      */
     taxTreatment: text("tax_treatment", { enum: BAREINNAHME_BEHANDLUNG_KEYS }),
     taxRate: integer("tax_rate"),
+    /** Fachliche Ausgangszuordnung; null bei ungeklärten Bestandszeilen, Gegenzeilen übernehmen dieselben Angaben. */
+    taxDetails: jsonb("tax_details").$type<OutgoingTaxDetails>(),
     /** Storno: die aufgehobene Zeile */
     reversesId: uuid("reverses_id"),
     journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
@@ -1265,6 +1267,8 @@ export const invoices = pgTable(
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     /** Eigener Befreiungsgrund auf der Rechnung, sonst der Standardtext der Behandlung */
     exemptionReason: text("exemption_reason").notNull().default(""),
+    /** Strukturierte Vorschrift/Leistungsort; alter Freitext bleibt ohne automatische Zuordnung erhalten. */
+    taxDetails: jsonb("tax_details").$type<OutgoingTaxDetails>(),
     /** Preise netto oder brutto inkl. USt; brutto nur bei regulärer Besteuerung */
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
     correctsId: uuid("corrects_id"),
@@ -1477,6 +1481,8 @@ export const quotes = pgTable(
       .default("de"),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),
+    /** Geht unverändert in Folgebelege über; null bedeutet ungeklärter Bestand. */
+    taxDetails: jsonb("tax_details").$type<OutgoingTaxDetails>(),
     /** Preise netto oder brutto inkl. USt, wie bei der Rechnung */
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
     net: integer("net").notNull().default(0),
@@ -1913,8 +1919,8 @@ export const documents = pgTable(
     vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
     /**
      * Abziehbarer Anteil der Vorsteuer in Basispunkten (10000 = voll, 0 = kein Abzug); null = Vorgabe der Firmendaten.
-     * Beim Buchen mit dem angewandten Wert festgehalten, zusammen mit vorsteuerAbzug (= Anteil > 0), den ältere Belege
-     * allein tragen. Stufe 1 (#852) nimmt nur 0 und 10000; Teilabzug nach § 15 Abs. 4 UStG folgt mit #433.
+     * Beim Buchen mit dem angewandten Wert festgehalten; document_amounts kann je Satz überschreiben. vorsteuerAbzug
+     * hält fest, ob irgendein Satz Abzug erlaubt; ältere Belege tragen allein diesen Boolean.
      */
     vorsteuerAnteil: smallint("vorsteuer_anteil"),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
@@ -2010,12 +2016,17 @@ export const documentAmounts = pgTable(
     /** In Euro; bei Fremdwährung aus den Originalbeträgen umgerechnet */
     net: integer("net").notNull(),
     tax: integer("tax").notNull(),
+    /** § 15 Abs. 4 UStG: null erbt den Beleg; beim Buchen wird der wirksame Anteil festgehalten. */
+    vorsteuerAnteil: smallint("vorsteuer_anteil"),
     /** Nur bei Fremdwährung: Beträge in der Währung des Belegs */
     /** bigint: in Währungen wie HUF oder JPY übersteigen schon übliche Beträge den Bereich von integer */
     originalNet: bigint("original_net", { mode: "number" }),
     originalTax: bigint("original_tax", { mode: "number" }),
   },
-  (t) => [uniqueIndex("document_amounts_rate").on(t.documentId, t.taxRate)],
+  (t) => [
+    uniqueIndex("document_amounts_rate").on(t.documentId, t.taxRate),
+    check("document_amounts_vorsteuer_anteil_range", sql`${t.vorsteuerAnteil} between 0 and 10000`),
+  ],
 );
 
 /**
@@ -2379,6 +2390,8 @@ export const allocations = pgTable(
      */
     category: text("category").$type<DirektKategorie>(),
     taxRate: integer("tax_rate"),
+    /** Ausgangszuordnung einer direkten Einnahme, nicht aus Kategorie oder Kundenland erraten. */
+    taxDetails: jsonb("tax_details").$type<OutgoingTaxDetails>(),
     /**
      * Rücklastschrift (#445): die zurückgegebene Lastschrift. Die Zuordnung auf die Rechnung ist dann negativ und öffnet
      * sie wieder; die Gegenzeile beim Aufheben trägt denselben Bezug. Nur an Zuordnungen auf eine Rechnung.
@@ -3084,6 +3097,8 @@ export const recurringInvoices = pgTable(
     propertyRetention: boolean("property_retention").notNull().default(false),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),
+    /** Vorlage und erzeugte Rechnungen verwenden dieselbe explizite Ausgangszuordnung. */
+    taxDetails: jsonb("tax_details").$type<OutgoingTaxDetails>(),
     /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
     /** detail: Beschreibung unter der Bezeichnung; fehlt bei Vorlagen von vor dem Feld */

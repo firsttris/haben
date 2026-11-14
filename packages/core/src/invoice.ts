@@ -47,6 +47,8 @@ export interface TaxBreakdown {
   rate: BasisPoints;
   base: Cents;
   tax: Cents;
+  /** Nur bei Eingangsbelegen: festgehaltener Abzug je Satz, sonst gilt der Beleganteil. */
+  vorsteuerAnteil?: BasisPoints | null;
 }
 
 export interface InvoiceTotals {
@@ -152,7 +154,14 @@ export function convertPrice(unitPrice: Cents, taxRate: BasisPoints, from: Price
 
 /** Summen aus den gespeicherten Beträgen je Steuersatz */
 export function totalsFromTaxes(rows: TaxBreakdown[]): InvoiceTotals {
-  const taxes = [...rows].sort((a, b) => b.rate - a.rate).map(({ rate, base, tax }) => ({ rate, base, tax }));
+  const taxes = [...rows]
+    .sort((a, b) => b.rate - a.rate)
+    .map(({ rate, base, tax, vorsteuerAnteil }) => ({
+      rate,
+      base,
+      tax,
+      ...(vorsteuerAnteil === undefined ? {} : { vorsteuerAnteil }),
+    }));
   const net = taxes.reduce((sum, t) => sum + t.base, 0);
   const tax = taxes.reduce((sum, t) => sum + t.tax, 0);
   return { net, tax, gross: net + tax, taxes };

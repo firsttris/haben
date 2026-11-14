@@ -87,6 +87,29 @@ Ein Rechnungsentwurf nimmt `buyerOrderReference` (Bestellnummer des Kunden, BT-1
 
 `propertyRetention: true` ergänzt den festen [Aufbewahrungshinweis für private Grundstücksleistungen](rechnungen.md#aufbewahrungshinweis-bei-grundstücksleistungen) im PDF und in BT-22 der E-Rechnung. Beim Anlegen ist die Vorgabe `false`; ein `PATCH` ohne Feld behält die Auswahl, `false` schaltet sie aus. Die Antwort liefert den gespeicherten Wahrheitswert. Festgeschriebene Rechnungen bleiben unveränderlich.
 
+## Umsatzsteuer und Gesamtumsatz
+
+`taxTreatment` bestimmt die [Umsatzsteuer-Behandlung](rechnungen.md#umsatzsteuer-auf-der-rechnung). `taxDetails` hält die ausdrücklich geprüfte Zuordnung für den ganzen Beleg fest. Beispiel für Unterricht nach § 4 Nr. 21 UStG:
+
+```json
+{
+  "taxTreatment": "steuerfrei",
+  "taxDetails": {
+    "exemption": { "number": "21" },
+    "ancillary": null,
+    "foreignPlace": null,
+    "assetDisposal": false
+  }
+}
+```
+
+- `exemption`: Vorschrift mit `number` und gegebenenfalls `letter`, etwa `{ "number": "14", "letter": "a" }`. Für eine zugeordnete Vorschrift entsteht der Befreiungshinweis daraus; ein alter Freitext wird nicht als Vorschrift ausgewertet.
+- `ancillary`: `true` oder `false` für einen Hilfsumsatz, `null` für ungeklärt. Das betrifft die Zählung bestimmter Befreiungen im [Gesamtumsatz nach § 19 UStG](auswertungen.md#gesamtumsatz-nach--19-ustg).
+- `foreignPlace`: `null` oder der tatsächliche Leistungsort mit Ländercode und bestätigter Behandlung, etwa `{ "country": "AT", "noForeignVat": true }`. Die Kundenanschrift ersetzt diese Prüfung nicht. `eu_sonstige` setzt einen anderen EU-Leistungsort ohne auszuweisende ausländische Umsatzsteuer voraus; ausländische Steuersätze, OSS und § 19a sind nicht enthalten.
+- `assetDisposal`: `true` beim Verkauf eines Wirtschaftsguts des Anlagevermögens, sonst `false`.
+
+Ohne `taxDetails` wird beim Anlegen `null` gespeichert; ein `PATCH` ohne Feld behält die gespeicherte Zuordnung, `null` hebt sie auf. Fehlende Angaben bleiben in der Gesamtumsatz-Auswertung ungeklärt. Beim Festschreiben gelten dieselben Prüfungen wie im Editor, einschließlich der Kleinunternehmer-Sperren.
+
 ## Externe Referenz: eine Rechnung je Bestellung
 
 Ein Rechnungsentwurf kann eine externe Referenz tragen: `externalSource` ist die Plattform (Kleinbuchstaben, Ziffern, `.`, `-`, `_`, etwa `etsy` oder `ebay`), `externalId` die Bestellnummer dort. Beide gibt es nur zusammen, und zusammen sind sie eindeutig.

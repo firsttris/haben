@@ -24,6 +24,15 @@ export const TAX_TREATMENTS = {
     reasonCode: "VATEX-EU-O",
     note: "Im Inland nicht steuerbare Leistung (Leistungsort im Drittland).",
   },
+  // § 3a UStG: bestätigter ausländischer Leistungsort, keine Ableitung aus der Kundenanschrift.
+  // Nur ohne auszuweisende ausländische Umsatzsteuer; EU-B2C ist kein B2B-Reverse-Charge.
+  // https://www.gesetze-im-internet.de/ustg_1980/__3a.html
+  eu_sonstige: {
+    label: "Sonstige Leistung im EU-Ausland (nicht im Inland steuerbar)",
+    category: "O",
+    reasonCode: "VATEX-EU-O",
+    note: "Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland).",
+  },
   // Lieferung eines Gegenstands an einen Unternehmer in einem anderen EU-Mitgliedstaat (§ 4 Nr. 1 Buchst. b, § 6a UStG):
   // Steuerkategorie K „Intra-community supply“ mit Befreiungscode VATEX-EU-IC (EN 16931, Codeliste VATEX)
   ig_lieferung: {

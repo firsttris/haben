@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { treatmentIssues, treatmentNote } from "./treatment.ts";
+import { TAX_TREATMENTS, treatmentIssues, treatmentNote } from "./treatment.ts";
 
 describe("treatmentIssues", () => {
   it("Reverse Charge braucht beide USt-IdNrn. und einen Kunden im Ausland", () => {
@@ -18,6 +18,13 @@ describe("treatmentIssues", () => {
 });
 
 describe("treatmentNote", () => {
+  it("trennt die geklärte EU-B2C-Leistung von B2B-Reverse-Charge", () => {
+    // § 3a Abs. 3 Nr. 3 UStG: Ein geklärter ausländischer Leistungsort ist kein Nachweis für B2B-Reverse-Charge.
+    // https://www.gesetze-im-internet.de/ustg_1980/__3a.html
+    expect(TAX_TREATMENTS).toHaveProperty("eu_sonstige.category", "O");
+    expect(TAX_TREATMENTS).toHaveProperty("eu_sonstige.reasonCode", "VATEX-EU-O");
+  });
+
   it("eigener Text vor Standardtext", () => {
     expect(treatmentNote("regulaer")).toBeNull();
     expect(treatmentNote("kleinunternehmer")).toContain("§ 19 UStG");

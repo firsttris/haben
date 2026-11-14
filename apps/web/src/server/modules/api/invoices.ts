@@ -67,6 +67,7 @@ function invoiceOut(row: ListRow, invoice: Invoice, lines: InvoiceLine[], baseUr
     language: invoice.language,
     taxTreatment: invoice.taxTreatment,
     exemptionReason: invoice.exemptionReason,
+    taxDetails: invoice.taxDetails,
     priceMode: invoice.priceMode,
     currency: invoice.currency,
     exchangeRate: invoice.exchangeRate,

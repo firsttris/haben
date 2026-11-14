@@ -24,6 +24,7 @@ import {
 } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
+import { vorsteuerPruefen } from "./belege-vorsteuer.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -2171,7 +2172,7 @@ test("Vorgabe „Ohne Vorsteuerabzug“: der Beleg folgt ihr und weicht gespeich
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(firma.getByRole("status")).toContainText("Firmendaten gespeichert.");
 
-  // Ein neuer Beleg zeigt das Kästchen angehakt
+  // Ein neuer Beleg übernimmt ohne eigene Angabe die Firmenvorgabe 0 %.
   await go("/belege");
   await page
     .locator("input[type=file][multiple]")
@@ -2183,18 +2184,18 @@ test("Vorgabe „Ohne Vorsteuerabzug“: der Beleg folgt ihr und weicht gespeich
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  const ohne = page.getByLabel("Ohne Vorsteuerabzug", { exact: true });
-  await expect(ohne).toBeChecked();
-  await expect(page.getByText(/Vorgabe in den Firmendaten: ohne Vorsteuerabzug/)).toBeVisible();
+  const anteil = page.getByLabel("Abziehbare Vorsteuer in %", { exact: true });
+  await expect(anteil).toHaveValue("");
+  await expect(page.getByText(/Leer = Firmenvorgabe \(0 %\)/)).toBeVisible();
 
-  // Am Beleg abweichend abgewählt: bleibt nach dem Speichern und Neuladen ab
-  await ohne.uncheck();
+  // Am Beleg abweichend voller Abzug: bleibt nach dem Speichern und Neuladen erhalten.
+  await anteil.fill("100");
   const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Speichern", exact: true }).click();
   expect((await gespeichert).ok()).toBe(true);
   await page.reload();
   await page.waitForLoadState("networkidle");
-  await expect(ohne).not.toBeChecked();
+  await expect(anteil).toHaveValue("100");
 
   // Aufräumen: Beleg löschen und Vorgabe zurücknehmen, damit spätere Tests regulär rechnen
   await page.getByRole("button", { name: "Löschen" }).click();
@@ -2226,6 +2227,8 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   // Mit hinterlegtem Zertifikat; barrierefreiheit.spec.ts sieht die Seite ohne
   await kontrasteInThemes(page, ["/einstellungen?bereich=elster"]);
 });
+
+vorsteuerPruefen(() => page);
 
 test("Keine Fehler im Browser", async () => {
   expect(pageErrors).toEqual([]);

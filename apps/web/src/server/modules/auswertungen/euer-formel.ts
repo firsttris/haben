@@ -61,7 +61,7 @@ function offenerAnteil(
   let summe = 0;
   for (const [key, p] of posten) {
     const bis = p.gebucht.filter((b) => datum.get(b.id)! <= stichtag);
-    const zahlungen = (ausgleiche.get(key) ?? []).filter((a) => a.datum <= stichtag).map((a) => a.betrag);
+    const zahlungen = (ausgleiche.get(key) ?? []).filter((a) => a.datum <= stichtag);
     // Im Voraus bezahlt (Zahlung vor dem Belegdatum): verteilt wird auf die spätere Buchung, gebucht ist noch nichts
     if (bis.length === 0 && zahlungen.length === 0) continue;
     const verteilt = bis.length > 0 ? bis : p.gebucht;
@@ -74,13 +74,13 @@ function offenerAnteil(
     if (gesamt === 0 || ausserhalbVerteilt === 0) continue;
     // Was davon schon gebucht ist; im Voraus bezahlt noch nichts
     const ausserhalb = bis.length > 0 ? ausserhalbVerteilt : 0;
-    const ausgeglichen = zahlungen.reduce((s, v) => s + v, 0);
+    const ausgeglichen = zahlungen.reduce((s, v) => s + v.betrag, 0);
     let bezahlt: Cents;
     if (p.beleg) {
       // Was eine Zahlung nicht als Ausgabe oder Vorsteuer wirkt, ist der private Teil bzw. der nicht wirkende Rest; eine
       // Einnahme (§ 13b: privater Teil der Steuer in Zeile 17) mindert die Wirkung
-      bezahlt = zahlungen.reduce((s, betrag) => {
-        const wirkung = belegTeilzahlung(Number(stichtag.slice(0, 4)), p.beleg!, -betrag);
+      bezahlt = zahlungen.reduce((s, { betrag, id }) => {
+        const wirkung = belegTeilzahlung(Number(stichtag.slice(0, 4)), p.beleg!, -betrag, undefined, id);
         const ausgabe =
           (Object.entries(wirkung.zeilen) as [EuerLineKey, Cents | undefined][]).reduce((x, [key, v]) => x + (istEuerEinnahme(key) ? -(v ?? 0) : (v ?? 0)), 0) +
           wirkung.bewirtungNichtAbziehbar;
@@ -171,7 +171,7 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
       if (b.sourceType === "invoice" || b.sourceType === "document") continue;
       // Wie computeEuer: ausgeglichen ist der Soll-Saldo der Verbindlichkeiten- bzw. Forderungszeilen, negativ
       ausgleich(quelle.get(b.sourceId)!, {
-        id: b.id,
+        id: b.sourceId,
         datum: b.date,
         betrag: -b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0),
       });

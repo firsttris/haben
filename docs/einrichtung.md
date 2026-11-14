@@ -267,7 +267,7 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 
 | Bereich | Wirkung |
 | --- | --- |
-| Rechnungen | Neue Rechnungen bekommen „Kleinunternehmer nach § 19 UStG“, alle Positionen 0 %, mit dem Hinweis „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ Die Auswahl im Editor ist gesperrt. Eine regulär besteuerte Rechnung lässt sich nicht festschreiben. Siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung). |
+| Rechnungen | Vorgabe ist „Kleinunternehmer nach § 19 UStG“ mit 0 % und dem entsprechenden Hinweis. Eigene Steuerbefreiungen nach § 4 Nr. 14 Buchst. a oder Nr. 21 und bestätigte Auslandsleistungen lassen sich gesondert zuordnen; eine regulär besteuerte Rechnung lässt sich nicht festschreiben. Dieselbe Auswahl gilt für Angebote und wiederkehrende Rechnungen. Siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung). |
 | Belege | Gebucht ohne Vorsteuerabzug: der Bruttobetrag geht auf das Aufwandskonto. Siehe [Belege](belege.md#ohne-vorsteuerabzug). |
 | Voranmeldung | Die Seite weist darauf hin, dass du in der Regel keine Voranmeldung abgibst. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). |
 | Übersicht | Die Aufgaben „Voranmeldung senden“, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER entfallen. |

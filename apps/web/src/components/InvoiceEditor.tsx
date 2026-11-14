@@ -26,12 +26,14 @@ import {
   parseQuantity,
   skontoFristen,
   skontoProblem,
-  TAX_TREATMENTS,
+  outgoingTaxIssues,
+  section4Note,
   UNITS,
   type Bundesland,
   type PriceMode,
   type SkontoStufe,
   type TaxTreatment,
+  type OutgoingTaxDetails,
   type UnitLabel,
   distinctVatRates,
 } from "@haben/core";
@@ -72,6 +74,7 @@ import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
+import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
 
 interface ContactOption {
   id: string;
@@ -102,6 +105,8 @@ export interface AbschlagOption {
   gross: number;
   rates: { rate: number; base: number; tax: number }[];
   taxTreatment: TaxTreatment;
+  taxDetails: OutgoingTaxDetails | null;
+  exemptionReason: string;
   priceMode: PriceMode;
   propertyRetention: boolean;
 }
@@ -231,6 +236,7 @@ export function InvoiceEditor({
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode ?? "netto");
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
+  const [taxDetails, setTaxDetails] = useState<OutgoingTaxDetails | null>(initial.taxDetails ?? null);
   const [language, setLanguage] = useState<"de" | "en">(initial.language ?? "de");
   const [currency, setCurrency] = useState(initial.currency ?? "EUR");
   const [exchangeRate, setExchangeRate] = useState(initial.exchangeRate ?? "");
@@ -325,6 +331,8 @@ export function InvoiceEditor({
   const planAmounts = orderRateAmounts(previewTotals, grossPrices ? "brutto" : "netto");
   const planPreview = plan.valid && plan.rows.length > 0 ? planSchedule(plan.rows, planAmounts, grossPrices ? "brutto" : "netto") : [];
   const planIssue = !plan.valid || (plan.rows.length > 0 && planPreview.some((r) => r.rates.some((x) => x.amount < 0)));
+  const taxNote = taxTreatment === "steuerfrei" ? (section4Note(taxDetails?.exemption) ?? exemptionReason) : exemptionReason;
+  const taxIssues = editable ? outgoingTaxIssues(taxTreatment, taxDetails, kleinunternehmer) : [];
   const allValid =
     parsed.every((l) => l.valid) &&
     (quote ? validUntilOk : termValid) &&
@@ -333,7 +341,8 @@ export function InvoiceEditor({
     kindIssue === null &&
     !planIssue &&
     Boolean(issueDate) &&
-    (taxTreatment !== "steuerfrei" || exemptionReason.trim() !== "");
+    taxIssues.length === 0 &&
+    (taxTreatment !== "steuerfrei" || taxNote.trim() !== "");
 
   function touch<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -485,7 +494,8 @@ export function InvoiceEditor({
       propertyRetention: !quote && propertyRetention,
       ...references,
       taxTreatment,
-      exemptionReason: special ? exemptionReason : "",
+      taxDetails,
+      exemptionReason: special ? taxNote : "",
       priceMode: grossPrices ? "brutto" : "netto",
       language,
       variant: kind === "rechnung" ? variant : null,
@@ -725,7 +735,8 @@ export function InvoiceEditor({
               note,
               propertyRetention: !quote && propertyRetention,
               taxTreatment,
-              exemptionReason: special ? exemptionReason : "",
+              taxDetails,
+              exemptionReason: special ? taxNote : "",
               priceMode: grossPrices ? "brutto" : "netto",
               language,
               variant: kind === "rechnung" ? variant : null,
@@ -978,38 +989,16 @@ export function InvoiceEditor({
                   )}
                 </Field>
               )}
-              <Field
-                label="Umsatzsteuer"
-                hint={
-                  kleinunternehmer
-                    ? "In den Einstellungen als Kleinunternehmer eingetragen."
-                    : taxTreatment === "reverse_charge"
-                      ? "Nur für Leistungen an Unternehmen im EU-Ausland mit USt-IdNr.; zusätzlich in der Zusammenfassenden Meldung angeben."
-                      : taxTreatment === "ig_lieferung"
-                        ? "Nur für Ware, die zu einem Unternehmen in einem anderen EU-Land gelangt, mit dessen USt-IdNr.; Haben meldet sie in Kz 41 und in der Zusammenfassenden Meldung. Den Gelangensnachweis (§ 17a UStDV), etwa die Gelangensbestätigung oder den Versandbeleg, bewahrst du zur Rechnung auf."
-                        : taxTreatment === "ausfuhr"
-                          ? "Nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§ 8 bis § 11 UStDV), etwa dem Ausgangsvermerk aus ATLAS. Dienstleistungen ins Drittland sind „Leistung ins Nicht-EU-Ausland“."
-                          : undefined
-                }
-                style={{ gridColumn: "1 / -1" }}
-              >
-                {(control) => (
-                  <select
-                    {...control}
-                    value={taxTreatment}
-                    onChange={(e) => chooseTreatment(e.target.value as TaxTreatment)}
-                    disabled={!editable || kleinunternehmer}
-                  >
-                    {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
-                      .filter((t) => (kleinunternehmer ? t === "kleinunternehmer" : t !== "kleinunternehmer" || taxTreatment === t))
-                      .map((t) => (
-                        <option key={t} value={t}>
-                          {TAX_TREATMENTS[t].label}
-                        </option>
-                      ))}
-                  </select>
-                )}
-              </Field>
+              <OutgoingTaxFields
+                treatment={taxTreatment}
+                details={taxDetails}
+                exemptionReason={exemptionReason}
+                kleinunternehmer={kleinunternehmer}
+                disabled={!editable}
+                onTreatmentChange={chooseTreatment}
+                onDetailsChange={touch(setTaxDetails)}
+                onReasonChange={touch(setExemptionReason)}
+              />
               {!special && (
                 <Field
                   label="Preise"
@@ -1028,21 +1017,6 @@ export function InvoiceEditor({
                       <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
                       <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
                     </select>
-                  )}
-                </Field>
-              )}
-              {special && (
-                <Field label={taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"} style={{ gridColumn: "1 / -1" }}>
-                  {(control) => (
-                    <input
-                      {...control}
-                      value={exemptionReason}
-                      onChange={(e) => touch(setExemptionReason)(e.target.value)}
-                      maxLength={300}
-                      placeholder={TAX_TREATMENTS[taxTreatment].note ?? ""}
-                      required={taxTreatment === "steuerfrei"}
-                      aria-invalid={taxTreatment === "steuerfrei" && !exemptionReason.trim()}
-                    />
                   )}
                 </Field>
               )}
