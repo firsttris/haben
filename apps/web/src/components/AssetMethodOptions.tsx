@@ -46,8 +46,6 @@ export function AssetMethodOptions({
   linearFromError?: string | undefined;
 }) {
   const max = acquisitionDate && lifeMonths ? maxDegressiveRate(acquisitionDate, lifeMonths) : null;
-  const parsedRate = parseRatePercent(rate);
-  const rateInvalid = Number.isNaN(parsedRate) || (parsedRate !== null && max !== null && parsedRate > max);
   return (
     <>
       {method === "degressiv" && (
@@ -62,7 +60,6 @@ export function AssetMethodOptions({
                   placeholder={max ? ratePercentText(max) : ""}
                   onChange={(e) => onRate(e.target.value)}
                   disabled={locked}
-                  aria-invalid={rateInvalid}
                 />
               )}
             </Field>
