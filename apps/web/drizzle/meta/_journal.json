@@ -1639,6 +1639,13 @@
       "when": 1794671331147,
       "tag": "0233_search_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 234,
+      "version": "7",
+      "when": 1794676119364,
+      "tag": "0234_jahreserklaerung_zeilenwerte",
+      "breakpoints": true
     }
   ]
 }
