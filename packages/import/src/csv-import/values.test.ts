@@ -75,6 +75,8 @@ describe("parseImportTaxRate, parseImportUnit, parseImportCountry", () => {
   it("erkennt eigene Einheiten (#748) an der Bezeichnung, ohne Rücksicht auf Groß- und Kleinschreibung", () => {
     expect(value(parseImportUnit("ue", ["UE", "m²"]))).toBe("UE");
     expect(value(parseImportUnit("m²", ["UE", "m²"]))).toBe("m²");
+    // Geerbte Namen von Object sind keine Einheiten und keine Aliase
+    for (const raw of ["toString", "valueOf", "constructor"]) expect(value(parseImportUnit(raw))).toMatch(/Einheit:/);
     expect(value(parseImportUnit("Karton", ["UE"]))).toMatch(/Std\., Tag, Monat, Stk\., Psch\., km, UE oder eine neue/);
   });
 

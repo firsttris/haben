@@ -217,7 +217,7 @@ export const TEXTS = {
     quantity: (quantity: Millis, unit: string) => {
       const value = quantity / 1000;
       // Eigene Einheiten (#748) stehen wie angelegt, ohne Übersetzung
-      const [one, many] = EN_UNITS[unit as UnitLabel] ?? [unit, unit];
+      const [one, many] = Object.hasOwn(EN_UNITS, unit) ? EN_UNITS[unit as UnitLabel] : [unit, unit];
       return `${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 3 }).format(value)} ${value === 1 ? one : many}`;
     },
     note: (treatment: TaxTreatment, reason?: string | null) => (treatment === "regulaer" ? null : reason?.trim() || EN_NOTES[treatment]),

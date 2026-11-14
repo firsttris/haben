@@ -632,6 +632,7 @@ export function InvoiceEditor({
         onClose={() => setNewContactName(null)}
       />
       <ArticleDialog
+        units={units}
         open={newArticle !== null}
         prefill={newArticle?.prefill ?? {}}
         onSaved={(article) => {

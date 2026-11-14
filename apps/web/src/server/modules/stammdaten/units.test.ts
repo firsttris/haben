@@ -1,3 +1,4 @@
+import { ARTICLE_FIELDS, readCsvTable, suggestMapping } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -77,5 +78,19 @@ describe.skipIf(!testDatabaseUrl)("Eigene Einheiten (Postgres)", () => {
     expect((await articles.createArticle(actor, { description: "Nachhilfe", unit: "UE", unitPrice: 2_500, taxRate: 0 })).unit).toBe("UE");
     expect((await articles.createArticle(actor, { description: "Beratung", unit: "Std.", unitPrice: 9_500, taxRate: 1900 })).unit).toBe("Std.");
     await expect(articles.createArticle(actor, { description: "Kiste", unit: "Karton", unitPrice: 100, taxRate: 1900 })).rejects.toThrow("Einheit „Karton“");
+  });
+
+  // Review: „toString“ ist weder fest noch angelegt; die Zeile gehört schon im Plan zu den Fehlern
+  it("meldet im CSV-Import eine unbekannte Einheit wie „toString“ schon im Plan als Fehler", async () => {
+    const csv = await import("./csv-import.ts");
+    const { db } = await import("../../db/index.ts");
+    const read = readCsvTable(new TextEncoder().encode("Bezeichnung;Einheit;Nettopreis;Umsatzsteuer\nBeratung;toString;95,00;19\n"), {
+      encoding: "auto",
+      delimiter: "auto",
+    });
+    if (!read.ok) throw new Error(read.error);
+    const plan = await csv.planArticleImport(db, read.table, suggestMapping(read.table.header, ARTICLE_FIELDS));
+    expect(plan[0]!.status).toBe("fehler");
+    expect(plan[0]!.message).toMatch(/Einheit/);
   });
 });
