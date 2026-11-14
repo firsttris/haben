@@ -30,6 +30,7 @@ beforeEach(() => {
   cacheLeeren();
   provider.setDiscovery("ok");
   provider.setEndSession(false);
+  provider.setDiscoveryFelder(undefined);
   const geladen = ladeKonfiguration({
     PORTAL_URL: PORTAL,
     PORTAL_SECRET: "portal-test-secret-mindestens-32-zeichen",
@@ -222,6 +223,24 @@ describe("Ablehnungen", () => {
   });
 });
 
+// Regeln von Haben über openid-client hinaus (oidc.ts, entdecken): Die Anmeldung beginnt dann gar nicht
+describe("Discovery", () => {
+  it.each([
+    ["einen anderen Issuer", () => ({ issuer: `${provider.issuer}/anders` }), "Firmenportal: Discovery"],
+    ["nur HS256", () => ({ id_token_signing_alg_values_supported: ["HS256"] }), "keine unterstützte ID-Token-Signatur"],
+    ["einen Token-Endpunkt ohne HTTPS", () => ({ token_endpoint: "http://auth.example.de/token" }), "token_endpoint fehlt oder ist nicht HTTPS"],
+    ["eine Abmeldung ohne HTTPS", () => ({ end_session_endpoint: "http://auth.example.de/logout" }), "end_session_endpoint ist nicht HTTPS"],
+  ])("lehnt %s ab", async (_fall, felder, ursache) => {
+    provider.setDiscoveryFelder(felder());
+    const fehler = vi.spyOn(console, "error").mockImplementation(() => {});
+    const ende = await portal(config)(anfrage("/anmelden"));
+    expect(ende.status).toBe(403);
+    expect(ende.headers.get("location")).toBeNull();
+    expect(fehler.mock.calls.flat().join("\n")).toContain(ursache);
+    fehler.mockRestore();
+  });
+});
+
 describe("Sitzung", () => {
   const sitzung = async () =>
     (await anmelden({ sub: "inhaberin", email: "i@example.de", groups: ["haben-nord-inhaber", "haben-sued-inhaber"] })).cookies[SITZUNG_COOKIE]!;
@@ -263,6 +282,20 @@ describe("Sitzung", () => {
     const geloescht = ende.headers.getSetCookie();
     expect(geloescht).toContain(`${SITZUNG_COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
     expect(geloescht).toContain(`${ABMELDE_COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
+  });
+
+  it("meldet mit einem ID-Token, das nicht in ein Cookie passt, ohne id_token_hint ab", async () => {
+    provider.setEndSession(true);
+    const { handler, cookies } = await anmelden({
+      sub: "viele",
+      email: `${"v".repeat(3000)}@example.de`,
+      groups: ["haben-nord-inhaber", "haben-sued-inhaber"],
+    });
+    expect(cookies[ABMELDE_COOKIE]).toBe("");
+    const ende = await handler(anfrage("/abmelden", cookies, "POST"));
+    const ziel = new URL(ende.headers.get("location")!);
+    expect(ziel.searchParams.has("id_token_hint")).toBe(false);
+    expect(ziel.searchParams.get("post_logout_redirect_uri")).toBe(`${PORTAL}/?abgemeldet=dienst`);
   });
 
   it("nimmt den id_token_hint nur aus dem signierten Cookie", async () => {

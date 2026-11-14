@@ -2,7 +2,7 @@
  * Firmen wechseln (#504): Jede Firma ist eine eigene Instanz von Haben mit eigener Adresse. HABEN_FIRMEN nennt sie,
  * damit die Navigation zwischen ihnen verlinkt. Haben kennt dabei nur Namen und Adressen, keine Daten der anderen.
  * Ohne Serverbezug: env.ts prüft die Angabe beim Start, getAuthState gibt dem Inhaber die anderen Firmen. Die Regeln
- * für Namen und Adressen stehen in @haben/core, weil das Portal (apps/firmenportal) dieselben prüft.
+ * für Namen und Adressen stehen in @haben/core, weil das Firmenportal (apps/firmenportal) dieselben prüft.
  */
 import { type Firma, parseFirmen } from "@haben/core";
 import type { Rolle } from "./rollen.ts";

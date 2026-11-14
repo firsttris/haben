@@ -40,7 +40,7 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     hatMitarbeiter: user?.role === "inhaber" ? await hasEmployees() : false,
     // Firma wechseln (#504): die Instanzen der anderen Firmen, nur für den Inhaber
     firmen: user ? andereFirmen(env().HABEN_FIRMEN, env().BETTER_AUTH_URL, user.role) : [],
-    // Mit Firmenportal (#504, Stufe 2) führt „Firma wechseln“ dorthin, ebenfalls nur für den Inhaber
+    // Mit Firmenportal (#504, Stufe 2) führt „Zum Firmenportal“ dorthin, ebenfalls nur für den Inhaber
     firmenportal: user?.role === "inhaber" ? (env().HABEN_FIRMENPORTAL_URL ?? null) : null,
   };
 });

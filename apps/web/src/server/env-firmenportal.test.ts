@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /*
- * Firmenportal (#504, Stufe 2): HABEN_FIRMENPORTAL_URL führt „Firma wechseln“ ins Firmenportal. Nur mit SSO, weil das Firmenportal nur mit SSO
+ * Firmenportal (#504, Stufe 2): HABEN_FIRMENPORTAL_URL führt die Zeile „Zum Firmenportal“ ins Firmenportal. Nur mit SSO, weil das Firmenportal nur mit SSO
  * anmeldet, und nicht zusammen mit HABEN_FIRMEN, damit es genau einen Weg gibt.
  */
 

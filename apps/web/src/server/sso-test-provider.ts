@@ -40,6 +40,8 @@ export interface TestProvider {
   setUserInfoHook: (hook: (() => Promise<void>) | undefined) => void;
   /** Ob die Discovery einen end_session_endpoint (RP-Initiated Logout) nennt; Vorgabe nein */
   setEndSession: (an: boolean) => void;
+  /** Überschreibt Felder der Discovery (Issuer, Algorithmen, Endpunkte), undefined setzt zurück */
+  setDiscoveryFelder: (felder: Record<string, unknown> | undefined) => void;
   close: () => Promise<void>;
 }
 
@@ -55,6 +57,7 @@ export async function startTestProvider(): Promise<TestProvider> {
   let discovery: "ok" | "fehler" | "haengt" = "ok";
   let userInfoHook: (() => Promise<void>) | undefined;
   let endSession = false;
+  let discoveryFelder: Record<string, unknown> = {};
 
   const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => {
     res.statusCode = status;
@@ -94,6 +97,7 @@ export async function startTestProvider(): Promise<TestProvider> {
         response_types_supported: ["code"],
         id_token_signing_alg_values_supported: ["RS256"],
         ...(endSession ? { end_session_endpoint: `${issuer}/logout` } : {}),
+        ...discoveryFelder,
       });
     if (url.pathname === "/jwks") return json(res, 200, { keys: [{ ...keys.publicKey.export({ format: "jwk" }), kid: "test", alg: "RS256", use: "sig" }] });
     if (url.pathname === "/userinfo") {
@@ -151,6 +155,9 @@ export async function startTestProvider(): Promise<TestProvider> {
     },
     setEndSession: (an) => {
       endSession = an;
+    },
+    setDiscoveryFelder: (felder) => {
+      discoveryFelder = felder ?? {};
     },
     issue(authorizeUrl, identity) {
       const code = randomBytes(16).toString("hex");

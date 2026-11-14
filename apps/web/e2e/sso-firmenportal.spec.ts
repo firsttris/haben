@@ -4,8 +4,8 @@ import { type Browser, expect, type Page, test } from "@playwright/test";
 /*
  * Firmenportal (#504, Stufe 2) im SSO-Durchlauf (playwright.sso-only.config.ts): Das Firmenportal auf Port 3217 kennt diese
  * Instanz als „Studio Nord“ (Inhaber-Gruppe haben-inhaber) und zwei andere, die es nicht geben muss. Die Instanz hat
- * HABEN_FIRMENPORTAL_URL. Läuft nach sso-only.spec.ts (Dateiname), das eine frische Instanz braucht; die Anmeldung hier
- * richtet die Instanz ein, falls sie es noch nicht ist.
+ * HABEN_FIRMENPORTAL_URL. Läuft nach sso-only.spec.ts (Projekt mit Abhängigkeit in der Konfiguration), das eine frische
+ * Instanz braucht; die Anmeldung hier richtet die Instanz ein, falls sie es noch nicht ist.
  */
 
 const BASE = `${process.env.E2E_SERVER_COMMAND ? "https" : "http"}://localhost:3218`;
