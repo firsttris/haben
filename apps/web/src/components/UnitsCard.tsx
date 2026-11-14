@@ -6,6 +6,7 @@ import { useAction } from "../lib/use-action.ts";
 import { addUnit, archiveUnit } from "../server/functions/units.ts";
 import { Field } from "./Field.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { ScrollTable } from "./ScrollTable.tsx";
 
 interface UnitRow {
   id: string;
@@ -48,13 +49,13 @@ export function UnitsCard({ units }: { units: UnitRow[] }) {
         löschen, nur archivieren.
       </p>
       {units.length > 0 && (
-        <table className="table">
+        <ScrollTable className="report-table">
           <thead>
             <tr>
               <th scope="col">Einheit</th>
               <th scope="col">Code</th>
               <th scope="col">
-                <span className="sr-only">Aktion</span>
+                <span className="visually-hidden">Aktion</span>
               </th>
             </tr>
           </thead>
@@ -66,10 +67,10 @@ export function UnitsCard({ units }: { units: UnitRow[] }) {
                   {unit.archivedAt ? " (archiviert)" : ""}
                 </td>
                 <td className="mono">{unit.code}</td>
-                <td className="actions">
+                <td>
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="link-button"
                     disabled={busy}
                     onClick={() =>
                       void run(
@@ -87,7 +88,7 @@ export function UnitsCard({ units }: { units: UnitRow[] }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </ScrollTable>
       )}
       <form onSubmit={onSubmit} className="form-row cols-2">
         <Field label="Bezeichnung" hint={`Wie auf dem Beleg, höchstens ${UNIT_LABEL_MAX} Zeichen, etwa UE oder m²`} error={issues.join(" · ") || undefined}>
