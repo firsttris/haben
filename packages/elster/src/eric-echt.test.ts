@@ -515,6 +515,20 @@ const faelle: [string, () => string][] = [
     est(2025, { angaben: { ...leereAngaben, kap: { ertraegeOhneSteuerabzugInland: 30_000, ertraegeAusland: 20_000 } } }),
   ],
   ["ESt 2025 ohne weitere Angaben", est(2025, { angaben: leereAngaben, telefon: undefined })],
+  [
+    "ESt 2025 Einkommensersatzleistungen mit Cent (Summe der gerundeten Einzelbeträge)",
+    est(2025, {
+      angaben: {
+        ...leereAngaben,
+        ersatzleistungen: {
+          a: [
+            { art: "Krankengeld", betrag: 123_440 },
+            { art: "Arbeitslosengeld", betrag: 200_040 },
+          ],
+        },
+      },
+    }),
+  ],
   // Zusammenfassende Meldung
   [`ZM ${zmJahr} 3. Quartal, sonstige Leistungen mit Gutschrift`, zm()],
   [

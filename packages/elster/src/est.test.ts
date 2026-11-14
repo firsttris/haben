@@ -98,6 +98,29 @@ describe("buildEstXml", () => {
     // Leere Angaben erzeugen keinen Block
     expect(buildEstXml(estInput()).includes("<Eink_Ers>")).toBe(false);
   });
+
+  it("bildet die Summe der Einkommensersatzleistungen aus den gerundeten Einzelbeträgen", () => {
+    // ERiC-Regel 725 (Jahresdokumentation E10 2025, ESt1A - Regeln): E0104801 muss der Summe der Einzelbeträge E0104113 entsprechen.
+    // Zweimal x,40 € runden einzeln ab, die Summe in Cent (3.234,80 €) dagegen auf.
+    const fest = estInput();
+    const xml = buildEstXml(
+      estInput({
+        angaben: {
+          ...fest.angaben,
+          ersatzleistungen: {
+            a: [
+              { art: "Krankengeld", betrag: 123_440 },
+              { art: "Arbeitslosengeld", betrag: 200_040 },
+            ],
+          },
+        },
+      }),
+    );
+    expect(xml).toContain("<E0104113>1234</E0104113>");
+    expect(xml).toContain("<E0104113>2000</E0104113>");
+    expect(xml).toContain("<E0104801>3234</E0104801>");
+  });
+
   it("hält die Reihenfolge der Anlagen ein", () => {
     const xml = buildEstXml(estInput({ gewinn: { einkunftsart: "gewerbe", taetigkeit: "Handel", betrag: -100_000 } }));
     const order = ["<ESt1A>", "<SA>", "<AgB>", "<HA_35a>", "<Kind>", "<G>", "<KAP>", "<VOR>", "<Vorsatz>"].map((tag) => xml.indexOf(tag));
