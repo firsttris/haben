@@ -60,6 +60,7 @@ export {
   writeOffSchema,
 } from "./bank.ts";
 export { documentBankAllocations } from "./document-allocations.ts";
+export { umsatzauswahl } from "./umsatzauswahl.ts";
 export {
   nachStatusSortieren,
   SORTIERRICHTUNGEN,

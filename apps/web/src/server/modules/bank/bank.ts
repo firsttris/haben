@@ -362,10 +362,18 @@ export async function accountForIban(tx: Tx, iban: string, name?: string) {
 /** Noch nicht zugeordneter Teil eines Umsatzes; null, wenn er mit einem gegenläufigen verrechnet ist (#457) */
 const openAmountSql = bankOpenAmountSql;
 
-export type TransactionFilter = "offen" | "zugeordnet" | "alle";
+type TransactionFilter = "offen" | "zugeordnet" | "alle";
+
+export const UMSATZ_LISTENLIMIT = 500;
 
 /** Höchstens 500 Umsätze, sortiert vor der Grenze (umsatzliste.ts); ohne Sortierung der neueste oben */
-export async function listTransactions(accountId: string, filter: TransactionFilter, search: string, sortierung: UmsatzSortierung = STANDARD_SORTIERUNG) {
+export async function listTransactions(
+  accountId: string,
+  filter: TransactionFilter,
+  search: string,
+  sortierung: UmsatzSortierung = STANDARD_SORTIERUNG,
+  offset?: number,
+) {
   const conditions = [eq(schema.bankTransactions.bankAccountId, accountId)];
   if (filter === "offen") conditions.push(sql`${openAmountSql} <> 0`);
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
@@ -379,6 +387,9 @@ export async function listTransactions(accountId: string, filter: TransactionFil
       )!,
     );
   }
+  const order = umsatzReihenfolge(sortierung);
+  // Beim seitenweisen Lesen braucht auch ein Gleichstand eine eindeutige Reihenfolge.
+  if (offset !== undefined) order.push(asc(schema.bankTransactions.id));
   return db
     .select({
       id: schema.bankTransactions.id,
@@ -394,8 +405,9 @@ export async function listTransactions(accountId: string, filter: TransactionFil
     })
     .from(schema.bankTransactions)
     .where(and(...conditions))
-    .orderBy(...umsatzReihenfolge(sortierung))
-    .limit(500);
+    .orderBy(...order)
+    .limit(UMSATZ_LISTENLIMIT)
+    .offset(offset ?? 0);
 }
 
 /**
