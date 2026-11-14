@@ -108,7 +108,8 @@ export function IntegrityCard({ head }: { head: Head }) {
         Umsatzsteuer, EÜR und den neuen Anzahlungsbeständen ab und meldet Kontenkollisionen sowie abgeschaltete, fehlende oder veränderte Sperrtrigger und
         Funktionen. Belege, Anhänge und andere Dateien liegen außerhalb der Datenbank unter ihrem SHA-256; Haben prüft einmal am Tag, ob jede vorhanden und
         unverändert ist, „Dateien prüfen“ sofort. Die Prüfung findet nachträgliche Änderungen, verhindert sie aber nicht. Wer die Datenbank ändern kann, kann
-        auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
+        auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail,
+        Jahresarchiv).
       </p>
       {current && (
         <div className="small">

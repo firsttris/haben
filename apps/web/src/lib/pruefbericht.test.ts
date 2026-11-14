@@ -12,6 +12,7 @@ const bericht = (aenderung: Partial<IntegrityReport> = {}): IntegrityReport => (
   truncated: false,
   abgleich: { abweichungen: [], hinweise: [] },
   accountCollisions: [],
+  triggerHints: [],
   files: null,
   ...aenderung,
 });

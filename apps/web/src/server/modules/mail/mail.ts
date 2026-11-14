@@ -242,8 +242,7 @@ export async function runDuePruefwertMail(now = new Date()) {
   const lastNow = known ? await rowHashAt(lastSeq) : null;
   const rewritten = known && lastHash !== undefined && lastNow !== lastHash;
   const report = await checkIntegrity();
-  const fileProblems = report.files?.problemCount ?? 0;
-  if (!changed && !rewritten && report.problems.length === 0 && report.abgleich.abweichungen.length === 0 && fileProblems === 0) {
+  if (!changed && !rewritten && report.problems.length === 0 && report.abgleich.abweichungen.length === 0 && !report.files?.problemCount) {
     quietCheckAt = now.getTime();
     return null;
   }
@@ -298,7 +297,7 @@ export async function runDuePruefwertMail(now = new Date()) {
     findings.length === 0 ? `Haben: Prüfwert des Änderungsprotokolls (Nr. ${head.seq})` : `Haben: Änderungsprotokoll mit Befunden (Nr. ${head.seq})`;
   const result = await send(MAIL_ACTOR, { kind: "pruefwert", to: settings.reminderTo, subject, text, html, reminderKeys: [String(head.seq), head.hash] });
   if (!result.ok) throw new MailError(`Prüfwert nicht gesendet: ${result.error}`);
-  return { seq: head.seq, problems: report.problems.length, rewritten, fileProblems };
+  return { seq: head.seq, problems: report.problems.length, rewritten, fileProblems: report.files?.problemCount ?? 0 };
 }
 
 export async function lastMails(limit = 5) {
