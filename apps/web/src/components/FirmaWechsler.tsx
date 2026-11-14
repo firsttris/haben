@@ -31,11 +31,21 @@ export function FirmaWechsler({ andere }: { andere: Firma[] }) {
     if (!open) return;
     // Fokus ins Suchfeld, ohne Suchfeld auf die erste Firma
     auswahl.current?.querySelector<HTMLElement>("input, a")?.focus({ preventScroll: true });
-    // Klick daneben und Tab aus der Liste schließen
+    // Klick daneben und Tab aus der Liste schließen. Der Zeiger schließt erst mit dem Klick, nicht schon beim Drücken
+    // und nicht über den Fokus, den das Drücken setzt: Die Liste steht im Fluss, mit ihr rutschten die Menüpunkte
+    // unter Zeiger oder Finger weg, und der Klick auf einen von ihnen ginge verloren
+    let zeiger = false;
+    const druck = () => {
+      zeiger = true;
+    };
     const daneben = (event: Event) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
+    const fokus = (event: Event) => {
+      if (!zeiger) daneben(event);
+    };
     const taste = (event: KeyboardEvent) => {
+      zeiger = false;
       if (event.key !== "Escape") return;
       // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
       event.preventDefault();
@@ -43,12 +53,14 @@ export function FirmaWechsler({ andere }: { andere: Firma[] }) {
       setOpen(false);
       button.current?.focus();
     };
-    document.addEventListener("pointerdown", daneben);
-    document.addEventListener("focusin", daneben);
+    document.addEventListener("pointerdown", druck, true);
+    document.addEventListener("click", daneben);
+    document.addEventListener("focusin", fokus);
     window.addEventListener("keydown", taste, true);
     return () => {
-      document.removeEventListener("pointerdown", daneben);
-      document.removeEventListener("focusin", daneben);
+      document.removeEventListener("pointerdown", druck, true);
+      document.removeEventListener("click", daneben);
+      document.removeEventListener("focusin", fokus);
       window.removeEventListener("keydown", taste, true);
     };
   }, [open]);
