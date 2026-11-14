@@ -282,8 +282,10 @@ test("Rechnungen schreiben und festschreiben", async () => {
 test("Entwurf als PDF: speichert vorher, lädt herunter und vergibt keine Nummer (#342)", async () => {
   await go("/rechnungen/neu");
   const heading = await page.getByRole("heading", { level: 1 }).textContent();
-  // Ohne Kunden gibt es noch kein Dokument
-  await expect(page.getByRole("button", { name: "Speichern und als PDF" })).toBeDisabled();
+  // Ohne Kunden gibt es noch kein Dokument: der Knopf sagt es am Feld Kunde (DESIGN.md, Gesperrte Knöpfe)
+  await page.getByRole("button", { name: "Speichern und als PDF" }).click();
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toBeFocused();
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
   await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await page.getByLabel("Beschreibung Position 1").fill("Konzept zur Prüfung");
   await page.getByLabel("Menge Position 1").fill("2");
@@ -325,6 +327,14 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
   await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  // Ohne Einleitung kein Entwurf: der Fehler steht am Feld, der Fokus dort (DESIGN.md, Gesperrte Knöpfe)
+  const einleitung = page.getByLabel("Einleitung", { exact: true });
+  const text = await einleitung.inputValue();
+  await einleitung.fill("");
+  await page.getByRole("button", { name: "Entwurf als PDF" }).click();
+  await expect(einleitung).toBeFocused();
+  await expect(einleitung).toHaveAccessibleDescription(/^Trag eine Einleitung ein\./);
+  await einleitung.fill(text);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Entwurf als PDF" }).click();
   const file = await download;
