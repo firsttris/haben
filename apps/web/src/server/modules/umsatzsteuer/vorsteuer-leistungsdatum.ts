@@ -6,8 +6,8 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
  * Vorsteuer nach Leistungsdatum (#693, Stufe 2): Bei einem Eingangsbeleg ist die Vorsteuer in dem Zeitraum abziehbar, in
  * dem erstmalig beide Voraussetzungen erfüllt sind — die Leistung ist ausgeführt und eine Rechnung liegt vor (§ 15 Abs. 1
  * Satz 1 Nr. 1 UStG). Liegt das Leistungsdatum vor oder am Belegdatum, bleibt es deshalb beim Belegmonat. Liegt es
- * danach (Anzahlung, Abschlag vor der Leistung), zählt die Vorsteuer im Monat der Zahlung (UStAE 15.3 Abs. 1 Satz 2);
- * ohne Zahlung ist noch keine der beiden Voraussetzungen erfüllt und sie zählt gar nicht.
+ * danach (Anzahlung, Abschlag vor der Leistung), zählt der gezahlte Anteil im Monat der Zahlung (UStAE 15.3 Abs. 1
+ * Satz 2), der Rest mit der Ausführung; eine Zahlung nach der Ausführung zählt deshalb ebenfalls im Monat der Ausführung.
  *
  * Ein Beleg kann mehrere Zahlungen haben (Strom- und Gasabschläge im Ablesezeitraum): Jede Zahlung zieht ihren Anteil,
  * anteilig je Steuersatz und fortgeschrieben wie bei den Rechnungen (paidTaxShares), damit alle zusammen genau die
@@ -51,6 +51,11 @@ function aktive<T extends { id: string; reversesId: string | null }>(rows: T[]):
 /** Der spätere von zwei ISO-Tagen (JJJJ-MM-TT): Der Vergleich läuft über die Schreibweise, nicht über Zahlen. */
 function spaetererTag(a: string, b: string): string {
   return a.localeCompare(b) < 0 ? b : a;
+}
+
+/** Der frühere von zwei ISO-Tagen */
+function fruehererTag(a: string, b: string): string {
+  return a.localeCompare(b) < 0 ? a : b;
 }
 
 /**
@@ -154,17 +159,19 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
     if (saetze.length === 0 || gross === 0) continue;
     const totals = { net: Math.abs(k.net), tax: Math.abs(k.tax), gross, taxes: saetze };
 
+    const ausgefuehrt = leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis });
     let zahlungenDesBelegs: Zahlung[];
     if (k.payment === "privat") {
       // Kein Bankweg: Die Zahlung gilt mit der Ausführung der Leistung als geleistet (spätestens dann liegt die Rechnung vor)
-      zahlungenDesBelegs = [{ date: leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis }), amount: gross }];
+      zahlungenDesBelegs = [];
     } else if (k.payment === "kasse") {
       const bar = barAm.get(k.id);
       zahlungenDesBelegs = bar ? [{ date: bar, amount: gross }] : [];
     } else {
       zahlungenDesBelegs = [...((stornoAm.has(k.id) ? zahlungenVorStorno : zahlungen).get(k.id) ?? [])].sort((x, y) => x.date.localeCompare(y.date));
     }
-    if (zahlungenDesBelegs.length === 0) continue;
+    // Was bis zur Ausführung nicht gezahlt ist, zählt mit ihr: Dann sind Leistung und Rechnung da (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 1)
+    zahlungenDesBelegs.push({ date: ausgefuehrt, amount: gross });
 
     const storno = stornoAm.get(k.id);
     const vorzeichen = k.tax < 0 ? -1 : 1;
@@ -179,8 +186,8 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
         const vorheriger = von.find((x) => x.rate === anteil.rate);
         const base = anteil.base - (vorheriger?.base ?? 0);
         const tax = anteil.tax - (vorheriger?.tax ?? 0);
-        // Die Rechnung muss vorliegen: nie früher als ihr Datum
-        const tag = spaetererTag(z.date, k.datum);
+        // Nie später als die Ausführung und nie früher als die Rechnung
+        const tag = spaetererTag(fruehererTag(z.date, ausgefuehrt), k.datum);
         zeilen.push({
           documentId: k.id,
           date: tag,

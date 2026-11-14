@@ -154,7 +154,8 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum (#693)", () => 
     await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
 
     expect((await monat(11)).kz66).toBe(0);
-    expect((await monat(12)).kz66).toBe(0);
+    // Mit dem Ende des Leistungszeitraums ist die Leistung ausgeführt, die Rechnung liegt vor (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 1 UStG)
+    expect((await monat(12)).kz66).toBe(616);
     expect((await monat(1, 2027)).kz66).toBe(0);
   });
 
