@@ -33,8 +33,8 @@ async function anbieter(page: Page, email: string, groups: string) {
 
 async function portalAnmelden(browser: Browser, groups: string): Promise<Page> {
   const page = await (await browser.newContext()).newPage();
-  await page.goto(`${PORTAL}/`, { waitUntil: "networkidle" });
-  await page.getByRole("link", { name: "Mit Test-SSO anmelden" }).click();
+  // Ohne Sitzung geht das Portal gleich zum Anmeldedienst, ohne eigene Seite davor
+  await page.goto(`${PORTAL}/`);
   await anbieter(page, "person@example.de", groups);
   return page;
 }
@@ -42,6 +42,8 @@ async function portalAnmelden(browser: Browser, groups: string): Promise<Page> {
 async function ohneVerstoesse(page: Page) {
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
+    // Knöpfe blenden ihre Fläche über --fade (0,15 s) über; axe soll den Endzustand messen
+    await page.waitForTimeout(300);
     expect((await new AxeBuilder({ page }).analyze()).violations, colorScheme).toEqual([]);
   }
 }
@@ -53,8 +55,13 @@ test.describe.configure({ mode: "serial" });
 test("Portal: Anmeldung zeigt nur die Firmen aus den eigenen Inhaber-Gruppen", async ({ browser }) => {
   const page = await portalAnmelden(browser, "familie, haben-inhaber, haben-sued-inhaber, haben-west-steuerberatung");
   await page.waitForURL(`${PORTAL}/`);
-  await expect(firmen(page)).toHaveText(["Studio Nord", "Werkstatt Süd"]);
-  await expect(firmen(page).first()).toHaveAttribute("href", BASE);
+  // Die Initiale vor dem Namen ist nur Schmuck (aria-hidden), der Name des Links bleibt der Name der Firma
+  await expect(firmen(page)).toHaveCount(2);
+  await expect(firmen(page).nth(0)).toHaveAccessibleName("Studio Nord");
+  await expect(firmen(page).nth(1)).toHaveAccessibleName("Werkstatt Süd");
+  // Der Link startet in Haben gleich die SSO-Anmeldung
+  await expect(firmen(page).first()).toHaveAttribute("href", `${BASE}/login?anmelden=sso`);
+  await expect(page.getByText("Angemeldet als person@example.de")).toBeVisible();
   await expect(page.getByText("Atelier West")).toHaveCount(0);
   await ohneVerstoesse(page);
   await page.setViewportSize({ width: 375, height: 812 });
@@ -74,11 +81,24 @@ test("Portal: mit genau einer Firma geht es nach der Anmeldung direkt dorthin", 
   const context = await browser.newContext();
   await context.route("https://sued.example.de/**", (route) => route.fulfill({ contentType: "text/html", body: "<title>Süd</title>Werkstatt Süd" }));
   const page = await context.newPage();
-  await page.goto(`${PORTAL}/`, { waitUntil: "networkidle" });
-  await page.getByRole("link", { name: "Mit Test-SSO anmelden" }).click();
+  await page.goto(`${PORTAL}/`);
   await anbieter(page, "sued@example.de", "haben-sued-inhaber");
-  await page.waitForURL("https://sued.example.de/");
+  await page.waitForURL("https://sued.example.de/login?anmelden=sso");
   await context.close();
+});
+
+test("Aus dem Portal in eine Firma, ohne Klick auf der Login-Seite von Haben", async ({ browser }) => {
+  const page = await portalAnmelden(browser, "haben-inhaber, haben-sued-inhaber");
+  await page.waitForURL(`${PORTAL}/`);
+  const warten = letzterStart + 10_500 - Date.now();
+  if (warten > 0) await page.waitForTimeout(warten);
+  letzterStart = Date.now();
+  await firmen(page).filter({ hasText: "Studio Nord" }).click();
+  // Haben startet die Anmeldung selbst; der Testanbieter fragt ohne eigene Sitzung noch einmal
+  await anbieter(page, "inhaberin@example.de", "haben-inhaber");
+  await page.waitForURL(`${BASE}/`);
+  await expect(page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Firma wechseln" })).toBeVisible();
+  await page.context().close();
 });
 
 test("Haben: „Firma wechseln“ führt ins Portal, ohne aufzuklappen, und zurück zur Firma", async ({ browser }) => {
@@ -93,18 +113,17 @@ test("Haben: „Firma wechseln“ führt ins Portal, ohne aufzuklappen, und zur�
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
   await wechseln.click();
-  await page.waitForURL(`${PORTAL}/`);
-  await page.getByRole("link", { name: "Mit Test-SSO anmelden" }).click();
   await anbieter(page, "inhaberin@example.de", "haben-inhaber, haben-sued-inhaber");
   await page.waitForURL(`${PORTAL}/`);
   await firmen(page).filter({ hasText: "Studio Nord" }).click();
   await page.waitForURL(`${BASE}/`);
   await expect(nav.getByRole("link", { name: "Firma wechseln" })).toBeVisible();
 
-  // Abmelden im Portal: danach wieder die Anmeldung
+  // Abmelden im Portal: danach eine Seite „abgemeldet“, keine sofortige neue Anmeldung
   await page.goto(`${PORTAL}/`);
   await page.getByRole("button", { name: "Abmelden" }).click();
-  await page.goto(`${PORTAL}/`);
-  await expect(page.getByRole("link", { name: "Mit Test-SSO anmelden" })).toBeVisible();
+  await page.waitForURL(`${PORTAL}/?abgemeldet`);
+  await expect(page.getByText("Du bist abgemeldet.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Wieder anmelden" })).toBeVisible();
   await context.close();
 });
