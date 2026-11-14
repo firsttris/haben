@@ -423,3 +423,17 @@ test("eingeklappt: Marke und Lupe gehören zum Kreis der Symbole für ↑/↓", 
   await page.keyboard.press("ArrowDown");
   await expect(marke).toBeFocused();
 });
+
+test("Strg+B mit dem Fokus in der Leiste legt ihn auf den Knopf der sichtbaren Fassung", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).locator(".nav-variante-voll").getByRole("link", { name: "Übersicht" }).focus();
+  await page.keyboard.press("Control+b");
+  await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
+  await expect(nav(page).getByRole("button", { name: "Seitenleiste ausklappen" })).toBeFocused();
+
+  await nav(page).getByRole("button", { name: "Verkauf" }).focus();
+  await page.keyboard.press("Control+b");
+  await expect(page.locator("html")).not.toHaveAttribute("data-nav");
+  await expect(nav(page).getByRole("button", { name: "Seitenleiste einklappen" })).toBeFocused();
+});
