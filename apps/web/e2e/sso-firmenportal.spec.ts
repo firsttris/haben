@@ -137,6 +137,9 @@ test("Haben: „Zum Firmenportal“ führt ins Firmenportal, ohne aufzuklappen, 
   const wechseln = nav.getByRole("link", { name: "Zum Firmenportal" });
   await expect(wechseln).toHaveAttribute("href", `${PORTAL}/?von=haben`);
   await expect(nav.getByText("Firma wechseln")).toHaveCount(0);
+  // Mit dem Gebäude davor steht der Text bündig mit „Übersicht“ und den Menüpunkten (Rückmeldung in #1006)
+  const links = (ort: import("@playwright/test").Locator) => ort.evaluate((el) => Math.round(el.getBoundingClientRect().left));
+  expect(await links(wechseln.locator(".firma-wechsler-text"))).toBe(await links(nav.getByRole("link", { name: "Übersicht" }).locator(".nav-collapse-label")));
   await expect(wechseln).not.toHaveAttribute("target");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   // In der eingeklappten Seitenleiste (#939) ein einzelnes Symbol mit demselben Ziel, ohne Flyout

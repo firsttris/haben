@@ -98,7 +98,9 @@ export function FirmaWechsler({ andere }: { andere: Firma[] }) {
   return (
     <div className="firma-wechsler" ref={root}>
       <button ref={button} type="button" className="nav-link firma-wechsler-knopf" aria-expanded={open} aria-controls={auswahlId} onClick={toggle}>
-        Firma wechseln
+        {/* Das Gebäude wie eingeklappt und bei den Menüpunkten; der Name der Zeile bleibt der Text (Symbol aria-hidden) */}
+        <Icon name="company" />
+        <span className="firma-wechsler-text">Firma wechseln</span>
         <Icon name="chevron-down" size={16} />
       </button>
       {/* Bleibt im Dokument, damit aria-controls immer ein Ziel hat */}
@@ -119,7 +121,8 @@ export function ZumFirmenportal({ url }: { url: string }) {
   return (
     <div className="firma-wechsler">
       <a href={`${url}/?von=haben`} className="nav-link firma-wechsler-knopf">
-        Zum Firmenportal
+        <Icon name="company" />
+        <span className="firma-wechsler-text">Zum Firmenportal</span>
         <Icon name="chevron-right" size={16} />
       </a>
     </div>

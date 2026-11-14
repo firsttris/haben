@@ -298,10 +298,13 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .nav-flyout { --firma-zeile: 36px; }
 .firma-wechsler { padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); }
 /* Ohne Fläche, sonst sähe die offene Zeile aus wie der aktive Menüpunkt */
-.firma-wechsler-knopf { justify-content: space-between; width: 100%; min-height: var(--firma-zeile); border: 0; background: none; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.firma-wechsler-knopf { justify-content: flex-start; width: 100%; min-height: var(--firma-zeile); border: 0; background: none; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 .firma-wechsler-knopf[aria-expanded="true"] { color: var(--nav-ink-strong); }
-.firma-wechsler-knopf > svg { flex-shrink: 0; transition: transform var(--fade); }
-.firma-wechsler-knopf[aria-expanded="true"] > svg { transform: rotate(180deg); }
+/* Gebäude, Text, Pfeil: der Text füllt die Zeile, nur der Pfeil (letztes Symbol) dreht sich beim Aufklappen */
+.firma-wechsler-text { flex: 1; min-width: 0; }
+.firma-wechsler-knopf > svg { flex-shrink: 0; }
+.firma-wechsler-knopf > svg:last-child { transition: transform var(--fade); }
+.firma-wechsler-knopf[aria-expanded="true"] > svg:last-child { transform: rotate(180deg); }
 /* Sechseinhalb Zeilen: die angeschnittene zeigt, dass die Liste weiterrollt */
 .firma-liste { max-height: calc(6.5 * var(--firma-zeile)); margin: 0; padding: 0; list-style: none; overflow-y: auto; }
 /* Lange Namen brechen um; der Fokusring liegt innen, weil die rollende Liste ihn außen abschnitte */
