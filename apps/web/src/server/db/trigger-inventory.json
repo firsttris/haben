@@ -57,6 +57,27 @@
       "function": "public.haben_allocation_vat_return()"
     },
     {
+      "table": "public.annual_submission_figures",
+      "name": "annual_submission_figures_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER annual_submission_figures_append_only BEFORE DELETE OR UPDATE ON public.annual_submission_figures FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.annual_submission_figures",
+      "name": "annual_submission_figures_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER annual_submission_figures_audit AFTER INSERT ON public.annual_submission_figures FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.annual_submission_figures",
+      "name": "annual_submission_figures_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER annual_submission_figures_no_truncate BEFORE TRUNCATE ON public.annual_submission_figures FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.annual_submissions",
       "name": "annual_submissions_append_only",
       "enabled": "O",
@@ -1503,6 +1524,27 @@
       "name": "own_accounts_no_truncate",
       "enabled": "O",
       "definition": "CREATE TRIGGER own_accounts_no_truncate BEFORE TRUNCATE ON public.own_accounts FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.password_changes",
+      "name": "password_changes_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER password_changes_append_only BEFORE DELETE OR UPDATE ON public.password_changes FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.password_changes",
+      "name": "password_changes_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER password_changes_audit AFTER INSERT ON public.password_changes FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.password_changes",
+      "name": "password_changes_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER password_changes_no_truncate BEFORE TRUNCATE ON public.password_changes FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
       "function": "public.haben_reject_truncate()"
     },
     {
