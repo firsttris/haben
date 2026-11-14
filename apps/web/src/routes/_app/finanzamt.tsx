@@ -7,7 +7,7 @@ import { Icon } from "../../components/Icon.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { elsterNotice, finanzamtFakten, type ElsterKind } from "../../lib/elster.ts";
 import type { ConfirmFact } from "../../components/ConfirmDialog.tsx";
-import { formatDate, formatDateTime } from "../../lib/format.ts";
+import { formatDate, formatDateTime, formatZeitraumAbJahresanfang } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
   disablePostfachAutoFetch,
@@ -62,7 +62,7 @@ function prepaymentLetter(data: Data, b: Basis, current: number | null, wanted: 
       (wanted !== null ? ` auf ${formatEuro(wanted)} je Quartal` : "") +
       " herabzusetzen (§ 37 Abs. 3 EStG).",
     "",
-    `Mein Gewinn aus ${art} beträgt nach meiner Buchführung vom 1. Januar bis ${formatDate(b.until)} ${formatEuro(b.profitSoFar)}. ` +
+    `Mein Gewinn aus ${art} beträgt nach meiner Buchführung für ${formatZeitraumAbJahresanfang(b.until)} ${formatEuro(b.profitSoFar)}. ` +
       `Auf das Jahr hochgerechnet erwarte ich einen Gewinn von rund ${formatEuro(b.profitForecast)} (Vorjahr: ${formatEuro(b.profitLastYear)}).` +
       (current !== null ? ` Die bisher festgesetzten Vorauszahlungen von ${formatEuro(current)} je Quartal sind deshalb zu hoch.` : ""),
     ...(usePrognose
@@ -163,7 +163,7 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
         <ScrollTable className="report-table">
           <tbody>
             <tr>
-              <th scope="row">Gewinn 1. Januar bis {formatDate(b.until)}</th>
+              <th scope="row">Gewinn {formatZeitraumAbJahresanfang(b.until)} (laufend)</th>
               <td className="num">{formatEuro(b.profitSoFar)}</td>
             </tr>
             <tr>
@@ -340,12 +340,28 @@ function MessageForm({
   );
 }
 
+const ZWECK_LABEL: Record<string, string> = {
+  geschaeft: "Geschäftskonto",
+  privat: "Privates Konto",
+  steuer: "Steuerkonto",
+  geldtransit: "Geldtransit",
+};
+
 function BankChangeForm({ data }: { data: Data }) {
   const send = useServerFn(sendFinanzamtBankChange);
-  const [iban, setIban] = useState(data.taxAccount?.iban ?? data.company.iban);
+  // Vorbelegung: das Konto mit dem Zweck "steuer", sonst die IBAN aus den Firmendaten.
+  const vorbelegt = data.taxAccount?.iban ?? data.company.iban ?? "";
+  // Welches gepflegte Konto ist vorbelegt? Vergleich ohne Leerzeichen und Gross-/Kleinschreibung,
+  // weil dieselbe IBAN in beiden Quellen unterschiedlich geschrieben sein kann.
+  const gleich = (a: string, b: string) => a.replace(/\s+/g, "").toUpperCase() === b.replace(/\s+/g, "").toUpperCase();
+  const [gewaehlt, setGewaehlt] = useState<string>(() => data.konten.find((k) => gleich(k.iban, vorbelegt))?.id ?? "");
+  const [frei, setFrei] = useState<string>(vorbelegt);
+  // Ein Konto aus der Liste hat Vorrang; das freie Feld gilt nur, wenn keines gewaehlt ist.
+  const iban = gewaehlt ? (data.konten.find((k) => k.id === gewaehlt)?.iban ?? frei) : frei;
   const compact = iban.replace(/\s+/g, "").toUpperCase();
   const plausible = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(compact);
   const ready = data.bankIssues.length === 0 && plausible;
+  const gewaehltesKonto = data.konten.find((k) => k.id === gewaehlt) ?? null;
 
   return (
     <SendPanel
@@ -356,6 +372,14 @@ function BankChangeForm({ data }: { data: Data }) {
       confirmFacts={[
         ...finanzamtFakten(data.company.finanzamt, data.company.steuernummer),
         ...(data.person ? [{ label: "Kontoinhaber", value: `${data.person.vorname} ${data.person.name}` }] : []),
+        ...(gewaehltesKonto
+          ? [
+              {
+                label: "Konto",
+                value: `${gewaehltesKonto.name}${gewaehltesKonto.zweck ? ` (${ZWECK_LABEL[gewaehltesKonto.zweck] ?? gewaehltesKonto.zweck})` : ""}`,
+              },
+            ]
+          : []),
         { label: "IBAN", value: compact, strong: true },
       ]}
       footer="Gilt für Erstattungen und, falls du eine Lastschrift erteilt hast, für den Einzug. Die PIN wird nicht gespeichert."
@@ -372,29 +396,66 @@ function BankChangeForm({ data }: { data: Data }) {
             Es fehlt noch: {data.bankIssues.join(", ")}. <Link to="/einstellungen">In den Einstellungen ergänzen</Link>
           </div>
         )}
-        <Field
-          label="IBAN"
-          hint={
-            <>
-              {data.taxAccount
-                ? `Vorbelegt mit deinem Steuerkonto ${data.taxAccount.name} (Zweck unter Bank). `
-                : "Vorbelegt mit der IBAN aus den Firmendaten; ein Konto mit dem Zweck „Steuerkonto“ unter Bank würde stattdessen vorgeschlagen. "}
-              Die Prüfziffer prüft der Server.
-            </>
-          }
-        >
-          {(control) => (
-            <input
-              {...control}
-              value={iban}
-              onChange={(e) => setIban(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="DE.."
-              aria-invalid={iban.trim() !== "" && !plausible}
-            />
-          )}
-        </Field>
+        {data.konten.length > 0 && (
+          <Field
+            label="Konto"
+            hint={
+              <>
+                Aus deinen gepflegten Konten mit Name und Zweck. Das Finanzamt nutzt das Konto für alle Steuerarten, also auch für Erstattungen. Ein Konto mit
+                dem Zweck „Steuerkonto“ ist vorbelegt.
+              </>
+            }
+          >
+            {(control) => (
+              <select
+                {...control}
+                value={gewaehlt}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setGewaehlt(id);
+                  // Beim Zurueckschalten auf "anderes Konto" bleibt der zuletzt getippte Wert stehen.
+                  if (id) setFrei(data.konten.find((k) => k.id === id)?.iban ?? frei);
+                }}
+              >
+                <option value="">Anderes Konto (IBAN eintippen)</option>
+                {data.konten.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.name}
+                    {k.zweck ? ` · ${ZWECK_LABEL[k.zweck] ?? k.zweck}` : ""}
+                    {` · ${k.iban.replace(/(.{4})/g, "$1 ").trim()}`}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        )}
+        {/* Freies Feld nur, wenn kein gepflegtes Konto gewaehlt ist: dann gibt es nichts zu tippen,
+            und die angezeigte IBAN ist garantiert die des gewaehlten Kontos. */}
+        {!gewaehltesKonto && (
+          <Field
+            label="IBAN"
+            hint={
+              <>
+                {data.konten.length > 0
+                  ? "Kein gepflegtes Konto passt? IBAN eintippen oder unter Bank ein Konto anlegen. "
+                  : "Noch kein Konto unter Bank gepflegt; die IBAN steht in den Firmendaten. "}
+                Die Prüfziffer prüft der Server.
+              </>
+            }
+          >
+            {(control) => (
+              <input
+                {...control}
+                value={frei}
+                onChange={(e) => setFrei(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="DE.."
+                aria-invalid={frei.trim() !== "" && !plausible}
+              />
+            )}
+          </Field>
+        )}
       </section>
     </SendPanel>
   );
