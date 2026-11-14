@@ -101,6 +101,9 @@ export const ERKLAERTE_ZEILEN = {
     ...EUER_EINNAHMEN.map(euerZeile),
     EUER_SUMMEN.einnahmen,
     ...EUER_AUSGABEN.map(euerZeile),
+    // Die nicht abziehbaren Teile stehen im Vordruck bei den beschränkt abziehbaren Ausgaben und zählen nicht zur Summe
+    euerZeile("bewirtungNichtAbziehbar"),
+    euerZeile("gewerbesteuerNichtAbziehbar"),
     EUER_SUMMEN.ausgaben,
     EUER_SUMMEN.gewinn,
     euerZeile("entnahmen"),
