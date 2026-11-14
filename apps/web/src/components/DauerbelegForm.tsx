@@ -123,19 +123,6 @@ export function DauerbelegForm({
   const sums = dauerbelegSummen(parsed);
   const due = Number(dueDays);
   const usedRates = new Set(amounts.map((a) => a.taxRate));
-  const valid =
-    name.trim() !== "" &&
-    supplierName.trim() !== "" &&
-    category !== "" &&
-    Boolean(nextDate) &&
-    (!endDate || endDate >= nextDate) &&
-    Number.isInteger(due) &&
-    due >= 0 &&
-    due <= 120 &&
-    parsed.length > 0 &&
-    parsed.every((a) => a.valid) &&
-    sums.gross > 0 &&
-    usedRates.size === amounts.length;
 
   const BETRAG = "Trag den Betrag als Zahl ein, etwa 850,00.";
   const { form, error, check } = useSubmitCheck({
@@ -174,7 +161,7 @@ export function DauerbelegForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!check() || !valid) return;
+    if (!check()) return;
     onSubmit(
       {
         name: name.trim(),
