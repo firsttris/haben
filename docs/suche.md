@@ -37,4 +37,4 @@ Ohne Eingabe zeigt die Suche die zuletzt geöffneten Kontakte, Rechnungen, Angeb
 
 ## Steuerberatung
 
-Der [Zugang für die Steuerberatung](steuerberatung.md) findet nur, was er auch sonst lesen darf: die Seiten seiner Navigation, festgeschriebene Rechnungen und Belege. Kontakte, Angebote und Entwürfe erscheinen nicht, auch nicht unter „Zuletzt angesehen“.
+Der [Zugang für die Steuerberatung](steuerberatung.md) findet nur, was er auch sonst lesen darf: die Seiten seiner Navigation, festgeschriebene Rechnungen und alle Belege, auch ungebuchte. Kontakte, Angebote und Rechnungsentwürfe erscheinen nicht, auch nicht unter „Zuletzt angesehen“.
