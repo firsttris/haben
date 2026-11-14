@@ -67,7 +67,7 @@ export function EntfernungForm({
         <Field label="Kilometer einfach">
           {(control) => <input {...control} value={km} onChange={(e) => setKm(e.target.value.replace(/[^\d,.]/g, ""))} inputMode="decimal" required />}
         </Field>
-        <Field label="Betriebsstätte">
+        <Field label="Betriebsstätte" hint={betrag > 0 && betriebsstaette.trim() === "" ? "Trag die Betriebsstätte ein, dann lässt sich buchen." : undefined}>
           {(control) => (
             <input
               {...control}
@@ -84,7 +84,6 @@ export function EntfernungForm({
         <button type="submit" className="btn btn-primary" disabled={busy || betrag === 0 || betriebsstaette.trim() === ""}>
           {betrag > 0 ? `${formatEuro(betrag)} buchen` : "Buchen"}
         </button>
-        {betrag > 0 && betriebsstaette.trim() === "" && <span className="small muted">Trag die Betriebsstätte ein, dann lässt sich buchen.</span>}
       </div>
     </form>
   );
