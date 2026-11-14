@@ -87,6 +87,8 @@ const envSchema = z
     LEXOFFICE_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
     /** Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert */
     SEVDESK_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
+    /** Adresse der FastBill-API, nur zum Testen oder falls FastBill die Adresse ändert */
+    FASTBILL_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
     /** Automatischer Kontoabruf: Application ID und privater Schlüssel (PEM oder Pfad zur PEM-Datei) der Enable-Banking-Anwendung */
     ENABLE_BANKING_APP_ID: z.string().optional(),
     ENABLE_BANKING_KEY: z.string().optional(),

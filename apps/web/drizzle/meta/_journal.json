@@ -1639,6 +1639,20 @@
       "when": 1794671331147,
       "tag": "0233_search_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 234,
+      "version": "7",
+      "when": 1794679515289,
+      "tag": "0234_fastbill",
+      "breakpoints": true
+    },
+    {
+      "idx": 235,
+      "version": "7",
+      "when": 1794679516079,
+      "tag": "0235_fastbill_trigger",
+      "breakpoints": true
     }
   ]
 }
