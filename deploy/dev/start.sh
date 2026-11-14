@@ -2,7 +2,7 @@
 # Start des Entwicklungs-Containers (compose.yml im Hauptordner): Abhängigkeiten, Schlüssel, Migrationen, Dev-Server
 set -eu
 
-modules="/app/node_modules /app/apps/web/node_modules /app/apps/elster-helfer/node_modules /app/packages/core/node_modules
+modules="/app/node_modules /app/apps/web/node_modules /app/apps/elster-helfer/node_modules /app/apps/portal/node_modules /app/packages/core/node_modules
   /app/packages/einvoice/node_modules /app/packages/elster/node_modules /app/packages/gobd-kern/node_modules
   /app/packages/import/node_modules"
 
