@@ -1268,6 +1268,7 @@ const LEGACY_SOURCE_LABELS = {
   sevdesk: "sevDesk",
   buchhaltungsbutler: "BuchhaltungsButler",
   accountable: "Accountable",
+  wiso: "WISO",
   import: "JSON-Import",
 } as const;
 

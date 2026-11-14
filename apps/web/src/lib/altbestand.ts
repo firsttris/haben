@@ -6,6 +6,7 @@ export const LEGACY_SOURCE: Record<LegacySource, { name: string; product: string
   sevdesk: { name: "sevDesk", product: "sevDesk" },
   buchhaltungsbutler: { name: "BuchhaltungsButler", product: "BuchhaltungsButler" },
   accountable: { name: "Accountable", product: "Accountable" },
+  wiso: { name: "WISO", product: "WISO EÜR & Kasse / WISO Steuer" },
   import: { name: "JSON-Import", product: "Quellprogramm" },
 };
 

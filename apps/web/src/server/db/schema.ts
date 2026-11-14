@@ -2808,7 +2808,7 @@ export const sevdeskConnection = pgTable(
 );
 
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import"] as const;
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 /**
