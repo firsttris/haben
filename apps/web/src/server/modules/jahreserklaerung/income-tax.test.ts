@@ -30,6 +30,18 @@ describe.skipIf(!testDatabaseUrl)("Angaben zur Einkommensteuer (Postgres)", () =
     await expect(incomeTax.saveEstAngaben(actor, 2025, { kinder: [{ ...kind, familienkasse: "" }] })).rejects.toThrow(/Familienkasse/);
   });
 
+  it("speichert Einkommensersatzleistungen mit Art und Betrag je Person", async () => {
+    const ersatzleistungen = {
+      a: [
+        { art: "Elterngeld", betrag: 1_000_050 },
+        { art: "Krankengeld", betrag: 123_440 },
+      ],
+      b: [{ art: "Arbeitslosengeld", betrag: 500_000 }],
+    };
+    await incomeTax.saveEstAngaben(actor, 2021, { ersatzleistungen });
+    expect((await incomeTax.loadEstAngaben(2021)).ersatzleistungen).toEqual(ersatzleistungen);
+  });
+
   it("speichert das häusliche Arbeitszimmer der Anlage N", async () => {
     await incomeTax.saveEstAngaben(actor, 2023, {
       arbeitnehmer: { a: { bescheinigungen: [{ steuerklasse: 1, brutto: 5_000_000 }], werbungskosten: { arbeitszimmer: 126_000 } } },
