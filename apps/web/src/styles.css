@@ -226,11 +226,11 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   [data-nav="collapsed"] .nav-variante-voll { display: none; }
   [data-nav="collapsed"] .nav-variante-rail { display: contents; }
   /* Fest positioniert ohne top und left bleibt der Hinweis an seinem Platz im Fluss, mitten im 40px-Symbol, und rollt
-     mit; verschoben beginnt er am rechten Rand des Symbols, die durchsichtige linke Kante (16px) überbrückt die Lücke
-     bis zur Kante des Flyouts (68px, 4px neben der Leiste wie .split-menu unter seinem Knopf), damit der Zeiger
-     ihn erreicht (WCAG 1.4.13). Esc setzt data-nav-tip="aus" (routes/_app.tsx) */
+     mit; verschoben steht er wie das Flyout bei 68px, 4px neben der Leiste. Esc setzt data-nav-tip="aus" (routes/_app.tsx) */
   /* Die Marke zeigt ihren eigenen, sonst verborgenen Text als Hinweis: „Haben“ und die Firma, in der man bucht (#504) */
-  :root[data-nav="collapsed"]:not([data-nav-tip="aus"]) :is(.nav-tip-anker:is(:hover, :focus-visible) > .nav-tip, .brand:is(:hover, :focus-visible) > .brand-text) { display: block; height: auto; overflow: visible; clip: auto; position: fixed; z-index: 41; width: max-content; max-width: 240px; padding: 4px 8px; border-left: 16px solid transparent; border-radius: 8px; background: var(--nav-active) padding-box; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); color: var(--nav-ink-strong); font-size: 13px; font-weight: 500; line-height: 20px; text-align: left; white-space: normal; overflow-wrap: anywhere; transform: translateX(calc(50% + 20px)); }
+  :root[data-nav="collapsed"]:not([data-nav-tip="aus"]) :is(.nav-tip-anker:is(:hover, :focus-visible) > .nav-tip, .brand:is(:hover, :focus-visible) > .brand-text) { display: block; height: auto; overflow: visible; clip: auto; position: fixed; z-index: 41; width: max-content; max-width: 240px; padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); color: var(--nav-ink-strong); font-size: 13px; font-weight: 500; line-height: 20px; text-align: left; white-space: normal; overflow-wrap: anywhere; transform: translateX(calc(50% + 36px)); }
+  /* Unsichtbare Brücke über die 16px bis zum Symbol, damit der Zeiger den Hinweis erreicht (WCAG 1.4.13) */
+  :root[data-nav="collapsed"]:not([data-nav-tip="aus"]) :is(.nav-tip-anker:is(:hover, :focus-visible) > .nav-tip, .brand:is(:hover, :focus-visible) > .brand-text)::before { content: ""; position: absolute; top: 0; bottom: 0; right: 100%; width: 16px; }
 }
 .nav-rail-item { position: relative; display: flex; justify-content: center; }
 .nav-rail-link,

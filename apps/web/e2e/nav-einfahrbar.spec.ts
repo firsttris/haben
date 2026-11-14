@@ -157,6 +157,16 @@ test("eingeklappt: Überfahren öffnet die Gruppe, Hinweise statt title, aktiv a
   const hinweis = nav(page).locator(".nav-tip", { hasText: /^Übersicht$/ });
   await uebersicht.hover();
   await expect(hinweis).toBeVisible();
+  // Runde Ecken auf allen Seiten, 4px neben der Leiste wie das Flyout, und der Zeiger erreicht ihn über die Lücke
+  expect(
+    await hinweis.evaluate((el) => {
+      const stil = getComputedStyle(el);
+      return { links: Math.round(el.getBoundingClientRect().left), rand: stil.borderLeftWidth, ecke: stil.borderTopLeftRadius };
+    }),
+  ).toEqual({ links: 68, rand: "0px", ecke: "8px" });
+  await hinweis.hover();
+  await expect(hinweis).toBeVisible();
+  await uebersicht.hover();
   await page.keyboard.press("Escape");
   await expect(hinweis).toBeHidden();
   await page.mouse.move(900, 600);
