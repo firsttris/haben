@@ -49,7 +49,11 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
   });
 
-  async function invoice(lines: { net: number; rate: 1900 | 700 }[], issueDate = "2026-09-20") {
+  async function invoice(
+    lines: { net: number; rate: 1900 | 700 }[],
+    issueDate = "2026-09-20",
+    service: { from: string | null; to: string | null } = { from: null, to: null },
+  ) {
     const contact = await contacts.createContact(actor, {
       kundennummer: "",
       name: "Nordwerk Software GmbH",
@@ -66,8 +70,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     const draft = await invoices.createDraft(actor, {
       contactId: contact.id,
       issueDate,
-      serviceFrom: null,
-      serviceTo: null,
+      serviceFrom: service.from,
+      serviceTo: service.to,
       paymentTermDays: 14,
       format: "zugferd",
       note: "",
@@ -93,6 +97,17 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     await documents.bookDocument(actor, id);
     return id;
   }
+
+  it("Soll: Umsatzsteuer im Leistungszeitraum, nicht im Zeitraum des Rechnungsdatums (#694)", async () => {
+    await sql`update company set versteuerung = 'soll' where id = 1`;
+    // Leistung im Mai (Q2), Rechnung im Juli (Q3): gemeldet wird Q2
+    await invoice([{ net: 100_000, rate: 1900 }], "2026-07-20", { from: "2026-05-01", to: "2026-05-31" });
+
+    const q2 = await figures.computeVatFigures({ year: 2026, month: 42 });
+    const q3 = await figures.computeVatFigures({ year: 2026, month: 43 });
+    expect(q2.kz81 + q2.tax81).toBe(119_000);
+    expect(q3.kz81 + q3.tax81).toBe(0);
+  }, 30_000);
 
   it("Ist: Umsatzsteuer nach Zahlungseingang, anteilig, Vorsteuer nach Belegdatum", async () => {
     const inv = await invoice([

@@ -151,6 +151,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `user`, `session`, `account`, `verification`, `passkey` | Tabellen von Better Auth samt Passkey-Plugin; `user` trägt Rolle (`inhaber`, `steuerberatung`) und Sperre | `user`: genau ein lokaler Inhaber (`user_inhaber_single`), lokale Rolle nur durch den auditierten Offline-Rückweg änderbar, Audit; Passwörter und Sitzungen ohne Audit |
 | `invitations` | Einladungen für die Steuerberatung: SHA-256 des Tokens, Rolle, Bezeichnung, Frist, eingelöst bzw. zurückgezogen | nur einmal einlösen oder zurückziehen, nie löschen; Audit |
 | `user_logins` | Jede Anmeldung mit Konto, Rolle und Art (Passwort, Passkey, Einrichtung, SSO) | nur anhängen, Audit |
+| `password_changes` | Jeder Passwortwechsel mit Konto und Zeitpunkt, ohne Passwort oder Hash | nur anhängen, Audit |
 | `sso_issuers`, `sso_takeovers` | Einrichtung je Issuer und Betreiberzuordnung | nur anhängen, Audit |
 | `sso_roles` | Zuletzt bestätigte externe Rolle je Konto und Issuer | Audit |
 | `token_events`, `local_owner_recoveries` | Token-Verwaltung ohne Geheimnisse und Offline-Vorbereitung eines lokalen Inhabers | nur anhängen, Audit |

@@ -31,6 +31,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
   let annual: typeof import("./annual.ts");
   let assets: typeof import("../buchhaltung/assets.ts");
   let bank: typeof import("../bank/bank.ts");
+  let cashInvoice: typeof import("../bank/cash-invoice.ts");
+  let cashIncome: typeof import("../bank/cash-income.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -45,6 +47,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     annual = await import("./annual.ts");
     assets = await import("../buchhaltung/assets.ts");
     bank = await import("../bank/bank.ts");
+    cashInvoice = await import("../bank/cash-invoice.ts");
+    cashIncome = await import("../bank/cash-income.ts");
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
@@ -257,7 +261,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         payment: "bank",
         note: "",
         reverseCharge: "ig_erwerb",
-        amounts: [{ taxRate: 1900, net: 20_000, tax: 3_800 }],
+        // Belegsteuer 19,19 € zu 100,99 € netto: centgenau abweichend von der Steuer auf volle Euro
+        amounts: [{ taxRate: 1900, net: 10_099, tax: 1_919 }],
       } as Parameters<typeof documents.updateDocument>[2]);
       await documents.bookDocument(actor, erwerbId);
       const { id: zollId } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 14]), filename: "zoll-14.jpg" });
@@ -283,13 +288,15 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         kz84: 5_000,
         kz85: 950,
         kz67: 2_869,
-        kz89: 20_000,
-        tax89: 3_800,
-        kz61: 3_800,
+        kz89: 10_000,
+        // Erwerbsteuer wie in der Voranmeldung aus der vollen Bemessungsgrundlage (taxOf 100 €),
+        // nicht die Belegsumme 19,19 €; die Vorsteuer (Kz 61) bleibt die Belegsumme
+        tax89: 1_900,
+        kz61: 1_919,
         kz62: 3_800,
       });
-      // Steuer 1.919 + 950 + 3.800, Vorsteuer 2.869 + 3.800 + 3.800
-      expect(ust.steuer).toBe(1_919 + 950 + 3_800 - (2_869 + 3_800 + 3_800));
+      // Steuer 1.919 + 950 + 1.900, Vorsteuer 2.869 + 1.919 + 3.800
+      expect(ust.steuer).toBe(1_919 + 950 + 1_900 - (2_869 + 1_919 + 3_800));
       // Keine Sperre mehr: Diese Kennzahlen gehen jetzt in die Erklärung
       expect(annual.ustIssues(false, ust, 2025).every((i) => i.tone !== "fehler")).toBe(true);
       // Mein ELSTER bekommt dieselben Feldkennungen wie das E50-XML
@@ -302,12 +309,13 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         ["E3102503", "50"],
         ["E3102504", "9,50"],
         ["E3102601", "28,69"],
-        ["E3100902", "200"],
-        ["E3100903", "38,00"],
+        ["E3100902", "100"],
+        ["E3100903", "19,00"],
+        ["E3006301", "19,19"],
         ["E3006502", "28,69"],
         ["E3006401", "38,00"],
-        ["E3006901", "104,69"],
-        ["E3010201", "-38,00"],
+        ["E3006901", "85,88"],
+        ["E3010201", "-38,19"],
       ] as const) {
         expect(felder.get(kennung), kennung).toBe(wert);
       }
@@ -315,12 +323,12 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     30_000,
   );
 
-  it("Nur steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) sperren die Übermittlung", async () => {
+  it("Steuerfreie Umsätze ohne zuordenbare Nummer (Kz 48) sperren die Übermittlung", async () => {
     const basis = {
       figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0 },
       steuer: 0,
       abschluss: 0,
-      kz48: 0,
+      kz48Gesperrt: [] as { quelle: string; text: string; betrag: number; grund: "nummer" | "hilfsumsatz" }[],
       missingMonths: [] as number[],
       lastFilingPeriod: null,
     };
@@ -329,14 +337,106 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         .ustIssues(false, { ...basis, figures: { ...basis.figures, kz47: 1_900, kz67: 1_900 }, missingMonths: [1, 2] }, 2025)
         .every((i) => i.tone !== "fehler"),
     ).toBe(true);
-    const gesperrt = annual.ustIssues(false, { ...basis, kz48: 12_345 }, 2025);
-    expect(gesperrt.some((i) => i.tone === "fehler" && /Kz 48/.test(i.text))).toBe(true);
+    // Die Zeilen 46 und 47 gehen in die Erklärung, ohne gesperrte Anteile gibt es keine Sperre
+    expect(
+      annual
+        .ustIssues(false, { ...basis, figures: { ...basis.figures, kz48Zeile46: 50_000, kz48Zeile47: 30_000, kz48Zeile47Nummern: "21" } }, 2025)
+        .every((i) => i.tone !== "fehler"),
+    ).toBe(true);
+    const gesperrt = annual.ustIssues(
+      false,
+      {
+        ...basis,
+        kz48Gesperrt: [
+          { quelle: "2025-004", text: "Steuerfrei nach § 4 Nr. 8 bis 29 UStG", betrag: 12_345, grund: "nummer" },
+          { quelle: "Kasse", text: "Basar", betrag: 8_000, grund: "nummer" },
+          { quelle: "2025-009", text: "Steuerfrei nach § 4 Nr. 8 a UStG", betrag: 10_000, grund: "hilfsumsatz" },
+        ],
+      },
+      2025,
+    );
+    expect(gesperrt.some((i) => i.tone === "fehler" && /Nr\. 21 UStG/.test(i.text) && /Kasse/.test(i.text))).toBe(true);
+    expect(gesperrt.some((i) => i.tone === "fehler" && /Hilfsumsatz/.test(i.text))).toBe(true);
     // Ein Jahr nur mit ergänzenden Angaben gilt nicht als Nullerklärung
     expect(annual.ustIssues(false, { ...basis, figures: { ...basis.figures, kz45: 5_000 } }, 2025).some((i) => /Nullerklärung/.test(i.text))).toBe(false);
     expect(annual.ustIssues(false, basis, 2025).some((i) => /Nullerklärung/.test(i.text))).toBe(true);
     // Der Vermerk „außerhalb abgegeben“ unterdrückt die Nullerklärungs-Meldung auch mit unserer Prüfung
     expect(annual.ustIssues(false, basis, 2025, { vermerkt: true }).some((i) => /Nullerklärung/.test(i.text))).toBe(false);
   });
+
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)(
+    "%s, %s: steuerfreie Umsätze (Kz 48) verteilen sich auf die Zeilen 46 und 47, Unlesbares sperrt",
+    async (kontenrahmen, versteuerung) => {
+      await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+      const contact = await contacts.createContact(actor, {
+        kundennummer: "",
+        name: "Kulturverein Regensburg e.V.",
+        strasse: "Vereinsweg 3",
+        plz: "93049",
+        ort: "Regensburg",
+        land: "DE",
+        email: "kasse@kulturverein.example",
+        ustId: "",
+        iban: "",
+        leitwegId: "",
+        defaultFormat: null,
+      });
+      const rechnung = async (grund: string, net: number, monat: number) => {
+        const draft = await invoices.createDraft(actor, {
+          contactId: contact.id,
+          issueDate: `2025-${String(monat).padStart(2, "0")}-05`,
+          serviceFrom: null,
+          serviceTo: null,
+          paymentTermDays: 14,
+          format: "zugferd",
+          note: "",
+          taxTreatment: "steuerfrei",
+          exemptionReason: grund,
+          lines: [{ description: "Leistung", quantity: 1000, unit: "Stk.", unitPrice: net, taxRate: 0 }],
+        });
+        const inv = await invoices.finalizeInvoice(actor, draft.id);
+        // Bei Ist-Versteuerung zählt der Umsatz erst mit der Zahlung
+        if (versteuerung === "ist") {
+          await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: inv.id, date: `2025-${String(monat).padStart(2, "0")}-10`, amount: net }, "2025-12-31");
+        }
+        return inv;
+      };
+      await rechnung("Steuerfrei nach § 4 Nr. 12 UStG", 50_000, 3); // Vermietung -> Zeile 46
+      await rechnung("Steuerfrei nach § 4 Nr. 21 UStG", 30_000, 4); // Nachhilfe -> Zeile 47
+      await rechnung("§ 4 Nr. 14 UStG", 20_000, 5); // -> Zeile 47
+      const standardtext = await rechnung("Steuerfrei nach § 4 Nr. 8 bis 29 UStG", 15_000, 6); // Bereich -> gesperrt
+      const hilfsumsatz = await rechnung("Steuerfrei nach § 4 Nr. 8 a UStG", 10_000, 8); // Hilfsumsatz -> gesperrt
+      // Bareinnahme ohne Rechnung: kein Befreiungstext, immer gesperrt
+      await cashIncome.createCashIncome(
+        actor,
+        { date: "2025-07-05", amount: 8_000, text: "Basar", steuer: { behandlung: "steuerfrei", steuersatz: 0 } },
+        "2025-12-31",
+      );
+
+      const ust = await annual.ustYear(2025);
+      expect(ust.figures.kz48Zeile46).toBe(50_000);
+      expect(ust.figures.kz48Zeile47).toBe(50_000);
+      expect(ust.figures.kz48Zeile47Nummern).toBe("14, 21");
+      expect(ust.kz48Gesperrt).toEqual([
+        { quelle: standardtext.number, text: "Steuerfrei nach § 4 Nr. 8 bis 29 UStG", betrag: 15_000, grund: "nummer" },
+        { quelle: "Kasse", text: "Basar", betrag: 8_000, grund: "nummer" },
+        { quelle: hilfsumsatz.number, text: "Steuerfrei nach § 4 Nr. 8 a UStG", betrag: 10_000, grund: "hilfsumsatz" },
+      ]);
+      const texte = annual
+        .ustIssues(false, ust, 2025)
+        .map((i) => i.text)
+        .join(" ");
+      expect(texte).toMatch(/Nr\. 21 UStG/);
+      expect(texte).toMatch(/Hilfsumsatz/);
+      // Gesperrte Anteile: weder übermitteln noch die Werte für Mein ELSTER lesen
+      const mein = await import("./mein-elster.ts");
+      await expect(mein.meinElsterWerte("ust", 2025, TODAY)).rejects.toThrow();
+    },
+    30_000,
+  );
 
   it("Link zu fehlenden Voranmeldungen nennt den letzten Zeitraum des betroffenen Jahres (#869)", async () => {
     const hinweis = (data: Awaited<ReturnType<typeof annual.ustYear>>) => annual.ustIssues(false, data, 2025).find((i) => i.link === "/umsatzsteuer");
@@ -439,7 +539,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]!.link).toBe("/einstellungen");
   });
 
-  it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 meldet die Vorprüfung vor dem Senden (#708)", async () => {
+  it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 wird vor dem Senden umgegliedert (#708, #933)", async () => {
     await year2025();
     const euer = await annual.euerYear(2025);
     const { loadCompany } = await import("../stammdaten/index.ts");
@@ -452,10 +552,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Der Grund muss tone fehler tragen: checkAnnual bricht nur darauf ab und würde sonst weiter senden.
     // euerIssues meldet auch anderes (fehlende Einkunftsart, Kontenrahmen), deshalb grenzt der Filter auf Zeile 18 und 58 ein.
     const fehler = (data: typeof euer) => annual.euerIssues(company, data).filter((i) => i.tone === "fehler" && /Zeile (58|18) \(Kz/.test(i.text));
-    // Die Anlage EÜR nimmt in Zeile 58 (E6005101) kein Vorzeichen an: der Versand wird vor ERiC gestoppt
-    expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
-    expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/steuerlich zu klären/);
-    expect(texte({ ...euer, figures: { ...euer.figures, erstatteteUst: -19_000 } })).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
+    const hinweis = (data: typeof euer) => annual.euerIssues(company, data).filter((i) => i.tone === "hinweis" && /Zeile (58|18) \(Kz/.test(i.text));
+    // Ein negativer Saldo wird umgegliedert statt mit Vorzeichen gesendet: Hinweis, kein Fehler (#933)
+    const umgliederung = [
+      "In Zeile 58 (Kz E6005101, „An das Finanzamt gezahlte und ggf. verrechnete Umsatzsteuer“) standen 190,00: im Jahr wurde mehr Umsatzsteuer erstattet als gezahlt. Der Gewinn bleibt gleich, gebuchte Daten ändern sich nicht.",
+    ];
+    expect(texte({ ...euer, ustUmgliederung: umgliederung })).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
+    expect(texte({ ...euer, ustUmgliederung: umgliederung })).toMatch(/Der Gewinn bleibt gleich/);
+    expect(hinweis({ ...euer, ustUmgliederung: umgliederung })).toHaveLength(1);
     // Ohne negativen Betrag bleibt die Vorprüfung still
     expect(texte(euer)).not.toMatch(/Zeile 58|Zeile 18 \(Kz/);
     expect(fehler({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toHaveLength(1);
@@ -680,6 +784,42 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(xml).toMatch(/<N>\s*<Person>PersonB<\/Person>\s*<ArbL>\s*<LStB_1_5_Einz>\s*<E0200204>42000,00<\/E0200204>/);
     expect(xml).toContain("<E0203501>77815 Bühl, Industriestraße 4</E0203501>");
     expect(xml).toMatch(/<AVor>\s*<Person>PersonB<\/Person>\s*<E2000401>3906<\/E2000401>\s*<E2000801>3906<\/E2000801>/);
+  });
+
+  it("warnt, wenn die Anlage N ein Arbeitszimmer und zusätzlich Homeoffice-Tage hat", async () => {
+    const taxpayer = await import("../stammdaten/taxpayer.ts");
+    const incomeTax = await import("./income-tax.ts");
+    const pauschalen = await import("../buchhaltung/pauschalen.ts");
+    await leeren(sql)`truncate income_tax_inputs`;
+    await year2025();
+    await assets.bookDepreciation(actor, 2025, TODAY);
+    await taxpayer.saveTaxpayer(actor, {
+      a: { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" },
+      veranlagung: "einzel",
+    });
+    const bescheinigung = [{ steuerklasse: 1 as const, brutto: 4_200_000 }];
+
+    // Nur das Arbeitszimmer, keine Tagespauschale: kein Hinweis
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.some((i) => /Arbeitszimmer/.test(i.text))).toBe(false);
+
+    // Arbeitszimmer und Homeoffice-Tage im selben Jahr schließen sich aus (§ 4 Abs. 5 Satz 1 Nr. 6c Satz 3 EStG)
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, homeofficeTage: 20 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Arbeitszimmer/.test(i.text))).toMatchObject({
+      tone: "hinweis",
+      link: "/pauschalen",
+    });
+
+    // Dasselbe gegen die Tagespauschale in der EÜR: auch dort gibt es das Arbeitszimmer je Person nur einmal
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000 } } },
+    });
+    await pauschalen.createPauschale(actor, { art: "homeoffice", month: "2025-03", tage: 5 }, TODAY);
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.some((i) => /Arbeitszimmer/.test(i.text))).toBe(true);
   });
 
   it("Werte für Mein ELSTER: dieselben Felder wie im XML, das beim Prüfen über ERiC rausgeht", async () => {

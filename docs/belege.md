@@ -7,7 +7,7 @@ description: >-
 
 # Belege und Eingangsrechnungen
 
-Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen liest Haben direkt aus, andere PDFs und Fotos auf Wunsch mit Claude. Du prüfst die Felder, wählst eine Kategorie und buchst den Beleg; danach ist er festgeschrieben.
+Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen liest Haben direkt aus, andere PDFs und Fotos auf Wunsch mit Claude. Du prüfst die Felder, wählst eine Kategorie und buchst den Beleg; danach ist er festgeschrieben. Das Suchfeld über der Liste filtert nach Lieferant, Rechnungsnummer, Dateiname und Bruttobetrag, die [Schnellsuche](suche.md) über alle Bereiche.
 
 <img src="screenshot-belege.png" alt="Belegdetail mit PDF-Vorschau links und den ausgelesenen Feldern Lieferant, Belegdatum, Kategorie und Beträge je Steuersatz rechts" width="900">
 
@@ -429,7 +429,7 @@ Nach einem Import liegen oft viele Belege auf „Zu prüfen“. Damit du sie ohn
 | --- | --- |
 | `J` oder `→` | Nächster Beleg (nicht in Eingabefeldern) |
 | `K` oder `←` | Vorheriger Beleg |
-| `Strg+Enter` (Mac: `Cmd+Enter`) | Wie ein Klick auf **Bestätigen und buchen**, auch aus einem Eingabefeld. Gebucht wird wie mit der Maus erst im Dialog. |
+| `Strg+Enter` (Mac: `⌘+Enter`) | Wie ein Klick auf **Bestätigen und buchen**, auch aus einem Eingabefeld. Gebucht wird wie mit der Maus erst im Dialog. |
 | `Esc` | Bricht die Rückfrage zum Buchen oder Löschen ab, sonst zurück zur Liste (nicht in Eingabefeldern) |
 
 Auf dem Handy wischst du nach links zum nächsten und nach rechts zum vorigen Beleg.

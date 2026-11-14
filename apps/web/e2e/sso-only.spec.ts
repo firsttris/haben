@@ -128,6 +128,7 @@ test("SSO-Modus: Einrichtung, automatische Anlage, Zugänge, Gruppenentzug und e
     await expect(page.getByRole("button", { name: /Sperren|Freigeben|Entfernen|Einladungslink/ })).toHaveCount(0);
     await expect(page.getByLabel("Bezeichnung")).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Passkeys" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Passwort ändern" })).toHaveCount(0);
     await noAxeViolations(page);
     await capture(page, "sso-zugaenge");
 

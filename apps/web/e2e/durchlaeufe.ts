@@ -20,6 +20,7 @@ export const DURCHLAEUFE = {
   "dauerfrist-euer": 12,
   verrechnung: 13,
   firmen: 14,
+  passwort: 16,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

@@ -1,4 +1,5 @@
 export * from "./money.ts";
+export * from "./search-money.ts";
 export * from "./currency.ts";
 export * from "./period.ts";
 export * from "./voranmeldungszeitraum.ts";
@@ -95,3 +96,4 @@ export * from "./advance-receivables.ts";
 export * from "./own-accounts.ts";
 export * from "./external-settlements.ts";
 export * from "./leistungsdatum.ts";
+export * from "./paragraph4.ts";

@@ -1,30 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import type { Firma } from "../lib/firmen.ts";
-import type { NavBedingung } from "../lib/navigation.ts";
+import type { EigeneSeiteNav as EigeneSeite, NavGroup } from "../lib/navigation.ts";
 import { STEUERBERATUNG_START } from "../lib/rollen.ts";
 import { FirmaListe, FirmaWechsler } from "./FirmaWechsler.tsx";
-import { Icon, type IconName } from "./Icon.tsx";
+import { Icon } from "./Icon.tsx";
 import { NavFlyout } from "./NavFlyout.tsx";
 import { ThemePicker } from "./ThemePicker.tsx";
-
-export interface NavLink extends NavBedingung {
-  to: string;
-  icon: IconName;
-  label: string;
-}
-
-export interface NavGroup {
-  label: string;
-  icon: IconName;
-  links: readonly NavLink[];
-}
-
-export interface EigeneSeite {
-  id: string;
-  name: string;
-  url: string;
-  openInNewTab: boolean;
-}
 
 interface CollapseButtonProps {
   collapsed: boolean;
@@ -220,7 +201,7 @@ export function NavExpandedBody({
 }: Omit<NavBodyProps, "pathname" | "openFlyout" | "onFlyoutToggle" | "onFlyoutClose">) {
   return (
     <>
-      {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im Menü, also in der Tab-Reihenfolge gleich nach der Marke */}
+      {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im rollenden Menü */}
       {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
       <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
         <Icon name="overview" />

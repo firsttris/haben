@@ -100,6 +100,21 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
     expect(await app`select current_user as role, session_user as login`).toEqual([{ role: appRole, login: appRole }]);
   });
 
+  it("liest den Sperrtriggerbestand auch mit der eingeschränkten App-Anmeldung (#764)", async () => {
+    await start();
+    const { drizzle } = await import("drizzle-orm/postgres-js");
+    const { checkTriggerIntegrity } = await import("./trigger-inventory.ts");
+    expect(await checkTriggerIntegrity(drizzle(app))).toEqual({ problems: [], hints: [] });
+    await admin`alter table contacts disable trigger contacts_no_delete`;
+    try {
+      expect((await checkTriggerIntegrity(drizzle(app))).problems).toContainEqual(
+        expect.objectContaining({ art: "sperre", tabelle: "contacts", befund: expect.stringContaining("contacts_no_delete") }),
+      );
+    } finally {
+      await admin`alter table contacts enable trigger contacts_no_delete`;
+    }
+  });
+
   it("sperrt DDL, Replikationsparameter, Eigentümerwechsel und Schattenrelationen für die echte App-Anmeldung", async () => {
     await start();
     const [owner] = await admin`select current_user as name`;

@@ -1,10 +1,13 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
 import { type PointerEvent, type RefObject, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { NavExpandedBody, type NavLink, NavRailBody } from "../components/NavMenu.tsx";
+import { NavExpandedBody, NavRailBody } from "../components/NavMenu.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
-import { navLinkSichtbar } from "../lib/navigation.ts";
+import { CommandPalette, PALETTE_KUERZEL } from "../components/CommandPalette.tsx";
+import { Kuerzel } from "../components/Kuerzel.tsx";
+import { ariaKuerzel } from "../lib/tastatur.ts";
+import { NAV_GROUPS, STEUERBERATUNG_NAV, navLinkSichtbar } from "../lib/navigation.ts";
 import { readNavCollapsed, saveNavCollapsed, subscribeNavCollapsed } from "../lib/nav-rail.ts";
 import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
@@ -30,92 +33,6 @@ export const Route = createFileRoute("/_app")({
   },
   component: AppLayout,
 });
-
-/** Hauptnavigation nach Arbeitsbereichen; Einstellungen stehen unten bei Konto und Abmelden */
-const NAV_GROUPS = [
-  {
-    label: "Verkauf",
-    icon: "invoice",
-    links: [
-      { to: "/angebote", icon: "quote", label: "Angebote" },
-      { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
-      { to: "/lastschriften", icon: "bank", label: "Lastschriften" },
-      { to: "/kontakte", icon: "contacts", label: "Kontakte" },
-      { to: "/artikel", icon: "article", label: "Artikel" },
-      { to: "/leistungen", icon: "calendar", label: "Leistungen" },
-      { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },
-    ],
-  },
-  {
-    label: "Ausgaben",
-    icon: "receipt",
-    links: [
-      { to: "/belege", icon: "receipt", label: "Belege" },
-      { to: "/dauerbelege", icon: "calendar", label: "Dauerbelege" },
-      { to: "/ueberweisungen", icon: "bank", label: "Überweisungen" },
-      // Pauschalen ersetzen Ausgaben des Inhabers, eine GmbH oder UG hat sie nicht
-      { to: "/pauschalen", icon: "pauschale", label: "Pauschalen", nurEinzelunternehmen: true },
-      { to: "/anlagen", icon: "assets", label: "Anlagen" },
-    ],
-  },
-  {
-    label: "Geld",
-    icon: "bank",
-    links: [
-      { to: "/bank", icon: "bank", label: "Bank" },
-      { to: "/kasse", icon: "cash", label: "Kasse" },
-      { to: "/darlehen", icon: "bank", label: "Darlehen" },
-    ],
-  },
-  {
-    label: "Personal",
-    icon: "payroll",
-    links: [
-      { to: "/lohn", icon: "payroll", label: "Lohn" },
-      // Lohn bleibt immer sichtbar, dort entsteht der erste Mitarbeiter
-      { to: "/sv-meldeportal", icon: "mail", label: "SV-Meldeportal", nurMitMitarbeitern: true },
-    ],
-  },
-  {
-    label: "Steuern",
-    icon: "vat",
-    links: [
-      { to: "/umsatzsteuer", icon: "vat", label: "Umsatzsteuer" },
-      { to: "/jahreserklaerung", icon: "annual", label: "Jahreserklärung" },
-      // Gewinnausschüttung und Kapitalertragsteuer gibt es nur für GmbH und UG
-      { to: "/ausschuettungen", icon: "cash", label: "Ausschüttungen", nurKapitalgesellschaft: true },
-      { to: "/finanzamt", icon: "mail", label: "Finanzamt" },
-      { to: "/fristen", icon: "calendar", label: "Fristen" },
-    ],
-  },
-  {
-    label: "Buchhaltung",
-    icon: "reports",
-    links: [
-      { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
-      { to: "/buchungen", icon: "journal", label: "Buchungen" },
-      { to: "/konten", icon: "ledger", label: "Konten" },
-      // Bilanz und Abschluss gibt es nur für GmbH und UG
-      { to: "/abschluss", icon: "annual", label: "Jahresabschluss", nurKapitalgesellschaft: true },
-      { to: "/archiv", icon: "archive", label: "Archiv" },
-    ],
-  },
-] as const;
-
-/** Navigation der Steuerberatung: nur lesen */
-const STEUERBERATUNG_NAV = [
-  {
-    label: "Steuerberatung",
-    icon: "ledger",
-    links: [
-      { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
-      { to: "/buchungen", icon: "journal", label: "Buchungen" },
-      { to: "/konten", icon: "ledger", label: "Konten" },
-      { to: "/belege", icon: "receipt", label: "Belege" },
-      { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
-    ],
-  },
-] as const;
 
 function useFirmaBrand() {
   const firmaRef = useRef<HTMLSpanElement>(null);
@@ -170,9 +87,9 @@ function useRailState() {
   return { collapsed, railMode, openFlyout, setOpenFlyout };
 }
 
-function useMobileMenuEscape(menuOpen: boolean, onClose: () => void, toggle: RefObject<HTMLButtonElement | null>) {
+function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: () => void, toggle: RefObject<HTMLButtonElement | null>) {
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen || paletteOpen) return;
     function onKey(event: KeyboardEvent) {
       // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst; der Desktop-Umschalter blockiert Esc nicht
       if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]:not(.nav-collapse-btn)')) return;
@@ -183,28 +100,25 @@ function useMobileMenuEscape(menuOpen: boolean, onClose: () => void, toggle: Ref
     }
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [menuOpen, onClose, toggle]);
+  }, [menuOpen, paletteOpen, onClose, toggle]);
 }
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen, zeichen } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, oidc } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const { collapsed, railMode, openFlyout, setOpenFlyout } = useRailState();
   // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
-  const { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg } = useFirmaBrand();
   const firstPath = useRef(pathname);
   const sichtbareGruppen = groups
-    .map((group) => ({
-      ...group,
-      links: (group.links as readonly NavLink[]).filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })),
-    }))
+    .map((group) => ({ ...group, links: group.links.filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })) }))
     .filter((group) => group.links.length > 0);
   const userInitial = user.name.trim().charAt(0).toUpperCase() || "?";
   const userMeta = inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`;
@@ -220,7 +134,7 @@ function AppLayout() {
     if (!main.current?.contains(document.activeElement)) main.current?.focus({ preventScroll: true });
   }, [pathname, setOpenFlyout]);
 
-  useMobileMenuEscape(menuOpen, () => setMenuOpen(false), toggle);
+  useMobileMenuEscape(menuOpen, paletteOpen, () => setMenuOpen(false), toggle);
 
   async function signOut() {
     // Erst beim Abmelden laden: der Auth-Client bringt den Passkey-Code mit, den nur Anmeldung und Einstellungen brauchen
@@ -235,32 +149,8 @@ function AppLayout() {
         Zum Inhalt springen
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
-        <Link
-          to={inhaber ? "/" : STEUERBERATUNG_START}
-          className="brand"
-          onPointerEnter={firmaAufklappen}
-          onFocus={firmaAufklappen}
-          onPointerLeave={firmaZeigerWeg}
-          onBlur={firmaZuklappen}
-        >
-          <NavMarkSymbol mark={zeichen} />
-          <span className="brand-text">
-            Haben
-            {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
-                als zwei Zeilen, klappt er beim Überfahren und mit Fokus nach unten ganz auf (nur am Desktop); das
-                Element dafür ist für Hilfstechnik verborgen, der Name steht schon in der Marke */}
-            {firma && (
-              <span className="brand-firma" ref={firmaRef}>
-                {firma}
-              </span>
-            )}
-            {firmaVoll !== null && (
-              <span className="brand-firma-voll" aria-hidden="true">
-                {firmaVoll}
-              </span>
-            )}
-          </span>
-        </Link>
+        <NavBrand inhaber={inhaber} />
+        <NavSearch onOpen={() => setPaletteOpen(true)} />
         <button
           ref={toggle}
           type="button"
@@ -303,6 +193,68 @@ function AppLayout() {
       <main className="main" id="inhalt" ref={main} tabIndex={-1}>
         <Outlet />
       </main>
+      <CommandPalette
+        open={paletteOpen}
+        oidcOnly={oidc.only}
+        onOpen={() => setPaletteOpen(true)}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={() => setMenuOpen(false)}
+        inhaber={inhaber}
+        gesellschaft={gesellschaft}
+        hatMitarbeiter={hatMitarbeiter}
+        eigeneSeiten={eigeneSeiten}
+      />
     </div>
+  );
+}
+
+function NavBrand({ inhaber }: { inhaber: boolean }) {
+  const { firma, zeichen } = Route.useRouteContext();
+  const { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg } = useFirmaBrand();
+  return (
+    <Link
+      to={inhaber ? "/" : STEUERBERATUNG_START}
+      className="brand"
+      onPointerEnter={firmaAufklappen}
+      onFocus={firmaAufklappen}
+      onPointerLeave={firmaZeigerWeg}
+      onBlur={firmaZuklappen}
+    >
+      <NavMarkSymbol mark={zeichen} />
+      <span className="brand-text">
+        Haben
+        {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
+                als zwei Zeilen, klappt er beim Überfahren und mit Fokus nach unten ganz auf (nur am Desktop); das
+                Element dafür ist für Hilfstechnik verborgen, der Name steht schon in der Marke */}
+        {firma && (
+          <span className="brand-firma" ref={firmaRef}>
+            {firma}
+          </span>
+        )}
+        {firmaVoll !== null && (
+          <span className="brand-firma-voll" aria-hidden="true">
+            {firmaVoll}
+          </span>
+        )}
+      </span>
+    </Link>
+  );
+}
+
+function NavSearch({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      className="btn btn-icon nav-search-btn"
+      onClick={(event) => {
+        event.currentTarget.focus();
+        onOpen();
+      }}
+      aria-keyshortcuts={ariaKuerzel(PALETTE_KUERZEL)}
+    >
+      <Icon name="search" size={18} />
+      <span className="nav-search-label">Schnellsuche</span>
+      <Kuerzel tasten={PALETTE_KUERZEL} className="nav-kbd" aria-hidden="true" />
+    </button>
   );
 }

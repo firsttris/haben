@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { NAV_BACKGROUNDS } from "@haben/core";
 import { describe, expect, it } from "vitest";
-import { firmaInNavigation, type NavBedingung, navLinkSichtbar, navMark } from "./navigation.ts";
+import { firmaInNavigation, type NavBedingung, navLinkSichtbar, navMark, sichtbareNavSeiten } from "./navigation.ts";
 
 /** Lohn ohne Bedingung */
 const lohn: NavBedingung = {};
@@ -69,5 +69,46 @@ describe("NAV_BACKGROUNDS", () => {
     const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
     const imCss = [...css.matchAll(/--nav:\s*(#[0-9a-fA-F]{6})/g)].map((m) => m[1]!.toUpperCase());
     expect([...new Set(imCss)].sort()).toEqual([...NAV_BACKGROUNDS].sort());
+  });
+});
+
+describe("sichtbareNavSeiten", () => {
+  it("filtert für Inhaber nach Rechtsform, Mitarbeitern und eigenen Seiten", () => {
+    const euOhneMa = sichtbareNavSeiten({
+      inhaber: true,
+      gesellschaft: false,
+      hatMitarbeiter: false,
+      eigeneSeiten: [
+        { id: "1", name: "Wiki", url: "https://wiki.example", openInNewTab: false },
+        { id: "2", name: "Bankportal", url: "https://bank.example", openInNewTab: true },
+      ],
+    });
+    const pfade = euOhneMa.map((s) => s.to);
+    expect(pfade).toContain("/");
+    expect(pfade).toContain("/pauschalen");
+    expect(pfade).toContain("/einstellungen");
+    expect(pfade).not.toContain("/ausschuettungen");
+    expect(pfade).not.toContain("/abschluss");
+    expect(pfade).not.toContain("/sv-meldeportal");
+    const wiki = euOhneMa.find((s) => s.label === "Wiki");
+    expect(wiki).toMatchObject({ to: "/seiten/$id", params: { id: "1" } });
+    expect(wiki?.externalUrl).toBeUndefined();
+    expect(euOhneMa.find((s) => s.label === "Bankportal")).toMatchObject({ externalUrl: "https://bank.example" });
+
+    const gmbhMitMa = sichtbareNavSeiten({ inhaber: true, gesellschaft: true, hatMitarbeiter: true, eigeneSeiten: [] }).map((s) => s.to);
+    expect(gmbhMitMa).not.toContain("/pauschalen");
+    expect(gmbhMitMa).toContain("/ausschuettungen");
+    expect(gmbhMitMa).toContain("/abschluss");
+    expect(gmbhMitMa).toContain("/sv-meldeportal");
+  });
+
+  it("begrenzt die Navigation für die Steuerberatung auf Lesepfade ohne Einstellungen und eigene Seiten", () => {
+    const stb = sichtbareNavSeiten({
+      inhaber: false,
+      gesellschaft: true,
+      hatMitarbeiter: true,
+      eigeneSeiten: [{ id: "1", name: "Wiki", url: "https://wiki.example", openInNewTab: false }],
+    });
+    expect(stb.map((s) => s.to)).toEqual(["/steuerberatung", "/auswertungen", "/buchungen", "/konten", "/belege", "/rechnungen"]);
   });
 });

@@ -31,6 +31,8 @@ export interface Zustaende {
   tot: boolean;
   /** createuser scheitert, etwa weil es die Rolle schon gibt */
   rolleKaputt: Set<string>;
+  /** `up -d` bricht ab, etwa weil sich ein Image nicht laden lässt */
+  upKaputt: Set<string>;
   /** Die Datenbank startet nicht, etwa weil sich ihr Image nicht laden lässt */
   dbKaputt: Set<string>;
 }
@@ -55,6 +57,7 @@ export function nachbau() {
     tot: false,
     rolleKaputt: new Set(),
     dbKaputt: new Set(),
+    upKaputt: new Set(),
   };
   const aufrufe: string[] = [];
   const umgebungen: { aufruf: string; env: Record<string, string> }[] = [];
@@ -116,6 +119,7 @@ export function nachbau() {
     if (sub === "up -d --wait db") return { code: z.dbKaputt.has(d) ? 1 : 0, stdout: "", stderr: "" };
     if (sub.startsWith("exec -T db createuser ")) return { code: z.rolleKaputt.has(d) ? 1 : 0, stdout: "", stderr: "" };
     if (sub === "up -d") {
+      if (z.upKaputt.has(d)) return { code: 1, stdout: "", stderr: "pull access denied" };
       if (z.kaputt.has(d)) neugestartet.add(d);
       return ok();
     }

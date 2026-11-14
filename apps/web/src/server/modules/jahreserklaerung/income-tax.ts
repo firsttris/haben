@@ -19,6 +19,10 @@ const vorsorgePerson = z
     pkv: cents,
     ppv: cents,
     pkvErstattung: cents,
+    basisrente: cents,
+    pkvWahlleistungen: cents,
+    agZuschussKv: cents,
+    agZuschussPv: cents,
   })
   .default({});
 
@@ -58,6 +62,7 @@ const arbeitnehmer = z.object({
       berufsverbaende: cents,
       gewerkschaft: cents,
       sonstige: cents,
+      arbeitszimmer: cents,
     })
     .default({}),
 });

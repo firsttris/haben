@@ -4,6 +4,7 @@ import { abgleichAll, abweichungen, type AbgleichZeile } from "./abgleich.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { today } from "../../today.ts";
+import { checkTriggerIntegrity } from "../../db/trigger-inventory.ts";
 
 export { formatPruefwert, parsePruefwert } from "../../../lib/pruefwert.ts";
 
@@ -23,8 +24,8 @@ export interface ChainHead {
 }
 
 export interface IntegrityProblem {
-  /** kette: Eintrag im Audit-Log; kopf: Kopf der Kette; siegel: festgeschriebener Datensatz */
-  art: "kette" | "kopf" | "siegel";
+  /** kette: Audit-Log; kopf: Kettenkopf; siegel: festgeschriebener Datensatz; sperre: Trigger oder Funktion */
+  art: "kette" | "kopf" | "siegel" | "sperre";
   tabelle: string;
   zeile: string | null;
   seq: number | null;
@@ -45,6 +46,8 @@ export interface IntegrityReport {
   abgleich: { abweichungen: AbgleichZeile[]; hinweise: string[] };
   /** Eigene Nummern, die eine spätere Version von Haben selbst nutzt; kein Beweis einer Manipulation. */
   accountCollisions: { kontenrahmen: Kontenrahmen; account: string; name: string }[];
+  /** Zusätzliche Betreibertrigger sind Hinweise, keine Korruptionsbefunde. */
+  triggerHints: string[];
 }
 
 /** Lesezugriff auf die Datenbank: db selbst oder eine Transaktion */
@@ -83,7 +86,8 @@ function readSnapshot(now: string) {
         .from(schema.ownAccounts)
         .orderBy(schema.ownAccounts.kontenrahmen, schema.ownAccounts.account);
       const accountCollisions = ownAccounts.filter((account) => reservedAccountNumbers(account.kontenrahmen).has(account.account));
-      return { rows, head, entries: entries!.n, seals: seals!.n, abgleich, accountCollisions };
+      const triggers = await checkTriggerIntegrity(tx);
+      return { rows: [...rows, ...triggers.problems], triggerHints: triggers.hints, head, entries: entries!.n, seals: seals!.n, abgleich, accountCollisions };
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
@@ -95,7 +99,7 @@ export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
   // und geht in der Transaktion mit festem Stand nicht. Ohne Buchungen bleibt die Prüfung ohne jeden Schreibzugriff.
   const [booking] = await db.select({ id: schema.journalEntries.id }).from(schema.journalEntries).limit(1);
   if (booking) await loadCompany();
-  const { rows, head, entries, seals, abgleich, accountCollisions } = await readSnapshot(now);
+  const { rows, triggerHints, head, entries, seals, abgleich, accountCollisions } = await readSnapshot(now);
   const problems = [...rows].map((r) => ({ ...r, seq: r.seq === null ? null : Number(r.seq) }));
   const perKind = new Map<string, number>();
   for (const p of problems) perKind.set(`${p.art}:${p.tabelle}`, (perKind.get(`${p.art}:${p.tabelle}`) ?? 0) + 1);
@@ -107,6 +111,7 @@ export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
     truncated: [...perKind.values()].some((n) => n >= MAX_ROWS),
     abgleich: { abweichungen: abweichungen(abgleich.zeilen), hinweise: abgleich.hinweise },
     accountCollisions,
+    triggerHints,
   };
 }
 

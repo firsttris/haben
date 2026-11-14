@@ -14,9 +14,12 @@ import {
   type PrivateUseRate,
   usesUsefulLife,
   allowsMemoValue,
+  formatDegressiveRate,
+  maxDegressiveRate,
 } from "@haben/core";
 import { useState, type FormEvent } from "react";
 import { parseUsefulLifeMonths } from "../lib/format.ts";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { AssetMethodOptions, parseRatePercent, ratePercentText } from "./AssetMethodOptions.tsx";
 import { Field } from "./Field.tsx";
 
@@ -130,9 +133,25 @@ export function AssetForm({
     if (suggestion.method === "linear") setYears(suggestion.usefulLifeYears ? String(suggestion.usefulLifeYears) : "");
   }
 
+  // Über dem Höchstsatz (§ 7 Abs. 2 EStG) ist ein Fehler am Satz, wie der Hinweis darunter sagt
+  const maxRate = method === "degressiv" && acquisitionDate && lifeMonths ? maxDegressiveRate(acquisitionDate, lifeMonths) : null;
+  const rateAboveMax =
+    parsedRate !== null && maxRate !== null && parsedRate > maxRate ? `Höchstens ${formatDegressiveRate(maxRate)}; leer lassen für den Höchstsatz.` : null;
+  const { form, error, check } = useSubmitCheck({
+    name: name.trim() === "" ? "Trag eine Bezeichnung ein." : null,
+    acquisitionDate: acquisitionDate ? null : "Wähle das Anschaffungsdatum.",
+    cost: parsedCost !== null && parsedCost > 0 ? null : "Trag die Anschaffungskosten netto ein, etwa 1.200,00.",
+    years: lifeValid ? null : "Trag die Nutzungsdauer in Jahren ein, etwa 3 oder 2,5.",
+    rate: method !== "degressiv" ? null : Number.isNaN(parsedRate) ? "Trag den Satz als Zahl ein, etwa 20 oder 23,07." : rateAboveMax,
+    linearFrom: method === "degressiv" && Number.isNaN(parsedLinearFrom) ? "Trag das Jahr vierstellig ein, etwa 2027." : null,
+    openingDate: showOpening && !openingDate ? "Wähle den Übernahmestichtag." : null,
+    opening: showOpening && (parsedOpening === null || parsedOpening < 0) ? "Trag den Restbuchwert ein, etwa 850,00." : null,
+    listPrice: privateUseValid ? null : "Trag den Bruttolistenpreis ein, etwa 45.000,00.",
+  });
+
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!valid) return;
+    if (!check() || !valid) return;
     onSubmit({
       name: name.trim(),
       kind,
@@ -153,10 +172,10 @@ export function AssetForm({
   }
 
   return (
-    <form className="stack plain-sections" onSubmit={submit}>
+    <form ref={form} className="stack plain-sections" onSubmit={submit} noValidate>
       <section className="form-section" aria-labelledby="asset-basics">
         <h3 id="asset-basics">Anlage</h3>
-        <Field label="Bezeichnung">
+        <Field label="Bezeichnung" error={error("name")}>
           {(control) => (
             <input
               {...control}
@@ -180,23 +199,14 @@ export function AssetForm({
               </select>
             )}
           </Field>
-          <Field label="Anschaffungsdatum">
+          <Field label="Anschaffungsdatum" error={error("acquisitionDate")}>
             {(control) => (
               <input {...control} type="date" value={acquisitionDate} onChange={(e) => setAcquisitionDate(e.target.value)} disabled={locked} required />
             )}
           </Field>
         </div>
-        <Field label="Anschaffungskosten netto (€)">
-          {(control) => (
-            <input
-              {...control}
-              inputMode="decimal"
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-              disabled={locked}
-              aria-invalid={parsedCost === null}
-            />
-          )}
+        <Field label="Anschaffungskosten netto (€)" error={error("cost")}>
+          {(control) => <input {...control} inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} disabled={locked} />}
         </Field>
       </section>
 
@@ -217,16 +227,9 @@ export function AssetForm({
             )}
           </Field>
           {usesUsefulLife(method) && (
-            <Field label="Nutzungsdauer in Jahren" describedBy="life-hint">
+            <Field label="Nutzungsdauer in Jahren" describedBy="life-hint" error={error("years")}>
               {(control) => (
-                <input
-                  {...control}
-                  inputMode="decimal"
-                  value={years}
-                  onChange={(e) => setYears(e.target.value)}
-                  disabled={locked && !lifeEditable}
-                  aria-invalid={!lifeValid}
-                />
+                <input {...control} inputMode="decimal" value={years} onChange={(e) => setYears(e.target.value)} disabled={locked && !lifeEditable} />
               )}
             </Field>
           )}
@@ -248,25 +251,20 @@ export function AssetForm({
           onMemo={setMemoValue}
           locked={methodLocked}
           switchEditable={switchEditable}
+          rateError={error("rate")}
+          linearFromError={error("linearFrom")}
         />
         {showOpening && (
           <>
             <div className="form-row cols-2">
-              <Field label="Übernahmestichtag" describedBy="opening-hint">
+              <Field label="Übernahmestichtag" describedBy="opening-hint" error={error("openingDate")}>
                 {(control) => (
                   <input {...control} type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} disabled={locked} required />
                 )}
               </Field>
-              <Field label="Restbuchwert zum Stichtag (€)" describedBy="opening-hint">
+              <Field label="Restbuchwert zum Stichtag (€)" describedBy="opening-hint" error={error("opening")}>
                 {(control) => (
-                  <input
-                    {...control}
-                    inputMode="decimal"
-                    value={openingBookValue}
-                    onChange={(e) => setOpeningBookValue(e.target.value)}
-                    disabled={locked}
-                    aria-invalid={parsedOpening === null}
-                  />
+                  <input {...control} inputMode="decimal" value={openingBookValue} onChange={(e) => setOpeningBookValue(e.target.value)} disabled={locked} />
                 )}
               </Field>
             </div>
@@ -302,16 +300,9 @@ export function AssetForm({
                 <Field
                   label="Bruttolistenpreis (€)"
                   hint="Inländischer Listenpreis bei Erstzulassung inklusive Sonderausstattung und Umsatzsteuer, nicht der Kaufpreis."
+                  error={error("listPrice")}
                 >
-                  {(control) => (
-                    <input
-                      {...control}
-                      inputMode="decimal"
-                      value={listPrice}
-                      onChange={(e) => setListPrice(e.target.value)}
-                      aria-invalid={parsedListPrice === null}
-                    />
-                  )}
+                  {(control) => <input {...control} inputMode="decimal" value={listPrice} onChange={(e) => setListPrice(e.target.value)} />}
                 </Field>
                 <Field label="Antrieb">
                   {(control) => (
@@ -368,7 +359,7 @@ export function AssetForm({
         </Field>
       </section>
       <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
           {submitLabel}
         </button>
       </div>

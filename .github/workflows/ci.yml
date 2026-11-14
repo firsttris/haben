@@ -327,6 +327,12 @@ jobs:
           docker tag haben:ci tristanteu/haben:latest
           bun deploy/instanzen/haben-instanzen.ts neu firma1 firma1.haben.test
           bun deploy/instanzen/haben-instanzen.ts neu firma2 firma2.haben.test
+          # Firma wechseln (#909): firmen schreibt die Liste in beide, startet die Apps neu und wartet, bis sie gesund sind
+          bun deploy/instanzen/haben-instanzen.ts firmen
+          for f in firma1 firma2; do
+            test "$(cd "$HABEN_INSTANZEN/$f" && docker compose exec -T app printenv HABEN_FIRMEN)" = "firma1|https://firma1.haben.test;firma2|https://firma2.haben.test"
+            test "$(cd "$HABEN_INSTANZEN/$f" && docker compose ps app --format '{{.Health}}')" = healthy
+          done
           # Ein Beleg in Firma 1 ist in Firma 2 nicht zu finden
           sha="$(echo beleg | sha256sum | cut -d' ' -f1)"
           (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T db psql -U haben -d haben -qc \

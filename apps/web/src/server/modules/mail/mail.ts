@@ -247,7 +247,8 @@ export async function runDuePruefwertMail(now = new Date()) {
       : []),
     ...(report.problems.length > 0
       ? [
-          `Prüfung von Kette und Siegel: ${report.problems.length}${report.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`,
+          `Prüfung von Kette, Siegeln und Sperren: ${report.problems.length}${report.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`,
+          ...report.problems.filter((problem) => problem.art === "sperre").map((problem) => `${problem.tabelle}: ${problem.befund}.`),
         ]
       : []),
     ...(report.abgleich.abweichungen.length > 0
@@ -261,18 +262,20 @@ export async function runDuePruefwertMail(now = new Date()) {
   ];
   const befund =
     findings.length === 0
-      ? `Prüfung von Kette und Siegel: unverändert (${report.entries} Einträge, ${report.seals} Siegel).`
+      ? `Prüfung von Kette, Siegeln und Sperren: unverändert (${report.entries} Einträge, ${report.seals} Siegel).`
       : `${findings.join(" ")} Einzelheiten unter ${baseUrl()}/einstellungen?bereich=export`;
   const intro = `Prüfwert des Änderungsprotokolls von Haben (${baseUrl()}), Stand ${stand}:`;
   const aufbewahren =
     "Bitte diese Mail aufbewahren, nicht nur auf dem Server von Haben. Mit dem Prüfwert lässt sich später zeigen, dass das Änderungsprotokoll und die festgeschriebenen Daten bis zu diesem Stand nicht nachträglich verändert wurden: in Haben unter Einstellungen → Export → Änderungsprotokoll prüfen einfügen und vergleichen.";
   const hinweis =
     "Diese Mail kommt höchstens einmal pro Woche, wenn sich etwas geändert hat oder die Prüfung etwas findet. Abschalten in den E-Mail-Einstellungen.";
-  const text = [intro, "", pruefwert, "", befund, "", aufbewahren, "", hinweis].join("\n");
+  const triggerHints = report.triggerHints.join("; ");
+  const text = [intro, "", pruefwert, "", befund, ...(triggerHints ? ["", triggerHints] : []), "", aufbewahren, "", hinweis].join("\n");
   const html = [
     `<p>${escapeHtml(intro)}</p>`,
     `<p><code>${escapeHtml(pruefwert)}</code></p>`,
     `<p>${escapeHtml(befund)}</p>`,
+    ...(triggerHints ? [`<p>${escapeHtml(triggerHints)}</p>`] : []),
     `<p>${escapeHtml(aufbewahren)}</p>`,
     `<p><small>${escapeHtml(hinweis)}</small></p>`,
   ].join("\n");
