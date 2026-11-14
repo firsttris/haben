@@ -24,15 +24,13 @@ describe.skipIf(!testDatabaseUrl)("Sperrprüfung und dauerhafte Voreinstellungen
     const fresh = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
     try {
       // Die Sperre bleibt im Katalog auf O; nur die Wirkung ist in neuen Verbindungen aufgehoben.
-      const [{ mode }] = await fresh`select current_setting('session_replication_role') as mode`;
-      expect(mode).toBe("replica");
+      const [setting] = await fresh<{ mode: string }[]>`select current_setting('session_replication_role') as mode`;
+      expect(setting?.mode).toBe("replica");
       const rollback = new Error("zurückrollen");
       let deleted = 0;
       await expect(
         fresh.begin(async (tx) => {
-          [{ deleted }] = (await tx`with d as (delete from audit_log returning 1) select count(*)::int as deleted from d`) as unknown as [
-            { deleted: number },
-          ];
+          [{ deleted }] = (await tx`with d as (delete from audit_log returning 1) select count(*)::int as deleted from d`) as unknown as [{ deleted: number }];
           throw rollback;
         }),
       ).rejects.toBe(rollback);

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import type { Db } from "./index.ts";
 import expected from "./trigger-inventory.json";
+import { replicationDefaults } from "./trigger-defaults.ts";
 
 type Connection = Pick<Db, "execute">;
 type Reader = { transaction<T>(read: (tx: Connection) => Promise<T>, config?: { isolationLevel: "repeatable read"; accessMode: "read only" }): Promise<T> };
@@ -31,7 +32,7 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
  * https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE
  * https://github.com/firsttris/haben/issues/764#issuecomment-6837874131
  */
-export async function readTriggerInventory(reader: Reader): Promise<TriggerInventory> {
+async function readSnapshot(reader: Reader): Promise<{ inventory: TriggerInventory; defaults: string[] }> {
   return reader.transaction(
     async (tx) => {
       const [setting] = await tx.execute<{ path: string }>(sql`select pg_catalog.current_setting('search_path') as path`);
@@ -63,7 +64,7 @@ export async function readTriggerInventory(reader: Reader): Promise<TriggerInven
           or p.oid in (select t.tgfoid from pg_catalog.pg_trigger t join pg_catalog.pg_class c on c.oid = t.tgrelid
             join pg_catalog.pg_namespace tn on tn.oid = c.relnamespace where tn.nspname = 'public' and not t.tgisinternal)
         order by n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)`);
-        return {
+        const inventory = {
           triggers: [...triggers],
           functions: functions.map(({ source, definition, ...fn }) => ({
             ...fn,
@@ -72,6 +73,7 @@ export async function readTriggerInventory(reader: Reader): Promise<TriggerInven
             definitionHash: sha256(definition),
           })),
         };
+        return { inventory, defaults: await replicationDefaults(tx) };
       } finally {
         await tx.execute(sql`select pg_catalog.set_config('search_path', ${setting!.path}, true)`);
       }
@@ -80,12 +82,18 @@ export async function readTriggerInventory(reader: Reader): Promise<TriggerInven
   );
 }
 
+/** Der Generator behält sein Format; Laufzeitvorgaben gehören nicht zum ausgelieferten Sollbestand. */
+export async function readTriggerInventory(reader: Reader): Promise<TriggerInventory> {
+  return (await readSnapshot(reader)).inventory;
+}
+
 /** Der ausgelieferte Sollbestand stammt aus frischen Testmigrationen, niemals aus der geprüften Instanz. */
 export async function checkTriggerIntegrity(reader: Reader): Promise<{ problems: TriggerProblem[]; hints: string[] }> {
-  const actual = await readTriggerInventory(reader);
+  const { inventory: actual, defaults } = await readSnapshot(reader);
   const problems: TriggerProblem[] = [];
   const hints: string[] = [];
   const problem = (table: string, befund: string) => problems.push({ art: "sperre", tabelle: table.replace(/^public\./, ""), zeile: null, seq: null, befund });
+  for (const message of defaults) problem("Datenbank", message);
   const key = (trigger: TriggerInventory["triggers"][number]) => `${trigger.table}.${trigger.name}`;
   const triggers = new Map(actual.triggers.map((trigger) => [key(trigger), trigger]));
   const functions = new Map(actual.functions.map((fn) => [fn.name, fn]));
