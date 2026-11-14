@@ -60,9 +60,11 @@ jobs:
     needs: [tested, checks, erweiterung]
     # Die Prüfungen liefen durch oder waren nicht nötig; ohne Tag (Start von Hand, :edge) fehlt die Erweiterung
     if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' && needs.erweiterung.result != 'failure' }}
-    uses: firsttris/workflows/.github/workflows/docker-release.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@83964dcf916e4241fabb68488676ef4dcd610c3b # main
     with:
       image: tristanteu/haben
+      # haben status nennt den Commit des Images (#887), auch bei :edge und :next
+      build-args: HABEN_COMMIT=${{ github.sha }}
       # Docker Hub erlaubt höchstens 100 Zeichen
       description: "Selbst gehostete Buchhaltung für Freiberufler, GmbH und UG: E-Rechnung, Bank, EÜR, Bilanz, ELSTER"
       dockerfile: Containerfile
