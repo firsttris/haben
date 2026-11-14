@@ -19,7 +19,7 @@ Haben hat zwei strikt getrennte Betriebsarten, umgeschaltet nur über `OIDC_ONLY
 
 Im Standardmodus meldet man sich per Passkey an, das Passwort bleibt Rückfallebene. Better Auth begrenzt Anfragen je Client-Adresse und Pfad: Passwort, Registrierung und den Start der SSO-Anmeldung (`/sign-in/*`, `/sign-up/*`) mit seiner Standardregel auf 3 in 10 Sekunden, alle übrigen, auch die Passkey-Anmeldung, auf 20 je Minute (`rateLimit` in `server/auth.ts`). Es liest die Client-Adresse hinter Caddy aus `X-Forwarded-For`.
 
-Beim Passwortwechsel speichert Haben den neuen Hash, widerruft alle Sitzungen des Kontos und schreibt das Ereignis `passwort_geaendert` in derselben Transaktion. Der Eintrag im Änderungsprotokoll enthält die Konto-ID und das Ereignis.
+Beim Passwortwechsel speichert Haben den neuen Hash, widerruft alle Sitzungen des Kontos und legt in derselben Transaktion ein Ereignis in `password_changes` ab. Die Tabelle hält Konto-ID und Zeitpunkt fest und lässt nur neue Einträge zu. Der Audit-Trigger übernimmt das Ereignis mit dem Akteur ins Änderungsprotokoll.
 
 Geschützt wird an vier Stellen:
 

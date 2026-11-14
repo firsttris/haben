@@ -44,7 +44,7 @@ describe.skipIf(!testDatabaseUrl)("Passwortwechsel (Postgres)", () => {
     const signedIn = await request("/sign-in/email", { email, password: currentPassword });
     expect(signedIn.ok).toBe(true);
     const otherCookie = cookieOf(signedIn.headers);
-    const audit = () => database`select actor, row_id, old_value, new_value from audit_log where new_value ->> 'ereignis' = 'passwort_geaendert'`;
+    const audit = () => database`select actor, row_id, action, old_value, new_value from audit_log where table_name = 'password_changes'`;
     const change = (body: Partial<{ currentPassword: string; newPassword: string; revokeOtherSessions: boolean }> = {}) =>
       request("/change-password", { currentPassword, newPassword, revokeOtherSessions: true, ...body }, { cookie });
 
@@ -54,17 +54,19 @@ describe.skipIf(!testDatabaseUrl)("Passwortwechsel (Postgres)", () => {
     expect((await change({ newPassword: currentPassword.replace("e", "ｅ") })).status).toBe(400);
     expect((await change({ revokeOtherSessions: false })).status).toBe(403);
     expect(await audit()).toEqual([]);
+    expect(await database`select id from password_changes`).toEqual([]);
     expect(await database`select id from session where user_id = ${user.id}`).toHaveLength(2);
 
     await database`create function test_fail_password_audit() returns trigger language plpgsql as $$
       begin
-        if new.new_value ->> 'ereignis' = 'passwort_geaendert' then raise exception 'Testfehler'; end if;
+        if new.table_name = 'password_changes' then raise exception 'Testfehler'; end if;
         return new;
       end $$`;
     await database`create trigger test_fail_password_audit before insert on audit_log for each row execute function test_fail_password_audit()`;
     try {
       expect((await change()).status).toBe(503);
       expect(await database`select id from session where user_id = ${user.id}`).toHaveLength(2);
+      expect(await database`select id from password_changes`).toEqual([]);
     } finally {
       await database`drop trigger test_fail_password_audit on audit_log`;
     }
@@ -78,6 +80,12 @@ describe.skipIf(!testDatabaseUrl)("Passwortwechsel (Postgres)", () => {
     expect(await (await request("/get-session", undefined, { cookie: otherCookie })).json()).toBeNull();
     expect((await request("/sign-in/email", { email, password: currentPassword })).ok).toBe(false);
     expect((await request("/sign-in/email", { email, password: newPassword })).ok).toBe(true);
-    expect(await audit()).toEqual([{ actor: user.id, row_id: user.id, old_value: null, new_value: { ereignis: "passwort_geaendert" } }]);
+    const events = await database`select to_jsonb(password_changes) as event from password_changes`;
+    expect(events).toEqual([{ event: { id: expect.any(Number), user_id: user.id, created_at: expect.any(String) } }]);
+    const event = events[0]!.event;
+    expect(await audit()).toEqual([{ actor: user.id, row_id: String(event.id), action: "INSERT", old_value: null, new_value: event }]);
+    await expect(database`update password_changes set user_id = 'anderes-konto'`).rejects.toThrow();
+    await expect(database`delete from password_changes`).rejects.toThrow();
+    await expect(database`truncate password_changes`).rejects.toThrow();
   });
 });

@@ -1,5 +1,5 @@
 import { APIError } from "better-auth";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { auth } from "./auth.ts";
 import { runPasswordChange } from "./auth-transaction.ts";
 import { withActor } from "./db/actor.ts";
@@ -20,10 +20,7 @@ export async function changePasswordRequest(authentication: ReturnType<typeof au
       if (!response.ok) throw response;
       // Auch die Ersatzsitzung widerrufen und kein neues Sitzungscookie oder Token ausgeben.
       await tx.delete(schema.session).where(eq(schema.session.userId, userId));
-      await tx.execute(sql`
-        insert into audit_log (actor, table_name, row_id, action, new_value)
-        values (${userId}, 'user', ${userId}, 'UPDATE', jsonb_build_object('ereignis', 'passwort_geaendert'))
-      `);
+      await tx.insert(schema.passwordChanges).values({ userId });
       return Response.json({ token: null, user: current.user }, { headers: { "cache-control": "no-store" } });
     });
   } catch (error) {
