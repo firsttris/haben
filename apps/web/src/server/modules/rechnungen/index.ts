@@ -130,3 +130,12 @@ export {
   updateRecurring,
 } from "./recurring.ts";
 export { lastFinalizedByCircle, startRunning, type NumberKind } from "./number-counter.ts";
+export {
+  InvoiceSettlementError,
+  invoiceSettlementReversalSchema,
+  invoiceSettlementSchema,
+  listInvoiceSettlements,
+  reverseInvoiceSettlement,
+  settleInvoices,
+  type InvoiceSettlementInput,
+} from "./verrechnung.ts";

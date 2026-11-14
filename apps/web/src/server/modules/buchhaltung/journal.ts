@@ -107,12 +107,20 @@ export async function loadJournal(year: number, month: number) {
   // Das Journal verlinkt damit auf den Beleg statt auf die Bank.
   const verrechnungIds = entries.flatMap((e) => (e.sourceType === "verrechnung" ? [e.sourceId] : []));
   const verrechnungBelege = new Map<string, string>();
+  // Verrechnung zwischen Ausgangsrechnung und Kundenkorrektur (#877): Die Buchung hängt an ihrer Zeile in
+  // invoice_settlements, die Zeile an ihrer Rechnung.
+  const verrechnungRechnungen = new Map<string, string>();
   if (verrechnungIds.length > 0) {
     const rows = await db
       .select({ id: schema.documentSettlements.id, documentId: schema.documentSettlements.documentId })
       .from(schema.documentSettlements)
       .where(inArray(schema.documentSettlements.id, verrechnungIds));
     for (const row of rows) verrechnungBelege.set(row.id, row.documentId);
+    const rechnungen = await db
+      .select({ id: schema.invoiceSettlements.id, invoiceId: schema.invoiceSettlements.invoiceId })
+      .from(schema.invoiceSettlements)
+      .where(inArray(schema.invoiceSettlements.id, verrechnungIds));
+    for (const row of rechnungen) verrechnungRechnungen.set(row.id, row.invoiceId);
   }
   return entries.map((entry) => ({
     id: entry.id,
@@ -122,6 +130,8 @@ export async function loadJournal(year: number, month: number) {
     sourceId: entry.sourceId,
     // Beleg einer Verrechnungsbuchung (#786): ihre Quelle ist die Zeile in document_settlements, die am Beleg hängt
     documentId: verrechnungBelege.get(entry.sourceId) ?? null,
+    // Rechnung einer Verrechnung mit ihrer Kundenkorrektur (#877)
+    invoiceId: verrechnungRechnungen.get(entry.sourceId) ?? null,
     reversal: entry.reversesId !== null,
     reversed: reversedIds.has(entry.id),
     lines: lines.filter((l) => l.entryId === entry.id).map((l) => ({ ...l, name: accountName(entry.kontenrahmen, l.account) })),

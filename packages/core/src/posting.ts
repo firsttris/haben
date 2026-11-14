@@ -784,6 +784,20 @@ export function verrechnungPosting(amount: Cents, kontenrahmen: Kontenrahmen): P
 }
 
 /**
+ * Eine Seite einer Verrechnung zwischen Ausgangsrechnung und Kundenkorrektur (#877): Die Seite bucht ihren Anteil aus dem
+ * offenen Posten aus, Forderungen gegen das Verrechnungskonto (SKR03 1590, SKR04 1370). `amount` trägt das Vorzeichen der
+ * Zeile in `invoice_settlements`: positiv bei der Rechnung, deren Forderung sinkt (Haben Forderungen), negativ bei der
+ * Korrektur. Zusammen mit der Buchung der anderen Seite steht das Verrechnungskonto auf null. Ohne Steuerzeile: Die
+ * Aufrechnung ist umsatzsteuerlich neutral, die Minderung nach § 17 Abs. 1 UStG hängt an der Korrektur selbst.
+ */
+export function invoiceVerrechnungPosting(amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  return [side(accounts.forderungen, amount, false, null), side(accounts.verrechnung, -amount, false, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
+}
+
+/**
  * Umbuchung beim Ausgleich einer Gutschrift, die bereits Bezahltes erstattet (#786): Der Anteil, der beim Buchen auf dem
  * Zwischenkonto stand, geht auf das Vorsteuerkonto, mit Steuerschlüssel und Bemessungsgrundlage, damit Kz 66 die
  * Minderung genau dann sieht. `shares` sind die Anteile des Ausgleichs in der Richtung der Berichtigung: bei einer
