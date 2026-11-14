@@ -9,6 +9,7 @@ import type { getAnnualReturns } from "../server/functions/annual.ts";
 import { activateVastBerechtigung, fetchVast, refreshVastBerechtigung, requestVastBerechtigung, revokeVastBerechtigung } from "../server/functions/annual.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { CertificateStatus } from "./ElsterSubmit.tsx";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 import { Tag } from "./Status.tsx";
@@ -140,6 +141,8 @@ export function VastBelege({ data }: { data: Data }) {
                 )}
               </Field>
             )}
+            {/* Ohne Zertifikat sperrt der Abruf; der Grund steht hier über PIN und Knopf (DESIGN.md, Gesperrte Knöpfe) */}
+            <CertificateStatus certificate={data.certificate} />
             <Field label="Zertifikats-PIN" error={error("pin")}>
               {(control) => (
                 <input
