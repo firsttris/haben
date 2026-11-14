@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { direktBuchungenFuerKonto, direktKategorienFuerKonto } from "./konto-angebot.ts";
+import { direktBuchungenFuerKonto, direktKategorienFuerKonto, startwertFuerBuchungsart } from "./konto-angebot.ts";
 import { directBookingLabel } from "./posting.ts";
 import type { Rechtsform } from "./rechtsform.ts";
 
@@ -70,8 +70,30 @@ describe("Angebot im Bankabgleich je Kontozweck", () => {
     expect(privat.directKinds.map((k) => k.value)).not.toContain("gebuehren");
     expect(privat.directKinds.map((k) => k.value)).not.toContain("zinsertrag");
     expect(privat.kategorien.length).toBeGreaterThan(0);
-    expect(angebot("einzelunternehmen", "geschaeft").directKinds.length).toBe(
-      privat.directKinds.length + AUCH_NUR_GESCHAEFT.length,
-    );
+    expect(angebot("einzelunternehmen", "geschaeft").directKinds.length).toBe(privat.directKinds.length + AUCH_NUR_GESCHAEFT.length);
+  });
+});
+
+describe("Startwert für die Direktbuchung", () => {
+  const arten = (zweck: "geschaeft" | "privat") => angebot("einzelunternehmen", zweck).directKinds.map((k) => k.value);
+
+  it("behält eine gelernte Kategorie, obwohl sie nicht im Angebot der Buchungsarten steht (#295)", () => {
+    expect(arten("geschaeft")).not.toContain("kategorie");
+    expect(startwertFuerBuchungsart("kategorie", arten("geschaeft"))).toBe("kategorie");
+    expect(startwertFuerBuchungsart("steuer", arten("privat"))).toBe("steuer");
+    expect(startwertFuerBuchungsart("darlehen", arten("privat"))).toBe("darlehen");
+  });
+
+  it("ersetzt einen Vorschlag, den das Konto nicht anbietet, durch den ersten erlaubten Eintrag", () => {
+    const privat = arten("privat");
+    // „Privat“ fehlt dort; der Startwert darf nicht auf einer Art stehen, die der Server ablehnt
+    expect(privat).not.toContain("privat");
+    expect(startwertFuerBuchungsart("privat", privat)).toBe(privat[0]);
+  });
+
+  it("nimmt ohne Vorschlag den ersten erlaubten Eintrag", () => {
+    expect(startwertFuerBuchungsart(undefined, arten("geschaeft"))).toBe("privat");
+    expect(startwertFuerBuchungsart(undefined, ["ustVorauszahlung"])).toBe("ustVorauszahlung");
+    expect(startwertFuerBuchungsart("unbekannt", [])).toBe("kategorie");
   });
 });

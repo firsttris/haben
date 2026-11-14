@@ -1,4 +1,13 @@
-import { formatDecimal, formatEuro, isKapitalgesellschaft, kategorieArt, kategorieText, parseEuro, type DirectBooking } from "@haben/core";
+import {
+  formatDecimal,
+  formatEuro,
+  isKapitalgesellschaft,
+  kategorieArt,
+  kategorieText,
+  parseEuro,
+  startwertFuerBuchungsart,
+  type DirectBooking,
+} from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -979,11 +988,10 @@ function AllocationPanel({
   // Ein Treffer mit Rechnung geht vor; sonst der Vorschlag aus dem Zweck der Konten (Geldtransit, Umsatzsteuer, Privat)
   const [mode, setMode] = useState<"best" | "other" | "direct" | "split">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
   const [candidate, setCandidate] = useState(best ? `${best.item.type}:${best.item.id}` : "");
-  // Auf einem privaten Konto fehlen die gesperrten Arten; dann der erste erlaubte Eintrag statt eines
-  // Startwerts, den der Server ablehnen würde (#873)
-  const [directKind, setDirectKind] = useState<DirectChoice>(
-    direct?.kind && directKinds.some((k) => k.value === direct.kind) ? direct.kind : (directKinds[0]?.value ?? "kategorie"),
-  );
+  // Startwert aus dem Angebot des Kontos (#873): Auf einem privaten Konto fehlen die gesperrten Arten, ein fester
+  // Startwert würde dort vom Server abgelehnt. Eine gelernte Kategorie steht nicht im Angebot und bleibt stehen (#295)
+  const angeboteneArten = directKinds.map((k) => k.value);
+  const [directKind, setDirectKind] = useState<DirectChoice>(() => startwertFuerBuchungsart(direct?.kind, angeboteneArten) as DirectChoice);
   const [steuer, setSteuer] = useState<SteuerWahl>(() => steuerWahlFuer(steuerOptionen, tx.bookingDate));
   const [darlehen, setDarlehen] = useState<DarlehenWahl>(() => darlehenWahlFuer(darlehenOptionen, tx.amount));
   // Aus früheren Direktbuchungen derselben Gegenpartei gelernt (#295), sonst nach Richtung

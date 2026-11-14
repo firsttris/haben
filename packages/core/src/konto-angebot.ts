@@ -43,3 +43,20 @@ export function direktKategorienFuerKonto(zweck: AccountPurpose | null): ReturnT
   const kategorien = direktKategorienFuer();
   return kategorien.filter((kategorie) => aufKontoAngeboten(kategorie.value, zweck));
 }
+
+/**
+ * Buchungsarten, die nicht aus dem Angebot des Kontos stammen, sondern immer zur Wahl stehen: Kategorie, Steuer und
+ * Darlehen. Sie hängen nicht am Kontozweck und buchen auf einem privaten Konto weiter gegen die Bank (#873).
+ */
+export const FREIE_BUCHUNGSARTEN = ["kategorie", "steuer", "darlehen"] as const;
+
+/**
+ * Startwert für „Buchen als“: der Vorschlag, wenn das Konto ihn anbietet, sonst der erste erlaubte Eintrag. Der
+ * Vorschlag aus einer früheren Direktbuchung ist eine Kategorie (#295); sie steht nicht im Angebot der Buchungsarten
+ * und fiel deshalb auf „Privat“ zurück — auch dort, wo „Privat“ gar nicht zur Wahl steht (#873).
+ */
+export function startwertFuerBuchungsart(vorschlag: string | undefined, angeboteneArten: readonly string[]): string {
+  const frei = vorschlag !== undefined && (FREIE_BUCHUNGSARTEN as readonly string[]).includes(vorschlag);
+  if (vorschlag !== undefined && (frei || angeboteneArten.includes(vorschlag))) return vorschlag;
+  return angeboteneArten[0] ?? "kategorie";
+}
