@@ -21,8 +21,12 @@ import {
  * Anmeldedienst selbst an.
  */
 
+/** Content Security Policy; `formZiele` sind weitere Origins, zu denen ein Formular (auch per Weiterleitung) führen darf */
+const csp = (formZiele: string[] = []) =>
+  `default-src 'none'; style-src 'self'; form-action ${["'self'", ...formZiele].join(" ")}; frame-ancestors 'none'; base-uri 'none'`;
+
 const KOPF = {
-  "content-security-policy": "default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  "content-security-policy": csp(),
   "referrer-policy": "same-origin",
   "x-content-type-options": "nosniff",
   "cache-control": "no-store",
@@ -91,7 +95,11 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
   if (request.method === "GET" && pathname === "/") {
     const firmen = firmenDerSitzung(config, request, jetzt);
     if (!firmen) return antwort(anmeldeSeite(config.displayName));
-    return antwort(firmenSeite(firmen, url.searchParams.get("suche") ?? ""));
+    // „Abmelden“ ist ein Formular, das zum end_session_endpoint weiterleitet; form-action gilt in Chromium auch für
+    // die Weiterleitung danach, deshalb steht dessen Origin in der CSP dieser Seite
+    const meta = await entdecken(config, jetzt).catch(() => null);
+    const abmeldeZiel = meta?.endSessionEndpoint ? [new URL(meta.endSessionEndpoint).origin] : [];
+    return antwort(firmenSeite(firmen, url.searchParams.get("suche") ?? ""), 200, { "content-security-policy": csp(abmeldeZiel) });
   }
   if (request.method === "GET" && pathname === "/anmelden") return anmelden(config, jetzt);
   if (request.method === "GET" && pathname === "/callback") return callback(config, request, jetzt);
