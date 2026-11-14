@@ -106,4 +106,91 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
     });
     await expect(datev.datevExport(2026)).rejects.toThrow(/Buchungen in SKR03 und SKR04/);
   });
+
+  it("exportiert einen Monat oder ein Quartal; zwölf Monatsexporte ergeben den Jahresexport", async () => {
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003" });
+    const contact = await contacts.createContact(actor, {
+      kundennummer: "",
+      name: "Südwind GmbH",
+      strasse: "Talstraße 2",
+      plz: "80331",
+      ort: "München",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+
+    const buche = async (issueDate: string, unitPrice: number) =>
+      invoices.finalizeInvoice(
+        actor,
+        (
+          await invoices.createDraft(actor, {
+            contactId: contact.id,
+            issueDate,
+            serviceFrom: null,
+            serviceTo: null,
+            paymentTermDays: 14,
+            format: "zugferd" as const,
+            note: "",
+            lines: [{ description: `Leistung ${issueDate}`, quantity: 1000, unit: "Stk." as const, unitPrice, taxRate: 1900 as const }],
+          })
+        ).id,
+      );
+
+    const jan = await buche("2026-01-15", 10_000);
+    const feb = await buche("2026-02-28", 20_000);
+    const mar1 = await buche("2026-03-01", 30_000);
+    const mar2 = await buche("2026-03-31", 40_000);
+    const apr = await buche("2026-04-01", 50_000);
+    const jul = await buche("2026-07-10", 60_000);
+    const nov = await buche("2026-11-20", 70_000);
+
+    // Monat März 2026: genau 01.03. bis 31.03.2026, Kopf 20260301/20260331
+    const maerz = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { kind: "monat", monat: 3 });
+    expect(maerz.filename).toBe("EXTF_Buchungsstapel_2026-03.csv");
+    const [kopfMaerz] = new TextDecoder("windows-1252").decode(maerz.bytes).split("\r\n");
+    expect(kopfMaerz).toContain(";20260101;4;20260301;20260331;");
+    const maerzStack = parseDatevBuchungsstapel(maerz.bytes);
+    expect(maerzStack.header).toMatchObject({ dateFrom: "2026-03-01", dateTo: "2026-03-31" });
+    expect([...new Set(maerzStack.bookings.map((b) => b.voucherField1))].sort()).toEqual([mar1.number, mar2.number].sort());
+
+    // 1. Quartal 2026: 01.01. bis 31.03.2026
+    const q1 = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { kind: "quartal", quartal: 1 });
+    expect(q1.filename).toBe("EXTF_Buchungsstapel_2026-Q1.csv");
+    const q1Stack = parseDatevBuchungsstapel(q1.bytes);
+    expect(q1Stack.header).toMatchObject({ dateFrom: "2026-01-01", dateTo: "2026-03-31" });
+    expect([...new Set(q1Stack.bookings.map((b) => b.voucherField1))].sort()).toEqual([jan.number, feb.number, mar1.number, mar2.number].sort());
+
+    // Leerer Monat: gültige Datei ohne Buchungen
+    const mai = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { kind: "monat", monat: 5 });
+    expect(mai.bookings).toBe(0);
+    expect(parseDatevBuchungsstapel(mai.bytes).header).toMatchObject({ dateFrom: "2026-05-01", dateTo: "2026-05-31" });
+
+    // Summe der zwölf Monatsexporte ergibt den Jahresexport
+    const jahr = await datev.datevExport(2026, new Date(2026, 11, 1));
+    const jahrStack = parseDatevBuchungsstapel(jahr.bytes);
+    expect([...new Set(jahrStack.bookings.map((b) => b.voucherField1))].sort()).toEqual(
+      [jan.number, feb.number, mar1.number, mar2.number, apr.number, jul.number, nov.number].sort(),
+    );
+
+    const monatsBuchungen = [];
+    for (let monat = 1; monat <= 12; monat++) {
+      const m = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { kind: "monat", monat });
+      monatsBuchungen.push(...parseDatevBuchungsstapel(m.bytes).bookings);
+    }
+    expect(monatsBuchungen).toHaveLength(jahrStack.bookings.length);
+
+    const summen = (list: typeof jahrStack.bookings) => {
+      const map = new Map<string, number>();
+      for (const b of list) {
+        map.set(b.account, (map.get(b.account) ?? 0) + b.amount);
+        map.set(b.contraAccount, (map.get(b.contraAccount) ?? 0) - b.amount);
+      }
+      return map;
+    };
+    expect(summen(monatsBuchungen)).toEqual(summen(jahrStack.bookings));
+  });
 });

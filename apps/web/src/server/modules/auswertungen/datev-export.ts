@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { ACCOUNTS, currentYear, PERSONENKONTO_LABEL, personenkontenBetroffen, personenkontenIm } from "@haben/core";
+import { ACCOUNTS, currentYear, type DatevZeitraum, datevZeitraumBereich, PERSONENKONTO_LABEL, personenkontenBetroffen, personenkontenIm } from "@haben/core";
 import { buildDatevBuchungsstapel, type DatevExportEntry, personenkontenEinsetzen } from "@haben/import";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -82,13 +82,15 @@ export async function datevExport(
   year: number,
   now = new Date(),
   exporteur?: DatevExporteur,
+  zeitraum: DatevZeitraum = { kind: "jahr" },
 ): Promise<{ bytes: Uint8Array; filename: string; bookings: number; warnings: string[] }> {
   const company = await loadCompany();
   if (!company.datevBeraterNr || !company.datevMandantNr) throw new DatevExportError("Berater- und Mandantennummer fehlen.");
+  const { dateFrom, dateTo, filename, description } = datevZeitraumBereich(year, zeitraum);
   const entries = await db
     .select()
     .from(schema.journalEntries)
-    .where(and(gte(schema.journalEntries.date, `${year}-01-01`), lte(schema.journalEntries.date, `${year}-12-31`)))
+    .where(and(gte(schema.journalEntries.date, dateFrom), lte(schema.journalEntries.date, dateTo)))
     .orderBy(asc(schema.journalEntries.date), asc(schema.journalEntries.createdAt), asc(schema.journalEntries.id));
   // Kontenrahmen des Jahres aus den Buchungen: Nach einem Wechsel bleibt das Vorjahr im alten Rahmen exportierbar
   const rahmen = [...new Set(entries.map((e) => e.kontenrahmen))].sort();
@@ -157,16 +159,16 @@ export async function datevExport(
       beraterNr: company.datevBeraterNr,
       mandantNr: company.datevMandantNr,
       fiscalYearStart: `${year}-01-01`,
-      dateFrom: `${year}-01-01`,
-      dateTo: `${year}-12-31`,
-      description: `Haben ${year}`,
+      dateFrom,
+      dateTo,
+      description,
       kontenrahmen,
       createdAt: now,
     },
     exportEntries,
   );
   if (verwendet.length > 0) await festschreiben(exporteur, verwendet, year);
-  return { bytes, filename: `EXTF_Buchungsstapel_${year}.csv`, bookings: rows.length, warnings };
+  return { bytes, filename, bookings: rows.length, warnings };
 }
 
 /** Ablehnung für jemanden ohne Recht zum Vergeben: welche Kontakte noch keine Nummer haben */

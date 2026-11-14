@@ -659,6 +659,17 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   // Keine Nummern, die im Belegfeld 1 zusammenfallen: kein Hinweis
   expect(response.headers()["x-haben-hinweis"]).toBeUndefined();
 
+  // Zeitraum Monat und Quartal (#960)
+  await card.getByLabel("Zeitraum").selectOption("03");
+  const maerzRes = await page.request.get((await link.getAttribute("href"))!);
+  expect(maerzRes.status()).toBe(200);
+  expect(maerzRes.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-03\.csv/);
+  await card.getByLabel("Zeitraum").selectOption("Q1");
+  const q1Res = await page.request.get((await link.getAttribute("href"))!);
+  expect(q1Res.status()).toBe(200);
+  expect(q1Res.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-Q1\.csv/);
+  await card.getByLabel("Zeitraum").selectOption("");
+
   // Mit Hinweis (#675; welche Nummern zusammenfallen, prüft datev-belegfeld.test.ts): Die Datei kommt, die Karte nennt die Nummern
   const hinweis = "„RE.2026.001“ und „RE-2026-001“ stehen im Belegfeld 1 als „RE-2026-001“; DATEV kann ihre offenen Posten verwechseln.";
   await page.route("**/api/datev/*", async (route) => {
