@@ -26,18 +26,18 @@ describe("Leistungsmonat gegen gemeldete Voranmeldungen", () => {
     expect(zeitraumLabel(mai)).toBe("05/2026");
   });
 
-  it("gibt ohne Leistungsdatum keinen Hinweis", () => {
-    expect(leistungsmonatHinweis(null, [q2])).toBeNull();
-  });
+  const betrag = { net: 100_000, tax: 19_000 };
 
-  it("nennt Zeitraum und Leistungsmonat im Hinweis", () => {
-    const hinweis = leistungsmonatHinweis("2026-05-31", [q2]);
-    expect(hinweis).toContain("05/2026");
-    expect(hinweis).toContain("Q2/2026");
-    expect(hinweis).toContain("nächste Voranmeldung");
+  it("nennt Zeitraum, Abgabe und Betrag und führt zur berichtigten Anmeldung", () => {
+    const hinweis = leistungsmonatHinweis("2026-05-31", [{ ...q2, sentAt: new Date("2026-07-10T08:00:00Z") }], betrag);
+    expect(hinweis).toContain("31.05.2026");
+    expect(hinweis).toContain("Q2/2026, übermittelt am 10.07.2026");
+    expect(hinweis).toContain("190,00");
+    expect(hinweis).toContain("berichtigte Anmeldung");
+    expect(hinweis).not.toContain("nächste Voranmeldung");
   });
 
   it("schweigt, wenn der Zeitraum offen ist", () => {
-    expect(leistungsmonatHinweis("2026-08-15", [q2])).toBeNull();
+    expect(leistungsmonatHinweis("2026-08-15", [q2], betrag)).toBeNull();
   });
 });
