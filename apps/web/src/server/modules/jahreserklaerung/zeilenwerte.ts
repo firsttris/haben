@@ -3,7 +3,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { zeilenFelder, zeilenForm, type ZeilenForm } from "../../../lib/zeilenwerte.ts";
-import { AnnualError } from "./annual.ts";
+import { AnnualError } from "./fehler.ts";
 
 /*
  * Erklärte Zeilenwerte: Eine Jahreserklärung, die außerhalb von Haben abgegeben wurde, hat Zeilen, die
@@ -75,4 +75,20 @@ export async function speichereErklaerteZeilen(
     await tx.insert(schema.annualSubmissionFigures).values(zeilen.map((z) => ({ submissionId: vermerk.id, field: z.field, amount: z.amount })));
   });
   return zeilen.length;
+}
+
+/**
+ * Zeilenwerte, die außerhalb von Haben erklärt wurden, je Schlüssel der Erklärung (`steuerpflichtig`,
+ * `base19`, `gewinn`, …). Leer, wenn zu diesem Vermerk nichts erfasst ist.
+ *
+ * Sie stehen neben dem Vermerk, nicht darin: `annual_submissions` ist `append_only`, ein späteres UPDATE
+ * scheitert also (#997).
+ */
+export async function erklaerteZeilen(submissionId: string | null): Promise<Record<string, number>> {
+  if (!submissionId) return {};
+  const rows = await db
+    .select({ field: schema.annualSubmissionFigures.field, amount: schema.annualSubmissionFigures.amount })
+    .from(schema.annualSubmissionFigures)
+    .where(eq(schema.annualSubmissionFigures.submissionId, submissionId));
+  return Object.fromEntries(rows.map((r) => [r.field, r.amount]));
 }

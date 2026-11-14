@@ -1,4 +1,3 @@
-import { UserError } from "../../errors.ts";
 import { fehlendeMonate } from "./fehlende-voranmeldungen.ts";
 import {
   ACCOUNTS,
@@ -60,7 +59,9 @@ import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzste
 import { kz48Einordnen, type Kz48Gesperrt } from "./kz48.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
-export class AnnualError extends UserError {}
+export { AnnualError } from "./fehler.ts";
+import { AnnualError } from "./fehler.ts";
+import { erklaerteZeilen } from "./zeilenwerte.ts";
 
 export type AnnualForm = "ust" | "euer" | "est";
 
@@ -609,22 +610,6 @@ export async function submissions(year: number) {
       .orderBy(desc(schema.annualSubmissions.createdAt))
       .then((rows) => rows as (Omit<(typeof rows)[number], "form"> & { form: AnnualForm })[])
   );
-}
-
-/**
- * Zeilenwerte, die außerhalb von Haben erklärt wurden, je Schlüssel der Erklärung (`steuerpflichtig`,
- * `base19`, `gewinn`, …). Leer, wenn zu diesem Vermerk nichts erfasst ist.
- *
- * Sie stehen neben dem Vermerk, nicht darin: `annual_submissions` ist `append_only`, ein späteres UPDATE
- * scheitert also (#997).
- */
-async function erklaerteZeilen(submissionId: string | null): Promise<Record<string, number>> {
-  if (!submissionId) return {};
-  const rows = await db
-    .select({ field: schema.annualSubmissionFigures.field, amount: schema.annualSubmissionFigures.amount })
-    .from(schema.annualSubmissionFigures)
-    .where(eq(schema.annualSubmissionFigures.submissionId, submissionId));
-  return Object.fromEntries(rows.map((r) => [r.field, r.amount]));
 }
 
 /**
