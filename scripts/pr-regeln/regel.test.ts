@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkBody, checkTitle, countWords, docPageHints, growthHints, hints, isBot, reviewHint } from "./regel.ts";
+import { checkBody, checkTitle, checkTitleIssues, countWords, docPageHints, growthHints, hints, isBot, reviewHint } from "./regel.ts";
 
 describe("checkTitle", () => {
   it.each([
@@ -129,6 +129,36 @@ describe("checkBody", () => {
 
   it("lässt Beispiele in Code durch", () => {
     expect(checkBody("Nicht `Closes #12`, sondern Umgesetzt #12")).toEqual([]);
+  });
+});
+
+describe("checkTitleIssues", () => {
+  it("meldet ein Issue aus der Beschreibung, das im Titel fehlt (#954: Refs #357 ohne „(#357)“)", () => {
+    const reports = checkTitleIssues("Mahnung: Vorschau des Blatts wie bei Rechnung und Angebot", "Refs #357");
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({ level: "error" });
+    expect(reports[0].message).toContain("(#357)");
+  });
+
+  it("lässt Titel durch, die jede Nummer aus Refs und Umgesetzt nennen, auch als Liste", () => {
+    expect(checkTitleIssues("Mahnung: Vorschau (#357)", "Refs #357")).toEqual([]);
+    expect(checkTitleIssues("Finanzamt: Zeitraum einheitlich (#968, #969)", "Umgesetzt #968, #969")).toEqual([]);
+  });
+
+  it("nennt nur die fehlenden Nummern", () => {
+    const [report] = checkTitleIssues("Finanzamt: Zeitraum einheitlich (#968)", "Umgesetzt #968\nRefs #969");
+    expect(report.message).toContain("#969");
+    expect(report.message).not.toContain("#968,");
+  });
+
+  it("schweigt ohne Verweise, bei leerer Beschreibung und bei Beispielen in Code", () => {
+    expect(checkTitleIssues("Doku: Tippfehler", "Kein Issue.")).toEqual([]);
+    expect(checkTitleIssues("Doku: Tippfehler", null)).toEqual([]);
+    expect(checkTitleIssues("Doku: Tippfehler", "Etwa `Refs #12` im Text")).toEqual([]);
+  });
+
+  it("verwechselt #35 nicht mit #357", () => {
+    expect(checkTitleIssues("Mahnung: Vorschau (#357)", "Refs #35")).toHaveLength(1);
   });
 });
 
