@@ -37,9 +37,12 @@ import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { aendereBetragszeile, betragszeileAus, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
+import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
+import { Kuerzel } from "../../../components/Kuerzel.tsx";
+import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
 function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boolean): string {
@@ -67,6 +70,8 @@ let nextKey = 1;
 const EU_VAT_PREFIX = /^(AT|BE|BG|CY|CZ|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[0-9A-Z]{2,12}$/;
 
 const CONTINUE_KEY = "haben-belege-weiter";
+/** Bucht wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld */
+const BUCHEN_KUERZEL: readonly Taste[] = ["mod", "Enter"];
 
 /** Voreinstellung „nach dem Buchen weiter“: an, solange nichts anderes gemerkt ist; ohne Speicher (privates Fenster) einfach an */
 function readContinuePreference(): boolean {
@@ -296,6 +301,7 @@ function Preview({ doc }: { doc: Detail["document"] }) {
 }
 
 function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (dirty: boolean) => void }) {
+  const buchenText = useKuerzelText(BUCHEN_KUERZEL);
   const { document: doc, amounts, splits, categories, issues, aiAvailable, navigation } = data;
   const router = useRouter();
   const navigate = useNavigate();
@@ -384,6 +390,26 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     privateShareValid &&
     currencyValid &&
     parsedSplits !== null;
+  const BETRAG_FEHLER = "Trag den Betrag als Zahl ein, etwa 120,50.";
+  const { form, error, check } = useSubmitCheck({
+    ...Object.fromEntries(
+      rows.flatMap((r, i) => [
+        [`satz-${r.key}`, rows.findIndex((x) => x.taxRate === r.taxRate) < i ? "Diesen Satz gibt es schon in einer Zeile darüber." : null],
+        [`netto-${r.key}`, parsed[i]!.net === null ? BETRAG_FEHLER : null],
+        [`steuer-${r.key}`, parsed[i]!.tax === null ? BETRAG_FEHLER : null],
+        [`brutto-${r.key}`, reverseCharge || bruttoLesbar(r) ? null : BETRAG_FEHLER],
+      ]),
+    ),
+    ...Object.fromEntries(
+      splitRows.flatMap((r) => [
+        [`kategorie-${r.key}`, r.category === "" ? "Wähle die Kategorie." : null],
+        [`aufteilung-${r.key}`, parseEuro(r.net || "0") === null ? BETRAG_FEHLER : null],
+      ]),
+    ),
+    waehrung: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
+    kurs: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
+    privatanteil: privateShareValid ? null : "Trag eine ganze Zahl von 0 bis 100 ein.",
+  } as Record<string, string | null>);
   // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
   const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : foreign ? "Fremdwährung" : null;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
@@ -493,6 +519,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
 
   const onSave = (event: FormEvent) => {
     event.preventDefault();
+    if (!check()) return;
     void run(async () => {
       await persist();
       await router.invalidate();
@@ -523,14 +550,14 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     });
   };
 
-  // Strg+Enter (Mac: Cmd+Enter) wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld; gebucht wird
+  // Strg+Enter (Mac: ⌘+Enter) wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld; gebucht wird
   // erst im Dialog, nicht mit einem zweiten Strg+Enter, das den Hinweis überginge
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (readOnly || isDialogOpen()) return;
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
         event.preventDefault();
-        if (!busy && !running && valid) setConfirming(true);
+        if (!busy && !running && check()) setConfirming(true);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -544,7 +571,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     });
 
   return (
-    <form className="stack" onSubmit={onSave}>
+    <form ref={form} className="stack" onSubmit={onSave} noValidate>
       {running && (
         <div className="banner banner-info" role="status">
           <Icon name="info" />
@@ -801,7 +828,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           )}
         </Field>
         <div className="form-grid">
-          <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined}>
+          <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined} error={error("waehrung")}>
             {(control) => (
               <>
                 <input
@@ -810,7 +837,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
                   list="currency-codes"
                   maxLength={3}
-                  aria-invalid={!CURRENCY_CODE.test(currencyCode)}
                 />
                 <datalist id="currency-codes">
                   {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
@@ -821,7 +847,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             )}
           </Field>
           {foreign && (
-            <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="currency-hint">
+            <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="currency-hint" error={error("kurs")}>
               {(control) => (
                 <input
                   {...control}
@@ -830,7 +856,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   value={exchangeRate}
                   placeholder="z. B. 1,0812"
                   onChange={(e) => touch(setExchangeRate)(e.target.value)}
-                  aria-invalid={exchangeRate.trim() !== "" && rate === null}
                 />
               )}
             </Field>
@@ -856,7 +881,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </div>
         {rows.map((row, index) => (
           <div className={reverseCharge ? "amount-row" : "amount-row with-gross"} key={row.key}>
-            <Field label="Satz">
+            <Field label="Satz" error={error(`satz-${row.key}`)}>
               {(control) => (
                 <select {...control} value={row.taxRate} onChange={(e) => updateRow(row.key, { taxRate: Number(e.target.value) as Rate })}>
                   <option value={1900}>19 %</option>
@@ -865,7 +890,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 </select>
               )}
             </Field>
-            <Field label={foreign ? `Netto ${currencyCode}` : "Netto"}>
+            <Field label={foreign ? `Netto ${currencyCode}` : "Netto"} error={error(`netto-${row.key}`)}>
               {(control) => (
                 <input
                   {...control}
@@ -874,7 +899,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   value={row.net}
                   placeholder="0,00"
                   onChange={(e) => updateRow(row.key, { net: e.target.value })}
-                  aria-invalid={parsed[index]!.net === null}
                 />
               )}
             </Field>
@@ -887,6 +911,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 </>
               }
               describedBy={reverseCharge ? "self-assessed-tax-hint" : undefined}
+              error={error(`steuer-${row.key}`)}
             >
               {(control) => (
                 <input
@@ -897,13 +922,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   placeholder="0,00"
                   readOnly={Boolean(reverseCharge)}
                   onChange={(e) => updateRow(row.key, { tax: e.target.value, taxTouched: true })}
-                  aria-invalid={parsed[index]!.tax === null}
                 />
               )}
             </Field>
             {/* Brutto laut Beleg (#917): Eingabe rechnet Netto und Vorsteuer vor; bei § 13b gezahlt wird netto, also kein Brutto */}
             {!reverseCharge && (
-              <Field label={foreign ? `Brutto ${currencyCode}` : "Brutto"}>
+              <Field label={foreign ? `Brutto ${currencyCode}` : "Brutto"} error={error(`brutto-${row.key}`)}>
                 {(control) => (
                   <input
                     {...control}
@@ -912,7 +936,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                     value={row.gross}
                     placeholder="0,00"
                     onChange={(e) => updateRow(row.key, { gross: e.target.value })}
-                    aria-invalid={row.gross.trim() !== "" && parseEuro(row.gross) === null}
                   />
                 )}
               </Field>
@@ -983,7 +1006,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </p>
         {/* Privatanteil nur im Einzelunternehmen; in GmbH und UG wäre er Arbeitslohn oder verdeckte Gewinnausschüttung */}
         {category !== "anlage" && !splitting && !isKapitalgesellschaft(data.rechtsform) && (
-          <Field label="Privatanteil in %" hint="Z. B. beim Handyvertrag: nur der betriebliche Teil wird Ausgabe und Vorsteuer." style={{ maxWidth: 220 }}>
+          <Field
+            label="Privatanteil in %"
+            hint="Z. B. beim Handyvertrag: nur der betriebliche Teil wird Ausgabe und Vorsteuer."
+            error={error("privatanteil")}
+            style={{ maxWidth: 220 }}
+          >
             {(control) => (
               <input
                 {...control}
@@ -991,7 +1019,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 value={privateShare}
                 placeholder="0"
                 onChange={(e) => touch(setPrivateShare)(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                aria-invalid={!privateShareValid}
               />
             )}
           </Field>
@@ -1026,6 +1053,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             disabled={readOnly || running}
             onChange={touch(setSplitRows)}
             taxLabel={reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
+            error={(feld, key) => error(`${feld === "netto" ? "aufteilung" : "kategorie"}-${key}`)}
             onDissolve={() => {
               // Zurück zu einer Kategorie: die der ersten Zeile
               touch(setCategory)(splitRows[0]?.category ?? "");
@@ -1119,7 +1147,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)} disabled={busy || running}>
             Löschen
           </button>
-          <button type="submit" className="btn" disabled={busy || running || !valid || !dirty}>
+          <button type="submit" className="btn" disabled={busy || running || !dirty}>
             Speichern
           </button>
           {aiAvailable && doc.mimeType !== "application/xml" && doc.mimeType !== "image/heic" && (
@@ -1127,7 +1155,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               Mit KI neu auslesen
             </button>
           )}
-          <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy || running || !valid} title="Strg+Enter">
+          <button type="button" className="btn btn-primary" onClick={() => check() && setConfirming(true)} disabled={busy || running} title={buchenText}>
             Bestätigen und buchen
           </button>
           <label className="checkbox small" style={{ flexBasis: "100%" }}>
@@ -1135,7 +1163,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             Nach dem Buchen zum nächsten offenen Beleg
           </label>
           <span className="small muted pointer-fine" style={{ flexBasis: "100%" }}>
-            Tastatur: Strg+Enter bucht, J und K wechseln den Beleg, Esc führt zurück zur Liste.
+            Tastatur: <Kuerzel tasten={BUCHEN_KUERZEL} /> bucht, <Kuerzel tasten={["J"]} /> und <Kuerzel tasten={["K"]} /> wechseln den Beleg,{" "}
+            <Kuerzel tasten={["Esc"]} /> führt zurück zur Liste.
           </span>
         </div>
       )}

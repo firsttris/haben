@@ -429,7 +429,7 @@ Nach einem Import liegen oft viele Belege auf „Zu prüfen“. Damit du sie ohn
 | --- | --- |
 | `J` oder `→` | Nächster Beleg (nicht in Eingabefeldern) |
 | `K` oder `←` | Vorheriger Beleg |
-| `Strg+Enter` (Mac: `Cmd+Enter`) | Wie ein Klick auf **Bestätigen und buchen**, auch aus einem Eingabefeld. Gebucht wird wie mit der Maus erst im Dialog. |
+| `Strg+Enter` (Mac: `⌘+Enter`) | Wie ein Klick auf **Bestätigen und buchen**, auch aus einem Eingabefeld. Gebucht wird wie mit der Maus erst im Dialog. |
 | `Esc` | Bricht die Rückfrage zum Buchen oder Löschen ab, sonst zurück zur Liste (nicht in Eingabefeldern) |
 
 Auf dem Handy wischst du nach links zum nächsten und nach rechts zum vorigen Beleg.

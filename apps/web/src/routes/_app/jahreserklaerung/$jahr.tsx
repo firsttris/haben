@@ -104,6 +104,7 @@ function AnnualPage() {
       </nav>
 
       <div className="stack" style={{ gap: 24 }}>
+        {!gesellschaft && <StatusUebersicht data={data} />}
         <UstSection data={data} />
         {!gesellschaft && <EuerSection data={data} />}
         {!gesellschaft && <EstSection key={data.year} data={data} />}
@@ -183,6 +184,42 @@ function SentPill({ sent, submitted, verwaltet }: { sent: Data["ust"]["sent"]; s
   );
 }
 
+function StatusUebersicht({ data }: { data: Data }) {
+  const zeilen = [
+    { id: "ust", label: "Umsatzsteuer", teil: data.ust },
+    { id: "euer", label: "Anlage EÜR", teil: data.euer },
+    { id: "est", label: "Einkommensteuer", teil: data.est },
+  ];
+  return (
+    <section className="card" aria-label="Stand der Erklärungen">
+      <table className="report-table stack-table">
+        <thead>
+          <tr>
+            <th scope="col">Erklärung</th>
+            <th scope="col">Stand</th>
+            <th scope="col" className="num">
+              Betrag
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((z) => (
+            <tr key={z.id}>
+              <th scope="row">
+                <a href={`#${z.id}`}>{z.label}</a>
+              </th>
+              <td>
+                <SentPill sent={z.teil.sent} submitted={z.teil.submitted} verwaltet={"verwaltet" in z.teil ? z.teil.verwaltet : false} />
+              </td>
+              <td className="num">{z.teil.submitted?.amount === null || z.teil.submitted?.amount === undefined ? "–" : formatEuro(z.teil.submitted.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 function UstSection({ data }: { data: Data }) {
   const { ust } = data;
   const f = ust.figures;
@@ -227,7 +264,25 @@ function UstSection({ data }: { data: Data }) {
             )}
             {(f.kz21 ?? 0) !== 0 && <Row label="Nicht steuerbare Leistungen, Ort im EU-Ausland" kz="21" extra={formatEuro(f.kz21!)} value="–" />}
             {(f.kz45 ?? 0) !== 0 && <Row label="Nicht steuerbare Umsätze (Drittland)" kz="45" extra={formatEuro(f.kz45!)} value="–" />}
-            {ust.kz48 !== 0 && <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug" kz="48" extra={formatEuro(ust.kz48)} value="–" />}
+            {(f.kz48Zeile46 ?? 0) !== 0 && (
+              <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug (Vermietung, § 4 Nr. 12)" kz="46" extra={formatEuro(f.kz48Zeile46!)} value="–" />
+            )}
+            {(f.kz48Zeile47 ?? 0) !== 0 && (
+              <Row
+                label={`Steuerfreie Umsätze ohne Vorsteuerabzug (§ 4 Nr. ${f.kz48Zeile47Nummern ?? "?"})`}
+                kz="48"
+                extra={formatEuro(f.kz48Zeile47!)}
+                value="–"
+              />
+            )}
+            {ust.kz48Gesperrt.length > 0 && (
+              <Row
+                label="Steuerfreie Umsätze ohne Vorsteuerabzug, nicht zuordenbar"
+                kz="48"
+                extra={formatEuro(ust.kz48Gesperrt.reduce((s, e) => s + e.betrag, 0))}
+                value="–"
+              />
+            )}
             <Row label="Abziehbare Vorsteuer aus Rechnungen" kz="66" extra="" value={formatDeduction(f.vorsteuer)} />
             {(f.kz61 ?? 0) !== 0 && <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" kz="61" extra="" value={formatDeduction(f.kz61!)} />}
             {(f.kz62 ?? 0) !== 0 && <Row label="Entstandene Einfuhrumsatzsteuer" kz="62" extra="" value={formatDeduction(f.kz62!)} />}
@@ -346,6 +401,15 @@ function Amount({ name, label, value, hint }: { name: string; label: string; val
       {(control) => <input {...control} name={name} inputMode="decimal" defaultValue={centsText(value)} placeholder="0,00" />}
     </Field>
   );
+}
+
+/**
+ * Klappt die Blöcke um ein ungültiges Feld auf. Sonst kann der Browser ein leeres Pflichtfeld in einem zugeklappten
+ * Block nicht zeigen, und das Absenden bleibt ohne Rückmeldung stehen. `invalid` steigt nicht auf, deshalb in der
+ * Capture-Phase am Formular.
+ */
+function aufklappenBisZumFeld(event: FormEvent<HTMLFormElement>) {
+  for (let block = (event.target as HTMLElement).closest("details"); block; block = block.parentElement?.closest("details") ?? null) block.open = true;
 }
 
 /** Zuklappbarer Teil der Einkommensteuer-Angaben; im Titel steht, was gespeichert ist */
@@ -469,7 +533,7 @@ function EstSection({ data }: { data: Data }) {
 
   return (
     <section className="grid-main jump-target" id="est" aria-labelledby="est-heading">
-      <form className="card" onSubmit={onSubmit} aria-label="Angaben zur Einkommensteuer">
+      <form className="card" onSubmit={onSubmit} onInvalidCapture={aufklappenBisZumFeld} aria-label="Angaben zur Einkommensteuer">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
           <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
           <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
@@ -479,9 +543,15 @@ function EstSection({ data }: { data: Data }) {
           <tbody>
             <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
             <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} text />
-            <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />
-            {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
+            {/* Ohne Buchungen im Jahr steht hier 0,00 — das ist keine Aussage über den Gewinn,
+                  sondern über Habens Datenlage (#869) */}
+            {est.gewinn !== 0 && <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />}
             <Row label="Anlagen" value={est.anlagen.join(", ")} text />
+          </tbody>
+        </ScrollTable>
+        <ScrollTable className="report-table">
+          <tbody>
+            {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
             <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
             <Row
               label="Voraussichtliche Steuer"
@@ -517,7 +587,7 @@ function EstSection({ data }: { data: Data }) {
           };
           const total = v("a") + (est.zusammen ? v("b") : 0) + (a.vorsorge.sonstige ?? 0);
           return (
-            <Block title="Vorsorgeaufwand" summary={sumText(total)} open={total > 0}>
+            <Block title="Vorsorgeaufwand" summary={sumText(total)} open={false}>
               <h4 className="est-sub">{est.zusammen ? (est.person.a ?? "Person A") : "Beiträge"}</h4>
               {vorsorgeFields("a", a.vorsorge.a)}
               {est.zusammen && (
@@ -536,7 +606,7 @@ function EstSection({ data }: { data: Data }) {
         <Block
           title="Sonderausgaben und Belastungen"
           summary={sumText(sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.spenden, a.krankheitskosten))}
-          open={sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.kirchensteuerErstattet, a.sonderausgaben.spenden, a.krankheitskosten) > 0}
+          open={false}
         >
           <div className="form-grid">
             <Amount
@@ -554,7 +624,7 @@ function EstSection({ data }: { data: Data }) {
         <Block
           title="Haushaltsnahe Aufwendungen (§ 35a EStG)"
           summary={sumText(sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker))}
-          open={sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker) > 0}
+          open={false}
         >
           <div className="form-grid">
             <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
@@ -568,11 +638,7 @@ function EstSection({ data }: { data: Data }) {
           </div>
         </Block>
 
-        <Block
-          title="Kinder"
-          summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`}
-          open={a.kinder.length > 0}
-        >
+        <Block title="Kinder" summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`} open={false}>
           {kinder.map((k, index) => (
             <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
               <Field label="Vorname">
@@ -628,10 +694,7 @@ function EstSection({ data }: { data: Data }) {
         <Block
           title="Kapitalerträge (Anlage KAP)"
           summary={sumText(sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland))}
-          open={
-            sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland, a.kap?.kapitalertragsteuer) > 0 ||
-            Boolean(a.kap?.guenstigerpruefung)
-          }
+          open={false}
         >
           <div className="form-grid">
             <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />

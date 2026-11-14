@@ -4,7 +4,9 @@ import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
-import { CommandPalette } from "../components/CommandPalette.tsx";
+import { CommandPalette, PALETTE_KUERZEL } from "../components/CommandPalette.tsx";
+import { Kuerzel } from "../components/Kuerzel.tsx";
+import { ariaKuerzel } from "../lib/tastatur.ts";
 import { NAV_GROUPS, STEUERBERATUNG_NAV, type NavLink, navLinkSichtbar } from "../lib/navigation.ts";
 import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
 import { FirmaWechsler } from "../components/FirmaWechsler.tsx";
@@ -58,14 +60,6 @@ function useFirmaBrand() {
     return () => window.removeEventListener("keydown", zu, true);
   }, [firmaVoll]);
   return { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg };
-}
-
-function useShortcutLabel() {
-  const [shortcutLabel, setShortcutLabel] = useState("Strg K");
-  useEffect(() => {
-    if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) setShortcutLabel("⌘ K");
-  }, []);
-  return shortcutLabel;
 }
 
 function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: () => void, toggle: RefObject<HTMLButtonElement | null>) {
@@ -200,7 +194,6 @@ function NavBrand({ inhaber }: { inhaber: boolean }) {
 }
 
 function NavSearch({ onOpen }: { onOpen: () => void }) {
-  const shortcutLabel = useShortcutLabel();
   return (
     <button
       type="button"
@@ -209,13 +202,11 @@ function NavSearch({ onOpen }: { onOpen: () => void }) {
         event.currentTarget.focus();
         onOpen();
       }}
-      aria-keyshortcuts="Control+K Meta+K"
+      aria-keyshortcuts={ariaKuerzel(PALETTE_KUERZEL)}
     >
       <Icon name="search" size={18} />
       <span className="nav-search-label">Schnellsuche</span>
-      <kbd className="nav-kbd" aria-hidden="true">
-        {shortcutLabel}
-      </kbd>
+      <Kuerzel tasten={PALETTE_KUERZEL} className="nav-kbd" aria-hidden="true" />
     </button>
   );
 }

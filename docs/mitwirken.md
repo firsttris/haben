@@ -149,7 +149,7 @@ Bevor ein Pull Request ins [Review](#review) geht, egal von wem, beantwortet ein
 
 **Ergebnis:** Nicht gewollt oder offene Grundsatzfrage: Der Maintainer entscheidet, ein grundsätzlich abgelehntes Thema kommt nach [Bewusst nicht](roadmap.md#bewusst-nicht). Gewollt, aber unvollständig: Kleinigkeiten ergänzen wir selbst; fehlt mehr, darf der Beitragende zwei Tage lang selbst nachbessern, danach machen wir es fertig. Dann Review und Merge bei grüner CI; fachlich heikle Änderungen (auch Migrationen auf bestehenden Daten) erst nach einem „OK“ des Maintainers auf eine kurze Zusammenfassung mit Quelle und Gegenrechnung.
 
-Rückmeldungen folgen dem [Verhaltenskodex](https://github.com/firsttris/haben/blob/main/CODE_OF_CONDUCT.md) und trennen, was vor dem Merge nötig ist, von Vorschlägen. Mit Claude Code führt der Skill `beitrag-pruefen` durch.
+Rückmeldungen folgen dem [Verhaltenskodex](https://github.com/firsttris/haben/blob/main/CODE_OF_CONDUCT.md) und trennen, was vor dem Merge nötig ist, von Vorschlägen. Mit Claude Code führt der Skill `beitrag-pruefen` durch. Alle offenen Pull Requests nacheinander, vom einfachsten Merge an, arbeitet der Skill `prs-abarbeiten` ab.
 
 ## Review
 

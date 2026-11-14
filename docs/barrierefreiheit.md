@@ -19,14 +19,14 @@ Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den a
 | `Tab` / `Umschalt+Tab` | Zum nächsten bzw. vorigen Bedienelement. Das Element mit dem Fokus hat immer einen sichtbaren Rahmen. |
 | `Enter` | Link öffnen, Knopf auslösen, Formular absenden |
 | `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt aufklappen |
-| `Strg+K` / `Cmd+K` | [Schnellsuche](suche.md) öffnen (am Handy auch über die Lupe neben **Menü**); darin `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` zum Öffnen |
+| `Strg+K` / `⌘+K` | [Schnellsuche](suche.md) öffnen (am Handy auch über die Lupe neben **Menü**); darin `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` zum Öffnen |
 | `Esc` | Schließt das Menü auf dem Handy oder die Befehlspalette und gibt den Fokus an den Auslöser zurück |
 
 - **Zum Inhalt springen:** Der erste `Tab` auf jeder Seite zeigt den Link **Zum Inhalt springen**. Mit `Enter` überspringst du die Navigation.
 - **Nach einem Seitenwechsel** steht der Fokus am Anfang des Inhalts, nicht mehr in der Navigation. Der nächste `Tab` führt zum ersten Element der neuen Seite. Filter und Suche ändern nur die Liste, der Fokus bleibt, wo er ist.
 - **Anmelden:** Nach **Passwort verwenden** steht der Fokus im Feld **E-Mail**.
 - **Knopfzeilen:** `Tab` geht die Knöpfe in der Folge durch, in der sie zu sehen sind. Hat die Zeile eine Hauptaktion wie **Speichern**, steht sie zuletzt und ein Gefahrknopf wie **Löschen** zuerst. Ein Gefahrknopf, der Gespeichertes löscht, fragt erst nach. Ausnahme ist die Rückfrage auf dem Handy: **Abbrechen** steht unter der Aktion, wo der Daumen liegt, hat beim Öffnen den Fokus, und `Tab` geht von dort nach oben zur Aktion.
-- **Fehlende Angaben:** Unter **Pauschalen** und im **Bankabgleich** (Zuordnen, Aufteilen, Verrechnen, Name des Kontos, Bank verbinden) bleibt der Knopf bedienbar, auch wenn noch etwas fehlt. Ein Druck darauf schreibt unter jedes betroffene Feld, was fehlt oder nicht stimmt, und setzt den Fokus ins erste davon; der Screenreader liest dabei Feldname und Fehler.
+- **Fehlende Angaben:** Unter **Pauschalen**, im **Bankabgleich** (Zuordnen, Aufteilen, Verrechnen, Name des Kontos, Bank verbinden), beim **Beleg** (Speichern und Buchen), bei der **manuellen Buchung**, bei **Anlagen**, in **Rechnungen und Angeboten** (auch Serienrechnung, Mahnung und Versand per E-Mail), bei **Dauerbelegen** und beim **Abrechnen von Leistungen** bleibt der Knopf bedienbar, auch wenn noch etwas fehlt. Ein Druck darauf schreibt unter jedes betroffene Feld, was fehlt oder nicht stimmt, und setzt den Fokus ins erste davon; der Screenreader liest dabei Feldname und Fehler. Bei der manuellen Buchung steht, was den Zeilen fehlt, als Liste unter der Tabelle; das Konto der ersten Zeile verweist darauf.
 - **Dateien hochladen:** Statt Drag-and-drop öffnen **Dateien auswählen** und **Foto aufnehmen** den Dateidialog des Systems.
 - **Kunde, Lieferant und Artikel suchen** (Kunde im Rechnungs- und Angebotseditor, bei Serienrechnungen und Textbausteinen, Lieferant im Beleg und im Dauerbeleg, Artikel im Editor): Beim Tippen erscheint eine Trefferliste. `Pfeil runter` und `Pfeil hoch` bewegen den aktiven Treffer, `Enter` übernimmt ihn, `Esc` schließt die Liste; `Alt+Pfeil runter` öffnet sie, ohne einen Treffer zu wechseln. Bei Kunden und Lieferanten übernimmt auch `Tab` den aktiven Treffer.
 - **Diagramm unter Auswertungen:** Mit `Tab` springst du von Monat zu Monat und siehst die Werte. Dieselben Zahlen stehen unter **Als Tabelle anzeigen**.
@@ -36,9 +36,9 @@ Tastenkürzel einzelner Seiten:
 | Seite | Kürzel |
 | --- | --- |
 | [Bankabgleich](bank.md#zuordnen) | `Enter` ordnet zu, `J` nächster, `K` voriger Umsatz |
-| [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` bucht, `Esc` zurück zur Liste |
+| [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` / `⌘+Enter` bucht, `Esc` zurück zur Liste |
 
-Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` (Mac: `Cmd+Enter`) bucht einen Beleg auch aus einem Eingabefeld.
+Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` bucht einen Beleg auch aus einem Eingabefeld. Haben zeigt die Kürzel so, wie sie auf deiner Tastatur stehen: am Mac, iPhone und iPad mit `⌘`, sonst mit `Strg`.
 
 ## Darstellung
 

@@ -11,7 +11,7 @@ Die Schnellsuche findet von jeder Seite aus, was in Haben steht: Seiten und Bere
 
 ## Öffnen
 
-- **Tastatur:** `Strg+K`, am Mac `⌘K`. Ist gerade ein anderer Dialog offen, öffnet sie nicht.
+- **Tastatur:** `Strg+K`, am Mac `⌘+K`. Ist gerade ein anderer Dialog offen, öffnet sie nicht.
 - **Desktop:** der Knopf **Schnellsuche** in der Navigation unter dem Firmennamen.
 - **Handy:** die Lupe links neben **Menü**. Die Suche füllt dann den Bildschirm, **Abbrechen** schließt sie.
 

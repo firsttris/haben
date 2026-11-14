@@ -90,3 +90,33 @@ export function sheetText(data: SheetData): SheetTextPart[] {
   ];
   return parts.filter((part) => part.lines.length > 0);
 }
+
+/** Was templates/mahnung.typ zeigt (dunningPdfData), soweit es Text ist */
+export interface DunningSheetData {
+  senderLine: string;
+  recipient: string[];
+  title: string;
+  reference: string;
+  meta: Row[];
+  introFormatted: FormattedTextRun[];
+  invoices: { number: string; date: string; due: string; open: string }[];
+  rows: Row[];
+  total: Row;
+  payment: string;
+  closingFormatted: FormattedTextRun[];
+  greeting: string;
+  footer: string[][];
+  legal?: string | null;
+}
+
+/** Text des Blatts einer Mahnung, in denselben Teilen wie bei Rechnung und Angebot */
+export function dunningSheetText(data: DunningSheetData): SheetTextPart[] {
+  const parts: SheetTextPart[] = [
+    { part: "kopf", lines: filled([data.senderLine, ...data.recipient, data.title, data.reference, ...data.meta.map(row), plain(data.introFormatted)]) },
+    { part: "positionen", lines: data.invoices.map((i) => filled([i.number, i.date, i.due, i.open]).join(" ")) },
+    { part: "summen", lines: [...data.rows.map(row), row(data.total)] },
+    { part: "hinweise", lines: filled([data.payment, plain(data.closingFormatted), data.greeting]) },
+    { part: "fuss", lines: filled([...data.footer.flat(), data.legal]) },
+  ];
+  return parts.filter((part) => part.lines.length > 0);
+}
