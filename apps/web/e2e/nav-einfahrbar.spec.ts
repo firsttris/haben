@@ -12,7 +12,7 @@ const nav = (page: Page) => page.getByRole("navigation", { name: "Hauptnavigatio
 
 test("klappt am Desktop ein, bleibt beim Neuladen schmal und bedient Flyouts per Tastatur", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "networkidle" });
 
   const navEl = nav(page);
   const breiteAusgeklappt = await navEl.evaluate((el) => Math.round(el.getBoundingClientRect().width));
@@ -24,7 +24,8 @@ test("klappt am Desktop ein, bleibt beim Neuladen schmal und bedient Flyouts per
   expect(breiteEingeklappt).toBe(64);
 
   // Neuladen behält die schmale Leiste sofort bei
-  await page.reload();
+  // Der Server liefert die schmale Leiste schon fertig; bedienen lässt sie sich erst nach dem Hydrieren
+  await page.reload({ waitUntil: "networkidle" });
   await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
   const breiteNachReload = await nav(page).evaluate((el) => Math.round(el.getBoundingClientRect().width));
   expect(breiteNachReload).toBe(64);
@@ -129,7 +130,7 @@ test("eingeklappt: Überfahren öffnet die Gruppe, Hinweise statt title, aktiv a
   const ausgaben = nav(page).getByRole("button", { name: "Ausgaben" });
   await ausgaben.hover();
   await expect(ausgaben).toHaveAttribute("aria-expanded", "true");
-  await expect(nav(page).getByRole("link", { name: "Belege" })).toBeVisible();
+  await expect(nav(page).getByRole("link", { name: "Belege", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.activeElement?.closest(".nav-flyout") ?? null)).toBeNull();
 
   // Die Gruppe der aktiven Seite (Verkauf, zu) sieht anders aus als die offene Gruppe (Ausgaben)

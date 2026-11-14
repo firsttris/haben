@@ -318,6 +318,8 @@ test.describe("mit 20 anderen Firmen", () => {
     const suche = gruppe.getByRole("searchbox", { name: "Firma suchen" });
     await expect(suche).toBeFocused();
     await expect(gruppe.getByRole("link")).toHaveCount(20);
+    // Eingeklappt ist der Firmenname unter „Haben“ verborgen; der Kopf des Flyouts nennt die eigene Firma (#504)
+    expect(await gruppe.locator(".nav-flyout-title").evaluate((kopf) => getComputedStyle(kopf, "::after").content)).toBe(JSON.stringify(FIRMA));
 
     const gemessen = await gruppe.getByRole("list").evaluate((liste) => ({
       maxHeight: getComputedStyle(liste).maxHeight,

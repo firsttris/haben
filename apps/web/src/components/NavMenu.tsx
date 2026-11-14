@@ -4,8 +4,18 @@ import type { EigeneSeiteNav as EigeneSeite, NavGroup } from "../lib/navigation.
 import { STEUERBERATUNG_START } from "../lib/rollen.ts";
 import { FirmaListe, FirmaWechsler } from "./FirmaWechsler.tsx";
 import { Icon } from "./Icon.tsx";
-import { NavFlyout } from "./NavFlyout.tsx";
+import { type FlyoutWeg, NavFlyout } from "./NavFlyout.tsx";
 import { ThemePicker } from "./ThemePicker.tsx";
+
+/** Name eines Symbols der eingeklappten Leiste, beim Überfahren und mit Fokus (styles.css, .nav-tip); der Name für
+ * Hilfstechnik steht im aria-label des Elements */
+export function NavTip({ children }: { children: string }) {
+  return (
+    <span className="nav-tip" aria-hidden="true">
+      {children}
+    </span>
+  );
+}
 
 interface CollapseButtonProps {
   collapsed: boolean;
@@ -16,20 +26,22 @@ function CollapseSidebarButton({ collapsed, onToggleCollapse }: CollapseButtonPr
   return (
     <button
       type="button"
-      className="nav-link nav-collapse-btn"
+      className="nav-link nav-collapse-btn nav-tip-anker"
       aria-expanded={!collapsed}
       aria-label={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
-      title={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
       onClick={onToggleCollapse}
     >
-      <Icon name={collapsed ? "chevron-right" : "chevron-left"} />
+      <Icon name={collapsed ? "sidebar-open" : "sidebar-close"} />
       <span className="nav-collapse-label">Einklappen</span>
+      {collapsed && <NavTip>Seitenleiste ausklappen</NavTip>}
     </button>
   );
 }
 
 interface NavBodyProps extends CollapseButtonProps {
   inhaber: boolean;
+  /** Name aus den Firmendaten; eingeklappt steht er im Kopf von „Firma wechseln“ (#504) */
+  firma: string | null;
   pathname: string;
   firmen: Firma[];
   sichtbareGruppen: readonly NavGroup[];
@@ -37,8 +49,8 @@ interface NavBodyProps extends CollapseButtonProps {
   userName: string;
   userInitial: string;
   userMeta: string;
-  openFlyout: string | null;
-  onFlyoutToggle: (key: string) => void;
+  openFlyout: { key: string; weg: FlyoutWeg } | null;
+  onFlyoutOpen: (key: string, weg: FlyoutWeg) => void;
   onFlyoutClose: () => void;
   onSignOut: () => void;
 }
@@ -100,26 +112,27 @@ export function NavRailBody({
   userName,
   userInitial,
   userMeta,
+  firma,
   openFlyout,
-  onFlyoutToggle,
+  onFlyoutOpen,
   onFlyoutClose,
   onSignOut,
 }: NavBodyProps) {
+  const flyout = (key: string) => ({
+    open: openFlyout?.key === key ? openFlyout.weg : null,
+    onOpen: (weg: FlyoutWeg) => onFlyoutOpen(key, weg),
+    onClose: onFlyoutClose,
+  });
   return (
     <>
       {firmen.length > 0 && (
-        <NavFlyout label="Firma wechseln" icon="company" open={openFlyout === "firma"} onToggle={() => onFlyoutToggle("firma")} onClose={onFlyoutClose}>
-          <FirmaListe key={openFlyout === "firma" ? "open" : "closed"} andere={firmen} />
+        <NavFlyout label="Firma wechseln" icon="company" zusatz={firma} {...flyout("firma")}>
+          <FirmaListe key={openFlyout?.key === "firma" ? "open" : "closed"} andere={firmen} />
         </NavFlyout>
       )}
-      <Link
-        to={inhaber ? "/" : STEUERBERATUNG_START}
-        className="nav-link nav-rail-link"
-        aria-label="Übersicht"
-        title="Übersicht"
-        activeOptions={{ exact: true }}
-      >
+      <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link nav-rail-link nav-tip-anker" aria-label="Übersicht" activeOptions={{ exact: true }}>
         <Icon name="overview" />
+        <NavTip>Übersicht</NavTip>
       </Link>
       {sichtbareGruppen.map((group) => (
         <NavFlyout
@@ -127,9 +140,7 @@ export function NavRailBody({
           label={group.label}
           icon={group.icon}
           active={group.links.some((link) => routeAktiv(pathname, link.to))}
-          open={openFlyout === group.label}
-          onToggle={() => onFlyoutToggle(group.label)}
-          onClose={onFlyoutClose}
+          {...flyout(group.label)}
         >
           {group.links.map((link) => (
             <Link key={link.to} to={link.to} className="nav-link">
@@ -140,31 +151,22 @@ export function NavRailBody({
         </NavFlyout>
       ))}
       {eigeneSeiten.length > 0 && (
-        <NavFlyout
-          label="Eigene Seiten"
-          icon="embed"
-          active={pathname.startsWith("/seiten/")}
-          open={openFlyout === "eigene-seiten"}
-          onToggle={() => onFlyoutToggle("eigene-seiten")}
-          onClose={onFlyoutClose}
-        >
+        <NavFlyout label="Eigene Seiten" icon="embed" active={pathname.startsWith("/seiten/")} {...flyout("eigene-seiten")}>
           <EigeneSeitenLinks seiten={eigeneSeiten} />
         </NavFlyout>
       )}
       <div className="nav-spacer" />
-      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
       <div className="nav-foot nav-foot-rail">
         {inhaber && (
-          <Link to="/einstellungen" className="nav-link nav-rail-link" aria-label="Einstellungen" title="Einstellungen">
+          <Link to="/einstellungen" className="nav-link nav-rail-link nav-tip-anker" aria-label="Einstellungen">
             <Icon name="settings" />
+            <NavTip>Einstellungen</NavTip>
           </Link>
         )}
         <NavFlyout
           label={`${userName} · Konto & Darstellung`}
           icon="info"
-          open={openFlyout === "konto"}
-          onToggle={() => onFlyoutToggle("konto")}
-          onClose={onFlyoutClose}
+          {...flyout("konto")}
           triggerContent={
             <span className="nav-avatar" aria-hidden="true">
               {userInitial}
@@ -183,6 +185,8 @@ export function NavRailBody({
           <NavAccountActions onSignOut={onSignOut} />
         </NavFlyout>
       </div>
+      {/* Ganz unten, an derselben Stelle wie ausgeklappt */}
+      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
     </>
   );
 }
@@ -198,7 +202,7 @@ export function NavExpandedBody({
   userInitial,
   userMeta,
   onSignOut,
-}: Omit<NavBodyProps, "pathname" | "openFlyout" | "onFlyoutToggle" | "onFlyoutClose">) {
+}: Omit<NavBodyProps, "pathname" | "firma" | "openFlyout" | "onFlyoutOpen" | "onFlyoutClose">) {
   return (
     <>
       {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im rollenden Menü */}
@@ -230,7 +234,6 @@ export function NavExpandedBody({
         </div>
       )}
       <div className="nav-spacer" />
-      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
       <div className="nav-foot">
         <div className="nav-user">
           <span className="nav-avatar" aria-hidden="true">
@@ -249,6 +252,8 @@ export function NavExpandedBody({
         )}
         <NavAccountActions onSignOut={onSignOut} />
       </div>
+      {/* Ganz unten, wie eingeklappt; am Handy verborgen */}
+      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
     </>
   );
 }
