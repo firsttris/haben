@@ -1969,6 +1969,8 @@ test("CSV-Import: Debitoren und Kreditoren aus DATEV-Stammdaten, Vorschlag nur m
   const context = await browser.newContext({ storageState: await page.context().storageState() });
   const axePage = await context.newPage();
   await axePage.goto(new URL("/csv-import?art=kontakte", page.url()).toString());
+  // Erst nach der Hydration wählen; sonst verwirft React die gewählte Datei
+  await axePage.waitForLoadState("networkidle");
   await axePage.getByLabel("CSV-Datei").setInputFiles(datei);
   await axePage.getByRole("button", { name: "Vorschau" }).click();
   await expect(axePage.getByRole("checkbox", { name: "Bestätigen" })).toBeVisible();
