@@ -1,4 +1,4 @@
-import { schliessendeStichwoerter } from "../board/regel.ts";
+import { schliessendeStichwoerter, verweise } from "../board/regel.ts";
 
 /*
  * Regeln für Pull Requests aus CLAUDE.md und docs/mitwirken.md, die sich am Pull Request selbst
@@ -35,6 +35,24 @@ export function checkTitle(title: string): Report[] {
   }
   if (trimmed.endsWith(".")) return [{ level: "error", message: `Titel „${trimmed}“ endet ohne Punkt.` }];
   return [];
+}
+
+/**
+ * Verweist die Beschreibung mit `Refs` oder `Umgesetzt` auf ein Issue, gibt es eins, und der Titel nennt es: Sonst fehlt
+ * die Nummer im Squash-Commit auf main (#954 hatte `Refs #357`, der Titel kein „(#357)“).
+ */
+export function checkTitleIssues(title: string, body: string | null): Report[] {
+  const { refs, umgesetzt } = verweise(body ?? "");
+  const imTitel = new Set([...title.matchAll(/#(\d+)\b/g)].map((treffer) => Number(treffer[1])));
+  const fehlend = [...umgesetzt, ...refs].filter((nummer) => !imTitel.has(nummer));
+  if (fehlend.length === 0) return [];
+  const liste = fehlend.map((nummer) => `#${nummer}`).join(", ");
+  return [
+    {
+      level: "error",
+      message: `Titel: Die Beschreibung verweist auf ${liste}, der Titel nennt ${fehlend.length > 1 ? "sie" : "es"} nicht. Ans Ende gehört „(${liste})“, sonst fehlt die Nummer im Commit auf main.`,
+    },
+  ];
 }
 
 /**
