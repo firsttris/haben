@@ -339,6 +339,39 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   await expect(page.getByText("noch nicht gemahnt")).toHaveCount(offen);
 });
 
+test("Mahnung: Die Vorschau zeigt das Blatt, während das Formular sich ändert", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  // Angeheftet wie in jedem Durchlauf (vorschauAnheften): neben dem Formular, ohne Klick
+  const blatt = page.getByLabel("Vorschau der Mahnung");
+  await expect(blatt.getByRole("img", { name: "Seite 1 von 1" })).toBeVisible();
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Zahlungserinnerung");
+
+  await page.getByLabel("Stufe").selectOption({ label: "1. Mahnung" });
+  await page.getByLabel("Mahngebühr (€)").fill("5,00");
+  await page.getByRole("textbox", { name: "Einleitung", exact: true }).fill("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="summen"]')).toContainText(/Mahngebühr: 5,00\s€/);
+});
+
+// Hier statt in knopfreihenfolge.spec.ts: Nach „ablauf“ ist keine Rechnung mehr überfällig, die Mahnseite gibt es nur jetzt
+test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf (DESIGN.md, Reihenfolge der Knöpfe)", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kopf = page.locator(".page-head .actions");
+  const knoepfe = kopf.locator(":scope > .btn");
+  await expect(knoepfe).toHaveText(["Entwurf als PDF", "Zahlungserinnerung erstellen"]);
+  await expect(knoepfe.last()).toHaveClass(/btn-primary/);
+  await expect(kopf).toHaveCSS("flex-direction", "row");
+  await knoepfe.first().focus();
+  await page.keyboard.press("Tab");
+  await expect(knoepfe.last()).toBeFocused();
+});
+
 test("Mahnung: Einleitung und Schluss lassen sich mit den Knöpfen auszeichnen (#359)", async () => {
   await go("/rechnungen/mahnwesen");
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();

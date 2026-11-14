@@ -5,19 +5,17 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 // Server-Funktion als steuerbare Attrappe: Jeder Lauf wartet, bis der Test ihn beendet
 const runs: { data: { number: string }; finish: (ms: number) => void }[] = [];
 vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }));
-vi.mock("../server/functions/invoices.ts", () => ({
-  renderDocumentPreview: ({ data }: { data: { number: string } }) =>
-    new Promise((resolve) => {
-      runs.push({ data, finish: (ms) => resolve({ svg: "<svg/>", ms, pages: 1, width: 595, height: 842, text: [] }) });
-    }),
-}));
+const render = ({ data }: { data: { number: string } }) =>
+  new Promise<never>((resolve) => {
+    runs.push({ data, finish: (ms) => resolve({ svg: "<svg/>", ms, pages: 1, width: 595, height: 842, text: [] } as never) });
+  });
 
 const { useRenderedSheet } = await import("./use-rendered-sheet.ts");
 
 type State = ReturnType<typeof useRenderedSheet>;
 let state: State;
 function Probe({ input }: { input: { number: string } }) {
-  state = useRenderedSheet(input as never, null);
+  state = useRenderedSheet(render, input, null);
   return null;
 }
 
