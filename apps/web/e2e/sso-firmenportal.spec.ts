@@ -94,6 +94,18 @@ test("Firmenportal: Anmeldung zeigt nur die Firmen aus den eigenen Inhaber-Grupp
   await page.context().close();
 });
 
+test("Firmenportal: nach einem Abbruch steht „Mit … anmelden“ rechts wie die übrigen Aktionen", async ({ browser }) => {
+  const page = await (await browser.newContext()).newPage();
+  // Ein Abbruch beim Anmeldedienst kommt mit error zurück; die Seite bietet den nächsten Versuch an
+  await page.goto(`${PORTAL}/callback?error=access_denied&state=abgebrochen`);
+  await expect(page.getByRole("link", { name: "Mit Test-SSO anmelden" })).toBeVisible();
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 812 });
+    expect(await kanten(page, ".aktionen .btn"), `${width}px`).toEqual({ zeichen: 0, ueberschrift: 0, kachel: 0, knopf: 0 });
+  }
+  await page.context().close();
+});
+
 test("Firmenportal: die Steuerberatung sieht keine Firma", async ({ browser }) => {
   const page = await portalAnmelden(browser, "haben-steuerberatung, haben-sued-steuerberatung");
   await page.waitForURL(`${PORTAL}/`);
