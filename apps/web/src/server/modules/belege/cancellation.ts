@@ -120,7 +120,7 @@ function heutigeBelegZeilen(
   eigene: ReadonlyMap<string, string>,
 ): PostingLine[] | null {
   try {
-    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAbzug, eigene);
+    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAnteil ?? doc.vorsteuerAbzug, eigene);
   } catch {
     return null;
   }
@@ -257,7 +257,7 @@ export async function reenterDocument(actor: string, id: string): Promise<string
           gross: d.gross,
           asset: d.asset,
           privateShare: d.privateShare,
-          vorsteuerAnteil: d.vorsteuerAnteil,
+          vorsteuerAnteil: d.vorsteuerAnteil ?? (d.vorsteuerAbzug ? 10_000 : 0),
           reverseCharge: d.reverseCharge,
           // Die Neuerfassung mindert dasselbe Entgelt; die Angabe „erstattet bereits Bezahltes“ bleibt (#786)
           erstattetBezahltes: d.erstattetBezahltes,
@@ -271,6 +271,7 @@ export async function reenterDocument(actor: string, id: string): Promise<string
             taxRate: a.taxRate,
             net: a.net,
             tax: a.tax,
+            vorsteuerAnteil: a.vorsteuerAnteil,
             originalNet: a.originalNet,
             originalTax: a.originalTax,
           })),

@@ -179,6 +179,7 @@ const draftApiFields = {
   despatchAdviceReference: draftFields.despatchAdviceReference.describe("Lieferscheinnummer, in der E-Rechnung BT-16; leer = keine"),
   taxTreatment: draftFields.taxTreatment,
   exemptionReason: draftFields.exemptionReason,
+  taxDetails: draftFields.taxDetails,
   priceMode: draftFields.priceMode.describe("Einzelpreise netto oder brutto inkl. USt"),
   language: draftFields.language.describe("Sprache des PDFs, Vorgabe die des Kontakts"),
   currency: draftFields.currency.describe("Währung als dreistelliger Code, Vorgabe EUR"),
@@ -261,6 +262,7 @@ export const invoiceSchema = z
     language: z.enum(["de", "en"]),
     taxTreatment: z.enum(TAX_TREATMENT_KEYS),
     exemptionReason: z.string(),
+    taxDetails: draftFields.taxDetails,
     priceMode: z.enum(PRICE_MODES),
     currency: z.string(),
     exchangeRate: z.string().nullable().describe("1 EUR = Kurs; Beträge in Cent sind bei Fremdwährung in Euro umgerechnet"),
@@ -362,8 +364,23 @@ export const documentSchema = z
     note: z.string(),
     net: z.number().int().describe(`Netto in Euro; ${CENTS}`),
     tax: z.number().int().describe(`Steuer in Euro; ${CENTS}`),
+    vorsteuerAnteil: z
+      .number()
+      .int()
+      .min(0)
+      .max(10_000)
+      .nullable()
+      .describe("Abziehbarer Anteil in Basispunkten; bei Entwürfen null = Firmenvorgabe, gebucht historisch festgehalten"),
+    vorsteuerAbzug: z.boolean().describe("Gespeichert: wenigstens ein Steuersatz erlaubt Vorsteuerabzug; Rückfall für Altbelege ohne Anteil"),
     amounts: z
-      .array(z.object({ taxRate: z.number().int().describe("Basispunkte"), net: z.number().int(), tax: z.number().int() }))
+      .array(
+        z.object({
+          taxRate: z.number().int().describe("Basispunkte"),
+          net: z.number().int(),
+          tax: z.number().int(),
+          vorsteuerAnteil: z.number().int().min(0).max(10_000).nullable().describe("Abziehbarer Anteil in Basispunkten; null erbt den Beleganteil"),
+        }),
+      )
       .describe("Beträge je Steuersatz in Euro-Cent"),
     issues: z.array(z.string()).describe("Was vor dem Buchen noch fehlt; leer, wenn bereit oder gebucht"),
     replacedById: z.uuid().nullable().describe("Bei einem stornierten Beleg: der neu erfasste Beleg mit derselben Datei"),

@@ -37,6 +37,8 @@ import {
   documentDiscountProblem,
   lineDiscountProblem,
   negateDiscount,
+  outgoingTaxIssues,
+  outgoingTaxDetailConflict,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
@@ -60,6 +62,7 @@ import { advanceInvoicePosting } from "./advance-invoice.ts";
 import { paperCancellationIds } from "./advance-payment-group.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
+import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
 import {
   circleFor,
   countsRunning,
@@ -97,6 +100,7 @@ export const draftSchema = z
     ...referenceFieldsSchema,
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
     exemptionReason: z.string().trim().max(300).default(""),
+    taxDetails: outgoingTaxDetailsSchema,
     /** Einzelpreise netto oder brutto inkl. USt; brutto nur bei regulärer Besteuerung */
     priceMode: z.enum(PRICE_MODES).default("netto"),
     /** Sprache des PDFs für den Kunden */
@@ -308,6 +312,8 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null, q: D
     advanceType: r.advanceType,
     propertyRetention: r.propertyRetention,
     taxTreatment: r.taxTreatment,
+    exemptionReason: r.exemptionReason,
+    taxDetails: r.taxDetails,
     priceMode: r.priceMode,
     net: r.net,
     tax: r.tax,
@@ -355,7 +361,7 @@ export async function abschlagLinks(invoiceId: string) {
 }
 
 /** Prüft die gewählten Abschlagsrechnungen; leere Liste = in Ordnung */
-async function deductionProblems(invoiceId: string | null, input: Pick<DraftInput, "contactId" | "deducts" | "taxTreatment">, q: Db | Tx = db) {
+async function deductionProblems(invoiceId: string | null, input: Pick<DraftInput, "contactId" | "deducts" | "taxTreatment" | "taxDetails">, q: Db | Tx = db) {
   const ids = [...new Set(input.deducts ?? [])];
   const open = await openAbschlaege(invoiceId, q);
   const problems: string[] = [];
@@ -373,7 +379,16 @@ async function deductionProblems(invoiceId: string | null, input: Pick<DraftInpu
     } else if (abschlag.contactId !== input.contactId) problems.push(`Abschlagsrechnung ${abschlag.number} gehört zu einem anderen Kunden`);
     else if (abschlag.taxTreatment !== (input.taxTreatment ?? "regulaer"))
       problems.push(`Abschlagsrechnung ${abschlag.number} hat eine andere Umsatzsteuer-Behandlung`);
-    else chosen.push(abschlag);
+    else {
+      // Ungeklärte Angaben dürfen keinen bekannten Widerspruch zwischen anderen Abschlägen verdecken.
+      // Produktgrenze: https://github.com/firsttris/haben/issues/433#issuecomment-6853419682
+      const conflict = [input.taxDetails, ...chosen.map((a) => a.taxDetails)]
+        .map((details) => outgoingTaxDetailConflict(input.taxTreatment ?? "regulaer", abschlag.taxDetails, details))
+        .find((problem) => problem !== null);
+      if (conflict === "exemption") problems.push(`Abschlagsrechnung ${abschlag.number} hat eine andere Befreiungsvorschrift`);
+      else if (conflict === "foreignPlace") problems.push(`Abschlagsrechnung ${abschlag.number} hat einen anderen tatsächlichen Leistungsort`);
+      else chosen.push(abschlag);
+    }
   }
   return { problems, chosen };
 }
@@ -552,8 +567,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     note: input.note,
     propertyRetention: input.propertyRetention ?? false,
     ...referenceColumns(input),
-    taxTreatment: input.taxTreatment ?? "regulaer",
-    exemptionReason: input.taxTreatment && input.taxTreatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
+    ...outgoingTaxColumns(input),
     priceMode,
     language: input.language ?? "de",
     variant: input.variant ?? null,
@@ -957,12 +971,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   const company = await loadCompany(q);
   const issues = sellerIssues(company).map((issue) => `Firmendaten: ${issue}`);
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
-  if (invoice.kind === "rechnung" && company.kleinunternehmer && invoice.taxTreatment !== "kleinunternehmer") {
-    issues.push("Als Kleinunternehmer stellst du Rechnungen ohne Umsatzsteuer (§ 19 UStG)");
-  }
-  if (invoice.kind === "rechnung" && !company.kleinunternehmer && invoice.taxTreatment === "kleinunternehmer") {
-    issues.push("Kleinunternehmer ist in den Einstellungen nicht eingeschaltet");
-  }
+  if (invoice.kind === "rechnung") issues.push(...outgoingTaxIssues(invoice.taxTreatment, invoice.taxDetails, company.kleinunternehmer));
   // Gebucht wird nach der aktuellen Versteuerung, die Voranmeldung rechnet das Jahr aber nach der, die dort galt
   // (versteuerungForYear). Nach einem Wechsel zum Jahreswechsel stünde die Steuer einer Rechnung im Vorjahr sonst
   // zweimal in der Anmeldung (Soll → Ist) oder gar nicht (Ist → Soll).
@@ -995,7 +1004,10 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   if (invoice.variant === "schluss") {
     const deducts = deductionIds(lines);
     if (deducts.length === 0) issues.push("Keine Abschlagsrechnung abgezogen");
-    issues.push(...(await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, q)).problems);
+    issues.push(
+      ...(await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment, taxDetails: invoice.taxDetails }, q))
+        .problems,
+    );
     if (invoice.gross < 0) issues.push("Die Abschläge übersteigen die Gesamtleistung");
   } else if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
@@ -1124,7 +1136,11 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     if (problem) throw new InvoiceError(`${problem}.`);
   }
   if (invoice.kind === "rechnung" && deducts.length > 0) {
-    const { problems } = await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, tx);
+    const { problems } = await deductionProblems(
+      id,
+      { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment, taxDetails: invoice.taxDetails },
+      tx,
+    );
     if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
   }
   invoice = { ...invoice, ...(await advanceProcedure(invoice, lines, company, tx)) };
@@ -1337,6 +1353,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
           ...referenceColumns(target),
           taxTreatment: target.taxTreatment,
           exemptionReason: target.exemptionReason,
+          taxDetails: target.taxDetails,
           priceMode: target.priceMode,
           language: target.language,
           lines: negatedLines(targetLines),
@@ -1376,6 +1393,7 @@ export async function createCorrection(actor: string, id: string, today: string)
       ...referenceColumns(invoice),
       taxTreatment: invoice.taxTreatment,
       exemptionReason: invoice.exemptionReason,
+      taxDetails: invoice.taxDetails,
       priceMode: invoice.priceMode,
       language: invoice.language,
       lines: negatedLines(lines),

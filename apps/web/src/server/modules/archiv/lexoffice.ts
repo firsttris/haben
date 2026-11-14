@@ -480,7 +480,7 @@ function legacyPayments(v: { source: LegacySource; gross: number; status: string
  * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
  * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt.
  */
-function taxTypeOf(t: string) {
+export function taxTypeOf(t: string) {
   return sql.raw(`case when ${t}.source = 'sevdesk' then
       case coalesce(${t}.raw->'taxRule'->>'id', '')
         when '1' then 'net' when '2' then 'thirdPartyCountryDelivery' when '3' then 'intraCommunitySupply'

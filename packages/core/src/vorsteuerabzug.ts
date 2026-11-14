@@ -1,4 +1,4 @@
-import type { BasisPoints } from "./money.ts";
+import { roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts";
 
 /** Voller Vorsteuerabzug in Basispunkten */
 export const VOLLER_ABZUG: BasisPoints = 10_000;
@@ -11,4 +11,19 @@ export const VOLLER_ABZUG: BasisPoints = 10_000;
 export function abziehbarerAnteil(firma: { kleinunternehmer: boolean; ohneVorsteuerabzug: boolean }, amBeleg: BasisPoints | null): BasisPoints {
   if (firma.kleinunternehmer) return 0;
   return amBeleg ?? (firma.ohneVorsteuerabzug ? 0 : VOLLER_ABZUG);
+}
+
+/** Gebuchte Bestände ohne Anteil behalten ihren Boolean; heutige Firmendaten gehören nicht in historische Leser. */
+export function gespeicherterAnteil(doc: { vorsteuerAnteil?: BasisPoints | null; vorsteuerAbzug?: boolean }, amSatz?: BasisPoints | null): BasisPoints {
+  return amSatz ?? doc.vorsteuerAnteil ?? (doc.vorsteuerAbzug === false ? 0 : VOLLER_ABZUG);
+}
+
+/** § 15 Abs. 4 UStG (https://www.gesetze-im-internet.de/ustg_1980/__15.html): wirtschaftlich zugeordneter Teil. */
+export function abziehbareSteuer(tax: Cents, anteil: BasisPoints): Cents {
+  return roundHalfAwayFromZero((tax * anteil) / VOLLER_ABZUG);
+}
+
+/** Gemeinsamer Anschluss der bestehenden Boolean-Aufrufer und neuer Beleganteile. */
+export function buchungsAnteil(abzug: boolean | BasisPoints, amSatz?: BasisPoints | null): BasisPoints {
+  return gespeicherterAnteil({ vorsteuerAnteil: typeof abzug === "number" ? abzug : null, vorsteuerAbzug: abzug !== false }, amSatz);
 }

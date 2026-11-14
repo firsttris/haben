@@ -12,13 +12,16 @@ import {
   RECURRING_PLACEHOLDERS,
   SERVICE_PERIOD_MODES,
   servicePeriodFor,
-  TAX_TREATMENTS,
+  outgoingTaxIssues,
+  section4Note,
+  treatmentNote,
   UNITS,
   type PaymentMethod,
   type PriceMode,
   type RecurringInterval,
   type ServicePeriodMode,
   type TaxTreatment,
+  type OutgoingTaxDetails,
   type UnitLabel,
 } from "@haben/core";
 import { useState, type FormEvent } from "react";
@@ -33,6 +36,7 @@ import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
 import { Field } from "./Field.tsx";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
+import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
 
 type Rate = 1900 | 700 | 0;
 
@@ -47,6 +51,7 @@ export interface RecurringValues {
   propertyRetention: boolean;
   taxTreatment: TaxTreatment;
   exemptionReason: string;
+  taxDetails: OutgoingTaxDetails | null;
   priceMode: PriceMode;
   lines: { description: string; detail: string; itemNumber?: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: Rate }[];
   intervalMonths: RecurringInterval;
@@ -106,6 +111,7 @@ export function RecurringForm({
   const [propertyRetention, setPropertyRetention] = useState(initial.propertyRetention);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment);
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason);
+  const [taxDetails, setTaxDetails] = useState<OutgoingTaxDetails | null>(initial.taxDetails ?? null);
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode);
   const [intervalMonths, setIntervalMonths] = useState<RecurringInterval>(initial.intervalMonths);
   const [nextDate, setNextDate] = useState(initial.nextDate);
@@ -146,6 +152,8 @@ export function RecurringForm({
     };
   });
   const term = Number(paymentTermDays);
+  const taxNote = taxTreatment === "steuerfrei" ? (section4Note(taxDetails?.exemption) ?? exemptionReason) : exemptionReason;
+  const taxIssues = outgoingTaxIssues(taxTreatment, taxDetails, kleinunternehmer);
   const valid =
     name.trim() !== "" &&
     contactId !== "" &&
@@ -156,7 +164,8 @@ export function RecurringForm({
     parsed.length > 0 &&
     parsed.every((l) => l.valid) &&
     (!endDate || endDate >= nextDate) &&
-    (taxTreatment !== "steuerfrei" || exemptionReason.trim() !== "");
+    taxIssues.length === 0 &&
+    (taxTreatment !== "steuerfrei" || taxNote.trim() !== "");
 
   const period = nextDate ? servicePeriodFor(nextDate, intervalMonths, servicePeriod) : null;
   const reference = period ?? (nextDate ? { from: nextDate, to: nextDate } : null);
@@ -179,7 +188,8 @@ export function RecurringForm({
       note,
       propertyRetention,
       taxTreatment,
-      exemptionReason: special ? exemptionReason : "",
+      taxDetails,
+      exemptionReason: special ? taxNote : "",
       priceMode: grossPrices ? "brutto" : "netto",
       lines: parsed.map(({ valid: _valid, ...line }) => line),
       intervalMonths,
@@ -313,19 +323,15 @@ export function RecurringForm({
               )}
             </Field>
             <div className="form-row cols-2">
-              <Field label="Umsatzsteuer">
-                {(control) => (
-                  <select {...control} value={taxTreatment} onChange={(e) => setTaxTreatment(e.target.value as TaxTreatment)} disabled={kleinunternehmer}>
-                    {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
-                      .filter((t) => (kleinunternehmer ? t === "kleinunternehmer" : t !== "kleinunternehmer" || taxTreatment === t))
-                      .map((t) => (
-                        <option key={t} value={t}>
-                          {TAX_TREATMENTS[t].label}
-                        </option>
-                      ))}
-                  </select>
-                )}
-              </Field>
+              <OutgoingTaxFields
+                treatment={taxTreatment}
+                details={taxDetails}
+                exemptionReason={exemptionReason}
+                kleinunternehmer={kleinunternehmer}
+                onTreatmentChange={setTaxTreatment}
+                onDetailsChange={setTaxDetails}
+                onReasonChange={setExemptionReason}
+              />
               {!special && (
                 <Field label="Preise">
                   {(control) => (
@@ -333,19 +339,6 @@ export function RecurringForm({
                       <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
                       <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
                     </select>
-                  )}
-                </Field>
-              )}
-              {special && (
-                <Field label={taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"}>
-                  {(control) => (
-                    <input
-                      {...control}
-                      value={exemptionReason}
-                      onChange={(e) => setExemptionReason(e.target.value)}
-                      maxLength={300}
-                      placeholder={TAX_TREATMENTS[taxTreatment].note ?? ""}
-                    />
                   )}
                 </Field>
               )}
@@ -551,6 +544,11 @@ export function RecurringForm({
                   </li>
                 ))}
             </ul>
+            {special && (
+              <p className="small" style={{ margin: 0 }}>
+                {treatmentNote(taxTreatment, taxNote)}
+              </p>
+            )}
           </section>
         )}
 

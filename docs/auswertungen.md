@@ -57,6 +57,8 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 
 Bei Teilzahlungen teilt Haben die Zahlung im Verhältnis der Rechnung bzw. des Belegs auf Netto und Steuer je Steuersatz auf. Hebst du eine Zuordnung im Bankabgleich auf, hebt die Gegenzeile die ursprüngliche Zahlung in der EÜR genau auf. Auch eine aufgehobene Umsatzsteuerzahlung wird in derselben EÜR-Position zurückgenommen; sie zählt nicht als Erstattung des Finanzamts. Nach erneuter Zuordnung zählt die Zahlung einmal. Eine tatsächliche Erstattung vom Finanzamt bleibt dagegen eine Einnahme unter „Vom Finanzamt erstattete Umsatzsteuer“ ([amtliche Anleitung EÜR 2025, Zeilen 18 und 58](https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025)).
 
+Bei anteiligem Vorsteuerabzug bleiben die Rundungsanteile anderer Vorjahreszahlungen erhalten, wenn du eine Zuordnung erst im Folgejahr aufhebst. Die Gegenzeile wird an ihrem Aufhebungstag berücksichtigt.
+
 Verrechnet das Finanzamt eine Umsatzsteuerzahlung mit einer Erstattung und teilst du den verbleibenden Bankumsatz entsprechend auf, stehen beide Teile in ihrer jeweiligen EÜR-Position. Die Reihenfolge der Teile ändert die Beträge nicht; beim Aufheben nimmt Haben jeden Teil in derselben Position zurück.
 
 ### Umsatzsteuer-Vorauszahlung um den Jahreswechsel
@@ -96,9 +98,19 @@ Die Tabelle „Einnahmen-Überschuss-Rechnung“ zeigt:
 - **Betriebsausgaben:** Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung, eine Zeile je Belegkategorie mit Betrag (Software, Hosting, Telefon …; bei der Bewirtung nur der abziehbare Teil von 70 %), je Pauschale, die Abschreibungen aus dem Anlagenverzeichnis, Aufwendungen aus Kursdifferenzen, Zinsen und Zuschläge zu betrieblichen Steuern, Schuldzinsen zur Finanzierung von Anlagevermögen, Übrige Schuldzinsen (diese jeweils nur, wenn es welche gibt), Gezahlte Vorsteuerbeträge, An das Finanzamt gezahlte Umsatzsteuer
 - **Gewinn bzw. Verlust**, darunter nachrichtlich die nicht abziehbare Gewerbesteuer samt Nebenleistungen und Hinterziehungszinsen, wenn es welche gibt
 
-Zahlungen auf Kleinunternehmer-Rechnungen (§ 19 UStG) stehen in der eigenen Zeile für Kleinunternehmer. Rechnungen mit Reverse Charge, ins Drittland oder steuerfrei nach § 4 UStG zählen wie Umsätze zu 0 % als umsatzsteuerfrei und nicht steuerbar. Die Steuer auf Belegen, die ohne Vorsteuerabzug gebucht sind, ist Teil der Ausgabe und erscheint nicht unter den Vorsteuerbeträgen.
+Zahlungen auf Kleinunternehmer-Rechnungen (§ 19 UStG) stehen in der eigenen Zeile für Kleinunternehmer. Rechnungen mit Reverse Charge, ins Drittland oder steuerfrei nach § 4 UStG zählen wie Umsätze zu 0 % als umsatzsteuerfrei und nicht steuerbar. Nicht abziehbare Steuer gehört zum Aufwand oder zu den Anschaffungskosten; nur der [abziehbare Anteil](belege.md#anteiliger-vorsteuerabzug) steht unter den Vorsteuerbeträgen. Bei Teilzahlungen führt Haben die Cent-Rundungen über den Zahlungsstand fort, auch über den Jahreswechsel.
 
 Belege ohne gültige Kategorie landen unter „Sonstiger Aufwand“. Welche Kategorie auf welches Konto geht, steht in [Buchhaltung in Haben](buchhaltung.md#kontenrahmen).
+
+## Gesamtumsatz nach § 19 UStG
+
+Ab 2025 zeigt eine eigene Karte die gemeinsame Zählgrundlage nach [§ 19 Abs. 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html): vereinnahmte Nettoentgelte mit dem tatsächlichen Zahlungstag, unabhängig von Ist- oder Soll-Versteuerung. Teilzahlungen und Anzahlungen zählen beim Eingang, auch vor der Rechnung. Die spätere Rechnung oder Schlussrechnung zählt nicht noch einmal als Zahlung.
+
+Die eigene Steuerbefreiung ist ausdrücklich zugeordnet. § 4 Nr. 8 Buchst. i, Nr. 9 Buchst. b und Nr. 11 bis 29 werden abgezogen; Nr. 8 Buchst. a bis h, Nr. 9 Buchst. a und Nr. 10 nur als Hilfsumsätze. Umsätze mit Anlagevermögen und bestätigte nicht im Inland steuerbare Leistungen bleiben außer Ansatz. Die Auswahl beweist nicht die gesetzlichen Voraussetzungen der Befreiung.
+
+Unter **Berechnungsgrundlage und ungeklärte Zuordnungen** siehst du die Quellen, den Zahlungstag, das Nettoentgelt und den Grund der Einordnung. Alte freie Befreiungstexte sowie nicht belegte Zahlungsdaten werden nicht erraten. Solange solche Fälle offen sind, heißt die Summe **Bekannter Teilbetrag**; ungeklärte Werte sind darin nicht enthalten. Ein Bezahlt-Status allein belegt weder Betrag noch Zahlungsdatum.
+
+Diese Grundlage ist weder der EÜR-Gewinn noch die Summe ausgestellter Rechnungen. Sie beschreibt die verfügbaren Daten in Haben; fehlende Geschäftsvorgänge musst du weiterhin erfassen. Frühere Jahre werden nicht stillschweigend nach der seit 2025 geltenden Fassung berechnet.
 
 ## Einnahmen und Ausgaben je Monat
 

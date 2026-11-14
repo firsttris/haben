@@ -90,6 +90,7 @@ export function draftInputOf(invoice: Invoice, lines: InvoiceLine[]): DraftInput
     despatchAdviceReference: invoice.despatchAdviceReference,
     taxTreatment: invoice.taxTreatment,
     exemptionReason: invoice.exemptionReason,
+    taxDetails: invoice.taxDetails,
     priceMode: invoice.priceMode,
     language: invoice.language,
     variant: invoice.variant,

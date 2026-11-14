@@ -27,6 +27,8 @@ function NewInvoicePage() {
           format: contact.defaultFormat ?? (contact.leitwegId ? ("xrechnung-cii" as const) : data.draft.format),
           skonto: (contact.skonto ?? data.companySkonto).filter((s) => s.days <= data.draft.paymentTermDays),
           taxTreatment: abschlag.taxTreatment,
+          taxDetails: abschlag.taxDetails,
+          exemptionReason: abschlag.exemptionReason,
           priceMode: abschlag.priceMode,
           propertyRetention: abschlag.propertyRetention,
           variant: "schluss" as const,

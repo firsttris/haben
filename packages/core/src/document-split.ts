@@ -15,6 +15,7 @@ import {
   type TaxCode,
 } from "./posting.ts";
 import type { Rechtsform } from "./rechtsform.ts";
+import { abziehbareSteuer, buchungsAnteil } from "./vorsteuerabzug.ts";
 
 /*
  * Aufteilung eines Eingangsbelegs auf mehrere Kontierungszeilen (#271): Ein Beleg, eine Zahlung, ein offener Posten, aber
@@ -47,6 +48,7 @@ export interface DocumentRateAmount {
   taxRate: BasisPoints;
   net: Cents;
   tax: Cents;
+  vorsteuerAnteil?: BasisPoints | null;
 }
 
 const sum = (values: Cents[]) => values.reduce((s, v) => s + v, 0);
@@ -120,7 +122,7 @@ export function documentSplitPosting(
   kontenrahmen: Kontenrahmen,
   rechtsform: Rechtsform,
   payment: DocumentPayment,
-  vorsteuerAbzug = true,
+  vorsteuerAbzug: boolean | BasisPoints = true,
   reverseCharge: ReverseChargeIn | null = null,
   /** Gutschrift erstattet bereits Bezahltes (#786): Vorsteuerminderung erst mit dem Ausgleich, bis dahin Zwischenkonto */
   erstattetBezahltes = false,
@@ -140,10 +142,19 @@ export function documentSplitPosting(
     if (seen) seen.amount += amount;
     else expenses.set(key, { account, amount, code });
   };
-  for (const line of lines) {
+  // Erst je Satz runden, danach auf die Zeilen verteilen: deren Summe bleibt exakt die abziehbare Steuer.
+  const deductible = allocateSplitTax(
+    lines,
+    totals.taxes.map((t) => ({ taxRate: t.rate, net: t.base, tax: abziehbareSteuer(t.tax, buchungsAnteil(vorsteuerAbzug, t.vorsteuerAnteil)) })),
+  );
+  for (const [i, line] of lines.entries()) {
     const account = line.account ?? EXPENSE_CATEGORIES[line.category][kontenrahmen];
-    if (vorsteuerAbzug) add(account, rcCode ?? inputTaxCode(line.taxRate), line.net);
-    else if (rcCode) {
+    const anteil = buchungsAnteil(vorsteuerAbzug, totals.taxes.find((t) => t.rate === line.taxRate)?.vorsteuerAnteil);
+    const tax = deductible[i]!.tax;
+    if (anteil > 0) {
+      add(account, rcCode ?? inputTaxCode(line.taxRate), line.net);
+      add(account, "keineVSt", line.tax - tax);
+    } else if (rcCode) {
       // § 13b ohne Vorsteuerabzug: Netto mit dem Steuerschlüssel, die Steuer als Aufwand daneben, damit das Journal die
       // Bemessungsgrundlage trägt (#542)
       add(account, rcCode, line.net);
@@ -151,15 +162,17 @@ export function documentSplitPosting(
     } else add(account, "keineVSt", line.net + line.tax);
   }
   const result: PostingLine[] = [...expenses.values()].map((e) => side(e.account, e.amount, true, e.code));
-  for (const { rate, tax } of totals.taxes) {
+  for (const row of totals.taxes) {
+    const { rate, tax } = row;
+    const abzugsfaehig = abziehbareSteuer(tax, buchungsAnteil(vorsteuerAbzug, row.vorsteuerAnteil));
     if (tax === 0) continue;
     if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
     if (rcCode) {
-      if (vorsteuerAbzug) result.push(side(accounts.vorsteuerRc, tax, true, "VSt13b"));
+      if (abzugsfaehig !== 0) result.push(side(accounts.vorsteuerRc, abzugsfaehig, true, "VSt13b"));
       result.push(side(accounts.ustRc, tax, false, rcCode));
-    } else if (vorsteuerAbzug) {
+    } else if (abzugsfaehig !== 0) {
       const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[rate];
-      result.push(side(konto, tax, true, inputTaxCode(rate)));
+      result.push(side(konto, abzugsfaehig, true, inputTaxCode(rate)));
     }
   }
   const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;

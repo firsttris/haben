@@ -1,4 +1,4 @@
-import { roundHalfAwayFromZero, splitPrivateShare, type BasisPoints, type Cents } from "./money.ts";
+import { roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts";
 import type { InvoiceTotals, TaxRate } from "./invoice.ts";
 import type { TaxTreatment } from "./treatment.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
@@ -17,6 +17,7 @@ export const ACCOUNTS = {
     erloeseSonder: {
       reverse_charge: "8336",
       drittland: "8338",
+      eu_sonstige: "8339",
       ig_lieferung: "8125",
       ausfuhr: "8120",
       steuerfrei: "8100",
@@ -84,6 +85,7 @@ export const ACCOUNTS = {
     erloeseSonder: {
       reverse_charge: "4336",
       drittland: "4338",
+      eu_sonstige: "4339",
       ig_lieferung: "4125",
       ausfuhr: "4120",
       steuerfrei: "4100",
@@ -243,6 +245,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "8300": "Erlöse 7 % USt",
     "8336": "Erlöse aus im anderen EU-Land steuerpflichtigen sonstigen Leistungen (Reverse Charge)",
     "8338": "Erlöse aus im Drittland steuerbaren Leistungen",
+    "8339": "Erlöse aus im anderen EU-Land steuerbaren sonstigen Leistungen ohne B2B-Reverse-Charge",
     "8400": "Erlöse 19 % USt",
     "9000": "Saldenvorträge Sachkonten",
   },
@@ -283,6 +286,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "4300": "Erlöse 7 % USt",
     "4336": "Erlöse aus im anderen EU-Land steuerpflichtigen sonstigen Leistungen (Reverse Charge)",
     "4338": "Erlöse aus im Drittland steuerbaren Leistungen",
+    "4339": "Erlöse aus im anderen EU-Land steuerbaren sonstigen Leistungen ohne B2B-Reverse-Charge",
     "4400": "Erlöse 19 % USt",
     "4730": "Gewährte Skonti",
     "4840": "Erträge aus Kursdifferenzen",
@@ -306,6 +310,7 @@ export type TaxCode =
   | "frei"
   | "RC"
   | "Drittland"
+  | "NichtSteuerbar"
   | "Steuerfrei"
   | "KU"
   | "VSt19"
@@ -351,6 +356,7 @@ export const IG_ERWERB = {
 const TREATMENT_TAX_CODES = {
   reverse_charge: "RC",
   drittland: "Drittland",
+  eu_sonstige: "NichtSteuerbar",
   ig_lieferung: "IGL",
   ausfuhr: "Ausfuhr",
   steuerfrei: "Steuerfrei",
@@ -369,7 +375,7 @@ export function revenueTaxCode(rate: BasisPoints, treatment: TaxTreatment = "reg
 }
 
 /** Steuersatz mit eigenem Umsatzsteuer- und Vorsteuerkonto */
-function vatRate(rate: BasisPoints): Exclude<TaxRate, 0> {
+export function vatRate(rate: BasisPoints): Exclude<TaxRate, 0> {
   if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
   return rate;
 }
@@ -430,131 +436,7 @@ export function inputTaxCode(rate: BasisPoints): TaxCode {
 /** Wie ein Beleg bezahlt wird: offen über die Bank (Abgleich in Phase 4) oder privat ausgelegt. */
 export type DocumentPayment = "bank" | "privat" | "kasse";
 
-/**
- * Buchung eines Belegs: Aufwand und Vorsteuer an Verbindlichkeiten
- * (oder Privateinlage bzw. Gesellschafter-Verrechnungskonto, wenn privat bezahlt). Gutschriften (negativ) drehen die Seiten.
- * Ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Teil des Aufwands.
- */
-export function documentPosting(
-  totals: InvoiceTotals,
-  category: ExpenseCategory,
-  kontenrahmen: Kontenrahmen,
-  rechtsform: Rechtsform,
-  payment: DocumentPayment,
-  vorsteuerAbzug = true,
-  /** Abweichendes Konto statt des Kategoriekontos, z. B. das Anlagekonto einer Anlage */
-  account?: string,
-  /** Privatanteil in Prozent, z. B. beim Handyvertrag: nur der betriebliche Teil ist Aufwand und Vorsteuer */
-  privateShare = 0,
-  /**
-   * § 13b: Die Steuer in totals schuldest du selbst, gezahlt wird nur netto (totals.gross = Netto).
-   * Gebucht wird die Steuer als Umsatzsteuer und, mit Vorsteuerabzug, im selben Betrag als Vorsteuer.
-   * Beim innergemeinschaftlichen Erwerb (ig_erwerb) ebenso, auf die Konten der Erwerbsteuer und Erwerbsvorsteuer.
-   */
-  reverseCharge: SelfAssessedTax | null = null,
-  /**
-   * Gutschrift erstattet bereits Bezahltes (#786): Die Vorsteuerminderung wird nicht im Belegmonat gezogen, sondern erst
-   * mit der Erstattung, Verrechnung oder Ausbuchung (§ 17 Abs. 1 Satz 2 und 8 UStG), und steht bis dahin auf dem
-   * Zwischenkonto. Nur an Gutschriften (negativer Beleg); ohne die Angabe bleibt alles wie bisher.
-   */
-  erstattetBezahltes = false,
-): PostingLine[] {
-  // Privat genutzt ist bei einer GmbH keine Entnahme, sondern Arbeitslohn oder verdeckte Gewinnausschüttung
-  if (privateShare !== 0 && isKapitalgesellschaft(rechtsform)) throw new RangeError("Privatanteil gibt es nur im Einzelunternehmen");
-  const accounts = ACCOUNTS[kontenrahmen];
-  if (erstattetBezahltes) {
-    if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
-    if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
-    if (category === "einfuhrumsatzsteuer") throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls");
-  }
-  if (category === "einfuhrumsatzsteuer")
-    return einfuhrumsatzsteuerPosting(totals, kontenrahmen, rechtsform, payment, vorsteuerAbzug, privateShare, reverseCharge);
-  const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
-  const lines: PostingLine[] = [];
-  let privatePart = 0;
-  for (const row of totals.taxes) {
-    const baseSplit = splitPrivateShare(row.base, privateShare);
-    const taxSplit = splitPrivateShare(row.tax, privateShare);
-    if (reverseCharge && row.rate !== 0) {
-      // § 13b und Erwerb: Die Bemessungsgrundlage zählt in Kz 46/84 bzw. 89/93 voll, auch der private Teil. Er steht
-      // deshalb mit dem Steuerschlüssel auf den Entnahmen, damit das Journal die ganze Bemessungsgrundlage trägt (#542).
-      const code = reverseCharge === "ig_erwerb" ? IG_ERWERB.code[vatRate(row.rate)] : REVERSE_CHARGE_IN[reverseCharge].code;
-      if (baseSplit.private !== 0) lines.push(side(accounts.privatentnahmen, baseSplit.private, true, code));
-      privatePart += taxSplit.private;
-    } else privatePart += baseSplit.private + taxSplit.private;
-    const { rate } = row;
-    const base = baseSplit.business;
-    const tax = taxSplit.business;
-    if (reverseCharge) {
-      const ige = reverseCharge === "ig_erwerb";
-      if (rate === 0) throw new RangeError(`${ige ? "Innergemeinschaftlicher Erwerb" : "§ 13b"}: Steuersatz muss 19 % oder 7 % sein`);
-      const code = ige ? IG_ERWERB.code[vatRate(rate)] : REVERSE_CHARGE_IN[reverseCharge].code;
-      if (!vorsteuerAbzug) {
-        // Ohne Vorsteuerabzug ist die Steuer Aufwand; als eigene Zeile, damit die Bemessungsgrundlage im Journal stimmt (#542)
-        if (base !== 0) lines.push(side(expense, base, true, code));
-        if (tax !== 0) lines.push(side(expense, tax, true, "keineVSt"));
-      } else {
-        if (base !== 0) lines.push(side(expense, base, true, code));
-        if (tax !== 0) lines.push(ige ? side(accounts.vorsteuerIge[vatRate(rate)], tax, true, "VStIGE") : side(accounts.vorsteuerRc, tax, true, "VSt13b"));
-      }
-      if (row.tax !== 0) lines.push(side(ige ? accounts.ustIge[vatRate(rate)] : accounts.ustRc, row.tax, false, code));
-      continue;
-    }
-    if (!vorsteuerAbzug) {
-      if (base + tax !== 0) lines.push(side(expense, base + tax, true, "keineVSt"));
-      continue;
-    }
-    const code = inputTaxCode(rate);
-    if (base !== 0) lines.push(side(expense, base, true, code));
-    if (tax !== 0) {
-      // Mit der Angabe bleibt die Vorsteuerminderung auf dem Zwischenkonto, mit Steuerschlüssel und Bemessungsgrundlage
-      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[vatRate(rate)];
-      lines.push(side(konto, tax, true, code));
-    }
-  }
-  // Der private Teil ist eine Entnahme; privat bezahlt heben sich Einlage und Entnahme insoweit auf
-  if (privatePart !== 0) lines.push(side(accounts.privatentnahmen, privatePart, true, null));
-  const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
-  lines.push(side(counter, totals.gross, false, null));
-  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
-}
-
-/**
- * Was einem Beleg „Einfuhrumsatzsteuer“ fehlt: Der Bescheid des Zolls enthält nur die Steuer, als ein Betrag ohne
- * Steuersatz (0 %, ohne Steuer im Betrag), abziehbar nur mit Vorsteuerabzug und ohne Privatanteil oder § 13b. Leer = buchbar.
- */
-export function einfuhrumsatzsteuerIssues(
-  totals: Pick<InvoiceTotals, "taxes">,
-  vorsteuerAbzug: boolean,
-  privateShare: number,
-  reverseCharge: SelfAssessedTax | null,
-): string[] {
-  const issues: string[] = [];
-  if (totals.taxes.some((t) => t.rate !== 0 || t.tax !== 0)) issues.push("Die Einfuhrumsatzsteuer steht als ein Betrag zu 0 % im Beleg, ohne Steuer darauf");
-  if (!vorsteuerAbzug) issues.push("Ohne Vorsteuerabzug gehört die Einfuhrumsatzsteuer zu den Kosten der Ware; buche sie mit deren Kategorie");
-  if (privateShare !== 0) issues.push("Einen Privatanteil gibt es bei der Einfuhrumsatzsteuer nicht");
-  if (reverseCharge) issues.push("Einfuhrumsatzsteuer ist weder § 13b noch innergemeinschaftlicher Erwerb");
-  return issues;
-}
-
-/** Einfuhrumsatzsteuer an Verbindlichkeiten (Bank), Kasse oder Privateinlage; ohne Aufwand, Vorsteuer Kz 62 */
-function einfuhrumsatzsteuerPosting(
-  totals: InvoiceTotals,
-  kontenrahmen: Kontenrahmen,
-  rechtsform: Rechtsform,
-  payment: DocumentPayment,
-  vorsteuerAbzug: boolean,
-  privateShare: number,
-  reverseCharge: SelfAssessedTax | null,
-): PostingLine[] {
-  const issues = einfuhrumsatzsteuerIssues(totals, vorsteuerAbzug, privateShare, reverseCharge);
-  if (issues.length > 0) throw new RangeError(issues.join(". "));
-  const accounts = ACCOUNTS[kontenrahmen];
-  const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
-  return [side(EXPENSE_CATEGORIES.einfuhrumsatzsteuer[kontenrahmen], totals.gross, true, "EUSt"), side(counter, totals.gross, false, null)].filter(
-    (line) => line.debit !== 0 || line.credit !== 0,
-  );
-}
+export { documentPosting, einfuhrumsatzsteuerIssues } from "./document-posting.ts";
 
 /** Netto und Steuer je Satz, die auf eine Zahlung oder Ausbuchung entfallen */
 export interface TaxShare {
@@ -724,43 +606,7 @@ export function invoiceWriteOffPosting(
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 
-/**
- * Erhaltenes Skonto auf einen Beleg, amount mit dem Vorzeichen einer Zahlung (Ausgang negativ):
- * Verbindlichkeiten an erhaltene Skonti und Vorsteuer, anteilig je Steuersatz. Ohne Vorsteuerabzug
- * (Kleinunternehmer) mindert das Skonto den Aufwand in voller Höhe.
- *
- * `zwischenkontoAnteile` (#786): Der Beleg ist eine Gutschrift, deren Vorsteuerminderung noch auf dem Zwischenkonto
- * steht. Der ausgebuchte Rest erstattet nichts mehr, seine Steuer wird also nicht gezogen, sondern vom Zwischenkonto
- * abgeschrieben — mit Steuerschlüssel und Bemessungsgrundlage, in der Richtung der bisherigen Steuerzeile. Die Anteile
- * kommen fertig herein statt aus `paidTaxShares` dieses Betrags: Sonst rechnete die Ausbuchung für sich, und zusammen mit
- * den vorherigen Teilerstattungen läge die Steuer einen Cent neben der des Belegs (etwa 5,80 € von 9,28 € erstattet und
- * 3,48 € als Skonto ausgebucht: 93 + 56 statt 93 + 55).
- */
-export function documentWriteOffPosting(
-  totals: InvoiceTotals,
-  amount: Cents,
-  kontenrahmen: Kontenrahmen,
-  vorsteuerAbzug: boolean,
-  /** Anteile je Steuersatz, die vom Zwischenkonto abgeschrieben werden; null = Vorsteuer wie bisher */
-  zwischenkontoAnteile: readonly TaxShare[] | null = null,
-): PostingLine[] {
-  const accounts = ACCOUNTS[kontenrahmen];
-  const lines: PostingLine[] = [side(accounts.verbindlichkeiten, -amount, true, null)];
-  for (const { rate, base, tax } of zwischenkontoAnteile ?? paidTaxShares(totals, -amount)) {
-    if (!vorsteuerAbzug || rate === 0) {
-      if (base + tax !== 0) lines.push(side(accounts.skontiErhalten, base + tax, false, vorsteuerAbzug ? inputTaxCode(rate) : "keineVSt"));
-      continue;
-    }
-    const code = inputTaxCode(rate);
-    if (base !== 0) lines.push(side(accounts.skontiErhalten, base, false, code));
-    if (tax !== 0) {
-      if (!zwischenkontoAnteile) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
-      // Auf dem Zwischenkonto mit der Bemessungsgrundlage, wie die Umbuchung beim Ausgleich (#786)
-      else lines.push({ ...side(accounts.vorsteuerNochNichtAbziehbar, tax, false, code), basis: base });
-    }
-  }
-  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
-}
+export { documentWriteOffPosting } from "./document-write-off.ts";
 
 /**
  * Eine Seite einer Verrechnung zweier Belege ohne Zahlung (#274, #786): Die Seite bucht ihren Anteil aus dem offenen

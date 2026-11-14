@@ -1,6 +1,8 @@
 import type { InvoiceTotals } from "./invoice.ts";
-import { roundHalfAwayFromZero, splitPrivateShare, toCsv, type Cents } from "./money.ts";
+import { toCsv, type Cents } from "./money.ts";
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory, type TaxShare } from "./posting.ts";
+import { addDocumentEffects, documentEuer, type DocumentEuerEffect } from "./euer-beleg.ts";
+export { documentEuerEffects, type DocumentEuerEffect, type DocumentEuerEvent } from "./euer-beleg.ts";
 import type { AllocatedSplitLine } from "./document-split.ts";
 import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
 import { steuerEuerWirkung, type Steuerart, type SteuerPosten } from "./steuerzahlung.ts";
@@ -39,6 +41,12 @@ export type EuerPayment =
       category: ExpenseCategory;
       /** false bei Kleinunternehmern: die Steuer auf dem Beleg ist Teil der Ausgabe */
       vorsteuerAbzug?: boolean;
+      /** Gespeicherter Abzugsanteil in Basispunkten; null fällt bei Altbelegen auf vorsteuerAbzug zurück */
+      vorsteuerAnteil?: number | null;
+      /** Bisheriger Zahlbetrag: neue Teilabzüge runden kumuliert, auch bei Zahlungen über den Jahreswechsel */
+      paidBefore?: Cents;
+      /** Aus vorhandenen Zahlungen berechnete Wirkung; Rücknahmen behalten den gerundeten Anteil ihres Ursprungs */
+      effect?: DocumentEuerEffect;
       /** Privatanteil in Prozent: nur der betriebliche Teil ist Ausgabe bzw. Vorsteuer */
       privateShare?: number;
       /** Aufgeteilter Beleg (#271): Netto und Vorsteuer je Kontierungszeile; category gilt dann nicht */
@@ -208,6 +216,8 @@ function netGroups(payments: EuerPayment[]): Netted[] {
       existing.sum += amount;
       // Gespeicherte Anteile nur, wenn alle Zahlungen der Gruppe welche haben; sonst aus der Summe gerechnet
       if (existing.kind === "invoice" && p.kind === "invoice") existing.shares = existing.shares && p.shares ? [...existing.shares, ...p.shares] : undefined;
+      if (existing.kind === "document" && p.kind === "document")
+        existing.effect = existing.effect && p.effect ? addDocumentEffects(existing.effect, p.effect) : undefined;
     } else {
       const entry = { ...p, sum: amount };
       groups.set(key, entry);
@@ -231,20 +241,6 @@ export interface EuerWithdrawals {
   ustEntnahmen: Cents;
 }
 
-type DocumentPayment = Extract<EuerPayment, { kind: "document" }>;
-
-/**
- * Netto und Steuer einer (Teil-)Zahlung auf einen Beleg, je Kategorie. Ohne Aufteilung je Steuersatz wie bisher; mit
- * Aufteilung (#271) je Kontierungszeile, gerechnet wie eine Teilzahlung über Zeilen statt Sätze: Die Steuer der Zahlung
- * ist dieselbe wie ohne Aufteilung, eine vollständige Zahlung ergibt genau die Beträge der Zeilen.
- */
-function documentShares(p: DocumentPayment, paid: Cents): { category: ExpenseCategory; share: TaxShare }[] {
-  if (!p.splits || p.splits.length === 0) return paidTaxShares(p.totals, paid).map((share) => ({ category: p.category, share }));
-  const lines = p.splits;
-  const shares = paidTaxShares({ ...p.totals, taxes: lines.map((l) => ({ rate: l.taxRate, base: l.net, tax: l.tax })) }, paid);
-  return shares.map((share, i) => ({ category: lines[i]!.category, share }));
-}
-
 export function computeEuer(year: number, payments: EuerPayment[], depreciation?: EuerDepreciation, withdrawals?: EuerWithdrawals): EuerResult {
   const sums = new Map<EuerLineKey, Cents>();
   const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
@@ -263,37 +259,17 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
           monthlyIn[month]! += base;
         }
         break;
-      case "document":
-        for (const { category, share } of documentShares(p, p.sum)) {
-          const base = splitPrivateShare(share.base, p.privateShare ?? 0).business;
-          const tax = splitPrivateShare(share.tax, p.privateShare ?? 0).business;
-          // Einfuhrumsatzsteuer: der ganze Betrag ist gezahlte Vorsteuer, wenn er abfließt (Kz 62); ohne Steuer im Betrag
-          if (category === "einfuhrumsatzsteuer") {
-            add("vorsteuer", share.base + share.tax);
-            continue;
-          }
-          // Anschaffung einer Anlage ist keine Ausgabe; sie wirkt über die AfA. Die Vorsteuer schon.
-          if (category === "anlage") {
-            if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
-            continue;
-          }
-          // Ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Teil der Ausgabe
-          const ausgabe = p.vorsteuerAbzug === false ? base + tax : base;
-          if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
-          // Bewirtung: 30 % sind nicht abziehbar (§ 4 Abs. 5 Nr. 2 EStG), die Vorsteuer bleibt voll abziehbar
-          const nichtAbziehbar = category === "bewirtung" ? ausgabe - roundHalfAwayFromZero((ausgabe * 7) / 10) : 0;
-          bewirtungNichtAbziehbar += nichtAbziehbar;
-          add(`ausgabe:${category}`, ausgabe - nichtAbziehbar);
-          monthlyOut[month]! += ausgabe - nichtAbziehbar;
+      case "document": {
+        const beleg = documentEuer(p, p.sum);
+        for (const { category, amount } of beleg.expenses) {
+          add(`ausgabe:${category}`, amount);
+          monthlyOut[month]! += amount;
         }
-        {
-          // § 13b und Erwerb: Der private Teil der selbst geschuldeten Steuer ist keine Vorsteuer, geht aber mit der
-          // Voranmeldung ans Finanzamt (gezahlteUst). Wie bei DATEV zählt er als Umsatzsteuer auf die Entnahme; anteilig
-          // zur Zahlung, Vorzeichen wie der Beleg
-          const privat = (p.selbstGeschuldet ?? []).reduce((s, steuer) => s + splitPrivateShare(steuer, p.privateShare ?? 0).private, 0);
-          if (privat !== 0 && p.totals.gross !== 0) add("vereinnahmteUst", roundHalfAwayFromZero((privat * p.sum) / p.totals.gross));
-        }
+        add("vorsteuer", beleg.vorsteuer);
+        add("vereinnahmteUst", beleg.privateUst);
+        bewirtungNichtAbziehbar += beleg.bewirtungNichtAbziehbar;
         break;
+      }
       case "ustVorauszahlung":
       // Die Sondervorauszahlung ist Umsatzsteuer an das Finanzamt wie jede Vorauszahlung, abziehbar, wenn sie gezahlt ist
       case "sondervorauszahlung":

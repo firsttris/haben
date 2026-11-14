@@ -12,3 +12,4 @@ export { chainHead, checkIntegrity, checkPruefwert, formatPruefwert, parsePruefw
 export { contactHistory, type ContactHistoryRow, type ContactHistorySection } from "./kontakt-historie.ts";
 export { vorauszahlungVorjahrHinweis, ZEHN_TAGE_REGEL, zehnTageKennzeichen, type ZehnTageKennzeichen } from "./euer-jahreswechsel.ts";
 export { euerForYear, lohnZahlungenUmJahreswechsel, openPositions, reportYears, umsatzsteuerVorjahreUmJahreswechsel, type OpenPosition } from "./reports.ts";
+export { gesamtumsatzForYear, type GesamtumsatzItem, type GesamtumsatzResult } from "./gesamtumsatz.ts";

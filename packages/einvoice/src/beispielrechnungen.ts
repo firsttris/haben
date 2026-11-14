@@ -94,6 +94,10 @@ export const BEISPIELRECHNUNGEN: Record<string, InvoiceDocument> = {
     (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
       [`reverse-charge-${format}`, sampleDocument({ format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "reverse_charge" })],
       [`drittland-${format}`, sampleDocument({ format, buyer: thirdCountryBuyer, lines: zeroRateLines, taxTreatment: "drittland" })],
+      [
+        `eu-sonstige-${format}`,
+        sampleDocument({ format, buyer: { ...euBuyer, name: "Eva Beispiel", ustId: undefined }, lines: zeroRateLines, taxTreatment: "eu_sonstige" }),
+      ],
       [`ig-lieferung-${format}`, sampleDocument({ format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "ig_lieferung" })],
       [
         `ig-lieferung-lieferdatum-${format}`,

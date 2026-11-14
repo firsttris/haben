@@ -9,7 +9,7 @@ import { splitLines, type DocumentSplit } from "./splits.ts";
  */
 
 type Document = typeof schema.documents.$inferSelect;
-type Amount = { taxRate: number; net: number; tax: number };
+type Amount = { taxRate: number; net: number; tax: number; vorsteuerAnteil?: number | null };
 
 /** Bei § 13b zahlst du nur netto; die Steuer geht ans Finanzamt, nicht an den Lieferanten */
 export function totalsOf(amounts: Amount[], reverseCharge: string | null = null) {
@@ -21,7 +21,7 @@ export function totalsOf(amounts: Amount[], reverseCharge: string | null = null)
 export function belegSummen(doc: Pick<Document, "reverseCharge">, amounts: Amount[]) {
   return {
     ...totalsOf(amounts, doc.reverseCharge),
-    taxes: [...amounts].sort((a, b) => b.taxRate - a.taxRate).map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })),
+    taxes: [...amounts].sort((a, b) => b.taxRate - a.taxRate).map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax, vorsteuerAnteil: a.vorsteuerAnteil })),
   };
 }
 
@@ -31,7 +31,7 @@ export function belegZeilen(
   amounts: Amount[],
   splits: DocumentSplit[],
   books: { kontenrahmen: Kontenrahmen; rechtsform: Rechtsform },
-  vorsteuerAbzug: boolean,
+  vorsteuerAbzug: boolean | number,
   /** Eigene Sachkonten (#270): ID → Nummer; ein Beleg oder eine Zeile mit eigenem Konto bucht dort statt auf das Konto der Kategorie */
   eigene: ReadonlyMap<string, string> = new Map(),
 ): PostingLine[] {
