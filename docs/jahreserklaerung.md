@@ -15,7 +15,7 @@ Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der
 
 Oben auf der Seite steht **Stand der Erklärungen** als Tabelle mit einer Zeile je Erklärung: der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt, sodass du von der Übersicht direkt bei der Erklärung landest. Bei einer GmbH oder UG entfällt sie.
 
-Hinweise, die Habens eigene Rechnung beschreiben, erscheinen nur, wenn die Zahlen aus den Buchungen stammen. Die Gewinnzeile der Anlage EÜR steht nur, wenn es dazu Daten gibt, und die Meldungen zu einem leeren Jahr treten zurück, sobald die Erklärung vermerkt oder gesendet ist.
+Die Gewinnzeile der Anlage EÜR steht nur da, wenn Haben aus den Buchungen einen Gewinn hat. Die Meldung über ein leeres Jahr entfällt, sobald die Erklärung außerhalb von Haben vermerkt ist; das gilt für die Umsatzsteuer und die Anlage EÜR.
 
 Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](gmbh-abschluss.md#e-bilanz-gmbh-und-ug).
 
