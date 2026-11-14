@@ -190,3 +190,19 @@ test("eingeklappt: von Gruppe zu Gruppe bleibt das neue Flyout offen, das Schlie
   await expect(ausgaben).toHaveAttribute("aria-expanded", "true");
   await expect(verkauf).toHaveAttribute("aria-expanded", "false");
 });
+
+test("eingeklappt liegen Hinweis und Flyout über dem stehenden Seitenkopf", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/leistungen", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  const suche = nav(page).getByRole("button", { name: "Schnellsuche" });
+  await suche.hover();
+  const hinweis = suche.locator(".nav-tip");
+  await expect(hinweis).toBeVisible();
+  // Oben links im Hinweis, wo der Seitenkopf daneben liegt: Was dort oben aufliegt, muss der Hinweis sein
+  const oben = await hinweis.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return document.elementFromPoint(rect.right - 8, rect.top + 4)?.closest(".nav-tip") === el;
+  });
+  expect(oben).toBe(true);
+});
