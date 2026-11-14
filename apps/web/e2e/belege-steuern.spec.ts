@@ -248,6 +248,31 @@ test("Vorsorgeaufwand: Rürup, Wahlleistungen und Zuschüsse überstehen das Spe
   await expect(feld("agZuschussPv")).toHaveValue("200,00");
 });
 
+test("Einkommensersatzleistungen: eintragen, speichern, nach dem Neuladen wieder da (#941)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  const block = () =>
+    form.locator("details.est-block").filter({ has: page.locator(".est-block-title", { hasText: /^Einkommensersatzleistungen \(Progressionsvorbehalt\)$/ }) });
+  // Bei Zusammenveranlagung stehen die Felder beider Personen im Block; die der steuerpflichtigen Person trägt „a-“.
+  const feld = (art: string) => block().locator(`input[name="erst-a-${art}"]`);
+  // Ohne gespeicherte Leistungen bleibt der Block zu; die Felder sind erst nach dem Aufklappen sichtbar.
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("Elterngeld")).toHaveAccessibleName("Elterngeld");
+  await feld("Elterngeld").fill("1.200,40");
+  await feld("Krankengeld").fill("480");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  // Nach dem Neuladen trägt der Blocktitel die Summe; die Blöcke starten zugeklappt, also aufklappen.
+  await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("Elterngeld")).toHaveValue("1.200,40");
+  await expect(feld("Krankengeld")).toHaveValue("480,00");
+  await expect(feld("Arbeitslosengeld")).toHaveValue("");
+});
+
 test("Seiten nur von derselben Origin einbettbar", async () => {
   // Clickjacking-Schutz kommt von der App selbst, damit der Proxy SAMEORIGIN statt DENY setzen kann
   const html = await page.request.get("/rechnungen");
@@ -313,6 +338,30 @@ test("Änderungsprotokoll: Kontenkollisionen getrennt von Manipulation melden (#
     await sql`delete from own_accounts where created_by = 'test-user' and name in ('Eigene Software 03', 'Eigene Software 04')`;
     await sql.end();
   }
+});
+
+test("Änderungsprotokoll: Dateien prüfen meldet eine fehlende Belegdatei (#857)", async () => {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  const sha256 = "e2e0".repeat(16);
+  const card = page.getByRole("region", { name: "Änderungsprotokoll prüfen" });
+  try {
+    // Ein Beleg, dessen Datei im Speicher fehlt, etwa weil jemand sie im Dateisystem gelöscht hat
+    await sql`insert into documents (sha256, filename, mime_type, size) values (${sha256}, 'verschwunden.pdf', 'application/pdf', 1)`;
+    await go("/einstellungen?bereich=export");
+    await card.getByRole("button", { name: "Dateien prüfen" }).click();
+    await expect(card.getByRole("alert")).toContainText("Kette, Siegel und Sperren sind unverändert, aber 1 Datei fehlt oder ist verändert");
+    await expect(card.getByRole("listitem").filter({ hasText: "verschwunden.pdf" })).toHaveText("Beleg verschwunden.pdf: fehlt");
+  } finally {
+    await sql`delete from documents where sha256 = ${sha256}`;
+    await sql.end();
+  }
+  // „Kette prüfen“ liest die Dateien nicht erneut, sondern zeigt den gespeicherten Lauf
+  await go("/einstellungen?bereich=export");
+  await card.getByRole("button", { name: "Kette prüfen" }).click();
+  await expect(card.getByRole("alert")).toContainText("1 Datei fehlt oder ist verändert");
+  await card.getByRole("button", { name: "Dateien prüfen" }).click();
+  await expect(card.getByRole("status")).toContainText("Kette, Siegel und Sperren sind unverändert:");
+  await expect(card).toContainText("alle vorhanden und unverändert");
 });
 
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {

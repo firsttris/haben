@@ -3208,6 +3208,40 @@ export const backupStatus = pgTable(
 );
 
 /**
+ * Befund der Vollprüfung: eine Datei im Dokumentenspeicher, die fehlt, verändert oder nicht lesbar ist, mit dem ersten
+ * Datensatz, der auf sie verweist (Reihenfolge von FILE_REFERENCES), und der Zahl der weiteren
+ */
+export interface FileCheckProblem {
+  tabelle: string;
+  /** Bezeichnung aus FILE_REFERENCES, etwa „Beleg“ */
+  art: string;
+  zeile: string;
+  datei: string;
+  sha256: string;
+  befund: "fehlt" | "beschädigt" | "nicht lesbar";
+  weitere: number;
+}
+
+/**
+ * Läufe der Vollprüfung der Dateien im Dokumentenspeicher (modules/auswertungen/file-integrity.ts, #857): Zeitpunkt,
+ * Anzahl der geprüften Dateien und die ersten Befunde. „Kette prüfen“ und die Wochenmail zeigen den letzten Lauf.
+ * Betriebsdaten wie backup_status: ohne Audit-Log und Siegel, sonst stünde jeder Lauf in der Kette.
+ */
+export const fileChecks = pgTable(
+  "file_checks",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    /** Geprüfte Dateien; eine Datei mit mehreren Verweisen zählt einmal */
+    files: integer("files").notNull(),
+    /** Dateien mit Befund; gespeichert sind höchstens die ersten MAX_FILE_PROBLEMS */
+    problemCount: integer("problem_count").notNull(),
+    problems: jsonb("problems").$type<FileCheckProblem[]>().notNull(),
+  },
+  (t) => [index("file_checks_at").on(t.at)],
+);
+
+/**
  * API-Tokens für KI-Assistenten über MCP (/api/mcp) und die REST-API (/api/v1): widerrufbar, mit Ablaufdatum und Rechten. Gespeichert
  * ist nur der SHA-256 des Tokens; das Token selbst gibt es nur beim Anlegen. Zugangsdaten, keine Buchungsdaten: ohne
  * Audit-Log und Siegel (wie die Passkeys).
