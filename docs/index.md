@@ -222,8 +222,13 @@ Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 <div markdown>
 **🔓 Offen gebaut**
 
-Code, Roadmap und jedes Review öffentlich. Gebaut mit Agenten, geprüft von Menschen:
-[so entsteht Haben](agentic-engineering.md).
+Code, Roadmap und jedes Review öffentlich. [Mitmachen](mitwirken.md) kannst du auch ohne zu programmieren.
+</div>
+<div markdown>
+**🛠️ Gebaut mit Agenten**
+
+Geprüft von Menschen: rote Tests zuerst, frische Agenten im Review, ein Mensch beim Merge.
+[Agentic Engineering bei Haben](agentic-engineering.md)
 </div>
 </div>
 
