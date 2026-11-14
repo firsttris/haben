@@ -227,7 +227,25 @@ function UstSection({ data }: { data: Data }) {
             )}
             {(f.kz21 ?? 0) !== 0 && <Row label="Nicht steuerbare Leistungen, Ort im EU-Ausland" kz="21" extra={formatEuro(f.kz21!)} value="–" />}
             {(f.kz45 ?? 0) !== 0 && <Row label="Nicht steuerbare Umsätze (Drittland)" kz="45" extra={formatEuro(f.kz45!)} value="–" />}
-            {ust.kz48 !== 0 && <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug" kz="48" extra={formatEuro(ust.kz48)} value="–" />}
+            {(f.kz48Zeile46 ?? 0) !== 0 && (
+              <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug (Vermietung, § 4 Nr. 12)" kz="46" extra={formatEuro(f.kz48Zeile46!)} value="–" />
+            )}
+            {(f.kz48Zeile47 ?? 0) !== 0 && (
+              <Row
+                label={`Steuerfreie Umsätze ohne Vorsteuerabzug (§ 4 Nr. ${f.kz48Zeile47Nummern ?? "?"})`}
+                kz="48"
+                extra={formatEuro(f.kz48Zeile47!)}
+                value="–"
+              />
+            )}
+            {ust.kz48Gesperrt.length > 0 && (
+              <Row
+                label="Steuerfreie Umsätze ohne Vorsteuerabzug, nicht zuordenbar"
+                kz="48"
+                extra={formatEuro(ust.kz48Gesperrt.reduce((s, e) => s + e.betrag, 0))}
+                value="–"
+              />
+            )}
             <Row label="Abziehbare Vorsteuer aus Rechnungen" kz="66" extra="" value={formatDeduction(f.vorsteuer)} />
             {(f.kz61 ?? 0) !== 0 && <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" kz="61" extra="" value={formatDeduction(f.kz61!)} />}
             {(f.kz62 ?? 0) !== 0 && <Row label="Entstandene Einfuhrumsatzsteuer" kz="62" extra="" value={formatDeduction(f.kz62!)} />}

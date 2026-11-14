@@ -403,6 +403,25 @@ const faelle: [string, () => string][] = [
           figures: { base19: 0, tax19: 0, base7: 1_000_000, tax7: 70_000, vorsteuer: 0, vorauszahlungen: 70_000 },
         }),
     ],
+    [
+      `USt-Erklärung ${year} steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48)`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "ist",
+          figures: {
+            base19: 100_000,
+            tax19: 19_000,
+            base7: 0,
+            tax7: 0,
+            vorsteuer: 0,
+            vorauszahlungen: 19_000,
+            kz48Zeile46: 50_000,
+            kz48Zeile47: 130_000,
+            kz48Zeile47Nummern: "8 i, 14, 21",
+          },
+        }),
+    ],
   ]),
   // Anlage EÜR
   ...jahre.flatMap((year): [string, () => string][] => [
