@@ -20,13 +20,15 @@ const MAX_NAME = 60;
 const DOMAIN = /^[a-z0-9._-]+$/;
 
 /**
- * Wie die App, dazu strenger: kein ' (der Wert steht in einfachen Anführungszeichen in der .env) und kein Leerraum am
- * Rand (die App schneidet ihn ab, „Nord“ und „Nord “ sähen gleich aus)
+ * Wie die App, dazu strenger: kein ' (der Wert steht in einfachen Anführungszeichen in der .env), kein \ am Ende
+ * (Compose liest \' als Zeichen, compose-go dotenv/parser.go, extractVarValue; HABEN_FIRMENNAME endete nie) und kein
+ * Leerraum am Rand (die App schneidet ihn ab, „Nord“ und „Nord “ sähen gleich aus)
  */
 export function pruefeFirmenname(name: string, herkunft: string): void {
   if (name.length === 0 || name.length > MAX_NAME || /\p{Cc}/u.test(name))
     abbrechen(`${herkunft}: Der Firmenname braucht 1 bis ${MAX_NAME} Zeichen ohne Steuerzeichen: „${name}“`);
   if (/[|;']/.test(name)) abbrechen(`${herkunft}: Der Firmenname darf weder | noch ; noch ' enthalten: „${name}“`);
+  if (name.endsWith("\\")) abbrechen(`${herkunft}: Der Firmenname darf nicht mit \\ enden: „${name}“`);
   if (name.trim() !== name) abbrechen(`${herkunft}: Der Firmenname darf nicht mit Leerraum beginnen oder enden: „${name}“`);
 }
 
@@ -90,16 +92,19 @@ function veraltet(alle: Instanz[], gewaehlt: Instanz[], urls: string[]): [string
     .filter(([, genannt]) => genannt.length > 0);
 }
 
-/** Schreibt die .env über eine Datei daneben und ein rename: Bricht das Schreiben ab, bleibt die alte ganz */
-async function ersetzen(i: Instanz, text: string): Promise<void> {
-  const neu = join(i.dir, ".env.firmen-neu");
+/**
+ * Schreibt erst jede neue .env in eine Datei daneben und ersetzt dann alle mit rename: Scheitert das Schreiben bei
+ * einer Instanz, bleibt jede .env, wie sie war
+ */
+async function ersetzen(dateien: { dir: string; text: string }[]): Promise<void> {
+  const neu = (dir: string) => join(dir, ".env.firmen-neu");
   try {
-    await envSchreiben(neu, text);
-    await rename(neu, join(i.dir, ".env"));
+    for (const { dir, text } of dateien) await envSchreiben(neu(dir), text);
   } catch (error) {
-    await rm(neu, { force: true });
+    for (const { dir } of dateien) await rm(neu(dir), { force: true }).catch(() => undefined);
     throw error;
   }
+  for (const { dir } of dateien) await rename(neu(dir), join(dir, ".env"));
 }
 
 export async function firmen(k: Kontext, namen: string[]): Promise<void> {
@@ -119,11 +124,13 @@ export async function firmen(k: Kontext, namen: string[]): Promise<void> {
     else gestoppt.push(i.name);
   }
 
+  const geaendert: { dir: string; text: string }[] = [];
   for (const i of gewaehlt) {
     const alt = await readFile(join(i.dir, ".env"), "utf8");
     const neu = envSetzen(alt, "HABEN_FIRMEN", liste, true);
-    if (neu !== alt) await ersetzen(i, neu);
+    if (neu !== alt) geaendert.push({ dir: i.dir, text: neu });
   }
+  await ersetzen(geaendert);
   // Wie update: up -d bringt die App auf den Stand ihrer .env; einen unveränderten Container erstellt Compose nicht neu
   for (const i of laufend) {
     const rest = "Die .env aller gewählten Instanzen hat die neue Liste; die folgenden laufen noch mit der alten.";

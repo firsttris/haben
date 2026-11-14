@@ -453,7 +453,7 @@ Optionen für `neu`:
 
 | Option | Wirkung |
 | --- | --- |
-| `--firmenname NAME` | Eintrag dieser Instanz in der Liste von `firmen`, als `HABEN_FIRMENNAME` in der `.env` (Vorgabe: der Name der Instanz); 1 bis 60 Zeichen ohne `\|`, `;` und `'`. `neu` schreibt die Liste nicht selbst, sonst startete jede neue Firma alle laufenden Apps neu; es nennt am Ende den Befehl `firmen` |
+| `--firmenname NAME` | Eintrag dieser Instanz in der Liste von `firmen`, als `HABEN_FIRMENNAME` in der `.env` (Vorgabe: der Name der Instanz); 1 bis 60 Zeichen ohne `\|`, `;` und `'`, nicht mit `\` am Ende. `neu` schreibt die Liste nicht selbst, sonst startete jede neue Firma alle laufenden Apps neu; es nennt am Ende den Befehl `firmen` |
 | `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID` (fünf Ziffern). Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
 | `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden). Ob ein gemeinsames ERiC als Weitergabe gilt, wenn du Instanzen [für andere betreibst](#für-andere-betreiben), ist nicht geklärt |
 | `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy-<name>` der Instanz an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy). `docker network connect haben-proxy-<name> <proxy>` hält bis zum Neuaufbau des Proxy-Containers; dauerhaft steht das Netz in seiner Compose-Datei, wie unter [Von Hand](#von-hand) |

@@ -45,6 +45,8 @@ const FAELLE: Fall[] = [
   ["Name mit Leerzeichen am Rand", [[" Nord", "a.example.de"]], "die App schneidet es ab; „Nord“ und „ Nord“ sähen gleich aus"],
   ["nur Leerzeichen", [[" ", "a.example.de"]]],
   ["Name mit '", [["it's", "a.example.de"]], "der Wert steht in einfachen Anführungszeichen in der .env"],
+  ["Name mit \\ am Ende", [["Nord\\", "a.example.de"]], "Compose liest \\' in HABEN_FIRMENNAME als Zeichen, der Wert endete nie"],
+  ["Name mit \\ in der Mitte", [["A\\B", "a.example.de"]]],
   [
     "doppelte Domain",
     [
