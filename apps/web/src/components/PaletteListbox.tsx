@@ -79,7 +79,7 @@ export function PaletteListbox({ baseId, listboxId, sections, loading, query, sa
                       <span className="cmd-option-title">{highlightMatch(item.title, query)}</span>
                       {item.meta && <span className="cmd-option-meta">{highlightMatch(item.meta, query)}</span>}
                     </span>
-                    {item.kind !== "page" && (item.amount !== undefined || item.document) && (
+                    {item.kind !== "page" && (item.amount !== undefined || ("document" in item && item.document)) && (
                       <div className="cmd-option-facts">
                         {item.amount !== undefined && <span className="amount">{highlightMatch(item.amount, query)}</span>}
                         <span className="cmd-option-status">
@@ -115,8 +115,8 @@ function highlightMatch(text: string, query: string) {
 }
 
 function PaletteItemStatus({ item }: { item: Exclude<PaletteItem, { kind: "page" }> }) {
-  if (item.invoice) return <InvoiceStatus invoice={item.invoice} />;
-  if (item.quote) return <QuoteStatus quote={item.quote} />;
-  if (item.document) return <DocumentStatus {...item.document} />;
+  if ("invoice" in item && item.invoice) return <InvoiceStatus invoice={item.invoice} />;
+  if ("quote" in item && item.quote) return <QuoteStatus quote={item.quote} />;
+  if ("document" in item && item.document) return <DocumentStatus {...item.document} />;
   return null;
 }

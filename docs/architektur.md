@@ -284,6 +284,6 @@ aus [#750](https://github.com/firsttris/haben/issues/750); er beschreibt keine b
 
 ## Schnellsuche
 
-Die Schnellsuche (`server/functions/search-query.ts`) fragt `stammdaten`, `rechnungen` und `belege` über deren `index.ts` ab und prüft die Rolle bei jeder Anfrage: Die Steuerberatung findet keine Kontakte, Angebote und Rechnungsentwürfe. Die zuletzt geöffneten Kontakte, Rechnungen, Angebote und Belege speichert der Browser pro Instanz und Rolle, höchstens acht und nur als Typ und ID. Beim Öffnen löst der Server sie mit den aktuellen Berechtigungen auf.
+Die Schnellsuche (`server/functions/search-query.ts`) fragt die Module über ihre `index.ts` ab und prüft die Rolle bei jeder Anfrage: Die Steuerberatung findet ausschließlich festgeschriebene Rechnungen, Belege, Buchungen und Konten. Das Umzugsarchiv ist über `company.archive_search` abschaltbar (Vorgabe an). Die zuletzt geöffneten Kontakte, Rechnungen, Angebote und Belege speichert der Browser pro Instanz und Rolle, höchstens acht und nur als Typ und ID. Beim Öffnen löst der Server sie mit den aktuellen Berechtigungen auf.
 
-PostgreSQL nutzt für Teilstringsuche GIN-Indizes mit `pg_trgm`, auch auf dem im Rechnungskopf gespeicherten Kundennamen. Beträge werden auf den Bruttospalten in ganzen Cent verglichen.
+PostgreSQL nutzt für Teilstringsuche GIN-Ausdrucksindizes mit `pg_trgm` und der `IMMUTABLE`-Funktion `haben_unaccent` (`unaccent`), sodass „Muller“ auch „Müller“ über den Index findet. Beträge werden auf den Cent-Spalten und Daten über `parseDateSearch` verglichen.
