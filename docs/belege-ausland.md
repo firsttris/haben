@@ -62,6 +62,7 @@ Bei der Einfuhr von Waren aus dem Drittland erhebt der Zoll die Einfuhrumsatzste
 
 - **Voranmeldung:** Kz 62 im Monat des Belegdatums, bei Ist- und Soll-Versteuerung; sie mindert die Zahllast (Kz 83) wie Vorsteuer.
 - **EÜR:** gezahlte Vorsteuer, wenn der Bescheid bezahlt ist (im Bankabgleich wie jeder Beleg); keine Betriebsausgabe.
+- **Vorschau:** 380,00 € auf dem Zollbescheid ergeben 380,00 € abziehbare Vorsteuer und 0,00 € Aufwand. Nur bei vollständigem Vorsteuerabzug und ohne Privatanteil zeigt Haben dafür Beträge; Teilabzug wird in dieser Kategorie nicht unterstützt.
 - **Nicht unterstützt:** Kleinunternehmer und Belege ohne Vorsteuerabzug (dann gehört die Einfuhrumsatzsteuer zu den Kosten der Ware; buche sie mit deren Kategorie), Privatanteil, § 13b und Aufteilung mit anderen Kategorien. Die Umsatzsteuer-Jahreserklärung übermittelt Haben für ein Jahr mit Einfuhrumsatzsteuer nicht; die Seite nennt die Werte für das ELSTER-Portal.
 
 ## Fremdwährung

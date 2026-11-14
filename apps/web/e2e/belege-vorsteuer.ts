@@ -68,6 +68,35 @@ export function vorsteuerPruefen(getPage: () => Page) {
       await sql.end();
     }
   });
+  einfuhrumsatzsteuerPruefen(getPage);
+}
+
+function einfuhrumsatzsteuerPruefen(getPage: () => Page) {
+  test("Einfuhrumsatzsteuer: Zollbetrag ist Vorsteuer ohne Aufwand, kein Teilabzug (#433)", async ({ browser }) => {
+    const page = getPage();
+    await belegAnlegen(page, browser);
+    try {
+      await page.getByLabel("Kategorie").selectOption("einfuhrumsatzsteuer");
+      await page.getByLabel("Satz", { exact: true }).selectOption("0");
+      await page.getByLabel("Netto", { exact: true }).fill("380,00");
+      const share = page.getByLabel("Abziehbare Vorsteuer in %", { exact: true });
+      const preview = page.getByRole("status", { name: "Vorsteuervorschau" });
+      await share.fill("100");
+      await expect(preview).toContainText("Abziehbare Vorsteuer 380,00");
+      await expect(preview).toContainText("Aufwand 0,00");
+      await share.fill("50");
+      await expect(preview).toContainText("vollständigem Vorsteuerabzug");
+      await expect(preview.locator(".amount")).toHaveCount(0);
+      await share.fill("100");
+      await page.getByLabel("Netto", { exact: true }).fill("-380,00");
+      await expect(preview).toContainText("Abziehbare Vorsteuer -380,00");
+      await expect(preview).toContainText("Aufwand 0,00");
+    } finally {
+      await page.locator(".doc-actions").getByRole("button", { name: "Löschen", exact: true }).click();
+      await bestaetigen(page, "Beleg löschen");
+      await page.waitForURL(/\/belege$/);
+    }
+  });
 }
 
 async function firmenvorgabe(sql: ReturnType<typeof postgres>, value: boolean) {

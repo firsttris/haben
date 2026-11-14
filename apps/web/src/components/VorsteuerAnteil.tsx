@@ -32,6 +32,7 @@ interface Props {
   storedDeduction: boolean;
   privateShare: number;
   asset: boolean;
+  importVat?: boolean;
   onChange: (value: string) => void;
   onRateChange: (key: number, value: string) => void;
 }
@@ -59,26 +60,36 @@ function AnteilField({
   );
 }
 
-export function VorsteuerAnteil({ value, rows, company, booked, storedDeduction, privateShare, asset, onChange, onRateChange }: Props) {
+export function VorsteuerAnteil(props: Props) {
+  const { value, rows, company, booked, storedDeduction, privateShare, asset, onChange, onRateChange, importVat = false } = props;
   const blocked = !booked && company.kleinunternehmer;
   const selected = parseVorsteuerAnteil(value);
   const defaultShare = booked ? gespeicherterAnteil({ vorsteuerAnteil: selected, vorsteuerAbzug: storedDeduction }) : abziehbarerAnteil(company, selected);
   const valid = [value, ...rows.map((row) => row.vorsteuerAnteil)].every((text) => text.trim() === "" || parseVorsteuerAnteil(text) !== null);
   const preview =
     valid && rows.every((row) => row.net !== null && row.tax !== null) && Number.isInteger(privateShare) && privateShare >= 0 && privateShare <= 100;
-  const totals = rows.reduce(
-    (sum, row) => {
-      const tax = splitPrivateShare(row.tax ?? 0, privateShare).business;
-      const share = blocked ? 0 : (parseVorsteuerAnteil(row.vorsteuerAnteil) ?? defaultShare);
-      const deductible = abziehbareSteuer(tax, share);
-      return {
-        deductible: sum.deductible + deductible,
-        excluded: sum.excluded + tax - deductible,
-        cost: sum.cost + splitPrivateShare(row.net ?? 0, privateShare).business + tax - deductible,
-      };
-    },
-    { deductible: 0, excluded: 0, cost: 0 },
-  );
+  const importVatReady =
+    !blocked &&
+    privateShare === 0 &&
+    rows.length > 0 &&
+    rows.every((row) => row.taxRate === 0 && row.tax === 0 && (parseVorsteuerAnteil(row.vorsteuerAnteil) ?? defaultShare) === 10_000);
+  // Der Zollbetrag selbst ist Vorsteuer ohne Aufwand (§ 15 Abs. 1 Satz 1 Nr. 2 UStG), nicht die Steuer auf diesen Betrag.
+  // Quelle: https://www.gesetze-im-internet.de/ustg_1980/__15.html. Die bestehende EUSt-Grenze erlaubt hier keinen Teilabzug.
+  const totals = importVat
+    ? { deductible: rows.reduce((sum, row) => sum + (row.net ?? 0) + (row.tax ?? 0), 0), excluded: 0, cost: 0 }
+    : rows.reduce(
+        (sum, row) => {
+          const tax = splitPrivateShare(row.tax ?? 0, privateShare).business;
+          const share = blocked ? 0 : (parseVorsteuerAnteil(row.vorsteuerAnteil) ?? defaultShare);
+          const deductible = abziehbareSteuer(tax, share);
+          return {
+            deductible: sum.deductible + deductible,
+            excluded: sum.excluded + tax - deductible,
+            cost: sum.cost + splitPrivateShare(row.net ?? 0, privateShare).business + tax - deductible,
+          };
+        },
+        { deductible: 0, excluded: 0, cost: 0 },
+      );
   return (
     <div className="stack" style={{ gap: 12 }}>
       <AnteilField
@@ -112,7 +123,7 @@ export function VorsteuerAnteil({ value, rows, company, booked, storedDeduction,
         </details>
       )}
       <p className="small" role="status" aria-label="Vorsteuervorschau" style={{ margin: 0 }}>
-        {preview ? (
+        {preview && (!importVat || importVatReady) ? (
           <>
             Abziehbare Vorsteuer <strong className="amount">{formatEuro(totals.deductible)}</strong>
             {" · "}
@@ -121,6 +132,8 @@ export function VorsteuerAnteil({ value, rows, company, booked, storedDeduction,
             {asset ? "Anschaffungskosten" : "Aufwand"} <span className="amount">{formatEuro(totals.cost)}</span>
             {privateShare > 0 && " (nach Privatanteil)"}.
           </>
+        ) : importVat && preview ? (
+          "Einfuhrumsatzsteuer wird nur als reiner Steuerbetrag zu 0 % mit vollständigem Vorsteuerabzug und ohne Privatanteil unterstützt."
         ) : (
           "Vorschau nach gültiger Eingabe der Beträge und Anteile."
         )}
