@@ -157,7 +157,7 @@ Die Beiträge zur gesetzlichen Rentenversicherung und die einer zertifizierten B
 
 Wahlleistungen einer privaten Krankenversicherung, also was über die Basisabsicherung hinausgeht, gehören nicht zur Basisabsicherung, sondern zu den sonstigen Vorsorgeaufwendungen und damit in deren Höchstbetrag (2.800 € für Selbständige, 1.900 € für Arbeitnehmer).
 
-Die steuerfreien Arbeitgeberzuschüsse zur privaten Kranken- und Pflegeversicherung stehen getrennt in der Lohnsteuerbescheinigung (Nr. 24 b und 24 c). Sie mindern den abzugsfähigen Betrag, sie erhöhen ihn nicht. Trag sie ein, wenn deine Bescheinigung sie ausweist.
+Die steuerfreien Arbeitgeberzuschüsse zur privaten Kranken- und Pflegeversicherung stehen getrennt in der Lohnsteuerbescheinigung (Nr. 24 b und 24 c). Sie mindern den abzugsfähigen Betrag, sie erhöhen ihn nicht. Trag sie ein, wenn deine Bescheinigung sie ausweist — und zwar beide: ERiC nimmt den Zuschuss zur Krankenversicherung (Nr. 24 b) nur zusammen mit dem zur Pflegeversicherung (Nr. 24 c) an (Regel 100240078). Bei privat versicherten Arbeitnehmern weist die Bescheinigung beide aus.
 
 ### Arbeitslohn (Anlage N)
 
