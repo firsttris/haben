@@ -56,10 +56,9 @@ Jeder Pull Request bekommt einen Kommentar mit dem Ergebnis. Bei heiklen Pull Re
 
 ## 4. Merge
 
-- Die CI auf dem Head abwarten. Ein Check, der auf `main` genauso rot ist, hält den Merge nicht auf. Er wird im Abschlusskommentar genannt.
-- Die Beschreibung auf den Endstand bringen, auch mit unseren Commits: `Umgesetzt #…` nur, wenn jedes Akzeptanzkriterium erfüllt ist, sonst `Refs #…`.
-- Squash mit der Beschreibung als Nachricht und dem vollen Head-SHA als erwartetem Head
-- Abschlusskommentar: was jetzt geht, was offen bleibt
+Nach `beitrag-pruefen`, Schritt 7: nur bei grüner CI auf dem Head, heikel erst nach OK des Maintainers. Ist ein Check auch auf `main` rot, wartet der Pull Request auf den Fix von `main` (Schritt 1). Dazu:
+
+- Squash mit dem vollen Head-SHA als erwartetem Head
 - Worktree, lokale Branches und Test-Datenbank aufräumen
 
 ## 5. Wieder von vorn
