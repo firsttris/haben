@@ -1,10 +1,8 @@
-import { useRenderedSheet } from "../lib/use-rendered-sheet.ts";
-import type { DocumentPreviewInput } from "../server/modules/rechnungen/index.ts";
+import { type SheetRenderer, useRenderedSheet } from "../lib/use-rendered-sheet.ts";
 
 /** Das echte Blatt aus Typst: dieselbe Vorlage wie das PDF, Seite für Seite aus einem gemeinsamen Bild geschnitten */
-export function RenderedSheet({ input, revision }: { input: DocumentPreviewInput; revision: string | null }) {
-  const label = input.kind === "angebot" ? "Vorschau des Angebots" : "Vorschau der Rechnung";
-  const { sheet, failure, outdated, refresh } = useRenderedSheet(input, revision);
+export function RenderedSheet<I>({ label, render, input, revision }: { label: string; render: SheetRenderer<I>; input: I; revision: string | null }) {
+  const { sheet, failure, outdated, refresh } = useRenderedSheet(render, input, revision);
   return (
     <div className="sheet" aria-label={label}>
       {failure && (

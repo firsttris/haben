@@ -339,6 +339,23 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   await expect(page.getByText("noch nicht gemahnt")).toHaveCount(offen);
 });
 
+test("Mahnung: Die Vorschau zeigt das Blatt, während das Formular sich ändert", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  // Angeheftet wie in jedem Durchlauf (vorschauAnheften): neben dem Formular, ohne Klick
+  const blatt = page.getByLabel("Vorschau der Mahnung");
+  await expect(blatt.getByRole("img", { name: "Seite 1 von 1" })).toBeVisible();
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Zahlungserinnerung");
+
+  await page.getByLabel("Stufe").selectOption({ label: "1. Mahnung" });
+  await page.getByLabel("Mahngebühr (€)").fill("5,00");
+  await page.getByRole("textbox", { name: "Einleitung", exact: true }).fill("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="summen"]')).toContainText(/Mahngebühr: 5,00\s€/);
+});
+
 test("Mahnung: Einleitung und Schluss lassen sich mit den Knöpfen auszeichnen (#359)", async () => {
   await go("/rechnungen/mahnwesen");
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();

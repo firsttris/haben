@@ -1,3 +1,4 @@
+import { startvorlage } from "@haben/einvoice";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -6,6 +7,7 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
   let dunning: typeof import("./dunning.ts");
   let invoices: typeof import("./invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
+  let layouts: typeof import("../stammdaten/layouts.ts");
   let sql: postgres.Sql;
   let invoiceId: string;
   const actor = "test-user";
@@ -15,6 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
     dunning = await import("./dunning.ts");
     invoices = await import("./invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
+    layouts = await import("../stammdaten/layouts.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -23,7 +26,7 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
 
   beforeEach(async () => {
     await leeren(sql)`truncate dunnings, journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices, invoice_number_counters,
-      contact_versions, contacts, company cascade`;
+      contact_versions, contacts, company, beleg_layouts cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank, dunning)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
               '198/113/10010', 'DE123456789', 'BY', 'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank',
@@ -97,5 +100,61 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
     const input = { invoiceId, level: 1 as const, dueDate: "2026-09-20", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" };
     await expect(dunning.createDunning(actor, input, "2026-09-10")).rejects.toThrow("noch nicht fällig");
     await expect(dunning.createDunning(actor, input, "2026-10-01")).rejects.toThrow("in der Zukunft");
+  });
+
+  describe("Vorschau", () => {
+    const form = (overrides: Partial<import("./dunning.ts").DunningPreviewInput> = {}) =>
+      dunning.dunningPreviewSchema.parse({
+        invoiceId,
+        level: 1,
+        dueDate: "2026-10-25",
+        fee: 500,
+        flatFee: false,
+        interest: null,
+        intro: "Bitte *zahlen* Sie.",
+        closing: "",
+        design: {},
+        ...overrides,
+      });
+    const text = (parts: { lines: string[] }[]) =>
+      parts
+        .flatMap((part) => part.lines)
+        .join("\n")
+        .replace(/\s/g, " ");
+    /** Ohne Glyphen und data-tid, die Typst nicht stabil vergibt */
+    const gesetzt = (svg: string) => svg.replace(/<defs class="glyph">[\s\S]*?<\/defs>/, "").replace(/ data-tid="[^"]*"/g, "");
+
+    it("setzt das Blatt aus dem Formular mit Gebühr und speichert nichts", async () => {
+      const result = await dunning.dunningPreview(form(), "2026-10-15");
+      expect(result.svg.startsWith("<svg")).toBe(true);
+      expect(text(result.text)).toContain("Zahlungserinnerung");
+      expect(text(result.text)).toContain("Bitte zahlen Sie.");
+      expect(text(result.text)).toContain("Zu zahlen: 1.195,00 €");
+      expect(text(result.text)).toContain("bis zum 25.10.2026");
+      expect(await sql`select id from dunnings`).toHaveLength(0);
+      expect((await dunning.dunningDraft(invoiceId, "2026-10-15"))?.level).toBe(1);
+    }, 60_000);
+
+    it("zeigt auch ein unfertiges Formular: leere Einleitung, Frist leer oder vorbei", async () => {
+      const leer = await dunning.dunningPreview(form({ intro: "", dueDate: "" }), "2026-10-15");
+      expect(text(leer.text)).toContain("bis zum 15.10.2026");
+      const vorbei = await dunning.dunningPreview(form({ dueDate: "2026-10-01" }), "2026-10-15");
+      expect(text(vorbei.text)).toContain("bis zum 01.10.2026");
+      // Erstellen prüft die Frist weiter
+      const { design: _design, ...input } = form({ dueDate: "2026-10-01" });
+      await expect(dunning.createDunning(actor, input, "2026-10-15")).rejects.toThrow("in der Zukunft");
+    }, 60_000);
+
+    it("setzt mit dem eigenen Layout für Mahnungen", async () => {
+      const eingebaut = await dunning.dunningPreview(form(), "2026-10-15");
+      const source = `${startvorlage("mahnung")}\n#place(top + left, dx: 5mm, dy: 5mm, rect(width: 30mm, height: 10mm, fill: rgb("#123456")))\n`;
+      const created = await layouts.createLayout(actor, { name: "Rot", art: "mahnung", source });
+      if (!("id" in created)) throw new Error("Rückfrage statt Anlegen");
+      await layouts.assignLayout(actor, "mahnung", { kind: "eigen", id: created.id });
+      const eigen = await dunning.dunningPreview(form(), "2026-10-15");
+      expect(gesetzt(eigen.svg)).not.toBe(gesetzt(eingebaut.svg));
+      expect(eigen.svg).toContain("#123456");
+      expect(eingebaut.svg).not.toContain("#123456");
+    }, 120_000);
   });
 });

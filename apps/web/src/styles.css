@@ -630,6 +630,8 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 /* clip statt hidden: kein Scrollbereich, die Vorschau bleibt sticky; die Fahrt von rechts zieht die Seite nicht in die Breite */
 .preview-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; overflow-x: clip; }
 .preview-layout[data-pinned] { grid-template-columns: minmax(640px, 3fr) minmax(420px, 2fr); }
+/* Neben der angehefteten Vorschau ist für zwei Karten nebeneinander kein Platz (Mahnung) */
+.preview-layout[data-pinned] > .editor-grid { grid-template-columns: minmax(0, 1fr); }
 /* Steht unter dem festen Seitenkopf und scrollt in sich, wenn das Blatt höher ist als das Fenster */
 .preview-pane { position: sticky; top: calc(var(--below-head) + 16px); max-height: var(--viewer-height); min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 /* Nur die Spalte fährt (transform); das Formular wechselt seine Breite einmal, statt bei jedem Bild neu umzubrechen */

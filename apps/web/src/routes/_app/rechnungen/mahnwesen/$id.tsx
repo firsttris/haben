@@ -12,11 +12,15 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../../../../lib/format.ts";
+import { DesignPanel, useDesignDraft } from "../../../../components/DesignPanel.tsx";
+import { PreviewButton, PreviewLayout, useDocumentPreview } from "../../../../components/DocumentPreview.tsx";
 import { FormattedTextarea } from "../../../../components/FormattedTextarea.tsx";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
+import { RenderedSheet } from "../../../../components/RenderedSheet.tsx";
 import { useAction } from "../../../../lib/use-action.ts";
+import { useLoadedState } from "../../../../lib/use-loaded-state.ts";
 import { saveBase64File } from "../../../../lib/download.ts";
-import { createDunningFn, dunningDraftPdfFn, getDunningDraft } from "../../../../server/functions/dunning.ts";
+import { createDunningFn, dunningDraftPdfFn, getDunningDraft, renderDunningPreview } from "../../../../server/functions/dunning.ts";
 import { Field } from "../../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/mahnwesen/$id")({
@@ -41,6 +45,9 @@ function NewDunningPage() {
   const [intro, setIntro] = useState(draft.texts[draft.level].intro);
   const [closing, setClosing] = useState(draft.texts[draft.level].closing);
   const { busy, notice, run } = useAction();
+  const preview = useDocumentPreview();
+  const designDraft = useDesignDraft(draft.design);
+  const [logo, setLogo] = useLoadedState(draft.logo);
 
   const parsedFee = fee.trim() ? parseEuro(fee) : 0;
   const interestRate = interest && draft.baseRate !== null ? draft.baseRate + DEFAULT_INTEREST_MARKUP[interest] : null;
@@ -87,119 +94,130 @@ function NewDunningPage() {
           </div>
           <h1>{DUNNING_LEVELS[level].label}</h1>
         </div>
+        <div className="actions">
+          <PreviewButton preview={preview} />
+        </div>
       </div>
       <NoticeBanner notice={notice} />
-      <form className="editor-grid" onSubmit={onSubmit}>
-        <section className="card stack" aria-label="Mahnung">
-          <p className="small muted" style={{ margin: 0 }}>
-            Rechnung {draft.invoice.number} an {draft.invoice.customer} vom {formatDate(draft.invoice.issueDate)}, fällig seit{" "}
-            {formatDate(draft.invoice.dueDate)}, offen {formatEuro(draft.invoice.open)}.
-          </p>
-          <div className="form-grid">
-            <Field label="Stufe">
-              {(control) => (
-                <select {...control} value={level} onChange={(e) => chooseLevel(Number(e.target.value) as DunningLevel)}>
-                  {([1, 2, 3] as const)
-                    .filter((l) => l >= draft.level)
-                    .map((l) => (
-                      <option key={l} value={l}>
-                        {DUNNING_LEVELS[l].label}
-                      </option>
-                    ))}
-                </select>
+      <PreviewLayout
+        preview={preview}
+        design={{ panel: <DesignPanel draft={designDraft} vatRates={0} logo={logo} onLogoChanged={setLogo} />, onClosed: designDraft.discard }}
+        label="Vorschau"
+        caption="PDF"
+        sheet={<RenderedSheet label="Vorschau der Mahnung" render={renderDunningPreview} revision={logo} input={{ ...input(), design: designDraft.changes }} />}
+      >
+        <form className="editor-grid" onSubmit={onSubmit}>
+          <section className="card stack" aria-label="Mahnung">
+            <p className="small muted" style={{ margin: 0 }}>
+              Rechnung {draft.invoice.number} an {draft.invoice.customer} vom {formatDate(draft.invoice.issueDate)}, fällig seit{" "}
+              {formatDate(draft.invoice.dueDate)}, offen {formatEuro(draft.invoice.open)}.
+            </p>
+            <div className="form-grid">
+              <Field label="Stufe">
+                {(control) => (
+                  <select {...control} value={level} onChange={(e) => chooseLevel(Number(e.target.value) as DunningLevel)}>
+                    {([1, 2, 3] as const)
+                      .filter((l) => l >= draft.level)
+                      .map((l) => (
+                        <option key={l} value={l}>
+                          {DUNNING_LEVELS[l].label}
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </Field>
+              <Field label="Neue Zahlungsfrist">
+                {(control) => (
+                  <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-invalid={dueDate <= draft.date} />
+                )}
+              </Field>
+              <Field label="Mahngebühr (€)">
+                {(control) => (
+                  <input
+                    {...control}
+                    inputMode="decimal"
+                    value={fee}
+                    placeholder="0,00"
+                    onChange={(e) => setFee(e.target.value)}
+                    aria-invalid={parsedFee === null}
+                  />
+                )}
+              </Field>
+              <Field
+                label="Verzugszinsen"
+                hint={
+                  draft.baseRate === null ? (
+                    <>
+                      Für Zinsen den Basiszinssatz in den <Link to="/einstellungen">Einstellungen</Link> eintragen.
+                    </>
+                  ) : (
+                    `Basiszinssatz ${percent(draft.baseRate)}`
+                  )
+                }
+              >
+                {(control) => (
+                  <select {...control} value={interest} onChange={(e) => setInterest(e.target.value as CustomerType | "")} disabled={draft.baseRate === null}>
+                    <option value="">keine</option>
+                    <option value="geschaeftskunde">Geschäftskunde (Basiszins + 9 Prozentpunkte)</option>
+                    <option value="verbraucher">Verbraucher (Basiszins + 5 Prozentpunkte)</option>
+                  </select>
+                )}
+              </Field>
+              <label className="checkbox" style={{ gridColumn: "1 / -1" }}>
+                <input type="checkbox" checked={flatFee} onChange={(e) => setFlatFee(e.target.checked)} />
+                Verzugspauschale 40 € (nur bei Geschäftskunden, § 288 Abs. 5 BGB)
+              </label>
+              <Field label="Einleitung" style={{ gridColumn: "1 / -1" }}>
+                {(control) => <FormattedTextarea {...control} value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={2000} rows={4} />}
+              </Field>
+              <Field label="Schluss" style={{ gridColumn: "1 / -1" }}>
+                {(control) => <FormattedTextarea {...control} value={closing} onChange={(e) => setClosing(e.target.value)} maxLength={2000} rows={3} />}
+              </Field>
+            </div>
+          </section>
+          <section className="card stack" aria-label="Forderung">
+            <h2>Forderung</h2>
+            <dl className="paper-totals">
+              <dt>Offener Rechnungsbetrag</dt>
+              <dd>{formatEuro(amounts.open)}</dd>
+              {amounts.fee > 0 && (
+                <>
+                  <dt>Mahngebühr</dt>
+                  <dd>{formatEuro(amounts.fee)}</dd>
+                </>
               )}
-            </Field>
-            <Field label="Neue Zahlungsfrist">
-              {(control) => (
-                <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-invalid={dueDate <= draft.date} />
+              {amounts.flatFee > 0 && (
+                <>
+                  <dt>Verzugspauschale</dt>
+                  <dd>{formatEuro(amounts.flatFee)}</dd>
+                </>
               )}
-            </Field>
-            <Field label="Mahngebühr (€)">
-              {(control) => (
-                <input
-                  {...control}
-                  inputMode="decimal"
-                  value={fee}
-                  placeholder="0,00"
-                  onChange={(e) => setFee(e.target.value)}
-                  aria-invalid={parsedFee === null}
-                />
+              {amounts.interest > 0 && (
+                <>
+                  <dt>
+                    Zinsen {percent(amounts.interestRate)} für {amounts.interestDays} Tage
+                  </dt>
+                  <dd>{formatEuro(amounts.interest)}</dd>
+                </>
               )}
-            </Field>
-            <Field
-              label="Verzugszinsen"
-              hint={
-                draft.baseRate === null ? (
-                  <>
-                    Für Zinsen den Basiszinssatz in den <Link to="/einstellungen">Einstellungen</Link> eintragen.
-                  </>
-                ) : (
-                  `Basiszinssatz ${percent(draft.baseRate)}`
-                )
-              }
-            >
-              {(control) => (
-                <select {...control} value={interest} onChange={(e) => setInterest(e.target.value as CustomerType | "")} disabled={draft.baseRate === null}>
-                  <option value="">keine</option>
-                  <option value="geschaeftskunde">Geschäftskunde (Basiszins + 9 Prozentpunkte)</option>
-                  <option value="verbraucher">Verbraucher (Basiszins + 5 Prozentpunkte)</option>
-                </select>
-              )}
-            </Field>
-            <label className="checkbox" style={{ gridColumn: "1 / -1" }}>
-              <input type="checkbox" checked={flatFee} onChange={(e) => setFlatFee(e.target.checked)} />
-              Verzugspauschale 40 € (nur bei Geschäftskunden, § 288 Abs. 5 BGB)
-            </label>
-            <Field label="Einleitung" style={{ gridColumn: "1 / -1" }}>
-              {(control) => <FormattedTextarea {...control} value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={2000} rows={4} />}
-            </Field>
-            <Field label="Schluss" style={{ gridColumn: "1 / -1" }}>
-              {(control) => <FormattedTextarea {...control} value={closing} onChange={(e) => setClosing(e.target.value)} maxLength={2000} rows={3} />}
-            </Field>
-          </div>
-        </section>
-        <section className="card stack" aria-label="Forderung">
-          <h2>Forderung</h2>
-          <dl className="paper-totals">
-            <dt>Offener Rechnungsbetrag</dt>
-            <dd>{formatEuro(amounts.open)}</dd>
-            {amounts.fee > 0 && (
-              <>
-                <dt>Mahngebühr</dt>
-                <dd>{formatEuro(amounts.fee)}</dd>
-              </>
-            )}
-            {amounts.flatFee > 0 && (
-              <>
-                <dt>Verzugspauschale</dt>
-                <dd>{formatEuro(amounts.flatFee)}</dd>
-              </>
-            )}
-            {amounts.interest > 0 && (
-              <>
-                <dt>
-                  Zinsen {percent(amounts.interestRate)} für {amounts.interestDays} Tage
-                </dt>
-                <dd>{formatEuro(amounts.interest)}</dd>
-              </>
-            )}
-            <dt className="strong">Zu zahlen</dt>
-            <dd className="strong">{formatEuro(amounts.total)}</dd>
-          </dl>
-          <p className="small muted" style={{ margin: 0 }}>
-            Die Mahnung wird als PDF gespeichert und lässt sich danach nicht mehr ändern. Gebühren und Zinsen sind keine Rechnung: Zahlt der Kunde sie, ordnest
-            du den Mehrbetrag im Bankabgleich „Mahngebühren und Verzugszinsen“ zu.
-          </p>
-          <div className="actions">
-            <button type="button" className="btn" disabled={busy || !valid} onClick={onDraftPdf}>
-              Entwurf als PDF
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
-              {DUNNING_LEVELS[level].label} erstellen
-            </button>
-          </div>
-        </section>
-      </form>
+              <dt className="strong">Zu zahlen</dt>
+              <dd className="strong">{formatEuro(amounts.total)}</dd>
+            </dl>
+            <p className="small muted" style={{ margin: 0 }}>
+              Die Mahnung wird als PDF gespeichert und lässt sich danach nicht mehr ändern. Gebühren und Zinsen sind keine Rechnung: Zahlt der Kunde sie,
+              ordnest du den Mehrbetrag im Bankabgleich „Mahngebühren und Verzugszinsen“ zu.
+            </p>
+            <div className="actions">
+              <button type="button" className="btn" disabled={busy || !valid} onClick={onDraftPdf}>
+                Entwurf als PDF
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
+                {DUNNING_LEVELS[level].label} erstellen
+              </button>
+            </div>
+          </section>
+        </form>
+      </PreviewLayout>
     </>
   );
 }

@@ -1,6 +1,15 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { createDunning, dunningDraft, dunningDraftPdf, dunningInputSchema, fetchBaseRate, overdueInvoices } from "../modules/rechnungen/index.ts";
+import {
+  createDunning,
+  dunningDraft,
+  dunningDraftPdf,
+  dunningInputSchema,
+  dunningPreview,
+  dunningPreviewSchema,
+  fetchBaseRate,
+  overdueInvoices,
+} from "../modules/rechnungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { detailId } from "./schemas.ts";
@@ -34,6 +43,12 @@ export const dunningDraftPdfFn = createServerFn({ method: "POST" })
     const { pdf, filename } = await dunningDraftPdf(data, today());
     return { filename, base64: Buffer.from(pdf).toString("base64") };
   });
+
+/** Blatt der Mahnung für die Vorschau aus dem Stand des Formulars */
+export const renderDunningPreview = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(dunningPreviewSchema)
+  .handler(({ data }) => dunningPreview(data, today()));
 
 /** Basiszinssatz für die Einstellungen bei der Bundesbank abfragen; gespeichert wird er erst mit den Firmendaten */
 export const fetchBaseRateFn = createServerFn({ method: "POST" })
