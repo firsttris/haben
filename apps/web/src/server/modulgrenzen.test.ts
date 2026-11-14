@@ -74,6 +74,21 @@ describe("Modulgrenzen", () => {
     // Pakete und Infrastruktur bleiben frei
     expect(lint("modules/rechnungen/invoices.ts", `import { lineAmount } from "@haben/core";\nimport { db } from "../../db/index.ts";`)).toEqual([]);
   });
+
+  it("Pakete importieren nichts aus der App, der GoBD-Kern auch keine Pakete von Haben", () => {
+    const paket = (path: string, code: string) => checkFile(join(server, "../../../../packages", path), code).map((v) => v.message);
+    expect(paket("core/src/money.ts", `import { db } from "../../../apps/web/src/server/db/index.ts";`)).toEqual([
+      expect.stringContaining("Ein Paket importiert nichts aus apps/"),
+    ]);
+    expect(paket("elster/src/est.ts", `import type { Data } from "@haben/web/src/routes/x.ts";`)).toHaveLength(1);
+    expect(paket("gobd-kern/src/dateispeicher.ts", `import { formatEuro } from "@haben/core";`)).toEqual([
+      expect.stringContaining("Der GoBD-Kern kennt keine App"),
+    ]);
+    // Erlaubt: eigene Dateien, andere Pakete, Bibliotheken
+    expect(paket("elster/src/est.ts", `import { formatEuro } from "@haben/core";`)).toEqual([]);
+    expect(paket("elster/src/est.ts", `import { amount } from "./erklaerung.ts";`)).toEqual([]);
+    expect(paket("gobd-kern/src/dateispeicher.ts", `import { createHash } from "node:crypto";`)).toEqual([]);
+  });
 });
 
 describe("Struktur der Module", () => {
