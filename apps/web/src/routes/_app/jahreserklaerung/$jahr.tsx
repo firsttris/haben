@@ -702,7 +702,7 @@ function EstSection({ data }: { data: Data }) {
             };
             const total = v("a") + (est.zusammen ? v("b") : 0) + (a.vorsorge.sonstige ?? 0);
             return (
-              <Block title="Vorsorgeaufwand" summary={sumText(total)} open={total > 0}>
+              <Block title="Vorsorgeaufwand" summary={sumText(total)} open={false}>
                 <h4 className="est-sub">{est.zusammen ? (est.person.a ?? "Person A") : "Beiträge"}</h4>
                 {vorsorgeFields("a", a.vorsorge.a)}
                 {est.zusammen && (
@@ -721,7 +721,7 @@ function EstSection({ data }: { data: Data }) {
           <Block
             title="Sonderausgaben und Belastungen"
             summary={sumText(sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.spenden, a.krankheitskosten))}
-            open={sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.kirchensteuerErstattet, a.sonderausgaben.spenden, a.krankheitskosten) > 0}
+            open={false}
           >
             <div className="form-grid">
               <Amount
@@ -739,7 +739,7 @@ function EstSection({ data }: { data: Data }) {
           <Block
             title="Haushaltsnahe Aufwendungen (§ 35a EStG)"
             summary={sumText(sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker))}
-            open={sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker) > 0}
+            open={false}
           >
             <div className="form-grid">
               <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
@@ -753,11 +753,7 @@ function EstSection({ data }: { data: Data }) {
             </div>
           </Block>
 
-          <Block
-            title="Kinder"
-            summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`}
-            open={a.kinder.length > 0}
-          >
+          <Block title="Kinder" summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`} open={false}>
             {kinder.map((k, index) => (
               <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
                 <Field label="Vorname">
@@ -813,10 +809,7 @@ function EstSection({ data }: { data: Data }) {
           <Block
             title="Kapitalerträge (Anlage KAP)"
             summary={sumText(sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland))}
-            open={
-              sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland, a.kap?.kapitalertragsteuer) > 0 ||
-              Boolean(a.kap?.guenstigerpruefung)
-            }
+            open={false}
           >
             <div className="form-grid">
               <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />
