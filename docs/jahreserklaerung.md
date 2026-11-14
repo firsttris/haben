@@ -84,6 +84,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
 | [Pauschale](pauschalen.md): Verpflegungsmehraufwand | Verpflegungsmehraufwendungen (beschränkt abziehbar) |
+| [Pauschale](pauschalen.md#wege-zwischen-wohnung-und-betriebsstatte): Wege zwischen Wohnung und Betriebsstätte | Abziehbare Aufwendungen für Wege zwischen Wohnung und Betriebsstätte (Zeile 73 der Anlage EÜR 2025, Entfernungspauschale) |
 | Private Kfz-Nutzung | Private Kfz-Nutzung (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | [Sachentnahme](buchhaltung.md#manuelle-und-freie-buchungen) (freie Buchung, ab dem Stichjahr) | Sonstige Sach-, Nutzungs- und Leistungsentnahmen (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | Einfuhrumsatzsteuer ([Beleg](belege-ausland.md#einfuhrumsatzsteuer)), bei Zahlung | Gezahlte Vorsteuerbeträge |
@@ -102,7 +103,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 
 **Allgemeine Angaben:** Rechtsform „Angehörige freier Berufe“ bzw. „Einzelgewerbetreibende“, Betriebsinhaber ist die steuerpflichtige Person, keine Veräußerung von Grundstücken. Für Gesellschaften ist die Anlage EÜR in Haben nicht gedacht.
 
-Nicht abgebildet sind das häusliche Arbeitszimmer als Mittelpunkt (die Tagespauschale schon), Verpflegung im Ausland, Fahrten zwischen Wohnung und Betriebsstätte, Investitionsabzugsbeträge und Rücklagen. Brauchst du davon etwas, ergänze die Anlage im ELSTER-Portal statt sie hier zu senden.
+Nicht abgebildet sind das häusliche Arbeitszimmer als Mittelpunkt (die Tagespauschale schon), Verpflegung im Ausland, Wege zwischen Wohnung und Betriebsstätte mit einem Fahrzeug im Betriebsvermögen (Zeile 72), Investitionsabzugsbeträge und Rücklagen. Brauchst du davon etwas, ergänze die Anlage im ELSTER-Portal statt sie hier zu senden.
 
 ### Anlage AVEÜR
 
@@ -220,6 +221,8 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste.
 
 Die Elemente für Miete (`Raumkosten_u_sonst/Miete_Pacht`, `E6003201`) und Erhaltungsaufwendungen (`Sonst_unbeschraenkt/Erhaltungsaufwand`, `E6004313`) stammen direkt aus den Schemas E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0 und sind mit dem echten ERiC geprüft (`eric-echt.test.ts`).
+
+Die Entfernungspauschale (`KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt`, `E6003702`, Zeile 73) stammt aus den EÜR-Formularen 2022 bis 2025 von EasyCash&Tax (`elsterfeldname`); das Schema E77 selbst ist dafür noch nicht geprüft. Die Zeilennummern der Anlage EÜR 2026 sind nicht verglichen.
 
 Die Beträge in Zeile 18 (`E6000701`, erstattete Umsatzsteuer) und Zeile 58 (`E6005101`, gezahlte Umsatzsteuer) tragen laut Jahresdokumentation E77 2025 („GeldBetragMitCent ohne Vorzeichen“) und den Schemas E77-2025 und E77-2026 kein Vorzeichen; ERiC lehnt `-190,00` dort mit „Unzulässiges Vorzeichen“ ab. Haben schickt deshalb kein negatives Feld, sondern meldet den Fall in der Vorprüfung der Anlage EÜR mit Zeile, Kennung und Betrag; wie der Betrag stattdessen einzutragen ist, klärst du mit der Steuerberatung.
 
