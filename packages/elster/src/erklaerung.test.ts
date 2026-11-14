@@ -338,7 +338,7 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     const erstattetVorher = figures.erstatteteUst ?? 0;
     // Derselbe Jahrgang vor und nach dem Umgliedern: seitenverkehrt gebucht, gleicher Gewinn
     const roh = { ...figures, gezahlteUst: -19_000 };
-    const gegliedert = euerUstUmgliedern(roh);
+    const gegliedert = euerUstUmgliedern(roh, 2025);
     expect(gegliedert.figures.gezahlteUst).toBe(0);
     expect(gegliedert.figures.erstatteteUst).toBe(erstattetVorher + 19_000);
     expect(gegliedert.umgliederungen).toHaveLength(1);
@@ -362,7 +362,7 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
 
   it("gliedert eine negative erstattete Umsatzsteuer als Betriebsausgabe in Zeile 58 um (#933)", () => {
     const gezahltVorher = figures.gezahlteUst ?? 0;
-    const gegliedert = euerUstUmgliedern({ ...figures, erstatteteUst: -19_000 });
+    const gegliedert = euerUstUmgliedern({ ...figures, erstatteteUst: -19_000 }, 2025);
     expect(gegliedert.figures.erstatteteUst).toBe(0);
     expect(gegliedert.figures.gezahlteUst).toBe(gezahltVorher + 19_000);
     expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
@@ -375,7 +375,7 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
 
   it("nennt bei zwei seitenverkehrt gebuchten Zeilen die Beträge, die dort standen (#933)", () => {
     // Beide Zeilen negativ: die Meldung muss die Ausgangsbeträge nennen, nicht den Zwischenstand der Umrechnung
-    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -19_000 });
+    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -19_000 }, 2025);
     expect(gegliedert.figures.gezahlteUst).toBe(14_000);
     expect(gegliedert.figures.erstatteteUst).toBe(0);
     expect(gegliedert.umgliederungen).toHaveLength(1);
@@ -386,7 +386,7 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
   });
 
   it("nennt bei zwei seitenverkehrt gebuchten Zeilen mit Erstattungsüberschuss Zeile 18 als Ziel (#933)", () => {
-    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -19_000, erstatteteUst: -5_000 });
+    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -19_000, erstatteteUst: -5_000 }, 2025);
     expect(gegliedert.figures.gezahlteUst).toBe(0);
     expect(gegliedert.figures.erstatteteUst).toBe(14_000);
     expect(gegliedert.umgliederungen[0]).toMatch(/140,00.*Umsatzsteuer erstattet/);
@@ -395,7 +395,7 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
   });
 
   it("lässt beide Zeilen leer, wenn sich zwei seitenverkehrte Beträge aufheben (#933)", () => {
-    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -5_000 });
+    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -5_000 }, 2025);
     expect(gegliedert.figures.gezahlteUst).toBe(0);
     expect(gegliedert.figures.erstatteteUst).toBe(0);
     expect(gegliedert.umgliederungen[0]).toMatch(/heben sich auf/);
@@ -404,8 +404,8 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
   it("lässt positive Beträge unverändert und gliedert bei 0,00 nichts um", () => {
     const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: 19_000 }, anlagen: [] });
     expect(tag(xml, "E6005101")).toBe("190,00");
-    expect(euerUstUmgliedern({ ...figures, gezahlteUst: 0, erstatteteUst: 0 }).umgliederungen).toEqual([]);
-    expect(euerUstUmgliedern({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined }).umgliederungen).toEqual([]);
+    expect(euerUstUmgliedern({ ...figures, gezahlteUst: 0, erstatteteUst: 0 }, 2025).umgliederungen).toEqual([]);
+    expect(euerUstUmgliedern({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined }, 2025).umgliederungen).toEqual([]);
   });
 
   it.each([
@@ -428,10 +428,10 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
 
   it("meldet einen negativen Betrag weiterhin als Fehler, wenn das Umgliedern nicht greift", () => {
     // Rückfall aus #708/#835: euerVorzeichenMeldungen prüft, was tatsächlich ins XML geht
-    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -19_000 })).toHaveLength(1);
-    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: 0, erstatteteUst: 0 })).toEqual([]);
-    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined })).toEqual([]);
-    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -1, erstatteteUst: -1 })).toHaveLength(2);
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -19_000 }, 2025)).toHaveLength(1);
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: 0, erstatteteUst: 0 }, 2025)).toEqual([]);
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined }, 2025)).toEqual([]);
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -1, erstatteteUst: -1 }, 2025)).toHaveLength(2);
   });
 
   it("listet Anlagen je Gruppe in der AVEÜR", () => {
