@@ -19,7 +19,9 @@
     },
     // src/main.ts kennt knip aus dem Skript start in package.json
     "apps/firmenportal": {
-      "entry": ["src/**/*.test.ts"]
+      "entry": ["src/**/*.test.ts"],
+      // Die Schriften lädt src/schrift.ts per createRequire().resolve() mit zusammengesetztem Pfad, das sieht knip nicht
+      "ignoreDependencies": ["@fontsource/ibm-plex-sans"]
     },
     "packages/*": {
       "entry": ["src/**/*.test.ts"]

@@ -66,7 +66,7 @@ const vonHaben = (url: URL) => url.searchParams.get("von") === "haben";
 
 async function anmelden(config: PortalConfig, url: URL, jetzt: number): Promise<Response> {
   const meta = await entdecken(config, jetzt);
-  const { ablauf, adresse } = anmeldeAdresse(config, meta);
+  const { ablauf, adresse } = await anmeldeAdresse(config, meta);
   const inhalt = { typ: "ablauf" as const, ablauf, ...(vonHaben(url) ? { liste: true } : {}) };
   return weiter(adresse, [cookieSetzen(ABLAUF_COOKIE, signieren(config.secret, inhalt, jetzt + ABLAUF_MS), ABLAUF_MS)]);
 }
@@ -79,10 +79,9 @@ async function callback(config: PortalConfig, request: Request, jetzt: number): 
   if (url.searchParams.has("error") || !gespeichert || url.searchParams.get("state") !== gespeichert.ablauf.state) {
     return antwort(anmeldeSeite(config.displayName, "Die Anmeldung wurde abgebrochen oder ist abgelaufen. Bitte noch einmal anmelden."), 400, {}, ohneAblauf);
   }
-  const code = url.searchParams.get("code");
-  if (!code) return antwort(anmeldeSeite(config.displayName, "Die Anmeldung ist nicht möglich."), 400, {}, ohneAblauf);
+  if (!url.searchParams.get("code")) return antwort(anmeldeSeite(config.displayName, "Die Anmeldung ist nicht möglich."), 400, {}, ohneAblauf);
   const meta = await entdecken(config, jetzt);
-  const { sub, gruppen, anzeige } = await abschliessen(config, meta, code, gespeichert.ablauf);
+  const { sub, gruppen, anzeige } = await abschliessen(config, meta, url.search, gespeichert.ablauf);
   const firmen = config.firmen.flatMap((firma, i) => (gruppen.includes(firma.gruppe) ? [i] : []));
   const sitzung = signieren(config.secret, { typ: "sitzung", sitzung: { sub, anzeige, firmen, liste: listenAbdruck(config.firmen) } }, jetzt + SITZUNG_MS);
   const cookies = [...ohneAblauf, cookieSetzen(SITZUNG_COOKIE, sitzung, SITZUNG_MS)];

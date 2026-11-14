@@ -16,7 +16,7 @@ COPY packages/import/package.json packages/import/
 RUN bun install --frozen-lockfile
 COPY packages/core packages/core
 COPY apps/firmenportal apps/firmenportal
-# Eine Datei samt jose, zod und @haben/core; zur Laufzeit braucht es kein node_modules. Dazu IBM Plex Sans (lateinisch)
+# Eine Datei samt openid-client, zod und @haben/core; zur Laufzeit braucht es kein node_modules. Dazu IBM Plex Sans (lateinisch)
 RUN bun build apps/firmenportal/src/main.ts --target bun --outfile /app/firmenportal.js \
  && mkdir /app/schrift \
  && for g in 400 500 600; do cp "apps/firmenportal/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-$g-normal.woff2" /app/schrift/; done
