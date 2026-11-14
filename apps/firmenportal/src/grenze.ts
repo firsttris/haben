@@ -55,6 +55,12 @@ function netz(adresse: string): string {
   if (!isIPv6(roh)) return roh;
   const abgebildet = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(roh)?.[1];
   if (abgebildet && isIPv4(abgebildet)) return abgebildet;
+  // Auch in Hexadezimalform (::ffff:c633:6407), wie better-auth (extractIPv4FromMapped)
+  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(roh);
+  if (hex) {
+    const [hoch, tief] = [Number.parseInt(hex[1]!, 16), Number.parseInt(hex[2]!, 16)];
+    return [hoch >> 8, hoch & 255, tief >> 8, tief & 255].join(".");
+  }
   return `${praefix64(roh)}::/64`;
 }
 

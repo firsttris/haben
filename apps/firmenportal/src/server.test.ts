@@ -375,6 +375,15 @@ describe("Begrenzung der Anmeldewege", () => {
     expect((await handler(von("/anmelden", "::ffff:198.51.100.7"))).status).toBe(429);
   });
 
+  // Beitragsprüfung in #1006, Hinweis B: auch in Hexadezimalform wie better-auth (extractIPv4FromMapped)
+  it("zählt IPv4 in IPv6 auch in Hexadezimalform (::ffff:c633:6407) wie die IPv4-Adresse", async () => {
+    const handler = portal(config);
+    for (let i = 0; i < 20; i++) await handler(von("/anmelden", "198.51.100.7"));
+    expect((await handler(von("/anmelden", "::ffff:c633:6407"))).status).toBe(429);
+    // Eine andere IPv4-Adresse in Hexadezimalform zählt eigens, nicht mit allen anderen in 0:0:0:0::/64
+    expect((await handler(von("/anmelden", "::ffff:c633:6408"))).status).toBe(303);
+  });
+
   it("zählt ohne X-Forwarded-For die Adresse der Verbindung", async () => {
     const handler = portal(config);
     for (let i = 0; i < 20; i++) await handler(anfrage("/anmelden"), "192.0.2.1");
