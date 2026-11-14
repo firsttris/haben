@@ -63,6 +63,7 @@ Die Einzelaufstellung (Tag, Dauer, Tätigkeit) steht noch nicht auf der Rechnung
 
 - Ein Eintrag auf einer Rechnung ist mit ihr verknüpft; in der Liste steht die Rechnungsnummer (bzw. „Rechnungsentwurf“) als Link. Er lässt sich nicht noch einmal abrechnen, auch nicht, wenn zwei Abrechnungen gleichzeitig laufen.
 - Solange die Rechnung ein **Entwurf** ist, lässt sich der Eintrag nicht ändern oder löschen. **Lösche den Entwurf**, dann ist er wieder offen.
+- Der Entwurf bleibt beim Kunden der Einträge: Einen anderen Kunden lehnt Haben beim Speichern ab, und ein Entwurf, der schon vorher umgestellt wurde, lässt sich nicht festschreiben. Für einen anderen Kunden den Entwurf löschen und neu abrechnen.
 - Mit der **festgeschriebenen** Rechnung ist er gesperrt: Dauer, Satz, Kunde, Tag, Text und die Verknüpfung ändern sich nicht mehr, auch nicht über die API.
 - Ein **Storno** der Rechnung macht die Einträge wieder offen und änderbar; sie lassen sich auf eine neue Rechnung abrechnen. Eine **Korrektur** gibt sie nicht frei.
 - Eine Zeiterfassung, die einen schon abgerechneten Eintrag erneut schickt, ändert ihn nicht und bekommt trotzdem `200`.
