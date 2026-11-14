@@ -79,6 +79,8 @@ Gibt es Instanzen anderer Firmen (`HABEN_FIRMEN`, #504), steht direkt unter der 
 
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
 
+**Einfahrbare Seitenleiste (Desktop):** Ab 861 px Breite lässt sich die Seitenleiste mit dem Knopf direkt unter der Marke auf 62 px einklappen (170 px mehr Breite für Tabellen und Belegvorschau). `NAV_SCRIPT` setzt `data-nav="collapsed"` schon vor dem ersten Zeichnen aus `localStorage` (analog zu `THEME_SCRIPT` in `lib/theme.ts`), sodass beim Laden nichts springt. Eingeklappt bleiben Marke, Umschalter, `Übersicht`, die sechs Arbeitsbereiche, `Firma wechseln`, `Eigene Seiten`, `Einstellungen` und Konto/Darstellung als Symbole stehen; Gruppen öffnen ein schwebendes Flyout rechts neben der Leiste (`Esc` schließt zurück auf das Symbol). Auf dem Handy bis 860 px bleibt das gewohnte Aufklappmenü unverändert.
+
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.

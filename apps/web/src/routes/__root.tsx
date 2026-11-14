@@ -1,6 +1,7 @@
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { THEME_SCRIPT } from "../lib/theme.ts";
+import { NAV_SCRIPT } from "../lib/nav-rail.ts";
 import styles from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -34,9 +35,9 @@ function Document({ children }: { children: ReactNode }) {
     // data-theme und data-mode setzt das Skript vor dem Hydrieren; der Server kennt die Wahl nicht
     <html lang="de" suppressHydrationWarning>
       <head>
-        {/* Theme vor dem ersten Zeichnen setzen, sonst blitzt das Standardschema auf */}
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: festes Skript aus dem Quelltext, keine Eingaben */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        {/* Theme und Seitenleisten-Breite vor dem ersten Zeichnen setzen, sonst blitzt oder springt die Oberfläche */}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: feste Skripte aus dem Quelltext, keine Eingaben */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT + NAV_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
