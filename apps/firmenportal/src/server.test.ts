@@ -3,7 +3,7 @@ import { startTestProvider, type TestIdentity, type TestProvider } from "../../w
 import { ladeKonfiguration, type PortalConfig } from "./env.ts";
 import { cacheLeeren } from "./oidc.ts";
 import { portal } from "./server.ts";
-import { ABLAUF_COOKIE, SITZUNG_COOKIE, signieren } from "./sitzung.ts";
+import { ABLAUF_COOKIE, ABMELDE_COOKIE, SITZUNG_COOKIE, signieren } from "./sitzung.ts";
 
 /*
  * Firmenportal (#504, Stufe 2) gegen einen echten OIDC-Anbieter auf Loopback (sso-test-provider.ts): Anmeldung, Callback,
@@ -29,6 +29,7 @@ afterAll(async () => {
 beforeEach(() => {
   cacheLeeren();
   provider.setDiscovery("ok");
+  provider.setEndSession(false);
   const geladen = ladeKonfiguration({
     PORTAL_URL: PORTAL,
     PORTAL_SECRET: "portal-test-secret-mindestens-32-zeichen",
@@ -118,7 +119,7 @@ describe("Anmeldung", () => {
     zurAnmeldung(await portal(config)(anfrage("/")));
     const abgemeldet = await portal(config)(anfrage("/?abgemeldet"));
     expect(abgemeldet.status).toBe(200);
-    expect(await abgemeldet.text()).toContain("Du bist abgemeldet.");
+    expect(await abgemeldet.text()).toContain("Du bist im Firmenportal abgemeldet.");
   });
 
   it("leitet mit genau einer Firma direkt dorthin", async () => {
@@ -244,6 +245,43 @@ describe("Sitzung", () => {
     daten.sitzung.firmen = [0, 1, 2];
     const gefaelscht = `${Buffer.from(JSON.stringify(daten)).toString("base64url")}.${sig}`;
     zurAnmeldung(await portal(config)(anfrage("/", { [SITZUNG_COOKIE]: gefaelscht })));
+  });
+
+  // Rückmeldung in #1006: Abmelden mit id_token_hint und post_logout_redirect_uri (OpenID Connect RP-Initiated Logout
+  // 1.0, 2), damit der Anmeldedienst die Sitzung ohne Rückfrage beenden und zum Firmenportal zurückleiten kann
+  it("leitet zur Abmeldung beim Anmeldedienst mit id_token_hint, client_id und Rückweg", async () => {
+    provider.setEndSession(true);
+    const { handler, cookies } = await anmelden({ sub: "inhaberin", email: "i@example.de", groups: ["haben-nord-inhaber", "haben-sued-inhaber"] });
+    expect(cookies[ABMELDE_COOKIE]).toBeTruthy();
+    const ende = await handler(anfrage("/abmelden", cookies, "POST"));
+    expect(ende.status).toBe(303);
+    const ziel = new URL(ende.headers.get("location")!);
+    expect(`${ziel.origin}${ziel.pathname}`).toBe(`${provider.issuer}/logout`);
+    expect(ziel.searchParams.get("client_id")).toBe("haben");
+    expect(ziel.searchParams.get("post_logout_redirect_uri")).toBe(`${PORTAL}/?abgemeldet=dienst`);
+    expect(ziel.searchParams.get("id_token_hint")?.split(".")).toHaveLength(3);
+    const geloescht = ende.headers.getSetCookie();
+    expect(geloescht).toContain(`${SITZUNG_COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
+    expect(geloescht).toContain(`${ABMELDE_COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
+  });
+
+  it("nimmt den id_token_hint nur aus dem signierten Cookie", async () => {
+    provider.setEndSession(true);
+    const ende = await portal(config)(anfrage("/abmelden", { [ABMELDE_COOKIE]: "eyJhbGciOiJub25lIn0.e30." }, "POST"));
+    const ziel = new URL(ende.headers.get("location")!);
+    expect(ziel.searchParams.has("id_token_hint")).toBe(false);
+    expect(ziel.searchParams.get("post_logout_redirect_uri")).toBe(`${PORTAL}/?abgemeldet=dienst`);
+  });
+
+  it("sagt nach dem Rückweg vom Anmeldedienst, dass man auch dort abgemeldet ist", async () => {
+    const seite = await (await portal(config)(anfrage("/?abgemeldet=dienst"))).text();
+    expect(seite).toContain("Du bist im Firmenportal und bei Test-SSO abgemeldet.");
+  });
+
+  it("sagt ohne Abmeldung beim Anmeldedienst, dass man dort angemeldet bleibt", async () => {
+    const seite = await (await portal(config)(anfrage("/?abgemeldet"))).text();
+    expect(seite).toContain("Du bist im Firmenportal abgemeldet. Bei Test-SSO bist du weiter angemeldet");
+    expect(seite).toContain("Wieder anmelden");
   });
 
   it("endet mit Abmelden", async () => {

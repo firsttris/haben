@@ -1,13 +1,14 @@
 import { type Firma, portalFirmenFuer } from "@haben/core";
 import type { PortalConfig } from "./env.ts";
 import { type Begrenzer, begrenzer, clientAdresse } from "./grenze.ts";
-import { abschliessen, anmeldeAdresse, entdecken, istAnmeldeFehler } from "./oidc.ts";
+import { abmeldeAdresse, abschliessen, anmeldeAdresse, entdecken, istAnmeldeFehler } from "./oidc.ts";
 import { schrift } from "./schrift.ts";
 import { abgemeldetSeite, anmeldeSeite, fehlerSeite, firmenSeite } from "./seiten.ts";
 import { STIL } from "./stil.ts";
 import {
   ABLAUF_COOKIE,
   ABLAUF_MS,
+  ABMELDE_COOKIE,
   cookieLesen,
   cookieLoeschen,
   cookieSetzen,
@@ -82,24 +83,26 @@ async function callback(config: PortalConfig, request: Request, jetzt: number): 
   }
   if (!url.searchParams.get("code")) return antwort(anmeldeSeite(config.displayName, "Die Anmeldung ist nicht möglich."), 400, {}, ohneAblauf);
   const meta = await entdecken(config, jetzt);
-  const { sub, gruppen, anzeige } = await abschliessen(config, meta, url.search, gespeichert.ablauf);
+  const { sub, gruppen, anzeige, idToken } = await abschliessen(config, meta, url.search, gespeichert.ablauf);
   const firmen = config.firmen.flatMap((firma, i) => (gruppen.includes(firma.gruppe) ? [i] : []));
   const sitzung = signieren(config.secret, { typ: "sitzung", sitzung: { sub, anzeige, firmen, liste: listenAbdruck(config.firmen) } }, jetzt + SITZUNG_MS);
   const cookies = [...ohneAblauf, cookieSetzen(SITZUNG_COOKIE, sitzung, SITZUNG_MS)];
+  // Ein Cookie trägt höchstens 4096 Byte; ein größeres ID-Token (viele Gruppen) geht nicht mit, dann ohne id_token_hint
+  const abmeldung = signieren(config.secret, { typ: "abmeldung", idToken }, jetzt + SITZUNG_MS);
+  if (abmeldung.length <= 3_500) cookies.push(cookieSetzen(ABMELDE_COOKIE, abmeldung, SITZUNG_MS));
   // Mit genau einer Firma gibt es nichts zu wählen, außer man kommt aus Haben: Dann führte das zurück in dieselbe Instanz
   const direkt = firmen.length === 1 && !gespeichert.liste;
   return weiter(direkt ? einstieg(config.firmen[firmen[0]!]!.url) : "/", cookies);
 }
 
-async function abmelden(config: PortalConfig, jetzt: number): Promise<Response> {
-  const cookies = [cookieLoeschen(SITZUNG_COOKIE)];
+async function abmelden(config: PortalConfig, request: Request, jetzt: number): Promise<Response> {
+  const cookies = [cookieLoeschen(SITZUNG_COOKIE), cookieLoeschen(ABMELDE_COOKIE)];
   // Beim Anmeldedienst endet die Sitzung nur über dessen Abmeldung (RP-Initiated Logout), sonst meldete er sofort wieder an
   const meta = await entdecken(config, jetzt).catch(() => null);
   // Ohne Abmeldung beim Anmeldedienst nicht auf „/“: Das leitete gleich wieder zur Anmeldung
   if (!meta?.endSessionEndpoint) return weiter("/?abgemeldet", cookies);
-  const ziel = new URL(meta.endSessionEndpoint);
-  ziel.searchParams.set("client_id", config.clientId);
-  return weiter(ziel.toString(), cookies);
+  const hinweis = pruefen(config.secret, cookieLesen(request, ABMELDE_COOKIE), "abmeldung", jetzt);
+  return weiter(abmeldeAdresse(config, meta, hinweis?.idToken), cookies);
 }
 
 async function route(config: PortalConfig, request: Request, jetzt: number): Promise<Response> {
@@ -118,7 +121,7 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
     const sitzung = sitzungLesen(config, request, jetzt);
     if (!sitzung) {
       // Das Firmenportal meldet nur per SSO an; ohne eigene Seite davor geht es gleich zum Anmeldedienst
-      if (url.searchParams.has("abgemeldet")) return antwort(abgemeldetSeite());
+      if (url.searchParams.has("abgemeldet")) return antwort(abgemeldetSeite(config.displayName, url.searchParams.get("abgemeldet") === "dienst"));
       return weiter(vonHaben(url) ? `/anmelden?${VON_HABEN}` : "/anmelden");
     }
     // „Abmelden“ ist ein Formular, das zum end_session_endpoint weiterleitet; form-action gilt in Chromium auch für
@@ -130,7 +133,7 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
   }
   if (request.method === "GET" && pathname === "/anmelden") return anmelden(config, url, jetzt);
   if (request.method === "GET" && pathname === "/callback") return callback(config, request, jetzt);
-  if (request.method === "POST" && pathname === "/abmelden") return abmelden(config, jetzt);
+  if (request.method === "POST" && pathname === "/abmelden") return abmelden(config, request, jetzt);
   return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Firmenportal nicht."), 404);
 }
 

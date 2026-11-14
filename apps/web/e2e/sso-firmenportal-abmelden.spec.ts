@@ -85,6 +85,13 @@ test("Firmenportal: Abmelden führt zur Abmeldung beim Anmeldedienst", async ({ 
   await page.goto(`${PORTAL}/`);
   await expect(page.getByRole("link", { name: "Studio Nord" })).toBeVisible();
   await page.getByRole("button", { name: "Abmelden" }).click();
-  await page.waitForURL(`${issuer}/logout?client_id=haben-firmenportal`, { timeout: 5_000 });
+  // RP-Initiated Logout 1.0: client_id und der Rückweg ins Firmenportal; ohne Cookie der Anmeldung kein id_token_hint
+  await page.waitForURL(
+    (url) =>
+      `${url.origin}${url.pathname}` === `${issuer}/logout` &&
+      url.searchParams.get("client_id") === "haben-firmenportal" &&
+      url.searchParams.get("post_logout_redirect_uri") === `${PORTAL}/?abgemeldet=dienst`,
+    { timeout: 5_000 },
+  );
   await expect(page.getByRole("heading", { name: "Beim Anmeldedienst abgemeldet" })).toBeVisible();
 });

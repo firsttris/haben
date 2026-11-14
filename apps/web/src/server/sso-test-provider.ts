@@ -38,6 +38,8 @@ export interface TestProvider {
   setDiscovery: (mode: "ok" | "fehler" | "haengt") => void;
   /** Läuft bei jeder UserInfo-Anfrage, bevor sie beantwortet wird */
   setUserInfoHook: (hook: (() => Promise<void>) | undefined) => void;
+  /** Ob die Discovery einen end_session_endpoint (RP-Initiated Logout) nennt; Vorgabe nein */
+  setEndSession: (an: boolean) => void;
   close: () => Promise<void>;
 }
 
@@ -52,6 +54,7 @@ export async function startTestProvider(): Promise<TestProvider> {
   let issuer = "";
   let discovery: "ok" | "fehler" | "haengt" = "ok";
   let userInfoHook: (() => Promise<void>) | undefined;
+  let endSession = false;
 
   const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => {
     res.statusCode = status;
@@ -90,6 +93,7 @@ export async function startTestProvider(): Promise<TestProvider> {
         userinfo_endpoint: `${issuer}/userinfo`,
         response_types_supported: ["code"],
         id_token_signing_alg_values_supported: ["RS256"],
+        ...(endSession ? { end_session_endpoint: `${issuer}/logout` } : {}),
       });
     if (url.pathname === "/jwks") return json(res, 200, { keys: [{ ...keys.publicKey.export({ format: "jwk" }), kid: "test", alg: "RS256", use: "sig" }] });
     if (url.pathname === "/userinfo") {
@@ -144,6 +148,9 @@ export async function startTestProvider(): Promise<TestProvider> {
     },
     setUserInfoHook: (hook) => {
       userInfoHook = hook;
+    },
+    setEndSession: (an) => {
+      endSession = an;
     },
     issue(authorizeUrl, identity) {
       const code = randomBytes(16).toString("hex");

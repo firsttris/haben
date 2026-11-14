@@ -126,7 +126,7 @@ export async function abschliessen(
   meta: Metadaten,
   suche: string,
   ablauf: Ablauf,
-): Promise<{ sub: string; gruppen: string[]; anzeige: string }> {
+): Promise<{ sub: string; gruppen: string[]; anzeige: string; idToken: string }> {
   const tokens = await oidc
     .authorizationCodeGrant(meta.client, new URL(`${redirectUri(config)}${suche}`), {
       pkceCodeVerifier: ablauf.verifier,
@@ -148,7 +148,23 @@ export async function abschliessen(
   // Wie Haben: Gruppen aus UserInfo, fehlen sie dort, aus dem geprüften ID-Token
   const gruppen = gruppenAus(Object.hasOwn(profil, config.groupsClaim) ? profil : claims, config.groupsClaim);
   if ("fehler" in gruppen) throw anmeldeFehler(gruppen.fehler === "fehlt" ? "Gruppen-Claim fehlt" : "Gruppen-Claim ist kein Array aus Zeichenketten");
-  return { sub: claims.sub, gruppen: gruppen.gruppen, anzeige: anzeigeAus(profil, claims) };
+  return { sub: claims.sub, gruppen: gruppen.gruppen, anzeige: anzeigeAus(profil, claims), idToken: tokens.id_token! };
+}
+
+/** Der Rückweg nach der Abmeldung beim Anmeldedienst; beim Anmeldedienst als Post-Logout-Redirect-URI eintragen */
+export const rueckwegNachAbmeldung = (config: PortalConfig) => `${config.url}/?abgemeldet=dienst`;
+
+/**
+ * Abmeldung beim Anmeldedienst nach OpenID Connect RP-Initiated Logout 1.0, 2: client_id (setzt openid-client),
+ * post_logout_redirect_uri und, wenn vorhanden, das ID-Token als id_token_hint; damit fragt etwa Keycloak nicht nach
+ */
+export function abmeldeAdresse(config: PortalConfig, meta: Metadaten, idToken?: string): string {
+  return oidc
+    .buildEndSessionUrl(meta.client, {
+      post_logout_redirect_uri: rueckwegNachAbmeldung(config),
+      ...(idToken ? { id_token_hint: idToken } : {}),
+    })
+    .toString();
 }
 
 /** Nur für Tests: Discovery neu laden */

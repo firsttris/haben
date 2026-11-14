@@ -10,6 +10,8 @@ import type { Ablauf } from "./oidc.ts";
 
 export const ABLAUF_COOKIE = "__Host-haben-firmenportal-ablauf";
 export const SITZUNG_COOKIE = "__Host-haben-firmenportal";
+/** Das ID-Token als id_token_hint für die Abmeldung beim Anmeldedienst; getrennt, damit die Sitzung klein bleibt */
+export const ABMELDE_COOKIE = "__Host-haben-firmenportal-abmelden";
 export const ABLAUF_MS = 10 * 60_000;
 export const SITZUNG_MS = 15 * 60_000;
 
@@ -24,7 +26,7 @@ interface Sitzung {
 }
 
 /** `liste`: aus Haben gekommen („Zum Firmenportal“), dann auch mit einer Firma die Liste statt der Weiterleitung */
-type Inhalt = { typ: "ablauf"; ablauf: Ablauf; liste?: boolean } | { typ: "sitzung"; sitzung: Sitzung };
+type Inhalt = { typ: "ablauf"; ablauf: Ablauf; liste?: boolean } | { typ: "sitzung"; sitzung: Sitzung } | { typ: "abmeldung"; idToken: string };
 
 const signatur = (secret: string, wert: string) => createHmac("sha256", secret).update(wert).digest("base64url");
 

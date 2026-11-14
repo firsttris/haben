@@ -132,7 +132,8 @@ test("Haben: „Zum Firmenportal“ führt ins Firmenportal, ohne aufzuklappen, 
   await page.goto(`${PORTAL}/`);
   await page.getByRole("button", { name: "Abmelden" }).click();
   await page.waitForURL(`${PORTAL}/?abgemeldet`);
-  await expect(page.getByText("Du bist abgemeldet.")).toBeVisible();
+  // Der Testanbieter bietet keine Abmeldung an: Die Seite sagt, dass man dort angemeldet bleibt
+  await expect(page.getByText("Du bist im Firmenportal abgemeldet. Bei Test-SSO bist du weiter angemeldet")).toBeVisible();
   await expect(page.getByRole("link", { name: "Wieder anmelden" })).toBeVisible();
   await context.close();
 });

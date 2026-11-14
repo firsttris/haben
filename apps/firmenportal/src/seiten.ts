@@ -42,13 +42,19 @@ ${meldung}
   );
 }
 
-/** Nach „Abmelden“ ohne Abmeldung beim Anmeldedienst: keine sofortige neue Anmeldung, erst auf Klick */
-export function abgemeldetSeite(): string {
+/**
+ * Nach „Abmelden“: keine sofortige neue Anmeldung, erst auf Klick. `beimDienst`: zurück von der Abmeldung beim
+ * Anmeldedienst; sonst bietet er keine an, und man bleibt dort angemeldet (Rückmeldung in #1006)
+ */
+export function abgemeldetSeite(anbieter: string, beimDienst: boolean): string {
+  const text = beimDienst
+    ? `Du bist im Firmenportal und bei ${html(anbieter)} abgemeldet.`
+    : `Du bist im Firmenportal abgemeldet. Bei ${html(anbieter)} bist du weiter angemeldet; „Wieder anmelden“ führt ohne neue Rückfrage hinein. Abmelden kannst du dich dort selbst.`;
   return rahmen(
     "Abgemeldet",
     `<section class="karte" aria-labelledby="titel">
 <div class="kopf"><h1 id="titel">Abgemeldet</h1></div>
-<p class="hinweis" role="status">Du bist abgemeldet.</p>
+<p class="hinweis" role="status">${text}</p>
 <a class="btn btn-primary" href="/anmelden">Wieder anmelden</a>
 </section>`,
   );
