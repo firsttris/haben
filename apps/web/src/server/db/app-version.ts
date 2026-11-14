@@ -19,16 +19,17 @@ export function readAppVersion(packageJsonPath = PACKAGE_JSON_PATH): string | nu
 
 /**
  * Hält die gestartete Haben- und PostgreSQL-Version fest (GoBD, BMF-Schreiben vom 28.11.2019, Rz. 150 und Rz. 154),
- * sobald die Haben-Version vom zuletzt protokollierten Eintrag abweicht (inklusive Zurückrollen auf ältere Stände).
+ * sobald die Haben- oder die PostgreSQL-Version vom zuletzt protokollierten Eintrag abweicht (inklusive Zurückrollen auf ältere Stände).
  */
 export async function recordAppVersion(client: postgres.Sql, version = readAppVersion()): Promise<boolean> {
   if (!version) return false;
   return client.begin(async (tx) => {
     await tx`select set_config('haben.actor', 'system:migration', true)`;
-    const [last] = await tx<{ version: string }[]>`
-      select version from app_versions order by id desc limit 1
+    const [last] = await tx<{ version: string; sameServer: boolean }[]>`
+      select version, postgres_version = current_setting('server_version') as "sameServer"
+      from app_versions order by id desc limit 1
     `;
-    if (last?.version === version) return false;
+    if (last?.version === version && last.sameServer) return false;
 
     let note: string | null = null;
     if (!last) {

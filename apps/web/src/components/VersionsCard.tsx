@@ -11,7 +11,7 @@ export function VersionsCard({ versions }: { versions: AppVersionEntry[] }) {
     <section className="card" aria-labelledby="versions-heading">
       <h2 id="versions-heading">Eingesetzte Versionen</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Protokolliert jeden Start einer neuen Haben-Version (auch beim Zurückrollen auf einen älteren Stand) mit Zeitpunkt und PostgreSQL-Version im
+        Protokolliert jeden Start mit einer neuen Haben- oder PostgreSQL-Version (auch beim Zurückrollen auf einen älteren Stand) mit Zeitpunkt im
         Änderungsprotokoll.
       </p>
       {versions.length === 0 ? (
