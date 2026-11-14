@@ -36,6 +36,7 @@ import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
+import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
@@ -395,6 +396,25 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     privateShareValid &&
     currencyValid &&
     parsedSplits !== null;
+  const BETRAG_FEHLER = "Trag den Betrag als Zahl ein, etwa 120,50.";
+  const { form, error, check } = useSubmitCheck({
+    ...Object.fromEntries(
+      rows.flatMap((r, i) => [
+        [`satz-${r.key}`, rows.findIndex((x) => x.taxRate === r.taxRate) < i ? "Diesen Satz gibt es schon in einer Zeile darüber." : null],
+        [`netto-${r.key}`, parsed[i]!.net === null ? BETRAG_FEHLER : null],
+        [`steuer-${r.key}`, parsed[i]!.tax === null ? BETRAG_FEHLER : null],
+      ]),
+    ),
+    ...Object.fromEntries(
+      splitRows.flatMap((r) => [
+        [`kategorie-${r.key}`, r.category === "" ? "Wähle die Kategorie." : null],
+        [`aufteilung-${r.key}`, parseEuro(r.net || "0") === null ? BETRAG_FEHLER : null],
+      ]),
+    ),
+    waehrung: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
+    kurs: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
+    privatanteil: privateShareValid ? null : "Trag eine ganze Zahl von 0 bis 100 ein.",
+  } as Record<string, string | null>);
   // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
   const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : foreign ? "Fremdwährung" : null;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
@@ -518,6 +538,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
 
   const onSave = (event: FormEvent) => {
     event.preventDefault();
+    if (!check()) return;
     void run(async () => {
       await persist();
       await router.invalidate();
@@ -555,7 +576,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       if (readOnly || isDialogOpen()) return;
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
         event.preventDefault();
-        if (!busy && !running && valid) setConfirming(true);
+        if (!busy && !running && check()) setConfirming(true);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -569,7 +590,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     });
 
   return (
-    <form className="stack" onSubmit={onSave}>
+    <form ref={form} className="stack" onSubmit={onSave} noValidate>
       {running && (
         <div className="banner banner-info" role="status">
           <Icon name="info" />
@@ -826,7 +847,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           )}
         </Field>
         <div className="form-grid">
-          <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined}>
+          <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined} error={error("waehrung")}>
             {(control) => (
               <>
                 <input
@@ -835,7 +856,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
                   list="currency-codes"
                   maxLength={3}
-                  aria-invalid={!CURRENCY_CODE.test(currencyCode)}
                 />
                 <datalist id="currency-codes">
                   {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
@@ -846,7 +866,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             )}
           </Field>
           {foreign && (
-            <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="currency-hint">
+            <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="currency-hint" error={error("kurs")}>
               {(control) => (
                 <input
                   {...control}
@@ -855,7 +875,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   value={exchangeRate}
                   placeholder="z. B. 1,0812"
                   onChange={(e) => touch(setExchangeRate)(e.target.value)}
-                  aria-invalid={exchangeRate.trim() !== "" && rate === null}
                 />
               )}
             </Field>
@@ -881,7 +900,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </div>
         {rows.map((row, index) => (
           <div className="amount-row" key={row.key}>
-            <Field label="Satz">
+            <Field label="Satz" error={error(`satz-${row.key}`)}>
               {(control) => (
                 <select {...control} value={row.taxRate} onChange={(e) => updateRow(row.key, { taxRate: Number(e.target.value) as Rate })}>
                   <option value={1900}>19 %</option>
@@ -890,7 +909,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 </select>
               )}
             </Field>
-            <Field label={foreign ? `Netto ${currencyCode}` : "Netto"}>
+            <Field label={foreign ? `Netto ${currencyCode}` : "Netto"} error={error(`netto-${row.key}`)}>
               {(control) => (
                 <input
                   {...control}
@@ -899,7 +918,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   value={row.net}
                   placeholder="0,00"
                   onChange={(e) => updateRow(row.key, { net: e.target.value })}
-                  aria-invalid={parsed[index]!.net === null}
                 />
               )}
             </Field>
@@ -912,6 +930,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 </>
               }
               describedBy={reverseCharge ? "self-assessed-tax-hint" : undefined}
+              error={error(`steuer-${row.key}`)}
             >
               {(control) => (
                 <input
@@ -922,7 +941,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   placeholder="0,00"
                   readOnly={Boolean(reverseCharge)}
                   onChange={(e) => updateRow(row.key, { tax: e.target.value, taxTouched: true })}
-                  aria-invalid={parsed[index]!.tax === null}
                 />
               )}
             </Field>
@@ -992,7 +1010,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </p>
         {/* Privatanteil nur im Einzelunternehmen; in GmbH und UG wäre er Arbeitslohn oder verdeckte Gewinnausschüttung */}
         {category !== "anlage" && !splitting && !isKapitalgesellschaft(data.rechtsform) && (
-          <Field label="Privatanteil in %" hint="Z. B. beim Handyvertrag: nur der betriebliche Teil wird Ausgabe und Vorsteuer." style={{ maxWidth: 220 }}>
+          <Field
+            label="Privatanteil in %"
+            hint="Z. B. beim Handyvertrag: nur der betriebliche Teil wird Ausgabe und Vorsteuer."
+            error={error("privatanteil")}
+            style={{ maxWidth: 220 }}
+          >
             {(control) => (
               <input
                 {...control}
@@ -1000,7 +1023,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 value={privateShare}
                 placeholder="0"
                 onChange={(e) => touch(setPrivateShare)(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                aria-invalid={!privateShareValid}
               />
             )}
           </Field>
@@ -1035,6 +1057,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             disabled={readOnly || running}
             onChange={touch(setSplitRows)}
             taxLabel={reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
+            error={(feld, key) => error(`${feld === "netto" ? "aufteilung" : "kategorie"}-${key}`)}
             onDissolve={() => {
               // Zurück zu einer Kategorie: die der ersten Zeile
               touch(setCategory)(splitRows[0]?.category ?? "");
@@ -1128,7 +1151,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)} disabled={busy || running}>
             Löschen
           </button>
-          <button type="submit" className="btn" disabled={busy || running || !valid || !dirty}>
+          <button type="submit" className="btn" disabled={busy || running || !dirty}>
             Speichern
           </button>
           {aiAvailable && doc.mimeType !== "application/xml" && doc.mimeType !== "image/heic" && (
@@ -1136,7 +1159,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               Mit KI neu auslesen
             </button>
           )}
-          <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy || running || !valid} title="Strg+Enter">
+          <button type="button" className="btn btn-primary" onClick={() => check() && setConfirming(true)} disabled={busy || running} title="Strg+Enter">
             Bestätigen und buchen
           </button>
           <label className="checkbox small" style={{ flexBasis: "100%" }}>

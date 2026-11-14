@@ -15,11 +15,13 @@ import {
 } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { DatevEroeffnung } from "../../../components/DatevEroeffnung.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { formatDate } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
+import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { createManualEntryFn, getManualEntryForm } from "../../../server/functions/journal.ts";
 import styles from "../../../styles/auswertungen.css?url";
 import { Field } from "../../../components/Field.tsx";
@@ -105,6 +107,15 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
   const touched = rows.some((r) => r.account || r.debit || r.credit);
   // Was gebucht wird, wenn eine Zeile einen Steuerschlüssel trägt: brutto geteilt in Netto und Steuer
   const gebucht = mitSchluessel && issues.length === 0 ? freieBuchungPosting(lines, data.kontenrahmen) : null;
+  // Was an den Zeilen fehlt, steht als Liste unter der Tabelle; das Konto der ersten Zeile zeigt darauf und bekommt den Fokus
+  const zeilenFehlerId = useId();
+  const { form, error, check } = useSubmitCheck({
+    date: date === "" ? "Wähle das Datum." : date > data.today ? `Wähle einen Tag bis ${formatDate(data.today)}.` : null,
+    description: description.trim().length < 3 ? "Trag einen Buchungstext mit mindestens 3 Zeichen ein." : null,
+    // Steht nicht am Feld, sondern als Liste unter der Tabelle (zeilenFehlerId)
+    zeilen: issues.length > 0 ? issues.join(" ") : null,
+  });
+  const zeilenFehler = Boolean(error("zeilen"));
 
   const update = (key: number, patch: Partial<Row>) => setRows((current) => current.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   function addRow() {
@@ -114,6 +125,7 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!check()) return;
     void run(async () => {
       await create({ data: { kind, date, description, lines: lines.map((l) => ({ ...l, taxCode: l.taxCode ?? null })) } });
       await navigate({ to: "/buchungen", search: { jahr: Number(date.slice(0, 4)), monat: Number(date.slice(5, 7)) } });
@@ -122,7 +134,7 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
 
   return (
     <>
-      <form className="card stack" onSubmit={onSubmit} aria-label="Manuelle Buchung">
+      <form ref={form} className="card stack" onSubmit={onSubmit} aria-label="Manuelle Buchung" noValidate>
         <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
           Soll an Haben auf frei gewählten Konten ({data.kontenrahmen}),{" "}
           {gmbh ? "etwa das Stammkapital, ein Gesellschafterdarlehen oder eine falsche Kontierung" : "etwa eine Ausgabe ohne Beleg gegen Privat"}. Bank, Kasse,
@@ -159,10 +171,10 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
           </fieldset>
         )}
         <div className="form-row cols-2">
-          <Field label="Datum">
+          <Field label="Datum" error={error("date")}>
             {(control) => <input {...control} type="date" value={date} max={data.today} onChange={(e) => setDate(e.target.value)} required />}
           </Field>
-          <Field label="Buchungstext">
+          <Field label="Buchungstext" error={error("description")}>
             {(control) => <input {...control} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} required minLength={3} />}
           </Field>
         </div>
@@ -193,6 +205,8 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
                 <td>
                   <input
                     aria-label={`Konto Zeile ${index + 1}`}
+                    aria-invalid={zeilenFehler && index === 0 ? true : undefined}
+                    aria-describedby={zeilenFehler && index === 0 ? zeilenFehlerId : undefined}
                     className="mono"
                     inputMode="numeric"
                     maxLength={4}
@@ -274,7 +288,7 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
           <button type="button" className="btn" onClick={addRow} disabled={rows.length >= MANUAL_MAX_LINES}>
             Zeile hinzufügen
           </button>
-          <button type="submit" className="btn btn-primary" disabled={busy || issues.length > 0 || description.trim().length < 3}>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
             Buchen
           </button>
         </div>
@@ -294,12 +308,15 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
             </ul>
           </div>
         )}
-        {touched && issues.length > 0 && (
-          <ul className="small" role="status" aria-label="Noch nicht buchbar" style={{ margin: 0 }}>
-            {issues.map((issue) => (
-              <li key={issue}>{issue}</li>
-            ))}
-          </ul>
+        {(touched || zeilenFehler) && issues.length > 0 && (
+          // Die id an der Liste selbst: Ein aria-label daran ersetzte für aria-describedby ihren Text
+          <div role="status" aria-label="Noch nicht buchbar">
+            <ul id={zeilenFehlerId} className={zeilenFehler ? "small field-error" : "small"} style={{ margin: 0 }}>
+              {issues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          </div>
         )}
         <NoticeBanner notice={notice} />
       </form>

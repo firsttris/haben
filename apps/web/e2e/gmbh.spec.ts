@@ -97,7 +97,10 @@ test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () =>
   await form.getByLabel("Konto Zeile 1").fill("1800");
   await form.getByLabel("Soll Zeile 1").fill("25.000,00");
   await expect(form.getByRole("status", { name: "Noch nicht buchbar" })).toContainText("Konto 1800 führt das Nebenbuch Bank");
-  await expect(form.getByRole("button", { name: "Buchen" })).toBeDisabled();
+  // „Buchen“ bucht nicht, sondern setzt den Fokus in die erste Zeile, die auf die Liste zeigt (DESIGN.md, Gesperrte Knöpfe)
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(form.getByLabel("Konto Zeile 1")).toBeFocused();
+  await expect(form.getByLabel("Konto Zeile 1")).toHaveAccessibleDescription(/Konto 1800 führt das Nebenbuch Bank/);
 
   await form.getByLabel("Konto Zeile 1").fill("3510");
   await expect(form).toContainText("Verbindlichkeiten gegenüber Gesellschaftern");

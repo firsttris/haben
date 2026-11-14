@@ -615,9 +615,11 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   await split.getByLabel("Kategorie").nth(1).selectOption("software");
   await split.getByRole("textbox", { name: "Netto", exact: true }).nth(1).fill("50,00");
   await expect(split.getByText("19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen")).toBeVisible();
-  // Bis eine Kategorie gewählt ist, lässt sich nicht speichern
+  // Ohne Kategorie speichert „Speichern“ nicht, sondern sagt an der Zeile, was fehlt (DESIGN.md, Gesperrte Knöpfe)
   await split.getByRole("button", { name: "+ Zeile" }).click();
-  await expect(page.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(split.getByLabel("Kategorie").nth(2)).toBeFocused();
+  await expect(split.getByLabel("Kategorie").nth(2)).toHaveAccessibleDescription("Wähle die Kategorie.");
   await split.getByLabel("Kategorie").nth(2).selectOption("buero");
   await split.getByRole("textbox", { name: "Netto", exact: true }).nth(2).fill("20,00");
   await expect(split.getByText("19 %: Zeilen 170,00 € von 170,00 € netto · stimmt")).toBeVisible();
@@ -1462,6 +1464,11 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
 test("Anlage übernehmen: degressive AfA mit Höchstsatz, Restbuchwert geprüft, Wechsel zur linearen", async () => {
   await go("/anlagen/neu");
   const form = page.getByRole("region", { name: "Angaben" });
+  // Leer abgeschickt: die Fehler stehen an den Feldern, der Fokus in der Bezeichnung (DESIGN.md, Gesperrte Knöpfe)
+  await form.getByRole("button", { name: "Anlage übernehmen" }).click();
+  await expect(form.getByLabel("Bezeichnung")).toBeFocused();
+  await expect(form.getByLabel("Bezeichnung")).toHaveAccessibleDescription("Trag eine Bezeichnung ein.");
+  await expect(form.getByLabel("Anschaffungskosten netto (€)")).toHaveAccessibleDescription("Trag die Anschaffungskosten netto ein, etwa 1.200,00.");
   await form.getByLabel("Bezeichnung").fill("Drehbank degressiv");
   await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Betriebs- und Geschäftsausstattung" });
   await form.getByLabel("Anschaffungsdatum").fill("2024-04-10");
