@@ -199,6 +199,8 @@ const FORMAT_LABEL = (format: string) =>
               ? "eBay"
               : format === "etsy-csv"
                 ? "Etsy"
+                : format === "etsy-ledger"
+                  ? "Etsy (Abruf)"
                 : format === "googleplay-earnings"
                   ? "Google Play"
                   : format === "appstore-finance"

@@ -106,6 +106,9 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
       return parseEbay(detected.rows, detected.headerRow);
     case "etsy-csv":
       return parseEtsy(detected.rows, detected.headerRow);
+    // Der Zahlungsverlauf von Etsy Payments kommt über die API (etsy-ledger.ts), nicht als Datei
+    case "etsy-ledger":
+      throw new StatementParseError("Der Etsy-Zahlungsverlauf kommt über die API, nicht als Datei.");
   }
 }
 

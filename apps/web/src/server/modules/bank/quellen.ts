@@ -27,6 +27,8 @@ const FORMAT_NAMEN: Record<StatementFormat, string> = {
   "shopify-payments-csv": "Shopify",
   "ebay-csv": "eBay",
   "etsy-csv": "Etsy",
+  // Bewusst ein anderer Name als beim CSV-Import: Wer von der CSV auf den Abruf wechselt, wechselt die Quelle
+  "etsy-ledger": "Etsy Payments (Abruf)",
   "googleplay-earnings": "Google Play",
   "appstore-finance": "App Store",
   "store-payout": "Store-Auszahlung",
