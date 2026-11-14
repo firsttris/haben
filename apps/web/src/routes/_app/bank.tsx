@@ -23,6 +23,7 @@ import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenW
 import { KategorieFelder, kategorieWahlFuer, type KategorieOptionen, type KategorieWahl } from "../../components/KategorieFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
+import { PURPOSE_SHORT } from "../../lib/kontozweck.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
   addBankAccount,
@@ -368,14 +369,6 @@ function BankPage() {
     </>
   );
 }
-
-const PURPOSE_SHORT = {
-  geschaeft: "Geschäftskonto",
-  steuer: "Steuerkonto",
-  ruecklage: "Rücklagen",
-  privat: "Privatkonto",
-  zahlungsdienstleister: "Zahlungsdienstleister",
-} as const;
 
 /** Name und Zweck des gewählten Kontos, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
 function AccountSettings({

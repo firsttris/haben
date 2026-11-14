@@ -49,8 +49,8 @@ export const getFinanzamt = createServerFn({ method: "GET" })
       company: { name: company.name, finanzamt: company.finanzamt, steuernummer: company.steuernummer, iban: company.iban },
       taxAccount: taxAccount ? { name: taxAccount.name, iban: taxAccount.iban } : null,
       // Alle gepflegten Konten mit Name und Zweck: die Bankverbindung beim Finanzamt wird daraus gewaehlt,
-      // nicht abgetippt. Ohne IBAN bleibt ein Konto in der Liste auffindbar, ist aber nicht waehlbar.
-      konten: accounts.filter((a) => a.iban).map((a) => ({ id: a.id, name: a.name, iban: a.iban!, zweck: a.purpose ?? null })),
+      // nicht abgetippt. Ein Konto ohne IBAN (Verrechnungskonto eines Zahlungsdienstleisters) fehlt in der Auswahl.
+      konten: accounts.filter((a) => a.iban).map((a) => ({ id: a.id, name: a.name, iban: a.iban!, zweck: a.purpose })),
       person: company.taxpayer.a ? { vorname: company.taxpayer.a.vorname, name: company.taxpayer.a.name } : null,
       issues: messageIssues(company),
       bankIssues: bankChangeIssues(company),
