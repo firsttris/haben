@@ -57,6 +57,8 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 
 Bei Teilzahlungen teilt Haben die Zahlung im Verhältnis der Rechnung bzw. des Belegs auf Netto und Steuer je Steuersatz auf. Hebst du eine Zuordnung im Bankabgleich auf, hebt die Gegenzeile die ursprüngliche Zahlung in der EÜR genau auf. Auch eine aufgehobene Umsatzsteuerzahlung wird in derselben EÜR-Position zurückgenommen; sie zählt nicht als Erstattung des Finanzamts. Nach erneuter Zuordnung zählt die Zahlung einmal. Eine tatsächliche Erstattung vom Finanzamt bleibt dagegen eine Einnahme unter „Vom Finanzamt erstattete Umsatzsteuer“ ([amtliche Anleitung EÜR 2025, Zeilen 18 und 58](https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025)).
 
+Bei anteiligem Vorsteuerabzug bleiben die Rundungsanteile anderer Vorjahreszahlungen erhalten, wenn du eine Zuordnung erst im Folgejahr aufhebst. Die Gegenzeile wird an ihrem Aufhebungstag berücksichtigt.
+
 Verrechnet das Finanzamt eine Umsatzsteuerzahlung mit einer Erstattung und teilst du den verbleibenden Bankumsatz entsprechend auf, stehen beide Teile in ihrer jeweiligen EÜR-Position. Die Reihenfolge der Teile ändert die Beträge nicht; beim Aufheben nimmt Haben jeden Teil in derselben Position zurück.
 
 ### Umsatzsteuer-Vorauszahlung um den Jahreswechsel

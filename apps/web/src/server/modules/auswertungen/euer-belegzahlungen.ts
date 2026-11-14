@@ -17,9 +17,12 @@ export async function belegZahlungsWirkungen(q: Db | Tx, ids: string[]): Promise
   const d = schema.documents;
   const docs = await q.select({ id: d.id, category: d.category, privateShare: d.privateShare }).from(d).where(inArray(d.id, partial));
   const splits = await splitsByDocument(partial, q);
+  // Wie das bestehende Journalmodell (#864): Gegenzeilen wirken an a.date, sonst gilt der Bankbuchungstag.
+  // § 11 Abs. 2 EStG betrifft das Abflussjahr; spätere Aufhebungen dürfen frühere Zahlungsanteile nicht neu runden.
+  // Quelle: https://www.gesetze-im-internet.de/estg/__11.html
   const history = await q.execute<{ id: string; document_id: string; paid: number; reverses_id: string | null }>(sql`
     select id, document_id, paid, reverses_id from (
-      select a.id, a.document_id, -a.amount as paid, a.reverses_id, b.booking_date as datum, a.created_at
+      select a.id, a.document_id, -a.amount as paid, a.reverses_id, coalesce(a.date, b.booking_date) as datum, a.created_at
         from allocations a join bank_transactions b on b.id = a.transaction_id
        where ${inArray(sql`a.document_id`, partial)} and a.kind = 'document'
       union all
