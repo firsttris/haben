@@ -311,3 +311,47 @@ test("eingeklappt gespeichert, aber schmal: Esc über der Marke geht an die Seit
   await page.keyboard.press("Escape");
   expect(await page.evaluate(() => (window as unknown as { escAnSeite: number }).escAnSeite)).toBe(1);
 });
+
+test("Strg+B klappt die Seitenleiste am Desktop ein und aus, nicht in Eingabefeldern", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const einklappen = nav(page).getByRole("button", { name: "Seitenleiste einklappen" });
+  await expect(einklappen).toHaveAttribute("aria-keyshortcuts", "Control+B Meta+B");
+  await page.keyboard.press("Control+b");
+  await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
+  await page.keyboard.press("Control+b");
+  await expect(page.locator("html")).not.toHaveAttribute("data-nav");
+
+  // In einem Feld bleibt Strg+B beim Feld (Fett in den Textfeldern der Belege)
+  const suche = page.getByRole("button", { name: "Schnellsuche" });
+  await suche.click();
+  await page.getByRole("dialog", { name: "Befehlspalette" }).getByRole("combobox").focus();
+  await page.keyboard.press("Control+b");
+  await expect(page.locator("html")).not.toHaveAttribute("data-nav");
+});
+
+test("eingeklappt: Pfeiltasten wandern durch Leiste und Flyout, → öffnet, ← schließt", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+
+  const uebersicht = nav(page).getByRole("link", { name: "Übersicht" });
+  const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
+  await uebersicht.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(verkauf).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(verkauf).toHaveAttribute("aria-expanded", "true");
+  await expect(nav(page).getByRole("link", { name: "Angebote" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(nav(page).getByRole("link", { name: "Rechnungen", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(nav(page).getByRole("link", { name: "Angebote" })).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(verkauf).toHaveAttribute("aria-expanded", "false");
+  await expect(verkauf).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(uebersicht).toBeFocused();
+  // Die Seite bekommt die Pfeile nicht (die Beleg-Ansicht blättert sonst mit ← und →)
+  await expect(page).toHaveURL(/\/$/);
+});
