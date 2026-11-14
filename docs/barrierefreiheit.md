@@ -20,6 +20,8 @@ Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den a
 | `Enter` | Link öffnen, Knopf auslösen, Formular absenden |
 | `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt oder Gruppen-Flyout öffnen |
 | `Strg+K` / `⌘+K` | [Schnellsuche](suche.md) öffnen (am Handy auch über die Lupe neben **Menü**); darin `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` zum Öffnen |
+| `Strg+B` / `⌘+B` | Seitenleiste am Desktop ein- und ausklappen (nicht in Eingabefeldern) |
+| `Pfeil hoch`/`runter`, `Pfeil rechts`/`links` | In der eingeklappten Seitenleiste von Symbol zu Symbol; `Pfeil rechts` öffnet das Flyout einer Gruppe, darin von Link zu Link, `Pfeil links` schließt es wieder |
 | `Esc` | Schließt ein Gruppen-Flyout der eingeklappten Seitenleiste, das Menü auf dem Handy oder die Befehlspalette und gibt den Fokus an den Auslöser zurück; blendet den Namen eines Symbols der eingeklappten Leiste aus |
 
 - **Zum Inhalt springen:** Der erste `Tab` auf jeder Seite zeigt den Link **Zum Inhalt springen**. Mit `Enter` überspringst du die Navigation.

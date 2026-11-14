@@ -203,6 +203,9 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .nav-kbd { display: none; }
 }
 /* Desktop-Knopf zum Ein- und Ausklappen der Seitenleiste, ganz unten; am Handy bleibt das Menü unverändert */
+/* Ausgeklappt steht das Kürzel rechts wie bei der Schnellsuche; eingeklappt im Hinweis */
+.nav-collapse-btn > .nav-collapse-label { flex: 1; }
+.nav-tip .kuerzel { margin-left: 8px; }
 .nav-collapse-btn { flex: none; width: 100%; min-height: 36px; margin-top: 8px; border: 0; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 /* Ausgeklappt und eingeklappt stehen beide Fassungen im DOM; CSS zeigt eine, damit der Server sie schon richtig liefert */
 .nav-variante { display: contents; }

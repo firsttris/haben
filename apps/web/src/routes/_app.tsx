@@ -7,6 +7,7 @@ import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
 import { CommandPalette, PALETTE_KUERZEL } from "../components/CommandPalette.tsx";
 import { Kuerzel } from "../components/Kuerzel.tsx";
+import { isDialogOpen } from "../components/ConfirmDialog.tsx";
 import { ariaKuerzel } from "../lib/tastatur.ts";
 import { NAV_GROUPS, STEUERBERATUNG_NAV, navLinkSichtbar } from "../lib/navigation.ts";
 import { readNavCollapsed, saveNavCollapsed, subscribeNavCollapsed } from "../lib/nav-rail.ts";
@@ -68,6 +69,21 @@ function useFirmaBrand() {
  * Zustand der eingeklappten Leiste. Welche Fassung zu sehen ist, entscheidet allein CSS ([data-nav] und die Breite),
  * damit der Server beide liefert und beim Laden nichts nachrückt.
  */
+/** Strg+B bzw. ⌘+B klappt am Desktop die Seitenleiste ein und aus; nicht in Feldern (dort ist es Fett) und nicht über Dialogen */
+function useEinklappKuerzel() {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "b") return;
+      if (isDialogOpen() || (event.target as HTMLElement).closest?.("input, select, textarea, [contenteditable]")) return;
+      if (!window.matchMedia("(min-width: 861px)").matches) return;
+      event.preventDefault();
+      saveNavCollapsed(!readNavCollapsed());
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+}
+
 function useRailState() {
   const collapsed = useSyncExternalStore(subscribeNavCollapsed, readNavCollapsed, () => false);
   const [openFlyout, setOpenFlyout] = useState<{ key: string; weg: FlyoutWeg } | null>(null);
@@ -149,6 +165,7 @@ function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const { collapsed, openFlyout, setOpenFlyout } = useRailState();
   useNavTipEscape();
+  useEinklappKuerzel();
   // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);

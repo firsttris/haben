@@ -1,15 +1,19 @@
 import { Link } from "@tanstack/react-router";
+import type { KeyboardEvent, ReactNode } from "react";
+import { EINKLAPP_KUERZEL } from "../lib/nav-rail.ts";
+import { ariaKuerzel } from "../lib/tastatur.ts";
 import type { Firma } from "../lib/firmen.ts";
 import type { EigeneSeiteNav as EigeneSeite, NavGroup } from "../lib/navigation.ts";
 import { STEUERBERATUNG_START } from "../lib/rollen.ts";
 import { FirmaListe, FirmaWechsler } from "./FirmaWechsler.tsx";
 import { Icon } from "./Icon.tsx";
-import { type FlyoutWeg, NavFlyout } from "./NavFlyout.tsx";
+import { Kuerzel } from "./Kuerzel.tsx";
+import { type FlyoutWeg, NavFlyout, weiter } from "./NavFlyout.tsx";
 import { ThemePicker } from "./ThemePicker.tsx";
 
 /** Name eines Symbols der eingeklappten Leiste, beim Überfahren und mit Fokus (styles.css, .nav-tip); der Name für
  * Hilfstechnik steht im aria-label des Elements */
-export function NavTip({ children }: { children: string }) {
+export function NavTip({ children }: { children: ReactNode }) {
   return (
     <span className="nav-tip" aria-hidden="true">
       {children}
@@ -29,11 +33,17 @@ function CollapseSidebarButton({ collapsed, onToggleCollapse }: CollapseButtonPr
       className="nav-link nav-collapse-btn nav-tip-anker"
       aria-expanded={!collapsed}
       aria-label={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
+      aria-keyshortcuts={ariaKuerzel(EINKLAPP_KUERZEL)}
       onClick={onToggleCollapse}
     >
       <Icon name={collapsed ? "sidebar-open" : "sidebar-close"} />
       <span className="nav-collapse-label">Einklappen</span>
-      {collapsed && <NavTip>Seitenleiste ausklappen</NavTip>}
+      {!collapsed && <Kuerzel tasten={EINKLAPP_KUERZEL} className="nav-kbd" aria-hidden="true" />}
+      {collapsed && (
+        <NavTip>
+          Seitenleiste ausklappen <Kuerzel tasten={EINKLAPP_KUERZEL} />
+        </NavTip>
+      )}
     </button>
   );
 }
@@ -261,13 +271,26 @@ export function NavExpandedBody({
 
 /** Beide Fassungen im DOM, CSS zeigt eine (display: contents, die Kinder bleiben Teil von .nav-body); so liefert der
  * Server die eingeklappte Leiste schon fertig */
+/** ↑/↓ wandern in der eingeklappten Leiste von Symbol zu Symbol; im Flyout übernimmt NavFlyout */
+function symbolWechseln(event: KeyboardEvent<HTMLDivElement>) {
+  const schritt = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+  if (!schritt || (event.target as HTMLElement).closest(".nav-flyout")) return;
+  const symbole = [...event.currentTarget.querySelectorAll<HTMLElement>(".nav-rail-trigger, .nav-rail-link, .nav-collapse-btn")].filter(
+    (symbol) => !symbol.closest(".nav-flyout"),
+  );
+  if (!symbole.includes(event.target as HTMLElement)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  weiter(symbole, schritt);
+}
+
 export function NavVarianten(props: NavBodyProps) {
   return (
     <>
       <div className="nav-variante nav-variante-voll">
         <NavExpandedBody {...props} />
       </div>
-      <div className="nav-variante nav-variante-rail">
+      <div className="nav-variante nav-variante-rail" onKeyDown={symbolWechseln}>
         <NavRailBody {...props} />
       </div>
     </>
