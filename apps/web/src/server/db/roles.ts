@@ -134,6 +134,9 @@ export async function grantApplicationAccess(owner: postgres.Sql, app: Identity)
     await tx`grant usage on schema public to ${tx(app.loginRole)}`;
     await tx`grant select, insert, update, delete on all tables in schema public to ${tx(app.loginRole)}`;
     await tx`grant usage on all sequences in schema public to ${tx(app.loginRole)}`;
+    // Für den Healthcheck reicht der Zeitstempel, ohne Zugriff auf die übrigen Spalten oder Schreibrechte.
+    await tx`grant usage on schema drizzle to ${tx(app.loginRole)}`;
+    await tx`grant select (created_at) on drizzle.__drizzle_migrations to ${tx(app.loginRole)}`;
     // Ein externer, nicht privilegierter Eigentümer darf nur seine Funktionen freigeben, nicht z.B. pgcrypto ändern.
     const grants = await tx<
       { statement: string }[]
