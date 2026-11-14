@@ -402,3 +402,22 @@ test("eingeklappt: kein Pfeil aus Leiste oder Flyout erreicht die Seite", async 
   await page.keyboard.press("ArrowLeft");
   expect(await page.evaluate(() => (window as unknown as { pfeileAnSeite: string[] }).pfeileAnSeite)).toEqual([]);
 });
+
+test("eingeklappt: Marke und Lupe gehören zum Kreis der Symbole für ↑/↓", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+
+  const marke = nav(page).locator(".brand");
+  const lupe = nav(page).getByRole("button", { name: "Schnellsuche" });
+  const ausklappen = nav(page).getByRole("button", { name: "Seitenleiste ausklappen" });
+  await marke.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(lupe).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(marke).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(ausklappen).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(marke).toBeFocused();
+});
