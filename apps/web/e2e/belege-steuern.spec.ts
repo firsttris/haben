@@ -161,7 +161,18 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
   const n = form.getByRole("group", { name: "Anlage N · Erika" });
+  // Die Anlage N steht in zugeklappten est-Blöcken (#869): vor dem Ausfüllen aufklappen
+  const aufklappen = async () => {
+    await n.first().waitFor({ state: "attached" });
+    await page.evaluate(() => {
+      document.querySelectorAll("details").forEach((d) => {
+        d.open = true;
+      });
+    });
+  };
+  await aufklappen();
   await n.getByLabel("Erika hatte Arbeitslohn aus einer Anstellung").check();
+  await aufklappen();
   const lstb = n.getByRole("group", { name: "Lohnsteuerbescheinigung 1 · Erika" });
   await lstb.getByLabel("Steuerklasse").selectOption("4");
   await lstb.getByLabel("Nr. 3 Bruttoarbeitslohn", { exact: true }).fill("42.000,00");

@@ -152,7 +152,8 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
         .join(" · ") || "keine Beträge";
 
   return (
-    <details className="est-block">
+    // Der Block trägt den Namen, den die Tests und die Sprachausgabe für die ganze Anlage N kennen (#869)
+    <details className="est-block" aria-label={`Anlage N · ${wer}`}>
       <summary>
         <span className="est-block-title">Arbeitslohn (Anlage N) · {wer}</span>
         <span className="small muted">{zusammenfassung}</span>
