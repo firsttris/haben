@@ -70,21 +70,8 @@ export interface UstYear {
   figures: UstErklaerungFigures;
   steuer: Cents;
   abschluss: Cents;
-  /** Umsätze, die Haben (noch) nicht in die Erklärung schreiben kann */
-  kz21: Cents;
-  kz45: Cents;
+  /** Steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48, Zeile 46/47/49): Zeile und §-4-Nummer kann Haben noch nicht übermitteln */
   kz48: Cents;
-  /** § 13b als Leistungsempfänger: Steuer (Kz 47 und 85), noch nicht in der Erklärung */
-  reverseChargeTax: Cents;
-  /** Steuerfreie innergemeinschaftliche Lieferungen und Ausfuhrlieferungen (Kz 41, 43), noch nicht in der Erklärung */
-  kz41: Cents;
-  kz43: Cents;
-  /** Innergemeinschaftlicher Erwerb: Bemessungsgrundlagen 19 und 7 % und Vorsteuer daraus, noch nicht in der Erklärung */
-  igErwerb19: Cents;
-  igErwerb7: Cents;
-  igErwerbVorsteuer: Cents;
-  /** Entstandene Einfuhrumsatzsteuer des Jahres (Kz 62 der Voranmeldungen) */
-  einfuhrumsatzsteuer: Cents;
   /** Monate ohne gesendete Voranmeldung (Monat oder Quartal), ohne die befreiten */
   missingMonths: number[];
 }
@@ -92,8 +79,28 @@ export interface UstYear {
 /** Zahlen der Umsatzsteuererklärung: Summe der zwölf Monate aus den Buchungen, Vorauszahlungen aus den gesendeten Voranmeldungen */
 export async function ustYear(year: number): Promise<UstYear> {
   const months = await Promise.all(Array.from({ length: 12 }, (_, i) => computeVatFigures({ year, month: i + 1 })));
-  const total = (key: "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz47" | "kz85" | "kz41" | "kz43" | "kz89" | "kz93" | "kz61" | "kz62") =>
-    months.reduce((s, m) => s + m[key], 0);
+  const total = (
+    key:
+      | "kz81"
+      | "kz86"
+      | "kz21"
+      | "kz45"
+      | "kz48"
+      | "kz66"
+      | "kz46"
+      | "kz47"
+      | "kz84"
+      | "kz85"
+      | "kz41"
+      | "kz43"
+      | "kz89"
+      | "tax89"
+      | "kz93"
+      | "tax93"
+      | "kz61"
+      | "kz62"
+      | "kz67",
+  ) => months.reduce((s, m) => s + m[key], 0);
   // Wie in der Voranmeldung: Bemessungsgrundlage in vollen Euro, Steuer daraus
   const base19 = toWholeEuros(total("kz81"));
   const base7 = toWholeEuros(total("kz86"));
@@ -118,20 +125,26 @@ export async function ustYear(year: number): Promise<UstYear> {
     vorsteuer: total("kz66"),
     // Vorauszahlungssoll einschließlich der Sondervorauszahlung: Um sie ist die Voranmeldung für Dezember gemindert (Kz 39)
     vorauszahlungen: [...latest.values()].reduce((s, v) => s + v, 0) + sondervorauszahlungFor(await loadDauerfrist(), year),
+    kz21: total("kz21"),
+    kz45: total("kz45"),
+    kz41: total("kz41"),
+    kz43: total("kz43"),
+    kz89: total("kz89"),
+    tax89: total("tax89"),
+    kz93: total("kz93"),
+    tax93: total("tax93"),
+    kz46: total("kz46"),
+    kz47: total("kz47"),
+    kz84: total("kz84"),
+    kz85: total("kz85"),
+    kz61: total("kz61"),
+    kz62: total("kz62"),
+    kz67: total("kz67"),
   };
   return {
     figures,
     ...ustErklaerungResult(figures),
-    kz21: total("kz21"),
-    kz45: total("kz45"),
     kz48: total("kz48"),
-    reverseChargeTax: total("kz47") + total("kz85"),
-    kz41: total("kz41"),
-    kz43: total("kz43"),
-    igErwerb19: total("kz89"),
-    igErwerb7: total("kz93"),
-    igErwerbVorsteuer: total("kz61"),
-    einfuhrumsatzsteuer: total("kz62"),
     missingMonths: Array.from({ length: 12 }, (_, i) => i + 1).filter((m) => !covered.has(m) && frequencyAt(frequencies, { year, month: m }) !== "keine"),
   };
 }
@@ -148,23 +161,19 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
           : `Für ${year} gibst du auch als Kleinunternehmer noch eine Umsatzsteuererklärung ab (erst ab 2024 nicht mehr). Die Angaben für Kleinunternehmer kann Haben nicht übermitteln; gib sie im ELSTER-Portal ab.`,
     });
   }
-  const unsupported = [
-    data.kz21 !== 0 && "Leistungen im EU-Ausland (Reverse Charge, Kz 21)",
-    data.kz45 !== 0 && "nicht steuerbare Umsätze im Drittland (Kz 45)",
-    data.kz48 !== 0 && "steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48)",
-    data.reverseChargeTax !== 0 && "Steuer als Leistungsempfänger nach § 13b UStG (Kz 46/47, 84/85)",
-    data.kz41 !== 0 && "steuerfreie innergemeinschaftliche Lieferungen (Kz 41)",
-    data.kz43 !== 0 && "Ausfuhrlieferungen (Kz 43)",
-    (data.igErwerb19 !== 0 || data.igErwerb7 !== 0 || data.igErwerbVorsteuer !== 0) && "innergemeinschaftliche Erwerbe (Kz 89, 93 und 61)",
-    data.einfuhrumsatzsteuer !== 0 && "Einfuhrumsatzsteuer (Kz 62)",
-  ].filter(Boolean);
-  if (unsupported.length > 0) {
+  // Steuerfreie Umsätze ohne Vorsteuerabzug brauchen eine Vordruckzeile je Befreiungsvorschrift und die Nummer in § 4 UStG
+  if (data.kz48 !== 0) {
     issues.push({
       tone: "fehler",
-      text: `Das Jahr enthält ${unsupported.join(", ")}. Diese Zeilen kann Haben noch nicht übermitteln; gib die Erklärung mit den Werten unten im ELSTER-Portal ab.`,
+      text: "Das Jahr enthält steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48). Diese Zeile kann Haben noch nicht übermitteln; gib die Erklärung mit den Werten unten im ELSTER-Portal ab.",
     });
   }
-  if (data.figures.tax19 + data.figures.tax7 === 0 && data.figures.vorsteuer === 0) {
+  const f = data.figures;
+  const umsaetze =
+    f.base19 + f.base7 + (f.kz21 ?? 0) + (f.kz41 ?? 0) + (f.kz43 ?? 0) + (f.kz45 ?? 0) + (f.kz46 ?? 0) + (f.kz84 ?? 0) + (f.kz89 ?? 0) + (f.kz93 ?? 0);
+  const vorsteuer = f.vorsteuer + (f.kz61 ?? 0) + (f.kz62 ?? 0) + (f.kz67 ?? 0);
+  const steuer = f.tax19 + f.tax7 + (f.tax89 ?? 0) + (f.tax93 ?? 0) + (f.kz47 ?? 0) + (f.kz85 ?? 0);
+  if (umsaetze === 0 && vorsteuer === 0 && steuer === 0 && data.kz48 === 0) {
     issues.push({ tone: "fehler", text: "Keine Umsätze und keine Vorsteuer: eine Nullerklärung geht über das ELSTER-Portal." });
   }
   if (data.missingMonths.length > 0 && !kleinunternehmer) {

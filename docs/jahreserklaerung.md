@@ -40,15 +40,20 @@ Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 | Zeile | Woher |
 | --- | --- |
 | Umsätze zu 19 % und 7 % | Summe der zwölf Monate aus den Buchungen, wie in der Voranmeldung: Ist-Versteuerung nach Zahlungseingang, Soll nach Rechnungsdatum. Es zählt die Versteuerung des Jahres, auch wenn du sie zum Jahreswechsel umgestellt hast ([Ist- und Soll-Versteuerung](buchhaltung.md#ist--und-soll-versteuerung)). Bemessungsgrundlage in vollen Euro, die Steuer daraus. Die private Kfz-Nutzung ist in den 19 % enthalten |
-| Abziehbare Vorsteuer | Summe der Vorsteuer aus gebuchten Belegen |
+| Steuerfreie innergemeinschaftliche Lieferungen (Kz 41) und Ausfuhrlieferungen (Kz 43) | Summe der zwölf Monate, in vollen Euro |
+| Innergemeinschaftliche Erwerbe zu 19 % (Kz 89) und 7 % (Kz 93) | Bemessungsgrundlage in vollen Euro und die Erwerbsteuer daraus; die Summe der Steuer steht in der Berechnung |
+| §-13b-Leistungen aus dem EU-Ausland (Kz 46/47) und dem Drittland (Kz 84/85) | Bemessungsgrundlage in vollen Euro und die Steuer, die du als Leistungsempfänger schuldest; die Summe steht in der Berechnung |
+| Nicht steuerbare Leistungen, Ort im EU-Ausland (Kz 21), und nicht steuerbare Umsätze (Drittland, Kz 45) | Summe der zwölf Monate, in vollen Euro; ergänzende Angaben ohne Steuer |
+| Abziehbare Vorsteuer (Kz 66) | Summe der Vorsteuer aus gebuchten Belegen |
+| Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61), Einfuhrumsatzsteuer (Kz 62) und Vorsteuer aus §-13b-Leistungen (Kz 67) | Summe der zwölf Monate, gehen in die Summe der Vorsteuerbeträge ein |
 | Vorauszahlungssoll | Summe der gesendeten Voranmeldungen des Jahres; je Monat zählt die zuletzt gesendete (bei Berichtigungen die berichtigte) |
-| Abschlusszahlung bzw. Erstattung | Umsatzsteuer minus Vorsteuer minus Vorauszahlungssoll |
+| Abschlusszahlung bzw. Erstattung | Umsatzsteuer einschließlich § 13b und Erwerbsteuer minus Vorsteuer einschließlich Kz 61, 62 und 67 minus Vorauszahlungssoll |
 
 Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor dem Umzug aus Lexoffice), fehlen sie im Vorauszahlungssoll; Haben weist darauf hin. Dann stimmt die Abschlusszahlung nicht, und du gibst die Erklärung besser im ELSTER-Portal ab.
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 
-- das Jahr Leistungen im EU-Ausland (Reverse Charge, Kz 21), nicht steuerbare Umsätze im Drittland (Kz 45) oder steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält, Steuer, die du als Leistungsempfänger nach § 13b schuldest (Kz 46/47, 84/85), steuerfreie innergemeinschaftliche Lieferungen (Kz 41), Ausfuhrlieferungen (Kz 43), innergemeinschaftliche Erwerbe (Kz 89, 93 und die Vorsteuer daraus, Kz 61) oder Einfuhrumsatzsteuer (Kz 62). Für diese Zeilen fehlen Haben noch die geprüften Feldkennungen; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
+- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält: Jede Befreiungsvorschrift bekommt eine eigene Zeile mit ihrer Nummer in § 4 UStG, und die Umsätze gehören teils zum Gesamtumsatz, teils nicht. Das kann Haben noch nicht übermitteln; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
 - du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf. Für 2023 brauchst du sie noch; die Angaben für Kleinunternehmer übermittelst du dann im ELSTER-Portal.
 - es weder Umsätze noch Vorsteuer gibt (Nullerklärung über das ELSTER-Portal).
 

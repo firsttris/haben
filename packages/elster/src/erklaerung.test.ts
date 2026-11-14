@@ -68,6 +68,125 @@ describe("Umsatzsteuererklärung (E50)", () => {
     expect(() => buildUstErklaerungXml({ ...base, versteuerung: "ist", figures: zero })).toThrow(/Nullerklärung/);
     expect(() => buildUstErklaerungXml({ ...base, year: 2021, versteuerung: "ist", figures })).toThrow(/ab 2023/);
   });
+
+  it("schreibt steuerfreie Umsätze, § 13b, Erwerbe, Zusatzzeilen und Summen (2025)", () => {
+    const xml = buildUstErklaerungXml({
+      ...base,
+      versteuerung: "soll",
+      figures: {
+        ...figures,
+        kz41: 10_000,
+        kz43: 20_000,
+        kz89: 30_000,
+        tax89: 5_700,
+        kz93: 40_000,
+        tax93: 2_800,
+        kz46: 50_000,
+        kz47: 9_500,
+        kz84: 60_000,
+        kz85: 11_400,
+        kz21: 70_000,
+        kz45: 80_000,
+        kz61: 8_500,
+        kz62: 3_000,
+        kz67: 9_500,
+      },
+    });
+    expect(checkXml(xml)).toBeUndefined();
+    // Steuerfrei mit Vorsteuerabzug
+    expect(tag(xml, "E3103301")).toBe("100"); // Kz 41
+    expect(tag(xml, "E3103801")).toBe("200"); // Kz 43
+    expect(xml).not.toContain("<E3104201>"); // Summenzeile entfällt ab 2025
+    // Innergemeinschaftlicher Erwerb: Bemessung, Steuer, Summe
+    expect(tag(xml, "E3100902")).toBe("300");
+    expect(tag(xml, "E3100903")).toBe("57,00");
+    expect(tag(xml, "E3101301")).toBe("400");
+    expect(tag(xml, "E3101302")).toBe("28,00");
+    expect(tag(xml, "E3101501")).toBe("85,00");
+    // § 13b als Leistungsempfänger: EU (46/47), Drittland (84/85), Summe der Steuer
+    expect(tag(xml, "E3102205")).toBe("500");
+    expect(tag(xml, "E3102206")).toBe("95,00");
+    expect(tag(xml, "E3102503")).toBe("600");
+    expect(tag(xml, "E3102504")).toBe("114,00");
+    expect(tag(xml, "E3102601")).toBe("209,00");
+    // Ergänzende Angaben: im EU-Ausland Reverse Charge (21), nicht steuerbar Drittland (45)
+    expect(tag(xml, "E3105702")).toBe("700");
+    expect(tag(xml, "E3105801")).toBe("800");
+    // Vorsteuer: Kz 61 (ig. Erwerb), 62 (Einfuhr), 67 (§ 13b) in der Summe
+    expect(tag(xml, "E3006301")).toBe("85,00");
+    expect(tag(xml, "E3006401")).toBe("30,00");
+    expect(tag(xml, "E3006502")).toBe("95,00");
+    expect(tag(xml, "E3006901")).toBe("1410,00"); // 1.200 + 85 + 30 + 95
+    // Berechnung: Übertrag der Summen, Gesamtsteuer, verbleibende Umsatzsteuer
+    expect(tag(xml, "E3009201")).toBe("19035,09");
+    expect(tag(xml, "E3009401")).toBe("85,00");
+    expect(tag(xml, "E3009502")).toBe("209,00");
+    expect(tag(xml, "E3009801")).toBe("19329,09"); // 19.035,09 + 85 + 209
+    expect(tag(xml, "E3009901")).toBe("1410,00");
+    expect(tag(xml, "E3010201")).toBe("17919,09"); // 19.329,09 − 1.410
+    // Gruppen in der Reihenfolge des Schemas: Umsaetze, Ums_stfrei, Ig_Erw, Ums_13b, Erg_Ang_Ums, Abz_VoSt, Berech_USt
+    const reihenfolge = order(xml, ["Umsaetze", "Ums_stfrei", "Ig_Erw", "Ums_13b", "Erg_Ang_Ums", "Abz_VoSt", "Berech_USt"]);
+    expect(reihenfolge).toEqual([...reihenfolge].sort((a, b) => a! - b!));
+  });
+
+  it("schreibt 2024 zusätzlich die Summenzeile der steuerfreien Umsätze mit Vorsteuerabzug", () => {
+    const xml = buildUstErklaerungXml({
+      ...base,
+      year: 2024,
+      versteuerung: "soll",
+      figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 10_000, vorauszahlungen: 0, kz43: 20_000, kz41: 5_000 },
+    });
+    expect(tag(xml, "E3103801")).toBe("200");
+    expect(tag(xml, "E3104201")).toBe("200"); // USt_30415: Summe der Zeilen 41 bis 44
+    const [weit, sum] = order(xml, ["E3103801", "E3104201"]);
+    expect(weit! < sum!).toBe(true);
+  });
+
+  it("lässt die 19/7-%-Zeile weg, wenn nur § 13b und Erwerbe zu erklären sind", () => {
+    const xml = buildUstErklaerungXml({
+      ...base,
+      versteuerung: "soll",
+      figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0, kz46: 50_000, kz47: 9_500, kz67: 9_500 },
+    });
+    expect(tag(xml, "E3102206")).toBe("95,00");
+    expect(tag(xml, "E3102601")).toBe("95,00");
+    expect(xml).not.toContain("<E3009201>");
+    expect(tag(xml, "E3009801")).toBe("95,00");
+    expect(tag(xml, "E3009901")).toBe("95,00");
+    expect(tag(xml, "E3010201")).toBe("0,00");
+  });
+
+  it("schreibt ein Jahr mit nur ergänzenden Angaben ohne Berechnungszeilen", () => {
+    const xml = buildUstErklaerungXml({
+      ...base,
+      versteuerung: "soll",
+      figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0, kz45: 80_000 },
+    });
+    expect(tag(xml, "E3105801")).toBe("800");
+    for (const feld of ["E3009201", "E3009401", "E3009502", "E3009801", "E3009901", "E3010201"]) expect(xml).not.toContain(`<${feld}>`);
+    expect(tag(xml, "E3011101")).toBe("0,00");
+    expect(tag(xml, "E3011401")).toBe("0,00");
+  });
+
+  it("rechnet §-13b-Steuer, Erwerbsteuer und weitere Vorsteuer in das Ergebnis", () => {
+    expect(
+      ustErklaerungResult({
+        base19: 0,
+        tax19: 1_000,
+        base7: 0,
+        tax7: 0,
+        vorsteuer: 400,
+        vorauszahlungen: 200,
+        tax89: 100,
+        tax93: 50,
+        kz47: 90,
+        kz85: 60,
+        kz61: 80,
+        kz62: 20,
+        kz67: 90,
+      }),
+    ).toEqual({ steuer: 1_000 + 100 + 50 + 90 + 60 - (400 + 80 + 20 + 90), abschluss: 1_000 + 100 + 50 + 90 + 60 - (400 + 80 + 20 + 90) - 200 });
+  });
 });
 
 describe("Anlage EÜR (E77) mit AVEÜR", () => {

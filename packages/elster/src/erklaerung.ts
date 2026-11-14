@@ -107,10 +107,36 @@ export interface UstErklaerungFigures {
   tax19: Cents;
   base7: Cents;
   tax7: Cents;
-  /** Abziehbare Vorsteuer aus Rechnungen */
+  /** Abziehbare Vorsteuer aus Rechnungen (Kz 66) */
   vorsteuer: Cents;
   /** Vorauszahlungssoll: Summe der Voranmeldungen des Jahres */
   vorauszahlungen: Cents;
+  /** Steuerfreie innergemeinschaftliche Lieferungen (Kz 41, E3103301) */
+  kz41?: Cents;
+  /** Ausfuhrlieferungen (Kz 43, E3103801; bis 2024 zählt E3104201 mit) */
+  kz43?: Cents;
+  /** Innergemeinschaftlicher Erwerb: Bemessung und Erwerbsteuer 19 % (Kz 89, E3100902/E3100903) */
+  kz89?: Cents;
+  tax89?: Cents;
+  /** Innergemeinschaftlicher Erwerb 7 % (Kz 93, E3101301/E3101302) */
+  kz93?: Cents;
+  tax93?: Cents;
+  /** § 13b als Leistungsempfänger: Bemessung und Steuer EU (Kz 46/47, E3102205/E3102206) */
+  kz46?: Cents;
+  kz47?: Cents;
+  /** § 13b Drittland (Kz 84/85, E3102503/E3102504) */
+  kz84?: Cents;
+  kz85?: Cents;
+  /** Im Inland nicht steuerbare Leistungen, Ort im EU-Ausland (Kz 21, E3105702) */
+  kz21?: Cents;
+  /** Nicht steuerbare Umsätze Drittland (Kz 45, E3105801) */
+  kz45?: Cents;
+  /** Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61, E3006301) */
+  kz61?: Cents;
+  /** Entstandene Einfuhrumsatzsteuer (Kz 62, E3006401) */
+  kz62?: Cents;
+  /** Vorsteuer aus §-13b-Leistungen (Kz 67, E3006502) */
+  kz67?: Cents;
 }
 
 export interface UstErklaerungResult {
@@ -121,7 +147,8 @@ export interface UstErklaerungResult {
 }
 
 export function ustErklaerungResult(f: UstErklaerungFigures): UstErklaerungResult {
-  const steuer = f.tax19 + f.tax7 - f.vorsteuer;
+  const steuer =
+    f.tax19 + f.tax7 + (f.tax89 ?? 0) + (f.tax93 ?? 0) + (f.kz47 ?? 0) + (f.kz85 ?? 0) - (f.vorsteuer + (f.kz61 ?? 0) + (f.kz62 ?? 0) + (f.kz67 ?? 0));
   return { steuer, abschluss: steuer - f.vorauszahlungen };
 }
 
@@ -130,12 +157,162 @@ export interface UstErklaerungXmlInput extends Omit<Envelope, "datenArt"> {
   figures: UstErklaerungFigures;
 }
 
+const kz = (wert: Cents | undefined) => wert ?? 0;
+
+/** Steuerfreie Umsätze mit Vorsteuerabzug (Kz 41 und 43); die Summenzeile entfällt ab 2025 (USt_30415 bis 2024) */
+function ust2aStfrei(f: UstErklaerungFigures, year: number): XmlNode | false {
+  return (
+    (kz(f.kz41) !== 0 || kz(f.kz43) !== 0) && [
+      "Ums_stfrei",
+      [
+        [
+          "Tabelle",
+          [
+            [
+              "Mit_VoSt_Abz",
+              [
+                kz(f.kz41) !== 0 && ["Ig_Lfg", [["E3103301", wholeEuros(f.kz41!)]]],
+                kz(f.kz43) !== 0 && ["Ums_stfrei_weit", [["E3103801", wholeEuros(f.kz43!)], year <= 2024 && ["E3104201", wholeEuros(f.kz43!)]]],
+              ],
+            ],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Innergemeinschaftlicher Erwerb zu 19 und 7 % mit der Summe der Erwerbsteuer (Kz 89, 93) */
+function ust2aIgErw(f: UstErklaerungFigures, igErwerbSteuer: Cents): XmlNode | false {
+  return (
+    (kz(f.kz89) !== 0 || kz(f.kz93) !== 0) && [
+      "Ig_Erw",
+      [
+        [
+          "Tabelle",
+          [
+            [
+              "Stpfl",
+              [
+                kz(f.kz89) !== 0 && ["E3100902", wholeEuros(f.kz89!)],
+                kz(f.tax89) !== 0 && ["E3100903", elsterDecimal(f.tax89!)],
+                kz(f.kz93) !== 0 && ["E3101301", wholeEuros(f.kz93!)],
+                kz(f.tax93) !== 0 && ["E3101302", elsterDecimal(f.tax93!)],
+              ],
+            ],
+            ["Ig_Erw_Sum", [["E3101501", elsterDecimal(igErwerbSteuer)]]],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Leistungen nach § 13b UStG als Leistungsempfänger: EU (Kz 46/47) und Drittland (Kz 84/85) mit Summe der Steuer */
+function ust2a13b(f: UstErklaerungFigures, s13bSteuer: Cents): XmlNode | false {
+  return (
+    (kz(f.kz46) !== 0 || kz(f.kz84) !== 0 || s13bSteuer !== 0) && [
+      "Ums_13b",
+      [
+        [
+          "Tabelle",
+          [
+            kz(f.kz46) !== 0 && ["E3102205", wholeEuros(f.kz46!)],
+            kz(f.kz47) !== 0 && ["E3102206", elsterDecimal(f.kz47!)],
+            kz(f.kz84) !== 0 && ["E3102503", wholeEuros(f.kz84!)],
+            kz(f.kz85) !== 0 && ["E3102504", elsterDecimal(f.kz85!)],
+            ["Ums_13b_Sum", [["E3102601", elsterDecimal(s13bSteuer)]]],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Ergänzende Angaben zu den Umsätzen: Leistungsort EU-Ausland (Kz 21) oder Drittland (Kz 45) */
+function ust2aErgAng(f: UstErklaerungFigures): XmlNode | false {
+  return (
+    (kz(f.kz21) !== 0 || kz(f.kz45) !== 0) && [
+      "Erg_Ang_Ums",
+      [
+        [
+          "Tabelle",
+          [
+            ["E3105702", f.kz21 ? wholeEuros(f.kz21) : undefined],
+            ["E3105801", f.kz45 ? wholeEuros(f.kz45) : undefined],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Abziehbare Vorsteuer: aus Rechnungen (Kz 66), Erwerben (61), Einfuhr (62) und §-13b-Leistungen (67) mit Summe */
+function ust2aVorsteuer(f: UstErklaerungFigures, vorsteuer: Cents): XmlNode | false {
+  return (
+    vorsteuer !== 0 && [
+      "Abz_VoSt",
+      [
+        [
+          "Tabelle",
+          [
+            f.vorsteuer !== 0 && ["E3006201", elsterDecimal(f.vorsteuer)],
+            kz(f.kz61) !== 0 && ["E3006301", elsterDecimal(f.kz61!)],
+            kz(f.kz62) !== 0 && ["E3006401", elsterDecimal(f.kz62!)],
+            kz(f.kz67) !== 0 && ["E3006502", elsterDecimal(f.kz67!)],
+            ["Abz_VoSt_Sum", [["E3006901", elsterDecimal(vorsteuer)]]],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Berechnung der Umsatzsteuer: Übertrag der Summen, verbleibende Steuer, Vorauszahlungssoll und Abschluss */
+function ust2aBerechnung(
+  f: UstErklaerungFigures,
+  teile: { umsatzsteuer: Cents; igErwerbSteuer: Cents; s13bSteuer: Cents; vorsteuer: Cents; steuer: Cents; abschluss: Cents },
+): XmlNode {
+  const ustGesamt = teile.umsatzsteuer + teile.igErwerbSteuer + teile.s13bSteuer;
+  return [
+    "Berech_USt",
+    [
+      [
+        "Tabelle",
+        [
+          ["E3009201", amount(teile.umsatzsteuer)],
+          ["E3009401", amount(teile.igErwerbSteuer)],
+          ["E3009502", amount(teile.s13bSteuer)],
+          ["E3009801", amount(ustGesamt)],
+          ["E3009901", amount(teile.vorsteuer)],
+          // USt_30907: E3010201 nicht ohne eine der Summen E3009801/E3009901
+          (ustGesamt !== 0 || teile.vorsteuer !== 0) && ["E3010201", elsterDecimal(teile.steuer)],
+          // Umsatzsteuer bzw. Überschuss (mit Minus)
+          ["E3010601", amount(teile.steuer)],
+          [
+            "Verbl_USt",
+            [
+              ["E3011101", elsterDecimal(teile.steuer)],
+              ["E3011301", elsterDecimal(f.vorauszahlungen)],
+            ],
+          ],
+          ["Zahl_Erstatt", [["E3011401", elsterDecimal(teile.abschluss)]]],
+        ],
+      ],
+    ],
+  ];
+}
+
 export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
   const envelopeInput: Envelope = { ...input, datenArt: "USt" };
   checkEnvelope(envelopeInput);
   const f = input.figures;
   const umsatzsteuer = f.tax19 + f.tax7;
-  if (umsatzsteuer === 0 && f.vorsteuer === 0) {
+  const igErwerbSteuer = kz(f.tax89) + kz(f.tax93);
+  const s13bSteuer = kz(f.kz47) + kz(f.kz85);
+  const vorsteuer = f.vorsteuer + kz(f.kz61) + kz(f.kz62) + kz(f.kz67);
+  const umsaetze = f.base19 + f.base7 + kz(f.kz41) + kz(f.kz43) + kz(f.kz89) + kz(f.kz93) + kz(f.kz46) + kz(f.kz84) + kz(f.kz21) + kz(f.kz45);
+  if (umsaetze === 0 && vorsteuer === 0 && igErwerbSteuer === 0 && s13bSteuer === 0) {
     throw new ElsterEingabeError("Ohne Umsätze und Vorsteuer gibt es nichts zu erklären; eine Nullerklärung geht über das ELSTER-Portal.");
   }
   const { steuer, abschluss } = ustErklaerungResult(f);
@@ -189,42 +366,12 @@ export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
           ],
         ],
       ],
-      f.vorsteuer !== 0 && [
-        "Abz_VoSt",
-        [
-          [
-            "Tabelle",
-            [
-              ["E3006201", elsterDecimal(f.vorsteuer)],
-              ["Abz_VoSt_Sum", [["E3006901", elsterDecimal(f.vorsteuer)]]],
-            ],
-          ],
-        ],
-      ],
-      [
-        "Berech_USt",
-        [
-          [
-            "Tabelle",
-            [
-              ["E3009201", amount(umsatzsteuer)],
-              ["E3009801", amount(umsatzsteuer)],
-              ["E3009901", amount(f.vorsteuer)],
-              ["E3010201", elsterDecimal(steuer)],
-              // Umsatzsteuer bzw. Überschuss (mit Minus)
-              ["E3010601", amount(steuer)],
-              [
-                "Verbl_USt",
-                [
-                  ["E3011101", elsterDecimal(steuer)],
-                  ["E3011301", elsterDecimal(f.vorauszahlungen)],
-                ],
-              ],
-              ["Zahl_Erstatt", [["E3011401", elsterDecimal(abschluss)]]],
-            ],
-          ],
-        ],
-      ],
+      ust2aStfrei(f, input.year),
+      ust2aIgErw(f, igErwerbSteuer),
+      ust2a13b(f, s13bSteuer),
+      ust2aErgAng(f),
+      ust2aVorsteuer(f, vorsteuer),
+      ust2aBerechnung(f, { umsatzsteuer, igErwerbSteuer, s13bSteuer, vorsteuer, steuer, abschluss }),
     ],
   ];
   const e50 = [
