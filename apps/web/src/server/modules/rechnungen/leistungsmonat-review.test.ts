@@ -78,6 +78,12 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
       expect(await vat.computeVatFigures({ year: 2026, month: 1 })).toMatchObject({ kz81: 0, tax81: 0 });
       expect(await abweichungen(2025, 12)).toEqual([]);
       expect(await abweichungen(2026, 1)).toEqual([]);
+      // EÜR bleibt beim Zufluss (§ 11 EStG): Die Zahlung im Februar 2026 ist Einnahme 2026, nicht 2025
+      await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-02-03", amount: 119_000 }, "2026-02-03");
+      const einnahmen = async (year: number) => (await reports.euerForYear(year)).einnahmen.reduce((s, l) => s + l.amount, 0);
+      expect(await einnahmen(2025)).toBe(0);
+      expect(await einnahmen(2026)).toBe(119_000);
+      for (const year of [2025, 2026]) expect((await reports.euerAbgleich(year)).zeilen.filter((r) => r.journal !== r.quelle)).toEqual([]);
     },
     30_000,
   );
