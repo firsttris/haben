@@ -19,8 +19,17 @@ const vorsorgePerson = z
     pkv: cents,
     ppv: cents,
     pkvErstattung: cents,
+    basisrente: cents,
+    pkvWahlleistungen: cents,
+    agZuschussKv: cents,
+    agZuschussPv: cents,
   })
   .default({});
+
+const ersatzleistung = z.object({
+  art: z.string().trim().min(1, "Die Art der Leistung fehlt.").max(200),
+  betrag: z.number().int().min(0).max(100_000_000_00),
+});
 
 const tage = z.number().int().min(0).max(366).optional();
 
@@ -98,6 +107,13 @@ export const estAngabenSchema = z.object({
       kirchensteuer: cents,
     })
     .optional(),
+  // § 32b: steuerfreie Einkommensersatzleistungen, je Person mehrere Positionen mit Art und Betrag
+  ersatzleistungen: z
+    .object({
+      a: z.array(ersatzleistung).max(20).optional(),
+      b: z.array(ersatzleistung).max(20).optional(),
+    })
+    .optional(),
   arbeitnehmer: z.object({ a: arbeitnehmer.optional(), b: arbeitnehmer.optional() }).optional(),
 });
 
@@ -138,7 +154,16 @@ export async function prognose(year: number, gewinn: Cents, angaben: EstAngaben)
     zusammen,
     kirche: { a: kirchensteuerpflichtig(t.a?.religion), b: zusammen && kirchensteuerpflichtig(t.b?.religion) },
     bundesland: company.bundesland,
-    angaben,
+    angaben: {
+      ...angaben,
+      // Die Prognose rechnet mit der Summe je Person, im XML steht jede Leistung einzeln
+      ersatzleistungen: angaben.ersatzleistungen
+        ? {
+            a: angaben.ersatzleistungen.a?.reduce((summe, z) => summe + z.betrag, 0),
+            b: angaben.ersatzleistungen.b?.reduce((summe, z) => summe + z.betrag, 0),
+          }
+        : undefined,
+    },
   });
 }
 

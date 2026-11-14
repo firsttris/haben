@@ -22,8 +22,9 @@ export function useSubmitCheck<K extends string>(errors: FieldErrors<K>) {
       scope.current = element;
     },
     error: (key: K): string | undefined => (shown ? (errors[key] ?? undefined) : undefined),
-    check(): boolean {
-      if (Object.values<string | null>(errors).every((e) => e === null)) {
+    /** `ohne` lässt Schlüssel aus, die diese Aktion nicht braucht (Entwurf speichern ohne Kunden); ihr Fehler erscheint trotzdem */
+    check(ohne: readonly K[] = []): boolean {
+      if ((Object.entries(errors) as [K, string | null][]).every(([key, e]) => e === null || ohne.includes(key))) {
         setShown(false);
         return true;
       }

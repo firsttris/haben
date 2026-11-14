@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
@@ -13,6 +14,25 @@ export interface DateispeicherOptionen {
   bezeichnung?: string;
 }
 
+export type Dateibefund = "fehlt" | "beschädigt" | "nicht lesbar";
+
+export interface PruefenAlleOptionen {
+  /**
+   * Braucht noch jemand die fehlende Datei? Wer die Hashes vorher gelesen hat, kann einen Verweis sehen, der während des
+   * Laufs samt Datei gelöscht wurde; der ist kein Befund. Ohne Angabe ist jede fehlende Datei ein Befund.
+   */
+  nochGenutzt?: (sha256: string) => Promise<boolean>;
+  /** So viele Befunde nennt das Ergebnis einzeln; gezählt werden alle. Ohne Angabe alle. */
+  maxBefunde?: number;
+}
+
+export interface PruefenAlleErgebnis {
+  dateien: number;
+  befundAnzahl: number;
+  /** In der Reihenfolge der Hashes; bei „nicht lesbar“ mit der Ursache, etwa EACCES */
+  befunde: { sha256: string; befund: Dateibefund; ursache?: string }[];
+}
+
 export interface Dateispeicher {
   /** Pfad der Datei zu einem Hash: <verzeichnis>/ab/abcdef… */
   pfad(sha256: string): string;
@@ -20,6 +40,16 @@ export interface Dateispeicher {
   speichern(bytes: Uint8Array): Promise<string>;
   /** Liest die Datei und prüft ihren Hash; eine veränderte Datei wirft einen Fehler */
   laden(sha256: string): Promise<Buffer>;
+  /**
+   * Prüft die Datei gegen ihren Hash, ohne sie ganz in den Speicher zu laden. Andere Lesefehler als eine fehlende Datei,
+   * etwa fehlende Rechte, wirft sie.
+   */
+  pruefen(sha256: string): Promise<"ok" | "fehlt" | "beschädigt">;
+  /**
+   * Prüft alle Dateien nacheinander und gestreamt, sodass der Lauf nur Zeit braucht, aber keinen Speicher und keine
+   * parallelen Lesezugriffe. Eine Datei, die sich nicht lesen lässt, ist ein Befund und hält den Lauf nicht an.
+   */
+  pruefenAlle(hashes: Iterable<string>, optionen?: PruefenAlleOptionen): Promise<PruefenAlleErgebnis>;
   entfernen(sha256: string): Promise<void>;
 }
 
@@ -74,9 +104,44 @@ export function dateispeicher({ verzeichnis, bezeichnung = "Datei" }: Dateispeic
     return bytes;
   }
 
+  async function pruefen(sha256: string): Promise<"ok" | "fehlt" | "beschädigt"> {
+    const hash = createHash("sha256");
+    try {
+      for await (const chunk of createReadStream(pfad(sha256))) hash.update(chunk as Buffer);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return "fehlt";
+      throw error;
+    }
+    return hash.digest("hex") === sha256 ? "ok" : "beschädigt";
+  }
+
+  async function befundZu(sha256: string, nochGenutzt?: PruefenAlleOptionen["nochGenutzt"]) {
+    let ergebnis: Awaited<ReturnType<typeof pruefen>>;
+    try {
+      ergebnis = await pruefen(sha256);
+    } catch (error) {
+      return { befund: "nicht lesbar" as const, ursache: (error as NodeJS.ErrnoException).code ?? String(error) };
+    }
+    if (ergebnis === "ok") return null;
+    if (ergebnis === "fehlt" && nochGenutzt && !(await nochGenutzt(sha256))) return null;
+    return { befund: ergebnis };
+  }
+
+  async function pruefenAlle(hashes: Iterable<string>, { nochGenutzt, maxBefunde = Number.POSITIVE_INFINITY }: PruefenAlleOptionen = {}) {
+    const ergebnis: PruefenAlleErgebnis = { dateien: 0, befundAnzahl: 0, befunde: [] };
+    for (const sha256 of hashes) {
+      ergebnis.dateien++;
+      const befund = await befundZu(sha256, nochGenutzt);
+      if (!befund) continue;
+      ergebnis.befundAnzahl++;
+      if (ergebnis.befunde.length < maxBefunde) ergebnis.befunde.push({ sha256, ...befund });
+    }
+    return ergebnis;
+  }
+
   async function entfernen(sha256: string): Promise<void> {
     await rm(pfad(sha256), { force: true });
   }
 
-  return { pfad, speichern, laden, entfernen };
+  return { pfad, speichern, laden, pruefen, pruefenAlle, entfernen };
 }

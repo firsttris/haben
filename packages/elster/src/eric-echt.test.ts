@@ -1,7 +1,8 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildBankverbindungXml, isValidIdnr } from "./bankverbindung.ts";
-import { buildEuerXml, buildUstErklaerungXml, type AveuerAnlage } from "./erklaerung.ts";
+import { buildEuerXml, type AveuerAnlage } from "./erklaerung.ts";
+import { buildUstErklaerungXml } from "./ust-erklaerung.ts";
 import type { EuerFigures } from "./euer-felder.ts";
 import { buildEstXml, type EstAngaben, type EstArbeitnehmer, type EstXmlInput } from "./est.ts";
 import { checkFormats, ericMeldungen } from "./formatprobe.ts";
@@ -264,9 +265,24 @@ const arbeitnehmer = (steuerklasse: 1 | 3 | 4): EstArbeitnehmer => ({
 /** Alle Angaben, die Haben kennt */
 const alleAngaben = (year: number): EstAngaben => ({
   vorsorge: {
-    a: { rentenversicherung: 300_000, pkv: 600_000, ppv: 40_049, pkvErstattung: 50_000 },
-    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000 },
+    a: {
+      rentenversicherung: 300_000,
+      pkv: 600_000,
+      ppv: 40_049,
+      pkvErstattung: 50_000,
+      basisrente: 200_000,
+      pkvWahlleistungen: 60_000,
+      agZuschussKv: 120_000,
+      agZuschussPv: 12_000,
+    },
+    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000, basisrente: 100_000 },
     sonstige: 25_000,
+  },
+  ersatzleistungen: {
+    a: [
+      { art: "Arbeitslosengeld", betrag: 66_400 },
+      { art: "Krankengeld", betrag: 12_000 },
+    ],
   },
   sonderausgaben: { kirchensteuerGezahlt: 12_000, kirchensteuerErstattet: 3_000, spenden: 10_000 },
   krankheitskosten: 150_000,
@@ -423,6 +439,25 @@ const faelle: [string, () => string][] = [
           },
         }),
     ],
+    [
+      `USt-Erklärung ${year} steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48)`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "ist",
+          figures: {
+            base19: 100_000,
+            tax19: 19_000,
+            base7: 0,
+            tax7: 0,
+            vorsteuer: 0,
+            vorauszahlungen: 19_000,
+            kz48Zeile46: 50_000,
+            kz48Zeile47: 130_000,
+            kz48Zeile47Nummern: "8 i, 14, 21",
+          },
+        }),
+    ],
   ]),
   // Anlage EÜR
   ...jahre.flatMap((year): [string, () => string][] => [
@@ -509,6 +544,20 @@ const faelle: [string, () => string][] = [
     est(2025, { angaben: { ...leereAngaben, kap: { ertraegeOhneSteuerabzugInland: 30_000, ertraegeAusland: 20_000 } } }),
   ],
   ["ESt 2025 ohne weitere Angaben", est(2025, { angaben: leereAngaben, telefon: undefined })],
+  [
+    "ESt 2025 Einkommensersatzleistungen mit Cent (Summe der gerundeten Einzelbeträge)",
+    est(2025, {
+      angaben: {
+        ...leereAngaben,
+        ersatzleistungen: {
+          a: [
+            { art: "Krankengeld", betrag: 123_440 },
+            { art: "Arbeitslosengeld", betrag: 200_040 },
+          ],
+        },
+      },
+    }),
+  ],
   // Zusammenfassende Meldung
   [`ZM ${zmJahr} 3. Quartal, sonstige Leistungen mit Gutschrift`, zm()],
   [
