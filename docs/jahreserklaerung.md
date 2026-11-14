@@ -72,7 +72,7 @@ Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor
 
 Monate vor dem Beginn der Tätigkeit zählen nicht als fehlend. Als Beginn gilt der erste Eintrag des Jahres unter [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum), wenn kein früheres Jahr einen hat: Steht der erste Eintrag ab Oktober, fehlt für Januar bis September nichts. Hat ein früheres Jahr einen Eintrag, ist ein Eintrag im Jahr ein Wechsel, und alle Monate zählen. Wechselt das Finanzamt mitten im Jahr und hast du bisher nichts eingestellt (also monatlich), stell auch das Vorjahr ein, sonst gilt der Wechsel als Beginn.
 
-Abzugszeilen — Vorsteuer, Vorsteuer aus innergemeinschaftlichem Erwerb, Einfuhrumsatzsteuer und Vorauszahlungssoll — zeigen den Betrag mit umgekehrtem Vorzeichen: Ein Abzug steht negativ, eine Gutschrift in derselben Zeile positiv. Wer die Spalte zusammenzählt, kommt damit auf die Abschlusszahlung — solange die Zeilen für § 13b, innergemeinschaftliche Erwerbe und Einfuhr leer sind; die Summenzeile „Umsatzsteuer“ führt diese Kennzahlen nicht mit. Die Abschlusszeile trägt dagegen das Vorzeichen ihres Betrags; eine Erstattung steht deshalb negativ.
+Abzugszeilen — Vorsteuer aus Rechnungen, Vorsteuer aus innergemeinschaftlichem Erwerb, Einfuhrumsatzsteuer, Vorsteuer aus §-13b-Leistungen und Vorauszahlungssoll — zeigen den Betrag mit umgekehrtem Vorzeichen: Ein Abzug steht negativ, eine Gutschrift in derselben Zeile positiv. Wer die Spalte zusammenzählt, kommt damit auf die Abschlusszahlung. Die Abschlusszeile trägt dagegen das Vorzeichen ihres Betrags; eine Erstattung steht deshalb negativ.
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 

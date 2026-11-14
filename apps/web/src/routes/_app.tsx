@@ -1,7 +1,8 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
 import { type PointerEvent, type RefObject, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { NavExpandedBody, NavRailBody } from "../components/NavMenu.tsx";
+import { NavTip, NavVarianten } from "../components/NavMenu.tsx";
+import type { FlyoutWeg } from "../components/NavFlyout.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
 import { CommandPalette, PALETTE_KUERZEL } from "../components/CommandPalette.tsx";
@@ -63,36 +64,71 @@ function useFirmaBrand() {
   return { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg };
 }
 
+/**
+ * Zustand der eingeklappten Leiste. Welche Fassung zu sehen ist, entscheidet allein CSS ([data-nav] und die Breite),
+ * damit der Server beide liefert und beim Laden nichts nachrückt.
+ */
 function useRailState() {
   const collapsed = useSyncExternalStore(subscribeNavCollapsed, readNavCollapsed, () => false);
-  const [desktop, setDesktop] = useState(false);
-  const [openFlyout, setOpenFlyout] = useState<string | null>(null);
-  const railMode = collapsed && desktop;
+  const [openFlyout, setOpenFlyout] = useState<{ key: string; weg: FlyoutWeg } | null>(null);
 
   useEffect(() => {
+    if (!collapsed) setOpenFlyout(null);
     const mq = window.matchMedia("(min-width: 861px)");
-    const sync = () => {
-      setDesktop(mq.matches);
-      if (!mq.matches) setOpenFlyout(null);
-    };
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
+    const zu = () => setOpenFlyout(null);
+    mq.addEventListener("change", zu);
+    return () => mq.removeEventListener("change", zu);
+  }, [collapsed]);
 
+  return { collapsed, openFlyout, setOpenFlyout };
+}
+
+/** Esc blendet den Hinweis unter Zeiger oder Fokus aus, bis beides weiterzieht (WCAG 1.4.13, „dismissible“) */
+function useNavTipEscape() {
   useEffect(() => {
-    if (!railMode) setOpenFlyout(null);
-  }, [railMode]);
-
-  return { collapsed, railMode, openFlyout, setOpenFlyout };
+    const root = document.documentElement;
+    // Hinweise gibt es nur eingeklappt am Desktop (styles.css); schmal bleibt Esc für die Seite
+    const desktop = window.matchMedia("not all and (max-width: 860px)");
+    // Die Symbole, deren Hinweis Esc ausgeblendet hat
+    let ausgeblendet: Element[] = [];
+    const taste = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || root.dataset.navTip === "aus" || !root.dataset.nav || !desktop.matches) return;
+      const anker = [...document.querySelectorAll(".nav-tip-anker:is(:hover, :focus-visible)")];
+      if (anker.length === 0) return;
+      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
+      event.preventDefault();
+      event.stopPropagation();
+      ausgeblendet = anker;
+      root.dataset.navTip = "aus";
+    };
+    const wieder = () => {
+      ausgeblendet = [];
+      delete root.dataset.navTip;
+    };
+    // Erst wenn der Zeiger das Symbol verlässt (nicht beim Wechsel vom Knopf auf sein svg) und es keinen Fokus mehr hat
+    const zeigerRaus = (event: globalThis.PointerEvent) => {
+      const ziel = event.relatedTarget as Node | null;
+      if (ausgeblendet.some((anker) => anker.contains(ziel) || anker.matches(":focus-visible"))) return;
+      wieder();
+    };
+    window.addEventListener("keydown", taste, true);
+    document.addEventListener("focusin", wieder);
+    document.addEventListener("pointerout", zeigerRaus);
+    return () => {
+      window.removeEventListener("keydown", taste, true);
+      document.removeEventListener("focusin", wieder);
+      document.removeEventListener("pointerout", zeigerRaus);
+    };
+  }, []);
 }
 
 function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: () => void, toggle: RefObject<HTMLButtonElement | null>) {
   useEffect(() => {
     if (!menuOpen || paletteOpen) return;
     function onKey(event: KeyboardEvent) {
-      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst; der Desktop-Umschalter blockiert Esc nicht
-      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]:not(.nav-collapse-btn)')) return;
+      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst; der Desktop-Umschalter und die
+      // verborgene schmale Leiste blockieren Esc nicht
+      if (event.key !== "Escape" || document.querySelector('#hauptmenue .nav-variante-voll [aria-expanded="true"]:not(.nav-collapse-btn)')) return;
       // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
       event.preventDefault();
       onClose();
@@ -104,14 +140,15 @@ function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: (
 }
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, oidc } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, firma, oidc } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const { collapsed, railMode, openFlyout, setOpenFlyout } = useRailState();
+  const { collapsed, openFlyout, setOpenFlyout } = useRailState();
+  useNavTipEscape();
   // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);
@@ -120,8 +157,6 @@ function AppLayout() {
   const sichtbareGruppen = groups
     .map((group) => ({ ...group, links: group.links.filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })) }))
     .filter((group) => group.links.length > 0);
-  const userInitial = user.name.trim().charAt(0).toUpperCase() || "?";
-  const userMeta = inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`;
   usePageHeadHeight(main);
   const scrolled = useScrolled();
 
@@ -163,31 +198,23 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          {(() => {
-            const bodyProps = {
-              collapsed,
-              onToggleCollapse: () => saveNavCollapsed(!collapsed),
-              inhaber,
-              firmen,
-              sichtbareGruppen,
-              eigeneSeiten,
-              userName: user.name,
-              userInitial,
-              userMeta,
-              onSignOut: signOut,
-            };
-            return railMode ? (
-              <NavRailBody
-                {...bodyProps}
-                pathname={pathname}
-                openFlyout={openFlyout}
-                onFlyoutToggle={(key) => setOpenFlyout((cur) => (cur === key ? null : key))}
-                onFlyoutClose={() => setOpenFlyout(null)}
-              />
-            ) : (
-              <NavExpandedBody {...bodyProps} />
-            );
-          })()}
+          <NavVarianten
+            collapsed={collapsed}
+            onToggleCollapse={() => saveNavCollapsed(!collapsed)}
+            inhaber={inhaber}
+            pathname={pathname}
+            firma={firma ?? null}
+            firmen={firmen}
+            sichtbareGruppen={sichtbareGruppen}
+            eigeneSeiten={eigeneSeiten}
+            userName={user.name}
+            userInitial={user.name.trim().charAt(0).toUpperCase() || "?"}
+            userMeta={inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}
+            openFlyout={openFlyout}
+            onFlyoutOpen={(key, weg) => setOpenFlyout({ key, weg })}
+            onFlyoutClose={(key) => setOpenFlyout((offen) => (offen?.key === key ? null : offen))}
+            onSignOut={signOut}
+          />
         </div>
       </nav>
       <main className="main" id="inhalt" ref={main} tabIndex={-1}>
@@ -214,7 +241,7 @@ function NavBrand({ inhaber }: { inhaber: boolean }) {
   return (
     <Link
       to={inhaber ? "/" : STEUERBERATUNG_START}
-      className="brand"
+      className="brand nav-tip-anker"
       onPointerEnter={firmaAufklappen}
       onFocus={firmaAufklappen}
       onPointerLeave={firmaZeigerWeg}
@@ -245,7 +272,7 @@ function NavSearch({ onOpen }: { onOpen: () => void }) {
   return (
     <button
       type="button"
-      className="btn btn-icon nav-search-btn"
+      className="btn btn-icon nav-search-btn nav-tip-anker"
       onClick={(event) => {
         event.currentTarget.focus();
         onOpen();
@@ -254,6 +281,7 @@ function NavSearch({ onOpen }: { onOpen: () => void }) {
     >
       <Icon name="search" size={18} />
       <span className="nav-search-label">Schnellsuche</span>
+      <NavTip>Schnellsuche</NavTip>
       <Kuerzel tasten={PALETTE_KUERZEL} className="nav-kbd" aria-hidden="true" />
     </button>
   );

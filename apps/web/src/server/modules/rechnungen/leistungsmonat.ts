@@ -5,16 +5,23 @@ export interface GemeldeterZeitraum {
   year: number;
   month: number;
   sentAt?: Date | null;
+  /** Herkunft der Werte: nur „berechnet“ heißt, dass sie beim Senden aus den Buchungen kamen */
+  source?: "berechnet" | "manuell";
 }
 
-/** Liegt der Tag in einem Zeitraum, dessen Voranmeldung schon übermittelt ist? Gibt diesen Zeitraum zurück, sonst null. */
+/**
+ * Liegt der Tag in einem Zeitraum, dessen Voranmeldung schon übermittelt ist? Gibt die zuletzt übermittelte Anmeldung
+ * dieses Zeitraums zurück (nach einer Berichtigung die berichtigte), sonst null.
+ */
 export function gemeldeterZeitraum(tag: string, zeitraeume: GemeldeterZeitraum[]): GemeldeterZeitraum | null {
   const [jahr, monat] = tag.split("-").map(Number);
+  let letzte: GemeldeterZeitraum | null = null;
   for (const zeitraum of zeitraeume) {
     if (zeitraum.year !== jahr) continue;
-    if (monthsOfPeriod(zeitraum as VatPeriod).some((teil) => teil.month === monat)) return zeitraum;
+    if (!monthsOfPeriod(zeitraum as VatPeriod).some((teil) => teil.month === monat)) continue;
+    if (!letzte || (zeitraum.sentAt?.getTime() ?? 0) > (letzte.sentAt?.getTime() ?? 0)) letzte = zeitraum;
   }
-  return null;
+  return letzte;
 }
 
 /** „Q2/2026" für ein Quartal, „05/2026" für einen Monat */
@@ -28,11 +35,19 @@ const deutsch = (tag: string) => tag.split("-").reverse().join(".");
 /**
  * Hinweis statt Sperre (#694): Die Meldung der Rechnung gehört in einen Zeitraum, dessen Voranmeldung schon übermittelt
  * ist. Eine spätere Voranmeldung enthält sie nicht, weil Haben nach dem Leistungstag zuordnet; die übermittelte ist zu
- * berichtigen (§ 18b Satz 5 UStG, § 153 Abs. 1 AO).
+ * berichtigen (§ 18b Satz 5 UStG, § 153 Abs. 1 AO). Wurde die zuletzt übermittelte Anmeldung des Zeitraums erst nach dem
+ * Festschreiben gesendet und dabei aus den Buchungen berechnet, enthält sie die Rechnung schon: kein Hinweis. Von Hand
+ * überschriebene Werte rechnet Haben vor dem Senden nicht neu; ob sie die Rechnung enthalten, ist offen, der Hinweis bleibt.
  */
-export function leistungsmonatHinweis(tag: string, zeitraeume: GemeldeterZeitraum[], betrag: { net: number; tax: number }): string | null {
+export function leistungsmonatHinweis(
+  tag: string,
+  zeitraeume: GemeldeterZeitraum[],
+  betrag: { net: number; tax: number },
+  festgeschrieben?: Date | null,
+): string | null {
   const zeitraum = gemeldeterZeitraum(tag, zeitraeume);
   if (!zeitraum) return null;
+  if (festgeschrieben && zeitraum.source === "berechnet" && zeitraum.sentAt && zeitraum.sentAt >= festgeschrieben) return null;
   const label = zeitraumLabel(zeitraum);
   const abgabe = zeitraum.sentAt ? `, übermittelt am ${deutsch(zeitraum.sentAt.toISOString().slice(0, 10))}` : "";
   return (

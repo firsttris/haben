@@ -470,19 +470,22 @@ test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer
 test("Farbe und Modus wechseln, bleiben nach dem Neuladen, Version unten in der Navigation", async () => {
   await go("/");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
+  // Die eingeklappte Leiste steht verborgen daneben im DOM, mit eigener Auswahl von Farbe und Modus
+  const farbe = nav.getByLabel("Farbe").filter({ visible: true });
+  const modus = nav.getByLabel("Modus").filter({ visible: true });
   await expect(nav.getByRole("link", { name: /^Haben \d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/ })).toBeVisible();
   const html = page.locator("html");
-  await nav.getByLabel("Farbe").selectOption("pflaume");
-  await nav.getByLabel("Modus").selectOption("dunkel");
+  await farbe.selectOption("pflaume");
+  await modus.selectOption("dunkel");
   await expect(html).toHaveAttribute("data-theme", "pflaume");
   await expect(html).toHaveAttribute("data-mode", "dark");
   await page.reload();
   await expect(html).toHaveAttribute("data-theme", "pflaume");
   await expect(html).toHaveAttribute("data-mode", "dark");
-  await expect(nav.getByLabel("Farbe")).toHaveValue("pflaume");
-  await expect(nav.getByLabel("Modus")).toHaveValue("dunkel");
-  await nav.getByLabel("Farbe").selectOption("wald");
-  await nav.getByLabel("Modus").selectOption("hell");
+  await expect(farbe).toHaveValue("pflaume");
+  await expect(modus).toHaveValue("dunkel");
+  await farbe.selectOption("wald");
+  await modus.selectOption("hell");
   await expect(html).toHaveAttribute("data-theme", "wald");
   await expect(html).toHaveAttribute("data-mode", "light");
 });
@@ -685,6 +688,28 @@ test("Pauschalen: jeder Reiter ohne axe-Verstöße, hell und dunkel, am Desktop 
     }
   }
   await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
+  if (vorher) await page.setViewportSize(vorher);
+});
+
+test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
+  // Zwei Spalten am Handy (DESIGN.md, Karten): Die fünfte Karte der Pauschalen und die dritte der Kasse standen allein in halber Breite
+  const vorher = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const [pfad, anzahl] of [
+    ["/pauschalen", 5],
+    ["/kasse", 3],
+  ] as const) {
+    await go(pfad);
+    const raster = page.locator(".grid-3, .grid-4, .grid-5").first();
+    await expect(raster.locator(":scope > .card")).toHaveCount(anzahl);
+    const breiten = await raster.evaluate((r) => ({
+      raster: r.getBoundingClientRect().width,
+      erste: (r.firstElementChild as HTMLElement).getBoundingClientRect().width,
+      letzte: (r.lastElementChild as HTMLElement).getBoundingClientRect().width,
+    }));
+    expect(breiten.erste, `${pfad}: zwei Spalten`).toBeLessThan(breiten.raster / 2);
+    expect(breiten.letzte, `${pfad}: letzte Karte über die ganze Breite`).toBeCloseTo(breiten.raster, 0);
+  }
   if (vorher) await page.setViewportSize(vorher);
 });
 
