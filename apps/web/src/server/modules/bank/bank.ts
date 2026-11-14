@@ -24,6 +24,7 @@ import {
   findPayoutGroup,
   findTransferCounterpart,
   payoutKey,
+  aufKontoAngeboten,
   learnedDirectBooking,
   type DirectSuggestion,
   type LearnedBooking,
@@ -735,6 +736,8 @@ export async function transactionDetail(id: string) {
   if (!direct && tx.open === tx.amount) direct = suggestLohnsteuer(tx, await lstaZahlbetraege());
   // Sonst aus früheren Buchungen derselben Gegenpartei (Gebühren, Privat …), schwächer als die Regeln der Kontozwecke
   if (!direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
+  // Was auf diesem Konto nicht buchbar ist, wird auch nicht vorgeschlagen, etwa gelernte Gebühren auf dem Privatkonto (#873)
+  if (direct && !aufKontoAngeboten(direct.kind, account?.purpose ?? null)) direct = null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
   // Belege aus Dauerbelegen, die noch zu prüfen sind: auf Klick buchen und zuordnen (bookAndAllocateDauerbeleg)
   const dauerbelege = tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
@@ -930,6 +933,7 @@ export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferS
         accountIban: schema.bankAccounts.iban,
         provider: schema.bankAccounts.provider,
         ledgerIndex: schema.bankAccounts.ledgerIndex,
+        purpose: schema.bankAccounts.purpose,
         open: openAmountSql.mapWith(Number),
       })
       .from(schema.bankTransactions)
@@ -939,6 +943,7 @@ export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferS
       .for("update");
     if (rows.length !== ids.length) throw new BankError("Umsatz nicht gefunden.");
     if (rows.some((r) => r.open !== r.amount)) throw new BankError("Beide Umsätze müssen noch ganz offen sein.");
+    if (rows.some((r) => !aufKontoAngeboten("geldtransit", r.purpose))) throw new BankError(PRIVAT_NICHT_BUCHBAR);
     // Zwei Seiten: der gewählte Umsatz und die Gegenbuchung; mehrere Umsätze nur als Teile einer Auszahlung
     const sides = [...new Set(rows.map((r) => r.bankAccountId))].map((account) => rows.filter((r) => r.bankAccountId === account));
     if (sides.length !== 2) throw new BankError("Ein Geldtransit verbindet zwei verschiedene Konten.");
@@ -1112,6 +1117,9 @@ type Part =
   // Rücklastschrift (#445): negative Zahlung auf die Rechnung mit Bezug auf die zurückgegebene Lastschrift
   | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number };
 
+const PRIVAT_NICHT_BUCHBAR =
+  "Auf einem privaten Konto ergeben Kontoführung, Zinserträge, Privat und Geldtransit keinen Geschäftsvorfall; diese Buchung ist dort nicht möglich.";
+
 /** Sperrt den Umsatz für die Dauer der Zuordnung: Zwei gleichzeitige Zuordnungen sähen sonst denselben offenen Teil */
 export async function lockTransaction(tx: Tx, id: string) {
   const [bank] = await tx
@@ -1165,6 +1173,8 @@ async function returnBooking(
  * mit dem er das Konto bewegt; geprüft wird hier nur gegen das Ziel (offener Betrag der Rechnung bzw. des Belegs).
  */
 export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, bank: LockedTransaction, part: Part, splitId: string | null) {
+  // Gebühren, Zinserträge, Privat und Geldtransit ergeben auf einem privaten Konto keinen Geschäftsvorfall (#873)
+  if (!aufKontoAngeboten(part.kind, bank.purpose)) throw new BankError(PRIVAT_NICHT_BUCHBAR);
   let lines: PostingLine[];
   let description: string;
   let target: {

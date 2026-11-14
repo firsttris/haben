@@ -30,6 +30,14 @@ In `apps/web/.env` trägst du mindestens `DATABASE_URL`, `BETTER_AUTH_SECRET` un
 > [!NOTE]
 > Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Ohne ERiC (`ERIC_HOME` oder unter Einstellungen geladen nach `ERIC_DIR`) arbeitet Haben mit dem simulierten ELSTER-Client, ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` ohne KI-Auslesung. Für die Auslesung mit einem eigenen Modell genügt ein lokales Ollama mit `EXTRACTION_BASE_URL=http://localhost:11434/v1` und `EXTRACTION_MODEL=qwen2.5vl:7b`; PDFs brauchen dafür `pdftoppm` (Paket poppler-utils). Für die Entwicklung reicht beides.
 
+Läuft die Instanz hinter einem Proxy mit eigener Domain, lehnt Vite fremde Hostnamen ab („Blocked request. This host … is not allowed"). Die erlaubten Hosts gehören nicht in `vite.config.ts`, sondern in die Umgebungsvariable — sie gilt dann nur für die eigene Umgebung:
+
+```sh
+__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.example.org bun run dev
+```
+
+Mehrere Domains mit Komma trennen, ein führender Punkt schließt Subdomains ein. `localhost` ist immer erlaubt.
+
 Datenbank anlegen und Migrationen anwenden. Das Migrationsskript liest `DATABASE_URL` aus der Umgebung, nicht aus der `.env`-Datei:
 
 ```sh
@@ -337,6 +345,10 @@ Ein Tag `vX.Y.Z` veröffentlicht eine Version über `.github/workflows/release.y
 Den Tag legt Actions → *Bump version* (`bump.yml`) mit patch, minor oder major an: Er committet `Release vX.Y.Z` auf `main` und taggt, mit dem Deploy Key aus `BUMP_DEPLOY_KEY`, der auf der Bypass-Liste des Rulesets steht ([firsttris/workflows](https://github.com/firsttris/workflows#bump-version)). Wer selbst auf der Bypass-Liste steht, kann lokal `bun run release:patch` (oder `:minor`, `:major`) nehmen. Von Hand gestartet (Actions → Release → Run workflow) veröffentlicht der Workflow nur `:edge`, ohne Release.
 
 Secrets: `DOCKER_PAT` (Docker-Hub-Token mit Schreibrecht für `tristanteu/haben`); für GHCR reicht `GITHUB_TOKEN`, das Paket muss nach dem ersten Push einmal auf öffentlich gestellt werden.
+
+### Paket `@firsttris/gobd-kern`
+
+`packages/gobd-kern` erscheint unabhängig von der App als Datei an einem GitHub-Release, damit auch andere Apps es nutzen, ohne npm ([#935](https://github.com/firsttris/haben/issues/935)): Version in `packages/gobd-kern/package.json` erhöhen und mergen, dann Actions → *GoBD-Kern als Release* → Run workflow auf `main`. `.github/workflows/gobd-kern-release.yml` lehnt eine schon vorhandene Version ab, führt Typecheck und die Tests des Pakets gegen Postgres aus, baut `firsttris-gobd-kern-X.Y.Z.tgz` und legt Tag und Release `gobd-kern-vX.Y.Z` an, nicht als „Latest“. Ein anderes Projekt installiert es mit `bun add https://github.com/firsttris/haben/releases/download/gobd-kern-vX.Y.Z/firsttris-gobd-kern-X.Y.Z.tgz`; `bun.lock` hält den Hash der Datei fest. Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite, und bleibt `private`, damit es nicht versehentlich auf npm landet.
 
 ### Release Candidates
 
