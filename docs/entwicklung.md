@@ -388,7 +388,7 @@ Die Postgres-Tests starten mit `sso-test-provider.ts` einen Anbieter auf Loopbac
 E2E_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_sso_e2e bun run --cwd apps/web e2e --config playwright.sso-only.config.ts
 ```
 
-Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`), 3217 (Firmenportal, `e2e/sso-firmenportal.spec.ts`; mit `E2E_SERVER_COMMAND` hinter TLS wie Haben, das Firmenportal selbst dann auf 3221, `e2e/sso-firmenportal-server.ts`), 3218 und 3220 (Firmenportal in `e2e/sso-firmenportal-abmelden.spec.ts`) müssen frei sein, und `openssl` erzeugt die Testzertifikate. Was der Durchlauf prüft, steht im Kopf von `e2e/sso-only.spec.ts` und der beiden `e2e/sso-firmenportal*.spec.ts`; `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Der Betriebscode bekommt keine Ausnahme für HTTP.
+Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`), 3217 (Firmenportal, `e2e/sso-firmenportal.spec.ts`; mit `E2E_SERVER_COMMAND` hinter TLS wie Haben, das Firmenportal selbst dann auf 3221, `e2e/sso-firmenportal-server.ts`), 3218 (mit `E2E_SERVER_COMMAND` hinter TLS, Haben selbst dann auf 3219, `e2e/sso-production-server.ts`) und 3220 (Firmenportal in `e2e/sso-firmenportal-abmelden.spec.ts`) müssen frei sein, und `openssl` erzeugt die Testzertifikate. Was der Durchlauf prüft, steht im Kopf von `e2e/sso-only.spec.ts` und der beiden `e2e/sso-firmenportal*.spec.ts`; `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Der Betriebscode bekommt keine Ausnahme für HTTP.
 
 ### Mit Authelia
 
