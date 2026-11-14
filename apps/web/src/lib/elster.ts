@@ -29,7 +29,7 @@ export function abgabePille({
 }): AbgabePille {
   if (sent) return { ok: true, text: `Übermittelt am ${formatDate(sent)}` };
   if (submitted) return { ok: true, text: `Außerhalb abgegeben${submitted.filedOn ? ` am ${formatDate(submitted.filedOn)}` : ""}` };
-  return { ok: false, text: verwaltet ? "Noch nicht übermittelt" : "Wird außerhalb von Haben abgegeben" };
+  return { ok: false, text: verwaltet ? "Noch nicht übermittelt" : "Nicht aus Haben übermittelt" };
 }
 
 /** Antwort von ERiC als Meldung; `sentText` sagt, was nach der Echtsendung passiert ist */

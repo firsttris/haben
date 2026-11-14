@@ -1,4 +1,4 @@
-import { RECHTSFORMEN, formatDecimal, formatDeduction, formatEuro, formatSigned, isKapitalgesellschaft, parseEuro } from "@haben/core";
+import { RECHTSFORMEN, formatDecimal, formatDeduction, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -225,8 +225,8 @@ function UstSection({ data }: { data: Data }) {
             {ust.einfuhrumsatzsteuer !== 0 && <Row label="Entstandene Einfuhrumsatzsteuer (Kz 62)" extra="" value={formatDeduction(ust.einfuhrumsatzsteuer)} />}
             <Row label="Abziehbare Vorsteuer" extra="" value={formatDeduction(f.vorsteuer)} />
             <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
-            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatSigned(f.vorauszahlungen)} />
-            <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatSigned(ust.abschluss)} total />
+            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatDeduction(f.vorauszahlungen)} />
+            <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(ust.abschluss)} total />
           </tbody>
         </table>
         <p className="small muted" style={{ margin: 0 }}>

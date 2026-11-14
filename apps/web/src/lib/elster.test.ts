@@ -16,8 +16,13 @@ describe("abgabePille", () => {
   });
 
   // Einkommensteuer: Haben führt sie nicht, also ist „offen“ dort keine Pflicht (#869)
-  it("zeigt eine nicht geführte Erklärung als außerhalb abgegeben, ohne offene Pflicht", () => {
-    expect(abgabePille({ sent: null, submitted: null, verwaltet: false })).toEqual({ ok: false, text: "Wird außerhalb von Haben abgegeben" });
+  it("sagt bei der Einkommensteuer, dass Haben sie nicht übermittelt hat", () => {
+    // Haben kann die ESt selbst senden (Senden-Kasten der Seite); "außerhalb von Haben"
+    // stand deshalb auch dort, wo jemand gleich aus Haben senden wollte (#869).
+    expect(abgabePille({ sent: null, submitted: null, verwaltet: false })).toEqual({
+      ok: false,
+      text: "Nicht aus Haben übermittelt",
+    });
   });
 
   it("bleibt bei einer Übermittlung aus Haben oder einem Vermerk genauer", () => {
