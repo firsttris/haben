@@ -8,6 +8,10 @@
 # und lässt sich bei Updates einfach neu herunterladen. Den Netznamen deines Proxy-Containers zeigt:
 #   docker inspect DEIN_PROXY_CONTAINER -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 # Dein Proxy leitet dann an haben-app:3000 weiter. Was er sonst braucht: docs/installation.md, „Eigener Reverse Proxy“.
+#
+# Mehrere Instanzen hinter einem Proxy: je Instanz ein eigenes Netz (docker network create haben-proxy-firma1) und ein
+# eigener Alias (haben-firma1), der Proxy hängt in allen. In einem gemeinsamen Netz erreichte jede App jede andere
+# auf Port 3000, am Proxy vorbei: docs/installation.md, „Mehrere Instanzen“.
 services:
   # Der mitgelieferte Caddy startet nicht: Er bekommt ein Profil, das nie aktiviert wird
   caddy:
