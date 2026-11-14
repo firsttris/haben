@@ -1003,6 +1003,9 @@ test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", as
   await expect(page.getByRole("heading", { name: /Belege von ELSTER/ })).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Abschnitte der Jahreserklärung" }).getByRole("link", { name: "Belege von ELSTER" })).toHaveCount(0);
   await expect(page.getByText(/private Kfz-Nutzung/)).toHaveCount(0);
+  // Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, auch nicht im Stand der Erklärungen
+  await expect(page.getByRole("link", { name: "Anlage EÜR", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Einkommensteuer", exact: true })).toHaveCount(0);
 
   // Die Auswertung nach Zahlung ist keine EÜR; den Gewinn zeigt der Jahresabschluss
   await go(`/auswertungen?jahr=${jahr}`);
