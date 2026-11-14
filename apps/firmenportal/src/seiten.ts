@@ -11,7 +11,13 @@ export const SUCHE_AB = 20;
 const ZEICHEN: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const html = (text: string) => text.replace(/[&<>"']/g, (z) => ZEICHEN[z]!);
 
-function rahmen(titel: string, inhalt: string): string {
+/** Eine Firma auf der Seite (#1036): `farbe` als #RRGGBB, `logo` als Adresse des Bildes im Firmenportal */
+export interface FirmaKachel extends Firma {
+  farbe?: string | null;
+  logo?: string | null;
+}
+
+function rahmen(titel: string, inhalt: string, farben?: string): string {
   return `<!doctype html>
 <html lang="de">
 <head>
@@ -19,7 +25,7 @@ function rahmen(titel: string, inhalt: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>${html(titel)} · Haben Firmenportal</title>
-<link rel="stylesheet" href="/stil.css">
+<link rel="stylesheet" href="/stil.css">${farben ? `\n<link rel="stylesheet" href="${html(farben)}">` : ""}
 </head>
 <body>
 <main class="portal">
@@ -73,17 +79,24 @@ function suchfeld(suche: string): string {
 const PFEIL =
   '<svg class="firma-pfeil" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
 
-/** Eine Firma als ganze Zeile; `ziel` ist der Einstieg in die Instanz */
-function firmaZeile(firma: Firma, ziel: string): string {
+/** Logo, sonst Anfangsbuchstabe auf eigener Farbe oder der des Firmenportals; für Screenreader zählt nur der Name */
+function kachel(firma: FirmaKachel): string {
+  if (firma.logo) return `<span class="firma-zeichen firma-logo" aria-hidden="true"><img src="${html(firma.logo)}" alt="" width="28" height="28"></span>`;
   const initiale = Array.from(firma.name.trim())[0]?.toLocaleUpperCase("de") ?? "";
-  return `<li><a class="firma" href="${html(ziel)}"><span class="firma-zeichen" aria-hidden="true">${html(initiale)}</span><span class="firma-name">${html(firma.name)}</span>${PFEIL}</a></li>`;
+  const farbe = firma.farbe ? ` farbe-${firma.farbe.slice(1)}` : "";
+  return `<span class="firma-zeichen${html(farbe)}" aria-hidden="true">${html(initiale)}</span>`;
+}
+
+/** Eine Firma als ganze Zeile; `ziel` ist der Einstieg in die Instanz */
+function firmaZeile(firma: FirmaKachel, ziel: string): string {
+  return `<li><a class="firma" href="${html(ziel)}">${kachel(firma)}<span class="firma-name">${html(firma.name)}</span>${PFEIL}</a></li>`;
 }
 
 /**
  * Die Firmen der Person. `einstieg` macht aus der Adresse einer Instanz den Link, `angemeldet` ist E-Mail oder Name
- * der Person aus dem Profil des Anmeldedienstes.
+ * der Person aus dem Profil des Anmeldedienstes, `farben` die Adresse des Stylesheets mit den Farben der Kacheln.
  */
-export function firmenSeite(firmen: readonly Firma[], suche: string, angemeldet: string, einstieg: (url: string) => string): string {
+export function firmenSeite(firmen: readonly FirmaKachel[], suche: string, angemeldet: string, einstieg: (url: string) => string, farben?: string): string {
   const gesucht = suche.trim().toLocaleLowerCase("de");
   const mitSuche = firmen.length >= SUCHE_AB;
   const treffer = mitSuche && gesucht ? firmen.filter((f) => f.name.toLocaleLowerCase("de").includes(gesucht)) : firmen;
@@ -104,6 +117,7 @@ ${mitSuche ? suchfeld(suche) : ""}
 ${liste}
 <div class="fuss">${wer}<form method="post" action="/abmelden"><button class="btn" type="submit">Abmelden</button></form></div>
 </section>`,
+    farben,
   );
 }
 

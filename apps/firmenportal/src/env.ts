@@ -19,6 +19,8 @@ export interface PortalConfig {
   displayName: string;
   groupsClaim: string;
   firmen: PortalFirma[];
+  /** Verzeichnis der Logos aus PORTAL_FIRMEN (#1036); nur nötig, wenn dort Logos stehen */
+  logos?: string;
   /** Ob http für loopback-Adressen des Anmeldedienstes gilt (nicht mit NODE_ENV=production) */
   httpLoopback: boolean;
 }
@@ -27,8 +29,10 @@ const schema = z.object({
   /** Öffentliche Adresse des Firmenportals */
   PORTAL_URL: z.string().refine((value) => parseOrigin(value) !== null, "nur https://domain ohne Pfad, Query und Zugangsdaten (http nur für localhost)"),
   PORTAL_SECRET: z.string().min(32, "mindestens 32 Zeichen, etwa aus openssl rand -base64 32"),
-  /** Name|https://adresse|inhaber-gruppe je Firma, getrennt durch ; (parsePortalFirmen) */
+  /** Name|https://adresse|inhaber-gruppe[|farbe|logo] je Firma, getrennt durch ; (parsePortalFirmen) */
   PORTAL_FIRMEN: z.string().default(""),
+  /** Verzeichnis mit den Logos, die PORTAL_FIRMEN nennt (#1036), im Container schreibgeschützt eingebunden */
+  PORTAL_LOGOS: z.string().optional(),
   OIDC_ISSUER: z.url(),
   OIDC_CLIENT_ID: z.string().min(1),
   OIDC_CLIENT_SECRET: z.string().min(1),
@@ -52,6 +56,7 @@ export function ladeKonfiguration(quelle: Record<string, string | undefined>): {
   const env = ergebnis.data;
   const firmen = parsePortalFirmen(env.PORTAL_FIRMEN);
   if ("fehler" in firmen) return { fehler: [`PORTAL_FIRMEN: ${firmen.fehler}`] };
+  if (!env.PORTAL_LOGOS && firmen.firmen.some((f) => f.logo)) return { fehler: ["PORTAL_LOGOS: PORTAL_FIRMEN nennt Logos, aber kein Verzeichnis dafür"] };
   // Wie Haben: ohne openid käme kein ID-Token, jede Anmeldung schlüge erst dann fehl
   if (env.OIDC_SCOPES && !env.OIDC_SCOPES.trim().split(/\s+/).includes("openid")) return { fehler: ["OIDC_SCOPES: muss openid enthalten"] };
   const httpLoopback = env.NODE_ENV !== "production";
@@ -70,6 +75,7 @@ export function ladeKonfiguration(quelle: Record<string, string | undefined>): {
       displayName: env.OIDC_DISPLAY_NAME,
       groupsClaim: env.OIDC_GROUPS_CLAIM,
       firmen: firmen.firmen,
+      ...(env.PORTAL_LOGOS ? { logos: env.PORTAL_LOGOS } : {}),
       httpLoopback,
     },
   };

@@ -1,3 +1,4 @@
+import { contrast, inkOnAccent, type PortalFirma } from "@haben/core";
 import { GEWICHTE } from "./schrift.ts";
 
 /*
@@ -54,6 +55,9 @@ p { margin: 0; line-height: 1.5; }
 .firma:hover { background: var(--firma-hover); }
 .firma:focus-visible { outline-offset: -2px; }
 .firma-zeichen { flex-shrink: 0; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+/* Logo der Firma (#1036) auf weißer Fläche wie in der Navigation von Haben (DESIGN.md), mit Kante gegen die weiße Karte */
+.firma-logo { padding: 2px; background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
+.firma-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .firma-name { flex: 1; min-width: 0; overflow-wrap: break-word; hyphens: auto; }
 .firma-pfeil { flex-shrink: 0; color: var(--muted); transition: transform var(--fade); }
 .firma:hover .firma-pfeil { transform: translateX(2px); color: var(--ink); }
@@ -67,3 +71,21 @@ p { margin: 0; line-height: 1.5; }
 .suche input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 @media (prefers-reduced-motion: reduce) { .firma-pfeil, .btn, .firma { transition: none; } }
 `;
+
+/** Flächen der Karte (--surface) hell und dunkel; eine Kachel, die sich davon nicht mit 3 : 1 abhebt, bekommt eine Kante */
+const KARTE = { hell: "#FFFFFF", dunkel: "#1A1A1D" } as const;
+const KANTE = "box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 40%, transparent);";
+
+/**
+ * Farben der Kacheln (#1036) als eigenes Stylesheet, weil die CSP nur Stylesheets des Firmenportals zulässt
+ * (kein style-Attribut): je Farbe aus PORTAL_FIRMEN eine Klasse, Schrift schwarz oder weiß wie das „H“ in Haben.
+ * Es nennt nur Farbwerte, keine Firmen.
+ */
+export function farbStil(firmen: readonly PortalFirma[]): string {
+  const farben = [...new Set(firmen.flatMap((f) => (f.farbe ? [f.farbe] : [])))];
+  const regel = (farbe: string, schema: keyof typeof KARTE) => (contrast(farbe, KARTE[schema]) < 3 ? KANTE : "box-shadow: none;");
+  const klasse = (farbe: string) => `.firma-zeichen.farbe-${farbe.slice(1)}`;
+  const hell = farben.map((f) => `${klasse(f)} { background: ${f}; color: ${inkOnAccent(f)}; ${regel(f, "hell")} }`);
+  const dunkel = farben.map((f) => `  ${klasse(f)} { ${regel(f, "dunkel")} }`);
+  return farben.length === 0 ? "" : `${hell.join("\n")}\n@media (prefers-color-scheme: dark) {\n${dunkel.join("\n")}\n}\n`;
+}
