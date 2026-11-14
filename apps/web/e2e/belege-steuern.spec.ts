@@ -161,7 +161,18 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
   const n = form.getByRole("group", { name: "Anlage N · Erika" });
+  // Die Anlage N steht in zugeklappten est-Blöcken (#869): vor dem Ausfüllen aufklappen
+  const aufklappen = async () => {
+    await n.first().waitFor({ state: "attached" });
+    await page.evaluate(() => {
+      document.querySelectorAll("details").forEach((d) => {
+        d.open = true;
+      });
+    });
+  };
+  await aufklappen();
   await n.getByLabel("Erika hatte Arbeitslohn aus einer Anstellung").check();
+  await aufklappen();
   const lstb = n.getByRole("group", { name: "Lohnsteuerbescheinigung 1 · Erika" });
   await lstb.getByLabel("Steuerklasse").selectOption("4");
   await lstb.getByLabel("Nr. 3 Bruttoarbeitslohn", { exact: true }).fill("42.000,00");
@@ -178,6 +189,27 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
   await expect(form.getByText(/N \(Erika\)/)).toBeVisible();
   await expect(form.getByText("Bereits einbehalten (Lohnsteuer, Soli, KiSt)")).toBeVisible();
   await expect(form.getByText("6.123,40\u00a0€").first()).toBeVisible();
+});
+
+test("Anlage N: zugeklappte Werbungskosten nennen auch die Wege zur Arbeit", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const n = page.getByRole("form", { name: "Angaben zur Einkommensteuer" }).getByRole("group", { name: "Anlage N · Erika" });
+  await n.locator("summary").first().click();
+  // Gespeichert sind aus dem Test davor nur Tätigkeitsstätte, Tage und Entfernung
+  await expect(n.locator("summary").filter({ hasText: "Werbungskosten" })).not.toContainText("nichts eingetragen");
+});
+
+test("Anlage N: Pflichtfeld im zugeklappten Block wird beim Speichern sichtbar", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  const n = form.getByRole("group", { name: "Anlage N · Erika" });
+  await n.locator("summary").first().click();
+  await n.getByRole("button", { name: "Weitere Lohnsteuerbescheinigung" }).click();
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  // Die neue Bescheinigung steht zugeklappt; ohne Aufklappen kann der Browser das leere Pflichtfeld nicht zeigen,
+  // und das Speichern bleibt ohne jede Rückmeldung stehen
+  const brutto = n.getByRole("group", { name: "Lohnsteuerbescheinigung 2 · Erika" }).getByLabel("Nr. 3 Bruttoarbeitslohn", { exact: true });
+  await expect(brutto).toBeFocused();
 });
 
 test("Seiten nur von derselben Origin einbettbar", async () => {
