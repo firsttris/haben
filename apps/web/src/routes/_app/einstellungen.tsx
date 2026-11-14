@@ -15,6 +15,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
+import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
@@ -297,6 +298,7 @@ function SettingsPage() {
               <IntegrityCard head={chainHead} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
+              <ArchiveSearchCard enabled={company.archiveSearch} />
             </>
           )}
         </div>

@@ -34,6 +34,16 @@ export {
   type RestlaufzeitenAnsicht,
 } from "./restlaufzeiten.ts";
 export { accountName, knownAccounts, loadJournal, transitBalance } from "./journal.ts";
+export {
+  searchAccounts,
+  searchAssets,
+  searchBookings,
+  searchPauschalen,
+  type AccountHit,
+  type AssetHit,
+  type BookingHit,
+  type PauschaleHit,
+} from "./search.ts";
 export { kontenblatt, ledgerPeriodSchema, ledgerRange, openBooks, post, saldenliste } from "./ledger.ts";
 export {
   activeOpenings,

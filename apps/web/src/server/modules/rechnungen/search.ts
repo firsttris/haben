@@ -1,6 +1,6 @@
-import { parseEuroSearchCents, quoteStatus } from "@haben/core";
-import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
-import { likePattern, numberRank } from "../../../lib/search.ts";
+import { parseDateSearch, parseEuroSearchCents, quoteStatus } from "@haben/core";
+import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
 import { today } from "../../today.ts";
 import { dunningsFor } from "./dunning.ts";
@@ -12,18 +12,20 @@ export async function searchInvoices(query: Lookup, { includeDrafts }: { include
   const invoices = schema.invoices;
   const pattern = typeof query === "string" ? likePattern(query) : "";
   const cents = typeof query === "string" ? parseEuroSearchCents(query) : null;
+  const queryDate = typeof query === "string" ? parseDateSearch(query) : null;
   const rows = await selectInvoiceList(
     today(),
     and(
       includeDrafts ? undefined : ne(invoices.status, "draft"),
       typeof query === "string"
         ? or(
-            ilike(invoices.number, pattern),
-            ilike(invoices.buyerOrderReference, pattern),
-            ilike(invoices.sellerOrderReference, pattern),
-            sql`(${invoices.buyer} ->> 'name') ilike ${pattern}`,
-            inArray(invoices.contactId, db.select({ id: schema.contacts.id }).from(schema.contacts).where(ilike(schema.contacts.name, pattern))),
+            unaccentIlike(invoices.number, pattern),
+            unaccentIlike(invoices.buyerOrderReference, pattern),
+            unaccentIlike(invoices.sellerOrderReference, pattern),
+            unaccentIlike(sql`${invoices.buyer} ->> 'name'`, pattern),
+            inArray(invoices.contactId, db.select({ id: schema.contacts.id }).from(schema.contacts).where(unaccentIlike(schema.contacts.name, pattern))),
             cents !== null ? eq(invoices.gross, cents) : undefined,
+            queryDate !== null ? eq(invoices.issueDate, queryDate) : undefined,
           )
         : eq(invoices.id, query.id),
     ),
@@ -64,6 +66,7 @@ export async function searchQuotes(query: Lookup, limit = 5) {
   const quotes = schema.quotes;
   const pattern = typeof query === "string" ? likePattern(query) : "";
   const cents = typeof query === "string" ? parseEuroSearchCents(query) : null;
+  const queryDate = typeof query === "string" ? parseDateSearch(query) : null;
   const rows = await db
     .select({
       id: quotes.id,
@@ -83,10 +86,11 @@ export async function searchQuotes(query: Lookup, limit = 5) {
     .where(
       typeof query === "string"
         ? or(
-            ilike(quotes.number, pattern),
-            sql`(${quotes.buyer} ->> 'name') ilike ${pattern}`,
-            inArray(quotes.contactId, db.select({ id: schema.contacts.id }).from(schema.contacts).where(ilike(schema.contacts.name, pattern))),
+            unaccentIlike(quotes.number, pattern),
+            unaccentIlike(sql`${quotes.buyer} ->> 'name'`, pattern),
+            inArray(quotes.contactId, db.select({ id: schema.contacts.id }).from(schema.contacts).where(unaccentIlike(schema.contacts.name, pattern))),
             cents !== null ? eq(quotes.gross, cents) : undefined,
+            queryDate !== null ? eq(quotes.issueDate, queryDate) : undefined,
           )
         : eq(quotes.id, query.id),
     )

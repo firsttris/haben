@@ -1,5 +1,6 @@
 import { DUNNING_LEVELS, type DunningLevel, formatEuro } from "@haben/core";
 import type { IconName } from "../components/Icon.tsx";
+import { buildStufe2Sections } from "./befehlspalette-stufe2.ts";
 import { searchOptions } from "./combobox.ts";
 import { formatDate } from "./format.ts";
 import type { SichtbareSeite } from "./navigation.ts";
@@ -28,6 +29,17 @@ export type PaletteItem =
       invoice?: CommandPaletteResult["invoices"]["hits"][number];
       quote?: CommandPaletteResult["quotes"]["hits"][number];
       document?: CommandPaletteResult["documents"]["hits"][number];
+    }
+  | {
+      id: string;
+      kind: "link";
+      title: string;
+      meta: string;
+      icon: IconName;
+      to: string;
+      params?: Record<string, string>;
+      search?: Record<string, unknown>;
+      amount?: string;
     };
 
 export interface PaletteSection {
@@ -123,7 +135,7 @@ export function buildRemoteSections(remote: CommandPaletteResult, inhaber: boole
     sections.push({ id: "belege", label: "Belege", items, to: "/belege" });
   }
 
-  return sections;
+  return [...sections, ...buildStufe2Sections(remote, inhaber)];
 }
 
 export function statusMessage(loading: boolean, queryLength: number, itemCount: number): string {

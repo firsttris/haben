@@ -6,6 +6,10 @@ export function likePattern(query: string, prefix = false): string {
   return `${prefix ? "" : "%"}${escaped}%`;
 }
 
+export function unaccentIlike(column: SQLWrapper, pattern: string) {
+  return sql`haben_unaccent(${column}) ilike haben_unaccent(${pattern})`;
+}
+
 export function numberRank(column: SQLWrapper, query: string) {
   return sql`case when lower(${column}) = lower(${query}) then 0 when ${column} ilike ${likePattern(query, true)} then 1 else 2 end`;
 }

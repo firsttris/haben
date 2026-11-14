@@ -1674,6 +1674,20 @@
       "when": 1794692093538,
       "tag": "0238_jahreserklaerung_zeilenwerte_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 239,
+      "version": "7",
+      "when": 1794697299988,
+      "tag": "0239_search_unaccent",
+      "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1794697366185,
+      "tag": "0240_search_stufe2_indexes",
+      "breakpoints": true
     }
   ]
 }

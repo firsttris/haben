@@ -72,6 +72,23 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
       ],
       more: false,
     },
+    bankTransactions: { hits: [], more: false },
+    bookings: { hits: [], more: false },
+    accounts: { hits: [], more: false },
+    recurringInvoices: { hits: [], more: false },
+    recurringDocuments: { hits: [], more: false },
+    articles: { hits: [], more: false },
+    textBlocks: { hits: [], more: false },
+    serviceEntries: { hits: [], more: false },
+    assets: { hits: [], more: false },
+    loans: { hits: [], more: false },
+    cashEntries: { hits: [], more: false },
+    pauschalen: { hits: [], more: false },
+    employees: { hits: [], more: false },
+    vatReturns: { hits: [], more: false },
+    zmSubmissions: { hits: [], more: false },
+    postfachDocuments: { hits: [], more: false },
+    archive: { hits: [], more: false },
   };
 
   it("filtert Seiten nach Suchbegriff und begrenzt ohne Suchbegriff auf 5", () => {
