@@ -22,9 +22,12 @@ export function standAus(r: Ergebnis): AppStand {
     return { version: zuAlt ? "? (Image zu alt)" : "?", eric: "?", sicherung: "?" };
   }
   try {
-    const s = JSON.parse(r.stdout) as { version?: unknown; summary?: { eric?: unknown; backup?: unknown } };
+    const s = JSON.parse(r.stdout) as { version?: unknown; commit?: unknown; summary?: { eric?: unknown; backup?: unknown } };
     const text = (w: unknown) => (typeof w === "string" && w !== "" ? w : "?");
-    return { version: text(s.version), eric: text(s.summary?.eric), sicherung: text(s.summary?.backup) };
+    // Kurze Kennung des Commits (#887), damit sich etwa edge und das letzte Release unterscheiden; ältere Images ohne
+    // das Feld zeigen nur die Version
+    const commit = typeof s.commit === "string" && s.commit !== "" ? ` (${s.commit.slice(0, 7)})` : "";
+    return { version: `${text(s.version)}${commit}`, eric: text(s.summary?.eric), sicherung: text(s.summary?.backup) };
   } catch {
     return { version: "?", eric: "?", sicherung: "?" };
   }
