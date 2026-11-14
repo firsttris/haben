@@ -431,6 +431,17 @@ const faelle: [string, () => string][] = [
       () => buildEuerXml({ ...envelope(year), allgemein, figures: { kleinunternehmer: 2_000_000, edv: 50_000 }, anlagen: [] }),
     ],
     [
+      // Negativer Saldo aus Zeile 58 (#933): wird als Betriebseinnahme in Zeile 18 umgegliedert, beide ohne Vorzeichen
+      `Anlage EÜR ${year} Umsatzsteuer umgegliedert`,
+      () =>
+        buildEuerXml({
+          ...envelope(year),
+          allgemein,
+          figures: { steuerpflichtig: 1_000_000, vereinnahmteUst: 190_000, gezahlteUst: -95_000 },
+          anlagen: [],
+        }),
+    ],
+    [
       `Anlage EÜR ${year} Verlust`,
       () =>
         buildEuerXml({

@@ -4,12 +4,13 @@ import {
   buildEuerXml,
   buildUstErklaerungXml,
   euerTotals,
+  euerUstUmgliedern,
   euerVorzeichenMeldungen,
   ustErklaerungLeer,
   ustErklaerungResult,
   type AveuerAnlage,
 } from "./erklaerung.ts";
-import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
+import { datenartVersionFromXml, elsterDecimal, hasTestmerker } from "./xml.ts";
 
 const base = {
   year: 2025,
@@ -231,6 +232,8 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     edv: 60_000,
     vorsteuer: 200_000,
     gezahlteUst: 1_200_000,
+    // Keine Erstattung im Regelfall; die Umgliederung nach #933 prüfen die Tests weiter unten
+    erstatteteUst: 0,
     kfzSonstige: 80_000,
     kfzSteuerVersicherung: 70_000,
     entnahmen: 2_400_000,
@@ -330,22 +333,59 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(buildEuerXml({ ...base, allgemein, figures, anlagen })).not.toContain("<Entnahme_Sonst>");
   });
 
-  it("weist negative gezahlte und erstattete Umsatzsteuer ab (Zeile 18 und 58 ohne Vorzeichen)", () => {
-    // E77-2025/2026: E6000701 und E6005101 sind "DezimalzahlNichtNeg...", ERiC meldet "Unzulässiges Vorzeichen"
-    expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: -19_000 }, anlagen: [] })).toThrow(/Zeile 58 \(Kz E6005101.*190,00/);
-    expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, erstatteteUst: -19_000 }, anlagen: [] })).toThrow(/Zeile 18 \(Kz E6000701.*190,00/);
-    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -19_000 })).toHaveLength(1);
-    // Positive Beträge bleiben unverändert im XML
+  it("gliedert eine negative gezahlte Umsatzsteuer als Betriebseinnahme in Zeile 18 um (#933)", () => {
+    // Vorgabe aus #708: Erstattung ist Betriebseinnahme (Zeile 18), Zahlung Betriebsausgabe (Zeile 58), je ohne Vorzeichen
+    const erstattetVorher = figures.erstatteteUst ?? 0;
+    // Derselbe Jahrgang vor und nach dem Umgliedern: seitenverkehrt gebucht, gleicher Gewinn
+    const roh = { ...figures, gezahlteUst: -19_000 };
+    const gegliedert = euerUstUmgliedern(roh);
+    expect(gegliedert.figures.gezahlteUst).toBe(0);
+    expect(gegliedert.figures.erstatteteUst).toBe(erstattetVorher + 19_000);
+    expect(gegliedert.umgliederungen).toHaveLength(1);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 18 \(Kz E6000701/);
+    // Der Gewinn bleibt gleich; Einnahmen und Ausgaben steigen um denselben Betrag
+    const vorher = euerTotals(roh);
+    const nachher = euerTotals(gegliedert.figures);
+    expect(nachher.gewinn).toBe(vorher.gewinn);
+    expect(nachher.einnahmen).toBe(vorher.einnahmen + 19_000);
+    expect(nachher.ausgaben).toBe(vorher.ausgaben + 19_000);
+    // Im XML steht Zeile 58 leer, die Erstattung in Zeile 18, beide ohne Vorzeichen
+    const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: -19_000 }, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(xml).not.toContain("<E6005101>");
+    expect(tag(xml, "E6000701")).toBe(elsterDecimal(erstattetVorher + 19_000));
+    expect(xml).not.toMatch(/<E6000701>-/);
+    expect(tag(xml, "E6001201")).toBe(elsterDecimal(nachher.einnahmen));
+    expect(tag(xml, "E6007202")).toBe(elsterDecimal(nachher.gewinn));
+  });
+
+  it("gliedert eine negative erstattete Umsatzsteuer als Betriebsausgabe in Zeile 58 um (#933)", () => {
+    const gezahltVorher = figures.gezahlteUst ?? 0;
+    const gegliedert = euerUstUmgliedern({ ...figures, erstatteteUst: -19_000 });
+    expect(gegliedert.figures.erstatteteUst).toBe(0);
+    expect(gegliedert.figures.gezahlteUst).toBe(gezahltVorher + 19_000);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
+    const roh = { ...figures, erstatteteUst: -19_000 };
+    expect(euerTotals(gegliedert.figures).gewinn).toBe(euerTotals(roh).gewinn);
+    const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, erstatteteUst: -19_000 }, anlagen: [] });
+    expect(xml).not.toContain("<E6000701>");
+    expect(tag(xml, "E6005101")).toBe(elsterDecimal(gezahltVorher + 19_000));
+  });
+
+  it("lässt positive Beträge unverändert und gliedert bei 0,00 nichts um", () => {
     const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: 19_000 }, anlagen: [] });
     expect(tag(xml, "E6005101")).toBe("190,00");
-    // Grenze: 0,00 und ein fehlender Wert sind keine negativen Beträge und dürfen nicht gemeldet werden
+    expect(euerUstUmgliedern({ ...figures, gezahlteUst: 0, erstatteteUst: 0 }).umgliederungen).toEqual([]);
+    expect(euerUstUmgliedern({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined }).umgliederungen).toEqual([]);
+  });
+
+  it("meldet einen negativen Betrag weiterhin als Fehler, wenn das Umgliedern nicht greift", () => {
+    // Rückfall aus #708/#835: euerVorzeichenMeldungen prüft, was tatsächlich ins XML geht
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -19_000 })).toHaveLength(1);
     expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: 0, erstatteteUst: 0 })).toEqual([]);
     expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined })).toEqual([]);
-    // Beide Zeilen negativ: zwei Meldungen in einem Wurf, beide im Text des Fehlers
     expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -1, erstatteteUst: -1 })).toHaveLength(2);
-    expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: -1, erstatteteUst: -1 }, anlagen: [] })).toThrow(
-      /Zeile 58[\s\S]*Zeile 18/,
-    );
   });
 
   it("listet Anlagen je Gruppe in der AVEÜR", () => {

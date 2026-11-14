@@ -605,8 +605,9 @@ export const EUER_FIELDS: Record<
  * E6005101 und E6000701: „GeldBetragMitCent ohne Vorzeichen, mit 12 Vorkommastellen“; die Schemata E77-2025.xsd und
  * E77-2026.xsd führen beide als „DezimalzahlNichtNegOhneFuehrNull…“ (Muster \d{1,12}(,\d{2,2})), während E6004301 dort
  * als „DezimalzahlOhneFuehrNull…“ mit optionalem Minus steht. ERiC 45.1.5.0 antwortet auf -190,00: „Unzulässiges
- * Vorzeichen. Geldbeträge müssen ohne Vorzeichen eingetragen werden.“ Wie der Betrag stattdessen einzutragen ist
- * (andere Zeile, Berichtigung des Vorjahres), ist eine steuerliche Frage und wird hier nicht entschieden.
+ * Vorzeichen. Geldbeträge müssen ohne Vorzeichen eingetragen werden.“ Wie der Betrag stattdessen einzutragen ist,
+ * entscheidet euerUstUmgliedern (Vorgabe aus #708, Issue #933); diese Meldung bleibt der Rückfall, falls danach doch
+ * noch ein negativer Betrag übrig ist.
  * Zeilennummern nach der Anleitung zur Anlage EÜR 2024 und 2025 (Zeile 18 und 58; 2023 waren es Zeile 17 und 56). Ein
  * negativer Betrag entsteht erst im Jahr nach einer aus Haben übermittelten EÜR (#706), frühestens 2024.
  */
@@ -619,8 +620,46 @@ export function euerVorzeichenMeldungen(f: EuerFigures): string[] {
     .filter((feld) => (feld.wert ?? 0) < 0)
     .map(
       (feld) =>
-        `In Zeile ${feld.zeile} (Kz ${feld.kz}, „${feld.label}“) steht ein negativer Betrag von ${formatEuro(feld.wert!)}. Die Anlage EÜR nimmt dort nur Beträge ohne Vorzeichen an; ELSTER lehnt negative Werte mit „Unzulässiges Vorzeichen“ ab. Wie der Betrag stattdessen einzutragen ist, ist steuerlich zu klären.`,
+        `In Zeile ${feld.zeile} (Kz ${feld.kz}, „${feld.label}“) steht ein negativer Betrag von ${formatEuro(feld.wert!)}. Die Anlage EÜR nimmt dort nur Beträge ohne Vorzeichen an; ELSTER lehnt negative Werte mit „Unzulässiges Vorzeichen“ ab. Der Betrag gehört in die andere der beiden Zeilen (euerUstUmgliedern); diese Meldung erscheint nur, wenn das nicht greift.`,
     );
+}
+
+export interface EuerUstGliederung {
+  /** Beträge für die Anlage EÜR: Zeile 18 und Zeile 58 ohne Vorzeichen */
+  figures: EuerFigures;
+  /** Was umgegliedert wurde, je Zeile eine Meldung für die Vorprüfung */
+  umgliederungen: string[];
+}
+
+/**
+ * Gliedert einen negativen Saldo zwischen Zeile 58 (E6005101, an das Finanzamt gezahlte Umsatzsteuer) und Zeile 18
+ * (E6000701, vom Finanzamt erstattete Umsatzsteuer) um, statt ihn mit Vorzeichen zu übermitteln (#933, Vorgabe aus
+ * #708): Ein negativer Betrag in Zeile 58 heißt, dass im Jahr mehr Umsatzsteuer erstattet als gezahlt wurde. Die
+ * Erstattung ist eine Betriebseinnahme und gehört in Zeile 18; die Zahlung ist eine Betriebsausgabe in Zeile 58.
+ * Beide Zeilen weisen den Betrag getrennt und ohne Vorzeichen aus, umgekehrt genauso für einen negativen Betrag in
+ * Zeile 18. Der Gewinn der Anlage EÜR ändert sich dadurch nicht, weil derselbe Betrag auf der anderen Seite der
+ * Ermittlung steht; gebuchte Daten bleiben unverändert.
+ */
+export function euerUstUmgliedern(f: EuerFigures): EuerUstGliederung {
+  let gezahlteUst = f.gezahlteUst ?? 0;
+  let erstatteteUst = f.erstatteteUst ?? 0;
+  const umgliederungen: string[] = [];
+  if (gezahlteUst < 0) {
+    erstatteteUst += -gezahlteUst;
+    umgliederungen.push(
+      `In Zeile 58 (Kz ${EUER_FIELDS.gezahlteUst.kz}, „${EUER_FIELDS.gezahlteUst.label}“) standen ${formatEuro(-gezahlteUst)}: im Jahr wurde mehr Umsatzsteuer erstattet als gezahlt. Der Betrag steht in der Anlage EÜR jetzt als Betriebseinnahme in Zeile 18 (Kz ${EUER_FIELDS.erstatteteUst.kz}, „${EUER_FIELDS.erstatteteUst.label}“), beide Zeilen ohne Vorzeichen. Der Gewinn bleibt gleich, gebuchte Daten ändern sich nicht.`,
+    );
+    gezahlteUst = 0;
+  }
+  if (erstatteteUst < 0) {
+    gezahlteUst += -erstatteteUst;
+    umgliederungen.push(
+      `In Zeile 18 (Kz ${EUER_FIELDS.erstatteteUst.kz}, „${EUER_FIELDS.erstatteteUst.label}“) standen ${formatEuro(-erstatteteUst)}: im Jahr wurde mehr Umsatzsteuer gezahlt als erstattet. Der Betrag steht in der Anlage EÜR jetzt als Betriebsausgabe in Zeile 58 (Kz ${EUER_FIELDS.gezahlteUst.kz}, „${EUER_FIELDS.gezahlteUst.label}“), beide Zeilen ohne Vorzeichen. Der Gewinn bleibt gleich, gebuchte Daten ändern sich nicht.`,
+    );
+    erstatteteUst = 0;
+  }
+  if (umgliederungen.length === 0) return { figures: f, umgliederungen };
+  return { figures: { ...f, gezahlteUst, erstatteteUst }, umgliederungen };
 }
 
 export function euerTotals(f: EuerFigures): { einnahmen: Cents; ausgaben: Cents; gewinn: Cents } {
@@ -804,10 +843,11 @@ const sumNode = (kontext: string, kz: string, cents: Cents | undefined): XmlNode
 export function buildEuerXml(input: EuerXmlInput): string {
   const envelopeInput: Envelope = { ...input, datenArt: "EUER" };
   checkEnvelope(envelopeInput);
-  // Zeile 18 und 58 nehmen kein Vorzeichen an (#708); die Vorprüfung der Anlage EÜR meldet das schon vor dem Senden
-  const vorzeichen = euerVorzeichenMeldungen(input.figures);
+  // Ein negativer Saldo aus Zeile 58 oder 18 wird umgegliedert, nicht mit Vorzeichen gesendet (#933, Vorgabe aus #708)
+  const { figures: f } = euerUstUmgliedern(input.figures);
+  // Rückfall: bliebe danach ein negativer Betrag übrig, nimmt ihn die Anlage EÜR nicht an
+  const vorzeichen = euerVorzeichenMeldungen(f);
   if (vorzeichen.length > 0) throw new ElsterEingabeError(vorzeichen.join(" "));
-  const f = input.figures;
   const { einnahmen, ausgaben, gewinn } = euerTotals(f);
   const kz = (key: EuerFigureKey) => EUER_FIELDS[key].kz;
 

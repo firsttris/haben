@@ -27,6 +27,7 @@ import {
   splitStrasse,
   ERSTES_ERKLAERUNGSJAHR,
   euerTotals,
+  euerUstUmgliedern,
   euerVorzeichenMeldungen,
   ustErklaerungLeer,
   ustErklaerungResult,
@@ -368,6 +369,8 @@ export interface EuerYear {
   vorauszahlungHinweis: string | null;
   /** Welche Vorauszahlungen um den Jahreswechsel diese EÜR verschiebt; wird mit der Übermittlung gespeichert (ZEHN_TAGE_REGEL) */
   zehnTage: ZehnTageKennzeichen;
+  /** Umsatzsteuer, die zwischen Zeile 18 und Zeile 58 umgegliedert wurde (#933); leer, wenn nichts umzugliedern war */
+  ustUmgliederung: string[];
 }
 
 export async function euerYear(year: number): Promise<EuerYear> {
@@ -380,7 +383,9 @@ export async function euerYear(year: number): Promise<EuerYear> {
     vorauszahlungVorjahrHinweis(year),
     zehnTageKennzeichen(year),
   ]);
-  const figures: EuerFigures = { ...euerFigures(euer), ...movements };
+  // Ein negativer Saldo zwischen Zeile 58 und Zeile 18 wird umgegliedert, damit Anzeige und Übermittlung gleich sind (#933)
+  const roheFiguren: EuerFigures = { ...euerFigures(euer), ...movements };
+  const { figures, umgliederungen: ustUmgliederung } = euerUstUmgliedern(roheFiguren);
   const anlagen: AveuerAnlage[] = assets
     .filter((a) => a.year && a.method !== "gwg")
     .map((a) => ({
@@ -397,12 +402,24 @@ export async function euerYear(year: number): Promise<EuerYear> {
       ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
   const pendingAssets = assets.filter((a) => a.pending).length;
-  return { figures, ...euerTotals(figures), anlagen, pendingAssets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis, zehnTage };
+  return {
+    figures,
+    ...euerTotals(figures),
+    anlagen,
+    pendingAssets,
+    lohnUmJahreswechsel,
+    ustUmJahreswechsel,
+    vorauszahlungHinweis,
+    zehnTage,
+    ustUmgliederung,
+  };
 }
 
 export function euerIssues(company: Company, data: EuerYear, { vermerkt = false }: IssueOptions = {}): Issue[] {
   const issues: Issue[] = [];
-  // Zeile 18 und 58 der Anlage EÜR nehmen kein Vorzeichen an; sonst lehnt ERiC beim Senden ab (#708)
+  // Zeile 18 und 58 der Anlage EÜR nehmen kein Vorzeichen an: ein negativer Saldo wird umgegliedert (#933, Vorgabe aus #708)
+  for (const text of data.ustUmgliederung) issues.push({ tone: "hinweis", text, link: "/bank" });
+  // Rückfall: bliebe danach ein negativer Betrag übrig, lehnt ERiC beim Senden ab (#708)
   for (const text of euerVorzeichenMeldungen(data.figures)) issues.push({ tone: "fehler", text, link: "/bank" });
   if (!company.einkunftsart || !company.taetigkeit.trim()) {
     issues.push({ tone: "fehler", text: "Für die Anlage EÜR fehlen Einkunftsart und Art des Betriebs.", link: "/einstellungen" });
