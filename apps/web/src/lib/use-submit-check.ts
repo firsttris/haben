@@ -14,22 +14,26 @@ export type FieldErrors<K extends string> = Record<K, string | null>;
  * `noValidate` trägt, oder, wo es kein Formular gibt (Zuordnung im Bankabgleich), an das Element um die Felder.
  */
 export function useSubmitCheck<K extends string>(errors: FieldErrors<K>) {
-  const [shown, setShown] = useState(false);
+  // false: noch nichts zeigen; sonst die Schlüssel, die der letzte Versuch ausgelassen hat
+  const [shown, setShown] = useState<false | readonly K[]>(false);
   const scope = useRef<HTMLElement | null>(null);
   return {
     // Als Funktion passt der Ref an jedes Element, ein Objekt-Ref nur an genau einen Elementtyp
     form: (element: HTMLElement | null) => {
       scope.current = element;
     },
-    error: (key: K): string | undefined => (shown ? (errors[key] ?? undefined) : undefined),
-    /** `ohne` lässt Schlüssel aus, die diese Aktion nicht braucht (Entwurf speichern ohne Kunden); ihr Fehler erscheint trotzdem */
+    error: (key: K): string | undefined => (shown && !shown.includes(key) ? (errors[key] ?? undefined) : undefined),
+    /**
+     * `ohne` lässt Schlüssel aus, die diese Aktion nicht braucht (Entwurf speichern ohne Kunden): Ihr Fehler hält nicht an und
+     * erscheint nicht, bis eine Aktion ihn braucht
+     */
     check(ohne: readonly K[] = []): boolean {
       if ((Object.entries(errors) as [K, string | null][]).every(([key, e]) => e === null || ohne.includes(key))) {
         setShown(false);
         return true;
       }
       // Sofort rendern, damit die Felder aria-invalid tragen, bevor der Fokus sie sucht
-      flushSync(() => setShown(true));
+      flushSync(() => setShown(ohne));
       scope.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
       return false;
     },

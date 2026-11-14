@@ -350,6 +350,26 @@ test("Festschreiben ohne Kunden nennt den Kunden am Feld statt der Rückfrage (R
   await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveAccessibleDescription("Wähle den Kunden.");
 });
 
+test("Entwurf speichern nennt bei einem anderen Fehler nicht den fehlenden Kunden, Festschreiben schon", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  const ziel = page.getByLabel("Zahlungsziel in Tagen", { exact: true });
+  await ziel.fill("200");
+  const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+  // Ein Entwurf darf ohne Kunden gespeichert werden: der Kunde ist dabei kein Fehler, nur das Zahlungsziel
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await expect(ziel).toBeFocused();
+  await expect(ziel).toHaveAccessibleDescription(/ganzen Tagen von 0 bis 120/);
+  await expect(kunde).not.toHaveAttribute("aria-invalid", "true");
+  await expect(kunde).not.toHaveAccessibleDescription(/Wähle den Kunden/);
+  // Festschreiben braucht den Kunden: jetzt steht er am Feld
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(kunde).toHaveAccessibleDescription("Wähle den Kunden.");
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+});
+
 test("Wiederkehrende Rechnung: Kunde suchen, ohne Kunde nicht speicherbar, neuen Kunden direkt anlegen", async () => {
   await go("/rechnungen/wiederkehrend/neu");
   await page.getByLabel("Bezeichnung").fill("Wartungsvertrag Test");
