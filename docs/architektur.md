@@ -268,6 +268,6 @@ aus [#750](https://github.com/firsttris/haben/issues/750); er beschreibt keine b
 
 ## Schnellsuche
 
-Die Schnellsuche liest die Originaltabellen über die Modulgrenzen und prüft die Rolle bei jeder Anfrage. Der Browser speichert pro Instanz und Rolle bis zu acht Paare aus Typ und ID. Beim Öffnen löst der Server sie mit den aktuellen Berechtigungen auf.
+Die Schnellsuche (`server/functions/search-query.ts`) fragt `stammdaten`, `rechnungen` und `belege` über deren `index.ts` ab und prüft die Rolle bei jeder Anfrage: Die Steuerberatung findet keine Kontakte, Angebote und Rechnungsentwürfe. Die zuletzt geöffneten Kontakte, Rechnungen, Angebote und Belege speichert der Browser pro Instanz und Rolle, höchstens acht und nur als Typ und ID. Beim Öffnen löst der Server sie mit den aktuellen Berechtigungen auf.
 
 PostgreSQL nutzt für Teilstringsuche GIN-Indizes mit `pg_trgm`, auch auf dem im Rechnungskopf gespeicherten Kundennamen. Beträge werden auf den Bruttospalten in ganzen Cent verglichen.
