@@ -40,11 +40,11 @@ export function NavFlyout({ label, icon, active, open, onToggle, onClose, trigge
     }
     updatePosition();
     window.addEventListener("resize", updatePosition);
-    const nav = triggerRef.current?.closest(".nav");
-    nav?.addEventListener("scroll", updatePosition, { passive: true });
+    const navBody = triggerRef.current?.closest(".nav-body");
+    navBody?.addEventListener("scroll", updatePosition, { passive: true });
     return () => {
       window.removeEventListener("resize", updatePosition);
-      nav?.removeEventListener("scroll", updatePosition);
+      navBody?.removeEventListener("scroll", updatePosition);
     };
   }, [open]);
 

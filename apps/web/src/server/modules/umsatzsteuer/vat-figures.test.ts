@@ -413,9 +413,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     const reports = await import("../auswertungen/reports.ts");
     const payments = (await reports.euerPayments(2026)).filter((p) => p.kind === "document");
     expect(payments).toEqual([expect.objectContaining({ paid: 5_000, totals: expect.objectContaining({ tax: 0, gross: 5_000 }) })]);
-    // Die Jahreserklärung kann § 13b noch nicht übermitteln und sagt das
+    // Die Jahreserklärung summiert § 13b über die Monate und übermittelt ihn
     const annual = await import("../jahreserklaerung/annual.ts");
-    expect((await annual.ustYear(2026)).reverseChargeTax).toBe(2_850);
+    expect((await annual.ustYear(2026)).figures).toMatchObject({ kz46: 10_000, kz47: 1_900, kz84: 5_000, kz85: 950, kz67: 2_850 });
   }, 30_000);
 
   it("§ 13b als Kleinunternehmer: Steuer schulden, keine Vorsteuer", async () => {

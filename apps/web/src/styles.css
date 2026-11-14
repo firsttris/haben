@@ -140,7 +140,7 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 /* Shell */
 .shell { display: flex; min-height: 100vh; }
 /* Navigation bleibt am Fenster stehen: sonst wächst sie mit langen Seiten mit und der Fuß rutscht nach unten */
-.nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+.nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; height: 100dvh; overflow: hidden; }
 /* Rechts ohne Innenabstand: Der Platz geht an den Namen, die 40px große Kachel kostet ihn so nicht (#504) */
 .brand { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 0 28px 12px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
 .brand:hover { color: #fff; }
@@ -189,13 +189,12 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .nav-body { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
 /* Desktop-Knopf zum Ein- und Ausklappen der Seitenleiste; am Handy bleibt das Menü unverändert */
 .nav-collapse-btn { width: 100%; min-height: 36px; border: 0; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-@media (min-width: 861px) {
+@media not all and (max-width: 860px) {
   [data-nav="collapsed"] .nav { width: 64px; padding: 20px 12px; align-items: center; overflow-x: hidden; }
   [data-nav="collapsed"] .brand { width: 40px; padding: 4px 0 16px; justify-content: center; }
   [data-nav="collapsed"] .brand-text,
   [data-nav="collapsed"] .nav-collapse-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   [data-nav="collapsed"] .brand-firma-voll { display: none; }
-  [data-nav="collapsed"] .nav-body { width: 100%; align-items: center; }
   [data-nav="collapsed"] .nav-collapse-btn { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
   /* Vor dem Hydrieren schon verbergen, damit nichts flackert, bis die Flyout-Knöpfe stehen */
   [data-nav="collapsed"] .nav-group,
@@ -222,9 +221,20 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 @media (max-width: 860px) { [data-mode="dark"] .nav { border-right: 0; border-bottom: 1px solid var(--line); } }
 .nav-toggle { display: none; }
 
+/* Unter der Marke rollt nur .nav-body, so bleibt der Firmenname stehen. Der Rand reicht bis an die Kanten der
+   Navigation, damit die Leiste außen sitzt und der Fokusring nicht abgeschnitten wird. Als Gegenstück zur Handy-Regel
+   formuliert, damit bei Zoom auch Breiten zwischen 860 und 861 Pixel eine Regel haben */
+@media not all and (max-width: 860px) {
+  .nav-body { min-height: 0; overflow-y: auto; margin: -4px -16px -24px; padding: 4px 16px 24px; }
+  [data-nav="collapsed"] .nav-body { align-self: stretch; width: auto; align-items: center; margin: -4px -12px -20px; padding: 4px 12px 20px; }
+}
+/* Schmale Leiste nur beim Rollen; der Daumen hat mindestens 3 : 1 gegen --nav (WCAG 1.4.11). color-scheme hilft
+   Browsern ohne scrollbar-color, im Kontrastmodus gilt die Systemleiste */
+.nav-body, .firma-liste { overscroll-behavior-y: contain; scroll-padding: 8px 0; color-scheme: dark; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--nav-ink) 55%, transparent) transparent; }
+
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
-  .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow-y: visible; }
+  .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow: visible; }
   /* Am Handy nimmt der Firmenname eine Zeile unter „Haben“ (22 + 16px), damit die Leiste --nav-height hoch bleibt;
      er wird gekürzt */
   /* Rechts 8px Abstand zum Menüknopf */
@@ -237,7 +247,7 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .nav-toggle { flex-shrink: 0; }
   .nav-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--nav-active); border-radius: 8px; background: none; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
   .nav-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-  .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); overflow-y: auto; }
+  .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); max-height: calc(100dvh - 64px); overflow-y: auto; }
   .nav.open .nav-body { display: flex; }
   .nav-link[aria-disabled="true"] { display: none; }
   .nav-spacer { display: none; }
@@ -844,6 +854,8 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .doc-preview { width: 100%; height: var(--viewer-height); min-height: 520px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
 .doc-image { width: 100%; max-height: var(--viewer-height); object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
 .amount-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: end; }
+/* Beleg mit Brutto (#917): Satz, Netto, Vorsteuer, Brutto, Entfernen */
+.amount-row.with-gross { grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 40px; }
 .split-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 40px; gap: 8px; align-items: end; }
 .split-row select, .split-row input { width: 100%; min-width: 0; }
 .amount-row input, .amount-row select { width: 100%; min-width: 0; }
@@ -853,11 +865,17 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .document-split-row .icon-btn { margin-top: 22px; }
 /* Auf dem Handy haben Felder 16 px Schrift: Beträge brauchen die halbe Breite, in schmaleren Spalten fehlten die Cent */
 @media (max-width: 560px) {
-  .amount-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .amount-row, .amount-row.with-gross { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .amount-row > .field:first-child { grid-column: 1; grid-row: 1; }
   .amount-row > .icon-btn { grid-column: 2; grid-row: 1; justify-self: end; }
   .document-split-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .document-split-row .field:first-child { grid-column: 1 / -1; }
+}
+/* Neben der Vorschau (ab 1201 px) ist das Formular bis 1400 px zu schmal für drei Betragsfelder: zwei Spalten wie am Handy */
+@media (min-width: 1201px) and (max-width: 1400px) {
+  .amount-row.with-gross { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .amount-row.with-gross > .field:first-child { grid-column: 1; grid-row: 1; }
+  .amount-row.with-gross > .icon-btn { grid-column: 2; grid-row: 1; justify-self: end; }
 }
 .page-head .actions { align-items: center; }
 .doc-nav { display: flex; align-items: center; gap: 8px; }
