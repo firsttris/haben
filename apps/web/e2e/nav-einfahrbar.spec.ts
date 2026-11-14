@@ -74,3 +74,37 @@ test("klappt am Desktop ein, bleibt beim Neuladen schmal und bedient Flyouts per
   await expect(page.locator("html")).not.toHaveAttribute("data-nav");
   expect(await nav(page).evaluate((el) => Math.round(el.getBoundingClientRect().width))).toBeGreaterThanOrEqual(220);
 });
+
+test("eingeklappt öffnen Lupe und Strg+K die Befehlspalette, ein offenes Flyout schließt dabei", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+
+  const suche = nav(page).getByRole("button", { name: "Schnellsuche" });
+  await expect(suche).toBeVisible();
+  const passt = await suche.evaluate((knopf) => {
+    const leiste = knopf.closest("nav")!.getBoundingClientRect();
+    const rect = knopf.getBoundingClientRect();
+    return { breite: Math.round(rect.width), drin: rect.left >= leiste.left && rect.right <= leiste.right };
+  });
+  expect(passt).toEqual({ breite: 40, drin: true });
+
+  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+  await suche.click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(suche).toBeFocused();
+
+  const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
+  await verkauf.click();
+  await expect(verkauf).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Control+k");
+  await expect(dialog).toBeVisible();
+  await expect(verkauf).toHaveAttribute("aria-expanded", "false");
+  await dialog.getByRole("combobox").fill("Dauerbe");
+  await page.keyboard.press("Enter");
+  await page.waitForURL(/\/dauerbelege$/);
+  await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
+  await expect(nav(page).getByRole("button", { name: "Ausgaben" })).toHaveAttribute("data-active", "true");
+});
