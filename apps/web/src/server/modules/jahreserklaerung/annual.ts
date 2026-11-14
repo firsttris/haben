@@ -354,6 +354,8 @@ async function privateMovements(year: number) {
 }
 
 export interface EuerYear {
+  /** Jahr der Erklärung; die Zeilen der Anlage EÜR in den Meldungen richten sich danach (euerUstZeilen) */
+  year: number;
   figures: EuerFigures;
   einnahmen: Cents;
   ausgaben: Cents;
@@ -385,7 +387,7 @@ export async function euerYear(year: number): Promise<EuerYear> {
   ]);
   // Ein negativer Saldo zwischen Zeile 58 und Zeile 18 wird umgegliedert, damit Anzeige und Übermittlung gleich sind (#933)
   const roheFiguren: EuerFigures = { ...euerFigures(euer), ...movements };
-  const { figures, umgliederungen: ustUmgliederung } = euerUstUmgliedern(roheFiguren);
+  const { figures, umgliederungen: ustUmgliederung } = euerUstUmgliedern(roheFiguren, year);
   const anlagen: AveuerAnlage[] = assets
     .filter((a) => a.year && a.method !== "gwg")
     .map((a) => ({
@@ -403,6 +405,7 @@ export async function euerYear(year: number): Promise<EuerYear> {
     }));
   const pendingAssets = assets.filter((a) => a.pending).length;
   return {
+    year,
     figures,
     ...euerTotals(figures),
     anlagen,
@@ -420,7 +423,7 @@ export function euerIssues(company: Company, data: EuerYear, { vermerkt = false 
   // Zeile 18 und 58 der Anlage EÜR nehmen kein Vorzeichen an: ein negativer Saldo wird umgegliedert (#933, Vorgabe aus #708)
   for (const text of data.ustUmgliederung) issues.push({ tone: "hinweis", text, link: "/bank" });
   // Rückfall: bliebe danach ein negativer Betrag übrig, lehnt ERiC beim Senden ab (#708)
-  for (const text of euerVorzeichenMeldungen(data.figures)) issues.push({ tone: "fehler", text, link: "/bank" });
+  for (const text of euerVorzeichenMeldungen(data.figures, data.year)) issues.push({ tone: "fehler", text, link: "/bank" });
   if (!company.einkunftsart || !company.taetigkeit.trim()) {
     issues.push({ tone: "fehler", text: "Für die Anlage EÜR fehlen Einkunftsart und Art des Betriebs.", link: "/einstellungen" });
   }

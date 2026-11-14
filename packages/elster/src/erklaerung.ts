@@ -2,7 +2,7 @@ import { finanzamtsnummer, formatEuro, type Cents } from "@haben/core";
 import { germanDate } from "./bankverbindung.ts";
 import { checkSteuernummer13, elsterDecimal, ElsterEingabeError, elsterXml, escapeXml, PRODUKT_NAME, TESTMERKER, wholeEuros } from "./xml.ts";
 import { EUER_AUSGABEN, EUER_EINNAHMEN, EUER_FIELDS, type EuerFigureKey, type EuerFigures } from "./euer-felder.ts";
-import { euerUstUmgliedern } from "./euer-umgliedern.ts";
+import { euerUstUmgliedern, euerUstZeilen } from "./euer-umgliedern.ts";
 
 /**
  * Jahreserklärungen im Verfahren ElsterErklaerung: Umsatzsteuererklärung (E50, Datenart USt) und
@@ -422,13 +422,14 @@ export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
  * Vorzeichen. Geldbeträge müssen ohne Vorzeichen eingetragen werden.“ Wie der Betrag stattdessen einzutragen ist,
  * entscheidet euerUstUmgliedern (Vorgabe aus #708, Issue #933); diese Meldung bleibt der Rückfall, falls danach doch
  * noch ein negativer Betrag übrig ist.
- * Zeilennummern nach der Anleitung zur Anlage EÜR 2024 und 2025 (Zeile 18 und 58; 2023 waren es Zeile 17 und 56). Ein
+ * Zeilennummern des Jahres nach euerUstZeilen (2024 und 2025 Zeile 18 und 58, 2026 Zeile 18 und 59). Ein
  * negativer Betrag entsteht erst im Jahr nach einer aus Haben übermittelten EÜR (#706), frühestens 2024.
  */
-export function euerVorzeichenMeldungen(f: EuerFigures): string[] {
+export function euerVorzeichenMeldungen(f: EuerFigures, year: number): string[] {
+  const zeile = euerUstZeilen(year);
   const felder = [
-    { wert: f.gezahlteUst, zeile: 58, ...EUER_FIELDS.gezahlteUst },
-    { wert: f.erstatteteUst, zeile: 18, ...EUER_FIELDS.erstatteteUst },
+    { wert: f.gezahlteUst, zeile: zeile.gezahlt, ...EUER_FIELDS.gezahlteUst },
+    { wert: f.erstatteteUst, zeile: zeile.erstattet, ...EUER_FIELDS.erstatteteUst },
   ];
   return felder
     .filter((feld) => (feld.wert ?? 0) < 0)
@@ -620,9 +621,9 @@ export function buildEuerXml(input: EuerXmlInput): string {
   const envelopeInput: Envelope = { ...input, datenArt: "EUER" };
   checkEnvelope(envelopeInput);
   // Ein negativer Saldo aus Zeile 58 oder 18 wird umgegliedert, nicht mit Vorzeichen gesendet (#933, Vorgabe aus #708)
-  const { figures: f } = euerUstUmgliedern(input.figures);
+  const { figures: f } = euerUstUmgliedern(input.figures, input.year);
   // Rückfall: bliebe danach ein negativer Betrag übrig, nimmt ihn die Anlage EÜR nicht an
-  const vorzeichen = euerVorzeichenMeldungen(f);
+  const vorzeichen = euerVorzeichenMeldungen(f, input.year);
   if (vorzeichen.length > 0) throw new ElsterEingabeError(vorzeichen.join(" "));
   const { einnahmen, ausgaben, gewinn } = euerTotals(f);
   const kz = (key: EuerFigureKey) => EUER_FIELDS[key].kz;
