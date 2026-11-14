@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { compose, docker } from "./ausfuehren.ts";
 import { envSchreiben, envSetzen, envWerte } from "./env-datei.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
-import { CADDY_RELOAD, caddyBlock, NETZ, proxyDir, proxyEintragen, proxyStarten } from "./proxy.ts";
+import { caddyBlock, netzFuer, proxyDir, proxyEintragen, proxyStarten } from "./proxy.ts";
 import { type NeuAngaben, pruefeAngaben, pruefeTrennung } from "./pruefen.ts";
 import { wartenAufApp } from "./zustand.ts";
 
@@ -58,7 +58,7 @@ export function envFuer(vorlage: string, a: NeuAngaben): string {
 
 export function overrideFuer(a: NeuAngaben): string {
   const zeilen = [
-    `# Angelegt von haben-instanzen.ts: eigener Caddy aus, App im Netz ${NETZ} als haben-${a.name}:3000`,
+    `# Angelegt von haben-instanzen.ts: eigener Caddy aus, App im eigenen Netz ${netzFuer(a.name)} zum Proxy als haben-${a.name}:3000`,
     "services:",
     "  caddy:",
     "    profiles: [eigener-proxy]",
@@ -71,7 +71,7 @@ export function overrideFuer(a: NeuAngaben): string {
     "networks:",
     "  proxy:",
     "    external: true",
-    `    name: ${NETZ}`,
+    `    name: ${netzFuer(a.name)}`,
   ];
   return `${zeilen.join("\n")}\n`;
 }
@@ -112,31 +112,33 @@ async function appRolleAnlegen(k: Kontext, a: NeuAngaben, dir: string): Promise<
  * startet eine App, die sich als haben_app nicht anmelden kann.
  */
 function ersterStart(k: Kontext, a: NeuAngaben, dir: string): string[] {
+  const netz = netzFuer(a.name);
   return [
-    a.eigenerProxy
-      ? `  docker network inspect ${NETZ} > /dev/null 2>&1 || docker network create ${NETZ}`
-      : `  cd ${proxyDir(k)} && docker compose up -d && docker compose ${CADDY_RELOAD.join(" ")}`,
+    a.eigenerProxy ? `  docker network inspect ${netz} > /dev/null 2>&1 || docker network create ${netz}` : `  cd ${proxyDir(k)} && docker compose up -d`,
     `  cd ${dir} && docker compose up -d --wait db`,
     `  docker compose exec db ${CREATEUSER.join(" ")}`,
     "  docker compose up -d",
   ];
 }
 
+/** Wozu der erste Schritt von ersterStart() da ist und woher das Passwort für createuser kommt */
+function zumErstenStart(a: NeuAngaben, dir: string): string {
+  const caddy = a.eigenerProxy ? "" : `; der gemeinsame Caddy legt dabei das Netz ${netzFuer(a.name)} an`;
+  return `mit dem Passwort aus DATABASE_URL in ${dir}/.env für createuser${caddy}:`;
+}
+
 /** Proxy bzw. Netz, Datenbank und App-Rolle; bricht davon etwas ab, stehen die Schritte zum Nachholen in der Meldung */
 async function vorDerApp(k: Kontext, a: NeuAngaben, dir: string): Promise<void> {
   try {
+    const netz = netzFuer(a.name);
     if (a.eigenerProxy) {
-      if ((await docker(k, ["network", "inspect", NETZ])).code !== 0 && (await docker(k, ["network", "create", NETZ])).code !== 0)
-        abbrechen(`Das Netz ${NETZ} ließ sich nicht anlegen.`);
+      if ((await docker(k, ["network", "inspect", netz])).code !== 0 && (await docker(k, ["network", "create", netz])).code !== 0)
+        abbrechen(`Das Netz ${netz} ließ sich nicht anlegen.`);
     } else await proxyStarten(k);
     await appRolleAnlegen(k, a, dir);
   } catch (error) {
     if (!(error instanceof Error) || error.name !== "Abbruch") throw error;
-    abbrechen(
-      [error.message, `Den Start danach von Hand nachholen, mit dem Passwort aus DATABASE_URL in ${dir}/.env für createuser:`, ...ersterStart(k, a, dir)].join(
-        "\n",
-      ),
-    );
+    abbrechen([error.message, `Den Start danach von Hand nachholen, ${zumErstenStart(a, dir)}`, ...ersterStart(k, a, dir)].join("\n"));
   }
 }
 
@@ -157,7 +159,9 @@ export async function neu(k: Kontext, a: NeuAngaben): Promise<void> {
 
   if (a.eigenerProxy) {
     k.aus("");
-    k.aus(`Für deinen Proxy (Container im Netz ${NETZ}, z. B. docker network connect ${NETZ} <proxy>):`);
+    const netz = netzFuer(a.name);
+    k.aus(`Deinen Proxy in das Netz dieser Instanz hängen: docker network connect ${netz} <proxy>`);
+    k.aus(`(hält bis zum Neuaufbau des Proxy-Containers; dauerhaft als externes Netz ${netz} in seiner Compose-Datei). Sein Block:`);
     k.aus(caddyBlock(a.domain, a.name).trimEnd());
   } else await proxyEintragen(k, a.name, a.domain);
 
@@ -169,8 +173,9 @@ export async function neu(k: Kontext, a: NeuAngaben): Promise<void> {
   }
 
   if (!a.starten) {
-    k.aus(`Nicht gestartet (--nicht-starten). Der erste Start, mit dem Passwort aus DATABASE_URL in ${dir}/.env für createuser:`);
+    k.aus(`Nicht gestartet (--nicht-starten). Der erste Start, ${zumErstenStart(a, dir)}`);
     for (const zeile of ersterStart(k, a, dir)) k.aus(zeile);
+    if (!a.sso) k.aus("Den Einrichtungscode zeigt danach: docker compose logs app");
     return;
   }
   await starten(k, a, dir);

@@ -101,6 +101,8 @@ services:
       LAYOUTS_PACKAGES_URL: ${LAYOUTS_PACKAGES_URL:-}
       ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
       ENABLE_BANKING_KEY_FILE: /run/secrets/enablebanking.pem
+      # Mehrere Firmen: die Instanzen zum Wechseln in der Navigation, „Name|https://adresse“ getrennt durch „;“
+      HABEN_FIRMEN: ${HABEN_FIRMEN:-}
     volumes:
       # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
       - belege:/var/lib/haben/belege

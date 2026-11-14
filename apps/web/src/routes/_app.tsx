@@ -6,6 +6,7 @@ import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
 import { navLinkSichtbar, type NavBedingung } from "../lib/navigation.ts";
 import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
+import { FirmaWechsler } from "../components/FirmaWechsler.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/_app")({
       hatMitarbeiter: state.hatMitarbeiter,
       firma: state.firma,
       zeichen: state.zeichen,
+      firmen: state.firmen,
     };
   },
   component: AppLayout,
@@ -115,7 +117,7 @@ const STEUERBERATUNG_NAV = [
 ] as const;
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, zeichen } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen, zeichen } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -166,7 +168,8 @@ function AppLayout() {
   useEffect(() => {
     if (!menuOpen) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
+      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst
+      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]')) return;
       // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
       event.preventDefault();
       setMenuOpen(false);
@@ -227,6 +230,8 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
+          {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im Menü, also in der Tab-Reihenfolge gleich nach der Marke */}
+          {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
           <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
             <Icon name="overview" />
             Übersicht
