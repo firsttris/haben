@@ -150,6 +150,20 @@ test("Knopfzeilen auf den Seiten mit Formularen und Rückfragen", async ({ page 
   expect(befunde).toEqual([]);
 });
 
+test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf", async ({ page }) => {
+  const mahnung = await firstLink(page, "/rechnungen/mahnwesen", /^\/rechnungen\/mahnwesen\/[0-9a-f-]{36}$/);
+  expect(mahnung, "„ablauf“ hinterlässt eine überfällige Rechnung").not.toBeNull();
+  await gehe(page, mahnung ?? "");
+  const kopf = page.locator(".page-head .actions");
+  const entwurf = kopf.getByRole("button", { name: "Entwurf als PDF" });
+  const erstellen = kopf.getByRole("button", { name: / erstellen$/ });
+  await expect(erstellen).toHaveClass(/btn-primary/);
+  await entwurf.focus();
+  await page.keyboard.press("Tab");
+  await expect(erstellen).toBeFocused();
+  expect(await abweichungen(page)).toEqual([]);
+});
+
 test("Abgabe vermerken: Knopfzeile im Dialog rechtsbündig wie im Kontaktdialog", async ({ page }) => {
   await gehe(page, `/jahreserklaerung/${YEAR - 1}`);
   await page.getByRole("button", { name: "Abgabe vermerken", exact: true }).first().click();
