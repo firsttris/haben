@@ -191,6 +191,14 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
   await expect(form.getByText("6.123,40\u00a0€").first()).toBeVisible();
 });
 
+test("Anlage N: zugeklappte Werbungskosten nennen auch die Wege zur Arbeit", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const n = page.getByRole("form", { name: "Angaben zur Einkommensteuer" }).getByRole("group", { name: "Anlage N · Erika" });
+  await n.locator("summary").first().click();
+  // Gespeichert sind aus dem Test davor nur Tätigkeitsstätte, Tage und Entfernung
+  await expect(n.locator("summary").filter({ hasText: "Werbungskosten" })).not.toContainText("nichts eingetragen");
+});
+
 test("Seiten nur von derselben Origin einbettbar", async () => {
   // Clickjacking-Schutz kommt von der App selbst, damit der Proxy SAMEORIGIN statt DENY setzen kann
   const html = await page.request.get("/rechnungen");
