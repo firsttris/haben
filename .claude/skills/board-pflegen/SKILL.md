@@ -57,9 +57,19 @@ Jedes offene Issue ohne Karte lesen, mit Kommentaren (`gh issue view <n> --json 
 | **Duplikat** | Thema steht schon in einem Issue oder Entwurf | Nummer bzw. Titel des Entwurfs; Neues aus diesem Issue nennen, damit es nicht verloren geht |
 | **Nicht ins Board** | Unter „Bewusst nicht“, Frage, Sammel-Issue, Interna | Zeile in „Bewusst nicht“ oder die Art des Issues |
 | **Rückfrage** | Angaben reichen nicht für Aufwand und Akzeptanzkriterien: kein Beispiel, kein Ablauf, unklar, was „fertig“ ist | Die eine oder zwei Fragen, die fehlen |
+| **Teilweise** | Der Kern passt, ein klar abgrenzbarer Teil nicht (siehe „Wollen wir das?“) | Was kommt, was nicht, mit Grund; Rest wie „Aufnehmen“ |
 | **Aufnehmen** | Alles andere | Spalte, Position, Aufwand, Bereich, Hinweis, Labels, `einstieg` |
 
 Bei `steuer`-Issues und Fehlern bei Buchung oder Steuer die fachliche Aussage an der Primärquelle prüfen, die das Issue nennt. Stimmt sie nicht oder ist sie unsicher, ist das eine Rückfrage, keine Karte.
+
+**Wollen wir das?** Vor „Aufnehmen“ fragen, ob das Thema zu Haben passt, nicht nur, ob es unter „Bewusst nicht“ steht:
+
+- Gehört es zur Buchhaltung von Freiberuflern und kleinen Betrieben, oder macht es Haben zu einem anderen Werkzeug (Warenwirtschaft, CRM, Versand, Projektverwaltung)?
+- Bringt es einen neuen externen Dienst, eine Lizenz oder eine Abhängigkeit im Container mit?
+- Steht die dauerhafte Pflege im Verhältnis zum Nutzen?
+- Gibt es das schon in einfacherer Form, etwa über die API, n8n oder eine bestehende Funktion?
+
+Nicht zu streng: Im Zweifel aufnehmen und die Reihenfolge entscheiden lassen. Ein Wunsch, der den Alltag erleichtert und zum vorhandenen Datenmodell passt, ist willkommen, auch wenn er über das Nötigste hinausgeht (etwa mehrere Telefonnummern am Kontakt). Nur bei einem klaren Grund aus der Liste oben „Teilweise“ oder „Nicht ins Board“ vorschlagen, dann mit diesem Grund. Ist der Grund neu, eine Zeile für „Bewusst nicht“ in `docs/roadmap.md` vorschlagen (Thema, Grund, Issue), damit die Entscheidung dokumentiert ist.
 
 Vor jeder Rückfrage, auch in offenen Gesprächen, alle Kommentare lesen: Steht die Angabe schon da, ist es keine Rückfrage.
 
@@ -109,6 +119,7 @@ Wer ein Issue schreibt, soll wissen, dass es gelesen und wie es eingeordnet wurd
 | Ergebnis | Text (Vorlage, anpassen) |
 | --- | --- |
 | Aufnehmen | Danke! Ist jetzt im [Board](https://github.com/users/firsttris/projects/2) unter „Geplant“ (bzw. „Später“), Bereich Belege. Die Reihenfolge in der Spalte ist die Priorität. Wer es übernehmen möchte: [Etwas übernehmen](https://haben.app/mitwirken.html#etwas-übernehmen). Bei `einstieg` zusätzlich: Gut für den Einstieg geeignet. |
+| Teilweise | Danke! Ist jetzt im [Board](https://github.com/users/firsttris/projects/2) unter „…“, Bereich …, mit diesem Umfang: … Nicht dazu gehört …, weil … ([Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), falls dort). |
 | Rückfrage | Danke! Damit wir es einordnen können, fehlt noch: … Sobald das da ist, kommt es ins [Board](https://github.com/users/firsttris/projects/2). |
 | Duplikat | Danke! Das Thema steht schon in #… (bzw. im Entwurf „…“ im [Board](https://github.com/users/firsttris/projects/2)). Was hier neu ist (…), ist dort vermerkt. |
 | Nicht ins Board | Danke! Das planen wir nicht: [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), Zeile „…“. Kurz der Grund … |
