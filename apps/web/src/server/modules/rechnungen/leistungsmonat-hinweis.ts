@@ -5,7 +5,7 @@ import { leistungsmonatHinweis } from "./leistungsmonat.ts";
 
 /**
  * Hinweis zu einer festgeschriebenen Rechnung, nur wenn der Leistungstag ihre Meldung in einen Zeitraum verschiebt, dessen
- * zuletzt übermittelte Anmeldung vor dem Festschreiben gesendet wurde. Ist-Versteuerung, Anzahlungen, Stornos und
+ * zuletzt übermittelte Anmeldung vor dem Festschreiben gesendet wurde oder von Hand überschriebene Werte hatte. Ist-Versteuerung, Anzahlungen, Stornos und
  * Korrekturen meldet Haben nicht nach dem Leistungstag.
  */
 export async function leistungsmonatHinweisFuer(invoice: typeof schema.invoices.$inferSelect, q: Db | Tx = db): Promise<string | null> {
@@ -17,6 +17,7 @@ export async function leistungsmonatHinweisFuer(invoice: typeof schema.invoices.
       year: schema.vatReturns.year,
       month: schema.vatReturns.month,
       sentAt: schema.vatReturns.sentAt,
+      source: schema.vatReturns.source,
     })
     .from(schema.vatReturns)
     .where(eq(schema.vatReturns.status, "sent"))

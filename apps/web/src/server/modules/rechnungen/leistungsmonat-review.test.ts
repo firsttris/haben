@@ -160,7 +160,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
 
     it("schweigt, wenn die Voranmeldung erst nach dem Festschreiben übermittelt wurde: Sie enthält die Rechnung", async () => {
       const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
-      await sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 0, 0, 0, 0, now() + interval '1 minute')`;
+      await sql`insert into vat_returns (year, month, status, source, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 'berechnet', 100000, 0, 0, 19000, now() + interval '1 minute')`;
       expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
     }, 30_000);
 
@@ -168,7 +168,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
       await meldeQ2();
       const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
       expect(await invoices.leistungsmonatHinweisFuer(final)).toContain("Q2/2026");
-      await sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 100000, 0, 0, 19000, now() + interval '1 minute')`;
+      await sql`insert into vat_returns (year, month, status, source, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 'berechnet', 100000, 0, 0, 19000, now() + interval '1 minute')`;
       expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
     }, 30_000);
 
