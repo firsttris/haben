@@ -100,7 +100,7 @@ Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibu
 
 Titel, Issue-Verweise, Dateigröße und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
 
-- **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen.
+- **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen; was ein Paket aus `apps/` oder der GoBD-Kern aus einem anderen Paket braucht, in das importierende Paket verschieben.
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
 - **Funktionslänge:** in neuem Code einen Teil in eine eigene Funktion mit Namen auslagern; ältere lange Funktionen werden nur in einem eigenen Pull Request geteilt.
 - **Felder und Auswahllisten:** das Feld in `Field` setzen; eine bewusst allein stehende Liste bekommt `// biome-ignore lint/plugin: Grund`.
