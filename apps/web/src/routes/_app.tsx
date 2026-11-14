@@ -77,7 +77,11 @@ function useEinklappKuerzel() {
       if (isDialogOpen() || (event.target as HTMLElement).closest?.("input, select, textarea, [contenteditable]")) return;
       if (!window.matchMedia("(min-width: 861px)").matches) return;
       event.preventDefault();
-      saveNavCollapsed(!readNavCollapsed());
+      const collapsed = !readNavCollapsed();
+      // Verschwindet die Fassung mit dem Fokus, geht er auf den Knopf der sichtbaren (WCAG 2.4.3)
+      const fokusInFassung = document.activeElement?.closest(".nav-variante");
+      saveNavCollapsed(collapsed);
+      if (fokusInFassung) document.querySelector<HTMLElement>(`.nav-variante-${collapsed ? "rail" : "voll"} .nav-collapse-btn`)?.focus();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
