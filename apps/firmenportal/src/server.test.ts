@@ -359,6 +359,22 @@ describe("Begrenzung der Anmeldewege", () => {
     expect((await handler(von("/anmelden", "203.0.113.8"))).status).toBe(429);
   });
 
+  // TDD-Review in #1006: wie Haben (better-auth normalizeIP, ipv6Subnet 64) gehören die Adressen eines /64 zu einem Anschluss
+  it("zählt IPv6-Adressen aus demselben /64 zusammen", async () => {
+    const handler = portal(config);
+    for (let i = 1; i <= 20; i++) expect((await handler(von("/anmelden", `2001:db8:1:2::${i.toString(16)}`))).status).toBe(303);
+    expect((await handler(von("/anmelden", "2001:db8:1:2::ff"))).status).toBe(429);
+    expect((await handler(von("/anmelden", "2001:DB8:1:2:abcd::1"))).status).toBe(429);
+    // Ein anderes /64 zählt eigens
+    expect((await handler(von("/anmelden", "2001:db8:1:3::1"))).status).toBe(303);
+  });
+
+  it("zählt IPv4 in IPv6 (::ffff:a.b.c.d) wie die IPv4-Adresse", async () => {
+    const handler = portal(config);
+    for (let i = 0; i < 20; i++) await handler(von("/anmelden", "198.51.100.7"));
+    expect((await handler(von("/anmelden", "::ffff:198.51.100.7"))).status).toBe(429);
+  });
+
   it("zählt ohne X-Forwarded-For die Adresse der Verbindung", async () => {
     const handler = portal(config);
     for (let i = 0; i < 20; i++) await handler(anfrage("/anmelden"), "192.0.2.1");
