@@ -30,14 +30,15 @@ ${inhalt}
 </html>`;
 }
 
-export function anmeldeSeite(anbieter: string, fehler?: string): string {
+/** `ziel`: der nächste Versuch; aus Haben mit ?von=haben, damit es bei einer Firma nicht zurück in die Instanz geht */
+export function anmeldeSeite(anbieter: string, fehler?: string, ziel = "/anmelden"): string {
   const meldung = fehler ? `<p class="meldung" role="alert">${html(fehler)}</p>` : "";
   return rahmen(
     "Anmelden",
     `<section class="karte" aria-labelledby="titel">
 <div class="kopf"><h1 id="titel">Firma wählen</h1><p class="muted">Melde dich an, um die Firmen zu sehen, in denen du Inhaber bist.</p></div>
 ${meldung}
-<a class="btn btn-primary" href="/anmelden">Mit ${html(anbieter)} anmelden</a>
+<a class="btn btn-primary" href="${html(ziel)}">Mit ${html(anbieter)} anmelden</a>
 </section>`,
   );
 }

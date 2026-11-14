@@ -369,3 +369,61 @@ describe("Seiten", () => {
     expect((await portal(config)(anfrage("/abmelden"))).status).toBe(404);
   });
 });
+
+// TDD-Review #1006
+describe("Review: Abmelden", () => {
+  /** Cookies wie im Browser: Set-Cookie überschreibt, Max-Age=0 (leerer Wert) löscht */
+  const glas = (...stufen: Record<string, string>[]) => {
+    const ergebnis: Record<string, string> = {};
+    for (const stufe of stufen)
+      for (const [k, v] of Object.entries(stufe)) {
+        if (v === "") delete ergebnis[k];
+        else ergebnis[k] = v;
+      }
+    return ergebnis;
+  };
+  const subjectAus = (idToken: string) => JSON.parse(Buffer.from(idToken.split(".")[1]!, "base64url").toString("utf8")).sub;
+
+  it("schickt nach der Anmeldung einer anderen Person nicht deren altes ID-Token als id_token_hint", async () => {
+    provider.setEndSession(true);
+    const erste = await anmelden({ sub: "anna", email: "anna@example.de", groups: ["haben-nord-inhaber", "haben-sued-inhaber"] });
+    const nachErster = glas(erste.cookies);
+    expect(nachErster[ABMELDE_COOKIE]).toBeTruthy();
+    // Im selben Browser meldet sich danach jemand mit einem ID-Token an, das nicht mehr ins Cookie passt
+    const zweite = await anmelden(
+      { sub: "bert", email: `${"b".repeat(3000)}@example.de`, groups: ["haben-nord-inhaber", "haben-sued-inhaber"] },
+      (_cb, cookies) => Object.assign(cookies, { ...nachErster, ...cookies }),
+    );
+    expect(zweite.ende.status).toBe(303);
+    const browser = glas(nachErster, zweite.cookies);
+    const ende = await zweite.handler(anfrage("/abmelden", browser, "POST"));
+    const hint = new URL(ende.headers.get("location")!).searchParams.get("id_token_hint");
+    // Entweder kein Hinweis oder einer zur angemeldeten Person, nie das ID-Token von anna
+    if (hint) expect(subjectAus(hint)).toBe("bert");
+  });
+
+  it("meldet auf ein Formular einer fremden Seite nicht ab", async () => {
+    provider.setEndSession(true);
+    const handler = portal(config);
+    // Ein Formular auf einer fremden Seite: SameSite=Lax schickt keine Cookies mit, Origin und Sec-Fetch-Site nennen die fremde Seite
+    const fremd = new Request(`${PORTAL}/abmelden`, { method: "POST", headers: { origin: "https://angreifer.example", "sec-fetch-site": "cross-site" } });
+    const ende = await handler(fremd);
+    expect(ende.status).toBe(403);
+    expect(ende.headers.get("location")).toBeNull();
+  });
+});
+
+describe("Review: Weg aus Haben", () => {
+  it("behält ?von=haben, wenn die Anmeldung abgebrochen wurde und man es noch einmal versucht", async () => {
+    const handler = portal(config);
+    const start = await handler(anfrage("/anmelden?von=haben"));
+    const authorize = new URL(start.headers.get("location")!);
+    // Abbruch beim Anmeldedienst (oder Ablauf nach zehn Minuten auf dessen Seite)
+    const abbruch = await handler(anfrage(`/callback?error=access_denied&state=${authorize.searchParams.get("state")}`, cookiesAus(start)));
+    expect(abbruch.status).toBe(400);
+    const nochmal = (await abbruch.text()).match(/<a class="btn btn-primary" href="([^"]+)">/)![1]!;
+    // Der zweite Versuch führt bei genau einer Firma sonst zurück in dieselbe Instanz
+    const { ende } = await anmelden({ sub: "b", email: "b@example.de", groups: ["haben-west-inhaber"] }, undefined, nochmal.replaceAll("&amp;", "&"));
+    expect(ende.headers.get("location")).toBe("/");
+  });
+});

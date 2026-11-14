@@ -66,6 +66,24 @@ function sitzungLesen(config: PortalConfig, request: Request, jetzt: number): { 
 const VON_HABEN = "von=haben";
 const vonHaben = (url: URL) => url.searchParams.get("von") === "haben";
 
+/** Der nächste Versuch nach einer abgebrochenen oder abgewiesenen Anmeldung: Der Weg aus Haben bleibt erhalten */
+function nochmal(config: PortalConfig, request: Request, jetzt: number): string {
+  const ablauf = pruefen(config.secret, cookieLesen(request, ABLAUF_COOKIE), "ablauf", jetzt);
+  return vonHaben(new URL(request.url)) || ablauf?.liste ? `/anmelden?${VON_HABEN}` : "/anmelden";
+}
+
+/**
+ * Abmelden nur aus dem Firmenportal selbst: Ein Formular einer fremden Seite löste sonst die Abmeldung beim
+ * Anmeldedienst aus, SameSite=Lax hilft nicht, weil sie keine Cookies braucht (RP-Initiated Logout 1.0, 6). Browser
+ * senden bei POST Origin, ältere sonst Sec-Fetch-Site; ohne beides (kein Browser) gilt die Anfrage.
+ */
+function vonHier(config: PortalConfig, request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (origin !== null) return origin === config.url;
+  const seite = request.headers.get("sec-fetch-site");
+  return seite === null || seite === "same-origin" || seite === "none";
+}
+
 async function anmelden(config: PortalConfig, url: URL, jetzt: number): Promise<Response> {
   const meta = await entdecken(config, jetzt);
   const { ablauf, adresse } = await anmeldeAdresse(config, meta);
@@ -79,9 +97,11 @@ async function callback(config: PortalConfig, request: Request, jetzt: number): 
   const ohneAblauf = [cookieLoeschen(ABLAUF_COOKIE)];
   // Ein Abbruch beim Anmeldedienst (error=access_denied u. a.) oder ein alter, fremder Callback: neu anmelden
   if (url.searchParams.has("error") || !gespeichert || url.searchParams.get("state") !== gespeichert.ablauf.state) {
-    return antwort(anmeldeSeite(config.displayName, "Die Anmeldung wurde abgebrochen oder ist abgelaufen. Bitte noch einmal anmelden."), 400, {}, ohneAblauf);
+    const text = "Die Anmeldung wurde abgebrochen oder ist abgelaufen. Bitte noch einmal anmelden.";
+    return antwort(anmeldeSeite(config.displayName, text, nochmal(config, request, jetzt)), 400, {}, ohneAblauf);
   }
-  if (!url.searchParams.get("code")) return antwort(anmeldeSeite(config.displayName, "Die Anmeldung ist nicht möglich."), 400, {}, ohneAblauf);
+  if (!url.searchParams.get("code"))
+    return antwort(anmeldeSeite(config.displayName, "Die Anmeldung ist nicht möglich.", nochmal(config, request, jetzt)), 400, {}, ohneAblauf);
   const meta = await entdecken(config, jetzt);
   const { sub, gruppen, anzeige, idToken } = await abschliessen(config, meta, url.search, gespeichert.ablauf);
   const firmen = config.firmen.flatMap((firma, i) => (gruppen.includes(firma.gruppe) ? [i] : []));
@@ -89,7 +109,8 @@ async function callback(config: PortalConfig, request: Request, jetzt: number): 
   const cookies = [...ohneAblauf, cookieSetzen(SITZUNG_COOKIE, sitzung, SITZUNG_MS)];
   // Ein Cookie trägt höchstens 4096 Byte; ein größeres ID-Token (viele Gruppen) geht nicht mit, dann ohne id_token_hint
   const abmeldung = signieren(config.secret, { typ: "abmeldung", idToken }, jetzt + SITZUNG_MS);
-  if (abmeldung.length <= 3_500) cookies.push(cookieSetzen(ABMELDE_COOKIE, abmeldung, SITZUNG_MS));
+  // Ohne neues Cookie das alte löschen: Es könnte das ID-Token einer anderen Person aus diesem Browser tragen
+  cookies.push(abmeldung.length <= 3_500 ? cookieSetzen(ABMELDE_COOKIE, abmeldung, SITZUNG_MS) : cookieLoeschen(ABMELDE_COOKIE));
   // Mit genau einer Firma gibt es nichts zu wählen, außer man kommt aus Haben: Dann führte das zurück in dieselbe Instanz
   const direkt = firmen.length === 1 && !gespeichert.liste;
   return weiter(direkt ? einstieg(config.firmen[firmen[0]!]!.url) : "/", cookies);
@@ -133,7 +154,10 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
   }
   if (request.method === "GET" && pathname === "/anmelden") return anmelden(config, url, jetzt);
   if (request.method === "GET" && pathname === "/callback") return callback(config, request, jetzt);
-  if (request.method === "POST" && pathname === "/abmelden") return abmelden(config, request, jetzt);
+  if (request.method === "POST" && pathname === "/abmelden") {
+    if (!vonHier(config, request)) return antwort(fehlerSeite("Nicht erlaubt", "Abmelden geht nur aus dem Firmenportal selbst."), 403);
+    return abmelden(config, request, jetzt);
+  }
   return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Firmenportal nicht."), 404);
 }
 
@@ -156,14 +180,16 @@ function zuViele(grenze: Begrenzer, request: Request, verbindung: string | undef
 export function portal(config: PortalConfig, jetzt: () => number = Date.now): (request: Request, verbindung?: string) => Promise<Response> {
   const grenze = begrenzer();
   return async (request, verbindung) => {
+    const zeit = jetzt();
     try {
-      const begrenzt = zuViele(grenze, request, verbindung, jetzt());
+      const begrenzt = zuViele(grenze, request, verbindung, zeit);
       if (begrenzt) return begrenzt;
-      return await route(config, request, jetzt());
+      return await route(config, request, zeit);
     } catch (fehler) {
       if (istAnmeldeFehler(fehler)) {
         console.error(`Firmenportal: ${fehler.ursache}`);
-        return antwort(anmeldeSeite(config.displayName, fehler.message), 403, {}, [cookieLoeschen(ABLAUF_COOKIE)]);
+        const seite = anmeldeSeite(config.displayName, fehler.message, nochmal(config, request, zeit));
+        return antwort(seite, 403, {}, [cookieLoeschen(ABLAUF_COOKIE)]);
       }
       console.error(`Firmenportal: unerwarteter Fehler (${fehler instanceof Error ? fehler.name : "unbekannt"})`);
       return antwort(fehlerSeite("Fehler", "Das Firmenportal konnte die Anfrage nicht bearbeiten."), 500);
