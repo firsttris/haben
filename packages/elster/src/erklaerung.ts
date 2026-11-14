@@ -314,8 +314,8 @@ function ust2aBerechnung(
           ["E3009901", amount(teile.vorsteuer)],
           // USt_30907: E3010201 nicht ohne eine der Summen E3009801/E3009901
           (ustGesamt !== 0 || teile.vorsteuer !== 0) && ["E3010201", elsterDecimal(teile.steuer)],
-          // Umsatzsteuer bzw. Überschuss (mit Minus)
-          ["E3010601", amount(teile.steuer)],
+          // Umsatzsteuer bzw. Überschuss (mit Minus); USt_30914/30909: genau dann, wenn E3010201 dasteht, auch mit 0,00
+          (ustGesamt !== 0 || teile.vorsteuer !== 0) && ["E3010601", elsterDecimal(teile.steuer)],
           [
             "Verbl_USt",
             [
