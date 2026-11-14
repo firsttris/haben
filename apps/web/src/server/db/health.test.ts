@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Healthcheck (Postgres)", () => {
     const response = await createHealthCheck(client)();
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(await response.json()).toEqual({ status: "ok" });
+    expect(await response.json()).toEqual({ status: "pass" });
   });
 
   it("bricht eine blockierte Abfrage ab und prüft nach Freigabe erneut", async () => {
@@ -29,7 +29,7 @@ describe.skipIf(!testDatabaseUrl)("Healthcheck (Postgres)", () => {
         await tx`lock table drizzle.__drizzle_migrations in access exclusive mode`;
         const response = await check();
         expect(response.status).toBe(503);
-        expect(await response.json()).toEqual({ status: "nicht bereit", grund: "datenbank" });
+        expect(await response.json()).toEqual({ status: "fail", reason: "database" });
         await expect.poll(() => tx`select 1 from pg_locks where pid = ${backend!.pid} and not granted`).toHaveLength(0);
       });
       expect((await check()).status).toBe(200);
@@ -45,7 +45,7 @@ describe.skipIf(!testDatabaseUrl)("Healthcheck (Postgres)", () => {
     try {
       const response = await createHealthCheck(unavailable)();
       expect(response.status).toBe(503);
-      expect(await response.json()).toEqual({ status: "nicht bereit", grund: "datenbank" });
+      expect(await response.json()).toEqual({ status: "fail", reason: "database" });
     } finally {
       await unavailable.end();
     }
@@ -55,6 +55,6 @@ describe.skipIf(!testDatabaseUrl)("Healthcheck (Postgres)", () => {
     await client`delete from drizzle.__drizzle_migrations where created_at = (select max(created_at) from drizzle.__drizzle_migrations)`;
     const response = await createHealthCheck(client)();
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ status: "nicht bereit", grund: "migrationen" });
+    expect(await response.json()).toEqual({ status: "fail", reason: "migrations" });
   });
 });

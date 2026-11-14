@@ -22,7 +22,7 @@ cleanup() {
 trap cleanup EXIT
 check_health() {
   test "$("${compose[@]}" ps --format '{{.Health}}' app)" = healthy
-  test "$(curl --max-time 5 -fsS "http://localhost:${HABEN_TEST_PORT:-3386}/api/health")" = '{"status":"ok"}'
+  test "$(curl --max-time 5 -fsS "http://localhost:${HABEN_TEST_PORT:-3386}/api/health")" = '{"status":"pass"}'
 }
 "${compose[@]}" up -d --wait db
 # createuser fragt zweimal nach dem neuen Passwort. Im Betrieb interaktiv, hier ausschließlich erfundene Werte.
@@ -44,5 +44,5 @@ finally { await sql.end(); }
 '
 "${compose[@]}" stop db
 health=$(curl --max-time 5 -sS -w '\n%{http_code}' "http://localhost:${HABEN_TEST_PORT:-3386}/api/health")
-test "$health" = $'{"status":"nicht bereit","grund":"datenbank"}\n503'
+test "$health" = $'{"status":"fail","reason":"database"}\n503'
 echo 'Neue Installation und Legacy-Start geprüft'
