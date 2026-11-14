@@ -209,7 +209,6 @@ function NavSearch({ onOpen }: { onOpen: () => void }) {
         event.currentTarget.focus();
         onOpen();
       }}
-      aria-label="Schnellsuche"
       aria-keyshortcuts="Control+K Meta+K"
     >
       <Icon name="search" size={18} />

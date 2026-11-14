@@ -195,7 +195,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .nav-kbd { padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--nav-ink) 30%, transparent); border-radius: 4px; font-family: var(--sans); font-size: 12px; line-height: 1.4; color: var(--nav-ink); white-space: nowrap; }
 @media (max-width: 860px) {
   .nav .nav-search-btn { width: 44px; height: 44px; margin: 0; padding: 0; justify-content: center; color: var(--nav-ink-strong); }
-  .nav-search-label, .nav-kbd { display: none; }
+  .nav-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .nav-kbd { display: none; }
 }
 /* Im dunklen Modus hat die Navigation den Ton des Grunds; die Linie trennt sie vom Inhalt, am Handy unten statt rechts */
 [data-mode="dark"] .nav { border-right: 1px solid var(--line); }
