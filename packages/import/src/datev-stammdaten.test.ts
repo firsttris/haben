@@ -44,8 +44,10 @@ describe("parseDatevStammdaten", () => {
     ]);
   });
 
-  it("lehnt den GP-Stamm aus Buchhaltung 1.0 ab, weil die anonymisierte Kopfzeile Sachkontenlänge 1 nennt", () => {
-    expect(parseDatevStammdaten(fixture("1.0"))).toEqual({
+  it("lehnt einen GP-Stamm mit Sachkontenlänge 1 ab, statt Nummern zu kürzen", () => {
+    // Nur im Speicher geändert; latin1 bildet jedes Byte auf ein Zeichen ab und zurück
+    const text = Buffer.from(fixture("1.0")).toString("latin1").replace(";11111111;4;", ";11111111;1;");
+    expect(parseDatevStammdaten(new Uint8Array(Buffer.from(text, "latin1")))).toEqual({
       ok: false,
       error:
         "Die Kopfzeile nennt Sachkontenlänge 1. Haben führt Personenkonten fünfstellig (Sachkontenlänge 4) und kürzt keine Nummern; exportiere die Datei mit Sachkontenlänge 4.",
@@ -53,9 +55,7 @@ describe("parseDatevStammdaten", () => {
   });
 
   it("liest den GP-Stamm aus Buchhaltung 1.0 (Windows-1252) mit Sachkontenlänge 4: Debitoren, USt-IdNr. aus Mitgliedstaat und Nummer", () => {
-    // Nur im Speicher geändert, die Datei bleibt byte-gleich; latin1 bildet jedes Byte auf ein Zeichen ab und zurück
-    const text = Buffer.from(fixture("1.0")).toString("latin1").replace(";11111111;1;", ";11111111;4;");
-    const { encoding, rows } = parsed(new Uint8Array(Buffer.from(text, "latin1")));
+    const { encoding, rows } = parsed(fixture("1.0"));
     expect(encoding).toBe("windows-1252");
     expect(rows.map((r) => [r.line, r.nr, r.rolle, r.name, r.land])).toEqual([
       [3, 10001, "debitor", "<anon>", "DE"],
