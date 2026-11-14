@@ -1,9 +1,10 @@
-name: GoBD-Kern veröffentlichen
+name: GoBD-Kern als Release
 
-# Ein Tag gobd-kern-vX.Y.Z veröffentlicht packages/gobd-kern als @firsttris/gobd-kern auf npm, unabhängig von den
-# Releases der App (Tags v*). Der Tag muss zur version in packages/gobd-kern/package.json passen; vorher laufen
-# Typecheck und die Tests des Pakets gegen Postgres. Secret: NPM_TOKEN (Token mit Schreibrecht für den
-# Scope @firsttris).
+# Ein Tag gobd-kern-vX.Y.Z baut packages/gobd-kern als .tgz und hängt es an ein GitHub-Release, unabhängig von den
+# Releases der App (Tags v*). Andere Projekte installieren es über die URL der Datei, ohne npm:
+#   bun add https://github.com/firsttris/haben/releases/download/gobd-kern-vX.Y.Z/firsttris-gobd-kern-X.Y.Z.tgz
+# Der Tag muss zur version in packages/gobd-kern/package.json passen; vorher laufen Typecheck und die Tests des
+# Pakets gegen Postgres. Das Release ist nicht „Latest“, damit die Releases der App oben bleiben.
 on:
   push:
     tags: ["gobd-kern-v*"]
@@ -12,8 +13,10 @@ permissions:
   contents: read
 
 jobs:
-  veroeffentlichen:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # das Release anlegen
     services:
       postgres:
         image: postgres:18
@@ -38,7 +41,11 @@ jobs:
       - run: bun --bun vitest run packages/gobd-kern
         env:
           TEST_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_test
-      - run: bun publish --access public
+      - run: bun pm pack --destination "$RUNNER_TEMP/paket"
         working-directory: packages/gobd-kern
+      - name: Release anlegen
         env:
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          datei="$(ls "$RUNNER_TEMP"/paket/*.tgz)"
+          gh release create "$GITHUB_REF_NAME" "$datei" --latest=false --title "$GITHUB_REF_NAME" --notes "Paket @firsttris/gobd-kern ${GITHUB_REF_NAME#gobd-kern-v}. Installieren: bun add https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/$(basename "$datei")"

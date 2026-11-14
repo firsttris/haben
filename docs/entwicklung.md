@@ -340,7 +340,7 @@ Secrets: `DOCKER_PAT` (Docker-Hub-Token mit Schreibrecht für `tristanteu/haben`
 
 ### Paket `@firsttris/gobd-kern`
 
-`packages/gobd-kern` erscheint unabhängig von der App auf npm, damit auch andere Apps es nutzen ([#935](https://github.com/firsttris/haben/issues/935)): Version in `packages/gobd-kern/package.json` erhöhen, mergen, dann den Tag `gobd-kern-vX.Y.Z` auf diesen Commit setzen. `.github/workflows/gobd-kern.yml` prüft Tag und Version, führt Typecheck und die Tests des Pakets gegen Postgres aus und veröffentlicht mit dem Secret `NPM_TOKEN` (Token mit Schreibrecht für den Scope `@firsttris`). Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite.
+`packages/gobd-kern` erscheint unabhängig von der App als Datei an einem GitHub-Release, damit auch andere Apps es nutzen, ohne npm ([#935](https://github.com/firsttris/haben/issues/935)): Version in `packages/gobd-kern/package.json` erhöhen, mergen, dann den Tag `gobd-kern-vX.Y.Z` auf diesen Commit setzen. `.github/workflows/gobd-kern-release.yml` prüft Tag und Version, führt Typecheck und die Tests des Pakets gegen Postgres aus, baut `firsttris-gobd-kern-X.Y.Z.tgz` und legt das Release an, nicht als „Latest“. Ein anderes Projekt installiert es mit `bun add https://github.com/firsttris/haben/releases/download/gobd-kern-vX.Y.Z/firsttris-gobd-kern-X.Y.Z.tgz`; `bun.lock` hält den Hash der Datei fest. Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite, und bleibt `private`, damit es nicht versehentlich auf npm landet.
 
 ### Release Candidates
 
