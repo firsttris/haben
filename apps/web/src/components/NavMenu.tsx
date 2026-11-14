@@ -271,16 +271,20 @@ export function NavExpandedBody({
 
 /** Beide Fassungen im DOM, CSS zeigt eine (display: contents, die Kinder bleiben Teil von .nav-body); so liefert der
  * Server die eingeklappte Leiste schon fertig */
-/** ↑/↓ wandern in der eingeklappten Leiste von Symbol zu Symbol; im Flyout übernimmt NavFlyout */
+/** ↑/↓ wandern in der eingeklappten Leiste von Symbol zu Symbol; im Flyout übernimmt NavFlyout. Kein Pfeil aus der Leiste
+ * erreicht die Seite (die Beleg-Ansicht blättert sonst mit ← →) */
 function symbolWechseln(event: KeyboardEvent<HTMLDivElement>) {
-  const schritt = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
-  if (!schritt || (event.target as HTMLElement).closest(".nav-flyout")) return;
+  if (!event.key.startsWith("Arrow")) return;
+  const ziel = event.target as HTMLElement;
   const symbole = [...event.currentTarget.querySelectorAll<HTMLElement>(".nav-rail-trigger, .nav-rail-link, .nav-collapse-btn")].filter(
     (symbol) => !symbol.closest(".nav-flyout"),
   );
-  if (!symbole.includes(event.target as HTMLElement)) return;
-  event.preventDefault();
+  const amSymbol = symbole.includes(ziel);
+  if (!amSymbol && !ziel.closest(".nav-flyout")) return;
   event.stopPropagation();
+  const schritt = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+  if (!schritt || !amSymbol) return;
+  event.preventDefault();
   weiter(symbole, schritt);
 }
 
