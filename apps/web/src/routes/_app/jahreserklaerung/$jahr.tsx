@@ -384,18 +384,22 @@ function UstSection({ data }: { data: Data }) {
             </tbody>
           </table>
         )}
-        {erklaert !== null && erklaert !== ust.abschluss && (
+        {!hatErklaert(ust.erklaert) && erklaert !== null && erklaert !== ust.abschluss && (
           <p className="small muted" style={{ margin: 0 }}>
             Erklärt wurden laut Übermittlungsprotokoll {formatEuro(erklaert)}. Die Zeilen darüber sind Habens Rechnung aus den Buchungen (
             {formatEuro(ust.abschluss)}) und weichen davon ab, weil die Erklärung außerhalb von Haben entstanden ist.
           </p>
         )}
-        <p className="small muted" style={{ margin: 0 }}>
-          Bemessungsgrundlagen in vollen Euro, die Steuer daraus wie in der Voranmeldung.{" "}
-          {data.versteuerung === "ist" ? "Ist-Versteuerung" : "Soll-Versteuerung"}.
-          {/* Privatnutzung als unentgeltliche Wertabgabe bucht Haben nur im Einzelunternehmen (docs/anlagen.md) */}
-          {!isKapitalgesellschaft(data.rechtsform) && " Die private Kfz-Nutzung ist in den Umsätzen zu 19 % enthalten."}
-        </p>
+        {/* Der Rechenhinweis beschreibt Habens eigene Rechnung; bei erklärten Zeilen aus dem
+            Protokoll stimmt er nicht mehr (#869) */}
+        {!hatErklaert(ust.erklaert) && (
+          <p className="small muted" style={{ margin: 0 }}>
+            Bemessungsgrundlagen in vollen Euro, die Steuer daraus wie in der Voranmeldung.{" "}
+            {data.versteuerung === "ist" ? "Ist-Versteuerung" : "Soll-Versteuerung"}.
+            {/* Privatnutzung als unentgeltliche Wertabgabe bucht Haben nur im Einzelunternehmen (docs/anlagen.md) */}
+            {!isKapitalgesellschaft(data.rechtsform) && " Die private Kfz-Nutzung ist in den Umsätzen zu 19 % enthalten."}
+          </p>
+        )}
       </div>
       <SubmitPanel form="ust" data={data} blocked={ust.issues.some((i) => i.tone === "fehler")} sent={Boolean(ust.sent)} submitted={ust.submitted} />
     </section>
