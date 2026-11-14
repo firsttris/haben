@@ -495,6 +495,25 @@ Zahlt der Kunde später doch, hebst du die Ausbuchung nach einer Rückfrage mit 
 
 Eine ausgebuchte Rechnung lässt sich erst stornieren, wenn die Ausbuchung aufgehoben ist; sonst minderte das Storno die Umsatzsteuer ein zweites Mal.
 
+## Verrechnen ohne Zahlung
+
+Eine offene Rechnung und die Kundenkorrektur zu ihr lassen sich ohne Geldfluss gegeneinander ausgleichen. Auf der Seite der festgeschriebenen Rechnung steht dafür der Abschnitt **Verrechnen**: die Korrektur wählen (angeboten werden nur offene Korrekturen derselben Rechnung), Datum, Betrag und einen Grund eintragen. Der Rechnungsbetrag bleibt stehen, offen ist danach nur noch der Rest; die Korrektur gilt als erledigt.
+
+- Verrechnet wird höchstens bis zum offenen Rest der Rechnung. Ist die Korrektur über genau den offenen Betrag, ist das ein Storno — dafür nimmst du **Storno**, nicht die Verrechnung.
+- Das Datum ist der Tag der Aufrechnung: nicht vor dem jüngeren der beiden Belege und nicht in der Zukunft.
+- Beide Belege müssen festgeschrieben sein; Rechnungen in fremder Währung verrechnet Haben nicht.
+
+Gebucht wird je Seite eine Buchung, Forderungen gegen Verrechnungskonto:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 1400 Forderungen | 1200 Forderungen | Betrag | |
+| 1590 Verrechnungskonto | 1370 Verrechnungskonto | | Betrag |
+
+Die Verrechnung selbst trägt keine Umsatzsteuer: Die Minderung hängt an der Korrektur (§ 17 Abs. 1 UStG), nicht an der Aufrechnung. In der EÜR ist sie kein Zufluss (§ 11 EStG); in den offenen Posten und im Mahnwesen zählt sie wie eine Zahlung.
+
+Aufgehoben wird im selben Abschnitt mit Datum und Grund; die Gegenbuchung steht am Tag der Aufhebung, nicht rückwirkend. Solange eine Verrechnung besteht, lässt sich die Rechnung nicht stornieren — hebe sie zuerst auf. Im Jahresarchiv stehen die Verrechnungen in `rechnungen/verrechnungen.csv`.
+
 ## Per E-Mail versenden
 
 Mit einem E-Mail-Zugang ([Einstellungen › E-Mail › E-Mail-Versand](einrichtung-email.md)) verschickt Haben festgeschriebene Rechnungen, Stornos, Korrekturen und Mahnungen. Auf der Seite der Rechnung unter **Per E-Mail**:
