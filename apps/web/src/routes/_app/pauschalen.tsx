@@ -177,10 +177,11 @@ function PauschalenList() {
               </button>
             ))}
           </div>
-          {art === "homeoffice" && <HomeofficeForm data={data} onNotice={setNotice} />}
-          {art === "fahrt" && <FahrtForm data={data} onNotice={setNotice} />}
-          {art === "verpflegung" && <VerpflegungForm data={data} onNotice={setNotice} />}
-          {art === "entfernung" && <EntfernungTab data={data} onNotice={setNotice} />}
+          {/* key: Ein anderes Jahr setzt die Formulare neu auf, samt Vorgabedatum und Grenzen des Jahres */}
+          {art === "homeoffice" && <HomeofficeForm key={year} data={data} onNotice={setNotice} />}
+          {art === "fahrt" && <FahrtForm key={year} data={data} onNotice={setNotice} />}
+          {art === "verpflegung" && <VerpflegungForm key={year} data={data} onNotice={setNotice} />}
+          {art === "entfernung" && <EntfernungTab key={year} data={data} onNotice={setNotice} />}
           <NoticeBanner notice={notice} />
         </section>
 
