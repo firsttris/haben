@@ -15,6 +15,8 @@ export const SITZUNG_MS = 15 * 60_000;
 
 interface Sitzung {
   sub: string;
+  /** E-Mail oder Name aus dem Profil, nur für „Angemeldet als“ */
+  anzeige: string;
   /** Stellen der Firmen in PORTAL_FIRMEN, die die Person sieht; 50 Adressen passten nicht sicher in ein Cookie */
   firmen: number[];
   /** Fingerabdruck von PORTAL_FIRMEN: Ändert sich die Liste, gelten die Stellen nicht mehr */

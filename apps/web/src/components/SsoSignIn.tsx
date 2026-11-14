@@ -18,13 +18,29 @@ export function ssoReasonMessage(search: string, provider: string): string | nul
   return reason ? (reasons[reason] ?? reasons.fehler!) : null;
 }
 
-/** Einziger Weg hinein im SSO-Modus: startet die Anmeldung beim konfigurierten Anbieter, ohne weitere Angaben */
-export function SsoSignIn({ name, label }: { name: string; label?: string }) {
+/**
+ * Ob die Anmeldung von selbst starten soll: aus dem Portal (#504) mit ?anmelden=sso. Nicht nach einem abgewiesenen
+ * Callback (?sso=…), sonst ginge es im Kreis.
+ */
+export const ssoAutoStart = (search: string): boolean => {
+  const params = new URLSearchParams(search);
+  return params.get("anmelden") === "sso" && !params.has("sso");
+};
+
+/**
+ * Einziger Weg hinein im SSO-Modus: startet die Anmeldung beim konfigurierten Anbieter, ohne weitere Angaben. Mit
+ * `autoStart` (Login-Seite) startet sie bei ?anmelden=sso von selbst, damit der Wechsel aus dem Portal ohne Klick geht.
+ */
+export function SsoSignIn({ name, label, autoStart = false }: { name: string; label?: string; autoStart?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState<string | null>(null);
   // Erst nach dem Hydrieren lesen, damit Server und Browser dasselbe rendern
-  useEffect(() => setReason(ssoReasonMessage(window.location.search, name)), [name]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: start nur einmal beim Öffnen, nicht bei jedem Rendern
+  useEffect(() => {
+    setReason(ssoReasonMessage(window.location.search, name));
+    if (autoStart && ssoAutoStart(window.location.search)) void start();
+  }, [name, autoStart]);
 
   async function start() {
     setBusy(true);

@@ -16,14 +16,18 @@ COPY packages/import/package.json packages/import/
 RUN bun install --frozen-lockfile
 COPY packages/core packages/core
 COPY apps/portal apps/portal
-# Eine Datei samt jose, zod und @haben/core; zur Laufzeit braucht es kein node_modules
-RUN bun build apps/portal/src/main.ts --target bun --outfile /app/portal.js
+# Eine Datei samt jose, zod und @haben/core; zur Laufzeit braucht es kein node_modules. Dazu IBM Plex Sans (lateinisch)
+RUN bun build apps/portal/src/main.ts --target bun --outfile /app/portal.js \
+ && mkdir /app/schrift \
+ && for g in 400 500 600; do cp "apps/portal/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-$g-normal.woff2" /app/schrift/; done
 
 FROM docker.io/oven/bun:1.4.4-slim
 WORKDIR /app
 COPY --from=build /app/portal.js ./portal.js
+COPY --from=build /app/schrift ./schrift
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    PORTAL_SCHRIFTEN=/app/schrift
 USER bun
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
