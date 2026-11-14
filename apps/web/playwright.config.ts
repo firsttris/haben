@@ -102,6 +102,7 @@ export default defineConfig({
       testMatch: [
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
+        "befehlspalette.spec.ts",
         "dateiauswahl.spec.ts",
         "firmenname.spec.ts",
         "gestaltung.spec.ts",

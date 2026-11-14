@@ -420,6 +420,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Beim ersten Fehler hält es an |
 | `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC und letzte erfolgreiche Sicherung |
 | `liste` | Name, Domain und Verzeichnis |
+| `firmen [<name> …]` | Schreibt die Liste für [Firma wechseln](#firma-wechseln) als `HABEN_FIRMEN` in die `.env` der Instanzen und startet laufende Apps neu |
 
 `neu` setzt in der `.env` eigene Zufallswerte für `DB_PASSWORD`, das Passwort der App-Rolle in `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`. Der Name besteht aus a–z, 0–9 und `-`, höchstens 31 Zeichen, am Anfang und Ende ein Buchstabe oder eine Ziffer; `proxy`, `app` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben. `neu` bricht ab und ändert nichts, wenn
 
@@ -440,6 +441,14 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 - Bei ERiC steht die Version, „von Hand“ bei einem mit `ERIC_HOME` eingebundenen Paket ohne Versionsdatei oder „fehlt“ ohne ERiC.
 - Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“.
 - Skripte lesen `haben status --json`, den Commit im Feld `commit` (`null` ohne Angabe beim Bauen); das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert.
+
+`firmen`:
+
+- Ohne Namen schreibt es die Liste in alle Instanzen der Basis, mit Namen nur in diese; die übrigen bleiben unverändert und stehen in keiner Liste.
+- Je Instanz steht darin `HABEN_FIRMENNAME` aus ihrer `.env` (sonst ihr Name) mit `https://<DOMAIN>`.
+- Vorher prüft es die Liste wie die App; bei einem Fehler, etwa einem doppelten Namen, nennt es die Instanz und ändert keine Datei. Ebenso, wenn die `compose.yml` einer Instanz `HABEN_FIRMEN` nicht an die App weitergibt (mit einem älteren Stand angelegt): dann die aktuelle aus `deploy/` dorthin kopieren.
+- Danach startet es laufende Apps mit `up -d` neu und wartet, bis sie gesund sind; gestoppte bleiben gestoppt. Schlägt ein Neustart fehl, hält es an und nennt die Instanz.
+- Nennt eine nicht gewählte Instanz in ihrer Liste noch gewählte, weist es darauf hin; ihre Liste leerst du von Hand oder gleichst sie mit `firmen` und ihrer eigenen Gruppe ab.
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 
@@ -481,6 +490,7 @@ Optionen für `neu`:
 
 | Option | Wirkung |
 | --- | --- |
+| `--firmenname NAME` | Eintrag dieser Instanz in der Liste von `firmen`, als `HABEN_FIRMENNAME` in der `.env` (Vorgabe: der Name der Instanz); 1 bis 60 Zeichen ohne `\|`, `;` und `'`, nicht mit `\` am Ende. `neu` schreibt die Liste nicht selbst, sonst startete jede neue Firma alle laufenden Apps neu; es nennt am Ende den Befehl `firmen` |
 | `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID` (fünf Ziffern). Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
 | `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`, siehe [Weitere Punkte](#weitere-punkte) |
 | `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy-<name>` der Instanz an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy). `docker network connect haben-proxy-<name> <proxy>` hält bis zum Neuaufbau des Proxy-Containers; dauerhaft steht das Netz in seiner Compose-Datei, wie unter [Von Hand](#von-hand) |
@@ -570,7 +580,7 @@ HABEN_FIRMEN='Studio Nord|https://nord.example.de;Werkstatt Süd|https://werksta
 - **Format:** je Firma `Name|Adresse`, getrennt durch `;`, in der `.env` jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`.
 - **Anführungszeichen** um die Liste nur in der `.env` von Compose, das sie entfernt. In `haben.env` der Quadlets und in den Feldern von Unraid oder Coolify blieben sie im Wert, und die App lehnte die Liste ab; dort ohne.
 - **Grenzen:** nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal, höchstens 50 Firmen; sonst startet die App nicht und nennt den Fehler im Log.
-- **Nach einer Änderung** startest du die App jeder Instanz neu (`docker compose up -d`).
+- **Nach einer Änderung** startest du die App jeder Instanz neu (`docker compose up -d`). Mit dem [Werkzeug](#mit-dem-werkzeug) erledigt `firmen` das Eintragen und den Neustart.
 - **Vorlagen:** Für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld.
 - **Wer sie sieht:** nur der Inhaber, und nur wenn die Liste andere Firmen nennt; der [Zugang für die Steuerberatung](steuerberatung.md) erfährt nicht, welche anderen es gibt.
 

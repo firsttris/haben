@@ -686,6 +686,42 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(xml).toMatch(/<AVor>\s*<Person>PersonB<\/Person>\s*<E2000401>3906<\/E2000401>\s*<E2000801>3906<\/E2000801>/);
   });
 
+  it("warnt, wenn die Anlage N ein Arbeitszimmer und zusätzlich Homeoffice-Tage hat", async () => {
+    const taxpayer = await import("../stammdaten/taxpayer.ts");
+    const incomeTax = await import("./income-tax.ts");
+    const pauschalen = await import("../buchhaltung/pauschalen.ts");
+    await leeren(sql)`truncate income_tax_inputs`;
+    await year2025();
+    await assets.bookDepreciation(actor, 2025, TODAY);
+    await taxpayer.saveTaxpayer(actor, {
+      a: { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" },
+      veranlagung: "einzel",
+    });
+    const bescheinigung = [{ steuerklasse: 1 as const, brutto: 4_200_000 }];
+
+    // Nur das Arbeitszimmer, keine Tagespauschale: kein Hinweis
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.some((i) => /Arbeitszimmer/.test(i.text))).toBe(false);
+
+    // Arbeitszimmer und Homeoffice-Tage im selben Jahr schließen sich aus (§ 4 Abs. 5 Satz 1 Nr. 6c Satz 3 EStG)
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, homeofficeTage: 20 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Arbeitszimmer/.test(i.text))).toMatchObject({
+      tone: "hinweis",
+      link: "/pauschalen",
+    });
+
+    // Dasselbe gegen die Tagespauschale in der EÜR: auch dort gibt es das Arbeitszimmer je Person nur einmal
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000 } } },
+    });
+    await pauschalen.createPauschale(actor, { art: "homeoffice", month: "2025-03", tage: 5 }, TODAY);
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.some((i) => /Arbeitszimmer/.test(i.text))).toBe(true);
+  });
+
   it("Werte für Mein ELSTER: dieselben Felder wie im XML, das beim Prüfen über ERiC rausgeht", async () => {
     await year2025();
     await assets.bookDepreciation(actor, 2025, TODAY);
