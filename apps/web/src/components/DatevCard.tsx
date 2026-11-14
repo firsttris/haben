@@ -1,4 +1,4 @@
-import { currentYear, datevZeitraumBereich, parseDatevZeitraum, personenkontenBetroffen } from "@haben/core";
+import { currentYear, datevZeitraumBereich, MONTHS, parseDatevZeitraum, personenkontenBetroffen } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type MouseEvent } from "react";
 import { downloadFrom } from "../lib/download.ts";
@@ -12,21 +12,6 @@ const QUARTALE = [
   ["Q2", "2. Quartal"],
   ["Q3", "3. Quartal"],
   ["Q4", "4. Quartal"],
-] as const;
-
-const MONATE = [
-  ["01", "Januar"],
-  ["02", "Februar"],
-  ["03", "März"],
-  ["04", "April"],
-  ["05", "Mai"],
-  ["06", "Juni"],
-  ["07", "Juli"],
-  ["08", "August"],
-  ["09", "September"],
-  ["10", "Oktober"],
-  ["11", "November"],
-  ["12", "Dezember"],
 ] as const;
 
 /** DATEV-Buchungsstapel für die Steuerberatung (Einstellungen); Jahre und Nummern kommen aus dem Loader */
@@ -175,11 +160,14 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
                 ))}
               </optgroup>
               <optgroup label="Monat">
-                {MONATE.map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
+                {MONTHS.map((label, i) => {
+                  const key = String(i + 1).padStart(2, "0");
+                  return (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  );
+                })}
               </optgroup>
             </select>
           )}

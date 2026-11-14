@@ -29,7 +29,11 @@ export function datevZeitraumKey(zeitraum: DatevZeitraum): string {
   return pad2(zeitraum.monat);
 }
 
-/** Datumsbereich (ISO YYYY-MM-DD), Dateiname und Kopfbezeichnung (max. 30 Zeichen für DATEV EXTF) */
+/**
+ * Datumsbereich (ISO YYYY-MM-DD), Dateiname und Kopfbezeichnung (max. 30 Zeichen).
+ * Quelle: DATEV, „ASCII-Import: Feldbeschreibungen für Standardformate“, Dok.-Nr. 1003221 (Stand 13.08.2026):
+ * Kopfzeile Felder 13 (WJ-Beginn bleibt Jahresbeginn), 15 (Datum vom), 16 (Datum bis) und 17 (Bezeichnung, 30 Zeichen).
+ */
 export function datevZeitraumBereich(year: number, zeitraum: DatevZeitraum): { dateFrom: string; dateTo: string; filename: string; description: string } {
   if (zeitraum.kind === "jahr") {
     return {

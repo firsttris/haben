@@ -668,6 +668,8 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   const q1Res = await page.request.get((await link.getAttribute("href"))!);
   expect(q1Res.status()).toBe(200);
   expect(q1Res.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-Q1\.csv/);
+  const badPeriodRes = await page.request.get("/api/datev/2026?zeitraum=ungueltig");
+  expect(badPeriodRes.status()).toBe(400);
   await card.getByLabel("Zeitraum").selectOption("");
 
   // Mit Hinweis (#675; welche Nummern zusammenfallen, prüft datev-belegfeld.test.ts): Die Datei kommt, die Karte nennt die Nummern
