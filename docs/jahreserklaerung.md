@@ -157,6 +157,7 @@ Werbungskosten:
 
 - **Wege zur ersten Tätigkeitsstätte:** Anschrift, Tage dort, einfache Entfernung, optional Arbeitstage je Woche und Urlaubs- und Krankheitstage. Haben geht von Fahrten mit dem eigenen Auto aus.
 - **Homeoffice-Tage:** an denen du nicht zur Tätigkeitsstätte gefahren bist; mit dem Haken „dauerhaft kein anderer Arbeitsplatz“ in Zeile 62 statt 61.
+- **Häusliches Arbeitszimmer:** die Aufwendungen des Jahres als Betrag, bei ganzjähriger Nutzung die Jahrespauschale von 1.260 € (§ 4 Abs. 5 Satz 1 Nr. 6b EStG). Haben schickt ihn als einen Einzelposten mit der Bezeichnung „Arbeitszimmer“ und die Summe dazu — die Anlage N verlangt beides gemeinsam. Arbeitszimmer und Homeoffice-Tagespauschale für denselben Zeitraum schließen sich aus.
 - **Arbeitsmittel, Fortbildung, Gewerkschaft, Berufsverbände, weitere Werbungskosten** (etwa Kontoführung) als Beträge. Gewerkschaftsbeiträge zieht die Steuerschätzung ab 2026 zusätzlich zum Arbeitnehmer-Pauschbetrag ab (§ 9a Satz 3 EStG); in der Anlage N bis 2025 stehen sie mit den Berufsverbänden in einer Zeile, ab 2026 in einer eigenen. Zu den Fortbildungskosten meldet Haben ab 2026 steuerfreie Erstattungen mit 0; trag deshalb nur den Teil ein, den du selbst getragen hast.
 
 In der Prognose rechnet Haben die Entfernungspauschale mit 0,30 € je Kilometer, ab dem 21. Kilometer 0,38 € (2021: 0,35 €; ab 2026 vom ersten Kilometer an). Homeoffice zählt mit 6 € je Tag, höchstens 210 Tage; liegen die Werbungskosten unter dem Arbeitnehmer-Pauschbetrag von 1.230 €, gilt der Pauschbetrag.
