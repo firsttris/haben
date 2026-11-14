@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ladeKonfiguration } from "./env.ts";
 import { anmeldeSeite, firmenSeite, SUCHE_AB } from "./seiten.ts";
+import { STIL } from "./stil.ts";
 
 const seite = (liste: Parameters<typeof firmenSeite>[0], suche: string) => firmenSeite(liste, suche, "", (url) => url);
 
@@ -23,6 +24,32 @@ describe("Seiten", () => {
     expect(html).toContain('type="search"');
     expect([...html.matchAll(/<li>/g)]).toHaveLength(10);
     expect(seite(firmen(25), "gibt es nicht")).toContain("Keine Firma gefunden.");
+  });
+
+  // Rückmeldung zur Oberfläche in #1006
+  it("nennen das Firmenportal in der Marke und im Titel", () => {
+    const html = seite(firmen(2), "");
+    expect(html).toContain("<title>Firma wählen · Haben Firmenportal</title>");
+    expect(html).toMatch(/<header class="marke">.*Haben.*Firmenportal.*<\/header>/);
+  });
+
+  it("sagen ohne Firma, an wen man sich wendet", () => {
+    expect(seite([], "")).toContain("Wende dich an die Person, die Haben für dich betreibt.");
+  });
+
+  it("behalten nach der Suche den Fokus im Feld und sagen die Trefferzahl an", () => {
+    const gesucht = seite(firmen(25), "FIRMA 1");
+    expect(gesucht).toMatch(/<input id="suche"[^>]* autofocus/);
+    expect(gesucht).toContain('<p class="muted klein" role="status">10 von 25 Firmen</p>');
+    expect(seite(firmen(25), "")).not.toContain("autofocus");
+    expect(seite(firmen(25), "gibt es nicht")).toContain('role="status">Keine Firma gefunden.</p>');
+  });
+
+  it("trennen lange Namen nach Silben und heben das Überfahren im Dunkeln stärker ab", () => {
+    expect(STIL).toMatch(/\.firma-name \{[^}]*hyphens: auto/);
+    expect(STIL).toMatch(/\.firma:hover \{ background: var\(--firma-hover\)/);
+    const dunkel = STIL.slice(STIL.indexOf("prefers-color-scheme: dark"));
+    expect(dunkel).toMatch(/--firma-hover: var\(--line\)/);
   });
 });
 

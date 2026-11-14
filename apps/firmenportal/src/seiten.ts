@@ -18,12 +18,12 @@ function rahmen(titel: string, inhalt: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>${html(titel)} · Haben</title>
+<title>${html(titel)} · Haben Firmenportal</title>
 <link rel="stylesheet" href="/stil.css">
 </head>
 <body>
 <main class="portal">
-<header class="marke"><span class="zeichen" aria-hidden="true">H</span><span class="marke-text">Haben</span></header>
+<header class="marke"><span class="zeichen" aria-hidden="true">H</span><span class="marke-text">Haben <span class="marke-ort">Firmenportal</span></span></header>
 ${inhalt}
 </main>
 </body>
@@ -57,7 +57,7 @@ export function abgemeldetSeite(): string {
 function suchfeld(suche: string): string {
   return `<form class="suche" method="get" action="/" role="search">
 <label for="suche" class="visually-hidden">Firma suchen</label>
-<input id="suche" name="suche" type="search" placeholder="Firma suchen" autocomplete="off" value="${html(suche)}">
+<input id="suche" name="suche" type="search" placeholder="Firma suchen" autocomplete="off" value="${html(suche)}"${suche.trim() ? " autofocus" : ""}>
 <button class="btn" type="submit">Suchen</button>
 </form>`;
 }
@@ -80,12 +80,14 @@ export function firmenSeite(firmen: readonly Firma[], suche: string, angemeldet:
   const gesucht = suche.trim().toLocaleLowerCase("de");
   const mitSuche = firmen.length >= SUCHE_AB;
   const treffer = mitSuche && gesucht ? firmen.filter((f) => f.name.toLocaleLowerCase("de").includes(gesucht)) : firmen;
+  // Ohne Skript lädt die Suche die Seite neu: Das Feld behält den Fokus (autofocus), die Zahl sagt das Ergebnis an
+  const anzahl = mitSuche && gesucht ? `<p class="muted klein" role="status">${treffer.length} von ${firmen.length} Firmen</p>` : "";
   const liste =
     firmen.length === 0
-      ? `<p>Du bist in keiner Firma als Inhaber eingetragen. Die Zuordnung kommt aus den Gruppen beim Anmeldedienst.</p>`
+      ? `<p>Du bist in keiner Firma als Inhaber eingetragen. Die Zuordnung kommt aus den Gruppen beim Anmeldedienst. Wende dich an die Person, die Haben für dich betreibt.</p>`
       : treffer.length === 0
         ? `<p role="status">Keine Firma gefunden.</p>`
-        : `<ul class="firmen">${treffer.map((f) => firmaZeile(f, einstieg(f.url))).join("")}</ul>`;
+        : `${anzahl}<ul class="firmen">${treffer.map((f) => firmaZeile(f, einstieg(f.url))).join("")}</ul>`;
   const wer = angemeldet ? `<p class="muted klein">Angemeldet als ${html(angemeldet)}</p>` : "<span></span>";
   return rahmen(
     "Firma wählen",
