@@ -46,7 +46,7 @@ import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { emptyLine, type EditorLine, type LineState, type ParsedLine, parseLine, positionsFehler, sameText, toLineState } from "../lib/editor-lines.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
-import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
+import { finalizeInvoiceDraft, removeInvoiceDraft, renderDocumentPreview, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
 import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
@@ -707,6 +707,8 @@ export function InvoiceEditor({
         caption={quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
         sheet={
           <RenderedSheet
+            label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
+            render={renderDocumentPreview}
             revision={logo}
             input={{
               kind,

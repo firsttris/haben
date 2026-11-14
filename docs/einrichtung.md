@@ -123,7 +123,7 @@ Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](
 Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
 
 - Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Seite stellst du unter [Logo und Blatt](#logo-und-blatt) ein. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
-- Die Vorschau im Rechnungs- und Angebotseditor zeigt es ebenfalls.
+- Die Vorschau bei Rechnung, Angebot und Mahnung zeigt es ebenfalls.
 - Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
 - Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
 
