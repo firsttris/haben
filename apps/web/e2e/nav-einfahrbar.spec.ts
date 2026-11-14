@@ -21,13 +21,13 @@ test("klappt am Desktop ein, bleibt beim Neuladen schmal und bedient Flyouts per
   await navEl.getByRole("button", { name: "Seitenleiste einklappen" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
   const breiteEingeklappt = await navEl.evaluate((el) => Math.round(el.getBoundingClientRect().width));
-  expect(breiteEingeklappt).toBe(62);
+  expect(breiteEingeklappt).toBe(64);
 
   // Neuladen behält die schmale Leiste sofort bei
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
   const breiteNachReload = await nav(page).evaluate((el) => Math.round(el.getBoundingClientRect().width));
-  expect(breiteNachReload).toBe(62);
+  expect(breiteNachReload).toBe(64);
 
   expect(await axeVerstoesse(page)).toEqual([]);
 
@@ -53,9 +53,24 @@ test("klappt am Desktop ein, bleibt beim Neuladen schmal und bedient Flyouts per
   await expect(verkaufBtn).toHaveAttribute("aria-expanded", "false");
   await expect(verkaufBtn).toHaveAttribute("data-active", "true");
 
+  // Konto & Darstellung Flyout öffnet sich und schließt per Esc
+  const kontoBtn = nav(page).getByRole("button", { name: "Konto & Darstellung" });
+  await kontoBtn.click();
+  await expect(kontoBtn).toHaveAttribute("aria-expanded", "true");
+  await expect(nav(page).getByRole("button", { name: "Abmelden" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(kontoBtn).toHaveAttribute("aria-expanded", "false");
+  await expect(kontoBtn).toBeFocused();
+
   // Am Handy bleibt das gewohnte Menü unverändert
   await page.setViewportSize({ width: 375, height: 812 });
   const menuKnopf = nav(page).getByRole("button", { name: "Menü" });
   await expect(menuKnopf).toBeVisible();
   await expect(nav(page).getByRole("button", { name: "Seitenleiste ausklappen" })).toBeHidden();
+
+  // Zurück am Desktop lässt sich die Leiste wieder ausklappen
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await nav(page).getByRole("button", { name: "Seitenleiste ausklappen" }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-nav");
+  expect(await nav(page).evaluate((el) => Math.round(el.getBoundingClientRect().width))).toBeGreaterThanOrEqual(220);
 });

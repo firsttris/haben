@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
-import { type PointerEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { type PointerEvent, type RefObject, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { NavExpandedBody, type NavLink, NavRailBody } from "../components/NavMenu.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
@@ -117,48 +117,9 @@ const STEUERBERATUNG_NAV = [
   },
 ] as const;
 
-function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen, zeichen } = Route.useRouteContext();
-  const gesellschaft = isKapitalgesellschaft(rechtsform);
-  const inhaber = user.role === "inhaber";
-  const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
-  const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const collapsed = useSyncExternalStore(subscribeNavCollapsed, readNavCollapsed, () => false);
-  const [desktop, setDesktop] = useState(false);
-  const [openFlyout, setOpenFlyout] = useState<string | null>(null);
-  const railMode = collapsed && desktop;
-  // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
-  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
-  const main = useRef<HTMLElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
+function useFirmaBrand() {
   const firmaRef = useRef<HTMLSpanElement>(null);
   const [firmaVoll, setFirmaVoll] = useState<string | null>(null);
-  const firstPath = useRef(pathname);
-  const sichtbareGruppen = groups
-    .map((group) => ({
-      ...group,
-      links: (group.links as readonly NavLink[]).filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })),
-    }))
-    .filter((group) => group.links.length > 0);
-  const userInitial = user.name.trim().charAt(0).toUpperCase() || "?";
-  const userMeta = inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`;
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 861px)");
-    const sync = () => {
-      setDesktop(mq.matches);
-      if (!mq.matches) setOpenFlyout(null);
-    };
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    if (!railMode) setOpenFlyout(null);
-  }, [railMode]);
-
   // Den vollen Namen nur zeigen, wenn die Marke ihn kürzt (zwei Zeilen am Desktop); am Handy gibt es kein Aufklappen
   function firmaAufklappen() {
     const name = firmaRef.current;
@@ -182,6 +143,71 @@ function AppLayout() {
     window.addEventListener("keydown", zu, true);
     return () => window.removeEventListener("keydown", zu, true);
   }, [firmaVoll]);
+  return { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg };
+}
+
+function useRailState() {
+  const collapsed = useSyncExternalStore(subscribeNavCollapsed, readNavCollapsed, () => false);
+  const [desktop, setDesktop] = useState(false);
+  const [openFlyout, setOpenFlyout] = useState<string | null>(null);
+  const railMode = collapsed && desktop;
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 861px)");
+    const sync = () => {
+      setDesktop(mq.matches);
+      if (!mq.matches) setOpenFlyout(null);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!railMode) setOpenFlyout(null);
+  }, [railMode]);
+
+  return { collapsed, railMode, openFlyout, setOpenFlyout };
+}
+
+function useMobileMenuEscape(menuOpen: boolean, onClose: () => void, toggle: RefObject<HTMLButtonElement | null>) {
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(event: KeyboardEvent) {
+      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst; der Desktop-Umschalter blockiert Esc nicht
+      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]:not(.nav-collapse-btn)')) return;
+      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
+      event.preventDefault();
+      onClose();
+      toggle.current?.focus();
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [menuOpen, onClose, toggle]);
+}
+
+function AppLayout() {
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen, zeichen } = Route.useRouteContext();
+  const gesellschaft = isKapitalgesellschaft(rechtsform);
+  const inhaber = user.role === "inhaber";
+  const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { collapsed, railMode, openFlyout, setOpenFlyout } = useRailState();
+  // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
+  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
+  const main = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg } = useFirmaBrand();
+  const firstPath = useRef(pathname);
+  const sichtbareGruppen = groups
+    .map((group) => ({
+      ...group,
+      links: (group.links as readonly NavLink[]).filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })),
+    }))
+    .filter((group) => group.links.length > 0);
+  const userInitial = user.name.trim().charAt(0).toUpperCase() || "?";
+  const userMeta = inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`;
   usePageHeadHeight(main);
   const scrolled = useScrolled();
 
@@ -192,22 +218,9 @@ function AppLayout() {
     firstPath.current = pathname;
     setOpenFlyout(null);
     if (!main.current?.contains(document.activeElement)) main.current?.focus({ preventScroll: true });
-  }, [pathname]);
+  }, [pathname, setOpenFlyout]);
 
-  // Escape schließt das Menü auf dem Handy und gibt den Fokus an den Menüknopf zurück
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onKey(event: KeyboardEvent) {
-      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst; der Desktop-Umschalter blockiert Esc nicht
-      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]:not(.nav-collapse-btn)')) return;
-      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
-      event.preventDefault();
-      setMenuOpen(false);
-      toggle.current?.focus();
-    }
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [menuOpen]);
+  useMobileMenuEscape(menuOpen, () => setMenuOpen(false), toggle);
 
   async function signOut() {
     // Erst beim Abmelden laden: der Auth-Client bringt den Passkey-Code mit, den nur Anmeldung und Einstellungen brauchen
@@ -260,37 +273,31 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          {railMode ? (
-            <NavRailBody
-              collapsed={collapsed}
-              onToggleCollapse={() => saveNavCollapsed(!collapsed)}
-              inhaber={inhaber}
-              pathname={pathname}
-              firmen={firmen}
-              sichtbareGruppen={sichtbareGruppen}
-              eigeneSeiten={eigeneSeiten}
-              userName={user.name}
-              userInitial={userInitial}
-              userMeta={userMeta}
-              openFlyout={openFlyout}
-              onFlyoutToggle={(key) => setOpenFlyout((cur) => (cur === key ? null : key))}
-              onFlyoutClose={() => setOpenFlyout(null)}
-              onSignOut={signOut}
-            />
-          ) : (
-            <NavExpandedBody
-              collapsed={collapsed}
-              onToggleCollapse={() => saveNavCollapsed(!collapsed)}
-              inhaber={inhaber}
-              firmen={firmen}
-              sichtbareGruppen={sichtbareGruppen}
-              eigeneSeiten={eigeneSeiten}
-              userName={user.name}
-              userInitial={userInitial}
-              userMeta={userMeta}
-              onSignOut={signOut}
-            />
-          )}
+          {(() => {
+            const bodyProps = {
+              collapsed,
+              onToggleCollapse: () => saveNavCollapsed(!collapsed),
+              inhaber,
+              firmen,
+              sichtbareGruppen,
+              eigeneSeiten,
+              userName: user.name,
+              userInitial,
+              userMeta,
+              onSignOut: signOut,
+            };
+            return railMode ? (
+              <NavRailBody
+                {...bodyProps}
+                pathname={pathname}
+                openFlyout={openFlyout}
+                onFlyoutToggle={(key) => setOpenFlyout((cur) => (cur === key ? null : key))}
+                onFlyoutClose={() => setOpenFlyout(null)}
+              />
+            ) : (
+              <NavExpandedBody {...bodyProps} />
+            );
+          })()}
         </div>
       </nav>
       <main className="main" id="inhalt" ref={main} tabIndex={-1}>

@@ -224,7 +224,7 @@ export function NavExpandedBody({
       {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
       <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
         <Icon name="overview" />
-        Übersicht
+        <span className="nav-collapse-label">Übersicht</span>
       </Link>
       {sichtbareGruppen.map((group) => (
         <div key={group.label} className="nav-group" role="group" aria-label={group.label}>

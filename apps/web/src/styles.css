@@ -190,7 +190,7 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 /* Desktop-Knopf zum Ein- und Ausklappen der Seitenleiste; am Handy bleibt das Menü unverändert */
 .nav-collapse-btn { width: 100%; min-height: 36px; border: 0; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 @media (min-width: 861px) {
-  [data-nav="collapsed"] .nav { width: 62px; padding: 20px 11px; align-items: center; overflow-x: hidden; }
+  [data-nav="collapsed"] .nav { width: 64px; padding: 20px 12px; align-items: center; overflow-x: hidden; }
   [data-nav="collapsed"] .brand { width: 40px; padding: 4px 0 16px; justify-content: center; }
   [data-nav="collapsed"] .brand-text,
   [data-nav="collapsed"] .nav-collapse-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -207,16 +207,16 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .nav-rail-trigger { width: 40px; min-height: 40px; padding: 0; justify-content: center; border: 0; background: none; font: inherit; cursor: pointer; }
 .nav-rail-trigger[data-active="true"],
 .nav-rail-trigger[aria-expanded="true"] { background: var(--nav-active); color: var(--nav-ink-strong); }
-.nav-foot-rail { width: 100%; align-items: center; gap: 6px; padding-top: 10px; }
-.nav-flyout { position: fixed; z-index: 40; left: 70px; top: 12px; min-width: 224px; max-width: min(296px, calc(100vw - 84px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 8px; border-radius: 12px; background: var(--nav); border: 1px solid var(--nav-active); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); color: var(--nav-ink); display: flex; flex-direction: column; gap: 2px; }
+.nav-foot-rail { width: 100%; align-items: center; gap: 8px; padding-top: 12px; }
+.nav-flyout { position: fixed; z-index: 40; left: 72px; top: 12px; min-width: 224px; max-width: min(296px, calc(100vw - 88px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 8px; border-radius: 12px; background: var(--nav); border: 1px solid var(--nav-active); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); color: var(--nav-ink); display: flex; flex-direction: column; gap: 4px; }
 [data-mode="dark"] .nav-flyout { border-color: var(--line-strong); }
 .nav-flyout[hidden] { display: none; }
-.nav-flyout-title { padding: 6px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); font-size: 12px; font-weight: 600; color: var(--nav-ink-strong); }
-.nav-flyout-links { display: flex; flex-direction: column; gap: 2px; }
+.nav-flyout-title { padding: 8px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); font-size: 12px; font-weight: 600; color: var(--nav-ink-strong); }
+.nav-flyout-links { display: flex; flex-direction: column; gap: 4px; }
 .nav-flyout .nav-link { min-height: 36px; }
 .nav-flyout .nav-theme { margin: 8px 4px 4px; }
-.nav-flyout .nav-version { margin: 6px 8px 4px; }
-.nav-flyout-user { padding: 6px 8px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); }
+.nav-flyout .nav-version { margin: 8px 8px 4px; }
+.nav-flyout-user { padding: 8px 8px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); }
 /* Im dunklen Modus hat die Navigation den Ton des Grunds; die Linie trennt sie vom Inhalt, am Handy unten statt rechts */
 [data-mode="dark"] .nav { border-right: 1px solid var(--line); }
 @media (max-width: 860px) { [data-mode="dark"] .nav { border-right: 0; border-bottom: 1px solid var(--line); } }
