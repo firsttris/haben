@@ -440,6 +440,47 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
 });
 
+test("Pauschalen: fehlende Angaben stehen nach dem Druck auf Buchen am Feld, gebucht wird nichts", async () => {
+  await go("/pauschalen");
+  const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+  const liste = page.getByRole("region", { name: /^Eingetragen in/ });
+  const zeilen = await liste.getByRole("row").count();
+
+  // Vor dem ersten Druck kein Fehler, auch wenn das Feld leer ist
+  const homeoffice = neu.getByRole("form", { name: "Homeoffice-Pauschale" });
+  const tage = homeoffice.getByLabel("Tage im Homeoffice", { exact: true });
+  await expect(tage).not.toHaveAttribute("aria-invalid");
+  await homeoffice.getByRole("button", { name: "Buchen" }).click();
+  await expect(tage).toBeFocused();
+  await expect(tage).toHaveAccessibleDescription("Trag die Tage ein.");
+  await tage.fill("0");
+  await expect(tage).toHaveAccessibleDescription("Mindestens ein Tag.");
+
+  // Mehrere Fehler: alle am Feld, der Fokus im ersten
+  await neu.getByRole("button", { name: "Fahrt", exact: true }).click();
+  const fahrt = neu.getByRole("form", { name: "Fahrt mit dem Privatfahrzeug" });
+  await fahrt.getByLabel("Datum", { exact: true }).fill(`${YEAR - 1}-12-31`);
+  await fahrt.getByRole("button", { name: "Buchen" }).click();
+  await expect(fahrt.getByLabel("Datum", { exact: true })).toBeFocused();
+  await expect(fahrt.getByLabel("Datum", { exact: true })).toHaveAccessibleDescription(/^Wähle einen Tag vom 01\.01\.\d{4} bis/);
+  await expect(fahrt.getByLabel("Anlass und Ziel", { exact: true })).toHaveAccessibleDescription("Trag Anlass und Ziel ein.");
+  await expect(fahrt.getByLabel("Kilometer einfach", { exact: true })).toHaveAccessibleDescription("Trag die Kilometer ein.");
+
+  // Mahlzeiten ohne Field: Fehler unter den Kästchen, Fokus aufs erste
+  await neu.getByRole("button", { name: "Verpflegung", exact: true }).click();
+  const verpflegung = neu.getByRole("form", { name: "Verpflegungsmehraufwand" });
+  await verpflegung.getByLabel("Anlass und Ort", { exact: true }).fill("Kundenprojekt, München");
+  for (const mahlzeit of ["Frühstück", "Mittagessen", "Abendessen"]) await verpflegung.getByLabel(mahlzeit, { exact: true }).check();
+  await verpflegung.getByRole("button", { name: "Buchen" }).click();
+  await expect(verpflegung.getByLabel("Frühstück", { exact: true })).toBeFocused();
+  await expect(verpflegung.getByLabel("Frühstück", { exact: true })).toHaveAccessibleDescription(
+    "Nach Abzug der gestellten Mahlzeiten bleibt keine Pauschale.",
+  );
+
+  await expect(neu.getByRole("status")).toHaveCount(0);
+  await expect(liste.getByRole("row")).toHaveCount(zeilen);
+});
+
 test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno (#895)", async () => {
   await go("/pauschalen");
   const neu = page.getByRole("region", { name: "Pauschale eintragen" });
@@ -448,10 +489,14 @@ test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno 
   await wege.getByLabel("Tage an der Betriebsstätte", { exact: true }).fill("15");
   // Mit Komma wie bei „Fahrt“: 12,5 km zählen als 12 volle Kilometer, nicht als 125
   await wege.getByLabel("Kilometer einfach", { exact: true }).fill("12,5");
-  // Ohne Betriebsstätte bleibt „Buchen“ gesperrt, und das Feld sagt warum (Hinweis am Feld, nicht neben dem Knopf)
-  await expect(wege.getByRole("button", { name: "68,40 € buchen" })).toBeDisabled();
-  await expect(wege.getByLabel("Betriebsstätte", { exact: true })).toHaveAccessibleDescription(/Trag die Betriebsstätte ein/);
-  await wege.getByLabel("Betriebsstätte", { exact: true }).fill("Praxis Musterstadt");
+  // Ohne Betriebsstätte bleibt „Buchen“ bedienbar; der Druck schreibt den Fehler ans Feld und setzt den Fokus dorthin (DESIGN.md, Gesperrte Knöpfe)
+  const betriebsstaette = wege.getByLabel("Betriebsstätte", { exact: true });
+  await wege.getByRole("button", { name: "68,40 € buchen" }).click();
+  await expect(betriebsstaette).toBeFocused();
+  await expect(betriebsstaette).toHaveAttribute("aria-invalid", "true");
+  await expect(betriebsstaette).toHaveAccessibleDescription("Trag die Betriebsstätte ein.");
+  await betriebsstaette.fill("Praxis Musterstadt");
+  await expect(betriebsstaette).not.toHaveAttribute("aria-invalid");
   // ab 2026 0,38 € je Kilometer: 15 Tage × 12 km
   await wege.getByRole("button", { name: "68,40 € buchen" }).click();
   await expect(neu.getByRole("status")).toHaveText("Entfernungspauschale über 68,40 € gebucht.");
