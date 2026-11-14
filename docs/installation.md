@@ -460,7 +460,7 @@ Alle Instanzen sind noch kurz nicht erreichbar (höchstens einige Sekunden), wen
 
 - beim ersten schlichten `docker compose up -d` in `proxy/` nach einem `neu`: Compose sieht die neuen Netze in der Datei und baut den Container einmal neu auf, auch wenn er schon in allen hängt;
 - mit `docker compose up -d --force-recreate`, nach `docker compose pull` mit einem neuen Image des Caddy und mit `docker compose restart caddy`;
-- beim Löschen einer Instanz (Schritt 3 unten) und beim Nachholen eines abgebrochenen Starts mit den Schritten, die `neu` dann nennt;
+- beim Löschen einer Instanz (Schritt 3 unten) und beim ersten Start von Hand nach `--nicht-starten` oder einem Abbruch, mit den Schritten, die `neu` dann nennt;
 - beim Neustart von Docker oder des Rechners. Die Netze, in die `neu` den Container gehängt hat, bleiben ihm dabei erhalten.
 
 Bestehende Instanzen und ihr Caddy brauchen dafür keine Umstellung.
