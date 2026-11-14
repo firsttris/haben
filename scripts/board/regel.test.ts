@@ -6,6 +6,10 @@ describe("verweise", () => {
     expect(verweise("Refs #12\n\nUmgesetzt #13")).toEqual({ refs: [12], umgesetzt: [13] });
   });
 
+  it("zählt nichts aus HTML-Kommentaren, etwa aus einer Vorlage der Beschreibung", () => {
+    expect(verweise("<!-- Umgesetzt #12 -->\nRefs #13")).toEqual({ refs: [13], umgesetzt: [] });
+  });
+
   it("liest Listen mit Komma und „und“", () => {
     expect(verweise("Umgesetzt #1, #2 und #3\nRefs #4, #5")).toEqual({ refs: [4, 5], umgesetzt: [1, 2, 3] });
   });
