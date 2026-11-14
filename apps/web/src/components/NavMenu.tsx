@@ -128,7 +128,7 @@ export function NavRailBody({
     <>
       {firmen.length > 0 && (
         <NavFlyout label="Firma wechseln" icon="company" open={openFlyout === "firma"} onToggle={() => onFlyoutToggle("firma")} onClose={onFlyoutClose}>
-          <FirmaListe andere={firmen} />
+          <FirmaListe key={openFlyout === "firma" ? "open" : "closed"} andere={firmen} />
         </NavFlyout>
       )}
       <Link

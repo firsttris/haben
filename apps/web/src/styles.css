@@ -248,7 +248,9 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 
 /* Firma wechseln (#504): Zeile unter der Marke, die Liste der anderen Firmen klappt darunter im Fluss auf
    (FirmaWechsler). Zeile und Firmen sind .nav-link, am Desktop so hoch wie die Punkte der Gruppen, am Handy 44px */
-.firma-wechsler { --firma-zeile: 36px; padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); }
+.firma-wechsler,
+.nav-flyout { --firma-zeile: 36px; }
+.firma-wechsler { padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); }
 /* Ohne Fläche, sonst sähe die offene Zeile aus wie der aktive Menüpunkt */
 .firma-wechsler-knopf { justify-content: space-between; width: 100%; min-height: var(--firma-zeile); border: 0; background: none; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 .firma-wechsler-knopf[aria-expanded="true"] { color: var(--nav-ink-strong); }
