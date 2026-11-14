@@ -1,4 +1,4 @@
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS, type Cents } from "@haben/core";
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS, SELF_ASSESSED_TAX_KEYS, type Cents } from "@haben/core";
 import { z } from "zod";
 import { UserError } from "../../errors.ts";
 import type { DocumentKind } from "../../storage.ts";
@@ -41,6 +41,12 @@ export const extractionSchema = z.object({
     .describe("Je Steuersatz eine Zeile, positive Beträge"),
   brutto: z.string().nullable().describe("Gesamtbetrag, Dezimalpunkt"),
   kategorie: z.enum(EXPENSE_CATEGORY_KEYS),
+  // § 13b steht als Hinweis auf dem Beleg; die Wahl am Beleg bleibt bestehen und geht vor
+  reverseCharge: z
+    .enum(SELF_ASSESSED_TAX_KEYS)
+    .nullable()
+    .default(null)
+    .describe("Steuerbehandlung nach § 13b, wenn der Beleg sie nennt: eu (EU-Ausland), drittland (Drittes Land), ig_erwerb (Ware aus der EU), sonst null"),
   hinweis: z.string().nullable().describe("Kurzer Hinweis, wenn etwas unklar oder unleserlich ist"),
 });
 
@@ -58,6 +64,8 @@ export interface ExtractedFields {
   serviceTo?: string | null;
   currency: string;
   category: (typeof EXPENSE_CATEGORY_KEYS)[number];
+  /** § 13b aus dem Beleg, nur als Vorschlag; eine Wahl am Beleg gilt weiter */
+  reverseCharge?: (typeof SELF_ASSESSED_TAX_KEYS)[number] | null;
   amounts: { taxRate: 1900 | 700 | 0; net: Cents; tax: Cents }[];
   warnings: string[];
 }
@@ -91,6 +99,7 @@ Die IBAN des Rechnungsstellers nur, wenn sie als dessen Bankverbindung auf dem B
 Weise die Beträge je Umsatzsteuersatz (19, 7 oder 0 %) aus. Wenn der Beleg nur einen Bruttobetrag und den Steuersatz nennt, rechne Netto und Steuer daraus.
 Wähle die passende Ausgabenkategorie:
 ${CATEGORY_LIST}
+Steht ein Reverse-Charge-Hinweis auf dem Beleg (Steuerschuldnerschaft des Leistungsempfängers, Art. 196 MwStSystRL, „0 % USt. ausgewiesen“, „reverse charge“), dann setze reverseCharge: eu bei einem Rechnungssteller in der EU, drittland bei einem Dritten Land, ig_erwerb bei Ware aus der EU. Die Beträge bleiben wie auf dem Beleg, also mit 0 % USt.; Haben rechnet die Steuer aus dem Netto. Wähle für sonstige Leistungen in diesem Fall fremdleistung statt sonstiges.
 Beschreibe Unklarheiten kurz im Feld hinweis.`;
 
 export const EXTRACTION_REQUEST = "Lies diesen Beleg aus.";
@@ -152,6 +161,7 @@ export function toFields(extraction: Extraction): ExtractedFields {
     serviceTo: isoDate(extraction.leistungBis ?? null),
     currency,
     category: extraction.kategorie,
+    reverseCharge: extraction.reverseCharge ?? null,
     amounts,
     warnings,
   };

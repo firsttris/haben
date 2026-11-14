@@ -37,6 +37,20 @@ describe("KI-Auslesung umwandeln", () => {
     expect(fields.invoiceNumber).toHaveLength(100);
   });
 
+  it("übernimmt den Reverse-Charge-Hinweis als Vorschlag für § 13b", () => {
+    const felder = toFields({
+      ...base,
+      betraege: [{ steuersatz: "0", netto: "115.44", steuer: "0.00" }],
+      brutto: "115.44",
+      kategorie: "fremdleistung",
+      reverseCharge: "eu",
+    });
+    expect(felder.reverseCharge).toBe("eu");
+    expect(felder.category).toBe("fremdleistung");
+    // Ohne Hinweis auf dem Beleg bleibt die Behandlung offen
+    expect(toFields(base).reverseCharge).toBeNull();
+  });
+
   it("gibt Datenbankfehler nicht roh an den Beleg weiter", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(describeExtractionError(new Error('Failed query: update "documents" set ...'))).toMatch(/^Die Auslesung ist fehlgeschlagen/);

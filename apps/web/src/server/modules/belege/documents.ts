@@ -274,8 +274,10 @@ async function applyFields(
   await withActor(actor, async (tx) => {
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, id)).for("update");
     if (!doc || doc.lockedAt) return;
-    // Neu ausgelesen bleibt die Steuerbehandlung des Belegs; § 13b und Erwerbsteuer rechnet der Server aus dem Netto
-    const amounts = euroAmounts({ currency: fields.currency, exchangeRate: rate.exchangeRate, reverseCharge: doc.reverseCharge, amounts: extracted });
+    // Neu ausgelesen bleibt die Steuerbehandlung des Belegs; § 13b und Erwerbsteuer rechnet der Server aus dem Netto.
+    // Ist am Beleg noch nichts gewählt, gilt der Vorschlag aus dem Beleg (Reverse-Charge-Hinweis, #680)
+    const reverseCharge = doc.reverseCharge ?? fields.reverseCharge ?? null;
+    const amounts = euroAmounts({ currency: fields.currency, exchangeRate: rate.exchangeRate, reverseCharge, amounts: extracted });
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
     if (amounts.length > 0) {
       await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
@@ -301,7 +303,8 @@ async function applyFields(
         ownAccountId: null,
         ...(payment ? { payment } : {}),
         privateShare,
-        ...totalsOf(amounts, doc.reverseCharge),
+        ...totalsOf(amounts, reverseCharge),
+        ...(reverseCharge && !doc.reverseCharge ? { reverseCharge } : {}),
         extractedBy,
         extractionStatus: "fertig",
         extractionError: warnings.length > 0 ? warnings.join(" · ") : null,
