@@ -73,6 +73,17 @@ describe.skipIf(!testDatabaseUrl)("Privates Konto: Buchungsarten ohne Geschäfts
     });
   }
 
+  it("lehnt die Spende auf dem privaten Konto ab (SKR03, Einzelunternehmen)", async () => {
+    await firma("SKR03", "einzelunternehmen");
+    const privat = await konto("privat", PRIVAT_IBAN);
+    const transaction = await umsatz(privat, -25_00, "Spendenempfänger");
+    // 1840 gegen 2250 ist privat gegen privat; auf einem privaten Konto hat das nichts zu suchen (#873)
+    await expect(bank.allocate(actor, { kind: "spende", transactionId: transaction, amount: -25_00 })).rejects.toThrow(
+      /privaten Konto/,
+    );
+    expect(await journalzeilen()).toBe(0);
+  });
+
   it("lehnt die Gebühr auch als Teil einer Aufteilung ab", async () => {
     const privat = await konto("privat", PRIVAT_IBAN);
     const transaction = await umsatz(privat, -100_00, "Sparkasse");

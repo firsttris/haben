@@ -20,6 +20,9 @@ function angebot(rechtsform: Rechtsform, zweck: "geschaeft" | "privat") {
 /** Die vier Möglichkeiten, die es auf einem privaten Konto nicht gibt */
 const NUR_GESCHAEFT = ["gebuehren", "zinsertrag", "privat", "geldtransit"] as const;
 
+/** Dazu die Spende: sie bucht dort privat gegen privat. Nur im Einzelunternehmen überhaupt vorhanden (#873) */
+const AUCH_NUR_GESCHAEFT = [...NUR_GESCHAEFT, "spende"] as const;
+
 describe("Angebot im Bankabgleich je Kontozweck", () => {
   for (const rechtsform of ["einzelunternehmen", "gmbh"] as const) {
     it(`Geschäftskonto (${rechtsform}) bietet alle Buchungsarten ohne Beleg`, () => {
@@ -34,10 +37,12 @@ describe("Angebot im Bankabgleich je Kontozweck", () => {
       const privat = angebot(rechtsform, "privat").directKinds.map((k) => k.value);
       for (const kind of NUR_GESCHAEFT) expect(privat).not.toContain(kind);
       // Alles andere bleibt, etwa Umsatzsteuer, Sondervorauszahlung, Mahnerlöse und die Buchungen der Rechtsform
-      expect(privat).toEqual(geschaeft.filter((kind) => !(NUR_GESCHAEFT as readonly string[]).includes(kind)));
+      expect(privat).toEqual(geschaeft.filter((kind) => !(AUCH_NUR_GESCHAEFT as readonly string[]).includes(kind)));
       expect(privat).toContain("ustVorauszahlung");
       expect(privat).toContain("mahnerloes");
-      expect(privat).toContain(rechtsform === "gmbh" ? "kapest" : "spende");
+      if (rechtsform === "gmbh") expect(privat).toContain("kapest");
+      // Die Spende fällt wie die vier weg: sie bucht auf einem privaten Konto privat gegen privat (#873)
+      expect(privat).not.toContain("spende");
     });
   }
 
@@ -65,6 +70,8 @@ describe("Angebot im Bankabgleich je Kontozweck", () => {
     expect(privat.directKinds.map((k) => k.value)).not.toContain("gebuehren");
     expect(privat.directKinds.map((k) => k.value)).not.toContain("zinsertrag");
     expect(privat.kategorien.length).toBeGreaterThan(0);
-    expect(angebot("einzelunternehmen", "geschaeft").directKinds.length).toBe(privat.directKinds.length + NUR_GESCHAEFT.length);
+    expect(angebot("einzelunternehmen", "geschaeft").directKinds.length).toBe(
+      privat.directKinds.length + AUCH_NUR_GESCHAEFT.length,
+    );
   });
 });
