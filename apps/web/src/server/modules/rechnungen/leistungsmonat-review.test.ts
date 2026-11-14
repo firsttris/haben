@@ -110,6 +110,12 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
 
   it("Wechsel Ist → Soll zum Jahreswechsel: Leistung im Ist-Jahr zählt nach Zahlung (UStAE 13.6), Journal = Nebenbuch", async () => {
     await sql`update company set versteuerung = 'ist'`;
+    // Eine Buchung im Ist-Jahr, damit 2025 als Ist-Jahr feststeht (versteuerungForYear)
+    const frueher = await invoices.finalizeInvoice(
+      actor,
+      (await invoices.createDraft(actor, { ...input(), issueDate: "2025-11-05", serviceFrom: null, serviceTo: null })).id,
+    );
+    await bank.createCashInvoiceEntry(actor, { invoiceId: frueher.id, date: "2025-11-05", amount: 119_000 }, "2025-11-05");
     await contacts.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: "soll" }, "2026-01-01");
     const final = await invoices.finalizeInvoice(
       actor,
