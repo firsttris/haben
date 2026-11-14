@@ -73,6 +73,9 @@ import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
+import { ActionBar } from "./ActionBar.tsx";
+import { MoreActionsMenu } from "./MoreActionsMenu.tsx";
+import { useMediaQuery } from "../lib/use-media-query.ts";
 
 interface ContactOption {
   id: string;
@@ -202,6 +205,7 @@ export function InvoiceEditor({
 }) {
   const router = useRouter();
   const navigate = useNavigate();
+  const mobile = useMediaQuery("(max-width: 720px)");
   const save = useServerFn(saveInvoiceDraft);
   const finalize = useServerFn(finalizeInvoiceDraft);
   const remove = useServerFn(removeInvoiceDraft);
@@ -658,23 +662,35 @@ export function InvoiceEditor({
             {title} {nextNumber}
           </h1>
         </div>
-        <div className="actions editor-actions">
-          <PreviewButton preview={preview} />
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={onDraftPdf}
-            title="PDF mit dem Vermerk ENTWURF, ohne Nummer; es wird nichts gebucht oder versendet"
-          >
-            {dirty ? "Speichern und als PDF" : "Entwurf als PDF"}
-          </button>
-          <button type="submit" form="invoice-form" className="btn" disabled={busy || !dirty}>
-            Entwurf speichern
-          </button>
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={onFinalize}>
-            Festschreiben
-          </button>
+        <div className="actions">
+          {mobile ? (
+            <MoreActionsMenu
+              triggerRef={preview.triggerRef}
+              items={[
+                { key: "preview", label: "Vorschau", icon: "eye", onSelect: preview.openOverlay },
+                {
+                  key: "pdf",
+                  label: dirty ? "Speichern und als PDF" : "Entwurf als PDF",
+                  icon: "invoice",
+                  disabled: busy,
+                  onSelect: onDraftPdf,
+                },
+              ]}
+            />
+          ) : (
+            <>
+              <PreviewButton preview={preview} />
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={onDraftPdf}
+                title="PDF mit dem Vermerk ENTWURF, ohne Nummer; es wird nichts gebucht oder versendet"
+              >
+                {dirty ? "Speichern und als PDF" : "Entwurf als PDF"}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1375,6 +1391,14 @@ export function InvoiceEditor({
           )}
         </form>
       </PreviewLayout>
+      <ActionBar>
+        <button type="submit" form="invoice-form" className="btn" disabled={busy || !dirty}>
+          Entwurf speichern
+        </button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={onFinalize}>
+          Festschreiben
+        </button>
+      </ActionBar>
     </>
   );
 }

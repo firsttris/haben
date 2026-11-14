@@ -344,7 +344,7 @@ test("Festschreiben ohne Kunden nennt den Kunden am Feld statt der Rückfrage (R
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
-  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await page.locator(".main > .action-bar").getByRole("button", { name: "Festschreiben" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toBeFocused();
   await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveAccessibleDescription("Wähle den Kunden.");
@@ -365,7 +365,7 @@ test("Entwurf speichern nennt bei einem anderen Fehler nicht den fehlenden Kunde
   await expect(kunde).not.toHaveAttribute("aria-invalid", "true");
   await expect(kunde).not.toHaveAccessibleDescription(/Wähle den Kunden/);
   // Festschreiben braucht den Kunden: jetzt steht er am Feld
-  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await page.locator(".main > .action-bar").getByRole("button", { name: "Festschreiben" }).click();
   await expect(kunde).toHaveAccessibleDescription("Wähle den Kunden.");
   await expect(page).toHaveURL(/\/rechnungen\/neu$/);
 });
@@ -1997,14 +1997,14 @@ test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fe
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
   await kundeWaehlen(page);
   // Leere Position: „Festschreiben“ fragt nicht nach, sondern nennt unter der Position, was fehlt (DESIGN.md, Gesperrte Knöpfe)
-  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await page.locator(".main > .action-bar").getByRole("button", { name: "Festschreiben" }).click();
   await expect(page.getByLabel("Beschreibung Position 1")).toBeFocused();
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveAccessibleDescription("Trag die Beschreibung und den Einzelpreis ein.");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
-  const speichern = page.locator(".main > .page-head").getByRole("button", { name: "Entwurf speichern" });
+  const speichern = page.locator(".main > .action-bar").getByRole("button", { name: "Entwurf speichern" });
   await speichern.click();
   await expect(page).toHaveURL(/\/rechnungen\/[0-9a-f-]{36}/);
   await expect(speichern).toBeDisabled();

@@ -19,6 +19,10 @@ export function kopfUnterkante(p: Page): Promise<number> {
   return p.locator(".main > .page-head").evaluate((head) => head.getBoundingClientRect().bottom);
 }
 
+export function leisteOberkante(p: Page): Promise<number> {
+  return p.locator(".main > .action-bar").evaluate((bar) => bar.getBoundingClientRect().top);
+}
+
 /** Ganz im Fenster und von nichts verdeckt: In der Mitte des Elements liegt das Element selbst */
 export async function sichtbar(element: Locator): Promise<void> {
   await expect(element).toBeInViewport({ ratio: 1 });
