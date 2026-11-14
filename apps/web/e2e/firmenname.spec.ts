@@ -32,6 +32,8 @@ test("zeigt den Namen der Firma unter „Haben“", async ({ page }) => {
   await expect(marke).toBeVisible();
   // Den ganzen Namen zeigt das Aufklappen beim Überfahren (unten), kein title: der ist nicht gestaltbar und nicht per Tastatur zu erreichen
   await expect(marke.locator(".brand-firma")).not.toHaveAttribute("title");
+  // Ohne HABEN_FIRMEN gibt es keine Zeile zum Wechseln (firmen.spec.ts)
+  await expect(nav(page).getByText("Firma wechseln")).toHaveCount(0);
   expect(await axeVerstoesse(page)).toEqual([]);
 });
 
