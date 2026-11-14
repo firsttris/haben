@@ -20,6 +20,8 @@ RUN groupmod -o -g "$GID" bun && usermod -o -u "$UID" -g "$GID" bun \
       /var/lib/haben /home/bun/.cache \
  && chown -R bun:bun /app /var/lib/haben /home/bun
 COPY --chmod=755 start.sh /usr/local/bin/haben-dev
+# Ein Windows-Checkout kann CRLF liefern; der Linux-Kernel braucht eine Shebang mit LF.
+RUN sed -i 's/\r$//' /usr/local/bin/haben-dev
 # Kein USER bun: start.sh beginnt als root, richtet die Besitzer der Volumes und wechselt dann zu bun
 ENV BUN_INSTALL_CACHE_DIR=/home/bun/.cache/bun
 WORKDIR /app

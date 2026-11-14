@@ -1068,6 +1068,19 @@ Bei **Quadlet** mit `systemctl --user stop haben-app` stoppen. Einen einmaligen 
 
 In **Coolify** die Anwendung stoppen und den Betreiberbefehl auf dem Server als einmaligen Container aus demselben Image mit derselben Datenbankkonfiguration ausführen. Kein Exec in eine weiterhin laufende Haben-Instanz verwenden: Der exklusive Lock muss erfolgreich sein. Danach die Laufzeitvariable ändern und über Coolify neu starten. Weder Passwörter noch Secrets in Coolify-Befehlsprotokolle kopieren. Der Rückweg benötigt nur `DATABASE_URL`, nicht die Erreichbarkeit des IdP.
 
+### Inhaberpasswort vergessen
+
+Der Betreiber kann das Passwort des bestehenden lokalen Inhabers ohne altes Passwort und ohne Passkey neu setzen. `OIDC_ONLY` bleibt `false`. Erstelle ein Backup und stoppe alle Haben-App-Instanzen für diese Datenbank. PostgreSQL bleibt erreichbar. Führe die Befehle im Verzeichnis der Produktions-Compose-Datei auf dem Server aus:
+
+```sh
+docker compose exec backup backup.sh
+docker compose stop app
+docker compose run --rm --no-deps -T --entrypoint bun app apps/web/src/server/db/local-owner.ts --passwort-zuruecksetzen --passwort-stdin < /geschuetzt/passwort
+docker compose up -d app
+```
+
+Übergib das neue Passwort mit 12 bis 128 Zeichen über einen geschützten Eingabekanal wie eine nur für dich lesbare UTF-8-Datei ohne BOM. Lösche eine dafür angelegte Datei nach dem Vorgang. Haben speichert den Passwort-Hash und beendet die Sitzungen des Inhabers. Im Änderungsprotokoll stehen Konto-ID und Reset-Ereignis. Vorhandene Passkeys bleiben gültig. Bei reinem SSO setzt der Anmeldeanbieter das Passwort zurück.
+
 ### Identitäten, Datenschutz und Betrieb
 
 Beim Wechsel einer bestehenden Instanz erhält die erste erfolgreiche Inhaber-Anmeldung unmittelbar Zugriff auf vorhandene Daten. Deshalb Client, Issuer und Gruppen vor Aktivierung kontrollieren und bestehende Konten ausdrücklich übernehmen.

@@ -41,6 +41,10 @@ Auf der Anmeldeseite wählst du „Mit Passkey anmelden“. Über „Passwort ve
 
 Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weitere hinzufügen (z. B. für Handy und Laptop) oder alte nach einer Rückfrage entfernen. Passkeys hängen an der Domain aus `BETTER_AUTH_URL`; bei einem Domainwechsel musst du sie neu anlegen.
 
+Unter **Einstellungen › Sicherheit › Passwort ändern** gibst du dein bisheriges und ein neues Passwort mit mindestens 12 Zeichen ein. Du bleibst im aktuellen Browser angemeldet. Alle anderen Sitzungen enden, auch die per Passkey eröffneten. Mit einem vorhandenen Passkey kannst du dich danach wieder anmelden. Im Änderungsprotokoll steht der Wechsel ohne Passwort oder Hash.
+
+Hast du dein Passwort vergessen, kannst du dich mit einem vorhandenen Passkey anmelden. Für ein neues Inhaberpasswort brauchst du den [Betreiberzugriff auf die Instanz](installation.md#inhaberpasswort-vergessen). Haben bietet keine Wiederherstellung per E-Mail.
+
 ## Zugang für die Steuerberatung
 
 Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann: Auswertungen, Journal, Kontenblätter, Belege und Rechnungen ansehen, Dateien, DATEV-Export und Jahresarchiv herunterladen. Unter **Einstellungen › Sicherheit › Zugänge** erzeugst du einen Einladungslink, der einmal und 72 Stunden gilt; die Steuerberatung legt damit Passwort und Passkey selbst an. Sperren und Entfernen geht an derselben Stelle. Buchen, Festschreiben, Senden an ELSTER, Einstellungen, Zertifikat, Bankzugang und API-Tokens bleiben bei dir. Alles Weitere steht in [Zugang für die Steuerberatung](steuerberatung.md).
