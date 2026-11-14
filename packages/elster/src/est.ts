@@ -549,7 +549,8 @@ export function buildEstXml(input: EstXmlInput): string {
         ];
       }),
       ...vorsorgePersonen.map(([person, v]): XmlNode | null => {
-        // Zeile 27: über die Basisabsicherung hinaus, schon abzüglich erstatteter Beiträge
+        // Zeile 27: über die Basisabsicherung hinaus, brutto; erstattete Beiträge stehen in Zeile 25 (E2003302)
+        // und sind hier deshalb nicht noch einmal abzuziehen
         const wahl = euro(v?.pkvWahlleistungen);
         if (!euro(v?.pkv) && !euro(v?.ppv) && !euro(v?.pkvErstattung) && !wahl) return null;
         return [
