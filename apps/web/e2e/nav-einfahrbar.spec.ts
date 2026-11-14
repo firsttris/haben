@@ -3,7 +3,7 @@ import { SESSION } from "./daten.ts";
 import { axeVerstoesse } from "./einrichtung.ts";
 
 /**
- * Einfahrbare Seitenleiste am Desktop: prüft Einklappen auf 62 px, Beibehalten beim Neuladen ohne Sprung,
+ * Einfahrbare Seitenleiste am Desktop: prüft Einklappen auf 64 px, Beibehalten beim Neuladen ohne Sprung,
  * Tastaturbedienung der Gruppen-Flyouts (Enter, Tab, Esc), Barrierefreiheit (axe) und unverändertes Handymenü.
  */
 test.use({ storageState: SESSION });

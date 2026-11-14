@@ -306,4 +306,33 @@ test.describe("mit 20 anderen Firmen", () => {
       .evaluate((liste) => ({ rollt: liste.scrollHeight > liste.clientHeight, breiter: liste.scrollWidth - liste.clientWidth }));
     expect(gemessen).toEqual({ rollt: true, breiter: 0 });
   });
+
+  test("begrenzt im eingeklappten Flyout die Liste auf sechseinhalb Zeilen und leert die Suche beim Wiederöffnen", async () => {
+    await gehe(page, `${adresse}/`);
+    await nav().getByRole("button", { name: "Seitenleiste einklappen" }).click();
+    await knopf().click();
+
+    const gruppe = auswahl();
+    const suche = gruppe.getByRole("searchbox", { name: "Firma suchen" });
+    await expect(suche).toBeFocused();
+    await expect(gruppe.getByRole("link")).toHaveCount(20);
+
+    const gemessen = await gruppe.getByRole("list").evaluate((liste) => ({
+      maxHeight: getComputedStyle(liste).maxHeight,
+      rollt: liste.scrollHeight > liste.clientHeight,
+    }));
+    expect(gemessen).toEqual({ maxHeight: "234px", rollt: true });
+
+    await suche.fill("WERK");
+    await expect(gruppe.getByRole("link")).toHaveText([SUED.name]);
+
+    await page.keyboard.press("Escape");
+    await expect(knopf()).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(suche).toHaveValue("");
+    await expect(gruppe.getByRole("link")).toHaveCount(20);
+
+    await page.keyboard.press("Escape");
+    await nav().getByRole("button", { name: "Seitenleiste ausklappen" }).click();
+  });
 });
