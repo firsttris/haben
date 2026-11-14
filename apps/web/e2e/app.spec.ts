@@ -282,8 +282,10 @@ test("Rechnungen schreiben und festschreiben", async () => {
 test("Entwurf als PDF: speichert vorher, lädt herunter und vergibt keine Nummer (#342)", async () => {
   await go("/rechnungen/neu");
   const heading = await page.getByRole("heading", { level: 1 }).textContent();
-  // Ohne Kunden gibt es noch kein Dokument
-  await expect(page.getByRole("button", { name: "Speichern und als PDF" })).toBeDisabled();
+  // Ohne Kunden gibt es noch kein Dokument: der Knopf sagt es am Feld Kunde (DESIGN.md, Gesperrte Knöpfe)
+  await page.getByRole("button", { name: "Speichern und als PDF" }).click();
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toBeFocused();
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
   await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await page.getByLabel("Beschreibung Position 1").fill("Konzept zur Prüfung");
   await page.getByLabel("Menge Position 1").fill("2");
@@ -325,6 +327,14 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
   await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  // Ohne Einleitung kein Entwurf: der Fehler steht am Feld, der Fokus dort (DESIGN.md, Gesperrte Knöpfe)
+  const einleitung = page.getByLabel("Einleitung", { exact: true });
+  const text = await einleitung.inputValue();
+  await einleitung.fill("");
+  await page.getByRole("button", { name: "Entwurf als PDF" }).click();
+  await expect(einleitung).toBeFocused();
+  await expect(einleitung).toHaveAccessibleDescription(/^Trag eine Einleitung ein\./);
+  await einleitung.fill(text);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Entwurf als PDF" }).click();
   const file = await download;
@@ -1035,6 +1045,38 @@ test("Dauerbeleg: Miete mit Vertrag anlegen, Beleg zu prüfen, im Bankabgleich b
   await expect(page.getByText(/Pausiert: Bis zum Fortsetzen/)).toBeVisible();
   await page.getByRole("button", { name: "Fortsetzen" }).click();
   await expect(page.getByText(/Aktiv: Haben legt zu jedem Termin/)).toBeVisible();
+});
+
+test("Kette prüfen unterscheidet Betreiberhinweise von abgeschalteten und fehlenden Sperren", async () => {
+  const sql = postgres(databaseUrlFuer(), { max: 1, onnotice: () => {} });
+  const [original] = await sql`select pg_get_triggerdef(oid) as definition from pg_trigger
+    where tgrelid = 'public.contacts'::regclass and tgname = 'contacts_no_delete'`;
+  try {
+    await sql`create function betreiber_probe() returns trigger language plpgsql as $$ begin return NEW; end $$`;
+    await sql`create trigger betreiber_probe after insert on contacts for each row execute function betreiber_probe()`;
+    await go("/einstellungen?bereich=export");
+    const card = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Änderungsprotokoll prüfen", exact: true }) });
+    await card.getByRole("button", { name: "Kette prüfen", exact: true }).click();
+    await expect(card).toContainText("Zusätzlicher Trigger public.contacts.betreiber_probe");
+    await expect(card).toContainText("Kette, Siegel und Sperren sind unverändert");
+    await expect(card.locator(".banner-danger")).toHaveCount(0);
+    await sql`alter table year_closings disable trigger year_closings_append_only`;
+    await card.getByRole("button", { name: "Kette prüfen", exact: true }).click();
+    await expect(card).toContainText("Trigger public.year_closings.year_closings_append_only ist abgeschaltet");
+    await expect(card).toContainText("1 Befunde");
+    await sql`alter table year_closings enable trigger year_closings_append_only`;
+    await sql`drop trigger contacts_no_delete on contacts`;
+    await card.getByRole("button", { name: "Kette prüfen", exact: true }).click();
+    await expect(card).toContainText("Trigger public.contacts.contacts_no_delete fehlt");
+    await expect(card).toContainText("1 Befunde");
+  } finally {
+    await sql`alter table year_closings enable trigger year_closings_append_only`;
+    await sql`drop trigger if exists contacts_no_delete on contacts`;
+    await sql.unsafe(original!.definition);
+    await sql`drop trigger if exists betreiber_probe on contacts`;
+    await sql`drop function if exists betreiber_probe()`;
+    await sql.end();
+  }
 });
 
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {

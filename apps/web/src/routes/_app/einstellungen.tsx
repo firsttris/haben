@@ -12,7 +12,7 @@ import {
 } from "@haben/core";
 import { redirect, Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
@@ -42,12 +42,14 @@ import { McpCard } from "../../components/McpCard.tsx";
 import { ExtractionCard } from "../../components/ExtractionCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { PasskeysCard } from "../../components/PasskeysCard.tsx";
+import { PasswordCard } from "../../components/PasswordCard.tsx";
 import { SsoZugaengeCard } from "../../components/SsoZugaengeCard.tsx";
 import { ZugaengeCard } from "../../components/ZugaengeCard.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/SkontoFields.tsx";
 import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
+import { useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { getStoreConnections } from "../../server/functions/stores.ts";
@@ -276,6 +278,7 @@ function SettingsPage() {
           {bereich === "sicherheit" && zugaenge.mode === "lokal" && (
             <>
               <PasskeysCard />
+              <PasswordCard />
               <ZugaengeCard data={zugaenge} />
             </>
           )}
@@ -990,6 +993,11 @@ function EricCard() {
   const eric = polled ?? loaded;
   const [version, setVersion] = useState(eric.version ?? eric.defaultVersion);
   const [accepted, setAccepted] = useState(false);
+  const { form, error, check } = useSubmitCheck({
+    version: version.trim() === "" ? `Trag die Version ein, etwa ${eric.defaultVersion}.` : null,
+    accepted: accepted ? null : "Stimm den Nutzungsbedingungen von ERiC zu, sonst lädt Haben es nicht.",
+  });
+  const zustimmungFehlerId = useId();
   const { busy, notice, run } = useAction();
   const running = eric.install?.status === "laeuft";
 
@@ -1012,6 +1020,7 @@ function EricCard() {
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!check()) return;
     void run(async () => {
       await install({ data: { version: version.trim(), acceptLicense: accepted as true } });
       await router.invalidate();
@@ -1022,7 +1031,7 @@ function EricCard() {
   const megabytes = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
 
   return (
-    <form className="card" onSubmit={onSubmit} aria-labelledby="eric-heading">
+    <form ref={form} className="card" onSubmit={onSubmit} aria-labelledby="eric-heading" noValidate>
       <h2 id="eric-heading">ERiC</h2>
       <p className="small muted" style={{ margin: 0 }}>
         Die Bibliothek der Finanzverwaltung für die Übermittlung an ELSTER. Haben darf sie nicht mitliefern, lädt sie aber hier direkt von download.elster.de
@@ -1072,15 +1081,30 @@ function EricCard() {
                 . Neue Vordrucke (etwa für das nächste Steuerjahr) brauchen meist eine neue Version.
               </>
             }
+            error={error("version")}
           >
             {(control) => (
               <input {...control} value={version} onChange={(e) => setVersion(e.target.value)} placeholder={eric.defaultVersion} disabled={running} />
             )}
           </Field>
-          <label className="checkbox">
-            <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} disabled={running} />
-            Ich stimme den Nutzungsbedingungen von ERiC zu (siehe Infoseite).
-          </label>
+          <div className="checkbox-hinted">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                disabled={running}
+                aria-invalid={error("accepted") ? true : undefined}
+                aria-describedby={error("accepted") ? zustimmungFehlerId : undefined}
+              />
+              Ich stimme den Nutzungsbedingungen von ERiC zu (siehe Infoseite).
+            </label>
+            {error("accepted") && (
+              <span id={zustimmungFehlerId} className="field-error">
+                {error("accepted")}
+              </span>
+            )}
+          </div>
           {running && (
             <div className="banner banner-info" role="status">
               {progress?.phase === "entpacken"
@@ -1101,7 +1125,7 @@ function EricCard() {
             </div>
           )}
           <div className="actions">
-            <button type="submit" className="btn btn-primary" disabled={busy || running || !accepted || !version.trim()}>
+            <button type="submit" className="btn btn-primary" disabled={busy || running}>
               {running ? "Läuft …" : eric.source === "download" ? "Neu herunterladen" : "Herunterladen und einrichten"}
             </button>
           </div>

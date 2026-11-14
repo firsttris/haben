@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 import { checkFile } from "./regel.ts";
 
 /*
- * Prüft die Modulgrenzen (regel.ts) für alle Quelldateien in apps/web/src, außer Tests. Läuft mit `bun run lint`.
+ * Prüft die Modulgrenzen (regel.ts) für alle Quelldateien in apps/web/src und in src/ jedes Pakets, außer Tests. Läuft mit
+ * `bun run lint`.
  */
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -24,7 +25,11 @@ function lineOf(code: string, start: number): number {
   return code.slice(0, start).split("\n").length;
 }
 
-const reports = sourceFiles(src).flatMap((file) => {
+const packages = readdirSync(join(root, "packages"), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => join(root, "packages", entry.name, "src"));
+
+const reports = [src, ...packages].flatMap(sourceFiles).flatMap((file) => {
   const code = readFileSync(file, "utf8");
   return checkFile(file, code).map(({ start, message }) => `${relative(root, file)}:${lineOf(code, start)}  ${message}`);
 });

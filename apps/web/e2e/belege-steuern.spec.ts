@@ -5,7 +5,7 @@ import { createServer, type Server } from "node:http";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
-import { day, YEAR } from "./daten.ts";
+import { currentYear, day, YEAR } from "./daten.ts";
 import { appDatabaseUrlFuer, databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
   bestaetigen,
@@ -137,6 +137,8 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   // Ohne ERiC läuft der Abruf simuliert und liefert Beispielbelege
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const vast = page.getByRole("region", { name: `Belege von ELSTER ${YEAR - 1}` });
+  // Ohne Zertifikat sperrt der Abruf; der Status steht deshalb in der Karte über PIN und Knopf (DESIGN.md, Gesperrte Knöpfe)
+  await expect(vast.getByText("Zertifikat hinterlegt", { exact: true })).toBeVisible();
   await vast.getByLabel("Zertifikats-PIN").fill("123456");
   await vast.getByRole("button", { name: "Testweise abrufen" }).click();
   await expect(vast.getByRole("status")).toContainText("2 Belege bei ELSTER, 2 neu gespeichert.");
@@ -151,7 +153,14 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await berechtigung.getByRole("button", { name: "Berechtigung beantragen" }).click();
   await expect(vast.getByRole("status")).toContainText("Erika bekommt von ELSTER einen Brief");
   await expect(berechtigung).toContainText("beantragt, wartet auf Freischaltung");
+  // Ohne PIN und Code: Freischalten nennt zuerst die PIN im Formular darüber, dann den Code (DESIGN.md, Gesperrte Knöpfe)
+  await berechtigung.getByRole("button", { name: "Freischalten" }).click();
+  await expect(vast.getByLabel("Zertifikats-PIN")).toBeFocused();
+  await expect(vast.getByLabel("Zertifikats-PIN")).toHaveAccessibleDescription("Trag die PIN des Zertifikats ein.");
   await vast.getByLabel("Zertifikats-PIN").fill("123456");
+  await berechtigung.getByRole("button", { name: "Freischalten" }).click();
+  await expect(berechtigung.getByLabel("Freischaltcode aus dem Brief")).toBeFocused();
+  await expect(berechtigung.getByLabel("Freischaltcode aus dem Brief")).toHaveAccessibleDescription("Trag den Freischaltcode aus dem Brief ein.");
   await berechtigung.getByLabel("Freischaltcode aus dem Brief").fill("ABCD-EFGH-1234");
   await berechtigung.getByRole("button", { name: "Freischalten" }).click();
   await expect(berechtigung).toContainText("genehmigt");
@@ -161,7 +170,18 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
   const n = form.getByRole("group", { name: "Anlage N · Erika" });
+  // Die Anlage N steht in zugeklappten est-Blöcken (#869): vor dem Ausfüllen aufklappen
+  const aufklappen = async () => {
+    await n.first().waitFor({ state: "attached" });
+    await page.evaluate(() => {
+      document.querySelectorAll("details").forEach((d) => {
+        d.open = true;
+      });
+    });
+  };
+  await aufklappen();
   await n.getByLabel("Erika hatte Arbeitslohn aus einer Anstellung").check();
+  await aufklappen();
   const lstb = n.getByRole("group", { name: "Lohnsteuerbescheinigung 1 · Erika" });
   await lstb.getByLabel("Steuerklasse").selectOption("4");
   await lstb.getByLabel("Nr. 3 Bruttoarbeitslohn", { exact: true }).fill("42.000,00");
@@ -180,6 +200,79 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
   await expect(form.getByText("6.123,40\u00a0€").first()).toBeVisible();
 });
 
+test("Anlage N: zugeklappte Werbungskosten nennen auch die Wege zur Arbeit", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const n = page.getByRole("form", { name: "Angaben zur Einkommensteuer" }).getByRole("group", { name: "Anlage N · Erika" });
+  await n.locator("summary").first().click();
+  // Gespeichert sind aus dem Test davor nur Tätigkeitsstätte, Tage und Entfernung
+  await expect(n.locator("summary").filter({ hasText: "Werbungskosten" })).not.toContainText("nichts eingetragen");
+});
+
+test("Anlage N: Pflichtfeld im zugeklappten Block wird beim Speichern sichtbar", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  const n = form.getByRole("group", { name: "Anlage N · Erika" });
+  await n.locator("summary").first().click();
+  await n.getByRole("button", { name: "Weitere Lohnsteuerbescheinigung" }).click();
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  // Die neue Bescheinigung steht zugeklappt; ohne Aufklappen kann der Browser das leere Pflichtfeld nicht zeigen,
+  // und das Speichern bleibt ohne jede Rückmeldung stehen
+  const brutto = n.getByRole("group", { name: "Lohnsteuerbescheinigung 2 · Erika" }).getByLabel("Nr. 3 Bruttoarbeitslohn", { exact: true });
+  await expect(brutto).toBeFocused();
+});
+
+test("Vorsorgeaufwand: Rürup, Wahlleistungen und Zuschüsse überstehen das Speichern (#943)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  // Über den Blocktitel, nicht über den Text: der Anlage-N-Block nennt die Vorsorgeaufwand-Zeilen ebenfalls.
+  const block = () => form.locator("details.est-block").filter({ has: page.locator(".est-block-title", { hasText: /^Vorsorgeaufwand$/ }) });
+  // Bei Zusammenveranlagung stehen die Felder beider Personen im Block; die der steuerpflichtigen Person trägt „a-“.
+  const feld = (name: string) => block().locator(`input[name="a-${name}"]`);
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("basisrente")).toHaveAccessibleName("Zertifizierte Basisrente (Rürup)");
+  await feld("basisrente").fill("3.000,00");
+  await feld("pkvWahlleistungen").fill("1.200,00");
+  await feld("agZuschussKv").fill("3.000,00");
+  await feld("agZuschussPv").fill("200,00");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  await expect(block().locator("summary")).toContainText(/4\.200,00\s€/);
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  // Nach dem Neuladen trägt der Blocktitel die Summe; die Blöcke starten zugeklappt, also aufklappen.
+  await expect(block().locator("summary")).toContainText(/4\.200,00\s€/);
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("basisrente")).toHaveValue("3.000,00");
+  await expect(feld("pkvWahlleistungen")).toHaveValue("1.200,00");
+  await expect(feld("agZuschussKv")).toHaveValue("3.000,00");
+  await expect(feld("agZuschussPv")).toHaveValue("200,00");
+});
+
+test("Einkommensersatzleistungen: eintragen, speichern, nach dem Neuladen wieder da (#941)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  const block = () =>
+    form.locator("details.est-block").filter({ has: page.locator(".est-block-title", { hasText: /^Einkommensersatzleistungen \(Progressionsvorbehalt\)$/ }) });
+  // Bei Zusammenveranlagung stehen die Felder beider Personen im Block; die der steuerpflichtigen Person trägt „a-“.
+  const feld = (art: string) => block().locator(`input[name="erst-a-${art}"]`);
+  // Ohne gespeicherte Leistungen bleibt der Block zu; die Felder sind erst nach dem Aufklappen sichtbar.
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("Elterngeld")).toHaveAccessibleName("Elterngeld");
+  await feld("Elterngeld").fill("1.200,40");
+  await feld("Krankengeld").fill("480");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  // Nach dem Neuladen trägt der Blocktitel die Summe; die Blöcke starten zugeklappt, also aufklappen.
+  await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("Elterngeld")).toHaveValue("1.200,40");
+  await expect(feld("Krankengeld")).toHaveValue("480,00");
+  await expect(feld("Arbeitslosengeld")).toHaveValue("");
+});
+
 test("Seiten nur von derselben Origin einbettbar", async () => {
   // Clickjacking-Schutz kommt von der App selbst, damit der Proxy SAMEORIGIN statt DENY setzen kann
   const html = await page.request.get("/rechnungen");
@@ -194,7 +287,7 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   const pruefwert = (await card.locator("code").textContent())!;
   expect(pruefwert).toMatch(/^Nr\. \d+ · [0-9a-f]{64}$/);
   await card.getByRole("button", { name: "Kette prüfen" }).click();
-  await expect(card.getByRole("status")).toContainText("Kette und Siegel sind unverändert");
+  await expect(card.getByRole("status")).toContainText("Kette, Siegel und Sperren sind unverändert");
   const field = card.getByLabel("Prüfwert aus Mail oder Jahresarchiv");
   await field.fill(pruefwert);
   await card.getByRole("button", { name: "Vergleichen" }).click();
@@ -245,6 +338,30 @@ test("Änderungsprotokoll: Kontenkollisionen getrennt von Manipulation melden (#
     await sql`delete from own_accounts where created_by = 'test-user' and name in ('Eigene Software 03', 'Eigene Software 04')`;
     await sql.end();
   }
+});
+
+test("Änderungsprotokoll: Dateien prüfen meldet eine fehlende Belegdatei (#857)", async () => {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  const sha256 = "e2e0".repeat(16);
+  const card = page.getByRole("region", { name: "Änderungsprotokoll prüfen" });
+  try {
+    // Ein Beleg, dessen Datei im Speicher fehlt, etwa weil jemand sie im Dateisystem gelöscht hat
+    await sql`insert into documents (sha256, filename, mime_type, size) values (${sha256}, 'verschwunden.pdf', 'application/pdf', 1)`;
+    await go("/einstellungen?bereich=export");
+    await card.getByRole("button", { name: "Dateien prüfen" }).click();
+    await expect(card.getByRole("alert")).toContainText("Kette, Siegel und Sperren sind unverändert, aber 1 Datei fehlt oder ist verändert");
+    await expect(card.getByRole("listitem").filter({ hasText: "verschwunden.pdf" })).toHaveText("Beleg verschwunden.pdf: fehlt");
+  } finally {
+    await sql`delete from documents where sha256 = ${sha256}`;
+    await sql.end();
+  }
+  // „Kette prüfen“ liest die Dateien nicht erneut, sondern zeigt den gespeicherten Lauf
+  await go("/einstellungen?bereich=export");
+  await card.getByRole("button", { name: "Kette prüfen" }).click();
+  await expect(card.getByRole("alert")).toContainText("1 Datei fehlt oder ist verändert");
+  await card.getByRole("button", { name: "Dateien prüfen" }).click();
+  await expect(card.getByRole("status")).toContainText("Kette, Siegel und Sperren sind unverändert:");
+  await expect(card).toContainText("alle vorhanden und unverändert");
 });
 
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
@@ -1465,9 +1582,12 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByText("Entwurf gespeichert.")).toBeVisible();
 
   const vermerk = page.getByRole("form", { name: "Außerhalb von Haben abgegeben" });
-  // Ein geleertes Datum ist eine unfertige Eingabe, die Seite bleibt stehen (Codex-Review #443)
+  // Ein geleertes Datum ist eine unfertige Eingabe, die Seite bleibt stehen (Codex-Review #443); der Knopf sagt am Feld, was fehlt
   await vermerk.getByLabel("Tag der Abgabe").fill("");
-  await expect(vermerk.getByRole("button", { name: "Abgabe vermerken" })).toBeDisabled();
+  await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  await expect(vermerk.getByLabel("Tag der Abgabe")).toBeFocused();
+  await expect(vermerk.getByLabel("Tag der Abgabe")).toHaveAccessibleDescription("Wähle den Tag der Abgabe.");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await vermerk.getByLabel("Tag der Abgabe").fill(`${year}-07-09`);
   await vermerk.getByLabel("Transferticket").fill("et7f3k9m2q8w4x1z");
   const protokollFeld = vermerk.locator(".field", { has: page.getByText("Übermittlungsprotokoll (PDF)", { exact: true }) });
@@ -2349,6 +2469,33 @@ test("Formular-Dialog bei niedrigem Fenster: Beim Öffnen bleibt das erste Feld 
   await page.setViewportSize({ width: 1440, height: 900 });
 });
 
+test("Jahreserklärung: Abgabetag im Erklärungsjahr meldet das Feld, nicht erst der Server (Review #975)", async () => {
+  const jahr = YEAR - 1;
+  await go(`/jahreserklaerung/${jahr}`);
+  const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${jahr}`, exact: true });
+  await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: `Anlage EÜR ${jahr} als abgegeben vermerken` });
+  // Alles stimmt bis auf den Tag: Er liegt im Erklärungsjahr, der Server nimmt erst ab dem 1. Januar des Folgejahres an (vermerk.ts)
+  await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr}-06-30`);
+  await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");
+  await dialog.getByLabel("Begründung", { exact: true }).fill("Anlage EÜR extern mit WISO abgegeben.");
+  const haken = dialog.getByLabel("Abweichung geprüft und bewusst übernommen");
+  if (await haken.count()) await haken.check();
+  await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
+  await expect(dialog.getByLabel("Tag der Abgabe", { exact: true })).toBeFocused();
+  await expect(dialog.getByLabel("Tag der Abgabe", { exact: true })).toHaveAccessibleDescription(new RegExp(`01\\.01\\.${jahr + 1}`));
+  await page.keyboard.press("Escape");
+});
+
+test("Jahreserklärung: im laufenden Jahr gibt es keinen Abgabetag, die Karte sagt warum statt eines Knopfs (Review #975, Runde 2)", async () => {
+  // Das Kalenderjahr, nicht YEAR: das rechnet in den ersten Wochen des Jahres im Vorjahr (daten.ts)
+  const jahr = currentYear();
+  await go(`/jahreserklaerung/${jahr}`);
+  const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${jahr}`, exact: true });
+  await expect(karte).toContainText(`Vermerken geht erst nach Ablauf des Jahres ${jahr}`);
+  await expect(karte.getByRole("button", { name: "Abgabe vermerken", exact: true })).toHaveCount(0);
+});
+
 test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);
@@ -2359,6 +2506,11 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
 
   const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
   await randImDialog(dialog, [dialog.getByLabel("Transferticket", { exact: true }), dialog.getByRole("button", { name: "Vermerken", exact: true })]);
+  // Leer abgeschickt: Fehler am Transferticket, der Fokus dort, der Dialog bleibt offen (DESIGN.md, Gesperrte Knöpfe)
+  await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
+  await expect(dialog.getByLabel("Transferticket", { exact: true })).toBeFocused();
+  await expect(dialog.getByLabel("Transferticket", { exact: true })).toHaveAccessibleDescription(/Trag das Transferticket aus dem Übermittlungsprotokoll ein/);
+  await expect(dialog.getByLabel("Begründung", { exact: true })).toHaveAccessibleDescription(/Trag eine Begründung mit mindestens 10 Zeichen ein\./);
   // Der Abgabetag liegt im Folgejahr: eine Jahreserklärung kann nicht vor dem Jahresende abgegeben werden
   await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr + 1}-01-02`);
   await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");

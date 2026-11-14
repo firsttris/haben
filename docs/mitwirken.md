@@ -71,6 +71,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Regel | Prüfung | Wirkung |
 | --- | --- | --- |
 | Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
+| Pakete importieren nichts aus `apps/`, der GoBD-Kern keine Pakete von Haben | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
 | Höchstens 80 Zeilen je Funktion ohne Leerzeilen, außer in Tests | Biome-Regel `noExcessiveLinesPerFunction` im Editor und in `bun run lint` | Hinweis |
@@ -99,7 +100,7 @@ Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibu
 
 Titel, Issue-Verweise, Dateigröße und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
 
-- **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen.
+- **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen; was ein Paket aus `apps/` oder der GoBD-Kern aus einem anderen Paket braucht, in das importierende Paket verschieben.
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
 - **Funktionslänge:** in neuem Code einen Teil in eine eigene Funktion mit Namen auslagern; ältere lange Funktionen werden nur in einem eigenen Pull Request geteilt.
 - **Felder und Auswahllisten:** das Feld in `Field` setzen; eine bewusst allein stehende Liste bekommt `// biome-ignore lint/plugin: Grund`.
