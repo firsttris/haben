@@ -17,3 +17,10 @@ describe("parseEuroSearchCents", () => {
     expect(parseEuroSearchCents("99999999")).toBeNull();
   });
 });
+
+describe("parseEuroSearchCents mit Eurozeichen", () => {
+  it("erkennt Punkt-Dezimalbeträge auch mit echtem Eurozeichen", () => {
+    expect(parseEuroSearchCents("19.99 €")).toBe(1999);
+    expect(parseEuroSearchCents("-42.5€")).toBe(-4250);
+  });
+});
