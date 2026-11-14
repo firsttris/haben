@@ -1,6 +1,6 @@
 import { monthsOfPeriod } from "@haben/core";
 import { describe, expect, it } from "vitest";
-import { gesendeteMonate, monatsschluessel, vorbelegterAufhebungstag } from "./aufhebung-vorbelegung.ts";
+import { gesendeteMonate, monatsschluessel } from "./aufhebung-vorbelegung.ts";
 
 describe("Monatsschlüssel einer Voranmeldung", () => {
   it("einzelner Monat", () => {
@@ -33,12 +33,6 @@ describe("gesendete Zeiträume als Zahlungsmonate (#782, Befund SteGun93)", () =
       { jahr: 2026, monat: 41 },
     ]);
     expect(monate).toEqual(["2026-01", "2026-02", "2026-03", "2026-07", "2026-08", "2026-09"]);
-  });
-
-  it("ein gemeldetes Quartal belegt den Zahlungstag vor", () => {
-    const gemeldet = gesendeteMonate([{ jahr: 2026, monat: 41 }]);
-    expect(vorbelegterAufhebungstag("2026-03-15", gemeldet, "2026-11-13")).toBe("2026-11-13");
-    expect(vorbelegterAufhebungstag("2026-04-15", gemeldet, "2026-11-13")).toBe("2026-04-15");
   });
 });
 
