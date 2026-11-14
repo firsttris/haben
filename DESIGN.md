@@ -79,7 +79,7 @@ Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
 
 ### Tastenkürzel
 
-Die Oberfläche zeigt ein Kürzel immer mit `Kuerzel` (`components/Kuerzel.tsx`), je Taste ein Kästchen in der Schriftfarbe der Umgebung; `title`, Hinweistexte und `aria-keyshortcuts` kommen aus `useKuerzelText` und `ariaKuerzel` (`lib/tastatur.ts`). Nie fest „Strg“, „Cmd“ oder „⌘“ schreiben: Die Taste `mod` ist am Mac, iPhone und iPad ⌘, sonst Strg. Der Server kennt das System nicht und zeigt „Strg“, der Browser tauscht beim Laden.
+Die Oberfläche zeigt ein Kürzel immer mit `Kuerzel` (`components/Kuerzel.tsx`), je Taste ein Kästchen in der Schriftfarbe der Umgebung; `title`, Hinweistexte und `aria-keyshortcuts` kommen aus `useKuerzelText` und `ariaKuerzel` (`lib/tastatur.ts`). Nie fest „Strg“, „Cmd“ oder „⌘“ schreiben: Die Taste `mod` ist am Mac, iPhone und iPad ⌘, sonst Strg. Der Server kennt das System nicht und zeigt „Strg“, der Browser tauscht beim Laden. Text nur für Screenreader, etwa ein versteckter Hinweis, nennt die Taste mit `kuerzelSprache` als Wort („Befehlstaste“ bzw. „Strg“), weil nicht jeder Screenreader ⌘ als Taste vorliest.
 
 ### Navigation
 
