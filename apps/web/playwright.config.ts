@@ -141,6 +141,7 @@ export default defineConfig({
         "datenbankrolle.spec.ts",
         "knoepfe.spec.ts",
         "navigation-kontrast.spec.ts",
+        "navigation-rollen.spec.ts",
       ],
       use: chromium,
     },
