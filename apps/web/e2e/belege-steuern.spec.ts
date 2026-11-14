@@ -199,6 +199,19 @@ test("Anlage N: zugeklappte Werbungskosten nennen auch die Wege zur Arbeit", asy
   await expect(n.locator("summary").filter({ hasText: "Werbungskosten" })).not.toContainText("nichts eingetragen");
 });
 
+test("Anlage N: Pflichtfeld im zugeklappten Block wird beim Speichern sichtbar", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  const n = form.getByRole("group", { name: "Anlage N · Erika" });
+  await n.locator("summary").first().click();
+  await n.getByRole("button", { name: "Weitere Lohnsteuerbescheinigung" }).click();
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  // Die neue Bescheinigung steht zugeklappt; ohne Aufklappen kann der Browser das leere Pflichtfeld nicht zeigen,
+  // und das Speichern bleibt ohne jede Rückmeldung stehen
+  const brutto = n.getByRole("group", { name: "Lohnsteuerbescheinigung 2 · Erika" }).getByLabel("Nr. 3 Bruttoarbeitslohn", { exact: true });
+  await expect(brutto).toBeFocused();
+});
+
 test("Seiten nur von derselben Origin einbettbar", async () => {
   // Clickjacking-Schutz kommt von der App selbst, damit der Proxy SAMEORIGIN statt DENY setzen kann
   const html = await page.request.get("/rechnungen");
