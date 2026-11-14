@@ -41,11 +41,6 @@ Gibst du die Umsatzsteuererklärung oder die Anlage EÜR außerhalb von Haben ab
 
 Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung: Die Frist ist erledigt, das Jahr nimmt keine rückdatierten Buchungen mehr an, die Karte zeigt Datum, Ticket und Betrag statt des Knopfs, und Begründung wie Protokoll stehen darunter in einer Tabelle, die erst aufklappt, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf. Meldungen, die Haben aus seinen eigenen Daten ableitet — etwa die Nullerklärung oder „Keine Betriebseinnahmen und -ausgaben im Jahr“ —, treten mit dem Vermerk zurück; sie würden ihm sonst auf derselben Seite widersprechen.
 
-### Einkommensersatzleistungen
-
-Arbeitslosengeld, Elterngeld, Insolvenzgeld, Krankengeld, Mutterschaftsgeld und Verdienstausfallentschädigung sind steuerfrei, erhöhen aber den Steuersatz auf das übrige Einkommen (Progressionsvorbehalt, § 32b EStG). Haben trägt sie je Person mit Art und Betrag in den Hauptvordruck ein und rechnet sie in der voraussichtlichen Steuer mit: Der besondere Steuersatz kommt aus der Steuer auf das zu versteuernde Einkommen plus die Leistungen und gilt dann für das zu versteuernde Einkommen.
-
-Abzuziehen ist dabei der Arbeitnehmer-Pauschbetrag, soweit er beim Arbeitslohn nicht verbraucht ist — bei einem Arbeitslohn unter 1.230 € bleibt ein Rest, der die Leistungen mindert.
 ## Umsatzsteuererklärung
 
 | Zeile | Woher |
@@ -156,6 +151,12 @@ Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe
 | KAP | Erträge mit und ohne inländischen Steuerabzug, ausländische Erträge, genutzter Sparer-Pauschbetrag, einbehaltene Kapitalertragsteuer, Solidaritätszuschlag und Kirchensteuer, Antrag auf Günstigerprüfung |
 
 Unter den Angaben zeigt Haben das geschätzte zu versteuernde Einkommen und die voraussichtliche Steuer, berechnet wie die [Steuerprognose](finanzamt.md#steuerprognose) mit dem tatsächlichen Gewinn des Jahres. Mit Arbeitslohn kommen die bereits einbehaltene Lohnsteuer samt Soli und Kirchensteuer und die voraussichtliche Nachzahlung bzw. Erstattung dazu.
+
+### Einkommensersatzleistungen
+
+Arbeitslosengeld, Elterngeld, Insolvenzgeld, Krankengeld, Mutterschaftsgeld und Verdienstausfallentschädigung sind steuerfrei, erhöhen aber den Steuersatz auf das übrige Einkommen (Progressionsvorbehalt, § 32b EStG). Haben trägt sie je Person mit Art und Betrag in den Hauptvordruck ein und rechnet sie in der voraussichtlichen Steuer mit: Der besondere Steuersatz kommt aus der Steuer auf das zu versteuernde Einkommen plus die Leistungen und gilt dann für das zu versteuernde Einkommen.
+
+Die Leistungen einer Person mindert dabei der Arbeitnehmer-Pauschbetrag von 1.230 €, soweit er bei ihrem Arbeitslohn nicht abgezogen wird: ohne Arbeitslohn voll, bei einem Arbeitslohn unter 1.230 € der Rest (§ 32b Abs. 2 Satz 1 Nr. 1 EStG).
 
 ### Arbeitslohn (Anlage N)
 
