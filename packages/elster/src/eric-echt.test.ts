@@ -221,9 +221,11 @@ const alleEuerFelder: EuerFigures = {
   kfzSteuerVersicherung: 70_000,
   kfzSonstige: 80_000,
   fahrtNutzungseinlage: 37_200,
+  // Zeile 73 (#895): Pfad und Reihenfolge von E6003702 prüft hier ERiC gegen das Schema E77
+  entfernungspauschale: 6_840,
   entnahmen: 2_400_000,
-  // Fahrten mit dem Privatwagen sind eine Nutzungseinlage und stecken in den Einlagen
-  einlagen: 50_000,
+  // Fahrten mit dem Privatwagen und die Wege zur Betriebsstätte sind Einlagen
+  einlagen: 56_840,
 };
 
 // ---------------------------------------------------------------------------

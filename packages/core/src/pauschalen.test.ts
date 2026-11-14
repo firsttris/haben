@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { entfernungspauschale } from "./arbeitnehmer.ts";
-import { fahrtBetrag, homeofficeSatz, PAUSCHALE_KONTEN, PAUSCHALE_LABEL, verpflegungBetrag } from "./pauschalen.ts";
+import { fahrtBetrag, homeofficeSatz, PAUSCHALE_KONTEN, PAUSCHALE_LABEL, verpflegungBetrag, volleKilometer } from "./pauschalen.ts";
 
 describe("Pauschalen", () => {
   it("Homeoffice: 6 € für bis zu 210 Tage ab 2023, davor 5 € für 120 Tage", () => {
@@ -41,6 +41,17 @@ describe("Pauschalen", () => {
     expect(entfernungspauschale(2026, 10, 25)).toBe(9500);
     // nur volle Kilometer
     expect(entfernungspauschale(2026, 1, 12.9)).toBe(456);
+  });
+
+  // § 9 Abs. 1 Satz 3 Nr. 4 Satz 2 EStG: nur volle Kilometer; „12,5“ darf nie 125 km werden
+  it("Kilometer aus der Eingabe: Komma als Dezimaltrenner, Punkt als Tausenderpunkt, nur volle Kilometer", () => {
+    expect(volleKilometer("12")).toBe(12);
+    expect(volleKilometer("12,5")).toBe(12);
+    expect(volleKilometer("12,9")).toBe(12);
+    expect(volleKilometer("1.200")).toBe(1200);
+    expect(volleKilometer("0,5")).toBe(0);
+    expect(volleKilometer("")).toBe(0);
+    expect(volleKilometer("abc")).toBe(0);
   });
 
   it("Entfernungspauschale: eigene Art mit Konto 4678 (SKR03) und 6688 (SKR04), abziehbarer Anteil", () => {
