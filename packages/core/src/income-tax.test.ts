@@ -104,6 +104,41 @@ describe("steuerPrognose", () => {
     );
   });
 
+  it("rechnet Einkommensersatzleistungen über den Progressionsvorbehalt ein", () => {
+    const ohne: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: {} }, ersatzleistungen: undefined },
+    };
+    const p0 = steuerPrognose(ohne);
+    const leistung = 12_000_00;
+    const mit = steuerPrognose({ ...ohne, angaben: { ...ohne.angaben, ersatzleistungen: { a: leistung } } });
+    // Das zu versteuernde Einkommen bleibt gleich, der Steuersatz steigt
+    expect(mit.zvE).toBe(p0.zvE);
+    expect(mit.einkommensteuer).toBe(Math.floor((einkommensteuer(mit.zvE + leistung, 2025, false) * mit.zvE) / (mit.zvE + leistung)));
+    expect(mit.einkommensteuer).toBeGreaterThan(p0.einkommensteuer);
+  });
+
+  it("zieht den nicht verbrauchten Arbeitnehmer-Pauschbetrag von den Leistungen ab", () => {
+    // Kleiner Arbeitslohn: der Pauschbetrag ist nur bis zum Lohn verbraucht, der Rest mindert die Leistung
+    const mitArbeit: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        arbeitnehmer: { a: { bescheinigungen: [{ brutto: 500_00 }], werbungskosten: {} } },
+        ersatzleistungen: { a: 400_00 },
+      },
+    };
+    const ohneLeistung: PrognoseInput = {
+      ...mitArbeit,
+      angaben: { ...mitArbeit.angaben, ersatzleistungen: undefined },
+    };
+    expect(steuerPrognose(mitArbeit).einkommensteuer).toBe(steuerPrognose(ohneLeistung).einkommensteuer);
+  });
   it("rechnet Arbeitslohn des Ehegatten ein und die Lohnsteuer an", () => {
     const p = steuerPrognose({
       ...base,

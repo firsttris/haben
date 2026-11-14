@@ -71,6 +71,33 @@ describe("buildEstXml", () => {
     expect(xml).toMatch(/<Unterfallart>10<\/Unterfallart>[\s\S]*<StNr>2836216146249<\/StNr>[\s\S]*<Zeitraum>2025<\/Zeitraum>/);
   });
 
+  it("schreibt Einkommensersatzleistungen mit Art und Betrag in den Hauptvordruck", () => {
+    const fest = estInput();
+    const xml = buildEstXml(
+      estInput({
+        angaben: {
+          ...fest.angaben,
+          ersatzleistungen: {
+            a: [
+              { art: "Arbeitslosengeld", betrag: 66_400 },
+              { art: "Elterngeld", betrag: 10_000 },
+            ],
+          },
+        },
+      }),
+    );
+    // Der Vordruck führt den Block innerhalb von ESt1A; auf der Ebene von SA/AgB weist ERiC ihn ab
+    const est1a = xml.slice(xml.indexOf("<ESt1A>"), xml.indexOf("</ESt1A>"));
+    expect(est1a).toMatch(/<Eink_Ers>\s*<Person>PersonA<\/Person>\s*<Inl>/);
+    expect(xml.match(/<Eink_Ers>/g)?.length).toBe(1);
+    expect(xml).toContain("<E0104110>Arbeitslosengeld</E0104110>");
+    expect(xml).toContain("<E0104113>664</E0104113>");
+    expect(xml).toContain("<E0104110>Elterngeld</E0104110>");
+    // Summe der Leistungen der Person
+    expect(xml).toContain("<E0104801>764</E0104801>");
+    // Leere Angaben erzeugen keinen Block
+    expect(buildEstXml(estInput()).includes("<Eink_Ers>")).toBe(false);
+  });
   it("hält die Reihenfolge der Anlagen ein", () => {
     const xml = buildEstXml(estInput({ gewinn: { einkunftsart: "gewerbe", taetigkeit: "Handel", betrag: -100_000 } }));
     const order = ["<ESt1A>", "<SA>", "<AgB>", "<HA_35a>", "<Kind>", "<G>", "<KAP>", "<VOR>", "<Vorsatz>"].map((tag) => xml.indexOf(tag));

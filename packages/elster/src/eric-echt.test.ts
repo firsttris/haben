@@ -269,6 +269,12 @@ const alleAngaben = (year: number): EstAngaben => ({
     b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000 },
     sonstige: 25_000,
   },
+  ersatzleistungen: {
+    a: [
+      { art: "Arbeitslosengeld", betrag: 66_400 },
+      { art: "Krankengeld", betrag: 12_000 },
+    ],
+  },
   sonderausgaben: { kirchensteuerGezahlt: 12_000, kirchensteuerErstattet: 3_000, spenden: 10_000 },
   krankheitskosten: 150_000,
   haushaltsnah: { minijobs: 60_000, dienstleistungen: 90_000, handwerker: 80_000 },
