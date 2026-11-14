@@ -15,7 +15,7 @@ describe("abgabePille", () => {
     expect(abgabePille({ sent: null, submitted: null })).toEqual({ ok: false, text: "Noch nicht übermittelt" });
   });
 
-  // Einkommensteuer: Haben führt sie nicht, also ist „offen“ dort keine Pflicht (#869)
+  // Einkommensteuer: ohne Vermerk in Haben ist „offen“ dort keine Pflicht (#869)
   it("sagt bei der Einkommensteuer, dass Haben sie nicht übermittelt hat", () => {
     // Haben kann die ESt selbst senden (Senden-Kasten der Seite); "außerhalb von Haben"
     // stand deshalb auch dort, wo jemand gleich aus Haben senden wollte (#869).

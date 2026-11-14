@@ -586,7 +586,7 @@ export async function annualOverview(year: number, today: string) {
       submitted: ustVermerk,
     },
     euer: { ...euer, issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null })], sent: sent("euer"), submitted: euerVermerk },
-    // Die Einkommensteuererklärung führt Haben nicht: es gibt keinen Vermerk, und was außerhalb abgegeben wurde, weiß
+    // Für die Einkommensteuererklärung gibt es keinen Vermerk: Was außerhalb von Haben abgegeben wurde, weiß
     // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
     est: {
       ...est,

@@ -173,7 +173,7 @@ function Row({ label, kz, value, extra, total, text }: { label: string; kz?: str
   );
 }
 
-/** Stand der Abgabe; `verwaltet` ist false für die Einkommensteuer, die Haben nicht führt (#869) */
+/** Stand der Abgabe; `verwaltet` ist false für die Einkommensteuer, für die Haben keinen Vermerk kennt (#869) */
 function SentPill({ sent, submitted, verwaltet }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"]; verwaltet?: boolean }) {
   const pille = abgabePille({ sent: sent?.createdAt ?? null, submitted, verwaltet });
   return (

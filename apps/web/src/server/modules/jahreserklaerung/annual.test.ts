@@ -451,7 +451,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
 
     let overview = await annual.annualOverview(2025, TODAY);
     expect(overview.est.issues.some((i) => i.tone === "fehler" && i.text.includes("Persönliche Angaben"))).toBe(true);
-    // Die Einkommensteuer führt Haben nicht: ohne Versand und ohne Vermerk ist „offen“ dort keine Pflicht (#869)
+    // Für die Einkommensteuer gibt es keinen Vermerk: ohne Versand ist „offen“ dort keine Pflicht (#869)
     expect(overview.est.verwaltet).toBe(false);
     await expect(annual.submitAnnual(actor, "est", 2025, client, { kind: "validate", today: TODAY })).rejects.toThrow(/Persönliche Angaben/);
 
