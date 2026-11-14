@@ -22,6 +22,12 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Verrechnungen von Belegen (Post
   let vorjahr: string;
   let erste: string;
   let zweite: string;
+  let ausgangsrechnung: string;
+  let kundenkorrektur: string;
+  let paar: string;
+  let aufhebungPaar: string;
+  let verrechnungZeile: string;
+  let verrechnungGegenzeile: string;
 
   beforeAll(async () => {
     sql = await setupTestDb();
@@ -64,6 +70,27 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Verrechnungen von Belegen (Post
       values (${rechnung}, ${gutschrift}, '2026-06-01', 47600, 'Aufhebung: Gutschrift GS-7', ${erste}, ${actor}),
              (${gutschrift}, ${rechnung}, '2026-06-01', -47600, 'Aufhebung: Gutschrift GS-7', ${zweite}, ${actor})`;
 
+    // Verrechnung zweier Ausgangsrechnungen (#877): Rechnung und Kundenkorrektur ohne Zahlung, dazu die Aufhebung
+    const [rechnungRow] = await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross)
+      values ('rechnung', 'final', 'RE-2026-001', now(), '2026-03-05', '2026-04-05', 100000, 19000, 119000) returning id`;
+    const [korrekturRow] = await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross, corrects_id)
+      values ('korrektur', 'final', 'RE-2026-002', now(), '2026-03-20', '2026-04-20', -40000, -7600, -47600, ${rechnungRow!.id}) returning id`;
+    ausgangsrechnung = rechnungRow!.id as string;
+    kundenkorrektur = korrekturRow!.id as string;
+    const [verrechnungRow] = await sql`insert into invoice_settlements (invoice_id, counter_invoice_id, date, amount, note, created_by)
+      values (${ausgangsrechnung}, ${kundenkorrektur}, '2026-05-12', 47600, 'Korrektur RE-2026-002 verrechnet', ${actor})
+      returning id, settlement_id`;
+    verrechnungZeile = verrechnungRow!.id as string;
+    paar = verrechnungRow!.settlement_id as string;
+    const [verrechnungGegen] = await sql`insert into invoice_settlements (invoice_id, counter_invoice_id, settlement_id, date, amount, note, created_by)
+      values (${kundenkorrektur}, ${ausgangsrechnung}, ${paar}, '2026-05-12', -47600, 'Korrektur RE-2026-002 verrechnet', ${actor})
+      returning id`;
+    verrechnungGegenzeile = verrechnungGegen!.id as string;
+    aufhebungPaar = crypto.randomUUID();
+    await sql`insert into invoice_settlements (invoice_id, counter_invoice_id, settlement_id, date, amount, note, reverses_id, created_by)
+      values (${ausgangsrechnung}, ${kundenkorrektur}, ${aufhebungPaar}, '2026-06-02', -47600, 'Aufhebung: Korrektur RE-2026-002 verrechnet', ${verrechnungZeile}, ${actor}),
+             (${kundenkorrektur}, ${ausgangsrechnung}, ${aufhebungPaar}, '2026-06-02', 47600, 'Aufhebung: Korrektur RE-2026-002 verrechnet', ${verrechnungGegenzeile}, ${actor})`;
+
     const chunks: Uint8Array[] = [];
     for await (const chunk of exporter.exportYear(2026, new Date("2026-07-01T10:00:00Z"))) chunks.push(chunk);
     files = unzipSync(Buffer.concat(chunks));
@@ -99,5 +126,26 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv: Verrechnungen von Belegen (Post
 
   it("erwähnt die Datei im LIESMICH", () => {
     expect(text(files["LIESMICH.txt"])).toContain("belege/verrechnungen.csv");
+  });
+
+  it("legt Verrechnungen von Ausgangsrechnungen als eigene Datei ab, samt Aufhebung", () => {
+    expect(Object.keys(files)).toContain("rechnungen/verrechnungen.csv");
+    const csv = text(files["rechnungen/verrechnungen.csv"]);
+    expect(csv.startsWith("\ufeffDatum;Rechnung;Gegenbeleg;Betrag;Notiz;Hebt auf;Paar;Angelegt;Rechnungs-ID;Gegenbeleg-ID\r\n")).toBe(true);
+    // Je Verrechnung beide Seiten: positiver Betrag bei der Rechnung, negativer bei der Korrektur
+    expect(csv).toContain("2026-05-12;RE-2026-001;RE-2026-002;476,00;Korrektur RE-2026-002 verrechnet;;");
+    expect(csv).toContain("2026-05-12;RE-2026-002;RE-2026-001;-476,00;Korrektur RE-2026-002 verrechnet;;");
+    expect(csv).toContain(`;${ausgangsrechnung};${kundenkorrektur}\r\n`);
+    expect(csv).toContain(`;${kundenkorrektur};${ausgangsrechnung}\r\n`);
+    // Aufhebung: Betrag umgekehrt, „Hebt auf“ nennt die Ursprungszeile, das Paar ist ein neues
+    expect(csv).toContain(`2026-06-02;RE-2026-001;RE-2026-002;-476,00;Aufhebung: Korrektur RE-2026-002 verrechnet;${verrechnungZeile};${aufhebungPaar};`);
+    expect(csv).toContain(`2026-06-02;RE-2026-002;RE-2026-001;476,00;Aufhebung: Korrektur RE-2026-002 verrechnet;${verrechnungGegenzeile};${aufhebungPaar};`);
+    // Kopf plus vier Zeilen: eine Verrechnung und eine Aufhebung, je beide Seiten
+    expect(csv.trim().split("\r\n")).toHaveLength(5);
+  });
+
+  it("nimmt auch die Rechnungsverrechnungen in Prüfsummen und LIESMICH auf", () => {
+    expect(text(files["pruefsummen.sha256"])).toContain("  rechnungen/verrechnungen.csv");
+    expect(text(files["LIESMICH.txt"])).toContain("rechnungen/verrechnungen.csv");
   });
 });

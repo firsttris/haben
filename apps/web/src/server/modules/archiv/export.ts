@@ -26,7 +26,7 @@ import { splitsByDocument } from "../belege/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
-import { VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
+import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -634,6 +634,20 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   });
   if (verrechnungen) {
     yield { path: "belege/verrechnungen.csv", content: csv(VERRECHNUNGEN_HEADER, verrechnungen), compress: true };
+  }
+
+  // Verrechnungen einer Ausgangsrechnung mit einer Kundenkorrektur (#877): eigene Datei, siehe export-verrechnung.ts
+  const rechnungsVerrechnungen = await rechnungsVerrechnungenFuerArchiv(invoiceNumbers, {
+    documentDay,
+    von: yearStart(year),
+    bis: yearEnd(year),
+    safeName,
+    extension: (mimeType) => EXTENSIONS[mimeType] ?? "bin",
+    money,
+    iso,
+  });
+  if (rechnungsVerrechnungen) {
+    yield { path: "rechnungen/verrechnungen.csv", content: csv(RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungen), compress: true };
   }
 
   // Buchungen -------------------------------------------------------------
@@ -1712,6 +1726,10 @@ rechnungen/              Festgeschriebene Ausgangsrechnungen als PDF und E-Rechn
                          Entwürfe ohne Rechnungsnummer sind nicht enthalten. Nur wenn
                          vorhanden: zusätzliche Anhänge der Rechnungen unter anhaenge/,
                          Name: Nummer_Dateiname, mit anhaenge.csv.
+rechnungen/verrechnungen.csv
+                         Nur wenn vorhanden: Verrechnungen einer Ausgangsrechnung mit
+                         einer Kundenkorrektur ohne Zahlung, je Verrechnung beide Seiten
+                         mit Datum, Betrag und Grund; aufgehobene als Gegenzeile.
 angebote/                Nur wenn vorhanden: festgeschriebene Angebote des Jahres als PDF,
                          angebote.csv mit Antwort des Kunden und daraus entstandener
                          Rechnung. Nur wenn vorhanden: zusätzliche Anhänge der Angebote

@@ -401,14 +401,18 @@ export async function listTransactions(accountId: string, filter: TransactionFil
 /**
  * Erledigter Betrag je Rechnung bzw. Beleg: Zuordnungen und Ausbuchungen (Skonto, Forderungsausfall), Vorzeichen
  * wie auf dem Konto. Ausbuchungen bewegen kein Geld, zählen für „offen“ aber wie eine Zahlung. Bei Rechnungen auch die
- * Bareinnahmen im Kassenbuch (samt Gegenzeilen); bar bezahlte Belege sind schon beim Buchen bezahlt und zählen hier nicht.
+ * Bareinnahmen im Kassenbuch (samt Gegenzeilen) und die Verrechnung mit einer Kundenkorrektur (#877); bar bezahlte Belege
+ * sind schon beim Buchen bezahlt und zählen hier nicht.
  */
 async function paidByTarget(column: "invoice_id" | "document_id", ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
   if (ids.length === 0) return new Map();
   const col = sql.raw(column);
   const cash = column === "invoice_id" ? sql`union all select invoice_id as id, amount from cash_entries where invoice_id in ${ids}` : sql``;
-  // Verrechnungen gibt es nur zwischen Belegen, Rechnungen kennen keine Gegenrechnung
-  const verrechnet = column === "document_id" ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}` : sql``;
+  // Verrechnungen: zwischen Belegen (#274) und zwischen Ausgangsrechnung und Kundenkorrektur (#877)
+  const verrechnet =
+    column === "document_id"
+      ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}`
+      : sql`union all select invoice_id as id, amount from invoice_settlements where invoice_id in ${ids}`;
   const rows = await q.execute<{ id: string; paid: string }>(
     sql`select id, sum(amount) as paid from (
           select ${col} as id, amount from allocations where ${col} in ${ids}

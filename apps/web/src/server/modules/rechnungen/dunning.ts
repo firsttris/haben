@@ -65,6 +65,11 @@ export async function overdueInvoices(today: string) {
 /**
  * Was der Kunde je Rechnung schuldet: deren offener Betrag abzüglich der noch offenen Korrekturen (Gutschriften).
  * In der Rechnungsliste stehen beide getrennt, gemahnt wird nur der Rest.
+ *
+ * Die Minderung bleibt hier und wandert nicht in die Anzeige der Liste: Eine festgeschriebene Kundenkorrektur mindert
+ * die Forderung, auch bevor jemand sie mit der Rechnung verrechnet; verrechnet wird nur, was ohne Bankumsatz
+ * ausgeglichen werden soll. Eine verrechnete Korrektur steht selbst auf 0 und zählt deshalb nicht doppelt (#877,
+ * `rechnungen.review.test.ts` und `offene-posten.test.ts` halten das fest).
  */
 function owed(list: Awaited<ReturnType<typeof listInvoices>>) {
   return list.map((invoice) => {

@@ -2569,6 +2569,49 @@ export const documentSettlements = pgTable(
 );
 
 /**
+ * Verrechnung einer Ausgangsrechnung mit ihrer Kundenkorrektur ohne Zahlung (#877, zweite Stufe aus #274): Die Korrektur
+ * mindert die Forderung, der Belegbetrag bleibt stehen. Aufbau wie document_settlements: je Verrechnung zwei Zeilen mit
+ * gemeinsamer settlement_id, damit jede Seite für sich als erledigt zählt; aufgehoben wird per Gegenzeilpaar. Betrag mit
+ * dem Vorzeichen einer Zahlung: positiv bei der Rechnung, deren offener Rest sinkt, negativ bei der Korrektur, deren
+ * Guthaben sich abbaut. Nur anhängen.
+ */
+export const invoiceSettlements = pgTable(
+  "invoice_settlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Rechnung oder Korrektur, deren offener Betrag sich mit dieser Zeile ändert */
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    /** Die andere Seite der Verrechnung */
+    counterInvoiceId: uuid("counter_invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    /** Kennung des Paars: beide Zeilen einer Verrechnung tragen dieselbe, die Gegenzeilen ein neues Paar */
+    settlementId: uuid("settlement_id").notNull().defaultRandom(),
+    date: date("date", { mode: "string" }).notNull(),
+    /** Vorzeichen wie eine Zahlung: positiv bei der Rechnung, negativ bei der Korrektur */
+    amount: integer("amount").notNull(),
+    note: text("note").notNull().default(""),
+    reversesId: uuid("reverses_id"),
+    /** Wer verrechnet bzw. aufgehoben hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("invoice_settlements_two", sql`${t.invoiceId} <> ${t.counterInvoiceId}`),
+    check("invoice_settlements_amount", sql`${t.amount} <> 0`),
+    index("invoice_settlements_invoice").on(t.invoiceId),
+    index("invoice_settlements_counter").on(t.counterInvoiceId),
+    index("invoice_settlements_settlement").on(t.settlementId),
+    /** Je Paar höchstens eine Zeile pro Rechnung: genau zwei Zeilen, eine je Seite */
+    uniqueIndex("invoice_settlements_settlement_invoice").on(t.settlementId, t.invoiceId),
+    uniqueIndex("invoice_settlements_reverses").on(t.reversesId),
+    foreignKey({ name: "invoice_settlements_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
+
+/**
  * Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG) je Währung und Monat: 1 EUR = rate. Abgerufen vom BMF oder von Hand
  * eingetragen. Belege und Rechnungen speichern den verwendeten Kurs selbst; ein später geänderter Kurs ändert sie nicht.
  */
