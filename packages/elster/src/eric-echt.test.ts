@@ -257,6 +257,7 @@ const arbeitnehmer = (steuerklasse: 1 | 3 | 4): EstArbeitnehmer => ({
     berufsverbaende: 12_000,
     gewerkschaft: 24_000,
     sonstige: 1_600,
+    arbeitszimmer: 119_800,
   },
 });
 /** Alle Angaben, die Haben kennt */
