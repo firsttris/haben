@@ -979,7 +979,11 @@ function AllocationPanel({
   // Ein Treffer mit Rechnung geht vor; sonst der Vorschlag aus dem Zweck der Konten (Geldtransit, Umsatzsteuer, Privat)
   const [mode, setMode] = useState<"best" | "other" | "direct" | "split">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
   const [candidate, setCandidate] = useState(best ? `${best.item.type}:${best.item.id}` : "");
-  const [directKind, setDirectKind] = useState<DirectChoice>(direct?.kind ?? "privat");
+  // Auf einem privaten Konto fehlen die gesperrten Arten; dann der erste erlaubte Eintrag statt eines
+  // Startwerts, den der Server ablehnen würde (#873)
+  const [directKind, setDirectKind] = useState<DirectChoice>(
+    direct?.kind && directKinds.some((k) => k.value === direct.kind) ? direct.kind : (directKinds[0]?.value ?? "kategorie"),
+  );
   const [steuer, setSteuer] = useState<SteuerWahl>(() => steuerWahlFuer(steuerOptionen, tx.bookingDate));
   const [darlehen, setDarlehen] = useState<DarlehenWahl>(() => darlehenWahlFuer(darlehenOptionen, tx.amount));
   // Aus früheren Direktbuchungen derselben Gegenpartei gelernt (#295), sonst nach Richtung
@@ -1501,15 +1505,17 @@ function SplitForm({
   const darlehenStart = darlehenWahlFuer(darlehenOptionen, tx.amount);
   const kategorieStart = kategorieWahlFuer(kategorieOptionen, tx.amount);
   const start = { steuer: steuerStart, darlehen: darlehenStart, kategorie: kategorieStart };
+  // Fehlen die Bankgebühren im Angebot (privates Konto), startet die zweite Zeile leer (#873)
+  const zweiteZeile = directKinds.some((k) => k.value === "gebuehren") ? "gebuehren" : "";
   const [rows, setRows] = useState<SplitRow[]>(() =>
     initial
       ? [
           { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open), ...start },
-          { key: nextSplitKey++, target: "gebuehren", amount: signed(tx.open - initial.open), ...start },
+          { key: nextSplitKey++, target: zweiteZeile, amount: signed(tx.open - initial.open), ...start },
         ]
       : [
           { key: nextSplitKey++, target: "", amount: signed(tx.open), ...start },
-          { key: nextSplitKey++, target: "gebuehren", amount: "", ...start },
+          { key: nextSplitKey++, target: zweiteZeile, amount: "", ...start },
         ],
   );
 

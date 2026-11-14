@@ -23,7 +23,7 @@ import type { Rechtsform } from "./rechtsform.ts";
  * Die Angebote, die auf einem privaten Konto entfallen. „gebuehren“ (Buchungsart) und „geldverkehr“ (Kategorie) sind
  * dieselbe Möglichkeit in zwei Listen; deshalb fünf Schlüssel für vier sichtbare Einträge.
  */
-const PRIVAT_NICHT_ANGEBOTEN = ["gebuehren", "zinsertrag", "privat", "geldtransit", "geldverkehr"] as const;
+const PRIVAT_NICHT_ANGEBOTEN = ["gebuehren", "zinsertrag", "privat", "geldtransit", "geldverkehr", "spende"] as const;
 
 const gesperrt = (wert: string) => (PRIVAT_NICHT_ANGEBOTEN as readonly string[]).includes(wert);
 
