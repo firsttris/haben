@@ -29,7 +29,7 @@ const WK_BETRAEGE = [
   ["fortbildung", "Fortbildung", undefined],
   ["gewerkschaft", "Gewerkschaft", "ab 2026 zusätzlich zum Pauschbetrag"],
   ["berufsverbaende", "Berufsverbände", undefined],
-  ["arbeitszimmer", "Häusliches Arbeitszimmer", "Aufwendungen des Jahres; Jahrespauschale 1.260 € bei ganzjähriger Nutzung"],
+  ["arbeitszimmer", "Häusliches Arbeitszimmer", "nur als Mittelpunkt der gesamten Tätigkeit: Kosten oder Pauschale 1.260 €, je Monat ohne 105 € weniger"],
   ["sonstige", "Weitere Werbungskosten", "z. B. Kontoführung pauschal 16 €, Bewerbungen"],
 ] as const;
 

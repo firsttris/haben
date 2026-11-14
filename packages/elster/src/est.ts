@@ -106,7 +106,7 @@ export interface EstWerbungskosten {
   gewerkschaft?: Cents;
   /** Weitere, etwa Kontoführung oder Bewerbungen */
   sonstige?: Cents;
-  /** Häusliches Arbeitszimmer, Aufwendungen des Jahres (Zeile 57 der Anlage N) */
+  /** Häusliches Arbeitszimmer als Mittelpunkt der gesamten Tätigkeit: Aufwendungen oder Jahrespauschale (§ 4 Abs. 5 Satz 1 Nr. 6b, § 9 Abs. 5 EStG) */
   arbeitszimmer?: Cents;
 }
 
