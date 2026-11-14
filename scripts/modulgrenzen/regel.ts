@@ -52,21 +52,29 @@ function isInfrastructure(file: string): boolean {
   return basename(file) !== "scheduler.ts";
 }
 
-const PACKAGES = `${sep}packages${sep}`;
-
-/** Name des Pakets unter packages/, oder null */
-function packageOf(file: string): string | null {
-  const at = file.lastIndexOf(PACKAGES);
-  return at < 0 ? null : (file.slice(at + PACKAGES.length).split(sep)[0] ?? null);
+/**
+ * Das Paket, in dessen src/ die Datei liegt: Name, Paketordner und Wurzel des Repositorys; sonst null. Erst
+ * packages/<name>/src/ zählt, damit ein Ordner namens packages oberhalb des Repositorys nichts ändert.
+ */
+function packageOf(file: string): { name: string; dir: string; root: string } | null {
+  const parts = file.split(sep);
+  for (let i = parts.length - 3; i >= 0; i--) {
+    if (parts[i] === "packages" && parts[i + 2] === "src") {
+      const root = parts.slice(0, i).join(sep);
+      return { name: parts[i + 1] ?? "", dir: [root, "packages", parts[i + 1]].join(sep), root };
+    }
+  }
+  return null;
 }
 
 /** Pakete hängen nicht an der App; der GoBD-Kern auch nicht an anderen Paketen von Haben */
-function checkPackageImport(pkg: string, file: string, specifier: string): string | null {
-  const intoApps = specifier.startsWith(".") && resolve(dirname(file), specifier).includes(`${sep}apps${sep}`);
-  if (intoApps || specifier === "@haben/web" || specifier.startsWith("@haben/web/")) {
+function checkPackageImport(pkg: { name: string; dir: string; root: string }, file: string, specifier: string): string | null {
+  const path = specifier.startsWith(".") ? resolve(dirname(file), specifier) : null;
+  const leaves = path !== null && !path.startsWith(`${pkg.dir}${sep}`);
+  if ((leaves && path.startsWith(`${pkg.root}${sep}apps${sep}`)) || specifier === "@haben/web" || specifier.startsWith("@haben/web/")) {
     return `Ein Paket importiert nichts aus apps/ („${specifier}“). Was beide brauchen, gehört in das Paket.`;
   }
-  if (pkg === "gobd-kern" && specifier.startsWith("@haben/")) {
+  if (pkg.name === "gobd-kern" && (leaves || specifier.startsWith("@haben/"))) {
     return `Der GoBD-Kern kennt keine App und keine Pakete von Haben („${specifier}“).`;
   }
   return null;
