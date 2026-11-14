@@ -82,8 +82,9 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
     if (!k.datum) return false;
     // § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt; er bleibt
     if (k.reverseCharge || k.category === "einfuhrumsatzsteuer") return false;
-    // Gutschrift „erstattet bereits Bezahltes“: Die Vorsteuerminderung zieht der Ausgleich (#786)
-    if (k.erstattetBezahltes) return false;
+    // Gutschrift: Sie berichtigt nach § 17 Abs. 1 UStG im Zeitraum der Änderung, also nach Belegdatum bzw. mit dem
+    // Ausgleich („erstattet bereits Bezahltes“, #786), nicht nach § 15; der Leistungszeitraum spielt keine Rolle
+    if (k.erstattetBezahltes || k.gross < 0) return false;
     return leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis }) > k.datum;
   });
   const belege = new Set(vorzeitig.map((k) => k.id));
@@ -171,7 +172,6 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
     zahlungenDesBelegs = [...zahlungenDesBelegs.filter((z) => z.date.localeCompare(ausgefuehrt) <= 0), { date: ausgefuehrt, amount: gross }];
 
     const storno = stornoAm.get(k.id);
-    const vorzeichen = k.tax < 0 ? -1 : 1;
     let erledigt = 0;
     for (const z of zahlungenDesBelegs) {
       const vorher = erledigt;
@@ -192,8 +192,8 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
           supplier: k.supplier,
           number: k.number,
           rate,
-          base: vorzeichen * geschaeftlich(base, k.privateShare),
-          tax: vorzeichen * geschaeftlich(tax, k.privateShare),
+          base: geschaeftlich(base, k.privateShare),
+          tax: geschaeftlich(tax, k.privateShare),
         });
         // Ein Storno nimmt den Anteil mit umgekehrtem Vorzeichen zurück, aber nie vor dem Stornodatum: Stand er in einem
         // schon gemeldeten Zeitraum, berichtigt er dort, sonst hebt er sich im selben Zeitraum auf (§ 17 Abs. 1 UStG).
@@ -204,8 +204,8 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
             supplier: k.supplier,
             number: `Storno ${k.number}`.trim(),
             rate,
-            base: -vorzeichen * geschaeftlich(base, k.privateShare),
-            tax: -vorzeichen * geschaeftlich(tax, k.privateShare),
+            base: -geschaeftlich(base, k.privateShare),
+            tax: -geschaeftlich(tax, k.privateShare),
           });
         }
       }
