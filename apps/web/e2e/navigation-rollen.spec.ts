@@ -41,6 +41,27 @@ test("am Desktop rollen nur die Menüpunkte, die Marke bleibt stehen", async ({ 
   expect(await page.locator(".brand").boundingBox()).toEqual(markeVorher);
 });
 
+// Mit Zoom oder Skalierung ist das Fenster auch zwischen 860 und 861 CSS-Pixel breit (hier 1,17-fach: 860,68). Dort
+// darf keine der beiden Regeln fehlen, sonst schneidet .nav ab, .nav-body rollt nicht und mit Maus oder Touchpad ist
+// der Fuß unerreichbar
+test("auch zwischen 860 und 861 Pixel Breite rollt die Navigation bis zum Fuß", async ({ playwright }) => {
+  const browser = await playwright.chromium.launch({ args: ["--force-device-scale-factor=1.17", "--window-size=860,600"] });
+  try {
+    const page = await (await browser.newContext({ viewport: null, deviceScaleFactor: undefined })).newPage();
+    await navigationLaden(page);
+    await page.mouse.move(100, 300);
+    await page.mouse.wheel(0, 5000);
+    const gemessen = await page.evaluate(() => {
+      const breite = document.documentElement.getBoundingClientRect().width;
+      const links = [...document.querySelectorAll<HTMLElement>(".nav-body .nav-link")];
+      return { zwischen: breite > 860 && breite < 861, abmeldenSichtbar: links.at(-1)!.getBoundingClientRect().bottom <= innerHeight };
+    });
+    expect(gemessen).toEqual({ zwischen: true, abmeldenSichtbar: true });
+  } finally {
+    await browser.close();
+  }
+});
+
 test("am Handy rollt das offene Menü, die Leiste darüber nicht", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await navigationLaden(page);
