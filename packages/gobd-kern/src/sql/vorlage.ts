@@ -244,6 +244,9 @@ $$`,
   FOR EACH STATEMENT EXECUTE FUNCTION ${p}_append_only()`,
     `CREATE TRIGGER seals_audit AFTER INSERT ON seals
   FOR EACH ROW EXECUTE FUNCTION ${p}_audit()`,
+    // Wie die Liste in Haben ändert sich die Anmeldung nur per Migration (neue Tabelle), nie per UPDATE oder DELETE
+    `CREATE TRIGGER sealed_tables_append_only BEFORE UPDATE OR DELETE ON sealed_tables
+  FOR EACH ROW EXECUTE FUNCTION ${p}_append_only()`,
     `CREATE TRIGGER sealed_tables_audit AFTER INSERT OR UPDATE OR DELETE ON sealed_tables
   FOR EACH ROW EXECUTE FUNCTION ${p}_audit()`,
     `CREATE TRIGGER sealed_tables_no_truncate BEFORE TRUNCATE ON sealed_tables
@@ -334,6 +337,22 @@ BEGIN
   WHERE h.id IS NULL
      OR coalesce(last.seq, 0) IS DISTINCT FROM h.seq
      OR coalesce(last.row_hash, ${p}_audit_genesis()) IS DISTINCT FROM h.hash;
+
+  -- Eine Anmeldung gilt nur so, wie sie in der Kette steht; sonst fiele eine an den Triggern vorbei entfernte Tabelle
+  -- unbemerkt aus der Prüfung
+  RETURN QUERY
+  SELECT 'siegel'::text, coalesce(t.table_name, a.new_value ->> 'table_name'), NULL::text, a.seq,
+    CASE
+      WHEN t.table_name IS NULL THEN 'Angemeldete Tabelle fehlt in sealed_tables'
+      WHEN a.id IS NULL THEN 'Anmeldung fehlt im Audit-Log'
+      ELSE 'Anmeldung weicht vom Eintrag im Audit-Log ab'
+    END
+    FROM sealed_tables t
+    FULL JOIN (SELECT * FROM audit_log WHERE table_name = 'sealed_tables' AND action = 'INSERT') a
+      ON a.new_value ->> 'table_name' = t.table_name
+   WHERE t.table_name IS NULL OR a.id IS NULL OR a.new_value ->> 'locked_column' IS DISTINCT FROM t.locked_column
+   ORDER BY 2
+   LIMIT max_rows;
 
   FOR st IN SELECT * FROM sealed_tables ORDER BY table_name LOOP
     locked := CASE WHEN st.locked_column IS NULL THEN 'true' ELSE format('t.%I IS NOT NULL', st.locked_column) END;
