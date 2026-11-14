@@ -133,3 +133,22 @@ jobs:
     permissions:
       contents: write
       packages: write
+
+  # Portal über den Instanzen (#504, Stufe 2); Kontext ist das Repository wegen bun.lock und packages/core
+  docker-portal:
+    needs: [tested, checks]
+    if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
+    with:
+      image: tristanteu/haben-portal
+      description: "Portal für Haben: Anmeldung per SSO und Wechsel zwischen den Instanzen der eigenen Firmen"
+      dockerfile: apps/portal/Containerfile
+      context: .
+      ghcr: true
+      ghcr-image: firsttris/haben-portal
+      readme: apps/portal/README.md
+      github-release: false
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write

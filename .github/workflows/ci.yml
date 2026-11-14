@@ -309,6 +309,22 @@ jobs:
         with:
           dockerfile: Containerfile
           tags: haben:ci
+      # Portal (#504, Stufe 2): Image bauen, mit gültiger Konfiguration gesund, mit ungültiger startet es nicht
+      - name: Portal
+        run: |
+          set -x
+          docker build -f apps/portal/Containerfile -t haben-portal:ci .
+          docker run -d --name haben-portal-ci -p 127.0.0.1:3010:3000 \
+            -e PORTAL_URL=https://portal.haben.test -e PORTAL_SECRET="$(openssl rand -base64 32)" \
+            -e OIDC_ISSUER=https://auth.haben.test -e OIDC_CLIENT_ID=portal -e OIDC_CLIENT_SECRET=geheim \
+            -e PORTAL_FIRMEN='Firma 1|https://firma1.haben.test|haben-firma1-inhaber' haben-portal:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3010/gesund && break; sleep 1; done
+          test "$(curl -sf http://127.0.0.1:3010/gesund)" = ok
+          curl -sf http://127.0.0.1:3010/ | grep -q 'href="/anmelden"'
+          for i in $(seq 1 30); do [ "$(docker inspect -f '{{.State.Health.Status}}' haben-portal-ci)" = healthy ] && break; sleep 2; done
+          test "$(docker inspect -f '{{.State.Health.Status}}' haben-portal-ci)" = healthy
+          docker rm -f haben-portal-ci
+          ! docker run --rm -e PORTAL_URL=http://portal.haben.test haben-portal:ci
       - name: Ausgelieferte Compose-Konfiguration mit App-Rolle und Legacy-Zugang prüfen
         run: bash deploy/tests/rollen-start.sh
         env:

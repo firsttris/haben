@@ -5,6 +5,7 @@ WORKDIR /app
 COPY bun.lock bunfig.toml package.json ./
 COPY apps/web/package.json apps/web/
 COPY apps/elster-helfer/package.json apps/elster-helfer/
+COPY apps/portal/package.json apps/portal/
 # Alle Workspace-Pakete, sonst fehlen deren Abhängigkeiten (z. B. pdf-lib in einvoice, zod in import)
 COPY packages/core/package.json packages/core/
 COPY packages/einvoice/package.json packages/einvoice/
