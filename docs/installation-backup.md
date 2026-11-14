@@ -25,7 +25,7 @@ Ein Lauf
 1. legt beim ersten Mal das restic-Repository an,
 2. erzeugt mit `pg_dump` über das Netz einen SQL-Dump der Datenbank, packt ihn mit gzip und prüft ihn: Das Archiv muss sich entpacken lassen und mit der Abschlusszeile von `pg_dump` enden, sonst bricht das Backup mit Fehler ab,
 3. sichert den Dump und die Belegdateien (Volume `belege` bzw. `haben-belege`, nur lesend eingehängt) verschlüsselt mit `restic backup --tag haben`,
-4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die zehnjährige Aufbewahrung nach § 147 Abs. 3 AO ab,
+4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die längste Aufbewahrungsfrist ab, 10 Jahre für Bücher und Aufzeichnungen (§ 147 Abs. 3 AO),
 5. trägt das Ergebnis in die Datenbank ein; die App zeigt es unter Einstellungen › Export und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
 6. spielt alle `RESTORE_CHECK_DAYS` Tage (Standard 7) das neue Backup probeweise ein (siehe [Test-Restore](#test-restore)).
 
