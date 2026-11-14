@@ -136,12 +136,16 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
   const setB = (key: number, patch: Partial<BescheinigungDraft>) =>
     set({ bescheinigungen: draft.bescheinigungen.map((b) => (b.key === key ? { ...b, ...patch } : b)) });
 
-  const erste = draft.bescheinigungen[0];
+  // Summen ueber alle Bescheinigungen: Bei mehreren Arbeitgebern zaehlt das Zusammen,
+  // nicht die erste Zeile.
+  const summe = (feld: "brutto" | "lohnsteuer") => draft.bescheinigungen.reduce((s, b) => s + (parseEuro(b[feld]) ?? 0), 0);
+  const brutto = summe("brutto");
+  const lohnsteuer = summe("lohnsteuer");
   const zusammenfassung = !draft.aktiv
     ? "kein Arbeitslohn"
     : [
-        erste?.brutto && `${erste.brutto} € Bruttoarbeitslohn`,
-        erste?.lohnsteuer && `${erste.lohnsteuer} € Lohnsteuer`,
+        brutto > 0 && `${formatDecimal(brutto)} € Bruttoarbeitslohn`,
+        lohnsteuer > 0 && `${formatDecimal(lohnsteuer)} € Lohnsteuer`,
         draft.bescheinigungen.length > 1 && `${draft.bescheinigungen.length} Bescheinigungen`,
       ]
         .filter(Boolean)
@@ -165,11 +169,14 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
               Vorsorgeaufwand. Bei mehreren Arbeitgebern je Bescheinigung eine Zeile.
             </p>
             {draft.bescheinigungen.map((b, index) => (
-              <details key={b.key}>
-                <summary className="small muted">
-                  Lohnsteuerbescheinigung{index > 0 ? ` ${index + 1}` : ""}
-                  {b.brutto ? ` · ${b.brutto} € Bruttoarbeitslohn` : ""}
-                  {b.lohnsteuer ? ` · ${b.lohnsteuer} € Lohnsteuer` : ""}
+              <details key={b.key} className="est-block">
+                <summary>
+                  <span className="est-block-title">Lohnsteuerbescheinigung{index > 0 ? ` ${index + 1}` : ""}</span>
+                  <span className="small muted">
+                    {[b.brutto && `${b.brutto} € Bruttoarbeitslohn`, b.lohnsteuer && `${b.lohnsteuer} € Lohnsteuer`, `Steuerklasse ${b.steuerklasse}`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
                 </summary>
                 <div className="form-row cols-2" role="group" aria-label={`Lohnsteuerbescheinigung ${index + 1} · ${wer}`}>
                   <Field label="Steuerklasse">
