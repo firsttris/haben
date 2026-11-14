@@ -55,7 +55,7 @@ Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der j
 Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder Podman
 auf deinem eigenen Server betreibst.
 
-**Open Source made in Germany 🇩🇪**: Wir glauben, dass Europas Software offen sein sollte. Code, Roadmap und Reviews sind öffentlich, deine Zahlen bleiben auf deinem Server.
+**Open Source made in Germany 🇩🇪**: Wir glauben, dass Deutschland und Europa ihre Software selbst in der Hand haben sollten. Code, Roadmap und Reviews sind öffentlich, deine Zahlen bleiben auf deinem Server.
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
 - **Nachprüfbar statt „vertrau uns“**: Beim Umzug rechnet Haben deine alten Jahre nach, zum Vergleich mit deinen
