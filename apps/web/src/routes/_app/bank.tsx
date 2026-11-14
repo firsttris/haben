@@ -997,7 +997,7 @@ function AllocationPanel({
   const dauerbelegFn = useServerFn(bookAndAllocateDauerbelegFn);
   const neutralizeFn = useServerFn(neutralizeBankTransactions);
   const reverseNeutralizationFn = useServerFn(reverseBankNeutralization);
-  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege, neutralization, lastschrift } = detail;
+  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege, neutralization, lastschrift, sammelrechnung } = detail;
   const batchFn = useServerFn(allocateDirectDebitBatchFn);
   const returnFn = useServerFn(allocateDirectDebitReturnFn);
   // Eine GmbH oder UG hat kein Privat; dieselbe Zuordnung geht dort auf das Gesellschafter-Verrechnungskonto
@@ -1100,6 +1100,8 @@ function AllocationPanel({
 
   // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
   const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
+  // Der Sammelknopf erscheint auch beim besten Vorschlag: öffnet der Nutzer eine Gebührenzeile, ist der Sammelbeleg
+  // des Monats der Treffer (siehe transactionDetail), und der Klick ordnet alle Gebührenzeilen des Monats zu.
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
   const feeRest = target && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
@@ -1420,17 +1422,26 @@ function AllocationPanel({
               </span>
             </div>
           )}
-          {mode === "other" && selectedCandidate?.type === "document" && tx.amount < 0 && tx.purpose.startsWith("Gebühr") && (
+          {target && target.type === "document" && tx.amount < 0 && tx.purpose.startsWith("Gebühr") && sammelrechnung && (
             <div className="stack" style={{ gap: 8 }}>
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => void run(() => feesFn({ data: { transactionId: tx.id, documentId: selectedCandidate.id } }))}
-              >
-                Alle offenen Gebühren aus {formatDate(tx.bookingDate).slice(3)} diesem Beleg zuordnen
-              </button>
-              <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
+              {target.id === sammelrechnung.documentId ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => void run(() => feesFn({ data: { transactionId: tx.id, documentId: target.id } }))}
+                  >
+                    Alle offenen Gebühren aus {tx.bookingDate.slice(0, 7)} diesem Beleg zuordnen
+                  </button>
+                  <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
+                </>
+              ) : (
+                <span className="small muted">
+                  Die offenen Gebühren von {tx.bookingDate.slice(0, 7)} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der Beleg steht mit{" "}
+                  {formatEuro(Math.abs(target.open))} offen.
+                </span>
+              )}
             </div>
           )}
           {exchangeDifference !== 0 && target && (
