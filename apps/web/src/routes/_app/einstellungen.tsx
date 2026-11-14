@@ -24,6 +24,7 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
+import { VersionsCard } from "../../components/VersionsCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LetterheadBackgroundCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
 import { LayoutsCard } from "../../components/LayoutsCard.tsx";
@@ -63,7 +64,7 @@ import { getCustomPages } from "../../server/functions/eigene-seiten.ts";
 import { getExportYears } from "../../server/functions/export.ts";
 import { getNumbering } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
-import { getChainHead, getDatabaseAccessInfo } from "../../server/functions/integrity.ts";
+import { getAppVersions, getChainHead, getDatabaseAccessInfo } from "../../server/functions/integrity.ts";
 import { getBackground, getLetterheadDesign, getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getMcpSettings } from "../../server/functions/mcp.ts";
@@ -98,6 +99,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       exportYears,
       datev,
       chainHead,
+      appVersions,
       databaseAccess,
       backup,
       mcp,
@@ -123,6 +125,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getExportYears(),
       getDatevNumbers(),
       getChainHead(),
+      getAppVersions(),
       getDatabaseAccessInfo(),
       getBackupStatus(),
       getMcpSettings(),
@@ -151,6 +154,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       exportYears,
       datev,
       chainHead,
+      appVersions,
       databaseAccess,
       backup,
       mcp,
@@ -185,6 +189,7 @@ function SettingsPage() {
     exportYears,
     datev,
     chainHead,
+    appVersions,
     databaseAccess,
     backup,
     mcp,
@@ -292,6 +297,7 @@ function SettingsPage() {
               <ExportCard years={exportYears} />
               <DatevCard years={exportYears} numbers={datev} />
               <IntegrityCard head={chainHead} />
+              <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
             </>

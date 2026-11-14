@@ -27,6 +27,7 @@ import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
 import { VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
+import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -1257,6 +1258,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   // Änderungsprotokoll, seitenweise gelesen ----------------------------------
   yield { path: "protokoll/audit.csv", content: auditCsv(year), compress: true };
   yield { path: "protokoll/pruefwert.txt", content: encoder.encode(await pruefwertText(year, now)), compress: true };
+  yield { path: "protokoll/versionen.csv", content: csv(VERSIONEN_HEADER, await versionenFuerArchiv(year)), compress: true };
 
   if (problems.length > 0) {
     yield { path: "FEHLER.txt", content: encoder.encode(`Beim Erstellen des Archivs fehlten Dateien:\n\n${problems.join("\n")}\n`), compress: true };
@@ -1768,6 +1770,8 @@ protokoll/audit.csv      Änderungsprotokoll des Jahres mit altem und neuem Wert
                          Reihenfolge der Hash-Kette mit Vorgänger-Hash und Hash je Eintrag.
 protokoll/pruefwert.txt  Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am
                          Ende des Jahres.
+protokoll/versionen.csv  Eingesetzte Haben- und PostgreSQL-Versionen im Jahr mit Startzeitpunkt
+                         (einschließlich fortgeführtem Vorjahresstand und Verweis auf Hinweise).
 index.xml                Beschreibung aller CSV-Dateien (Pfad, Zeichensatz, Trenner, Spalten,
                          Beträge und Daten) nach dem Beschreibungsstandard der Finanzverwaltung
                          (GDPdU), mit der eine Prüfsoftware die Dateien einliest. Die DTD
