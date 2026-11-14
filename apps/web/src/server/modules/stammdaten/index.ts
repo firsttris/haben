@@ -60,7 +60,17 @@ export {
 } from "./exchange-rates.ts";
 export { AccentColorError, loadDesign, loadLetterhead, saveAccentColor, saveDesign } from "./letterhead.ts";
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
-export { loadNavMark, NavMarkError, navMarkSchema, saveNavMark, type NavMarkInput, type NavMarkSetting } from "./nav-mark.ts";
+export {
+  loadNavMark,
+  NavMarkError,
+  navMarkSchema,
+  readNavMark,
+  readNavMarkLogo,
+  saveNavMark,
+  type NavMarkInput,
+  type NavMarkSetting,
+  type NavMarkStand,
+} from "./nav-mark.ts";
 export { backgroundInfo, loadBackground, MAX_BACKGROUND_BYTES, removeBackground, saveBackground } from "./background.ts";
 export { customLayoutJob, dataForVersion, layoutRenderer } from "./layout-renderer.ts";
 export { rendererFor } from "./layout-pakete.ts";

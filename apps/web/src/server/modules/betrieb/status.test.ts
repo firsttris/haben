@@ -1,11 +1,12 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const VERSION = (JSON.parse(readFileSync(new URL("../../../../../../package.json", import.meta.url), "utf8")) as { version: string }).version;
 const COMMIT = "0123abc4567def890123abc4567def890123abcd";
@@ -31,6 +32,7 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
 
   beforeEach(async () => {
     await sql`delete from backup_status`;
+    await leeren(sql)`truncate company_logo, company cascade`;
   });
 
   async function run(kind: "backup" | "restore_check", ok: boolean, at: string) {
@@ -46,6 +48,7 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
       eric: { source: null, version: null },
       backup: { state: "keins", overdue: false, lastBackup: null, failed: [] },
       summary: { eric: "fehlt", backup: "keine" },
+      zeichen: { farbe: null, logo: null },
     });
   });
 
@@ -128,6 +131,95 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     expect(JSON.parse(ohne.stdout).commit).toBeNull();
   });
 
+  describe("Zeichen der Firma für das Firmenportal (#1036)", () => {
+    const png = new Uint8Array(readFileSync(new URL("../../../../public/icon-192.png", import.meta.url)));
+    const sha256 = createHash("sha256").update(png).digest("hex");
+    let stammdaten: typeof import("../stammdaten/index.ts");
+    let kennzeichen: typeof import("./kennzeichen.ts");
+
+    beforeAll(async () => {
+      stammdaten = await import("../stammdaten/index.ts");
+      kennzeichen = await import("./kennzeichen.ts");
+    });
+
+    /** Ausgabe wie process.stdout, in einen Puffer */
+    function puffer(isTTY = false) {
+      const teile: Uint8Array[] = [];
+      return {
+        isTTY,
+        teile,
+        write(daten: Uint8Array, fertig: (fehler?: Error | null) => void) {
+          teile.push(daten);
+          fertig();
+          return true;
+        },
+      };
+    }
+
+    it("ab Werk weder Farbe noch Logo, ohne dabei eine Firma anzulegen", async () => {
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen).toEqual({ farbe: null, logo: null });
+      expect(await sql`select id from company`).toHaveLength(0);
+    });
+
+    it("eigene Farbe: farbe wie gespeichert, kein Logo", async () => {
+      await stammdaten.saveNavMark("test-user", { art: "farbe", farbe: "#1d4ed8" });
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen).toEqual({ farbe: "#1D4ED8", logo: null });
+    });
+
+    it("Logo als Zeichen: Format und Prüfsumme; die Farbe bleibt für den Fall, dass das Logo fehlt", async () => {
+      await stammdaten.saveNavMark("test-user", { art: "farbe", farbe: "#1D4ED8" });
+      await stammdaten.saveLogo("test-user", png);
+      await stammdaten.saveNavMark("test-user", { art: "logo" });
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen).toEqual({
+        farbe: "#1D4ED8",
+        logo: { format: "png", sha256 },
+      });
+    });
+
+    it("Logo gewählt, aber entfernt: kein Logo, wie in der Navigation", async () => {
+      await stammdaten.saveLogo("test-user", png);
+      await stammdaten.saveNavMark("test-user", { art: "logo" });
+      await stammdaten.removeLogo("test-user");
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen).toEqual({ farbe: null, logo: null });
+    });
+
+    it("Logo hochgeladen, aber nicht als Zeichen gewählt: kein Logo", async () => {
+      await stammdaten.saveLogo("test-user", png);
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen.logo).toBeNull();
+      const aus = puffer();
+      const meldungen: string[] = [];
+      expect(await kennzeichen.kennzeichenAusgeben(aus, (m) => meldungen.push(m))).toBe(3);
+      expect(aus.teile).toHaveLength(0);
+      expect(meldungen.join("")).toContain("Kein Logo als Zeichen gewählt");
+    });
+
+    it("haben kennzeichen schreibt das Logo unverändert nach stdout", async () => {
+      await stammdaten.saveLogo("test-user", png);
+      await stammdaten.saveNavMark("test-user", { art: "logo" });
+      const r = spawnSync(process.execPath, [CLI, "kennzeichen"], { timeout: 20_000 });
+      expect(r.status, r.stderr.toString()).toBe(0);
+      expect(new Uint8Array(r.stdout)).toEqual(png);
+      expect(createHash("sha256").update(r.stdout).digest("hex")).toBe(sha256);
+    });
+
+    it("haben kennzeichen ohne Logo als Zeichen: Exit-Code 3, nichts auf stdout", () => {
+      const r = spawnSync(process.execPath, [CLI, "kennzeichen"], { encoding: "utf8", timeout: 20_000 });
+      expect(r.status).toBe(3);
+      expect(r.stdout).toBe("");
+      expect(r.stderr).toContain("Kein Logo als Zeichen gewählt");
+    });
+
+    it("schreibt keine Binärdaten in ein Terminal und liest dann auch nichts", async () => {
+      await stammdaten.saveLogo("test-user", png);
+      await stammdaten.saveNavMark("test-user", { art: "logo" });
+      const aus = puffer(true);
+      const meldungen: string[] = [];
+      expect(await kennzeichen.kennzeichenAusgeben(aus, (m) => meldungen.push(m))).toBe(2);
+      expect(aus.teile).toHaveLength(0);
+      expect(meldungen.join("")).toContain("haben kennzeichen > logo.png");
+    });
+  });
+
   it("gibt ohne --json Text aus", () => {
     const r = spawnSync(process.execPath, [CLI, "status"], { encoding: "utf8", timeout: 20_000, env: { ...process.env, ERIC_HOME: "" } });
     expect(r.status, r.stderr).toBe(0);
@@ -153,15 +245,27 @@ describe("haben ohne Datenbank", () => {
     expect(r.stderr).not.toContain("test:test");
   });
 
+  it("meldet auch bei haben kennzeichen eine nicht erreichbare Datenbank mit Exit-Code 1", () => {
+    const r = spawnSync(process.execPath, [CLI, "kennzeichen"], { encoding: "utf8", timeout: 20_000, env: umgebung });
+    expect(r.status).toBe(1);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toContain("Das Logo konnte nicht gelesen werden");
+    expect(r.stderr).not.toContain("test:test");
+  });
+
   it("zeigt die Hilfe auch ohne die Umgebung der App", () => {
     const r = spawnSync(process.execPath, [CLI, "--help"], { encoding: "utf8", timeout: 20_000, env: { PATH: process.env.PATH ?? "" } });
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toContain("Aufruf: haben status [--json]");
+    expect(r.stdout).toContain("haben kennzeichen > logo.png");
   });
 
-  it.each([[[]], [["unbekannt"]], [["status", "zuviel"]], [["status", "--jsn"]]])("lehnt %j mit dem Aufruf ab", (args) => {
-    const r = spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", timeout: 20_000, env: umgebung });
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain("Aufruf: haben status [--json]");
-  });
+  it.each([[[]], [["unbekannt"]], [["status", "zuviel"]], [["status", "--jsn"]], [["kennzeichen", "--json"]], [["kennzeichen", "logo.png"]]])(
+    "lehnt %j mit dem Aufruf ab",
+    (args) => {
+      const r = spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", timeout: 20_000, env: umgebung });
+      expect(r.status).toBe(2);
+      expect(r.stderr).toContain("Aufruf: haben status [--json]");
+    },
+  );
 });
