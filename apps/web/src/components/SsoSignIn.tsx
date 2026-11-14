@@ -19,7 +19,7 @@ export function ssoReasonMessage(search: string, provider: string): string | nul
 }
 
 /**
- * Ob die Anmeldung von selbst starten soll: aus dem Portal (#504) mit ?anmelden=sso. Nicht nach einem abgewiesenen
+ * Ob die Anmeldung von selbst starten soll: aus dem Firmenportal (#504) mit ?anmelden=sso. Nicht nach einem abgewiesenen
  * Callback (?sso=…), sonst ginge es im Kreis.
  */
 export const ssoAutoStart = (search: string): boolean => {
@@ -29,7 +29,7 @@ export const ssoAutoStart = (search: string): boolean => {
 
 /**
  * Einziger Weg hinein im SSO-Modus: startet die Anmeldung beim konfigurierten Anbieter, ohne weitere Angaben. Mit
- * `autoStart` (Login-Seite) startet sie bei ?anmelden=sso von selbst, damit der Wechsel aus dem Portal ohne Klick geht.
+ * `autoStart` (Login-Seite) startet sie bei ?anmelden=sso von selbst, damit der Wechsel aus dem Firmenportal ohne Klick geht.
  */
 export function SsoSignIn({ name, label, autoStart = false }: { name: string; label?: string; autoStart?: boolean }) {
   const [busy, setBusy] = useState(false);

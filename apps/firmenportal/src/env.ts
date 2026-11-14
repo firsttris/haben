@@ -2,12 +2,12 @@ import { parseOrigin, parsePortalFirmen, type PortalFirma } from "@haben/core";
 import { z } from "zod";
 
 /*
- * Konfiguration des Portals (#504, Stufe 2) aus der Umgebung. Wie Haben startet das Portal mit einer fehlerhaften
+ * Konfiguration des Firmenportals (#504, Stufe 2) aus der Umgebung. Wie Haben startet das Firmenportal mit einer fehlerhaften
  * Angabe nicht und nennt die Variable; die Regeln für den OIDC-Client sind dieselben wie in apps/web/src/server/env.ts.
  */
 
 export interface PortalConfig {
-  /** Origin des Portals, z. B. https://portal.example.de; daraus die Redirect-URI /callback */
+  /** Origin des Firmenportals, z. B. https://firmenportal.example.de; daraus die Redirect-URI /callback */
   url: string;
   /** Schlüssel für die Signatur der Cookies */
   secret: string;
@@ -24,7 +24,7 @@ export interface PortalConfig {
 }
 
 const schema = z.object({
-  /** Öffentliche Adresse des Portals */
+  /** Öffentliche Adresse des Firmenportals */
   PORTAL_URL: z.string().refine((value) => parseOrigin(value) !== null, "nur https://domain ohne Pfad, Query und Zugangsdaten (http nur für localhost)"),
   PORTAL_SECRET: z.string().min(32, "mindestens 32 Zeichen, etwa aus openssl rand -base64 32"),
   /** Name|https://adresse|inhaber-gruppe je Firma, getrennt durch ; (parsePortalFirmen) */

@@ -10,12 +10,12 @@ const tls = production ? ssoTestTls() : undefined;
 const baseURL = `${production ? "https" : "http"}://localhost:3218`;
 const issuer = `${production ? "https" : "http"}://127.0.0.1:3216`;
 const tlsEnv = tls ? { SSO_E2E_TLS_CERT: tls.cert, SSO_E2E_TLS_KEY: tls.key, NODE_EXTRA_CA_CERTS: tls.cert } : {};
-/** Portal (#504, Stufe 2) für e2e/sso-portal.spec.ts; HTTP genügt auf localhost, das Portal setzt Secure-Cookies */
+/** Firmenportal (#504, Stufe 2) für e2e/sso-firmenportal.spec.ts; HTTP genügt auf localhost, das Firmenportal setzt Secure-Cookies */
 const PORTAL = "http://localhost:3217";
 export default defineConfig({
   testDir: "e2e",
-  // sso-only zuerst: Es braucht eine frische Instanz, sso-portal richtet sie nur ein, falls nötig
-  testMatch: ["sso-only.spec.ts", "sso-portal.spec.ts", "sso-portal-abmelden.spec.ts"],
+  // sso-only zuerst: Es braucht eine frische Instanz, sso-firmenportal richtet sie nur ein, falls nötig
+  testMatch: ["sso-only.spec.ts", "sso-firmenportal.spec.ts", "sso-firmenportal-abmelden.spec.ts"],
   workers: 1,
   timeout: 60_000,
   use: {
@@ -63,11 +63,11 @@ export default defineConfig({
         OIDC_GROUP_INHABER: "haben-inhaber",
         OIDC_GROUP_STEUERBERATUNG: "haben-steuerberatung",
         DOCUMENTS_DIR: "test-results/oidc-belege",
-        HABEN_PORTAL_URL: PORTAL,
+        HABEN_FIRMENPORTAL_URL: PORTAL,
       },
     },
     {
-      command: "bun ../portal/src/main.ts",
+      command: "bun ../firmenportal/src/main.ts",
       url: `${PORTAL}/gesund`,
       reuseExistingServer: false,
       env: {

@@ -1,6 +1,6 @@
 /*
  * Firmen wechseln (#504): Jede Firma ist eine eigene Instanz von Haben mit eigener Adresse. Haben (HABEN_FIRMEN) und das
- * Portal (PORTAL_FIRMEN, apps/portal) kennen dabei nur Namen, Adressen und Gruppen, keine Daten der Firmen. Ohne
+ * Firmenportal (PORTAL_FIRMEN, apps/firmenportal) kennen dabei nur Namen, Adressen und Gruppen, keine Daten der Firmen. Ohne
  * Serverbezug, damit beide dieselben Regeln prüfen.
  */
 
@@ -10,7 +10,7 @@ export interface Firma {
   url: string;
 }
 
-/** Eine Firma im Portal: wer in `gruppe` ist (die Inhaber-Gruppe der Instanz beim Anmeldedienst), sieht sie */
+/** Eine Firma im Firmenportal: wer in `gruppe` ist (die Inhaber-Gruppe der Instanz beim Anmeldedienst), sieht sie */
 export interface PortalFirma extends Firma {
   gruppe: string;
 }
@@ -25,7 +25,7 @@ const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const DOMAIN = /^[a-z0-9._-]+$/;
 
 /**
- * Die Origin einer Instanz oder des Portals: nur https://domain ohne Pfad, Query, Fragment und Zugangsdaten, HTTP nur
+ * Die Origin einer Instanz oder des Firmenportals: nur https://domain ohne Pfad, Query, Fragment und Zugangsdaten, HTTP nur
  * für localhost. `null`, wenn die Adresse das nicht ist.
  */
 export function parseOrigin(adresse: string): string | null {
@@ -120,7 +120,7 @@ export function gruppenAus(profile: Record<string, unknown>, claim: string): { g
 }
 
 /**
- * Die Firmen, die das Portal einer Person zeigt: genau die, in deren Gruppe sie ist (exakt und
+ * Die Firmen, die das Firmenportal einer Person zeigt: genau die, in deren Gruppe sie ist (exakt und
  * groß-/kleinschreibungssensitiv), nach Namen sortiert.
  */
 export function portalFirmenFuer(gruppen: readonly string[], firmen: readonly PortalFirma[]): Firma[] {

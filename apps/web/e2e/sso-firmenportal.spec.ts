@@ -2,9 +2,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { type Browser, expect, type Page, test } from "@playwright/test";
 
 /*
- * Portal (#504, Stufe 2) im SSO-Durchlauf (playwright.sso-only.config.ts): Das Portal auf Port 3217 kennt diese
+ * Firmenportal (#504, Stufe 2) im SSO-Durchlauf (playwright.sso-only.config.ts): Das Firmenportal auf Port 3217 kennt diese
  * Instanz als „Studio Nord“ (Inhaber-Gruppe haben-inhaber) und zwei andere, die es nicht geben muss. Die Instanz hat
- * HABEN_PORTAL_URL. Läuft nach sso-only.spec.ts (Dateiname), das eine frische Instanz braucht; die Anmeldung hier
+ * HABEN_FIRMENPORTAL_URL. Läuft nach sso-only.spec.ts (Dateiname), das eine frische Instanz braucht; die Anmeldung hier
  * richtet die Instanz ein, falls sie es noch nicht ist.
  */
 
@@ -33,7 +33,7 @@ async function anbieter(page: Page, email: string, groups: string) {
 
 async function portalAnmelden(browser: Browser, groups: string): Promise<Page> {
   const page = await (await browser.newContext()).newPage();
-  // Ohne Sitzung geht das Portal gleich zum Anmeldedienst, ohne eigene Seite davor
+  // Ohne Sitzung geht das Firmenportal gleich zum Anmeldedienst, ohne eigene Seite davor
   await page.goto(`${PORTAL}/`);
   await anbieter(page, "person@example.de", groups);
   return page;
@@ -52,7 +52,7 @@ const firmen = (page: Page) => page.getByRole("region", { name: "Firma wählen" 
 
 test.describe.configure({ mode: "serial" });
 
-test("Portal: Anmeldung zeigt nur die Firmen aus den eigenen Inhaber-Gruppen", async ({ browser }) => {
+test("Firmenportal: Anmeldung zeigt nur die Firmen aus den eigenen Inhaber-Gruppen", async ({ browser }) => {
   const page = await portalAnmelden(browser, "familie, haben-inhaber, haben-sued-inhaber, haben-west-steuerberatung");
   await page.waitForURL(`${PORTAL}/`);
   // Die Initiale vor dem Namen ist nur Schmuck (aria-hidden), der Name des Links bleibt der Name der Firma
@@ -69,7 +69,7 @@ test("Portal: Anmeldung zeigt nur die Firmen aus den eigenen Inhaber-Gruppen", a
   await page.context().close();
 });
 
-test("Portal: die Steuerberatung sieht keine Firma", async ({ browser }) => {
+test("Firmenportal: die Steuerberatung sieht keine Firma", async ({ browser }) => {
   const page = await portalAnmelden(browser, "haben-steuerberatung, haben-sued-steuerberatung");
   await page.waitForURL(`${PORTAL}/`);
   await expect(page.getByText("in keiner Firma als Inhaber")).toBeVisible();
@@ -77,7 +77,7 @@ test("Portal: die Steuerberatung sieht keine Firma", async ({ browser }) => {
   await page.context().close();
 });
 
-test("Portal: mit genau einer Firma geht es nach der Anmeldung direkt dorthin", async ({ browser }) => {
+test("Firmenportal: mit genau einer Firma geht es nach der Anmeldung direkt dorthin", async ({ browser }) => {
   const context = await browser.newContext();
   await context.route("https://sued.example.de/**", (route) => route.fulfill({ contentType: "text/html", body: "<title>Süd</title>Werkstatt Süd" }));
   const page = await context.newPage();
@@ -87,7 +87,7 @@ test("Portal: mit genau einer Firma geht es nach der Anmeldung direkt dorthin", 
   await context.close();
 });
 
-test("Aus dem Portal in eine Firma, ohne Klick auf der Login-Seite von Haben", async ({ browser }) => {
+test("Aus dem Firmenportal in eine Firma, ohne Klick auf der Login-Seite von Haben", async ({ browser }) => {
   const page = await portalAnmelden(browser, "haben-inhaber, haben-sued-inhaber");
   await page.waitForURL(`${PORTAL}/`);
   const warten = letzterStart + 10_500 - Date.now();
@@ -101,7 +101,7 @@ test("Aus dem Portal in eine Firma, ohne Klick auf der Login-Seite von Haben", a
   await page.context().close();
 });
 
-test("Haben: „Firma wechseln“ führt ins Portal, ohne aufzuklappen, und zurück zur Firma", async ({ browser }) => {
+test("Haben: „Firma wechseln“ führt ins Firmenportal, ohne aufzuklappen, und zurück zur Firma", async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   await habenAnmelden(page, "haben-inhaber");
@@ -119,7 +119,7 @@ test("Haben: „Firma wechseln“ führt ins Portal, ohne aufzuklappen, und zur�
   await page.waitForURL(`${BASE}/`);
   await expect(nav.getByRole("link", { name: "Firma wechseln" })).toBeVisible();
 
-  // Abmelden im Portal: danach eine Seite „abgemeldet“, keine sofortige neue Anmeldung
+  // Abmelden im Firmenportal: danach eine Seite „abgemeldet“, keine sofortige neue Anmeldung
   await page.goto(`${PORTAL}/`);
   await page.getByRole("button", { name: "Abmelden" }).click();
   await page.waitForURL(`${PORTAL}/?abgemeldet`);

@@ -110,10 +110,10 @@ export function FirmaWechsler({ andere }: { andere: Firma[] }) {
 }
 
 /**
- * Firma wechseln mit Portal (#504, Stufe 2, HABEN_PORTAL_URL): dieselbe Zeile, aber ein Link ins Portal im selben Tab.
- * Welche Firmen es gibt, weiß nur das Portal, aus den Gruppen beim Anmeldedienst.
+ * Firma wechseln mit Firmenportal (#504, Stufe 2, HABEN_FIRMENPORTAL_URL): dieselbe Zeile, aber ein Link ins Firmenportal im selben Tab.
+ * Welche Firmen es gibt, weiß nur das Firmenportal, aus den Gruppen beim Anmeldedienst.
  */
-export function FirmaWechslerPortal({ url }: { url: string }) {
+export function ZumFirmenportal({ url }: { url: string }) {
   return (
     <div className="firma-wechsler">
       <a href={url} className="nav-link firma-wechsler-knopf">

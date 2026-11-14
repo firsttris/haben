@@ -80,7 +80,8 @@ export function checkBody(body: string | null): Report[] {
 }
 
 const isTest = (file: string) => /\.(test|spec)\.tsx?$/.test(file) || file.includes("/e2e/");
-const isCode = (file: string) => /^(apps\/(web|portal)\/src|packages\/[^/]+\/src)\/.*\.tsx?$/.test(file) && !isTest(file) && !file.endsWith("routeTree.gen.ts");
+const isCode = (file: string) =>
+  /^(apps\/(web|firmenportal)\/src|packages\/[^/]+\/src)\/.*\.tsx?$/.test(file) && !isTest(file) && !file.endsWith("routeTree.gen.ts");
 const isFix = (subject: string) => /^fix(\(.*\))?!?:/.test(subject);
 
 /**

@@ -64,7 +64,7 @@ const sso = [
   "OIDC_GROUP_INHABER",
   "OIDC_GROUP_STEUERBERATUNG",
   // Das Portal (#504) gibt es nur mit SSO
-  "HABEN_PORTAL_URL",
+  "HABEN_FIRMENPORTAL_URL",
 ];
 // ERiC von Hand oder emuliert braucht eine Shell, der Kontoabruf eine eingehängte Schlüsseldatei, der Rest wird selten
 // gebraucht; wer das braucht, ergänzt es nach docs/installation-konfiguration.md

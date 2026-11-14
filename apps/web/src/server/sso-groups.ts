@@ -23,7 +23,7 @@ export type GroupDecision = { ok: true; role: Rolle } | { ok: false; reason: Gro
  * Genau eine der beiden Haben-Gruppen gibt Zugang, alles andere verweigert ihn.
  */
 export function decideRole(profile: Record<string, unknown>, config: GroupConfig): GroupDecision {
-  // Dieselbe Auswertung des Claims wie im Portal (apps/portal)
+  // Dieselbe Auswertung des Claims wie im Portal (apps/firmenportal)
   const ergebnis = gruppenAus(profile, config.claim);
   if ("fehler" in ergebnis) return { ok: false, reason: ergebnis.fehler };
   const groups = ergebnis.gruppen;

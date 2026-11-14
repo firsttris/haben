@@ -18,7 +18,7 @@
       "entry": ["src/popup.ts", "src/content.ts"]
     },
     // src/main.ts kennt knip aus dem Skript start in package.json
-    "apps/portal": {
+    "apps/firmenportal": {
       "entry": ["src/**/*.test.ts"]
     },
     "packages/*": {

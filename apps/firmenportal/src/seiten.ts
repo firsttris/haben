@@ -1,7 +1,7 @@
 import type { Firma } from "@haben/core";
 
 /*
- * Die Seiten des Portals, auf dem Server als HTML gerendert: kein Skript, damit die Content Security Policy nur
+ * Die Seiten des Firmenportals, auf dem Server als HTML gerendert: kein Skript, damit die Content Security Policy nur
  * 'self' für das Stylesheet braucht. Jeder Text aus der Konfiguration oder der Anfrage geht durch `html`.
  */
 

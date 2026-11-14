@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { gruppenAus, parseOrigin, parsePortalFirmen, portalFirmenFuer } from "./firmen.ts";
 
 /*
- * Portal (#504, Stufe 2): PORTAL_FIRMEN und die Auswahl der Firmen nach den Gruppen der angemeldeten Person.
+ * Firmenportal (#504, Stufe 2): PORTAL_FIRMEN und die Auswahl der Firmen nach den Gruppen der angemeldeten Person.
  * parseFirmen (HABEN_FIRMEN) prüfen apps/web/src/lib/firmen.test.ts und deploy/instanzen/firmen-app.test.ts.
  */
 
@@ -59,21 +59,21 @@ describe("parsePortalFirmen", () => {
 
 describe("parseOrigin", () => {
   it.each([
-    ["https://portal.example.de", "https://portal.example.de"],
-    ["https://portal.example.de/", "https://portal.example.de"],
+    ["https://firmenportal.example.de", "https://firmenportal.example.de"],
+    ["https://firmenportal.example.de/", "https://firmenportal.example.de"],
     ["http://localhost:3116", "http://localhost:3116"],
   ])("nimmt %s an", (adresse, origin) => {
     expect(parseOrigin(adresse)).toBe(origin);
   });
 
   it.each([
-    "http://portal.example.de",
-    "https://portal.example.de/x",
-    "https://a:b@portal.example.de",
-    "https://portal.example.de?x",
+    "http://firmenportal.example.de",
+    "https://firmenportal.example.de/x",
+    "https://a:b@firmenportal.example.de",
+    "https://firmenportal.example.de?x",
     "javascript:alert(1)",
     "kein url",
-    "https://portal.example.de'",
+    "https://firmenportal.example.de'",
   ])("lehnt %s ab", (adresse) => {
     expect(parseOrigin(adresse)).toBeNull();
   });

@@ -1,7 +1,7 @@
 import { GEWICHTE } from "./schrift.ts";
 
 /*
- * Stylesheet des Portals: Farben aus DESIGN.md (Wald, hell und dunkel nach dem Gerät), Abstände auf dem 4px-Raster,
+ * Stylesheet des Firmenportals: Farben aus DESIGN.md (Wald, hell und dunkel nach dem Gerät), Abstände auf dem 4px-Raster,
  * Schriftgrößen 13, 14, 16, 18 und 24px. Die Firmen stehen als ganze Zeilen wie die Menüpunkte in Haben.
  */
 

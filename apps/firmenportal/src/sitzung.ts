@@ -3,13 +3,13 @@ import type { PortalFirma } from "@haben/core";
 import type { Ablauf } from "./oidc.ts";
 
 /*
- * Zustandslose Sitzung des Portals: Es gibt keine Datenbank, deshalb liegt alles in Cookies, die mit PORTAL_SECRET
+ * Zustandslose Sitzung des Firmenportals: Es gibt keine Datenbank, deshalb liegt alles in Cookies, die mit PORTAL_SECRET
  * signiert sind (HMAC-SHA-256). Der Ablauf (state, nonce, PKCE-Verifier) gilt zehn Minuten, die Sitzung 15 Minuten wie
  * eine Berechtigung in Haben (SSO_PROOF_MS); danach meldet der Anmeldedienst erneut an, meist ohne Rückfrage.
  */
 
-export const ABLAUF_COOKIE = "__Host-haben-portal-ablauf";
-export const SITZUNG_COOKIE = "__Host-haben-portal";
+export const ABLAUF_COOKIE = "__Host-haben-firmenportal-ablauf";
+export const SITZUNG_COOKIE = "__Host-haben-firmenportal";
 export const ABLAUF_MS = 10 * 60_000;
 export const SITZUNG_MS = 15 * 60_000;
 

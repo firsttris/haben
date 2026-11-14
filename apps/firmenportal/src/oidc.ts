@@ -4,7 +4,7 @@ import { createRemoteJWKSet, type JWTPayload, jwtVerify } from "jose";
 import type { PortalConfig } from "./env.ts";
 
 /*
- * OpenID Connect für das Portal: Authorization Code mit PKCE, nur zur Anmeldung. Keine gespeicherten Tokens, kein
+ * OpenID Connect für das Firmenportal: Authorization Code mit PKCE, nur zur Anmeldung. Keine gespeicherten Tokens, kein
  * Refresh. Dieselben Prüfungen wie Haben (apps/web/src/server/oidc.ts), ohne Better Auth: Discovery mit exaktem Issuer,
  * ID-Token nach OpenID Connect Core 1.0, 3.1.3.7 (Signatur gegen die JWKS, iss, aud, azp, exp, nonce), UserInfo mit
  * demselben Subject (5.3.2) und die Gruppen wörtlich aus genau einem Claim.

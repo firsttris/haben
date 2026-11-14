@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { Firma } from "../lib/firmen.ts";
 import type { EigeneSeiteNav as EigeneSeite, NavGroup } from "../lib/navigation.ts";
 import { STEUERBERATUNG_START } from "../lib/rollen.ts";
-import { FirmaListe, FirmaWechsler, FirmaWechslerPortal } from "./FirmaWechsler.tsx";
+import { FirmaListe, FirmaWechsler, ZumFirmenportal } from "./FirmaWechsler.tsx";
 import { Icon } from "./Icon.tsx";
 import { type FlyoutWeg, NavFlyout } from "./NavFlyout.tsx";
 import { ThemePicker } from "./ThemePicker.tsx";
@@ -44,8 +44,8 @@ interface NavBodyProps extends CollapseButtonProps {
   firma: string | null;
   pathname: string;
   firmen: Firma[];
-  /** HABEN_PORTAL_URL, nur für den Inhaber (#504, Stufe 2); dann statt der Liste ein Link dorthin */
-  portal: string | null;
+  /** HABEN_FIRMENPORTAL_URL, nur für den Inhaber (#504, Stufe 2); dann statt der Liste ein Link dorthin */
+  firmenportal: string | null;
   sichtbareGruppen: readonly NavGroup[];
   eigeneSeiten: readonly EigeneSeite[];
   userName: string;
@@ -110,7 +110,7 @@ export function NavRailBody({
   inhaber,
   pathname,
   firmen,
-  portal,
+  firmenportal,
   sichtbareGruppen,
   eigeneSeiten,
   userName,
@@ -129,9 +129,9 @@ export function NavRailBody({
   });
   return (
     <>
-      {portal ? (
+      {firmenportal ? (
         // Kein Flyout: Der Link führt aus Haben hinaus, die Liste der Firmen kennt nur das Ziel
-        <a href={portal} className="nav-link nav-rail-link nav-tip-anker" aria-label="Firma wechseln">
+        <a href={firmenportal} className="nav-link nav-rail-link nav-tip-anker" aria-label="Firma wechseln">
           <Icon name="company" />
           <NavTip>Firma wechseln</NavTip>
         </a>
@@ -208,7 +208,7 @@ export function NavExpandedBody({
   onToggleCollapse,
   inhaber,
   firmen,
-  portal,
+  firmenportal,
   sichtbareGruppen,
   eigeneSeiten,
   userName,
@@ -218,8 +218,8 @@ export function NavExpandedBody({
 }: Omit<NavBodyProps, "pathname" | "firma" | "openFlyout" | "onFlyoutOpen" | "onFlyoutClose">) {
   return (
     <>
-      {/* Firma wechseln (#504), mit HABEN_PORTAL_URL stattdessen der Link „Firma wechseln“; sonst nur mit anderen Firmen. Als Erstes im rollenden Menü */}
-      {portal ? <FirmaWechslerPortal url={portal} /> : firmen.length > 0 && <FirmaWechsler andere={firmen} />}
+      {/* Firma wechseln (#504), mit HABEN_FIRMENPORTAL_URL stattdessen der Link „Firma wechseln“; sonst nur mit anderen Firmen. Als Erstes im rollenden Menü */}
+      {firmenportal ? <ZumFirmenportal url={firmenportal} /> : firmen.length > 0 && <FirmaWechsler andere={firmen} />}
       <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
         <Icon name="overview" />
         <span className="nav-collapse-label">Übersicht</span>

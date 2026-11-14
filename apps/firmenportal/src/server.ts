@@ -18,7 +18,7 @@ import {
 } from "./sitzung.ts";
 
 /*
- * Das Portal (#504, Stufe 2): Anmeldung per SSO, danach die Firmen, in deren Inhaber-Gruppe die Person ist, als Links
+ * Das Firmenportal (#504, Stufe 2): Anmeldung per SSO, danach die Firmen, in deren Inhaber-Gruppe die Person ist, als Links
  * auf ihre Instanzen. Keine Datenbank, keine Buchhaltungsdaten, kein Proxy: Die Instanz meldet beim selben
  * Anmeldedienst selbst an.
  */
@@ -105,13 +105,13 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
   const datei = request.method === "GET" ? schrift(pathname) : null;
   if (datei) {
     const inhalt = await datei;
-    if (!inhalt) return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Portal nicht."), 404);
+    if (!inhalt) return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Firmenportal nicht."), 404);
     return new Response(inhalt, { headers: { ...KOPF, "content-type": "font/woff2", "cache-control": "max-age=86400" } });
   }
   if (request.method === "GET" && pathname === "/") {
     const sitzung = sitzungLesen(config, request, jetzt);
     if (!sitzung) {
-      // Das Portal meldet nur per SSO an; ohne eigene Seite davor geht es gleich zum Anmeldedienst
+      // Das Firmenportal meldet nur per SSO an; ohne eigene Seite davor geht es gleich zum Anmeldedienst
       return url.searchParams.has("abgemeldet") ? antwort(abgemeldetSeite()) : weiter("/anmelden");
     }
     // „Abmelden“ ist ein Formular, das zum end_session_endpoint weiterleitet; form-action gilt in Chromium auch für
@@ -124,21 +124,21 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
   if (request.method === "GET" && pathname === "/anmelden") return anmelden(config, jetzt);
   if (request.method === "GET" && pathname === "/callback") return callback(config, request, jetzt);
   if (request.method === "POST" && pathname === "/abmelden") return abmelden(config, jetzt);
-  return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Portal nicht."), 404);
+  return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Firmenportal nicht."), 404);
 }
 
-/** Der Request-Handler des Portals; `jetzt` nur für Tests */
+/** Der Request-Handler des Firmenportals; `jetzt` nur für Tests */
 export function portal(config: PortalConfig, jetzt: () => number = Date.now): (request: Request) => Promise<Response> {
   return async (request) => {
     try {
       return await route(config, request, jetzt());
     } catch (fehler) {
       if (istAnmeldeFehler(fehler)) {
-        console.error(`Portal: ${fehler.ursache}`);
+        console.error(`Firmenportal: ${fehler.ursache}`);
         return antwort(anmeldeSeite(config.displayName, fehler.message), 403, {}, [cookieLoeschen(ABLAUF_COOKIE)]);
       }
-      console.error(`Portal: unerwarteter Fehler (${fehler instanceof Error ? fehler.name : "unbekannt"})`);
-      return antwort(fehlerSeite("Fehler", "Das Portal konnte die Anfrage nicht bearbeiten."), 500);
+      console.error(`Firmenportal: unerwarteter Fehler (${fehler instanceof Error ? fehler.name : "unbekannt"})`);
+      return antwort(fehlerSeite("Fehler", "Das Firmenportal konnte die Anfrage nicht bearbeiten."), 500);
     }
   };
 }

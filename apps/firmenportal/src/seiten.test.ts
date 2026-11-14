@@ -4,7 +4,7 @@ import { anmeldeSeite, firmenSeite, SUCHE_AB } from "./seiten.ts";
 
 const seite = (liste: Parameters<typeof firmenSeite>[0], suche: string) => firmenSeite(liste, suche, "", (url) => url);
 
-/* Seiten und Konfiguration des Portals (#504): Escaping, Suchfeld ab 20 Firmen, Fehler beim Start. */
+/* Seiten und Konfiguration des Firmenportals (#504): Escaping, Suchfeld ab 20 Firmen, Fehler beim Start. */
 
 const firmen = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `Firma ${String(i).padStart(2, "0")}`, url: `https://f${i}.example.de` }));
 
@@ -28,7 +28,7 @@ describe("Seiten", () => {
 
 describe("ladeKonfiguration", () => {
   const gueltig = {
-    PORTAL_URL: "https://portal.example.de",
+    PORTAL_URL: "https://firmenportal.example.de",
     PORTAL_SECRET: "x".repeat(32),
     OIDC_ISSUER: "https://auth.example.de",
     OIDC_CLIENT_ID: "portal",
@@ -37,12 +37,12 @@ describe("ladeKonfiguration", () => {
 
   it("nimmt eine gültige Konfiguration mit Vorgaben an", () => {
     const ergebnis = ladeKonfiguration(gueltig);
-    expect(ergebnis).toMatchObject({ config: { url: "https://portal.example.de", displayName: "SSO", groupsClaim: "groups", firmen: [] } });
+    expect(ergebnis).toMatchObject({ config: { url: "https://firmenportal.example.de", displayName: "SSO", groupsClaim: "groups", firmen: [] } });
   });
 
   it.each([
-    ["PORTAL_URL mit Pfad", { PORTAL_URL: "https://portal.example.de/x" }, "PORTAL_URL"],
-    ["PORTAL_URL über http", { PORTAL_URL: "http://portal.example.de" }, "PORTAL_URL"],
+    ["PORTAL_URL mit Pfad", { PORTAL_URL: "https://firmenportal.example.de/x" }, "PORTAL_URL"],
+    ["PORTAL_URL über http", { PORTAL_URL: "http://firmenportal.example.de" }, "PORTAL_URL"],
     ["zu kurzes PORTAL_SECRET", { PORTAL_SECRET: "kurz" }, "PORTAL_SECRET"],
     ["Claim als Pfad", { OIDC_GROUPS_CLAIM: "realm_access.roles" }, "OIDC_GROUPS_CLAIM"],
     ["Issuer über http", { OIDC_ISSUER: "http://auth.example.de" }, "OIDC_ISSUER"],

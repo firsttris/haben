@@ -6,7 +6,7 @@ import { portal } from "./server.ts";
 import { ABLAUF_COOKIE, SITZUNG_COOKIE, signieren } from "./sitzung.ts";
 
 /*
- * Portal (#504, Stufe 2) gegen einen echten OIDC-Anbieter auf Loopback (sso-test-provider.ts): Anmeldung, Callback,
+ * Firmenportal (#504, Stufe 2) gegen einen echten OIDC-Anbieter auf Loopback (sso-test-provider.ts): Anmeldung, Callback,
  * Auswahl der Firmen nur aus den Inhaber-Gruppen, Ablehnungen und manipulierte Cookies.
  */
 
@@ -197,7 +197,7 @@ describe("Ablehnungen", () => {
     const ende = await portal(config)(anfrage("/anmelden"));
     expect(ende.status).toBe(403);
     expect(await ende.text()).not.toContain("503");
-    expect(fehler).toHaveBeenCalledWith("Portal: Discovery antwortete 503");
+    expect(fehler).toHaveBeenCalledWith("Firmenportal: Discovery antwortete 503");
     fehler.mockRestore();
   });
 });
@@ -240,7 +240,7 @@ describe("Seiten", () => {
   it("setzen sichere Kopfzeilen und Cookies nur mit __Host-, Secure und HttpOnly", async () => {
     const start = await portal(config)(anfrage("/anmelden"));
     const cookie = start.headers.getSetCookie()[0]!;
-    expect(cookie).toMatch(/^__Host-haben-portal-ablauf=[^;]+; Path=\/; Secure; HttpOnly; SameSite=Lax; Max-Age=600$/);
+    expect(cookie).toMatch(/^__Host-haben-firmenportal-ablauf=[^;]+; Path=\/; Secure; HttpOnly; SameSite=Lax; Max-Age=600$/);
     const seite = await portal(config)(anfrage("/?abgemeldet"));
     expect(seite.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
     expect(seite.headers.get("content-security-policy")).toContain("font-src 'self'");

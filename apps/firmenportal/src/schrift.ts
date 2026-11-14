@@ -3,9 +3,9 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 
 /*
- * IBM Plex Sans wie in Haben, vom Portal selbst ausgeliefert (keine fremde Quelle, CSP font-src 'self'). Nur der
+ * IBM Plex Sans wie in Haben, vom Firmenportal selbst ausgeliefert (keine fremde Quelle, CSP font-src 'self'). Nur der
  * lateinische Ausschnitt: Er enthält Umlaute und ß. Im Image liegen die Dateien in PORTAL_SCHRIFTEN
- * (apps/portal/Containerfile), sonst kommen sie aus @fontsource/ibm-plex-sans.
+ * (apps/firmenportal/Containerfile), sonst kommen sie aus @fontsource/ibm-plex-sans.
  */
 
 export const GEWICHTE = [400, 500, 600] as const;

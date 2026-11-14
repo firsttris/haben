@@ -1,13 +1,13 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { expect, test } from "@playwright/test";
-import { ladeKonfiguration } from "../../portal/src/env.ts";
-import { portal } from "../../portal/src/server.ts";
-import { listenAbdruck, SITZUNG_COOKIE, SITZUNG_MS, signieren } from "../../portal/src/sitzung.ts";
+import { ladeKonfiguration } from "../../firmenportal/src/env.ts";
+import { portal } from "../../firmenportal/src/server.ts";
+import { listenAbdruck, SITZUNG_COOKIE, SITZUNG_MS, signieren } from "../../firmenportal/src/sitzung.ts";
 
 /*
- * Review #504: Abmelden im Portal leitet zur Abmeldung des Anmeldedienstes (end_session_endpoint, RP-Initiated
+ * Review #504: Abmelden im Firmenportal leitet zur Abmeldung des Anmeldedienstes (end_session_endpoint, RP-Initiated
  * Logout). Das Formular POST /abmelden antwortet mit 303 auf eine andere Origin; die Content Security Policy des
- * Portals darf diese Weiterleitung nicht blockieren (form-action gilt in Chromium auch für Weiterleitungen).
+ * Firmenportals darf diese Weiterleitung nicht blockieren (form-action gilt in Chromium auch für Weiterleitungen).
  */
 
 const PORTAL_PORT = 3220;
@@ -46,7 +46,7 @@ test.beforeAll(async () => {
     PORTAL_SECRET: "portal-test-secret-mindestens-32-zeichen",
     PORTAL_FIRMEN: "Studio Nord|https://nord.example.de|haben-nord-inhaber",
     OIDC_ISSUER: issuer,
-    OIDC_CLIENT_ID: "haben-portal",
+    OIDC_CLIENT_ID: "haben-firmenportal",
     OIDC_CLIENT_SECRET: "secret",
     OIDC_DISPLAY_NAME: "Test-SSO",
   });
@@ -79,12 +79,12 @@ test.afterAll(async () => {
   await new Promise((resolve) => anbieter?.close(resolve));
 });
 
-test("Portal: Abmelden führt zur Abmeldung beim Anmeldedienst", async ({ page }) => {
+test("Firmenportal: Abmelden führt zur Abmeldung beim Anmeldedienst", async ({ page }) => {
   // __Host-Cookies lassen sich über http://localhost nicht mit addCookies setzen; die Sitzung kommt deshalb als Kopfzeile
   await page.setExtraHTTPHeaders({ cookie: `${SITZUNG_COOKIE}=${(globalThis as { reviewSitzung?: string }).reviewSitzung!}` });
   await page.goto(`${PORTAL}/`);
   await expect(page.getByRole("link", { name: "Studio Nord" })).toBeVisible();
   await page.getByRole("button", { name: "Abmelden" }).click();
-  await page.waitForURL(`${issuer}/logout?client_id=haben-portal`, { timeout: 5_000 });
+  await page.waitForURL(`${issuer}/logout?client_id=haben-firmenportal`, { timeout: 5_000 });
   await expect(page.getByRole("heading", { name: "Beim Anmeldedienst abgemeldet" })).toBeVisible();
 });
