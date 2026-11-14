@@ -655,11 +655,6 @@ function EstSection({ data }: { data: Data }) {
             <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
           </div>
           <Issues issues={est.issues} />
-          {hatErklaert(est.erklaert) && (
-            <div style={{ marginBottom: 12 }}>
-              <ErklaerteZeilen zeilen={est.erklaert} reihenfolge={EST_ZEILEN} kern={["est_zve", "est_festgesetzt", "est_erstattung"]} />
-            </div>
-          )}
           <ScrollTable className="report-table">
             <tbody>
               <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
@@ -702,18 +697,12 @@ function EstSection({ data }: { data: Data }) {
                 </tbody>
               </ScrollTable>
             );
-            // Bei abgegebener Erklärung ist die Schaetzung eine Nebenrechnung; die echten Zahlen
-            // stehen oben in der Karte "ausserhalb von Haben abgegeben" (#869)
+            // Ist die Erklärung abgegeben, gelten die erklärten Zeilen; die Schätzung wäre eine
+            // zweite, abweichende Wahrheit daneben (#869)
             return est.submitted === null ? (
               prognose
             ) : (
-              <details className="est-block">
-                <summary>
-                  <span className="est-block-title">Schätzung aus Habens Buchungen</span>
-                  <span className="small muted">nicht die abgegebene Erklärung</span>
-                </summary>
-                <div style={{ paddingTop: 12 }}>{prognose}</div>
-              </details>
+              <ErklaerteZeilen zeilen={est.erklaert} reihenfolge={EST_ZEILEN} kern={["est_zve", "est_festgesetzt", "est_erstattung"]} />
             );
           })()}
 
