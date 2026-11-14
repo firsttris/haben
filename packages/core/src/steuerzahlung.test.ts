@@ -188,7 +188,7 @@ describe("steuerKontierung: privates Konto (#873)", () => {
       expect(privat({ art, jahr: 2026, posten: "steuer" }, -25_00).ok).toBe(false);
     }
     const k = privat({ art: "kapest", jahr: 2026, posten: "steuer" }, -25_00);
-    if (!k.ok) expect(k.fehler).toContain("§ 20 Abs. 1 EStG");
+    if (!k.ok) expect(k.fehler).toContain("§ 20 Abs. 1 Nr. 7 EStG");
   });
 
   it("lässt Gewerbe-, Umsatz- und Körperschaftsteuer zu: Einlage bzw. Entnahme trägt die Zahlung", () => {

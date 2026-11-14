@@ -84,7 +84,8 @@ export async function steuerbuchung(
     : 0;
   // Privates Konto (#866, #873): Das Geld fließt ins Private oder kommt von dort, die Gegenzeile ist deshalb die
   // Privatentnahme bzw. -einlage und nicht die Bank. Das gilt für jede Steuerart, nicht nur die Umsatzsteuer: Auch
-  // Gewerbesteuer, Vorauszahlungen und Erstattungen zur Einkommensteuer laufen über das Privatkonto.
+  // Gewerbesteuer und die Steuern der GmbH laufen über das Privatkonto. Die Steuern des Inhabers und die einbehaltene
+  // Kapitalertragsteuer lehnt die Kontierung dort ab, weil sie kein Geschäftsvorfall sind (#873).
   const zahlungskonto = privatesKonto ? privatZahlung(amount, company.kontenrahmen, company.rechtsform) : undefined;
   return {
     lines: steuerzahlungPosting(kontierung, amount, ausRueckstellung, company.kontenrahmen, zahlungskonto),

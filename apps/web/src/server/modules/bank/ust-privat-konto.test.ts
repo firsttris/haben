@@ -209,7 +209,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
         amount: -25_00,
         steuer: { art: "kapest", jahr: 2026, posten: "steuer" },
       }),
-    ).rejects.toThrow(/§ 20 Abs. 1 EStG/);
+    ).rejects.toThrow(/§ 20 Abs. 1 Nr. 7 EStG/);
     expect(await zeilen(transaction)).toEqual([]);
   });
 

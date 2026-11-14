@@ -267,7 +267,7 @@ export function steuerKontierung(
     // kein Geschäftsvorfall des Betriebs
     if (privatesKonto) {
       return fehler(
-        `${STEUERARTEN[art]} auf einem privaten Konto: Der Zins ist privates Kapitalvermögen (§ 20 Abs. 1 EStG) und kein Geschäftsvorfall des Betriebs. Buche die Zinsgutschrift nicht über Haben.`,
+        `${STEUERARTEN[art]} auf einem privaten Konto: Der Zins ist privates Kapitalvermögen (§ 20 Abs. 1 Nr. 7 EStG) und kein Geschäftsvorfall des Betriebs. Buche die Zinsgutschrift nicht über Haben.`,
       );
     }
     // Einzelunternehmen: auf die Einkommensteuer anrechenbar, also Entnahme (Privatsteuern); GmbH: Steueraufwand
@@ -279,7 +279,7 @@ export function steuerKontierung(
     // „Privatsteuern an Privatentnahme“ meldete die Anlage EÜR dieselbe Summe als Entnahme und als Einlage (annual.ts).
     if (privatesKonto) {
       return fehler(
-        `${STEUERARTEN[art]} ist eine Steuer des Inhabers (§ 12 Nr. 3 EStG); von einem privaten Konto gezahlt ist das kein Geschäftsvorfall des Betriebs. Ordne sie über das Geschäftskonto zu, dort wird sie zur Privatentnahme.`,
+        `${STEUERARTEN[art]} ist eine Steuer des Inhabers (§ 12 Nr. 3 EStG); von einem privaten Konto gezahlt ist das kein Geschäftsvorfall des Betriebs. Haben bucht sie deshalb nicht: Eine Entnahme entsteht nur, wenn die Zahlung vom Geschäftskonto abging.`,
       );
     }
     // § 12 Nr. 3 EStG: Steuern vom Einkommen und ihre Nebenleistungen sind privat; Erstattungszinsen sind private
