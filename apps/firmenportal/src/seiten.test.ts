@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ladeKonfiguration } from "./env.ts";
-import { anmeldeSeite, firmenSeite, SUCHE_AB } from "./seiten.ts";
+import { abgemeldetSeite, anmeldeSeite, fehlerSeite, firmenSeite, SUCHE_AB } from "./seiten.ts";
 import { STIL } from "./stil.ts";
 
 const seite = (liste: Parameters<typeof firmenSeite>[0], suche: string) => firmenSeite(liste, suche, "", (url) => url);
@@ -45,8 +45,20 @@ describe("Seiten", () => {
     expect(seite(firmen(25), "gibt es nicht")).toContain('role="status">Keine Firma gefunden.</p>');
   });
 
+  // Zweite Rückmeldung zur Oberfläche in #1006: eine linke Kante, Aktionen rechts wie in einem Dialog
+  it("rücken die Marke um Innenabstand und Rand der Karte ein und stellen Knöpfe rechts", () => {
+    expect(STIL).toMatch(/\.marke \{[^}]*padding-left: 25px/);
+    expect(STIL).toMatch(/\.fuss form \{ margin-left: auto; \}/);
+    expect(STIL).toMatch(/\.aktionen \{[^}]*justify-content: flex-end/);
+    for (const html of [abgemeldetSeite("Test-SSO", false), anmeldeSeite("Test-SSO", "Abgebrochen."), fehlerSeite("Fehler", "Text")]) {
+      expect(html).toMatch(/<div class="aktionen"><a class="btn[^"]*" href="[^"]+">[^<]+<\/a><\/div>/);
+    }
+  });
+
   it("trennen lange Namen nach Silben und heben das Überfahren im Dunkeln stärker ab", () => {
     expect(STIL).toMatch(/\.firma-name \{[^}]*hyphens: auto/);
+    // Ältere Safari-Versionen kennen nur die Fassung mit Präfix
+    expect(STIL).toMatch(/\.firma-name \{[^}]*-webkit-hyphens: auto/);
     expect(STIL).toMatch(/\.firma:hover \{ background: var\(--firma-hover\)/);
     const dunkel = STIL.slice(STIL.indexOf("prefers-color-scheme: dark"));
     expect(dunkel).toMatch(/--firma-hover: var\(--line\)/);

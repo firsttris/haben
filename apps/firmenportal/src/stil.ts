@@ -33,7 +33,8 @@ body { margin: 0; min-height: 100vh; background: var(--ground); color: var(--ink
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .portal { max-width: 480px; margin: 0 auto; padding: 48px 16px; display: flex; flex-direction: column; gap: 24px; }
-.marke { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600; }
+/* Eingerückt um Rand und Innenabstand der Karte (1 + 24px): Marke, Überschrift, Kacheln und Fuß auf einer Linie */
+.marke { display: flex; align-items: center; gap: 12px; padding-left: 25px; font-size: 18px; font-weight: 600; }
 .marke-ort { color: var(--muted); font-weight: 500; }
 .zeichen { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; background: var(--brand); color: #fff; font-size: 20px; }
 .karte { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-xs); }
@@ -53,11 +54,14 @@ p { margin: 0; line-height: 1.5; }
 .firma:hover { background: var(--firma-hover); }
 .firma:focus-visible { outline-offset: -2px; }
 .firma-zeichen { flex-shrink: 0; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
-.firma-name { flex: 1; min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+.firma-name { flex: 1; min-width: 0; overflow-wrap: break-word; -webkit-hyphens: auto; hyphens: auto; }
 .firma-pfeil { flex-shrink: 0; color: var(--muted); transition: transform var(--fade); }
 .firma:hover .firma-pfeil { transform: translateX(2px); color: var(--ink); }
 .fuss { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .fuss .muted { min-width: 0; overflow-wrap: anywhere; }
+/* „Abmelden“ bleibt rechts, auch wenn der Fuß am Handy umbricht; die Karte verhält sich wie ein Dialog */
+.fuss form { margin-left: auto; }
+.aktionen { display: flex; justify-content: flex-end; width: 100%; }
 .suche { display: flex; gap: 8px; width: 100%; }
 .suche input { flex: 1; min-width: 0; min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
 .suche input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }

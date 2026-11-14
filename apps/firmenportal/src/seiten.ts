@@ -38,7 +38,7 @@ export function anmeldeSeite(anbieter: string, fehler?: string, ziel = "/anmelde
     `<section class="karte" aria-labelledby="titel">
 <div class="kopf"><h1 id="titel">Firma wählen</h1><p class="muted">Melde dich an, um die Firmen zu sehen, in denen du Inhaber bist.</p></div>
 ${meldung}
-<a class="btn btn-primary" href="${html(ziel)}">Mit ${html(anbieter)} anmelden</a>
+<div class="aktionen"><a class="btn btn-primary" href="${html(ziel)}">Mit ${html(anbieter)} anmelden</a></div>
 </section>`,
   );
 }
@@ -56,7 +56,7 @@ export function abgemeldetSeite(anbieter: string, beimDienst: boolean): string {
     `<section class="karte" aria-labelledby="titel">
 <div class="kopf"><h1 id="titel">Abgemeldet</h1></div>
 <p class="hinweis" role="status">${text}</p>
-<a class="btn btn-primary" href="/anmelden">Wieder anmelden</a>
+<div class="aktionen"><a class="btn btn-primary" href="/anmelden">Wieder anmelden</a></div>
 </section>`,
   );
 }
@@ -113,7 +113,7 @@ export function fehlerSeite(titel: string, text: string): string {
     `<section class="karte" aria-labelledby="titel">
 <div class="kopf"><h1 id="titel">${html(titel)}</h1></div>
 <p>${html(text)}</p>
-<a class="btn" href="/anmelden">Zur Anmeldung</a>
+<div class="aktionen"><a class="btn" href="/anmelden">Zur Anmeldung</a></div>
 </section>`,
   );
 }

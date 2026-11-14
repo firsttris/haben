@@ -48,6 +48,28 @@ async function ohneVerstoesse(page: Page) {
   }
 }
 
+/**
+ * Kanten auf der Seite: Marke, Überschrift und Kacheln der Firmen links am Inhalt der Karte, Knöpfe rechts daran
+ * (Rückmeldung in #1006); `knopf` ist der Knopf, der rechts stehen soll
+ */
+async function kanten(page: Page, knopf: string) {
+  return page.evaluate((auswahl) => {
+    const rechteck = (s: string) => document.querySelector(s)!.getBoundingClientRect();
+    const karte = document.querySelector(".karte")!;
+    const stil = getComputedStyle(karte);
+    const k = karte.getBoundingClientRect();
+    const links = k.left + Number.parseFloat(stil.borderLeftWidth) + Number.parseFloat(stil.paddingLeft);
+    const rechts = k.right - Number.parseFloat(stil.borderRightWidth) - Number.parseFloat(stil.paddingRight);
+    const kacheln = document.querySelector(".firma-zeichen");
+    return {
+      zeichen: Math.round(rechteck(".zeichen").left - links),
+      ueberschrift: Math.round(rechteck("h1").left - links),
+      kachel: kacheln ? Math.round(kacheln.getBoundingClientRect().left - links) : 0,
+      knopf: Math.round(rechteck(auswahl).right - rechts),
+    };
+  }, knopf);
+}
+
 const firmen = (page: Page) => page.getByRole("region", { name: "Firma wählen" }).getByRole("listitem").getByRole("link");
 
 test.describe.configure({ mode: "serial" });
@@ -64,8 +86,11 @@ test("Firmenportal: Anmeldung zeigt nur die Firmen aus den eigenen Inhaber-Grupp
   await expect(page.getByText("Angemeldet als person@example.de")).toBeVisible();
   await expect(page.getByText("Atelier West")).toHaveCount(0);
   await ohneVerstoesse(page);
+  expect(await kanten(page, ".fuss .btn")).toEqual({ zeichen: 0, ueberschrift: 0, kachel: 0, knopf: 0 });
   await page.setViewportSize({ width: 375, height: 812 });
   await ohneVerstoesse(page);
+  // Am Handy bricht der Fuß um, „Abmelden“ bleibt rechts
+  expect(await kanten(page, ".fuss .btn")).toEqual({ zeichen: 0, ueberschrift: 0, kachel: 0, knopf: 0 });
   await page.context().close();
 });
 
@@ -138,6 +163,11 @@ test("Haben: „Zum Firmenportal“ führt ins Firmenportal, ohne aufzuklappen, 
   // Der Testanbieter bietet keine Abmeldung an: Die Seite sagt, dass man dort angemeldet bleibt
   await expect(page.getByText("Du bist im Firmenportal abgemeldet. Bei Test-SSO bist du weiter angemeldet")).toBeVisible();
   await expect(page.getByRole("link", { name: "Wieder anmelden" })).toBeVisible();
+  // „Wieder anmelden“ steht rechts wie die Aktion eines Dialogs, auch am Handy
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 812 });
+    expect(await kanten(page, ".aktionen .btn"), `${width}px`).toEqual({ zeichen: 0, ueberschrift: 0, kachel: 0, knopf: 0 });
+  }
   await context.close();
 });
 
