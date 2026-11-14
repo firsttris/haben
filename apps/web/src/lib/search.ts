@@ -1,6 +1,6 @@
 import { type SQLWrapper, sql } from "drizzle-orm";
 
-/** Maskiert SQL-LIKE-Platzhalter, damit Nutzereingaben mit % oder _ buchstÃƒÂ¤blich gesucht werden */
+/** Maskiert SQL-LIKE-Platzhalter, damit Nutzereingaben mit % oder _ buchstäblich gesucht werden */
 export function likePattern(query: string, prefix = false): string {
   const escaped = query.trim().replace(/[\\%_]/g, "\\$&");
   return `${prefix ? "" : "%"}${escaped}%`;
