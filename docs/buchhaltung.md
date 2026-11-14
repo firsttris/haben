@@ -51,7 +51,7 @@ Die Trigger oben verhindern Versehen, aber wer die Datenbank direkt ändern kann
 
 **Prüfen** unter **Einstellungen › Export › Änderungsprotokoll prüfen**: „Kette prüfen“ rechnet jeden Hash und jedes Siegel nach und meldet geänderte, gelöschte oder fehlende Einträge, einen Kopf, der nicht zum Ende passt, festgeschriebene Datensätze ohne oder mit abweichendem Siegel, aufgehobene Festschreibungen, Siegel, die nicht zu ihrem Eintrag in der Kette passen, sowie abgeschaltete, fehlende oder veränderte Trigger und Funktionen von Haben (Sperren, Änderungsprotokoll, Siegel).
 
-Für die Trigger und Funktionen vergleicht Haben den PostgreSQL-Katalog lesend mit einem ausgelieferten Sollbestand aus frisch angewendeten Migrationen; geprüft werden die vollständigen Triggerdefinitionen und die Funktionsrümpfe samt Sprache, lokalen Einstellungen und Ausführungskontext. Zusätzliche Betreibertrigger erscheinen nur als Hinweis. Sperrbefunde mit Tabelle und Namen stehen auch in der wöchentlichen Prüfwert-Mail und einmal beim Serverstart im Log. Haben repariert die Objekte nicht automatisch.
+Für die Trigger und Funktionen vergleicht Haben den PostgreSQL-Katalog lesend mit einem ausgelieferten Sollbestand aus frisch angewendeten Migrationen; geprüft werden die vollständigen Triggerdefinitionen und die Funktionsrümpfe samt Sprache, lokalen Einstellungen und Ausführungskontext. Zusätzliche Betreibertrigger erscheinen nur als Hinweis. Beim Serverstart schreibt Haben Befunde und Hinweise einmal ins Log. Haben repariert die Objekte nicht automatisch.
 
 Die Prüfung erkennt anhaltende Abweichungen. Abschalten, Daten ändern und unverändert Wiedereinschalten hinterlässt keinen Katalogbefund; dafür bleiben die Siegel und der außerhalb des Servers aufbewahrte Prüfwert nötig. Bereits gelöschte geschützte Zeilen weist der Katalogvergleich nicht nach.
 
@@ -66,7 +66,7 @@ Unter **Kontenkollisionen** nennt die Prüfung außerdem eigene Konten, deren Nu
 
 Ein aufbewahrter Prüfwert lässt sich unter „Änderungsprotokoll prüfen“ einfügen und vergleichen. Haben vergleicht dann den Hash des Eintrags dieser Nummer und rechnet die Kette bis dorthin nach. Stimmt beides, sind die Einträge bis zu dieser Nummer unverändert. Ob die festgeschriebenen Daten noch zu ihren Siegeln passen, zeigt „Kette prüfen“. Fehlt der Eintrag, wurde entweder ein älteres Backup eingespielt oder es wurden Einträge gelöscht. Eine stärkere Absicherung sind schreibgeschützte Backups (z. B. Object Lock) oder später ein qualifizierter Zeitstempel (RFC 3161) auf den Prüfwert.
 
-Die wöchentliche Mail prüft vorher Kette, Siegel und Sperren und vergleicht den Prüfwert der letzten Mail mit dem Eintrag dieser Nummer. Befunde stehen in der Mail, auch wenn ohne neuen Eintrag manipuliert wurde.
+Die wöchentliche Mail prüft vorher Kette, Siegel und Sperren und vergleicht den Prüfwert der letzten Mail mit dem Eintrag dieser Nummer. Befunde stehen in der Mail, die zu Triggern und Funktionen mit Tabelle und Namen, auch wenn ohne neuen Eintrag manipuliert wurde.
 
 **Nicht abgedeckt** sind direkte Änderungen an Tabellen ohne Siegel: Mahnungen, Übermittlungen an ELSTER, Anlagen (die Stammdaten; ihre AfA ist versiegelt), Kontaktversionen und Angebote. Ihr Anlegen steht in der Kette, eine spätere stille Änderung der Zeile selbst findet die Prüfung aber nicht. Bankumsätze (`bank_transactions`) stehen gar nicht im Audit-Log; ihre Auszugsdatei ist über `bank_imports` mit SHA-256 erfasst.
 
