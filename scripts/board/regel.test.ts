@@ -33,6 +33,14 @@ describe("verweise", () => {
     expect(verweise("Noch nicht umgesetzt: #14\nNicht umgesetzt #15, #16\nUmgesetzt #17")).toEqual({ refs: [], umgesetzt: [17] });
   });
 
+  it("zählt es auch mit ein oder zwei Wörtern zwischen „nicht“ und dem Stichwort nicht", () => {
+    expect(verweise("Nicht vollständig umgesetzt #14\nnicht ganz fertig umgesetzt #15\nUmgesetzt #17")).toEqual({ refs: [], umgesetzt: [17] });
+  });
+
+  it("bleibt bei einem fernen „nicht“ im Satz davor beim Verweis", () => {
+    expect(verweise("Das Board schließt nicht. Umgesetzt #18")).toEqual({ refs: [], umgesetzt: [18] });
+  });
+
   it("nimmt einen Doppelpunkt hin und ignoriert Groß- und Kleinschreibung", () => {
     expect(verweise("umgesetzt: #5\nREFS #6")).toEqual({ refs: [6], umgesetzt: [5] });
   });
