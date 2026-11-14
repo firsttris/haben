@@ -57,6 +57,12 @@ Knöpfe und Karten tragen einen feinen Schatten (`--shadow-xs`), randlose Knöpf
 
 Der Fokusring der Knöpfe steht mit 2px Abstand außen. Bei Feldern (Eingabe, Auswahlliste, Textfeld, Combobox) liegt er auf dem eigenen Rahmen, der dabei die Akzentfarbe annimmt, statt als zweiter Rahmen daneben.
 
+### Gesperrte Knöpfe
+
+Ein gesperrter Knopf ist per Tab nicht erreichbar und sagt nicht, was fehlt. Die Hauptaktion eines Formulars ist deshalb nur gesperrt, solange sie läuft (`busy`), nie weil eine Angabe fehlt oder nicht stimmt. Ein Druck prüft die Angaben: `useSubmitCheck` (`lib/use-submit-check.ts`) setzt den Fehler als `error` an jedes betroffene `Field`, bricht das Absenden ab und setzt den Fokus aufs erste Feld mit Fehler; das hilft bei WCAG 3.3.1 und 3.3.3, weil der Fehler am Feld als Text steht. Danach verschwindet ein Fehler, sobald die Angabe stimmt. Das Formular trägt `noValidate`, damit der Browser keine eigene Meldung davorschiebt; `required` bleibt an den Feldern, Grenzen wie `min` und `max` prüfen `datumFehler` und `monatFehler` mit. Was man vor der Eingabe wissen muss, etwa „mindestens 10 Zeichen“, steht als `hint` am Feld. Kontrollkästchen ohne `Field` (etwa die Mahlzeiten der Verpflegung) tragen bei einem Fehler selbst `aria-invalid` und zeigen per `aria-describedby` auf eine `.field-error` darunter, sonst findet der Fokus sie nicht.
+
+Gesperrt sein darf ein Knopf, wenn der Grund nicht im Formular liegt oder direkt daneben zu sehen ist: Es fehlt etwas außerhalb (Zertifikat, Firmendaten, Fehler im Jahr), dann steht der Grund als Hinweis über der Knopfzeile, mit Link dorthin, wo er sich beheben lässt; oder es gibt nichts zu tun (nichts geändert, nichts ausgewählt, mit dem Zähler daneben). Geht die Aktion gerade grundsätzlich nicht, fehlt der Knopf. Ein Satz mit dem Grund steht nie als loser Text in `.actions`; ein Zähler wie „2 ausgewählt“ darf dort stehen.
+
 ### Reihenfolge der Knöpfe
 
 In einer Knopfzeile (`.actions`, auch `.form-footer` und Dialoge) steht die Hauptaktion (`btn-primary`) als letzter Knopf, rechts; Abbrechen und Nebenaktionen („Entwurf speichern“, „Nur prüfen“) stehen davor. Das Überlaufmenü `⋯` ist keine Aktion der Zeile und zählt dabei nicht mit: Am Laptop steht es ganz rechts hinter der Hauptaktion, am Handy links neben der Vorschau (#355, Variante E).
@@ -179,7 +185,7 @@ Neue Formularfelder immer über `Field` (`components/Field.tsx`), je Feld ein `F
 
 Auswahllisten sind Formularfelder wie die übrigen: `<select>` steht in `Field` und nimmt `{...control}` an, auch wenn kein Feldname zu sehen sein soll (`hideLabel`, etwa die Auswahl „Textbaustein einfügen …“ unter einem Textfeld). Rahmen, Höhe, Radius und Pfeil kommen aus der Grundregel `select` in `styles.css`, nicht aus der Hülle. Ohne `Field` stehen nur Zellen einer Tabelle oder Positionszeile, deren Spaltenkopf und `aria-label` sie benennen (`.line-row`, `.report-table`), und die Auswahl des Farbschemas auf der dunklen Navigation (`.nav-theme`); jedes andere `<select>` ohne `Field` meldet `bun run lint`, eine Ausnahme steht mit `// biome-ignore lint/plugin: Grund` im Code.
 
-Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen; beim Tippen bleibt es aus. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
+Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen und bei denen der Fokus bleibt, etwa eine Antwort des Servers; beim Tippen bleibt es aus, ebenso bei Fehlern aus `useSubmitCheck`: Deren erstes Feld bekommt den Fokus, der Screenreader liest den Fehler dabei, und `role="alert"` an allen Feldern läse alle auf einmal. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
 
 ### Datei-Felder
 
@@ -205,6 +211,7 @@ Barrierefrei und per Tastatur bedienbar: echte Knöpfe und Links, ein Label für
 
 Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an die Regel.
 
+- **Gesperrte Knöpfe:** Viele Formulare sperren die Hauptaktion, solange Angaben fehlen, meist ohne Grund (etwa `AssetForm`, `RecurringForm`, `routes/_app/belege/$id.tsx`, `routes/_app/bank.tsx`, `routes/_app/rechnungen/mahnwesen/$id.tsx`, Abruf und Versand mit PIN bei ELSTER).
 - **4px-Raster:** In `apps/web/src/**/*.css` haben manche `padding`, `margin` und `gap` px-Werte, die nicht durch 4 teilbar sind (meist 1 oder 2px, auch 6, 10 oder 14px).
 - **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Navigationsflächen (`.brand`, `.nav-link:hover`).
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.

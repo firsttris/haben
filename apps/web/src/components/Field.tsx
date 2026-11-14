@@ -16,7 +16,8 @@ export interface FieldControlProps {
  *
  * children bekommt die Eigenschaften und gibt sie ans Feld weiter, so geht es für `input`, `select` und eigene Komponenten
  * gleich. describedBy nennt Hinweise, die außerhalb stehen, etwa einen gemeinsamen für zwei Felder. announceError liest
- * einen Fehler sofort vor, wenn er erst nach einer Aktion erscheint; beim Tippen wäre das zu viel. className und style
+ * einen Fehler sofort vor, wenn er erst nach einer Aktion erscheint und der Fokus bleibt, etwa eine Antwort des Servers;
+ * beim Tippen wäre das zu viel. Fehler aus useSubmitCheck brauchen es nicht: Der Fokus geht ins Feld und liest sie mit. className und style
  * gehören an die Hülle, etwa für `gridColumn`. hideLabel nimmt den Feldnamen aus dem Bild, er bleibt für Screenreader und
  * Sprachsteuerung (Suchfelder ohne sichtbare Beschriftung).
  */
