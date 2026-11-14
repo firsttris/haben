@@ -330,6 +330,13 @@ export function InvoiceEditor({
   const { form, error, check } = useSubmitCheck({
     ...Object.fromEntries(lines.map((l) => [`pos-${l.key}`, positionsFehler(l)])),
     issueDate: issueDate ? null : "Wähle das Datum.",
+    // Ohne Kunden lässt sich ein Entwurf speichern, aber nicht festschreiben und nicht als PDF ausgeben
+    contact: contactId ? null : "Wähle den Kunden.",
+    // Die Prüfung, ob die Teilleistung am Rechnungsdatum erbracht ist, bleibt beim Festschreiben am Server
+    serviceFrom:
+      kind === "rechnung" && variant === "abschlag" && advanceType === "teilleistung" && !serviceFrom
+        ? "Wähle den Tag, an dem die Teilleistung erbracht wurde."
+        : null,
     validUntil: quote && !validUntilOk ? "Wähle, bis wann das Angebot gilt, frühestens ab seinem Datum." : null,
     term: !quote && !termValid ? "Trag das Zahlungsziel in ganzen Tagen von 0 bis 120 ein." : null,
     skonto: skontoIssue,
@@ -339,9 +346,9 @@ export function InvoiceEditor({
     exemption: taxTreatment === "steuerfrei" && !exemptionReason.trim() ? "Trag die Befreiungsvorschrift ein, etwa § 4 Nr. 14 UStG." : null,
   } as Record<string, string | null>);
   /** Wie check, dazu die Markierungen an Positionen und Skonto, die bisher erst nach einem Versuch erschienen */
-  const pruefe = () => {
+  const pruefe = (ohne: readonly string[] = []) => {
     setAttempted(true);
-    return check();
+    return check(ohne);
   };
 
   function touch<T>(setter: (value: T) => void) {
@@ -543,7 +550,7 @@ export function InvoiceEditor({
 
   const onSave = (event: FormEvent) => {
     event.preventDefault();
-    if (!pruefe()) return;
+    if (!pruefe(["contact"])) return;
     void run(async () => {
       const savedId = await persist();
       if (id === null) {
@@ -656,9 +663,9 @@ export function InvoiceEditor({
           <button
             type="button"
             className="btn"
-            disabled={busy || !contactId}
+            disabled={busy}
             onClick={onDraftPdf}
-            title={contactId ? "PDF mit dem Vermerk ENTWURF, ohne Nummer; es wird nichts gebucht oder versendet" : "Erst einen Kunden wählen"}
+            title="PDF mit dem Vermerk ENTWURF, ohne Nummer; es wird nichts gebucht oder versendet"
           >
             {dirty ? "Speichern und als PDF" : "Entwurf als PDF"}
           </button>
@@ -797,7 +804,7 @@ export function InvoiceEditor({
                   </span>
                 </div>
               )}
-              <Field label="Kunde" style={{ gridColumn: "1 / -1" }}>
+              <Field label="Kunde" error={error("contact")} style={{ gridColumn: "1 / -1" }}>
                 {(control) => (
                   <ContactCombobox
                     {...control}
@@ -894,7 +901,7 @@ export function InvoiceEditor({
                   }}
                 />
               )}
-              <Field label="Leistung von">
+              <Field label="Leistung von" error={error("serviceFrom")}>
                 {(control) => (
                   <input
                     {...control}
