@@ -428,7 +428,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
    Er rückt auf die Textkante der Beschriftung ein: Kästchen (18px) plus Abstand (10px) plus Außenabstand des Kästchens (7px).
    Auf Touchgeräten ist die Zeile mit dem Kästchen wie bei jedem Kontrollkästchen 44px hoch (--control-h in DESIGN.md) */
 .checkbox-hinted > .checkbox { align-items: flex-start; min-height: 0; }
-.checkbox-hinted > .field-hint { display: block; padding-left: 35px; }
+.checkbox-hinted > .field-hint, .checkbox-hinted > .field-error { display: block; padding-left: 35px; }
 @media (pointer: coarse) { .checkbox-hinted > .checkbox { align-items: center; min-height: 44px; } }
 /* Zwischen Kästchen ohne Hinweis (44px hoch) sonst zu eng: oben und unten so viel Luft, wie deren Zeile hat */
 .design-card .checkbox-hinted { margin-block: 12px; }

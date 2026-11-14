@@ -1391,9 +1391,12 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByText("Entwurf gespeichert.")).toBeVisible();
 
   const vermerk = page.getByRole("form", { name: "Außerhalb von Haben abgegeben" });
-  // Ein geleertes Datum ist eine unfertige Eingabe, die Seite bleibt stehen (Codex-Review #443)
+  // Ein geleertes Datum ist eine unfertige Eingabe, die Seite bleibt stehen (Codex-Review #443); der Knopf sagt am Feld, was fehlt
   await vermerk.getByLabel("Tag der Abgabe").fill("");
-  await expect(vermerk.getByRole("button", { name: "Abgabe vermerken" })).toBeDisabled();
+  await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  await expect(vermerk.getByLabel("Tag der Abgabe")).toBeFocused();
+  await expect(vermerk.getByLabel("Tag der Abgabe")).toHaveAccessibleDescription("Wähle den Tag der Abgabe.");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await vermerk.getByLabel("Tag der Abgabe").fill(`${year}-07-09`);
   await vermerk.getByLabel("Transferticket").fill("et7f3k9m2q8w4x1z");
   const protokollFeld = vermerk.locator(".field", { has: page.getByText("Übermittlungsprotokoll (PDF)", { exact: true }) });
@@ -2216,6 +2219,11 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
 
   const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
   await randImDialog(dialog, [dialog.getByLabel("Transferticket", { exact: true }), dialog.getByRole("button", { name: "Vermerken", exact: true })]);
+  // Leer abgeschickt: Fehler am Transferticket, der Fokus dort, der Dialog bleibt offen (DESIGN.md, Gesperrte Knöpfe)
+  await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
+  await expect(dialog.getByLabel("Transferticket", { exact: true })).toBeFocused();
+  await expect(dialog.getByLabel("Transferticket", { exact: true })).toHaveAccessibleDescription(/Trag das Transferticket aus dem Übermittlungsprotokoll ein/);
+  await expect(dialog.getByLabel("Begründung", { exact: true })).toHaveAccessibleDescription(/Trag eine Begründung mit mindestens 10 Zeichen ein\./);
   // Der Abgabetag liegt im Folgejahr: eine Jahreserklärung kann nicht vor dem Jahresende abgegeben werden
   await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr + 1}-01-02`);
   await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");

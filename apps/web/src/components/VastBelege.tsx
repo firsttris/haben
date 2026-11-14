@@ -9,6 +9,7 @@ import type { getAnnualReturns } from "../server/functions/annual.ts";
 import { activateVastBerechtigung, fetchVast, refreshVastBerechtigung, requestVastBerechtigung, revokeVastBerechtigung } from "../server/functions/annual.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 import { Tag } from "./Status.tsx";
 
@@ -72,6 +73,7 @@ export function VastBelege({ data }: { data: Data }) {
   const canUseSavedPin = vast.pinSaved && live;
 
   const canSend = Boolean(data.certificate) && (pin.length > 0 || canUseSavedPin);
+  const { form, error, check } = useSubmitCheck({ pin: pin.length > 0 || canUseSavedPin ? null : "Trag die PIN des Zertifikats ein." });
 
   /** Führt einen ELSTER-Schritt aus und zeigt das Ergebnis; die PIN wird danach geleert */
   const run = (work: (base: { kind: "test" | "send"; pin?: string }) => Promise<Notice>) =>
@@ -83,6 +85,7 @@ export function VastBelege({ data }: { data: Data }) {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!check()) return;
     void run(async (base) => {
       const result = await fetchBelege({ data: { year: data.year, person, ...base } });
       const parts = [result.message];
@@ -124,7 +127,7 @@ export function VastBelege({ data }: { data: Data }) {
           )}
         </div>
         {vast.personen.length > 0 && (
-          <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Belege abrufen">
+          <form ref={form} className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Belege abrufen" noValidate>
             {vast.personen.length > 1 && (
               <Field label="Für">
                 {(control) => (
@@ -138,7 +141,7 @@ export function VastBelege({ data }: { data: Data }) {
                 )}
               </Field>
             )}
-            <Field label="Zertifikats-PIN">
+            <Field label="Zertifikats-PIN" error={error("pin")}>
               {(control) => (
                 <input
                   {...control}
@@ -180,7 +183,7 @@ export function VastBelege({ data }: { data: Data }) {
               />
             )}
             <NoticeBanner notice={notice} />
-            <button type="submit" className="btn btn-primary" disabled={busy || !canSend}>
+            <button type="submit" className="btn btn-primary" disabled={busy || !data.certificate}>
               {busy ? "Läuft …" : live ? "Belege abrufen" : "Testweise abrufen"}
             </button>
             <p className="small muted" style={{ margin: 0 }}>
