@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { checkXml } from "./fake-client.ts";
-import { buildEuerXml, buildUstErklaerungXml, euerTotals, euerVorzeichenMeldungen, ustErklaerungLeer, ustErklaerungResult, type AveuerAnlage } from "./erklaerung.ts";
+import {
+  buildEuerXml,
+  buildUstErklaerungXml,
+  euerTotals,
+  euerVorzeichenMeldungen,
+  ustErklaerungLeer,
+  ustErklaerungResult,
+  type AveuerAnlage,
+} from "./erklaerung.ts";
 import { euerUstUmgliedern } from "./euer-umgliedern.ts";
 import { datenartVersionFromXml, elsterDecimal, hasTestmerker } from "./xml.ts";
 

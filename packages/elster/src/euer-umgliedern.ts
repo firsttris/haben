@@ -42,7 +42,7 @@ export function euerUstUmgliedern(f: EuerFigures): EuerUstGliederung {
           : " die Beträge heben sich auf, beide Zeilen bleiben leer,";
     return {
       figures: { ...f, gezahlteUst: Math.max(saldo, 0), erstatteteUst: Math.max(-saldo, 0) },
-      umgliederungen: [stand + ergebnis + " " + schluss],
+      umgliederungen: [`${stand}${ergebnis} ${schluss}`],
     };
   }
   if (gezahlteUst < 0) {
