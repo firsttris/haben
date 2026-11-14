@@ -206,7 +206,9 @@ export function DesignOptionFields({
             Dieser Beleg hat mehrere Steuersätze, deshalb bleibt die Spalte USt stehen.
           </div>
         )}
-        <p className="small muted">Bei mehreren Steuersätzen bleibt die Spalte USt stehen. Pflichtangaben und Summen lassen sich hier nicht ausblenden.</p>
+        <p className="small muted">
+          {positions && "Bei mehreren Steuersätzen bleibt die Spalte USt stehen. "}Pflichtangaben und Summen lassen sich hier nicht ausblenden.
+        </p>
       </section>
     </>
   );

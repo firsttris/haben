@@ -407,6 +407,7 @@ test("Mahnung: Das Zahnrad zeigt nur Schalter, die auf das Blatt wirken", async 
   for (const schalter of ["Falz- und Lochmarken", "GiroCode", "Kundennummer"]) await expect(gestaltung.getByRole("checkbox", { name: schalter })).toBeVisible();
   // mahnung.typ hat keine Positionen
   for (const schalter of ["Artikelnummer", "Spalte USt je Position"]) await expect(gestaltung.getByRole("checkbox", { name: schalter })).toHaveCount(0);
+  await expect(gestaltung).not.toContainText("Spalte USt");
   await page.keyboard.press("Escape");
 });
 
