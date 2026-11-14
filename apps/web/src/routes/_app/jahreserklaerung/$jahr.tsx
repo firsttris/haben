@@ -664,33 +664,58 @@ function EstSection({ data }: { data: Data }) {
             <tbody>
               <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
               <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} text />
-              <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />
-              {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
+              {/* Ohne Buchungen im Jahr steht hier 0,00 — das ist keine Aussage über den Gewinn,
+                  sondern über Habens Datenlage (#869) */}
+              {est.gewinn !== 0 && <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />}
               <Row label="Anlagen" value={est.anlagen.join(", ")} text />
-              <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
-              <Row
-                label="Voraussichtliche Steuer"
-                value={formatEuro(est.prognose.gesamt)}
-                kz={[
-                  `ESt ${formatEuro(est.prognose.einkommensteuer)}`,
-                  est.prognose.soli ? `Soli ${formatEuro(est.prognose.soli)}` : "",
-                  est.prognose.kirchensteuer ? `KiSt ${formatEuro(est.prognose.kirchensteuer)}` : "",
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              />
-              {est.prognose.steuerabzug > 0 && (
-                <>
-                  <Row label="Bereits einbehalten (Lohnsteuer, Soli, KiSt)" value={formatEuro(est.prognose.steuerabzug)} />
-                  <Row
-                    label={est.prognose.verbleibend >= 0 ? "Voraussichtlich nachzuzahlen" : "Voraussichtliche Erstattung"}
-                    value={formatEuro(Math.abs(est.prognose.verbleibend))}
-                    total
-                  />
-                </>
-              )}
             </tbody>
           </ScrollTable>
+          {(() => {
+            const prognose = (
+              <ScrollTable className="report-table">
+                <tbody>
+                  {est.prognose.einkuenfteArbeit !== 0 && (
+                    <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />
+                  )}
+                  <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
+                  <Row
+                    label="Voraussichtliche Steuer"
+                    value={formatEuro(est.prognose.gesamt)}
+                    kz={[
+                      `ESt ${formatEuro(est.prognose.einkommensteuer)}`,
+                      est.prognose.soli ? `Soli ${formatEuro(est.prognose.soli)}` : "",
+                      est.prognose.kirchensteuer ? `KiSt ${formatEuro(est.prognose.kirchensteuer)}` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  />
+                  {est.prognose.steuerabzug > 0 && (
+                    <>
+                      <Row label="Bereits einbehalten (Lohnsteuer, Soli, KiSt)" value={formatEuro(est.prognose.steuerabzug)} />
+                      <Row
+                        label={est.prognose.verbleibend >= 0 ? "Voraussichtlich nachzuzahlen" : "Voraussichtliche Erstattung"}
+                        value={formatEuro(Math.abs(est.prognose.verbleibend))}
+                        total
+                      />
+                    </>
+                  )}
+                </tbody>
+              </ScrollTable>
+            );
+            // Bei abgegebener Erklärung ist die Schaetzung eine Nebenrechnung; die echten Zahlen
+            // stehen oben in der Karte "ausserhalb von Haben abgegeben" (#869)
+            return est.submitted === null ? (
+              prognose
+            ) : (
+              <details className="est-block">
+                <summary>
+                  <span className="est-block-title">Schätzung aus Habens Buchungen</span>
+                  <span className="small muted">nicht die abgegebene Erklärung</span>
+                </summary>
+                <div style={{ paddingTop: 12 }}>{prognose}</div>
+              </details>
+            );
+          })()}
 
           <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />
           {est.zusammen && <AnlageNFields wer={nameB} draft={anB} onChange={setAnB} />}
