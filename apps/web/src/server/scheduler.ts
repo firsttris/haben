@@ -1,4 +1,5 @@
 import { formatDecimal } from "@haben/core";
+import { runDueFileCheck } from "./modules/auswertungen/index.ts";
 import { runDueBankSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
@@ -90,17 +91,40 @@ export async function runScheduledJobs(): Promise<void> {
     if (result?.sent) console.log(`Fristen-Erinnerung: ${result.sent} Frist(en) per E-Mail erinnert`);
   } catch (error) {
     console.error("Fristen-Erinnerung", error);
-  }
-  try {
-    const result = await runDuePruefwertMail();
-    if (result)
-      console.log(
-        `Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde${result.rewritten ? ", Prüfwert der letzten Mail passt nicht mehr" : ""}`,
-      );
-  } catch (error) {
-    console.error("Prüfwert-Mail", error);
   } finally {
     running = false;
+  }
+  void runFileCheckAndPruefwertMail();
+}
+
+/** Eine Vollprüfung samt Mail auf einmal, unabhängig von `running` */
+let fileCheckRunning = false;
+
+/**
+ * Die Vollprüfung liest alle Dateien und kann bei großen Beständen oder auf einem NAS länger als eine Stunde dauern.
+ * Sie läuft deshalb neben den übrigen Jobs, damit Kontoabruf und Postfach des nächsten Laufs nicht auf sie warten. Die Prüfwert-Mail folgt ihr, damit sie den Stand dieses Tages nennt.
+ */
+async function runFileCheckAndPruefwertMail(): Promise<void> {
+  if (fileCheckRunning) return;
+  fileCheckRunning = true;
+  try {
+    try {
+      const result = await runDueFileCheck();
+      if (result?.problemCount) console.warn(`Vollprüfung der Dateien: ${result.problemCount} von ${result.files} fehlen oder sind verändert`);
+    } catch (error) {
+      console.error("Vollprüfung der Dateien", error);
+    }
+    try {
+      const result = await runDuePruefwertMail();
+      if (result)
+        console.log(
+          `Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde${result.fileProblems ? `, ${result.fileProblems} Dateien fehlen oder sind verändert` : ""}${result.rewritten ? ", Prüfwert der letzten Mail passt nicht mehr" : ""}`,
+        );
+    } catch (error) {
+      console.error("Prüfwert-Mail", error);
+    }
+  } finally {
+    fileCheckRunning = false;
   }
 }
 

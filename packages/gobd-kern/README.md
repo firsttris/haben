@@ -4,7 +4,7 @@ Bausteine für unveränderbare Aufbewahrung nach GoBD, aus [Haben](https://githu
 
 | Modul | Aufgabe |
 | --- | --- |
-| `@firsttris/gobd-kern/dateispeicher` | Dateien unter ihrem SHA-256 (`<verzeichnis>/ab/abcdef…`), atomar geschrieben, beim Lesen gegen den Hash geprüft |
+| `@firsttris/gobd-kern/dateispeicher` | Dateien unter ihrem SHA-256 (`<verzeichnis>/ab/abcdef…`), atomar geschrieben, beim Lesen gegen den Hash geprüft; `pruefen` liest gestreamt und meldet „ok“, „fehlt“ oder „beschädigt“, `pruefenAlle` prüft einen ganzen Bestand nacheinander und zählt die Befunde |
 | `@firsttris/gobd-kern/dateityp` | Dateityp am Inhalt erkennen (PDF, JPEG, PNG, WebP, HEIC, XML) |
 | `@firsttris/gobd-kern/pruefwert` | Prüfwert der Hash-Kette schreiben und lesen („Nr. 1234 · <SHA-256>“) |
 | `@firsttris/gobd-kern/beschreibung` | `index.xml` nach dem Beschreibungsstandard der Finanzverwaltung (Datenträgerüberlassung, § 147 Abs. 6 AO) |
@@ -16,6 +16,7 @@ import { dateispeicher } from "@firsttris/gobd-kern/dateispeicher";
 const speicher = dateispeicher({ verzeichnis: () => process.env.DOCUMENTS_DIR ?? "data", bezeichnung: "Belegdatei" });
 const hash = await speicher.speichern(bytes);
 const original = await speicher.laden(hash); // wirft, wenn die Datei verändert wurde
+const { befundAnzahl, befunde } = await speicher.pruefenAlle(alleHashes, { maxBefunde: 100 });
 ```
 
 ## SQL-Vorlage

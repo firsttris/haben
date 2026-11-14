@@ -1,6 +1,7 @@
 import { reservedAccountNumbers, type Kontenrahmen } from "@haben/core";
 import { count, eq, sql } from "drizzle-orm";
 import { abgleichAll, abweichungen, type AbgleichZeile } from "./abgleich.ts";
+import { lastFileCheck, type FileCheck } from "./file-integrity.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { today } from "../../today.ts";
@@ -48,6 +49,8 @@ export interface IntegrityReport {
   accountCollisions: { kontenrahmen: Kontenrahmen; account: string; name: string }[];
   /** Zusätzliche Betreibertrigger sind Hinweise, keine Korruptionsbefunde. */
   triggerHints: string[];
+  /** Letzte Vollprüfung der Dateien im Dokumentenspeicher (file-integrity.ts); null, solange keine lief */
+  files: FileCheck | null;
 }
 
 /** Lesezugriff auf die Datenbank: db selbst oder eine Transaktion */
@@ -100,6 +103,7 @@ export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
   const [booking] = await db.select({ id: schema.journalEntries.id }).from(schema.journalEntries).limit(1);
   if (booking) await loadCompany();
   const { rows, triggerHints, head, entries, seals, abgleich, accountCollisions } = await readSnapshot(now);
+  const files = await lastFileCheck();
   const problems = [...rows].map((r) => ({ ...r, seq: r.seq === null ? null : Number(r.seq) }));
   const perKind = new Map<string, number>();
   for (const p of problems) perKind.set(`${p.art}:${p.tabelle}`, (perKind.get(`${p.art}:${p.tabelle}`) ?? 0) + 1);
@@ -112,6 +116,7 @@ export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
     abgleich: { abweichungen: abweichungen(abgleich.zeilen), hinweise: abgleich.hinweise },
     accountCollisions,
     triggerHints,
+    files,
   };
 }
 

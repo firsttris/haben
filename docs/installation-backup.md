@@ -61,7 +61,7 @@ Auf ein erfolgreiches Backup folgt alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `
 1. `restic check --read-data-subset 5%` liest einen Teil der Daten im Repository und prüft sie (`RESTORE_CHECK_SUBSET`),
 2. der Dump aus dem Snapshot wird in eine Wegwerf-Datenbank `haben_restore_check_…` eingespielt (eigener Name je Lauf),
 3. darin prüft es Hash-Kette und Siegel wie „Kette prüfen“ in der App, und der letzte Eintrag der Kette im Backup muss mit demselben Hash in der laufenden Datenbank stehen,
-4. 20 zufällige Belege (`RESTORE_CHECK_FILES`) kommen aus dem Snapshot und müssen ihre SHA-256-Prüfsumme haben,
+4. 20 zufällige Dateien (`RESTORE_CHECK_FILES`), auf die ein Datensatz verweist (Belege, Anhänge, Bescheide, Protokolle und Dateien aus dem Umzug), kommen aus dem Snapshot und müssen ihre SHA-256-Prüfsumme haben,
 5. die Wegwerf-Datenbank wird wieder gelöscht, das Ergebnis steht in der App.
 
 `RESTORE_CHECK_SUBSET` (Standard `5%`) und `RESTORE_CHECK_FILES` (Standard 20) wirken nur bei den Quadlets in `backup.env`; `compose.yml` reicht sie nicht an den Dienst `backup` durch.
