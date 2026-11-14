@@ -19,10 +19,11 @@ export function ohneCode(text: string): string {
 
 /**
  * Nummern hinter einem Stichwort, auch als Liste: „Umgesetzt #12, #13 und #14“. Verneint („noch nicht
- * umgesetzt #14“) zählt es nicht, sonst schlösse das Release ein offenes Issue.
+ * umgesetzt #14“, auch „nicht vollständig umgesetzt #14“ mit bis zu zwei Wörtern dazwischen) zählt es nicht, sonst
+ * schlösse das Release ein offenes Issue.
  */
 function nummernNach(text: string, stichwort: string): number[] {
-  const muster = new RegExp(`(?<!\\bnicht\\s+)\\b${stichwort}:?\\s+(#\\d+(?:\\s*(?:,|und|&)\\s*#\\d+)*)`, "giu");
+  const muster = new RegExp(`(?<!\\bnicht(?:\\s+[\\p{L}-]+){0,2}\\s+)\\b${stichwort}:?\\s+(#\\d+(?:\\s*(?:,|und|&)\\s*#\\d+)*)`, "giu");
   const nummern = [...text.matchAll(muster)].flatMap((treffer) => [...treffer[1].matchAll(/#(\d+)/g)].map((nummer) => Number(nummer[1])));
   return [...new Set(nummern)];
 }
