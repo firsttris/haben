@@ -2,25 +2,27 @@ import { describe, expect, it } from "vitest";
 import { ladeKonfiguration } from "./env.ts";
 import { anmeldeSeite, firmenSeite, SUCHE_AB } from "./seiten.ts";
 
+const seite = (liste: Parameters<typeof firmenSeite>[0], suche: string) => firmenSeite(liste, suche, "", (url) => url);
+
 /* Seiten und Konfiguration des Portals (#504): Escaping, Suchfeld ab 20 Firmen, Fehler beim Start. */
 
 const firmen = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `Firma ${String(i).padStart(2, "0")}`, url: `https://f${i}.example.de` }));
 
 describe("Seiten", () => {
   it("escapen Namen aus der Konfiguration und die Suche", () => {
-    const seite = firmenSeite([{ name: `<script>alert("x")</script>`, url: "https://a.example.de" }], "");
-    expect(seite).not.toContain("<script>");
-    expect(seite).toContain("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;");
+    const html = seite([{ name: `<script>alert("x")</script>`, url: "https://a.example.de" }], "");
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;");
     expect(anmeldeSeite(`"><img src=x>`)).not.toContain("<img");
-    expect(firmenSeite(firmen(SUCHE_AB), `"><b>`)).toContain('value="&quot;&gt;&lt;b&gt;"');
+    expect(seite(firmen(SUCHE_AB), `"><b>`)).toContain('value="&quot;&gt;&lt;b&gt;"');
   });
 
   it("zeigen das Suchfeld erst ab 20 Firmen und filtern ohne Groß- und Kleinschreibung", () => {
-    expect(firmenSeite(firmen(SUCHE_AB - 1), "")).not.toContain('type="search"');
-    const seite = firmenSeite(firmen(25), "FIRMA 1");
-    expect(seite).toContain('type="search"');
-    expect([...seite.matchAll(/<li>/g)]).toHaveLength(10);
-    expect(firmenSeite(firmen(25), "gibt es nicht")).toContain("Keine Firma gefunden.");
+    expect(seite(firmen(SUCHE_AB - 1), "")).not.toContain('type="search"');
+    const html = seite(firmen(25), "FIRMA 1");
+    expect(html).toContain('type="search"');
+    expect([...html.matchAll(/<li>/g)]).toHaveLength(10);
+    expect(seite(firmen(25), "gibt es nicht")).toContain("Keine Firma gefunden.");
   });
 });
 
