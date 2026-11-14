@@ -307,11 +307,15 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
   const kfb = Math.round(kinder * t.kinderfreibetrag * anteil) * 100;
   const kindergeld = Math.round(kinder * t.kindergeld * 12 * anteil) * 100;
   // § 32b: Der besondere Steuersatz kommt aus der Steuer auf zvE plus Leistungen, angewandt auf das zvE.
-  // Der Arbeitnehmer-Pauschbetrag ist abzuziehen, soweit er beim Arbeitslohn nicht verbraucht ist.
+  // Je Person mindert der Arbeitnehmer-Pauschbetrag ihre Leistungen, soweit er nicht beim Arbeitslohn
+  // abziehbar ist (§ 32b Abs. 2 Satz 1 Nr. 1 EStG): ohne Arbeitslohn voll, sonst um den Teil über dem Lohn.
   const pausch = arbeitnehmerPauschbetrag(year);
-  // Verbraucht ist der Pauschbetrag bis zur Höhe des Arbeitslohns; bei höherem Lohn greift er voll
-  const restPausch = sum(...arbeit.map((r) => Math.max(0, pausch - r.brutto)));
-  const leistungen = Math.max(0, sum(!zusammen ? x.ersatzleistungen?.a : x.ersatzleistungen?.a, zusammen ? x.ersatzleistungen?.b : undefined) - restPausch);
+  const leistungenVon = (leistung: Cents | undefined, an: Arbeitslohn | undefined) => {
+    const brutto = an && an.bescheinigungen.length > 0 ? arbeitslohnErgebnis(year, an).brutto : 0;
+    return Math.max(0, (leistung ?? 0) - Math.max(0, pausch - brutto));
+  };
+  const leistungen =
+    leistungenVon(x.ersatzleistungen?.a, x.arbeitnehmer?.a) + (zusammen ? leistungenVon(x.ersatzleistungen?.b, x.arbeitnehmer?.b) : 0);
   const satz = (basis: number) =>
     leistungen > 0 && basis + leistungen > 0
       ? Math.floor((einkommensteuer(basis + leistungen, year, zusammen) * basis) / (basis + leistungen))
