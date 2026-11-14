@@ -590,7 +590,9 @@ export function buildEstXml(input: EstXmlInput): string {
   ).map(([person, liste]): XmlNode | null => {
     const zeilen = (liste ?? []).filter((l) => l.betrag > 0 && l.art.trim());
     if (zeilen.length === 0) return null;
-    const summe = zeilen.reduce((acc, l) => acc + l.betrag, 0);
+    // ERiC-Regel 725: Die Summe muss die Summe der gerundeten Einzelbeträge sein, nicht die gerundete Summe in Cent
+    const betraege = zeilen.map((l) => Number(euro(l.betrag) ?? 0));
+    const summe = betraege.reduce((acc, b) => acc + b, 0);
     return [
       "Eink_Ers",
       [
@@ -599,15 +601,15 @@ export function buildEstXml(input: EstXmlInput): string {
           "Inl",
           [
             ...zeilen.map(
-              (l): XmlNode => [
+              (l, i): XmlNode => [
                 "Einz",
                 [
                   ["E0104110", l.art.trim()],
-                  ["E0104113", euro(l.betrag) ?? "0"],
+                  ["E0104113", String(betraege[i])],
                 ],
               ],
             ),
-            ["Sum", [["E0104801", euro(summe) ?? "0"]]],
+            ["Sum", [["E0104801", String(summe)]]],
           ],
         ],
       ],
