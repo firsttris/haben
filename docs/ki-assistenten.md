@@ -54,7 +54,15 @@ Claude Desktop bindet lokal konfigurierte Server über die Datei `claude_desktop
 }
 ```
 
-Ein Connector aus den Einstellungen von claude.ai (auch für die Handy-App und claude.ai im Browser) geht noch nicht: Dort ruft Anthropic Haben aus dem Internet auf und erwartet OAuth. Das ist geplant, aber noch nicht dran (Spalte „Später“ im [Project „Roadmap“](https://github.com/users/firsttris/projects/2)).
+### Connector in claude.ai
+
+Ein Connector gilt für claude.ai im Browser, Claude Desktop und die Handy-App zugleich und braucht kein Token: Claude meldet sich per OAuth an, und du stimmst in Haben zu. Dafür muss Haben unter seiner Adresse aus dem Internet erreichbar sein, denn Anthropic ruft es von seinen Servern auf.
+
+1. In Haben den Zugang für KI-Assistenten einschalten (siehe oben).
+2. In claude.ai unter **Einstellungen → Connectors → Benutzerdefinierten Connector hinzufügen** einen Namen und die Adresse `https://haben.example.de/api/mcp` eintragen. Client-ID und Secret bleiben leer.
+3. **Verbinden** öffnet Haben. Nach der Anmeldung als Inhaber zeigt Haben, wer zugreifen will und wohin es danach zurückgeht; **Zulassen** schließt die Einrichtung ab.
+
+Die Verbindung steht danach unter **API-Tokens** wie ein Token, mit dem Namen des Clients und „OAuth“, und lässt sich dort widerrufen. Sie hat nur `haben:lesen`. Claude holt sich jede Stunde ein neues Zugriffstoken; wird die Verbindung 30 Tage nicht genutzt, endet sie, und du verbindest erneut. Haben nimmt Rücksprungadressen nur von claude.ai, claude.com und vom eigenen Rechner (Loopback) an.
 
 ### Claude-App auf dem Handy über deinen Rechner
 
@@ -140,6 +148,6 @@ Beträge kommen in Euro, Datumsangaben als JJJJ-MM-TT. Die Listen sind auf 50 Ei
 
 Unter **Letzte Aufrufe** steht, welcher Assistent wann welches Werkzeug benutzt hat und ob es geklappt hat, ohne Eingaben und Ergebnisse. Haben hebt das 90 Tage auf. Je Token sind 120 Anfragen pro Minute erlaubt, zusammen mit Aufrufen der REST-API; schickt ein Client mehrere Nachrichten in einer Anfrage (Batch), zählt jede einzeln.
 
-Im Änderungsprotokoll stehen das Ein- und Ausschalten des Zugangs und wer ein Token angelegt, übernommen, widerrufen oder deaktiviert hat. Das Token selbst und sein Hash sind Zugangsdaten wie die Passkeys und stehen nicht darin.
+Im Änderungsprotokoll stehen das Ein- und Ausschalten des Zugangs und wer ein Token angelegt, übernommen, widerrufen oder deaktiviert oder einen Connector verbunden hat. Taucht ein schon getauschtes Refresh-Token einer OAuth-Verbindung noch einmal auf, hat es jemand kopiert: Haben widerruft die Verbindung dann selbst und vermerkt das. Das Token selbst und sein Hash sind Zugangsdaten wie die Passkeys und stehen nicht darin.
 
 Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation-sso.md#tokens-nach-gruppenentzug).

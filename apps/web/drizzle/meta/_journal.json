@@ -1611,6 +1611,13 @@
       "when": 1794643109074,
       "tag": "0229_vorsteuerabzug_vorgabe",
       "breakpoints": true
+    },
+    {
+      "idx": 230,
+      "version": "7",
+      "when": 1794661209829,
+      "tag": "0230_mcp_oauth",
+      "breakpoints": true
     }
   ]
 }

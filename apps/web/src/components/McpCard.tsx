@@ -114,7 +114,7 @@ export function McpCard({ data }: { data: Data }) {
           <h2 id="mcp-token-heading">API-Tokens</h2>
           <ConfirmDialog
             open={revoking !== null}
-            title={`Token „${revoking?.name}“ widerrufen?`}
+            title={`${revoking?.oauth ? "Verbindung" : "Token"} „${revoking?.name}“ widerrufen?`}
             confirmLabel="Widerrufen"
             danger
             onConfirm={() => {
@@ -127,11 +127,16 @@ export function McpCard({ data }: { data: Data }) {
             }}
             onClose={() => setRevoking(null)}
           >
-            <p>Das Werkzeug verliert sofort den Zugriff. Für neuen Zugriff legst du ein neues Token an und trägst es dort ein.</p>
+            <p>
+              {revoking?.oauth
+                ? "Der Connector verliert sofort den Zugriff. Für neuen Zugriff verbindest du ihn im KI-Assistenten neu."
+                : "Das Werkzeug verliert sofort den Zugriff. Für neuen Zugriff legst du ein neues Token an und trägst es dort ein."}
+            </p>
           </ConfirmDialog>
           <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
             Jeder Assistent und jedes Werkzeug bekommt ein eigenes Token mit nur den Rechten, die es braucht, und du kannst es jederzeit widerrufen. Haben
-            speichert nur einen Hash; das Token siehst du nur direkt nach dem Anlegen.
+            speichert nur einen Hash; das Token siehst du nur direkt nach dem Anlegen. Connectors aus claude.ai verbinden sich per OAuth ohne Token und stehen
+            danach ebenfalls hier.
           </p>
           <ConfirmDialog
             open={takingOver !== null}
@@ -200,7 +205,7 @@ export function McpCard({ data }: { data: Data }) {
                     </Status>
                   </span>
                   <span className="small muted">
-                    <span className="mono">{token.prefix}…</span> · angelegt {formatDate(token.createdAt)} ·{" "}
+                    {token.oauth ? "OAuth-Verbindung" : <span className="mono">{token.prefix}…</span>} · angelegt {formatDate(token.createdAt)} ·{" "}
                     {token.status === "widerrufen" ? `widerrufen ${formatDate(token.revokedAt!)}` : `gültig bis ${formatDate(token.expiresAt)}`} ·{" "}
                     {token.lastUsedAt ? `zuletzt benutzt ${formatDateTime(token.lastUsedAt)}` : "noch nicht benutzt"}
                   </span>

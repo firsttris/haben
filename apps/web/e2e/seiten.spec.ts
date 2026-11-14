@@ -76,6 +76,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["einstellungen-export", "/einstellungen?bereich=export"],
     ["einstellungen-seiten", "/einstellungen?bereich=seiten"],
     ["einstellungen-sicherheit", "/einstellungen?bereich=sicherheit"],
+    ["oauth-autorisieren", "/oauth/autorisieren"],
     ["steuerberatung", "/steuerberatung"],
     ["eigene-seite", details.eigeneSeite],
   ];

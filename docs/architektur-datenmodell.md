@@ -154,6 +154,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `sso_issuers`, `sso_takeovers` | Einrichtung je Issuer und Betreiberzuordnung | nur anhängen, Audit |
 | `sso_roles` | Zuletzt bestätigte externe Rolle je Konto und Issuer | Audit |
 | `token_events`, `local_owner_recoveries` | Token-Verwaltung ohne Geheimnisse und Offline-Vorbereitung eines lokalen Inhabers | nur anhängen, Audit |
-| `mcp_tokens` | API-Tokens für MCP und REST-API: Name, SHA-256 des Tokens, Anfang zum Wiedererkennen, Rechte, Ablauf, letzte Nutzung, Widerruf | ohne Audit (Zugangsdaten wie die Passkeys) |
+| `mcp_tokens` | API-Tokens für MCP und REST-API: Name, SHA-256 des Tokens, Anfang zum Wiedererkennen, Rechte, Ablauf, letzte Nutzung, Widerruf; eine OAuth-Verbindung (Connector) zusätzlich mit Client, Ablauf des Access-Tokens und SHA-256 des aktuellen und vorigen Refresh-Tokens | ohne Audit (Zugangsdaten wie die Passkeys) |
+| `mcp_oauth_clients` | Per Dynamic Client Registration angemeldete OAuth-Clients: `client_id`, SHA-256 des Secrets, Name, Redirect-URIs; ohne Verbindung nach einem Tag gelöscht | ohne Audit (Zugangsdaten) |
 | `mcp_calls` | Aufrufe über MCP und REST-API ohne Inhalte: Token, Werkzeug, Erfolg, Dauer; nach 90 Tagen gelöscht | ohne Audit |
 | `backup_status` | Läufe des Backup-Containers (tägliches Backup, wöchentlicher Test-Restore) mit Ergebnis, Snapshot und Größe; der Container schreibt, die App liest | ohne Audit und Siegel (Betriebsdaten) |

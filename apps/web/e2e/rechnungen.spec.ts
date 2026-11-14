@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
@@ -1797,6 +1798,67 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer un
   const calls = page.getByRole("region", { name: "Letzte Aufrufe" });
   await expect(calls.getByText("POST /rechnungen").first()).toBeVisible();
   await expect(calls.getByText("POST /belege").first()).toBeVisible();
+});
+
+test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und in den Einstellungen widerrufen", async () => {
+  // Der Zugang ist seit dem Test der REST-API eingeschaltet
+  const metadaten = (await (await page.request.get("/.well-known/oauth-authorization-server")).json()) as Record<string, string>;
+  const ressource = (await (await page.request.get("/.well-known/oauth-protected-resource")).json()) as { resource: string };
+  const redirect = "http://127.0.0.1:9/callback";
+  const registriert = await page.request.post(new URL(metadaten.registration_endpoint!).pathname, {
+    data: { redirect_uris: [redirect], client_name: "Claude E2E", token_endpoint_auth_method: "none" },
+  });
+  expect(registriert.status()).toBe(201);
+  const { client_id } = (await registriert.json()) as { client_id: string };
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+
+  // Den Rücksprung zum Client fängt der Test ab; „1e5“ sähe für den Router wie JSON aus und muss unverändert zurückkommen
+  let rueckweg = "";
+  await page.route("http://127.0.0.1:9/**", (route) => {
+    rueckweg = route.request().url();
+    return route.fulfill({ body: "ok" });
+  });
+  const anfrage = new URLSearchParams({
+    response_type: "code",
+    client_id,
+    redirect_uri: redirect,
+    state: "1e5",
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    resource: ressource.resource,
+  });
+  await go(`/oauth/autorisieren?${anfrage}`);
+  await expect(page.getByRole("heading", { level: 1, name: "KI-Assistent verbinden" })).toBeVisible();
+  await expect(page.getByRole("main")).toContainText("Claude E2E möchte deine Buchhaltung in Haben lesen");
+  await expect(page.getByRole("main")).toContainText("127.0.0.1:9");
+  await page.getByRole("button", { name: "Zulassen" }).click();
+  await expect.poll(() => rueckweg).toContain("code=");
+  const zurueck = new URL(rueckweg);
+  expect(zurueck.searchParams.get("state")).toBe("1e5");
+
+  const tokens = await page.request.post(new URL(metadaten.token_endpoint!).pathname, {
+    form: { grant_type: "authorization_code", code: zurueck.searchParams.get("code")!, code_verifier: verifier, client_id, redirect_uri: redirect },
+  });
+  expect(tokens.status()).toBe(200);
+  const { access_token } = (await tokens.json()) as { access_token: string };
+  const werkzeuge = () =>
+    page.request.post("/api/mcp", {
+      headers: { Authorization: `Bearer ${access_token}`, Accept: "application/json, text/event-stream" },
+      data: { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+    });
+  expect((await werkzeuge()).status()).toBe(200);
+
+  await go("/einstellungen?bereich=ki");
+  const verbindung = page.getByRole("region", { name: "API-Tokens" }).locator(".history-row", { hasText: "Claude E2E" });
+  await expect(verbindung).toContainText("OAuth-Verbindung");
+  await verbindung.getByRole("button", { name: "Widerrufen" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Verbindung „Claude E2E“ widerrufen?");
+  await bestaetigen(page, "Widerrufen");
+  await expect(verbindung).toContainText("Widerrufen");
+  const abgelehnt = await werkzeuge();
+  expect(abgelehnt.status()).toBe(401);
+  expect(abgelehnt.headers()["www-authenticate"]).toContain("resource_metadata=");
 });
 
 test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubletten", async ({ browser }) => {

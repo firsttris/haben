@@ -3172,11 +3172,36 @@ export const backupStatus = pgTable(
 );
 
 /**
+ * Per Dynamic Client Registration (RFC 7591) angemeldete OAuth-Clients, etwa ein Connector in claude.ai. Ein Client ist nur
+ * eine Beschreibung mit erlaubten Redirect-URIs; Zugriff bekommt er erst mit der Zustimmung des Inhabers, als Zeile in
+ * mcp_tokens. Ein Client-Secret steht nur als SHA-256 hier. Zugangsdaten: ohne Audit-Log (wie mcp_tokens).
+ */
+export const mcpOauthClients = pgTable("mcp_oauth_clients", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Öffentliche client_id, zufällig */
+  clientId: text("client_id").notNull().unique(),
+  /** SHA-256 des Client-Secrets; leer bei einem öffentlichen Client (token_endpoint_auth_method none) */
+  secretHash: text("secret_hash"),
+  /** client_name aus der Registrierung, gekürzt; nur zur Anzeige */
+  name: text("name").notNull(),
+  redirectUris: text("redirect_uris").array().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * API-Tokens für KI-Assistenten über MCP (/api/mcp) und die REST-API (/api/v1): widerrufbar, mit Ablaufdatum und Rechten. Gespeichert
  * ist nur der SHA-256 des Tokens; das Token selbst gibt es nur beim Anlegen. Zugangsdaten, keine Buchungsdaten: ohne
  * Audit-Log und Siegel (wie die Passkeys).
  */
 export const mcpTokens = pgTable("mcp_tokens", {
+  /** OAuth (Connectors in claude.ai): Client der Verbindung; leer bei einem selbst angelegten Token */
+  oauthClientId: uuid("oauth_client_id").references(() => mcpOauthClients.id),
+  /** OAuth: Ablauf des aktuellen Access-Tokens (token_hash); expires_at ist das Ende der Verbindung (Ablauf des Refresh-Tokens) */
+  accessExpiresAt: timestamp("access_expires_at", { withTimezone: true }),
+  /** OAuth: SHA-256 des aktuellen Refresh-Tokens; jede Erneuerung tauscht beide Tokens */
+  refreshHash: text("refresh_hash").unique(),
+  /** OAuth: SHA-256 des vorigen Refresh-Tokens; kommt es noch einmal, ist es kopiert worden und die Verbindung wird widerrufen */
+  previousRefreshHash: text("previous_refresh_hash"),
   createdBy: text("created_by"),
   responsibleId: text("responsible_id"),
   disabledAt: timestamp("disabled_at", { withTimezone: true }),

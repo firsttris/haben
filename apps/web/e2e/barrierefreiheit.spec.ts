@@ -77,6 +77,7 @@ const PAGES = [
   "/einstellungen?bereich=email",
   "/einstellungen?bereich=bank",
   "/einstellungen?bereich=ki",
+  "/oauth/autorisieren",
   "/einstellungen?bereich=export",
   "/einstellungen?bereich=seiten",
   "/einstellungen?bereich=sicherheit",

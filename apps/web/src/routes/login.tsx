@@ -6,6 +6,7 @@ import { authClient } from "../lib/auth-client.ts";
 import { errorMessage } from "../lib/format.ts";
 import { getAuthState } from "../server/functions/setup.ts";
 import { Field } from "../components/Field.tsx";
+import { weiterNachAnmeldung } from "../lib/weiter.ts";
 
 export const Route = createFileRoute("/login")({
   beforeLoad: async ({ location }) => {
@@ -45,7 +46,12 @@ function LoginPage() {
 
   async function onResult(result: { error?: { message?: string } | null } | undefined) {
     if (result?.error) setError(result.error.message ?? "Anmeldung fehlgeschlagen.");
-    else await router.navigate({ to: "/" });
+    else {
+      // Zurück zur Zustimmungsseite eines KI-Assistenten, roh und mit vollem Laden, damit state unverändert bleibt
+      const weiter = weiterNachAnmeldung(window.location.search);
+      if (weiter) window.location.assign(weiter);
+      else await router.navigate({ to: "/" });
+    }
   }
 
   async function withPasskey() {
@@ -86,7 +92,7 @@ function LoginPage() {
             <p className="muted" style={{ margin: 0 }}>
               Haben nutzt ausschließlich {oidc.name}. Deine Berechtigung wird bei jeder Anmeldung und spätestens nach 15 Minuten neu bestätigt.
             </p>
-            <SsoSignIn name={oidc.name} />
+            <SsoSignIn name={oidc.name} weiter />
           </>
         ) : (
           <>
