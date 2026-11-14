@@ -264,6 +264,22 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(euerTotals(withPauschalen).ausgaben).toBe(2_600_000 + 4_200 + 126_000 + 37_200);
   });
 
+  it("übermittelt die Entfernungspauschale in Zeile 73 hinter den Fahrtkosten, nicht als Nutzungseinlage (#895)", () => {
+    // Formularfeld „Abziehbare Aufwendungen für Wege zwischen Wohnung und Betriebsstätte“ (Zeile 73):
+    // EUER/BAus/KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt/Sum/E6003702 laut `elsterfeldname` in den EÜR-Formularen
+    // 2022 bis 2025 von EasyCash&Tax; Reihenfolge wie dort. Das Schema E77 selbst ist noch nicht geprüft.
+    const mitWegen = { ...figures, fahrtNutzungseinlage: 37_200, entfernungspauschale: 6_840 };
+    const xml = buildEuerXml({ ...base, allgemein, figures: mitWegen, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(xml).toMatch(/<Entfernungspausch_Familienheimfahrt>\s*<Sum>\s*<E6003702>68,40<\/E6003702>/);
+    expect(xml).toMatch(/<Fahrtkosten_Nutzungseinlage>\s*<Sum>\s*<E6006103>372,00<\/E6006103>/);
+    const [nutzung, wege, summe] = order(xml, ["E6006103", "E6003702", "Summe_BAus"]);
+    expect(nutzung! < wege! && wege! < summe!).toBe(true);
+    expect(euerTotals(mitWegen).ausgaben).toBe(2_600_000 + 37_200 + 6_840);
+    // ohne Betrag keine Zeile
+    expect(buildEuerXml({ ...base, allgemein, figures, anlagen: [] })).not.toContain("E6003702");
+  });
+
   it("übermittelt Geschenke und Bewirtung, den nicht abziehbaren Teil nur nachrichtlich", () => {
     const mitBewirtung = { ...figures, geschenke: 15_000, bewirtung: 7_000, bewirtungNichtAbziehbar: 3_000 };
     const xml = buildEuerXml({ ...base, allgemein, figures: mitBewirtung, anlagen: [] });

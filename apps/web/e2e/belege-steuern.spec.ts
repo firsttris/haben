@@ -440,6 +440,27 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
 });
 
+test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno (#895)", async () => {
+  await go("/pauschalen");
+  const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+  await neu.getByRole("button", { name: "Wege zur Betriebsstätte", exact: true }).click();
+  const wege = neu.getByRole("form", { name: "Wege zwischen Wohnung und Betriebsstätte" });
+  await wege.getByLabel("Tage an der Betriebsstätte", { exact: true }).fill("15");
+  await wege.getByLabel("Kilometer einfach", { exact: true }).fill("12");
+  await wege.getByLabel("Betriebsstätte", { exact: true }).fill("Praxis Musterstadt");
+  // ab 2026 0,38 € je Kilometer: 15 Tage × 12 km
+  await wege.getByRole("button", { name: "68,40 € buchen" }).click();
+  await expect(neu.getByRole("status")).toHaveText("Entfernungspauschale über 68,40 € gebucht.");
+
+  const liste = page.getByRole("region", { name: /^Eingetragen in/ });
+  const zeile = liste.getByRole("row").filter({ hasText: "Praxis Musterstadt" });
+  await expect(zeile).toHaveCount(1);
+  await zeile.getByRole("button", { name: "Stornieren" }).click();
+  await faktenZeigen(page, "Datum", "Betrag");
+  await bestaetigen(page, "Stornieren");
+  await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
+});
+
 test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ browser }) => {
   await go("/belege");
   await page
