@@ -151,7 +151,14 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await berechtigung.getByRole("button", { name: "Berechtigung beantragen" }).click();
   await expect(vast.getByRole("status")).toContainText("Erika bekommt von ELSTER einen Brief");
   await expect(berechtigung).toContainText("beantragt, wartet auf Freischaltung");
+  // Ohne PIN und Code: Freischalten nennt zuerst die PIN im Formular darüber, dann den Code (DESIGN.md, Gesperrte Knöpfe)
+  await berechtigung.getByRole("button", { name: "Freischalten" }).click();
+  await expect(vast.getByLabel("Zertifikats-PIN")).toBeFocused();
+  await expect(vast.getByLabel("Zertifikats-PIN")).toHaveAccessibleDescription("Trag die PIN des Zertifikats ein.");
   await vast.getByLabel("Zertifikats-PIN").fill("123456");
+  await berechtigung.getByRole("button", { name: "Freischalten" }).click();
+  await expect(berechtigung.getByLabel("Freischaltcode aus dem Brief")).toBeFocused();
+  await expect(berechtigung.getByLabel("Freischaltcode aus dem Brief")).toHaveAccessibleDescription("Trag den Freischaltcode aus dem Brief ein.");
   await berechtigung.getByLabel("Freischaltcode aus dem Brief").fill("ABCD-EFGH-1234");
   await berechtigung.getByRole("button", { name: "Freischalten" }).click();
   await expect(berechtigung).toContainText("genehmigt");

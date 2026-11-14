@@ -62,7 +62,8 @@ export function AbgabeVermerken({
   const differenz = cents === null ? 0 : cents - berechnet;
   const weichtAb = cents !== null && differenz !== 0;
   const { form, error, check } = useSubmitCheck({
-    filedOn: datumFehler(filedOn, `${year}-01-01`, today),
+    // Frühestens am 1. Januar des Folgejahres, wie der Server prüft (server/modules/jahreserklaerung/vermerk.ts)
+    filedOn: datumFehler(filedOn, `${year + 1}-01-01`, today),
     ticket: ticket.trim().length >= 10 ? null : "Trag das Transferticket aus dem Übermittlungsprotokoll ein, mindestens 10 Zeichen.",
     betrag: cents === null ? "Trag den Betrag laut Protokoll ein, etwa 1.234,56." : null,
     bestaetigt: weichtAb && !bestaetigt ? "Bestätige die Abweichung oder gleiche den Betrag an." : null,
