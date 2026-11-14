@@ -76,6 +76,8 @@ Das `Containerfile` baut die App in zwei Stufen: gebaut wird auf `oven/bun` (Deb
 
 Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_DIR=/var/lib/haben/eric`, `ERIC_WORKER_PATH`, `HABEN_EINVOICE_DIR` und `XDG_CACHE_HOME=/tmp/.cache` (Cache der Schriften für `pdftoppm`).
 
+Für Uptime-Monitore und Load-Balancer meldet `GET /api/health` ohne Anmeldung `200` mit `{"status":"pass"}`, sobald die Datenbank erreichbar und alle Migrationen angewendet sind, sonst `503` mit `{"status":"fail","reason":"database"}` oder `"reason":"migrations"`. Die Werte folgen dem Entwurf [Health Check Response Format](https://datatracker.ietf.org/doc/draft-inadarei-api-health-check/); `warn` mit `200` kann später für Hinweise wie eine überfällige Sicherung dazukommen. Der `HEALTHCHECK` im `Containerfile` fragt denselben Endpunkt ab. Version, ERiC und letzte Sicherung meldet `haben status`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
+
 `compose.yml` und `haben-app.container` starten die App gehärtet: Das Dateisystem des Containers ist schreibgeschützt, beschreibbar sind nur die Volumes unter `/var/lib/haben` und `/tmp` (tmpfs, beim Neustart leer). Dazu kommen keine Capabilities (`cap_drop: [ALL]` bzw. `DropCapability=ALL`) und `no-new-privileges`. Haben braucht nichts davon; ein Angreifer, der über eine Lücke Code im Container ausführt, kann so weder Programme im Image verändern noch sich höhere Rechte verschaffen. Schreibt etwas Eigenes außerhalb dieser Verzeichnisse, hängst du dafür ein Volume ein, statt den Schreibschutz abzuschalten.
 
 ## Docker Compose
@@ -118,8 +120,6 @@ Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern 
 Der Dienst `backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
 
 **Updates:** `docker compose exec backup backup.sh && docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).
-
-Für Uptime-Monitore und Load-Balancer meldet `GET /api/health` ohne Anmeldung `200` mit `{"status":"pass"}`, sobald die Datenbank erreichbar und alle Migrationen angewendet sind, sonst `503` mit `{"status":"fail","reason":"database"}` oder `"reason":"migrations"`. Die Werte folgen dem Entwurf [Health Check Response Format](https://datatracker.ietf.org/doc/draft-inadarei-api-health-check/); `warn` mit `200` kann später für Hinweise wie eine überfällige Sicherung dazukommen. Der Container nutzt denselben Endpunkt. Version, ERiC und letzte Sicherung meldet `haben status`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
 
 ## Podman Quadlets
 
