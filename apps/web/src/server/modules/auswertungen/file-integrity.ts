@@ -1,4 +1,4 @@
-import { desc, gt, lt, sql } from "drizzle-orm";
+import { and, desc, gt, lt, lte, sql } from "drizzle-orm";
 import { FILE_REFERENCES, fileInUse } from "../../db/file-in-use.ts";
 import { db, schema } from "../../db/index.ts";
 import type { FileCheckProblem } from "../../db/schema.ts";
@@ -99,11 +99,15 @@ export function runFileCheck(now = new Date()): Promise<FileCheck> {
   return running;
 }
 
-/** Der letzte gespeicherte Lauf, ohne die Dateien erneut zu lesen */
-export async function lastFileCheck(): Promise<FileCheck | null> {
+/**
+ * Der letzte gespeicherte Lauf, ohne die Dateien erneut zu lesen. Läufe mit Zeitpunkt in der Zukunft (Uhr ging vor,
+ * oder eine Zeile von außen; file_checks hat kein Audit-Log) zählen nicht, damit der nächste echte Lauf sie ablöst.
+ */
+export async function lastFileCheck(now = new Date()): Promise<FileCheck | null> {
   const [row] = await db
     .select({ at: schema.fileChecks.at, files: schema.fileChecks.files, problemCount: schema.fileChecks.problemCount, problems: schema.fileChecks.problems })
     .from(schema.fileChecks)
+    .where(lte(schema.fileChecks.at, now))
     .orderBy(desc(schema.fileChecks.at), desc(schema.fileChecks.id))
     .limit(1);
   return row ?? null;
@@ -114,7 +118,7 @@ export async function runDueFileCheck(now = new Date()): Promise<FileCheck | nul
   const [recent] = await db
     .select({ id: schema.fileChecks.id })
     .from(schema.fileChecks)
-    .where(gt(schema.fileChecks.at, new Date(now.getTime() - DAY)))
+    .where(and(gt(schema.fileChecks.at, new Date(now.getTime() - DAY)), lte(schema.fileChecks.at, now)))
     .limit(1);
   return recent ? null : runFileCheck(now);
 }
