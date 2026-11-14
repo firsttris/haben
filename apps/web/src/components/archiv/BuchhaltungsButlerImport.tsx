@@ -8,6 +8,7 @@ import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { Field } from "../Field.tsx";
 import { Icon } from "../Icon.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
+import { FilePicker } from "../FilePicker.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["bbImport"]>;
@@ -59,9 +60,8 @@ export function BuchhaltungsButlerImport({ initial }: { initial: ImportRow | nul
       <form className="stack" onSubmit={onPreview}>
         <Field label="BuchhaltungsButler-Exporte" hint="Der Testlauf schreibt noch nichts in die Datenbank.">
           {(control) => (
-            <input
+            <FilePicker
               {...control}
-              type="file"
               multiple
               accept=".zip,.csv"
               required
