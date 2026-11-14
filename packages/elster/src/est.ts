@@ -106,6 +106,8 @@ export interface EstWerbungskosten {
   gewerkschaft?: Cents;
   /** Weitere, etwa Kontoführung oder Bewerbungen */
   sonstige?: Cents;
+  /** Häusliches Arbeitszimmer, Aufwendungen des Jahres (Zeile 57 der Anlage N) */
+  arbeitszimmer?: Cents;
 }
 
 /** Arbeitslohn einer Person, Anlage N */
@@ -682,6 +684,9 @@ export function anlageN(person: string, an: EstArbeitnehmer, year: number): XmlN
         : null,
       ...berufsverbaende(w, year),
       posten("Arbeitsmittel", ["E0204401", "E0204402", "E0204403"], "Arbeitsmittel", w.arbeitsmittel),
+      // Häusliches Arbeitszimmer: Einzelaufwendung (E0204503 Bezeichnung, E0204505 Betrag),
+      // Summe in E0204504. ERiC verlangt beides zusammen, sonst meldet es die Summe ohne Einzelposten.
+      posten("Arb_Zim", ["E0204503", "E0204505", "E0204504"], "Arbeitszimmer", w.arbeitszimmer),
       ganz(w.homeofficeTage) ? ["Homeoffice", [[w.keinAndererArbeitsplatz ? "E0206206" : "E0204507", ganz(w.homeofficeTage)]]] : null,
       fortbildung(w.fortbildung, year),
       euro(w.sonstige)
