@@ -116,7 +116,7 @@ export async function ustYear(year: number): Promise<UstYear> {
   const base93 = toWholeEuros(total("kz93"));
 
   // Steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) aus den Befreiungsgründen aller Monatsquellen
-  const kz48 = kz48Einordnen(months.flatMap((m) => m.revenue));
+  const kz48 = kz48Einordnen(months, year);
 
   // Je Monat zählt die zuletzt gesendete Anmeldung (bei Berichtigungen die berichtigte)
   const sent = await db

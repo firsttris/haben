@@ -58,7 +58,7 @@ Abzugszeilen — Vorsteuer, Vorsteuer aus innergemeinschaftlichem Erwerb, Einfuh
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 
-- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält, die Haben keiner Zeile zuordnen kann: ohne lesbare Nummer in § 4 UStG im Befreiungsgrund — eine Bareinnahme ohne Rechnung hat keinen, ein Bereich wie „§ 4 Nr. 8 bis 29 UStG“ ist keine — oder nach § 4 Nr. 8 a bis h, 9 a und 10 UStG, denn ob diese Umsätze zum Gesamtumsatz gehören (Hilfsumsatz, UStAE 19.3 Abs. 2), kann Haben nicht entscheiden. Gib bei künftigen Rechnungen den Befreiungsgrund mit der Nummer an, etwa „Steuerfrei nach § 4 Nr. 21 UStG“; dieses Jahr gibst du im ELSTER-Portal ab.
+- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält, die Haben keiner Zeile zuordnen kann: ohne lesbare Nummer in § 4 UStG im Befreiungsgrund — eine Bareinnahme oder eine Buchung ohne Rechnung (etwa aus einem Umzug) hat keinen, ein Bereich wie „§ 4 Nr. 8 bis 29 UStG“ ist keine — oder nach § 4 Nr. 8 a bis h, 9 a und 10 UStG, denn ob diese Umsätze zum Gesamtumsatz gehören (Hilfsumsatz, UStAE 19.3 Abs. 2), kann Haben nicht entscheiden. Gib bei künftigen Rechnungen den Befreiungsgrund mit der Nummer an, etwa „Steuerfrei nach § 4 Nr. 21 UStG“; dieses Jahr gibst du im ELSTER-Portal ab.
 - du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf. Für 2023 brauchst du sie noch; die Angaben für Kleinunternehmer übermittelst du dann im ELSTER-Portal.
 - es weder Umsätze noch Vorsteuer gibt (Nullerklärung über das ELSTER-Portal).
 
