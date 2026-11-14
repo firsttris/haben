@@ -2,7 +2,7 @@ import { and, desc, gt, lt, lte, sql } from "drizzle-orm";
 import { FILE_REFERENCES, fileInUse } from "../../db/file-in-use.ts";
 import { db, schema } from "../../db/index.ts";
 import type { FileCheckProblem } from "../../db/schema.ts";
-import { checkFile } from "../../storage.ts";
+import { checkFiles } from "../../storage.ts";
 
 /**
  * Vollprüfung des Dokumentenspeichers (#857): Jede Datei, auf die ein Datensatz verweist, muss vorhanden sein und zu
@@ -56,34 +56,25 @@ async function referencesByFile(): Promise<Map<string, { first: Reference; weite
   return byFile;
 }
 
-async function fileProblem(sha256: string): Promise<FileProblem["befund"] | null> {
-  let result: Awaited<ReturnType<typeof checkFile>>;
-  try {
-    result = await checkFile(sha256);
-  } catch (error) {
-    // Ohne Inhalt der Datei, nur die Ursache, etwa EACCES nach einer Änderung der Rechte im Volume
-    console.warn(`Vollprüfung der Dateien: ${sha256} nicht lesbar (${(error as NodeJS.ErrnoException).code ?? String(error)})`);
-    return "nicht lesbar";
-  }
-  if (result === "ok") return null;
-  // Erst der Datensatz, dann die Datei (deleteDocument): Ein Datensatz, der seit dem Lesen der Verweise gelöscht wurde,
-  // ist kein Befund
-  if (result === "fehlt" && !(await db.transaction((tx) => fileInUse(tx, sha256)))) return null;
-  return result;
-}
-
-/** Liest die Dateien nacheinander und gestreamt: Der Lauf hält keine andere Anfrage auf, nur er selbst dauert. */
+/**
+ * Liest die Dateien nacheinander und gestreamt (pruefenAlle im GoBD-Kern): Der Lauf hält keine andere Anfrage auf, nur er
+ * selbst dauert. Erst der Datensatz, dann die Datei (deleteDocument): Ein Datensatz, der seit dem Lesen der Verweise
+ * gelöscht wurde, ist kein Befund.
+ */
 async function check(now: Date): Promise<FileCheck> {
   const byFile = await referencesByFile();
+  const { dateien, befundAnzahl, befunde } = await checkFiles(byFile.keys(), {
+    nochGenutzt: (sha256) => db.transaction((tx) => fileInUse(tx, sha256)),
+    maxBefunde: MAX_FILE_PROBLEMS,
+  });
   const problems: FileProblem[] = [];
-  let problemCount = 0;
-  for (const [sha256, { first, weitere }] of byFile) {
-    const befund = await fileProblem(sha256);
-    if (!befund) continue;
-    problemCount++;
-    if (problems.length < MAX_FILE_PROBLEMS) problems.push({ ...first, befund, weitere });
+  for (const { sha256, befund, ursache } of befunde) {
+    // Ohne Inhalt der Datei, nur die Ursache, etwa EACCES nach einer Änderung der Rechte im Volume
+    if (ursache) console.warn(`Vollprüfung der Dateien: ${sha256} nicht lesbar (${ursache})`);
+    const { first, weitere } = byFile.get(sha256)!;
+    problems.push({ ...first, befund, weitere });
   }
-  const result: FileCheck = { at: now, files: byFile.size, problemCount, problems };
+  const result: FileCheck = { at: now, files: dateien, problemCount: befundAnzahl, problems };
   await db.insert(schema.fileChecks).values(result);
   await db.delete(schema.fileChecks).where(lt(schema.fileChecks.at, new Date(now.getTime() - RETENTION_DAYS * DAY)));
   return result;

@@ -171,7 +171,7 @@ Belegdateien, Verträge der Dauerbelege, Lexoffice-Dateien, Archivexporte, Besch
 - Gelöscht wird eine Datei erst, wenn kein Datensatz sie mehr nutzt (`fileInUse` in `server/db/file-in-use.ts`), etwa beim Löschen eines ungebuchten Belegs oder eines Anhangs im Rechnungsentwurf.
 - Geschrieben wird atomar über eine temporäre Datei und `rename`, mit Dateirechten 0640.
 - Beim Lesen prüft Haben den Hash. Eine veränderte Datei fällt sofort auf („beschädigt“).
-- Einmal am Tag prüft der Scheduler jede Datei, auf die ein Datensatz verweist, gestreamt und nacheinander (`modules/auswertungen/file-integrity.ts`); das Ergebnis steht in `file_checks`. Welche Spalten auf Dateien verweisen, steht einmal in `FILE_REFERENCES` (`server/db/file-in-use.ts`); `fileInUse` und die Vollprüfung lesen von dort, `deploy/backup/restore-check.sh` hat eine Kopie, die `restore-check.test.ts` vergleicht.
+- Einmal am Tag prüft der Scheduler jede Datei, auf die ein Datensatz verweist, gestreamt und nacheinander (`modules/auswertungen/file-integrity.ts` über `pruefenAlle` des GoBD-Kerns); das Ergebnis steht in `file_checks`. Welche Spalten auf Dateien verweisen, steht einmal in `FILE_REFERENCES` (`server/db/file-in-use.ts`); `fileInUse` und die Vollprüfung lesen von dort, `deploy/backup/restore-check.sh` hat eine Kopie, die `restore-check.test.ts` vergleicht.
 - Den Dateityp erkennt Haben am Inhalt (PDF, JPEG, PNG, WebP, HEIC, XML), nicht an Endung oder Browserangabe.
 
 Rechnungs-PDFs und -XML sowie ERiC-Protokolle liegen dagegen direkt in der Datenbank (`bytea` bzw. `text`). Datenbank und Belegverzeichnis gehören beide ins Backup (Backup-Container aus `deploy/backup`).

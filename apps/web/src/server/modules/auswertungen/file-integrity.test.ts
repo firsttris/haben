@@ -9,7 +9,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 // Ein Datensatz, der während des Laufs gelöscht wird, lässt sich nur über den Zeitpunkt der Prüfung nachstellen
 vi.mock("../../storage.ts", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../storage.ts")>();
-  return { ...original, checkFile: vi.fn(original.checkFile) };
+  return { ...original, checkFiles: vi.fn(original.checkFiles) };
 });
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -106,10 +106,11 @@ describe.skipIf(!testDatabaseUrl)("Vollprüfung der Belegdateien (Postgres)", ()
   it("meldet keine fehlende Datei, deren Datensatz während des Laufs gelöscht wurde", async () => {
     const entwurf = await beleg("entwurf.pdf");
     await rm(pfad(entwurf.sha256));
-    vi.mocked(storage.checkFile).mockImplementationOnce(async () => {
-      // Wie deleteDocument: erst der Datensatz, dann die Datei
+    const original = (await vi.importActual<typeof import("../../storage.ts")>("../../storage.ts")).checkFiles;
+    vi.mocked(storage.checkFiles).mockImplementationOnce(async (hashes, optionen) => {
+      // Nach dem Lesen der Verweise, wie deleteDocument: erst der Datensatz, dann die Datei
       await sql`delete from documents where id = ${entwurf.id}`;
-      return "fehlt";
+      return original(hashes, optionen);
     });
     expect(await files.runFileCheck()).toMatchObject({ files: 1, problemCount: 0, problems: [] });
   });
