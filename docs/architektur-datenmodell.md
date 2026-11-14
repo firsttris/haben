@@ -147,6 +147,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | --- | --- | --- |
 | `audit_log` | Jede Änderung mit Zeitpunkt, Nutzer, Tabelle, altem und neuem Wert; als Hash-Kette mit Nummer (`seq`), Vorgänger-Hash und Hash | nur anhängen, auch kein `TRUNCATE` |
 | `audit_chain` | Kopf der Hash-Kette: letzte Nummer und Hash, genau eine Zeile | nur vom Trigger auf `audit_log` fortgeschrieben |
+| `app_versions` | Eingesetzte Haben- und PostgreSQL-Version mit Startzeitpunkt je neuer Version (auch beim Zurückrollen) | nur anhängen (`UPDATE`, `DELETE` und `TRUNCATE` abgelehnt), über `audit_log` mitgeschnitten |
 | `seals` | Siegel festgeschriebener Buchungen, Rechnungen, Belege, Voranmeldungen und Lohnabrechnungen sowie jeder Zeile in Kassenbuch, Zuordnungen, Pauschalen, AfA und der Stornos von Belegen und Lohnabrechnungen: SHA-256 über Datensatz und abhängige Zeilen, mit den Spalten, über die er gebildet ist | nur anhängen, Audit |
 | `user`, `session`, `account`, `verification`, `passkey` | Tabellen von Better Auth samt Passkey-Plugin; `user` trägt Rolle (`inhaber`, `steuerberatung`) und Sperre | `user`: genau ein lokaler Inhaber (`user_inhaber_single`), lokale Rolle nur durch den auditierten Offline-Rückweg änderbar, Audit; Passwörter und Sitzungen ohne Audit |
 | `invitations` | Einladungen für die Steuerberatung: SHA-256 des Tokens, Rolle, Bezeichnung, Frist, eingelöst bzw. zurückgezogen | nur einmal einlösen oder zurückziehen, nie löschen; Audit |
