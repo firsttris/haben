@@ -42,7 +42,7 @@ Getrennte Rollen (die App darf Trigger nicht abschalten) richtet das Projekt sel
 
 ## Installieren
 
-Nicht auf npm, sondern als Datei an den Releases von Haben (Tags `gobd-kern-vX.Y.Z`):
+Nicht auf npm, sondern als Datei an den Releases `gobd-kern-vX.Y.Z` von Haben (Actions → *GoBD-Kern als Release*):
 
 ```sh
 bun add https://github.com/firsttris/haben/releases/download/gobd-kern-v0.1.0/firsttris-gobd-kern-0.1.0.tgz
