@@ -75,6 +75,17 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
     ).rejects.toThrow(/steht doppelt/);
   });
 
+  it("meldet eine schon gespeicherte Feldkennung als Fehler der Eingabe, nicht als Datenbankfehler", async () => {
+    await vermerken("ust", "ABC123456789");
+    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "kz22", amount: 70_000 }]);
+    // Zweiter Tab oder erneutes Absenden: Die Server-Funktion gibt nur AnnualError als Meldung zurück, alles andere wird ein 500
+    const zweites = zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "kz22", amount: 7_000 }]);
+    await expect(zweites).rejects.toBeInstanceOf(annual.AnnualError);
+    await expect(zweites).rejects.toThrow(/schon gespeichert/);
+    const [zaehlung] = await sql<{ anzahl: number }[]>`select count(*)::int as anzahl from annual_submission_figures`;
+    expect(zaehlung?.anzahl).toBe(1);
+  });
+
   it("lehnt Zeilen ohne Vermerk ab", async () => {
     // Kein Vermerk für 2025: es gibt keine abgegebene Erklärung, zu der die Zeilen gehören könnten
     await expect(zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "kz22", amount: 100 }])).rejects.toThrow(/keinen Vermerk/);
