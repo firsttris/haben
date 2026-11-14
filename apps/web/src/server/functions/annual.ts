@@ -14,7 +14,10 @@ import {
   vermerkFelder,
   vermerkPruefung,
   vermerkeJahresabgabe,
+  speichereErklaerteZeilen,
+  zeilenwerteSchema,
 } from "../modules/jahreserklaerung/index.ts";
+import { zeilenForm } from "../../lib/zeilenwerte.ts";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
@@ -150,6 +153,27 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
       // Der Vergleich ist nur ein Hinweis: Scheitert er, bleibt der Vermerk trotzdem gespeichert
       const pruefung = await vermerkPruefung(data.form, data.year, data.amount).catch(() => null);
       return { ok: true as const, hinweis: pruefung?.hinweis ?? null };
+    } catch (error) {
+      if (error instanceof AnnualError) return { ok: false as const, message: error.message };
+      throw error;
+    }
+  });
+
+/**
+ * Zeilenwerte einer außerhalb von Haben abgegebenen Erklärung erfassen (#997). Die Zeilen gehören zu einem
+ * vorhandenen Vermerk; Feldkennungen prüft das Modul gegen die Liste der jeweiligen Erklärungsart.
+ */
+export const saveAnnualFigures = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: unknown) => {
+    const geprueft = zeilenwerteSchema.extend({ form: zeilenForm, year: yearSchema }).safeParse(data);
+    if (!geprueft.success) throw new UserError(geprueft.error.issues[0]?.message ?? "Angaben unvollständig.");
+    return geprueft.data;
+  })
+  .handler(async ({ data, context }) => {
+    try {
+      const anzahl = await speichereErklaerteZeilen(context.user.id, data.form, data.year, data.zeilen);
+      return { ok: true as const, anzahl };
     } catch (error) {
       if (error instanceof AnnualError) return { ok: false as const, message: error.message };
       throw error;

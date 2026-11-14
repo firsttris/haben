@@ -41,6 +41,18 @@ Gibst du die Umsatzsteuererklärung oder die Anlage EÜR außerhalb von Haben ab
 
 Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung: Die Frist ist erledigt, das Jahr nimmt keine rückdatierten Buchungen mehr an, die Karte zeigt Datum, Ticket und Betrag statt des Knopfs, und Begründung wie Protokoll stehen darunter in einer Tabelle, die erst aufklappt, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf. Meldungen, die Haben aus seinen eigenen Daten ableitet — etwa die Nullerklärung oder „Keine Betriebseinnahmen und -ausgaben im Jahr“ —, treten mit dem Vermerk zurück; sie würden ihm sonst auf derselben Seite widersprechen.
 
+### Zeilenwerte aus dem Übermittlungsprotokoll
+
+Ein Vermerk hält Tag, Transferticket und Betrag fest, aber nicht die einzelnen Zeilen der Erklärung. Rechnet Haben aus den Buchungen weniger oder gar nichts, steht in der Jahreserklärung deshalb eine Null, obwohl beim Finanzamt echte Zahlen liegen.
+
+Über der Tabelle klappt der Bereich **Zeilenwerte aus dem Übermittlungsprotokoll** auf. Trag dort ein, was in der Erklärung steht; in Klammern hinter dem Zeilentext steht der Schlüssel, den Haben für diese Zeile verwendet. Die Schlüssel sind dieselben, die Haben selbst übermittelt: die Zeilen der Anlage EÜR aus ihrer Feldkennungstabelle (etwa `steuerpflichtig` mit der Kennung E6000401) und die Beträge der Umsatzsteuererklärung (`base19`, `tax19`, `vorsteuer`, `abschluss`). Eine Zeile, die es in der Erklärung nicht gibt, lehnt Haben ab. Leere Felder werden nicht gespeichert, sie bleiben Habens Rechnung. Ein bewusst eingetragenes Feld mit 0 wird gespeichert.
+
+Liegen Zeilen vor, stehen sie über Habens Rechnung: Die Kernzeilen sind offen, die übrigen klappen unter **Alle erklärten Zeilen** auf, und ein Hinweis sagt, dass die Zahlen aus dem Protokoll stammen. Habens eigene Rechnung bleibt darunter stehen; was erklärt ist, gilt, was fehlt, bleibt seine. Fehlende Zeilen lassen sich auch später nachtragen, gespeicherte bleiben dabei unverändert. Das gilt für die Umsatzsteuererklärung und die Anlage EÜR.
+
+Weicht die erklärte Schlusszeile, also die Abschlusszahlung bzw. der Gewinn, vom Betrag des Vermerks ab, steht das als Hinweis auf der Seite; gesperrt wird nichts, das Protokoll ist die Quelle. Ein abgeschlossenes Jahr nimmt keine Zeilen mehr auf, so wie es keinen Vermerk mehr aufnimmt.
+
+Gespeicherte Zeilen lassen sich nicht ändern. Sie hängen am Vermerk, und beides ist gegen Änderung, Löschung und `TRUNCATE` gesperrt und steht im Änderungsprotokoll, wie der Vermerk selbst.
+
 ## Umsatzsteuererklärung
 
 | Zeile | Woher |

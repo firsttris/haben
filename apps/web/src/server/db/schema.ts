@@ -491,6 +491,30 @@ export const annualSubmissions = pgTable(
 );
 
 /**
+ * Zeilenwerte einer außerhalb von Haben abgegebenen Jahreserklärung, je Feldkennung (#997).
+ *
+ * Die Zeilen kommen aus dem Übermittlungsprotokoll und lassen sich nicht an `annual_submissions` hängen:
+ * der Vermerk ist `append_only`, ein späteres UPDATE scheitert. Sie stehen deshalb daneben, verknüpft
+ * über die Übermittlung. Nur anhängbar, auditiert und gegen TRUNCATE gesperrt wie der Vermerk selbst
+ * (0235).
+ */
+export const annualSubmissionFigures = pgTable(
+  "annual_submission_figures",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => annualSubmissions.id, { onDelete: "restrict" }),
+    /** Schlüssel der Erklärung wie in der Übermittlung: `steuerpflichtig`, `base19`, `gewinn`, … */
+    field: text("field").notNull(),
+    /** Betrag in Cent */
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("annual_submission_figures_eindeutig").on(t.submissionId, t.field)],
+);
+
+/**
  * Nachrichten an das Finanzamt über ELSTER (Sonstige Nachricht), etwa der Antrag auf Herabsetzung der
  * Vorauszahlungen; jede Prüfung und Übermittlung mit XML, nur anhängen.
  */
