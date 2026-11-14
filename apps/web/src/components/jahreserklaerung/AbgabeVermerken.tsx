@@ -162,11 +162,18 @@ export function AbgabeVermerken({
         Hast du {LABEL[art]} {year} in WISO, Accountable oder im ELSTER-Portal abgegeben, hältst du das hier mit Tag, Transferticket und Betrag fest. Die Frist
         ist damit erledigt, und der Vorgang erscheint im Verlauf.
       </p>
-      <div className="actions">
-        <button type="button" className="btn" onClick={() => setOpen(true)}>
-          Abgabe vermerken
-        </button>
-      </div>
+      {/* Im laufenden Jahr gibt es noch keinen gültigen Abgabetag: kein Knopf, der Grund steht da (DESIGN.md, Gesperrte Knöpfe) */}
+      {today < `${year + 1}-01-01` ? (
+        <p className="small" style={{ margin: 0 }}>
+          Vermerken geht erst nach Ablauf des Jahres {year}.
+        </p>
+      ) : (
+        <div className="actions">
+          <button type="button" className="btn" onClick={() => setOpen(true)}>
+            Abgabe vermerken
+          </button>
+        </div>
+      )}
       <FormDialog open={open} title={`${LABEL[art]} ${year} als abgegeben vermerken`} onClose={() => !busy && setOpen(false)}>
         <form ref={form} onSubmit={absenden} noValidate>
           <Field label="Tag der Abgabe" error={error("filedOn")}>
