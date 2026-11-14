@@ -144,9 +144,7 @@ export function toFields(extraction: Extraction): ExtractedFields {
   // dort nicht buchen („Bei § 13b steht jede Zeile auf 19 % oder 7 %“), deshalb rechnet die Auslesung sie gleich aus
   const reverseCharge = extraction.reverseCharge ?? null;
   const rows = reverseCharge
-    ? amounts.map((a) =>
-        a.taxRate === 0 ? { ...a, taxRate: 1900 as const, tax: Math.sign(a.net) * Math.round(Math.abs(a.net) * 0.19) } : a,
-      )
+    ? amounts.map((a) => (a.taxRate === 0 ? { ...a, taxRate: 1900 as const, tax: Math.sign(a.net) * Math.round(Math.abs(a.net) * 0.19) } : a))
     : amounts;
   const gross = extraction.brutto ? decimalToCents(extraction.brutto) : null;
   // Bei § 13b ist der Rechnungsbetrag das Netto; die Steuer kommt nicht auf den Beleg
