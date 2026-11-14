@@ -79,6 +79,8 @@ Gibt es Instanzen anderer Firmen (`HABEN_FIRMEN`, #504), steht direkt unter der 
 
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
 
+Ist die Navigation höher als das Fenster, bleibt am Desktop die Marke mit dem Firmennamen stehen und nur die Menüpunkte darunter rollen. Die Leiste, auch die der Liste unter „Firma wechseln“, ist schmal, erscheint nur beim Rollen, wo das System es so vorsieht, und hat in `--nav-ink` mit 55 % Deckkraft mindestens 3 : 1 gegen `--nav` (WCAG 1.4.11).
+
 Über **Übersicht** sitzt der Suchknopf (`Schnellsuche`, `Strg K` bzw. `⌘ K` auf dem Mac), der die Befehlspalette (`CommandPalette`, #617) öffnet; dieselbe Palette öffnet sich auf jeder Seite über `Strg+K` / `Cmd+K`, solange kein anderer Dialog (`isDialogOpen()`) offen ist. Sie liegt als zentrierter modal geöffneter `<dialog>` im oberen Drittel des Bildschirms (`.cmd-dialog`), durchsucht beim Tippen sofort die nach Rolle und Rechtsform sichtbaren Seiten (`NAV_GROUPS` / `STEUERBERATUNG_NAV`) und ab zwei Zeichen zusätzlich Kontakte, Rechnungen, Angebote sowie Belege (Steuerberatung: nur festgeschriebene Rechnungen und Belege). Treffer lassen sich per `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` öffnen oder mit „Alle in … anzeigen“ an die gefilterte Liste (`/kontakte?suche=…`, `/rechnungen?suche=…`, `/angebote?suche=…`, `/belege?suche=…`) übergeben; `Esc` schließt und gibt den Fokus an den Auslöser zurück.
 
 ### Kennzahlen

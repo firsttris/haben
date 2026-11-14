@@ -100,29 +100,38 @@ export function AbgabeVermerken({
             {abweichung}
           </p>
         )}
-        <dl className="confirm-dialog-facts">
-          <div>
-            <dt>Tag der Abgabe</dt>
-            <dd>{vermerkt.filedOn ? formatDate(vermerkt.filedOn) : "–"}</dd>
-          </div>
-          <div>
-            <dt>Transferticket</dt>
-            <dd className="mono">{vermerkt.transferTicket ?? "–"}</dd>
-          </div>
-          <div>
-            <dt>Betrag</dt>
-            <dd>{vermerkt.amount === null ? "–" : formatEuro(vermerkt.amount)}</dd>
-          </div>
-          <div>
-            <dt>Begründung</dt>
-            <dd>{vermerkt.note ?? "–"}</dd>
-          </div>
-        </dl>
-        {vermerkt.hasPdf && (
-          <a href={`/api/protokoll/${vermerkt.id}`} target="_blank" rel="noreferrer" className="small">
-            Übermittlungsprotokoll
-          </a>
-        )}
+        {/* Als Tabelle statt als Dialog-Fakten: Die Begründung ist ein Satz, kein Wert, und läuft im
+            Zwei-Spalten-Layout des Dialogs unter das Label. Hier bricht sie in ihrer Spalte um (#869). */}
+        <table className="report-table stack-table">
+          <tbody>
+            <tr>
+              <th scope="row">Tag der Abgabe</th>
+              <td>{vermerkt.filedOn ? formatDate(vermerkt.filedOn) : "–"}</td>
+            </tr>
+            <tr>
+              <th scope="row">Transferticket</th>
+              <td className="mono">{vermerkt.transferTicket ?? "–"}</td>
+            </tr>
+            <tr>
+              <th scope="row">Betrag</th>
+              <td className="num">{vermerkt.amount === null ? "–" : formatEuro(vermerkt.amount)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Begründung</th>
+              <td>{vermerkt.note ?? "–"}</td>
+            </tr>
+            {vermerkt.hasPdf && (
+              <tr>
+                <th scope="row">Protokoll</th>
+                <td>
+                  <a href={`/api/protokoll/${vermerkt.id}`} target="_blank" rel="noreferrer">
+                    Übermittlungsprotokoll (PDF)
+                  </a>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </section>
     );
   }

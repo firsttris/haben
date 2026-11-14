@@ -60,7 +60,7 @@ export const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
 const isoDate = z.iso.date();
 const cents = z.number().int().min(-100_000_000_00).max(100_000_000_00);
 
-export const documentInputSchema = z.object({
+const documentFields = z.object({
   supplierName: z.string().trim().max(200),
   supplierUstId: z.string().trim().max(20),
   /** Aus den Kontakten gewählter Lieferant; null = frei eingetragen */
@@ -68,6 +68,9 @@ export const documentInputSchema = z.object({
   invoiceNumber: z.string().trim().max(100),
   documentDate: isoDate.nullable(),
   dueDate: isoDate.nullable(),
+  /** Leistungszeitraum aus dem Beleg (#693): „ausgeführt am“ ist der letzte Tag, siehe leistungsdatum() in @haben/core */
+  serviceFrom: isoDate.nullable().default(null),
+  serviceTo: isoDate.nullable().default(null),
   category: z.enum(EXPENSE_CATEGORY_KEYS).nullable(),
   /** Eigenes Sachkonto (#270) der Kategorie; fehlt = das Konto der Kategorie. Mit Aufteilung stehen die Konten in den Zeilen */
   ownAccountId: z.uuid().nullable().default(null),
@@ -128,6 +131,12 @@ export const documentInputSchema = z.object({
     .refine((rows) => new Set(rows.map((r) => r.taxRate)).size === rows.length, "Jeder Steuersatz nur einmal"),
   /** Aufteilung auf mehrere Kategorien (#271); leer = die Kategorie oben gilt für den ganzen Beleg */
   splits: z.array(splitInputSchema).max(50).default([]),
+});
+
+// wie bei Rechnungen (invoices.ts): sonst nähme leistungsdatum() ein Ende vor dem Beginn als „ausgeführt am“
+export const documentInputSchema = documentFields.refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
+  message: "Leistungszeitraum endet vor seinem Beginn",
+  path: ["serviceTo"],
 });
 
 /** Höchstwert der int4-Spalten: umgerechnete Beträge (kleiner Kurs) dürfen ihn nicht sprengen */
@@ -211,6 +220,9 @@ function fieldsFromEInvoice(invoice: IncomingInvoice): ExtractedFields {
     invoiceNumber: invoice.number,
     documentDate: invoice.issueDate,
     dueDate: invoice.dueDate ?? null,
+    // BT-73/BT-74 der E-Rechnung: der Leistungszeitraum ist die beste Vorbelegung, die ein Beleg mitbringt (#693)
+    serviceFrom: invoice.serviceFrom ?? null,
+    serviceTo: invoice.serviceTo ?? null,
     currency: invoice.currency,
     category: "sonstiges",
     amounts,
@@ -280,6 +292,8 @@ async function applyFields(
         invoiceNumber: fields.invoiceNumber,
         documentDate: fields.documentDate,
         dueDate: fields.dueDate,
+        serviceFrom: fields.serviceFrom,
+        serviceTo: fields.serviceTo,
         currency: fields.currency,
         ...rate,
         category,
