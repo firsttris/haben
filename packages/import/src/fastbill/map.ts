@@ -1,6 +1,6 @@
 import { type ImportedPayments, type LegacyVoucher, type LegacyVoucherType, lexDate, lexToBasisPoints, lexToCents } from "../lexoffice/map.ts";
 import { taxesFromPositions } from "../sevdesk/steuersaetze.ts";
-import type { FbCustomer, FbExpense, FbInvoice, FbInvoiceItem, FbVatItem } from "./types.ts";
+import type { FbCustomer, FbExpense, FbInvoice, FbInvoiceItem, FbPayment, FbVatItem } from "./types.ts";
 
 /*
  * Reine Abbildungen der FastBill-Antworten auf dieselben Strukturen wie beim Lexoffice- und sevDesk-Import,
@@ -9,9 +9,9 @@ import type { FbCustomer, FbExpense, FbInvoice, FbInvoiceItem, FbVatItem } from 
  * Die Kennung eines Belegs ist "<art>/<id>" (invoice/123, expense/45): Rechnungen und Ausgaben tragen beide
  * ein Feld INVOICE_ID, ob die Zahlen getrennt zählen, sagt die Doku nicht.
  *
- * Grundlage ist die API-Doku (https://apidocs.fastbill.com/fastbill/en/invoice.html, expense.html), gegen ein echtes
- * Konto noch nicht geprüft. Offen sind vor allem die Felder in PAYMENTS (Teilzahlungen) und woran ein Storno
- * sicher zu erkennen ist.
+ * Grundlage sind die API-Doku (https://apidocs.fastbill.com/fastbill/en/invoice.html, expense.html) und die
+ * anonymisierten Antworten eines echten Kontos (November 2026): Beträge kommen als Zahl, IDs und Schalter als
+ * Text, leere Datumsfelder als "0000-00-00 00:00:00", Zahlungen mit Datum als TT.MM.JJJJ.
  */
 
 export interface FbImportedContact {
@@ -60,10 +60,11 @@ function text(value: string | number | null | undefined): string {
   return value == null ? "" : String(value).trim();
 }
 
-/** Datum, wenn FastBill eines gesetzt hat; "0000-00-00" steht für leer. */
+/** Datum, wenn FastBill eines gesetzt hat: ISO oder TT.MM.JJJJ; "0000-00-00" steht für leer. */
 function fbDate(value: string | null | undefined): string | null {
-  const d = lexDate(value);
-  return d && d !== "0000-00-00" ? d : null;
+  const german = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(value?.trim() ?? "");
+  const d = german ? `${german[3]}-${german[2]}-${german[1]}` : lexDate(value);
+  return d && !d.startsWith("0000") ? d : null;
 }
 
 function requireDate(value: string | null | undefined, id: string): string {
@@ -77,6 +78,14 @@ function personName(first: string | null | undefined, last: string | null | unde
     .map((s) => s?.trim())
     .filter(Boolean)
     .join(" ");
+}
+
+function isCanceled(i: FbInvoice): boolean {
+  return text(i.STATE).toLowerCase() === "canceled" || fbNumber(i.IS_CANCELED) === 1;
+}
+
+function isCredit(i: FbInvoice): boolean {
+  return text(i.TYPE).toLowerCase() === "credit";
 }
 
 // ------------------------------------------------------------ Kontakte
@@ -122,15 +131,32 @@ function taxes(vatItems: FbVatItem[] | null | undefined, items: FbInvoiceItem[] 
 
 // ------------------------------------------------------------ Zahlungen
 
+/** Einzelzahlungen aus PAYMENTS mit dem Vorzeichen des Belegs; type ist der Zahlungsweg aus FastBill. */
+function paymentItems(payments: FbPayment[] | null | undefined, negative: boolean): ImportedPayments["items"] {
+  return (payments ?? []).flatMap((p) => {
+    const date = fbDate(p.DATE);
+    const amount = Math.abs(cents(p.AMOUNT));
+    if (!date || amount === 0) return [];
+    return [{ type: text(p.TYPE), date, amount: negative ? neg(amount) : amount }];
+  });
+}
+
 /**
- * Zahlungsstand ohne erfundene Einzelzahlungen: Die Felder in PAYMENTS nennt die Doku nicht, deshalb zählt nur der
- * Zustand. Bezahlt heißt PAID_DATE gesetzt oder STATE paid; ein Storno ist ausgeglichen, ohne dass Geld floss.
- * Teilzahlungen sind so nicht zu sehen: Eine teilweise bezahlte Rechnung steht voll offen, bis die Felder geklärt sind.
+ * Zahlungsstand. Bezahlt heißt PAID_DATE gesetzt oder STATE paid; sonst ergibt die Summe der Einzelzahlungen, was
+ * offen ist. Ein Storno ist ausgeglichen, ohne dass Geld floss; Zahlungen an ihm bleiben als Einzelzahlungen sichtbar,
+ * etwa eine bezahlte und danach stornierte Rechnung, damit der Altbestand die Erstattung nicht verschweigt.
  */
-function payments(gross: number, paid: boolean, voided: boolean, paidDate: string | null): ImportedPayments {
-  if (voided) return { status: "balanced", openAmount: 0, paidDate: null, items: [] };
-  if (paid) return { status: "balanced", openAmount: 0, paidDate, items: [] };
-  return { status: "open", openAmount: gross, paidDate: null, items: [] };
+function payments(gross: number, items: ImportedPayments["items"], settled: "paid" | "voided" | null, paidDate: string | null): ImportedPayments {
+  if (settled === "voided") return { status: "balanced", openAmount: 0, paidDate: null, items };
+  const lastPayment = items.at(-1)?.date ?? null;
+  if (settled === "paid") return { status: "balanced", openAmount: 0, paidDate: paidDate ?? lastPayment, items };
+  const paid = Math.min(
+    items.reduce((s, i) => s + Math.abs(i.amount), 0),
+    Math.abs(gross),
+  );
+  const open = Math.abs(gross) - paid;
+  if (open === 0 && gross !== 0) return { status: "balanced", openAmount: 0, paidDate: lastPayment, items };
+  return { status: paid > 0 ? "partlyPaid" : "open", openAmount: Math.sign(gross) * open + 0, paidDate: null, items };
 }
 
 // ------------------------------------------------------------ Rechnungen
@@ -141,23 +167,28 @@ export function isFbInvoiceImportable(i: FbInvoice): boolean {
 }
 
 /**
- * Stornorechnung: ein Verweis auf die stornierte Rechnung und ein Betrag, der sie aufhebt (TYPE credit oder negatives
- * Brutto). Der Verweis allein reicht nicht: REFERENCED_INVOICE_ID nennt bei einer Rechnung aus einem Angebot das Angebot.
+ * Stornorechnung: eine Gutschrift, die auf eine stornierte Rechnung verweist und deren Betrag voll aufhebt. Im echten
+ * Konto: Rechnung STATE canceled, IS_CANCELED 1, TOTAL 49.99; Gutschrift TYPE credit, STATE issued, TOTAL -49.99,
+ * REFERENCED_INVOICE_ID auf die Rechnung. Der Verweis allein reicht nicht: Er nennt bei einer Rechnung aus einem Angebot
+ * das Angebot, und eine Teilgutschrift verweist ebenso auf ihre Rechnung, ist aber echtes Geld.
  */
-export function isFbCancellation(i: FbInvoice): boolean {
-  if (idOrNull(i.REFERENCED_INVOICE_ID) === null) return false;
-  return text(i.TYPE).toLowerCase() === "credit" || cents(i.TOTAL) < 0;
+export function isFbCancellation(i: FbInvoice, referenced: FbInvoice | undefined): boolean {
+  if (!isCredit(i) || !referenced || idOrNull(i.REFERENCED_INVOICE_ID) !== String(referenced.INVOICE_ID)) return false;
+  return isCanceled(referenced) && Math.abs(cents(i.TOTAL)) === Math.abs(cents(referenced.TOTAL));
 }
 
-export function mapFbInvoice(i: FbInvoice): FbMappedVoucher {
+/**
+ * Rechnung oder Gutschrift. `referenced` ist die Rechnung aus REFERENCED_INVOICE_ID, soweit abgerufen; nur mit ihr
+ * lässt sich ein Storno von einer Teilgutschrift unterscheiden.
+ */
+export function mapFbInvoice(i: FbInvoice, referenced?: FbInvoice): FbMappedVoucher {
   const id = String(i.INVOICE_ID);
-  const kind = text(i.TYPE).toLowerCase();
   const subtype = text(i.SUBTYPE).toLowerCase();
   const state = text(i.STATE).toLowerCase();
-  const credit = kind === "credit" || isFbCancellation(i);
+  const credit = isCredit(i) || cents(i.TOTAL) < 0;
   const type: LegacyVoucherType = credit ? "creditnote" : subtype === "progress_invoice" ? "downpaymentinvoice" : "invoice";
 
-  // Gutschriften und Stornos immer negativ, gleich wie FastBill sie schreibt; Rechnungen behalten ihr Vorzeichen
+  // Gutschriften immer negativ, gleich wie FastBill sie schreibt (im echten Konto beides); Rechnungen behalten ihr Vorzeichen
   const sign = (n: number) => (credit ? neg(Math.abs(n)) : n);
   const gross = sign(cents(i.TOTAL));
   const tax = sign(cents(i.VAT_TOTAL));
@@ -166,10 +197,9 @@ export function mapFbInvoice(i: FbInvoice): FbMappedVoucher {
   const date = requireDate(i.INVOICE_DATE, id);
   const serviceFrom = fbDate(i.SERVICE_PERIOD_START) ?? fbDate(i.DELIVERY_DATE);
   const paidDate = fbDate(i.PAID_DATE);
-  // Eine stornierte Rechnung ist erledigt; die Stornorechnung selbst hebt sie auf und ist es ebenso
-  const voided = state === "canceled" || fbNumber(i.IS_CANCELED) === 1 || isFbCancellation(i);
+  const voided = isCanceled(i) || isFbCancellation(i, referenced);
   const paid = !voided && (state === "paid" || paidDate !== null);
-  const status = voided ? "voided" : paid ? "paid" : state || "open";
+  const items = paymentItems(i.PAYMENTS, credit);
 
   return {
     voucher: {
@@ -181,7 +211,7 @@ export function mapFbInvoice(i: FbInvoice): FbMappedVoucher {
       dueDate: credit ? null : fbDate(i.DUE_DATE),
       serviceFrom,
       serviceTo: fbDate(i.SERVICE_PERIOD_END) ?? serviceFrom,
-      status,
+      status: voided ? "voided" : paid ? "paid" : state || "open",
       contactLexofficeId: idOrNull(i.CUSTOMER_ID),
       contactName: i.ORGANIZATION?.trim() || personName(i.FIRST_NAME, i.LAST_NAME),
       currency: i.CURRENCY_CODE?.trim().toUpperCase() || "EUR",
@@ -193,11 +223,22 @@ export function mapFbInvoice(i: FbInvoice): FbMappedVoucher {
       fileIds: [],
       remark: i.INVOICE_TITLE?.trim() ?? "",
     },
-    payment: payments(gross, paid, voided, paidDate),
+    payment: payments(gross, items, voided ? "voided" : paid ? "paid" : null, paidDate),
   };
 }
 
 // ------------------------------------------------------------ Ausgaben
+
+/** Name der Kategorie: Text, erster Text einer Liste oder NAME/TITLE eines Objekts; im echten Konto meist leer ([]). */
+function categoryName(value: FbExpense["CATEGORY"]): string {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) return value.map((v) => (typeof v === "string" ? v.trim() : "")).find(Boolean) ?? "";
+  if (value && typeof value === "object") {
+    const o = value as Record<string, unknown>;
+    for (const key of ["NAME", "TITLE", "CATEGORY"]) if (typeof o[key] === "string" && o[key].trim()) return o[key].trim();
+  }
+  return "";
+}
 
 /**
  * Eingangsbeleg. Negative Summen sind Gutschriften des Lieferanten und bleiben negativ, wie beim Lexoffice-Import.
@@ -211,7 +252,7 @@ export function mapFbExpense(e: FbExpense): FbMappedVoucher {
   const net = gross - tax;
   const credit = gross < 0;
   const buckets = taxes(e.VAT_ITEMS, e.ITEMS, net, tax, (n) => n);
-  const category = e.CATEGORY?.trim() ?? "";
+  const category = categoryName(e.CATEGORY);
   const serviceFrom = fbDate(e.SERVICE_PERIOD_START);
   const paidDate = fbDate(e.PAID_DATE);
 
@@ -237,6 +278,6 @@ export function mapFbExpense(e: FbExpense): FbMappedVoucher {
       fileIds: e.DOCUMENT_URL?.trim() ? [`expense/${id}`] : [],
       remark: e.NOTE?.trim() ?? "",
     },
-    payment: payments(gross, paidDate !== null, false, paidDate),
+    payment: payments(gross, [], paidDate ? "paid" : null, paidDate),
   };
 }

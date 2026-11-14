@@ -68,13 +68,34 @@ describe("FastbillClient", () => {
   it("blättert in Seiten zu 100, bis eine Seite kürzer ist, und überspringt doppelte IDs", async () => {
     const { client, calls } = setup(({ body }) => {
       const offset = body!.OFFSET as number;
-      if (offset === 0) return envelope({ INVOICES: Array.from({ length: 100 }, (_, i) => invoice(i + 1)) });
-      // Überlappung an der Seitengrenze, etwa weil zwischendurch eine Rechnung dazukam
-      return envelope({ INVOICES: [invoice(100), invoice(101)] });
+      if (offset === 0) return envelope({ EXPENSES: Array.from({ length: 100 }, (_, i) => invoice(i + 1)) });
+      // Überlappung an der Seitengrenze, etwa weil zwischendurch ein Beleg dazukam
+      return envelope({ EXPENSES: [invoice(100), invoice(101)] });
     });
-    const all = await collect(client.invoices());
+    const all = await collect(client.expenses());
     expect(all).toHaveLength(101);
     expect(calls.map((c) => c.body!.OFFSET)).toEqual([0, 100]);
+  });
+
+  it("holt Rechnungen je Art ohne Entwürfe und liefert jede nur einmal", async () => {
+    const { client, calls } = setup(({ body }) => {
+      const filter = body!.FILTER as Record<string, string>;
+      if (filter.TYPE === "outgoing") return envelope({ INVOICES: [invoice(1), { ...invoice(2), STATE: "canceled" }] });
+      if (filter.TYPE === "credit") return envelope({ INVOICES: [{ ...invoice(3), TYPE: "credit" }] });
+      return envelope({
+        INVOICES: [
+          { ...invoice(2), STATE: "canceled" },
+          { ...invoice(4), STATE: "canceled" },
+        ],
+      });
+    });
+    const all = await collect(client.invoices({ START_DATE: "2025-01-01" }));
+    expect(all.map((i) => i.INVOICE_ID)).toEqual(["1", "2", "3", "4"]);
+    expect(calls.map((c) => c.body!.FILTER)).toEqual([
+      { START_DATE: "2025-01-01", TYPE: "outgoing" },
+      { START_DATE: "2025-01-01", TYPE: "credit" },
+      { START_DATE: "2025-01-01", STATE: "canceled" },
+    ]);
   });
 
   it("gibt den Filter unverändert weiter", async () => {
@@ -137,11 +158,11 @@ describe("FastbillClient", () => {
     const { client, calls, sleeps } = setup(
       ({ body }) => {
         const offset = body!.OFFSET as number;
-        return envelope({ INVOICES: offset < 300 ? Array.from({ length: 100 }, (_, i) => invoice(offset + i)) : [] });
+        return envelope({ EXPENSES: offset < 300 ? Array.from({ length: 100 }, (_, i) => invoice(offset + i)) : [] });
       },
       { callsPerHour: 2, onRateLimitWait: (ms) => waits.push(ms) },
     );
-    await collect(client.invoices());
+    await collect(client.expenses());
     // vier Seiten bei zwei Aufrufen je Stunde: vor dem dritten eine Stunde warten, danach ist das Fenster wieder frei
     expect(calls).toHaveLength(4);
     expect(waits).toEqual([3_600_000]);
@@ -177,7 +198,7 @@ describe("FastbillClient", () => {
   });
 
   describe("document", () => {
-    it("lädt das PDF hinter DOCUMENT_URL mit Anmeldung und Dateiname", async () => {
+    it("lädt das PDF hinter DOCUMENT_URL ohne Zugangsdaten und mit Dateiname", async () => {
       const { client, calls } = setup(
         () =>
           new Response("%PDF-1.4 Test", {
@@ -188,10 +209,23 @@ describe("FastbillClient", () => {
       expect(new TextDecoder().decode(file!.bytes)).toBe("%PDF-1.4 Test");
       expect(file).toMatchObject({ mimeType: "application/pdf", filename: "RE-1.pdf" });
       expect(calls[0]!.method).toBe("GET");
-      expect(calls[0]!.headers.authorization).toMatch(/^Basic /);
+      expect(calls[0]!.headers.authorization).toBeUndefined();
+    });
+
+    it("zählt PDF-Abrufe nicht auf die Stundengrenze", async () => {
+      const waits: number[] = [];
+      const { client } = setup(
+        (call) => (call.method === "GET" ? new Response("%PDF-1.4", { headers: { "content-type": "application/pdf" } }) : envelope({ CUSTOMERS: [] })),
+        { callsPerHour: 1, onRateLimitWait: (ms) => waits.push(ms) },
+      );
+      await client.verify();
+      for (let i = 0; i < 5; i++) await client.document("https://my.fastbill.com/x/abc");
+      expect(waits).toEqual([]);
+      expect(client.recentCalls()).toHaveLength(1);
     });
 
     it.each([
+      ["leere HTML-Antwort wie bei Ausgaben ohne Beleg", () => new Response("", { headers: { "content-type": "text/html; charset=UTF-8" } })],
       ["Anmeldeseite statt PDF", () => new Response("<html>Login</html>", { headers: { "content-type": "text/html" } })],
       ["404", () => json({}, 404)],
       ["403", () => json({}, 403)],
@@ -201,7 +235,7 @@ describe("FastbillClient", () => {
     });
 
     it.each(["http://my.fastbill.com/x.pdf", "https://example.com/x.pdf", "https://fastbill.com.example.org/x.pdf", "kein-link"])(
-      "schickt die Anmeldung nie an %s",
+      "lädt nichts von %s",
       async (url) => {
         const { client, calls } = setup(() => new Response("x"));
         await expect(client.document(url)).rejects.toBeInstanceOf(FastbillApiError);

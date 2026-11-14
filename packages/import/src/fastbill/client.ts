@@ -22,6 +22,8 @@ const PAGE_SIZE = 100;
 /** Schutz gegen eine Endlosschleife, falls die API immer volle Seiten liefert. */
 const MAX_PAGES = 10_000;
 const HOUR_MS = 3_600_000;
+/** Durchläufe für invoice.get: Rechnungen, Gutschriften, Stornierte. Entwürfe (TYPE draft) sind keine Belege. */
+const INVOICE_PASSES: readonly Record<string, string>[] = [{ TYPE: "outgoing" }, { TYPE: "credit" }, { STATE: "canceled" }];
 /** Kleinster Tarif (Solo): 50 Aufrufe je Stunde und Konto. */
 const DEFAULT_CALLS_PER_HOUR = 50;
 
@@ -77,7 +79,8 @@ interface RawResponse {
  *
  * Alle Aufrufe laufen nacheinander durch eine Drossel, die neben dem Mindestabstand die Stundengrenze des
  * Tarifs einhält: Sind in der letzten Stunde schon callsPerHour Aufrufe gestartet, wartet sie, bis der
- * älteste eine Stunde zurückliegt. Auch das Laden eines PDFs zählt mit, weil die Doku nicht sagt, ob es das tut.
+ * älteste eine Stunde zurückliegt. PDFs hinter DOCUMENT_URL sind keine API-Aufrufe: Im echten Konto (November 2026)
+ * lieferte die Adresse das PDF ohne Anmeldung, deshalb gehen sie ohne Zugangsdaten und nur mit dem Mindestabstand.
  *
  * Die zurückgegebenen Objekte sind das vollständige JSON der API und können so archiviert werden.
  */
@@ -93,6 +96,8 @@ export class FastbillClient {
   readonly #now: () => number;
   readonly #signal: AbortSignal | undefined;
   #gate: Promise<void> = Promise.resolve();
+  #fileGate: Promise<void> = Promise.resolve();
+  #lastFileStart: number | null = null;
   /** Startzeiten der Aufrufe in der letzten Stunde, aufsteigend */
   #starts: number[];
 
@@ -136,9 +141,16 @@ export class FastbillClient {
     return this.#pages("contact.get", "CONTACTS", {}, fbContactSchema, "CONTACT_ID");
   }
 
-  /** Ausgangsrechnungen, Gutschriften und Entwürfe; was davon übernommen wird, entscheidet map.ts. */
-  invoices(filter: Record<string, string> = {}): AsyncGenerator<FbInvoice> {
-    return this.#pages("invoice.get", "INVOICES", filter, fbInvoiceSchema, "INVOICE_ID");
+  /**
+   * Ausgangsrechnungen und Gutschriften samt Stornos, ohne Entwürfe. Ohne Filter auf TYPE lieferte ein echtes Konto
+   * (November 2026) auf der ersten Seite nur Entwürfe; deshalb je Art ein eigener Durchlauf und zur Sicherheit einer
+   * über STATE canceled. Doppelte Rechnungen aus mehreren Durchläufen kommen nur einmal.
+   */
+  async *invoices(filter: Record<string, string> = {}): AsyncGenerator<FbInvoice> {
+    const seen = new Set<string>();
+    for (const pass of INVOICE_PASSES) {
+      yield* this.#pages("invoice.get", "INVOICES", { ...filter, ...pass }, fbInvoiceSchema, "INVOICE_ID", seen);
+    }
   }
 
   expenses(filter: Record<string, string> = {}): AsyncGenerator<FbExpense> {
@@ -146,9 +158,9 @@ export class FastbillClient {
   }
 
   /**
-   * PDF hinter DOCUMENT_URL. Die Anmeldung geht nur an Adressen von FastBill mit https, nie an fremde Hosts.
-   * null, wenn FastBill die Datei nicht herausgibt (403, 404) oder statt einer Datei eine HTML-Seite liefert,
-   * etwa die Anmeldeseite.
+   * PDF hinter DOCUMENT_URL, ohne Zugangsdaten: Die Adresse ist ein Link mit eigenem Schlüssel im Pfad. Nur https-Adressen
+   * von FastBill. null, wenn FastBill keine Datei herausgibt (403, 404) oder eine HTML-Antwort liefert; im echten Konto
+   * kam bei Ausgaben ohne Beleg eine leere HTML-Antwort mit Status 200.
    */
   async document(documentUrl: string): Promise<FbFile | null> {
     let url: URL;
@@ -162,7 +174,7 @@ export class FastbillClient {
     }
     let res: RawResponse;
     try {
-      res = await this.#request("document", url.toString(), { method: "GET", accept: "application/pdf, */*" });
+      res = await this.#request("document", url.toString(), { method: "GET", accept: "application/pdf, */*", api: false });
     } catch (e) {
       if (e instanceof FastbillApiError && (e.status === 403 || e.status === 404)) return null;
       throw e;
@@ -179,8 +191,14 @@ export class FastbillClient {
 
   // ------------------------------------------------------------ Interna
 
-  async *#pages<S extends z.ZodType>(service: string, listKey: string, filter: Record<string, string>, item: S, idKey: string): AsyncGenerator<z.infer<S>> {
-    const seen = new Set<string>();
+  async *#pages<S extends z.ZodType>(
+    service: string,
+    listKey: string,
+    filter: Record<string, string>,
+    item: S,
+    idKey: string,
+    seen = new Set<string>(),
+  ): AsyncGenerator<z.infer<S>> {
     for (let page = 0; page < MAX_PAGES; page++) {
       const envelope = await this.#call(service, filter, PAGE_SIZE, page * PAGE_SIZE);
       const raw = listOf(envelope.RESPONSE, listKey);
@@ -199,7 +217,7 @@ export class FastbillClient {
 
   async #call(service: string, filter: Record<string, string>, limit: number, offset: number): Promise<FbEnvelope> {
     const body = JSON.stringify({ SERVICE: service, FILTER: filter, LIMIT: limit, OFFSET: offset });
-    const res = await this.#request(service, this.#url, { method: "POST", accept: "application/json", body });
+    const res = await this.#request(service, this.#url, { method: "POST", accept: "application/json", body, api: true });
     let data: unknown;
     try {
       data = JSON.parse(new TextDecoder().decode(res.bytes));
@@ -213,24 +231,25 @@ export class FastbillClient {
     return parsed.data;
   }
 
-  async #request(service: string, url: string, init: { method: "GET" | "POST"; accept: string; body?: string }): Promise<RawResponse> {
+  /** api: Aufruf der API mit Anmeldung, der auf die Stundengrenze zählt; sonst ein Dateiabruf ohne Zugangsdaten. */
+  async #request(service: string, url: string, init: { method: "GET" | "POST"; accept: string; body?: string; api: boolean }): Promise<RawResponse> {
     for (let attempt = 0; ; attempt++) {
       this.#checkAborted(service);
-      await this.#throttle();
+      await (init.api ? this.#throttle() : this.#throttleFile());
       this.#checkAborted(service);
       let res: Response;
       try {
         res = await this.#fetch(url, {
           method: init.method,
           headers: {
-            Authorization: this.#auth,
+            ...(init.api ? { Authorization: this.#auth } : {}),
             Accept: init.accept,
             ...(init.body === undefined ? {} : { "Content-Type": "application/json" }),
           },
           body: init.body,
           signal: this.#signal,
-          // Eine Weiterleitung könnte die Anmeldung an einen anderen Host tragen.
-          redirect: "error",
+          // Eine Weiterleitung könnte die Anmeldung an einen anderen Host tragen; Dateiabrufe haben keine.
+          redirect: init.api ? "error" : "follow",
         });
       } catch (cause) {
         if (this.#signal?.aborted || isAbortError(cause)) throw new FastbillApiError("Import abgebrochen", 0, service, { cause });
@@ -275,6 +294,19 @@ export class FastbillClient {
     });
     // Ein Fehler (z. B. Abbruch im sleep) darf die Kette nicht dauerhaft blockieren.
     this.#gate = next.catch(() => undefined);
+    return next;
+  }
+
+  /** Dateiabrufe: nur der Mindestabstand untereinander, unabhängig von den API-Aufrufen. */
+  #throttleFile(): Promise<void> {
+    const next = this.#fileGate.then(async () => {
+      if (this.#lastFileStart !== null) {
+        const wait = this.#lastFileStart + this.#minIntervalMs - this.#now();
+        if (wait > 0) await this.#sleep(wait);
+      }
+      this.#lastFileStart = this.#now();
+    });
+    this.#fileGate = next.catch(() => undefined);
     return next;
   }
 

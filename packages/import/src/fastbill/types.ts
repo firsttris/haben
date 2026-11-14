@@ -15,6 +15,8 @@ const str = z.string().nullish();
 const numeric = z.union([z.string(), z.number()]).nullish();
 const id = z.union([z.string(), z.number()]);
 const list = <T extends z.ZodType>(item: T) => z.array(item).nullish();
+/** Kategorie: im echten Konto eine leere Liste, wenn keine gesetzt ist; Text oder Objekt sind nicht ausgeschlossen. */
+const category = z.union([z.string(), z.array(z.unknown()), z.looseObject({})]).nullish();
 
 /** Fehlerliste im Antwortumschlag: Text oder { ERROR: Text } je Eintrag. */
 const errorsSchema = z.union([z.array(z.union([z.string(), z.looseObject({})])), z.string(), z.looseObject({})]).nullish();
@@ -90,8 +92,17 @@ export const fbVatItemSchema = z.looseObject({
 });
 export type FbVatItem = z.infer<typeof fbVatItemSchema>;
 
-/** Zahlung zu einer Rechnung; die Doku nennt die Felder nicht, deshalb nur locker geprüft. */
-export const fbPaymentSchema = z.looseObject({});
+/** Zahlung zu einer Rechnung; die Doku nennt die Felder nicht, die Namen stammen aus einem echten Konto (November 2026). */
+export const fbPaymentSchema = z.looseObject({
+  PAYMENT_ID: id.nullish(),
+  /** "19.02.2015" (TT.MM.JJJJ), nicht ISO wie die übrigen Datumsfelder */
+  DATE: str,
+  AMOUNT: numeric,
+  CURRENCY_CODE: str,
+  NOTE: str,
+  /** Zahlungsweg als Text, etwa der Name des Bankkontos oder "Paypal" */
+  TYPE: str,
+});
 export type FbPayment = z.infer<typeof fbPaymentSchema>;
 
 export const fbInvoiceSchema = z.looseObject({
@@ -145,7 +156,7 @@ export const fbExpenseSchema = z.looseObject({
   INVOICE_ID: id,
   /** Lieferant */
   ORGANIZATION: str,
-  CATEGORY: str,
+  CATEGORY: category,
   INVOICE_NUMBER: numeric,
   INVOICE_DATE: str,
   DUE_DATE: str,

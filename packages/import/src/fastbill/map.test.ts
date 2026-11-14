@@ -202,25 +202,93 @@ describe("mapFbInvoice", () => {
     expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: null, items: [] });
   });
 
-  it("bildet die Stornorechnung als negative Gutschrift ab, die die Rechnung aufhebt", () => {
-    const storno = invoice({
-      INVOICE_ID: "12",
-      INVOICE_NUMBER: "RE-2025-8",
-      REFERENCED_INVOICE_ID: "11",
-      TOTAL: "-1190.00",
-      VAT_TOTAL: "-190.00",
-      STATE: "paid",
-    });
-    expect(isFbCancellation(storno)).toBe(true);
-    const { voucher, payment } = mapFbInvoice(storno);
+  // Form wie im echten Konto (November 2026): stornierte Rechnung und Gutschrift TYPE credit, STATE issued, mit Verweis
+  const stornierte = invoice({ INVOICE_ID: "11", STATE: "canceled", IS_CANCELED: "1" });
+  const storno = invoice({
+    INVOICE_ID: "12",
+    TYPE: "credit",
+    STATE: "issued",
+    INVOICE_NUMBER: "RE-2025-8",
+    REFERENCED_INVOICE_ID: "11",
+    TOTAL: -1190,
+    VAT_TOTAL: -190,
+    VAT_ITEMS: [{ VAT_PERCENT: 19, COMPLETE_NET: -1000, VAT_VALUE: -190 }],
+  });
+
+  it("bildet die Stornorechnung als negative Gutschrift ab, die die stornierte Rechnung aufhebt", () => {
+    expect(isFbCancellation(storno, stornierte)).toBe(true);
+    const { voucher, payment } = mapFbInvoice(storno, stornierte);
     expect(voucher).toMatchObject({ lexofficeId: "invoice/12", type: "creditnote", status: "voided", gross: -119_000, dueDate: null });
-    expect(payment).toMatchObject({ status: "balanced", openAmount: 0 });
+    expect(voucher.taxes).toEqual([{ rate: 1900, net: -100_000, tax: -19_000 }]);
+    expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: null, items: [] });
+  });
+
+  it("hält eine Gutschrift ohne die stornierte Rechnung, zu einer offenen Rechnung oder über einen Teilbetrag nicht für ein Storno", () => {
+    expect(isFbCancellation(storno, undefined)).toBe(false);
+    expect(isFbCancellation(storno, invoice({ INVOICE_ID: "11" }))).toBe(false);
+    const teil = invoice({ ...storno, TOTAL: -119, VAT_TOTAL: -19 });
+    expect(isFbCancellation(teil, stornierte)).toBe(false);
+    expect(mapFbInvoice(teil, stornierte)).toMatchObject({
+      voucher: { type: "creditnote", status: "issued", gross: -11_900 },
+      payment: { status: "open", openAmount: -11_900 },
+    });
   });
 
   it("hält eine Rechnung aus einem Angebot nicht für ein Storno", () => {
     const ausAngebot = invoice({ REFERENCED_INVOICE_ID: "900" });
-    expect(isFbCancellation(ausAngebot)).toBe(false);
+    expect(isFbCancellation(ausAngebot, undefined)).toBe(false);
     expect(mapFbInvoice(ausAngebot).voucher).toMatchObject({ type: "invoice", status: "unpaid" });
+  });
+
+  it("übernimmt Einzelzahlungen mit Datum TT.MM.JJJJ und Zahlungsweg", () => {
+    const { payment } = mapFbInvoice(
+      invoice({
+        STATE: "paid",
+        PAID_DATE: "2025-04-02 00:00:00",
+        PAYMENTS: [{ PAYMENT_ID: "1", DATE: "02.04.2025", AMOUNT: "1190.00", CURRENCY_CODE: "EUR", NOTE: "", TYPE: "Paypal" }],
+      }),
+    );
+    expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: "2025-04-02", items: [{ type: "Paypal", date: "2025-04-02", amount: 119_000 }] });
+  });
+
+  it("rechnet eine Teilzahlung als teilweise bezahlt", () => {
+    const { voucher, payment } = mapFbInvoice(invoice({ PAYMENTS: [{ DATE: "01.04.2025", AMOUNT: "500.00", TYPE: "Bank" }] }));
+    expect(voucher.status).toBe("unpaid");
+    expect(payment).toEqual({ status: "partlyPaid", openAmount: 69_000, paidDate: null, items: [{ type: "Bank", date: "2025-04-01", amount: 50_000 }] });
+  });
+
+  it("wertet eine voll bezahlte Rechnung ohne Zahlungstag am Kopf über die Zahlungen als ausgeglichen", () => {
+    const { payment } = mapFbInvoice(
+      invoice({
+        PAYMENTS: [
+          { DATE: "01.04.2025", AMOUNT: "500.00", TYPE: "Bank" },
+          { DATE: "15.04.2025", AMOUNT: "690.00", TYPE: "Bank" },
+        ],
+      }),
+    );
+    expect(payment).toMatchObject({ status: "balanced", openAmount: 0, paidDate: "2025-04-15" });
+  });
+
+  it("zeigt die Zahlung an einer später stornierten Rechnung, ohne sie offen zu führen", () => {
+    const { payment } = mapFbInvoice(invoice({ STATE: "canceled", IS_CANCELED: "1", PAYMENTS: [{ DATE: "20.07.2025", AMOUNT: 1190, TYPE: "Paypal" }] }));
+    expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: null, items: [{ type: "Paypal", date: "2025-07-20", amount: 119_000 }] });
+  });
+
+  it("führt Zahlungen an Gutschriften negativ und lässt leere Zahlungen weg", () => {
+    const { payment } = mapFbInvoice(
+      invoice({
+        TYPE: "credit",
+        STATE: "issued",
+        TOTAL: -1190,
+        VAT_TOTAL: -190,
+        PAYMENTS: [
+          { DATE: "03.05.2025", AMOUNT: "1190.00", TYPE: "Bank" },
+          { DATE: "", AMOUNT: "5.00" },
+          { DATE: "04.05.2025", AMOUNT: "0.00" },
+        ],
+      }),
+    );
+    expect(payment).toMatchObject({ status: "balanced", openAmount: 0, items: [{ type: "Bank", date: "2025-05-03", amount: -119_000 }] });
   });
 
   it("übernimmt Fremdwährung, Kontakt 0 als kein Kontakt und den Namen der Person", () => {
@@ -271,9 +339,23 @@ describe("mapFbExpense", () => {
     expect(payment).toEqual({ status: "open", openAmount: -5950, paidDate: null, items: [] });
   });
 
-  it("lässt Kategorie und Datei weg, wenn FastBill keine nennt", () => {
-    const { voucher } = mapFbExpense(expense({ CATEGORY: "", DOCUMENT_URL: null }));
+  it("lässt Kategorie und Datei weg, wenn FastBill keine nennt (im echten Konto CATEGORY: [])", () => {
+    const { voucher } = mapFbExpense(expense({ CATEGORY: [], DOCUMENT_URL: null }));
     expect(voucher).toMatchObject({ categories: [], fileIds: [] });
+  });
+
+  it.each([
+    [["Reisekosten"], "Reisekosten"],
+    [{ NAME: "Porto" }, "Porto"],
+  ])("liest die Kategorie auch aus %j", (category, name) => {
+    expect(mapFbExpense(expense({ CATEGORY: category })).voucher.categories[0]?.categoryId).toBe(name);
+  });
+
+  it("liest Beträge als Zahl wie im echten Konto", () => {
+    const { voucher } = mapFbExpense(
+      expense({ SUB_TOTAL: 5, VAT_TOTAL: 0.95, TOTAL: 5.95, VAT_ITEMS: [{ VAT_PERCENT: 19, COMPLETE_NET: 5, VAT_VALUE: 0.95 }] }),
+    );
+    expect(voucher).toMatchObject({ net: 500, tax: 95, gross: 595, taxes: [{ rate: 1900, net: 500, tax: 95 }] });
   });
 
   it("ohne Steuer steht der Beleg beim Satz 0", () => {
