@@ -12,7 +12,7 @@ description: >-
 
 **„DATABASE_URL fehlt“ oder Verbindungsfehler beim Start.** Prüfe die Adresse und das Passwort der darin genannten Datenbankrolle. Bei Quadlets enthält `haben-database-url` den App-Zugang; bei getrennten Rollen enthält `haben-migration-database-url` den Eigentümerzugang mit dem Passwort aus `haben-db-password`. Beachte: Postgres übernimmt `POSTGRES_PASSWORD` nur beim ersten Anlegen des Volumes. Ein später geändertes Secret ändert das Passwort in der Datenbank nicht.
 
-**Passkey-Anmeldung schlägt fehl.** Meist passt `BETTER_AUTH_URL` nicht zur aufgerufenen Adresse (anderer Hostname, `http` statt `https`, Port). Mit Passwort anmelden geht unabhängig davon. Anmeldeversuche sind je Client-Adresse auf 3 in 10 Sekunden begrenzt, die übrigen Anfragen an die Anmeldung auf 20 pro Minute.
+**Passkey-Anmeldung schlägt fehl.** Meist passt `BETTER_AUTH_URL` nicht zur aufgerufenen Adresse (anderer Hostname, `http` statt `https`, Port). Mit Passwort anmelden geht unabhängig davon. Je Client-Adresse sind Passkey-Anmeldungen auf 20 pro Minute begrenzt, Anmeldungen mit Passwort auf 3 in 10 Sekunden ([Anmeldung](architektur-anmeldung.md#anmeldung)).
 
 **„Haben ist bereits eingerichtet.“** Im Standardmodus hat Haben genau einen Inhaber. Ein zweites Konto entsteht nur über einen Einladungslink für die [Steuerberatung](steuerberatung.md), weder mit dem Einrichtungscode noch über die API.
 
