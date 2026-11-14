@@ -131,6 +131,12 @@ export interface UstErklaerungFigures {
   kz21?: Cents;
   /** Nicht steuerbare Umsätze Drittland (Kz 45, E3105801) */
   kz45?: Cents;
+  /** Steuerfreie Umsätze ohne Vorsteuerabzug, Zeile 46: Vermietung nach § 4 Nr. 12 UStG (E3104401) */
+  kz48Zeile46?: Cents;
+  /** Steuerfreie Umsätze ohne Vorsteuerabzug, Zeile 47: übrige nicht zum Gesamtumsatz gehörende (E3104502) */
+  kz48Zeile47?: Cents;
+  /** Die Nummern in § 4 UStG der Zeile 47 als Text (E3104501), etwa „14, 21“ */
+  kz48Zeile47Nummern?: string;
   /** Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61, E3006301) */
   kz61?: Cents;
   /** Entstandene Einfuhrumsatzsteuer (Kz 62, E3006401) */
@@ -172,6 +178,8 @@ export function ustErklaerungLeer(f: UstErklaerungFigures): boolean {
     f.kz85,
     f.kz21,
     f.kz45,
+    f.kz48Zeile46,
+    f.kz48Zeile47,
     f.kz61,
     f.kz62,
     f.kz67,
@@ -186,20 +194,41 @@ export interface UstErklaerungXmlInput extends Omit<Envelope, "datenArt"> {
 
 const kz = (wert: Cents | undefined) => wert ?? 0;
 
-/** Steuerfreie Umsätze mit Vorsteuerabzug (Kz 41 und 43); die Summenzeile entfällt ab 2025 (USt_30415 bis 2024) */
+/**
+ * Steuerfreie Umsätze: mit Vorsteuerabzug die Kz 41 und 43 (Summenzeile entfällt ab 2025, USt_30415 bis 2024),
+ * ohne Vorsteuerabzug die Zeilen 46 und 47 (Kz 48). Ab 2025 fällt deren Summenzeile E3104601 weg; die Zeile 49
+ * (E3104901/02, zum Gesamtumsatz gehörende) übermittelt Haben nicht.
+ */
 function ust2aStfrei(f: UstErklaerungFigures, year: number): XmlNode | false {
+  const mit = kz(f.kz41) !== 0 || kz(f.kz43) !== 0;
+  const ohne = kz(f.kz48Zeile46) !== 0 || kz(f.kz48Zeile47) !== 0;
   return (
-    (kz(f.kz41) !== 0 || kz(f.kz43) !== 0) && [
+    (mit || ohne) && [
       "Ums_stfrei",
       [
         [
           "Tabelle",
           [
-            [
+            mit && [
               "Mit_VoSt_Abz",
               [
                 kz(f.kz41) !== 0 && ["Ig_Lfg", [["E3103301", wholeEuros(f.kz41!)]]],
                 kz(f.kz43) !== 0 && ["Ums_stfrei_weit", [["E3103801", wholeEuros(f.kz43!)], year <= 2024 && ["E3104201", wholeEuros(f.kz43!)]]],
+              ],
+            ],
+            ohne && [
+              "Ohne_VoSt_Abz",
+              [
+                [
+                  "Nicht_Ges_Ums",
+                  [
+                    kz(f.kz48Zeile46) !== 0 && ["E3104401", wholeEuros(f.kz48Zeile46!)],
+                    kz(f.kz48Zeile47) !== 0 && ["E3104501", f.kz48Zeile47Nummern ?? ""],
+                    kz(f.kz48Zeile47) !== 0 && ["E3104502", wholeEuros(f.kz48Zeile47!)],
+                    // Bis 2024 die Summe der Zeilen 46 und 47 aus den jeweils abgeschnittenen Werten
+                    year <= 2024 && ["E3104601", `${Number(wholeEuros(f.kz48Zeile46 ?? 0)) + Number(wholeEuros(f.kz48Zeile47 ?? 0))}`],
+                  ],
+                ],
               ],
             ],
           ],

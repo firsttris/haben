@@ -150,6 +150,46 @@ describe("Umsatzsteuererklärung (E50)", () => {
     expect(weit! < sum!).toBe(true);
   });
 
+  it("schreibt steuerfreie Umsätze ohne Vorsteuerabzug in die Zeilen 46 und 47, 2024 mit Summenzeile", () => {
+    const xml = buildUstErklaerungXml({
+      ...base,
+      year: 2024,
+      versteuerung: "soll",
+      figures: { ...figures, kz43: 20_000, kz48Zeile46: 50_000, kz48Zeile47: 130_000, kz48Zeile47Nummern: "14, 21" },
+    });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(tag(xml, "E3104401")).toBe("500"); // Zeile 46: § 4 Nr. 12 (Vermietung)
+    expect(tag(xml, "E3104501")).toBe("14, 21"); // Zeile 47: die Nummern als Text
+    expect(tag(xml, "E3104502")).toBe("1300");
+    expect(tag(xml, "E3104601")).toBe("1800"); // bis 2024: Summe der Zeilen 46 und 47
+    // Reihenfolge im Schema: Ohne_VoSt_Abz hinter Mit_VoSt_Abz, Felder in der Reihenfolge des Vordrucks
+    const [mit, ohne] = order(xml, ["Mit_VoSt_Abz", "Ohne_VoSt_Abz"]);
+    expect(mit! < ohne!).toBe(true);
+    const felder = order(xml, ["E3104401", "E3104501", "E3104502", "E3104601"]);
+    expect(felder).toEqual([...felder].sort((a, b) => a! - b!));
+  });
+
+  it("schreibt Zeile 47 ohne die Summenzeile ab 2025 und ohne Zeile 46 nur die Textzeile", () => {
+    const xml = buildUstErklaerungXml({
+      ...base,
+      year: 2025,
+      versteuerung: "soll",
+      figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0, kz48Zeile47: 80_000, kz48Zeile47Nummern: "8 i, 21" },
+    });
+    expect(tag(xml, "E3104501")).toBe("8 i, 21");
+    expect(tag(xml, "E3104502")).toBe("800");
+    expect(xml).not.toContain("<E3104601>");
+    expect(xml).not.toContain("<Mit_VoSt_Abz>");
+    // E3104501 und E3104502 gehen nur gemeinsam
+    expect(tag(xml, "E3104401")).toBeUndefined();
+  });
+
+  it("zählt die Zeilen 46 und 47 bei der Prüfung auf eine leere Erklärung mit", () => {
+    const leer = { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0 };
+    expect(ustErklaerungLeer({ ...leer, kz48Zeile46: 50_000 })).toBe(false);
+    expect(ustErklaerungLeer({ ...leer, kz48Zeile47: 80_000 })).toBe(false);
+  });
+
   it("lässt die 19/7-%-Zeile weg, wenn nur § 13b und Erwerbe zu erklären sind", () => {
     const xml = buildUstErklaerungXml({
       ...base,

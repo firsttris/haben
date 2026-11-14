@@ -43,7 +43,8 @@ Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 | --- | --- |
 | Umsätze zu 19 % und 7 % | Summe der zwölf Monate aus den Buchungen, wie in der Voranmeldung: Ist-Versteuerung nach Zahlungseingang, Soll nach Rechnungsdatum. Es zählt die Versteuerung des Jahres, auch wenn du sie zum Jahreswechsel umgestellt hast ([Ist- und Soll-Versteuerung](buchhaltung.md#ist--und-soll-versteuerung)). Bemessungsgrundlage in vollen Euro, die Steuer daraus. Die private Kfz-Nutzung ist in den 19 % enthalten |
 | Steuerfreie innergemeinschaftliche Lieferungen (Kz 41) und Ausfuhrlieferungen (Kz 43) | Summe der zwölf Monate, in vollen Euro |
-| Innergemeinschaftliche Erwerbe zu 19 % (Kz 89) und 7 % (Kz 93) | Bemessungsgrundlage in vollen Euro und die Erwerbsteuer laut Beleg; die Summe der Steuer steht in der Berechnung |
+| Innergemeinschaftliche Erwerbe zu 19 % (Kz 89) und 7 % (Kz 93) | Bemessungsgrundlage in vollen Euro und die Erwerbsteuer daraus, wie in der Voranmeldung; die Summe der Steuer steht in der Berechnung |
+| Steuerfreie Umsätze ohne Vorsteuerabzug: Vermietung nach § 4 Nr. 12 UStG (Zeile 46) und übrige nicht zum Gesamtumsatz gehörende (Zeile 47, mit den Nummern als Text) | Summe der zwölf Monate je Zeile, in vollen Euro; die Nummer liest Haben aus dem Befreiungsgrund der Rechnung |
 | §-13b-Leistungen aus dem EU-Ausland (Kz 46/47) und dem Drittland (Kz 84/85) | Bemessungsgrundlage in vollen Euro und die Steuer, die du als Leistungsempfänger schuldest; die Summe steht in der Berechnung |
 | Nicht steuerbare Leistungen, Ort im EU-Ausland (Kz 21), und nicht steuerbare Umsätze (Drittland, Kz 45) | Summe der zwölf Monate, in vollen Euro; ergänzende Angaben ohne Steuer |
 | Abziehbare Vorsteuer (Kz 66) | Summe der Vorsteuer aus gebuchten Belegen |
@@ -57,7 +58,7 @@ Abzugszeilen — Vorsteuer, Vorsteuer aus innergemeinschaftlichem Erwerb, Einfuh
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 
-- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält: Sie gehören je nach Nummer in § 4 UStG in verschiedene Zeilen, mit der Nummer als Text. Das kann Haben noch nicht übermitteln; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
+- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält, die Haben keiner Zeile zuordnen kann: ohne lesbare Nummer in § 4 UStG im Befreiungsgrund — eine Bareinnahme ohne Rechnung hat keinen, ein Bereich wie „§ 4 Nr. 8 bis 29 UStG“ ist keine — oder nach § 4 Nr. 8 a bis h, 9 a und 10 UStG, denn ob diese Umsätze zum Gesamtumsatz gehören (Hilfsumsatz, UStAE 19.3 Abs. 2), kann Haben nicht entscheiden. Gib bei künftigen Rechnungen den Befreiungsgrund mit der Nummer an, etwa „Steuerfrei nach § 4 Nr. 21 UStG“; dieses Jahr gibst du im ELSTER-Portal ab.
 - du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf. Für 2023 brauchst du sie noch; die Angaben für Kleinunternehmer übermittelst du dann im ELSTER-Portal.
 - es weder Umsätze noch Vorsteuer gibt (Nullerklärung über das ELSTER-Portal).
 

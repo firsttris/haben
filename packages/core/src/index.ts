@@ -95,3 +95,4 @@ export * from "./advance-receivables.ts";
 export * from "./own-accounts.ts";
 export * from "./external-settlements.ts";
 export * from "./leistungsdatum.ts";
+export * from "./paragraph4.ts";
