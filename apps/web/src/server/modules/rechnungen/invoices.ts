@@ -29,6 +29,7 @@ import {
   invoiceOpen,
   type InvoiceListStatus,
   legalInfo,
+  leistungsdatum,
   skontoProblem,
   sortSkonto,
   discountColumns,
@@ -1128,6 +1129,9 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
   }
   invoice = { ...invoice, ...(await advanceProcedure(invoice, lines, company, tx)) };
+  // „Ausgeführt am“ einfrieren (#694): Der Leistungsmonat entscheidet bei Soll-Versteuerung, wann die Umsatzsteuer
+  // gemeldet wird. Ab hier ist er unveränderlich, damit ein späterer Entwurfsstand die gemeldete Zahl nicht verschiebt.
+  const ausgefuehrtAm = leistungsdatum({ belegdatum: invoice.issueDate, leistungVon: invoice.serviceFrom, leistungBis: invoice.serviceTo });
   if (invoice.advanceAccounting === "deferred" && invoice.kind === "rechnung" && invoice.variant === "schluss") {
     const performed = invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate;
     if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
@@ -1176,6 +1180,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
         net: totals.net,
         tax: totals.tax,
         gross: totals.gross,
+        // Ab hier fest: der Tag, an dem die Leistung ausgeführt wurde (#694)
+        serviceDate: ausgefuehrtAm,
         pdf: Buffer.from(rendered.pdf),
         pdfSha256: sha256(rendered.pdf),
         xml: rendered.xml,
@@ -1193,7 +1199,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
       ? await advanceInvoicePosting(invoice, totals, company.kontenrahmen, tx)
       : [
           {
-            date: await invoiceVatDate(invoice, tx),
+            // Mit dem gerade eingefrorenen Tag: das Objekt davor kennt service_date noch nicht (#694)
+            date: await invoiceVatDate({ ...invoice, serviceDate: ausgefuehrtAm }, tx),
             // Übernommene Erlöse stehen in den alten Büchern; auch spätere Korrektur-Stornos folgen deren Ursprung.
             lines: (await correctsLegacyInvoice(tx, corrects))
               ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
