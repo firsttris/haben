@@ -435,7 +435,7 @@ Die Seite einer Vorlage listet alle daraus erzeugten Rechnungen. Löschen lässt
 
 Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und einen Status. Der Status wird bei jedem Aufruf aus den Zuordnungen im Bankabgleich und den Bareinnahmen im Kassenbuch abgeleitet; gespeichert ist nur „Entwurf“ oder „festgeschrieben“.
 
-Die Liste ist nach Rechnungsdatum sortiert, neueste zuerst, bei gleichem Datum nach Rechnungsnummer absteigend. In derselben Reihenfolge zeigt die Übersicht unter **Letzte Rechnungen** die fünf jüngsten festgeschriebenen Rechnungen.
+Die Liste ist nach Rechnungsdatum sortiert, neueste zuerst, bei gleichem Datum nach Rechnungsnummer absteigend. Das Suchfeld darüber filtert nach Nummer, Kunde, Bestellnummer, eigener Auftragsnummer und Bruttobetrag; über alle Bereiche sucht die [Schnellsuche](suche.md). In derselben Reihenfolge zeigt die Übersicht unter **Letzte Rechnungen** die fünf jüngsten festgeschriebenen Rechnungen.
 
 Unter dem Status steht in Grau, was er für diese Rechnung gerade heißt. Überfällige Rechnungen sind farbig hinterlegt, auch die Zeile darunter, damit sie in der Liste auffallen; ein Entwurf hat einen leeren Ring statt eines Punkts.
 
