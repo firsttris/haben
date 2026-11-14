@@ -205,4 +205,17 @@ test("eingeklappt liegen Hinweis und Flyout über dem stehenden Seitenkopf", asy
     return document.elementFromPoint(rect.right - 8, rect.top + 4)?.closest(".nav-tip") === el;
   });
   expect(oben).toBe(true);
+
+  // Die Lupe behält beim Überfahren die Fläche der Navigation, nicht die helle der Knöpfe auf der Seite
+  const flaeche = () =>
+    suche.evaluate((knopf) => {
+      const probe = document.createElement("div");
+      probe.style.background = "var(--nav-active)";
+      knopf.closest("nav")!.append(probe);
+      const soll = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return getComputedStyle(knopf).backgroundColor === soll;
+    });
+  // Nach dem Übergang (--fade)
+  await expect.poll(flaeche).toBe(true);
 });
