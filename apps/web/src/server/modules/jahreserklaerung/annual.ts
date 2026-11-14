@@ -220,11 +220,15 @@ const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhru
   sonstiges: "uebrige",
 };
 
-/** Pauschalen ohne Beleg: Homeoffice als Tagespauschale, Fahrten als Nutzungseinlage, Verpflegung als beschränkt abziehbar */
+/**
+ * Pauschalen ohne Beleg: Homeoffice als Tagespauschale, Fahrten als Nutzungseinlage, Verpflegung als beschränkt abziehbar,
+ * die Wege zur Betriebsstätte in der eigenen Zeile der Entfernungspauschale (Zeile 73 der Anlage EÜR 2025)
+ */
 const PAUSCHALE_FIELDS: Record<PauschaleArt, EuerFigureKey> = {
   homeoffice: "tagespauschale",
   fahrt: "fahrtNutzungseinlage",
   verpflegung: "verpflegung",
+  entfernung: "entfernungspauschale",
 };
 
 /** Verteilt die EÜR von Haben auf die Zeilen der Anlage EÜR. Summen und Gewinn bleiben gleich. */

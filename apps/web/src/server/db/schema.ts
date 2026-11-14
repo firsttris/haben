@@ -840,19 +840,20 @@ export const mailLog = pgTable("mail_log", {
 });
 
 /**
- * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand),
- * gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
+ * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand,
+ * Entfernungspauschale für Wege zur Betriebsstätte), gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
  */
 export const pauschalen = pgTable(
   "pauschalen",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung"] }).notNull(),
-    /** Homeoffice: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
+    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung", "entfernung"] }).notNull(),
+    /** Homeoffice und Entfernungspauschale: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
     date: date("date", { mode: "string" }).notNull(),
     /** Anlass, Ziel, Kunde */
     description: text("description").notNull(),
-    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend } */
+    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend };
+     * Entfernung: { tage, km, betriebsstaette } */
     details: jsonb("details").$type<Record<string, string | number | boolean>>().notNull(),
     /** Cent; beim Storno negativ */
     amount: integer("amount").notNull(),
