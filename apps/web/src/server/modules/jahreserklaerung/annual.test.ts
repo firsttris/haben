@@ -106,6 +106,25 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     return id;
   }
 
+  /** §-13b-Beleg als Leistungsempfänger: Steuer und Vorsteuer rechnet der Server aus dem Netto */
+  async function reverseCharge(marker: number, kind: "eu" | "drittland", documentDate: string, net: number) {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, marker]), filename: `rc-${marker}.jpg` });
+    await documents.updateDocument(actor, id, {
+      supplierName: kind === "eu" ? "Google Cloud EMEA Ltd" : "Example Software Inc.",
+      supplierUstId: kind === "eu" ? "IE6388047V" : "",
+      invoiceNumber: `RC-${marker}`,
+      documentDate,
+      dueDate: null,
+      category: "software",
+      payment: "bank",
+      note: "",
+      reverseCharge: kind,
+      amounts: [{ taxRate: 1900, net, tax: Math.round(net * 0.19) }],
+    } as Parameters<typeof documents.updateDocument>[2]);
+    await documents.bookDocument(actor, id);
+    return id;
+  }
+
   /** Ein Jahr 2025: Rechnung, Telefon über die Bank, Bürobedarf privat bezahlt, Umsatzsteuer, Gebühren, Privatentnahme, Elektroauto */
   async function year2025() {
     const contact = await contacts.createContact(actor, {
@@ -218,6 +237,107 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Insert des nächsten `beforeEach` an – daher kam der company_pkey-Fehler.
   }, 20_000);
 
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)(
+    "%s, %s: § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer summiert die Jahreserklärung; nur Kz 48 sperrt",
+    async (kontenrahmen, versteuerung) => {
+      await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+      await reverseCharge(11, "eu", "2025-03-10", 10_099);
+      await reverseCharge(12, "drittland", "2025-04-10", 5_000);
+      const { id: erwerbId } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 13]), filename: "erwerb-13.jpg" });
+      await documents.updateDocument(actor, erwerbId, {
+        supplierName: "Hollandse Hardware B.V.",
+        supplierUstId: "NL123456789B01",
+        invoiceNumber: "NL-13",
+        documentDate: "2025-05-15",
+        dueDate: null,
+        category: "wareneinkauf",
+        payment: "bank",
+        note: "",
+        reverseCharge: "ig_erwerb",
+        amounts: [{ taxRate: 1900, net: 20_000, tax: 3_800 }],
+      } as Parameters<typeof documents.updateDocument>[2]);
+      await documents.bookDocument(actor, erwerbId);
+      const { id: zollId } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 14]), filename: "zoll-14.jpg" });
+      await documents.updateDocument(actor, zollId, {
+        supplierName: "Hauptzollamt Regensburg",
+        supplierUstId: "",
+        invoiceNumber: "ATB-14",
+        documentDate: "2025-06-20",
+        dueDate: null,
+        category: "einfuhrumsatzsteuer",
+        payment: "bank",
+        note: "",
+        reverseCharge: null,
+        amounts: [{ taxRate: 0, net: 3_800, tax: 0 }],
+      } as Parameters<typeof documents.updateDocument>[2]);
+      await documents.bookDocument(actor, zollId);
+
+      const ust = await annual.ustYear(2025);
+      expect(ust.figures).toMatchObject({
+        // Bemessungsgrundlage in vollen Euro (10.099 Cent → 100 €), die Steuer bleibt centgenau
+        kz46: 10_000,
+        kz47: 1_919,
+        kz84: 5_000,
+        kz85: 950,
+        kz67: 2_869,
+        kz89: 20_000,
+        tax89: 3_800,
+        kz61: 3_800,
+        kz62: 3_800,
+      });
+      // Steuer 1.919 + 950 + 3.800, Vorsteuer 2.869 + 3.800 + 3.800
+      expect(ust.steuer).toBe(1_919 + 950 + 3_800 - (2_869 + 3_800 + 3_800));
+      // Keine Sperre mehr: Diese Kennzahlen gehen jetzt in die Erklärung
+      expect(annual.ustIssues(false, ust, 2025).every((i) => i.tone !== "fehler")).toBe(true);
+      // Mein ELSTER bekommt dieselben Feldkennungen wie das E50-XML
+      const mein = await import("./mein-elster.ts");
+      const werte = await mein.meinElsterWerte("ust", 2025, TODAY);
+      const felder = new Map(werte.felder.map((f) => [f.kennung, f.wert]));
+      for (const [kennung, wert] of [
+        ["E3102205", "100"],
+        ["E3102206", "19,19"],
+        ["E3102503", "50"],
+        ["E3102504", "9,50"],
+        ["E3102601", "28,69"],
+        ["E3100902", "200"],
+        ["E3100903", "38,00"],
+        ["E3006502", "28,69"],
+        ["E3006401", "38,00"],
+        ["E3006901", "104,69"],
+        ["E3010201", "-38,00"],
+      ] as const) {
+        expect(felder.get(kennung), kennung).toBe(wert);
+      }
+    },
+    30_000,
+  );
+
+  it("Nur steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) sperren die Übermittlung", async () => {
+    const basis = {
+      figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0 },
+      steuer: 0,
+      abschluss: 0,
+      kz48: 0,
+      missingMonths: [] as number[],
+      lastFilingPeriod: null,
+    };
+    expect(
+      annual
+        .ustIssues(false, { ...basis, figures: { ...basis.figures, kz47: 1_900, kz67: 1_900 }, missingMonths: [1, 2] }, 2025)
+        .every((i) => i.tone !== "fehler"),
+    ).toBe(true);
+    const gesperrt = annual.ustIssues(false, { ...basis, kz48: 12_345 }, 2025);
+    expect(gesperrt.some((i) => i.tone === "fehler" && /Kz 48/.test(i.text))).toBe(true);
+    // Ein Jahr nur mit ergänzenden Angaben gilt nicht als Nullerklärung
+    expect(annual.ustIssues(false, { ...basis, figures: { ...basis.figures, kz45: 5_000 } }, 2025).some((i) => /Nullerklärung/.test(i.text))).toBe(false);
+    expect(annual.ustIssues(false, basis, 2025).some((i) => /Nullerklärung/.test(i.text))).toBe(true);
+    // Der Vermerk „außerhalb abgegeben“ unterdrückt die Nullerklärungs-Meldung auch mit unserer Prüfung
+    expect(annual.ustIssues(false, basis, 2025, { vermerkt: true }).some((i) => /Nullerklärung/.test(i.text))).toBe(false);
+  });
+
   it("Link zu fehlenden Voranmeldungen nennt den letzten Zeitraum des betroffenen Jahres (#869)", async () => {
     const hinweis = (data: Awaited<ReturnType<typeof annual.ustYear>>) => annual.ustIssues(false, data, 2025).find((i) => i.link === "/umsatzsteuer");
 
@@ -319,7 +439,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]!.link).toBe("/einstellungen");
   });
 
-  it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 meldet die Vorprüfung vor dem Senden (#708)", async () => {
+  it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 wird vor dem Senden umgegliedert (#708, #933)", async () => {
     await year2025();
     const euer = await annual.euerYear(2025);
     const { loadCompany } = await import("../stammdaten/index.ts");
@@ -332,10 +452,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Der Grund muss tone fehler tragen: checkAnnual bricht nur darauf ab und würde sonst weiter senden.
     // euerIssues meldet auch anderes (fehlende Einkunftsart, Kontenrahmen), deshalb grenzt der Filter auf Zeile 18 und 58 ein.
     const fehler = (data: typeof euer) => annual.euerIssues(company, data).filter((i) => i.tone === "fehler" && /Zeile (58|18) \(Kz/.test(i.text));
-    // Die Anlage EÜR nimmt in Zeile 58 (E6005101) kein Vorzeichen an: der Versand wird vor ERiC gestoppt
-    expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
-    expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/steuerlich zu klären/);
-    expect(texte({ ...euer, figures: { ...euer.figures, erstatteteUst: -19_000 } })).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
+    const hinweis = (data: typeof euer) => annual.euerIssues(company, data).filter((i) => i.tone === "hinweis" && /Zeile (58|18) \(Kz/.test(i.text));
+    // Ein negativer Saldo wird umgegliedert statt mit Vorzeichen gesendet: Hinweis, kein Fehler (#933)
+    const umgliederung = [
+      "In Zeile 58 (Kz E6005101, „An das Finanzamt gezahlte und ggf. verrechnete Umsatzsteuer“) standen 190,00: im Jahr wurde mehr Umsatzsteuer erstattet als gezahlt. Der Gewinn bleibt gleich, gebuchte Daten ändern sich nicht.",
+    ];
+    expect(texte({ ...euer, ustUmgliederung: umgliederung })).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
+    expect(texte({ ...euer, ustUmgliederung: umgliederung })).toMatch(/Der Gewinn bleibt gleich/);
+    expect(hinweis({ ...euer, ustUmgliederung: umgliederung })).toHaveLength(1);
     // Ohne negativen Betrag bleibt die Vorprüfung still
     expect(texte(euer)).not.toMatch(/Zeile 58|Zeile 18 \(Kz/);
     expect(fehler({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toHaveLength(1);

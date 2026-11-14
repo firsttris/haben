@@ -324,6 +324,14 @@ test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer
     await expect(banken).toHaveValue("Fyrst");
     await expect(page.getByText("Du wirst zu Fyrst weitergeleitet")).toBeVisible();
 
+    // Abrufbeginn in der Zukunft: Mit noValidate prüft der Browser max nicht mehr, der Fehler steht am Feld (Review #970)
+    const ab = page.getByLabel("Umsätze abrufen ab");
+    await ab.fill(new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10));
+    await weiter.click();
+    await expect(ab).toBeFocused();
+    await expect(ab).toHaveAttribute("aria-invalid", "true");
+    await ab.fill("");
+
     // Kein Treffer: nichts gewählt; der Knopf bleibt bedienbar und sagt am Feld, warum es nicht weitergeht (DESIGN.md, Gesperrte Knöpfe)
     await page.getByLabel("Bank suchen").fill("Sparkasse");
     await expect(banken.getByRole("option")).toHaveCount(0);
@@ -597,6 +605,72 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
   await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg mit Bruttobetrag: Netto und Vorsteuer vorgerechnet, Satzwechsel behält das Brutto (#917)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "tankstelle.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Tankstelle Nord") }]);
+  await expect(page.getByText("tankstelle.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /tankstelle\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const amounts = page.getByRole("group", { name: "Beträge je Steuersatz" });
+  await amounts.getByLabel("Brutto", { exact: true }).fill("119,00");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("100,00");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("19,00");
+  // Anderer Satz: das Brutto bleibt, Netto und Vorsteuer ändern sich
+  await amounts.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("111,21");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("7,79");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("119,00");
+  // Vorsteuer laut Rechnung von Hand: das Brutto folgt
+  await amounts.getByLabel("Vorsteuer", { exact: true }).fill("7,78");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
+  // Bei § 13b gibt es kein Brutto, gezahlt wird netto; die Steuer rechnet Haben aus dem Netto (111,21 € zu 7 % = 7,78 €)
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveCount(0);
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
+  // Nicht buchen: die folgenden Tests zählen die Belege und Auswertungen
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz zu lesen (#917)", async ({ browser }) => {
+  // 1280 px: Formular und Vorschau stehen ab 1201 px nebeneinander, die Zeile hat mit Brutto drei Betragsfelder
+  const context = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: 1280, height: 800 } });
+  const laptop = await context.newPage();
+  await laptop.goto("/belege");
+  await laptop.waitForLoadState("networkidle");
+  await laptop
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "laptop-betraege.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Bürohaus Nord GmbH") }]);
+  await expect(laptop.getByText("laptop-betraege.jpg: abgelegt.")).toBeVisible();
+  await laptop
+    .getByRole("link", { name: /laptop-betraege\.jpg/ })
+    .first()
+    .click();
+  await laptop.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await laptop.waitForLoadState("networkidle");
+  const amounts = laptop.getByRole("group", { name: "Beträge je Steuersatz" });
+  await amounts.getByLabel("Brutto", { exact: true }).fill("14.691,26");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("12.345,60");
+  const abgeschnitten = await laptop
+    .locator(".amount-row input[inputmode='decimal']")
+    .evaluateAll((felder) =>
+      (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
+    );
+  expect(abgeschnitten, "Netto, Vorsteuer und Brutto").toEqual([]);
+  await laptop.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(laptop, "Beleg löschen");
+  await laptop.waitForURL(/\/belege$/);
+  await context.close();
 });
 
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
@@ -1474,6 +1548,25 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("Lastschrift 190,00");
 });
 
+test("Anlage: ein Satz über dem Höchstsatz ist ein Fehler am Satz, der Fokus geht zum ersten Fehler (Review #971)", async () => {
+  await go("/anlagen/neu");
+  const form = page.getByRole("region", { name: "Angaben" });
+  await form.getByLabel("Bezeichnung").fill("Fräse");
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Betriebs- und Geschäftsausstattung" });
+  await form.getByLabel("Anschaffungsdatum").fill("2024-04-10");
+  await form.getByLabel("Anschaffungskosten netto (€)").fill("50.000,00");
+  await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("degressiv");
+  await form.getByLabel("Nutzungsdauer in Jahren").fill("10");
+  await form.getByLabel("Satz der degressiven AfA in %").fill("30");
+  await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
+  await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("");
+  await form.getByRole("button", { name: "Anlage übernehmen" }).click();
+  // Erstes Feld mit Fehler ist der Satz, und er sagt warum; der Restbuchwert darunter trägt seinen eigenen Fehler
+  await expect(form.getByLabel("Satz der degressiven AfA in %")).toBeFocused();
+  await expect(form.getByLabel("Satz der degressiven AfA in %")).toHaveAccessibleDescription(/Höchstens 20 %/);
+  await expect(form.getByLabel("Restbuchwert zum Stichtag (€)")).toHaveAccessibleDescription(/Trag den Restbuchwert ein/);
+});
+
 test("Anlage übernehmen: degressive AfA mit Höchstsatz, Restbuchwert geprüft, Wechsel zur linearen", async () => {
   await go("/anlagen/neu");
   const form = page.getByRole("region", { name: "Angaben" });
@@ -1597,6 +1690,56 @@ test("Anlage anlegen: Erinnerungswert angehakt, dann zu Computer gewechselt, wir
   await form.getByRole("button", { name: "Anlage übernehmen" }).click();
   await page.waitForURL(/\/anlagen\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("region", { name: "Abschreibungsplan" })).not.toContainText("Erinnerungswert");
+});
+
+test("Aufteilen mit zu viel verteilt: der Fehler am Betrag sagt, wie viel zu viel ist (Review #970)", async () => {
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    [
+      dkb(day(0)),
+      dkb(day(0)),
+      "Gebucht",
+      "Max Mustermann",
+      "Kasse Überschuss",
+      "Zahlung Ueberschuss",
+      "Ausgang",
+      "DE91750500000000123456",
+      "-43,00",
+      "",
+      "",
+      "",
+    ]
+      .map((v) => `"${v}"`)
+      .join(";") +
+    "\n";
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "ueberschuss.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/1 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await page
+    .getByRole("link", { name: /Kasse Überschuss/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await panel.getByRole("button", { name: "Aufteilen" }).click();
+  const form = panel.getByRole("form", { name: "Umsatz aufteilen" });
+  const rows = form.locator(".split-row");
+  await rows.nth(0).locator("select").first().selectOption("privat");
+  await rows.nth(0).getByLabel("Betrag").fill("-40,00");
+  await rows.nth(1).locator("select").first().selectOption("privat");
+  // Zusammen -46,00 € bei einem Umsatz von -43,00 €: 3,00 € zu viel verteilt
+  await rows.nth(1).getByLabel("Betrag").fill("-6,00");
+  await form.getByRole("button", { name: "Aufteilen und buchen" }).click();
+  await expect(rows.nth(1).getByLabel("Betrag")).toBeFocused();
+  await expect(rows.nth(1).getByLabel("Betrag")).toHaveAccessibleDescription("Zusammen sind 3,00 € zu viel verteilt.");
+  // Richtig verteilt und gebucht, damit kein offener Umsatz für die folgenden Tests stehen bleibt
+  await rows.nth(1).getByLabel("Betrag").fill("-3,00");
+  await form.getByRole("button", { name: "Aufteilen und buchen" }).click();
+  await expect(panel.getByText("Zugeordnet")).toBeVisible();
 });
 
 test("Steuerzahlung im Bankabgleich: Gewerbesteuerbescheid auf Steuer und Verspätungszuschlag aufteilen, in der EÜR nur nachrichtlich", async () => {
@@ -2233,12 +2376,22 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   if (await haken.count()) await haken.check();
   await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
 
-  // Danach gilt die Erklärung als abgegeben; Tag und Begründung stehen in der Karte, ein zweiter Vermerk fehlt
+  // Danach gilt die Erklärung als abgegeben; der Kopf nennt Tag, Betrag und Ticket, ein zweiter Vermerk fehlt (#871)
   await expect(ust.getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
+  await expect(karte.locator("p", { hasText: `Abgegeben am 02.01.${jahr + 1}` })).toBeVisible();
   await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
-  await expect(karte).toContainText("Umsatzsteuererklärung extern mit WISO abgegeben.");
   await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
-  const protokoll = await page.request.get((await karte.getByRole("link", { name: "Übermittlungsprotokoll" }).getAttribute("href"))!);
+  // Begründung und Protokoll stehen zugeklappt darunter: verdeckt heißt nicht sichtbar, also erst zugeklappt
+  // prüfen, dann aufklappen und Begründung wie Protokollverweis sichtbar nachsehen
+  const begruendung = karte.getByText("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  await expect(begruendung).toBeHidden();
+  await expect(karte.locator("details[open]")).toHaveCount(0);
+  await karte.locator("summary").click();
+  await expect(karte.locator("details[open]")).toHaveCount(1);
+  await expect(begruendung).toBeVisible();
+  const protokollLink = karte.getByRole("link", { name: /Übermittlungsprotokoll/ });
+  await expect(protokollLink).toBeVisible();
+  const protokoll = await page.request.get((await protokollLink.getAttribute("href"))!);
   expect(protokoll.headers()["content-type"]).toContain("application/pdf");
 
   // Auch nach dem Neuladen bleibt der Vermerk stehen
