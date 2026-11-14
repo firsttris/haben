@@ -51,6 +51,19 @@ describe("KI-Auslesung umwandeln", () => {
     expect(toFields(base).reverseCharge).toBeNull();
   });
 
+  it("rechnet die Steuer bei § 13b aus dem Netto und lässt 0 % nicht stehen", () => {
+    const felder = toFields({
+      ...base,
+      betraege: [{ steuersatz: "0", netto: "115.44", steuer: "0.00" }],
+      brutto: "115.44",
+      kategorie: "fremdleistung",
+      reverseCharge: "eu",
+    });
+    expect(felder.amounts).toEqual([{ taxRate: 1900, net: 11544, tax: 2193 }]);
+    // Der Rechnungsbetrag bleibt das Netto, die Steuer steht nicht auf dem Beleg
+    expect(felder.warnings).not.toContain("Summe aus Netto und Steuer weicht vom Gesamtbetrag ab");
+  });
+
   it("gibt Datenbankfehler nicht roh an den Beleg weiter", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(describeExtractionError(new Error('Failed query: update "documents" set ...'))).toMatch(/^Die Auslesung ist fehlgeschlagen/);
