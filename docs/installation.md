@@ -84,6 +84,9 @@ Für Uptime-Monitore und Load-Balancer meldet `GET /api/health` ohne Anmeldung `
 
 ## Docker Compose
 
+> [!TIP]
+> Für den schnellen Einstieg erzeugt der [Docker-Compose-Generator](compose-generator.md) `compose.yml`, `.env` (mit frisch generierten Schlüsseln) und die passenden Startbefehle direkt im Browser.
+
 ```sh
 mkdir haben && cd haben
 curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml

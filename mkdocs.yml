@@ -31,6 +31,7 @@ nav:
   - Suchen: suche.md
   - Betrieb:
       - Installation: installation.md
+      - Compose-Generator: compose-generator.md
       - Synology: synology.md
       - TrueNAS SCALE: truenas.md
       - Unraid: unraid.md
@@ -144,6 +145,10 @@ theme:
 extra_css:
   - assets/stylesheets/extra.css
   - assets/stylesheets/startseite.css
+  - assets/stylesheets/compose-generator.css
+
+extra_javascript:
+  - assets/javascripts/compose-generator.js
 
 plugins:
   # Zensical setzt viele MkDocs-Plugins selbst um, git-revision-date-localized (Änderungsdatum
