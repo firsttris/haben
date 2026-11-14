@@ -647,7 +647,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <Field label="Leistung von" describedBy="leistung-hint">
             {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
           </Field>
-          <Field label="Leistung bis">
+          <Field label="Leistung bis" describedBy="leistung-hint">
             {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
           </Field>
           <p className="small" id="leistung-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
