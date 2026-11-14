@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 
 /*
- * Einstellungen → Mahnwesen: Knopf „Bei der Bundesbank abrufen“ (docs/einrichtung.md). Die echte Bundesbank fragt hier
+ * Einstellungen → Mahnwesen: Knopf „Bei der Bundesbank abrufen“ und Grenze der Gebühren (docs/einrichtung.md). Die echte Bundesbank fragt hier
  * niemand ab: Der Aufruf der Server-Funktion wird im Browser abgefangen und mit einem festen Ergebnis beantwortet, im Format,
  * das TanStack Start selbst schickt (seroval-JSON, Kopfzeile x-tss-serialized). Abruf und CSV prüfen die Vitest-Tests.
  */
@@ -104,4 +104,17 @@ test("lässt das Feld unverändert, solange die Bundesbank nur den Satz des vori
   await lookUp(page, serverFnResult(lastYear, 987, false));
   await expect(page.getByText(/^Die Bundesbank meldet 9,87 % mit Stand 12\/\d{4}, der Satz für das neue Halbjahr steht noch nicht/)).toBeVisible();
   await expect(field).toHaveValue(before);
+});
+
+test("Gebühr je Stufe: mehr als 1.000 € steht am Feld, gespeichert wird nichts", async ({ page }) => {
+  await openDunning(page);
+  const gebuehr = page.getByLabel("Gebühr Zahlungserinnerung (€)");
+  const vorher = await gebuehr.inputValue();
+  await gebuehr.fill("1.500,00");
+  await page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" }).click();
+  await expect(gebuehr).toBeFocused();
+  await expect(gebuehr).toHaveAccessibleDescription(/höchstens 1\.000,00\s€/);
+  await expect(page.getByText("Firmendaten gespeichert.")).toHaveCount(0);
+  await openDunning(page);
+  await expect(page.getByLabel("Gebühr Zahlungserinnerung (€)")).toHaveValue(vorher);
 });

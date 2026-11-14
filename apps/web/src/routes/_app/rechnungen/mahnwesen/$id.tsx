@@ -4,7 +4,7 @@ import {
   dunningAmounts,
   formatDecimal,
   formatEuro,
-  MAX_DUNNING_FEE,
+  dunningFeeError,
   parseEuro,
   type CustomerType,
   type DunningLevel,
@@ -52,12 +52,7 @@ function NewDunningPage() {
   const [logo, setLogo] = useLoadedState(draft.logo);
 
   const parsedFee = fee.trim() ? parseEuro(fee) : 0;
-  const feeError =
-    parsedFee === null || parsedFee < 0
-      ? "Trag die Mahngebühr als Betrag ein, etwa 5,00, oder lass das Feld leer."
-      : parsedFee > MAX_DUNNING_FEE
-        ? `Die Mahngebühr beträgt höchstens ${formatEuro(MAX_DUNNING_FEE)}.`
-        : null;
+  const feeError = dunningFeeError(fee);
   // Eine ungültige Gebühr zählt nirgends: Forderung, Vorschau und Knöpfe gehen von derselben Gebühr aus
   const validFee = feeError === null ? (parsedFee ?? 0) : 0;
   const interestRate = interest && draft.baseRate !== null ? draft.baseRate + DEFAULT_INTEREST_MARKUP[interest] : null;
