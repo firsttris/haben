@@ -87,21 +87,28 @@ function useRailState() {
 function useNavTipEscape() {
   useEffect(() => {
     const root = document.documentElement;
+    // Hinweise gibt es nur eingeklappt am Desktop (styles.css); schmal bleibt Esc für die Seite
+    const desktop = window.matchMedia("not all and (max-width: 860px)");
+    // Die Symbole, deren Hinweis Esc ausgeblendet hat
+    let ausgeblendet: Element[] = [];
     const taste = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || root.dataset.navTip === "aus") return;
-      if (!root.dataset.nav || !document.querySelector(".nav-tip-anker:is(:hover, :focus-visible)")) return;
+      if (event.key !== "Escape" || root.dataset.navTip === "aus" || !root.dataset.nav || !desktop.matches) return;
+      const anker = [...document.querySelectorAll(".nav-tip-anker:is(:hover, :focus-visible)")];
+      if (anker.length === 0) return;
       // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
       event.preventDefault();
       event.stopPropagation();
+      ausgeblendet = anker;
       root.dataset.navTip = "aus";
     };
     const wieder = () => {
+      ausgeblendet = [];
       delete root.dataset.navTip;
     };
-    // Erst wenn der Zeiger das Symbol verlässt, nicht beim Wechsel vom Knopf auf sein svg
+    // Erst wenn der Zeiger das Symbol verlässt (nicht beim Wechsel vom Knopf auf sein svg) und es keinen Fokus mehr hat
     const zeigerRaus = (event: globalThis.PointerEvent) => {
-      const anker = (event.target as Element | null)?.closest?.(".nav-tip-anker");
-      if (anker?.contains(event.relatedTarget as Node | null)) return;
+      const ziel = event.relatedTarget as Node | null;
+      if (ausgeblendet.some((anker) => anker.contains(ziel) || anker.matches(":focus-visible"))) return;
       wieder();
     };
     window.addEventListener("keydown", taste, true);
