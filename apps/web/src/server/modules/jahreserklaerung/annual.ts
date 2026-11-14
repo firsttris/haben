@@ -610,6 +610,22 @@ export async function submissions(year: number) {
   );
 }
 
+/**
+ * Zeilenwerte, die außerhalb von Haben erklärt wurden, je Feldkennung der Erklärung (`kz22`, `kz36`,
+ * `einnahmen`, …). Leer, wenn zu diesem Vermerk nichts erfasst ist.
+ *
+ * Sie stehen neben dem Vermerk, nicht darin: `annual_submissions` ist `append_only`, ein späteres UPDATE
+ * scheitert also (#997).
+ */
+async function erklaerteZeilen(submissionId: string | null): Promise<Record<string, number>> {
+  if (!submissionId) return {};
+  const rows = await db
+    .select({ field: schema.annualSubmissionFigures.field, amount: schema.annualSubmissionFigures.amount })
+    .from(schema.annualSubmissionFigures)
+    .where(eq(schema.annualSubmissionFigures.submissionId, submissionId));
+  return Object.fromEntries(rows.map((r) => [r.field, r.amount]));
+}
+
 export async function annualOverview(year: number, today: string) {
   const company = await loadCompany();
   const [ust, euer, history] = await Promise.all([ustYear(year), euerYear(year), submissions(year)]);
@@ -635,6 +651,7 @@ export async function annualOverview(year: number, today: string) {
   // Ein Vermerk „außerhalb von Haben abgegeben“ nimmt den Meldungen zu Habens leerem Jahr den Grund (#869)
   const ustVermerk = submitted("ust");
   const euerVermerk = submitted("euer");
+  const [ustZeilen, euerZeilen] = await Promise.all([erklaerteZeilen(ustVermerk?.id ?? null), erklaerteZeilen(euerVermerk?.id ?? null)]);
   return {
     year,
     ust: {
@@ -642,8 +659,15 @@ export async function annualOverview(year: number, today: string) {
       issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year, { vermerkt: ustVermerk !== null })],
       sent: sent("ust"),
       submitted: ustVermerk,
+      erklaert: ustZeilen,
     },
-    euer: { ...euer, issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null })], sent: sent("euer"), submitted: euerVermerk },
+    euer: {
+      ...euer,
+      issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null })],
+      sent: sent("euer"),
+      submitted: euerVermerk,
+      erklaert: euerZeilen,
+    },
     // Für die Einkommensteuererklärung gibt es keinen Vermerk: Was außerhalb von Haben abgegeben wurde, weiß
     // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
     est: {

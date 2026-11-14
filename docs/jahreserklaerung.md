@@ -41,6 +41,16 @@ Gibst du die Umsatzsteuererklärung oder die Anlage EÜR außerhalb von Haben ab
 
 Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung: Die Frist ist erledigt, das Jahr nimmt keine rückdatierten Buchungen mehr an, die Karte zeigt Datum, Ticket und Betrag statt des Knopfs, und Begründung wie Protokoll stehen darunter in einer Tabelle, die erst aufklappt, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf. Meldungen, die Haben aus seinen eigenen Daten ableitet — etwa die Nullerklärung oder „Keine Betriebseinnahmen und -ausgaben im Jahr“ —, treten mit dem Vermerk zurück; sie würden ihm sonst auf derselben Seite widersprechen.
 
+### Zeilenwerte aus dem Übermittlungsprotokoll
+
+Ein Vermerk hält Tag, Transferticket und Betrag fest, aber nicht die einzelnen Zeilen der Erklärung. Rechnet Haben aus den Buchungen weniger oder gar nichts, steht in der Jahreserklärung deshalb eine Null, obwohl beim Finanzamt echte Zahlen liegen.
+
+Steht zu einem Vermerk noch keine Zeile, klappt über der Tabelle der Bereich **Zeilenwerte aus dem Übermittlungsprotokoll** auf. Trag dort ein, was in der Erklärung steht; die Feldkennung steht in Klammern hinter dem Zeilentext. Leere Felder werden nicht gespeichert, sie bleiben Habens Rechnung. Ein bewusst eingetragenes Feld mit 0 wird gespeichert.
+
+Liegen Zeilen vor, ersetzen sie Habens Rechnung: Die Kernzeilen stehen offen, die übrigen klappen unter **Alle erklärten Zeilen** auf, und ein Hinweis sagt, dass die Zahlen aus dem Protokoll stammen. Das gilt für die Umsatzsteuererklärung und die Anlage EÜR.
+
+Gespeicherte Zeilen lassen sich nicht ändern. Sie hängen am Vermerk, und beides ist gegen Änderung, Löschung und `TRUNCATE` gesperrt und steht im Änderungsprotokoll, wie der Vermerk selbst.
+
 ## Umsatzsteuererklärung
 
 | Zeile | Woher |
