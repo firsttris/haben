@@ -26,7 +26,8 @@ export const zeilenwerteSchema = z.object({
 
 /**
  * Erfasst die Zeilenwerte zu einem vorhandenen Vermerk. Ohne Vermerk gibt es keine Erklärung, zu der sie
- * gehören, und ohne bekannte Feldkennung wäre die Anzeige nicht zuordenbar.
+ * gehören, und ohne bekannte Zeile wäre die Anzeige nicht zuordenbar. Ein abgeschlossenes Jahr bleibt
+ * unverändert und nimmt keine Zeilen mehr auf, wie es keinen Vermerk mehr aufnimmt (vermerk.ts).
  */
 export async function speichereErklaerteZeilen(
   actor: string,
@@ -38,11 +39,11 @@ export async function speichereErklaerteZeilen(
 
   const erlaubt = new Set(zeilenFelder(form));
   const unbekannt = zeilen.find((z) => !erlaubt.has(z.field));
-  if (unbekannt) throw new AnnualError(`Diese Feldkennung gehört nicht zu dieser Erklärung: ${unbekannt.field}`);
+  if (unbekannt) throw new AnnualError(`Diese Zeile gehört nicht zu dieser Erklärung: ${unbekannt.field}`);
 
   const gesehen = new Set<string>();
   for (const z of zeilen) {
-    if (gesehen.has(z.field)) throw new AnnualError(`Diese Feldkennung steht doppelt: ${z.field}`);
+    if (gesehen.has(z.field)) throw new AnnualError(`Diese Zeile steht doppelt: ${z.field}`);
     gesehen.add(z.field);
   }
 
@@ -61,6 +62,9 @@ export async function speichereErklaerteZeilen(
   if (!vermerk) throw new AnnualError("Für dieses Jahr gibt es keinen Vermerk, zu dem die Zeilen gehören.");
 
   await withActor(actor, async (tx) => {
+    // Ein abgeschlossenes Jahr bleibt unverändert (wie beim Vermerk, vermerk.ts): die Zeilen sind Steuerdaten
+    const [closed] = await tx.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
+    if (closed) throw new AnnualError(`Das Jahr ${year} ist abgeschlossen; erklärte Zeilen lassen sich nicht mehr erfassen.`);
     // Gespeicherte Zeilen sind nur anhängbar; eine zweite Erfassung derselben Zeile wäre sonst ein Datenbankfehler
     const vorhanden = await tx
       .select({ field: schema.annualSubmissionFigures.field })

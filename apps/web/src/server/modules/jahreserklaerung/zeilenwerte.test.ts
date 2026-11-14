@@ -49,20 +49,22 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
     await vermerken("ust", "ABC123456789");
 
     const anzahl = await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [
-      { field: "kz22", amount: 70_000 },
-      { field: "kz87", amount: 95_546 },
-      { field: "kz120", amount: -50_368 },
+      { field: "base19", amount: 70_000 },
+      { field: "vorsteuer", amount: 95_546 },
+      { field: "abschluss", amount: -50_368 },
     ]);
     expect(anzahl).toBe(3);
 
     const uebersicht = await annual.annualOverview(2025, TODAY);
-    expect(uebersicht.ust.erklaert).toEqual({ kz22: 70_000, kz87: 95_546, kz120: -50_368 });
+    expect(uebersicht.ust.erklaert).toEqual({ base19: 70_000, vorsteuer: 95_546, abschluss: -50_368 });
   });
 
   it("lehnt eine Feldkennung ab, die nicht zu dieser Erklärung gehört", async () => {
     await vermerken("ust", "ABC123456789");
-    // kz15 ist eine Zeile der Anlage EÜR, nicht der Umsatzsteuererklärung
-    await expect(zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "kz15", amount: 100 }])).rejects.toThrow(/gehört nicht zu dieser Erklärung/);
+    // steuerpflichtig ist eine Zeile der Anlage EÜR, nicht der Umsatzsteuererklärung
+    await expect(zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "steuerpflichtig", amount: 100 }])).rejects.toThrow(
+      /gehört nicht zu dieser Erklärung/,
+    );
   });
 
   it("lehnt eine doppelte Feldkennung ab", async () => {
@@ -75,11 +77,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
     ).rejects.toThrow(/steht doppelt/);
   });
 
-  it("meldet eine schon gespeicherte Feldkennung als Fehler der Eingabe, nicht als Datenbankfehler", async () => {
+  it("meldet eine schon gespeicherte Zeile als Fehler der Eingabe, nicht als Datenbankfehler", async () => {
     await vermerken("ust", "ABC123456789");
-    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "kz22", amount: 70_000 }]);
+    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "base19", amount: 70_000 }]);
     // Zweiter Tab oder erneutes Absenden: Die Server-Funktion gibt nur AnnualError als Meldung zurück, alles andere wird ein 500
-    const zweites = zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "kz22", amount: 7_000 }]);
+    const zweites = zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "base19", amount: 7_000 }]);
     await expect(zweites).rejects.toBeInstanceOf(annual.AnnualError);
     await expect(zweites).rejects.toThrow(/schon gespeichert/);
     const [zaehlung] = await sql<{ anzahl: number }[]>`select count(*)::int as anzahl from annual_submission_figures`;
@@ -88,12 +90,21 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
 
   it("lehnt Zeilen ohne Vermerk ab", async () => {
     // Kein Vermerk für 2025: es gibt keine abgegebene Erklärung, zu der die Zeilen gehören könnten
-    await expect(zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "kz22", amount: 100 }])).rejects.toThrow(/keinen Vermerk/);
+    await expect(zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "base19", amount: 100 }])).rejects.toThrow(/keinen Vermerk/);
+  });
+
+  it("lehnt Zeilen zu einem abgeschlossenen Jahr ab", async () => {
+    await vermerken("ust", "ABC123456789");
+    // Ein abgeschlossenes Jahr bleibt unverändert; es nimmt auch keinen Vermerk mehr auf (vermerk.ts)
+    await sql`insert into year_closings (year) values (2025)`;
+    await expect(zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "base19", amount: 70_000 }])).rejects.toThrow(/abgeschlossen/);
+    const [zaehlung] = await sql<{ anzahl: number }[]>`select count(*)::int as anzahl from annual_submission_figures`;
+    expect(zaehlung?.anzahl).toBe(0);
   });
 
   it("hält die erklärten Zeilen eines Vermerks wie den Vermerk selbst: im Audit-Log, nur anhängbar, nicht leerbar", async () => {
     await vermerken("ust", "ABC123456789");
-    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "kz22", amount: 70_000 }]);
+    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "base19", amount: 70_000 }]);
 
     const [row] = await sql<{ id: string }[]>`select id from annual_submission_figures`;
     expect(row).toBeTruthy();

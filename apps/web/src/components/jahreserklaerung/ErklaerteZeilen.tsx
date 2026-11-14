@@ -4,26 +4,27 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { useAction } from "../../lib/use-action.ts";
 import { saveAnnualFigures } from "../../server/functions/annual.ts";
-import { ERKLAERTE_ZEILEN, type ZeilenForm } from "../../lib/zeilenwerte.ts";
+import { ERKLAERTE_ZEILEN, type ErklaerteZeile, type ZeilenForm } from "../../lib/zeilenwerte.ts";
 import { Field } from "../Field.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { Status } from "../Status.tsx";
 
 /** Zeilen, die ohne Aufklappen sichtbar sind: das Ergebnis der Erklärung */
 const KERN: Record<ZeilenForm, readonly string[]> = {
-  ust: ["kz22", "kz87", "kz119", "kz120"],
+  ust: ["base19", "tax19", "vorsteuer", "vorauszahlungen", "abschluss"],
   euer: ["einnahmen", "ausgaben", "gewinn"],
 };
 
 /**
  * Zeilenwerte einer außerhalb von Haben abgegebenen Erklärung (#997).
  *
- * Liegen Zeilen vor, ersetzt ihre Tabelle Habens Rechnung aus den Buchungen: Was beim Finanzamt liegt, ist
- * die Wahrheit, nicht was Haben aus unvollständigen Buchungen rechnet. Die Kernzeilen stehen offen, der Rest
- * klappt auf.
+ * Liegen Zeilen vor, zeigt ihre Tabelle, was beim Finanzamt liegt: Das ist die Wahrheit, nicht was Haben aus
+ * unvollständigen Buchungen rechnet. Die Kernzeilen stehen offen, der Rest klappt auf. Nicht erfasste Zeilen
+ * bleiben Habens Rechnung, die darunter stehen bleibt.
  *
- * Liegt ein Vermerk vor, aber noch keine Zeilen, steht hier die Erfassung. Ohne Vermerk gibt es keine
- * Erklärung, zu der Zeilen gehören könnten; dann zeigt die Komponente nichts.
+ * Fehlende Zeilen lassen sich nachtragen, auch wenn schon welche gespeichert sind: Gespeicherte Zeilen sind
+ * unveränderlich, aber die Lücke daneben bleibt offen. Ohne Vermerk gibt es keine Erklärung, zu der Zeilen
+ * gehören könnten; dann zeigt die Komponente nichts.
  */
 export function ErklaerteZeilen({
   form,
@@ -38,25 +39,31 @@ export function ErklaerteZeilen({
   /** Gibt es einen Vermerk, an dem Zeilen hängen können? */
   vermerkt: boolean;
 }) {
-  const vorhanden = ERKLAERTE_ZEILEN[form].filter(([feld]) => feld in zeilen);
-  if (vorhanden.length > 0) return <Tabelle form={form} vorhanden={vorhanden} zeilen={zeilen} />;
   if (!vermerkt) return null;
-  return <Erfassen form={form} year={year} />;
+  const vorhanden = ERKLAERTE_ZEILEN[form].filter((z) => z.field in zeilen);
+  const offen = ERKLAERTE_ZEILEN[form].filter((z) => !(z.field in zeilen));
+  if (vorhanden.length === 0) return <Erfassen form={form} year={year} felder={offen} />;
+  return (
+    <>
+      <Tabelle form={form} vorhanden={vorhanden} zeilen={zeilen} />
+      {offen.length > 0 && <Erfassen form={form} year={year} felder={offen} nachtragen />}
+    </>
+  );
 }
 
-function Tabelle({ form, vorhanden, zeilen }: { form: ZeilenForm; vorhanden: readonly (readonly [string, string])[]; zeilen: Record<string, number> }) {
+function Tabelle({ form, vorhanden, zeilen }: { form: ZeilenForm; vorhanden: readonly ErklaerteZeile[]; zeilen: Record<string, number> }) {
   const kern = KERN[form];
-  const offen = vorhanden.filter(([feld]) => kern.includes(feld));
-  const rest = vorhanden.filter(([feld]) => !kern.includes(feld));
+  const zuKern = vorhanden.filter((z) => kern.includes(z.field));
+  const rest = vorhanden.filter((z) => !kern.includes(z.field));
 
-  const rows = (auswahl: readonly (readonly [string, string])[], hervorheben: boolean) => (
+  const rows = (auswahl: readonly ErklaerteZeile[], hervorheben: boolean) => (
     <tbody>
-      {auswahl.map(([feld, text]) => (
-        <tr key={feld} className={hervorheben ? "total-row" : undefined}>
+      {auswahl.map((z) => (
+        <tr key={z.field} className={hervorheben ? "total-row" : undefined}>
           <th scope="row">
-            {text} <span className="small muted">({feld})</span>
+            {z.text} <span className="small muted">({z.field})</span>
           </th>
-          <td className="num">{formatEuro(zeilen[feld] ?? 0)}</td>
+          <td className="num">{formatEuro(zeilen[z.field] ?? 0)}</td>
         </tr>
       ))}
     </tbody>
@@ -73,7 +80,7 @@ function Tabelle({ form, vorhanden, zeilen }: { form: ZeilenForm; vorhanden: rea
             </th>
           </tr>
         </thead>
-        {rows(offen, true)}
+        {rows(zuKern, true)}
       </table>
       {rest.length > 0 && (
         <details className="est-block">
@@ -96,12 +103,25 @@ function Tabelle({ form, vorhanden, zeilen }: { form: ZeilenForm; vorhanden: rea
       )}
       <p className="small muted" style={{ margin: 0 }}>
         Diese Zahlen stammen aus dem Übermittlungsprotokoll, nicht aus den Buchungen. Sie erscheinen, weil die Erklärung außerhalb von Haben abgegeben wurde.
+        Nicht erfasste Zeilen bleiben Habens Rechnung.
       </p>
     </>
   );
 }
 
-function Erfassen({ form, year }: { form: ZeilenForm; year: number }) {
+function Erfassen({
+  form,
+  year,
+  felder,
+  nachtragen = false,
+}: {
+  form: ZeilenForm;
+  year: number;
+  /** Die Felder, die noch offen sind */
+  felder: readonly ErklaerteZeile[];
+  /** Es sind schon Zeilen gespeichert; hier geht es nur um den Rest */
+  nachtragen?: boolean;
+}) {
   const router = useRouter();
   const speichern = useServerFn(saveAnnualFigures);
   const { busy, notice, setNotice, run } = useAction();
@@ -130,23 +150,24 @@ function Erfassen({ form, year }: { form: ZeilenForm; year: number }) {
     <details className="est-block">
       <summary>
         <span className="est-block-title">Zeilenwerte aus dem Übermittlungsprotokoll</span>
-        <span className="small muted">noch nicht erfasst</span>
+        <span className="small muted">{nachtragen ? `${felder.length} Zeilen offen` : "noch nicht erfasst"}</span>
       </summary>
       <form onSubmit={absenden} style={{ display: "grid", gap: 8, paddingTop: 12 }}>
         <p className="small muted" style={{ margin: 0 }}>
-          Trag die Zeilen ein, die beim Finanzamt abgegeben wurden. Leere Felder werden nicht gespeichert; sie bleiben Habens Rechnung.
+          Trag die Zeilen ein, die beim Finanzamt abgegeben wurden. Leere Felder werden nicht gespeichert; sie bleiben Habens Rechnung. Ein bewusst
+          eingetragenes Feld mit 0 wird gespeichert.
         </p>
         <NoticeBanner notice={notice} />
         <div className="form-row cols-2">
-          {ERKLAERTE_ZEILEN[form].map(([feld, text]) => (
-            <Field key={feld} label={`${text} (${feld})`}>
+          {felder.map((z) => (
+            <Field key={z.field} label={`${z.text} (${z.field})`}>
               {(control) => (
                 <input
                   {...control}
                   inputMode="decimal"
                   placeholder="leer lassen"
-                  value={werte[feld] ?? ""}
-                  onChange={(e) => setWerte((alt) => ({ ...alt, [feld]: e.target.value }))}
+                  value={werte[z.field] ?? ""}
+                  onChange={(e) => setWerte((alt) => ({ ...alt, [z.field]: e.target.value }))}
                 />
               )}
             </Field>

@@ -45,9 +45,11 @@ Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
 
 Ein Vermerk hält Tag, Transferticket und Betrag fest, aber nicht die einzelnen Zeilen der Erklärung. Rechnet Haben aus den Buchungen weniger oder gar nichts, steht in der Jahreserklärung deshalb eine Null, obwohl beim Finanzamt echte Zahlen liegen.
 
-Steht zu einem Vermerk noch keine Zeile, klappt über der Tabelle der Bereich **Zeilenwerte aus dem Übermittlungsprotokoll** auf. Trag dort ein, was in der Erklärung steht; die Feldkennung steht in Klammern hinter dem Zeilentext. Leere Felder werden nicht gespeichert, sie bleiben Habens Rechnung. Ein bewusst eingetragenes Feld mit 0 wird gespeichert.
+Über der Tabelle klappt der Bereich **Zeilenwerte aus dem Übermittlungsprotokoll** auf. Trag dort ein, was in der Erklärung steht; in Klammern hinter dem Zeilentext steht der Schlüssel, den Haben für diese Zeile verwendet. Die Schlüssel sind dieselben, die Haben selbst übermittelt: die Zeilen der Anlage EÜR aus ihrer Feldkennungstabelle (etwa `steuerpflichtig` mit der Kennung E6000401) und die Beträge der Umsatzsteuererklärung (`base19`, `tax19`, `vorsteuer`, `abschluss`). Eine Zeile, die es in der Erklärung nicht gibt, lehnt Haben ab. Leere Felder werden nicht gespeichert, sie bleiben Habens Rechnung. Ein bewusst eingetragenes Feld mit 0 wird gespeichert.
 
-Liegen Zeilen vor, ersetzen sie Habens Rechnung: Die Kernzeilen stehen offen, die übrigen klappen unter **Alle erklärten Zeilen** auf, und ein Hinweis sagt, dass die Zahlen aus dem Protokoll stammen. Das gilt für die Umsatzsteuererklärung und die Anlage EÜR.
+Liegen Zeilen vor, stehen sie über Habens Rechnung: Die Kernzeilen sind offen, die übrigen klappen unter **Alle erklärten Zeilen** auf, und ein Hinweis sagt, dass die Zahlen aus dem Protokoll stammen. Habens eigene Rechnung bleibt darunter stehen; was erklärt ist, gilt, was fehlt, bleibt seine. Fehlende Zeilen lassen sich auch später nachtragen, gespeicherte bleiben dabei unverändert. Das gilt für die Umsatzsteuererklärung und die Anlage EÜR.
+
+Weicht die erklärte Schlusszeile, also die Abschlusszahlung bzw. der Gewinn, vom Betrag des Vermerks ab, steht das als Hinweis auf der Seite; gesperrt wird nichts, das Protokoll ist die Quelle. Ein abgeschlossenes Jahr nimmt keine Zeilen mehr auf, so wie es keinen Vermerk mehr aufnimmt.
 
 Gespeicherte Zeilen lassen sich nicht ändern. Sie hängen am Vermerk, und beides ist gegen Änderung, Löschung und `TRUNCATE` gesperrt und steht im Änderungsprotokoll, wie der Vermerk selbst.
 
