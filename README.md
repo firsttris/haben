@@ -50,7 +50,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 
 ## Haben ist, was dir gehört.
 
-**Wir glauben, dass Deutschland und Europa ihre Software selbst in der Hand haben sollten.** 🇩🇪 🇪🇺
+**Digitale Souveränität fängt mit deinen eigenen Büchern an.** 🇩🇪 🇪🇺
 
 Rechnungen schreiben, Belege sammeln, Konto abgleichen, Voranmeldung schicken: Dafür braucht es kein Abo bei
 Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der jede Rechnung sieht. Haben ist die

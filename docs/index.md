@@ -161,7 +161,7 @@ teilst du direkt hinein, die Übersicht hast du unterwegs dabei.
 
 ## Und warum Haben?
 
-<p class="showcase-claim">Wir glauben, dass Deutschland und Europa ihre Software selbst in der Hand haben sollten. 🇩🇪 🇪🇺</p>
+<p class="showcase-claim">Digitale Souveränität fängt mit deinen eigenen Büchern an. 🇩🇪 🇪🇺</p>
 
 </div>
 
