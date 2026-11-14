@@ -531,6 +531,10 @@ function EstSection({ data }: { data: Data }) {
   const a = est.angaben;
   const router = useRouter();
   const save = useServerFn(saveIncomeTaxInputs);
+  // Eine abgegebene Erklaerung laesst sich nicht mehr aendern; die Angaben dienen dann nur noch
+  // der Prognose kuenftiger Jahre. Freigeben muss man sie ausdruecklich (#940, #943).
+  const [bearbeiten, setBearbeiten] = useState(false);
+  const gesperrt = est.submitted !== null && !bearbeiten;
   const [kinder, setKinder] = useState<KindDraft[]>(() => a.kinder.map((k, key) => ({ ...k, key, kinderbetreuung: centsText(k.kinderbetreuung) })));
   const [anA, setAnA] = useState(() => toArbeitnehmerDraft(a.arbeitnehmer?.a));
   const [anB, setAnB] = useState(() => toArbeitnehmerDraft(a.arbeitnehmer?.b));
@@ -630,202 +634,219 @@ function EstSection({ data }: { data: Data }) {
   return (
     <section className="grid-main jump-target" id="est" aria-labelledby="est-heading">
       <form className="card" onSubmit={onSubmit} aria-label="Angaben zur Einkommensteuer">
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
-          <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
-          <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
-        </div>
-        <Issues issues={est.issues} />
-        {hatErklaert(est.erklaert) && (
-          <div style={{ marginBottom: 12 }}>
-            <ErklaerteZeilen zeilen={est.erklaert} reihenfolge={EST_ZEILEN} kern={["est_zve", "est_festgesetzt", "est_erstattung"]} />
+        {est.submitted !== null && (
+          <div className="banner banner-info" role="status">
+            <p style={{ margin: 0 }}>
+              {est.submitted.filedOn
+                ? `Die Einkommensteuererklärung ${data.year} ist am ${formatDate(est.submitted.filedOn)} abgegeben.`
+                : `Die Einkommensteuererklärung ${data.year} ist abgegeben.`}
+              {gesperrt
+                ? " Die Angaben sind deshalb gesperrt; sie dienen nur noch der Prognose künftiger Jahre."
+                : " Du bearbeitest die Angaben gerade. Änderungen wirken nur auf die Prognose, die übermittelte Erklärung bleibt unverändert."}
+            </p>
+            <button type="button" className="btn btn-ghost" onClick={() => setBearbeiten(!bearbeiten)}>
+              {gesperrt ? "Angaben korrigieren" : "Bearbeitung beenden"}
+            </button>
           </div>
         )}
-        <ScrollTable className="report-table">
-          <tbody>
-            <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
-            <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} text />
-            <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />
-            {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
-            <Row label="Anlagen" value={est.anlagen.join(", ")} text />
-            <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
-            <Row
-              label="Voraussichtliche Steuer"
-              value={formatEuro(est.prognose.gesamt)}
-              kz={[
-                `ESt ${formatEuro(est.prognose.einkommensteuer)}`,
-                est.prognose.soli ? `Soli ${formatEuro(est.prognose.soli)}` : "",
-                est.prognose.kirchensteuer ? `KiSt ${formatEuro(est.prognose.kirchensteuer)}` : "",
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            />
-            {est.prognose.steuerabzug > 0 && (
-              <>
-                <Row label="Bereits einbehalten (Lohnsteuer, Soli, KiSt)" value={formatEuro(est.prognose.steuerabzug)} />
-                <Row
-                  label={est.prognose.verbleibend >= 0 ? "Voraussichtlich nachzuzahlen" : "Voraussichtliche Erstattung"}
-                  value={formatEuro(Math.abs(est.prognose.verbleibend))}
-                  total
-                />
-              </>
-            )}
-          </tbody>
-        </ScrollTable>
-
-        <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />
-        {est.zusammen && <AnlageNFields wer={nameB} draft={anB} onChange={setAnB} />}
-
-        {(() => {
-          const v = (p: "a" | "b") => {
-            const x = a.vorsorge[p];
-            return sumOf(x?.rentenversicherung, x?.gkv, x?.gpv, x?.gkvZusatz, x?.pkv, x?.ppv);
-          };
-          const total = v("a") + (est.zusammen ? v("b") : 0) + (a.vorsorge.sonstige ?? 0);
-          return (
-            <Block title="Vorsorgeaufwand" summary={sumText(total)} open={total > 0}>
-              <h4 className="est-sub">{est.zusammen ? (est.person.a ?? "Person A") : "Beiträge"}</h4>
-              {vorsorgeFields("a", a.vorsorge.a)}
-              {est.zusammen && (
+        <fieldset disabled={gesperrt} style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
+            <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
+            <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
+          </div>
+          <Issues issues={est.issues} />
+          {hatErklaert(est.erklaert) && (
+            <div style={{ marginBottom: 12 }}>
+              <ErklaerteZeilen zeilen={est.erklaert} reihenfolge={EST_ZEILEN} kern={["est_zve", "est_festgesetzt", "est_erstattung"]} />
+            </div>
+          )}
+          <ScrollTable className="report-table">
+            <tbody>
+              <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
+              <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} text />
+              <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />
+              {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
+              <Row label="Anlagen" value={est.anlagen.join(", ")} text />
+              <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
+              <Row
+                label="Voraussichtliche Steuer"
+                value={formatEuro(est.prognose.gesamt)}
+                kz={[
+                  `ESt ${formatEuro(est.prognose.einkommensteuer)}`,
+                  est.prognose.soli ? `Soli ${formatEuro(est.prognose.soli)}` : "",
+                  est.prognose.kirchensteuer ? `KiSt ${formatEuro(est.prognose.kirchensteuer)}` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+              {est.prognose.steuerabzug > 0 && (
                 <>
-                  <h4 className="est-sub">{est.person.b ?? "Ehegatte"}</h4>
-                  {vorsorgeFields("b", a.vorsorge.b)}
+                  <Row label="Bereits einbehalten (Lohnsteuer, Soli, KiSt)" value={formatEuro(est.prognose.steuerabzug)} />
+                  <Row
+                    label={est.prognose.verbleibend >= 0 ? "Voraussichtlich nachzuzahlen" : "Voraussichtliche Erstattung"}
+                    value={formatEuro(Math.abs(est.prognose.verbleibend))}
+                    total
+                  />
                 </>
               )}
-              <div className="form-grid">
-                <Amount name="sonstige" label="Weitere Vorsorge (Haftpflicht, Unfall, Risikoleben)" value={a.vorsorge.sonstige} />
-              </div>
-            </Block>
-          );
-        })()}
+            </tbody>
+          </ScrollTable>
 
-        <Block
-          title="Sonderausgaben und Belastungen"
-          summary={sumText(sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.spenden, a.krankheitskosten))}
-          open={sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.kirchensteuerErstattet, a.sonderausgaben.spenden, a.krankheitskosten) > 0}
-        >
-          <div className="form-grid">
-            <Amount
-              name="kistGezahlt"
-              label="Gezahlte Kirchensteuer"
-              value={a.sonderausgaben.kirchensteuerGezahlt}
-              hint="ohne Kirchensteuer auf Kapitalerträge"
-            />
-            <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
-            <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
-            <Amount name="krankheitskosten" label="Krankheitskosten" value={a.krankheitskosten} hint="selbst getragen, nach Erstattungen" />
-          </div>
-        </Block>
+          <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />
+          {est.zusammen && <AnlageNFields wer={nameB} draft={anB} onChange={setAnB} />}
 
-        <Block
-          title="Haushaltsnahe Aufwendungen (§ 35a EStG)"
-          summary={sumText(sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker))}
-          open={sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker) > 0}
-        >
-          <div className="form-grid">
-            <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
-            <Amount
-              name="dienstleistungen"
-              label="Haushaltsnahe Dienstleistungen"
-              value={a.haushaltsnah.dienstleistungen}
-              hint="z. B. Reinigung, Gartenpflege"
-            />
-            <Amount name="handwerker" label="Handwerkerleistungen" value={a.haushaltsnah.handwerker} hint="nur Arbeits-, Maschinen- und Fahrtkosten" />
-          </div>
-        </Block>
+          {(() => {
+            const v = (p: "a" | "b") => {
+              const x = a.vorsorge[p];
+              return sumOf(x?.rentenversicherung, x?.gkv, x?.gpv, x?.gkvZusatz, x?.pkv, x?.ppv);
+            };
+            const total = v("a") + (est.zusammen ? v("b") : 0) + (a.vorsorge.sonstige ?? 0);
+            return (
+              <Block title="Vorsorgeaufwand" summary={sumText(total)} open={total > 0}>
+                <h4 className="est-sub">{est.zusammen ? (est.person.a ?? "Person A") : "Beiträge"}</h4>
+                {vorsorgeFields("a", a.vorsorge.a)}
+                {est.zusammen && (
+                  <>
+                    <h4 className="est-sub">{est.person.b ?? "Ehegatte"}</h4>
+                    {vorsorgeFields("b", a.vorsorge.b)}
+                  </>
+                )}
+                <div className="form-grid">
+                  <Amount name="sonstige" label="Weitere Vorsorge (Haftpflicht, Unfall, Risikoleben)" value={a.vorsorge.sonstige} />
+                </div>
+              </Block>
+            );
+          })()}
 
-        <Block
-          title="Kinder"
-          summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`}
-          open={a.kinder.length > 0}
-        >
-          {kinder.map((k, index) => (
-            <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
-              <Field label="Vorname">
-                {(control) => <input {...control} value={k.vorname} onChange={(e) => updateKind(k.key, { vorname: e.target.value })} required />}
-              </Field>
-              <Field label="Geburtsdatum">
-                {(control) => (
-                  <input {...control} type="date" value={k.geburtsdatum} onChange={(e) => updateKind(k.key, { geburtsdatum: e.target.value })} required />
-                )}
-              </Field>
-              <Field label="Steuer-ID">
-                {(control) => <input {...control} inputMode="numeric" value={k.idnr ?? ""} onChange={(e) => updateKind(k.key, { idnr: e.target.value })} />}
-              </Field>
-              <Field label="Familienkasse">
-                {(control) => (
-                  <input {...control} required value={k.familienkasse ?? ""} onChange={(e) => updateKind(k.key, { familienkasse: e.target.value })} />
-                )}
-              </Field>
-              <Field label="Abweichender Nachname">
-                {(control) => <input {...control} value={k.name ?? ""} onChange={(e) => updateKind(k.key, { name: e.target.value })} />}
-              </Field>
-              <Field label="Kinderbetreuungskosten (€)">
-                {(control) => (
-                  <input
-                    {...control}
-                    inputMode="decimal"
-                    value={k.kinderbetreuung}
-                    onChange={(e) => updateKind(k.key, { kinderbetreuung: e.target.value })}
-                    placeholder="0,00"
-                  />
-                )}
-              </Field>
-              <div className="actions" style={{ gridColumn: "1 / -1" }}>
-                <button type="button" className="btn btn-danger" onClick={() => setKinder((list) => list.filter((x) => x.key !== k.key))}>
-                  Kind entfernen
-                </button>
-              </div>
+          <Block
+            title="Sonderausgaben und Belastungen"
+            summary={sumText(sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.spenden, a.krankheitskosten))}
+            open={sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.kirchensteuerErstattet, a.sonderausgaben.spenden, a.krankheitskosten) > 0}
+          >
+            <div className="form-grid">
+              <Amount
+                name="kistGezahlt"
+                label="Gezahlte Kirchensteuer"
+                value={a.sonderausgaben.kirchensteuerGezahlt}
+                hint="ohne Kirchensteuer auf Kapitalerträge"
+              />
+              <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
+              <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
+              <Amount name="krankheitskosten" label="Krankheitskosten" value={a.krankheitskosten} hint="selbst getragen, nach Erstattungen" />
             </div>
-          ))}
-          <div>
-            <button
-              type="button"
-              className="btn"
-              onClick={() =>
-                setKinder((list) => [...list, { key: Math.max(-1, ...list.map((x) => x.key)) + 1, vorname: "", geburtsdatum: "", kinderbetreuung: "" }])
-              }
-            >
-              + Kind hinzufügen
-            </button>
-          </div>
-        </Block>
+          </Block>
 
-        <Block
-          title="Kapitalerträge (Anlage KAP)"
-          summary={sumText(sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland))}
-          open={
-            sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland, a.kap?.kapitalertragsteuer) > 0 ||
-            Boolean(a.kap?.guenstigerpruefung)
-          }
-        >
-          <div className="form-grid">
-            <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />
-            <Amount name="kapSpb" label="Davon genutzter Sparer-Pauschbetrag" value={a.kap?.sparerPauschbetrag} />
-            <Amount name="kapOhneInl" label="Inländische Erträge ohne Steuerabzug" value={a.kap?.ertraegeOhneSteuerabzugInland} />
-            <Amount name="kapAusl" label="Ausländische Erträge" value={a.kap?.ertraegeAusland} />
-            <Amount name="kapESt" label="Einbehaltene Kapitalertragsteuer" value={a.kap?.kapitalertragsteuer} />
-            <Amount name="kapSoli" label="Solidaritätszuschlag" value={a.kap?.soli} />
-            <Amount name="kapKiSt" label="Kirchensteuer zur Kapitalertragsteuer" value={a.kap?.kirchensteuer} />
-            <label className="checkbox" style={{ alignSelf: "end" }}>
-              <input type="checkbox" name="guenstigerpruefung" defaultChecked={a.kap?.guenstigerpruefung ?? false} />
-              Günstigerprüfung beantragen
-            </label>
-          </div>
-        </Block>
+          <Block
+            title="Haushaltsnahe Aufwendungen (§ 35a EStG)"
+            summary={sumText(sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker))}
+            open={sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker) > 0}
+          >
+            <div className="form-grid">
+              <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
+              <Amount
+                name="dienstleistungen"
+                label="Haushaltsnahe Dienstleistungen"
+                value={a.haushaltsnah.dienstleistungen}
+                hint="z. B. Reinigung, Gartenpflege"
+              />
+              <Amount name="handwerker" label="Handwerkerleistungen" value={a.haushaltsnah.handwerker} hint="nur Arbeits-, Maschinen- und Fahrtkosten" />
+            </div>
+          </Block>
 
-        <p className="small muted" style={{ margin: 0 }}>
-          Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
-        </p>
-        {/* Speichern bleibt unten sichtbar; der Hinweis steht davor, weil der Footer mit negativem Rand darüber liegt */}
-        <div className="form-sticky-footer">
-          <NoticeBanner notice={notice} />
-          <div className="actions" style={{ alignItems: "center" }}>
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              Angaben speichern
-            </button>
-            <span className="small muted">Voraussichtliche Steuer {formatEuro(est.prognose.gesamt)}</span>
+          <Block
+            title="Kinder"
+            summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`}
+            open={a.kinder.length > 0}
+          >
+            {kinder.map((k, index) => (
+              <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
+                <Field label="Vorname">
+                  {(control) => <input {...control} value={k.vorname} onChange={(e) => updateKind(k.key, { vorname: e.target.value })} required />}
+                </Field>
+                <Field label="Geburtsdatum">
+                  {(control) => (
+                    <input {...control} type="date" value={k.geburtsdatum} onChange={(e) => updateKind(k.key, { geburtsdatum: e.target.value })} required />
+                  )}
+                </Field>
+                <Field label="Steuer-ID">
+                  {(control) => <input {...control} inputMode="numeric" value={k.idnr ?? ""} onChange={(e) => updateKind(k.key, { idnr: e.target.value })} />}
+                </Field>
+                <Field label="Familienkasse">
+                  {(control) => (
+                    <input {...control} required value={k.familienkasse ?? ""} onChange={(e) => updateKind(k.key, { familienkasse: e.target.value })} />
+                  )}
+                </Field>
+                <Field label="Abweichender Nachname">
+                  {(control) => <input {...control} value={k.name ?? ""} onChange={(e) => updateKind(k.key, { name: e.target.value })} />}
+                </Field>
+                <Field label="Kinderbetreuungskosten (€)">
+                  {(control) => (
+                    <input
+                      {...control}
+                      inputMode="decimal"
+                      value={k.kinderbetreuung}
+                      onChange={(e) => updateKind(k.key, { kinderbetreuung: e.target.value })}
+                      placeholder="0,00"
+                    />
+                  )}
+                </Field>
+                <div className="actions" style={{ gridColumn: "1 / -1" }}>
+                  <button type="button" className="btn btn-danger" onClick={() => setKinder((list) => list.filter((x) => x.key !== k.key))}>
+                    Kind entfernen
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  setKinder((list) => [...list, { key: Math.max(-1, ...list.map((x) => x.key)) + 1, vorname: "", geburtsdatum: "", kinderbetreuung: "" }])
+                }
+              >
+                + Kind hinzufügen
+              </button>
+            </div>
+          </Block>
+
+          <Block
+            title="Kapitalerträge (Anlage KAP)"
+            summary={sumText(sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland))}
+            open={
+              sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland, a.kap?.kapitalertragsteuer) > 0 ||
+              Boolean(a.kap?.guenstigerpruefung)
+            }
+          >
+            <div className="form-grid">
+              <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />
+              <Amount name="kapSpb" label="Davon genutzter Sparer-Pauschbetrag" value={a.kap?.sparerPauschbetrag} />
+              <Amount name="kapOhneInl" label="Inländische Erträge ohne Steuerabzug" value={a.kap?.ertraegeOhneSteuerabzugInland} />
+              <Amount name="kapAusl" label="Ausländische Erträge" value={a.kap?.ertraegeAusland} />
+              <Amount name="kapESt" label="Einbehaltene Kapitalertragsteuer" value={a.kap?.kapitalertragsteuer} />
+              <Amount name="kapSoli" label="Solidaritätszuschlag" value={a.kap?.soli} />
+              <Amount name="kapKiSt" label="Kirchensteuer zur Kapitalertragsteuer" value={a.kap?.kirchensteuer} />
+              <label className="checkbox" style={{ alignSelf: "end" }}>
+                <input type="checkbox" name="guenstigerpruefung" defaultChecked={a.kap?.guenstigerpruefung ?? false} />
+                Günstigerprüfung beantragen
+              </label>
+            </div>
+          </Block>
+
+          <p className="small muted" style={{ margin: 0 }}>
+            Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
+          </p>
+          {/* Speichern bleibt unten sichtbar; der Hinweis steht davor, weil der Footer mit negativem Rand darüber liegt */}
+          <div className="form-sticky-footer">
+            <NoticeBanner notice={notice} />
+            <div className="actions" style={{ alignItems: "center" }}>
+              <button type="submit" className="btn btn-primary" disabled={busy}>
+                Angaben speichern
+              </button>
+              <span className="small muted">Voraussichtliche Steuer {formatEuro(est.prognose.gesamt)}</span>
+            </div>
           </div>
-        </div>
+        </fieldset>
       </form>
       <AbgabeVermerken art="est" year={data.year} today={data.today} berechnet={est.prognose.verbleibend} vermerkt={est.submitted} />
       <SubmitPanel form="est" data={data} blocked={blocked} sent={Boolean(est.sent)} submitted={est.submitted} />
