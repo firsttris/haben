@@ -200,6 +200,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `stammdaten/` | `kontakte.csv` (aktueller Stand), `kontakt-versionen.csv` (alle Versionen), `bankkonten.csv`, `firma.json` |
 | `protokoll/audit.csv` | Änderungsprotokoll des Jahres mit altem und neuem Wert als JSON, in der Reihenfolge der Hash-Kette mit Ketten-Nr., Vorgänger-Hash und Hash |
 | `protokoll/pruefwert.txt` | Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am Ende des Jahres, zum Aufbewahren außerhalb des Servers |
+| `protokoll/versionen.csv` | Eingesetzte Haben- und PostgreSQL-Versionen im Jahr mit Startzeitpunkt, Bestands-Hinweis (sofern vorhanden) und Link auf die Versionshinweise, einschließlich eines noch aus dem Vorjahr laufenden Stands |
 | `FEHLER.txt` | Nur wenn eine Datei nicht lesbar war, mit Liste der betroffenen Belege |
 | `index.xml` | Beschreibung aller CSV-Dateien für die Prüfsoftware, siehe [index.xml für die Prüfsoftware](#indexxml-für-die-prüfsoftware) |
 | `pruefsummen.sha256` | SHA-256 jeder anderen Datei im Archiv |
@@ -254,6 +255,8 @@ Zusätzlich stehen in `rechnungen.csv` und `belege.csv` die SHA-256-Werte, die H
 ### Änderungsprotokoll prüfen
 
 Unter **Einstellungen › Export › Änderungsprotokoll prüfen** rechnet „Kette prüfen“ die Hash-Kette des Audit-Logs und die Siegel aller festgeschriebenen Datensätze nach und gleicht das Journal mit Umsatzsteuer und EÜR ab ([Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür)). In das Feld darunter fügst du einen aufbewahrten Prüfwert ein, etwa aus `protokoll/pruefwert.txt` oder aus der wöchentlichen Mail, und vergleichst ihn mit dem Protokoll. Was die Prüfung erkennt und was nicht, steht unter [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel).
+
+Darunter zeigt **Eingesetzte Versionen** den protokollierten Verlauf der Haben- und PostgreSQL-Versionen mit Startzeitpunkt und Link zu den Versionshinweisen. Bei Bestandsinstanzen gilt die Aufzeichnung erst ab der Einführung dieser Funktion; für frühere Zeiträume liegt kein Verlauf vor (vermerkt im ersten Eintrag).
 
 ### Keine Geheimnisse im Export
 

@@ -204,6 +204,19 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
 });
 
+test("Eingesetzte Versionen: Verlauf und Versionshinweise anzeigen (#841)", async () => {
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("region", { name: "Eingesetzte Versionen" });
+  await expect(card).toBeVisible();
+  const rows = card.locator("tbody tr");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText(/v\d+\.\d+\.\d+/);
+  await expect(rows.first().getByRole("link", { name: /Versionshinweise/ })).toHaveAttribute(
+    "href",
+    /^https:\/\/github\.com\/firsttris\/haben\/releases\/tag\/v\d+\.\d+\.\d+/,
+  );
+});
+
 test("Datenbankzugriff: tatsächliche Verbindungsrollen in den Einstellungen anzeigen (#619)", async () => {
   await go("/einstellungen?bereich=export");
   const card = page.getByRole("region", { name: "Datenbankzugriff", exact: true });

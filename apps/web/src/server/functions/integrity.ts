@@ -3,12 +3,18 @@ import { z } from "zod";
 import { databaseAccessInfo } from "../db/index.ts";
 import { UserError } from "../errors.ts";
 import { chainHead, checkIntegrity, checkPruefwert, parsePruefwert } from "../modules/auswertungen/index.ts";
+import { listAppVersions } from "../modules/betrieb/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 /** Rechte der tatsächlich verwendeten Verbindung für die Einstellungen. */
 export const getDatabaseAccessInfo = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(() => databaseAccessInfo());
+
+/** Verlauf der eingesetzten Programm- und Datenbankversionen für die Einstellungen. */
+export const getAppVersions = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(() => listAppVersions());
 
 /** Kopf der Kette für die Einstellungen */
 export const getChainHead = createServerFn({ method: "GET" })

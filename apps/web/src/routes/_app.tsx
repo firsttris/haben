@@ -9,6 +9,7 @@ import { NAV_GROUPS, STEUERBERATUNG_NAV, type NavLink, navLinkSichtbar } from ".
 import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
 import { FirmaWechsler } from "../components/FirmaWechsler.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
+import { releaseNotesUrl } from "../lib/release-notes.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
 export const Route = createFileRoute("/_app")({
@@ -252,7 +253,7 @@ function NavFoot({ user, inhaber, onSignOut }: { user: { name: string; role: key
         Abmelden
       </button>
       <ThemePicker />
-      <a className="nav-version" href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`} title="Versionshinweise auf GitHub">
+      <a className="nav-version" href={releaseNotesUrl(__HABEN_VERSION__)} title="Versionshinweise auf GitHub">
         Haben {__HABEN_VERSION__}
       </a>
     </div>
