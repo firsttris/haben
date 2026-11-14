@@ -4,6 +4,7 @@ export * from "./xml.ts";
 export * from "./dauerfrist.ts";
 export * from "./zm.ts";
 export * from "./erklaerung.ts";
+export * from "./ust-erklaerung.ts";
 export * from "./euer-felder.ts";
 export * from "./euer-umgliedern.ts";
 export * from "./est.ts";

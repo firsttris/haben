@@ -1,14 +1,15 @@
 import { UserError } from "../../errors.ts";
-import { addDays, DEFAULT_INTEREST_MARKUP, DUNNING_LEVELS, DUNNING_TEXTS, dunningAmounts, type DunningLevel } from "@haben/core";
-import { buildDunningDraftPdf, buildDunningPdf, type DraftPdf, type DunningDocument } from "@haben/einvoice";
+import { addDays, DEFAULT_INTEREST_MARKUP, DUNNING_LEVELS, DUNNING_TEXTS, dunningAmounts, type DunningLevel, letterheadDesignInputSchema } from "@haben/core";
+import { asDraft, buildDunningDraftPdf, buildDunningPdf, type DraftPdf, type DunningDocument, dunningPdfData, dunningSheetText, texts } from "@haben/einvoice";
 import { desc, eq, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { type DocumentPreview, renderPreview, withDesign } from "./document-preview.ts";
 import { listInvoices, withCurrentLegalInfo } from "./invoices.ts";
-import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
+import { loadDesign, loadLetterhead, logoInfo, withCustomLayout } from "../stammdaten/index.ts";
 
 export class DunningError extends UserError {}
 
@@ -99,8 +100,7 @@ export async function dunningDraft(invoiceId: string, today: string) {
   const found = await finalInvoice(invoiceId, today);
   if (!found) return null;
   const invoice = assertOpen(found);
-  const { dunning } = await loadCompany();
-  const [last] = await dunningsFor([invoiceId]);
+  const [{ dunning }, [last], design, logo] = await Promise.all([loadCompany(), dunningsFor([invoiceId]), loadDesign(), logoInfo()]);
   const level = nextLevel(last);
   return {
     invoice: {
@@ -117,6 +117,9 @@ export async function dunningDraft(invoiceId: string, today: string) {
     fee: dunning.fees[String(level) as "1" | "2" | "3"] ?? 0,
     baseRate: dunning.baseRate,
     texts: DUNNING_TEXTS,
+    /** Für Vorschau und Gestaltung, wie im Rechnungseditor */
+    design,
+    logo: logo?.sha256 ?? null,
   };
 }
 
@@ -134,11 +137,25 @@ export const dunningInputSchema = z.object({
 
 export type DunningInput = z.infer<typeof dunningInputSchema>;
 
-/** Prüfungen vor jeder Mahnung, auch vor dem Entwurf: offen, fällig, Frist in der Zukunft, Basiszins für Zinsen */
-async function checkedInput(input: DunningInput, today: string) {
+/**
+ * Stand des Formulars für die Vorschau: Beim Tippen ist manches noch unfertig (Frist leer oder vorbei, Einleitung leer,
+ * Gebühr unlesbar); das Blatt zeigt es trotzdem, die Prüfung kommt beim Erstellen
+ */
+export const dunningPreviewSchema = dunningInputSchema.extend({
+  dueDate: z.iso.date().or(z.literal("")),
+  fee: z.number().int().min(0).max(100_000).catch(0),
+  intro: z.string().max(2000),
+  closing: z.string().max(2000),
+  design: letterheadDesignInputSchema,
+});
+
+export type DunningPreviewInput = z.input<typeof dunningPreviewSchema>;
+
+/** Prüfungen vor jeder Mahnung, auch vor dem Entwurf: offen, fällig, Frist in der Zukunft, Basiszins für Zinsen; die Vorschau lässt die Frist offen */
+async function checkedInput(input: DunningInput, today: string, preview = false) {
   const listed = await openInvoice(input.invoiceId, today);
   if (listed.dueDate >= today) throw new DunningError("Die Rechnung ist noch nicht fällig.");
-  if (input.dueDate <= today) throw new DunningError("Die neue Zahlungsfrist muss in der Zukunft liegen.");
+  if (!preview && input.dueDate <= today) throw new DunningError("Die neue Zahlungsfrist muss in der Zukunft liegen.");
   const company = await loadCompany();
   if (input.interest && company.dunning.baseRate === null) {
     throw new DunningError("Für Verzugszinsen bitte zuerst den Basiszinssatz in den Einstellungen eintragen.");
@@ -204,6 +221,18 @@ export async function dunningDraftPdf(input: DunningInput, today: string): Promi
   const checked = await checkedInput(input, today);
   const doc = await dunningDocument(db, input, today, checked, false);
   return withCustomLayout("mahnung", doc, (letterhead) => buildDunningDraftPdf({ ...doc, ...letterhead }));
+}
+
+/** Blatt der Mahnung aus dem Formular, wie beim Entwurf, aber ohne „ENTWURF“ und als Bild; gespeichert wird nichts */
+export async function dunningPreview(input: z.output<typeof dunningPreviewSchema>, today: string): Promise<DocumentPreview> {
+  const { design, ...rest } = input;
+  const form = { ...rest, dueDate: rest.dueDate || today };
+  const checked = await checkedInput(form, today, true);
+  const letterhead = withDesign(checked.letterhead, design);
+  const doc = await dunningDocument(db, form, today, { ...checked, letterhead }, false);
+  // Statt des GiroCodes ein Platzhalter, damit niemand eine Vorschau bezahlt; Mahnungen sind deutsch
+  const { draft: _noMark, ...sheet } = asDraft(dunningPdfData(doc), texts("de", "EUR"));
+  return renderPreview("mahnung", "mahnung.typ", sheet, letterhead, () => dunningSheetText(sheet));
 }
 
 /** Erstellt die Mahnung mit PDF; Beträge werden zum heutigen Stand berechnet */

@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { errorMessage } from "../lib/format.ts";
 import { billEntries, getBillingPreview, type getServiceEntries } from "../server/functions/leistungen.ts";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 
 type Customers = Awaited<ReturnType<typeof getServiceEntries>>["customers"];
@@ -39,6 +40,15 @@ export function ServiceBillingForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const valid = contactId !== "" && period.from !== "" && period.to !== "" && period.from <= period.to;
+  const {
+    form,
+    error: fehler,
+    check,
+  } = useSubmitCheck({
+    contact: contactId === "" ? "Wähle den Kunden." : null,
+    from: period.from === "" ? "Wähle den Anfang des Zeitraums." : null,
+    to: period.to === "" ? "Wähle das Ende des Zeitraums." : period.from && period.to < period.from ? "Wähle ein Ende ab dem Anfang des Zeitraums." : null,
+  });
 
   useEffect(() => {
     if (!valid) {
@@ -61,6 +71,7 @@ export function ServiceBillingForm({
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (!check()) return;
     setBusy(true);
     setError(null);
     try {
@@ -75,14 +86,14 @@ export function ServiceBillingForm({
   const empty = result !== null && result.entries === 0;
   const missing = result !== null && result.withoutRate > 0;
   return (
-    <form className="card stack" aria-label="Leistungen abrechnen" onSubmit={onSubmit}>
+    <form ref={form} className="card stack" aria-label="Leistungen abrechnen" onSubmit={onSubmit} noValidate>
       <h2 style={{ margin: 0 }}>Leistungen abrechnen</h2>
       <p className="muted small" style={{ margin: 0, maxWidth: 680 }}>
         Aus den offenen, abrechenbaren Einträgen eines Kunden wird ein Rechnungsentwurf: eine Position je Stundensatz, der Leistungszeitraum vom ersten bis zum
         letzten Arbeitstag. Gebucht wird erst, wenn du die Rechnung festschreibst.
       </p>
       <div className="form-row cols-3">
-        <Field label="Kunde">
+        <Field label="Kunde" error={fehler("contact")}>
           {(control) => (
             <select {...control} value={contactId} onChange={(e) => setContactId(e.target.value)} required autoFocus>
               <option value="" disabled>
@@ -98,10 +109,10 @@ export function ServiceBillingForm({
             </select>
           )}
         </Field>
-        <Field label="Von">
+        <Field label="Von" error={fehler("from")}>
           {(control) => <input {...control} type="date" value={period.from} onChange={(e) => setPeriod({ ...period, from: e.target.value })} required />}
         </Field>
-        <Field label="Bis">
+        <Field label="Bis" error={fehler("to")}>
           {(control) => <input {...control} type="date" value={period.to} onChange={(e) => setPeriod({ ...period, to: e.target.value })} required />}
         </Field>
       </div>
@@ -138,7 +149,8 @@ export function ServiceBillingForm({
         <button type="button" className="btn" onClick={onClose}>
           Abbrechen
         </button>
-        <button type="submit" className="btn btn-primary" disabled={busy || !valid || result === null || empty || missing}>
+        {/* Mit gültigen Angaben gesperrt, solange die Vorschau lädt (einen Augenblick) oder nichts abzurechnen ist; dann steht der Grund darüber */}
+        <button type="submit" className="btn btn-primary" disabled={busy || (valid && (result === null || empty || missing))}>
           Rechnungsentwurf anlegen
         </button>
       </div>
