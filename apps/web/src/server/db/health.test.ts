@@ -20,21 +20,22 @@ describe.skipIf(!testDatabaseUrl)("Healthcheck (Postgres)", () => {
     expect(await response.json()).toEqual({ status: "ok" });
   });
 
-  it("meldet eine ausstehende Migration bei erreichbarer Datenbank", async () => {
-    await client`delete from drizzle.__drizzle_migrations where created_at = (select max(created_at) from drizzle.__drizzle_migrations)`;
-    const response = await createHealthCheck(client)();
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ status: "nicht bereit", grund: "migrationen" });
-  });
-
-  it("antwortet auch bei einer blockierten Abfrage mit 503", async () => {
-    const check = createHealthCheck(client);
-    await client.begin(async (tx) => {
-      await tx`lock table drizzle.__drizzle_migrations in access exclusive mode`;
-      const response = await check();
-      expect(response.status).toBe(503);
-      expect(await response.json()).toEqual({ status: "nicht bereit", grund: "datenbank" });
-    });
+  it("bricht eine blockierte Abfrage ab und prüft nach Freigabe erneut", async () => {
+    const probe = postgres(testDatabaseUrl!, { max: 1 });
+    const check = createHealthCheck(probe);
+    try {
+      const [backend] = await probe<{ pid: number }[]>`select pg_backend_pid() as pid`;
+      await client.begin(async (tx) => {
+        await tx`lock table drizzle.__drizzle_migrations in access exclusive mode`;
+        const response = await check();
+        expect(response.status).toBe(503);
+        expect(await response.json()).toEqual({ status: "nicht bereit", grund: "datenbank" });
+        await expect.poll(() => tx`select 1 from pg_locks where pid = ${backend!.pid} and not granted`).toHaveLength(0);
+      });
+      expect((await check()).status).toBe(200);
+    } finally {
+      await probe.end();
+    }
   });
 
   it("meldet eine nicht erreichbare Datenbank ohne Verbindungsdetails", async () => {
@@ -48,5 +49,12 @@ describe.skipIf(!testDatabaseUrl)("Healthcheck (Postgres)", () => {
     } finally {
       await unavailable.end();
     }
+  });
+
+  it("meldet eine ausstehende Migration bei erreichbarer Datenbank", async () => {
+    await client`delete from drizzle.__drizzle_migrations where created_at = (select max(created_at) from drizzle.__drizzle_migrations)`;
+    const response = await createHealthCheck(client)();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ status: "nicht bereit", grund: "migrationen" });
   });
 });
