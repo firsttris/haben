@@ -119,6 +119,8 @@ Der Dienst `backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr, siehe [
 
 **Updates:** `docker compose exec backup backup.sh && docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).
 
+Für Uptime-Monitore und Load-Balancer meldet `GET /api/health` ohne Anmeldung `200` mit `{"status":"ok"}`, sobald die Datenbank erreichbar und alle Migrationen angewendet sind. Bei `503` nennt das JSON-Feld `grund` entweder `datenbank` oder `migrationen`. Der Container nutzt denselben Endpunkt. Den ausführlichen Betriebsstatus kannst du mit `docker compose exec app haben status --json` abrufen.
+
 ## Podman Quadlets
 
 Die Quadlets betreiben Haben rootless unter systemd: Zugangsdaten als Podman Secrets, ein täglicher Backup-Timer mit restic und Updates über `podman auto-update`.

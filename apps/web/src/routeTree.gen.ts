@@ -30,6 +30,7 @@ import { Route as AppSvMeldeportalRouteImport } from './routes/_app/sv-meldeport
 import { Route as AppUeberweisungenRouteImport } from './routes/_app/ueberweisungen'
 import { Route as ApiBelegvorlagenRouteImport } from './routes/api/belegvorlagen'
 import { Route as ApiBriefpapierRouteImport } from './routes/api/briefpapier'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiKennzeichenRouteImport } from './routes/api/kennzeichen'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
@@ -219,6 +220,11 @@ const ApiBelegvorlagenRoute = ApiBelegvorlagenRouteImport.update({
 const ApiBriefpapierRoute = ApiBriefpapierRouteImport.update({
   id: '/api/briefpapier',
   path: '/api/briefpapier',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiKennzeichenRoute = ApiKennzeichenRouteImport.update({
@@ -686,6 +692,7 @@ export interface FileRoutesByFullPath {
   '/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/belegvorlagen': typeof ApiBelegvorlagenRoute
   '/api/briefpapier': typeof ApiBriefpapierRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/kennzeichen': typeof ApiKennzeichenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -793,6 +800,7 @@ export interface FileRoutesByTo {
   '/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/belegvorlagen': typeof ApiBelegvorlagenRoute
   '/api/briefpapier': typeof ApiBriefpapierRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/kennzeichen': typeof ApiKennzeichenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -903,6 +911,7 @@ export interface FileRoutesById {
   '/_app/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/belegvorlagen': typeof ApiBelegvorlagenRoute
   '/api/briefpapier': typeof ApiBriefpapierRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/kennzeichen': typeof ApiKennzeichenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -1014,6 +1023,7 @@ export interface FileRouteTypes {
     | '/ueberweisungen'
     | '/api/belegvorlagen'
     | '/api/briefpapier'
+    | '/api/health'
     | '/api/kennzeichen'
     | '/api/logo'
     | '/api/mcp'
@@ -1121,6 +1131,7 @@ export interface FileRouteTypes {
     | '/ueberweisungen'
     | '/api/belegvorlagen'
     | '/api/briefpapier'
+    | '/api/health'
     | '/api/kennzeichen'
     | '/api/logo'
     | '/api/mcp'
@@ -1230,6 +1241,7 @@ export interface FileRouteTypes {
     | '/_app/ueberweisungen'
     | '/api/belegvorlagen'
     | '/api/briefpapier'
+    | '/api/health'
     | '/api/kennzeichen'
     | '/api/logo'
     | '/api/mcp'
@@ -1325,6 +1337,7 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRoute
   ApiBelegvorlagenRoute: typeof ApiBelegvorlagenRoute
   ApiBriefpapierRoute: typeof ApiBriefpapierRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ApiKennzeichenRoute: typeof ApiKennzeichenRoute
   ApiLogoRoute: typeof ApiLogoRoute
   ApiMcpRoute: typeof ApiMcpRoute
@@ -1515,6 +1528,13 @@ declare module '@tanstack/react-router' {
       path: '/api/briefpapier'
       fullPath: '/api/briefpapier'
       preLoaderRoute: typeof ApiBriefpapierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/kennzeichen': {
@@ -2258,6 +2278,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRoute,
   ApiBelegvorlagenRoute: ApiBelegvorlagenRoute,
   ApiBriefpapierRoute: ApiBriefpapierRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ApiKennzeichenRoute: ApiKennzeichenRoute,
   ApiLogoRoute: ApiLogoRoute,
   ApiMcpRoute: ApiMcpRoute,

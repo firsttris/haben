@@ -20,29 +20,29 @@ cleanup() {
   "${compose[@]}" down -v --remove-orphans
 }
 trap cleanup EXIT
-wait_app() {
-  for _ in $(seq 90); do
-    if curl --max-time 5 -sf -o /dev/null "http://localhost:${HABEN_TEST_PORT:-3386}/login"; then return; fi
-    sleep 2
-  done
-  return 1
+check_health() {
+  test "$("${compose[@]}" ps --format '{{.Health}}' app)" = healthy
+  test "$(curl --max-time 5 -fsS "http://localhost:${HABEN_TEST_PORT:-3386}/api/health")" = '{"status":"ok"}'
 }
 "${compose[@]}" up -d --wait db
 # createuser fragt zweimal nach dem neuen Passwort. Im Betrieb interaktiv, hier ausschließlich erfundene Werte.
 printf 'rollentest_app\nrollentest_app\n' | "${compose[@]}" exec -T db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app
-"${compose[@]}" up -d app
+"${compose[@]}" up -d --wait --wait-timeout 180 app
 app=$("${compose[@]}" ps -q app)
-wait_app
+check_health
 sh deploy/tests/rollen-pruefen.sh "$app"
 docker exec -i "$app" sh -c 'cat > /tmp/externe-module.ts && bun /tmp/externe-module.ts' < scripts/container/externe-module.ts
 docker exec -i "$app" sh < scripts/container/pdf-werkzeuge.sh
 # Bestehende .env ohne zweite Adresse: unveränderter Start über den bisherigen Eigentümerzugang.
 unset DATABASE_URL MIGRATION_DATABASE_URL
-"${compose[@]}" up -d --force-recreate app
-wait_app
+"${compose[@]}" up -d --wait --wait-timeout 180 --force-recreate app
+check_health
 docker exec -w /app/apps/web "$("${compose[@]}" ps -q app)" bun -e '
 const sql = (await import("postgres")).default(process.env.DATABASE_URL);
 try { const [role] = await sql`select current_user as name`; if (role.name !== "haben") throw new Error("Legacy-Anmeldung geändert"); }
 finally { await sql.end(); }
 '
+"${compose[@]}" stop db
+health=$(curl --max-time 5 -sS -w '\n%{http_code}' "http://localhost:${HABEN_TEST_PORT:-3386}/api/health")
+test "$health" = $'{"status":"nicht bereit","grund":"datenbank"}\n503'
 echo 'Neue Installation und Legacy-Start geprüft'
