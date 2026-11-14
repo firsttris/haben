@@ -327,6 +327,14 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
   await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  // Ohne Einleitung kein Entwurf: der Fehler steht am Feld, der Fokus dort (DESIGN.md, Gesperrte Knöpfe)
+  const einleitung = page.getByLabel("Einleitung", { exact: true });
+  const text = await einleitung.inputValue();
+  await einleitung.fill("");
+  await page.getByRole("button", { name: "Entwurf als PDF" }).click();
+  await expect(einleitung).toBeFocused();
+  await expect(einleitung).toHaveAccessibleDescription(/^Trag eine Einleitung ein\./);
+  await einleitung.fill(text);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Entwurf als PDF" }).click();
   const file = await download;
