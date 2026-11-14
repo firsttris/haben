@@ -12,8 +12,9 @@ import {
   splitEmails,
   telefonProblem,
 } from "@haben/core";
-import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
+import { likePattern } from "../../../lib/search.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
@@ -307,4 +308,35 @@ export async function setContactArchived(actor: string, id: string, archived: bo
       .set({ archivedAt: archived ? new Date() : null })
       .where(eq(schema.contacts.id, id)),
   );
+}
+
+export interface ContactHit {
+  id: string;
+  name: string;
+  kundennummer: string | null;
+  lieferantennummer: string | null;
+  ort: string;
+}
+
+/** Schnelle Kontaktsuche für die Befehlspalette (#617): Name, Kunden- oder Lieferantennummer, ohne archivierte */
+export async function searchContacts(query: string, limit = 5): Promise<{ hits: ContactHit[]; more: boolean }> {
+  const pattern = likePattern(query);
+  const rows = await db
+    .select({
+      id: schema.contacts.id,
+      name: schema.contacts.name,
+      kundennummer: schema.contacts.kundennummer,
+      lieferantennummer: schema.contacts.lieferantennummer,
+      ort: schema.contacts.ort,
+    })
+    .from(schema.contacts)
+    .where(
+      and(
+        isNull(schema.contacts.archivedAt),
+        or(ilike(schema.contacts.name, pattern), ilike(schema.contacts.kundennummer, pattern), ilike(schema.contacts.lieferantennummer, pattern)),
+      ),
+    )
+    .orderBy(asc(schema.contacts.name))
+    .limit(limit + 1);
+  return { hits: rows.slice(0, limit), more: rows.length > limit };
 }

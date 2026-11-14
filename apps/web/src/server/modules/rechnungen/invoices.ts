@@ -39,9 +39,10 @@ import {
   negateDiscount,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { likePattern } from "../../../lib/search.ts";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
 import { ansprechpartnerSnapshot, type Contact, contactPersonProblem, contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
@@ -1434,5 +1435,54 @@ export async function invoiceSummary(today: string) {
     revenuePreviousMonth: { key: previousMonth, net: revenue(previousMonth) },
     recent: list.filter((i) => i.status === "final").slice(0, 5),
     drafts: list.filter((i) => i.status === "draft").length,
+  };
+}
+
+export interface InvoiceHit {
+  id: string;
+  number: string | null;
+  customer: string;
+  gross: number;
+  status: string;
+  kind: string;
+}
+
+/** Rechnungssuche für die Befehlspalette (#617): Nummer und Kundenname; Entwürfe nur mit includeDrafts */
+export async function searchInvoices(query: string, opts: { includeDrafts: boolean }, limit = 5): Promise<{ hits: InvoiceHit[]; more: boolean }> {
+  const pattern = likePattern(query);
+  const rows = await db
+    .select({
+      id: schema.invoices.id,
+      number: schema.invoices.number,
+      gross: schema.invoices.gross,
+      status: schema.invoices.status,
+      kind: schema.invoices.kind,
+      contactName: schema.contacts.name,
+      buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
+    })
+    .from(schema.invoices)
+    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
+    .where(
+      and(
+        opts.includeDrafts ? undefined : ne(schema.invoices.status, "draft"),
+        or(
+          ilike(schema.invoices.number, pattern),
+          ilike(schema.contacts.name, pattern),
+          sql<boolean>`coalesce(${schema.invoices.buyer} ->> 'name', '') ilike ${pattern}`,
+        ),
+      ),
+    )
+    .orderBy(desc(schema.invoices.issueDate), sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt))
+    .limit(limit + 1);
+  return {
+    hits: rows.slice(0, limit).map((row) => ({
+      id: row.id,
+      number: row.number,
+      customer: row.buyerName ?? row.contactName ?? "–",
+      gross: row.gross,
+      status: row.status,
+      kind: row.kind,
+    })),
+    more: rows.length > limit,
   };
 }

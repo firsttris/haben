@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod/mini";
 import { FORMAT_LABEL } from "../../../lib/invoice.ts";
 import { getContacts } from "../../../server/functions/contacts.ts";
@@ -7,7 +7,7 @@ import { Field } from "../../../components/Field.tsx";
 import { Tag } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/kontakte/")({
-  validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])) }),
+  validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])), suche: z.optional(z.string()) }),
   loaderDeps: ({ search }) => ({ archived: search.archiv ?? false, role: search.rolle }),
   loader: ({ deps }) => getContacts({ data: { archived: deps.archived, ...(deps.role ? { role: deps.role } : {}) } }),
   head: () => ({ meta: [{ title: "Kontakte · Haben" }] }),
@@ -22,11 +22,14 @@ const ROLE_FILTERS = [
 
 function ContactsPage() {
   const contacts = Route.useLoaderData();
-  const { archiv, rolle } = Route.useSearch();
-  const [query, setQuery] = useState("");
+  const { archiv, rolle, suche } = Route.useSearch();
+  const [query, setQuery] = useState(suche ?? "");
+  useEffect(() => {
+    setQuery(suche ?? "");
+  }, [suche]);
   const needle = query.trim().toLowerCase();
   const shown = needle
-    ? contacts.filter((c) => [c.name, c.kundennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
+    ? contacts.filter((c) => [c.name, c.kundennummer, c.lieferantennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
     : contacts;
   return (
     <>

@@ -19,7 +19,8 @@ Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den a
 | `Tab` / `Umschalt+Tab` | Zum nächsten bzw. vorigen Bedienelement. Das Element mit dem Fokus hat immer einen sichtbaren Rahmen. |
 | `Enter` | Link öffnen, Knopf auslösen, Formular absenden |
 | `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt aufklappen |
-| `Esc` | Schließt das Menü auf dem Handy; der Fokus steht danach wieder auf **Menü** |
+| `Strg+K` / `Cmd+K` | Befehlspalette öffnen (überall, außer ein anderer Dialog ist bereits offen); darin `Pfeil hoch`/`runter`, `Enter` zum Öffnen, `Esc` zum Schließen |
+| `Esc` | Schließt das Menü auf dem Handy oder die Befehlspalette; der Fokus steht danach wieder auf dem Auslöser |
 
 - **Zum Inhalt springen:** Der erste `Tab` auf jeder Seite zeigt den Link **Zum Inhalt springen**. Mit `Enter` überspringst du die Navigation.
 - **Nach einem Seitenwechsel** steht der Fokus am Anfang des Inhalts, nicht mehr in der Navigation. Der nächste `Tab` führt zum ersten Element der neuen Seite. Filter und Suche ändern nur die Liste, der Fokus bleibt, wo er ist.
@@ -57,6 +58,7 @@ Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Str
 5. **Sichtbarer Fokus:** Der Test tabbt durch die wichtigsten Seiten. Jedes Element, das den Fokus bekommt, muss einen mindestens 2 px breiten Rahmen haben.
 6. **Handy-Menü:** öffnet mit Enter, Tab führt hinein, Esc schließt es und gibt den Fokus an den Menüknopf zurück.
 7. **Aktueller Bereich:** Im Archiv tragen nur der gewählte Bereich und die gewählten Filter `aria-current`.
+8. **Befehlspalette (`Strg+K`):** öffnet mit `Strg+K` und per Knopf in der Navigation (nicht über einem anderen offenen Dialog), lässt sich per `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` bedienen, schließt mit `Esc` unter Rückgabe des Fokus und besteht axe in allen Themes sowie am Handy.
 
 Findet axe einen Verstoß, nennt der Testbericht Regel, Element und Grund. Wie du die Tests lokal startest, steht unter [Entwicklung](entwicklung.md#ende-zu-ende-tests-mit-playwright).
 

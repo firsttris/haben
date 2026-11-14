@@ -732,3 +732,51 @@ test("Kennzahlen der Voranmeldung am Handy: Bezeichnung über die volle Breite, 
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   expect(await axe(page), "axe am Handy").toEqual([]);
 });
+
+test("Befehlspalette: Strg+K, Tastatursteuerung, Fokus-Rückgabe und axe in allen Themes sowie am Handy", async ({ page }) => {
+  await withTheme(page, "wald");
+  await open(page, "/");
+
+  const uebersicht = page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Übersicht" });
+  await uebersicht.focus();
+  await page.keyboard.press("Control+k");
+
+  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+  await expect(dialog).toBeVisible();
+  const input = dialog.getByRole("combobox");
+  await expect(input).toBeFocused();
+
+  await input.fill("Rechn");
+  const alle = dialog.getByRole("option", { name: "Alle in Rechnungen anzeigen" });
+  await expect(alle).toBeVisible();
+
+  const davor = await input.getAttribute("aria-activedescendant");
+  await page.keyboard.press("ArrowDown");
+  const danach = await input.getAttribute("aria-activedescendant");
+  expect(danach).toBeTruthy();
+  expect(danach).not.toBe(davor);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(uebersicht).toBeFocused();
+
+  for (const theme of THEMES) {
+    await withTheme(page, theme);
+    await open(page, "/");
+    await page.keyboard.press("Control+k");
+    await expect(dialog).toBeVisible();
+    await input.fill("Rechn");
+    await expect(alle).toBeVisible();
+    expect.soft(await axe(page), `Befehlspalette im Theme ${theme}`).toEqual([]);
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await withTheme(page, "wald:dunkel");
+  await open(page, "/");
+  await page.keyboard.press("Control+k");
+  await expect(dialog).toBeVisible();
+  await input.fill("Rechn");
+  await expect(alle).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  expect(await axe(page), "Befehlspalette am Handy").toEqual([]);
+});

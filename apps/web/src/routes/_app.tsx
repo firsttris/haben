@@ -4,7 +4,8 @@ import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
-import { navLinkSichtbar, type NavBedingung } from "../lib/navigation.ts";
+import { CommandPalette } from "../components/CommandPalette.tsx";
+import { NAV_GROUPS, STEUERBERATUNG_NAV, type NavLink, navLinkSichtbar } from "../lib/navigation.ts";
 import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
 import { FirmaWechsler } from "../components/FirmaWechsler.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
@@ -31,91 +32,6 @@ export const Route = createFileRoute("/_app")({
   component: AppLayout,
 });
 
-interface NavLink extends NavBedingung {
-  to: string;
-  icon: Parameters<typeof Icon>[0]["name"];
-  label: string;
-}
-
-/** Hauptnavigation nach Arbeitsbereichen; Einstellungen stehen unten bei Konto und Abmelden */
-const NAV_GROUPS = [
-  {
-    label: "Verkauf",
-    links: [
-      { to: "/angebote", icon: "quote", label: "Angebote" },
-      { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
-      { to: "/lastschriften", icon: "bank", label: "Lastschriften" },
-      { to: "/kontakte", icon: "contacts", label: "Kontakte" },
-      { to: "/artikel", icon: "article", label: "Artikel" },
-      { to: "/leistungen", icon: "calendar", label: "Leistungen" },
-      { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },
-    ],
-  },
-  {
-    label: "Ausgaben",
-    links: [
-      { to: "/belege", icon: "receipt", label: "Belege" },
-      { to: "/dauerbelege", icon: "calendar", label: "Dauerbelege" },
-      { to: "/ueberweisungen", icon: "bank", label: "Überweisungen" },
-      // Pauschalen ersetzen Ausgaben des Inhabers, eine GmbH oder UG hat sie nicht
-      { to: "/pauschalen", icon: "pauschale", label: "Pauschalen", nurEinzelunternehmen: true },
-      { to: "/anlagen", icon: "assets", label: "Anlagen" },
-    ],
-  },
-  {
-    label: "Geld",
-    links: [
-      { to: "/bank", icon: "bank", label: "Bank" },
-      { to: "/kasse", icon: "cash", label: "Kasse" },
-      { to: "/darlehen", icon: "bank", label: "Darlehen" },
-    ],
-  },
-  {
-    label: "Personal",
-    links: [
-      { to: "/lohn", icon: "payroll", label: "Lohn" },
-      // Lohn bleibt immer sichtbar, dort entsteht der erste Mitarbeiter
-      { to: "/sv-meldeportal", icon: "mail", label: "SV-Meldeportal", nurMitMitarbeitern: true },
-    ],
-  },
-  {
-    label: "Steuern",
-    links: [
-      { to: "/umsatzsteuer", icon: "vat", label: "Umsatzsteuer" },
-      { to: "/jahreserklaerung", icon: "annual", label: "Jahreserklärung" },
-      // Gewinnausschüttung und Kapitalertragsteuer gibt es nur für GmbH und UG
-      { to: "/ausschuettungen", icon: "cash", label: "Ausschüttungen", nurKapitalgesellschaft: true },
-      { to: "/finanzamt", icon: "mail", label: "Finanzamt" },
-      { to: "/fristen", icon: "calendar", label: "Fristen" },
-    ],
-  },
-  {
-    label: "Buchhaltung",
-    links: [
-      { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
-      { to: "/buchungen", icon: "journal", label: "Buchungen" },
-      { to: "/konten", icon: "ledger", label: "Konten" },
-      // Bilanz und Abschluss gibt es nur für GmbH und UG
-      { to: "/abschluss", icon: "annual", label: "Jahresabschluss", nurKapitalgesellschaft: true },
-      { to: "/archiv", icon: "archive", label: "Archiv" },
-    ],
-  },
-] as const;
-
-/** Navigation der Steuerberatung: nur lesen */
-const STEUERBERATUNG_NAV = [
-  {
-    label: "Steuerberatung",
-    links: [
-      { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
-      { to: "/buchungen", icon: "journal", label: "Buchungen" },
-      { to: "/konten", icon: "ledger", label: "Konten" },
-      { to: "/belege", icon: "receipt", label: "Belege" },
-      { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
-    ],
-  },
-] as const;
-
 function AppLayout() {
   const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen, zeichen } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
@@ -123,6 +39,12 @@ function AppLayout() {
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutLabel, setShortcutLabel] = useState("Strg K");
+
+  useEffect(() => {
+    if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) setShortcutLabel("⌘ K");
+  }, []);
   // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);
@@ -166,7 +88,7 @@ function AppLayout() {
 
   // Escape schließt das Menü auf dem Handy und gibt den Fokus an den Menüknopf zurück
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen || paletteOpen) return;
     function onKey(event: KeyboardEvent) {
       // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst
       if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]')) return;
@@ -177,7 +99,7 @@ function AppLayout() {
     }
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [menuOpen]);
+  }, [menuOpen, paletteOpen]);
 
   async function signOut() {
     // Erst beim Abmelden laden: der Auth-Client bringt den Passkey-Code mit, den nur Anmeldung und Einstellungen brauchen
@@ -232,6 +154,15 @@ function AppLayout() {
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
           {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im Menü, also in der Tab-Reihenfolge gleich nach der Marke */}
           {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
+          <button type="button" className="nav-search-btn" onClick={() => setPaletteOpen(true)} aria-keyshortcuts="Control+K Meta+K">
+            <span className="nav-search-label">
+              <Icon name="search" size={16} />
+              Suchen
+            </span>
+            <kbd className="nav-kbd" aria-hidden="true">
+              {shortcutLabel}
+            </kbd>
+          </button>
           <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
             <Icon name="overview" />
             Übersicht
@@ -275,45 +206,61 @@ function AppLayout() {
             </div>
           )}
           <div className="nav-spacer" />
-          <div className="nav-foot">
-            <div className="nav-user">
-              <span className="nav-avatar" aria-hidden="true">
-                {user.name.trim().charAt(0).toUpperCase() || "?"}
-              </span>
-              <span className="nav-user-text">
-                <span className="nav-user-name">{user.name}</span>
-                <span className="nav-user-meta">{inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}</span>
-              </span>
-            </div>
-            {inhaber && (
-              <Link to="/einstellungen" className="nav-link nav-foot-link">
-                <Icon name="settings" />
-                Einstellungen
-              </Link>
-            )}
-            <a href="https://haben.app/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
-              <Icon name="docs" />
-              Dokumentation
-            </a>
-            {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
-            <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
-              <Icon name="code" />
-              Quellcode (AGPL)
-            </a>
-            <button type="button" className="nav-link nav-foot-link" onClick={signOut}>
-              <Icon name="logout" />
-              Abmelden
-            </button>
-            <ThemePicker />
-            <a className="nav-version" href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`} title="Versionshinweise auf GitHub">
-              Haben {__HABEN_VERSION__}
-            </a>
-          </div>
+          <NavFoot user={user} inhaber={inhaber} onSignOut={signOut} />
         </div>
       </nav>
       <main className="main" id="inhalt" ref={main} tabIndex={-1}>
         <Outlet />
       </main>
+      <CommandPalette
+        open={paletteOpen}
+        onOpen={() => setPaletteOpen(true)}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={() => setMenuOpen(false)}
+        inhaber={inhaber}
+        gesellschaft={gesellschaft}
+        hatMitarbeiter={hatMitarbeiter}
+        eigeneSeiten={eigeneSeiten}
+      />
+    </div>
+  );
+}
+
+function NavFoot({ user, inhaber, onSignOut }: { user: { name: string; role: keyof typeof ROLLEN_LABEL }; inhaber: boolean; onSignOut: () => void }) {
+  return (
+    <div className="nav-foot">
+      <div className="nav-user">
+        <span className="nav-avatar" aria-hidden="true">
+          {user.name.trim().charAt(0).toUpperCase() || "?"}
+        </span>
+        <span className="nav-user-text">
+          <span className="nav-user-name">{user.name}</span>
+          <span className="nav-user-meta">{inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}</span>
+        </span>
+      </div>
+      {inhaber && (
+        <Link to="/einstellungen" className="nav-link nav-foot-link">
+          <Icon name="settings" />
+          Einstellungen
+        </Link>
+      )}
+      <a href="https://haben.app/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
+        <Icon name="docs" />
+        Dokumentation
+      </a>
+      {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
+      <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
+        <Icon name="code" />
+        Quellcode (AGPL)
+      </a>
+      <button type="button" className="nav-link nav-foot-link" onClick={onSignOut}>
+        <Icon name="logout" />
+        Abmelden
+      </button>
+      <ThemePicker />
+      <a className="nav-version" href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`} title="Versionshinweise auf GitHub">
+        Haben {__HABEN_VERSION__}
+      </a>
     </div>
   );
 }

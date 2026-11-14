@@ -34,9 +34,10 @@ import {
   type QuoteListStatus,
 } from "@haben/core";
 import { buildQuotePdf, texts, type QuoteDocument, type QuoteDocumentLine } from "@haben/einvoice";
-import { and, asc, desc, eq, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { likePattern } from "../../../lib/search.ts";
 import { ansprechpartnerSnapshot, contactPersonProblem, contactRoleProblem, loadCompany, sellerIssues } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -666,4 +667,47 @@ export async function loadQuotePdf(id: string) {
   const [row] = await db.select({ pdf: schema.quotes.pdf, number: schema.quotes.number }).from(schema.quotes).where(eq(schema.quotes.id, id));
   if (!row?.pdf || !row.number) return null;
   return { pdf: row.pdf, filename: `Angebot-${row.number}.pdf` };
+}
+
+export interface QuoteHit {
+  id: string;
+  number: string | null;
+  customer: string;
+  gross: number;
+  status: string;
+}
+
+/** Angebotssuche für die Befehlspalette (#617): Nummer und Kundenname */
+export async function searchQuotes(query: string, limit = 5): Promise<{ hits: QuoteHit[]; more: boolean }> {
+  const pattern = likePattern(query);
+  const rows = await db
+    .select({
+      id: schema.quotes.id,
+      number: schema.quotes.number,
+      gross: schema.quotes.gross,
+      status: schema.quotes.status,
+      contactName: schema.contacts.name,
+      buyerName: sql<string | null>`${schema.quotes.buyer} ->> 'name'`,
+    })
+    .from(schema.quotes)
+    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.quotes.contactId))
+    .where(
+      or(
+        ilike(schema.quotes.number, pattern),
+        ilike(schema.contacts.name, pattern),
+        sql<boolean>`coalesce(${schema.quotes.buyer} ->> 'name', '') ilike ${pattern}`,
+      ),
+    )
+    .orderBy(sql`${schema.quotes.number} desc nulls first`, desc(schema.quotes.createdAt))
+    .limit(limit + 1);
+  return {
+    hits: rows.slice(0, limit).map((row) => ({
+      id: row.id,
+      number: row.number,
+      customer: row.buyerName ?? row.contactName ?? "–",
+      gross: row.gross,
+      status: row.status,
+    })),
+    more: rows.length > limit,
+  };
 }
