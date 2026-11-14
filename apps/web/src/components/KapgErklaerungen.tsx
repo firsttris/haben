@@ -10,6 +10,7 @@ import { teileHinweise } from "../lib/hinweise.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { Field } from "./Field.tsx";
+import { Status } from "./Status.tsx";
 
 /*
  * GmbH und UG auf der Seite Jahreserklärung: Körperschaftsteuer- und Gewerbesteuererklärung mit den Werten aus der
@@ -140,7 +141,12 @@ export function KstSection({ data }: { data: Data }) {
     <section className="grid-main jump-target" id="kst" aria-labelledby="kst-heading">
       <div className="card" style={{ gap: 12 }}>
         <h2 id="kst-heading" style={{ margin: 0 }}>
-          Körperschaftsteuererklärung {k.sent && <span className="pill pill-ok">übermittelt</span>}
+          Körperschaftsteuererklärung{" "}
+          {k.sent && (
+            <Status tone="ok" inline>
+              Übermittelt
+            </Status>
+          )}
         </h2>
         <Hinweise issues={geteilt(data).nurA} />
         {w && (
@@ -173,7 +179,12 @@ export function GewstSection({ data }: { data: Data }) {
     <section className="grid-main jump-target" id="gewst" aria-labelledby="gewst-heading">
       <div className="card" style={{ gap: 12 }}>
         <h2 id="gewst-heading" style={{ margin: 0 }}>
-          Gewerbesteuererklärung {g.sent && <span className="pill pill-ok">übermittelt</span>}
+          Gewerbesteuererklärung{" "}
+          {g.sent && (
+            <Status tone="ok" inline>
+              Übermittelt
+            </Status>
+          )}
         </h2>
         <Hinweise issues={geteilt(data).nurB} />
         {w && (

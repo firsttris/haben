@@ -1,13 +1,18 @@
 import { EXPENSE_CATEGORIES, formatEuro, type ExpenseCategory } from "@haben/core";
 import { ErrorBanner } from "../../../components/ErrorBanner.tsx";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { z } from "zod/mini";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
+import { Status } from "../../../components/Status.tsx";
 import { DocumentUpload } from "../../../components/DocumentUpload.tsx";
+import { Field } from "../../../components/Field.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
+import { parseEuroSearchCents } from "@haben/core";
 import { getDocuments } from "../../../server/functions/documents.ts";
 
 export const Route = createFileRoute("/_app/belege/")({
+  validateSearch: z.object({ suche: z.optional(z.string()) }),
   loader: () => getDocuments(),
   head: () => ({ meta: [{ title: "Belege · Haben" }] }),
   component: DocumentsPage,
@@ -17,6 +22,18 @@ function DocumentsPage() {
   const { documents, aiAvailable, inbox } = Route.useLoaderData();
   const inhaber = Route.useRouteContext().user.role === "inhaber";
   const router = useRouter();
+  const { suche } = Route.useSearch();
+  const [query, setQuery] = useState(suche ?? "");
+  useEffect(() => {
+    setQuery(suche ?? "");
+  }, [suche]);
+  const needle = query.trim().toLowerCase();
+  const cents = needle ? parseEuroSearchCents(query) : null;
+  const shown = needle
+    ? documents.filter(
+        (doc) => [doc.supplierName, doc.invoiceNumber, doc.filename].some((v) => v?.toLowerCase().includes(needle)) || (cents !== null && doc.gross === cents),
+      )
+    : documents;
   const running = documents.some((d) => d.extractionStatus === "laeuft");
   const open = documents.filter((d) => d.status === "neu").length;
 
@@ -34,7 +51,11 @@ function DocumentsPage() {
           <div className="eyebrow">Eingangsrechnungen und Quittungen</div>
           <h1>Belege</h1>
         </div>
-        {open > 0 && <span className="pill pill-info">{open} zu prüfen</span>}
+        {open > 0 && (
+          <Status tone="warn" emphasis="notice">
+            {open} zu prüfen
+          </Status>
+        )}
       </div>
       {inhaber && <DocumentUpload aiAvailable={aiAvailable} />}
       {inbox ? (
@@ -62,10 +83,29 @@ function DocumentsPage() {
           holt Haben die Anhänge selbst ab.
         </p>
       )}
+      {documents.length > 0 && (
+        <div className="filter-row" style={{ marginBottom: 0 }}>
+          <Field label="Belege durchsuchen" hideLabel style={{ flex: "1 1 260px", maxWidth: 420 }}>
+            {(control) => (
+              <input
+                {...control}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Suchen: Lieferant, Belegnummer, Datei oder Betrag"
+              />
+            )}
+          </Field>
+        </div>
+      )}
       <section className="card" aria-label="Belegliste">
         {documents.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
             Noch keine Belege.
+          </p>
+        ) : shown.length === 0 ? (
+          <p className="muted" style={{ margin: 0 }}>
+            Kein Beleg passt zu „{query}“.
           </p>
         ) : (
           <div className="table">
@@ -76,7 +116,7 @@ function DocumentsPage() {
               <div className="num">Brutto</div>
               <div>Status</div>
             </div>
-            {documents.map((doc) => (
+            {shown.map((doc) => (
               <Link key={doc.id} to="/belege/$id" params={{ id: doc.id }} className="table-row document-cols">
                 <div className="muted small">{doc.documentDate ? formatDate(doc.documentDate) : "–"}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
@@ -95,7 +135,14 @@ function DocumentsPage() {
                 </div>
                 <div className="num">{doc.gross ? formatEuro(doc.gross) : "–"}</div>
                 <div>
-                  <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} cancelled={doc.cancelledOn !== null} />
+                  <DocumentStatus
+                    status={doc.status}
+                    extractionStatus={doc.extractionStatus}
+                    cancelled={doc.cancelledOn !== null}
+                    cancelledOn={doc.cancelledOn}
+                    lockedAt={doc.lockedAt}
+                    uploadedAt={doc.uploadedAt}
+                  />
                 </div>
               </Link>
             ))}

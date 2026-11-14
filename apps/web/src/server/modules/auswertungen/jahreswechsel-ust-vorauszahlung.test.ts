@@ -318,7 +318,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
       const dez = await gesendet(DEZ, "2027-01-05");
       await zahlung(dez.id, tag, "-190,00");
       const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
-      await bank.reverseAllocation(actor, a!.id as string);
+      // Aufhebung am Tag der Zahlung: Beide Zeilen liegen im Zehn-Tage-Fenster und zählen so im selben Jahr
+      const [d, m, y] = tag.split(".");
+      await bank.reverseAllocation(actor, a!.id as string, `20${y}-${m}-${d}`);
       // Die Rücknahme hebt dieselbe EÜR-Zeile auf, statt eine Finanzamtserstattung auszuweisen (#651).
       const saldo = (e: EuerResult) => {
         const z = zeilen(e) as Record<string, number>;

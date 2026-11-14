@@ -5,6 +5,7 @@ import { useAction } from "../lib/use-action.ts";
 import { saveContactPerson, setContactPersonActiveFn } from "../server/functions/contact-persons.ts";
 import { Field } from "./Field.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { Tag } from "./Status.tsx";
 
 /**
  * Ansprechpartner eines Kontakts (#424): Name, E-Mail, Telefon und Funktion. Im Entwurf von Rechnung und Angebot wählbar;
@@ -71,7 +72,7 @@ export function ContactPersonsCard({ contactId, persons }: Props) {
         <div key={person.id} className="history-row stack" style={{ alignItems: "stretch", gap: 4 }}>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
             <strong>{person.name}</strong>
-            {person.deactivatedAt && <span className="pill">Deaktiviert</span>}
+            {person.deactivatedAt && <Tag>deaktiviert</Tag>}
           </div>
           {(person.funktion || person.email || person.telefon) && (
             <span className="small muted">{[person.funktion, person.email, person.telefon].filter(Boolean).join(" · ")}</span>

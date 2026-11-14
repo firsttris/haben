@@ -571,8 +571,9 @@ export const MCP_TOOLS: McpTool[] = [
     run: async ({ jahr }, { today }) => {
       const year = jahr ?? Number(today.slice(0, 4)) - 1;
       const overview = await annualOverview(year, today);
-      const issues = (list: { tone: string; text: string; link?: string }[]) =>
-        list.map((i) => ({ art: i.tone, hinweis: i.text, ...(i.link ? { link: link(i.link) } : {}) }));
+      // Mit Zeitraum führt der Link auf den betroffenen Voranmeldungszeitraum statt auf den laufenden (#869)
+      const issues = (list: { tone: string; text: string; link?: string; zeitraum?: string }[]) =>
+        list.map((i) => ({ art: i.tone, hinweis: i.text, ...(i.link ? { link: link(i.zeitraum ? `/umsatzsteuer/${i.zeitraum}` : i.link) } : {}) }));
       const sent = (s: { createdAt: Date } | null) => (s ? { gesendetAm: s.createdAt } : null);
       const p = overview.est.prognose;
       return {

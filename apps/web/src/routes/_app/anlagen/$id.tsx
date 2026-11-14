@@ -8,6 +8,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { deleteAssetFn, getAssetDetail, updateAssetFn } from "../../../server/functions/assets.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
+import { Status } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/anlagen/$id")({
   loader: ({ params }) => getAssetDetail({ data: params.id }),
@@ -101,7 +102,7 @@ function AssetPage() {
                 <div className="num">{formatDecimal(row.depreciation)}</div>
                 <div className="num">{formatDecimal(row.disposal)}</div>
                 <div className="num">{formatDecimal(row.closing)}</div>
-                <div>{bookedYears.includes(row.year) ? <span className="pill">gebucht</span> : null}</div>
+                <div>{bookedYears.includes(row.year) ? <Status tone="ok">Gebucht</Status> : null}</div>
               </div>
             ))}
           </div>

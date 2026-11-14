@@ -170,10 +170,12 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Belege am Kontakt (Postgres)",
 
   it("Kunde: ein gewähltes Jahr zeigt dessen Rechnungen, auch das Original eines späteren Stornos", async () => {
     const dezember = await rechnung(kunde, "2025-12-01", 120_000);
-    await invoices.cancelInvoice(actor, dezember.id, "2026-01-10");
+    const storno = await invoices.cancelInvoice(actor, dezember.id, "2026-01-10");
     const { sales } = await history.contactHistory(kunde, TODAY, 2025);
     expect(sales.year).toBe(2025);
     expect(sales.rows.map((r) => [r.id, r.kind === "rechnung" ? r.status : null])).toEqual([[dezember.id, "storniert"]]);
+    // Die Auskunft unter dem Status nennt das Storno wie in der Rechnungsliste
+    expect(sales.rows[0]).toMatchObject({ statusFacts: { listStatus: "storniert", cancelledBy: storno.number } });
     expect((await history.contactHistory(kunde, TODAY, 2019)).sales).toMatchObject({ year: 2019, rows: [] });
   });
 

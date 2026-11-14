@@ -3,7 +3,8 @@
 set -eu
 
 modules="/app/node_modules /app/apps/web/node_modules /app/apps/elster-helfer/node_modules /app/packages/core/node_modules
-  /app/packages/einvoice/node_modules /app/packages/elster/node_modules /app/packages/import/node_modules"
+  /app/packages/einvoice/node_modules /app/packages/elster/node_modules /app/packages/gobd-kern/node_modules
+  /app/packages/import/node_modules"
 
 # Als root nur die Volumes dem Benutzer bun geben und dann als bun weiter. Ein Volume übernimmt den Besitzer
 # nur beim ersten Anlegen; nach einem Neubau mit anderer HABEN_DEV_UID gehört es sonst noch der alten ID und

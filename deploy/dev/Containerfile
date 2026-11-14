@@ -16,7 +16,7 @@ RUN apt-get update \
 RUN groupmod -o -g "$GID" bun && usermod -o -u "$UID" -g "$GID" bun \
  && mkdir -p /app/node_modules /app/apps/web/node_modules /app/apps/elster-helfer/node_modules \
       /app/packages/core/node_modules /app/packages/einvoice/node_modules \
-      /app/packages/elster/node_modules /app/packages/import/node_modules \
+      /app/packages/elster/node_modules /app/packages/gobd-kern/node_modules /app/packages/import/node_modules \
       /var/lib/haben /home/bun/.cache \
  && chown -R bun:bun /app /var/lib/haben /home/bun
 COPY --chmod=755 start.sh /usr/local/bin/haben-dev

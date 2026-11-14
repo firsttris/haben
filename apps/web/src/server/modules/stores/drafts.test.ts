@@ -165,8 +165,10 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Rechnungsentwürfe an die Store-G
     const [revenue] = await sql`select id from bank_transactions where bank_reference = 'googleplay-earnings-2026-09'`;
     await bank.allocate(actor, { kind: "invoice", transactionId: revenue!.id, invoiceId: final.id, amount: 8500 });
 
-    const month = Number(final.issueDate.slice(5, 7));
-    const year = Number(final.issueDate.slice(0, 4));
+    // Store-Umsaetze tragen den Leistungszeitraum; seither zaehlt dieser Monat, nicht der Rechnungstag (#694)
+    const bezug = final.serviceDate ?? final.issueDate;
+    const month = Number(bezug.slice(5, 7));
+    const year = Number(bezug.slice(0, 4));
     expect((await vat.computeVatFigures({ year, month })).kz21).toBe(8500);
     const zm = await vat.zmOverview({ year, month: 40 + Math.ceil(month / 3) });
     expect(zm.zeilen).toEqual([expect.objectContaining({ ustId: "IE9825613N", betrag: 8500 })]);

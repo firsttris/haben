@@ -41,6 +41,8 @@ Auf der Anmeldeseite wählst du „Mit Passkey anmelden“. Über „Passwort ve
 
 Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weitere hinzufügen (z. B. für Handy und Laptop) oder alte nach einer Rückfrage entfernen. Passkeys hängen an der Domain aus `BETTER_AUTH_URL`; bei einem Domainwechsel musst du sie neu anlegen.
 
+Unter **Einstellungen › Sicherheit › Passwort ändern** gibst du dein bisheriges Passwort ein und bestätigst das neue Passwort mit mindestens 12 Zeichen durch erneute Eingabe. Alle Sitzungen enden, auch die im aktuellen Browser und die per Passkey eröffneten. Danach kannst du dich mit dem neuen Passwort oder einem vorhandenen Passkey anmelden. Im Änderungsprotokoll steht der Wechsel ohne Passwort oder Hash.
+
 ## Zugang für die Steuerberatung
 
 Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann: Auswertungen, Journal, Kontenblätter, Belege und Rechnungen ansehen, Dateien, DATEV-Export und Jahresarchiv herunterladen. Unter **Einstellungen › Sicherheit › Zugänge** erzeugst du einen Einladungslink, der einmal und 72 Stunden gilt; die Steuerberatung legt damit Passwort und Passkey selbst an. Sperren und Entfernen geht an derselben Stelle. Buchen, Festschreiben, Senden an ELSTER, Einstellungen, Zertifikat, Bankzugang und API-Tokens bleiben bei dir. Alles Weitere steht in [Zugang für die Steuerberatung](steuerberatung.md).
@@ -98,6 +100,7 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Standard-Einleitung für Rechnungen, für Angebote | Steht in neuen Rechnungen bzw. Angeboten als Einleitung über den Positionen, etwa eine Anrede oder „Für die erbrachten Leistungen berechne ich Ihnen:“. Im Beleg änderbar; bestehende Belege ändern sich nicht. Leer = keine Einleitung, höchstens 2000 Zeichen |
 | Versteuerung | Ist oder Soll, siehe unten |
 | Kleinunternehmer nach § 19 UStG | Haken setzen, wenn du die Kleinunternehmerregelung nutzt, siehe unten |
+| Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG) | Haken nur, wenn alle Umsätze den Vorsteuerabzug ausschließen, siehe unten |
 
 Fehlt einer GmbH oder UG etwas davon, zeigt das Formular im Abschnitt **Handelsregister und Geschäftsführung** „Für Rechnungen und Geschäftsbriefe fehlt noch (§ 35a GmbHG): …“, etwa „Geschäftsführer fehlt“ oder bei „E. Mustermann“ den fehlenden ausgeschriebenen Vornamen.
 
@@ -122,7 +125,7 @@ Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](
 Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
 
 - Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Seite stellst du unter [Logo und Blatt](#logo-und-blatt) ein. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
-- Die Vorschau im Rechnungs- und Angebotseditor zeigt es ebenfalls.
+- Die Vorschau bei Rechnung, Angebot und Mahnung zeigt es ebenfalls.
 - Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
 - Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
 
@@ -267,12 +270,16 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 | Bereich | Wirkung |
 | --- | --- |
 | Rechnungen | Neue Rechnungen bekommen „Kleinunternehmer nach § 19 UStG“, alle Positionen 0 %, mit dem Hinweis „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ Die Auswahl im Editor ist gesperrt. Eine regulär besteuerte Rechnung lässt sich nicht festschreiben. Siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung). |
-| Belege | Gebucht ohne Vorsteuerabzug: der Bruttobetrag geht auf das Aufwandskonto. Siehe [Belege](belege.md#als-kleinunternehmer). |
+| Belege | Gebucht ohne Vorsteuerabzug: der Bruttobetrag geht auf das Aufwandskonto. Siehe [Belege](belege.md#ohne-vorsteuerabzug). |
 | Voranmeldung | Die Seite weist darauf hin, dass du in der Regel keine Voranmeldung abgibst. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). |
 | Übersicht | Die Aufgaben „Voranmeldung senden“, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER entfallen. |
 | EÜR | Die Einnahmen stehen in der Zeile „Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer“. |
 
 Überschreitest du die Umsatzgrenze, nimmst du den Haken heraus; ab dann gilt die Regelbesteuerung. Ausschalten geht jederzeit, auch mitten im Jahr. Eine Kleinunternehmer-Rechnung lässt sich danach nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
+
+## Steuerfreie Umsätze nach § 4 UStG
+
+Führst du nur Umsätze aus, die den Vorsteuerabzug ausschließen — etwa Heilbehandlung oder Unterricht nach § 4 Nr. 14 oder 21 UStG —, setzt du unter **Einstellungen › Firma** den Haken **Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)**. Belege buchst du ab dann ohne Vorsteuer, am einzelnen Beleg änderbar; Rechnungen bleiben, wie sie sind. Setze den Haken nur, wenn wirklich alle Umsätze den Abzug ausschließen: steuerfreie Umsätze nach § 4 Nr. 1 bis 7, etwa Ausfuhren und innergemeinschaftliche Lieferungen, behalten ihn (§ 15 Abs. 3 UStG). Mehr unter [Belege](belege.md#ohne-vorsteuerabzug).
 
 ## Mahnwesen
 
@@ -281,7 +288,7 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 | Basiszinssatz in % | Grundlage der Verzugszinsen. Er ändert sich zum 1. Januar und 1. Juli und wird von der Deutschen Bundesbank veröffentlicht. **Bei der Bundesbank abrufen** fragt den aktuellen Satz im [SDMX-Webservice der Bundesbank](https://statistiken.bundesbank.de/statistiken-de/hilfe-970224?article=bundesbank-sdmx-web-service-api-991208) ab (Zeitreihe BBIN1.M.DE.BBK.BBKBAS2.EUR.ME) und trägt ihn ins Feld ein; er gilt erst nach dem Speichern. Steht der neue Satz Anfang Januar oder Juli noch nicht in der Zeitreihe, sagt Haben das; dann später erneut abrufen oder von Hand eintragen. Leer heißt: keine Verzugszinsen. |
 | Basiszinssatz automatisch abrufen | Aus, bis du den Haken setzt. Dann fragt Haben die Bundesbank nach dem 1. Januar und 1. Juli einmal am Tag, bis der Satz des neuen Halbjahrs in der Zeitreihe steht, und trägt ihn ein; dazwischen fragt Haben nicht, weil sich der Satz nur zu diesen Terminen ändert (§ 247 Abs. 1 BGB). Änderst du den Satz von Hand, prüft der nächste Lauf ihn einmal gegen die Bundesbank und ersetzt ihn durch den veröffentlichten Wert. |
 | Zahlungsfrist in Mahnungen | Tage ab dem Mahndatum, Vorgabe 10 |
-| Gebühr je Stufe | Vorschlag für Zahlungserinnerung, 1. Mahnung und letzte Mahnung, z. B. 0 €, 5 €, 10 € |
+| Gebühr je Stufe | Vorschlag für Zahlungserinnerung, 1. Mahnung und letzte Mahnung, z. B. 0 €, 5 €, 10 €; höchstens 1.000 € |
 
 Mehr unter [Rechnungen › Mahnwesen](rechnungen-zahlung.md#mahnwesen).
 

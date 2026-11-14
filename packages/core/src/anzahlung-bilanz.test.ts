@@ -66,7 +66,7 @@ describe.each([
   ["SKR03", 1900, 1_900, "regulaer", "8400"],
   ["SKR04", 700, 700, "regulaer", "4300"],
   ["SKR03", 0, 0, "regulaer", "8200"],
-  ["SKR04", 0, 0, "kleinunternehmer", "4185"],
+  ["SKR04", 0, 0, "kleinunternehmer", "4184"],
 ] as const)("Anzahlungsanteil %s, Satz %i, Steuer %i, %s", (frame, rate, tax, treatment, revenue) => {
   const shares: TaxShare[] = [{ rate, base: 10_000, tax }];
   const part: TaxShare[] = [{ rate, base: 2_500, tax: tax / 4 }];

@@ -58,6 +58,7 @@ services:
       - node_modules_core:/app/packages/core/node_modules
       - node_modules_einvoice:/app/packages/einvoice/node_modules
       - node_modules_elster:/app/packages/elster/node_modules
+      - node_modules_gobd_kern:/app/packages/gobd-kern/node_modules
       - node_modules_import:/app/packages/import/node_modules
       # Cache von bun install, damit ein neuer Container nicht alles neu lädt
       - cache:/home/bun/.cache
@@ -72,6 +73,7 @@ volumes:
   node_modules_core:
   node_modules_einvoice:
   node_modules_elster:
+  node_modules_gobd_kern:
   node_modules_import:
   cache:
   daten:

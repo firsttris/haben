@@ -30,6 +30,14 @@ In `apps/web/.env` trägst du mindestens `DATABASE_URL`, `BETTER_AUTH_SECRET` un
 > [!NOTE]
 > Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Ohne ERiC (`ERIC_HOME` oder unter Einstellungen geladen nach `ERIC_DIR`) arbeitet Haben mit dem simulierten ELSTER-Client, ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` ohne KI-Auslesung. Für die Auslesung mit einem eigenen Modell genügt ein lokales Ollama mit `EXTRACTION_BASE_URL=http://localhost:11434/v1` und `EXTRACTION_MODEL=qwen2.5vl:7b`; PDFs brauchen dafür `pdftoppm` (Paket poppler-utils). Für die Entwicklung reicht beides.
 
+Läuft die Instanz hinter einem Proxy mit eigener Domain, lehnt Vite fremde Hostnamen ab („Blocked request. This host … is not allowed"). Die erlaubten Hosts gehören nicht in `vite.config.ts`, sondern in die Umgebungsvariable — sie gilt dann nur für die eigene Umgebung:
+
+```sh
+__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.example.org bun run dev
+```
+
+Mehrere Domains mit Komma trennen, ein führender Punkt schließt Subdomains ein. `localhost` ist immer erlaubt.
+
 Datenbank anlegen und Migrationen anwenden. Das Migrationsskript liest `DATABASE_URL` aus der Umgebung, nicht aus der `.env`-Datei:
 
 ```sh
@@ -249,6 +257,8 @@ Trigger und Funktionen (Festschreibung, Versionierung, Audit-Log) kann drizzle-k
 cd apps/web && bun --bun drizzle-kit generate --custom --name=mein_trigger
 ```
 
+Ändert eine Migration Trigger oder `haben_*`-Funktionen, muss auch der ausgelieferte Sollbestand zur [Manipulationserkennung](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel) aktualisiert werden. `TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun apps/web/src/server/db/write-trigger-inventory.ts` erzeugt ihn ausschließlich aus einer dafür neu angelegten und frisch migrierten Testdatenbank. Der Test `apps/web/src/server/db/trigger-inventory.test.ts` schlägt fehl, solange `trigger-inventory.json` daneben abweicht. Erzeuge den Sollbestand auch beim Wechsel der PostgreSQL-Hauptversion neu, weil sich die von [`pg_get_functiondef`](https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE) rekonstruierte SQL-Darstellung ändern kann.
+
 Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen schon angewendet.
 
 ## Jahreswerte
@@ -285,8 +295,10 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 - **Oberfläche:** Gestaltung, Knopfarten, Seitenkopf, Rückfragen, Vorschau der Belegeditoren und Barrierefreiheit stehen in [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md).
 - **Unveränderlichkeit (GoBD) in der Datenbank:** Festgeschriebene Rechnungen, Buchungen, gesendete Voranmeldungen, Bankumsätze und übernommene Lexoffice-Daten sperren Postgres-Trigger gegen `UPDATE` und `DELETE`, ebenso gegen `TRUNCATE`; eine neue Tabelle mit Trigger gegen `DELETE` oder mit Audit-Trigger braucht auch einen vor `TRUNCATE` (`haben_reject_truncate`, sonst schlägt `apps/web/src/server/db/truncate.test.ts` fehl). Korrekturen sind neue Datensätze (Storno, Gegenbuchung, berichtigte Anmeldung). Beim Festschreiben einer Buchung prüft ein Trigger Soll = Haben. In versiegelten Tabellen (`invoices`, `journal_entries`, …) wird keine Spalte umbenannt, gelöscht oder neu berechnet; neue Spalten gehen. Eine Sperre oder ein Siegel wird nie gelockert, damit etwas funktioniert.
 - **Audit-Log:** Änderungen laufen über `withActor` (`apps/web/src/server/db/actor.ts`), damit der Trigger sie dem Nutzer zuschreibt. Neue Tabellen bekommen einen Audit-Trigger.
+- **Jedes Paket ist die einzige Stelle für sein Thema:** Fachlogik ohne Datenbank steht in `packages/core`, ELSTER-XML und ERiC in `packages/elster`, PDF und E-Rechnung in `packages/einvoice`, Parser für Kontoauszüge und Exporte anderer Programme in `packages/import`, die Unveränderbarkeit in `packages/gobd-kern` (was genau wohin gehört: [Pakete](architektur.md#pakete)). Die App ruft sie auf und baut nichts davon nach. Pakete importieren nichts aus `apps/`, der GoBD-Kern auch keine anderen Pakete von Haben; das prüft `scripts/modulgrenzen/`.
+- **GoBD-Bausteine gibt es einmal:** Neue Tabellen nutzen die vorhandenen Trigger-Funktionen (`haben_audit`, `haben_append_only`, `haben_reject_truncate`, `haben_seal`), Dateien und Prüfwert die aus `packages/gobd-kern` (`apps/web/src/server/storage.ts`, `apps/web/src/lib/pruefwert.ts`). Es gibt keine eigene Hash-Kette, Siegel- oder Sperrlogik und kein direktes Schreiben in `audit_log`; ein Ereignis ohne eigene Tabelle bekommt eine Ereignistabelle mit Audit-Trigger wie `token_events` (`0186_oidc_gruppen_trigger.sql`). Was ohne Bezug auf Haben auch andere Apps brauchen, gehört in [`packages/gobd-kern`](#paket-firsttrisgobd-kern).
 - **Geheimnisse** (Schlüssel, Passwörter, Tokens) liegen mit AES-256-GCM verschlüsselt in einer Spalte namens `ciphertext`, die `haben_audit` auslässt.
-- **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.
+- **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf.
 - **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)). Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
 - **Quellen statt Gedächtnis:** Details richten sich nach der Quelle, und wo sie ein Detail entscheidet, steht sie im Kommentar und in der Commit-Nachricht. E-Rechnung: EN 16931 und XRechnung (Business Terms wie BT-22), geprüft vom KoSIT-Validator mit `itplr-kosit/validator-configuration-xrechnung` (Versionen in `.github/workflows/ci.yml`). ELSTER: die [Entwicklerdokumentation von ERiC](https://www.elster.de/elsterweb/entwickler/infoseite/eric). DATEV: die Formatbeschreibung für EXTF/Buchungsstapel; Exporte von Lexware Office weichen davon ab ([Lexoffice](lexoffice.md)). Kontenrahmen: SKR03 und SKR04 von DATEV in dem Stand, den `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` nennt (Kontonummer, Bezeichnung, Funktion); DATEV entscheidet nur über Format und Kontenrahmen. Widerspricht eine Kontenfunktion dem Gesetz, einer ELSTER-Kennzahl oder der Taxonomie der E-Bilanz, gilt die Norm. [Enable Banking](https://enablebanking.com/docs/api/reference/), [Lexware Office](https://developers.lexware.io/docs/).
@@ -337,6 +349,10 @@ Ein Tag `vX.Y.Z` veröffentlicht eine Version über `.github/workflows/release.y
 Den Tag legt Actions → *Bump version* (`bump.yml`) mit patch, minor oder major an: Er committet `Release vX.Y.Z` auf `main` und taggt, mit dem Deploy Key aus `BUMP_DEPLOY_KEY`, der auf der Bypass-Liste des Rulesets steht ([firsttris/workflows](https://github.com/firsttris/workflows#bump-version)). Wer selbst auf der Bypass-Liste steht, kann lokal `bun run release:patch` (oder `:minor`, `:major`) nehmen. Von Hand gestartet (Actions → Release → Run workflow) veröffentlicht der Workflow nur `:edge`, ohne Release.
 
 Secrets: `DOCKER_PAT` (Docker-Hub-Token mit Schreibrecht für `tristanteu/haben`); für GHCR reicht `GITHUB_TOKEN`, das Paket muss nach dem ersten Push einmal auf öffentlich gestellt werden.
+
+### Paket `@firsttris/gobd-kern`
+
+`packages/gobd-kern` erscheint unabhängig von der App als Datei an einem GitHub-Release, damit auch andere Apps es nutzen, ohne npm ([#935](https://github.com/firsttris/haben/issues/935)): Version in `packages/gobd-kern/package.json` erhöhen und mergen, dann Actions → *GoBD-Kern als Release* → Run workflow auf `main`. `.github/workflows/gobd-kern-release.yml` lehnt eine schon vorhandene Version ab, führt Typecheck und die Tests des Pakets gegen Postgres aus, baut `firsttris-gobd-kern-X.Y.Z.tgz` und legt Tag und Release `gobd-kern-vX.Y.Z` an, nicht als „Latest“. Ein anderes Projekt installiert es mit `bun add https://github.com/firsttris/haben/releases/download/gobd-kern-vX.Y.Z/firsttris-gobd-kern-X.Y.Z.tgz`; `bun.lock` hält den Hash der Datei fest. Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite, und bleibt `private`, damit es nicht versehentlich auf npm landet.
 
 ### Release Candidates
 

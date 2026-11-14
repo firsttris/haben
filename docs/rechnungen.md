@@ -50,7 +50,7 @@ Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet de
 - **Neben Formular anheften** fährt die Vorschau von rechts neben das Formular. Sie bleibt beim Scrollen stehen und scrollt selbst, wenn die Rechnung länger ist als das Fenster. **Vergrößern** lässt sie breiter über das Formular fahren, **Ausblenden** gibt dem Formular wieder die volle Breite.
 - **Vorschau abheften** macht dasselbe wie **Ausblenden**.
 
-Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
+Haben merkt sich die Wahl in diesem Browser, für Rechnungen, Angebote und Mahnungen gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
 
 **Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Schrift, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer, Artikelnummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein. Ein eigenes Layout zeigt nur die Einstellungen, deren Felder es verwendet ([Eigene Belegvorlagen](belegvorlagen.md#einstellungen-der-gestaltung)).
 
@@ -311,7 +311,7 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 | Innergemeinschaftliche Lieferung | 8125 | 4125 | `IGL` (Kz 41) |
 | Ausfuhrlieferung ins Drittland | 8120 | 4120 | `Ausfuhr` (Kz 43) |
 | Steuerfrei nach § 4 UStG | 8100 | 4100 | `Steuerfrei` (Kz 48) |
-| Kleinunternehmer nach § 19 UStG | 8195 | 4185 | `KU` (keine Kennzahl) |
+| Kleinunternehmer nach § 19 UStG | 8192 | 4184 | `KU` (keine Kennzahl) |
 
 > [!IMPORTANT]
 > Die Kontenzuordnung stammt aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
@@ -435,19 +435,21 @@ Die Seite einer Vorlage listet alle daraus erzeugten Rechnungen. Löschen lässt
 
 Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und einen Status. Der Status wird bei jedem Aufruf aus den Zuordnungen im Bankabgleich und den Bareinnahmen im Kassenbuch abgeleitet; gespeichert ist nur „Entwurf“ oder „festgeschrieben“.
 
-Die Liste ist nach Rechnungsdatum sortiert, neueste zuerst, bei gleichem Datum nach Rechnungsnummer absteigend. In derselben Reihenfolge zeigt die Übersicht unter **Letzte Rechnungen** die fünf jüngsten festgeschriebenen Rechnungen.
+Die Liste ist nach Rechnungsdatum sortiert, neueste zuerst, bei gleichem Datum nach Rechnungsnummer absteigend. Das Suchfeld darüber filtert nach Nummer, Kunde, Bestellnummer, eigener Auftragsnummer und Bruttobetrag; über alle Bereiche sucht die [Schnellsuche](suche.md). In derselben Reihenfolge zeigt die Übersicht unter **Letzte Rechnungen** die fünf jüngsten festgeschriebenen Rechnungen.
 
-| Status | Bedeutung |
-| --- | --- |
-| Entwurf | Noch nicht festgeschrieben, ohne Nummer. |
-| Offen | Festgeschrieben, nicht fällig, noch keine Zahlung zugeordnet. |
-| Teilbezahlt | Ein Teil ist bezahlt, die Fälligkeit ist noch nicht überschritten. |
-| Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet oder bar im Kassenbuch eingenommen, gegebenenfalls abzüglich eines ausgebuchten Skontos. |
-| Ausgebucht | Erledigt, mit einem Forderungsausfall (siehe [Ausbuchen](#ausbuchen)). |
-| Überfällig | Fälligkeit überschritten und noch etwas offen, auch bei Teilzahlung. |
-| Storniert | Zu dieser Rechnung gibt es eine festgeschriebene Stornorechnung. |
-| Storno | Die Stornorechnung selbst. |
-| Korrektur | Eine Rechnungskorrektur. |
+Unter dem Status steht in Grau, was er für diese Rechnung gerade heißt. Überfällige Rechnungen sind farbig hinterlegt, auch die Zeile darunter, damit sie in der Liste auffallen; ein Entwurf hat einen leeren Ring statt eines Punkts.
+
+| Status | Bedeutung | Darunter |
+| --- | --- | --- |
+| Entwurf | Noch nicht festgeschrieben, ohne Nummer. | – |
+| Offen | Festgeschrieben, nicht fällig, noch keine Zahlung zugeordnet. | fällig am |
+| Teilbezahlt | Ein Teil ist bezahlt, die Fälligkeit ist noch nicht überschritten. | gezahlt von brutto |
+| Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet oder bar im Kassenbuch eingenommen, gegebenenfalls abzüglich eines ausgebuchten Skontos. | Tag der letzten Zahlung |
+| Ausgebucht | Erledigt, mit einem Forderungsausfall (siehe [Ausbuchen](#ausbuchen)). | als Forderungsausfall |
+| Überfällig | Fälligkeit überschritten und noch etwas offen, auch bei Teilzahlung. | seit wie vielen Tagen, bei Teilzahlung mit dem offenen Rest |
+| Storniert | Zu dieser Rechnung gibt es eine festgeschriebene Stornorechnung. | Nummer der Stornorechnung |
+| Storno | Die Stornorechnung selbst. | Nummer der stornierten Rechnung |
+| Korrektur | Eine Rechnungskorrektur. | Nummer der korrigierten Rechnung |
 
 ## Festgeschriebene Rechnung
 

@@ -8,15 +8,16 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { changeAccountFn, createInvitationFn, revokeInvitationFn, type getZugaenge } from "../server/functions/zugang.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Field } from "./Field.tsx";
+import { Status, Tag, type StatusLook } from "./Status.tsx";
 
 type Data = Extract<Awaited<ReturnType<typeof getZugaenge>>, { mode: "lokal" }>;
 
-const INVITATION_STATUS = {
-  offen: { label: "offen", pill: "pill-info" },
-  eingeloest: { label: "eingelöst", pill: "pill-ok" },
-  zurueckgezogen: { label: "zurückgezogen", pill: "" },
-  abgelaufen: { label: "abgelaufen", pill: "pill-warn" },
-} as const;
+const INVITATION_STATUS: Record<"offen" | "eingeloest" | "zurueckgezogen" | "abgelaufen", StatusLook> = {
+  offen: { text: "Offen", tone: "info" },
+  eingeloest: { text: "Eingelöst", tone: "ok" },
+  zurueckgezogen: { text: "Zurückgezogen" },
+  abgelaufen: { text: "Abgelaufen", tone: "warn" },
+};
 
 export const STEUERBERATUNG_DOCS = "https://haben.app/steuerberatung.html";
 
@@ -70,8 +71,12 @@ export function ZugaengeCard({ data }: { data: Data }) {
         <div key={account.id} className="history-row">
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
             <span style={{ fontWeight: 500, overflowWrap: "anywhere" }}>
-              {account.name} {account.role && <span className="pill">{ROLLEN_LABEL[account.role]}</span>}
-              {account.lockedAt && <span className="pill pill-warn">gesperrt</span>}
+              {account.name} {account.role && <Tag>{ROLLEN_LABEL[account.role]}</Tag>}{" "}
+              {account.lockedAt && (
+                <Status tone="warn" emphasis="notice" inline>
+                  Gesperrt
+                </Status>
+              )}
             </span>
             <span className="small muted" style={{ overflowWrap: "anywhere" }}>
               {account.email} · {account.lastLoginAt ? `zuletzt angemeldet ${formatDateTime(account.lastLoginAt)}` : "noch nicht angemeldet"}
@@ -138,7 +143,10 @@ export function ZugaengeCard({ data }: { data: Data }) {
       {open.map((invitation) => (
         <div key={invitation.id} className="history-row">
           <span className="small" style={{ overflowWrap: "anywhere" }}>
-            {invitation.label} <span className={`pill ${INVITATION_STATUS.offen.pill}`}>offen</span>
+            {invitation.label}{" "}
+            <Status tone={INVITATION_STATUS.offen.tone} inline>
+              {INVITATION_STATUS.offen.text}
+            </Status>
             <span className="small muted" style={{ display: "block" }}>
               gültig bis {formatDateTime(invitation.expiresAt)}
             </span>
@@ -175,7 +183,9 @@ export function ZugaengeCard({ data }: { data: Data }) {
                 {invitation.label}
                 {invitation.acceptedEmail ? ` · ${invitation.acceptedEmail}` : ""}
               </span>
-              <span className={`pill ${INVITATION_STATUS[invitation.status].pill}`}>{INVITATION_STATUS[invitation.status].label}</span>
+              <Status tone={INVITATION_STATUS[invitation.status].tone} inline>
+                {INVITATION_STATUS[invitation.status].text}
+              </Status>
             </div>
           ))}
         </details>

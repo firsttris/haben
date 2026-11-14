@@ -1,6 +1,7 @@
 import { UserError } from "../../errors.ts";
 import {
   ACCOUNTS,
+  entfernungspauschale,
   fahrtBetrag,
   FAHRZEUG_LABEL,
   homeofficeSatz,
@@ -19,8 +20,8 @@ import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 
 /**
- * Pauschalen ohne Beleg: Homeoffice-Tagespauschale je Monat, Fahrten mit dem Privatfahrzeug und
- * Verpflegungsmehraufwand je Reisetag. Jede Pauschale ist eine festgeschriebene Buchung Aufwand an
+ * Pauschalen ohne Beleg: Homeoffice-Tagespauschale und Entfernungspauschale je Monat, Fahrten mit dem
+ * Privatfahrzeug und Verpflegungsmehraufwand je Reisetag. Jede Pauschale ist eine festgeschriebene Buchung Aufwand an
  * Privateinlage; aufgehoben wird per Storno (Gegenzeile und Gegenbuchung).
  */
 
@@ -28,7 +29,7 @@ export class PauschaleError extends UserError {}
 
 export type Pauschale = typeof schema.pauschalen.$inferSelect;
 
-/** Eine Transaktion zur Zeit legt Pauschalen an oder storniert sie, damit die Höchstzahl der Homeoffice-Tage hält */
+/** Eine Transaktion zur Zeit legt Pauschalen an oder storniert sie, damit die Höchstzahl der Homeoffice-Tage und die Tage je Monat halten */
 const sqlLock = sql`select pg_advisory_xact_lock(hashtext('haben.pauschalen'))`;
 
 const isoDate = z.iso.date();
@@ -58,6 +59,14 @@ export const pauschaleInputSchema = z.discriminatedUnion("art", [
     mittag: z.boolean().default(false),
     abend: z.boolean().default(false),
   }),
+  z.object({
+    art: z.literal("entfernung"),
+    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Monat fehlt"),
+    tage: z.number().int().min(1, "Mindestens ein Tag").max(31),
+    // Nur volle Kilometer der einfachen Strecke zählen (§ 9 Abs. 1 Satz 3 Nr. 4 Satz 1 EStG)
+    km: z.number().min(1, "Mindestens ein voller Kilometer").max(5000),
+    betriebsstaette: z.string().trim().min(1, "Betriebsstätte fehlt").max(300),
+  }),
 ]);
 
 export type PauschaleInput = z.input<typeof pauschaleInputSchema>;
@@ -79,12 +88,12 @@ const germanMonth = (month: string) =>
 
 const formatKm = (km: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(km);
 
-/** Homeoffice-Tage eines Jahres bzw. Monats nach Storno (Stornozeilen zählen negativ) */
-async function homeofficeTage(tx: Tx, from: string, to: string): Promise<number> {
+/** Tage einer Art (Homeoffice, Wege zur Betriebsstätte) in einem Zeitraum nach Storno (Stornozeilen zählen negativ) */
+async function tageEinerArt(tx: Tx, art: "homeoffice" | "entfernung", from: string, to: string): Promise<number> {
   const rows = await tx
     .select({ amount: schema.pauschalen.amount, details: schema.pauschalen.details })
     .from(schema.pauschalen)
-    .where(and(eq(schema.pauschalen.art, "homeoffice"), gte(schema.pauschalen.date, from), lt(schema.pauschalen.date, to)));
+    .where(and(eq(schema.pauschalen.art, art), gte(schema.pauschalen.date, from), lt(schema.pauschalen.date, to)));
   return rows.reduce((sum, r) => sum + Math.sign(r.amount) * Number(r.details.tage ?? 0), 0);
 }
 
@@ -106,11 +115,11 @@ async function prepare(tx: Tx, input: z.output<typeof pauschaleInputSchema>, tod
       if (!satz) throw new PauschaleError("Die Homeoffice-Pauschale gibt es erst ab 2020.");
       if (input.month > today.slice(0, 7)) throw new PauschaleError("Der Monat liegt in der Zukunft.");
       const date = lastDayOfMonth(input.month);
-      const imMonat = await homeofficeTage(tx, `${input.month}-01`, `${nextMonth(input.month)}-01`);
+      const imMonat = await tageEinerArt(tx, "homeoffice", `${input.month}-01`, `${nextMonth(input.month)}-01`);
       if (imMonat + input.tage > daysInMonth(input.month)) {
         throw new PauschaleError(`Der ${germanMonth(input.month)} hat nur ${daysInMonth(input.month)} Tage; eingetragen sind schon ${imMonat}.`);
       }
-      const imJahr = await homeofficeTage(tx, `${year}-01-01`, `${year + 1}-01-01`);
+      const imJahr = await tageEinerArt(tx, "homeoffice", `${year}-01-01`, `${year + 1}-01-01`);
       if (imJahr + input.tage > satz.maxTage) {
         throw new PauschaleError(`Für ${year} gibt es die Pauschale für höchstens ${satz.maxTage} Tage; eingetragen sind schon ${imJahr}.`);
       }
@@ -134,6 +143,23 @@ async function prepare(tx: Tx, input: z.output<typeof pauschaleInputSchema>, tod
         details: { km, fahrzeug: input.fahrzeug, hinUndZurueck: input.hinUndZurueck },
         amount: fahrtBetrag(gesamt, input.fahrzeug),
         text: `Fahrt ${input.description}: ${formatKm(gesamt)} km ${FAHRZEUG_LABEL[input.fahrzeug]}`,
+      };
+    }
+    case "entfernung": {
+      const year = Number(input.month.slice(0, 4));
+      if (input.month > today.slice(0, 7)) throw new PauschaleError("Der Monat liegt in der Zukunft.");
+      const imMonat = await tageEinerArt(tx, "entfernung", `${input.month}-01`, `${nextMonth(input.month)}-01`);
+      if (imMonat + input.tage > daysInMonth(input.month)) {
+        throw new PauschaleError(`Der ${germanMonth(input.month)} hat nur ${daysInMonth(input.month)} Tage; eingetragen sind schon ${imMonat}.`);
+      }
+      const km = Math.floor(input.km);
+      return {
+        art: "entfernung",
+        date: lastDayOfMonth(input.month),
+        description: input.betriebsstaette,
+        details: { tage: input.tage, km, betriebsstaette: input.betriebsstaette },
+        amount: entfernungspauschale(year, input.tage, km),
+        text: `Wege zur Betriebsstätte ${germanMonth(input.month)}: ${input.tage} Tag${input.tage === 1 ? "" : "e"} × ${km} km, ${input.betriebsstaette}`,
       };
     }
     case "verpflegung": {
@@ -241,7 +267,7 @@ export async function listPauschalen(year: number) {
       .filter((r) => !r.reversesId)
       .map((r) => ({ ...r, storniert: reversed.has(r.id) }))
       .reverse(),
-    totals: { homeoffice: sum("homeoffice"), fahrt: sum("fahrt"), verpflegung: sum("verpflegung") },
+    totals: { homeoffice: sum("homeoffice"), fahrt: sum("fahrt"), verpflegung: sum("verpflegung"), entfernung: sum("entfernung") },
     homeoffice: {
       tage: active.filter((r) => r.art === "homeoffice").reduce((s, r) => s + Number(r.details.tage ?? 0), 0),
       maxTage: satz?.maxTage ?? 0,

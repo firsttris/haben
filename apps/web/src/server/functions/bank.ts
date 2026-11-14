@@ -1,7 +1,7 @@
 import {
   ACCOUNT_PURPOSES,
-  directBookingsFor,
-  direktKategorienFuer,
+  direktBuchungenFuerKonto,
+  direktKategorienFuerKonto,
   PAYMENT_PROVIDERS,
   directBookingLabel,
   paymentProviderAccount,
@@ -12,13 +12,11 @@ import {
   formatEuro,
   STEUERARTEN,
   steuerartenFor,
-  suggestDirectBooking,
 } from "@haben/core";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { storePayoutView } from "../modules/stores/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { suggestMatches } from "@haben/core";
 import {
   accountSchema,
   accountSettingsSchema,
@@ -29,6 +27,7 @@ import {
   allocateSplit,
   allocationSchema,
   BankError,
+  gemeldeteVoranmeldungen,
   createAccount,
   createProviderAccount,
   providerAccountSchema,
@@ -39,13 +38,9 @@ import {
   includeAccount,
   listExcludedAccounts,
   listLoans,
-  learnedDirectSuggestions,
-  listTransactions,
-  nachStatusSortieren,
   SORTIERRICHTUNGEN,
   UMSATZ_SORTIERFELDER,
-  openItems,
-  ownAccounts,
+  umsatzauswahl,
   updateAccount,
   reverseAllocation,
   splitSchema,
@@ -69,15 +64,12 @@ import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { UserError } from "../errors.ts";
 
-/** In der Liste nur sichere Vorschläge; „PayPal“ als Gegenpartei braucht die Gegenbuchung, die erst die Detailansicht sucht */
-const isCertainDirect = (s: ReturnType<typeof suggestDirectBooking>) => s !== null && !s.requiresCounterpart;
-
 export const getBankOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(
     z.object({
       konto: z.uuid().optional(),
-      filter: z.enum(["offen", "zugeordnet", "alle"]).default("offen"),
+      filter: z.enum(["offen", "zugeordnet", "alle", "vorschlag"]).default("offen"),
       suche: z.string().max(100).default(""),
       umsatz: z.uuid().optional(),
       sort: z.enum(UMSATZ_SORTIERFELDER).default("datum"),
@@ -87,39 +79,14 @@ export const getBankOverview = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const accounts = await listAccounts();
     const account = accounts.find((a) => a.id === data.konto) ?? accounts[0] ?? null;
-    const rows = account ? await listTransactions(account.id, data.filter, data.suche, { feld: data.sort, richtung: data.dir }) : [];
-    // Hinweis je Zeile: gibt es einen Vorschlag, fehlt ein Beleg?
-    const items = rows.some((r) => r.open !== 0) ? await openItems() : [];
-    const own = await ownAccounts();
-    const current = own.find((a) => a.id === account?.id);
-    // Ob sich das Konto als „gehört nicht zu dieser Firma“ ausschließen lässt (#462); sonst steht hier der Grund
+    const transactions = account ? await umsatzauswahl(account, data.filter, data.suche, { feld: data.sort, richtung: data.dir }) : [];
     const excludeBlockedBy = account ? await excludeBlocker(account.id) : null;
-    // Aus früheren Buchungen derselben Gegenpartei, für alle ganz offenen Umsätze in einer Abfrage
-    const learned = await learnedDirectSuggestions(rows.filter((r) => r.open !== 0 && r.open === r.amount));
-    const mitHinweis = rows.map((row) => {
-      if (row.neutralized) return { ...row, hint: "verrechnet" as const };
-      if (row.open === 0) return { ...row, hint: "zugeordnet" as const };
-      const hasSuggestion =
-        suggestMatches({ ...row, amount: row.open }, items, 1).length > 0 ||
-        (row.open === row.amount && current !== undefined && isCertainDirect(suggestDirectBooking(row, current, own))) ||
-        learned.has(row.id);
-      return {
-        ...row,
-        hint: hasSuggestion
-          ? ("vorschlag" as const)
-          : row.open !== row.amount
-            ? ("teilweise" as const)
-            : row.amount < 0
-              ? ("belegFehlt" as const)
-              : ("offen" as const),
-      };
-    });
-    // Datum, Gegenpartei und Betrag sortiert schon die Datenbank, den Status gibt es erst hier (#681)
-    const transactions = data.sort === "status" ? nachStatusSortieren(mitHinweis, data.dir) : mitHinweis;
     const selectedId = data.umsatz ?? transactions.find((t) => t.open !== 0)?.id ?? transactions[0]?.id;
     const detail = selectedId ? await transactionDetail(selectedId) : null;
     return {
       accounts,
+      /** Monate mit abgegebener Voranmeldung: danach ist der Tag der Aufhebung vorbelegt (#782) */
+      gemeldeteMonate: await gemeldeteVoranmeldungen(),
       accountId: account?.id ?? null,
       excludeBlockedBy,
       excludedAccounts: (await listExcludedAccounts()).map((a) => ({ ...a, excludedAt: a.excludedAt?.toISOString() ?? null })),
@@ -130,13 +97,17 @@ export const getBankOverview = createServerFn({ method: "GET" })
           : null,
       directKinds: await (async () => {
         const { rechtsform } = await loadCompany();
-        return directBookingsFor(rechtsform).map((value) => ({ value, label: directBookingLabel(value, rechtsform) }));
+        // Auf einem privaten Konto entfallen vier Angebote (#873)
+        return direktBuchungenFuerKonto(rechtsform, account?.purpose ?? "geschaeft").map((value) => ({
+          value,
+          label: directBookingLabel(value, rechtsform),
+        }));
       })(),
       /** Steuerzahlung: Steuerarten der Rechtsform und Teile (Steuer, Zinsen, Zuschläge) */
       steuerarten: steuerartenFor((await loadCompany()).rechtsform).map((value) => ({ value, label: STEUERARTEN[value] })),
       steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
       /** Direkt buchen auf eine Kategorie: Einnahmen und die Ausgabekategorien, die ohne Beleg gehen (#324) */
-      kategorien: direktKategorienFuer(),
+      kategorien: direktKategorienFuerKonto(account?.purpose ?? "geschaeft"),
       kleinunternehmer: (await loadCompany()).kleinunternehmer,
       /** Darlehen mit Bestand und die Teile einer Rate */
       loans: (await listLoans()).map((l) => ({ value: l.id, label: `${l.name} · Bestand ${formatEuro(l.balance)}` })),
@@ -276,11 +247,18 @@ export const reverseWriteOffFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Aufhebung einer Zuordnung: Pflicht ist der Tag, an dem sie erklärt wird (#782); er ist nicht rückdatiert */
+export const reverseAllocationSchema = z.object({
+  id: z.uuid(),
+  // In der Zukunft aufheben kann niemand; den Rückfall auf das Buchungsdatum verhindert der Tag selbst
+  date: z.iso.date().refine((d) => d <= today(), "Das Datum der Aufhebung liegt in der Zukunft."),
+});
+
 export const reverseTransactionAllocation = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(reverseAllocationSchema)
   .handler(async ({ data, context }) => {
-    await reverseAllocation(context.user.id, data);
+    await reverseAllocation(context.user.id, data.id, data.date);
     return { ok: true };
   });
 

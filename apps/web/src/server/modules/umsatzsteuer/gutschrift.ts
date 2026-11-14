@@ -1,5 +1,5 @@
 import { paidTaxShares, periodRange, splitPrivateShare, type Cents, type TaxShare, type VatPeriod } from "@haben/core";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
@@ -84,7 +84,10 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
   const zahlungen = await q
     .select({
       ...beleg,
-      date: schema.bankTransactions.bookingDate,
+      // Der Tag, an dem die Zuordnung wirkt: die Gegenzeile einer Aufhebung trägt ihr eigenes Datum (#782),
+      // sonst gilt der Buchungstag des Umsatzes. Ohne das coalesce läge die Minderung im Monat der Zahlung,
+      // während das Journal sie am Tag der Aufhebung bucht.
+      date: sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`,
       amount: schema.allocations.amount,
       createdAt: schema.allocations.createdAt,
       id: schema.allocations.id,

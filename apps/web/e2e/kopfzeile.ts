@@ -46,7 +46,7 @@ export async function statusBleibtSichtbar(p: Page, path: string): Promise<void>
     await expect(head.getByRole("heading", { level: 1 })).toBeVisible();
     await zumEnde(p);
     await sichtbar(head.getByRole("heading", { level: 1 }));
-    await sichtbar(head.locator(".pill").first());
+    await sichtbar(head.locator(".status").first());
   } finally {
     if (vorher) await p.setViewportSize(vorher);
   }

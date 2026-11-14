@@ -98,6 +98,23 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
     ]);
   });
 
+  it("bucht Gewerbesteuer auf dem privaten Konto als Einlage, nicht gegen die Bank (#873)", async () => {
+    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-11-10", -50_000);
+
+    await bank.allocate(actor, {
+      kind: "steuer",
+      transactionId: transaction,
+      amount: -50_000,
+      steuer: { art: "gewst", jahr: 2025, posten: "steuer" },
+    });
+
+    const rows = await zeilen(transaction);
+    // Zahlung vom privaten Konto: die Bank bleibt unberührt, die Gegenzeile ist die Einlage
+    expect(rows.map((r) => r.account)).not.toContain("1200");
+    expect(rows.map((r) => r.account)).toContain("1890");
+  });
+
   it("bucht eine Erstattung ohne Voranmeldungsbezug auf dem privaten Konto ebenfalls als Entnahme", async () => {
     const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
     const transaction = await umsatz(account, "2026-10-12", 503_68);
@@ -162,6 +179,90 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
     expect(await zeilen(transaction)).toEqual([
       { account: "1780", debit: 87_73, credit: 0 },
       { account: "1890", debit: 0, credit: 87_73 },
+    ]);
+  });
+
+  it("lehnt die Einkommensteuer des Inhabers auf dem privaten Konto ab (#873)", async () => {
+    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-11-10", -100_000);
+
+    await expect(
+      bank.allocate(actor, {
+        kind: "steuer",
+        transactionId: transaction,
+        amount: -100_000,
+        steuer: { art: "est", jahr: 2026, posten: "steuer" },
+      }),
+    ).rejects.toThrow(/§ 12 Nr. 3 EStG/);
+    // Nichts gebucht: sonst stünde dieselbe Summe in der Anlage EÜR als Entnahme und als Einlage
+    expect(await zeilen(transaction)).toEqual([]);
+  });
+
+  it("lehnt die einbehaltene Kapitalertragsteuer auf dem privaten Konto ab (#873)", async () => {
+    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-11-10", -25_00);
+
+    await expect(
+      bank.allocate(actor, {
+        kind: "steuer",
+        transactionId: transaction,
+        amount: -25_00,
+        steuer: { art: "kapest", jahr: 2026, posten: "steuer" },
+      }),
+    ).rejects.toThrow(/§ 20 Abs. 1 Nr. 7 EStG/);
+    expect(await zeilen(transaction)).toEqual([]);
+  });
+
+  it("bucht im SKR04 die Gewerbesteuer vom privaten Konto als Einlage gegen 7610", async () => {
+    await firma("SKR04", "einzelunternehmen");
+    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-11-10", -50_000);
+
+    await bank.allocate(actor, {
+      kind: "steuer",
+      transactionId: transaction,
+      amount: -50_000,
+      steuer: { art: "gewst", jahr: 2026, posten: "steuer" },
+    });
+
+    expect(await zeilen(transaction)).toEqual([
+      { account: "2180", debit: 0, credit: 50_000 },
+      { account: "7610", debit: 50_000, credit: 0 },
+    ]);
+  });
+
+  it("bucht in der GmbH die Körperschaftsteuer vom Gesellschafterkonto gegen das Verrechnungskonto und verbraucht die Rückstellung", async () => {
+    await firma("SKR03", "gmbh");
+    const manual = await import("../buchhaltung/manual.ts");
+    // Rückstellung aus dem Jahresabschluss 2025: 1.000 € Körperschaftsteuer
+    await manual.createManualEntry(
+      actor,
+      {
+        kind: "umbuchung",
+        date: "2025-12-31",
+        description: "Steuerrückstellungen 2025",
+        lines: [
+          { account: "2200", debit: 1000_00, credit: 0 },
+          { account: "0963", debit: 0, credit: 1000_00 },
+        ],
+      },
+      "2026-01-15",
+    );
+    const account = await konto("privat", "Gesellschafter privat", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-03-10", -1200_00);
+
+    await bank.allocate(actor, {
+      kind: "steuer",
+      transactionId: transaction,
+      amount: -1200_00,
+      steuer: { art: "kst", jahr: 2025, posten: "steuer" },
+    });
+
+    // Verrechnungskonto als Einlage des Gesellschafters, Rückstellung verbraucht, Rest Aufwand für Vorjahre
+    expect(await zeilen(transaction)).toEqual([
+      { account: "0730", debit: 0, credit: 1200_00 },
+      { account: "0963", debit: 1000_00, credit: 0 },
+      { account: "2203", debit: 200_00, credit: 0 },
     ]);
   });
 });

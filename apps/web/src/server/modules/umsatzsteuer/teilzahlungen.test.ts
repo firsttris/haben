@@ -124,7 +124,8 @@ describe.skipIf(!testDatabaseUrl)("Teilzahlungen bei Ist-Versteuerung (Postgres)
       ["01.10.26", "Rate A", "39,67"],
       ["02.10.26", "Rate B", "39,67"],
     ]);
-    await bank.reverseAllocation(actor, second!);
+    // Aufhebung am Tag der Rate: der Monat soll die Gegenzeile tragen
+    await bank.reverseAllocation(actor, second!, "2026-10-02");
     await pay(inv.id, [
       ["03.10.26", "Rate C", "39,66"],
       ["04.10.26", "Rate D", "39,67"],

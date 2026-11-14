@@ -19,7 +19,7 @@ Farben kommen aus den Variablen in `:root` von `styles.css`; die Farben übersch
 | Linien | `--line`, `--line-soft`, `--line-strong` |
 | Akzent | `--accent`, `--accent-hover`, `--accent-ink`, `--accent-soft`, `--accent-tint`, `--accent-fg` (Schrift auf Akzentfläche) |
 | Links | `--link`, `--link-hover` |
-| Navigation | `--brand`, `--nav`, `--nav-active`, `--nav-ink` |
+| Navigation | `--brand`, `--nav`, `--nav-active`, `--nav-ink`, `--nav-ink-strong` (hervorgehobene Schrift, immer weiß) |
 | Status | `--warn-ink`, `--warn-soft`, `--warn-dot`, `--info-ink`, `--info-soft`, `--danger-ink`, `--danger-soft` |
 
 Einzige Ausnahme ist das Zeichen der Firma links neben „Haben“ (`NavMarkSymbol`), eine eigene Einstellung der Instanz unter Einstellungen › Firma, getrennt von der Beleggestaltung. Ein „H“ in eigener Farbe bekommt Fläche und Schrift als Inline-Style, die Schrift wählt `inkOnAccent` (`packages/core/src/accent.ts`): Weiß oder Schwarz, je nachdem, was den höheren Kontrast hat, so hält jede Farbe mindestens 4,5 : 1. Ein Logo steht auf weißer Fläche (`.brand-logo`), weil Logos für Papier gemacht sind und ein dunkles auf der dunklen Navigation verschwände, verkleinert in dieselbe quadratische Kachel wie das „H“ (`object-fit: contain`). Ab Werk bleibt `--brand` des Themes.
@@ -57,6 +57,12 @@ Knöpfe und Karten tragen einen feinen Schatten (`--shadow-xs`), randlose Knöpf
 
 Der Fokusring der Knöpfe steht mit 2px Abstand außen. Bei Feldern (Eingabe, Auswahlliste, Textfeld, Combobox) liegt er auf dem eigenen Rahmen, der dabei die Akzentfarbe annimmt, statt als zweiter Rahmen daneben.
 
+### Gesperrte Knöpfe
+
+Ein gesperrter Knopf ist per Tab nicht erreichbar und sagt nicht, was fehlt. Die Hauptaktion eines Formulars ist deshalb nur gesperrt, solange sie läuft (`busy`), nie weil eine Angabe fehlt oder nicht stimmt. Ein Druck prüft die Angaben: `useSubmitCheck` (`lib/use-submit-check.ts`) setzt den Fehler als `error` an jedes betroffene `Field`, bricht das Absenden ab und setzt den Fokus aufs erste Feld mit Fehler; das hilft bei WCAG 3.3.1 und 3.3.3, weil der Fehler am Feld als Text steht. Danach verschwindet ein Fehler, sobald die Angabe stimmt. Braucht eine Aktion eine Angabe nicht, etwa ein Entwurf den Kunden, lässt `check` sie aus, und ihr Fehler erscheint erst bei einer Aktion, die sie braucht. Das Formular trägt `noValidate`, damit der Browser keine eigene Meldung davorschiebt; `required` bleibt an den Feldern, Grenzen wie `min` und `max` prüfen `datumFehler` und `monatFehler` mit. Was man vor der Eingabe wissen muss, etwa „mindestens 10 Zeichen“, steht als `hint` am Feld. Kontrollkästchen ohne `Field` (etwa die Mahlzeiten der Verpflegung) tragen bei einem Fehler selbst `aria-invalid` und zeigen per `aria-describedby` auf eine `.field-error` darunter, sonst findet der Fokus sie nicht.
+
+Gesperrt sein darf ein Knopf, wenn der Grund nicht im Formular liegt oder direkt daneben zu sehen ist: Es fehlt etwas außerhalb (Zertifikat, Firmendaten, Fehler im Jahr), dann steht der Grund als Hinweis über der Knopfzeile, mit Link dorthin, wo er sich beheben lässt; oder es gibt nichts zu tun (nichts geändert, nichts ausgewählt, mit dem Zähler daneben). Geht die Aktion gerade grundsätzlich nicht, fehlt der Knopf. Ein Satz mit dem Grund steht nie als loser Text in `.actions`; ein Zähler wie „2 ausgewählt“ darf dort stehen.
+
 ### Reihenfolge der Knöpfe
 
 In einer Knopfzeile (`.actions`, auch `.form-footer` und Dialoge) steht die Hauptaktion (`btn-primary`) als letzter Knopf, rechts; Abbrechen und Nebenaktionen („Entwurf speichern“, „Nur prüfen“) stehen davor. Das Überlaufmenü `⋯` ist keine Aktion der Zeile und zählt dabei nicht mit: Am Laptop steht es ganz rechts hinter der Hauptaktion, am Handy links neben der Vorschau (#355, Variante E).
@@ -71,15 +77,81 @@ Ausrichtung: auf der Seite linksbündig an der Kante der Felder, im Dialog recht
 
 Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
 
+### Tastenkürzel
+
+Die Oberfläche zeigt ein Kürzel immer mit `Kuerzel` (`components/Kuerzel.tsx`), je Taste ein Kästchen in der Schriftfarbe der Umgebung; `title`, Hinweistexte und `aria-keyshortcuts` kommen aus `useKuerzelText` und `ariaKuerzel` (`lib/tastatur.ts`). Nie fest „Strg“, „Cmd“ oder „⌘“ schreiben: Die Taste `mod` ist am Mac, iPhone und iPad ⌘, sonst Strg. Der Server kennt das System nicht und zeigt „Strg“, der Browser tauscht beim Laden. Text nur für Screenreader, etwa ein versteckter Hinweis, nennt die Taste mit `kuerzelSprache` als Wort („Befehlstaste“ bzw. „Strg“), weil nicht jeder Screenreader ⌘ als Taste vorliest. Kürzel sind für deutsche Tastaturen (ISO-DE) gewählt: nur Tasten, die dort ohne Umschalt oder AltGr erreichbar sind, nicht `[`, `]`, `/` oder `\`, die auf amerikanischen Tastaturen einzeln liegen.
+
 ### Navigation
 
-Oben in der Navigation steht die Marke: das Zeichen und „Haben“ (18px, halbfett). Das Zeichen ist fest quadratisch und voll gefüllt, am Desktop 40px, am Handy 36px, für das „H“ wie für ein Logo (auf weißer Fläche, weil Logos für Papier gemacht sind); ein breites Logo nimmt dem Namen so keinen Platz, und nichts springt, wenn das Bild lädt. Hebt sich ein „H“ in eigener Farbe in einem der Themes nicht mit 3 : 1 von der Navigation ab (WCAG 1.4.11), bekommt die Kachel eine feine helle Innenkante (1px, `--nav-ink` mit 60 % Deckkraft); die Hintergründe der Themes stehen dafür auch in `NAV_BACKGROUNDS` (`packages/core/src/accent.ts`) und müssen mit `--nav` übereinstimmen. Die Kachel steht bündig mit den Symbolen der Menüpunkte, rechts hat die Marke am Desktop keinen Innenabstand, am Handy 8px zum Menüknopf. Hat die Firma in den Firmendaten einen Namen, steht er darunter (13px, mittel, in `--nav-ink`, dem Grau der Menüpunkte, damit „Haben“ die Hauptzeile bleibt), denn er zeigt, in welcher Instanz man bucht (#504). Am Desktop nimmt er bis zu zwei Zeilen, damit auch lange Namen passen, am Handy eine, weil die Leiste dort `--nav-height` (60px) hoch bleibt; was nicht passt, endet mit Auslassungszeichen. Am Desktop klappt der Name dann beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf (Fläche `--nav-active`, weiße Schrift, über den ersten Menüpunkten), Escape und das Verlassen schließen ihn; ein `title` gibt es nicht, weil er nicht zu gestalten und nicht per Tastatur zu erreichen ist.
+Oben in der Navigation steht die Marke: das Zeichen und „Haben“ (18px, halbfett). Das Zeichen ist fest quadratisch und voll gefüllt, am Desktop 40px, am Handy 36px, für das „H“ wie für ein Logo (auf weißer Fläche, weil Logos für Papier gemacht sind); ein breites Logo nimmt dem Namen so keinen Platz, und nichts springt, wenn das Bild lädt. Hebt sich ein „H“ in eigener Farbe in einem der Themes nicht mit 3 : 1 von der Navigation ab (WCAG 1.4.11), bekommt die Kachel eine feine helle Innenkante (1px, `--nav-ink` mit 60 % Deckkraft); die Hintergründe der Themes stehen dafür auch in `NAV_BACKGROUNDS` (`packages/core/src/accent.ts`) und müssen mit `--nav` übereinstimmen. Die Kachel steht bündig mit den Symbolen der Menüpunkte, rechts hat die Marke am Desktop keinen Innenabstand, am Handy 8px zur Lupe der Schnellsuche. Hat die Firma in den Firmendaten einen Namen, steht er darunter (13px, mittel, in `--nav-ink`, dem Grau der Menüpunkte, damit „Haben“ die Hauptzeile bleibt), denn er zeigt, in welcher Instanz man bucht (#504). Am Desktop nimmt er bis zu zwei Zeilen, damit auch lange Namen passen, am Handy eine, weil die Leiste dort `--nav-height` (60px) hoch bleibt; was nicht passt, endet mit Auslassungszeichen. Im ausgeklappten Desktop-Zustand klappt der Name dann beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf (Fläche `--nav-active`, weiße Schrift, über den ersten Menüpunkten), Escape und das Verlassen schließen ihn; ein `title` gibt es nicht, weil er nicht zu gestalten und nicht per Tastatur zu erreichen ist.
+
+Gibt es Instanzen anderer Firmen (`HABEN_FIRMEN`, #504), beginnt der rollende Menübereich unter der Schnellsuche mit der Zeile „Firma wechseln“ (`FirmaWechsler`), mit einer Linie zu den Menüpunkten; die Marke hat dann am Desktop unten 8px statt 28px Abstand. Sie klappt die Liste der anderen Firmen im ausgeklappten Desktop-Zustand wie am Handy im Fluss darunter auf, ohne schwebendes Fenster; die eigene Firma steht nicht darin, ihr Name steht schon unter „Haben“. Zeile und Firmen sehen aus wie Menüpunkte ohne Symbol (36px hoch, am Handy 44px), die offene Zeile trägt keine Fläche, damit sie nicht wie der aktive Menüpunkt aussieht. Die Firmen sind Links im selben Tab, weil man die Firma wechselt und nicht daneben eine Seite aufschlägt. Mehr als sechseinhalb Zeilen rollen in der Liste, ab 20 Firmen steht darüber ein Suchfeld in den Farben der Navigation. Beim Öffnen steht der Fokus im Suchfeld, sonst auf der ersten Firma; Escape, ein Klick daneben und Tab hinter die letzte Firma schließen, am Handy schließt Escape erst die Liste und dann das Menü.
 
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
+
+Die festen Menüpunkte (`NAV_GROUPS`, `STEUERBERATUNG_NAV`) haben je ein eigenes Symbol; eins teilen nur die Punkte, die `GETEILTE_SYMBOLE` in `lib/navigation.test.ts` nennt.
+
+Ist die Navigation höher als das Fenster, bleibt am Desktop die Marke mit dem Firmennamen stehen und nur die Menüpunkte darunter rollen. Die Leiste, auch die der Liste unter „Firma wechseln“, ist schmal, erscheint nur beim Rollen, wo das System es so vorsieht, und hat in `--nav-ink` mit 55 % Deckkraft mindestens 3 : 1 gegen `--nav` (WCAG 1.4.11).
+
+**Einfahrbare Seitenleiste (Desktop):** Oberhalb von 860 px Breite klappt der letzte Knopf der Leiste (`sidebar-close`, eingeklappt `sidebar-open`), ausgeklappt wie eingeklappt ganz unten, die Seitenleiste auf 64 px ein (168 px mehr Breite für Tabellen und Belegvorschau). `NAV_SCRIPT` setzt `data-nav="collapsed"` schon vor dem ersten Zeichnen aus `localStorage` (analog zu `THEME_SCRIPT` in `lib/theme.ts`); der Server liefert beide Fassungen, CSS zeigt eine, sodass beim Laden nichts springt oder nachrückt. Eingeklappt bleiben das Markenzeichen, die Lupe der Schnellsuche, `Übersicht`, die Arbeitsbereiche, optional `Firma wechseln` und `Eigene Seiten`, `Einstellungen` und `Konto & Darstellung` als Symbole stehen. Jeder Arbeitsbereich hat ein eigenes Symbol, das kein Menüpunkt wiederholt.
+
+Ein Symbol mit Unterpunkten öffnet sein Flyout rechts neben der Leiste beim Überfahren mit der Maus sofort, mit Klick, `Enter` oder `Leertaste` (Tastatur und Touch); das Überfahren nimmt den Fokus nicht, Klick und Tastatur legen ihn in die Links. Verlassen schließt ein so geöffnetes Flyout nach 300 ms, ein Klick heftet es an; `Esc` schließt jedes zurück auf das Symbol (WCAG 1.4.13). Wer schräg zum Flyout zieht und dabei ein anderes Symbol streift, öffnet es nicht, solange der Zeiger Kurs auf das Flyout hält (`lib/zielkurs.ts`). Das Flyout ist die Gruppe der ausgeklappten Leiste in einem schwebenden Menü: 4px neben der Leiste wie `.split-menu` unter seinem Knopf, Kopf wie `.nav-group-label`, Ecken 8px, Innenabstand 4px, Schatten wie `.split-menu`, im dunklen Modus `--line` als Rand. Unter „Firma wechseln“ steht im Kopf die eigene Firma (#504).
+
+Ein Symbol ohne Unterpunkte (Marke, Schnellsuche, `Übersicht`, `Einstellungen`, der Knopf zum Ausklappen) zeigt beim Überfahren und mit Tastaturfokus einen Hinweis mit seinem Namen (`NavTip`, Fläche `--nav-active` wie der aufgeklappte Firmenname), die Marke dabei „Haben“ und die Firma; kein `title`, aus demselben Grund wie beim Firmennamen. `Esc` blendet den Hinweis aus. Die Gruppe der aktiven Seite trägt die Fläche des aktiven Menüpunkts, eine offene Gruppe dieselbe Fläche mit halber Deckkraft. Auf dem Handy bis 860 px gilt das Aufklappmenü.
+
+### Befehlspalette
+
+**Schnellsuche** sitzt am Desktop unter der Marke außerhalb des rollenden Menüs, am Handy als Lupe neben **Menü**. `Strg+K`, am Mac `⌘+K`, öffnet die Suche auf jeder Seite, solange kein anderer Dialog offen ist.
+
+`CommandPalette` übernimmt Fläche, Rahmen und Hintergrund der Formular-Dialoge. Sie ist bis zu 720px breit und bleibt beim Tippen am selben oberen Abstand. Im Kopf steht ein Feld mit Lupe und eigenem Fokusrahmen. Die Treffer rollen zwischen Kopf und festem Fuß. Am Handy füllt der Dialog den Bildschirm und **Abbrechen** steht neben dem Feld, der Fuß entfällt.
+
+Eine Trefferzeile zeigt Symbolkachel, Titel und darunter Kontext. Am Desktop stehen Betrag und Status mit Auskunft in festen, rechtsbündigen Spalten. Am Handy teilen sie sich die dritte Zeile mit dem Betrag links und dem Status rechts. Die aktive Zeile zeigt die Fläche `--hover` und rechts einen Pfeil. Die Maus setzt denselben Zustand wie die Tastatur. Der Link **Alle anzeigen** steht in der Gruppenüberschrift und öffnet die gefilterte Liste.
 
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.
+
+### Status
+
+Den Zustand eines Objekts (Rechnung, Angebot, Beleg, Umsatz, Bankverbindung, Frist, Voranmeldung, Lohnabrechnung, Protokolleintrag) zeigt `Status` aus `components/Status.tsx`: ein Punkt in der Farbe des Tons, das Wort und darunter in Grau eine Auskunft, was der Status gerade heißt. Gefüllte Pillen gibt es nicht mehr.
+
+```tsx
+<Status tone="warn" emphasis="urgent" detail="seit 40 Tagen">Überfällig</Status>
+```
+
+**Auskunft (`detail`):** Sie beantwortet die Frage, die man beim Draufschauen hat, kurz und mit Zahl oder Datum: „fällig 23.11.“, „seit 40 Tagen“, „2.380,00 von 4.760,00 €“, „am 30.10.“, „durch RE-2026-0137“, „gilt noch 25 Tage“. Was ohnehin in einer Spalte daneben steht, wiederholt sie nicht. Fehlt die Angabe, bleibt die Zeile leer; eine Auskunft ohne Inhalt („Status: offen“) gibt es nicht.
+
+**Ton (`tone`):** Er sagt, welcher Art der Zustand ist, nicht wie dringend.
+
+| Ton | Wofür | Beispiele |
+| --- | --- | --- |
+| `neutral` | Wartet, ohne dass etwas fehlt | Offen, Getrennt, Storno |
+| `ok` | Erledigt, gültig, angenommen | Bezahlt, Gebucht, Aktiv, Gesendet, OK |
+| `info` | Läuft oder ist zur Hälfte da | Teilbezahlt, Wird ausgelesen, Vorschlag, Hinweis |
+| `warn` | Etwas fehlt oder ist abgelaufen | Überfällig, Beleg fehlt, Zu prüfen, Abgelaufen, Prüfen |
+| `danger` | Aufgehoben oder fehlgeschlagen | Storniert, Abgelehnt, Fehler, Fehlgeschlagen |
+
+**Entwurf (`draft`):** Der Punkt wird ein leerer Ring: noch nicht festgeschrieben. Nach dem Festschreiben ist er voll. Das gilt für jeden Entwurf, ob Rechnung, Angebot, Voranmeldung oder Lohn. Der Ring sagt das schon, eine Auskunft „noch nicht festgeschrieben“ gibt es deshalb nicht.
+
+**Stufe (`emphasis`):** Sie entscheidet, wie laut der Status ist. Weil fast alles ruhig ist, springt das Dringende heraus; deshalb ist „dringend“ selten.
+
+| Stufe | Wann | Aussehen |
+| --- | --- | --- |
+| ohne | Der Normalfall, auch Erledigtes und Storniertes: das ist Geschichte, keine Aufgabe | Nur der Punkt trägt die Farbe |
+| `notice` | Du bist am Zug und der nächste Schritt ist klar, aber ohne Frist: Vorschlag bestätigen, Beleg zuordnen oder prüfen, angenommenes Angebot abrechnen, abgelaufenes Angebot nachfassen, Lohn gegenprüfen, fehlende Angabe nachtragen | Das Wort steht in der Farbe des Tons |
+| `urgent` | Eine Frist ist überschritten oder kommt in höchstens 7 Tagen, Geld steht aus, etwas ist fehlgeschlagen | Das Wort auf weicher Fläche, die Auskunft in der Farbe |
+
+Die Grenze von 7 Tagen ist dieselbe wie auf der Seite Fristen. Was nur wartet, ohne dass du etwas tun kannst (Offen, Teilbezahlt, Wird ausgelesen, Hinweis), bleibt ruhig, auch wenn es noch nicht erledigt ist. Eine Liste, in der jede zweite Zeile dringend ist, hat die Stufe falsch gewählt: Dann ist der Zustand der Normalfall dieser Liste und bekommt `notice`.
+
+**Anordnung:** In Tabellen steht der Status in der letzten Spalte, Punkt über Punkt, die Auskunft darunter, mit 12px mehr Abstand zur Spalte davor; eine Trennlinie davor gibt es nicht. Alle Zellen der Zeile stehen auf der ersten Grundlinie (`align-items: first baseline`), so liegt das Statuswort auf der Textzeile daneben, und jede Zeile reserviert zwei Zeilen für den Status, damit Zeilen mit und ohne Auskunft gleich hoch sind. Am Handy stehen Auskunft und Wort nebeneinander in der zweiten Zeile, das Wort rechts an der Kante unter dem Betrag, damit es von Zeile zu Zeile an derselben Stelle steht; eine zu lange Auskunft endet mit „…“, die Zeile bleibt zweizeilig. Die Fläche eines dringenden Worts ragt in Listen in den Rand, am Desktop nach links, am Handy nach rechts, damit das Wort mit den ruhigen Wörtern fluchtet; im Seitenkopf und in Fließtext steht sie bündig mit Titel und Text. Das Brief-Symbol „per E-Mail versendet“ steht am Desktop hinter dem Status, am Handy vor der Auskunft. Wo links zwei Zeilen stehen, wie Lieferant und Rechnungsnummer bei den Belegen, zeigt das Handy nur das Wort. Im Seitenkopf (`.title-with-status`) und mit `inline` steht die Auskunft in derselben Zeile. Ein Status steht nie allein für die Bedeutung: Das Wort trägt sie, der Punkt ist Zusatz.
+
+**Wortlaut:** Ein Status beginnt groß („Offen“, „Gesperrt“, „Übermittelt“), ein Merkmal bleibt klein („archiviert“, „inaktiv“). Das Wort ist kurz; alles, was es genauer macht, gehört in die Auskunft, nicht ins Wort („Storniert“ mit „am 02.11.“, nicht „storniert am 02.11.“).
+
+**Merkmal (`Tag`):** Eine Eigenschaft ohne Zustand, etwa Lieferant, eine Rolle, archiviert, inaktiv oder Test, ist kein Status. Sie bekommt keinen Punkt und keine Farbe, nur eine Haarlinie. Ein Verweis auf ein anderes Objekt, etwa die Quelle einer Buchung, ist ein normaler Link.
+
+**Ergebnis im Protokoll (`OutcomeStatus`):** Einträge von ELSTER und E-Mail zeigen Erfolg ruhig und einen Fehler dringend, mit dem Fehlercode im Wort.
+
+**Hüllen:** Zustände, die an mehreren Stellen vorkommen, stehen einmal in einer Hülle mit einer Tabelle Zustand → Aussehen (`StatusLook`) und einer Funktion für die Auskunft: `InvoiceStatus`, `QuoteStatus` mit `BillingStatus`, `DocumentStatus` und `BankStatus.tsx`. Ein neuer Zustand dieser Bereiche kommt dort dazu; ein Status, den nur eine Seite kennt, steht als `<Status>` in der Seite.
 
 ### Seitenkopf
 
@@ -103,7 +175,7 @@ Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgü
 
 ### Karten
 
-Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3` und `.grid-4` in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
+Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3`, `.grid-4` und `.grid-5` (fünf Kennzahlen, am Desktop in einer Reihe, wenn sie passen) in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand; bei ungerader Zahl füllt die letzte Karte die Zeile. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
 
 Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `NewContactDialog`).
 
@@ -125,7 +197,7 @@ Neue Formularfelder immer über `Field` (`components/Field.tsx`), je Feld ein `F
 
 Auswahllisten sind Formularfelder wie die übrigen: `<select>` steht in `Field` und nimmt `{...control}` an, auch wenn kein Feldname zu sehen sein soll (`hideLabel`, etwa die Auswahl „Textbaustein einfügen …“ unter einem Textfeld). Rahmen, Höhe, Radius und Pfeil kommen aus der Grundregel `select` in `styles.css`, nicht aus der Hülle. Ohne `Field` stehen nur Zellen einer Tabelle oder Positionszeile, deren Spaltenkopf und `aria-label` sie benennen (`.line-row`, `.report-table`), und die Auswahl des Farbschemas auf der dunklen Navigation (`.nav-theme`); jedes andere `<select>` ohne `Field` meldet `bun run lint`, eine Ausnahme steht mit `// biome-ignore lint/plugin: Grund` im Code.
 
-Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen; beim Tippen bleibt es aus. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
+Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen und bei denen der Fokus bleibt, etwa eine Antwort des Servers; beim Tippen bleibt es aus, ebenso bei Fehlern aus `useSubmitCheck`: Deren erstes Feld bekommt den Fokus, der Screenreader liest den Fehler dabei, und `role="alert"` an allen Feldern läse alle auf einmal. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
 
 ### Datei-Felder
 
@@ -135,13 +207,13 @@ Wird eine Datei sofort hochgeladen, ohne Formular (Belege, Kontoauszüge, Anhän
 
 ### Felder mit Auszeichnungen
 
-Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `FormattedTextarea` eingegeben, nicht mit einer eigenen Werkzeugleiste. Die Knöpfe F, K und U (`.format-bar`) schweben an der Markierung, auf Touchgeräten rechts über dem Feld, weil das System sein Menü an die Auswahl legt. Dazu gelten Strg+B, I und U, am Mac mit Cmd. In der Leiste wechseln die Pfeiltasten den Knopf. Solange die Leiste zu sehen ist, schließt Esc nur sie; ein umgebender Dialog bleibt offen.
+Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `FormattedTextarea` eingegeben, nicht mit einer eigenen Werkzeugleiste. Die Knöpfe F, K und U (`.format-bar`) schweben an der Markierung, auf Touchgeräten rechts über dem Feld, weil das System sein Menü an die Auswahl legt. Dazu gelten Strg+B, I und U, am Mac mit ⌘. In der Leiste wechseln die Pfeiltasten den Knopf. Solange die Leiste zu sehen ist, schließt Esc nur sie; ein umgebender Dialog bleibt offen.
 
 ### Vorschau der Belegeditoren
 
-Das Blatt setzt Typst aus derselben Vorlage wie das PDF (`RenderedSheet`), es gibt keinen Nachbau in HTML. Eine Änderung am Aussehen eines Belegs gehört deshalb in die Vorlage unter `packages/einvoice/templates/`. Das Papier bleibt in jedem Theme weiß und liegt wie eine Karte auf dem Grund (`--ground`), mit mehrstufigem Schatten aus `--paper-shadow`; in dunklen Themes hält eine helle Haarlinie die Kante, weil ein Schatten auf Dunkel kaum trägt. Das Bild ersetzt den Text nicht: Für Screenreader steht derselbe Inhalt versteckt daneben (`sheetText`).
+Das Blatt setzt Typst aus derselben Vorlage wie das PDF (`RenderedSheet`), es gibt keinen Nachbau in HTML. Eine Änderung am Aussehen eines Belegs gehört deshalb in die Vorlage unter `packages/einvoice/templates/`. Das Papier bleibt in jedem Theme weiß und liegt wie eine Karte auf dem Grund (`--ground`), mit mehrstufigem Schatten aus `--paper-shadow`; in dunklen Themes hält eine helle Haarlinie die Kante, weil ein Schatten auf Dunkel kaum trägt. Das Bild ersetzt den Text nicht: Für Screenreader steht derselbe Inhalt versteckt daneben (`sheetText`, bei der Mahnung `dunningSheetText`).
 
-`components/DocumentPreview.tsx` ist die Hülle für alle Editoren mit Dokumentvorschau (#357): `useDocumentPreview` hält den Modus, `PreviewButton` ist der Split-Button im Seitenkopf, `PreviewLayout` stellt Formular und Vorschau nebeneinander oder öffnet die Überblendung als `<dialog>`. Ob Anheften geht und was ohne gespeicherte Wahl gilt, entscheidet die Breite des Editors (`previewLayout` in `lib/vorschau.ts`, Mindestbreiten dort und in `.preview-layout`). Die Wahl liegt im `localStorage` (`haben-vorschau`). Die Vorschau steht nur im Dokument, wenn sie zu sehen ist.
+`components/DocumentPreview.tsx` ist die Hülle für alle Editoren mit Dokumentvorschau (#357), für Rechnung, Angebot und Mahnung: `useDocumentPreview` hält den Modus, `PreviewButton` ist der Split-Button im Seitenkopf, `PreviewLayout` stellt Formular und Vorschau nebeneinander oder öffnet die Überblendung als `<dialog>`. Ob Anheften geht und was ohne gespeicherte Wahl gilt, entscheidet die Breite des Editors (`previewLayout` in `lib/vorschau.ts`, Mindestbreiten dort und in `.preview-layout`). Die Wahl liegt im `localStorage` (`haben-vorschau`). Die Vorschau steht nur im Dokument, wenn sie zu sehen ist.
 
 ## Barrierefreiheit
 

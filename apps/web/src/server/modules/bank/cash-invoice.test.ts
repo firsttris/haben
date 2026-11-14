@@ -125,7 +125,8 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
         );
 
         const rest = await cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-10-02", amount: 376_000, text: "Quittung 17" }, today);
-        expect(await listed(invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+        // Zuletzt bezahlt am Tag der zweiten Barzahlung
+        expect(await listed(invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0, settledOn: "2026-10-02" });
         expect((await cash.openItems()).some((i) => i.id === invoice.id)).toBe(false);
         expect((await auswertungen.openPositions(today)).receivables).toEqual([]);
         expect(await mahnwesen.overdueInvoices("2026-10-20")).toEqual([]);

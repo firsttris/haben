@@ -28,12 +28,14 @@ not_in_nav: |
 nav:
   - Start: index.md
   - Übersicht: ueberblick.md
+  - Suchen: suche.md
   - Betrieb:
       - Installation: installation.md
       - Synology: synology.md
       - TrueNAS SCALE: truenas.md
       - Unraid: unraid.md
       - Coolify: coolify.md
+      - Plesk: plesk.md
       - Konfiguration: installation-konfiguration.md
       - Anbindungen: installation-anbindungen.md
       - Single Sign-on: installation-sso.md

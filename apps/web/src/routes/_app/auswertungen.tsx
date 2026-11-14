@@ -3,13 +3,14 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod/mini";
 import { barPath, euroAxis, niceTicks, useChartWidth } from "../../lib/chart.ts";
-import { formatDate } from "../../lib/format.ts";
+import { formatDate, relativeDays } from "../../lib/format.ts";
 import type { OpenPosition } from "../../server/modules/auswertungen/index.ts";
 import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { Icon } from "../../components/Icon.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
+import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/auswertungen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(ERSTES_JAHR), z.maximum(LETZTES_JAHR))) }),
@@ -400,16 +401,26 @@ function OpenTable(props: {
 }
 
 function OpenStatus({ item, kind }: { item: OpenPosition; kind: "invoice" | "document" | "ustva" }) {
-  if (item.balanceKind === "unbilled") return <span className="pill pill-info">Ersatzrechnung offen</span>;
-  if (item.balanceKind === "refund") return <span className="pill">Erstattung offen</span>;
-  if (kind === "ustva" && item.open < 0) return <span className="pill">Erstattung erwartet</span>;
+  if (item.balanceKind === "unbilled") return <Status tone="info">Ersatzrechnung offen</Status>;
+  if (item.balanceKind === "refund") return <Status>Erstattung offen</Status>;
+  if (kind === "ustva" && item.open < 0) return <Status tone="info">Erstattung erwartet</Status>;
   return <DueStatus days={item.daysOverdue} />;
 }
 
 function DueStatus({ days }: { days: number }) {
-  if (days > 0) return <span className="pill pill-warn">{days === 1 ? "1 Tag überfällig" : `${days} Tage überfällig`}</span>;
-  if (days === 0) return <span className="pill pill-info">heute fällig</span>;
-  return <span className="pill">{days === -1 ? "in 1 Tag fällig" : `in ${-days} Tagen fällig`}</span>;
+  if (days > 0)
+    return (
+      <Status tone="warn" emphasis="urgent" detail={relativeDays(-days)}>
+        Überfällig
+      </Status>
+    );
+  if (days === 0)
+    return (
+      <Status tone="warn" emphasis="notice" detail="heute">
+        Fällig
+      </Status>
+    );
+  return <Status detail={relativeDays(-days)}>Offen</Status>;
 }
 
 /* Diagramm */

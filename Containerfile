@@ -9,6 +9,7 @@ COPY apps/elster-helfer/package.json apps/elster-helfer/
 COPY packages/core/package.json packages/core/
 COPY packages/einvoice/package.json packages/einvoice/
 COPY packages/elster/package.json packages/elster/
+COPY packages/gobd-kern/package.json packages/gobd-kern/
 COPY packages/import/package.json packages/import/
 RUN bun install --frozen-lockfile
 COPY . .
@@ -62,9 +63,14 @@ COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
 # haben status [--json]: Version, ERiC und letzte Sicherung, etwa für deploy/instanzen
 COPY deploy/haben.sh /usr/local/bin/haben
 RUN mkdir -p /var/lib/haben/eric-log /var/lib/haben/eric /var/lib/haben/belege && chown -R bun:bun /var/lib/haben
+# Commit des Builds (#887) für haben status und als OCI-Label, etwa --build-arg HABEN_COMMIT="$(git rev-parse HEAD)".
+# Ohne Angabe leer. Erst hier, damit ein anderer Commit nur diese Schichten neu baut
+ARG HABEN_COMMIT=""
+LABEL org.opencontainers.image.revision="$HABEN_COMMIT"
+ENV HABEN_COMMIT="$HABEN_COMMIT"
 USER bun
 EXPOSE 3000
 # Ohne curl im Image: Bun hat fetch eingebaut. Die Startphase deckt die Migrationen ab.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
-  CMD ["bun", "-e", "fetch('http://127.0.0.1:3000/login').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+  CMD ["bun", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 ENTRYPOINT ["haben-entrypoint"]

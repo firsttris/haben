@@ -1,10 +1,17 @@
 import { formatEuro, formatPercent, PLAN_ROW_STATUS_LABEL, planShareLabel, type PlanRowStatus } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import type { getQuoteDetail } from "../server/functions/quotes.ts";
+import { Status, type StatusLook } from "./Status.tsx";
 
 type Overview = NonNullable<Awaited<ReturnType<typeof getQuoteDetail>>["plan"]>;
 
-const PILL: Record<PlanRowStatus, string> = { offen: "", entwurf: "pill-info", festgeschrieben: "pill-warn", bezahlt: "pill-ok" };
+// Festgeschrieben heißt hier: abgerechnet, die Zahlung steht noch aus
+const LOOK: Record<PlanRowStatus, Omit<StatusLook, "text">> = {
+  offen: {},
+  entwurf: { draft: true },
+  festgeschrieben: { tone: "info" },
+  bezahlt: { tone: "ok" },
+};
 
 /**
  * Zahlungsplan auf dem festgeschriebenen Angebot: je Zeile Plan (netto und brutto), Ist mit Link zur Rechnung, Status
@@ -71,7 +78,7 @@ export function QuotePlan({
                 </button>
               )}
             </span>
-            <span className={`pill ${PILL[row.status]}`}>{PLAN_ROW_STATUS_LABEL[row.status]}</span>
+            <Status {...LOOK[row.status]}>{PLAN_ROW_STATUS_LABEL[row.status]}</Status>
           </div>
         );
       })}

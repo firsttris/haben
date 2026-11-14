@@ -7,13 +7,16 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { docker } from "./ausfuehren.ts";
 import { instanzen } from "./instanzen.ts";
+import { pruefeFirmenname } from "./firmen.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
-import { proxyDir } from "./proxy.ts";
+import { netzFuer, proxyDir } from "./proxy.ts";
 
 export interface NeuAngaben {
   name: string;
   domain: string;
   herstellerId?: string;
+  /** Eintrag in der Liste von firmen (HABEN_FIRMENNAME); ohne gilt der Name */
+  firmenname?: string;
   ericHome?: string;
   eigenerProxy: boolean;
   starten: boolean;
@@ -47,6 +50,7 @@ export function pruefeAngaben(a: NeuAngaben): void {
   pruefeDomain(a.domain);
   // Wie ELSTER_HERSTELLER_ID in apps/web/src/server/env.ts: die App startet sonst nicht
   if (a.herstellerId !== undefined && !/^\d{5}$/.test(a.herstellerId)) abbrechen("Die Hersteller-ID besteht aus fünf Ziffern.");
+  if (a.firmenname !== undefined) pruefeFirmenname(a.firmenname, "--firmenname");
   if (a.ericHome !== undefined && !/^\/[A-Za-z0-9._/-]+$/.test(a.ericHome)) abbrechen("--eric-home braucht einen absoluten Pfad ohne Leerzeichen.");
   if (a.sso) {
     if (!a.sso.issuer.startsWith("https://")) abbrechen("--oidc-issuer muss mit https:// beginnen.");
@@ -89,4 +93,17 @@ export async function pruefeTrennung(k: Kontext, name: string, domain: string): 
   if (volumes.code !== 0) abbrechen(DOCKER_TOT);
   const vorhanden = volumes.stdout.split("\n").filter((v) => v.trim() !== "");
   if (vorhanden.length > 0) abbrechen(`Es gibt schon Volumes des Compose-Projekts ${projekt} (${vorhanden.join(" ")}); bitte einen anderen Namen wählen.`);
+  // Im Netz der Instanz dürfen nur ihre App und der Proxy hängen; ein vorhandenes gehört einer gelöschten Instanz
+  // oder jemand anderem
+  const netz = netzFuer(name);
+  const netze = await docker(k, ["network", "ls", "--format", "{{.Name}}"]);
+  if (netze.code !== 0) abbrechen(DOCKER_TOT);
+  if (!netze.stdout.split("\n").some((n) => n.trim() === netz)) return;
+  // Steht es noch in der Netzliste des gemeinsamen Caddy, hängt er darin, und docker network rm scheitert daran
+  const override = join(proxyDir(k), "compose.override.yml");
+  const amCaddy = existsSync(override) && (await readFile(override, "utf8")).split("\n").some((z) => z.trim() === `name: ${netz}`);
+  const vorher = amCaddy
+    ? `Der gemeinsame Caddy hängt noch darin: in ${override} die beiden Einträge des Netzes entfernen (steht kein anderes darin, die Datei löschen), cd ${proxyDir(k)} && docker compose up -d, dann`
+    : "Ist es von einer gelöschten Instanz übrig:";
+  abbrechen(`Das Netz ${netz} gibt es schon; nichts angelegt. ${vorher} docker network rm ${netz}`);
 }

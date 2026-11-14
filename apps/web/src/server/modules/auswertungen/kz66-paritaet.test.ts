@@ -246,9 +246,32 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
     await zahle("2026-03-20", "Drittel März", 3_967, id);
     // Die Februar-Zuordnung war falsch und wird aufgehoben; der Rest kommt im Mai
     const [zuordnung] = await sql`select id from allocations where transaction_id = ${februar} and reverses_id is null`;
-    await bank.reverseAllocation(actor, zuordnung!.id as string);
+    // Die Aufhebung trägt ihr eigenes Datum (#782): ohne Datum bucht sie heute, und der Test hinge am Kalender des Laufs
+    await bank.reverseAllocation(actor, zuordnung!.id as string, "2026-06-20");
     await zahle("2026-05-20", "Rest Mai", 7_933, id);
-    const werte = await pruefeJahr(2026, 5);
+    const werte = await pruefeJahr(2026);
     expect(summe(werte)).toBe(-1_900);
+  }, 60_000);
+
+  it("eine Aufhebung wirkt auch bei der Gutschrift am Tag der Aufhebung", async () => {
+    await firma("SKR03", "ist");
+    const gutschrift = await beleg("2026-01-20", [{ taxRate: 1900, net: -10_000, tax: -1_900 }], {
+      erstattetBezahltes: true,
+      nummer: "GS-AUFHEBUNG-TAG",
+    });
+    const februar = await zahle("2026-02-20", "Erstattung Februar", 3_967, gutschrift);
+    await zahle("2026-03-20", "Erstattung März", 3_966, gutschrift);
+
+    // Die Februar-Erstattung war falsch und wird erst im Mai aufgehoben: Die Gegenzeile mindert die Vorsteuer im Mai,
+    // nicht rückwirkend im Februar — im Journal wie in den Nebenbüchern
+    const [zuordnung] = await sql`select id from allocations where transaction_id = ${februar} and reverses_id is null`;
+    await bank.reverseAllocation(actor, zuordnung!.id as string, "2026-05-20");
+
+    const werte = await pruefeJahr(2026, 5);
+    const je = (monat: number) => werte.find((w) => w.monat === monat)!.journal;
+    expect(je(2)).toBe(-633);
+    expect(je(3)).toBe(-634);
+    expect(je(5)).toBe(633);
+    expect(summe(werte)).toBe(-634);
   }, 60_000);
 });

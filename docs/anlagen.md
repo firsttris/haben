@@ -40,7 +40,7 @@ Die Vorschläge folgen der amtlichen AfA-Tabelle. Du kannst Abschreibung und Nut
 | Geringwertiges Wirtschaftsgut | Bis 800 € netto, voll im Jahr der Anschaffung (§ 6 Abs. 2 EStG). Konten 0480 / 0670, AfA 4855 / 6260. |
 | Sammelposten | 250,01 € bis 1.000 € netto, je ein Fünftel im Anschaffungsjahr und in den vier folgenden Jahren (§ 6 Abs. 2a EStG). Ein Abgang ändert daran nichts. Konten 0485 / 0675, AfA 4862 / 6264. |
 
-GWG und Sammelposten prüft Haben gegen die Grenzen. Maßgeblich ist der Nettobetrag, auch bei Kleinunternehmern, deren Anschaffungskosten die Vorsteuer enthalten.
+GWG und Sammelposten prüft Haben gegen die Grenzen. Maßgeblich ist der Nettobetrag, auch wenn die Anschaffungskosten die Vorsteuer enthalten (ohne Vorsteuerabzug).
 
 Kleine Anschaffungen bis 800 € netto kannst du weiter mit der Kategorie **Hardware (GWG bis 800 € netto)** als Ausgabe buchen, ohne Eintrag im Anlagenverzeichnis.
 
@@ -91,7 +91,7 @@ Beim Buchen eines Belegs mit der Kategorie **Anlagegut** bucht Haben den Nettobe
 1576 Vorsteuer 19 %          6.840,00
 ```
 
-Die Vorsteuer zählt wie bei jedem Beleg in der Voranmeldung und, sobald bezahlt, in der EÜR. Der Kaufpreis selbst ist keine Ausgabe; er wirkt nur über die AfA. Als Kleinunternehmer gehört die Steuer zu den Anschaffungskosten.
+Die Vorsteuer zählt wie bei jedem Beleg in der Voranmeldung und, sobald bezahlt, in der EÜR. Der Kaufpreis selbst ist keine Ausgabe; er wirkt nur über die AfA. Ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten.
 
 Die Anlage übernimmt Datum und Betrag vom Beleg. Art und Anlagekonto stehen damit fest. Abschreibung (außer GWG und Sammelposten), Nutzungsdauer, degressiven Satz und Erinnerungswert kannst du bis zur ersten gebuchten AfA auf der Seite der Anlage noch ändern; bei degressiver AfA nimmt Haben zuerst den Höchstsatz. Von der Anlage führt ein Link zum Beleg und umgekehrt.
 

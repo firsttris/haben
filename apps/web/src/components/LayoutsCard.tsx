@@ -6,6 +6,7 @@ import { formatDate } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { assignLayoutFn, reloadLayoutPackages, removeLayout, renameLayoutFn, replaceLayout, uploadLayout } from "../server/functions/layouts.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 import { FilePicker } from "./FilePicker.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
@@ -312,6 +313,10 @@ function LayoutUpload() {
   // Neuer key leert die Dateiauswahl samt Anzeige nach dem Speichern
   const [saved, setSaved] = useState(0);
   const [approving, setApproving] = useState<{ source: string; packages: string[] } | null>(null);
+  const { form, error, check } = useSubmitCheck({
+    name: name.trim() === "" ? "Trag einen Namen für das Layout ein." : null,
+    file: file ? null : "Wähle die Typst-Datei.",
+  });
 
   const send = (source: string, approve?: string[]) =>
     run(async () => {
@@ -328,10 +333,12 @@ function LayoutUpload() {
 
   return (
     <form
+      ref={form}
       aria-labelledby="layout-upload-heading"
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        if (file) void readText(file).then((source) => send(source));
+        if (check() && file) void readText(file).then((source) => send(source));
       }}
     >
       <h3 id="layout-upload-heading">Layout hochladen</h3>
@@ -342,7 +349,9 @@ function LayoutUpload() {
         </span>
       </div>
       <div className="form-grid">
-        <Field label="Name">{(control) => <input {...control} value={name} maxLength={60} required onChange={(event) => setName(event.target.value)} />}</Field>
+        <Field label="Name" error={error("name")}>
+          {(control) => <input {...control} value={name} maxLength={60} required onChange={(event) => setName(event.target.value)} />}
+        </Field>
         <Field label="Für">
           {(control) => (
             <select {...control} value={art} onChange={(event) => setArt(event.target.value as "beleg" | "mahnung")}>
@@ -351,14 +360,14 @@ function LayoutUpload() {
             </select>
           )}
         </Field>
-        <Field label="Typst-Datei" hint=".typ, bis 256 KB">
+        <Field label="Typst-Datei" hint=".typ, bis 256 KB" error={error("file")}>
           {(control) => (
             <FilePicker key={saved} {...control} accept=".typ,text/plain" required onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
           )}
         </Field>
       </div>
       <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={busy || !file || !name.trim()}>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
           Prüfen und speichern
         </button>
       </div>

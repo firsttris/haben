@@ -7,13 +7,20 @@ import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { createMcpTokenFn, reactivateMcpTokenFn, revokeMcpTokenFn, setMcpEnabledFn, type getMcpSettings } from "../server/functions/mcp.ts";
 import { Field } from "./Field.tsx";
+import { Status, type StatusLook } from "./Status.tsx";
 
 type Data = Awaited<ReturnType<typeof getMcpSettings>>;
 
 export const MCP_DOCS = "https://haben.app/ki-assistenten.html";
 export const API_DOCS = "https://haben.app/api.html";
 
-const STATUS = { aktiv: "pill-ok", abgelaufen: "pill-warn", widerrufen: "pill", deaktiviert: "pill-warn", unbestaetigt: "pill-warn" } as const;
+const STATUS: Record<"aktiv" | "abgelaufen" | "widerrufen" | "deaktiviert" | "unbestaetigt", StatusLook> = {
+  aktiv: { text: "Aktiv", tone: "ok" },
+  abgelaufen: { text: "Abgelaufen", tone: "warn" },
+  widerrufen: { text: "Widerrufen" },
+  deaktiviert: { text: "Deaktiviert", tone: "warn" },
+  unbestaetigt: { text: "Unbestätigt", tone: "warn", emphasis: "notice" },
+};
 
 /** Einstellungen → KI-Assistenten und API: Zugang ein- und ausschalten, API-Tokens mit Rechten und Protokoll */
 export function McpCard({ data }: { data: Data }) {
@@ -187,7 +194,10 @@ export function McpCard({ data }: { data: Data }) {
               <div key={token.id} className="history-row">
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontWeight: 500 }}>
-                    {token.name} <span className={`pill ${STATUS[token.status]}`}>{token.status === "unbestaetigt" ? "unbestätigt" : token.status}</span>
+                    {token.name}{" "}
+                    <Status tone={STATUS[token.status].tone} emphasis={STATUS[token.status].emphasis} inline>
+                      {STATUS[token.status].text}
+                    </Status>
                   </span>
                   <span className="small muted">
                     <span className="mono">{token.prefix}…</span> · angelegt {formatDate(token.createdAt)} ·{" "}

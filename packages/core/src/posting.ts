@@ -7,6 +7,9 @@ import { isKapitalgesellschaft, ownerLabels, type Rechtsform } from "./rechtsfor
 export type Kontenrahmen = "SKR03" | "SKR04";
 export type Versteuerung = "ist" | "soll";
 
+/** Frühere Haben-Konten bleiben für Bestandsauswertungen und Gegenbuchungen erhalten; neue Erlöse folgen DATEV 2026. */
+export const KLEINUNTERNEHMER_FRUEHERE_KONTEN = { SKR03: "8195", SKR04: "4185" } as const;
+
 /** Konten, die Haben bisher bebucht. Vor dem Echtbetrieb mit dem Steuerberater abgleichen. */
 export const ACCOUNTS = {
   SKR03: {
@@ -20,7 +23,7 @@ export const ACCOUNTS = {
       ig_lieferung: "8125",
       ausfuhr: "8120",
       steuerfrei: "8100",
-      kleinunternehmer: "8195",
+      kleinunternehmer: "8192",
     },
     ust: { 1900: "1776", 700: "1771" },
     ustNichtFaellig: { 1900: "1766", 700: "1761" },
@@ -87,7 +90,7 @@ export const ACCOUNTS = {
       ig_lieferung: "4125",
       ausfuhr: "4120",
       steuerfrei: "4100",
-      kleinunternehmer: "4185",
+      kleinunternehmer: "4184",
     },
     ust: { 1900: "3806", 700: "3801" },
     ustNichtFaellig: { 1900: "3816", 700: "3811" },
@@ -238,6 +241,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "3730": "Erhaltene Skonti",
     "8730": "Gewährte Skonti",
     "8100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
+    "8192": "Erlöse als Kleinunternehmer § 19 UStG",
     "8195": "Erlöse als Kleinunternehmer § 19 UStG",
     "8200": "Erlöse",
     "8300": "Erlöse 7 % USt",
@@ -278,6 +282,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "3811": "Umsatzsteuer nicht fällig 7 %",
     "3816": "Umsatzsteuer nicht fällig 19 %",
     "4100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
+    "4184": "Erlöse als Kleinunternehmer § 19 UStG",
     "4185": "Erlöse als Kleinunternehmer § 19 UStG",
     "4200": "Erlöse",
     "4300": "Erlöse 7 % USt",

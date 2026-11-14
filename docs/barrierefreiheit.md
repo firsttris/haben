@@ -18,13 +18,15 @@ Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den a
 | --- | --- |
 | `Tab` / `Umschalt+Tab` | Zum nächsten bzw. vorigen Bedienelement. Das Element mit dem Fokus hat immer einen sichtbaren Rahmen. |
 | `Enter` | Link öffnen, Knopf auslösen, Formular absenden |
-| `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt aufklappen |
-| `Esc` | Schließt das Menü auf dem Handy; der Fokus steht danach wieder auf **Menü** |
+| `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt oder Gruppen-Flyout öffnen |
+| `Strg+K` / `⌘+K` | [Schnellsuche](suche.md) öffnen (am Handy auch über die Lupe neben **Menü**); darin `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` zum Öffnen |
+| `Esc` | Schließt ein Gruppen-Flyout der eingeklappten Seitenleiste, das Menü auf dem Handy oder die Befehlspalette und gibt den Fokus an den Auslöser zurück; blendet den Namen eines Symbols der eingeklappten Leiste aus |
 
 - **Zum Inhalt springen:** Der erste `Tab` auf jeder Seite zeigt den Link **Zum Inhalt springen**. Mit `Enter` überspringst du die Navigation.
 - **Nach einem Seitenwechsel** steht der Fokus am Anfang des Inhalts, nicht mehr in der Navigation. Der nächste `Tab` führt zum ersten Element der neuen Seite. Filter und Suche ändern nur die Liste, der Fokus bleibt, wo er ist.
 - **Anmelden:** Nach **Passwort verwenden** steht der Fokus im Feld **E-Mail**.
 - **Knopfzeilen:** `Tab` geht die Knöpfe in der Folge durch, in der sie zu sehen sind. Hat die Zeile eine Hauptaktion wie **Speichern**, steht sie zuletzt und ein Gefahrknopf wie **Löschen** zuerst. Ein Gefahrknopf, der Gespeichertes löscht, fragt erst nach. Ausnahme ist die Rückfrage auf dem Handy: **Abbrechen** steht unter der Aktion, wo der Daumen liegt, hat beim Öffnen den Fokus, und `Tab` geht von dort nach oben zur Aktion.
+- **Fehlende Angaben:** Der Knopf eines Formulars bleibt bedienbar, auch wenn noch etwas fehlt. Ein Druck darauf schreibt unter jedes betroffene Feld, was fehlt oder nicht stimmt, und setzt den Fokus ins erste davon; der Screenreader liest dabei Feldname und Fehler. Bei der manuellen Buchung steht, was den Zeilen fehlt, als Liste unter der Tabelle; das Konto der ersten Zeile verweist darauf. Gesperrt ist ein Knopf nur, während er arbeitet, wenn es nichts zu tun gibt, wenn etwas außerhalb des Formulars fehlt, etwa das Zertifikat für ELSTER (der Grund steht dann über dem Knopf), oder wenn direkt darüber steht, was nicht passt, etwa die Abweichung einer Auszahlung von Google Play.
 - **Dateien hochladen:** Statt Drag-and-drop öffnen **Dateien auswählen** und **Foto aufnehmen** den Dateidialog des Systems.
 - **Kunde, Lieferant und Artikel suchen** (Kunde im Rechnungs- und Angebotseditor, bei Serienrechnungen und Textbausteinen, Lieferant im Beleg und im Dauerbeleg, Artikel im Editor): Beim Tippen erscheint eine Trefferliste. `Pfeil runter` und `Pfeil hoch` bewegen den aktiven Treffer, `Enter` übernimmt ihn, `Esc` schließt die Liste; `Alt+Pfeil runter` öffnet sie, ohne einen Treffer zu wechseln. Bei Kunden und Lieferanten übernimmt auch `Tab` den aktiven Treffer.
 - **Diagramm unter Auswertungen:** Mit `Tab` springst du von Monat zu Monat und siehst die Werte. Dieselben Zahlen stehen unter **Als Tabelle anzeigen**.
@@ -34,9 +36,9 @@ Tastenkürzel einzelner Seiten:
 | Seite | Kürzel |
 | --- | --- |
 | [Bankabgleich](bank.md#zuordnen) | `Enter` ordnet zu, `J` nächster, `K` voriger Umsatz |
-| [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` bucht, `Esc` zurück zur Liste |
+| [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` / `⌘+Enter` bucht, `Esc` zurück zur Liste |
 
-Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` (Mac: `Cmd+Enter`) bucht einen Beleg auch aus einem Eingabefeld.
+Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` bucht einen Beleg auch aus einem Eingabefeld. Haben zeigt die Kürzel so, wie sie auf deiner Tastatur stehen: am Mac, iPhone und iPad mit `⌘`, sonst mit `Strg`.
 
 ## Darstellung
 
@@ -57,6 +59,7 @@ Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Str
 5. **Sichtbarer Fokus:** Der Test tabbt durch die wichtigsten Seiten. Jedes Element, das den Fokus bekommt, muss einen mindestens 2 px breiten Rahmen haben.
 6. **Handy-Menü:** öffnet mit Enter, Tab führt hinein, Esc schließt es und gibt den Fokus an den Menüknopf zurück.
 7. **Aktueller Bereich:** Im Archiv tragen nur der gewählte Bereich und die gewählten Filter `aria-current`.
+8. **Befehlspalette (`Strg+K`):** öffnet mit `Strg+K`, lässt sich per `Pfeil hoch`/`runter` und `Home`/`End` navigieren, schließt mit `Esc` unter Rückgabe des Fokus und besteht axe in allen Themes sowie am Handy; Öffnen per Knopf **Schnellsuche** auf Desktop und Handy, Sperre über einem offenen Dialog und `Enter`-Auswahl prüft ergänzend `apps/web/e2e/befehlspalette.spec.ts`.
 
 Findet axe einen Verstoß, nennt der Testbericht Regel, Element und Grund. Wie du die Tests lokal startest, steht unter [Entwicklung](entwicklung.md#ende-zu-ende-tests-mit-playwright).
 
@@ -66,10 +69,10 @@ Für neue Oberflächen gilt:
 - Formularfelder und Auswahllisten stehen immer in `Field`, Dateien wählt `FilePicker` oder `UploadButton`; die Regeln dazu stehen in [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md#felder) unter „Felder“ und „Datei-Felder“.
 - Farben über die Variablen in `styles.css`: Text in Akzentfarbe mit `var(--link)`, nicht `var(--accent)`, sonst fällt der Kontrast in den dunklen Themes durch.
 - Wer `outline: none` setzt, zeigt den Fokus anders (z. B. `:focus-within` am umgebenden Element).
-- Was beim Scrollen stehen bleibt, verdeckt kein Element mit Fokus (WCAG 2.4.11): Unter dem festen Seitenkopf beginnt es bei `var(--below-head)`, `scroll-padding-top` an `html` rechnet den Kopf schon ein. Bleibt darunter noch etwas stehen (am Handy die Bereiche der Einstellungen), bekommt es eine feste Höhe, die `scroll-padding-top` dazurechnet. Im Kontaktdialog hält `scroll-padding-bottom` Felder mit Fokus über den stehenden Knöpfen. `kopfzeile.spec.ts` tabbt dazu durch den langen Rechnungsentwurf und den Kontaktdialog. Bei sehr niedrigem Fenster (400 % Zoom, bis 300 px Höhe) scrollt der Kopf mit, weil er sonst das Fenster füllte.
+- Was beim Scrollen stehen bleibt, verdeckt kein Element mit Fokus (WCAG 2.4.11): Unter dem festen Seitenkopf beginnt es bei `var(--below-head)`, `scroll-padding-top` an `html` rechnet den Kopf schon ein. Bleibt darunter noch etwas stehen (am Handy die Bereiche der Einstellungen), bekommt es eine feste Höhe, die `scroll-padding-top` dazurechnet. In Formular-Dialogen hält `FormDialog` das Feld mit Fokus über der stehenden Knopfzeile, auch wenn es nur halb dahinter läge; das prüft `belege-steuern.spec.ts` an „Abgabe vermerken“. `kopfzeile.spec.ts` tabbt dazu durch den langen Rechnungsentwurf und den Kontaktdialog. Bei sehr niedrigem Fenster (400 % Zoom, bis 300 px Höhe) scrollt der Kopf mit, weil er sonst das Fenster füllte.
 - Was eine Aktion im stehenden Kopf meldet oder nachfragt, liegt sonst oft außer Sicht: `NoticeBanner` holt sich selbst ins Bild, eigene Hinweise über `useRevealWhen`.
 - Folge der Knöpfe und Tab-Reihenfolge: [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md#reihenfolge-der-knöpfe), „Reihenfolge der Knöpfe“; `knopfreihenfolge.spec.ts` prüft sie.
-- Dialoge sind `<dialog>` mit `showModal()`: Der Fokus geht hinein, Esc schließt, der Rest der Seite ist nicht bedienbar, und beim Schließen kehrt der Fokus auf den Auslöser zurück (`FormDialog`, Vorschau in `DocumentPreview.tsx`).
+- Dialoge sind `<dialog>` mit `showModal()`: Der Fokus geht hinein, in Formular-Dialogen auf das erste Feld, Esc schließt, der Rest der Seite ist nicht bedienbar, und beim Schließen kehrt der Fokus auf den Auslöser zurück (`FormDialog`, Vorschau in `DocumentPreview.tsx`).
 - Eine Suche mit Trefferliste nutzt `Combobox.tsx` nach dem Muster „Editable Combobox With List Autocomplete“ der [WAI-ARIA APG](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/): Der Fokus bleibt im Feld, `aria-activedescendant` zeigt den aktiven Eintrag. Für kurze, feste Auswahlen bleibt es beim `<select>` in `Field` (siehe `DESIGN.md`), es ist von Haus aus zugänglich und auf dem Handy besser.
 - Ein Split-Button (Vorschau der Belegeditoren) folgt dem Muster „Menu Button“ der [WAI-ARIA APG](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/): Hauptaktion und Pfeil sind getrennt fokussierbar, der Pfeil trägt `aria-haspopup="menu"` und `aria-expanded`, Enter, Leertaste und die Pfeiltasten öffnen das Menü mit dem Fokus auf dem ersten Eintrag, Esc schließt es zurück auf den Pfeil. `vorschau.spec.ts` prüft das.
 - Verschwindet das Element mit dem Fokus (ein Knopf, der ein Formular aufklappt), bekommt das nächste sinnvolle Element den Fokus.

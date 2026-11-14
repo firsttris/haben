@@ -7,6 +7,7 @@ import { Vermerk } from "../../components/sv-meldeportal/Vermerk.tsx";
 import { getSvMeldeportal } from "../../server/functions/sv-meldungen.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { Field } from "../../components/Field.tsx";
+import { Status } from "../../components/Status.tsx";
 
 /*
  * Personal › SV-Meldeportal: Ausfüllliste je Monat (docs/lohn-plan.md, PR 6). Beitragsnachweise je Einzugsstelle und
@@ -74,9 +75,21 @@ function Hinweise({ hinweise }: { hinweise: string[] }) {
   );
 }
 
-function Status({ abgegeben, geaendert }: { abgegeben: boolean; geaendert: boolean }) {
-  if (geaendert) return <span className="pill pill-danger">geändert seit Abgabe</span>;
-  return abgegeben ? <span className="pill pill-ok">abgegeben</span> : <span className="pill pill-warn">offen</span>;
+function AbgabeStatus({ abgegeben, geaendert }: { abgegeben: boolean; geaendert: boolean }) {
+  // Seit der Abgabe geändert: Die Meldung im Portal stimmt nicht mehr
+  if (geaendert)
+    return (
+      <Status tone="danger" emphasis="urgent">
+        Geändert seit Abgabe
+      </Status>
+    );
+  return abgegeben ? (
+    <Status tone="ok">Abgegeben</Status>
+  ) : (
+    <Status tone="warn" emphasis="notice">
+      Offen
+    </Status>
+  );
 }
 
 function NachweisKarte({ b, heute }: { b: Nachweis; heute: string }) {
@@ -87,7 +100,7 @@ function NachweisKarte({ b, heute }: { b: Nachweis; heute: string }) {
         <h3 id={headingId} style={{ margin: 0 }}>
           {b.titel}
         </h3>
-        <Status abgegeben={b.stand.abgegeben} geaendert={b.stand.geaendert} />
+        <AbgabeStatus abgegeben={b.stand.abgegeben} geaendert={b.stand.geaendert} />
       </div>
       <p className="small muted" style={{ margin: 0 }}>
         Im Portal: {b.formular}. Übermitteln bis {datumText(b.termine.nachweisBis)} (liegt am {datumText(b.termine.nachweisVorliegen)} um 0 Uhr vor), Beiträge
@@ -108,7 +121,7 @@ function MeldungKarte({ m, heute }: { m: Meldung; heute: string }) {
         <h3 id={headingId} style={{ margin: 0 }}>
           {m.titel}
         </h3>
-        <Status abgegeben={m.stand.abgegeben} geaendert={m.stand.geaendert} />
+        <AbgabeStatus abgegeben={m.stand.abgegeben} geaendert={m.stand.geaendert} />
       </div>
       <p className="small muted" style={{ margin: 0 }}>
         Im Portal: {m.formular}.{m.frist ? ` Frist: ${datumText(m.frist)}.` : ""}

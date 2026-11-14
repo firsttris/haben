@@ -41,6 +41,8 @@ export interface RevenueSource {
   number: string;
   customer: string;
   treatment: TaxTreatment;
+  /** Befreiungsgrund der Rechnung, bei „steuerfrei“ die Quelle der Nummer in § 4 UStG für die Zeilen 46/47 der Erklärung */
+  exemptionReason?: string;
   rate: number;
   base: Cents;
   tax: Cents;
@@ -187,14 +189,17 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
           number: original.number ?? "",
           customer: original.buyer?.name ?? "",
           treatment: original.taxTreatment,
+          exemptionReason: original.exemptionReason,
           ...share,
         });
     }
 
   {
+    // Tag der Zuordnung: die Gegenzeile einer Aufhebung wirkt an ihrem eigenen Tag (#782), sonst am Buchungsdatum
+    const zuordnungstag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
     const payments = await q
       .select({
-        date: schema.bankTransactions.bookingDate,
+        date: zuordnungstag,
         amount: schema.allocations.amount,
         taxShares: schema.allocations.taxShares,
         taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
@@ -208,6 +213,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
+        exemptionReason: schema.invoices.exemptionReason,
       })
       .from(schema.allocations)
       .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
@@ -215,8 +221,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       .where(
         and(
           eq(schema.allocations.kind, "invoice"),
-          gte(schema.bankTransactions.bookingDate, start),
-          lt(schema.bankTransactions.bookingDate, end),
+          gte(zuordnungstag, start),
+          lt(zuordnungstag, end),
           // Reverse Charge, innergemeinschaftliche Lieferung und Drittland zählen im Monat der Rechnung, auch bei Ist (siehe oben)
           notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM]),
         ),
@@ -239,6 +245,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
+        exemptionReason: schema.invoices.exemptionReason,
       })
       .from(schema.writeOffs)
       .innerJoin(schema.invoices, eq(schema.invoices.id, schema.writeOffs.invoiceId))
@@ -267,6 +274,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
+        exemptionReason: schema.invoices.exemptionReason,
       })
       .from(schema.cashEntries)
       .innerJoin(schema.invoices, eq(schema.invoices.id, schema.cashEntries.invoiceId))
@@ -286,6 +294,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
           number: p.number ?? "",
           customer: p.buyer?.name ?? "",
           treatment: p.treatment,
+          exemptionReason: p.exemptionReason,
           rate: share.rate,
           base: share.base,
           tax: share.tax,
@@ -330,6 +339,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
           number: inv.number ?? "",
           customer: inv.buyer?.name ?? "",
           treatment: inv.taxTreatment,
+          exemptionReason: inv.exemptionReason,
           rate: t.rate,
           base: t.base,
           tax: t.tax,
@@ -357,6 +367,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
+        exemptionReason: schema.invoices.exemptionReason,
       })
       .from(schema.writeOffs)
       .innerJoin(schema.invoices, eq(schema.invoices.id, schema.writeOffs.invoiceId))
@@ -382,6 +393,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
           number: r.number ?? "",
           customer: r.buyer?.name ?? "",
           treatment: r.treatment,
+          exemptionReason: r.exemptionReason,
           rate: share.rate,
           base: share.base,
           tax: share.tax,
@@ -393,9 +405,10 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   // Direkt auf eine Einnahmekategorie gebuchte Bankumsätze (#324): ohne Rechnung am Tag der Zahlung, bei Ist wie bei Soll
   // (packages/core/src/direkt-kategorie.ts); die Gegenzeile einer aufgehobenen Zuordnung mit umgekehrtem Vorzeichen
   {
+    const direktTag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
     const rows = await q
       .select({
-        date: schema.bankTransactions.bookingDate,
+        date: direktTag,
         transactionId: schema.allocations.transactionId,
         amount: schema.allocations.amount,
         category: schema.allocations.category,
@@ -404,7 +417,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       })
       .from(schema.allocations)
       .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
-      .where(and(eq(schema.allocations.kind, "kategorie"), gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end)));
+      .where(and(eq(schema.allocations.kind, "kategorie"), gte(direktTag, start), lt(direktTag, end)));
     for (const r of rows) {
       if (!r.category || r.taxRate === null || kategorieArt(r.category) !== "einnahme") continue;
       const { base, tax } = kategorieAnteil({ kategorie: r.category, steuersatz: r.taxRate }, r.amount);

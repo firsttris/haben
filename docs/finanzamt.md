@@ -78,7 +78,7 @@ Betreff (bis 99 Zeichen) und Text (bis 15.000 Zeichen) für alles andere, etwa e
 
 Teilt dem Finanzamt ein neues Konto für Erstattungen und, falls du eine Lastschrift erteilt hast, für den Einzug mit (Datenart AenderungBankverbindung, Version 20). Die Änderung gilt für alle Steuerarten zur Steuernummer, Kontoinhaber bist du selbst (Person A).
 
-Vorbelegt ist die IBAN deines Steuerkontos, wenn ein Bankkonto den Zweck „Steuerkonto“ hat (siehe [Bank](bank.md#name-und-zweck)), sonst die IBAN aus den Firmendaten. Haben prüft die IBAN-Prüfsumme vor dem Senden. ELSTER braucht dazu deine persönlichen Angaben, also Steuer-ID, Name und Geburtsdatum, aus [Einstellungen › Persönliche Angaben](einrichtung.md#persönliche-angaben).
+Das Konto wählst du aus deinen Bankkonten mit IBAN, angezeigt mit Name und Zweck (siehe [Bank](bank.md#name-und-zweck)); vorbelegt ist das Konto mit dem Zweck „Steuerkonto“, sonst die IBAN aus den Firmendaten. Ist ein Konto gewählt, geht genau dessen IBAN an das Finanzamt, ein Eingabefeld gibt es dann nicht. Für ein Konto, das nicht in Haben steht, wählst du **Anderes Konto** und tippst die IBAN ein. Haben prüft die IBAN-Prüfsumme vor dem Senden. ELSTER braucht dazu deine persönlichen Angaben, also Steuer-ID, Name und Geburtsdatum, aus [Einstellungen › Persönliche Angaben](einrichtung.md#persönliche-angaben).
 
 ## Verlauf
 

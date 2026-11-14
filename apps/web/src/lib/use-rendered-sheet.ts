@@ -1,17 +1,19 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { renderDocumentPreview } from "../server/functions/invoices.ts";
-import type { DocumentPreview, DocumentPreviewInput } from "../server/modules/rechnungen/index.ts";
+import type { DocumentPreview } from "../server/modules/rechnungen/index.ts";
 import { afterRender, renderDelay, rendersOnDemand } from "./vorschau-render.ts";
 
 export type LoadedSheet = Omit<DocumentPreview, "svg" | "ms"> & { url: string };
+
+/** Server-Funktion, die das Blatt aus dem Stand des Formulars setzt: renderDocumentPreview, renderDunningPreview */
+export type SheetRenderer<I> = (options: { data: I }) => Promise<DocumentPreview>;
 
 /**
  * Hält das gesetzte Blatt zum Formular aktuell, solange die Vorschau zu sehen ist. Was während eines Laufs veraltet, wird
  * verworfen; bis das neue Bild dekodiert ist, bleibt das alte stehen, damit nichts flackert.
  */
-export function useRenderedSheet(input: DocumentPreviewInput, revision: string | null) {
-  const render = useServerFn(renderDocumentPreview);
+export function useRenderedSheet<I>(renderer: SheetRenderer<I>, input: I, revision: string | null) {
+  const render = useServerFn(renderer);
   const [sheet, setSheet] = useState<LoadedSheet | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [outdated, setOutdated] = useState(false);

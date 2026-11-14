@@ -5,6 +5,7 @@ import { formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { submitEbilanzFn } from "../server/functions/abschluss.ts";
 import { ElsterSubmit, type ElsterSetup } from "./ElsterSubmit.tsx";
+import { OutcomeStatus } from "./Status.tsx";
 
 interface EbilanzEntry {
   id: string;
@@ -62,8 +63,7 @@ export function Ebilanz({ year, ebilanz, setup, closed }: { year: number; ebilan
               <div key={entry.id} className="history-row">
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                   <span style={{ fontWeight: 500 }}>
-                    {ELSTER_KIND_LABEL[entry.kind]}{" "}
-                    <span className={`pill ${entry.ok ? "pill-ok" : "pill-danger"}`}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</span>
+                    {ELSTER_KIND_LABEL[entry.kind]} <OutcomeStatus ok={entry.ok}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</OutcomeStatus>
                   </span>
                   <span className="small muted" style={{ overflowWrap: "anywhere" }}>
                     {formatDateTime(entry.createdAt)}

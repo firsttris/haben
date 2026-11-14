@@ -7,7 +7,22 @@ import { listInvoices, type InvoiceListStatus } from "../rechnungen/index.ts";
 /** Eine Zeile auf der Kontaktseite (#587): Rechnung aus Haben, gebuchter Beleg oder archivierter Beleg aus dem Umzug */
 export type ContactHistoryRow = ContactHistoryEntry &
   (
-    | { kind: "rechnung"; invoiceKind: "rechnung" | "storno" | "korrektur"; variant: "abschlag" | "schluss" | null; status: InvoiceListStatus }
+    | {
+        kind: "rechnung";
+        invoiceKind: "rechnung" | "storno" | "korrektur";
+        variant: "abschlag" | "schluss" | null;
+        status: InvoiceListStatus;
+        /** Für die Auskunft unter dem Status, wie in der Rechnungsliste */
+        statusFacts: {
+          listStatus: InvoiceListStatus;
+          dueDate: string;
+          paid: number;
+          open: number;
+          settledOn: string | null;
+          cancelledBy: string | null;
+          correctsNumber: string | null;
+        };
+      }
     | { kind: "beleg"; filename: string; category: string | null; splitCount: number; cancelledOn: string | null }
     | { kind: "archiv"; type: string; source: LegacySource; sourceName: string | null }
   );
@@ -69,6 +84,15 @@ export async function contactHistory(
       invoiceKind: i.kind,
       variant: i.variant,
       status: i.listStatus,
+      statusFacts: {
+        listStatus: i.listStatus,
+        dueDate: i.dueDate,
+        paid: i.paid,
+        open: i.open,
+        settledOn: i.settledOn,
+        cancelledBy: i.cancelledBy,
+        correctsNumber: i.correctsNumber,
+      },
     }));
   const purchases: ContactHistoryRow[] = documents.map((d) => ({
     kind: "beleg",

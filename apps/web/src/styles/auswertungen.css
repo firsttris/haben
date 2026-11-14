@@ -115,9 +115,9 @@
   .fristen-table td[data-label] { padding-left: 0 !important; width: auto !important; }
   .fristen-table td[data-label]::before { content: none; }
   .fristen-table td[data-label="Datum"] { grid-column: 1; grid-row: 1; }
-  .fristen-table td[data-label="Datum"] > div { display: inline; margin-left: 8px; }
-  .fristen-table td[data-label="Art"] { grid-column: 2; grid-row: 1; }
-  .fristen-table td[data-label="Frist"] { grid-column: 1 / -1; grid-row: 2; }
+  .fristen-table td[data-label="Status"] { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+  .fristen-table td[data-label="Frist"] { grid-column: 1; grid-row: 2; }
+  .fristen-table td[data-label="Art"] { grid-column: 1; grid-row: 3; color: var(--muted); }
 }
 
 /* Offene Posten auf dem Handy: Nummer, Partei und Fälligkeit links, offener Betrag und Status rechts */

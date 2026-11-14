@@ -69,7 +69,7 @@ describe("invoicePosting mit Steuerfällen", () => {
     ]);
     expect(invoicePosting(zero, "SKR04", "soll", "drittland")[1]).toMatchObject({ account: "4338", taxCode: "Drittland" });
     expect(invoicePosting(zero, "SKR03", "soll", "steuerfrei")[1]).toMatchObject({ account: "8100", taxCode: "Steuerfrei" });
-    expect(invoicePosting(zero, "SKR04", "ist", "kleinunternehmer")[1]).toMatchObject({ account: "4185", taxCode: "KU" });
+    expect(invoicePosting(zero, "SKR04", "ist", "kleinunternehmer")[1]).toMatchObject({ account: "4184", taxCode: "KU" });
   });
 
   it("lehnt Steuersätze über 0 % bei Sonderfällen ab", () => {

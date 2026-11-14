@@ -1,7 +1,7 @@
 import { ASSET_ACCOUNTS } from "./afa.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import type { Cents } from "./money.ts";
-import { ACCOUNTS, EXPENSE_CATEGORIES, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
+import { ACCOUNTS, EXPENSE_CATEGORIES, KLEINUNTERNEHMER_FRUEHERE_KONTEN, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
 import { carriesForward } from "./vortrag.ts";
 
@@ -112,6 +112,7 @@ export function ledgerManagedAccounts(kontenrahmen: Kontenrahmen): Map<string, s
     [a.ustVorauszahlung, "Umsatzsteuer"],
     [a.sondervorauszahlung, "Umsatzsteuer"],
     ...[...Object.values(a.erloese), ...Object.values(a.erloeseSonder)].map((account): [string, string] => [account, "Rechnungen (Erlöse)"]),
+    [KLEINUNTERNEHMER_FRUEHERE_KONTEN[kontenrahmen], "Rechnungen (Erlöse)"],
     ...[
       ...Object.values(assets.anlage),
       assets.gwg,

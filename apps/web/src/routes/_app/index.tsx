@@ -384,7 +384,7 @@ function OverviewPage() {
                   <div title={invoice.customer}>{invoice.customer}</div>
                   <div className="num">{formatEuro(invoice.gross)}</div>
                   <div>
-                    <InvoiceStatus status={invoice.listStatus} />
+                    <InvoiceStatus invoice={invoice} />
                   </div>
                 </Link>
               ))}

@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
+import { useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { FilePicker } from "../FilePicker.tsx";
 import {
@@ -30,6 +31,7 @@ import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
 import { Field } from "../Field.tsx";
+import { Status } from "../Status.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
@@ -219,9 +221,11 @@ function Connection({ source, connected }: { source: ConnectedSource; connected:
   const { busy, notice, run } = useAction();
   const error = notice?.text ?? null;
   const keyId = useId();
+  const { form, error: fehler, check } = useSubmitCheck({ key: key.trim() === "" ? `Trag den ${config.keyLabel} ein.` : null });
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!check()) return;
     void run(async () => {
       await save({ data: { apiKey: key } });
       setKey("");
@@ -267,11 +271,11 @@ function Connection({ source, connected }: { source: ConnectedSource; connected:
           <NoticeBanner notice={notice} />
         </div>
       ) : (
-        <form className="stack" onSubmit={onSubmit}>
+        <form ref={form} className="stack" onSubmit={onSubmit} noValidate>
           <p className="small muted" style={{ margin: 0 }}>
             {config.keyHelp}
           </p>
-          <Field label={config.keyLabel} describedBy={error ? `${keyId}-error` : undefined}>
+          <Field label={config.keyLabel} describedBy={error ? `${keyId}-error` : undefined} error={fehler("key")}>
             {(control) => (
               <input
                 {...control}
@@ -280,7 +284,7 @@ function Connection({ source, connected }: { source: ConnectedSource; connected:
                 spellCheck={false}
                 value={key}
                 onChange={(event) => setKey(event.target.value)}
-                aria-invalid={error ? true : undefined}
+                aria-invalid={error || fehler("key") ? true : undefined}
               />
             )}
           </Field>
@@ -290,7 +294,7 @@ function Connection({ source, connected }: { source: ConnectedSource; connected:
             </div>
           )}
           <div className="actions">
-            <button type="submit" className="btn btn-primary" disabled={busy || key.trim().length === 0}>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
               {busy ? "Prüfe …" : "Prüfen und speichern"}
             </button>
           </div>
@@ -551,7 +555,15 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
         <h3 id={`year-${year.year}`} style={{ margin: 0 }}>
           Geschäftsjahr {year.year}
         </h3>
-        <span className={year.ready ? "pill pill-ok" : "pill pill-warn"}>{year.ready ? "vollständig" : "unvollständig"}</span>
+        {year.ready ? (
+          <Status tone="ok" inline>
+            Vollständig
+          </Status>
+        ) : (
+          <Status tone="warn" emphasis="notice" inline>
+            Unvollständig
+          </Status>
+        )}
       </div>
       <div className="grid-main">
         <ul className="checks">

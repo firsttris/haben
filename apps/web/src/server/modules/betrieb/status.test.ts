@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const VERSION = (JSON.parse(readFileSync(new URL("../../../../../../package.json", import.meta.url), "utf8")) as { version: string }).version;
+const COMMIT = "0123abc4567def890123abc4567def890123abcd";
 const CLI = fileURLToPath(new URL("./cli.ts", import.meta.url));
 
 describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
@@ -38,9 +39,10 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
   }
 
   it("ohne Sicherung und ohne ERiC: Version aus der package.json, keine Sicherung, ERiC fehlt", async () => {
-    expect(await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).toEqual({
+    expect(await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, commit: null })).toEqual({
       schema: 1,
       version: VERSION,
+      commit: null,
       eric: { source: null, version: null },
       backup: { state: "keins", overdue: false, lastBackup: null, failed: [] },
       summary: { eric: "fehlt", backup: "keine" },
@@ -77,6 +79,17 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     expect(s.summary.backup).toBe("2026-10-20 03:15 (Test-Restore fehlgeschlagen)");
   });
 
+  it("mit Commit aus dem Build: ganz im JSON, als kurze Kennung hinter der Version im Text", async () => {
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, commit: COMMIT });
+    expect(s.commit).toBe(COMMIT);
+    expect(status.statusAlsText(s)).toContain(`Version:          ${VERSION} (0123abc)\n`);
+  });
+
+  it("ohne Commit: nur die Version im Text", async () => {
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, commit: null });
+    expect(status.statusAlsText(s)).toContain(`Version:          ${VERSION}\n`);
+  });
+
   it("nennt das Format der Ausgabe, damit Skripte eine Änderung erkennen", async () => {
     expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).schema).toBe(1);
   });
@@ -104,6 +117,15 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     expect(r.status, r.stderr).toBe(0);
     const s = JSON.parse(r.stdout);
     expect(s).toMatchObject({ version: VERSION, eric: { source: "env", version: "44.3.6.0" }, backup: { lastBackup: "2026-10-20T01:15:00.000Z" } });
+  });
+
+  it("liest den Commit aus HABEN_COMMIT, wie ihn das Image setzt; leer heißt null", () => {
+    const mit = spawnSync(process.execPath, [CLI, "status", "--json"], { encoding: "utf8", timeout: 20_000, env: { ...process.env, HABEN_COMMIT: COMMIT } });
+    expect(mit.status, mit.stderr).toBe(0);
+    expect(JSON.parse(mit.stdout).commit).toBe(COMMIT);
+    const ohne = spawnSync(process.execPath, [CLI, "status", "--json"], { encoding: "utf8", timeout: 20_000, env: { ...process.env, HABEN_COMMIT: "" } });
+    expect(ohne.status, ohne.stderr).toBe(0);
+    expect(JSON.parse(ohne.stdout).commit).toBeNull();
   });
 
   it("gibt ohne --json Text aus", () => {
