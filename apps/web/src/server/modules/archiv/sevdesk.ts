@@ -31,6 +31,7 @@ import { storeLegacyVoucher } from "./legacy-store.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
 import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
+import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
 import { importSevdeskPayments } from "./sevdesk-payments.ts";
 
 /*
@@ -290,6 +291,8 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
   }
   // 4. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
   await importSevdeskPayments(actor, importId, client, progress, signal);
+  // 5. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
+  await importSevdeskAccountingTypes(actor, importId, client, progress, signal);
   await save(true);
 }
 

@@ -10,6 +10,7 @@ import { activateVastBerechtigung, fetchVast, refreshVastBerechtigung, requestVa
 import { ScrollTable } from "./ScrollTable.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Field } from "./Field.tsx";
+import { Tag } from "./Status.tsx";
 
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 type Beleg = Data["vast"]["belege"][number];
@@ -22,7 +23,7 @@ function BelegDetails({ beleg }: { beleg: Beleg }) {
         {beleg.test && (
           <>
             {" "}
-            <span className="pill pill-info">Test</span>
+            <Tag>Test</Tag>
           </>
         )}{" "}
         <span className="small muted">abgeholt {formatDateTime(beleg.fetchedAt)}</span>

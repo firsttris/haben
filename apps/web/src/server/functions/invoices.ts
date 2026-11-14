@@ -139,6 +139,19 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
         )[0] ?? null,
       open: listed?.open ?? 0,
       listStatus: listed?.listStatus ?? null,
+      /** Für die Auskunft unter dem Status im Seitenkopf */
+      statusFacts: listed
+        ? {
+            listStatus: listed.listStatus,
+            dueDate: listed.dueDate,
+            gross: listed.gross,
+            paid: listed.paid,
+            open: listed.open,
+            settledOn: listed.settledOn,
+            cancelledBy: listed.cancelledBy,
+            correctsNumber: listed.correctsNumber,
+          }
+        : null,
       writeOffs: result.invoice.status === "final" ? await listWriteOffs({ invoiceId: data }) : [],
       /** Zahlungen über die Bank und bar im Kassenbuch */
       payments: result.invoice.status === "final" ? await invoicePaymentList(data) : [],

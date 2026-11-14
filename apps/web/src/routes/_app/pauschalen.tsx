@@ -24,7 +24,9 @@ import { useAction, type Notice } from "../../lib/use-action.ts";
 import { createPauschaleFn, getPauschalen, reversePauschaleFn } from "../../server/functions/pauschalen.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
+import { EntfernungForm } from "../../components/EntfernungForm.tsx";
 import { Field } from "../../components/Field.tsx";
+import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/pauschalen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -37,13 +39,18 @@ export const Route = createFileRoute("/_app/pauschalen")({
 type Data = Awaited<ReturnType<typeof getPauschalen>>;
 type Entry = Data["entries"][number];
 
-const ARTEN: PauschaleArt[] = ["homeoffice", "fahrt", "verpflegung"];
-const ART_KURZ: Record<PauschaleArt, string> = { homeoffice: "Homeoffice", fahrt: "Fahrt", verpflegung: "Verpflegung" };
+const ARTEN: PauschaleArt[] = ["homeoffice", "fahrt", "verpflegung", "entfernung"];
+const ART_KURZ: Record<PauschaleArt, string> = {
+  homeoffice: "Homeoffice",
+  fahrt: "Fahrt",
+  verpflegung: "Verpflegung",
+  entfernung: "Wege zur Betriebsstätte",
+};
 const MAHLZEIT_LABEL = { fruehstueck: "Frühstück", mittag: "Mittagessen", abend: "Abendessen" } as const;
 
-/** Homeoffice gilt für einen Monat, die anderen Pauschalen für einen Tag */
+/** Homeoffice und Wege zur Betriebsstätte gelten für einen Monat, die anderen Pauschalen für einen Tag */
 function pauschaleDatum(e: { art: string; date: string }): string {
-  return e.art === "homeoffice"
+  return e.art === "homeoffice" || e.art === "entfernung"
     ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`))
     : formatDate(e.date);
 }
@@ -53,6 +60,7 @@ const parseKm = (value: string) => Number(value.replace(/\./g, "").replace(",", 
 function detailText(entry: Entry): string {
   const d = entry.details;
   if (entry.art === "homeoffice") return `${d.tage} Tag${d.tage === 1 ? "" : "e"}`;
+  if (entry.art === "entfernung") return `${d.tage} Tag${d.tage === 1 ? "" : "e"} × ${d.km} km einfache Entfernung`;
   if (entry.art === "fahrt") {
     const km = Number(d.km);
     const gesamt = d.hinUndZurueck ? km * 2 : km;
@@ -93,7 +101,7 @@ function PauschalenList() {
   const [notice, setNotice] = useState<Notice>(null);
   const thisYear = currentYear();
   const years = [...new Set([thisYear, thisYear - 1, thisYear - 2, year])].sort((a, b) => b - a);
-  const summe = totals.homeoffice + totals.fahrt + totals.verpflegung;
+  const summe = totals.homeoffice + totals.fahrt + totals.verpflegung + totals.entfernung;
 
   return (
     <>
@@ -104,9 +112,9 @@ function PauschalenList() {
         </div>
       </div>
       <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
-        Homeoffice-Tage, Fahrten mit dem eigenen Auto und Verpflegung auf Geschäftsreisen mindern den Gewinn, ohne dass du etwas bezahlt hast, das einen Beleg
-        hätte. Haben bucht sie als Ausgabe an Privateinlage und trägt sie in die richtigen Zeilen der <Link to="/jahreserklaerung">Anlage EÜR</Link> ein. Halte
-        fest, wann du wo warst (Kalender, Fahrtenliste); das Finanzamt kann danach fragen.
+        Homeoffice-Tage, Fahrten mit dem eigenen Auto, Wege zur Betriebsstätte und Verpflegung auf Geschäftsreisen mindern den Gewinn, ohne dass du etwas
+        bezahlt hast, das einen Beleg hätte. Haben bucht sie als Ausgabe an Privateinlage und trägt sie in die richtigen Zeilen der{" "}
+        <Link to="/jahreserklaerung">Anlage EÜR</Link> ein. Halte fest, wann du wo warst (Kalender, Fahrtenliste); das Finanzamt kann danach fragen.
       </p>
 
       <nav className="filter-row" aria-label="Jahr wählen">
@@ -119,7 +127,7 @@ function PauschalenList() {
         </div>
       </nav>
 
-      <div className="grid-4" style={{ marginBottom: 16 }}>
+      <div className="grid-5" style={{ marginBottom: 16 }}>
         <div className="card">
           <div className="kpi-label">Homeoffice</div>
           <div className="kpi-value">{formatEuro(totals.homeoffice)}</div>
@@ -134,6 +142,11 @@ function PauschalenList() {
           <div className="kpi-label">Verpflegung</div>
           <div className="kpi-value">{formatEuro(totals.verpflegung)}</div>
           <div className="small muted">Mehraufwand auf Reisen</div>
+        </div>
+        <div className="card">
+          <div className="kpi-label">Wege zur Betriebsstätte</div>
+          <div className="kpi-value">{formatEuro(totals.entfernung)}</div>
+          <div className="small muted">Entfernungspauschale</div>
         </div>
         <div className="card">
           <div className="kpi-label">Zusammen {year}</div>
@@ -166,6 +179,7 @@ function PauschalenList() {
           {art === "homeoffice" && <HomeofficeForm data={data} onNotice={setNotice} />}
           {art === "fahrt" && <FahrtForm data={data} onNotice={setNotice} />}
           {art === "verpflegung" && <VerpflegungForm data={data} onNotice={setNotice} />}
+          {art === "entfernung" && <EntfernungTab data={data} onNotice={setNotice} />}
           <NoticeBanner notice={notice} />
         </section>
 
@@ -284,8 +298,8 @@ function FahrtForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => vo
     <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Fahrt mit dem Privatfahrzeug">
       <p className="small muted" style={{ margin: 0 }}>
         Fahrten zu Kunden, Terminen und auf Geschäftsreisen mit deinem privaten Fahrzeug: {formatEuro(KM_SATZ.pkw)} je gefahrenem Kilometer mit dem Auto,{" "}
-        {formatEuro(KM_SATZ.andere)} mit Motorrad oder Roller. Arbeitest du dauerhaft beim selben Kunden, kann dort eine Betriebsstätte entstehen; dann zählt
-        die Entfernungspauschale, die Haben noch nicht abbildet.
+        {formatEuro(KM_SATZ.andere)} mit Motorrad oder Roller. Arbeitest du dauerhaft beim selben Kunden, kann dort eine Betriebsstätte entstehen; dann zählen
+        die Wege dorthin als „Wege zur Betriebsstätte“ mit der Entfernungspauschale, nicht mit dem Kilometersatz.
       </p>
       <div className="form-grid">
         <Field label="Datum">
@@ -319,6 +333,19 @@ function FahrtForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => vo
         </button>
       </div>
     </form>
+  );
+}
+
+/** Wege zur Betriebsstätte: das Formular steht in `EntfernungForm`, hier hängt es an Senden und Meldung der Seite */
+function EntfernungTab({ data, onNotice }: { data: Data; onNotice: (n: Notice) => void }) {
+  const { busy, submit } = useSubmit(onNotice);
+  return (
+    <EntfernungForm
+      year={data.year}
+      monat={defaultDate(data).slice(0, 7)}
+      busy={busy}
+      onSubmit={(input, form) => submit({ art: "entfernung", ...input }, form, "Entfernungspauschale")}
+    />
   );
 }
 
@@ -463,7 +490,7 @@ function Liste({ data }: { data: Data }) {
                 </td>
                 <td>
                   {e.storniert ? (
-                    <span className="pill">storniert</span>
+                    <Status tone="danger">Storniert</Status>
                   ) : (
                     <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirm(e)}>
                       Stornieren

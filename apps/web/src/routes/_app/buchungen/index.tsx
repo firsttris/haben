@@ -32,50 +32,58 @@ function nextPeriod({ year, month }: VatPeriod): VatPeriod {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 }
 
-/** Herkunft als Link auf Rechnung, Beleg, Anlage oder Bank */
-function SourcePill({ entry }: { entry: Entry }) {
+/** Herkunft als Link auf Rechnung, Beleg, Anlage oder Bank; ein Verweis, kein Status (DESIGN.md › Status) */
+function SourceLink({ entry }: { entry: Entry }) {
   const label = entry.reversal ? "Gegenbuchung" : JOURNAL_SOURCE[entry.sourceType];
   const id = entry.sourceId;
   if (entry.sourceType === "invoice")
     return (
-      <Link to="/rechnungen/$id" params={{ id }} className="pill">
+      <Link to="/rechnungen/$id" params={{ id }} className="journal-source">
         {label}
       </Link>
     );
   if (entry.sourceType === "document")
     return (
-      <Link to="/belege/$id" params={{ id }} className="pill">
+      <Link to="/belege/$id" params={{ id }} className="journal-source">
+        {label}
+      </Link>
+    );
+  // Verrechnung zweier Belege (#786): je Belegseite eine Buchung, der Link führt auf ihren Beleg
+  if (entry.sourceType === "verrechnung" && entry.documentId)
+    return (
+      <Link to="/belege/$id" params={{ id: entry.documentId }} className="journal-source">
         {label}
       </Link>
     );
   if (entry.sourceType === "asset")
     return (
-      <Link to="/anlagen/$id" params={{ id }} className="pill">
+      <Link to="/anlagen/$id" params={{ id }} className="journal-source">
         {label}
       </Link>
     );
   if (entry.sourceType === "pauschale")
     return (
-      <Link to="/pauschalen" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">
+      <Link to="/pauschalen" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="journal-source">
         {label}
       </Link>
     );
   // Manuelle Buchungen haben keinen Vorgang außerhalb des Journals
-  if (entry.sourceType === "manuell" || entry.sourceType === "eroeffnung" || entry.sourceType === "import") return <span className="pill">{label}</span>;
+  if (entry.sourceType === "manuell" || entry.sourceType === "eroeffnung" || entry.sourceType === "import")
+    return <span className="journal-source">{label}</span>;
   if (entry.sourceType === "lohn")
     return (
-      <Link to="/lohn" search={{ jahr: Number(entry.date.slice(0, 4)), monat: Number(entry.date.slice(5, 7)) }} className="pill">
+      <Link to="/lohn" search={{ jahr: Number(entry.date.slice(0, 4)), monat: Number(entry.date.slice(5, 7)) }} className="journal-source">
         {label}
       </Link>
     );
   if (entry.sourceType === "kasse")
     return (
-      <Link to="/kasse" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">
+      <Link to="/kasse" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="journal-source">
         {label}
       </Link>
     );
   return (
-    <Link to="/bank" className="pill">
+    <Link to="/bank" className="journal-source">
       {label}
     </Link>
   );
@@ -260,7 +268,7 @@ function JournalPage() {
                       </td>
                       <td data-label="Datum">{shortDate(e.date)}</td>
                       <td data-label="Herkunft">
-                        <SourcePill entry={e} />
+                        <SourceLink entry={e} />
                       </td>
                       <td data-label="Text">{e.description}</td>
                       <td data-label="Soll">

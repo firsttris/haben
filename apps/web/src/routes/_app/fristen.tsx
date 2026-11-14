@@ -3,7 +3,8 @@ import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
-import { formatDate } from "../../lib/format.ts";
+import { formatDate, relativeDays } from "../../lib/format.ts";
+import { Status } from "../../components/Status.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { useAction } from "../../lib/use-action.ts";
 import { createFristenAbo, getFristen, reactivateFristenAbo, revokeFristenAbo } from "../../server/functions/fristen.ts";
@@ -32,24 +33,28 @@ const ART_LABEL: Record<Frist["art"], string> = {
   sv: "Sozialversicherung",
 };
 
-function wann(datum: string, today: string): string {
-  const tage = tageBis(datum, today);
-  if (tage === 0) return "heute";
-  if (tage === 1) return "morgen";
-  if (tage < 0) return `seit ${-tage} Tag${tage === -1 ? "" : "en"}`;
-  return `in ${tage} Tagen`;
+/** Zustand einer Frist: erledigt, Hinweis (Haben prüft es nicht) oder offen, ab 7 Tagen vorher dringend */
+function FristStatus({ frist, today }: { frist: Frist; today: string }) {
+  const tage = tageBis(frist.datum, today);
+  if (frist.status === "erledigt") return <Status tone="ok">Erledigt</Status>;
+  if (frist.status === "hinweis")
+    return (
+      <Status tone="info" detail={relativeDays(tage)}>
+        Hinweis
+      </Status>
+    );
+  return (
+    <Status tone={tage <= 7 ? "warn" : "neutral"} emphasis={tage <= 7 ? "urgent" : undefined} detail={relativeDays(tage)}>
+      Offen
+    </Status>
+  );
 }
 
 function FristRow({ frist, today }: { frist: Frist; today: string }) {
-  const tage = tageBis(frist.datum, today);
-  const dringend = frist.status === "offen" && tage <= 7;
   return (
     <tr>
       <td data-label="Datum" style={{ whiteSpace: "nowrap" }}>
         {formatDate(frist.datum)}
-        <div className="small" style={{ color: dringend ? "var(--danger-ink)" : "var(--muted)", fontWeight: dringend ? 600 : 400 }}>
-          {frist.status === "erledigt" ? "erledigt" : wann(frist.datum, today)}
-        </div>
       </td>
       <td data-label="Frist">
         <a href={frist.link} style={{ fontWeight: 500 }}>
@@ -57,8 +62,11 @@ function FristRow({ frist, today }: { frist: Frist; today: string }) {
         </a>
         <div className="small muted">{frist.detail}</div>
       </td>
-      <td data-label="Art">
-        <span className={`pill${frist.status === "erledigt" ? " pill-ok" : frist.status === "hinweis" ? " pill-info" : ""}`}>{ART_LABEL[frist.art]}</span>
+      <td data-label="Art" className="small">
+        {ART_LABEL[frist.art]}
+      </td>
+      <td data-label="Status">
+        <FristStatus frist={frist} today={today} />
       </td>
     </tr>
   );
@@ -89,8 +97,11 @@ function Gruppe({ titel, fristen, today, leer, kurz }: { titel: string; fristen:
                 Datum
               </th>
               <th scope="col">Frist</th>
-              <th scope="col" style={{ width: 130 }}>
+              <th scope="col" style={{ width: 140 }}>
                 Art
+              </th>
+              <th scope="col" style={{ width: 150 }}>
+                Status
               </th>
             </tr>
           </thead>

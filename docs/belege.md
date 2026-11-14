@@ -116,7 +116,7 @@ Gebucht wird wie jeder Beleg, im Beispiel 1.000 € Miete zuzüglich 19 % mit de
 | 1576 (1406) Vorsteuer 19 % | 190,00 | |
 | 1600 (3300) Verbindlichkeiten | | 1.190,00 |
 
-Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist- und Soll-Versteuerung gleich (siehe [Vorsteuer in der Voranmeldung](#vorsteuer-in-der-voranmeldung)).
+Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist- und Soll-Versteuerung gleich (siehe [Vorsteuer in der Voranmeldung](#vorsteuer-in-der-voranmeldung)). Eine Gutschrift mit der Angabe „erstattet bereits Bezahltes“ ist die Ausnahme: ihre Vorsteuer mindert sich erst, wenn sie ausgeglichen ist. Ohne die Angabe gilt auch für sie das Belegdatum.
 
 ### Ändern, pausieren, beenden
 
@@ -352,6 +352,65 @@ Die Zahlung selbst buchst du im Bankabgleich: Verbindlichkeiten an Bank (siehe [
 
 Bist du in den Einstellungen als Kleinunternehmer nach § 19 UStG eingetragen, ziehst du keine Vorsteuer ab. Haben bucht dann den Bruttobetrag auf das Aufwandskonto, ohne Vorsteuerzeile und mit dem Steuerschlüssel `keineVSt`. Im Beispiel oben stünden 119,00 € auf 4964 bzw. 6837. Ob ein Beleg mit oder ohne Vorsteuerabzug gebucht wurde, hält Haben beim Buchen am Beleg fest. Spätere Auswertungen bleiben so richtig, auch wenn sich die Einstellung ändert.
 
+### Gutschrift für schon Bezahltes
+
+Eine Gutschrift mindert entweder ein noch offenes Entgelt (Storno, Preisnachlass vor der Zahlung) oder eines, das du
+schon bezahlt hast (Guthaben aus einer Jahresabrechnung, Bonus). Der Unterschied entscheidet, **wann** die Vorsteuer
+berichtigt wird, nicht die Versteuerungsart: Ist und Soll regeln nach § 20 UStG nur die Umsatzsteuer auf deine eigenen
+Umsätze, der Vorsteuerabzug hängt nicht an der Zahlung. Bei einem schon bezahlten Entgelt ist die Berichtigung erst
+fällig, wenn das Geld zurückkommt oder verrechnet wird (§ 17 Abs. 1 Satz 2 und 8 UStG).
+
+Deshalb setzt du an der Gutschrift den Haken **Erstattet bereits Bezahltes**. Er steht nur an negativen Belegen, die über
+die Bank bezahlt sind — nur sie lassen sich ausgleichen. Haben
+bucht die Vorsteuerminderung dann nicht im Belegmonat auf die Vorsteuer, sondern auf ein Zwischenkonto, mit
+dem Steuerschlüssel des Satzes:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 4964 Software und Lizenzen | 6837 Software und Lizenzen | | 100,00 |
+| 1548 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 1434 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | | 19,00 |
+| 1600 Verbindlichkeiten | 3300 Verbindlichkeiten | 119,00 | |
+
+Das Konto steht wie „Umsatzsteuer nicht fällig“ (1766/1761) auf der Erlösseite in keiner Kennzahl: Kz 66 mindert erst
+die Umbuchung beim Ausgleich. Ohne den Haken bleibt alles wie bisher, die Gutschrift mindert die Vorsteuer im
+Belegmonat. Den Haken setzt du ausdrücklich; Haben leitet ihn nicht aus dem Zahlungsstand ab, denn der kann sich nach
+dem Belegdatum noch ändern.
+
+Ein gemeldeter Zeitraum nimmt die Angabe nicht mehr an: Steht der Belegmonat schon in einer abgegebenen Voranmeldung
+oder ist das Jahr abgeschlossen, lehnt Haben das Speichern und das Buchen ab.
+
+Ausgeglichen wird die Gutschrift über die Bank (Erstattung), über eine [Verrechnung](#verrechnen-ohne-zahlung) mit
+einem Beleg desselben Lieferanten oder über eine Ausbuchung wie eine Kursdifferenz. Dabei bucht Haben den Anteil vom
+Zwischenkonto auf die Vorsteuer um, mit Steuerschlüssel und Bemessungsgrundlage; Kz 66 mindert sich in diesem Zeitraum:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 1548 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 1434 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 19,00 | |
+| 1576 Vorsteuer 19 % | 1406 Vorsteuer 19 % | | 19,00 |
+
+Bei einer Teilerstattung nimmt jeder Ausgleich seinen Anteil je Steuersatz, mehrere zusammen ergeben genau die
+Vorsteuer des Belegs. Ausgebuchtes **Skonto** ist die Ausnahme: Was niemand mehr erstattet, wird vom Zwischenkonto
+abgeschrieben und nicht als Vorsteuer gezogen. Wird eine Zuordnung storniert, geht die Umbuchung mit zurück, gebucht am
+Tag des Stornos. Der Saldo des Kontos ist ein Bestand und läuft ins nächste Jahr: Eine Gutschrift aus Dezember und die
+Erstattung im Januar mindern die Voranmeldung im Januar, nicht rückwirkend im Dezember.
+
+Was das Zwischenkonto für die Auswertungen bedeutet:
+
+- **Voranmeldung aus dem Journal** (ab dem Stichjahr): Kz 66 sieht die Minderung genau im Zeitraum des Ausgleichs. Die
+  Zeile auf 1548/1434 trägt ihren Steuerschlüssel, aber keine Kennzahl.
+- **Voranmeldung aus den Nebenbüchern** (davor): Sie folgt derselben Regel und verteilt die Vorsteuer der Gutschrift
+  nach Zahlung, Verrechnung und Kursdifferenz (`gutschrift.ts`). Beide Quellen sagen deshalb in Kz 66 je Monat
+  dasselbe, und der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) meldet hier keine Abweichung.
+- **EÜR:** 1548/1434 ist ein Bestandskonto und ändert die EÜR nicht — weder Einnahmen noch Ausgaben. Die Vorsteuerzeile
+  der EÜR folgt der Umbuchung.
+- **E-Bilanz:** Das Konto steht unter den sonstigen Vermögensgegenständen aus Umsatzsteuer, mit Haben-Saldo (die
+  Berichtigung ist noch nicht gezogen) unter den Verbindlichkeiten aus Umsatzsteuer — nie in einer Erfolgszeile.
+- **DATEV:** Die Zeile geht mit ihrem Gegenkonto und **ohne** BU-Schlüssel raus. 1548/1434 ist wie „Umsatzsteuer nicht
+  fällig“ kein Automatikkonto; ein Schlüssel 8/9 würde DATEV veranlassen, aus 19,00 € noch einmal Steuer zu rechnen.
+- **Kontenrahmenwechsel:** Gebuchte Belege bleiben in ihrem Rahmen. Wird die Gutschrift erst nach dem Wechsel
+  ausgeglichen, bucht die Umbuchung im neuen Rahmen (1434 an 1406) und findet den geparkten Betrag trotzdem; der Saldo
+  des alten Kontos bleibt als Bestand stehen.
+
 ## Belege nacheinander prüfen
 
 Nach einem Import liegen oft viele Belege auf „Zu prüfen“. Damit du sie ohne Umweg über die Liste abarbeitest, steht oben in der Detailansicht **‹ Vorheriger**, die Position („3 von 17“) und **Nächster ›**. Die Reihenfolge ist die der Liste: offene zuerst, dann nach Belegdatum.
@@ -374,7 +433,7 @@ Im [Bankabgleich](bank.md#zuordnen) geht es genauso: Nach dem vollständigen Zuo
 
 ## Vorsteuer in der Voranmeldung
 
-Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Ein Storno zählt mit umgekehrtem Vorzeichen im Monat des Stornos. Siehe [umsatzsteuer.md](umsatzsteuer.md).
+Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Eine Gutschrift mit der Angabe „erstattet bereits Bezahltes“ zählt nicht im Belegmonat: Ihre Vorsteuer mindert sich erst, wenn das Entgelt zurückkommt oder der Posten verrechnet wird, anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Ein Storno zählt mit umgekehrtem Vorzeichen im Monat des Stornos. Siehe [umsatzsteuer.md](umsatzsteuer.md).
 
 ## Stornieren und neu erfassen
 
@@ -394,7 +453,7 @@ Was dabei passiert:
 - **EÜR:** Ein privat oder bar bezahlter Beleg zählt am Belegdatum als Ausgabe und am Datum der Gegenbuchung mit umgekehrtem Vorzeichen. Liegt sie im Folgejahr, mindert sie die Ausgaben dort.
 - **Bar aus der Kasse:** Im [Kassenbuch](kasse.md) entsteht eine Gegenzeile mit neuer Nummer und dem Betrag zurück in die Kasse; die ursprüngliche Zeile ist als storniert markiert. Gegenzeile und Gegenbuchung stehen hier immer am Tag des Stornos, weil das Kassenbuch zeitnah und in der Reihenfolge der Tage geführt wird.
 - **Über das Geschäftskonto:** Bestätigte Bankzuordnungen werden gemeinsam mit dem Beleg zurückgenommen. Ein mit der Zahlung ausgebuchter Rest wie Skonto wird ebenfalls aufgehoben. Gehört eine Zuordnung zu einer Aufteilung, nennt die Rückfrage alle Teile, auch die zu weiteren Vorgängen; eine Aufteilung wird wie im Bankabgleich nur insgesamt aufgehoben. Die betroffenen Umsätze sind danach wieder offen. Andere, unabhängige Zuordnungen bleiben bestehen. Der stornierte Beleg verschwindet aus den offenen Posten und lässt sich keiner Zahlung mehr zuordnen.
-- **Datum der Bankgegenbuchungen:** Wie bei der manuellen Rücknahme im Bankabgleich stehen sie am ursprünglichen Buchungsdatum, einschließlich verknüpfter Ausbuchungen wie Skonto. Das kann die neu berechneten Steuerwerte früherer Zeiträume ändern, auch wenn die Beleggegenbuchung im laufenden Zeitraum steht. Gespeicherte Voranmeldungen werden nicht überschrieben. Prüfe die neu berechneten Werte und ob eine [berichtigte Anmeldung](umsatzsteuer.md#berichtigte-anmeldung) nötig ist; der Stornodialog weist darauf hin.
+- **Datum der Bankgegenbuchungen:** Ausgangspunkt ist das oben beschriebene Datum der Beleggegenbuchung. Liegt es vor dem Buchungsdatum einer bereits erfolgten Zahlung, tragen deren Bankgegenbuchungen einschließlich verknüpfter Ausbuchungen wie Skonto stattdessen den Buchungstag der Zahlung. Bank- und Beleggegenbuchung können dadurch in unterschiedliche Zeiträume fallen. Gespeicherte Voranmeldungen überschreibt Haben nicht. Prüfe die neu berechneten Steuerwerte und ob eine [berichtigte Anmeldung](umsatzsteuer.md#berichtigte-anmeldung) nötig ist.
 - **Ein gemeinsamer Vorgang:** Bankgegenzeilen und Belegstorno werden nur zusammen gespeichert. Verhindert eine Sperre einen Teil, bleibt der ganze Vorgang unverändert; die Fehlermeldung steht sichtbar in der Aktionsleiste. Haben sich die Bankzuordnungen seit der Rückfrage geändert, lädst du den Beleg neu und bestätigst den aktuellen Umfang.
 - **Dieselbe Datei:** Beim Hochladen nimmt Haben dieselbe Datei sonst nicht ein zweites Mal an. Die Neuerfassung nutzt sie trotzdem; lädst du die Datei danach noch einmal hoch, landest du bei der Neuerfassung. Je storniertem Beleg gibt es eine Neuerfassung; löschst du den Entwurf, lässt er sich wieder neu erfassen.
 
@@ -405,7 +464,7 @@ Nicht stornieren lassen sich:
 | Es bleibt eine separate Ausbuchung ohne zugehörige Bankzuordnung offen | Erst die Ausbuchung im [Bankabgleich](bank.md) aufheben, dann stornieren. |
 | Anlagegut | Die Anlage bliebe im Verzeichnis und würde weiter abgeschrieben. Erfasse den Abgang im [Anlagenverzeichnis](anlagen.md). |
 | Beim Umzug als offener Posten übernommen (aus Lexware Office, sevDesk, BuchhaltungsButler, Accountable oder über den [JSON-Eingang](belegimport.md)) | Die Vorsteuer ist im bisherigen Programm angemeldet; korrigiere den Beleg dort. |
-| Das Jahr des Stornos oder einer zurückzunehmenden Zahlung ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr; auch eine gemeinsame Rücknahme bleibt dann vollständig aus. |
+| Das Jahr des Stornos oder der Zahlung ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr; auch eine gemeinsame Rücknahme bleibt dann vollständig aus. Liegt schon die Zahlung darin, lässt sich ihre Zuordnung nicht aufheben, weil sie danach nicht neu gebucht werden könnte. Korrigiere den Vorgang stattdessen mit einer Buchung im offenen Jahr, etwa einer Stornorechnung mit Datum im offenen Jahr oder einer Direktbuchung auf die betroffene Kategorie. |
 | Der Kontenrahmen wurde seit dem Buchen gewechselt | Die Kontonummern bedeuten im neuen Rahmen etwas anderes. |
 
 ## Löschen
@@ -425,6 +484,22 @@ Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechn
 | Storniert | Gebucht und per Gegenbuchung aufgehoben, siehe [Stornieren und neu erfassen](#stornieren-und-neu-erfassen). |
 
 Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hochgeladen hast. Für XML und HEIC zeigt Haben keine Vorschau, sondern einen Link zum Öffnen der Datei.
+
+## Verrechnen ohne Zahlung
+
+Manche Rechnungen werden nie bezahlt, sondern gegen eine Gutschrift des Lieferanten aufgerechnet. Typisch sind Abschläge und Jahresabrechnungen: Der Versorger schreibt ein Guthaben gut und verrechnet es in den Folgemonaten, abgebucht wird nichts mehr. Bis dahin blieben Rechnung und Gutschrift offen.
+
+Auf der Belegseite eines gebuchten Belegs steht dafür unter **Verrechnung**, wie viel noch offen ist und der Knopf **Mit einem Beleg verrechnen**. Dort wählst du den Gegenbeleg, also die Gutschrift desselben Lieferanten, den Betrag, den Tag der Aufrechnung und einen Grund. Tag und Grund sind Pflicht, weil die Verrechnung steuerlich an diesem Tag wirkt. Das Datum darf nicht vor dem jüngeren der beiden Belege liegen und nicht in der Zukunft; in der Oberfläche ist heute vorbelegt. Vorgeschlagen wird der kleinere der beiden offenen Beträge; bei Teilverrechnung bleibt der Rest offen und lässt sich später mit einer weiteren Rechnung ausgleichen.
+
+Haben verrechnet nur, was zusammenpasst:
+
+- Beide Belege sind gebucht, laufen über die Bank und sind nicht storniert.
+- Sie gehören demselben Lieferanten und zeigen in verschiedene Richtungen, also eine Rechnung und eine Gutschrift.
+- Der Betrag überschreitet keinen der beiden offenen Reste.
+
+Verrechnungen bewegen kein Geld: Es entsteht kein Bankumsatz, kein Kassenstand ändert sich, und die Buchungen beider Belege bleiben, wie sie sind. Beide Belege zählen danach als erledigt, die Verrechnung steht bei beiden mit Datum, Gegenbeleg und Grund. **Aufheben** setzt sie zurück, wie bei den Ausbuchungen mit einer Gegenzeile, damit die Spur erhalten bleibt. Dabei gibst du den Tag der Aufhebung an: Die Gegenzeile wirkt an diesem Tag, nicht rückwirkend auf den Tag der Verrechnung. Ein bereits gemeldetes Jahr bleibt damit unverändert.
+
+Für die Auswertungen zählt die Verrechnung wie eine Zahlung, und zwar am Tag der Aufrechnung. Das folgt der Rechtsprechung: Die Aufrechnung mit einer fälligen Gegenforderung ist eine Leistung im Sinne des § 11 Abs. 2 EStG (H 11 EStH „Aufrechnung“, BFH vom 19.04.1977, BStBl II S. 601). In der EÜR wirkt sie deshalb auf beide Belege: Der Aufwand der Rechnung und die Minderung aus der Gutschrift fließen in den Zeitraum, in dem aufgerechnet wird, nicht in den des Rechnungsdatums. In der Voranmeldung mindert die Verrechnung die Vorsteuer einer Gutschrift anteilig im Monat der Aufrechnung (§ 17 Abs. 1 Satz 2 und Satz 8 UStG, UStAE 13.6 Abs. 1 Satz 12); die Vorsteuer einer Rechnung bleibt bei ihrem Belegdatum.
 
 ## Grenzen
 

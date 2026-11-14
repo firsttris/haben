@@ -840,19 +840,20 @@ export const mailLog = pgTable("mail_log", {
 });
 
 /**
- * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand),
- * gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
+ * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand,
+ * Entfernungspauschale für Wege zur Betriebsstätte), gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
  */
 export const pauschalen = pgTable(
   "pauschalen",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung"] }).notNull(),
-    /** Homeoffice: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
+    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung", "entfernung"] }).notNull(),
+    /** Homeoffice und Entfernungspauschale: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
     date: date("date", { mode: "string" }).notNull(),
     /** Anlass, Ziel, Kunde */
     description: text("description").notNull(),
-    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend } */
+    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend };
+     * Entfernung: { tage, km, betriebsstaette } */
     details: jsonb("details").$type<Record<string, string | number | boolean>>().notNull(),
     /** Cent; beim Storno negativ */
     amount: integer("amount").notNull(),
@@ -1734,7 +1735,23 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn", "import"],
+      enum: [
+        "invoice",
+        "document",
+        "allocation",
+        "asset",
+        "pauschale",
+        "kasse",
+        "ausbuchung",
+        "manuell",
+        "eroeffnung",
+        "ausschuettung",
+        "lohn",
+        "import",
+        // Verrechnung zweier Belege (#274): bisher ohne Buchung; seit #786 trägt sie die Umbuchung der Vorsteuer aus dem
+        // Zwischenkonto, mit #785 kommen die zwei Buchungen je Belegseite dazu
+        "verrechnung",
+      ],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
@@ -1894,6 +1911,13 @@ export const documents = pgTable(
     vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
     privateShare: smallint("private_share").notNull().default(0),
+    /**
+     * Gutschrift erstattet bereits Bezahltes (#786), etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
+     * schon bezahlte Rechnung: Die Vorsteuerminderung wird nach § 17 Abs. 1 Satz 2 und 8 UStG erst gezogen, wenn das Geld
+     * zurückkommt oder verrechnet wird, und steht bis dahin auf dem Zwischenkonto. Ausdrückliche Angabe, nicht aus dem
+     * Zahlungsstand abgeleitet. Nur an Gutschriften (negativer Beleg).
+     */
+    erstattetBezahltes: boolean("erstattet_bezahltes").notNull().default(false),
     /**
      * § 13b (eu, drittland) oder innergemeinschaftlicher Erwerb (ig_erwerb, § 1a UStG): Die Steuer schuldest du selbst.
      * Die Beträge tragen die selbst berechnete Steuer, gezahlt wird nur netto (gross = net).
@@ -2304,6 +2328,12 @@ export const allocations = pgTable(
       .notNull()
       .references(() => bankTransactions.id),
     kind: allocationKindEnum("kind").notNull(),
+    /**
+     * Tag, an dem die Zuordnung wirkt; leer heißt Buchungsdatum des Umsatzes. Gesetzt ist er bei der Gegenzeile einer
+     * Aufhebung (#782): Die wirkt am Tag der Aufhebung, auch wenn der Umsatz Monate älter ist. Ohne diese Spalte lägen
+     * Journal (Tag der Aufhebung) und Nebenbücher (Tag des Umsatzes) für den Zeitraum dazwischen auseinander.
+     */
+    date: date("date", { mode: "string" }),
     invoiceId: uuid("invoice_id").references(() => invoices.id),
     documentId: uuid("document_id").references(() => documents.id),
     /** Mit dem Vorzeichen des Umsatzes; Teile einer Aufteilung auch mit umgekehrtem (z. B. Gebühr in einer Auszahlung) */
@@ -2910,6 +2940,24 @@ export const legacyVoucherPayments = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_voucher_payments_source_external").on(t.source, t.externalId), index("legacy_voucher_payments_voucher").on(t.voucherId)],
+);
+
+/**
+ * Kontostamm eines Buchungskontos aus sevDesk (GET /AccountingType/{id}), unverändert. Gutschriften mit `bookingCategory`
+ * ACCOUNTING_TYPE folgen zur Laufzeit dessen Kontonummern (#472). Nur anhängen; ein gleicher Stand kommt nur einmal an.
+ */
+export const sevdeskAccountingTypes = pgTable(
+  "sevdesk_accounting_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    accountingTypeId: text("accounting_type_id").notNull(),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sevdesk_accounting_types_stand").on(t.accountingTypeId, sql`md5(${t.raw}::text)`)],
 );
 
 /** Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. */

@@ -76,6 +76,7 @@ import { NavMarkCard } from "../../components/NavMarkCard.tsx";
 import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
+import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   beforeLoad: ({ context, search }) => {
@@ -1028,7 +1029,15 @@ function EricCard() {
             </span>
           )}
         </div>
-        <span className={`pill ${eric.mode === "eric" ? "pill-ok" : ""}`}>{eric.mode === "eric" ? "ERiC" : "Simuliert"}</span>
+        {eric.mode === "eric" ? (
+          <Status tone="ok" inline>
+            ERiC
+          </Status>
+        ) : (
+          <Status tone="warn" emphasis="notice" inline>
+            Simuliert
+          </Status>
+        )}
       </div>
       {eric.source === "env" ? (
         <p className="small muted" style={{ margin: 0 }}>

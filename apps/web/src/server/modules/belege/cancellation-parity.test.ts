@@ -129,7 +129,8 @@ describe.skipIf(!testDatabaseUrl)("Gemeinsamer Belegstorno entspricht der manuel
     const originalBank = await sql`select * from bank_transactions where id = ${transactionId}`;
     const allocationIds = (await bank.documentBankAllocations(documentId)).map((a) => a.id);
     if (mode === "manuell") {
-      await bank.reverseAllocation(actor, allocationIds[0]!);
+      // Dieselbe Aufhebung wie beim gemeinsamen Storno, also am Storno-Tag: nur dann ist der Vergleich aussagekräftig
+      await bank.reverseAllocation(actor, allocationIds[0]!, "2026-10-05");
       await cancellation.cancelDocument(actor, documentId, {}, "2026-10-05");
     } else {
       await cancellation.cancelDocument(actor, documentId, { allocationIds }, "2026-10-05");
@@ -140,12 +141,14 @@ describe.skipIf(!testDatabaseUrl)("Gemeinsamer Belegstorno entspricht der manuel
     expect(await sql`select * from bank_transactions where id = ${transactionId}`).toEqual(originalBank);
     const september = await vat.computeVatFigures({ year: 2026, month: 9 });
     const october = await vat.computeVatFigures({ year: 2026, month: 10 });
+    // Die Gegenbuchungen tragen das Storno-Datum (#782): Der September behält alles, der Oktober nimmt es zurück
     expect(before.kz66).toBe(scenario === "skonto" ? 1_862 : 1_900);
-    expect(september.kz66).toBe(1_900);
-    expect(october.kz66).toBe(-1_900);
+    expect(september.kz66).toBe(scenario === "skonto" ? 1_862 : 1_900);
+    expect(october.kz66).toBe(scenario === "skonto" ? -1_862 : -1_900);
     expect(before.tax81).toBe(scenario === "aufteilung" ? 19_000 : 0);
-    expect(september.tax81).toBe(scenario === "aufteilung" && profile.taxation === "soll" ? 19_000 : 0);
-    expect(october.tax81).toBe(0);
+    // Bei einer Aufteilung wird die ganze Aufteilung aufgehoben; der Umsatzanteil bleibt bei Ist im September stehen
+    expect(september.tax81).toBe(scenario === "aufteilung" ? 19_000 : 0);
+    expect(october.tax81).toBe(scenario === "aufteilung" && profile.taxation === "ist" ? -19_000 : 0);
     const abgleich = await import("../auswertungen/abgleich.ts");
     for (const month of [9, 10]) expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month })).zeilen)).toEqual([]);
     return snapshot(documentId, transactionId);

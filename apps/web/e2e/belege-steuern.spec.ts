@@ -20,6 +20,7 @@ import {
   neuenLieferantenOeffnen,
   ohneAxeVerstoesse,
   trefferliste,
+  randImDialog,
 } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
@@ -435,8 +436,33 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await zeile.getByRole("button", { name: "Stornieren" }).click();
   await faktenZeigen(page, "Datum", "Betrag");
   await bestaetigen(page, "Stornieren");
-  await expect(zeile.getByText("storniert", { exact: true })).toBeVisible();
+  await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
+});
+
+test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno (#895)", async () => {
+  await go("/pauschalen");
+  const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+  await neu.getByRole("button", { name: "Wege zur Betriebsstätte", exact: true }).click();
+  const wege = neu.getByRole("form", { name: "Wege zwischen Wohnung und Betriebsstätte" });
+  await wege.getByLabel("Tage an der Betriebsstätte", { exact: true }).fill("15");
+  // Mit Komma wie bei „Fahrt“: 12,5 km zählen als 12 volle Kilometer, nicht als 125
+  await wege.getByLabel("Kilometer einfach", { exact: true }).fill("12,5");
+  // Ohne Betriebsstätte bleibt „Buchen“ gesperrt, und das Feld sagt warum (Hinweis am Feld, nicht neben dem Knopf)
+  await expect(wege.getByRole("button", { name: "68,40 € buchen" })).toBeDisabled();
+  await expect(wege.getByLabel("Betriebsstätte", { exact: true })).toHaveAccessibleDescription(/Trag die Betriebsstätte ein/);
+  await wege.getByLabel("Betriebsstätte", { exact: true }).fill("Praxis Musterstadt");
+  // ab 2026 0,38 € je Kilometer: 15 Tage × 12 km
+  await wege.getByRole("button", { name: "68,40 € buchen" }).click();
+  await expect(neu.getByRole("status")).toHaveText("Entfernungspauschale über 68,40 € gebucht.");
+
+  const liste = page.getByRole("region", { name: /^Eingetragen in/ });
+  const zeile = liste.getByRole("row").filter({ hasText: "Praxis Musterstadt" });
+  await expect(zeile).toHaveCount(1);
+  await zeile.getByRole("button", { name: "Stornieren" }).click();
+  await faktenZeigen(page, "Datum", "Betrag");
+  await bestaetigen(page, "Stornieren");
+  await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
 });
 
 test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ browser }) => {
@@ -1336,7 +1362,7 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByText(`Abgegeben 09.07.${year} (vermerkt)`)).toBeVisible();
   await expect(page.getByRole("region", { name: `Verlauf Juni ${year}` })).toContainText("Abgabe vermerkt");
   const zahlung = page.getByRole("region", { name: "Zahlung an das Finanzamt" });
-  await expect(zahlung).toContainText("offen 190,00");
+  await expect(zahlung).toContainText("Offen 190,00");
   const protokoll = await page.request.get((await page.getByRole("link", { name: "Protokoll" }).first().getAttribute("href"))!);
   expect(protokoll.headers()["content-type"]).toContain("application/pdf");
 
@@ -1382,7 +1408,7 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await page.waitForLoadState("networkidle");
 
   await go(`/umsatzsteuer/${year}-06`);
-  await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("ausgeglichen");
+  await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("Ausgeglichen");
   await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("Lastschrift 190,00");
 });
 
@@ -2020,6 +2046,83 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
 });
 
+test("Abgabe vermerken bei niedrigem Fenster: Tab hält jedes Feld über der Knopfzeile, der Dialog selbst scrollt nicht (WCAG 2.4.11)", async () => {
+  const jahr = YEAR - 1;
+  for (const [breite, hoehe] of [
+    [1280, 420],
+    [375, 600],
+  ] as const) {
+    await page.setViewportSize({ width: breite, height: hoehe });
+    await go(`/jahreserklaerung/${jahr}`);
+    const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${jahr}`, exact: true });
+    await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: `Anlage EÜR ${jahr} als abgegeben vermerken` });
+    // Das Datumsfeld hat drei Tab-Stopps (Tag, Monat, Jahr); der Lauf beginnt beim Ticket
+    await dialog.getByLabel("Transferticket", { exact: true }).focus();
+    for (const name of ["Betrag", "Begründung", "Übermittlungsprotokoll (PDF, optional)"]) {
+      await page.keyboard.press("Tab");
+      const lage = await dialog.evaluate((d) => {
+        const aktiv = document.activeElement as HTMLInputElement;
+        // Der FilePicker versteckt sein <input type="file">; zu sehen ist der Knopf daneben
+        const sichtbar = (aktiv.closest(".file-picker") ?? aktiv).getBoundingClientRect();
+        return {
+          label: aktiv.labels?.[0]?.textContent ?? aktiv.tagName,
+          unten: sichtbar.bottom,
+          knopfzeile: d.querySelector(":scope > form > .actions:last-child")!.getBoundingClientRect().top,
+          dialogScroll: d.scrollTop,
+        };
+      });
+      const wo = `${breite}×${hoehe}, ${name}`;
+      expect(lage.label, wo).toBe(name);
+      expect(lage.unten, `${wo}: hinter der Knopfzeile`).toBeLessThanOrEqual(lage.knopfzeile + 0.5);
+      expect(lage.dialogScroll, `${wo}: der Dialog selbst scrollt`).toBe(0);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  }
+  // Wie playwright.config.ts (chromium), damit die folgenden Tests im selben Fenster laufen
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
+test("Formular-Dialog bei niedrigem Fenster: Beim Öffnen bleibt das erste Feld oben sichtbar, das Formular scrollt nicht (#880)", async () => {
+  const jahr = YEAR - 1;
+  await page.setViewportSize({ width: 1280, height: 420 });
+  const pruefen = async (dialog: ReturnType<Page["getByRole"]>, erstesFeld: string) => {
+    await expect(dialog).toBeVisible();
+    // Chrome macht das scrollende Formular selbst fokussierbar, showModal() fokussiert dann das Formular, kein Feld.
+    // Zwei Frames abwarten, damit ein Scrollen danach schon passiert ist
+    const lage = await dialog.evaluate(async (d, feld) => {
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const form = d.querySelector(":scope > form") as HTMLElement;
+      const label = [...d.querySelectorAll("label")].find((l) => l.textContent?.startsWith(feld))!;
+      return {
+        scrollTop: form.scrollTop,
+        feldOben: label.getBoundingClientRect().top,
+        formOben: form.getBoundingClientRect().top,
+        scrollbar: form.scrollHeight > form.clientHeight,
+        fokusAufFeld: label.control !== null && label.control === document.activeElement,
+      };
+    }, erstesFeld);
+    expect(lage.scrollbar, `${erstesFeld}: das Formular muss scrollen, sonst prüft der Test nichts`).toBe(true);
+    expect(lage.scrollTop, `${erstesFeld}: das Formular ist beim Öffnen schon gescrollt`).toBe(0);
+    expect(lage.feldOben, `${erstesFeld}: liegt über dem oberen Rand`).toBeGreaterThanOrEqual(lage.formOben);
+    // Der Fokus steht auf dem ersten Feld, nicht auf dem Formular als Scrollbereich
+    expect(lage.fokusAufFeld, `${erstesFeld}: hat beim Öffnen den Fokus`).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  };
+  await go(`/jahreserklaerung/${jahr}`);
+  await page
+    .getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${jahr}`, exact: true })
+    .getByRole("button", { name: "Abgabe vermerken", exact: true })
+    .click();
+  await pruefen(page.getByRole("dialog", { name: `Anlage EÜR ${jahr} als abgegeben vermerken` }), "Tag der Abgabe");
+  await go("/dauerbelege/neu");
+  await neuenLieferantenOeffnen(page);
+  await pruefen(page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" }), "Name oder Firma");
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
 test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);
@@ -2029,6 +2132,7 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
+  await randImDialog(dialog, [dialog.getByLabel("Transferticket", { exact: true }), dialog.getByRole("button", { name: "Vermerken", exact: true })]);
   // Der Abgabetag liegt im Folgejahr: eine Jahreserklärung kann nicht vor dem Jahresende abgegeben werden
   await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr + 1}-01-02`);
   await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");
@@ -2047,7 +2151,7 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
 
   // Danach gilt die Erklärung als abgegeben; Tag und Begründung stehen in der Karte, ein zweiter Vermerk fehlt
-  await expect(ust.getByText(`Außerhalb abgegeben 02.01.${jahr + 1}`)).toBeVisible();
+  await expect(ust.getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
   await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
   await expect(karte).toContainText("Umsatzsteuererklärung extern mit WISO abgegeben.");
   await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
@@ -2056,7 +2160,7 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
 
   // Auch nach dem Neuladen bleibt der Vermerk stehen
   await go(`/jahreserklaerung/${jahr}`);
-  await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben 02.01.${jahr + 1}`)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {

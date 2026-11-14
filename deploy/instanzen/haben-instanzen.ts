@@ -31,8 +31,8 @@ Braucht Bun, diesen Checkout und docker mit Compose 2.23 oder neuer.
 Optionen für neu:
   --hersteller-id ID         ELSTER_HERSTELLER_ID setzen (sonst bleibt sie leer)
   --eric-home PFAD           von Hand entpacktes ERiC einbinden, das sich alle Instanzen teilen können
-  --eigener-proxy            keinen gemeinsamen Caddy starten; Netz haben-proxy anlegen und den Block für den
-                             vorhandenen Proxy ausgeben
+  --eigener-proxy            keinen gemeinsamen Caddy starten; das Netz haben-proxy-<name> der Instanz anlegen und
+                             den Block für den vorhandenen Proxy ausgeben
   --sso                      ausschließlich OpenID Connect, Gruppen haben-<name>-inhaber und -steuerberatung
   --oidc-issuer URL          mit --sso: Issuer des Anmeldedienstes
   --oidc-client-id ID        mit --sso: Client-ID dieser Instanz

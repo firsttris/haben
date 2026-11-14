@@ -153,6 +153,17 @@ describe.skipIf(!testDatabaseUrl)("Zahlungen auf die ersetzte GmbH-/UG-Schlussre
     });
   }
 
+  it("GmbH: „Bezahlt am …“ des Ersatzes nennt die Zahlung, die auf den alten Schluss ging", async () => {
+    await sql`update company set rechtsform = 'gmbh'`;
+    const paidAdvance = await advance();
+    const original = await finalInvoice(paidAdvance.id);
+    await bank.createCashInvoiceEntry(actor, { invoiceId: original.id, date: "2027-01-25", amount: 83_300 }, "2027-01-25");
+    await invoices.cancelInvoice(actor, original.id, "2027-02-12");
+    const replacement = await finalInvoice(paidAdvance.id, "2027-03-12");
+    // Status und Zahlungsliste rechnen mit der Gruppe; das Datum unter dem Status muss dieselbe Zahlung nennen
+    expect(await listed(replacement.id)).toMatchObject({ listStatus: "bezahlt", settledOn: "2027-01-25" });
+  });
+
   it("UG, SKR04, Ist: Teilzahlungen des alten Schlusses zählen zum Restsaldo und zur kumulierten Cent-Rundung des Ersatzes", async () => {
     await sql`update company set rechtsform = 'ug', kontenrahmen = 'SKR04', versteuerung = 'ist'`;
     const paidAdvance = await advance();

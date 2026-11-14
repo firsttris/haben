@@ -55,6 +55,7 @@ import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseErro
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
+import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -81,6 +82,7 @@ import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
+import { belegTotals, vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 
 export class BankError extends UserError {}
@@ -1231,6 +1233,10 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
       throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
     }
     lines = documentPaymentPosting(part.amount, company.kontenrahmen);
+    // Gutschrift „erstattet bereits Bezahltes“ (#786): der erstattete Anteil geht vom Zwischenkonto auf die Vorsteuer
+    if (doc.erstattetBezahltes) {
+      lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), part.amount, company.kontenrahmen)));
+    }
     description = `Zahlung Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { documentId: doc.id };
   } else if (part.kind === "ustva") {
@@ -1314,17 +1320,64 @@ export async function allocateSplit(actor: string, input: SplitInput): Promise<v
   });
 }
 
-/** Hebt eine Zuordnung per Gegenzeile und Gegenbuchung auf; Teile einer Aufteilung nur alle zusammen. */
-export async function reverseAllocation(actor: string, allocationId: string): Promise<void> {
-  await withActor(actor, (tx) => reverseAllocationIn(tx, allocationId));
+/**
+ * Hebt eine Zuordnung per Gegenzeile und Gegenbuchung auf; Teile einer Aufteilung nur alle zusammen.
+ *
+ * Gebucht wird am Tag der Aufhebung (#782), nicht am Buchungsdatum des Umsatzes: Eine Aufhebung ist ein Vorgang von
+ * heute und berichtigt die Umsatzsteuer nach § 17 Abs. 1 UStG in dem Zeitraum, in dem sie erklärt wird. Ohne eigenes
+ * Datum gilt heute. Ein schon gemeldeter Zeitraum ist bewusst kein Hindernis: Gerade dann wirkt die Aufhebung am
+ * heutigen Tag und lässt die abgegebene Voranmeldung unberührt — eine Sperre nähme den einzigen Weg, einen Fehler zu
+ * berichtigen. Den Belegstorno bedient reverseAllocationIn mit dem Datum aus cancellationDate.
+ */
+export async function reverseAllocation(actor: string, allocationId: string, date = today()): Promise<void> {
+  // Liegt die Aufhebung in der Zukunft, weist der Weg über die Oberfläche sie ab (server/functions/bank.ts): Ein
+  // vorgehaltener Auszug kann selbst in der Zukunft liegen, dort wäre ein Datum in seinem Zeitraum richtig.
+  const heute = today();
+  await withActor(actor, async (tx) => {
+    // Die Zuordnung steht buchhalterisch am Buchungsdatum ihres Umsatzes; früher kann die Aufhebung nicht wirken.
+    // Liegt die Zahlung selbst in der Zukunft (vorgehaltener Auszug), ist heute schon der früheste Tag.
+    const [row] = await tx
+      .select({ bookingDate: schema.bankTransactions.bookingDate })
+      .from(schema.allocations)
+      .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
+      .where(eq(schema.allocations.id, allocationId));
+    // Nur der Weg über die Oberfläche datiert vor; der Belegstorno bringt sein Datum selbst mit (cancellationDate)
+    if (row && row.bookingDate <= heute && date < row.bookingDate) {
+      throw new BankError(`Das Datum liegt vor dem Buchungsdatum der Zahlung (${row.bookingDate}). Eine Aufhebung wirkt an dem Tag, an dem sie erklärt wird.`);
+    }
+    await reverseAllocationIn(tx, allocationId, date);
+  });
 }
 
 /** Wie reverseAllocation, innerhalb der withActor-Transaktion des Aufrufers (z. B. gemeinsamer Belegstorno). */
-export async function reverseAllocationIn(tx: Tx, allocationId: string): Promise<void> {
+export async function reverseAllocationIn(tx: Tx, allocationId: string, date: string): Promise<void> {
   const [allocation] = await tx.select().from(schema.allocations).where(eq(schema.allocations.id, allocationId)).for("update");
   if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
   const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
   if (already) throw new BankError("Die Zuordnung ist bereits aufgehoben.");
+  // Die Gegenzeile kann nicht vor der Zahlung wirken: Der Belegstorno bringt sein Datum selbst mit (cancellationDate) und
+  // liegt damit vor dem Buchungsdatum der Zahlung, wenn der Beleg vor der Zahlung datiert ist. Dann gilt das Buchungsdatum
+  // der Zahlung, nicht der frühere Tag. Ein vorgehaltener Auszug (Zahlung selbst in der Zukunft) bleibt beim übergebenen
+  // Tag: Dort wäre ein Datum im Zeitraum des Auszugs richtig.
+  const heute = today();
+  const [zahlung] = await tx
+    .select({ bookingDate: schema.bankTransactions.bookingDate })
+    .from(schema.bankTransactions)
+    .where(eq(schema.bankTransactions.id, allocation.transactionId));
+  const tag = zahlung && date < zahlung.bookingDate && zahlung.bookingDate <= heute ? zahlung.bookingDate : date;
+  // Liegt die Zahlung in einem abgeschlossenen Jahr, bleibt die Aufhebung gesperrt (Entscheidung des Maintainers zu #782).
+  // Eine anschließende Neu-Zuordnung bucht am Buchungsdatum der Zahlung (bookPart) und fiele damit ins gesperrte Jahr:
+  // der Vorgang bliebe halb offen und das Bankkonto wiche ab. Die Sperre greift vor dem ersten Schreibvorgang, für den
+  // Bankweg und den gemeinsamen Belegstorno gleichermaßen; korrigiert wird stattdessen im offenen Jahr.
+  if (zahlung) {
+    const zahlungsJahr = Number(zahlung.bookingDate.slice(0, 4));
+    const [geschlossen] = await tx.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, zahlungsJahr));
+    if (geschlossen) {
+      throw new BankError(
+        `Die Zahlung vom ${zahlung.bookingDate} liegt im abgeschlossenen Jahr ${zahlungsJahr}. Eine Aufhebung ist dort nicht mehr möglich, weil sich die Zuordnung danach nicht neu buchen ließe. Korrigiere den Vorgang stattdessen mit einer Buchung im offenen Jahr.`,
+      );
+    }
+  }
   // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
   const parts = allocation.splitId
     ? await tx
@@ -1335,7 +1388,7 @@ export async function reverseAllocationIn(tx: Tx, allocationId: string): Promise
         .for("update")
     : [allocation];
   await darlehenAufhebenPruefen(tx, parts);
-  for (const part of parts) await reverseOne(tx, part);
+  for (const part of parts) await reverseOne(tx, part, tag);
   // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
   const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
   if (targets.length > 0) {
@@ -1350,7 +1403,8 @@ export async function reverseAllocationIn(tx: Tx, allocationId: string): Promise
         ),
       )
       .for("update");
-    for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
+    // Die mit der Zahlung ausgebuchte Restbuchung wirkt wie die Aufhebung selbst: an ihrem geklammerten Tag
+    for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff, tag);
   }
   await assertNoReturnWithoutPayment(tx, parts);
 }
@@ -1373,7 +1427,7 @@ async function assertNoReturnWithoutPayment(tx: Tx, parts: (typeof schema.alloca
   }
 }
 
-async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect) {
+async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect, date: string) {
   if (allocation.invoiceId) await lockInvoice(tx, allocation.invoiceId);
   const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocation.id));
   if (already) return;
@@ -1401,18 +1455,16 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
     amount: -allocation.amount,
     splitId: allocation.splitId,
     reversesId: allocation.id,
+    // Gegenzeile trägt ihren eigenen Tag (#782): Sie wirkt, wenn aufgehoben wird, nicht am Tag des Umsatzes
+    date,
     taxShares: negatedShares(allocation.taxShares),
     taxSharesInvoiceId: allocation.taxSharesInvoiceId,
   });
   if (entry) {
-    const [bank] = await tx
-      .select({ bookingDate: schema.bankTransactions.bookingDate })
-      .from(schema.bankTransactions)
-      .where(eq(schema.bankTransactions.id, allocation.transactionId));
     // Gegenbuchung im Kontenrahmen der Firmendaten; wechseln kann er nur, solange im Jahr nichts gebucht ist
     const books = await openBooks(tx);
     await post(tx, books, {
-      date: bank!.bookingDate,
+      date,
       description: `Storno: ${entry.description}`,
       sourceType: "allocation",
       sourceId: reversal!.id,
@@ -1527,6 +1579,10 @@ export async function bookWriteOff(
       await assertNotCancelled(tx, doc.id);
       amount = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
       lines = exchangeDifferencePosting({ kind: "document" }, amount, company.kontenrahmen);
+      // Die Steuer bleibt beim Kurs des Belegs; der ausgeglichene Anteil geht trotzdem vom Zwischenkonto (#786)
+      if (doc.erstattetBezahltes) {
+        lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), amount, company.kontenrahmen)));
+      }
       description = `Kursdifferenz · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
       target = { invoiceId: null, documentId: doc.id };
     }
@@ -1547,7 +1603,9 @@ export async function bookWriteOff(
     const rows = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, doc.id));
     const taxes = rows.map((r) => ({ rate: r.taxRate, base: r.net, tax: r.tax })).sort((a, b) => b.rate - a.rate);
     const totals = { net: doc.net, tax: doc.tax, gross: doc.gross, taxes };
-    lines = documentWriteOffPosting(totals, amount, company.kontenrahmen, doc.vorsteuerAbzug);
+    // Gutschrift „erstattet bereits Bezahltes“ (#786): Der Rest erstattet nichts mehr, die Steuerzeile schreibt den Rest
+    // des Zwischenkontos ab; aus dem Betrag dieses Skontos allein gerechnet bliebe ein Cent darauf stehen
+    lines = documentWriteOffPosting(totals, amount, company.kontenrahmen, doc.vorsteuerAbzug, await vorsteuerAbschreibung(tx, doc, totals, amount));
     description = `Skonto erhalten · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { invoiceId: null, documentId: doc.id };
   } else {
@@ -1708,7 +1766,10 @@ export async function reverseWriteOff(actor: string, id: string, date: string): 
   });
 }
 
-/** Gegenzeile einer Ausbuchung; mit einer Zuordnung zusammen am Datum der Ausbuchung (= Buchungsdatum des Umsatzes) */
+/**
+ * Gegenzeile einer Ausbuchung; ohne Datum an ihrem eigenen. Mit einer Zuordnung zusammen trägt sie deren Aufhebungsdatum
+ * (reverseAllocationIn), mit einer Bareinnahme das der Kasse (cash.ts).
+ */
 export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect, date = row.date) {
   if (row.invoiceId) await lockInvoice(tx, row.invoiceId);
   const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, row.id));
@@ -1745,4 +1806,17 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
       reversesId: entry.id,
     });
   }
+}
+
+/**
+ * Monate, für die eine Voranmeldung als abgegeben vermerkt ist (#782). Danach richtet sich die Vorbelegung des
+ * Tags der Aufhebung: Ein gemeldeter Zeitraum bleibt unverändert, die Gegenbuchung wirkt heute.
+ */
+export async function gemeldeteVoranmeldungen(): Promise<string[]> {
+  const rows = await db
+    .select({ jahr: schema.vatReturns.year, monat: schema.vatReturns.month })
+    .from(schema.vatReturns)
+    .where(eq(schema.vatReturns.status, "sent"));
+  // Q1 liegt als month = 41 in vat_returns: erst in die Zahlungsmonate auflösen (#782)
+  return gesendeteMonate(rows);
 }

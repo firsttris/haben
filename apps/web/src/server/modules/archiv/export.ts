@@ -236,6 +236,7 @@ const SOURCE_LABELS: Record<JournalSource, string> = {
   ausschuettung: "Ausschüttung",
   lohn: "Lohn",
   import: "Import",
+  verrechnung: "Verrechnung",
 };
 
 /**
@@ -1731,8 +1732,8 @@ anlagen/anlagenverzeichnis.csv
                          Jahresanfang, Zugang, AfA, Abgang und Buchwert am Jahresende.
 pauschalen/pauschalen.csv
                          Nur wenn vorhanden: Pauschalen ohne Beleg (Homeoffice-Tage,
-                         Fahrten, Verpflegungsmehraufwand) mit ihren Angaben als
-                         Eigenbeleg; Stornos als Gegenzeile.
+                         Fahrten, Verpflegungsmehraufwand, Wege zur Betriebsstätte) mit
+                         ihren Angaben als Eigenbeleg; Stornos als Gegenzeile.
 kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufender
                          Nummer, Anfangsbestand und Bestand nach jeder Zeile; bei
                          Bareinnahmen auf Rechnungen die Rechnungsnummer.

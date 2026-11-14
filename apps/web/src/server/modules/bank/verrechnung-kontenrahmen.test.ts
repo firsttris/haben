@@ -1,3 +1,4 @@
+import { ACCOUNTS } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -100,7 +101,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung in beiden Kontenrahmen und Verste
     await bank.allocate(actor, { kind: "document", transactionId: umsatz!.id as string, documentId, amount: betrag });
   }
 
-  /** Anzahl der Journal-Zeilen: eine Verrechnung darf keine eigene Buchung erzeugen */
+  /** Anzahl der Journal-Buchungen: je Verrechnung zwei, eine je Belegseite (#786) */
   async function buchungen() {
     const [row] = await sql`select count(*)::int as n from journal_entries`;
     return row!.n as number;
@@ -108,7 +109,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung in beiden Kontenrahmen und Verste
 
   for (const profil of profile) {
     describe(`${profil.kr}, ${profil.versteuerung === "ist" ? "Ist" : "Soll"}-Versteuerung`, () => {
-      it("gleicht vollständig aus: beide Reste 0, keine Buchung, nichts mehr offen", async () => {
+      it("gleicht vollständig aus: beide Reste 0, eine Buchung je Belegseite, nichts mehr offen", async () => {
         await firma(profil);
         const rechnung = await beleg("2026-02-10", 10_000, 1_900); // 119,00 EUR
         // Journal in den Konten des eingestellten Kontenrahmens; Ist und Soll ändern daran nichts
@@ -132,8 +133,20 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung in beiden Kontenrahmen und Verste
 
         expect(await verrechnung.openAmount(rechnung)).toBe(0);
         expect(await verrechnung.openAmount(gutschrift)).toBe(0);
-        // Die Entscheidung im Code: keine Buchung, weil kein Geld fließt
-        expect(await buchungen()).toBe(journalVorher);
+        // Je Belegseite eine eigene Buchung (#786): Verbindlichkeiten gegen das Verrechnungskonto, jede mit dem Beleg
+        // ihrer Zeile als Quelle
+        expect(await buchungen()).toBe(journalVorher + 2);
+        const verrechnungszeilen = await sql`select e.source_id, l.account, l.debit, l.credit from journal_entries e
+            join journal_lines l on l.entry_id = e.id where e.source_type = 'verrechnung'`;
+        expect(verrechnungszeilen).toHaveLength(4);
+        const saldo = (konto: string) =>
+          verrechnungszeilen.filter((z) => z.account === konto).reduce((s, z) => s + (z.debit as number) - (z.credit as number), 0);
+        expect(saldo(KONTEN[profil.kr].verbindlichkeiten)).toBe(0);
+        expect(saldo(ACCOUNTS[profil.kr].verrechnung)).toBe(0);
+        // Beide Quellen sind Zeilen in document_settlements und hängen damit an je einem Beleg
+        const quellen = await sql`select distinct e.source_id from journal_entries e
+            join document_settlements s on s.id = e.source_id where e.source_type = 'verrechnung'`;
+        expect(quellen).toHaveLength(2);
         const offen = await reports.openPositions("2026-02-20");
         expect(offen.payables).toEqual([]);
         expect(await bank.transferCandidates()).toEqual([]);

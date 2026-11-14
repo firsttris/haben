@@ -157,7 +157,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         await expect(cancellation.cancelDocument(actor, id, {}, "2026-10-05")).rejects.toThrow(/Zuordnung auf/);
         expect(await counts()).toEqual(before);
       });
-      it(`abgeschlossenes Zahlungsjahr: gesamte Aktion ohne Teilstorno zurückrollen (${profile})`, async () => {
+      it(`abgeschlossenes Zahlungsjahr: der Storno wird abgelehnt, Beleg, Journal und offene Posten bleiben unverändert (${profile})`, async () => {
         await reset(kr, vat);
         await sql`update company set rechtsform = 'gmbh' where id = 1`;
         const id = await receipt();
@@ -165,10 +165,16 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         await bank.allocateWithRest("fixture", { transactionId: tx, target: { kind: "document", documentId: id }, rest: "skontoErhalten" });
         const allocationIds = await ids(tx);
         await sql`insert into year_closings (year) values (2026)`;
-        const before = await counts();
-        await expect(cancellation.cancelDocument(actor, id, { allocationIds }, "2027-01-05")).rejects.toThrow(/2026 ist abgeschlossen/);
-        expect(await counts()).toEqual(before);
+        // Entscheidung des Maintainers zu #782: Die Sperre bleibt wie auf main. Liegt die Zahlung im abgeschlossenen Jahr,
+        // ließe sich die Zuordnung nach der Aufhebung nicht neu buchen (bookPart bucht am Buchungsdatum der Zahlung), der
+        // Vorgang bliebe halb offen und das Bankkonto wiche ab. Die Ablehnung kommt vor dem ersten Schreibvorgang.
+        const vorher = await counts();
+        await expect(cancellation.cancelDocument(actor, id, { allocationIds }, "2027-01-05")).rejects.toThrow(/abgeschlossenen Jahr 2026/);
+        expect(await counts()).toEqual(vorher);
         expect(await ids(tx)).toEqual(allocationIds);
+        expect(await sql`select id from journal_entries where date >= '2027-01-01'`).toHaveLength(0);
+        expect((await sql`select id from document_cancellations where document_id = ${id}`).length).toBe(0);
+        expect((await bank.transactionDetail(tx))!.transaction.open).toBe(0);
       });
     }
   it("nach der Rückfrage hinzugekommene Zahlung verlangt eine neue Bestätigung", async () => {

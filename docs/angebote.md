@@ -98,14 +98,14 @@ Für Kunden mit Sprache Englisch sind Angebot und E-Mail englisch, siehe [Rechnu
 
 Auf der Seite des Angebots hältst du die Antwort des Kunden fest:
 
-| Status | Bedeutung |
-| --- | --- |
-| Entwurf | noch nicht festgeschrieben |
-| Offen | festgeschrieben, Gültigkeit läuft |
-| Abgelaufen | keine Antwort und „Gültig bis“ ist vorbei |
-| Angenommen | als angenommen markiert |
-| Abgelehnt | als abgelehnt markiert |
-| Abgerechnet | aus dem Angebot ist eine Rechnung entstanden |
+| Status | Bedeutung | Darunter in der Liste |
+| --- | --- | --- |
+| Entwurf | noch nicht festgeschrieben | – |
+| Offen | festgeschrieben, Gültigkeit läuft | wie viele Tage es noch gilt |
+| Abgelaufen | keine Antwort und „Gültig bis“ ist vorbei | seit wie vielen Tagen |
+| Angenommen | als angenommen markiert; das Wort steht in Grün, weil die Rechnung ansteht | noch nicht abgerechnet |
+| Abgelehnt | als abgelehnt markiert | – |
+| Abgerechnet | aus dem Angebot ist eine Rechnung entstanden | Nummer der Rechnung, sobald sie festgeschrieben ist |
 
 **Rechnung erstellen** legt einen Rechnungsentwurf an und markiert das Angebot als angenommen. Der Entwurf übernimmt:
 

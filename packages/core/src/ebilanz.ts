@@ -276,6 +276,10 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
       ...Object.values(a.ustIge),
       a.ustVorauszahlung,
       a.sondervorauszahlung,
+      // Zwischenkonto einer Gutschrift „erstattet bereits Bezahltes“: sonstige Vermögensgegenstände aus Umsatzsteuer,
+      // mit Haben-Saldo (die Berichtigung ist noch nicht gezogen) Verbindlichkeiten aus Umsatzsteuer. Die
+      // Auffangposition des Kontenbereichs (aktiva.B bzw. passiva.C) nennt es nur „nicht zuordenbar“.
+      a.vorsteuerNochNichtAbziehbar,
       // Entstandene Einfuhrumsatzsteuer: Vorsteuer wie die übrigen
       EXPENSE_CATEGORIES.einfuhrumsatzsteuer[kontenrahmen],
     ].map((k): [string, EbilanzZiel] => [k, UMSATZSTEUER]),

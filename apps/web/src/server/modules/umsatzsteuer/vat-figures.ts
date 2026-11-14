@@ -17,6 +17,7 @@ import {
 import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { journalAbJahr, kleinunternehmerForMonth } from "../stammdaten/index.ts";
+import { gutschriftAnteile } from "./gutschrift.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
@@ -191,9 +192,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     }
 
   {
+    // Tag der Zuordnung: die Gegenzeile einer Aufhebung wirkt an ihrem eigenen Tag (#782), sonst am Buchungsdatum
+    const zuordnungstag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
     const payments = await q
       .select({
-        date: schema.bankTransactions.bookingDate,
+        date: zuordnungstag,
         amount: schema.allocations.amount,
         taxShares: schema.allocations.taxShares,
         taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
@@ -214,8 +217,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       .where(
         and(
           eq(schema.allocations.kind, "invoice"),
-          gte(schema.bankTransactions.bookingDate, start),
-          lt(schema.bankTransactions.bookingDate, end),
+          gte(zuordnungstag, start),
+          lt(zuordnungstag, end),
           // Reverse Charge, innergemeinschaftliche Lieferung und Drittland zählen im Monat der Rechnung, auch bei Ist (siehe oben)
           notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM]),
         ),
@@ -392,9 +395,10 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   // Direkt auf eine Einnahmekategorie gebuchte Bankumsätze (#324): ohne Rechnung am Tag der Zahlung, bei Ist wie bei Soll
   // (packages/core/src/direkt-kategorie.ts); die Gegenzeile einer aufgehobenen Zuordnung mit umgekehrtem Vorzeichen
   {
+    const direktTag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
     const rows = await q
       .select({
-        date: schema.bankTransactions.bookingDate,
+        date: direktTag,
         transactionId: schema.allocations.transactionId,
         amount: schema.allocations.amount,
         category: schema.allocations.category,
@@ -403,7 +407,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       })
       .from(schema.allocations)
       .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
-      .where(and(eq(schema.allocations.kind, "kategorie"), gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end)));
+      .where(and(eq(schema.allocations.kind, "kategorie"), gte(direktTag, start), lt(direktTag, end)));
     for (const r of rows) {
       if (!r.category || r.taxRate === null || kategorieArt(r.category) !== "einnahme") continue;
       const { base, tax } = kategorieAnteil({ kategorie: r.category, steuersatz: r.taxRate }, r.amount);
@@ -481,6 +485,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     rate: schema.documentAmounts.taxRate,
     base: schema.documentAmounts.net,
     tax: schema.documentAmounts.tax,
+    erstattetBezahltes: schema.documents.erstattetBezahltes,
     privateShare: schema.documents.privateShare,
     vorsteuerAbzug: schema.documents.vorsteuerAbzug,
     reverseCharge: schema.documents.reverseCharge,
@@ -510,9 +515,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   ];
   // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
   const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
+  // Eine Gutschrift „erstattet bereits Bezahltes“ mindert die Vorsteuer erst mit dem Ausgleich (#690, #786, gutschrift.ts);
+  // ohne die Angabe gilt wie bei jedem Beleg das Belegdatum
   const inputTax = amounts
-    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge)
-    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, sign, category: _category, ...a }) => ({
+    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && !a.erstattetBezahltes)
+    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, erstattetBezahltes: _e, sign, category: _category, ...a }) => ({
       ...a,
       base: business(a.base, privateShare, sign),
       tax: business(a.tax, privateShare, sign),
@@ -537,6 +544,9 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
         gte(schema.writeOffs.date, start),
         lt(schema.writeOffs.date, end),
         eq(schema.writeOffs.kind, "skontoErhalten"),
+        // Ausgebuchtes Skonto an einer Gutschrift „erstattet bereits Bezahltes“ schreibt das Zwischenkonto ab, ohne die
+        // Vorsteuer zu mindern (vorsteuer-ausgleich.ts); es zählt deshalb nicht hier (#786)
+        eq(schema.documents.erstattetBezahltes, false),
         eq(schema.documents.vorsteuerAbzug, true),
       ),
     );
@@ -556,10 +566,13 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       }
     }
   }
+  // Erstattung oder Verrechnung einer Gutschrift: die Vorsteuer mindert sich im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG),
+  // je Zahlung, Verrechnung und Ausbuchung ein Eintrag mit deren Datum (gutschrift.ts)
+  inputTax.push(...(await gutschriftAnteile(period, q)));
   // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
   const reverseCharge: ReverseChargeSource[] = amounts
     .filter((a): a is typeof a & { reverseCharge: "eu" | "drittland" } => a.reverseCharge === "eu" || a.reverseCharge === "drittland")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, sign, ...a }) => ({
+    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, erstattetBezahltes: _e, sign, ...a }) => ({
       ...a,
       base: sign * a.base,
       tax: sign * a.tax,
@@ -570,7 +583,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   // der Rechnung, spätestens mit Ablauf des Folgemonats (§ 13 Abs. 1 Nr. 6 UStG), nicht mit der Zahlung
   const igErwerb: IgErwerbSource[] = amounts
     .filter((a) => a.reverseCharge === "ig_erwerb")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: _rc, sign, ...a }) => ({
+    .map(({ privateShare, vorsteuerAbzug, reverseCharge: _rc, erstattetBezahltes: _e, sign, ...a }) => ({
       ...a,
       base: sign * a.base,
       tax: sign * a.tax,
@@ -579,7 +592,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   // Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG): der Betrag des Bescheids ist die Steuer, abziehbar nach Belegdatum
   const einfuhr: InputTaxSource[] = amounts
     .filter((a) => a.category === "einfuhrumsatzsteuer" && a.vorsteuerAbzug && !a.reverseCharge)
-    .map(({ privateShare: _p, vorsteuerAbzug: _v, reverseCharge: _rc, category: _c, sign, ...a }) => ({ ...a, base: 0, tax: sign * (a.base + a.tax) }));
+    .map(({ privateShare: _p, vorsteuerAbzug: _v, reverseCharge: _rc, category: _c, erstattetBezahltes: _e, sign, ...a }) => ({
+      ...a,
+      base: 0,
+      tax: sign * (a.base + a.tax),
+    }));
   const ige = (rate: number, key: "base" | "tax") => igErwerb.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
   const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") => reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
 
