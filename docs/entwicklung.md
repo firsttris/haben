@@ -30,6 +30,14 @@ In `apps/web/.env` trägst du mindestens `DATABASE_URL`, `BETTER_AUTH_SECRET` un
 > [!NOTE]
 > Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Ohne ERiC (`ERIC_HOME` oder unter Einstellungen geladen nach `ERIC_DIR`) arbeitet Haben mit dem simulierten ELSTER-Client, ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` ohne KI-Auslesung. Für die Auslesung mit einem eigenen Modell genügt ein lokales Ollama mit `EXTRACTION_BASE_URL=http://localhost:11434/v1` und `EXTRACTION_MODEL=qwen2.5vl:7b`; PDFs brauchen dafür `pdftoppm` (Paket poppler-utils). Für die Entwicklung reicht beides.
 
+Läuft die Instanz hinter einem Proxy mit eigener Domain, lehnt Vite fremde Hostnamen ab („Blocked request. This host … is not allowed"). Die erlaubten Hosts gehören nicht in `vite.config.ts`, sondern in die Umgebungsvariable — sie gilt dann nur für die eigene Umgebung:
+
+```sh
+__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.example.org bun run dev
+```
+
+Mehrere Domains mit Komma trennen, ein führender Punkt schließt Subdomains ein. `localhost` ist immer erlaubt.
+
 Datenbank anlegen und Migrationen anwenden. Das Migrationsskript liest `DATABASE_URL` aus der Umgebung, nicht aus der `.env`-Datei:
 
 ```sh
