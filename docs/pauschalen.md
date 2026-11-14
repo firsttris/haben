@@ -87,18 +87,20 @@ Für die Wege von der Wohnung zur Betriebsstätte, zum Beispiel zum gemieteten P
 | 2021 | 0,30 € bis zum 20. Kilometer, ab dem 21. Kilometer 0,35 € |
 | bis 2020 | 0,30 € |
 
+Quelle: § 9 Abs. 1 Satz 3 Nr. 4 EStG; für 2025 die Anleitung zur Anlage EÜR 2025, Zeile 73.
+
 - Du trägst die Wege je Monat ein: **Monat**, **Tage an der Betriebsstätte** (höchstens so viele, wie der Monat hat, alle Einträge des Monats zusammen), **Kilometer einfach** und die **Betriebsstätte** als Text. Haben bucht zum Monatsletzten.
 - Es zählen nur volle Kilometer; Haben rundet ab.
-- Konto: SKR03 4678, SKR04 6688. Der DATEV-Kontenrahmen beschriftet diese Konten („abziehbarer Anteil“) für Fahrzeuge im Betriebsvermögen und kennt kein eigenes Konto für das Privatfahrzeug; die Wahl ist mit der Steuerberatung zu bestätigen.
-- Anlage EÜR: „Mindestens abziehbare Kraftfahrzeugkosten für Wege zwischen Wohnung und Betriebsstätte, Familienheimfahrten“ (Zeile 73 der Anlage EÜR 2025, Kennung E6003702), nicht die Nutzungseinlage der Fahrten. Zeile 72 derselben Anlage kürzt die Kfz-Kosten eines Fahrzeugs im Betriebsvermögen; für ein Privatfahrzeug bleibt sie leer.
+- Konto: SKR03 4678, SKR04 6688. Der DATEV-Kontenrahmen (SKR03 und SKR04, gültig für 2026) nennt sie „Fahrten zwischen Wohnung und Betriebsstätte und Familienheimfahrten (abziehbarer Anteil) – Fahrzeuge im Betriebsvermögen“ und kennt kein eigenes Konto für das Privatfahrzeug; die Wahl ist mit der Steuerberatung zu bestätigen.
+- Anlage EÜR: „Mindestens abziehbare Kraftfahrzeugkosten für Wege zwischen Wohnung und Betriebsstätte, Familienheimfahrten“ (Zeile 73 der Anlage EÜR 2025, Kennung E6003702), nicht die Nutzungseinlage der Fahrten.
 
 Haben rechnet nur Wege mit dem eigenen Fahrzeug, das nicht zum Betriebsvermögen gehört. Nicht abgebildet sind:
 
-- ein Fahrzeug im Betriebsvermögen mit nicht abziehbarem Anteil nach § 4 Abs. 5 Satz 1 Nr. 6 Satz 3 EStG (Anlage EÜR Zeile 72),
+- ein Fahrzeug im Betriebsvermögen mit nicht abziehbarem Anteil nach § 4 Abs. 5 Satz 1 Nr. 6 Satz 3 EStG (Anlage EÜR Zeile 72 kürzt dort die Kfz-Kosten); wer eines hat, trägt diese Art nicht zusätzlich ein, sonst zählen Kosten und Pauschale doppelt,
 - höhere tatsächliche Kosten für öffentliche Verkehrsmittel und der Höchstbetrag von 4.500 € für andere Verkehrsmittel als das eigene Auto,
 - Familienheimfahrten und doppelte Haushaltsführung.
 
-Hast du ein Fahrzeug im Betriebsvermögen, trag diese Art nicht zusätzlich ein, sonst zählen Kosten und Pauschale doppelt. Haben prüft auch nicht, ob du für denselben Tag eine Homeoffice-Pauschale einträgst; nach § 4 Abs. 5 Satz 1 Nr. 6c EStG gilt sie nur an Tagen, an denen du keine erste Tätigkeitsstätte aufsuchst. Achte darauf selbst. Was als Betriebsstätte gilt, ist eine Frage des Einzelfalls und gehört in die Steuerberatung.
+Haben prüft nicht, ob du für denselben Tag auch eine [Homeoffice-Pauschale](#homeoffice-tagespauschale) einträgst. Was als Betriebsstätte gilt, ist eine Frage des Einzelfalls und gehört in die Steuerberatung.
 
 ## Buchung und Storno
 
