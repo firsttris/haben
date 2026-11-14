@@ -89,6 +89,21 @@ describe("Modulgrenzen", () => {
     expect(paket("elster/src/est.ts", `import { amount } from "./erklaerung.ts";`)).toEqual([]);
     expect(paket("gobd-kern/src/dateispeicher.ts", `import { createHash } from "node:crypto";`)).toEqual([]);
   });
+
+  it("der GoBD-Kern greift auch nicht relativ in ein anderes Paket", () => {
+    const kern = join(server, "../../../../packages/gobd-kern/src");
+    expect(checkFile(join(kern, "dateispeicher.ts"), `import { formatEuro } from "../../core/src/money.ts";`)).toHaveLength(1);
+    expect(checkFile(join(kern, "sql/vorlage.ts"), `import { pruefwert } from "../pruefwert.ts";`)).toEqual([]);
+  });
+
+  it("Ordner namens packages oder apps oberhalb des Repositorys ändern nichts", () => {
+    const app = "/srv/packages/haben/apps/web/src/server/modules/umsatzsteuer/vat.ts";
+    expect(checkFile(app, `import { loadCompany } from "../stammdaten/company.ts";`).map((v) => v.message)).toEqual([
+      expect.stringContaining("nur über seine index.ts"),
+    ]);
+    expect(checkFile(app, `import { computeVatFigures } from "./vat-figures.ts";`)).toEqual([]);
+    expect(checkFile("/home/apps/haben/packages/core/src/money.ts", `import { x } from "./cents.ts";`)).toEqual([]);
+  });
 });
 
 describe("Struktur der Module", () => {
