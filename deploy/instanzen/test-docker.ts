@@ -3,7 +3,7 @@
  * „<Verzeichnis> <Argumente ohne docker>“ (Verzeichnis „-“ für Aufrufe ohne Projekt), seine Umgebung in `umgebungen`.
  * Zustände je Instanz (Name des Verzeichnisses) in `z`.
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import type { Ausfuehren, Ergebnis } from "./ausfuehren.ts";
@@ -22,7 +22,14 @@ export interface Zustaende {
   composeKaputt: Set<string>;
   /** Image ohne den Befehl haben */
   zuAlt: Set<string>;
+  /** Der gemeinsame Caddy läuft; `up -d` in proxy/ startet ihn */
   caddyLaeuft: boolean;
+  /** Netze, in denen der Container des Caddy hängt: aus den Dateien beim Neuaufbau, dazu per network connect */
+  caddyNetze: Set<string>;
+  /** docker network connect scheitert */
+  connectKaputt: boolean;
+  /** caddy reload scheitert, etwa an einem fehlerhaften Block in sites/ */
+  reloadKaputt: boolean;
   /** Netze, die docker kennt (docker network create, oder von Compose angelegt) */
   netze: Set<string>;
   projekte: string[];
@@ -39,8 +46,52 @@ export interface Zustaende {
 
 export const STATUS_JSON = JSON.stringify({ version: "9.9.9", summary: { eric: "44.3.6.0", backup: "2026-11-10 03:15" } });
 
+/** Die Netze in compose.override.yml eines Verzeichnisses, wie das Werkzeug sie für den Caddy schreibt */
+function netzeAus(dir: string): string[] {
+  const datei = join(dir, "compose.override.yml");
+  return existsSync(datei) ? [...readFileSync(datei, "utf8").matchAll(/^ {4}name: (\S+)$/gm)].map((m) => m[1] ?? "") : [];
+}
+
 const ok = (stdout = ""): Ergebnis => ({ code: 0, stdout, stderr: "" });
 const ps = (dienste: [string, string, string][]) => dienste.map(([Service, State, Health]) => JSON.stringify({ Service, State, Health })).join("\n");
+
+/** docker network …: Netze, die docker kennt, und die des Caddy-Containers */
+function netzBefehl(z: Zustaende, args: string[]): Ergebnis | undefined {
+  if (args[0] === "connect") {
+    if (z.connectKaputt || args[2] !== "caddy-id") return { code: 1, stdout: "", stderr: "Error response from daemon: network not found" };
+    z.caddyNetze.add(args[1] ?? "");
+    return ok();
+  }
+  const netz = args.at(-1) ?? "";
+  if (args[0] === "inspect") return { code: z.netze.has(netz) ? 0 : 1, stdout: "", stderr: "" };
+  if (args[0] === "create") {
+    z.netze.add(netz);
+    return ok();
+  }
+  if (args[0] === "ls") return ok([...z.netze].join("\n"));
+  return undefined;
+}
+
+/** docker compose im Verzeichnis proxy/ des gemeinsamen Caddy; undefined für alles, was dort wie überall antwortet */
+function caddy(z: Zustaende, sub: string, cwd: string): Ergebnis | undefined {
+  if (sub === "ps -a --format json") return ok(z.caddyLaeuft ? ps([["caddy", "running", ""]]) : "");
+  if (sub === "ps -q caddy") return ok(z.caddyLaeuft ? "caddy-id\n" : "");
+  if (sub === "exec -T caddy caddy reload --config /etc/caddy/Caddyfile")
+    return z.reloadKaputt ? { code: 1, stdout: "", stderr: "Error: adapting config using caddyfile" } : ok();
+  // Compose legt fehlende Netze aus den Dateien an; --no-recreate lässt den laufenden Container, wie er ist
+  if (sub === "up -d --no-recreate") {
+    for (const netz of netzeAus(cwd)) z.netze.add(netz);
+    return ok();
+  }
+  // Neuaufbau aus den Dateien: Der Container hängt danach in genau den Netzen aus compose.override.yml
+  if (sub === "up -d") {
+    z.caddyNetze = new Set(netzeAus(cwd));
+    for (const netz of z.caddyNetze) z.netze.add(netz);
+    z.caddyLaeuft = true;
+    return ok();
+  }
+  return undefined;
+}
 
 export function nachbau() {
   const z: Zustaende = {
@@ -51,6 +102,9 @@ export function nachbau() {
     composeKaputt: new Set(),
     zuAlt: new Set(),
     caddyLaeuft: false,
+    caddyNetze: new Set(),
+    connectKaputt: false,
+    reloadKaputt: false,
     netze: new Set(),
     projekte: [],
     volumen: [],
@@ -75,20 +129,14 @@ export function nachbau() {
     if (programm !== "docker") return { code: 127, stdout: "", stderr: `${programm}: not found` };
     if (z.tot) return { code: 1, stdout: "", stderr: "permission denied while trying to connect to the Docker daemon socket" };
     if (args[0] === "volume") return ok(z.volumen.join("\n"));
-    if (args[0] === "network") {
-      const netz = args.at(-1) ?? "";
-      if (args[1] === "inspect") return { code: z.netze.has(netz) ? 0 : 1, stdout: "", stderr: "" };
-      if (args[1] === "create") {
-        z.netze.add(netz);
-        return ok();
-      }
-      if (args[1] === "ls") return ok([...z.netze].join("\n"));
-    }
+    const n = args[0] === "network" ? netzBefehl(z, args.slice(1)) : undefined;
+    if (n) return n;
     if (args[0] !== "compose") return { code: 2, stdout: "", stderr: "unbekannt" };
     if (z.composeKaputt.has(d)) return { code: 1, stdout: "", stderr: "required variable RESTIC_PASSWORD is missing a value" };
     const sub = args.slice(1).join(" ");
+    const proxy = d === "proxy" ? caddy(z, sub, cwd) : undefined;
+    if (proxy) return proxy;
     if (sub === "ps -a --format json") {
-      if (d === "proxy") return ok(z.caddyLaeuft ? ps([["caddy", "running", ""]]) : "");
       if (z.gestoppt.has(d))
         return ok(
           ps([

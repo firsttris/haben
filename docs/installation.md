@@ -454,7 +454,16 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 
-Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Das gilt für Docker unter Linux, das Bridge-Netze mit Firewall-Regeln voneinander trennt; Laufzeiten wie OrbStack trennen sie nicht, dort erreicht eine App die andere über deren IP-Adresse. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu und baut den Caddy-Container neu auf; dabei sind alle Instanzen einige Sekunden nicht erreichbar.
+Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Das gilt für Docker unter Linux, das Bridge-Netze mit Firewall-Regeln voneinander trennt; Laufzeiten wie OrbStack trennen sie nicht, dort erreicht eine App die andere über deren IP-Adresse. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu. Einen laufenden Caddy baut es dabei nicht neu auf: Es legt das neue Netz mit `docker compose up -d --no-recreate` an, hängt den Container mit `docker network connect` hinein und liest `sites/` mit `caddy reload` neu ein. Die anderen Instanzen bleiben währenddessen erreichbar, auch laufende Uploads oder Übermittlungen an ELSTER brechen nicht ab. Läuft der Caddy nicht, startet `neu` ihn mit `docker compose up -d`.
+
+Alle Instanzen sind noch kurz nicht erreichbar (höchstens einige Sekunden), wenn der Caddy-Container neu entsteht oder neu startet:
+
+- beim ersten schlichten `docker compose up -d` in `proxy/` nach einem `neu`: Compose sieht die neuen Netze in der Datei und baut den Container einmal neu auf, auch wenn er schon in allen hängt;
+- mit `docker compose up -d --force-recreate`, nach `docker compose pull` mit einem neuen Image des Caddy und mit `docker compose restart caddy`;
+- beim Löschen einer Instanz (Schritt 3 unten) und beim Nachholen eines abgebrochenen Starts mit den Schritten, die `neu` dann nennt;
+- beim Neustart von Docker oder des Rechners. Die Netze, in die `neu` den Container gehängt hat, bleiben ihm dabei erhalten.
+
+Bestehende Instanzen und ihr Caddy brauchen dafür keine Umstellung.
 
 Eine Instanz löschst du in dieser Reihenfolge. `docker compose down -v` entfernt alle Volumes der Instanz: Datenbank, Belege und, solange `RESTIC_REPOSITORY` nicht auf ein zweites System zeigt, auch das Backup im Volume `backups`. Vorher gehören deshalb der [Jahresexport](auswertungen.md#jahresexport) jedes Jahres und ein Backup an einen zweiten Ort ([Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system)); Bücher und Aufzeichnungen bewahrst du 10 Jahre auf, Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO), siehe [Aufbewahrung](auswertungen.md#aufbewahrung).
 
@@ -465,7 +474,7 @@ Eine Instanz löschst du in dieser Reihenfolge. `docker compose down -v` entfern
 Zwei Fälle weichen bei Schritt 2 und 3 ab:
 
 - **Mit `--eigener-proxy`** gibt es kein `proxy/`: den Block der Domain und das Netz aus der Konfiguration deines Proxys entfernen, ihn neu aufbauen, dann `docker network rm haben-proxy-<name>`.
-- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht, und `up -d` baut den Caddy deshalb nicht neu auf. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose restart caddy`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart.
+- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart. Das `reload` unterbricht die anderen Instanzen nicht.
 
 `update`, `status` und `liste` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
 

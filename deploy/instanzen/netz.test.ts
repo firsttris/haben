@@ -58,13 +58,6 @@ describe("eigenes Netz je Instanz", () => {
     expect(datei("proxy", "compose.yml")).not.toContain("networks");
   });
 
-  it("baut den laufenden Caddy mit up -d neu auf: caddy reload hängt ihn in kein neues Netz", async () => {
-    await t.lauf("neu", "firma1", "firma1.example.de");
-    t.docker.z.caddyLaeuft = true;
-    await t.lauf("neu", "firma2", "firma2.example.de");
-    expect(t.docker.aufrufe.filter((a) => a.startsWith("proxy compose") && !a.includes(" ps "))).toEqual(["proxy compose up -d", "proxy compose up -d"]);
-  });
-
   it("lehnt einen Namen ab, dessen Netz es schon gibt, etwa von einer gelöschten Instanz oder einem fremden Container", async () => {
     t.docker.z.netze.add("haben-proxy-firma1");
     const r = await t.lauf("neu", "firma1", "firma1.example.de");
@@ -81,6 +74,59 @@ describe("eigenes Netz je Instanz", () => {
     const r = await t.lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
     expect(r.stderr).toContain("docker antwortet nicht");
     expect(existsSync(join(t.basis, "firma1"))).toBe(false);
+  });
+});
+
+/**
+ * Ohne Neuaufbau des laufenden Caddy (#1013): Ein schlichtes `up -d` in proxy/ baut den Container neu auf, sobald sich
+ * seine Netzliste ändert, und unterbricht dabei jede Instanz. `up -d --no-recreate` legt nur das neue Netz an,
+ * `docker network connect` hängt den Container hinein, `caddy reload` liest sites/ ohne Unterbrechung neu ein.
+ */
+describe("laufender gemeinsamer Caddy", () => {
+  const RELOAD = "proxy compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile";
+  const proxyAufrufe = () => t.docker.aufrufe.filter((a) => a.startsWith("proxy compose") && !a.includes(" ps "));
+
+  it("hängt ihn ohne Neuaufbau in das Netz der neuen Instanz und liest sites/ danach neu ein", async () => {
+    expect((await t.lauf("neu", "firma1", "firma1.example.de")).status).toBe(0);
+    expect(t.docker.z.caddyLaeuft).toBe(true);
+    const r = await t.lauf("neu", "firma2", "firma2.example.de");
+    expect(r.status, r.stderr).toBe(0);
+    expect(proxyAufrufe()).toEqual(["proxy compose up -d", "proxy compose up -d --no-recreate", RELOAD]);
+    const a = t.docker.aufrufe;
+    const connect = a.indexOf("- network connect haben-proxy-firma2 caddy-id");
+    expect(connect).toBeGreaterThan(a.indexOf("proxy compose up -d --no-recreate"));
+    expect(a.indexOf(RELOAD)).toBeGreaterThan(connect);
+    // Erst danach Datenbank und App der neuen Instanz
+    expect(a.indexOf("firma2 compose up -d --wait db")).toBeGreaterThan(a.indexOf(RELOAD));
+    expect([...t.docker.z.caddyNetze].sort()).toEqual(["haben-proxy-firma1", "haben-proxy-firma2"]);
+  });
+
+  it("schreibt die Netze trotzdem in proxy/compose.override.yml: Ein Neuaufbau von Hand behält sie", async () => {
+    await t.lauf("neu", "firma1", "firma1.example.de");
+    await t.lauf("neu", "firma2", "firma2.example.de");
+    expect(netze(datei("proxy", "compose.override.yml"))).toEqual(["haben-proxy-firma1", "haben-proxy-firma2"]);
+  });
+
+  it("startet einen gestoppten Caddy mit up -d: Dort unterbricht der Neuaufbau nichts, connect und reload entfallen", async () => {
+    await t.lauf("neu", "firma1", "firma1.example.de");
+    t.docker.z.caddyLaeuft = false;
+    expect((await t.lauf("neu", "firma2", "firma2.example.de")).status).toBe(0);
+    expect(proxyAufrufe()).toEqual(["proxy compose up -d", "proxy compose up -d"]);
+    expect(t.docker.aufrufe.some((a) => a.includes("network connect"))).toBe(false);
+  });
+
+  it.each([
+    ["connectKaputt", "in das Netz haben-proxy-firma2"],
+    ["reloadKaputt", "sites/ nicht neu eingelesen"],
+  ] as const)("bricht bei %s vor der App ab und nennt die Schritte zum Nachholen", async (zustand, meldung) => {
+    await t.lauf("neu", "firma1", "firma1.example.de");
+    t.docker.z[zustand] = true;
+    const r = await t.lauf("neu", "firma2", "firma2.example.de");
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain(meldung);
+    expect(r.stderr).toContain(`cd ${join(t.basis, "proxy")} && docker compose logs caddy`);
+    expect(r.stderr).toContain(`cd ${join(t.basis, "proxy")} && docker compose up -d`);
+    expect(t.docker.aufrufe).not.toContain("firma2 compose up -d --wait db");
   });
 });
 
