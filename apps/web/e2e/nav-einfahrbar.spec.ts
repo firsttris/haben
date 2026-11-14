@@ -108,3 +108,68 @@ test("eingeklappt öffnen Lupe und Strg+K die Befehlspalette, ein offenes Flyout
   await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
   await expect(nav(page).getByRole("button", { name: "Ausgaben" })).toHaveAttribute("data-active", "true");
 });
+
+test("eingeklappt: Überfahren öffnet die Gruppe, Hinweise statt title, aktiv anders als offen, Knopf ganz unten", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/rechnungen", { waitUntil: "networkidle" });
+
+  // Ausgeklappt steht der Knopf als Letztes in der Leiste, unter der Versionsnummer
+  const einklappen = nav(page).getByRole("button", { name: "Seitenleiste einklappen" });
+  const version = nav(page).getByRole("link", { name: /^Haben \d/ });
+  const obenAusgeklappt = async (el: typeof einklappen) => (await el.boundingBox())?.y ?? 0;
+  expect(await obenAusgeklappt(einklappen)).toBeGreaterThan(await obenAusgeklappt(version));
+  await einklappen.click();
+
+  // Eingeklappt ebenso ganz unten, unter dem Avatar
+  const ausklappen = nav(page).getByRole("button", { name: "Seitenleiste ausklappen" });
+  const konto = nav(page).getByRole("button", { name: /Konto & Darstellung/ });
+  expect(await obenAusgeklappt(ausklappen)).toBeGreaterThan(await obenAusgeklappt(konto));
+
+  // Überfahren öffnet das Flyout, ohne den Fokus zu nehmen; Verlassen schließt es
+  const ausgaben = nav(page).getByRole("button", { name: "Ausgaben" });
+  await ausgaben.hover();
+  await expect(ausgaben).toHaveAttribute("aria-expanded", "true");
+  await expect(nav(page).getByRole("link", { name: "Belege" })).toBeVisible();
+  expect(await page.evaluate(() => document.activeElement?.closest(".nav-flyout") ?? null)).toBeNull();
+
+  // Die Gruppe der aktiven Seite (Verkauf, zu) sieht anders aus als die offene Gruppe (Ausgaben)
+  const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
+  await expect(verkauf).toHaveAttribute("data-active", "true");
+  const schatten = (el: typeof verkauf) => el.evaluate((knopf) => getComputedStyle(knopf).boxShadow);
+  expect(await schatten(verkauf)).not.toBe(await schatten(ausgaben));
+
+  // Flyout im Stil der Menüs: Ecken 8px, Kopf ohne Linie
+  const flyout = nav(page).getByRole("group", { name: "Ausgaben" });
+  expect(
+    await flyout.evaluate((el) => ({
+      ecken: getComputedStyle(el).borderTopLeftRadius,
+      linie: getComputedStyle(el.querySelector(".nav-flyout-title")!).borderBottomWidth,
+    })),
+  ).toEqual({ ecken: "8px", linie: "0px" });
+
+  await page.mouse.move(900, 600);
+  await expect(ausgaben).toHaveAttribute("aria-expanded", "false");
+
+  // Übersicht trägt keinen title, sondern einen Hinweis, der beim Überfahren und mit Fokus erscheint und mit Esc geht
+  const uebersicht = nav(page).getByRole("link", { name: "Übersicht" });
+  await expect(uebersicht).not.toHaveAttribute("title");
+  const hinweis = nav(page).locator(".nav-tip", { hasText: /^Übersicht$/ });
+  await uebersicht.hover();
+  await expect(hinweis).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(hinweis).toBeHidden();
+  await page.mouse.move(900, 600);
+  await uebersicht.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(uebersicht).toBeFocused();
+  await expect(hinweis).toBeVisible();
+});
+
+test("eingeklappt liefert schon der Server die schmale Leiste, damit beim Laden nichts nachrückt", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  const html = await (await page.request.get("/rechnungen")).text();
+  expect(html).toContain("nav-rail-trigger");
+});
