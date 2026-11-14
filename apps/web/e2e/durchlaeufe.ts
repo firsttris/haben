@@ -19,6 +19,7 @@ export const DURCHLAEUFE = {
   "beleg-storno": 11,
   "dauerfrist-euer": 12,
   verrechnung: 13,
+  firmen: 14,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
@@ -27,6 +28,9 @@ export const ENABLE_BANKING_PORT = PORT + 9;
 
 /** Nachgebaute Paketquelle für eigene Layouts in layouts.spec.ts (LAYOUTS_PACKAGES_URL) */
 export const LAYOUT_PAKETE_PORT = PORT + 10;
+
+/** Zweiter Server in firmen.spec.ts auf derselben Datenbank, mit so vielen Firmen, dass der Wechsler ein Suchfeld hat */
+export const FIRMEN_VIELE_PORT = PORT + 15;
 
 export const portFuer = (durchlauf?: Durchlauf) => PORT + (durchlauf ? DURCHLAEUFE[durchlauf] : 0);
 
@@ -42,3 +46,13 @@ export function appDatabaseUrlFuer(durchlauf?: Durchlauf, server: string = durch
   url.searchParams.set("application_name", `haben-e2e-${server}`);
   return url.toString();
 }
+
+/** Die anderen Firmen im Durchlauf „firmen“ (#504); ihre Instanzen muss es nicht geben. Der zweite Name ist lang und ohne Trennstelle */
+export const ANDERE_FIRMEN = [
+  { name: "Werkstatt Süd", url: "https://werkstatt.example.de" },
+  { name: "Gebäudereinigungsgesellschaft Nordfriesland", url: "https://reinigung.example.de" },
+];
+
+/** HABEN_FIRMEN für einen Server unter `eigene`: er selbst als „Studio Nord“ und die anderen */
+export const habenFirmen = (eigene: string, andere = ANDERE_FIRMEN) =>
+  [{ name: "Studio Nord", url: eigene }, ...andere].map((firma) => `${firma.name}|${firma.url}`).join(";");

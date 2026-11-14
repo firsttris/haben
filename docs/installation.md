@@ -100,7 +100,7 @@ In `.env` trägst du ein:
 | `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
 | `RESTIC_REPOSITORY` | optional: Backup auf einem zweiten System statt im Volume `backups`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) |
 | `BACKUP_TIME`, `RESTORE_CHECK_DAYS`, `BACKUP_HOST`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | optional, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) |
-| `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `EXTRACTION_INPUT`, `EXTRACTION_EXTRA_BODY`, `ENABLE_BANKING_APP_ID`, `LAYOUTS_MAX_COUNT`, `LAYOUTS_MAX_MB`, `LAYOUTS_PACKAGES_URL`, `ERIC_WORKER_COMMAND` | optional, siehe [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen) |
+| `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `EXTRACTION_INPUT`, `EXTRACTION_EXTRA_BODY`, `ENABLE_BANKING_APP_ID`, `HABEN_FIRMEN`, `LAYOUTS_MAX_COUNT`, `LAYOUTS_MAX_MB`, `LAYOUTS_PACKAGES_URL`, `ERIC_WORKER_COMMAND` | optional, siehe [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen) |
 | `OIDC_ONLY`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SCOPES`, `OIDC_DISPLAY_NAME`, `OIDC_GROUPS_CLAIM`, `OIDC_GROUP_INHABER`, `OIDC_GROUP_STEUERBERATUNG` | nur für den SSO-Modus, siehe [Single Sign-on mit OpenID Connect](installation-sso.md) |
 
 ```sh
@@ -556,6 +556,16 @@ Starten, aktualisieren und sichern machst du im Verzeichnis der jeweiligen Insta
 - **Quadlets** sind auf eine Instanz ausgelegt (feste Namen wie `haben-app`). Für mehrere Instanzen ist Compose einfacher.
 
 Eine Instanz mit mehreren Mandanten gibt es bewusst nicht: Eine gemeinsame Datenbank würde jede Abfrage, die GoBD-Trigger, die Belegablage und das Backup um eine Mandantentrennung erweitern, und ein Fehler darin legte fremde Buchhaltungsdaten offen.
+
+### Firma wechseln
+
+Mit `HABEN_FIRMEN` kennt jede Instanz die übrigen: In der Navigation steht unter „Haben“ die Zeile **Firma wechseln**, die die anderen Firmen aufklappt, ab 20 mit Suchfeld; die Firma, in der du gerade arbeitest, steht nicht in der Liste, sondern wie immer mit dem Namen aus den [Firmendaten](einrichtung.md#firmendaten) unter „Haben“. Ein Klick öffnet die Instanz der anderen Firma unter ihrer eigenen Adresse; Daten wandern dabei nicht, jede Instanz hat ihre eigene Anmeldung. Mit [SSO](installation-sso.md) bist du dort meist sofort angemeldet, sonst meldest du dich einmal je Firma an (Passkeys gelten je Domain).
+
+```dotenv
+HABEN_FIRMEN='Studio Nord|https://nord.example.de;Werkstatt Süd|https://werkstatt.example.de'
+```
+
+Je Firma `Name|Adresse`, getrennt durch `;`, in der `.env` jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`. Erlaubt sind nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal, höchstens 50 Firmen; sonst startet die App nicht und nennt den Fehler im Log. Nach einer Änderung startest du die App jeder Instanz neu (`docker compose up -d`). In den Vorlagen für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld. Die Zeile sieht nur der Inhaber, und nur wenn die Liste andere Firmen nennt; der [Zugang für die Steuerberatung](steuerberatung.md) erfährt nicht, welche anderen es gibt.
 
 ### Für andere betreiben
 
