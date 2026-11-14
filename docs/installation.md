@@ -72,7 +72,7 @@ git clone https://github.com/firsttris/haben.git && cd haben
 podman build -t haben -f Containerfile --build-arg HABEN_COMMIT="$(git rev-parse HEAD)" .   # oder docker build
 ```
 
-`HABEN_COMMIT` nennt den Commit, aus dem das Image gebaut ist. `haben status` zeigt ihn als kurze Kennung hinter der Version, so lassen sich Images mit derselben Versionsnummer unterscheiden, etwa `edge` und das letzte Release; im Image steht er außerdem im Label `org.opencontainers.image.revision`. Ohne das Build-Argument bleibt beides leer.
+`HABEN_COMMIT` nennt den Commit, aus dem das Image gebaut ist. `haben status` zeigt ihn als kurze Kennung hinter der Version, so lassen sich Images mit derselben Versionsnummer unterscheiden, etwa ein eigener Build und das letzte Release; im Image steht er außerdem im Label `org.opencontainers.image.revision`. Ohne das Build-Argument bleibt beides leer.
 
 Das `Containerfile` baut die App in zwei Stufen: gebaut wird auf `oven/bun` (Debian, slim), die Laufzeit-Stufe ist [Wolfi](https://github.com/wolfi-dev) (`cgr.dev/chainguard/wolfi-base`) mit dem Bun aus der Build-Stufe. Wolfi nutzt glibc wie Debian, was ERiC voraussetzt, liefert aber aktuelle Versionen der Systempakete, vor allem von poppler, das jedes hochgeladene PDF liest. Node ist nicht im Image, ebenso keine Build-Werkzeuge wie Vite oder esbuild: Installiert sind nur die Laufzeitabhängigkeiten ohne Peer-Abhängigkeiten. Der Digest von `wolfi-base` ist im `Containerfile` festgehalten, damit ein Build nachvollziehbar bleibt; Renovate hebt ihn jede Woche an. Die Pakete kommen aus dem freien Wolfi-Repository `packages.wolfi.dev`; wer selbst baut, braucht von dort und von `cgr.dev` Zugriff.
 
