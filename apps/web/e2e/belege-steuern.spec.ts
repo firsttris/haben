@@ -2377,6 +2377,13 @@ test("Jahreserklärung: Abgabetag im Erklärungsjahr meldet das Feld, nicht erst
   await page.keyboard.press("Escape");
 });
 
+test("Jahreserklärung: im laufenden Jahr gibt es keinen Abgabetag, die Karte sagt warum statt eines Knopfs (Review #975, Runde 2)", async () => {
+  await go(`/jahreserklaerung/${YEAR}`);
+  const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${YEAR}`, exact: true });
+  await expect(karte).toContainText(`Vermerken geht erst nach Ablauf des Jahres ${YEAR}`);
+  await expect(karte.getByRole("button", { name: "Abgabe vermerken", exact: true })).toHaveCount(0);
+});
+
 test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);
