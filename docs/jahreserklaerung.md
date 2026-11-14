@@ -13,6 +13,12 @@ Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eig
 
 Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Die Einkommensteuererklärung kennt keinen Vermerk; solange Haben sie nicht gesendet hat, steht dort „Nicht aus Haben übermittelt“ — gesendet wird sie über den Kasten unter der Tabelle.
 
+Oben auf der Seite steht **Stand der Erklärungen** als Tabelle mit einer Zeile je Erklärung: der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt, sodass du von der Übersicht direkt bei der Erklärung landest.
+
+Die Blöcke der Einkommensteuer starten zugeklappt. Der Kopf jedes Blocks nennt in einer Zeile, was darin steht: bei der Anlage N die Anzahl der Bescheinigungen und die Summe der Werbungskosten, beim häuslichen Arbeitszimmer die Kosten, bei den Kindern der Stand. Aufgeklappt wird mit einem Klick auf den Kopf; die Angaben bleiben gespeichert und werden beim nächsten Aufruf wieder zusammengefasst.
+
+Hinweise, die Habens eigene Rechnung beschreiben, erscheinen nur, wenn die Zahlen aus den Buchungen stammen. Die Gewinnzeile der Anlage EÜR steht nur, wenn es dazu Daten gibt, und die Meldungen zu einem leeren Jahr treten zurück, sobald die Erklärung vermerkt oder gesendet ist.
+
 Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](gmbh-abschluss.md#e-bilanz-gmbh-und-ug).
 
 ## Ablauf
