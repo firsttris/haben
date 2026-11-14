@@ -213,8 +213,9 @@ function ust2aStfrei(f: UstErklaerungFigures, year: number): XmlNode | false {
 
 /** Innergemeinschaftlicher Erwerb zu 19 und 7 % mit der Summe der Erwerbsteuer (Kz 89, 93) */
 function ust2aIgErw(f: UstErklaerungFigures, igErwerbSteuer: Cents): XmlNode | false {
+  // Auch nach der Steuer: Unter 1 € ist die Bemessungsgrundlage in vollen Euro 0, die Steuer nicht (wie bei § 13b)
   return (
-    (kz(f.kz89) !== 0 || kz(f.kz93) !== 0) && [
+    (kz(f.kz89) !== 0 || kz(f.tax89) !== 0 || kz(f.kz93) !== 0 || kz(f.tax93) !== 0) && [
       "Ig_Erw",
       [
         [

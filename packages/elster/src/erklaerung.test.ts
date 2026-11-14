@@ -190,6 +190,20 @@ describe("Umsatzsteuererklärung (E50)", () => {
     expect(tag(xml, "E3011401")).toBe("0,00");
   });
 
+  it("schreibt die Erwerbsteuer auch, wenn die Bemessungsgrundlage unter 1 € liegt", () => {
+    // 0,90 € innergemeinschaftlicher Erwerb zu 19 %: Kz 89 in vollen Euro 0, Steuer 0,17 €, als Vorsteuer abziehbar (Kz 61)
+    const xml = buildUstErklaerungXml({
+      ...base,
+      versteuerung: "soll",
+      figures: { base19: 100_000, tax19: 19_000, base7: 0, tax7: 0, vorsteuer: 0, kz89: 0, tax89: 17, kz61: 17, vorauszahlungen: 19_000 },
+    });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(tag(xml, "E3100903")).toBe("0,17");
+    expect(tag(xml, "E3101501")).toBe("0,17");
+    // Übertrag in die Berechnung nur mit der Summe darüber
+    expect(tag(xml, "E3009401")).toBe("0,17");
+  });
+
   it("rechnet §-13b-Steuer, Erwerbsteuer und weitere Vorsteuer in das Ergebnis", () => {
     expect(
       ustErklaerungResult({
