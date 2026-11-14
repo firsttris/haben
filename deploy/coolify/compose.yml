@@ -76,6 +76,8 @@ services:
       - OIDC_GROUPS_CLAIM=${OIDC_GROUPS_CLAIM:-groups}
       - OIDC_GROUP_INHABER=${OIDC_GROUP_INHABER:-}
       - OIDC_GROUP_STEUERBERATUNG=${OIDC_GROUP_STEUERBERATUNG:-}
+      # Nur mit SSO und mehreren Firmen: Adresse des Portals für „Firma wechseln“ (statt HABEN_FIRMEN)
+      - HABEN_PORTAL_URL=${HABEN_PORTAL_URL:-}
       # ERiC beim Start laden (ja = Zustimmung zu den Nutzungsbedingungen), nur auf x86_64
       - ERIC_AUTO_INSTALL=${ERIC_AUTO_INSTALL:-}
       - ERIC_SHA256=${ERIC_SHA256:-}

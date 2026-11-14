@@ -585,6 +585,29 @@ HABEN_FIRMEN='Studio Nord|https://nord.example.de;Werkstatt Süd|https://werksta
 - **Nach einer Änderung** startest du die App jeder Instanz neu (`docker compose up -d`). Mit dem [Werkzeug](#mit-dem-werkzeug) erledigt `firmen` das Eintragen und den Neustart.
 - **Vorlagen:** Für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld.
 - **Wer sie sieht:** nur der Inhaber, und nur wenn die Liste andere Firmen nennt; der [Zugang für die Steuerberatung](steuerberatung.md) erfährt nicht, welche anderen es gibt.
+- **Mit SSO** geht es auch ohne diese Liste, über das [Portal](#portal).
+
+### Portal
+
+Mit [SSO](installation-sso.md) geht es auch ohne eine Liste in jeder Instanz: Das Portal (`apps/portal`, Image `tristanteu/haben-portal`) läuft neben den Instanzen unter einer eigenen Adresse. Wer sich dort anmeldet, sieht die Firmen, in deren Inhaber-Gruppe er beim Anmeldedienst ist, und wechselt mit einem Klick dorthin. In Haben führt **Firma wechseln** dann ins Portal, statt eine Liste aufzuklappen. Eine neue Firma trägst du nur im Portal ein. Ob jemand sie sieht, entscheiden die Gruppen beim Anmeldedienst, ohne Neustart der Instanzen.
+
+- **Was das Portal kennt:** Namen, Adressen und Gruppen aus `PORTAL_FIRMEN`, sonst nichts. Es hat keine Datenbank, hält keine Buchhaltungsdaten und leitet keine Anfragen an die Instanzen weiter; die Instanz meldet beim selben Anmeldedienst selbst an, meist ohne Rückfrage.
+- **Ablauf:** Ohne Sitzung leitet das Portal gleich zum Anmeldedienst weiter, ohne eigene Seite davor; ist man dort schon angemeldet, fragt er nicht noch einmal. Ein Klick auf eine Firma öffnet ihre Instanz unter `/login?anmelden=sso`. Haben startet dort die SSO-Anmeldung selbst, ohne Klick auf der Login-Seite, und zeigt nach einer abgewiesenen Anmeldung den Grund statt es erneut zu versuchen.
+- **Wer was sieht:** nur Firmen, in deren Inhaber-Gruppe (`OIDC_GROUP_INHABER` der Instanz) die Person ist, nach Namen sortiert, dazu unten „Angemeldet als“ mit der E-Mail-Adresse aus dem Anmeldedienst. Ist es genau eine Firma, geht es nach der Anmeldung direkt dorthin. Die Gruppen der Steuerberatung zählen nicht, wie bei `HABEN_FIRMEN`; in Haben sieht die Steuerberatung die Zeile nicht.
+- **Sitzung:** 15 Minuten in einem signierten Cookie (`PORTAL_SECRET`), danach fragt das Portal den Anmeldedienst erneut. „Abmelden“ löscht sie und leitet zur Abmeldung des Anmeldedienstes weiter, wenn er eine anbietet (`end_session_endpoint`). Sonst zeigt das Portal „Du bist abgemeldet.“ und meldet erst auf „Wieder anmelden“ neu an; beim Anmeldedienst bleibt man dann angemeldet.
+
+Einrichten:
+
+1. **Client beim Anmeldedienst:** ein eigener vertraulicher Client wie für eine Instanz (siehe [Authelia konfigurieren](installation-sso.md#authelia-konfigurieren)), mit `client_id: haben-portal` und `redirect_uris: [https://portal.example.de/callback]`.
+2. **Portal starten:** `deploy/portal/compose.yml` und `deploy/portal/portal.env.example` (als `.env`) in ein eigenes Verzeichnis kopieren, die Werte eintragen und `docker compose up -d`. Das Portal lauscht auf `127.0.0.1:3010` (`PORTAL_PORT`); der Reverse Proxy leitet die Adresse des Portals dorthin (Beispiele unter [Eigener Reverse Proxy](#eigener-reverse-proxy)). Ohne gültige Angaben startet es nicht und nennt die Variable im Log. Das Werkzeug richtet das Portal noch nicht selbst ein.
+3. **In jeder Instanz:** `HABEN_PORTAL_URL=https://portal.example.de` in die `.env` und die App neu starten. `HABEN_FIRMEN` bleibt dort leer; beides zusammen und `HABEN_PORTAL_URL` ohne `OIDC_ONLY=true` lehnt Haben beim Start ab.
+
+```dotenv
+PORTAL_FIRMEN='Studio Nord|https://nord.example.de|haben-nord-inhaber;Werkstatt Süd|https://werkstatt.example.de|haben-werkstatt-inhaber'
+```
+
+- **Format:** je Firma `Name|Adresse|Gruppe`, getrennt durch `;`. Name und Adresse wie bei `HABEN_FIRMEN` (siehe [Firma wechseln](#firma-wechseln)), die Gruppe ist `OIDC_GROUP_INHABER` der Instanz. Instanzen aus dem [Werkzeug](#mit-dem-werkzeug) heißen dort `haben-<name>-inhaber`. Jede Gruppe gehört zu genau einer Firma; teilten sich zwei eine Gruppe, wäre jedes Mitglied Inhaber in beiden.
+- **Nach einer Änderung** an `PORTAL_FIRMEN` startest du nur das Portal neu. Wer gerade angemeldet ist, meldet sich dann einmal neu an.
 
 ### Für andere betreiben
 

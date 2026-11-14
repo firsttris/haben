@@ -9,7 +9,7 @@ import { Kuerzel } from "../components/Kuerzel.tsx";
 import { ariaKuerzel } from "../lib/tastatur.ts";
 import { NAV_GROUPS, STEUERBERATUNG_NAV, type NavLink, navLinkSichtbar } from "../lib/navigation.ts";
 import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
-import { FirmaWechsler } from "../components/FirmaWechsler.tsx";
+import { FirmaWechsler, FirmaWechslerPortal } from "../components/FirmaWechsler.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
@@ -29,6 +29,7 @@ export const Route = createFileRoute("/_app")({
       firma: state.firma,
       zeichen: state.zeichen,
       firmen: state.firmen,
+      portal: state.portal,
     };
   },
   component: AppLayout,
@@ -79,7 +80,7 @@ function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: (
 }
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, oidc } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, portal, oidc } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -131,8 +132,8 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im rollenden Menü */}
-          {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
+          {/* Firma wechseln (#504): mit Portal ein Link dorthin, sonst nur mit anderen Firmen. Als Erstes im rollenden Menü */}
+          {portal ? <FirmaWechslerPortal url={portal} /> : firmen.length > 0 && <FirmaWechsler andere={firmen} />}
           <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
             <Icon name="overview" />
             Übersicht

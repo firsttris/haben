@@ -1,3 +1,4 @@
+import { gruppenAus } from "@haben/core";
 import type { Rolle } from "../lib/rollen.ts";
 
 /*
@@ -22,9 +23,10 @@ export type GroupDecision = { ok: true; role: Rolle } | { ok: false; reason: Gro
  * Genau eine der beiden Haben-Gruppen gibt Zugang, alles andere verweigert ihn.
  */
 export function decideRole(profile: Record<string, unknown>, config: GroupConfig): GroupDecision {
-  if (!Object.hasOwn(profile, config.claim)) return { ok: false, reason: "fehlt" };
-  const groups = profile[config.claim];
-  if (!Array.isArray(groups) || !groups.every((group) => typeof group === "string")) return { ok: false, reason: "ungueltig" };
+  // Dieselbe Auswertung des Claims wie im Portal (apps/portal)
+  const ergebnis = gruppenAus(profile, config.claim);
+  if ("fehler" in ergebnis) return { ok: false, reason: ergebnis.fehler };
+  const groups = ergebnis.gruppen;
   const inhaber = groups.includes(config.inhaber);
   const steuerberatung = groups.includes(config.steuerberatung);
   if (inhaber && steuerberatung) return { ok: false, reason: "beide" };

@@ -23,6 +23,19 @@
         "vite": "^8.3.2",
       },
     },
+    "apps/portal": {
+      "name": "@haben/portal",
+      "version": "0.1.0",
+      "dependencies": {
+        "@fontsource/ibm-plex-sans": "^5.3.0",
+        "@haben/core": "workspace:*",
+        "jose": "^6.2.17",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@types/node": "^26.0.0",
+      },
+    },
     "apps/web": {
       "name": "@haben/web",
       "version": "0.1.0",
@@ -297,6 +310,8 @@
     "@haben/elster-helfer": ["@haben/elster-helfer@workspace:apps/elster-helfer"],
 
     "@haben/import": ["@haben/import@workspace:packages/import"],
+
+    "@haben/portal": ["@haben/portal@workspace:apps/portal"],
 
     "@haben/web": ["@haben/web@workspace:apps/web"],
 

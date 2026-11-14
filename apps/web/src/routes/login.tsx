@@ -86,7 +86,7 @@ function LoginPage() {
             <p className="muted" style={{ margin: 0 }}>
               Haben nutzt ausschließlich {oidc.name}. Deine Berechtigung wird bei jeder Anmeldung und spätestens nach 15 Minuten neu bestätigt.
             </p>
-            <SsoSignIn name={oidc.name} />
+            <SsoSignIn name={oidc.name} autoStart />
           </>
         ) : (
           <>
