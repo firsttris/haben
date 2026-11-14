@@ -676,9 +676,7 @@ test("Pauschalen: jeder Reiter ohne axe-Verstöße, hell und dunkel, am Desktop 
       ] as const) {
         await neu.getByRole("button", { name: reiter, exact: true }).click();
         await expect(neu.getByRole("form", { name: formular })).toBeVisible();
-        const { violations } = await new AxeBuilder({ page })
-          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
-          .analyze();
+        const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
         expect(
           violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
           `${reiter}, ${modus}, ${viewport.width} px`,
