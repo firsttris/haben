@@ -223,7 +223,8 @@ function entryKind(row: ContactHistoryRow): string {
 }
 
 function EntryStatus({ row }: { row: ContactHistoryRow }) {
-  if (row.kind === "rechnung") return <InvoiceStatus status={row.status} />;
-  if (row.kind === "beleg") return <DocumentStatus status="gebucht" extractionStatus="fertig" cancelled={row.cancelledOn !== null} />;
+  if (row.kind === "rechnung") return <InvoiceStatus invoice={{ ...row.statusFacts, gross: row.gross }} />;
+  if (row.kind === "beleg")
+    return <DocumentStatus status="gebucht" extractionStatus="fertig" cancelled={row.cancelledOn !== null} cancelledOn={row.cancelledOn} />;
   return <span className="small muted">Archiv · {legacySource(row.source, row.sourceName).name}</span>;
 }

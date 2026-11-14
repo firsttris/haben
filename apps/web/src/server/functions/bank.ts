@@ -97,14 +97,17 @@ export const getBankOverview = createServerFn({ method: "GET" })
     // Aus früheren Buchungen derselben Gegenpartei, für alle ganz offenen Umsätze in einer Abfrage
     const learned = await learnedDirectSuggestions(rows.filter((r) => r.open !== 0 && r.open === r.amount));
     const mitHinweis = rows.map((row) => {
-      if (row.neutralized) return { ...row, hint: "verrechnet" as const };
-      if (row.open === 0) return { ...row, hint: "zugeordnet" as const };
+      if (row.neutralized) return { ...row, suggestion: null, hint: "verrechnet" as const };
+      if (row.open === 0) return { ...row, suggestion: null, hint: "zugeordnet" as const };
+      const [match] = suggestMatches({ ...row, amount: row.open }, items, 1);
       const hasSuggestion =
-        suggestMatches({ ...row, amount: row.open }, items, 1).length > 0 ||
+        match !== undefined ||
         (row.open === row.amount && current !== undefined && isCertainDirect(suggestDirectBooking(row, current, own))) ||
         learned.has(row.id);
       return {
         ...row,
+        // Wohin der Vorschlag passt, für die Auskunft unter dem Status; direkte und gelernte Vorschläge haben kein Ziel
+        suggestion: match ? { type: match.item.type, number: match.item.number, partyName: match.item.partyName } : null,
         hint: hasSuggestion
           ? ("vorschlag" as const)
           : row.open !== row.amount

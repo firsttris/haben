@@ -9,6 +9,7 @@ import { Field } from "../Field.tsx";
 import { FilePicker } from "../FilePicker.tsx";
 import { FormDialog } from "../FormDialog.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
+import { Status } from "../Status.tsx";
 
 /** Ein Vermerk, wie ihn annualOverview je Formular liefert */
 export interface JahresvermerkStand {
@@ -87,7 +88,9 @@ export function AbgabeVermerken({
       <section className="card" aria-label={`Abgabe außerhalb von Haben: ${LABEL[art]} ${year}`}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h2 style={{ margin: 0 }}>Außerhalb von Haben abgegeben</h2>
-          <span className="pill pill-ok">Abgegeben</span>
+          <Status tone="ok" inline>
+            Abgegeben
+          </Status>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
           {LABEL[art]} {year} wurde außerhalb von Haben abgegeben. Ein zweiter Vermerk ist nicht möglich.

@@ -6,6 +6,7 @@ import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
+import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
@@ -86,15 +87,6 @@ export const Route = createFileRoute("/_app/bank")({
 type Data = Awaited<ReturnType<typeof getBankOverview>>;
 type Detail = NonNullable<Data["detail"]>;
 type Allocation = Detail["allocations"][number];
-
-const HINT = {
-  vorschlag: { text: "Vorschlag", tone: "pill-info" },
-  belegFehlt: { text: "Beleg fehlt", tone: "pill-warn" },
-  offen: { text: "Offen", tone: "" },
-  teilweise: { text: "Teilweise", tone: "pill-info" },
-  zugeordnet: { text: "Zugeordnet", tone: "pill-ok" },
-  verrechnet: { text: "Verrechnet", tone: "pill-ok" },
-} as const;
 
 const KIND_LABEL = {
   invoice: "Rechnung",
@@ -325,7 +317,7 @@ function BankPage() {
                     {formatEuro(Math.abs(tx.amount))}
                   </div>
                   <div>
-                    <span className={`pill ${HINT[tx.hint].tone}`}>{HINT[tx.hint].text}</span>
+                    <TransactionStatus tx={tx} />
                   </div>
                 </Link>
               ))}
@@ -457,14 +449,6 @@ function AccountSettings({
 
 type Sync = Data["sync"];
 
-const CONNECTION_STATUS = {
-  aktiv: { text: "Aktiv", tone: "pill-ok" },
-  abgelaufen: { text: "Abgelaufen", tone: "pill-warn" },
-  fehler: { text: "Fehler", tone: "pill-danger" },
-  widerrufen: { text: "Getrennt", tone: "" },
-  wartet: { text: "Wartet auf Bank", tone: "pill-info" },
-} as const;
-
 /** Automatischer Abruf über Enable Banking: verbundene Banken, Abruf, Erneuern und Trennen */
 function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message: string } | null }) {
   const router = useRouter();
@@ -560,15 +544,13 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
       )}
 
       {sync.connections.map((c) => {
-        const status = CONNECTION_STATUS[c.status];
         const canSync = c.status === "aktiv";
         return (
           <div key={c.id} className="history-row" style={{ alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: "1 1 260px" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <span style={{ fontWeight: 600 }}>{c.aspspName}</span>
-                <span className={`pill ${status.tone}`}>{status.text}</span>
-                {c.renewSoon && <span className="pill pill-warn">Läuft bald ab</span>}
+                <ConnectionStatus connection={c} />
               </div>
               <span className="small muted">{c.accounts.map((a) => `${a.name} …${a.iban.slice(-4)}`).join(" · ") || "Keine Konten"}</span>
               <span className="small muted">

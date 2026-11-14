@@ -27,6 +27,8 @@ Unter **Fristen** sammelt Haben alle steuerlichen Termine an einem Ort und erinn
 
 Bei einer GmbH oder UG fehlen Anlage EÜR, Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen; dafür stehen Körperschaftsteuer- und Gewerbesteuererklärung und die [E-Bilanz](gmbh-abschluss.md#e-bilanz-gmbh-und-ug) mit der Frist der Erklärungen in der Liste, erledigt mit der echten Übermittlung. Vorauszahlungen zur Körperschaft- und Gewerbesteuer stehen im Bescheid. Zu jeder [Ausschüttung](gmbh-abschluss.md#gewinnausschüttung-gmbh-und-ug) steht die Kapitalertragsteuer-Anmeldung in der Liste: am 10. des Monats nach dem Zufluss, verschoben auf den nächsten Werktag, erledigt mit der echten Übermittlung.
 
+Rechts steht der Status jeder Frist: **Offen** mit den Tagen bis zur Frist, **Hinweis** bei Zahlungen, die Haben nicht nachverfolgt, und **Erledigt**. Ab 7 Tagen vor der Frist und danach ist „Offen“ farbig hinterlegt.
+
 Fällt eine Frist auf ein Wochenende oder einen Feiertag im Bundesland der Firma, gilt der nächste Werktag (§ 108 Abs. 3 AO). Die Liste reicht ein Jahr voraus; Offenes aus der Vergangenheit bleibt stehen, bis es erledigt ist, Erledigtes der letzten 60 Tage steht eingeklappt darunter. Ein Klick auf eine Frist führt zur Seite, auf der sie sich erledigen lässt.
 
 Die Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen erscheinen, sobald [persönliche Angaben](einrichtung.md#persönliche-angaben) hinterlegt sind. Mit Steuerberater gelten längere Fristen; die kennt Haben nicht.

@@ -150,9 +150,9 @@ Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos, die 
 
 | Hinweis | Bedeutung |
 | --- | --- |
-| Vorschlag | Es gibt einen passenden offenen Posten. |
-| Teilweise | Ein Teil des Umsatzes ist zugeordnet. |
-| Beleg fehlt | Ausgabe ohne Zuordnung und ohne Vorschlag. |
+| Vorschlag | Es gibt einen passenden offenen Posten; das Wort steht in Blau, darunter Rechnung oder Voranmeldung mit Nummer, bei einem Beleg der Lieferant. Bei einem [Vorschlag ohne Rechnung](#vorschläge-ohne-rechnung-und-geldtransit) und einer Buchung nach der Gegenpartei steht nichts darunter. |
+| Teilweise | Ein Teil des Umsatzes ist zugeordnet; darunter, wie viel noch offen ist. |
+| Beleg fehlt | Ausgabe ohne Zuordnung und ohne Vorschlag; das Wort steht in Orange. |
 | Offen | Eingang ohne Zuordnung und ohne Vorschlag. |
 | Zugeordnet | Der ganze Betrag ist zugeordnet. |
 | Verrechnet | Mit einem gegenläufigen Umsatz verrechnet, ohne Buchung (siehe [Gegenläufige Umsätze verrechnen](#gegenläufige-umsätze-verrechnen)). |

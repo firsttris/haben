@@ -116,6 +116,9 @@ services:
       ERIC_AUTO_INSTALL: ""
       # Optional: eigene Hersteller-ID, erst nach erfolgreicher Testübermittlung
       ELSTER_HERSTELLER_ID: ""
+      # Optional, mit mehreren Firmen: die Instanzen zum Wechseln in der Navigation, auch diese selbst, in jeder dieselbe Liste,
+      # z. B. "Studio Nord|https://nord.example.de;Werkstatt|https://werkstatt.example.de"
+      HABEN_FIRMEN: ""
       # Optional: KI-Auslesung von Belegen mit Claude (Anthropic-API)
       ANTHROPIC_API_KEY: ""
       # Oder über eine OpenAI-kompatible Schnittstelle (Ollama, OpenRouter, …), siehe docs/installation-anbindungen.md

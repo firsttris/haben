@@ -100,7 +100,7 @@ In `.env` trägst du ein:
 | `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
 | `RESTIC_REPOSITORY` | optional: Backup auf einem zweiten System statt im Volume `backups`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) |
 | `BACKUP_TIME`, `RESTORE_CHECK_DAYS`, `BACKUP_HOST`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | optional, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) |
-| `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `EXTRACTION_INPUT`, `EXTRACTION_EXTRA_BODY`, `ENABLE_BANKING_APP_ID`, `LAYOUTS_MAX_COUNT`, `LAYOUTS_MAX_MB`, `LAYOUTS_PACKAGES_URL`, `ERIC_WORKER_COMMAND` | optional, siehe [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen) |
+| `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `EXTRACTION_INPUT`, `EXTRACTION_EXTRA_BODY`, `ENABLE_BANKING_APP_ID`, `HABEN_FIRMEN`, `LAYOUTS_MAX_COUNT`, `LAYOUTS_MAX_MB`, `LAYOUTS_PACKAGES_URL`, `ERIC_WORKER_COMMAND` | optional, siehe [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen) |
 | `OIDC_ONLY`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SCOPES`, `OIDC_DISPLAY_NAME`, `OIDC_GROUPS_CLAIM`, `OIDC_GROUP_INHABER`, `OIDC_GROUP_STEUERBERATUNG` | nur für den SSO-Modus, siehe [Single Sign-on mit OpenID Connect](installation-sso.md) |
 
 ```sh
@@ -401,11 +401,12 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 ~/haben/
   proxy/                   # gemeinsamer Caddy für alle Instanzen
     compose.yml
+    compose.override.yml   # Netze des Caddy, eines je Instanz
     Caddyfile              # import sites/*.caddy
     sites/firma1.caddy     # eine Datei je Domain
   firma1/
     compose.yml            # unverändert aus deploy/
-    compose.override.yml   # eigener Caddy aus, App im Netz haben-proxy als haben-firma1
+    compose.override.yml   # eigener Caddy aus, App im Netz haben-proxy-firma1 als haben-firma1
     .env                   # eigene Schlüssel, Rechte 600
   firma2/
     …
@@ -418,9 +419,34 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC-Version und letzte erfolgreiche Sicherung. Version, ERiC und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste. Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“. Skripte lesen `haben status --json`; das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert |
 | `liste` | Name, Domain und Verzeichnis |
 
-Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter. Wer eine Instanz löscht, entfernt auch ihre Datei in `proxy/sites/`.
+Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
+
+Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Das gilt für Docker unter Linux, das Bridge-Netze mit Firewall-Regeln voneinander trennt; Laufzeiten wie OrbStack trennen sie nicht, dort erreicht eine App die andere über deren IP-Adresse. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu und baut den Caddy-Container neu auf; dabei sind alle Instanzen einige Sekunden nicht erreichbar.
+
+Eine Instanz löschst du in dieser Reihenfolge:
+
+1. In ihrem Verzeichnis `docker compose down -v` (entfernt auch Datenbank und Belege), dann das Verzeichnis löschen.
+2. Ihre Datei in `proxy/sites/` und die beiden Einträge ihres Netzes in `proxy/compose.override.yml` entfernen; war es das einzige Netz darin, die Datei löschen.
+3. `docker compose up -d` in `proxy/`, dann `docker network rm haben-proxy-<name>`.
 
 `update` und `status` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
+
+Eine Instanz, die ein älterer Stand des Werkzeugs im gemeinsamen Netz `haben-proxy` angelegt hat, läuft weiter, und `update`, `status` und `liste` erfassen sie wie bisher. Auf ein eigenes Netz stellst du sie von Hand um, hier `firma1`:
+
+1. In `firma1/compose.override.yml` die Zeile `name: haben-proxy` durch `name: haben-proxy-firma1` ersetzen.
+2. In `proxy/compose.override.yml` das Netz eintragen, neben denen der anderen Instanzen; fehlt die Datei, legst du sie an:
+
+    ```yaml
+    services:
+      caddy:
+        networks: [haben-proxy-firma1]
+    networks:
+      haben-proxy-firma1:
+        name: haben-proxy-firma1
+    ```
+
+3. `docker compose up -d` erst in `proxy/`, dann in `firma1/`.
+4. Hängt keine Instanz mehr in `haben-proxy`: in `proxy/compose.yml` die Zeile `networks: [proxy]` und den Block `networks:` entfernen, `docker compose up -d`, dann `docker network rm haben-proxy`.
 
 Optionen für `neu`:
 
@@ -428,10 +454,10 @@ Optionen für `neu`:
 | --- | --- |
 | `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID` (fünf Ziffern). Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
 | `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden). Ob ein gemeinsames ERiC als Weitergabe gilt, wenn du Instanzen [für andere betreibst](#für-andere-betreiben), ist nicht geklärt |
-| `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy` an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz (`docker network connect haben-proxy <proxy>`) und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
+| `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy-<name>` der Instanz an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy). `docker network connect haben-proxy-<name> <proxy>` hält bis zum Neuaufbau des Proxy-Containers; dauerhaft steht das Netz in seiner Compose-Datei, wie unter [Von Hand](#von-hand) |
 | `--sso --oidc-issuer URL --oidc-client-id ID` | ausschließlich [Single Sign-on](installation-sso.md), mit Gruppen nur für diese Instanz (siehe unten); `--oidc-name` setzt den Anzeigenamen (Vorgabe Authelia). Dazu das Clientsecret aus genau einer Quelle (nächste Zeile) |
 | `--oidc-client-secret-file PFAD` oder `--oidc-client-secret-stdin` | das Clientsecret für `--sso`: aus einer Datei, die nur du lesen kannst, oder von der Standardeingabe (`pass show haben/firma1 \| bun … --oidc-client-secret-stdin`); ohne Pipe fragt das Werkzeug am Terminal danach und zeigt die Eingabe nicht an. Ein Zeilenumbruch am Ende zählt nicht dazu. Als Argument gibt es das Secret nicht: Es stünde in der Prozessliste und in der Shell-Historie |
-| `--nicht-starten` | legt nur die Dateien an, etwa um `.env` vor dem Start zu ergänzen. Den ersten Start machst du dann selbst: gemeinsamer Caddy bzw. Netz `haben-proxy`, Datenbank, App-Rolle, App; das Werkzeug nennt die Befehle, ebenso, wenn `neu` abbricht, bevor es die Rolle gibt |
+| `--nicht-starten` | legt nur die Dateien an, etwa um `.env` vor dem Start zu ergänzen. Den ersten Start machst du dann selbst: gemeinsamer Caddy bzw. Netz `haben-proxy-<name>`, Datenbank, App-Rolle, App; das Werkzeug nennt die Befehle und wo danach der Einrichtungscode steht (`docker compose logs app`). Die Befehle nennt es auch, wenn `neu` abbricht, bevor es die Rolle gibt |
 
 `ENCRYPTION_KEY` und `RESTIC_PASSWORD` jeder Instanz sicherst du wie bei einer einzelnen zusätzlich an einem zweiten Ort; ohne sie sind Zertifikat, Zugangsdaten und Backup nach einem Verlust des Servers nicht mehr zu öffnen. Weitere Einstellungen (Backup auf einem zweiten System, KI-Auslesung, Kontoabruf) trägst du danach in die `.env` der Instanz ein und startest sie mit `docker compose up -d` in ihrem Verzeichnis neu.
 
@@ -456,7 +482,7 @@ Je Instanz unterscheiden sich drei Dinge:
 | --- | --- | --- |
 | `.env` | `COMPOSE_PROJECT_NAME`: trennt Container, Netz und Volumes der Instanzen (Vorrang vor `name: haben` in `compose.yml`) | `COMPOSE_PROJECT_NAME=haben-firma1` |
 | `.env` | eigene `DOMAIN`, eigenes `DB_PASSWORD`, eigene Schlüssel (`AUTH_SECRET`, `ENCRYPTION_KEY`) | `DOMAIN=firma1.example.de` |
-| `compose.override.yml` | eigener Name im Netz des Proxys: den Alias `haben-app` ersetzen | `aliases: [haben-firma1]` |
+| `compose.override.yml` | eigenes Netz zum Proxy und eigener Name darin: `DEIN_PROXY_NETZ` und den Alias `haben-app` ersetzen | `name: haben-proxy-firma1`, `aliases: [haben-firma1]` |
 
 Der mitgelieferte Caddy belegt Port 80 und 443 und kann deshalb nur einmal laufen. Mit mehreren Instanzen nutzt jede die `compose.override.yml` aus [Eigener Reverse Proxy](#eigener-reverse-proxy), und ein gemeinsamer Proxy verteilt die Subdomains, etwa mit Caddy:
 
@@ -475,7 +501,22 @@ firma2.example.de {
 }
 ```
 
-(Header wie im Beispiel unter [Eigener Reverse Proxy](#beispiele).) Starten, aktualisieren und sichern machst du im Verzeichnis der jeweiligen Instanz wie oben unter [Docker Compose](#docker-compose); die Volumes heißen dann `haben-firma1_belege` usw. statt `haben_belege`. Jede Instanz hat ihren eigenen Dienst `backup`. Teilen sich mehrere Instanzen ein restic-Repository, braucht jede in `.env` ein eigenes `BACKUP_HOST` (z. B. `BACKUP_HOST=haben-firma1`), sonst räumt das Aufräumen der einen die Stände der anderen ab und `restore latest` nimmt den falschen Stand.
+(Header wie im Beispiel unter [Eigener Reverse Proxy](#beispiele).)
+
+Jede Instanz bekommt ein eigenes Netz zum Proxy (`docker network create haben-proxy-firma1`), der Proxy hängt in allen. In einem gemeinsamen Netz erreichte jede App jede andere auf Port 3000, am Proxy vorbei. Trag die Netze in der Compose-Datei des Proxys ein; `docker network connect` allein hält nur bis zum Neuaufbau seines Containers:
+
+```yaml
+services:
+  caddy:
+    networks: [haben-proxy-firma1, haben-proxy-firma2]
+networks:
+  haben-proxy-firma1:
+    external: true
+  haben-proxy-firma2:
+    external: true
+```
+
+Starten, aktualisieren und sichern machst du im Verzeichnis der jeweiligen Instanz wie oben unter [Docker Compose](#docker-compose); die Volumes heißen dann `haben-firma1_belege` usw. statt `haben_belege`. Jede Instanz hat ihren eigenen Dienst `backup`. Teilen sich mehrere Instanzen ein restic-Repository, braucht jede in `.env` ein eigenes `BACKUP_HOST` (z. B. `BACKUP_HOST=haben-firma1`), sonst räumt das Aufräumen der einen die Stände der anderen ab und `restore latest` nimmt den falschen Stand.
 
 ### Weitere Punkte
 
@@ -484,6 +525,16 @@ firma2.example.de {
 - **Quadlets** sind auf eine Instanz ausgelegt (feste Namen wie `haben-app`). Für mehrere Instanzen ist Compose einfacher.
 
 Eine Instanz mit mehreren Mandanten gibt es bewusst nicht: Eine gemeinsame Datenbank würde jede Abfrage, die GoBD-Trigger, die Belegablage und das Backup um eine Mandantentrennung erweitern, und ein Fehler darin legte fremde Buchhaltungsdaten offen.
+
+### Firma wechseln
+
+Mit `HABEN_FIRMEN` kennt jede Instanz die übrigen: In der Navigation steht unter „Haben“ die Zeile **Firma wechseln**, die die anderen Firmen aufklappt, ab 20 mit Suchfeld; die Firma, in der du gerade arbeitest, steht nicht in der Liste, sondern wie immer mit dem Namen aus den [Firmendaten](einrichtung.md#firmendaten) unter „Haben“. Ein Klick öffnet die Instanz der anderen Firma unter ihrer eigenen Adresse; Daten wandern dabei nicht, jede Instanz hat ihre eigene Anmeldung. Mit [SSO](installation-sso.md) bist du dort meist sofort angemeldet, sonst meldest du dich einmal je Firma an (Passkeys gelten je Domain).
+
+```dotenv
+HABEN_FIRMEN='Studio Nord|https://nord.example.de;Werkstatt Süd|https://werkstatt.example.de'
+```
+
+Je Firma `Name|Adresse`, getrennt durch `;`, in der `.env` jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`. Erlaubt sind nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal, höchstens 50 Firmen; sonst startet die App nicht und nennt den Fehler im Log. Nach einer Änderung startest du die App jeder Instanz neu (`docker compose up -d`). In den Vorlagen für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld. Die Zeile sieht nur der Inhaber, und nur wenn die Liste andere Firmen nennt; der [Zugang für die Steuerberatung](steuerberatung.md) erfährt nicht, welche anderen es gibt.
 
 ### Für andere betreiben
 

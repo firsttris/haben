@@ -4,6 +4,7 @@ import { z } from "zod/mini";
 import { FORMAT_LABEL } from "../../../lib/invoice.ts";
 import { getContacts } from "../../../server/functions/contacts.ts";
 import { Field } from "../../../components/Field.tsx";
+import { Tag } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/kontakte/")({
   validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])) }),
@@ -93,8 +94,7 @@ function ContactsPage() {
               <Link key={contact.id} to="/kontakte/$id" params={{ id: contact.id }} className="table-row contact-cols">
                 <div style={{ minWidth: 0 }}>
                   <span className="row-title">{contact.name}</span>{" "}
-                  {contact.isSupplier && <span className="pill">{contact.isCustomer ? "Kunde und Lieferant" : "Lieferant"}</span>}{" "}
-                  {contact.archivedAt && <span className="pill">archiviert</span>}
+                  {contact.isSupplier && <Tag>{contact.isCustomer ? "Kunde und Lieferant" : "Lieferant"}</Tag>} {contact.archivedAt && <Tag>archiviert</Tag>}
                   {contact.kundennummer && (
                     <span className="small muted mono" style={{ display: "block" }}>
                       {contact.kundennummer}
