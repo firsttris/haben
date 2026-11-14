@@ -473,7 +473,7 @@ Eine Instanz, die ein älterer Stand des Werkzeugs im gemeinsamen Netz `haben-pr
 3. `docker compose up -d` erst in `proxy/`, dann in `firma1/`.
 4. Hängt keine Instanz mehr in `haben-proxy`: in `proxy/compose.yml` die Zeile `networks: [proxy]` und den Block `networks:` entfernen, `docker compose up -d`, dann `docker network rm haben-proxy`.
 
-Mit eigenem Proxy statt des gemeinsamen Caddy entfallen Schritt 2 und 4: Leg das Netz mit `docker network create haben-proxy-firma1` an, trag es in die Compose-Datei deines Proxys ein wie unter [Von Hand](#von-hand) und bau erst ihn, dann `firma1/` mit `docker compose up -d` neu auf.
+Mit eigenem Proxy statt des gemeinsamen Caddy entfällt Schritt 2: Leg das Netz mit `docker network create haben-proxy-firma1` an, trag es in die Compose-Datei deines Proxys ein wie unter [Von Hand](#von-hand) und bau erst ihn, dann `firma1/` mit `docker compose up -d` neu auf. Statt Schritt 4 nimmst du `haben-proxy` aus der Compose-Datei deines Proxys, sobald keine Instanz mehr darin hängt, baust ihn neu auf, dann `docker network rm haben-proxy`.
 
 Optionen für `neu`:
 
