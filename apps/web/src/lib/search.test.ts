@@ -16,9 +16,10 @@ describe("parseEuroSearchCents", () => {
     expect(parseEuroSearchCents("19.99")).toBe(1999);
   });
 
-  it("gibt null für Nummern und Text zurück", () => {
+  it("gibt null für Nummern, Text und Beträge oberhalb des int4-Bereichs zurück", () => {
     expect(parseEuroSearchCents("")).toBeNull();
     expect(parseEuroSearchCents("RE-2026-001")).toBeNull();
     expect(parseEuroSearchCents("12.345.67")).toBeNull();
+    expect(parseEuroSearchCents("99999999")).toBeNull();
   });
 });

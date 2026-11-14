@@ -94,6 +94,11 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(res.documents.hits).toHaveLength(0);
   });
 
+  it("ignoriert überlange Zahlen oberhalb von int4 ohne Datenbankfehler", async () => {
+    const res = await search.runCommandPaletteSearch("99999999", "inhaber");
+    expect(res.documents.hits).toHaveLength(0);
+  });
+
   it("findet für Inhaber Kontakte, Entwurf- und festgeschriebene Rechnungen, Angebote sowie Belege nach Text und Betrag", async () => {
     const textTreffer = await search.runCommandPaletteSearch("Bergblick", "inhaber");
     expect(textTreffer.contacts.hits.map((c) => c.kundennummer)).toEqual(["K-7701"]);

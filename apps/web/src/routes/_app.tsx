@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
-import { type PointerEvent, useEffect, useRef, useState } from "react";
+import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react";
 import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
@@ -32,27 +32,9 @@ export const Route = createFileRoute("/_app")({
   component: AppLayout,
 });
 
-function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen, zeichen } = Route.useRouteContext();
-  const gesellschaft = isKapitalgesellschaft(rechtsform);
-  const inhaber = user.role === "inhaber";
-  const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
-  const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [shortcutLabel, setShortcutLabel] = useState("Strg K");
-
-  useEffect(() => {
-    if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) setShortcutLabel("⌘ K");
-  }, []);
-  // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
-  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
-  const main = useRef<HTMLElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
+function useFirmaBrand() {
   const firmaRef = useRef<HTMLSpanElement>(null);
   const [firmaVoll, setFirmaVoll] = useState<string | null>(null);
-  const firstPath = useRef(pathname);
-  // Den vollen Namen nur zeigen, wenn die Marke ihn kürzt (zwei Zeilen am Desktop); am Handy gibt es kein Aufklappen
   function firmaAufklappen() {
     const name = firmaRef.current;
     if (name && window.matchMedia("(min-width: 861px)").matches && name.scrollHeight > name.clientHeight + 1) setFirmaVoll(name.textContent);
@@ -75,6 +57,48 @@ function AppLayout() {
     window.addEventListener("keydown", zu, true);
     return () => window.removeEventListener("keydown", zu, true);
   }, [firmaVoll]);
+  return { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg };
+}
+
+function useShortcutLabel() {
+  const [shortcutLabel, setShortcutLabel] = useState("Strg K");
+  useEffect(() => {
+    if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) setShortcutLabel("⌘ K");
+  }, []);
+  return shortcutLabel;
+}
+
+function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: () => void, toggle: RefObject<HTMLButtonElement | null>) {
+  useEffect(() => {
+    if (!menuOpen || paletteOpen) return;
+    function onKey(event: KeyboardEvent) {
+      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst
+      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]')) return;
+      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
+      event.preventDefault();
+      onClose();
+      toggle.current?.focus();
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [menuOpen, paletteOpen, onClose, toggle]);
+}
+
+function AppLayout() {
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen, zeichen } = Route.useRouteContext();
+  const gesellschaft = isKapitalgesellschaft(rechtsform);
+  const inhaber = user.role === "inhaber";
+  const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const shortcutLabel = useShortcutLabel();
+  // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
+  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
+  const main = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg } = useFirmaBrand();
+  const firstPath = useRef(pathname);
   usePageHeadHeight(main);
   const scrolled = useScrolled();
 
@@ -86,20 +110,7 @@ function AppLayout() {
     if (!main.current?.contains(document.activeElement)) main.current?.focus({ preventScroll: true });
   }, [pathname]);
 
-  // Escape schließt das Menü auf dem Handy und gibt den Fokus an den Menüknopf zurück
-  useEffect(() => {
-    if (!menuOpen || paletteOpen) return;
-    function onKey(event: KeyboardEvent) {
-      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst
-      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]')) return;
-      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
-      event.preventDefault();
-      setMenuOpen(false);
-      toggle.current?.focus();
-    }
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [menuOpen, paletteOpen]);
+  useMobileMenuEscape(menuOpen, paletteOpen, () => setMenuOpen(false), toggle);
 
   async function signOut() {
     // Erst beim Abmelden laden: der Auth-Client bringt den Passkey-Code mit, den nur Anmeldung und Einstellungen brauchen
@@ -167,44 +178,7 @@ function AppLayout() {
             <Icon name="overview" />
             Übersicht
           </Link>
-          {groups.map((group) => (
-            <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
-              <div className="nav-group-label" aria-hidden="true">
-                {group.label}
-              </div>
-              {(group.links as readonly NavLink[])
-                .filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter }))
-                .map((link) => (
-                  <Link key={link.to} to={link.to} className="nav-link">
-                    <Icon name={link.icon} />
-                    {link.label}
-                  </Link>
-                ))}
-            </div>
-          ))}
-          {/* Eigene Seiten (#199): Seiten außerhalb von Haben, unter Einstellungen angelegt */}
-          {eigeneSeiten.length > 0 && (
-            <div className="nav-group" role="group" aria-label="Eigene Seiten">
-              <div className="nav-group-label" aria-hidden="true">
-                Eigene Seiten
-              </div>
-              {eigeneSeiten.map((seite) =>
-                // Seiten, die das Einbetten verbieten, öffnen in einem neuen Tab (#636); noreferrer wie der Rahmen
-                seite.openInNewTab ? (
-                  <a key={seite.id} href={seite.url} target="_blank" rel="noreferrer" className="nav-link">
-                    <Icon name="external" />
-                    {seite.name}
-                    <span className="visually-hidden"> (öffnet in neuem Tab)</span>
-                  </a>
-                ) : (
-                  <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
-                    <Icon name="embed" />
-                    {seite.name}
-                  </Link>
-                ),
-              )}
-            </div>
-          )}
+          <NavGroups groups={groups} gesellschaft={gesellschaft} hatMitarbeiter={hatMitarbeiter} eigeneSeiten={eigeneSeiten} />
           <div className="nav-spacer" />
           <NavFoot user={user} inhaber={inhaber} onSignOut={signOut} />
         </div>
@@ -262,5 +236,59 @@ function NavFoot({ user, inhaber, onSignOut }: { user: { name: string; role: key
         Haben {__HABEN_VERSION__}
       </a>
     </div>
+  );
+}
+
+function NavGroups({
+  groups,
+  gesellschaft,
+  hatMitarbeiter,
+  eigeneSeiten,
+}: {
+  groups: typeof NAV_GROUPS | typeof STEUERBERATUNG_NAV;
+  gesellschaft: boolean;
+  hatMitarbeiter: boolean;
+  eigeneSeiten: readonly { id: string; name: string; url: string; openInNewTab: boolean }[];
+}) {
+  return (
+    <>
+      {groups.map((group) => (
+        <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
+          <div className="nav-group-label" aria-hidden="true">
+            {group.label}
+          </div>
+          {(group.links as readonly NavLink[])
+            .filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter }))
+            .map((link) => (
+              <Link key={link.to} to={link.to} className="nav-link">
+                <Icon name={link.icon} />
+                {link.label}
+              </Link>
+            ))}
+        </div>
+      ))}
+      {/* Eigene Seiten (#199): Seiten außerhalb von Haben, unter Einstellungen angelegt */}
+      {eigeneSeiten.length > 0 && (
+        <div className="nav-group" role="group" aria-label="Eigene Seiten">
+          <div className="nav-group-label" aria-hidden="true">
+            Eigene Seiten
+          </div>
+          {eigeneSeiten.map((seite) =>
+            seite.openInNewTab ? (
+              <a key={seite.id} href={seite.url} target="_blank" rel="noreferrer" className="nav-link">
+                <Icon name="external" />
+                {seite.name}
+                <span className="visually-hidden"> (öffnet in neuem Tab)</span>
+              </a>
+            ) : (
+              <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
+                <Icon name="embed" />
+                {seite.name}
+              </Link>
+            ),
+          )}
+        </div>
+      )}
+    </>
   );
 }
