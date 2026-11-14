@@ -322,11 +322,13 @@ test("Strg+B klappt die Seitenleiste am Desktop ein und aus, nicht in Eingabefel
   await page.keyboard.press("Control+b");
   await expect(page.locator("html")).not.toHaveAttribute("data-nav");
 
-  // In einem Feld bleibt Strg+B beim Feld (Fett in den Textfeldern der Belege)
-  const suche = page.getByRole("button", { name: "Schnellsuche" });
-  await suche.click();
-  await page.getByRole("dialog", { name: "Befehlspalette" }).getByRole("combobox").focus();
+  // In einem Feld bleibt Strg+B beim Feld: Fett in den Textfeldern der Belege, außerhalb eines Dialogs
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  const feld = page.locator(".format-field textarea").first();
+  await feld.fill("Bitte zahlen");
+  await feld.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(6, 12));
   await page.keyboard.press("Control+b");
+  await expect(feld).toHaveValue("Bitte *zahlen*");
   await expect(page.locator("html")).not.toHaveAttribute("data-nav");
 });
 
