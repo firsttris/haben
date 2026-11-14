@@ -295,6 +295,8 @@ export interface EuerFigures {
   erhaltung?: Cents;
   /** Fahrten mit dem Privatfahrzeug (Kilometersatz), als Nutzungseinlage */
   fahrtNutzungseinlage?: Cents;
+  /** Zeile 73: Entfernungspauschale für Wege zwischen Wohnung und Betriebsstätte */
+  entfernungspauschale?: Cents;
   // Entnahmen und Einlagen (Einzelunternehmen)
   entnahmen?: Cents;
   einlagen?: Cents;
@@ -341,6 +343,7 @@ export const EUER_AUSGABEN = [
   "kfzSteuerVersicherung",
   "kfzSonstige",
   "fahrtNutzungseinlage",
+  "entfernungspauschale",
 ] as const;
 
 export type EuerFigureKey = (typeof EUER_EINNAHMEN)[number] | (typeof EUER_AUSGABEN)[number];
@@ -413,6 +416,9 @@ export const EUER_FIELDS: Record<
   verpflegung: { kz: "E6005002", label: "Verpflegungsmehraufwendungen" },
   tagespauschale: { kz: "E6006405", label: "Tagespauschale für die Tätigkeit in der häuslichen Wohnung" },
   fahrtNutzungseinlage: { kz: "E6006103", label: "Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage)" },
+  // Zeile 73, `elsterfeldname` EUER/BAus/KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt/Sum/E6003702 in den EÜR-Formularen
+  // 2022 bis 2025 von EasyCash&Tax; das Schema E77 selbst ist nicht geprüft
+  entfernungspauschale: { kz: "E6003702", label: "Abziehbare Aufwendungen für Wege zwischen Wohnung und Betriebsstätte (Entfernungspauschale)" },
   entnahmen: { kz: "E6006601", label: "Entnahmen einschließlich Sach-, Leistungs- und Nutzungsentnahmen" },
   einlagen: { kz: "E6006701", label: "Einlagen einschließlich Sach-, Leistungs- und Nutzungseinlagen" },
 };
@@ -738,6 +744,7 @@ export function buildEuerXml(input: EuerXmlInput): string {
               sumNode("Steuer_Versicherung_Maut", kz("kfzSteuerVersicherung"), f.kfzSteuerVersicherung),
               sumNode("Sonst", kz("kfzSonstige"), f.kfzSonstige),
               sumNode("Fahrtkosten_Nutzungseinlage", kz("fahrtNutzungseinlage"), f.fahrtNutzungseinlage),
+              sumNode("Entfernungspausch_Familienheimfahrt", kz("entfernungspauschale"), f.entfernungspauschale),
             ],
           ],
           ["Summe_BAus", [["E6005301", elsterDecimal(ausgaben)]]],

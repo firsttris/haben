@@ -1,5 +1,6 @@
 import {
   currentYear,
+  entfernungspauschale,
   fahrtBetrag,
   FAHRZEUG_LABEL,
   formatEuro,
@@ -38,13 +39,18 @@ export const Route = createFileRoute("/_app/pauschalen")({
 type Data = Awaited<ReturnType<typeof getPauschalen>>;
 type Entry = Data["entries"][number];
 
-const ARTEN: PauschaleArt[] = ["homeoffice", "fahrt", "verpflegung"];
-const ART_KURZ: Record<PauschaleArt, string> = { homeoffice: "Homeoffice", fahrt: "Fahrt", verpflegung: "Verpflegung" };
+const ARTEN: PauschaleArt[] = ["homeoffice", "fahrt", "verpflegung", "entfernung"];
+const ART_KURZ: Record<PauschaleArt, string> = {
+  homeoffice: "Homeoffice",
+  fahrt: "Fahrt",
+  verpflegung: "Verpflegung",
+  entfernung: "Wege zur Betriebsstätte",
+};
 const MAHLZEIT_LABEL = { fruehstueck: "Frühstück", mittag: "Mittagessen", abend: "Abendessen" } as const;
 
-/** Homeoffice gilt für einen Monat, die anderen Pauschalen für einen Tag */
+/** Homeoffice und Wege zur Betriebsstätte gelten für einen Monat, die anderen Pauschalen für einen Tag */
 function pauschaleDatum(e: { art: string; date: string }): string {
-  return e.art === "homeoffice"
+  return e.art === "homeoffice" || e.art === "entfernung"
     ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`))
     : formatDate(e.date);
 }
@@ -54,6 +60,7 @@ const parseKm = (value: string) => Number(value.replace(/\./g, "").replace(",", 
 function detailText(entry: Entry): string {
   const d = entry.details;
   if (entry.art === "homeoffice") return `${d.tage} Tag${d.tage === 1 ? "" : "e"}`;
+  if (entry.art === "entfernung") return `${d.tage} Tag${d.tage === 1 ? "" : "e"} × ${d.km} km einfache Entfernung`;
   if (entry.art === "fahrt") {
     const km = Number(d.km);
     const gesamt = d.hinUndZurueck ? km * 2 : km;
@@ -94,7 +101,7 @@ function PauschalenList() {
   const [notice, setNotice] = useState<Notice>(null);
   const thisYear = currentYear();
   const years = [...new Set([thisYear, thisYear - 1, thisYear - 2, year])].sort((a, b) => b - a);
-  const summe = totals.homeoffice + totals.fahrt + totals.verpflegung;
+  const summe = totals.homeoffice + totals.fahrt + totals.verpflegung + totals.entfernung;
 
   return (
     <>
@@ -105,9 +112,9 @@ function PauschalenList() {
         </div>
       </div>
       <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
-        Homeoffice-Tage, Fahrten mit dem eigenen Auto und Verpflegung auf Geschäftsreisen mindern den Gewinn, ohne dass du etwas bezahlt hast, das einen Beleg
-        hätte. Haben bucht sie als Ausgabe an Privateinlage und trägt sie in die richtigen Zeilen der <Link to="/jahreserklaerung">Anlage EÜR</Link> ein. Halte
-        fest, wann du wo warst (Kalender, Fahrtenliste); das Finanzamt kann danach fragen.
+        Homeoffice-Tage, Fahrten mit dem eigenen Auto, Wege zur Betriebsstätte und Verpflegung auf Geschäftsreisen mindern den Gewinn, ohne dass du etwas
+        bezahlt hast, das einen Beleg hätte. Haben bucht sie als Ausgabe an Privateinlage und trägt sie in die richtigen Zeilen der{" "}
+        <Link to="/jahreserklaerung">Anlage EÜR</Link> ein. Halte fest, wann du wo warst (Kalender, Fahrtenliste); das Finanzamt kann danach fragen.
       </p>
 
       <nav className="filter-row" aria-label="Jahr wählen">
@@ -120,7 +127,7 @@ function PauschalenList() {
         </div>
       </nav>
 
-      <div className="grid-4" style={{ marginBottom: 16 }}>
+      <div className="grid-4" style={{ marginBottom: 16, gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
         <div className="card">
           <div className="kpi-label">Homeoffice</div>
           <div className="kpi-value">{formatEuro(totals.homeoffice)}</div>
@@ -135,6 +142,11 @@ function PauschalenList() {
           <div className="kpi-label">Verpflegung</div>
           <div className="kpi-value">{formatEuro(totals.verpflegung)}</div>
           <div className="small muted">Mehraufwand auf Reisen</div>
+        </div>
+        <div className="card">
+          <div className="kpi-label">Wege zur Betriebsstätte</div>
+          <div className="kpi-value">{formatEuro(totals.entfernung)}</div>
+          <div className="small muted">Entfernungspauschale</div>
         </div>
         <div className="card">
           <div className="kpi-label">Zusammen {year}</div>
@@ -167,6 +179,7 @@ function PauschalenList() {
           {art === "homeoffice" && <HomeofficeForm data={data} onNotice={setNotice} />}
           {art === "fahrt" && <FahrtForm data={data} onNotice={setNotice} />}
           {art === "verpflegung" && <VerpflegungForm data={data} onNotice={setNotice} />}
+          {art === "entfernung" && <EntfernungForm data={data} onNotice={setNotice} />}
           <NoticeBanner notice={notice} />
         </section>
 
@@ -285,8 +298,8 @@ function FahrtForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => vo
     <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Fahrt mit dem Privatfahrzeug">
       <p className="small muted" style={{ margin: 0 }}>
         Fahrten zu Kunden, Terminen und auf Geschäftsreisen mit deinem privaten Fahrzeug: {formatEuro(KM_SATZ.pkw)} je gefahrenem Kilometer mit dem Auto,{" "}
-        {formatEuro(KM_SATZ.andere)} mit Motorrad oder Roller. Arbeitest du dauerhaft beim selben Kunden, kann dort eine Betriebsstätte entstehen; dann zählt
-        die Entfernungspauschale, die Haben noch nicht abbildet.
+        {formatEuro(KM_SATZ.andere)} mit Motorrad oder Roller. Arbeitest du dauerhaft beim selben Kunden, kann dort eine Betriebsstätte entstehen; dann zählen
+        die Wege dorthin als „Wege zur Betriebsstätte“ mit der Entfernungspauschale, nicht mit dem Kilometersatz.
       </p>
       <div className="form-grid">
         <Field label="Datum">
@@ -316,6 +329,84 @@ function FahrtForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => vo
       </label>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy || betrag === 0}>
+          {betrag > 0 ? `${formatEuro(betrag)} buchen` : "Buchen"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function EntfernungForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => void }) {
+  const { busy, submit } = useSubmit(onNotice);
+  const [month, setMonth] = useState(defaultDate(data).slice(0, 7));
+  const [tage, setTage] = useState("");
+  const [km, setKm] = useState("");
+  const [betriebsstaette, setBetriebsstaette] = useState("");
+  const jahr = Number(month.slice(0, 4)) || data.year;
+  const betrag = entfernungspauschale(jahr, Number(tage) || 0, Number(km) || 0);
+  // Die Sätze des Jahres kommen aus dem Rechenkern: Satz bis zum 20. und ab dem 21. Kilometer
+  const nah = entfernungspauschale(jahr, 1, 1);
+  const fern = entfernungspauschale(jahr, 1, 21) - entfernungspauschale(jahr, 1, 20);
+  const satzText =
+    nah === fern
+      ? `${formatEuro(nah)} je vollem Kilometer der einfachen Strecke.`
+      : `${formatEuro(nah)} je vollem Kilometer der einfachen Strecke, ab dem 21. Kilometer ${formatEuro(fern)}.`;
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    void submit({ art: "entfernung", month, tage: Number(tage), km: Number(km), betriebsstaette: betriebsstaette.trim() }, form, "Entfernungspauschale").then(
+      (ok) => {
+        if (!ok) return;
+        setTage("");
+        setKm("");
+        setBetriebsstaette("");
+      },
+    );
+  }
+
+  return (
+    <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label={PAUSCHALE_LABEL.entfernung}>
+      <p className="small muted" style={{ margin: 0 }}>
+        Für jeden Tag, an dem du von der Wohnung zur Betriebsstätte fährst (zum Beispiel zum gemieteten Praxisraum oder Atelier), zählt die
+        Entfernungspauschale: {satzText} Hin- und Rückweg sind damit abgegolten. Haben rechnet für ein Fahrzeug, das nicht zu deinem Betriebsvermögen gehört.
+        Fahrten zu Kunden und auf Reisen trägst du als Fahrt ein. Ein Tag zählt nur einmal, auch bei mehreren Betriebsstätten.
+      </p>
+      <div className="form-grid">
+        <Field label="Monat">
+          {(control) => (
+            <input
+              {...control}
+              type="month"
+              value={month}
+              min={`${data.year}-01`}
+              max={defaultDate(data).slice(0, 7)}
+              onChange={(e) => setMonth(e.target.value)}
+              required
+            />
+          )}
+        </Field>
+        <Field label="Tage an der Betriebsstätte">
+          {(control) => <input {...control} value={tage} onChange={(e) => setTage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}
+        </Field>
+        <Field label="Kilometer einfach">
+          {(control) => <input {...control} value={km} onChange={(e) => setKm(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}
+        </Field>
+        <Field label="Betriebsstätte">
+          {(control) => (
+            <input
+              {...control}
+              value={betriebsstaette}
+              onChange={(e) => setBetriebsstaette(e.target.value)}
+              placeholder="Praxisraum, Musterstadt"
+              maxLength={300}
+              required
+            />
+          )}
+        </Field>
+      </div>
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={busy || betrag === 0 || betriebsstaette.trim() === ""}>
           {betrag > 0 ? `${formatEuro(betrag)} buchen` : "Buchen"}
         </button>
       </div>
