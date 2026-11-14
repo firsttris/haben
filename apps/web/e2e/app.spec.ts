@@ -356,6 +356,22 @@ test("Mahnung: Die Vorschau zeigt das Blatt, während das Formular sich ändert"
   await expect(blatt.locator('[data-teil="summen"]')).toContainText(/Mahngebühr: 5,00\s€/);
 });
 
+// Hier statt in knopfreihenfolge.spec.ts: Nach „ablauf“ ist keine Rechnung mehr überfällig, die Mahnseite gibt es nur jetzt
+test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf (DESIGN.md, Reihenfolge der Knöpfe)", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kopf = page.locator(".page-head .actions");
+  const knoepfe = kopf.locator(":scope > .btn");
+  await expect(knoepfe).toHaveText(["Entwurf als PDF", "Zahlungserinnerung erstellen"]);
+  await expect(knoepfe.last()).toHaveClass(/btn-primary/);
+  await expect(kopf).toHaveCSS("flex-direction", "row");
+  await knoepfe.first().focus();
+  await page.keyboard.press("Tab");
+  await expect(knoepfe.last()).toBeFocused();
+});
+
 test("Mahnung: Einleitung und Schluss lassen sich mit den Knöpfen auszeichnen (#359)", async () => {
   await go("/rechnungen/mahnwesen");
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
