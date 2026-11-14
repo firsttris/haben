@@ -18,6 +18,7 @@ import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "driz
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { journalAbJahr, kleinunternehmerForMonth } from "../stammdaten/index.ts";
 import { gutschriftAnteile } from "./gutschrift.ts";
+import { vorsteuerNachLeistungsdatum } from "./vorsteuer-leistungsdatum.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
@@ -513,18 +514,22 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     ...booked.map((a) => ({ ...a, date: a.date!, sign: 1 })),
     ...cancelled.map((a) => ({ ...a, number: `Storno ${a.number}`.trim(), sign: -1 })),
   ];
+  // Leistungsdatum nach dem Belegdatum (#693): Die Vorsteuer zählt dann nach der Zahlung, ihre Zeilen kommen aus
+  // vorsteuer-leistungsdatum.ts; die gewöhnliche Abfrage lässt diese Belege aus, sonst zählten sie doppelt
+  const nachLeistungsdatum = await vorsteuerNachLeistungsdatum(period, q);
   // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
   const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
   // Eine Gutschrift „erstattet bereits Bezahltes“ mindert die Vorsteuer erst mit dem Ausgleich (#690, #786, gutschrift.ts);
   // ohne die Angabe gilt wie bei jedem Beleg das Belegdatum
   const inputTax = amounts
-    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && !a.erstattetBezahltes)
+    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && !a.erstattetBezahltes && !nachLeistungsdatum.belege.has(a.documentId))
     .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, erstattetBezahltes: _e, sign, category: _category, ...a }) => ({
       ...a,
       base: business(a.base, privateShare, sign),
       tax: business(a.tax, privateShare, sign),
     }))
     .filter((a) => a.tax !== 0);
+  inputTax.push(...nachLeistungsdatum.zeilen);
   // Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz
   const discounts = await q
     .select({
