@@ -1653,6 +1653,20 @@
       "when": 1794681973469,
       "tag": "0235_passwortwechsel_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 236,
+      "version": "7",
+      "when": 1794689081463,
+      "tag": "0236_jahreserklaerung_zeilenwerte",
+      "breakpoints": true
+    },
+    {
+      "idx": 237,
+      "version": "7",
+      "when": 1794689088380,
+      "tag": "0237_jahreserklaerung_zeilenwerte_trigger",
+      "breakpoints": true
     }
   ]
 }
