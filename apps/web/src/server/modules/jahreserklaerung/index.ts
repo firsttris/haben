@@ -22,4 +22,4 @@ export {
 export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./income-tax.ts";
 export { meinElsterWerte } from "./mein-elster.ts";
 export { vermerkBetrag, vermerkFelder, vermerkPruefung, vermerkeJahresabgabe } from "./vermerk.ts";
-export { speichereErklaerteZeilen, zeilenwerteSchema } from "./zeilenwerte.ts";
+export { erklaerteZeilen, speichereErklaerteZeilen, zeilenwerteSchema } from "./zeilenwerte.ts";
