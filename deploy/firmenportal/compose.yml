@@ -13,6 +13,6 @@ services:
     security_opt:
       - no-new-privileges:true
     # Für den eigenen Reverse Proxy auf diesem Rechner; mit dem gemeinsamen Caddy aus deploy/instanzen statt der
-    # Zeile das Netz des Proxys eintragen (siehe Doku)
+    # Zeile das eigene Netz zum Caddy eintragen (Installation › Firmenportal, Einrichten, Schritt 2)
     ports:
       - "127.0.0.1:${PORTAL_PORT:-3010}:3000"
