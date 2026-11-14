@@ -1482,6 +1482,25 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("Lastschrift 190,00");
 });
 
+test("Anlage: ein Satz über dem Höchstsatz ist ein Fehler am Satz, der Fokus geht zum ersten Fehler (Review #971)", async () => {
+  await go("/anlagen/neu");
+  const form = page.getByRole("region", { name: "Angaben" });
+  await form.getByLabel("Bezeichnung").fill("Fräse");
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Betriebs- und Geschäftsausstattung" });
+  await form.getByLabel("Anschaffungsdatum").fill("2024-04-10");
+  await form.getByLabel("Anschaffungskosten netto (€)").fill("50.000,00");
+  await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("degressiv");
+  await form.getByLabel("Nutzungsdauer in Jahren").fill("10");
+  await form.getByLabel("Satz der degressiven AfA in %").fill("30");
+  await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
+  await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("");
+  await form.getByRole("button", { name: "Anlage übernehmen" }).click();
+  // Erstes Feld mit Fehler ist der Satz, und er sagt warum; der Restbuchwert darunter trägt seinen eigenen Fehler
+  await expect(form.getByLabel("Satz der degressiven AfA in %")).toBeFocused();
+  await expect(form.getByLabel("Satz der degressiven AfA in %")).toHaveAccessibleDescription(/Höchstens 20 %/);
+  await expect(form.getByLabel("Restbuchwert zum Stichtag (€)")).toHaveAccessibleDescription(/Trag den Restbuchwert ein/);
+});
+
 test("Anlage übernehmen: degressive AfA mit Höchstsatz, Restbuchwert geprüft, Wechsel zur linearen", async () => {
   await go("/anlagen/neu");
   const form = page.getByRole("region", { name: "Angaben" });

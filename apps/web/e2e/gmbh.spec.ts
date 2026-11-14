@@ -77,6 +77,21 @@ test("Einrichtung als GmbH mit SKR04", async () => {
   await expect(page.getByRole("heading", { name: /Einkommensteuererklärung/ })).toHaveCount(0);
 });
 
+test("Eröffnung nicht am 1. Januar: der Fehler steht am Datum und der Fokus dort (Review #971)", async () => {
+  await go("/buchungen/neu");
+  const form = page.getByRole("form", { name: "Manuelle Buchung" });
+  await form.getByLabel("Eröffnungsbuchung").check();
+  await form.getByLabel("Datum").fill(`${currentYear() - 1}-06-30`);
+  await form.getByLabel("Buchungstext").fill("Eröffnung am falschen Tag");
+  await form.getByLabel("Konto Zeile 1").fill("1800");
+  await form.getByLabel("Soll Zeile 1").fill("100,00");
+  await form.getByLabel("Konto Zeile 2").fill("9000");
+  await form.getByLabel("Haben Zeile 2").fill("100,00");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(form.getByLabel("Datum")).toBeFocused();
+  await expect(form.getByLabel("Datum")).toHaveAccessibleDescription(/1\. Januar/);
+});
+
 test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () => {
   await go("/buchungen");
   await page.getByRole("link", { name: "Buchung erfassen" }).click();
