@@ -97,4 +97,4 @@ In den App-Container reicht `compose.yml` nur die Variablen durch, die dort unte
 | TLS-Zertifikate von Caddy | Volume `haben-caddy` |
 | Backup (restic-Repository), wenn `RESTIC_REPOSITORY` nicht gesetzt ist | Volume `haben-backups` (Compose: `backups`), im Backup-Container `/backups` |
 
-Belege und Rechnungen müssen nach GoBD zehn Jahre aufbewahrt werden. Beide Volumes mit Buchhaltungsdaten gehören deshalb ins Backup.
+Bücher und Aufzeichnungen bewahrst du 10 Jahre auf, Buchungsbelege wie Rechnungen 8 Jahre (§ 147 Abs. 3 AO, siehe [Aufbewahrung](auswertungen.md#aufbewahrung)). Beide Volumes mit Buchhaltungsdaten gehören deshalb ins Backup.
