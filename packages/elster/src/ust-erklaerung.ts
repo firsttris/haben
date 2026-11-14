@@ -217,7 +217,7 @@ function ust2aErgAng(f: UstErklaerungFigures): XmlNode | false {
 
 /** Abziehbare Vorsteuer: aus Rechnungen (Kz 66), Erwerben (61), Einfuhr (62) und §-13b-Leistungen (67) mit Summe */
 function ust2aVorsteuer(f: UstErklaerungFigures, vorsteuer: Cents): XmlNode | false {
-  // Nach den Zeilen, nicht nach der Summe: Heben sich Vorsteuerarten auf, gehören sie trotzdem in die Erklärung
+  // Nach den Zeilen, nicht nach der Summe: Heben sich Vorsteuerarten auf, gehören sie trotzdem in die Erklärung (Vordruck USt 2 A, Zeilen 79 bis 87)
   return (
     (f.vorsteuer !== 0 || kz(f.kz61) !== 0 || kz(f.kz62) !== 0 || kz(f.kz67) !== 0) && [
       "Abz_VoSt",
@@ -309,7 +309,7 @@ export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
           ["Best_Art", [["E3002203", input.versteuerung === "soll" ? "1" : "2"]]],
         ],
       ],
-      // Nach den Zeilen, nicht nach der Summe: Gutschriften zu 19 % können die Steuer zu 7 % aufheben
+      // Nach den Zeilen, nicht nach der Summe: Gutschriften zu 19 % können die Steuer zu 7 % aufheben (Vordruck USt 2 A, Zeilen 22 bis 37)
       (f.base19 !== 0 || f.base7 !== 0) && [
         "Umsaetze",
         [
