@@ -9,6 +9,7 @@
     "typecheck": "bun --bun tsc -p ."
   },
   "dependencies": {
+    "@fontsource/ibm-plex-sans": "^5.3.0",
     "@haben/core": "workspace:*",
     "jose": "^6.2.17",
     "zod": "^4.6.5"

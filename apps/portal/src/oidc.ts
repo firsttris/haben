@@ -149,7 +149,21 @@ const basic = (config: PortalConfig) => {
  * Callback: Code gegen Tokens tauschen, ID-Token prüfen, UserInfo abfragen und die Gruppen der Person liefern. State
  * vergleicht der Aufrufer vorher mit dem Cookie.
  */
-export async function abschliessen(config: PortalConfig, meta: Metadaten, code: string, ablauf: Ablauf): Promise<{ sub: string; gruppen: string[] }> {
+/** Wer angemeldet ist, nur zur Anzeige: E-Mail, sonst Benutzername oder Name, höchstens 100 Zeichen */
+function anzeigeAus(...profile: Record<string, unknown>[]): string {
+  for (const feld of ["email", "preferred_username", "name"]) {
+    const wert = profile.map((p) => p[feld]).find((w): w is string => typeof w === "string" && w.trim() !== "");
+    if (wert) return wert.trim().slice(0, 100);
+  }
+  return "";
+}
+
+export async function abschliessen(
+  config: PortalConfig,
+  meta: Metadaten,
+  code: string,
+  ablauf: Ablauf,
+): Promise<{ sub: string; gruppen: string[]; anzeige: string }> {
   const body = new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri(config), code_verifier: ablauf.verifier });
   const tokens = await antwortJson(
     await fetch(meta.tokenEndpoint, {
@@ -178,7 +192,7 @@ export async function abschliessen(config: PortalConfig, meta: Metadaten, code: 
   // Wie Haben: Gruppen aus UserInfo, fehlen sie dort, aus dem geprüften ID-Token
   const gruppen = gruppenAus(Object.hasOwn(profil, config.groupsClaim) ? profil : claims, config.groupsClaim);
   if ("fehler" in gruppen) throw anmeldeFehler(gruppen.fehler === "fehlt" ? "Gruppen-Claim fehlt" : "Gruppen-Claim ist kein Array aus Zeichenketten");
-  return { sub: claims.sub as string, gruppen: gruppen.gruppen };
+  return { sub: claims.sub as string, gruppen: gruppen.gruppen, anzeige: anzeigeAus(profil, claims) };
 }
 
 /** Nur für Tests: Discovery und JWKS neu laden */
