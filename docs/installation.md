@@ -559,13 +559,17 @@ Eine Instanz mit mehreren Mandanten gibt es bewusst nicht: Eine gemeinsame Daten
 
 ### Firma wechseln
 
-Mit `HABEN_FIRMEN` kennt jede Instanz die übrigen: In der Navigation steht unter „Haben“ die Zeile **Firma wechseln**, die die anderen Firmen aufklappt, ab 20 mit Suchfeld; die Firma, in der du gerade arbeitest, steht nicht in der Liste, sondern wie immer mit dem Namen aus den [Firmendaten](einrichtung.md#firmendaten) unter „Haben“. Ein Klick öffnet die Instanz der anderen Firma unter ihrer eigenen Adresse; Daten wandern dabei nicht, jede Instanz hat ihre eigene Anmeldung. Mit [SSO](installation-sso.md) genügt dort ein Klick auf die Anmeldung, solange du beim Anmeldedienst angemeldet bist; sonst meldest du dich einmal je Firma an (Passkeys gelten je Domain).
+Mit `HABEN_FIRMEN` kennt jede Instanz die übrigen: In der Navigation steht unter „Haben“ die Zeile **Firma wechseln**, die die anderen Firmen aufklappt, ab 20 mit Suchfeld; die Firma, in der du gerade arbeitest, steht nicht in der Liste. Ein Klick öffnet die Instanz der anderen Firma unter ihrer eigenen Adresse; Daten wandern dabei nicht, jede Instanz hat ihre eigene Anmeldung. Mit [SSO](installation-sso.md) genügt dort ein Klick auf die Anmeldung, solange du beim Anmeldedienst angemeldet bist; sonst meldest du dich einmal je Firma an (Passkeys gelten je Domain).
 
 ```dotenv
 HABEN_FIRMEN='Studio Nord|https://nord.example.de;Werkstatt Süd|https://werkstatt.example.de'
 ```
 
-Je Firma `Name|Adresse`, getrennt durch `;`, in der `.env` jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`. Erlaubt sind nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal, höchstens 50 Firmen; sonst startet die App nicht und nennt den Fehler im Log. Nach einer Änderung startest du die App jeder Instanz neu (`docker compose up -d`). In den Vorlagen für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld. Die Zeile sieht nur der Inhaber, und nur wenn die Liste andere Firmen nennt; der [Zugang für die Steuerberatung](steuerberatung.md) erfährt nicht, welche anderen es gibt.
+- **Format:** je Firma `Name|Adresse`, getrennt durch `;`, in der `.env` jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`.
+- **Grenzen:** nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal, höchstens 50 Firmen; sonst startet die App nicht und nennt den Fehler im Log.
+- **Nach einer Änderung** startest du die App jeder Instanz neu (`docker compose up -d`).
+- **Vorlagen:** Für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld.
+- **Wer sie sieht:** nur der Inhaber, und nur wenn die Liste andere Firmen nennt; der [Zugang für die Steuerberatung](steuerberatung.md) erfährt nicht, welche anderen es gibt.
 
 ### Für andere betreiben
 
