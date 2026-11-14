@@ -39,6 +39,14 @@ export interface EstVorsorgePerson {
   ppv?: Cents;
   /** Erstattungen der privaten Kranken- und Pflegeversicherung */
   pkvErstattung?: Cents;
+  /** Beiträge zu zertifizierten Basisrentenverträgen (Rürup, § 10 Abs. 1 Nr. 2 b EStG) */
+  basisrente?: Cents;
+  /** Privat: über die Basisabsicherung hinaus, also Wahlleistungen (§ 10 Abs. 1 Nr. 3 a EStG) */
+  pkvWahlleistungen?: Cents;
+  /** Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung (§ 3 Nr. 62 EStG, Nr. 24 b) */
+  agZuschussKv?: Cents;
+  /** Steuerfreier Arbeitgeberzuschuss zur privaten Pflegeversicherung (§ 3 Nr. 62 EStG, Nr. 24 c) */
+  agZuschussPv?: Cents;
 }
 
 export interface EstKind {

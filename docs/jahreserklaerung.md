@@ -41,6 +41,14 @@ Gibst du die Umsatzsteuererklärung oder die Anlage EÜR außerhalb von Haben ab
 
 Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung: Die Frist ist erledigt, das Jahr nimmt keine rückdatierten Buchungen mehr an, die Karte zeigt Datum, Ticket und Betrag statt des Knopfs, und Begründung wie Protokoll stehen darunter in einer Tabelle, die erst aufklappt, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf. Meldungen, die Haben aus seinen eigenen Daten ableitet — etwa die Nullerklärung oder „Keine Betriebseinnahmen und -ausgaben im Jahr“ —, treten mit dem Vermerk zurück; sie würden ihm sonst auf derselben Seite widersprechen.
 
+### Was die Vorsorgezeilen bedeuten
+
+Die Beiträge zur gesetzlichen Rentenversicherung und die einer zertifizierten Basisrente (Rürup) teilen sich denselben Höchstbetrag der Altersvorsorge; Haben rechnet beide zusammen und kappt erst danach.
+
+Wahlleistungen einer privaten Krankenversicherung, also was über die Basisabsicherung hinausgeht, gehören nicht zur Basisabsicherung, sondern zu den sonstigen Vorsorgeaufwendungen und damit in deren Höchstbetrag (2.800 € für Selbständige, 1.900 € für Arbeitnehmer).
+
+Die steuerfreien Arbeitgeberzuschüsse zur privaten Kranken- und Pflegeversicherung stehen getrennt in der Lohnsteuerbescheinigung (Nr. 24 b und 24 c). Sie mindern den abzugsfähigen Betrag, sie erhöhen ihn nicht. Trag sie ein, wenn deine Bescheinigung sie ausweist.
+
 ## Umsatzsteuererklärung
 
 | Zeile | Woher |
@@ -142,7 +150,7 @@ Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe
 | Anlage | Angaben |
 | --- | --- |
 | N | Je Person mit Arbeitslohn: die Lohnsteuerbescheinigungen (Steuerklasse, Bruttoarbeitslohn, Lohnsteuer, Soli, Kirchensteuer) und Werbungskosten, siehe [Arbeitslohn](#arbeitslohn-anlage-n) |
-| Vorsorgeaufwand | Je Person: Beiträge laut Lohnsteuerbescheinigung (Rentenversicherung mit Arbeitgeberanteil, Kranken-, Pflege- und Arbeitslosenversicherung), gesetzliche Rentenversicherung, gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen; weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
+| Vorsorgeaufwand | Je Person: Beiträge laut Lohnsteuerbescheinigung (Rentenversicherung mit Arbeitgeberanteil, Kranken-, Pflege- und Arbeitslosenversicherung), gesetzliche Rentenversicherung, zertifizierte Basisrente (Rürup), gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen und Wahlleistungen, steuerfreie Arbeitgeberzuschüsse zur privaten KV und PV; weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
 | Sonderausgaben | Gezahlte und erstattete Kirchensteuer, Spenden an steuerbegünstigte Empfänger im Inland; vom Geschäftskonto gezahlte Spenden stehen im Kontenblatt 1840 bzw. 2250 „Zuwendungen, Spenden“ ([Bank](bank.md#direkt-buchen)) |
 | Außergewöhnliche Belastungen | Selbst getragene Krankheitskosten |
 | Haushaltsnahe Aufwendungen (§ 35a EStG) | Minijobs im Haushalt, haushaltsnahe Dienstleistungen, Handwerkerleistungen (nur Arbeits-, Maschinen- und Fahrtkosten) |

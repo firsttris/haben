@@ -471,6 +471,10 @@ function EstSection({ data }: { data: Data }) {
       pkv: amount(`${p}-pkv`, "Private Krankenversicherung"),
       ppv: amount(`${p}-ppv`, "Private Pflegeversicherung"),
       pkvErstattung: amount(`${p}-pkvErstattung`, "Erstattungen"),
+      basisrente: amount(`${p}-basisrente`, "Basisrente"),
+      pkvWahlleistungen: amount(`${p}-pkvWahlleistungen`, "Wahlleistungen der privaten KV"),
+      agZuschussKv: amount(`${p}-agZuschussKv`, "Arbeitgeberzuschuss zur privaten KV"),
+      agZuschussPv: amount(`${p}-agZuschussPv`, "Arbeitgeberzuschuss zur privaten PV"),
     });
     const angaben = {
       vorsorge: { a: vorsorge("a"), ...(est.zusammen ? { b: vorsorge("b") } : {}), sonstige: amount("sonstige", "Weitere Vorsorge") },
@@ -528,6 +532,10 @@ function EstSection({ data }: { data: Data }) {
       <Amount name={`${p}-pkv`} label="Private Krankenversicherung (Basis)" value={v?.pkv} hint="laut Bescheinigung der Versicherung" />
       <Amount name={`${p}-ppv`} label="Private Pflege-Pflichtversicherung" value={v?.ppv} />
       <Amount name={`${p}-pkvErstattung`} label="Erstattungen der privaten KV/PV" value={v?.pkvErstattung} />
+      <Amount name={`${p}-basisrente`} label="Zertifizierte Basisrente (Rürup)" value={v?.basisrente} hint="neben der gesetzlichen Rentenversicherung" />
+      <Amount name={`${p}-pkvWahlleistungen`} label="Private KV: Wahlleistungen" value={v?.pkvWahlleistungen} hint="über der Basisabsicherung" />
+      <Amount name={`${p}-agZuschussKv`} label="Arbeitgeberzuschuss zur privaten KV" value={v?.agZuschussKv} hint="steuerfrei, Bescheinigung Nr. 24 b" />
+      <Amount name={`${p}-agZuschussPv`} label="Arbeitgeberzuschuss zur privaten PV" value={v?.agZuschussPv} hint="steuerfrei, Bescheinigung Nr. 24 c" />
     </div>
   );
 
@@ -583,7 +591,7 @@ function EstSection({ data }: { data: Data }) {
         {(() => {
           const v = (p: "a" | "b") => {
             const x = a.vorsorge[p];
-            return sumOf(x?.rentenversicherung, x?.gkv, x?.gpv, x?.gkvZusatz, x?.pkv, x?.ppv);
+            return sumOf(x?.rentenversicherung, x?.gkv, x?.gpv, x?.gkvZusatz, x?.pkv, x?.ppv, x?.basisrente, x?.pkvWahlleistungen);
           };
           const total = v("a") + (est.zusammen ? v("b") : 0) + (a.vorsorge.sonstige ?? 0);
           return (

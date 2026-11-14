@@ -104,6 +104,60 @@ describe("steuerPrognose", () => {
     );
   });
 
+  it("teilt den Höchstbetrag der Altersvorsorge mit der Basisrente (Rürup)", () => {
+    // 20.000 € gesetzliche RV und 10.000 € Rürup: zusammen über dem Höchstbetrag von 29.344 €
+    const einzeln: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: { rentenversicherung: 20_000_00, basisrente: 10_000_00 } } },
+    };
+    expect(steuerPrognose(einzeln).vorsorge).toBe(29_344_00);
+    // Ohne Rürup bleibt Luft im Höchstbetrag
+    expect(steuerPrognose({ ...einzeln, angaben: { ...einzeln.angaben, vorsorge: { a: { rentenversicherung: 20_000_00 } } } }).vorsorge).toBe(
+      20_000_00,
+    );
+  });
+
+  it("zählt Wahlleistungen einer privaten KV zur übrigen Vorsorge", () => {
+    const einzeln: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: { pkvWahlleistungen: 1_000_00 } } },
+    };
+    // Über der Basisabsicherung, also im Höchstbetrag der übrigen Vorsorge (2.800 € für Selbständige)
+    expect(steuerPrognose(einzeln).vorsorge).toBe(1_000_00);
+    expect(
+      steuerPrognose({ ...einzeln, angaben: { ...einzeln.angaben, vorsorge: { a: { pkvWahlleistungen: 5_000_00 } } } }).vorsorge,
+    ).toBe(2_800_00);
+  });
+
+  it("zieht steuerfreie Arbeitgeberzuschüsse von der Basisabsicherung ab", () => {
+    const ohne: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: { pkv: 6_000_00, ppv: 0 } } },
+    };
+    expect(steuerPrognose(ohne).vorsorge).toBe(6_000_00);
+    // Nr. 24 b und 24 c der Lohnsteuerbescheinigung mindern den abzugsfähigen Betrag
+    const mitZuschuss: PrognoseInput = {
+      ...ohne,
+      angaben: {
+        ...ohne.angaben,
+        vorsorge: { a: { pkv: 6_000_00, agZuschussKv: 2_000_00, agZuschussPv: 200_00 } },
+      },
+    };
+    expect(steuerPrognose(mitZuschuss).vorsorge).toBe(3_800_00);
+    // Ein Zuschuss über den Beiträgen macht den Abzug nicht negativ
+    const zuViel: PrognoseInput = {
+      ...ohne,
+      angaben: { ...ohne.angaben, vorsorge: { a: { pkv: 100_00, agZuschussKv: 2_000_00 } } },
+    };
+    expect(steuerPrognose(zuViel).vorsorge).toBe(0);
+  });
+
   it("rechnet Arbeitslohn des Ehegatten ein und die Lohnsteuer an", () => {
     const p = steuerPrognose({
       ...base,
