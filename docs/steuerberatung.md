@@ -62,7 +62,7 @@ Jede Anmeldung steht mit Zeitpunkt, Konto, Rolle und Art (Passwort, Passkey, SSO
 - Im Standardmodus ändert sich die Rolle eines Kontos nie, auch nicht durch einen Fehler im Code: Die Datenbank lehnt das ab. Über eine Einladung entsteht nie ein zweiter Inhaber. Im SSO-Modus folgt die Rolle bei jeder Anmeldung der Gruppe, siehe [Im SSO-Modus](#im-sso-modus).
 - Für die Steuerberatung lehnt der Server jede schreibende Anfrage ab. Selbst eine Funktion, die nur lesen soll, kann für sie nichts ins Änderungsprotokoll schreiben; Haben bricht sie dann ab.
 - Zertifikat, PIN, Zugangsdaten für Bank, E-Mail und Lexware Office sowie API-Tokens liefert Haben an die Steuerberatung nicht aus.
-- Anmeldeversuche sind wie beim Inhaber auf 20 je Minute begrenzt.
+- Anmeldeversuche sind wie beim Inhaber begrenzt ([Anmeldung](architektur-anmeldung.md#anmeldung)).
 
 ## Was noch fehlt
 
