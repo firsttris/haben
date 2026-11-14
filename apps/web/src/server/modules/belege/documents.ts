@@ -830,6 +830,8 @@ export async function listDocuments() {
       invoiceNumber: schema.documents.invoiceNumber,
       documentDate: schema.documents.documentDate,
       category: schema.documents.category,
+      /** Eigenes Sachkonto (#270): Nummer und Name statt des Kontos der Kategorie; null ohne eigenes Konto */
+      ownAccount: sql<string | null>`(select o.account || ' ' || o.name from own_accounts o where o.id = ${schema.documents.ownAccountId})`,
       /** Zahl der Kontierungszeilen (#271); 0 = die Kategorie gilt für den ganzen Beleg */
       splitCount: sql<number>`(select count(*)::int from document_splits s where s.document_id = ${schema.documents.id})`,
       gross: schema.documents.gross,

@@ -13,6 +13,7 @@ export {
   loadOwnAccountParents,
   ownAccountAssignmentProblem,
   ownAccountName,
+  ownAccountsOverview,
   ownAccountNames,
   refreshOwnAccountNames,
   OwnAccountError,

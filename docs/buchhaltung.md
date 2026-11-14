@@ -232,6 +232,22 @@ Die Konten der Kategorien Miete, Betriebsbedarf, Reparatur, sonstige Kfz-Kosten,
 
 Hardware wird als geringwertiges Wirtschaftsgut voll im Jahr der Zahlung abgezogen. Anlagevermögen mit Abschreibung bucht Haben über die Kategorie „Anlagegut“ und das [Anlagenverzeichnis](anlagen.md).
 
+### Eigene Konten
+
+Die Konten der Kategorien reichen nicht immer: Wer Software, Fahrzeuge oder Projekte in der Buchführung getrennt sehen will, legt unter **Einstellungen › Eigene Konten** ein eigenes Aufwandskonto an, etwa „4999 Software: Entwicklung“.
+
+| Angabe | Bedeutung |
+| --- | --- |
+| Elternkategorie | Eine Ausgabekategorie. Das eigene Konto zählt für Umsatzsteuer, EÜR und Bilanz wie sie. Nicht zur Wahl stehen Anlagen, Hardware, Einfuhrumsatzsteuer, Wareneinkauf, Fremdleistung, Kontoführung und Kfz-Steuer. |
+| Kontonummer | Genau vier Ziffern in der Aufwandsklasse des Kontenrahmens (SKR03 4000 bis 4999, SKR04 6000 bis 6999), **im selben Bereich wie das Konto der Elternkategorie**: Die Steuerberatung bekommt im DATEV-Export die eigene Nummer und legt sie nach dem Kontenrahmen aus; läge sie in einem anderen Bereich, zählte das Konto dort als andere Art Aufwand. Ein Konto mit der Elternkategorie Software im Bereich Personalaufwand lehnt Haben ab. |
+| Name | Bis 80 Zeichen; er lässt sich später ändern. |
+
+Haben lehnt eine Nummer ab, die es selbst belegt (Konten der Kategorien, Bank, Erlöse, Steuer, Lohn, Privat, Anlagen), und eine, auf die im Journal schon gebucht ist. Die Prüfung läuft schon beim Tippen und noch einmal im Server. Nach der ersten Buchung sind Nummer und Elternkategorie fest. **Archivieren** nimmt das Konto aus der Auswahl; Belege darauf behalten es. **Löschen** geht nur, solange kein Beleg und keine Buchung darauf zeigt.
+
+Am Beleg erscheint unter der Kategorie **Eigenes Konto**, wenn es zur gewählten Kategorie eines gibt; leer gilt das Konto der Kategorie. Bei einem [aufgeteilten Beleg](belege.md#auf-mehrere-kategorien-aufteilen) steht die Auswahl je Zeile. Gebucht wird dann auf die Nummer des eigenen Kontos, Betrag, Vorsteuer und Gegenbuchung bleiben wie bei der Kategorie. In der Belegliste steht das Konto unter der Kategorie, in `belege.csv` des Jahresarchivs in der Spalte **Eigenes Konto** (bei einer Aufteilung je Zeile, mit „–“ ohne eigenes Konto).
+
+Ein Storno bucht das eigene Konto zurück, **Neu erfassen** übernimmt es. Ein eigenes Konto gilt nur im Kontenrahmen, in dem es angelegt ist; nach einem Wechsel des Kontenrahmens lässt sich ein Beleg ohnehin nicht mehr stornieren. Noch nicht möglich sind eigene Konten für Erlöse, bei Dauerbelegen und im Bankabgleich (**Direkt buchen**).
+
 ## Buchungssätze
 
 <a id="rechnung-festschreiben"></a><a id="stornorechnung-und-rechnungskorrektur"></a><a id="zahlungseingang-auf-eine-rechnung"></a><a id="beleg-buchen"></a><a id="zahlung-eines-belegs"></a><a id="bankumsätze-ohne-rechnung-oder-beleg"></a><a id="zuordnung-aufheben"></a><a id="eröffnungsbuchungen-für-offene-posten-aus-lexoffice"></a><a id="anlagen-und-afa"></a><a id="pauschalen-ohne-beleg"></a><a id="lohnabrechnung"></a>Was Haben bei jedem Vorgang bucht, von der Rechnung bis zur Lohnabrechnung, steht unter [Buchungssätze](buchhaltung-buchungssaetze.md).
