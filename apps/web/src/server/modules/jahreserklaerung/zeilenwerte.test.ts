@@ -88,6 +88,25 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
     expect(zaehlung?.anzahl).toBe(1);
   });
 
+  it("weist auf einen erklärten Gewinn hin, der vom Betrag des Vermerks abweicht, ohne zu sperren", async () => {
+    const vermerk = await vermerken("euer", "ABC123456789");
+    // Gleicher Betrag: kein Hinweis
+    await zeilen.speichereErklaerteZeilen(actor, "euer", 2025, [{ field: "gewinn", amount: vermerk.amount ?? 0 }]);
+    const gleich = await annual.annualOverview(2025, TODAY);
+    expect(gleich.euer.issues.filter((i) => i.text.includes("Übermittlungsprotokoll steht"))).toEqual([]);
+
+    await vermerken("ust", "XYZ987654321");
+    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "abschluss", amount: 12_345 }]);
+    const ueberblick = await annual.annualOverview(2025, TODAY);
+    const hinweise = ueberblick.ust.issues.filter((i) => i.text.includes("Übermittlungsprotokoll steht"));
+    expect(hinweise).toHaveLength(1);
+    expect(hinweise[0]?.tone).toBe("hinweis");
+    expect(hinweise[0]?.text).toContain("123,45");
+    // Ein Hinweis, keine Sperre: die Zeilen sind gespeichert, kein Fehler kommt dazu
+    expect(ueberblick.ust.erklaert).toEqual({ abschluss: 12_345 });
+    expect(ueberblick.ust.issues.some((i) => i.tone === "fehler" && i.text.includes("Übermittlungsprotokoll"))).toBe(false);
+  });
+
   it("lehnt Zeilen ohne Vermerk ab", async () => {
     // Kein Vermerk für 2025: es gibt keine abgegebene Erklärung, zu der die Zeilen gehören könnten
     await expect(zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "base19", amount: 100 }])).rejects.toThrow(/keinen Vermerk/);
