@@ -114,9 +114,7 @@ describe("steuerPrognose", () => {
     };
     expect(steuerPrognose(einzeln).vorsorge).toBe(29_344_00);
     // Ohne Rürup bleibt Luft im Höchstbetrag
-    expect(steuerPrognose({ ...einzeln, angaben: { ...einzeln.angaben, vorsorge: { a: { rentenversicherung: 20_000_00 } } } }).vorsorge).toBe(
-      20_000_00,
-    );
+    expect(steuerPrognose({ ...einzeln, angaben: { ...einzeln.angaben, vorsorge: { a: { rentenversicherung: 20_000_00 } } } }).vorsorge).toBe(20_000_00);
   });
 
   it("zählt Wahlleistungen einer privaten KV zur übrigen Vorsorge", () => {
@@ -128,9 +126,7 @@ describe("steuerPrognose", () => {
     };
     // Über der Basisabsicherung, also im Höchstbetrag der übrigen Vorsorge (2.800 € für Selbständige)
     expect(steuerPrognose(einzeln).vorsorge).toBe(1_000_00);
-    expect(
-      steuerPrognose({ ...einzeln, angaben: { ...einzeln.angaben, vorsorge: { a: { pkvWahlleistungen: 5_000_00 } } } }).vorsorge,
-    ).toBe(2_800_00);
+    expect(steuerPrognose({ ...einzeln, angaben: { ...einzeln.angaben, vorsorge: { a: { pkvWahlleistungen: 5_000_00 } } } }).vorsorge).toBe(2_800_00);
   });
 
   it("zieht steuerfreie Arbeitgeberzuschüsse von der Basisabsicherung ab", () => {
