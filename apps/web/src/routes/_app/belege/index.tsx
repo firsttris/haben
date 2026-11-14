@@ -8,7 +8,7 @@ import { Status } from "../../../components/Status.tsx";
 import { DocumentUpload } from "../../../components/DocumentUpload.tsx";
 import { Field } from "../../../components/Field.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
-import { parseEuroSearchCents } from "../../../lib/search.ts";
+import { parseEuroSearchCents } from "@haben/core";
 import { getDocuments } from "../../../server/functions/documents.ts";
 
 export const Route = createFileRoute("/_app/belege/")({

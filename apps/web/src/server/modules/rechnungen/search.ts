@@ -1,95 +1,102 @@
-import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
-import { likePattern } from "../../../lib/search.ts";
+import { parseEuroSearchCents, quoteStatus } from "@haben/core";
+import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
+import { likePattern, numberRank } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
+import { today } from "../../today.ts";
+import { dunningsFor } from "./dunning.ts";
+import { selectInvoiceList } from "./invoices.ts";
 
-export interface InvoiceHit {
-  id: string;
-  number: string | null;
-  customer: string;
-  gross: number;
-  status: string;
-  kind: string;
+type Lookup = string | { id: string };
+
+export async function searchInvoices(query: Lookup, { includeDrafts }: { includeDrafts: boolean }, limit = 5) {
+  const invoices = schema.invoices;
+  const pattern = typeof query === "string" ? likePattern(query) : "";
+  const cents = typeof query === "string" ? parseEuroSearchCents(query) : null;
+  const rows = await selectInvoiceList(
+    today(),
+    and(
+      includeDrafts ? undefined : ne(invoices.status, "draft"),
+      typeof query === "string"
+        ? or(
+            ilike(invoices.number, pattern),
+            ilike(invoices.buyerOrderReference, pattern),
+            ilike(invoices.sellerOrderReference, pattern),
+            sql`(${invoices.buyer} ->> 'name') ilike ${pattern}`,
+            inArray(invoices.contactId, db.select({ id: schema.contacts.id }).from(schema.contacts).where(ilike(schema.contacts.name, pattern))),
+            cents !== null ? eq(invoices.gross, cents) : undefined,
+          )
+        : eq(invoices.id, query.id),
+    ),
+    db,
+    limit + 1,
+    typeof query === "string" ? numberRank(invoices.number, query) : undefined,
+  );
+  const hits = rows.slice(0, limit);
+  const dunnings = await dunningsFor(hits.map((hit) => hit.id));
+  return {
+    hits: hits.map(({ id, number, customer, gross, issueDate, status, kind, listStatus }) => {
+      const dunning = dunnings.find((entry) => entry.invoiceId === id);
+      return {
+        id,
+        number,
+        customer,
+        gross,
+        issueDate,
+        status,
+        kind,
+        listStatus,
+        dunning: dunning ? { level: dunning.level, dueDate: dunning.dueDate } : null,
+      };
+    }),
+    more: rows.length > limit,
+  };
 }
 
-/** Rechnungssuche für die Befehlspalette (#617): Nummer und Kundenname; Entwürfe nur mit includeDrafts */
-export async function searchInvoices(query: string, opts: { includeDrafts: boolean }, limit = 5): Promise<{ hits: InvoiceHit[]; more: boolean }> {
-  const pattern = likePattern(query);
+export type InvoiceHit = Awaited<ReturnType<typeof searchInvoices>>["hits"][number];
+
+export async function searchQuotes(query: Lookup, limit = 5) {
+  const quotes = schema.quotes;
+  const pattern = typeof query === "string" ? likePattern(query) : "";
+  const cents = typeof query === "string" ? parseEuroSearchCents(query) : null;
   const rows = await db
     .select({
-      id: schema.invoices.id,
-      number: schema.invoices.number,
-      gross: schema.invoices.gross,
-      status: schema.invoices.status,
-      kind: schema.invoices.kind,
+      id: quotes.id,
+      number: quotes.number,
+      gross: quotes.gross,
+      issueDate: quotes.issueDate,
+      status: quotes.status,
+      validUntil: quotes.validUntil,
+      decision: quotes.decision,
+      invoiceId: quotes.invoiceId,
       contactName: schema.contacts.name,
-      buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
+      buyerName: sql<string | null>`${quotes.buyer} ->> 'name'`,
     })
-    .from(schema.invoices)
-    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
+    .from(quotes)
+    .leftJoin(schema.contacts, eq(schema.contacts.id, quotes.contactId))
     .where(
-      and(
-        opts.includeDrafts ? undefined : ne(schema.invoices.status, "draft"),
-        or(
-          ilike(schema.invoices.number, pattern),
-          ilike(schema.contacts.name, pattern),
-          sql<boolean>`coalesce(${schema.invoices.buyer} ->> 'name', '') ilike ${pattern}`,
-        ),
-      ),
+      typeof query === "string"
+        ? or(
+            ilike(quotes.number, pattern),
+            sql`(${quotes.buyer} ->> 'name') ilike ${pattern}`,
+            inArray(quotes.contactId, db.select({ id: schema.contacts.id }).from(schema.contacts).where(ilike(schema.contacts.name, pattern))),
+            cents !== null ? eq(quotes.gross, cents) : undefined,
+          )
+        : eq(quotes.id, query.id),
     )
-    .orderBy(desc(schema.invoices.issueDate), sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt))
+    .orderBy(...(typeof query === "string" ? [numberRank(quotes.number, query)] : []), desc(quotes.issueDate), desc(quotes.createdAt))
     .limit(limit + 1);
+  const date = today();
   return {
-    hits: rows.slice(0, limit).map((row) => ({
-      id: row.id,
-      number: row.number,
-      customer: row.buyerName ?? row.contactName ?? "–",
-      gross: row.gross,
-      status: row.status,
-      kind: row.kind,
+    hits: rows.slice(0, limit).map(({ id, number, gross, issueDate, buyerName, contactName, ...facts }) => ({
+      id,
+      number,
+      gross,
+      issueDate,
+      customer: buyerName ?? contactName ?? "–",
+      listStatus: quoteStatus(facts, date),
     })),
     more: rows.length > limit,
   };
 }
 
-export interface QuoteHit {
-  id: string;
-  number: string | null;
-  customer: string;
-  gross: number;
-  status: string;
-}
-
-/** Angebotssuche für die Befehlspalette (#617): Nummer und Kundenname */
-export async function searchQuotes(query: string, limit = 5): Promise<{ hits: QuoteHit[]; more: boolean }> {
-  const pattern = likePattern(query);
-  const rows = await db
-    .select({
-      id: schema.quotes.id,
-      number: schema.quotes.number,
-      gross: schema.quotes.gross,
-      status: schema.quotes.status,
-      contactName: schema.contacts.name,
-      buyerName: sql<string | null>`${schema.quotes.buyer} ->> 'name'`,
-    })
-    .from(schema.quotes)
-    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.quotes.contactId))
-    .where(
-      or(
-        ilike(schema.quotes.number, pattern),
-        ilike(schema.contacts.name, pattern),
-        sql<boolean>`coalesce(${schema.quotes.buyer} ->> 'name', '') ilike ${pattern}`,
-      ),
-    )
-    .orderBy(sql`${schema.quotes.number} desc nulls first`, desc(schema.quotes.createdAt))
-    .limit(limit + 1);
-  return {
-    hits: rows.slice(0, limit).map((row) => ({
-      id: row.id,
-      number: row.number,
-      customer: row.buyerName ?? row.contactName ?? "–",
-      gross: row.gross,
-      status: row.status,
-    })),
-    more: rows.length > limit,
-  };
-}
+export type QuoteHit = Awaited<ReturnType<typeof searchQuotes>>["hits"][number];

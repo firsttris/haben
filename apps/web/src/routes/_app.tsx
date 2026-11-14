@@ -85,19 +85,17 @@ function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: (
 }
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen, zeichen } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, oidc } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const shortcutLabel = useShortcutLabel();
   // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
-  const { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg } = useFirmaBrand();
   const firstPath = useRef(pathname);
   usePageHeadHeight(main);
   const scrolled = useScrolled();
@@ -125,32 +123,7 @@ function AppLayout() {
         Zum Inhalt springen
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
-        <Link
-          to={inhaber ? "/" : STEUERBERATUNG_START}
-          className="brand"
-          onPointerEnter={firmaAufklappen}
-          onFocus={firmaAufklappen}
-          onPointerLeave={firmaZeigerWeg}
-          onBlur={firmaZuklappen}
-        >
-          <NavMarkSymbol mark={zeichen} />
-          <span className="brand-text">
-            Haben
-            {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
-                als zwei Zeilen, klappt er beim Überfahren und mit Fokus nach unten ganz auf (nur am Desktop); das
-                Element dafür ist für Hilfstechnik verborgen, der Name steht schon in der Marke */}
-            {firma && (
-              <span className="brand-firma" ref={firmaRef}>
-                {firma}
-              </span>
-            )}
-            {firmaVoll !== null && (
-              <span className="brand-firma-voll" aria-hidden="true">
-                {firmaVoll}
-              </span>
-            )}
-          </span>
-        </Link>
+        <NavBrand inhaber={inhaber} />
         <button
           ref={toggle}
           type="button"
@@ -161,19 +134,11 @@ function AppLayout() {
         >
           <Icon name={menuOpen ? "close" : "menu"} /> Menü
         </button>
+        <NavSearch onOpen={() => setPaletteOpen(true)} />
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im Menü, also in der Tab-Reihenfolge gleich nach der Marke */}
+          {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im rollenden Menü */}
           {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
-          <button type="button" className="nav-search-btn" onClick={() => setPaletteOpen(true)} aria-keyshortcuts="Control+K Meta+K">
-            <span className="nav-search-label">
-              <Icon name="search" size={16} />
-              Schnellsuche
-            </span>
-            <kbd className="nav-kbd" aria-hidden="true">
-              {shortcutLabel}
-            </kbd>
-          </button>
           <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
             <Icon name="overview" />
             Übersicht
@@ -188,6 +153,7 @@ function AppLayout() {
       </main>
       <CommandPalette
         open={paletteOpen}
+        oidcOnly={oidc.only}
         onOpen={() => setPaletteOpen(true)}
         onClose={() => setPaletteOpen(false)}
         onNavigate={() => setMenuOpen(false)}
@@ -197,6 +163,61 @@ function AppLayout() {
         eigeneSeiten={eigeneSeiten}
       />
     </div>
+  );
+}
+
+function NavBrand({ inhaber }: { inhaber: boolean }) {
+  const { firma, zeichen } = Route.useRouteContext();
+  const { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg } = useFirmaBrand();
+  return (
+    <Link
+      to={inhaber ? "/" : STEUERBERATUNG_START}
+      className="brand"
+      onPointerEnter={firmaAufklappen}
+      onFocus={firmaAufklappen}
+      onPointerLeave={firmaZeigerWeg}
+      onBlur={firmaZuklappen}
+    >
+      <NavMarkSymbol mark={zeichen} />
+      <span className="brand-text">
+        Haben
+        {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
+                als zwei Zeilen, klappt er beim Überfahren und mit Fokus nach unten ganz auf (nur am Desktop); das
+                Element dafür ist für Hilfstechnik verborgen, der Name steht schon in der Marke */}
+        {firma && (
+          <span className="brand-firma" ref={firmaRef}>
+            {firma}
+          </span>
+        )}
+        {firmaVoll !== null && (
+          <span className="brand-firma-voll" aria-hidden="true">
+            {firmaVoll}
+          </span>
+        )}
+      </span>
+    </Link>
+  );
+}
+
+function NavSearch({ onOpen }: { onOpen: () => void }) {
+  const shortcutLabel = useShortcutLabel();
+  return (
+    <button
+      type="button"
+      className="btn btn-icon nav-search-btn"
+      onClick={(event) => {
+        event.currentTarget.focus();
+        onOpen();
+      }}
+      aria-label="Schnellsuche"
+      aria-keyshortcuts="Control+K Meta+K"
+    >
+      <Icon name="search" size={18} />
+      <span className="nav-search-label">Schnellsuche</span>
+      <kbd className="nav-kbd" aria-hidden="true">
+        {shortcutLabel}
+      </kbd>
+    </button>
   );
 }
 

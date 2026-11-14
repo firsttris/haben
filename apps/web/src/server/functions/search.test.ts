@@ -108,6 +108,13 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(textTreffer.quotes.hits.map((q) => q.number)).toEqual(["AN-2026-001"]);
     expect(textTreffer.documents.hits.map((d) => d.invoiceNumber)).toEqual(["BLG-991"]);
 
+    const rechnungsbetrag = await search.runCommandPaletteSearch("178,50", "inhaber");
+    expect(rechnungsbetrag.invoices.hits.map((hit) => hit.gross)).toEqual([17850]);
+    const angebotsbetrag = await search.runCommandPaletteSearch("113,05", "inhaber");
+    expect(angebotsbetrag.quotes.hits.map((hit) => hit.gross)).toEqual([11305]);
+    const entwurfsbetrag = await search.runCommandPaletteSearch("142,80", "steuerberatung");
+    expect(entwurfsbetrag.invoices.hits).toEqual([]);
+
     const betragTreffer = await search.runCommandPaletteSearch("45,90", "inhaber");
     expect(betragTreffer.documents.hits.map((d) => d.supplierName)).toEqual(["Bergblick Cloud AG"]);
   });
@@ -119,5 +126,35 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(stbTreffer.invoices.hits).toHaveLength(1);
     expect(stbTreffer.invoices.hits[0]?.status).toBe("final");
     expect(stbTreffer.documents.hits.map((d) => d.invoiceNumber)).toEqual(["BLG-991"]);
+  });
+  it("löst kürzlich angesehene Datensätze nur mit aktuellen Rechten auf", async () => {
+    const owner = await search.runCommandPaletteSearch("Bergblick", "inhaber");
+    const result = await search.resolveRecentPalette(
+      [
+        { type: "contact", id: owner.contacts.hits[0]!.id },
+        { type: "quote", id: owner.quotes.hits[0]!.id },
+        ...owner.invoices.hits.map(({ id }) => ({ type: "invoice" as const, id })),
+        { type: "document", id: owner.documents.hits[0]!.id },
+        { type: "document", id: "00000000-0000-4000-8000-000000000000" },
+      ],
+      "steuerberatung",
+    );
+    expect(result.contacts.hits).toEqual([]);
+    expect(result.quotes.hits).toEqual([]);
+    expect(result.invoices.hits.map(({ status }) => status)).toEqual(["final"]);
+    expect(result.documents.hits).toEqual(owner.documents.hits);
+  });
+
+  it("nutzt bei 20.000 Belegen den Trigramm-Index für eine selektive Teilstringsuche", async () => {
+    await sql`insert into documents (supplier_name, filename, mime_type, size, sha256)
+      select 'Lieferant ' || i, 'beleg-' || i || '.pdf', 'application/pdf', 1, md5(i::text)
+      from generate_series(1, 20000) i`;
+    // Nach der Bulk-Befüllung die GIN-Pending-Listen leeren, wie es Autovacuum im Betrieb erledigt.
+    await sql`vacuum analyze documents`;
+    const plan = await sql`explain (format json) select id from documents
+      where supplier_name ilike '%Bergblick%' or invoice_number ilike '%Bergblick%' or filename ilike '%Bergblick%'`;
+    expect(JSON.stringify(plan)).toContain("documents_supplier_name_trgm_idx");
+    const result = await search.runCommandPaletteSearch("Bergblick", "inhaber");
+    expect(result.documents.hits).toHaveLength(1);
   });
 });

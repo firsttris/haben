@@ -1,4 +1,4 @@
-import { formatEuro } from "@haben/core";
+import { formatEuro, parseEuroSearchCents } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod/mini";
@@ -23,7 +23,10 @@ function QuotesPage() {
     setQuery(suche ?? "");
   }, [suche]);
   const needle = query.trim().toLowerCase();
-  const shown = needle ? quotes.filter((quote) => [quote.number, quote.customer].some((v) => v?.toLowerCase().includes(needle))) : quotes;
+  const cents = parseEuroSearchCents(query);
+  const shown = needle
+    ? quotes.filter((quote) => quote.gross === cents || [quote.number, quote.customer, quote.contactName].some((v) => v?.toLowerCase().includes(needle)))
+    : quotes;
   const offen = quotes.filter((q) => q.listStatus === "offen");
   return (
     <>

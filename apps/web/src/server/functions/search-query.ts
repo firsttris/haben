@@ -57,3 +57,22 @@ export async function runCommandPaletteSearch(rawQuery: string, role: Rolle): Pr
 
   return emptyResult();
 }
+
+export interface RecentPaletteItem {
+  type: "contact" | "invoice" | "quote" | "document";
+  id: string;
+}
+
+export async function resolveRecentPalette(items: RecentPaletteItem[], role: Rolle): Promise<CommandPaletteResult> {
+  const result = emptyResult();
+  await Promise.all(
+    items.map(async ({ type, id }) => {
+      if (type === "contact" && role === "inhaber") result.contacts.hits.push(...(await searchContacts({ id }, 1)).hits);
+      if (type === "invoice" && (role === "inhaber" || role === "steuerberatung"))
+        result.invoices.hits.push(...(await searchInvoices({ id }, { includeDrafts: role === "inhaber" }, 1)).hits);
+      if (type === "quote" && role === "inhaber") result.quotes.hits.push(...(await searchQuotes({ id }, 1)).hits);
+      if (type === "document" && (role === "inhaber" || role === "steuerberatung")) result.documents.hits.push(...(await searchDocuments({ id }, 1)).hits);
+    }),
+  );
+  return result;
+}

@@ -26,6 +26,7 @@ const STEUERBERATUNG_LIEST = [
   "ledger.ts:getSaldenliste",
   "reports.ts:getReports",
   "search.ts:searchCommandPalette",
+  "search.ts:getRecentPaletteItems",
   "zugang.ts:getSteuerberatungStart",
 ];
 

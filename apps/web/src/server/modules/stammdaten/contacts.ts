@@ -12,9 +12,9 @@ import {
   splitEmails,
   telefonProblem,
 } from "@haben/core";
-import { and, asc, desc, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { likePattern } from "../../../lib/search.ts";
+import { likePattern, numberRank } from "../../../lib/search.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
@@ -102,12 +102,12 @@ export type Contact = typeof schema.contacts.$inferSelect;
 export class ContactError extends UserError {}
 
 /** Kontakte nach Name; mit role nur Kunden bzw. nur Lieferanten (wer beides ist, steht in beiden) */
-export async function listContacts(includeArchived = false, role?: ContactRole): Promise<Contact[]> {
+export async function listContacts(includeArchived = false, role?: ContactRole, query = ""): Promise<Contact[]> {
   const roleFilter = role === "kunde" ? eq(schema.contacts.isCustomer, true) : role === "lieferant" ? eq(schema.contacts.isSupplier, true) : undefined;
   return db
     .select()
     .from(schema.contacts)
-    .where(and(includeArchived ? undefined : isNull(schema.contacts.archivedAt), roleFilter))
+    .where(and(includeArchived ? undefined : isNull(schema.contacts.archivedAt), roleFilter, query ? contactSearchFilter(query, true) : undefined))
     .orderBy(asc(schema.contacts.name));
 }
 
@@ -316,11 +316,13 @@ export interface ContactHit {
   kundennummer: string | null;
   lieferantennummer: string | null;
   ort: string;
+  isCustomer: boolean;
+  isSupplier: boolean;
 }
 
 /** Schnelle Kontaktsuche für die Befehlspalette (#617): Name, Kunden- oder Lieferantennummer, ohne archivierte */
-export async function searchContacts(query: string, limit = 5): Promise<{ hits: ContactHit[]; more: boolean }> {
-  const pattern = likePattern(query);
+export async function searchContacts(query: string | { id: string }, limit = 5): Promise<{ hits: ContactHit[]; more: boolean }> {
+  const contacts = schema.contacts;
   const rows = await db
     .select({
       id: schema.contacts.id,
@@ -328,15 +330,41 @@ export async function searchContacts(query: string, limit = 5): Promise<{ hits: 
       kundennummer: schema.contacts.kundennummer,
       lieferantennummer: schema.contacts.lieferantennummer,
       ort: schema.contacts.ort,
+      isCustomer: contacts.isCustomer,
+      isSupplier: contacts.isSupplier,
     })
     .from(schema.contacts)
-    .where(
-      and(
-        isNull(schema.contacts.archivedAt),
-        or(ilike(schema.contacts.name, pattern), ilike(schema.contacts.kundennummer, pattern), ilike(schema.contacts.lieferantennummer, pattern)),
-      ),
+    .where(and(isNull(schema.contacts.archivedAt), typeof query === "string" ? contactSearchFilter(query) : eq(contacts.id, query.id)))
+    .orderBy(
+      ...(typeof query === "string" ? [sql`least(${numberRank(contacts.kundennummer, query)}, ${numberRank(contacts.lieferantennummer, query)})`] : []),
+      asc(contacts.name),
     )
-    .orderBy(asc(schema.contacts.name))
     .limit(limit + 1);
   return { hits: rows.slice(0, limit), more: rows.length > limit };
+}
+
+function contactSearchFilter(query: string, listFields = false) {
+  const contacts = schema.contacts;
+  const persons = schema.contactPersons;
+  const pattern = likePattern(query);
+  return or(
+    ilike(contacts.name, pattern),
+    ilike(contacts.kundennummer, pattern),
+    ilike(contacts.lieferantennummer, pattern),
+    ilike(contacts.email, pattern),
+    ilike(contacts.ort, pattern),
+    ilike(contacts.ustId, pattern),
+    ilike(sql`${contacts.debitorNr}::text`, pattern),
+    ilike(sql`${contacts.kreditorNr}::text`, pattern),
+    /^\d{4,}$/.test(query) ? ilike(contacts.iban, `%${query}`) : undefined,
+    inArray(
+      contacts.id,
+      db
+        .select({ id: persons.contactId })
+        .from(persons)
+        .where(or(ilike(persons.name, pattern), ilike(persons.email, pattern))),
+    ),
+    listFields ? ilike(contacts.telefon, pattern) : undefined,
+    listFields ? ilike(contacts.plz, pattern) : undefined,
+  );
 }

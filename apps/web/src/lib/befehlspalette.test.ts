@@ -12,15 +12,27 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
 
   const sampleResult = {
     contacts: {
-      hits: [{ id: "c1", name: "Bergblick Software GmbH", kundennummer: "10001", lieferantennummer: "", ort: "München" }],
+      hits: [{ id: "c1", name: "Bergblick Software GmbH", kundennummer: "10001", lieferantennummer: "", ort: "München", isCustomer: true, isSupplier: false }],
       more: false,
     },
     invoices: {
-      hits: [{ id: "i1", number: "RE-2026-004", customer: "Bergblick Software GmbH", gross: 17850, status: "final", kind: "rechnung" }],
+      hits: [
+        {
+          id: "i1",
+          number: "RE-2026-004",
+          customer: "Bergblick Software GmbH",
+          gross: 17850,
+          status: "final" as const,
+          kind: "rechnung" as const,
+          issueDate: "2026-10-05",
+          listStatus: "offen" as const,
+          dunning: null,
+        },
+      ],
       more: false,
     },
     quotes: {
-      hits: [{ id: "q1", number: "AN-2026-002", customer: "Bergblick Software GmbH", gross: 9500, status: "offen" }],
+      hits: [{ id: "q1", number: "AN-2026-002", customer: "Bergblick Software GmbH", gross: 9500, listStatus: "offen" as const, issueDate: "2026-10-05" }],
       more: false,
     },
     documents: {
@@ -33,15 +45,17 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
           documentDate: "2026-10-04",
           gross: 4590,
           currency: "EUR",
-          status: "gebucht",
+          status: "gebucht" as const,
+          extractionStatus: "fertig" as const,
+          cancelled: false,
         },
       ],
       more: false,
     },
   };
 
-  it("filtert Seiten nach Suchbegriff und begrenzt ohne Suchbegriff auf 6", () => {
-    expect(buildPageSection(seiten, "")?.items).toHaveLength(6);
+  it("filtert Seiten nach Suchbegriff und begrenzt ohne Suchbegriff auf 5", () => {
+    expect(buildPageSection(seiten, "")?.items).toHaveLength(5);
     const rechnungen = buildPageSection(seiten, "Rech");
     expect(rechnungen?.items.some((item) => item.title === "Rechnungen")).toBe(true);
     expect(buildPageSection(seiten, "zzzz-nicht-vorhanden")).toBeNull();
@@ -50,10 +64,10 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
   it("baut für Inhaber alle vier Gruppen jeweils mit Link zur gefilterten Liste", () => {
     const sections = buildRemoteSections(sampleResult, true);
     expect(sections.map((s) => s.label)).toEqual(["Kontakte", "Rechnungen", "Angebote", "Belege"]);
-    expect(sections[0]?.items.at(-1)).toMatchObject({ kind: "more", title: "Alle in Kontakte anzeigen", to: "/kontakte" });
-    expect(sections[1]?.items.at(-1)).toMatchObject({ kind: "more", title: "Alle in Rechnungen anzeigen", to: "/rechnungen" });
-    expect(sections[2]?.items.at(-1)).toMatchObject({ kind: "more", title: "Alle in Angebote anzeigen", to: "/angebote" });
-    expect(sections[3]?.items.at(-1)).toMatchObject({ kind: "more", title: "Alle in Belege anzeigen", to: "/belege" });
+    expect(sections[0]?.to).toBe("/kontakte");
+    expect(sections[1]?.to).toBe("/rechnungen");
+    expect(sections[2]?.to).toBe("/angebote");
+    expect(sections[3]?.to).toBe("/belege");
   });
 
   it("blendet für die Steuerberatung Kontakte und Angebote aus", () => {

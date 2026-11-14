@@ -1,14 +1,18 @@
 import { useRouter } from "@tanstack/react-router";
 import { type KeyboardEvent as ReactKeyboardEvent, type RefObject, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { buildPageSection, buildRemoteSections, type PaletteItem, type PaletteSection, statusMessage } from "../lib/befehlspalette.ts";
+import { buildPageSection, buildRemoteSections, type PaletteItem, statusMessage } from "../lib/befehlspalette.ts";
 import { moveActive } from "../lib/combobox.ts";
 import { type EigeneSeiteNav, sichtbareNavSeiten } from "../lib/navigation.ts";
 import { type CommandPaletteResult, searchCommandPalette } from "../server/functions/search.ts";
 import { isDialogOpen } from "./ConfirmDialog.tsx";
+import { useRecentPalette } from "./use-recent-palette.ts";
+import { Field } from "./Field.tsx";
+import { PaletteListbox } from "./PaletteListbox.tsx";
 import { Icon } from "./Icon.tsx";
 
 export interface CommandPaletteProps {
   open: boolean;
+  oidcOnly: boolean;
   onOpen: () => void;
   onClose: () => void;
   onNavigate?: () => void;
@@ -19,13 +23,13 @@ export interface CommandPaletteProps {
 }
 
 function useRemotePaletteSearch(open: boolean, trimmed: string) {
-  const [remote, setRemote] = useState<CommandPaletteResult | null>(null);
+  const [response, setResponse] = useState<{ query: string; result: CommandPaletteResult } | null>(null);
   const [loading, setLoading] = useState(false);
   const latestReqRef = useRef(0);
 
   const resetRemote = useCallback(() => {
     latestReqRef.current += 1;
-    setRemote(null);
+    setResponse(null);
     setLoading(false);
   }, []);
 
@@ -40,19 +44,19 @@ function useRemotePaletteSearch(open: boolean, trimmed: string) {
       void searchCommandPalette({ data: { query: trimmed } })
         .then((res) => {
           if (reqId !== latestReqRef.current) return;
-          setRemote(res);
+          setResponse({ query: trimmed, result: res });
           setLoading(false);
         })
         .catch(() => {
           if (reqId !== latestReqRef.current) return;
-          setRemote(null);
+          setResponse(null);
           setLoading(false);
         });
     }, 150);
     return () => window.clearTimeout(timer);
   }, [open, trimmed, resetRemote]);
 
-  return { remote, loading, resetRemote };
+  return { remote: response?.query === trimmed ? response.result : null, loading, resetRemote };
 }
 
 function useShortcutKey(open: boolean, openerRef: RefObject<HTMLElement | null>, onOpen: () => void, onClose: () => void) {
@@ -74,79 +78,15 @@ function useShortcutKey(open: boolean, openerRef: RefObject<HTMLElement | null>,
   }, [open, openerRef, onOpen, onClose]);
 }
 
-function navigatePaletteItem(router: ReturnType<typeof useRouter>, item: PaletteItem, query: string) {
+function navigatePaletteItem(router: ReturnType<typeof useRouter>, item: PaletteItem) {
   if (item.kind === "page") {
     if (item.page.externalUrl) window.open(item.page.externalUrl, "_blank", "noopener,noreferrer");
+    else if (item.page.settingsArea) void router.navigate({ to: "/einstellungen", search: { bereich: item.page.settingsArea } });
     else if (item.page.params) void router.navigate({ to: "/seiten/$id", params: item.page.params });
     else void router.navigate({ to: item.page.to });
     return;
   }
-  if (item.kind === "more") {
-    void router.navigate({ to: item.to, search: { suche: query } });
-    return;
-  }
   void router.navigate({ to: item.to, params: { id: item.entityId } });
-}
-
-interface PaletteListboxProps {
-  baseId: string;
-  listboxId: string;
-  sections: PaletteSection[];
-  loading: boolean;
-  trimmedLength: number;
-  safeActive: number;
-  optionRefs: RefObject<Map<string, HTMLDivElement>>;
-  onHover: (index: number) => void;
-  onSelect: (item: PaletteItem) => void;
-}
-
-function PaletteListbox({ baseId, listboxId, sections, loading, trimmedLength, safeActive, optionRefs, onHover, onSelect }: PaletteListboxProps) {
-  let runningIndex = 0;
-  return (
-    <div id={listboxId} role="listbox" aria-label="Suchergebnisse" className="cmd-list" onMouseDown={(event) => event.preventDefault()}>
-      {sections.length === 0 ? (
-        <p className="cmd-empty">
-          {loading ? "Suche läuft …" : trimmedLength < 2 ? "Mindestens 2 Zeichen für Belege und Kontakte eingeben." : "Keine Treffer gefunden."}
-        </p>
-      ) : (
-        sections.map((section) => {
-          const headingId = `${baseId}-group-${section.id}`;
-          return (
-            <div key={section.id} role="group" aria-labelledby={headingId} className="cmd-group">
-              <div id={headingId} className="cmd-group-label">
-                {section.label}
-              </div>
-              {section.items.map((item) => {
-                const index = runningIndex++;
-                const selected = index === safeActive;
-                return (
-                  <div
-                    key={item.id}
-                    id={`${baseId}-opt-${item.id}`}
-                    ref={(node) => {
-                      if (node) optionRefs.current.set(item.id, node);
-                      else optionRefs.current.delete(item.id);
-                    }}
-                    role="option"
-                    tabIndex={-1}
-                    aria-selected={selected}
-                    data-active={selected || undefined}
-                    className={item.kind === "more" ? "cmd-option cmd-more" : "cmd-option"}
-                    onMouseEnter={() => onHover(index)}
-                    onClick={() => onSelect(item)}
-                  >
-                    <Icon name={item.icon} size={16} />
-                    <span className="cmd-option-title">{item.title}</span>
-                    <span className="cmd-option-meta">{item.meta}</span>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
 }
 
 function PaletteHeader({
@@ -171,44 +111,50 @@ function PaletteHeader({
   onClose: () => void;
 }) {
   return (
-    <div className="cmd-input-wrap">
-      <Icon name="search" size={18} />
-      <input
-        ref={inputRef}
-        type="text"
-        role="combobox"
-        aria-label="Seiten, Kontakte, Rechnungen oder Belege suchen"
-        aria-autocomplete="list"
-        aria-expanded={open}
-        aria-controls={listboxId}
-        aria-activedescendant={activeItem ? `${baseId}-opt-${activeItem.id}` : undefined}
-        autoComplete="off"
-        spellCheck={false}
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="Seiten, Kontakte, Rechnungen oder Belege suchen …"
-      />
-      <button type="button" className="btn-icon cmd-close" aria-label="Befehlspalette schließen" onClick={onClose}>
-        <Icon name="close" size={18} />
+    <div className="cmd-head">
+      <Field label="Seiten, Kontakte, Rechnungen, Angebote oder Belege suchen" hideLabel className="cmd-field">
+        {(control) => (
+          <>
+            <Icon name="search" size={18} />
+            <input
+              {...control}
+              ref={inputRef}
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={open}
+              aria-controls={listboxId}
+              aria-activedescendant={activeItem ? `${baseId}-opt-${activeItem.id}` : undefined}
+              maxLength={100}
+              autoComplete="off"
+              spellCheck={false}
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Seiten, Kontakte, Rechnungen, Angebote oder Belege suchen …"
+            />
+          </>
+        )}
+      </Field>
+      <button type="button" className="btn btn-ghost cmd-close" onClick={onClose}>
+        Abbrechen
       </button>
     </div>
   );
 }
 
-function PaletteFooter({ short }: { short: boolean }) {
+function PaletteFooter() {
   return (
-    <div className="cmd-foot" aria-hidden="true">
+    <div className="form-footer cmd-foot" aria-hidden="true">
       <span>
-        <kbd className="cmd-kbd">↑↓</kbd> auswählen
+        <kbd className="cmd-kbd">↑↓</kbd> Navigieren
       </span>
       <span>
-        <kbd className="cmd-kbd">Enter</kbd> öffnen
+        <kbd className="cmd-kbd">Esc</kbd> Schließen
       </span>
       <span>
-        <kbd className="cmd-kbd">Esc</kbd> schließen
+        <kbd className="cmd-kbd">↵</kbd> Öffnen
       </span>
-      {short && <span className="cmd-foot-hint">Ab 2 Zeichen auch Kontakte, Rechnungen und Belege</span>}
     </div>
   );
 }
@@ -237,17 +183,28 @@ function usePaletteDialog(
 function usePaletteSections(
   open: boolean,
   trimmed: string,
-  { inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten }: Pick<CommandPaletteProps, "inhaber" | "gesellschaft" | "hatMitarbeiter" | "eigeneSeiten">,
+  {
+    inhaber,
+    gesellschaft,
+    hatMitarbeiter,
+    eigeneSeiten,
+    oidcOnly,
+  }: Pick<CommandPaletteProps, "inhaber" | "gesellschaft" | "hatMitarbeiter" | "eigeneSeiten" | "oidcOnly">,
 ) {
   const { remote, loading, resetRemote } = useRemotePaletteSearch(open, trimmed);
+  const recent = useRecentPalette(open && trimmed === "", inhaber);
   const pages = useMemo(
-    () => sichtbareNavSeiten({ inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten }),
-    [inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten],
+    () => sichtbareNavSeiten({ inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten, oidcOnly }),
+    [inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten, oidcOnly],
   );
   const sections = useMemo(() => {
     const pageSection = buildPageSection(pages, trimmed);
-    return [...(pageSection ? [pageSection] : []), ...(trimmed.length >= 2 && remote ? buildRemoteSections(remote, inhaber) : [])];
-  }, [pages, trimmed, remote, inhaber]);
+    return [
+      ...(trimmed === "" && recent.length > 0 ? [{ id: "zuletzt", label: "Zuletzt angesehen", items: recent }] : []),
+      ...(pageSection ? [pageSection] : []),
+      ...(remote ? buildRemoteSections(remote, inhaber) : []),
+    ];
+  }, [pages, trimmed, remote, inhaber, recent]);
   const items = useMemo(() => sections.flatMap((section) => section.items), [sections]);
   return { sections, items, loading, resetRemote };
 }
@@ -276,7 +233,7 @@ function handlePaletteNavigation(
   }
 }
 
-export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten, oidcOnly }: CommandPaletteProps) {
   const router = useRouter();
   const baseId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -284,9 +241,10 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
   const openerRef = useRef<HTMLElement | null>(null);
   const optionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [query, setQuery] = useState("");
+  const pointerActive = useRef(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const trimmed = query.trim();
-  const { sections, items, loading, resetRemote } = usePaletteSections(open, trimmed, { inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten });
+  const { sections, items, loading, resetRemote } = usePaletteSections(open, trimmed, { inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten, oidcOnly });
   const safeActive = items.length === 0 ? -1 : Math.min(activeIndex, items.length - 1);
   const activeItem = safeActive >= 0 ? items[safeActive] : undefined;
 
@@ -304,6 +262,7 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
 
   const resetOnOpen = useCallback(() => {
     setQuery("");
+    pointerActive.current = false;
     setActiveIndex(0);
     resetRemote();
   }, [resetRemote]);
@@ -311,13 +270,13 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
   useShortcutKey(open, openerRef, onOpen, () => closePalette(true));
   usePaletteDialog(dialogRef, inputRef, openerRef, open, resetOnOpen);
   useEffect(() => {
-    if (activeItem) optionRefs.current.get(activeItem.id)?.scrollIntoView({ block: "nearest" });
+    if (activeItem && !pointerActive.current) optionRefs.current.get(activeItem.id)?.scrollIntoView({ block: "nearest" });
   }, [activeItem]);
 
   function selectItem(item: PaletteItem) {
     closePalette(false);
     onNavigate?.();
-    navigatePaletteItem(router, item, trimmed);
+    navigatePaletteItem(router, item);
   }
 
   const listboxId = `${baseId}-listbox`;
@@ -347,10 +306,14 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
         baseId={baseId}
         query={query}
         onQueryChange={(value) => {
+          pointerActive.current = false;
           setQuery(value);
           setActiveIndex(0);
         }}
-        onKeyDown={(event) => handlePaletteNavigation(event, safeActive, items, activeItem, setActiveIndex, selectItem)}
+        onKeyDown={(event) => {
+          pointerActive.current = false;
+          handlePaletteNavigation(event, safeActive, items, activeItem, setActiveIndex, selectItem);
+        }}
         onClose={() => closePalette(true)}
       />
       <div className="visually-hidden" role="status" aria-live="polite">
@@ -361,13 +324,20 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
         listboxId={listboxId}
         sections={sections}
         loading={loading}
-        trimmedLength={trimmed.length}
+        query={trimmed}
+        onNavigate={() => {
+          closePalette(false);
+          onNavigate?.();
+        }}
         safeActive={safeActive}
         optionRefs={optionRefs}
-        onHover={setActiveIndex}
+        onHover={(index) => {
+          pointerActive.current = true;
+          setActiveIndex(index);
+        }}
         onSelect={selectItem}
       />
-      <PaletteFooter short={trimmed.length < 2} />
+      <PaletteFooter />
     </dialog>
   );
 }

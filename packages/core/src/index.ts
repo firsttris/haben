@@ -1,4 +1,5 @@
 export * from "./money.ts";
+export * from "./search-money.ts";
 export * from "./currency.ts";
 export * from "./period.ts";
 export * from "./voranmeldungszeitraum.ts";

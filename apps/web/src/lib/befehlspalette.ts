@@ -1,4 +1,4 @@
-import { formatEuro } from "@haben/core";
+import { DUNNING_LEVELS, type DunningLevel, formatEuro, type InvoiceListStatus, type QuoteListStatus } from "@haben/core";
 import type { IconName } from "../components/Icon.tsx";
 import { searchOptions } from "./combobox.ts";
 import { formatDate } from "./format.ts";
@@ -24,24 +24,21 @@ export type PaletteItem =
       icon: IconName;
       to: "/kontakte/$id" | "/rechnungen/$id" | "/angebote/$id" | "/belege/$id";
       entityId: string;
-    }
-  | {
-      id: string;
-      kind: "more";
-      title: string;
-      meta: string;
-      icon: IconName;
-      to: MoreTarget;
+      amount?: string;
+      invoiceStatus?: InvoiceListStatus;
+      quoteStatus?: QuoteListStatus;
+      document?: CommandPaletteResult["documents"]["hits"][number];
     };
 
 export interface PaletteSection {
   id: string;
   label: string;
   items: PaletteItem[];
+  to?: MoreTarget;
 }
 
 export function buildPageSection(pages: readonly SichtbareSeite[], query: string): PaletteSection | null {
-  const { hits } = searchOptions(pages, query, (p) => [p.label, p.group, p.to], query ? 8 : 6);
+  const { hits } = searchOptions(pages, query, (p) => [p.label, p.group, p.settingsArea ? (p.keywords ?? "") : p.to], 5);
   if (hits.length === 0) return null;
   return {
     id: "seiten",
@@ -57,6 +54,8 @@ export function buildPageSection(pages: readonly SichtbareSeite[], query: string
   };
 }
 
+const INVOICE_KIND = { rechnung: "Rechnung", storno: "Storno", korrektur: "Korrektur" } as const;
+
 export function buildRemoteSections(remote: CommandPaletteResult, inhaber: boolean): PaletteSection[] {
   const sections: PaletteSection[] = [];
 
@@ -65,27 +64,33 @@ export function buildRemoteSections(remote: CommandPaletteResult, inhaber: boole
       id: `contact-${c.id}`,
       kind: "contact",
       title: c.name,
-      meta: [c.kundennummer || c.lieferantennummer, c.ort].filter(Boolean).join(" · ") || "Kontakt",
+      meta: [c.isCustomer ? "Kunde" : "", c.isSupplier ? "Lieferant" : "", c.kundennummer, c.lieferantennummer, c.ort].filter(Boolean).join(" · "),
       icon: "contacts",
       to: "/kontakte/$id",
       entityId: c.id,
     }));
-    items.push({ id: "more-contacts", kind: "more", title: "Alle in Kontakte anzeigen", meta: "Liste filtern", icon: "search", to: "/kontakte" });
-    sections.push({ id: "kontakte", label: "Kontakte", items });
+    sections.push({ id: "kontakte", label: "Kontakte", items, to: "/kontakte" });
   }
 
   if (remote.invoices.hits.length > 0) {
     const items: PaletteItem[] = remote.invoices.hits.map((inv) => ({
       id: `invoice-${inv.id}`,
       kind: "invoice",
-      title: inv.number ?? "Rechnungsentwurf",
-      meta: `${inv.customer} · ${formatEuro(inv.gross)}`,
+      title: inv.number ? `${INVOICE_KIND[inv.kind]} ${inv.number}` : "Rechnungsentwurf",
+      meta: [
+        inv.customer,
+        formatDate(inv.issueDate),
+        inv.dunning && `${DUNNING_LEVELS[inv.dunning.level as DunningLevel].label} bis ${formatDate(inv.dunning.dueDate)}`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      amount: formatEuro(inv.gross),
+      invoiceStatus: inv.listStatus,
       icon: "invoice",
       to: "/rechnungen/$id",
       entityId: inv.id,
     }));
-    items.push({ id: "more-invoices", kind: "more", title: "Alle in Rechnungen anzeigen", meta: "Liste filtern", icon: "search", to: "/rechnungen" });
-    sections.push({ id: "rechnungen", label: "Rechnungen", items });
+    sections.push({ id: "rechnungen", label: "Rechnungen", items, to: "/rechnungen" });
   }
 
   if (inhaber && remote.quotes.hits.length > 0) {
@@ -93,13 +98,14 @@ export function buildRemoteSections(remote: CommandPaletteResult, inhaber: boole
       id: `quote-${q.id}`,
       kind: "quote",
       title: q.number ?? "Angebotsentwurf",
-      meta: `${q.customer} · ${formatEuro(q.gross)}`,
+      meta: `${q.customer} · ${formatDate(q.issueDate)}`,
+      amount: formatEuro(q.gross),
+      quoteStatus: q.listStatus,
       icon: "quote",
       to: "/angebote/$id",
       entityId: q.id,
     }));
-    items.push({ id: "more-quotes", kind: "more", title: "Alle in Angebote anzeigen", meta: "Liste filtern", icon: "search", to: "/angebote" });
-    sections.push({ id: "angebote", label: "Angebote", items });
+    sections.push({ id: "angebote", label: "Angebote", items, to: "/angebote" });
   }
 
   if (remote.documents.hits.length > 0) {
@@ -107,15 +113,14 @@ export function buildRemoteSections(remote: CommandPaletteResult, inhaber: boole
       id: `document-${doc.id}`,
       kind: "document",
       title: doc.supplierName || doc.filename,
-      meta: [doc.invoiceNumber || doc.filename, doc.documentDate ? formatDate(doc.documentDate) : "", doc.gross !== null ? formatEuro(doc.gross) : ""]
-        .filter(Boolean)
-        .join(" · "),
+      meta: [doc.invoiceNumber || (doc.supplierName ? doc.filename : ""), doc.documentDate ? formatDate(doc.documentDate) : ""].filter(Boolean).join(" · "),
+      amount: doc.gross === null ? undefined : formatEuro(doc.gross),
+      document: doc,
       icon: "receipt",
       to: "/belege/$id",
       entityId: doc.id,
     }));
-    items.push({ id: "more-documents", kind: "more", title: "Alle in Belege anzeigen", meta: "Liste filtern", icon: "search", to: "/belege" });
-    sections.push({ id: "belege", label: "Belege", items });
+    sections.push({ id: "belege", label: "Belege", items, to: "/belege" });
   }
 
   return sections;

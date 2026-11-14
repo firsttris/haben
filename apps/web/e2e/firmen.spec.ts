@@ -43,8 +43,10 @@ test("Inhaber klappt die Zeile auf und sieht nur die anderen Firmen", async () =
   await expect(nav().getByRole("link", { name: `Haben ${FIRMA}` })).toBeVisible();
   await expect(knopf()).toHaveAttribute("aria-expanded", "false");
   await expect(auswahl()).toHaveCount(0);
-  // Gleich nach der Marke in der Tab-Reihenfolge: Sprunglink, Marke, Zeile
+  // Die Schnellsuche liegt vor dem rollenden Menü, „Firma wechseln“ ist dessen erster Tab-Stopp.
   for (let i = 0; i < 3; i++) await page.keyboard.press("Tab");
+  await expect(nav().getByRole("button", { name: "Schnellsuche" })).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(knopf()).toBeFocused();
 
   await page.keyboard.press("Enter");
@@ -92,10 +94,8 @@ test("schließt mit Klick, Escape, Tab aus der Liste und Klick daneben", async (
   await expect(knopf()).toBeFocused();
   await expect(auswahl()).toBeVisible();
   for (let i = 0; i < 3; i++) await page.keyboard.press("Tab");
-  await expect(nav().getByRole("button", { name: /Schnellsuche/ })).toBeFocused();
-  await expect(auswahl()).toHaveCount(0);
-  await page.keyboard.press("Tab");
   await expect(nav().getByRole("link", { name: "Übersicht" })).toBeFocused();
+  await expect(auswahl()).toHaveCount(0);
 
   await knopf().click();
   await page.getByRole("heading", { level: 1 }).click();

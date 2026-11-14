@@ -308,7 +308,9 @@ test.describe("Handy", () => {
     expect(await axe(page), "Handy, Menü offen").toEqual([]);
     // Mit Tab ins Menü, Escape schließt es und der Fokus steht wieder auf dem Menüknopf
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("button", { name: /Schnellsuche/ })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Schnellsuche" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: "Übersicht" })).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(menu).toHaveAttribute("aria-expanded", "false");
     await expect(menu).toBeFocused();
@@ -747,7 +749,7 @@ test("Befehlspalette: Strg+K, Tastatursteuerung, Fokus-Rückgabe und axe in alle
   await expect(input).toBeFocused();
 
   await input.fill("Rheinpixel");
-  const alle = dialog.getByRole("option", { name: "Alle in Rechnungen anzeigen" });
+  const alle = dialog.getByRole("link", { name: "Alle anzeigen: Rechnungen" });
   await expect(alle).toBeVisible();
 
   const davor = await input.getAttribute("aria-activedescendant");

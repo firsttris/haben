@@ -39,7 +39,7 @@ import {
   negateDiscount,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
@@ -736,8 +736,12 @@ export type { InvoiceListStatus };
  * im Bankabgleich. Mit `id` nur diese Rechnung. Rechnungsliste, offene Posten, Mahnwesen und die Sperre der
  * Firmendaten zählen über diese Funktion, damit „offen“ überall dasselbe heißt.
  */
-export async function listInvoices(today: string, id?: string, q: Db | Tx = db) {
-  const rows = await q
+export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
+  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
+}
+
+export async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, limit?: number, rank?: SQL) {
+  const query = q
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
@@ -752,6 +756,8 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       contactId: schema.invoices.contactId,
       externalSource: schema.invoices.externalSource,
       externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
       contactName: schema.contacts.name,
       buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
       cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
@@ -763,9 +769,18 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(id ? eq(schema.invoices.id, id) : undefined)
-    .orderBy(desc(schema.invoices.issueDate), sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt), desc(schema.invoices.id));
+    .where(filter)
+    .orderBy(
+      ...(rank ? [rank] : []),
+      desc(schema.invoices.issueDate),
+      sql`${schema.invoices.number} desc nulls first`,
+      desc(schema.invoices.createdAt),
+      desc(schema.invoices.id),
+    )
+    .$dynamic();
+  const rows = await (limit === undefined ? query : query.limit(limit));
 
+  if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,

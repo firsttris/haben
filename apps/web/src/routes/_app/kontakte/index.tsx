@@ -8,8 +8,15 @@ import { Tag } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/kontakte/")({
   validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])), suche: z.optional(z.string()) }),
-  loaderDeps: ({ search }) => ({ archived: search.archiv ?? false, role: search.rolle }),
-  loader: ({ deps }) => getContacts({ data: { archived: deps.archived, ...(deps.role ? { role: deps.role } : {}) } }),
+  loaderDeps: ({ search }) => ({ archived: search.archiv ?? false, role: search.rolle, query: search.suche?.trim().slice(0, 100) }),
+  loader: async ({ deps }) => {
+    const filters = { archived: deps.archived, ...(deps.role ? { role: deps.role } : {}) };
+    const [contacts, matches] = await Promise.all([
+      getContacts({ data: filters }),
+      deps.query ? getContacts({ data: { ...filters, query: deps.query } }) : null,
+    ]);
+    return { contacts, matches };
+  },
   head: () => ({ meta: [{ title: "Kontakte · Haben" }] }),
   component: ContactsPage,
 });
@@ -21,16 +28,19 @@ const ROLE_FILTERS = [
 ] as const;
 
 function ContactsPage() {
-  const contacts = Route.useLoaderData();
+  const { contacts, matches } = Route.useLoaderData();
   const { archiv, rolle, suche } = Route.useSearch();
   const [query, setQuery] = useState(suche ?? "");
   useEffect(() => {
     setQuery(suche ?? "");
   }, [suche]);
   const needle = query.trim().toLowerCase();
-  const shown = needle
-    ? contacts.filter((c) => [c.name, c.kundennummer, c.lieferantennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
-    : contacts;
+  const shown =
+    matches && needle === suche?.trim().toLowerCase()
+      ? matches
+      : needle
+        ? contacts.filter((c) => [c.name, c.kundennummer, c.lieferantennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
+        : contacts;
   return (
     <>
       <div className="page-head">

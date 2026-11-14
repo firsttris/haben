@@ -1,3 +1,4 @@
+import { type SettingsArea, settingsAreas } from "./settings-areas.ts";
 import { ACCENT_PATTERN, inkOnAccent, needsEdgeOnNav } from "@haben/core";
 import type { IconName } from "../components/Icon.tsx";
 import { STEUERBERATUNG_START } from "./rollen.ts";
@@ -140,6 +141,8 @@ export interface SichtbareSeite {
   to: string;
   params?: { id: string };
   externalUrl?: string;
+  settingsArea?: SettingsArea;
+  keywords?: string;
 }
 
 export interface EigeneSeiteNav {
@@ -155,7 +158,8 @@ export function sichtbareNavSeiten({
   gesellschaft,
   hatMitarbeiter,
   eigeneSeiten,
-}: NavKontext & { inhaber: boolean; eigeneSeiten: readonly EigeneSeiteNav[] }): SichtbareSeite[] {
+  oidcOnly = false,
+}: NavKontext & { inhaber: boolean; eigeneSeiten: readonly EigeneSeiteNav[]; oidcOnly?: boolean }): SichtbareSeite[] {
   const gruppen = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
   const seiten: SichtbareSeite[] = [
     {
@@ -201,6 +205,17 @@ export function sichtbareNavSeiten({
       icon: "settings",
       to: "/einstellungen",
     });
+    for (const area of settingsAreas(oidcOnly)) {
+      seiten.push({
+        key: `einstellungen-${area.id}`,
+        label: area.label,
+        group: "Einstellungen",
+        icon: "settings",
+        to: "/einstellungen",
+        settingsArea: area.id,
+        keywords: area.hint,
+      });
+    }
   }
   return seiten;
 }
