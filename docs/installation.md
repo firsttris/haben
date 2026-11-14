@@ -474,7 +474,7 @@ Eine Instanz löschst du in dieser Reihenfolge. `docker compose down -v` entfern
 Zwei Fälle weichen bei Schritt 2 und 3 ab:
 
 - **Mit `--eigener-proxy`** gibt es kein `proxy/`: den Block der Domain und das Netz aus der Konfiguration deines Proxys entfernen, ihn neu aufbauen, dann `docker network rm haben-proxy-<name>`.
-- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart. Das `reload` unterbricht die anderen Instanzen nicht.
+- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart.
 
 `update`, `status` und `liste` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
 
