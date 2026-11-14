@@ -648,7 +648,10 @@ function EstSection({ data }: { data: Data }) {
           </div>
         </Block>
 
-        {/* Speichern bleibt am unteren Rand sichtbar, solange das Formular im Bild ist */}
+        <p className="small muted" style={{ margin: 0 }}>
+          Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
+        </p>
+        {/* Speichern bleibt unten sichtbar; der Hinweis steht davor, weil der Footer mit negativem Rand darüber liegt */}
         <div className="form-sticky-footer">
           <NoticeBanner notice={notice} />
           <div className="actions" style={{ alignItems: "center" }}>
@@ -658,9 +661,6 @@ function EstSection({ data }: { data: Data }) {
             <span className="small muted">Voraussichtliche Steuer {formatEuro(est.prognose.gesamt)}</span>
           </div>
         </div>
-        <p className="small muted" style={{ margin: 0 }}>
-          Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
-        </p>
       </form>
       <SubmitPanel form="est" data={data} blocked={blocked} sent={Boolean(est.sent)} submitted={est.submitted} />
     </section>

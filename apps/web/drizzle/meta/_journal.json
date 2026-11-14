@@ -1622,15 +1622,22 @@
     {
       "idx": 231,
       "version": "7",
-      "when": 1794670446457,
-      "tag": "0231_search_pg_trgm",
+      "when": 1794664787301,
+      "tag": "0231_rechnung_ausgefuehrt_am",
       "breakpoints": true
     },
     {
       "idx": 232,
       "version": "7",
-      "when": 1794670447815,
-      "tag": "0232_search_indexes",
+      "when": 1794671327848,
+      "tag": "0232_search_pg_trgm",
+      "breakpoints": true
+    },
+    {
+      "idx": 233,
+      "version": "7",
+      "when": 1794671331147,
+      "tag": "0233_search_indexes",
       "breakpoints": true
     }
   ]

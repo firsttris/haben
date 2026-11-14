@@ -1245,6 +1245,11 @@ export const invoices = pgTable(
     issueDate: date("issue_date", { mode: "string" }).notNull(),
     serviceFrom: date("service_from", { mode: "string" }),
     serviceTo: date("service_to", { mode: "string" }),
+    /**
+     * „Ausgeführt am“, beim Festschreiben eingefroren (#694): Der Leistungsmonat entscheidet bei Soll-Versteuerung,
+     * in welchem Zeitraum die Umsatzsteuer gemeldet wird. Altrechnungen ohne Angabe zählen nach Rechnungsdatum.
+     */
+    serviceDate: date("service_date", { mode: "string" }),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     dueDate: date("due_date", { mode: "string" }).notNull(),
     /**
