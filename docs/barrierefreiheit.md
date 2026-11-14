@@ -19,7 +19,7 @@ Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den a
 | `Tab` / `Umschalt+Tab` | Zum nächsten bzw. vorigen Bedienelement. Das Element mit dem Fokus hat immer einen sichtbaren Rahmen. |
 | `Enter` | Link öffnen, Knopf auslösen, Formular absenden |
 | `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt aufklappen |
-| `Strg+K` / `Cmd+K` | [Schnellsuche](suche.md) öffnen (am Handy auch über die Lupe neben **Menü**); darin `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` zum Öffnen |
+| `Strg+K` / `⌘+K` | [Schnellsuche](suche.md) öffnen (am Handy auch über die Lupe neben **Menü**); darin `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` zum Öffnen |
 | `Esc` | Schließt das Menü auf dem Handy oder die Befehlspalette und gibt den Fokus an den Auslöser zurück |
 
 - **Zum Inhalt springen:** Der erste `Tab` auf jeder Seite zeigt den Link **Zum Inhalt springen**. Mit `Enter` überspringst du die Navigation.
@@ -38,7 +38,7 @@ Tastenkürzel einzelner Seiten:
 | [Bankabgleich](bank.md#zuordnen) | `Enter` ordnet zu, `J` nächster, `K` voriger Umsatz |
 | [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` bucht, `Esc` zurück zur Liste |
 
-Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` (Mac: `Cmd+Enter`) bucht einen Beleg auch aus einem Eingabefeld.
+Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` (Mac: `⌘+Enter`) bucht einen Beleg auch aus einem Eingabefeld. Haben zeigt die Kürzel so, wie sie auf deiner Tastatur stehen: am Mac, iPhone und iPad mit `⌘`, sonst mit `Strg`.
 
 ## Darstellung
 
