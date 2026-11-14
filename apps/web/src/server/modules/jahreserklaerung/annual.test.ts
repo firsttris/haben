@@ -439,7 +439,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]!.link).toBe("/einstellungen");
   });
 
-  it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 meldet die Vorprüfung vor dem Senden (#708)", async () => {
+  it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 wird vor dem Senden umgegliedert (#708, #933)", async () => {
     await year2025();
     const euer = await annual.euerYear(2025);
     const { loadCompany } = await import("../stammdaten/index.ts");
@@ -452,10 +452,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Der Grund muss tone fehler tragen: checkAnnual bricht nur darauf ab und würde sonst weiter senden.
     // euerIssues meldet auch anderes (fehlende Einkunftsart, Kontenrahmen), deshalb grenzt der Filter auf Zeile 18 und 58 ein.
     const fehler = (data: typeof euer) => annual.euerIssues(company, data).filter((i) => i.tone === "fehler" && /Zeile (58|18) \(Kz/.test(i.text));
-    // Die Anlage EÜR nimmt in Zeile 58 (E6005101) kein Vorzeichen an: der Versand wird vor ERiC gestoppt
-    expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
-    expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/steuerlich zu klären/);
-    expect(texte({ ...euer, figures: { ...euer.figures, erstatteteUst: -19_000 } })).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
+    const hinweis = (data: typeof euer) => annual.euerIssues(company, data).filter((i) => i.tone === "hinweis" && /Zeile (58|18) \(Kz/.test(i.text));
+    // Ein negativer Saldo wird umgegliedert statt mit Vorzeichen gesendet: Hinweis, kein Fehler (#933)
+    const umgliederung = [
+      "In Zeile 58 (Kz E6005101, „An das Finanzamt gezahlte und ggf. verrechnete Umsatzsteuer“) standen 190,00: im Jahr wurde mehr Umsatzsteuer erstattet als gezahlt. Der Gewinn bleibt gleich, gebuchte Daten ändern sich nicht.",
+    ];
+    expect(texte({ ...euer, ustUmgliederung: umgliederung })).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
+    expect(texte({ ...euer, ustUmgliederung: umgliederung })).toMatch(/Der Gewinn bleibt gleich/);
+    expect(hinweis({ ...euer, ustUmgliederung: umgliederung })).toHaveLength(1);
     // Ohne negativen Betrag bleibt die Vorprüfung still
     expect(texte(euer)).not.toMatch(/Zeile 58|Zeile 18 \(Kz/);
     expect(fehler({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toHaveLength(1);

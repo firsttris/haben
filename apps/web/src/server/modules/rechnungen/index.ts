@@ -59,6 +59,8 @@ export {
 } from "./external-reference.ts";
 export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
+export { gemeldeterZeitraum, leistungsmonatHinweis, zeitraumLabel } from "./leistungsmonat.ts";
+export { leistungsmonatHinweisFuer } from "./leistungsmonat-hinweis.ts";
 export { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
 export { advanceVatPlans } from "./advance-vat-plan.ts";
 export { invoicePaymentGroup, invoicePaymentGroups, paperCancellationIds } from "./advance-payment-group.ts";
