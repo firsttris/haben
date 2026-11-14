@@ -7,7 +7,7 @@ description: >-
 
 # Angebote
 
-Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Nimmt der Kunde an, machst du daraus mit einem Klick eine Rechnung.
+Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Nimmt der Kunde an, machst du daraus mit einem Klick eine Rechnung. Das Suchfeld über der Liste filtert nach Nummer, Kunde und Bruttobetrag, die [Schnellsuche](suche.md) über alle Bereiche.
 
 ## Angebot schreiben
 
