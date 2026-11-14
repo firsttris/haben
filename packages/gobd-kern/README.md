@@ -36,8 +36,8 @@ Danach meldet die Migration ihre Tabellen an:
 | `SELECT belegt_seal_table('belege', 'locked_at')` | Entwurf änderbar; ab dem Setzen von `locked_at` gesperrt und versiegelt |
 | `SELECT belegt_seal_table('eingaenge')` | jede Zeile ab dem Einfügen gesperrt und versiegelt |
 
-Eine Transaktion setzt ihren Akteur mit `select set_config('belegt.actor', $1, true)` (`akteurEinstellung("belegt")`). Änderungen mit Eintrag im Audit-Log gehen nur unter READ COMMITTED. `belegt_integrity_problems(100)` liefert alle Befunde zu Kette, Kopf und Siegeln. Versiegelte Tabellen brauchen eine Spalte `id` vom Typ `uuid`; ein Siegel gilt einer Zeile, abhängige Zeilen bekommen ihr eigenes.
+Eine Transaktion setzt ihren Akteur mit `select set_config('belegt.actor', $1, true)` (`akteurEinstellung("belegt")`). Änderungen mit Eintrag im Audit-Log gehen nur unter READ COMMITTED. `belegt_integrity_problems(100)` liefert alle Befunde zu Kette, Kopf und Siegeln. Versiegelte Tabellen brauchen eine Spalte `id` vom Typ `uuid`; ein Siegel gilt einer Zeile, abhängige Zeilen bekommen ihr eigenes. Eine Anmeldung lässt sich nicht zurücknehmen.
 
-Getrennte Rollen (die App darf Trigger nicht abschalten) richtet das Projekt selbst ein, wie Haben unter „Getrennte Datenbankrollen“.
+Getrennte Rollen (die App darf Trigger nicht abschalten) richtet das Projekt selbst ein, wie Haben unter [Getrennte Datenbankrollen](https://haben.app/installation-konfiguration.html#getrennte-datenbankrollen).
 
 Noch nicht auf npm veröffentlicht.
