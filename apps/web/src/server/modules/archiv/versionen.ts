@@ -4,7 +4,7 @@ import { appVersionsForYear } from "../betrieb/index.ts";
 export const VERSIONEN_HEADER = ["Version", "Seit", "PostgreSQL", "Hinweis", "Versionshinweise"];
 
 /**
- * Zeilen für `protokoll/versionen.csv` eines Archivjahrs in chronologischer Reihenfolge.
+ * Zeilen für `protokoll/versionen.csv` eines Archivjahrs in chronologischer Reihenfolge (GoBD, BMF-Schreiben vom 28.11.2019, Rz. 150 und Rz. 154).
  * Enthält auch eine bereits vor Jahresbeginn gestartete Version, solange sie ins Jahr hineinlief.
  */
 export async function versionenFuerArchiv(year: number): Promise<(string | null)[][]> {
