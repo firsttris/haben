@@ -157,7 +157,7 @@ function AppLayout() {
           <button type="button" className="nav-search-btn" onClick={() => setPaletteOpen(true)} aria-keyshortcuts="Control+K Meta+K">
             <span className="nav-search-label">
               <Icon name="search" size={16} />
-              Suchen
+              Schnellsuche
             </span>
             <kbd className="nav-kbd" aria-hidden="true">
               {shortcutLabel}

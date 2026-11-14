@@ -80,8 +80,8 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     await quotes.finalizeQuote(actor, quoteDraft.id);
 
     // Beleg direkt anlegen: mit Lieferantenname, Belegnummer und Bruttobetrag 45,90 €
-    await sql`insert into documents (supplier_name, invoice_number, filename, mime_type, file_sha256, document_date, category, gross, currency, status)
-      values ('Bergblick Cloud AG', 'BLG-991', 'bergblick-oktober.pdf', 'application/pdf', 'deadbeef', '2026-10-04', 'software', 4590, 'EUR', 'gebucht')`;
+    await sql`insert into documents (supplier_name, invoice_number, filename, mime_type, size, sha256, document_date, category, gross, currency, status)
+      values ('Bergblick Cloud AG', 'BLG-991', 'bergblick-oktober.pdf', 'application/pdf', 1234, 'deadbeef', '2026-10-04', 'software', 4590, 'EUR', 'gebucht')`;
 
     expect(draftInvoice.status).toBe("draft");
   });

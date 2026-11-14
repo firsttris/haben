@@ -18,11 +18,10 @@ export {
   listDocuments,
   MAX_DOCUMENT_SIZE,
   runExtraction,
-  searchDocuments,
   updateDocument,
   uploadDocument,
-  type DocumentHit,
 } from "./documents.ts";
+export { searchDocuments, type DocumentHit } from "./search.ts";
 export { type Lieferant, supplierCategory, supplierPayment } from "./vorschlaege.ts";
 export {
   cancelDocument,

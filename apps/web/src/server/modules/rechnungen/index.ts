@@ -74,13 +74,11 @@ export {
   newDraftDefaults,
   numbering,
   openAbschlaege,
-  searchInvoices,
   sellerFrom,
   setNextNumber,
   updateDraft,
   type DraftInput,
   type Invoice,
-  type InvoiceHit,
   type InvoiceLine,
   type InvoiceListStatus,
 } from "./invoices.ts";
@@ -103,12 +101,11 @@ export {
   quoteStatus,
   QuoteError,
   quoteToInvoice,
-  searchQuotes,
   setQuoteDecision,
   updateQuoteDraft,
-  type QuoteHit,
   type QuoteListStatus,
 } from "./quotes.ts";
+export { searchInvoices, searchQuotes, type InvoiceHit, type QuoteHit } from "./search.ts";
 export {
   createRecurring,
   deleteRecurring,

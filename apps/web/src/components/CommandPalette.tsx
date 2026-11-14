@@ -175,7 +175,7 @@ function PaletteHeader({
       <Icon name="search" size={18} />
       <input
         ref={inputRef}
-        type="search"
+        type="text"
         role="combobox"
         aria-label="Seiten, Kontakte, Rechnungen oder Belege suchen"
         aria-autocomplete="list"
@@ -234,6 +234,48 @@ function usePaletteDialog(
   }, [dialogRef, inputRef, openerRef, open, onReset]);
 }
 
+function usePaletteSections(
+  open: boolean,
+  trimmed: string,
+  { inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten }: Pick<CommandPaletteProps, "inhaber" | "gesellschaft" | "hatMitarbeiter" | "eigeneSeiten">,
+) {
+  const { remote, loading, resetRemote } = useRemotePaletteSearch(open, trimmed);
+  const pages = useMemo(
+    () => sichtbareNavSeiten({ inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten }),
+    [inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten],
+  );
+  const sections = useMemo(() => {
+    const pageSection = buildPageSection(pages, trimmed);
+    return [...(pageSection ? [pageSection] : []), ...(trimmed.length >= 2 && remote ? buildRemoteSections(remote, inhaber) : [])];
+  }, [pages, trimmed, remote, inhaber]);
+  const items = useMemo(() => sections.flatMap((section) => section.items), [sections]);
+  return { sections, items, loading, resetRemote };
+}
+
+function handlePaletteNavigation(
+  event: ReactKeyboardEvent<HTMLInputElement>,
+  safeActive: number,
+  items: PaletteItem[],
+  activeItem: PaletteItem | undefined,
+  onIndex: (index: number) => void,
+  onSelect: (item: PaletteItem) => void,
+) {
+  if (event.nativeEvent.isComposing || items.length === 0) return;
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    onIndex(moveActive(safeActive, items.length, event.key));
+  } else if (event.key === "Home") {
+    event.preventDefault();
+    onIndex(0);
+  } else if (event.key === "End") {
+    event.preventDefault();
+    onIndex(items.length - 1);
+  } else if (event.key === "Enter" && activeItem) {
+    event.preventDefault();
+    onSelect(activeItem);
+  }
+}
+
 export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten }: CommandPaletteProps) {
   const router = useRouter();
   const baseId = useId();
@@ -244,17 +286,7 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const trimmed = query.trim();
-  const { remote, loading, resetRemote } = useRemotePaletteSearch(open, trimmed);
-
-  const pages = useMemo(
-    () => sichtbareNavSeiten({ inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten }),
-    [inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten],
-  );
-  const sections = useMemo(() => {
-    const pageSection = buildPageSection(pages, trimmed);
-    return [...(pageSection ? [pageSection] : []), ...(trimmed.length >= 2 && remote ? buildRemoteSections(remote, inhaber) : [])];
-  }, [pages, trimmed, remote, inhaber]);
-  const items = useMemo(() => sections.flatMap((section) => section.items), [sections]);
+  const { sections, items, loading, resetRemote } = usePaletteSections(open, trimmed, { inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten });
   const safeActive = items.length === 0 ? -1 : Math.min(activeIndex, items.length - 1);
   const activeItem = safeActive >= 0 ? items[safeActive] : undefined;
 
@@ -278,7 +310,6 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
 
   useShortcutKey(open, openerRef, onOpen, () => closePalette(true));
   usePaletteDialog(dialogRef, inputRef, openerRef, open, resetOnOpen);
-
   useEffect(() => {
     if (activeItem) optionRefs.current.get(activeItem.id)?.scrollIntoView({ block: "nearest" });
   }, [activeItem]);
@@ -289,25 +320,9 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
     navigatePaletteItem(router, item, trimmed);
   }
 
-  function handleInputKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    if (event.nativeEvent.isComposing || items.length === 0) return;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveIndex(moveActive(safeActive, items.length, event.key));
-    } else if (event.key === "Home") {
-      event.preventDefault();
-      setActiveIndex(0);
-    } else if (event.key === "End") {
-      event.preventDefault();
-      setActiveIndex(items.length - 1);
-    } else if (event.key === "Enter" && activeItem) {
-      event.preventDefault();
-      selectItem(activeItem);
-    }
-  }
-
   const listboxId = `${baseId}-listbox`;
   const titleId = `${baseId}-title`;
+
   return (
     <dialog
       ref={dialogRef}
@@ -335,7 +350,7 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
           setQuery(value);
           setActiveIndex(0);
         }}
-        onKeyDown={handleInputKeyDown}
+        onKeyDown={(event) => handlePaletteNavigation(event, safeActive, items, activeItem, setActiveIndex, selectItem)}
         onClose={() => closePalette(true)}
       />
       <div className="visually-hidden" role="status" aria-live="polite">

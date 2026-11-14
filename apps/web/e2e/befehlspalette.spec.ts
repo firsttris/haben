@@ -14,7 +14,7 @@ test("Knopf in der Navigation und Strg+K öffnen die Befehlspalette und navigier
 
   await page
     .getByRole("navigation", { name: "Hauptnavigation" })
-    .getByRole("button", { name: /Suchen/ })
+    .getByRole("button", { name: /Schnellsuche/ })
     .click();
   const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
   await expect(dialog).toBeVisible();
@@ -63,11 +63,10 @@ test("findet eine Rechnung über ihre Nummer und öffnet „Alle in Rechnungen a
 });
 
 test("öffnet nicht über einem anderen bereits offenen Dialog", async ({ page }) => {
-  await page.goto("/kontakte", { waitUntil: "networkidle" });
-  // Prüfen über das offene Hilfe-/Bestätigungs- oder Formular-Dialogmuster auf Kontakte bzw. Einstellungen
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
-  const kontaktDialog = page.getByRole("dialog", { name: "Neuer Kontakt" });
+  await page.getByRole("combobox", { name: "Kunde", exact: true }).click();
+  await page.getByRole("listbox", { name: "Treffer" }).getByRole("option", { name: "Neuen Kontakt anlegen" }).click();
+  const kontaktDialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
   await expect(kontaktDialog).toBeVisible();
 
   await page.keyboard.press("Control+k");

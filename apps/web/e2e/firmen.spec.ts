@@ -92,8 +92,10 @@ test("schließt mit Klick, Escape, Tab aus der Liste und Klick daneben", async (
   await expect(knopf()).toBeFocused();
   await expect(auswahl()).toBeVisible();
   for (let i = 0; i < 3; i++) await page.keyboard.press("Tab");
-  await expect(nav().getByRole("link", { name: "Übersicht" })).toBeFocused();
+  await expect(nav().getByRole("button", { name: /Schnellsuche/ })).toBeFocused();
   await expect(auswahl()).toHaveCount(0);
+  await page.keyboard.press("Tab");
+  await expect(nav().getByRole("link", { name: "Übersicht" })).toBeFocused();
 
   await knopf().click();
   await page.getByRole("heading", { level: 1 }).click();

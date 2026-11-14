@@ -746,7 +746,7 @@ test("Befehlspalette: Strg+K, Tastatursteuerung, Fokus-Rückgabe und axe in alle
   const input = dialog.getByRole("combobox");
   await expect(input).toBeFocused();
 
-  await input.fill("Rechn");
+  await input.fill("Rheinpixel");
   const alle = dialog.getByRole("option", { name: "Alle in Rechnungen anzeigen" });
   await expect(alle).toBeVisible();
 
@@ -765,7 +765,7 @@ test("Befehlspalette: Strg+K, Tastatursteuerung, Fokus-Rückgabe und axe in alle
     await open(page, "/");
     await page.keyboard.press("Control+k");
     await expect(dialog).toBeVisible();
-    await input.fill("Rechn");
+    await input.fill("Rheinpixel");
     await expect(alle).toBeVisible();
     expect.soft(await axe(page), `Befehlspalette im Theme ${theme}`).toEqual([]);
   }
@@ -775,7 +775,7 @@ test("Befehlspalette: Strg+K, Tastatursteuerung, Fokus-Rückgabe und axe in alle
   await open(page, "/");
   await page.keyboard.press("Control+k");
   await expect(dialog).toBeVisible();
-  await input.fill("Rechn");
+  await input.fill("Rheinpixel");
   await expect(alle).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   expect(await axe(page), "Befehlspalette am Handy").toEqual([]);
