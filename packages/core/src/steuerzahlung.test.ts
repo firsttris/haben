@@ -161,6 +161,48 @@ describe("steuerKontierung: Steuern vom Einkommen", () => {
   });
 });
 
+describe("steuerKontierung: privates Konto (#873)", () => {
+  const privat = (angabe: Steuerangabe, amount: number, kr: "SKR03" | "SKR04" = "SKR03", rf: "einzelunternehmen" | "gmbh" = "einzelunternehmen") =>
+    steuerKontierung(angabe, amount, "2026-10-15", kr, rf, true);
+
+  it("lehnt Steuern des Inhabers ab: von einem privaten Konto gezahlt kein Geschäftsvorfall (§ 12 Nr. 3 EStG)", () => {
+    for (const art of ["est", "kist", "soli"] as const) {
+      expect(privat({ art, jahr: 2024, posten: "steuer" }, -100_00).ok).toBe(false);
+      // Auch die Erstattung: sie ist keine Betriebseinnahme
+      expect(privat({ art, jahr: 2024, posten: "steuer" }, 100_00).ok).toBe(false);
+    }
+    const k = privat({ art: "est", jahr: 2024, posten: "steuer" }, -100_00);
+    if (!k.ok) expect(k.fehler).toContain("§ 12 Nr. 3 EStG");
+    else throw new Error("Einkommensteuer auf privatem Konto muss abgelehnt werden");
+  });
+
+  it("lehnt auch die Nebenleistungen des Inhabers ab, Erstattungszinsen eingeschlossen", () => {
+    for (const posten of ["zinsen233a", "zinsen", "saeumnis", "verspaetung"] as const) {
+      expect(privat({ art: "est", jahr: 2024, posten }, 15_00).ok).toBe(false);
+      expect(privat({ art: "kist", jahr: 2024, posten }, -15_00).ok).toBe(false);
+    }
+  });
+
+  it("lehnt die einbehaltene Kapitalertragsteuer ab: der Zins ist privates Kapitalvermögen (§ 20 Abs. 1 EStG)", () => {
+    for (const art of ["kapest", "kapestSoli"] as const) {
+      expect(privat({ art, jahr: 2026, posten: "steuer" }, -25_00).ok).toBe(false);
+    }
+    const k = privat({ art: "kapest", jahr: 2026, posten: "steuer" }, -25_00);
+    if (!k.ok) expect(k.fehler).toContain("§ 20 Abs. 1 EStG");
+  });
+
+  it("lässt Gewerbe-, Umsatz- und Körperschaftsteuer zu: Einlage bzw. Entnahme trägt die Zahlung", () => {
+    expect(privat({ art: "gewst", jahr: 2026, posten: "steuer" }, -500_00, "SKR04")).toEqual({ ok: true, konto: "7610", rueckstellung: null });
+    expect(privat({ art: "ust", jahr: 2025, posten: "steuer" }, -100_00, "SKR03")).toEqual({ ok: true, konto: "1790", rueckstellung: null });
+    expect(privat({ art: "kst", jahr: 2025, posten: "steuer" }, -100_00, "SKR03", "gmbh")).toEqual({ ok: true, konto: "2203", rueckstellung: "0963" });
+  });
+
+  it("ohne privates Konto bleibt die Steuer des Inhabers die Privatentnahme vom Geschäftskonto", () => {
+    expect(konto({ art: "est", jahr: 2024, posten: "steuer" }, -100_00, "SKR03")).toEqual({ ok: true, konto: "1810", rueckstellung: null });
+    expect(konto({ art: "est", jahr: 2024, posten: "steuer" }, -100_00, "SKR04")).toEqual({ ok: true, konto: "2150", rueckstellung: null });
+  });
+});
+
 describe("steuerKontierung: Nebenleistungen zur Umsatzsteuer (Steuerart entscheidet, nicht das Wort „Zinsen“)", () => {
   it("abziehbar: § 233a AO 2107/7305, §§ 234–237 AO 2111/7311, Säumniszuschlag 2103/7303, Verspätungszuschlag 4396/6436", () => {
     const n = (posten: Steuerangabe["posten"], kr: "SKR03" | "SKR04") => konto({ art: "ust", jahr: 2026, posten }, -10_00, kr).konto;

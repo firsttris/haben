@@ -76,7 +76,8 @@ export async function steuerbuchung(
   angabe: Steuerangabe,
   amount: Cents,
 ): Promise<Steuerbuchung> {
-  const kontierung = steuerKontierung(angabe, amount, bank.bookingDate, company.kontenrahmen, company.rechtsform);
+  const privatesKonto = bank.purpose === "privat";
+  const kontierung = steuerKontierung(angabe, amount, bank.bookingDate, company.kontenrahmen, company.rechtsform, privatesKonto);
   if (!kontierung.ok) throw new SteuerzahlungError(kontierung.fehler);
   const ausRueckstellung = kontierung.rueckstellung
     ? Math.min(-amount, await offeneRueckstellung(tx, kontierung.rueckstellung, angabe.jahr, bank.bookingDate, company.kontenrahmen))
@@ -84,7 +85,7 @@ export async function steuerbuchung(
   // Privates Konto (#866, #873): Das Geld fließt ins Private oder kommt von dort, die Gegenzeile ist deshalb die
   // Privatentnahme bzw. -einlage und nicht die Bank. Das gilt für jede Steuerart, nicht nur die Umsatzsteuer: Auch
   // Gewerbesteuer, Vorauszahlungen und Erstattungen zur Einkommensteuer laufen über das Privatkonto.
-  const zahlungskonto = bank.purpose === "privat" ? privatZahlung(amount, company.kontenrahmen, company.rechtsform) : undefined;
+  const zahlungskonto = privatesKonto ? privatZahlung(amount, company.kontenrahmen, company.rechtsform) : undefined;
   return {
     lines: steuerzahlungPosting(kontierung, amount, ausRueckstellung, company.kontenrahmen, zahlungskonto),
     description: `${steuerzahlungText(angabe, amount)} · ${bank.counterpartyName || "Finanzamt"}`,
