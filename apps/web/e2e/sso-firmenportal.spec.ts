@@ -118,6 +118,9 @@ test("Haben: „Zum Firmenportal“ führt ins Firmenportal, ohne aufzuklappen, 
   await nav.getByRole("button", { name: "Seitenleiste einklappen" }).click();
   const symbol = nav.getByRole("link", { name: "Zum Firmenportal" });
   await expect(symbol).toHaveAttribute("href", `${PORTAL}/?von=haben`);
+  // Hinweis statt title wie bei den übrigen Symbolen ohne Unterpunkte (#1018)
+  await symbol.hover();
+  await expect(symbol.getByText("Zum Firmenportal")).toBeVisible();
   await expect(nav.getByRole("button", { name: /Firma wechseln|Zum Firmenportal/ })).toHaveCount(0);
   await nav.getByRole("button", { name: "Seitenleiste ausklappen" }).click();
 
