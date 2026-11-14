@@ -219,6 +219,16 @@ Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung ([�
 
 In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nicht null sind oder du die Werte von Hand überschreibst.
 
+### Leistungstag bei Soll-Versteuerung
+
+Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Leistung, nicht mit der Zahlung (§ 13 Abs. 1 Nr. 1 Buchst. a UStG). Maßgeblich ist deshalb der **Leistungstag** an der Rechnung, nicht das Rechnungsdatum und nicht der Zahlungseingang. Fehlt ein abweichender Leistungstag, gilt das Rechnungsdatum.
+
+Haben schreibt den Leistungstag beim Buchen fest. Wer den Beleg später ändert, verschiebt damit keine Steuer in einen schon gemeldeten Monat: Die Buchung trägt den Stand, der beim Buchen galt, und die Änderung wirkt nur nach vorn.
+
+Ist der Monat schon gemeldet, sagt Haben das beim Buchen und bucht trotzdem. Eine Sperre wäre hier falsch: Ob im gemeldeten Monat noch etwas nachzuziehen ist, entscheidet der Anwender, nicht das Programm. Der Hinweis nennt den Monat und den Betrag, damit die Korrektur in der nächsten Voranmeldung nachvollziehbar ist.
+
+**Teilleistungen** (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 3 UStG) brauchen kein eigenes Feld je Teilleistung: Das Feldpaar Leistung von/bis hängt am Beleg, und jede Teilleistung, die steuerlich für sich steht, wird als eigener Beleg erfasst. Wer eine Schlussrechnung über mehrere Abschläge schreibt, legt für jeden Abschlag einen Beleg an.
+
 ### Vorsteuer (Kz 66)
 
 Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung.
