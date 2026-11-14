@@ -161,6 +161,8 @@ teilst du direkt hinein, die Übersicht hast du unterwegs dabei.
 
 ## Und warum Haben?
 
+<p class="showcase-claim">Wir glauben, dass Deutschland und Europa ihre Software selbst in der Hand haben sollten. 🇩🇪 🇪🇺</p>
+
 </div>
 
 <div class="showcase-cards" markdown>
@@ -256,9 +258,8 @@ und die [Installationsanleitung](installation.md).
 
 ## Deine Bücher. <span class="showcase-akzent">Dein Server.</span>
 
-<p class="showcase-claim">Wir glauben, dass Deutschland und Europa ihre Software selbst in der Hand haben sollten.
-Gemacht für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs und UGs – für alle, die
-lieber arbeiten als buchen.</p>
+<p class="showcase-claim">Gemacht für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs
+und UGs – für alle, die lieber arbeiten als buchen.</p>
 
 [Installieren](installation.md){ .md-button .md-button--primary } [Mitwirken](mitwirken.md){ .md-button } [Quellcode auf GitHub](https://github.com/firsttris/haben){ .md-button }
 
