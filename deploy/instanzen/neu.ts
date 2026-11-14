@@ -39,6 +39,7 @@ export function envFuer(vorlage: string, a: NeuAngaben): string {
     ["BACKUP_HOST", projekt],
   ];
   if (a.herstellerId !== undefined) werte.push(["ELSTER_HERSTELLER_ID", a.herstellerId]);
+  if (a.firmenname !== undefined) werte.push(["HABEN_FIRMENNAME", a.firmenname, true]);
   if (a.ericHome !== undefined) werte.push(["ERIC_HOME", a.ericHome]);
   if (a.sso) {
     werte.push(
@@ -149,6 +150,14 @@ async function starten(k: Kontext, a: NeuAngaben, dir: string): Promise<void> {
   if (!(await wartenAufApp(k, dir))) abbrechen(`Die App von ${a.name} ist nicht gesund geworden; siehe: cd ${dir} && docker compose logs app`);
 }
 
+/**
+ * Die Liste für „Firma wechseln“ gleicht nur firmen ab: neu schriebe sie sonst in alle Instanzen und startete jede
+ * laufende App neu (#909)
+ */
+function zuFirmen(k: Kontext): void {
+  k.aus("Für „Firma wechseln“ zwischen den Instanzen danach: bun deploy/instanzen/haben-instanzen.ts firmen [<name> …]");
+}
+
 export async function neu(k: Kontext, a: NeuAngaben): Promise<void> {
   pruefeAngaben(a);
   await pruefeTrennung(k, a.name, a.domain);
@@ -176,12 +185,14 @@ export async function neu(k: Kontext, a: NeuAngaben): Promise<void> {
     k.aus(`Nicht gestartet (--nicht-starten). Der erste Start, ${zumErstenStart(a, dir)}`);
     for (const zeile of ersterStart(k, a, dir)) k.aus(zeile);
     if (!a.sso) k.aus("Den Einrichtungscode zeigt danach: docker compose logs app");
+    zuFirmen(k);
     return;
   }
   await starten(k, a, dir);
   k.aus("");
   if (a.sso) {
     k.aus(`Fertig. Einrichten: https://${a.domain}/setup, angemeldet als Mitglied von haben-${a.name}-inhaber.`);
+    zuFirmen(k);
     return;
   }
   const logs = await compose(k, dir, ["logs", "app"]);
@@ -191,4 +202,5 @@ export async function neu(k: Kontext, a: NeuAngaben): Promise<void> {
     .at(-1);
   if (code) k.aus(code.replace(/^[^|]*\| /, ""));
   k.aus(`Fertig. Einrichten: https://${a.domain}/setup mit dem Einrichtungscode.`);
+  zuFirmen(k);
 }

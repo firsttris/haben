@@ -7,6 +7,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { docker } from "./ausfuehren.ts";
 import { instanzen } from "./instanzen.ts";
+import { pruefeFirmenname } from "./firmen.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
 import { netzFuer, proxyDir } from "./proxy.ts";
 
@@ -14,6 +15,8 @@ export interface NeuAngaben {
   name: string;
   domain: string;
   herstellerId?: string;
+  /** Eintrag in der Liste von firmen (HABEN_FIRMENNAME); ohne gilt der Name */
+  firmenname?: string;
   ericHome?: string;
   eigenerProxy: boolean;
   starten: boolean;
@@ -47,6 +50,7 @@ export function pruefeAngaben(a: NeuAngaben): void {
   pruefeDomain(a.domain);
   // Wie ELSTER_HERSTELLER_ID in apps/web/src/server/env.ts: die App startet sonst nicht
   if (a.herstellerId !== undefined && !/^\d{5}$/.test(a.herstellerId)) abbrechen("Die Hersteller-ID besteht aus fünf Ziffern.");
+  if (a.firmenname !== undefined) pruefeFirmenname(a.firmenname, "--firmenname");
   if (a.ericHome !== undefined && !/^\/[A-Za-z0-9._/-]+$/.test(a.ericHome)) abbrechen("--eric-home braucht einen absoluten Pfad ohne Leerzeichen.");
   if (a.sso) {
     if (!a.sso.issuer.startsWith("https://")) abbrechen("--oidc-issuer muss mit https:// beginnen.");

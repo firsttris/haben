@@ -107,6 +107,7 @@ export {
   updateQuoteDraft,
   type QuoteListStatus,
 } from "./quotes.ts";
+export { searchInvoices, searchQuotes, type InvoiceHit, type QuoteHit } from "./search.ts";
 export {
   createRecurring,
   deleteRecurring,

@@ -112,6 +112,12 @@ const PATHS = {
       <path d="M12 11v5M12 8h.01" />
     </>
   ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.35-4.35" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof PATHS;
