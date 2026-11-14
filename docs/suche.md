@@ -24,7 +24,7 @@ Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Gruppe stehen bis zu fünf T
 | Gruppe | Gesucht wird in | Der Treffer zeigt |
 | --- | --- | --- |
 | Seiten | Name der Seite und ihrer Gruppe, auch die Bereiche der Einstellungen und [eigene Seiten](eigene-seiten.md) | Gruppe in der Navigation |
-| Kontakte | Name, Kunden- und Lieferantennummer, E-Mail, Ort, USt-IdNr., DATEV-Debitor und -Kreditor, Ende der IBAN ab vier Ziffern, Name und E-Mail der Ansprechpartner | Rolle und Ort |
+| Kontakte, ohne archivierte | Name, Kunden- und Lieferantennummer, E-Mail, Ort, USt-IdNr., DATEV-Debitor und -Kreditor, Ende der IBAN ab vier Ziffern, Name und E-Mail der Ansprechpartner | Rolle, Kunden- und Lieferantennummer, Ort |
 | Rechnungen | Nummer, Kunde, Bestellnummer, eigene Auftragsnummer, Betrag | Kunde, Datum, Betrag und Status mit Auskunft, etwa „seit 16 Tagen“ |
 | Angebote | Nummer, Kunde, Betrag | Kunde, Datum, Betrag und Status |
 | Belege | Lieferant, Rechnungsnummer, Dateiname, Betrag | Rechnungsnummer, Datum, Betrag und Status |
