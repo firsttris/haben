@@ -2,7 +2,7 @@ name: GoBD-Kern veröffentlichen
 
 # Ein Tag gobd-kern-vX.Y.Z veröffentlicht packages/gobd-kern als @firsttris/gobd-kern auf npm, unabhängig von den
 # Releases der App (Tags v*). Der Tag muss zur version in packages/gobd-kern/package.json passen; vorher laufen
-# Typecheck und die Tests des Pakets gegen Postgres. Secret: NPM_TOKEN (Automation-Token mit Schreibrecht für den
+# Typecheck und die Tests des Pakets gegen Postgres. Secret: NPM_TOKEN (Token mit Schreibrecht für den
 # Scope @firsttris).
 on:
   push:
