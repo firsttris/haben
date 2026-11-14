@@ -24,7 +24,9 @@ Nur `buchhaltung-1.0/`:
 - `rechnungen-aus-vorlage.json`: drei aus diesen Vorlagen erzeugte Rechnungen (`origin.id` zeigt auf die Vorlage), nur Status, die drei Datumsfelder und Texte, ohne Beträge.
 - `platzhalter-auftrag.json`: Angebot mit Platzhalter in `footText`.
 - `mahnung-mit-rechnung.json`: zwei Mahnungen (`invoiceType` MA, `status` 500, `dunningLevel` 1 und 2), von sevDesk nach dem Speichern als versendet geführt, dazu unter `gemahnteRechnung` die Rechnung, auf die `origin` zeigt; `GET /Invoice` liefert Mahnungen nur mit dem Filter `invoiceType=MA`.
-- `gutschrift.json`: fünf Gutschriften (`creditNote` und `positions`), je eine für jeden Wert von `bookingCategory`, alle fertiggestellt (`status` 200, `sendDate` gesetzt, `sendType` `VPDF`).
+- `gutschrift.json`: sechs Gutschriften (`creditNote` und `positions`), je eine für jeden Wert von `bookingCategory`, `ACCOUNTING_TYPE` einmal mit Erlöskonto und einmal mit dem Aufwandskonto „Dienstleister / Agenturen / Freelancer“. Alle fertiggestellt (`status` 200, `sendDate` gesetzt, `sendType` `VPDF`), die beiden Honorar-Gutschriften danach bezahlt (`status` 1000, `payDate` gesetzt, `paidAmount` fehlt bei Gutschriften). sevDesk bucht `ACCOUNTING_TYPE` mit Aufwandskonto wie Honorar (DATEV: Soll 3100, BU 9).
+- `accounting-type.json`: Antworten von `GET /AccountingType/{id}` zu den beiden Buchungskonten der `ACCOUNTING_TYPE`-Gutschriften in `gutschrift.json`, nur `id`, `objectName`, `name`, `skr03`, `skr04`, `type` und `translationCode`: „Dienstleister / Agenturen / Freelancer“ (3100/5900, `type` leer) und das Erlöskonto (8200/4200, `type` E). Kennungen wie in `gutschrift.json`.
+- `gutschrift-zahlungen.json`: die beiden Zahlungen aus `CheckAccountTransactionLog` zu den bezahlten Honorar-Gutschriften, als Auszahlung (`amountPaid` negativ, `fromStatus` 100, `toStatus` 400). Der Filter `object[id]` auf `CheckAccountTransactionLog` wirkt bei sevDesk nicht; die Einträge sind aus der vollen Liste über `object.id` gesucht.
 - `belege-zu-buchungen.json`: Rechnung und Belege, deren Nummer genau dem `Belegfeld 1` im Stapel entspricht, Beträge maskiert. Der Beleg zur Zahlungsbuchung ist erfunden.
 - `extf-buchungsstapel.csv`, `extf-gp-stamm.csv`, `document-rechnungseingang.xml`, `document-rechnungsausgang.xml`: Auszug aus einem DATEV-Jahresexport, 7 Buchungen und 2 Personenkonten. Die Beleglink-GUIDs der CSV passen zu den XML-Dateien. Die beiden CSV-Dateien sind Windows-1252 mit CRLF und müssen es bleiben.
 - `beleg-wiederkehrend-rv.json`: drei Vorlagen wiederkehrender Belege (`voucherType` RV): `status` 50 ohne nächsten Termin, 100 mit nächstem Termin, 1000 mit Enddatum.
@@ -42,6 +44,8 @@ Nur `buchhaltung-2.0/`:
 - `asset.json`, `vat-report.json`: Antworten von `GET /Asset` (eine Anlage) und `GET /VatReport` (vier übermittelte Voranmeldungen und ein Testfall mit `testCase` 1).
 - `mahnung-mit-rechnung.json`: Mahnung (`invoiceType` MA, `status` 1000, `dunningLevel` 1) und unter `gemahnte_rechnung` die Rechnung, auf die `origin` zeigt.
 - `gutschrift-underachievement.json`: Gutschrift mit `bookingCategory` `UNDERACHIEVEMENT` und Positionen; die einzige Art im Konto des Melders.
+- `gutschrift-kategorien.json`: drei Gutschriften aus einem zweiten Konto, je mit `creditNote`, `positions` und `accountingType` (`GET /AccountingType/{id}` des Kontos am Kopf): `PROVISION`, `ROYALTY_ASSIGNED` und `ROYALTY_UNASSIGNED` (versehentlich über 0 €). Je 1 € netto mit 19 %, fertiggestellt (`status` 200), nicht bezahlt. Am Kopf `taxRule` 9, `taxType` `null` und `taxRate` 0, die 19 % nur an den Positionen; `accountingType` am Kopf nur als Verweis. Kennungen und Nummern ersetzt, Beträge und Daten echt (Testbelege).
+- `extf-buchungsstapel-gutschriften.csv`, `document-rechnungsausgang-gutschriften.xml`: DATEV-Export dazu, Windows-1252 mit LF wie geliefert. Soll 4760 bzw. 3100 an Kreditor (Personenkonto durch 70001 ersetzt), BU 9; die Gutschrift über 0 € ohne Zeile. Das Belegbild steht unter Rechnungsausgang (`type` 2). Belegnummern `XX-1111111117` und `XX-1111111118`, USt-IdNr. `<anon>`, im Dateinamen festes Datum.
 - `dokumente-mit-rechnungsbezug.json`: drei Antworten von `GET /Document` mit dem Kontakt unter `object` und der Rechnung unter `baseObject`.
 - `extf-buchungsstapel-auszug.csv`, `extf-gp-stamm.csv`, `document-rechnungsausgang.xml`, `document-rechnungseingang.xml`: Auszug aus dem DATEV-Export mit je einer Rechnung, einem Ausgabebeleg, einer Zahlung und einer Gutschrift, zwei Personenkonten und je drei Einträgen in `document.xml`.
 
@@ -61,7 +65,7 @@ Nur `buchhaltung-2.0/`:
 | Anlagen (`/Asset`), nur Aufbau | ja | ja, Konto als `accountDatev` |
 | Umsatzsteuer-Voranmeldungen (`/VatReport`), nur Aufbau | ja | ja |
 | Datei mit Rechnungsbezug (`Document.baseObject`) | nein | ja |
-| Gutschrift (`CreditNote`), alle Werte von `bookingCategory` | ja, alle fertiggestellt | nur `UNDERACHIEVEMENT`, mit Positionen |
+| Gutschrift (`CreditNote`), alle Werte von `bookingCategory` | ja, alle fertiggestellt | `UNDERACHIEVEMENT`, `PROVISION`, `ROYALTY_ASSIGNED` und `ROYALTY_UNASSIGNED` (0 €), mit Positionen und DATEV-Export; `ACCOUNTING_TYPE` gibt es in 2.0 nicht |
 | DATEV-Export mit Beleglinks und `document.xml` | ja | ja, Auszug |
 | `taxRule` am Beleg | nein | 1, 4, 9, 10, 11, 12, 14, 15; dazu `taxType` `default` und `noteu` |
 

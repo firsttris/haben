@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { parsePersonenkonto } from "@haben/core";
+import { formatDecimal, parseEuro, parsePersonenkonto } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { UstIdHinweis } from "./UstIdHinweis.tsx";
 import { saveContact } from "../server/functions/contacts.ts";
@@ -101,10 +101,12 @@ export function ContactForm({
     const skonto = parseSkontoRows(skontoRows);
     const debitor = parsePersonenkonto("debitor", text("debitorNr"));
     const kreditor = parsePersonenkonto("kreditor", text("kreditorNr"));
+    const rate = text("hourlyRateCents") === "" ? null : parseEuro(text("hourlyRateCents"));
     void run(async () => {
       if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
       if (!debitor.ok) throw new Error(debitor.error);
       if (!kreditor.ok) throw new Error(kreditor.error);
+      if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw new Error("Der Stundensatz ist kein gültiger Betrag.");
       if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
       const input = {
         kundennummer: text("kundennummer"),
@@ -126,6 +128,7 @@ export function ContactForm({
         lieferantennummer: text("lieferantennummer"),
         debitorNr: debitor.value,
         kreditorNr: kreditor.value,
+        hourlyRateCents: rate,
       } satisfies ContactInput;
       const result = await save({ data: { id: contact?.id ?? null, contact: input } });
       if (onSaved) {
@@ -231,6 +234,19 @@ export function ContactForm({
             Personenkonten für den DATEV-Export an die Steuerberatung, getrennt von Kunden- und Lieferantennummer.
           </p>
         </div>
+        <div className="field-group">
+          <Field label="Stundensatz (€, optional)" hint="Vorgabe für neue Leistungseinträge dieses Kunden; jeder Eintrag behält den Satz vom Anlegen.">
+            {(control) => (
+              <input
+                {...control}
+                name="hourlyRateCents"
+                inputMode="decimal"
+                defaultValue={contact?.hourlyRateCents == null ? "" : formatDecimal(contact.hourlyRateCents)}
+                placeholder="95,00"
+              />
+            )}
+          </Field>
+        </div>
       </section>
 
       <section className="form-section" aria-labelledby="contact-address">
@@ -319,9 +335,6 @@ export function ContactForm({
       />
       <NoticeBanner notice={notice ?? (saved ? SAVED_NOTICE : null)} />
       <div className="actions form-footer">
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {contact ? "Speichern" : "Kontakt anlegen"}
-        </button>
         {onCancel ? (
           <button type="button" className="btn" onClick={onCancel} disabled={busy}>
             Abbrechen
@@ -331,6 +344,9 @@ export function ContactForm({
             Abbrechen
           </Link>
         )}
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {contact ? "Speichern" : "Kontakt anlegen"}
+        </button>
       </div>
     </form>
   );

@@ -19,10 +19,11 @@ import {
   kundeWaehlen,
   neuenKontaktOeffnen,
   ohneAxeVerstoesse,
-  receiptJpeg,
   rechnungFestschreiben,
   trefferliste,
+  randImDialog,
 } from "./einrichtung.ts";
+import { receiptJpeg } from "./belegbild.ts";
 
 /**
  * Rechnungen, Angebote und Kasse in eigener, leerer Datenbank (Projekt „rechnungen“, e2e/durchlaeufe.ts), parallel zu
@@ -51,6 +52,71 @@ test("Einrichtung mit drei Kunden und einer festgeschriebenen Rechnung", async (
   for (const kunde of CUSTOMERS) await kontaktAnlegen(page, kunde);
   // „Rechnung per E-Mail“ verschickt die erste festgeschriebene Rechnung der Liste
   await rechnungFestschreiben(page, INVOICES[0]!);
+});
+
+test("Grundstücksleistung: fester Aufbewahrungshinweis, Entwurf speichern und erneut laden (#718)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Beschreibung Position 1").fill("Terrassenrenovierung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("1200");
+  const haken = page.getByRole("checkbox", { name: "Leistung an einem Grundstück für einen Privatkunden (§ 14 Abs. 4 Nr. 9 UStG)" });
+  const vorschau = page.getByLabel("Vorschau der Rechnung");
+  await expect(haken).not.toBeChecked();
+  await expect(vorschau).not.toContainText("zwei Jahre aufzubewahren");
+  await haken.focus();
+  await page.keyboard.press("Space");
+  await expect(haken).toBeChecked();
+  await expect(vorschau).toContainText("zwei Jahre aufzubewahren");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await expect(page).toHaveURL(/\/rechnungen\/[0-9a-f-]{36}$/);
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(haken).toBeChecked();
+  await haken.uncheck();
+  await expect(vorschau).not.toContainText("zwei Jahre aufzubewahren");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Entwurf gespeichert." })).toBeVisible();
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(haken).not.toBeChecked();
+  await page.getByRole("button", { name: "Entwurf löschen", exact: true }).click();
+  await bestaetigen(page, "Entwurf löschen");
+  await expect(page).toHaveURL(/\/rechnungen(?:\?.*)?$/);
+
+  await go("/rechnungen/wiederkehrend/neu");
+  await expect(haken).not.toBeChecked();
+  await haken.check();
+  await expect(haken).toBeChecked();
+  await expect(haken).toHaveAccessibleDescription(/zweijährigen Aufbewahrung/);
+  await go("/angebote/neu");
+  await expect(haken).toHaveCount(0);
+});
+
+test("Abschlag: Anzahlung ist Vorgabe, erbrachte Teilleistung braucht ein Leistungsdatum (#622)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
+  const erbracht = page.getByRole("checkbox", { name: "Teilleistung bereits erbracht" });
+  await expect(erbracht).not.toBeChecked();
+  await expect(
+    page.getByText("Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung.", { exact: true }),
+  ).toBeVisible();
+  await erbracht.check();
+  await expect(page.getByLabel("Leistung von", { exact: true })).toHaveAttribute("required", "");
+  await expect(page.getByText("Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung.", { exact: true })).toBeVisible();
+  await erbracht.uncheck();
+  await expect(page.getByLabel("Leistung von", { exact: true })).not.toHaveAttribute("required");
+  for (const treatment of ["reverse_charge", "ig_lieferung", "drittland"]) {
+    await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption(treatment);
+    await expect(erbracht).toHaveAccessibleDescription(
+      "Für diese Steuerbehandlung gelten die bisherigen Meldezeitpunkte; die Zahlungsregel für inländische Anzahlungen gilt hier nicht.",
+    );
+  }
+  for (const treatment of ["ausfuhr", "steuerfrei"]) {
+    await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption(treatment);
+    await expect(erbracht).toHaveAccessibleDescription(
+      "Steuerfreie Anzahlung ohne Umsatzsteuerausweis. Der Meldezeitpunkt richtet sich nach Zahlung und Schlussleistung.",
+    );
+  }
+  await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption("regulaer");
 });
 
 test("Kontaktseite: Rechnungen des Kunden mit Summe je Jahr (#587)", async () => {
@@ -236,6 +302,7 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
   await neuenKontaktOeffnen(page);
   await expect(dialog).toBeVisible();
+  await randImDialog(dialog, [dialog.getByLabel("Name oder Firma"), dialog.getByRole("button", { name: "Kontakt anlegen" })]);
   await expect(dialog.getByLabel("Kunde", { exact: true })).toBeChecked();
   await expect(dialog.getByLabel("Lieferant", { exact: true })).not.toBeChecked();
   await dialog.getByRole("button", { name: "Abbrechen" }).click();
@@ -247,7 +314,7 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await dialog.getByLabel("Ort").fill("Bremen");
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByLabel("Kunde")).toHaveValue("Dialogkunde GmbH · Bremen");
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveValue("Dialogkunde GmbH · Bremen");
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Barrierefreiheit");
 
   // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
@@ -917,6 +984,7 @@ test("Artikel in der Position suchen: übernimmt Preis, Einheit und USt, bleibt 
   await trefferliste(page).getByRole("option", { name: "„Lektorat Fachtext“ als neuen Artikel anlegen" }).click();
   const dialog = page.getByRole("dialog", { name: "Neuen Artikel anlegen" });
   await expect(dialog.getByLabel("Bezeichnung")).toHaveValue("Lektorat Fachtext");
+  await randImDialog(dialog, [dialog.getByLabel("Bezeichnung"), dialog.getByRole("button", { name: "Anlegen" })]);
   await dialog.getByLabel("Artikelnummer (optional)").fill("L-07");
   await dialog.getByLabel("Einheit").selectOption("Stk.");
   await dialog.getByLabel("Preis (€)").fill("45,00");
@@ -1055,10 +1123,10 @@ test("Trefferliste ist barrierefrei, hell und dunkel (#359)", async () => {
     expect(await axeVerstoesse(page)).toEqual([]);
   };
   await pruefen();
-  await page.evaluate(() => localStorage.setItem("haben-theme", "nacht"));
+  await page.evaluate(() => localStorage.setItem("haben-modus", "dunkel"));
   await go("/rechnungen/neu");
   await pruefen();
-  await page.evaluate(() => localStorage.removeItem("haben-theme"));
+  await page.evaluate(() => localStorage.removeItem("haben-modus"));
 });
 
 test("Angebot festschreiben, annehmen und abrechnen", async () => {
@@ -1424,7 +1492,7 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
   await page.getByRole("link", { name: "Schlussrechnung erstellen" }).click();
   await page.waitForURL(/rechnungen\/neu\?schluss=/);
   await expect(page.getByRole("heading", { name: /^Schlussrechnung /, level: 1 })).toBeVisible();
-  await expect(page.getByLabel("Kunde")).toHaveValue("Rheinpixel GmbH · Köln");
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveValue("Rheinpixel GmbH · Köln");
   const abzug = page.getByRole("checkbox", { name: new RegExp(`Abschlagsrechnung ${number}`) });
   await expect(abzug).toBeChecked();
   await page.getByLabel("Beschreibung Position 1").fill("Relaunch Website gesamt");
@@ -1758,6 +1826,8 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   const context = await browser.newContext({ storageState: await page.context().storageState() });
   const axePage = await context.newPage();
   await axePage.goto(new URL("/csv-import?art=kontakte", page.url()).toString());
+  // Erst nach der Hydration wählen; sonst verwirft React die gewählte Datei
+  await axePage.waitForLoadState("networkidle");
   await axePage.getByLabel("CSV-Datei").setInputFiles([{ name: "kontakte.csv", mimeType: "text/csv", buffer: Buffer.from(kontakte, "latin1") }]);
   await axePage.getByRole("button", { name: "Vorschau" }).click();
   await expect(axePage.getByRole("region", { name: "Vorschau" })).toContainText("mit Fehlern");
@@ -1943,6 +2013,9 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
 
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
   await kundeWaehlen(page, "Alpenblick Media AG · München");
+  // Fällig in 7 Tagen: Auch wenn ein Wochenende oder Ostern die Fälligkeit um bis zu 4 Tage verschiebt, liegt sie
+  // weniger als 14 Tage entfernt, und der nächste Test kann die Lastschrift sofort einreichen (#904)
+  await page.getByLabel("Rechnungsdatum").fill(day(-7));
   await page.getByLabel("Zahlungsart").selectOption("lastschrift");
   // Das jüngste gültige Mandat des Kunden ist vorgewählt; Skonto entfällt bei Lastschrift
   // Über die Rolle: getByLabel mit exact vergleicht den ganzen Text des umschließenden Labels samt gewählter Option
@@ -2131,7 +2204,8 @@ test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschre
   await aendern.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Ansprechpartner gespeichert.")).toBeVisible();
   await karte.getByRole("button", { name: "Mara Beispielmann deaktivieren" }).click();
-  await expect(karte.getByText("Deaktiviert")).toBeVisible();
+  // exact (case-sensitive, ganzes Wort): sonst trifft der Substring auch den Hinweis „Wer nicht mehr dabei ist, wird deaktiviert.“ (#881)
+  await expect(karte.getByText("deaktiviert", { exact: true })).toBeVisible();
   expect(buyer(await (await page.request.get(`/api/rechnung/${id}/xml`)).text())).toContain("<ram:PersonName>Mara Beispiel</ram:PersonName>");
 
   // Eine deaktivierte Person wird im neuen Entwurf nicht mehr angeboten
@@ -2152,6 +2226,131 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
     "/einstellungen?bereich=email",
     "/einstellungen?bereich=ki",
   ]);
+});
+
+test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde filtern und löschen (#417)", async () => {
+  await go("/leistungen");
+  await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
+  await page.getByRole("button", { name: "Neuer Eintrag" }).click();
+  const neu = page.getByRole("form", { name: "Neuer Eintrag" });
+  await neu.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH" });
+  await neu.getByLabel("Dauer", { exact: true }).fill("1:30");
+  await neu.getByLabel(/Stundensatz/).fill("95");
+  await neu.getByLabel(/Tätigkeit/).fill("Konzept Datenmodell");
+  await neu.getByLabel(/Projekt/).fill("Relaunch Shop");
+  await neu.getByLabel(/Abrechenbare Dauer/).fill("1:00");
+  await neu.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByText("Eintrag angelegt.")).toBeVisible();
+
+  const liste = page.getByRole("region", { name: "Leistungsliste" });
+  await expect(liste).toContainText("Rheinpixel GmbH");
+  await expect(liste).toContainText("Konzept Datenmodell");
+  await expect(liste).toContainText("1:30 Std.");
+  await expect(liste).toContainText("Relaunch Shop");
+  // Berechnet wird die abrechenbare Stunde, nicht die erfassten 90 Minuten
+  await expect(liste).toContainText("abrechenbar 1:00");
+  await expect(liste).toContainText("95,00");
+  await expect(liste).not.toContainText("142,50");
+  // Mit Eintrag: keine axe-Verstöße, am Handy nicht breiter als der Bildschirm
+  await ohneAxeVerstoesse(page, ["/leistungen"]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  // Dauer unlesbar: Meldung, nichts gespeichert
+  await liste.getByRole("button", { name: /bearbeiten/ }).click();
+  const aendern = page.getByRole("form", { name: "Eintrag ändern" });
+  await aendern.getByLabel("Dauer", { exact: true }).fill("abc");
+  await aendern.getByRole("button", { name: "Speichern" }).click();
+  await expect(aendern.getByRole("alert")).toContainText("Die Dauer ist nicht lesbar");
+  await aendern.getByLabel("Dauer", { exact: true }).fill("2");
+  await aendern.getByLabel(/Abrechenbare Dauer/).fill("");
+  await aendern.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Eintrag gespeichert.")).toBeVisible();
+  await expect(liste).toContainText("2:00 Std.");
+  await expect(liste).toContainText("190,00");
+
+  // Der Filter nach Kunde blendet fremde Einträge aus
+  await page.getByRole("group", { name: "Filter" }).getByLabel("Kunde").selectOption({ label: "Nordwerk Software GmbH" });
+  await expect(liste).toContainText("Keine Einträge für diesen Filter.");
+  await page.getByRole("group", { name: "Filter" }).getByLabel("Kunde").selectOption({ label: "Alle Kunden" });
+  await expect(liste).toContainText("Konzept Datenmodell");
+
+  // Nicht abrechenbar: erfasst, aber ohne Betrag
+  await liste.getByRole("button", { name: /bearbeiten/ }).click();
+  await page
+    .getByRole("form", { name: "Eintrag ändern" })
+    .getByLabel(/Nicht abrechenbar/)
+    .check();
+  await page.getByRole("form", { name: "Eintrag ändern" }).getByRole("button", { name: "Speichern" }).click();
+  await expect(liste).toContainText("nicht abrechenbar");
+  await expect(liste).toContainText("davon abrechenbar 0:00 Std. mit 0,00");
+
+  // Löschen fragt vorher nach; Abbrechen löscht nichts
+  await liste.getByRole("button", { name: /löschen/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Eintrag löschen?" });
+  await expect(dialog).toContainText("Rheinpixel GmbH");
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(liste).toContainText("Konzept Datenmodell");
+  await liste.getByRole("button", { name: /löschen/ }).click();
+  await page.getByRole("dialog", { name: "Eintrag löschen?" }).getByRole("button", { name: "Löschen" }).click();
+  await expect(page.getByText("Eintrag gelöscht.")).toBeVisible();
+  await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
+});
+
+test("Leistungen abrechnen: Vorschau, Rechnungsentwurf mit Nachweis, Einträge gesperrt, nicht zweimal abrechenbar (#417)", async () => {
+  await go("/leistungen");
+  const eintraege: [string, string, boolean][] = [
+    ["1:30", "Konzept Datenmodell", false],
+    ["2:00", "Entwicklung Warenkorb", false],
+    ["0:45", "Interne Abstimmung", true],
+  ];
+  for (const [dauer, text, intern] of eintraege) {
+    await page.getByRole("button", { name: "Neuer Eintrag" }).click();
+    const neu = page.getByRole("form", { name: "Neuer Eintrag" });
+    await neu.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH" });
+    await neu.getByLabel("Dauer", { exact: true }).fill(dauer);
+    await neu.getByLabel(/Stundensatz/).fill("95");
+    await neu.getByLabel(/Tätigkeit/).fill(text);
+    if (intern) await neu.getByLabel(/Nicht abrechenbar/).check();
+    await neu.getByRole("button", { name: "Anlegen" }).click();
+    await expect(page.getByText("Eintrag angelegt.")).toBeVisible();
+  }
+
+  await page.getByRole("button", { name: "Abrechnen", exact: true }).click();
+  const abrechnen = page.getByRole("form", { name: "Leistungen abrechnen" });
+  await abrechnen.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH" });
+  await abrechnen.getByLabel("Von").fill("2020-01-01");
+  await abrechnen.getByLabel("Bis").fill("2099-12-31");
+  // Vorschau: die abrechenbaren Einträge, ohne den internen; 3,5 Std. zu 95,00 € = 332,50 €
+  await expect(abrechnen).toContainText("2 Einträge, 3:30 Std., zusammen 332,50");
+  await abrechnen.getByRole("button", { name: "Rechnungsentwurf anlegen" }).click();
+
+  // Der Entwurf zeigt, aus welchen Einträgen er entstanden ist
+  await expect(page).toHaveURL(/\/rechnungen\/[0-9a-f-]{36}/);
+  const nachweis = page.getByRole("region", { name: "Enthaltene Leistungen" });
+  await expect(nachweis).toContainText("Konzept Datenmodell");
+  await expect(nachweis).toContainText("Entwicklung Warenkorb");
+  await expect(nachweis).not.toContainText("Interne Abstimmung");
+
+  // Zurück in der Liste: abgerechnete Einträge sind verknüpft und nicht mehr änderbar, der interne bleibt offen
+  await go("/leistungen");
+  const liste = page.getByRole("region", { name: "Leistungsliste" });
+  await expect(liste.getByRole("link", { name: "Rechnungsentwurf" })).toHaveCount(2);
+  const zeile = (text: string) => liste.locator(".table-row").filter({ hasText: text });
+  await expect(zeile("Konzept Datenmodell").getByRole("button", { name: /bearbeiten/ })).toBeDisabled();
+  await expect(zeile("Konzept Datenmodell").getByRole("button", { name: /löschen/ })).toBeDisabled();
+  await expect(zeile("Interne Abstimmung").getByRole("button", { name: /bearbeiten/ })).toBeEnabled();
+  await page.getByRole("group", { name: "Filter" }).getByLabel("Stand").selectOption("abgerechnet");
+  await expect(liste).toContainText("Konzept Datenmodell");
+  await expect(liste).not.toContainText("Interne Abstimmung");
+
+  // Ein zweites Abrechnen findet nichts mehr
+  await page.getByRole("button", { name: "Abrechnen", exact: true }).click();
+  const noch = page.getByRole("form", { name: "Leistungen abrechnen" });
+  await noch.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH" });
+  await noch.getByLabel("Von").fill("2020-01-01");
+  await noch.getByLabel("Bis").fill("2099-12-31");
+  await expect(noch).toContainText("keine offenen, abrechenbaren Einträge");
+  await expect(noch.getByRole("button", { name: "Rechnungsentwurf anlegen" })).toBeDisabled();
 });
 
 test("Keine Fehler im Browser", async () => {

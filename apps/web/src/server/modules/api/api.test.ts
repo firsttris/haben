@@ -224,6 +224,23 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
   });
 
   describe("Rechnungsentwürfe", () => {
+    it("liest und setzt den Aufbewahrungshinweis; PATCH ohne Feld erhält die Auswahl und false schaltet sie aus", async () => {
+      const t = await token(["rechnungen:entwuerfe"]);
+      const created = await call(t, "POST", "/rechnungen", draft({ propertyRetention: true, note: "Freier Fußtext" }));
+      expect(created.status).toBe(201);
+      expect(created.json).toMatchObject({ propertyRetention: true, note: "Freier Fußtext" });
+      const id = created.json!.id;
+      expect((await call(t, "GET", `/rechnungen/${id}`)).json).toMatchObject({ propertyRetention: true });
+      const patched = await call(t, "PATCH", `/rechnungen/${id}`, { note: "Anderer Fußtext" });
+      expect(patched.status).toBe(200);
+      expect(patched.json).toMatchObject({ propertyRetention: true, note: "Anderer Fußtext" });
+      const disabled = await call(t, "PATCH", `/rechnungen/${id}`, { propertyRetention: false });
+      expect(disabled.status).toBe(200);
+      expect(disabled.json).toMatchObject({ propertyRetention: false, note: "Anderer Fußtext" });
+      expect((await call(t, "POST", "/rechnungen", draft())).json).toMatchObject({ propertyRetention: false });
+      expect((await call(t, "PATCH", `/rechnungen/${id}`, { propertyRetention: "true" })).status).toBe(400);
+    });
+
     it("legt einen Entwurf mit Vorgaben aus den Firmendaten an; Beträge in Cent", async () => {
       const t = await token(["rechnungen:entwuerfe"]);
       const created = await call(t, "POST", "/rechnungen", draft());
@@ -462,8 +479,18 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(response.status).toBe(200);
       const doc = response.json as { openapi: string; paths: Record<string, Record<string, { security: { token: string[] }[] }>> };
       expect(doc.openapi).toBe("3.1.0");
-      expect(Object.keys(doc.paths).sort()).toEqual(["/belege", "/belege/{id}", "/kontakte", "/kontakte/{id}", "/rechnungen", "/rechnungen/{id}"]);
+      expect(Object.keys(doc.paths).sort()).toEqual([
+        "/belege",
+        "/belege/{id}",
+        "/kontakte",
+        "/kontakte/{id}",
+        "/leistungen",
+        "/leistungen/{id}",
+        "/rechnungen",
+        "/rechnungen/{id}",
+      ]);
       expect(doc.paths["/rechnungen"]!.post!.security).toEqual([{ token: ["rechnungen:entwuerfe"] }]);
+      expect(doc.paths["/leistungen"]!.post!.security).toEqual([{ token: ["leistungen:schreiben"] }]);
     });
   });
 });

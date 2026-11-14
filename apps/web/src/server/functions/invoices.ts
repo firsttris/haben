@@ -1,10 +1,11 @@
 import { notFound } from "@tanstack/react-router";
-import { invoicesSentByMail, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
+import { invoicesSentByMail, leistungsmonatHinweisFuer, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { invoicePaymentList, listAccounts, listWriteOffs } from "../modules/bank/index.ts";
 import { openPositions } from "../modules/auswertungen/index.ts";
+import { serviceEntriesOfInvoice } from "../modules/leistungen/index.ts";
 import { editorContext } from "../modules/stammdaten/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import {
@@ -82,7 +83,7 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 async function invoiceEditorContext() {
   return {
     ...(await editorContext("rechnung")),
-    abschlaege: (await openAbschlaege()).map(({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, priceMode }) => ({
+    abschlaege: (await openAbschlaege()).map(({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, priceMode, propertyRetention }) => ({
       id,
       contactId,
       quoteId,
@@ -92,6 +93,7 @@ async function invoiceEditorContext() {
       rates,
       taxTreatment,
       priceMode,
+      propertyRetention,
     })),
     /** Festgeschriebene Angebote für den Bezug von Abschlags- und Schlussrechnungen */
     quotes: (
@@ -115,12 +117,15 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
     const result = await getInvoice(data);
     if (!result || (context.user.role !== "inhaber" && result.invoice.status === "draft")) throw notFound();
     const issues = result.invoice.status === "draft" ? await finalizeIssues(data) : [];
+    // Hinweis statt Sperre (#694): Der Leistungsmonat kann in einer schon übermittelten Voranmeldung liegen.
+    const leistungsmonat = await leistungsmonatHinweisFuer(result.invoice);
     // Mahnungen und ob die Rechnung gerade überfällig ist (offen und Fälligkeit vorbei)
     const listed = result.invoice.status === "final" ? (await listInvoices(today(), data))[0] : undefined;
     return {
       ...result,
       invoice: withoutFiles(result.invoice),
       issues,
+      leistungsmonat,
       attachments: (await listInvoiceAttachments(data)).map(({ id, filename, size }) => ({ id, filename, size })),
       dunnings: await dunningsFor([data]),
       mails: result.invoice.status === "final" ? await mailsForInvoice(data) : [],
@@ -137,9 +142,24 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
         )[0] ?? null,
       open: listed?.open ?? 0,
       listStatus: listed?.listStatus ?? null,
+      /** Für die Auskunft unter dem Status im Seitenkopf */
+      statusFacts: listed
+        ? {
+            listStatus: listed.listStatus,
+            dueDate: listed.dueDate,
+            gross: listed.gross,
+            paid: listed.paid,
+            open: listed.open,
+            settledOn: listed.settledOn,
+            cancelledBy: listed.cancelledBy,
+            correctsNumber: listed.correctsNumber,
+          }
+        : null,
       writeOffs: result.invoice.status === "final" ? await listWriteOffs({ invoiceId: data }) : [],
       /** Zahlungen über die Bank und bar im Kassenbuch */
       payments: result.invoice.status === "final" ? await invoicePaymentList(data) : [],
+      /** Leistungen, aus denen die Rechnung entstanden ist (Nachweis); die Steuerberatung sieht sie nicht, wie die Seite Leistungen */
+      serviceEntries: context.user.role === "inhaber" ? await serviceEntriesOfInvoice(data) : [],
       /** Vorschlag für das Datum einer Ausbuchung, nach deutscher Zeit */
       today: today(),
       ...(await abschlagLinks(data)),

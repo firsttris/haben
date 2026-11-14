@@ -161,7 +161,7 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
               <tr key={`${r.currency}-${r.month}`}>
                 <td>{formatRateMonth(r.month)}</td>
                 <td className="mono">{r.currency}</td>
-                <td className="num mono">{formatExchangeRate(r.rate)}</td>
+                <td className="num">{formatExchangeRate(r.rate)}</td>
                 <td className="small">{r.source === "bmf" ? `BMF, abgerufen ${formatDateTime(r.fetchedAt)}` : "von Hand"}</td>
                 <td>
                   {r.source === "manuell" && (

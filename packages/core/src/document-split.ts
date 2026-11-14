@@ -31,6 +31,8 @@ import type { Rechtsform } from "./rechtsform.ts";
 /** Eine Kontierungszeile, wie sie eingegeben wird */
 export interface DocumentSplitLine {
   category: ExpenseCategory;
+  /** Eigenes Sachkonto (#270) der Kategorie: gebucht wird auf dessen Nummer statt auf das Konto der Kategorie */
+  account?: string;
   taxRate: BasisPoints;
   net: Cents;
 }
@@ -120,8 +122,14 @@ export function documentSplitPosting(
   payment: DocumentPayment,
   vorsteuerAbzug = true,
   reverseCharge: ReverseChargeIn | null = null,
+  /** Gutschrift erstattet bereits Bezahltes (#786): Vorsteuerminderung erst mit dem Ausgleich, bis dahin Zwischenkonto */
+  erstattetBezahltes = false,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
+  if (erstattetBezahltes) {
+    if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
+    if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
+  }
   if (reverseCharge && !(reverseCharge in REVERSE_CHARGE_IN)) throw new RangeError(`${reverseCharge} mit Aufteilung wird nicht unterstützt`);
   const rcCode = reverseCharge ? REVERSE_CHARGE_IN[reverseCharge].code : null;
   if (rcCode && totals.taxes.some((t) => t.rate !== 1900 && t.rate !== 700)) throw new RangeError("§ 13b: Steuersatz muss 19 % oder 7 % sein");
@@ -133,7 +141,7 @@ export function documentSplitPosting(
     else expenses.set(key, { account, amount, code });
   };
   for (const line of lines) {
-    const account = EXPENSE_CATEGORIES[line.category][kontenrahmen];
+    const account = line.account ?? EXPENSE_CATEGORIES[line.category][kontenrahmen];
     if (vorsteuerAbzug) add(account, rcCode ?? inputTaxCode(line.taxRate), line.net);
     else if (rcCode) {
       // § 13b ohne Vorsteuerabzug: Netto mit dem Steuerschlüssel, die Steuer als Aufwand daneben, damit das Journal die
@@ -149,7 +157,10 @@ export function documentSplitPosting(
     if (rcCode) {
       if (vorsteuerAbzug) result.push(side(accounts.vorsteuerRc, tax, true, "VSt13b"));
       result.push(side(accounts.ustRc, tax, false, rcCode));
-    } else if (vorsteuerAbzug) result.push(side(accounts.vorsteuer[rate], tax, true, inputTaxCode(rate)));
+    } else if (vorsteuerAbzug) {
+      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[rate];
+      result.push(side(konto, tax, true, inputTaxCode(rate)));
+    }
   }
   const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
   result.push(side(counter, totals.gross, false, null));

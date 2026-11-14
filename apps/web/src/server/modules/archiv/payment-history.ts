@@ -2,6 +2,7 @@ import { formatEuro } from "@haben/core";
 import { lexDate } from "@haben/import";
 import { sql, type SQL } from "drizzle-orm";
 import type { LegacyPayment, LegacySource } from "../../db/schema.ts";
+import { expenseCreditNote } from "./sevdesk-richtung.ts";
 
 type PaymentSource = {
   source: LegacySource;
@@ -20,7 +21,8 @@ type PaymentSource = {
 const unpaid = (alias: string) => `coalesce(${alias}.raw->>'paidAmount', '') ~ '^0*([.,]0*)?$' and coalesce(${alias}.raw->>'payDate', '') = ''`;
 /**
  * Die Stornorechnung darf ein payDate tragen: sevDesk markiert sie beim Stornieren teils als bezahlt, ohne dass Geld floss
- * (#472, Entscheidung im Issue). Dann zählt nur ein ausdrücklich genanntes paidAmount von 0.
+ * (#472, Entscheidung im Issue). Dann zählt nur ein ausdrücklich genanntes paidAmount von 0. Ebenso legt sevDesk beim Stornieren
+ * teils einen Eintrag in CheckAccountTransactionLog mit amountPaid 0 an; eine Zuordnung über 0 € ist keine Zahlung.
  */
 const stornoUnpaid = (alias: string) => `(${unpaid(alias)} or ${alias}.raw->>'paidAmount' ~ '^0+([.,]0*)?$')`;
 const STORNO_PAIRS = sql.raw(`(select coalesce(jsonb_object_agg(member.id, storno.date), '{}'::jsonb)
@@ -32,7 +34,7 @@ const STORNO_PAIRS = sql.raw(`(select coalesce(jsonb_object_agg(member.id, storn
     and ${stornoUnpaid("storno")} and ${unpaid("original")}
     and not exists (select 1 from lexoffice_vouchers other where other.id <> storno.id and other.source = 'sevdesk'
       and upper(other.raw->>'invoiceType') = 'SR' and other.raw->'origin'->>'id' = storno.raw->'origin'->>'id')
-    and not exists (select 1 from legacy_voucher_payments paid where paid.voucher_id in (storno.id, original.id)))`);
+    and not exists (select 1 from legacy_voucher_payments paid where paid.voucher_id in (storno.id, original.id) and paid.amount <> 0))`);
 
 /**
  * Zahlungsstand mit den belegten Einzelzahlungen aus legacy_voucher_payments statt der gespeicherten Verdichtung.
@@ -44,7 +46,7 @@ const STORNO_PAIRS = sql.raw(`(select coalesce(jsonb_object_agg(member.id, storn
  */
 export function effectivePayment(alias: string): SQL<LegacyPayment | null> {
   const v = sql.raw(alias);
-  return sql<LegacyPayment | null>`coalesce((
+  const payment = sql`coalesce((
     select ${v}.payment || jsonb_build_object('status', 'cancelled', 'openAmount', 0, 'paidDate', null, 'items', '[]'::jsonb, 'history', 'storno', 'cancelledOn', pair.cancelled_on)
     from (select ${STORNO_PAIRS}->>(${v}.id::text) as cancelled_on) pair where pair.cancelled_on is not null and ${v}.payment is not null), (
     select jsonb_set(${v}.payment, '{items}', jsonb_agg(jsonb_build_object(
@@ -53,11 +55,19 @@ export function effectivePayment(alias: string): SQL<LegacyPayment | null> {
     from legacy_voucher_payments p where p.voucher_id = ${v}.id and ${v}.payment is not null
       and case when p.raw->>'create' ~ '^\\d{4}-\\d{2}-\\d{2}T' then (p.raw->>'create')::timestamptz <= ${v}.created_at else true end
     having count(*) > 0), ${v}.payment)`;
+  // Ausgabe-Gutschriften (Honorar, Provision) stehen zur Laufzeit mit positivem Brutto; der gespeicherte offene Betrag
+  // trägt noch das Vorzeichen der negativen Einnahme
+  return sql<LegacyPayment | null>`(select case when ${sql.raw(expenseCreditNote(alias))} and eff.p->>'openAmount' is not null
+      then jsonb_set(eff.p, '{openAmount}', to_jsonb(-(eff.p->>'openAmount')::numeric)) else eff.p end
+    from (select ${payment} as p) eff)`;
 }
 
-/** Belegte Einzelzahlungen erklären den Zahlungsstand nur, wenn sie in eine Richtung gehen und genau aufgehen. */
+/**
+ * Belegte Einzelzahlungen erklären den Zahlungsstand nur, wenn sie in eine Richtung gehen und genau aufgehen. Eine Zuordnung
+ * über 0 € hat keine Richtung (#472).
+ */
 function historyIssue(gross: number, payment: LegacyPayment): string | null {
-  const signs = new Set(payment.items.map((i) => Math.sign(i.amount)));
+  const signs = new Set(payment.items.filter((i) => i.amount !== 0).map((i) => Math.sign(i.amount)));
   if (signs.size > 1)
     return "sevDesk-Zahlungshistorie unvollständig: Die Einzelzahlungen enthalten Zahlung und Rückbuchung; Monatswerte und Stand am Stichtag müssen geklärt werden";
   const sum = payment.items.reduce((s, i) => s + Math.abs(i.amount), 0);

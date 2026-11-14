@@ -7,6 +7,7 @@ import {
   assetIssues,
   convertForeignAmounts,
   CURRENCY_CODE,
+  abziehbarerAnteil,
   einfuhrumsatzsteuerIssues,
   EXPENSE_CATEGORY_KEYS,
   formatRateMonth,
@@ -17,6 +18,7 @@ import {
   isKapitalgesellschaft,
   SELF_ASSESSED_TAX_KEYS,
   taxOf,
+  VOLLER_ABZUG,
   normalizeUstId,
   ustIdProblem,
   maxDegressiveRate,
@@ -31,10 +33,11 @@ import {
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { contactRoleProblem, loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
+import { documentOwnAccountProblems, loadOwnAccountNumbers } from "../eigene-konten/index.ts";
+import { contactRoleProblem, loadCompany, resolveExchangeRate, type Company } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
+import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { fileInUse } from "../../db/file-in-use.ts";
 import { today } from "../../today.ts";
@@ -57,7 +60,7 @@ export const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
 const isoDate = z.iso.date();
 const cents = z.number().int().min(-100_000_000_00).max(100_000_000_00);
 
-export const documentInputSchema = z.object({
+const documentFields = z.object({
   supplierName: z.string().trim().max(200),
   supplierUstId: z.string().trim().max(20),
   /** Aus den Kontakten gewählter Lieferant; null = frei eingetragen */
@@ -65,11 +68,27 @@ export const documentInputSchema = z.object({
   invoiceNumber: z.string().trim().max(100),
   documentDate: isoDate.nullable(),
   dueDate: isoDate.nullable(),
+  /** Leistungszeitraum aus dem Beleg (#693): „ausgeführt am“ ist der letzte Tag, siehe leistungsdatum() in @haben/core */
+  serviceFrom: isoDate.nullable().default(null),
+  serviceTo: isoDate.nullable().default(null),
   category: z.enum(EXPENSE_CATEGORY_KEYS).nullable(),
+  /** Eigenes Sachkonto (#270) der Kategorie; fehlt = das Konto der Kategorie. Mit Aufteilung stehen die Konten in den Zeilen */
+  ownAccountId: z.uuid().nullable().default(null),
   payment: z.enum(["bank", "privat", "kasse"]),
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
   privateShare: z.number().int().min(0).max(100).default(0),
+  /** Vorsteuerabzug am Beleg (#852): 0 = ohne, 10000 = voll; null = Vorgabe der Firmendaten. Teilabzug folgt mit #433 */
+  vorsteuerAnteil: z
+    .union([z.literal(0), z.literal(VOLLER_ABZUG)])
+    .nullable()
+    .default(null),
+  /**
+   * Gutschrift erstattet bereits Bezahltes (#786): etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
+   * schon bezahlte Rechnung. Die Vorsteuerminderung wird dann erst mit der Erstattung oder Verrechnung gezogen
+   * (§ 17 Abs. 1 Satz 2 und 8 UStG) und steht bis dahin auf dem Zwischenkonto. Nur an Gutschriften.
+   */
+  erstattetBezahltes: z.boolean().default(false),
   /** § 13b oder innergemeinschaftlicher Erwerb: Steuer schuldest du selbst; die Beträge tragen die selbst berechnete Steuer */
   reverseCharge: z.enum(SELF_ASSESSED_TAX_KEYS).nullable().default(null),
   /** Nur bei Kategorie „anlage“ */
@@ -114,6 +133,12 @@ export const documentInputSchema = z.object({
   splits: z.array(splitInputSchema).max(50).default([]),
 });
 
+// wie bei Rechnungen (invoices.ts): sonst nähme leistungsdatum() ein Ende vor dem Beginn als „ausgeführt am“
+export const documentInputSchema = documentFields.refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
+  message: "Leistungszeitraum endet vor seinem Beginn",
+  path: ["serviceTo"],
+});
+
 /** Höchstwert der int4-Spalten: umgerechnete Beträge (kleiner Kurs) dürfen ihn nicht sprengen */
 const MAX_EURO_CENTS = 2_147_483_647;
 
@@ -149,6 +174,26 @@ export function euroAmounts(input: {
 
 export type DocumentInput = z.input<typeof documentInputSchema>;
 
+/**
+ * Warum „erstattet bereits Bezahltes“ an diesem Beleg nicht geht; null = in Ordnung. Die Angabe sagt, was die Gutschrift
+ * mindert, und wird ausdrücklich gesetzt, nie aus dem Zahlungsstand abgeleitet: Der kann sich nach dem Belegdatum noch
+ * ändern, und die Voranmeldung des Belegmonats ist dann womöglich schon abgegeben (#786).
+ */
+function erstattetBezahltesProblem(
+  summen: { gross: Cents },
+  reverseCharge: string | null,
+  payment: "bank" | "privat" | "kasse",
+  category?: string | null,
+): string | null {
+  if (summen.gross >= 0) return "„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg";
+  if (reverseCharge) return "„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb";
+  if (category === "einfuhrumsatzsteuer") return "„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls";
+  // Ausgleichen geht nur über die Bank (Erstattung, Verrechnung, Ausbuchung); privat oder bar bezahlt käme die
+  // Vorsteuerminderung nie vom Zwischenkonto herunter
+  if (payment !== "bank") return "„Erstattet bereits Bezahltes“ gibt es nur an Belegen, die über die Bank bezahlt sind";
+  return null;
+}
+
 /** Kurs eines Fremdwährungsbelegs: Monat laut Belegdatum (siehe resolveExchangeRate) */
 function resolveRate(
   q: Db | Tx,
@@ -175,6 +220,9 @@ function fieldsFromEInvoice(invoice: IncomingInvoice): ExtractedFields {
     invoiceNumber: invoice.number,
     documentDate: invoice.issueDate,
     dueDate: invoice.dueDate ?? null,
+    // BT-73/BT-74 der E-Rechnung: der Leistungszeitraum ist die beste Vorbelegung, die ein Beleg mitbringt (#693)
+    serviceFrom: invoice.serviceFrom ?? null,
+    serviceTo: invoice.serviceTo ?? null,
     currency: invoice.currency,
     category: "sonstiges",
     amounts,
@@ -244,9 +292,13 @@ async function applyFields(
         invoiceNumber: fields.invoiceNumber,
         documentDate: fields.documentDate,
         dueDate: fields.dueDate,
+        serviceFrom: fields.serviceFrom,
+        serviceTo: fields.serviceTo,
         currency: fields.currency,
         ...rate,
         category,
+        // Die Kategorie gilt neu: ein eigenes Konto der alten passt nicht mehr
+        ownAccountId: null,
         ...(payment ? { payment } : {}),
         privateShare,
         ...totalsOf(amounts, doc.reverseCharge),
@@ -272,6 +324,7 @@ async function applyOwnInvoiceHint(actor: string, id: string, verdict: OwnInvoic
       .update(schema.documents)
       .set({
         category: null,
+        ownAccountId: null,
         privateShare: 0,
         extractionStatus: "fertig",
         extractionError: hint,
@@ -482,8 +535,23 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
       const problem = await contactRoleProblem(tx, parsed.supplierContactId, "lieferant", "Lieferant nicht gefunden.");
       if (problem) throw new DocumentError(problem);
     }
+    // Eigene Sachkonten (#270): am Beleg oder je Zeile, passend zur Kategorie; ein archiviertes nur, wenn schon gewählt
+    const beleg = parsed.splits.length > 0 ? { ownAccountId: null, category: null } : parsed;
+    const bisher = { beleg: previous.ownAccountId, zeilen: (await loadSplits(id, tx)).map((s) => s.ownAccountId) };
+    const [kontoProblem] = await documentOwnAccountProblems(tx, beleg, parsed.splits, bisher);
+    if (kontoProblem) throw new DocumentError(kontoProblem);
     const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
     const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
+    if (parsed.erstattetBezahltes) {
+      const problem = erstattetBezahltesProblem(totalsOf(amounts, parsed.reverseCharge), parsed.reverseCharge, parsed.payment, parsed.category);
+      if (problem) throw new DocumentError(problem);
+      // Dieselbe Sperre wie bei jeder Änderung am gebuchten Beleg: Ein gemeldeter Zeitraum bleibt unberührt (#786)
+      if (!previous.erstattetBezahltes && parsed.documentDate && (await periodReported(tx, parsed.documentDate))) {
+        throw new DocumentError(
+          "Der Belegmonat ist schon gemeldet; die Vorsteuerminderung ließe sich nach § 17 Abs. 1 Satz 2 UStG nicht mehr in ihm ziehen. Lass die Angabe weg oder nimm ein Belegdatum im laufenden Zeitraum.",
+        );
+      }
+    }
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
     if (amounts.length > 0) {
       await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
@@ -492,12 +560,14 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
     await replaceSplits(tx, id, parsed.splits, amounts);
     const { amounts: _amounts, splits, asset, ...fields } = parsed;
     const category = splits.length > 0 ? null : fields.category;
+    const ownAccountId = splits.length > 0 ? null : fields.ownAccountId;
     await tx
       .update(schema.documents)
       .set({
         ...fields,
         ...rate,
         category,
+        ownAccountId,
         asset: category === "anlage" ? (asset ?? null) : null,
         supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
         ...totalsOf(amounts, fields.reverseCharge),
@@ -603,6 +673,21 @@ function igErwerbIssues(doc: Document, amounts: DocumentAmount[]): string[] {
   return issues;
 }
 
+// Sperren beim innergemeinschaftlichen Erwerb, die Firma oder wirksamen Abzug kennen: Wer nur steuerfreie Umsätze
+// ohne Vorsteuerabzug ausführt (auch Kleinunternehmer, § 19 Abs. 1 UStG), erwirbt nur oberhalb der Erwerbsschwelle
+// oder mit Verzicht steuerpflichtig (§ 1a Abs. 3 Nr. 1 Buchst. a und Abs. 4 UStG). Die Erwerbsteuer in den
+// Anschaffungskosten einer Anlage wirkt nur über AfA, die Zahlung ans Finanzamt läge in der EÜR sonst zusätzlich
+// als Ausgabe — doppelt (§ 9b Abs. 1, § 4 Abs. 3 Satz 3 EStG); bis die EÜR das trennt: sperren
+function igErwerbFirmaIssues(doc: Document, company: Company, vorsteuerAbzug: boolean): string[] {
+  if (doc.reverseCharge !== "ig_erwerb") return [];
+  if (company.kleinunternehmer || company.ohneVorsteuerabzug)
+    return [
+      "Innergemeinschaftlicher Erwerb als Kleinunternehmer oder mit nur steuerfreien Umsätzen (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt",
+    ];
+  if (doc.category === "anlage" && !vorsteuerAbzug) return ["Innergemeinschaftlicher Erwerb einer Anlage ohne Vorsteuerabzug wird nicht unterstützt"];
+  return [];
+}
+
 /** Was vor dem Buchen fehlt; leere Liste = bereit. Mit Aufteilung (splits) statt der Kategorie die Zeilen geprüft. */
 export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDate = today(), splits: DocumentSplit[] = []): string[] {
   const issues: string[] = [];
@@ -668,28 +753,38 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   const company = await openBooks(tx);
   const amounts = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
   const splits = await loadSplits(id, tx);
+  // Abziehbarer Anteil der Vorsteuer: Kleinunternehmer nie, sonst die Angabe am Beleg vor der Firmenvorgabe (#852);
+  // beim Buchen am Beleg festgehalten, damit spätere Auswertungen stimmen
+  const vorsteuerAnteil = abziehbarerAnteil(company, doc.vorsteuerAnteil);
+  const vorsteuerAbzug = vorsteuerAnteil > 0;
   const issues = bookingIssues(doc, amounts, today(), splits);
   // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
   if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
   if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
+  issues.push(...igErwerbFirmaIssues(doc, company, vorsteuerAbzug));
   // Einfuhrumsatzsteuer (Kz 62): nur der Bescheid des Zolls allein, als Vorsteuer
   if (splits.length === 0 && doc.category === "einfuhrumsatzsteuer") {
     const rows = amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }));
-    issues.push(...einfuhrumsatzsteuerIssues({ taxes: rows }, !company.kleinunternehmer, doc.privateShare, doc.reverseCharge));
+    issues.push(...einfuhrumsatzsteuerIssues({ taxes: rows }, vorsteuerAbzug, doc.privateShare, doc.reverseCharge));
   }
   if (splits.some((s) => s.category === "einfuhrumsatzsteuer")) issues.push("Die Einfuhrumsatzsteuer lässt sich nicht mit anderen Kategorien aufteilen");
+  // Gutschrift, die bereits Bezahltes erstattet (#786): nur an einer Gutschrift und nur im noch nicht gemeldeten Zeitraum
+  if (doc.erstattetBezahltes) {
+    const problem = erstattetBezahltesProblem(totalsOf(amounts, doc.reverseCharge), doc.reverseCharge, doc.payment, doc.category);
+    if (problem) issues.push(problem);
+    else if (doc.documentDate && (await periodReported(tx, doc.documentDate))) {
+      issues.push("Der Belegmonat ist schon gemeldet; die Vorsteuerminderung nach § 17 Abs. 1 Satz 2 UStG lässt sich nicht mehr in ihm ziehen");
+    }
+  }
+  // Eigene Sachkonten (#270): Kontenrahmen oder Kategorie können sich seit dem Speichern geändert haben; das Konto selbst darf archiviert sein
+  const gespeichert = { beleg: doc.ownAccountId, zeilen: splits.map((s) => s.ownAccountId) };
+  issues.push(...(await documentOwnAccountProblems(tx, doc, splits, gespeichert)).map((p) => p.replace(/.$/, "")));
   if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
   const totals = belegSummen(doc, amounts);
-  // Kleinunternehmer ziehen keine Vorsteuer ab; festgehalten am Beleg, damit spätere Auswertungen stimmen
-  const vorsteuerAbzug = !company.kleinunternehmer;
-  // Kleinunternehmer erwerben nur oberhalb der Erwerbsschwelle oder mit Option steuerpflichtig (§ 1a Abs. 3 und 4 UStG)
-  if (doc.reverseCharge === "ig_erwerb" && company.kleinunternehmer) {
-    throw new DocumentError("Innergemeinschaftlicher Erwerb als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.");
-  }
   const asset = doc.category === "anlage" ? doc.asset : null;
-  const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug);
+  const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug, await loadOwnAccountNumbers(tx));
   const now = new Date();
   const entryId = await post(tx, company, {
     date: doc.documentDate!,
@@ -708,7 +803,10 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
       journalEntryId: entryId,
     });
   }
-  await tx.update(schema.documents).set({ status: "gebucht", vorsteuerAbzug, lockedAt: now, updatedAt: now }).where(eq(schema.documents.id, id));
+  await tx
+    .update(schema.documents)
+    .set({ status: "gebucht", vorsteuerAbzug, vorsteuerAnteil, lockedAt: now, updatedAt: now })
+    .where(eq(schema.documents.id, id));
   if (asset) {
     await tx.insert(schema.assets).values({
       name: asset.name,

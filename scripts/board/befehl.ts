@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { karte, kommentieren, projekt, statusSetzen, zuweisen, zuweisungAufheben } from "./github.ts";
+import { karte, kommentieren, projekt, statusSetzen, zugewiesenLesen, zuweisen, zuweisungAufheben } from "./github.ts";
 import { STATUS } from "./regel.ts";
 import { befehl, entscheiden, textFreigegeben, textZugewiesen } from "./uebernahme.ts";
 
@@ -29,7 +29,9 @@ const person: string = comment.user.login;
 const nummer: number = issue.number;
 const board = await projekt(projectToken, STATUS);
 const stand = await karte(projectToken, repo, nummer, board.id);
-const zugewiesen: string[] = issue.assignees.map((p: { login: string }) => p.login);
+// Nicht die Zuweisungen aus dem Ereignis: Kommentieren zwei kurz nacheinander, tragen beide Ereignisse noch den Stand
+// davor, und die Concurrency-Gruppe hält den zweiten Lauf nur an
+const zugewiesen = await zugewiesenLesen(github, repo, nummer);
 const ergebnis = entscheiden(was, { person, offen: stand.offen, status: stand.status, zugewiesen });
 console.log(`#${nummer} ${was} von ${person}: ${ergebnis.art}`);
 

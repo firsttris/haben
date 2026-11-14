@@ -7,7 +7,7 @@ description: >-
 
 # Angebote
 
-Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Nimmt der Kunde an, machst du daraus mit einem Klick eine Rechnung.
+Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Nimmt der Kunde an, machst du daraus mit einem Klick eine Rechnung. Das Suchfeld über der Liste filtert nach Nummer, Kunde und Bruttobetrag, die [Schnellsuche](suche.md) über alle Bereiche.
 
 ## Angebot schreiben
 
@@ -15,7 +15,7 @@ Einleitung, Texte zu Positionen und Hinweis unterstützen [fett, kursiv und unte
 
 **Neues Angebot** öffnet den Editor:
 
-- Kunde und, wenn er Personen hat, ein [Ansprechpartner](rechnungen.md#ansprechpartner) („z. Hd.“ im PDF und in Auftragsbestätigung und Lieferschein)
+- Kunde und, wenn er Personen hat, ein [Ansprechpartner](kontakte.md#ansprechpartner) („z. Hd.“ im PDF und in Auftragsbestätigung und Lieferschein)
 - Angebotsdatum
 - **Gültig bis**, vorbelegt mit 30 Tagen
 - optional der geplante Leistungszeitraum
@@ -85,7 +85,7 @@ Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Fü
 
 ## Per E-Mail senden
 
-**Angebot senden** schickt das PDF über deinen [E-Mail-Zugang](einrichtung.md):
+**Angebot senden** schickt das PDF über deinen [E-Mail-Zugang](einrichtung-email.md):
 
 - Empfänger, Betreff und Text sind vorbelegt und lassen sich ändern. Betreff und Text kommen aus der Vorlage Angebot (siehe [Vorlagen](rechnungen.md#per-e-mail-versenden)).
 - Hat das Angebot [Anhänge](#anhänge), stehen sie unter **Zusätzliche Anhänge mitsenden**, alle angehakt. Was nicht mitgehen soll, hakst du ab; sie kommen nach dem PDF des Angebots in die E-Mail.
@@ -98,14 +98,14 @@ Für Kunden mit Sprache Englisch sind Angebot und E-Mail englisch, siehe [Rechnu
 
 Auf der Seite des Angebots hältst du die Antwort des Kunden fest:
 
-| Status | Bedeutung |
-| --- | --- |
-| Entwurf | noch nicht festgeschrieben |
-| Offen | festgeschrieben, Gültigkeit läuft |
-| Abgelaufen | keine Antwort und „Gültig bis“ ist vorbei |
-| Angenommen | als angenommen markiert |
-| Abgelehnt | als abgelehnt markiert |
-| Abgerechnet | aus dem Angebot ist eine Rechnung entstanden |
+| Status | Bedeutung | Darunter in der Liste |
+| --- | --- | --- |
+| Entwurf | noch nicht festgeschrieben | – |
+| Offen | festgeschrieben, Gültigkeit läuft | wie viele Tage es noch gilt |
+| Abgelaufen | keine Antwort und „Gültig bis“ ist vorbei | seit wie vielen Tagen |
+| Angenommen | als angenommen markiert; das Wort steht in Grün, weil die Rechnung ansteht | noch nicht abgerechnet |
+| Abgelehnt | als abgelehnt markiert | – |
+| Abgerechnet | aus dem Angebot ist eine Rechnung entstanden | Nummer der Rechnung, sobald sie festgeschrieben ist |
 
 **Rechnung erstellen** legt einen Rechnungsentwurf an und markiert das Angebot als angenommen. Der Entwurf übernimmt:
 

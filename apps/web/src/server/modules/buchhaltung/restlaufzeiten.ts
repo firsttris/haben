@@ -21,6 +21,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { loadCompany } from "../stammdaten/index.ts";
+import { advanceReceivablesAt } from "../rechnungen/index.ts";
 import { jahresBilanzen } from "./bilanzen.ts";
 import { accountName } from "./journal.ts";
 
@@ -74,6 +75,7 @@ async function spaetFaellig(year: number): Promise<SpaetFaellig> {
       (select greatest(coalesce(sum(case when i.kind = 'korrektur' then least(o.offen, 0) else greatest(o.offen, 0) end), 0), 0)
          from invoices i cross join lateral (select i.gross - ${erledigt("invoice_id", sql.raw("i.id"))} as offen) o
         where i.status = 'final' and i.kind in ('rechnung', 'korrektur') and i.issue_date <= ${stichtag} and i.due_date > ${grenze}
+          and i.advance_accounting is distinct from 'deferred'
           and not exists (select 1 from invoices s where s.corrects_id = i.id and s.kind = 'storno' and s.status = 'final' and s.issue_date <= ${stichtag})
       ) as forderungen,
       (select coalesce(sum(greatest(d.gross + ${erledigt("document_id", sql.raw("d.id"))}, 0)), 0)
@@ -81,7 +83,13 @@ async function spaetFaellig(year: number): Promise<SpaetFaellig> {
         where d.status = 'gebucht' and d.payment = 'bank' and d.document_date <= ${stichtag} and d.due_date > ${grenze}
           and not exists (select 1 from document_cancellations c where c.document_id = d.id and c.date <= ${stichtag})
       ) as verbindlichkeiten`);
-  return { forderungen: Number(row?.forderungen ?? 0), verbindlichkeiten: Number(row?.verbindlichkeiten ?? 0) };
+  // Neue Anforderungen sind vor Leistung unbilanziert. Ein Papierstorno nimmt einen realisierten Schlussrest nicht
+  // zurück; der gemeinsame Leser erhält damalige Fälligkeit und Zahlungen über die gespeicherte Ersatzkette.
+  const advances = await advanceReceivablesAt(stichtag);
+  const neueForderungen = advances.positions
+    .filter((p) => (p.kind === "receivable" || p.kind === "unbilled") && p.dueDate > grenze)
+    .reduce((sum, p) => sum + p.open, 0);
+  return { forderungen: Math.max(0, Number(row?.forderungen ?? 0) + neueForderungen), verbindlichkeiten: Number(row?.verbindlichkeiten ?? 0) };
 }
 
 interface Stichtag {

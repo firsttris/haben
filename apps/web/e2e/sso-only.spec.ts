@@ -3,6 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import postgres from "postgres";
 import { spawn } from "node:child_process";
+import { serverEnvironment } from "./server-env.ts";
 
 /*
  * SSO-Modus im Browser (playwright.sso-only.config.ts): Ersteinrichtung nur durch die Inhaber-Gruppe, automatische
@@ -16,12 +17,12 @@ async function capture(page: Page, view: string) {
   if (!output) return;
   await mkdir(output, { recursive: true });
   const original = page.viewportSize();
-  // Wie die Auswahl unten in der Navigation: Theme im Browser speichern, Seite neu laden (nur GET-Seiten)
-  for (const [scheme, theme] of [
-    ["light", "wald"],
-    ["dark", "nacht"],
+  // Wie die Auswahl unten in der Navigation: Modus im Browser speichern, Seite neu laden (nur GET-Seiten)
+  for (const [scheme, modus] of [
+    ["light", "hell"],
+    ["dark", "dunkel"],
   ] as const) {
-    await page.evaluate((t) => localStorage.setItem("haben-theme", t), theme);
+    await page.evaluate((m) => localStorage.setItem("haben-modus", m), modus);
     await page.reload({ waitUntil: "networkidle" });
     for (const [size, viewport] of [
       ["desktop", { width: 1280, height: 900 }],
@@ -32,7 +33,7 @@ async function capture(page: Page, view: string) {
       await page.screenshot({ path: `${output}/${view}-${scheme}-${size}.png`, fullPage: true, animations: "disabled" });
     }
   }
-  await page.evaluate(() => localStorage.setItem("haben-theme", "wald"));
+  await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
   if (original) await page.setViewportSize(original);
 }
 
@@ -154,7 +155,7 @@ test("SSO-Modus: Einrichtung, automatische Anlage, Zugänge, Gruppenentzug und e
     await guest.goto(`${BASE}/steuerberatung`, { waitUntil: "networkidle" });
     await expect(guest).toHaveURL(/\/login/);
     await page.reload({ waitUntil: "networkidle" });
-    await expect(page.getByRole("region", { name: "Zugänge" })).toContainText("kein Zugang");
+    await expect(page.getByRole("region", { name: "Zugänge" })).toContainText("Kein Zugang");
 
     // Abgelaufene Berechtigung: Zugriff verweigert, Weg zur erneuten SSO-Anmeldung, keine automatische Schleife
     await sql`update session set sso_expires_at = now() - interval '1 second' where user_id = (select id from "user" where email = 'inhaberin@example.de')`;
@@ -266,7 +267,7 @@ test("SSO: API/MCP und Kalender nach Herabstufung übernehmen und reaktivieren",
 test("Produktionsserver beendet sich bei fehlgeschlagener Datenbank-Startprüfung", async () => {
   test.skip(!process.env.E2E_SERVER_COMMAND, "Nur gegen den Produktionsbuild");
   const child = spawn("bun", [".output/server/index.mjs"], {
-    env: {
+    env: serverEnvironment({
       ...process.env,
       DATABASE_URL: "postgres://test@127.0.0.1:1/startup_failure",
       BETTER_AUTH_URL: BASE,
@@ -274,7 +275,7 @@ test("Produktionsserver beendet sich bei fehlgeschlagener Datenbank-Startprüfun
       HABEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
       OIDC_ONLY: "false",
       PORT: "3298",
-    },
+    }),
     stdio: "ignore",
   });
   let timer: ReturnType<typeof setTimeout> | undefined;

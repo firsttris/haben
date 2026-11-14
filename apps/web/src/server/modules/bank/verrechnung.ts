@@ -1,18 +1,26 @@
 import { randomUUID } from "node:crypto";
-import { formatEuro } from "@haben/core";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { formatEuro, verrechnungPosting, type Kontenrahmen, type PostingLine } from "@haben/core";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
-import { settledOn } from "./bank.ts";
+import { openBooks, post } from "../buchhaltung/index.ts";
+import { reverseLinesIn, settledOn } from "./bank.ts";
+import { belegTotals, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 
 /*
  * Verrechnung zweier Eingangsbelege ohne Zahlung (#274): eine Gutschrift des Lieferanten gleicht eine
  * oder mehrere Rechnungen aus. Beide Belege bleiben erhalten, es entsteht kein Bankumsatz und kein
  * Kassenstand ändert sich. Je Verrechnung zwei Zeilen in `document_settlements`, damit jede Seite für
  * sich als erledigt zählt; aufgehoben wird per Gegenzeile wie bei den Ausbuchungen.
+ *
+ * Gebucht wird je Belegseite eine eigene Buchung, jede mit ihrem Beleg (source_type 'verrechnung',
+ * source_id der Zeile in `document_settlements`): Verbindlichkeiten gegen das Verrechnungskonto. Erst damit
+ * trägt die Verrechnung einen Vorgangsbezug, den der DATEV-Export für das Personenkonto braucht; eine
+ * gemeinsame Sammelbuchung über zwei Belege (früher #785) hätte ihn nicht. Die Seite der Gutschrift trägt
+ * zusätzlich die Umbuchung der Vorsteuer aus dem Zwischenkonto (#786).
  *
  * Beide Zeilen einer Verrechnung tragen dieselbe `settlement_id`: Aufheben trifft damit genau dieses Paar,
  * auch wenn zwischen denselben Belegen mehrfach derselbe Betrag verrechnet wurde. Die Gegenzeilen einer
@@ -53,9 +61,15 @@ async function beleg(tx: Tx, id: string, sperren = false) {
       id: schema.documents.id,
       date: schema.documents.documentDate,
       supplier: schema.documents.supplierName,
+      invoiceNumber: schema.documents.invoiceNumber,
+      filename: schema.documents.filename,
+      net: schema.documents.net,
+      tax: schema.documents.tax,
       gross: schema.documents.gross,
       payment: schema.documents.payment,
       status: schema.documents.status,
+      privateShare: schema.documents.privateShare,
+      erstattetBezahltes: schema.documents.erstattetBezahltes,
     })
     .from(schema.documents)
     .where(eq(schema.documents.id, id));
@@ -95,7 +109,7 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
       if (d.status !== "gebucht") throw new SettlementError(`Beleg ${d.date ?? ""} ist nicht gebucht.`);
       if (d.payment !== "bank") throw new SettlementError(`Beleg ${d.date ?? ""} läuft nicht über die Bank und hat keinen offenen Posten.`);
     }
-    // Eine Gutschrift gleicht nur Belege desselben Lieferanten aus (docs/belege.md); die Kandidatenliste filtert danach,
+    // Eine Gutschrift gleicht nur Belege desselben Lieferanten aus (docs/belege-bezahlen.md); die Kandidatenliste filtert danach,
     // der Server muss es selbst prüfen.
     const nameA = lieferant(a.supplier);
     const nameB = lieferant(b.supplier);
@@ -136,17 +150,81 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
     const date = parsed.date;
     // Gemeinsame Kennung für beide Zeilen: die Aufhebung findet das Paar damit eindeutig
     const settlementId = randomUUID();
-    // Das Vorzeichen kommt aus dem offenen Rest, nicht aus der Rolle des Belegs: die Zeile muss den Rest
-    // gegen Null bewegen. Fest an documentId/counterDocumentId gebunden waere es falsch, sobald der geoeffnete
-    // Beleg die Gutschrift ist (negativer Rest) — dann waechst der offene Rest auf beiden Seiten.
+    const company = await openBooks(tx);
+    // Betrag je Seite mit dem Vorzeichen der Zeile in document_settlements: negativ bei der Rechnung, deren
+    // Verbindlichkeit sinkt, positiv bei der Gutschrift. Aus dem offenen Rest, nicht aus der Rolle des Belegs: sonst
+    // wäre es falsch, sobald der geöffnete Beleg die Gutschrift ist (negativer Rest) und der Rest wüchse auf beiden Seiten.
+    const betraege = [-Math.sign(restA) * parsed.amount, -Math.sign(restB) * parsed.amount];
+    // Vorsteuer einer Gutschrift „erstattet bereits Bezahltes“ (#786): Die Aufrechnung ist der Ausgleich, der sie mindert,
+    // also geht der verrechnete Anteil vom Zwischenkonto auf die Vorsteuer (§ 17 Abs. 1 Satz 2 und 8 UStG). Die Zeilen
+    // stehen vor dem Einfügen der Verrechnung fest: sonst zählte der verrechnete Betrag schon als erledigt.
+    const steuer: PostingLine[][] = [];
+    for (const [seite, doc] of [a, b].entries()) {
+      steuer.push(doc.erstattetBezahltes ? await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), betraege[seite]!, company.kontenrahmen) : []);
+    }
     const rows = await tx
       .insert(schema.documentSettlements)
       .values([
-        { documentId: a.id, counterDocumentId: b.id, settlementId, date, amount: -Math.sign(restA) * parsed.amount, note: parsed.note, createdBy: actor },
-        { documentId: b.id, counterDocumentId: a.id, settlementId, date, amount: -Math.sign(restB) * parsed.amount, note: parsed.note, createdBy: actor },
+        { documentId: a.id, counterDocumentId: b.id, settlementId, date, amount: betraege[0]!, note: parsed.note, createdBy: actor },
+        { documentId: b.id, counterDocumentId: a.id, settlementId, date, amount: betraege[1]!, note: parsed.note, createdBy: actor },
       ])
       .returning({ id: schema.documentSettlements.id });
+    // Zwei Buchungen, je Belegseite eine (#786): Die Zeile in document_settlements ist ihre Quelle, damit der DATEV-Export
+    // den Beleg und daran das Personenkonto findet. Die Steuerzeilen der Gutschrift stehen in derselben Buchung; so dreht
+    // eine Aufhebung beide zusammen um.
+    for (const [seite, doc] of [a, b].entries()) {
+      await post(tx, company, {
+        date,
+        description: `Verrechnung · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplier}`,
+        sourceType: "verrechnung",
+        sourceId: rows[seite]!.id,
+        lines: [...verrechnungPosting(betraege[seite]!, company.kontenrahmen), ...steuer[seite]!],
+      });
+    }
     return { ids: rows.map((r) => r.id), amount: parsed.amount, date };
+  });
+}
+
+/**
+ * Gegenbuchung einer Verrechnungsbuchung (#786): dieselben Zeilen, Soll und Haben getauscht, am Tag der Aufhebung. Eine
+ * Buchung von vor dieser Etappe (nur die Umbuchung der Vorsteuer) wird genauso umgedreht; eine Verrechnung ganz ohne
+ * Buchung bleibt ohne Gegenbuchung, sie lässt sich nicht rückwirkend nachbuchen.
+ */
+async function storniereVerrechnung(
+  tx: Tx,
+  company: Awaited<ReturnType<typeof openBooks>>,
+  verrechnungId: string,
+  gegenId: string,
+  date: string,
+): Promise<void> {
+  const [original] = await tx
+    .select({ id: schema.journalEntries.id, description: schema.journalEntries.description, kontenrahmen: schema.journalEntries.kontenrahmen })
+    .from(schema.journalEntries)
+    .where(
+      and(eq(schema.journalEntries.sourceType, "verrechnung"), eq(schema.journalEntries.sourceId, verrechnungId), isNull(schema.journalEntries.reversesId)),
+    );
+  if (!original) return;
+  const zeilen = await tx
+    .select({
+      account: schema.journalLines.account,
+      debit: schema.journalLines.debit,
+      credit: schema.journalLines.credit,
+      taxCode: schema.journalLines.taxCode,
+      basis: schema.journalLines.basis,
+    })
+    .from(schema.journalLines)
+    .where(eq(schema.journalLines.entryId, original.id));
+  await post(tx, company, {
+    date,
+    description: `Storno: ${original.description}`,
+    sourceType: "verrechnung",
+    sourceId: gegenId,
+    reversesId: original.id,
+    lines: reverseLinesIn(
+      original.kontenrahmen as Kontenrahmen,
+      company.kontenrahmen,
+      zeilen.map((l) => ({ ...l, taxCode: l.taxCode as PostingLine["taxCode"] })),
+    ),
   });
 }
 
@@ -193,28 +271,35 @@ export async function reverseSettlement(actor: string, id: string, date: string,
     const aufhebung = (alt: string) => (parsed.note ? `Aufhebung: ${alt} (${parsed.note})` : `Aufhebung: ${alt}`);
     // Die Gegenzeilen sind selbst ein Paar: beide mit derselben, neuen Kennung
     const settlementId = randomUUID();
-    await tx.insert(schema.documentSettlements).values([
-      {
-        documentId: row.documentId,
-        counterDocumentId: row.counterDocumentId,
-        settlementId,
-        date: parsed.date,
-        amount: -row.amount,
-        note: aufhebung(row.note),
-        reversesId: row.id,
-        createdBy: actor,
-      },
-      {
-        documentId: partner.documentId,
-        counterDocumentId: partner.counterDocumentId,
-        settlementId,
-        date: parsed.date,
-        amount: -partner.amount,
-        note: aufhebung(partner.note),
-        reversesId: partner.id,
-        createdBy: actor,
-      },
-    ]);
+    const gegen = await tx
+      .insert(schema.documentSettlements)
+      .values([
+        {
+          documentId: row.documentId,
+          counterDocumentId: row.counterDocumentId,
+          settlementId,
+          date: parsed.date,
+          amount: -row.amount,
+          note: aufhebung(row.note),
+          reversesId: row.id,
+          createdBy: actor,
+        },
+        {
+          documentId: partner.documentId,
+          counterDocumentId: partner.counterDocumentId,
+          settlementId,
+          date: parsed.date,
+          amount: -partner.amount,
+          note: aufhebung(partner.note),
+          reversesId: partner.id,
+          createdBy: actor,
+        },
+      ])
+      .returning({ id: schema.documentSettlements.id });
+    // Die Buchungen beider Seiten (#786) fallen mit der Aufhebung: je Seite eine Gegenbuchung am Tag der Aufhebung,
+    // nicht rückwirkend. Ältere Verrechnungen ohne Buchung bleiben ohne Gegenbuchung.
+    const company = await openBooks(tx);
+    for (const [i, verrechnung] of [row, partner].entries()) await storniereVerrechnung(tx, company, verrechnung.id, gegen[i]!.id, parsed.date);
     return { ok: true as const, date: parsed.date };
   });
 }
@@ -239,13 +324,38 @@ export async function listSettlements(documentId: string, q: Db | Tx = db) {
     .orderBy(asc(schema.documentSettlements.date), asc(schema.documentSettlements.createdAt));
 }
 
-/** Offene Belege desselben Lieferanten, die als Gegenbeleg in Frage kommen (anderes Vorzeichen) */
+/**
+ * Offene Belege desselben Lieferanten, die als Gegenbeleg in Frage kommen (anderes Vorzeichen)
+ *
+ * Der Lieferant wird in JavaScript verglichen, nicht per `lower()` in SQL: `settleDocuments` entscheidet ebenfalls
+ * in JavaScript, und nur derselbe Normalisierer (`lieferant`) garantiert, dass die Liste genau die Paare anbietet,
+ * die der Server annimmt. Postgres `lower()` und JavaScript `toLowerCase()` falten Unicode unterschiedlich — bei
+ * İ (U+0130) ergibt `lower()` in UTF-8 „istanbul“, `toLowerCase()` dagegen „i“ plus kombinierenden Punkt (U+0307).
+ * In Datenbanken ohne UTF-8-Locale (lc_ctype = 'C') faltet `lower()` außerdem nur ASCII, also „MÜLLER“ nicht zu
+ * „müller“.
+ *
+ * Das Limit von 50 greift erst nach dem Filtern: Sonst verdrängten fremde Belege mit jüngerem Datum die passenden
+ * Kandidaten aus der Liste.
+ */
 export async function settlementCandidates(documentId: string, q: Db | Tx = db) {
   const [doc] = await q
-    .select({ supplier: schema.documents.supplierName, gross: schema.documents.gross })
+    .select({
+      supplier: schema.documents.supplierName,
+      gross: schema.documents.gross,
+      status: schema.documents.status,
+      payment: schema.documents.payment,
+    })
     .from(schema.documents)
     .where(eq(schema.documents.id, documentId));
-  if (!doc) return [];
+  // Dieselben Bedingungen wie in settleDocuments: der geöffnete Beleg muss gebucht sein und über die Bank laufen
+  if (doc?.status !== "gebucht" || doc.payment !== "bank") return [];
+  // Ohne Lieferanten gibt es keinen Gegenbeleg: settleDocuments lehnt den Beleg ab, und ein Vergleich mit „“ träfe
+  // jeden Beleg ohne Lieferanten (siehe `lieferant`).
+  const name = lieferant(doc.supplier);
+  if (!name) return [];
+  // Ein stornierter Beleg lässt sich nicht verrechnen; die Liste bietet ihn deshalb auch nicht an (docs/belege-bezahlen.md)
+  const storniert = await q.execute<{ id: string }>(sql`select id from document_cancellations where document_id = ${documentId} limit 1`);
+  if (storniert.length > 0) return [];
   const rows = await q.execute<{
     id: string;
     document_date: string;
@@ -261,12 +371,13 @@ export async function settlementCandidates(documentId: string, q: Db | Tx = db) 
      where d.id <> ${documentId}
        and d.status = 'gebucht'
        and d.payment = 'bank'
-       and lower(d.supplier_name) = lower(${doc.supplier ?? ""})
+       and not exists (select 1 from document_cancellations c where c.document_id = d.id)
        and sign(d.gross) <> sign(${doc.gross ?? 0})
-     order by d.document_date desc
-     limit 50`);
+     order by d.document_date desc`);
+  // Erst filtern, dann begrenzen: der Lieferantenvergleich läuft in JavaScript (`lieferant`), nicht im SQL
   return [...rows]
-    .filter((r) => Number(r.rest) !== 0)
+    .filter((r) => Number(r.rest) !== 0 && lieferant(r.supplier_name) === name)
+    .slice(0, 50)
     .map((r) => ({ id: r.id, date: r.document_date, supplier: r.supplier_name, gross: Number(r.gross), rest: Number(r.rest) }));
 }
 

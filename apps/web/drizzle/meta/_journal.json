@@ -1471,6 +1471,174 @@
       "when": 1794487529169,
       "tag": "0209_verrechnung_settlement",
       "breakpoints": true
+    },
+    {
+      "idx": 210,
+      "version": "7",
+      "when": 1794500484900,
+      "tag": "0210_eigene_konten",
+      "breakpoints": true
+    },
+    {
+      "idx": 211,
+      "version": "7",
+      "when": 1794500486424,
+      "tag": "0211_eigene_konten_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 212,
+      "version": "7",
+      "when": 1794515383003,
+      "tag": "0212_import_zahlungsbezug",
+      "breakpoints": true
+    },
+    {
+      "idx": 213,
+      "version": "7",
+      "when": 1794515385011,
+      "tag": "0213_import_zahlungsbezug_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 214,
+      "version": "7",
+      "when": 1794516197537,
+      "tag": "0214_abschlag_steuerzeitpunkt",
+      "breakpoints": true
+    },
+    {
+      "idx": 215,
+      "version": "7",
+      "when": 1794517251891,
+      "tag": "0215_leistungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 216,
+      "version": "7",
+      "when": 1794517254764,
+      "tag": "0216_leistungen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 217,
+      "version": "7",
+      "when": 1794518748085,
+      "tag": "0217_jahresvermerk",
+      "breakpoints": true
+    },
+    {
+      "idx": 218,
+      "version": "7",
+      "when": 1794521593045,
+      "tag": "0218_zeichen_navigation",
+      "breakpoints": true
+    },
+    {
+      "idx": 219,
+      "version": "7",
+      "when": 1794524285491,
+      "tag": "0219_grundstuecksleistung_aufbewahrung",
+      "breakpoints": true
+    },
+    {
+      "idx": 220,
+      "version": "7",
+      "when": 1794555341075,
+      "tag": "0220_eigene_konten_belege",
+      "breakpoints": true
+    },
+    {
+      "idx": 221,
+      "version": "7",
+      "when": 1794562424324,
+      "tag": "0221_leistungen_rechnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 222,
+      "version": "7",
+      "when": 1794562426655,
+      "tag": "0222_leistungen_abgerechnet_sperre",
+      "breakpoints": true
+    },
+    {
+      "idx": 223,
+      "version": "7",
+      "when": 1794575514495,
+      "tag": "0223_anzahlung_bilanz",
+      "breakpoints": true
+    },
+    {
+      "idx": 224,
+      "version": "7",
+      "when": 1794575516087,
+      "tag": "0224_anzahlung_rechtsform",
+      "breakpoints": true
+    },
+    {
+      "idx": 225,
+      "version": "7",
+      "when": 1794597893345,
+      "tag": "0225_sevdesk_buchungskonten",
+      "breakpoints": true
+    },
+    {
+      "idx": 226,
+      "version": "7",
+      "when": 1794597894109,
+      "tag": "0226_sevdesk_buchungskonten_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 227,
+      "version": "7",
+      "when": 1794601897072,
+      "tag": "0227_gutschrift_erstattet_bezahltes",
+      "breakpoints": true
+    },
+    {
+      "idx": 228,
+      "version": "7",
+      "when": 1794605361767,
+      "tag": "0228_zuordnung_aufhebung_datum",
+      "breakpoints": true
+    },
+    {
+      "idx": 229,
+      "version": "7",
+      "when": 1794643109074,
+      "tag": "0229_vorsteuerabzug_vorgabe",
+      "breakpoints": true
+    },
+    {
+      "idx": 230,
+      "version": "7",
+      "when": 1794645219072,
+      "tag": "0230_beleg_leistungszeitraum",
+      "breakpoints": true
+    },
+    {
+      "idx": 231,
+      "version": "7",
+      "when": 1794664787301,
+      "tag": "0231_rechnung_ausgefuehrt_am",
+      "breakpoints": true
+    },
+    {
+      "idx": 232,
+      "version": "7",
+      "when": 1794671327848,
+      "tag": "0232_search_pg_trgm",
+      "breakpoints": true
+    },
+    {
+      "idx": 233,
+      "version": "7",
+      "when": 1794671331147,
+      "tag": "0233_search_indexes",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { datevAccountTotals, DatevParseError, datevYearSums, isDatevFile, parseDatevBuchungsstapel } from "./index.ts";
+import { datevAccountTotals, DatevParseError, datevYearSums, isDatevFile, otherDatevExportName, parseDatevBuchungsstapel } from "./index.ts";
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
 
@@ -128,6 +128,71 @@ describe("DATEV-Buchungsstapel (UTF-8 mit BOM, abweichendes Wirtschaftsjahr)", (
 
   it("liest die EU-Spalten der Version 13 und setzt die Währung aus der Kopfzeile", () => {
     expect(stack.bookings[1]).toMatchObject({ euVatId: "FR12345678901", euTaxRate: 2000, currency: "EUR" });
+  });
+});
+
+describe("otherDatevExportName", () => {
+  // EXTF_GP_Stamm_*.csv aus sevDesk: Buchhaltung 1.0 ohne Anführungszeichen, 2.0 mit
+  const gpStamm = (version: string) => fixture(`sevdesk/buchhaltung-${version}/extf-gp-stamm.csv`);
+
+  it("nennt die Formatkategorie eines anderen DATEV-Exports", () => {
+    expect(otherDatevExportName(gpStamm("1.0"))).toBe("Debitoren/Kreditoren");
+    expect(otherDatevExportName(gpStamm("2.0"))).toBe("Debitoren/Kreditoren");
+    expect(otherDatevExportName(file(HEADER.replace(`700;21;"Buchungsstapel"`, `700;20;"Kontenbeschriftungen"`), "Konto"))).toBe("Kontenbeschriftungen");
+  });
+
+  it("nimmt bei unbekannter Kategorie den Namen aus der Kopfzeile, sonst die Nummer", () => {
+    expect(otherDatevExportName(file(`"EXTF";700;99;"Neues Format";1`, "A"))).toBe("Neues Format");
+    expect(otherDatevExportName(file(`"EXTF";700;99;"";1`, "A"))).toBe("Kategorie 99");
+  });
+
+  it("liest die Kopfzeile auch mit BOM", () => {
+    expect(otherDatevExportName(new Uint8Array([0xef, 0xbb, 0xbf, ...gpStamm("1.0")]))).toBe("Debitoren/Kreditoren");
+  });
+
+  it("807: ein angeschnittener UTF-8-Umlaut hinter dem Namen ändert dessen Kodierung nicht", () => {
+    const prefix = `"EXTF";700;99;"Überweisungsvorlagen";1;"`;
+    const bytes = file(`${prefix}${"a".repeat(511 - file(prefix).length)}ä"`, "Kopf", "Inhalt");
+    expect([...bytes.subarray(511, 513)]).toEqual([0xc3, 0xa4]);
+    expect(otherDatevExportName(bytes)).toBe("Überweisungsvorlagen");
+  });
+
+  it("807: liest den vollständigen Namen mit Umlaut über Byte 512 hinweg", () => {
+    const prefix = `"EXTF";700;99;"`;
+    const name = `${"a".repeat(511 - file(prefix).length)}Überweisungsvorlagen`;
+    const bytes = file(`${prefix}${name}";1`, "Kopf", "Inhalt");
+    expect([...bytes.subarray(511, 513)]).toEqual([0xc3, 0x9c]);
+    expect(otherDatevExportName(bytes)).toBe(name);
+  });
+
+  const unicodeName = "Überweisungsvorlagen €";
+  const unicodeHeader = `"EXTF";700;99;"${unicodeName}";1\r\nKopf\r\nInhalt\r\n`;
+  const utf8 = file(unicodeHeader);
+  const utf16 = Buffer.from(unicodeHeader, "utf16le");
+  it.each<[string, Uint8Array]>([
+    ["UTF-8 ohne BOM", utf8],
+    ["UTF-8 mit BOM", new Uint8Array([0xef, 0xbb, 0xbf, ...utf8])],
+    ["UTF-16 LE mit BOM", new Uint8Array([0xff, 0xfe, ...utf16])],
+    ["UTF-16 BE mit BOM", new Uint8Array([0xfe, 0xff, ...Buffer.from(utf16).swap16()])],
+    ["Windows-1252", new Uint8Array([...file(`"EXTF";700;99;"`), 0xdc, ...file("berweisungsvorlagen "), 0x80, ...file(`";1\r\nKopf\r\nInhalt\r\n`)])],
+  ])("807: erhält Exportnamen in %s", (_encoding, bytes) => {
+    expect(otherDatevExportName(bytes)).toBe(unicodeName);
+  });
+
+  it("gibt beim Buchungsstapel null zurück, auch wenn er beschädigt ist", () => {
+    expect(otherDatevExportName(file(HEADER, COLUMNS))).toBeNull();
+    expect(otherDatevExportName(file(HEADER))).toBeNull();
+  });
+
+  it("gibt bei unlesbarer Kategorie null zurück, damit der Parser die Datei ablehnt", () => {
+    expect(otherDatevExportName(file(`"EXTF";700;;"Buchungsstapel"`, COLUMNS))).toBeNull();
+    expect(otherDatevExportName(file(`"EXTF";700;x1;"Buchungsstapel"`, COLUMNS))).toBeNull();
+    expect(otherDatevExportName(file(`"EXTF"`))).toBeNull();
+  });
+
+  it("gibt bei anderen Dateien null zurück", () => {
+    expect(otherDatevExportName(file("Datum;Betrag", "01.01.2025;1,00"))).toBeNull();
+    expect(otherDatevExportName(new Uint8Array())).toBeNull();
   });
 });
 

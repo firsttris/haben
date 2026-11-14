@@ -25,7 +25,7 @@ export function LastschriftVorschlag({ match, busy, onAllocate }: { match: Direc
                     Rechnung {p.number}
                   </Link>
                 </span>
-                <span className="mono">{formatEuro(p.amount)}</span>
+                <span className="amount">{formatEuro(p.amount)}</span>
               </li>
             ))}
           </ul>
@@ -52,7 +52,7 @@ export function LastschriftVorschlag({ match, busy, onAllocate }: { match: Direc
             </Link>
             <span className="small muted">Mandat {match.mandateReference}</span>
           </div>
-          <span className="mono">{formatEuro(match.amount)}</span>
+          <span className="amount">{formatEuro(match.amount)}</span>
         </div>
         <ul className="reasons">
           {match.reason && (

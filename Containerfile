@@ -9,6 +9,7 @@ COPY apps/elster-helfer/package.json apps/elster-helfer/
 COPY packages/core/package.json packages/core/
 COPY packages/einvoice/package.json packages/einvoice/
 COPY packages/elster/package.json packages/elster/
+COPY packages/gobd-kern/package.json packages/gobd-kern/
 COPY packages/import/package.json packages/import/
 RUN bun install --frozen-lockfile
 COPY . .
@@ -16,7 +17,10 @@ COPY . .
 # Peer-Abhängigkeiten: Über sie kämen Build-Werkzeuge ins Image (vite, vitest, drizzle-kit, tsx, esbuild mit eigener
 # Go-Laufzeit), die zur Laufzeit nicht laufen. Was die App als Peer braucht (react, zod, postgres …), steht in
 # apps/web/package.json als direkte Abhängigkeit; der CI-Job container lädt die externen Module des Bundles.
+# Der Befehl haben (Betriebsstatus) als eine Datei; Pakete aus node_modules bleiben außen vor und kommen zur Laufzeit
+# aus apps/web/node_modules, so bleibt etwa die native Bibliothek von Typst nur einmal im Image
 RUN bun run build \
+ && bun build apps/web/src/server/modules/betrieb/cli.ts --target bun --packages external --outfile apps/web/.output/haben-cli.js \
  && rm -rf node_modules apps/web/node_modules packages/*/node_modules \
  && bun install --frozen-lockfile --production --omit=peer
 
@@ -56,7 +60,14 @@ COPY --from=build /app/apps/web/src ./apps/web/src
 COPY --from=build /app/apps/web/package.json ./apps/web/package.json
 COPY --from=build /app/package.json ./package.json
 COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
+# haben status [--json]: Version, ERiC und letzte Sicherung, etwa für deploy/instanzen
+COPY deploy/haben.sh /usr/local/bin/haben
 RUN mkdir -p /var/lib/haben/eric-log /var/lib/haben/eric /var/lib/haben/belege && chown -R bun:bun /var/lib/haben
+# Commit des Builds (#887) für haben status und als OCI-Label, etwa --build-arg HABEN_COMMIT="$(git rev-parse HEAD)".
+# Ohne Angabe leer. Erst hier, damit ein anderer Commit nur diese Schichten neu baut
+ARG HABEN_COMMIT=""
+LABEL org.opencontainers.image.revision="$HABEN_COMMIT"
+ENV HABEN_COMMIT="$HABEN_COMMIT"
 USER bun
 EXPOSE 3000
 # Ohne curl im Image: Bun hat fetch eingebaut. Die Startphase deckt die Migrationen ab.

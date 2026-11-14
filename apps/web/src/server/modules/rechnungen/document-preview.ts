@@ -4,6 +4,7 @@ import {
   DEFAULT_OPTIONS,
   discountSchema,
   ITEM_NUMBER_MAX,
+  type LayoutDocumentType,
   LINE_DETAIL_MAX,
   letterheadDesignInputSchema,
   orderRateAmounts,
@@ -99,6 +100,7 @@ export const documentPreviewSchema = z.object({
   plan: paymentPlanSchema,
   intro: z.string().max(4000),
   note: z.string().max(4000),
+  propertyRetention: z.boolean().default(false),
   taxTreatment: z.enum(TAX_TREATMENT_KEYS),
   exemptionReason: z.string().max(600),
   priceMode: z.enum(["netto", "brutto"]),
@@ -125,7 +127,7 @@ export interface DocumentPreview extends RenderedSheet {
 }
 
 /** Ungespeicherte Gestaltung aus dem Panel über der gespeicherten */
-function withDesign(letterhead: Letterhead, design: Input["design"]): Letterhead {
+export function withDesign(letterhead: Letterhead, design: Input["design"]): Letterhead {
   const { accent, ...options } = design;
   return { ...letterhead, ...(accent ? { accent } : {}), options: { ...DEFAULT_OPTIONS, ...letterhead.options, ...options } };
 }
@@ -176,6 +178,7 @@ function invoiceDocument(input: Input, company: Company, buyer: Buyer, letterhea
     ...(input.corrects ? { corrects: { number: input.corrects.number ?? "–", issueDate: input.corrects.issueDate } } : {}),
     ...(input.intro ? { intro: input.intro } : {}),
     ...(input.note ? { note: input.note } : {}),
+    ...(input.propertyRetention ? { propertyRetention: true } : {}),
     ...(treatment !== "regulaer" ? { taxTreatment: treatment } : {}),
     ...(input.priceMode === "brutto" ? { priceMode: input.priceMode } : {}),
     ...(input.exemptionReason ? { exemptionReason: input.exemptionReason } : {}),
@@ -250,14 +253,27 @@ export async function documentPreview(input: Input): Promise<DocumentPreview> {
       ? quotePdfData(quoteDocument(input, company, buyer, letterhead))
       : pdfData(invoiceDocument(input, company, buyer, letterhead, directDebit));
   const { draft: _noMark, ...sheet } = asDraft(data, t);
-  // Mit eigenem Layout dasselbe wie beim Festschreiben: Quelltext aus der Datenbank, Daten wie für die eingebaute Vorlage
-  const layout = await customLayoutFor(input.kind === "angebot" ? "angebot" : "rechnung");
+  return renderPreview(input.kind === "angebot" ? "angebot" : "rechnung", "rechnung.typ", sheet, letterhead, () => sheetText(sheet as unknown as SheetData));
+}
+
+/**
+ * Setzt die Daten eines Blatts als SVG. Mit eigenem Layout dasselbe wie beim Festschreiben: Quelltext aus der Datenbank,
+ * Daten wie für die eingebaute Vorlage. Auch für die Mahnung (dunningPreview).
+ */
+export async function renderPreview(
+  type: LayoutDocumentType,
+  template: "rechnung.typ" | "mahnung.typ",
+  sheet: object,
+  letterhead: Letterhead,
+  text: () => SheetTextPart[],
+): Promise<DocumentPreview> {
+  const layout = await customLayoutFor(type);
   const job = layout
     ? await customLayoutJob(layout, dataForVersion(layout.schemaVersion, templateInputs(sheet, letterhead)), letterhead)
-    : renderJob("rechnung.typ", sheet, letterhead);
+    : renderJob(template, sheet, letterhead);
   try {
     const renderer = layout ? await rendererFor(layout) : layoutRenderer;
-    return { ...(await renderer.render(job)), text: sheetText(sheet as unknown as SheetData) };
+    return { ...(await renderer.render(job)), text: text() };
   } catch (error) {
     if (layout) throw new DocumentPreviewError(`Das Layout „${layout.name}“ ließ sich nicht setzen: ${typstMeldung(error)}`);
     throw new DocumentPreviewError(

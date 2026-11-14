@@ -214,7 +214,7 @@ Wähle den Stichtag vor der ersten Übernahme. Sobald ein Posten übernommen ist
 
 ### Wie gebucht wird
 
-Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben bucht deshalb nicht noch einmal Erlös oder Aufwand, sondern gegen den Saldenvortrag (Konto 9000), mit dem Tag nach dem Stichtag, dem ersten Tag in Haben (meist dem 1. Januar). Schon vorher übernommene Posten behalten ihre Buchung. Die genauen Buchungssätze stehen in [Buchhaltung in Haben](buchhaltung.md#eröffnungsbuchungen-für-offene-posten-aus-lexoffice).
+Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben bucht deshalb nicht noch einmal Erlös oder Aufwand, sondern gegen den Saldenvortrag (Konto 9000), mit dem Tag nach dem Stichtag, dem ersten Tag in Haben (meist dem 1. Januar). Schon vorher übernommene Posten behalten ihre Buchung. Die genauen Buchungssätze stehen in [Buchungssätze](buchhaltung-buchungssaetze.md#eröffnungsbuchungen-für-offene-posten-aus-lexoffice).
 
 | Fall | Buchung | Umsatz- bzw. Vorsteuer |
 | --- | --- | --- |
@@ -266,9 +266,9 @@ Jede Datei bleibt byte-genau erhalten und liegt unter ihrem SHA-256. Dieselbe Da
 
 ### DATEV-Buchungsstapel
 
-Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewählt hast. Erwartet wird das DATEV-Format EXTF (oder DTVF), Formatkategorie 21 „Buchungsstapel“, Version 7xx. Andere DATEV-Exporte, etwa Kontenbeschriftungen oder Debitoren/Kreditoren, werden mit Namen abgelehnt.
+Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewählt hast. Erwartet wird das DATEV-Format EXTF (oder DTVF), Formatkategorie 21 „Buchungsstapel“, Version 7xx. Andere DATEV-Exporte, etwa Kontenbeschriftungen oder Debitoren/Kreditoren, liest Haben nicht ein: Sie liegen als Originale unter der gewählten Art im Archiv. Hast du **DATEV-Buchungsstapel** gewählt, legt Haben sie als **Sonstiges** ab und sagt es dir; das Geschäftsjahr gibst du dann selbst an. Ein beschädigter Buchungsstapel wird weiter abgelehnt.
 
-- **Kodierung:** UTF-8 (mit oder ohne BOM), UTF-16 mit BOM; alles andere liest Haben als Windows-1252.
+- **Kodierung:** UTF-8 (mit oder ohne BOM), UTF-16 mit BOM; alles andere liest Haben als Windows-1252. Bei unbekannten Formatkategorien nennt der Hinweis den vollständigen Exportnamen aus der Kopfzeile, auch mit Umlauten.
 - **Spalten:** Haben sucht die Spalten über ihren Namen, nicht ihre Position. Pflicht sind Umsatz, Soll/Haben-Kennzeichen, Konto, Gegenkonto und Belegdatum. Beim Vergleich der Namen zählen Groß- und Kleinschreibung, Leerzeichen und Bindestriche nicht, und „ae“, „oe“, „ue“, „ss“ gelten wie „ä“, „ö“, „ü“, „ß“. So passen auch die vereinfachten Namen aus Lexware Office wie „Umsatz“, „Gegenkonto“, „BU-Schluessel“ oder „Basisumsatz“. Übernommen werden außerdem Währung, BU-Schlüssel, Belegfeld 1 und 2, Buchungstext und Beleglink; alle anderen nicht leeren Spalten bleiben je Zeile unverändert gespeichert.
 - **Belegdatum:** DATEV schreibt meist nur Tag und Monat (`TTMM`). Das Jahr ergibt sich aus dem Wirtschaftsjahresbeginn in der Kopfzeile; Monate vor dem Beginnmonat gehören ins Folgejahr. Liegt das Datum außerhalb des Zeitraums aus der Kopfzeile, nimmt Haben das andere Kalenderjahr des Zeitraums, sonst gibt es eine Warnung. `TTMMJJJJ` wird direkt gelesen.
 - **Geschäftsjahr:** Lässt du das Feld leer, nimmt Haben das Jahr des Wirtschaftsjahresbeginns.
@@ -281,13 +281,13 @@ Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, 
 
 ### Abschluss aus dem DATEV-Stapel (GmbH und UG)
 
-Bei GmbH und UG rechnet Haben unter **DATEV-Buchungen** aus dem Stapel eines Jahres auch Bilanz, GuV, Körperschaft- und Gewerbesteuer, mit denselben Funktionen wie den [Jahresabschluss](buchhaltung.md#jahresabschluss-gmbh-und-ug) aus dem eigenen Journal. So lässt sich ein Jahr der alten Buchhaltung mit dem Abschluss der Steuerberatung vergleichen, bevor die Buchhaltung in Haben beginnt. Gebucht wird dabei nichts: Die Zahlen fließen weder ins Journal noch in Voranmeldung oder Saldenvortrag.
+Bei GmbH und UG rechnet Haben unter **DATEV-Buchungen** aus dem Stapel eines Jahres auch Bilanz, GuV, Körperschaft- und Gewerbesteuer, mit denselben Funktionen wie den [Jahresabschluss](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug) aus dem eigenen Journal. So lässt sich ein Jahr der alten Buchhaltung mit dem Abschluss der Steuerberatung vergleichen, bevor die Buchhaltung in Haben beginnt. Gebucht wird dabei nichts: Die Zahlen fließen weder ins Journal noch in Voranmeldung oder Saldenvortrag.
 
 Aus den Buchungen werden Salden je Sachkonto, so wie Haben sie selbst gebucht hätte:
 
 - **Steuer:** Wo eine Steuerautomatik oder ein BU-Schlüssel (2, 3, 8, 9) greift, ist der Betrag brutto. Der Steueranteil geht auf das Umsatz- bzw. Vorsteuerkonto zu 19 % oder 7 % (SKR03 1776, 1771, 1576, 1571; SKR04 3806, 3801, 1406, 1401), das Erlös- oder Aufwandskonto behält den Nettobetrag. BU-Schlüssel 40 hebt die Automatik auf. Es sind dieselben Regeln wie für die Jahressummen im [Abgleich](#schritt-5-abgleich-je-jahr), mit denselben Grenzen bei Sonderfällen wie § 13b.
 - **Personenkonten:** Debitoren (erste Ziffer 1 bis 6) stehen auf Forderungen aus Lieferungen und Leistungen (SKR03 1400, SKR04 1200), Kreditoren (7 bis 9) auf Verbindlichkeiten (SKR03 1600, SKR04 3300). So vergibt DATEV die Nummern: 10000 bis 69999 Debitoren, 70000 bis 99999 Kreditoren bei vierstelligen Sachkonten ([Kontenrahmen SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf) und [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf), gültig für 2026). Bei längeren Sachkonten (Sachkontenlänge 5 bis 8 in der Kopfzeile) hat ein Personenkonto genau eine Stelle mehr ([DATEV-Format, Buchungsstapel](https://developer.datev.de/de/file-format/details/datev-format/format-description/booking-batch)); die erste Ziffer entscheidet weiter.
-- **Bestände zum Jahresbeginn:** Enthält der Stapel Buchungen auf die Saldenvortragskonten 9000 bis 9009, bringt er seine Eröffnungsbilanz selbst mit. Sonst trägt Haben die Bestandskonten aus den Stapeln der Vorjahre vor, das Ergebnis der Vorjahre als Gewinn- oder Verlustvortrag, wie beim [Saldenvortrag](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) im Journal. Gibt es weder das eine noch das andere, fehlen die Bestände und die Bilanz ist unvollständig; GuV und Steuern stimmen trotzdem.
+- **Bestände zum Jahresbeginn:** Enthält der Stapel Buchungen auf die Saldenvortragskonten 9000 bis 9009, bringt er seine Eröffnungsbilanz selbst mit. Sonst trägt Haben die Bestandskonten aus den Stapeln der Vorjahre vor, das Ergebnis der Vorjahre als Gewinn- oder Verlustvortrag, wie beim [Saldenvortrag](gmbh-abschluss.md#saldenvortrag-und-eröffnung-gmbh-und-ug) im Journal. Gibt es weder das eine noch das andere, fehlen die Bestände und die Bilanz ist unvollständig; GuV und Steuern stimmen trotzdem.
 - **Kontenrahmen:** Gerechnet wird im Kontenrahmen der Firmendaten. Steht im Kopf eines Stapels ein anderer, nennt Haben das als Fehler, denn die Posten stimmen dann nicht.
 
 Für die Steuern braucht Haben Hebesatz und Verlustvorträge des Jahres; du trägst sie unter **Buchhaltung › Jahresabschluss** für dieses Jahr ein. Konten ohne Posten in Bilanz oder GuV und nicht ausgeglichene Vortragskonten stehen als Hinweis über der Bilanz.
@@ -405,7 +405,7 @@ Abgerufene Belege, ihre Dateien, archivierte Exporte und DATEV-Buchungen kann ni
 
 Unter **Belege** findest du den Altbestand je Jahr, filterbar nach Einnahmen und Ausgaben, nach Nummer, Kontakt oder Notiz durchsuchbar und mit dem Filter „ohne Datei“. Jeder Beleg zeigt die Beträge je Steuersatz, die Kategorien, den Zahlungsstatus und seine Dateien. Unter **Originaldateien** liegen die hochgeladenen Exporte zum Herunterladen.
 
-Archivierte Belege mit Kontakt stehen außerdem auf dessen Kontaktseite, zusammen mit den Rechnungen und Belegen aus Haben und mit Summen je Jahr ([Rechnungen und Belege am Kontakt](rechnungen.md#rechnungen-und-belege-am-kontakt)).
+Archivierte Belege mit Kontakt stehen außerdem auf dessen Kontaktseite, zusammen mit den Rechnungen und Belegen aus Haben und mit Summen je Jahr ([Rechnungen und Belege am Kontakt](kontakte.md#rechnungen-und-belege-am-kontakt)).
 
 Im [Jahresexport](auswertungen.md#jahresexport) steht der Altbestand jedes Jahres unter `lexoffice/`: Belege mit Originaldateien, `belege.csv`, `datev-buchungen.csv` und die Originalexporte unter `originale/`.
 
@@ -415,7 +415,7 @@ Haben spricht standardmäßig mit `https://api.lexware.io/v1`. Mit der Umgebungs
 
 ## Umzug einer GmbH oder UG
 
-Für eine GmbH oder UG läuft der Umzug genauso. Weil sie bilanziert, kommen zu den offenen Posten die übrigen Bestände zum Stichtag dazu. Liegt der DATEV-Stapel des Vorjahres im Archiv, schlägt Haben die ganze [Eröffnung aus dem DATEV-Stapel](#eröffnung-aus-dem-datev-stapel-gmbh-und-ug) vor, samt Bank, Kasse, offenen Posten und Umsatzsteuer; schon übernommene offene Posten rechnet sie heraus. Ohne Stapel erfasst du Bank, Stammkapital, Gewinnvortrag und Gesellschafter-Verrechnungskonto als [Eröffnungsbuchung](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) von Hand gegen 9000, Anlagen über das [Anlagenverzeichnis](anlagen.md). Die Werte stehen in der Schlussbilanz des Vorjahres von der Steuerberatung. Sind alle Bestände übernommen, ist 9000 ausgeglichen. Den ganzen Ablauf zeigt [GmbH und UG](gmbh.md).
+Für eine GmbH oder UG läuft der Umzug genauso. Weil sie bilanziert, kommen zu den offenen Posten die übrigen Bestände zum Stichtag dazu. Liegt der DATEV-Stapel des Vorjahres im Archiv, schlägt Haben die ganze [Eröffnung aus dem DATEV-Stapel](#eröffnung-aus-dem-datev-stapel-gmbh-und-ug) vor, samt Bank, Kasse, offenen Posten und Umsatzsteuer; schon übernommene offene Posten rechnet sie heraus. Ohne Stapel erfasst du Bank, Stammkapital, Gewinnvortrag und Gesellschafter-Verrechnungskonto als [Eröffnungsbuchung](gmbh-abschluss.md#saldenvortrag-und-eröffnung-gmbh-und-ug) von Hand gegen 9000, Anlagen über das [Anlagenverzeichnis](anlagen.md). Die Werte stehen in der Schlussbilanz des Vorjahres von der Steuerberatung. Sind alle Bestände übernommen, ist 9000 ausgeglichen. Den ganzen Ablauf zeigt [GmbH und UG](gmbh.md).
 
 ## Grenzen
 
@@ -436,7 +436,7 @@ Für eine GmbH oder UG läuft der Umzug genauso. Weil sie bilanziert, kommen zu 
 - [ ] Offene Posten übernommen oder die Gründe geklärt
 - [ ] Nächste Rechnungsnummer in Haben gesetzt
 - [ ] Jahresexport für jedes übernommene Jahr heruntergeladen und die Prüfsummen geprüft
-- [ ] Backup von Datenbank und Belegdateien läuft ([Installation](installation.md))
+- [ ] Backup von Datenbank und Belegdateien läuft ([Backup und Updates](installation-backup.md))
 - [ ] API-Schlüssel in Haben entfernt und in Lexware Office widerrufen
 
 > [!NOTE]

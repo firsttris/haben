@@ -31,7 +31,7 @@ function Document({ children }: { children: ReactNode }) {
     if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/sw.js").catch(() => {});
   }, []);
   return (
-    // data-theme setzt das Skript vor dem Hydrieren; der Server kennt die Wahl nicht
+    // data-theme und data-mode setzt das Skript vor dem Hydrieren; der Server kennt die Wahl nicht
     <html lang="de" suppressHydrationWarning>
       <head>
         {/* Theme vor dem ersten Zeichnen setzen, sonst blitzt das Standardschema auf */}

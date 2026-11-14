@@ -1,11 +1,21 @@
 import AxeBuilder from "@axe-core/playwright";
-import { type Browser, expect, type Page } from "@playwright/test";
+import { type Browser, expect, type Locator, type Page } from "@playwright/test";
 import { day, USER, vorschauAnheften } from "./daten.ts";
 
 /**
  * Was die Durchläufe app.spec.ts, rechnungen.spec.ts und belege-steuern.spec.ts gemeinsam brauchen (e2e/durchlaeufe.ts):
  * jeder fängt mit einer leeren Datenbank an und richtet sich dasselbe Unternehmen ein.
  */
+
+/** Formular-Dialoge setzen den Rand selbst (FormDialog, DESIGN.md): Felder und Knöpfe halten links und rechts mindestens 16 px Abstand */
+export async function randImDialog(dialog: Locator, elemente: Locator[]): Promise<void> {
+  const rahmen = (await dialog.boundingBox())!;
+  for (const element of elemente) {
+    const box = (await element.boundingBox())!;
+    expect(box.x - rahmen.x, "Abstand links").toBeGreaterThanOrEqual(16);
+    expect(rahmen.x + rahmen.width - (box.x + box.width), "Abstand rechts").toBeGreaterThanOrEqual(16);
+  }
+}
 
 /** Wie HABEN_SETUP_CODE in playwright.config.ts */
 export const SETUP_CODE = "e2e-einrichtungscode";
@@ -186,7 +196,8 @@ export async function faktenZeigen(page: Page, ...zeilen: string[]): Promise<voi
 const DESKTOP = { width: 1440, height: 900 };
 const HANDY_AXE = { width: 320, height: 720 };
 const HANDY_BREITE = { width: 390, height: 844 };
-const THEMES = ["ozean", "pflaume", "graphit", "nacht", "tiefsee"];
+/** Die Farben außer Wald hell, als „Farbe“ oder „Farbe:dunkel“ wie in barrierefreiheit.spec.ts */
+const THEMES = ["ozean", "pflaume", "graphit", "wald:dunkel", "ozean:dunkel", "pflaume:dunkel", "graphit:dunkel"];
 
 export async function axeVerstoesse(page: Page, rules?: string[]): Promise<string[]> {
   const builder = new AxeBuilder({ page }).withTags(WCAG);
@@ -223,25 +234,18 @@ export async function ohneAxeVerstoesse(page: Page, paths: string[]): Promise<vo
 /** Farbkontraste in den übrigen Themes wie die THEME_PAGES in barrierefreiheit.spec.ts, für Seiten, deren Daten hier entstehen */
 export async function kontrasteInThemes(page: Page, paths: string[]): Promise<void> {
   for (const theme of THEMES) {
-    await page.evaluate((t) => localStorage.setItem("haben-theme", t), theme);
+    await page.evaluate((t) => {
+      const [farbe, modus = "hell"] = t.split(":");
+      localStorage.setItem("haben-theme", farbe!);
+      localStorage.setItem("haben-modus", modus);
+    }, theme);
     for (const path of paths) {
       await gehe(page, path);
       expect.soft(await axeVerstoesse(page, ["color-contrast", "link-in-text-block"]), `${theme} ${path}`).toEqual([]);
     }
   }
-  await page.evaluate(() => localStorage.removeItem("haben-theme"));
-}
-
-/** Erfundene Mobilfunkrechnung als JPEG, gerendert im Browser */
-export async function receiptJpeg(browser: Browser, title = "Funknetz Mobil GmbH"): Promise<Buffer> {
-  const p = await browser.newPage({ viewport: { width: 620, height: 640 } });
-  await p.setContent(`<body style="font: 14px sans-serif; padding: 40px">
-    <h2>${title}</h2><p>Hafenallee 10 · 28217 Bremen · USt-IdNr. DE298765432</p>
-    <h1>Mobilfunkrechnung</h1><p>Rechnungsnummer MF-0815 · Rechnungsdatum ${day(-9)}</p>
-    <table style="width:100%"><tr><td>Tarif Business M</td><td align="right">38,57 €</td></tr>
-    <tr><td>Umsatzsteuer 19 %</td><td align="right">7,33 €</td></tr><tr><th align="left">Rechnungsbetrag</th><th align="right">45,90 €</th></tr></table>
-  </body>`);
-  const jpeg = await p.screenshot({ type: "jpeg", quality: 80 });
-  await p.close();
-  return jpeg;
+  await page.evaluate(() => {
+    localStorage.removeItem("haben-theme");
+    localStorage.removeItem("haben-modus");
+  });
 }

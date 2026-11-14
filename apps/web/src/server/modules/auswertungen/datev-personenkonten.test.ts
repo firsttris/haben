@@ -183,6 +183,11 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
       await datev.datevExport(2026, new Date(2026, 9, 5), inhaber);
       expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 2 }]);
     },
+    // Eigener Rahmen wie in annual.test.ts (#784): Ein ganzer Ablauf mit zwei festgeschriebenen Rechnungen (je ein PDF,
+    // das erste startet den Render-Prozess), Storno, Beleg, zwei Bankimporten und zwei Exporten. Allein rund 1 s, unter
+    // Last im CI über die 5 s von Vitest (5354 ms im Lauf zu #839). Läuft er in den Timeout, arbeitet sein Code weiter,
+    // und das TRUNCATE des nächsten Falls verklemmt sich mit dessen offener Transaktion (deadlock detected).
+    20_000,
   );
 
   it("bleibt ohne Schalter und vor dem Jahr des Schalters bei den Sammelkonten und merkt sich nichts", async () => {

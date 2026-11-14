@@ -13,7 +13,8 @@ export async function dauerfristEuerHinweis(q: Db | Tx, before: readonly Dauerfr
   const filed = await q
     .selectDistinct({ year: s.year, form: s.form })
     .from(s)
-    .where(and(inArray(s.form, ["euer", "est"]), eq(s.kind, "send"), eq(s.ok, true)))
+    // Auch eine außerhalb von Haben abgegebene und vermerkte EÜR ist abgegeben (#760)
+    .where(and(inArray(s.form, ["euer", "est"]), inArray(s.kind, ["send", "vermerk"]), eq(s.ok, true)))
     .orderBy(s.year, s.form);
   const after = [...before.filter((row) => row.year !== setting.year), setting];
   // Ein Stand gilt auch für Folgejahre ohne eigenen Eintrag. Beide möglichen EÜR-Jahre einer Januarzahlung beachten.

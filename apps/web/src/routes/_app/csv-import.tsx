@@ -10,6 +10,7 @@ import { useAction } from "../../lib/use-action.ts";
 import { previewCsvImportFn, runCsvImportFn } from "../../server/functions/csv-import.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { Field } from "../../components/Field.tsx";
+import { Status, type StatusLook } from "../../components/Status.tsx";
 
 type Kind = "kontakte" | "artikel" | "anlagen";
 type Preview = Awaited<ReturnType<typeof previewCsvImportFn>>;
@@ -35,10 +36,10 @@ const INTRO: Record<Kind, string> = {
     "Anlagen aus der bisherigen Buchhaltung mit dem Restbuchwert zum Stichtag übernehmen, wie unter „Anlage übernehmen“. Der Import bucht nichts; die Eröffnung bucht Haben mit der ersten AfA.",
 };
 
-const STATUS: Record<Preview["rows"][number]["status"], { label: string; pill: string }> = {
-  neu: { label: "neu", pill: "pill pill-ok" },
-  dublette: { label: "Dublette", pill: "pill pill-info" },
-  fehler: { label: "Fehler", pill: "pill pill-danger" },
+const STATUS: Record<Preview["rows"][number]["status"], StatusLook> = {
+  neu: { text: "Neu", tone: "ok" },
+  dublette: { text: "Dublette", tone: "info" },
+  fehler: { text: "Fehler", tone: "danger", emphasis: "urgent" },
 };
 
 /** So viele Zeilen zeigt die Vorschau; Fehler und Dubletten stehen vorn, damit keiner im Rest untergeht */
@@ -255,7 +256,9 @@ function PreviewCard({ preview, busy, meta, onImport }: { preview: Preview; busy
               <td className="num">{row.line}</td>
               <td style={{ overflowWrap: "anywhere" }}>{row.title}</td>
               <td>
-                <span className={STATUS[row.status].pill}>{STATUS[row.status].label}</span>
+                <Status tone={STATUS[row.status].tone} emphasis={STATUS[row.status].emphasis}>
+                  {STATUS[row.status].text}
+                </Status>
               </td>
               <td className="small" style={{ overflowWrap: "anywhere" }}>
                 {row.message ?? ""}
@@ -270,12 +273,12 @@ function PreviewCard({ preview, busy, meta, onImport }: { preview: Preview; busy
         </p>
       )}
       <div className="actions">
-        <button type="button" className="btn btn-primary" disabled={busy || counts.neu === 0 || preview.problem !== null} onClick={onImport}>
-          {counts.neu} {counts.neu === 1 ? meta.singular : meta.plural} übernehmen
-        </button>
         <Link to={meta.list} className="btn">
           {meta.back}
         </Link>
+        <button type="button" className="btn btn-primary" disabled={busy || counts.neu === 0 || preview.problem !== null} onClick={onImport}>
+          {counts.neu} {counts.neu === 1 ? meta.singular : meta.plural} übernehmen
+        </button>
       </div>
     </section>
   );

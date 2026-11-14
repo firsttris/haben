@@ -141,6 +141,8 @@ export const company = pgTable(
     paymentPlanTemplates: jsonb("payment_plan_templates").$type<PlanTemplate[]>().notNull().default(DEFAULT_PLAN_TEMPLATES),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
+    /** Nur steuerfreie Umsätze, die den Vorsteuerabzug ausschließen (§ 15 Abs. 2 Satz 1 Nr. 1 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
+    ohneVorsteuerabzug: boolean("ohne_vorsteuerabzug").notNull().default(false),
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
@@ -200,9 +202,19 @@ export const company = pgTable(
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     /** Nur bewusstes Speichern der Firmendaten; Verwaltungsupdates bestätigen keinen Steuerstatus. */
     companySavedAt: timestamp("firmendaten_gespeichert_at", { withTimezone: true }),
+    /**
+     * Zeichen der Firma in der Navigation, getrennt von der Beleggestaltung: eigene Farbe des „H“ (#RRGGBB; null = Farbe
+     * des Themes) oder, mit navLogo, das Logo der Belege. Fehlt das Logo, gilt wieder die Farbe bzw. das Theme.
+     */
+    navColor: text("nav_color"),
+    navLogo: boolean("nav_logo").notNull().default(false),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("company_single_row", sql`${t.id} = 1`), check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`)],
+  (t) => [
+    check("company_single_row", sql`${t.id} = 1`),
+    check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`),
+    check("company_nav_color", sql`${t.navColor} ~ '^#[0-9A-F]{6}$'`),
+  ],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */
@@ -445,6 +457,7 @@ export const vatItemsSince = pgTable(
 /**
  * Prüfungen und Übermittlungen der Jahreserklärungen (Umsatzsteuererklärung, Anlage EÜR), nur anhängen.
  * `figures` hält die gesendeten Werte fest, unabhängig davon, wie sich die Buchungen später ändern.
+ * `kind = 'vermerk'` dokumentiert eine außerhalb von Haben abgegebene Erklärung mit Tag, Ticket und Protokoll.
  */
 export const annualSubmissions = pgTable(
   "annual_submissions",
@@ -453,11 +466,14 @@ export const annualSubmissions = pgTable(
     /** GmbH und UG: kst Körperschaftsteuer, gewst Gewerbesteuer, ebilanz E-Bilanz (§ 5b EStG) */
     form: text("form", { enum: ["ust", "euer", "est", "kst", "gewst", "ebilanz"] }).notNull(),
     year: smallint("year").notNull(),
-    kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
+    kind: text("kind", { enum: ["validate", "test", "send", "vermerk"] }).notNull(),
     ok: boolean("ok").notNull(),
     code: integer("code").notNull(),
     message: text("message").notNull(),
     transferTicket: text("transfer_ticket"),
+    /** Abgabe außerhalb von Haben: Tag laut Übermittlungsprotokoll und Begründung */
+    filedOn: date("filed_on", { mode: "string" }),
+    note: text("note"),
     figures: jsonb("figures").$type<Record<string, unknown>>().notNull(),
     requestXml: text("request_xml").notNull(),
     responseXml: text("response_xml").notNull(),
@@ -469,6 +485,8 @@ export const annualSubmissions = pgTable(
     index("annual_submissions_form_year").on(t.form, t.year),
     // Je Erklärung und Jahr höchstens eine erfolgreiche Echtübermittlung
     uniqueIndex("annual_submissions_sent").on(t.form, t.year).where(sql`${t.kind} = 'send' and ${t.ok}`),
+    // Je Erklärung und Jahr höchstens ein Vermerk auf eine Abgabe außerhalb von Haben
+    uniqueIndex("annual_submissions_vermerk").on(t.form, t.year).where(sql`${t.kind} = 'vermerk'`),
   ],
 );
 
@@ -824,19 +842,20 @@ export const mailLog = pgTable("mail_log", {
 });
 
 /**
- * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand),
- * gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
+ * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand,
+ * Entfernungspauschale für Wege zur Betriebsstätte), gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
  */
 export const pauschalen = pgTable(
   "pauschalen",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung"] }).notNull(),
-    /** Homeoffice: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
+    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung", "entfernung"] }).notNull(),
+    /** Homeoffice und Entfernungspauschale: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
     date: date("date", { mode: "string" }).notNull(),
     /** Anlass, Ziel, Kunde */
     description: text("description").notNull(),
-    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend } */
+    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend };
+     * Entfernung: { tage, km, betriebsstaette } */
     details: jsonb("details").$type<Record<string, string | number | boolean>>().notNull(),
     /** Cent; beim Storno negativ */
     amount: integer("amount").notNull(),
@@ -993,14 +1012,94 @@ export const contacts = pgTable(
      */
     debitorNr: integer("debitor_nr").unique(),
     kreditorNr: integer("kreditor_nr").unique(),
+    /** Stundensatz in Cent für Leistungseinträge (#417); null = keiner hinterlegt */
+    hourlyRateCents: integer("hourly_rate_cents"),
     version: integer("version").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("contacts_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
+    index("contacts_kundennummer_trgm_idx").using("gin", t.kundennummer.op("gin_trgm_ops")),
+    index("contacts_lieferantennummer_trgm_idx").using("gin", t.lieferantennummer.op("gin_trgm_ops")),
+    index("contacts_email_trgm_idx").using("gin", t.email.op("gin_trgm_ops")),
+    index("contacts_ort_trgm_idx").using("gin", t.ort.op("gin_trgm_ops")),
+    index("contacts_ust_id_trgm_idx").using("gin", t.ustId.op("gin_trgm_ops")),
+    index("contacts_iban_trgm_idx").using("gin", t.iban.op("gin_trgm_ops")),
+    index("contacts_debitor_nr_trgm_idx").using("gin", sql`(${t.debitorNr}::text) gin_trgm_ops`),
+    index("contacts_kreditor_nr_trgm_idx").using("gin", sql`(${t.kreditorNr}::text) gin_trgm_ops`),
     check("contacts_debitor_nr_bereich", sql`${t.debitorNr} between 10000 and 69999`),
     check("contacts_kreditor_nr_bereich", sql`${t.kreditorNr} between 70000 and 99999`),
+  ],
+);
+
+/**
+ * Eigene Sachkonten (#270, Stufe 1): ein Aufwandskonto mit eigener Nummer und eigenem Namen. Für Steuer, EÜR und E-Bilanz
+ * zählt es wie seine Elternkategorie (`parent_category`). Nummer, Kontenrahmen und Elternkategorie ändern sich nie (Trigger,
+ * drizzle/0211); wer sich vertippt, löscht das Konto, solange nichts darauf zeigt, und legt es neu an. Der Name ist änderbar.
+ */
+export const ownAccounts = pgTable(
+  "own_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
+    account: text("account").notNull(),
+    name: text("name").notNull(),
+    parentCategory: text("parent_category").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("own_accounts_nummer", sql`${t.account} ~ '^[0-9]{4}$'`),
+    check("own_accounts_name", sql`length(btrim(${t.name})) between 1 and 80`),
+    uniqueIndex("own_accounts_nummer_key").on(t.kontenrahmen, t.account),
+  ],
+);
+
+/**
+ * Abrechenbare Leistungen (#417): ein Zeiteintrag je Kunde. Die Dauer steht in Minuten, der Stundensatz als Kopie vom
+ * Anlegen (Cent; null = keiner bekannt). Einträge von außen (Kimai, Toggl) tragen Quelle und Kennung, damit ein zweiter
+ * Abruf nichts verdoppelt.
+ */
+export const serviceEntries = pgTable(
+  "service_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    workedOn: date("worked_on", { mode: "string" }).notNull(),
+    minutes: integer("minutes").notNull(),
+    description: text("description").notNull().default(""),
+    hourlyRateCents: integer("hourly_rate_cents"),
+    /** Erfasst, kommt aber nie in einen Rechnungsentwurf (z. B. interne Zeit) */
+    nonBillable: boolean("non_billable").notNull().default(false),
+    /** Abrechenbare Dauer in Minuten, wenn sie von der erfassten abweicht; null = die erfasste */
+    billableMinutes: integer("billable_minutes"),
+    /** Projekt als freier Text, nur zum Gruppieren und Filtern; keine Projektverwaltung */
+    project: text("project").notNull().default(""),
+    externalSource: text("external_source"),
+    externalId: text("external_id"),
+    /**
+     * Rechnung, auf der der Eintrag abgerechnet ist (Entwurf oder festgeschrieben). Nach dem Storno der Rechnung gilt er wieder als
+     * offen und wird beim nächsten Abrechnen neu verknüpft. Eigene Spalte statt an invoices: Neue Spalten dort landen im Siegel.
+     */
+    invoiceId: uuid("invoice_id").references(() => invoices.id, { onDelete: "set null" }),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("service_entries_minutes", sql`${t.minutes} between 1 and 1440`),
+    check("service_entries_billable_minutes", sql`${t.billableMinutes} is null or ${t.billableMinutes} between 1 and 1440`),
+    check("service_entries_rate", sql`${t.hourlyRateCents} is null or ${t.hourlyRateCents} >= 0`),
+    check("service_entries_extern", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
+    uniqueIndex("service_entries_extern_key").on(t.externalSource, t.externalId),
+    index("service_entries_contact").on(t.contactId, t.workedOn),
+    index("service_entries_invoice").on(t.invoiceId),
   ],
 );
 
@@ -1041,7 +1140,12 @@ export const contactPersons = pgTable(
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("contact_persons_contact").on(t.contactId), check("contact_persons_name", sql`length(btrim(${t.name})) > 0`)],
+  (t) => [
+    index("contact_persons_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
+    index("contact_persons_email_trgm_idx").using("gin", t.email.op("gin_trgm_ops")),
+    index("contact_persons_contact").on(t.contactId),
+    check("contact_persons_name", sql`length(btrim(${t.name})) > 0`),
+  ],
 );
 
 /**
@@ -1141,6 +1245,11 @@ export const invoices = pgTable(
     issueDate: date("issue_date", { mode: "string" }).notNull(),
     serviceFrom: date("service_from", { mode: "string" }),
     serviceTo: date("service_to", { mode: "string" }),
+    /**
+     * „Ausgeführt am“, beim Festschreiben eingefroren (#694): Der Leistungsmonat entscheidet bei Soll-Versteuerung,
+     * in welchem Zeitraum die Umsatzsteuer gemeldet wird. Altrechnungen ohne Angabe zählen nach Rechnungsdatum.
+     */
+    serviceDate: date("service_date", { mode: "string" }),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     dueDate: date("due_date", { mode: "string" }).notNull(),
     /**
@@ -1153,6 +1262,8 @@ export const invoices = pgTable(
     intro: text("intro").notNull().default(""),
     /** Hinweis unter den Summen (Fußtext) */
     note: text("note").notNull().default(""),
+    /** Aufbewahrungshinweis für Grundstücksleistungen (§ 14 Abs. 4 Satz 1 Nr. 9 UStG), getrennt vom freien Fußtext */
+    propertyRetention: boolean("property_retention").notNull().default(false),
     /**
      * Referenzen nach EN 16931 (#389), leer = keine: Bestellnummer des Kunden (BT-13), eigene Auftragsnummer (BT-14) und
      * Lieferschein (BT-16). Im XML an ihrem eigenen Feld, im PDF im Kopfblock.
@@ -1178,6 +1289,12 @@ export const invoices = pgTable(
     correctsId: uuid("corrects_id"),
     /** Abschlags- oder Schlussrechnung; nur bei kind „rechnung“ */
     variant: text("variant", { enum: ["abschlag", "schluss"] }),
+    /** null: vor #622 festgeschriebener Abschlag; dessen bisherige Versteuerung bleibt erhalten. */
+    advanceType: text("advance_type", { enum: ["anzahlung", "teilleistung"] }),
+    /** null: bisheriges Bilanzverfahren; neue GmbH-/UG-Anzahlungen werden erst mit der Leistung als Erlös gebucht. */
+    advanceAccounting: text("advance_accounting", { enum: ["deferred"] }),
+    /** Ersatz einer stornierten Schlussrechnung; deren bereits realisierte Leistung bleibt bestehen (#750). */
+    replacesInvoiceId: uuid("replaces_invoice_id"),
     /** Angebot, aus dem bzw. zu dem die Rechnung entstanden ist; die Schlussrechnung zieht dessen Abschläge ab */
     quoteId: uuid("quote_id").references((): AnyPgColumn => quotes.id),
     /** Abschlagsrechnung zu einer Zeile des Zahlungsplans im Angebot (Index ab 0) */
@@ -1228,6 +1345,12 @@ export const invoices = pgTable(
     uniqueIndex("invoices_external_ref").on(t.externalSource, t.externalId),
     check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
+    check("invoices_advance_type", sql`${t.advanceType} is null or (${t.variant} = 'abschlag' and ${t.advanceType} in ('anzahlung', 'teilleistung'))`),
+    check("invoices_advance_accounting", sql`${t.advanceAccounting} is null or ${t.advanceAccounting} = 'deferred'`),
+    check(
+      "invoices_replaces_schluss",
+      sql`${t.replacesInvoiceId} is null or (${t.replacesInvoiceId} <> ${t.id} and ${t.kind} = 'rechnung' and ${t.variant} is not distinct from 'schluss' and ${t.advanceAccounting} is not distinct from 'deferred' and ${t.correctsId} is null)`,
+    ),
     check("invoices_quote_kind", sql`${t.quoteId} is null or ${t.kind} = 'rechnung'`),
     check("invoices_plan_row", sql`${t.paymentPlanRow} is null or (${t.variant} = 'abschlag' and ${t.quoteId} is not null and ${t.paymentPlanRow} >= 0)`),
     check("invoices_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
@@ -1236,11 +1359,19 @@ export const invoices = pgTable(
     check("invoices_corrects_original", sql`${t.kind} = 'rechnung' or ${t.correctsId} is not null`),
     uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
     uniqueIndex("invoices_recurring_date").on(t.recurringId, t.recurringDate),
+    index("invoices_number_trgm_idx").using("gin", t.number.op("gin_trgm_ops")),
+    index("invoices_buyer_order_reference_trgm_idx").using("gin", t.buyerOrderReference.op("gin_trgm_ops")),
+    index("invoices_seller_order_reference_trgm_idx").using("gin", t.sellerOrderReference.op("gin_trgm_ops")),
+    index("invoices_buyer_name_trgm_idx").using("gin", sql`(${t.buyer} ->> 'name') gin_trgm_ops`),
+    index("invoices_gross_search_idx").on(t.gross),
+    index("invoices_contactId_search_idx").on(t.contactId),
     index("invoices_corrects").on(t.correctsId),
     index("invoices_quote").on(t.quoteId),
     // höchstens ein festgeschriebenes Storno je Rechnung
     uniqueIndex("invoices_one_storno").on(t.correctsId).where(sql`${t.kind} = 'storno' and ${t.status} = 'final'`),
+    uniqueIndex("invoices_one_final_replacement").on(t.replacesInvoiceId).where(sql`${t.status} = 'final'`),
     foreignKey({ name: "invoices_corrects_fk", columns: [t.correctsId], foreignColumns: [t.id] }),
+    foreignKey({ name: "invoices_replaces_fk", columns: [t.replacesInvoiceId], foreignColumns: [t.id] }),
     // in 0011 und 0018 von Hand angelegt
     foreignKey({ name: "invoices_recurring_fk", columns: [t.recurringId], foreignColumns: [recurringInvoices.id] }),
     foreignKey({ name: "invoices_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
@@ -1401,6 +1532,10 @@ export const quotes = pgTable(
     check("quotes_decision_final", sql`${t.decision} is null or ${t.status} = 'final'`),
     check("quotes_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
     check("quotes_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
+    index("quotes_number_trgm_idx").using("gin", t.number.op("gin_trgm_ops")),
+    index("quotes_buyer_name_trgm_idx").using("gin", sql`(${t.buyer} ->> 'name') gin_trgm_ops`),
+    index("quotes_gross_search_idx").on(t.gross),
+    index("quotes_contactId_search_idx").on(t.contactId),
     uniqueIndex("quotes_number_counter").on(t.numberYear, t.numberCounter),
   ],
 );
@@ -1631,7 +1766,23 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn", "import"],
+      enum: [
+        "invoice",
+        "document",
+        "allocation",
+        "asset",
+        "pauschale",
+        "kasse",
+        "ausbuchung",
+        "manuell",
+        "eroeffnung",
+        "ausschuettung",
+        "lohn",
+        "import",
+        // Verrechnung zweier Belege (#274): bisher ohne Buchung; seit #786 trägt sie die Umbuchung der Vorsteuer aus dem
+        // Zwischenkonto, mit #785 kommen die zwei Buchungen je Belegseite dazu
+        "verrechnung",
+      ],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
@@ -1769,7 +1920,12 @@ export const documents = pgTable(
     invoiceNumber: text("invoice_number").notNull().default(""),
     documentDate: date("document_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),
+    /** Leistungszeitraum aus dem Beleg (#693); „ausgeführt am“ ist der letzte Tag, siehe leistungsdatum() in @haben/core */
+    serviceFrom: date("service_from", { mode: "string" }),
+    serviceTo: date("service_to", { mode: "string" }),
     category: text("category"),
+    /** Eigenes Sachkonto (#270) der Kategorie; `category` bleibt die Elternkategorie, auf die Steuer und EÜR rechnen */
+    ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
     payment: text("payment", { enum: ["bank", "privat", "kasse"] })
       .notNull()
       .default("bank"),
@@ -1785,10 +1941,23 @@ export const documents = pgTable(
     gross: integer("gross").notNull().default(0),
     /** Bei Kategorie „anlage“: Angaben für die Anlage, die beim Buchen entsteht */
     asset: jsonb("asset").$type<{ name: string; kind: AssetKind; method: AssetMethod; usefulLifeMonths: number | null }>(),
-    /** Beim Buchen festgehalten: false bei Kleinunternehmern, dann ist die Steuer Teil des Aufwands */
+    /** Beim Buchen festgehalten: false ohne Vorsteuerabzug (Kleinunternehmer, Firmenvorgabe oder am Beleg), dann ist die Steuer Teil des Aufwands */
     vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
+    /**
+     * Abziehbarer Anteil der Vorsteuer in Basispunkten (10000 = voll, 0 = kein Abzug); null = Vorgabe der Firmendaten.
+     * Beim Buchen mit dem angewandten Wert festgehalten, zusammen mit vorsteuerAbzug (= Anteil > 0), den ältere Belege
+     * allein tragen. Stufe 1 (#852) nimmt nur 0 und 10000; Teilabzug nach § 15 Abs. 4 UStG folgt mit #433.
+     */
+    vorsteuerAnteil: smallint("vorsteuer_anteil"),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
     privateShare: smallint("private_share").notNull().default(0),
+    /**
+     * Gutschrift erstattet bereits Bezahltes (#786), etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
+     * schon bezahlte Rechnung: Die Vorsteuerminderung wird nach § 17 Abs. 1 Satz 2 und 8 UStG erst gezogen, wenn das Geld
+     * zurückkommt oder verrechnet wird, und steht bis dahin auf dem Zwischenkonto. Ausdrückliche Angabe, nicht aus dem
+     * Zahlungsstand abgeleitet. Nur an Gutschriften (negativer Beleg).
+     */
+    erstattetBezahltes: boolean("erstattet_bezahltes").notNull().default(false),
     /**
      * § 13b (eu, drittland) oder innergemeinschaftlicher Erwerb (ig_erwerb, § 1a UStG): Die Steuer schuldest du selbst.
      * Die Beträge tragen die selbst berechnete Steuer, gezahlt wird nur netto (gross = net).
@@ -1821,7 +1990,12 @@ export const documents = pgTable(
   },
   // in 0011 und 0016 von Hand angelegt
   (t) => [
+    index("documents_supplier_name_trgm_idx").using("gin", t.supplierName.op("gin_trgm_ops")),
+    index("documents_invoice_number_trgm_idx").using("gin", t.invoiceNumber.op("gin_trgm_ops")),
+    index("documents_filename_trgm_idx").using("gin", t.filename.op("gin_trgm_ops")),
+    index("documents_gross_search_idx").on(t.gross),
     check("documents_private_share_range", sql`${t.privateShare} between 0 and 100`),
+    check("documents_vorsteuer_anteil_range", sql`${t.vorsteuerAnteil} between 0 and 10000`),
     foreignKey({ name: "documents_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
     // Externe Referenz nur vollständig: Quelle und Kennung zusammen
     check("documents_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
@@ -1895,6 +2069,8 @@ export const documentSplits = pgTable(
     /** Reihenfolge wie eingegeben, ab 1 */
     position: smallint("position").notNull(),
     category: text("category").notNull(),
+    /** Eigenes Sachkonto (#270) der Kategorie der Zeile */
+    ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
     taxRate: smallint("tax_rate").notNull(),
     net: integer("net").notNull(),
     tax: integer("tax").notNull(),
@@ -2197,6 +2373,12 @@ export const allocations = pgTable(
       .notNull()
       .references(() => bankTransactions.id),
     kind: allocationKindEnum("kind").notNull(),
+    /**
+     * Tag, an dem die Zuordnung wirkt; leer heißt Buchungsdatum des Umsatzes. Gesetzt ist er bei der Gegenzeile einer
+     * Aufhebung (#782): Die wirkt am Tag der Aufhebung, auch wenn der Umsatz Monate älter ist. Ohne diese Spalte lägen
+     * Journal (Tag der Aufhebung) und Nebenbücher (Tag des Umsatzes) für den Zeitraum dazwischen auseinander.
+     */
+    date: date("date", { mode: "string" }),
     invoiceId: uuid("invoice_id").references(() => invoices.id),
     documentId: uuid("document_id").references(() => documents.id),
     /** Mit dem Vorzeichen des Umsatzes; Teile einer Aufteilung auch mit umgekehrtem (z. B. Gebühr in einer Auszahlung) */
@@ -2805,6 +2987,24 @@ export const legacyVoucherPayments = pgTable(
   (t) => [uniqueIndex("legacy_voucher_payments_source_external").on(t.source, t.externalId), index("legacy_voucher_payments_voucher").on(t.voucherId)],
 );
 
+/**
+ * Kontostamm eines Buchungskontos aus sevDesk (GET /AccountingType/{id}), unverändert. Gutschriften mit `bookingCategory`
+ * ACCOUNTING_TYPE folgen zur Laufzeit dessen Kontonummern (#472). Nur anhängen; ein gleicher Stand kommt nur einmal an.
+ */
+export const sevdeskAccountingTypes = pgTable(
+  "sevdesk_accounting_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    accountingTypeId: text("accounting_type_id").notNull(),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sevdesk_accounting_types_stand").on(t.accountingTypeId, sql`md5(${t.raw}::text)`)],
+);
+
 /** Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. */
 export const lexofficeVoucherFiles = pgTable(
   "lexoffice_voucher_files",
@@ -2917,6 +3117,7 @@ export const recurringInvoices = pgTable(
     /** Einleitung über den Positionen; Platzhalter wie bei den Positionen */
     intro: text("intro").notNull().default(""),
     note: text("note").notNull().default(""),
+    propertyRetention: boolean("property_retention").notNull().default(false),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),
     /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */
@@ -3408,5 +3609,25 @@ export const externalImports = pgTable(
       or (${t.kind} = 'quote' and ${t.orderDocumentId} is not null and ${t.voucherId} is null and ${t.entryId} is null)
       or (${t.kind} = 'journal' and ${t.entryId} is not null and ${t.voucherId} is null and ${t.orderDocumentId} is null)`,
     ),
+  ],
+);
+
+/** Bestätigte Zahlungsbezüge, auch für bereits übernommene Journalbuchungen. Nur anhängen; Originale bleiben unverändert. */
+export const externalImportSettlements = pgTable(
+  "external_import_settlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    paymentImportId: uuid("payment_import_id")
+      .notNull()
+      .references(() => externalImports.id),
+    originalImportId: uuid("original_import_id")
+      .notNull()
+      .references(() => externalImports.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("external_import_settlements_payment").on(t.paymentImportId),
+    index("external_import_settlements_original").on(t.originalImportId),
+    check("external_import_settlements_different", sql`${t.paymentImportId} <> ${t.originalImportId}`),
   ],
 );

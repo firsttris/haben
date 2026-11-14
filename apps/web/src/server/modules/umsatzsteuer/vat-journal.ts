@@ -10,8 +10,7 @@ import {
   type Versteuerung,
 } from "@haben/core";
 import { and, asc, eq, gte, lt, notInArray, or } from "drizzle-orm";
-import { versteuerungForYear } from "../stammdaten/index.ts";
-import { invoiceTaxYear } from "../rechnungen/index.ts";
+import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
@@ -37,6 +36,12 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
       basis: l.basis,
       invoiceDate: schema.invoices.issueDate,
       correctsId: schema.invoices.correctsId,
+      advanceType: schema.invoices.advanceType,
+      invoiceId: schema.invoices.id,
+      variant: schema.invoices.variant,
+      serviceFrom: schema.invoices.serviceFrom,
+      serviceTo: schema.invoices.serviceTo,
+      treatment: schema.invoices.taxTreatment,
     })
     .from(l)
     .innerJoin(e, eq(e.id, l.entryId))
@@ -44,15 +49,25 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
     .where(and(gte(e.date, start), lt(e.date, end), nurManuell ? eq(e.sourceType, "manuell") : notInArray(e.sourceType, ["eroeffnung", "asset"])))
     .orderBy(asc(e.id));
-  const modes = new Map<number, Versteuerung>([[period.year, versteuerung]]);
   const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; zeilen: JournalZeile[] }>();
+  const taxes = invoiceTaxReader(q);
   for (const r of rows) {
     let b = buchungen.get(r.id);
     if (!b) {
       // Auch Storno und Korrektur folgen der ursprünglichen Rechnung.
-      const year = r.invoiceDate ? await invoiceTaxYear({ issueDate: r.invoiceDate, correctsId: r.correctsId }, q) : period.year;
-      if (!modes.has(year)) modes.set(year, await versteuerungForYear(year, q));
-      b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: modes.get(year)!, zeilen: [] };
+      const mode = r.invoiceDate
+        ? await taxes.postingMode({
+            issueDate: r.invoiceDate,
+            correctsId: r.correctsId,
+            advanceType: r.advanceType,
+            id: r.invoiceId ?? undefined,
+            variant: r.variant,
+            serviceFrom: r.serviceFrom,
+            serviceTo: r.serviceTo,
+            taxTreatment: r.treatment ?? "regulaer",
+          })
+        : versteuerung;
+      b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, zeilen: [] };
       buchungen.set(r.id, b);
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode as JournalZeile["taxCode"], basis: r.basis });

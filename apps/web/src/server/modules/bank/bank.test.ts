@@ -68,7 +68,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
   });
 
-  async function finalInvoice(net: number) {
+  async function finalInvoice(net: number, refs: { buyerOrderReference?: string } = {}) {
     const contact = await contacts.createContact(actor, {
       kundennummer: "",
       name: "Nordwerk Software GmbH",
@@ -90,6 +90,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       paymentTermDays: 14,
       format: "zugferd",
       note: "",
+      ...refs,
       lines: [{ description: "Leistungen August", quantity: 1000, unit: "Psch.", unitPrice: net, taxRate: 1900 }],
     });
     return { invoice: await invoices.finalizeInvoice(actor, draft.id), contact };
@@ -494,7 +495,8 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       ["1776", 0, 76_000],
     ]);
     const list = await invoices.listInvoices("2026-10-02");
-    expect(list.find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+    // Datum der Zahlung für „Bezahlt am …“: die Buchung auf dem Konto, nicht der Tag der Zuordnung
+    expect(list.find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0, settledOn: "2026-10-01" });
     expect((await contacts.getContact(contact.id))?.contact.iban).toBe("DE02100100100006820101");
     expect((await invoices.invoiceSummary("2026-10-02")).openTotal).toBe(0);
   }, 30_000);
@@ -1178,6 +1180,39 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(await bank.openItems()).toEqual([]);
     const accounts = await bank.listAccounts();
     expect(accounts[0]?.openCount).toBe(0);
+  }, 30_000);
+
+  it("Bestellnummer im Verwendungszweck: der Verkauf findet seine Rechnung, eine Gebühren-Gutschrift nicht, das Storno erbt die Nummer", async () => {
+    await finalInvoice(100_000, { buyerOrderReference: "1111111111" });
+    const { invoice: b } = await finalInvoice(100_000, { buyerOrderReference: "1000000005" });
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          incoming("28.09.26", "Etsy Ireland UC", "DE02100100100006820101", "Sale · Payment for Order #1000000005", "1.190,00"),
+          incoming("28.09.26", "Etsy Ireland UC", "DE02100100100006820101", "Gebühr · Credit for transaction fee · Order #1000000005", "13,50"),
+        ]),
+        filename: "a.csv",
+      },
+      null,
+    );
+    const [sale] = await sql`select id from bank_transactions where amount = 119000`;
+    const [credit] = await sql`select id from bank_transactions where amount = 1350`;
+
+    // Gleicher Betrag bei beiden Rechnungen, die ältere gewinnt sonst: hier entscheidet die Bestellnummer
+    const verkauf = await bank.transactionDetail(sale!.id);
+    expect(verkauf?.suggestions[0]?.item).toMatchObject({ id: b.id });
+    expect(verkauf?.suggestions[0]?.reasons).toContain("Bestellnummer im Verwendungszweck (1000000005)");
+
+    // Dieselbe Bestellnummer, aber anderer Betrag: keine Punkte für die Bestellnummer
+    const gutschrift = await bank.transactionDetail(credit!.id);
+    expect(gutschrift?.suggestions.filter((s) => s.reasons.some((r) => r.startsWith("Bestellnummer")))).toEqual([]);
+
+    // Das Storno erbt die Bestellnummer (#389) und trägt sie in den offenen Posten
+    await bank.allocate(actor, { kind: "invoice", transactionId: sale!.id, invoiceId: b.id, amount: 119_000 });
+    const storno = await invoices.cancelInvoice(actor, b.id, "2026-10-10");
+    const item = (await bank.openItems()).find((i) => i.id === storno.id);
+    expect(item).toMatchObject({ open: -119_000, orderReferences: ["1000000005"] });
   }, 30_000);
 
   it("Storno einer bezahlten Rechnung: Erstattung wird der Stornorechnung zugeordnet und mindert die Umsatzsteuer (Ist)", async () => {

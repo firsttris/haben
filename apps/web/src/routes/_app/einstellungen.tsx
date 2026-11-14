@@ -23,6 +23,7 @@ import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
+import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LetterheadBackgroundCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
 import { LayoutsCard } from "../../components/LayoutsCard.tsx";
@@ -63,7 +64,7 @@ import { getCustomPages } from "../../server/functions/eigene-seiten.ts";
 import { getExportYears } from "../../server/functions/export.ts";
 import { getNumbering } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
-import { getChainHead } from "../../server/functions/integrity.ts";
+import { getChainHead, getDatabaseAccessInfo } from "../../server/functions/integrity.ts";
 import { getBackground, getLetterheadDesign, getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getMcpSettings } from "../../server/functions/mcp.ts";
@@ -72,9 +73,11 @@ import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
 import { StichjahrCard } from "../../components/StichjahrCard.tsx";
+import { NavMarkCard } from "../../components/NavMarkCard.tsx";
 import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
+import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   beforeLoad: ({ context, search }) => {
@@ -96,6 +99,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       exportYears,
       datev,
       chainHead,
+      databaseAccess,
       backup,
       mcp,
       rates,
@@ -120,6 +124,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getExportYears(),
       getDatevNumbers(),
       getChainHead(),
+      getDatabaseAccessInfo(),
       getBackupStatus(),
       getMcpSettings(),
       getExchangeRates(),
@@ -147,6 +152,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       exportYears,
       datev,
       chainHead,
+      databaseAccess,
       backup,
       mcp,
       rates,
@@ -180,6 +186,7 @@ function SettingsPage() {
     exportYears,
     datev,
     chainHead,
+    databaseAccess,
     backup,
     mcp,
     rates,
@@ -219,6 +226,7 @@ function SettingsPage() {
             <>
               <CompanyForm />
               <StichjahrCard stand={stichjahr} />
+              <NavMarkCard color={company.navColor} logo={company.navLogo} logoSha256={logo?.sha256 ?? null} />
             </>
           )}
           {bereich === "persoenlich" && <TaxpayerForm />}
@@ -286,6 +294,7 @@ function SettingsPage() {
               <ExportCard years={exportYears} />
               <DatevCard years={exportYears} numbers={datev} />
               <IntegrityCard head={chainHead} />
+              <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
             </>
           )}
@@ -345,6 +354,7 @@ function CompanyForm() {
           invoiceIntro: text("invoiceIntro"),
           quoteIntro: text("quoteIntro"),
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          ohneVorsteuerabzug: form.get("ohneVorsteuerabzug") === "on",
           tageskurs: form.get("tageskurs") === "on",
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
           taetigkeit: text("taetigkeit"),
@@ -571,6 +581,16 @@ function CompanyForm() {
               : company.kleinunternehmer
                 ? "Ausschalten, sobald die Umsatzgrenze überschritten ist; ab dann gilt die Regelbesteuerung."
                 : ""}
+          </span>
+        </div>
+        <div className="checkbox-hinted">
+          <label className="checkbox">
+            <input type="checkbox" name="ohneVorsteuerabzug" defaultChecked={company.ohneVorsteuerabzug} aria-describedby="ohne-vorsteuerabzug-hint" />
+            <span>Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)</span>
+          </label>
+          <span id="ohne-vorsteuerabzug-hint" className="field-hint">
+            Etwa bei Heilbehandlung oder Unterricht (§ 4 Nr. 14 und 21 UStG): Belege werden ohne Vorsteuer gebucht, die Steuer wird Teil der Ausgabe (§ 15 Abs.
+            2 UStG). Am einzelnen Beleg änderbar; Rechnungen bleiben, wie sie sind.
           </span>
         </div>
       </section>
@@ -1022,7 +1042,15 @@ function EricCard() {
             </span>
           )}
         </div>
-        <span className={`pill ${eric.mode === "eric" ? "pill-ok" : ""}`}>{eric.mode === "eric" ? "ERiC" : "Simuliert"}</span>
+        {eric.mode === "eric" ? (
+          <Status tone="ok" inline>
+            ERiC
+          </Status>
+        ) : (
+          <Status tone="warn" emphasis="notice" inline>
+            Simuliert
+          </Status>
+        )}
       </div>
       {eric.source === "env" ? (
         <p className="small muted" style={{ margin: 0 }}>

@@ -7,12 +7,13 @@ import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { QuoteChoices } from "../../../components/QuoteChoices.tsx";
 import { QuotePlan } from "../../../components/QuotePlan.tsx";
-import { QuoteStatus } from "../../../components/QuoteStatus.tsx";
+import { BillingStatus, QuoteStatus } from "../../../components/QuoteStatus.tsx";
 import { SendMailForm } from "../../../components/SendMail.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { copyQuoteFn, decideQuote, getQuoteDetail, invoiceFromQuote } from "../../../server/functions/quotes.ts";
+import { OutcomeStatus } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/angebote/$id")({
   loader: ({ params }) => getQuoteDetail({ data: params.id }),
@@ -144,7 +145,7 @@ function FinalQuote({ data }: { data: Detail }) {
           {/* Status neben der Überschrift wie bei der Rechnung: bleibt mit dem stehenden Kopf sichtbar */}
           <div className="title-with-status">
             <h1>Angebot {quote.number}</h1>
-            <QuoteStatus status={listStatus} />
+            <QuoteStatus quote={{ listStatus, validUntil: quote.validUntil, invoiceNumber: invoice?.number ?? null }} />
           </div>
         </div>
         <div className="actions">
@@ -169,7 +170,7 @@ function FinalQuote({ data }: { data: Detail }) {
         <div className="stack">
           <section className="card" aria-labelledby="answer-heading">
             <h2 id="answer-heading">
-              Antwort des Kunden <QuoteStatus status={listStatus} />
+              Antwort des Kunden <QuoteStatus inline quote={{ listStatus, validUntil: quote.validUntil }} />
             </h2>
             {invoice ? (
               <p style={{ margin: 0 }}>
@@ -189,8 +190,16 @@ function FinalQuote({ data }: { data: Detail }) {
                       : "Nimmt der Kunde an, entsteht aus dem Angebot ein Rechnungsentwurf mit denselben Positionen, den du vor dem Festschreiben noch anpassen kannst."}
                 </p>
                 <div className="actions" style={{ flexWrap: "wrap" }}>
+                  {quote.decision !== null && (
+                    <button type="button" className="btn" onClick={() => void setDecision(null)} disabled={busy}>
+                      Antwort zurücknehmen
+                    </button>
+                  )}
                   {quote.decision !== "abgelehnt" && (
                     <>
+                      <button type="button" className="btn" onClick={() => void onInvoice("abschlag")} disabled={busy}>
+                        Abschlagsrechnung erstellen
+                      </button>
                       {finalAbschlaege.length > 0 ? (
                         <button type="button" className="btn btn-primary" onClick={() => void onInvoice("schluss")} disabled={busy}>
                           Schlussrechnung erstellen
@@ -200,9 +209,6 @@ function FinalQuote({ data }: { data: Detail }) {
                           Rechnung erstellen
                         </button>
                       )}
-                      <button type="button" className="btn" onClick={() => void onInvoice("abschlag")} disabled={busy}>
-                        Abschlagsrechnung erstellen
-                      </button>
                     </>
                   )}
                   {quote.decision === null && (
@@ -215,11 +221,6 @@ function FinalQuote({ data }: { data: Detail }) {
                         Abgelehnt
                       </button>
                     </div>
-                  )}
-                  {quote.decision !== null && (
-                    <button type="button" className="btn" onClick={() => void setDecision(null)} disabled={busy}>
-                      Antwort zurücknehmen
-                    </button>
                   )}
                 </div>
               </>
@@ -275,12 +276,10 @@ function FinalQuote({ data }: { data: Detail }) {
                       {b.variant === "abschlag" ? "Abschlagsrechnung" : b.variant === "schluss" ? "Schlussrechnung" : "Rechnung"} {b.number ?? "(Entwurf)"}
                     </Link>
                     <span className="small muted" style={{ display: "block" }}>
-                      {formatDate(b.issueDate)} · <span className="mono">{formatEuro(b.gross)}</span>
+                      {formatDate(b.issueDate)} · <span className="amount">{formatEuro(b.gross)}</span>
                     </span>
                   </span>
-                  <span className={`pill ${b.cancelled ? "pill-danger" : b.status === "final" ? "pill-ok" : ""}`}>
-                    {b.cancelled ? "Storniert" : b.status === "final" ? "Festgeschrieben" : "Entwurf"}
-                  </span>
+                  <BillingStatus cancelled={b.cancelled} final={b.status === "final"} />
                 </div>
               ))}
               {finalAbschlaege.length > 0 && (
@@ -301,11 +300,11 @@ function FinalQuote({ data }: { data: Detail }) {
               <dt>Gültig bis</dt>
               <dd>{formatDate(quote.validUntil)}</dd>
               <dt>Netto</dt>
-              <dd className="mono">{formatEuro(quote.net)}</dd>
+              <dd className="amount">{formatEuro(quote.net)}</dd>
               <dt>Umsatzsteuer</dt>
-              <dd className="mono">{formatEuro(quote.tax)}</dd>
+              <dd className="amount">{formatEuro(quote.tax)}</dd>
               <dt>Brutto</dt>
-              <dd className="mono" style={{ fontWeight: 600 }}>
+              <dd className="amount" style={{ fontWeight: 600 }}>
                 {formatEuro(quote.gross)}
               </dd>
               {quote.priceMode === "brutto" && (
@@ -350,7 +349,7 @@ function FinalQuote({ data }: { data: Detail }) {
                       </span>
                     )}
                   </span>
-                  <span className={`pill ${m.ok ? "pill-ok" : "pill-danger"}`}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</span>
+                  <OutcomeStatus ok={m.ok}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</OutcomeStatus>
                 </div>
               ))
             ) : (

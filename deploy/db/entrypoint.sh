@@ -99,6 +99,8 @@ upgrade() {
       --username="$su" --socketdir="$work"); then
     # Die Protokolle legt pg_upgrade im neuen Cluster ab
     find "$PGDATA" -path '*pg_upgrade_output.d*' -name '*.log' -exec tail -n 30 {} + >&2 2> /dev/null || true
+    # Das Ende eines Protokolls ist oft nur der fehlgeschlagene Befehl; die Ursache steht davor
+    find "$PGDATA" -path '*pg_upgrade_output.d*' -name '*.log' -exec grep -h -E '(error|ERROR|FATAL):' {} + >&2 2> /dev/null || true
     rm -rf "$PGDATA"; rmdir "$(dirname "$PGDATA")" 2> /dev/null || true
     log "pg_upgrade fehlgeschlagen; der alte Bestand in $old ist unverändert."
     log "Zurück geht es mit dem bisherigen Image (etwa postgres:$old_v) und demselben Volume."
@@ -129,7 +131,7 @@ upgrade() {
   fi
   log "Upgrade auf PostgreSQL $PG_MAJOR fertig. Der alte Bestand liegt unverändert in $old;"
   log "läuft Haben einwandfrei, kann er weg: rm -rf $(dirname "$old") im Container"
-  log "(siehe docs/installation.md, Abschnitt PostgreSQL-Update)."
+  log "(siehe docs/installation-backup.md, Abschnitt PostgreSQL-Update)."
 }
 
 if [ "$(id -u)" = 0 ] && [ ! -s "$PGDATA/PG_VERSION" ]; then

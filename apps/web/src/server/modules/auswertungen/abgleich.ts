@@ -30,6 +30,7 @@ import type { Buchung } from "./euer-journal-buchungen.ts";
 import { euerAusJournal } from "./euer-journal.ts";
 import { euerAusNebenbuechern } from "./reports.ts";
 import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
+import { oposAbgleichJahr, oposYears } from "./opos-abgleich.ts";
 
 /*
  * Abgleich Journal ↔ Umsatzsteuer und EÜR (#81). Voranmeldung und EÜR rechnen aus Rechnungen, Belegen, Zuordnungen,
@@ -46,8 +47,8 @@ import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts
  */
 
 export interface AbgleichZeile {
-  bereich: "ustva" | "euer";
-  /** JJJJ-MM für die Voranmeldung, JJJJ für die EÜR */
+  bereich: "ustva" | "euer" | "opos";
+  /** JJJJ-MM für die Voranmeldung, JJJJ für die EÜR, JJJJ-MM-TT für den OPOS-Stichtag */
   zeitraum: string;
   posten: string;
   journal: Cents;
@@ -263,6 +264,10 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
   const euerAusDemJournal = !firma || !isKapitalgesellschaft(firma.rechtsform);
   const ausJournal = await euerAusJournal(year, q);
+  if (euerAusDemJournal && ausJournal.ungeklaerteImporte > 0)
+    hinweise.push(
+      `${ausJournal.ungeklaerteImporte} Import-Buchungen auf Forderungen oder Verbindlichkeiten haben keinen Zahlungsbezug. Vor der EÜR die Quellzuordnung prüfen; daraus werden keine Einnahmen oder Ausgaben geschätzt.`,
+    );
   if (euerAusDemJournal) {
     const label = (key: EuerLineKey) =>
       [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.label ??
@@ -347,19 +352,23 @@ export async function abgleichJahr(year: number, today: string, q: Db | Tx = db)
     zeilen.push(...vatRows({ year, month }, sums, buchungen, await computeVatFigures({ year, month }, q)));
   }
   const euer = await euerAbgleich(year, q);
-  return { zeilen: [...zeilen, ...euer.zeilen], hinweise: euer.hinweise };
+  const opos = await oposAbgleichJahr(year, today, q);
+  return { zeilen: [...zeilen, ...euer.zeilen, ...opos.zeilen], hinweise: [...euer.hinweise, ...opos.hinweise] };
 }
 
 /**
- * Alle Jahre mit Buchungen (abgleichJahr). Für die Integritätsprüfung.
+ * Jahre mit Buchungen und neue Anzahlungsverfahren ohne Journal. Für die Integritätsprüfung.
  * Liest in vielen Abfragen nacheinander; damit eine Buchung nebenher nicht nur auf einer Seite erscheint, läuft das
  * in einer Transaktion mit festem Stand (REPEATABLE READ, siehe checkIntegrity).
  */
 export async function abgleichAll(today: string, q: Db | Tx = db): Promise<Abgleich> {
   const zeilen: AbgleichZeile[] = [];
   const hinweise: string[] = [];
-  for (const year of await journalYears(q)) {
-    const jahr = await abgleichJahr(year, today, q);
+  const journal = new Set(await journalYears(q));
+  const years = [...new Set([...journal, ...(await oposYears(today, q))])].sort((a, b) => a - b);
+  for (const year of years) {
+    // Ohne Journal nur den lesenden OPOS-Weg: EÜR-/Anlagenleser könnten sonst fehlende Firmendaten erst anlegen.
+    const jahr = journal.has(year) ? await abgleichJahr(year, today, q) : await oposAbgleichJahr(year, today, q);
     zeilen.push(...jahr.zeilen);
     hinweise.push(...jahr.hinweise);
   }
@@ -369,7 +378,7 @@ export async function abgleichAll(today: string, q: Db | Tx = db): Promise<Abgle
 /** Abweichungen und Hinweise des Abgleichs als Meldungen für die Vorprüfung der Voranmeldung */
 export function abgleichIssues({ zeilen, hinweise }: Abgleich): PreflightIssue[] {
   return [
-    ...abweichungen(zeilen).map(
+    ...abweichungen(zeilen.filter((z) => z.bereich === "ustva")).map(
       (z): PreflightIssue => ({
         tone: "warn",
         text: `Buchungen und Voranmeldung weichen ab: ${z.posten} laut Journal ${formatEuro(z.journal)}, laut Rechnungen, Belegen und Zahlungen ${formatEuro(z.quelle)}. Bitte vor dem Senden klären.`,

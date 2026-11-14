@@ -183,6 +183,8 @@ export function pdfData(doc: InvoiceDocument) {
     : null;
   return {
     ...body,
+    // Bestehendes Pflichtfeld des Feldvertrags: auch eingefrorene v1-Layouts drucken und prüfen diesen Text.
+    taxNote: [body.taxNote, doc.propertyRetention ? t.propertyRetention : null].filter(Boolean).join("\n") || null,
     docTitle: `${title} ${doc.number}`,
     title,
     reference: doc.corrects ? t.reference(doc.corrects.number, t.date(doc.corrects.issueDate)) : null,
@@ -362,7 +364,7 @@ export const showsCustomerNumber = (doc: Letterhead & { buyer: { kundennummer?: 
   Boolean(doc.buyer.kundennummer) && doc.options?.customerNumber !== false;
 
 /** Auftrag für den Render-Prozess: gleiche Vorlage und Daten wie beim PDF, Logo und Briefpapier als Dateien neben der Vorlage */
-export function renderJob(template: "rechnung.typ", data: object, letterhead: Letterhead): RenderJob {
+export function renderJob(template: "rechnung.typ" | "mahnung.typ", data: object, letterhead: Letterhead): RenderJob {
   const workspace = join(PACKAGE_DIR, "templates");
   const files = [
     ...(letterhead.logo ? [{ name: `logo.${letterhead.logo.format}`, base64: Buffer.from(letterhead.logo.data).toString("base64") }] : []),

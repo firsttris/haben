@@ -1,6 +1,7 @@
 import { formatDateTime } from "../lib/format.ts";
 import { ROLLEN_LABEL, type Rolle } from "../lib/rollen.ts";
 import { STEUERBERATUNG_DOCS } from "./ZugaengeCard.tsx";
+import { Status, Tag } from "./Status.tsx";
 
 interface SsoAccount {
   id: string;
@@ -32,7 +33,14 @@ export function SsoZugaengeCard({ accounts, providerName }: { accounts: SsoAccou
         <div key={account.id} className="history-row">
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
             <span style={{ fontWeight: 500, overflowWrap: "anywhere" }}>
-              {account.name} {account.role ? <span className="pill">{ROLLEN_LABEL[account.role]}</span> : <span className="pill pill-warn">kein Zugang</span>}
+              {account.name}{" "}
+              {account.role ? (
+                <Tag>{ROLLEN_LABEL[account.role]}</Tag>
+              ) : (
+                <Status tone="warn" emphasis="notice" inline>
+                  Kein Zugang
+                </Status>
+              )}
             </span>
             <span className="small muted" style={{ overflowWrap: "anywhere" }}>
               {account.email} · {account.role ? "Rolle bestätigt" : "abgewiesen"} {formatDateTime(account.confirmedAt)}

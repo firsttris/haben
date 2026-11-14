@@ -1,8 +1,9 @@
+import { mitIndexXml } from "./beschreibung.ts";
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { bankAccountIncludedSql } from "../../db/bank-open.ts";
 import { effectivePayment } from "./payment-history.ts";
-import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
+import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
 import {
@@ -15,6 +16,7 @@ import {
   PAUSCHALE_LABEL,
   WRITE_OFF_KINDS,
 } from "@haben/core";
+import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { accountName, openingCash } from "../buchhaltung/index.ts";
@@ -219,7 +221,9 @@ const KIND_LABELS: Record<string, string> = {
   schluss: "Schlussrechnung",
 };
 const FORMAT_LABELS: Record<string, string> = { zugferd: "ZUGFeRD", "xrechnung-cii": "XRechnung (CII)", "xrechnung-ubl": "XRechnung (UBL)" };
-const SOURCE_LABELS: Record<string, string> = {
+/** Herkunft einer Buchung im Journal, wie sie die Datenbank zulässt */
+type JournalSource = (typeof schema.journalEntries.$inferInsert)["sourceType"];
+const SOURCE_LABELS: Record<JournalSource, string> = {
   invoice: "Rechnung",
   document: "Beleg",
   allocation: "Zahlung",
@@ -231,7 +235,17 @@ const SOURCE_LABELS: Record<string, string> = {
   eroeffnung: "Eröffnung",
   ausschuettung: "Ausschüttung",
   lohn: "Lohn",
+  import: "Import",
+  verrechnung: "Verrechnung",
 };
+
+/**
+ * Herkunft einer Journalbuchung für die Spalte „Quelle“. Die Zuordnung deckt jeden Wert ab, den das Schema zulässt;
+ * eine Herkunft aus einem älteren Stand bleibt roh statt leer.
+ */
+export function sourceLabel(sourceType: string): string {
+  return SOURCE_LABELS[sourceType as JournalSource] ?? sourceType;
+}
 const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[number], string> = {
   invoice: "Rechnung",
   document: "Beleg",
@@ -256,7 +270,13 @@ const SUBMISSION_LABELS: Record<string, string> = { validate: "Prüfung", test: 
 
 /** Das ZIP-Archiv eines Kalenderjahrs als Byte-Stücke */
 export function exportYear(year: number, now = new Date()): AsyncGenerator<Uint8Array> {
-  return zipArchive(yearFiles(year, now), now);
+  return zipArchive(withIndex(yearFiles(year, now), year), now);
+}
+
+/** Hängt die index.xml (Beschreibungsstandard der Finanzverwaltung, #546) hinter die Dateien des Jahres */
+async function* withIndex(files: AsyncIterable<ArchiveFile>, year: number): AsyncGenerator<ArchiveFile> {
+  const [company] = await db.select({ name: schema.company.name, ort: schema.company.ort }).from(schema.company).where(eq(schema.company.id, 1));
+  yield* mitIndexXml(files, { name: company?.name || "–", ort: company?.ort || "–", jahr: year, version: HABEN_VERSION });
 }
 
 export function exportFilename(year: number, now = new Date()): string {
@@ -283,6 +303,7 @@ export async function exportYears(now = new Date()): Promise<number[]> {
 async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> {
   const [company] = await db.select().from(schema.company).where(eq(schema.company.id, 1));
   const problems: string[] = [];
+  await refreshOwnAccountNames();
 
   yield { path: "LIESMICH.txt", content: encoder.encode(readme(year, now, company)), compress: true };
   yield* externalImportArchive(year);
@@ -639,7 +660,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       entry.date,
       entry.id,
       entry.description,
-      SOURCE_LABELS[entry.sourceType] ?? entry.sourceType,
+      sourceLabel(entry.sourceType),
       entry.sourceId,
       entry.kontenrahmen,
       line.account,
@@ -1330,6 +1351,9 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
       direction: effectiveDirection("lexoffice_vouchers"),
       contactName: effectiveContactName("lexoffice_vouchers"),
       taxes: effectiveTaxes("lexoffice_vouchers"),
+      net: effectiveAmount("lexoffice_vouchers", "net"),
+      tax: effectiveAmount("lexoffice_vouchers", "tax"),
+      gross: effectiveAmount("lexoffice_vouchers", "gross"),
       payment: effectivePayment("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
@@ -1708,8 +1732,8 @@ anlagen/anlagenverzeichnis.csv
                          Jahresanfang, Zugang, AfA, Abgang und Buchwert am Jahresende.
 pauschalen/pauschalen.csv
                          Nur wenn vorhanden: Pauschalen ohne Beleg (Homeoffice-Tage,
-                         Fahrten, Verpflegungsmehraufwand) mit ihren Angaben als
-                         Eigenbeleg; Stornos als Gegenzeile.
+                         Fahrten, Verpflegungsmehraufwand, Wege zur Betriebsstätte) mit
+                         ihren Angaben als Eigenbeleg; Stornos als Gegenzeile.
 kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufender
                          Nummer, Anfangsbestand und Bestand nach jeder Zeile; bei
                          Bareinnahmen auf Rechnungen die Rechnungsnummer.
@@ -1744,6 +1768,11 @@ protokoll/audit.csv      Änderungsprotokoll des Jahres mit altem und neuem Wert
                          Reihenfolge der Hash-Kette mit Vorgänger-Hash und Hash je Eintrag.
 protokoll/pruefwert.txt  Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am
                          Ende des Jahres.
+index.xml                Beschreibung aller CSV-Dateien (Pfad, Zeichensatz, Trenner, Spalten,
+                         Beträge und Daten) nach dem Beschreibungsstandard der Finanzverwaltung
+                         (GDPdU), mit der eine Prüfsoftware die Dateien einliest. Die DTD
+                         gdpdu-01-03-2019.dtd gehört dazu und liegt nicht bei (Bezug: CaseWare
+                         Germany). Ob eine Prüfsoftware die Datei annimmt, ist nicht geprüft.
 pruefsummen.sha256       SHA-256 jeder Datei in diesem Archiv.
 
 

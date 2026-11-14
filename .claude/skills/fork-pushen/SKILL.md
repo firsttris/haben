@@ -5,7 +5,7 @@ description: "Eigene Commits (Fixes aus Review oder Beitragsprüfung, Ergänzung
 
 # Auf einen fremden Fork pushen
 
-Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst darum bitten oder als letzten Ausweg einen eigenen Pull Request anlegen (`docs/entwicklung.md`, „Review“, Schritt 4). Commits der beitragenden Person nie umschreiben, nie Force.
+Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst darum bitten oder als letzten Ausweg einen eigenen Pull Request anlegen (`docs/mitwirken.md`, „Review“, Schritt 4). Commits der beitragenden Person nie umschreiben, nie Force.
 
 **Lokal** (Claude Code auf dem eigenen Rechner): `git push` auf den Branch des Forks geht mit den eigenen Zugangsdaten. Der Rest dieses Skills betrifft nur die Cloud.
 
@@ -19,4 +19,6 @@ Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst da
    - der Patch zwischen Markern, anzuwenden mit `git am`;
    - die Kontrolle (`git log`, `git diff --stat`, bei Code die Prüfung wie Biome);
    - `git push origin HEAD:<branch-des-pr>` ohne Force und auf keinen anderen Branch, am Ende den neuen SHA melden.
+
+   Ist der Patch zu groß für den Prompt, die Commits auf den eigenen Branch der Session in `firsttris/haben` pushen, ohne dessen Inhalt zu ändern (`git merge -s ours pr-<nr>`); der Branch darf keinen offenen Pull Request haben, sonst landen die Commits darin. Die Hilfssession holt sie statt `git am` mit `git fetch https://github.com/firsttris/haben <eigener-branch>` und `git merge --ff-only <letzter-sha>`; ihr HEAD ist danach genau dieser SHA.
 4. Auf das Ende der Hilfssession warten (sie meldet sich nicht von selbst): `get_session` bis `status_bucket` nicht mehr `working` ist, ihre Antwort mit `list_events` und `kinds` `["assistant", "result"]`. Dann den Push prüfen: `git ls-remote origin refs/pull/<nr>/head` zeigt den neuen SHA. Die Hilfssession danach mit `archive_session` beenden.

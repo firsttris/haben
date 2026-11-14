@@ -75,7 +75,7 @@ async function closingStatus(year: number, q: Db | Tx): Promise<JahresabschlussS
 export async function jahresabschluss(year: number, today: string) {
   const company = await loadCompany();
   if (!isKapitalgesellschaft(company.rechtsform)) return { year, rechtsform: company.rechtsform, kapitalgesellschaft: false as const };
-  const rows = (await saldenliste(ledgerRange(year))).filter((r) => r.kontenrahmen === company.kontenrahmen);
+  const rows = (await saldenliste(ledgerRange(year), { aufgeloest: true })).filter((r) => r.kontenrahmen === company.kontenrahmen);
   const report = abschluss(
     company.kontenrahmen,
     rows.map((r) => ({ account: r.account, saldo: r.saldo })),

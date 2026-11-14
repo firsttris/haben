@@ -1,11 +1,11 @@
 ---
 name: "beitrag-pruefen"
-description: "Einen Pull Request an Haben vor dem TDD-Review auf vier Fragen prüfen: Wollen wir die Änderung in Haben (Passung, Issue, Nutzen gegen Last)? Ist sie nach den Primärquellen gebaut und fachlich richtig? Ist sie die einfachste Lösung? Hat sie Tests, Doku und alle Regeln aus docs/entwicklung.md und DESIGN.md eingehalten? Zwei Rollen: Beitragende prüfen den eigenen Pull Request vor „Ready for review“ in einem frischen Agenten, bessern selbst nach und posten das Ergebnis als Kommentar (Selbstprüfung). Maintainer und Collaborators prüfen einen fremden Pull Request, prüfen eine vorhandene Selbstprüfung nach statt neu, machen Gewolltes fertig, führen tdd-review und mergen bei grüner CI, bei Steuer, Buchung, ELSTER und GoBD erst nach OK des Maintainers; hält an, wenn ein Mensch entscheiden muss. Für jeden neuen Beitrag, auch von Agenten."
+description: "Einen Pull Request an Haben vor dem TDD-Review auf vier Fragen prüfen: Wollen wir die Änderung in Haben (Passung, Issue, Nutzen gegen Last)? Ist sie nach den Primärquellen gebaut und fachlich richtig? Ist sie die einfachste Lösung? Hat sie Tests, Doku und alle Regeln aus docs/entwicklung.md, docs/mitwirken.md und DESIGN.md eingehalten? Zwei Rollen: Beitragende prüfen den eigenen Pull Request vor „Ready for review“ in einem frischen Agenten, bessern selbst nach und posten das Ergebnis als Kommentar (Selbstprüfung). Maintainer und Collaborators prüfen einen fremden Pull Request, prüfen eine vorhandene Selbstprüfung nach statt neu, machen Gewolltes fertig, führen tdd-review und mergen bei grüner CI, bei Steuer, Buchung, ELSTER und GoBD erst nach OK des Maintainers; hält an, wenn ein Mensch entscheiden muss. Für jeden neuen Beitrag, auch von Agenten."
 ---
 
 # Beitrag prüfen
 
-Der Skill beantwortet vier Fragen, die das TDD-Review nicht stellt: **Wollen wir das in Haben?** **Ist es nach den Quellen gebaut und fachlich richtig?** **Ist es die einfachste Lösung?** **Ist es nach unseren Regeln gemacht?** Danach übernimmt `tdd-review`. Die Regeln stehen in `docs/entwicklung.md` unter „Beiträge annehmen“, hier die Schritte. Zwei Rollen:
+Der Skill beantwortet vier Fragen, die das TDD-Review nicht stellt: **Wollen wir das in Haben?** **Ist es nach den Quellen gebaut und fachlich richtig?** **Ist es die einfachste Lösung?** **Ist es nach unseren Regeln gemacht?** Danach übernimmt `tdd-review`. Die Regeln stehen in `docs/mitwirken.md` unter „Beiträge annehmen“, hier die Schritte. Zwei Rollen:
 
 - **Selbstprüfung:** Der Beitragende prüft seinen eigenen Pull Request, bevor er auf „Ready for review“ geht und vor dem TDD-Review. Schritte 0 bis 4, dann „Selbstprüfung“ statt der Schritte 5 bis 7.
 - **Maintainer-Prüfung:** Ein Maintainer oder Collaborator (die prüfende Person) prüft einen fremden Pull Request, alle Schritte außer „Selbstprüfung“.
@@ -29,7 +29,7 @@ Jeder Text an den Beitragenden folgt dem [Verhaltenskodex](../../../CODE_OF_COND
 - Metadaten mit dem vorhandenen GitHub-Werkzeug (`gh pr view <nr> --json …` oder GitHub-MCP `pull_request_read`): Autor, Fork oder Branch im Repo, Entwurf, Titel, Beschreibung, verknüpfte Issues, Commits, Checks, vorhandene Kommentare und Reviews, besonders den Kommentar von „PR-Regeln“.
 - Code: `git fetch origin main pull/<nr>/head:pr-<nr>`, dann `git diff --stat origin/main...pr-<nr>` und `git diff origin/main...pr-<nr>`. Konflikte: `git merge-tree --write-tree origin/main pr-<nr>`.
 - Das Issue lesen, auf das der Pull Request verweist, samt Akzeptanzkriterien und Diskussion.
-- Aus `docs/entwicklung.md` die Abschnitte lesen, die der Diff berührt (immer „Konventionen“, „Mitwirken“, „Beiträge annehmen“), bei der Oberfläche `DESIGN.md`, dazu die Nutzerseite des Bereichs in `docs/` und `docs/architektur.md` für Module und Tabellen.
+- Die Abschnitte lesen, die der Diff berührt (immer „Konventionen“ in `docs/entwicklung.md` und `docs/mitwirken.md` bis einschließlich „Beiträge annehmen“), bei der Oberfläche `DESIGN.md`, dazu die Nutzerseite des Bereichs in `docs/`, `docs/architektur.md` für Module und `docs/architektur-datenmodell.md` für Tabellen.
 - Hier noch keine Tests ausführen; das macht `tdd-review`.
 - **Selbstprüfung vorhanden?** (nur Maintainer-Prüfung) Sie zählt, wenn der Kommentar „Selbstprüfung“ den aktuellen Commit nennt (als Stand oder im Nachtrag zum Nachbessern), in einem frischen Agenten oder durch eine andere Person lief und alle vier Fragen mit Beleg beantwortet. Dann die Schritte 1 bis 4 nachprüfen statt neu machen: jede Zeile mit ✗, „teilweise“ oder „nicht prüfbar“, jede offene Frage und jeden Punkt des Nachtrags am Commit ansehen; „Wollen wir das?“ entscheidet die prüfende Person selbst, die Selbstprüfung liefert nur die Belege; ist die Änderung fachlich heikel (Schritt 2), mindestens eine Quelle selbst lesen und einen Fall selbst gegenrechnen; bei den Regeln Stichproben. Stimmt etwas davon nicht, die Schritte 1 bis 4 ganz machen. Fehlt die Selbstprüfung oder ist sie veraltet, wie bisher alle Schritte; das ist kein Befund.
 
@@ -69,7 +69,7 @@ Der wichtigste Schritt bei Steuer, Buchung und Formaten: Hier sind Code und Test
 
 Je Punkt ein Ergebnis mit Stelle im Diff:
 
-Die Maßstäbe stehen in `docs/entwicklung.md`, „Beiträge annehmen“, Frage 3. So prüfen:
+Die Maßstäbe stehen in `docs/mitwirken.md`, „Beiträge annehmen“, Frage 3. So prüfen:
 
 - Je Hunk des Diffs das Akzeptanzkriterium nennen, dem er dient; was keins hat, ist der Kandidat zum Streichen.
 - Mit `git grep` in `packages/*` und im Modul nach einer Funktion, Komponente oder Tabelle für dasselbe suchen.
@@ -144,8 +144,8 @@ Aus den Schritten 1 bis 4 eines von drei Ergebnissen:
 
 ## 7. TDD-Review und Merge
 
-- **Review schon mitgebracht?** Wann es zählt, steht in `docs/entwicklung.md`, Review, Punkt 1. Im Pull Request nachsehen: Hinweis auf frischen Agenten oder andere Person, je Befund ein roter Test mit Commits für Test und Fix, ein Abschlusskommentar, CI auf dem aktuellen Stand grün; dasselbe Konto für Autor und Reviewer ist kein Hindernis. Fehlt ein Merkmal, haben wir nach Schritt 6 Commits ergänzt oder lässt Schritt 2 einen Zweifel offen: eigenes Review.
-- Sonst Skill `tdd-review` bis zum Merge, mit dessen Regeln für Runden und CI. Ohne eigene Commits in dieser Session darf sie das Review selbst machen.
+- **Review schon mitgebracht?** Wann es zählt, steht in `docs/mitwirken.md`, Review, Punkt 1. Im Pull Request nachsehen: Hinweis auf frischen Agenten oder andere Person, je Befund ein roter Test mit Commits für Test und Fix, ein Abschlusskommentar, CI auf dem aktuellen Stand grün; dasselbe Konto für Autor und Reviewer ist kein Hindernis. Fehlt ein Merkmal, haben wir nach Schritt 6 Commits ergänzt oder lässt Schritt 2 einen Zweifel offen: eigenes Review.
+- Sonst Skill `tdd-review` bis zum Merge, mit dessen Regeln für Runden und CI; Markdown im PR parallel nach `doku-pruefen` (`tdd-review`, Schritt 0). Ohne eigene Commits in dieser Session darf sie das Review selbst machen.
 - **Nicht heikel** (nach Schritt 2): mergen per Squash, sobald die CI auf dem aktuellen Stand grün ist und Titel und Beschreibung passen. Der Aufruf durch den Maintainer genügt; ein Collaborator holt vorher seine Zustimmung ein.
 - **Heikel** (nach Schritt 2): bis grün fertig machen, dann nicht mergen, sondern dem Maintainer in höchstens fünf Zeilen berichten und auf sein „OK“ warten:
 

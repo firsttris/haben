@@ -1,10 +1,17 @@
 import { formatEuro, formatPercent, PLAN_ROW_STATUS_LABEL, planShareLabel, type PlanRowStatus } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import type { getQuoteDetail } from "../server/functions/quotes.ts";
+import { Status, type StatusLook } from "./Status.tsx";
 
 type Overview = NonNullable<Awaited<ReturnType<typeof getQuoteDetail>>["plan"]>;
 
-const PILL: Record<PlanRowStatus, string> = { offen: "", entwurf: "pill-info", festgeschrieben: "pill-warn", bezahlt: "pill-ok" };
+// Festgeschrieben heißt hier: abgerechnet, die Zahlung steht noch aus
+const LOOK: Record<PlanRowStatus, Omit<StatusLook, "text">> = {
+  offen: {},
+  entwurf: { draft: true },
+  festgeschrieben: { tone: "info" },
+  bezahlt: { tone: "ok" },
+};
 
 /**
  * Zahlungsplan auf dem festgeschriebenen Angebot: je Zeile Plan (netto und brutto), Ist mit Link zur Rechnung, Status
@@ -47,7 +54,7 @@ export function QuotePlan({
               · {planShareLabel(row.share, formatPercent, formatEuro, "Rest")}
               {row.due && ` · fällig bei ${row.due}`}
               <span className="small muted" style={{ display: "block" }}>
-                Plan: <span className="mono">{taxed ? `${formatEuro(row.net)} netto · ${formatEuro(row.gross)} brutto` : formatEuro(row.gross)}</span>
+                Plan: <span className="amount">{taxed ? `${formatEuro(row.net)} netto · ${formatEuro(row.gross)} brutto` : formatEuro(row.gross)}</span>
               </span>
               {row.invoice && (
                 <span className="small muted" style={{ display: "block" }}>
@@ -55,7 +62,7 @@ export function QuotePlan({
                   <Link to="/rechnungen/$id" params={{ id: row.invoice.id }}>
                     {rest ? "Schlussrechnung" : "Abschlagsrechnung"} {row.invoice.number ?? "(Entwurf)"}
                   </Link>{" "}
-                  · <span className="mono">{formatEuro(row.invoice.gross)}</span>
+                  · <span className="amount">{formatEuro(row.invoice.gross)}</span>
                 </span>
               )}
               {canBill && row.status === "offen" && !plan.problem && (
@@ -71,13 +78,13 @@ export function QuotePlan({
                 </button>
               )}
             </span>
-            <span className={`pill ${PILL[row.status]}`}>{PLAN_ROW_STATUS_LABEL[row.status]}</span>
+            <Status {...LOOK[row.status]}>{PLAN_ROW_STATUS_LABEL[row.status]}</Status>
           </div>
         );
       })}
       <p className="small" style={{ margin: 0 }} aria-live="polite">
-        Abgerechnet <span className="mono">{formatEuro(progress.billed)}</span> von <span className="mono">{formatEuro(progress.total)}</span> (
-        {formatPercent(progress.percent)}), offen <span className="mono">{formatEuro(progress.open)}</span>
+        Abgerechnet <span className="amount">{formatEuro(progress.billed)}</span> von <span className="amount">{formatEuro(progress.total)}</span> (
+        {formatPercent(progress.percent)}), offen <span className="amount">{formatEuro(progress.open)}</span>
       </p>
       <progress value={Math.max(0, Math.min(progress.billed, progress.total))} max={Math.max(progress.total, 1)} aria-label="Abgerechnet vom Auftrag" />
     </section>

@@ -10,7 +10,11 @@ RUN set -eux; \
     old="$(seq "$UPGRADE_FROM" "$((PG_MAJOR - 1))" | tr '\n' ' ')"; \
     sed -i "s/\$/ $old/" /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
-    for v in $old; do pkgs="${pkgs:-} postgresql-$v"; done; \
+    # Die eigene Version mit aus demselben Stand des Repositorys: Das Basis-Image kann eine Unterversion
+    # hinter den älteren Paketen liegen, und deren Katalog nimmt die ältere neue Version nicht immer an
+    # (16.16 schreibt die Spaltenoption pg_attver, die erst 18.7 kennt; pg_upgrade scheitert sonst daran)
+    pkgs="postgresql-$PG_MAJOR"; \
+    for v in $old; do pkgs="$pkgs postgresql-$v"; done; \
     apt-get install -y --no-install-recommends $pkgs; \
     rm -rf /var/lib/apt/lists/*; \
     for v in $old; do test -x "/usr/lib/postgresql/$v/bin/pg_ctl"; done

@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Locator, test, type Page } from "@playwright/test";
 import postgres from "postgres";
-import { day, USER } from "./daten.ts";
+import { currentDay, day, USER } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { bestaetigen, dkb, durchlaufSeite, faktenZeigen, gehe, kontaktAnlegen, rechnungFestschreiben, SETUP_CODE } from "./einrichtung.ts";
 
@@ -221,8 +221,10 @@ test("Bankabgleich: gegenläufige Umsätze verrechnen ohne Buchung, Aufheben fra
   await panel.getByRole("button", { name: "Mit Gegenumsatz verrechnen" }).click();
   const form = panel.getByRole("form", { name: "Mit Gegenumsatz verrechnen" });
   await expect(form.getByLabel("Gegenumsatz")).toContainText("−1,00 €");
-  // Ohne Notiz bleibt der Knopf gesperrt
-  await expect(form.getByRole("button", { name: "Verrechnen" })).toBeDisabled();
+  // Ohne Notiz verrechnet der Knopf nicht, sondern sagt am Feld, was fehlt (DESIGN.md, Gesperrte Knöpfe)
+  await form.getByRole("button", { name: "Verrechnen" }).click();
+  await expect(form.getByLabel("Notiz")).toBeFocused();
+  await expect(form.getByLabel("Notiz")).toHaveAccessibleDescription(/^Steht mit der Verrechnung im Änderungsprotokoll\. Trag eine Notiz ein/);
   await form.getByLabel("Notiz").fill("PayPal-Autorisierung mit automatischer Rückbuchung");
   await form.getByRole("button", { name: "Verrechnen" }).click();
   await expect(panel.getByText("ohne Buchung · PayPal-Autorisierung mit automatischer Rückbuchung")).toBeVisible();
@@ -378,11 +380,11 @@ test("MCP-Token widerrufen fragt nach", async () => {
   await widerrufen.click();
   await expect(rueckfrage("Token „Claude am Laptop“ widerrufen?")).toContainText("neues Token");
   await abbrechen("Token „Claude am Laptop“ widerrufen?");
-  await expect(tokens.getByText("aktiv", { exact: true })).toBeVisible();
+  await expect(tokens.getByText("Aktiv", { exact: true })).toBeVisible();
 
   await widerrufen.click();
   await bestaetigen(page, "Widerrufen");
-  await expect(tokens.getByText("widerrufen", { exact: true })).toBeVisible();
+  await expect(tokens.getByText("Widerrufen", { exact: true })).toBeVisible();
   await expect(widerrufen).toHaveCount(0);
 });
 
@@ -406,6 +408,98 @@ test("Passkey entfernen fragt nach", async () => {
   await expect(karte.getByText("Laptop")).toHaveCount(0);
 });
 
+test("Bankabgleich: Formular Verrechnen hat die Hauptaktion zuletzt (#394)", async () => {
+  await go("/bank");
+  await page.locator('input[type=file][aria-label="Kontoauszugsdateien"]').setInputFiles([
+    {
+      name: "zweitpruefung.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        auszug([
+          ["PAYPAL *EBAY DE", "Zweitpruefung", "-2,00"],
+          ["PAYPAL *EBAY DE", "Rueckbuchung Zweitpruefung", "2,00"],
+        ]),
+      ),
+    },
+  ]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await go("/bank");
+  await page.getByRole("link", { name: /Rueckbuchung Zweitpruefung/ }).click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await panel.getByRole("button", { name: "Mit Gegenumsatz verrechnen" }).click();
+  const form = panel.getByRole("form", { name: "Mit Gegenumsatz verrechnen" });
+  await expect(form.locator(".actions > .btn")).toHaveText(["Abbrechen", "Verrechnen"]);
+});
+
+/** Fokus auf das letzte Bedienelement vor der Knopfzeile der Karte: von dort führt Tab auf den ersten Knopf der Zeile */
+async function fokusVorKnopfzeile(karte: Locator) {
+  await karte.evaluate((form) => {
+    const zeile = form.querySelector(".actions:has(> .btn-primary)")!;
+    const vorher = [...form.querySelectorAll<HTMLElement>("input, select, textarea, button, summary, a[href]")].filter(
+      (el) => el.checkVisibility() && zeile.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING,
+    );
+    vorher.at(-1)!.focus();
+  });
+}
+
+/** Tab aus dem letzten Feld, dann Enter: Das darf einen gespeicherten Zugang nicht ohne Rückfrage löschen (#394, #404) */
+async function tabUndEnterBehaeltZugang(karte: Locator, knopfNurMitZugang: string) {
+  await fokusVorKnopfzeile(karte);
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  // Die Meldung steht erst da, wenn der Server fertig ist; ein neuer Seitenaufruf zeigt dann, was wirklich gespeichert ist
+  await expect(karte.getByRole("status").or(page.getByRole("dialog"))).toBeVisible();
+  await page.keyboard.press("Escape");
+  await go("/einstellungen?bereich=email");
+  await expect(karte.getByRole("button", { name: knopfNurMitZugang })).toBeVisible();
+}
+
+test("Belege per E-Mail: Tab aus dem letzten Feld und Enter entfernt das Postfach nicht (#394)", async () => {
+  await go("/einstellungen?bereich=email");
+  const karte = page.getByRole("form", { name: "Belege per E-Mail" });
+  await karte.getByLabel("IMAP-Server").fill("127.0.0.1");
+  await karte.getByLabel("Benutzername", { exact: true }).fill("max");
+  await karte.getByLabel("Passwort", { exact: true }).fill("geheim");
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status")).toHaveText("Postfach gespeichert.");
+  await go("/einstellungen?bereich=email");
+  await tabUndEnterBehaeltZugang(page.getByRole("form", { name: "Belege per E-Mail" }), "Jetzt abrufen");
+});
+
+test("E-Mail-Versand: Tab aus dem letzten Feld und Enter entfernt den Zugang nicht (#394)", async () => {
+  await go("/einstellungen?bereich=email");
+  const karte = page.getByRole("form", { name: "E-Mail-Versand" });
+  await karte.getByLabel("SMTP-Server", { exact: true }).fill("127.0.0.1");
+  await karte.getByLabel("Port", { exact: true }).fill("1");
+  await karte.getByLabel("Benutzername", { exact: true }).fill("max");
+  await karte.getByLabel("Passwort", { exact: true }).fill("geheim");
+  await karte.getByLabel("Absender", { exact: true }).fill("rechnung@nordlicht.example");
+  await karte.getByLabel("Erinnerungen an", { exact: true }).fill("max@nordlicht.example");
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status")).toHaveText("E-Mail-Zugang gespeichert.");
+  await go("/einstellungen?bereich=email");
+  await tabUndEnterBehaeltZugang(page.getByRole("form", { name: "E-Mail-Versand" }), "Test-Mail senden");
+});
+
+test("Postfach und E-Mail-Zugang entfernen fragen nach (#394, #404)", async () => {
+  await go("/einstellungen?bereich=email");
+  for (const [form, knopf, titel, meldung] of [
+    ["Belege per E-Mail", "Jetzt abrufen", "Postfach entfernen?", "Postfach entfernt."],
+    ["E-Mail-Versand", "Test-Mail senden", "E-Mail-Zugang entfernen?", "E-Mail-Zugang entfernt."],
+  ] as const) {
+    const karte = page.getByRole("form", { name: form });
+    const entfernen = karte.getByRole("button", { name: "Entfernen", exact: true });
+    await entfernen.click();
+    await abbrechen(titel);
+    await expect(karte.getByRole("button", { name: knopf })).toBeVisible();
+    await entfernen.click();
+    await bestaetigen(page, "Entfernen");
+    await expect(karte.getByRole("status")).toHaveText(meldung);
+    await expect(karte.getByRole("button", { name: knopf })).toHaveCount(0);
+  }
+});
+
 test("Stichjahr vorziehen fragt nach; danach rechnet das laufende Jahr aus dem Journal", async () => {
   const jahr = new Date().getFullYear();
   // Wie eine bestehende Instanz nach Migration 0192: Stichjahr im nächsten Jahr
@@ -427,6 +521,80 @@ test("Stichjahr vorziehen fragt nach; danach rechnet das laufende Jahr aus dem J
   await expect(karte).toContainText(`Stichjahr ${jahr} · aus dem Journal`);
   await expect(vorziehen).toHaveCount(0);
   expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr }]);
+});
+
+test("Logo und Briefpapier entfernen fragen nach", async () => {
+  await go("/einstellungen?bereich=gestaltung");
+  const logo = page.getByRole("region", { name: "Logo und Blatt" });
+  await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
+  const bild = logo.getByRole("img", { name: "Aktuelles Logo" });
+  await expect(bild).toBeVisible();
+  const entfernen = logo.getByRole("button", { name: "Entfernen" });
+
+  await entfernen.click();
+  await expect(rueckfrage("Logo entfernen?")).toContainText("festgeschriebene Belege behalten");
+  await abbrechen("Logo entfernen?");
+  await page.reload();
+  await expect(bild).toBeVisible();
+
+  await entfernen.click();
+  await bestaetigen(page, "Entfernen");
+  await expect(logo.getByText("Logo entfernt.")).toBeVisible();
+  await expect(logo.getByText("Noch kein Logo.")).toBeVisible();
+
+  const briefpapier = page.getByRole("region", { name: "Briefpapier" });
+  await briefpapier.getByLabel("Datei für das Briefpapier").setInputFiles("public/icon-192.png");
+  await expect(briefpapier.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await briefpapier.getByRole("button", { name: "Entfernen" }).click();
+  await expect(rueckfrage("Briefpapier entfernen?")).toContainText("Fußzeile");
+  await abbrechen("Briefpapier entfernen?");
+  await expect(briefpapier.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await briefpapier.getByRole("button", { name: "Entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
+  await expect(briefpapier.getByText("Noch kein Briefpapier.")).toBeVisible();
+});
+
+test("Lohn: Entwurf löschen fragt mit Person und Beträgen nach", async () => {
+  const [jahr, monat] = currentDay().split("-").map(Number) as [number, number];
+  const mm = String(monat).padStart(2, "0");
+  const monatsname = new Date(jahr, monat - 1, 1).toLocaleString("de-DE", { month: "long" });
+  await go("/lohn/mitarbeiter/neu");
+  const form = page.getByRole("form", { name: "Stammdaten des Mitarbeiters" });
+  await form.getByLabel("Vorname").fill("Erika");
+  await form.getByLabel("Nachname").fill("Gesellschafter");
+  await form.getByLabel("Straße und Hausnummer").fill("Lindenweg 1");
+  await form.getByLabel("PLZ").fill("28195");
+  await form.getByLabel("Ort", { exact: true }).fill("Bremen");
+  await form.getByLabel("Geburtsdatum").fill("1980-04-12");
+  await form.getByLabel("IBAN für die Auszahlung").fill("DE89 3704 0044 0532 0130 00");
+  await form.getByLabel("Monatsgehalt brutto in Euro").fill("6.000,00");
+  await form.getByLabel("Eintritt", { exact: true }).fill("2024-01-01");
+  await form.getByLabel("Statusfeststellung (§ 7a SGB IV)").selectOption("versicherungsfrei");
+  await form.getByLabel("Steuer-ID").fill("86095742719");
+  await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL(/\/lohn$/);
+
+  await go(`/lohn?jahr=${jahr}&monat=${monat}`);
+  const abrechnen = page.getByRole("form", { name: `${monatsname} ${jahr} abrechnen` });
+  await abrechnen.getByLabel("Zahltag").fill(`${jahr}-${mm}-28`);
+  await abrechnen.getByRole("button", { name: "Monat abrechnen" }).click();
+  await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
+  const erika = page.getByRole("region", { name: "Erika Gesellschafter" });
+  const loeschen = erika.getByRole("button", { name: "Entwurf löschen" });
+  const titel = `Entwurf mit Zahltag 28.${mm}.${jahr} löschen?`;
+
+  await loeschen.click();
+  await faktenZeigen(page, "Person", "Brutto", "Auszahlung");
+  await expect(rueckfrage(titel)).toContainText("Erika Gesellschafter");
+  await expect(rueckfrage(titel)).toContainText("nichts gebucht");
+  await abbrechen(titel);
+  await page.reload();
+  await expect(loeschen).toBeVisible();
+
+  await loeschen.click();
+  await bestaetigen(page, "Entwurf löschen");
+  await expect(loeschen).toHaveCount(0);
+  await expect(erika.getByRole("region", { name: /Abrechnung/ })).toHaveCount(0);
 });
 
 test("Umzug: laufenden Abruf abbrechen und Verbindung entfernen fragen nach", async () => {

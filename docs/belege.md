@@ -7,7 +7,7 @@ description: >-
 
 # Belege und Eingangsrechnungen
 
-Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen liest Haben direkt aus, andere PDFs und Fotos auf Wunsch mit Claude. Du prüfst die Felder, wählst eine Kategorie und buchst den Beleg; danach ist er festgeschrieben.
+Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen liest Haben direkt aus, andere PDFs und Fotos auf Wunsch mit Claude. Du prüfst die Felder, wählst eine Kategorie und buchst den Beleg; danach ist er festgeschrieben. Das Suchfeld über der Liste filtert nach Lieferant, Rechnungsnummer, Dateiname und Bruttobetrag, die [Schnellsuche](suche.md) über alle Bereiche.
 
 <img src="screenshot-belege.png" alt="Belegdetail mit PDF-Vorschau links und den ausgelesenen Feldern Lieferant, Belegdatum, Kategorie und Beträge je Steuersatz rechts" width="900">
 
@@ -15,9 +15,9 @@ Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen lie
 
 1. Beleg hochladen (siehe unten).
 2. Den Beleg in der Liste öffnen. Ist er aus einer E-Rechnung oder von der KI vorbefüllt, steht dort „Vorbefüllt aus … Bitte prüfen und bestätigen.“
-3. **Lieferant**, **Rechnungsnummer**, **USt-IdNr. des Lieferanten**, **Belegdatum**, **Fällig am** und **Kategorie** prüfen oder eintragen. Ist der Lieferant schon in den Kontakten (Rolle **Lieferant**), wählst du ihn unter **Aus den Kontakten**: Das Feld sucht beim Tippen nach Name, Lieferantennummer, Ort und USt-IdNr.; Pfeiltasten und Enter wählen einen Treffer, Escape schließt die Liste, ein geleertes Feld nimmt die Verknüpfung weg. Haben übernimmt Name und USt-IdNr. Änderst du den Namen danach von Hand, fällt die Verknüpfung weg. Ein neuer Lieferant lässt sich eintippen, oder du legst ihn gleich als Kontakt an, mit der letzten Zeile der Trefferliste („… als neuen Lieferanten anlegen“, mit dem getippten Namen): Der Dialog übernimmt Name und USt-IdNr. vom Beleg und hakt die Rolle **Lieferant** an; nach dem Speichern ist er unter **Aus den Kontakten** gewählt. Abbrechen oder ein Fehler im Dialog lassen alle Eingaben am Beleg stehen. Gibt es die USt-IdNr. schon bei einem Kontakt, gleich welcher Rolle, steht nach dem Tippen ein Hinweis im Dialog: Ist der vorhandene Kontakt ein Lieferant, kannst du ihn wählen, statt einen zweiten anzulegen; ist er nur ein Kunde, bleibt der Hinweis mit einem Link auf den Kontakt, damit du dort die Rolle ergänzt; ist er archiviert, verweist der Hinweis darauf, ihn unter **Kontakte** wiederherzustellen. Gibt es mehrere, nennt der Hinweis den Lieferanten, den du wählen kannst. Zusammengeführt wird nichts. Bei einer E-Rechnung füllt der Dialog außerdem Anschrift und E-Mail des Verkäufers vor. Eine IBAN vom Beleg, aus der E-Rechnung (BT-84) oder der KI-Auslesung, steht nur als **Vorschlag** unter dem Feld IBAN (bei einer Gutschrift nicht: dort ist BT-84 das Konto des Käufers): mit Herkunft, bei der KI mit dem Textausschnitt, in dem sie steht, und ob die Prüfziffer stimmt. Ins Feld kommt sie erst mit **IBAN übernehmen**; prüfe sie vorher beim Lieferanten. Einen bestehenden Kontakt ändert der Beleg nie. Gebuchte Belege mit Lieferant aus den Kontakten stehen auch auf dessen Kontaktseite unter **Ausgaben und Belege**, mit Summen je Jahr ([Rechnungen und Belege am Kontakt](rechnungen.md#rechnungen-und-belege-am-kontakt)).
-4. Unter **Beträge je Steuersatz** Netto und Vorsteuer je Satz prüfen. Mit **+ Steuersatz** kommt eine Zeile für einen weiteren Satz dazu (höchstens 19 %, 7 % und 0 % je einmal). Gehören Teile der Rechnung in verschiedene Kategorien, teilst du sie mit **Auf mehrere Kategorien aufteilen** auf (siehe [Auf mehrere Kategorien aufteilen](#auf-mehrere-kategorien-aufteilen)).
-5. Unter **Bezahlung** wählen, ob der Beleg über das Geschäftskonto, privat oder bar aus der Kasse bezahlt wurde (siehe [Bezahlung](#bezahlung)).
+3. **Lieferant**, **Rechnungsnummer**, **USt-IdNr. des Lieferanten**, **Belegdatum**, **Fällig am** und **Kategorie** prüfen oder eintragen. **Leistung von** und **Leistung bis** nehmen den Leistungszeitraum auf, wenn er vom Belegdatum abweicht; die Vorsteuer zählt bisher weiter nach dem Belegdatum. Ist der Lieferant schon in den Kontakten (Rolle **Lieferant**), wählst du ihn unter **Aus den Kontakten**: Das Feld sucht beim Tippen nach Name, Lieferantennummer, Ort und USt-IdNr.; Pfeiltasten und Enter wählen einen Treffer, Escape schließt die Liste, ein geleertes Feld nimmt die Verknüpfung weg. Haben übernimmt Name und USt-IdNr. Änderst du den Namen danach von Hand, fällt die Verknüpfung weg. Ein neuer Lieferant lässt sich eintippen, oder du legst ihn gleich als Kontakt an, mit der letzten Zeile der Trefferliste („… als neuen Lieferanten anlegen“, mit dem getippten Namen): Der Dialog übernimmt Name und USt-IdNr. vom Beleg und hakt die Rolle **Lieferant** an; nach dem Speichern ist er unter **Aus den Kontakten** gewählt. Abbrechen oder ein Fehler im Dialog lassen alle Eingaben am Beleg stehen. Gibt es die USt-IdNr. schon bei einem Kontakt, gleich welcher Rolle, steht nach dem Tippen ein Hinweis im Dialog: Ist der vorhandene Kontakt ein Lieferant, kannst du ihn wählen, statt einen zweiten anzulegen; ist er nur ein Kunde, bleibt der Hinweis mit einem Link auf den Kontakt, damit du dort die Rolle ergänzt; ist er archiviert, verweist der Hinweis darauf, ihn unter **Kontakte** wiederherzustellen. Gibt es mehrere, nennt der Hinweis den Lieferanten, den du wählen kannst. Zusammengeführt wird nichts. Bei einer E-Rechnung füllt der Dialog außerdem Anschrift und E-Mail des Verkäufers vor. Eine IBAN vom Beleg, aus der E-Rechnung (BT-84) oder der KI-Auslesung, steht nur als **Vorschlag** unter dem Feld IBAN (bei einer Gutschrift nicht: dort ist BT-84 das Konto des Käufers): mit Herkunft, bei der KI mit dem Textausschnitt, in dem sie steht, und ob die Prüfziffer stimmt. Ins Feld kommt sie erst mit **IBAN übernehmen**; prüfe sie vorher beim Lieferanten. Einen bestehenden Kontakt ändert der Beleg nie. Gebuchte Belege mit Lieferant aus den Kontakten stehen auch auf dessen Kontaktseite unter **Ausgaben und Belege**, mit Summen je Jahr ([Rechnungen und Belege am Kontakt](kontakte.md#rechnungen-und-belege-am-kontakt)).
+4. Unter **Beträge je Steuersatz** Netto und Vorsteuer je Satz prüfen, oder nur das **Brutto** eintragen (siehe [Beträge](#beträge)). Mit **+ Steuersatz** kommt eine Zeile für einen weiteren Satz dazu (höchstens 19 %, 7 % und 0 % je einmal). Gehören Teile der Rechnung in verschiedene Kategorien, teilst du sie mit **Auf mehrere Kategorien aufteilen** auf (siehe [Auf mehrere Kategorien aufteilen](#auf-mehrere-kategorien-aufteilen)).
+5. Unter **Bezahlung** wählen, ob der Beleg über das Geschäftskonto, privat oder bar aus der Kasse bezahlt wurde (siehe [Bezahlung](belege-bezahlen.md#bezahlung)).
 6. **Bestätigen und buchen**, dann im Dialog **Buchen**. Ungespeicherte Änderungen werden dabei vorher gespeichert.
 
 Mit **Speichern** sicherst du Zwischenstände, ohne zu buchen.
@@ -87,8 +87,8 @@ Für Ausgaben, die in festen Abständen mit gleichem Betrag anfallen, etwa Büro
 | Erster Beleg am, später Nächster Beleg am | Belegdatum des nächsten Belegs, etwa der Zahlungsbeginn laut Vertrag. Die folgenden Termine liegen am selben Tag im Monat; der 31. wird in kürzeren Monaten zum Monatsende (28. oder im Schaltjahr 29. Februar) und springt danach zurück, wie bei [wiederkehrenden Rechnungen](rechnungen.md#wiederkehrende-rechnungen). |
 | Endet nach dem | optional. Der letzte Beleg entsteht am letzten Termin bis zu diesem Tag, danach ist der Dauerbeleg beendet. |
 | Fällig Tage nach dem Termin | **Fällig am** des Belegs: 0 am Termin, 3 etwa für eine Miete bis zum dritten des Monats. |
-| Vertrags- oder Kundennummer | steht als Rechnungsnummer an jedem Beleg, im Verwendungszweck einer [SEPA-Überweisung](#überweisen-sepa-datei) und hilft dem Bankabgleich. |
-| Bezahlung | wie am Beleg: Geschäftskonto, privat (bei GmbH und UG „Vom Gesellschafter ausgelegt“) oder Kasse (siehe [Bezahlung](#bezahlung)). |
+| Vertrags- oder Kundennummer | steht als Rechnungsnummer an jedem Beleg, im Verwendungszweck einer [SEPA-Überweisung](belege-bezahlen.md#überweisen-sepa-datei) und hilft dem Bankabgleich. |
+| Bezahlung | wie am Beleg: Geschäftskonto, privat (bei GmbH und UG „Vom Gesellschafter ausgelegt“) oder Kasse (siehe [Bezahlung](belege-bezahlen.md#bezahlung)). |
 
 ### Was zu jedem Termin entsteht
 
@@ -106,7 +106,7 @@ Vorsteuer ziehst du nur aus einer Rechnung ab, die die Umsatzsteuer gesondert au
 
 - Weist das Dokument die Steuer aus, setzt du den Haken **Das Dokument weist die Umsatzsteuer gesondert aus** und trägst Netto und Umsatzsteuer je Satz ein; die Steuer rechnet Haben aus dem Netto vor.
 - Ohne Haken gibt es kein Feld für die Steuer, und Haben lehnt eine Vorlage mit Steuer ab: „Vorsteuer nur mit einem Dokument, das die Umsatzsteuer gesondert ausweist …“. Den Betrag erfasst du dann mit 0 %, etwa für steuerfreie Miete (§ 4 Nr. 12 UStG) oder Versicherungsbeiträge. Die Notiz am Beleg sagt, dass das Dokument keine Steuer ausweist.
-- Als Kleinunternehmer bucht Haben wie bei jedem Beleg den Bruttobetrag als Aufwand, ohne Vorsteuer.
+- Ohne Vorsteuerabzug bucht Haben wie bei jedem Beleg den Bruttobetrag als Aufwand, ohne Vorsteuer.
 
 Gebucht wird wie jeder Beleg, im Beispiel 1.000 € Miete zuzüglich 19 % mit der Kategorie Miete für Geschäftsräume (SKR04 in Klammern):
 
@@ -116,7 +116,7 @@ Gebucht wird wie jeder Beleg, im Beispiel 1.000 € Miete zuzüglich 19 % mit de
 | 1576 (1406) Vorsteuer 19 % | 190,00 | |
 | 1600 (3300) Verbindlichkeiten | | 1.190,00 |
 
-Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist- und Soll-Versteuerung gleich (siehe [Vorsteuer in der Voranmeldung](#vorsteuer-in-der-voranmeldung)).
+Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist- und Soll-Versteuerung gleich (siehe [Vorsteuer in der Voranmeldung](#vorsteuer-in-der-voranmeldung)). Eine Gutschrift mit der Angabe „erstattet bereits Bezahltes“ ist die Ausnahme: ihre Vorsteuer mindert sich erst, wenn sie ausgeglichen ist. Ohne die Angabe gilt auch für sie das Belegdatum.
 
 ### Ändern, pausieren, beenden
 
@@ -139,7 +139,7 @@ Haben liest diese Formate:
 
 Im PDF sucht Haben zuerst nach den Anhängen `factur-x.xml`, `zugferd-invoice.xml` und `xrechnung.xml`, danach nach jedem anderen XML-Anhang.
 
-Übernommen werden Lieferant, USt-IdNr. des Lieferanten, Rechnungsnummer, Rechnungsdatum, Fälligkeit, Währung und die Beträge je Steuersatz. Gutschriften (z. B. Typcode 381 oder UBL `CreditNote`) werden mit negativen Beträgen übernommen. Steuersätze außer 19, 7 und 0 % werden nicht übernommen, sondern als Hinweis am Beleg angezeigt. Bei einer Fremdwährung übernimmt Haben die Beträge als Originalbeträge und rechnet sie mit dem Umsatzsteuer-Umrechnungskurs des Monats um (siehe [Fremdwährung](#fremdwährung)).
+Übernommen werden Lieferant, USt-IdNr. des Lieferanten, Rechnungsnummer, Rechnungsdatum, Leistungszeitraum (BT-73 und BT-74, sonst das Lieferdatum BT-72), Fälligkeit, Währung und die Beträge je Steuersatz. Gutschriften (z. B. Typcode 381 oder UBL `CreditNote`) werden mit negativen Beträgen übernommen. Steuersätze außer 19, 7 und 0 % werden nicht übernommen, sondern als Hinweis am Beleg angezeigt. Bei einer Fremdwährung übernimmt Haben die Beträge als Originalbeträge und rechnet sie mit dem Umsatzsteuer-Umrechnungskurs des Monats um (siehe [Fremdwährung](belege-ausland.md#fremdwährung)).
 
 Lässt sich eine hochgeladene XML-Datei nicht als E-Rechnung lesen, steht der Fehler am Beleg. Bei einem PDF, dessen eingebettetes XML nicht lesbar ist, geht Haben weiter zur KI-Auslesung.
 
@@ -151,7 +151,7 @@ Die KI-Auslesung ist optional. Sie liest entweder Claude über die Anthropic-API
 
 **Was gesendet wird:** die Belegdatei selbst zusammen mit einer festen Anweisung und der Liste der Ausgabenkategorien. Sonst nichts aus deiner Buchhaltung. An Claude geht ein PDF als Dokument, JPEG, PNG oder WebP als Bild. An einen OpenAI-kompatiblen Dienst gehen Fotos als Bild und PDFs als Seitenbilder, die Haben vorher auf dem Server erzeugt (höchstens `EXTRACTION_MAX_PAGES` Seiten, Standard 4). HEIC-Fotos und XML-Dateien gehen nicht an die KI.
 
-**PDF-Text zuerst (eigener Dienst):** Hat ein PDF eine Textschicht, etwa eine Rechnung aus einem Programm statt eines Scans, liest Haben den Text der Seiten lokal mit `pdftotext` aus (poppler-utils, im Image enthalten) und gibt ihn dem Modell mit; Seitenreihenfolge und Spalten bleiben erhalten. Was genau an den Dienst geht, bestimmt `EXTRACTION_INPUT` ([Installation](installation.md#umgebungsvariablen)):
+**PDF-Text zuerst (eigener Dienst):** Hat ein PDF eine Textschicht, etwa eine Rechnung aus einem Programm statt eines Scans, liest Haben den Text der Seiten lokal mit `pdftotext` aus (poppler-utils, im Image enthalten) und gibt ihn dem Modell mit; Seitenreihenfolge und Spalten bleiben erhalten. Was genau an den Dienst geht, bestimmt `EXTRACTION_INPUT` ([Konfiguration](installation-konfiguration.md#umgebungsvariablen)):
 
 | `EXTRACTION_INPUT` | Was bei PDFs an den Dienst geht |
 | --- | --- |
@@ -161,9 +161,9 @@ Die KI-Auslesung ist optional. Sie liest entweder Claude über die Anthropic-API
 
 Eine Seite gilt nur dann als lesbar, wenn ihr Text mehr ist als ein Stempel, ein Wasserzeichen oder eine Seitenzahl (mindestens 40 Buchstaben und Ziffern). Mit `text` gilt: Fehlt einer Seite der Text, steht „Seite 2 hat keinen auslesbaren Text und fehlt in der Auslesung“ am Beleg; hat das PDF gar keinen (Scan) oder ist der Beleg ein Foto, schickt Haben nichts an den Dienst und sagt das am Beleg, statt ein Bild an ein Textmodell oder still anderswohin zu senden. Eine Texterkennung (OCR) für Scans gibt es nicht; solche Belege füllst du von Hand aus oder nimmst `text-und-bild` mit einem Vision-Modell. Sehr langer Text wird gekürzt, auch das steht am Beleg. Claude über die Anthropic-API bekommt das PDF als Dokument und liest den Text selbst.
 
-**Denkende Modelle still stellen (`EXTRACTION_EXTRA_BODY`):** Manche Modelle antworten erst nach einem Denkschritt und verbrauchen dabei ihr Antwortbudget, sodass für die Belegfelder nichts mehr übrig bleibt (`reasoning_tokens` in der Antwort des Dienstes, leerer Text). Dagegen nimmt `EXTRACTION_EXTRA_BODY` zusätzliche Felder für den Request-Body als JSON-Objekt auf, etwa `{"reasoning_effort":"none"}`; `model`, `messages`, `stream` und `response_format` setzt Haben selbst und überschreibt sie. Ohne Angabe geht der Body unverändert raus ([Installation](installation.md#umgebungsvariablen)).
+**Denkende Modelle still stellen (`EXTRACTION_EXTRA_BODY`):** Manche Modelle antworten erst nach einem Denkschritt und verbrauchen dabei ihr Antwortbudget, sodass für die Belegfelder nichts mehr übrig bleibt (`reasoning_tokens` in der Antwort des Dienstes, leerer Text). Dagegen nimmt `EXTRACTION_EXTRA_BODY` zusätzliche Felder für den Request-Body als JSON-Objekt auf, etwa `{"reasoning_effort":"none"}`; `model`, `messages`, `stream` und `response_format` setzt Haben selbst und überschreibt sie. Ohne Angabe geht der Body unverändert raus ([Konfiguration](installation-konfiguration.md#umgebungsvariablen)).
 
-**Was zurückkommt:** bei beiden Anbietern dasselbe feste Schema mit Lieferant, USt-IdNr., Rechnungsempfänger und dessen USt-IdNr., Rechnungsnummer, Belegdatum, Fälligkeit, Währung, Netto und Steuer je Steuersatz, Bruttobetrag, Kategorie, ob es eine Gutschrift ist, und einem Hinweis bei Unklarheiten; dazu die IBAN des Lieferanten mit dem Textausschnitt, in dem sie steht. Diese IBAN ist nur ein Vorschlag für einen neuen Kontakt (siehe [So gehst du vor](#so-gehst-du-vor)): Sie steht nicht am Beleg und geht nie in eine Überweisung. Die Anweisung verlangt, nur zu übernehmen, was auf dem Beleg steht, und nichts zu raten. Beim eigenen Modell verlangt Haben das Schema als strukturierte Ausgabe (JSON-Schema); kann der Dienst das nicht, prüft Haben die Antwort selbst. Fehlen in der Antwort nur Rechnungsempfänger und dessen USt-IdNr. oder die IBAN, gelten sie als unbekannt. Passt sie sonst nicht zum Schema, steht „Die Antwort des KI-Dienstes passt nicht zum Belegschema“ am Beleg, und es werden keine Felder übernommen.
+**Was zurückkommt:** bei beiden Anbietern dasselbe feste Schema mit Lieferant, USt-IdNr., Rechnungsempfänger und dessen USt-IdNr., Rechnungsnummer, Belegdatum, Leistungszeitraum, Fälligkeit, Währung, Netto und Steuer je Steuersatz, Bruttobetrag, Kategorie, ob es eine Gutschrift ist, und einem Hinweis bei Unklarheiten; dazu die IBAN des Lieferanten mit dem Textausschnitt, in dem sie steht. Diese IBAN ist nur ein Vorschlag für einen neuen Kontakt (siehe [So gehst du vor](#so-gehst-du-vor)): Sie steht nicht am Beleg und geht nie in eine Überweisung. Die Anweisung verlangt, nur zu übernehmen, was auf dem Beleg steht, und nichts zu raten. Beim eigenen Modell verlangt Haben das Schema als strukturierte Ausgabe (JSON-Schema); kann der Dienst das nicht, prüft Haben die Antwort selbst. Fehlen in der Antwort nur Rechnungsempfänger und dessen USt-IdNr., der Leistungszeitraum oder die IBAN, gelten sie als unbekannt. Passt sie sonst nicht zum Schema, steht „Die Antwort des KI-Dienstes passt nicht zum Belegschema“ am Beleg, und es werden keine Felder übernommen.
 
 Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
 
@@ -247,7 +247,7 @@ Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/
 | Kfz: Leasing | 4570 | 6560 |
 | Kfz: sonstige Kosten (was nicht Laden, Tanken, Versicherung, Steuer, Reparatur oder Leasing ist) | 4580 | 6570 |
 | Anlagegut (wird abgeschrieben) | Anlagekonto je Art | Anlagekonto je Art |
-| Einfuhrumsatzsteuer (Bescheid des Zolls), kein Aufwand, siehe [unten](#einfuhrumsatzsteuer) | 1588 | 1433 |
+| Einfuhrumsatzsteuer (Bescheid des Zolls), kein Aufwand, siehe [Einfuhrumsatzsteuer](belege-ausland.md#einfuhrumsatzsteuer) | 1588 | 1433 |
 
 **Berufsgenossenschaft** und **Versorgungskassen** sind Personalaufwand: Beiträge und betriebliche Altersversorgung für deine Arbeitnehmer (§ 4c EStG). Deine eigene Altersvorsorge als Inhaber ist keine Betriebsausgabe (§ 12 Nr. 1 EStG), sondern privat; buche sie mit Privatanteil 100 % oder gar nicht. Die Beiträge zu einer freiwilligen Unternehmerversicherung bei der Berufsgenossenschaft für dich selbst gehören zu **Beiträge**.
 
@@ -261,6 +261,8 @@ Mit **Anlagegut** wird der Beleg nicht zum Aufwand, sondern legt beim Buchen ein
 ## Beträge
 
 Bei Belegen mit deutscher Umsatzsteuer gibst du je Steuersatz Netto und Vorsteuer ein. Solange du die Vorsteuer nicht selbst geändert hast, rechnet Haben sie aus dem Netto vor. Beim Buchen übernimmt Haben die Vorsteuer genau so, wie sie im Formular steht, und rechnet nicht nach: maßgeblich ist der Betrag auf der Rechnung.
+
+Auf einer Kleinbetragsrechnung bis 250 € stehen oft nur Endbetrag und Steuersatz (§ 33 UStDV). Den Endbetrag trägst du unter **Brutto** ein: Haben teilt ihn in Netto und Vorsteuer auf (§ 35 Abs. 1 UStDV), kaufmännisch gerundet (11,90 € zu 19 % ergeben 10,00 € und 1,90 €). Auch bei größeren Rechnungen hilft das Brutto beim Erfassen; maßgeblich bleibt dort die ausgewiesene Steuer. Wechselst du danach den Satz, bleibt das Brutto und Netto und Vorsteuer ändern sich. Weicht die Vorsteuer auf der Rechnung um einen Cent ab, korrigierst du sie von Hand; das Brutto folgt dann Netto und Vorsteuer. Bei § 13b und beim innergemeinschaftlichen Erwerb gibt es kein Brutto, gezahlt wird das Netto.
 
 Gutschriften gibst du mit Minus ein.
 
@@ -288,13 +290,13 @@ Beispiel, alles zu 19 %: 100,00 € Handelsware, 50,00 € Software und 20,00 �
 
 **Rundung.** Haben rechnet die Vorsteuer nicht je Zeile neu aus, sondern verteilt die Vorsteuer des Satzes anteilig nach Netto auf seine Zeilen und rundet kaufmännisch. Den Rundungsrest bekommt die betragsmäßig größte Zeile des Satzes (bei gleich großen die erste), wie beim Netto einer Bruttorechnung und beim Steueranteil einer Teilzahlung. So ergeben die Zeilen je Satz auf den Cent Netto und Vorsteuer des Belegs. Beispiel: 3 × 33,33 € zu 19 % mit 19,00 € Vorsteuer auf der Rechnung ergeben 6,34 €, 6,33 € und 6,33 €. Die Anteile werden beim Speichern berechnet, mit den Zeilen gespeichert und beim Buchen mit dem Beleg festgeschrieben.
 
-**Buchung.** Je Kategorie und Steuersatz eine Aufwandszeile; zwei Zeilen mit gleicher Kategorie und gleichem Satz fasst Haben zusammen. Die Vorsteuer steht je Satz in einer Zeile, die Gegenbuchung (Verbindlichkeiten, Privateinlage, Gesellschafter oder Kasse) über den ganzen Betrag. Als Kleinunternehmer gehört der Vorsteueranteil jeder Zeile zu ihrem Aufwand. Gutschriften gibst du mit negativen Zeilen ein; Plus und Minus in einem Satz gemischt nimmt Haben nicht an.
+**Buchung.** Je Kategorie und Steuersatz eine Aufwandszeile; zwei Zeilen mit gleicher Kategorie und gleichem Satz fasst Haben zusammen. Die Vorsteuer steht je Satz in einer Zeile, die Gegenbuchung (Verbindlichkeiten, Privateinlage, Gesellschafter oder Kasse) über den ganzen Betrag. Ohne Vorsteuerabzug gehört der Vorsteueranteil jeder Zeile zu ihrem Aufwand. Gutschriften gibst du mit negativen Zeilen ein; Plus und Minus in einem Satz gemischt nimmt Haben nicht an.
 
 **Zahlung, EÜR, DATEV.** Der Beleg steht einmal in den offenen Posten und im Bankabgleich, mit dem ganzen Betrag; Teilzahlungen und Skonto ordnest du ihm wie jedem Beleg zu. In der [EÜR](auswertungen.md) zählt jede Zahlung anteilig je Zeile in deren Kategorie; die Vorsteuer einer Teilzahlung ist dieselbe wie ohne Aufteilung, alle Zahlungen zusammen ergeben genau die Zeilen. Der DATEV-Export zerlegt die eine Buchung wie jede andere in Buchungssätze, je Aufwandskonto einer gegen die Verbindlichkeiten.
 
 **Storno und Neuerfassung.** Ein [Storno](#stornieren-und-neu-erfassen) bucht die ganze Buchung mit allen Zeilen zurück; **Neu erfassen** übernimmt die Aufteilung in den neuen Entwurf.
 
-**Mit § 13b.** Ein Beleg mit [§ 13b](#reverse-charge-als-leistungsempfänger--13b) aus dem EU-Ausland oder dem Drittland lässt sich ebenso aufteilen, etwa die monatliche Sammelrechnung eines Zahlungsdienstleisters mit Transaktionsgebühren, Zahlungsabwicklung, Einstellgebühren und Werbung. § 13b gilt dann für den ganzen Beleg. Unter jedem Netto steht statt der Vorsteuer der Anteil an der **Steuer § 13b**, verteilt und gerundet wie oben. Gebucht wird der Aufwand je Zeile mit dem Steuerschlüssel RC13bEU bzw. RC13bDrittland auf das Konto ihrer Kategorie; Umsatzsteuer und Vorsteuer nach § 13b stehen wie ohne Aufteilung je Steuersatz einmal in der Buchung, mit der Steuer des Belegs. Beispiel, alles zu 19 % aus dem EU-Ausland: 120,00 € Transaktionsgebühren, 60,00 € Zahlungsabwicklung, 20,00 € Einstellgebühren und 50,00 € Werbung ergeben 250,00 € netto, 47,50 € Steuer nach § 13b und 250,00 € Zahlbetrag (SKR04 in Klammern):
+**Mit § 13b.** Ein Beleg mit [§ 13b](belege-ausland.md#reverse-charge-als-leistungsempfänger--13b) aus dem EU-Ausland oder dem Drittland lässt sich ebenso aufteilen, etwa die monatliche Sammelrechnung eines Zahlungsdienstleisters mit Transaktionsgebühren, Zahlungsabwicklung, Einstellgebühren und Werbung. § 13b gilt dann für den ganzen Beleg. Unter jedem Netto steht statt der Vorsteuer der Anteil an der **Steuer § 13b**, verteilt und gerundet wie oben. Gebucht wird der Aufwand je Zeile mit dem Steuerschlüssel RC13bEU bzw. RC13bDrittland auf das Konto ihrer Kategorie; Umsatzsteuer und Vorsteuer nach § 13b stehen wie ohne Aufteilung je Steuersatz einmal in der Buchung, mit der Steuer des Belegs. Beispiel, alles zu 19 % aus dem EU-Ausland: 120,00 € Transaktionsgebühren, 60,00 € Zahlungsabwicklung, 20,00 € Einstellgebühren und 50,00 € Werbung ergeben 250,00 € netto, 47,50 € Steuer nach § 13b und 250,00 € Zahlbetrag (SKR04 in Klammern):
 
 | Konto | Soll | Haben |
 | --- | ---: | ---: |
@@ -306,7 +308,7 @@ Beispiel, alles zu 19 %: 100,00 € Handelsware, 50,00 € Software und 20,00 �
 | 1787 (3837) Umsatzsteuer nach § 13b | | 47,50 |
 | 1600 (3300) Verbindlichkeiten | | 250,00 |
 
-Ohne Vorsteuerabzug (als Kleinunternehmer, der die Steuer nach § 13b trotzdem schuldet) fehlt die Vorsteuerzeile, und neben jedem Netto steht auf demselben Konto sein Anteil an der Steuer als Aufwand (Steuerschlüssel `keineVSt`), im Beispiel 22,80 €, 11,40 €, 3,80 € und 9,50 €; zusammen genau Netto und Steuer des Belegs. So trägt das Journal die Bemessungsgrundlage (Kz 46 bzw. 84) netto, wie die Voranmeldung. Die Voranmeldung (Kz 46/47 bzw. 84/85 und 67) kommt wie ohne Aufteilung aus den Beträgen je Satz. In der [EÜR](auswertungen.md) zählt die Zahlung je Zeile mit ihrem Netto; die Summe ist dieselbe wie ohne Aufteilung, denn gezahlt ist nur netto, und die Steuer nach § 13b geht mit der Voranmeldung ans Finanzamt. Wie ohne Aufteilung gilt § 13b nicht für Wareneinkäufe und nur zu 19 % oder 7 %. Die Gebühren im Konto des Dienstleisters ordnest du dem aufgeteilten Beleg wie jedem anderen mit [Alle offenen Gebühren … diesem Beleg zuordnen](bank.md#zahlungsdienstleister) zu.
+Ohne Vorsteuerabzug (etwa als Kleinunternehmer oder mit steuerfreien Umsätzen: die Steuer nach § 13b schuldest du trotzdem) fehlt die Vorsteuerzeile, und neben jedem Netto steht auf demselben Konto sein Anteil an der Steuer als Aufwand (Steuerschlüssel `keineVSt`), im Beispiel 22,80 €, 11,40 €, 3,80 € und 9,50 €; zusammen genau Netto und Steuer des Belegs. So trägt das Journal die Bemessungsgrundlage (Kz 46 bzw. 84) netto, wie die Voranmeldung. Die Voranmeldung (Kz 46/47 bzw. 84/85 und 67) kommt wie ohne Aufteilung aus den Beträgen je Satz. In der [EÜR](auswertungen.md) zählt die Zahlung je Zeile mit ihrem Netto; die Summe ist dieselbe wie ohne Aufteilung, denn gezahlt ist nur netto, und die Steuer nach § 13b geht mit der Voranmeldung ans Finanzamt. Wie ohne Aufteilung gilt § 13b nicht für Wareneinkäufe und nur zu 19 % oder 7 %. Die Gebühren im Konto des Dienstleisters ordnest du dem aufgeteilten Beleg wie jedem anderen mit [Alle offenen Gebühren … diesem Beleg zuordnen](bank-zahlungsdienstleister.md) zu.
 
 **Noch nicht mit Aufteilung:** innergemeinschaftlicher Erwerb, Privatanteil, Fremdwährung und Anlagegüter. Haben lehnt das Buchen dann mit Grund ab („Innergemeinschaftlicher Erwerb mit Aufteilung wird nicht unterstützt“ usw.); solche Teile erfasst du als eigenen Beleg. Bei innergemeinschaftlichem Erwerb und Fremdwährung ist der Knopf zum Aufteilen gesperrt, mit Aufteilung fehlt das Feld **Privatanteil in %**.
 
@@ -322,124 +324,13 @@ Den Privatanteil gibt es nur im Einzelunternehmen; bei einer GmbH oder UG fehlt 
 
 Vorgaben je Kategorie stellst du in den [Einstellungen](einrichtung.md#privatanteile) ein (Telefon, Internet). Sie werden beim Wählen der Kategorie und beim Auslesen übernommen. Bei Anlagegütern gibt es keinen Privatanteil; für Firmenwagen gilt die [Listenpreismethode](anlagen.md#private-nutzung-von-firmenwagen).
 
-## Reverse Charge als Leistungsempfänger (§ 13b)
+## Belege aus dem Ausland
 
-Viele Anbieter von Software und Cloud-Diensten aus dem EU-Ausland (Google, Microsoft, AWS, JetBrains, Adobe aus Irland oder den Niederlanden) stellen Unternehmern Rechnungen ohne Umsatzsteuer mit dem Hinweis „Reverse Charge“. Die Steuer schuldest dann du (§ 13b UStG) und ziehst sie im selben Zug als Vorsteuer wieder ab.
+<a id="reverse-charge-als-leistungsempfänger--13b"></a><a id="innergemeinschaftlicher-erwerb--1a-ustg"></a><a id="einfuhrumsatzsteuer"></a><a id="fremdwährung"></a>Reverse Charge nach § 13b, innergemeinschaftlicher Erwerb, Einfuhrumsatzsteuer und Fremdwährung stehen unter [Belege aus dem Ausland](belege-ausland.md).
 
-Unter **Umsatzsteuer auf dem Beleg** wählst du:
+## Bezahlen
 
-| Auswahl | Wann | Kennzahlen |
-| --- | --- | --- |
-| § 13b: Leistung eines Unternehmers aus dem EU-Ausland | sonstige Leistung eines Unternehmers mit Sitz in einem anderen EU-Land | Kz 46 (netto) und 47 (Steuer) |
-| § 13b: Leistung eines Unternehmers aus dem Drittland | Leistung eines Unternehmers ohne Sitz in der EU, z. B. aus den USA, ohne deutsche Umsatzsteuer | Kz 84 (netto) und 85 (Steuer) |
-
-Du trägst nur das Netto aus der Rechnung ein und wählst den zutreffenden deutschen Steuersatz (19 % oder 7 %). **Steuer § 13b (automatisch)** zeigt die daraus berechnete Steuer schreibgeschützt an. Änderungen am Netto oder am Satz aktualisieren sie automatisch, auch nach dem erneuten Öffnen eines gespeicherten Entwurfs. Beim Speichern rechnet Haben die Steuer selbst noch einmal aus Netto und Satz, auch bei der Erwerbsteuer; ein älterer Entwurf mit abweichender Steuer lässt sich erst buchen, wenn du ihn geöffnet und gespeichert hast. Bezahlt wird der Nettobetrag, der Bankabgleich erwartet also netto. Hat der Lieferant eine USt-IdNr. aus einem anderen EU-Land und steht keine Steuer auf dem Beleg, weist Haben darauf hin.
-
-Gebucht wird (SKR03, SKR04 in Klammern):
-
-- Aufwand netto an Verbindlichkeiten bzw. Privateinlage,
-- Vorsteuer nach § 13b auf 1577 (1407) an Umsatzsteuer nach § 13b auf 1787 (3837).
-
-In der [Voranmeldung](umsatzsteuer.md#-13b-als-leistungsempfänger) heben sich Steuer und Vorsteuer auf. Als Kleinunternehmer schuldest du die Steuer trotzdem, ziehst aber nichts ab: Sie wird Teil des Aufwands und ist mit der Voranmeldung zu zahlen. Mit Privatanteil ist die Steuer voll geschuldet, abziehbar nur der betriebliche Teil. Gebucht wird die nicht abziehbare Steuer als eigene Aufwandszeile neben dem Netto; mit Privatanteil steht der private Teil des Nettos mit dem Steuerschlüssel des § 13b auf den Entnahmen, die private Steuer ohne. So trägt das Journal die volle Bemessungsgrundlage wie die Voranmeldung (Kz 46/84). Beim innergemeinschaftlichen Erwerb mit Privatanteil ebenso (Kz 89/93). In der EÜR zählt der gezahlte Nettobetrag; die Steuer an das Finanzamt erscheint dort, wenn sie gezahlt wird. Den privaten Teil der Steuer zahlt der Betrieb mit der Voranmeldung, er ist aber keine Betriebsausgabe: Die EÜR zählt ihn deshalb mit der Zahlung des Belegs als „Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben“ (Zeile 17). Unterm Strich mindert so nur der betriebliche Teil den Gewinn, wie bei DATEV, wo die Konten der Steuer nach § 13b in dieser Zeile stehen. Beispiel: 1.000,00 € netto, 190,00 € Steuer, Privatanteil 30 %: 700,00 € Ausgabe, 57,00 € in Zeile 17; mit der Voranmeldung gehen 57,00 € ans Finanzamt (190,00 € Steuer, 133,00 € Vorsteuer).
-
-## Innergemeinschaftlicher Erwerb (§ 1a UStG)
-
-Kaufst du als Unternehmer **Ware** bei einem Unternehmer aus einem anderen EU-Land und gelangt sie aus diesem Land nach Deutschland, stellt er dir die Rechnung ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. Die Umsatzsteuer (Erwerbsteuer) schuldest dann du und ziehst sie im selben Zug als Vorsteuer wieder ab. Ein Beispiel: Hardware von einem Händler aus den Niederlanden für 500 € netto; daraus entstehen 95 € Erwerbsteuer und 95 € Vorsteuer, an den Händler gehen 500 €.
-
-Unter **Umsatzsteuer auf dem Beleg** wählst du **Innergemeinschaftlicher Erwerb (§ 1a UStG): Ware aus dem EU-Ausland**. Die Steuerbehandlung ist unabhängig von der Kategorie: Ware zum Weiterverkauf („Wareneinkauf (Handelsware)“), Büroausstattung, Hardware und auch ein **Anlagegut** gehen. Bei einem Anlagegut kommt der Nettobetrag wie sonst ins [Anlagenverzeichnis](anlagen.md), Erwerbsteuer und Vorsteuer stehen daneben.
-
-Du trägst das Netto aus der Rechnung ein und wählst 19 % oder 7 %. **Erwerbsteuer (automatisch)** zeigt die berechnete Steuer schreibgeschützt an; bei Änderungen am Netto oder am Satz wird sie automatisch aktualisiert. Bezahlt wird der Nettobetrag. Zum Buchen braucht Haben die **USt-IdNr. des Lieferanten** aus einem anderen EU-Land; mit einer deutschen USt-IdNr. ist es kein innergemeinschaftlicher Erwerb.
-
-Gebucht wird (SKR03, SKR04 in Klammern), Konten aus dem DATEV-Kontenrahmen 2026:
-
-- Aufwand bzw. Anlagekonto netto an Verbindlichkeiten bzw. Privateinlage,
-- Vorsteuer aus innergemeinschaftlichem Erwerb 19 % auf 1574 (1404), 7 % auf 1572 (1402), an Umsatzsteuer aus innergemeinschaftlichem Erwerb 19 % auf 1774 (3804), 7 % auf 1772 (3802).
-
-Haben bucht auf das Aufwandskonto der Kategorie, nicht auf die DATEV-Automatikkonten 3425/3420 (5425/5420); die Steuer steht als eigene Zeile im Journal, deshalb rechnet DATEV sie beim [Export](auswertungen.md) nicht ein zweites Mal heraus.
-
-In der [Voranmeldung](umsatzsteuer.md#innergemeinschaftlicher-erwerb) steht das Netto in **Kz 89** (19 %) bzw. **Kz 93** (7 %), die Vorsteuer in **Kz 61**; beides hebt sich auf. Die Erwerbsteuer entsteht mit der Ausstellung der Rechnung, spätestens mit Ablauf des Folgemonats (§ 13 Abs. 1 Nr. 6 UStG). Haben meldet sie deshalb im Monat des **Belegdatums**, auch bei Ist-Versteuerung, und nicht mit der Zahlung. Mit Privatanteil ist die Erwerbsteuer voll geschuldet, als Vorsteuer abziehbar nur der betriebliche Teil (§ 15 Abs. 1 Satz 1 Nr. 3 UStG). In der EÜR zählt der gezahlte Nettobetrag; Erwerbsteuer und Vorsteuer heben sich auf.
-
-Abzugrenzen sind:
-
-- **Dienstleistungen** aus dem EU-Ausland (Software-Abos, Cloud, Beratung): § 13b, siehe oben.
-- **Händler aus dem EU-Ausland mit deutscher Umsatzsteuer** auf der Rechnung, etwa im Versandhandel oder über einen Marktplatz: ein gewöhnlicher Beleg mit Vorsteuer. Der Sitz des Händlers oder der Marktplatz allein machen keinen Erwerb.
-- Ein Storno zählt wie bei allen Belegen im Monat des Stornos mit umgekehrtem Vorzeichen (Kz 89/93 und 61).
-
-## Einfuhrumsatzsteuer
-
-Bei der Einfuhr von Waren aus dem Drittland erhebt der Zoll die Einfuhrumsatzsteuer. Sie ist als Vorsteuer abziehbar (§ 15 Abs. 1 Satz 1 Nr. 2 UStG) und steht in der Voranmeldung in Kz 62. Lade den Bescheid des Zolls (Einfuhrabgabenbescheid) als Beleg hoch und wähle die Kategorie **Einfuhrumsatzsteuer (Bescheid des Zolls)**. Der Beleg enthält nur die Steuer, als **ein Betrag zu 0 %**; die Rechnung des Lieferanten über die Ware buchst du getrennt (ohne Vorsteuer, mit der Kategorie der Ware). Zölle und andere Abgaben auf demselben Bescheid gehören nicht in diesen Beleg, sondern zu den Kosten der Ware.
-
-| Konto SKR03 | Konto SKR04 | Soll | Haben |
-| --- | --- | ---: | ---: |
-| 1588 Entstandene Einfuhrumsatzsteuer | 1433 | 380,00 | |
-| 1600 Verbindlichkeiten | 3300 Verbindlichkeiten | | 380,00 |
-
-- **Voranmeldung:** Kz 62 im Monat des Belegdatums, bei Ist- und Soll-Versteuerung; sie mindert die Zahllast (Kz 83) wie Vorsteuer.
-- **EÜR:** gezahlte Vorsteuer, wenn der Bescheid bezahlt ist (im Bankabgleich wie jeder Beleg); keine Betriebsausgabe.
-- **Nicht unterstützt:** Kleinunternehmer und Belege ohne Vorsteuerabzug (dann gehört die Einfuhrumsatzsteuer zu den Kosten der Ware; buche sie mit deren Kategorie), Privatanteil, § 13b und Aufteilung mit anderen Kategorien. Die Umsatzsteuer-Jahreserklärung übermittelt Haben für ein Jahr mit Einfuhrumsatzsteuer nicht; die Seite nennt die Werte für das ELSTER-Portal.
-
-## Bezahlung
-
-| Auswahl | Gegenkonto | Folge |
-| --- | --- | --- |
-| Über das Geschäftskonto (Zuordnung beim Bankabgleich) | Verbindlichkeiten | Der Beleg wird nach dem Buchen im [Bankabgleich](bank.md) als offener Posten angeboten. |
-| Privat bezahlt (Privateinlage) | Privateinlagen | Der Beleg ist damit erledigt und taucht im Bankabgleich nicht auf. |
-| Vom Gesellschafter ausgelegt (nur GmbH, UG) | Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510) | Wie privat bezahlt; die GmbH schuldet dem Gesellschafter den Betrag. |
-| Bar aus der Kasse (Zeile im Kassenbuch) | Kasse | Beim Buchen entsteht eine Zeile im [Kassenbuch](kasse.md). Reicht der Kassenbestand am Belegdatum nicht, lehnt Haben das Buchen ab. |
-
-## Überweisen (SEPA-Datei)
-
-Unter **Überweisungen** (Menü **Ausgaben**) stellst du offene Belege zu einer SEPA-Datei zusammen, die du im Online-Banking hochlädst. Haben bucht dabei nichts: Bezahlt ist ein Beleg erst, wenn der [Bankabgleich](bank.md#überweisungen-aus-haben) die Abbuchung zuordnet.
-
-1. **Auftraggeberkonto** wählen: eines der Bankkonten unter [Bank](bank.md#konto), von dem das Geld abgeht. Zahlungsdienstleister stehen nicht zur Wahl.
-2. **Ausführungsdatum** setzen, frühestens heute.
-3. Die Belege ankreuzen, einzeln oder mit **Alle auswählen**. Darunter stehen Anzahl und Summe.
-4. **SEPA-Datei erzeugen**. Der Browser lädt die Datei `HABEN-….xml` herunter; unter **Erzeugte Dateien** bleibt sie zum erneuten Herunterladen.
-
-In der Liste stehen alle gebuchten, nicht stornierten Belege mit Bezahlung über das Geschäftskonto, die noch offen sind, die älteste Fälligkeit zuerst. Teilweise bezahlte Belege erscheinen mit dem Rest.
-
-| Angabe | Woher |
-| --- | --- |
-| Empfänger | Lieferant am Beleg |
-| IBAN | Aus dem Kontakt des Lieferanten (unter **Aus den Kontakten** gewählt), sonst die am Beleg bestätigte aus der E-Rechnung (BT-84); weichen beide ab, die [am Beleg entschiedene](#abweichende-iban-in-der-e-rechnung) |
-| Betrag | Offener Betrag, mit Skonto abzüglich Skonto |
-| Verwendungszweck | Rechnungsnummer des Lieferanten, ohne Nummer „Rechnung vom …“; mit Skonto zusätzlich „abzgl. 2,00 Prozent Skonto 4,31 EUR“ |
-| Auftraggeber | Kontoinhaber aus den Firmendaten, sonst der Firmenname; die BIC nur, wenn die IBAN der Firmendaten das gewählte Konto ist |
-
-Einen Beleg ohne IBAN, mit ungültiger IBAN (Prüfziffer nach ISO 13616), mit einer IBAN außerhalb des Europäischen Wirtschaftsraums (EU, Island, Liechtenstein, Norwegen), ohne Lieferant oder in Fremdwährung kann Haben nicht überweisen; außerhalb des EWR verlangt SEPA BIC und Anschrift des Empfängers oder gilt gar nicht, solche Zahlungen gibst du direkt im Online-Banking ein; der Grund steht in der Zeile, der Haken ist gesperrt. Die IBAN trägst du im [Kontakt](rechnungen.md#kontakte) des Lieferanten ein und wählst ihn am Beleg. Nennt die E-Rechnung eine andere IBAN als der Kontakt, ist der Beleg gesperrt, bis du am Beleg entschieden hast, welche gilt (siehe unten).
-
-### Abweichende IBAN in der E-Rechnung
-
-Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für Betrug: Jemand fängt die Rechnung ab und tauscht die IBAN aus. Haben gleicht deshalb die IBAN einer E-Rechnung (ZUGFeRD oder XRechnung, BT-84) mit der im Kontakt des Lieferanten ab, sobald der Kontakt am Beleg hängt, vor und nach dem Buchen. Verglichen wird ohne Leerzeichen und Groß- und Kleinschreibung; dieselbe IBAN, anders geschrieben, gilt als gleich.
-
-- **Abweichend:** Oben auf der Belegseite steht **Bankverbindung prüfen** mit beiden IBANs in Vierergruppen. Prüfe die Bankverbindung über einen bekannten Weg beim Lieferanten, nicht über Telefonnummer oder E-Mail aus dieser Rechnung. Nach dem Buchen entscheidest du (ein offener Beleg lässt sich noch löschen, deshalb erst dann):
-    - **IBAN des Kontakts behalten**, oder
-    - **IBAN der E-Rechnung nur für diesen Beleg**.
-
-    Der Kontakt bleibt in beiden Fällen unverändert; die IBAN dort änderst du, wenn nötig, selbst im [Kontakt](rechnungen.md#kontakte). Die Belegseite zeigt danach, welche IBAN gilt, wer entschieden hat und wann. Eine spätere Entscheidung ersetzt die frühere.
-- **Ohne Entscheidung** ist der Beleg unter **Überweisungen** nicht auswählbar, auch nicht über **Alle auswählen**; die Zeile nennt den Grund und führt mit **Zum Beleg** dorthin. Auch der Server lehnt ihn in einer SEPA-Datei ab. Nach der Entscheidung geht die Überweisung an die gewählte IBAN, und die Zeile nennt die Entscheidung.
-- **Neu entscheiden:** Die Entscheidung gilt nur für genau dieses Paar aus Kontakt- und Rechnungs-IBAN. Ändert sich die IBAN im Kontakt (oder steht ein anderer Kontakt am Beleg), ist neu zu entscheiden.
-- **Kontakt ohne IBAN** (oder kein Kontakt am Beleg): Oben auf der Belegseite steht **IBAN aus der E-Rechnung, noch nicht bestätigt**. Die IBAN der E-Rechnung gilt erst, wenn du sie mit **Übernehmen** für diesen Beleg bestätigst, nach dem Buchen; bis dahin ist der Beleg unter **Überweisungen** gesperrt wie bei einer Abweichung. Mit **Auch im Kontakt des Lieferanten eintragen** kommt sie zusätzlich in den Kontakt, als neue Version; das geht nur, solange der Kontakt keine IBAN hat, eine vorhandene überschreibt Haben nie, und nur eine gültige IBAN (BT-84 kann auch eine Kontonummer sein). Ohne den Haken bleibt der Kontakt, wie er ist. Die Bestätigung gilt nur für genau diese IBAN.
-
-Die Entscheidungen stehen in einer eigenen, nur anhängbaren Tabelle mit Eintrag im Änderungsprotokoll; Sperre und Siegel des gebuchten Belegs bleiben unberührt. IBANs aus der KI-Auslesung oder dem PDF-Text gleicht Haben nicht ab, nur die der E-Rechnung. Entscheiden kann nur der Inhaber; die [Steuerberatung](steuerberatung.md) sieht den Hinweis.
-
-### Skonto
-
-Skonto bietet Haben nur an, wenn die E-Rechnung es in den Zahlungsbedingungen (BT-20) so angibt, wie XRechnung es vorschreibt (Regel BR-DE-18): `#SKONTO#TAGE=7#PROZENT=2.00#`, wahlweise mit `#BASISBETRAG=…#`. Bei mehreren Stufen gilt die höchste, deren Frist am Ausführungsdatum noch läuft; die Frist zählt ab dem Rechnungsdatum. Dann steht unter dem Lieferanten ein Haken **2,00 % Skonto bis … abziehen**. Ohne Skontoangabe, bei schon teilweise bezahlten Belegen und dort, wo der Bankabgleich kein erhaltenes Skonto buchen kann (§ 13b, Privatanteil, Anlagegut), gibt es den Haken nicht. Nach der Abbuchung buchst du den Rest im Bankabgleich mit **Rest … als erhaltenes Skonto** aus ([Rest ausbuchen](bank.md#rest-ausbuchen-skonto-und-forderungsausfall)).
-
-### Vermerk am Beleg
-
-Für jede Überweisung steht am Beleg „Überweisung erzeugt am …“ mit Betrag, Ausführungsdatum und Referenz, in der Liste der Überweisungen zusätzlich die letzte. Die Datei lässt sich nicht ändern oder löschen; sie ist mit Auftraggeberkonto, Ausführungsdatum und jeder Überweisung in der Datenbank festgehalten, mit Eintrag im [Änderungsprotokoll](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel). Ob die Bank die Datei angenommen hat, weiß Haben nicht; eine zweite Datei für denselben Beleg ist möglich, Haben warnt davor nur mit dem Vermerk.
-
-### Die Datei
-
-Das Format ist pain.001.001.09 nach Anlage 3 des DFÜ-Abkommens der Deutschen Kreditwirtschaft, Version 3.9 (gültig seit 5. Oktober 2025, Schema `pain.001.001.09_GBIC_5.xsd`):
-
-- Ein Zahlungsauftrag mit einer Überweisung je Beleg. `BtchBookg` ist `false`: Die Bank bucht jede Überweisung einzeln ab, statt einer Summe für die ganze Datei, damit der Abgleich jede Abbuchung ihrem Beleg zuordnen kann.
-- `NbOfTxs` und `CtrlSum` stehen im Kopf und im Auftrag und sind aus den Überweisungen gezählt.
-- Jede Überweisung trägt eine eigene `EndToEndId` (`HABEN-` und 16 Hex-Ziffern), die Datei eine eigene `MsgId`.
-- Text nur im Latin-Zeichensatz des EPC (Buchstaben ohne Umlaute, Ziffern und `/ - ? : ( ) . , ' +`): Umlaute schreibt Haben aus (ä → ae, ß → ss), Akzente fallen weg, `&` wird `+`, `@` wird `(at)`; andere Zeichen werden zu Leerzeichen. Namen sind auf 70 Zeichen gekürzt, der Verwendungszweck auf 140.
-- Ohne BIC des Auftraggebers steht dort `NOTPROVIDED`, wie das Schema der DK es verlangt; für den Empfänger reicht im SEPA-Raum die IBAN.
+<a id="bezahlung"></a><a id="überweisen-sepa-datei"></a><a id="abweichende-iban-in-der-e-rechnung"></a><a id="skonto"></a><a id="vermerk-am-beleg"></a><a id="die-datei"></a><a id="verrechnen-ohne-zahlung"></a>Bezahlung über Geschäftskonto, privat oder Kasse, Überweisen per SEPA-Datei und Verrechnen ohne Zahlung stehen unter [Belege bezahlen](belege-bezahlen.md).
 
 ## Buchen
 
@@ -459,9 +350,71 @@ Bei privater Zahlung steht statt Verbindlichkeiten das Konto Privateinlagen (SKR
 
 Die Zahlung selbst buchst du im Bankabgleich: Verbindlichkeiten an Bank (siehe [bank.md](bank.md)).
 
-### Als Kleinunternehmer
+<a id="als-kleinunternehmer"></a>
+### Ohne Vorsteuerabzug
 
-Bist du in den Einstellungen als Kleinunternehmer nach § 19 UStG eingetragen, ziehst du keine Vorsteuer ab. Haben bucht dann den Bruttobetrag auf das Aufwandskonto, ohne Vorsteuerzeile und mit dem Steuerschlüssel `keineVSt`. Im Beispiel oben stünden 119,00 € auf 4964 bzw. 6837. Ob ein Beleg mit oder ohne Vorsteuerabzug gebucht wurde, hält Haben beim Buchen am Beleg fest. Spätere Auswertungen bleiben so richtig, auch wenn sich die Einstellung ändert.
+Ohne Vorsteuerabzug bucht Haben den Bruttobetrag auf das Aufwandskonto, ohne Vorsteuerzeile und mit dem Steuerschlüssel `keineVSt`; die Vorsteuer kommt nicht in Kz 66. Im Beispiel oben stünden 119,00 € auf 4964 bzw. 6837. Bei § 13b bleiben die Kennzahlen der geschuldeten Steuer (Kz 46/47 bzw. 84/85), nur wird sie Teil der Ausgabe statt Vorsteuer (Kz 67).
+
+Drei Wege führen dorthin: Als Kleinunternehmer nach § 19 UStG buchst du immer so. Mit dem Haken **Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)** in den Firmendaten gilt es als Vorgabe, etwa bei Heilbehandlung oder Unterricht. Am einzelnen Beleg wählst du es mit dem Kästchen **Ohne Vorsteuerabzug** — die Wahl am Beleg geht der Vorgabe vor. Ob ein Beleg mit oder ohne Vorsteuerabzug gebucht wurde, hält Haben beim Buchen am Beleg fest. Spätere Auswertungen bleiben so richtig, auch wenn sich die Einstellung ändert.
+
+### Gutschrift für schon Bezahltes
+
+Eine Gutschrift mindert entweder ein noch offenes Entgelt (Storno, Preisnachlass vor der Zahlung) oder eines, das du
+schon bezahlt hast (Guthaben aus einer Jahresabrechnung, Bonus). Der Unterschied entscheidet, **wann** die Vorsteuer
+berichtigt wird, nicht die Versteuerungsart: Ist und Soll regeln nach § 20 UStG nur die Umsatzsteuer auf deine eigenen
+Umsätze, der Vorsteuerabzug hängt nicht an der Zahlung. Bei einem schon bezahlten Entgelt ist die Berichtigung erst
+fällig, wenn das Geld zurückkommt oder verrechnet wird (§ 17 Abs. 1 Satz 2 und 8 UStG).
+
+Deshalb setzt du an der Gutschrift den Haken **Erstattet bereits Bezahltes**. Er steht nur an negativen Belegen, die über
+die Bank bezahlt sind — nur sie lassen sich ausgleichen. Haben
+bucht die Vorsteuerminderung dann nicht im Belegmonat auf die Vorsteuer, sondern auf ein Zwischenkonto, mit
+dem Steuerschlüssel des Satzes:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 4964 Software und Lizenzen | 6837 Software und Lizenzen | | 100,00 |
+| 1548 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 1434 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | | 19,00 |
+| 1600 Verbindlichkeiten | 3300 Verbindlichkeiten | 119,00 | |
+
+Das Konto steht wie „Umsatzsteuer nicht fällig“ (1766/1761) auf der Erlösseite in keiner Kennzahl: Kz 66 mindert erst
+die Umbuchung beim Ausgleich. Ohne den Haken bleibt alles wie bisher, die Gutschrift mindert die Vorsteuer im
+Belegmonat. Den Haken setzt du ausdrücklich; Haben leitet ihn nicht aus dem Zahlungsstand ab, denn der kann sich nach
+dem Belegdatum noch ändern.
+
+Ein gemeldeter Zeitraum nimmt die Angabe nicht mehr an: Steht der Belegmonat schon in einer abgegebenen Voranmeldung
+oder ist das Jahr abgeschlossen, lehnt Haben das Speichern und das Buchen ab.
+
+Ausgeglichen wird die Gutschrift über die Bank (Erstattung), über eine [Verrechnung](#verrechnen-ohne-zahlung) mit
+einem Beleg desselben Lieferanten oder über eine Ausbuchung wie eine Kursdifferenz. Dabei bucht Haben den Anteil vom
+Zwischenkonto auf die Vorsteuer um, mit Steuerschlüssel und Bemessungsgrundlage; Kz 66 mindert sich in diesem Zeitraum:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 1548 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 1434 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 19,00 | |
+| 1576 Vorsteuer 19 % | 1406 Vorsteuer 19 % | | 19,00 |
+
+Bei einer Teilerstattung nimmt jeder Ausgleich seinen Anteil je Steuersatz, mehrere zusammen ergeben genau die
+Vorsteuer des Belegs. Ausgebuchtes **Skonto** ist die Ausnahme: Was niemand mehr erstattet, wird vom Zwischenkonto
+abgeschrieben und nicht als Vorsteuer gezogen. Wird eine Zuordnung storniert, geht die Umbuchung mit zurück, gebucht am
+Tag des Stornos. Der Saldo des Kontos ist ein Bestand und läuft ins nächste Jahr: Eine Gutschrift aus Dezember und die
+Erstattung im Januar mindern die Voranmeldung im Januar, nicht rückwirkend im Dezember.
+
+Was das Zwischenkonto für die Auswertungen bedeutet:
+
+- **Voranmeldung aus dem Journal** (ab dem Stichjahr): Kz 66 sieht die Minderung genau im Zeitraum des Ausgleichs. Die
+  Zeile auf 1548/1434 trägt ihren Steuerschlüssel, aber keine Kennzahl.
+- **Voranmeldung aus den Nebenbüchern** (davor): Sie folgt derselben Regel und verteilt die Vorsteuer der Gutschrift
+  nach Zahlung, Verrechnung und Kursdifferenz (`gutschrift.ts`). Beide Quellen sagen deshalb in Kz 66 je Monat
+  dasselbe, und der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) meldet hier keine Abweichung.
+- **EÜR:** 1548/1434 ist ein Bestandskonto und ändert die EÜR nicht — weder Einnahmen noch Ausgaben. Die Vorsteuerzeile
+  der EÜR folgt der Umbuchung.
+- **E-Bilanz:** Das Konto steht unter den sonstigen Vermögensgegenständen aus Umsatzsteuer, mit Haben-Saldo (die
+  Berichtigung ist noch nicht gezogen) unter den Verbindlichkeiten aus Umsatzsteuer — nie in einer Erfolgszeile.
+- **DATEV:** Die Zeile geht mit ihrem Gegenkonto und **ohne** BU-Schlüssel raus. 1548/1434 ist wie „Umsatzsteuer nicht
+  fällig“ kein Automatikkonto; ein Schlüssel 8/9 würde DATEV veranlassen, aus 19,00 € noch einmal Steuer zu rechnen.
+- **Kontenrahmenwechsel:** Gebuchte Belege bleiben in ihrem Rahmen. Wird die Gutschrift erst nach dem Wechsel
+  ausgeglichen, bucht die Umbuchung im neuen Rahmen (1434 an 1406) und findet den geparkten Betrag trotzdem; der Saldo
+  des alten Kontos bleibt als Bestand stehen.
 
 ## Belege nacheinander prüfen
 
@@ -483,29 +436,9 @@ Auf dem Handy wischst du nach links zum nächsten und nach rechts zum vorigen Be
 
 Im [Bankabgleich](bank.md#zuordnen) geht es genauso: Nach dem vollständigen Zuordnen springt die Auswahl zum nächsten offenen Umsatz.
 
-## Fremdwährung
-
-Rechnungen in US-Dollar, Pfund oder einer anderen Währung (Software-Abos, Hosting, Werbung) buchst du so:
-
-1. Unter **Beträge je Steuersatz** bei **Währung** den Code eintragen, z. B. `USD`. Bei E-Rechnungen und der KI-Auslesung steht er schon da.
-2. Die Beträge so eintragen, wie sie auf dem Beleg stehen, also in der Fremdwährung.
-3. **Kurs: 1 EUR = …** leer lassen. Für die Umsatzsteuer gilt der Umsatzsteuer-Umrechnungskurs, den das Bundesministerium der Finanzen (BMF) für jeden Monat veröffentlicht (§ 16 Abs. 6 UStG). Haben nimmt den Kurs für den Monat des Belegdatums aus den [abgerufenen Kursen](einrichtung.md#fremdwährung) und zeigt ihn mit Herkunft an, z. B. „1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)“.
-
-Einen eigenen Kurs trägst du ein, wenn das Finanzamt dir den Tageskurs gestattet hat (Einstellung **Tageskurs** in den Firmendaten, dann mit **Kursdatum**) oder wenn du einen Kurs aus der Bankabrechnung nehmen willst. Ein eigener Kurs bleibt; ein übernommener USt-Kurs wechselt mit, wenn du das Belegdatum in einen anderen Monat änderst. Jede Änderung steht im Audit-Log des Belegs.
-
-Haben rechnet jede Zeile durch den Kurs in Euro um und rundet kaufmännisch auf den Cent. Unter dem Gesamtbetrag stehen der Betrag in Euro und die Euro-Beträge je Steuersatz. Gebucht, in die Voranmeldung übernommen und im Bankabgleich zugeordnet wird nur der Euro-Betrag. Währung, Kurs und Originalbeträge bleiben am Beleg gespeichert und stehen im Jahresexport in `belege.csv`.
-
-Bei § 13b steht keine Steuer auf der Rechnung. Haben rechnet dann das Netto in Euro um und berechnet die Steuer aus diesem Euro-Betrag.
-
-Beispiel: 100,00 USD netto zu 19 % bei 1 EUR = 1,0812 USD ergibt 92,49 € netto und 17,57 € Vorsteuer (19,00 USD / 1,0812).
-
-Das BMF veröffentlicht die Kurse eines Monats am ersten Arbeitstag des Folgemonats. Bis dahin lässt sich der Beleg speichern, aber nicht buchen („Kurs für 10/2026 noch nicht veröffentlicht“). Sobald Haben die Kurse abgerufen hat, rechnet es wartende Belege von selbst um; du kannst auch einen Kurs von Hand eintragen. Einen gebuchten Beleg ändert ein später abgerufener oder geänderter Kurs nicht.
-
-Belastet die Bank einen anderen Euro-Betrag als den umgerechneten, gleichst du die Differenz im Bankabgleich als [Kursdifferenz](bank.md#kursdifferenz-bei-fremdwährung) aus.
-
 ## Vorsteuer in der Voranmeldung
 
-Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Ein Storno zählt mit umgekehrtem Vorzeichen im Monat des Stornos. Siehe [umsatzsteuer.md](umsatzsteuer.md).
+Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Eine Gutschrift mit der Angabe „erstattet bereits Bezahltes“ zählt nicht im Belegmonat: Ihre Vorsteuer mindert sich erst, wenn das Entgelt zurückkommt oder der Posten verrechnet wird, anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Ein Storno zählt mit umgekehrtem Vorzeichen im Monat des Stornos. Siehe [umsatzsteuer.md](umsatzsteuer.md).
 
 ## Stornieren und neu erfassen
 
@@ -525,7 +458,7 @@ Was dabei passiert:
 - **EÜR:** Ein privat oder bar bezahlter Beleg zählt am Belegdatum als Ausgabe und am Datum der Gegenbuchung mit umgekehrtem Vorzeichen. Liegt sie im Folgejahr, mindert sie die Ausgaben dort.
 - **Bar aus der Kasse:** Im [Kassenbuch](kasse.md) entsteht eine Gegenzeile mit neuer Nummer und dem Betrag zurück in die Kasse; die ursprüngliche Zeile ist als storniert markiert. Gegenzeile und Gegenbuchung stehen hier immer am Tag des Stornos, weil das Kassenbuch zeitnah und in der Reihenfolge der Tage geführt wird.
 - **Über das Geschäftskonto:** Bestätigte Bankzuordnungen werden gemeinsam mit dem Beleg zurückgenommen. Ein mit der Zahlung ausgebuchter Rest wie Skonto wird ebenfalls aufgehoben. Gehört eine Zuordnung zu einer Aufteilung, nennt die Rückfrage alle Teile, auch die zu weiteren Vorgängen; eine Aufteilung wird wie im Bankabgleich nur insgesamt aufgehoben. Die betroffenen Umsätze sind danach wieder offen. Andere, unabhängige Zuordnungen bleiben bestehen. Der stornierte Beleg verschwindet aus den offenen Posten und lässt sich keiner Zahlung mehr zuordnen.
-- **Datum der Bankgegenbuchungen:** Wie bei der manuellen Rücknahme im Bankabgleich stehen sie am ursprünglichen Buchungsdatum, einschließlich verknüpfter Ausbuchungen wie Skonto. Das kann die neu berechneten Steuerwerte früherer Zeiträume ändern, auch wenn die Beleggegenbuchung im laufenden Zeitraum steht. Gespeicherte Voranmeldungen werden nicht überschrieben. Prüfe die neu berechneten Werte und ob eine [berichtigte Anmeldung](umsatzsteuer.md#berichtigte-anmeldung) nötig ist; der Stornodialog weist darauf hin.
+- **Datum der Bankgegenbuchungen:** Ausgangspunkt ist das oben beschriebene Datum der Beleggegenbuchung. Liegt es vor dem Buchungsdatum einer bereits erfolgten Zahlung, tragen deren Bankgegenbuchungen einschließlich verknüpfter Ausbuchungen wie Skonto stattdessen den Buchungstag der Zahlung. Bank- und Beleggegenbuchung können dadurch in unterschiedliche Zeiträume fallen. Gespeicherte Voranmeldungen überschreibt Haben nicht. Prüfe die neu berechneten Steuerwerte und ob eine [berichtigte Anmeldung](umsatzsteuer.md#berichtigte-anmeldung) nötig ist.
 - **Ein gemeinsamer Vorgang:** Bankgegenzeilen und Belegstorno werden nur zusammen gespeichert. Verhindert eine Sperre einen Teil, bleibt der ganze Vorgang unverändert; die Fehlermeldung steht sichtbar in der Aktionsleiste. Haben sich die Bankzuordnungen seit der Rückfrage geändert, lädst du den Beleg neu und bestätigst den aktuellen Umfang.
 - **Dieselbe Datei:** Beim Hochladen nimmt Haben dieselbe Datei sonst nicht ein zweites Mal an. Die Neuerfassung nutzt sie trotzdem; lädst du die Datei danach noch einmal hoch, landest du bei der Neuerfassung. Je storniertem Beleg gibt es eine Neuerfassung; löschst du den Entwurf, lässt er sich wieder neu erfassen.
 
@@ -536,7 +469,7 @@ Nicht stornieren lassen sich:
 | Es bleibt eine separate Ausbuchung ohne zugehörige Bankzuordnung offen | Erst die Ausbuchung im [Bankabgleich](bank.md) aufheben, dann stornieren. |
 | Anlagegut | Die Anlage bliebe im Verzeichnis und würde weiter abgeschrieben. Erfasse den Abgang im [Anlagenverzeichnis](anlagen.md). |
 | Beim Umzug als offener Posten übernommen (aus Lexware Office, sevDesk, BuchhaltungsButler, Accountable oder über den [JSON-Eingang](belegimport.md)) | Die Vorsteuer ist im bisherigen Programm angemeldet; korrigiere den Beleg dort. |
-| Das Jahr des Stornos oder einer zurückzunehmenden Zahlung ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr; auch eine gemeinsame Rücknahme bleibt dann vollständig aus. |
+| Das Jahr des Stornos oder der Zahlung ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr; auch eine gemeinsame Rücknahme bleibt dann vollständig aus. Liegt schon die Zahlung darin, lässt sich ihre Zuordnung nicht aufheben, weil sie danach nicht neu gebucht werden könnte. Korrigiere den Vorgang stattdessen mit einer Buchung im offenen Jahr, etwa einer Stornorechnung mit Datum im offenen Jahr oder einer Direktbuchung auf die betroffene Kategorie. |
 | Der Kontenrahmen wurde seit dem Buchen gewechselt | Die Kontonummern bedeuten im neuen Rahmen etwas anderes. |
 
 ## Löschen
@@ -571,15 +504,15 @@ Haben verrechnet nur, was zusammenpasst:
 
 Verrechnungen bewegen kein Geld: Es entsteht kein Bankumsatz, kein Kassenstand ändert sich, und die Buchungen beider Belege bleiben, wie sie sind. Beide Belege zählen danach als erledigt, die Verrechnung steht bei beiden mit Datum, Gegenbeleg und Grund. **Aufheben** setzt sie zurück, wie bei den Ausbuchungen mit einer Gegenzeile, damit die Spur erhalten bleibt. Dabei gibst du den Tag der Aufhebung an: Die Gegenzeile wirkt an diesem Tag, nicht rückwirkend auf den Tag der Verrechnung. Ein bereits gemeldetes Jahr bleibt damit unverändert.
 
-Für die Auswertungen zählt die Verrechnung wie eine Zahlung, und zwar am Tag der Aufrechnung. Das folgt der Rechtsprechung: Die Aufrechnung mit einer fälligen Gegenforderung ist eine Leistung im Sinne des § 11 Abs. 2 EStG (H 11 EStH „Aufrechnung“, BFH vom 19.04.1977, BStBl II S. 601). In der EÜR wirkt sie deshalb auf beide Belege: Der Aufwand der Rechnung und die Minderung aus der Gutschrift fließen in den Zeitraum, in dem aufgerechnet wird, nicht in den des Rechnungsdatums. Die Voranmeldung ändert sich durch eine Verrechnung nicht; die Vorsteuerkorrektur bei erstatteter Gutschrift ist #690.
+Für die Auswertungen zählt die Verrechnung wie eine Zahlung, und zwar am Tag der Aufrechnung. Das folgt der Rechtsprechung: Die Aufrechnung mit einer fälligen Gegenforderung ist eine Leistung im Sinne des § 11 Abs. 2 EStG (H 11 EStH „Aufrechnung“, BFH vom 19.04.1977, BStBl II S. 601). In der EÜR wirkt sie deshalb auf beide Belege: Der Aufwand der Rechnung und die Minderung aus der Gutschrift fließen in den Zeitraum, in dem aufgerechnet wird, nicht in den des Rechnungsdatums. In der Voranmeldung mindert die Verrechnung die Vorsteuer einer Gutschrift anteilig im Monat der Aufrechnung (§ 17 Abs. 1 Satz 2 und Satz 8 UStG, UStAE 13.6 Abs. 1 Satz 12); die Vorsteuer einer Rechnung bleibt bei ihrem Belegdatum.
 
 ## Grenzen
 
-- Fremdwährung: Für den Monat gilt das Belegdatum; ein abweichendes Leistungsdatum hat der Beleg nicht.
+- Fremdwährung: Für den Monat gilt das Belegdatum; ein erfasster Leistungszeitraum bleibt dabei außen vor.
 - Nur die Steuersätze 19 %, 7 % und 0 %, je Satz eine Zeile.
 - Aufteilung auf mehrere Kategorien nur auf die festen Kategorien, nicht auf frei gewählte Sachkonten, und nur in Euro mit deutscher Umsatzsteuer oder § 13b (EU und Drittland): nicht mit innergemeinschaftlichem Erwerb, Privatanteil, Fremdwährung oder Anlagegut. Die Steuerbehandlung gilt für den ganzen Beleg, nicht je Zeile.
-- § 13b nur für sonstige Leistungen ausländischer Unternehmer (Kz 46/47 und 84/85), nicht für Bauleistungen, Gebäudereinigung, Gold oder Mobilfunkgeräte, und nicht bei Anlagegütern. Waren aus dem EU-Ausland sind ein [innergemeinschaftlicher Erwerb](#innergemeinschaftlicher-erwerb--1a-ustg); einen Beleg der Kategorie „Wareneinkauf (Handelsware)“ mit § 13b bucht Haben nicht.
-- Innergemeinschaftlicher Erwerb nur steuerpflichtig zu 19 % oder 7 % (Kz 89/93 und 61). Nicht unterstützt: steuerfreie Erwerbe (§ 4b UStG, Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), neue Fahrzeuge ohne USt-IdNr. des Lieferanten, Erwerbe als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG), Dreiecksgeschäfte als letzter Abnehmer (§ 25b UStG), Aufteilung auf mehrere Kategorien und erhaltenes Skonto. Die Einfuhr aus dem Drittland ist kein Erwerb; die Einfuhrumsatzsteuer erfasst du mit dem Bescheid des Zolls (siehe [Einfuhrumsatzsteuer](#einfuhrumsatzsteuer)).
+- § 13b nur für sonstige Leistungen ausländischer Unternehmer (Kz 46/47 und 84/85), nicht für Bauleistungen, Gebäudereinigung, Gold oder Mobilfunkgeräte, und nicht bei Anlagegütern. Waren aus dem EU-Ausland sind ein [innergemeinschaftlicher Erwerb](belege-ausland.md#innergemeinschaftlicher-erwerb--1a-ustg); einen Beleg der Kategorie „Wareneinkauf (Handelsware)“ mit § 13b bucht Haben nicht.
+- Innergemeinschaftlicher Erwerb nur steuerpflichtig zu 19 % oder 7 % (Kz 89/93 und 61). Nicht unterstützt: steuerfreie Erwerbe (§ 4b UStG, Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), neue Fahrzeuge ohne USt-IdNr. des Lieferanten, Erwerbe als Kleinunternehmer oder mit nur steuerfreien Umsätzen (Erwerbsschwelle, § 1a Abs. 3 UStG), Erwerbe einer Anlage ohne Vorsteuerabzug, Dreiecksgeschäfte als letzter Abnehmer (§ 25b UStG), Aufteilung auf mehrere Kategorien und erhaltenes Skonto. Die Einfuhr aus dem Drittland ist kein Erwerb; die Einfuhrumsatzsteuer erfasst du mit dem Bescheid des Zolls (siehe [Einfuhrumsatzsteuer](belege-ausland.md#einfuhrumsatzsteuer)).
 - Die Kategorie Hardware ist für geringwertige Wirtschaftsgüter gedacht; was über mehrere Jahre abgeschrieben wird, buchst du als **Anlagegut** (siehe [Anlagen und AfA](anlagen.md)).
 - HEIC-Fotos werden abgelegt, aber weder in der Vorschau angezeigt noch von der KI gelesen.
 - Dauerbelege nur für Ausgaben in Euro mit festen Beträgen, ohne § 13b, innergemeinschaftlichen Erwerb, Aufteilung auf mehrere Kategorien, Privatanteil oder Anlagegut.

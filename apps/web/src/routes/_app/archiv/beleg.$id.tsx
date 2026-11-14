@@ -82,6 +82,11 @@ function LegacyVoucherPage() {
             <h2 id="facts-heading" style={{ margin: 0 }}>
               Angaben
             </h2>
+            {voucher.accountingTypeIssue && (
+              <p className="banner banner-info" role="status">
+                {voucher.accountingTypeIssue}
+              </p>
+            )}
             <dl className="facts">
               <dt>Kontakt</dt>
               <dd>
@@ -116,7 +121,7 @@ function LegacyVoucherPage() {
                 <TaxRow key={t.rate} rate={t.rate} net={t.net} tax={t.tax} />
               ))}
               <dt>Brutto</dt>
-              <dd className="mono" style={{ fontWeight: 600 }}>
+              <dd className="amount" style={{ fontWeight: 600 }}>
                 {formatEuro(voucher.gross)}
                 {voucher.currency !== "EUR" ? ` (${voucher.currency})` : ""}
               </dd>
@@ -146,7 +151,7 @@ function LegacyVoucherPage() {
                 <div key={i} className="history-row small">
                   <span>{formatDate(item.date)}</span>
                   <span className="muted">{item.account ?? item.type}</span>
-                  <span className="mono">{formatEuro(item.amount)}</span>
+                  <span className="amount">{formatEuro(item.amount)}</span>
                 </div>
               ))}
             </section>
@@ -165,9 +170,9 @@ function TaxRow({ rate, net, tax }: { rate: number; net: number; tax: number }) 
   return (
     <>
       <dt>Netto {percent}</dt>
-      <dd className="mono">{formatEuro(net)}</dd>
+      <dd className="amount">{formatEuro(net)}</dd>
       <dt>USt {percent}</dt>
-      <dd className="mono">{formatEuro(tax)}</dd>
+      <dd className="amount">{formatEuro(tax)}</dd>
     </>
   );
 }

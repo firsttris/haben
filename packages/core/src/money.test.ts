@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEuro, parseEuro, taxOf } from "./money.ts";
+import { formatDeduction, formatEuro, parseEuro, taxOf } from "./money.ts";
 
 describe("parseEuro", () => {
   it.each([
@@ -21,6 +21,24 @@ describe("parseEuro", () => {
 describe("formatEuro", () => {
   it("formatiert deutsch", () => {
     expect(formatEuro(2341872).replace(/\s/g, " ")).toBe("23.418,72 €");
+  });
+});
+
+describe("formatDeduction", () => {
+  // Abzugszeilen der Jahresübersicht: Vorsteuer, Einfuhrumsatzsteuer und Vorauszahlungssoll.
+  // Der Abzug erscheint negativ, eine Gutschrift in derselben Zeile positiv - sonst rechnet
+  // der Leser die Spalte falsch zusammen (#869).
+  it("zeigt einen positiven Abzug mit Minus", () => {
+    expect(formatDeduction(80000).replace(/\s/g, " ")).toBe("-800,00 €");
+  });
+
+  it("zeigt eine negative Vorsteuer ohne Minus", () => {
+    expect(formatDeduction(-24552).replace(/\s/g, " ")).toBe("245,52 €");
+  });
+
+  it("trägt das Vorzeichen der Abschlusszeile unverändert", () => {
+    expect(formatEuro(-5448).replace(/\s/g, " ")).toBe("-54,48 €");
+    expect(formatEuro(20000).replace(/\s/g, " ")).toBe("200,00 €");
   });
 });
 

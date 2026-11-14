@@ -32,22 +32,27 @@ export function belegZeilen(
   splits: DocumentSplit[],
   books: { kontenrahmen: Kontenrahmen; rechtsform: Rechtsform },
   vorsteuerAbzug: boolean,
+  /** Eigene Sachkonten (#270): ID → Nummer; ein Beleg oder eine Zeile mit eigenem Konto bucht dort statt auf das Konto der Kategorie */
+  eigene: ReadonlyMap<string, string> = new Map(),
 ): PostingLine[] {
   const totals = belegSummen(doc, amounts);
   // Anlage: auf das Anlagekonto statt in den Aufwand; ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten
   const asset = doc.category === "anlage" ? doc.asset : null;
-  const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, books.kontenrahmen) : undefined;
+  const eigenesKonto = doc.ownAccountId ? eigene.get(doc.ownAccountId) : undefined;
+  const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, books.kontenrahmen) : eigenesKonto;
   // Aufgeteilt (#271): eine Buchung mit einer Aufwandszeile je Kategorie; sonst über die Kategorie des Belegs
   return splits.length > 0
     ? documentSplitPosting(
         totals,
-        splitLines(splits),
+        splitLines(splits, eigene),
         books.kontenrahmen,
         books.rechtsform,
         doc.payment,
         vorsteuerAbzug,
         // ig_erwerb lehnt splitBookingIssues mit Aufteilung ab; § 13b (#508) bucht je Zeile mit RC13bEU bzw. RC13bDrittland
         doc.reverseCharge === "eu" || doc.reverseCharge === "drittland" ? doc.reverseCharge : null,
+        // Gutschrift, die bereits Bezahltes erstattet: Vorsteuerminderung erst mit dem Ausgleich (#786)
+        doc.erstattetBezahltes,
       )
     : documentPosting(
         totals,
@@ -59,5 +64,6 @@ export function belegZeilen(
         assetAccountNo,
         doc.privateShare,
         doc.reverseCharge,
+        doc.erstattetBezahltes,
       );
 }

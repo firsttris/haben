@@ -19,6 +19,9 @@ export function steuerWahlFuer(options: SteuerOptionen, bookingDate: string): St
   return { art: options.steuerarten[0]?.value ?? "ust", jahr: String(Number(bookingDate.slice(0, 4)) - 1), posten: "steuer" };
 }
 
+/** Fehler am Bezugsjahr, solange `steuerangabe` null liefert */
+export const BEZUGSJAHR_FEHLER = "Trag das Bezugsjahr vierstellig ein, etwa 2025.";
+
 /** Steuerangabe für den Server; null, solange das Bezugsjahr keine Jahreszahl ist */
 export function steuerangabe(wahl: SteuerWahl): { art: Steuerart; jahr: number; posten: SteuerPosten } | null {
   return /^\d{4}$/.test(wahl.jahr.trim()) ? { art: wahl.art, jahr: Number(wahl.jahr.trim()), posten: wahl.posten } : null;
@@ -42,8 +45,18 @@ function wirkung(wahl: SteuerWahl): string {
     : "Zinsen und Zuschläge zur Umsatzsteuer sind Betriebsausgaben; Erstattungszinsen sind Betriebseinnahmen.";
 }
 
-export function SteuerFelder({ options, value, onChange }: { options: SteuerOptionen; value: SteuerWahl; onChange: (wahl: SteuerWahl) => void }) {
-  const jahrOk = steuerangabe(value) !== null;
+/** jahrFehler kommt aus der Prüfung beim Buchen (useSubmitCheck), erst danach zu sehen */
+export function SteuerFelder({
+  options,
+  value,
+  onChange,
+  jahrFehler,
+}: {
+  options: SteuerOptionen;
+  value: SteuerWahl;
+  onChange: (wahl: SteuerWahl) => void;
+  jahrFehler?: string | undefined;
+}) {
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="form-row" style={{ gridTemplateColumns: "minmax(0, 1fr) 6.5em" }}>
@@ -58,7 +71,7 @@ export function SteuerFelder({ options, value, onChange }: { options: SteuerOpti
             </select>
           )}
         </Field>
-        <Field label="Bezugsjahr">
+        <Field label="Bezugsjahr" error={jahrFehler}>
           {(control) => (
             <input
               {...control}
@@ -67,7 +80,6 @@ export function SteuerFelder({ options, value, onChange }: { options: SteuerOpti
               maxLength={4}
               value={value.jahr}
               onChange={(e) => onChange({ ...value, jahr: e.target.value })}
-              aria-invalid={!jahrOk}
             />
           )}
         </Field>

@@ -270,3 +270,52 @@ describe("EÜR mit aufgeteiltem Beleg", () => {
     expect(amount(euer, "vorsteuer")).toBe(3_230);
   });
 });
+
+describe("documentSplitPosting mit eigenem Konto (#270)", () => {
+  const eigenesKonto = { SKR03: "4999", SKR04: "6999" } as const;
+
+  describe.each(["SKR03", "SKR04"] as const)("%s", (kontenrahmen) => {
+    const k = KONTEN[kontenrahmen];
+    const mitKonto: DocumentSplitLine[] = [
+      { category: "wareneinkauf", taxRate: 1900, net: 10_000 },
+      { category: "software", taxRate: 1900, net: 5_000, account: eigenesKonto[kontenrahmen] },
+      { category: "buero", taxRate: 1900, net: 2_000 },
+    ];
+
+    it("bucht die Zeile mit eigenem Konto auf dessen Nummer, die übrigen wie bisher; Beträge und Vorsteuer bleiben", () => {
+      const eigen = documentSplitPosting(issueTotals, allocateSplitTax(mitKonto, issueAmounts), kontenrahmen, "einzelunternehmen", "bank");
+      const ohne = documentSplitPosting(issueTotals, allocateSplitTax(issueLines, issueAmounts), kontenrahmen, "einzelunternehmen", "bank");
+      const betrag = (lines: typeof eigen, account: string) => lines.filter((l) => l.account === account).reduce((s, l) => s + l.debit, 0);
+      expect(betrag(eigen, eigenesKonto[kontenrahmen])).toBe(5_000);
+      expect(betrag(eigen, k.software)).toBe(0);
+      expect(betrag(eigen, k.ware)).toBe(betrag(ohne, k.ware));
+      expect(betrag(eigen, k.buero)).toBe(betrag(ohne, k.buero));
+      expect(betrag(eigen, k.vorsteuer19)).toBe(betrag(ohne, k.vorsteuer19));
+      // dieselbe Summe Soll und Haben wie ohne eigenes Konto
+      expect(sumOf(eigen.map((l) => l.debit))).toBe(sumOf(ohne.map((l) => l.debit)));
+      expect(sumOf(eigen.map((l) => l.credit))).toBe(sumOf(ohne.map((l) => l.credit)));
+    });
+
+    it("zwei Zeilen derselben Kategorie, eine mit und eine ohne eigenes Konto, bleiben getrennte Aufwandszeilen", () => {
+      const lines: DocumentSplitLine[] = [
+        { category: "software", taxRate: 1900, net: 5_000, account: eigenesKonto[kontenrahmen] },
+        { category: "software", taxRate: 1900, net: 3_000 },
+      ];
+      const amounts = [{ taxRate: 1900, net: 8_000, tax: 1_520 }];
+      const result = documentSplitPosting(
+        totalsFromTaxes([{ rate: 1900, base: 8_000, tax: 1_520 }]),
+        allocateSplitTax(lines, amounts),
+        kontenrahmen,
+        "einzelunternehmen",
+        "bank",
+      );
+      const gesucht: string[] = [eigenesKonto[kontenrahmen], k.software];
+      expect(result.filter((l) => l.debit > 0 && gesucht.includes(l.account)).map((l) => [l.account, l.debit])).toEqual(
+        expect.arrayContaining([
+          [eigenesKonto[kontenrahmen], 5_000],
+          [k.software, 3_000],
+        ]),
+      );
+    });
+  });
+});

@@ -16,10 +16,10 @@ import {
   INVOICES,
   kontaktAnlegen,
   kundeWaehlen,
-  receiptJpeg,
   rechnungFestschreiben,
   lieferantWaehlen,
 } from "./einrichtung.ts";
+import { receiptJpeg } from "./belegbild.ts";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,
@@ -113,6 +113,11 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await akzent.getByRole("button", { name: "Übernehmen" }).click();
   await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1D4ED8");
+  // Das Zeichen in der Navigation hängt nicht an der Beleggestaltung (#504): das „H“ bleibt in der Farbe des Themes
+  const marke = nav.locator(".brand-mark");
+  await expect(marke).toHaveCSS("background-color", "rgb(63, 162, 132)");
+  // Das „H“ des Themes hebt sich ohnehin ab und hat keine Innenkante
+  await expect(marke).toHaveCSS("box-shadow", "none");
   // Die Vorschau im Editor übernimmt Akzentfarbe und Grautöne (#222): Text #191F27 statt des grünlichen #16211C
   await go("/rechnungen/neu");
   const vorschau = page.getByLabel("Vorschau der Rechnung");
@@ -125,6 +130,70 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await go("/einstellungen?bereich=gestaltung");
   await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
+
+  // Eigenes Zeichen der Firma (#504): „H“ in eigener Farbe, Schrift nach dem höheren Kontrast
+  await go("/einstellungen");
+  const zeichen = page.getByRole("form", { name: "Zeichen in der Navigation" });
+  const zeichenSpeichern = async () => {
+    await zeichen.getByRole("button", { name: "Übernehmen" }).click();
+    await expect(zeichen.getByRole("status")).toContainText("Zeichen gespeichert.");
+  };
+  await zeichen.getByLabel("„H“ in eigener Farbe").check();
+  await zeichen.getByLabel("Hex-Wert").fill("#b5462f");
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("background-color", "rgb(181, 70, 47)");
+  await expect(marke).toHaveCSS("color", "rgb(255, 255, 255)");
+  // #B5462F hebt sich in allen Themes mit 3 : 1 ab: keine Kante. Eine dunkle Farbe bekommt eine helle Innenkante
+  await expect(marke).toHaveCSS("box-shadow", "none");
+  await zeichen.getByLabel("Hex-Wert").fill("#24323a");
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("background-color", "rgb(36, 50, 58)");
+  await expect(marke).toHaveCSS("box-shadow", /inset/);
+  // Zurück zu #B5462F, das die folgenden Schritte als eigene Farbe erwarten
+  await zeichen.getByLabel("Hex-Wert").fill("#b5462f");
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("box-shadow", "none");
+  // Das Logo der Belege nur auf ausdrückliche Wahl; statt des „H“ steht dann das Bild, auf Weiß
+  await zeichen.getByLabel("Logo aus der Beleggestaltung").check();
+  await zeichenSpeichern();
+  const logoZeichen = nav.locator("img.brand-logo");
+  await expect(logoZeichen).toBeVisible();
+  await expect.poll(() => logoZeichen.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
+  await expect(marke).toHaveCount(0);
+  // Fest 40 × 40 wie das „H“, und das Bild kommt aus dem Cache: Die Adresse ändert sich mit dem Logo (?v=…)
+  expect(await logoZeichen.boundingBox()).toMatchObject({ width: 40, height: 40 });
+  const kennzeichen = await page.request.get((await logoZeichen.getAttribute("src"))!);
+  expect(kennzeichen.status()).toBe(200);
+  expect(kennzeichen.headers()["cache-control"]).toBe("private, max-age=31536000, immutable");
+  // Das Bild hat kein alt: Der Name des Links bleibt „Haben“ und der Firmenname (#599), ohne Text aus dem Logo
+  await expect(nav.getByRole("link", { name: "Haben Mustermann IT · Max Mustermann", exact: true })).toBeVisible();
+  // Wechselt das Logo im Gestaltungs-Panel des Editors, zieht die Navigation sofort nach, ohne Neuladen und ohne
+  // Seitenwechsel: ein neues Logo hat eine neue Adresse, ohne Logo gilt wieder die eigene Farbe
+  const logoVorher = await logoZeichen.getAttribute("src");
+  await go("/rechnungen/neu");
+  const gestaltungKnopf = page.getByRole("button", { name: "Gestaltung" }).first();
+  if (!(await gestaltungKnopf.isVisible())) await page.locator(".main > .page-head").getByRole("button", { name: "Vorschau", exact: true }).click();
+  await gestaltungKnopf.click();
+  const vorschauDialog = page.getByRole("dialog", { name: "Vorschau" });
+  const gestaltung = vorschauDialog.getByRole("complementary", { name: "Gestaltung" });
+  await gestaltung.getByLabel("Logodatei").setInputFiles("public/icon-512.png");
+  await expect(gestaltung.getByRole("status")).toContainText("Logo gespeichert");
+  await expect(logoZeichen).toHaveAttribute("src", /\/api\/kennzeichen\?v=/);
+  await expect(logoZeichen).not.toHaveAttribute("src", logoVorher!);
+  await gestaltung.getByRole("button", { name: "Entfernen" }).click();
+  await page.getByRole("dialog", { name: "Logo entfernen?" }).getByRole("button", { name: "Entfernen" }).click();
+  await expect(logoZeichen).toHaveCount(0);
+  await expect(marke).toHaveCSS("background-color", "rgb(181, 70, 47)");
+  // Das Logo aus der Einrichtung wieder herstellen; die Tests im Projekt „mit-daten“ rechnen damit
+  await gestaltung.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
+  await expect(logoZeichen).toHaveAttribute("src", logoVorher!);
+  await vorschauDialog.getByRole("button", { name: "Schließen" }).click();
+  await go("/einstellungen");
+  // Zurück zum „H“ des Themes; die eigene Farbe bleibt für später gespeichert, die übrigen Tests rechnen mit dem Standard
+  await zeichen.getByLabel("„H“ in der Farbe des Themes").check();
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("background-color", "rgb(63, 162, 132)");
+  await expect(logoZeichen).toHaveCount(0);
 });
 
 test("Kunden anlegen", async () => {
@@ -268,6 +337,39 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   // Nichts gespeichert: jede Rechnung ist weiter „noch nicht gemahnt“
   await go("/rechnungen/mahnwesen");
   await expect(page.getByText("noch nicht gemahnt")).toHaveCount(offen);
+});
+
+test("Mahnung: Die Vorschau zeigt das Blatt, während das Formular sich ändert", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  // Angeheftet wie in jedem Durchlauf (vorschauAnheften): neben dem Formular, ohne Klick
+  const blatt = page.getByLabel("Vorschau der Mahnung");
+  await expect(blatt.getByRole("img", { name: "Seite 1 von 1" })).toBeVisible();
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Zahlungserinnerung");
+
+  await page.getByLabel("Stufe").selectOption({ label: "1. Mahnung" });
+  await page.getByLabel("Mahngebühr (€)").fill("5,00");
+  await page.getByRole("textbox", { name: "Einleitung", exact: true }).fill("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="summen"]')).toContainText(/Mahngebühr: 5,00\s€/);
+});
+
+// Hier statt in knopfreihenfolge.spec.ts: Nach „ablauf“ ist keine Rechnung mehr überfällig, die Mahnseite gibt es nur jetzt
+test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf (DESIGN.md, Reihenfolge der Knöpfe)", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kopf = page.locator(".page-head .actions");
+  const knoepfe = kopf.locator(":scope > .btn");
+  await expect(knoepfe).toHaveText(["Entwurf als PDF", "Zahlungserinnerung erstellen"]);
+  await expect(knoepfe.last()).toHaveClass(/btn-primary/);
+  await expect(kopf).toHaveCSS("flex-direction", "row");
+  await knoepfe.first().focus();
+  await page.keyboard.press("Tab");
+  await expect(knoepfe.last()).toBeFocused();
 });
 
 test("Mahnung: Einleitung und Schluss lassen sich mit den Knöpfen auszeichnen (#359)", async () => {
@@ -490,7 +592,7 @@ test("Buchungen und Konten stimmen mit den Vorgängen überein", async () => {
   await expect(page.getByRole("table")).toBeVisible();
   await page.getByRole("button", { name: /^Rechnung \(/ }).click();
   for (const row of await page.locator("tbody tr:not(.lines-row)").all()) {
-    if ((await row.locator("td").count()) > 1) await expect(row.locator(".pill")).toHaveText(/Rechnung|Gegenbuchung/);
+    if ((await row.locator("td").count()) > 1) await expect(row.locator(".journal-source")).toHaveText(/Rechnung|Gegenbuchung/);
   }
 });
 
@@ -515,6 +617,20 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   const body = new TextDecoder("latin1").decode(await response.body());
   expect(body.startsWith('"EXTF";700;21;"Buchungsstapel";13;')).toBe(true);
   expect(body).toContain(";29098;55003;");
+  // Keine Nummern, die im Belegfeld 1 zusammenfallen: kein Hinweis
+  expect(response.headers()["x-haben-hinweis"]).toBeUndefined();
+
+  // Mit Hinweis (#675; welche Nummern zusammenfallen, prüft datev-belegfeld.test.ts): Die Datei kommt, die Karte nennt die Nummern
+  const hinweis = "„RE.2026.001“ und „RE-2026-001“ stehen im Belegfeld 1 als „RE-2026-001“; DATEV kann ihre offenen Posten verwechseln.";
+  await page.route("**/api/datev/*", async (route) => {
+    const original = await route.fetch();
+    await route.fulfill({ response: original, headers: { ...original.headers(), "x-haben-hinweis": encodeURIComponent(hinweis) } });
+  });
+  const download = page.waitForEvent("download");
+  await link.click();
+  expect((await download).suggestedFilename()).toMatch(/^EXTF_Buchungsstapel_\d{4}\.csv$/);
+  await expect(card.getByRole("status")).toHaveText(hinweis);
+  await page.unroute("**/api/datev/*");
 });
 
 /** Kleine Sicherung, wie sie lexware-sicherung.js herunterlädt: eine Rechnung mit PDF, eine offene Ausgabe und eine Privateinlage ohne Beleg */
@@ -624,6 +740,79 @@ test("Auftragsarchiv: suchen, Original-PDF nachreichen und unverändert herunter
   await expect(page.getByText(/Manuell nachgereicht/)).toBeVisible();
   await go(`/archiv?ansicht=auftraege&jahr=${YEAR}`);
   await expect(page.getByRole("row").filter({ hasText: "AN-ARCHIV-1" })).toContainText("1 vorhanden");
+});
+
+// #472: Gutschrift auf ein Buchungskonto aus sevDesk folgt dem Kontostamm; ohne erkannte Kontoart markiert Haben sie. Die Daten
+// stehen in 2019 und werden danach wieder entfernt, damit spätere Tests und Bilder das Archiv wie vorher sehen.
+test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift oder Hinweis „Buchungskonto nicht erkannt“", async ({ browser }) => {
+  const sql = postgres(databaseUrlFuer(), { max: 1 });
+  const note = (id: string, accountingTypeId: string) => ({
+    id,
+    bookingCategory: "ACCOUNTING_TYPE",
+    accountingType: { id: accountingTypeId, objectName: "AccountingType" },
+  });
+  let runId = "";
+  try {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('haben.actor', 'e2e', true)`;
+      const [run] = await tx`insert into lexoffice_imports (source, status, progress)
+        values ('sevdesk', 'fertig', '{"phase":"fertig","contacts":0,"contactsLinked":0,"listed":2,"imported":2,"skipped":0,"files":0,"failed":[]}') returning id`;
+      runId = run!.id as string;
+      await tx`insert into sevdesk_accounting_types (import_id, accounting_type_id, raw)
+        values (${runId}, 'E2E-1', '{"id":"E2E-1","objectName":"AccountingType","skr03":"3100","skr04":"5900"}')`;
+      for (const [id, number, accountingTypeId] of [
+        ["901", "GS-E2E-1", "E2E-1"],
+        ["902", "GS-E2E-2", "E2E-2"],
+      ])
+        await tx`insert into lexoffice_vouchers (lexoffice_id, source, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
+          values (${`creditnote/${id}`}, 'sevdesk', ${runId}, 'creditnote', 'einnahme', ${number}, '2019-03-10', 'open', 'Erfundene Agentur', -10000, -1900, -11900,
+          '[{"rate":1900,"net":-10000,"tax":-1900}]', '[]', '{"status":"open","openAmount":-11900,"paidDate":null,"items":[]}', ${tx.json(note(id!, accountingTypeId!))})`;
+    });
+    await go("/archiv?ansicht=belege&jahr=2019");
+    await expect(page.getByRole("link", { name: /GS-E2E-1/ })).toContainText("Ausgabe-Gutschrift");
+    await expect(page.getByRole("link", { name: /GS-E2E-1/ })).not.toContainText("Buchungskonto nicht erkannt");
+    await expect(page.getByRole("link", { name: /GS-E2E-2/ })).toContainText("Buchungskonto nicht erkannt");
+    await page.getByRole("link", { name: /GS-E2E-2/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "GS-E2E-2" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Buchungskonto nicht erkannt" })).toContainText("„Erneut abrufen“");
+    // Markierung und Hinweis prüft axe am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
+    const context = await browser.newContext({ storageState: await page.context().storageState() });
+    const axePage = await context.newPage();
+    // 320 px ist die schmalste Breite nach WCAG 1.4.10, wie in barrierefreiheit.spec.ts
+    for (const url of ["/archiv?ansicht=belege&jahr=2019", page.url()])
+      for (const width of [1440, 390, 320]) {
+        await axePage.setViewportSize({ width, height: 900 });
+        await axePage.goto(new URL(url, page.url()).toString());
+        await axePage.waitForLoadState("networkidle");
+        // Die Markierung steht ganz in ihrer Spalte, auch am Handy, wo Kontakt und Art schmal sind
+        if (url.startsWith("/archiv?"))
+          expect(
+            await axePage.getByText("Buchungskonto nicht erkannt").evaluate((el) => {
+              const cell = el.closest(".table-row > div")!.getBoundingClientRect();
+              const pill = el.getBoundingClientRect();
+              return pill.left >= cell.left - 0.5 && pill.right <= cell.right + 0.5;
+            }),
+            `Markierung ganz sichtbar bei ${width} px`,
+          ).toBe(true);
+        const { violations } = await new AxeBuilder({ page: axePage })
+          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+          .analyze();
+        expect(
+          violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+          `${url} bei ${width} px`,
+        ).toEqual([]);
+      }
+    await context.close();
+  } finally {
+    if (runId)
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`delete from sevdesk_accounting_types where import_id = ${runId}`;
+        await tx`delete from lexoffice_vouchers where import_id = ${runId}`;
+        await tx`delete from lexoffice_imports where id = ${runId}`;
+      });
+    await sql.end();
+  }
 });
 
 test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfernen", async () => {

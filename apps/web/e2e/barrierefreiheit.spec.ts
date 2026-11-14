@@ -12,7 +12,8 @@ import { ANONYMOUS, chunks, currentYear, fakeEigeneSeite, firstLink, SESSION, US
 
 test.use({ storageState: SESSION });
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
-const THEMES = ["wald", "ozean", "pflaume", "graphit", "nacht", "tiefsee"];
+/** Jede Farbe hell und dunkel, als „Farbe“ oder „Farbe:dunkel“ (withTheme) */
+const THEMES = ["wald", "ozean", "pflaume", "graphit", "wald:dunkel", "ozean:dunkel", "pflaume:dunkel", "graphit:dunkel"];
 
 const YEAR = currentYear();
 
@@ -26,6 +27,7 @@ const PAGES = [
   "/angebote",
   "/angebote/neu",
   "/artikel",
+  "/leistungen",
   "/kontakte",
   "/kontakte/neu",
   "/belege",
@@ -147,9 +149,13 @@ async function axe(p: Page, rules?: string[]) {
   );
 }
 
-/** Theme vor dem ersten Laden setzen; das Skript im Kopf der Seite liest es aus localStorage */
+/** Farbe und Modus vor dem ersten Laden setzen; das Skript im Kopf der Seite liest sie aus localStorage */
 async function withTheme(p: Page, theme: string) {
-  await p.addInitScript((t) => localStorage.setItem("haben-theme", t), theme);
+  await p.addInitScript((t) => {
+    const [farbe, modus = "hell"] = t.split(":");
+    localStorage.setItem("haben-theme", farbe!);
+    localStorage.setItem("haben-modus", modus);
+  }, theme);
 }
 
 test("Anmeldeseite ohne Verstöße", async ({ browser }) => {
@@ -215,7 +221,7 @@ function fieldsOffSurface(p: Page) {
   });
 }
 
-for (const theme of THEMES.filter((t) => t === "nacht" || t === "tiefsee")) {
+for (const theme of THEMES.filter((t) => t.endsWith(":dunkel"))) {
   test(`Eingabefelder auf der Theme-Fläche im Theme ${theme}`, async ({ page }) => {
     await withTheme(page, theme);
     for (const path of FIELD_PAGES) {
@@ -595,8 +601,16 @@ test("Rechnungsart: Der Hinweis erscheint nur bei Abschlags- und Schlussrechnung
   await expect(art).toHaveValue("");
   await expect(art).toHaveAccessibleDescription("");
   await art.selectOption("abschlag");
-  await expect(art).toHaveAccessibleDescription(/^Über einen Teil der Leistung/);
+  await expect(art).toHaveAccessibleDescription("Anzahlung vor Leistung oder Rechnung über eine bereits erbrachte Teilleistung.");
+  const teilleistung = page.getByRole("checkbox", { name: "Teilleistung bereits erbracht", exact: true });
+  await expect(teilleistung).not.toBeChecked();
+  await expect(teilleistung).toHaveAccessibleDescription(
+    "Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung.",
+  );
+  await teilleistung.check();
+  await expect(teilleistung).toHaveAccessibleDescription("Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung.");
   await art.selectOption("schluss");
+  await expect(teilleistung).toBeHidden();
   await expect(art).toHaveAccessibleDescription(/^Über die gesamte Leistung/);
   await art.selectOption("");
   await expect(art).toHaveAccessibleDescription("");
@@ -676,7 +690,7 @@ test("Dateiwähler im Graph-Versand: Klick öffnet den Dialog, Hinweis gehört z
 // Steuer nebeneinander; nichts läuft unter ein Feld, keine Zeile wird zehnmal so hoch wie am Desktop
 test("Kennzahlen der Voranmeldung am Handy: Bezeichnung über die volle Breite, nichts unter einem Feld", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await withTheme(page, "nacht");
+  await withTheme(page, "wald:dunkel");
   let gefunden = false;
   for (const candidate of [`/umsatzsteuer/${YEAR}-Q1`, `/umsatzsteuer/${YEAR}-03`, `/umsatzsteuer/${YEAR - 1}-03`, `/umsatzsteuer/${YEAR + 1}-03`]) {
     await open(page, candidate);
@@ -717,4 +731,63 @@ test("Kennzahlen der Voranmeldung am Handy: Bezeichnung über die volle Breite, 
   expect(probleme).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   expect(await axe(page), "axe am Handy").toEqual([]);
+});
+
+test("Befehlspalette: Strg+K, Tastatursteuerung, Fokus-Rückgabe und axe in allen Themes sowie am Handy", async ({ page }) => {
+  await withTheme(page, "wald");
+  await open(page, "/");
+
+  const uebersicht = page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Übersicht" });
+  await uebersicht.focus();
+  await page.keyboard.press("Control+k");
+
+  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+  await expect(dialog).toBeVisible();
+  const input = dialog.getByRole("combobox");
+  await expect(input).toBeFocused();
+
+  await input.fill("Rheinpixel");
+  const alle = dialog.getByRole("link", { name: "Alle anzeigen: Rechnungen" });
+  await expect(alle).toBeVisible();
+
+  const davor = await input.getAttribute("aria-activedescendant");
+  await page.keyboard.press("ArrowDown");
+  const danach = await input.getAttribute("aria-activedescendant");
+  expect(danach).toBeTruthy();
+  expect(danach).not.toBe(davor);
+
+  await page.keyboard.press("ArrowUp");
+  expect(await input.getAttribute("aria-activedescendant")).toBe(davor);
+
+  await page.keyboard.press("End");
+  const amEnde = await input.getAttribute("aria-activedescendant");
+  expect(amEnde).toBeTruthy();
+  expect(amEnde).not.toBe(davor);
+
+  await page.keyboard.press("Home");
+  expect(await input.getAttribute("aria-activedescendant")).toBe(davor);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(uebersicht).toBeFocused();
+
+  for (const theme of THEMES) {
+    await withTheme(page, theme);
+    await open(page, "/");
+    await page.keyboard.press("Control+k");
+    await expect(dialog).toBeVisible();
+    await input.fill("Rheinpixel");
+    await expect(alle).toBeVisible();
+    expect.soft(await axe(page), `Befehlspalette im Theme ${theme}`).toEqual([]);
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await withTheme(page, "wald:dunkel");
+  await open(page, "/");
+  await page.keyboard.press("Control+k");
+  await expect(dialog).toBeVisible();
+  await input.fill("Rheinpixel");
+  await expect(alle).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  expect(await axe(page), "Befehlspalette am Handy").toEqual([]);
 });

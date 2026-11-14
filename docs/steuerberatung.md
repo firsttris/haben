@@ -22,11 +22,12 @@ Die Steuerberatung sieht:
 - **Buchungen** (Journal) und **Konten** (Saldenliste, Kontenblätter) mit CSV
 - **Belege** mit Originaldatei
 - **Rechnungen**, nur festgeschriebene, mit PDF, XML und Anhängen, dazu ihre Mahnungen
+- die [Schnellsuche](suche.md#steuerberatung) über diese Seiten, Rechnungen und Belege
 - **Exporte**: Jahresarchiv (ZIP), DATEV-Buchungsstapel, Saldenliste. Mit [Personenkonten im DATEV-Export](auswertungen.md#personenkonten) lädt die Steuerberatung den Stapel nur, wenn alle Debitoren und Kreditoren darin schon einmal vom Inhaber exportiert und damit festgeschrieben sind; sonst nennt Haben die neuen Nummern, und der Inhaber lädt den Stapel einmal selbst herunter
 
 Nicht für die Steuerberatung sind: buchen, festschreiben, stornieren, ändern, löschen, hochladen, senden an ELSTER oder per E-Mail, die Einstellungen (Firmendaten, Nummernkreise, E-Mail, Eigene Seiten), ELSTER-Zertifikat und PIN, Bankzugang und SEPA-Überweisungen, API-Tokens für [KI-Assistenten](ki-assistenten.md) und die [REST-API](api.md), die Verwaltung der Zugänge. Ebenfalls beim Inhaber bleiben in dieser ersten Stufe Angebote, Bank, Kasse, Anlagen, Lohn, Umsatzsteuer, Jahreserklärungen, Finanzamt, Jahresabschluss und das Archiv aus dem Umzug; was davon für die Steuerberatung zählt, steht im Jahresarchiv.
 
-Was die Steuerberatung nicht darf, blendet Haben aus. Das allein schützt aber nichts: Der Server prüft bei jeder Anfrage die Rolle (siehe [Architektur](architektur.md#anmeldung)) und lehnt alles Schreibende der Steuerberatung ab, auch wenn jemand die Anfrage von Hand stellt.
+Was die Steuerberatung nicht darf, blendet Haben aus. Das allein schützt aber nichts: Der Server prüft bei jeder Anfrage die Rolle (siehe [Anmeldung](architektur-anmeldung.md#anmeldung)) und lehnt alles Schreibende der Steuerberatung ab, auch wenn jemand die Anfrage von Hand stellt.
 
 ## Einladen
 
@@ -62,7 +63,7 @@ Jede Anmeldung steht mit Zeitpunkt, Konto, Rolle und Art (Passwort, Passkey, SSO
 - Im Standardmodus ändert sich die Rolle eines Kontos nie, auch nicht durch einen Fehler im Code: Die Datenbank lehnt das ab. Über eine Einladung entsteht nie ein zweiter Inhaber. Im SSO-Modus folgt die Rolle bei jeder Anmeldung der Gruppe, siehe [Im SSO-Modus](#im-sso-modus).
 - Für die Steuerberatung lehnt der Server jede schreibende Anfrage ab. Selbst eine Funktion, die nur lesen soll, kann für sie nichts ins Änderungsprotokoll schreiben; Haben bricht sie dann ab.
 - Zertifikat, PIN, Zugangsdaten für Bank, E-Mail und Lexware Office sowie API-Tokens liefert Haben an die Steuerberatung nicht aus.
-- Anmeldeversuche sind wie beim Inhaber auf 20 je Minute begrenzt.
+- Anmeldeversuche sind wie beim Inhaber begrenzt ([Anmeldung](architektur-anmeldung.md#anmeldung)).
 
 ## Was noch fehlt
 
@@ -77,10 +78,10 @@ Läuft Haben mit `OIDC_ONLY=true`, entscheiden die Gruppen im Anmeldedienst (etw
 - **Einstellungen › Zugänge** zeigt statt „Sicherheit“ die schon angemeldeten Konten mit ihrer zuletzt bestätigten Rolle. Einladen, Sperren und Entfernen gibt es dort nicht; das geschieht über die Gruppen.
 - Wer aus der Gruppe genommen wird, verliert den Zugang bei der nächsten Anmeldung sofort, sonst spätestens nach 15 Minuten. Eine Abmeldung in Authelia beendet die Haben-Sitzung nicht sofort.
 - Die Steuerberatung kann eine neue Instanz nicht erstmals einrichten; das macht ein Inhaber.
-- Wird ein Inhaber zur Steuerberatung herabgestuft, deaktiviert Haben die Tokens, für die er verantwortlich ist; die Steuerberatung kann sie nicht reaktivieren, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).
+- Wird ein Inhaber zur Steuerberatung herabgestuft, deaktiviert Haben die Tokens, für die er verantwortlich ist; die Steuerberatung kann sie nicht reaktivieren, siehe [Tokens nach Gruppenentzug](installation-sso.md#tokens-nach-gruppenentzug).
 - Anmeldungen ohne Pause von mehr als sechs Stunden zählen als ein Besuch. „Seit deinem letzten Besuch“ reicht deshalb bis zur letzten Anmeldung vor dieser Pause, auch wenn die 15-Minuten-Frist zwischendurch neue Anmeldungen verlangt.
 - Alte Einladungslinks zeigen „Einladungen nicht verfügbar“.
 
-Einrichtung, Authelia-Beispiel und Umstellung bestehender Konten: [Single Sign-on mit OpenID Connect](installation.md#single-sign-on-mit-openid-connect).
+Einrichtung, Authelia-Beispiel und Umstellung bestehender Konten: [Single Sign-on mit OpenID Connect](installation-sso.md).
 
 [Zurück zur Übersicht](ueberblick.md)

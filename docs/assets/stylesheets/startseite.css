@@ -15,7 +15,8 @@
   color: var(--md-default-fg-color);
 }
 
-.showcase-hero .showcase-claim {
+.showcase-hero .showcase-claim,
+.showcase-center .showcase-claim {
   margin: 0 auto 1.4rem;
   max-width: 36em;
   font-size: 1.05rem;
@@ -34,32 +35,31 @@
   color: var(--md-primary-fg-color--light);
 }
 
-/* Die Bilder tragen ihre Größe, damit die Seite beim Laden nicht springt */
+/* Die Bilder tragen ihre Größe, damit die Seite beim Laden nicht springt; Rahmen und Ecken stecken im Bild (extra.css) */
 .md-typeset .showcase-shot img,
 .md-typeset .showcase-phone img {
   display: block;
   height: auto;
-  border: 1px solid var(--md-default-fg-color--lightest);
-  border-radius: 0.6rem;
-  box-shadow: 0 0.8rem 2.4rem rgb(0 0 0 / 14%);
 }
 
 .md-typeset .showcase-shot--hero img {
   margin: 0 auto 1rem;
-  box-shadow: 0 1.2rem 3.2rem rgb(0 0 0 / 22%);
 }
 
-/* Das Archiv ist eine lange Seite: nur ihr oberer Teil im Format der anderen Bilder */
-.md-typeset .showcase-shot--crop img {
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
-  object-position: top;
+/* Hell: die Bilder schweben über der Seite. drop-shadow folgt der Kontur im Bild, nicht dem transparenten Rand;
+   im dunklen Schema trägt der Schein im Bild */
+[data-md-color-scheme="default"] .md-typeset .showcase-shot img,
+[data-md-color-scheme="default"] .md-typeset .showcase-phone img {
+  filter: drop-shadow(0 0.8rem 2.4rem rgb(0 0 0 / 14%));
+}
+
+[data-md-color-scheme="default"] .md-typeset .showcase-shot--hero img {
+  filter: drop-shadow(0 1.2rem 3.2rem rgb(0 0 0 / 22%));
 }
 
 .md-typeset .showcase-phone img {
   max-width: 16rem;
   margin: 0 auto;
-  border-radius: 1.4rem;
 }
 
 .showcase-feature {
@@ -151,4 +151,27 @@
     max-width: 20rem;
     text-align: center;
   }
+}
+
+/* Das Bild des anderen Farbschemas bleibt aus (#only-light, #only-dark): display: block an den Bildern oben ist so
+   spezifisch wie die Regel des Themes und steht nach ihr */
+[data-md-color-scheme="default"] .md-typeset img[src$="#only-dark"],
+[data-md-color-scheme="slate"] .md-typeset img[src$="#only-light"] {
+  display: none;
+}
+
+/* „Dein Server.“ in der Markenfarbe, wie im Hero-Bild der README (scripts/hero) */
+.md-typeset .showcase-hero .showcase-akzent {
+  color: var(--md-primary-fg-color);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .showcase-hero .showcase-akzent {
+  color: var(--md-primary-fg-color--light);
+}
+
+/* Der Beta-Hinweis klein unter den Knöpfen, nicht im Untertitel */
+.md-typeset .showcase-hero .showcase-hinweis {
+  margin: 0.4rem auto 0;
+  font-size: 0.75rem;
+  color: var(--md-default-fg-color--light);
 }

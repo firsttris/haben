@@ -171,7 +171,8 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
 
       await sql`update company set kontenrahmen = 'SKR04'`;
       const before = await entryCount();
-      expect(await failure(bank.reverseAllocation(actor, allocationId))).toMatch(
+      // Aufhebung noch im alten Jahr datiert: dann muss das alte Jahr im alten Kontenrahmen gebucht sein
+      expect(await failure(bank.reverseAllocation(actor, allocationId, "2025-12-20"))).toMatch(
         /Das Jahr 2025 ist im Kontenrahmen SKR03 gebucht, eingestellt ist jetzt SKR04/,
       );
       // Nichts gebucht, die Zuordnung steht noch

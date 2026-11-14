@@ -15,7 +15,7 @@ export {
 } from "./pdf.ts";
 export { createRenderClient, packageCacheRoot, type RenderClient } from "./render-client.ts";
 export type { RenderedSheet, RenderJob } from "./render-protocol.ts";
-export { sheetText, type SheetData, type SheetTextPart } from "./sheet-text.ts";
+export { dunningSheetText, type DunningSheetData, sheetText, type SheetData, type SheetTextPart } from "./sheet-text.ts";
 export { BEISPIEL_PNG, layoutBeispiele, type LayoutBeispiel } from "./layout-beispiele.ts";
 export {
   belegDatenSchema,

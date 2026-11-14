@@ -1,7 +1,8 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
 import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
-import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
+import { ACCOUNTING_TYPE_ISSUE, accountingTypeChecks, accountingTypeUnclear, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
+import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import {
   datevYearSums,
   LexofficeApiError,
@@ -383,9 +384,10 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
     tax: number;
     gross: number;
     files: number;
+    accounting_type_unclear: boolean;
   }>(sql`
-    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.net, v.tax, v.gross,
-      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
+    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "tax")} as tax, ${effectiveAmount("v", "gross")} as gross,
+      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files, ${accountingTypeUnclear("v")} as accounting_type_unclear
     from lexoffice_vouchers v
     where v.date between ${`${filter.year}-01-01`} and ${`${filter.year}-12-31`}
       ${filter.direction === "alle" ? sql`` : sql`and ${effectiveDirection("v")} = ${filter.direction}`}
@@ -406,6 +408,7 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
     tax: Number(r.tax),
     gross: Number(r.gross),
     files: Number(r.files),
+    accountingTypeUnclear: r.accounting_type_unclear,
   }));
 }
 
@@ -428,15 +431,16 @@ export async function legacyVoucherDetail(id: string) {
       contactId: schema.lexofficeVouchers.contactId,
       contactName: effectiveContactName("lexoffice_vouchers"),
       currency: schema.lexofficeVouchers.currency,
-      net: schema.lexofficeVouchers.net,
-      tax: schema.lexofficeVouchers.tax,
-      gross: schema.lexofficeVouchers.gross,
+      net: effectiveAmount("lexoffice_vouchers", "net"),
+      tax: effectiveAmount("lexoffice_vouchers", "tax"),
+      gross: effectiveAmount("lexoffice_vouchers", "gross"),
       taxes: effectiveTaxes("lexoffice_vouchers"),
       categories: schema.lexofficeVouchers.categories,
       payment: effectivePayment("lexoffice_vouchers"),
       payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
       remark: schema.lexofficeVouchers.remark,
       createdAt: schema.lexofficeVouchers.createdAt,
+      accountingTypeIssue: sql<string | null>`case when ${accountingTypeUnclear("lexoffice_vouchers")} then ${ACCOUNTING_TYPE_ISSUE} end`,
     })
     .from(schema.lexofficeVouchers)
     .where(eq(schema.lexofficeVouchers.id, id));
@@ -460,11 +464,14 @@ export async function legacyVoucherFile(fileId: string) {
   return file ?? null;
 }
 
-/** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze) */
+/**
+ * Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze).
+ * Eine Zuordnung über 0 € ist keine Zahlung (#472).
+ */
 function legacyPayments(v: { source: LegacySource; gross: number; status: string; payment: LegacyPayment | null }) {
   if (paymentHistoryIssue(v)) return [];
   return (v.payment?.items ?? [])
-    .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date)
+    .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date && p.amount !== 0)
     .map((p) => ({ date: p.date, amount: Math.sign(v.gross) * Math.abs(p.amount) }));
 }
 
@@ -511,9 +518,9 @@ export async function reconciliation() {
       number: schema.lexofficeVouchers.number,
       date: schema.lexofficeVouchers.date,
       status: schema.lexofficeVouchers.status,
-      net: schema.lexofficeVouchers.net,
-      tax: schema.lexofficeVouchers.tax,
-      gross: schema.lexofficeVouchers.gross,
+      net: effectiveAmount("lexoffice_vouchers", "net"),
+      tax: effectiveAmount("lexoffice_vouchers", "tax"),
+      gross: effectiveAmount("lexoffice_vouchers", "gross"),
       taxes: effectiveTaxes("lexoffice_vouchers"),
       categories: schema.lexofficeVouchers.categories,
       payment: effectivePayment("lexoffice_vouchers"),
@@ -523,6 +530,7 @@ export async function reconciliation() {
       ohneBeleg: WITHOUT_RECEIPT,
       privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
       bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
+      accountingTypeUnclear: accountingTypeUnclear("lexoffice_vouchers"),
       // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
       files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
     })
@@ -536,13 +544,15 @@ export async function reconciliation() {
   const businessRows = figures.filter((v) => !v.neutral);
   // Ohne Einzelzahlungen können selbst bereits vollständig bezahlte sevDesk-Rechnungen mehrere Monate betreffen.
   // Gesperrt ist jedes Jahr, in das eine solche Zahlung fallen kann: bis zum Ausgleich, ohne Ausgleichsdatum alle.
-  const vatIssueOf = (year: number) => {
+  const paymentIssueOf = (year: number) => {
     if (versteuerung !== "ist") return null;
     if (businessRows.some((v) => v.direction === "einnahme" && unclearFrom(v, String(year)))) {
       return "sevDesk-Zahlungshistorie unvollständig: Der Ist-Monatsabgleich ist bis zur Klärung der Einzelzahlungen gesperrt.";
     }
     return null;
   };
+  const unclearAccountsIn = (year: number) => unclearAccountingTypes(businessRows, year, (v) => (versteuerung === "ist" ? legacyPayments(v) : []));
+  const vatIssueOf = (year: number) => [paymentIssueOf(year), unclearAccountsIn(year) ? ACCOUNTING_TYPE_VAT_ISSUE : null].filter(Boolean).join(" ") || null;
 
   const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,
@@ -657,7 +667,8 @@ export async function reconciliation() {
       // strukturell unerreichbar — der Punkt entfällt bei dieser Herkunft.
       const nurAccountable = voucherRows.length > 0 && voucherRows.every((v) => v.source === "accountable");
       const checks: ReconciliationCheck[] = [
-        ...(vatIssue ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: vatIssue }] : []),
+        ...(paymentIssueOf(year) ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: paymentIssueOf(year)! }] : []),
+        ...accountingTypeChecks(unclearAccountsIn(year)),
         {
           ok: vouchers.length > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),
           label: "Belege und Rechnungen per API abgerufen",
@@ -748,6 +759,7 @@ export interface LegacyVoucherForVat {
   /** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen */
   payments: { date: string; amount: number }[];
   paymentHistoryIssue: string | null;
+  accountingTypeIssue: string | null;
   files: number;
 }
 
@@ -767,7 +779,7 @@ export async function legacyVouchersForPeriod(filter: {
       .select({
         source: schema.lexofficeVouchers.source,
         direction: effectiveDirection("lexoffice_vouchers"),
-        gross: schema.lexofficeVouchers.gross,
+        gross: effectiveAmount("lexoffice_vouchers", "gross"),
         status: schema.lexofficeVouchers.status,
         payment: effectivePayment("lexoffice_vouchers"),
         payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
@@ -803,12 +815,13 @@ export async function legacyVouchersForPeriod(filter: {
     tax_type: string | null;
     tax_sub_type: string | null;
     files: number;
+    accounting_type_unclear: boolean;
   }>(sql`
-    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, v.net, v.tax, v.gross,
+    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "tax")} as tax, ${effectiveAmount("v", "gross")} as gross,
       ${effectiveTaxes("v")} as taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
-      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
+      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files, ${accountingTypeUnclear("v")} as accounting_type_unclear
     from lexoffice_vouchers v
     where (v.date::text like ${like}
       ${
@@ -849,6 +862,7 @@ export async function legacyVouchersForPeriod(filter: {
       taxSubType: r.tax_sub_type,
       payments: legacyPayments({ source: r.source, status: r.status, gross: Number(r.gross), payment: r.payment }),
       paymentHistoryIssue: paymentHistoryIssue({ source: r.source, status: r.status, gross: Number(r.gross), payment: r.payment }),
+      accountingTypeIssue: r.accounting_type_unclear ? ACCOUNTING_TYPE_ISSUE : null,
       files: Number(r.files),
     }));
   return { total: all.length, vouchers: all.slice(0, filter.limit), neutral };

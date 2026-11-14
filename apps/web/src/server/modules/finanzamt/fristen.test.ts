@@ -190,4 +190,28 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     expect(await mail.runDueFristenMails("2026-10-05", new Date("2026-10-05T06:00:00Z"))).toBeNull(); // Erinnerungen aus
     expect((await mail.mailSettingsSummary()) as object).not.toHaveProperty("ciphertext");
   });
+
+  it("erledigt die Frist einer Jahreserklärung, die außerhalb von Haben abgegeben und vermerkt wurde", async () => {
+    // Jahresfristen entstehen ab dem ersten Buchungsjahr; ohne Buchung in 2025 gibt es keine Frist für 2025
+    await sql.begin(async (tx) => {
+      const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values ('2025-07-15', 'Test 2025', 'invoice', gen_random_uuid(), 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, '1400', 100, 0), (${e!.id}, '8400', 0, 100)`;
+      await tx`update journal_entries set locked_at = now() where id = ${e!.id}`;
+    });
+    // Frist der EÜR 2025 ohne Berater: 31.07.2026. Am 05.08. liegt sie noch in der 60-Tage-Liste.
+    const vorher = await fristen.listFristen("2026-08-05");
+    expect(vorher.find((f) => f.id === "euer-2025")?.status).toBe("offen");
+
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, figures, filed_on, note,
+                request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'ABC123456789', '{"amount":0}'::jsonb,
+              '2026-07-29', 'Extern über eine andere Software abgegeben', '', '', '')`;
+
+    const nachher = await fristen.listFristen("2026-08-05");
+    expect(nachher.find((f) => f.id === "euer-2025")?.status).toBe("erledigt");
+    // Älteres Erledigtes fällt nach 60 Tagen aus der Liste, offen bleibt es immer sichtbar
+    const spaeter = await fristen.listFristen("2026-11-12");
+    expect(spaeter.filter((f) => f.id === "euer-2025" && f.status === "offen")).toHaveLength(0);
+  });
 });

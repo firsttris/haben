@@ -30,6 +30,13 @@ describe.skipIf(!testDatabaseUrl)("Angaben zur Einkommensteuer (Postgres)", () =
     await expect(incomeTax.saveEstAngaben(actor, 2025, { kinder: [{ ...kind, familienkasse: "" }] })).rejects.toThrow(/Familienkasse/);
   });
 
+  it("speichert das häusliche Arbeitszimmer der Anlage N", async () => {
+    await incomeTax.saveEstAngaben(actor, 2023, {
+      arbeitnehmer: { a: { bescheinigungen: [{ steuerklasse: 1, brutto: 5_000_000 }], werbungskosten: { arbeitszimmer: 126_000 } } },
+    });
+    expect((await incomeTax.loadEstAngaben(2023)).arbeitnehmer?.a?.werbungskosten.arbeitszimmer).toBe(126_000);
+  });
+
   it("verwirft gespeicherte Angaben nicht, die ein verschärftes Schema ablehnt", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const data = {

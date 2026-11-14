@@ -16,11 +16,12 @@ import {
 } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
-import { journalAbJahr, kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
+import { journalAbJahr, kleinunternehmerForMonth } from "../stammdaten/index.ts";
+import { gutschriftAnteile } from "./gutschrift.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
-import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
+import { advanceVatPlans, invoiceTaxReader, invoiceTotalsById } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
   /**
@@ -150,34 +151,62 @@ async function ausDemJournal(period: VatPeriod, figures: VatFigures, q: Db | Tx)
  * zugeordneten Zahlungseingangs, bei Teilzahlungen anteilig. Soll: nach Rechnungsdatum.
  * Vorsteuer in beiden Fällen nach Belegdatum.
  */
-export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Promise<VatFigures> {
+/** Gemeinsame, auf diesen Leseaufruf begrenzte Caches, etwa für die Quartale einer ZM-Auswahl. */
+export function vatFiguresContext(q: Db | Tx = db) {
+  const taxes = invoiceTaxReader(q);
+  const advances = new Map<number, ReturnType<typeof advanceVatPlans>>();
+  return {
+    taxes,
+    advancePlans(year: number) {
+      let plans = advances.get(year);
+      if (!plans) {
+        plans = advanceVatPlans(q, year, taxes);
+        advances.set(year, plans);
+      }
+      return plans;
+    },
+  };
+}
+
+export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, context = vatFiguresContext(q)): Promise<VatFigures> {
   const { start, end } = periodRange(period);
-  // Die Versteuerung des Jahres, nicht die aktuelle: nach einem Wechsel zum Jahreswechsel rechnet das Vorjahr weiter wie gebucht
-  const versteuerung = await versteuerungForYear(period.year, q);
-  // Alte Rechnungen behalten auch für spätere Zahlungen und Ausbuchungen ihr Verfahren.
-  // Pro Rechnungsjahr nur einmal im Änderungsprotokoll nachsehen.
-  const modes = new Map([[period.year, versteuerung]]);
-  async function invoiceMode(invoice: { issueDate: string; correctsId: string | null }) {
-    const year = await invoiceTaxYear(invoice, q);
-    let mode = modes.get(year);
-    if (!mode) {
-      mode = await versteuerungForYear(year, q);
-      modes.set(year, mode);
-    }
-    return mode;
-  }
+  const versteuerung = await context.taxes.modeForYear(period.year);
+  const invoiceMode = (invoice: Parameters<typeof context.taxes.companyMode>[0] & { invoiceId?: string }) =>
+    context.taxes.companyMode({ ...invoice, id: invoice.id ?? invoice.invoiceId });
   const revenue: RevenueSource[] = [];
+  const advances = await context.advancePlans(period.year);
+  const advanceIds = new Set(advances.flatMap((p) => [...p.invoiceIds]));
+  for (const { original, changes } of advances)
+    for (const change of changes) {
+      if (change.date < start || change.date >= end) continue;
+      for (const share of change.shares)
+        revenue.push({
+          type: "invoice",
+          date: change.date,
+          invoiceId: original.id,
+          number: original.number ?? "",
+          customer: original.buyer?.name ?? "",
+          treatment: original.taxTreatment,
+          ...share,
+        });
+    }
 
   {
+    // Tag der Zuordnung: die Gegenzeile einer Aufhebung wirkt an ihrem eigenen Tag (#782), sonst am Buchungsdatum
+    const zuordnungstag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
     const payments = await q
       .select({
-        date: schema.bankTransactions.bookingDate,
+        date: zuordnungstag,
         amount: schema.allocations.amount,
         taxShares: schema.allocations.taxShares,
         taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
         issueDate: schema.invoices.issueDate,
         correctsId: schema.invoices.correctsId,
+        advanceType: schema.invoices.advanceType,
+        variant: schema.invoices.variant,
+        serviceFrom: schema.invoices.serviceFrom,
+        serviceTo: schema.invoices.serviceTo,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -188,8 +217,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
       .where(
         and(
           eq(schema.allocations.kind, "invoice"),
-          gte(schema.bankTransactions.bookingDate, start),
-          lt(schema.bankTransactions.bookingDate, end),
+          gte(zuordnungstag, start),
+          lt(zuordnungstag, end),
           // Reverse Charge, innergemeinschaftliche Lieferung und Drittland zählen im Monat der Rechnung, auch bei Ist (siehe oben)
           notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM]),
         ),
@@ -205,6 +234,10 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         invoiceId: schema.invoices.id,
         issueDate: schema.invoices.issueDate,
         correctsId: schema.invoices.correctsId,
+        advanceType: schema.invoices.advanceType,
+        variant: schema.invoices.variant,
+        serviceFrom: schema.invoices.serviceFrom,
+        serviceTo: schema.invoices.serviceTo,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -229,6 +262,10 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         invoiceId: schema.invoices.id,
         issueDate: schema.invoices.issueDate,
         correctsId: schema.invoices.correctsId,
+        advanceType: schema.invoices.advanceType,
+        variant: schema.invoices.variant,
+        serviceFrom: schema.invoices.serviceFrom,
+        serviceTo: schema.invoices.serviceTo,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -239,6 +276,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     payments.push(...differences, ...cash);
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))], q);
     for (const p of payments) {
+      if (advanceIds.has(p.invoiceId)) continue;
       if ((await invoiceMode(p)) !== "ist") continue;
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
       const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
@@ -267,8 +305,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
       .where(
         and(
           eq(schema.invoices.status, "final"),
-          gte(schema.invoices.issueDate, start),
-          lt(schema.invoices.issueDate, end),
+          or(
+            and(gte(schema.invoices.issueDate, start), lt(schema.invoices.issueDate, end)),
+            and(gte(schema.invoices.serviceFrom, start), lt(schema.invoices.serviceFrom, end)),
+            and(gte(schema.invoices.serviceTo, start), lt(schema.invoices.serviceTo, end)),
+          ),
           // aus Lexoffice übernommen: die Steuer ist dort schon angemeldet
           isNull(schema.invoices.lexofficeVoucherId),
         ),
@@ -278,11 +319,15 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
       q,
     );
     for (const inv of issued) {
+      if (advanceIds.has(inv.id)) continue;
+      if (!(await context.taxes.invoicePostingAllowed(inv))) continue;
+      const date = await context.taxes.date(inv);
+      if (date < start || date >= end) continue;
       if ((await invoiceMode(inv)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === inv.taxTreatment)) continue;
       for (const t of totals.get(inv.id)?.taxes ?? []) {
         revenue.push({
           type: "invoice",
-          date: inv.issueDate,
+          date,
           invoiceId: inv.id,
           number: inv.number ?? "",
           customer: inv.buyer?.name ?? "",
@@ -307,6 +352,10 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         invoiceId: schema.invoices.id,
         issueDate: schema.invoices.issueDate,
         correctsId: schema.invoices.correctsId,
+        advanceType: schema.invoices.advanceType,
+        variant: schema.invoices.variant,
+        serviceFrom: schema.invoices.serviceFrom,
+        serviceTo: schema.invoices.serviceTo,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -323,6 +372,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
       );
     const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))], q);
     for (const r of rows) {
+      if (advanceIds.has(r.invoiceId)) continue;
       if ((await invoiceMode(r)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === r.treatment)) continue;
       const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
       const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, stored);
@@ -345,9 +395,10 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   // Direkt auf eine Einnahmekategorie gebuchte Bankumsätze (#324): ohne Rechnung am Tag der Zahlung, bei Ist wie bei Soll
   // (packages/core/src/direkt-kategorie.ts); die Gegenzeile einer aufgehobenen Zuordnung mit umgekehrtem Vorzeichen
   {
+    const direktTag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
     const rows = await q
       .select({
-        date: schema.bankTransactions.bookingDate,
+        date: direktTag,
         transactionId: schema.allocations.transactionId,
         amount: schema.allocations.amount,
         category: schema.allocations.category,
@@ -356,7 +407,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
       })
       .from(schema.allocations)
       .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
-      .where(and(eq(schema.allocations.kind, "kategorie"), gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end)));
+      .where(and(eq(schema.allocations.kind, "kategorie"), gte(direktTag, start), lt(direktTag, end)));
     for (const r of rows) {
       if (!r.category || r.taxRate === null || kategorieArt(r.category) !== "einnahme") continue;
       const { base, tax } = kategorieAnteil({ kategorie: r.category, steuersatz: r.taxRate }, r.amount);
@@ -434,6 +485,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     rate: schema.documentAmounts.taxRate,
     base: schema.documentAmounts.net,
     tax: schema.documentAmounts.tax,
+    erstattetBezahltes: schema.documents.erstattetBezahltes,
     privateShare: schema.documents.privateShare,
     vorsteuerAbzug: schema.documents.vorsteuerAbzug,
     reverseCharge: schema.documents.reverseCharge,
@@ -463,9 +515,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   ];
   // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
   const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
+  // Eine Gutschrift „erstattet bereits Bezahltes“ mindert die Vorsteuer erst mit dem Ausgleich (#690, #786, gutschrift.ts);
+  // ohne die Angabe gilt wie bei jedem Beleg das Belegdatum
   const inputTax = amounts
-    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge)
-    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, sign, category: _category, ...a }) => ({
+    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && !a.erstattetBezahltes)
+    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, erstattetBezahltes: _e, sign, category: _category, ...a }) => ({
       ...a,
       base: business(a.base, privateShare, sign),
       tax: business(a.tax, privateShare, sign),
@@ -490,6 +544,9 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         gte(schema.writeOffs.date, start),
         lt(schema.writeOffs.date, end),
         eq(schema.writeOffs.kind, "skontoErhalten"),
+        // Ausgebuchtes Skonto an einer Gutschrift „erstattet bereits Bezahltes“ schreibt das Zwischenkonto ab, ohne die
+        // Vorsteuer zu mindern (vorsteuer-ausgleich.ts); es zählt deshalb nicht hier (#786)
+        eq(schema.documents.erstattetBezahltes, false),
         eq(schema.documents.vorsteuerAbzug, true),
       ),
     );
@@ -509,10 +566,13 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
       }
     }
   }
+  // Erstattung oder Verrechnung einer Gutschrift: die Vorsteuer mindert sich im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG),
+  // je Zahlung, Verrechnung und Ausbuchung ein Eintrag mit deren Datum (gutschrift.ts)
+  inputTax.push(...(await gutschriftAnteile(period, q)));
   // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
   const reverseCharge: ReverseChargeSource[] = amounts
     .filter((a): a is typeof a & { reverseCharge: "eu" | "drittland" } => a.reverseCharge === "eu" || a.reverseCharge === "drittland")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, sign, ...a }) => ({
+    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, erstattetBezahltes: _e, sign, ...a }) => ({
       ...a,
       base: sign * a.base,
       tax: sign * a.tax,
@@ -523,7 +583,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   // der Rechnung, spätestens mit Ablauf des Folgemonats (§ 13 Abs. 1 Nr. 6 UStG), nicht mit der Zahlung
   const igErwerb: IgErwerbSource[] = amounts
     .filter((a) => a.reverseCharge === "ig_erwerb")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: _rc, sign, ...a }) => ({
+    .map(({ privateShare, vorsteuerAbzug, reverseCharge: _rc, erstattetBezahltes: _e, sign, ...a }) => ({
       ...a,
       base: sign * a.base,
       tax: sign * a.tax,
@@ -532,7 +592,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   // Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG): der Betrag des Bescheids ist die Steuer, abziehbar nach Belegdatum
   const einfuhr: InputTaxSource[] = amounts
     .filter((a) => a.category === "einfuhrumsatzsteuer" && a.vorsteuerAbzug && !a.reverseCharge)
-    .map(({ privateShare: _p, vorsteuerAbzug: _v, reverseCharge: _rc, category: _c, sign, ...a }) => ({ ...a, base: 0, tax: sign * (a.base + a.tax) }));
+    .map(({ privateShare: _p, vorsteuerAbzug: _v, reverseCharge: _rc, category: _c, erstattetBezahltes: _e, sign, ...a }) => ({
+      ...a,
+      base: 0,
+      tax: sign * (a.base + a.tax),
+    }));
   const ige = (rate: number, key: "base" | "tax") => igErwerb.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
   const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") => reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
 

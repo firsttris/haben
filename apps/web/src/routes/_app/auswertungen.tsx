@@ -3,12 +3,14 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod/mini";
 import { barPath, euroAxis, niceTicks, useChartWidth } from "../../lib/chart.ts";
-import { formatDate } from "../../lib/format.ts";
+import { formatDate, relativeDays } from "../../lib/format.ts";
 import type { OpenPosition } from "../../server/modules/auswertungen/index.ts";
 import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { Icon } from "../../components/Icon.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
+import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/auswertungen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(ERSTES_JAHR), z.maximum(LETZTES_JAHR))) }),
@@ -30,7 +32,8 @@ function ReportsPage() {
   const year = euer.year;
   const netIn = euer.monthly.einnahmen.reduce((s, v) => s + v, 0);
   const netOut = euer.monthly.ausgaben.reduce((s, v) => s + v, 0);
-  const overdueCount = open.receivables.filter((r) => r.daysOverdue > 0).length;
+  const receivables = [...open.receivables, ...open.unbilledReceivables].sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.number.localeCompare(b.number));
+  const overdueCount = receivables.filter((r) => r.daysOverdue > 0).length;
   const yearOptions = [...new Set([...years, year, currentYear()])].sort((a, b) => b - a);
 
   return (
@@ -45,7 +48,7 @@ function ReportsPage() {
           <nav className="year-switch" aria-label="Jahr wählen">
             {year > ERSTES_JAHR && (
               <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`} title={`Vorjahr ${year - 1}`}>
-                ‹
+                <Icon name="chevron-left" size={16} />
               </Link>
             )}
             {yearOptions.map((y) => (
@@ -61,7 +64,7 @@ function ReportsPage() {
             ))}
             {year < LETZTES_JAHR && (
               <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`} title={`Folgejahr ${year + 1}`}>
-                ›
+                <Icon name="chevron-right" size={16} />
               </Link>
             )}
           </nav>
@@ -101,7 +104,7 @@ function ReportsPage() {
           <div className="kpi-label">Offene Forderungen</div>
           <div className="kpi-value">{formatEuro(open.receivablesTotal)}</div>
           <div className="small" style={{ color: overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
-            {open.receivables.length} Posten
+            {receivables.length} Posten
             {overdueCount ? ` · ${overdueCount} überfällig` : ""} · Stand {formatDate(today)}
           </div>
         </div>
@@ -174,11 +177,13 @@ function ReportsPage() {
         title="Offene Forderungen"
         empty="Keine offenen Rechnungen."
         partyLabel="Kunde"
-        items={open.receivables}
+        items={receivables}
         total={open.receivablesTotal}
         overdue={open.receivablesOverdue}
         kind="invoice"
+        hint={open.unbilledReceivables.length ? "„Ersatzrechnung offen“: Die Leistung ist erbracht; die Nummer öffnet den bisherigen Schlussbeleg." : undefined}
       />
+      <AdvanceOpenTables open={open} />
       <OpenTable
         id="payables"
         title="Offene Verbindlichkeiten"
@@ -199,6 +204,38 @@ function ReportsPage() {
         overdue={open.vatOverdue}
         kind="ustva"
       />
+    </>
+  );
+}
+
+function AdvanceOpenTables({ open }: { open: Data["open"] }) {
+  return (
+    <>
+      {open.advanceRequests.length > 0 && (
+        <OpenTable
+          id="advance-requests"
+          title="Offene Anzahlungsanforderungen"
+          empty="Keine offenen Anzahlungsanforderungen."
+          partyLabel="Kunde"
+          items={open.advanceRequests}
+          total={open.advanceRequestsTotal}
+          overdue={open.advanceRequests.filter((p) => p.daysOverdue > 0).reduce((sum, p) => sum + p.open, 0)}
+          kind="invoice"
+          hint="Diese Anforderungen sind noch keine bilanzierten Forderungen."
+        />
+      )}
+      {open.advanceRefunds.length > 0 && (
+        <OpenTable
+          id="advance-refunds"
+          title="Erstattungen aus Anzahlungen"
+          empty="Keine offenen Erstattungen."
+          partyLabel="Kunde"
+          items={open.advanceRefunds}
+          total={open.advanceRefundsTotal}
+          overdue={0}
+          kind="invoice"
+        />
+      )}
     </>
   );
 }
@@ -280,6 +317,7 @@ function OpenTable(props: {
   total: number;
   overdue: number;
   kind: "invoice" | "document" | "ustva";
+  hint?: string;
 }) {
   const { id, title, items, kind } = props;
   return (
@@ -287,15 +325,20 @@ function OpenTable(props: {
       <div className="chart-head">
         <h2 id={`${id}-heading`}>{title}</h2>
         <div className="small muted">
-          Summe <span className="mono">{formatEuro(props.total)}</span>
+          Summe <span className="amount">{formatEuro(props.total)}</span>
           {props.overdue !== 0 && (
             <>
               {" "}
-              · davon überfällig <span className="mono">{formatEuro(props.overdue)}</span>
+              · davon überfällig <span className="amount">{formatEuro(props.overdue)}</span>
             </>
           )}
         </div>
       </div>
+      {props.hint && (
+        <p className="small muted" style={{ margin: 0 }}>
+          {props.hint}
+        </p>
+      )}
       {items.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
           {props.empty}
@@ -344,7 +387,9 @@ function OpenTable(props: {
                   <td>{formatDate(item.dueDate)}</td>
                   <td className="num">{formatEuro(item.gross)}</td>
                   <td className="num">{formatEuro(item.open)}</td>
-                  <td>{kind === "ustva" && item.open < 0 ? <span className="pill">Erstattung erwartet</span> : <DueStatus days={item.daysOverdue} />}</td>
+                  <td>
+                    <OpenStatus item={item} kind={kind} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -355,10 +400,27 @@ function OpenTable(props: {
   );
 }
 
+function OpenStatus({ item, kind }: { item: OpenPosition; kind: "invoice" | "document" | "ustva" }) {
+  if (item.balanceKind === "unbilled") return <Status tone="info">Ersatzrechnung offen</Status>;
+  if (item.balanceKind === "refund") return <Status>Erstattung offen</Status>;
+  if (kind === "ustva" && item.open < 0) return <Status tone="info">Erstattung erwartet</Status>;
+  return <DueStatus days={item.daysOverdue} />;
+}
+
 function DueStatus({ days }: { days: number }) {
-  if (days > 0) return <span className="pill pill-warn">{days === 1 ? "1 Tag überfällig" : `${days} Tage überfällig`}</span>;
-  if (days === 0) return <span className="pill pill-info">heute fällig</span>;
-  return <span className="pill">{days === -1 ? "in 1 Tag fällig" : `in ${-days} Tagen fällig`}</span>;
+  if (days > 0)
+    return (
+      <Status tone="warn" emphasis="urgent" detail={relativeDays(-days)}>
+        Überfällig
+      </Status>
+    );
+  if (days === 0)
+    return (
+      <Status tone="warn" emphasis="notice" detail="heute">
+        Fällig
+      </Status>
+    );
+  return <Status detail={relativeDays(-days)}>Offen</Status>;
 }
 
 /* Diagramm */

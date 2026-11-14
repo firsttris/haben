@@ -10,6 +10,7 @@ import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { Field } from "./Field.tsx";
 import { UploadButton } from "./UploadButton.tsx";
+import { Status } from "./Status.tsx";
 
 /** Mandate eines Kunden für SEPA-Lastschriften (#445): anlegen, PDF hinterlegen, widerrufen; nichts wird überschrieben */
 
@@ -25,13 +26,30 @@ type Props = {
 function statusPill(status: MandatStatus) {
   switch (status.art) {
     case "gueltig":
-      return <span className="pill pill-ok">Gültig bis {formatDate(status.bis)}</span>;
+      return (
+        <Status tone="ok" inline detail={`bis ${formatDate(status.bis)}`}>
+          Gültig
+        </Status>
+      );
     case "abgelaufen":
-      return <span className="pill pill-warn">Abgelaufen seit {formatDate(status.seit)}</span>;
+      // Ohne gültiges Mandat geht keine Lastschrift
+      return (
+        <Status tone="warn" emphasis="urgent" inline detail={`seit ${formatDate(status.seit)}`}>
+          Abgelaufen
+        </Status>
+      );
     case "widerrufen":
-      return <span className="pill pill-danger">Widerrufen ab {formatDate(status.seit)}</span>;
+      return (
+        <Status tone="danger" inline detail={`ab ${formatDate(status.seit)}`}>
+          Widerrufen
+        </Status>
+      );
     case "noch-nicht":
-      return <span className="pill pill-info">Gilt ab {formatDate(status.ab)}</span>;
+      return (
+        <Status tone="info" inline detail={`ab ${formatDate(status.ab)}`}>
+          Noch nicht gültig
+        </Status>
+      );
   }
 }
 
@@ -160,11 +178,11 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
             </Field>
           )}
           <div className="actions">
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              Mandat speichern
-            </button>
             <button type="button" className="btn" disabled={busy} onClick={() => setAdding(false)}>
               Abbrechen
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              Mandat speichern
             </button>
           </div>
         </form>

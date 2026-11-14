@@ -24,7 +24,18 @@ export {
 } from "./quote-default-attachments.ts";
 export { fetchBaseRate } from "./base-rate.ts";
 export { runDueBaseRate } from "./base-rate-job.ts";
-export { createDunning, dunningDraft, dunningDraftPdf, dunningInputSchema, dunningsFor, loadDunningPdf, overdueInvoices } from "./dunning.ts";
+export {
+  createDunning,
+  dunningDraft,
+  dunningDraftPdf,
+  dunningInputSchema,
+  dunningPreview,
+  type DunningPreviewInput,
+  dunningPreviewSchema,
+  dunningsFor,
+  loadDunningPdf,
+  overdueInvoices,
+} from "./dunning.ts";
 export {
   dunningMailDraft,
   invoiceMailDraft,
@@ -47,10 +58,18 @@ export {
   type ExternalReference,
 } from "./external-reference.ts";
 export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
-export { invoiceTaxYear } from "./invoice-tax-year.ts";
+export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
+export { gemeldeterZeitraum, leistungsmonatHinweis, zeitraumLabel } from "./leistungsmonat.ts";
+export { leistungsmonatHinweisFuer } from "./leistungsmonat-hinweis.ts";
+export { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
+export { advanceVatPlans } from "./advance-vat-plan.ts";
+export { invoicePaymentGroup, invoicePaymentGroups, paperCancellationIds } from "./advance-payment-group.ts";
+export { advanceReceivablesAt } from "./advance-receivables.ts";
+export { unbilledAdvanceRequest } from "./advance-invoice.ts";
 export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,
+  assertCustomer,
   buyerFrom,
   cancelInvoice,
   createCorrection,
@@ -62,6 +81,7 @@ export {
   finalizeIssues,
   getInvoice,
   InvoiceError,
+  insertDraft,
   invoiceSummary,
   listInvoices,
   newDraftDefaults,
@@ -98,6 +118,7 @@ export {
   updateQuoteDraft,
   type QuoteListStatus,
 } from "./quotes.ts";
+export { searchInvoices, searchQuotes, type InvoiceHit, type QuoteHit } from "./search.ts";
 export {
   createRecurring,
   deleteRecurring,

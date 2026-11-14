@@ -1,7 +1,8 @@
 import {
   ACCOUNT_PURPOSES,
-  directBookingsFor,
-  direktKategorienFuer,
+  aufKontoAngeboten,
+  direktBuchungenFuerKonto,
+  direktKategorienFuerKonto,
   PAYMENT_PROVIDERS,
   directBookingLabel,
   paymentProviderAccount,
@@ -29,6 +30,7 @@ import {
   allocateSplit,
   allocationSchema,
   BankError,
+  gemeldeteVoranmeldungen,
   createAccount,
   createProviderAccount,
   providerAccountSchema,
@@ -97,14 +99,18 @@ export const getBankOverview = createServerFn({ method: "GET" })
     // Aus früheren Buchungen derselben Gegenpartei, für alle ganz offenen Umsätze in einer Abfrage
     const learned = await learnedDirectSuggestions(rows.filter((r) => r.open !== 0 && r.open === r.amount));
     const mitHinweis = rows.map((row) => {
-      if (row.neutralized) return { ...row, hint: "verrechnet" as const };
-      if (row.open === 0) return { ...row, hint: "zugeordnet" as const };
+      if (row.neutralized) return { ...row, suggestion: null, hint: "verrechnet" as const };
+      if (row.open === 0) return { ...row, suggestion: null, hint: "zugeordnet" as const };
+      const [match] = suggestMatches({ ...row, amount: row.open }, items, 1);
       const hasSuggestion =
-        suggestMatches({ ...row, amount: row.open }, items, 1).length > 0 ||
+        match !== undefined ||
         (row.open === row.amount && current !== undefined && isCertainDirect(suggestDirectBooking(row, current, own))) ||
-        learned.has(row.id);
+        // Gelernt, aber auf diesem Konto nicht buchbar (Gebühren auf dem Privatkonto, #873): kein Vorschlag
+        (learned.has(row.id) && aufKontoAngeboten(learned.get(row.id)!.kind, account?.purpose ?? null));
       return {
         ...row,
+        // Wohin der Vorschlag passt, für die Auskunft unter dem Status; direkte und gelernte Vorschläge haben kein Ziel
+        suggestion: match ? { type: match.item.type, number: match.item.number, partyName: match.item.partyName } : null,
         hint: hasSuggestion
           ? ("vorschlag" as const)
           : row.open !== row.amount
@@ -120,6 +126,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const detail = selectedId ? await transactionDetail(selectedId) : null;
     return {
       accounts,
+      /** Monate mit abgegebener Voranmeldung: danach ist der Tag der Aufhebung vorbelegt (#782) */
+      gemeldeteMonate: await gemeldeteVoranmeldungen(),
       accountId: account?.id ?? null,
       excludeBlockedBy,
       excludedAccounts: (await listExcludedAccounts()).map((a) => ({ ...a, excludedAt: a.excludedAt?.toISOString() ?? null })),
@@ -130,13 +138,17 @@ export const getBankOverview = createServerFn({ method: "GET" })
           : null,
       directKinds: await (async () => {
         const { rechtsform } = await loadCompany();
-        return directBookingsFor(rechtsform).map((value) => ({ value, label: directBookingLabel(value, rechtsform) }));
+        // Auf einem privaten Konto entfallen vier Angebote (#873)
+        return direktBuchungenFuerKonto(rechtsform, account?.purpose ?? "geschaeft").map((value) => ({
+          value,
+          label: directBookingLabel(value, rechtsform),
+        }));
       })(),
       /** Steuerzahlung: Steuerarten der Rechtsform und Teile (Steuer, Zinsen, Zuschläge) */
       steuerarten: steuerartenFor((await loadCompany()).rechtsform).map((value) => ({ value, label: STEUERARTEN[value] })),
       steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
       /** Direkt buchen auf eine Kategorie: Einnahmen und die Ausgabekategorien, die ohne Beleg gehen (#324) */
-      kategorien: direktKategorienFuer(),
+      kategorien: direktKategorienFuerKonto(account?.purpose ?? "geschaeft"),
       kleinunternehmer: (await loadCompany()).kleinunternehmer,
       /** Darlehen mit Bestand und die Teile einer Rate */
       loans: (await listLoans()).map((l) => ({ value: l.id, label: `${l.name} · Bestand ${formatEuro(l.balance)}` })),
@@ -276,11 +288,18 @@ export const reverseWriteOffFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Aufhebung einer Zuordnung: Pflicht ist der Tag, an dem sie erklärt wird (#782); er ist nicht rückdatiert */
+export const reverseAllocationSchema = z.object({
+  id: z.uuid(),
+  // In der Zukunft aufheben kann niemand; den Rückfall auf das Buchungsdatum verhindert der Tag selbst
+  date: z.iso.date().refine((d) => d <= today(), "Das Datum der Aufhebung liegt in der Zukunft."),
+});
+
 export const reverseTransactionAllocation = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(reverseAllocationSchema)
   .handler(async ({ data, context }) => {
-    await reverseAllocation(context.user.id, data);
+    await reverseAllocation(context.user.id, data.id, data.date);
     return { ok: true };
   });
 

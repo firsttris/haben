@@ -25,6 +25,8 @@ const STEUERBERATUNG_LIEST = [
   "ledger.ts:getKontenblatt",
   "ledger.ts:getSaldenliste",
   "reports.ts:getReports",
+  "search.ts:searchCommandPalette",
+  "search.ts:getRecentPaletteItems",
   "zugang.ts:getSteuerberatungStart",
 ];
 
@@ -40,6 +42,7 @@ const STEUERBERATUNG_LAEDT = [
   "beleg/$id.ts",
   "datev/$jahr.ts",
   "export/$jahr.ts",
+  "kennzeichen.ts",
   "konten/$jahr.ts",
   "mahnung/$id.ts",
   "rechnung/$id.$datei.ts",

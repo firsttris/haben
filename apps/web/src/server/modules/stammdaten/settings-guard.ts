@@ -13,7 +13,7 @@ export interface SettingsLocks {
   versteuerung: string | null;
   /** Nur das Einschalten; ausschalten geht immer, weil der Status mitten im Jahr enden kann */
   kleinunternehmer: string | null;
-  /** Fest ab der ersten Buchung überhaupt, nicht nur im laufenden Jahr */
+  /** Fest ab der ersten Buchung oder einer festgeschriebenen neuen Anzahlungsanforderung, unabhängig vom Jahr */
   rechtsform: string | null;
 }
 
@@ -53,6 +53,11 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
     .where(gte(schema.journalEntries.date, `${year}-01-01`));
   const booked = (entries?.n ?? 0) > 0;
   const [anyEntry] = await q.select({ id: schema.journalEntries.id }).from(schema.journalEntries).limit(1);
+  const [advance] = await q
+    .select({ id: schema.invoices.id })
+    .from(schema.invoices)
+    .where(and(eq(schema.invoices.status, "final"), eq(schema.invoices.advanceAccounting, "deferred")))
+    .limit(1);
   const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).where(eq(schema.company.id, 1));
   const previousOpen = booked ? [] : await previousYearOpen(year, q);
   const openInvoices = await openInvoiceCount(today, q);
@@ -74,8 +79,12 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
         ? `${openInvoices} ${openInvoices === 1 ? "Rechnung ist" : "Rechnungen sind"} noch offen. Nach einem Wechsel würde ihre Umsatzsteuer doppelt oder gar nicht angemeldet; erst ausgleichen, dann umstellen.`
         : null),
     kleinunternehmer: yearLock,
-    // Privat und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher (drizzle/0096)
-    rechtsform: anyEntry ? "Es gibt schon Buchungen. Die Rechtsform lässt sich nur vor der ersten Buchung festlegen." : null,
+    // Das neue Bilanzverfahren ist schon vor der ersten Zahlung festgeschrieben; es darf nicht zur EÜR wechseln (#750).
+    rechtsform: anyEntry
+      ? "Es gibt schon Buchungen. Die Rechtsform lässt sich nur vor der ersten Buchung festlegen."
+      : advance
+        ? "Es gibt eine festgeschriebene Anzahlungsanforderung. Die Rechtsform ist damit festgelegt."
+        : null,
   };
 }
 

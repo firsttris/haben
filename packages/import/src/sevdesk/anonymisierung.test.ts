@@ -165,6 +165,8 @@ const BELEGNUMMERN_2_0 = [
   "1111111111111111115",
   "1111111111111111116",
   "-XX-XXX-11-11111-1111111-11111-11111",
+  "XX-1111111117",
+  "XX-1111111118",
 ];
 
 /** Nur in buchhaltung-2.0/extf-buchungsstapel.csv: die Beispielzeilen aus dem Bericht */

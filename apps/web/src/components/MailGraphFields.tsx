@@ -4,7 +4,7 @@ import { FilePicker } from "./FilePicker.tsx";
 
 type Settings = Awaited<ReturnType<typeof getMailSettings>>["settings"];
 
-export const GRAPH_DOCS = "https://haben.app/einrichtung.html#e-mail-über-microsoft-365";
+export const GRAPH_DOCS = "https://haben.app/einrichtung-email.html#e-mail-über-microsoft-365";
 
 /** Größer ist kein Zertifikat und kein Schlüssel im PEM-Format */
 export const MAX_PEM_SIZE = 20 * 1024;

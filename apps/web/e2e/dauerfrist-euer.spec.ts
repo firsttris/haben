@@ -54,7 +54,7 @@ test.afterAll(async () => {
 
 test("nach Eintragen die betroffene übermittelte EÜR nennen, ohne Speichern zu sperren", async () => {
   const messages: string[] = [];
-  for (const theme of ["wald", "nacht"])
+  for (const theme of ["light", "dark"])
     for (const [device, viewport] of [
       ["desktop", { width: 1440, height: 900 }],
       ["handy", { width: 390, height: 844 }],
@@ -63,7 +63,7 @@ test("nach Eintragen die betroffene übermittelte EÜR nennen, ohne Speichern zu
       await page.setViewportSize(viewport);
       await page.goto("/umsatzsteuer/2026-12");
       await page.evaluate((t) => {
-        document.documentElement.dataset.theme = t;
+        document.documentElement.dataset.mode = t;
       }, theme);
       const card = page.getByRole("region", { name: "Dauerfristverlängerung 2026", exact: true });
       await card.getByLabel("Dauerfristverlängerung besteht für 2026").check();

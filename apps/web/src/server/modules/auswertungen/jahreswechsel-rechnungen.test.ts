@@ -256,16 +256,22 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Rechnungen, Zahlunge
           // 1.070,00 € gehören zu B (7 %), zuerst falsch auf A gebucht (1.190,00 € offen)
           const txId = await zahlung(a.id, "22.12.26", "1.070,00");
           const [alloc] = await sql`select id from allocations where transaction_id = ${txId}`;
-          await bank.reverseAllocation(actor, alloc!.id);
+          // Die Aufhebung wirkt im Januar (#782): Der Dezember behält die falsche Zuordnung, der Januar nimmt sie zurück
+          await bank.reverseAllocation(actor, alloc!.id, "2027-01-15");
           await bank.allocate(actor, { kind: "invoice", transactionId: txId, invoiceId: b.id, amount: 107_000 });
           await zahlung(a.id, "15.01.27", "1.190,00");
-          // Die Aufhebung bucht am Tag des Bankumsatzes, also im Dezember (docs/adr/journal-als-quelle.md, Umgesetzt)
+          // Ist: der Dezember trägt die falsche Zuordnung auf A (107.000 von 119.000, anteilig 89.916 + 17.084 USt) und
+          // die richtige auf B; der Januar die Gegenzeile zu A und die Zahlung auf A (100.000 + 19.000)
           expect(await va(DEZ)).toEqual(
-            dez(versteuerung === "soll" ? { kz81: 100_000, tax81: 19_000, kz86: 100_000, tax86: 7_000 } : { kz86: 100_000, tax86: 7_000 }),
+            dez(
+              versteuerung === "soll"
+                ? { kz81: 100_000, tax81: 19_000, kz86: 100_000, tax86: 7_000 }
+                : { kz81: 89_916, tax81: 17_084, kz86: 100_000, tax86: 7_000 },
+            ),
           );
-          expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? { kz81: 100_000, tax81: 19_000 } : {}));
-          expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 100_000, vereinnahmteUst: 7_000, gewinn: 107_000 });
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 100_000, vereinnahmteUst: 19_000, gewinn: 119_000 });
+          expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? { kz81: 10_084, tax81: 1_916 } : {}));
+          expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 189_916, vereinnahmteUst: 24_084, gewinn: 214_000 });
+          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 10_084, vereinnahmteUst: 1_916, gewinn: 12_000 });
           await abgleichSauber();
         }, 60_000);
       }

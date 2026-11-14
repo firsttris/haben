@@ -17,7 +17,7 @@
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .chart .grid { stroke: var(--line-soft); stroke-width: 1; }
 .chart .axis-base { stroke: var(--line-strong); stroke-width: 1; }
-.chart .tick { fill: var(--muted); font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chart .tick { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .chart .hit { fill: transparent; }
 .chart .month { cursor: default; outline: none; }
 .chart .month.active .hit { fill: var(--ground); }
@@ -28,7 +28,7 @@
 .chart-tooltip { position: absolute; top: 0; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 12px rgba(22, 33, 28, 0.1); padding: 8px 12px; font-size: 13px; pointer-events: none; white-space: nowrap; display: flex; flex-direction: column; gap: 4px; }
 .tt-title { color: var(--muted); font-size: 12px; }
 .tt-row { display: flex; align-items: center; gap: 8px; }
-.tt-row strong { font-family: var(--mono); font-weight: 500; }
+.tt-row strong { font-weight: 600; font-variant-numeric: tabular-nums; }
 .tt-key { width: 12px; height: 2px; border-radius: 1px; }
 .tt-in { background: var(--series-in); }
 .tt-out { background: var(--series-out); }
@@ -115,9 +115,9 @@
   .fristen-table td[data-label] { padding-left: 0 !important; width: auto !important; }
   .fristen-table td[data-label]::before { content: none; }
   .fristen-table td[data-label="Datum"] { grid-column: 1; grid-row: 1; }
-  .fristen-table td[data-label="Datum"] > div { display: inline; margin-left: 8px; }
-  .fristen-table td[data-label="Art"] { grid-column: 2; grid-row: 1; }
-  .fristen-table td[data-label="Frist"] { grid-column: 1 / -1; grid-row: 2; }
+  .fristen-table td[data-label="Status"] { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+  .fristen-table td[data-label="Frist"] { grid-column: 1; grid-row: 2; }
+  .fristen-table td[data-label="Art"] { grid-column: 1; grid-row: 3; color: var(--muted); }
 }
 
 /* Offene Posten auf dem Handy: Nummer, Partei und Fälligkeit links, offener Betrag und Status rechts */

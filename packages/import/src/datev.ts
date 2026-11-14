@@ -58,11 +58,13 @@ export interface DatevStack {
   warnings: string[];
 }
 
+const BUCHUNGSSTAPEL = 21;
+
 /** Formatkategorien laut DATEV-Schnittstellenbeschreibung */
 const CATEGORIES: Record<number, string> = {
   16: "Debitoren/Kreditoren",
   20: "Kontenbeschriftungen",
-  21: "Buchungsstapel",
+  [BUCHUNGSSTAPEL]: "Buchungsstapel",
   46: "Zahlungsbedingungen",
   47: "Diverse Adressen",
   48: "Wiederkehrende Buchungen",
@@ -76,7 +78,7 @@ interface Line {
 }
 
 /** CSV mit ";" und "" als Escape, wie parseCsv, aber mit Zeilennummern. */
-function splitLines(text: string): Line[] {
+function splitLines(text: string, maxLines = Infinity): Line[] {
   const lines: Line[] = [];
   let fields: string[] = [];
   let field = "";
@@ -106,6 +108,7 @@ function splitLines(text: string): Line[] {
     } else if (c === "\n" || c === "\r") {
       fields.push(field);
       lines.push({ line: start, fields });
+      if (lines.length === maxLines) return lines;
       fields = [];
       field = "";
       if (c === "\r" && text[i + 1] === "\n") i++;
@@ -178,15 +181,32 @@ export function isDatevFile(bytes: Uint8Array): boolean {
   return /^"?(EXTF|DTVF)"?;/.test(head);
 }
 
+const categoryName = (category: number, nameInHeader: string) => CATEGORIES[category] || nameInHeader || `Kategorie ${category}`;
+
+/**
+ * Name des DATEV-Exports, wenn die Kopfzeile eine andere Formatkategorie als den Buchungsstapel nennt, sonst null.
+ * Eine unlesbare Kategorie zählt nicht als anderer Export: So eine Datei lehnt parseDatevBuchungsstapel ab.
+ */
+export function otherDatevExportName(bytes: Uint8Array): string | null {
+  if (!isDatevFile(bytes)) return null;
+  // Vollständig dekodieren: Eine Bytegrenze kann UTF-8 teilen und den Windows-1252-Fallback auslösen (RFC 3629 § 3).
+  // https://www.rfc-editor.org/rfc/rfc3629#section-3
+  // Nur den ersten CSV-Datensatz lesen; Zeilenumbrüche in einem zitierten Feld gehören noch zur Kopfzeile.
+  // https://www.rfc-editor.org/rfc/rfc4180#section-2
+  const fields = splitLines(stripBom(decodeText(bytes)), 1)[0]?.fields ?? [];
+  const category = (fields[2] ?? "").trim();
+  if (!/^\d+$/.test(category) || Number(category) === BUCHUNGSSTAPEL) return null;
+  return categoryName(Number(category), (fields[3] ?? "").trim());
+}
+
 function parseHeader(fields: string[]): DatevHeader {
   const f = (n: number) => (fields[n - 1] ?? "").trim();
   if (f(1) !== "EXTF" && f(1) !== "DTVF") {
     throw new DatevParseError("Keine DATEV-Datei: Kopfzeile beginnt nicht mit EXTF");
   }
   const category = integer(f(3), "Formatkategorie");
-  if (category !== 21) {
-    const name = CATEGORIES[category] || f(4) || `Kategorie ${category}`;
-    throw new DatevParseError(`Das ist ein DATEV-Export „${name}“, kein Buchungsstapel.`);
+  if (category !== BUCHUNGSSTAPEL) {
+    throw new DatevParseError(`Das ist ein DATEV-Export „${categoryName(category, f(4))}“, kein Buchungsstapel.`);
   }
   const fiscalYearStart = compactDate(f(13), "Wirtschaftsjahresbeginn");
   if (!fiscalYearStart) throw new DatevParseError("Kopfzeile: Wirtschaftsjahresbeginn fehlt.");

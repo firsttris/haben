@@ -1,3 +1,4 @@
+import { insertCashEntry } from "./settlement-store.ts";
 import { UserError } from "../../errors.ts";
 import {
   bareinnahmeText,
@@ -19,7 +20,7 @@ import { withActor } from "../../db/actor.ts";
 import { openBooks, openingCash, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { journalAbJahr, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTotalsById, lockInvoice } from "../rechnungen/index.ts";
 import { negatedShares, reverseLinesIn, reverseWriteOffRow } from "./bank.ts";
 
 /**
@@ -111,7 +112,7 @@ export async function addImportedCashEntries(tx: Tx, entries: ImportedCashEntry[
   // Exportreihenfolge ist beliebig. Wie bei nativen Buchungen zählt der Tagesendbestand, also Eingänge vor Ausgängen.
   const ordered = [...entries].sort((a, b) => a.date.localeCompare(b.date) || b.amount - a.amount);
   for (const entry of ordered) {
-    await tx.insert(schema.cashEntries).values({ ...entry, number: await nextNumber(tx), kind: "import" });
+    await insertCashEntry(tx, { ...entry, number: await nextNumber(tx), kind: "import" });
   }
   // Das ganze Paket zählt: Ein späterer Eingang kann einen schon vorhandenen späteren Ausgang decken.
   if (ordered.length > 0) await assertNeverNegative(tx, ordered[0]!.date, 0);
@@ -121,7 +122,7 @@ export async function addImportedCashEntries(tx: Tx, entries: ImportedCashEntry[
 export async function addDocumentCashEntry(tx: Tx, doc: { id: string; date: string; gross: Cents; text: string; journalEntryId: string }): Promise<void> {
   await tx.execute(lock);
   await assertNeverNegative(tx, doc.date, -doc.gross);
-  await tx.insert(schema.cashEntries).values({
+  await insertCashEntry(tx, {
     number: await nextNumber(tx),
     date: doc.date,
     amount: -doc.gross,
@@ -142,7 +143,7 @@ export async function reverseDocumentCashEntry(tx: Tx, input: { documentId: stri
   if (!original) throw new CashError("Zum Beleg gibt es keine Zeile im Kassenbuch.");
   // Bei einer bar erstatteten Gutschrift ist die Gegenzeile ein Ausgang; auch sie darf den Bestand nicht ins Minus bringen
   await assertNeverNegative(tx, input.date, -original.amount);
-  await tx.insert(schema.cashEntries).values({
+  await insertCashEntry(tx, {
     number: await nextNumber(tx),
     date: input.date,
     amount: -original.amount,
@@ -177,10 +178,7 @@ export async function createCashEntry(actor: string, input: CashInput, today: st
     await assertNeverNegative(tx, parsed.date, amount);
     const id = crypto.randomUUID();
     const journalEntryId = await postCash(tx, { id, date: parsed.date, amount, kind: parsed.kind, text });
-    const [row] = await tx
-      .insert(schema.cashEntries)
-      .values({ id, number: await nextNumber(tx), date: parsed.date, amount, kind: parsed.kind, text, journalEntryId })
-      .returning();
+    const [row] = await insertCashEntry(tx, { id, number: await nextNumber(tx), date: parsed.date, amount, kind: parsed.kind, text, journalEntryId });
     return row!;
   });
 }
@@ -212,19 +210,16 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
       text,
       reversesId: original.journalEntryId,
     });
-    const [row] = await tx
-      .insert(schema.cashEntries)
-      .values({
-        id: reversalId,
-        number: await nextNumber(tx),
-        date,
-        amount: -original.amount,
-        kind: original.kind,
-        text,
-        reversesId: original.id,
-        journalEntryId,
-      })
-      .returning();
+    const [row] = await insertCashEntry(tx, {
+      id: reversalId,
+      number: await nextNumber(tx),
+      date,
+      amount: -original.amount,
+      kind: original.kind,
+      text,
+      reversesId: original.id,
+      journalEntryId,
+    });
     return row!;
   });
 }
@@ -253,6 +248,7 @@ async function cashLinesWieHeute(tx: Tx, original: CashEntry, kontenrahmen: Kont
  * wie beim Aufheben einer Zuordnung im Bankabgleich; ohne die Zahlung wäre er falsch.
  */
 async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string): Promise<CashEntry> {
+  if (original.invoiceId) await lockInvoice(tx, original.invoiceId);
   if (!original.journalEntryId) throw new CashError("Zur Bareinnahme gibt es keine Buchung.");
   const reversalId = crypto.randomUUID();
   const text = `Storno Nr. ${original.number}: ${original.text}`;
@@ -273,25 +269,22 @@ async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string)
     // Nach einem Wechsel des Kontenrahmens mit den Konten derselben Rolle im neuen Rahmen
     lines: reverseLinesIn(kontenrahmen, books.kontenrahmen, await cashLinesWieHeute(tx, original, kontenrahmen, gebucht)),
   });
-  const [row] = await tx
-    .insert(schema.cashEntries)
-    .values({
-      id: reversalId,
-      number: await nextNumber(tx),
-      date,
-      amount: -original.amount,
-      kind: original.kind,
-      text,
-      invoiceId: original.invoiceId,
-      // Ohne Rechnung (#276): dieselbe Behandlung, damit Voranmeldung und EÜR den Storno wie die Einnahme zuordnen
-      taxTreatment: original.taxTreatment,
-      taxRate: original.taxRate,
-      taxShares: negatedShares(original.taxShares),
-      taxSharesInvoiceId: original.taxSharesInvoiceId,
-      reversesId: original.id,
-      journalEntryId,
-    })
-    .returning();
+  const [row] = await insertCashEntry(tx, {
+    id: reversalId,
+    number: await nextNumber(tx),
+    date,
+    amount: -original.amount,
+    kind: original.kind,
+    text,
+    invoiceId: original.invoiceId,
+    // Ohne Rechnung (#276): dieselbe Behandlung, damit Voranmeldung und EÜR den Storno wie die Einnahme zuordnen
+    taxTreatment: original.taxTreatment,
+    taxRate: original.taxRate,
+    taxShares: negatedShares(original.taxShares),
+    taxSharesInvoiceId: original.taxSharesInvoiceId,
+    reversesId: original.id,
+    journalEntryId,
+  });
   const linked = await tx
     .select()
     .from(schema.writeOffs)

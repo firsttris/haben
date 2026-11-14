@@ -185,7 +185,7 @@ typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage
 | `totals.euroTax.rows` | `object[]` | ja |  | Umsatzsteuer in Euro je Satz, bei mehreren Sätzen auch gesamt |
 | `totals.euroTax.rows[].label` | `string` | ja |  | Bezeichnung, links |
 | `totals.euroTax.rows[].value` | `string` | ja |  | Wert, rechts |
-| `taxNote` | `null \| string` | ja | ja | Pflichthinweis ohne Steuerausweis, etwa Kleinunternehmer oder Reverse Charge; null sonst |
+| `taxNote` | `null \| string` | ja | ja | Feste Pflichthinweise unter den Summen: ohne Steuerausweis (etwa Kleinunternehmer, Reverse Charge) und zur Aufbewahrung privater Grundstücksleistungen; null ohne |
 | `intro` | `null \| string` | nein |  | Einleitung über den Positionen ohne Auszeichnungszeichen; null ohne, fehlt auf dem Lieferschein |
 | `introFormatted` | `null \| object[]` | nein |  | Einleitung mit Auszeichnungen; null ohne, fehlt auf dem Lieferschein |
 | `introFormatted[].text` | `string` | ja |  | Text des Abschnitts |

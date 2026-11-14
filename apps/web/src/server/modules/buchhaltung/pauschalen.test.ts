@@ -116,4 +116,81 @@ describe.skipIf(!testDatabaseUrl)("Pauschalen (Postgres)", () => {
     expect(euer.ausgaben).toBe(10_400);
     expect(euer.gewinn).toBe(-10_400);
   });
+
+  // Wege Wohnung–Betriebsstätte (#895): Entfernungspauschale, § 4 Abs. 5 Satz 1 Nr. 6 Satz 2 i. V. m. § 9 Abs. 1 Satz 3 Nr. 4 EStG
+  const wege = (month: string, tage: number, km: number, betriebsstaette = "Praxis Musterstadt") => ({
+    art: "entfernung" as const,
+    month,
+    tage,
+    km,
+    betriebsstaette,
+  });
+
+  it("bucht die Entfernungspauschale eines Monats auf 4678 (SKR03) an Privateinlage", async () => {
+    const row = await pauschalen.createPauschale(actor, wege("2026-03", 15, 12), today);
+    // 15 Tage × 12 km × 0,38 € (ab 2026 vom ersten Kilometer)
+    expect(row).toMatchObject({
+      art: "entfernung",
+      date: "2026-03-31",
+      amount: 6840,
+      description: "Praxis Musterstadt",
+      details: { tage: 15, km: 12, betriebsstaette: "Praxis Musterstadt" },
+    });
+    expect(await linesOf(row.journalEntryId)).toEqual([
+      { date: "2026-03-31", locked: true, account: "4678", debit: 6840, credit: 0 },
+      { date: "2026-03-31", locked: true, account: "1890", debit: 0, credit: 6840 },
+    ]);
+  });
+
+  it("bucht dieselbe Pauschale in SKR04 auf 6688 und bei Soll-Versteuerung ohne Umsatzsteuer, 2025 mit 0,30 € bis 20 km", async () => {
+    await sql`update company set kontenrahmen = 'SKR04', versteuerung = 'soll' where id = 1`;
+    const row = await pauschalen.createPauschale(actor, wege("2025-06", 10, 25), today);
+    // 10 Tage × (20 km × 0,30 € + 5 km × 0,38 €)
+    expect(row.amount).toBe(7900);
+    expect(await linesOf(row.journalEntryId)).toEqual([
+      { date: "2025-06-30", locked: true, account: "6688", debit: 7900, credit: 0 },
+      { date: "2025-06-30", locked: true, account: "2180", debit: 0, credit: 7900 },
+    ]);
+    const steuer = await sql`select count(*)::int as n from journal_lines where entry_id = ${row.journalEntryId} and tax_code is not null`;
+    expect(steuer[0]!.n).toBe(0);
+  });
+
+  it("rechnet nur volle Kilometer und hält die Tage des Monats ein", async () => {
+    const row = await pauschalen.createPauschale(actor, wege("2026-02", 20, 12.9), today);
+    expect(row.amount).toBe(20 * 12 * 38);
+    expect(row.details).toMatchObject({ km: 12 });
+    await expect(pauschalen.createPauschale(actor, wege("2026-02", 9, 12), today)).rejects.toThrow(/nur 28 Tage/);
+    await pauschalen.createPauschale(actor, wege("2026-02", 8, 5, "Lager Nordstadt"), today);
+    await expect(pauschalen.createPauschale(actor, wege("2026-11", 1, 12), today)).rejects.toThrow(/Zukunft/);
+  });
+
+  it("lehnt leere Angaben ab: keine Tage, unter einem Kilometer, keine Betriebsstätte", async () => {
+    await expect(pauschalen.createPauschale(actor, wege("2026-03", 0, 12), today)).rejects.toThrow(/Mindestens ein Tag/);
+    await expect(pauschalen.createPauschale(actor, wege("2026-03", 5, 0.5), today)).rejects.toThrow(/Mindestens ein voller Kilometer/);
+    await expect(pauschalen.createPauschale(actor, wege("2026-03", 5, 12, "  "), today)).rejects.toThrow(/Betriebsstätte fehlt/);
+    expect((await pauschalen.listPauschalen(2026)).entries).toHaveLength(0);
+  });
+
+  it("storniert die Entfernungspauschale und gibt die Tage des Monats wieder frei", async () => {
+    const row = await pauschalen.createPauschale(actor, wege("2026-05", 31, 12), today);
+    await pauschalen.reversePauschale(actor, row.id);
+    const [reversal] = await sql`select * from pauschalen where reverses_id = ${row.id}`;
+    expect(reversal).toMatchObject({ amount: -(31 * 12 * 38), date: "2026-05-31" });
+    expect(await linesOf(reversal!.journal_entry_id)).toEqual([
+      { date: "2026-05-31", locked: true, account: "1890", debit: 14_136, credit: 0 },
+      { date: "2026-05-31", locked: true, account: "4678", debit: 0, credit: 14_136 },
+    ]);
+    expect((await pauschalen.listPauschalen(2026)).totals.entfernung).toBe(0);
+    await pauschalen.createPauschale(actor, wege("2026-05", 31, 12), today);
+  });
+
+  it("weist die Entfernungspauschale in eigener Zeile der Anlage EÜR aus, nicht als Nutzungseinlage der Fahrten", async () => {
+    await pauschalen.createPauschale(actor, wege("2026-03", 15, 12), today);
+    await pauschalen.createPauschale(actor, { art: "fahrt", date: "2026-03-10", description: "Kunde", km: 100, fahrzeug: "pkw", hinUndZurueck: false }, today);
+
+    const euer = await annual.euerYear(2026);
+    expect(euer.figures).toMatchObject({ entfernungspauschale: 6840, fahrtNutzungseinlage: 3000, einlagen: 9840 });
+    expect(euer.ausgaben).toBe(9840);
+    expect(euer.gewinn).toBe(-9840);
+  });
 });

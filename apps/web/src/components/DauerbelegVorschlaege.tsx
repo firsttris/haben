@@ -23,7 +23,7 @@ export function DauerbelegVorschlaege({ suggestions, busy, onBook }: { suggestio
                 {s.item.number ? ` · ${s.item.number}` : ""}
               </span>
             </div>
-            <span className="mono">{formatEuro(Math.abs(s.item.open))}</span>
+            <span className="amount">{formatEuro(Math.abs(s.item.open))}</span>
           </div>
           <ul className="reasons">
             {s.reasons.map((reason) => (
@@ -34,12 +34,12 @@ export function DauerbelegVorschlaege({ suggestions, busy, onBook }: { suggestio
             ))}
           </ul>
           <div className="actions">
-            <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => onBook(s.item.id)}>
-              Buchen und zuordnen
-            </button>
             <Link to="/belege/$id" params={{ id: s.item.id }} className="btn btn-sm">
               Beleg prüfen
             </Link>
+            <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => onBook(s.item.id)}>
+              Buchen und zuordnen
+            </button>
           </div>
         </div>
       ))}

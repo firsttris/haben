@@ -8,6 +8,7 @@ import { entwurfLoeschenFn, entwurfNeuBerechnenFn, festschreibenFn, nachbuchenFn
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { Field } from "../Field.tsx";
+import { Status, type StatusLook } from "../Status.tsx";
 
 /*
  * Eine Abrechnung im Monat: Beträge, Hinweise und je nach Stand die Aktionen. Ein Entwurf lässt sich neu rechnen (auf
@@ -20,11 +21,11 @@ export type Abrechnung = Lohn["monat"]["zeilen"][number]["payslips"][number];
 
 const STUFE = { A: "Stufe A", B: "Stufe B", C: "Stufe C" } as const;
 
-function status(p: Abrechnung): { text: string; tone: string } {
-  if (p.storno) return { text: `storniert am ${formatDate(p.storno.date)}`, tone: "pill-danger" };
-  if (p.lockedAt) return { text: p.gebucht ? "festgeschrieben und gebucht" : "festgeschrieben", tone: "pill-ok" };
-  if (p.gegenpruefen) return { text: "Entwurf, gegenprüfen", tone: "pill-warn" };
-  return { text: "Entwurf", tone: "pill-info" };
+function status(p: Abrechnung): StatusLook & { detail: string | null } {
+  if (p.storno) return { text: "Storniert", tone: "danger", detail: `am ${formatDate(p.storno.date)}` };
+  if (p.lockedAt) return { text: "Festgeschrieben", tone: "ok", detail: p.gebucht ? "und gebucht" : null };
+  if (p.gegenpruefen) return { text: "Entwurf", tone: "warn", emphasis: "notice", draft: true, detail: "gegenprüfen" };
+  return { text: "Entwurf", draft: true, detail: null };
 }
 
 function Betraege({ p }: { p: Abrechnung }) {
@@ -72,6 +73,7 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
   const [entgelt, setEntgelt] = useState("");
   const [geprueft, setGeprueft] = useState(false);
   const [bestaetigen, setBestaetigen] = useState(false);
+  const [loeschenFragen, setLoeschenFragen] = useState(false);
   const sperre = p.fehlend.length > 0 || p.veraltet || (p.gegenpruefen && !geprueft);
   return (
     <div className="stack" style={{ gap: 10 }}>
@@ -101,17 +103,7 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
         <button type="submit" className="btn btn-sm" disabled={busy}>
           Neu berechnen
         </button>
-        <button
-          type="button"
-          className="btn btn-sm btn-danger"
-          disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              await loeschen({ data: p.id });
-              await router.invalidate();
-            })
-          }
-        >
+        <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setLoeschenFragen(true)}>
           Entwurf löschen
         </button>
       </form>
@@ -140,6 +132,22 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
         onClose={() => setBestaetigen(false)}
       >
         <p>Festgeschrieben ist die Abrechnung unveränderbar und gebucht; korrigieren geht dann nur mit Storno.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={loeschenFragen}
+        title={`Entwurf mit Zahltag ${formatDate(p.zahltag)} löschen?`}
+        facts={abrechnungFakten(name, p)}
+        confirmLabel="Entwurf löschen"
+        danger
+        onConfirm={() =>
+          void run(async () => {
+            await loeschen({ data: p.id });
+            await router.invalidate();
+          })
+        }
+        onClose={() => setLoeschenFragen(false)}
+      >
+        <p>Der Entwurf verschwindet; es ist noch nichts gebucht. Einen neuen legt „Monat abrechnen“ an.</p>
       </ConfirmDialog>
     </div>
   );
@@ -214,10 +222,12 @@ export function AbrechnungKarte({ p, nummer, name }: { p: Abrechnung; nummer: nu
   const s = status(p);
   const titel = `${nummer}. Abrechnung ${STUFE[p.stufe]}, Zahltag ${formatDate(p.zahltag)}`;
   return (
-    <section className="stack" style={{ gap: 10 }} aria-label={`${titel}, ${s.text}`}>
+    <section className="stack" style={{ gap: 10 }} aria-label={`${titel}, ${[s.text, s.detail].filter(Boolean).join(" ")}`}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         <h3 style={{ margin: 0 }}>{titel}</h3>
-        <span className={`pill ${s.tone}`}>{s.text}</span>
+        <Status tone={s.tone} emphasis={s.emphasis} draft={s.draft} inline detail={s.detail}>
+          {s.text}
+        </Status>
       </div>
       <Betraege p={p} />
       {p.hinweise.map((h) => (

@@ -17,9 +17,9 @@ import { contactSchema as contactInputSchema } from "../stammdaten/index.ts";
 export const requestSchemas = z.registry<{ id: string }>();
 export const responseSchemas = z.registry<{ id: string }>();
 
-const CENTS = "Betrag in ganzen Cent (Euro), z. B. 5712 = 57,12 €";
-const isoDate = z.iso.date();
-const timestamp = z.iso.datetime({ offset: true }).describe("Zeitpunkt nach ISO 8601");
+export const CENTS = "Betrag in ganzen Cent (Euro), z. B. 5712 = 57,12 €";
+export const isoDate = z.iso.date();
+export const timestamp = z.iso.datetime({ offset: true }).describe("Zeitpunkt nach ISO 8601");
 
 // ── Fehler ────────────────────────────────────────────────────────────────────
 
@@ -56,12 +56,12 @@ export const errorSchema = z
 
 // ── Listen ────────────────────────────────────────────────────────────────────
 
-const pageQuery = {
+export const pageQuery = {
   limit: z.coerce.number().int().min(1).max(500).default(100).describe("Höchstens so viele Einträge, 1 bis 500"),
   offset: z.coerce.number().int().min(0).default(0).describe("So viele Einträge überspringen"),
 };
 
-const page = <T extends z.ZodType>(item: T) =>
+export const page = <T extends z.ZodType>(item: T) =>
   z.object({
     data: z.array(item),
     total: z.number().int().describe("Anzahl aller Treffer, unabhängig von limit und offset"),
@@ -117,6 +117,7 @@ export const contactSchema = z
     ustId: z.string(),
     iban: z.string(),
     leitwegId: z.string(),
+    hourlyRateCents: z.number().int().nullable().describe("Stundensatz für Leistungseinträge in Cent; null: keiner hinterlegt"),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
     language: z.enum(["de", "en"]),
     version: z.number().int().describe("Steigt mit jeder Änderung; alte Stände bleiben in Haben erhalten"),
@@ -172,6 +173,7 @@ const draftApiFields = {
   format: draftFields.format.describe("Vorgabe: Standardformat des Kontakts, mit Leitweg-ID XRechnung, sonst aus den Firmendaten"),
   intro: draftFields.intro.describe("Kopftext über den Positionen, Vorgabe aus den Firmendaten"),
   note: draftFields.note.describe("Fußtext unter den Summen"),
+  propertyRetention: draftFields.propertyRetention.describe("Aufbewahrungshinweis für Grundstücksleistungen im PDF und in der E-Rechnung; Vorgabe false"),
   buyerOrderReference: draftFields.buyerOrderReference.describe("Bestellnummer des Kunden, in der E-Rechnung BT-13; leer = keine"),
   sellerOrderReference: draftFields.sellerOrderReference.describe("Eigene Auftragsnummer, in der E-Rechnung BT-14; leer = keine"),
   despatchAdviceReference: draftFields.despatchAdviceReference.describe("Lieferscheinnummer, in der E-Rechnung BT-16; leer = keine"),
@@ -252,6 +254,7 @@ export const invoiceSchema = z
     format: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     intro: z.string(),
     note: z.string(),
+    propertyRetention: z.boolean(),
     buyerOrderReference: z.string().describe("Bestellnummer des Kunden (BT-13); leer = keine"),
     sellerOrderReference: z.string().describe("Eigene Auftragsnummer (BT-14); leer = keine"),
     despatchAdviceReference: z.string().describe("Lieferscheinnummer (BT-16); leer = keine"),

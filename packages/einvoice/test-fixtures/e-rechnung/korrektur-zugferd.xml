@@ -181,7 +181,7 @@
 				</ram:EndDateTime>
 			</ram:BillingSpecifiedPeriod>
 			<ram:SpecifiedTradePaymentTerms>
-				<ram:Description>Der Betrag wird Ihnen erstattet.</ram:Description>
+				<ram:Description>Die ursprüngliche Rechnung wird um den ausgewiesenen Betrag korrigiert.</ram:Description>
 			</ram:SpecifiedTradePaymentTerms>
 			<ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 				<ram:LineTotalAmount>2635.95</ram:LineTotalAmount>

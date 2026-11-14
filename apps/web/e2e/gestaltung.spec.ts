@@ -135,7 +135,14 @@ test("Das Logo lässt sich im Panel hochladen und entfernen, das Formular bleibt
   await panel(page).getByLabel("Logodatei").setInputFiles("public/icon-192.png");
   await expect(panel(page).getByRole("status")).toContainText("Logo gespeichert");
   await expect.poll(() => svg(page)).toContain("<image");
+  // Die Rückfrage liegt über der Vorschau: Esc schließt nur sie, Logo und Vorschau bleiben
   await panel(page).getByRole("button", { name: "Entfernen" }).click();
+  await expect(page.getByRole("dialog", { name: "Logo entfernen?" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Logo entfernen?" })).toHaveCount(0);
+  await expect(panel(page).getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
+  await panel(page).getByRole("button", { name: "Entfernen" }).click();
+  await page.getByRole("dialog", { name: "Logo entfernen?" }).getByRole("button", { name: "Entfernen" }).click();
   await expect.poll(() => svg(page)).not.toContain("<image");
   await dialog(page).getByRole("button", { name: "Schließen" }).click();
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Eingabe bleibt");
@@ -362,6 +369,7 @@ test("Ein hochgeladenes Logo steht nach dem Wechsel des Bereichs noch da", async
   const entfernen = karte.getByRole("button", { name: "Entfernen" });
   if (await entfernen.isVisible()) {
     await entfernen.click();
+    await page.getByRole("dialog", { name: "Logo entfernen?" }).getByRole("button", { name: "Entfernen" }).click();
     await expect(karte.getByText("Noch kein Logo.")).toBeVisible();
     await page.reload();
     await page.waitForLoadState("networkidle");
@@ -528,6 +536,7 @@ test("Briefpapier: hochladen, auf dem Blatt sehen, entfernen", async ({ browser 
   await karte.getByRole("button", { name: "Speichern" }).click();
   await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
   await karte.getByRole("button", { name: "Entfernen" }).click();
+  await page.getByRole("dialog", { name: "Briefpapier entfernen?" }).getByRole("button", { name: "Entfernen" }).click();
   await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
   await page.context().close();
 });
@@ -586,6 +595,7 @@ test("Briefpapier mit eigenem Fuß: Fußzeile weglassen nur nach Rückfrage und 
   await karte.getByRole("button", { name: "Speichern" }).click();
   await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
   await karte.getByRole("button", { name: "Entfernen" }).click();
+  await page.getByRole("dialog", { name: "Briefpapier entfernen?" }).getByRole("button", { name: "Entfernen" }).click();
   await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
   await page.context().close();
 });
@@ -602,6 +612,7 @@ test("Entfernen des Briefpapiers nimmt auch ein noch nicht gespeichertes „Fuß
   await page.getByRole("dialog", { name: "Fußzeile weglassen?" }).getByRole("button", { name: "Fußzeile weglassen" }).click();
   await expect(schalter).toBeChecked();
   await karte.getByRole("button", { name: "Entfernen" }).click();
+  await page.getByRole("dialog", { name: "Briefpapier entfernen?" }).getByRole("button", { name: "Entfernen" }).click();
   await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
   await expect(schalter).not.toBeChecked();
   await page.context().close();
@@ -729,6 +740,7 @@ test("Vorschau: Das Briefpapier bleibt auf einem langen Blatt so groß wie im PD
     await page.goto("/einstellungen?bereich=gestaltung");
     await page.waitForLoadState("networkidle");
     await karte.getByRole("button", { name: "Entfernen" }).click();
+    await page.getByRole("dialog", { name: "Briefpapier entfernen?" }).getByRole("button", { name: "Entfernen" }).click();
     await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
     await page.context().close();
   }

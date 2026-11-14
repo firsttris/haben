@@ -5,6 +5,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { documentBankAllocations, lockCash, reverseAllocationIn, reverseDocumentCashEntry } from "../bank/index.ts";
+import { loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { journalAbJahr } from "../stammdaten/index.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { belegZeilen } from "./belegbuchung.ts";
@@ -20,7 +21,8 @@ import { loadSplits } from "./splits.ts";
  * laufenden Zeitraum (§ 17 Abs. 1 UStG). Ist er noch offen, im Zeitraum der Belegbuchung: Ein Erfassungsfehler, etwa ein
  * vertauschtes Belegdatum, verschiebt dann keine Vorsteuer in einen Zeitraum, in den sie nicht gehört. Der Beleg selbst
  * ändert sich nicht, er bleibt gesperrt und versiegelt; den Storno hält eine eigene, nur anhängbare Zeile in
- * `document_cancellations` fest. Neu erfasst wird als neuer Entwurf mit derselben Datei.
+ * `document_cancellations` fest. Neu erfasst wird als neuer Entwurf mit derselben Datei. Die mit aufgehobenen
+ * Bankzuordnungen tragen dasselbe Datum wie der Storno; ihre Gegenzeilen wirken also im selben Zeitraum.
  */
 
 export const cancellationInputSchema = z.object({
@@ -50,7 +52,7 @@ async function settled(tx: Tx, documentId: string): Promise<number> {
 }
 
 /** Bestätigter Umfang; die Gegenzeilen bleiben in der withActor-Transaktion des Belegstornos. */
-async function reverseConfirmedAllocations(tx: Tx, doc: Pick<Document, "id" | "payment">, allocationIds: string[]) {
+async function reverseConfirmedAllocations(tx: Tx, doc: Pick<Document, "id" | "payment">, allocationIds: string[], date: string) {
   const allocations = doc.payment === "bank" ? await documentBankAllocations(doc.id, tx) : [];
   if (allocations.length > 0 && allocationIds.length === 0) {
     throw new DocumentError("Der Beleg ist schon einer Zahlung zugeordnet. Hebe erst im Bankabgleich die Zuordnung auf, dann stornierst du ihn.");
@@ -65,7 +67,7 @@ async function reverseConfirmedAllocations(tx: Tx, doc: Pick<Document, "id" | "p
   const groups = new Map(allocations.map((a) => [a.splitId ?? a.id, a.id]));
   // Originale bleiben nachvollziehbar (§ 146 Abs. 4 AO); scheitert der Storno, werden auch die Bankgegenzeilen zurückgerollt.
   // https://www.gesetze-im-internet.de/ao_1977/__146.html
-  for (const allocationId of groups.values()) await reverseAllocationIn(tx, allocationId);
+  for (const allocationId of groups.values()) await reverseAllocationIn(tx, allocationId, date);
 }
 
 /** Die Buchung des Belegs; ein Storno hat reverses_id und zählt nicht */
@@ -115,9 +117,10 @@ function heutigeBelegZeilen(
   amounts: { taxRate: number; net: number; tax: number }[],
   splits: Awaited<ReturnType<typeof loadSplits>>,
   books: Awaited<ReturnType<typeof openBooks>>,
+  eigene: ReadonlyMap<string, string>,
 ): PostingLine[] | null {
   try {
-    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAbzug);
+    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAbzug, eigene);
   } catch {
     return null;
   }
@@ -144,13 +147,16 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       .from(schema.documentCancellations)
       .where(eq(schema.documentCancellations.documentId, id));
     if (already) throw new DocumentError("Der Beleg ist bereits storniert.");
-    await reverseConfirmedAllocations(tx, doc, allocationIds);
+    const original = await documentEntry(tx, id);
+    // Das Datum des Stornos gilt auch für die mit aufgehobenen Bankzuordnungen (#782): eine Gegenbuchung, ein Zeitraum.
+    // Es steht deshalb fest, bevor reverseAllocationIn die Zuordnungen zurücknimmt.
+    const date = await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
+    await reverseConfirmedAllocations(tx, doc, allocationIds, date);
     if (doc.payment === "bank" && (await settled(tx, id)) !== 0) {
       throw new DocumentError("Dem Beleg ist noch eine separate Ausbuchung zugeordnet. Hebe diese im Bankabgleich auf, dann stornierst du ihn.");
     }
 
     const books = await openBooks(tx);
-    const original = await documentEntry(tx, id);
     // Gleiche Kontonummern bedeuten in einem anderen Kontenrahmen etwas anderes
     if (original.kontenrahmen !== books.kontenrahmen) {
       throw new DocumentError(
@@ -171,8 +177,9 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
     const gebucht: PostingLine[] = lines.map((l) => ({ ...l, taxCode: l.taxCode as TaxCode | null }));
     const vorStichjahr = Number(original.date.slice(0, 4)) < (await journalAbJahr(tx));
     const amounts = vorStichjahr ? await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)) : [];
-    const zeilen = vorStichjahr ? zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books) ?? []) : gebucht;
-    const date = await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
+    const zeilen = vorStichjahr
+      ? zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books, await loadOwnAccountNumbers(tx)) ?? [])
+      : gebucht;
     const journalEntryId = await post(tx, books, {
       date,
       description: `Storno: ${original.description}`,
@@ -238,6 +245,7 @@ export async function reenterDocument(actor: string, id: string): Promise<string
           documentDate: d.documentDate,
           dueDate: d.dueDate,
           category: d.category,
+          ownAccountId: d.ownAccountId,
           payment: d.payment,
           note: d.note,
           currency: d.currency,
@@ -249,7 +257,10 @@ export async function reenterDocument(actor: string, id: string): Promise<string
           gross: d.gross,
           asset: d.asset,
           privateShare: d.privateShare,
+          vorsteuerAnteil: d.vorsteuerAnteil,
           reverseCharge: d.reverseCharge,
+          // Die Neuerfassung mindert dasselbe Entgelt; die Angabe „erstattet bereits Bezahltes“ bleibt (#786)
+          erstattetBezahltes: d.erstattetBezahltes,
           replacesDocumentId: id,
         })
         .returning({ id: schema.documents.id });

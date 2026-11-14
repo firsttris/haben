@@ -1,10 +1,13 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
-import { type PointerEvent, useEffect, useRef, useState } from "react";
+import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react";
 import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
-import { navLinkSichtbar, type NavBedingung } from "../lib/navigation.ts";
+import { CommandPalette } from "../components/CommandPalette.tsx";
+import { NAV_GROUPS, STEUERBERATUNG_NAV, type NavLink, navLinkSichtbar } from "../lib/navigation.ts";
+import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
+import { FirmaWechsler } from "../components/FirmaWechsler.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
@@ -22,110 +25,16 @@ export const Route = createFileRoute("/_app")({
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,
       firma: state.firma,
+      zeichen: state.zeichen,
+      firmen: state.firmen,
     };
   },
   component: AppLayout,
 });
 
-interface NavLink extends NavBedingung {
-  to: string;
-  icon: Parameters<typeof Icon>[0]["name"];
-  label: string;
-}
-
-/** Hauptnavigation nach Arbeitsbereichen; Einstellungen stehen unten bei Konto und Abmelden */
-const NAV_GROUPS = [
-  {
-    label: "Verkauf",
-    links: [
-      { to: "/angebote", icon: "quote", label: "Angebote" },
-      { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
-      { to: "/lastschriften", icon: "bank", label: "Lastschriften" },
-      { to: "/kontakte", icon: "contacts", label: "Kontakte" },
-      { to: "/artikel", icon: "article", label: "Artikel" },
-      { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },
-    ],
-  },
-  {
-    label: "Ausgaben",
-    links: [
-      { to: "/belege", icon: "receipt", label: "Belege" },
-      { to: "/dauerbelege", icon: "calendar", label: "Dauerbelege" },
-      { to: "/ueberweisungen", icon: "bank", label: "Überweisungen" },
-      // Pauschalen ersetzen Ausgaben des Inhabers, eine GmbH oder UG hat sie nicht
-      { to: "/pauschalen", icon: "pauschale", label: "Pauschalen", nurEinzelunternehmen: true },
-      { to: "/anlagen", icon: "assets", label: "Anlagen" },
-    ],
-  },
-  {
-    label: "Geld",
-    links: [
-      { to: "/bank", icon: "bank", label: "Bank" },
-      { to: "/kasse", icon: "cash", label: "Kasse" },
-      { to: "/darlehen", icon: "bank", label: "Darlehen" },
-    ],
-  },
-  {
-    label: "Personal",
-    links: [
-      { to: "/lohn", icon: "payroll", label: "Lohn" },
-      // Lohn bleibt immer sichtbar, dort entsteht der erste Mitarbeiter
-      { to: "/sv-meldeportal", icon: "mail", label: "SV-Meldeportal", nurMitMitarbeitern: true },
-    ],
-  },
-  {
-    label: "Steuern",
-    links: [
-      { to: "/umsatzsteuer", icon: "vat", label: "Umsatzsteuer" },
-      { to: "/jahreserklaerung", icon: "annual", label: "Jahreserklärung" },
-      // Gewinnausschüttung und Kapitalertragsteuer gibt es nur für GmbH und UG
-      { to: "/ausschuettungen", icon: "cash", label: "Ausschüttungen", nurKapitalgesellschaft: true },
-      { to: "/finanzamt", icon: "mail", label: "Finanzamt" },
-      { to: "/fristen", icon: "calendar", label: "Fristen" },
-    ],
-  },
-  {
-    label: "Buchhaltung",
-    links: [
-      { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
-      { to: "/buchungen", icon: "journal", label: "Buchungen" },
-      { to: "/konten", icon: "ledger", label: "Konten" },
-      // Bilanz und Abschluss gibt es nur für GmbH und UG
-      { to: "/abschluss", icon: "annual", label: "Jahresabschluss", nurKapitalgesellschaft: true },
-      { to: "/archiv", icon: "archive", label: "Archiv" },
-    ],
-  },
-] as const;
-
-/** Navigation der Steuerberatung: nur lesen */
-const STEUERBERATUNG_NAV = [
-  {
-    label: "Steuerberatung",
-    links: [
-      { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
-      { to: "/buchungen", icon: "journal", label: "Buchungen" },
-      { to: "/konten", icon: "ledger", label: "Konten" },
-      { to: "/belege", icon: "receipt", label: "Belege" },
-      { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
-    ],
-  },
-] as const;
-
-function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma } = Route.useRouteContext();
-  const gesellschaft = isKapitalgesellschaft(rechtsform);
-  const inhaber = user.role === "inhaber";
-  const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
-  const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
-  // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
-  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
-  const main = useRef<HTMLElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
+function useFirmaBrand() {
   const firmaRef = useRef<HTMLSpanElement>(null);
   const [firmaVoll, setFirmaVoll] = useState<string | null>(null);
-  const firstPath = useRef(pathname);
-  // Den vollen Namen nur zeigen, wenn die Marke ihn kürzt (zwei Zeilen am Desktop); am Handy gibt es kein Aufklappen
   function firmaAufklappen() {
     const name = firmaRef.current;
     if (name && window.matchMedia("(min-width: 861px)").matches && name.scrollHeight > name.clientHeight + 1) setFirmaVoll(name.textContent);
@@ -148,6 +57,46 @@ function AppLayout() {
     window.addEventListener("keydown", zu, true);
     return () => window.removeEventListener("keydown", zu, true);
   }, [firmaVoll]);
+  return { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg };
+}
+
+function useShortcutLabel() {
+  const [shortcutLabel, setShortcutLabel] = useState("Strg K");
+  useEffect(() => {
+    if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) setShortcutLabel("⌘ K");
+  }, []);
+  return shortcutLabel;
+}
+
+function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: () => void, toggle: RefObject<HTMLButtonElement | null>) {
+  useEffect(() => {
+    if (!menuOpen || paletteOpen) return;
+    function onKey(event: KeyboardEvent) {
+      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst
+      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]')) return;
+      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
+      event.preventDefault();
+      onClose();
+      toggle.current?.focus();
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [menuOpen, paletteOpen, onClose, toggle]);
+}
+
+function AppLayout() {
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, oidc } = Route.useRouteContext();
+  const gesellschaft = isKapitalgesellschaft(rechtsform);
+  const inhaber = user.role === "inhaber";
+  const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
+  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
+  const main = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const firstPath = useRef(pathname);
   usePageHeadHeight(main);
   const scrolled = useScrolled();
 
@@ -159,19 +108,7 @@ function AppLayout() {
     if (!main.current?.contains(document.activeElement)) main.current?.focus({ preventScroll: true });
   }, [pathname]);
 
-  // Escape schließt das Menü auf dem Handy und gibt den Fokus an den Menüknopf zurück
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
-      event.preventDefault();
-      setMenuOpen(false);
-      toggle.current?.focus();
-    }
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [menuOpen]);
+  useMobileMenuEscape(menuOpen, paletteOpen, () => setMenuOpen(false), toggle);
 
   async function signOut() {
     // Erst beim Abmelden laden: der Auth-Client bringt den Passkey-Code mit, den nur Anmeldung und Einstellungen brauchen
@@ -186,32 +123,8 @@ function AppLayout() {
         Zum Inhalt springen
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
-        <Link
-          to={inhaber ? "/" : STEUERBERATUNG_START}
-          className="brand"
-          onPointerEnter={firmaAufklappen}
-          onFocus={firmaAufklappen}
-          onPointerLeave={firmaZeigerWeg}
-          onBlur={firmaZuklappen}
-        >
-          <span className="brand-mark">H</span>
-          <span className="brand-text">
-            Haben
-            {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
-                als zwei Zeilen, klappt er beim Überfahren und mit Fokus nach unten ganz auf (nur am Desktop); das
-                Element dafür ist für Hilfstechnik verborgen, der Name steht schon in der Marke */}
-            {firma && (
-              <span className="brand-firma" ref={firmaRef}>
-                {firma}
-              </span>
-            )}
-            {firmaVoll !== null && (
-              <span className="brand-firma-voll" aria-hidden="true">
-                {firmaVoll}
-              </span>
-            )}
-          </span>
-        </Link>
+        <NavBrand inhaber={inhaber} />
+        <NavSearch onOpen={() => setPaletteOpen(true)} />
         <button
           ref={toggle}
           type="button"
@@ -224,88 +137,178 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
+          {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im rollenden Menü */}
+          {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
           <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
             <Icon name="overview" />
             Übersicht
           </Link>
-          {groups.map((group) => (
-            <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
-              <div className="nav-group-label" aria-hidden="true">
-                {group.label}
-              </div>
-              {(group.links as readonly NavLink[])
-                .filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter }))
-                .map((link) => (
-                  <Link key={link.to} to={link.to} className="nav-link">
-                    <Icon name={link.icon} />
-                    {link.label}
-                  </Link>
-                ))}
-            </div>
-          ))}
-          {/* Eigene Seiten (#199): Seiten außerhalb von Haben, unter Einstellungen angelegt */}
-          {eigeneSeiten.length > 0 && (
-            <div className="nav-group" role="group" aria-label="Eigene Seiten">
-              <div className="nav-group-label" aria-hidden="true">
-                Eigene Seiten
-              </div>
-              {eigeneSeiten.map((seite) =>
-                // Seiten, die das Einbetten verbieten, öffnen in einem neuen Tab (#636); noreferrer wie der Rahmen
-                seite.openInNewTab ? (
-                  <a key={seite.id} href={seite.url} target="_blank" rel="noreferrer" className="nav-link">
-                    <Icon name="external" />
-                    {seite.name}
-                    <span className="visually-hidden"> (öffnet in neuem Tab)</span>
-                  </a>
-                ) : (
-                  <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
-                    <Icon name="embed" />
-                    {seite.name}
-                  </Link>
-                ),
-              )}
-            </div>
-          )}
+          <NavGroups groups={groups} gesellschaft={gesellschaft} hatMitarbeiter={hatMitarbeiter} eigeneSeiten={eigeneSeiten} />
           <div className="nav-spacer" />
-          <div className="nav-foot">
-            <div className="nav-user">
-              <span className="nav-avatar" aria-hidden="true">
-                {user.name.trim().charAt(0).toUpperCase() || "?"}
-              </span>
-              <span className="nav-user-text">
-                <span className="nav-user-name">{user.name}</span>
-                <span className="nav-user-meta">{inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}</span>
-              </span>
-            </div>
-            {inhaber && (
-              <Link to="/einstellungen" className="nav-link nav-foot-link">
-                <Icon name="settings" />
-                Einstellungen
-              </Link>
-            )}
-            <a href="https://haben.app/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
-              <Icon name="docs" />
-              Dokumentation
-            </a>
-            {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
-            <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
-              <Icon name="code" />
-              Quellcode (AGPL)
-            </a>
-            <button type="button" className="nav-link nav-foot-link" onClick={signOut}>
-              <Icon name="logout" />
-              Abmelden
-            </button>
-            <ThemePicker />
-            <a className="nav-version" href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`} title="Versionshinweise auf GitHub">
-              Haben {__HABEN_VERSION__}
-            </a>
-          </div>
+          <NavFoot user={user} inhaber={inhaber} onSignOut={signOut} />
         </div>
       </nav>
       <main className="main" id="inhalt" ref={main} tabIndex={-1}>
         <Outlet />
       </main>
+      <CommandPalette
+        open={paletteOpen}
+        oidcOnly={oidc.only}
+        onOpen={() => setPaletteOpen(true)}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={() => setMenuOpen(false)}
+        inhaber={inhaber}
+        gesellschaft={gesellschaft}
+        hatMitarbeiter={hatMitarbeiter}
+        eigeneSeiten={eigeneSeiten}
+      />
     </div>
+  );
+}
+
+function NavBrand({ inhaber }: { inhaber: boolean }) {
+  const { firma, zeichen } = Route.useRouteContext();
+  const { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg } = useFirmaBrand();
+  return (
+    <Link
+      to={inhaber ? "/" : STEUERBERATUNG_START}
+      className="brand"
+      onPointerEnter={firmaAufklappen}
+      onFocus={firmaAufklappen}
+      onPointerLeave={firmaZeigerWeg}
+      onBlur={firmaZuklappen}
+    >
+      <NavMarkSymbol mark={zeichen} />
+      <span className="brand-text">
+        Haben
+        {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
+                als zwei Zeilen, klappt er beim Überfahren und mit Fokus nach unten ganz auf (nur am Desktop); das
+                Element dafür ist für Hilfstechnik verborgen, der Name steht schon in der Marke */}
+        {firma && (
+          <span className="brand-firma" ref={firmaRef}>
+            {firma}
+          </span>
+        )}
+        {firmaVoll !== null && (
+          <span className="brand-firma-voll" aria-hidden="true">
+            {firmaVoll}
+          </span>
+        )}
+      </span>
+    </Link>
+  );
+}
+
+function NavSearch({ onOpen }: { onOpen: () => void }) {
+  const shortcutLabel = useShortcutLabel();
+  return (
+    <button
+      type="button"
+      className="btn btn-icon nav-search-btn"
+      onClick={(event) => {
+        event.currentTarget.focus();
+        onOpen();
+      }}
+      aria-keyshortcuts="Control+K Meta+K"
+    >
+      <Icon name="search" size={18} />
+      <span className="nav-search-label">Schnellsuche</span>
+      <kbd className="nav-kbd" aria-hidden="true">
+        {shortcutLabel}
+      </kbd>
+    </button>
+  );
+}
+
+function NavFoot({ user, inhaber, onSignOut }: { user: { name: string; role: keyof typeof ROLLEN_LABEL }; inhaber: boolean; onSignOut: () => void }) {
+  return (
+    <div className="nav-foot">
+      <div className="nav-user">
+        <span className="nav-avatar" aria-hidden="true">
+          {user.name.trim().charAt(0).toUpperCase() || "?"}
+        </span>
+        <span className="nav-user-text">
+          <span className="nav-user-name">{user.name}</span>
+          <span className="nav-user-meta">{inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}</span>
+        </span>
+      </div>
+      {inhaber && (
+        <Link to="/einstellungen" className="nav-link nav-foot-link">
+          <Icon name="settings" />
+          Einstellungen
+        </Link>
+      )}
+      <a href="https://haben.app/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
+        <Icon name="docs" />
+        Dokumentation
+      </a>
+      {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
+      <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
+        <Icon name="code" />
+        Quellcode (AGPL)
+      </a>
+      <button type="button" className="nav-link nav-foot-link" onClick={onSignOut}>
+        <Icon name="logout" />
+        Abmelden
+      </button>
+      <ThemePicker />
+      <a className="nav-version" href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`} title="Versionshinweise auf GitHub">
+        Haben {__HABEN_VERSION__}
+      </a>
+    </div>
+  );
+}
+
+function NavGroups({
+  groups,
+  gesellschaft,
+  hatMitarbeiter,
+  eigeneSeiten,
+}: {
+  groups: typeof NAV_GROUPS | typeof STEUERBERATUNG_NAV;
+  gesellschaft: boolean;
+  hatMitarbeiter: boolean;
+  eigeneSeiten: readonly { id: string; name: string; url: string; openInNewTab: boolean }[];
+}) {
+  return (
+    <>
+      {groups.map((group) => (
+        <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
+          <div className="nav-group-label" aria-hidden="true">
+            {group.label}
+          </div>
+          {(group.links as readonly NavLink[])
+            .filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter }))
+            .map((link) => (
+              <Link key={link.to} to={link.to} className="nav-link">
+                <Icon name={link.icon} />
+                {link.label}
+              </Link>
+            ))}
+        </div>
+      ))}
+      {/* Eigene Seiten (#199): Seiten außerhalb von Haben, unter Einstellungen angelegt */}
+      {eigeneSeiten.length > 0 && (
+        <div className="nav-group" role="group" aria-label="Eigene Seiten">
+          <div className="nav-group-label" aria-hidden="true">
+            Eigene Seiten
+          </div>
+          {eigeneSeiten.map((seite) =>
+            seite.openInNewTab ? (
+              <a key={seite.id} href={seite.url} target="_blank" rel="noreferrer" className="nav-link">
+                <Icon name="external" />
+                {seite.name}
+                <span className="visually-hidden"> (öffnet in neuem Tab)</span>
+              </a>
+            ) : (
+              <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
+                <Icon name="embed" />
+                {seite.name}
+              </Link>
+            ),
+          )}
+        </div>
+      )}
+    </>
   );
 }

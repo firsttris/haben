@@ -11,7 +11,9 @@ Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **U
 
 Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eigenen Bereich zum Übermitteln. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
-Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](buchhaltung.md#e-bilanz-gmbh-und-ug).
+Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Die Einkommensteuererklärung kennt keinen Vermerk; solange Haben sie nicht gesendet hat, steht dort „Nicht aus Haben übermittelt“ — gesendet wird sie über den Kasten unter der Tabelle.
+
+Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](gmbh-abschluss.md#e-bilanz-gmbh-und-ug).
 
 ## Ablauf
 
@@ -29,20 +31,33 @@ Fristen: ohne Steuerberatung bis 31. Juli des Folgejahres, mit Steuerberatung sp
 
 Ohne eigene Hersteller-ID steht neben dem Senden-Kasten **In Mein ELSTER eintragen**. „Werte für Mein ELSTER kopieren“ legt die Feldkennungen und Werte der Erklärung in die Zwischenablage, genau die aus dem XML, das Haben senden würde. Die Erweiterung **Haben für Mein ELSTER** trägt sie dann Seite für Seite in das Formular ein; prüfen und absenden machst du dort. Einrichten und Ablauf: [Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md). Einen XML-Import wie bei der Voranmeldung bietet Mein ELSTER für die Jahreserklärungen nicht; alle Wege: [Abgabe an ELSTER](elster-abgabe.md).
 
+## Abgabe außerhalb von Haben vermerken
+
+Gibst du die Umsatzsteuererklärung oder die Anlage EÜR außerhalb von Haben ab, etwa mit WISO, über Accountable oder im ELSTER-Portal, hältst du das je Erklärung in der Karte **Außerhalb von Haben abgegeben** mit **Abgabe vermerken** fest. Der Dialog fragt nach dem Tag der Abgabe laut Übermittlungsprotokoll, dem Transferticket, dem Betrag und einer kurzen Begründung; das Protokoll kannst du als PDF anhängen. Vorgeschlagen ist der aus den Buchungen gerechnete Betrag. Weicht der Betrag laut Protokoll davon ab, nennt Haben die Differenz, und der Vermerk geht erst durch, wenn du die Abweichung ausdrücklich bestätigst. Gespeichert wird der Betrag laut Protokoll.
+
+Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung: Die Frist ist erledigt, das Jahr nimmt keine rückdatierten Buchungen mehr an, die Karte zeigt Datum, Ticket und Betrag statt des Knopfs, und Begründung wie Protokoll stehen darunter in einer Tabelle, die erst aufklappt, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf. Meldungen, die Haben aus seinen eigenen Daten ableitet — etwa die Nullerklärung oder „Keine Betriebseinnahmen und -ausgaben im Jahr“ —, treten mit dem Vermerk zurück; sie würden ihm sonst auf derselben Seite widersprechen.
+
 ## Umsatzsteuererklärung
 
 | Zeile | Woher |
 | --- | --- |
 | Umsätze zu 19 % und 7 % | Summe der zwölf Monate aus den Buchungen, wie in der Voranmeldung: Ist-Versteuerung nach Zahlungseingang, Soll nach Rechnungsdatum. Es zählt die Versteuerung des Jahres, auch wenn du sie zum Jahreswechsel umgestellt hast ([Ist- und Soll-Versteuerung](buchhaltung.md#ist--und-soll-versteuerung)). Bemessungsgrundlage in vollen Euro, die Steuer daraus. Die private Kfz-Nutzung ist in den 19 % enthalten |
-| Abziehbare Vorsteuer | Summe der Vorsteuer aus gebuchten Belegen |
+| Steuerfreie innergemeinschaftliche Lieferungen (Kz 41) und Ausfuhrlieferungen (Kz 43) | Summe der zwölf Monate, in vollen Euro |
+| Innergemeinschaftliche Erwerbe zu 19 % (Kz 89) und 7 % (Kz 93) | Bemessungsgrundlage in vollen Euro und die Erwerbsteuer laut Beleg; die Summe der Steuer steht in der Berechnung |
+| §-13b-Leistungen aus dem EU-Ausland (Kz 46/47) und dem Drittland (Kz 84/85) | Bemessungsgrundlage in vollen Euro und die Steuer, die du als Leistungsempfänger schuldest; die Summe steht in der Berechnung |
+| Nicht steuerbare Leistungen, Ort im EU-Ausland (Kz 21), und nicht steuerbare Umsätze (Drittland, Kz 45) | Summe der zwölf Monate, in vollen Euro; ergänzende Angaben ohne Steuer |
+| Abziehbare Vorsteuer (Kz 66) | Summe der Vorsteuer aus gebuchten Belegen |
+| Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61), Einfuhrumsatzsteuer (Kz 62) und Vorsteuer aus §-13b-Leistungen (Kz 67) | Summe der zwölf Monate, gehen in die Summe der Vorsteuerbeträge ein |
 | Vorauszahlungssoll | Summe der gesendeten Voranmeldungen des Jahres; je Monat zählt die zuletzt gesendete (bei Berichtigungen die berichtigte) |
-| Abschlusszahlung bzw. Erstattung | Umsatzsteuer minus Vorsteuer minus Vorauszahlungssoll |
+| Abschlusszahlung bzw. Erstattung | Umsatzsteuer einschließlich § 13b und Erwerbsteuer minus Vorsteuer einschließlich Kz 61, 62 und 67 minus Vorauszahlungssoll |
 
-Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor dem Umzug aus Lexoffice), fehlen sie im Vorauszahlungssoll; Haben weist darauf hin. Dann stimmt die Abschlusszahlung nicht, und du gibst die Erklärung besser im ELSTER-Portal ab.
+Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor dem Umzug aus Lexoffice), fehlen sie im Vorauszahlungssoll; Haben weist darauf hin. Dann stimmt die Abschlusszahlung nicht, und du gibst die Erklärung besser im ELSTER-Portal ab. Der Hinweis verlinkt den letzten Voranmeldungszeitraum des Jahres (2025-Q4 bei vierteljährlicher, 2025-12 bei monatlicher Abgabe), nicht den laufenden Zeitraum.
+
+Abzugszeilen — Vorsteuer, Vorsteuer aus innergemeinschaftlichem Erwerb, Einfuhrumsatzsteuer und Vorauszahlungssoll — zeigen den Betrag mit umgekehrtem Vorzeichen: Ein Abzug steht negativ, eine Gutschrift in derselben Zeile positiv. Wer die Spalte zusammenzählt, kommt damit auf die Abschlusszahlung — solange die Zeilen für § 13b, innergemeinschaftliche Erwerbe und Einfuhr leer sind; die Summenzeile „Umsatzsteuer“ führt diese Kennzahlen nicht mit. Die Abschlusszeile trägt dagegen das Vorzeichen ihres Betrags; eine Erstattung steht deshalb negativ.
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 
-- das Jahr Leistungen im EU-Ausland (Reverse Charge, Kz 21), nicht steuerbare Umsätze im Drittland (Kz 45) oder steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält, Steuer, die du als Leistungsempfänger nach § 13b schuldest (Kz 46/47, 84/85), steuerfreie innergemeinschaftliche Lieferungen (Kz 41), Ausfuhrlieferungen (Kz 43), innergemeinschaftliche Erwerbe (Kz 89, 93 und die Vorsteuer daraus, Kz 61) oder Einfuhrumsatzsteuer (Kz 62). Für diese Zeilen fehlen Haben noch die geprüften Feldkennungen; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
+- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält: Sie gehören je nach Nummer in § 4 UStG in verschiedene Zeilen, mit der Nummer als Text. Das kann Haben noch nicht übermitteln; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
 - du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf. Für 2023 brauchst du sie noch; die Angaben für Kleinunternehmer übermittelst du dann im ELSTER-Portal.
 - es weder Umsätze noch Vorsteuer gibt (Nullerklärung über das ELSTER-Portal).
 
@@ -78,25 +93,26 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
 | [Pauschale](pauschalen.md): Verpflegungsmehraufwand | Verpflegungsmehraufwendungen (beschränkt abziehbar) |
+| [Pauschale](pauschalen.md#wege-zwischen-wohnung-und-betriebsstätte): Wege zwischen Wohnung und Betriebsstätte | Mindestens abziehbare Kraftfahrzeugkosten für Wege zwischen Wohnung und Betriebsstätte, Familienheimfahrten (Zeile 73 der Anlage EÜR 2025, Entfernungspauschale) |
 | Private Kfz-Nutzung | Private Kfz-Nutzung (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | [Sachentnahme](buchhaltung.md#manuelle-und-freie-buchungen) (freie Buchung, ab dem Stichjahr) | Sonstige Sach-, Nutzungs- und Leistungsentnahmen (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
-| Einfuhrumsatzsteuer ([Beleg](belege.md#einfuhrumsatzsteuer)), bei Zahlung | Gezahlte Vorsteuerbeträge |
+| Einfuhrumsatzsteuer ([Beleg](belege-ausland.md#einfuhrumsatzsteuer)), bei Zahlung | Gezahlte Vorsteuerbeträge |
 | Umsatzsteuer an das Finanzamt, einer [Voranmeldung zugeordnet](bank.md#voranmeldung-zahllast-und-erstattung) | An das Finanzamt gezahlte bzw. vom Finanzamt erstattete Umsatzsteuer, im Jahr der Zahlung. Die Vorauszahlung für Dezember bzw. das vierte Quartal, ohne Dauerfristverlängerung am 10. Januar fällig und bis dahin gezahlt, im Vorjahr (§ 11 Abs. 2 Satz 2 EStG, [Vorauszahlung um den Jahreswechsel](auswertungen.md#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)); eine Erstattung im Jahr des Eingangs |
-| [Steuerzahlung](bank.md#steuerzahlungen): Umsatzsteuer früherer Jahre | An das Finanzamt gezahlte bzw. vom Finanzamt erstattete Umsatzsteuer, im Jahr der Zahlung (§ 11 EStG). Zahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis: Ist es die Vorauszahlung für Dezember bzw. das vierte Quartal, ordne sie der Voranmeldung zu, dann zählt Haben sie im Vorjahr |
+| [Steuerzahlung](bank-steuern-darlehen.md#steuerzahlungen): Umsatzsteuer früherer Jahre | An das Finanzamt gezahlte bzw. vom Finanzamt erstattete Umsatzsteuer, im Jahr der Zahlung (§ 11 EStG). Zahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis: Ist es die Vorauszahlung für Dezember bzw. das vierte Quartal, ordne sie der Voranmeldung zu, dann zählt Haben sie im Vorjahr |
 | Steuerzahlung: Zinsen, Säumnis- und Verspätungszuschläge zur Umsatzsteuer | Übrige unbeschränkt abziehbare Betriebsausgaben; nicht die Schuldzinsen der Zeilen 55 und 56, die für die nicht abziehbaren Schuldzinsen (§ 4 Abs. 4a EStG) gemeint sind |
 | Steuerzahlung: Erstattungszinsen zur Umsatz- oder Gewerbesteuer, [Zinserträge](bank.md#direkt-buchen) | Umsatzsteuerfreie, nicht umsatzsteuerbare Betriebseinnahmen |
 | Steuerzahlung: Gewerbesteuer mit Zinsen und Zuschlägen, abzüglich Erstattungen | Sonstige beschränkt abziehbare Betriebsausgaben, Spalte „nicht abziehbar“ (`E6004301`), wie es die amtliche Anleitung für Gewerbesteuer und Nebenleistungen verlangt; mindert den Gewinn nicht (§ 4 Abs. 5b EStG), nach Erstattungen auch negativ |
-| [Darlehen](bank.md#darlehen): Zinsen und Gebühren, Verwendung Anlagevermögen | Schuldzinsen zur Finanzierung von Anschaffungs- und Herstellungskosten von Wirtschaftsgütern des Anlagevermögens (Zeile 55, `E6004202`); Auszahlung und Tilgung zählen nicht |
+| [Darlehen](bank-steuern-darlehen.md#darlehen): Zinsen und Gebühren, Verwendung Anlagevermögen | Schuldzinsen zur Finanzierung von Anschaffungs- und Herstellungskosten von Wirtschaftsgütern des Anlagevermögens (Zeile 55, `E6004202`); Auszahlung und Tilgung zählen nicht |
 | Darlehen: Zinsen und Gebühren, laufender Betrieb | Übrige Schuldzinsen (Zeile 56, `E6004303`). Die Anlage SZ (nicht abziehbare Schuldzinsen bei Überentnahmen, § 4 Abs. 4a EStG) füllt Haben nicht |
 | Steuerzahlung: Einkommen-, Kirchensteuer, Soli, einbehaltene Kapitalertragsteuer | keine Betriebsausgabe; Entnahme (Privatsteuern), Erstattungen mindern die Entnahmen |
 
-**Vorauszahlung bei gesperrtem Vorjahr:** War die Anlage EÜR oder die Einkommensteuererklärung des Vorjahres schon übermittelt bzw. das Jahr abgeschlossen, als du die Vorauszahlung für Dezember zugeordnet hast, bleibt das Vorjahr, wie übermittelt (GoBD): Die Zahlung zählt im Jahr der Zahlung, und die Vorprüfung nennt Zeitraum und Betrag als Hinweis, damit du mit der Steuerberatung klärst, ob die Erklärung des Vorjahres zu berichtigen ist. Mit jeder Übermittlung speichert Haben, welche Vorauszahlungen sie in das Vorjahr verschoben bzw. hereingenommen hat; danach richten sich beide Jahre, auch wenn du später die Dauerfristverlängerung änderst. Erklärungen aus älteren Versionen enthalten die Zahlung nicht und sperren das Vorjahr immer; im Jahr der Zahlung zählt sie dort weiter am Buchungstag.
+**Vorauszahlung bei gesperrtem Vorjahr:** War die Anlage EÜR oder die Einkommensteuererklärung des Vorjahres schon übermittelt (oder die Anlage EÜR als außerhalb abgegeben vermerkt) bzw. das Jahr abgeschlossen, als du die Vorauszahlung für Dezember zugeordnet hast, bleibt das Vorjahr, wie übermittelt (GoBD): Die Zahlung zählt im Jahr der Zahlung, und die Vorprüfung nennt Zeitraum und Betrag als Hinweis, damit du mit der Steuerberatung klärst, ob die Erklärung des Vorjahres zu berichtigen ist. Mit jeder Übermittlung und jedem Vermerk speichert Haben, welche Vorauszahlungen sie in das Vorjahr verschoben bzw. hereingenommen hat; danach richten sich beide Jahre, auch wenn du später die Dauerfristverlängerung änderst. Erklärungen aus älteren Versionen enthalten die Zahlung nicht und sperren das Vorjahr immer; im Jahr der Zahlung zählt sie dort weiter am Buchungstag.
 
 **Entnahmen und Einlagen** kommen aus dem Journal: alles, was auf den Privatkonten gebucht ist (Privatüberweisungen im Bankabgleich, private Steuern vom Geschäftskonto auf Privatsteuern, privat bezahlte Belege, Pauschalen ohne Beleg, Privatanteile, Privatnutzung der Firmenwagen mit Umsatzsteuer).
 
 **Allgemeine Angaben:** Rechtsform „Angehörige freier Berufe“ bzw. „Einzelgewerbetreibende“, Betriebsinhaber ist die steuerpflichtige Person, keine Veräußerung von Grundstücken. Für Gesellschaften ist die Anlage EÜR in Haben nicht gedacht.
 
-Nicht abgebildet sind das häusliche Arbeitszimmer als Mittelpunkt (die Tagespauschale schon), Verpflegung im Ausland, Fahrten zwischen Wohnung und Betriebsstätte, Investitionsabzugsbeträge und Rücklagen. Brauchst du davon etwas, ergänze die Anlage im ELSTER-Portal statt sie hier zu senden.
+Nicht abgebildet sind das häusliche Arbeitszimmer als Mittelpunkt (die Tagespauschale schon), Verpflegung im Ausland, Wege zwischen Wohnung und Betriebsstätte mit einem Fahrzeug im Betriebsvermögen (Zeile 72), Investitionsabzugsbeträge und Rücklagen. Brauchst du davon etwas, ergänze die Anlage im ELSTER-Portal statt sie hier zu senden.
 
 ### Anlage AVEÜR
 
@@ -146,9 +162,10 @@ Werbungskosten:
 
 - **Wege zur ersten Tätigkeitsstätte:** Anschrift, Tage dort, einfache Entfernung, optional Arbeitstage je Woche und Urlaubs- und Krankheitstage. Haben geht von Fahrten mit dem eigenen Auto aus.
 - **Homeoffice-Tage:** an denen du nicht zur Tätigkeitsstätte gefahren bist; mit dem Haken „dauerhaft kein anderer Arbeitsplatz“ in Zeile 62 statt 61.
+- **Häusliches Arbeitszimmer:** nur, wenn es den Mittelpunkt deiner gesamten beruflichen und betrieblichen Tätigkeit bildet: die Aufwendungen des Jahres oder stattdessen die Jahrespauschale von 1.260 €, die sich für jeden vollen Monat ohne diese Voraussetzung um 105 € mindert ([§ 4 Abs. 5 Satz 1 Nr. 6b EStG](https://www.gesetze-im-internet.de/estg/__4.html), für Arbeitnehmer über § 9 Abs. 5). Die Homeoffice-Tagespauschale gibt es nicht für die Zeit, für die du das Arbeitszimmer absetzt (Nr. 6c Satz 3).
 - **Arbeitsmittel, Fortbildung, Gewerkschaft, Berufsverbände, weitere Werbungskosten** (etwa Kontoführung) als Beträge. Gewerkschaftsbeiträge zieht die Steuerschätzung ab 2026 zusätzlich zum Arbeitnehmer-Pauschbetrag ab (§ 9a Satz 3 EStG); in der Anlage N bis 2025 stehen sie mit den Berufsverbänden in einer Zeile, ab 2026 in einer eigenen. Zu den Fortbildungskosten meldet Haben ab 2026 steuerfreie Erstattungen mit 0; trag deshalb nur den Teil ein, den du selbst getragen hast.
 
-In der Prognose rechnet Haben die Entfernungspauschale mit 0,30 € je Kilometer, ab dem 21. Kilometer 0,38 € (ab 2026 ab dem ersten). Homeoffice zählt mit 6 € je Tag, höchstens 210 Tage; liegen die Werbungskosten unter dem Arbeitnehmer-Pauschbetrag von 1.230 €, gilt der Pauschbetrag.
+In der Prognose rechnet Haben die Entfernungspauschale mit 0,30 € je Kilometer, ab dem 21. Kilometer 0,38 € (2021: 0,35 €; ab 2026 vom ersten Kilometer an). Homeoffice zählt mit 6 € je Tag, höchstens 210 Tage; liegen die Werbungskosten unter dem Arbeitnehmer-Pauschbetrag von 1.230 €, gilt der Pauschbetrag.
 
 Die Homeoffice-Pauschale gibt es je Person nur einmal im Jahr. Hast du als Person A auch [Homeoffice-Tage in der EÜR](pauschalen.md), weist Haben darauf hin, wenn beide zusammen mehr als 210 Tage ergeben.
 
@@ -160,10 +177,10 @@ Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester, Kind
 
 ## Körperschaft- und Gewerbesteuererklärung (GmbH und UG)
 
-Die Werte kommen aus der [Steuerberechnung beim Jahresabschluss](buchhaltung.md#körperschaft--und-gewerbesteuer-gmbh-und-ug); dort stehen auch Hebesatz, Verlustvorträge und ein Verlustrücktrag. Auf dieser Seite trägst du ein, was nur die Erklärung braucht, unter **Angaben zu den Erklärungen**:
+Die Werte kommen aus der [Steuerberechnung beim Jahresabschluss](gmbh-abschluss.md#körperschaft--und-gewerbesteuer-gmbh-und-ug); dort stehen auch Hebesatz, Verlustvorträge und ein Verlustrücktrag. Auf dieser Seite trägst du ein, was nur die Erklärung braucht, unter **Angaben zu den Erklärungen**:
 
 - **Anteilseigner** mit Anschrift, Identifikationsnummer (oder Steuernummer im ELSTER-Format), Beteiligung in Euro und Anteil; die Anteile ergeben zusammen 100 %. „Geändert“ markiert eine Änderung gegenüber dem Vorjahr.
-- Für Ausschüttungen je Anteilseigner das **Kirchensteuerabzugsmerkmal**: Kirchensteuersatz (8 oder 9 %) und Religionsschlüssel aus der Antwort des Bundeszentralamts für Steuern, dazu der Name der kirchensteuererhebenden Religionsgemeinschaft (etwa „römisch-katholisch“): Den Schlüssel braucht die Kapitalertragsteuer-Anmeldung, den Namen die [Steuerbescheinigung](buchhaltung.md#gewinnausschüttung-gmbh-und-ug) nach Muster II. Ohne Kirchensteuerpflicht bleibt das Feld auf „keine“.
+- Für Ausschüttungen je Anteilseigner das **Kirchensteuerabzugsmerkmal**: Kirchensteuersatz (8 oder 9 %) und Religionsschlüssel aus der Antwort des Bundeszentralamts für Steuern, dazu der Name der kirchensteuererhebenden Religionsgemeinschaft (etwa „römisch-katholisch“): Den Schlüssel braucht die Kapitalertragsteuer-Anmeldung, den Namen die [Steuerbescheinigung](gmbh-abschluss.md#gewinnausschüttung-gmbh-und-ug) nach Muster II. Ohne Kirchensteuerpflicht bleibt das Feld auf „keine“.
 - **Verträge mit Anteilseignern** und nahestehenden Personen (Geschäftsführer-, Miet-, Darlehensvertrag) mit Datum und Vergütung im Jahr (Anlage WA).
 - Im Gründungsjahr das **Gründungsdatum**: Damit beginnen Steuerpflicht und erstes Wirtschaftsjahr.
 - Der **Bestand des steuerlichen Einlagekontos** zum Schluss des Vorjahres (meist 0) und, falls Lizenzen an im Ausland Ansässige gezahlt wurden, der Anteil nach § 50a EStG für die Gewerbesteuer.
@@ -172,10 +189,10 @@ Ohne Angaben für das Jahr übernimmt die Seite Anteilseigner und Verträge aus 
 
 | Erklärung | Was Haben sendet |
 | --- | --- |
-| Körperschaftsteuer (KSt 1 mit Anlagen GK, ZVE, WA, KSt 1 F, Verluste) | Jahresüberschuss, nicht abziehbare Steuern und Betriebsausgaben (Anlage GK Zeilen 81 bis 90), Einkünfte aus Gewerbebetrieb, Verlustabzug mit Mindestbesteuerung, zu versteuerndes Einkommen und 15 % Körperschaftsteuer; Anteilseigner, Verträge, kein schädlicher Beteiligungserwerb nach § 8c KStG, Einlagekonto (Anlage KSt 1 F) mit den [Ausschüttungen](buchhaltung.md#gewinnausschüttung-gmbh-und-ug) des Jahres, dem ausschüttbaren Gewinn und dem Teil aus dem Einlagekonto |
+| Körperschaftsteuer (KSt 1 mit Anlagen GK, ZVE, WA, KSt 1 F, Verluste) | Jahresüberschuss, nicht abziehbare Steuern und Betriebsausgaben (Anlage GK Zeilen 81 bis 90), Einkünfte aus Gewerbebetrieb, Verlustabzug mit Mindestbesteuerung, zu versteuerndes Einkommen und 15 % Körperschaftsteuer; Anteilseigner, Verträge, kein schädlicher Beteiligungserwerb nach § 8c KStG, Einlagekonto (Anlage KSt 1 F) mit den [Ausschüttungen](gmbh-abschluss.md#gewinnausschüttung-gmbh-und-ug) des Jahres, dem ausschüttbaren Gewinn und dem Teil aus dem Einlagekonto |
 | Gewerbesteuer (GewSt 1 A) | Rechtsform, Gegenstand (Einstellungen › Art des Betriebs), einzige Betriebsstätte am Sitz, Gewinn aus Gewerbebetrieb, Zinsen, Mieten, Leasing und Lizenzen in voller Höhe (§ 8 Nr. 1 GewStG; den Hinzurechnungsbetrag ermittelt das Finanzamt) und den Gewerbeverlust des Vorjahres |
 
-Alle Beträge in vollen Euro; die Summen rechnet Haben aus den Einzelbeträgen, wie die Plausibilitätsregeln es verlangen. **Nur prüfen** und die **Testübermittlung** gehen jederzeit; **echt senden** erst, wenn das Jahr [abgeschlossen](buchhaltung.md#jahresabschluss-gmbh-und-ug) ist, und je Erklärung nur einmal. Die Körperschaftsteuererklärung kennt Haben für 2025, die Gewerbesteuererklärung für 2024 und 2025; für spätere Jahre kommt das Formular mit dem nächsten ERiC.
+Alle Beträge in vollen Euro; die Summen rechnet Haben aus den Einzelbeträgen, wie die Plausibilitätsregeln es verlangen. **Nur prüfen** und die **Testübermittlung** gehen jederzeit; **echt senden** erst, wenn das Jahr [abgeschlossen](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug) ist, und je Erklärung nur einmal. Die Körperschaftsteuererklärung kennt Haben für 2025, die Gewerbesteuererklärung für 2024 und 2025; für spätere Jahre kommt das Formular mit dem nächsten ERiC.
 
 > [!WARNING]
 > Nicht abgedeckt sind Organschaft, Beteiligungen an anderen Gesellschaften (§ 8b KStG), verdeckte Gewinnausschüttungen, Spenden, Einlagen in das Einlagekonto, ausländische Einkünfte, mehrere Betriebsstätten, Kürzungen nach § 9 GewStG und ein schädlicher Beteiligungserwerb (§ 8c KStG). Hat die GmbH davon etwas, gibt die Steuerberatung die Erklärungen ab.
@@ -211,8 +228,12 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 
 ## Herkunft der Feldkennungen
 
-Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste.
+Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste. Die Felder der Umsatzsteuererklärung über Umsätze zu 19 und 7 % und die Vorsteuer aus Rechnungen hinaus (steuerfreie und nicht steuerbare Umsätze, innergemeinschaftliche Erwerbe, §-13b-Leistungen, weitere Vorsteuer) stammen direkt aus Feldliste, Regeln und Schema E50 der Jahre 2023 bis 2026 in ERiC 44.3.6.0.
 
 Die Elemente für Miete (`Raumkosten_u_sonst/Miete_Pacht`, `E6003201`) und Erhaltungsaufwendungen (`Sonst_unbeschraenkt/Erhaltungsaufwand`, `E6004313`) stammen direkt aus den Schemas E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0 und sind mit dem echten ERiC geprüft (`eric-echt.test.ts`).
+
+Die Entfernungspauschale (`KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt`, `E6003702`) steht so im Schema E77 2025 und 2026 der ERiC-Dokumentation; in der Anlage EÜR ist es 2025 die Zeile 73, 2026 die Zeile 74.
+
+Die Beträge in Zeile 18 (`E6000701`, erstattete Umsatzsteuer) und Zeile 58, ab 2026 Zeile 59 (`E6005101`, gezahlte Umsatzsteuer), tragen laut Jahresdokumentation E77 2025 („GeldBetragMitCent ohne Vorzeichen“) und den Schemas E77-2025 und E77-2026 kein Vorzeichen; ERiC lehnt `-190,00` dort mit „Unzulässiges Vorzeichen“ ab. Haben schickt deshalb kein negatives Feld. Ein negativer Betrag heißt, dass im Jahr mehr Umsatzsteuer erstattet als gezahlt wurde: Die Anlage EÜR weist ihn dann als Betriebseinnahme in Zeile 18 aus, umgekehrt einen negativen Betrag in Zeile 18 als Betriebsausgabe in Zeile 58 (2026: 59), jeweils ohne Vorzeichen und getrennt in beiden Zeilen. Der Gewinn bleibt gleich, gebuchte Daten ändern sich nicht. Die Vorprüfung der Anlage EÜR nennt das Umgliedern als Hinweis; bliebe danach ein negativer Betrag übrig, wäre das ein Fehler vor dem Senden.
 
 Die Vordrucke ändern sich jedes Jahr ein wenig. Deshalb vor der Echtübermittlung immer erst prüfen oder testweise senden: Meldet ERiC ein unbekanntes Feld oder eine verletzte Regel, steht die Meldung im Verlauf. Bitte dann als Issue melden.

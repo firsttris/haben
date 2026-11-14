@@ -25,7 +25,9 @@ Unter **Fristen** sammelt Haben alle steuerlichen Termine an einem Ort und erinn
 | Beitragsnachweis je Monat und Einzugsstelle | am Tag vor dem fünftletzten Bankarbeitstag des Monats, weil der Nachweis um 0 Uhr vorliegen muss (zwei Arbeitstage vor der Fälligkeit am drittletzten Bankarbeitstag, § 23 Abs. 1 und § 28f Abs. 3 SGB IV); Bankarbeitstage ohne die Feiertage aller Länder und ohne 24. und 31. Dezember ([SV-Meldeportal](lohn.md#beitragsnachweis)) | die Abgabe im Portal vermerkt ist |
 | An-, Ab- und Jahresmeldung zur Sozialversicherung | Zahltag der nächsten Abrechnung, spätestens sechs Wochen nach Beginn oder Ende bzw. am 15. Februar (§§ 6, 8 und 10 DEÜV), ab dem ersten Lohnlauf in Haben ([Meldungen](lohn.md#meldungen)) | die Abgabe im Portal vermerkt ist |
 
-Bei einer GmbH oder UG fehlen Anlage EÜR, Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen; dafür stehen Körperschaftsteuer- und Gewerbesteuererklärung und die [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) mit der Frist der Erklärungen in der Liste, erledigt mit der echten Übermittlung. Vorauszahlungen zur Körperschaft- und Gewerbesteuer stehen im Bescheid. Zu jeder [Ausschüttung](buchhaltung.md#gewinnausschüttung-gmbh-und-ug) steht die Kapitalertragsteuer-Anmeldung in der Liste: am 10. des Monats nach dem Zufluss, verschoben auf den nächsten Werktag, erledigt mit der echten Übermittlung.
+Bei einer GmbH oder UG fehlen Anlage EÜR, Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen; dafür stehen Körperschaftsteuer- und Gewerbesteuererklärung und die [E-Bilanz](gmbh-abschluss.md#e-bilanz-gmbh-und-ug) mit der Frist der Erklärungen in der Liste, erledigt mit der echten Übermittlung. Vorauszahlungen zur Körperschaft- und Gewerbesteuer stehen im Bescheid. Zu jeder [Ausschüttung](gmbh-abschluss.md#gewinnausschüttung-gmbh-und-ug) steht die Kapitalertragsteuer-Anmeldung in der Liste: am 10. des Monats nach dem Zufluss, verschoben auf den nächsten Werktag, erledigt mit der echten Übermittlung.
+
+Rechts steht der Status jeder Frist: **Offen** mit den Tagen bis zur Frist, **Hinweis** bei Zahlungen, die Haben nicht nachverfolgt, und **Erledigt**. Ab 7 Tagen vor der Frist und danach ist „Offen“ farbig hinterlegt.
 
 Fällt eine Frist auf ein Wochenende oder einen Feiertag im Bundesland der Firma, gilt der nächste Werktag (§ 108 Abs. 3 AO). Die Liste reicht ein Jahr voraus; Offenes aus der Vergangenheit bleibt stehen, bis es erledigt ist, Erledigtes der letzten 60 Tage steht eingeklappt darunter. Ein Klick auf eine Frist führt zur Seite, auf der sie sich erledigen lässt.
 
@@ -42,7 +44,7 @@ Die Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen erscheinen
 
 ## Erinnerungen per E-Mail
 
-Mit einem E-Mail-Zugang (siehe [Einrichtung](einrichtung.md#e-mail)) schickt Haben Erinnerungen:
+Mit einem E-Mail-Zugang (siehe [E-Mail-Versand](einrichtung-email.md)) schickt Haben Erinnerungen:
 
 - zu den eingestellten Tagen vor einer offenen Frist (Vorgabe: 7 Tage und 1 Tag vorher, wählbar 14, 7, 3, 1 Tag oder am Tag),
 - einmal, wenn eine Frist überfällig ist, außer bei Einspruchsfristen und reinen Hinweisen wie den Einkommensteuer-Vorauszahlungen,

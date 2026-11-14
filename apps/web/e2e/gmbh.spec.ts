@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { bestaetigen, faktenZeigen, kundeWaehlen } from "./einrichtung.ts";
 import { currentDay, currentYear, vorschauAnheften } from "./daten.ts";
+import { anzahlungsbilanzPruefen } from "./anzahlung-bilanz.ts";
 
 /**
  * Eine GmbH in eigener, leerer Datenbank (Projekt „gmbh“ in playwright.config.ts, eigener Server): einrichten mit
@@ -661,7 +662,7 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   await faktenZeigen(page, "Person", "Brutto", "Auszahlung");
   await bestaetigen(page, "Festschreiben");
   await expect(page.getByText("Abrechnung festgeschrieben.")).toBeVisible();
-  await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
+  await expect(abrechnung.getByText("Festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const pdf = await page.request.get((await abrechnung.getByRole("link", { name: "Entgeltabrechnung (PDF)" }).getAttribute("href"))!);
   expect(pdf.headers()["content-type"]).toBe("application/pdf");
   expect((await pdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
@@ -750,7 +751,7 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   await page.getByRole("dialog").getByLabel("Grund des Stornos").fill("Gehalt rückwirkend geändert");
   await faktenZeigen(page, "Person", "Brutto", "Auszahlung");
   await bestaetigen(page, "Stornieren");
-  await expect(mitarbeiterin.getByText(/^storniert am/)).toBeVisible();
+  await expect(mitarbeiterin.getByText(/^Storniert am/)).toBeVisible();
   await expect(mitarbeiterin.getByRole("region", { name: /Abrechnung Stufe A/ })).toHaveCount(2);
   await expect(mitarbeiterin.getByText("Grund des Stornos: Gehalt rückwirkend geändert")).toBeVisible();
   expect(await axe(), "/lohn nach Storno").toEqual([]);
@@ -813,9 +814,10 @@ test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck
   const max = page.getByRole("region", { name: "Max Kurzzeit" }).getByRole("region", { name: /^1\. Abrechnung Stufe A/ });
   await max.getByRole("button", { name: "Festschreiben" }).click();
   await bestaetigen(page, "Festschreiben");
-  await expect(max.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
+  await expect(max.getByText("Festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const erika = page.getByRole("region", { name: "Erika Gesellschafter" });
   await erika.getByRole("button", { name: "Entwurf löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await expect(erika.getByRole("button", { name: "Entwurf löschen" })).toHaveCount(0);
 
   await page.getByRole("link", { name: `Lohnsteuerbescheinigungen ${lohnJahr}` }).click();
@@ -910,7 +912,7 @@ test("SV-Meldeportal: Minijob abrechnen, Beitragsnachweis und Anmeldung abtippen
   const abrechnung = page.getByRole("region", { name: "Mia Aushilfe" }).getByRole("region", { name: /^1\. Abrechnung Stufe B/ });
   await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
   await bestaetigen(page, "Festschreiben");
-  await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
+  await expect(abrechnung.getByText("Festgeschrieben und gebucht", { exact: true })).toBeVisible();
 
   await page
     .getByRole("navigation", { name: "Hauptnavigation" })
@@ -925,7 +927,7 @@ test("SV-Meldeportal: Minijob abrechnen, Beitragsnachweis und Anmeldung abtippen
   expect(await axe(), "/sv-meldeportal").toEqual([]);
 
   const nachweis = page.getByRole("region", { name: `Beitragsnachweis ${lohnMonatsname} ${lohnJahr} · Minijob-Zentrale` });
-  await expect(nachweis.getByText("offen", { exact: true })).toBeVisible();
+  await expect(nachweis.getByText("Offen", { exact: true })).toBeVisible();
   await expect(nachweis.getByRole("row", { name: /Betriebsnummer der Einzugsstelle/ })).toContainText("98000006");
   await expect(nachweis.getByRole("row", { name: /Pauschalbeiträge zur Krankenversicherung/ })).toContainText("67,60");
   await expect(nachweis.getByRole("row", { name: /Einheitliche Pauschsteuer/ })).toContainText("10,40");
@@ -947,7 +949,7 @@ test("SV-Meldeportal: Minijob abrechnen, Beitragsnachweis und Anmeldung abtippen
   await expect(nachweis.getByText("Vermerkt: im Portal abgegeben.")).toBeVisible();
   // Nach dem Vermerk ist das Feld wieder leer, auch in der Anzeige
   await expect(vermerk.locator(".file-picker-name")).toHaveText("Keine Datei gewählt");
-  await expect(nachweis.getByText("abgegeben", { exact: true })).toBeVisible();
+  await expect(nachweis.getByText("Abgegeben", { exact: true })).toBeVisible();
   const protokoll = await page.request.get((await nachweis.getByRole("link", { name: "Protokoll protokoll.pdf" }).getAttribute("href"))!);
   expect((await protokoll.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
   expect(await axe(), "/sv-meldeportal mit Vermerk").toEqual([]);
@@ -1103,4 +1105,9 @@ test("Freie Buchung mit Steuerschlüssel: Leistung an den Gesellschafter, brutto
   await expect(row).toContainText("119,00");
   await row.getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
   await expect(page.getByRole("region", { name: "Buchungen" })).toContainText("3806");
+});
+
+test("Anzahlungsbilanz: Anforderungen getrennt und verdiente Forderung nach Papierstorno sichtbar (#750)", async () => {
+  test.setTimeout(120_000);
+  await anzahlungsbilanzPruefen(page);
 });

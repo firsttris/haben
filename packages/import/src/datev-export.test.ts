@@ -176,3 +176,62 @@ describe("Private Kfz-Nutzung auf den Automatikkonten", () => {
     });
   }
 });
+
+describe("Belegfeld 1 im Zeichensatz von DATEV (#675)", () => {
+  // DATEV „ASCII-Import: Feldbeschreibungen für Standardformate“, Dok.-Nr. 1003221, Stand 13.08.2026, Feld 11: Ziffern,
+  // Buchstaben und $ & % * + - /; unzulässig sind „insbesondere Leerzeichen, Umlaute, Punkt, Komma, Semikolon und Doppelpunkt“
+  const buchung = (voucher: string, description: string, date = "2026-09-01"): DatevExportEntry => ({
+    date,
+    description,
+    voucher,
+    locked: true,
+    lines: [
+      { account: "1400", debit: 11_900, credit: 0 },
+      { account: "8400", debit: 0, credit: 11_900 },
+    ],
+  });
+  const zahlung = (voucher: string): DatevExportEntry => ({
+    date: "2026-09-20",
+    description: `Zahlung ${voucher}`,
+    voucher,
+    locked: true,
+    lines: [
+      { account: "1200", debit: 11_900, credit: 0 },
+      { account: "1400", debit: 0, credit: 11_900 },
+    ],
+  });
+  const belegfelder = (list: DatevExportEntry[]) => parseDatevBuchungsstapel(buildDatevBuchungsstapel(header, list).bytes).bookings.map((b) => b.voucherField1);
+
+  it("ersetzt den Punkt durch einen Bindestrich, in Rechnung und Zahlung gleich", () => {
+    const list = [buchung("RE.2026.001", "Rechnung RE.2026.001"), zahlung("RE.2026.001")];
+    expect(belegfelder(list)).toEqual(["RE-2026-001", "RE-2026-001"]);
+    expect(buildDatevBuchungsstapel(header, list).warnings).toEqual([]);
+  });
+
+  it("entfernt Umlaute und Leerzeichen, ersetzt Punkte und kürzt danach auf 36 Zeichen", () => {
+    const voucher = "RÜ.Müller 2026.0001.Nachzahlung.Grundsteuer";
+    expect(belegfelder([buchung(voucher, "Rechnung"), zahlung(voucher)])).toEqual([
+      "R-Mller2026-0001-Nachzahlung-Grundst",
+      "R-Mller2026-0001-Nachzahlung-Grundst",
+    ]);
+  });
+
+  it("lässt die erlaubten Sonderzeichen stehen", () => {
+    expect(belegfelder([buchung("A$1&2%3*4+5-6/7", "Rechnung")])).toEqual(["A$1&2%3*4+5-6/7"]);
+  });
+
+  it("warnt, wenn zwei verschiedene Nummern dasselbe Belegfeld 1 ergeben", () => {
+    const { warnings } = buildDatevBuchungsstapel(header, [buchung("RE.1", "Rechnung RE.1"), zahlung("RE.1"), buchung("RE-1", "Beleg RE-1")]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("„RE.1“");
+    expect(warnings[0]).toContain("„RE-1“");
+  });
+
+  it("warnt auch, wenn erst das Kürzen auf 36 Zeichen zwei Nummern gleich macht", () => {
+    const lang = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const { warnings } = buildDatevBuchungsstapel(header, [buchung(`${lang}-1`, "Rechnung 1"), buchung(`${lang}-2`, "Rechnung 2")]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain(`„${lang}-1“`);
+    expect(warnings[0]).toContain(`„${lang}-2“`);
+  });
+});
