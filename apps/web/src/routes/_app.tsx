@@ -65,10 +65,6 @@ function useFirmaBrand() {
   return { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg };
 }
 
-/**
- * Zustand der eingeklappten Leiste. Welche Fassung zu sehen ist, entscheidet allein CSS ([data-nav] und die Breite),
- * damit der Server beide liefert und beim Laden nichts nachrückt.
- */
 /** Strg+B bzw. ⌘+B klappt am Desktop die Seitenleiste ein und aus; nicht in Feldern (dort ist es Fett) und nicht über Dialogen */
 function useEinklappKuerzel() {
   useEffect(() => {
@@ -88,6 +84,10 @@ function useEinklappKuerzel() {
   }, []);
 }
 
+/**
+ * Zustand der eingeklappten Leiste. Welche Fassung zu sehen ist, entscheidet allein CSS ([data-nav] und die Breite),
+ * damit der Server beide liefert und beim Laden nichts nachrückt.
+ */
 function useRailState() {
   const collapsed = useSyncExternalStore(subscribeNavCollapsed, readNavCollapsed, () => false);
   const [openFlyout, setOpenFlyout] = useState<{ key: string; weg: FlyoutWeg } | null>(null);
