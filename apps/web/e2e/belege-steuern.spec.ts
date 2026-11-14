@@ -561,7 +561,11 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await expect(liste.getByRole("row")).toHaveCount(4);
   const zeile = liste.getByRole("row").filter({ hasText: "Karlsruhe" });
   await zeile.getByRole("button", { name: "Stornieren" }).click();
-  await faktenZeigen(page, "Datum", "Betrag");
+  // Ein Storno nennt dasselbe wie das, was es zurücknimmt (DESIGN.md, Rückfragen): Anlass, Strecke und Fahrzeug wie in der Liste
+  await faktenZeigen(page, "Datum", "Anlass und Ziel", "Angaben", "Betrag");
+  await expect(page.getByRole("dialog")).toContainText("Workshop Nordwerk, Karlsruhe");
+  await expect(page.getByRole("dialog")).toContainText("85 km (hin und zurück) · Auto");
+  await expect(page.getByRole("dialog").locator("dd").first()).toHaveText(/^\d{2}\.\d{2}\.\d{4}$/);
   await bestaetigen(page, "Stornieren");
   await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
@@ -645,7 +649,12 @@ test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno 
   const zeile = liste.getByRole("row").filter({ hasText: "Praxis Musterstadt" });
   await expect(zeile).toHaveCount(1);
   await zeile.getByRole("button", { name: "Stornieren" }).click();
-  await faktenZeigen(page, "Datum", "Betrag");
+  // Der Monat mit Jahr, dazu Betriebsstätte, Tage und Kilometer wie bei der Buchung
+  await faktenZeigen(page, "Monat", "Betriebsstätte", "Angaben", "Betrag");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Praxis Musterstadt");
+  await expect(dialog).toContainText("15 Tage × 12 km einfache Entfernung");
+  await expect(dialog.locator("dd").first()).toHaveText(/^[A-ZÄÖÜ][a-zä]+ \d{4}$/);
   await bestaetigen(page, "Stornieren");
   await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
 });

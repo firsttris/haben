@@ -50,10 +50,30 @@ const ART_KURZ: Record<PauschaleArt, string> = {
 const MAHLZEIT_LABEL = { fruehstueck: "Frühstück", mittag: "Mittagessen", abend: "Abendessen" } as const;
 
 /** Homeoffice und Wege zur Betriebsstätte gelten für einen Monat, die anderen Pauschalen für einen Tag */
-function pauschaleDatum(e: { art: string; date: string }): string {
-  return e.art === "homeoffice" || e.art === "entfernung"
-    ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`))
-    : formatDate(e.date);
+const monatlich = (art: string) => art === "homeoffice" || art === "entfernung";
+
+/** Ohne Jahr in der Liste unter der Überschrift mit dem Jahr, mit Jahr im Storno-Dialog */
+function pauschaleDatum(e: { art: string; date: string }, mitJahr = false): string {
+  if (!monatlich(e.art)) return formatDate(e.date);
+  return new Intl.DateTimeFormat("de-DE", { month: "long", year: mitJahr ? "numeric" : undefined, timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`));
+}
+
+/** Die Beschriftung der Beschreibung wie im Formular der Pauschale */
+const BESCHREIBUNG_LABEL: Record<PauschaleArt, string> = {
+  homeoffice: "Notiz",
+  fahrt: "Anlass und Ziel",
+  verpflegung: "Anlass und Ort",
+  entfernung: "Betriebsstätte",
+};
+
+/** Was der Storno-Dialog nennt: dasselbe wie die Zeile, die er zurücknimmt (DESIGN.md, Rückfragen) */
+function stornoFakten(e: Entry) {
+  return [
+    { label: monatlich(e.art) ? "Monat" : "Datum", value: pauschaleDatum(e, true) },
+    ...(e.description ? [{ label: BESCHREIBUNG_LABEL[e.art], value: e.description }] : []),
+    { label: "Angaben", value: detailText(e) },
+    { label: "Betrag", value: formatEuro(e.amount), strong: true },
+  ];
 }
 
 const parseKm = (value: string) => Number(value.replace(/\./g, "").replace(",", "."));
@@ -487,14 +507,7 @@ function Liste({ data }: { data: Data }) {
       <ConfirmDialog
         open={confirm !== null}
         title={`${confirm ? PAUSCHALE_LABEL[confirm.art] : ""} stornieren?`}
-        facts={
-          confirm
-            ? [
-                { label: "Datum", value: pauschaleDatum(confirm) },
-                { label: "Betrag", value: formatEuro(confirm.amount), strong: true },
-              ]
-            : undefined
-        }
+        facts={confirm ? stornoFakten(confirm) : undefined}
         confirmLabel="Stornieren"
         danger
         onConfirm={() => confirm && storno(confirm.id)}
