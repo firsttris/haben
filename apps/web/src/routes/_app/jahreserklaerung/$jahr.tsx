@@ -1,4 +1,4 @@
-import { RECHTSFORMEN, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
+import { RECHTSFORMEN, formatDecimal, formatDeduction, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -10,7 +10,7 @@ import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
-import { ELSTER_KIND_LABEL, elsterNotice } from "../../../lib/elster.ts";
+import { ELSTER_KIND_LABEL, abgabePille, elsterNotice } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
@@ -130,7 +130,15 @@ function Issues({ issues }: { issues: Issue[] }) {
         <div key={issue.text} className={`banner ${issue.tone === "hinweis" ? "banner-info" : ""}`} role="status">
           <Icon name={issue.tone === "hinweis" ? "info" : "alert"} />
           <span>
-            {issue.text} {issue.link && <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>}
+            {issue.text} {/* Ein Zeitraum führt auf den betroffenen Zeitraum statt auf den laufenden (#869) */}
+            {issue.link &&
+              (issue.zeitraum ? (
+                <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: issue.zeitraum }}>
+                  {LINK_LABEL[issue.link]}
+                </Link>
+              ) : (
+                <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>
+              ))}
           </span>
         </div>
       ))}
@@ -165,20 +173,14 @@ function Row({ label, kz, value, extra, total, text }: { label: string; kz?: str
   );
 }
 
-function SentPill({ sent, submitted }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"] }) {
-  if (sent)
-    return (
-      <Status tone="ok" inline detail={`am ${formatDate(sent.createdAt)}`}>
-        Übermittelt
-      </Status>
-    );
-  if (submitted)
-    return (
-      <Status tone="ok" inline detail={submitted.filedOn ? `am ${formatDate(submitted.filedOn)}` : null}>
-        Außerhalb abgegeben
-      </Status>
-    );
-  return <Status inline>Noch nicht übermittelt</Status>;
+/** Stand der Abgabe; `verwaltet` ist false für die Einkommensteuer, für die Haben keinen Vermerk kennt (#869) */
+function SentPill({ sent, submitted, verwaltet }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"]; verwaltet?: boolean }) {
+  const pille = abgabePille({ sent: sent?.createdAt ?? null, submitted, verwaltet });
+  return (
+    <Status tone={pille.ok ? "ok" : undefined} inline>
+      {pille.text}
+    </Status>
+  );
 }
 
 function UstSection({ data }: { data: Data }) {
@@ -209,24 +211,30 @@ function UstSection({ data }: { data: Data }) {
           <tbody>
             <Row label="Umsätze zu 19 %" extra={formatEuro(f.base19)} value={formatEuro(f.tax19)} />
             <Row label="Umsätze zu 7 %" extra={formatEuro(f.base7)} value={formatEuro(f.tax7)} />
-            {ust.kz21 !== 0 && <Row label="Leistungen im EU-Ausland (Reverse Charge)" extra={formatEuro(ust.kz21)} value="–" />}
-            {ust.kz45 !== 0 && <Row label="Nicht steuerbare Umsätze (Drittland)" extra={formatEuro(ust.kz45)} value="–" />}
-            {ust.kz48 !== 0 && <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug" extra={formatEuro(ust.kz48)} value="–" />}
-            {ust.reverseChargeTax !== 0 && <Row label="Steuer als Leistungsempfänger (§ 13b)" extra="" value={formatEuro(ust.reverseChargeTax)} />}
-            {ust.kz41 !== 0 && <Row label="Steuerfreie innergemeinschaftliche Lieferungen" extra={formatEuro(ust.kz41)} value="–" />}
-            {ust.kz43 !== 0 && <Row label="Steuerfreie Ausfuhrlieferungen" extra={formatEuro(ust.kz43)} value="–" />}
-            {ust.igErwerb19 !== 0 && <Row label="Innergemeinschaftliche Erwerbe zu 19 %" extra={formatEuro(ust.igErwerb19)} value="–" />}
-            {ust.igErwerb7 !== 0 && <Row label="Innergemeinschaftliche Erwerbe zu 7 %" extra={formatEuro(ust.igErwerb7)} value="–" />}
-            {ust.igErwerbVorsteuer !== 0 && (
-              <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" extra="" value={`−${formatEuro(ust.igErwerbVorsteuer)}`} />
+            {(f.kz41 ?? 0) !== 0 && <Row label="Steuerfreie innergemeinschaftliche Lieferungen" kz="41" extra={formatEuro(f.kz41!)} value="–" />}
+            {(f.kz43 ?? 0) !== 0 && <Row label="Steuerfreie Ausfuhrlieferungen" kz="43" extra={formatEuro(f.kz43!)} value="–" />}
+            {((f.kz89 ?? 0) !== 0 || (f.tax89 ?? 0) !== 0) && (
+              <Row label="Innergemeinschaftliche Erwerbe zu 19 %" kz="89" extra={formatEuro(f.kz89 ?? 0)} value={formatEuro(f.tax89 ?? 0)} />
             )}
-            {ust.einfuhrumsatzsteuer !== 0 && (
-              <Row label="Entstandene Einfuhrumsatzsteuer (Kz 62)" extra="" value={`−${formatEuro(ust.einfuhrumsatzsteuer)}`} />
+            {((f.kz93 ?? 0) !== 0 || (f.tax93 ?? 0) !== 0) && (
+              <Row label="Innergemeinschaftliche Erwerbe zu 7 %" kz="93" extra={formatEuro(f.kz93 ?? 0)} value={formatEuro(f.tax93 ?? 0)} />
             )}
-            <Row label="Abziehbare Vorsteuer" extra="" value={`−${formatEuro(f.vorsteuer)}`} />
+            {((f.kz46 ?? 0) !== 0 || (f.kz47 ?? 0) !== 0) && (
+              <Row label="§-13b-Leistungen aus dem EU-Ausland" kz="46/47" extra={formatEuro(f.kz46 ?? 0)} value={formatEuro(f.kz47 ?? 0)} />
+            )}
+            {((f.kz84 ?? 0) !== 0 || (f.kz85 ?? 0) !== 0) && (
+              <Row label="§-13b-Leistungen aus dem Drittland" kz="84/85" extra={formatEuro(f.kz84 ?? 0)} value={formatEuro(f.kz85 ?? 0)} />
+            )}
+            {(f.kz21 ?? 0) !== 0 && <Row label="Nicht steuerbare Leistungen, Ort im EU-Ausland" kz="21" extra={formatEuro(f.kz21!)} value="–" />}
+            {(f.kz45 ?? 0) !== 0 && <Row label="Nicht steuerbare Umsätze (Drittland)" kz="45" extra={formatEuro(f.kz45!)} value="–" />}
+            {ust.kz48 !== 0 && <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug" kz="48" extra={formatEuro(ust.kz48)} value="–" />}
+            <Row label="Abziehbare Vorsteuer aus Rechnungen" kz="66" extra="" value={formatDeduction(f.vorsteuer)} />
+            {(f.kz61 ?? 0) !== 0 && <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" kz="61" extra="" value={formatDeduction(f.kz61!)} />}
+            {(f.kz62 ?? 0) !== 0 && <Row label="Entstandene Einfuhrumsatzsteuer" kz="62" extra="" value={formatDeduction(f.kz62!)} />}
+            {(f.kz67 ?? 0) !== 0 && <Row label="Vorsteuer aus §-13b-Leistungen" kz="67" extra="" value={formatDeduction(f.kz67!)} />}
             <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
-            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={`−${formatEuro(f.vorauszahlungen)}`} />
-            <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(Math.abs(ust.abschluss))} total />
+            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatDeduction(f.vorauszahlungen)} />
+            <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(ust.abschluss)} total />
           </tbody>
         </table>
         <p className="small muted" style={{ margin: 0 }}>
@@ -464,7 +472,7 @@ function EstSection({ data }: { data: Data }) {
       <form className="card" onSubmit={onSubmit} aria-label="Angaben zur Einkommensteuer">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
           <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
-          <SentPill sent={est.sent} submitted={est.submitted} />
+          <SentPill sent={est.sent} submitted={est.submitted} verwaltet={est.verwaltet} />
         </div>
         <Issues issues={est.issues} />
         <ScrollTable className="report-table">
@@ -640,7 +648,10 @@ function EstSection({ data }: { data: Data }) {
           </div>
         </Block>
 
-        {/* Speichern bleibt am unteren Rand sichtbar, solange das Formular im Bild ist */}
+        <p className="small muted" style={{ margin: 0 }}>
+          Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
+        </p>
+        {/* Speichern bleibt unten sichtbar; der Hinweis steht davor, weil der Footer mit negativem Rand darüber liegt */}
         <div className="form-sticky-footer">
           <NoticeBanner notice={notice} />
           <div className="actions" style={{ alignItems: "center" }}>
@@ -650,9 +661,6 @@ function EstSection({ data }: { data: Data }) {
             <span className="small muted">Voraussichtliche Steuer {formatEuro(est.prognose.gesamt)}</span>
           </div>
         </div>
-        <p className="small muted" style={{ margin: 0 }}>
-          Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
-        </p>
       </form>
       <SubmitPanel form="est" data={data} blocked={blocked} sent={Boolean(est.sent)} submitted={est.submitted} />
     </section>

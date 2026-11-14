@@ -207,7 +207,8 @@ describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Verst
             if (method === "Bank") {
               const [allocation] = await sql`select a.id from allocations a join bank_transactions b on b.id = a.transaction_id
                 where a.invoice_id = ${invoice.id} and b.booking_date = ${`${year}-02-08`} and a.reverses_id is null`;
-              await bank.reverseAllocation(actor, allocation!.id);
+              // Aufhebung am Tag der Zahlung: der Test prüft die Periode, nicht das Aufhebungsdatum (#782)
+              await bank.reverseAllocation(actor, allocation!.id, `${year}-02-08`);
               expect.soft(await taxInMonth(2, profile)).toBe(0);
               expect.soft(await vat.computeVatFigures({ year, month: 2 })).toMatchObject({ kz81: 0, tax81: 0 });
               const [payment] = await sql`select transaction_id from allocations where id = ${allocation!.id}`;
@@ -233,7 +234,8 @@ describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Verst
           expect.soft(abgleich.abweichungen((await auswertungen.vatAbgleich({ year, month: 2 })).zeilen)).toEqual([]);
           await expectDatevMatchesJournal();
           const [allocation] = await sql`select id from allocations where transaction_id = ${payment} and reverses_id is null`;
-          await bank.reverseAllocation(actor, allocation!.id);
+          // Aufhebung am Tag der Zahlung: der Test prüft die Periode, nicht das Aufhebungsdatum (#782)
+          await bank.reverseAllocation(actor, allocation!.id, `${year}-02-08`);
           expect.soft(await taxInMonth(2, profile)).toBe(0);
           expect.soft(await vat.computeVatFigures({ year, month: 2 })).toMatchObject({ kz81: 0, tax81: 0 });
         });

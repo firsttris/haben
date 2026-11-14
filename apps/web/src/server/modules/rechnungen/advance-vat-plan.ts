@@ -45,7 +45,7 @@ async function paymentEvents(invoices: Invoice[], q: Db | Tx): Promise<AdvanceBa
     tax_shares_invoice_id: string | null;
     written_off: boolean;
     kind: "skonto" | "forderungsausfall" | null;
-  }>(sql`select a.invoice_id, b.booking_date::text as date, a.amount, a.tax_shares, a.tax_shares_invoice_id, false as written_off
+  }>(sql`select a.invoice_id, coalesce(a.date, b.booking_date)::text as date, a.amount, a.tax_shares, a.tax_shares_invoice_id, false as written_off
     , null::text as kind
     from allocations a join bank_transactions b on b.id = a.transaction_id where a.invoice_id in ${ids}
     union all select invoice_id, date::text, amount, tax_shares, tax_shares_invoice_id, false, null from cash_entries where invoice_id in ${ids}
@@ -158,7 +158,8 @@ export async function advanceVatPlans(q: Db | Tx, year: number, taxes = invoiceT
   ), relevant as (
     select f.root_id from family f join invoices i on i.id = f.id where i.issue_date >= ${start} and i.issue_date < ${end}
     union select f.root_id from family f join allocations a on a.invoice_id = f.id
-      join bank_transactions b on b.id = a.transaction_id where b.booking_date >= ${start} and b.booking_date < ${end}
+      join bank_transactions b on b.id = a.transaction_id
+      where coalesce(a.date, b.booking_date) >= ${start} and coalesce(a.date, b.booking_date) < ${end}
     union select f.root_id from family f join cash_entries c on c.invoice_id = f.id where c.date >= ${start} and c.date < ${end}
     union select f.root_id from family f join write_offs w on w.invoice_id = f.id where w.date >= ${start} and w.date < ${end}
     union select f.root_id from family f join invoice_lines l on l.deduction_of = f.id

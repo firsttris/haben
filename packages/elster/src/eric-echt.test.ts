@@ -1,7 +1,8 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildBankverbindungXml, isValidIdnr } from "./bankverbindung.ts";
-import { buildEuerXml, buildUstErklaerungXml, type AveuerAnlage, type EuerFigures } from "./erklaerung.ts";
+import { buildEuerXml, buildUstErklaerungXml, type AveuerAnlage } from "./erklaerung.ts";
+import type { EuerFigures } from "./euer-felder.ts";
 import { buildEstXml, type EstAngaben, type EstArbeitnehmer, type EstXmlInput } from "./est.ts";
 import { checkFormats, ericMeldungen } from "./formatprobe.ts";
 import { ericHomeIn } from "./install.ts";
@@ -221,9 +222,11 @@ const alleEuerFelder: EuerFigures = {
   kfzSteuerVersicherung: 70_000,
   kfzSonstige: 80_000,
   fahrtNutzungseinlage: 37_200,
+  // Zeile 73 (#895): Pfad und Reihenfolge von E6003702 prüft hier ERiC gegen das Schema E77
+  entfernungspauschale: 6_840,
   entnahmen: 2_400_000,
-  // Fahrten mit dem Privatwagen sind eine Nutzungseinlage und stecken in den Einlagen
-  einlagen: 50_000,
+  // Fahrten mit dem Privatwagen und die Wege zur Betriebsstätte sind Einlagen
+  einlagen: 56_840,
 };
 
 // ---------------------------------------------------------------------------
@@ -427,6 +430,17 @@ const faelle: [string, () => string][] = [
     [
       `Anlage EÜR ${year} Kleinunternehmer`,
       () => buildEuerXml({ ...envelope(year), allgemein, figures: { kleinunternehmer: 2_000_000, edv: 50_000 }, anlagen: [] }),
+    ],
+    [
+      // Negativer Saldo aus Zeile 58 (#933): wird als Betriebseinnahme in Zeile 18 umgegliedert, beide ohne Vorzeichen
+      `Anlage EÜR ${year} Umsatzsteuer umgegliedert`,
+      () =>
+        buildEuerXml({
+          ...envelope(year),
+          allgemein,
+          figures: { steuerpflichtig: 1_000_000, vereinnahmteUst: 190_000, gezahlteUst: -95_000 },
+          anlagen: [],
+        }),
     ],
     [
       `Anlage EÜR ${year} Verlust`,

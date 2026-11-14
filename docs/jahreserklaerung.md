@@ -11,6 +11,8 @@ Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **U
 
 Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eigenen Bereich zum Übermitteln. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
+Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Die Einkommensteuererklärung kennt keinen Vermerk; solange Haben sie nicht gesendet hat, steht dort „Nicht aus Haben übermittelt“ — gesendet wird sie über den Kasten unter der Tabelle.
+
 Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](gmbh-abschluss.md#e-bilanz-gmbh-und-ug).
 
 ## Ablauf
@@ -33,22 +35,29 @@ Ohne eigene Hersteller-ID steht neben dem Senden-Kasten **In Mein ELSTER eintrag
 
 Gibst du die Umsatzsteuererklärung oder die Anlage EÜR außerhalb von Haben ab, etwa mit WISO, über Accountable oder im ELSTER-Portal, hältst du das je Erklärung in der Karte **Außerhalb von Haben abgegeben** mit **Abgabe vermerken** fest. Der Dialog fragt nach dem Tag der Abgabe laut Übermittlungsprotokoll, dem Transferticket, dem Betrag und einer kurzen Begründung; das Protokoll kannst du als PDF anhängen. Vorgeschlagen ist der aus den Buchungen gerechnete Betrag. Weicht der Betrag laut Protokoll davon ab, nennt Haben die Differenz, und der Vermerk geht erst durch, wenn du die Abweichung ausdrücklich bestätigst. Gespeichert wird der Betrag laut Protokoll.
 
-Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung: Die Frist ist erledigt, das Jahr nimmt keine rückdatierten Buchungen mehr an, die Karte zeigt Datum, Ticket und Betrag statt des Knopfs, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf.
+Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung: Die Frist ist erledigt, das Jahr nimmt keine rückdatierten Buchungen mehr an, die Karte zeigt Datum, Ticket und Betrag statt des Knopfs, und Begründung wie Protokoll stehen darunter in einer Tabelle, die erst aufklappt, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf. Meldungen, die Haben aus seinen eigenen Daten ableitet — etwa die Nullerklärung oder „Keine Betriebseinnahmen und -ausgaben im Jahr“ —, treten mit dem Vermerk zurück; sie würden ihm sonst auf derselben Seite widersprechen.
 
 ## Umsatzsteuererklärung
 
 | Zeile | Woher |
 | --- | --- |
 | Umsätze zu 19 % und 7 % | Summe der zwölf Monate aus den Buchungen, wie in der Voranmeldung: Ist-Versteuerung nach Zahlungseingang, Soll nach Rechnungsdatum. Es zählt die Versteuerung des Jahres, auch wenn du sie zum Jahreswechsel umgestellt hast ([Ist- und Soll-Versteuerung](buchhaltung.md#ist--und-soll-versteuerung)). Bemessungsgrundlage in vollen Euro, die Steuer daraus. Die private Kfz-Nutzung ist in den 19 % enthalten |
-| Abziehbare Vorsteuer | Summe der Vorsteuer aus gebuchten Belegen |
+| Steuerfreie innergemeinschaftliche Lieferungen (Kz 41) und Ausfuhrlieferungen (Kz 43) | Summe der zwölf Monate, in vollen Euro |
+| Innergemeinschaftliche Erwerbe zu 19 % (Kz 89) und 7 % (Kz 93) | Bemessungsgrundlage in vollen Euro und die Erwerbsteuer laut Beleg; die Summe der Steuer steht in der Berechnung |
+| §-13b-Leistungen aus dem EU-Ausland (Kz 46/47) und dem Drittland (Kz 84/85) | Bemessungsgrundlage in vollen Euro und die Steuer, die du als Leistungsempfänger schuldest; die Summe steht in der Berechnung |
+| Nicht steuerbare Leistungen, Ort im EU-Ausland (Kz 21), und nicht steuerbare Umsätze (Drittland, Kz 45) | Summe der zwölf Monate, in vollen Euro; ergänzende Angaben ohne Steuer |
+| Abziehbare Vorsteuer (Kz 66) | Summe der Vorsteuer aus gebuchten Belegen |
+| Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61), Einfuhrumsatzsteuer (Kz 62) und Vorsteuer aus §-13b-Leistungen (Kz 67) | Summe der zwölf Monate, gehen in die Summe der Vorsteuerbeträge ein |
 | Vorauszahlungssoll | Summe der gesendeten Voranmeldungen des Jahres; je Monat zählt die zuletzt gesendete (bei Berichtigungen die berichtigte) |
-| Abschlusszahlung bzw. Erstattung | Umsatzsteuer minus Vorsteuer minus Vorauszahlungssoll |
+| Abschlusszahlung bzw. Erstattung | Umsatzsteuer einschließlich § 13b und Erwerbsteuer minus Vorsteuer einschließlich Kz 61, 62 und 67 minus Vorauszahlungssoll |
 
-Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor dem Umzug aus Lexoffice), fehlen sie im Vorauszahlungssoll; Haben weist darauf hin. Dann stimmt die Abschlusszahlung nicht, und du gibst die Erklärung besser im ELSTER-Portal ab.
+Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor dem Umzug aus Lexoffice), fehlen sie im Vorauszahlungssoll; Haben weist darauf hin. Dann stimmt die Abschlusszahlung nicht, und du gibst die Erklärung besser im ELSTER-Portal ab. Der Hinweis verlinkt den letzten Voranmeldungszeitraum des Jahres (2025-Q4 bei vierteljährlicher, 2025-12 bei monatlicher Abgabe), nicht den laufenden Zeitraum.
+
+Abzugszeilen — Vorsteuer, Vorsteuer aus innergemeinschaftlichem Erwerb, Einfuhrumsatzsteuer und Vorauszahlungssoll — zeigen den Betrag mit umgekehrtem Vorzeichen: Ein Abzug steht negativ, eine Gutschrift in derselben Zeile positiv. Wer die Spalte zusammenzählt, kommt damit auf die Abschlusszahlung — solange die Zeilen für § 13b, innergemeinschaftliche Erwerbe und Einfuhr leer sind; die Summenzeile „Umsatzsteuer“ führt diese Kennzahlen nicht mit. Die Abschlusszeile trägt dagegen das Vorzeichen ihres Betrags; eine Erstattung steht deshalb negativ.
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 
-- das Jahr Leistungen im EU-Ausland (Reverse Charge, Kz 21), nicht steuerbare Umsätze im Drittland (Kz 45) oder steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält, Steuer, die du als Leistungsempfänger nach § 13b schuldest (Kz 46/47, 84/85), steuerfreie innergemeinschaftliche Lieferungen (Kz 41), Ausfuhrlieferungen (Kz 43), innergemeinschaftliche Erwerbe (Kz 89, 93 und die Vorsteuer daraus, Kz 61) oder Einfuhrumsatzsteuer (Kz 62). Für diese Zeilen fehlen Haben noch die geprüften Feldkennungen; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
+- das Jahr steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält: Sie gehören je nach Nummer in § 4 UStG in verschiedene Zeilen, mit der Nummer als Text. Das kann Haben noch nicht übermitteln; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
 - du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf. Für 2023 brauchst du sie noch; die Angaben für Kleinunternehmer übermittelst du dann im ELSTER-Portal.
 - es weder Umsätze noch Vorsteuer gibt (Nullerklärung über das ELSTER-Portal).
 
@@ -84,6 +93,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
 | [Pauschale](pauschalen.md): Verpflegungsmehraufwand | Verpflegungsmehraufwendungen (beschränkt abziehbar) |
+| [Pauschale](pauschalen.md#wege-zwischen-wohnung-und-betriebsstätte): Wege zwischen Wohnung und Betriebsstätte | Mindestens abziehbare Kraftfahrzeugkosten für Wege zwischen Wohnung und Betriebsstätte, Familienheimfahrten (Zeile 73 der Anlage EÜR 2025, Entfernungspauschale) |
 | Private Kfz-Nutzung | Private Kfz-Nutzung (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | [Sachentnahme](buchhaltung.md#manuelle-und-freie-buchungen) (freie Buchung, ab dem Stichjahr) | Sonstige Sach-, Nutzungs- und Leistungsentnahmen (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | Einfuhrumsatzsteuer ([Beleg](belege-ausland.md#einfuhrumsatzsteuer)), bei Zahlung | Gezahlte Vorsteuerbeträge |
@@ -102,7 +112,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 
 **Allgemeine Angaben:** Rechtsform „Angehörige freier Berufe“ bzw. „Einzelgewerbetreibende“, Betriebsinhaber ist die steuerpflichtige Person, keine Veräußerung von Grundstücken. Für Gesellschaften ist die Anlage EÜR in Haben nicht gedacht.
 
-Nicht abgebildet sind das häusliche Arbeitszimmer als Mittelpunkt (die Tagespauschale schon), Verpflegung im Ausland, Fahrten zwischen Wohnung und Betriebsstätte, Investitionsabzugsbeträge und Rücklagen. Brauchst du davon etwas, ergänze die Anlage im ELSTER-Portal statt sie hier zu senden.
+Nicht abgebildet sind das häusliche Arbeitszimmer als Mittelpunkt (die Tagespauschale schon), Verpflegung im Ausland, Wege zwischen Wohnung und Betriebsstätte mit einem Fahrzeug im Betriebsvermögen (Zeile 72), Investitionsabzugsbeträge und Rücklagen. Brauchst du davon etwas, ergänze die Anlage im ELSTER-Portal statt sie hier zu senden.
 
 ### Anlage AVEÜR
 
@@ -154,7 +164,7 @@ Werbungskosten:
 - **Homeoffice-Tage:** an denen du nicht zur Tätigkeitsstätte gefahren bist; mit dem Haken „dauerhaft kein anderer Arbeitsplatz“ in Zeile 62 statt 61.
 - **Arbeitsmittel, Fortbildung, Gewerkschaft, Berufsverbände, weitere Werbungskosten** (etwa Kontoführung) als Beträge. Gewerkschaftsbeiträge zieht die Steuerschätzung ab 2026 zusätzlich zum Arbeitnehmer-Pauschbetrag ab (§ 9a Satz 3 EStG); in der Anlage N bis 2025 stehen sie mit den Berufsverbänden in einer Zeile, ab 2026 in einer eigenen. Zu den Fortbildungskosten meldet Haben ab 2026 steuerfreie Erstattungen mit 0; trag deshalb nur den Teil ein, den du selbst getragen hast.
 
-In der Prognose rechnet Haben die Entfernungspauschale mit 0,30 € je Kilometer, ab dem 21. Kilometer 0,38 € (ab 2026 ab dem ersten). Homeoffice zählt mit 6 € je Tag, höchstens 210 Tage; liegen die Werbungskosten unter dem Arbeitnehmer-Pauschbetrag von 1.230 €, gilt der Pauschbetrag.
+In der Prognose rechnet Haben die Entfernungspauschale mit 0,30 € je Kilometer, ab dem 21. Kilometer 0,38 € (2021: 0,35 €; ab 2026 vom ersten Kilometer an). Homeoffice zählt mit 6 € je Tag, höchstens 210 Tage; liegen die Werbungskosten unter dem Arbeitnehmer-Pauschbetrag von 1.230 €, gilt der Pauschbetrag.
 
 Die Homeoffice-Pauschale gibt es je Person nur einmal im Jahr. Hast du als Person A auch [Homeoffice-Tage in der EÜR](pauschalen.md), weist Haben darauf hin, wenn beide zusammen mehr als 210 Tage ergeben.
 
@@ -217,10 +227,12 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 
 ## Herkunft der Feldkennungen
 
-Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste.
+Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste. Die Felder der Umsatzsteuererklärung über Umsätze zu 19 und 7 % und die Vorsteuer aus Rechnungen hinaus (steuerfreie und nicht steuerbare Umsätze, innergemeinschaftliche Erwerbe, §-13b-Leistungen, weitere Vorsteuer) stammen direkt aus Feldliste, Regeln und Schema E50 der Jahre 2023 bis 2026 in ERiC 44.3.6.0.
 
 Die Elemente für Miete (`Raumkosten_u_sonst/Miete_Pacht`, `E6003201`) und Erhaltungsaufwendungen (`Sonst_unbeschraenkt/Erhaltungsaufwand`, `E6004313`) stammen direkt aus den Schemas E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0 und sind mit dem echten ERiC geprüft (`eric-echt.test.ts`).
 
-Die Beträge in Zeile 18 (`E6000701`, erstattete Umsatzsteuer) und Zeile 58 (`E6005101`, gezahlte Umsatzsteuer) tragen laut Jahresdokumentation E77 2025 („GeldBetragMitCent ohne Vorzeichen“) und den Schemas E77-2025 und E77-2026 kein Vorzeichen; ERiC lehnt `-190,00` dort mit „Unzulässiges Vorzeichen“ ab. Haben schickt deshalb kein negatives Feld, sondern meldet den Fall in der Vorprüfung der Anlage EÜR mit Zeile, Kennung und Betrag; wie der Betrag stattdessen einzutragen ist, klärst du mit der Steuerberatung.
+Die Entfernungspauschale (`KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt`, `E6003702`) steht so im Schema E77 2025 und 2026 der ERiC-Dokumentation; in der Anlage EÜR ist es 2025 die Zeile 73, 2026 die Zeile 74.
+
+Die Beträge in Zeile 18 (`E6000701`, erstattete Umsatzsteuer) und Zeile 58, ab 2026 Zeile 59 (`E6005101`, gezahlte Umsatzsteuer), tragen laut Jahresdokumentation E77 2025 („GeldBetragMitCent ohne Vorzeichen“) und den Schemas E77-2025 und E77-2026 kein Vorzeichen; ERiC lehnt `-190,00` dort mit „Unzulässiges Vorzeichen“ ab. Haben schickt deshalb kein negatives Feld. Ein negativer Betrag heißt, dass im Jahr mehr Umsatzsteuer erstattet als gezahlt wurde: Die Anlage EÜR weist ihn dann als Betriebseinnahme in Zeile 18 aus, umgekehrt einen negativen Betrag in Zeile 18 als Betriebsausgabe in Zeile 58 (2026: 59), jeweils ohne Vorzeichen und getrennt in beiden Zeilen. Der Gewinn bleibt gleich, gebuchte Daten ändern sich nicht. Die Vorprüfung der Anlage EÜR nennt das Umgliedern als Hinweis; bliebe danach ein negativer Betrag übrig, wäre das ein Fehler vor dem Senden.
 
 Die Vordrucke ändern sich jedes Jahr ein wenig. Deshalb vor der Echtübermittlung immer erst prüfen oder testweise senden: Meldet ERiC ein unbekanntes Feld oder eine verletzte Regel, steht die Meldung im Verlauf. Bitte dann als Issue melden.

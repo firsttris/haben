@@ -1,0 +1,1 @@
+ALTER TABLE "invoices" ADD COLUMN "service_date" date;

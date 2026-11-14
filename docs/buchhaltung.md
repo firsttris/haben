@@ -155,7 +155,7 @@ Ein Wechsel zum Jahreswechsel gilt nur für künftige Buchungen. Ein noch offene
 | Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG | 8125 | 4125 |
 | Steuerfreie Umsätze § 4 Nr. 1a UStG (Ausfuhr) | 8120 | 4120 |
 | Steuerfreie Umsätze § 4 Nr. 8 ff. UStG | 8100 | 4100 |
-| Erlöse als Kleinunternehmer § 19 UStG | 8195 | 4185 |
+| Erlöse als Kleinunternehmer § 19 UStG | 8192 | 4184 |
 | Umsatzsteuer 19 % | 1776 | 3806 |
 | Umsatzsteuer 7 % | 1771 | 3801 |
 | Umsatzsteuer nicht fällig 19 % | 1766 | 3816 |
@@ -183,6 +183,8 @@ Ein Wechsel zum Jahreswechsel gilt nur für künftige Buchungen. Ein noch offene
 | Saldenvorträge Sachkonten | 9000 | 9000 |
 
 Achtung bei der Nummer 1200: In SKR03 ist das die Bank, in SKR04 die Forderungen; in SKR03 ist 1800 die Privatentnahme, in SKR04 die Bank.
+
+Neue Kleinunternehmererlöse verwenden die Standardkonten 8192/4184 aus den DATEV-Kontenrahmen 2026 ([SKR03, Seite 26](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf#page=26), [SKR04, Seite 14](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf#page=14)). Bisherige Buchungen auf 8195/4185 bleiben unverändert und zählen in EÜR und E-Bilanz weiter als Kleinunternehmererlöse. Auch der DATEV-Export behält ihre Nummern. Stimme deren Kontenfunktion in der DATEV-Zielbuchhaltung mit der Steuerberatung ab: DATEV führt diese Nummern mit Kennzeichen R; sie sind dort erst nach Zuweisung einer anderen Kontenfunktion bebuchbar (Erläuterung auf Seite 37).
 
 In einer GmbH oder UG (siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)) bucht Haben überall, wo im Einzelunternehmen Privateinlage oder Privatentnahme stünde, auf das Gesellschafter-Verrechnungskonto: beim vom Gesellschafter ausgelegten Beleg, bei Bankumsätzen „Gesellschafter (Verrechnungskonto)“ und bei Kassenbuchungen vom und an den Gesellschafter. Privatanteile, Kfz-Privatnutzung und Pauschalen gibt es dort nicht.
 
@@ -251,7 +253,7 @@ Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, 
 | `KU` | 0 % | – | Kleinunternehmer § 19 UStG |
 | `VSt19` | 19 % | 66 | Vorsteuer 19 % |
 | `VSt7` | 7 % | 66 | Vorsteuer 7 % |
-| `keineVSt` | 0 % | – | Ohne Vorsteuer, auch für Belege von Kleinunternehmern |
+| `keineVSt` | 0 % | – | Ohne Vorsteuer, auch für Belege ohne Vorsteuerabzug |
 | `IGL` | 0 % | 41 | Steuerfreie innergemeinschaftliche Lieferung |
 | `Ausfuhr` | 0 % | 43 | Steuerfreie Ausfuhrlieferung |
 | `RC13bEU` | 19 % / 7 % | 46 / 47 | Steuerschuld als Leistungsempfänger, Leistung eines Unternehmers aus dem EU-Ausland (§ 13b Abs. 1 UStG) |
@@ -364,7 +366,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 ## Was Haben nicht bucht
 
 - Gebäude, Sonderabschreibungen nach § 7g EStG und Investitionsabzugsbetrag
-- Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte; Sachentnahmen nur als [freie Buchung](#manuelle-und-freie-buchungen) ab dem Stichjahr, nicht als Kleinunternehmer
+- Fahrtenbuch und Wege zwischen Wohnung und Betriebsstätte mit einem Fahrzeug im Betriebsvermögen (mit dem Privatfahrzeug gibt es die [Entfernungspauschale](pauschalen.md#wege-zwischen-wohnung-und-betriebsstätte)); Sachentnahmen nur als [freie Buchung](#manuelle-und-freie-buchungen) ab dem Stichjahr, nicht als Kleinunternehmer
 - Dreiecksgeschäfte, Konsignationslager und innergemeinschaftliches Verbringen; Einfuhrumsatzsteuer nur aus dem Bescheid des Zolls als Beleg ([Belege](belege-ausland.md#einfuhrumsatzsteuer)); innergemeinschaftliche Lieferungen und Erwerbe nur mit den Grenzen unter [Rechnungen](rechnungen.md#grenzen) und [Belege](belege.md#grenzen); § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn nur aus der [Lohnabrechnung](lohn.md#buchung), mit deren Grenzen (keine Sachbezüge, kein Zuschuss zur privaten Krankenversicherung, keine Beiträge zur Berufsgenossenschaft); Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege-ausland.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
 - Im Einzelunternehmen Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG trägt Haben die Salden [vor](gmbh-abschluss.md#saldenvortrag-und-eröffnung-gmbh-und-ug), einzelne Abschlussbuchungen lassen sich [manuell](#manuelle-und-freie-buchungen) erfassen

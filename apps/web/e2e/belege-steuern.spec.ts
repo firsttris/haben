@@ -440,6 +440,89 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
 });
 
+test("Pauschalen: fehlende Angaben stehen nach dem Druck auf Buchen am Feld, gebucht wird nichts", async () => {
+  await go("/pauschalen");
+  const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+  const liste = page.getByRole("region", { name: /^Eingetragen in/ });
+  const zeilen = await liste.getByRole("row").count();
+
+  // Vor dem ersten Druck kein Fehler, auch wenn das Feld leer ist
+  const homeoffice = neu.getByRole("form", { name: "Homeoffice-Pauschale" });
+  const tage = homeoffice.getByLabel("Tage im Homeoffice", { exact: true });
+  await expect(tage).not.toHaveAttribute("aria-invalid");
+  await homeoffice.getByRole("button", { name: "Buchen" }).click();
+  await expect(tage).toBeFocused();
+  await expect(tage).toHaveAccessibleDescription("Trag die Tage ein.");
+  await tage.fill("0");
+  await expect(tage).toHaveAccessibleDescription("Mindestens ein Tag.");
+
+  // Mehrere Fehler: alle am Feld, der Fokus im ersten
+  await neu.getByRole("button", { name: "Fahrt", exact: true }).click();
+  const fahrt = neu.getByRole("form", { name: "Fahrt mit dem Privatfahrzeug" });
+  await fahrt.getByLabel("Datum", { exact: true }).fill(`${YEAR - 1}-12-31`);
+  await fahrt.getByRole("button", { name: "Buchen" }).click();
+  await expect(fahrt.getByLabel("Datum", { exact: true })).toBeFocused();
+  await expect(fahrt.getByLabel("Datum", { exact: true })).toHaveAccessibleDescription(/^Wähle einen Tag vom 01\.01\.\d{4} bis/);
+  await expect(fahrt.getByLabel("Anlass und Ziel", { exact: true })).toHaveAccessibleDescription("Trag Anlass und Ziel ein.");
+  await expect(fahrt.getByLabel("Kilometer einfach", { exact: true })).toHaveAccessibleDescription("Trag die Kilometer ein.");
+
+  // Mahlzeiten ohne Field: Fehler unter den Kästchen, Fokus aufs erste
+  await neu.getByRole("button", { name: "Verpflegung", exact: true }).click();
+  const verpflegung = neu.getByRole("form", { name: "Verpflegungsmehraufwand" });
+  await verpflegung.getByLabel("Anlass und Ort", { exact: true }).fill("Kundenprojekt, München");
+  for (const mahlzeit of ["Frühstück", "Mittagessen", "Abendessen"]) await verpflegung.getByLabel(mahlzeit, { exact: true }).check();
+  await verpflegung.getByRole("button", { name: "Buchen" }).click();
+  await expect(verpflegung.getByLabel("Frühstück", { exact: true })).toBeFocused();
+  await expect(verpflegung.getByLabel("Frühstück", { exact: true })).toHaveAccessibleDescription(
+    "Nach Abzug der gestellten Mahlzeiten bleibt keine Pauschale.",
+  );
+
+  await expect(neu.getByRole("status")).toHaveCount(0);
+  await expect(liste.getByRole("row")).toHaveCount(zeilen);
+});
+
+test("Pauschalen: Fahrt übernimmt beim Wechsel des Jahres das Vorgabedatum des neuen Jahres", async () => {
+  await go("/pauschalen");
+  const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+  await neu.getByRole("button", { name: "Fahrt", exact: true }).click();
+  const fahrt = neu.getByRole("form", { name: "Fahrt mit dem Privatfahrzeug" });
+  await page
+    .getByRole("navigation", { name: "Jahr wählen" })
+    .getByRole("link", { name: String(YEAR - 1), exact: true })
+    .click();
+  await expect(page.getByRole("heading", { name: `Pauschalen ${YEAR - 1}`, level: 1 })).toBeVisible();
+  await expect(fahrt.getByLabel("Datum", { exact: true })).toHaveValue(`${YEAR - 1}-12-31`);
+});
+
+test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno (#895)", async () => {
+  await go("/pauschalen");
+  const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+  await neu.getByRole("button", { name: "Wege zur Betriebsstätte", exact: true }).click();
+  const wege = neu.getByRole("form", { name: "Wege zwischen Wohnung und Betriebsstätte" });
+  await wege.getByLabel("Tage an der Betriebsstätte", { exact: true }).fill("15");
+  // Mit Komma wie bei „Fahrt“: 12,5 km zählen als 12 volle Kilometer, nicht als 125
+  await wege.getByLabel("Kilometer einfach", { exact: true }).fill("12,5");
+  // Ohne Betriebsstätte bleibt „Buchen“ bedienbar; der Druck schreibt den Fehler ans Feld und setzt den Fokus dorthin (DESIGN.md, Gesperrte Knöpfe)
+  const betriebsstaette = wege.getByLabel("Betriebsstätte", { exact: true });
+  await wege.getByRole("button", { name: "68,40 € buchen" }).click();
+  await expect(betriebsstaette).toBeFocused();
+  await expect(betriebsstaette).toHaveAttribute("aria-invalid", "true");
+  await expect(betriebsstaette).toHaveAccessibleDescription("Trag die Betriebsstätte ein.");
+  await betriebsstaette.fill("Praxis Musterstadt");
+  await expect(betriebsstaette).not.toHaveAttribute("aria-invalid");
+  // ab 2026 0,38 € je Kilometer: 15 Tage × 12 km
+  await wege.getByRole("button", { name: "68,40 € buchen" }).click();
+  await expect(neu.getByRole("status")).toHaveText("Entfernungspauschale über 68,40 € gebucht.");
+
+  const liste = page.getByRole("region", { name: /^Eingetragen in/ });
+  const zeile = liste.getByRole("row").filter({ hasText: "Praxis Musterstadt" });
+  await expect(zeile).toHaveCount(1);
+  await zeile.getByRole("button", { name: "Stornieren" }).click();
+  await faktenZeigen(page, "Datum", "Betrag");
+  await bestaetigen(page, "Stornieren");
+  await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
+});
+
 test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ browser }) => {
   await go("/belege");
   await page
@@ -512,6 +595,72 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
   await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg mit Bruttobetrag: Netto und Vorsteuer vorgerechnet, Satzwechsel behält das Brutto (#917)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "tankstelle.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Tankstelle Nord") }]);
+  await expect(page.getByText("tankstelle.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /tankstelle\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const amounts = page.getByRole("group", { name: "Beträge je Steuersatz" });
+  await amounts.getByLabel("Brutto", { exact: true }).fill("119,00");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("100,00");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("19,00");
+  // Anderer Satz: das Brutto bleibt, Netto und Vorsteuer ändern sich
+  await amounts.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("111,21");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("7,79");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("119,00");
+  // Vorsteuer laut Rechnung von Hand: das Brutto folgt
+  await amounts.getByLabel("Vorsteuer", { exact: true }).fill("7,78");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
+  // Bei § 13b gibt es kein Brutto, gezahlt wird netto; die Steuer rechnet Haben aus dem Netto (111,21 € zu 7 % = 7,78 €)
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveCount(0);
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("118,99");
+  // Nicht buchen: die folgenden Tests zählen die Belege und Auswertungen
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz zu lesen (#917)", async ({ browser }) => {
+  // 1280 px: Formular und Vorschau stehen ab 1201 px nebeneinander, die Zeile hat mit Brutto drei Betragsfelder
+  const context = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: 1280, height: 800 } });
+  const laptop = await context.newPage();
+  await laptop.goto("/belege");
+  await laptop.waitForLoadState("networkidle");
+  await laptop
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "laptop-betraege.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Bürohaus Nord GmbH") }]);
+  await expect(laptop.getByText("laptop-betraege.jpg: abgelegt.")).toBeVisible();
+  await laptop
+    .getByRole("link", { name: /laptop-betraege\.jpg/ })
+    .first()
+    .click();
+  await laptop.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await laptop.waitForLoadState("networkidle");
+  const amounts = laptop.getByRole("group", { name: "Beträge je Steuersatz" });
+  await amounts.getByLabel("Brutto", { exact: true }).fill("14.691,26");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("12.345,60");
+  const abgeschnitten = await laptop
+    .locator(".amount-row input[inputmode='decimal']")
+    .evaluateAll((felder) =>
+      (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
+    );
+  expect(abgeschnitten, "Netto, Vorsteuer und Brutto").toEqual([]);
+  await laptop.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(laptop, "Beleg löschen");
+  await laptop.waitForURL(/\/belege$/);
+  await context.close();
 });
 
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
@@ -2125,17 +2274,71 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   if (await haken.count()) await haken.check();
   await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
 
-  // Danach gilt die Erklärung als abgegeben; Tag und Begründung stehen in der Karte, ein zweiter Vermerk fehlt
+  // Danach gilt die Erklärung als abgegeben; der Kopf nennt Tag, Betrag und Ticket, ein zweiter Vermerk fehlt (#871)
   await expect(ust.getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
+  await expect(karte.locator("p", { hasText: `Abgegeben am 02.01.${jahr + 1}` })).toBeVisible();
   await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
-  await expect(karte).toContainText("Umsatzsteuererklärung extern mit WISO abgegeben.");
   await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
-  const protokoll = await page.request.get((await karte.getByRole("link", { name: "Übermittlungsprotokoll" }).getAttribute("href"))!);
+  // Begründung und Protokoll stehen zugeklappt darunter: verdeckt heißt nicht sichtbar, also erst zugeklappt
+  // prüfen, dann aufklappen und Begründung wie Protokollverweis sichtbar nachsehen
+  const begruendung = karte.getByText("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  await expect(begruendung).toBeHidden();
+  await expect(karte.locator("details[open]")).toHaveCount(0);
+  await karte.locator("summary").click();
+  await expect(karte.locator("details[open]")).toHaveCount(1);
+  await expect(begruendung).toBeVisible();
+  const protokollLink = karte.getByRole("link", { name: /Übermittlungsprotokoll/ });
+  await expect(protokollLink).toBeVisible();
+  const protokoll = await page.request.get((await protokollLink.getAttribute("href"))!);
   expect(protokoll.headers()["content-type"]).toContain("application/pdf");
 
   // Auch nach dem Neuladen bleibt der Vermerk stehen
   await go(`/jahreserklaerung/${jahr}`);
   await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
+});
+
+test("Vorgabe „Ohne Vorsteuerabzug“: der Beleg folgt ihr und weicht gespeichert ab (#852)", async ({ browser }) => {
+  // Vorgabe in den Firmendaten setzen
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await firma.getByLabel("Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)", { exact: true }).check();
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(firma.getByRole("status")).toContainText("Firmendaten gespeichert.");
+
+  // Ein neuer Beleg zeigt das Kästchen angehakt
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "apotheke.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Linden-Apotheke") }]);
+  await expect(page.getByText("apotheke.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /apotheke\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const ohne = page.getByLabel("Ohne Vorsteuerabzug", { exact: true });
+  await expect(ohne).toBeChecked();
+  await expect(page.getByText(/Vorgabe in den Firmendaten: ohne Vorsteuerabzug/)).toBeVisible();
+
+  // Am Beleg abweichend abgewählt: bleibt nach dem Speichern und Neuladen ab
+  await ohne.uncheck();
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(ohne).not.toBeChecked();
+
+  // Aufräumen: Beleg löschen und Vorgabe zurücknehmen, damit spätere Tests regulär rechnen
+  await page.getByRole("button", { name: "Löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
+  // Danach steht Haben auf dem nächsten offenen Beleg oder in der Liste
+  await page.waitForURL(/\/belege(\/[0-9a-f-]{36})?$/);
+  await go("/einstellungen");
+  await firma.getByLabel("Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)", { exact: true }).uncheck();
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(firma.getByRole("status")).toContainText("Firmendaten gespeichert.");
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
@@ -2160,4 +2363,37 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
 
 test("Keine Fehler im Browser", async () => {
   expect(pageErrors).toEqual([]);
+});
+
+test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt (#693)", async ({ browser }) => {
+  test.setTimeout(180_000);
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "zeitraum.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("zeitraum.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /zeitraum\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  // Das Formular kommt nach networkidle aus einer Server-Function; ohne dieses Warten greift jeder
+  // Zugriff auf die Felder ins Leere und der Test hielte den Stand für einen ohne Leistungszeitraum
+  const belegdatum = page.getByLabel("Belegdatum");
+  await belegdatum.waitFor({ state: "visible", timeout: 30_000 });
+
+  await page.getByLabel("Lieferant", { exact: true }).fill("Funknetz Mobil GmbH");
+  await page.getByLabel("Belegdatum").fill(day(-9));
+  await page.getByLabel("Kategorie").selectOption("telefon");
+  await page.getByLabel("Netto", { exact: true }).fill("38,57");
+  await page.getByLabel("Leistung von").fill(day(-24));
+  await page.getByLabel("Leistung bis").fill(day(-9));
+  await page.getByRole("button", { name: "Speichern" }).click();
+  // Die Meldung ist Beiwerk; der Beweis ist, dass der Zeitraum nach dem Neuladen noch steht
+  await page.waitForTimeout(1500);
+
+  await page.reload();
+  await belegdatum.waitFor({ state: "visible", timeout: 30_000 });
+  await expect(page.getByLabel("Leistung von")).toHaveValue(day(-24));
+  await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
 });

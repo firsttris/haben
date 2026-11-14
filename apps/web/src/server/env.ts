@@ -30,6 +30,8 @@ const envSchema = z
     HABEN_ENCRYPTION_KEY: z.string().refine((value) => Buffer.from(value, "base64").length === 32, "muss 32 Byte (base64) sein"),
     /** Verzeichnis des entpackten ERiC-Pakets; fehlt es, sendet Haben nur simuliert */
     ERIC_HOME: z.string().optional(),
+    /** Commit, aus dem das Image gebaut ist; setzt das Containerfile aus dem gleichnamigen Build-Argument */
+    HABEN_COMMIT: z.string().optional(),
     ERIC_LOG_DIR: z.string().optional(),
     ERIC_WORKER_PATH: z.string().optional(),
     /** Befehl für den ERiC-Worker statt der eigenen Laufzeit, z. B. ein Skript, das ihn unter QEMU als x86_64 startet (arm64) */

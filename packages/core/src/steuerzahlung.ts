@@ -243,6 +243,8 @@ export function steuerKontierung(
   zahlungsdatum: string,
   kontenrahmen: Kontenrahmen,
   rechtsform: Rechtsform,
+  /** Zahlung läuft über ein Konto mit dem Zweck privat (bank_accounts.purpose) */
+  privatesKonto = false,
 ): SteuerKontierung {
   const { art, jahr, posten } = angabe;
   const zahlungsjahr = Number(zahlungsdatum.slice(0, 4));
@@ -261,11 +263,25 @@ export function steuerKontierung(
     // Nur als Abzug von einer Zinsgutschrift (Aufteilen): Bruttozins als Zinsertrag, die einbehaltene Steuer als Teil
     if (posten !== "steuer") return fehler("Zur einbehaltenen Kapitalertragsteuer gibt es nur die Steuer selbst.");
     if (erstattung) return fehler("Einbehaltene Kapitalertragsteuer ist ein Abzug, also ein negativer Teil der Zinsgutschrift.");
+    // Privates Konto: Der Zins gehört zum privaten Kapitalvermögen (§ 20 Abs. 1 EStG), Steuer und Zuschlag sind dort
+    // kein Geschäftsvorfall des Betriebs
+    if (privatesKonto) {
+      return fehler(
+        `${STEUERARTEN[art]} auf einem privaten Konto: Der Zins ist privates Kapitalvermögen (§ 20 Abs. 1 Nr. 7 EStG) und kein Geschäftsvorfall des Betriebs. Buche die Zinsgutschrift nicht über Haben.`,
+      );
+    }
     // Einzelunternehmen: auf die Einkommensteuer anrechenbar, also Entnahme (Privatsteuern); GmbH: Steueraufwand
     return { ok: true, konto: gruppe === "privat" ? k.privatsteuern : steuerKonto(art, false, false, jahr, zahlungsjahr, kontenrahmen), rueckstellung: null };
   }
 
   if (gruppe === "privat") {
+    // Privates Konto: Von einem privaten Konto gezahlt ist die Steuer des Inhabers kein Geschäftsvorfall. Als Buchung
+    // „Privatsteuern an Privatentnahme“ meldete die Anlage EÜR dieselbe Summe als Entnahme und als Einlage (annual.ts).
+    if (privatesKonto) {
+      return fehler(
+        `${STEUERARTEN[art]} ist eine Steuer des Inhabers (§ 12 Nr. 3 EStG); von einem privaten Konto gezahlt ist das kein Geschäftsvorfall des Betriebs. Haben bucht sie deshalb nicht: Eine Entnahme entsteht nur, wenn die Zahlung vom Geschäftskonto abging.`,
+      );
+    }
     // § 12 Nr. 3 EStG: Steuern vom Einkommen und ihre Nebenleistungen sind privat; Erstattungszinsen sind private
     // Kapitalerträge (§ 20 Abs. 1 Nr. 7 EStG), auf dem Geschäftskonto also eine Einlage
     if (posten === "zinsen233a" && erstattung) return { ok: true, konto: ACCOUNTS[kontenrahmen].privateinlagen, rueckstellung: null };

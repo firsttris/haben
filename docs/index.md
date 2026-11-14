@@ -161,6 +161,8 @@ teilst du direkt hinein, die Übersicht hast du unterwegs dabei.
 
 ## Und warum Haben?
 
+<p class="showcase-claim">Digitale Souveränität fängt mit deinen eigenen Büchern an. 🇩🇪 🇪🇺</p>
+
 </div>
 
 <div class="showcase-cards" markdown>
@@ -217,17 +219,17 @@ Belege auslesen lassen oder Claude fragen, welche Rechnungen offen sind – nur 
 
 Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 </div>
+<div markdown>
+**🔓 Offen gebaut**
+
+Code, Roadmap und jedes Review öffentlich. [Mitmachen](mitwirken.md) kannst du auch ohne zu programmieren.
 </div>
+<div markdown>
+**🛠️ Gebaut mit Agenten**
 
-<div class="showcase-hero" markdown>
-
-## Gebaut mit Agenten. <span class="showcase-akzent">Gemergt von Menschen.</span>
-
-<p class="showcase-claim">Haben entsteht offen mit Coding-Agenten: rote Tests zuerst, frische Agenten im Review,
-ein Mensch beim Merge. Wie das zusammenspielt, an einem echten Pull Request.</p>
-
-[Agentic Engineering bei Haben](agentic-engineering.md){ .md-button .md-button--primary }
-
+Geprüft von Menschen: rote Tests zuerst, frische Agenten im Review, ein Mensch beim Merge.
+[Agentic Engineering bei Haben](agentic-engineering.md)
+</div>
 </div>
 
 <div class="showcase-center" markdown>
@@ -250,9 +252,10 @@ Vorlagen für [Synology](synology.md) und [TrueNAS](truenas.md) ohne Kommandozei
 [Unraid](unraid.md) und [Coolify](coolify.md).
 </div>
 <div markdown>
-**🤖 Oder einen Agenten**
+**🤖 Einrichten lassen**
 
-Gib Claude Code oder einem anderen Agenten SSH-Zugang und die [Installationsanleitung](installation.md).
+Wer nicht selbst installieren will, gibt Claude Code oder einem anderen Agenten SSH-Zugang zum Server
+und die [Installationsanleitung](installation.md).
 </div>
 </div>
 
@@ -263,6 +266,6 @@ Gib Claude Code oder einem anderen Agenten SSH-Zugang und die [Installationsanle
 <p class="showcase-claim">Gemacht für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs
 und UGs – für alle, die lieber arbeiten als buchen.</p>
 
-[Installieren](installation.md){ .md-button .md-button--primary } [Erste Schritte](einrichtung.md){ .md-button } [Quellcode auf GitHub](https://github.com/firsttris/haben){ .md-button }
+[Installieren](installation.md){ .md-button .md-button--primary } [Mitwirken](mitwirken.md){ .md-button } [Quellcode auf GitHub](https://github.com/firsttris/haben){ .md-button }
 
 </div>

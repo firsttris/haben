@@ -93,6 +93,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       assetId: asset?.id ?? null,
       privateShares: company.privateShares,
       rechtsform: company.rechtsform,
+      kleinunternehmer: company.kleinunternehmer,
+      ohneVorsteuerabzug: company.ohneVorsteuerabzug,
       tageskurs: company.tageskurs,
       amounts: result.amounts,
       splits: result.splits,

@@ -94,7 +94,9 @@ Viele Selbständige haben bei derselben Bank mehrere Konten, etwa ein Geschäfts
 | Geschäftskonto (Standard) | wie bisher; sein Kontostand steht in der Übersicht |
 | Steuerkonto | Vorbelegung für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern); Lastschriften und Erstattungen der Umsatzsteuer auf diesem Konto bekommen „Umsatzsteuer an das Finanzamt“ als Vorschlag; die Übersicht zeigt den Stand neben der noch offenen Zahllast (abzüglich schon zugeordneter Zahlungen an das Finanzamt nach Ende des Zeitraums) und warnt, wenn er nicht reicht |
 | Rücklagen- oder Sparkonto | Überträge zu und von eigenen Konten bekommen „Geldtransit“ als Vorschlag |
-| Privatkonto (nur zur Zuordnung) | Überweisungen dorthin oder von dort bekommen „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an; Umsätze importierst du nur, wenn du sie buchen willst, etwa eine Umsatzsteuer-Erstattung ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). |
+| Privatkonto | Umsätze dort bleiben zuordenbar; Umsatzsteuer und Steuerzahlungen bucht Haben gegen Entnahme bzw. Einlage ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Auf deinen anderen Konten bekommen Überweisungen dorthin oder von dort „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an; Umsätze importierst du nur, wenn du sie buchen willst, denn ungebuchte stehen unter „offen“. |
+
+Auf einem Privatkonto bietet der Abgleich Kontoführung und Bankgebühren, Zinserträge, Privat und Geldtransit nicht an, schlägt sie nicht vor und lehnt sie ab. Gebühren und Zinsen eines privaten Kontos sind privat: kein Betriebsaufwand (§ 12 Nr. 1 EStG) und keine Betriebseinnahme (§ 20 EStG); „Privat“ buchte privat gegen privat, und Geldtransit wäre Entnahme gegen Entnahme. Schon gebuchte Zuordnungen bleiben sichtbar und lassen sich aufheben.
 
 Jedes Konto hat einen Zweck. Gebucht wird weiter auf das eine Bankkonto (1200 bzw. 1800); welche IBAN auf Rechnungen steht, bestimmen die Firmendaten.
 
@@ -200,7 +202,7 @@ Jede gesendete oder [vermerkte](umsatzsteuer.md#abgabe-außerhalb-von-haben-verm
 
 Wie bei Rechnungen ab 40 Punkten. Zwei Zeiträume mit gleicher Zahllast unterscheidet der Zeitraum im Verwendungszweck. Gebucht wird wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820), mit dem Bezug auf die Voranmeldung; in der Liste der Zuordnungen steht er dahinter, etwa „Umsatzsteuer USt 10/2026“. In der EÜR zählt die Zahlung am Buchungstag; die Vorauszahlung für Dezember bzw. das vierte Quartal, gezahlt bis 10. Januar, ohne Dauerfristverlängerung im Vorjahr (§ 11 Abs. 2 Satz 2 EStG, [Vorauszahlung um den Jahreswechsel](auswertungen.md#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)).
 
-Liegt der Umsatz auf einem Konto mit dem Zweck **privat**, bucht Haben die Gegenzeile nicht gegen die Bank, sondern gegen die Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto; eine Zahlung an das Finanzamt von dort wird zur Einlage (SKR03 1890, SKR04 2180, in GmbH und UG dasselbe Verrechnungskonto). Das Geld fließt ins Private, die Forderung bzw. Verbindlichkeit gegenüber dem Finanzamt wird trotzdem erfüllt; die Entnahme steht in § 4 Abs. 1 Satz 2 EStG, die Einlage in Satz 8 (beides im Einzelunternehmen; in GmbH und UG trägt § 4 EStG die Buchung nicht). Ohne diese Unterscheidung stünde die Erstattung auf dem Geschäftskonto, auf dem sie nie war. Das gilt auch für die Umsatzsteuer des Vorjahres als [Steuerzahlung](bank-steuern-darlehen.md#steuerzahlungen).
+Liegt der Umsatz auf einem Konto mit dem Zweck **privat**, bucht Haben die Gegenzeile nicht gegen die Bank, sondern gegen die Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto; eine Zahlung an das Finanzamt von dort wird zur Einlage (SKR03 1890, SKR04 2180, in GmbH und UG dasselbe Verrechnungskonto). Das Geld fließt ins Private, die Forderung bzw. Verbindlichkeit gegenüber dem Finanzamt wird trotzdem erfüllt; die Entnahme steht in § 4 Abs. 1 Satz 2 EStG, die Einlage in Satz 8 (beides im Einzelunternehmen; in GmbH und UG trägt § 4 EStG die Buchung nicht). Ohne diese Unterscheidung stünde die Erstattung auf dem Geschäftskonto, auf dem sie nie war. Das gilt auch für die Umsatzsteuer des Vorjahres als [Steuerzahlung](bank-steuern-darlehen.md#steuerzahlungen), ebenso für Gewerbesteuer und die Steuern der GmbH. Anders die Steuern des Inhabers: Einkommen-, Kirchensteuer und Soli samt Nebenleistungen sind privat (§ 12 Nr. 3 EStG); von einem privaten Konto gezahlt ist das kein Geschäftsvorfall, und Haben lehnt die Zuordnung ab — sonst meldete die Anlage EÜR dieselbe Summe als Entnahme und als Einlage.
 
 ### Dauerbelege: noch zu prüfen
 
@@ -285,7 +287,7 @@ Der ausgebuchte Rest mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§
 
 Beispiel: Rechnung 4.760,00 €, der Kunde überweist 4.664,80 € (2 % Skonto). Bei Soll-Versteuerung mindert das Skonto die Umsatzsteuer in der Voranmeldung des Monats, in dem ausgebucht wird. Bei Ist-Versteuerung wird ohnehin nur fällig, was bezahlt ist; Haben mindert dann die noch nicht fällige Umsatzsteuer.
 
-Hast du selbst Skonto abgezogen, liegt die Abbuchung unter dem Beleg. Dann gibt es **Rest … als erhaltenes Skonto**: Verbindlichkeiten an 3730 bzw. 5730 Erhaltene Skonti und an Vorsteuer, anteilig je Steuersatz; die Vorsteuer in der Voranmeldung sinkt im Monat der Ausbuchung. Ohne Vorsteuerabzug (Kleinunternehmer) mindert das Skonto den Aufwand brutto. Bei Belegen mit § 13b, mit Privatanteil oder für Anlagen gibt es das nicht.
+Hast du selbst Skonto abgezogen, liegt die Abbuchung unter dem Beleg. Dann gibt es **Rest … als erhaltenes Skonto**: Verbindlichkeiten an 3730 bzw. 5730 Erhaltene Skonti und an Vorsteuer, anteilig je Steuersatz; die Vorsteuer in der Voranmeldung sinkt im Monat der Ausbuchung. Ohne Vorsteuerabzug mindert das Skonto den Aufwand brutto. Bei Belegen mit § 13b, mit Privatanteil oder für Anlagen gibt es das nicht.
 
 Einen Forderungsausfall ohne Zahlung, etwa bei Insolvenz des Kunden, buchst du auf der Seite der Rechnung unter **Ausbuchen** (siehe [Rechnungen](rechnungen.md#ausbuchen)). Hebst du die Zuordnung einer Zahlung auf, hebt Haben einen mit ihr ausgebuchten Rest mit auf.
 
@@ -374,7 +376,7 @@ Gebucht wird nur auf eine Kategorie, nicht frei auf ein Konto mit Steuerschlüss
 | --- | --- | --- | --- | --- |
 | Erlöse 19 % | 8400, Steuer 1776 | 4400, Steuer 3806 | Kz 81 im Monat der Zahlung, bei Ist und Soll | Einnahme netto, Steuer als vereinnahmte Umsatzsteuer |
 | Erlöse 7 % | 8300, Steuer 1771 | 4300, Steuer 3801 | Kz 86 im Monat der Zahlung, bei Ist und Soll | ebenso |
-| Erlöse als Kleinunternehmer | 8195 | 4185 | – | Einnahme als Kleinunternehmer |
+| Erlöse als Kleinunternehmer | 8192 | 4184 | – | Einnahme als Kleinunternehmer |
 | Ausgabekategorie, z. B. Telefon | Konto der Kategorie ([Belegkategorien](buchhaltung.md#aufwandskonten-der-belegkategorien)) | ebenso | keine Vorsteuer | Ausgabe brutto in der Zeile der Kategorie |
 
 Beispiel: Ein Privatkunde überweist für eine Reparatur 119,00 €, Erlöse 19 %:
@@ -463,13 +465,25 @@ Bei Eingängen (Privateinlage, Geldtransit, Erstattung vom Finanzamt) steht die 
 
 ## Zuordnung aufheben
 
-Unter **Zugeordnet** steht neben jeder Zuordnung **Aufheben**, bei einer Aufteilung einmal **Aufteilung aufheben** für alle Teile. Haben fragt vorher in einem Dialog nach und nennt Zuordnung und Betrag. Es löscht dabei nichts: Es legt eine Gegenzeile mit umgekehrtem Betrag an und bucht die ursprüngliche Buchung mit vertauschten Seiten zurück („Storno: …“), ebenfalls mit dem Buchungsdatum des Umsatzes. Die aufgehobene Zuordnung bleibt durchgestrichen sichtbar, der Betrag ist wieder offen.
+Unter **Zugeordnet** steht neben jeder Zuordnung **Aufheben**, bei einer Aufteilung einmal **Aufteilung aufheben** für alle Teile. Haben fragt vorher in einem Dialog nach und nennt Zuordnung, Betrag und den **Tag der Aufhebung**. Vorbelegt ist der Buchungstag der Zahlung, solange deren Zeitraum nicht gemeldet ist, sonst heute. Es löscht dabei nichts: Es legt eine Gegenzeile mit umgekehrtem Betrag an und bucht die ursprüngliche Buchung mit vertauschten Seiten zurück („Storno: …“), und zwar an diesem Tag. Die aufgehobene Zuordnung bleibt durchgestrichen sichtbar, der Betrag ist wieder offen.
 
 Eine Zuordnung lässt sich nur einmal aufheben.
 
+Der Tag der Aufhebung darf nicht in der Zukunft liegen. Als Untergrenze gilt das Buchungsdatum der Zahlung, bei einem künftigen Buchungsdatum heute. Änderbar bleibt der vorbelegte Tag in jedem Fall.
+
+Eine Aufhebung in einem schon gemeldeten Zeitraum bleibt erlaubt. Die Gegenbuchung wirkt an ihrem Tag, die abgegebene Voranmeldung ändert sich nicht nachträglich.
+
+Liegt die Zahlung selbst in einem abgeschlossenen Jahr, lehnt Haben die Aufhebung ab: Die Zuordnung ließe sich danach nicht neu buchen, und das Bankkonto wiche ab. Korrigiere den Vorgang stattdessen mit einer Buchung im offenen Jahr, etwa einer Stornorechnung mit Datum im offenen Jahr oder einer Direktbuchung auf die betroffene Kategorie.
+
+Zwei Fälle sind zu unterscheiden.
+
+**Die Bemessungsgrundlage ändert sich nachträglich**, etwa durch Rückzahlung, Storno oder Ausfall. Dann greift [§ 17 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html), und die Berichtigung gehört in den Zeitraum, in dem die Änderung eintritt. Dafür ist der Tag der Aufhebung richtig.
+
+**Die Zuordnung war von Anfang an falsch**, etwa auf die falsche Rechnung oder ohne jede Kundenzahlung. Das ist keine Änderung der Bemessungsgrundlage, sondern die Berichtigung eines Erfassungsfehlers. Bei Ist-Versteuerung entsteht die Steuer mit der Vereinnahmung ([§ 13 Abs. 1 Nr. 1 Buchstabe b UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)), also gehört die Korrektur in den Monat der Zahlung; ist die Anmeldung dafür schon abgegeben, wird sie nach [§ 153 Abs. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html) berichtigt. Dafür den Tag der Zahlung wählen. Wer im Juli eine März-Zahlung von Rechnung A auf B umhängt und dabei den Tag der Aufhebung nimmt, bekommt B im März und die Gegenzeile von A im Juli — bis dahin stehen die März-Umsatzsteuer und das Bankkonto doppelt.
+
 Beim [Stornieren eines Belegs](belege.md#stornieren-und-neu-erfassen) kann Haben dessen Bankzuordnungen in derselben bestätigten Aktion aufheben. Die Rückfrage nennt die Zuordnungen einschließlich aller Teile betroffener Aufteilungen. Mit der Zahlung verknüpfte Ausbuchungen wie Skonto werden mit aufgehoben. Scheitert die Rücknahme oder der Belegstorno, wird keiner der beiden Teile gespeichert.
 
-Die Bankgegenbuchungen einschließlich verknüpfter Ausbuchungen stehen auch dabei am ursprünglichen Buchungsdatum. Die neu berechneten Steuerwerte eines früheren Zeitraums können sich deshalb ändern; eine gespeicherte, bereits gesendete Voranmeldung bleibt unverändert. Prüfe dann, ob du eine [berichtigte Anmeldung](umsatzsteuer.md#berichtigte-anmeldung) abgeben musst. Die Gegenbuchung des Belegs erhält unabhängig davon ihr eigenes, im Stornodialog genanntes Datum.
+Das [Datum der Bankgegenbuchungen](belege.md#stornieren-und-neu-erfassen) richtet sich dabei nach der Beleggegenbuchung und dem Buchungsdatum der Zahlung.
 
 ## Gegenläufige Umsätze verrechnen
 
@@ -496,4 +510,4 @@ Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt,
 - Dateiimport nur für DKB, Commerzbank, N26, Swan und CAMT.053. Andere Banken gehen, wenn sie CAMT.053 exportieren. Zahlungsdienstleister: PayPal, Stripe, Shopify Payments, eBay und Etsy per CSV, [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store) per Abruf der Finanzberichte; SumUp und andere lassen sich anlegen, aber noch nicht importieren.
 - Zahlungsdienstleister nur in Euro; Zeilen in anderen Währungen (etwa ein USD-Guthaben bei PayPal) übernimmt Haben nicht und meldet sie. Ausnahme ist der App Store: Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs in Euro um (siehe [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store)).
 - Kursdifferenzen nur beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung; Bankkonten und Verrechnungskonten von Zahlungsdienstleistern nur in Euro.
-- Zuordnungen und ihre Aufhebung werden mit dem Buchungsdatum des Umsatzes gebucht. Hebst du eine Zuordnung in einem Monat auf, dessen Voranmeldung schon gesendet ist, ändern sich dessen berechnete Werte; die gesendete Anmeldung bleibt, wie sie ist, und die Seite des Monats weist auf die Abweichung hin (siehe [umsatzsteuer.md](umsatzsteuer.md)).
+- Zuordnungen werden mit dem Buchungsdatum des Umsatzes gebucht, ihre Aufhebung am gewählten Tag (siehe [Zuordnung aufheben](#zuordnung-aufheben)). Eine schon gesendete Voranmeldung bleibt, wie sie ist (siehe [umsatzsteuer.md](umsatzsteuer.md)).

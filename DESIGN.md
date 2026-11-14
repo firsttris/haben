@@ -57,6 +57,12 @@ Knöpfe und Karten tragen einen feinen Schatten (`--shadow-xs`), randlose Knöpf
 
 Der Fokusring der Knöpfe steht mit 2px Abstand außen. Bei Feldern (Eingabe, Auswahlliste, Textfeld, Combobox) liegt er auf dem eigenen Rahmen, der dabei die Akzentfarbe annimmt, statt als zweiter Rahmen daneben.
 
+### Gesperrte Knöpfe
+
+Ein gesperrter Knopf ist per Tab nicht erreichbar und sagt nicht, was fehlt. Die Hauptaktion eines Formulars ist deshalb nur gesperrt, solange sie läuft (`busy`), nie weil eine Angabe fehlt oder nicht stimmt. Ein Druck prüft die Angaben: `useSubmitCheck` (`lib/use-submit-check.ts`) setzt den Fehler als `error` an jedes betroffene `Field`, bricht das Absenden ab und setzt den Fokus aufs erste Feld mit Fehler; das hilft bei WCAG 3.3.1 und 3.3.3, weil der Fehler am Feld als Text steht. Danach verschwindet ein Fehler, sobald die Angabe stimmt. Das Formular trägt `noValidate`, damit der Browser keine eigene Meldung davorschiebt; `required` bleibt an den Feldern, Grenzen wie `min` und `max` prüfen `datumFehler` und `monatFehler` mit. Was man vor der Eingabe wissen muss, etwa „mindestens 10 Zeichen“, steht als `hint` am Feld. Kontrollkästchen ohne `Field` (etwa die Mahlzeiten der Verpflegung) tragen bei einem Fehler selbst `aria-invalid` und zeigen per `aria-describedby` auf eine `.field-error` darunter, sonst findet der Fokus sie nicht.
+
+Gesperrt sein darf ein Knopf, wenn der Grund nicht im Formular liegt oder direkt daneben zu sehen ist: Es fehlt etwas außerhalb (Zertifikat, Firmendaten, Fehler im Jahr), dann steht der Grund als Hinweis über der Knopfzeile, mit Link dorthin, wo er sich beheben lässt; oder es gibt nichts zu tun (nichts geändert, nichts ausgewählt, mit dem Zähler daneben). Geht die Aktion gerade grundsätzlich nicht, fehlt der Knopf. Ein Satz mit dem Grund steht nie als loser Text in `.actions`; ein Zähler wie „2 ausgewählt“ darf dort stehen.
+
 ### Reihenfolge der Knöpfe
 
 In einer Knopfzeile (`.actions`, auch `.form-footer` und Dialoge) steht die Hauptaktion (`btn-primary`) als letzter Knopf, rechts; Abbrechen und Nebenaktionen („Entwurf speichern“, „Nur prüfen“) stehen davor. Das Überlaufmenü `⋯` ist keine Aktion der Zeile und zählt dabei nicht mit: Am Laptop steht es ganz rechts hinter der Hauptaktion, am Handy links neben der Vorschau (#355, Variante E).
@@ -78,6 +84,8 @@ Oben in der Navigation steht die Marke: das Zeichen und „Haben“ (18px, halbf
 Gibt es Instanzen anderer Firmen (`HABEN_FIRMEN`, #504), steht direkt unter der Marke die Zeile „Firma wechseln“ (`FirmaWechsler`), mit 8px Abstand zur Marke und einer Linie zu den Menüpunkten. Sie klappt die Liste der anderen Firmen im Fluss darunter auf, am Desktop wie am Handy, ohne schwebendes Fenster; die eigene Firma steht nicht darin, ihr Name steht schon unter „Haben“. Zeile und Firmen sehen aus wie Menüpunkte ohne Symbol (36px hoch, am Handy 44px), die offene Zeile trägt keine Fläche, damit sie nicht wie der aktive Menüpunkt aussieht. Die Firmen sind Links im selben Tab, weil man die Firma wechselt und nicht daneben eine Seite aufschlägt. Mehr als sechseinhalb Zeilen rollen in der Liste, ab 20 Firmen steht darüber ein Suchfeld in den Farben der Navigation. Beim Öffnen steht der Fokus im Suchfeld, sonst auf der ersten Firma; Escape, ein Klick daneben und Tab hinter die letzte Firma schließen, am Handy schließt Escape erst die Liste und dann das Menü.
 
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
+
+Ist die Navigation höher als das Fenster, bleibt am Desktop die Marke mit dem Firmennamen stehen und nur die Menüpunkte darunter rollen. Die Leiste, auch die der Liste unter „Firma wechseln“, ist schmal, erscheint nur beim Rollen, wo das System es so vorsieht, und hat in `--nav-ink` mit 55 % Deckkraft mindestens 3 : 1 gegen `--nav` (WCAG 1.4.11).
 
 ### Kennzahlen
 
@@ -147,7 +155,7 @@ Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgü
 
 ### Karten
 
-Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3` und `.grid-4` in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
+Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3`, `.grid-4` und `.grid-5` (fünf Kennzahlen, am Desktop in einer Reihe, wenn sie passen) in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
 
 Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `NewContactDialog`).
 
@@ -169,7 +177,7 @@ Neue Formularfelder immer über `Field` (`components/Field.tsx`), je Feld ein `F
 
 Auswahllisten sind Formularfelder wie die übrigen: `<select>` steht in `Field` und nimmt `{...control}` an, auch wenn kein Feldname zu sehen sein soll (`hideLabel`, etwa die Auswahl „Textbaustein einfügen …“ unter einem Textfeld). Rahmen, Höhe, Radius und Pfeil kommen aus der Grundregel `select` in `styles.css`, nicht aus der Hülle. Ohne `Field` stehen nur Zellen einer Tabelle oder Positionszeile, deren Spaltenkopf und `aria-label` sie benennen (`.line-row`, `.report-table`), und die Auswahl des Farbschemas auf der dunklen Navigation (`.nav-theme`); jedes andere `<select>` ohne `Field` meldet `bun run lint`, eine Ausnahme steht mit `// biome-ignore lint/plugin: Grund` im Code.
 
-Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen; beim Tippen bleibt es aus. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
+Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen und bei denen der Fokus bleibt, etwa eine Antwort des Servers; beim Tippen bleibt es aus, ebenso bei Fehlern aus `useSubmitCheck`: Deren erstes Feld bekommt den Fokus, der Screenreader liest den Fehler dabei, und `role="alert"` an allen Feldern läse alle auf einmal. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
 
 ### Datei-Felder
 
@@ -195,6 +203,7 @@ Barrierefrei und per Tastatur bedienbar: echte Knöpfe und Links, ein Label für
 
 Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an die Regel.
 
+- **Gesperrte Knöpfe:** Viele Formulare sperren die Hauptaktion, solange Angaben fehlen, meist ohne Grund (etwa `AssetForm`, `RecurringForm`, `routes/_app/belege/$id.tsx`, `routes/_app/bank.tsx`, `routes/_app/rechnungen/mahnwesen/$id.tsx`, Abruf und Versand mit PIN bei ELSTER).
 - **4px-Raster:** In `apps/web/src/**/*.css` haben manche `padding`, `margin` und `gap` px-Werte, die nicht durch 4 teilbar sind (meist 1 oder 2px, auch 6, 10 oder 14px).
 - **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Navigationsflächen (`.brand`, `.nav-link:hover`).
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.

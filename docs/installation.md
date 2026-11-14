@@ -20,7 +20,7 @@ Haben läuft als vier Container in einem eigenen Netz:
 | `backup` / `haben-backup` | `tristanteu/haben-backup:latest` | Tägliches Backup von Datenbank und Belegen mit restic, Repository im Volume `backups` bzw. `haben-backups` oder auf einem zweiten System, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen) |
 | `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy`. Läuft bei dir schon ein Reverse Proxy, entfällt er, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
 
-Es gibt zwei Wege, sie zu betreiben, dazu Vorlagen für [Synology](synology.md), [TrueNAS SCALE](truenas.md), [Unraid](unraid.md) und [Coolify](coolify.md):
+Es gibt zwei Wege, sie zu betreiben, dazu Vorlagen für [Synology](synology.md), [TrueNAS SCALE](truenas.md), [Unraid](unraid.md) und [Coolify](coolify.md), eine Anleitung für [Plesk](plesk.md):
 
 | Weg | Gut für | Dateien |
 | --- | --- | --- |
@@ -69,12 +69,14 @@ Selbst bauen geht auch, zum Beispiel für einen eigenen Stand. Dafür brauchst d
 
 ```sh
 git clone https://github.com/firsttris/haben.git && cd haben
-podman build -t haben -f Containerfile .   # oder docker build
+podman build -t haben -f Containerfile --build-arg HABEN_COMMIT="$(git rev-parse HEAD)" .   # oder docker build
 ```
+
+`HABEN_COMMIT` nennt den Commit, aus dem das Image gebaut ist. `haben status` zeigt ihn als kurze Kennung hinter der Version, so lassen sich Images mit derselben Versionsnummer unterscheiden, etwa ein eigener Build und das letzte Release; im Image steht er außerdem im Label `org.opencontainers.image.revision`. Ohne das Build-Argument bleibt beides leer; die Images von Docker Hub und GHCR (Release, `next` und `edge`) bringen ihn mit.
 
 Das `Containerfile` baut die App in zwei Stufen: gebaut wird auf `oven/bun` (Debian, slim), die Laufzeit-Stufe ist [Wolfi](https://github.com/wolfi-dev) (`cgr.dev/chainguard/wolfi-base`) mit dem Bun aus der Build-Stufe. Wolfi nutzt glibc wie Debian, was ERiC voraussetzt, liefert aber aktuelle Versionen der Systempakete, vor allem von poppler, das jedes hochgeladene PDF liest. Node ist nicht im Image, ebenso keine Build-Werkzeuge wie Vite oder esbuild: Installiert sind nur die Laufzeitabhängigkeiten ohne Peer-Abhängigkeiten. Der Digest von `wolfi-base` ist im `Containerfile` festgehalten, damit ein Build nachvollziehbar bleibt; Renovate hebt ihn jede Woche an. Die Pakete kommen aus dem freien Wolfi-Repository `packages.wolfi.dev`; wer selbst baut, braucht von dort und von `cgr.dev` Zugriff.
 
-Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_DIR=/var/lib/haben/eric`, `ERIC_WORKER_PATH`, `HABEN_EINVOICE_DIR` und `XDG_CACHE_HOME=/tmp/.cache` (Cache der Schriften für `pdftoppm`).
+Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_DIR=/var/lib/haben/eric`, `ERIC_WORKER_PATH`, `HABEN_EINVOICE_DIR`, `HABEN_COMMIT` (aus dem Build-Argument) und `XDG_CACHE_HOME=/tmp/.cache` (Cache der Schriften für `pdftoppm`).
 
 `compose.yml` und `haben-app.container` starten die App gehärtet: Das Dateisystem des Containers ist schreibgeschützt, beschreibbar sind nur die Volumes unter `/var/lib/haben` und `/tmp` (tmpfs, beim Neustart leer). Dazu kommen keine Capabilities (`cap_drop: [ALL]` bzw. `DropCapability=ALL`) und `no-new-privileges`. Haben braucht nichts davon; ein Angreifer, der über eine Lücke Code im Container ausführt, kann so weder Programme im Image verändern noch sich höhere Rechte verschaffen. Schreibt etwas Eigenes außerhalb dieser Verzeichnisse, hängst du dafür ein Volume ein, statt den Schreibschutz abzuschalten.
 
@@ -416,7 +418,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | --- | --- |
 | `neu <name> <domain>` | Legt Verzeichnis, `.env` mit eigenen Zufallswerten, Override-Datei und den Eintrag im gemeinsamen Caddy an. Startet den Proxy, dann die Datenbank, legt die App-Rolle `haben_app` an ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)), startet die App und nennt den Einrichtungscode |
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Beim ersten Fehler hält es an |
-| `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC und letzte erfolgreiche Sicherung |
+| `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC und letzte erfolgreiche Sicherung |
 | `liste` | Name, Domain und Verzeichnis |
 | `firmen [<name> …]` | Schreibt die Liste für [Firma wechseln](#firma-wechseln) als `HABEN_FIRMEN` in jede Instanz, ohne Namen in alle der Basis, mit Namen nur in diese; die übrigen bleiben unverändert und stehen in keiner Liste. Je Instanz steht darin `HABEN_FIRMENNAME` aus ihrer `.env` (sonst ihr Name) mit `https://<DOMAIN>`. Vorher prüft es die Liste wie die App; bei einem Fehler, etwa einem doppelten Namen, nennt es die Instanz und ändert keine Datei. Ebenso, wenn die `compose.yml` einer Instanz `HABEN_FIRMEN` nicht an die App weitergibt (mit einem älteren Stand angelegt): dann die aktuelle aus `deploy/` dorthin kopieren. Danach startet es laufende Apps mit `up -d` neu und wartet, bis sie gesund sind; gestoppte bleiben gestoppt. Schlägt ein Neustart fehl, hält es an und nennt die Instanz. Nennt eine nicht gewählte Instanz in ihrer Liste noch gewählte, weist es darauf hin; ihre Liste leerst du von Hand oder gleichst sie mit `firmen` und ihrer eigenen Gruppe ab |
 
@@ -438,7 +440,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 - Version, ERiC und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste.
 - Bei ERiC steht die Version, „von Hand“ bei einem mit `ERIC_HOME` eingebundenen Paket ohne Versionsdatei oder „fehlt“ ohne ERiC.
 - Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“.
-- Skripte lesen `haben status --json`; das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert.
+- Skripte lesen `haben status --json`, den Commit im Feld `commit` (`null` ohne Angabe beim Bauen); das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert.
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 

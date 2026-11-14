@@ -1,4 +1,13 @@
-import { formatDecimal, formatEuro, isKapitalgesellschaft, kategorieArt, kategorieText, parseEuro, type DirectBooking } from "@haben/core";
+import {
+  formatDecimal,
+  formatEuro,
+  isKapitalgesellschaft,
+  kategorieArt,
+  kategorieText,
+  parseEuro,
+  startwertFuerBuchungsart,
+  type DirectBooking,
+} from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -14,6 +23,7 @@ import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenW
 import { KategorieFelder, kategorieWahlFuer, type KategorieOptionen, type KategorieWahl } from "../../components/KategorieFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
+import { PURPOSE_SHORT } from "../../lib/kontozweck.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
   addBankAccount,
@@ -129,14 +139,26 @@ function zuordnungText(a: Allocation, gesellschaft: boolean): string {
 }
 
 /** Bei einer Aufteilung hebt der Server alle Teile auf, also nennt die Rückfrage auch alle */
-function zuAufhebendeZuordnung(a: Allocation, allocations: Allocation[], gesellschaft: boolean): AufzuhebendeZuordnung {
+function zuAufhebendeZuordnung(
+  a: Allocation,
+  allocations: Allocation[],
+  gesellschaft: boolean,
+  tag: string,
+  gemeldeteMonate: readonly string[],
+): AufzuhebendeZuordnung {
   const teile = a.splitId ? allocations.filter((other) => other.splitId === a.splitId && !other.reversed) : [a];
+  const heute = todayInGermany();
   return {
     id: a.id,
     bezeichnung: a.splitId ? `Aufteilung in ${teile.length} Teile` : zuordnungText(a, gesellschaft),
     betrag: teile.reduce((summe, teil) => summe + teil.amount, 0),
     aufteilung: a.splitId !== null,
     mitBeleg: teile.some((teil) => teil.kind === "invoice" || teil.kind === "document"),
+    // Die Zuordnung steht am Buchungsdatum ihres Umsatzes; früher kann die Aufhebung nicht wirken (#782). Liegt die
+    // Zahlung selbst in der Zukunft, ist heute der früheste Tag — dieselbe Grenze prüft der Server.
+    tag: tag <= heute ? tag : heute,
+    // Ist der Zeitraum der Zahlung gemeldet, wirkt die Aufhebung heute; sonst gehört die Korrektur dorthin (#782)
+    gemeldet: gemeldeteMonate.includes(tag.slice(0, 7)),
   };
 }
 
@@ -347,14 +369,6 @@ function BankPage() {
     </>
   );
 }
-
-const PURPOSE_SHORT = {
-  geschaeft: "Geschäftskonto",
-  steuer: "Steuerkonto",
-  ruecklage: "Rücklagen",
-  privat: "Privatkonto",
-  zahlungsdienstleister: "Zahlungsdienstleister",
-} as const;
 
 /** Name und Zweck des gewählten Kontos, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
 function AccountSettings({
@@ -961,11 +975,16 @@ function AllocationPanel({
   const returnFn = useServerFn(allocateDirectDebitReturnFn);
   // Eine GmbH oder UG hat kein Privat; dieselbe Zuordnung geht dort auf das Gesellschafter-Verrechnungskonto
   const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
+  // Monate mit abgegebener Voranmeldung: sie entscheiden über die Vorbelegung des Aufhebungstags (#782)
+  const gemeldeteMonate = Route.useLoaderData().gemeldeteMonate;
   const best = suggestions[0];
   // Ein Treffer mit Rechnung geht vor; sonst der Vorschlag aus dem Zweck der Konten (Geldtransit, Umsatzsteuer, Privat)
   const [mode, setMode] = useState<"best" | "other" | "direct" | "split">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
   const [candidate, setCandidate] = useState(best ? `${best.item.type}:${best.item.id}` : "");
-  const [directKind, setDirectKind] = useState<DirectChoice>(direct?.kind ?? "privat");
+  // Startwert aus dem Angebot des Kontos (#873): Auf einem privaten Konto fehlen die gesperrten Arten, ein fester
+  // Startwert würde dort vom Server abgelehnt. Eine gelernte Kategorie steht nicht im Angebot und bleibt stehen (#295)
+  const angeboteneArten = directKinds.map((k) => k.value);
+  const [directKind, setDirectKind] = useState<DirectChoice>(() => startwertFuerBuchungsart(direct?.kind, angeboteneArten) as DirectChoice);
   const [steuer, setSteuer] = useState<SteuerWahl>(() => steuerWahlFuer(steuerOptionen, tx.bookingDate));
   const [darlehen, setDarlehen] = useState<DarlehenWahl>(() => darlehenWahlFuer(darlehenOptionen, tx.amount));
   // Aus früheren Direktbuchungen derselben Gegenpartei gelernt (#295), sonst nach Richtung
@@ -1113,7 +1132,7 @@ function AllocationPanel({
                 <button
                   type="button"
                   className="btn btn-sm btn-danger"
-                  onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft))}
+                  onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft, tx.bookingDate, gemeldeteMonate))}
                   disabled={busy}
                 >
                   {a.splitId ? "Aufteilung aufheben" : "Aufheben"}
@@ -1131,7 +1150,7 @@ function AllocationPanel({
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
 
       <NoticeBanner notice={notice} />
-      <ZuordnungAufheben ziel={reversing} onConfirm={(id) => void run(() => reverseFn({ data: id }))} onClose={() => setReversing(null)} />
+      <ZuordnungAufheben ziel={reversing} onConfirm={(id, date) => void run(() => reverseFn({ data: { id, date } }))} onClose={() => setReversing(null)} />
 
       {tx.open !== 0 && mode === "split" && (
         <SplitForm
@@ -1487,15 +1506,17 @@ function SplitForm({
   const darlehenStart = darlehenWahlFuer(darlehenOptionen, tx.amount);
   const kategorieStart = kategorieWahlFuer(kategorieOptionen, tx.amount);
   const start = { steuer: steuerStart, darlehen: darlehenStart, kategorie: kategorieStart };
+  // Fehlen die Bankgebühren im Angebot (privates Konto), startet die zweite Zeile leer (#873)
+  const zweiteZeile = directKinds.some((k) => k.value === "gebuehren") ? "gebuehren" : "";
   const [rows, setRows] = useState<SplitRow[]>(() =>
     initial
       ? [
           { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open), ...start },
-          { key: nextSplitKey++, target: "gebuehren", amount: signed(tx.open - initial.open), ...start },
+          { key: nextSplitKey++, target: zweiteZeile, amount: signed(tx.open - initial.open), ...start },
         ]
       : [
           { key: nextSplitKey++, target: "", amount: signed(tx.open), ...start },
-          { key: nextSplitKey++, target: "gebuehren", amount: "", ...start },
+          { key: nextSplitKey++, target: zweiteZeile, amount: "", ...start },
         ],
   );
 

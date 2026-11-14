@@ -1,4 +1,5 @@
 import {
+  abziehbarerAnteil,
   ASSET_KINDS,
   ASSET_METHODS,
   convertForeignAmounts,
@@ -15,6 +16,7 @@ import {
   usesUsefulLife,
   type ExpenseCategory,
   type SelfAssessedTax,
+  VOLLER_ABZUG,
   isKapitalgesellschaft,
   elektroAvailable,
   ownerLabels,
@@ -34,6 +36,7 @@ import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
+import { aendereBetragszeile, betragszeileAus, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
@@ -56,15 +59,7 @@ export const Route = createFileRoute("/_app/belege/$id")({
 });
 
 type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
-type Rate = 1900 | 700 | 0;
-
-interface AmountState {
-  key: number;
-  taxRate: Rate;
-  net: string;
-  tax: string;
-  taxTouched: boolean;
-}
+type Rate = BetragsSatz;
 
 let nextKey = 1;
 
@@ -324,9 +319,14 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [invoiceNumber, setInvoiceNumber] = useState(doc.invoiceNumber);
   const [documentDate, setDocumentDate] = useState(doc.documentDate ?? "");
   const [dueDate, setDueDate] = useState(doc.dueDate ?? "");
+  // Leistungszeitraum (#693): worauf sich die Leistung bezieht, nicht wann die Rechnung kam
+  const [serviceFrom, setServiceFrom] = useState(doc.serviceFrom ?? "");
+  const [serviceTo, setServiceTo] = useState(doc.serviceTo ?? "");
   const [category, setCategory] = useState(doc.category ?? "");
   const [payment, setPayment] = useState(doc.payment);
   const [privateShare, setPrivateShare] = useState(doc.privateShare ? String(doc.privateShare) : "");
+  // Abziehbarer Anteil der Vorsteuer (#852): null = Vorgabe der Firmendaten, sonst 0 oder VOLLER_ABZUG
+  const [vorsteuerAnteil, setVorsteuerAnteil] = useState(doc.vorsteuerAnteil);
   // Gutschrift erstattet bereits Bezahltes (#786): die Vorsteuerminderung wartet auf den Ausgleich
   const [erstattetBezahltes, setErstattetBezahltes] = useState(doc.erstattetBezahltes);
   // Angaben zur Anlage bei Kategorie „anlage“; Vorschläge laut AfA-Tabelle
@@ -340,17 +340,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
   const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
   // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
-  const [rows, setRows] = useState<AmountState[]>(() =>
+  const [rows, setRows] = useState<Betragszeile[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null }]).map((a) => {
       const net = doc.currency === "EUR" ? a.net : (a.originalNet ?? 0);
       const tax = calculateInitialTax ? taxOf(net, a.taxRate) : doc.currency === "EUR" ? a.tax : (a.originalTax ?? 0);
-      return {
-        key: nextKey++,
-        taxRate: a.taxRate as Rate,
-        net: net === 0 && amounts.length === 0 ? "" : formatDecimal(net),
-        tax: tax === 0 && amounts.length === 0 ? "" : formatDecimal(tax),
-        taxTouched: amounts.length > 0,
-      };
+      return betragszeileAus(nextKey++, a.taxRate as Rate, net, tax, amounts.length === 0, amounts.length > 0);
     }),
   );
   // Aufteilung auf mehrere Kategorien (#271); leer = die Kategorie gilt für den ganzen Beleg
@@ -374,6 +368,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   // Mit Aufteilung gibt es (noch) keinen Privatanteil, siehe Grenzen in docs/belege.md
   const privateShareValue = category === "anlage" || splitting ? 0 : Number(privateShare || 0);
   const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
+  // Gebucht gilt der festgehaltene Abzug (deckt Altbelege ab), im Entwurf Belegwahl vor Firmenvorgabe
+  const vorgabeOhne = abziehbarerAnteil(data, null) === 0;
+  const ohneAbzug = doc.lockedAt ? !doc.vorsteuerAbzug : abziehbarerAnteil(data, vorsteuerAnteil) === 0;
   const currencyCode = currency.trim().toUpperCase();
   const foreign = currencyCode !== "EUR";
   const rate = exchangeRate.trim() ? parseExchangeRate(exchangeRate) : null;
@@ -381,6 +378,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const parsedSplits = splitting ? parseSplitRows(splitRows) : [];
   const valid =
     parsed.every((p) => p.net !== null && p.tax !== null) &&
+    // Ein vertipptes Brutto lässt die vorigen Beträge stehen; bei § 13b gibt es kein Brutto
+    (Boolean(reverseCharge) || rows.every(bruttoLesbar)) &&
     new Set(rows.map((r) => r.taxRate)).size === rows.length &&
     privateShareValid &&
     currencyValid &&
@@ -406,13 +405,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   function chooseReverseCharge(value: SelfAssessedTax | null) {
     touch(setReverseCharge)(value);
     // Die Steuer steht nicht auf der Rechnung; Haben rechnet sie aus dem Netto, 0 % gibt es bei § 13b und beim Erwerb nicht
+    // Gezahlt wird das Netto; ein vorher eingegebenes Brutto ist keine Grundlage mehr
     if (value) {
       setRows((prev) =>
-        prev.map((row) => {
-          const taxRate = row.taxRate === 0 ? 1900 : row.taxRate;
-          const net = parseEuro(row.net || "0");
-          return { ...row, taxRate, taxTouched: false, tax: net === null ? row.tax : formatDecimal(taxOf(net, taxRate)) };
-        }),
+        prev.map((row) => aendereBetragszeile(row, { taxRate: row.taxRate === 0 ? 1900 : row.taxRate, taxTouched: false, basis: "net" }, true)),
       );
     }
   }
@@ -431,19 +427,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     };
   }
 
-  function updateRow(key: number, patch: Partial<AmountState>) {
-    setRows((prev) =>
-      prev.map((row) => {
-        if (row.key !== key) return row;
-        const next = { ...row, ...patch };
-        // Selbst geschuldete Steuer immer berechnen; Vorsteuer laut Beleg nur bis zur manuellen Änderung vorschlagen.
-        if ((reverseCharge || !next.taxTouched) && ("net" in patch || "taxRate" in patch)) {
-          const net = parseEuro(next.net || "0");
-          next.tax = net === null ? next.tax : formatDecimal(taxOf(net, next.taxRate));
-        }
-        return next;
-      }),
-    );
+  function updateRow(key: number, patch: Partial<Omit<Betragszeile, "key">>) {
+    setRows((prev) => prev.map((row) => (row.key === key ? aendereBetragszeile(row, patch, Boolean(reverseCharge)) : row)));
     setDirty(true);
   }
 
@@ -472,10 +457,13 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           invoiceNumber,
           documentDate: documentDate || null,
           dueDate: dueDate || null,
+          serviceFrom: serviceFrom || null,
+          serviceTo: serviceTo || null,
           category: splitting ? null : ((category || null) as ExpenseCategory | null),
           payment,
           note,
           privateShare: privateShareValue,
+          vorsteuerAnteil,
           // Nur an einer Gutschrift über die Bank sinnvoll; sonst schickt der Editor immer „nein“ (#786)
           erstattetBezahltes: gross !== null && gross < 0 && payment === "bank" ? erstattetBezahltes : false,
           reverseCharge,
@@ -631,6 +619,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             {(control) => <input {...control} type="date" value={documentDate} onChange={(e) => touch(setDocumentDate)(e.target.value)} />}
           </Field>
           <Field label="Fällig am">{(control) => <input {...control} type="date" value={dueDate} onChange={(e) => touch(setDueDate)(e.target.value)} />}</Field>
+          <Field label="Leistung von" describedBy="leistung-hint">
+            {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
+          </Field>
+          <Field label="Leistung bis" describedBy="leistung-hint">
+            {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
+          </Field>
+          <p className="small" id="leistung-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
+            Zeitraum, auf den sich die Leistung bezieht, wenn er vom Belegdatum abweicht. Bleibt er leer, gilt das Belegdatum.
+          </p>
           {splitting ? (
             <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
               <strong>Kategorie:</strong> aufgeteilt auf {splitRows.length} Zeilen, siehe <a href="#aufteilung">Aufteilung auf Kategorien</a>.
@@ -773,14 +770,16 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             reverseCharge === "ig_erwerb" ? (
               <>
                 Ein Unternehmer aus einem anderen EU-Land liefert dir Ware ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. auf der Rechnung. Die Erwerbsteuer
-                schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung, und
-                zieht sie zugleich als Vorsteuer ab (Kz 61). Bezahlt wird nur der Nettobetrag. Weist der Händler deutsche Umsatzsteuer aus, bleibt es ein
-                gewöhnlicher Beleg.
+                schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung
+                {ohneAbzug ? "; ohne Vorsteuerabzug wird sie Teil der Ausgabe" : ", und zieht sie zugleich als Vorsteuer ab (Kz 61)"}. Bezahlt wird nur der
+                Nettobetrag. Weist der Händler deutsche Umsatzsteuer aus, bleibt es ein gewöhnlicher Beleg.
               </>
             ) : reverseCharge ? (
               <>
                 Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz{" "}
-                {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht sie zugleich als Vorsteuer ab (Kz 67). Bezahlt wird nur der Nettobetrag.
+                {reverseCharge === "eu" ? "46/47" : "84/85"}
+                {ohneAbzug ? "; ohne Vorsteuerabzug wird sie Teil der Ausgabe" : " und zieht sie zugleich als Vorsteuer ab (Kz 67)"}. Bezahlt wird nur der
+                Nettobetrag.
               </>
             ) : (
               looksLikeReverseCharge && (
@@ -856,7 +855,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           )}
         </div>
         {rows.map((row, index) => (
-          <div className="amount-row" key={row.key}>
+          <div className={reverseCharge ? "amount-row" : "amount-row with-gross"} key={row.key}>
             <Field label="Satz">
               {(control) => (
                 <select {...control} value={row.taxRate} onChange={(e) => updateRow(row.key, { taxRate: Number(e.target.value) as Rate })}>
@@ -902,6 +901,22 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 />
               )}
             </Field>
+            {/* Brutto laut Beleg (#917): Eingabe rechnet Netto und Vorsteuer vor; bei § 13b gezahlt wird netto, also kein Brutto */}
+            {!reverseCharge && (
+              <Field label={foreign ? `Brutto ${currencyCode}` : "Brutto"}>
+                {(control) => (
+                  <input
+                    {...control}
+                    className="mono"
+                    inputMode="decimal"
+                    value={row.gross}
+                    placeholder="0,00"
+                    onChange={(e) => updateRow(row.key, { gross: e.target.value })}
+                    aria-invalid={row.gross.trim() !== "" && parseEuro(row.gross) === null}
+                  />
+                )}
+              </Field>
+            )}
             <button
               type="button"
               className="icon-btn"
@@ -931,7 +946,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             onClick={() => {
               const used = new Set(rows.map((r) => r.taxRate));
               const rate = ([1900, 700, 0] as Rate[]).find((r) => !used.has(r)) ?? 0;
-              setRows((prev) => [...prev, { key: nextKey++, taxRate: rate, net: "", tax: "", taxTouched: false }]);
+              setRows((prev) => [...prev, betragszeileAus(nextKey++, rate, 0, 0, true, false)]);
             }}
           >
             + Steuersatz
@@ -980,6 +995,23 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               />
             )}
           </Field>
+        )}
+        {/* Kleinunternehmer ziehen nie ab (§ 19 Abs. 1 UStG): dort gibt es nichts zu wählen */}
+        {!data.kleinunternehmer && (
+          <div className="checkbox-hinted">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={ohneAbzug}
+                onChange={(e) => touch(setVorsteuerAnteil)(e.target.checked === vorgabeOhne ? null : e.target.checked ? 0 : VOLLER_ABZUG)}
+                aria-describedby="vorsteuer-ohne-hint"
+              />
+              <span>Ohne Vorsteuerabzug</span>
+            </label>
+            <span id="vorsteuer-ohne-hint" className="field-hint">
+              Die Steuer wird Teil der Ausgabe, keine Vorsteuer (§ 15 Abs. 2 UStG). Vorgabe in den Firmendaten: {vorgabeOhne ? "ohne" : "mit"} Vorsteuerabzug.
+            </span>
+          </div>
         )}
       </fieldset>
 

@@ -1,6 +1,8 @@
 import { finanzamtsnummer, formatEuro, type Cents } from "@haben/core";
 import { germanDate } from "./bankverbindung.ts";
 import { checkSteuernummer13, elsterDecimal, ElsterEingabeError, elsterXml, escapeXml, PRODUKT_NAME, TESTMERKER, wholeEuros } from "./xml.ts";
+import { EUER_AUSGABEN, EUER_EINNAHMEN, EUER_FIELDS, type EuerFigureKey, type EuerFigures } from "./euer-felder.ts";
+import { euerUstUmgliedern, euerUstZeilen } from "./euer-umgliedern.ts";
 
 /**
  * Jahreserklärungen im Verfahren ElsterErklaerung: Umsatzsteuererklärung (E50, Datenart USt) und
@@ -107,10 +109,36 @@ export interface UstErklaerungFigures {
   tax19: Cents;
   base7: Cents;
   tax7: Cents;
-  /** Abziehbare Vorsteuer aus Rechnungen */
+  /** Abziehbare Vorsteuer aus Rechnungen (Kz 66) */
   vorsteuer: Cents;
   /** Vorauszahlungssoll: Summe der Voranmeldungen des Jahres */
   vorauszahlungen: Cents;
+  /** Steuerfreie innergemeinschaftliche Lieferungen (Kz 41, E3103301) */
+  kz41?: Cents;
+  /** Ausfuhrlieferungen (Kz 43, E3103801; bis 2024 zählt E3104201 mit) */
+  kz43?: Cents;
+  /** Innergemeinschaftlicher Erwerb: Bemessung und Erwerbsteuer 19 % (Kz 89, E3100902/E3100903) */
+  kz89?: Cents;
+  tax89?: Cents;
+  /** Innergemeinschaftlicher Erwerb 7 % (Kz 93, E3101301/E3101302) */
+  kz93?: Cents;
+  tax93?: Cents;
+  /** § 13b als Leistungsempfänger: Bemessung und Steuer EU (Kz 46/47, E3102205/E3102206) */
+  kz46?: Cents;
+  kz47?: Cents;
+  /** § 13b Drittland (Kz 84/85, E3102503/E3102504) */
+  kz84?: Cents;
+  kz85?: Cents;
+  /** Im Inland nicht steuerbare Leistungen, Ort im EU-Ausland (Kz 21, E3105702) */
+  kz21?: Cents;
+  /** Nicht steuerbare Umsätze Drittland (Kz 45, E3105801) */
+  kz45?: Cents;
+  /** Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61, E3006301) */
+  kz61?: Cents;
+  /** Entstandene Einfuhrumsatzsteuer (Kz 62, E3006401) */
+  kz62?: Cents;
+  /** Vorsteuer aus §-13b-Leistungen (Kz 67, E3006502) */
+  kz67?: Cents;
 }
 
 export interface UstErklaerungResult {
@@ -121,8 +149,36 @@ export interface UstErklaerungResult {
 }
 
 export function ustErklaerungResult(f: UstErklaerungFigures): UstErklaerungResult {
-  const steuer = f.tax19 + f.tax7 - f.vorsteuer;
+  const steuer =
+    f.tax19 + f.tax7 + (f.tax89 ?? 0) + (f.tax93 ?? 0) + (f.kz47 ?? 0) + (f.kz85 ?? 0) - (f.vorsteuer + (f.kz61 ?? 0) + (f.kz62 ?? 0) + (f.kz67 ?? 0));
   return { steuer, abschluss: steuer - f.vorauszahlungen };
+}
+
+/** true, wenn alle Beträge der Erklärung 0 sind (das Vorauszahlungssoll zählt nicht): eine Nullerklärung geht über das ELSTER-Portal */
+export function ustErklaerungLeer(f: UstErklaerungFigures): boolean {
+  const betraege: (Cents | undefined)[] = [
+    f.base19,
+    f.tax19,
+    f.base7,
+    f.tax7,
+    f.vorsteuer,
+    f.kz41,
+    f.kz43,
+    f.kz89,
+    f.tax89,
+    f.kz93,
+    f.tax93,
+    f.kz46,
+    f.kz47,
+    f.kz84,
+    f.kz85,
+    f.kz21,
+    f.kz45,
+    f.kz61,
+    f.kz62,
+    f.kz67,
+  ];
+  return betraege.every((betrag) => (betrag ?? 0) === 0);
 }
 
 export interface UstErklaerungXmlInput extends Omit<Envelope, "datenArt"> {
@@ -130,12 +186,161 @@ export interface UstErklaerungXmlInput extends Omit<Envelope, "datenArt"> {
   figures: UstErklaerungFigures;
 }
 
+const kz = (wert: Cents | undefined) => wert ?? 0;
+
+/** Steuerfreie Umsätze mit Vorsteuerabzug (Kz 41 und 43); die Summenzeile entfällt ab 2025 (USt_30415 bis 2024) */
+function ust2aStfrei(f: UstErklaerungFigures, year: number): XmlNode | false {
+  return (
+    (kz(f.kz41) !== 0 || kz(f.kz43) !== 0) && [
+      "Ums_stfrei",
+      [
+        [
+          "Tabelle",
+          [
+            [
+              "Mit_VoSt_Abz",
+              [
+                kz(f.kz41) !== 0 && ["Ig_Lfg", [["E3103301", wholeEuros(f.kz41!)]]],
+                kz(f.kz43) !== 0 && ["Ums_stfrei_weit", [["E3103801", wholeEuros(f.kz43!)], year <= 2024 && ["E3104201", wholeEuros(f.kz43!)]]],
+              ],
+            ],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Innergemeinschaftlicher Erwerb zu 19 und 7 % mit der Summe der Erwerbsteuer (Kz 89, 93) */
+function ust2aIgErw(f: UstErklaerungFigures, igErwerbSteuer: Cents): XmlNode | false {
+  return (
+    (kz(f.kz89) !== 0 || kz(f.kz93) !== 0) && [
+      "Ig_Erw",
+      [
+        [
+          "Tabelle",
+          [
+            [
+              "Stpfl",
+              [
+                kz(f.kz89) !== 0 && ["E3100902", wholeEuros(f.kz89!)],
+                kz(f.tax89) !== 0 && ["E3100903", elsterDecimal(f.tax89!)],
+                kz(f.kz93) !== 0 && ["E3101301", wholeEuros(f.kz93!)],
+                kz(f.tax93) !== 0 && ["E3101302", elsterDecimal(f.tax93!)],
+              ],
+            ],
+            ["Ig_Erw_Sum", [["E3101501", elsterDecimal(igErwerbSteuer)]]],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Leistungen nach § 13b UStG als Leistungsempfänger: EU (Kz 46/47) und Drittland (Kz 84/85) mit Summe der Steuer */
+function ust2a13b(f: UstErklaerungFigures, s13bSteuer: Cents): XmlNode | false {
+  return (
+    (kz(f.kz46) !== 0 || kz(f.kz84) !== 0 || s13bSteuer !== 0) && [
+      "Ums_13b",
+      [
+        [
+          "Tabelle",
+          [
+            kz(f.kz46) !== 0 && ["E3102205", wholeEuros(f.kz46!)],
+            kz(f.kz47) !== 0 && ["E3102206", elsterDecimal(f.kz47!)],
+            kz(f.kz84) !== 0 && ["E3102503", wholeEuros(f.kz84!)],
+            kz(f.kz85) !== 0 && ["E3102504", elsterDecimal(f.kz85!)],
+            ["Ums_13b_Sum", [["E3102601", elsterDecimal(s13bSteuer)]]],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Ergänzende Angaben zu den Umsätzen: Leistungsort EU-Ausland (Kz 21) oder Drittland (Kz 45) */
+function ust2aErgAng(f: UstErklaerungFigures): XmlNode | false {
+  return (
+    (kz(f.kz21) !== 0 || kz(f.kz45) !== 0) && [
+      "Erg_Ang_Ums",
+      [
+        [
+          "Tabelle",
+          [
+            ["E3105702", f.kz21 ? wholeEuros(f.kz21) : undefined],
+            ["E3105801", f.kz45 ? wholeEuros(f.kz45) : undefined],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Abziehbare Vorsteuer: aus Rechnungen (Kz 66), Erwerben (61), Einfuhr (62) und §-13b-Leistungen (67) mit Summe */
+function ust2aVorsteuer(f: UstErklaerungFigures, vorsteuer: Cents): XmlNode | false {
+  return (
+    vorsteuer !== 0 && [
+      "Abz_VoSt",
+      [
+        [
+          "Tabelle",
+          [
+            f.vorsteuer !== 0 && ["E3006201", elsterDecimal(f.vorsteuer)],
+            kz(f.kz61) !== 0 && ["E3006301", elsterDecimal(f.kz61!)],
+            kz(f.kz62) !== 0 && ["E3006401", elsterDecimal(f.kz62!)],
+            kz(f.kz67) !== 0 && ["E3006502", elsterDecimal(f.kz67!)],
+            ["Abz_VoSt_Sum", [["E3006901", elsterDecimal(vorsteuer)]]],
+          ],
+        ],
+      ],
+    ]
+  );
+}
+
+/** Berechnung der Umsatzsteuer: Übertrag der Summen, verbleibende Steuer, Vorauszahlungssoll und Abschluss */
+function ust2aBerechnung(
+  f: UstErklaerungFigures,
+  teile: { umsatzsteuer: Cents; igErwerbSteuer: Cents; s13bSteuer: Cents; vorsteuer: Cents; steuer: Cents; abschluss: Cents },
+): XmlNode {
+  const ustGesamt = teile.umsatzsteuer + teile.igErwerbSteuer + teile.s13bSteuer;
+  return [
+    "Berech_USt",
+    [
+      [
+        "Tabelle",
+        [
+          ["E3009201", amount(teile.umsatzsteuer)],
+          ["E3009401", amount(teile.igErwerbSteuer)],
+          ["E3009502", amount(teile.s13bSteuer)],
+          ["E3009801", amount(ustGesamt)],
+          ["E3009901", amount(teile.vorsteuer)],
+          // USt_30907: E3010201 nicht ohne eine der Summen E3009801/E3009901
+          (ustGesamt !== 0 || teile.vorsteuer !== 0) && ["E3010201", elsterDecimal(teile.steuer)],
+          // Umsatzsteuer bzw. Überschuss (mit Minus); USt_30914/30909: genau dann, wenn E3010201 dasteht, auch mit 0,00
+          (ustGesamt !== 0 || teile.vorsteuer !== 0) && ["E3010601", elsterDecimal(teile.steuer)],
+          [
+            "Verbl_USt",
+            [
+              ["E3011101", elsterDecimal(teile.steuer)],
+              ["E3011301", elsterDecimal(f.vorauszahlungen)],
+            ],
+          ],
+          ["Zahl_Erstatt", [["E3011401", elsterDecimal(teile.abschluss)]]],
+        ],
+      ],
+    ],
+  ];
+}
+
 export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
   const envelopeInput: Envelope = { ...input, datenArt: "USt" };
   checkEnvelope(envelopeInput);
   const f = input.figures;
   const umsatzsteuer = f.tax19 + f.tax7;
-  if (umsatzsteuer === 0 && f.vorsteuer === 0) {
+  const igErwerbSteuer = kz(f.tax89) + kz(f.tax93);
+  const s13bSteuer = kz(f.kz47) + kz(f.kz85);
+  const vorsteuer = f.vorsteuer + kz(f.kz61) + kz(f.kz62) + kz(f.kz67);
+  if (ustErklaerungLeer(f)) {
     throw new ElsterEingabeError("Ohne Umsätze und Vorsteuer gibt es nichts zu erklären; eine Nullerklärung geht über das ELSTER-Portal.");
   }
   const { steuer, abschluss } = ustErklaerungResult(f);
@@ -189,42 +394,12 @@ export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
           ],
         ],
       ],
-      f.vorsteuer !== 0 && [
-        "Abz_VoSt",
-        [
-          [
-            "Tabelle",
-            [
-              ["E3006201", elsterDecimal(f.vorsteuer)],
-              ["Abz_VoSt_Sum", [["E3006901", elsterDecimal(f.vorsteuer)]]],
-            ],
-          ],
-        ],
-      ],
-      [
-        "Berech_USt",
-        [
-          [
-            "Tabelle",
-            [
-              ["E3009201", amount(umsatzsteuer)],
-              ["E3009801", amount(umsatzsteuer)],
-              ["E3009901", amount(f.vorsteuer)],
-              ["E3010201", elsterDecimal(steuer)],
-              // Umsatzsteuer bzw. Überschuss (mit Minus)
-              ["E3010601", amount(steuer)],
-              [
-                "Verbl_USt",
-                [
-                  ["E3011101", elsterDecimal(steuer)],
-                  ["E3011301", elsterDecimal(f.vorauszahlungen)],
-                ],
-              ],
-              ["Zahl_Erstatt", [["E3011401", elsterDecimal(abschluss)]]],
-            ],
-          ],
-        ],
-      ],
+      ust2aStfrei(f, input.year),
+      ust2aIgErw(f, igErwerbSteuer),
+      ust2a13b(f, s13bSteuer),
+      ust2aErgAng(f),
+      ust2aVorsteuer(f, vorsteuer),
+      ust2aBerechnung(f, { umsatzsteuer, igErwerbSteuer, s13bSteuer, vorsteuer, steuer, abschluss }),
     ],
   ];
   const e50 = [
@@ -238,206 +413,29 @@ export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
 
 // ------------------------------------------------------------------ Anlage EÜR
 
-/** Beträge der Anlage EÜR in Cent; fehlende oder 0 entfallen */
-export interface EuerFigures {
-  // Betriebseinnahmen
-  kleinunternehmer?: Cents;
-  steuerpflichtig?: Cents;
-  steuerfrei?: Cents;
-  /** Vereinnahmte Umsatzsteuer und Umsatzsteuer auf unentgeltliche Wertabgaben */
-  vereinnahmteUst?: Cents;
-  erstatteteUst?: Cents;
-  anlagenabgang?: Cents;
-  privateKfz?: Cents;
-  /** Sonstige Sach-, Nutzungs- und Leistungsentnahmen (Sachentnahme, freie Buchung) */
-  sachentnahmen?: Cents;
-  // Betriebsausgaben
-  waren?: Cents;
-  fremdleistungen?: Cents;
-  /** Ausgaben für eigenes Personal: Löhne und Gehälter, Lohnsteuer und Beiträge zur Sozialversicherung */
-  personal?: Cents;
-  afaBeweglich?: Cents;
-  gwg?: Cents;
-  sammelposten?: Cents;
-  restbuchwert?: Cents;
-  telekommunikation?: Cents;
-  reisekosten?: Cents;
-  fortbildung?: Cents;
-  beratung?: Cents;
-  beitraegeVersicherungen?: Cents;
-  edv?: Cents;
-  arbeitsmittel?: Cents;
-  werbung?: Cents;
-  /** Schuldzinsen zur Finanzierung von Anschaffungs- und Herstellungskosten von Anlagevermögen bzw. übrige (Darlehen) */
-  schuldzinsenAnlage?: Cents;
-  schuldzinsen?: Cents;
-  vorsteuer?: Cents;
-  gezahlteUst?: Cents;
-  uebrige?: Cents;
-  /** Beschränkt abziehbar: Geschenke bis 50 €, Bewirtung (abziehbare 70 %), Verpflegungsmehraufwand, Homeoffice-Tagespauschale */
-  geschenke?: Cents;
-  bewirtung?: Cents;
-  /** Nicht abziehbare 30 % der Bewirtung; nur zur Information, nicht in den Betriebsausgaben */
-  bewirtungNichtAbziehbar?: Cents;
-  /**
-   * Gewerbesteuer und Nebenleistungen darauf, abzüglich Erstattungen, und Hinterziehungszinsen: keine Betriebsausgabe (§ 4
-   * Abs. 5b, Abs. 5 Satz 1 Nr. 8a EStG); nach der
-   * Anleitung zur Anlage EÜR in der Zeile der sonstigen beschränkt abziehbaren Betriebsausgaben, Spalte „nicht abziehbar“
-   */
-  gewerbesteuerNichtAbziehbar?: Cents;
-  verpflegung?: Cents;
-  tagespauschale?: Cents;
-  kfzLeasing?: Cents;
-  kfzSteuerVersicherung?: Cents;
-  kfzSonstige?: Cents;
-  /** Zeile 39 (Kz 150) und Zeile 48 (Kz 225) */
-  miete?: Cents;
-  erhaltung?: Cents;
-  /** Fahrten mit dem Privatfahrzeug (Kilometersatz), als Nutzungseinlage */
-  fahrtNutzungseinlage?: Cents;
-  // Entnahmen und Einlagen (Einzelunternehmen)
-  entnahmen?: Cents;
-  einlagen?: Cents;
-}
-
-export const EUER_EINNAHMEN = [
-  "kleinunternehmer",
-  "steuerpflichtig",
-  "steuerfrei",
-  "vereinnahmteUst",
-  "erstatteteUst",
-  "anlagenabgang",
-  "privateKfz",
-  "sachentnahmen",
-] as const;
-export const EUER_AUSGABEN = [
-  "waren",
-  "fremdleistungen",
-  "personal",
-  "afaBeweglich",
-  "gwg",
-  "sammelposten",
-  "restbuchwert",
-  "miete",
-  "telekommunikation",
-  "reisekosten",
-  "fortbildung",
-  "beratung",
-  "erhaltung",
-  "beitraegeVersicherungen",
-  "edv",
-  "arbeitsmittel",
-  "werbung",
-  "schuldzinsenAnlage",
-  "schuldzinsen",
-  "vorsteuer",
-  "gezahlteUst",
-  "uebrige",
-  "geschenke",
-  "bewirtung",
-  "verpflegung",
-  "tagespauschale",
-  "kfzLeasing",
-  "kfzSteuerVersicherung",
-  "kfzSonstige",
-  "fahrtNutzungseinlage",
-] as const;
-
-export type EuerFigureKey = (typeof EUER_EINNAHMEN)[number] | (typeof EUER_AUSGABEN)[number];
-
-/** Zeile der Anlage EÜR 2025 und amtlicher Text, für die Vorschau */
-export const EUER_FIELDS: Record<
-  EuerFigureKey | "bewirtungNichtAbziehbar" | "gewerbesteuerNichtAbziehbar" | "entnahmen" | "einlagen",
-  { kz: string; label: string }
-> = {
-  kleinunternehmer: { kz: "E6000101", label: "Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer" },
-  steuerpflichtig: { kz: "E6000401", label: "Umsatzsteuerpflichtige Betriebseinnahmen" },
-  steuerfrei: {
-    kz: "E6000501",
-    label: "Umsatzsteuerfreie, nicht umsatzsteuerbare Betriebseinnahmen sowie Betriebseinnahmen, für die der Leistungsempfänger die Umsatzsteuer schuldet",
-  },
-  vereinnahmteUst: { kz: "E6000601", label: "Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben" },
-  // Zeile 18; kein Vorzeichen erlaubt. Jahresdokumentation E77 2025 im ERiC-Dokumentationspaket (Datenarten/
-  // ElsterErklaerung/EUER/Jahresdokumentation/Jahresdokumentation_E77_2025.ods): "GeldBetragMitCent ohne Vorzeichen";
-  // Schema E77-2025.xsd und E77-2026.xsd: type="DezimalzahlNichtNegOhneFuehrNull..." mit Muster \d{1,12}(,\d{2,2}).
-  erstatteteUst: { kz: "E6000701", label: "Vom Finanzamt erstattete und ggf. verrechnete Umsatzsteuer" },
-  anlagenabgang: { kz: "E6000801", label: "Veräußerung oder Entnahme von Anlagevermögen" },
-  privateKfz: { kz: "E6000901", label: "Private Kfz-Nutzung" },
-  // Schema E77-2023 bis E77-2026 im Dokumentationspaket von ERiC 44.3.6.0 bzw. 45.1.5.0: /EUER/BEin/Entnahme_Sonst/Sum/E6001001
-  // (2023 Zeile 20, ab 2024 Zeile 21); nicht E6301001, das ist dieselbe Zeile der Sonderbetriebseinnahmen
-  sachentnahmen: { kz: "E6001001", label: "Sonstige Sach-, Nutzungs- und Leistungsentnahmen" },
-  // Kennung und Element aus den ERiC-Plugins libcheckEUER_2023 bis _2025: /EUER/BAus/Ware_Rohstoff_Hilfsstoff/Sum/E6001601
-  waren: { kz: "E6001601", label: "Waren, Rohstoffe und Hilfsstoffe einschließlich der Nebenkosten" },
-  fremdleistungen: { kz: "E6001701", label: "Bezogene Fremdleistungen" },
-  // Schema E77-2023 bis E77-2026 im ERiC-Paket: /EUER/BAus/Personal/Sum/E6001801
-  personal: { kz: "E6001801", label: "Ausgaben für eigenes Personal (z. B. Gehälter, Löhne und Versicherungsbeiträge)" },
-  afaBeweglich: { kz: "E6002101", label: "AfA auf bewegliche Wirtschaftsgüter" },
-  gwg: { kz: "E6002301", label: "Aufwendungen für geringwertige Wirtschaftsgüter" },
-  sammelposten: { kz: "E6003302", label: "Auflösung Sammelposten nach § 6 Abs. 2a EStG" },
-  restbuchwert: { kz: "E6002401", label: "Restbuchwert der ausgeschiedenen Anlagegüter" },
-  telekommunikation: { kz: "E6003901", label: "Aufwendungen für Telekommunikation (z. B. Telefon, Internet)" },
-  reisekosten: { kz: "E6004004", label: "Übernachtungs- und Reisenebenkosten bei Geschäftsreisen" },
-  fortbildung: { kz: "E6004003", label: "Fortbildungskosten" },
-  beratung: { kz: "E6004801", label: "Rechts- und Steuerberatung, Buchführung" },
-  beitraegeVersicherungen: { kz: "E6004402", label: "Beiträge, Gebühren, Abgaben und Versicherungen (ohne Kfz)" },
-  edv: { kz: "E6004405", label: "Laufende EDV-Kosten" },
-  arbeitsmittel: { kz: "E6004408", label: "Arbeitsmittel (z. B. Bürobedarf, Porto, Fachliteratur)" },
-  werbung: { kz: "E6004501", label: "Werbekosten" },
-  // Schema E77-2023 bis E77-2026: /EUER/BAus/Sonst_unbeschraenkt/Schuldzins_AnlageVerm/Sum/E6004202 und …/Schuldzins_Uebrige/Sum/E6004303
-  schuldzinsenAnlage: {
-    kz: "E6004202",
-    label: "Schuldzinsen zur Finanzierung von Anschaffungs- und Herstellungskosten von Wirtschaftsgütern des Anlagevermögens",
-  },
-  schuldzinsen: { kz: "E6004303", label: "Übrige Schuldzinsen" },
-  vorsteuer: { kz: "E6005001", label: "Gezahlte Vorsteuerbeträge" },
-  // Zeile 58; wie E6000701 ohne Vorzeichen. ERiC 45.1.5.0 lehnt "-190,00" hier ab mit "Unzulässiges Vorzeichen.
-  // Geldbeträge müssen ohne Vorzeichen eingetragen werden." (siehe euerVorzeichenMeldungen).
-  gezahlteUst: { kz: "E6005101", label: "An das Finanzamt gezahlte und ggf. verrechnete Umsatzsteuer" },
-  uebrige: { kz: "E6004901", label: "Übrige unbeschränkt abziehbare Betriebsausgaben" },
-  kfzLeasing: { kz: "E6005801", label: "Leasingkosten für Kraftfahrzeuge" },
-  kfzSteuerVersicherung: { kz: "E6005903", label: "Steuern, Versicherungen und Maut für Kraftfahrzeuge" },
-  kfzSonstige: { kz: "E6006003", label: "Sonstige tatsächliche Fahrtkosten ohne AfA und Zinsen" },
-  // Schema E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0: /EUER/BAus/Raumkosten_u_sonst/Miete_Pacht/Sum/E6003201
-  // (Zeile 39, Kz 150) und /EUER/BAus/Sonst_unbeschraenkt/Erhaltungsaufwand/Sum/E6004313 (Zeile 48, Kz 225)
-  miete: { kz: "E6003201", label: "Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke" },
-  erhaltung: { kz: "E6004313", label: "Erhaltungsaufwendungen (z. B. Instandhaltung, Wartung, Reparatur; ohne solche für Gebäude und Kfz)" },
-  // Kennungen und Reihenfolge wie im EÜR-Formular 2025 von EasyCash&Tax, das ECTElster in dieser Reihenfolge übermittelt
-  geschenke: { kz: "E6004002", label: "Geschenke (abziehbar)" },
-  bewirtung: { kz: "E6004102", label: "Bewirtungsaufwendungen (abziehbar)" },
-  bewirtungNichtAbziehbar: { kz: "E6004101", label: "Bewirtungsaufwendungen (nicht abziehbar)" },
-  // Schema E77-2023 bis E77-2026: /EUER/BAus/Beschr_abziehbar/Nicht_abziehbar/Sonst/Sum/E6004301, darf negativ sein
-  gewerbesteuerNichtAbziehbar: {
-    kz: "E6004301",
-    label: "Sonstige beschränkt abziehbare Betriebsausgaben (nicht abziehbar): Gewerbesteuer, Hinterziehungszinsen",
-  },
-  verpflegung: { kz: "E6005002", label: "Verpflegungsmehraufwendungen" },
-  tagespauschale: { kz: "E6006405", label: "Tagespauschale für die Tätigkeit in der häuslichen Wohnung" },
-  fahrtNutzungseinlage: { kz: "E6006103", label: "Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage)" },
-  entnahmen: { kz: "E6006601", label: "Entnahmen einschließlich Sach-, Leistungs- und Nutzungsentnahmen" },
-  einlagen: { kz: "E6006701", label: "Einlagen einschließlich Sach-, Leistungs- und Nutzungseinlagen" },
-};
-
 /**
  * Meldungen zu Beträgen, die die Anlage EÜR nicht aufnimmt: negative Werte in Zeile 58 (E6005101) und Zeile 18
  * (E6000701). Fundstelle: Jahresdokumentation E77 2025 des ERiC-Dokumentationspakets 44.3.6.0/45.1.5.0, Felder
  * E6005101 und E6000701: „GeldBetragMitCent ohne Vorzeichen, mit 12 Vorkommastellen“; die Schemata E77-2025.xsd und
  * E77-2026.xsd führen beide als „DezimalzahlNichtNegOhneFuehrNull…“ (Muster \d{1,12}(,\d{2,2})), während E6004301 dort
  * als „DezimalzahlOhneFuehrNull…“ mit optionalem Minus steht. ERiC 45.1.5.0 antwortet auf -190,00: „Unzulässiges
- * Vorzeichen. Geldbeträge müssen ohne Vorzeichen eingetragen werden.“ Wie der Betrag stattdessen einzutragen ist
- * (andere Zeile, Berichtigung des Vorjahres), ist eine steuerliche Frage und wird hier nicht entschieden.
- * Zeilennummern nach der Anleitung zur Anlage EÜR 2024 und 2025 (Zeile 18 und 58; 2023 waren es Zeile 17 und 56). Ein
+ * Vorzeichen. Geldbeträge müssen ohne Vorzeichen eingetragen werden.“ Wie der Betrag stattdessen einzutragen ist,
+ * entscheidet euerUstUmgliedern (Vorgabe aus #708, Issue #933); diese Meldung bleibt der Rückfall, falls danach doch
+ * noch ein negativer Betrag übrig ist.
+ * Zeilennummern des Jahres nach euerUstZeilen (2024 und 2025 Zeile 18 und 58, 2026 Zeile 18 und 59). Ein
  * negativer Betrag entsteht erst im Jahr nach einer aus Haben übermittelten EÜR (#706), frühestens 2024.
  */
-export function euerVorzeichenMeldungen(f: EuerFigures): string[] {
+export function euerVorzeichenMeldungen(f: EuerFigures, year: number): string[] {
+  const zeile = euerUstZeilen(year);
   const felder = [
-    { wert: f.gezahlteUst, zeile: 58, ...EUER_FIELDS.gezahlteUst },
-    { wert: f.erstatteteUst, zeile: 18, ...EUER_FIELDS.erstatteteUst },
+    { wert: f.gezahlteUst, zeile: zeile.gezahlt, ...EUER_FIELDS.gezahlteUst },
+    { wert: f.erstatteteUst, zeile: zeile.erstattet, ...EUER_FIELDS.erstatteteUst },
   ];
   return felder
     .filter((feld) => (feld.wert ?? 0) < 0)
     .map(
       (feld) =>
-        `In Zeile ${feld.zeile} (Kz ${feld.kz}, „${feld.label}“) steht ein negativer Betrag von ${formatEuro(feld.wert!)}. Die Anlage EÜR nimmt dort nur Beträge ohne Vorzeichen an; ELSTER lehnt negative Werte mit „Unzulässiges Vorzeichen“ ab. Wie der Betrag stattdessen einzutragen ist, ist steuerlich zu klären.`,
+        `In Zeile ${feld.zeile} (Kz ${feld.kz}, „${feld.label}“) steht ein negativer Betrag von ${formatEuro(feld.wert!)}. Die Anlage EÜR nimmt dort nur Beträge ohne Vorzeichen an; ELSTER lehnt negative Werte mit „Unzulässiges Vorzeichen“ ab. Der Betrag gehört in die andere der beiden Zeilen; diese Meldung erscheint nur, wenn das Umgliedern nicht greift.`,
     );
 }
 
@@ -622,10 +620,11 @@ const sumNode = (kontext: string, kz: string, cents: Cents | undefined): XmlNode
 export function buildEuerXml(input: EuerXmlInput): string {
   const envelopeInput: Envelope = { ...input, datenArt: "EUER" };
   checkEnvelope(envelopeInput);
-  // Zeile 18 und 58 nehmen kein Vorzeichen an (#708); die Vorprüfung der Anlage EÜR meldet das schon vor dem Senden
-  const vorzeichen = euerVorzeichenMeldungen(input.figures);
+  // Ein negativer Saldo aus Zeile 58 oder 18 wird umgegliedert, nicht mit Vorzeichen gesendet (#933, Vorgabe aus #708)
+  const { figures: f } = euerUstUmgliedern(input.figures, input.year);
+  // Rückfall: bliebe danach ein negativer Betrag übrig, nimmt ihn die Anlage EÜR nicht an
+  const vorzeichen = euerVorzeichenMeldungen(f, input.year);
   if (vorzeichen.length > 0) throw new ElsterEingabeError(vorzeichen.join(" "));
-  const f = input.figures;
   const { einnahmen, ausgaben, gewinn } = euerTotals(f);
   const kz = (key: EuerFigureKey) => EUER_FIELDS[key].kz;
 
@@ -738,6 +737,7 @@ export function buildEuerXml(input: EuerXmlInput): string {
               sumNode("Steuer_Versicherung_Maut", kz("kfzSteuerVersicherung"), f.kfzSteuerVersicherung),
               sumNode("Sonst", kz("kfzSonstige"), f.kfzSonstige),
               sumNode("Fahrtkosten_Nutzungseinlage", kz("fahrtNutzungseinlage"), f.fahrtNutzungseinlage),
+              sumNode("Entfernungspausch_Familienheimfahrt", kz("entfernungspauschale"), f.entfernungspauschale),
             ],
           ],
           ["Summe_BAus", [["E6005301", elsterDecimal(ausgaben)]]],

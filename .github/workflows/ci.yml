@@ -345,6 +345,10 @@ jobs:
           # Der Befehl haben im Image nennt die Version aus package.json, status zeigt sie je Instanz
           version="$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben status --json | jq -r .version)"
           test "$version" = "$(jq -r .version package.json)"
+          # Ohne Build-Argument HABEN_COMMIT startet das Image und meldet keinen Commit; mit HABEN_COMMIT steht die kurze
+          # Kennung hinter der Version (#887)
+          test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben status --json | jq -r .commit)" = null
+          test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T -e HABEN_COMMIT=0123abc4567 app haben status | head -n1)" = "Version:          $version (0123abc)"
           bun deploy/instanzen/haben-instanzen.ts status | tee "$RUNNER_TEMP/status.txt"
           grep -E "^firma1 +firma1\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
           grep -E "^firma2 +firma2\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
