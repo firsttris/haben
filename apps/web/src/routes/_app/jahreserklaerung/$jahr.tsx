@@ -390,6 +390,9 @@ function EuerSection({ data }: { data: Data }) {
 
 type Angaben = Data["est"]["angaben"];
 type Kind = Angaben["kinder"][number];
+/** Die sechs Arten, die der Vordruck für Einkommensersatzleistungen kennt (§ 32b EStG) */
+const ERST_ARTEN = ["Arbeitslosengeld", "Elterngeld", "Insolvenzgeld", "Krankengeld", "Mutterschaftsgeld", "Verdienstausfallentschädigung"] as const;
+
 type KindDraft = Omit<Kind, "kinderbetreuung"> & { key: number; kinderbetreuung: string };
 
 const centsText = (cents: number | undefined) => (cents ? formatDecimal(cents) : "");
@@ -476,6 +479,8 @@ function EstSection({ data }: { data: Data }) {
       agZuschussKv: amount(`${p}-agZuschussKv`, "Arbeitgeberzuschuss zur privaten KV"),
       agZuschussPv: amount(`${p}-agZuschussPv`, "Arbeitgeberzuschuss zur privaten PV"),
     });
+    const ersatz = (p: "a" | "b") =>
+      ERST_ARTEN.map((art) => ({ art, betrag: amount(`erst-${p}-${art}`, `Einkommensersatz ${art}`) ?? 0 })).filter((z) => z.betrag > 0);
     const angaben = {
       vorsorge: { a: vorsorge("a"), ...(est.zusammen ? { b: vorsorge("b") } : {}), sonstige: amount("sonstige", "Weitere Vorsorge") },
       sonderausgaben: {
@@ -497,6 +502,10 @@ function EstSection({ data }: { data: Data }) {
         familienkasse: k.familienkasse?.trim() ?? "",
         kinderbetreuung: kidAmount(k),
       })),
+      ersatzleistungen: {
+        a: ersatz("a"),
+        ...(est.zusammen ? { b: ersatz("b") } : {}),
+      },
       kap: {
         guenstigerpruefung: form.get("guenstigerpruefung") === "on",
         ertraegeMitSteuerabzug: amount("kapMit", "Kapitalerträge"),
@@ -718,6 +727,37 @@ function EstSection({ data }: { data: Data }) {
             </label>
           </div>
         </Block>
+
+        {(() => {
+          const liste = (p: "a" | "b") => a.ersatzleistungen?.[p] ?? [];
+          const summe = (p: "a" | "b") => sumOf(...liste(p).map((z) => z.betrag));
+          const total = summe("a") + (est.zusammen ? summe("b") : 0);
+          const felder = (p: "a" | "b") => (
+            <div className="form-grid">
+              {ERST_ARTEN.map((art) => (
+                <Amount
+                  key={art}
+                  name={`erst-${p}-${art}`}
+                  label={art}
+                  value={liste(p).find((z) => z.art === art)?.betrag}
+                  hint="steuerfrei, erhöht den Steuersatz"
+                />
+              ))}
+            </div>
+          );
+          return (
+            <Block title="Einkommensersatzleistungen (Progressionsvorbehalt)" summary={sumText(total)} open={total > 0}>
+              <h4 className="est-sub">{est.zusammen ? (est.person.a ?? "Person A") : "Leistungen"}</h4>
+              {felder("a")}
+              {est.zusammen && (
+                <>
+                  <h4 className="est-sub">{est.person.b ?? "Ehegatte"}</h4>
+                  {felder("b")}
+                </>
+              )}
+            </Block>
+          );
+        })()}
 
         <p className="small muted" style={{ margin: 0 }}>
           Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.

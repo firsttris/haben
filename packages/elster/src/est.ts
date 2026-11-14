@@ -124,6 +124,13 @@ export interface EstArbeitnehmer {
   werbungskosten: EstWerbungskosten;
 }
 
+/** Einkommensersatzleistung mit Progressionsvorbehalt (§ 32b EStG), Zeile des Hauptvordrucks */
+export interface EstErsatzleistung {
+  /** Art der Leistung, z. B. Arbeitslosengeld, Elterngeld, Krankengeld, Mutterschaftsgeld */
+  art: string;
+  betrag: Cents;
+}
+
 export interface EstAngaben {
   vorsorge: { a: EstVorsorgePerson; b?: EstVorsorgePerson /** Weitere sonstige Vorsorgeaufwendungen (Haftpflicht, Unfall, Risikoleben) */; sonstige?: Cents };
   sonderausgaben: { kirchensteuerGezahlt?: Cents; kirchensteuerErstattet?: Cents; spenden?: Cents };
@@ -132,6 +139,8 @@ export interface EstAngaben {
   haushaltsnah: { minijobs?: Cents; dienstleistungen?: Cents /** nur Lohn-, Maschinen- und Fahrtkosten */; handwerker?: Cents };
   kinder: EstKind[];
   kap?: EstKap;
+  /** Einkommensersatzleistungen je Person; steuerfrei, erhöhen aber den Steuersatz */
+  ersatzleistungen?: { a?: EstErsatzleistung[]; b?: EstErsatzleistung[] };
   /** Anlage N je Person */
   arbeitnehmer?: { a?: EstArbeitnehmer; b?: EstArbeitnehmer };
 }
@@ -598,9 +607,47 @@ export function buildEstXml(input: EstXmlInput): string {
     ],
   ];
 
+  // § 32b: steuerfreie Einkommensersatzleistungen stehen im Hauptvordruck je Person mit Art und Betrag
+  const einkErs = (
+    [
+      ["PersonA", x.ersatzleistungen?.a],
+      ["PersonB", zusammen ? x.ersatzleistungen?.b : undefined],
+    ] as [string, EstErsatzleistung[] | undefined][]
+  ).map(([person, liste]): XmlNode | null => {
+    const zeilen = (liste ?? []).filter((l) => l.betrag > 0 && l.art.trim());
+    if (zeilen.length === 0) return null;
+    // ERiC-Regel 725: Die Summe muss die Summe der gerundeten Einzelbeträge sein, nicht die gerundete Summe in Cent
+    const betraege = zeilen.map((l) => Number(euro(l.betrag) ?? 0));
+    const summe = betraege.reduce((acc, b) => acc + b, 0);
+    return [
+      "Eink_Ers",
+      [
+        ["Person", person],
+        [
+          "Inl",
+          [
+            ...zeilen.map(
+              (l, i): XmlNode => [
+                "Einz",
+                [
+                  ["E0104110", l.art.trim()],
+                  ["E0104113", String(betraege[i])],
+                ],
+              ],
+            ),
+            ["Sum", [["E0104801", String(summe)]]],
+          ],
+        ],
+      ],
+    ];
+  });
+
+  // Eink_Ers steht in E10-2025.xsd innerhalb von ESt1A, direkt hinter Allg
+  const est1aMitErsatz: XmlNode = ["ESt1A", [...(est1a[1] as readonly XmlNode[]), ...einkErs]];
+
   return envelope(envelopeInput, [
     `<E10 xmlns="http://finkonsens.de/elster/elstererklaerung/est/e10/v${input.year}" version="${input.year}">`,
-    ...[est1a, sa, agb, ha35a, ...kinder, anlageG, anlageS, ...anlagenN, kap, kapB, vor].flatMap((node) => render(node, "  ")),
+    ...[est1aMitErsatz, sa, agb, ha35a, ...kinder, anlageG, anlageS, ...anlagenN, kap, kapB, vor].flatMap((node) => render(node, "  ")),
     ...render(vorsatz("10", envelopeInput, { a: a.idnr, ...(b ? { b: b.idnr } : {}) }), "  "),
     `</E10>`,
   ]);

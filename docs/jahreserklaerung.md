@@ -143,6 +143,7 @@ Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe
 | --- | --- |
 | N | Je Person mit Arbeitslohn: die Lohnsteuerbescheinigungen (Steuerklasse, Bruttoarbeitslohn, Lohnsteuer, Soli, Kirchensteuer) und Werbungskosten, siehe [Arbeitslohn](#arbeitslohn-anlage-n) |
 | Vorsorgeaufwand | Je Person: Beiträge laut Lohnsteuerbescheinigung (Rentenversicherung mit Arbeitgeberanteil, Kranken-, Pflege- und Arbeitslosenversicherung), gesetzliche Rentenversicherung, zertifizierte Basisrente (Rürup), gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen und Wahlleistungen, steuerfreie Arbeitgeberzuschüsse zur privaten KV und PV; weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
+| Einkommensersatzleistungen | Je Person Art und Betrag der steuerfreien Leistungen mit Progressionsvorbehalt (Arbeitslosengeld, Elterngeld, Insolvenzgeld, Krankengeld, Mutterschaftsgeld, Verdienstausfallentschädigung); gehen in den besonderen Steuersatz der Prognose ein |
 | Sonderausgaben | Gezahlte und erstattete Kirchensteuer, Spenden an steuerbegünstigte Empfänger im Inland; vom Geschäftskonto gezahlte Spenden stehen im Kontenblatt 1840 bzw. 2250 „Zuwendungen, Spenden“ ([Bank](bank.md#direkt-buchen)) |
 | Außergewöhnliche Belastungen | Selbst getragene Krankheitskosten |
 | Haushaltsnahe Aufwendungen (§ 35a EStG) | Minijobs im Haushalt, haushaltsnahe Dienstleistungen, Handwerkerleistungen (nur Arbeits-, Maschinen- und Fahrtkosten) |
@@ -158,6 +159,12 @@ Die Beiträge zur gesetzlichen Rentenversicherung und die einer zertifizierten B
 Wahlleistungen einer privaten Krankenversicherung, also was über die Basisabsicherung hinausgeht, gehören nicht zur Basisabsicherung, sondern zu den sonstigen Vorsorgeaufwendungen und damit in deren Höchstbetrag (2.800 € für Selbständige, 1.900 € für Arbeitnehmer).
 
 Die steuerfreien Arbeitgeberzuschüsse zur privaten Kranken- und Pflegeversicherung stehen getrennt in der Lohnsteuerbescheinigung (Nr. 24 b und 24 c). Sie mindern den abzugsfähigen Betrag, sie erhöhen ihn nicht. Trag sie ein, wenn deine Bescheinigung sie ausweist — und zwar beide: ERiC nimmt den Zuschuss zur Krankenversicherung (Nr. 24 b) nur zusammen mit dem zur Pflegeversicherung (Nr. 24 c) an (Regel 100240078). Bei privat versicherten Arbeitnehmern weist die Bescheinigung beide aus.
+
+### Einkommensersatzleistungen
+
+Arbeitslosengeld, Elterngeld, Insolvenzgeld, Krankengeld, Mutterschaftsgeld und Verdienstausfallentschädigung sind steuerfrei, erhöhen aber den Steuersatz auf das übrige Einkommen (Progressionsvorbehalt, § 32b EStG). Haben trägt sie je Person mit Art und Betrag in den Hauptvordruck ein und rechnet sie in der voraussichtlichen Steuer mit: Der besondere Steuersatz kommt aus der Steuer auf das zu versteuernde Einkommen plus die Leistungen und gilt dann für das zu versteuernde Einkommen.
+
+Die Leistungen einer Person mindert dabei der Arbeitnehmer-Pauschbetrag von 1.230 €, soweit er bei ihrem Arbeitslohn nicht abgezogen wird: ohne Arbeitslohn voll, bei einem Arbeitslohn unter 1.230 € der Rest (§ 32b Abs. 2 Satz 1 Nr. 1 EStG).
 
 ### Arbeitslohn (Anlage N)
 

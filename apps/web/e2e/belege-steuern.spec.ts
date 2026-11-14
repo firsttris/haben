@@ -239,6 +239,31 @@ test("Vorsorgeaufwand: Rürup, Wahlleistungen und Zuschüsse überstehen das Spe
   await expect(feld("agZuschussPv")).toHaveValue("200,00");
 });
 
+test("Einkommensersatzleistungen: eintragen, speichern, nach dem Neuladen wieder da (#941)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  const block = () =>
+    form.locator("details.est-block").filter({ has: page.locator(".est-block-title", { hasText: /^Einkommensersatzleistungen \(Progressionsvorbehalt\)$/ }) });
+  // Bei Zusammenveranlagung stehen die Felder beider Personen im Block; die der steuerpflichtigen Person trägt „a-“.
+  const feld = (art: string) => block().locator(`input[name="erst-a-${art}"]`);
+  // Ohne gespeicherte Leistungen bleibt der Block zu; die Felder sind erst nach dem Aufklappen sichtbar.
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("Elterngeld")).toHaveAccessibleName("Elterngeld");
+  await feld("Elterngeld").fill("1.200,40");
+  await feld("Krankengeld").fill("480");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  // Nach dem Neuladen trägt der Blocktitel die Summe; die Blöcke starten zugeklappt, also aufklappen.
+  await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("Elterngeld")).toHaveValue("1.200,40");
+  await expect(feld("Krankengeld")).toHaveValue("480,00");
+  await expect(feld("Arbeitslosengeld")).toHaveValue("");
+});
+
 test("Seiten nur von derselben Origin einbettbar", async () => {
   // Clickjacking-Schutz kommt von der App selbst, damit der Proxy SAMEORIGIN statt DENY setzen kann
   const html = await page.request.get("/rechnungen");

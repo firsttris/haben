@@ -109,6 +109,56 @@ describe("buildEstXml", () => {
     expect(ohne).not.toContain("<Stfr_AG_Zusch>");
   });
 
+  it("schreibt Einkommensersatzleistungen mit Art und Betrag in den Hauptvordruck", () => {
+    const fest = estInput();
+    const xml = buildEstXml(
+      estInput({
+        angaben: {
+          ...fest.angaben,
+          ersatzleistungen: {
+            a: [
+              { art: "Arbeitslosengeld", betrag: 66_400 },
+              { art: "Elterngeld", betrag: 10_000 },
+            ],
+          },
+        },
+      }),
+    );
+    // Der Vordruck führt den Block innerhalb von ESt1A; auf der Ebene von SA/AgB weist ERiC ihn ab
+    const est1a = xml.slice(xml.indexOf("<ESt1A>"), xml.indexOf("</ESt1A>"));
+    expect(est1a).toMatch(/<Eink_Ers>\s*<Person>PersonA<\/Person>\s*<Inl>/);
+    expect(xml.match(/<Eink_Ers>/g)?.length).toBe(1);
+    expect(xml).toContain("<E0104110>Arbeitslosengeld</E0104110>");
+    expect(xml).toContain("<E0104113>664</E0104113>");
+    expect(xml).toContain("<E0104110>Elterngeld</E0104110>");
+    // Summe der Leistungen der Person
+    expect(xml).toContain("<E0104801>764</E0104801>");
+    // Leere Angaben erzeugen keinen Block
+    expect(buildEstXml(estInput()).includes("<Eink_Ers>")).toBe(false);
+  });
+
+  it("bildet die Summe der Einkommensersatzleistungen aus den gerundeten Einzelbeträgen", () => {
+    // ERiC-Regel 725 (Jahresdokumentation E10 2025, ESt1A - Regeln): E0104801 muss der Summe der Einzelbeträge E0104113 entsprechen.
+    // Zweimal x,40 € runden einzeln ab, die Summe in Cent (3.234,80 €) dagegen auf.
+    const fest = estInput();
+    const xml = buildEstXml(
+      estInput({
+        angaben: {
+          ...fest.angaben,
+          ersatzleistungen: {
+            a: [
+              { art: "Krankengeld", betrag: 123_440 },
+              { art: "Arbeitslosengeld", betrag: 200_040 },
+            ],
+          },
+        },
+      }),
+    );
+    expect(xml).toContain("<E0104113>1234</E0104113>");
+    expect(xml).toContain("<E0104113>2000</E0104113>");
+    expect(xml).toContain("<E0104801>3234</E0104801>");
+  });
+
   it("hält die Reihenfolge der Anlagen ein", () => {
     const xml = buildEstXml(estInput({ gewinn: { einkunftsart: "gewerbe", taetigkeit: "Handel", betrag: -100_000 } }));
     const order = ["<ESt1A>", "<SA>", "<AgB>", "<HA_35a>", "<Kind>", "<G>", "<KAP>", "<VOR>", "<Vorsatz>"].map((tag) => xml.indexOf(tag));
