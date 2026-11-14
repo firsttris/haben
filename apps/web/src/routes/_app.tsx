@@ -1,7 +1,7 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
 import { type PointerEvent, type RefObject, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { NavExpandedBody, NavRailBody, NavTip } from "../components/NavMenu.tsx";
+import { NavTip, NavVarianten } from "../components/NavMenu.tsx";
 import type { FlyoutWeg } from "../components/NavFlyout.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
@@ -98,13 +98,19 @@ function useNavTipEscape() {
     const wieder = () => {
       delete root.dataset.navTip;
     };
+    // Erst wenn der Zeiger das Symbol verlässt, nicht beim Wechsel vom Knopf auf sein svg
+    const zeigerRaus = (event: globalThis.PointerEvent) => {
+      const anker = (event.target as Element | null)?.closest?.(".nav-tip-anker");
+      if (anker?.contains(event.relatedTarget as Node | null)) return;
+      wieder();
+    };
     window.addEventListener("keydown", taste, true);
     document.addEventListener("focusin", wieder);
-    document.addEventListener("pointerout", wieder);
+    document.addEventListener("pointerout", zeigerRaus);
     return () => {
       window.removeEventListener("keydown", taste, true);
       document.removeEventListener("focusin", wieder);
-      document.removeEventListener("pointerout", wieder);
+      document.removeEventListener("pointerout", zeigerRaus);
     };
   }, []);
 }
@@ -144,8 +150,6 @@ function AppLayout() {
   const sichtbareGruppen = groups
     .map((group) => ({ ...group, links: group.links.filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })) }))
     .filter((group) => group.links.length > 0);
-  const userInitial = user.name.trim().charAt(0).toUpperCase() || "?";
-  const userMeta = inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`;
   usePageHeadHeight(main);
   const scrolled = useScrolled();
 
@@ -187,38 +191,23 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          {(() => {
-            const bodyProps = {
-              collapsed,
-              onToggleCollapse: () => saveNavCollapsed(!collapsed),
-              inhaber,
-              firmen,
-              sichtbareGruppen,
-              eigeneSeiten,
-              userName: user.name,
-              userInitial,
-              userMeta,
-              onSignOut: signOut,
-            };
-            // Beide Fassungen im DOM, CSS zeigt eine (display: contents, die Kinder bleiben Teil von .nav-body)
-            return (
-              <>
-                <div className="nav-variante nav-variante-voll">
-                  <NavExpandedBody {...bodyProps} />
-                </div>
-                <div className="nav-variante nav-variante-rail">
-                  <NavRailBody
-                    {...bodyProps}
-                    pathname={pathname}
-                    firma={firma ?? null}
-                    openFlyout={openFlyout}
-                    onFlyoutOpen={(key, weg) => setOpenFlyout({ key, weg })}
-                    onFlyoutClose={(key) => setOpenFlyout((offen) => (offen?.key === key ? null : offen))}
-                  />
-                </div>
-              </>
-            );
-          })()}
+          <NavVarianten
+            collapsed={collapsed}
+            onToggleCollapse={() => saveNavCollapsed(!collapsed)}
+            inhaber={inhaber}
+            pathname={pathname}
+            firma={firma ?? null}
+            firmen={firmen}
+            sichtbareGruppen={sichtbareGruppen}
+            eigeneSeiten={eigeneSeiten}
+            userName={user.name}
+            userInitial={user.name.trim().charAt(0).toUpperCase() || "?"}
+            userMeta={inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}
+            openFlyout={openFlyout}
+            onFlyoutOpen={(key, weg) => setOpenFlyout({ key, weg })}
+            onFlyoutClose={(key) => setOpenFlyout((offen) => (offen?.key === key ? null : offen))}
+            onSignOut={signOut}
+          />
         </div>
       </nav>
       <main className="main" id="inhalt" ref={main} tabIndex={-1}>

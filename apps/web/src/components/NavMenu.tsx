@@ -258,3 +258,18 @@ export function NavExpandedBody({
     </>
   );
 }
+
+/** Beide Fassungen im DOM, CSS zeigt eine (display: contents, die Kinder bleiben Teil von .nav-body); so liefert der
+ * Server die eingeklappte Leiste schon fertig */
+export function NavVarianten(props: NavBodyProps) {
+  return (
+    <>
+      <div className="nav-variante nav-variante-voll">
+        <NavExpandedBody {...props} />
+      </div>
+      <div className="nav-variante nav-variante-rail">
+        <NavRailBody {...props} />
+      </div>
+    </>
+  );
+}
