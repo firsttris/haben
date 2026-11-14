@@ -1176,7 +1176,7 @@ summary { cursor: pointer; min-height: 24px; }
 .cmd-group + .cmd-group { margin-top: 8px; }
 .cmd-group-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; color: var(--muted); font-size: 12px; }
 .cmd-group-head a { padding: 4px 0; }
-.cmd-option { display: grid; grid-template-columns: 32px minmax(0, 1fr) 8rem min(28%, 10rem) 16px; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+.cmd-option { display: grid; grid-template-columns: 32px minmax(0, 1fr) 8rem min(28%, 10rem) 16px; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: background-color var(--fade); }
 .cmd-option[aria-selected="true"] { background: var(--hover); }
 .cmd-option-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--ground); }
 .cmd-option-text { display: flex; flex-direction: column; overflow-wrap: anywhere; }
@@ -1187,12 +1187,9 @@ summary { cursor: pointer; min-height: 24px; }
 .cmd-option-status .status { align-items: flex-end; }
 .cmd-option-status .status-detail { padding-inline-start: 0; }
 .cmd-option .amount { grid-column: 3; justify-self: end; }
-.cmd-option-arrow { grid-column: -2; color: var(--muted); display: flex; opacity: 0; }
-.cmd-option[aria-selected="true"] .cmd-option-arrow { opacity: 1; }
-@media (prefers-reduced-motion: no-preference) {
-  .cmd-option-arrow { translate: 4px; transition: opacity var(--fade), translate var(--fade); }
-  .cmd-option[aria-selected="true"] .cmd-option-arrow { translate: 0; }
-}
+/* Fläche und Pfeil blenden gemeinsam in --fade; bei prefers-reduced-motion schaltet die globale Regel oben die Übergänge ab */
+.cmd-option-arrow { grid-column: -2; color: var(--muted); display: flex; opacity: 0; translate: 4px; transition: opacity var(--fade), translate var(--fade); }
+.cmd-option[aria-selected="true"] .cmd-option-arrow { opacity: 1; translate: 0; }
 .cmd-empty { margin: 0; padding: 20px 12px; text-align: center; font-size: 14px; color: var(--muted); }
 .cmd-foot { flex: none; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 24px; border-top: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); }
 .cmd-foot > :first-child { margin-inline-end: auto; }
