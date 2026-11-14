@@ -1,7 +1,4 @@
 import { formatEuro, monthsOfPeriod, type VatPeriod } from "@haben/core";
-import { eq } from "drizzle-orm";
-import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { invoiceVatDate } from "./invoice-tax.ts";
 
 /** Ein bereits übermittelter Voranmeldungszeitraum; `month` ist der Zeitraum, nicht der Monat (Q1 = 41) */
 export interface GemeldeterZeitraum {
@@ -43,27 +40,4 @@ export function leistungsmonatHinweis(tag: string, zeitraeume: GemeldeterZeitrau
     `(netto ${formatEuro(betrag.net)}, Umsatzsteuer ${formatEuro(betrag.tax)}), und keine spätere Voranmeldung enthält sie. ` +
     `Lege unter Umsatzsteuer für ${label} eine berichtigte Anmeldung an.`
   );
-}
-
-/**
- * Hinweis zu einer festgeschriebenen Rechnung, nur wenn der Leistungstag ihre Meldung in einen schon übermittelten Zeitraum
- * verschiebt. Ist-Versteuerung, Anzahlungen, Stornos und Korrekturen meldet Haben nicht nach dem Leistungstag.
- */
-export async function leistungsmonatHinweisFuer(invoice: typeof schema.invoices.$inferSelect, q: Db | Tx = db): Promise<string | null> {
-  if (invoice.status !== "final" || invoice.kind !== "rechnung") return null;
-  const tag = await invoiceVatDate(invoice, q);
-  if (tag === invoice.issueDate) return null;
-  const gesendet = await q
-    .select({
-      year: schema.vatReturns.year,
-      month: schema.vatReturns.month,
-      sentAt: schema.vatReturns.sentAt,
-    })
-    .from(schema.vatReturns)
-    .where(eq(schema.vatReturns.status, "sent"))
-    .orderBy(schema.vatReturns.sentAt);
-  return leistungsmonatHinweis(tag, gesendet, {
-    net: invoice.net,
-    tax: invoice.tax,
-  });
 }
