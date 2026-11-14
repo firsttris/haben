@@ -17,11 +17,7 @@ import {
   periodKey,
   sondervorauszahlungFor,
   STEUER_KONTEN,
-  paragraph4Nummer,
-  paragraph4NummerText,
-  steuerfreiEinordnung,
   type Kontenrahmen,
-  type Paragraph4Nummer,
   type VatFrequencySetting,
 } from "@haben/core";
 import {
@@ -59,6 +55,7 @@ import {
   type ZehnTageKennzeichen,
 } from "../auswertungen/index.ts";
 import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
+import { kz48Einordnen, type Kz48Gesperrt } from "./kz48.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
 export class AnnualError extends UserError {}
@@ -80,16 +77,6 @@ export interface IssueOptions {
 }
 
 // ------------------------------------------------------------------ Umsatzsteuererklärung
-
-export interface Kz48Gesperrt {
-  /** Rechnungsnummer oder „Kasse“ bei einer Bareinnahme ohne Rechnung */
-  quelle: string;
-  /** Befreiungsgrund der Rechnung bzw. der Text der Bareinnahme */
-  text: string;
-  betrag: Cents;
-  /** nummer: keine lesbare oder zuordenbare Nummer; hilfsumsatz: § 4 Nr. 8 a–h, 9 a, 10 (UStAE 19.3 Abs. 2) */
-  grund: "nummer" | "hilfsumsatz";
-}
 
 export interface UstYear {
   figures: UstErklaerungFigures;
@@ -128,37 +115,8 @@ export async function ustYear(year: number): Promise<UstYear> {
   const base89 = toWholeEuros(total("kz89"));
   const base93 = toWholeEuros(total("kz93"));
 
-  // Steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) auf die Zeilen 46 und 47 verteilen: die Nummer in § 4 UStG
-  // kommt aus dem Befreiungsgrund der Rechnung. Bareinnahmen und Texte ohne lesbare Nummer bleiben gesperrt.
-  let zeile46 = 0;
-  let zeile47 = 0;
-  const nummern47 = new Map<string, Paragraph4Nummer>();
-  const kz48Gesperrt: Kz48Gesperrt[] = [];
-  for (const month of months)
-    for (const source of month.revenue) {
-      if (source.treatment !== "steuerfrei") continue;
-      const einordnung = steuerfreiEinordnung(paragraph4Nummer(source.exemptionReason ?? ""));
-      if ("zeile" in einordnung) {
-        if (einordnung.zeile === 46) {
-          zeile46 += source.base;
-          continue;
-        }
-        zeile47 += source.base;
-        nummern47.set(paragraph4NummerText(einordnung.nummer!), einordnung.nummer!);
-        continue;
-      }
-      kz48Gesperrt.push({
-        quelle: source.type === "kasse" ? "Kasse" : source.number,
-        text: source.type === "kasse" ? source.customer : (source.exemptionReason ?? ""),
-        betrag: source.base,
-        grund: einordnung.gesperrt,
-      });
-    }
-  // Die Nummern der Zeile 47 aufsteigend nach Nummer, dann Buchstabe, als Text fürs Feld E3104501
-  const kz48Zeile47Nummern = [...nummern47.values()]
-    .sort((a, b) => a.nummer - b.nummer || (a.buchstabe ?? "").localeCompare(b.buchstabe ?? ""))
-    .map(paragraph4NummerText)
-    .join(", ");
+  // Steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) aus den Befreiungsgründen aller Monatsquellen
+  const kz48 = kz48Einordnen(months.flatMap((m) => m.revenue));
 
   // Je Monat zählt die zuletzt gesendete Anmeldung (bei Berichtigungen die berichtigte)
   const sent = await db
@@ -198,14 +156,14 @@ export async function ustYear(year: number): Promise<UstYear> {
     kz62: total("kz62"),
     kz67: total("kz67"),
     // Auch hier je Zeile die Jahressumme in vollen Euro
-    kz48Zeile46: toWholeEuros(zeile46),
-    kz48Zeile47: toWholeEuros(zeile47),
-    kz48Zeile47Nummern,
+    kz48Zeile46: toWholeEuros(kz48.zeile46),
+    kz48Zeile47: toWholeEuros(kz48.zeile47),
+    kz48Zeile47Nummern: kz48.nummern,
   };
   return {
     figures,
     ...ustErklaerungResult(figures),
-    kz48Gesperrt,
+    kz48Gesperrt: kz48.gesperrt,
     missingMonths: Array.from({ length: 12 }, (_, i) => i + 1).filter((m) => !covered.has(m) && frequencyAt(frequencies, { year, month: m }) !== "keine"),
     lastFilingPeriod: lastFilingPeriodKey(frequencies, year),
   };
