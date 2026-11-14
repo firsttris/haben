@@ -29,7 +29,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung von Rechnung und Korrektur, Revie
     await sql?.end();
   });
 
-  type Zeile = { netto: number; satz: number };
+  type Zeile = { netto: number; satz: 0 | 700 | 1900 };
 
   async function beleg(art: "rechnung" | "korrektur", zeilen: Zeile[], issueDate: string, correctsFor?: string): Promise<string> {
     const draft = await invoices.createDraft(
@@ -103,7 +103,6 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung von Rechnung und Korrektur, Revie
     const offen = (await invoices.listInvoices("2026-11-14")).filter((r) => r.open !== 0).map((r) => ({ kind: r.kind, open: r.open }));
     expect(offen).toEqual([]);
   }, 60_000);
-
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const)
     for (const versteuerung of ["ist", "soll"] as const)
