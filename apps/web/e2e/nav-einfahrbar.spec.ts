@@ -243,3 +243,31 @@ test("eingeklappt zeigt die Marke beim Überfahren „Haben“ und die Firma, in
   await expect(text).toContainText(firma!);
   expect(await text.evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(40);
 });
+
+test("eingeklappt: ein Klick heftet das überfahrene Flyout an, Esc hält den Hinweis aus, solange der Zeiger auf dem Symbol bleibt", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+
+  const geld = nav(page).getByRole("button", { name: "Geld" });
+  await geld.hover();
+  await expect(geld).toHaveAttribute("aria-expanded", "true");
+  await geld.click();
+  await page.mouse.move(900, 600);
+  await page.waitForTimeout(600);
+  await expect(geld).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Escape");
+  await expect(geld).toHaveAttribute("aria-expanded", "false");
+
+  // Esc blendet den Hinweis aus; eine Bewegung innerhalb des Symbols (auf das svg) holt ihn nicht zurück
+  const uebersicht = nav(page).getByRole("link", { name: "Übersicht" });
+  const box = (await uebersicht.boundingBox())!;
+  await page.mouse.move(box.x + 4, box.y + 4);
+  const hinweis = uebersicht.locator(".nav-tip");
+  await expect(hinweis).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(hinweis).toBeHidden();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 });
+  await page.waitForTimeout(100);
+  await expect(hinweis).toBeHidden();
+});
