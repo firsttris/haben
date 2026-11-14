@@ -97,19 +97,20 @@ test("Aus dem Firmenportal in eine Firma, ohne Klick auf der Login-Seite von Hab
   // Haben startet die Anmeldung selbst; der Testanbieter fragt ohne eigene Sitzung noch einmal
   await anbieter(page, "inhaberin@example.de", "haben-inhaber");
   await page.waitForURL(`${BASE}/`);
-  await expect(page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Firma wechseln" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Zum Firmenportal" })).toBeVisible();
   await page.context().close();
 });
 
-test("Haben: „Firma wechseln“ führt ins Firmenportal, ohne aufzuklappen, und zurück zur Firma", async ({ browser }) => {
+test("Haben: „Zum Firmenportal“ führt ins Firmenportal, ohne aufzuklappen, und zurück zur Firma", async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   await habenAnmelden(page, "haben-inhaber");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
-  const wechseln = nav.getByRole("link", { name: "Firma wechseln" });
-  await expect(wechseln).toHaveAttribute("href", PORTAL);
+  // Mit Firmenportal heißt die Zeile nicht „Firma wechseln“: Sie klappt nichts auf, sondern führt aus Haben hinaus
+  const wechseln = nav.getByRole("link", { name: "Zum Firmenportal" });
+  await expect(wechseln).toHaveAttribute("href", `${PORTAL}/?von=haben`);
+  await expect(nav.getByText("Firma wechseln")).toHaveCount(0);
   await expect(wechseln).not.toHaveAttribute("target");
-  await expect(nav.getByRole("button", { name: "Firma wechseln" })).toHaveCount(0);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
   await wechseln.click();
@@ -117,7 +118,7 @@ test("Haben: „Firma wechseln“ führt ins Firmenportal, ohne aufzuklappen, un
   await page.waitForURL(`${PORTAL}/`);
   await firmen(page).filter({ hasText: "Studio Nord" }).click();
   await page.waitForURL(`${BASE}/`);
-  await expect(nav.getByRole("link", { name: "Firma wechseln" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Zum Firmenportal" })).toBeVisible();
 
   // Abmelden im Firmenportal: danach eine Seite „abgemeldet“, keine sofortige neue Anmeldung
   await page.goto(`${PORTAL}/`);
@@ -125,5 +126,17 @@ test("Haben: „Firma wechseln“ führt ins Firmenportal, ohne aufzuklappen, un
   await page.waitForURL(`${PORTAL}/?abgemeldet`);
   await expect(page.getByText("Du bist abgemeldet.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Wieder anmelden" })).toBeVisible();
+  await context.close();
+});
+
+test("Haben: aus Haben zeigt das Firmenportal auch mit nur einer Firma die Liste, statt zurückzuleiten", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await habenAnmelden(page, "haben-inhaber");
+  await page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link", { name: "Zum Firmenportal" }).click();
+  await anbieter(page, "inhaberin@example.de", "haben-inhaber");
+  await page.waitForURL(`${PORTAL}/`);
+  await expect(firmen(page)).toHaveCount(1);
+  await expect(firmen(page).first()).toHaveAccessibleName("Studio Nord");
   await context.close();
 });

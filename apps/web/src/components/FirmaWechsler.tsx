@@ -110,14 +110,16 @@ export function FirmaWechsler({ andere }: { andere: Firma[] }) {
 }
 
 /**
- * Firma wechseln mit Firmenportal (#504, Stufe 2, HABEN_FIRMENPORTAL_URL): dieselbe Zeile, aber ein Link ins Firmenportal im selben Tab.
- * Welche Firmen es gibt, weiß nur das Firmenportal, aus den Gruppen beim Anmeldedienst.
+ * Mit Firmenportal (#504, Stufe 2, HABEN_FIRMENPORTAL_URL) steht an der Stelle von „Firma wechseln“ ein Link ins
+ * Firmenportal im selben Tab. Er heißt „Zum Firmenportal“, weil er nichts aufklappt, sondern aus Haben hinausführt.
+ * Welche Firmen es gibt, weiß nur das Firmenportal, aus den Gruppen beim Anmeldedienst; mit ?von=haben zeigt es die
+ * Liste auch dann, wenn es nur diese eine Firma gibt, statt gleich hierher zurückzuleiten.
  */
 export function ZumFirmenportal({ url }: { url: string }) {
   return (
     <div className="firma-wechsler">
-      <a href={url} className="nav-link firma-wechsler-knopf">
-        Firma wechseln
+      <a href={`${url}/?von=haben`} className="nav-link firma-wechsler-knopf">
+        Zum Firmenportal
         <Icon name="chevron-right" size={16} />
       </a>
     </div>

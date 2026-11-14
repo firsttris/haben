@@ -1,6 +1,6 @@
 # haben-firmenportal
 
-Firmenportal für [Haben](https://github.com/firsttris/haben), die selbst gehostete Buchhaltung, wenn man mehrere Firmen mit je einer eigenen Instanz betreibt. Wer sich per SSO anmeldet, sieht die Firmen, in deren Inhaber-Gruppe er beim Anmeldedienst ist, und wechselt mit einem Klick dorthin. In Haben führt „Firma wechseln“ hierher (`HABEN_FIRMENPORTAL_URL`).
+Firmenportal für [Haben](https://github.com/firsttris/haben), die selbst gehostete Buchhaltung, wenn man mehrere Firmen mit je einer eigenen Instanz betreibt. Wer sich per SSO anmeldet, sieht die Firmen, in deren Inhaber-Gruppe er beim Anmeldedienst ist, und wechselt mit einem Klick dorthin. In Haben führt die Zeile „Zum Firmenportal“ hierher (`HABEN_FIRMENPORTAL_URL`).
 
 - Keine Datenbank und keine Buchhaltungsdaten: Das Firmenportal kennt nur Namen, Adressen und Gruppen aus `PORTAL_FIRMEN`. Die Sitzung liegt 15 Minuten in einem signierten Cookie.
 - Kein Proxy: Die Instanz meldet beim selben Anmeldedienst selbst an.

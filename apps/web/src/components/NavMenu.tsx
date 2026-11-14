@@ -131,9 +131,9 @@ export function NavRailBody({
     <>
       {firmenportal ? (
         // Kein Flyout: Der Link führt aus Haben hinaus, die Liste der Firmen kennt nur das Ziel
-        <a href={firmenportal} className="nav-link nav-rail-link nav-tip-anker" aria-label="Firma wechseln">
+        <a href={`${firmenportal}/?von=haben`} className="nav-link nav-rail-link nav-tip-anker" aria-label="Zum Firmenportal">
           <Icon name="company" />
-          <NavTip>Firma wechseln</NavTip>
+          <NavTip>Zum Firmenportal</NavTip>
         </a>
       ) : (
         firmen.length > 0 && (
@@ -218,7 +218,7 @@ export function NavExpandedBody({
 }: Omit<NavBodyProps, "pathname" | "firma" | "openFlyout" | "onFlyoutOpen" | "onFlyoutClose">) {
   return (
     <>
-      {/* Firma wechseln (#504), mit HABEN_FIRMENPORTAL_URL stattdessen der Link „Firma wechseln“; sonst nur mit anderen Firmen. Als Erstes im rollenden Menü */}
+      {/* Firma wechseln (#504), mit HABEN_FIRMENPORTAL_URL stattdessen der Link „Zum Firmenportal“; sonst nur mit anderen Firmen. Als Erstes im rollenden Menü */}
       {firmenportal ? <ZumFirmenportal url={firmenportal} /> : firmen.length > 0 && <FirmaWechsler andere={firmen} />}
       <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
         <Icon name="overview" />

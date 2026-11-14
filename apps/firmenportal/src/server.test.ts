@@ -64,9 +64,9 @@ const anfrage = (pfad: string, cookies: Record<string, string> = {}, method = "G
   });
 
 /** Der ganze Weg bis zur Antwort des Callbacks; `stoeren` verändert den Callback vor dem Senden */
-async function anmelden(identity: TestIdentity, stoeren?: (callback: URL, cookies: Record<string, string>) => void) {
+async function anmelden(identity: TestIdentity, stoeren?: (callback: URL, cookies: Record<string, string>) => void, beginn = "/anmelden") {
   const handler = portal(config);
-  const start = await handler(anfrage("/anmelden"));
+  const start = await handler(anfrage(beginn));
   expect(start.status).toBe(303);
   const authorize = new URL(start.headers.get("location")!);
   const cookies = cookiesAus(start);
@@ -123,6 +123,25 @@ describe("Anmeldung", () => {
 
   it("leitet mit genau einer Firma direkt dorthin", async () => {
     const { ende } = await anmelden({ sub: "b", email: "b@example.de", groups: ["haben-west-inhaber"] });
+    expect(ende.headers.get("location")).toBe("https://west.example.de/login?anmelden=sso");
+  });
+
+  // Aus Haben („Zum Firmenportal“) will man das Firmenportal sehen, auch mit nur einer Firma; sonst landete man wieder in
+  // derselben Instanz (Rückmeldung in #1006)
+  it("zeigt aus Haben (?von=haben) auch bei genau einer Firma die Liste", async () => {
+    const ohneSitzung = await portal(config)(anfrage("/?von=haben"));
+    expect(ohneSitzung.status).toBe(303);
+    expect(ohneSitzung.headers.get("location")).toBe("/anmelden?von=haben");
+    const { handler, ende, cookies } = await anmelden({ sub: "b", email: "b@example.de", groups: ["haben-west-inhaber"] }, undefined, "/anmelden?von=haben");
+    expect(ende.headers.get("location")).toBe("/");
+    const seite = await (await handler(anfrage("/", cookies))).text();
+    expect(firmenAuf(seite)).toEqual([["Atelier West", "https://west.example.de/login?anmelden=sso"]]);
+  });
+
+  it("nimmt den Weg aus Haben nur aus dem signierten Ablauf, nicht aus dem Callback", async () => {
+    const { ende } = await anmelden({ sub: "b", email: "b@example.de", groups: ["haben-west-inhaber"] }, (callback) => {
+      callback.searchParams.set("von", "haben");
+    });
     expect(ende.headers.get("location")).toBe("https://west.example.de/login?anmelden=sso");
   });
 

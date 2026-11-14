@@ -60,10 +60,15 @@ function sitzungLesen(config: PortalConfig, request: Request, jetzt: number): { 
   return { firmen, anzeige: typeof inhalt.sitzung.anzeige === "string" ? inhalt.sitzung.anzeige : "" };
 }
 
-async function anmelden(config: PortalConfig, jetzt: number): Promise<Response> {
+/** Haben verlinkt das Firmenportal mit ?von=haben (ZumFirmenportal): Wer von dort kommt, will die Liste sehen */
+const VON_HABEN = "von=haben";
+const vonHaben = (url: URL) => url.searchParams.get("von") === "haben";
+
+async function anmelden(config: PortalConfig, url: URL, jetzt: number): Promise<Response> {
   const meta = await entdecken(config, jetzt);
   const { ablauf, adresse } = anmeldeAdresse(config, meta);
-  return weiter(adresse, [cookieSetzen(ABLAUF_COOKIE, signieren(config.secret, { typ: "ablauf", ablauf }, jetzt + ABLAUF_MS), ABLAUF_MS)]);
+  const inhalt = { typ: "ablauf" as const, ablauf, ...(vonHaben(url) ? { liste: true } : {}) };
+  return weiter(adresse, [cookieSetzen(ABLAUF_COOKIE, signieren(config.secret, inhalt, jetzt + ABLAUF_MS), ABLAUF_MS)]);
 }
 
 async function callback(config: PortalConfig, request: Request, jetzt: number): Promise<Response> {
@@ -81,8 +86,9 @@ async function callback(config: PortalConfig, request: Request, jetzt: number): 
   const firmen = config.firmen.flatMap((firma, i) => (gruppen.includes(firma.gruppe) ? [i] : []));
   const sitzung = signieren(config.secret, { typ: "sitzung", sitzung: { sub, anzeige, firmen, liste: listenAbdruck(config.firmen) } }, jetzt + SITZUNG_MS);
   const cookies = [...ohneAblauf, cookieSetzen(SITZUNG_COOKIE, sitzung, SITZUNG_MS)];
-  // Mit genau einer Firma gibt es nichts zu wählen
-  return weiter(firmen.length === 1 ? einstieg(config.firmen[firmen[0]!]!.url) : "/", cookies);
+  // Mit genau einer Firma gibt es nichts zu wählen, außer man kommt aus Haben: Dann führte das zurück in dieselbe Instanz
+  const direkt = firmen.length === 1 && !gespeichert.liste;
+  return weiter(direkt ? einstieg(config.firmen[firmen[0]!]!.url) : "/", cookies);
 }
 
 async function abmelden(config: PortalConfig, jetzt: number): Promise<Response> {
@@ -112,7 +118,8 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
     const sitzung = sitzungLesen(config, request, jetzt);
     if (!sitzung) {
       // Das Firmenportal meldet nur per SSO an; ohne eigene Seite davor geht es gleich zum Anmeldedienst
-      return url.searchParams.has("abgemeldet") ? antwort(abgemeldetSeite()) : weiter("/anmelden");
+      if (url.searchParams.has("abgemeldet")) return antwort(abgemeldetSeite());
+      return weiter(vonHaben(url) ? `/anmelden?${VON_HABEN}` : "/anmelden");
     }
     // „Abmelden“ ist ein Formular, das zum end_session_endpoint weiterleitet; form-action gilt in Chromium auch für
     // die Weiterleitung danach, deshalb steht dessen Origin in der CSP dieser Seite
@@ -121,7 +128,7 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
     const seite = firmenSeite(sitzung.firmen, url.searchParams.get("suche") ?? "", sitzung.anzeige, einstieg);
     return antwort(seite, 200, { "content-security-policy": csp(abmeldeZiel) });
   }
-  if (request.method === "GET" && pathname === "/anmelden") return anmelden(config, jetzt);
+  if (request.method === "GET" && pathname === "/anmelden") return anmelden(config, url, jetzt);
   if (request.method === "GET" && pathname === "/callback") return callback(config, request, jetzt);
   if (request.method === "POST" && pathname === "/abmelden") return abmelden(config, jetzt);
   return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Firmenportal nicht."), 404);

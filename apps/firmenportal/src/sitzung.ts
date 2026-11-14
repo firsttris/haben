@@ -23,7 +23,8 @@ interface Sitzung {
   liste: string;
 }
 
-type Inhalt = { typ: "ablauf"; ablauf: Ablauf } | { typ: "sitzung"; sitzung: Sitzung };
+/** `liste`: aus Haben gekommen („Zum Firmenportal“), dann auch mit einer Firma die Liste statt der Weiterleitung */
+type Inhalt = { typ: "ablauf"; ablauf: Ablauf; liste?: boolean } | { typ: "sitzung"; sitzung: Sitzung };
 
 const signatur = (secret: string, wert: string) => createHmac("sha256", secret).update(wert).digest("base64url");
 

@@ -14,9 +14,13 @@ const tlsEnv = tls ? { SSO_E2E_TLS_CERT: tls.cert, SSO_E2E_TLS_KEY: tls.key, NOD
 const PORTAL = "http://localhost:3217";
 export default defineConfig({
   testDir: "e2e",
-  // sso-only zuerst: Es braucht eine frische Instanz, sso-firmenportal richtet sie nur ein, falls nötig
-  testMatch: ["sso-only.spec.ts", "sso-firmenportal.spec.ts", "sso-firmenportal-abmelden.spec.ts"],
   workers: 1,
+  // sso-only zuerst, es braucht eine frische Instanz. Playwright ordnet Dateien sonst nach dem Namen, und
+  // „sso-firmenportal“ stünde vor „sso-only“; die Abhängigkeit hält die Reihenfolge unabhängig davon
+  projects: [
+    { name: "sso-only", testMatch: "sso-only.spec.ts" },
+    { name: "firmenportal", testMatch: ["sso-firmenportal.spec.ts", "sso-firmenportal-abmelden.spec.ts"], dependencies: ["sso-only"] },
+  ],
   timeout: 60_000,
   use: {
     baseURL,
