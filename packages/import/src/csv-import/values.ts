@@ -75,10 +75,12 @@ const UNIT_ALIASES: Record<string, UnitLabel> = {
 export function parseImportUnit(raw: string, own: readonly string[] = []): Parsed<string> {
   const value = raw.trim();
   if (!value) return ok("Stk.");
-  if (value in UNITS) return ok(value as UnitLabel);
+  // hasOwn statt in: „toString“ oder „valueOf“ sind keine Einheiten
+  if (Object.hasOwn(UNITS, value)) return ok(value as UnitLabel);
   const custom = own.find((label) => label.toLowerCase() === value.toLowerCase());
   if (custom) return ok(custom);
-  const unit = UNIT_ALIASES[value.toLowerCase().replace(/\./g, "")];
+  const key = value.toLowerCase().replace(/\./g, "");
+  const unit = Object.hasOwn(UNIT_ALIASES, key) ? UNIT_ALIASES[key] : undefined;
   return unit
     ? ok(unit)
     : fail(`Einheit: „${raw}“; möglich sind ${[...Object.keys(UNITS), ...own].join(", ")} oder eine neue unter Einstellungen › Rechnungen › Einheiten`);

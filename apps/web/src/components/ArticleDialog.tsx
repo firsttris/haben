@@ -6,11 +6,14 @@ import { FormDialog } from "./FormDialog.tsx";
 export function ArticleDialog({
   open,
   prefill,
+  units = [],
   onSaved,
   onClose,
 }: {
   open: boolean;
   prefill: ArticlePrefill;
+  /** Eigene Einheiten (#748) neben den festen */
+  units?: readonly string[];
   onSaved: (article: ArticleOption) => void;
   onClose: () => void;
 }) {
@@ -18,6 +21,7 @@ export function ArticleDialog({
     <FormDialog open={open} title="Neuen Artikel anlegen" onClose={onClose}>
       <ArticleForm
         inDialog
+        units={units}
         article={null}
         prefill={prefill}
         onDone={(_notice, saved) => {

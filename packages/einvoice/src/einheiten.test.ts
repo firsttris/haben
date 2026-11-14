@@ -1,3 +1,4 @@
+import { unitLabelIssues } from "@haben/core";
 import { describe, expect, it } from "vitest";
 import { EINHEITENCODES } from "./codelisten.ts";
 import { TEXTS } from "./i18n.ts";
@@ -33,5 +34,16 @@ describe("Eigene Einheiten in der E-Rechnung", () => {
   it("meldet eine Einheit ohne Code oder mit einem Code außerhalb der Liste", () => {
     expect(validateForFormat(eigene("UE"))).toContainEqual(expect.stringContaining("Einheit „UE“"));
     expect(validateForFormat(eigene("qm", "QM"))).toContainEqual(expect.stringContaining("„QM“"));
+  });
+
+  // Review: Eine Bezeichnung wie eine geerbte Eigenschaft von Object darf die Übersetzung nicht treffen
+  it("zeigt eine eigene Einheit, die wie eine Methode von Object heißt, auf englischen Belegen wie angelegt", async () => {
+    for (const label of ["valueOf", "toString"]) {
+      expect(unitLabelIssues(label, [])).toEqual([]);
+      expect(TEXTS.en.quantity(2000, label)).toBe(`2 ${label}`);
+    }
+    const doc = sampleDocument({ format: "zugferd" });
+    const en = { ...doc, language: "en" as const, lines: doc.lines.map((line) => ({ ...line, unit: "valueOf", unitCode: "C62" })) };
+    await expect(buildEInvoice(en)).resolves.toMatchObject({ xml: expect.stringContaining('unitCode="C62"') });
   });
 });
