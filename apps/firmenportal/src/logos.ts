@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { PortalFirma } from "@haben/core";
+import { bildFormat, MAX_LOGO_BYTES, type PortalFirma } from "@haben/core";
 
 /*
  * Logos der Firmen (#1036): Das Firmenportal liest sie beim Start aus PORTAL_LOGOS und liefert sie selbst aus, damit die
@@ -10,12 +10,6 @@ import type { PortalFirma } from "@haben/core";
  * Anfangsbuchstaben, und die Warnung steht im Log.
  */
 
-/** Wie in Haben (MAX_LOGO_BYTES in apps/web/src/server/modules/stammdaten/logo.ts) */
-const MAX_BYTES = 1024 * 1024;
-
-const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-const JPEG = [0xff, 0xd8, 0xff];
-
 export interface LogoDatei {
   daten: Uint8Array<ArrayBuffer>;
   typ: "image/png" | "image/jpeg";
@@ -23,14 +17,12 @@ export interface LogoDatei {
   adresse: string;
 }
 
-const beginntMit = (daten: Uint8Array, kopf: number[]) => kopf.every((byte, i) => daten[i] === byte);
-
 /** Das Logo, wenn Inhalt und Endung zusammenpassen; sonst der Grund */
 export function logoAus(datei: string, daten: Uint8Array<ArrayBuffer>): LogoDatei | { grund: string } {
   if (daten.length === 0) return { grund: "ist leer" };
-  if (daten.length > MAX_BYTES) return { grund: "ist größer als 1 MB" };
+  if (daten.length > MAX_LOGO_BYTES) return { grund: "ist größer als 1 MB" };
   const png = datei.endsWith(".png");
-  if (!beginntMit(daten, png ? PNG : JPEG)) return { grund: `ist kein ${png ? "PNG" : "JPEG"}` };
+  if (bildFormat(daten) !== (png ? "png" : "jpg")) return { grund: `ist kein ${png ? "PNG" : "JPEG"}` };
   const sha = createHash("sha256").update(daten).digest("hex").slice(0, 16);
   return { daten, typ: png ? "image/png" : "image/jpeg", adresse: `/zeichen/${sha}.${png ? "png" : "jpg"}` };
 }
