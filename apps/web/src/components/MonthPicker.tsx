@@ -72,7 +72,15 @@ export function MonthPicker({
   }
 
   return (
-    <div className="month-picker" ref={rootRef}>
+    <div
+      className="month-picker"
+      ref={rootRef}
+      onBlur={(event) => {
+        // Tab aus dem Raster hinaus schließt es, sonst verdeckt es die Felder darunter; ein Klick daneben (ohne neues Ziel) schließt über pointerdown
+        const next = event.relatedTarget as Node | null;
+        if (open && next && !rootRef.current?.contains(next)) setOpen(false);
+      }}
+    >
       {name && <input type="hidden" name={name} value={value} />}
       <button
         type="button"
