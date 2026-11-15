@@ -43,6 +43,7 @@ Verglichen an einem Konto mit Buchhaltungsversion 1.0 und SKR03, Jahr 2024: 210 
 - **Belegbilder:** Der Export hat auch Bilder, wo die API keine Datei meldet (8 Belege, alle zu einem wiederkehrenden Beleg).
 - **Belegnummern:** Wiederkehrende Belege teilen ihre Nummer (bis zu 9 Belege je Nummer); erst das Datum unterscheidet sie. Zeichen außerhalb des DATEV-Zeichensatzes fehlen (siehe [Schritt 3 bis 5](#schritt-3-bis-5)).
 - **Fremdwährung:** Im Umsatz steht der Betrag in der Fremdwährung, Netto und Steuer in der Beleginfo stehen in Euro. `Kurs` und `Basis-Umsatz` sind leer.
+- **Gutschriften für Honorar und Provision** liegen im Ordner Rechnungsausgang, sind aber auf einem Aufwandskonto im Soll mit BU 9 gebucht (Konten 31xx, 47xx, 49xx; Exporte vom November 2026). Maßgeblich ist die Buchung: Es ist Aufwand mit Vorsteuer, wie beim Abruf über die API.
 - **Was nur die API hat:** Positionen, Steuerregel, Zahlungsstand und die Zuordnung der Zahlungen zu Belegen, Angebote und Aufträge.
 - **Kopf des Stapels:** Der Kontenrahmen steht nicht darin; Haben nimmt den aus den Firmendaten. Ein Export umfasst höchstens ein Wirtschaftsjahr.
 
