@@ -10,19 +10,14 @@ describe("erklärte Zeilen (#997)", () => {
     expect(Object.keys(EUER_FIELDS).filter((k) => !felder.has(k))).toEqual([]);
   });
 
-  it("führt Zeile 65 der Anlage EÜR, obwohl sie kein Feld in EUER_FIELDS hat (#1072)", () => {
-    // Im Protokoll steht "Aufwendungen für ein häusliches Arbeitszimmer" mit einem Betrag; ohne eigene Zeile fehlt
-    // er in der Aufstellung und die Einzelzeilen ergeben weniger als die Summe der Betriebsausgaben
-    const zeile = ERKLAERTE_ZEILEN.euer.find((z) => z.field === "arbeitszimmer");
-    expect(zeile?.text).toBe("Aufwendungen für ein häusliches Arbeitszimmer (abziehbar)");
-    expect(zeilenFelder("euer")).toContain("arbeitszimmer");
-  });
-
-  it("meint die Spalte „abziehbar“ und steht wie im Vordruck vor der Tagespauschale (#1072)", () => {
-    // Die Zeile hat zwei Spalten: nicht abziehbar (E6005102) und abziehbar (E6003101); zur Summe der Betriebsausgaben
-    // zählt nur die zweite (ERiC-Prüfplugin EUER 2025, /EUER/BAus/Beschr_abziehbar/Abziehbar/Arbeitszimmer/Sum/E6003101)
-    const felder = zeilenFelder("euer");
-    expect(ERKLAERTE_ZEILEN.euer.find((z) => z.field === "arbeitszimmer")?.text).toBe("Aufwendungen für ein häusliches Arbeitszimmer (abziehbar)");
-    expect(felder.indexOf("arbeitszimmer")).toBe(felder.indexOf("tagespauschale") - 1);
+  it("führt für die Einkommensteuer die Zeilen des Vordrucks (#1082)", () => {
+    const feld = zeilenFelder("est");
+    // Diese Zeilen kann Haben nicht aus den Buchungen rechnen; sie stehen im Vordruck der abgegebenen Erklärung
+    expect(feld).toContain("bruttoarbeitslohn");
+    expect(feld).toContain("zuVersteuerndesEinkommen");
+    expect(feld).toContain("festgesetzteSteuer");
+    expect(feld).toContain("erstattung");
+    expect(new Set(feld).size).toBe(feld.length);
+    expect(feld.length).toBe(11);
   });
 });

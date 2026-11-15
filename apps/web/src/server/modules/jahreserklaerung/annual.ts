@@ -515,6 +515,24 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
   };
 }
 
+/**
+ * Die festgesetzte Steuer aus dem Vordruck gegen Habens Schätzung (#1082). Haben kennt Vorsorge und Kapitalerträge
+ * nur so weit, wie sie eingetragen sind; der Unterschied soll auf der Seite stehen und nicht im Kopf des Betreibers.
+ */
+function estAbweichungHinweis(zeilen: Record<string, number>, est: EstYear): Issue[] {
+  const erklaert = zeilen.festgesetzteSteuer;
+  if (erklaert === undefined) return [];
+  const gerechnet = est.prognose.gesamt;
+  if (gerechnet === erklaert) return [];
+  const abweichung = gerechnet - erklaert;
+  return [
+    {
+      tone: "hinweis",
+      text: `Einkommensteuer: Haben rechnet ${formatEuro(gerechnet)}, im Vordruck stehen ${formatEuro(erklaert)} (${abweichung > 0 ? "plus" : "minus"} ${formatEuro(Math.abs(abweichung))}). Was in Haben nicht erfasst ist, etwa Zuschüsse oder einbehaltene Kapitalertragsteuer, erklärt den Unterschied.`,
+    },
+  ];
+}
+
 function estIssues(company: Company, euer: EuerYear): Issue[] {
   const issues: Issue[] = [];
   const t = company.taxpayer;
@@ -669,17 +687,12 @@ export async function annualOverview(year: number, today: string) {
   // Ein Vermerk „außerhalb von Haben abgegeben“ nimmt den Meldungen zu Habens leerem Jahr den Grund (#869)
   const ustVermerk = submitted("ust");
   const euerVermerk = submitted("euer");
-  const [ustZeilen, euerZeilen] = await Promise.all([erklaerteZeilen(ustVermerk?.id ?? null), erklaerteZeilen(euerVermerk?.id ?? null)]);
-  /*
-   * Die Summenzeilen der Seite zeigen nach einem Vermerk die erklärte Zahl (#1076): Habens eigene Rechnung kennt die
-   * Veranlagung nicht, und in einem Jahr ohne Buchungen kehrt sie sogar das Vorzeichen um (0,00 - erklärtes Soll).
-   * Die gerechneten Werte bleiben daneben stehen, weil vermerkPruefung und der Abweichungshinweis sie brauchen.
-   */
-  const ustAnzeige = {
-    vorauszahlungen: ustZeilen.vorauszahlungen ?? ust.figures.vorauszahlungen,
-    abschluss: ustZeilen.abschluss ?? ust.abschluss,
-    ausVermerk: { vorauszahlungen: ustZeilen.vorauszahlungen !== undefined, abschluss: ustZeilen.abschluss !== undefined },
-  };
+  const estVermerk = submitted("est");
+  const [ustZeilen, euerZeilen, estZeilen] = await Promise.all([
+    erklaerteZeilen(ustVermerk?.id ?? null),
+    erklaerteZeilen(euerVermerk?.id ?? null),
+    erklaerteZeilen(estVermerk?.id ?? null),
+  ]);
   return {
     year,
     ust: {
@@ -705,9 +718,16 @@ export async function annualOverview(year: number, today: string) {
     // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
     est: {
       ...est,
-      issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est)), ...(await arbeitszimmerIssues(year, est))],
+      issues: [
+        ...base,
+        ...estIssues(company, euer),
+        ...estAbweichungHinweis(estZeilen, est),
+        ...(await homeofficeIssues(year, est)),
+        ...(await arbeitszimmerIssues(year, est)),
+      ],
       sent: sent("est"),
-      submitted: submitted("est"),
+      submitted: estVermerk,
+      erklaert: estZeilen,
       verwaltet: false,
     },
     history,

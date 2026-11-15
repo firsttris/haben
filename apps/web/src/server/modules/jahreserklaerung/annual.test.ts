@@ -497,6 +497,22 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(texte).not.toMatch(/Keine Betriebseinnahmen/);
   });
 
+  it("Einkommensteuer: erklärte Zeilen aus dem Vordruck und der Abweichungshinweis (#1082)", async () => {
+    await year2025();
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
+      values ('est', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
+    const [vermerk] = await sql<{ id: string }>`select id from annual_submissions where form = 'est' and year = 2025 and kind = 'vermerk'`;
+    await sql`insert into annual_submission_figures (submission_id, field, amount) values (${vermerk.id}, 'festgesetzteSteuer', 2012700)`;
+
+    const overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.est.submitted).not.toBeNull();
+    expect(overview.est.erklaert.festgesetzteSteuer).toBe(2_012_700);
+
+    // Habens Schätzung trifft den Vordruck nicht, und das soll auf der Seite stehen
+    const hinweis = overview.est.issues.find((i) => i.text.includes("im Vordruck stehen"));
+    expect(hinweis?.text).toContain("20.127,00");
+  });
+
   it("Anlage EÜR: Zeilen, Gewinn wie in den Auswertungen, Entnahmen, Einlagen und Anlagenverzeichnis", async () => {
     const { car } = await year2025();
     let euer = await annual.euerYear(2025);
