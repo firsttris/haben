@@ -144,11 +144,13 @@ Importe, Umsätze, Zuordnungen und [Verrechnungen](#gegenläufige-umsätze-verre
 
 ## Umsatzliste
 
-Die Filter **Alle**, **Offen** (mit Anzahl), **Zugeordnet** (auch verrechnete Umsätze) und **Vorschlag** schränken die Liste ein. **Vorschlag** zeigt nur Umsätze mit dem gleichnamigen Status. Das Suchfeld durchsucht Gegenpartei, Verwendungszweck und Betrag, den Betrag wie die [Schnellsuche](suche.md) auch als `1.190,00` oder `1190 €` mit beiden Vorzeichen. Angezeigt werden höchstens 500 Treffer.
+Ab zwei Konten zeigt der erste Reiter, **Alle Konten**, die Umsätze aller Konten in einer Liste, unter der Gegenpartei mit dem Namen des Kontos. Dorthin führt auch **Alle anzeigen** bei den Bankumsätzen der [Schnellsuche](suche.md).
+
+Die Filter **Alle**, **Offen** (mit Anzahl), **Zugeordnet** (auch verrechnete Umsätze) und **Vorschlag** schränken die Liste ein. **Vorschlag** zeigt nur Umsätze mit dem gleichnamigen Status. Das Suchfeld findet dieselben Umsätze wie die [Schnellsuche](suche.md): Gegenpartei und Verwendungszweck auch ohne Umlaute, das Ende der IBAN ab vier Ziffern, das Buchungsdatum und den Betrag, auch als `1.190,00` oder `1190 €` mit beiden Vorzeichen. Angezeigt werden höchstens 500 Treffer.
 
 Die Spaltenköpfe Datum, Gegenpartei · Verwendungszweck, Betrag und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Ohne Auswahl steht der neueste Umsatz oben. Am Handy sind Datum und Status ausgeblendet, dort sortieren Gegenpartei und Betrag.
 
-Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos, die zu Filter und Suche passen, und zeigt davon die ersten 500: „Betrag absteigend“ zeigt also die größten Beträge, auch wenn sie Jahre zurückliegen. Umsätze ohne Gegenpartei stehen beim Sortieren nach Gegenpartei unten. Den Status bestimmt Haben erst beim Anzeigen; nach Status sortiert es deshalb die neuesten 500 Umsätze. Absteigend steht oben, was zu tun ist, in der Reihenfolge „Beleg fehlt“, „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, zuletzt „Verrechnet“.
+Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. aller Konten, die zu Filter und Suche passen, und zeigt davon die ersten 500: „Betrag absteigend“ zeigt also die größten Beträge, auch wenn sie Jahre zurückliegen. Umsätze ohne Gegenpartei stehen beim Sortieren nach Gegenpartei unten. Den Status bestimmt Haben erst beim Anzeigen; nach Status sortiert es deshalb die neuesten 500 Umsätze. Absteigend steht oben, was zu tun ist, in der Reihenfolge „Beleg fehlt“, „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, zuletzt „Verrechnet“.
 
 | Hinweis | Bedeutung |
 | --- | --- |
