@@ -32,7 +32,7 @@ const batch = (over: Partial<ImportBatch> = {}): ImportBatch => ({
   idempotencyKey: "k-1",
   fetchedAt: "2026-10-31T08:00:00Z",
   coverage: { from: "2026-10-01", to: "2026-10-31" },
-  part: { index: 0, last: true },
+  part: { fetchId: "abruf-1", index: 0, last: true },
   movements: [movement()],
   balances: [],
   unsupported: [],
@@ -102,6 +102,11 @@ describe("classifyMovements", () => {
     const result = classifyMovements(known, binding, [movement({ amount: 9900, bookingDate: "2026-10-06" })]);
     expect(result.results.map((r) => r.outcome)).toEqual(["conflict"]);
     expect(result.conflicts).toEqual(["T-1/main: Betrag 10000 → 9900, Buchungstag 2026-10-05 → 2026-10-06; nichts überschrieben."]);
+  });
+
+  it("meldet eine geänderte Art als Konflikt", () => {
+    const result = classifyMovements(known, binding, [movement({ kind: "payout" })]);
+    expect(result.conflicts).toEqual(["T-1/main: Art payment → payout; nichts überschrieben."]);
   });
 
   it("erkennt Hauptbetrag und Gebühr getrennt", () => {

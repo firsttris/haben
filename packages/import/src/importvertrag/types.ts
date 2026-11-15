@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseDate } from "../text.ts";
 
 /*
  * Gemeinsamer Importvertrag für Bank- und Zahlungsdienstleister-Connectoren (#306, Schritt 1). Ein Connector, intern wie
@@ -16,8 +17,10 @@ export type AccountKind = "bank" | "psp";
 /**
  * Vom Nutzer bestätigte Verknüpfung einer Quelle (Anbieter und dessen Kontokennung) mit einem Konto in Haben. Sie gehört
  * Haben, nicht dem Connector, und überlebt neue Zugangsdaten und Zustimmungen: Sitzungs- oder Verbindungskennungen sind
- * keine Kontokennung. `cutoverDate` ist der Stichtag gegen Dateiimporte: Bewegungen davor kommen aus Dateien, nicht aus
- * dieser Quelle; einen Abgleich über Betrag oder Text gibt es nicht (Entscheidung im Issue #306).
+ * keine Kontokennung. Bei Enable Banking ist das `identification_hash` des Kontos, nicht die `uid`, die nur in ihrer
+ * Sitzung gilt ([API-Referenz](https://enablebanking.com/docs/api/reference/), AccountResource). `cutoverDate` ist der
+ * Stichtag gegen Dateiimporte: Bewegungen davor kommen aus Dateien, nicht aus dieser Quelle; einen Abgleich über Betrag
+ * oder Text gibt es nicht (Entscheidung im Issue #306).
  */
 export interface SourceBinding {
   provider: string;
@@ -42,11 +45,20 @@ export type MovementKind = (typeof MOVEMENT_KINDS)[number];
 export const MOVEMENT_COMPONENTS = ["main", "fee"] as const;
 export type MovementComponent = (typeof MOVEMENT_COMPONENTS)[number];
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum im Format JJJJ-MM-TT");
+/** Kalendertag JJJJ-MM-TT, den es gibt („2026-02-30“ nicht) */
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((d) => parseDate(d) === d);
+const currency = z.string().regex(/^[A-Z]{3}$/);
 const text = z.string().trim().min(1);
 
 const movementSchema = z.strictObject({
-  /** Stabile Kennung des Ereignisses beim Anbieter (Enable Banking: entry_reference, nicht transaction_id) */
+  /**
+   * Stabile Kennung des Ereignisses beim Anbieter. Enable Banking: `entry_reference`, eindeutig für Konten mit demselben
+   * `identification_hash`; `transaction_id` kann sich ändern und ist kein Ersatz. Fehlt `entry_reference`, ordnet der
+   * Connector den Umsatz unter `unsupported` ein (API-Referenz, Transaction).
+   */
   sourceEventId: text,
   component: z.enum(MOVEMENT_COMPONENTS),
   kind: z.enum(MOVEMENT_KINDS),
@@ -56,7 +68,8 @@ const movementSchema = z.strictObject({
   sourceTimestamp: z.string().optional(),
   /** Ganze Cent, Eingang positiv, Ausgang negativ */
   amount: z.number().int(),
-  currency: z.string().regex(/^[A-Z]{3}$/, "Währung als ISO-Code, etwa EUR"),
+  /** ISO 4217, etwa EUR */
+  currency,
   /** Fehlende Angaben leer lassen, nicht erfinden */
   counterpartyName: z.string().optional(),
   counterpartyIban: z.string().optional(),
@@ -82,14 +95,15 @@ export const batchSchema = z.strictObject({
   idempotencyKey: text,
   fetchedAt: z.string().datetime({ offset: true }),
   /**
-   * Abgerufenes Fenster. Eine Abfrage über mehrere Seiten sind mehrere Lieferungen mit demselben Fenster und fortlaufendem
-   * `part.index` ab 0; die letzte trägt `part.last`. Erst alle Teile zusammen gelten als vollständig.
+   * Abgerufenes Fenster. Ein Abruf über mehrere Seiten sind mehrere Lieferungen mit derselben `part.fetchId`, demselben
+   * Fenster und fortlaufendem `part.index` ab 0; die letzte trägt `part.last`. Erst alle Teile eines Abrufs zusammen
+   * gelten als vollständig; ein neuer Abruf desselben Fensters, etwa nach einem Abbruch, bekommt eine neue `fetchId`.
    */
   coverage: z.strictObject({ from: isoDate, to: isoDate }),
-  part: z.strictObject({ index: z.number().int().min(0), last: z.boolean() }),
+  part: z.strictObject({ fetchId: text, index: z.number().int().min(0), last: z.boolean() }),
   movements: z.array(movementSchema),
   /** Gebuchter Saldo mit Stichtag, getrennt von den Bewegungen; Haben bucht daraus nichts aus */
-  balances: z.array(z.strictObject({ date: isoDate, amount: z.number().int(), currency: z.string() })).default([]),
+  balances: z.array(z.strictObject({ date: isoDate, amount: z.number().int(), currency })).default([]),
   /** Was der Connector nicht als gebuchte Bewegung einordnen konnte (unbekannter Status, nicht unterstütztes Ereignis) */
   unsupported: z.array(z.strictObject({ sourceEventId: z.string().optional(), reason: text })).default([]),
 });

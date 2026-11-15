@@ -14,6 +14,7 @@ export interface PartResult {
 export interface Checkpoint {
   /** YYYY-MM-DD, bis einschließlich diesem Tag gilt die Quelle als vollständig abgerufen */
   checkpoint: string | undefined;
+  /** Kein Abruf ist mehr offen */
   complete: boolean;
   reason?: string;
 }
@@ -30,25 +31,41 @@ function partsProblem(parts: PartResult[]): string | null {
   return null;
 }
 
+/** Grund, warum ein Abruf (alle Teile mit derselben `fetchId`) den Zeitraum nicht abschließt, sonst null */
+function fetchProblem(parts: PartResult[]): string | null {
+  const { from, to } = parts[0]!.coverage;
+  if (parts.some((p) => p.coverage.from !== from || p.coverage.to !== to)) return "Die Teile der Lieferung nennen verschiedene Fenster.";
+  const problem = partsProblem(parts);
+  if (problem) return problem;
+  const blocking = parts.reduce((sum, p) => sum + p.blocking, 0);
+  if (blocking === 0) return null;
+  const count = blocking === 1 ? "1 Ereignis ist" : `${blocking} Ereignisse sind`;
+  return `${count} nicht übernommen (fremde Währung oder vom Connector nicht eingeordnet); der Zeitraum bleibt offen.`;
+}
+
 /**
- * Rückt den vollständig abgerufenen Zeitraum einer Quelle vor, nach allen Teilen eines Fensters. Ein angenommener Teil
- * allein ist noch kein vollständiger Zeitraum: Es braucht alle Teile ab 0 bis zum letzten, keine offenen Ereignisse,
- * keinen Konflikt und keine Lücke zum bisherigen Stand. Ein Fenster darf vor dem Stand beginnen, damit verspätete
- * Bewegungen nachkommen; zurück geht der Stand nie.
+ * Rückt den vollständig abgerufenen Zeitraum einer Quelle vor. Ein Abruf sind alle Teile mit derselben `fetchId`; ein
+ * angenommener Teil allein ist noch kein vollständiger Zeitraum. Ein Abruf schließt sein Fenster ab, wenn alle Teile ab 0
+ * bis zum letzten da sind, nichts offen ist und keine Lücke zum Stand bleibt. Ein abgebrochener Abruf hält den Stand nicht
+ * auf, wenn ein späterer dasselbe Fenster vollständig liefert. Ein Konflikt hält ihn an, bis er geklärt ist. Ein Fenster
+ * darf vor dem Stand beginnen, damit verspätete Bewegungen nachkommen; zurück geht der Stand nie.
  */
 export function advanceCheckpoint(checkpoint: string | undefined, parts: PartResult[]): Checkpoint {
-  const stay = (reason: string): Checkpoint => ({ checkpoint, complete: false, reason });
-  if (parts.length === 0) return stay("Keine Lieferung.");
-  const { from, to } = parts[0]!.coverage;
-  if (parts.some((p) => p.coverage.from !== from || p.coverage.to !== to)) return stay("Die Teile der Lieferung nennen verschiedene Fenster.");
-  const problem = partsProblem(parts);
-  if (problem) return stay(problem);
-  if (parts.some((p) => p.conflict)) return stay("Die Lieferung hat einen Konflikt mit schon übernommenen Bewegungen.");
-  const blocking = parts.reduce((sum, p) => sum + p.blocking, 0);
-  if (blocking > 0) {
-    const count = blocking === 1 ? "1 Ereignis ist" : `${blocking} Ereignisse sind`;
-    return stay(`${count} nicht übernommen (fremde Währung oder vom Connector nicht eingeordnet); der Zeitraum bleibt offen.`);
+  if (parts.length === 0) return { checkpoint, complete: false, reason: "Keine Lieferung." };
+  if (parts.some((p) => p.conflict)) return { checkpoint, complete: false, reason: "Die Lieferung hat einen Konflikt mit schon übernommenen Bewegungen." };
+  const fetches = new Map<string, PartResult[]>();
+  for (const p of parts) fetches.set(p.part.fetchId, [...(fetches.get(p.part.fetchId) ?? []), p]);
+  const ordered = [...fetches.values()].sort((a, b) => (a[0]!.coverage.from < b[0]!.coverage.from ? -1 : a[0]!.coverage.from > b[0]!.coverage.from ? 1 : 0));
+  let current = checkpoint;
+  const open: { to: string; reason: string }[] = [];
+  for (const group of ordered) {
+    const { from, to } = group[0]!.coverage;
+    const problem =
+      fetchProblem(group) ?? (current && from > addDays(current, 1) ? `Lücke: vollständig bis ${current}, das Fenster beginnt erst am ${from}.` : null);
+    if (problem) open.push({ to, reason: problem });
+    else if (!current || to > current) current = to;
   }
-  if (checkpoint && from > addDays(checkpoint, 1)) return stay(`Lücke: vollständig bis ${checkpoint}, das Fenster beginnt erst am ${from}.`);
-  return { checkpoint: checkpoint && checkpoint > to ? checkpoint : to, complete: true };
+  // Was ein späterer vollständiger Abruf abdeckt, ist nicht mehr offen
+  const stillOpen = open.filter((o) => !current || o.to > current);
+  return stillOpen.length === 0 ? { checkpoint: current, complete: true } : { checkpoint: current, complete: false, reason: stillOpen.at(-1)!.reason };
 }

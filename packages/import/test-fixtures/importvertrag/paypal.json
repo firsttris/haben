@@ -5,7 +5,7 @@
   "idempotencyKey": "suche-2026-10-01-bis-2026-10-31-seite-1",
   "fetchedAt": "2026-11-01T06:00:00Z",
   "coverage": { "from": "2026-10-01", "to": "2026-10-31" },
-  "part": { "index": 0, "last": true },
+  "part": { "fetchId": "suche-2026-10", "index": 0, "last": true },
   "movements": [
     {
       "sourceEventId": "PP-0001",

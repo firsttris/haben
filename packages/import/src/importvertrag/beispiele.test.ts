@@ -40,15 +40,17 @@ describe("Beispiel eBay", () => {
     expect(sum(first.accepted.filter((m) => m.sourceEventId === "SALE-0001"))).toBe(3993);
   });
 
-  it("legt bei erneutem Abruf mit anderen Seitengrenzen nichts doppelt an", () => {
+  it("legt nach einem Abbruch bei erneutem Abruf mit anderen Seitengrenzen nichts doppelt an und rückt vor", () => {
     const known = remember(ebay, first.accepted);
     const input = fixture("ebay");
     const parts = [input.movements.slice(0, 3), input.movements.slice(3)].map((movements, index) =>
-      accept({ ...input, idempotencyKey: `neuer-abruf-teil-${index}`, part: { index, last: index === 1 }, movements }, ebay),
+      accept({ ...input, idempotencyKey: `neuer-abruf-teil-${index}`, part: { fetchId: "neuer-abruf", index, last: index === 1 }, movements }, ebay),
     );
     const outcomes = parts.flatMap((p) => classifyMovements(known, ebay, p.accepted).results.map((r) => r.outcome));
     expect(outcomes).toEqual(Array(8).fill("known"));
-    const results = parts.map((p) => ({ coverage: p.batch.coverage, part: p.batch.part, blocking: p.blocking, conflict: false }));
+    // Der erste Versuch brach nach Seite 1 ab; der neue Abruf liefert das Fenster vollständig
+    const aborted = { coverage: first.batch.coverage, part: { fetchId: "abgebrochen", index: 0, last: false }, blocking: 0, conflict: false };
+    const results = [aborted, ...parts.map((p) => ({ coverage: p.batch.coverage, part: p.batch.part, blocking: p.blocking, conflict: false }))];
     expect(advanceCheckpoint("2026-09-30", results)).toEqual({ checkpoint: "2026-10-31", complete: true });
   });
 
@@ -64,9 +66,15 @@ describe("Beispiel eBay", () => {
 describe("Beispiel Enable Banking", () => {
   const result = accept(fixture("enablebanking"), bank);
 
-  it("übernimmt nichts vor dem Stichtag, ohne den Zeitraum offen zu lassen", () => {
+  it("übernimmt nichts vor dem Stichtag, ohne den Zeitraum deshalb offen zu lassen", () => {
     expect(result.rejected.map((r) => [r.sourceEventId, r.blocking])).toEqual([["ER-0999", false]]);
-    expect(result.blocking).toBe(0);
+  });
+
+  it("lässt den Zeitraum mit einem Umsatz ohne entry_reference offen", () => {
+    expect(result.blocking).toBe(1);
+    expect(
+      advanceCheckpoint("2026-09-30", [{ coverage: result.batch.coverage, part: result.batch.part, blocking: result.blocking, conflict: false }]).complete,
+    ).toBe(false);
   });
 
   it("behält zwei gleichartige Kartenzahlungen am selben Tag", () => {

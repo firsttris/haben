@@ -5,7 +5,7 @@
   "idempotencyKey": "finanzen-2026-10-teil-0",
   "fetchedAt": "2026-11-01T06:00:00+01:00",
   "coverage": { "from": "2026-10-01", "to": "2026-10-31" },
-  "part": { "index": 0, "last": true },
+  "part": { "fetchId": "finanzen-2026-10", "index": 0, "last": true },
   "movements": [
     {
       "sourceEventId": "SALE-0001",
@@ -94,7 +94,7 @@
       "currency": "EUR",
       "counterpartyName": "eBay",
       "purpose": "Auszahlung auf das Geschäftskonto",
-      "references": { "eventCode": "PAYOUT", "payoutId": "PAYOUT-0001" }
+      "references": { "payoutId": "PAYOUT-0001" }
     }
   ],
   "balances": [{ "date": "2026-10-31", "amount": 0, "currency": "EUR" }]

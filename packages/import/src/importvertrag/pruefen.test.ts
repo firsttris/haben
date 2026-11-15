@@ -22,7 +22,7 @@ const batch = (over: Record<string, unknown> = {}) => ({
   idempotencyKey: "abruf-2026-10-31-teil-0",
   fetchedAt: "2026-10-31T08:00:00+01:00",
   coverage: { from: "2026-10-01", to: "2026-10-31" },
-  part: { index: 0, last: true },
+  part: { fetchId: "abruf-2026-10-31", index: 0, last: true },
   movements: [movement()],
   ...over,
 });
@@ -71,7 +71,9 @@ describe("validateBatch", () => {
   });
 
   it("lehnt ein ungültiges Kalenderdatum ab", () => {
-    expect(problems(batch({ movements: [movement({ bookingDate: "2026-02-30" })] }))).toEqual(["E-1/main: Buchungstag 2026-02-30 gibt es nicht."]);
+    expect(problems(batch({ movements: [movement({ bookingDate: "2026-02-30" })] }))).toEqual(["Feld movements.0.bookingDate ist ungültig."]);
+    expect(problems(batch({ movements: [movement({ valueDate: "2026-09-31" })] }))).toEqual(["Feld movements.0.valueDate ist ungültig."]);
+    expect(problems(batch({ coverage: { from: "2026-10-01", to: "2026-10-32" } }))).toEqual(["Feld coverage.to ist ungültig."]);
   });
 
   it("lehnt Bewegungen außerhalb des Fensters ab", () => {
@@ -140,6 +142,15 @@ describe("validateBatch", () => {
     expect(result.ok && result.hints).toEqual(["R-1: Erstattung ohne Bezug zur ursprünglichen Zahlung."]);
   });
 
+  it("lehnt Salden ohne gültige Währung oder mit ungültigem Tag ab", () => {
+    expect(problems(batch({ balances: [{ date: "2026-10-31", amount: 100, currency: "" }] }))).toEqual(["Feld balances.0.currency ist ungültig."]);
+    expect(problems(batch({ balances: [{ date: "2026-02-29", amount: 100, currency: "EUR" }] }))).toEqual(["Feld balances.0.date ist ungültig."]);
+  });
+
+  it("verlangt eine Kennung des Abrufs für die Teile", () => {
+    expect(problems(batch({ part: { index: 0, last: true } }))).toEqual(["Feld part.fetchId ist ungültig."]);
+  });
+
   it("übernimmt nur Salden in Euro", () => {
     const result = validateBatch(
       batch({
@@ -150,7 +161,9 @@ describe("validateBatch", () => {
       }),
       binding,
     );
-    expect(result.ok && result.batch.balances).toEqual([{ date: "2026-10-31", amount: 120000, currency: "EUR" }]);
+    expect(result.ok && result.balances).toEqual([{ date: "2026-10-31", amount: 120000, currency: "EUR" }]);
+    // Die Lieferung selbst bleibt vollständig, sonst wäre ein geänderter Saldo in USD eine Wiederholung statt eines Konflikts
+    expect(result.ok && result.batch.balances).toHaveLength(2);
     expect(result.ok && result.hints).toEqual(["Saldo vom 2026-10-31 in USD nicht übernommen."]);
   });
 });

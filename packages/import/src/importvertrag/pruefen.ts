@@ -12,21 +12,17 @@ export type BatchValidation =
   | { ok: false; problems: string[] }
   | {
       ok: true;
+      /** Die geprüfte Lieferung, wie geliefert; ihr Prüfwert erkennt Wiederholungen (`batchFingerprint`) */
       batch: ImportBatch;
       /** Bewegungen für den Import, in der Reihenfolge der Lieferung */
       accepted: ImportMovement[];
       rejected: RejectedMovement[];
+      /** Salden in Euro; andere nennt ein Hinweis */
+      balances: ImportBatch["balances"];
       /** Abgelehnte und vom Connector nicht eingeordnete Ereignisse, die die Vollständigkeit blockieren */
       blocking: number;
       hints: string[];
     };
-
-/** Kalendertag, den es gibt: „2026-02-30“ passt zum Muster, aber nicht zum Kalender */
-function isCalendarDate(iso: string): boolean {
-  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
-  const date = new Date(Date.UTC(y, m - 1, d));
-  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
-}
 
 const label = (m: Pick<ImportMovement, "sourceEventId" | "component">) => `${m.sourceEventId}/${m.component}`;
 
@@ -41,15 +37,12 @@ function hardProblems(batch: ImportBatch, binding: SourceBinding): string[] {
     ];
   }
   const { from, to } = batch.coverage;
-  const problems: string[] = [];
-  for (const day of [from, to]) if (!isCalendarDate(day)) problems.push(`Fenster: ${day} gibt es nicht.`);
-  if (problems.length === 0 && from > to) problems.push(`Das Fenster endet vor seinem Anfang (${from} bis ${to}).`);
   // Ohne gültiges Fenster lässt sich keine Bewegung zuordnen
-  if (problems.length > 0) return problems;
+  if (from > to) return [`Das Fenster endet vor seinem Anfang (${from} bis ${to}).`];
+  const problems: string[] = [];
   const seen = new Set<string>();
   for (const m of batch.movements) {
-    if (!isCalendarDate(m.bookingDate)) problems.push(`${label(m)}: Buchungstag ${m.bookingDate} gibt es nicht.`);
-    else if (m.bookingDate < from || m.bookingDate > to) {
+    if (m.bookingDate < from || m.bookingDate > to) {
       problems.push(`${label(m)}: Buchungstag ${m.bookingDate} liegt außerhalb des Fensters ${from} bis ${to}.`);
     }
     if (seen.has(label(m))) problems.push(`${label(m)} steht zweimal in der Lieferung.`);
@@ -97,9 +90,10 @@ export function validateBatch(input: unknown, binding: SourceBinding): BatchVali
   hints.push(...foreignBalances.map((b) => `Saldo vom ${b.date} in ${b.currency} nicht übernommen.`));
   return {
     ok: true,
-    batch: { ...batch, balances: batch.balances.filter((b) => b.currency === "EUR") },
+    batch,
     accepted,
     rejected,
+    balances: batch.balances.filter((b) => b.currency === "EUR"),
     blocking: rejected.filter((r) => r.blocking).length + batch.unsupported.length,
     hints,
   };

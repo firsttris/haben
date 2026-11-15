@@ -43,8 +43,11 @@ export function classifyBatch(previous: { fingerprint: string } | undefined, bat
   return { outcome: "conflict", message: `Lieferung ${batch.idempotencyKey} kam schon mit anderem Inhalt; Haben nimmt sie nicht noch einmal an.` };
 }
 
-/** Buchungsrelevanter Kern: Ändert er sich, ist es ein Konflikt, kein Update */
-type Core = Pick<ImportMovement, "amount" | "currency" | "bookingDate">;
+/**
+ * Buchungsrelevanter Kern: Ändert er sich, ist es ein Konflikt, kein Update. Die Art gehört dazu, weil sie später
+ * entscheidet, ob eine Bewegung Erlös, Erstattung oder Geldtransit ist.
+ */
+type Core = Pick<ImportMovement, "amount" | "currency" | "bookingDate" | "kind">;
 
 /** Was Haben zu einer übernommenen Bewegung festhält, um spätere Lieferungen einzuordnen */
 export interface KnownMovement {
@@ -54,7 +57,7 @@ export interface KnownMovement {
 }
 
 export function knownMovement(m: ImportMovement): KnownMovement {
-  return { core: { amount: m.amount, currency: m.currency, bookingDate: m.bookingDate }, details: sha256(canonical(m)) };
+  return { core: { amount: m.amount, currency: m.currency, bookingDate: m.bookingDate, kind: m.kind }, details: sha256(canonical(m)) };
 }
 
 export type MovementOutcome = "new" | "known" | "observation" | "conflict";
@@ -63,6 +66,7 @@ const CORE_LABELS: [keyof Core, string][] = [
   ["amount", "Betrag"],
   ["currency", "Währung"],
   ["bookingDate", "Buchungstag"],
+  ["kind", "Art"],
 ];
 
 /**
