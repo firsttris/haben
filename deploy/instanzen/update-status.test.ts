@@ -101,15 +101,15 @@ describe("update", () => {
 describe("status und liste", () => {
   const zeilen = (stdout: string) => stdout.trim().split("\n");
 
-  it("zeigt je Instanz Version, Erreichbarkeit, ERiC und Sicherung aus haben status und meldet eine gestoppte", async () => {
+  it("zeigt je Instanz Version, Erreichbarkeit, ERiC, Speicher und Sicherung aus haben status und meldet eine gestoppte", async () => {
     await t.lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
     await t.lauf("neu", "firma2", "firma2.example.de", "--nicht-starten");
     t.docker.z.gestoppt.add("firma2");
     const r = await t.lauf("status");
     expect(r.status).toBe(0);
-    expect(zeilen(r.stdout)[0]).toMatch(/^Instanz\s+Domain\s+Version\s+Erreichbar\s+ERiC\s+Letzte Sicherung$/);
-    expect(zeilen(r.stdout)[1]).toMatch(/^firma1\s+firma1\.example\.de\s+9\.9\.9\s+ja\s+44\.3\.6\.0\s+2026-11-10 03:15$/);
-    expect(zeilen(r.stdout)[2]).toMatch(/^firma2\s+firma2\.example\.de\s+gestoppt\s+ja\s+–\s+–$/);
+    expect(zeilen(r.stdout)[0]).toMatch(/^Instanz\s+Domain\s+Version\s+Erreichbar\s+ERiC\s+Speicher\s+Letzte Sicherung$/);
+    expect(zeilen(r.stdout)[1]).toMatch(/^firma1\s+firma1\.example\.de\s+9\.9\.9\s+ja\s+44\.3\.6\.0\s+Datenbank 45,2 MB, Belege 1,3 GB\s+2026-11-10 03:15$/);
+    expect(zeilen(r.stdout)[2]).toMatch(/^firma2\s+firma2\.example\.de\s+gestoppt\s+ja\s+–\s+–\s+–$/);
     expect(t.docker.aufrufe).toContain("firma1 compose exec -T app haben status --json");
   });
 

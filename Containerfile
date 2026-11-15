@@ -61,7 +61,7 @@ COPY --from=build /app/apps/web/src ./apps/web/src
 COPY --from=build /app/apps/web/package.json ./apps/web/package.json
 COPY --from=build /app/package.json ./package.json
 COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
-# haben status [--json]: Version, ERiC und letzte Sicherung, etwa für deploy/instanzen
+# haben status [--json]: Version, ERiC, letzte Sicherung und Speicher, etwa für deploy/instanzen
 COPY deploy/haben.sh /usr/local/bin/haben
 RUN mkdir -p /var/lib/haben/eric-log /var/lib/haben/eric /var/lib/haben/belege && chown -R bun:bun /var/lib/haben
 # Commit des Builds (#887) für haben status und als OCI-Label, etwa --build-arg HABEN_COMMIT="$(git rev-parse HEAD)".
