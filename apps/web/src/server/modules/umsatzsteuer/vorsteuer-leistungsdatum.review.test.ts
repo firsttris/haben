@@ -34,14 +34,14 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
    * Firma vor dem Stichjahr: Die Kennzahlen kommen aus den Nebenbüchern, dort entscheidet die Zuordnung. Im Zeitraum ab
    * dem Stichjahr rechnet Haben aus dem Journal; das folgt mit der Buchungsseite (Zwischenkonto, #693).
    */
-  async function firma(optionen: { kleinunternehmer?: boolean; journalAb?: number } = {}) {
+  async function firma(optionen: { kleinunternehmer?: boolean; journalAb?: number; kontenrahmen?: "SKR03" | "SKR04"; versteuerung?: "ist" | "soll" } = {}) {
     await leeren(sql)`truncate document_cancellations, document_settlements, vat_returns, vat_return_submissions, year_closings,
       write_offs, allocations, cash_entries, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, document_splits, documents, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban,
         versteuerung, kontenrahmen, rechtsform, kleinunternehmer, payment_term_days, journal_ab)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 'einzelunternehmen',
+              'DE123456789', 'BY', 'DE89370400440532013000', ${optionen.versteuerung ?? "ist"}, ${optionen.kontenrahmen ?? "SKR03"}, 'einzelunternehmen',
               ${optionen.kleinunternehmer ?? false}, 14, ${optionen.journalAb ?? 2030})`;
   }
 
