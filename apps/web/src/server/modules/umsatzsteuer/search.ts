@@ -58,7 +58,7 @@ export interface ZmSubmissionHit {
   id: string;
   year: number;
   month: number;
-  kind: string;
+  kind: (typeof schema.zmSubmissions.$inferSelect)["kind"];
   ok: boolean;
   createdAt: Date;
 }

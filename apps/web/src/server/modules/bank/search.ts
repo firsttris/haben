@@ -64,7 +64,7 @@ export async function searchBankTransactions(query: string, limit = 5): Promise<
 export interface LoanHit {
   id: string;
   name: string;
-  lender: string;
+  lender: (typeof schema.loans.$inferSelect)["lender"];
   openingBalance: number;
   openingDate: string | null;
 }
