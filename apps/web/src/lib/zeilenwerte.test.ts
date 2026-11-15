@@ -10,7 +10,7 @@ describe("erklärte Zeilen (#997)", () => {
     expect(Object.keys(EUER_FIELDS).filter((k) => !felder.has(k))).toEqual([]);
   });
 
-  it("führt für die Einkommensteuer die Zeilen des Vordrucks (#1082)", () => {
+  it("führt für die Einkommensteuer die Zeilen des Vordrucks (#1083)", () => {
     const feld = zeilenFelder("est");
     // Diese Zeilen kann Haben nicht aus den Buchungen rechnen; sie stehen im Vordruck der abgegebenen Erklärung
     expect(feld).toContain("bruttoarbeitslohn");
@@ -20,7 +20,7 @@ describe("erklärte Zeilen (#997)", () => {
     expect(new Set(feld).size).toBe(feld.length);
   });
 
-  // Die elf Summenzeilen aus #1082 bleiben Schlüssel für Schlüssel erhalten: gespeicherte Zeilen hängen an ihnen
+  // Die elf Summenzeilen aus #1083 bleiben Schlüssel für Schlüssel erhalten: gespeicherte Zeilen hängen an ihnen
   it("ergänzt die Zeilen der Anlagen N, S, Vorsorgeaufwand, KAP und den Progressionsvorbehalt (#1149)", () => {
     const zeilen = ERKLAERTE_ZEILEN.est;
     const feld = zeilen.map((z) => z.field);
@@ -58,7 +58,7 @@ describe("erklärte Zeilen (#997)", () => {
     expect(ERKLAERTE_ZEILEN.euer.every((z) => !("gruppe" in z))).toBe(true);
   });
 
-  // Der Vordruck druckt die Schlusszeile ohne Richtung, die Vermerke führen Erstattungen negativ (#1082)
+  // Der Vordruck druckt die Schlusszeile ohne Richtung, die Vermerke führen Erstattungen negativ (#1072, #1076)
   it("führt Zeile 65 der Anlage EÜR, obwohl sie kein Feld in EUER_FIELDS hat (#1072)", () => {
     // Im Protokoll steht "Aufwendungen für ein häusliches Arbeitszimmer" mit einem Betrag; ohne eigene Zeile fehlt
     // er in der Aufstellung und die Einzelzeilen ergeben weniger als die Summe der Betriebsausgaben

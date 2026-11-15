@@ -480,7 +480,7 @@ function EstSection({ data }: { data: Data }) {
   const router = useRouter();
   const save = useServerFn(saveIncomeTaxInputs);
   const [kinder, setKinder] = useState<KindDraft[]>(() => a.kinder.map((k, key) => ({ ...k, key, kinderbetreuung: centsText(k.kinderbetreuung) })));
-  // Nach dem Vermerk ist die Erklärung von außen abgegeben; die Maske wird gelesen, bis jemand sie ausdrücklich öffnet (#1082)
+  // Nach dem Vermerk ist die Erklärung von außen abgegeben; die Maske wird gelesen, bis jemand sie ausdrücklich öffnet (#1083)
   const [bearbeiten, setBearbeiten] = useState(false);
   const gesperrt = est.submitted !== null && !bearbeiten;
   const [anA, setAnA] = useState(() => toArbeitnehmerDraft(a.arbeitnehmer?.a));

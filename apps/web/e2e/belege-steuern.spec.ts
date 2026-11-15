@@ -3057,6 +3057,18 @@ test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098
   await expect(form.getByText("Zeilenwerte aus dem Übermittlungsprotokoll")).toBeVisible();
   await expect(form.getByText("noch nicht erfasst")).toBeVisible();
 
+  // Die Aufstellung bringt kein eigenes <form> mit. Ein <form> im <form> ist nach HTML ungültig: der Browser wirft
+  // das innere Start-Tag weg, sein </form> schließt das äußere, und fieldset, Hinweis und der Fuß mit „Angaben
+  // speichern" lägen außerhalb (#1084). Geprüft wird das ausgelieferte HTML, so wie der Browser es liest — nicht der
+  // nach der Hydration zusammengesetzte Baum, in dem ein verschachteltes Formular stehen bliebe.
+  const ausgeliefert = await (await page.request.get(page.url())).text();
+  const formular = await page.evaluate((html) => {
+    const geparst = new DOMParser().parseFromString(html, "text/html");
+    return { forms: geparst.querySelectorAll("form").length, verschachtelt: geparst.querySelectorAll("form form").length };
+  }, ausgeliefert);
+  expect(formular.forms).toBeGreaterThan(0);
+  expect(formular.verschachtelt).toBe(0);
+
   // Aufgeschlossen wird nur gelesen, bis jemand speichert. Der Klick geht als Zeigerklick dorthin, wo der Mensch
   // klickt: „Angaben bearbeiten“ steht rechts im Fuß, „Angaben speichern“ links. Stünden beide an derselben Stelle,
   // träfe das Loslassen schon den Absende-Knopf, und die leere Maske speicherte und sperrte sich selbst (#1098, #1141).

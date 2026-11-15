@@ -532,7 +532,7 @@ export function ohneBetragHinweis(vermerk: { amount: number | null } | null): Is
 }
 
 /**
- * Die festgesetzte Steuer aus dem Vordruck gegen Habens Schätzung (#1082). Haben kennt Vorsorge und Kapitalerträge
+ * Die festgesetzte Steuer aus dem Vordruck gegen Habens Schätzung (#1083). Haben kennt Vorsorge und Kapitalerträge
  * nur so weit, wie sie eingetragen sind; der Unterschied soll auf der Seite stehen und nicht im Kopf des Betreibers.
  */
 function estAbweichungHinweis(zeilen: Record<string, number>, est: EstYear): Issue[] {

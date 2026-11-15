@@ -1,7 +1,7 @@
 import { formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useAction } from "../../lib/use-action.ts";
 import { saveAnnualFigures } from "../../server/functions/annual.ts";
 import { ERKLAERTE_ZEILEN, type ErklaerteZeile, type ZeilenForm } from "../../lib/zeilenwerte.ts";
@@ -148,8 +148,7 @@ function Erfassen({
 
   const leer = zeilen.length === 0;
 
-  async function absenden(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function absenden() {
     if (leer) return;
     await run(async () => {
       const result = await speichern({ data: { form, year, zeilen } });
@@ -166,7 +165,19 @@ function Erfassen({
         <span className="est-block-title">Zeilenwerte aus dem Übermittlungsprotokoll</span>
         <span className="small muted">{nachtragen ? `${felder.length} Zeilen offen` : "noch nicht erfasst"}</span>
       </summary>
-      <form onSubmit={absenden} style={{ display: "grid", gap: 8, paddingTop: 12 }}>
+      {/* Kein eigenes <form>: Bei der Einkommensteuer steht die Aufstellung im Formular der Maske, und ein
+          <form> im <form> ist nach HTML ungültig — der Browser wirft das innere Start-Tag weg, sein </form> schließt
+          das äußere, fieldset, Hinweis und der Fuß mit „Angaben speichern" lägen außerhalb (#1084). Die Eingaben
+          tragen keinen Namen, gehören also auch nicht zu den Angaben, die das umgebende Formular speichert. */}
+      <div
+        style={{ display: "grid", gap: 8, paddingTop: 12 }}
+        onKeyDown={(event) => {
+          // Enter speichert wie in einem eigenen Formular — und löst nicht das Absenden der Einkommensteuer-Maske aus
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          void absenden();
+        }}
+      >
         <p className="small muted" style={{ margin: 0 }}>
           Trag die Zeilen ein, die beim Finanzamt abgegeben wurden. Leere Felder werden nicht gespeichert; sie bleiben Habens Rechnung. Ein bewusst
           eingetragenes Feld mit 0 wird gespeichert.
@@ -188,7 +199,7 @@ function Erfassen({
           ))}
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <button type="submit" className="btn btn-primary" disabled={busy || leer}>
+          <button type="button" className="btn btn-primary" disabled={busy || leer} onClick={() => void absenden()}>
             Zeilenwerte speichern
           </button>
           <Status tone={leer ? undefined : "ok"} inline>
@@ -198,7 +209,7 @@ function Erfassen({
         <p className="small muted" style={{ margin: 0 }}>
           Gespeicherte Zeilen lassen sich nicht ändern; sie stehen im Änderungsprotokoll.
         </p>
-      </form>
+      </div>
     </details>
   );
 }

@@ -108,6 +108,25 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
     });
   });
 
+  it("behält das Vorzeichen der Erstattung in der Einkommensteuer (#1083)", async () => {
+    // Die Schlusszeile trägt die Richtung nur im Vorzeichen: negativ ist eine Erstattung. Gespeichert und
+    // angezeigt wird der Betrag unverändert, samt Vorzeichen — keine Umkehrung ins Positive.
+    await jahresvermerk.vermerkeJahresabgabe(
+      actor,
+      "est",
+      2025,
+      { filedOn: "2026-05-20", transferTicket: "EST987654321", note: "Außerhalb von Haben mit WISO abgegeben." },
+      TODAY,
+    );
+    await zeilen.speichereErklaerteZeilen(actor, "est", 2025, [
+      { field: "festgesetzteSteuer", amount: 2_012_700 },
+      { field: "erstattung", amount: -29_149 },
+    ]);
+
+    const uebersicht = await annual.annualOverview(2025, TODAY);
+    expect(uebersicht.est.erklaert.erstattung).toBe(-29_149);
+  });
+
   it("lehnt eine Feldkennung ab, die nicht zu dieser Erklärung gehört", async () => {
     await vermerken("ust", "ABC123456789");
     // steuerpflichtig ist eine Zeile der Anlage EÜR, nicht der Umsatzsteuererklärung

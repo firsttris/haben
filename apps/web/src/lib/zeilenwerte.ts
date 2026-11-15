@@ -37,7 +37,7 @@ const EUER_SUMMEN = {
 } as const satisfies Record<string, ErklaerteZeile>;
 
 /**
- * Zeilen der Einkommensteuererklärung, nach den Anlagen des Vordrucks (#1082, #1149).
+ * Zeilen der Einkommensteuererklärung, nach den Anlagen des Vordrucks (#1083, #1149).
  *
  * Haben schickt die Erklärung auf viele Anlagen verteilt; für eine Erklärung, die außerhalb von Haben abgegeben
  * wurde, trägt der Betreiber die Zeilen aus dem Vordruck nach. Die Reihenfolge folgt dem Vordruck: erst die Anlagen,
@@ -123,6 +123,7 @@ const EST_ANLAGEN: readonly { anlage: string; felder: Readonly<Record<string, st
       // Bescheid. Die Beschriftung sagt deshalb, woher sie stammt (#1084)
       festgesetzteSteuer: "Einkommensteuer laut Steuerprogramm",
       soli: "Solidaritätszuschlag laut Steuerprogramm",
+      // Die Richtung steht im Vordruck nur im Vorzeichen: negativ ist eine Erstattung, positiv eine Nachzahlung (#1083)
       erstattung: "Erstattung oder Nachzahlung laut Steuerprogramm",
     },
   },

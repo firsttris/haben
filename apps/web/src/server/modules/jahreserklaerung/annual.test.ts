@@ -497,7 +497,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(texte).not.toMatch(/Keine Betriebseinnahmen/);
   });
 
-  it("Einkommensteuer: erklärte Zeilen aus dem Vordruck und der Abweichungshinweis (#1082)", async () => {
+  it("Einkommensteuer: erklärte Zeilen aus dem Vordruck und der Abweichungshinweis (#1083)", async () => {
     await year2025();
     await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
       values ('est', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
