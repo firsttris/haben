@@ -164,6 +164,12 @@ export const company = pgTable(
      * Änderung, die abgelaufene oder laufende Jahre mit Buchungen trifft, braucht eine ausdrückliche Bestätigung.
      */
     datevPersonenkontenAb: integer("datev_personenkonten_ab"),
+    /**
+     * Früheres Stichjahr (#542). Haben liest es nicht mehr (#1116): Migration 0252 hat es nach journal_umstellung übernommen.
+     * Die Spalte bleibt, damit eine Instanz, die die Prüfung beim Update nicht besteht, auf derselben Datenbank mit der
+     * bisherigen Version weiterlaufen kann; sie entfällt mit modules/umstellung.
+     */
+    journalAb: integer("journal_ab"),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
     taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */

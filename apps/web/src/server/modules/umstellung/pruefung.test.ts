@@ -179,6 +179,26 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         ]);
         expect((await stand())!.ergebnis).toBe("offen");
       }, 60_000);
+
+      it(`EÜR weicht ab, Voranmeldung nicht: Jahr und Zeile im Befund, nichts gespeichert (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        await beleg("2026-04-02");
+        // An Haben vorbei: der Aufwand des privat bezahlten Belegs im Journal um 1 € höher (Gegenbuchung auf das Privatkonto).
+        // Die Vorsteuer und damit die Voranmeldung bleibt gleich, die EÜR aus dem Journal nicht.
+        await sql.begin(async (tx) => {
+          await tx`set local session_replication_role = replica`;
+          const [aufwand] = await tx`select l.id, l.entry_id from journal_lines l join journal_entries e on e.id = l.entry_id
+            where e.source_type = 'document' and l.tax_code = 'VSt19' and l.debit = 10000`;
+          await tx`update journal_lines set debit = debit + 100 where id = ${aufwand!.id}`;
+          await tx`update journal_lines set credit = credit + 100 where entry_id = ${aufwand!.entry_id} and credit > 0`;
+        });
+        const ergebnis = await umstellung.umstellungPruefen(today);
+        expect(ergebnis).toEqual({
+          status: "abweichung",
+          befunde: [{ jahr: 2026, text: expect.stringMatching(/^EÜR 2026: .* bisher .*, aus dem Journal .*; Gewinn bisher .*, aus dem Journal /) }],
+        });
+        expect((await stand())!.ergebnis).toBe("offen");
+      }, 60_000);
     }
 
   it("ohne Buchungen vor dem Stichjahr besteht sie sofort; ohne offene Umstellung gibt es nichts zu tun", async () => {

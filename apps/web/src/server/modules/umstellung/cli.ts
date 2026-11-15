@@ -25,7 +25,8 @@ try {
     console.error(
       [
         "Haben startet nicht: Voranmeldung und EÜR rechnen ab dieser Version nur noch aus dem Journal, und für Jahre vor dem",
-        "bisherigen Stichjahr käme dort etwas anderes heraus als bisher. Es wurde nichts geändert.",
+        "bisherigen Stichjahr käme dort etwas anderes heraus als bisher. Buchungen und Anmeldungen sind unverändert; die",
+        "bisherige Version läuft auf dieser Datenbank weiter.",
         "",
         ...ergebnis.befunde.map((b) => `- ${b.text}`),
         "",

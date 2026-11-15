@@ -16,7 +16,7 @@ import { loadCompany } from "../stammdaten/index.ts";
 import { euerPayments } from "./euer-zahlungen.ts";
 
 /*
- * EINGEFROREN, nur für die Prüfung beim Update (#1116, pruefung.ts): die EÜR aus den Nebenbüchern, wie Haben sie bis 0.x
+ * EINGEFROREN, nur für die Prüfung beim Update (#1116, pruefung.ts): die EÜR aus den Nebenbüchern, wie Haben sie bis 0.9
  * vor dem Stichjahr gerechnet hat (früher auswertungen/reports.ts und euer-quelle.ts). Nicht weiterentwickeln; die Datei
  * fällt mit dem Modul weg, sobald ein Release das Update über diese Version voraussetzt.
  */

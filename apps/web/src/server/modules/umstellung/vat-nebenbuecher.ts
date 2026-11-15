@@ -4,7 +4,7 @@ import { computeVatFigures, kennzahlenAusDemJournal } from "../umsatzsteuer/inde
 
 /*
  * EINGEFROREN, nur für die Prüfung beim Update (#1116, pruefung.ts): die Kennzahlen der Voranmeldung aus den Nebenbüchern,
- * wie Haben sie bis 0.x vor dem Stichjahr gerechnet hat (früher umsatzsteuer/vat-figures.ts). Sie summieren die Listen, die
+ * wie Haben sie bis 0.9 vor dem Stichjahr gerechnet hat (früher umsatzsteuer/vat-figures.ts). Sie summieren die Listen, die
  * computeVatFigures weiter als Erläuterung liefert, und zählen die freien Buchungen aus dem Journal dazu (sie haben kein
  * Nebenbuch). Nicht weiterentwickeln; fällt mit dem Modul weg.
  */

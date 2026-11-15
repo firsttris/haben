@@ -11,7 +11,7 @@ import { kennzahlenBeiderQuellen } from "./vat-nebenbuecher.ts";
 
 /*
  * Prüfung beim Update auf das Journal als einzige Quelle von Voranmeldung und EÜR (#1116, docs/adr/journal-als-quelle.md).
- * Bis 0.x rechneten Jahre vor dem Stichjahr (company.journal_ab, Migration 0192) aus den Nebenbüchern. Für jedes dieser
+ * Bis 0.9 rechneten Jahre vor dem Stichjahr (company.journal_ab, Migration 0192) aus den Nebenbüchern. Für jedes dieser
  * Jahre mit Buchungen muss heute aus dem Journal dasselbe herauskommen:
  * - Zeiträume mit gesendeter Voranmeldung: die gespeicherten Werte gegen die Rechnung aus dem Journal (gesendet ist gesendet);
  * - die übrigen Monate: die Kennzahlen aus den Nebenbüchern gegen die aus dem Journal;

@@ -12,10 +12,10 @@ const journal = (folder: string) => JSON.parse(readFileSync(join(folder, "meta",
 /*
  * Migration 0192 (#542, Stichjahr für Voranmeldung und EÜR aus dem Journal) auf einer bestehenden Instanz: mit Buchungen
  * das Jahr nach dem Update in deutscher Zeit, ohne Buchungen leer; die Hash-Kette bleibt intakt (Fälle aus dem TDD-Review
- * von Pull Request #575). Seit #1116 übernimmt Migration 0250 das Stichjahr in journal_umstellung, offen nur mit Buchungen
- * davor, und 0251 entfernt company.journal_ab.
+ * von Pull Request #575). Seit #1116 übernimmt Migration 0252 das Stichjahr in journal_umstellung, offen nur mit Buchungen
+ * davor; die Spalte bleibt für die bisherige Version.
  */
-describe.skipIf(!testDatabaseUrl)("Migration 0192 und 0250: Stichjahr auf einer bestehenden Instanz (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Migration 0192 und 0252: Stichjahr auf einer bestehenden Instanz (Postgres)", () => {
   async function bis0191(): Promise<postgres.Sql> {
     const name = decodeURIComponent(new URL(testDatabaseUrl!).pathname.slice(1));
     const admin = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });
@@ -52,7 +52,8 @@ describe.skipIf(!testDatabaseUrl)("Migration 0192 und 0250: Stichjahr auf einer 
       expect(await sql`select stichjahr_vorher, ergebnis, befunde from journal_umstellung`).toEqual([
         { stichjahr_vorher: y!.y, ergebnis: "offen", befunde: [] },
       ]);
-      expect(await sql`select column_name from information_schema.columns where table_name = 'company' and column_name = 'journal_ab'`).toEqual([]);
+      // Die Spalte bleibt, damit die bisherige Version auf derselben Datenbank weiterläuft
+      expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: y!.y }]);
       const problems = await sql`select * from haben_integrity_problems(100)`;
       expect(problems).toEqual([]);
       const [a] = await sql`select new_value from audit_log where table_name = 'company' order by seq desc limit 1`;
