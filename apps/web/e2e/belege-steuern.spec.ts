@@ -3,9 +3,10 @@ import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import AxeBuilder from "@axe-core/playwright";
+import { periodKey, periodLabel } from "@haben/core";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
-import { currentYear, day, YEAR } from "./daten.ts";
+import { currentDay, currentYear, day, YEAR } from "./daten.ts";
 import { appDatabaseUrlFuer, databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
   bestaetigen,
@@ -1551,6 +1552,15 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   ).toBeVisible();
   await go("/finanzamt");
   await expect(page.getByRole("heading", { name: "Finanzamt", level: 1 })).toBeVisible();
+});
+
+test("Umsatzsteuer öffnet ohne Abgabe in Haben den zuletzt abgelaufenen Zeitraum, nie den laufenden (#1102)", async () => {
+  // Bis hier ist in diesem Durchlauf nichts gesendet oder vermerkt und kein Zeitraum eingestellt: also der Vormonat
+  const [jahr, monat] = currentDay().split("-").map(Number) as [number, number];
+  const vormonat = monat === 1 ? { year: jahr - 1, month: 12 } : { year: jahr, month: monat - 1 };
+  await go("/umsatzsteuer");
+  await expect(page).toHaveURL(new RegExp(`/umsatzsteuer/${periodKey(vormonat)}$`));
+  await expect(page.getByRole("heading", { level: 1, name: periodLabel(vormonat) })).toBeVisible();
 });
 
 test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async () => {

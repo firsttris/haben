@@ -5,8 +5,9 @@ import {
   filingPeriodSchema,
   FREQUENCY_START_MONTHS,
   periodKey,
-  recentFilingPeriods,
   latestEndedPeriod,
+  openFilingPeriod,
+  recentFilingPeriods,
   lastMonthOfPeriod,
   VAT_FREQUENCIES,
   type VatPeriod,
@@ -19,6 +20,7 @@ import {
   computeVatFigures,
   dauerfristFor,
   dauerfristOverview,
+  abgegebeneZeitraeume,
   frequencyOverview,
   kz39For,
   loadFrequencies,
@@ -125,6 +127,21 @@ export const getFilingPeriodKey = createServerFn({ method: "GET" })
   .handler(async () => {
     const now = new Date();
     return periodKey(latestEndedPeriod(await loadFrequencies(), currentMonth(now)) ?? currentFilingPeriod(now));
+  });
+
+/**
+ * Zeitraum, den /umsatzsteuer öffnet: der älteste abgelaufene, der noch nicht abgegeben ist, ab der ersten Abgabe in
+ * Haben (#1102); ohne Abgabe in Haben oder wenn alle abgegeben sind, der zuletzt abgelaufene. Nie der laufende
+ * (§ 18 Abs. 1 UStG). Die Auswahl ist eine reine Funktion (`openFilingPeriod` in packages/core).
+ */
+export const getOpenFilingPeriodKey = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async () => {
+    const now = new Date();
+    const settings = await loadFrequencies();
+    const today = currentMonth(now);
+    const offen = openFilingPeriod(settings, today, await abgegebeneZeitraeume());
+    return periodKey(offen ?? latestEndedPeriod(settings, today) ?? currentFilingPeriod(now));
   });
 
 export const getOverview = createServerFn({ method: "GET" })

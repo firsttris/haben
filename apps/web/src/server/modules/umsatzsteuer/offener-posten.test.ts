@@ -474,4 +474,19 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung als offener Posten (Postgres)", 
     expect(new TextDecoder().decode(files[name!])).toContain("Übermittlungsprotokoll Oktober");
     expect(new TextDecoder().decode(files["umsatzsteuer/2026-10/übermittlungen.csv"])).toContain("Abgabe vermerkt");
   }, 60_000);
+
+  it("abgegeben sind gesendete und vermerkte Zeiträume, je einmal; ein Entwurf nicht (#1102)", async () => {
+    const zeitraum = await import("./zeitraum.ts");
+    await firma("SKR03", "ist");
+    await vat.saveDraft(actor, { year: 2026, month: 9 }, { mode: "manuell", kz81: 10_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" });
+    const oktoberEntwurf = await vat.saveDraft(actor, oktober, { mode: "manuell", kz81: 650_000, kz86: 0, kz66: 45, reason: "Werte laut Steuerberatung" });
+    await vermerk.vermerkeAbgabe(actor, oktoberEntwurf.id, abgabe(123_455), "2026-11-09");
+    const november = { year: 2026, month: 11 };
+    const novemberEntwurf = await vat.saveDraft(actor, november, { mode: "manuell", kz81: 100_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" });
+    expect((await vat.submitReturn(actor, novemberEntwurf.id, liveClient(), { kind: "send", pin: "1", herstellerId: "12345" })).ok).toBe(true);
+    // Eine offene Berichtigung ändert nichts daran, dass der November abgegeben ist
+    await vat.createCorrection(actor, november);
+    const abgegeben = await zeitraum.abgegebeneZeitraeume();
+    expect(abgegeben.sort((a, b) => a.month - b.month)).toEqual([oktober, november]);
+  }, 60_000);
 });
