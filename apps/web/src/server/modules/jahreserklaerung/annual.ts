@@ -1,6 +1,7 @@
 import { fehlendeMonate } from "./fehlende-voranmeldungen.ts";
 import {
   ACCOUNTS,
+  arbeitszimmerPauschale,
   taxOf,
   toElsterSteuernummer,
   toWholeEuros,
@@ -563,14 +564,29 @@ async function arbeitszimmerIssues(year: number, est: EstYear): Promise<Issue[]>
   const personen = [est.angaben.arbeitnehmer?.a, est.zusammen ? est.angaben.arbeitnehmer?.b : undefined].filter((p): p is Person =>
     Boolean(p && p.bescheinigungen.length > 0),
   );
-  if (!personen.some((p) => (p.werbungskosten.arbeitszimmer ?? 0) > 0)) return [];
+  const mitZimmer = personen.filter((p) => (p.werbungskosten.arbeitszimmer ?? 0) > 0);
+  if (mitZimmer.length === 0) return [];
+  // Zeitanteilige Jahrespauschale: für jeden vollen Monat ohne die Voraussetzung 105 EUR weniger (§ 4 Abs. 5 Satz 1 Nr. 6b)
+  const zuViel = mitZimmer.flatMap((p) => {
+    const monate = p.werbungskosten.arbeitszimmerMonate ?? 12;
+    const betrag = p.werbungskosten.arbeitszimmer ?? 0;
+    const grenze = arbeitszimmerPauschale(monate);
+    if (monate >= 12 || betrag <= grenze) return [];
+    return [
+      {
+        tone: "hinweis" as const,
+        text: `Arbeitszimmer: Bei ${monate} von 12 Monaten liegt die Jahrespauschale bei ${formatEuro(grenze)}; eingetragen sind ${formatEuro(betrag)}. Höher geht nur mit tatsächlichen Aufwendungen.`,
+      },
+    ];
+  });
   const imN = personen.reduce((s, p) => s + (p.werbungskosten.homeofficeTage ?? 0), 0);
   const { homeoffice } = await listPauschalen(year);
-  if (imN === 0 && homeoffice.tage === 0) return [];
+  if (imN === 0 && homeoffice.tage === 0) return zuViel;
   const wo = [imN > 0 ? `${imN} Homeoffice-Tage in der Anlage N` : null, homeoffice.tage > 0 ? `${homeoffice.tage} Tage in der EÜR` : null]
     .filter(Boolean)
     .join(" und ");
   return [
+    ...zuViel,
     {
       tone: "hinweis",
       text: `Arbeitszimmer und Homeoffice-Tagespauschale: ${wo} stehen neben dem Arbeitszimmer in der Anlage N. Für dieselbe Zeit gibt es nur eines von beidem; Haben schickt beides so, wie du es eingetragen hast.`,

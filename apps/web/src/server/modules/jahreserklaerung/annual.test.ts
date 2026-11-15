@@ -824,6 +824,26 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       link: "/pauschalen",
     });
 
+    // Zeitanteilige Jahrespauschale: sechs Monate Mittelpunkt ergeben 630 EUR, mehr geht nur mit tatsächlichen Aufwendungen
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, arbeitszimmerMonate: 6 } } },
+    });
+    const teil = (await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text));
+    expect(teil?.text).toContain("Bei 6 von 12 Monaten");
+    expect(teil?.text).toContain("630,00");
+
+    // Genau die Pauschale für sechs Monate ist kein Fall für den Hinweis
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 63_000, arbeitszimmerMonate: 6 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.some((i) => /Jahrespauschale/.test(i.text))).toBe(false);
+
+    // Kein Monat als Mittelpunkt: keine Jahrespauschale (Satz 4 kürzt um zwölf Zwölftel)
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, arbeitszimmerMonate: 0 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text))?.text).toContain("Bei 0 von 12 Monaten");
+
     // Dasselbe gegen die Tagespauschale in der EÜR: auch dort gibt es das Arbeitszimmer je Person nur einmal
     await incomeTax.saveEstAngaben(actor, 2025, {
       arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000 } } },
