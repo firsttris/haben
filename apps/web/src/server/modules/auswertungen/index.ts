@@ -13,3 +13,4 @@ export { runDueFileCheck, runFileCheck, type FileCheck, type FileProblem } from 
 export { contactHistory, type ContactHistoryRow, type ContactHistorySection } from "./kontakt-historie.ts";
 export { vorauszahlungVorjahrHinweis, ZEHN_TAGE_REGEL, zehnTageKennzeichen, type ZehnTageKennzeichen } from "./euer-jahreswechsel.ts";
 export { euerForYear, lohnZahlungenUmJahreswechsel, openPositions, reportYears, umsatzsteuerVorjahreUmJahreswechsel, type OpenPosition } from "./reports.ts";
+export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.ts";

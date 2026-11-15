@@ -58,6 +58,7 @@
      --page-head-height misst usePageHeadHeight; der Wert hier gilt nur, bis die Seite im Browser läuft */
   --nav-height: 0px;
   --page-head-height: 80px;
+  --action-bar-height: 0px;
   /* Unterkante des stehenden Kopfs: darunter beginnen Unternavigation, Belegansicht, Tabellenköpfe und Sprungziele */
   --below-head: calc(var(--nav-height) + var(--page-head-height));
   --main-pad-x: 40px;
@@ -72,11 +73,14 @@
    weil die Felder ihre Schrift an vielen Stellen mit höherer Spezifität setzen; Häkchen und Datei-Wähler zoomen nicht. */
 @media (pointer: coarse) { input:not([type="checkbox"], [type="radio"], [type="file"]), select, textarea { font-size: 16px !important; } }
 @media (max-width: 860px) { :root { --nav-height: 60px; --main-pad-x: 16px; } }
-/* Sprünge zu Ankern und der Fokus beim Tabben landen unter dem Kopf, nicht dahinter (WCAG 2.4.11) */
-html { scroll-padding-top: calc(var(--below-head) + 16px); }
+/* Sprünge zu Ankern und der Fokus beim Tabben landen zwischen Kopf und Aktionsleiste, nicht dahinter (WCAG 2.4.11) */
+html { scroll-padding-top: calc(var(--below-head) + 16px); scroll-padding-bottom: calc(var(--action-bar-height, 0px) + 16px); }
 /* 400 % Zoom (WCAG 1.4.10: 320×256, ein Fenster mit 1280×720 ergibt 320×180): Der Kopf füllte das Fenster, er scrollt
    hier mit. Handys quer haben mindestens 320 px Höhe und behalten ihn. */
-@media (max-height: 300px) { :root { --below-head: var(--nav-height); } }
+@media (max-height: 300px) {
+  :root { --below-head: var(--nav-height); --viewer-height: calc(100dvh - var(--below-head) - 32px); }
+  html { scroll-padding-bottom: 16px; }
+}
 
 /* Farben: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald, ohne data-mode hell. */
 :root { color-scheme: light; }
@@ -347,6 +351,21 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .page-head > .actions, .page-head > .stack > .actions { justify-content: flex-end; }
 }
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+/* Feste Aktionsleiste am unteren Fensterrand am Handy (< 861 px) für alle Aktionen (#396, Variante E) */
+.action-bar { position: sticky; bottom: 0; z-index: 10; margin: auto calc(-1 * var(--main-pad-x)) -20px; padding: 12px var(--main-pad-x) max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--ground); box-shadow: 0 -6px 12px -10px rgb(0 0 0 / 0.3); }
+@media (min-width: 861px) { .action-bar { display: none; } }
+/* Nur wo es eine Aktionsleiste gibt (Rechnungs- und Angebotseditor), wandern die Aktionen aus dem Kopf; der Mahnungseditor behält sie */
+@media (max-width: 860px) { .main > .page-head:has(~ .action-bar) > .actions { display: none; } }
+@media (max-height: 300px) { .action-bar { position: static; } }
+.more-actions-menu { position: relative; display: inline-flex; }
+.more-actions-menu .split-menu { min-width: min(240px, calc(100vw - 2 * var(--main-pad-x))); max-width: calc(100vw - 2 * var(--main-pad-x)); }
+.action-bar .more-actions-menu .split-menu { top: auto; bottom: calc(100% + 4px); left: 0; right: auto; }
+@media (max-width: 720px) {
+  .action-bar { padding-block: 8px max(8px, env(safe-area-inset-bottom)); }
+  .action-bar > .actions { gap: 8px; }
+  .action-bar .split-btn-solo { flex: 1 1 auto; display: flex; }
+  .action-bar .split-btn-solo > .btn { flex: 1 1 auto; justify-content: center; }
+}
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-actions > .banner { flex: 0 0 100%; }
 /* Knopfzeilen (#394, DESIGN.md): Hauptaktion zuletzt im Markup; im Dialog rechtsbündig, sonst an der Kante der Felder */
@@ -734,7 +753,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 
 /* Rechnungseditor */
 /* Belegansicht so hoch wie das Fenster unter dem stehenden Seitenkopf; bleibt beim Scrollen des Formulars darunter stehen */
-:root { --viewer-height: calc(100dvh - var(--below-head) - 32px); }
+:root { --viewer-height: calc(100dvh - var(--below-head) - var(--action-bar-height, 0px) - 32px); }
 .editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: calc(var(--below-head) + 16px); }
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }

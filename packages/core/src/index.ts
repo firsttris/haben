@@ -90,6 +90,7 @@ export * from "./direkt-kategorie.ts";
 export * from "./konto-angebot.ts";
 export * from "./bareinnahme.ts";
 export * from "./kleinunternehmer-stand.ts";
+export * from "./kleinunternehmer-umsatz.ts";
 export * from "./leistung.ts";
 export { advanceVatPlan, advanceVatDifference, advanceUsesPayments, type AdvanceVatEvent, type AdvanceVatChange } from "./anzahlung-steuer.ts";
 export * from "./anzahlung-bilanz.ts";
