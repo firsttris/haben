@@ -46,6 +46,10 @@ export interface Zustaende {
   zeichen: Map<string, unknown>;
   /** Was `haben kennzeichen` je Instanz ausgibt; ohne Eintrag Exit-Code 3 (kein Logo als Zeichen) */
   logos: Map<string, Uint8Array>;
+  /** `haben status --json` scheitert mit diesem Code und dieser Meldung, etwa -1 für ein Zeitlimit oder 1, wenn die Datenbank neu startet */
+  statusFehler: Map<string, { code: number; stderr?: string }>;
+  /** `haben kennzeichen` scheitert mit diesem Code (3 ist dort kein Fehler, sondern „kein Logo“) */
+  kennzeichenFehler: Map<string, number>;
 }
 
 export const STATUS_JSON = JSON.stringify({
@@ -65,16 +69,19 @@ const ps = (dienste: [string, string, string][]) => dienste.map(([Service, State
 /** Die Befehle im Container der App (haben status, haben kennzeichen) und der Neustart des Firmenportals */
 function habenBefehl(z: Zustaende, d: string, sub: string, binaer?: boolean): Ergebnis | undefined {
   if (sub === "exec -T app haben status --json")
-    return z.zuAlt.has(d)
-      ? {
-          code: 127,
-          stdout: "",
-          stderr: 'OCI runtime exec failed: exec failed: unable to start container process: exec: "haben": executable file not found in $PATH',
-        }
-      : ok(z.zeichen.has(d) ? JSON.stringify({ ...JSON.parse(STATUS_JSON), zeichen: z.zeichen.get(d) }) : STATUS_JSON);
+    return z.statusFehler.has(d)
+      ? { code: z.statusFehler.get(d)?.code ?? 1, stdout: "", stderr: z.statusFehler.get(d)?.stderr ?? "connection refused" }
+      : z.zuAlt.has(d)
+        ? {
+            code: 127,
+            stdout: "",
+            stderr: 'OCI runtime exec failed: exec failed: unable to start container process: exec: "haben": executable file not found in $PATH',
+          }
+        : ok(z.zeichen.has(d) ? JSON.stringify({ ...JSON.parse(STATUS_JSON), zeichen: z.zeichen.get(d) }) : STATUS_JSON);
   if (sub === "exec -T app haben kennzeichen") {
     if (!binaer) return { code: 2, stdout: "", stderr: "kennzeichen nur als Bytes lesen" };
     if (z.zuAlt.has(d)) return { code: 127, stdout: "", stderr: "executable file not found", daten: new Uint8Array() };
+    if (z.kennzeichenFehler.has(d)) return { code: z.kennzeichenFehler.get(d) ?? 1, stdout: "", stderr: "connection refused", daten: new Uint8Array() };
     const logo = z.logos.get(d);
     return logo ? { code: 0, stdout: "", stderr: "", daten: logo } : { code: 3, stdout: "", stderr: "Kein Logo als Zeichen gewählt", daten: new Uint8Array() };
   }
@@ -141,20 +148,25 @@ export function nachbau() {
     upKaputt: new Set(),
     zeichen: new Map(),
     logos: new Map(),
+    statusFehler: new Map(),
+    kennzeichenFehler: new Map(),
   };
   const aufrufe: string[] = [];
+  /** Das Zeitlimit je Aufruf, wenn eins übergeben wurde */
+  const zeitlimits: { aufruf: string; zeitlimit: number }[] = [];
   const umgebungen: { aufruf: string; env: Record<string, string> }[] = [];
   /** Was ein Aufruf auf der Standardeingabe bekam, etwa createuser das Passwort */
   const eingaben: { aufruf: string; eingabe: string }[] = [];
   const neugestartet = new Set<string>();
   const hochgefahren = new Set<string>();
 
-  const ausfuehren: Ausfuehren = async (befehl, { cwd, env, eingabe, binaer }) => {
+  const ausfuehren: Ausfuehren = async (befehl, { cwd, env, eingabe, binaer, zeitlimit }) => {
     const [programm, ...args] = befehl;
     const d = basename(cwd) || "-";
     const aufruf = `${d} ${args.join(" ")}`;
     aufrufe.push(aufruf);
     umgebungen.push({ aufruf, env });
+    if (zeitlimit !== undefined) zeitlimits.push({ aufruf, zeitlimit });
     if (eingabe !== undefined) eingaben.push({ aufruf, eingabe });
     if (programm !== "docker") return { code: 127, stdout: "", stderr: `${programm}: not found` };
     if (z.tot) return { code: 1, stdout: "", stderr: "permission denied while trying to connect to the Docker daemon socket" };
@@ -204,7 +216,7 @@ export function nachbau() {
     if (sub === "pull") return ok();
     return { code: 2, stdout: "", stderr: `unbekannt: ${sub}` };
   };
-  return { z, aufrufe, umgebungen, eingaben, ausfuehren };
+  return { z, aufrufe, umgebungen, zeitlimits, eingaben, ausfuehren };
 }
 
 /** Ein Testlauf: eigenes Verzeichnis, nachgebautes docker, Ausgaben eingesammelt */

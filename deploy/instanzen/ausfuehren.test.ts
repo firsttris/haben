@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bunAusfuehren, umgebungFuerDocker } from "./ausfuehren.ts";
+import { bunAusfuehren, umgebungFuerDocker, ZEITLIMIT } from "./ausfuehren.ts";
 
 describe("Umgebung für docker", () => {
   it("lässt nur PATH, HOME und die DOCKER-Variablen des Clients durch", () => {
@@ -47,5 +47,19 @@ describe("bunAusfuehren", () => {
 
   it("meldet ein fehlendes Programm mit Code 127", async () => {
     expect((await bunAusfuehren(["haben-gibt-es-nicht"], { cwd: "/", env: { PATH: "/nirgends" } })).code).toBe(127);
+  });
+
+  it("bricht einen Befehl nach dem Zeitlimit ab und meldet ZEITLIMIT statt eines Exit-Codes", async () => {
+    const r = await bunAusfuehren(["/bin/sleep", "5"], { cwd: "/", env: {}, zeitlimit: 100 });
+    expect(r.code).toBe(ZEITLIMIT);
+  });
+
+  it("bricht auch mit binaer nach dem Zeitlimit ab", async () => {
+    const r = await bunAusfuehren(["/bin/sleep", "5"], { cwd: "/", env: {}, binaer: true, zeitlimit: 100 });
+    expect(r.code).toBe(ZEITLIMIT);
+  });
+
+  it("lässt einen Befehl innerhalb des Zeitlimits unberührt", async () => {
+    expect(await bunAusfuehren(["/bin/sh", "-c", "exit 3"], { cwd: "/", env: {}, zeitlimit: 5000 })).toEqual({ code: 3, stdout: "", stderr: "" });
   });
 });

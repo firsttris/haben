@@ -9,7 +9,7 @@
 import { existsSync } from "node:fs";
 import { chmod, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { compose } from "./ausfuehren.ts";
+import { compose, ZEITLIMIT } from "./ausfuehren.ts";
 import { envSchreiben, envSetzen, envWerte } from "./env-datei.ts";
 import { adresse, pruefeFirmenname } from "./firmen.ts";
 import { type Instanz, instanzen } from "./instanzen.ts";
@@ -20,6 +20,12 @@ import { dienste, lauf, wartenAufApp } from "./zustand.ts";
 
 const MAX_FIRMEN = 50;
 const MAX_GRUPPE = 100;
+/** So lange darf `haben status` oder `haben kennzeichen` brauchen, bevor die Instanz als nicht erreicht gilt */
+const ABFRAGE_ZEITLIMIT_MS = 60_000;
+/** Exit-Code von `haben kennzeichen`, wenn kein Logo als Zeichen gewählt ist (kennzeichenAusgeben in apps/web) */
+const KEIN_LOGO = 3;
+/** Antwort von docker exec, wenn es `haben` im Image nicht gibt (älteres Image): kein Fehler, nur kein Zeichen */
+const keinBefehl = (r: { code: number; stderr: string }) => (r.code === 126 || r.code === 127) && /executable file not found/.test(r.stderr);
 /** Name der Logo-Dateien, wie parsePortalFirmen sie annimmt; nur solche räumt der Abgleich auch weg */
 const LOGO_DATEI = /^[a-z0-9][a-z0-9_-]*\.(png|jpg)$/;
 export const PORTAL_DIENST = "firmenportal";
@@ -88,30 +94,52 @@ async function auswaehlen(k: Kontext): Promise<{ mitSso: { i: Instanz; laeuft: b
   return { mitSso, ohneSso };
 }
 
-/**
- * Das Logo einer laufenden Instanz: die vorhandene Datei, wenn ihre Prüfsumme stimmt, sonst neu aus
- * `haben kennzeichen`. null, wenn keins gewählt ist oder es nicht passt (mit Warnung).
- */
-async function logoHolen(k: Kontext, logos: string, i: Instanz, zeichen: Zeichen, neu: Map<string, Uint8Array>): Promise<string | null> {
-  if (!zeichen.logo) return null;
-  const datei = `${i.name}.${zeichen.logo.format}`;
-  const vorhanden = existsSync(join(logos, datei)) ? new Uint8Array(await readFile(join(logos, datei))) : null;
-  if (vorhanden && sha256(vorhanden) === zeichen.logo.sha256) return datei;
-  const r = await compose(k, i.dir, ["exec", "-T", "app", "haben", "kennzeichen"], false, undefined, true);
-  const grund = r.code !== 0 || !r.daten ? `ließ sich nicht holen (Exit-Code ${r.code})` : logoPruefen(r.daten, zeichen.logo);
-  if (grund || !r.daten) {
-    k.fehler(`Warnung: Das Logo von ${i.name} ${grund}; das Firmenportal zeigt den Anfangsbuchstaben.`);
-    return null;
-  }
-  neu.set(datei, r.daten);
-  return datei;
+/** Warum ein Befehl scheiterte, für die Warnung */
+const grundVon = (befehl: string, code: number) => `${befehl}: ${code === ZEITLIMIT ? "Zeitüberschreitung" : `Exit-Code ${code}`}`;
+
+/** Farbe und Logo von bisher, wenn die Datei des Logos noch da ist */
+function behalten(logos: string, vorher: { farbe: string | null; logo: string | null } | undefined) {
+  return { farbe: vorher?.farbe ?? null, logo: vorher?.logo && existsSync(join(logos, vorher.logo)) ? vorher.logo : null };
 }
 
-/** Die Einträge mit Zeichen; laufende Instanzen fragt er, gestoppte behalten Farbe und Logo von bisher */
+/**
+ * Das Logo einer laufenden Instanz: die vorhandene Datei, wenn ihre Prüfsumme stimmt, sonst neu aus
+ * `haben kennzeichen`. null, wenn keins gewählt ist (Exit-Code 3) oder es nicht passt (mit Warnung). `fehler`
+ * nennt den Grund, wenn `haben kennzeichen` nicht antwortete; dann gilt die Instanz als nicht erreicht.
+ */
+async function logoHolen(
+  k: Kontext,
+  logos: string,
+  i: Instanz,
+  zeichen: Zeichen,
+  neu: Map<string, Uint8Array>,
+): Promise<{ logo: string | null; fehler?: string }> {
+  if (!zeichen.logo) return { logo: null };
+  const datei = `${i.name}.${zeichen.logo.format}`;
+  const vorhanden = existsSync(join(logos, datei)) ? new Uint8Array(await readFile(join(logos, datei))) : null;
+  if (vorhanden && sha256(vorhanden) === zeichen.logo.sha256) return { logo: datei };
+  const r = await compose(k, i.dir, ["exec", "-T", "app", "haben", "kennzeichen"], false, undefined, true, ABFRAGE_ZEITLIMIT_MS);
+  if (r.code === KEIN_LOGO) return { logo: null };
+  if (r.code !== 0) return { logo: null, fehler: grundVon("haben kennzeichen", r.code) };
+  const daten = r.daten ?? new Uint8Array();
+  const grund = logoPruefen(daten, zeichen.logo);
+  if (grund) {
+    k.fehler(`Warnung: Das Logo von ${i.name} ${grund}; das Firmenportal zeigt den Anfangsbuchstaben.`);
+    return { logo: null };
+  }
+  neu.set(datei, daten);
+  return { logo: datei };
+}
+
+/**
+ * Die Einträge mit Zeichen; laufende Instanzen fragt er, gestoppte und nicht erreichte behalten Farbe und Logo von
+ * bisher. `nichtErreicht` nennt die laufenden, die nicht antworteten (Fehler oder Zeitlimit), mit Warnung auf stderr.
+ */
 async function eintraege(k: Kontext, portalDir: string, mitSso: { i: Instanz; laeuft: boolean }[], bisher: string, neueLogos: Map<string, Uint8Array>) {
   const alt = bisherige(bisher);
   const logos = join(portalDir, "logos");
   const liste: Eintrag[] = [];
+  const nichtErreicht: string[] = [];
   const gesehen = new Map<string, string>();
   for (const { i, laeuft } of mitSso) {
     const name = i.env.get("HABEN_FIRMENNAME") ?? i.name;
@@ -127,17 +155,30 @@ async function eintraege(k: Kontext, portalDir: string, mitSso: { i: Instanz; la
       if (andere) abbrechen(`${art} „${wert}“ tragen ${andere} und ${i.name}; nichts geändert.`);
       gesehen.set(`${art}:${wert}`, i.name);
     }
-    if (laeuft) {
-      const r = await compose(k, i.dir, ["exec", "-T", "app", "haben", "status", "--json"]);
-      const zeichen = r.code === 0 ? zeichenAus(r.stdout) : KEIN_ZEICHEN;
-      liste.push({ instanz: i, name, url, gruppe, zeichen, logo: await logoHolen(k, logos, i, zeichen, neueLogos) });
-    } else {
-      const vorher = alt.get(url);
-      const logo = vorher?.logo && existsSync(join(logos, vorher.logo)) ? vorher.logo : null;
-      liste.push({ instanz: i, name, url, gruppe, zeichen: { farbe: vorher?.farbe ?? null, logo: null }, logo });
+    const vorher = behalten(logos, alt.get(url));
+    const eintrag = (zeichen: Zeichen, logo: string | null) => liste.push({ instanz: i, name, url, gruppe, zeichen, logo });
+    const nichtDa = (grund: string) => {
+      k.fehler(`Warnung: ${i.name} nicht erreicht (${grund}); Farbe und Logo bleiben, wie sie waren.`);
+      nichtErreicht.push(i.name);
+    };
+    if (!laeuft) {
+      eintrag({ farbe: vorher.farbe, logo: null }, vorher.logo);
+      continue;
     }
+    const r = await compose(k, i.dir, ["exec", "-T", "app", "haben", "status", "--json"], false, undefined, undefined, ABFRAGE_ZEITLIMIT_MS);
+    if (r.code !== 0 && !keinBefehl(r)) {
+      nichtDa(grundVon("haben status", r.code));
+      eintrag({ farbe: vorher.farbe, logo: null }, vorher.logo);
+      continue;
+    }
+    const zeichen = r.code === 0 ? zeichenAus(r.stdout) : KEIN_ZEICHEN;
+    const { logo, fehler } = await logoHolen(k, logos, i, zeichen, neueLogos);
+    if (fehler) {
+      nichtDa(fehler);
+      eintrag({ farbe: vorher.farbe, logo: null }, vorher.logo);
+    } else eintrag(zeichen, logo);
   }
-  return liste;
+  return { liste, nichtErreicht };
 }
 
 /** Ein Eintrag in PORTAL_FIRMEN; leere Felder am Ende fallen weg, eine Liste ohne Zeichen sieht aus wie vor #1036 */
@@ -278,7 +319,7 @@ export async function abgleichen(k: Kontext, portalDir: string, erstmals: boolea
   const portalUrl = envWerte(envAlt).get("PORTAL_URL") ?? "";
   const { mitSso, ohneSso } = await auswaehlen(k);
   const neueLogos = new Map<string, Uint8Array>();
-  const liste = await eintraege(k, portalDir, mitSso, envWerte(envAlt).get("PORTAL_FIRMEN") ?? "", neueLogos);
+  const { liste, nichtErreicht } = await eintraege(k, portalDir, mitSso, envWerte(envAlt).get("PORTAL_FIRMEN") ?? "", neueLogos);
 
   const envNeu = envSetzen(envAlt, "PORTAL_FIRMEN", liste.map(zeile).join(";"), true);
   const geleert: string[] = [];
@@ -309,6 +350,7 @@ export async function abgleichen(k: Kontext, portalDir: string, erstmals: boolea
   for (const z of tabelle([["INSTANZ", "DOMAIN", "ZEICHEN"], ...liste.map((e) => [e.instanz.name, new URL(e.url).hostname, kurz(e)])])) k.aus(z);
   if (geleert.length > 0) k.aus(`HABEN_FIRMEN geleert (die Liste kommt jetzt aus dem Firmenportal): ${geleert.join(" ")}`);
   if (ohneSso.length > 0) k.aus(`Ohne SSO, nicht im Firmenportal: ${ohneSso.map((i) => i.name).join(" ")}`);
+  if (nichtErreicht.length > 0) k.aus(`Nicht erreicht, Farbe und Logo wie bisher: ${nichtErreicht.join(" ")}`);
   if (gestoppt.length > 0) k.aus(`Gestoppt, nur die .env geändert: ${gestoppt.join(" ")}`);
   if (portalGestoppt) k.aus(`Das Firmenportal ist gestoppt; die Änderungen gelten nach: cd ${portalDir} && docker compose up -d`);
   k.aus(gestartet.length > 0 ? `Neu gestartet: ${gestartet.join(" ")}` : geaendert ? "Keine Neustarts nötig." : "Nichts geändert.");

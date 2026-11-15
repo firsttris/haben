@@ -22,7 +22,12 @@ export interface AusfuehrenOptionen {
   eingabe?: string;
   /** stdout als Bytes in `daten` statt als Text, etwa für `haben kennzeichen` */
   binaer?: boolean;
+  /** Nach so vielen Millisekunden den Befehl abbrechen; das Ergebnis hat dann `ZEITLIMIT` als Code */
+  zeitlimit?: number;
 }
+
+/** Code im Ergebnis eines Befehls, den das Zeitlimit abgebrochen hat; kein echter Exit-Code */
+export const ZEITLIMIT = -1;
 
 export type Ausfuehren = (befehl: string[], optionen: AusfuehrenOptionen) => Promise<Ergebnis>;
 
@@ -39,7 +44,7 @@ export function umgebungFuerDocker(shell: Record<string, string | undefined>): R
 }
 
 /** Ausfuehren mit Bun.spawn; fehlt das Programm, Code 127 wie in der Shell */
-export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar, eingabe, binaer }) => {
+export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar, eingabe, binaer, zeitlimit }) => {
   const stdin = eingabe === undefined ? "ignore" : new TextEncoder().encode(eingabe);
   let prozess: Bun.Prozess;
   try {
@@ -49,17 +54,41 @@ export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar, ei
   }
   const text = (strom: unknown) => (strom instanceof ReadableStream ? new Response(strom).text() : Promise.resolve(""));
   const bytes = async (strom: unknown) => (strom instanceof ReadableStream ? new Uint8Array(await new Response(strom).arrayBuffer()) : new Uint8Array());
-  if (binaer) {
-    const [daten, stderr, code] = await Promise.all([bytes(prozess.stdout), text(prozess.stderr), prozess.exited]);
-    return { code, stdout: "", stderr, daten };
+  let abgelaufen = false;
+  let beendet = false;
+  void prozess.exited.then(() => {
+    beendet = true;
+  });
+  const uhr =
+    zeitlimit === undefined
+      ? undefined
+      : setTimeout(() => {
+          if (beendet) return;
+          abgelaufen = true;
+          prozess.kill();
+        }, zeitlimit);
+  try {
+    if (binaer) {
+      const [daten, stderr, code] = await Promise.all([bytes(prozess.stdout), text(prozess.stderr), prozess.exited]);
+      return { code: abgelaufen ? ZEITLIMIT : code, stdout: "", stderr, daten };
+    }
+    const [stdout, stderr, code] = await Promise.all([text(prozess.stdout), text(prozess.stderr), prozess.exited]);
+    return { code: abgelaufen ? ZEITLIMIT : code, stdout, stderr };
+  } finally {
+    clearTimeout(uhr);
   }
-  const [stdout, stderr, code] = await Promise.all([text(prozess.stdout), text(prozess.stderr), prozess.exited]);
-  return { code, stdout, stderr };
 };
 
 /** docker compose im Verzeichnis einer Instanz: Compose liest dort compose.yml, die Override-Datei und .env */
-export function compose(k: Kontext, dir: string, args: string[], sichtbar = false, eingabe?: string, binaer?: boolean): Promise<Ergebnis> {
-  return k.ausfuehren(["docker", "compose", ...args], { cwd: dir, env: umgebungFuerDocker(k.shell), sichtbar, eingabe, ...(binaer ? { binaer } : {}) });
+export function compose(k: Kontext, dir: string, args: string[], sichtbar = false, eingabe?: string, binaer?: boolean, zeitlimit?: number): Promise<Ergebnis> {
+  return k.ausfuehren(["docker", "compose", ...args], {
+    cwd: dir,
+    env: umgebungFuerDocker(k.shell),
+    sichtbar,
+    eingabe,
+    ...(binaer ? { binaer } : {}),
+    ...(zeitlimit === undefined ? {} : { zeitlimit }),
+  });
 }
 
 /** docker ohne Projekt (Volumes, Netze, Liste der Projekte); im Wurzelverzeichnis, damit keine compose.yml mitliest */
