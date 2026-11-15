@@ -11,4 +11,5 @@ export {
   mapFbExpense,
   mapFbInvoice,
 } from "./map.ts";
-export type { FbContact, FbCustomer, FbExpense, FbFile, FbInvoice, FbInvoiceItem, FbPayment, FbVatItem } from "./types.ts";
+export { fbArticlesCsv } from "./artikel.ts";
+export type { FbArticle, FbContact, FbCustomer, FbExpense, FbFile, FbInvoice, FbInvoiceItem, FbPayment, FbVatItem } from "./types.ts";

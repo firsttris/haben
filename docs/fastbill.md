@@ -1,7 +1,7 @@
 ---
 title: "Umzug aus FastBill ohne Datenverlust"
 description: >-
-  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben und Kunden über die API übernehmen,
+  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API übernehmen,
   unveränderlich archivieren und kündigen.
 ---
 
@@ -53,6 +53,8 @@ Bei einem Teil der Ausgaben liefert die Download-Adresse aus der API (`DOCUMENT_
 3. Die ZIP-Dateien in Haben hochladen. Haben ordnet jede Datei über die ID ihrer Ausgabe zu und nimmt nur PDFs und Bilder an. Manche Belege speichert FastBill samt der Hülle des Formulars, mit dem sie hochgeladen wurden; dann übernimmt Haben die Datei darin unverändert, ohne die Hülle.
 4. In Schritt 2 „Erneut abrufen“: Haben übernimmt die Ausgaben jetzt mit ihrem Beleg.
 
+Warum das Skript zulässig ist, steht beim Umzug aus Lexoffice unter [Darf ich das?](lexoffice.md#darf-ich-das).
+
 Solange Ausgaben warten, zeigt der Abgleich je Jahr den offenen Punkt „Keine Ausgabe wartet auf ihren Beleg“.
 
 Gibt es zu einer Ausgabe in FastBill wirklich keinen Beleg, übernimmt „Rest ohne Beleg übernehmen“ die übrigen wartenden Ausgaben beim nächsten Abruf ohne Datei. Im Abgleich bleibt „Jeder Beleg hat eine Datei“ für dieses Jahr dann offen; an einen archivierten Beleg lässt sich später keine Datei mehr hängen.
@@ -95,9 +97,18 @@ Bei Ausgaben zählt im Abgleich nur die Vorsteuer (Kz 66), im Monat des Belegs; 
 
 Die Einzelzahlungen einer Rechnung (`PAYMENTS`) übernimmt Haben mit Datum, Betrag und Zahlungsweg; bei Ist-Versteuerung zählt der Umsatz im Monat der Zahlung. Nennt FastBill nur ein Zahlungsdatum (`PAID_DATE`) ohne Einzelzahlungen, wie bei Ausgaben, gilt der Beleg an diesem Tag als voll bezahlt. Ist eine Rechnung nur zum Teil bezahlt, steht sie als teilweise bezahlt mit dem Rest offen. Eine bezahlte und danach stornierte Rechnung zeigt ihre Zahlung weiter an, sie zählt aber nicht als Umsatz: Die Erstattung führt FastBill nicht als Zahlung.
 
+### Artikel
+
+Artikel sind keine Belege und kommen nicht ins Archiv, sondern in den [Artikelkatalog](rechnungen.md#artikelkatalog). Steht der API-Schlüssel, zeigt die Seite unter dem Abruf den Kasten **Artikel**. **Artikel aus FastBill übernehmen** öffnet den [CSV-Import](csv-import.md#artikel), dort holt **Aus FastBill holen** den Artikelkatalog mit je einer Anfrage für 100 Artikel. Die Vorschau ist dieselbe wie bei einer CSV-Datei, mit denselben [Dubletten und Fehlern](csv-import.md#dubletten-und-fehler); angelegt wird erst mit dem Knopf darunter.
+
+- **Preis:** FastBill liefert den Preis immer netto, auch wenn du ihn brutto eingegeben hast. Solche Artikel legt Haben mit Endpreis an, den Bruttopreis aus Nettopreis und Steuersatz auf den Cent gerundet. Nettopreise mit mehr als zwei Nachkommastellen rundet Haben auf den Cent.
+- **Einheit und Steuersatz:** Einheiten wie im [Artikel-Import](csv-import.md#artikel), Steuersätze 0, 7 und 19 %. Andere zeigt die Vorschau als Fehler; ändere sie in FastBill und hol die Artikel noch einmal.
+- **Währung:** Einen Preis in anderer Währung als Euro übernimmt Haben nicht; die Vorschau zeigt ihn als Fehler.
+- **Stundengrenze:** Der Abruf zählt auf dieselbe Grenze wie der Abruf der Belege, und umgekehrt. Ist sie erreicht oder antwortet FastBill gerade nicht, sagt Haben, in wie vielen Minuten es wieder geht. Während eines laufenden Abrufs holt Haben keine Artikel.
+
 ### Grenzen des aktuellen Imports
 
-Angebote, wiederkehrende Rechnungen, Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht. Artikel kommen per [CSV-Import](csv-import.md#artikel).
+Angebote, wiederkehrende Rechnungen, Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht.
 
 ## Schritt 3 bis 5
 

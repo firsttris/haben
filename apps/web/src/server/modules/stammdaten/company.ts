@@ -391,3 +391,9 @@ export function sellerIssues(company: Company): string[] {
 export function letterIssues(company: Company): string[] {
   return legalInfoGaps(company);
 }
+
+/** Schaltet das Durchsuchen des Umzugsarchivs in der Schnellsuche ein oder aus (#617). */
+export async function setArchiveSearch(actor: string, enabled: boolean): Promise<void> {
+  await loadCompany();
+  await withActor(actor, (tx) => tx.update(schema.company).set({ archiveSearch: enabled, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
+}
