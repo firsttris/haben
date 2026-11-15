@@ -514,6 +514,29 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(hinweis?.text).toContain("20.127,00");
   });
 
+  it("Einkommensteuer: Abweichungshinweis vergleicht die festgesetzte Einkommensteuer ohne Soli und Kirchensteuer (#1083)", async () => {
+    const taxpayer = await import("../stammdaten/taxpayer.ts");
+    const incomeTax = await import("./income-tax.ts");
+    await leeren(sql)`truncate income_tax_inputs`;
+    await year2025();
+    const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" };
+    await taxpayer.saveTaxpayer(actor, { a: { ...person, religion: "02" }, veranlagung: "einzel" });
+    await incomeTax.saveEstAngaben(actor, 2025, { arbeitnehmer: { a: { bescheinigungen: [{ steuerklasse: 1, brutto: 9_000_000 }] } } });
+    const { prognose } = (await annual.annualOverview(2025, TODAY)).est;
+    // Ohne Soli oder Kirchensteuer bewiese der Fall nichts: „gesamt“ ist Einkommensteuer + Soli + Kirchensteuer
+    expect(prognose.gesamt).toBeGreaterThan(prognose.einkommensteuer);
+
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
+      values ('est', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
+    const [vermerk] = (await sql`select id from annual_submissions where form = 'est' and year = 2025 and kind = 'vermerk'`) as { id: string }[];
+    if (!vermerk) throw new Error("Der Vermerk fehlt, obwohl er eben angelegt wurde.");
+    // Die Zeile „Festgesetzte Einkommensteuer“ trifft Habens Einkommensteuer auf den Cent: kein Unterschied zu melden
+    await sql`insert into annual_submission_figures (submission_id, field, amount) values (${vermerk.id}, 'festgesetzteSteuer', ${prognose.einkommensteuer})`;
+
+    const overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.est.issues.filter((i) => i.text.includes("im Vordruck stehen"))).toEqual([]);
+  });
+
   it("Anlage EÜR: Zeilen, Gewinn wie in den Auswertungen, Entnahmen, Einlagen und Anlagenverzeichnis", async () => {
     const { car } = await year2025();
     let euer = await annual.euerYear(2025);
