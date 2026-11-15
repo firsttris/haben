@@ -1,6 +1,6 @@
 import { and, eq, gte, lt, or } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { externalSettlementLinks } from "../datenimport/index.ts";
+import { externalSettlementLinks } from "../auswertungen/index.ts";
 import type { ArchiveFile } from "./export.ts";
 
 /** Herkunft im Belegjahr, unabhängig vom Datum des technischen Imports. */

@@ -36,6 +36,6 @@ const reports = [src, ...packages].flatMap(sourceFiles).flatMap((file) => {
 
 for (const report of reports) console.error(report);
 if (reports.length > 0) {
-  console.error(`\nModulgrenzen: ${reports.length} Verstoß${reports.length === 1 ? "" : "e"}`);
+  console.error(`\nModulgrenzen: ${reports.length} ${reports.length === 1 ? "Verstoß" : "Verstöße"}`);
   process.exit(1);
 }

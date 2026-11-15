@@ -1,6 +1,6 @@
 import { contactEntriesOfYear, contactHistoryYear, contactYearTotals, type ContactHistoryEntry, type ContactYearTotal } from "@haben/core";
 import type { LegacySource } from "../../db/schema.ts";
-import { legacyVouchersForContact } from "../archiv/index.ts";
+import { legacyVouchersForContact } from "./kontakt-altbestand.ts";
 import { supplierDocuments } from "../belege/index.ts";
 import { listInvoices, type InvoiceListStatus } from "../rechnungen/index.ts";
 

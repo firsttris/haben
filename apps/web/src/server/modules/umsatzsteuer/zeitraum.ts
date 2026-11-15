@@ -122,3 +122,11 @@ export function periodProblem(settings: readonly VatFrequencySetting[], period: 
     return `Für ${periodLabel(period)} ist keine Voranmeldung eingestellt (befreit). Ändere den Voranmeldungszeitraum, wenn das nicht stimmt.`;
   return `Für ${periodLabel(period)} passt die Voranmeldung nicht zum eingestellten Zeitraum (${frequency === "vierteljaehrlich" ? "vierteljährlich" : "monatlich"}).`;
 }
+
+/**
+ * Abgegebene Voranmeldungszeiträume: über ERiC gesendet oder als außerhalb von Haben abgegeben vermerkt; der Vermerk
+ * setzt ebenso `status = sent` (vermerk.ts). Offen ist, was keins von beiden hat (#1102).
+ */
+export async function abgegebeneZeitraeume(q: Db | Tx = db): Promise<VatPeriod[]> {
+  return q.selectDistinct({ year: schema.vatReturns.year, month: schema.vatReturns.month }).from(schema.vatReturns).where(eq(schema.vatReturns.status, "sent"));
+}

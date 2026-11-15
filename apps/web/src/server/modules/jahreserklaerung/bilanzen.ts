@@ -1,5 +1,5 @@
 import { abschluss, type Abschluss, type Kontenrahmen } from "@haben/core";
-import { ledgerRange, saldenliste, uebernahmen } from "./ledger.ts";
+import { ledgerRange, saldenliste, uebernahmen } from "../buchhaltung/index.ts";
 
 /**
  * Bilanz zum 31.12. des Jahres und die Vorjahresspalte, wie Hinterlegung und Restlaufzeiten sie zeigen. Die Vorjahresspalte

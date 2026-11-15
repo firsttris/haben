@@ -563,7 +563,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     await sql`update company set kontenrahmen = 'SKR03'`;
 
     await sql`update company set einkunftsart = null`;
-    expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]!.link).toBe("/einstellungen");
+    // Der Link öffnet den Bereich Firma; am Handy zeigte /einstellungen sonst nur die Liste der Bereiche
+    expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]).toMatchObject({ link: "/einstellungen", bereich: "firma" });
   });
 
   it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 wird vor dem Senden umgegliedert (#708, #933)", async () => {

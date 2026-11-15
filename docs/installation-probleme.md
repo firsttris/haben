@@ -42,4 +42,6 @@ description: >-
 
 **`systemctl --user enable haben-backup.timer` findet die Unit nicht.** Der Timer gehört nach `~/.config/systemd/user/`, nicht ins Quadlet-Verzeichnis; `haben-backup.container` dagegen ins Quadlet-Verzeichnis, daraus erzeugt Podman `haben-backup.service`. Danach `systemctl --user daemon-reload`.
 
+Nicht dabei? Frag im Forum `#hilfe` auf [Discord](https://discord.gg/CT2GQytSYH); ist es ein Fehler in Haben, wird daraus ein Issue.
+
 Weiter: [Erste Schritte](einrichtung.md) · [Entwicklung](entwicklung.md) · [Zurück zur Übersicht](ueberblick.md)

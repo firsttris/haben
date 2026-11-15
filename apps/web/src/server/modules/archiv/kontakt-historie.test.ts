@@ -16,7 +16,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Belege am Kontakt (Postgres)",
   let invoices: typeof import("../rechnungen/invoices.ts");
   let documents: typeof import("../belege/documents.ts");
   let cancellation: typeof import("../belege/cancellation.ts");
-  let legacy: typeof import("../archiv/legacy-open.ts");
+  let legacy: typeof import("./legacy-open.ts");
   let storage: typeof import("../../storage.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -33,7 +33,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Belege am Kontakt (Postgres)",
     invoices = await import("../rechnungen/invoices.ts");
     documents = await import("../belege/documents.ts");
     cancellation = await import("../belege/cancellation.ts");
-    legacy = await import("../archiv/legacy-open.ts");
+    legacy = await import("./legacy-open.ts");
     storage = await import("../../storage.ts");
   }, 30_000);
 

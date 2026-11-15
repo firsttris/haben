@@ -247,6 +247,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
       "1 Beleg ist noch nicht gebucht.",
       "1 Rechnungsentwurf mit Datum im Zeitraum.",
     ]);
+    // Beide Bank-Hinweise verlinken auf /bank; die Seite zeigt dort ohne Parameter schon die offenen Umsätze (#1102)
+    expect(issues.filter((i) => i.link === "/bank")).toHaveLength(2);
   });
 
   it("berechneter Entwurf wird vor dem Senden aktualisiert, manuelle Werte bleiben mit Begründung", async () => {
@@ -480,7 +482,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
   }, 30_000);
 
   it("Kontenrahmen, Versteuerung und Kleinunternehmer sind nach Buchungen im Jahr gesperrt", async () => {
-    const guard = await import("../stammdaten/settings-guard.ts");
+    const guard = await import("../auswertungen/settings-guard.ts");
     const { loadCompany } = await import("../stammdaten/company.ts");
     expect(await guard.settingsLocks("2026-10-02")).toEqual({ kontenrahmen: null, versteuerung: null, kleinunternehmer: null, rechtsform: null });
 
