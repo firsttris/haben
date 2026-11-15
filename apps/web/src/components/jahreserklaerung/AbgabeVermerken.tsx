@@ -41,7 +41,7 @@ export function AbgabeVermerken({
   art: "ust" | "euer" | "est";
   year: number;
   today: string;
-  /** Betrag aus den Buchungen, bei der Einkommensteuer Habens Schätzung; dient als Vorschlag und zum Vergleich */
+  /** Betrag aus den Buchungen; dient als Vorschlag und zum Vergleich, bei der Einkommensteuer ungenutzt */
   berechnet: number;
   vermerkt: JahresvermerkStand | null;
 }) {
@@ -58,14 +58,16 @@ export function AbgabeVermerken({
   const [bestaetigt, setBestaetigt] = useState(false);
   // Hinweis aus dem Vergleich mit dem gerechneten Betrag; der Vermerk gilt auch bei Abweichung
   const [abweichung, setAbweichung] = useState<string | null>(null);
+  // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag: kein Feld, kein Vergleich (#1073)
+  const mitBetrag = art !== "est";
   const cents = parseEuro(betrag);
   const differenz = cents === null ? 0 : cents - berechnet;
-  const weichtAb = cents !== null && differenz !== 0;
+  const weichtAb = mitBetrag && cents !== null && differenz !== 0;
   const { form, error, check } = useSubmitCheck({
     // Frühestens am 1. Januar des Folgejahres, wie der Server prüft (server/modules/jahreserklaerung/vermerk.ts)
     filedOn: datumFehler(filedOn, `${year + 1}-01-01`, today),
     ticket: ticket.trim().length >= 10 ? null : "Trag das Transferticket aus dem Übermittlungsprotokoll ein, mindestens 10 Zeichen.",
-    betrag: cents === null ? "Trag den Betrag laut Protokoll ein, etwa 1.234,56." : null,
+    betrag: mitBetrag && cents === null ? "Trag den Betrag laut Protokoll ein, etwa 1.234,56." : null,
     bestaetigt: weichtAb && !bestaetigt ? "Bestätige die Abweichung oder gleiche den Betrag an." : null,
     begruendung: begruendung.trim().length >= 10 ? null : "Trag eine Begründung mit mindestens 10 Zeichen ein.",
   });
@@ -73,14 +75,14 @@ export function AbgabeVermerken({
 
   async function absenden(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!check() || cents === null) return;
+    if (!check() || (mitBetrag && cents === null)) return;
     await run(async () => {
       const data = new FormData();
       data.append("form", art);
       data.append("year", String(year));
       data.append("filedOn", filedOn);
       data.append("transferTicket", ticket.trim());
-      data.append("amount", String(cents));
+      if (mitBetrag) data.append("amount", String(cents));
       data.append("note", begruendung.trim());
       if (bestaetigt) data.append("abweichungBestaetigt", "1");
       if (file) data.append("protokoll", file);
@@ -159,8 +161,8 @@ export function AbgabeVermerken({
     <section className="card" aria-label={`Abgabe außerhalb von Haben: ${LABEL[art]} ${year}`}>
       <h2 style={{ margin: 0 }}>Außerhalb von Haben abgegeben</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Hast du {LABEL[art]} {year} in WISO, Accountable oder im ELSTER-Portal abgegeben, hältst du das hier mit Tag, Transferticket und Betrag fest. Die Frist
-        ist damit erledigt, und der Vorgang erscheint im Verlauf.
+        Hast du {LABEL[art]} {year} in WISO, Accountable oder im ELSTER-Portal abgegeben, hältst du das hier mit Tag, Transferticket
+        {mitBetrag ? " und Betrag" : ""} fest. Die Frist ist damit erledigt, und der Vorgang erscheint im Verlauf.
       </p>
       {/* Im laufenden Jahr gibt es noch keinen gültigen Abgabetag: kein Knopf, der Grund steht da (DESIGN.md, Gesperrte Knöpfe) */}
       {today < `${year + 1}-01-01` ? (
@@ -192,26 +194,24 @@ export function AbgabeVermerken({
               />
             )}
           </Field>
-          <Field
-            label="Betrag"
-            hint={`${art === "est" ? "Von Haben geschätzt (voraussichtliche Nachzahlung oder Erstattung)" : "Aus den Buchungen gerechnet"}: ${formatEuro(berechnet)}.`}
-            error={error("betrag")}
-          >
-            {(control) => (
-              <input
-                {...control}
-                inputMode="decimal"
-                className="mono"
-                value={betrag}
-                onChange={(event) => {
-                  setBetrag(event.target.value);
-                  // Ein neuer Betrag ist eine neue Abweichung; der alte Haken darf nicht weiter gelten
-                  setBestaetigt(false);
-                }}
-                required
-              />
-            )}
-          </Field>
+          {mitBetrag && (
+            <Field label="Betrag" hint={`Aus den Buchungen gerechnet: ${formatEuro(berechnet)}.`} error={error("betrag")}>
+              {(control) => (
+                <input
+                  {...control}
+                  inputMode="decimal"
+                  className="mono"
+                  value={betrag}
+                  onChange={(event) => {
+                    setBetrag(event.target.value);
+                    // Ein neuer Betrag ist eine neue Abweichung; der alte Haken darf nicht weiter gelten
+                    setBestaetigt(false);
+                  }}
+                  required
+                />
+              )}
+            </Field>
+          )}
           {weichtAb && cents !== null && (
             <>
               <p className="banner banner-warn" role="status">

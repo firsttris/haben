@@ -126,7 +126,8 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
         year: z.coerce.number().pipe(yearSchema),
         // Tag, Ticket, Betrag und Begründung prüfen wie das Modul; hier nur die Form des FormData-Felds davor
         ...vermerkFelder,
-        amount: z.coerce.number().int().pipe(vermerkBetrag),
+        // Fehlt das Feld (Einkommensteuer, #1073), liefert FormData null; z.coerce machte daraus 0
+        amount: z.preprocess((wert) => wert ?? undefined, z.coerce.number().int().pipe(vermerkBetrag).optional()),
         // Der Haken kommt als "1" oder "on"; fehlt er, ist die Abweichung nicht bestätigt
         abweichungBestaetigt: z
           .string()
@@ -151,7 +152,7 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
         ...(data.file && bytes ? { file: { bytes } } : {}),
       });
       // Der Vergleich ist nur ein Hinweis: Scheitert er, bleibt der Vermerk trotzdem gespeichert
-      const pruefung = await vermerkPruefung(data.form, data.year, data.amount).catch(() => null);
+      const pruefung = await vermerkPruefung(data.form, data.year, data.amount ?? null).catch(() => null);
       return { ok: true as const, hinweis: pruefung?.hinweis ?? null };
     } catch (error) {
       if (error instanceof AnnualError) return { ok: false as const, message: error.message };
