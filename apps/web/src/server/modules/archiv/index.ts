@@ -47,6 +47,7 @@ export {
   sevdeskConnectionStatus,
   startSevdeskImport,
 } from "./sevdesk.ts";
+export { sevdeskPlaceholders, sevdeskRecurringOrigin } from "./sevdesk-vorlagen.ts";
 export {
   cancelFastbillImport,
   FASTBILL_PLANS,

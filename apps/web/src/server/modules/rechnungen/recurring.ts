@@ -138,6 +138,42 @@ export async function updateRecurring(actor: string, id: string, input: Recurrin
   });
 }
 
+/** Felder einer Vorlage aus einem Umzug; Aktiv, Ablauf, Versand und Zahlungsart setzt importRecurringPaused. */
+export type ImportedRecurring = Pick<
+  RecurringInput,
+  "name" | "contactId" | "paymentTermDays" | "intro" | "note" | "taxTreatment" | "priceMode" | "lines" | "nextDate" | "endDate" | "servicePeriod"
+> & { intervalMonths: RecurringInterval; anchorDay: number };
+
+const importedSchema = recurringInputSchema
+  .pick({ name: true, contactId: true, paymentTermDays: true, intro: true, note: true, taxTreatment: true, priceMode: true, lines: true })
+  .extend({ servicePeriod: recurringInputSchema.shape.servicePeriod, nextDate: isoDate, endDate: isoDate.nullable() });
+
+/**
+ * Vorlage aus einem Umzug (sevDesk, #472): kommt pausiert und als Entwurf an, damit Haben nichts erzeugt oder verschickt,
+ * bevor jemand sie geprüft hat. Ein Enddatum vor dem nächsten Termin bleibt stehen (beendete Vorlage), der Ankertag kommt
+ * vom Aufrufer (31 = Monatsende). Gibt die ID der neuen Vorlage zurück.
+ */
+export async function importRecurringPaused(tx: Tx, input: ImportedRecurring): Promise<string> {
+  const row = importedSchema.parse(input);
+  if (![1, 3, 6, 12].includes(input.intervalMonths)) throw new RecurringError("Intervall nicht unterstützt.");
+  if (!Number.isInteger(input.anchorDay) || input.anchorDay < 1 || input.anchorDay > 31) throw new RecurringError("Ankertag ungültig.");
+  await checkCustomer(tx, row.contactId);
+  const [created] = await tx
+    .insert(schema.recurringInvoices)
+    .values({
+      ...row,
+      exemptionReason: "",
+      intervalMonths: input.intervalMonths,
+      anchorDay: input.anchorDay,
+      active: false,
+      mode: "entwurf",
+      sendByMail: false,
+      paymentMethod: "ueberweisung",
+    })
+    .returning({ id: schema.recurringInvoices.id });
+  return created!.id;
+}
+
 /** Löschen nur, solange keine Rechnung daraus entstanden ist; sonst deaktivieren */
 export async function deleteRecurring(actor: string, id: string): Promise<void> {
   await withActor(actor, async (tx) => {

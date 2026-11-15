@@ -132,6 +132,11 @@ export class SevdeskClient {
     return this.#pages("/Invoice", {}, sevInvoiceSchema);
   }
 
+  /** Vorlagen wiederkehrender Rechnungen; ohne den Filter invoiceType=WKR fehlen sie in GET /Invoice (Version 1.0 belegt). */
+  recurringInvoices(): AsyncGenerator<SevInvoice> {
+    return this.#pages("/Invoice", { invoiceType: "WKR" }, sevInvoiceSchema);
+  }
+
   creditNotes(): AsyncGenerator<SevCreditNote> {
     return this.#pages("/CreditNote", {}, sevCreditNoteSchema);
   }

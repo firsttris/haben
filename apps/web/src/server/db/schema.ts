@@ -2994,6 +2994,8 @@ export type LexofficeImportProgress = {
   waitingUntil?: string | null;
   /** FastBill: Ausgaben, die auf ihren Beleg aus dem Browser-Skript warten (fastbill_receipts) */
   fastbillWaiting?: number;
+  /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
+  sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
@@ -3336,6 +3338,31 @@ export const recurringInvoices = pgTable(
     index("recurring_invoices_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
   ],
 );
+
+/**
+ * Aus sevDesk übernommene Vorlagen wiederkehrender Rechnungen (invoiceType WKR, #472): Antwort der API, wie Haben sie
+ * gelesen hat, und die Vorlage in Haben. Je sevDesk-Vorlage eine Zeile, ein neuer Abruf überspringt sie; wird die Vorlage
+ * in Haben gelöscht, bleibt der Nachweis ohne Verweis.
+ */
+export const sevdeskRecurringTemplates = pgTable("sevdesk_recurring_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sevdeskId: text("sevdesk_id").notNull().unique(),
+  importId: uuid("import_id")
+    .notNull()
+    .references(() => lexofficeImports.id),
+  recurringId: uuid("recurring_id").references(() => recurringInvoices.id, { onDelete: "set null" }),
+  /** Status der Vorlage in sevDesk: 50, 100, 1000 */
+  status: text("status").notNull(),
+  /** Aus den erzeugten Rechnungen abgeleitet; unklar ohne solche */
+  billing: text("billing", { enum: ["nachfaellig", "vorschuessig", "unklar"] }).notNull(),
+  /** Anzahl der erzeugten Rechnungen, die billing belegen */
+  billingEvidence: integer("billing_evidence").notNull().default(0),
+  /** Platzhalter von sevDesk wie [%KONTAKTPERSON%], als Text übernommen */
+  placeholders: jsonb("placeholders").$type<string[]>().notNull(),
+  hints: jsonb("hints").$type<string[]>().notNull(),
+  raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Mahnungen und Zahlungserinnerungen mit PDF; wie ein verschicktes Schreiben unveränderlich */
 export const dunnings = pgTable(

@@ -1744,6 +1744,20 @@
       "when": 1794750748349,
       "tag": "0248_kleinunternehmer_gruendungsdatum",
       "breakpoints": true
+    },
+    {
+      "idx": 249,
+      "version": "7",
+      "when": 1794755095787,
+      "tag": "0249_sevdesk_wkr_vorlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 250,
+      "version": "7",
+      "when": 1794755099341,
+      "tag": "0250_sevdesk_wkr_vorlagen_trigger",
+      "breakpoints": true
     }
   ]
 }
