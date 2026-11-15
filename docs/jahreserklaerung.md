@@ -145,7 +145,7 @@ Das Anlagenverzeichnis listet jede Anlage mit Bezeichnung, Anschaffungsdatum, An
 
 Die Angaben der Anlage N, KAP, der Vorsorge und der Ersatzleistungen trägt der Betreiber ein; Haben rechnet sie nicht aus dem Journal. Liegt ein Vermerk „außerhalb von Haben abgegeben“ vor, ist die Maske nur noch lesbar, und **Angaben bearbeiten** öffnet sie wieder: anders als der Vermerk ist die Eingabe nicht anhängend und lässt sich korrigieren. Nach **Angaben speichern** ist sie wieder gesperrt.
 
-Die Vordruckzeilen — Bruttoarbeitslohn, Werbungskosten, Einkünfte, Gesamtbetrag, zu versteuerndes Einkommen sowie Einkommensteuer, Soli und Erstattung oder Nachzahlung laut Steuerprogramm — stehen unter **Zeilenwerte aus dem Übermittlungsprotokoll**, wie bei Umsatzsteuer und EÜR. Verglichen wird nur die Einkommensteuer: Weicht sie von Habens Schätzung ab, nennt ein Hinweis die Differenz. Die Erstattung oder Nachzahlung steht mit dem Vorzeichen des Protokolls — negativ heißt Erstattung, positiv Nachzahlung.
+Die Vordruckzeilen — Bruttoarbeitslohn, Werbungskosten, Einkünfte, Gesamtbetrag, zu versteuerndes Einkommen sowie Einkommensteuer, Soli und Erstattung oder Nachzahlung laut Steuerprogramm — stehen unter **Zeilenwerte aus dem Übermittlungsprotokoll**, wie bei Umsatzsteuer und EÜR. Verglichen wird nur die Einkommensteuer: Weicht sie von Habens Schätzung ab, nennt ein Hinweis die Differenz. Die Erstattung oder Nachzahlung gibt Haben so wieder, wie sie eingetragen wurde: Haben speichert den eingetragenen Betrag samt Vorzeichen unverändert und formatiert ihn nur für die Anzeige.
 
 Die Einkommensteuererklärung (Datenart ESt, Vordruck E10) setzt Haben aus drei Quellen zusammen:
 
