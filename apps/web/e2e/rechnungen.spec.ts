@@ -1949,6 +1949,17 @@ test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und i
   expect(abgelehnt.headers()["www-authenticate"]).toContain("resource_metadata=");
 });
 
+test("OAuth-Zustimmung steht auch unter anderer Schreibweise der Adresse in keinem Rahmen (RFC 9700, 4.16)", async () => {
+  // Der Router unterscheidet Groß- und Kleinschreibung nicht; dieselbe Seite darf nicht ohne Schutz zu haben sein
+  for (const pfad of ["/OAUTH/Autorisieren", "/oauth/AUTORISIEREN"]) {
+    const antwort = await page.request.get(`${pfad}?response_type=code`, { maxRedirects: 0 });
+    expect(antwort.status(), pfad).toBe(200);
+    expect(antwort.headers()["content-type"], pfad).toContain("text/html");
+    expect(antwort.headers()["content-security-policy"], pfad).toBe("frame-ancestors 'none'");
+    expect(antwort.headers()["x-frame-options"], pfad).toBe("DENY");
+  }
+});
+
 test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubletten", async ({ browser }) => {
   // Kontakte wie aus Excel unter Windows: Windows-1252, Semikolon; die E-Mail-Spalte heißt anders und wird von Hand zugeordnet
   const kontakte = [
