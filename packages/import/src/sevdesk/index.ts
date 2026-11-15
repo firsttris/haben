@@ -1,6 +1,7 @@
 export { SevdeskClient, SevdeskApiError, SEVDESK_DEFAULT_BASE_URL, type SevdeskClientOptions } from "./client.ts";
 export type {
   SevAccountingType,
+  SevAsset,
   SevCheckAccount,
   SevCheckAccountTransactionLog,
   SevCommunicationWay,
@@ -44,3 +45,13 @@ export {
   type SevRecurringMapped,
   type SevRecurringTemplate,
 } from "./vorlagen.ts";
+export {
+  mapSevAsset,
+  numberedAssetKeys,
+  sevAnlageKeys,
+  sevAnlageNotiz,
+  sevAnlageRow,
+  sevKontoHinweis,
+  type SevAnlage,
+  type SevAnlageStand,
+} from "./anlagen.ts";

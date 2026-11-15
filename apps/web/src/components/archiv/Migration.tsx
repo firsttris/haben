@@ -31,6 +31,7 @@ import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
+import { SevdeskAssets } from "./SevdeskAssets.tsx";
 import { WisoImport } from "./WisoImport.tsx";
 import { SevdeskExportImport } from "./SevdeskExportImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
@@ -129,6 +130,8 @@ export function Migration({ data }: { data: MigrationData }) {
     return "lexoffice";
   });
   const config = ALL_SOURCES[source];
+  // Das Anlagenverzeichnis liefert nur die API von sevDesk
+  const assets = source === "sevdesk" && Boolean(data.sevdeskConnection);
   const lastImport =
     source === "buchhaltungsbutler"
       ? data.bbImport
@@ -231,9 +234,10 @@ export function Migration({ data }: { data: MigrationData }) {
             data.externalImports.length,
         )}
       />
+      {assets && <SevdeskAssets bookingDate={data.cutoff.bookingDate} />}
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
-          <span className="step-num">4</span>
+          <span className="step-num">{assets ? 5 : 4}</span>
           <h2 id="upload-heading" style={{ margin: 0 }}>
             Exporte ablegen
           </h2>
@@ -246,14 +250,14 @@ export function Migration({ data }: { data: MigrationData }) {
       <section className="stack" aria-labelledby="check-heading">
         <div className="card stack">
           <div className="step-head">
-            <span className="step-num">5</span>
+            <span className="step-num">{assets ? 6 : 5}</span>
             <h2 id="check-heading" style={{ margin: 0 }}>
               Abgleich je Jahr
             </h2>
           </div>
           {data.years.length === 0 ? (
             <p className="small muted" style={{ margin: 0 }}>
-              Noch nichts übernommen. Der Abgleich erscheint, sobald die ersten Daten aus Schritt 2 oder 4 da sind.
+              Noch nichts übernommen. Der Abgleich erscheint, sobald die ersten Daten aus Schritt 2 oder {assets ? 5 : 4} da sind.
             </p>
           ) : (
             <div className={ready ? "banner banner-ok" : "banner banner-info"} role="status">
