@@ -26,7 +26,7 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     await leeren(
       sql,
     )`truncate mail_log, quote_lines, quotes, quote_number_counters, document_amounts, documents, journal_lines, journal_entries, invoice_lines, invoices,
-      invoice_number_counters, contact_versions, contacts, allocations, bank_transactions, bank_imports, bank_accounts, loans, company cascade`;
+      invoice_number_counters, contact_versions, contacts, allocations, bank_transactions, bank_imports, bank_accounts, loans, vat_returns, zm_submissions, pauschalen, cash_entries, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank, payment_term_days)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',
               'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank', 21)`;
@@ -392,7 +392,10 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
         values (${teil!.id}, 'darlehen', -200000, ${loan!.id}, 'tilgung'), (${ganz!.id}, 'darlehen', -200000, ${loan!.id}, 'tilgung')`;
     });
     const treffer = await search.runCommandPaletteSearch("Teilbank", "inhaber");
-    expect(Object.fromEntries(treffer.bankTransactions.hits.map((t) => [t.purpose, t.allocated]))).toEqual({ "Rate Oktober": false, "Rate November": true });
+    expect(Object.fromEntries(treffer.bankTransactions.hits.map((t) => [t.purpose, [t.hint, t.open]]))).toEqual({
+      "Rate Oktober": ["teilweise", -50000],
+      "Rate November": ["zugeordnet", 0],
+    });
   });
 
   it("findet mit ganzem Euro alle Cent-Beträge dieses Euros, mit Cent genau, beim Bankumsatz mit beiden Vorzeichen", async () => {
@@ -428,4 +431,73 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     );
     expect(plan).toContain("bank_transactions_amount_search_idx");
   }, 60_000);
+
+  it("zeigt Bankumsätze mit dem Hinweis der Bankseite und lässt ausgeschlossene Konten weg", async () => {
+    const [ba, aus] = await sql`insert into bank_accounts (name, iban, purpose) values ('Konto', 'DE89370400440532013000', 'geschaeft'),
+      ('Fremdkonto', 'DE02120300000000202051', 'geschaeft') returning id`;
+    for (const [konto, nr] of [
+      [ba!.id, 1],
+      [aus!.id, 2],
+    ] as const) {
+      const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+        values (${konto}, ${`h${nr}.csv`}, ${`sha-hinweis-${nr}`}, 'csv', 2, 0) returning id`;
+      await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, purpose, dedup_hash)
+        values (${konto}, ${bi!.id}, '2026-10-01', -5000, 'Hinweisbank', ${`Ausgabe ${nr}`}, ${`hinweis-a${nr}`}),
+               (${konto}, ${bi!.id}, '2026-10-02', 7000, 'Hinweisbank', ${`Eingang ${nr}`}, ${`hinweis-e${nr}`})`;
+    }
+    await sql`update bank_accounts set excluded_at = now() where id = ${aus!.id}`;
+    const treffer = await search.runCommandPaletteSearch("Hinweisbank", "inhaber");
+    expect(Object.fromEntries(treffer.bankTransactions.hits.map((t) => [t.purpose, t.hint]))).toEqual({ "Ausgabe 1": "belegFehlt", "Eingang 1": "offen" });
+  });
+
+  it("zeigt Voranmeldung und ZM je Zeitraum einmal, mit dem maßgeblichen Stand", async () => {
+    await sql.begin(async (t) => {
+      await t`set local session_replication_role = replica`;
+      await t`insert into vat_returns (year, month, status, sent_at, created_at) values (2026, 41, 'sent', '2026-04-10', '2026-04-09'), (2026, 41, 'draft', null, '2026-05-01'), (2026, 42, 'sent', '2026-07-10', '2026-07-09')`;
+      await t`insert into zm_submissions (year, month, zeilen, kind, ok, code, message, request_xml, response_xml, server_response_xml, created_at) values
+        (2026, 41, '[]', 'validate', true, 0, '', '', '', '', '2026-04-20'),
+        (2026, 41, '[]', 'send', true, 0, '', '', '', '', '2026-04-21'),
+        (2026, 41, '[]', 'validate', false, 610001, 'Fehler', '', '', '', '2026-04-22'),
+        (2026, 42, '[]', 'send', false, 610001, 'Fehler', '', '', '', '2026-07-20')`;
+    });
+    const q1 = await search.runCommandPaletteSearch("Q1 2026", "inhaber");
+    expect(q1.vatReturns.hits.map((v) => [v.month, v.status])).toEqual([[41, "draft"]]);
+    expect(q1.zmSubmissions.hits.map((z) => [z.month, z.kind, z.ok])).toEqual([[41, "send", true]]);
+    const jahr = await search.runCommandPaletteSearch("2026", "inhaber");
+    expect(jahr.vatReturns.hits.map((v) => [v.month, v.status])).toEqual([
+      [42, "sent"],
+      [41, "draft"],
+    ]);
+    expect(jahr.zmSubmissions.hits.map((z) => [z.month, z.kind, z.ok, z.code])).toEqual([
+      [42, "send", false, 610001],
+      [41, "send", true, 0],
+    ]);
+  });
+
+  it("zeigt stornierte Pauschalen, Kassenbuchungen und Buchungen als storniert, die Gegenzeilen der Pauschalen nicht", async () => {
+    await sql.begin(async (t) => {
+      await t`set local session_replication_role = replica`;
+      const [p] =
+        await t`insert into pauschalen (art, date, description, details, amount, journal_entry_id) values ('fahrt', '2026-09-15', 'Stornotermin', '{}', 3600, gen_random_uuid()) returning id`;
+      await t`insert into pauschalen (art, date, description, details, amount, journal_entry_id, reverses_id) values ('fahrt', '2026-09-16', 'Stornotermin', '{}', -3600, gen_random_uuid(), ${p!.id})`;
+      const [c] =
+        await t`insert into cash_entries (number, date, amount, kind, text, journal_entry_id) values (9001, '2026-09-15', -1000, 'beleg', 'Stornokasse', gen_random_uuid()) returning id`;
+      await t`insert into cash_entries (number, date, amount, kind, text, journal_entry_id, reverses_id) values (9002, '2026-09-16', 1000, 'beleg', 'Stornokasse', gen_random_uuid(), ${c!.id})`;
+      const [j] =
+        await t`insert into journal_entries (date, description, source_type, source_id, kontenrahmen, locked_at) values ('2026-09-15', 'Stornobuchung', 'manuell', gen_random_uuid(), 'SKR03', now()) returning id`;
+      await t`insert into journal_entries (date, description, source_type, source_id, kontenrahmen, locked_at, reverses_id) values ('2026-09-16', 'Storno: Stornobuchung', 'manuell', gen_random_uuid(), 'SKR03', now(), ${j!.id})`;
+    });
+    const p = await search.runCommandPaletteSearch("Stornotermin", "inhaber");
+    expect(p.pauschalen.hits.map((h) => [h.amount, h.storniert])).toEqual([[3600, true]]);
+    const c = await search.runCommandPaletteSearch("Stornokasse", "inhaber");
+    expect(c.cashEntries.hits.map((h) => [h.number, h.reversed])).toEqual([
+      [9002, false],
+      [9001, true],
+    ]);
+    const j = await search.runCommandPaletteSearch("Stornobuchung", "inhaber");
+    expect(j.bookings.hits.map((h) => [h.description, h.reversed])).toEqual([
+      ["Storno: Stornobuchung", false],
+      ["Stornobuchung", true],
+    ]);
+  });
 });
