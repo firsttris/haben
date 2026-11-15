@@ -87,8 +87,12 @@ async function steuerlichAusgeglichen(tx: Tx, documentId: string): Promise<numbe
  * mit Gegenbuchungen (Aufhebung) netto. Gelesen wird das Journal, nicht aus den Beträgen gerechnet: So stimmt der
  * fortgeschriebene Anteil auch dann, wenn ein Ausgleich vor dieser Umbuchung lag — der Saldo des Kontos ist die Wahrheit
  * über das, was noch offen ist.
+ *
+ * Gezählt wird nur bis zum Tag des Ausgleichs (`bis`): Die Freigabe zum Leistungsdatum steht schon ab dem Buchen im
+ * Journal, datiert auf einen Tag, der noch kommen kann (#693, #930). Ohne die Grenze zählte eine Zahlung vor der
+ * Ausführung sie mit und zöge ihren Anteil ein zweites Mal — bei Teilzahlungen mit negativem Vorzeichen.
  */
-async function bisherUmgebucht(tx: Tx, documentId: string): Promise<TaxShare[]> {
+async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise<TaxShare[]> {
   const rows = await tx.execute<{ tax_code: string | null; bewegt: number; basis: number }>(sql`
     select l.tax_code, sum(l.debit - l.credit)::int as bewegt, sum(coalesce(l.basis, 0))::int as basis
       from journal_lines l
@@ -100,6 +104,7 @@ async function bisherUmgebucht(tx: Tx, documentId: string): Promise<TaxShare[]> 
                (select id from write_offs where document_id = ${documentId} and kind <> 'skontoErhalten'))
          -- Beim Buchen schon freigegeben (#693): Der Ausgleich darf dieselbe Steuer nicht ein zweites Mal ziehen
          or (e.source_type = 'freigabe' and e.source_id = ${documentId}))
+       and e.date <= ${bis}
      group by l.tax_code`);
   return [...rows].flatMap((r) => {
     const rate = satzZumSchluessel(r.tax_code);
@@ -113,8 +118,9 @@ async function bisherUmgebucht(tx: Tx, documentId: string): Promise<TaxShare[]> 
  * entfällt. `amount` trägt das Vorzeichen des Ausgleichs (Zuordnung, Kursdifferenz, Verrechnung), wie in `settledOn`,
  * `datum` ist der Tag seiner Buchung; erst nach dem Sperren von Beleg und Umsatz aufrufen.
  *
- * `geparkt` sagt, ob die Vorsteuer überhaupt noch wartet: Wird vor der Ausführung gezahlt, gibt die Zahlung sie frei
- * (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, #930), und dann ist nichts auszugleichen.
+ * Vor der Ausführung gezahlt zieht die Zahlung ihren Anteil hier schon ab (#930); die Freigabe zum Ausführungsdatum
+ * schreibt vorsteuer-freigabe.ts danach für den Rest fort. Ein Ausgleich nach der Ausführung zieht nichts mehr, weil die
+ * Freigabe dann steht (siehe `vorsteuerRest`).
  */
 export async function vorsteuerAusgleich(
   tx: Tx,
@@ -123,25 +129,9 @@ export async function vorsteuerAusgleich(
   amount: number,
   kontenrahmen: Kontenrahmen,
   datum: string,
-  geparkt = true,
 ): Promise<PostingLine[]> {
-  if (!geparkt) return [];
   const anteile = await vorsteuerRest(tx, doc, totals, amount, datum);
   return anteile === null ? [] : vorsteuerAusgleichPosting(anteile, kontenrahmen);
-}
-
-/**
- * Was von der Vorsteuer eines Belegs auf diesen Ausgleich entfällt, ohne Buchung. Die Zahlung vor der Ausführung gibt
- * genau diesen Anteil frei (#930) und darf ihn danach nicht noch einmal als Ausgleich ziehen.
- */
-export async function vorsteuerAnteil(
-  tx: Tx,
-  doc: { id: string; privateShare: number },
-  totals: InvoiceTotals,
-  amount: number,
-  datum: string,
-): Promise<TaxShare[] | null> {
-  return vorsteuerRest(tx, doc, totals, amount, datum);
 }
 
 /**
@@ -191,7 +181,7 @@ async function vorsteuerRest(
   // Vorsteuer wie bei jedem Beleg (§ 17 Abs. 1 Satz 2 UStG)
   const freigabe = await freigabeAm(tx, doc.id);
   if (freigabe !== null && datum >= freigabe) return null;
-  const bisher = await bisherUmgebucht(tx, doc.id);
+  const bisher = await bisherUmgebucht(tx, doc.id, datum);
   // Der Privatanteil steht schon beim Buchen nicht auf dem Zwischenkonto: Der geschäftliche Teil des Ziels wird
   // deshalb vor dem Abzug der bisherigen Umbuchungen gebildet. So schreiben die Ausgleiche zusammen genau den
   // geschäftlichen Teil der Vorsteuer fort, und das Konto endet bei null statt um den Privatanteil im Soll.

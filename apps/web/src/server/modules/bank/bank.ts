@@ -74,7 +74,7 @@ import {
   paperCancellationIds,
   unbilledAdvanceRequest,
 } from "../rechnungen/index.ts";
-import { dauerbelegSuggestions } from "../belege/index.ts";
+import { dauerbelegSuggestions, freigabeNachziehen } from "../belege/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
@@ -1231,6 +1231,8 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     taxRate?: number;
     directDebitItemId?: string;
   } = {};
+  // Beleg dieses Teils, damit die Freigabe zum Leistungsdatum nachgezogen wird (#930)
+  let beleg: Parameters<typeof freigabeNachziehen>[1] | null = null;
 
   if (part.kind === "invoice") {
     const invoice = await lockInvoice(tx, part.invoiceId);
@@ -1288,6 +1290,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), part.amount, company.kontenrahmen, bank.bookingDate)));
     description = `Zahlung Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { documentId: doc.id };
+    beleg = doc;
   } else if (part.kind === "ustva") {
     // Buchung wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820); neu ist nur der Bezug auf die Voranmeldung
     const label = await assertUstvaOffen(tx, part.vatReturnId, part.amount);
@@ -1326,6 +1329,9 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     sourceId: allocation!.id,
     lines: onLedger(lines, company.kontenrahmen, bank.ledgerIndex),
   });
+  // Zahlung vor der Ausführung (#930): Die vorausdatierte Freigabe zurücknehmen, den Rest wieder festschreiben —
+  // nach der Buchung, damit der gezogene Anteil im Journal steht und der Saldo den Rest zeigt
+  if (beleg) await freigabeNachziehen(tx, beleg, company);
 }
 
 /** Ordnet (einen Teil) eines Umsatzes zu und bucht die Zahlung. */
@@ -1524,6 +1530,12 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       ),
       reversesId: entry.id,
     });
+    // Aufgehobene Zahlung vor der Ausführung (#930): Der Vorgang ist wieder offen; der freigegebene Anteil fällt am Tag
+    // der Aufhebung zurück, der Rest gehört wieder zum Ausführungsdatum
+    if (allocation.documentId) {
+      const [aufgehoben] = await tx.select().from(schema.documents).where(eq(schema.documents.id, allocation.documentId));
+      if (aufgehoben) await freigabeNachziehen(tx, aufgehoben, books);
+    }
   }
 }
 

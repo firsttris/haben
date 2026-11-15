@@ -804,7 +804,7 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   });
   // Leistung beim Buchen noch nicht ausgeführt: Die Vorsteuer verlässt das Zwischenkonto im Monat der Ausführung (#693),
   // nicht erst mit der Zahlung. Die Freigabe entsteht als eigene Buchung, damit der Beleg selbst unverändert bleibt.
-  if (leistungNochNichtAusgefuehrt(doc)) await freigabeAmAusfuehrung(tx, doc, company, entryId);
+  if (leistungNochNichtAusgefuehrt(doc)) await freigabeAmAusfuehrung(tx, doc, company);
   // Bar aus der Kasse: Zeile im Kassenbuch; lehnt ab, wenn der Bestand dadurch negativ würde
   if (doc.payment === "kasse") {
     await addDocumentCashEntry(tx, {

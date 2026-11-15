@@ -241,7 +241,7 @@ Zwei weitere Vorgänge verschieben die Minderung. Ein erhaltenes Skonto mindert 
 
 Ausgebuchtes Skonto an einer solchen Gutschrift zählt nicht mit: Es erstattet nichts, sondern erlässt den Rest, und wird deshalb vom Zwischenkonto abgeschrieben, ohne die Vorsteuer zu ziehen.
 
-Beide Quellen sagen dasselbe: Die Buchung legt die Vorsteuer beim Buchen auf das Zwischenkonto (SKR03 1548, SKR04 1434) und zieht sie erst mit dem Ausgleich auf die Vorsteuer, und die Voranmeldung aus den Nebenbüchern verteilt sie nach derselben Regel. Kz 66 stimmt deshalb aus Journal und Nebenbüchern je Monat überein (`kz66-paritaet.test.ts`).
+Beide Quellen sagen dasselbe: Beim Buchen legt die Buchung die Vorsteuer auf das Zwischenkonto (SKR03 1548, SKR04 1434) und schreibt zugleich eine zweite Buchung mit dem Leistungsdatum fest, die sie auf die Vorsteuer umbucht; die Voranmeldung aus den Nebenbüchern verteilt sie nach derselben Regel. Eine Zahlung vor der Ausführung nimmt diese vorausdatierte Umbuchung zurück, zieht ihren Anteil an ihrem eigenen Tag um und schreibt den Rest wieder zum Leistungsdatum fest — dasselbe gilt, wenn eine solche Zahlung aufgehoben wird. Ab dem Stichjahr rechnet Haben aus dem Journal; Kz 66 stimmt deshalb aus Journal und Nebenbüchern je Monat überein (`kz66-paritaet.test.ts`).
 
 ### § 13b als Leistungsempfänger
 

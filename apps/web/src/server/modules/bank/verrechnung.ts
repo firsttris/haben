@@ -8,6 +8,7 @@ import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { reverseLinesIn, settledOn } from "./bank.ts";
+import { freigabeNachziehen } from "../belege/index.ts";
 import { belegTotals, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 
 /*
@@ -70,6 +71,8 @@ async function beleg(tx: Tx, id: string, sperren = false) {
       status: schema.documents.status,
       privateShare: schema.documents.privateShare,
       erstattetBezahltes: schema.documents.erstattetBezahltes,
+      serviceFrom: schema.documents.serviceFrom,
+      serviceTo: schema.documents.serviceTo,
     })
     .from(schema.documents)
     .where(eq(schema.documents.id, id));
@@ -182,6 +185,8 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
         lines: [...verrechnungPosting(betraege[seite]!, company.kontenrahmen), ...steuer[seite]!],
       });
     }
+    // Verrechnung vor der Ausführung (#930): was noch wartet, bleibt zum Ausführungsdatum freigegeben
+    for (const doc of [a, b]) await freigabeNachziehen(tx, { ...doc, documentDate: doc.date, supplierName: doc.supplier }, company);
     return { ids: rows.map((r) => r.id), amount: parsed.amount, date };
   });
 }
