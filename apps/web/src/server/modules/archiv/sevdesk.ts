@@ -35,6 +35,7 @@ import { createOrderPdfImporter } from "./order-pdfs.ts";
 import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
 import { importSevdeskRecurringVouchers } from "./sevdesk-dauerbelege.ts";
 import { importSevdeskPayments } from "./sevdesk-payments.ts";
+import { importSevdeskTemplateFiles } from "./sevdesk-vorlagen-dateien.ts";
 
 /*
  * Umzug aus sevDesk. Gleicher Ablauf und dieselben Archivtabellen wie beim Lexoffice-Import (Spalte source = "sevdesk"),
@@ -292,15 +293,25 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     await save();
   }
+  // Die Datei einer Vorlage brauchen Dauerbeleg und Belege aus der Vorlage; sevDesk liefert sie je Lauf nur einmal
+  const templateFiles = new Map<string, Promise<SevFile | null>>();
+  const templateFile = (documentId: string) => {
+    if (!templateFiles.has(documentId)) templateFiles.set(documentId, client.document(documentId));
+    return templateFiles.get(documentId)!;
+  };
   // 4. Vorlagen wiederkehrender Belege als angehaltene Dauerbelege (#472)
   const knownTemplates = new Set(
     (await db.select({ id: schema.recurringDocuments.sevdeskId }).from(schema.recurringDocuments)).flatMap((r) => (r.id ? [r.id] : [])),
   );
-  await importSevdeskRecurringVouchers(actor, client, progress, signal, knownTemplates);
+  await importSevdeskRecurringVouchers(actor, client, progress, signal, knownTemplates, templateFile);
+  // 5. Datei der Vorlage für Belege aus wiederkehrenden Belegen, auch für früher übernommene (#472)
+  // Belege, die sevDesk jetzt mit eigener Datei liefert, auch wenn die Archivkopie aus einem früheren Lauf keine hat
+  const withOwnFile = new Set(listed.filter((i) => i.kind === "voucher" && i.raw.document?.id != null && String(i.raw.document.id) !== "").map((i) => i.id));
+  await importSevdeskTemplateFiles(actor, client, progress, signal, withOwnFile, templateFile);
   await save(true);
-  // 5. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
+  // 6. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
   await importSevdeskPayments(actor, importId, client, progress, signal);
-  // 6. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
+  // 7. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
   await importSevdeskAccountingTypes(actor, importId, client, progress, signal);
   await save(true);
 }

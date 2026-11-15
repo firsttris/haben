@@ -1,4 +1,4 @@
-import { mapSevRecurringVoucher, SevdeskApiError, type SevdeskClient } from "@haben/import";
+import { mapSevRecurringVoucher, SevdeskApiError, type SevdeskClient, type SevFile } from "@haben/import";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { today } from "../../today.ts";
 import { importSevdeskDauerbeleg } from "../belege/index.ts";
@@ -16,6 +16,8 @@ export async function importSevdeskRecurringVouchers(
   progress: LexofficeImportProgress,
   signal: AbortSignal,
   known: Set<string>,
+  /** Lädt die Datei der Vorlage; der Lauf teilt sie mit den Belegen aus der Vorlage */
+  download: (documentId: string) => Promise<SevFile | null> = (id) => client.document(id),
 ): Promise<void> {
   for await (const raw of client.recurringVouchers()) {
     const id = String(raw.id);
@@ -29,7 +31,7 @@ export async function importSevdeskRecurringVouchers(
         progress.failed.push({ lexofficeId: `recurring/${id}`, number, message: `Nicht als Dauerbeleg übernommen: ${mapped.grund}` });
         continue;
       }
-      const file = mapped.dauerbeleg.documentId ? await client.document(mapped.dauerbeleg.documentId) : null;
+      const file = mapped.dauerbeleg.documentId ? await download(mapped.dauerbeleg.documentId) : null;
       const contract = file ? { bytes: file.bytes, filename: file.filename ?? `${number}.pdf` } : null;
       if (await importSevdeskDauerbeleg(actor, mapped.dauerbeleg, { voucher: raw, positions }, contract)) {
         progress.recurring = (progress.recurring ?? 0) + 1;

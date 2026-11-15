@@ -247,7 +247,7 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
           schema.lexofficeVoucherFiles.voucherId,
           candidates.map((c) => c.voucher.id),
         ),
-        inArray(schema.lexofficeVoucherFiles.role, ["pdf", "anhang"]),
+        inArray(schema.lexofficeVoucherFiles.role, ["pdf", "anhang", "vorlage"]),
       ),
     );
   const withFile = new Set(files.map((f) => f.voucherId));
