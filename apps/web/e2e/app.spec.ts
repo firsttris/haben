@@ -382,6 +382,35 @@ test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf (DESIGN.md, Rei
   await expect(knoepfe.last()).toBeFocused();
 });
 
+// Die Aktionsleiste gibt es nur im Rechnungs- und Angebotseditor (#396); der Mahnungseditor hat keine und behält seine
+// Aktionen am Handy im Kopf, sonst ließe sich dort keine Mahnung erstellen
+test("Mahnung am Handy: ohne Aktionsleiste bleiben die Aktionen im Kopf", async () => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 812 });
+  try {
+    await go("/rechnungen/mahnwesen");
+    await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+    await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+    await page.waitForLoadState("networkidle");
+    const kopf = page.locator(".main > .page-head");
+    await expect(page.locator(".main > .action-bar")).toHaveCount(0);
+    await expect(kopf.getByRole("button", { name: "Vorschau", exact: true })).toBeVisible();
+    await expect(kopf.getByRole("button", { name: "Entwurf als PDF" })).toBeVisible();
+    await expect(kopf.getByRole("button", { name: "Zahlungserinnerung erstellen" })).toBeVisible();
+    // Wie bisher im Rechnungsentwurf (#401): Die Aktionen füllen am Handy die volle Breite des Kopfes
+    const innen = await kopf.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const stil = getComputedStyle(el);
+      return { links: box.left + Number.parseFloat(stil.paddingLeft), rechts: box.right - Number.parseFloat(stil.paddingRight) };
+    });
+    const zeile = await kopf.locator("> .actions").boundingBox();
+    expect(zeile?.x).toBeLessThanOrEqual(innen.links);
+    expect((zeile?.x ?? 0) + (zeile?.width ?? 0)).toBeGreaterThanOrEqual(innen.rechts);
+  } finally {
+    if (vorher) await page.setViewportSize(vorher);
+  }
+});
+
 test("Mahnung: Eine Gebühr über der Grenze steht am Feld und zählt weder in Forderung noch Vorschau", async () => {
   await go("/rechnungen/mahnwesen");
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();

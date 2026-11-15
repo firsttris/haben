@@ -1,6 +1,7 @@
 /*
  * Stammdaten: Firmendaten (mit Versteuerung und Kleinunternehmer je Jahr), Kunden mit SEPA-Lastschriftmandaten, Artikel, Textbausteine, Briefkopf (Logo, Akzentfarbe), Zeichen in der Navigation, persönliche
- * Angaben, Umsatzsteuer-Umrechnungskurse und die Sperre von Kontenrahmen, Versteuerung und Kleinunternehmer (settings-guard).
+ * Angaben und Umsatzsteuer-Umrechnungskurse. Gespeichert werden die Firmendaten über auswertungen/settings-guard.ts, das
+ * Kontenrahmen, Versteuerung und Kleinunternehmer gegen Buchungen und offene Rechnungen sperrt.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
@@ -26,6 +27,7 @@ export {
   journalAbJahr,
   setJournalAb,
   type Company,
+  type CompanyInput,
 } from "./company.ts";
 export {
   contactRoleProblem,
@@ -95,13 +97,12 @@ export {
 export { layoutOverview, layoutSource, listLayouts } from "./layout-liste.ts";
 export { CustomerNumberError, customerNumbering, saveCustomerNumbering } from "./customer-numbers.ts";
 export { personenkontoKey, vergibPersonenkonten } from "./personenkonten-vergabe.ts";
-export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";
 export { PlanTemplateError, planTemplatesProblem, savePlanTemplates } from "./plan-templates.ts";
-export { saveCompany, settingsLocks } from "./settings-guard.ts";
 export {
   addMandateFile,
   createMandate,
   findMandate,
+  lastCollections,
   listMandates,
   MandateError,
   mandateFile,

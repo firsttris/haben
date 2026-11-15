@@ -38,14 +38,14 @@ import { contactRoleProblem, loadCompany, resolveExchangeRate, type Company } fr
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
-import { freigabeAmAusfuehrung } from "./vorsteuer-freigabe.ts";
+import { freigabeAmAusfuehrung } from "../umsatzsteuer/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { fileInUse } from "../../db/file-in-use.ts";
 import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
 import { findDocumentByReference, type DocumentReference } from "./external-reference.ts";
-import { MAX_DOCUMENT_SIZE } from "./grenzen.ts";
+import { MAX_DOCUMENT_SIZE } from "../../grenzen.ts";
 import { detectOwnInvoiceFor, ownInvoiceHint, ownInvoiceRecord, partiesOfEInvoice, partiesOfExtraction } from "./own-invoice.ts";
 import { pdfTextLines } from "./pdf-text.ts";
 import { supplierCategory, supplierPayment } from "./vorschlaege.ts";

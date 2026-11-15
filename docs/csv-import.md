@@ -9,7 +9,7 @@ description: >-
 
 Kontakte, Artikel und Anlagen übernimmst du aus einer CSV-Datei, etwa aus einem Export von Lexware Office, einer anderen Buchhaltung oder einer Excel-Liste. Den Import öffnest du unter **Kontakte**, **Artikel** oder **Anlagen** mit **CSV importieren**; oben auf der Seite wechselst du zwischen den drei Arten.
 
-Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md), aus [sevDesk](sevdesk.md), aus [FastBill](fastbill.md), aus [BuchhaltungsButler](buchhaltungsbutler.md) und aus [Accountable](accountable.md) sowie den [vorbereiteten Betreiberimport](belegimport.md). Kontoauszüge kommen über den [Bankimport](bank.md).
+Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md), aus [sevDesk](sevdesk.md), aus [FastBill](fastbill.md), aus [BuchhaltungsButler](buchhaltungsbutler.md), aus [Accountable](accountable.md) und aus [WISO](wiso.md) sowie den [vorbereiteten Betreiberimport](belegimport.md). Kontoauszüge kommen über den [Bankimport](bank.md).
 
 Für selbst vorbereitete Listen aus WISO EÜR & Kasse beachtest du die [Hinweise zum Jahreswechsel, zu Ländern und Anlagen](wiso.md).
 
@@ -94,7 +94,7 @@ Eine Datei „Debitoren/Kreditoren“ aus einem DATEV-Export (EXTF, Formatkatego
 | Name (Adressatentyp Unternehmen), Vorname und Name (Adressatentyp natürl. Person), Name (Adressatentyp keine Angabe), Kurzbezeichnung | Name: die erste belegte Spalte in dieser Reihenfolge |
 | EU-Mitgliedstaat und EU-UStId. | USt-IdNr., zusammengesetzt (`DE` und `136695976` ergibt `DE136695976`) und geprüft wie in [Kontakte](#kontakte) |
 | Straße, Postleitzahl, Ort, E-Mail, IBAN-Nr. 1 | wie in [Kontakte](#kontakte) |
-| Land | wie in [Kontakte](#kontakte); `UN`, das sevDesk bei Kontakten ohne Anschrift schreibt („UNKNOWN“), gilt wie leer. Passt das Land nicht zur USt-IdNr. (etwa leer, also DE, bei `ATU…`; Monaco mit `FR…` passt, es gilt als Gebiet Frankreichs nach [§ 1 Abs. 2a UStG](https://www.gesetze-im-internet.de/ustg_1980/__1.html)), übernimmt Haben es und nennt das in der Vorschau |
+| Land | wie in [Kontakte](#kontakte); `UN`, das sevDesk bei Kontakten ohne Anschrift schreibt („UNKNOWN“), gilt wie leer. Ist das Land leer, nimmt Haben DE an und nennt das in der Vorschau, damit du es vor dem Import prüfen kannst. Passt das Land nicht zur USt-IdNr. (etwa leer, also DE, bei `ATU…`; Monaco mit `FR…` passt, es gilt als Gebiet Frankreichs nach [§ 1 Abs. 2a UStG](https://www.gesetze-im-internet.de/ustg_1980/__1.html)), übernimmt Haben es und nennt das in der Vorschau |
 | Telefon | wie in [Kontakte](#kontakte); ein `'` am Anfang, mit dem sevDesk Telefonnummern als Text kennzeichnet, lässt Haben weg |
 | Kundennummer | Kundennummer, nur beim Debitor; was die Spalte beim Kreditor meint, ist nicht belegt (im Export von sevDesk ist sie leer) |
 | Steuernummer | nur zum Zusammenführen, Haben speichert sie nicht |

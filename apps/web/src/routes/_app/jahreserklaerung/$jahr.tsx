@@ -138,6 +138,10 @@ function Issues({ issues }: { issues: Issue[] }) {
                 <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: issue.zeitraum }}>
                   {LINK_LABEL[issue.link]}
                 </Link>
+              ) : issue.link === "/einstellungen" ? (
+                <Link to="/einstellungen" search={issue.bereich ? { bereich: issue.bereich } : {}}>
+                  {LINK_LABEL[issue.link]}
+                </Link>
               ) : (
                 <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>
               ))}

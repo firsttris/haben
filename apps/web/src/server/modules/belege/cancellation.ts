@@ -9,7 +9,7 @@ import { loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { journalAbJahr } from "../stammdaten/index.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { belegZeilen } from "./belegbuchung.ts";
-import { freigabeStornieren } from "./vorsteuer-freigabe.ts";
+import { freigabeStornieren } from "../umsatzsteuer/index.ts";
 
 export { vatPeriodsOf } from "../buchhaltung/index.ts";
 import { DocumentError, type Document } from "./documents.ts";

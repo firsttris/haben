@@ -119,7 +119,7 @@ async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise
  * `datum` ist der Tag seiner Buchung; erst nach dem Sperren von Beleg und Umsatz aufrufen.
  *
  * Vor der Ausführung gezahlt zieht die Zahlung ihren Anteil hier schon ab (#930); die Freigabe zum Ausführungsdatum
- * schreibt vorsteuer-freigabe.ts danach für den Rest fort. Ein Ausgleich nach der Ausführung zieht nichts mehr, weil die
+ * schreibt umsatzsteuer/vorsteuer-freigabe.ts danach für den Rest fort. Ein Ausgleich nach der Ausführung zieht nichts mehr, weil die
  * Freigabe dann steht (siehe `vorsteuerRest`).
  */
 export async function vorsteuerAusgleich(
@@ -153,7 +153,7 @@ export async function vorsteuerAbschreibung(
 }
 
 /**
- * Tag der Freigabe zum Leistungsdatum (#693, belege/vorsteuer-freigabe.ts), wenn sie steht; null ohne Freigabe oder
+ * Tag der Freigabe zum Leistungsdatum (#693, umsatzsteuer/vorsteuer-freigabe.ts), wenn sie steht; null ohne Freigabe oder
  * wenn ein Storno sie aufgehoben hat
  */
 async function freigabeAm(tx: Tx, documentId: string): Promise<string | null> {

@@ -22,7 +22,6 @@ export {
   uploadDocument,
 } from "./documents.ts";
 export { searchDocuments, type DocumentHit } from "./search.ts";
-export { freigabeNachziehen } from "./vorsteuer-freigabe.ts";
 export { searchRecurringDocuments, type RecurringDocumentHit } from "./search-recurring.ts";
 export { type Lieferant, supplierCategory, supplierPayment } from "./vorschlaege.ts";
 export {
@@ -68,6 +67,5 @@ export {
   bookAndAllocateDauerbeleg,
   bookAndAllocateSchema,
   DAUERBELEG_ACTOR,
-  dauerbelegSuggestions,
   runDueDauerbelege,
 } from "./dauerbelege-lauf.ts";

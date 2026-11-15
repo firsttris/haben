@@ -109,6 +109,7 @@ describe.skipIf(!testDatabaseUrl)("Sperrtrigger in Kette prüfen (Postgres, #764
 
   it("nennt Tabelle und Trigger in der Wochenmail und in der Start-Logzeile", async () => {
     const mail = await import("../mail/mail.ts");
+    const pruefwertMail = await import("./pruefwert-mail.ts");
     const sent: { text: string; subject: string }[] = [];
     mail.setMailTransportForTests(
       () =>
@@ -134,7 +135,7 @@ describe.skipIf(!testDatabaseUrl)("Sperrtrigger in Kette prüfen (Postgres, #764
       const now = new Date();
       now.setDate(now.getDate() + 1);
       now.setHours(10);
-      expect(await mail.runDuePruefwertMail(now)).toMatchObject({ problems: 1 });
+      expect(await pruefwertMail.runDuePruefwertMail(now)).toMatchObject({ problems: 1 });
       expect(sent[0]!.subject).toContain("mit Befunden");
       expect(sent[0]!.text).toContain("year_closings");
       expect(sent[0]!.text).toContain("year_closings_append_only");
