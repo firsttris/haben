@@ -1,4 +1,4 @@
-import { ACCOUNTS, type Kontenrahmen, parseDateSearch, parseEuroSearchRange } from "@haben/core";
+import { ACCOUNTS, type Kontenrahmen, PAUSCHALE_LABEL, type PauschaleArt, parseDateSearch, parseEuroSearchRange } from "@haben/core";
 import { type SQL, and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { amountIn, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
@@ -192,6 +192,11 @@ export async function searchPauschalen(query: string, limit = 5): Promise<{ hits
   const pattern = likePattern(query);
   const range = parseEuroSearchRange(query);
   const queryDate = parseDateSearch(query);
+  // Die Art über ihre Bezeichnung, die der Treffer zeigt, nicht über den gespeicherten Schlüssel
+  const needle = normalizeForMatch(query.trim());
+  const arten = (Object.entries(PAUSCHALE_LABEL) as [PauschaleArt, string][])
+    .filter(([, label]) => normalizeForMatch(label).includes(needle))
+    .map(([art]) => art);
   const rows = await db
     .select({
       id: p.id,
@@ -207,7 +212,7 @@ export async function searchPauschalen(query: string, limit = 5): Promise<{ hits
         isNull(p.reversesId),
         or(
           unaccentIlike(p.description, pattern),
-          unaccentIlike(sql`${p.art}::text`, pattern),
+          ...(arten.length > 0 ? [inArray(p.art, arten)] : []),
           ...(range !== null ? [amountIn(p.amount, range)] : []),
           ...(queryDate !== null ? [eq(p.date, queryDate)] : []),
         ),
