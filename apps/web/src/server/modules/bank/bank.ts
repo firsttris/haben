@@ -1246,7 +1246,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     // Vorsteuer vom Zwischenkonto auf die Vorsteuer: die Zahlung einer Rechnung, deren Leistung beim Buchen noch nicht
     // ausgeführt war (#693), und die Erstattung einer Gutschrift „erstattet bereits Bezahltes“ (#786). Hat die Buchung
     // nichts auf dem Zwischenkonto, kommt nichts dazu (Altbestand, Kleinunternehmer, 0 %)
-    lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), part.amount, company.kontenrahmen)));
+    lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), part.amount, company.kontenrahmen, bank.bookingDate)));
     description = `Zahlung Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { documentId: doc.id };
   } else if (part.kind === "ustva") {
@@ -1591,7 +1591,7 @@ export async function bookWriteOff(
       lines = exchangeDifferencePosting({ kind: "document" }, amount, company.kontenrahmen);
       // Die Steuer bleibt beim Kurs des Belegs; der ausgeglichene Anteil geht trotzdem vom Zwischenkonto, wenn dort
       // etwas steht: geparkte Vorsteuer (#693) oder eine Gutschrift „erstattet bereits Bezahltes“ (#786)
-      lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), amount, company.kontenrahmen)));
+      lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), amount, company.kontenrahmen, input.date)));
       description = `Kursdifferenz · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
       target = { invoiceId: null, documentId: doc.id };
     }
@@ -1614,7 +1614,7 @@ export async function bookWriteOff(
     const totals = { net: doc.net, tax: doc.tax, gross: doc.gross, taxes };
     // Gutschrift „erstattet bereits Bezahltes“ (#786): Der Rest erstattet nichts mehr, die Steuerzeile schreibt den Rest
     // des Zwischenkontos ab; aus dem Betrag dieses Skontos allein gerechnet bliebe ein Cent darauf stehen
-    lines = documentWriteOffPosting(totals, amount, company.kontenrahmen, doc.vorsteuerAbzug, await vorsteuerAbschreibung(tx, doc, totals, amount));
+    lines = documentWriteOffPosting(totals, amount, company.kontenrahmen, doc.vorsteuerAbzug, await vorsteuerAbschreibung(tx, doc, totals, amount, input.date));
     description = `Skonto erhalten · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { invoiceId: null, documentId: doc.id };
   } else {

@@ -110,8 +110,8 @@ async function bisherUmgebucht(tx: Tx, documentId: string): Promise<TaxShare[]> 
 /**
  * Zeilen der Umbuchung für einen Ausgleich dieses Belegs; leer, wenn seine Buchung nichts auf das Zwischenkonto gelegt
  * hat (Altbestand, Kleinunternehmer, 0 %, kein Leistungsdatum nach dem Belegdatum) oder auf diesen Ausgleich kein Anteil
- * entfällt. `amount` trägt das Vorzeichen des Ausgleichs (Zuordnung, Kursdifferenz, Verrechnung), wie in `settledOn`;
- * erst nach dem Sperren von Beleg und Umsatz aufrufen.
+ * entfällt. `amount` trägt das Vorzeichen des Ausgleichs (Zuordnung, Kursdifferenz, Verrechnung), wie in `settledOn`,
+ * `datum` ist der Tag seiner Buchung; erst nach dem Sperren von Beleg und Umsatz aufrufen.
  */
 export async function vorsteuerAusgleich(
   tx: Tx,
@@ -119,8 +119,9 @@ export async function vorsteuerAusgleich(
   totals: InvoiceTotals,
   amount: number,
   kontenrahmen: Kontenrahmen,
+  datum: string,
 ): Promise<PostingLine[]> {
-  const anteile = await vorsteuerRest(tx, doc, totals, amount);
+  const anteile = await vorsteuerRest(tx, doc, totals, amount, datum);
   return anteile === null ? [] : vorsteuerAusgleichPosting(anteile, kontenrahmen);
 }
 
@@ -136,16 +137,41 @@ export async function vorsteuerAbschreibung(
   doc: { id: string; privateShare: number },
   totals: InvoiceTotals,
   amount: number,
+  datum: string,
 ): Promise<TaxShare[] | null> {
-  const anteile = await vorsteuerRest(tx, doc, totals, amount);
+  const anteile = await vorsteuerRest(tx, doc, totals, amount, datum);
   return anteile?.map((s) => ({ rate: s.rate, base: -s.base, tax: -s.tax })) ?? null;
 }
 
+/**
+ * Tag der Freigabe zum Leistungsdatum (#693, belege/vorsteuer-freigabe.ts), wenn sie steht; null ohne Freigabe oder
+ * wenn ein Storno sie aufgehoben hat
+ */
+async function freigabeAm(tx: Tx, documentId: string): Promise<string | null> {
+  const [row] = await tx.execute<{ date: string }>(sql`
+    select e.date::text as date
+      from journal_entries e
+     where e.source_type = 'freigabe' and e.source_id = ${documentId} and e.reverses_id is null
+       and not exists (select 1 from journal_entries r where r.reverses_id = e.id)`);
+  return row?.date ?? null;
+}
+
 /** Der Anteil dieses Ausgleichs je Steuersatz, mit dem Vorzeichen des Ausgleichs; null ohne Zwischenkonto-Buchung */
-async function vorsteuerRest(tx: Tx, doc: { id: string; privateShare: number }, totals: InvoiceTotals, amount: number): Promise<TaxShare[] | null> {
+async function vorsteuerRest(
+  tx: Tx,
+  doc: { id: string; privateShare: number },
+  totals: InvoiceTotals,
+  amount: number,
+  datum: string,
+): Promise<TaxShare[] | null> {
   // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; die Umbuchung selbst
   // bucht dann im eingestellten Rahmen, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht
   if (!(await aufDemZwischenkonto(tx, doc.id))) return null;
+  // Ab der Freigabe ist die ganze Vorsteuer abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 UStG, Leistung und Rechnung liegen vor):
+  // Ein Ausgleich an oder nach ihrem Tag bucht nichts mehr um, auch eine Teilzahlung nicht, und ein Skonto mindert die
+  // Vorsteuer wie bei jedem Beleg (§ 17 Abs. 1 Satz 2 UStG)
+  const freigabe = await freigabeAm(tx, doc.id);
+  if (freigabe !== null && datum >= freigabe) return null;
   const bisher = await bisherUmgebucht(tx, doc.id);
   // Der Privatanteil steht schon beim Buchen nicht auf dem Zwischenkonto: Der geschäftliche Teil des Ziels wird
   // deshalb vor dem Abzug der bisherigen Umbuchungen gebildet. So schreiben die Ausgleiche zusammen genau den

@@ -161,7 +161,7 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
     // Einfügen der Verrechnung fest: sonst zählte der verrechnete Betrag schon als erledigt.
     const steuer: PostingLine[][] = [];
     for (const [seite, doc] of [a, b].entries()) {
-      steuer.push(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), betraege[seite]!, company.kontenrahmen));
+      steuer.push(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), betraege[seite]!, company.kontenrahmen, date));
     }
     const rows = await tx
       .insert(schema.documentSettlements)
