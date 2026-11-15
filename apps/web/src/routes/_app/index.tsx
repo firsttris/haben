@@ -160,13 +160,8 @@ function OverviewPage() {
     });
   }
   if (data.companyIssues.length > 0 && !data.kleinunternehmer) {
-    todos.push({
-      title: "Firmendaten vervollständigen",
-      detail: data.companyIssues.join(" · "),
-      action: "Ergänzen",
-      tone: "warn",
-      to: "/einstellungen",
-    });
+    const detail = data.companyIssues.join(" · ");
+    todos.push({ title: "Firmendaten vervollständigen", detail, action: "Ergänzen", tone: "warn", to: "/einstellungen", bereich: "firma" });
   }
   if (!data.certificate) {
     if (!data.kleinunternehmer)

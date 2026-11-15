@@ -81,6 +81,12 @@ Jeder Fehler hat dieselbe Form, mit einer deutschen Meldung und bei ungültigen 
 | 429 | `rate_limited` | Zu viele Anfragen |
 | 500 | `internal_error` | Fehler im Server; die Details stehen nur im Server-Log |
 
+## Bereits bezahlte Rechnungen
+
+Für `POST /rechnungen` und `PATCH /rechnungen/{id}` setzt du `paymentMethod` auf `bereits_bezahlt` und gibst `paidVia` (Zahlungsdienstleister oder `bar`) und `paidOn` (Datum als `JJJJ-MM-TT`) an. Das Zahlungsdatum darf vor dem Rechnungsdatum liegen. Bei `PATCH` bleiben ausgelassene Zahlungsangaben erhalten. Mit `paymentMethod: "ueberweisung"` entfernst du den Vermerk. Ohne Angabe gilt bei neuen Entwürfen Überweisung.
+
+Die Antwort enthält die drei Felder. `paid`, `open` und `listStatus` folgen weiter der tatsächlichen Zahlungszuordnung. Siehe [Bereits bezahlt](rechnungen-zahlung.md#bereits-bezahlt).
+
 ## Bestell-, Auftrags- und Lieferscheinnummer
 
 Ein Rechnungsentwurf nimmt `buyerOrderReference` (Bestellnummer des Kunden, BT-13), `sellerOrderReference` (eigene Auftragsnummer, BT-14) und `despatchAdviceReference` (Lieferscheinnummer, BT-16) an, je bis 100 Zeichen, leer = keine. Sie stehen im PDF und in der E-Rechnung an ihrem eigenen Feld ([Rechnungen](rechnungen.md#bestellnummer-auftrag-und-lieferschein)). `PATCH` ohne diese Felder behält sie. Die externe Referenz (unten) bleibt davon getrennt; soll die Bestellnummer der Plattform auf der Rechnung stehen, schick sie zusätzlich als `sellerOrderReference` oder `buyerOrderReference`.
@@ -153,7 +159,7 @@ Die Antwort enthält Summen, Positionen und `url`, den Link auf den Entwurf in H
 
 Skonto steht in `skonto` als Liste von Stufen, Frist in Tagen ab dem Rechnungsdatum und Satz in Basispunkten: `"skonto": [{ "days": 10, "percent": 200 }]` für 2 % in 10 Tagen, `[]` für keins. Ohne Angabe gilt das Skonto des Kontakts, sonst das aus den Firmendaten, ohne Stufen über das Zahlungsziel hinaus; bei Fremdwährung keins (siehe [Skonto](rechnungen-zahlung.md#skonto)).
 
-Endpreise inklusive Umsatzsteuer, wie in Shops üblich, gehen mit `"priceMode": "brutto"`; dann ist `unitPrice` der Bruttopreis in Cent. Einheiten sind `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.` und `km`.
+Endpreise inklusive Umsatzsteuer, wie in Shops üblich, gehen mit `"priceMode": "brutto"`; dann ist `unitPrice` der Bruttopreis in Cent. Einheiten sind `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.`, `km` und die [eigenen Einheiten](rechnungen.md#eigene-einheiten), mit ihrer Bezeichnung als Text.
 
 Entwurf ändern, nur die genannten Felder; `lines` ersetzt alle Positionen. Ohne `skonto` passt sich das Skonto des Entwurfs an: Stufen über ein neues Zahlungsziel hinaus entfallen, bei Fremdwährung entfällt es ganz. Beispiel:
 

@@ -1,5 +1,5 @@
-import type { PaymentMethod } from "@haben/core";
-import type { DirectDebit } from "@haben/einvoice";
+import type { InvoicePaymentMethod } from "@haben/core";
+import type { DirectDebit, InvoiceDocument } from "@haben/einvoice";
 import type { Db, Tx } from "../../db/index.ts";
 import { type Company, findMandate, type Mandate } from "../stammdaten/index.ts";
 
@@ -15,7 +15,7 @@ type InvoicePayment = {
   currency: string;
   dueDate: string;
   skonto: unknown[];
-  paymentMethod: PaymentMethod;
+  paymentMethod: InvoicePaymentMethod;
   sepaMandateId: string | null;
 };
 
@@ -24,13 +24,27 @@ const germanDate = (day: string) => day.split("-").reverse().join(".");
 
 const STATUS_TEXT = { abgelaufen: "abgelaufen", widerrufen: "widerrufen", "noch-nicht": "noch nicht unterschrieben" } as const;
 
-/** Spalten für Zahlungsart und Mandat eines Entwurfs; Storno und Korrektur werden nie eingezogen */
-export function paymentColumns(input: { paymentMethod?: PaymentMethod | undefined; sepaMandateId?: string | null | undefined }, kind = "rechnung") {
-  const lastschrift = kind === "rechnung" && input.paymentMethod === "lastschrift";
+/** Zahlungsangaben eines Entwurfs; Storno und Korrektur übernehmen keine Zahlungsangaben ihrer Rechnung. */
+export function paymentColumns(
+  input: {
+    paymentMethod?: InvoicePaymentMethod | undefined;
+    sepaMandateId?: string | null | undefined;
+    paidVia?: string | null | undefined;
+    paidOn?: string | null | undefined;
+  },
+  kind = "rechnung",
+) {
+  const paymentMethod = kind === "rechnung" ? (input.paymentMethod ?? "ueberweisung") : "ueberweisung";
   return {
-    paymentMethod: lastschrift ? ("lastschrift" as const) : ("ueberweisung" as const),
-    sepaMandateId: lastschrift ? (input.sepaMandateId ?? null) : null,
+    paymentMethod,
+    sepaMandateId: paymentMethod === "lastschrift" ? (input.sepaMandateId ?? null) : null,
+    paidVia: paymentMethod === "bereits_bezahlt" ? input.paidVia?.trim() || null : null,
+    paidOn: paymentMethod === "bereits_bezahlt" ? (input.paidOn ?? null) : null,
   };
+}
+
+export function paidPaymentOf(invoice: ReturnType<typeof paymentColumns>): InvoiceDocument["paidPayment"] {
+  return invoice.paymentMethod === "bereits_bezahlt" && invoice.paidOn && invoice.paidVia ? { paidVia: invoice.paidVia, paidOn: invoice.paidOn } : undefined;
 }
 
 /** Was gegen Zahlungsart und Mandat eines Entwurfs spricht, oder null: Lastschrift braucht ein Mandat des Kunden */

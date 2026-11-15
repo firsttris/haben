@@ -35,6 +35,8 @@ export interface DatevGpRow {
   plz: string;
   ort: string;
   land: string;
+  /** Land leer oder „UN“ (sevDesk ohne Anschrift): DE ist nur angenommen (#1032) */
+  landAngenommen: boolean;
   email: string;
   telefon: string;
   /** Aus „EU-Mitgliedstaat“ und „EU-UStId.“ zusammengesetzt */
@@ -122,6 +124,7 @@ function readRow(line: number, get: (name: string) => string): DatevGpRow {
     plz: text("Postleitzahl", "PLZ"),
     ort: text("Ort"),
     land: land.ok ? land.value : "",
+    landAngenommen: rawLand.trim() === "" || rawLand.trim().toUpperCase() === "UN",
     email: joinEmails(splitEmails(text("E-Mail"))),
     telefon: normalizeTelefon(telefon),
     ustId: normalizeUstId(rawUst),

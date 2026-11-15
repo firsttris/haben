@@ -289,7 +289,8 @@ test("Bankabgleich: ein fremdes Konto ausschließen fragt nach, blendet es aus u
     .setInputFiles([datei("zweitfirma.csv", [["Kunde der Zweitfirma", "Rechnung 2026-17", "250,00"]])]);
   await expect(page.getByText(/zweitfirma.csv: 1 neue/)).toBeVisible({ timeout: 30_000 });
 
-  const konten = page.getByRole("navigation", { name: "Konten" }).getByRole("link");
+  // Die Reiter der Konten ohne „Alle Konten“, den es ab zwei Konten gibt (#617)
+  const konten = page.getByRole("navigation", { name: "Konten" }).getByRole("link").filter({ hasNotText: "Alle Konten" });
   await expect(konten).toHaveCount(2);
   const waehle = async (iban: string) => {
     for (let i = 0; i < (await konten.count()); i++) {
@@ -343,8 +344,31 @@ test("Bankabgleich: ein fremdes Konto ausschließen fragt nach, blendet es aus u
   await expect(konten).toHaveCount(2);
   await expect(page.getByRole("region", { name: "Ausgeschlossene Konten" })).toHaveCount(0);
   await waehle(FREMD);
-  await page.getByRole("link", { name: "Alle" }).click();
+  await page.getByRole("link", { name: "Alle", exact: true }).click();
   await expect(page.getByText("Rechnung 2026-17").first()).toBeVisible();
+});
+
+test("Schnellsuche: „Alle anzeigen“ bei Bankumsätzen öffnet die Umsätze aller Konten (#617)", async () => {
+  await go("/");
+  await page.keyboard.press("Control+k");
+  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+  await dialog.getByRole("combobox").fill("Kunde der Zweitfirma");
+  await expect(dialog.getByRole("group", { name: "Bankumsätze" }).getByRole("option", { name: /Kunde der Zweitfirma/ })).toBeVisible();
+  await dialog.getByRole("link", { name: "Alle anzeigen: Bankumsätze" }).click();
+  await page.waitForURL(/\/bank\?.*konto=alle/);
+  await page.waitForLoadState("networkidle");
+
+  const reiter = page.getByRole("navigation", { name: "Konten" }).getByRole("link", { name: /Alle Konten/ });
+  await expect(reiter).toHaveAttribute("aria-current", "page");
+  await expect(page.getByLabel("Umsätze durchsuchen")).toHaveValue("Kunde der Zweitfirma");
+  const zeilen = page.getByRole("region", { name: "Umsätze" }).getByRole("link", { name: /Kunde der Zweitfirma/ });
+  await expect(zeilen.first()).toBeVisible();
+  // Ohne Suchbegriff stehen die Umsätze beider Konten in einer Liste
+  await page.getByLabel("Umsätze durchsuchen").fill("");
+  await page.waitForURL((url) => !url.searchParams.has("suche"));
+  const umsaetze = page.getByRole("region", { name: "Umsätze" });
+  await expect(umsaetze.getByText(/Rechnung 2026-17/).first()).toBeVisible();
+  await expect(umsaetze.getByText(/Gewerbesteuer/).first()).toBeVisible();
 });
 
 test("ELSTER-Zertifikat entfernen fragt nach", async () => {

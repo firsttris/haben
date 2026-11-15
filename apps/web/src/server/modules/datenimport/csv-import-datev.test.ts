@@ -19,6 +19,8 @@ const firma = (konto: string, name: string, extra: Record<string, string> = {}) 
   Konto: konto,
   "Name (Adressatentyp Unternehmen)": name,
   Adressatentyp: "2",
+  // Land ausdrücklich, sonst nennt die Vorschau „DE angenommen“ (#1032); das prüft datev-kontakte.test.ts
+  Land: "DE",
   ...extra,
 });
 const ust = (nummer: string) => ({ "EU-Mitgliedstaat": "DE", "EU-UStId.": nummer });

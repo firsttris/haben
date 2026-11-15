@@ -1748,15 +1748,85 @@
     {
       "idx": 249,
       "version": "7",
-      "when": 1794756677378,
-      "tag": "0249_etsy_zugang",
+      "when": 1794756475655,
+      "tag": "0249_bank_private_marks",
       "breakpoints": true
     },
     {
       "idx": 250,
       "version": "7",
-      "when": 1794756680200,
-      "tag": "0250_etsy_zugang_trigger",
+      "when": 1794756478045,
+      "tag": "0250_bank_private_marks_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 251,
+      "version": "7",
+      "when": 1794762523750,
+      "tag": "0251_sevdesk_wkr_vorlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 252,
+      "version": "7",
+      "when": 1794762524880,
+      "tag": "0252_sevdesk_wkr_vorlagen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 253,
+      "version": "7",
+      "when": 1794768072654,
+      "tag": "0253_dauerbelege_aus_sevdesk",
+      "breakpoints": true
+    },
+    {
+      "idx": 254,
+      "version": "7",
+      "when": 1794768439174,
+      "tag": "0254_sevdesk_mahnungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 255,
+      "version": "7",
+      "when": 1794768440022,
+      "tag": "0255_sevdesk_mahnungen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 256,
+      "version": "7",
+      "when": 1794771101800,
+      "tag": "0256_eigene_einheiten",
+      "breakpoints": true
+    },
+    {
+      "idx": 257,
+      "version": "7",
+      "when": 1794771106000,
+      "tag": "0257_eigene_einheiten_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 258,
+      "version": "7",
+      "when": 1794772658049,
+      "tag": "0258_rechnungen_bereits_bezahlt",
+      "breakpoints": true
+    },
+    {
+      "idx": 259,
+      "version": "7",
+      "when": 1794775669686,
+      "tag": "0259_etsy_zugang",
+      "breakpoints": true
+    },
+    {
+      "idx": 260,
+      "version": "7",
+      "when": 1794775673726,
+      "tag": "0260_etsy_zugang_trigger",
       "breakpoints": true
     }
   ]

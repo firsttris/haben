@@ -11,6 +11,8 @@ Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen lie
 
 <img src="screenshot-belege.png" alt="Belegdetail mit PDF-Vorschau links und den ausgelesenen Feldern Lieferant, Belegdatum, Kategorie und Beträge je Steuersatz rechts" width="900">
 
+Beleg und Formular stehen nebeneinander, wenn die Fläche neben der Seitenleiste breit genug ist. Ist sie dafür zu schmal oder stehen die Beträge in zwei Zeilen, schafft das Einklappen der Seitenleiste (`Strg+B`, am Mac `⌘+B`) Platz.
+
 ## So gehst du vor
 
 1. Beleg hochladen (siehe unten).
@@ -121,6 +123,7 @@ Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist
 ### Ändern, pausieren, beenden
 
 - **Ändern** gilt nur für künftige Belege. Angelegte Belege behalten ihre Felder, Beträge und ihre Datei; gebuchte sind ohnehin gesperrt. Eine neue Datei (Nachtrag, neue Dauerrechnung nach einer Mieterhöhung) lädst du unter **Neuer Vertrag oder Nachtrag** hoch; die alte bleibt an den bisherigen Belegen. Lässt du **Nächster Beleg am** unverändert, bleibt auch der Tag im Monat: Ein Dauerbeleg zum 31. bleibt beim Monatsende, auch wenn du ihn änderst, während der nächste Termin auf den 28. Februar fällt.
+- Aus sevDesk übernommene Dauerbelege kommen angehalten an ([Umzug aus sevDesk](sevdesk.md#vorlagen-für-wiederkehrende-belege)); einer ohne Datei lässt sich erst fortsetzen, wenn du den Vertrag hochgeladen hast.
 - **Pausieren** hält den Dauerbeleg an. **Fortsetzen** macht beim ersten Termin ab heute weiter: Termine, die in die Pause fielen, legt Haben nicht an. Willst du sie doch, setzt du vor dem Speichern **Nächster Beleg am** zurück.
 - **Beenden** ist endgültig: Es entstehen keine Belege mehr, und die Vorlage lässt sich nicht mehr ändern. Die angelegten Belege bleiben.
 - **Löschen** geht nur, solange kein Beleg aus der Vorlage entstanden ist; sonst beendest du sie. Jede Änderung an der Vorlage steht im Änderungsprotokoll, die Belege eines Laufs mit dem Akteur `system:dauerbelege`.

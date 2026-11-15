@@ -104,6 +104,7 @@ describe("parseDatevStammdaten", () => {
         plz: "50667",
         ort: "Köln",
         land: "DE",
+        landAngenommen: false,
         email: "rechnung@mueller.example",
         telefon: "+49 221 123456",
         ustId: "DE136695976",
@@ -203,6 +204,21 @@ describe("parseDatevStammdaten", () => {
     expect(rows.map((r) => [r.errors, r.land])).toEqual([
       [[], "DE"],
       [[], "DE"],
+    ]);
+  });
+
+  it("merkt sich, wenn das Land leer oder „UN“ ist und DE nur angenommen wird", () => {
+    const { rows } = parsed(
+      utf8(
+        row({ Konto: "70017", "Name (Adressatentyp Unternehmen)": "Erfundener Verlag", Land: "UN" }),
+        row({ Konto: "70018", "Name (Adressatentyp Unternehmen)": "Erfundene Druckerei", Land: "" }),
+        row({ Konto: "70019", "Name (Adressatentyp Unternehmen)": "Erfundene Werkstatt", Land: "DE" }),
+      ),
+    );
+    expect(rows.map((r) => [r.land, r.landAngenommen])).toEqual([
+      ["DE", true],
+      ["DE", true],
+      ["DE", false],
     ]);
   });
 

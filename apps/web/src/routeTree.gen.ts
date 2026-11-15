@@ -116,6 +116,7 @@ import { Route as AppRechnungenWiederkehrendIdRouteImport } from './routes/_app/
 import { Route as AppRechnungenWiederkehrendNeuRouteImport } from './routes/_app/rechnungen/wiederkehrend/neu'
 import { Route as AppUmsatzsteuerZmQuartalRouteImport } from './routes/_app/umsatzsteuer/zm.$quartal'
 import { Route as ApiArchivAuftragsdateiIdRouteImport } from './routes/api/archiv/auftragsdatei.$id'
+import { Route as ApiArchivMahnungsdateiIdRouteImport } from './routes/api/archiv/mahnungsdatei.$id'
 import { Route as ApiDokumentArtIdRouteImport } from './routes/api/dokument/$art.$id'
 import { Route as ApiEntwurfAngebotIdRouteImport } from './routes/api/entwurf/angebot.$id'
 import { Route as ApiEntwurfRechnungIdRouteImport } from './routes/api/entwurf/rechnung.$id'
@@ -672,6 +673,12 @@ const ApiArchivAuftragsdateiIdRoute =
     path: '/api/archiv/auftragsdatei/$id',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiArchivMahnungsdateiIdRoute =
+  ApiArchivMahnungsdateiIdRouteImport.update({
+    id: '/api/archiv/mahnungsdatei/$id',
+    path: '/api/archiv/mahnungsdatei/$id',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDokumentArtIdRoute = ApiDokumentArtIdRouteImport.update({
   id: '/api/dokument/$art/$id',
   path: '/api/dokument/$art/$id',
@@ -820,6 +827,7 @@ export interface FileRoutesByFullPath {
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
+  '/api/archiv/mahnungsdatei/$id': typeof ApiArchivMahnungsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/entwurf/angebot/$id': typeof ApiEntwurfAngebotIdRoute
   '/api/entwurf/rechnung/$id': typeof ApiEntwurfRechnungIdRoute
@@ -936,6 +944,7 @@ export interface FileRoutesByTo {
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
+  '/api/archiv/mahnungsdatei/$id': typeof ApiArchivMahnungsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/entwurf/angebot/$id': typeof ApiEntwurfAngebotIdRoute
   '/api/entwurf/rechnung/$id': typeof ApiEntwurfRechnungIdRoute
@@ -1054,6 +1063,7 @@ export interface FileRoutesById {
   '/_app/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/_app/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
+  '/api/archiv/mahnungsdatei/$id': typeof ApiArchivMahnungsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/entwurf/angebot/$id': typeof ApiEntwurfAngebotIdRoute
   '/api/entwurf/rechnung/$id': typeof ApiEntwurfRechnungIdRoute
@@ -1172,6 +1182,7 @@ export interface FileRouteTypes {
     | '/rechnungen/wiederkehrend/neu'
     | '/umsatzsteuer/zm/$quartal'
     | '/api/archiv/auftragsdatei/$id'
+    | '/api/archiv/mahnungsdatei/$id'
     | '/api/dokument/$art/$id'
     | '/api/entwurf/angebot/$id'
     | '/api/entwurf/rechnung/$id'
@@ -1288,6 +1299,7 @@ export interface FileRouteTypes {
     | '/rechnungen/wiederkehrend/neu'
     | '/umsatzsteuer/zm/$quartal'
     | '/api/archiv/auftragsdatei/$id'
+    | '/api/archiv/mahnungsdatei/$id'
     | '/api/dokument/$art/$id'
     | '/api/entwurf/angebot/$id'
     | '/api/entwurf/rechnung/$id'
@@ -1405,6 +1417,7 @@ export interface FileRouteTypes {
     | '/_app/rechnungen/wiederkehrend/neu'
     | '/_app/umsatzsteuer/zm/$quartal'
     | '/api/archiv/auftragsdatei/$id'
+    | '/api/archiv/mahnungsdatei/$id'
     | '/api/dokument/$art/$id'
     | '/api/entwurf/angebot/$id'
     | '/api/entwurf/rechnung/$id'
@@ -1464,6 +1477,7 @@ export interface RootRouteChildren {
   ApiV1SplatRoute: typeof ApiV1SplatRoute
   ApiVastIdRoute: typeof ApiVastIdRoute
   ApiArchivAuftragsdateiIdRoute: typeof ApiArchivAuftragsdateiIdRoute
+  ApiArchivMahnungsdateiIdRoute: typeof ApiArchivMahnungsdateiIdRoute
   ApiDokumentArtIdRoute: typeof ApiDokumentArtIdRoute
   ApiEntwurfAngebotIdRoute: typeof ApiEntwurfAngebotIdRoute
   ApiEntwurfRechnungIdRoute: typeof ApiEntwurfRechnungIdRoute
@@ -2225,6 +2239,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiArchivAuftragsdateiIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/archiv/mahnungsdatei/$id': {
+      id: '/api/archiv/mahnungsdatei/$id'
+      path: '/api/archiv/mahnungsdatei/$id'
+      fullPath: '/api/archiv/mahnungsdatei/$id'
+      preLoaderRoute: typeof ApiArchivMahnungsdateiIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/dokument/$art/$id': {
       id: '/api/dokument/$art/$id'
       path: '/api/dokument/$art/$id'
@@ -2477,6 +2498,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1SplatRoute: ApiV1SplatRoute,
   ApiVastIdRoute: ApiVastIdRoute,
   ApiArchivAuftragsdateiIdRoute: ApiArchivAuftragsdateiIdRoute,
+  ApiArchivMahnungsdateiIdRoute: ApiArchivMahnungsdateiIdRoute,
   ApiDokumentArtIdRoute: ApiDokumentArtIdRoute,
   ApiEntwurfAngebotIdRoute: ApiEntwurfAngebotIdRoute,
   ApiEntwurfRechnungIdRoute: ApiEntwurfRechnungIdRoute,
