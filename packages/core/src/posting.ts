@@ -593,7 +593,12 @@ export function paidTaxShares(totals: InvoiceTotals, paid: Cents): TaxShare[] {
  * zusammen genau die Steuer der Rechnung, auch nach einer aufgehobenen Zahlung dazwischen.
  */
 export function settlementTaxShares(totals: InvoiceTotals, settledBefore: Cents, recordedBefore: TaxShare[], amount: Cents): TaxShare[] {
-  return paidTaxShares(totals, settledBefore + amount).map((target) => {
+  const targets = paidTaxShares(totals, settledBefore + amount);
+  // Ein schon erfasster Satz, den der Mix nach einer Verrechnung nicht mehr hat, wird mit dieser Zahlung auf null berichtigt (#877)
+  const entfallen = [...new Set(recordedBefore.map((r) => r.rate))]
+    .filter((rate) => !targets.some((t) => t.rate === rate))
+    .map((rate) => ({ rate, base: 0, tax: 0 }));
+  return [...targets, ...entfallen].map((target) => {
     const recorded = recordedBefore.filter((r) => r.rate === target.rate);
     return {
       rate: target.rate,
@@ -623,15 +628,21 @@ export function ohneSteueranteile(totals: InvoiceTotals, weggenommen: readonly T
  * Gespeicherter Anteil einer Zahlung bzw. Ausbuchung, wenn er zur Rechnung passt: dieselben Steuersätze und zusammen der
  * Betrag; sonst aus dem Betrag gerechnet (ältere Zeilen ohne Anteil, wie gebucht). Für welche Rechnung er gerechnet ist,
  * prüft der Aufrufer (tax_shares_invoice_id), damit der Abgleich eine umgehängte Zahlung weiter als Abweichung meldet.
+ * `rest` ist der Mix nach Verrechnungen (#877): Ein Anteil passt zum vollen Mix (vor der Verrechnung gebucht) oder zum
+ * Rest; neu gerechnet wird über den Rest.
  */
-export function recordedTaxShares(totals: InvoiceTotals, amount: Cents, stored: TaxShare[] | null | undefined): TaxShare[] {
-  const computed = paidTaxShares(totals, amount);
+export function recordedTaxShares(totals: InvoiceTotals, amount: Cents, stored: TaxShare[] | null | undefined, rest: InvoiceTotals = totals): TaxShare[] {
+  const computed = paidTaxShares(rest, amount);
   if (!stored) return computed;
-  const fits =
-    stored.length === computed.length &&
-    computed.every((c) => stored.some((s) => s.rate === c.rate)) &&
-    stored.reduce((sum, s) => sum + s.base + s.tax, 0) === amount;
-  return fits ? stored : computed;
+  const fits = (mix: InvoiceTotals) => {
+    const rates = paidTaxShares(mix, amount);
+    return (
+      stored.length === rates.length &&
+      rates.every((c) => stored.some((s) => s.rate === c.rate)) &&
+      stored.reduce((sum, s) => sum + s.base + s.tax, 0) === amount
+    );
+  };
+  return fits(totals) || fits(rest) ? stored : computed;
 }
 
 /** Zeilen ohne Betrag fallen weg, außer sie tragen eine Bemessungsgrundlage (Anteil ohne Steuer bei Ist) */

@@ -472,7 +472,9 @@ export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: Invoic
     verrechnet.flatMap((r) => paidTaxShares(gegen.get(r.counter_invoice_id) ?? totals, Number(r.amount))),
   );
   // Wie Voranmeldung und EÜR (recordedTaxShares): ein Anteil zählt nur für die Rechnung, für die er gerechnet ist
-  const recorded = [...rows].flatMap((r) => recordedTaxShares(rest, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null));
+  const recorded = [...rows].flatMap((r) =>
+    recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null, rest),
+  );
   return settlementTaxShares(rest, settled, recorded, amount);
 }
 
