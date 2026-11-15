@@ -25,7 +25,18 @@ interface DetailsProps {
 
 /** Dieselbe ausdrückliche Zuordnung für Rechnung, Angebot und Serienvorlage; kein Lesen der Vorschrift aus freiem Text. */
 export function OutgoingTaxFields(props: TaxFieldsProps) {
-  const { treatment, details, exemptionReason, kleinunternehmer, disabled = false, error, reasonError, onTreatmentChange, onDetailsChange, onReasonChange } = props;
+  const {
+    treatment,
+    details,
+    exemptionReason,
+    kleinunternehmer,
+    disabled = false,
+    error,
+    reasonError,
+    onTreatmentChange,
+    onDetailsChange,
+    onReasonChange,
+  } = props;
   const values = details ?? EMPTY_DETAILS;
   const canonicalNote = treatment === "steuerfrei" ? section4Note(values.exemption) : null;
   const foreign = treatment === "reverse_charge" || treatment === "drittland" || treatment === "eu_sonstige";
@@ -78,11 +89,13 @@ export function OutgoingTaxFields(props: TaxFieldsProps) {
         </Field>
       )}
       <TurnoverFields {...detailsProps} treatment={treatment} />
-      {problems.filter((problem) => problem !== error).map((problem) => (
-        <p key={problem} className="field-error" style={{ margin: 0 }}>
-          {problem}
-        </p>
-      ))}
+      {problems
+        .filter((problem) => problem !== error)
+        .map((problem) => (
+          <p key={problem} className="field-error" style={{ margin: 0 }}>
+            {problem}
+          </p>
+        ))}
     </div>
   );
 }

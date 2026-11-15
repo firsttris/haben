@@ -407,7 +407,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         [`netto-${r.key}`, parsed[i]!.net === null ? BETRAG_FEHLER : null],
         [`steuer-${r.key}`, parsed[i]!.tax === null ? BETRAG_FEHLER : null],
         [`brutto-${r.key}`, reverseCharge || bruttoLesbar(r) ? null : BETRAG_FEHLER],
-        [`vorsteuer-${r.key}`, r.vorsteuerAnteil.trim() === "" || parsed[i]!.vorsteuerAnteil !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein."],
+        [
+          `vorsteuer-${r.key}`,
+          r.vorsteuerAnteil.trim() === "" || parsed[i]!.vorsteuerAnteil !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein.",
+        ],
       ]),
     ),
     ...Object.fromEntries(
@@ -470,9 +473,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   function updateRow(key: number, patch: Partial<Omit<AmountState, "key">>) {
     setRows((prev) =>
       prev.map((row) =>
-        row.key === key
-          ? { ...aendereBetragszeile(row, patch, Boolean(reverseCharge)), vorsteuerAnteil: patch.vorsteuerAnteil ?? row.vorsteuerAnteil }
-          : row,
+        row.key === key ? { ...aendereBetragszeile(row, patch, Boolean(reverseCharge)), vorsteuerAnteil: patch.vorsteuerAnteil ?? row.vorsteuerAnteil } : row,
       ),
     );
     setDirty(true);
