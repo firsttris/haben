@@ -98,6 +98,18 @@ describe("advanceCheckpoint", () => {
     ).toEqual({ checkpoint: "2026-11-30", complete: false, reason: "Der letzte Teil der Lieferung fehlt." });
   });
 
+  it("meldet einen abgebrochenen Abruf eines älteren Fensters als offen", () => {
+    expect(advanceCheckpoint("2026-11-15", [part(0, false)])).toEqual({
+      checkpoint: "2026-11-15",
+      complete: false,
+      reason: "Der letzte Teil der Lieferung fehlt.",
+    });
+  });
+
+  it("meldet ein verspätet geliefertes Ereignis in Fremdwährung in einem älteren Fenster als offen", () => {
+    expect(advanceCheckpoint("2026-11-15", [part(0, true, { blocking: 1 })]).complete).toBe(false);
+  });
+
   it("bleibt ohne Lieferung stehen", () => {
     expect(advanceCheckpoint("2026-09-30", [])).toEqual({ checkpoint: "2026-09-30", complete: false, reason: "Keine Lieferung." });
   });

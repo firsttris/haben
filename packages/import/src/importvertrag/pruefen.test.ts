@@ -64,6 +64,21 @@ describe("validateBatch", () => {
     expect(problems(batch({ movements: [movement({ net: 900 })] }))).toEqual(["Feld movements.0 ist ungültig."]);
   });
 
+  it("lehnt ein Fenster ab, das nach dem Abruf endet", () => {
+    expect(problems(batch({ fetchedAt: "2026-10-15T08:00:00+02:00" }))).toEqual(["Das Fenster endet am 2026-10-31, nach dem Abruf am 2026-10-15."]);
+  });
+
+  it("nennt eine neuere Vertragsversion auch, wenn sie neue Felder mitbringt", () => {
+    expect(problems(batch({ contractVersion: 2, movements: [movement({ mandateId: "M-1" })] }))).toEqual([
+      "Vertragsversion 2 wird nicht unterstützt, erwartet 1.",
+    ]);
+  });
+
+  it("lässt Fremdwährung vor dem Stichtag den Zeitraum nicht offen", () => {
+    const result = validateBatch(batch({ movements: [movement({ bookingDate: "2026-10-02", currency: "USD" })] }), { ...binding, cutoverDate: "2026-10-03" });
+    expect(result.ok && result.blocking).toBe(0);
+  });
+
   it("lehnt ein Fenster mit Ende vor dem Anfang ab", () => {
     expect(problems(batch({ coverage: { from: "2026-10-31", to: "2026-10-01" } }))).toEqual([
       "Das Fenster endet vor seinem Anfang (2026-10-31 bis 2026-10-01).",
