@@ -1,0 +1,67 @@
+import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { z } from "zod";
+import { formatDate } from "./format.ts";
+
+/** Je Feld der Fehler als Satz, der sagt, was zu tun ist, oder null, wenn die Angabe stimmt */
+export type FieldErrors<K extends string> = Record<K, string | null>;
+
+/**
+ * Prüfung beim Absenden statt gesperrtem Knopf (DESIGN.md, Gesperrte Knöpfe): Die Fehler rechnet das Formular bei jedem
+ * Rendern aus, zu sehen sind sie erst nach dem ersten Druck auf den Knopf und verschwinden dann, sobald die Angabe stimmt.
+ * `check` steht zuerst im onSubmit: false heißt abbrechen; dann bekommt das erste Feld mit `aria-invalid` den Fokus, und der
+ * Screenreader liest dabei dessen Fehler über `aria-describedby`. Geht die Prüfung durch, verschwinden die Fehler wieder,
+ * damit ein Formular, das sich nach dem Buchen leert, nicht sofort „fehlt“ meldet. `form` gehört an das `<form>`, das
+ * `noValidate` trägt, oder, wo es kein Formular gibt (Zuordnung im Bankabgleich), an das Element um die Felder.
+ */
+export function useSubmitCheck<K extends string>(errors: FieldErrors<K>) {
+  // false: noch nichts zeigen; sonst die Schlüssel, die der letzte Versuch ausgelassen hat
+  const [shown, setShown] = useState<false | readonly K[]>(false);
+  const scope = useRef<HTMLElement | null>(null);
+  return {
+    // Als Funktion passt der Ref an jedes Element, ein Objekt-Ref nur an genau einen Elementtyp
+    form: (element: HTMLElement | null) => {
+      scope.current = element;
+    },
+    error: (key: K): string | undefined => (shown && !shown.includes(key) ? (errors[key] ?? undefined) : undefined),
+    /**
+     * `ohne` lässt Schlüssel aus, die diese Aktion nicht braucht (Entwurf speichern ohne Kunden): Ihr Fehler hält nicht an und
+     * erscheint nicht, bis eine Aktion ihn braucht
+     */
+    check(ohne: readonly K[] = []): boolean {
+      if ((Object.entries(errors) as [K, string | null][]).every(([key, e]) => e === null || ohne.includes(key))) {
+        setShown(false);
+        return true;
+      }
+      // Sofort rendern, damit die Felder aria-invalid tragen, bevor der Fokus sie sucht
+      flushSync(() => setShown(ohne));
+      scope.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      return false;
+    },
+  };
+}
+
+const monthFormat = new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric", timeZone: "UTC" });
+const monatName = (monat: string) => monthFormat.format(new Date(`${monat}-01T00:00:00Z`));
+
+/**
+ * Fehler eines Datumsfelds (JJJJ-MM-TT) mit Grenzen wie `min` und `max`; die prüft der Browser mit `noValidate` nicht mehr.
+ * Leer gilt als fehlend.
+ */
+export function datumFehler(value: string, min: string, max: string): string | null {
+  if (value === "") return "Wähle das Datum.";
+  return value < min || value > max ? `Wähle einen Tag vom ${formatDate(min)} bis ${formatDate(max)}.` : null;
+}
+
+/** Wie datumFehler für ein Monatsfeld (JJJJ-MM) */
+export function monatFehler(value: string, min: string, max: string): string | null {
+  if (value === "") return "Wähle den Monat.";
+  if (value >= min && value <= max) return null;
+  return min === max ? `Wähle ${monatName(min)}.` : `Wähle einen Monat von ${monatName(min)} bis ${monatName(max)}.`;
+}
+
+/** Fehler einer E-Mail-Adresse wie im Schema des Servers (z.email()); leer ist erlaubt */
+export function emailFehler(value: string): string | null {
+  const adresse = value.trim();
+  return adresse === "" || z.email().safeParse(adresse).success ? null : "Trag eine gültige E-Mail-Adresse ein, etwa rechnung@firma.de.";
+}

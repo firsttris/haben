@@ -41,6 +41,7 @@ export default defineConfig(({ command }) => ({
         "./src/server/plugins/scheduler.ts",
         "./src/server/plugins/setup-code.ts",
         "./src/server/plugins/datenbank.ts",
+        "./src/server/plugins/trigger-integrity.ts",
         "./src/server/plugins/layouts.ts",
       ],
       compressPublicAssets: { gzip: true, brotli: true },

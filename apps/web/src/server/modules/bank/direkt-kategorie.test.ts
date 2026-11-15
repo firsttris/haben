@@ -242,7 +242,7 @@ describe.skipIf(!testDatabaseUrl)("Direkt buchen mit Kategorie und Steuersatz (P
       bank.allocate(actor, { kind: "kategorie", transactionId, amount: 50_00, kategorie: { kategorie: "erloese", steuersatz: 1900 } }),
     ).rejects.toThrow(/Kleinunternehmer/);
     await bank.allocate(actor, { kind: "kategorie", transactionId, amount: 50_00, kategorie: { kategorie: "erloese", steuersatz: 0 } });
-    expect(await salden()).toEqual({ "1200": 50_00, "8195": -50_00 });
+    expect(await salden()).toEqual({ "1200": 50_00, "8192": -50_00 });
     const euer = await reports.euerForYear(Number(heute.slice(0, 4)));
     expect(euer.einnahmen.find((l) => l.key === "einnahmenKleinunternehmer")?.amount).toBe(50_00);
     expect(euer.einnahmen.find((l) => l.key === "vereinnahmteUst")?.amount).toBe(0);

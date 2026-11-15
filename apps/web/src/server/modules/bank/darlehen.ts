@@ -49,7 +49,7 @@ export async function createLoan(actor: string, input: z.input<typeof loanSchema
 }
 
 /** Bestand je Darlehen: Restschuld beim Anlegen plus Auszahlungen, minus Tilgungen (Vorzeichen wie auf dem Konto) */
-async function bestaende(ids: string[], q: Db | Tx): Promise<Map<string, Cents>> {
+export async function bestaende(ids: string[], q: Db | Tx): Promise<Map<string, Cents>> {
   if (ids.length === 0) return new Map();
   const rows = await q
     .select({ loanId: schema.allocations.loanId, summe: sql<number>`coalesce(sum(${schema.allocations.amount}), 0)`.mapWith(Number) })

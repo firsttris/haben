@@ -1,7 +1,7 @@
 import { ASSET_ACCOUNTS } from "./afa.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import type { Cents } from "./money.ts";
-import { ACCOUNTS, EXPENSE_CATEGORIES, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
+import { ACCOUNTS, EXPENSE_CATEGORIES, KLEINUNTERNEHMER_FRUEHERE_KONTEN, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
 import { carriesForward } from "./vortrag.ts";
 
@@ -88,6 +88,8 @@ export function ledgerManagedAccounts(kontenrahmen: Kontenrahmen): Map<string, s
     [a.kasse, "Kassenbuch"],
     ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i): [string, string] => [paymentProviderAccount(kontenrahmen, i), "Bank (Zahlungsdienstleister)"]),
     [a.geldtransit, "Bank (Geldtransit)"],
+    // Verrechnung zweier Belege ohne Zahlung (#274, #786): nur Haben bucht darauf, ein freies Sachkonto bräche den Ausgleich
+    [a.verrechnung, "Verrechnung (durchlaufende Posten)"],
     [a.forderungen, "Rechnungen (offene Posten)"],
     [a.verbindlichkeiten, "Belege (offene Posten)"],
     ...[
@@ -97,6 +99,9 @@ export function ledgerManagedAccounts(kontenrahmen: Kontenrahmen): Map<string, s
       a.ustNichtFaellig[700],
       a.vorsteuer[1900],
       a.vorsteuer[700],
+      // Zwischenkonto der Gutschrift „erstattet bereits Bezahltes“ (#786): Der Saldo ist die geparkte Vorsteuer, eine
+      // Sachbuchung daran vorbei bräche den Ausgleich (dieselbe Sperre wie für den Steuerschlüssel)
+      a.vorsteuerNochNichtAbziehbar,
       a.ustRc,
       a.vorsteuerRc,
       ...Object.values(a.ustIge),
@@ -107,6 +112,7 @@ export function ledgerManagedAccounts(kontenrahmen: Kontenrahmen): Map<string, s
     [a.ustVorauszahlung, "Umsatzsteuer"],
     [a.sondervorauszahlung, "Umsatzsteuer"],
     ...[...Object.values(a.erloese), ...Object.values(a.erloeseSonder)].map((account): [string, string] => [account, "Rechnungen (Erlöse)"]),
+    [KLEINUNTERNEHMER_FRUEHERE_KONTEN[kontenrahmen], "Rechnungen (Erlöse)"],
     ...[
       ...Object.values(assets.anlage),
       assets.gwg,

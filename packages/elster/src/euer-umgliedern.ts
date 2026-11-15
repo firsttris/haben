@@ -1,0 +1,73 @@
+/*
+ * Umgliederung eines negativen Umsatzsteuer-Saldos in der Anlage EÜR (#933, Vorgabe aus #708). Zeile 58
+ * (E6005101, an das Finanzamt gezahlte Umsatzsteuer) und Zeile 18 (E6000701, erstattete Umsatzsteuer) nehmen
+ * laut Schema kein Vorzeichen an; eine Erstattung ist eine Betriebseinnahme und gehört deshalb in Zeile 18.
+ */
+import { formatEuro } from "@haben/core";
+import { EUER_FIELDS, type EuerFigures } from "./euer-felder.ts";
+
+/**
+ * Zeilen der Felder E6000701 (erstattete) und E6005101 (gezahlte Umsatzsteuer) im Vordruck des Jahres, nach der
+ * Spalte „Zeile“ der Jahresdokumentation E77 2023 bis 2026 (ERiC 45.1.5.0): 2023 Zeile 17 und 56, 2024 und 2025
+ * Zeile 18 und 58, ab 2026 Zeile 18 und 59 (Zeile 58 ist dort die abziehbare Vorsteuer).
+ */
+export function euerUstZeilen(year: number): { erstattet: number; gezahlt: number } {
+  if (year <= 2023) return { erstattet: 17, gezahlt: 56 };
+  return { erstattet: 18, gezahlt: year >= 2026 ? 59 : 58 };
+}
+
+export interface EuerUstGliederung {
+  /** Beträge für die Anlage EÜR: Zeile 18 und Zeile 58 ohne Vorzeichen */
+  figures: EuerFigures;
+  /** Was umgegliedert wurde, je Zeile eine Meldung für die Vorprüfung */
+  umgliederungen: string[];
+}
+
+/**
+ * Gliedert einen negativen Saldo zwischen Zeile 58 (E6005101, an das Finanzamt gezahlte Umsatzsteuer) und Zeile 18
+ * (E6000701, vom Finanzamt erstattete Umsatzsteuer) um, statt ihn mit Vorzeichen zu übermitteln (#933, Vorgabe aus
+ * #708): Ein negativer Betrag in Zeile 58 heißt, dass im Jahr mehr Umsatzsteuer erstattet als gezahlt wurde. Die
+ * Erstattung ist eine Betriebseinnahme und gehört in Zeile 18; die Zahlung ist eine Betriebsausgabe in Zeile 58.
+ * Beide Zeilen weisen den Betrag getrennt und ohne Vorzeichen aus, umgekehrt genauso für einen negativen Betrag in
+ * Zeile 18. Sind beide Zeilen negativ, zählt der Saldo des Jahres: überwiegt die Erstattung, steht er in Zeile 18,
+ * überwiegt die Zahlung in Zeile 58; die Meldung nennt die Beträge, die dort tatsächlich standen. Der Gewinn der Anlage EÜR ändert sich dadurch nicht, weil derselbe Betrag auf der anderen Seite der
+ * Ermittlung steht; gebuchte Daten bleiben unverändert.
+ */
+export function euerUstUmgliedern(f: EuerFigures, year: number): EuerUstGliederung {
+  const gezahlteUst = f.gezahlteUst ?? 0;
+  const erstatteteUst = f.erstatteteUst ?? 0;
+  if (gezahlteUst >= 0 && erstatteteUst >= 0) return { figures: f, umgliederungen: [] };
+  const kzGezahlt = EUER_FIELDS.gezahlteUst.kz;
+  const kzErstattet = EUER_FIELDS.erstatteteUst.kz;
+  const zeile = euerUstZeilen(year);
+  const schluss = "beide Zeilen ohne Vorzeichen. Der Gewinn bleibt gleich, gebuchte Daten ändern sich nicht.";
+  if (gezahlteUst < 0 && erstatteteUst < 0) {
+    // Beide Zeilen seitenverkehrt: eine Meldung nennt die Beträge, die dort standen, und das Ergebnis des Jahres
+    const saldo = gezahlteUst - erstatteteUst; // positiv: unterm Strich gezahlt, negativ: erstattet
+    const stand = `In Zeile ${zeile.gezahlt} (Kz ${kzGezahlt}, „${EUER_FIELDS.gezahlteUst.label}“) standen ${formatEuro(-gezahlteUst)} und in Zeile ${zeile.erstattet} (Kz ${kzErstattet}, „${EUER_FIELDS.erstatteteUst.label}“) standen ${formatEuro(-erstatteteUst)}, beide mit Vorzeichen:`;
+    const ergebnis =
+      saldo > 0
+        ? ` unterm Strich wurden ${formatEuro(saldo)} Umsatzsteuer gezahlt. Der Betrag steht jetzt als Betriebsausgabe in Zeile ${zeile.gezahlt}, Zeile ${zeile.erstattet} bleibt leer,`
+        : saldo < 0
+          ? ` unterm Strich wurde ${formatEuro(-saldo)} Umsatzsteuer erstattet. Der Betrag steht jetzt als Betriebseinnahme in Zeile ${zeile.erstattet}, Zeile ${zeile.gezahlt} bleibt leer,`
+          : " die Beträge heben sich auf, beide Zeilen bleiben leer,";
+    return {
+      figures: { ...f, gezahlteUst: Math.max(saldo, 0), erstatteteUst: Math.max(-saldo, 0) },
+      umgliederungen: [`${stand}${ergebnis} ${schluss}`],
+    };
+  }
+  if (gezahlteUst < 0) {
+    return {
+      figures: { ...f, gezahlteUst: 0, erstatteteUst: erstatteteUst + -gezahlteUst },
+      umgliederungen: [
+        `In Zeile ${zeile.gezahlt} (Kz ${kzGezahlt}, „${EUER_FIELDS.gezahlteUst.label}“) standen ${formatEuro(-gezahlteUst)}: im Jahr wurde mehr Umsatzsteuer erstattet als gezahlt. Der Betrag steht in der Anlage EÜR jetzt als Betriebseinnahme in Zeile ${zeile.erstattet} (Kz ${kzErstattet}, „${EUER_FIELDS.erstatteteUst.label}“), ${schluss}`,
+      ],
+    };
+  }
+  return {
+    figures: { ...f, gezahlteUst: gezahlteUst + -erstatteteUst, erstatteteUst: 0 },
+    umgliederungen: [
+      `In Zeile ${zeile.erstattet} (Kz ${kzErstattet}, „${EUER_FIELDS.erstatteteUst.label}“) standen ${formatEuro(-erstatteteUst)}: im Jahr wurde mehr Umsatzsteuer gezahlt als erstattet. Der Betrag steht in der Anlage EÜR jetzt als Betriebsausgabe in Zeile ${zeile.gezahlt} (Kz ${kzGezahlt}, „${EUER_FIELDS.gezahlteUst.label}“), ${schluss}`,
+    ],
+  };
+}

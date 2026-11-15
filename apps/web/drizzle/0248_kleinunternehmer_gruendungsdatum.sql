@@ -1,0 +1,1 @@
+ALTER TABLE "company" ADD COLUMN "founded_on" date;

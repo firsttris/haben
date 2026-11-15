@@ -29,8 +29,8 @@ ohne Abo und ohne fremden Dienst, der jede Rechnung sieht.</p>
 </div>
 
 <div class="showcase-shot showcase-shot--hero" markdown>
-![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht.png#only-light){ width="1440" height="900" }
-![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht-dunkel.png#only-dark){ width="1440" height="900" }
+![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht.png#only-light){ width="1504" height="972" }
+![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht-dunkel.png#only-dark){ width="1504" height="972" }
 </div>
 
 <div class="showcase-feature" id="rundgang" markdown>
@@ -46,8 +46,8 @@ Rechnungen, Mahnungen und Versand per E-Mail gehören dazu.
 [Rechnungen und E-Rechnung](rechnungen.md)
 </div>
 <div class="showcase-shot" markdown>
-![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung.png#only-light){ width="1440" height="900" loading="lazy" }
-![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung.png#only-light){ width="1504" height="972" loading="lazy" }
+![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -64,8 +64,8 @@ Du prüfst, wählst die Kategorie und buchst.
 [Belege](belege.md)
 </div>
 <div class="showcase-shot" markdown>
-![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege.png#only-light){ width="1440" height="900" loading="lazy" }
-![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege.png#only-light){ width="1504" height="972" loading="lazy" }
+![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -82,8 +82,8 @@ Rechnungsnummer, IBAN, Name.
 [Bankimport und Abgleich](bank.md)
 </div>
 <div class="showcase-shot" markdown>
-![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank.png#only-light){ width="1440" height="900" loading="lazy" }
-![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank.png#only-light){ width="1504" height="972" loading="lazy" }
+![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -99,8 +99,8 @@ Gesendet wird direkt per ERiC an ELSTER oder, ganz ohne Hersteller-ID, über Mei
 [Umsatzsteuer-Voranmeldung](umsatzsteuer.md)
 </div>
 <div class="showcase-shot" markdown>
-![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer.png#only-light){ width="1440" height="900" loading="lazy" }
-![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer.png#only-light){ width="1504" height="972" loading="lazy" }
+![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -116,8 +116,8 @@ ganze Jahr als ZIP mit Prüfsummen – für die Aufbewahrung und für die Steuer
 [Auswertungen und Jahresexport](auswertungen.md)
 </div>
 <div class="showcase-shot" markdown>
-![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen.png#only-light){ width="1440" height="900" loading="lazy" }
-![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen.png#only-light){ width="1504" height="972" loading="lazy" }
+![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -127,16 +127,17 @@ ganze Jahr als ZIP mit Prüfsummen – für die Aufbewahrung und für die Steuer
 
 ## Umziehen, ohne etwas zu verlieren
 
-Aus Lexware Office und sevDesk kommen Rechnungen, Belege, Buchungen und Kontakte mit, aus
+Aus Lexware Office, sevDesk und FastBill kommen Rechnungen, Belege und Kontakte mit, aus Lexware Office und sevDesk
+auch Buchungen, aus
 BuchhaltungsButler und Accountable Buchungen und Belege; die Originale bleiben im Archiv. Ein
 Abgleich je Jahr zeigt, dass alles da ist, bevor du kündigst. Kontakte, Artikel und Anlagen gehen
 auch per CSV.
 
-[Lexoffice](lexoffice.md) · [sevDesk](sevdesk.md) · [BuchhaltungsButler](buchhaltungsbutler.md) · [Accountable](accountable.md) · [CSV-Import](csv-import.md)
+[Lexoffice](lexoffice.md) · [sevDesk](sevdesk.md) · [FastBill](fastbill.md) · [BuchhaltungsButler](buchhaltungsbutler.md) · [Accountable](accountable.md) · [CSV-Import](csv-import.md)
 </div>
-<div class="showcase-shot showcase-shot--crop" markdown>
-![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv.png#only-light){ width="1440" height="2918" loading="lazy" }
-![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv-dunkel.png#only-dark){ width="1440" height="2918" loading="lazy" }
+<div class="showcase-shot" markdown>
+![Archiv mit Umzug aus Lexware Office](screenshot-archiv-oben.png#only-light){ width="1504" height="972" loading="lazy" }
+![Archiv mit Umzug aus Lexware Office](screenshot-archiv-oben-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
@@ -152,14 +153,16 @@ teilst du direkt hinein, die Übersicht hast du unterwegs dabei.
 [Als App installieren](einrichtung.md#als-app-installieren)
 </div>
 <div class="showcase-phone" markdown>
-![Übersicht auf dem Smartphone](screenshot-mobil.png#only-light){ width="390" height="844" loading="lazy" }
-![Übersicht auf dem Smartphone](screenshot-mobil-dunkel.png#only-dark){ width="390" height="844" loading="lazy" }
+![Übersicht auf dem Smartphone](screenshot-mobil.png#only-light){ width="454" height="916" loading="lazy" }
+![Übersicht auf dem Smartphone](screenshot-mobil-dunkel.png#only-dark){ width="454" height="916" loading="lazy" }
 </div>
 </div>
 
 <div class="showcase-center" markdown>
 
 ## Und warum Haben?
+
+<p class="showcase-claim">Digitale Souveränität fängt mit deinen eigenen Büchern an. 🇩🇪 🇪🇺</p>
 
 </div>
 
@@ -217,6 +220,17 @@ Belege auslesen lassen oder Claude fragen, welche Rechnungen offen sind – nur 
 
 Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 </div>
+<div markdown>
+**🔓 Offen gebaut**
+
+Code, Roadmap und jedes Review öffentlich. [Mitmachen](mitwirken.md) kannst du auch ohne zu programmieren.
+</div>
+<div markdown>
+**🛠️ Gebaut mit Agenten**
+
+Geprüft von Menschen: rote Tests zuerst, frische Agenten im Review, ein Mensch beim Merge.
+[Agentic Engineering bei Haben](agentic-engineering.md)
+</div>
 </div>
 
 <div class="showcase-center" markdown>
@@ -239,9 +253,10 @@ Vorlagen für [Synology](synology.md) und [TrueNAS](truenas.md) ohne Kommandozei
 [Unraid](unraid.md) und [Coolify](coolify.md).
 </div>
 <div markdown>
-**🤖 Oder einen Agenten**
+**🤖 Einrichten lassen**
 
-Gib Claude Code oder einem anderen Agenten SSH-Zugang und die [Installationsanleitung](installation.md).
+Wer nicht selbst installieren will, gibt Claude Code oder einem anderen Agenten SSH-Zugang zum Server
+und die [Installationsanleitung](installation.md).
 </div>
 </div>
 
@@ -252,6 +267,6 @@ Gib Claude Code oder einem anderen Agenten SSH-Zugang und die [Installationsanle
 <p class="showcase-claim">Gemacht für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs
 und UGs – für alle, die lieber arbeiten als buchen.</p>
 
-[Installieren](installation.md){ .md-button .md-button--primary } [Erste Schritte](einrichtung.md){ .md-button } [Quellcode auf GitHub](https://github.com/firsttris/haben){ .md-button }
+[Installieren](installation.md){ .md-button .md-button--primary } [Mitwirken](mitwirken.md){ .md-button } [Quellcode auf GitHub](https://github.com/firsttris/haben){ .md-button }
 
 </div>

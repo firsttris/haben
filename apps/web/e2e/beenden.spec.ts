@@ -42,11 +42,12 @@ function exited(child: ChildProcess, timeoutMs: number): Promise<boolean> {
 }
 
 let server: ChildProcess;
+let output = "";
 
 test.beforeAll(async () => {
   // exec: kill() trifft den Server selbst, nicht nur die Shell
   server = spawn("sh", ["-c", `exec ${command}`], {
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "ignore"],
     env: serverEnvironment({
       ...process.env,
       DATABASE_URL: appDatabaseUrlFuer(undefined, "beenden"),
@@ -57,6 +58,9 @@ test.beforeAll(async () => {
       HABEN_SCHEDULER: "off",
       HABEN_SETUP_CODE: "e2e-einrichtungscode",
     }),
+  });
+  server.stdout?.on("data", (chunk) => {
+    output += chunk.toString();
   });
   await waitForServer(`http://localhost:${port}/login`);
 });
@@ -69,6 +73,9 @@ test("beendet sich auf SIGTERM, auch mit offenen Verbindungen zur Datenbank", as
   // Die Anmeldeseite fragt die Datenbank ab (gibt es schon ein Konto?), danach liegen Verbindungen im Pool
   const response = await fetch(`http://localhost:${port}/login`, { redirect: "manual" });
   expect(response.status).toBeLessThan(500);
+
+  await expect.poll(() => output).toContain("Sperrtrigger: 0 Befunde, 0 Hinweise");
+  expect(output.split("\n").filter((line) => line.includes("Sperrtrigger:"))).toHaveLength(1);
 
   server.kill("SIGTERM");
   expect(await exited(server, MAX_EXIT_MS)).toBe(true);

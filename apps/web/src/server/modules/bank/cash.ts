@@ -17,11 +17,11 @@ import {
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { openBooks, openingCash, post } from "../buchhaltung/index.ts";
+import { openBooks, openingCash, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { journalAbJahr, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
 import { invoiceTotalsById, lockInvoice } from "../rechnungen/index.ts";
-import { negatedShares, reverseLinesIn, reverseWriteOffRow } from "./bank.ts";
+import { negatedShares, reverseWriteOffRow } from "./bank.ts";
 
 /**
  * Kassenbuch: fortlaufend nummeriert, nur anhängen, Korrektur per Storno. Der Bestand darf an keinem

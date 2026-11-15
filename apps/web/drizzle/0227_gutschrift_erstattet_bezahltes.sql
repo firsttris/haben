@@ -1,0 +1,1 @@
+ALTER TABLE "documents" ADD COLUMN "erstattet_bezahltes" boolean DEFAULT false NOT NULL;

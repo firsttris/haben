@@ -12,10 +12,12 @@ import {
   splitEmails,
   telefonProblem,
 } from "@haben/core";
-import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
+import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { firstHits, runSearchParts, searchPart } from "../../db/search-parts.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { takeCustomerNumber } from "./customer-numbers.ts";
 
@@ -101,12 +103,12 @@ export type Contact = typeof schema.contacts.$inferSelect;
 export class ContactError extends UserError {}
 
 /** Kontakte nach Name; mit role nur Kunden bzw. nur Lieferanten (wer beides ist, steht in beiden) */
-export async function listContacts(includeArchived = false, role?: ContactRole): Promise<Contact[]> {
+export async function listContacts(includeArchived = false, role?: ContactRole, query = ""): Promise<Contact[]> {
   const roleFilter = role === "kunde" ? eq(schema.contacts.isCustomer, true) : role === "lieferant" ? eq(schema.contacts.isSupplier, true) : undefined;
   return db
     .select()
     .from(schema.contacts)
-    .where(and(includeArchived ? undefined : isNull(schema.contacts.archivedAt), roleFilter))
+    .where(and(includeArchived ? undefined : isNull(schema.contacts.archivedAt), roleFilter, query ? contactSearchFilter(query, true) : undefined))
     .orderBy(asc(schema.contacts.name));
 }
 
@@ -306,5 +308,73 @@ export async function setContactArchived(actor: string, id: string, archived: bo
       .update(schema.contacts)
       .set({ archivedAt: archived ? new Date() : null })
       .where(eq(schema.contacts.id, id)),
+  );
+}
+
+export interface ContactHit {
+  id: string;
+  name: string;
+  kundennummer: string | null;
+  lieferantennummer: string | null;
+  ort: string;
+  isCustomer: boolean;
+  isSupplier: boolean;
+}
+
+/** Kontakte als Teil der gemeinsamen Abfrage der Stammdaten (#617): Name, Kunden- oder Lieferantennummer, ohne archivierte */
+export function contactsPart(query: string | { id: string }, limit = 5) {
+  const contacts = schema.contacts;
+  return searchPart(
+    {
+      id: contacts.id,
+      name: contacts.name,
+      kundennummer: contacts.kundennummer,
+      lieferantennummer: contacts.lieferantennummer,
+      ort: contacts.ort,
+      isCustomer: contacts.isCustomer,
+      isSupplier: contacts.isSupplier,
+    },
+    (fields) =>
+      db
+        .select(fields)
+        .from(contacts)
+        .where(and(isNull(contacts.archivedAt), typeof query === "string" ? contactSearchFilter(query) : eq(contacts.id, query.id)))
+        .orderBy(
+          ...(typeof query === "string" ? [sql`least(${numberRank(contacts.kundennummer, query)}, ${numberRank(contacts.lieferantennummer, query)})`] : []),
+          asc(contacts.name),
+        )
+        .limit(limit + 1),
+    (rows): { hits: ContactHit[]; more: boolean } => firstHits(rows, limit),
+  );
+}
+
+/** Ein Kontakt für „Zuletzt angesehen“ in der Befehlspalette */
+export async function searchContacts(query: string | { id: string }, limit = 5): Promise<{ hits: ContactHit[]; more: boolean }> {
+  return (await runSearchParts({ contacts: contactsPart(query, limit) })).contacts;
+}
+
+function contactSearchFilter(query: string, listFields = false) {
+  const contacts = schema.contacts;
+  const persons = schema.contactPersons;
+  const pattern = likePattern(query);
+  return or(
+    unaccentIlike(contacts.name, pattern),
+    unaccentIlike(contacts.kundennummer, pattern),
+    unaccentIlike(contacts.lieferantennummer, pattern),
+    unaccentIlike(contacts.email, pattern),
+    unaccentIlike(contacts.ort, pattern),
+    unaccentIlike(contacts.ustId, pattern),
+    unaccentIlike(sql`${contacts.debitorNr}::text`, pattern),
+    unaccentIlike(sql`${contacts.kreditorNr}::text`, pattern),
+    /^\d{4,}$/.test(query) ? unaccentIlike(contacts.iban, `%${query}`) : undefined,
+    inArray(
+      contacts.id,
+      db
+        .select({ id: persons.contactId })
+        .from(persons)
+        .where(or(unaccentIlike(persons.name, pattern), unaccentIlike(persons.email, pattern))),
+    ),
+    listFields ? unaccentIlike(contacts.telefon, pattern) : undefined,
+    listFields ? unaccentIlike(contacts.plz, pattern) : undefined,
   );
 }

@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { errorMessage } from "../lib/format.ts";
 import { getMailDraft, sendDocumentMail } from "../server/functions/invoice-mail.ts";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 
 type Draft = Awaited<ReturnType<typeof getMailDraft>>;
@@ -46,8 +47,19 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
     };
   }, [load, kind, id]);
 
+  const {
+    form,
+    error: fehler,
+    check,
+  } = useSubmitCheck({
+    to: to.trim() === "" ? "Trag die E-Mail-Adresse ein." : null,
+    subject: subject.trim() === "" ? "Trag einen Betreff ein." : null,
+    body: body.trim() === "" ? "Trag den Text der E-Mail ein." : null,
+  });
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!check()) return;
     setBusy(true);
     setError(null);
     try {
@@ -87,12 +99,14 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
 
   return (
     <form
+      ref={form}
       className="stack"
       style={{ gap: 10 }}
       onSubmit={onSubmit}
+      noValidate
       aria-label={`${{ rechnung: "Rechnung", mahnung: "Mahnung", angebot: "Angebot" }[kind]} per E-Mail senden`}
     >
-      <Field label="An">
+      <Field label="An" error={fehler("to")}>
         {(control) => <input {...control} value={to} onChange={(e) => setTo(e.target.value)} placeholder="kunde@example.com" required />}
       </Field>
       {!draft.to && (
@@ -100,8 +114,12 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
           Beim Kunden ist keine E-Mail-Adresse hinterlegt; im Kontakt eintragen, dann ist sie beim nächsten Mal vorbelegt.
         </p>
       )}
-      <Field label="Betreff">{(control) => <input {...control} value={subject} onChange={(e) => setSubject(e.target.value)} required />}</Field>
-      <Field label="Text">{(control) => <textarea {...control} value={body} onChange={(e) => setBody(e.target.value)} rows={8} required />}</Field>
+      <Field label="Betreff" error={fehler("subject")}>
+        {(control) => <input {...control} value={subject} onChange={(e) => setSubject(e.target.value)} required />}
+      </Field>
+      <Field label="Text" error={fehler("body")}>
+        {(control) => <textarea {...control} value={body} onChange={(e) => setBody(e.target.value)} rows={8} required />}
+      </Field>
       {draft.signature && (
         <div className="small muted" style={{ overflowWrap: "anywhere" }}>
           <p style={{ margin: 0 }}>Darunter hängt Haben die Pflichtangaben der Gesellschaft an (§ 35a GmbHG):</p>
@@ -138,7 +156,7 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
         </div>
       )}
       <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={busy || !to.trim()}>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? "Sendet …" : "Jetzt senden"}
         </button>
       </div>

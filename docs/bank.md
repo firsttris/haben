@@ -94,7 +94,9 @@ Viele Selbständige haben bei derselben Bank mehrere Konten, etwa ein Geschäfts
 | Geschäftskonto (Standard) | wie bisher; sein Kontostand steht in der Übersicht |
 | Steuerkonto | Vorbelegung für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern); Lastschriften und Erstattungen der Umsatzsteuer auf diesem Konto bekommen „Umsatzsteuer an das Finanzamt“ als Vorschlag; die Übersicht zeigt den Stand neben der noch offenen Zahllast (abzüglich schon zugeordneter Zahlungen an das Finanzamt nach Ende des Zeitraums) und warnt, wenn er nicht reicht |
 | Rücklagen- oder Sparkonto | Überträge zu und von eigenen Konten bekommen „Geldtransit“ als Vorschlag |
-| Privatkonto (nur zur Zuordnung) | Überweisungen dorthin oder von dort bekommen „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an, ohne Umsätze zu importieren. |
+| Privatkonto | Umsätze dort bleiben zuordenbar; Umsatzsteuer und Steuerzahlungen bucht Haben gegen Entnahme bzw. Einlage ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Auf deinen anderen Konten bekommen Überweisungen dorthin oder von dort „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an; Umsätze importierst du nur, wenn du sie buchen willst, denn ungebuchte stehen unter „offen“. |
+
+Auf einem Privatkonto bietet der Abgleich Kontoführung und Bankgebühren, Zinserträge, Privat und Geldtransit nicht an, schlägt sie nicht vor und lehnt sie ab. Gebühren und Zinsen eines privaten Kontos sind privat: kein Betriebsaufwand (§ 12 Nr. 1 EStG) und keine Betriebseinnahme (§ 20 EStG); „Privat“ buchte privat gegen privat, und Geldtransit wäre Entnahme gegen Entnahme. Schon gebuchte Zuordnungen bleiben sichtbar und lassen sich aufheben.
 
 Jedes Konto hat einen Zweck. Gebucht wird weiter auf das eine Bankkonto (1200 bzw. 1800); welche IBAN auf Rechnungen steht, bestimmen die Firmendaten.
 
@@ -142,17 +144,19 @@ Importe, Umsätze, Zuordnungen und [Verrechnungen](#gegenläufige-umsätze-verre
 
 ## Umsatzliste
 
-Die Filter **Alle**, **Offen** (mit Anzahl) und **Zugeordnet** (auch verrechnete Umsätze) schränken die Liste ein, das Suchfeld durchsucht Gegenpartei, Verwendungszweck und Betrag. Angezeigt werden höchstens 500 Umsätze.
+Ab zwei Konten zeigt der erste Reiter, **Alle Konten**, die Umsätze aller Konten in einer Liste, unter der Gegenpartei mit dem Namen des Kontos. Dorthin führt auch **Alle anzeigen** bei den Bankumsätzen der [Schnellsuche](suche.md).
+
+Die Filter **Alle**, **Offen** (mit Anzahl), **Zugeordnet** (auch verrechnete Umsätze) und **Vorschlag** schränken die Liste ein. **Vorschlag** zeigt nur Umsätze mit dem gleichnamigen Status. Das Suchfeld findet dieselben Umsätze wie die [Schnellsuche](suche.md#was-sie-findet), dazu Beträge, deren Zahl die Eingabe enthält: `19.9` findet 19,90 €. Angezeigt werden höchstens 500 Treffer.
 
 Die Spaltenköpfe Datum, Gegenpartei · Verwendungszweck, Betrag und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Ohne Auswahl steht der neueste Umsatz oben. Am Handy sind Datum und Status ausgeblendet, dort sortieren Gegenpartei und Betrag.
 
-Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos, die zu Filter und Suche passen, und zeigt davon die ersten 500: „Betrag absteigend“ zeigt also die größten Beträge, auch wenn sie Jahre zurückliegen. Umsätze ohne Gegenpartei stehen beim Sortieren nach Gegenpartei unten. Den Status bestimmt Haben erst beim Anzeigen; nach Status sortiert es deshalb die neuesten 500 Umsätze. Absteigend steht oben, was zu tun ist, in der Reihenfolge „Beleg fehlt“, „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, zuletzt „Verrechnet“.
+Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. aller Konten, die zu Filter und Suche passen, und zeigt davon die ersten 500: „Betrag absteigend“ zeigt also die größten Beträge, auch wenn sie Jahre zurückliegen. Umsätze ohne Gegenpartei stehen beim Sortieren nach Gegenpartei unten. Den Status bestimmt Haben erst beim Anzeigen; nach Status sortiert es deshalb die neuesten 500 Umsätze. Absteigend steht oben, was zu tun ist, in der Reihenfolge „Beleg fehlt“, „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, zuletzt „Verrechnet“.
 
 | Hinweis | Bedeutung |
 | --- | --- |
-| Vorschlag | Es gibt einen passenden offenen Posten. |
-| Teilweise | Ein Teil des Umsatzes ist zugeordnet. |
-| Beleg fehlt | Ausgabe ohne Zuordnung und ohne Vorschlag. |
+| Vorschlag | Es gibt einen passenden offenen Posten; das Wort steht in Blau, darunter Rechnung oder Voranmeldung mit Nummer, bei einem Beleg der Lieferant. Bei einem [Vorschlag ohne Rechnung](#vorschläge-ohne-rechnung-und-geldtransit) und einer Buchung nach der Gegenpartei steht nichts darunter. |
+| Teilweise | Ein Teil des Umsatzes ist zugeordnet; darunter, wie viel noch offen ist. |
+| Beleg fehlt | Ausgabe ohne Zuordnung und ohne Vorschlag; das Wort steht in Orange. |
 | Offen | Eingang ohne Zuordnung und ohne Vorschlag. |
 | Zugeordnet | Der ganze Betrag ist zugeordnet. |
 | Verrechnet | Mit einem gegenläufigen Umsatz verrechnet, ohne Buchung (siehe [Gegenläufige Umsätze verrechnen](#gegenläufige-umsätze-verrechnen)). |
@@ -182,7 +186,7 @@ Jeder Posten bekommt Punkte:
 
 Die Rechnungsnummer wird ohne Leer- und Trennzeichen gesucht, `2026-034` findet also auch `2026034`. Beim Namen zählen gemeinsame Wörter ab drei Buchstaben; Rechtsformen wie GmbH, UG oder AG werden ignoriert.
 
-Die IBAN des Lieferanten eines Belegs kennt Haben aus dem Kontakt, aus der E-Rechnung (BT-84) und aus einer [SEPA-Überweisung](belege.md#überweisen-sepa-datei) für diesen Beleg. Die IBAN aus der E-Rechnung zählt dabei nach derselben Regel wie für die SEPA-Datei ([Abweichende IBAN in der E-Rechnung](belege.md#abweichende-iban-in-der-e-rechnung)): nur, wenn sie der IBAN im Kontakt entspricht, am Beleg **IBAN der E-Rechnung nur für diesen Beleg** gewählt ist oder sie bei einem Kontakt ohne IBAN übernommen wurde. Solange am Beleg nichts entschieden ist oder **IBAN des Kontakts behalten** gewählt ist, bringt eine Zahlung an die IBAN aus der E-Rechnung keine Punkte für die IBAN; eine ausgetauschte Bankverbindung soll nicht vertrauenswürdig aussehen. Der Vorschlag kommt dann über Betrag, Rechnungsnummer und Name zustande. Die IBAN im Kontakt und die IBANs erzeugter SEPA-Überweisungen zählen immer.
+Die IBAN des Lieferanten eines Belegs kennt Haben aus dem Kontakt, aus der E-Rechnung (BT-84) und aus einer [SEPA-Überweisung](belege-bezahlen.md#überweisen-sepa-datei) für diesen Beleg. Die IBAN aus der E-Rechnung zählt dabei nach derselben Regel wie für die SEPA-Datei ([Abweichende IBAN in der E-Rechnung](belege-bezahlen.md#abweichende-iban-in-der-e-rechnung)): nur, wenn sie der IBAN im Kontakt entspricht, am Beleg **IBAN der E-Rechnung nur für diesen Beleg** gewählt ist oder sie bei einem Kontakt ohne IBAN übernommen wurde. Solange am Beleg nichts entschieden ist oder **IBAN des Kontakts behalten** gewählt ist, bringt eine Zahlung an die IBAN aus der E-Rechnung keine Punkte für die IBAN; eine ausgetauschte Bankverbindung soll nicht vertrauenswürdig aussehen. Der Vorschlag kommt dann über Betrag, Rechnungsnummer und Name zustande. Die IBAN im Kontakt und die IBANs erzeugter SEPA-Überweisungen zählen immer.
 
 Vorgeschlagen wird ein Posten erst ab 40 Punkten. Ein exakter Betrag reicht allein, ein passender Name allein nicht. Rechts erscheint der beste Treffer als **Bester Treffer** mit allen Gründen; bei Gleichstand gewinnt der ältere Posten.
 
@@ -200,6 +204,8 @@ Jede gesendete oder [vermerkte](umsatzsteuer.md#abgabe-außerhalb-von-haben-verm
 
 Wie bei Rechnungen ab 40 Punkten. Zwei Zeiträume mit gleicher Zahllast unterscheidet der Zeitraum im Verwendungszweck. Gebucht wird wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820), mit dem Bezug auf die Voranmeldung; in der Liste der Zuordnungen steht er dahinter, etwa „Umsatzsteuer USt 10/2026“. In der EÜR zählt die Zahlung am Buchungstag; die Vorauszahlung für Dezember bzw. das vierte Quartal, gezahlt bis 10. Januar, ohne Dauerfristverlängerung im Vorjahr (§ 11 Abs. 2 Satz 2 EStG, [Vorauszahlung um den Jahreswechsel](auswertungen.md#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)).
 
+Liegt der Umsatz auf einem Konto mit dem Zweck **privat**, bucht Haben die Gegenzeile nicht gegen die Bank, sondern gegen die Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto; eine Zahlung an das Finanzamt von dort wird zur Einlage (SKR03 1890, SKR04 2180, in GmbH und UG dasselbe Verrechnungskonto). Das Geld fließt ins Private, die Forderung bzw. Verbindlichkeit gegenüber dem Finanzamt wird trotzdem erfüllt; die Entnahme steht in § 4 Abs. 1 Satz 2 EStG, die Einlage in Satz 8 (beides im Einzelunternehmen; in GmbH und UG trägt § 4 EStG die Buchung nicht). Ohne diese Unterscheidung stünde die Erstattung auf dem Geschäftskonto, auf dem sie nie war. Das gilt auch für die Umsatzsteuer des Vorjahres als [Steuerzahlung](bank-steuern-darlehen.md#steuerzahlungen), ebenso für Gewerbesteuer und die Steuern der GmbH. Anders die Steuern des Inhabers: Einkommen-, Kirchensteuer und Soli samt Nebenleistungen sind privat (§ 12 Nr. 3 EStG); von einem privaten Konto gezahlt ist das kein Geschäftsvorfall, und Haben lehnt die Zuordnung ab — sonst meldete die Anlage EÜR dieselbe Summe als Entnahme und als Einlage.
+
 ### Dauerbelege: noch zu prüfen
 
 Belege aus einem [Dauerbeleg](belege.md#dauerbelege) (Miete, Versicherung, Leasing) entstehen ungebucht mit dem Status „Zu prüfen“ und sind deshalb noch kein offener Posten. Damit die Abbuchung trotzdem ihren Beleg findet, sucht Haben für einen Ausgang auch unter diesen Belegen, wenn sie über das Geschäftskonto bezahlt werden, mit denselben Punkten wie oben. Gezeigt werden nur Treffer, deren Betrag genau zum Umsatz passt, unter **Dauerbeleg, noch zu prüfen**:
@@ -211,7 +217,7 @@ Haben bucht einen Dauerbeleg nie von selbst, auch nicht bei einem eindeutigen Tr
 
 ### Überweisungen aus Haben
 
-Jede Überweisung einer [SEPA-Datei aus Haben](belege.md#überweisen-sepa-datei) trägt eine eigene Referenz (EndToEndId, `HABEN-` und 16 Hex-Ziffern). Taucht sie in der Abbuchung wieder auf, schlägt Haben den Beleg mit „Überweisung aus Haben (HABEN-…)“ vor, auch wenn der Betrag nach Skonto nicht mehr stimmt oder die Bank den Verwendungszweck kürzt. Gesucht wird die Referenz:
+Jede Überweisung einer [SEPA-Datei aus Haben](belege-bezahlen.md#überweisen-sepa-datei) trägt eine eigene Referenz (EndToEndId, `HABEN-` und 16 Hex-Ziffern). Taucht sie in der Abbuchung wieder auf, schlägt Haben den Beleg mit „Überweisung aus Haben (HABEN-…)“ vor, auch wenn der Betrag nach Skonto nicht mehr stimmt oder die Bank den Verwendungszweck kürzt. Gesucht wird die Referenz:
 
 - in der EndToEndId des Umsatzes (CAMT.053: `Refs/EndToEndId`; Haben speichert sie, auch wenn die Bank eine eigene Referenz mitliefert),
 - in der Referenz der Bank (DKB: Spalte „Kundenreferenz“),
@@ -283,7 +289,7 @@ Der ausgebuchte Rest mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§
 
 Beispiel: Rechnung 4.760,00 €, der Kunde überweist 4.664,80 € (2 % Skonto). Bei Soll-Versteuerung mindert das Skonto die Umsatzsteuer in der Voranmeldung des Monats, in dem ausgebucht wird. Bei Ist-Versteuerung wird ohnehin nur fällig, was bezahlt ist; Haben mindert dann die noch nicht fällige Umsatzsteuer.
 
-Hast du selbst Skonto abgezogen, liegt die Abbuchung unter dem Beleg. Dann gibt es **Rest … als erhaltenes Skonto**: Verbindlichkeiten an 3730 bzw. 5730 Erhaltene Skonti und an Vorsteuer, anteilig je Steuersatz; die Vorsteuer in der Voranmeldung sinkt im Monat der Ausbuchung. Ohne Vorsteuerabzug (Kleinunternehmer) mindert das Skonto den Aufwand brutto. Bei Belegen mit § 13b, mit Privatanteil oder für Anlagen gibt es das nicht.
+Hast du selbst Skonto abgezogen, liegt die Abbuchung unter dem Beleg. Dann gibt es **Rest … als erhaltenes Skonto**: Verbindlichkeiten an 3730 bzw. 5730 Erhaltene Skonti und an Vorsteuer, anteilig je Steuersatz; die Vorsteuer in der Voranmeldung sinkt im Monat der Ausbuchung. Ohne Vorsteuerabzug mindert das Skonto den Aufwand brutto. Bei Belegen mit § 13b, mit Privatanteil oder für Anlagen gibt es das nicht.
 
 Einen Forderungsausfall ohne Zahlung, etwa bei Insolvenz des Kunden, buchst du auf der Seite der Rechnung unter **Ausbuchen** (siehe [Rechnungen](rechnungen.md#ausbuchen)). Hebst du die Zuordnung einer Zahlung auf, hebt Haben einen mit ihr ausgebuchten Rest mit auf.
 
@@ -343,7 +349,7 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsa
 | Spende (privat, Sonderausgabe), nur im Einzelunternehmen | 1840 Zuwendungen, Spenden | 2250 Zuwendungen, Spenden |
 | Gesellschafter (Verrechnungskonto), statt Privat in GmbH und UG | beide Richtungen: 0730 Verbindlichkeiten gegenüber Gesellschaftern | beide Richtungen: 3510 |
 | Geldtransit (eigenes Konto) | 1360 | 1460 |
-| Umsatzsteuer an das Finanzamt (ohne Bezug; besser die Voranmeldung als offenen Posten zuordnen, siehe oben) | 1780 | 3820 |
+| Umsatzsteuer an das Finanzamt (ohne Bezug; besser die Voranmeldung als offenen Posten zuordnen, siehe oben); auf einem privaten Konto gegen die Privatentnahme bzw. die Einlage, siehe [Voranmeldung: Zahllast und Erstattung](#voranmeldung-zahllast-und-erstattung) | 1780 | 3820 |
 | Sondervorauszahlung (Dauerfristverlängerung), siehe [Umsatzsteuer](umsatzsteuer.md#buchen) | 1781 Umsatzsteuer-Vorauszahlungen 1/11 | 3830 |
 | Kontoführung und Bankgebühren | 4970 | 6855 |
 | Mahngebühren und Verzugszinsen (vom Kunden) | 2650 | 7100 |
@@ -372,7 +378,7 @@ Gebucht wird nur auf eine Kategorie, nicht frei auf ein Konto mit Steuerschlüss
 | --- | --- | --- | --- | --- |
 | Erlöse 19 % | 8400, Steuer 1776 | 4400, Steuer 3806 | Kz 81 im Monat der Zahlung, bei Ist und Soll | Einnahme netto, Steuer als vereinnahmte Umsatzsteuer |
 | Erlöse 7 % | 8300, Steuer 1771 | 4300, Steuer 3801 | Kz 86 im Monat der Zahlung, bei Ist und Soll | ebenso |
-| Erlöse als Kleinunternehmer | 8195 | 4185 | – | Einnahme als Kleinunternehmer |
+| Erlöse als Kleinunternehmer | 8192 | 4184 | – | Einnahme als Kleinunternehmer |
 | Ausgabekategorie, z. B. Telefon | Konto der Kategorie ([Belegkategorien](buchhaltung.md#aufwandskonten-der-belegkategorien)) | ebenso | keine Vorsteuer | Ausgabe brutto in der Zeile der Kategorie |
 
 Beispiel: Ein Privatkunde überweist für eine Reparatur 119,00 €, Erlöse 19 %:
@@ -454,20 +460,32 @@ Bezahlt der Kunde bar, erfasst du das im [Kassenbuch](kasse.md#rechnung-bar-beza
 
 Bei **Ist-Versteuerung** geht die Umsatzsteuer zurück auf „nicht fällig“ (SKR03 1776 an 1766, SKR04 3806 an 3816, hier 47,50 €), denn das Entgelt ist nicht mehr vereinnahmt; mit dem nächsten Zahlungseingang wird sie wieder fällig. Bei Soll-Versteuerung bleibt die Steuer, wie sie ist.
 
-Bei Eingängen (Privateinlage, Geldtransit, Erstattung vom Finanzamt) steht die Bank im Soll und das Gegenkonto im Haben. Steuerzahlungen stehen unter [Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen).
+Bei Eingängen (Privateinlage, Geldtransit, Erstattung vom Finanzamt) steht die Bank im Soll und das Gegenkonto im Haben; auf einem Konto mit dem Zweck **privat** steht dort die Privatentnahme bzw. die Einlage ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Steuerzahlungen stehen unter [Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen).
 
 > [!IMPORTANT]
 > Die Konten stammen aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
 
 ## Zuordnung aufheben
 
-Unter **Zugeordnet** steht neben jeder Zuordnung **Aufheben**, bei einer Aufteilung einmal **Aufteilung aufheben** für alle Teile. Haben fragt vorher in einem Dialog nach und nennt Zuordnung und Betrag. Es löscht dabei nichts: Es legt eine Gegenzeile mit umgekehrtem Betrag an und bucht die ursprüngliche Buchung mit vertauschten Seiten zurück („Storno: …“), ebenfalls mit dem Buchungsdatum des Umsatzes. Die aufgehobene Zuordnung bleibt durchgestrichen sichtbar, der Betrag ist wieder offen.
+Unter **Zugeordnet** steht neben jeder Zuordnung **Aufheben**, bei einer Aufteilung einmal **Aufteilung aufheben** für alle Teile. Haben fragt vorher in einem Dialog nach und nennt Zuordnung, Betrag und den **Tag der Aufhebung**. Vorbelegt ist der Buchungstag der Zahlung, solange deren Zeitraum nicht gemeldet ist, sonst heute. Es löscht dabei nichts: Es legt eine Gegenzeile mit umgekehrtem Betrag an und bucht die ursprüngliche Buchung mit vertauschten Seiten zurück („Storno: …“), und zwar an diesem Tag. Die aufgehobene Zuordnung bleibt durchgestrichen sichtbar, der Betrag ist wieder offen.
 
 Eine Zuordnung lässt sich nur einmal aufheben.
 
+Der Tag der Aufhebung darf nicht in der Zukunft liegen. Als Untergrenze gilt das Buchungsdatum der Zahlung, bei einem künftigen Buchungsdatum heute. Änderbar bleibt der vorbelegte Tag in jedem Fall.
+
+Eine Aufhebung in einem schon gemeldeten Zeitraum bleibt erlaubt. Die Gegenbuchung wirkt an ihrem Tag, die abgegebene Voranmeldung ändert sich nicht nachträglich.
+
+Liegt die Zahlung selbst in einem abgeschlossenen Jahr, lehnt Haben die Aufhebung ab: Die Zuordnung ließe sich danach nicht neu buchen, und das Bankkonto wiche ab. Korrigiere den Vorgang stattdessen mit einer Buchung im offenen Jahr, etwa einer Stornorechnung mit Datum im offenen Jahr oder einer Direktbuchung auf die betroffene Kategorie.
+
+Zwei Fälle sind zu unterscheiden.
+
+**Die Bemessungsgrundlage ändert sich nachträglich**, etwa durch Rückzahlung, Storno oder Ausfall. Dann greift [§ 17 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html), und die Berichtigung gehört in den Zeitraum, in dem die Änderung eintritt. Dafür ist der Tag der Aufhebung richtig.
+
+**Die Zuordnung war von Anfang an falsch**, etwa auf die falsche Rechnung oder ohne jede Kundenzahlung. Das ist keine Änderung der Bemessungsgrundlage, sondern die Berichtigung eines Erfassungsfehlers. Bei Ist-Versteuerung entsteht die Steuer mit der Vereinnahmung ([§ 13 Abs. 1 Nr. 1 Buchstabe b UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)), also gehört die Korrektur in den Monat der Zahlung; ist die Anmeldung dafür schon abgegeben, wird sie nach [§ 153 Abs. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html) berichtigt. Dafür den Tag der Zahlung wählen. Wer im Juli eine März-Zahlung von Rechnung A auf B umhängt und dabei den Tag der Aufhebung nimmt, bekommt B im März und die Gegenzeile von A im Juli — bis dahin stehen die März-Umsatzsteuer und das Bankkonto doppelt.
+
 Beim [Stornieren eines Belegs](belege.md#stornieren-und-neu-erfassen) kann Haben dessen Bankzuordnungen in derselben bestätigten Aktion aufheben. Die Rückfrage nennt die Zuordnungen einschließlich aller Teile betroffener Aufteilungen. Mit der Zahlung verknüpfte Ausbuchungen wie Skonto werden mit aufgehoben. Scheitert die Rücknahme oder der Belegstorno, wird keiner der beiden Teile gespeichert.
 
-Die Bankgegenbuchungen einschließlich verknüpfter Ausbuchungen stehen auch dabei am ursprünglichen Buchungsdatum. Die neu berechneten Steuerwerte eines früheren Zeitraums können sich deshalb ändern; eine gespeicherte, bereits gesendete Voranmeldung bleibt unverändert. Prüfe dann, ob du eine [berichtigte Anmeldung](umsatzsteuer.md#berichtigte-anmeldung) abgeben musst. Die Gegenbuchung des Belegs erhält unabhängig davon ihr eigenes, im Stornodialog genanntes Datum.
+Das [Datum der Bankgegenbuchungen](belege.md#stornieren-und-neu-erfassen) richtet sich dabei nach der Beleggegenbuchung und dem Buchungsdatum der Zahlung.
 
 ## Gegenläufige Umsätze verrechnen
 
@@ -494,4 +512,8 @@ Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt,
 - Dateiimport nur für DKB, Commerzbank, N26, Swan und CAMT.053. Andere Banken gehen, wenn sie CAMT.053 exportieren. Zahlungsdienstleister: PayPal, Stripe, Shopify Payments, eBay und Etsy per CSV, [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store) per Abruf der Finanzberichte; SumUp und andere lassen sich anlegen, aber noch nicht importieren.
 - Zahlungsdienstleister nur in Euro; Zeilen in anderen Währungen (etwa ein USD-Guthaben bei PayPal) übernimmt Haben nicht und meldet sie. Ausnahme ist der App Store: Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs in Euro um (siehe [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store)).
 - Kursdifferenzen nur beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung; Bankkonten und Verrechnungskonten von Zahlungsdienstleistern nur in Euro.
-- Zuordnungen und ihre Aufhebung werden mit dem Buchungsdatum des Umsatzes gebucht. Hebst du eine Zuordnung in einem Monat auf, dessen Voranmeldung schon gesendet ist, ändern sich dessen berechnete Werte; die gesendete Anmeldung bleibt, wie sie ist, und die Seite des Monats weist auf die Abweichung hin (siehe [umsatzsteuer.md](umsatzsteuer.md)).
+- Zuordnungen werden mit dem Buchungsdatum des Umsatzes gebucht, ihre Aufhebung am gewählten Tag (siehe [Zuordnung aufheben](#zuordnung-aufheben)). Eine schon gesendete Voranmeldung bleibt, wie sie ist (siehe [umsatzsteuer.md](umsatzsteuer.md)).
+
+## Privates Konto: Umsätze ohne Buchungsart
+
+Auf einem Konto mit dem Zweck **privat** sind „Privat", Bankgebühren, Zinserträge, Geldtransit und Spenden gesperrt ([#873](https://github.com/firsttris/haben/issues/873)); eine private Einkommensteuer-Erstattung lässt sich dort also nicht buchen, ohne sie zum Betriebsvorgang zu machen. Solche Umsätze bleiben ungebucht und lassen sich im Umsatz als **privat, kein Betriebsvorgang** kennzeichnen ([#1088](https://github.com/firsttris/haben/issues/1088)): Sie zählen dann nicht mehr als offene Posten, tragen in der Liste den Status **privat, kein Betriebsvorgang** statt „Offen" und lassen sich jederzeit wieder öffnen. Auch die [Vorprüfung der Voranmeldung](umsatzsteuer.md#vorprüfung_1) mahnt sie nicht an. Gebucht wird dabei nichts, die EÜR bleibt unberührt.

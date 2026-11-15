@@ -1,6 +1,7 @@
-// Rendert hero.html in Wald hell und dunkel nach docs/hero-hell.png und docs/hero-dunkel.png (1280 × 360 bei 2×).
+// Rendert hero.html in Wald hell und dunkel nach docs/hero-hell.png und docs/hero-dunkel.png (1280 × 360 bei 2×),
+// mit Rahmen und transparentem Rand wie die Screenshots (apps/web/e2e/bildrahmen.ts).
 // Bricht ab, wenn etwas aus dem Bild ragt oder überläuft. Aufruf: bun run docs:hero
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -8,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
 const { chromium } = createRequire(path.join(root, "apps/web/package.json"))("@playwright/test");
+const { mitRahmen } = await import(pathToFileURL(path.join(root, "apps/web/e2e/bildrahmen.ts")).href);
 const out = path.join(root, "docs");
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
@@ -52,7 +54,8 @@ try {
     });
     if (errors.length || problems.length) throw new Error([...errors, ...problems].join("\n"));
     const target = path.join(out, `hero-${name}.png`);
-    await page.screenshot({ path: target, type: "png" });
+    const png = await page.screenshot({ type: "png" });
+    await writeFile(target, await mitRahmen(browser, png, name, { scale: 2 }));
     console.log("Geschrieben:", target);
     await page.close();
   }

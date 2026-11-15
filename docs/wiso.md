@@ -18,10 +18,11 @@ Für ein Einzelunternehmen mit EÜR bietet sich der Wechsel zum **1. Januar** an
 | --- | --- |
 | Kontakte, Artikel und Anlagen | Noch kein automatischer Listenimport: aus den Listen eine CSV erstellen, [Spalten zuordnen und Vorschau prüfen](csv-import.md) |
 | Originalexporte und PDF-Listen | Unverändert aufbewahren; optional als Originaldateien im Archiv ablegen |
-| Buchungs-CSV und GoBD-Buchungsliste | Noch kein WISO-Import; weder durchsuchbare Archivbuchungen noch Journalbuchungen entstehen daraus |
+| Buchungs-CSV (WISO EÜR & Kasse und WISO Steuer, Modul EÜR) | Unter **Archiv › Umzug › Umzug aus WISO** prüfen und unveränderlich als durchsuchbare Archivbelege samt Original-CSV übernehmen; Journalbuchungen entstehen daraus nicht |
+| GoBD-Buchungsliste | Noch kein WISO-Import; weder durchsuchbare Archivbuchungen noch Journalbuchungen entstehen daraus |
 | Offene Rechnungen und Eingangsbelege | Kein automatischer WISO-Umzug; vor dem Start einzeln klären |
 
-Für WISO Steuer mit dem Modul EÜR sind gleiche Exportformate nicht bestätigt.
+Der CSV-Export der Buchungen (`Daten Export › Buchungen als CSV-Datei`) hat in WISO Steuer (Modul EÜR) dieselben 18 Spalten wie in WISO EÜR & Kasse und nutzt denselben Import. Für die übrigen Exporte von WISO Steuer sind gleiche Formate nicht bestätigt.
 
 ## 1. Das letzte WISO-Jahr abschließen und sichern
 
@@ -32,7 +33,7 @@ Für WISO Steuer mit dem Modul EÜR sind gleiche Exportformate nicht bestätigt.
 
 Bewahre diese Originale unverändert mit eindeutiger Jahreszuordnung und einer getrennten Sicherung auf. Erstelle die CSV für Haben in einer Arbeitskopie; überschreibe weder Exportdateien noch Belege.
 
-Optional legst du die WISO-Dateien zusätzlich unter **Archiv › Originaldateien › Datei ablegen** mit Art **Sonstiges** und dem zugehörigen Geschäftsjahr ab. Das speichert Dateien, liest aber keine WISO-Buchungen oder offenen Posten ein. Wähle dafür nicht **DATEV-Buchungsstapel**: Die WISO-Rohdateien sind kein DATEV-Stapel.
+Optional legst du die übrigen WISO-Dateien zusätzlich unter **Archiv › Originaldateien › Datei ablegen** mit Art **Sonstiges** und dem zugehörigen Geschäftsjahr ab. Die Buchungs-CSV übernimmst du stattdessen unter **Archiv › Umzug › Umzug aus WISO**, damit sowohl die Originaldatei als auch die einzelnen Buchungen durchsuchbar im Archiv landen. Wähle für keine der Dateien **DATEV-Buchungsstapel**: Die WISO-Rohdateien sind kein DATEV-Stapel.
 
 Ein unterjähriger Umstieg ist mit den geprüften Listen nicht geklärt: Sie zeigen den Restbuchwert zum 31.12. Für einen anderen Stichtag bräuchtest du einen verlässlichen Buchwert am Vortag und die passende bereits gebuchte AfA. Verwende dafür keinen Jahresendwert.
 

@@ -99,3 +99,21 @@ export function parseLine(line: LineState): ParsedLine {
     valid: quantity !== null && quantity > 0 && unitPrice !== null && line.description.trim() !== "" && !discountError,
   };
 }
+
+/**
+ * Was einer Position fehlt, als Satz für den Fehler unter ihr (DESIGN.md, Gesperrte Knöpfe); null, wenn sie gültig ist.
+ * Ohne Rabatt (Serienrechnung) nur Beschreibung, Menge und Einzelpreis.
+ */
+export function positionsFehler(line: Pick<LineState, "description" | "quantity" | "unitPrice"> & Partial<LineState>): string | null {
+  const fehlt = [
+    line.description.trim() === "" && "die Beschreibung",
+    !((parseQuantity(line.quantity) ?? 0) > 0) && "eine Menge über 0",
+    parseEuro(line.unitPrice) === null && "den Einzelpreis",
+  ].filter((teil): teil is string => Boolean(teil));
+  const saetze = fehlt.length > 0 ? [`Trag ${fehlt.length > 1 ? `${fehlt.slice(0, -1).join(", ")} und ${fehlt.at(-1)}` : fehlt[0]} ein.`] : [];
+  if (line.discount !== undefined && line.key !== undefined && parseLine(line as LineState).discountError) {
+    const problem = parseDiscount(line.discount) === "ungültig" ? null : lineDiscountProblem(parseLine(line as LineState));
+    saetze.push(problem ? `${problem}.` : "Rabatt als Prozent (z. B. 5 %) oder Betrag (z. B. 100,00).");
+  }
+  return saetze.length > 0 ? saetze.join(" ") : null;
+}

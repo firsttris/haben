@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkBody, checkTitle, growthHints, hints, isBot, reviewHint } from "./regel.ts";
+import { checkBody, checkTitle, checkTitleIssues, countWords, docPageHints, growthHints, hints, isBot, reviewHint } from "./regel.ts";
 
 describe("checkTitle", () => {
   it.each([
@@ -37,6 +37,8 @@ describe("hints", () => {
   it("weist auf Code ohne Doku hin", () => {
     const reports = hints(["apps/web/src/server/modules/bank/bank.ts"], ["feat(bank): x"]);
     expect(reports.map((r) => r.message)).toEqual([expect.stringContaining("nichts in docs/")]);
+    // Das Firmenportal (#504) ist Code wie die App
+    expect(hints(["apps/firmenportal/src/server.ts"], ["feat(portal): x"]).map((r) => r.message)).toEqual([expect.stringContaining("nichts in docs/")]);
   });
 
   it("schweigt, wenn die Doku mitkommt oder nur Tests geändert sind", () => {
@@ -68,6 +70,44 @@ describe("growthHints", () => {
   });
 });
 
+describe("docPageHints", () => {
+  it("weist auf eine Doku-Seite hin, die über die Grenze wächst, auch auf eine neue", () => {
+    expect(
+      docPageHints([
+        { file: "docs/belege.md", before: 7900, after: 8100 },
+        { file: "docs/neu.md", before: 0, after: 8001 },
+      ]),
+    ).toEqual([
+      { level: "warning", message: expect.stringContaining("docs/belege.md hat 8100 Wörter") },
+      { level: "warning", message: expect.stringContaining("docs/neu.md hat 8001 Wörter") },
+    ]);
+  });
+
+  it("weist auf eine lange Seite hin, die noch deutlich wächst", () => {
+    expect(docPageHints([{ file: "docs/rechnungen.md", before: 9800, after: 10_100 }])).toEqual([
+      { level: "warning", message: expect.stringContaining("docs/rechnungen.md hat 10100 Wörter") },
+    ]);
+  });
+
+  it("schweigt bei kurzen Seiten, kleinen Änderungen an langen Seiten, Seiten außerhalb docs/ und ADRs", () => {
+    expect(
+      docPageHints([
+        { file: "docs/fristen.md", before: 1500, after: 1800 },
+        { file: "docs/rechnungen.md", before: 9800, after: 9950 },
+        { file: "README.md", before: 7000, after: 9000 },
+        { file: "docs/adr/journal-als-quelle.md", before: 7000, after: 9000 },
+      ]),
+    ).toEqual([]);
+  });
+});
+
+describe("countWords", () => {
+  it("zählt Wörter wie wc -w", () => {
+    expect(countWords("# Titel\n\nEin  kurzer\tSatz.\n")).toBe(5);
+    expect(countWords("")).toBe(0);
+  });
+});
+
 describe("isBot", () => {
   it("erkennt Renovate und andere Bots", () => {
     expect(isBot({ login: "renovate[bot]", type: "Bot" })).toBe(true);
@@ -91,6 +131,48 @@ describe("checkBody", () => {
 
   it("lässt Beispiele in Code durch", () => {
     expect(checkBody("Nicht `Closes #12`, sondern Umgesetzt #12")).toEqual([]);
+  });
+});
+
+describe("checkTitleIssues", () => {
+  it("meldet ein umgesetztes Issue, das im Titel fehlt, als Fehler", () => {
+    const reports = checkTitleIssues("Mahnung: Vorschau des Blatts", "Umgesetzt #357");
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({ level: "error" });
+    expect(reports[0].message).toContain("(#357)");
+  });
+
+  it("meldet Refs ohne Nummer im Titel nur als Hinweis, weil Refs auch auf Pull Requests zeigt (#954)", () => {
+    const reports = checkTitleIssues("Mahnung: Vorschau des Blatts wie bei Rechnung und Angebot", "Refs #357");
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({ level: "warning" });
+    expect(reports[0].message).toContain("#357");
+  });
+
+  it("lässt Titel durch, die jede Nummer nennen, auch als Liste", () => {
+    expect(checkTitleIssues("Mahnung: Vorschau (#357)", "Refs #357")).toEqual([]);
+    expect(checkTitleIssues("Finanzamt: Zeitraum einheitlich (#968, #969)", "Umgesetzt #968, #969")).toEqual([]);
+  });
+
+  it("nennt nur die fehlenden Nummern, getrennt nach Fehler und Hinweis", () => {
+    const reports = checkTitleIssues("Finanzamt: Zeitraum einheitlich (#968)", "Umgesetzt #968, #970\nRefs #969");
+    expect(reports.map(({ level }) => level)).toEqual(["error", "warning"]);
+    expect(reports[0].message).toContain("#970");
+    expect(reports[0].message).not.toContain("#968");
+    expect(reports[1].message).toContain("#969");
+  });
+
+  it("schweigt ohne Verweise, bei leerer Beschreibung, bei Beispielen in Code und in HTML-Kommentaren", () => {
+    expect(checkTitleIssues("Doku: Tippfehler", "Kein Issue.")).toEqual([]);
+    expect(checkTitleIssues("Doku: Tippfehler", null)).toEqual([]);
+    expect(checkTitleIssues("Doku: Tippfehler", "Etwa `Umgesetzt #12` im Text")).toEqual([]);
+    expect(checkTitleIssues("Doku: Tippfehler", "<!-- Umgesetzt #12 -->")).toEqual([]);
+  });
+
+  it("zählt im Titel nur eigene Nummern, nicht #35 für #357 und nicht owner/repo#12 oder Anker", () => {
+    expect(checkTitleIssues("Mahnung: Vorschau (#357)", "Umgesetzt #35")).toHaveLength(1);
+    expect(checkTitleIssues("Bilder: aus firsttris/haben-bilder#12", "Umgesetzt #12")).toHaveLength(1);
+    expect(checkTitleIssues("Doku: Link auf mitwirken.html#12", "Umgesetzt #12")).toHaveLength(1);
   });
 });
 

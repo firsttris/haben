@@ -5,14 +5,13 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { formatDate } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getDauerbelegList, runDauerbelegeNow } from "../../../server/functions/dauerbelege.ts";
+import { RecurringDocumentStatus } from "../../../components/RecurringStatus.tsx";
 
 export const Route = createFileRoute("/_app/dauerbelege/")({
   loader: () => getDauerbelegList(),
   head: () => ({ meta: [{ title: "Dauerbelege · Haben" }] }),
   component: DauerbelegePage,
 });
-
-const STATUS_LABEL = { aktiv: null, pausiert: "pausiert", beendet: "beendet" } as const;
 
 function DauerbelegePage() {
   const { items, categories, today } = Route.useLoaderData();
@@ -67,8 +66,7 @@ function DauerbelegePage() {
             {items.map(({ vorlage, belege, zuPruefen }) => (
               <Link key={vorlage.id} to="/dauerbelege/$id" params={{ id: vorlage.id }} className="table-row recurring-cols">
                 <div>
-                  {vorlage.name} {STATUS_LABEL[vorlage.status] && <span className="pill">{STATUS_LABEL[vorlage.status]}</span>}
-                  {vorlage.lastError && <span className="pill pill-warn">Fehler</span>}
+                  {vorlage.name} <RecurringDocumentStatus status={vorlage.status} lastError={vorlage.lastError} />
                   <div className="small muted">
                     {vorlage.supplierName} · {belege} {belege === 1 ? "Beleg" : "Belege"}
                     {zuPruefen > 0 ? `, ${zuPruefen} zu prüfen` : ""}

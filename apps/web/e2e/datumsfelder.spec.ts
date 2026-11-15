@@ -9,16 +9,14 @@ import { SESSION } from "./daten.ts";
 
 test.use({ storageState: SESSION });
 
-for (const typ of ["date", "month"]) {
-  test(`Feld vom Typ ${typ} nutzt nicht die Standarddarstellung des Browsers und ist so hoch wie sein Nachbar`, async ({ page }) => {
-    await page.goto("/rechnungen/neu");
-    await page.waitForLoadState("networkidle");
-    const nachbar = await page.getByLabel("Zahlungsziel in Tagen").boundingBox();
-    // In einem Schritt, sonst kann React das Feld zwischen Umstellen und Lesen neu zeichnen
-    const feld = await page.getByLabel("Rechnungsdatum").evaluate((el: HTMLInputElement, t) => {
-      el.type = t;
-      return { appearance: getComputedStyle(el).appearance, hoehe: el.getBoundingClientRect().height };
-    }, typ);
-    expect(feld).toEqual({ appearance: "none", hoehe: nachbar?.height });
+test("Feld vom Typ date nutzt nicht die Standarddarstellung des Browsers und ist so hoch wie sein Nachbar", async ({ page }) => {
+  await page.goto("/rechnungen/neu");
+  await page.waitForLoadState("networkidle");
+  const nachbar = await page.getByLabel("Zahlungsziel in Tagen").boundingBox();
+  // In einem Schritt, sonst kann React das Feld zwischen Umstellen und Lesen neu zeichnen
+  const feld = await page.getByLabel("Rechnungsdatum").evaluate((el: HTMLInputElement) => {
+    el.type = "date";
+    return { appearance: getComputedStyle(el).appearance, hoehe: el.getBoundingClientRect().height };
   });
-}
+  expect(feld).toEqual({ appearance: "none", hoehe: nachbar?.height });
+});

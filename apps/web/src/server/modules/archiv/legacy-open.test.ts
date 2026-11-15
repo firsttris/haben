@@ -38,7 +38,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   });
 
   async function legacyVoucher(values: {
-    source?: "lexoffice" | "sevdesk" | "buchhaltungsbutler" | "accountable" | "import";
+    source?: "lexoffice" | "sevdesk" | "buchhaltungsbutler" | "accountable" | "wiso" | "import";
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;
@@ -95,7 +95,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     await sql`insert into lexoffice_imports (status, progress) values ('fertig', ${JSON.stringify({ phase: "fertig" })}::jsonb)`;
   });
 
-  it.each(["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import"] as const)(
+  it.each(["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import"] as const)(
     "liefert bei einer übernommenen Rechnung die gespeicherte Herkunft %s statt sie aus der Nummer zu erraten",
     async (source) => {
       const id = await legacyVoucher({

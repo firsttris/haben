@@ -9,8 +9,8 @@
 /** Grund für Lücken, die schon vor der Prüfung bestanden; sie verschwinden aus der Liste, sobald die Spec sie prüft */
 export const OPEN = "noch offen";
 
-/** Pfade, die keine Seite der App sind: API, Anmeldung ohne Sitzung, Einladung mit Token */
-const NO_PAGE = [/^\/api\//, /^\/login$/, /^\/setup$/, /^\/einladung\//];
+/** Pfade, die keine Seite der App sind: API, OAuth-Metadaten (.well-known), Anmeldung ohne Sitzung, Einladung mit Token */
+const NO_PAGE = [/^\/api\//, /^\/\.well-known\//, /^\/login$/, /^\/setup$/, /^\/einladung\//];
 
 /** Seiten aus `FileRoutesByFullPath` in routeTree.gen.ts, Index-Routen ohne den Schrägstrich am Ende */
 export function pagesOf(routeTree: string): string[] {

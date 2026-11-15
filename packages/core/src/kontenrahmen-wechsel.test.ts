@@ -34,6 +34,8 @@ describe.each(RICHTUNGEN)("Konten von %s nach %s", (von, nach) => {
       expect(kontoImKontenrahmen(von, nach, ACCOUNTS[von].vorsteuer[satz])).toBe(ACCOUNTS[nach].vorsteuer[satz]);
       expect(kontoImKontenrahmen(von, nach, ACCOUNTS[von].erloese[satz])).toBe(ACCOUNTS[nach].erloese[satz]);
     }
+    // Zwischenkonto der Gutschrift, die bereits Bezahltes erstattet (#786)
+    expect(kontoImKontenrahmen(von, nach, ACCOUNTS[von].vorsteuerNochNichtAbziehbar)).toBe(ACCOUNTS[nach].vorsteuerNochNichtAbziehbar);
     expect(kontoImKontenrahmen(von, nach, LOHN_KONTEN[von].verbLohn)).toBe(LOHN_KONTEN[nach].verbLohn);
   });
 

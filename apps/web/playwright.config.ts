@@ -1,6 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { appDatabaseUrlFuer, DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, LAYOUT_PAKETE_PORT, portFuer } from "./e2e/durchlaeufe.ts";
+import {
+  appDatabaseUrlFuer,
+  DURCHLAEUFE,
+  databaseUrlFuer,
+  type Durchlauf,
+  ENABLE_BANKING_PORT,
+  habenFirmen,
+  LAYOUT_PAKETE_PORT,
+  portFuer,
+} from "./e2e/durchlaeufe.ts";
 
 /**
  * Ende-zu-Ende-Tests gegen einen echten Server mit eigener, leerer Datenbank.
@@ -52,6 +61,8 @@ function webServer(durchlauf?: Durchlauf) {
       ENABLE_BANKING_KEY_FILE: "",
       // Nachgebaute Paketquelle in layouts.spec.ts, nie Typst Universe aus dem Test
       LAYOUTS_PACKAGES_URL: `http://127.0.0.1:${LAYOUT_PAKETE_PORT}`,
+      // Firma wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und zwei andere
+      HABEN_FIRMEN: durchlauf === "firmen" ? habenFirmen(serverURL) : "",
     },
   };
 }
@@ -91,16 +102,19 @@ export default defineConfig({
       testMatch: [
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
+        "befehlspalette.spec.ts",
         "dateiauswahl.spec.ts",
         "firmenname.spec.ts",
         "gestaltung.spec.ts",
         "layouts.spec.ts",
+        "nav-einfahrbar.spec.ts",
         "handy-felder.spec.ts",
         "bank-sortierung.spec.ts",
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
         "datumsfelder.spec.ts",
         "kopfzeile.spec.ts",
+        "knopfreihenfolge.spec.ts",
         "rechtsform.spec.ts",
         "seiten.spec.ts",
         "steuerberatung.spec.ts",
@@ -129,6 +143,7 @@ export default defineConfig({
         "datenbankrolle.spec.ts",
         "knoepfe.spec.ts",
         "navigation-kontrast.spec.ts",
+        "navigation-rollen.spec.ts",
       ],
       use: chromium,
     },

@@ -2,7 +2,7 @@
  * Prüft im fertigen Image, dass alle Pakete da sind, die zur Laufzeit geladen werden (CI-Job container). Das
  * Laufzeit-Image installiert nur die Laufzeitabhängigkeiten ohne Peers (Containerfile); fehlt eines, fiele das sonst
  * erst beim Nutzer auf, etwa bei der ersten Übermittlung an ELSTER. Zwei Teile:
- * - das Server-Bundle: jedes Paket, das es von außen importiert, wird geladen;
+ * - das Server-Bundle und der Befehl haben: jedes Paket, das sie von außen importieren, wird geladen;
  * - die Skripte, die Bun aus den Quellen ausführt (Migrationen, ERiC-Worker und -Installation, SSO-Übernahme): Bun
  *   löst sie samt allen Importen auf, ohne sie auszuführen.
  * Aufruf im Container: bun /tmp/externe-module.ts
@@ -12,6 +12,8 @@ import { builtinModules } from "node:module";
 import { join } from "node:path";
 
 const BUNDLE = "/app/apps/web/.output/server";
+/** Der Befehl haben, gebaut mit --packages external (Containerfile) */
+const CLI = "/app/apps/web/.output/haben-cli.js";
 const SKRIPTE = [
   "/app/apps/web/src/server/db/migrate.ts",
   "/app/apps/web/src/server/db/sso-uebernahme.ts",
@@ -33,7 +35,7 @@ function* dateien(dir: string): Generator<string> {
 }
 
 const pakete = new Map<string, string>();
-for (const datei of dateien(BUNDLE)) {
+for (const datei of [...dateien(BUNDLE), CLI]) {
   for (const { path } of transpiler.scanImports(readFileSync(datei, "utf8"))) {
     if (/^[./#]/.test(path) || path.includes(":") || builtin.has(path) || pakete.has(path)) continue;
     pakete.set(path, datei);

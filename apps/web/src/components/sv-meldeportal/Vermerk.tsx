@@ -7,6 +7,7 @@ import { vermerkenFn, zuruecknehmenFn } from "../../server/functions/sv-meldunge
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { Field } from "../Field.tsx";
 import { FilePicker } from "../FilePicker.tsx";
+import { Status } from "../Status.tsx";
 
 export interface VermerkStandDaten {
   vermerke: { id: string; datum: string; notiz: string; protokollDateiname: string | null; protokollGroesse: number | null; geaendert: boolean }[];
@@ -96,7 +97,9 @@ function VermerkZeile({ v, titel }: { v: VermerkStandDaten["vermerke"][number]; 
   return (
     <div className="stack" style={{ gap: 4 }}>
       <p style={{ margin: 0 }}>
-        <span className="pill pill-ok">im Portal abgegeben</span> am {formatDate(v.datum)}
+        <Status tone="ok" inline detail={`am ${formatDate(v.datum)}`}>
+          Im Portal abgegeben
+        </Status>
         {v.notiz && <span className="muted"> · {v.notiz}</span>}
         {v.protokollDateiname && (
           <>

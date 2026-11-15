@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { UploadButton } from "./UploadButton.tsx";
 
@@ -14,7 +16,7 @@ function readBase64(file: File): Promise<string> {
 }
 
 export interface ImageUploadTexts {
-  /** Nomen für „Noch kein …“, Alternativtext und Beschriftung, z. B. „Logo“ */
+  /** Nomen für die Rückfrage „… entfernen?“, z. B. „Logo“ */
   name: string;
   empty: string;
   alt: string;
@@ -23,6 +25,8 @@ export interface ImageUploadTexts {
   replace: string;
   saved: string;
   removed: string;
+  /** Folgen des Entfernens in der Rückfrage */
+  removeConsequence: string;
   tooBig: string;
 }
 
@@ -55,6 +59,7 @@ export function ImageUpload({
 }) {
   const [current, setCurrent] = useLoadedState(sha256);
   const { busy, notice, run } = useAction();
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   // Erst melden, dann zeigen: So ist der Loader frisch, sobald das Bild dasteht
   const change = (work: () => Promise<unknown>, text: string) =>
@@ -86,11 +91,21 @@ export function ImageUpload({
           {current ? texts.replace : texts.upload}
         </UploadButton>
         {current && (
-          <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void change(remove, texts.removed)}>
+          <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setConfirmRemove(true)}>
             Entfernen
           </button>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmRemove}
+        title={`${texts.name} entfernen?`}
+        confirmLabel="Entfernen"
+        danger
+        onConfirm={() => void change(remove, texts.removed)}
+        onClose={() => setConfirmRemove(false)}
+      >
+        <p>{texts.removeConsequence}</p>
+      </ConfirmDialog>
       <NoticeBanner notice={notice} />
     </div>
   );

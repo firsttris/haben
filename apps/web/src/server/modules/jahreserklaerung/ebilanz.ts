@@ -24,7 +24,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
-import { accountName, ebilanzDavon, jahresabschluss, ledgerRange, listAssets, saldenliste } from "../buchhaltung/index.ts";
+import { accountName, jahresabschluss, ledgerRange, listAssets, saldenliste } from "../buchhaltung/index.ts";
+import { ebilanzDavon } from "./restlaufzeiten.ts";
 import { ericKennt, PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 import { companyIssues, loadCompany, type Company } from "../stammdaten/index.ts";
 

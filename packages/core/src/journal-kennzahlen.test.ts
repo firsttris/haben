@@ -10,9 +10,11 @@ import {
   invoicePaymentPosting,
   invoicePosting,
   invoiceWriteOffPosting,
+  settlementTaxShares,
   type Kontenrahmen,
   type PostingLine,
   type Versteuerung,
+  vorsteuerAusgleichPosting,
 } from "./posting.ts";
 
 /*
@@ -221,4 +223,49 @@ describe("Ist, Anteil mit Bemessungsgrundlage, aber ohne Steuer", () => {
       expect(kennzahlenAusJournal(kr, "ist", [lines]).kz81).toBe(-1);
     });
   }
+});
+
+/*
+ * Zwischenkonto einer Gutschrift „erstattet bereits Bezahltes“ (#786, Etappe 4): Solange die Vorsteuer geparkt ist, steht
+ * sie auf SKR03 1548 / SKR04 1434 und in keiner Kennzahl — auch nicht in Kz 66, obwohl die Zeile einen Steuerschlüssel
+ * trägt. Erst die Umbuchung beim Ausgleich legt sie auf 1576/1406, und dort trägt sie die Kennzahl. Der Test vergleicht
+ * beide Zustände, damit ein Konto ohne Kennzahl nicht stillschweigend die Minderung verschluckt.
+ */
+describe.each(KONTENRAHMEN)("Zwischenkonto der Gutschrift „erstattet bereits Bezahltes“ (%s)", (kr) => {
+  const a = ACCOUNTS[kr];
+  /** Gutschrift über 100,00 € netto, 19 %, mit der Angabe „erstattet bereits Bezahltes“ */
+  const gutschrift: InvoiceTotals = { net: -10_000, tax: -1_900, gross: -11_900, taxes: [{ rate: 1900, base: -10_000, tax: -1_900 }] };
+  const buchen = () => documentPosting(gutschrift, "software", kr, "einzelunternehmen", "bank", true, undefined, 0, null, true);
+  const umbuchen = (betrag = 11_900) => vorsteuerAusgleichPosting(settlementTaxShares(gutschrift, 0, [], betrag), kr);
+
+  for (const versteuerung of ["ist", "soll"] as const) {
+    it(`${versteuerung}: geparkt keine Kennzahl, nach der Umbuchung Kz 66`, () => {
+      // Geparkt: die Steuerzeile trägt den Steuerschlüssel, gehört aber in keine Kennzahl
+      expect(kennzahlenDerZeile(kr, { account: a.vorsteuerNochNichtAbziehbar, debit: 0, credit: 1_900, taxCode: "VSt19" })).toEqual([]);
+      expect(kennzahlenDerZeile(kr, { account: a.vorsteuerNochNichtAbziehbar, debit: 1_900, credit: 0, taxCode: "VSt19" })).toEqual([]);
+      expect(kennzahlen(kr, buchen(), versteuerung)).toEqual({});
+      expect(kennzahlen(kr, buchen(), versteuerung).kz66 ?? 0).toBe(0);
+
+      // Ausgeglichen: die Umbuchung auf die Vorsteuer trägt Kz 66, die Bemessungsgrundlage steht im Journal
+      expect(kennzahlen(kr, umbuchen(), versteuerung)).toEqual({ kz66: -1_900 });
+      expect(kennzahlen(kr, buchen(), versteuerung, umbuchen())).toEqual({ kz66: -1_900 });
+    });
+  }
+
+  it("eine Teilerstattung mindert Kz 66 nur um ihren Anteil", () => {
+    expect(kennzahlen(kr, umbuchen(5_950)).kz66).toBe(-950);
+  });
+
+  it("7 % geht genauso über das Zwischenkonto und trägt nach der Umbuchung Kz 66", () => {
+    const sieben: InvoiceTotals = { net: -10_000, tax: -700, gross: -10_700, taxes: [{ rate: 700, base: -10_000, tax: -700 }] };
+    const buchen7 = () => documentPosting(sieben, "software", kr, "einzelunternehmen", "bank", true, undefined, 0, null, true);
+    expect(kennzahlen(kr, buchen7())).toEqual({});
+    const umbuchen7 = vorsteuerAusgleichPosting(settlementTaxShares(sieben, 0, [], 10_700), kr);
+    expect(kennzahlen(kr, buchen7(), "soll", umbuchen7)).toEqual({ kz66: -700 });
+  });
+
+  it("ohne die Angabe mindert die Buchung Kz 66 sofort — der Unterschied ist genau die Parkbuchung", () => {
+    const ohne = documentPosting(gutschrift, "software", kr, "einzelunternehmen", "bank", true, undefined, 0, null, false);
+    expect(kennzahlen(kr, ohne)).toEqual({ kz66: -1_900 });
+  });
 });

@@ -21,6 +21,7 @@ export {
   updateDocument,
   uploadDocument,
 } from "./documents.ts";
+export { searchBelege, searchDocuments, type DocumentHit, type RecurringDocumentHit } from "./search.ts";
 export { type Lieferant, supplierCategory, supplierPayment } from "./vorschlaege.ts";
 export {
   cancelDocument,
@@ -55,7 +56,9 @@ export {
   DauerbelegError,
   deleteDauerbeleg,
   getDauerbeleg,
+  importSevdeskDauerbeleg,
   listDauerbelege,
+  sevdeskHinweise,
   setDauerbelegStatus,
   updateDauerbeleg,
   type DauerbelegAktion,
@@ -65,6 +68,5 @@ export {
   bookAndAllocateDauerbeleg,
   bookAndAllocateSchema,
   DAUERBELEG_ACTOR,
-  dauerbelegSuggestions,
   runDueDauerbelege,
 } from "./dauerbelege-lauf.ts";

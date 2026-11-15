@@ -69,7 +69,7 @@ gunzip -c "$dump" | tail -n 20 | grep "PostgreSQL database dump complete" > /dev
 # Fester Host und feste Pfade: Aufbewahrt wird je Host und Tag. Mehrere Instanzen in einem Repository
 # brauchen deshalb je einen eigenen BACKUP_HOST. --retry-lock wartet auf restic-Sperren anderer Zugriffe
 # auf dasselbe Repository (etwa restic snapshots oder eine zweite Instanz).
-# 11 Jahresstände decken die zehnjährige Aufbewahrung nach GoBD ab.
+# 11 Jahresstände decken die längste Aufbewahrungsfrist ab, 10 Jahre für Bücher und Aufzeichnungen (§ 147 Abs. 3 AO).
 summary="$(restic backup --json --retry-lock 10m --host "$BACKUP_HOST" --tag haben "$dump" /belege | grep '"message_type":"summary"')"
 snapshot="$(sed -n 's/.*"snapshot_id":"\([0-9a-f]\{8\}\)[0-9a-f]*".*/\1/p' <<< "$summary")"
 bytes="$(sed -n 's/.*"total_bytes_processed":\([0-9]*\).*/\1/p' <<< "$summary")"

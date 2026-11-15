@@ -80,6 +80,12 @@ describe("ebilanzPosition", () => {
     // Wareneinkauf (Handelsware): bezogene Waren
     ["SKR03", "3200", 1, "is.netIncome.regular.operatingTC.grossTradingProfit.materialServices.material.purchased.unknownVAT"],
     ["SKR04", "5200", 1, "is.netIncome.regular.operatingTC.grossTradingProfit.materialServices.material.purchased.unknownVAT"],
+    // Zwischenkonto einer Gutschrift „erstattet bereits Bezahltes“ (#786): sonstige Vermögensgegenstände aus
+    // Umsatzsteuer, im Haben (Berichtigung noch nicht gezogen) Verbindlichkeiten aus Umsatzsteuer – nie eine Erfolgszeile
+    ["SKR03", "1548", 1_900, "bs.ass.currAss.receiv.other.vat"],
+    ["SKR03", "1548", -1_900, "bs.eqLiab.liab.other.theroffTax.vat"],
+    ["SKR04", "1434", 1_900, "bs.ass.currAss.receiv.other.vat"],
+    ["SKR04", "1434", -1_900, "bs.eqLiab.liab.other.theroffTax.vat"],
     // Anlagevermögen ohne Anlagenspiegel und Steuern ohne Art: keine
     ["SKR04", "0010", 1, null],
     ["SKR04", "7640", 1, null],

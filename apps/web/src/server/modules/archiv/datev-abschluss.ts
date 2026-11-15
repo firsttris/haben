@@ -4,7 +4,7 @@ import { eq, lte, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { abschlussHinweise, accountName, type AbschlussHinweis } from "../buchhaltung/index.ts";
-import { gespeicherteKapgAngaben } from "../jahreserklaerung/index.ts";
+import { gespeicherteKapgAngaben } from "../koerperschaft/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 
 /*

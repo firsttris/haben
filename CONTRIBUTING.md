@@ -10,9 +10,10 @@ unser [Verhaltenskodex](CODE_OF_CONDUCT.md).
 Neues Issue über die Formulare: [Issue anlegen](https://github.com/firsttris/haben/issues/new/choose). Bitte vorher
 im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) nachsehen, ob das Thema schon geplant ist, und
 unter [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), ob es ausgeschlossen ist. Wie ein gutes Issue
-aufgebaut ist, steht unter [Issues schreiben](https://haben.app/mitwirken.html#issues-schreiben).
+aufgebaut ist, steht unter [Issues schreiben](https://haben.app/mitwirken.html#issues-schreiben). Fragen und Austausch
+gehen auf [Discord](https://discord.gg/CT2GQytSYH).
 
-**Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, Screenshots oder Logs. Sicherheitslücken
+**Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, auf Discord, in Screenshots oder Logs. Sicherheitslücken
 bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 
 ## Etwas übernehmen
@@ -31,7 +32,7 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
 - Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, in einem hellen und einem dunklen
   Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ vor der ersten Änderung aufnehmen und als Anhang
   hochladen (ins Textfeld ziehen).
-- Titel: `Bereich: was sich ändert (#Issue)`, die Nummer nur, falls es ein Issue gibt. Commits gern als
+- Titel: `Bereich: was sich ändert (#Issue)`, die Nummer nur, falls es ein Issue gibt, und immer für jedes `Umgesetzt #…`. Commits gern als
   `fix(bereich): …`, `test: …` mit Beschreibung auf Deutsch. Ein Entwurf ist willkommen; die CI startet mit „Ready for
   review“. Was bei einem Pull Request nur mit Doku geprüft wird, steht unter
   [Branches, Titel und Commits](https://haben.app/mitwirken.html#branches-titel-und-commits).

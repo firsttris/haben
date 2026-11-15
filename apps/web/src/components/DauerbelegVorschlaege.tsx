@@ -34,12 +34,12 @@ export function DauerbelegVorschlaege({ suggestions, busy, onBook }: { suggestio
             ))}
           </ul>
           <div className="actions">
-            <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => onBook(s.item.id)}>
-              Buchen und zuordnen
-            </button>
             <Link to="/belege/$id" params={{ id: s.item.id }} className="btn btn-sm">
               Beleg prüfen
             </Link>
+            <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => onBook(s.item.id)}>
+              Buchen und zuordnen
+            </button>
           </div>
         </div>
       ))}

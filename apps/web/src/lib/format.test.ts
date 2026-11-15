@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysUntil, parseUsefulLifeMonths } from "./format.ts";
+import { daysUntil, formatDayMonth, formatZeitraumAbJahresanfang, parseUsefulLifeMonths, relativeDays } from "./format.ts";
 
 describe("parseUsefulLifeMonths", () => {
   it("liest Jahre mit Komma oder Punkt", () => {
@@ -28,5 +28,42 @@ describe("daysUntil", () => {
   it("nimmt bei einem Zeitpunkt dessen Tag in Deutschland", () => {
     const now = new Date("2026-11-09T11:00:00Z");
     expect(daysUntil(new Date("2026-11-08T23:30:00Z"), now)).toBe(0);
+  });
+});
+
+describe("relativeDays", () => {
+  it("nennt den Abstand als Wort, Einzahl bei einem Tag", () => {
+    expect(relativeDays(0)).toBe("heute");
+    expect(relativeDays(1)).toBe("morgen");
+    expect(relativeDays(5)).toBe("in 5 Tagen");
+    expect(relativeDays(-1)).toBe("seit 1 Tag");
+    expect(relativeDays(-40)).toBe("seit 40 Tagen");
+  });
+});
+
+describe("formatDayMonth", () => {
+  it("Tag und Monat in deutscher Zeit, auch kurz vor Mitternacht UTC", () => {
+    expect(formatDayMonth("2026-11-23")).toBe("23.11.");
+    expect(formatDayMonth(new Date("2026-10-31T23:30:00Z"))).toBe("01.11.");
+  });
+});
+
+describe("formatZeitraumAbJahresanfang", () => {
+  it("schreibt beide Enden im gleichen Format", () => {
+    // Der Anlass: „1. Januar bis 14.11.2026" mischt Monatsname und Zifferndatum und liest sich wie ein Datum.
+    expect(formatZeitraumAbJahresanfang("2026-11-14")).toBe("01.01.2026–14.11.2026");
+  });
+
+  it("nimmt den Jahresanfang des Stichtags, nicht des laufenden Jahres", () => {
+    expect(formatZeitraumAbJahresanfang("2025-03-31")).toBe("01.01.2025–31.03.2025");
+  });
+
+  it("zeigt den Jahresanfang selbst als Punkt, nicht als leeren Zeitraum", () => {
+    expect(formatZeitraumAbJahresanfang("2026-01-01")).toBe("01.01.2026–01.01.2026");
+  });
+
+  it("bleibt am Jahreswechsel beim Jahr des Stichtags", () => {
+    // 31.12.2026 23:30 UTC ist in Deutschland der 1. Januar 2027 — der Zeitraum muss dann 2027 sein.
+    expect(formatZeitraumAbJahresanfang(new Date("2026-12-31T23:30:00Z"))).toBe("01.01.2027–01.01.2027");
   });
 });

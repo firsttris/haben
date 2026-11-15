@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
+import { readAppVersion } from "./app-version.ts";
 import { readDatabaseAccess } from "./roles.ts";
 
 describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, #619)", () => {
@@ -64,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
     const meta = join(fixture, "drizzle/meta");
     mkdirSync(db, { recursive: true });
     mkdirSync(meta, { recursive: true });
-    for (const name of ["migrate.ts", "roles.ts"]) if (existsSync(join(source, name))) copyFileSync(join(source, name), join(db, name));
+    for (const name of ["migrate.ts", "roles.ts", "app-version.ts"]) if (existsSync(join(source, name))) copyFileSync(join(source, name), join(db, name));
     symlinkSync(fileURLToPath(new URL("../../../node_modules", import.meta.url)), join(fixture, "node_modules"), "junction");
     // Nur eine synthetische Folgemigration; der ausgelieferte Migrationsbestand bleibt unverändert.
     writeFileSync(
@@ -96,8 +97,24 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
 
   it("verwendet die Eigentümerverbindung für die Migration und lässt den bisherigen Einrollenstart zu", async () => {
     await migrate(testDatabaseUrl!);
+    expect(await admin`select version, note from app_versions`).toEqual([{ version: readAppVersion(), note: null }]);
     await start();
     expect(await app`select current_user as role, session_user as login`).toEqual([{ role: appRole, login: appRole }]);
+  });
+
+  it("liest den Sperrtriggerbestand auch mit der eingeschränkten App-Anmeldung (#764)", async () => {
+    await start();
+    const { drizzle } = await import("drizzle-orm/postgres-js");
+    const { checkTriggerIntegrity } = await import("./trigger-inventory.ts");
+    expect(await checkTriggerIntegrity(drizzle(app))).toEqual({ problems: [], hints: [] });
+    await admin`alter table contacts disable trigger contacts_no_delete`;
+    try {
+      expect((await checkTriggerIntegrity(drizzle(app))).problems).toContainEqual(
+        expect.objectContaining({ art: "sperre", tabelle: "contacts", befund: expect.stringContaining("contacts_no_delete") }),
+      );
+    } finally {
+      await admin`alter table contacts enable trigger contacts_no_delete`;
+    }
   });
 
   it("sperrt DDL, Replikationsparameter, Eigentümerwechsel und Schattenrelationen für die echte App-Anmeldung", async () => {
@@ -163,6 +180,8 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
     try {
       expect(await external`select count(*)::integer as n from journal_entries`).toEqual([{ n: 0 }]);
       expect(await external`select current_user as role`).toEqual([{ role: appRole }]);
+      expect(await external`select version, note from app_versions`).toEqual([{ version: readAppVersion(), note: null }]);
+      expect(await external`select * from haben_integrity_problems()`).toEqual([]);
     } finally {
       await external.end();
     }

@@ -166,7 +166,7 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
     // Erst falsch zugeordnet und aufgehoben, dann richtig
     await bank.allocate(actor, { kind: "invoice", transactionId: tx(200_000), invoiceId: invoice.id, amount: 100_000 });
     const [wrong] = await sql`select id from allocations`;
-    await bank.reverseAllocation(actor, wrong!.id);
+    await bank.reverseAllocation(actor, wrong!.id, "2026-10-01");
     await bank.allocate(actor, { kind: "invoice", transactionId: tx(200_000), invoiceId: invoice.id, amount: 200_000 });
     await bank.allocate(actor, { kind: "document", transactionId: tx(-4590), documentId: telekom, amount: -4590 });
     await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: tx(-50_000), amount: -50_000 });

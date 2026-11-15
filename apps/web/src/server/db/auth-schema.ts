@@ -142,6 +142,13 @@ export const userLogins = pgTable(
   (t) => [index("user_logins_user").on(t.userId, t.at)],
 );
 
+/** Passwortwechsel, nur anhängen. Ohne Fremdschlüssel bleibt der Nachweis nach dem Entfernen des Kontos erhalten. */
+export const passwordChanges = pgTable("password_changes", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: text("user_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** SSO-Modus: Issuer, für den der erste Inhaber-Callback Haben eingerichtet hat. Nur anhängen, Audit-Log per Trigger */
 export const ssoIssuers = pgTable("sso_issuers", {
   issuer: text("issuer").primaryKey(),

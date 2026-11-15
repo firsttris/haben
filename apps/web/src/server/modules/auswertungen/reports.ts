@@ -24,10 +24,11 @@ import { euerAusDemJournal, mitFreienBuchungen } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { splitsByDocument } from "../belege/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTotalsById, mixNachVerrechnungen } from "../rechnungen/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
 import { ustvaPosten } from "../umsatzsteuer/index.ts";
+import { advanceOpenPositions } from "./advance-open-positions.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
 
@@ -76,7 +77,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   const end = `${year + 1}-01-01`;
   // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar: zählt im Vorjahr (euer-jahreswechsel.ts)
   const { herein, hinaus } = await euerVerschiebung(year, q);
-  const imJahr = and(gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end));
+  // Tag der Zuordnung: die Gegenzeile einer Aufhebung wirkt an ihrem eigenen Tag (#782), sonst am Buchungsdatum
+  const zuordnungstag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
+  const imJahr = and(gte(zuordnungstag, start), lt(zuordnungstag, end));
   const allocations = await q
     .select({
       id: schema.allocations.id,
@@ -88,7 +91,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       invoiceId: schema.allocations.invoiceId,
       documentId: schema.allocations.documentId,
       transactionId: schema.allocations.transactionId,
-      date: schema.bankTransactions.bookingDate,
+      date: zuordnungstag,
       category: schema.documents.category,
       vorsteuerAbzug: schema.documents.vorsteuerAbzug,
       privateShare: schema.documents.privateShare,
@@ -218,6 +221,11 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     [...new Set([...allocations, ...exchangeDifferences, ...cashReceipts].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))],
     q,
   );
+  // Nach Verrechnungen verteilen sich die Zahlungen über den Rest der Rechnung, nicht über ihren vollen Mix (#877,
+  // Befund 3): Sonst teilt die EÜR eine Zahlung anders auf als die Voranmeldung, und zwar an beiden Quellen gleich
+  const restMix = await mixNachVerrechnungen(invoiceTotals, q);
+  const mixe = (invoiceId: string) => restMix.get(invoiceId) ?? [invoiceTotals.get(invoiceId)!];
+  const mix = (invoiceId: string) => mixe(invoiceId)[0]!;
   const {
     totals: docTotals,
     reverseCharge,
@@ -255,10 +263,17 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         kind: "invoice",
         date: a.date,
         paid: a.amount,
-        totals: invoiceTotals.get(a.invoiceId)!,
+        totals: mix(a.invoiceId),
         // Wie gebucht; ältere Zahlungen ohne gespeicherten Anteil rechnet die EÜR weiter aus der Summe je Umsatz
         ...(a.taxShares
-          ? { shares: recordedTaxShares(invoiceTotals.get(a.invoiceId)!, a.amount, a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null) }
+          ? {
+              shares: recordedTaxShares(
+                invoiceTotals.get(a.invoiceId)!,
+                a.amount,
+                a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null,
+                mixe(a.invoiceId),
+              ),
+            }
           : {}),
         treatment: a.treatment ?? "regulaer",
         group,
@@ -337,9 +352,16 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         kind: "invoice",
         date: w.date,
         paid: w.amount,
-        totals: invoiceTotals.get(w.invoiceId)!,
+        totals: mix(w.invoiceId),
         ...(w.taxShares
-          ? { shares: recordedTaxShares(invoiceTotals.get(w.invoiceId)!, w.amount, w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null) }
+          ? {
+              shares: recordedTaxShares(
+                invoiceTotals.get(w.invoiceId)!,
+                w.amount,
+                w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null,
+                mixe(w.invoiceId),
+              ),
+            }
           : {}),
         treatment: w.treatment ?? "regulaer",
         group,
@@ -361,13 +383,13 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     payments.push({ kind: "kursdifferenz", date: w.date, amount: -w.amount, group });
   }
   for (const c of cashReceipts) {
-    const totals = invoiceTotals.get(c.invoiceId!)!;
+    const totals = mix(c.invoiceId!);
     payments.push({
       kind: "invoice",
       date: c.date,
       paid: c.amount,
       totals,
-      shares: recordedTaxShares(totals, c.amount, c.taxSharesInvoiceId === c.invoiceId ? c.taxShares : null),
+      shares: recordedTaxShares(invoiceTotals.get(c.invoiceId!)!, c.amount, c.taxSharesInvoiceId === c.invoiceId ? c.taxShares : null, mixe(c.invoiceId!)),
       treatment: c.treatment,
     });
   }
@@ -474,6 +496,8 @@ export interface OpenPosition {
   open: number;
   /** Tage seit Fälligkeit; 0 = heute fällig, negativ = noch nicht fällig */
   daysOverdue: number;
+  /** Neues Bilanzverfahren: Anforderung, bilanzierter Anspruch, Papierzwischenraum oder echte Anzahlungs-Erstattung. */
+  balanceKind?: "request" | "receivable" | "unbilled" | "refund";
 }
 
 function daysBetween(from: string, to: string): number {
@@ -499,18 +523,23 @@ async function paidSums(ids: string[]) {
  * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
  */
 export async function openPositions(today: string) {
-  const receivables: OpenPosition[] = (await listInvoices(today))
-    .filter((i) => i.status === "final" && i.open !== 0)
-    .map((i) => ({
-      id: i.id,
-      number: i.number ?? "",
-      party: i.customer,
-      date: i.issueDate,
-      dueDate: i.dueDate,
-      gross: i.gross,
-      open: i.open,
-      daysOverdue: daysBetween(i.dueDate, today),
-    }));
+  const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(today);
+  const separate = new Set(invoiceIds);
+  const receivables: OpenPosition[] = [
+    ...(await listInvoices(today))
+      .filter((i) => i.status === "final" && i.open !== 0 && !separate.has(i.id))
+      .map((i) => ({
+        id: i.id,
+        number: i.number ?? "",
+        party: i.customer,
+        date: i.issueDate,
+        dueDate: i.dueDate,
+        gross: i.gross,
+        open: i.open,
+        daysOverdue: daysBetween(i.dueDate, today),
+      })),
+    ...newReceivables,
+  ];
 
   const documents = await db
     .select({
@@ -567,11 +596,12 @@ export async function openPositions(today: string) {
   const total = (items: OpenPosition[]) => items.reduce((s, i) => s + i.open, 0);
   const overdue = (items: OpenPosition[]) => items.filter((i) => i.daysOverdue > 0);
   return {
+    ...advances,
     receivables,
     payables,
-    receivablesTotal: total(receivables),
+    receivablesTotal: total(receivables) + advances.unbilledReceivablesTotal,
     payablesTotal: total(payables),
-    receivablesOverdue: total(overdue(receivables)),
+    receivablesOverdue: total(overdue([...receivables, ...advances.unbilledReceivables])),
     payablesOverdue: total(overdue(payables)),
     vat,
     vatTotal: total(vat),

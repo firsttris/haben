@@ -12,6 +12,8 @@ const TEXTS = {
   replace: "Anderes Logo wählen",
   saved: "Logo gespeichert. Es gilt für alles, was ab jetzt erzeugt wird.",
   removed: "Logo entfernt.",
+  removeConsequence:
+    "Was ab jetzt erzeugt wird, hat kein Logo mehr; schon festgeschriebene Belege behalten ihr PDF. Zurück kommt es nur, indem du es neu hochlädst.",
   tooBig: "Das Logo darf höchstens 1 MB groß sein.",
 };
 

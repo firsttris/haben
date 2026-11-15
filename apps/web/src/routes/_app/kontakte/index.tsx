@@ -1,14 +1,22 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod/mini";
 import { FORMAT_LABEL } from "../../../lib/invoice.ts";
 import { getContacts } from "../../../server/functions/contacts.ts";
 import { Field } from "../../../components/Field.tsx";
+import { Tag } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/kontakte/")({
-  validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])) }),
-  loaderDeps: ({ search }) => ({ archived: search.archiv ?? false, role: search.rolle }),
-  loader: ({ deps }) => getContacts({ data: { archived: deps.archived, ...(deps.role ? { role: deps.role } : {}) } }),
+  validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])), suche: z.optional(z.string()) }),
+  loaderDeps: ({ search }) => ({ archived: search.archiv ?? false, role: search.rolle, query: search.suche?.trim().slice(0, 100) }),
+  loader: async ({ deps }) => {
+    const filters = { archived: deps.archived, ...(deps.role ? { role: deps.role } : {}) };
+    const [contacts, matches] = await Promise.all([
+      getContacts({ data: filters }),
+      deps.query ? getContacts({ data: { ...filters, query: deps.query } }) : null,
+    ]);
+    return { contacts, matches };
+  },
   head: () => ({ meta: [{ title: "Kontakte · Haben" }] }),
   component: ContactsPage,
 });
@@ -20,13 +28,19 @@ const ROLE_FILTERS = [
 ] as const;
 
 function ContactsPage() {
-  const contacts = Route.useLoaderData();
-  const { archiv, rolle } = Route.useSearch();
-  const [query, setQuery] = useState("");
+  const { contacts, matches } = Route.useLoaderData();
+  const { archiv, rolle, suche } = Route.useSearch();
+  const [query, setQuery] = useState(suche ?? "");
+  useEffect(() => {
+    setQuery(suche ?? "");
+  }, [suche]);
   const needle = query.trim().toLowerCase();
-  const shown = needle
-    ? contacts.filter((c) => [c.name, c.kundennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
-    : contacts;
+  const shown =
+    matches && needle === suche?.trim().toLowerCase()
+      ? matches
+      : needle
+        ? contacts.filter((c) => [c.name, c.kundennummer, c.lieferantennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
+        : contacts;
   return (
     <>
       <div className="page-head">
@@ -93,8 +107,7 @@ function ContactsPage() {
               <Link key={contact.id} to="/kontakte/$id" params={{ id: contact.id }} className="table-row contact-cols">
                 <div style={{ minWidth: 0 }}>
                   <span className="row-title">{contact.name}</span>{" "}
-                  {contact.isSupplier && <span className="pill">{contact.isCustomer ? "Kunde und Lieferant" : "Lieferant"}</span>}{" "}
-                  {contact.archivedAt && <span className="pill">archiviert</span>}
+                  {contact.isSupplier && <Tag>{contact.isCustomer ? "Kunde und Lieferant" : "Lieferant"}</Tag>} {contact.archivedAt && <Tag>archiviert</Tag>}
                   {contact.kundennummer && (
                     <span className="small muted mono" style={{ display: "block" }}>
                       {contact.kundennummer}

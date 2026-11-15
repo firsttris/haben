@@ -20,6 +20,7 @@ import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { InvoiceServiceEntries } from "../../../components/InvoiceServiceEntries.tsx";
+import { RechnungVerrechnung } from "../../../components/RechnungVerrechnung.tsx";
 import { SendMailForm } from "../../../components/SendMail.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
@@ -29,6 +30,7 @@ import { legacySource } from "../../../lib/altbestand.ts";
 import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
+import { OutcomeStatus, Status } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/$id")({
   loader: ({ params }) => getInvoiceDetail({ data: params.id }),
@@ -115,6 +117,7 @@ function InvoicePage() {
           numberCounters={data.numberCounters}
           numberRunning={data.numberRunning}
           numberFormat={data.numberFormat}
+          lastFinalized={data.lastFinalized}
           corrects={data.corrects}
           bundesland={data.bundesland}
           kleinunternehmer={data.kleinunternehmer}
@@ -210,7 +213,7 @@ function FinalInvoice({ data }: { data: Detail }) {
             <h1>
               {titleOf(invoice)} {invoice.number}
             </h1>
-            {data.listStatus && <InvoiceStatus status={data.listStatus} />}
+            {data.statusFacts && <InvoiceStatus invoice={data.statusFacts} />}
           </div>
         </div>
         <div className="actions">
@@ -240,6 +243,12 @@ function FinalInvoice({ data }: { data: Detail }) {
             </Link>
             .
           </span>
+        </div>
+      )}
+      {data.leistungsmonat && (
+        <div className="banner banner-warn" role="status">
+          <Icon name="alert" />
+          <span>{data.leistungsmonat}</span>
         </div>
       )}
       <NoticeBanner notice={notice} />
@@ -386,7 +395,7 @@ function FinalInvoice({ data }: { data: Detail }) {
                       </span>
                     )}
                   </span>
-                  <span className={`pill ${m.ok ? "pill-ok" : "pill-danger"}`}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</span>
+                  <OutcomeStatus ok={m.ok}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</OutcomeStatus>
                 </div>
               ))
             ) : (
@@ -461,6 +470,8 @@ function FinalInvoice({ data }: { data: Detail }) {
             <WriteOffs invoiceId={invoice.id} open={data.open} writeOffs={data.writeOffs} today={data.today} />
           )}
 
+          {invoice.status === "final" && invoice.kind !== "storno" && <RechnungVerrechnung invoiceId={invoice.id} readOnly={!inhaber} />}
+
           {correctedBy.length > 0 && (
             <section className="card" aria-labelledby="related-heading">
               <h2 id="related-heading">Korrekturen</h2>
@@ -469,7 +480,15 @@ function FinalInvoice({ data }: { data: Detail }) {
                   <Link to="/rechnungen/$id" params={{ id: c.id }}>
                     {KIND_TITLE[c.kind]} {c.number ?? "(Entwurf)"}
                   </Link>
-                  <span className={`pill ${c.status === "draft" ? "pill-info" : ""}`}>{c.status === "draft" ? "Entwurf" : "festgeschrieben"}</span>
+                  {c.status === "draft" ? (
+                    <Status draft inline>
+                      Entwurf
+                    </Status>
+                  ) : (
+                    <Status tone="ok" inline>
+                      Festgeschrieben
+                    </Status>
+                  )}
                 </div>
               ))}
             </section>

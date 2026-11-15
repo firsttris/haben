@@ -1,7 +1,7 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { contactHistory } from "../modules/auswertungen/index.ts";
+import { contactHistory } from "../modules/archiv/index.ts";
 import { contactSchema, createContact, findContactsByUstId, getContact, listContacts, setContactArchived, updateContact } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
@@ -9,8 +9,8 @@ import { detailId, yearSchema } from "./schemas.ts";
 
 export const getContacts = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.object({ archived: z.boolean().default(false), role: z.enum(["kunde", "lieferant"]).optional() }))
-  .handler(({ data }) => listContacts(data.archived, data.role));
+  .validator(z.object({ archived: z.boolean().default(false), query: z.string().trim().max(100).optional(), role: z.enum(["kunde", "lieferant"]).optional() }))
+  .handler(({ data }) => listContacts(data.archived, data.role, data.query));
 
 /** Hinweis beim Eintippen einer USt-IdNr.: gibt es sie schon bei einem Kontakt, gleich welcher Rolle? */
 export const findContactsByUstIdFn = createServerFn({ method: "GET" })

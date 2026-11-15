@@ -105,11 +105,11 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
         </div>
       )}
       <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {block ? "Speichern" : "Anlegen"}
-        </button>
         <button type="button" className="btn" onClick={() => onDone(null)}>
           Abbrechen
+        </button>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {block ? "Speichern" : "Anlegen"}
         </button>
       </div>
     </form>

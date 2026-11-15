@@ -77,6 +77,8 @@ services:
       OIDC_GROUPS_CLAIM: ${OIDC_GROUPS_CLAIM:-groups}
       OIDC_GROUP_INHABER: ${OIDC_GROUP_INHABER:-}
       OIDC_GROUP_STEUERBERATUNG: ${OIDC_GROUP_STEUERBERATUNG:-}
+      # Nur mit SSO und mehreren Firmen: Adresse des Firmenportals für „Zum Firmenportal“ (statt HABEN_FIRMEN)
+      HABEN_FIRMENPORTAL_URL: ${HABEN_FIRMENPORTAL_URL:-}
       BETTER_AUTH_URL: https://${DOMAIN:?DOMAIN fehlt in .env}
       BETTER_AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET fehlt in .env}
       HABEN_ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY fehlt in .env}
@@ -101,8 +103,10 @@ services:
       LAYOUTS_PACKAGES_URL: ${LAYOUTS_PACKAGES_URL:-}
       ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
       ENABLE_BANKING_KEY_FILE: /run/secrets/enablebanking.pem
+      # Mehrere Firmen: die Instanzen zum Wechseln in der Navigation, „Name|https://adresse“ getrennt durch „;“
+      HABEN_FIRMEN: ${HABEN_FIRMEN:-}
     volumes:
-      # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
+      # Belegdateien: gehören ins Backup; Aufbewahrung: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO)
       - belege:/var/lib/haben/belege
       # Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung
       - eric-log:/var/lib/haben/eric-log

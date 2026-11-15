@@ -5,20 +5,22 @@ import {
   AnnualError,
   annualOverview,
   kapgErklaerungen,
-  kapgErklaerungSchema,
   meinElsterWerte,
-  saveKapgErklaerungAngaben,
   submitAnnual,
   submitKapg,
   vermerkBetrag,
   vermerkFelder,
   vermerkPruefung,
   vermerkeJahresabgabe,
+  speichereErklaerteZeilen,
+  zeilenwerteSchema,
 } from "../modules/jahreserklaerung/index.ts";
+import { zeilenForm } from "../../lib/zeilenwerte.ts";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
 import { estAngabenSchema, saveEstAngaben } from "../modules/jahreserklaerung/index.ts";
+import { kapgErklaerungSchema, saveKapgErklaerungAngaben } from "../modules/koerperschaft/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { reportYears } from "../modules/auswertungen/index.ts";
 import { today } from "../today.ts";
@@ -118,12 +120,13 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
     if (!(data instanceof FormData)) throw new UserError("FormData erwartet");
     const fields = z
       .object({
-        form: z.enum(["ust", "euer"]),
+        form: z.enum(["ust", "euer", "est"]),
         // FormData liefert Text; die Jahresgrenzen prüft yearSchema
         year: z.coerce.number().pipe(yearSchema),
         // Tag, Ticket, Betrag und Begründung prüfen wie das Modul; hier nur die Form des FormData-Felds davor
         ...vermerkFelder,
-        amount: z.coerce.number().int().pipe(vermerkBetrag),
+        // Fehlt das Feld (Einkommensteuer, #1073), liefert FormData null; z.coerce machte daraus 0
+        amount: z.preprocess((wert) => wert ?? undefined, z.coerce.number().int().pipe(vermerkBetrag).optional()),
         // Der Haken kommt als "1" oder "on"; fehlt er, ist die Abweichung nicht bestätigt
         abweichungBestaetigt: z
           .string()
@@ -148,8 +151,29 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
         ...(data.file && bytes ? { file: { bytes } } : {}),
       });
       // Der Vergleich ist nur ein Hinweis: Scheitert er, bleibt der Vermerk trotzdem gespeichert
-      const pruefung = await vermerkPruefung(data.form, data.year, data.amount).catch(() => null);
+      const pruefung = await vermerkPruefung(data.form, data.year, data.amount ?? null).catch(() => null);
       return { ok: true as const, hinweis: pruefung?.hinweis ?? null };
+    } catch (error) {
+      if (error instanceof AnnualError) return { ok: false as const, message: error.message };
+      throw error;
+    }
+  });
+
+/**
+ * Zeilenwerte einer außerhalb von Haben abgegebenen Erklärung erfassen (#997). Die Zeilen gehören zu einem
+ * vorhandenen Vermerk; Feldkennungen prüft das Modul gegen die Liste der jeweiligen Erklärungsart.
+ */
+export const saveAnnualFigures = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: unknown) => {
+    const geprueft = zeilenwerteSchema.extend({ form: zeilenForm, year: yearSchema }).safeParse(data);
+    if (!geprueft.success) throw new UserError(geprueft.error.issues[0]?.message ?? "Angaben unvollständig.");
+    return geprueft.data;
+  })
+  .handler(async ({ data, context }) => {
+    try {
+      const anzahl = await speichereErklaerteZeilen(context.user.id, data.form, data.year, data.zeilen);
+      return { ok: true as const, anzahl };
     } catch (error) {
       if (error instanceof AnnualError) return { ok: false as const, message: error.message };
       throw error;

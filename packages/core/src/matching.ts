@@ -344,9 +344,9 @@ export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, 
   const iban = tx.counterpartyIban?.replace(/\s/g, "").toUpperCase();
   const own = iban ? ownAccounts.find((a) => a.id !== account.id && a.iban === iban) : undefined;
   if (own) {
-    if (own.purpose === "privat" || account.purpose === "privat") {
-      return { kind: "privat", reasons: [`Gegenkonto ist dein Privatkonto ${own.purpose === "privat" ? own.name : account.name}`] };
-    }
+    // Auf dem Privatkonto selbst ist der Übertrag kein Geschäftsvorfall; die Entnahme bucht das andere Konto (#873)
+    if (account.purpose === "privat") return null;
+    if (own.purpose === "privat") return { kind: "privat", reasons: [`Gegenkonto ist dein Privatkonto ${own.name}`] };
     return { kind: "geldtransit", reasons: [`Gegenkonto ist dein Konto ${own.name}`], counterAccountId: own.id };
   }
   // Nur bei erkennbarer Umsatzsteuer: auf dem Steuerkonto liegt oft auch die Rücklage für die Einkommensteuer

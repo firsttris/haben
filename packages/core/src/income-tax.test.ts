@@ -104,6 +104,170 @@ describe("steuerPrognose", () => {
     );
   });
 
+  it("teilt den Höchstbetrag der Altersvorsorge mit der Basisrente (Rürup)", () => {
+    // 20.000 € gesetzliche RV und 10.000 € Rürup: zusammen über dem Höchstbetrag von 29.344 €
+    const einzeln: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: { rentenversicherung: 20_000_00, basisrente: 10_000_00 } } },
+    };
+    expect(steuerPrognose(einzeln).vorsorge).toBe(29_344_00);
+    // Ohne Rürup bleibt Luft im Höchstbetrag
+    expect(steuerPrognose({ ...einzeln, angaben: { ...einzeln.angaben, vorsorge: { a: { rentenversicherung: 20_000_00 } } } }).vorsorge).toBe(20_000_00);
+  });
+
+  it("zählt Wahlleistungen einer privaten KV zur übrigen Vorsorge", () => {
+    const einzeln: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: { pkvWahlleistungen: 1_000_00 } } },
+    };
+    // Über der Basisabsicherung, also im Höchstbetrag der übrigen Vorsorge (2.800 € für Selbständige)
+    expect(steuerPrognose(einzeln).vorsorge).toBe(1_000_00);
+    expect(steuerPrognose({ ...einzeln, angaben: { ...einzeln.angaben, vorsorge: { a: { pkvWahlleistungen: 5_000_00 } } } }).vorsorge).toBe(2_800_00);
+  });
+
+  it("zieht steuerfreie Arbeitgeberzuschüsse von der Basisabsicherung ab", () => {
+    const ohne: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: { pkv: 6_000_00, ppv: 0 } } },
+    };
+    expect(steuerPrognose(ohne).vorsorge).toBe(6_000_00);
+    // Nr. 24 b und 24 c der Lohnsteuerbescheinigung mindern den abzugsfähigen Betrag
+    const mitZuschuss: PrognoseInput = {
+      ...ohne,
+      angaben: {
+        ...ohne.angaben,
+        vorsorge: { a: { pkv: 6_000_00, agZuschussKv: 2_000_00, agZuschussPv: 200_00 } },
+      },
+    };
+    expect(steuerPrognose(mitZuschuss).vorsorge).toBe(3_800_00);
+    // Ein Zuschuss über den Beiträgen macht den Abzug nicht negativ
+    const zuViel: PrognoseInput = {
+      ...ohne,
+      angaben: { ...ohne.angaben, vorsorge: { a: { pkv: 100_00, agZuschussKv: 2_000_00 } } },
+    };
+    expect(steuerPrognose(zuViel).vorsorge).toBe(0);
+  });
+
+  it("zieht den Zuschuss zur gesetzlichen KV (Nr. 24 a) bei freiwillig Versicherten ab (§ 10 Abs. 2 Satz 1 Nr. 1 EStG)", () => {
+    // Selbstzahler: Beiträge in Zeile 16 (gkv), Zuschüsse laut Nr. 24 a und 24 c der Lohnsteuerbescheinigung
+    const ohne: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: { gkv: 4_000_00, gpv: 1_000_00 } } },
+    };
+    expect(steuerPrognose(ohne).vorsorge).toBe(5_000_00);
+    const mitZuschuss: PrognoseInput = {
+      ...ohne,
+      angaben: { ...ohne.angaben, vorsorge: { a: { gkv: 4_000_00, gpv: 1_000_00, agZuschussGkv: 2_000_00, agZuschussPv: 500_00 } } },
+    };
+    expect(steuerPrognose(mitZuschuss).vorsorge).toBe(2_500_00);
+  });
+
+  it("zieht den Zuschuss zur gesetzlichen KV in voller Höhe ab, auch neben Beiträgen mit Krankengeldanteil", () => {
+    // Freiwillig gesetzlich versichert: Beiträge laut Nr. 25 der Bescheinigung, Zuschuss laut Nr. 24 a.
+    // Die 4 % Krankengeldanteil kürzen nur den Beitrag (§ 10 Abs. 1 Nr. 3 Buchst. a EStG), der Zuschuss
+    // mindert die Basisabsicherung vollständig und wird nicht aufgeteilt (§ 10 Abs. 2 Satz 1 Nr. 1 EStG,
+    // BFH 2.9.2014, IX R 43/13).
+    // Die Beiträge liegen über dem Höchstbetrag von 1.900 €, damit nur die Basisabsicherung zählt: Darunter
+    // ergäbe jede Reihenfolge von Kürzung und Zuschuss dieselbe Summe aus Basis und übriger Vorsorge.
+    const bescheinigung = { brutto: 60_000_00, kvArbeitnehmer: 4_000_00, pvArbeitnehmer: 1_000_00 };
+    const ohne: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        arbeitnehmer: { a: { bescheinigungen: [bescheinigung], werbungskosten: {} } },
+      },
+    };
+    // Basis 3.840 € + 1.000 €, der Krankengeldanteil von 160 € fällt unter den Höchstbetrag
+    expect(steuerPrognose(ohne).vorsorge).toBe(4_840_00);
+    const mitZuschuss: PrognoseInput = {
+      ...ohne,
+      angaben: { ...ohne.angaben, vorsorge: { a: { agZuschussGkv: 2_000_00 } } },
+    };
+    // In voller Höhe: 3.840 + 1.000 − 2.000 = 2.840. Zöge man den Zuschuss vor der Kürzung ab oder teilte ihn
+    // 96 : 4 auf, wären es (4.000 − 2.000) × 96 % + 1.000 = 2.920
+    expect(steuerPrognose(mitZuschuss).vorsorge).toBe(2_840_00);
+  });
+
+  it("rechnet Einkommensersatzleistungen über den Progressionsvorbehalt ein", () => {
+    const ohne: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: {} }, ersatzleistungen: undefined },
+    };
+    const p0 = steuerPrognose(ohne);
+    const leistung = 12_000_00;
+    const mit = steuerPrognose({ ...ohne, angaben: { ...ohne.angaben, ersatzleistungen: { a: leistung } } });
+    // Das zu versteuernde Einkommen bleibt gleich, der Steuersatz steigt. Ohne Arbeitslohn mindert der volle
+    // Arbeitnehmer-Pauschbetrag von 1.230 € die Leistungen (§ 32b Abs. 2 Satz 1 Nr. 1 EStG).
+    const vermehrt = leistung - 1_230_00;
+    expect(mit.zvE).toBe(p0.zvE);
+    expect(mit.einkommensteuer).toBe(Math.floor((einkommensteuer(mit.zvE + vermehrt, 2025, false) * mit.zvE) / (mit.zvE + vermehrt)));
+    expect(mit.einkommensteuer).toBeGreaterThan(p0.einkommensteuer);
+  });
+
+  it("zieht den nicht verbrauchten Arbeitnehmer-Pauschbetrag von den Leistungen ab", () => {
+    // Kleiner Arbeitslohn: der Pauschbetrag ist nur bis zum Lohn verbraucht, der Rest mindert die Leistung
+    const mitArbeit: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        arbeitnehmer: { a: { bescheinigungen: [{ brutto: 500_00 }], werbungskosten: {} } },
+        ersatzleistungen: { a: 400_00 },
+      },
+    };
+    const ohneLeistung: PrognoseInput = {
+      ...mitArbeit,
+      angaben: { ...mitArbeit.angaben, ersatzleistungen: undefined },
+    };
+    expect(steuerPrognose(mitArbeit).einkommensteuer).toBe(steuerPrognose(ohneLeistung).einkommensteuer);
+  });
+
+  it("zieht ohne Arbeitslohn den vollen Arbeitnehmer-Pauschbetrag von den Leistungen ab (§ 32b Abs. 2 Satz 1 Nr. 1 EStG)", () => {
+    // Freiberufler mit 10.000 € Elterngeld: in den besonderen Steuersatz gehen 10.000 € − 1.230 € = 8.770 € ein
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      gewinn: 50_000_00,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: {} }, ersatzleistungen: { a: 10_000_00 } },
+    });
+    expect(p.zvE).toBe(50_000_00 - 36_00);
+    expect(p.einkommensteuer).toBe(Math.floor((einkommensteuer(p.zvE + 8_770_00, 2025) * p.zvE) / (p.zvE + 8_770_00)));
+    expect(p.einkommensteuer).toBe(11_844_90);
+  });
+
+  it("rechnet den Arbeitnehmer-Pauschbetrag je Person gegen deren Leistungen", () => {
+    // Person A: 500 € Lohn, keine Leistungen. Person B: kein Lohn, 5.000 € Elterngeld, davon gehen 3.770 € ein.
+    // Der Rest des Pauschbetrags von A mindert die Leistungen von B nicht.
+    const p = steuerPrognose({
+      ...base,
+      year: 2025,
+      gewinn: 60_000_00,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {}, b: {} },
+        arbeitnehmer: { a: { bescheinigungen: [{ brutto: 500_00 }], werbungskosten: {} } },
+        ersatzleistungen: { b: 5_000_00 },
+      },
+    });
+    expect(p.einkommensteuer).toBe(Math.floor((einkommensteuer(p.zvE + 3_770_00, 2025, true) * p.zvE) / (p.zvE + 3_770_00)));
+  });
+
   it("rechnet Arbeitslohn des Ehegatten ein und die Lohnsteuer an", () => {
     const p = steuerPrognose({
       ...base,

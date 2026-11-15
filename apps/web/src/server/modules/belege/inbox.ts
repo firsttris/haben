@@ -7,7 +7,8 @@ import { z } from "zod";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
-import { DocumentError, MAX_DOCUMENT_SIZE, uploadDocument } from "./documents.ts";
+import { DocumentError, uploadDocument } from "./documents.ts";
+import { MAX_MAIL_SIZE } from "../../grenzen.ts";
 
 /**
  * Belege per E-Mail: Haben ruft ein Postfach über IMAP ab, legt die Anhänge ungelesener Mails als
@@ -21,9 +22,6 @@ export const INBOX_ACTOR = "system:belege-mail";
 
 /** Je Lauf höchstens so viele Mails; der Rest folgt beim nächsten Abruf */
 const MAX_MESSAGES = 50;
-
-/** Größere Mails lädt Haben nicht; drei Anhänge an der Belegobergrenze passen trotz Base64 hinein */
-const MAX_MAIL_SIZE = 3 * MAX_DOCUMENT_SIZE;
 
 const IMAP_PRESETS = {
   gmail: { label: "Gmail", host: "imap.gmail.com", port: 993, secure: true },

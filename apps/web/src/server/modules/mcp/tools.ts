@@ -165,6 +165,7 @@ function legacyVoucher(v: LegacyVoucherForVat) {
     steuersaetze: v.taxes.map((t) => ({ satz: t.rate / 100, netto: euro(t.net), steuer: euro(t.tax) })),
     zahlungen: v.payments.map((p) => ({ datum: p.date, betrag: euro(p.amount) })),
     zahlungshistorieHinweis: v.paymentHistoryIssue,
+    buchungskontoHinweis: v.accountingTypeIssue,
     dateien: v.files,
     link: link(`/archiv/beleg/${v.id}`),
   };
@@ -570,8 +571,9 @@ export const MCP_TOOLS: McpTool[] = [
     run: async ({ jahr }, { today }) => {
       const year = jahr ?? Number(today.slice(0, 4)) - 1;
       const overview = await annualOverview(year, today);
-      const issues = (list: { tone: string; text: string; link?: string }[]) =>
-        list.map((i) => ({ art: i.tone, hinweis: i.text, ...(i.link ? { link: link(i.link) } : {}) }));
+      // Mit Zeitraum führt der Link auf den betroffenen Voranmeldungszeitraum statt auf den laufenden (#869)
+      const issues = (list: { tone: string; text: string; link?: string; zeitraum?: string }[]) =>
+        list.map((i) => ({ art: i.tone, hinweis: i.text, ...(i.link ? { link: link(i.zeitraum ? `/umsatzsteuer/${i.zeitraum}` : i.link) } : {}) }));
       const sent = (s: { createdAt: Date } | null) => (s ? { gesendetAm: s.createdAt } : null);
       const p = overview.est.prognose;
       return {
@@ -804,6 +806,7 @@ export const MCP_TOOLS: McpTool[] = [
           steuer: euro(voucher.tax),
           brutto: euro(voucher.gross),
           abgerufen: voucher.createdAt,
+          buchungskontoHinweis: voucher.accountingTypeIssue,
           steuersaetze: voucher.taxes.map((t) => ({ satz: t.rate / 100, netto: euro(t.net), steuer: euro(t.tax) })),
           kategorien: voucher.categories.map((c) => ({ kategorie: c.name, satz: c.rate / 100, netto: euro(c.net), steuer: euro(c.tax) })),
           zahlungsstatus: voucher.payment && {

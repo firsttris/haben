@@ -173,6 +173,10 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
       "2026-03-31",
     );
     await pauschalen.createPauschale(actor, { art: "homeoffice", month: "2026-01", tage: 9, description: "" }, "2026-03-31");
+    // Wege zur Betriebsstätte (#895): ein gebuchter und ein stornierter Eintrag, 15 Tage × 12 km × 0,38 € = 6.840
+    await pauschalen.createPauschale(actor, { art: "entfernung", month: "2026-02", tage: 15, km: 12, betriebsstaette: "Praxisraum" }, "2026-03-31");
+    const storniert = await pauschalen.createPauschale(actor, { art: "entfernung", month: "2026-03", tage: 5, km: 30, betriebsstaette: "Lager" }, "2026-03-31");
+    await pauschalen.reversePauschale(actor, storniert.id);
 
     const txs = await transactions([
       eingang("01.02.26", `RE ${a.number} Teil 1`, "1.000,00"),
@@ -228,6 +232,7 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
       expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
       expect(euer.zeilen.find((z) => z.posten.startsWith("Umsatzsteuer an das Finanzamt"))).toMatchObject({ journal: 123_456, quelle: 123_456 });
       expect(euer.zeilen.filter((z) => z.posten.startsWith("Pauschale")).every((z) => z.journal > 0)).toBe(true);
+      expect(euer.zeilen.find((z) => z.posten === "Pauschale: Wege zwischen Wohnung und Betriebsstätte")).toMatchObject({ journal: 6_840, quelle: 6_840 });
 
       const all = await abgleich.abgleichAll("2026-03-31");
       expect(abgleich.abweichungen(all.zeilen)).toEqual([]);
@@ -321,6 +326,26 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
       expect.objectContaining({ posten: "Bemessungsgrundlage 7 % (Kz 86)", journal: 500_000, quelle: 100_000 }),
     ]);
   }, 60_000);
+
+  // Wege zur Betriebsstätte (#895): das Aufwandskonto je Kontenrahmen (4678, 6688) muss Journal und EÜR gleich füllen
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      it(`Wege zur Betriebsstätte stimmen in Journal und EÜR überein (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        await pauschalen.createPauschale(actor, { art: "entfernung", month: "2026-02", tage: 15, km: 12, betriebsstaette: "Praxisraum" }, "2026-03-31");
+        const storniert = await pauschalen.createPauschale(
+          actor,
+          { art: "entfernung", month: "2026-03", tage: 5, km: 30, betriebsstaette: "Lager" },
+          "2026-03-31",
+        );
+        await pauschalen.reversePauschale(actor, storniert.id);
+
+        const euer = await abgleich.euerAbgleich(2026);
+        expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+        expect(euer.zeilen.find((z) => z.posten === "Pauschale: Wege zwischen Wohnung und Betriebsstätte")).toMatchObject({ journal: 6_840, quelle: 6_840 });
+      });
+    }
+  }
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const versteuerung of ["ist", "soll"] as const) {

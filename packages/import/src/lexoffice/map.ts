@@ -68,7 +68,8 @@ export interface ImportedPayments {
   /** Cent */
   openAmount: number;
   paidDate: string | null;
-  items: { type: string; date: string; amount: number }[];
+  /** account: Konto oder Zahlungsweg, soweit die Quelle ihn nennt */
+  items: { type: string; date: string; amount: number; account?: string | null }[];
 }
 
 // ------------------------------------------------------------ Grundbausteine

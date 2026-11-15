@@ -14,6 +14,7 @@ import {
   runDueRecurring,
   updateRecurring,
 } from "../modules/rechnungen/index.ts";
+import { sevdeskRecurringOrigin } from "../modules/archiv/index.ts";
 import { today } from "../today.ts";
 import { detailId } from "./schemas.ts";
 
@@ -52,7 +53,12 @@ export const getRecurringDetail = createServerFn({ method: "GET" })
     const result = await getRecurring(data);
     if (!result) throw notFound();
     // Vorschau der nächsten Rechnung mit ersetzten Platzhaltern
-    return { ...result, preview: invoiceForDate(result.recurring, result.recurring.nextDate), ...(await formContext()) };
+    return {
+      ...result,
+      preview: invoiceForDate(result.recurring, result.recurring.nextDate),
+      sevdesk: await sevdeskRecurringOrigin(result.recurring.id),
+      ...(await formContext()),
+    };
   });
 
 export const saveRecurring = createServerFn({ method: "POST" })

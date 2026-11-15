@@ -1,5 +1,6 @@
 export { SevdeskClient, SevdeskApiError, SEVDESK_DEFAULT_BASE_URL, type SevdeskClientOptions } from "./client.ts";
 export type {
+  SevAccountingType,
   SevCheckAccount,
   SevCheckAccountTransactionLog,
   SevCommunicationWay,
@@ -29,4 +30,17 @@ export {
   type SevMappedVoucher,
   type SevPaymentItem,
 } from "./map.ts";
+export { mapSevRecurringVoucher, type SevDauerbeleg, type SevDauerbelegErgebnis } from "./dauerbeleg.ts";
 export { SEV_HEAD_RATES, SEV_TEMPORARY_HEAD_RATES } from "./steuersaetze.ts";
+export { isSevDunning, mapSevDunning, type SevMappedDunning } from "./mahnung.ts";
+export * from "./export/index.ts";
+export {
+  mapSevRecurringInvoice,
+  sevBilling,
+  sevIntervalMonths,
+  sevPlaceholders,
+  sevPlainText,
+  type SevBilling,
+  type SevRecurringMapped,
+  type SevRecurringTemplate,
+} from "./vorlagen.ts";

@@ -143,7 +143,7 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme ohne Rechnung (Postgres, #276)", 
     const steuer = { behandlung: "regulaer", steuersatz: 1900 } as const;
     await expect(cash.createCashIncome(actor, { date: "2026-11-28", amount: 50_00, text: "Markt", steuer }, today)).rejects.toThrow(/§ 19 UStG/);
     await cash.createCashIncome(actor, { date: "2026-11-28", amount: 50_00, text: "Markt", steuer: { behandlung: "kleinunternehmer", steuersatz: 0 } }, today);
-    expect(await salden()).toEqual({ "1000": 50_00, "8195": -50_00 });
+    expect(await salden()).toEqual({ "1000": 50_00, "8192": -50_00 });
     const euer = await reports.euerForYear(2026);
     expect(euer.einnahmen.find((l) => l.key === "einnahmenKleinunternehmer")?.amount).toBe(50_00);
     expect((await figures.computeVatFigures({ year: 2026, month: 11 })).kz81).toBe(0);

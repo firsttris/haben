@@ -23,7 +23,19 @@ export const Route = createFileRoute("/_app/konten/$konto")({
   component: KontenblattPage,
 });
 
-function SourceLink({ type, id, reversal }: { type: string; id: string; reversal: boolean }) {
+function SourceLink({
+  type,
+  id,
+  reversal,
+  invoiceId,
+  documentId,
+}: {
+  type: string;
+  id: string;
+  reversal: boolean;
+  invoiceId: string | null;
+  documentId: string | null;
+}) {
   const label = reversal ? "Gegenbuchung" : (JOURNAL_SOURCE[type as keyof typeof JOURNAL_SOURCE] ?? type);
   if (type === "invoice")
     return (
@@ -34,6 +46,19 @@ function SourceLink({ type, id, reversal }: { type: string; id: string; reversal
   if (type === "document")
     return (
       <Link to="/belege/$id" params={{ id }}>
+        {label}
+      </Link>
+    );
+  // Verrechnung mit einer Kundenkorrektur (#877) bzw. zweier Belege (#786): wie im Journal auf den Vorgang, nicht auf die Bank
+  if (type === "verrechnung" && invoiceId)
+    return (
+      <Link to="/rechnungen/$id" params={{ id: invoiceId }}>
+        {label}
+      </Link>
+    );
+  if (type === "verrechnung" && documentId)
+    return (
+      <Link to="/belege/$id" params={{ id: documentId }}>
         {label}
       </Link>
     );
@@ -186,7 +211,7 @@ function KontenblattPage() {
                       ))}
                     </td>
                     <td className="small" data-label="Herkunft">
-                      <SourceLink type={z.sourceType} id={z.sourceId} reversal={z.reversal} />
+                      <SourceLink type={z.sourceType} id={z.sourceId} reversal={z.reversal} invoiceId={z.invoiceId} documentId={z.documentId} />
                     </td>
                     <td className="num" data-label="Soll">
                       {z.soll ? formatEuro(z.soll) : ""}

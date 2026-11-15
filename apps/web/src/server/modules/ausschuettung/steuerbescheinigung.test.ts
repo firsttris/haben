@@ -11,7 +11,7 @@ describe.skipIf(!testDatabaseUrl)("Steuerbescheinigungen (Postgres)", () => {
   let sql: postgres.Sql;
   let a: typeof import("./ausschuettung.ts");
   let s: typeof import("./steuerbescheinigung.ts");
-  let kst: typeof import("../jahreserklaerung/koerperschaft.ts");
+  let kst: typeof import("../koerperschaft/koerperschaft.ts");
   let manual: typeof import("../buchhaltung/manual.ts");
   const actor = "test-user";
   const today = "2026-07-15";
@@ -20,7 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Steuerbescheinigungen (Postgres)", () => {
     sql = await setupTestDb();
     a = await import("./ausschuettung.ts");
     s = await import("./steuerbescheinigung.ts");
-    kst = await import("../jahreserklaerung/koerperschaft.ts");
+    kst = await import("../koerperschaft/koerperschaft.ts");
     manual = await import("../buchhaltung/manual.ts");
   }, 30_000);
 

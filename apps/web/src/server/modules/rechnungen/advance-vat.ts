@@ -1,24 +1,30 @@
-import { advanceVatDifference, invoicePaymentPosting, totalsFromTaxes } from "@haben/core";
+import {
+  advanceBalanceDifference,
+  advanceReportingPosting,
+  advanceUsesPayments,
+  advanceVatDifference,
+  invoicePaymentPosting,
+  totalsFromTaxes,
+} from "@haben/core";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { loadAdvanceVatPlan } from "./advance-vat-plan.ts";
-import { managedAdvance } from "./invoice-tax.ts";
+import { invoiceTaxReader } from "./invoice-tax.ts";
 
 /** Betroffene Anzahlung oder die in einer Schlussrechnung abgezogenen neuen Anzahlungen. */
 async function affectedAdvances(tx: Tx, invoiceId: string) {
   const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoiceId));
   if (!invoice) return [];
-  const original = await managedAdvance(invoice, tx);
-  if (original) return [original];
+  const original = await invoiceTaxReader(tx).original(invoice);
+  // KU hat keine Anzahlungs-USt, benötigt bei GmbH/UG aber denselben Bilanzierungsanschluss.
+  if (original.advanceType === "anzahlung" && original.id) return [{ id: original.id }];
   const referenced = await tx
     .selectDistinct({ invoice: schema.invoices })
     .from(schema.invoiceLines)
     .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.deductionOf))
     .where(and(eq(schema.invoiceLines.invoiceId, invoiceId), eq(schema.invoices.advanceType, "anzahlung")));
-  const result = [];
-  for (const { invoice: advance } of referenced) if (await managedAdvance(advance, tx)) result.push(advance);
-  return result;
+  return referenced.map(({ invoice }) => invoice);
 }
 
 /** Vor dem ersten Audit-Schreibzugriff; Zahlungen und Schlussrechnung rechnen unter derselben Rechnungssperre. */
@@ -58,17 +64,31 @@ export async function withAdvanceVatChange<T>(tx: Tx, invoiceId: string | null, 
   const result = await work();
   for (const [i, original] of originals.entries()) {
     const after = await loadAdvanceVatPlan(original, tx);
-    const changes = advanceVatDifference(before[i]!.changes, after.changes);
-    if (!changes.length) continue;
+    const changes = advanceVatDifference(before[i]!.postingChanges, after.postingChanges);
+    const balanceChanges = advanceBalanceDifference(before[i]!.balanceChanges, after.balanceChanges);
+    if (!changes.length && !balanceChanges.length) continue;
     const books = await openBooks(tx);
     for (const { date, shares } of changes) {
+      const lines = advanceUsesPayments(after.original.taxTreatment)
+        ? invoicePaymentPosting(totalsFromTaxes(shares), 0, books.kontenrahmen, "ist", shares, after.original.taxTreatment)
+        : advanceReportingPosting(shares, books.kontenrahmen, after.original.taxTreatment);
+      if (!lines.length) continue;
       await post(tx, books, {
         date,
-        description: `Umsatzsteuer Anzahlung ${original.number}`,
+        description: `Umsatzsteuer Anzahlung ${after.original.number}`,
         sourceType: "invoice",
         sourceId: original.id,
         // Nur Steuerumbuchung, Bank/Kasse und Forderung bleiben in der normalen Zahlungsbuchung.
-        lines: invoicePaymentPosting(totalsFromTaxes(shares), 0, books.kontenrahmen, "ist", shares, original.taxTreatment),
+        lines,
+      });
+    }
+    for (const { date, lines } of balanceChanges) {
+      await post(tx, books, {
+        date,
+        description: `Bilanzierung Anzahlung ${after.original.number}`,
+        sourceType: "invoice",
+        sourceId: original.id,
+        lines,
       });
     }
   }

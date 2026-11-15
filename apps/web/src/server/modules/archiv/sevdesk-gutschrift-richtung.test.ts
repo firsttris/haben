@@ -103,13 +103,25 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften je Buchungskategorie (Po
     });
   });
 
-  it.each([["UNDERACHIEVEMENT"], ["ACCOUNTING_TYPE"]])("%s bleibt eine Minderung der Einnahmen", async (category) => {
-    const id = await insert(category);
+  it("UNDERACHIEVEMENT bleibt eine Minderung der Einnahmen", async () => {
+    const id = await insert("UNDERACHIEVEMENT");
     const y = await year();
     expect(y.einnahmen).toEqual({ count: 1, net: -10_000, tax: -1_900, gross: -11_900 });
     expect(y.ausgaben).toMatchObject({ count: 0, gross: 0 });
     expect(y.vat[0]).toMatchObject({ kz66: 0, kz81: -10_000, tax81: -1_900 });
     expect((await lexoffice.legacyVoucherDetail(id))!.voucher).toMatchObject({ type: "creditnote", direction: "einnahme", gross: -11_900 });
+  });
+
+  // Die Art folgt dem Kontostamm aus GET /AccountingType (sevdesk-kontoart.test.ts); ohne gespeicherte Antwort ist sie unklar
+  it("ACCOUNTING_TYPE ohne Antwort zum Buchungskonto bleibt negative Einnahme und ist unklar", async () => {
+    const id = await insert("ACCOUNTING_TYPE");
+    const y = await year();
+    expect(y.einnahmen).toEqual({ count: 1, net: -10_000, tax: -1_900, gross: -11_900 });
+    expect(y.vatIssue).toMatch(/Buchungskonto nicht erkannt/);
+    expect(y.vat).toEqual([]);
+    const detail = (await lexoffice.legacyVoucherDetail(id))!.voucher;
+    expect(detail).toMatchObject({ type: "creditnote", direction: "einnahme", gross: -11_900 });
+    expect(detail.accountingTypeIssue).toMatch(/^Buchungskonto nicht erkannt/);
   });
 
   it("nennt im Jahresexport Ausgabe-Gutschrift und positiven Betrag", async () => {

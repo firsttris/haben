@@ -1,0 +1,58 @@
+{
+  "contractVersion": 1,
+  "provider": "enablebanking",
+  "externalAccountId": "beispielbank-konto-1",
+  "idempotencyKey": "abruf-2026-10-31-teil-0",
+  "fetchedAt": "2026-10-31T23:00:00+01:00",
+  "coverage": { "from": "2026-09-28", "to": "2026-10-31" },
+  "part": { "fetchId": "abruf-2026-10-31", "index": 0, "last": true },
+  "movements": [
+    {
+      "sourceEventId": "ER-0999",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-09-30",
+      "valueDate": "2026-09-30",
+      "amount": -2380,
+      "currency": "EUR",
+      "counterpartyName": "Telefon Beispiel GmbH",
+      "purpose": "Rechnung September",
+      "references": { "providerReference": "ER-0999" }
+    },
+    {
+      "sourceEventId": "ER-1001",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-10-02",
+      "amount": -450,
+      "currency": "EUR",
+      "counterpartyName": "Parkhaus Beispiel",
+      "purpose": "Kartenzahlung",
+      "references": { "providerReference": "ER-1001" }
+    },
+    {
+      "sourceEventId": "ER-1002",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-10-02",
+      "amount": -450,
+      "currency": "EUR",
+      "counterpartyName": "Parkhaus Beispiel",
+      "purpose": "Kartenzahlung",
+      "references": { "providerReference": "ER-1002" }
+    },
+    {
+      "sourceEventId": "ER-1003",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-10-21",
+      "amount": 643,
+      "currency": "EUR",
+      "counterpartyName": "eBay",
+      "purpose": "Auszahlung PAYOUT-0001",
+      "references": { "providerReference": "ER-1003", "endToEndId": "PAYOUT-0001" }
+    }
+  ],
+  "balances": [{ "date": "2026-10-31", "amount": 125613, "currency": "EUR" }],
+  "unsupported": [{ "reason": "Gebuchter Umsatz vom 2026-10-27 ohne entry_reference; transaction_id ist kein stabiler Ersatz." }]
+}

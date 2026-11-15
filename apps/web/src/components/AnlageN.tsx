@@ -1,4 +1,5 @@
 import { formatDecimal, parseEuro } from "@haben/core";
+import { Fragment } from "react";
 import type { EstArbeitnehmer, EstLohnsteuerbescheinigung } from "@haben/elster";
 import { Field } from "./Field.tsx";
 
@@ -29,6 +30,7 @@ const WK_BETRAEGE = [
   ["fortbildung", "Fortbildung", undefined],
   ["gewerkschaft", "Gewerkschaft", "ab 2026 zusätzlich zum Pauschbetrag"],
   ["berufsverbaende", "Berufsverbände", undefined],
+  ["arbeitszimmer", "Häusliches Arbeitszimmer", "nur als Mittelpunkt der gesamten Tätigkeit: Kosten oder Pauschale 1.260 €, je Monat ohne 105 € weniger"],
   ["sonstige", "Weitere Werbungskosten", "z. B. Kontoführung pauschal 16 €, Bewerbungen"],
 ] as const;
 
@@ -44,6 +46,8 @@ export type ArbeitnehmerDraft = {
   urlaubstage: string;
   homeofficeTage: string;
   keinAndererArbeitsplatz: boolean;
+  /** Monate, in denen das Arbeitszimmer wenigstens zeitweise der Mittelpunkt der gesamten Tätigkeit war */
+  arbeitszimmerMonate: string;
 } & Record<WkKey, string>;
 
 const centsText = (cents: number | undefined) => (cents ? formatDecimal(cents) : "");
@@ -73,6 +77,7 @@ export function toArbeitnehmerDraft(an: EstArbeitnehmer | undefined): Arbeitnehm
     homeofficeTage: numberText(w.homeofficeTage),
     keinAndererArbeitsplatz: w.keinAndererArbeitsplatz ?? false,
     ...(Object.fromEntries(WK_BETRAEGE.map(([k]) => [k, centsText(w[k])])) as Record<WkKey, string>),
+    arbeitszimmerMonate: w.arbeitszimmerMonate === undefined ? "" : String(w.arbeitszimmerMonate),
   };
 }
 
@@ -88,14 +93,15 @@ export function parseArbeitnehmer(d: ArbeitnehmerDraft, wer: string, bad: string
     }
     return cents || undefined;
   };
-  const whole = (text: string, label: string, max: number) => {
+  // `null0`: eine 0 heißt „nichts“ und wird nicht gespeichert; bei den Monaten des Arbeitszimmers zählt sie
+  const whole = (text: string, label: string, max: number, null0 = true) => {
     if (!text.trim()) return undefined;
     const n = Number(text.replace(",", "."));
     if (!Number.isFinite(n) || n < 0 || n > max) {
       bad.push(`${label} (${wer})`);
       return undefined;
     }
-    return n || undefined;
+    return n || (null0 ? undefined : 0);
   };
   const bescheinigungen = d.bescheinigungen.map((b, i): EstLohnsteuerbescheinigung => {
     const values = Object.fromEntries(BETRAEGE.map(([k, label]) => [k, amount(b[k], `Bescheinigung ${i + 1}: ${label}`)])) as Partial<
@@ -126,6 +132,7 @@ export function parseArbeitnehmer(d: ArbeitnehmerDraft, wer: string, bad: string
       homeofficeTage: whole(d.homeofficeTage, "Homeoffice-Tage", 366),
       keinAndererArbeitsplatz: d.keinAndererArbeitsplatz || undefined,
       ...(Object.fromEntries(WK_BETRAEGE.map(([k, label]) => [k, amount(d[k], label)])) as Partial<Record<WkKey, number>>),
+      arbeitszimmerMonate: whole(d.arbeitszimmerMonate, "Monate als Mittelpunkt", 12, false),
     },
   };
 }
@@ -135,104 +142,163 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
   const setB = (key: number, patch: Partial<BescheinigungDraft>) =>
     set({ bescheinigungen: draft.bescheinigungen.map((b) => (b.key === key ? { ...b, ...patch } : b)) });
 
+  // Summen ueber alle Bescheinigungen: Bei mehreren Arbeitgebern zaehlt das Zusammen,
+  // nicht die erste Zeile.
+  const summe = (feld: "brutto" | "lohnsteuer") => draft.bescheinigungen.reduce((s, b) => s + (parseEuro(b[feld]) ?? 0), 0);
+  const brutto = summe("brutto");
+  const lohnsteuer = summe("lohnsteuer");
+  const zusammenfassung = !draft.aktiv
+    ? "kein Arbeitslohn"
+    : [
+        brutto > 0 && `${formatDecimal(brutto)} € Bruttoarbeitslohn`,
+        lohnsteuer > 0 && `${formatDecimal(lohnsteuer)} € Lohnsteuer`,
+        draft.bescheinigungen.length > 1 && `${draft.bescheinigungen.length} Bescheinigungen`,
+      ]
+        .filter(Boolean)
+        .join(" · ") || "keine Beträge";
+
   return (
-    <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }} aria-label={`Anlage N · ${wer}`}>
-      <legend className="subhead">Arbeitslohn (Anlage N) · {wer}</legend>
-      <label className="checkbox">
-        <input type="checkbox" checked={draft.aktiv} onChange={(e) => set({ aktiv: e.target.checked })} />
-        {wer} hatte Arbeitslohn aus einer Anstellung
-      </label>
-      {draft.aktiv && (
-        <>
-          <p className="small muted" style={{ margin: 0 }}>
-            Die Beträge stehen auf der Lohnsteuerbescheinigung, die der Arbeitgeber schickt; Haben übernimmt die Sozialversicherung in die Anlage
-            Vorsorgeaufwand. Bei mehreren Arbeitgebern je Bescheinigung eine Zeile.
-          </p>
-          {draft.bescheinigungen.map((b, index) => (
-            <div key={b.key} className="form-row cols-2" role="group" aria-label={`Lohnsteuerbescheinigung ${index + 1} · ${wer}`}>
-              <Field label="Steuerklasse">
-                {(control) => (
-                  <select {...control} value={b.steuerklasse} onChange={(e) => setB(b.key, { steuerklasse: e.target.value })}>
-                    {[1, 2, 3, 4, 5, 6].map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Field>
-              {BETRAEGE.map(([k, label]) => (
-                <Field label={label} key={k}>
+    // Der Block trägt den Namen, den die Tests und die Sprachausgabe für die ganze Anlage N kennen (#869)
+    <details className="est-block" aria-label={`Anlage N · ${wer}`}>
+      <summary>
+        <span className="est-block-title">Arbeitslohn (Anlage N) · {wer}</span>
+        <span className="small muted">{zusammenfassung}</span>
+      </summary>
+      <div className="stack" style={{ gap: 12, paddingTop: 12 }}>
+        <label className="checkbox">
+          <input type="checkbox" checked={draft.aktiv} onChange={(e) => set({ aktiv: e.target.checked })} />
+          {wer} hatte Arbeitslohn aus einer Anstellung
+        </label>
+        {draft.aktiv && (
+          <>
+            <p className="small muted" style={{ margin: 0 }}>
+              Die Beträge stehen auf der Lohnsteuerbescheinigung, die der Arbeitgeber schickt; Haben übernimmt die Sozialversicherung in die Anlage
+              Vorsorgeaufwand. Bei mehreren Arbeitgebern je Bescheinigung eine Zeile.
+            </p>
+            {draft.bescheinigungen.map((b, index) => (
+              <details key={b.key} className="est-block">
+                <summary>
+                  <span className="est-block-title">Lohnsteuerbescheinigung{index > 0 ? ` ${index + 1}` : ""}</span>
+                  <span className="small muted">
+                    {[b.brutto && `${b.brutto} € Bruttoarbeitslohn`, b.lohnsteuer && `${b.lohnsteuer} € Lohnsteuer`, `Steuerklasse ${b.steuerklasse}`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </summary>
+                <div className="form-row cols-2" role="group" aria-label={`Lohnsteuerbescheinigung ${index + 1} · ${wer}`}>
+                  <Field label="Steuerklasse">
+                    {(control) => (
+                      <select {...control} value={b.steuerklasse} onChange={(e) => setB(b.key, { steuerklasse: e.target.value })}>
+                        {[1, 2, 3, 4, 5, 6].map((k) => (
+                          <option key={k} value={k}>
+                            {k}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Field>
+                  {BETRAEGE.map(([k, label]) => (
+                    <Field label={label} key={k}>
+                      {(control) => (
+                        <input
+                          {...control}
+                          inputMode="decimal"
+                          value={b[k]}
+                          onChange={(e) => setB(b.key, { [k]: e.target.value })}
+                          placeholder="0,00"
+                          required={k === "brutto"}
+                        />
+                      )}
+                    </Field>
+                  ))}
+                  {draft.bescheinigungen.length > 1 && (
+                    <div className="actions" style={{ gridColumn: "1 / -1" }}>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        onClick={() => set({ bescheinigungen: draft.bescheinigungen.filter((x) => x.key !== b.key) })}
+                      >
+                        Bescheinigung entfernen
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </details>
+            ))}
+            <div>
+              <button type="button" className="btn" onClick={() => set({ bescheinigungen: [...draft.bescheinigungen, emptyBescheinigung()] })}>
+                + Weitere Lohnsteuerbescheinigung
+              </button>
+            </div>
+
+            <details className="est-block">
+              <summary>
+                <span className="est-block-title">Werbungskosten</span>
+                <span className="small muted">
+                  {[draft.tage, draft.km, draft.homeofficeTage, ...WK_BETRAEGE.map(([k]) => draft[k])].some((v) => v.trim())
+                    ? "Angaben eingetragen"
+                    : "nichts eingetragen"}
+                </span>
+              </summary>
+              <div className="form-row cols-2" style={{ marginTop: 8 }} role="group" aria-label={`Werbungskosten · ${wer}`}>
+                <Field label="Erste Tätigkeitsstätte (PLZ, Ort, Straße)" style={{ gridColumn: "1 / -1" }}>
+                  {(control) => <input {...control} value={draft.adresse} onChange={(e) => set({ adresse: e.target.value })} maxLength={200} />}
+                </Field>
+                <Field label="Tage dort">
+                  {(control) => <input {...control} inputMode="numeric" value={draft.tage} onChange={(e) => set({ tage: e.target.value })} />}
+                </Field>
+                <Field label="Einfache Entfernung in km">
+                  {(control) => <input {...control} inputMode="decimal" value={draft.km} onChange={(e) => set({ km: e.target.value })} />}
+                </Field>
+                <Field label="Arbeitstage je Woche">
                   {(control) => (
-                    <input
-                      {...control}
-                      inputMode="decimal"
-                      value={b[k]}
-                      onChange={(e) => setB(b.key, { [k]: e.target.value })}
-                      placeholder="0,00"
-                      required={k === "brutto"}
-                    />
+                    <input {...control} inputMode="numeric" value={draft.arbeitstageJeWoche} onChange={(e) => set({ arbeitstageJeWoche: e.target.value })} />
                   )}
                 </Field>
-              ))}
-              {draft.bescheinigungen.length > 1 && (
-                <div className="actions" style={{ gridColumn: "1 / -1" }}>
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-sm"
-                    onClick={() => set({ bescheinigungen: draft.bescheinigungen.filter((x) => x.key !== b.key) })}
-                  >
-                    Bescheinigung entfernen
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-          <div>
-            <button type="button" className="btn" onClick={() => set({ bescheinigungen: [...draft.bescheinigungen, emptyBescheinigung()] })}>
-              + Weitere Lohnsteuerbescheinigung
-            </button>
-          </div>
-
-          <div className="subhead" aria-hidden="true">
-            Werbungskosten
-          </div>
-          <div className="form-row cols-2" role="group" aria-label={`Werbungskosten · ${wer}`}>
-            <Field label="Erste Tätigkeitsstätte (PLZ, Ort, Straße)" style={{ gridColumn: "1 / -1" }}>
-              {(control) => <input {...control} value={draft.adresse} onChange={(e) => set({ adresse: e.target.value })} maxLength={200} />}
-            </Field>
-            <Field label="Tage dort">
-              {(control) => <input {...control} inputMode="numeric" value={draft.tage} onChange={(e) => set({ tage: e.target.value })} />}
-            </Field>
-            <Field label="Einfache Entfernung in km">
-              {(control) => <input {...control} inputMode="decimal" value={draft.km} onChange={(e) => set({ km: e.target.value })} />}
-            </Field>
-            <Field label="Arbeitstage je Woche">
-              {(control) => (
-                <input {...control} inputMode="numeric" value={draft.arbeitstageJeWoche} onChange={(e) => set({ arbeitstageJeWoche: e.target.value })} />
-              )}
-            </Field>
-            <Field label="Urlaubs- und Krankheitstage">
-              {(control) => <input {...control} inputMode="numeric" value={draft.urlaubstage} onChange={(e) => set({ urlaubstage: e.target.value })} />}
-            </Field>
-            <Field label="Homeoffice-Tage" hint="ohne Fahrt zur Tätigkeitsstätte; 6 € je Tag, höchstens 210 Tage">
-              {(control) => <input {...control} inputMode="numeric" value={draft.homeofficeTage} onChange={(e) => set({ homeofficeTage: e.target.value })} />}
-            </Field>
-            <label className="checkbox" style={{ gridColumn: "1 / -1" }}>
-              <input type="checkbox" checked={draft.keinAndererArbeitsplatz} onChange={(e) => set({ keinAndererArbeitsplatz: e.target.checked })} />
-              Dauerhaft kein anderer Arbeitsplatz
-            </label>
-            {WK_BETRAEGE.map(([k, label, hint]) => (
-              <Field label={label} hint={hint && hint} key={k}>
-                {(control) => <input {...control} inputMode="decimal" value={draft[k]} onChange={(e) => set({ [k]: e.target.value })} placeholder="0,00" />}
-              </Field>
-            ))}
-          </div>
-          <p className="small muted" style={{ margin: 0 }}>
-            Unter 1.230 € Werbungskosten zieht das Finanzamt ohnehin den Arbeitnehmer-Pauschbetrag ab; die Angaben schaden aber nicht.
-          </p>
-        </>
-      )}
-    </fieldset>
+                <Field label="Urlaubs- und Krankheitstage">
+                  {(control) => <input {...control} inputMode="numeric" value={draft.urlaubstage} onChange={(e) => set({ urlaubstage: e.target.value })} />}
+                </Field>
+                <Field label="Homeoffice-Tage" hint="ohne Fahrt zur Tätigkeitsstätte; 6 € je Tag, höchstens 210 Tage">
+                  {(control) => (
+                    <input {...control} inputMode="numeric" value={draft.homeofficeTage} onChange={(e) => set({ homeofficeTage: e.target.value })} />
+                  )}
+                </Field>
+                <label className="checkbox" style={{ gridColumn: "1 / -1" }}>
+                  <input type="checkbox" checked={draft.keinAndererArbeitsplatz} onChange={(e) => set({ keinAndererArbeitsplatz: e.target.checked })} />
+                  Dauerhaft kein anderer Arbeitsplatz
+                </label>
+                {WK_BETRAEGE.map(([k, label, hint]) => (
+                  <Fragment key={k}>
+                    <Field label={label} hint={hint && hint} key={k}>
+                      {(control) => (
+                        <input {...control} inputMode="decimal" value={draft[k]} onChange={(e) => set({ [k]: e.target.value })} placeholder="0,00" />
+                      )}
+                    </Field>
+                    {k === "arbeitszimmer" && (
+                      <Field
+                        label="Monate als Mittelpunkt"
+                        hint="Monate, in denen das Zimmer wenigstens zeitweise der Mittelpunkt war; je vollem Monat ohne 105 € weniger als 1.260 €"
+                      >
+                        {(control) => (
+                          <input
+                            {...control}
+                            inputMode="numeric"
+                            value={draft.arbeitszimmerMonate}
+                            onChange={(e) => set({ arbeitszimmerMonate: e.target.value })}
+                          />
+                        )}
+                      </Field>
+                    )}
+                  </Fragment>
+                ))}
+              </div>
+            </details>
+            <p className="small muted" style={{ margin: 0 }}>
+              Unter 1.230 € Werbungskosten zieht das Finanzamt ohnehin den Arbeitnehmer-Pauschbetrag ab; die Angaben schaden aber nicht.
+            </p>
+          </>
+        )}
+      </div>
+    </details>
   );
 }

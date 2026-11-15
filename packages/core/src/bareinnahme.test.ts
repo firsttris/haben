@@ -3,8 +3,8 @@ import { bareinnahmeAnteil, bareinnahmeFehler, bareinnahmePosting, bareinnahmeTe
 
 describe("Bareinnahme ohne Rechnung (#276)", () => {
   it.each([
-    ["SKR03", { kasse: "1000", erloese19: "8400", ust19: "1776", erloese7: "8300", ust7: "1771", ku: "8195", frei: "8100" }],
-    ["SKR04", { kasse: "1600", erloese19: "4400", ust19: "3806", erloese7: "4300", ust7: "3801", ku: "4185", frei: "4100" }],
+    ["SKR03", { kasse: "1000", erloese19: "8400", ust19: "1776", erloese7: "8300", ust7: "1771", ku: "8192", frei: "8100" }],
+    ["SKR04", { kasse: "1600", erloese19: "4400", ust19: "3806", erloese7: "4300", ust7: "3801", ku: "4184", frei: "4100" }],
   ] as const)("%s: Kasse an Erlöse und fällige Umsatzsteuer, Kleinunternehmer und steuerfrei ohne Steuer", (kr, k) => {
     expect(bareinnahmePosting({ behandlung: "regulaer", steuersatz: 1900 }, 342_50, kr)).toEqual([
       { account: k.kasse, debit: 342_50, credit: 0, taxCode: null },

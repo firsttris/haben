@@ -150,6 +150,35 @@ describe("otherDatevExportName", () => {
     expect(otherDatevExportName(new Uint8Array([0xef, 0xbb, 0xbf, ...gpStamm("1.0")]))).toBe("Debitoren/Kreditoren");
   });
 
+  it("807: ein angeschnittener UTF-8-Umlaut hinter dem Namen ändert dessen Kodierung nicht", () => {
+    const prefix = `"EXTF";700;99;"Überweisungsvorlagen";1;"`;
+    const bytes = file(`${prefix}${"a".repeat(511 - file(prefix).length)}ä"`, "Kopf", "Inhalt");
+    expect([...bytes.subarray(511, 513)]).toEqual([0xc3, 0xa4]);
+    expect(otherDatevExportName(bytes)).toBe("Überweisungsvorlagen");
+  });
+
+  it("807: liest den vollständigen Namen mit Umlaut über Byte 512 hinweg", () => {
+    const prefix = `"EXTF";700;99;"`;
+    const name = `${"a".repeat(511 - file(prefix).length)}Überweisungsvorlagen`;
+    const bytes = file(`${prefix}${name}";1`, "Kopf", "Inhalt");
+    expect([...bytes.subarray(511, 513)]).toEqual([0xc3, 0x9c]);
+    expect(otherDatevExportName(bytes)).toBe(name);
+  });
+
+  const unicodeName = "Überweisungsvorlagen €";
+  const unicodeHeader = `"EXTF";700;99;"${unicodeName}";1\r\nKopf\r\nInhalt\r\n`;
+  const utf8 = file(unicodeHeader);
+  const utf16 = Buffer.from(unicodeHeader, "utf16le");
+  it.each<[string, Uint8Array]>([
+    ["UTF-8 ohne BOM", utf8],
+    ["UTF-8 mit BOM", new Uint8Array([0xef, 0xbb, 0xbf, ...utf8])],
+    ["UTF-16 LE mit BOM", new Uint8Array([0xff, 0xfe, ...utf16])],
+    ["UTF-16 BE mit BOM", new Uint8Array([0xfe, 0xff, ...Buffer.from(utf16).swap16()])],
+    ["Windows-1252", new Uint8Array([...file(`"EXTF";700;99;"`), 0xdc, ...file("berweisungsvorlagen "), 0x80, ...file(`";1\r\nKopf\r\nInhalt\r\n`)])],
+  ])("807: erhält Exportnamen in %s", (_encoding, bytes) => {
+    expect(otherDatevExportName(bytes)).toBe(unicodeName);
+  });
+
   it("gibt beim Buchungsstapel null zurück, auch wenn er beschädigt ist", () => {
     expect(otherDatevExportName(file(HEADER, COLUMNS))).toBeNull();
     expect(otherDatevExportName(file(HEADER))).toBeNull();

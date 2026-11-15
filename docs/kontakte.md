@@ -7,7 +7,7 @@ description: >-
 
 # Kontakte
 
-Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt ein gemeinsames Verzeichnis für Kunden und Lieferanten: Eine Firma, bei der du einkaufst und der du auch Rechnungen schreibst, steht nur einmal drin. **Alle**, **Kunden** und **Lieferanten** über der Liste filtern nach Rolle. Das Suchfeld filtert nach Name, Kundennummer, E-Mail, Telefon und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein.
+Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt ein gemeinsames Verzeichnis für Kunden und Lieferanten: Eine Firma, bei der du einkaufst und der du auch Rechnungen schreibst, steht nur einmal drin. **Alle**, **Kunden** und **Lieferanten** über der Liste filtern nach Rolle. Das Suchfeld filtert nach Name, Kunden- und Lieferantennummer, E-Mail, Telefon, PLZ und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein. Kontakte findest du auch von jeder Seite aus mit der [Schnellsuche](suche.md).
 
 | Feld | Hinweis |
 | --- | --- |
@@ -41,7 +41,7 @@ Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine ode
 
 **Versionen.** Jede Änderung erhöht die Versionsnummer, der vorige Stand bleibt als Version erhalten. Die Detailseite listet alle Versionen mit Zeitpunkt.
 
-**Aus einer Liste übernehmen.** **CSV importieren** über der Liste übernimmt Kunden und Lieferanten aus einer CSV-Datei, etwa dem Kontakt-Export von Lexware Office, mit Vorschau und ohne Dubletten ([CSV-Import](csv-import.md#kontakte)).
+**Aus einer Liste übernehmen.** **CSV importieren** über der Liste übernimmt Kunden und Lieferanten aus einer CSV-Datei, etwa dem Kontakt-Export von Lexware Office, mit Vorschau und ohne Dubletten ([CSV-Import](csv-import.md#kontakte)), auch Debitoren und Kreditoren aus einem DATEV-Export ([Kontakte aus DATEV](csv-import.md#kontakte-aus-datev)).
 
 **Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
 

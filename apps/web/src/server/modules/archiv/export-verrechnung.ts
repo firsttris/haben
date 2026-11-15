@@ -4,8 +4,8 @@ import { db, schema } from "../../db/index.ts";
 /*
  * Verrechnungen zweier Eingangsbelege (#274): Eine Gutschrift gleicht eine Rechnung ohne Zahlung aus. Je Verrechnung
  * stehen zwei Zeilen (negativ beim Beleg, positiv bei der Gutschrift), eine Aufhebung ist eine Gegenzeile mit dem Datum
- * der Aufhebung. Wie die Verrechnungen von Umsätzen (bank/verrechnungen.csv) haben sie keinen Bankumsatz und keine
- * Buchung; ohne eigene Datei wäre der Vorgang im Archiv nicht nachvollziehbar.
+ * der Aufhebung. Sie haben keinen Bankumsatz; gebucht wird je Belegseite gegen das Verrechnungskonto (#786), und ohne
+ * eigene Datei wäre der Vorgang, der beide offenen Posten zugleich verändert, im Archiv nicht nachvollziehbar.
  */
 
 export const VERRECHNUNGEN_HEADER = ["Datum", "Beleg", "Gegenbeleg", "Betrag", "Notiz", "Hebt auf", "Angelegt", "Beleg-ID", "Gegenbeleg-ID", "Verrechnungs-ID"];
@@ -73,5 +73,61 @@ export async function verrechnungenFuerArchiv(documentPaths: ReadonlyMap<string,
     s.documentId,
     s.counterDocumentId,
     s.id,
+  ]);
+}
+
+export const RECHNUNGSVERRECHNUNGEN_HEADER = [
+  "Datum",
+  "Rechnung",
+  "Gegenbeleg",
+  "Betrag",
+  "Notiz",
+  "Hebt auf",
+  "Paar",
+  "Angelegt",
+  "Rechnungs-ID",
+  "Gegenbeleg-ID",
+];
+
+/**
+ * Zeilen für `rechnungen/verrechnungen.csv` eines Jahres, in der Reihenfolge Datum, Anlage, ID; `null`, wenn es keine
+ * Verrechnung gibt. Sie stehen in `invoice_settlements`, haben wie die Belegverrechnung keinen Bankumsatz und wären im
+ * Archiv sonst nicht nachvollziehbar. Die Rechnungsnummern kommen aus dem Rechnungsabschnitt; eine Rechnung aus einem
+ * anderen Jahr steht dort nicht und wird hier nachgeschlagen, sonst steht ihre ID.
+ */
+export async function rechnungsVerrechnungenFuerArchiv(
+  invoiceNumbers: ReadonlyMap<string, string | null>,
+  umgebung: VerrechnungsUmgebung,
+): Promise<(string | null)[][] | null> {
+  const settlements = await db
+    .select()
+    .from(schema.invoiceSettlements)
+    .where(and(gte(schema.invoiceSettlements.date, umgebung.von), lte(schema.invoiceSettlements.date, umgebung.bis)))
+    .orderBy(asc(schema.invoiceSettlements.date), asc(schema.invoiceSettlements.createdAt), asc(schema.invoiceSettlements.id));
+  if (settlements.length === 0) return null;
+
+  const numbers = new Map<string, string | null>(invoiceNumbers);
+  const fehlend = [...new Set(settlements.flatMap((s) => [s.invoiceId, s.counterInvoiceId]))].filter((id) => !numbers.has(id));
+  if (fehlend.length > 0) {
+    for (const row of await db
+      .select({ id: schema.invoices.id, number: schema.invoices.number })
+      .from(schema.invoices)
+      .where(inArray(schema.invoices.id, fehlend))) {
+      numbers.set(row.id, row.number);
+    }
+  }
+  const nummer = (id: string) => numbers.get(id) ?? id;
+
+  return settlements.map((s) => [
+    s.date,
+    nummer(s.invoiceId),
+    nummer(s.counterInvoiceId),
+    umgebung.money(s.amount),
+    s.note,
+    s.reversesId,
+    s.settlementId,
+    umgebung.iso(s.createdAt),
+    s.invoiceId,
+    s.counterInvoiceId,
   ]);
 }

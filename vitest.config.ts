@@ -9,7 +9,7 @@ export default defineConfig({
   // @tanstack/react-router) bricht im Test mit dispatcher.useContext ab.
   plugins: [redact()],
   test: {
-    include: ["{apps,packages}/*/src/**/*.test.ts", "scripts/**/*.test.ts"],
+    include: ["{apps,packages}/*/src/**/*.test.ts", "scripts/**/*.test.ts", "deploy/**/*.test.ts"],
     // Die Testdateien laufen parallel; jeder Worker hat eine eigene Datenbank, geklont aus einer einmal migrierten Vorlage
     globalSetup: ["apps/web/src/server/test-db.ts"],
     // ERiC emuliert über ERIC_WORKER_COMMAND (arm64): Ein Aufruf dauert rund 25 statt einer Sekunde. Eigene Limits

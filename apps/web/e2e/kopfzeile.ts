@@ -19,6 +19,14 @@ export function kopfUnterkante(p: Page): Promise<number> {
   return p.locator(".main > .page-head").evaluate((head) => head.getBoundingClientRect().bottom);
 }
 
+/** Oberkante der Aktionsleiste; am Laptop ist sie ausgeblendet und verdeckt nichts */
+export function leisteOberkante(p: Page): Promise<number> {
+  return p.locator(".main > .action-bar").evaluate((bar) => {
+    const box = bar.getBoundingClientRect();
+    return box.height > 0 ? box.top : Number.MAX_SAFE_INTEGER;
+  });
+}
+
 /** Ganz im Fenster und von nichts verdeckt: In der Mitte des Elements liegt das Element selbst */
 export async function sichtbar(element: Locator): Promise<void> {
   await expect(element).toBeInViewport({ ratio: 1 });
@@ -46,7 +54,7 @@ export async function statusBleibtSichtbar(p: Page, path: string): Promise<void>
     await expect(head.getByRole("heading", { level: 1 })).toBeVisible();
     await zumEnde(p);
     await sichtbar(head.getByRole("heading", { level: 1 }));
-    await sichtbar(head.locator(".pill").first());
+    await sichtbar(head.locator(".status").first());
   } finally {
     if (vorher) await p.setViewportSize(vorher);
   }

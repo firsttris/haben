@@ -5,6 +5,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
+import { latestFastbillImport } from "./fastbill.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 import { runAccountableImport } from "./accountable-import.ts";
 import { AccountableError, type AccountableAnalysis, cancelled, MAX_ACCOUNTABLE_SIZE, running, stageExport, stagedExport } from "./accountable-state.ts";
@@ -127,6 +128,7 @@ export async function startAccountableImport(actor: string, options: { wait?: bo
   // Der eindeutige Index gilt über alle Quellen: verwaiste Läufe anderer Quellen als abgebrochen markieren
   await latestImport();
   await latestSevdeskImport();
+  await latestFastbillImport();
   await latestAccountableImport();
   const progress: LexofficeImportProgress = {
     phase: "belege",

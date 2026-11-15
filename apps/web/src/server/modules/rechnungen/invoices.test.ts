@@ -198,6 +198,9 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
 
     const list = await invoices.listInvoices("2026-10-05");
     expect(list.find((i) => i.id === original.id)?.listStatus).toBe("storniert");
+    // Auskunft unter dem Status: welches Storno aufhebt, welche Rechnung das Storno betrifft
+    expect(list.find((i) => i.id === original.id)).toMatchObject({ cancelledBy: storno.number, correctsNumber: null, settledOn: null });
+    expect(list.find((i) => i.id === storno.id)).toMatchObject({ listStatus: "storno", correctsNumber: original.number, cancelledBy: null });
     await expect(invoices.cancelInvoice(actor, original.id, "2026-10-05")).rejects.toThrow(/bereits storniert/);
 
     const [balance] = await sql`select sum(debit) - sum(credit) as diff,

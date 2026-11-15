@@ -43,6 +43,7 @@ export function DocumentSplits({
   onChange,
   onDissolve,
   taxLabel = "Vorsteuer",
+  error = () => undefined,
 }: {
   rows: SplitRowState[];
   /** Beträge des Belegs je Satz in Euro; null, solange ein Betrag oben nicht lesbar ist */
@@ -55,6 +56,8 @@ export function DocumentSplits({
   onChange: (rows: SplitRowState[]) => void;
   /** Aufteilung aufheben: wieder eine Kategorie für den ganzen Beleg */
   onDissolve: () => void;
+  /** Fehler je Zeile aus der Prüfung beim Buchen (useSubmitCheck), erst danach zu sehen */
+  error?: (feld: "kategorie" | "netto", key: number) => string | undefined;
   /** Steuer je Zeile: Vorsteuer, bei § 13b (#508) die selbst geschuldete Steuer */
   taxLabel?: string;
 }) {
@@ -76,7 +79,7 @@ export function DocumentSplits({
       </p>
       {rows.map((row, index) => (
         <div className="document-split-row" key={row.key}>
-          <Field label="Kategorie">
+          <Field label="Kategorie" error={error("kategorie", row.key)}>
             {(control) => (
               <select
                 {...control}
@@ -87,7 +90,6 @@ export function DocumentSplits({
                     ownAccountId: passendesKonto(ownAccounts, e.target.value, row.ownAccountId),
                   })
                 }
-                aria-invalid={row.category === ""}
               >
                 <option value="">Bitte wählen</option>
                 {options.map((c) => (
@@ -107,7 +109,7 @@ export function DocumentSplits({
               </select>
             )}
           </Field>
-          <Field label="Netto" hint={`${taxLabel} ${allocated ? formatDecimal(allocated[index]!.tax) : "–"}`}>
+          <Field label="Netto" hint={`${taxLabel} ${allocated ? formatDecimal(allocated[index]!.tax) : "–"}`} error={error("netto", row.key)}>
             {(control) => (
               <input
                 {...control}
@@ -116,7 +118,6 @@ export function DocumentSplits({
                 value={row.net}
                 placeholder="0,00"
                 onChange={(e) => update(row.key, { net: e.target.value })}
-                aria-invalid={parsed[index] === null}
               />
             )}
           </Field>

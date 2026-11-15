@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { purposeContainsNumber } from "./matching.ts";
 import {
   counterCircle,
+  issueDateBeforeLastFinalized,
   DEFAULT_CUSTOMER_NUMBER_FORMAT,
   DEFAULT_INVOICE_NUMBER_FORMAT,
   DEFAULT_QUOTE_NUMBER_FORMAT,
@@ -88,5 +89,29 @@ describe("counterCircle", () => {
     expect(counterCircle(false, "2027-01-01")).toBe(2027);
     expect(counterCircle(true, "2026-12-31")).toBe(0);
     expect(counterCircle(true, "2027-01-01")).toBe(0);
+  });
+});
+
+describe("issueDateBeforeLastFinalized", () => {
+  const byCircle = {
+    2026: { number: "RE-2026-0004", issueDate: "2026-11-09" },
+    2027: { number: "RE-2027-0001", issueDate: "2027-01-10" },
+  };
+
+  it("meldet nur, wenn das Datum vor der letzten festgeschriebenen Rechnung desselben Kreises liegt (#713)", () => {
+    expect(issueDateBeforeLastFinalized({}, false, "2026-10-01")).toBeNull();
+    expect(issueDateBeforeLastFinalized(byCircle, false, "2026-11-09")).toBeNull();
+    expect(issueDateBeforeLastFinalized(byCircle, false, "2026-11-10")).toBeNull();
+    expect(issueDateBeforeLastFinalized(byCircle, false, "2026-10-01")).toEqual(byCircle[2026]);
+    expect(issueDateBeforeLastFinalized(byCircle, false, "2025-12-15")).toBeNull();
+    expect(issueDateBeforeLastFinalized(byCircle, false, "2027-01-05")).toEqual(byCircle[2027]);
+  });
+
+  it("folgt beim durchlaufenden Zähler dem Kreis 0 und vor dessen erster Rechnung dem jüngsten Jahr", () => {
+    expect(issueDateBeforeLastFinalized(byCircle, true, "2027-01-05")).toEqual(byCircle[2027]);
+    expect(issueDateBeforeLastFinalized(byCircle, true, "2027-01-10")).toBeNull();
+    const withRunning = { ...byCircle, 0: { number: "RE-0006", issueDate: "2027-02-01" } };
+    expect(issueDateBeforeLastFinalized(withRunning, true, "2027-01-15")).toEqual(withRunning[0]);
+    expect(issueDateBeforeLastFinalized(withRunning, true, "2027-02-01")).toBeNull();
   });
 });

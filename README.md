@@ -16,6 +16,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 [![Release](https://img.shields.io/github/v/release/firsttris/haben?logo=github&label=release)](https://github.com/firsttris/haben/releases/latest)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
 [![Doku](https://img.shields.io/badge/Doku-haben.app-4f46e5?logo=zensical&logoColor=white)](https://haben.app/)
+[![Discord](https://img.shields.io/badge/Discord-Fragen%20%26%20Austausch-5865f2?logo=discord&logoColor=white)](https://discord.gg/CT2GQytSYH)
 [![E-Rechnung](https://img.shields.io/badge/E--Rechnung-ZUGFeRD%20%7C%20XRechnung-1f6f5c)](https://haben.app/rechnungen.html)
 [![ELSTER](https://img.shields.io/badge/ELSTER-ERiC-1f6f5c)](https://haben.app/umsatzsteuer.html)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -48,16 +49,14 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 > (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation-backup.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
-## Warum Haben?
+## Haben ist, was dir gehört.
 
-In der Buchhaltung gibt es Soll und Haben. Haben ist, was dir gehört.
+**Digitale Souveränität fängt mit deinen eigenen Büchern an.** 🇩🇪 🇪🇺
 
 Rechnungen schreiben, Belege sammeln, Konto abgleichen, Voranmeldung schicken: Dafür braucht es kein Abo bei
 Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der jede Rechnung sieht. Haben ist die
 Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder Podman
 auf deinem eigenen Server betreibst.
-
-**🇩🇪 Open Source made in Germany**
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
 - **Nachprüfbar statt „vertrau uns“**: Beim Umzug rechnet Haben deine alten Jahre nach, zum Vergleich mit deinen
@@ -68,9 +67,6 @@ auf deinem eigenen Server betreibst.
 - **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office oder sevDesk übernehmen, DATEV-Export archivieren
 - **Für Freiberufler und Kleingewerbe**: Einnahmen-Überschuss-Rechnung (EÜR), Ist- oder Soll-Versteuerung,
   Kleinunternehmerregelung nach § 19 UStG, Kontenrahmen SKR03 oder SKR04
-- **Für GmbH und UG**: Bilanz und GuV, E-Bilanz, Körperschaft- und Gewerbesteuer, Gewinnausschüttung mit
-  Kapitalertragsteuer-Anmeldung und Steuerbescheinigung für die Gesellschafter, Pflichtangaben nach § 35a GmbHG auf
-  Rechnungen und Geschäftsbriefen, siehe [GmbH und UG](https://haben.app/gmbh.html)
 
 ## Funktionen
 
@@ -93,7 +89,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 | 🖥️ [Anlagen und AfA](https://haben.app/anlagen.html) | Anlagenverzeichnis, lineare und degressive AfA, GWG und Sammelposten |
 | 📊 [Auswertungen](https://haben.app/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
 | 📚 [Buchhaltung](https://haben.app/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export |
-| 📦 [Umzug aus Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) · [BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html) · [Accountable](https://haben.app/accountable.html) · [JSON-Paket](https://haben.app/belegimport.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen, mit Abgleich je Jahr |
+| 📦 [Umzug aus Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) · [FastBill](https://haben.app/fastbill.html) · [BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html) · [Accountable](https://haben.app/accountable.html) · [JSON-Paket](https://haben.app/belegimport.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen, mit Abgleich je Jahr |
 | 🔐 [Anmeldung](https://haben.app/einrichtung.html#konto-anlegen) · [App](https://haben.app/einrichtung.html#als-app-installieren) | Passkey oder ausschließlich OpenID Connect mit Rollen aus Gruppen, Lesezugang für die [Steuerberatung](https://haben.app/steuerberatung.html), installierbar als App auf Handy und Desktop, helles und dunkles Theme |
 | 📥 [CSV-Import](https://haben.app/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, mit Spaltenzuordnung und Vorschau |
 | 🔌 [REST-API](https://haben.app/api.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich |
@@ -120,7 +116,7 @@ Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), 
 tägliches Backup mit restic.
 Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
 denn Passkeys funktionieren nur über HTTPS.
-Vorlagen gibt es für [Synology](https://haben.app/synology.html) und [TrueNAS](https://haben.app/truenas.html) (beide ohne Kommandozeile), [Unraid](https://haben.app/unraid.html) und [Coolify](https://haben.app/coolify.html).
+Vorlagen gibt es für [Synology](https://haben.app/synology.html) und [TrueNAS](https://haben.app/truenas.html) (beide ohne Kommandozeile), [Unraid](https://haben.app/unraid.html) und [Coolify](https://haben.app/coolify.html), ein Helm-Chart für [Kubernetes](https://haben.app/kubernetes.html).
 
 ### 1. Von einem Agenten aufsetzen lassen
 
@@ -223,7 +219,7 @@ es nicht. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
 Direkt aus Haben oder über das Portal Mein ELSTER ([alle Wege im Vergleich](https://haben.app/elster-abgabe.html)):
 - **Direkt aus Haben** per ERiC, für Voranmeldung, Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer, dazu Bescheide
   aus dem ELSTER-Postfach. Dafür brauchst du eine eigene Hersteller-ID; die Beantragung dauert Tage bis Wochen
-  ([Erste Schritte](https://haben.app/einrichtung.html#elster-einrichten)).
+  ([ELSTER einrichten](https://haben.app/einrichtung-elster.html)).
 - **Über Mein ELSTER**, ohne Hersteller-ID: Die Voranmeldung lädst du als XML-Datei hoch. Alle vier Formulare trägt
   die Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html)
   ein, oder ein [KI-Assistent](https://haben.app/elster-mit-assistent.html) wie Claude in Chrome.
@@ -277,25 +273,21 @@ Wir prüfen automatisiert, und du kannst es auch: Der Code ist offen. Ein unabh�
 <details>
 <summary><b>Wird Haben mit KI entwickelt?</b></summary>
 
-Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft:
-
-- **Fehlerklassen ausgeschlossen:** Beträge nur in ganzen Cent, Festschreibung per Datenbank-Trigger, die auch fehlerhafter Code nicht umgehen kann.
-- **Tests für jede Änderung:** Vitest, Postgres und Playwright; ein Bugfix beginnt mit einem Test, der fehlschlägt. E-Rechnungen prüft der KoSIT-Validator in der CI.
-- **Regeln als Skript:** Modulgrenzen, Dateigröße und die Regeln für Pull Requests prüft die CI, nicht nur der Text.
-- **Review mit Beweis:** Ein zweiter, unabhängiger Agent reviewt jeden Pull Request und darf einen Fehler nur melden, wenn ein Test ihn rot zeigt. Gemergt wird von einem Menschen.
-
-Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist eine Steuerregel falsch verstanden, sind Code und Test gemeinsam falsch. Siehe [Leitplanken für Agenten](https://haben.app/mitwirken.html#leitplanken-für-agenten).
+Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft: Jede Änderung bringt Tests mit, frische Agenten
+reviewen sie und melden nur, was ein fehlschlagender Test belegt, und gemergt wird von einem Menschen. Die fachliche
+Prüfung durch eine Steuerberatung ersetzt das nicht. Wie das abläuft, an einem echten Beispiel:
+[Agentic Engineering bei Haben](https://haben.app/agentic-engineering.html).
 </details>
 
 ## Dokumentation
 
 Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
-- **Einstieg:** [Installation](https://haben.app/installation.html) (Docker Compose, Podman, Synology, TrueNAS, Unraid, Coolify), [Backup und Updates](https://haben.app/installation-backup.html),
-  [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten, ELSTER und Hersteller-ID) und
+- **Einstieg:** [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten),
+  [ELSTER einrichten](https://haben.app/einrichtung-elster.html) (Zertifikat und Hersteller-ID) und
   [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
-- **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
-  [Architektur](https://haben.app/architektur.html) · [Entwicklung](https://haben.app/entwicklung.html) und [Roadmap](https://haben.app/roadmap.html)
+- **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen) und [Buchungssätze](https://haben.app/buchhaltung-buchungssaetze.html),
+  [Architektur](https://haben.app/architektur.html) · [Agentic Engineering](https://haben.app/agentic-engineering.html) und [Roadmap](https://haben.app/roadmap.html)
 
 ## Entwicklung
 
@@ -312,13 +304,7 @@ Oder ohne Bun und PostgreSQL auf dem Rechner, mit Docker: `docker compose up` im
 Migrationen und Dev-Server mit Neuladen beim Speichern
 ([Mit Docker Compose](https://haben.app/entwicklung.html#mit-docker-compose)).
 
-Ohne ERiC (unter Einstellungen per Knopf von der Finanzverwaltung geladen) simuliert Haben die ELSTER-Übermittlung
-und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` (OpenAI-kompatibler Dienst wie Ollama oder OpenRouter) bleibt die KI-Auslesung aus.
-
-**Stack**: TanStack Start (React-API mit TanStack Redact, Server Functions), PostgreSQL mit Drizzle, Better Auth mit Passkeys oder OIDC-SSO, Zod, Typst für
-die Rechnungs-PDFs, ZUGFeRD und XRechnung ohne Bibliothek (mit `pdf-lib` für das Hybrid-PDF), ERiC über `koffi` in einem eigenen Prozess,
-Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.html), alles Weitere
-[Entwicklung](https://haben.app/entwicklung.html).
+Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.html), alles Weitere [Entwicklung](https://haben.app/entwicklung.html).
 
 | Paket | Inhalt |
 |---|---|
@@ -326,6 +312,7 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 | `packages/core` | Beträge, Zeiträume, Voranmeldung, EÜR, Buchungssätze, Zuordnungsvorschläge |
 | `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
 | `packages/elster` | ERiC-Anbindung im Worker-Prozess, XML für Voranmeldung, Jahreserklärungen und Nachrichten, Postfach, Belege von ELSTER |
+| `packages/gobd-kern` | Unveränderbare Ablage nach GoBD ohne Bezug auf Haben: Dateispeicher unter SHA-256, Dateityp, Prüfwert, `index.xml` nach dem Beschreibungsstandard |
 | `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, Commerzbank, C24, N26, Swan, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite): trägt die Werte aus Haben in die Formulare ein |
 
@@ -336,10 +323,8 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 
 ## Mitwirken
 
-Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und meldet sich im Issue ([Etwas übernehmen](https://haben.app/mitwirken.html#etwas-übernehmen)). Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
-kennt, und Rückmeldungen zur ELSTER-Übermittlung. Ein Pull Request bringt seine Selbstprüfung (`beitrag-pruefen`) und ein
-unabhängiges Review mit (`tdd-review` für Code, `doku-pruefen` für Markdown). Was vor einem Pull Request laufen muss und was er
-enthält, steht unter [Mitwirken](https://haben.app/mitwirken.html).
+Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und kommentiert im Issue `/übernehmen`. Wie es dann bis zum Merge weitergeht, zeigt [Agentic Engineering bei Haben](https://haben.app/agentic-engineering.html).
+Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirken](https://haben.app/mitwirken.html). Programmieren musst du dafür nicht: Wissen zu Steuern und Buchhaltung hilft genauso.
 
 ## Sterne im Verlauf
 
@@ -355,7 +340,7 @@ enthält, steht unter [Mitwirken](https://haben.app/mitwirken.html).
 <div align="center">
 
 ⭐ Gefällt dir Haben? Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.<br>
-🐛 [Fehler melden](https://github.com/firsttris/haben/issues/new) · 💡 [Idee vorschlagen](https://github.com/firsttris/haben/issues/new)
+🐛 [Fehler melden](https://github.com/firsttris/haben/issues/new) · 💡 [Idee vorschlagen](https://github.com/firsttris/haben/issues/new) · 💬 [Discord](https://discord.gg/CT2GQytSYH)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
 Wer Haben für andere betreibt, muss ihnen den Quellcode anbieten; der Link steht in der Navigation. Eine kommerzielle Lizenz ohne diese Pflichten gibt es über <a href="https://teufel-it.de">teufel-it.de</a>.<br>

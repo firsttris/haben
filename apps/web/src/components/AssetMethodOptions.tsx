@@ -27,6 +27,8 @@ export function AssetMethodOptions({
   onMemo,
   locked,
   switchEditable,
+  rateError,
+  linearFromError,
 }: {
   method: AssetMethod;
   acquisitionDate: string;
@@ -39,16 +41,17 @@ export function AssetMethodOptions({
   onMemo: (value: boolean) => void;
   locked: boolean;
   switchEditable: boolean;
+  /** Fehler aus der Prüfung beim Speichern (useSubmitCheck) */
+  rateError?: string | undefined;
+  linearFromError?: string | undefined;
 }) {
   const max = acquisitionDate && lifeMonths ? maxDegressiveRate(acquisitionDate, lifeMonths) : null;
-  const parsedRate = parseRatePercent(rate);
-  const rateInvalid = Number.isNaN(parsedRate) || (parsedRate !== null && max !== null && parsedRate > max);
   return (
     <>
       {method === "degressiv" && (
         <>
           <div className="form-row cols-2">
-            <Field label="Satz der degressiven AfA in %" describedBy="rate-hint">
+            <Field label="Satz der degressiven AfA in %" describedBy="rate-hint" error={rateError}>
               {(control) => (
                 <input
                   {...control}
@@ -57,11 +60,10 @@ export function AssetMethodOptions({
                   placeholder={max ? ratePercentText(max) : ""}
                   onChange={(e) => onRate(e.target.value)}
                   disabled={locked}
-                  aria-invalid={rateInvalid}
                 />
               )}
             </Field>
-            <Field label="Linear ab Jahr (optional)" describedBy="rate-hint">
+            <Field label="Linear ab Jahr (optional)" describedBy="rate-hint" error={linearFromError}>
               {(control) => (
                 <input {...control} inputMode="numeric" value={linearFrom} onChange={(e) => onLinearFrom(e.target.value)} disabled={!switchEditable} />
               )}

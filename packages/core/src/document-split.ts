@@ -13,6 +13,7 @@ import {
   type Kontenrahmen,
   type PostingLine,
   type TaxCode,
+  vatRate,
 } from "./posting.ts";
 import type { Rechtsform } from "./rechtsform.ts";
 
@@ -122,8 +123,14 @@ export function documentSplitPosting(
   payment: DocumentPayment,
   vorsteuerAbzug = true,
   reverseCharge: ReverseChargeIn | null = null,
+  /** Gutschrift erstattet bereits Bezahltes (#786): Vorsteuerminderung erst mit dem Ausgleich, bis dahin Zwischenkonto */
+  erstattetBezahltes = false,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
+  if (erstattetBezahltes) {
+    if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
+    if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
+  }
   if (reverseCharge && !(reverseCharge in REVERSE_CHARGE_IN)) throw new RangeError(`${reverseCharge} mit Aufteilung wird nicht unterstützt`);
   const rcCode = reverseCharge ? REVERSE_CHARGE_IN[reverseCharge].code : null;
   if (rcCode && totals.taxes.some((t) => t.rate !== 1900 && t.rate !== 700)) throw new RangeError("§ 13b: Steuersatz muss 19 % oder 7 % sein");
@@ -147,11 +154,14 @@ export function documentSplitPosting(
   const result: PostingLine[] = [...expenses.values()].map((e) => side(e.account, e.amount, true, e.code));
   for (const { rate, tax } of totals.taxes) {
     if (tax === 0) continue;
-    if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
+    const satz = vatRate(rate);
     if (rcCode) {
       if (vorsteuerAbzug) result.push(side(accounts.vorsteuerRc, tax, true, "VSt13b"));
       result.push(side(accounts.ustRc, tax, false, rcCode));
-    } else if (vorsteuerAbzug) result.push(side(accounts.vorsteuer[rate], tax, true, inputTaxCode(rate)));
+    } else if (vorsteuerAbzug) {
+      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[satz];
+      result.push(side(konto, tax, true, inputTaxCode(satz)));
+    }
   }
   const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
   result.push(side(counter, totals.gross, false, null));

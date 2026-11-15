@@ -1,8 +1,9 @@
-import type { z } from "zod";
+import { z } from "zod";
 import { parseContentDispositionFilename } from "../lexoffice/client.ts";
 import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
 import {
   listSchema,
+  sevAccountingTypeSchema,
   sevBookkeepingVersionSchema,
   sevCheckAccountSchema,
   sevCheckAccountTransactionLogSchema,
@@ -11,6 +12,7 @@ import {
   sevContactSchema,
   sevCreditNoteSchema,
   sevDocumentPosSchema,
+  sevDocumentSchema,
   type sevFileBodySchema,
   sevFileResponseSchema,
   sevInvoiceSchema,
@@ -18,12 +20,14 @@ import {
   sevRelatedObjectsResponseSchema,
   sevVoucherPosSchema,
   sevVoucherSchema,
+  type SevAccountingType,
   type SevCheckAccount,
   type SevCheckAccountTransactionLog,
   type SevCommunicationWay,
   type SevContact,
   type SevContactAddress,
   type SevCreditNote,
+  type SevDocument,
   type SevDocumentPos,
   type SevFile,
   type SevInvoice,
@@ -130,12 +134,35 @@ export class SevdeskClient {
     return this.#pages("/Invoice", {}, sevInvoiceSchema);
   }
 
+  /** Mahnungen; die Liste ohne Filter enthält sie nicht (test-fixtures/sevdesk, Buchhaltungsversion 1.0). */
+  dunnings(): AsyncGenerator<SevInvoice> {
+    return this.#pages("/Invoice", { invoiceType: "MA" }, sevInvoiceSchema);
+  }
+
+  /** Vorlagen wiederkehrender Rechnungen; ohne den Filter invoiceType=WKR fehlen sie in GET /Invoice (Version 1.0 belegt). */
+  recurringInvoices(): AsyncGenerator<SevInvoice> {
+    return this.#pages("/Invoice", { invoiceType: "WKR" }, sevInvoiceSchema);
+  }
+
   creditNotes(): AsyncGenerator<SevCreditNote> {
     return this.#pages("/CreditNote", {}, sevCreditNoteSchema);
   }
 
   vouchers(): AsyncGenerator<SevVoucher> {
     return this.#pages("/Voucher", {}, sevVoucherSchema);
+  }
+
+  /** Vorlagen wiederkehrender Belege; die Liste ohne Filter enthält sie in Version 1.0 auch, mit Filter sicher nur sie. */
+  recurringVouchers(): AsyncGenerator<SevVoucher> {
+    return this.#pages("/Voucher", { voucherType: "RV" }, sevVoucherSchema);
+  }
+
+  /** Ein Beleg, auch eine Vorlage wiederkehrender Belege (RV); sevDesk liefert ihn als Liste mit einem Eintrag. */
+  async voucher(voucherId: string): Promise<SevVoucher> {
+    const path = `/Voucher/${enc(voucherId)}`;
+    const data = await this.#json(path, {}, listSchema(sevVoucherSchema));
+    if (data.objects.length !== 1 || String(data.objects[0]!.id) !== voucherId) throw new SevdeskApiError("Beleg nicht eindeutig gefunden.", 200, path);
+    return data.objects[0]!;
   }
 
   /**
@@ -148,6 +175,15 @@ export class SevdeskClient {
 
   checkAccountTransactionLogs(): AsyncGenerator<SevCheckAccountTransactionLog> {
     return this.#pages("/CheckAccountTransactionLog", { embed: "checkAccountTransaction" }, sevCheckAccountTransactionLogSchema);
+  }
+
+  /** Kontostamm eines Buchungskontos; sevDesk liefert ihn als Liste mit einem Eintrag oder als einzelnes Objekt. */
+  async accountingType(accountingTypeId: string): Promise<SevAccountingType> {
+    const path = `/AccountingType/${enc(accountingTypeId)}`;
+    const data = await this.#json(path, {}, z.looseObject({ objects: z.union([z.array(sevAccountingTypeSchema), sevAccountingTypeSchema]) }));
+    const objects = Array.isArray(data.objects) ? data.objects : [data.objects];
+    if (objects.length !== 1 || String(objects[0]!.id) !== accountingTypeId) throw new SevdeskApiError("Buchungskonto nicht eindeutig gefunden.", 200, path);
+    return objects[0]!;
   }
 
   orders(): AsyncGenerator<SevOrder> {
@@ -219,6 +255,15 @@ export class SevdeskClient {
     }
     if (!xml.trimStart().startsWith("<")) return null;
     return { bytes: new TextEncoder().encode(xml), mimeType: "application/xml", filename: null };
+  }
+
+  /** Angaben zu einer Datei ohne ihren Inhalt; sevDesk liefert sie als Liste mit einem Eintrag oder als Objekt. */
+  async documentInfo(documentId: string): Promise<SevDocument> {
+    const path = `/Document/${enc(documentId)}`;
+    const data = await this.#json(path, {}, z.looseObject({ objects: z.union([z.array(sevDocumentSchema), sevDocumentSchema]) }));
+    const objects = Array.isArray(data.objects) ? data.objects : [data.objects];
+    if (objects.length !== 1 || String(objects[0]!.id) !== documentId) throw new SevdeskApiError("Datei nicht eindeutig gefunden.", 200, path);
+    return objects[0]!;
   }
 
   /** Datei eines Belegs (Document); null, wenn sevDesk sie nicht herausgibt (404). */
