@@ -149,6 +149,29 @@ function Issues({ issues }: { issues: Issue[] }) {
 }
 
 /**
+ * Die zwei Schlusszeilen der Umsatzsteuererklärung. Mit Vermerk stehen dort die erklärten Beträge (#1076), weil
+ * Habens eigene Rechnung die Veranlagung nicht kennt und in einem Jahr ohne Buchungen das Vorzeichen umkehrt.
+ */
+function UstSummen({ anzeige }: { anzeige: { vorauszahlungen: number; abschluss: number; ausVermerk: { vorauszahlungen: boolean; abschluss: boolean } } }) {
+  const zusatz = (ausVermerk: boolean) => (ausVermerk ? " laut Vermerk" : "");
+  return (
+    <>
+      <Row
+        label={`Vorauszahlungssoll (gesendete Voranmeldungen)${zusatz(anzeige.ausVermerk.vorauszahlungen)}`}
+        extra=""
+        value={formatDeduction(anzeige.vorauszahlungen)}
+      />
+      <Row
+        label={`${anzeige.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"}${zusatz(anzeige.ausVermerk.abschluss)}`}
+        extra=""
+        value={formatEuro(anzeige.abschluss)}
+        total
+      />
+    </>
+  );
+}
+
+/**
  * Zeile einer Betragstabelle; kz = Feldkennung, extra = Zusatzspalte (Bemessungsgrundlage),
  * text = Wert ist Text statt Betrag. Die data-label beschriften die Werte, wenn die Tabelle auf dem Handy gestapelt ist.
  */
@@ -295,8 +318,7 @@ function UstSection({ data }: { data: Data }) {
               {(f.kz62 ?? 0) !== 0 && <Row label="Entstandene Einfuhrumsatzsteuer" kz="62" extra="" value={formatDeduction(f.kz62!)} />}
               {(f.kz67 ?? 0) !== 0 && <Row label="Vorsteuer aus §-13b-Leistungen" kz="67" extra="" value={formatDeduction(f.kz67!)} />}
               <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
-              <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatDeduction(f.vorauszahlungen)} />
-              <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(ust.abschluss)} total />
+              <UstSummen anzeige={ust.anzeige} />
             </tbody>
           </table>
           <p className="small muted" style={{ margin: 0 }}>

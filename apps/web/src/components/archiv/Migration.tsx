@@ -32,7 +32,7 @@ import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
-import { FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
+import { FastbillArticles, FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
 import { Status } from "../Status.tsx";
 
@@ -200,6 +200,7 @@ export function Migration({ data }: { data: MigrationData }) {
             initial={lastImport}
           />
           {source === "fastbill" && <FastbillReceipts receipts={data.fastbillReceipts} running={data.fastbillImport?.status === "laeuft"} />}
+          {source === "fastbill" && data.fastbillConnection && <FastbillArticles />}
         </>
       )}
       <OpenItems

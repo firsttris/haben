@@ -37,6 +37,17 @@ describe("Arbeitslohn", () => {
     expect(arbeitslohnErgebnis(2025, { bescheinigungen: [{ brutto: 500_00 }], werbungskosten: {} }).einkuenfte).toBe(0);
   });
 
+  it("rechnet die Jahrespauschale des Arbeitszimmers zeitanteilig (#940)", async () => {
+    const { arbeitszimmerPauschale } = await import("./arbeitnehmer.ts");
+    // 1.260 EUR im Jahr, je vollem Monat ohne die Voraussetzung 105 EUR weniger (§ 4 Abs. 5 Satz 1 Nr. 6b EStG)
+    expect(arbeitszimmerPauschale(12)).toBe(126_000);
+    expect(arbeitszimmerPauschale(6)).toBe(63_000);
+    expect(arbeitszimmerPauschale(1)).toBe(10_500);
+    expect(arbeitszimmerPauschale(0)).toBe(0);
+    // Mehr als zwölf Monate gibt es nicht
+    expect(arbeitszimmerPauschale(18)).toBe(126_000);
+  });
+
   it("zählt das häusliche Arbeitszimmer zu den Werbungskosten", () => {
     // Jahrespauschale 1.260 € (§ 4 Abs. 5 Satz 1 Nr. 6b Satz 3 i. V. m. § 9 Abs. 5 EStG) plus 300 € Arbeitsmittel
     const r = arbeitslohnErgebnis(2025, { bescheinigungen: [{ brutto: 40_000_00 }], werbungskosten: { arbeitszimmer: 1_260_00, arbeitsmittel: 300_00 } });

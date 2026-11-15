@@ -4,12 +4,14 @@ import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
 import { describeIssues, errorTexts, listOf } from "./antwort.ts";
 import { unwrapFormUpload } from "./huelle.ts";
 import {
+  type FbArticle,
   type FbContact,
   type FbCustomer,
   type FbEnvelope,
   type FbExpense,
   type FbFile,
   type FbInvoice,
+  fbArticleSchema,
   fbContactSchema,
   fbCustomerSchema,
   fbEnvelopeSchema,
@@ -161,6 +163,11 @@ export class FastbillClient {
 
   expenses(filter: Record<string, string> = {}): AsyncGenerator<FbExpense> {
     return this.#pages("expense.get", "EXPENSES", filter, fbExpenseSchema, "INVOICE_ID");
+  }
+
+  /** Artikelkatalog; die Doku nennt den Namen der Liste nicht, listOf nimmt sonst die einzige Liste der Antwort */
+  articles(): AsyncGenerator<FbArticle> {
+    return this.#pages("article.get", "ARTICLES", {}, fbArticleSchema, "ARTICLE_ID");
   }
 
   /**

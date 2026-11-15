@@ -80,6 +80,16 @@ Belege, die das Skript nicht laden konnte, stehen in der ZIP-Datei und nach dem 
 
 Buchungen, Bankumsätze, Voranmeldungen und Anlagen holst du wie beim Abruf über die API aus den Exporten (Schritt 4).
 
+### Darf ich das?
+
+Ja, nach unserer Einschätzung, ohne Gewähr und ohne Rechtsberatung: Du holst deine eigenen Daten mit deiner eigenen Anmeldung, das Skript umgeht keinen Schutz und ändert nichts. Dafür sprechen:
+
+- **EU Data Act** ([Verordnung (EU) 2023/2854](https://eur-lex.europa.eu/eli/reg/2023/2854/oj), Art. 23 ff., seit 12. September 2025): Anbieter von Cloud- und Software-Diensten dürfen den Wechsel zu einem anderen Dienst und die Mitnahme deiner Daten nicht behindern.
+- **Datenübertragbarkeit** ([Art. 20 DSGVO](https://eur-lex.europa.eu/eli/reg/2016/679/oj)), soweit die Daten dich als Person betreffen, etwa als Einzelunternehmer.
+- **Aufbewahrungspflicht** ([§ 147 AO](https://www.gesetze-im-internet.de/ao_1977/__147.html)): Du musst Rechnungen, Belege und Buchungen zehn Jahre vorlegen können, auch nach der Kündigung.
+
+Lies trotzdem die AGB deines Anbieters; sie gelten zwischen dir und ihm. Haben gehört nicht zu Lexware oder FastBill und wird von ihnen weder unterstützt noch geprüft. Lexware, Lexoffice und FastBill sind Marken ihrer Inhaber.
+
 ### Was die Web-Oberfläche anders liefert
 
 Die Endpunkte der Web-Oberfläche sind nicht dokumentiert. Haben liest sie so, wie Lexware Office sie im November 2026 lieferte, und rechnet sie in die Form der Public API um:

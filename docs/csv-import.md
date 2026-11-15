@@ -126,6 +126,8 @@ Die Namen folgen der [Mustervorlage für Produkte und Services](https://help.lex
 
 Stehen Netto- und Bruttopreis da, wie im Export von Lexware Office, gilt der Nettopreis, und der Bruttopreis muss auf einen Cent genau dazu passen. Sonst wäre unklar, welcher stimmt, und Haben übernimmt die Zeile nicht.
 
+Artikel aus FastBill holt Haben ohne Datei über die API, siehe [Umzug aus FastBill](fastbill.md#artikel).
+
 ## Anlagen
 
 Der Import ist eine [Übernahme aus der bisherigen Buchhaltung](anlagen.md#übernahme-aus-lexoffice) für viele Anlagen auf einmal, mit denselben Regeln wie **Anlage übernehmen**. Den **Übernahmestichtag** wählst du für die ganze Datei, in der Regel den 01.01. des ersten Jahres, das du in Haben buchst.
