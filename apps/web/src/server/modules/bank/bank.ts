@@ -2,7 +2,6 @@ import { insertAllocation, insertWriteOff } from "./settlement-store.ts";
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
-  parseEuroSearchRange,
   ACCOUNTS,
   paymentProviderAccount,
   providerPattern,
@@ -53,7 +52,7 @@ import {
   type TaxShare,
 } from "@haben/core";
 import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
-import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
@@ -88,7 +87,7 @@ import { quellenHinweis } from "./quellen.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
 import { belegTotals, vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
-import { amountInEitherSign } from "../../../lib/search.ts";
+import { bankTransactionMatch } from "./search.ts";
 
 export class BankError extends UserError {}
 
@@ -372,26 +371,20 @@ export const UMSATZ_LISTENLIMIT = 500;
 
 /** Höchstens 500 Umsätze, sortiert vor der Grenze (umsatzliste.ts); ohne Sortierung der neueste oben */
 export async function listTransactions(
-  accountId: string,
+  accountIds: string | readonly string[],
   filter: TransactionFilter,
   search: string,
   sortierung: UmsatzSortierung = STANDARD_SORTIERUNG,
   offset?: number,
 ) {
-  const conditions = [eq(schema.bankTransactions.bankAccountId, accountId)];
+  // Mehrere Konten in „Alle Konten“ der Bankseite, wohin „Alle anzeigen“ der Schnellsuche führt (#617)
+  const conditions = [inArray(schema.bankTransactions.bankAccountId, typeof accountIds === "string" ? [accountIds] : [...accountIds])];
   if (filter === "offen") conditions.push(sql`${openAmountSql} <> 0`);
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
   if (search.trim()) {
-    const term = `%${search.trim()}%`;
-    // Betrag auch wie in der Schnellsuche („1.190,00“, „1190 €“), deren „Alle anzeigen“ hierher führt (#617)
-    const range = parseEuroSearchRange(search);
+    // Wie die Schnellsuche, dazu der Betrag als Text („19.9“ findet 19,90 €)
     conditions.push(
-      or(
-        ilike(schema.bankTransactions.counterpartyName, term),
-        ilike(schema.bankTransactions.purpose, term),
-        sql`(${schema.bankTransactions.amount}::numeric / 100)::text like ${`%${search.trim().replace(",", ".")}%`}`,
-        ...(range !== null ? [amountInEitherSign(schema.bankTransactions.amount, range)] : []),
-      )!,
+      or(bankTransactionMatch(search), sql`(${schema.bankTransactions.amount}::numeric / 100)::text like ${`%${search.trim().replace(",", ".")}%`}`)!,
     );
   }
   const order = umsatzReihenfolge(sortierung);
@@ -400,6 +393,7 @@ export async function listTransactions(
   return db
     .select({
       id: schema.bankTransactions.id,
+      bankAccountId: schema.bankTransactions.bankAccountId,
       bookingDate: schema.bankTransactions.bookingDate,
       amount: schema.bankTransactions.amount,
       counterpartyName: schema.bankTransactions.counterpartyName,

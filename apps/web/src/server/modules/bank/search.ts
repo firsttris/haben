@@ -31,13 +31,28 @@ function transactionHint(tx: { neutralized: boolean; open: number; amount: numbe
   return tx.amount < 0 ? "belegFehlt" : "offen";
 }
 
-/** Bankumsätze für die Befehlspalette (#617): Gegenseite, Verwendungszweck, IBAN-Ende, Betrag (±) und Datum */
-function bankTransactionsPart(query: string, limit: number) {
+/**
+ * Suche in Bankumsätzen (#617): Gegenseite, Verwendungszweck, IBAN (ab vier Ziffern nur das Ende), Betrag mit beiden
+ * Vorzeichen und Datum. Schnellsuche und Umsatzliste nutzen dieselbe Bedingung, damit „Alle anzeigen“ dieselben Treffer zeigt.
+ */
+export function bankTransactionMatch(query: string) {
   const bt = schema.bankTransactions;
   const pattern = likePattern(query);
   const range = parseEuroSearchRange(query);
   const queryDate = parseDateSearch(query);
   const ibanTail = /^\d{4,}$/.test(query.trim()) ? `%${query.trim()}` : null;
+  return or(
+    unaccentIlike(bt.counterpartyName, pattern),
+    unaccentIlike(bt.purpose, pattern),
+    ibanTail ? unaccentIlike(bt.counterpartyIban, ibanTail) : unaccentIlike(bt.counterpartyIban, pattern),
+    ...(range !== null ? [amountInEitherSign(bt.amount, range)] : []),
+    ...(queryDate !== null ? [eq(bt.bookingDate, queryDate)] : []),
+  )!;
+}
+
+/** Bankumsätze für die Befehlspalette (#617) */
+function bankTransactionsPart(query: string, limit: number) {
+  const bt = schema.bankTransactions;
   return searchPart(
     {
       id: bt.id,
@@ -61,13 +76,7 @@ function bankTransactionsPart(query: string, limit: number) {
           and(
             // Ein ausgeschlossenes Konto (#462) fehlt wie im Bankabgleich
             isNull(schema.bankAccounts.excludedAt),
-            or(
-              unaccentIlike(bt.counterpartyName, pattern),
-              unaccentIlike(bt.purpose, pattern),
-              ibanTail ? unaccentIlike(bt.counterpartyIban, ibanTail) : unaccentIlike(bt.counterpartyIban, pattern),
-              ...(range !== null ? [amountInEitherSign(bt.amount, range)] : []),
-              ...(queryDate !== null ? [eq(bt.bookingDate, queryDate)] : []),
-            ),
+            bankTransactionMatch(query),
           ),
         )
         .orderBy(desc(bt.bookingDate), desc(bt.createdAt))

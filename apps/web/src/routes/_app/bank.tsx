@@ -59,7 +59,8 @@ import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
 
 const searchSchema = z.object({
-  konto: z.optional(z.uuid()),
+  /** Ein Konto oder „alle“ (#617) */
+  konto: z.optional(z.union([z.uuid(), z.literal("alle")])),
   filter: z.optional(z.enum(["offen", "zugeordnet", "alle", "vorschlag"])),
   suche: z.optional(z.string()),
   umsatz: z.optional(z.uuid()),
@@ -218,7 +219,10 @@ function BankPage() {
   const selectedId = data.detail?.transaction.id;
   const index = data.transactions.findIndex((t) => t.id === selectedId);
   const selectedAccount = data.accounts.find((a) => a.id === data.accountId);
-  const openCount = selectedAccount?.openCount ?? 0;
+  // „Alle Konten“ zeigt die Umsätze aller Konten, etwa für „Alle anzeigen“ der Schnellsuche (#617)
+  const konto = data.allAccounts ? ("alle" as const) : (data.accountId ?? undefined);
+  const openCount = data.allAccounts ? data.accounts.reduce((sum, a) => sum + a.openCount, 0) : (selectedAccount?.openCount ?? 0);
+  const accountName = new Map(data.accounts.map((a) => [a.id, a.name]));
 
   // J/K springen zum nächsten bzw. vorigen Umsatz
   useEffect(() => {
@@ -261,6 +265,12 @@ function BankPage() {
       ) : (
         <>
           <nav className="account-tabs" aria-label="Konten">
+            {data.accounts.length > 1 && (
+              <Link to="/bank" search={{ konto: "alle", filter }} aria-current={data.allAccounts ? "page" : undefined} className="account-tab">
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Alle Konten</span>
+                <span className="small muted">{data.accounts.length} Konten</span>
+              </Link>
+            )}
             {data.accounts.map((account) => {
               const age = account.lastImport ? -daysUntil(account.lastImport.createdAt) : null;
               return (
@@ -302,7 +312,7 @@ function BankPage() {
                     <Link
                       key={f}
                       to="/bank"
-                      search={{ konto: data.accountId ?? undefined, filter: f, suche: search.suche, sort: search.sort, dir: search.dir }}
+                      search={{ konto, filter: f, suche: search.suche, sort: search.sort, dir: search.dir }}
                       className={`chip${filter === f ? " active" : ""}`}
                       aria-current={filter === f ? "page" : undefined}
                     >
@@ -311,7 +321,7 @@ function BankPage() {
                   ))}
                 </div>
                 {/* key: beim Kontowechsel leer neu aufsetzen, sonst trägt die Suche ins neue Konto */}
-                <SearchBox key={data.accountId ?? ""} initial={search.suche ?? ""} />
+                <SearchBox key={konto ?? ""} initial={search.suche ?? ""} />
               </div>
               <BankSortierKopf sort={sortierung} dir={richtung} />
               {data.transactions.length === 0 && (
@@ -334,7 +344,9 @@ function BankPage() {
                     <span className="ellipsis" style={{ fontWeight: 500 }}>
                       {tx.counterpartyName || "–"}
                     </span>
-                    <span className="small muted ellipsis">{tx.purpose}</span>
+                    <span className="small muted ellipsis">
+                      {data.allAccounts ? [accountName.get(tx.bankAccountId), tx.purpose].filter(Boolean).join(" · ") : tx.purpose}
+                    </span>
                   </div>
                   <div className="num" style={{ color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
                     {tx.amount > 0 ? "+" : "−"}

@@ -24,13 +24,12 @@ function bookingTarget(sourceType: string, sourceId: string): { to: string; para
 function buildBankAndLedgerSections(remote: CommandPaletteResult, inhaber: boolean): PaletteSection[] {
   const sections: PaletteSection[] = [];
   if (inhaber && remote.bankTransactions.hits.length > 0) {
-    // „Alle anzeigen“ nur, wenn alle Treffer in einem Konto liegen: die Bankseite sucht je Konto
-    const konten = new Set(remote.bankTransactions.hits.map((tx) => tx.bankAccountId));
-    const [konto] = konten;
     sections.push({
       id: "bank",
       label: "Bankumsätze",
-      ...(konten.size === 1 && konto ? { to: "/bank" as const, moreSearch: { konto, filter: "alle" } } : {}),
+      // Über alle Konten: auch wenn die ersten Treffer in einem liegen, können weitere in anderen stehen
+      to: "/bank",
+      moreSearch: { konto: "alle", filter: "alle" },
       items: remote.bankTransactions.hits.map((tx) => ({
         id: `bank-${tx.id}`,
         kind: "link",
