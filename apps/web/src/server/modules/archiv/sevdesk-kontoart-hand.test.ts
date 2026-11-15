@@ -220,4 +220,17 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschrift auf Buchungskonto: Kontoar
     await expect(kontoart.decideAccountingType(ACTOR, known, "erloes")).rejects.toThrow("Die Kontoart steht schon im Kontostamm aus sevDesk fest.");
     expect(await sql`select 1 from sevdesk_accounting_type_decisions`).toHaveLength(0);
   });
+
+  it("liest Kontostamm und Entscheidung je Ausdruck nur einmal", async () => {
+    // Der Abgleich setzt die Kontoart sieben Mal je Beleg ein (Richtung, Art, Beträge, Steuer, unklar). Las jeder Ausdruck
+    // die beiden Tabellen mehrfach, stieg die Kostenschätzung über die Schwellen des JIT von Postgres: Übersetzen dauerte
+    // mit 1000 Belegen über 7 s statt unter 0,5 s bei einer Ausführung von wenigen Millisekunden.
+    const { PgDialect } = await import("drizzle-orm/pg-core");
+    const { accountingTypeExpense, accountingTypeUnclear } = await import("./sevdesk-kontoart.ts");
+    const unclear = new PgDialect().sqlToQuery(accountingTypeUnclear("v")).sql;
+    const [row] = await sql.unsafe(`explain (format json) select ${unclear} as u, ${accountingTypeExpense("v")} as e from lexoffice_vouchers v`);
+    const relations = JSON.stringify(row!["QUERY PLAN"]).match(/"Relation Name":"sevdesk_accounting_type[^"]*"/g) ?? [];
+    const count = (name: string) => relations.filter((r) => r === `"Relation Name":"${name}"`).length;
+    expect({ stamm: count("sevdesk_accounting_types"), hand: count("sevdesk_accounting_type_decisions") }).toEqual({ stamm: 2, hand: 2 });
+  });
 });
