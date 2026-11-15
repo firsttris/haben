@@ -1,4 +1,5 @@
 import {
+  ACCOUNTS,
   abziehbareSteuer,
   documentWriteOffPosting,
   gespeicherterAnteil,
@@ -50,12 +51,17 @@ async function skontoVorsteuer(
   amount: number,
 ): Promise<TaxShare[] | null> {
   if (doc.vorsteuerAnteil === null) return null;
+  // Auch frühere Skonti vor einem Kontenrahmenwechsel bleiben in der kumulierten Berichtigung enthalten.
+  const konten = [...new Set(Object.values(ACCOUNTS).flatMap((a) => Object.values(a.vorsteuer)))];
   const [stand] = await tx.execute<{ amount: number }>(sql`
     select coalesce(sum(amount),0)::int as amount from write_offs where document_id=${doc.id} and kind='skontoErhalten'`);
   const bisher = await tx.execute<{ tax_code: string; tax: number }>(sql`
     select l.tax_code, sum(l.credit-l.debit)::int as tax from journal_lines l join journal_entries e on e.id=l.entry_id
     join write_offs w on w.id=e.source_id where e.source_type='ausbuchung' and w.document_id=${doc.id}
-    and w.kind='skontoErhalten' and l.account in ('1576','1571','1406','1401') group by l.tax_code`);
+    and w.kind='skontoErhalten' and l.account in (${sql.join(
+      konten.map((konto) => sql`${konto}`),
+      sql`, `,
+    )}) group by l.tax_code`);
   return paidTaxShares(totals, -(Number(stand?.amount ?? 0) + amount)).map((s) => ({
     ...s,
     tax:

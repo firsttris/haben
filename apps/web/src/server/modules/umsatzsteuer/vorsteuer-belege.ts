@@ -1,4 +1,4 @@
-import { abziehbareSteuer, gespeicherterAnteil, paidTaxShares, periodRange, splitPrivateShare, type Cents, type VatPeriod } from "@haben/core";
+import { ACCOUNTS, abziehbareSteuer, gespeicherterAnteil, paidTaxShares, periodRange, splitPrivateShare, type Cents, type VatPeriod } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { gutschriftAnteile } from "./gutschrift.ts";
@@ -138,6 +138,7 @@ async function skontoVorsteuerAnteile(period: VatPeriod, q: Db | Tx): Promise<In
         debit: schema.journalLines.debit,
         credit: schema.journalLines.credit,
         code: schema.journalLines.taxCode,
+        kontenrahmen: schema.journalEntries.kontenrahmen,
       })
       .from(schema.journalEntries)
       .innerJoin(schema.journalLines, eq(schema.journalLines.entryId, schema.journalEntries.id))
@@ -164,7 +165,11 @@ async function skontoVorsteuerAnteile(period: VatPeriod, q: Db | Tx): Promise<In
         const tax =
           d.vorsteuerAnteil !== null && recorded.length > 0
             ? recorded
-                .filter((l) => ["1576", "1571", "1406", "1401"].includes(l.account) && l.code === (share.rate === 1900 ? "VSt19" : "VSt7"))
+                .filter(
+                  (l) =>
+                    Object.values(ACCOUNTS[l.kontenrahmen].vorsteuer).some((konto) => konto === l.account) &&
+                    l.code === (share.rate === 1900 ? "VSt19" : "VSt7"),
+                )
                 .reduce((sum, l) => sum + l.credit - l.debit, 0)
             : abziehbareSteuer(share.tax, gespeicherterAnteil(d, taxes.find((t) => t.rate === share.rate)?.vorsteuerAnteil));
         if (tax === 0) continue;
