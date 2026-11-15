@@ -29,7 +29,6 @@ import {
   skontoFristen,
   skontoProblem,
   TAX_TREATMENTS,
-  UNITS,
   VORJAHRESGRENZE,
   type Bundesland,
   type PriceMode,
@@ -76,6 +75,7 @@ import { Field } from "./Field.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { unitOptions } from "../lib/units.ts";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 import { ActionBar } from "./ActionBar.tsx";
 import { MoreActionsMenu } from "./MoreActionsMenu.tsx";
@@ -147,6 +147,7 @@ export function InvoiceEditor({
   kleinunternehmer,
   articles = [],
   textBlocks = [],
+  units = [],
   abschlaege = [],
   quotes = [],
   tageskurs = false,
@@ -188,6 +189,8 @@ export function InvoiceEditor({
   articles?: ArticleOption[];
   /** Kopf- und Fußtexte zum Einfügen */
   textBlocks?: TextBlockOption[];
+  /** Eigene Einheiten (#748) neben den festen */
+  units?: readonly string[];
   /** Offene Abschlagsrechnungen für die Schlussrechnung */
   abschlaege?: AbschlagOption[];
   /** Festgeschriebene Angebote, für den Bezug von Abschlags- und Schlussrechnungen */
@@ -207,7 +210,7 @@ export function InvoiceEditor({
   /** Ansprechpartner aller Kunden (#424), für die Auswahl unter „Kunde“ */
   contactPersons?: ContactPersonOption[];
   /** Korrektur einer Schlussrechnung: die übernommenen Abzüge, fest; Haben behält sie beim Speichern */
-  keptDeductions?: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
+  keptDeductions?: { description: string; quantity: number; unit: string; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
 }) {
   const [neuerEntwurf, setNeuerEntwurf] = useState<string | null>(null);
   const id = initialId ?? neuerEntwurf;
@@ -720,6 +723,7 @@ export function InvoiceEditor({
         onClose={() => setNewContactName(null)}
       />
       <ArticleDialog
+        units={units}
         open={newArticle !== null}
         prefill={newArticle?.prefill ?? {}}
         onSaved={(article) => {
@@ -1267,12 +1271,8 @@ export function InvoiceEditor({
                   </LineCell>
                   <LineCell label="Einheit">
                     {/* biome-ignore lint/plugin: Zeile einer Positionstabelle: Spaltenkopf und aria-label benennen die Zelle, ein Feldname je Zelle gäbe jeder Zeile eine Hülle `.field` */}
-                    <select
-                      aria-label={`Einheit Position ${index + 1}`}
-                      value={line.unit}
-                      onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
-                    >
-                      {Object.keys(UNITS).map((unit) => (
+                    <select aria-label={`Einheit Position ${index + 1}`} value={line.unit} onChange={(e) => updateLine(line.key, { unit: e.target.value })}>
+                      {unitOptions(units, line.unit).map((unit) => (
                         <option key={unit}>{unit}</option>
                       ))}
                     </select>
