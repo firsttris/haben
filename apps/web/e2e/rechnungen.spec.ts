@@ -2666,6 +2666,10 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   const korrekturUrl = page.url();
   await page.getByLabel("Einzelpreis Position 1").fill("-20,00");
   await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  // Das Neuladen setzt den Editor mit den gespeicherten Werten neu auf; erst danach die Rückfrage öffnen.
+  await expect(page.getByText("Entwurf gespeichert.", { exact: true })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByLabel("Einzelpreis Position 1")).toHaveValue("-20,00");
   await page.getByRole("button", { name: "Festschreiben" }).click();
   await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
