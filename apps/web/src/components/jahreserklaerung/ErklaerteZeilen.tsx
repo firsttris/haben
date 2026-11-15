@@ -13,6 +13,8 @@ import { Status } from "../Status.tsx";
 const KERN: Record<ZeilenForm, readonly string[]> = {
   ust: ["base19", "tax19", "vorsteuer", "vorauszahlungen", "abschluss"],
   euer: ["einnahmen", "ausgaben", "gewinn"],
+  // Bei der Einkommensteuer sind die Kernzeilen das Ergebnis der Veranlagung, nicht die Summe der Anlagen
+  est: ["bruttoarbeitslohn", "zuVersteuerndesEinkommen", "festgesetzteSteuer", "erstattung"],
 };
 
 /**
