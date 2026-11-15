@@ -292,13 +292,16 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     await sql`vacuum analyze journal_entries`;
     await sql`vacuum analyze journal_lines`;
     const { bookingEntriesQuery } = await import("../modules/buchhaltung/search.ts");
-    const { select } = await bookingEntriesQuery("123,45", 5);
-    const query = select.toSQL();
-    const [row] = await sql.unsafe(`explain (format json) ${query.sql}`, query.params as never[]);
-    type Knoten = { "Node Type": string; "Relation Name"?: string; Plans?: Knoten[] };
-    const knoten = (k: Knoten): Knoten[] => [k, ...(k.Plans ?? []).flatMap(knoten)];
-    const alle = knoten((row as unknown as { "QUERY PLAN": { Plan: Knoten }[] })["QUERY PLAN"][0]!.Plan);
-    expect(alle.filter((k) => k["Node Type"] === "Seq Scan").map((k) => k["Relation Name"])).toEqual([]);
+    // Mit Cent genau, mit ganzem Euro als Bereich (between): beide über die Indizes auf Soll und Haben
+    for (const betrag of ["123,45", "1190"]) {
+      const { select } = await bookingEntriesQuery(betrag, 5);
+      const query = select.toSQL();
+      const [row] = await sql.unsafe(`explain (format json) ${query.sql}`, query.params as never[]);
+      type Knoten = { "Node Type": string; "Relation Name"?: string; Plans?: Knoten[] };
+      const knoten = (k: Knoten): Knoten[] => [k, ...(k.Plans ?? []).flatMap(knoten)];
+      const alle = knoten((row as unknown as { "QUERY PLAN": { Plan: Knoten }[] })["QUERY PLAN"][0]!.Plan);
+      expect({ betrag, seqScans: alle.filter((k) => k["Node Type"] === "Seq Scan").map((k) => k["Relation Name"]) }).toEqual({ betrag, seqScans: [] });
+    }
   }, 60_000);
 
   it("nutzt bei 100.000 Bankumsätzen die Trigramm-Indizes", async () => {
@@ -391,4 +394,38 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     const treffer = await search.runCommandPaletteSearch("Teilbank", "inhaber");
     expect(Object.fromEntries(treffer.bankTransactions.hits.map((t) => [t.purpose, t.allocated]))).toEqual({ "Rate Oktober": false, "Rate November": true });
   });
+
+  it("findet mit ganzem Euro alle Cent-Beträge dieses Euros, mit Cent genau, beim Bankumsatz mit beiden Vorzeichen", async () => {
+    await sql`insert into documents (supplier_name, invoice_number, filename, mime_type, size, sha256, gross)
+      values ('Euro-Lieferant', 'EU-1', 'eu1.pdf', 'application/pdf', 1, 'eu-1', 119000), ('Euro-Lieferant', 'EU-2', 'eu2.pdf', 'application/pdf', 1, 'eu-2', 119047),
+             ('Euro-Lieferant', 'EU-3', 'eu3.pdf', 'application/pdf', 1, 'eu-3', 119100), ('Euro-Lieferant', 'EU-4', 'eu4.pdf', 'application/pdf', 1, 'eu-4', 118999)`;
+    const nummern = async (q: string) => (await search.runCommandPaletteSearch(q, "inhaber")).documents.hits.map((d) => d.invoiceNumber).sort();
+    expect(await nummern("1190")).toEqual(["EU-1", "EU-2"]);
+    expect(await nummern("1.190 €")).toEqual(["EU-1", "EU-2"]);
+    expect(await nummern("1190,47")).toEqual(["EU-2"]);
+
+    const [ba] = await sql`insert into bank_accounts (name, iban, purpose) values ('Konto', 'DE89370400440532013000', 'geschaeft') returning id`;
+    const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${ba!.id}, 'e.csv', 'sha-euro', 'csv', 3, 0) returning id`;
+    await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, purpose, dedup_hash)
+      values (${ba!.id}, ${bi!.id}, '2026-10-01', -119047, 'A', 'minus', 'eu-b1'), (${ba!.id}, ${bi!.id}, '2026-10-02', 119099, 'B', 'plus', 'eu-b2'),
+             (${ba!.id}, ${bi!.id}, '2026-10-03', -119100, 'C', 'daneben', 'eu-b3')`;
+    const zwecke = async (q: string) => (await search.runCommandPaletteSearch(q, "inhaber")).bankTransactions.hits.map((t) => t.purpose).sort();
+    expect(await zwecke("1190")).toEqual(["minus", "plus"]);
+    expect(await zwecke("-1190")).toEqual(["minus", "plus"]);
+  });
+
+  it("nutzt für einen Betragsbereich bei 100.000 Bankumsätzen den Index auf dem Betrag", async () => {
+    const [ba] = await sql`insert into bank_accounts (name, iban, purpose) values ('Konto', 'DE89370400440532013000', 'geschaeft') returning id`;
+    const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${ba!.id}, 'r.csv', 'sha-bereich', 'csv', 100000, 0) returning id`;
+    await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, purpose, dedup_hash)
+      select ${ba!.id}, ${bi!.id}, date '2020-01-01' + (i % 2000), i * 37 - 1850000, 'Gegenseite ' || i, 'Zweck ' || md5(i::text), 'bereich-' || i
+      from generate_series(1, 100000) i`;
+    await sql`vacuum analyze bank_transactions`;
+    const plan = JSON.stringify(
+      await sql`explain (format json) select id from bank_transactions where amount between 119000 and 119099 or amount between -119099 and -119000`,
+    );
+    expect(plan).toContain("bank_transactions_amount_search_idx");
+  }, 60_000);
 });
