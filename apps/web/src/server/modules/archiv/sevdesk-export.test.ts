@@ -164,6 +164,22 @@ describe.skipIf(!testDatabaseUrl)("sevDesk ohne API: Export-ZIP übernehmen (Pos
     expect(await counts()).toMatchObject({ vouchers: 0, archived: 2, bookings: 3 });
   });
 
+  it.each(["SKR03", "SKR04"] as const)(
+    "Mischjahr (%s): Belege aus Lexoffice bis zum Wechsel, danach der Export aus sevDesk; dessen Teil zählt aus dem Stapel",
+    async (kontenrahmen) => {
+      await company(kontenrahmen, "soll");
+      const [imp] = await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{"phase":"fertig"}'::jsonb, 'lexoffice') returning id`;
+      await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, source, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
+        values ('lex-1', ${imp!.id}, 'lexoffice', 'salesinvoice', 'einnahme', 'LX-1', '2024-01-05', 'paid', 'Kunde', 10000, 1900, 11900,
+          '[{"rate":1900,"net":10000,"tax":1900}]'::jsonb, '[]'::jsonb, null, '{}'::jsonb)`;
+      await run(exportZip(kontenrahmen));
+      const year = (await lex.reconciliation()).years.find((y) => y.year === 2024)!;
+      // Lexoffice 100,00 + 19,00, dazu aus dem Stapel des Exports Rechnung 84,03 + 15,97 und Ausgabe 84,03 + 15,97
+      expect(year.einnahmen).toMatchObject({ net: 10000 + 8403, tax: 1900 + 1597 });
+      expect(year.ausgaben).toMatchObject({ net: 8403, tax: 1597 });
+    },
+  );
+
   describe.each([
     ["SKR03", "soll"],
     ["SKR03", "ist"],
