@@ -1,5 +1,5 @@
 {
-  "id": "91c06007-2a4c-4895-9606-0fc6aaa4a4c8",
+  "id": "49b21283-73dd-48a8-83fe-7c01f40e6933",
   "prevId": "0848f345-884d-4875-8c62-39f93dd42b19",
   "version": "7",
   "dialect": "postgresql",
@@ -2113,6 +2113,53 @@
           "value": "\"bank_neutralizations\".\"reverses_id\" is not null or length(btrim(\"bank_neutralizations\".\"note\")) > 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.bank_private_marks": {
+      "name": "bank_private_marks",
+      "schema": "",
+      "columns": {
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "marked_at": {
+          "name": "marked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "bank_private_marks_transaction_id_bank_transactions_id_fk": {
+          "name": "bank_private_marks_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "bank_private_marks",
+          "tableTo": "bank_transactions",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.bank_transactions": {
@@ -13021,37 +13068,25 @@
           "name": "sha256",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "filename": {
           "name": "filename",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "mime_type": {
           "name": "mime_type",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "size": {
           "name": "size",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
-        },
-        "sevdesk_id": {
-          "name": "sevdesk_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sevdesk_raw": {
-          "name": "sevdesk_raw",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "last_run_at": {
           "name": "last_run_at",
@@ -13143,15 +13178,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "recurring_documents_sevdesk_id_unique": {
-          "name": "recurring_documents_sevdesk_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "sevdesk_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "recurring_documents_interval": {
@@ -13169,14 +13196,6 @@
         "recurring_documents_due_days": {
           "name": "recurring_documents_due_days",
           "value": "\"recurring_documents\".\"due_days\" between 0 and 120"
-        },
-        "recurring_documents_file": {
-          "name": "recurring_documents_file",
-          "value": "(\"recurring_documents\".\"sha256\" is null) = (\"recurring_documents\".\"filename\" is null) and (\"recurring_documents\".\"sha256\" is null) = (\"recurring_documents\".\"mime_type\" is null) and (\"recurring_documents\".\"sha256\" is null) = (\"recurring_documents\".\"size\" is null)"
-        },
-        "recurring_documents_active_file": {
-          "name": "recurring_documents_active_file",
-          "value": "\"recurring_documents\".\"status\" <> 'aktiv' or \"recurring_documents\".\"sha256\" is not null"
         }
       },
       "isRLSEnabled": false

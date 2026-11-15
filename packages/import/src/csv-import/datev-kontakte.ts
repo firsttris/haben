@@ -53,11 +53,14 @@ const sameText = (a: string | null, b: string | null) => Boolean(a?.trim()) && a
 const sameUstId = (a: string, b: string) => Boolean(a) && normalizeUstId(a) === normalizeUstId(b);
 const steuernummer = (row: DatevGpRow) => row.steuernummer.replace(/\D/g, "");
 
+/** Die Zeile, aus der Anschrift und Land kommen */
+const addressOf = (rows: DatevGpRow[]) => rows.find((r) => r.strasse || r.plz || r.ort) ?? rows[0]!;
+
 /** Was am Kontakt steht; der Debitor bringt die Kundennummer, was „Kundennummer“ am Kreditor meint, ist nicht belegt */
 function contactRow(rows: DatevGpRow[]): ContactRow {
   const field = (key: "name" | "email" | "telefon" | "ustId" | "iban") => rows.find((r) => r[key])?.[key] ?? "";
   // Die Anschrift samt Land aus einer Zeile: Ein leeres Land liest der Parser als DE, gemischt hieße Paris dann Deutschland
-  const address = rows.find((r) => r.strasse || r.plz || r.ort) ?? rows[0]!;
+  const address = addressOf(rows);
   const debitor = rows.find((r) => r.rolle === "debitor");
   const kreditor = rows.find((r) => r.rolle === "kreditor");
   return {
@@ -108,9 +111,13 @@ const ustIdLand = (ustId: string): string | null => {
 /** Monaco gehört zum Mehrwertsteuergebiet Frankreichs (Art. 7 Abs. 1 MwStSystRL) und hat USt-IdNr. mit FR */
 const passt = (land: string, expected: string) => land === expected || (land === "MC" && expected === "FR");
 
-function landHint(land: string, ustId: string): string | null {
+/** Hinweis zum Land: nur angenommen (#1032) und/oder nicht passend zur USt-IdNr. */
+function landHint(land: string, ustId: string, angenommen: boolean): string | null {
   const expected = ustIdLand(ustId);
-  return expected && !passt(land, expected) ? `Land ${land} passt nicht zur USt-IdNr. aus ${ustId.slice(0, 2).toUpperCase()}; bitte das Land prüfen` : null;
+  const prefix = ustId.slice(0, 2).toUpperCase();
+  const mismatch = expected !== null && !passt(land, expected);
+  if (angenommen) return `Land fehlt, DE angenommen; ${mismatch ? `passt nicht zur USt-IdNr. aus ${prefix}, bitte das Land prüfen` : "bitte prüfen"}`;
+  return mismatch ? `Land ${land} passt nicht zur USt-IdNr. aus ${prefix}; bitte das Land prüfen` : null;
 }
 
 export function datevContactCandidates(rows: readonly DatevGpRow[]): DatevContactCandidate[] {
@@ -136,14 +143,15 @@ export function datevContactCandidates(rows: readonly DatevGpRow[]): DatevContac
       candidates.push({ ...base, value: null, errors: row.errors });
       continue;
     }
-    const value = contactRow([...group].sort((a, b) => (a.rolle === "debitor" ? -1 : b.rolle === "debitor" ? 1 : 0)));
+    const sorted = [...group].sort((a, b) => (a.rolle === "debitor" ? -1 : b.rolle === "debitor" ? 1 : 0));
+    const value = contactRow(sorted);
     if (pair) {
       const [d, k] = [value.debitorNr!, value.kreditorNr!];
       base.hints.push(`${konto("debitor", d)} und ${konto("kreditor", k)}: ${pair.reason}`);
       const other = group.find((r) => r.name !== value.name);
       if (other) base.hints.push(`Name in Zeile ${other.line}: „${other.name}“`);
     }
-    const land = landHint(value.land, value.ustId);
+    const land = landHint(value.land, value.ustId, addressOf(sorted).landAngenommen);
     if (land) base.hints.push(land);
     const key = value.name.trim().toLowerCase();
     const sameName = names.get(key);

@@ -1748,8 +1748,22 @@
     {
       "idx": 249,
       "version": "7",
-      "when": 1794756288384,
-      "tag": "0249_dauerbelege_aus_sevdesk",
+      "when": 1794756475655,
+      "tag": "0249_bank_private_marks",
+      "breakpoints": true
+    },
+    {
+      "idx": 250,
+      "version": "7",
+      "when": 1794756478045,
+      "tag": "0250_bank_private_marks_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 251,
+      "version": "7",
+      "when": 1794762529435,
+      "tag": "0251_dauerbelege_aus_sevdesk",
       "breakpoints": true
     }
   ]

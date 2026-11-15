@@ -277,6 +277,20 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await beideWegeGleich();
   }, 60_000);
 
+  it("Einkommensteuererklärung 2026 außerhalb von Haben vermerkt: die vorher zugeordnete Zahlung bleibt in der EÜR 2026 (#1073)", async () => {
+    // Die ESt enthält den Gewinn der EÜR; wie beim Senden (annual.ts) hält auch ihr Vermerk fest, welche Zahlungen er verschiebt
+    const { vermerkeJahresabgabe } = await import("../jahreserklaerung/vermerk.ts");
+    await reset();
+    const dez = await dezemberMitVoranmeldung();
+    await zahlung(dez.id, "08.01.27");
+    expect(await euer(2026)).toEqual(MIT_DEZEMBER);
+    seq++;
+    await vermerkeJahresabgabe(actor, "est", 2026, { filedOn: "2027-02-10", transferTicket: `TTEST2026x${seq}`, note: "Mit WISO abgegeben." }, "2027-02-10");
+    expect(await euer(2026)).toEqual(MIT_DEZEMBER);
+    expect(await euer(2027)).toEqual({ gewinn: 0 });
+    await beideWegeGleich();
+  }, 60_000);
+
   it("Zuordnung nach dem Vermerk der EÜR 2026 aufgehoben: die EÜR 2026 bleibt wie abgegeben", async () => {
     await reset();
     const dez = await dezemberMitVoranmeldung();

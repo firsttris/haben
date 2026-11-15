@@ -7,7 +7,7 @@
  */
 export { searchVatReturns, searchZmSubmissions, type VatReturnHit, type ZmSubmissionHit } from "./search.ts";
 export { computeVatFigures, kennzahlenBeiderQuellen, preflight, type PreflightIssue, type RevenueSource } from "./vat-figures.ts";
-export { frequencyOverview, loadFrequencies, periodProblem, saveFrequency, type FrequencyOverview } from "./zeitraum.ts";
+export { abgegebeneZeitraeume, frequencyOverview, loadFrequencies, periodProblem, saveFrequency, type FrequencyOverview } from "./zeitraum.ts";
 export { computedValues, createCorrection, recentSentReturns, returnsForPeriod, saveDraft, submissionsFor, submitReturn } from "./vat.ts";
 export { meinElsterUpload, meinElsterUstvaWerte } from "./mein-elster.ts";
 export {
