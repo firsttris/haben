@@ -11,6 +11,7 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
   let bank: typeof import("./bank.ts");
   let privat: typeof import("./privat.ts");
   let auswahl: typeof import("./umsatzauswahl.ts");
+  let figures: typeof import("../umsatzsteuer/vat-figures.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
 
@@ -19,6 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
     bank = await import("./bank.ts");
     privat = await import("./privat.ts");
     auswahl = await import("./umsatzauswahl.ts");
+    figures = await import("../umsatzsteuer/vat-figures.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -94,5 +96,34 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
     expect(nachher.find((row) => row.id === id)?.hint).toBe("privat");
     // Und in der Arbeitsliste „offen" taucht er nicht auf
     expect(await auswahl.umsatzauswahl({ id: privatKonto, purpose: "privat" }, "offen", "", sortierung)).toEqual([]);
+  });
+
+  it("steht mit Kennzeichnen und Aufheben im Änderungsprotokoll (CLAUDE.md: neue Tabelle mit Audit-Trigger)", async () => {
+    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const id = await umsatz(privatKonto, "2026-11-11", 1_032_197);
+    await leeren(sql)`truncate audit_log`;
+
+    await privat.markierePrivat(actor, id, "Einkommensteuer 2025, privat");
+    await privat.hebePrivatAuf(actor, id);
+
+    const log = await sql`select actor, action, coalesce(new_value, old_value) ->> 'transaction_id' as umsatz
+      from audit_log where table_name = 'bank_private_marks' order by seq`;
+    expect(log).toEqual([
+      { actor, action: "INSERT", umsatz: id },
+      { actor, action: "DELETE", umsatz: id },
+    ]);
+  });
+
+  it("fehlt nach dem Kennzeichnen auch in der Vorprüfung der Voranmeldung", async () => {
+    const november = { year: 2026, month: 11 } as const;
+    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const id = await umsatz(privatKonto, "2026-11-11", 1_032_197);
+    const vorpruefung = async () => (await figures.preflight(november, await figures.computeVatFigures(november))).map((i) => i.text);
+    expect(await vorpruefung()).toEqual([expect.stringContaining("1 Zahlungseingang im Zeitraum noch nicht zugeordnet")]);
+
+    await privat.markierePrivat(actor, id);
+
+    // bank-open.ts: Bankabgleich, Kontenliste und Vorprüfung rechnen den offenen Betrag gleich
+    expect(await vorpruefung()).toEqual([]);
   });
 });
