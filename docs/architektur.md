@@ -122,7 +122,7 @@ Die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) läuft mit `bun run lint
 
 - **Aus einem anderen Modul nur über dessen `index.ts`.** Braucht ein Modul, eine Server Function oder eine Route etwas, das dort fehlt, wird es in der `index.ts` ergänzt. Die Datei enthält nur `export { … } from "./…"`, keine Logik.
 - **Infrastruktur importiert keine Module.** `server/*.ts` und `server/db/` bleiben unabhängig von der Fachlogik. Ausgenommen sind die Stellen, die Module zusammensetzen: `server/functions/`, `server/plugins/` und `scheduler.ts`.
-- **Module importieren weder Server Functions noch Oberfläche** (`server/functions/`, `server/plugins/`, `routes/`, `components/`). Gemeinsames ohne Serverbezug liegt in `src/lib/`.
+- **Module importieren weder Server Functions noch Oberfläche** (`server/functions/`, `server/plugins/`, `scheduler.ts`, `routes/`, `components/`). Gemeinsames ohne Serverbezug liegt in `src/lib/`.
 - **Ein Modul importiert nur Module unter sich.** Die Reihenfolge steht in `scripts/modulgrenzen/schichten.ts`. So hängen keine Module im Ring aneinander; ein Ring ließ etwa `documents.ts` nicht als erstes Modul laden (#1063).
 
 Tests sind ausgenommen und dürfen auch Dateien hinter der `index.ts` anderer Module importieren. `modulgrenzen.test.ts` prüft die Regel selbst und die Struktur: Jedes Modul hat eine `index.ts`, und direkt unter `server/` liegt nur Infrastruktur.

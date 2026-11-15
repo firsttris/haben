@@ -71,6 +71,8 @@ describe("Modulgrenzen", () => {
       expect.stringContaining("Ein Modul importiert keine Server Functions und keine Oberfläche"),
     ]);
     expect(lint("modules/rechnungen/invoices.ts", `import { Badge } from "../../../components/Badge.tsx";`)).toHaveLength(1);
+    // Auch nicht den Scheduler, der Module zusammensetzt; sonst entstünde über ihn ein Ring
+    expect(lint("modules/rechnungen/invoices.ts", `import { runScheduledJobs } from "../../scheduler.ts";`)).toHaveLength(1);
     expect(lint("modules/auswertungen/integrity.ts", `import { formatPruefwert } from "../../../lib/pruefwert.ts";`)).toEqual([]);
     // Pakete und Infrastruktur bleiben frei
     expect(lint("modules/rechnungen/invoices.ts", `import { lineAmount } from "@haben/core";\nimport { db } from "../../db/index.ts";`)).toEqual([]);

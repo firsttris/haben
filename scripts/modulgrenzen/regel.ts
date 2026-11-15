@@ -30,7 +30,14 @@ export interface Verstoss {
 const MODULES = `${sep}src${sep}server${sep}modules${sep}`;
 const SERVER = `${sep}src${sep}server${sep}`;
 const COMPOSITION = [`${SERVER}functions${sep}`, `${SERVER}plugins${sep}`];
-const OUTSIDE = [`${SERVER}functions${sep}`, `${SERVER}plugins${sep}`, `${sep}src${sep}routes${sep}`, `${sep}src${sep}components${sep}`];
+/** Was über allen Modulen steht; scheduler.ts setzt Module zusammen und gehört dazu */
+const OUTSIDE = [
+  `${SERVER}functions${sep}`,
+  `${SERVER}plugins${sep}`,
+  `${SERVER}scheduler.ts`,
+  `${sep}src${sep}routes${sep}`,
+  `${sep}src${sep}components${sep}`,
+];
 
 /**
  * Modulname und Pfad unterhalb des Moduls, oder null außerhalb von modules/. Der Modulordner selbst und `index` ohne
