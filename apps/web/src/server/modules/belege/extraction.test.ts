@@ -64,6 +64,24 @@ describe("KI-Auslesung umwandeln", () => {
     expect(felder.warnings).not.toContain("Summe aus Netto und Steuer weicht vom Gesamtbetrag ab");
   });
 
+  it("schlägt § 13b nicht vor, wenn der Beleg Umsatzsteuer ausweist", () => {
+    // Bei § 13b steht keine Steuer auf der Rechnung (§ 14a Abs. 5 UStG); weist sie 19 % aus, ist es kein Reverse Charge
+    const felder = toFields({ ...base, lieferant: "Etsy Ireland UC", lieferantUstId: "IE9777587C", reverseCharge: "eu" });
+    expect(felder.reverseCharge).toBeNull();
+  });
+
+  it("schlägt § 13b nicht vor, wenn der Rechnungssteller eine deutsche USt-IdNr. hat", () => {
+    // Haben kennt § 13b nur für Leistungen aus dem EU-Ausland (Abs. 1, Kz 46/47) und dem Drittland (Abs. 2 Nr. 1);
+    // ein Hinweis auf einer Rechnung aus Deutschland (etwa Bauleistung, Abs. 2 Nr. 4) gehört in keins von beiden
+    const felder = toFields({
+      ...base,
+      betraege: [{ steuersatz: "0", netto: "1000.00", steuer: "0.00" }],
+      brutto: "1000.00",
+      reverseCharge: "eu",
+    });
+    expect(felder.reverseCharge).toBeNull();
+  });
+
   it("gibt Datenbankfehler nicht roh an den Beleg weiter", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(describeExtractionError(new Error('Failed query: update "documents" set ...'))).toMatch(/^Die Auslesung ist fehlgeschlagen/);
