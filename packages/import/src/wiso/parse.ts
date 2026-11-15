@@ -1,4 +1,4 @@
-import { postenOf, taxIncluded, taxOf } from "@haben/core";
+import { postenOf, taxIncluded } from "@haben/core";
 import { isBlankRow, parseCsv } from "../csv.ts";
 import type { Kontenrahmen } from "../datev.ts";
 import { decodeText } from "../decode.ts";
@@ -186,7 +186,7 @@ function classifyRow(row: WisoCsvRow, skr: Kontenrahmen): { direction: "einnahme
   };
 }
 
-/** Beträge einer Zeile; `paid` ist der tatsächliche Zu- oder Abfluss, bei § 13b und EU-Erwerb ohne die selbst geschuldete Steuer */
+/** Beträge einer Zeile; `paid` ist der tatsächliche Zu- oder Abfluss, bei § 13b und EU-Erwerb das Netto */
 function computeRowAmounts(row: WisoCsvRow, positive: boolean, neutral: boolean): { rate: number; net: number; tax: number; gross: number; paid: number } {
   const amount = Math.abs(row.soll - row.haben);
   const sign = positive ? 1 : -1;
@@ -194,12 +194,13 @@ function computeRowAmounts(row: WisoCsvRow, positive: boolean, neutral: boolean)
     const net = sign * amount;
     return { rate: 0, net, tax: 0, gross: net, paid: net };
   }
-  // Bei § 13b UStG und innergemeinschaftlichem Erwerb steht im WISO-CSV-Export der Nettobetrag (Abgleich zu #565)
+  // Bei § 13b UStG und innergemeinschaftlichem Erwerb steht im WISO-CSV-Export der Nettobetrag (Abgleich zu #565). Der Beleg
+  // trägt wie die Rechnung des Lieferanten keine Steuer (§ 14a Abs. 5 UStG): Die selbst geschuldete Steuer gehört in Kz 67
+  // bzw. Kz 61 der Voranmeldung, nicht als Vorsteuer des Belegs in Kz 66 (legacyVatByMonth)
   const isNetInCsv = /^(13b\b|EU\s+VSt\b)/i.test(row.steuerschluessel);
   if (isNetInCsv) {
     const net = sign * amount;
-    const tax = taxOf(net, row.steuersatz);
-    return { rate: row.steuersatz, net, tax, gross: net + tax, paid: net };
+    return { rate: row.steuersatz, net, tax: 0, gross: net, paid: net };
   }
   const gross = sign * amount;
   const tax = sign * taxIncluded(amount, row.steuersatz);
