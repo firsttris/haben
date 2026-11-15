@@ -606,6 +606,8 @@ export async function reconciliation() {
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
   for (const b of bookingRows) years.add(Number(b.year));
   for (const f of files) if (f.year) years.add(f.year);
+  // Jahre mit aus sevDesk übernommenen Voranmeldungen, auch ohne Belege und ohne Protokoll (#472)
+  for (const r of await db.selectDistinct({ year: schema.legacyVatReports.year }).from(schema.legacyVatReports)) years.add(r.year);
 
   const result = [...years]
     .sort((a, b) => b - a)
