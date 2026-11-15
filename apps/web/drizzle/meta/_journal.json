@@ -1758,6 +1758,20 @@
       "when": 1794756478045,
       "tag": "0250_bank_private_marks_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 251,
+      "version": "7",
+      "when": 1794761929454,
+      "tag": "0251_eigene_einheiten",
+      "breakpoints": true
+    },
+    {
+      "idx": 252,
+      "version": "7",
+      "when": 1794761931962,
+      "tag": "0252_eigene_einheiten_trigger",
+      "breakpoints": true
     }
   ]
 }
