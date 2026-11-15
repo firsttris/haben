@@ -20,6 +20,7 @@ import {
   finalizeIssues,
   getInvoice,
   invoiceSummary,
+  lastFinalizedByCircle,
   listInvoices,
   newDraftDefaults,
   numbering,
@@ -81,9 +82,19 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 
 /** Editor-Daten samt offenen Abschlagsrechnungen für die Schlussrechnung */
 async function invoiceEditorContext() {
+  const [context, abschlaege, lastFinalized, quotes] = await Promise.all([
+    editorContext("rechnung"),
+    openAbschlaege(),
+    lastFinalizedByCircle(),
+    db
+      .select({ id: schema.quotes.id, contactId: schema.quotes.contactId, number: schema.quotes.number, issueDate: schema.quotes.issueDate })
+      .from(schema.quotes)
+      .where(eq(schema.quotes.status, "final"))
+      .orderBy(asc(schema.quotes.issueDate)),
+  ]);
   return {
-    ...(await editorContext("rechnung")),
-    abschlaege: (await openAbschlaege()).map(({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, priceMode, propertyRetention }) => ({
+    ...context,
+    abschlaege: abschlaege.map(({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, priceMode, propertyRetention }) => ({
       id,
       contactId,
       quoteId,
@@ -95,14 +106,9 @@ async function invoiceEditorContext() {
       priceMode,
       propertyRetention,
     })),
+    lastFinalized,
     /** Festgeschriebene Angebote für den Bezug von Abschlags- und Schlussrechnungen */
-    quotes: (
-      await db
-        .select({ id: schema.quotes.id, contactId: schema.quotes.contactId, number: schema.quotes.number, issueDate: schema.quotes.issueDate })
-        .from(schema.quotes)
-        .where(eq(schema.quotes.status, "final"))
-        .orderBy(asc(schema.quotes.issueDate))
-    ).map((q) => ({ ...q, number: q.number ?? "" })),
+    quotes: quotes.map((q) => ({ ...q, number: q.number ?? "" })),
   };
 }
 

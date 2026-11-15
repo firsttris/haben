@@ -311,3 +311,129 @@ test("eingeklappt gespeichert, aber schmal: Esc über der Marke geht an die Seit
   await page.keyboard.press("Escape");
   expect(await page.evaluate(() => (window as unknown as { escAnSeite: number }).escAnSeite)).toBe(1);
 });
+
+test("Strg+B klappt die Seitenleiste am Desktop ein und aus, nicht in Eingabefeldern", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const einklappen = nav(page).getByRole("button", { name: "Seitenleiste einklappen" });
+  await expect(einklappen).toHaveAttribute("aria-keyshortcuts", "Control+B Meta+B");
+  await page.keyboard.press("Control+b");
+  await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
+  await page.keyboard.press("Control+b");
+  await expect(page.locator("html")).not.toHaveAttribute("data-nav");
+
+  // In einem Feld bleibt Strg+B beim Feld: Fett in den Textfeldern der Belege, außerhalb eines Dialogs
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  const feld = page.locator(".format-field textarea").first();
+  await feld.fill("Bitte zahlen");
+  await feld.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(6, 12));
+  await page.keyboard.press("Control+b");
+  await expect(feld).toHaveValue("Bitte *zahlen*");
+  await expect(page.locator("html")).not.toHaveAttribute("data-nav");
+});
+
+test("eingeklappt: Pfeiltasten wandern durch Leiste und Flyout, → öffnet, ← schließt", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+
+  const uebersicht = nav(page).getByRole("link", { name: "Übersicht" });
+  const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
+  await uebersicht.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(verkauf).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(verkauf).toHaveAttribute("aria-expanded", "true");
+  await expect(nav(page).getByRole("link", { name: "Angebote" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(nav(page).getByRole("link", { name: "Rechnungen", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(nav(page).getByRole("link", { name: "Angebote" })).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(verkauf).toHaveAttribute("aria-expanded", "false");
+  await expect(verkauf).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(uebersicht).toBeFocused();
+  // Die Seite bekommt die Pfeile nicht (die Beleg-Ansicht blättert sonst mit ← und →)
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("eingeklappt: → in ein überfahrenes Flyout heftet es an, die Maus schließt es danach nicht", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+
+  const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
+  await verkauf.focus();
+  await verkauf.hover();
+  await expect(verkauf).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("ArrowRight");
+  const angebote = nav(page).getByRole("link", { name: "Angebote" });
+  await expect(angebote).toBeFocused();
+  await page.mouse.move(900, 600, { steps: 5 });
+  // Länger als der Verzug, nach dem Verlassen ein überfahrenes Flyout schließt
+  await page.waitForTimeout(600);
+  await expect(verkauf).toHaveAttribute("aria-expanded", "true");
+  await expect(angebote).toBeFocused();
+});
+
+test("eingeklappt: kein Pfeil aus Leiste oder Flyout erreicht die Seite", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  // Steht für die Tasten der Seite, etwa ← → in der Beleg-Ansicht (vorheriger, nächster Beleg)
+  await page.evaluate(() => {
+    const w = window as unknown as { pfeileAnSeite: string[] };
+    w.pfeileAnSeite = [];
+    window.addEventListener("keydown", (event) => {
+      if (event.key.startsWith("Arrow")) w.pfeileAnSeite.push(event.key);
+    });
+  });
+
+  const verkauf = nav(page).getByRole("button", { name: "Verkauf" });
+  await verkauf.focus();
+  await page.keyboard.press("ArrowRight");
+  // → auf einem Link im Flyout, ← schließt, ein zweites ← auf dem Symbol
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowLeft");
+  await expect(verkauf).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  // Symbol ohne Flyout
+  await nav(page).getByRole("link", { name: "Übersicht" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowLeft");
+  expect(await page.evaluate(() => (window as unknown as { pfeileAnSeite: string[] }).pfeileAnSeite)).toEqual([]);
+});
+
+test("eingeklappt: Marke und Lupe gehören zum Kreis der Symbole für ↑/↓", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+
+  const marke = nav(page).locator(".brand");
+  const lupe = nav(page).getByRole("button", { name: "Schnellsuche" });
+  const ausklappen = nav(page).getByRole("button", { name: "Seitenleiste ausklappen" });
+  await marke.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(lupe).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(marke).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(ausklappen).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(marke).toBeFocused();
+});
+
+test("Strg+B mit dem Fokus in der Leiste legt ihn auf den Knopf der sichtbaren Fassung", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await nav(page).locator(".nav-variante-voll").getByRole("link", { name: "Übersicht" }).focus();
+  await page.keyboard.press("Control+b");
+  await expect(page.locator("html")).toHaveAttribute("data-nav", "collapsed");
+  await expect(nav(page).getByRole("button", { name: "Seitenleiste ausklappen" })).toBeFocused();
+
+  await nav(page).getByRole("button", { name: "Verkauf" }).focus();
+  await page.keyboard.press("Control+b");
+  await expect(page.locator("html")).not.toHaveAttribute("data-nav");
+  await expect(nav(page).getByRole("button", { name: "Seitenleiste einklappen" })).toBeFocused();
+});

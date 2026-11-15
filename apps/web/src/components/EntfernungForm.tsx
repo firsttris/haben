@@ -2,6 +2,7 @@ import { entfernungspauschale, formatEuro, PAUSCHALE_LABEL, volleKilometer } fro
 import { type FormEvent, useState } from "react";
 import { monatFehler, useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
+import { MonthPicker } from "./MonthPicker.tsx";
 
 export interface EntfernungEingabe {
   month: string;
@@ -67,7 +68,7 @@ export function EntfernungForm({
       </p>
       <div className="form-grid">
         <Field label="Monat" error={error("month")}>
-          {(control) => <input {...control} type="month" value={month} min={`${year}-01`} max={monat} onChange={(e) => setMonth(e.target.value)} required />}
+          {(control) => <MonthPicker {...control} value={month} min={`${year}-01`} max={monat} onChange={setMonth} />}
         </Field>
         <Field label="Tage an der Betriebsstätte" error={error("tage")}>
           {(control) => <input {...control} value={tage} onChange={(e) => setTage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}

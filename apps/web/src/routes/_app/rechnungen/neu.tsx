@@ -48,6 +48,7 @@ function NewInvoicePage() {
       numberCounters={data.numberCounters}
       numberRunning={data.numberRunning}
       numberFormat={data.numberFormat}
+      lastFinalized={data.lastFinalized}
       corrects={null}
       bundesland={data.bundesland}
       kleinunternehmer={data.kleinunternehmer}
