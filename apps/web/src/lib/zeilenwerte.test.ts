@@ -1,6 +1,6 @@
 import { EUER_FIELDS } from "@haben/elster/euer-felder";
 import { describe, expect, it } from "vitest";
-import { mitVorzeichen, zeilenFelder } from "./zeilenwerte.ts";
+import { ERKLAERTE_ZEILEN, mitVorzeichen, zeilenFelder } from "./zeilenwerte.ts";
 
 describe("erklärte Zeilen (#997)", () => {
   it("nimmt jede Zeile der Anlage EÜR auf, die Haben selbst übermittelt (EUER_FIELDS)", () => {
@@ -31,5 +31,18 @@ describe("erklärte Zeilen (#997)", () => {
   it("lässt eine Nachzahlung positiv und andere Zeilen unberührt", () => {
     expect(mitVorzeichen("erstattung", 420_00, 420_00)).toBe(420_00);
     expect(mitVorzeichen("festgesetzteSteuer", 2_012_700, -1_032_197)).toBe(2_012_700);
+  });
+
+  it("führt Zeile 65 der Anlage EÜR, obwohl sie kein Feld in EUER_FIELDS hat (#1072)", () => {
+    // Im Protokoll steht "Aufwendungen für ein häusliches Arbeitszimmer" mit einem Betrag; ohne eigene Zeile fehlt
+    // er in der Aufstellung und die Einzelzeilen ergeben weniger als die Summe der Betriebsausgaben
+    const zeile = ERKLAERTE_ZEILEN.euer.find((z) => z.field === "arbeitszimmer");
+    expect(zeile?.text).toBe("Aufwendungen für ein häusliches Arbeitszimmer (abziehbar)");
+    expect(zeilenFelder("euer")).toContain("arbeitszimmer");
+  });
+
+  it("meint die Spalte „abziehbar“ und steht wie im Vordruck vor der Tagespauschale (#1072)", () => {
+    const felder = zeilenFelder("euer");
+    expect(felder.indexOf("arbeitszimmer")).toBeLessThan(felder.indexOf("tagespauschale"));
   });
 });

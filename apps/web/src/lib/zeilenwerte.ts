@@ -59,9 +59,11 @@ const EST_FELDER = {
   gesamtbetrag: "Gesamtbetrag der Einkünfte",
   vorsorgeaufwendungen: "Abziehbare Vorsorgeaufwendungen",
   zuVersteuerndesEinkommen: "Zu versteuerndes Einkommen",
-  festgesetzteSteuer: "Festgesetzte Einkommensteuer",
-  soli: "Festgesetzter Solidaritätszuschlag",
-  erstattung: "Erstattung oder Nachzahlung",
+  // In der Erklärung setzt niemand etwas fest: Die Zahl kommt aus dem Steuerprogramm, festgesetzt wird sie erst im
+  // Bescheid. Die Beschriftung sagt deshalb, woher sie stammt (#1084)
+  festgesetzteSteuer: "Einkommensteuer laut Steuerprogramm",
+  soli: "Solidaritätszuschlag laut Steuerprogramm",
+  erstattung: "Erstattung oder Nachzahlung laut Steuerprogramm",
 } as const satisfies Record<string, string>;
 
 const EST_ZEILEN: ErklaerteZeile[] = Object.entries(EST_FELDER).map(([field, text]) => ({ field, text }));
