@@ -53,11 +53,13 @@ describe.skipIf(!testDatabaseUrl).each([
   /** Downloads, die gerade scheitern, mit Status */
   const broken = new Map<string, number>();
   const calls: string[] = [];
+  /** Belege, die erst ein späterer Abruf listet */
+  const extra: Raw[] = [];
 
   const idOf = async (lexofficeId: string) => String((await sql`select id from lexoffice_vouchers where lexoffice_id = ${lexofficeId}`)[0]!.id);
   const listed = () =>
-    [ohneDatei("ID_401", 1), ausVorlage("ID_402", 2), ohneDatei("ID_403", 3), ohneDatei("ID_404", 4), ausVorlage("ID_405", 5)].map((v) =>
-      documents.has(v.id) ? { ...v, document: documents.get(v.id), update: "2026-11-15T09:00:00+01:00" } : v,
+    [ohneDatei("ID_401", 1), ausVorlage("ID_402", 2), ohneDatei("ID_403", 3), ohneDatei("ID_404", 4), ausVorlage("ID_405", 5), ...extra].map((v) =>
+      documents.has(String(v.id)) ? { ...v, document: documents.get(String(v.id)), update: "2026-11-15T09:00:00+01:00" } : v,
     );
   const files = async () =>
     (await sql`select v.lexoffice_id as voucher, f.role, f.lexoffice_file_id as "fileId", f.filename
@@ -212,5 +214,33 @@ describe.skipIf(!testDatabaseUrl).each([
     const verlauf = new TextDecoder().decode(zip["lexoffice/dateistand.csv"]);
     expect(verlauf).toContain("ID_602");
     expect(verlauf).toContain("sevDesk nennt die Datei erst nach dem ersten Abruf; ein späterer Abruf hat sie angehängt.");
+  });
+
+  it("löst den Fehlschlag auf, wenn sevDesk die neue Datei wieder entfernt und die Datei der Vorlage bleibt", async () => {
+    documents.set("ID_405", doc("ID_607"));
+    broken.set("/Document/ID_607/download", 500);
+    await run();
+    expect((await latest()).find((s) => s.voucher === "voucher/ID_405")).toMatchObject({ state: "abruf_fehlgeschlagen", sourceFileId: "ID_607" });
+    broken.clear();
+    documents.delete("ID_405");
+    const progress = await run();
+    expect(progress.sevdeskFiles.abrufFehlgeschlagen).toBe(0);
+    expect((await archiv.legacyVoucherDetail(await idOf("voucher/ID_405")))!.fileState.status).toBe("vollstaendig");
+  });
+
+  it("löst den Fehlschlag auf, wenn sevDesk wieder die schon archivierte Datei nennt", async () => {
+    extra.push({ ...ohneDatei("ID_406", 6), document: doc("ID_609") });
+    await run();
+    expect((await files()).filter((f) => f.voucher === "voucher/ID_406")).toHaveLength(1);
+    documents.set("ID_406", doc("ID_608"));
+    broken.set("/Document/ID_608/download", 500);
+    await run();
+    expect((await latest()).find((s) => s.voucher === "voucher/ID_406")).toMatchObject({ state: "abruf_fehlgeschlagen", sourceFileId: "ID_608" });
+    broken.clear();
+    documents.set("ID_406", doc("ID_609"));
+    const progress = await run();
+    expect(progress.sevdeskFiles.abrufFehlgeschlagen).toBe(0);
+    expect((await archiv.legacyVoucherDetail(await idOf("voucher/ID_406")))!.fileState.status).toBe("vollstaendig");
+    expect((await files()).filter((f) => f.voucher === "voucher/ID_406")).toHaveLength(1);
   });
 });
