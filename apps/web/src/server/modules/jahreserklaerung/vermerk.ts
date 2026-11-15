@@ -171,8 +171,9 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
     const abweichung = pruefung?.abweichung ?? 0;
     if (pruefung && abweichung !== 0 && !data.abweichungBestaetigt) throw new AnnualError(abweichungMeldung(data.amount!, pruefung.berechnet, abweichung));
 
-    // Wie bei der Übermittlung: Welche Januarzahlungen die abgegebene EÜR verschiebt, bleibt fest (ZEHN_TAGE_REGEL, #583)
-    const zehnTage = form === "euer" ? { [ZEHN_TAGE_REGEL]: await zehnTageKennzeichen(year) } : {};
+    // Wie bei der Übermittlung: Welche Januarzahlungen die abgegebene EÜR verschiebt, bleibt fest (ZEHN_TAGE_REGEL, #583);
+    // die Einkommensteuererklärung enthält deren Gewinn und hält es ebenso fest (#1073)
+    const zehnTage = form !== "ust" ? { [ZEHN_TAGE_REGEL]: await zehnTageKennzeichen(year) } : {};
 
     return withActor(actor, async (tx) => {
       const [row] = await tx
