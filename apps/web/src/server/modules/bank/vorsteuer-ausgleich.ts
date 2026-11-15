@@ -97,7 +97,9 @@ async function bisherUmgebucht(tx: Tx, documentId: string): Promise<TaxShare[]> 
        and ((e.source_type = 'allocation' and e.source_id in (select id from allocations where document_id = ${documentId}))
          or (e.source_type = 'verrechnung' and e.source_id in (select id from document_settlements where document_id = ${documentId}))
          or (e.source_type = 'ausbuchung' and e.source_id in
-               (select id from write_offs where document_id = ${documentId} and kind <> 'skontoErhalten')))
+               (select id from write_offs where document_id = ${documentId} and kind <> 'skontoErhalten'))
+         -- Beim Buchen schon freigegeben (#693): Der Ausgleich darf dieselbe Steuer nicht ein zweites Mal ziehen
+         or (e.source_type = 'freigabe' and e.source_id = ${documentId}))
      group by l.tax_code`);
   return [...rows].flatMap((r) => {
     const rate = satzZumSchluessel(r.tax_code);

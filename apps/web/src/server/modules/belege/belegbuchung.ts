@@ -42,7 +42,7 @@ export function belegSummen(doc: Pick<Document, "reverseCharge">, amounts: Amoun
  * haben ihren eigenen Zeitpunkt, eine Gutschrift den ihren nach § 17 Abs. 1 UStG — dort gilt die Angabe „erstattet
  * bereits Bezahltes“.
  */
-function leistungNochNichtAusgefuehrt(doc: Document): boolean {
+export function leistungNochNichtAusgefuehrt(doc: Document): boolean {
   if (doc.payment !== "bank" || doc.reverseCharge || doc.category === "einfuhrumsatzsteuer") return false;
   if (!doc.documentDate || (doc.gross ?? 0) < 0) return false;
   return leistungNichtAusgefuehrt({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });

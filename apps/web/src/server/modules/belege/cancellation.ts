@@ -9,6 +9,7 @@ import { loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { journalAbJahr } from "../stammdaten/index.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { belegZeilen } from "./belegbuchung.ts";
+import { freigabeStornieren } from "./vorsteuer-freigabe.ts";
 
 export { vatPeriodsOf } from "../buchhaltung/index.ts";
 import { DocumentError, type Document } from "./documents.ts";
@@ -219,6 +220,9 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
         journalEntryId,
       });
     }
+    // Eine beim Buchen freigegebene Vorsteuer (#693) nimmt der Storno mit zurück; sonst bliebe sie auf dem Vorsteuerkonto,
+    // ohne dass der Beleg noch steht
+    await freigabeStornieren(tx, books, id, date);
     const [row] = await tx.insert(schema.documentCancellations).values({ documentId: id, date, reason, journalEntryId }).returning();
     return row!;
   });

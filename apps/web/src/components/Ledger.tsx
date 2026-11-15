@@ -29,6 +29,8 @@ export function SaldoBetrag({ kontenrahmen, account, saldo }: { kontenrahmen: Ko
 
 /** Herkunft einer Journalbuchung */
 export const JOURNAL_SOURCE = {
+  // Eigene Buchung neben dem Beleg, wenn dessen Leistung beim Buchen noch nicht ausgeführt war (#693)
+  freigabe: "Vorsteuerfreigabe",
   invoice: "Rechnung",
   document: "Beleg",
   allocation: "Bank",

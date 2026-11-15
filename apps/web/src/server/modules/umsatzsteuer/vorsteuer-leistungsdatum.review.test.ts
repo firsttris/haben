@@ -214,4 +214,49 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     const [zwischenkonto] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account = '1548'`;
     expect({ ...(await beideQuellen(monate)), zwischenkonto: zwischenkonto!.saldo }).toEqual({ journal: [0, 0], nebenbuecher: [0, 0], zwischenkonto: 0 });
   });
+
+  // Nach der Ausführung bezahlt (Zahlungsziel): § 15 Abs. 1 Satz 1 Nr. 1 UStG ist mit Leistung und Rechnung erfüllt, die
+  // Vorsteuer gehört in den Monat der Ausführung. Das Journal bucht sie bisher mit der Zahlung — im Januar. Beide Quellen
+  // müssen denselben Monat nennen (#693).
+  it("Journal als Quelle: nach der Ausführung bezahlt, Kz 66 im Monat der Ausführung", async () => {
+    await firma({ journalAb: 2026 });
+    const id = await beleg({ datum: "2026-11-20", von: "2026-11-15", bis: "2026-12-14", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    await zahlung(id, -3_856, "2027-01-10");
+
+    const monate = [
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+      { year: 2027, month: 1 },
+    ];
+    expect(await beideQuellen(monate)).toEqual({ journal: [0, 616, 0], nebenbuecher: [0, 616, 0] });
+  });
+
+  // Nie bezahlt: Die Vorsteuer steht trotzdem im Monat der Ausführung, die Verbindlichkeit bleibt offen. Sonst hinge der
+  // Abzug an einem Zahlungsziel, das der Unternehmer nicht steuert.
+  it("Journal als Quelle: nie bezahlt, Kz 66 im Monat der Ausführung", async () => {
+    await firma({ journalAb: 2026 });
+    await beleg({ datum: "2026-11-20", von: "2026-11-15", bis: "2026-12-14", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+
+    const monate = [
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+      { year: 2027, month: 1 },
+    ];
+    expect(await beideQuellen(monate)).toEqual({ journal: [0, 616, 0], nebenbuecher: [0, 616, 0] });
+  });
+
+  // Storno vor der Ausführung: Die Freigabe wird in ihrem eigenen Monat aufgehoben, damit dort keine Minderung ohne
+  // Gegenstück steht (§ 17 Abs. 1 UStG: Berichtigung im Zeitraum der Änderung).
+  it("Journal als Quelle: Storno vor der Ausführung hebt die Freigabe wieder auf", async () => {
+    await firma({ journalAb: 2026 });
+    const id = await beleg({ datum: "2026-11-20", von: "2026-11-15", bis: "2026-12-14", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    await cancellation.cancelDocument(actor, id, { reason: "falscher Beleg" }, "2026-11-25");
+
+    const monate = [
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ];
+    const [zwischenkonto] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account = '1548'`;
+    expect({ ...(await beideQuellen(monate)), zwischenkonto: zwischenkonto!.saldo }).toEqual({ journal: [0, 0], nebenbuecher: [0, 0], zwischenkonto: 0 });
+  });
 });

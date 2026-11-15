@@ -516,3 +516,13 @@ Für die Auswertungen zählt die Verrechnung wie eine Zahlung, und zwar am Tag d
 - Die Kategorie Hardware ist für geringwertige Wirtschaftsgüter gedacht; was über mehrere Jahre abgeschrieben wird, buchst du als **Anlagegut** (siehe [Anlagen und AfA](anlagen.md)).
 - HEIC-Fotos werden abgelegt, aber weder in der Vorschau angezeigt noch von der KI gelesen.
 - Dauerbelege nur für Ausgaben in Euro mit festen Beträgen, ohne § 13b, innergemeinschaftlichen Erwerb, Aufteilung auf mehrere Kategorien, Privatanteil oder Anlagegut.
+
+## Vorsteuer aus dem Leistungszeitraum: Freigabe im Monat der Ausführung
+
+Liegt das Leistungsdatum nach dem Belegdatum, parkt Haben die Vorsteuer beim Buchen auf dem Zwischenkonto (SKR03 1548, SKR04 1434). Sie zählt, sobald beide Voraussetzungen des § 15 Abs. 1 Satz 1 Nr. 1 UStG erfüllt sind: Leistung ausgeführt und Rechnung vorhanden.
+
+Mit dem Buchen entsteht deshalb eine zweite Buchung mit dem Datum der Ausführung; sie zieht die Vorsteuer vom Zwischenkonto auf das Vorsteuerkonto, und Kz 66 sieht sie in diesem Monat. Wer auf Ziel zahlt, bekommt sie damit im richtigen Jahr: Bei einem Zahlungsziel im Januar stünde die Vorsteuer des Vorjahres sonst erst in der Voranmeldung des Folgejahres. Eine nie bezahlte Rechnung ist kein Sonderfall mehr, sondern Kz 66 im Monat der Ausführung plus offene Verbindlichkeit.
+
+Die Zahlung bucht danach nur noch Verbindlichkeit gegen Bank. Vorsteuer-ausgleich.ts findet nichts mehr vor, weil es das Journal liest und die freigegebene Steuer dort schon als umgebucht steht. Ein Storno des Belegs hebt die Freigabe in ihrem eigenen Monat wieder auf (§ 17 Abs. 1 UStG: Berichtigung im Zeitraum der Änderung), damit dort keine Minderung ohne Gegenstück steht.
+
+Nicht betroffen sind Gutschriften, die bereits Bezahltes erstatten: Ihre Vorsteuerminderung hängt am Ausgleich, nicht an der Ausführung. § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt und werden gar nicht geparkt.

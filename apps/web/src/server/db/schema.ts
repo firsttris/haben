@@ -1758,6 +1758,8 @@ export const journalEntries = pgTable(
         // Verrechnung zweier Belege (#274): bisher ohne Buchung; seit #786 trägt sie die Umbuchung der Vorsteuer aus dem
         // Zwischenkonto, mit #785 kommen die zwei Buchungen je Belegseite dazu
         "verrechnung",
+        // Freigabe der Vorsteuer im Monat der Ausführung (#693): eigene Buchung neben der des Belegs, Quelle ist der Beleg
+        "freigabe",
       ],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),

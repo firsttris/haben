@@ -224,6 +224,8 @@ const FORMAT_LABELS: Record<string, string> = { zugferd: "ZUGFeRD", "xrechnung-c
 /** Herkunft einer Buchung im Journal, wie sie die Datenbank zulässt */
 type JournalSource = (typeof schema.journalEntries.$inferInsert)["sourceType"];
 const SOURCE_LABELS: Record<JournalSource, string> = {
+  // Eigene Buchung neben dem Beleg, wenn dessen Leistung beim Buchen noch nicht ausgeführt war (#693)
+  freigabe: "Vorsteuerfreigabe",
   invoice: "Rechnung",
   document: "Beleg",
   allocation: "Zahlung",
