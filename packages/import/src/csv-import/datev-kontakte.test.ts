@@ -281,8 +281,9 @@ describe("GP-Stamm aus sevDesk bis zum Plan", () => {
     );
     if (!parsed.ok) throw new Error(parsed.error);
     expect(plan(parsed.rows)).toEqual([
-      [[3], "neu", null],
-      [[4], "neu", "Gleicher Name wie Zeile 3; ohne gleiche USt-IdNr. oder Steuernummer ein eigener Kontakt"],
+      // Der GP-Stamm aus 2.0 hat kein Land: DE ist nur angenommen (#1032)
+      [[3], "neu", "Land fehlt, DE angenommen; bitte prüfen"],
+      [[4], "neu", "Land fehlt, DE angenommen; bitte prüfen; Gleicher Name wie Zeile 3; ohne gleiche USt-IdNr. oder Steuernummer ein eigener Kontakt"],
     ]);
   });
 });

@@ -104,6 +104,7 @@ describe("parseDatevStammdaten", () => {
         plz: "50667",
         ort: "Köln",
         land: "DE",
+        landAngenommen: false,
         email: "rechnung@mueller.example",
         telefon: "+49 221 123456",
         ustId: "DE136695976",
