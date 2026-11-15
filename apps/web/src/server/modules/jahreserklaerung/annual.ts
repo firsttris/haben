@@ -662,7 +662,7 @@ export async function annualOverview(year: number, today: string) {
   const ustAnzeige = {
     vorauszahlungen: ustZeilen.vorauszahlungen ?? ust.figures.vorauszahlungen,
     abschluss: ustZeilen.abschluss ?? ust.abschluss,
-    ausVermerk: ustZeilen.vorauszahlungen !== undefined || ustZeilen.abschluss !== undefined,
+    ausVermerk: { vorauszahlungen: ustZeilen.vorauszahlungen !== undefined, abschluss: ustZeilen.abschluss !== undefined },
   };
   return {
     year,
