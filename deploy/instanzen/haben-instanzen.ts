@@ -22,7 +22,7 @@ export const HILFE = `Mehrere Instanzen von Haben nebeneinander, je Firma eine (
 
   bun deploy/instanzen/haben-instanzen.ts neu <name> <domain> [Optionen]   Instanz anlegen und starten
   bun deploy/instanzen/haben-instanzen.ts update     alle nacheinander sichern, aktualisieren, Stopp beim ersten Fehler
-  bun deploy/instanzen/haben-instanzen.ts status     je Instanz Version, Erreichbarkeit, ERiC und letzte Sicherung
+  bun deploy/instanzen/haben-instanzen.ts status     je Instanz Version, Erreichbarkeit, ERiC, Speicher und letzte Sicherung
   bun deploy/instanzen/haben-instanzen.ts liste      Name, Domain und Verzeichnis
   bun deploy/instanzen/haben-instanzen.ts firmen [<name> …]
                      Liste für „Firma wechseln“ (HABEN_FIRMEN) in alle bzw. die genannten Instanzen schreiben,

@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 /**
  * Befehl `haben` im Image (Wrapper /usr/local/bin/haben, gebaut mit `bun build` im Containerfile):
  *
- *   haben status          Version, ERiC und letzte Sicherung
+ *   haben status          Version, ERiC, letzte Sicherung und Speicher
  *   haben status --json   dasselbe als JSON, für deploy/instanzen/haben-instanzen.ts
  */
 const HILFE = "Aufruf: haben status [--json]";

@@ -78,7 +78,7 @@ Das `Containerfile` baut die App in zwei Stufen: gebaut wird auf `oven/bun` (Deb
 
 Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_DIR=/var/lib/haben/eric`, `ERIC_WORKER_PATH`, `HABEN_EINVOICE_DIR`, `HABEN_COMMIT` (aus dem Build-Argument) und `XDG_CACHE_HOME=/tmp/.cache` (Cache der Schriften für `pdftoppm`).
 
-Für Uptime-Monitore und Load-Balancer meldet `GET /api/health` ohne Anmeldung `200` mit `{"status":"pass"}`, sobald die Datenbank erreichbar und alle Migrationen angewendet sind, sonst `503` mit `{"status":"fail","reason":"database"}` oder `"reason":"migrations"`. `status` folgt dem Entwurf [Health Check Response Format](https://datatracker.ietf.org/doc/draft-inadarei-api-health-check/), `reason` mit festen Werten ergänzt Haben; `warn` mit `200` kann später für Hinweise wie eine überfällige Sicherung dazukommen. Der `HEALTHCHECK` im `Containerfile` fragt denselben Endpunkt ab. Version, ERiC und letzte Sicherung meldet `haben status`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
+Für Uptime-Monitore und Load-Balancer meldet `GET /api/health` ohne Anmeldung `200` mit `{"status":"pass"}`, sobald die Datenbank erreichbar und alle Migrationen angewendet sind, sonst `503` mit `{"status":"fail","reason":"database"}` oder `"reason":"migrations"`. `status` folgt dem Entwurf [Health Check Response Format](https://datatracker.ietf.org/doc/draft-inadarei-api-health-check/), `reason` mit festen Werten ergänzt Haben; `warn` mit `200` kann später für Hinweise wie eine überfällige Sicherung dazukommen. Der `HEALTHCHECK` im `Containerfile` fragt denselben Endpunkt ab. Version, ERiC, letzte Sicherung und Speicher meldet `haben status`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
 
 `compose.yml` und `haben-app.container` starten die App gehärtet: Das Dateisystem des Containers ist schreibgeschützt, beschreibbar sind nur die Volumes unter `/var/lib/haben` und `/tmp` (tmpfs, beim Neustart leer). Dazu kommen keine Capabilities (`cap_drop: [ALL]` bzw. `DropCapability=ALL`) und `no-new-privileges`. Haben braucht nichts davon; ein Angreifer, der über eine Lücke Code im Container ausführt, kann so weder Programme im Image verändern noch sich höhere Rechte verschaffen. Schreibt etwas Eigenes außerhalb dieser Verzeichnisse, hängst du dafür ein Volume ein, statt den Schreibschutz abzuschalten.
 
@@ -420,7 +420,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | --- | --- |
 | `neu <name> <domain>` | Legt Verzeichnis, `.env` mit eigenen Zufallswerten, Override-Datei und den Eintrag im gemeinsamen Caddy an. Startet den Proxy, dann die Datenbank, legt die App-Rolle `haben_app` an ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)), startet die App und nennt den Einrichtungscode |
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Beim ersten Fehler hält es an |
-| `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC und letzte erfolgreiche Sicherung |
+| `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC, Speicher von Datenbank und Belegen und letzte erfolgreiche Sicherung |
 | `liste` | Name, Domain und Verzeichnis |
 | `firmen [<name> …]` | Schreibt die Liste für [Firma wechseln](#firma-wechseln) als `HABEN_FIRMEN` in die `.env` der Instanzen und startet laufende Apps neu |
 
@@ -439,10 +439,12 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 
 `status`:
 
-- Version, ERiC und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste.
+- Version, ERiC, Speicher und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste.
 - Bei ERiC steht die Version, „von Hand“ bei einem mit `ERIC_HOME` eingebundenen Paket ohne Versionsdatei oder „fehlt“ ohne ERiC.
+- Speicher nennt den Platz der Datenbank und der Belege, etwa „Datenbank 45,2 MB, Belege 1,3 GB“; ein Image, das ihn noch nicht meldet, zeigt „?“.
 - Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“.
 - Skripte lesen `haben status --json`, den Commit im Feld `commit` (`null` ohne Angabe beim Bauen); das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert.
+- Den Speicher in Bytes nennt `speicher`, etwa um Platte und Tarife zu planen: `datenbankBytes` ist `pg_database_size` der Datenbank der App (ohne WAL und ohne das Backup), `belegeBytes` die Summe der Dateien unter `DOCUMENTS_DIR`, mit Vorlagen und ihren Paketen. Gezählt werden die Dateien auf der Platte, nicht die Größen in der Datenbank: Eine Datei, die mehrere Belege teilen, liegt nur einmal da. 100.000 Dateien dauern auf einer SSD Bruchteile einer Sekunde.
 
 `firmen`:
 

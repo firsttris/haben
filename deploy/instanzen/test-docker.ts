@@ -37,7 +37,10 @@ export interface Zustaende {
   dbKaputt: Set<string>;
 }
 
-export const STATUS_JSON = JSON.stringify({ version: "9.9.9", summary: { eric: "44.3.6.0", backup: "2026-11-10 03:15" } });
+export const STATUS_JSON = JSON.stringify({
+  version: "9.9.9",
+  summary: { eric: "44.3.6.0", backup: "2026-11-10 03:15", speicher: "Datenbank 45,2 MB, Belege 1,3 GB" },
+});
 
 const ok = (stdout = ""): Ergebnis => ({ code: 0, stdout, stderr: "" });
 const ps = (dienste: [string, string, string][]) => dienste.map(([Service, State, Health]) => JSON.stringify({ Service, State, Health })).join("\n");
