@@ -462,7 +462,9 @@ export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: Invoic
   // nicht über den vollen Mix: Bei zwei Steuersätzen trüge sonst der zurückgenommene Satz die Steuer mit (#877, Befund 2).
   const verrechnet = [
     ...(await tx.execute<{ counter_invoice_id: string; amount: number }>(
-      sql`select counter_invoice_id, amount from invoice_settlements where invoice_id in ${ids} and amount > 0`,
+      // Netto je Gegenrechnung: Die Gegenzeile einer Aufhebung gibt das Entgelt wieder zurück
+      sql`select counter_invoice_id, sum(amount)::int as amount from invoice_settlements where invoice_id in ${ids}
+          group by counter_invoice_id having sum(amount) > 0`,
     )),
   ];
   const gegen =

@@ -187,7 +187,13 @@ async function mixNachVerrechnungen(totals: Map<string, InvoiceTotals>, q: Db | 
     })
     .from(schema.invoiceSettlements)
     .where(inArray(schema.invoiceSettlements.invoiceId, ids));
-  const positiv = rows.filter((r) => r.amount > 0);
+  // Netto je Rechnung und Gegenrechnung: Die Gegenzeile einer Aufhebung gibt das Entgelt wieder zurück
+  const netto = new Map<string, { invoiceId: string; counterInvoiceId: string; amount: number }>();
+  for (const r of rows) {
+    const key = `${r.invoiceId}|${r.counterInvoiceId}`;
+    netto.set(key, { ...r, amount: (netto.get(key)?.amount ?? 0) + r.amount });
+  }
+  const positiv = [...netto.values()].filter((r) => r.amount > 0);
   if (positiv.length === 0) return new Map();
   const gegen = await invoiceTotalsById([...new Set(positiv.map((r) => r.counterInvoiceId))], q);
   const out = new Map<string, InvoiceTotals>();
