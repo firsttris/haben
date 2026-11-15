@@ -30,7 +30,7 @@ Hinter PgBouncer braucht Haben `pool_mode = session`, bei anderen Poolern den en
 
 Endet ein Pooler, brechen die Verbindungen über ihn ab, und PostgreSQL rollt laufende Transaktionen zurück. Wer in dem Moment speichert, bekommt einen Fehler. Haben wiederholt die Aktion nicht selbst: Reißt die Verbindung während des Commits ab, ist offen, ob die Änderung schon gespeichert ist. Vor dem Wiederholen also nachsehen.
 
-Damit ein Neustart des Poolers keine Transaktion trifft, bekommt `DATABASE_URL` die [Option `max_lifetime` von postgres.js](https://github.com/porsager/postgres#connection-details):
+Laufen mehrere Pooler nebeneinander oder startet bei einem Rolling Update der neue, bevor der alte endet, trifft ein Neustart keine Transaktion, wenn `DATABASE_URL` die [Option `max_lifetime` von postgres.js](https://github.com/porsager/postgres#connection-details) bekommt:
 
 ```text
 postgres://haben_app:…@haben-pooler:5432/haben?max_lifetime=60
