@@ -3043,7 +3043,9 @@ test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098
     await dialog.getByRole("button", { name: "Vermerken" }).click();
   }
 
-  const feld = form.locator("input").first();
+  // Nur die Felder der Maske: die Aufstellung der erklärten Zeilen steht mit einem Vermerk davor und hat eigene,
+  // immer bedienbare Eingaben (#1149)
+  const feld = form.locator("fieldset input").first();
   const bearbeiten = form.getByRole("button", { name: "Angaben bearbeiten" });
   // Sperren kann die Maske nur, was vermerkt ist; den Vermerk legt der Test oben selbst an. Kein Selbst-Überspringen:
   // Fehlt der Vermerk oder die Karte dazu, ist das ein echter Fehler und der Lauf gehört rot (#1098).
