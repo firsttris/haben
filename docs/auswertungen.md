@@ -112,6 +112,10 @@ Die drei Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten
 - **Offene Verbindlichkeiten:** gebuchte Belege mit Zahlung „Bank“, abzüglich zugeordneter Zahlungen. Ohne Fälligkeitsdatum gilt das Belegdatum.
 - **Umsatzsteuer gegenüber dem Finanzamt:** Zahllast (positiv) und Erstattung (negativ) jeder abgegebenen Voranmeldung, abzüglich der im Bankabgleich zugeordneten Zahlungen; eine berichtigte Anmeldung als eigene Zeile über die Differenz. Die Nummer führt zur Voranmeldung. Siehe [Zahlung an das Finanzamt](umsatzsteuer.md#zahlung-an-das-finanzamt).
 
+Was vor dem gewählten Jahr entstanden und noch offen ist, steht in beiden Tabellen der Forderungen und Verbindlichkeiten als Zeile über der Liste („2 offene Posten aus früheren Jahren“, dazu ihr Betrag); die Spalte **Jahr** kennzeichnet die betroffenen Zeilen. Die Tabellen selbst bleiben beim Stand von heute, sie filtern nicht nach dem gewählten Jahr. Am Handy fehlt die Spalte, dort hängt der Vermerk an der Fälligkeit („fällig 17.06.2026 · aus 2025“).
+
+Ob ein solcher Vorjahresposten in eine Abschlusskontrolle gehört, hängt von der Rechtsform ab und steht deshalb nicht auf der Seite: Bei GmbH und UG steht eine offene Forderung aus 2025 am 31.12.2026 in Inventar und Bilanz (§ 240 Abs. 2, § 242 HGB), in der EÜR wirkt ein offener Posten gar nicht auf den Gewinn (§ 4 Abs. 3, § 11 EStG).
+
 Der Status zeigt „Überfällig“ (farbig hinterlegt) mit der Zahl der Tage, „Fällig“ am Tag der Fälligkeit oder „Offen“ mit den Tagen bis dahin. Nummer bzw. Rechnungsnummer führen zur Rechnung oder zum Beleg. Eine Erstattung des Finanzamts ist nie überfällig; sie steht als „Erstattung erwartet“.
 
 Beide Summen stehen auch als Kacheln in der **Übersicht**, mit Anzahl und überfälligen Posten; bei den Verbindlichkeiten ohne Überfälliges das nächste Fälligkeitsdatum. Ein Klick auf die Kachel führt zur jeweiligen Tabelle hier.
