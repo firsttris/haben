@@ -1688,6 +1688,20 @@
       "when": 1794694658816,
       "tag": "0240_app_versions_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 241,
+      "version": "7",
+      "when": 1794728472582,
+      "tag": "0241_fastbill",
+      "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1794728473388,
+      "tag": "0242_fastbill_trigger",
+      "breakpoints": true
     }
   ]
 }
