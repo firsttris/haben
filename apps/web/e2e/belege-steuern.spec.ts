@@ -1037,6 +1037,55 @@ test("Beleg mit Bruttobetrag: Netto und Vorsteuer vorgerechnet, Satzwechsel beh�
   await page.waitForURL(/\/belege$/);
 });
 
+test("Beleg gespeichert und neu geöffnet: Vorsteuer folgt Netto und Satz, ein Brutto bleibt (#1099)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "buerobedarf.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Bürobedarf Süd") }]);
+  await expect(page.getByText("buerobedarf.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /buerobedarf\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const amounts = page.getByRole("group", { name: "Beträge je Steuersatz" });
+  const speichernUndNeuLaden = async () => {
+    await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
+    await page.waitForLoadState("networkidle");
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+  };
+  // Aus dem Netto gespeichert: nach dem Öffnen folgt die Vorsteuer einem neuen Netto und einem anderen Satz
+  await amounts.getByLabel("Netto", { exact: true }).fill("100,00");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("19,00");
+  await speichernUndNeuLaden();
+  await amounts.getByLabel("Netto", { exact: true }).fill("200,00");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("38,00");
+  await amounts.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("14,00");
+  // Aus dem Brutto gespeichert: ein anderer Satz behält das Brutto wie direkt nach der Eingabe
+  await amounts.getByRole("combobox", { name: /^Satz/ }).selectOption("1900");
+  await amounts.getByLabel("Brutto", { exact: true }).fill("45,00");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("7,18");
+  await speichernUndNeuLaden();
+  await amounts.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
+  await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("42,06");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("2,94");
+  await expect(amounts.getByLabel("Brutto", { exact: true })).toHaveValue("45,00");
+  // Vorsteuer laut Rechnung von Hand: bleibt nach dem Öffnen stehen
+  await amounts.getByRole("combobox", { name: /^Satz/ }).selectOption("1900");
+  await amounts.getByLabel("Netto", { exact: true }).fill("100,00");
+  await amounts.getByLabel("Vorsteuer", { exact: true }).fill("18,99");
+  await speichernUndNeuLaden();
+  await amounts.getByLabel("Netto", { exact: true }).fill("200,00");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("18,99");
+  // Nicht buchen: die folgenden Tests zählen die Belege und Auswertungen
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
 test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz zu lesen (#917)", async ({ browser }) => {
   // 1280 px: Formular und Vorschau stehen ab 1201 px nebeneinander, die Zeile hat mit Brutto drei Betragsfelder
   const context = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: 1280, height: 800 } });
