@@ -284,7 +284,7 @@ Für den Gesamtumsatz zählen die vereinnahmten Nettoentgelte aus im Inland steu
 
 Überschreitest du die laufende Grenze, unterliegt bereits der Umsatz, der sie überschreitet, in voller Höhe der Regelbesteuerung. Lag dein Gesamtumsatz im Vorjahr über 25.000 €, entfällt die Befreiung ab dem 1. Januar des laufenden Jahres. [BMF-Schreiben, Abschnitte 19.1 und 19.7](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-03-18-sonderregelung-kleinunternehmer.pdf?__blob=publicationFile&v=3)
 
-Für Rechnungen unter der Regelbesteuerung nimmst du in den Firmendaten den Haken heraus. Danach lassen sich Kleinunternehmer-Rechnungen nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
+Für Rechnungen unter der Regelbesteuerung nimmst du in den Firmendaten den Haken heraus; das geht jederzeit, auch mitten im Jahr. Danach lassen sich Kleinunternehmer-Rechnungen nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
 
 ## Steuerfreie Umsätze nach § 4 UStG
 
