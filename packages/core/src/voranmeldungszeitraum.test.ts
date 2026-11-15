@@ -171,4 +171,28 @@ describe("openFilingPeriod", () => {
     const befreit: VatFrequencySetting[] = [{ year: 2026, fromMonth: 1, frequency: "keine" }];
     expect(openFilingPeriod(befreit, { year: 2026, month: 11 }, [])).toBeNull();
   });
+
+  it("ohne Abgabe in Haben: der zuletzt abgelaufene Zeitraum, wie bisher", () => {
+    // Wer Haben neu nutzt, hat die älteren Zeiträume meist anderswo abgegeben
+    expect(openFilingPeriod([], { year: 2026, month: 11 }, [])).toEqual({ year: 2026, month: 10 });
+    expect(openFilingPeriod(quartal2026, { year: 2026, month: 11 }, [])).toEqual({ year: 2026, month: 43 });
+  });
+
+  it("Gründung im Juli, vierteljährlich ab Juli, Q3 abgegeben: nichts offen, nicht Januar", () => {
+    // Die Monate vor der ersten Einstellung gelten sonst als monatlich und wären nie abgegeben
+    const abJuli: VatFrequencySetting[] = [{ year: 2026, fromMonth: 7, frequency: "vierteljaehrlich" }];
+    expect(openFilingPeriod(abJuli, { year: 2026, month: 11 }, [{ year: 2026, month: 43 }])).toBeNull();
+    expect(openFilingPeriod(abJuli, { year: 2027, month: 2 }, [{ year: 2026, month: 43 }])).toEqual({ year: 2026, month: 44 });
+  });
+
+  it("Abgabe vor der ersten Einstellung: gesucht wird erst ab Jahr und Monat der Einstellung", () => {
+    const abJuli: VatFrequencySetting[] = [{ year: 2026, fromMonth: 7, frequency: "vierteljaehrlich" }];
+    expect(openFilingPeriod(abJuli, { year: 2026, month: 11 }, [{ year: 2026, month: 3 }])).toEqual({ year: 2026, month: 43 });
+  });
+
+  it("erste Abgabe in Haben im Mai, Juni fehlt: Juni, nicht Januar", () => {
+    const monatlich: VatFrequencySetting[] = [{ year: 2026, fromMonth: 1, frequency: "monatlich" }];
+    const abgegeben = [5, 7, 8, 9, 10].map((month) => ({ year: 2026, month }));
+    expect(openFilingPeriod(monatlich, { year: 2026, month: 11 }, abgegeben)).toEqual({ year: 2026, month: 6 });
+  });
 });
