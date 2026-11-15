@@ -101,7 +101,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
       invoiceId: invoice.id,
       amount: 119_000,
     });
-    expect((await bank.invoicePayments([invoice.id])).get(invoice.id)).toBe(119_000);
+    expect((await invoices.invoicePayments([invoice.id])).get(invoice.id)).toBe(119_000);
     const originalInvoice = await sql`select * from invoices where id = ${invoice.id}`;
     const originalEntries = await sql`select * from journal_entries where date < ${`${year}-01-01`} order by id`;
     const originalLines =

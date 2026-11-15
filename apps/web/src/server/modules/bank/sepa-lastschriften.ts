@@ -5,7 +5,8 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { findMandate, loadCompany, type Mandate } from "../stammdaten/index.ts";
-import { BankError, invoicePayments } from "./bank.ts";
+import { invoicePayments } from "../rechnungen/index.ts";
+import { BankError } from "./bank.ts";
 import { invoicesWithPendingDirectDebit } from "./lastschrift-abgleich.ts";
 
 /**

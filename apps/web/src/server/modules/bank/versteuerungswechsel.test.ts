@@ -101,7 +101,7 @@ describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Verst
       invoiceId: invoice.id,
       amount: 119_000,
     });
-    expect((await bank.invoicePayments([invoice.id])).get(invoice.id)).toBe(119_000);
+    expect((await invoices.invoicePayments([invoice.id])).get(invoice.id)).toBe(119_000);
     const originalInvoice = await sql`select * from invoices where id = ${invoice.id}`;
     const originalEntries = await sql`select * from journal_entries where date < ${`${year}-01-01`} order by id`;
     const originalLines =
@@ -169,7 +169,7 @@ describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Verst
             const { invoice } = original;
             const returned = await transaction(`12.01.${String(year).slice(-2)}`, `RUECKLASTSCHRIFT AM04 KD-1042-01 Rechnung ${invoice.number}`, "-1.190,00");
             await bank.allocateDirectDebitReturn(actor, returned);
-            expect((await bank.invoicePayments([invoice.id])).get(invoice.id)).toBe(0);
+            expect((await invoices.invoicePayments([invoice.id])).get(invoice.id)).toBe(0);
             const january = { year, month: 1 };
             expect.soft(await taxInMonth(1, profile)).toBe(versteuerung === "ist" ? -19_000 : 0);
             expect
@@ -186,7 +186,7 @@ describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Verst
             } else {
               await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: `${year}-02-08`, amount: 119_000 }, `${year}-02-08`);
             }
-            expect((await bank.invoicePayments([invoice.id])).get(invoice.id)).toBe(119_000);
+            expect((await invoices.invoicePayments([invoice.id])).get(invoice.id)).toBe(119_000);
             expect.soft(await taxInMonth(2, profile)).toBe(versteuerung === "ist" ? 19_000 : 0);
             expect
               .soft(await vat.computeVatFigures({ year, month: 2 }))

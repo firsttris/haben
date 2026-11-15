@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
+import { MAX_DOCUMENT_SIZE } from "../../grenzen.ts";
 import { withActor } from "../../db/actor.ts";
 import { fileInUse, lockFileUse } from "../../db/file-in-use.ts";
 import { db, type schema, type Db, type Tx } from "../../db/index.ts";

@@ -35,9 +35,6 @@ export {
   importStatement,
   storeStatement,
   type ImportResult,
-  invoiceLosses,
-  invoiceWrittenOff,
-  invoicePayments,
   listAccounts,
   learnedDirectSuggestions,
   listTransactions,
@@ -150,7 +147,5 @@ export {
   settlementSchema,
   type SettlementInput,
 } from "./verrechnung.ts";
-export { invoiceLastSettledOn } from "./zahldatum.ts";
 export { gemeldeteVoranmeldungen } from "./bank.ts";
 /** Gegenbuchung zu den Zeilen einer Buchung, auch nach einem Wechsel des Kontenrahmens (Aufhebung einer Verrechnung) */
-export { reverseLines, reverseLinesIn } from "./bank.ts";

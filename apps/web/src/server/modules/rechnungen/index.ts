@@ -65,6 +65,7 @@ export { leistungsmonatHinweisFuer } from "./leistungsmonat-hinweis.ts";
 export { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
 export { advanceVatPlans } from "./advance-vat-plan.ts";
 export { invoicePaymentGroup, invoicePaymentGroups, paperCancellationIds } from "./advance-payment-group.ts";
+export { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff, paidByTarget } from "./zahlungsstand.ts";
 export { advanceReceivablesAt } from "./advance-receivables.ts";
 export { unbilledAdvanceRequest } from "./advance-invoice.ts";
 export { defaultSkonto } from "./skonto.ts";
