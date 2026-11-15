@@ -124,8 +124,11 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
   if (data.filedOn < `${year + 1}-01-01`)
     throw new AnnualError(`Der Tag der Abgabe liegt vor dem Ende des Jahres ${year}; so früh kann die Erklärung nicht abgegeben worden sein.`);
   // Kapitalgesellschaften bilanzieren (§ 6, § 238 HGB); eine EÜR nach § 4 Abs. 3 EStG gibt es für sie nicht
-  if (form === "euer" && isKapitalgesellschaft((await loadCompany()).rechtsform))
-    throw new AnnualError("Eine Kapitalgesellschaft gibt keine Anlage EÜR ab; vermerken lässt sich nur die Umsatzsteuererklärung.");
+  // Einkommensteuer zahlt sie auch nicht, sondern Körperschaftsteuer (§ 1 KStG); wie checkAnnual beim Senden
+  if (form !== "ust" && isKapitalgesellschaft((await loadCompany()).rechtsform))
+    throw new AnnualError(
+      `Eine Kapitalgesellschaft gibt keine ${form === "euer" ? "Anlage EÜR" : "Einkommensteuererklärung"} ab; vermerken lässt sich nur die Umsatzsteuererklärung.`,
+    );
   const transferTicket = data.transferTicket.trim();
 
   return underSendLock(`haben.jahreserklaerung.${form}.${year}`, "send", async () => {
