@@ -1848,6 +1848,8 @@ export const journalEntries = pgTable(
     index("journal_entries_source").on(t.sourceType, t.sourceId),
     foreignKey({ name: "journal_entries_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
     index("journal_entries_description_trgm_idx").using("gin", sql`haben_unaccent(${t.description}) gin_trgm_ops`),
+    // Ob eine Buchung storniert ist, fragt die Schnellsuche je Treffer (#617)
+    index("journal_entries_reverses_idx").on(t.reversesId).where(sql`${t.reversesId} is not null`),
   ],
 );
 

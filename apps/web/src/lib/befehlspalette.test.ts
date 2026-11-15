@@ -123,7 +123,8 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
       counterpartyName: "Cloud Hosting GmbH",
       purpose: "Rechnung 42",
       accountName: "Zweitkonto",
-      allocated: false,
+      hint: "belegFehlt" as const,
+      open: -123456,
       ibanLast4: "9900",
     };
     const sections = buildRemoteSections({ ...sampleResult, bankTransactions: { hits: [umsatz], more: false } }, true);
@@ -136,10 +137,10 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
       {
         ...sampleResult,
         loans: { hits: [{ id: "l1", name: "Kredit", lender: "bank", openingBalance: 0, balance: 4800000, openingDate: null }], more: false },
-        pauschalen: { hits: [{ id: "p1", art: "fahrt", date: "2026-09-15", description: "Kundentermin", amount: 3600 }], more: false },
+        pauschalen: { hits: [{ id: "p1", art: "fahrt", date: "2026-09-15", description: "Kundentermin", amount: 3600, storniert: false }], more: false },
         employees: { hits: [{ id: "e1", personalnummer: 7, vorname: "Berta", nachname: "Muster", art: "beschaeftigt" }], more: false },
         zmSubmissions: {
-          hits: [{ id: "z1", year: 2026, month: 41, kind: "send", ok: true, createdAt: new Date("2026-04-10") }],
+          hits: [{ id: "z1", year: 2026, month: 41, kind: "send", ok: true, code: 0, createdAt: new Date("2026-04-10") }],
           more: false,
         },
       },
@@ -149,7 +150,55 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     expect(meta("loan-l1")).toBe("Kreditinstitut");
     expect(meta("pauschale-p1")).toBe("Fahrten mit dem Privatfahrzeug · 15.09.2026");
     expect(meta("employee-e1")).toBe("Personalnr. 7 · Sozialversicherungspflichtig beschäftigt");
-    expect(meta("zm-z1")).toBe("Übermittlung · OK");
+    expect(meta("zm-z1")).toBe("Übermittlung");
+  });
+
+  it("gibt den Treffern aus Stufe 2 ihren Zustand für die Status-Komponente ihrer Seite", () => {
+    const umsatz = (id: string, konto: string) => ({
+      id,
+      bankAccountId: konto,
+      bookingDate: "2026-10-01",
+      amount: -250000,
+      currency: "EUR",
+      counterpartyName: "Bank",
+      purpose: "Rate",
+      accountName: "Konto",
+      hint: "teilweise" as const,
+      open: -50000,
+      ibanLast4: null,
+    });
+    const einKonto = buildRemoteSections({ ...sampleResult, bankTransactions: { hits: [umsatz("a", "k1"), umsatz("b", "k1")], more: true } }, true);
+    const bank = einKonto.find((s) => s.id === "bank");
+    expect(bank?.items[0]).toMatchObject({ status: { kind: "bank", tx: { hint: "teilweise", open: -50000 } } });
+    expect(bank).toMatchObject({ to: "/bank", moreSearch: { konto: "k1", filter: "alle" } });
+    // Zwei Konten: die Bankseite sucht je Konto, deshalb kein „Alle anzeigen“
+    const zweiKonten = buildRemoteSections({ ...sampleResult, bankTransactions: { hits: [umsatz("a", "k1"), umsatz("b", "k2")], more: false } }, true);
+    expect(zweiKonten.find((s) => s.id === "bank")?.to).toBeUndefined();
+
+    const vat = { id: "v1", year: 2026, month: 41, status: "draft" as const, sentAt: null, berichtigt: false, filedOn: null, dueDate: "2026-05-11" };
+    const sections = buildRemoteSections(
+      {
+        ...sampleResult,
+        vatReturns: { hits: [vat], more: false },
+        zmSubmissions: { hits: [{ id: "z1", year: 2026, month: 41, kind: "send", ok: false, code: 610001, createdAt: new Date("2026-04-10") }], more: false },
+        recurringInvoices: {
+          hits: [{ id: "r1", name: "Wartung", customer: "Kunde", intervalMonths: 1, nextDate: "2026-12-01", active: false, lastError: "kaputt" }],
+          more: false,
+        },
+        recurringDocuments: {
+          hits: [{ id: "d1", name: "Miete", supplierName: "Vermieter", intervalMonths: 1, nextDate: "2026-12-01", status: "pausiert", lastError: null }],
+          more: false,
+        },
+        pauschalen: { hits: [{ id: "p1", art: "fahrt", date: "2026-09-15", description: "Termin", amount: 3600, storniert: true }], more: false },
+      },
+      true,
+    );
+    const status = (id: string) => sections.flatMap((s) => s.items).find((item) => item.id === id);
+    expect(status("vat-v1")).toMatchObject({ status: { kind: "vat", vat }, params: { zeitraum: "2026-Q1" } });
+    expect(status("zm-z1")).toMatchObject({ status: { kind: "zm", ok: false, code: 610001 }, params: { quartal: "2026-Q1" } });
+    expect(status("rec-inv-r1")).toMatchObject({ status: { kind: "recurringInvoice", active: false, lastError: "kaputt" } });
+    expect(status("rec-doc-d1")).toMatchObject({ status: { kind: "recurringDocument", status: "pausiert", lastError: null } });
+    expect(status("pauschale-p1")).toMatchObject({ status: { kind: "pauschale", storniert: true } });
   });
 
   it("formuliert die Statusmeldung für Screenreader im Singular und Plural", () => {

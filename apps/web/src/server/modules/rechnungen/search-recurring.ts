@@ -9,6 +9,7 @@ export interface RecurringInvoiceHit {
   intervalMonths: number;
   nextDate: string;
   active: boolean;
+  lastError: string | null;
 }
 
 /** Wiederkehrende Rechnungen für die Befehlspalette (#617): Name und Kunde */
@@ -23,6 +24,7 @@ export async function searchRecurringInvoices(query: string, limit = 5): Promise
       intervalMonths: ri.intervalMonths,
       nextDate: ri.nextDate,
       active: ri.active,
+      lastError: ri.lastError,
     })
     .from(ri)
     .innerJoin(schema.contacts, eq(schema.contacts.id, ri.contactId))

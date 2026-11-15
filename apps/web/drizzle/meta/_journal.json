@@ -1695,6 +1695,13 @@
       "when": 1794702801601,
       "tag": "0241_search_journal_amount_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1794704933118,
+      "tag": "0242_search_journal_reverses_index",
+      "breakpoints": true
     }
   ]
 }

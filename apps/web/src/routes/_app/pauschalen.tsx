@@ -27,7 +27,7 @@ import styles from "../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { EntfernungForm } from "../../components/EntfernungForm.tsx";
 import { Field } from "../../components/Field.tsx";
-import { Status } from "../../components/Status.tsx";
+import { PauschaleStatus } from "../../components/PauschaleStatus.tsx";
 
 export const Route = createFileRoute("/_app/pauschalen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -551,7 +551,7 @@ function Liste({ data }: { data: Data }) {
                 </td>
                 <td>
                   {e.storniert ? (
-                    <Status tone="danger">Storniert</Status>
+                    <PauschaleStatus storniert />
                   ) : (
                     <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirm(e)}>
                       Stornieren

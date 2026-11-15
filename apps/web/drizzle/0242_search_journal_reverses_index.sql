@@ -1,0 +1,1 @@
+CREATE INDEX "journal_entries_reverses_idx" ON "journal_entries" USING btree ("reverses_id") WHERE "journal_entries"."reverses_id" is not null;
