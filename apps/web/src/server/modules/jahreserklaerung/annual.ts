@@ -693,6 +693,16 @@ export async function annualOverview(year: number, today: string) {
     erklaerteZeilen(euerVermerk?.id ?? null),
     erklaerteZeilen(estVermerk?.id ?? null),
   ]);
+  /*
+   * Die Summenzeilen der Seite zeigen nach einem Vermerk die erklärte Zahl (#1076): Habens eigene Rechnung kennt die
+   * Veranlagung nicht, und in einem Jahr ohne Buchungen kehrt sie sogar das Vorzeichen um (0,00 - erklärtes Soll).
+   * Die gerechneten Werte bleiben daneben stehen, weil vermerkPruefung und der Abweichungshinweis sie brauchen.
+   */
+  const ustAnzeige = {
+    vorauszahlungen: ustZeilen.vorauszahlungen ?? ust.figures.vorauszahlungen,
+    abschluss: ustZeilen.abschluss ?? ust.abschluss,
+    ausVermerk: { vorauszahlungen: ustZeilen.vorauszahlungen !== undefined, abschluss: ustZeilen.abschluss !== undefined },
+  };
   return {
     year,
     ust: {
