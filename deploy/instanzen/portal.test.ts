@@ -69,6 +69,14 @@ describe("portal: Einrichten", () => {
     expect(existsSync(join(portalDir(), ".abgleich.lock"))).toBe(false);
   });
 
+  it("hängt einen laufenden Caddy ins Netz des Firmenportals, ohne ihn neu aufzubauen (#1013)", async () => {
+    t.docker.z.caddyLaeuft = true;
+    await einrichten();
+    expect(t.docker.z.caddyNetze.has("haben-proxy-firmenportal")).toBe(true);
+    expect(t.docker.aufrufe).toContain("proxy compose up -d --no-recreate");
+    expect(t.docker.aufrufe).not.toContain("proxy compose up -d");
+  });
+
   it("zählt das Firmenportal nicht zu den Instanzen", async () => {
     await instanz("nord");
     await einrichten();

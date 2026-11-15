@@ -107,7 +107,7 @@ async function einrichten(k: Kontext, dir: string, domain: string, sso: NonNulla
     throw error;
   }
   await proxyEintragen(k, PORTAL, domain);
-  await proxyStarten(k);
+  await proxyStarten(k, PORTAL);
   k.aus(`Angelegt: ${dir}`);
   k.aus(`Im Anmeldedienst: Client ${sso.clientId} mit redirect_uris: [https://${domain}/callback], als Rückweg nach dem Abmelden`);
   k.aus(`https://${domain}/?abgemeldet=dienst (docs/installation.md, „Firmenportal“).`);

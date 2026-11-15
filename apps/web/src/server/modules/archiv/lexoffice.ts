@@ -37,6 +37,9 @@ import { db, schema } from "../../db/index.ts";
 import type { LegacyCategoryRow, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sniff } from "../../storage.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
+import { latestFastbillImport } from "./fastbill.ts";
+import { fastbillPartlyCanceledByYear, fastbillPartlyCanceledChecks, fastbillTaxType, fastbillWaitingChecks } from "./fastbill-abgleich.ts";
+import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 
 export class LexofficeError extends UserError {}
@@ -147,6 +150,7 @@ async function launchImport(actor: string, sourceFor: (signal: AbortSignal) => L
   if (current?.status === "laeuft") throw new LexofficeError("Ein Abruf läuft bereits.");
   // Der eindeutige Index gilt für beide Quellen: auch einen verwaisten sevDesk-Lauf als abgebrochen markieren
   if ((await latestSevdeskImport())?.status === "laeuft") throw new LexofficeError("Ein Abruf aus sevDesk läuft bereits.");
+  if ((await latestFastbillImport())?.status === "laeuft") throw new LexofficeError("Ein Abruf aus FastBill läuft bereits.");
   const progress: LexofficeImportProgress = {
     phase: "kontakte",
     contacts: 0,
@@ -478,10 +482,11 @@ function legacyPayments(v: { source: LegacySource; gross: number; status: string
 /**
  * Steuerart aus der gespeicherten API-Antwort, in den Werten von Lexoffice. Lexoffice: Rechnungsmodul unter taxConditions,
  * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
- * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt.
+ * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt. FastBill: VAT_CASE (fastbill-abgleich.ts).
  */
 function taxTypeOf(t: string) {
-  return sql.raw(`case when ${t}.source = 'sevdesk' then
+  return sql.raw(`case when ${t}.source = 'fastbill' then ${fastbillTaxType(t)}
+    when ${t}.source = 'sevdesk' then
       case coalesce(${t}.raw->'taxRule'->>'id', '')
         when '1' then 'net' when '2' then 'thirdPartyCountryDelivery' when '3' then 'intraCommunitySupply'
         when '4' then 'vatfree' when '11' then 'vatfree'
@@ -586,7 +591,10 @@ export async function reconciliation() {
     .where(eq(schema.lexofficeImports.source, "buchhaltungsbutler"));
   const bbFileIds = new Set(bbImports.flatMap((i) => i.progress.datevFileIds ?? []));
 
-  const years = new Set<number>();
+  // Ausgaben aus FastBill, die noch auf ihren Beleg warten, liegen nicht in lexoffice_vouchers: sonst sähe ein Jahr vollständig aus
+  const fastbillWaiting = await fastbillWaitingByYear();
+  const fastbillPartlyCanceled = await fastbillPartlyCanceledByYear();
+  const years = new Set<number>(fastbillWaiting.keys());
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
   for (const b of bookingRows) years.add(Number(b.year));
   for (const f of files) if (f.year) years.add(f.year);
@@ -669,6 +677,8 @@ export async function reconciliation() {
       const checks: ReconciliationCheck[] = [
         ...(paymentIssueOf(year) ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: paymentIssueOf(year)! }] : []),
         ...accountingTypeChecks(unclearAccountsIn(year)),
+        ...fastbillWaitingChecks(fastbillWaiting.get(year)),
+        ...fastbillPartlyCanceledChecks(fastbillPartlyCanceled.get(year)),
         {
           ok: vouchers.length > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),
           label: "Belege und Rechnungen per API abgerufen",

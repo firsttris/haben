@@ -1,5 +1,5 @@
 /*
- * Betrieb: Stand einer Instanz für Betreiber (Version, ERiC, letzte Sicherung), ausgegeben von `haben status`.
+ * Betrieb: Stand einer Instanz für Betreiber (Version, ERiC, letzte Sicherung, Speicher), ausgegeben von `haben status`.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).

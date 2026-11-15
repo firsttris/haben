@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus Lexoffice / Lexware Office
 
-Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
+Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus FastBill](fastbill.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
 
 <img src="screenshot-archiv.png" alt="Seite Archiv mit den Schritten des Umzugs und dem Abgleich je Geschäftsjahr" width="900">
 

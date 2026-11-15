@@ -78,7 +78,7 @@ Das `Containerfile` baut die App in zwei Stufen: gebaut wird auf `oven/bun` (Deb
 
 Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_DIR=/var/lib/haben/eric`, `ERIC_WORKER_PATH`, `HABEN_EINVOICE_DIR`, `HABEN_COMMIT` (aus dem Build-Argument) und `XDG_CACHE_HOME=/tmp/.cache` (Cache der Schriften für `pdftoppm`).
 
-Für Uptime-Monitore und Load-Balancer meldet `GET /api/health` ohne Anmeldung `200` mit `{"status":"pass"}`, sobald die Datenbank erreichbar und alle Migrationen angewendet sind, sonst `503` mit `{"status":"fail","reason":"database"}` oder `"reason":"migrations"`. `status` folgt dem Entwurf [Health Check Response Format](https://datatracker.ietf.org/doc/draft-inadarei-api-health-check/), `reason` mit festen Werten ergänzt Haben; `warn` mit `200` kann später für Hinweise wie eine überfällige Sicherung dazukommen. Der `HEALTHCHECK` im `Containerfile` fragt denselben Endpunkt ab. Version, ERiC und letzte Sicherung meldet `haben status`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
+Für Uptime-Monitore und Load-Balancer meldet `GET /api/health` ohne Anmeldung `200` mit `{"status":"pass"}`, sobald die Datenbank erreichbar und alle Migrationen angewendet sind, sonst `503` mit `{"status":"fail","reason":"database"}` oder `"reason":"migrations"`. `status` folgt dem Entwurf [Health Check Response Format](https://datatracker.ietf.org/doc/draft-inadarei-api-health-check/), `reason` mit festen Werten ergänzt Haben; `warn` mit `200` kann später für Hinweise wie eine überfällige Sicherung dazukommen. Der `HEALTHCHECK` im `Containerfile` fragt denselben Endpunkt ab. Version, ERiC, letzte Sicherung und Speicher meldet `haben status`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
 
 `compose.yml` und `haben-app.container` starten die App gehärtet: Das Dateisystem des Containers ist schreibgeschützt, beschreibbar sind nur die Volumes unter `/var/lib/haben` und `/tmp` (tmpfs, beim Neustart leer). Dazu kommen keine Capabilities (`cap_drop: [ALL]` bzw. `DropCapability=ALL`) und `no-new-privileges`. Haben braucht nichts davon; ein Angreifer, der über eine Lücke Code im Container ausführt, kann so weder Programme im Image verändern noch sich höhere Rechte verschaffen. Schreibt etwas Eigenes außerhalb dieser Verzeichnisse, hängst du dafür ein Volume ein, statt den Schreibschutz abzuschalten.
 
@@ -421,7 +421,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | --- | --- |
 | `neu <name> <domain>` | Legt Verzeichnis, `.env` mit eigenen Zufallswerten, Override-Datei und den Eintrag im gemeinsamen Caddy an. Startet den Proxy, dann die Datenbank, legt die App-Rolle `haben_app` an ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)), startet die App und nennt den Einrichtungscode |
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Beim ersten Fehler hält es an |
-| `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC und letzte erfolgreiche Sicherung |
+| `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC, Speicher von Datenbank und Belegen und letzte erfolgreiche Sicherung |
 | `liste` | Name, Domain und Verzeichnis |
 | `firmen [<name> …]` | Schreibt die Liste für [Firma wechseln](#firma-wechseln) als `HABEN_FIRMEN` in die `.env` der Instanzen und startet laufende Apps neu |
 | `portal [<domain> --oidc-…]` | Richtet beim ersten Aufruf das [Firmenportal](#firmenportal) unter `firmenportal/` hinter dem gemeinsamen Caddy ein und gleicht es danach bei jedem Aufruf mit den Instanzen mit SSO ab: Firmen, Farbe und Logo, `HABEN_FIRMENPORTAL_URL` in den Instanzen |
@@ -441,10 +441,12 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 
 `status`:
 
-- Version, ERiC und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste.
+- Version, ERiC, Speicher und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste.
 - Bei ERiC steht die Version, „von Hand“ bei einem mit `ERIC_HOME` eingebundenen Paket ohne Versionsdatei oder „fehlt“ ohne ERiC.
+- Speicher nennt den Platz der Datenbank und der Belege, etwa „Datenbank 45,2 MB, Belege 1,3 GB“; ein Image, das ihn noch nicht meldet, zeigt „?“.
 - Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“.
 - Skripte lesen `haben status --json`, den Commit im Feld `commit` (`null` ohne Angabe beim Bauen); das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert.
+- Den Speicher in Bytes nennt `speicher`, etwa um Platte und Tarife zu planen: `datenbankBytes` ist `pg_database_size` der Datenbank der App (ohne WAL und ohne das Backup), `belegeBytes` die Summe der Dateien unter `DOCUMENTS_DIR`, mit Vorlagen und ihren Paketen. Gezählt werden die Dateien auf der Platte (ihre Größe, nicht die belegten Blöcke), nicht die Größen in der Datenbank: Eine Datei, die mehrere Belege teilen, liegt nur einmal da. Ordner, die die App nicht lesen darf, etwa `lost+found`, zählen nicht. 100.000 Dateien dauerten auf einer SSD mit den Dateien im Cache rund 0,2 Sekunden; auf einem Netzlaufwerk oder nach einem Neustart kann es länger dauern.
 
 `firmen`:
 
@@ -492,7 +494,16 @@ cron und systemd kennen den `PATH` deiner Shell nicht, deshalb der volle Pfad zu
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 
-Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Das gilt für Docker unter Linux, das Bridge-Netze mit Firewall-Regeln voneinander trennt; Laufzeiten wie OrbStack trennen sie nicht, dort erreicht eine App die andere über deren IP-Adresse. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu und baut den Caddy-Container neu auf; dabei sind alle Instanzen einige Sekunden nicht erreichbar.
+Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Das gilt für Docker unter Linux, das Bridge-Netze mit Firewall-Regeln voneinander trennt; Laufzeiten wie OrbStack trennen sie nicht, dort erreicht eine App die andere über deren IP-Adresse. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu. Einen laufenden Caddy baut es dabei nicht neu auf: Es legt das neue Netz mit `docker compose up -d --no-recreate` an, hängt den Container mit `docker network connect` hinein und liest `sites/` mit `caddy reload` neu ein. Die anderen Instanzen bleiben währenddessen erreichbar, auch laufende Uploads oder Übermittlungen an ELSTER brechen nicht ab. Läuft der Caddy nicht, startet `neu` ihn mit `docker compose up -d`.
+
+Alle Instanzen sind noch kurz nicht erreichbar (höchstens einige Sekunden), wenn der Caddy-Container neu entsteht oder neu startet:
+
+- beim ersten schlichten `docker compose up -d` in `proxy/` nach einem `neu`: Compose sieht die neuen Netze in der Datei und baut den Container einmal neu auf, auch wenn er schon in allen hängt;
+- mit `docker compose up -d --force-recreate`, mit `docker compose up -d` nach einem `docker compose pull`, das ein neues Image des Caddy holt, und mit `docker compose restart caddy`;
+- beim Löschen einer Instanz (Schritt 3 unten) und beim ersten Start von Hand nach `--nicht-starten` oder einem Abbruch, mit den Schritten, die `neu` dann nennt;
+- beim Neustart von Docker oder des Rechners. Die Netze, in die `neu` den Container gehängt hat, bleiben ihm dabei erhalten.
+
+Bestehende Instanzen und ihr Caddy brauchen dafür keine Umstellung.
 
 Eine Instanz löschst du in dieser Reihenfolge. `docker compose down -v` entfernt alle Volumes der Instanz: Datenbank, Belege und, solange `RESTIC_REPOSITORY` nicht auf ein zweites System zeigt, auch das Backup im Volume `backups`. Vorher gehören deshalb der [Jahresexport](auswertungen.md#jahresexport) jedes Jahres und ein Backup an einen zweiten Ort ([Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system)); Bücher und Aufzeichnungen bewahrst du 10 Jahre auf, Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO), siehe [Aufbewahrung](auswertungen.md#aufbewahrung).
 
@@ -503,7 +514,7 @@ Eine Instanz löschst du in dieser Reihenfolge. `docker compose down -v` entfern
 Zwei Fälle weichen bei Schritt 2 und 3 ab:
 
 - **Mit `--eigener-proxy`** gibt es kein `proxy/`: den Block der Domain und das Netz aus der Konfiguration deines Proxys entfernen, ihn neu aufbauen, dann `docker network rm haben-proxy-<name>`.
-- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht, und `up -d` baut den Caddy deshalb nicht neu auf. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose restart caddy`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart.
+- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart.
 
 `update`, `status` und `liste` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
 

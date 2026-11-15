@@ -1,6 +1,11 @@
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+
+// Jede Probe legt hier Rechnungen, Belege und Buchungen an und liest sie über die Kontakthistorie zurück. Auf einem
+// geteilten CI-Läufer braucht die erste davon über fünf Sekunden statt der 0,4 s auf einer freien Maschine; das
+// Standardlimit von Vitest reisst dort ab, ohne dass etwas falsch wäre.
+vi.setConfig({ testTimeout: 20_000 });
 
 const PDF = new TextEncoder().encode("%PDF-1.4\n% Altbestand\n%%EOF\n");
 const TODAY = "2026-11-11";
