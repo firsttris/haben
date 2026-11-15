@@ -70,8 +70,8 @@ Schlüssel heißen wie die Variablen:
 
 Mit `postgresql.enabled: false` startet keine Datenbank. Die Zugänge stehen dann in `app.secretEnv`: `DATABASE_URL` für
 die App-Rolle und, für [getrennte Rollen](installation-konfiguration.md#getrennte-datenbankrollen), `MIGRATION_DATABASE_URL`
-für den Eigentümer, bei CloudNativePG etwa über den `-rw`-Service.
-Das Backup braucht den Eigentümerzugang auch: `PGHOST`, `PGUSER` und `PGDATABASE` unter `backup.env`, `PGPASSWORD`
+für den Eigentümer, bei CloudNativePG etwa über den `-rw`-Service. Ein Pooler davor muss im Sitzungsmodus laufen, siehe
+[Image](installation.md#image). Das Backup braucht den Eigentümerzugang auch: `PGHOST`, `PGUSER` und `PGDATABASE` unter `backup.env`, `PGPASSWORD`
 unter `backup.secretEnv`. Schaltest du es ab, weil der Operator die Datenbank sichert, fehlen im Backup die Belege.
 
 ## Ingress und Gateway API
