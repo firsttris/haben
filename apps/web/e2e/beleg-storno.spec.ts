@@ -226,3 +226,34 @@ test("Belegliste: ohne Sortierung ungebuchte zuerst, Spaltenkopf sortiert und ne
   await page.reload();
   await expect(zeilen.first()).toContainText("Altpapier Ahrens");
 });
+
+test("Kontaktliste: Spaltenkopf sortiert und nennt die Richtung (#1112)", async () => {
+  const stammdaten = await import("../src/server/modules/stammdaten/index.ts");
+  const kontakt = (name: string, plz: string, ort: string) =>
+    stammdaten.createContact("e2e-storno", {
+      kundennummer: "",
+      name,
+      strasse: "",
+      plz,
+      ort,
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+  await kontakt("Anker Werft GmbH", "80331", "München");
+  await kontakt("Zeisig Druck GmbH", "20095", "Hamburg");
+  await page.goto("/kontakte");
+  const zeilen = page.getByRole("region", { name: "Kontaktliste" }).locator('a[href^="/kontakte/"]');
+  // Ohne Auswahl nach Name aufsteigend; der Kopf sagt, was der nächste Klick tut
+  await expect(zeilen.first()).toContainText("Anker Werft GmbH");
+  await page.getByRole("link", { name: "Name absteigend sortieren, zurzeit aufsteigend sortiert" }).click();
+  await expect(page).toHaveURL(/sort=name&dir=ab/);
+  await expect(zeilen.first()).toContainText("Zeisig Druck GmbH");
+  // Ort sortiert nach Postleitzahl und Ort, der erste Klick aufsteigend
+  await page.getByRole("link", { name: "Ort aufsteigend sortieren" }).click();
+  await expect(page).toHaveURL(/sort=ort&dir=auf/);
+  await expect(zeilen.first()).toContainText("Zeisig Druck GmbH");
+});
