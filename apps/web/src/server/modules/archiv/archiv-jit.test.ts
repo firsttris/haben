@@ -16,6 +16,8 @@ describe.skipIf(!testDatabaseUrl)("Archiv ohne JIT (Postgres)", () => {
   let sql: postgres.Sql;
   let lexoffice: typeof import("./lexoffice.ts");
   let open: typeof import("./legacy-open.ts");
+  let archivExport: typeof import("./export.ts");
+  let sevdeskPayments: typeof import("./sevdesk-payments.ts");
   const plans: Plan[] = [];
 
   beforeAll(async () => {
@@ -34,14 +36,15 @@ describe.skipIf(!testDatabaseUrl)("Archiv ohne JIT (Postgres)", () => {
       (await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{}'::jsonb, 'sevdesk') returning id`) as unknown as [
         { id: string },
       ];
-    // 600 sevDesk-Belege über drei Jahre: Rechnungen, Belege und Gutschriften, offen und bezahlt
+    // 600 sevDesk-Belege über drei Jahre: Rechnungen, Belege und Gutschriften, offen und bezahlt. Zahlungsverlauf „storno“, damit
+    // die Sperre für unvollständige sevDesk-Zahlungen die Zeitraumabfrage mit Zahlungen nicht vor der Hauptabfrage abbricht
     await sql`insert into lexoffice_vouchers (lexoffice_id, source, import_id, type, direction, number, date, status, net, tax, gross, taxes, categories, payment, raw)
       select case i % 3 when 0 then 'invoice/' when 1 then 'voucher/' else 'creditnote/' end || i, 'sevdesk', ${importId},
         case i % 3 when 0 then 'invoice' when 1 then 'purchaseinvoice' else 'creditnote' end,
         case i % 3 when 1 then 'ausgabe' else 'einnahme' end,
         'B-' || i, date '2023-01-01' + (i % 1000), case when i % 5 = 0 then 'open' else 'paid' end, 10000, 1900,
         case i % 3 when 2 then -11900 else 11900 end, '[{"rate":1900,"net":10000,"tax":1900}]'::jsonb, '[]'::jsonb,
-        jsonb_build_object('status', case when i % 5 = 0 then 'open' else 'paid' end, 'openAmount', case when i % 5 = 0 then 119 else 0 end, 'items', '[]'::jsonb),
+        jsonb_build_object('status', case when i % 5 = 0 then 'open' else 'paid' end, 'openAmount', case when i % 5 = 0 then 119 else 0 end, 'items', '[]'::jsonb, 'history', 'storno'),
         jsonb_build_object('creditDebit', case when i % 2 = 0 then 'C' else 'D' end, 'positions', '[]'::jsonb, 'taxRule', jsonb_build_object('id', '1'))
       from generate_series(1, 600) i`;
     await sql`analyze lexoffice_vouchers`;
@@ -53,6 +56,8 @@ describe.skipIf(!testDatabaseUrl)("Archiv ohne JIT (Postgres)", () => {
     });
     lexoffice = await import("./lexoffice.ts");
     open = await import("./legacy-open.ts");
+    archivExport = await import("./export.ts");
+    sevdeskPayments = await import("./sevdesk-payments.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -78,4 +83,31 @@ describe.skipIf(!testDatabaseUrl)("Archiv ohne JIT (Postgres)", () => {
     expect(heavy.length).toBeGreaterThan(0);
     expect(heavy.filter((p) => p.JIT).map((p) => p.JIT)).toEqual([]);
   });
+
+  it("Umsatzsteuer je Zeitraum mit Zahlungen: die teuren Abfragen laufen ohne JIT", async () => {
+    const heavy = await heavyPlans(() => lexoffice.legacyVouchersForPeriod({ period: "2024", direction: "alle", search: "", withPayments: true, limit: 50 }));
+    expect(heavy.length).toBeGreaterThan(1);
+    expect(heavy.filter((p) => p.JIT).map((p) => p.JIT)).toEqual([]);
+  }, 30_000);
+
+  it("Jahresexport: die Archivbelege des Jahres laufen ohne JIT", async () => {
+    const heavy = await heavyPlans(async () => {
+      for await (const _ of archivExport.exportYear(2024)) {
+        // nur durchlaufen
+      }
+    });
+    expect(heavy.length).toBeGreaterThan(0);
+    expect(heavy.filter((p) => p.JIT).map((p) => p.JIT)).toEqual([]);
+  }, 30_000);
+
+  it("Einzelzahlungen aus sevDesk: die Abfrage über alle sevDesk-Belege läuft ohne JIT", async () => {
+    const client = {
+      async *checkAccountTransactionLogs() {},
+      async *checkAccounts() {},
+    } as unknown as Parameters<typeof sevdeskPayments.importSevdeskPayments>[2];
+    const progress = { failed: [] } as unknown as Parameters<typeof sevdeskPayments.importSevdeskPayments>[3];
+    const heavy = await heavyPlans(() => sevdeskPayments.importSevdeskPayments("test", "import", client, progress, new AbortController().signal));
+    expect(heavy.length).toBeGreaterThan(0);
+    expect(heavy.filter((p) => p.JIT).map((p) => p.JIT)).toEqual([]);
+  }, 30_000);
 });
