@@ -1,17 +1,18 @@
-/** Bereiche der Einstellungen; ?bereich=… in der Adresse wählt einen aus, ohne Angabe gilt „firma“ */
+/** Bereiche der Einstellungen; ?bereich=… in der Adresse wählt einen aus. Ohne Angabe zeigt der Desktop „firma“,
+    das Handy die Liste aller Bereiche */
 export const SETTINGS_AREAS = [
   { id: "firma", label: "Firma", hint: "Anschrift, Steuern, Bank, Mahnwesen" },
-  { id: "persoenlich", label: "Persönliche Angaben", hint: "Für die Einkommensteuer" },
+  { id: "persoenlich", label: "Persönliche Angaben", hint: "Steuer-ID, Veranlagung, Ehegatte" },
   { id: "rechnungen", label: "Rechnungen", hint: "Nummern, Zahlungspläne, Anhänge" },
-  { id: "gestaltung", label: "Beleggestaltung", hint: "Logo, Farbe, Layouts" },
+  { id: "gestaltung", label: "Beleggestaltung", hint: "Logo, Briefpapier, Farbe, Fußzeile" },
   { id: "elster", label: "ELSTER", hint: "Zertifikat und ERiC" },
-  { id: "email", label: "E-Mail", hint: "Versand und Belege-Postfach" },
+  { id: "email", label: "E-Mail", hint: "Versand, Postfach für Belege" },
   { id: "bank", label: "Bank", hint: "Kontoabruf, Google Play, App Store" },
-  { id: "sicherheit", label: "Sicherheit", hint: "Passkeys, Zugänge" },
-  { id: "waehrung", label: "Fremdwährung", hint: "Umrechnungskurse des BMF" },
-  { id: "ki", label: "KI-Assistenten und API", hint: "MCP, REST-API, Belegauslesung" },
+  { id: "sicherheit", label: "Sicherheit", hint: "Passkeys, Passwort, Zugänge" },
+  { id: "waehrung", label: "Fremdwährung", hint: "USt-Umrechnungskurse des BMF" },
+  { id: "ki", label: "KI-Assistenten und API", hint: "MCP, API-Tokens, Belegauslesung" },
   { id: "seiten", label: "Eigene Seiten", hint: "Eigene Werkzeuge im Menü" },
-  { id: "export", label: "Export", hint: "Archiv, DATEV, Prüfung, Backup" },
+  { id: "export", label: "Export", hint: "Jahresarchiv, DATEV, Backup, Prüfung" },
 ] as const;
 
 /** Im SSO-Modus ersetzt „Zugänge“ den Bereich Sicherheit: Passkeys, Passwort und Einladungen gibt es dort nicht */
