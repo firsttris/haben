@@ -73,7 +73,7 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
       expect(await sql`select * from journal_lines order by id`).toEqual(before.lines);
 
       const company = await import("../modules/stammdaten/company.ts");
-      const guard = await import("../modules/stammdaten/settings-guard.ts");
+      const guard = await import("../modules/auswertungen/settings-guard.ts");
       expect(await company.kleinunternehmerForYear(previousYear)).toBe(false);
       expect((await company.kleinunternehmerHistory())(today)).toBe(true);
       const input = company.companySchema.parse(await company.loadCompany());

@@ -150,7 +150,7 @@ export async function loadCompany(q: Db | Tx = db): Promise<Company> {
 
 /**
  * Versteuerung (Ist oder Soll), nach der ein Jahr gebucht ist. Umstellen geht nur zum Jahreswechsel, bevor im neuen
- * Jahr gebucht wird (settings-guard.ts); es gilt also, was beim Anlegen der ersten Buchung des Jahres eingestellt war.
+ * Jahr gebucht wird (auswertungen/settings-guard.ts); es gilt also, was beim Anlegen der ersten Buchung des Jahres eingestellt war.
  * Das steht im Audit-Log der Firmendaten. Ohne Buchung im Jahr gilt die aktuelle Einstellung.
  *
  * Wichtig für alles, was frühere Zeiträume rechnet: Voranmeldungen des Vorjahres und vor allem die
@@ -195,7 +195,7 @@ export async function setJournalAb(tx: Tx, year: number): Promise<void> {
  * Kleinunternehmer (§ 19 UStG) an einem Tag, nach dem Änderungsprotokoll der Firmendaten. Liefert eine Funktion
  * Datum (JJJJ-MM-TT, deutsche Zeit) → Status am Ende dieses Tages; vor dem ersten Eintrag gilt der erste bekannte
  * fachlich gespeicherte Stand. Unbenutzte technische Vorgaben zählen nicht als Regelbesteuerung. Einschalten geht nur,
- * solange im Jahr nichts gebucht ist (settings-guard.ts), ausschalten jederzeit.
+ * solange im Jahr nichts gebucht ist (auswertungen/settings-guard.ts), ausschalten jederzeit.
  *
  * Für alles, was frühere Zeiträume betrifft: Wer zum Jahreswechsel auf Kleinunternehmer umstellt, schuldet die
  * Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres trotzdem.

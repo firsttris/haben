@@ -6,8 +6,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
-import { reverseLinesIn } from "../bank/index.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
+import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { listInvoices } from "./invoices.ts";
 
 /*

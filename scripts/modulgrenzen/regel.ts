@@ -1,5 +1,6 @@
 import { basename, dirname, resolve, sep } from "node:path";
 import { parseSync, Visitor } from "oxc-parser";
+import { AUSNAHMEN, SCHICHTEN } from "./schichten.ts";
 
 /*
  * Modulgrenzen im Server (#81, Schritt 6). Fachlicher Code liegt in apps/web/src/server/modules/<name>/; was ein Modul
@@ -8,8 +9,10 @@ import { parseSync, Visitor } from "oxc-parser";
  * - Aus einem anderen Modul nur über dessen index.ts, nie direkt in eine Datei dahinter.
  * - Gemeinsame Infrastruktur (server/*.ts, server/db/) importiert gar kein Modul, sonst hängt sie an der Fachlogik.
  *   Ausgenommen sind die Stellen, die Module zusammensetzen: functions/, plugins/ und scheduler.ts.
- * - Module importieren weder Server Functions noch Oberfläche (routes/, components/); src/lib/ ist erlaubt. Die
- *   Abhängigkeit läuft nur von außen nach innen.
+ * - Module importieren weder Server Functions noch Oberfläche (routes/, components/) noch scheduler.ts; src/lib/ ist
+ *   erlaubt. Die Abhängigkeit läuft nur von außen nach innen.
+ * - Ein Modul importiert nur Module, die in schichten.ts vor ihm stehen. Damit hängen keine Module im Ring aneinander:
+ *   Ein Ring ließ etwa documents.ts nicht als erstes Modul laden, weil eine Konstante noch nicht ausgewertet war (#1063).
  *
  * - Pakete unter packages/ importieren nichts aus apps/ (weder relativ noch als @haben/web); der GoBD-Kern kennt
  *   zusätzlich keine Pakete von Haben (@haben/… oder relativ außerhalb seines Ordners), weil auch andere Apps ihn nutzen.
@@ -27,7 +30,14 @@ export interface Verstoss {
 const MODULES = `${sep}src${sep}server${sep}modules${sep}`;
 const SERVER = `${sep}src${sep}server${sep}`;
 const COMPOSITION = [`${SERVER}functions${sep}`, `${SERVER}plugins${sep}`];
-const OUTSIDE = [`${SERVER}functions${sep}`, `${SERVER}plugins${sep}`, `${sep}src${sep}routes${sep}`, `${sep}src${sep}components${sep}`];
+/** Was über allen Modulen steht; scheduler.ts setzt Module zusammen und gehört dazu */
+const OUTSIDE = [
+  `${SERVER}functions${sep}`,
+  `${SERVER}plugins${sep}`,
+  `${SERVER}scheduler.ts`,
+  `${sep}src${sep}routes${sep}`,
+  `${sep}src${sep}components${sep}`,
+];
 
 /**
  * Modulname und Pfad unterhalb des Moduls, oder null außerhalb von modules/. Der Modulordner selbst und `index` ohne
@@ -87,7 +97,9 @@ export function checkImport(file: string, specifier: string): string | null {
   if (!specifier.startsWith(".")) return null;
   const own = moduleOf(file);
   const path = resolve(dirname(file), specifier);
-  if (own && OUTSIDE.some((dir) => path.includes(dir))) {
+  // Ohne Endung löst "../../scheduler" wie scheduler.ts auf
+  const withExtension = /\.[cm]?[jt]sx?$/.test(path) ? path : `${path}.ts`;
+  if (own && OUTSIDE.some((dir) => withExtension.includes(dir))) {
     return `Ein Modul importiert keine Server Functions und keine Oberfläche („${specifier}“). Gemeinsames gehört in das Modul oder in src/lib/.`;
   }
   const target = moduleOf(path);
@@ -98,7 +110,18 @@ export function checkImport(file: string, specifier: string): string | null {
   if (target.inner !== "index.ts") {
     return `Modul „${target.name}“ nur über seine index.ts importieren, nicht „${target.inner}“. Fehlt der Name dort, ergänze ihn in modules/${target.name}/index.ts.`;
   }
-  return null;
+  return own ? checkLayer(own, target.name) : null;
+}
+
+/** Ein Modul importiert nur Module, die in SCHICHTEN vor ihm stehen */
+function checkLayer(file: { name: string; inner: string }, target: string): string | null {
+  const own = file.name;
+  const order: readonly string[] = SCHICHTEN;
+  const unknown = [own, target].find((name) => !order.includes(name));
+  if (unknown) return `Modul „${unknown}“ fehlt in scripts/modulgrenzen/schichten.ts. Trage es über den Modulen ein, die es importiert.`;
+  if (order.indexOf(target) < order.indexOf(own)) return null;
+  if (AUSNAHMEN.some((a) => a.datei === `${own}/${file.inner}` && a.modul === target)) return null;
+  return `Modul „${own}“ steht unter „${target}“ und importiert es nicht (scripts/modulgrenzen/schichten.ts). Gehört der Code nach „${target}“ oder in ein Modul weiter unten?`;
 }
 
 /** Alle Importpfade einer Datei: import, export … from, import() und Typen wie import("…").T */
