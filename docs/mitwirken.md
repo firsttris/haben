@@ -111,7 +111,7 @@ Wie die Prüfungen im Einzelnen entscheiden und wo sie nicht hinsehen, steht in 
 
 ## Issues schreiben
 
-Für neue Issues gibt es Formulare unter **Issues → New issue** (`.github/ISSUE_TEMPLATE/`), jedes mit nur einem Pflichtfeld; ein leeres Issue bleibt möglich. Fragen und lockerer Austausch gehen auf [Discord](https://discord.gg/CT2GQytSYH); entschieden wird im Issue, auch über Ideen von dort. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
+Für neue Issues gibt es Formulare unter **Issues → New issue** (`.github/ISSUE_TEMPLATE/`), jedes mit nur einem Pflichtfeld; ein leeres Issue bleibt möglich. Fragen und lockerer Austausch gehen auf [Discord](https://discord.gg/CT2GQytSYH); entschieden wird im Issue, auch über Ideen von dort. In keinem Issue und keinem Beitrag auf Discord stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
 
 Größere Vorhaben und Issues von Agenten folgen dieser Gliederung:
 
