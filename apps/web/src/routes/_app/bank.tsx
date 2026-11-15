@@ -1148,6 +1148,39 @@ function AllocationPanel({
     }
   }
 
+  // Auf einem privaten Konto ohne Buchungsart bleibt nur die Kennzeichnung: „Zuordnen", „Direkt buchen" und „Aufteilen"
+  // wären beim selben Umsatz eine zweite Aussage zum selben Vorgang — sie gelten erst, wenn die Kennzeichnung aufgehoben
+  // ist (#1088)
+  if (detail.privat)
+    return (
+      <aside ref={panel} className="card" aria-label="Umsatz" style={{ gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
+          <div className="amount" style={{ fontSize: 24, fontWeight: 600, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
+            {tx.amount > 0 ? "+" : "−"}
+            {formatEuro(Math.abs(tx.amount))}
+          </div>
+          <div className="small muted" style={{ overflowWrap: "anywhere" }}>
+            {tx.purpose}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="section-label">Privat, kein Betriebsvorgang</div>
+          <p className="small muted" style={{ margin: 0 }}>
+            Auf diesem Konto gibt es für den Umsatz keine Buchungsart. Er bleibt ungebucht, zählt nicht als offener Posten, und die EÜR bleibt wie sie ist. Zum
+            Buchen die Kennzeichnung aufheben.
+          </p>
+        </div>
+        <div className="actions">
+          <button type="button" className="btn" disabled={busy} onClick={() => void run(() => unmarkPrivatFn({ data: { transactionId: tx.id } }))}>
+            Kennzeichnung aufheben
+          </button>
+        </div>
+        <NoticeBanner notice={notice} />
+      </aside>
+    );
+
   return (
     <aside ref={panel} className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -1195,23 +1228,13 @@ function AllocationPanel({
         <StorePayoutBox key={tx.id} view={detail.storePayout} amount={tx.amount} transactionId={tx.id} busy={busy} run={(work) => void run(work)} />
       )}
 
-      {detail.privatKonto && (
+      {detail.privatKonto && tx.open !== 0 && (
         <div className="actions">
-          {detail.privat ? (
-            <button type="button" className="btn" disabled={busy} onClick={() => void run(() => unmarkPrivatFn({ data: { transactionId: tx.id } }))}>
-              Kennzeichnung aufheben
-            </button>
-          ) : (
-            tx.open !== 0 && (
-              <button type="button" className="btn" disabled={busy} onClick={() => void run(() => markPrivatFn({ data: { transactionId: tx.id } }))}>
-                Privat, kein Betriebsvorgang
-              </button>
-            )
-          )}
+          <button type="button" className="btn" disabled={busy} onClick={() => void run(() => markPrivatFn({ data: { transactionId: tx.id } }))}>
+            Privat, kein Betriebsvorgang
+          </button>
           <span className="small muted">
-            {detail.privat
-              ? "Zählt nicht als offener Posten; gebucht wird nichts, die EÜR bleibt wie sie ist."
-              : "Für diesen Umsatz gibt es auf dem privaten Konto keine Buchungsart; kennzeichnen nimmt ihn aus den offenen Posten."}
+            Für diesen Umsatz gibt es auf dem privaten Konto keine Buchungsart; kennzeichnen nimmt ihn aus den offenen Posten.
           </span>
         </div>
       )}
