@@ -7,9 +7,12 @@ import type { SevBelegInfo, SevExportDirection, SevExportDocument, SevExportLine
  * Belege aus den Zeilen der Buchungsstapel. Ein Beleg ist eine GUID aus dem Beleglink (`BEDI "<guid>"`): Am
  * Jahresexport aus 1.0 gehört jede GUID zu genau einer Datei (docs/sevdesk.md). Zeilen ohne Beleglink werden nur
  * dann ein Beleg, wenn sie Netto, Steuer oder Satz in Beleginfo tragen und auf einem Erlös- oder Aufwandskonto
- * stehen; Zahlungen, Privat- und Umbuchungen tragen das nicht. Ihr Schlüssel ist Belegnummer plus Belegdatum,
- * denn wiederkehrende Belege teilen die Nummer, dazu Personenkonto und Kontoart, denn zwei Lieferanten können
- * dieselbe Rechnungsnummer am selben Tag vergeben.
+ * stehen. Ihr Schlüssel ist Belegnummer plus Belegdatum, denn wiederkehrende Belege teilen die Nummer, dazu
+ * Personenkonto und Kontoart, denn zwei Lieferanten können dieselbe Rechnungsnummer am selben Tag vergeben.
+ *
+ * Belege auf anderen Konten (Darlehen, Privat, Zinsen, neutraler Aufwand) tragen Netto oder Steuer gegen ein
+ * Personenkonto; Zahlungen (Bank gegen Personenkonto) tragen beides nie (echter Export 2024, #472). Eine solche
+ * Zeile gehört zum Beleg mit gleicher Nummer, gleichem Datum und Personenkonto, sonst wird sie ein eigener Beleg.
  */
 
 type AccountKind = "erloese" | "aufwand";
@@ -56,6 +59,9 @@ function sachkontoOf(booking: DatevBooking, kontenrahmen: Kontenrahmen, accountL
   return { kind: null, account, debited };
 }
 
+/** Das Personenkonto der Zeile: die Seite, die nicht das Sachkonto ist */
+const partnerOf = (booking: DatevBooking, sach: Sachkonto) => (booking.account === sach.account ? booking.contraAccount : booking.account);
+
 /** Positiv: Erlös im Haben, Aufwand im Soll; ohne solches Konto nach der Richtung des Belegs */
 function signOf(sach: Sachkonto, direction: SevExportDirection | null): 1 | -1 {
   const kind = sach.kind ?? (direction === "ausgang" ? "erloese" : direction === "eingang" ? "aufwand" : null);
@@ -63,8 +69,29 @@ function signOf(sach: Sachkonto, direction: SevExportDirection | null): 1 | -1 {
   return (kind === "aufwand") === sach.debited ? 1 : -1;
 }
 
+type Line = Group["lines"][number];
+
+/** Zeilen ohne Erlös- oder Aufwandskonto: zum passenden Beleg, sonst ein eigener (ohne Kontoart im Schlüssel) */
+function attachNeutral(groups: Map<string, Group>, neutral: { base: string; line: Line }[]) {
+  const byBase = new Map<string, Set<string>>();
+  for (const [key, group] of groups) {
+    for (const { booking, sach } of group.lines) {
+      const base = `${booking.voucherField1}|${booking.date}|${partnerOf(booking, sach)}`;
+      byBase.set(base, (byBase.get(base) ?? new Set()).add(key));
+    }
+  }
+  for (const { base, line } of neutral) {
+    const keys = [...(byBase.get(base) ?? [])];
+    const key = keys.length === 1 ? keys[0]! : `${base}|`;
+    const group = groups.get(key) ?? { guid: null, lines: [] };
+    group.lines.push(line);
+    groups.set(key, group);
+  }
+}
+
 function groupLines(stacks: SevExportStack[], hints: string[]): Map<string, Group> {
   const groups = new Map<string, Group>();
+  const neutral: { base: string; line: Line }[] = [];
   for (const { name, stack, kontenrahmen } of stacks) {
     const accountLength = stack.header.accountLength || 4;
     for (const booking of stack.bookings) {
@@ -76,19 +103,25 @@ function groupLines(stacks: SevExportStack[], hints: string[]): Map<string, Grou
       if (!euro && info.net === null && info.tax === null) hints.push(`${where}: Umsatz in ${booking.currency}, nicht in Euro umgerechnet.`);
       const sach = sachkontoOf(booking, kontenrahmen, accountLength);
       const withInfo = info.net !== null || info.tax !== null || info.rate !== null;
-      if (!guid && !(withInfo && sach.kind)) continue;
+      const partner = [booking.account, booking.contraAccount].find((a) => isPersonenkonto(a, accountLength)) ?? "";
+      const neutralBeleg = !guid && !sach.kind && partner !== "" && booking.voucherField1 !== "" && (info.net !== null || info.tax !== null);
+      if (!guid && !(withInfo && sach.kind) && !neutralBeleg) continue;
       if (euro && info.net !== null && info.tax !== null && Math.abs(info.net + info.tax) !== booking.amount) {
         hints.push(
           `${where}: Netto ${formatDecimal(info.net)} und Steuer ${formatDecimal(info.tax)} aus Beleginfo ergeben nicht den Umsatz ${formatDecimal(booking.amount)}.`,
         );
       }
-      const partner = [booking.account, booking.contraAccount].find((a) => isPersonenkonto(a, accountLength)) ?? "";
+      if (neutralBeleg) {
+        neutral.push({ base: `${booking.voucherField1}|${booking.date}|${partner}`, line: { stack: name, booking, info, sach } });
+        continue;
+      }
       const key = guid ?? (booking.voucherField1 ? `${booking.voucherField1}|${booking.date}|${partner}|${sach.kind}` : `${name}:${booking.row}`);
       const group = groups.get(key) ?? { guid, lines: [] };
       group.lines.push({ stack: name, booking, info, sach });
       groups.set(key, group);
     }
   }
+  attachNeutral(groups, neutral);
   return groups;
 }
 
@@ -108,8 +141,10 @@ function voucherOf(key: string, group: Group, document: SevExportDocument | null
   const label = `Beleg ${first.booking.voucherField1 || "ohne Nummer"}${group.guid ? ` (GUID ${group.guid})` : ""}`;
   const sach = group.lines.find((l) => l.sach.kind)?.sach ?? null;
   const accountKind = sach?.kind ?? null;
-  const direction = document?.direction ?? (accountKind ? KIND_DIRECTION[accountKind] : null);
-  const directionFrom = document?.direction ? "document" : accountKind ? "konten" : null;
+  const partner = Number(partnerOf(first.booking, first.sach));
+  const fromPartner: SevExportDirection | null = partner >= 10000 && partner <= 69999 ? "ausgang" : partner >= 70000 && partner <= 99999 ? "eingang" : null;
+  const direction = document?.direction ?? (accountKind ? KIND_DIRECTION[accountKind] : fromPartner);
+  const directionFrom = document?.direction ? "document" : accountKind || fromPartner ? "konten" : null;
   if (group.guid && !document) hints.push(`${label}: keine Datei im Export.`);
   if (document?.direction && sach?.kind && KIND_DIRECTION[sach.kind] !== document.direction) {
     hints.push(`${label}: liegt im ${FOLDER[document.direction]}, gebucht auf ${KIND_NAME[sach.kind]} ${sach.account}; Richtung prüfen.`);
