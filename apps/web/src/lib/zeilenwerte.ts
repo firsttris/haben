@@ -110,7 +110,6 @@ const EST_ANLAGEN: readonly { anlage: string; felder: Readonly<Record<string, st
     anlage: "Progressionsvorbehalt",
     felder: {
       einkuenfteProgressionsvorbehalt: "Einkünfte unter Progressionsvorbehalt (§ 32b EStG)",
-      tariflicheEinkommensteuer: "Tarifliche Einkommensteuer",
     },
   },
   {
@@ -119,6 +118,9 @@ const EST_ANLAGEN: readonly { anlage: string; felder: Readonly<Record<string, st
       summeEinkuenfte: "Summe der Einkünfte",
       gesamtbetrag: "Gesamtbetrag der Einkünfte",
       zuVersteuerndesEinkommen: "Zu versteuerndes Einkommen",
+      // § 32b EStG ändert nur den Steuersatz; die tarifliche Einkommensteuer entsteht in der Berechnung, nicht
+      // im Progressionsvorbehalt. Die Zeile steht deshalb hier, hinter dem zu versteuernden Einkommen (#1084)
+      tariflicheEinkommensteuer: "Tarifliche Einkommensteuer",
       // In der Erklärung setzt niemand etwas fest: Die Zahl kommt aus dem Steuerprogramm, festgesetzt wird sie erst im
       // Bescheid. Die Beschriftung sagt deshalb, woher sie stammt (#1084)
       festgesetzteSteuer: "Einkommensteuer laut Steuerprogramm",
