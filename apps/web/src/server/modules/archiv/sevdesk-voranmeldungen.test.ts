@@ -187,6 +187,18 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldungen aus sevDesk (Postgres)", { tim
     expect(await elster()).toMatchObject({ ok: true, detail: "2 Dateien" });
   });
 
+  it("prüft im Abgleich auch Jahre, in denen es nur archivierte Voranmeldungen gibt, mit oder ohne Protokoll", async () => {
+    await reset();
+    await abruf(REPORTS, ["ID_25"]);
+    const lexoffice = await import("./lexoffice.ts");
+    const { years } = await lexoffice.reconciliation();
+    expect(years.map((y) => y.year)).toEqual([2026, 2024, 2023]);
+    const elster = (year: number) => years.find((y) => y.year === year)!.checks.find((c) => c.label === "ELSTER-Protokolle archiviert");
+    expect(elster(2023)).toMatchObject({ ok: true, detail: "2 Dateien" });
+    // 2024-04 ohne Protokoll: Das Jahr steht trotzdem im Abgleich, die Prüfung zeigt die Lücke
+    expect(elster(2024)).toMatchObject({ ok: false, detail: "fehlen" });
+  });
+
   it("nimmt Antwort, Protokoll und Übersicht in den Jahresexport des Zeitraums auf", async () => {
     await reset();
     await abruf(REPORTS, ["ID_27"]);
