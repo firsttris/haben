@@ -4,8 +4,9 @@
  * „Mit dem Werkzeug“, `portal`). Eine Sperrdatei hält zwei Läufe auseinander, etwa cron und einen von Hand.
  */
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, mkdtemp, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { docker } from "./ausfuehren.ts";
 import { envSchreiben, envSetzen, envWert } from "./env-datei.ts";
 import { instanzen } from "./instanzen.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
@@ -41,6 +42,17 @@ export function portalEnv(vorlage: string, domain: string, sso: NonNullable<NeuA
   return werte.reduce((text, [key, wert, woertlich]) => envSetzen(text, key, wert, woertlich), `COMPOSE_PROJECT_NAME=\n${vorlage}`);
 }
 
+/**
+ * Die Vorlage ohne den Port auf 127.0.0.1: Compose hängt `ports` aus einer Override-Datei an, statt sie zu ersetzen
+ * (`!reset` gibt es erst ab Compose 2.24), und hinter dem gemeinsamen Caddy wäre der Port ein Weg an ihm vorbei
+ */
+export function portalCompose(vorlage: string): string {
+  const ohnePort = vorlage.replace(/\n(?:[ \t]*#[^\n]*\n)*[ \t]*ports:\n(?:[ \t]*- [^\n]*\n)+/, "\n");
+  if (ohnePort === vorlage || /^\s*ports:/m.test(ohnePort))
+    abbrechen("deploy/firmenportal/compose.yml hat einen Aufbau, den portal nicht kennt; nichts angelegt.");
+  return ohnePort;
+}
+
 /** Wie bei einer Instanz: im eigenen Netz zum Caddy, dort als haben-firmenportal:3000 erreichbar */
 export function portalOverride(): string {
   return [
@@ -74,12 +86,18 @@ async function einrichten(k: Kontext, dir: string, domain: string, sso: NonNulla
   const site = await domainImCaddy(k, domain, PORTAL);
   if (site) abbrechen(`Für ${domain} steht schon ein Eintrag im gemeinsamen Caddy (${site}); nichts angelegt.`);
   if (existsSync(dir)) abbrechen(`${dir} gibt es schon, aber ohne .env; bitte prüfen und entfernen. Nichts angelegt.`);
+  // Ein Firmenportal von Hand nach der Doku in einem Verzeichnis firmenportal heißt auch so; seine Container übernähme
+  // portal sonst ungefragt
+  const projekte = await docker(k, ["compose", "ls", "-a", "-q"]);
+  if (projekte.code !== 0) abbrechen("docker antwortet nicht (läuft der Daemon, darfst du ihn nutzen?); nichts angelegt.");
+  if (projekte.stdout.split("\n").some((p) => p.trim() === PORTAL))
+    abbrechen(`Docker kennt schon ein Compose-Projekt ${PORTAL}, etwa ein von Hand eingerichtetes Firmenportal; nichts angelegt.`);
 
   await mkdir(k.basis, { recursive: true });
   const neu = await mkdtemp(join(k.basis, `.neu-${PORTAL}-`));
   try {
     const vorlagen = join(k.vorlagen, "firmenportal");
-    await copyFile(join(vorlagen, "compose.yml"), join(neu, "compose.yml"));
+    await writeFile(join(neu, "compose.yml"), portalCompose(await readFile(join(vorlagen, "compose.yml"), "utf8")));
     await envSchreiben(join(neu, ".env"), portalEnv(await readFile(join(vorlagen, "firmenportal.env.example"), "utf8"), domain, sso));
     await writeFile(join(neu, "compose.override.yml"), portalOverride());
     await mkdir(join(neu, "logos"), { mode: 0o755 });
@@ -117,7 +135,10 @@ export async function portal(k: Kontext, a: PortalAngaben): Promise<void> {
   const env = join(dir, ".env");
   const vorhanden = existsSync(env);
   if (vorhanden) {
-    const url = envWert(await readFile(env, "utf8"), "PORTAL_URL") ?? "";
+    const text = await readFile(env, "utf8");
+    // Eine Instanz, die vor portal firmenportal hieß (der Name ist erst seitdem reserviert), bleibt unberührt
+    if (envWert(text, "COMPOSE_PROJECT_NAME") !== PORTAL) abbrechen(`${dir} ist nicht das Firmenportal (COMPOSE_PROJECT_NAME); nichts geändert.`);
+    const url = envWert(text, "PORTAL_URL") ?? "";
     const eingerichtet = URL.canParse(url) ? new URL(url).hostname : url;
     if (a.domain !== undefined && a.domain !== eingerichtet)
       abbrechen(`Das Firmenportal ist schon für ${eingerichtet} eingerichtet (${env}); nichts geändert.`);
