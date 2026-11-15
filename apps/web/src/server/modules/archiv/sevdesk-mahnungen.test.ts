@@ -60,7 +60,7 @@ const mahnung = (id: string, level: string, date: string, extra: Record<string, 
   ...extra,
 });
 
-function fakeApi(dunnings: unknown[]) {
+function fakeApi(dunnings: unknown[], ohnePdf: string[] = []) {
   const calls: string[] = [];
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
@@ -75,6 +75,7 @@ function fakeApi(dunnings: unknown[]) {
     if (path === "/Invoice/62/getPositions") return list([{ id: 1, taxRate: "19", sumNet: "1000", sumTax: "190" }]);
     const pdf = /^\/Invoice\/(\d+)\/getPdf$/.exec(path);
     if (pdf) {
+      if (ohnePdf.includes(pdf[1]!)) return json({ error: { message: "PDF noch nicht erzeugt" } }, 404);
       return json({
         objects: { filename: `${pdf[1]}.pdf`, mimeType: "application/pdf", base64encoded: true, content: Buffer.from(PDF(pdf[1]!)).toString("base64") },
       });
@@ -111,8 +112,8 @@ describe.skipIf(!testDatabaseUrl)("Mahnungen aus sevDesk (Postgres)", { timeout:
     await sql?.end();
   });
 
-  async function abruf(dunnings: unknown[]) {
-    const api = fakeApi(dunnings);
+  async function abruf(dunnings: unknown[], ohnePdf: string[] = []) {
+    const api = fakeApi(dunnings, ohnePdf);
     sevdesk.setSevdeskClientFactory((o) => new importPkg.SevdeskClient({ ...o, fetch: api.fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }));
     await sevdesk.startSevdeskImport(actor, { wait: true });
     return { api, run: (await sevdesk.latestSevdeskImport())! };
@@ -261,5 +262,22 @@ describe.skipIf(!testDatabaseUrl)("Mahnungen aus sevDesk (Postgres)", { timeout:
     }
     // Ohne Buchungswirkung: kein Archivbeleg für die Mahnungen
     expect(inhalt(files["lexoffice/belege.csv"] ?? new Uint8Array())).not.toContain("MA-6");
+  });
+  it("lädt ein beim ersten Abruf fehlendes PDF beim nächsten Abruf nach, ohne die Mahnung zu ändern", async () => {
+    await reset("ist", "SKR03");
+    const stufe = mahnung("63", "1", "2026-10-01");
+    const erster = await abruf([stufe], ["63"]);
+    expect(erster.run.progress.dunnings).toBe(1);
+    const vorher = await sql`select * from legacy_dunnings`;
+    expect((await sql`select count(*)::int as n from legacy_dunning_files`)[0]!.n).toBe(0);
+
+    const { api } = await abruf([stufe]);
+    expect(api.calls.filter((c) => c === "/Invoice/63/getPdf")).toHaveLength(1);
+    expect((await sql`select filename from legacy_dunning_files`).map((r) => r.filename)).toEqual(["63.pdf"]);
+    expect(await sql`select * from legacy_dunnings`).toEqual(vorher);
+
+    // Liegt das PDF vor, ruft ein weiterer Abruf es nicht noch einmal ab
+    const dritter = await abruf([stufe]);
+    expect(dritter.api.calls.filter((c) => c.endsWith("/getPdf") && c.includes("63"))).toEqual([]);
   });
 });
