@@ -834,7 +834,7 @@ function SubmitPanel({
   const submit = useServerFn(submitAnnualReturn);
   const loadWerte = useServerFn(getMeinElsterWerte);
   const { busy, notice, setNotice, run } = useAction();
-  const berechnet = form === "ust" ? data.ust.abschluss : form === "euer" ? data.euer.gewinn : 0;
+  const berechnet = form === "ust" ? data.ust.abschluss : form === "euer" ? data.euer.gewinn : form === "est" ? data.est.prognose.verbleibend : 0;
 
   return (
     <div className="stack sticky-panel">
@@ -864,7 +864,9 @@ function SubmitPanel({
           }
         />
       )}
-      {(form === "ust" || form === "euer") && <AbgabeVermerken art={form} year={data.year} today={data.today} berechnet={berechnet} vermerkt={submitted} />}
+      {(form === "ust" || form === "euer" || form === "est") && (
+        <AbgabeVermerken art={form} year={data.year} today={data.today} berechnet={berechnet} vermerkt={submitted} />
+      )}
       {!data.herstellerIdConfigured && !sent && !submitted && (
         <MeinElsterWerte load={() => loadWerte({ data: { form, year: data.year } })} label={`${FORM_LABEL[form]} ${data.year}`} blocked={blocked} />
       )}

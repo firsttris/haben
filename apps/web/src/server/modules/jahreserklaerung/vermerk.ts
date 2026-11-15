@@ -13,20 +13,27 @@ import { loadCompany } from "../stammdaten/index.ts";
 import { AnnualError, annualOverview } from "./annual.ts";
 
 /*
- * Abgabe vermerken: Eine Jahreserklärung (Umsatzsteuererklärung oder Anlage EÜR), die außerhalb von Haben abgegeben
- * wurde (WISO, Accountable, ELSTER-Portal), wird mit Tag der Abgabe, Transferticket, Betrag und Übermittlungsprotokoll
- * an der Erklärung festgehalten. Die Frist ist damit erledigt; der Vorgang steht im Verlauf und im Jahresüberblick.
- * Das Gegenstück für die Voranmeldung ist umsatzsteuer/vermerk.ts.
+ * Abgabe vermerken: Eine Jahreserklärung (Umsatzsteuererklärung, Anlage EÜR oder Einkommensteuererklärung), die
+ * außerhalb von Haben abgegeben wurde (WISO, Accountable, ELSTER-Portal), wird mit Tag der Abgabe, Transferticket,
+ * Betrag und Übermittlungsprotokoll an der Erklärung festgehalten. Die Frist ist damit erledigt; der Vorgang steht im
+ * Verlauf und im Jahresüberblick. Das Gegenstück für die Voranmeldung ist umsatzsteuer/vermerk.ts.
  */
 
-/** Nur diese beiden Formulare lassen sich außerhalb von Haben abgeben; Est rechnet der Betreiber selbst */
-export type VermerkForm = "euer" | "ust";
+/**
+ * Alle drei Jahreserklärungen lassen sich außerhalb von Haben abgeben (#1073). Für die Umsatzsteuererklärung und die
+ * Anlage EÜR vergleicht der Vermerk gegen den aus den Buchungen gerechneten Wert, für die Einkommensteuer gegen die
+ * eigene Schätzung aus der Anlage N (est.prognose.verbleibend).
+ */
+export type VermerkForm = "euer" | "est" | "ust";
 
 export interface JahresvermerkInput {
   /** Tag der Abgabe laut Übermittlungsprotokoll, JJJJ-MM-TT */
   filedOn: string;
   transferTicket: string;
-  /** Betrag der Erklärung in Cent: Abschlusszahlung bzw. Erstattung (USt) oder Gewinn (EÜR) */
+  /**
+   * Betrag der Erklärung in Cent: Abschlusszahlung bzw. Erstattung (USt), Gewinn (EÜR) oder voraussichtliche
+   * Nachzahlung bzw. Erstattung (ESt)
+   */
   amount: Cents;
   /** Warum außerhalb von Haben abgegeben wurde */
   note: string;
@@ -69,7 +76,7 @@ export function vermerkProblem(data: z.infer<typeof vermerkSchema>, heute: strin
   return null;
 }
 
-const FORM_LABEL: Record<VermerkForm, string> = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR" };
+const FORM_LABEL: Record<VermerkForm, string> = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" };
 
 export interface Jahresvermerk {
   id: string;
@@ -105,7 +112,7 @@ const VERMERK_COLUMNS = {
  * ohne Ausweg brächte nur, dass eine bereits erfolgte Abgabe nicht in Haben steht.
  */
 export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, year: number, input: JahresvermerkInput, heute = today()): Promise<Jahresvermerk> {
-  if (form !== "euer" && form !== "ust") throw new AnnualError("Außerhalb von Haben lässt sich nur die Umsatzsteuererklärung oder die Anlage EÜR vermerken.");
+  if (!(form in FORM_LABEL)) throw new AnnualError("Diese Jahreserklärung lässt sich nicht vermerken.");
   const parsed = vermerkSchema.safeParse(input);
   if (!parsed.success) throw new AnnualError(parsed.error.issues[0]?.message ?? "Angaben unvollständig.");
   const data = parsed.data;
@@ -210,7 +217,7 @@ export async function jahresvermerke(year: number): Promise<Jahresvermerk[]> {
  */
 export async function vermerkPruefung(form: VermerkForm, year: number, amount: Cents) {
   const overview = await annualOverview(year, today());
-  const berechnet = form === "ust" ? overview.ust.abschluss : overview.euer.gewinn;
+  const berechnet = form === "ust" ? overview.ust.abschluss : form === "est" ? overview.est.prognose.verbleibend : overview.euer.gewinn;
   return { berechnet, abweichung: amount - berechnet, hinweis: abweichungHinweis(amount, berechnet) };
 }
 
