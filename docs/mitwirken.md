@@ -60,6 +60,8 @@ Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Ha
 - im Commit mit einer Zeile `Co-Authored-By: <Werkzeug oder Modell> <Adresse>`, wie sie die Werkzeuge meist selbst setzen;
 - in der Beschreibung des Pull Requests mit einer Zeile wie „🤖 Generated with <Werkzeug>“.
 
+Claude Code setzt beides in diesem Repository selbst (`attribution` in `.claude/settings.json`), auch wenn die eigenen Einstellungen es sonst abschalten.
+
 Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
 
 <a id="leitplanken-für-agenten"></a>Warum dem Ergebnis trotzdem zu trauen ist und wie der Ablauf an einem Beispiel aussieht, steht unter [Agentic Engineering](agentic-engineering.md#leitplanken-für-agenten).
