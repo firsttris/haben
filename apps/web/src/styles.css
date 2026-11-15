@@ -348,7 +348,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 /* Feste Aktionsleiste am unteren Fensterrand am Handy (< 861 px) für alle Aktionen (#396, Variante E) */
 .action-bar { position: sticky; bottom: 0; z-index: 10; margin: auto calc(-1 * var(--main-pad-x)) -20px; padding: 12px var(--main-pad-x) max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--ground); box-shadow: 0 -6px 12px -10px rgb(0 0 0 / 0.3); }
 @media (min-width: 861px) { .action-bar { display: none; } }
-@media (max-width: 860px) { .page-head > .actions.editor-actions { display: none; } }
+/* Nur wo es eine Aktionsleiste gibt (Rechnungs- und Angebotseditor), wandern die Aktionen aus dem Kopf; der Mahnungseditor behält sie */
+@media (max-width: 860px) { .main > .page-head:has(~ .action-bar) > .actions { display: none; } }
 @media (max-height: 300px) { .action-bar { position: static; } }
 .more-actions-menu { position: relative; display: inline-flex; }
 .more-actions-menu .split-menu { min-width: min(240px, calc(100vw - 2 * var(--main-pad-x))); max-width: calc(100vw - 2 * var(--main-pad-x)); }
