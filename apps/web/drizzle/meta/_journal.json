@@ -1692,8 +1692,22 @@
     {
       "idx": 241,
       "version": "7",
-      "when": 1794721701810,
-      "tag": "0241_mcp_oauth",
+      "when": 1794718530726,
+      "tag": "0241_rechnung_verrechnung_korrektur",
+      "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1794718531726,
+      "tag": "0242_rechnung_verrechnung_korrektur_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1794731321335,
+      "tag": "0243_mcp_oauth",
       "breakpoints": true
     }
   ]

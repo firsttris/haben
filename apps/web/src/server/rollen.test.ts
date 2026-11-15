@@ -20,6 +20,7 @@ const STEUERBERATUNG_LIEST = [
   "documents.ts:getDocumentSettlements",
   "export.ts:getExportYears",
   "invoices.ts:getInvoiceDetail",
+  "invoices.ts:getInvoiceSettlements",
   "invoices.ts:getInvoices",
   "journal.ts:getJournal",
   "ledger.ts:getKontenblatt",
