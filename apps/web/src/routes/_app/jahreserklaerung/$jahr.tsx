@@ -821,9 +821,12 @@ function EstSection({ data }: { data: Data }) {
         <div className="form-sticky-footer">
           <NoticeBanner notice={notice} />
           <div className="actions" style={{ alignItems: "center" }}>
+            {/* Eigene Schlüssel: Ohne sie nimmt React denselben Knopf und macht ihn noch im Klick auf „Angaben bearbeiten“
+                zum Absende-Knopf, und der Browser schickt die Maske gleich ab (#1098) */}
             {gesperrt ? (
               <>
                 <button
+                  key="bearbeiten"
                   type="button"
                   className="btn"
                   onClick={() => {
@@ -837,7 +840,7 @@ function EstSection({ data }: { data: Data }) {
               </>
             ) : (
               <>
-                <button type="submit" className="btn btn-primary" disabled={busy}>
+                <button key="speichern" type="submit" className="btn btn-primary" disabled={busy}>
                   Angaben speichern
                 </button>
                 <span className="small muted">Voraussichtliche Steuer {formatEuro(est.prognose.gesamt)}</span>
