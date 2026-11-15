@@ -26,6 +26,5 @@ describe("bildFormat", () => {
 
   it("begrenzt Logos auf 1 MB", () => {
     expect(MAX_LOGO_BYTES).toBe(1024 * 1024);
-    expect(MAX_LOGO_BYTES).toBeGreaterThan(1_000_000);
   });
 });
