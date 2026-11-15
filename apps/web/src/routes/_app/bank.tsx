@@ -17,6 +17,7 @@ import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx"
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
+import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { BEZUGSJAHR_FEHLER, SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
@@ -32,6 +33,8 @@ import {
   allocateDirectDebitBatchFn,
   allocateDirectDebitReturnFn,
   allocateTransaction,
+  markBankTransactionPrivate,
+  unmarkBankTransactionPrivate,
   allocateTransactionWithRest,
   allocateProviderFees,
   connectBank,
@@ -1001,6 +1004,8 @@ function AllocationPanel({
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const allocateFn = useServerFn(allocateTransaction);
+  const markPrivatFn = useServerFn(markBankTransactionPrivate);
+  const unmarkPrivatFn = useServerFn(unmarkBankTransactionPrivate);
   const splitFn = useServerFn(splitTransaction);
   const restFn = useServerFn(allocateTransactionWithRest);
   const feesFn = useServerFn(allocateProviderFees);
@@ -1156,6 +1161,16 @@ function AllocationPanel({
     }
   }
 
+  // Auf einem privaten Konto ohne Buchungsart bleibt nur die Kennzeichnung: „Zuordnen", „Direkt buchen" und „Aufteilen"
+  // wären beim selben Umsatz eine zweite Aussage zum selben Vorgang — sie gelten erst, wenn die Kennzeichnung aufgehoben
+  // ist (#1088)
+  if (detail.privat)
+    return (
+      <aside ref={panel} className="card" aria-label="Umsatz" style={{ gap: 16 }}>
+        <PrivatUmsatz tx={tx} busy={busy} notice={notice} onAufheben={() => void run(() => unmarkPrivatFn({ data: { transactionId: tx.id } }))} />
+      </aside>
+    );
+
   return (
     <aside ref={panel} className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -1201,6 +1216,10 @@ function AllocationPanel({
 
       {detail.storePayout && tx.open === tx.amount && (
         <StorePayoutBox key={tx.id} view={detail.storePayout} amount={tx.amount} transactionId={tx.id} busy={busy} run={(work) => void run(work)} />
+      )}
+
+      {detail.privatKonto && tx.open !== 0 && (
+        <PrivatKennzeichnen busy={busy} onKennzeichnen={() => void run(() => markPrivatFn({ data: { transactionId: tx.id } }))} />
       )}
 
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />

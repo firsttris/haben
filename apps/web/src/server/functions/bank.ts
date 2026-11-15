@@ -33,6 +33,8 @@ import {
   providerAccountSchema,
   importStatement,
   listAccounts,
+  hebePrivatAuf,
+  markierePrivat,
   excludeAccount,
   excludeBlocker,
   includeAccount,
@@ -197,6 +199,22 @@ export const updateBankAccount = createServerFn({ method: "POST" })
   .validator(accountSettingsSchema)
   .handler(async ({ data, context }) => {
     await updateAccount(context.user.id, data);
+    return { ok: true };
+  });
+
+export const markBankTransactionPrivate = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ transactionId: z.uuid(), note: z.string().max(500).optional() }))
+  .handler(async ({ data, context }) => {
+    await markierePrivat(context.user.id, data.transactionId, data.note ?? "");
+    return { ok: true };
+  });
+
+export const unmarkBankTransactionPrivate = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ transactionId: z.uuid() }))
+  .handler(async ({ data, context }) => {
+    await hebePrivatAuf(context.user.id, data.transactionId);
     return { ok: true };
   });
 

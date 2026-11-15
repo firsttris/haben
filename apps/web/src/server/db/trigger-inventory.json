@@ -337,6 +337,20 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.bank_private_marks",
+      "name": "bank_private_marks_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_private_marks_audit AFTER INSERT OR DELETE OR UPDATE ON public.bank_private_marks FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.bank_private_marks",
+      "name": "bank_private_marks_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER bank_private_marks_no_truncate BEFORE TRUNCATE ON public.bank_private_marks FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.bank_transactions",
       "name": "bank_transactions_append_only",
       "enabled": "O",
