@@ -1,6 +1,6 @@
 import { EUER_FIELDS } from "@haben/elster/euer-felder";
 import { describe, expect, it } from "vitest";
-import { ERKLAERTE_ZEILEN, zeilenFelder } from "./zeilenwerte.ts";
+import { zeilenFelder } from "./zeilenwerte.ts";
 
 describe("erklärte Zeilen (#997)", () => {
   it("nimmt jede Zeile der Anlage EÜR auf, die Haben selbst übermittelt (EUER_FIELDS)", () => {
