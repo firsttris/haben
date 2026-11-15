@@ -76,4 +76,20 @@ describe.skipIf(!testDatabaseUrl)("WISO-Import (Postgres)", () => {
       { lexoffice_id: "wiso/2026/2", direction: "ausgabe", gross: 2380 },
     ]);
   });
+
+  // WISO EÜR rechnet nach Zahlung: Die Spalte „Zahlungsdatum“ ist der Zufluss. Bei Ist-Versteuerung zählt die Umsatzsteuer
+  // im Abgleich nach Zahlungen (legacyVatByMonth, § 13 Abs. 1 Nr. 1 Buchst. b UStG); ohne sie fehlte die Einnahme in Kz 81,
+  // während die Vorsteuer in Kz 66 steht
+  it("zählt Einnahmen bei Ist-Versteuerung im Abgleich im Monat des Zahlungsdatums", async () => {
+    const bytes = wisoBytes([
+      "6;1;12.01.2026;12.01.2026;Werbung;4600;Werbekosten;1200;Bank;67,92;0,00;VSt 19 %;19,00;Vorsteuer 19 %;n4;12.01.2026;;0",
+      "10;1;15.01.2026;15.01.2026;Honorar;8400;Erlöse 19 % USt;1200;Bank;0,00;200,00;USt 19 %;19,00;Umsatzsteuer 19 %;R8;15.01.2026;;0",
+    ]);
+    await wiso.startWisoImport("test-user", bytes, "wiso-ist.csv");
+
+    const { reconciliation } = await import("./lexoffice.ts");
+    const jahr = (await reconciliation()).years.find((y) => y.year === 2026)!;
+    const januar = jahr.vat.find((m) => m.month === "2026-01")!;
+    expect({ kz81: januar.kz81, tax81: januar.tax81, kz66: januar.kz66 }).toEqual({ kz81: 16807, tax81: 3193, kz66: 1084 });
+  });
 });
