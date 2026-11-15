@@ -1,4 +1,4 @@
-import { isUniqueViolation, UserError } from "../../errors.ts";
+import { isUniqueViolation } from "../../errors.ts";
 import {
   firstByContact,
   isSevCreditNoteImportable,
@@ -10,11 +10,10 @@ import {
   mapSevInvoice,
   mapSevVoucher,
   SevdeskApiError,
-  SevdeskClient,
+  type SevdeskClient,
   type SevCommunicationWay,
   type SevContactAddress,
   type SevCreditNote,
-  type SevdeskClientOptions,
   type SevFile,
   type SevInvoice,
   type SevOrder,
@@ -22,9 +21,8 @@ import {
   type SevVoucher,
 } from "@haben/import";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { decrypt, encrypt } from "../../crypto.ts";
+import { encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
-import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
@@ -39,25 +37,14 @@ import { importSevdeskPayments } from "./sevdesk-payments.ts";
 import { checkSevdeskFiles, fetchSevdeskFiles, recordSevdeskFinding } from "./sevdesk-dateien.ts";
 import { importSevdeskTemplateFiles } from "./sevdesk-vorlagen-dateien.ts";
 import { importSevdeskRecurringInvoices } from "./sevdesk-vorlagen.ts";
+import { apiKey, newSevdeskClient, SevdeskError } from "./sevdesk-zugang.ts";
 
 /*
  * Umzug aus sevDesk. Gleicher Ablauf und dieselben Archivtabellen wie beim Lexoffice-Import (Spalte source = "sevdesk"),
  * damit Abgleich, offene Posten, Altbelege und Jahresexport beide Quellen gleich behandeln.
  */
 
-export class SevdeskError extends UserError {}
-
-/** Für Tests austauschbar: baut den API-Client */
-let clientFactory = (options: SevdeskClientOptions) => new SevdeskClient({ baseUrl: env().SEVDESK_API_URL || undefined, ...options });
-
-export function setSevdeskClientFactory(factory: (options: SevdeskClientOptions) => SevdeskClient) {
-  clientFactory = factory;
-}
-
-async function apiKey(): Promise<string | null> {
-  const [row] = await db.select().from(schema.sevdeskConnection).where(eq(schema.sevdeskConnection.id, 1));
-  return row ? decrypt(row.ciphertext).toString("utf8") : null;
-}
+export { SevdeskError, setSevdeskClientFactory, sevdeskClient } from "./sevdesk-zugang.ts";
 
 export async function sevdeskConnectionStatus() {
   const [row] = await db
@@ -73,7 +60,7 @@ export async function saveSevdeskKey(actor: string, key: string): Promise<{ book
   if (trimmed.length < 20) throw new SevdeskError("Der API-Token ist zu kurz.");
   let bookkeepingVersion: string;
   try {
-    bookkeepingVersion = await clientFactory({ apiKey: trimmed }).bookkeepingSystemVersion();
+    bookkeepingVersion = await newSevdeskClient({ apiKey: trimmed }).bookkeepingSystemVersion();
   } catch (error) {
     throw new SevdeskError(`sevDesk lehnt den Token ab: ${progressMessage(error)}`);
   }
@@ -116,7 +103,6 @@ export async function latestSevdeskImport() {
  */
 export async function startSevdeskImport(actor: string, options: { wait?: boolean } = {}): Promise<string> {
   const key = await apiKey();
-  if (!key) throw new SevdeskError("Zuerst den API-Token hinterlegen.");
   // Der eindeutige Index gilt für beide Quellen: auch einen verwaisten Lexoffice-Lauf als abgebrochen markieren
   await latestImport();
   await latestFastbillImport();
@@ -140,7 +126,7 @@ export async function startSevdeskImport(actor: string, options: { wait?: boolea
   const id = row!.id;
   const controller = new AbortController();
   running.set(id, controller);
-  const client = clientFactory({ apiKey: key, signal: controller.signal });
+  const client = newSevdeskClient({ apiKey: key, signal: controller.signal });
   const job = runImport(actor, id, client, progress, controller.signal)
     .then(() => finish(id, progress, "fertig", null))
     .catch((error: unknown) =>

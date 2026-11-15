@@ -252,6 +252,29 @@ export const sevAccountingTypeSchema = z.looseObject({
 });
 export type SevAccountingType = z.infer<typeof sevAccountingTypeSchema>;
 
+// ---------------------------------------------------------------- Anlagen
+
+/**
+ * Anlage (GET /Asset, mit embed=accountingType). Den Pfad nennt die OpenAPI nicht. Er liefert Anschaffungsdatum,
+ * Nettokaufpreis (gleich `sumNet` der Belegposition), Nutzungsdauer in Jahren und Verkaufsdatum, aber weder AfA-Methode
+ * noch bisherige Abschreibungen (test-fixtures/sevdesk). In Version 1.0 steht das Buchungskonto unter `accountingType`,
+ * in 2.0 nur ein Verweis `accountDatev`.
+ */
+export const sevAssetSchema = z.looseObject({
+  id,
+  name: str,
+  assetNumber: numeric,
+  usefulLife: numeric,
+  acquisitionDate: str,
+  purchasePrice: numeric,
+  purchasePriceAccounting: numeric,
+  status: numeric,
+  saleDate: str,
+  accountingType: z.looseObject({ id, name: str, skr03: str, skr04: str, translationCode: str, assetType: str, sevClient: ref }).nullish(),
+  accountDatev: ref,
+});
+export type SevAsset = z.infer<typeof sevAssetSchema>;
+
 // ---------------------------------------------------------------- Zahlungen
 
 /** Zahlungskonto (Bank, Kasse, Zahlungsdienst) */
