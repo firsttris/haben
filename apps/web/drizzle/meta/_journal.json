@@ -1814,6 +1814,20 @@
       "when": 1794772658049,
       "tag": "0258_rechnungen_bereits_bezahlt",
       "breakpoints": true
+    },
+    {
+      "idx": 259,
+      "version": "7",
+      "when": 1794774987042,
+      "tag": "0259_sevdesk_kontoart_von_hand",
+      "breakpoints": true
+    },
+    {
+      "idx": 260,
+      "version": "7",
+      "when": 1794774988136,
+      "tag": "0260_sevdesk_kontoart_von_hand_trigger",
+      "breakpoints": true
     }
   ]
 }
