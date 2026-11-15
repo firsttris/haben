@@ -8,6 +8,8 @@ export interface GesamtumsatzItem extends TurnoverItem {
   transactionId?: string;
   assetId?: string;
   uncertainty?: string;
+  /** Belegte nicht umsatzsteuerbare Betriebseinnahme für EÜR-Zeile 13; keine private oder Finanzierungseinlage. */
+  nonTaxableIncome?: true;
 }
 
 export type GesamtumsatzResult = Omit<TurnoverResult, "items"> & { items: (GesamtumsatzItem & TurnoverOutcome)[] };

@@ -18,7 +18,12 @@ export async function kleinunternehmerAbzuege(year: number): Promise<number | un
     if (item.net === null || item.basisSource === "unknown" || item.decision !== "excluded") continue;
     // Vor dem KU-Wechsel mit Umsatzsteuer ausgeführte Leistungen bleiben in Zeilen 15/17 (Anleitung, Zeile 12).
     if (item.gross !== null && item.gross !== item.net) continue;
-    if (["section4", "foreign", "asset_disposal"].includes(item.classification?.kind ?? "")) summe += item.net;
+    // Nur ausdrücklich belegte nicht steuerbare Betriebseinnahmen; not_turnover allein umfasst auch Einlagen/Darlehen.
+    if (
+      ["section4", "foreign", "asset_disposal"].includes(item.classification?.kind ?? "") ||
+      (item.classification?.kind === "not_turnover" && item.nonTaxableIncome)
+    )
+      summe += item.net;
   }
   return summe || undefined;
 }

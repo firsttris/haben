@@ -85,7 +85,8 @@ export function euerZuordnung(kontenrahmen: Kontenrahmen, account: string, herku
   if (account === a.erloese[1900] || account === a.erloese[700]) return "einnahmenSteuerpflichtig";
   if (account === a.erloeseSonder.kleinunternehmer || account === KLEINUNTERNEHMER_FRUEHERE_KONTEN[kontenrahmen]) return "einnahmenKleinunternehmer";
   if (account === a.erloese[0] || Object.values(a.erloeseSonder).includes(account as never)) return steuerfrei;
-  if (account === a.mahnerloes || account === a.zinsertraege || account === steuer.erstattungszinsen) return "einnahmenSteuerfrei";
+  if (account === a.mahnerloes) return steuerfrei;
+  if (account === a.zinsertraege || account === steuer.erstattungszinsen) return "einnahmenSteuerfrei";
   if (account === a.kursErtrag) return "kursgewinne";
   if (account === a.kursAufwand) return "kursverluste";
   // Privatnutzung von Fahrzeugen

@@ -105,6 +105,18 @@ function allocationItem(row: Allocation, date: string, data: PaymentData, cancel
       uncertainty: undefined,
     };
   }
+  // Mahngebühren/Verzugszinsen sind belegte Betriebseinnahmen ohne Leistungsaustausch. Der Betrag zählt nicht zum
+  // Gesamtumsatz, aber bei KU nachrichtlich in EÜR-Zeile 13: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
+  if (row.kind === "mahnerloes")
+    return {
+      ...item,
+      net: row.amount,
+      basisSource: "stored",
+      classification: { kind: "not_turnover" },
+      nonTaxableIncome: true,
+      label: "Mahngebühren und Verzugszinsen",
+      uncertainty: undefined,
+    };
   if (row.kind === "zinsertrag")
     return {
       ...item,

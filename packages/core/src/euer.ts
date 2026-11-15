@@ -292,8 +292,9 @@ export function computeEuer(
       case "mahnerloes":
       // Zinsen sind umsatzsteuerfrei (§ 4 Nr. 8 Buchst. a UStG), Verzugszinsen und Mahngebühren nicht steuerbar
       case "zinsertrag":
-        // Verzugszinsen, Mahngebühren und Zinsen auf betriebliche Guthaben: Betriebseinnahme ohne Umsatzsteuer
-        add("einnahmenSteuerfrei", p.sum);
+        // EÜR-Anleitung 2025, Zeilen 12/13: auch nicht steuerbare Mahnerlöse sind vollständige KU-Einnahmen.
+        // https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
+        add(p.kind === "mahnerloes" ? steuerfrei : "einnahmenSteuerfrei", p.sum);
         monthlyIn[month]! += p.sum;
         break;
       case "steuer":
