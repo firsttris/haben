@@ -44,6 +44,7 @@ import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
 import { findDocumentByReference, type DocumentReference } from "./external-reference.ts";
+import { MAX_DOCUMENT_SIZE } from "./grenzen.ts";
 import { detectOwnInvoiceFor, ownInvoiceHint, ownInvoiceRecord, partiesOfEInvoice, partiesOfExtraction } from "./own-invoice.ts";
 import { pdfTextLines } from "./pdf-text.ts";
 import { supplierCategory, supplierPayment } from "./vorschlaege.ts";
@@ -55,7 +56,7 @@ export type DocumentAmount = typeof schema.documentAmounts.$inferSelect;
 
 export class DocumentError extends UserError {}
 
-export const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
+export { MAX_DOCUMENT_SIZE };
 
 const isoDate = z.iso.date();
 const cents = z.number().int().min(-100_000_000_00).max(100_000_000_00);
