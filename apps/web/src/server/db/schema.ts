@@ -3085,6 +3085,8 @@ export type LexofficeImportProgress = {
   fastbillWaiting?: number;
   /** sevDesk: in diesem Lauf archivierte Mahnungen (legacy_dunnings) */
   dunnings?: number;
+  /** sevDesk: in diesem Lauf archivierte übermittelte Voranmeldungen (legacy_vat_reports) */
+  vatReports?: number;
   /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
   sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
   /** sevDesk: Dateistand der Belege dieses Laufs nach den Zuständen in legacy_file_states (#345) */
@@ -3220,6 +3222,56 @@ export const legacyDunningFiles = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_dunning_files_unique").on(t.dunningId, t.sha256)],
+);
+
+/**
+ * Übermittelte Umsatzsteuer-Voranmeldungen aus der bisherigen Buchhaltung (sevDesk: GET /VatReport), nur als Archiv und
+ * Nachweis. Nicht in vat_returns: Haben rechnet sie nicht neu, sendet sie nicht, und sie ersetzen oder sperren keine
+ * eigene Voranmeldung. Kennzahlen stehen unverändert in raw (reportingValues). Nur anhängen.
+ */
+export const legacyVatReports = pgTable(
+  "legacy_vat_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    externalId: text("external_id").notNull().unique(),
+    source: text("source", { enum: LEGACY_SOURCES }).notNull().default("sevdesk"),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    year: smallint("year").notNull(),
+    /** Zeitraum wie vat_returns.month: 1–12 Monat, 41–44 Quartal; null, wenn die Quelle ihn anders angibt */
+    month: smallint("month"),
+    /** Zeitraum, wie die Quelle ihn nennt, z. B. "quarterly 2" */
+    periodText: text("period_text").notNull(),
+    /** Zeitpunkt der Übermittlung laut Quelle */
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    /** true Ist-, false Soll-Versteuerung; null, wenn nicht angegeben */
+    actualTaxation: boolean("actual_taxation"),
+    corrected: boolean("corrected").notNull(),
+    transferTicket: text("transfer_ticket"),
+    /** Kz 83 in Cent, aus raw gelesen; null, wenn sie fehlt */
+    kz83: integer("kz83"),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("legacy_vat_reports_period").on(t.year, t.month)],
+);
+
+/** Übermittlungsprotokoll (PDF) einer archivierten Voranmeldung. Nur anhängen. */
+export const legacyVatReportFiles = pgTable(
+  "legacy_vat_report_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    vatReportId: uuid("vat_report_id")
+      .notNull()
+      .references(() => legacyVatReports.id),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("legacy_vat_report_files_unique").on(t.vatReportId, t.sha256)],
 );
 
 /** Nachweis jedes begonnenen automatischen PDF-Abrufs, auch wenn kein PDF übernommen werden konnte. */

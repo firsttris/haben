@@ -37,3 +37,9 @@
   .archive-file-cols { grid-template-columns: 50px minmax(0, 1fr) 80px; }
   .archive-file-cols > :nth-child(2), .archive-file-cols > :nth-child(5) { display: none; }
 }
+
+/* Kennzahlen einer archivierten Voranmeldung (LegacyVatReports.tsx) */
+.vat-report-values { display: grid; gap: 2px 16px; margin: 8px 0 0; }
+.vat-report-values > div { display: flex; justify-content: space-between; gap: 16px; }
+.vat-report-values dt { color: var(--muted); }
+.vat-report-values dd { margin: 0; }

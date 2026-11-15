@@ -29,6 +29,7 @@ import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
 import { dunningFiles } from "./mahnungen-export.ts";
+import { vatReportFiles } from "./voranmeldungen-export.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 
@@ -298,6 +299,7 @@ export async function exportYears(now = new Date()): Promise<number[]> {
     union select extract(year from date)::int from lexoffice_vouchers
     union select extract(year from date)::int from legacy_order_documents
     union select extract(year from date)::int from datev_bookings
+    union select year::int from legacy_vat_reports
     union select year::int from archive_files where year is not null`);
   const current = Number(today(now).slice(0, 4));
   const years = new Set([current, current - 1, ...rows.map((r) => Number(r.y))]);
@@ -1219,6 +1221,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   yield* legacyFiles(year, problems);
   yield* orderFiles(year, problems);
   yield* dunningFiles(year, problems);
+  yield* await vatReportFiles(year, problems);
 
   // Stammdaten ------------------------------------------------------------
   const contacts = await db.select().from(schema.contacts).orderBy(asc(schema.contacts.name), asc(schema.contacts.id));
