@@ -2365,6 +2365,41 @@ test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschre
   await expect(page.getByRole("combobox", { name: "Ansprechpartner" })).toHaveCount(0);
 });
 
+test("Rechnungsdatum vor der letzten festgeschriebenen Rechnung: Warnung beim Festschreiben ohne Sperre (#713)", async () => {
+  await rechnungFestschreiben(page, {
+    customer: "Rheinpixel GmbH · Köln",
+    date: "2026-11-09",
+    lines: [["Beratung", "1", "500,00"]],
+    gross: "595,00",
+  });
+
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  await page.getByLabel("Rechnungsdatum").fill("2026-10-01");
+  await page.getByLabel("Beschreibung Position 1").fill("Rückdatierte Leistung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("200");
+
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("status")).toContainText("Das Rechnungsdatum (01.10.2026) liegt vor der zuletzt festgeschriebenen Rechnung");
+  await expect(dialog.getByRole("status")).toContainText("vom 09.11.2026");
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+
+  // Datum in der Vergangenheit allein (anderer Nummernkreis ohne Rechnung) warnt nicht
+  await page.getByLabel("Rechnungsdatum").fill("2024-12-15");
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+
+  // Warnung sperrt nicht: Festschreiben bleibt möglich
+  await page.getByLabel("Rechnungsdatum").fill("2026-10-01");
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("01.10.2026");
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText("Festgeschrieben", { exact: true })).toBeVisible();
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/rechnungen",
