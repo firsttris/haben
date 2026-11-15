@@ -83,7 +83,7 @@ function satzZumSchluessel(code: string | null): number | null {
 /**
  * Was zu diesem Beleg noch auf dem Zwischenkonto steht, je Steuersatz, mit dem Vorzeichen der Buchung: bei einer
  * Rechnung positiv (Soll), bei einer Gutschrift negativ. Gelesen wird das ganze Journal des Belegs — Buchung,
- * Zuordnungen, Verrechnungen, Ausbuchungen und die Freigaben selbst. Der Saldo ist die Wahrheit über das, was noch
+ * Zuordnungen, Verrechnungen, Ausbuchungen samt Skonto und die Freigaben selbst. Der Saldo ist die Wahrheit über das, was noch
  * wartet; er stimmt auch nach einer Aufhebung oder einem Wechsel des Kontenrahmens.
  */
 async function zwischenkontoSaldo(tx: Tx, documentId: string): Promise<TaxShare[]> {
@@ -98,8 +98,8 @@ async function zwischenkontoSaldo(tx: Tx, documentId: string): Promise<TaxShare[
          or (e.source_type = 'allocation' and e.source_id in (select id from allocations where document_id = ${documentId}))
          or (e.source_type = 'freigabe' and e.source_id = ${documentId})
          or (e.source_type = 'verrechnung' and e.source_id in (select id from document_settlements where document_id = ${documentId}))
-         or (e.source_type = 'ausbuchung' and e.source_id in
-               (select id from write_offs where document_id = ${documentId} and kind <> 'skontoErhalten')))
+         -- Auch Skonto: Es schreibt seinen Anteil vom Zwischenkonto ab, und die Freigabe darf ihn nicht noch einmal ziehen
+         or (e.source_type = 'ausbuchung' and e.source_id in (select id from write_offs where document_id = ${documentId})))
      group by l.tax_code`);
   return [...rows].flatMap((r) => {
     const rate = satzZumSchluessel(r.tax_code);
@@ -209,20 +209,15 @@ export async function freigabeStornieren(tx: Tx, books: Books, documentId: strin
  * Hat sich am Stand nichts geändert — etwa eine Zahlung nach der Ausführung —, bleibt die Freigabe stehen und es
  * entstehen keine Buchungen. Ohne Freigabe (Gutschrift „erstattet bereits Bezahltes“, abgeschlossenes Jahr) passiert
  * nichts; dann bleibt es beim Ausgleich mit der Zahlung.
+ *
+ * `datum` ist der Tag des Ereignisses (Zahlung, Aufhebung, Verrechnung, Ausbuchung). Liegt er an oder nach der
+ * Ausführung, ist die Vorsteuer mit Leistung und Rechnung abziehbar und das Ereignis ändert daran nichts mehr: Was es
+ * auf das Zwischenkonto zurücklegt, wird am selben Tag wieder frei. Der Monat der Ausführung bleibt unberührt, er kann
+ * schon gemeldet sein.
  */
-export async function freigabeNachziehen(
-  tx: Tx,
-  doc: {
-    id: string;
-    documentDate: string | null;
-    serviceFrom: string | null;
-    serviceTo: string | null;
-    invoiceNumber: string | null;
-    supplierName: string | null;
-  },
-  books: Books,
-): Promise<boolean> {
-  if (!doc.documentDate) return false;
+export async function freigabeNachziehen(tx: Tx, documentId: string, books: Books, datum: string): Promise<boolean> {
+  const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, documentId));
+  if (!doc?.documentDate) return false;
   const am = leistungsdatum({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });
   if (am <= doc.documentDate) return false;
   // Nur Belege mit Freigabe zum Leistungsdatum; die Gutschrift nach § 17 Abs. 1 UStG hat keine
@@ -232,6 +227,21 @@ export async function freigabeNachziehen(
   // genau — nach der Ausführung gezahlt ändert sich nichts, und es entstehen keine Buchungen ohne Anlass.
   const stand = await zwischenkontoSaldo(tx, doc.id);
   if (stand.length === 0) return true;
+
+  // Nach der Ausführung: den zurückgelegten Stand am Tag des Ereignisses freigeben, nichts rückwirkend
+  if (datum >= am) {
+    await post(tx, books, {
+      date: datum,
+      description: `Vorsteuer aus Leistungszeitraum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
+      sourceType: "freigabe",
+      sourceId: doc.id,
+      lines: vorsteuerAusgleichPosting(
+        stand.map((a) => ({ rate: a.rate, base: -a.base, tax: -a.tax })),
+        books.kontenrahmen,
+      ),
+    });
+    return true;
+  }
 
   // 1. Die Freigaben zum Ausführungsdatum zurücknehmen, in ihrem eigenen Monat: Sie deckten den Stand von vor diesem
   //    Ereignis. Rückwirkend gemindert wird dabei nichts — Aufhebung und neue Freigabe stehen am selben Tag.
