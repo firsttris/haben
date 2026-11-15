@@ -78,6 +78,7 @@ export {
   draftSchema,
   applyPublishedRatesToDrafts,
   finalizeInvoice,
+  UmsatzgrenzeError,
   finalizeIssues,
   getInvoice,
   InvoiceError,

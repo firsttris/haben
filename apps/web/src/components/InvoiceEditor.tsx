@@ -42,6 +42,7 @@ import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
+import { VORJAHRESGRENZE, type UmsatzgrenzeBestaetigung } from "../lib/kleinunternehmer.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { emptyLine, type EditorLine, type LineState, type ParsedLine, parseLine, positionsFehler, sameText, toLineState } from "../lib/editor-lines.ts";
@@ -124,7 +125,7 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
 };
 
 export function InvoiceEditor({
-  id,
+  id: initialId,
   kind,
   initial,
   contacts,
@@ -200,6 +201,8 @@ export function InvoiceEditor({
   /** Korrektur einer Schlussrechnung: die übernommenen Abzüge, fest; Haben behält sie beim Speichern */
   keptDeductions?: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
 }) {
+  const [neuerEntwurf, setNeuerEntwurf] = useState<string | null>(null);
+  const id = initialId ?? neuerEntwurf;
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveInvoiceDraft);
@@ -256,6 +259,7 @@ export function InvoiceEditor({
   const ownAction = useAction();
   const { busy, notice, setNotice, run } = sharedAction ?? ownAction;
   const [confirming, setConfirming] = useState(false);
+  const [umsatzwarnung, setUmsatzwarnung] = useState<({ id: string } & UmsatzgrenzeBestaetigung) | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const preview = useDocumentPreview();
   const designDraft = useDesignDraft(seller.design);
@@ -553,7 +557,7 @@ export function InvoiceEditor({
     if (!pruefe(["contact"])) return;
     void run(async () => {
       const savedId = await persist();
-      if (id === null) {
+      if (initialId === null) {
         await openSaved(savedId);
       } else {
         await router.invalidate();
@@ -569,11 +573,26 @@ export function InvoiceEditor({
   const finalizeNow = () => {
     void run(async () => {
       const savedId = dirty || id === null ? await persist() : id;
-      await (quote ? finalizeQuote({ data: savedId }) : finalize({ data: savedId }));
-      if (id === null) await openSaved(savedId);
-      else await router.invalidate();
+      if (quote) {
+        await finalizeQuote({ data: savedId });
+        if (initialId === null) await openSaved(savedId);
+        else await router.invalidate();
+        return;
+      }
+      if (initialId === null) setNeuerEntwurf(savedId);
+      await finalizeSaved(savedId);
     });
   };
+
+  async function finalizeSaved(savedId: string, bestaetigt?: UmsatzgrenzeBestaetigung) {
+    const result = await finalize({ data: { id: savedId, bestaetigt } });
+    if (result.status === "umsatzgrenze") {
+      setUmsatzwarnung(result);
+      return;
+    }
+    if (initialId === null) await openSaved(result.id);
+    else await router.invalidate();
+  }
 
   // Entwurf als PDF aus dem gespeicherten Stand: Ungespeichertes erst speichern, damit das PDF zeigt, was im Formular steht
   const onDraftPdf = () => {
@@ -582,7 +601,7 @@ export function InvoiceEditor({
       const saving = dirty || id === null;
       const savedId = saving ? await persist() : id;
       await downloadFrom(`/api/entwurf/${quote ? "angebot" : "rechnung"}/${savedId}?download`, quote ? "Angebot-Entwurf.pdf" : "Rechnung-Entwurf.pdf");
-      if (id === null) {
+      if (initialId === null) {
         await openSaved(savedId);
       } else if (saving) {
         await router.invalidate();
@@ -626,6 +645,41 @@ export function InvoiceEditor({
           </>
         )}
       </ConfirmDialog>
+      {umsatzwarnung && (
+        <ConfirmDialog
+          open
+          title={
+            umsatzwarnung.vorjahresumsatz === undefined
+              ? "Rechnung trotz möglicher Überschreitung der Umsatzgrenze festschreiben?"
+              : "Kleinunternehmerregelung wegen Vorjahresumsatz prüfen"
+          }
+          confirmLabel="Trotzdem festschreiben"
+          facts={[
+            ...(umsatzwarnung.vorjahresumsatz === undefined
+              ? [
+                  { label: "Dieses Jahr laut Buchungen vereinnahmt", value: formatEuro(umsatzwarnung.umsatz) },
+                  { label: "Bei vollständiger Zahlung in diesem Jahr", value: formatEuro(umsatzwarnung.umsatz + umsatzwarnung.rechnung), strong: true },
+                ]
+              : [{ label: "Im Vorjahr laut Buchungen vereinnahmt", value: formatEuro(umsatzwarnung.vorjahresumsatz), strong: true }]),
+          ]}
+          onClose={() => setUmsatzwarnung(null)}
+          onConfirm={() => void run(() => finalizeSaved(umsatzwarnung.id, umsatzwarnung))}
+        >
+          {umsatzwarnung.umsatz + umsatzwarnung.rechnung > umsatzwarnung.grenze && (
+            <p>
+              Bei vollständiger Zahlung in diesem Jahr könnte die Grenze von {formatEuro(umsatzwarnung.grenze)} überschritten werden. Ab dem Umsatz, der die
+              Grenze überschreitet, entfällt die Befreiung.
+            </p>
+          )}
+          {umsatzwarnung.vorjahresumsatz !== undefined && (
+            <p>
+              Lag dein Gesamtumsatz im Vorjahr über {formatEuro(VORJAHRESGRENZE)}, entfällt die Kleinunternehmerregelung ab dem 1. Januar des laufenden Jahres.
+            </p>
+          )}
+          <p>Prüfe vor dem Festschreiben, ob du Umsatzsteuer ausweisen musst. Als normale Rechnung erfasste Anlagenverkäufe können im Betrag enthalten sein.</p>
+          <p>Bei Abbruch bleibt die Rechnung als Entwurf gespeichert.</p>
+        </ConfirmDialog>
+      )}
       <ConfirmDialog
         open={confirmingDelete}
         title="Entwurf löschen?"

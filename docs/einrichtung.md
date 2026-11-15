@@ -100,6 +100,7 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Standard-Einleitung für Rechnungen, für Angebote | Steht in neuen Rechnungen bzw. Angeboten als Einleitung über den Positionen, etwa eine Anrede oder „Für die erbrachten Leistungen berechne ich Ihnen:“. Im Beleg änderbar; bestehende Belege ändern sich nicht. Leer = keine Einleitung, höchstens 2000 Zeichen |
 | Versteuerung | Ist oder Soll, siehe unten |
 | Kleinunternehmer nach § 19 UStG | Haken setzen, wenn du die Kleinunternehmerregelung nutzt, siehe unten |
+| Gründungsdatum | Datum der tatsächlichen Aufnahme deiner unternehmerischen Tätigkeit, siehe [Kleinunternehmer](#kleinunternehmer) |
 | Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG) | Haken nur, wenn alle Umsätze den Vorsteuerabzug ausschließen, siehe unten |
 
 Fehlt einer GmbH oder UG etwas davon, zeigt das Formular im Abschnitt **Handelsregister und Geschäftsführung** „Für Rechnungen und Geschäftsbriefe fehlt noch (§ 35a GmbHG): …“, etwa „Geschäftsführer fehlt“ oder bei „E. Mustermann“ den fehlenden ausgeschriebenen Vornamen.
@@ -274,6 +275,10 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 | Voranmeldung | Die Seite weist darauf hin, dass du in der Regel keine Voranmeldung abgibst. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). |
 | Übersicht | Die Aufgaben „Voranmeldung senden“, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER entfallen. |
 | EÜR | Die Einnahmen stehen in der Zeile „Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer“. |
+
+Trage in den **Firmendaten** unter **Unternehmen** das **Gründungsdatum** ein. Im Kalenderjahr dieses Datums prüft Haben für das laufende Jahr die Grenze von 25.000 €. Danach gilt für das laufende Jahr die 100.000-€-Grenze, sofern du im Vorjahr höchstens 25.000 € Umsatz hattest. Ohne Gründungsdatum oder gespeichertes Gründungsjahr verwendet Haben für das laufende Jahr 100.000 €. Die **Übersicht** warnt beim laufenden Jahresumsatz ab 80 % der jeweils geltenden Jahresgrenze: im Gründungsjahr ab 20.000 €, im bestehenden Betrieb ab 80.000 €. Beim Hinweis ab 80.000 € siehst du auch, dass der Umsatz dieses Jahres über der Vorjahresgrenze für das nächste Kalenderjahr liegt. Liegt der erfasste Vorjahresumsatz bereits über 25.000 €, weist Haben für das laufende Jahr darauf hin. [§ 19 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html), [BMF-Schreiben vom 18. März 2025, Abschnitt 19.1](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-03-18-sonderregelung-kleinunternehmer.pdf?__blob=publicationFile&v=2)
+
+Maßgeblich ist der vereinnahmte Nettoumsatz. Offene Rechnungen zählen erst bei Zahlung. Nach § 19 Abs. 2 bleiben Anlagenverkäufe außen vor. Hast du sie als normale Rechnungen erfasst, prüfe den Betrag, da Haben solche Verkäufe derzeit nicht am Beleg erkennt. Prüfe auch uneindeutige Importzahlungen und steuerfreie Erlöse mit frei erfasstem Befreiungsgrund separat. [§ 19 Abs. 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)
 
 Überschreitest du die Umsatzgrenze, nimmst du den Haken heraus; ab dann gilt die Regelbesteuerung. Ausschalten geht jederzeit, auch mitten im Jahr. Eine Kleinunternehmer-Rechnung lässt sich danach nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
 
