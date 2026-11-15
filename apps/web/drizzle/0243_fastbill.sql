@@ -16,7 +16,7 @@ CREATE TABLE "fastbill_receipts" (
 	"date" date,
 	"supplier" text DEFAULT '' NOT NULL,
 	"gross" integer DEFAULT 0 NOT NULL,
-	"document_url" text,
+	"ciphertext" "bytea",
 	"sha256" text,
 	"filename" text,
 	"mime_type" text,

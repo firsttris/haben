@@ -2872,8 +2872,8 @@ export const fastbillConnection = pgTable(
  * Ausgabenbelege aus FastBill, die die API nicht herausgibt (DOCUMENT_URL nur mit Anmeldung im Browser). Der Abruf
  * merkt eine solche Ausgabe als „wartet“ vor, statt sie ohne Datei zu archivieren; das Browser-Skript lädt die Datei
  * in der angemeldeten Sitzung, der Upload setzt „datei“, wer keinen Beleg hat „ohne_beleg“. Der nächste Abruf übernimmt
- * die Ausgabe dann mit Datei bzw. ohne und löscht die Zeile. document_url ist ein Link mit eigenem Schlüssel und steht
- * deshalb nur hier, nicht im Fortschritt des Abrufs.
+ * die Ausgabe dann mit Datei bzw. ohne und löscht die Zeile. Die DOCUMENT_URL ist ein Link mit eigenem Schlüssel und
+ * steht deshalb nur hier, verschlüsselt in ciphertext (das Audit-Log lässt die Spalte aus), nicht im Fortschritt des Abrufs.
  */
 export const fastbillReceipts = pgTable("fastbill_receipts", {
   /** Wie jede Tabelle mit Dateiverweis eine id, über die die Vollprüfung der Dateien den Datensatz nennt */
@@ -2886,7 +2886,8 @@ export const fastbillReceipts = pgTable("fastbill_receipts", {
   supplier: text("supplier").notNull().default(""),
   /** Cent */
   gross: integer("gross").notNull().default(0),
-  documentUrl: text("document_url"),
+  /** DOCUMENT_URL, AES-256-GCM-verschlüsselt */
+  ciphertext: bytea("ciphertext"),
   sha256: text("sha256"),
   filename: text("filename"),
   mimeType: text("mime_type"),

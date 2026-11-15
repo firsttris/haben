@@ -270,7 +270,7 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
     });
     expect(byId.get("fastbill/invoice/7003")!.payment).toMatchObject({ status: "balanced", openAmount: 0 });
     expect(byId.get("fastbill/invoice/7004")!.payment).toMatchObject({ status: "partlyPaid", openAmount: 20_000 });
-    expect(await sql`select expense_id, status, number, date, supplier, gross, document_url from fastbill_receipts`).toEqual([
+    expect(await sql`select expense_id, status, number, date, supplier, gross from fastbill_receipts`).toEqual([
       {
         expense_id: "8002",
         status: "wartet",
@@ -278,9 +278,10 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
         date: "2024-02-15",
         supplier: "Software Beispiel",
         gross: 595,
-        document_url: "https://my.fastbill.com/download/beleg-8002",
       },
     ]);
+    // Die Download-Adresse liegt verschlüsselt; die Liste für das Browser-Skript nennt sie
+    expect(await fastbill.fastbillReceiptScriptList()).toEqual([{ id: "8002", url: "https://my.fastbill.com/download/beleg-8002" }]);
   });
 
   it("übernimmt die wartende Ausgabe mit dem Beleg aus dem Browser-Skript", async () => {

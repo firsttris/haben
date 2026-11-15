@@ -114,8 +114,8 @@ describe.skipIf(!testDatabaseUrl)("FastBill-Altbestand bei Ist und Soll (Postgre
   });
 
   it("zeigt im Abgleich je Jahr, wenn Ausgaben noch auf ihren Beleg aus dem Browser-Skript warten", async () => {
-    await sql`insert into fastbill_receipts (expense_id, status, number, date, supplier, gross, document_url)
-      values ('9301', 'wartet', 'L-2', '2025-06-01', 'Lieferant', 1190, 'https://my.fastbill.com/download/x')`;
+    await sql`insert into fastbill_receipts (expense_id, status, number, date, supplier, gross)
+      values ('9301', 'wartet', 'L-2', '2025-06-01', 'Lieferant', 1190)`;
     try {
       const year = (await archive.reconciliation()).years.find((y) => y.year === 2025)!;
       expect(year.checks).toContainEqual({ ok: false, label: "Keine Ausgabe wartet auf ihren Beleg", detail: "1 Ausgabe aus FastBill wartet" });
