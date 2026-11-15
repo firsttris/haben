@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { checkFile } from "../../../../scripts/modulgrenzen/regel.ts";
+import { SCHICHTEN } from "../../../../scripts/modulgrenzen/schichten.ts";
 
 /*
  * Modulgrenzen (#81, Schritt 6): die Prüfung selbst (scripts/modulgrenzen/) und die Struktur der Module.
@@ -75,6 +76,27 @@ describe("Modulgrenzen", () => {
     expect(lint("modules/rechnungen/invoices.ts", `import { lineAmount } from "@haben/core";\nimport { db } from "../../db/index.ts";`)).toEqual([]);
   });
 
+  it("ein Modul importiert nur Module, die in der Schichtenfolge vor ihm stehen", () => {
+    expect(lint("modules/rechnungen/invoices.ts", `import { loadCompany } from "../stammdaten/index.ts";`)).toEqual([]);
+    expect(lint("modules/stammdaten/company.ts", `import { listInvoices } from "../rechnungen/index.ts";`)).toEqual([
+      expect.stringContaining("Modul „stammdaten“ steht unter „rechnungen“ und importiert es nicht"),
+    ]);
+    // Auch Typen, Re-Exporte und dynamische Importe
+    expect(lint("modules/stammdaten/company.ts", `import type { Invoice } from "../rechnungen/index.ts";`)).toHaveLength(1);
+    expect(lint("modules/stammdaten/company.ts", `export { listInvoices } from "../rechnungen/index.ts";`)).toHaveLength(1);
+    expect(lint("modules/stammdaten/company.ts", `const m = await import("../rechnungen/index.ts");`)).toHaveLength(1);
+    // Server Functions, Oberfläche und die zusammensetzenden Stellen stehen über allen Modulen
+    expect(lint("functions/company.ts", `import { listInvoices } from "../modules/rechnungen/index.ts";`)).toEqual([]);
+    expect(lint("scheduler.ts", `import { runReminders } from "./modules/finanzamt/index.ts";`)).toEqual([]);
+  });
+
+  it("ein Modul, das in der Schichtenfolge fehlt, meldet die Prüfung", () => {
+    expect(lint("modules/neu/x.ts", `import { loadCompany } from "../stammdaten/index.ts";`)).toEqual([
+      expect.stringContaining("Modul „neu“ fehlt in scripts/modulgrenzen/schichten.ts"),
+    ]);
+    expect(lint("modules/stammdaten/x.ts", `import { y } from "../neu/index.ts";`)).toHaveLength(1);
+  });
+
   it("Pakete importieren nichts aus der App, der GoBD-Kern auch keine Pakete von Haben", () => {
     const paket = (path: string, code: string) => checkFile(join(server, "../../../../packages", path), code).map((v) => v.message);
     expect(paket("core/src/money.ts", `import { db } from "../../../apps/web/src/server/db/index.ts";`)).toEqual([
@@ -116,6 +138,11 @@ describe("Struktur der Module", () => {
     expect(names.filter((name) => !existsSync(join(modules, name, "index.ts")))).toEqual([]);
   });
 
+  it("jedes Modul steht genau einmal in der Schichtenfolge", () => {
+    expect([...SCHICHTEN].sort()).toEqual([...names].sort());
+    expect(new Set(SCHICHTEN).size).toBe(SCHICHTEN.length);
+  });
+
   it("index.ts gibt nur Dateien des eigenen Moduls weiter und enthält keine Logik", () => {
     for (const name of names) {
       const lines = readFileSync(join(modules, name, "index.ts"), "utf8")
@@ -142,6 +169,7 @@ describe("Struktur der Module", () => {
         "env.ts",
         "errors.ts",
         "file-response.ts",
+        "grenzen.ts",
         "lese-route.ts",
         "middleware.ts",
         "rollen.ts",

@@ -14,3 +14,4 @@ export { vorauszahlungVorjahrHinweis, ZEHN_TAGE_REGEL, zehnTageKennzeichen, type
 export { euerForYear, lohnZahlungenUmJahreswechsel, openPositions, reportYears, umsatzsteuerVorjahreUmJahreswechsel, type OpenPosition } from "./reports.ts";
 export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.ts";
 export { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
+export { runDuePruefwertMail } from "./pruefwert-mail.ts";

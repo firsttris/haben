@@ -50,3 +50,4 @@ export {
   runDuePostfachFetch,
 } from "./postfach.ts";
 export { fetchVastBelege, lastVastRequest, listVastBelege, vastBelegXml } from "./vast.ts";
+export { runDueFristenMails } from "./fristen-mail.ts";
