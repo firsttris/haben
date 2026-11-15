@@ -10,10 +10,20 @@ const tls = production ? ssoTestTls() : undefined;
 const baseURL = `${production ? "https" : "http"}://localhost:3218`;
 const issuer = `${production ? "https" : "http"}://127.0.0.1:3216`;
 const tlsEnv = tls ? { SSO_E2E_TLS_CERT: tls.cert, SSO_E2E_TLS_KEY: tls.key, NODE_EXTRA_CA_CERTS: tls.cert } : {};
+/**
+ * Firmenportal (#504, Stufe 2) für e2e/sso-firmenportal.spec.ts. Im Produktionslauf wie Haben hinter TLS
+ * (e2e/sso-firmenportal-server.ts); über HTTP speichert nur Chromium die Secure-Cookies auf localhost, Safari und WebKit nicht
+ */
+const PORTAL = `${production ? "https" : "http"}://localhost:3217`;
 export default defineConfig({
   testDir: "e2e",
-  testMatch: "sso-only.spec.ts",
   workers: 1,
+  // sso-only zuerst, es braucht eine frische Instanz. Playwright ordnet Dateien sonst nach dem Namen, und
+  // „sso-firmenportal“ stünde vor „sso-only“; die Abhängigkeit hält die Reihenfolge unabhängig davon
+  projects: [
+    { name: "sso-only", testMatch: "sso-only.spec.ts" },
+    { name: "firmenportal", testMatch: ["sso-firmenportal.spec.ts", "sso-firmenportal-abmelden.spec.ts"], dependencies: ["sso-only"] },
+  ],
   timeout: 60_000,
   use: {
     baseURL,
@@ -60,6 +70,27 @@ export default defineConfig({
         OIDC_GROUP_INHABER: "haben-inhaber",
         OIDC_GROUP_STEUERBERATUNG: "haben-steuerberatung",
         DOCUMENTS_DIR: "test-results/oidc-belege",
+        HABEN_FIRMENPORTAL_URL: PORTAL,
+      },
+    },
+    {
+      command: production ? "bun e2e/sso-firmenportal-server.ts" : "bun ../firmenportal/src/main.ts",
+      url: `${PORTAL}/gesund`,
+      ignoreHTTPSErrors: production,
+      reuseExistingServer: false,
+      env: {
+        ...process.env,
+        ...tlsEnv,
+        // Mit TLS lauscht das Firmenportal intern auf 3221, davor der Proxy auf 3217
+        PORT: production ? "3221" : "3217",
+        PORTAL_URL: PORTAL,
+        PORTAL_SECRET: "e2e-portal-secret-mindestens-32-zeichen",
+        // Diese Instanz und zwei, die es nicht geben muss
+        PORTAL_FIRMEN: `Studio Nord|${baseURL}|haben-inhaber;Werkstatt Süd|https://sued.example.de|haben-sued-inhaber;Atelier West|https://west.example.de|haben-west-inhaber`,
+        OIDC_ISSUER: issuer,
+        OIDC_CLIENT_ID: "haben",
+        OIDC_CLIENT_SECRET: "secret",
+        OIDC_DISPLAY_NAME: "Test-SSO",
       },
     },
   ],

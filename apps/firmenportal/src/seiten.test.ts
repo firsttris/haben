@@ -1,0 +1,97 @@
+import { describe, expect, it } from "vitest";
+import { ladeKonfiguration } from "./env.ts";
+import { abgemeldetSeite, anmeldeSeite, fehlerSeite, firmenSeite, SUCHE_AB } from "./seiten.ts";
+import { STIL } from "./stil.ts";
+
+const seite = (liste: Parameters<typeof firmenSeite>[0], suche: string) => firmenSeite(liste, suche, "", (url) => url);
+
+/* Seiten und Konfiguration des Firmenportals (#504): Escaping, Suchfeld ab 20 Firmen, Fehler beim Start. */
+
+const firmen = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `Firma ${String(i).padStart(2, "0")}`, url: `https://f${i}.example.de` }));
+
+describe("Seiten", () => {
+  it("escapen Namen aus der Konfiguration und die Suche", () => {
+    const html = seite([{ name: `<script>alert("x")</script>`, url: "https://a.example.de" }], "");
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;");
+    expect(anmeldeSeite(`"><img src=x>`)).not.toContain("<img");
+    expect(seite(firmen(SUCHE_AB), `"><b>`)).toContain('value="&quot;&gt;&lt;b&gt;"');
+  });
+
+  it("zeigen das Suchfeld erst ab 20 Firmen und filtern ohne Groß- und Kleinschreibung", () => {
+    expect(seite(firmen(SUCHE_AB - 1), "")).not.toContain('type="search"');
+    const html = seite(firmen(25), "FIRMA 1");
+    expect(html).toContain('type="search"');
+    expect([...html.matchAll(/<li>/g)]).toHaveLength(10);
+    expect(seite(firmen(25), "gibt es nicht")).toContain("Keine Firma gefunden.");
+  });
+
+  // Rückmeldung zur Oberfläche in #1006
+  it("nennen das Firmenportal in der Marke und im Titel", () => {
+    const html = seite(firmen(2), "");
+    expect(html).toContain("<title>Firma wählen · Haben Firmenportal</title>");
+    expect(html).toMatch(/<header class="marke">.*Haben.*Firmenportal.*<\/header>/);
+  });
+
+  it("sagen ohne Firma, an wen man sich wendet", () => {
+    expect(seite([], "")).toContain("Wende dich an die Person, die Haben für dich betreibt.");
+  });
+
+  it("behalten nach der Suche den Fokus im Feld und sagen die Trefferzahl an", () => {
+    const gesucht = seite(firmen(25), "FIRMA 1");
+    expect(gesucht).toMatch(/<input id="suche"[^>]* autofocus/);
+    expect(gesucht).toContain('<p class="muted klein" role="status">10 von 25 Firmen</p>');
+    expect(seite(firmen(25), "")).not.toContain("autofocus");
+    expect(seite(firmen(25), "gibt es nicht")).toContain('role="status">Keine Firma gefunden.</p>');
+  });
+
+  // Zweite Rückmeldung zur Oberfläche in #1006: eine linke Kante, Aktionen rechts wie in einem Dialog
+  it("rücken die Marke um Innenabstand und Rand der Karte ein und stellen Knöpfe rechts", () => {
+    expect(STIL).toMatch(/\.marke \{[^}]*padding-left: 25px/);
+    expect(STIL).toMatch(/\.fuss form \{ margin-left: auto; \}/);
+    expect(STIL).toMatch(/\.aktionen \{[^}]*justify-content: flex-end/);
+    for (const html of [abgemeldetSeite("Test-SSO", false), anmeldeSeite("Test-SSO", "Abgebrochen."), fehlerSeite("Fehler", "Text")]) {
+      expect(html).toMatch(/<div class="aktionen"><a class="btn[^"]*" href="[^"]+">[^<]+<\/a><\/div>/);
+    }
+  });
+
+  it("trennen lange Namen nach Silben und heben das Überfahren im Dunkeln stärker ab", () => {
+    // Safari und WebKit trennen damit ebenso, ohne Präfix (in #1006 in Safari 27 und WebKit geprüft)
+    expect(STIL).toMatch(/\.firma-name \{[^}]*[^-]hyphens: auto/);
+    expect(STIL).toMatch(/\.firma:hover \{ background: var\(--firma-hover\)/);
+    const dunkel = STIL.slice(STIL.indexOf("prefers-color-scheme: dark"));
+    expect(dunkel).toMatch(/--firma-hover: var\(--line\)/);
+  });
+});
+
+describe("ladeKonfiguration", () => {
+  const gueltig = {
+    PORTAL_URL: "https://firmenportal.example.de",
+    PORTAL_SECRET: "x".repeat(32),
+    OIDC_ISSUER: "https://auth.example.de",
+    OIDC_CLIENT_ID: "portal",
+    OIDC_CLIENT_SECRET: "geheim",
+  };
+
+  it("nimmt eine gültige Konfiguration mit Vorgaben an", () => {
+    const ergebnis = ladeKonfiguration(gueltig);
+    expect(ergebnis).toMatchObject({ config: { url: "https://firmenportal.example.de", displayName: "SSO", groupsClaim: "groups", firmen: [] } });
+  });
+
+  it.each([
+    ["PORTAL_URL mit Pfad", { PORTAL_URL: "https://firmenportal.example.de/x" }, "PORTAL_URL"],
+    ["PORTAL_URL über http", { PORTAL_URL: "http://firmenportal.example.de" }, "PORTAL_URL"],
+    ["zu kurzes PORTAL_SECRET", { PORTAL_SECRET: "kurz" }, "PORTAL_SECRET"],
+    ["Claim als Pfad", { OIDC_GROUPS_CLAIM: "realm_access.roles" }, "OIDC_GROUPS_CLAIM"],
+    ["Issuer über http", { OIDC_ISSUER: "http://auth.example.de" }, "OIDC_ISSUER"],
+    ["Issuer über http auf localhost im Betrieb", { OIDC_ISSUER: "http://localhost:9091", NODE_ENV: "production" }, "OIDC_ISSUER"],
+    ["fehlerhafte PORTAL_FIRMEN", { PORTAL_FIRMEN: "Nord|https://nord.example.de" }, "PORTAL_FIRMEN"],
+    ["fehlendes Client-Secret", { OIDC_CLIENT_SECRET: "" }, "OIDC_CLIENT_SECRET"],
+    // Wie Haben (apps/web/src/server/env.ts): ohne openid käme kein ID-Token, jede Anmeldung schlüge fehl
+    ["OIDC_SCOPES ohne openid", { OIDC_SCOPES: "profile email groups" }, "OIDC_SCOPES"],
+  ])("lehnt %s ab und nennt die Variable", (_fall, abweichung, variable) => {
+    const ergebnis = ladeKonfiguration({ ...gueltig, ...abweichung });
+    expect(ergebnis).toHaveProperty("fehler");
+    expect((ergebnis as { fehler: string[] }).fehler.join("\n")).toContain(variable);
+  });
+});
