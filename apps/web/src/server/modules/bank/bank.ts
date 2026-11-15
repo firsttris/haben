@@ -1571,8 +1571,9 @@ export async function bookWriteOff(
       amount = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
       lines = exchangeDifferencePosting({ kind: "document" }, amount, company.kontenrahmen);
       // Die Steuer bleibt beim Kurs des Belegs; der ausgeglichene Anteil geht trotzdem vom Zwischenkonto, wenn dort
-      // etwas steht: geparkte Vorsteuer (#693) oder eine Gutschrift „erstattet bereits Bezahltes“ (#786)
-      lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), amount, company.kontenrahmen, input.date)));
+      // etwas steht: geparkte Vorsteuer (#693) oder eine Gutschrift „erstattet bereits Bezahltes“ (#786). Vor der
+      // Ausführung bleibt er dort und wird mit ihr frei (#930)
+      lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), amount, company.kontenrahmen, input.date, true)));
       description = `Kursdifferenz · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
       target = { invoiceId: null, documentId: doc.id };
       beleg = doc.id;
