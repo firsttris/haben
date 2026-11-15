@@ -18,7 +18,44 @@ describe("erklärte Zeilen (#997)", () => {
     expect(feld).toContain("festgesetzteSteuer");
     expect(feld).toContain("erstattung");
     expect(new Set(feld).size).toBe(feld.length);
-    expect(feld.length).toBe(11);
+  });
+
+  // Die elf Summenzeilen aus #1082 bleiben Schlüssel für Schlüssel erhalten: gespeicherte Zeilen hängen an ihnen
+  it("ergänzt die Zeilen der Anlagen N, S, Vorsorgeaufwand, KAP und den Progressionsvorbehalt (#1149)", () => {
+    const zeilen = ERKLAERTE_ZEILEN.est;
+    const feld = zeilen.map((z) => z.field);
+    for (const alt of [
+      "bruttoarbeitslohn",
+      "werbungskosten",
+      "einkuenfteNichtselbstaendig",
+      "einkuenfteSelbstaendig",
+      "summeEinkuenfte",
+      "gesamtbetrag",
+      "vorsorgeaufwendungen",
+      "zuVersteuerndesEinkommen",
+      "festgesetzteSteuer",
+      "soli",
+      "erstattung",
+    ])
+      expect(feld).toContain(alt);
+    expect(new Set(feld).size).toBe(feld.length);
+
+    // Die Anlage steht am Feld, damit die Aufstellung sie ohne zweite Tabelle zeigen kann
+    expect(new Set(zeilen.map((z) => z.gruppe))).toEqual(
+      new Set(["Anlage N", "Anlage S", "Anlage Vorsorgeaufwand", "Sonderausgaben", "Anlage KAP", "Progressionsvorbehalt", "Berechnung"]),
+    );
+    // Reihenfolge wie im Vordruck: erst die Anlagen, dann die Berechnung
+    expect(zeilen[0]?.gruppe).toBe("Anlage N");
+    expect(zeilen.at(-1)?.gruppe).toBe("Berechnung");
+
+    // Ohne die Teilbeträge ergäben die Zeilen der Anlage N nicht die Summe der Werbungskosten
+    expect(feld).toEqual(expect.arrayContaining(["werbungskostenArbeitsmittel", "werbungskostenArbeitszimmer", "werbungskostenUebrige"]));
+  });
+
+  it("lässt die Anlage bei Umsatzsteuer und Anlage EÜR leer", () => {
+    // Beide Erklärungen sind ein Vordruck ohne Anlagen, dort gibt es keine Gruppenzeile
+    expect(ERKLAERTE_ZEILEN.ust.every((z) => !("gruppe" in z))).toBe(true);
+    expect(ERKLAERTE_ZEILEN.euer.every((z) => !("gruppe" in z))).toBe(true);
   });
 
   // Der Vordruck druckt die Schlusszeile ohne Richtung, die Vermerke führen Erstattungen negativ (#1082)
