@@ -2726,9 +2726,17 @@ test("Bereits bezahlt speichert Zahlungsdienst und Datum und lässt die Rechnung
   const zahlungsart = page.getByLabel("Zahlungsart", { exact: true });
   await zahlungsart.selectOption("bereits_bezahlt");
   await expect(page.getByLabel("Zahlungsziel in Tagen")).toHaveCount(0);
+  const vorschau = page.getByRole("button", { name: "Vorschau", exact: true });
+  const vorschauDialog = page.getByRole("dialog", { name: "Vorschau" });
+  await vorschau.click();
+  await expect(vorschauDialog.getByText("Gib für die Vorschau an, wann und wie die Rechnung bezahlt wurde.")).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByLabel("Bezahlt über").fill("eBay");
   const paidOn = day(-1);
   await page.getByLabel("Bezahlt am").fill(paidOn);
+  await vorschau.click();
+  await expect(vorschauDialog.getByLabel("Vorschau der Rechnung")).toContainText("über eBay bezahlt");
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await expect(zahlungsart).toHaveValue("bereits_bezahlt");

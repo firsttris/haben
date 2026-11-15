@@ -50,12 +50,12 @@ import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { emptyLine, type EditorLine, type LineState, type ParsedLine, parseLine, positionsFehler, sameText, toLineState } from "../lib/editor-lines.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
-import { finalizeInvoiceDraft, removeInvoiceDraft, renderDocumentPreview, saveInvoiceDraft } from "../server/functions/invoices.ts";
+import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
 import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import type { MandateOption } from "../server/modules/stammdaten/index.ts";
-import { PaymentMethodFields } from "./PaymentMethodFields.tsx";
+import { PaymentMethodFields, PaymentTermField } from "./PaymentMethodFields.tsx";
 import { ArticleCombobox, CatalogCombobox, type ArticleOption } from "./ArticleCombobox.tsx";
 import { ArticleDialog } from "./ArticleDialog.tsx";
 import type { ArticlePrefill } from "./ArticleForm.tsx";
@@ -66,7 +66,7 @@ import { ContactPersonField, type ContactPersonOption } from "./ContactPersonFie
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
-import { RenderedSheet } from "./RenderedSheet.tsx";
+import { InvoiceEditorPreview } from "./InvoiceEditorPreview.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
 import { LineKind } from "./LineKind.tsx";
 import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFields.tsx";
@@ -787,61 +787,41 @@ export function InvoiceEditor({
         label="Vorschau"
         caption={quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
         sheet={
-          alreadyPaid && !paidPayment ? (
-            <p className="muted" role="status">
-              Gib für die Vorschau an, wann und wie die Rechnung bezahlt wurde.
-            </p>
-          ) : (
-            <RenderedSheet
-              label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
-              render={renderDocumentPreview}
-              revision={logo}
-              input={{
-                kind,
-                number: nextNumber,
-                issueDate: issueDate || initial.issueDate,
-                dueDate,
-                validUntil: quote ? validUntil || null : null,
-                serviceFrom: serviceFrom || null,
-                serviceTo: serviceTo || null,
-                paymentTermDays: termValid ? term : 0,
-                contactId: contactId || null,
-                contactPersonId: contactPersonId || null,
-                ...references,
-                lines: [...parsed, ...deductionPreview]
-                  .filter((l) => l.valid)
-                  .map((l) => ({
-                    description: l.description,
-                    detail: "detail" in l ? (l.detail ?? "") : "",
-                    itemNumber: "itemNumber" in l ? (l.itemNumber ?? "") : "",
-                    quantity: l.quantity,
-                    unit: l.unit,
-                    unitPrice: l.unitPrice,
-                    taxRate: l.taxRate,
-                    discount: "discount" in l ? (l.discount ?? null) : null,
-                    kind: quote && "kind" in l ? (l.kind ?? null) : null,
-                    ...("deductionOf" in l && l.deductionOf ? { deductionOf: l.deductionOf } : {}),
-                  })),
-                discount: discountIssue ? null : discount,
-                plan: planIssue ? [] : plan.rows,
-                intro,
-                note,
-                propertyRetention: !quote && propertyRetention,
-                taxTreatment,
-                exemptionReason: special ? exemptionReason : "",
-                priceMode: grossPrices ? "brutto" : "netto",
-                language,
-                variant: kind === "rechnung" ? variant : null,
-                corrects: corrects ?? null,
-                // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
-                currency: currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR",
-                skonto: skonto.stufen,
-                sepaMandateId: lastschrift ? mandateId || null : null,
-                ...(paidPayment ? { paidPayment } : {}),
-                design: designDraft.changes,
-              }}
-            />
-          )
+          <InvoiceEditorPreview
+            alreadyPaid={alreadyPaid}
+            revision={logo}
+            input={{
+              kind,
+              number: nextNumber,
+              issueDate: issueDate || initial.issueDate,
+              dueDate,
+              validUntil: quote ? validUntil || null : null,
+              serviceFrom: serviceFrom || null,
+              serviceTo: serviceTo || null,
+              paymentTermDays: termValid ? term : 0,
+              contactId: contactId || null,
+              contactPersonId: contactPersonId || null,
+              ...references,
+              lines: [...parsed, ...deductionPreview],
+              discount: discountIssue ? null : discount,
+              plan: planIssue ? [] : plan.rows,
+              intro,
+              note,
+              propertyRetention: !quote && propertyRetention,
+              taxTreatment,
+              exemptionReason: special ? exemptionReason : "",
+              priceMode: grossPrices ? "brutto" : "netto",
+              language,
+              variant: kind === "rechnung" ? variant : null,
+              corrects: corrects ?? null,
+              // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
+              currency: currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR",
+              skonto: skonto.stufen,
+              sepaMandateId: lastschrift ? mandateId || null : null,
+              ...(paidPayment ? { paidPayment } : {}),
+              design: designDraft.changes,
+            }}
+          />
         }
       >
         <form ref={form} id="invoice-form" className="stack" onSubmit={onSave} noValidate>
@@ -954,17 +934,7 @@ export function InvoiceEditor({
                   )}
                 </Field>
               ) : alreadyPaid ? null : (
-                <Field label="Zahlungsziel in Tagen" hint={<>fällig {formatDate(dueDate)}</>} error={error("term")}>
-                  {(control) => (
-                    <input
-                      {...control}
-                      inputMode="numeric"
-                      value={paymentTermDays}
-                      onChange={(e) => touch(setPaymentTermDays)(e.target.value)}
-                      aria-invalid={!termValid}
-                    />
-                  )}
-                </Field>
+                <PaymentTermField value={paymentTermDays} dueDate={dueDate} valid={termValid} error={error("term")} onChange={touch(setPaymentTermDays)} />
               )}
               {kind === "rechnung" && (
                 <PaymentMethodFields

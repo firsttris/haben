@@ -1,6 +1,27 @@
 import type { InvoicePaymentMethod } from "@haben/core";
+import { formatDate } from "../lib/format.ts";
 import type { MandateOption } from "../server/modules/stammdaten/index.ts";
 import { Field } from "./Field.tsx";
+
+export function PaymentTermField({
+  value,
+  dueDate,
+  valid,
+  error,
+  onChange,
+}: {
+  value: string;
+  dueDate: string;
+  valid: boolean;
+  error: string | null | undefined;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Field label="Zahlungsziel in Tagen" hint={<>fällig {formatDate(dueDate)}</>} error={error}>
+      {(control) => <input {...control} inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} aria-invalid={!valid} />}
+    </Field>
+  );
+}
 
 /**
  * Zahlungsangaben einer Rechnung: Überweisung, Einzug per SEPA-Lastschrift oder bereits erfolgte Zahlung.
