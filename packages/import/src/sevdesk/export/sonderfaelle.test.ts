@@ -81,6 +81,20 @@ describe("Sonderfälle im Export von sevDesk", () => {
     expect(data.vouchers[0]).toMatchObject({ guid: guid(2), amount: 10500, net: 8823, tax: 1677, accountKind: "aufwand" });
   });
 
+  // DATEV-Format, Buchungsstapel (developer.datev.de, Feld Konto): Sachkontenlänge 4 bis 8 in der Kopfzeile, ein Personenkonto
+  // hat eine Stelle mehr; Debitoren beginnen mit 1 bis 6, Kreditoren mit 7 bis 9 (DATEV-Kontenrahmen SKR 03 und SKR 04)
+  it("Beleg ohne BEDI auf neutralem Konto bei Sachkontenlänge 5: Richtung aus der ersten Ziffer des Personenkontos", () => {
+    const kopf5 = kopf.replace(";20240101;4;20240101;", ";20240101;5;20240101;");
+    expect(kopf5).not.toBe(kopf);
+    const gutschrift = ohneBeleglink(ausgabe)
+      .replace(/^100,00;"H"/, '100,00;"S"')
+      .replace(";70002;4985;9;", ";700002;17050;;");
+    const data = ok(read({ [STAPEL]: strToU8([kopf5, spalten, gutschrift].join("\n")), [EINGANG]: eingangDoc() }));
+    expect(data.vouchers.map((v) => [v.key, v.amount, v.direction, v.directionFrom])).toEqual([
+      ["1111111111111111112|2024-01-15|700002|", -10000, "eingang", "konten"],
+    ]);
+  });
+
   it("Zahlung mit auf 36 Zeichen gekürztem Belegfeld wird kein Beleg, auch nicht mit Satz in Beleginfo", () => {
     const mitSatz = zahlung.replace('"Umsatzsteuerprozent";;', '"Umsatzsteuerprozent";19;');
     expect(mitSatz).not.toBe(zahlung);
