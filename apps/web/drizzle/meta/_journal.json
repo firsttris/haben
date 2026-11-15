@@ -1762,8 +1762,22 @@
     {
       "idx": 251,
       "version": "7",
-      "when": 1794762529435,
-      "tag": "0251_dauerbelege_aus_sevdesk",
+      "when": 1794762523750,
+      "tag": "0251_sevdesk_wkr_vorlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 252,
+      "version": "7",
+      "when": 1794762524880,
+      "tag": "0252_sevdesk_wkr_vorlagen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 253,
+      "version": "7",
+      "when": 1794768072654,
+      "tag": "0253_dauerbelege_aus_sevdesk",
       "breakpoints": true
     }
   ]

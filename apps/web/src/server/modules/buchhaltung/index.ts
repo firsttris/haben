@@ -25,10 +25,7 @@ export {
 export { assetImportStichtagProblem, insertImportedAssets, planAssetImport } from "./asset-import.ts";
 export { accountName, knownAccounts, loadJournal, transitBalance } from "./journal.ts";
 export {
-  searchAccounts,
-  searchAssets,
-  searchBookings,
-  searchPauschalen,
+  searchBuchhaltung,
   type AccountHit,
   type AssetHit,
   type BookingHit,

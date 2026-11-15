@@ -17,6 +17,7 @@ import { z } from "zod";
 import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { firstHits, runSearchParts, searchPart } from "../../db/search-parts.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { takeCustomerNumber } from "./customer-numbers.ts";
 
@@ -320,27 +321,36 @@ export interface ContactHit {
   isSupplier: boolean;
 }
 
-/** Schnelle Kontaktsuche für die Befehlspalette (#617): Name, Kunden- oder Lieferantennummer, ohne archivierte */
-export async function searchContacts(query: string | { id: string }, limit = 5): Promise<{ hits: ContactHit[]; more: boolean }> {
+/** Kontakte als Teil der gemeinsamen Abfrage der Stammdaten (#617): Name, Kunden- oder Lieferantennummer, ohne archivierte */
+export function contactsPart(query: string | { id: string }, limit = 5) {
   const contacts = schema.contacts;
-  const rows = await db
-    .select({
-      id: schema.contacts.id,
-      name: schema.contacts.name,
-      kundennummer: schema.contacts.kundennummer,
-      lieferantennummer: schema.contacts.lieferantennummer,
-      ort: schema.contacts.ort,
+  return searchPart(
+    {
+      id: contacts.id,
+      name: contacts.name,
+      kundennummer: contacts.kundennummer,
+      lieferantennummer: contacts.lieferantennummer,
+      ort: contacts.ort,
       isCustomer: contacts.isCustomer,
       isSupplier: contacts.isSupplier,
-    })
-    .from(schema.contacts)
-    .where(and(isNull(schema.contacts.archivedAt), typeof query === "string" ? contactSearchFilter(query) : eq(contacts.id, query.id)))
-    .orderBy(
-      ...(typeof query === "string" ? [sql`least(${numberRank(contacts.kundennummer, query)}, ${numberRank(contacts.lieferantennummer, query)})`] : []),
-      asc(contacts.name),
-    )
-    .limit(limit + 1);
-  return { hits: rows.slice(0, limit), more: rows.length > limit };
+    },
+    (fields) =>
+      db
+        .select(fields)
+        .from(contacts)
+        .where(and(isNull(contacts.archivedAt), typeof query === "string" ? contactSearchFilter(query) : eq(contacts.id, query.id)))
+        .orderBy(
+          ...(typeof query === "string" ? [sql`least(${numberRank(contacts.kundennummer, query)}, ${numberRank(contacts.lieferantennummer, query)})`] : []),
+          asc(contacts.name),
+        )
+        .limit(limit + 1),
+    (rows): { hits: ContactHit[]; more: boolean } => firstHits(rows, limit),
+  );
+}
+
+/** Ein Kontakt für „Zuletzt angesehen“ in der Befehlspalette */
+export async function searchContacts(query: string | { id: string }, limit = 5): Promise<{ hits: ContactHit[]; more: boolean }> {
+  return (await runSearchParts({ contacts: contactsPart(query, limit) })).contacts;
 }
 
 function contactSearchFilter(query: string, listFields = false) {

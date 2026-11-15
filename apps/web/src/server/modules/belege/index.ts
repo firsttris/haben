@@ -21,8 +21,7 @@ export {
   updateDocument,
   uploadDocument,
 } from "./documents.ts";
-export { searchDocuments, type DocumentHit } from "./search.ts";
-export { searchRecurringDocuments, type RecurringDocumentHit } from "./search-recurring.ts";
+export { searchBelege, searchDocuments, type DocumentHit, type RecurringDocumentHit } from "./search.ts";
 export { type Lieferant, supplierCategory, supplierPayment } from "./vorschlaege.ts";
 export {
   cancelDocument,
