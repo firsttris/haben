@@ -1885,6 +1885,9 @@ export const journalLines = pgTable(
     check("journal_lines_one_side", sql`(${t.debit} >= 0 and ${t.credit} >= 0) and (${t.debit} = 0 or ${t.credit} = 0)`),
     index("journal_lines_entry").on(t.entryId),
     index("journal_lines_account").on(t.account),
+    // Betragssuche der Schnellsuche (#617): ohne Index liest jede Eingabe, die als Betrag gilt, alle Buchungszeilen
+    index("journal_lines_debit_search_idx").on(t.debit),
+    index("journal_lines_credit_search_idx").on(t.credit),
   ],
 );
 

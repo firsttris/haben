@@ -1,0 +1,2 @@
+CREATE INDEX "journal_lines_debit_search_idx" ON "journal_lines" USING btree ("debit");--> statement-breakpoint
+CREATE INDEX "journal_lines_credit_search_idx" ON "journal_lines" USING btree ("credit");

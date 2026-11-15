@@ -1688,6 +1688,13 @@
       "when": 1794697366185,
       "tag": "0240_search_stufe2_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 241,
+      "version": "7",
+      "when": 1794702801601,
+      "tag": "0241_search_journal_amount_indexes",
+      "breakpoints": true
     }
   ]
 }
