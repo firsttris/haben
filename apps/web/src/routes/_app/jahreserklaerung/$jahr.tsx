@@ -491,6 +491,7 @@ function EstSection({ data }: { data: Data }) {
       pkvErstattung: amount(`${p}-pkvErstattung`, "Erstattungen"),
       basisrente: amount(`${p}-basisrente`, "Basisrente"),
       pkvWahlleistungen: amount(`${p}-pkvWahlleistungen`, "Wahlleistungen der privaten KV"),
+      agZuschussGkv: amount(`${p}-agZuschussGkv`, "Arbeitgeberzuschuss zur gesetzlichen KV"),
       agZuschussKv: amount(`${p}-agZuschussKv`, "Arbeitgeberzuschuss zur privaten KV"),
       agZuschussPv: amount(`${p}-agZuschussPv`, "Arbeitgeberzuschuss zur privaten PV"),
     });
@@ -558,6 +559,7 @@ function EstSection({ data }: { data: Data }) {
       <Amount name={`${p}-pkvErstattung`} label="Erstattungen der privaten KV/PV" value={v?.pkvErstattung} />
       <Amount name={`${p}-basisrente`} label="Zertifizierte Basisrente (Rürup)" value={v?.basisrente} hint="neben der gesetzlichen Rentenversicherung" />
       <Amount name={`${p}-pkvWahlleistungen`} label="Private KV: Wahlleistungen" value={v?.pkvWahlleistungen} hint="über der Basisabsicherung" />
+      <Amount name={`${p}-agZuschussGkv`} label="Arbeitgeberzuschuss zur gesetzlichen KV" value={v?.agZuschussGkv} hint="steuerfrei, Bescheinigung Nr. 24 a" />
       <Amount name={`${p}-agZuschussKv`} label="Arbeitgeberzuschuss zur privaten KV" value={v?.agZuschussKv} hint="steuerfrei, Bescheinigung Nr. 24 b" />
       <Amount name={`${p}-agZuschussPv`} label="Arbeitgeberzuschuss zur privaten PV" value={v?.agZuschussPv} hint="steuerfrei, Bescheinigung Nr. 24 c" />
     </div>

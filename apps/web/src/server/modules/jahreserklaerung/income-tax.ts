@@ -21,6 +21,7 @@ const vorsorgePerson = z
     pkvErstattung: cents,
     basisrente: cents,
     pkvWahlleistungen: cents,
+    agZuschussGkv: cents,
     agZuschussKv: cents,
     agZuschussPv: cents,
   })
