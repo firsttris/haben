@@ -34,12 +34,15 @@ export interface VorsteuerNachLeistungsdatum {
   belege: Set<string>;
   /** Fertige Zeilen dieses Zeitraums, Privatanteil und Vorzeichen schon angewandt */
   zeilen: VorsteuerZeile[];
+  /** Skonto vor der Ausführung (und seine Aufhebung davor): Es erlässt Steuer, die nie abgezogen war, und mindert nichts */
+  skontoOhneMinderung: Set<string>;
 }
 
-/** Eine Zahlung auf den Beleg: Tag und Betrag (ohne Vorzeichen, in Cent) */
+/** Eine Zahlung auf den Beleg: Tag und Betrag (ohne Vorzeichen, in Cent); `erlass` bei Skonto vor der Ausführung */
 interface Zahlung {
   date: string;
   amount: Cents;
+  erlass?: boolean;
 }
 
 /** Der spätere von zwei ISO-Tagen (JJJJ-MM-TT): Der Vergleich läuft über die Schreibweise, nicht über Zahlen. */
@@ -87,14 +90,16 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
     return leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis }) > k.datum;
   });
   const belege = new Set(vorzeitig.map((k) => k.id));
-  if (vorzeitig.length === 0) return { belege, zeilen: [] };
+  const skontoOhneMinderung = new Set<string>();
+  if (vorzeitig.length === 0) return { belege, zeilen: [], skontoOhneMinderung };
 
   const ids = [...belege];
   const a = schema.allocations;
   const t = schema.bankTransactions;
   const s = schema.documentSettlements;
   const c = schema.cashEntries;
-  const [betraege, stornos, zuordnungen, verrechnungen, baren] = await Promise.all([
+  const w = schema.writeOffs;
+  const [betraege, stornos, zuordnungen, verrechnungen, baren, skontos] = await Promise.all([
     q
       .select({
         documentId: schema.documentAmounts.documentId,
@@ -118,6 +123,10 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
       .select({ documentId: c.documentId, date: c.date })
       .from(c)
       .where(and(inArray(c.documentId, ids), isNull(c.reversesId))),
+    q
+      .select({ id: w.id, documentId: w.documentId, reversesId: w.reversesId, amount: w.amount, date: w.date })
+      .from(w)
+      .where(and(inArray(w.documentId, ids), eq(w.kind, "skontoErhalten"))),
   ]);
   const stornoAm = new Map(stornos.map((x) => [x.documentId, x.date]));
   // Nur die Zahlungen auf diesen Beleg (Ausgang, negativ), verteilt wird nach Betrag. Eine aufgehobene Zuordnung bleibt am
@@ -170,13 +179,22 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
     // Was bis zur Ausführung nicht gezahlt ist, zählt mit ihr: Dann sind Leistung und Rechnung da (§ 15 Abs. 1 Satz 1 Nr. 1
     // Satz 1). Spätere Zahlungen und Aufhebungen ändern an der Vorsteuer nichts mehr.
     zahlungenDesBelegs = [...zahlungenDesBelegs.filter((z) => z.date.localeCompare(ausgefuehrt) <= 0), { date: ausgefuehrt, amount: gross }];
+    // Skonto vor der Ausführung erlässt den Rest, bevor seine Steuer abziehbar war: Es zählt als erledigt, ohne Zeile, und
+    // die gewöhnliche Minderung im Skontomonat entfällt (wie im Journal, vorsteuer-ausgleich.ts). Seine Aufhebung vor der
+    // Ausführung nimmt das zurück; eine Aufhebung danach zählt wie gewohnt im Monat der Aufhebung.
+    const erlass = skontos.filter((x) => x.documentId === k.id && x.date < ausgefuehrt);
+    for (const x of erlass) skontoOhneMinderung.add(x.id);
+    zahlungenDesBelegs = [
+      ...zahlungenDesBelegs,
+      ...erlass.map((x) => ({ date: x.date, amount: x.reversesId ? -Math.abs(x.amount) : Math.abs(x.amount), erlass: true })),
+    ].sort((x, y) => x.date.localeCompare(y.date) || Number(x.erlass ?? false) - Number(y.erlass ?? false));
 
     const storno = stornoAm.get(k.id);
     let erledigt = 0;
     for (const z of zahlungenDesBelegs) {
       const vorher = erledigt;
       erledigt = Math.max(0, Math.min(gross, erledigt + z.amount));
-      if (erledigt === vorher) continue;
+      if (erledigt === vorher || z.erlass) continue;
       const bis = paidTaxShares(totals, erledigt);
       const von = paidTaxShares(totals, vorher);
       for (const { rate } of saetze) {
@@ -212,5 +230,5 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
     }
   }
 
-  return { belege, zeilen: zeilen.filter((z) => z.date >= start && z.date < end && z.tax !== 0) };
+  return { belege, zeilen: zeilen.filter((z) => z.date >= start && z.date < end && z.tax !== 0), skontoOhneMinderung };
 }
