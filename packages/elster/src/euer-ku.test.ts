@@ -19,7 +19,7 @@ describe("Nachrichtliche KU-Umsätze in EÜR-Zeile 13", () => {
     const figures = { kleinunternehmer: 150_00, kleinunternehmerAbzuege: 100_00 };
     expect(EUER_FIELDS.kleinunternehmerAbzuege.kz).toBe("E6000201");
     expect(euerTotals(figures)).toEqual({ einnahmen: 150_00, ausgaben: 0, gewinn: 150_00 });
-    const xml = buildEuerXml({ ...input, figures });
+    const xml = buildEuerXml({ ...input, figures }).replace(/>\s+</g, "><");
     expect(xml).toContain("<Kleinunternehmer><Sum><E6000101>150,00</E6000101></Sum></Kleinunternehmer>");
     expect(xml).toContain("<Umsatz_nicht_steuerbar><Sum><E6000201>100,00</E6000201></Sum></Umsatz_nicht_steuerbar>");
     expect(xml).toContain("<E6001201>150,00</E6001201>");
