@@ -149,7 +149,7 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz (Postgres)", () => {
         ]);
         expect(Object.keys(daten.werte).some((p) => p.endsWith("1year"))).toBe(false);
         // Restlaufzeiten bestätigt: 1.000 € des Gesellschafters laufen länger als ein Jahr (§ 268 Abs. 5 HGB)
-        const { saveRestlaufzeiten } = await import("../buchhaltung/restlaufzeiten.ts");
+        const { saveRestlaufzeiten } = await import("./restlaufzeiten.ts");
         await saveRestlaufzeiten(actor, 2026, {
           jahr: [
             { account: k.gesellschafter, ueber1Jahr: 100_000 },

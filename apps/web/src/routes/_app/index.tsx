@@ -2,6 +2,7 @@ import { formatEuro, periodKey, periodLabel } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { daysUntil, formatDate, formatDateTime, formatLongDate } from "../../lib/format.ts";
 import { InvoiceStatus } from "../../components/InvoiceStatus.tsx";
+import { KleinunternehmerHinweise } from "../../components/KleinunternehmerHinweise.tsx";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getInvoiceSummary } from "../../server/functions/invoices.ts";
 import { getOverview } from "../../server/functions/vat.ts";
@@ -243,6 +244,8 @@ function OverviewPage() {
           ERiC ist nicht eingerichtet (Einstellungen › ERiC). Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.
         </div>
       )}
+
+      {data.kleinunternehmerStand && <KleinunternehmerHinweise stand={data.kleinunternehmerStand} />}
 
       <div className="grid-4">
         <Link to="/auswertungen" hash="receivables" className="card card-link">

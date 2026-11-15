@@ -31,8 +31,9 @@ import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
+import { WisoImport } from "./WisoImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
-import { FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
+import { FastbillArticles, FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
 import { Status } from "../Status.tsx";
 
@@ -41,8 +42,8 @@ type ImportRow = NonNullable<MigrationData["lastImport"]>;
 /** Quellen mit API-Verbindung: Schlüssel speichern, entfernen, Abruf starten */
 type ConnectedSource = "lexoffice" | "sevdesk" | "fastbill";
 type FastbillPlan = MigrationData["fastbillPlans"][number];
-/** Alle Quellen; Accountable und BuchhaltungsButler kennen keine API, dort gibt es nur den Datei-Upload */
-type Source = ConnectedSource | "accountable" | "buchhaltungsbutler";
+/** Alle Quellen; Accountable, BuchhaltungsButler und WISO kennen keine API, dort gibt es nur den Datei-Upload */
+type Source = ConnectedSource | "accountable" | "buchhaltungsbutler" | "wiso";
 
 /** Was sich je Quelle unterscheidet: Name, Schlüssel und die Server-Funktionen für Verbindung und Abruf */
 const SOURCES = {
@@ -108,7 +109,12 @@ const BB_CONFIG = {
   exportsHelp:
     "Der BB-Import legt die Originalexporte bereits an. Ergänze je Geschäftsjahr noch den Datenexport für die Betriebsprüfung, ELSTER-Protokolle und Kontoauszüge.",
 } as const;
-const ALL_SOURCES = { ...SOURCES, buchhaltungsbutler: BB_CONFIG } as const;
+const WISO_CONFIG = {
+  product: "WISO",
+  importHelp: "Liest den CSV-Export der Buchungen aus WISO Steuer (Modul EÜR) oder WISO EÜR & Kasse ins Archiv ein.",
+  exportsHelp: "Der WISO-Import legt die Original-CSV bereits ab. Ergänze je Geschäftsjahr noch GoBD-Export, ELSTER-Protokolle und Kontoauszüge.",
+} as const;
+const ALL_SOURCES = { ...SOURCES, buchhaltungsbutler: BB_CONFIG, wiso: WISO_CONFIG } as const;
 
 export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready) && data.orderArchive.withoutPdf === 0;
@@ -118,19 +124,22 @@ export function Migration({ data }: { data: MigrationData }) {
     if (data.fastbillConnection || data.fastbillImport) return "fastbill";
     if (data.accountableImport) return "accountable";
     if (data.bbImport) return "buchhaltungsbutler";
+    if (data.wisoImport) return "wiso";
     return "lexoffice";
   });
   const config = ALL_SOURCES[source];
   const lastImport =
     source === "buchhaltungsbutler"
       ? data.bbImport
-      : source === "sevdesk"
-        ? data.sevdeskImport
-        : source === "fastbill"
-          ? data.fastbillImport
-          : source === "accountable"
-            ? data.accountableImport
-            : data.lastImport;
+      : source === "wiso"
+        ? data.wisoImport
+        : source === "sevdesk"
+          ? data.sevdeskImport
+          : source === "fastbill"
+            ? data.fastbillImport
+            : source === "accountable"
+              ? data.accountableImport
+              : data.lastImport;
   return (
     <div className="stack">
       {data.externalImports.length > 0 && (
@@ -160,6 +169,8 @@ export function Migration({ data }: { data: MigrationData }) {
       </div>
       {source === "buchhaltungsbutler" ? (
         <BuchhaltungsButlerImport key="buchhaltungsbutler" initial={data.bbImport} />
+      ) : source === "wiso" ? (
+        <WisoImport key="wiso" initial={data.wisoImport} />
       ) : source === "accountable" ? (
         <ImportCard key={`accountable-${lastImport?.id ?? "neu"}`} source="accountable" connected initial={lastImport} />
       ) : (
@@ -200,6 +211,7 @@ export function Migration({ data }: { data: MigrationData }) {
             initial={lastImport}
           />
           {source === "fastbill" && <FastbillReceipts receipts={data.fastbillReceipts} running={data.fastbillImport?.status === "laeuft"} />}
+          {source === "fastbill" && data.fastbillConnection && <FastbillArticles />}
         </>
       )}
       <OpenItems
@@ -207,7 +219,13 @@ export function Migration({ data }: { data: MigrationData }) {
         cutoff={data.cutoff}
         cutoffError={data.cutoffError}
         imported={Boolean(
-          data.lastImport || data.sevdeskImport || data.fastbillImport || data.accountableImport || data.bbImport || data.externalImports.length,
+          data.lastImport ||
+            data.sevdeskImport ||
+            data.fastbillImport ||
+            data.accountableImport ||
+            data.bbImport ||
+            data.wisoImport ||
+            data.externalImports.length,
         )}
       />
       <section className="card stack" aria-labelledby="upload-heading">

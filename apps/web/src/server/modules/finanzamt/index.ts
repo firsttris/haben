@@ -5,6 +5,7 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
+export { searchPostfachDocuments, type PostfachDocumentHit } from "./search.ts";
 export {
   activateBerechtigung,
   berechtigungEhegatte,
@@ -49,3 +50,4 @@ export {
   runDuePostfachFetch,
 } from "./postfach.ts";
 export { fetchVastBelege, lastVastRequest, listVastBelege, vastBelegXml } from "./vast.ts";
+export { runDueFristenMails } from "./fristen-mail.ts";

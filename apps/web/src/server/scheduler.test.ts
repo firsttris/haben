@@ -8,7 +8,7 @@ const jobs = vi.hoisted(() => ({
   runDueInboxFetch: vi.fn(),
 }));
 
-vi.mock("./modules/auswertungen/index.ts", () => ({ runDueFileCheck: jobs.runDueFileCheck }));
+vi.mock("./modules/auswertungen/index.ts", () => ({ runDueFileCheck: jobs.runDueFileCheck, runDuePruefwertMail: jobs.runDuePruefwertMail }));
 vi.mock("./modules/bank/index.ts", () => ({ runDueBankSyncs: jobs.runDueBankSyncs }));
 vi.mock("./modules/elster/index.ts", () => ({ elsterClient: vi.fn(), elsterMode: () => "simuliert" }));
 vi.mock("./env.ts", () => ({ env: () => ({}) }));
@@ -18,8 +18,7 @@ vi.mock("./modules/belege/index.ts", () => ({
   runDueInboxFetch: jobs.runDueInboxFetch,
 }));
 vi.mock("./modules/stammdaten/index.ts", () => ({ runDueExchangeRates: vi.fn(async () => null) }));
-vi.mock("./modules/mail/index.ts", () => ({ runDueFristenMails: vi.fn(async () => null), runDuePruefwertMail: jobs.runDuePruefwertMail }));
-vi.mock("./modules/finanzamt/index.ts", () => ({ runDuePostfachFetch: vi.fn(async () => null) }));
+vi.mock("./modules/finanzamt/index.ts", () => ({ runDueFristenMails: vi.fn(async () => null), runDuePostfachFetch: vi.fn(async () => null) }));
 vi.mock("./modules/rechnungen/index.ts", () => ({
   applyPublishedRatesToDrafts: vi.fn(async () => 0),
   runDueBaseRate: vi.fn(async () => null),

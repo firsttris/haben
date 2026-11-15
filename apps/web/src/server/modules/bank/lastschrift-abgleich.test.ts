@@ -127,7 +127,7 @@ describe.skipIf(!testDatabaseUrl)("Lastschriften im Bankabgleich: Sammelgutschri
   }
 
   async function open(invoiceId: string) {
-    const paid = (await bank.invoicePayments([invoiceId])).get(invoiceId) ?? 0;
+    const paid = (await (await import("../rechnungen/index.ts")).invoicePayments([invoiceId])).get(invoiceId) ?? 0;
     const [inv] = await sql`select gross from invoices where id = ${invoiceId}`;
     return Number(inv!.gross) - paid;
   }

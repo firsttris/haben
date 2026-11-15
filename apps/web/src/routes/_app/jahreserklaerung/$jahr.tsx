@@ -149,6 +149,29 @@ function Issues({ issues }: { issues: Issue[] }) {
 }
 
 /**
+ * Die zwei Schlusszeilen der Umsatzsteuererklärung. Mit Vermerk stehen dort die erklärten Beträge (#1076), weil
+ * Habens eigene Rechnung die Veranlagung nicht kennt und in einem Jahr ohne Buchungen das Vorzeichen umkehrt.
+ */
+function UstSummen({ anzeige }: { anzeige: { vorauszahlungen: number; abschluss: number; ausVermerk: { vorauszahlungen: boolean; abschluss: boolean } } }) {
+  const zusatz = (ausVermerk: boolean) => (ausVermerk ? " laut Vermerk" : "");
+  return (
+    <>
+      <Row
+        label={`Vorauszahlungssoll (gesendete Voranmeldungen)${zusatz(anzeige.ausVermerk.vorauszahlungen)}`}
+        extra=""
+        value={formatDeduction(anzeige.vorauszahlungen)}
+      />
+      <Row
+        label={`${anzeige.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"}${zusatz(anzeige.ausVermerk.abschluss)}`}
+        extra=""
+        value={formatEuro(anzeige.abschluss)}
+        total
+      />
+    </>
+  );
+}
+
+/**
  * Zeile einer Betragstabelle; kz = Feldkennung, extra = Zusatzspalte (Bemessungsgrundlage),
  * text = Wert ist Text statt Betrag. Die data-label beschriften die Werte, wenn die Tabelle auf dem Handy gestapelt ist.
  */
@@ -295,8 +318,7 @@ function UstSection({ data }: { data: Data }) {
               {(f.kz62 ?? 0) !== 0 && <Row label="Entstandene Einfuhrumsatzsteuer" kz="62" extra="" value={formatDeduction(f.kz62!)} />}
               {(f.kz67 ?? 0) !== 0 && <Row label="Vorsteuer aus §-13b-Leistungen" kz="67" extra="" value={formatDeduction(f.kz67!)} />}
               <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
-              <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatDeduction(f.vorauszahlungen)} />
-              <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(ust.abschluss)} total />
+              <UstSummen anzeige={ust.anzeige} />
             </tbody>
           </table>
           <p className="small muted" style={{ margin: 0 }}>
@@ -763,7 +785,7 @@ function EstSection({ data }: { data: Data }) {
             </div>
           );
           return (
-            <Block title="Einkommensersatzleistungen (Progressionsvorbehalt)" summary={sumText(total)} open={total > 0}>
+            <Block title="Einkommensersatzleistungen (Progressionsvorbehalt)" summary={sumText(total)} open={false}>
               <h4 className="est-sub">{est.zusammen ? (est.person.a ?? "Person A") : "Leistungen"}</h4>
               {felder("a")}
               {est.zusammen && (
@@ -816,35 +838,32 @@ function SubmitPanel({
 
   return (
     <div className="stack sticky-panel">
-      <ElsterSubmit
-        setup={data}
-        title={`${FORM_LABEL[form]} übermitteln`}
-        className="card"
-        ready={!blocked && !submitted}
-        busy={busy}
-        notice={notice}
-        lockedHint={
-          submitted
-            ? "Außerhalb von Haben abgegeben. Eine Übermittlung aus Haben ist nicht mehr nötig."
-            : sent
-              ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal."
-              : undefined
-        }
-        confirmTitle={`${FORM_LABEL[form]} ${data.year} verbindlich senden?`}
-        confirmFacts={[
-          { label: form === "euer" ? "Meldung" : "Steuerart", value: FORM_LABEL[form] },
-          { label: "Zeitraum", value: String(data.year) },
-        ]}
-        confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt.`}
-        footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."
-        onSubmit={(kind, pin) =>
-          run(async () => {
-            const result = await submit({ data: { form, year: data.year, kind, pin } });
-            setNotice(elsterNotice(kind, result, "Übermittelt."));
-            await router.invalidate();
-          })
-        }
-      />
+      {/* Mit Vermerk ist die Erklärung von außen abgegeben; ein ausgegrautes Übermittlungs-Panel sagt dazu nichts (#1080) */}
+      {!submitted && (
+        <ElsterSubmit
+          setup={data}
+          title={`${FORM_LABEL[form]} übermitteln`}
+          className="card"
+          ready={!blocked}
+          busy={busy}
+          notice={notice}
+          lockedHint={sent ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
+          confirmTitle={`${FORM_LABEL[form]} ${data.year} verbindlich senden?`}
+          confirmFacts={[
+            { label: form === "euer" ? "Meldung" : "Steuerart", value: FORM_LABEL[form] },
+            { label: "Zeitraum", value: String(data.year) },
+          ]}
+          confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt.`}
+          footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."
+          onSubmit={(kind, pin) =>
+            run(async () => {
+              const result = await submit({ data: { form, year: data.year, kind, pin } });
+              setNotice(elsterNotice(kind, result, "Übermittelt."));
+              await router.invalidate();
+            })
+          }
+        />
+      )}
       {(form === "ust" || form === "euer") && <AbgabeVermerken art={form} year={data.year} today={data.today} berechnet={berechnet} vermerkt={submitted} />}
       {!data.herstellerIdConfigured && !sent && !submitted && (
         <MeinElsterWerte load={() => loadWerte({ data: { form, year: data.year } })} label={`${FORM_LABEL[form]} ${data.year}`} blocked={blocked} />

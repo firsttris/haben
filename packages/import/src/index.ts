@@ -30,3 +30,4 @@ export * from "./csv-import/index.ts";
 export * from "./etsy-ledger.ts";
 export * from "./etsy-api.ts";
 export * from "./buchhaltungsbutler/index.ts";
+export * from "./wiso/index.ts";

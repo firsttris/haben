@@ -141,6 +141,7 @@ export const company = pgTable(
     paymentPlanTemplates: jsonb("payment_plan_templates").$type<PlanTemplate[]>().notNull().default(DEFAULT_PLAN_TEMPLATES),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
+    foundedOn: date("founded_on", { mode: "string" }),
     /** Nur steuerfreie Umsätze, die den Vorsteuerabzug ausschließen (§ 15 Abs. 2 Satz 1 Nr. 1 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
     ohneVorsteuerabzug: boolean("ohne_vorsteuerabzug").notNull().default(false),
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
@@ -208,6 +209,8 @@ export const company = pgTable(
      */
     navColor: text("nav_color"),
     navLogo: boolean("nav_logo").notNull().default(false),
+    /** Archiv aus dem Umzug in der Schnellsuche mitdurchsuchen (#617); Vorgabe an */
+    archiveSearch: boolean("archive_search").notNull().default(true),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -643,25 +646,32 @@ export const postfachRequests = pgTable("postfach_requests", {
 });
 
 /** Aus dem ELSTER-Postfach abgeholte Dokumente: Bescheide und Mitteilungen des Finanzamts */
-export const postfachDocuments = pgTable("postfach_documents", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  referenzId: text("referenz_id").notNull().unique(),
-  bereitstellungId: text("bereitstellung_id").notNull(),
-  datenart: text("datenart").notNull(),
-  veranlagungszeitraum: text("veranlagungszeitraum").notNull(),
-  steuernummer: text("steuernummer").notNull(),
-  bescheiddatum: text("bescheiddatum").notNull(),
-  dateibezeichnung: text("dateibezeichnung").notNull(),
-  mimeType: text("mime_type").notNull(),
-  filename: text("filename").notNull(),
-  sha256: text("sha256").notNull(),
-  size: integer("size").notNull(),
-  test: boolean("test").notNull(),
-  requestId: uuid("request_id")
-    .notNull()
-    .references(() => postfachRequests.id),
-  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const postfachDocuments = pgTable(
+  "postfach_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    referenzId: text("referenz_id").notNull().unique(),
+    bereitstellungId: text("bereitstellung_id").notNull(),
+    datenart: text("datenart").notNull(),
+    veranlagungszeitraum: text("veranlagungszeitraum").notNull(),
+    steuernummer: text("steuernummer").notNull(),
+    bescheiddatum: text("bescheiddatum").notNull(),
+    dateibezeichnung: text("dateibezeichnung").notNull(),
+    mimeType: text("mime_type").notNull(),
+    filename: text("filename").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    test: boolean("test").notNull(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => postfachRequests.id),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("postfach_documents_dateibezeichnung_trgm_idx").using("gin", sql`haben_unaccent(${t.dateibezeichnung}) gin_trgm_ops`),
+    index("postfach_documents_zeitraum_trgm_idx").using("gin", sql`haben_unaccent(${t.veranlagungszeitraum}) gin_trgm_ops`),
+  ],
+);
 
 /** Belegabrufe für die vorausgefüllte Steuererklärung (VaSt): Anfrage der Liste und Abholung der Belege */
 export const vastRequests = pgTable("vast_requests", {
@@ -890,7 +900,10 @@ export const pauschalen = pgTable(
       .references(() => journalEntries.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [foreignKey({ name: "pauschalen_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] })],
+  (t) => [
+    foreignKey({ name: "pauschalen_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+    index("pauschalen_description_trgm_idx").using("gin", sql`haben_unaccent(${t.description}) gin_trgm_ops`),
+  ],
 );
 
 /**
@@ -936,6 +949,7 @@ export const cashEntries = pgTable(
     index("cash_entries_invoice").on(t.invoiceId),
     check("cash_entries_invoice_kind", sql`(${t.kind} = 'rechnung') = (${t.invoiceId} is not null)`),
     foreignKey({ name: "cash_entries_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+    index("cash_entries_text_trgm_idx").using("gin", sql`haben_unaccent(${t.text}) gin_trgm_ops`),
   ],
 );
 
@@ -1046,15 +1060,15 @@ export const contacts = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("contacts_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
-    index("contacts_kundennummer_trgm_idx").using("gin", t.kundennummer.op("gin_trgm_ops")),
-    index("contacts_lieferantennummer_trgm_idx").using("gin", t.lieferantennummer.op("gin_trgm_ops")),
-    index("contacts_email_trgm_idx").using("gin", t.email.op("gin_trgm_ops")),
-    index("contacts_ort_trgm_idx").using("gin", t.ort.op("gin_trgm_ops")),
-    index("contacts_ust_id_trgm_idx").using("gin", t.ustId.op("gin_trgm_ops")),
-    index("contacts_iban_trgm_idx").using("gin", t.iban.op("gin_trgm_ops")),
-    index("contacts_debitor_nr_trgm_idx").using("gin", sql`(${t.debitorNr}::text) gin_trgm_ops`),
-    index("contacts_kreditor_nr_trgm_idx").using("gin", sql`(${t.kreditorNr}::text) gin_trgm_ops`),
+    index("contacts_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
+    index("contacts_kundennummer_trgm_idx").using("gin", sql`haben_unaccent(${t.kundennummer}) gin_trgm_ops`),
+    index("contacts_lieferantennummer_trgm_idx").using("gin", sql`haben_unaccent(${t.lieferantennummer}) gin_trgm_ops`),
+    index("contacts_email_trgm_idx").using("gin", sql`haben_unaccent(${t.email}) gin_trgm_ops`),
+    index("contacts_ort_trgm_idx").using("gin", sql`haben_unaccent(${t.ort}) gin_trgm_ops`),
+    index("contacts_ust_id_trgm_idx").using("gin", sql`haben_unaccent(${t.ustId}) gin_trgm_ops`),
+    index("contacts_iban_trgm_idx").using("gin", sql`haben_unaccent(${t.iban}) gin_trgm_ops`),
+    index("contacts_debitor_nr_trgm_idx").using("gin", sql`haben_unaccent(${t.debitorNr}::text) gin_trgm_ops`),
+    index("contacts_kreditor_nr_trgm_idx").using("gin", sql`haben_unaccent(${t.kreditorNr}::text) gin_trgm_ops`),
     check("contacts_debitor_nr_bereich", sql`${t.debitorNr} between 10000 and 69999`),
     check("contacts_kreditor_nr_bereich", sql`${t.kreditorNr} between 70000 and 99999`),
   ],
@@ -1082,6 +1096,8 @@ export const ownAccounts = pgTable(
     check("own_accounts_nummer", sql`${t.account} ~ '^[0-9]{4}$'`),
     check("own_accounts_name", sql`length(btrim(${t.name})) between 1 and 80`),
     uniqueIndex("own_accounts_nummer_key").on(t.kontenrahmen, t.account),
+    index("own_accounts_account_trgm_idx").using("gin", sql`haben_unaccent(${t.account}) gin_trgm_ops`),
+    index("own_accounts_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
   ],
 );
 
@@ -1126,6 +1142,8 @@ export const serviceEntries = pgTable(
     uniqueIndex("service_entries_extern_key").on(t.externalSource, t.externalId),
     index("service_entries_contact").on(t.contactId, t.workedOn),
     index("service_entries_invoice").on(t.invoiceId),
+    index("service_entries_description_trgm_idx").using("gin", sql`haben_unaccent(${t.description}) gin_trgm_ops`),
+    index("service_entries_project_trgm_idx").using("gin", sql`haben_unaccent(${t.project}) gin_trgm_ops`),
   ],
 );
 
@@ -1167,8 +1185,8 @@ export const contactPersons = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("contact_persons_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
-    index("contact_persons_email_trgm_idx").using("gin", t.email.op("gin_trgm_ops")),
+    index("contact_persons_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
+    index("contact_persons_email_trgm_idx").using("gin", sql`haben_unaccent(${t.email}) gin_trgm_ops`),
     index("contact_persons_contact").on(t.contactId),
     check("contact_persons_name", sql`length(btrim(${t.name})) > 0`),
   ],
@@ -1385,10 +1403,10 @@ export const invoices = pgTable(
     check("invoices_corrects_original", sql`${t.kind} = 'rechnung' or ${t.correctsId} is not null`),
     uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
     uniqueIndex("invoices_recurring_date").on(t.recurringId, t.recurringDate),
-    index("invoices_number_trgm_idx").using("gin", t.number.op("gin_trgm_ops")),
-    index("invoices_buyer_order_reference_trgm_idx").using("gin", t.buyerOrderReference.op("gin_trgm_ops")),
-    index("invoices_seller_order_reference_trgm_idx").using("gin", t.sellerOrderReference.op("gin_trgm_ops")),
-    index("invoices_buyer_name_trgm_idx").using("gin", sql`(${t.buyer} ->> 'name') gin_trgm_ops`),
+    index("invoices_number_trgm_idx").using("gin", sql`haben_unaccent(${t.number}) gin_trgm_ops`),
+    index("invoices_buyer_order_reference_trgm_idx").using("gin", sql`haben_unaccent(${t.buyerOrderReference}) gin_trgm_ops`),
+    index("invoices_seller_order_reference_trgm_idx").using("gin", sql`haben_unaccent(${t.sellerOrderReference}) gin_trgm_ops`),
+    index("invoices_buyer_name_trgm_idx").using("gin", sql`haben_unaccent(${t.buyer} ->> 'name') gin_trgm_ops`),
     index("invoices_gross_search_idx").on(t.gross),
     index("invoices_contactId_search_idx").on(t.contactId),
     index("invoices_corrects").on(t.correctsId),
@@ -1558,8 +1576,8 @@ export const quotes = pgTable(
     check("quotes_decision_final", sql`${t.decision} is null or ${t.status} = 'final'`),
     check("quotes_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
     check("quotes_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
-    index("quotes_number_trgm_idx").using("gin", t.number.op("gin_trgm_ops")),
-    index("quotes_buyer_name_trgm_idx").using("gin", sql`(${t.buyer} ->> 'name') gin_trgm_ops`),
+    index("quotes_number_trgm_idx").using("gin", sql`haben_unaccent(${t.number}) gin_trgm_ops`),
+    index("quotes_buyer_name_trgm_idx").using("gin", sql`haben_unaccent(${t.buyer} ->> 'name') gin_trgm_ops`),
     index("quotes_gross_search_idx").on(t.gross),
     index("quotes_contactId_search_idx").on(t.contactId),
     uniqueIndex("quotes_number_counter").on(t.numberYear, t.numberCounter),
@@ -1733,25 +1751,32 @@ export const belegLayouts = pgTable(
 );
 
 /** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise in Cent, wie eingegeben */
-export const articles = pgTable("articles", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  /** Eigene Artikelnummer, optional */
-  number: text("number").notNull().default(""),
-  /** Bezeichnung der Position auf Rechnung und Angebot, eine Zeile */
-  description: text("description").notNull(),
-  /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
-  detail: text("detail").notNull().default(""),
-  unit: text("unit").notNull(),
-  unitPrice: integer("unit_price").notNull(),
-  taxRate: smallint("tax_rate").notNull(),
-  /** Preis enthält die Umsatzsteuer; passt das nicht zur Rechnung, wird beim Einfügen umgerechnet */
-  priceIncludesTax: boolean("price_includes_tax").notNull().default(false),
-  /** Interne Notiz, erscheint nicht auf Belegen */
-  note: text("note").notNull().default(""),
-  archivedAt: timestamp("archived_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const articles = pgTable(
+  "articles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Eigene Artikelnummer, optional */
+    number: text("number").notNull().default(""),
+    /** Bezeichnung der Position auf Rechnung und Angebot, eine Zeile */
+    description: text("description").notNull(),
+    /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
+    detail: text("detail").notNull().default(""),
+    unit: text("unit").notNull(),
+    unitPrice: integer("unit_price").notNull(),
+    taxRate: smallint("tax_rate").notNull(),
+    /** Preis enthält die Umsatzsteuer; passt das nicht zur Rechnung, wird beim Einfügen umgerechnet */
+    priceIncludesTax: boolean("price_includes_tax").notNull().default(false),
+    /** Interne Notiz, erscheint nicht auf Belegen */
+    note: text("note").notNull().default(""),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("articles_number_trgm_idx").using("gin", sql`haben_unaccent(${t.number}) gin_trgm_ops`),
+    index("articles_description_trgm_idx").using("gin", sql`haben_unaccent(${t.description}) gin_trgm_ops`),
+  ],
+);
 
 export const textBlockKinds = ["kopf", "fuss"] as const;
 export type TextBlockKind = (typeof textBlockKinds)[number];
@@ -1775,7 +1800,12 @@ export const textBlocks = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("text_blocks_contact").on(t.contactId), check("text_blocks_kind", sql`${t.kind} in ('kopf', 'fuss')`)],
+  (t) => [
+    index("text_blocks_contact").on(t.contactId),
+    check("text_blocks_kind", sql`${t.kind} in ('kopf', 'fuss')`),
+    index("text_blocks_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
+    index("text_blocks_text_trgm_idx").using("gin", sql`haben_unaccent(${t.text}) gin_trgm_ops`),
+  ],
 );
 
 /** Letzte Angebotsnummer je Jahr (0 = durchlaufender Zähler) */
@@ -1820,6 +1850,9 @@ export const journalEntries = pgTable(
     index("journal_entries_date").on(t.date),
     index("journal_entries_source").on(t.sourceType, t.sourceId),
     foreignKey({ name: "journal_entries_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+    index("journal_entries_description_trgm_idx").using("gin", sql`haben_unaccent(${t.description}) gin_trgm_ops`),
+    // Ob eine Buchung storniert ist, fragt die Schnellsuche je Treffer (#617)
+    index("journal_entries_reverses_idx").on(t.reversesId).where(sql`${t.reversesId} is not null`),
   ],
 );
 
@@ -1857,6 +1890,9 @@ export const journalLines = pgTable(
     check("journal_lines_one_side", sql`(${t.debit} >= 0 and ${t.credit} >= 0) and (${t.debit} = 0 or ${t.credit} = 0)`),
     index("journal_lines_entry").on(t.entryId),
     index("journal_lines_account").on(t.account),
+    // Betragssuche der Schnellsuche (#617): ohne Index liest jede Eingabe, die als Betrag gilt, alle Buchungszeilen
+    index("journal_lines_debit_search_idx").on(t.debit),
+    index("journal_lines_credit_search_idx").on(t.credit),
   ],
 );
 
@@ -1913,6 +1949,8 @@ export const recurringDocuments = pgTable(
     check("recurring_documents_private_share", sql`${t.privateShare} between 0 and 100`),
     check("recurring_documents_due_days", sql`${t.dueDays} between 0 and 120`),
     index("recurring_documents_sha256").on(t.sha256),
+    index("recurring_documents_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
+    index("recurring_documents_supplier_name_trgm_idx").using("gin", sql`haben_unaccent(${t.supplierName}) gin_trgm_ops`),
   ],
 );
 
@@ -2016,9 +2054,9 @@ export const documents = pgTable(
   },
   // in 0011 und 0016 von Hand angelegt
   (t) => [
-    index("documents_supplier_name_trgm_idx").using("gin", t.supplierName.op("gin_trgm_ops")),
-    index("documents_invoice_number_trgm_idx").using("gin", t.invoiceNumber.op("gin_trgm_ops")),
-    index("documents_filename_trgm_idx").using("gin", t.filename.op("gin_trgm_ops")),
+    index("documents_supplier_name_trgm_idx").using("gin", sql`haben_unaccent(${t.supplierName}) gin_trgm_ops`),
+    index("documents_invoice_number_trgm_idx").using("gin", sql`haben_unaccent(${t.invoiceNumber}) gin_trgm_ops`),
+    index("documents_filename_trgm_idx").using("gin", sql`haben_unaccent(${t.filename}) gin_trgm_ops`),
     index("documents_gross_search_idx").on(t.gross),
     check("documents_private_share_range", sql`${t.privateShare} between 0 and 100`),
     check("documents_vorsteuer_anteil_range", sql`${t.vorsteuerAnteil} between 0 and 10000`),
@@ -2214,7 +2252,15 @@ export const bankTransactions = pgTable(
     dedupHash: text("dedup_hash").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("bank_transactions_dedup").on(t.bankAccountId, t.dedupHash), index("bank_transactions_account_date").on(t.bankAccountId, t.bookingDate)],
+  (t) => [
+    uniqueIndex("bank_transactions_dedup").on(t.bankAccountId, t.dedupHash),
+    index("bank_transactions_account_date").on(t.bankAccountId, t.bookingDate),
+    index("bank_transactions_counterparty_name_trgm_idx").using("gin", sql`haben_unaccent(${t.counterpartyName}) gin_trgm_ops`),
+    index("bank_transactions_purpose_trgm_idx").using("gin", sql`haben_unaccent(${t.purpose}) gin_trgm_ops`),
+    index("bank_transactions_counterparty_iban_trgm_idx").using("gin", sql`haben_unaccent(${t.counterpartyIban}) gin_trgm_ops`),
+    index("bank_transactions_amount_search_idx").on(t.amount),
+    index("bank_transactions_booking_date_search_idx").on(t.bookingDate),
+  ],
 );
 
 /**
@@ -2375,17 +2421,21 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
  * Konto, der Zweck das Zinskonto. Ein laufendes Darlehen bringt seine Restschuld zum Stichtag mit. Nach der ersten
  * Zuordnung sind die Grundlagen fest (Trigger), nur der Name bleibt änderbar.
  */
-export const loans = pgTable("loans", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  lender: text("lender", { enum: DARLEHENSGEBER_KEYS }).notNull(),
-  term: text("term", { enum: DARLEHEN_LAUFZEIT_KEYS }).notNull(),
-  purpose: text("purpose", { enum: DARLEHEN_ZWECK_KEYS }).notNull(),
-  /** Restschuld eines übernommenen Darlehens am Stichtag; 0 bei einem neuen */
-  openingBalance: integer("opening_balance").notNull().default(0),
-  openingDate: date("opening_date", { mode: "string" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const loans = pgTable(
+  "loans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    lender: text("lender", { enum: DARLEHENSGEBER_KEYS }).notNull(),
+    term: text("term", { enum: DARLEHEN_LAUFZEIT_KEYS }).notNull(),
+    purpose: text("purpose", { enum: DARLEHEN_ZWECK_KEYS }).notNull(),
+    /** Restschuld eines übernommenen Darlehens am Stichtag; 0 bei einem neuen */
+    openingBalance: integer("opening_balance").notNull().default(0),
+    openingDate: date("opening_date", { mode: "string" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("loans_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`)],
+);
 
 /**
  * Zuordnung eines Bankumsatzes (ganz oder teilweise) zu Rechnung, Beleg oder einer Buchung ohne Beleg.
@@ -2897,7 +2947,7 @@ export const fastbillReceipts = pgTable("fastbill_receipts", {
 });
 
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import", "fastbill"] as const;
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import", "fastbill"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 /**
@@ -3001,7 +3051,11 @@ export const legacyOrderDocuments = pgTable(
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("legacy_order_documents_date").on(t.date)],
+  (t) => [
+    index("legacy_order_documents_date").on(t.date),
+    index("legacy_order_documents_number_trgm_idx").using("gin", sql`haben_unaccent(${t.number}) gin_trgm_ops`),
+    index("legacy_order_documents_contact_name_trgm_idx").using("gin", sql`haben_unaccent(${t.contactName}) gin_trgm_ops`),
+  ],
 );
 
 /** Manuell nachgereichte Original-PDFs; jeder Dateistand bleibt erhalten. */
@@ -3074,7 +3128,13 @@ export const lexofficeVouchers = pgTable(
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("lexoffice_vouchers_date").on(t.date), index("lexoffice_vouchers_number").on(t.number)],
+  (t) => [
+    index("lexoffice_vouchers_date").on(t.date),
+    index("lexoffice_vouchers_number").on(t.number),
+    index("lexoffice_vouchers_number_trgm_idx").using("gin", sql`haben_unaccent(${t.number}) gin_trgm_ops`),
+    index("lexoffice_vouchers_contact_name_trgm_idx").using("gin", sql`haben_unaccent(${t.contactName}) gin_trgm_ops`),
+    index("lexoffice_vouchers_remark_trgm_idx").using("gin", sql`haben_unaccent(${t.remark}) gin_trgm_ops`),
+  ],
 );
 
 /**
@@ -3192,6 +3252,9 @@ export const assets = pgTable(
     check("assets_linear_from_year", sql`${t.linearFromYear} is null or ${t.method} = 'degressiv'`),
     check("assets_elektro_kfz", sql`${t.method} <> 'elektro' or ${t.kind} = 'kfz'`),
     foreignKey({ name: "assets_opening_entry_fk", columns: [t.openingEntryId], foreignColumns: [journalEntries.id] }),
+    index("assets_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
+    index("assets_account_trgm_idx").using("gin", sql`haben_unaccent(${t.account}) gin_trgm_ops`),
+    index("assets_note_trgm_idx").using("gin", sql`haben_unaccent(${t.note}) gin_trgm_ops`),
   ],
 );
 
@@ -3267,7 +3330,11 @@ export const recurringInvoices = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("recurring_interval", sql`${t.intervalMonths} in (1, 3, 6, 12)`), check("recurring_anchor_day", sql`${t.anchorDay} between 1 and 31`)],
+  (t) => [
+    check("recurring_interval", sql`${t.intervalMonths} in (1, 3, 6, 12)`),
+    check("recurring_anchor_day", sql`${t.anchorDay} between 1 and 31`),
+    index("recurring_invoices_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
+  ],
 );
 
 /** Mahnungen und Zahlungserinnerungen mit PDF; wie ein verschicktes Schreiben unveränderlich */
@@ -3531,6 +3598,8 @@ export const employees = pgTable(
   (t) => [
     check("employees_steuerklasse", sql`${t.steuerklasse} between 1 and 6`),
     check("employees_austritt", sql`${t.austritt} is null or ${t.austritt} >= ${t.eintritt}`),
+    index("employees_vorname_trgm_idx").using("gin", sql`haben_unaccent(${t.vorname}) gin_trgm_ops`),
+    index("employees_nachname_trgm_idx").using("gin", sql`haben_unaccent(${t.nachname}) gin_trgm_ops`),
   ],
 );
 

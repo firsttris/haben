@@ -9,7 +9,7 @@ description: >-
 
 Kontakte, Artikel und Anlagen übernimmst du aus einer CSV-Datei, etwa aus einem Export von Lexware Office, einer anderen Buchhaltung oder einer Excel-Liste. Den Import öffnest du unter **Kontakte**, **Artikel** oder **Anlagen** mit **CSV importieren**; oben auf der Seite wechselst du zwischen den drei Arten.
 
-Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md), aus [sevDesk](sevdesk.md), aus [FastBill](fastbill.md), aus [BuchhaltungsButler](buchhaltungsbutler.md) und aus [Accountable](accountable.md) sowie den [vorbereiteten Betreiberimport](belegimport.md). Kontoauszüge kommen über den [Bankimport](bank.md).
+Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md), aus [sevDesk](sevdesk.md), aus [FastBill](fastbill.md), aus [BuchhaltungsButler](buchhaltungsbutler.md), aus [Accountable](accountable.md) und aus [WISO](wiso.md) sowie den [vorbereiteten Betreiberimport](belegimport.md). Kontoauszüge kommen über den [Bankimport](bank.md).
 
 Für selbst vorbereitete Listen aus WISO EÜR & Kasse beachtest du die [Hinweise zum Jahreswechsel, zu Ländern und Anlagen](wiso.md).
 
@@ -125,6 +125,8 @@ Wiedererkannt wird ein Kontakt am Personenkonto, nicht am Namen:
 Die Namen folgen der [Mustervorlage für Produkte und Services](https://help.lexware.de/de-form/articles/548269-produkte-und-services-per-csv-datei-importieren) von Lexware Office. Deren Spalte „Verkaufspreis“ ist netto oder brutto, je nachdem, was in Lexware Office unter den Allgemeinen Einstellungen steht. Haben ordnet sie deshalb nicht selbst zu; du wählst sie in der Vorschau als Netto- oder Bruttopreis.
 
 Stehen Netto- und Bruttopreis da, wie im Export von Lexware Office, gilt der Nettopreis, und der Bruttopreis muss auf einen Cent genau dazu passen. Sonst wäre unklar, welcher stimmt, und Haben übernimmt die Zeile nicht.
+
+Artikel aus FastBill holt Haben ohne Datei über die API, siehe [Umzug aus FastBill](fastbill.md#artikel).
 
 ## Anlagen
 

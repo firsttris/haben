@@ -1,2 +1,0 @@
-ALTER TABLE "etsy_connections" ADD COLUMN "rhythmus" text DEFAULT 'taeglich' NOT NULL;--> statement-breakpoint
-ALTER TABLE "etsy_connections" ADD CONSTRAINT "etsy_connections_rhythmus" CHECK ("etsy_connections"."rhythmus" in ('stuendlich', 'taeglich', 'woechentlich', 'monatlich'));

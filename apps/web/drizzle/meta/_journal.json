@@ -1727,29 +1727,36 @@
     {
       "idx": 246,
       "version": "7",
-      "when": 1794742836371,
-      "tag": "0246_etsy_zugang",
+      "when": 1794745098644,
+      "tag": "0246_search_unaccent",
       "breakpoints": true
     },
     {
       "idx": 247,
       "version": "7",
-      "when": 1794742839465,
-      "tag": "0247_etsy_zugang_trigger",
+      "when": 1794745106907,
+      "tag": "0247_search_stufe2_indexes",
       "breakpoints": true
     },
     {
       "idx": 248,
       "version": "7",
-      "when": 1794752568160,
-      "tag": "0248_etsy_rhythmus",
+      "when": 1794750748349,
+      "tag": "0248_kleinunternehmer_gruendungsdatum",
       "breakpoints": true
     },
     {
       "idx": 249,
       "version": "7",
-      "when": 1794753794860,
-      "tag": "0249_etsy_abruf_start",
+      "when": 1794756677378,
+      "tag": "0249_etsy_zugang",
+      "breakpoints": true
+    },
+    {
+      "idx": 250,
+      "version": "7",
+      "when": 1794756680200,
+      "tag": "0250_etsy_zugang_trigger",
       "breakpoints": true
     }
   ]

@@ -17,7 +17,8 @@ async function neuerEntwurf(page: Page) {
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
-  return page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" });
+  const bereich = (page.viewportSize()?.width ?? 1280) <= 860 ? ".main > .action-bar" : ".main > .page-head";
+  return page.locator(bereich).getByRole("button", { name: "Festschreiben" });
 }
 
 const rueckfrage = (page: Page) => page.getByRole("dialog", { name: /festschreiben\?$/ });

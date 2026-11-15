@@ -1,6 +1,6 @@
 {
-  "id": "1ad52d25-3f1b-4303-81c9-dddf3ada7492",
-  "prevId": "323c898f-c541-40d3-b7a2-b9ccde6f27cb",
+  "id": "94ea39dc-4437-4556-8927-b33f86d8b7f9",
+  "prevId": "0848f345-884d-4875-8c62-39f93dd42b19",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1006,7 +1006,38 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "articles_number_trgm_idx": {
+          "name": "articles_number_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"number\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "articles_description_trgm_idx": {
+          "name": "articles_description_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"description\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -1265,7 +1296,53 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "assets_name_trgm_idx": {
+          "name": "assets_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "assets_account_trgm_idx": {
+          "name": "assets_account_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"account\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "assets_note_trgm_idx": {
+          "name": "assets_note_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"note\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "assets_document_id_documents_id_fk": {
           "name": "assets_document_id_documents_id_fk",
@@ -2180,6 +2257,81 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "bank_transactions_counterparty_name_trgm_idx": {
+          "name": "bank_transactions_counterparty_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"counterparty_name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "bank_transactions_purpose_trgm_idx": {
+          "name": "bank_transactions_purpose_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"purpose\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "bank_transactions_counterparty_iban_trgm_idx": {
+          "name": "bank_transactions_counterparty_iban_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"counterparty_iban\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "bank_transactions_amount_search_idx": {
+          "name": "bank_transactions_amount_search_idx",
+          "columns": [
+            {
+              "expression": "amount",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "bank_transactions_booking_date_search_idx": {
+          "name": "bank_transactions_booking_date_search_idx",
+          "columns": [
+            {
+              "expression": "booking_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2567,6 +2719,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "cash_entries_text_trgm_idx": {
+          "name": "cash_entries_text_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"text\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2870,6 +3037,12 @@
           "notNull": true,
           "default": false
         },
+        "founded_on": {
+          "name": "founded_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "ohne_vorsteuerabzug": {
           "name": "ohne_vorsteuerabzug",
           "type": "boolean",
@@ -3048,6 +3221,13 @@
           "notNull": true,
           "default": false
         },
+        "archive_search": {
+          "name": "archive_search",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -3196,11 +3376,10 @@
           "name": "contact_persons_name_trgm_idx",
           "columns": [
             {
-              "expression": "name",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"name\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3212,11 +3391,10 @@
           "name": "contact_persons_email_trgm_idx",
           "columns": [
             {
-              "expression": "email",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"email\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3541,11 +3719,10 @@
           "name": "contacts_name_trgm_idx",
           "columns": [
             {
-              "expression": "name",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"name\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3557,11 +3734,10 @@
           "name": "contacts_kundennummer_trgm_idx",
           "columns": [
             {
-              "expression": "kundennummer",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"kundennummer\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3573,11 +3749,10 @@
           "name": "contacts_lieferantennummer_trgm_idx",
           "columns": [
             {
-              "expression": "lieferantennummer",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"lieferantennummer\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3589,11 +3764,10 @@
           "name": "contacts_email_trgm_idx",
           "columns": [
             {
-              "expression": "email",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"email\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3605,11 +3779,10 @@
           "name": "contacts_ort_trgm_idx",
           "columns": [
             {
-              "expression": "ort",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"ort\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3621,11 +3794,10 @@
           "name": "contacts_ust_id_trgm_idx",
           "columns": [
             {
-              "expression": "ust_id",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"ust_id\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3637,11 +3809,10 @@
           "name": "contacts_iban_trgm_idx",
           "columns": [
             {
-              "expression": "iban",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"iban\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3653,7 +3824,7 @@
           "name": "contacts_debitor_nr_trgm_idx",
           "columns": [
             {
-              "expression": "(\"debitor_nr\"::text) gin_trgm_ops",
+              "expression": "haben_unaccent(\"debitor_nr\"::text) gin_trgm_ops",
               "asc": true,
               "isExpression": true,
               "nulls": "last"
@@ -3668,7 +3839,7 @@
           "name": "contacts_kreditor_nr_trgm_idx",
           "columns": [
             {
-              "expression": "(\"kreditor_nr\"::text) gin_trgm_ops",
+              "expression": "haben_unaccent(\"kreditor_nr\"::text) gin_trgm_ops",
               "asc": true,
               "isExpression": true,
               "nulls": "last"
@@ -5080,11 +5251,10 @@
           "name": "documents_supplier_name_trgm_idx",
           "columns": [
             {
-              "expression": "supplier_name",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"supplier_name\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -5096,11 +5266,10 @@
           "name": "documents_invoice_number_trgm_idx",
           "columns": [
             {
-              "expression": "invoice_number",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"invoice_number\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -5112,11 +5281,10 @@
           "name": "documents_filename_trgm_idx",
           "columns": [
             {
-              "expression": "filename",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"filename\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -5885,7 +6053,38 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "employees_vorname_trgm_idx": {
+          "name": "employees_vorname_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"vorname\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "employees_nachname_trgm_idx": {
+          "name": "employees_nachname_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"nachname\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
@@ -7943,11 +8142,10 @@
           "name": "invoices_number_trgm_idx",
           "columns": [
             {
-              "expression": "number",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"number\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -7959,11 +8157,10 @@
           "name": "invoices_buyer_order_reference_trgm_idx",
           "columns": [
             {
-              "expression": "buyer_order_reference",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"buyer_order_reference\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -7975,11 +8172,10 @@
           "name": "invoices_seller_order_reference_trgm_idx",
           "columns": [
             {
-              "expression": "seller_order_reference",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"seller_order_reference\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -7991,7 +8187,7 @@
           "name": "invoices_buyer_name_trgm_idx",
           "columns": [
             {
-              "expression": "(\"buyer\" ->> 'name') gin_trgm_ops",
+              "expression": "haben_unaccent(\"buyer\" ->> 'name') gin_trgm_ops",
               "asc": true,
               "isExpression": true,
               "nulls": "last"
@@ -8373,6 +8569,37 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "journal_entries_description_trgm_idx": {
+          "name": "journal_entries_description_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"description\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "journal_entries_reverses_idx": {
+          "name": "journal_entries_reverses_idx",
+          "columns": [
+            {
+              "expression": "reverses_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"journal_entries\".\"reverses_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -8467,6 +8694,36 @@
           "columns": [
             {
               "expression": "account",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "journal_lines_debit_search_idx": {
+          "name": "journal_lines_debit_search_idx",
+          "columns": [
+            {
+              "expression": "debit",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "journal_lines_credit_search_idx": {
+          "name": "journal_lines_credit_search_idx",
+          "columns": [
+            {
+              "expression": "credit",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -8755,6 +9012,36 @@
           "isUnique": false,
           "concurrently": false,
           "method": "btree",
+          "with": {}
+        },
+        "legacy_order_documents_number_trgm_idx": {
+          "name": "legacy_order_documents_number_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"number\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "legacy_order_documents_contact_name_trgm_idx": {
+          "name": "legacy_order_documents_contact_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"contact_name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
           "with": {}
         }
       },
@@ -9674,6 +9961,51 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "lexoffice_vouchers_number_trgm_idx": {
+          "name": "lexoffice_vouchers_number_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"number\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "lexoffice_vouchers_contact_name_trgm_idx": {
+          "name": "lexoffice_vouchers_contact_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"contact_name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "lexoffice_vouchers_remark_trgm_idx": {
+          "name": "lexoffice_vouchers_remark_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"remark\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -9774,7 +10106,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "loans_name_trgm_idx": {
+          "name": "loans_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -10839,6 +11187,36 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "own_accounts_account_trgm_idx": {
+          "name": "own_accounts_account_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"account\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "own_accounts_name_trgm_idx": {
+          "name": "own_accounts_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -11074,7 +11452,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "pauschalen_description_trgm_idx": {
+          "name": "pauschalen_description_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"description\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "pauschalen_journal_entry_id_journal_entries_id_fk": {
           "name": "pauschalen_journal_entry_id_journal_entries_id_fk",
@@ -11658,7 +12052,38 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "postfach_documents_dateibezeichnung_trgm_idx": {
+          "name": "postfach_documents_dateibezeichnung_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"dateibezeichnung\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "postfach_documents_zeitraum_trgm_idx": {
+          "name": "postfach_documents_zeitraum_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"veranlagungszeitraum\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "postfach_documents_request_id_postfach_requests_id_fk": {
           "name": "postfach_documents_request_id_postfach_requests_id_fk",
@@ -12415,11 +12840,10 @@
           "name": "quotes_number_trgm_idx",
           "columns": [
             {
-              "expression": "number",
-              "isExpression": false,
+              "expression": "haben_unaccent(\"number\") gin_trgm_ops",
               "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
+              "isExpression": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -12431,7 +12855,7 @@
           "name": "quotes_buyer_name_trgm_idx",
           "columns": [
             {
-              "expression": "(\"buyer\" ->> 'name') gin_trgm_ops",
+              "expression": "haben_unaccent(\"buyer\" ->> 'name') gin_trgm_ops",
               "asc": true,
               "isExpression": true,
               "nulls": "last"
@@ -12759,6 +13183,36 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "recurring_documents_name_trgm_idx": {
+          "name": "recurring_documents_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "recurring_documents_supplier_name_trgm_idx": {
+          "name": "recurring_documents_supplier_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"supplier_name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -12971,7 +13425,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "recurring_invoices_name_trgm_idx": {
+          "name": "recurring_invoices_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "recurring_invoices_contact_id_contacts_id_fk": {
           "name": "recurring_invoices_contact_id_contacts_id_fk",
@@ -14091,6 +14561,36 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "service_entries_description_trgm_idx": {
+          "name": "service_entries_description_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"description\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "service_entries_project_trgm_idx": {
+          "name": "service_entries_project_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"project\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -15072,6 +15572,36 @@
           "isUnique": false,
           "concurrently": false,
           "method": "btree",
+          "with": {}
+        },
+        "text_blocks_name_trgm_idx": {
+          "name": "text_blocks_name_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "text_blocks_text_trgm_idx": {
+          "name": "text_blocks_text_trgm_idx",
+          "columns": [
+            {
+              "expression": "haben_unaccent(\"text\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
           "with": {}
         }
       },

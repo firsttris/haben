@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { readMiddleware } from "../middleware.ts";
+import { authMiddleware, readMiddleware } from "../middleware.ts";
+import { setArchiveSearch } from "../modules/stammdaten/index.ts";
 import { type CommandPaletteResult, type SearchGroup, type RecentPaletteItem, resolveRecentPalette, runCommandPaletteSearch } from "./search-query.ts";
 
 export type { CommandPaletteResult, SearchGroup, RecentPaletteItem };
@@ -20,3 +21,8 @@ export const getRecentPaletteItems = createServerFn({ method: "GET" })
   .middleware([readMiddleware])
   .validator(recentSchema)
   .handler(({ data, context }) => resolveRecentPalette(data, context.user.role));
+
+export const saveArchiveSearch = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ enabled: z.boolean() }))
+  .handler(({ data, context }) => setArchiveSearch(context.user.email, data.enabled));

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { requireUser } from "../../../server/rollen.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 import { yearSchema } from "../../../server/functions/schemas.ts";
-import { HinterlegungError, hinterlegungAngabenSchema, hinterlegungPdf } from "../../../server/modules/buchhaltung/index.ts";
+import { HinterlegungError, hinterlegungAngabenSchema, hinterlegungPdf } from "../../../server/modules/jahreserklaerung/index.ts";
 import { today } from "../../../server/today.ts";
 
 /**

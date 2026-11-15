@@ -58,6 +58,7 @@
      --page-head-height misst usePageHeadHeight; der Wert hier gilt nur, bis die Seite im Browser läuft */
   --nav-height: 0px;
   --page-head-height: 80px;
+  --action-bar-height: 0px;
   /* Unterkante des stehenden Kopfs: darunter beginnen Unternavigation, Belegansicht, Tabellenköpfe und Sprungziele */
   --below-head: calc(var(--nav-height) + var(--page-head-height));
   --main-pad-x: 40px;
@@ -72,11 +73,14 @@
    weil die Felder ihre Schrift an vielen Stellen mit höherer Spezifität setzen; Häkchen und Datei-Wähler zoomen nicht. */
 @media (pointer: coarse) { input:not([type="checkbox"], [type="radio"], [type="file"]), select, textarea { font-size: 16px !important; } }
 @media (max-width: 860px) { :root { --nav-height: 60px; --main-pad-x: 16px; } }
-/* Sprünge zu Ankern und der Fokus beim Tabben landen unter dem Kopf, nicht dahinter (WCAG 2.4.11) */
-html { scroll-padding-top: calc(var(--below-head) + 16px); }
+/* Sprünge zu Ankern und der Fokus beim Tabben landen zwischen Kopf und Aktionsleiste, nicht dahinter (WCAG 2.4.11) */
+html { scroll-padding-top: calc(var(--below-head) + 16px); scroll-padding-bottom: calc(var(--action-bar-height, 0px) + 16px); }
 /* 400 % Zoom (WCAG 1.4.10: 320×256, ein Fenster mit 1280×720 ergibt 320×180): Der Kopf füllte das Fenster, er scrollt
    hier mit. Handys quer haben mindestens 320 px Höhe und behalten ihn. */
-@media (max-height: 300px) { :root { --below-head: var(--nav-height); } }
+@media (max-height: 300px) {
+  :root { --below-head: var(--nav-height); --viewer-height: calc(100dvh - var(--below-head) - 32px); }
+  html { scroll-padding-bottom: 16px; }
+}
 
 /* Farben: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald, ohne data-mode hell. */
 :root { color-scheme: light; }
@@ -347,6 +351,21 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .page-head > .actions, .page-head > .stack > .actions { justify-content: flex-end; }
 }
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+/* Feste Aktionsleiste am unteren Fensterrand am Handy (< 861 px) für alle Aktionen (#396, Variante E) */
+.action-bar { position: sticky; bottom: 0; z-index: 10; margin: auto calc(-1 * var(--main-pad-x)) -20px; padding: 12px var(--main-pad-x) max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--ground); box-shadow: 0 -6px 12px -10px rgb(0 0 0 / 0.3); }
+@media (min-width: 861px) { .action-bar { display: none; } }
+/* Nur wo es eine Aktionsleiste gibt (Rechnungs- und Angebotseditor), wandern die Aktionen aus dem Kopf; der Mahnungseditor behält sie */
+@media (max-width: 860px) { .main > .page-head:has(~ .action-bar) > .actions { display: none; } }
+@media (max-height: 300px) { .action-bar { position: static; } }
+.more-actions-menu { position: relative; display: inline-flex; }
+.more-actions-menu .split-menu { min-width: min(240px, calc(100vw - 2 * var(--main-pad-x))); max-width: calc(100vw - 2 * var(--main-pad-x)); }
+.action-bar .more-actions-menu .split-menu { top: auto; bottom: calc(100% + 4px); left: 0; right: auto; }
+@media (max-width: 720px) {
+  .action-bar { padding-block: 8px max(8px, env(safe-area-inset-bottom)); }
+  .action-bar > .actions { gap: 8px; }
+  .action-bar .split-btn-solo { flex: 1 1 auto; display: flex; }
+  .action-bar .split-btn-solo > .btn { flex: 1 1 auto; justify-content: center; }
+}
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-actions > .banner { flex: 0 0 100%; }
 /* Knopfzeilen (#394, DESIGN.md): Hauptaktion zuletzt im Markup; im Dialog rechtsbündig, sonst an der Kante der Felder */
@@ -510,6 +529,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 /* Betragszeile: Satz, Netto, Steuer und Platz für den Entfernen-Knopf, auch wenn er fehlt, damit die Zeilen fluchten */
 .form-row.cols-amount { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 40px; align-items: end; }
 .form-row.cols-amount.ohne-steuer { grid-template-columns: 120px minmax(0, 1fr) 40px; }
+/* Dauerbeleg mit ausgewiesener Steuer: dazu das Brutto (#1059) */
+.form-row.cols-amount.mit-brutto { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 40px; }
 .dauerbeleg-summe { margin: 0; padding-top: 12px; border-top: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
 .field-group { display: flex; flex-direction: column; gap: 8px; }
 .field-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
@@ -527,7 +548,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   .form-row.cols-amount { grid-template-columns: 96px minmax(0, 1fr) 40px; }
   .form-row.cols-server { grid-template-columns: minmax(0, 1fr) 96px; }
   .form-row.cols-server > :last-child { grid-column: 1 / -1; }
-  .form-row.cols-amount > .field:nth-child(3) { grid-column: 2; }
+  .form-row.cols-amount.mit-brutto { grid-template-columns: 96px minmax(0, 1fr) 40px; }
+  .form-row.cols-amount > .field:nth-child(3), .form-row.cols-amount > .field:nth-child(4) { grid-column: 2; }
 }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
@@ -591,6 +613,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .mail-mark { margin-left: 8px; vertical-align: middle; }
 /* Merkmal: Eigenschaft ohne Zustand (Lieferant, Rolle, archiviert) */
 .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); font-size: 12px; line-height: 1; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
+/* Merkmal und Status nebeneinander (etwa „inaktiv“ und „Fehler“): auf einer Mittellinie, statt nach Grundlinie und vertical-align versetzt */
+.status-gruppe { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; max-width: 100%; vertical-align: middle; }
 
 .banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
 .banner-info { background: var(--info-soft); color: var(--info-ink); }
@@ -729,7 +753,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 
 /* Rechnungseditor */
 /* Belegansicht so hoch wie das Fenster unter dem stehenden Seitenkopf; bleibt beim Scrollen des Formulars darunter stehen */
-:root { --viewer-height: calc(100dvh - var(--below-head) - 32px); }
+:root { --viewer-height: calc(100dvh - var(--below-head) - var(--action-bar-height, 0px) - 32px); }
 .editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: calc(var(--below-head) + 16px); }
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
@@ -1293,7 +1317,12 @@ summary { cursor: pointer; min-height: 24px; }
   .cmd-option-facts { grid-column: 2 / -1; display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; column-gap: 8px; }
   .cmd-option .amount { grid-column: 1; justify-self: start; }
   .cmd-option-status { grid-column: 2; }
-  .cmd-option-status .status { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 6px; }
+  /* Am Handy steht das Statuswort immer an der rechten Kante, die Auskunft davor (wie in den Listen, DESIGN.md › Status);
+     eine zu lange Auskunft endet mit „…“ */
+  .cmd-option-status { display: flex; justify-content: flex-end; min-width: 0; }
+  .cmd-option-status .status { flex-direction: row-reverse; align-items: baseline; gap: 6px; max-width: 100%; }
+  .cmd-option-status .status-label { flex: none; }
+  .cmd-option-status .status-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cmd-option-arrow { grid-column: 3; grid-row: 1; }
   .cmd-foot { display: none; }
 }
