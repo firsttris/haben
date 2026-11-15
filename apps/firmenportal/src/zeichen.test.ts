@@ -240,14 +240,25 @@ describe("Firmenportal mit Farbe und Logo", () => {
 
   it("liefert die Farben als eigenes Stylesheet; die CSP erlaubt Bilder nur vom Firmenportal", async () => {
     const handler = await handlerFuer(LISTE);
-    const farben = await handler(anfrage("/farben.css"));
-    expect(farben.headers.get("content-type")).toBe("text/css; charset=utf-8");
-    expect(await farben.text()).toContain(".firma-zeichen.farbe-1D4ED8 { background: #1D4ED8;");
     const cookies = await anmelden(handler, NORD_SUED);
+    const farben = await handler(anfrage("/farben.css", cookies));
+    expect(farben.headers.get("content-type")).toBe("text/css; charset=utf-8");
+    expect(farben.headers.get("cache-control")).toBe("private, max-age=86400");
+    expect(await farben.text()).toContain(".firma-zeichen.farbe-1D4ED8 { background: #1D4ED8;");
     const csp = (await handler(anfrage("/", cookies))).headers.get("content-security-policy")!;
     expect(csp).toContain("img-src 'self';");
     expect(csp).toContain("default-src 'none'");
     expect(csp).not.toMatch(/(img|style|font|default)-src[^;]*(https?:|\*|data:|'unsafe-inline')/);
+  });
+
+  it("gibt Farben nur an eine Sitzung und nur die ihrer Firmen (Bedingung in #1036)", async () => {
+    const handler = await handlerFuer([LISTE[0]!, LISTE[1]!, LISTE[2]!.replace("||west.jpg", "|#7C3AED|west.jpg")]);
+    expect((await handler(anfrage("/farben.css"))).status).toBe(404);
+    const farben = await (await handler(anfrage("/farben.css", await anmelden(handler, NORD_SUED)))).text();
+    expect(farben).toContain("farbe-1D4ED8");
+    expect(farben).toContain("farbe-B45309");
+    // Atelier West sieht diese Person nicht, also auch nicht ihre Farbe
+    expect(farben).not.toContain("7C3AED");
   });
 
   it("ändert die Adresse des Stylesheets mit den Farben", async () => {
