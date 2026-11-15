@@ -16,6 +16,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit § 4 Nr. 14 a in der EÜ
   let cashInvoice: typeof import("../bank/cash-invoice.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let contactId: string;
+  let annual: typeof import("../jahreserklaerung/annual.ts");
   const actor = "review-926";
 
   beforeAll(async () => {
@@ -24,6 +25,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit § 4 Nr. 14 a in der EÜ
     contacts = await import("../stammdaten/index.ts");
     cashInvoice = await import("../bank/cash-invoice.ts");
     reports = await import("../auswertungen/reports.ts");
+    annual = await import("../jahreserklaerung/annual.ts");
   }, 30_000);
   afterAll(async () => {
     await sql?.end();
@@ -71,11 +73,77 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit § 4 Nr. 14 a in der EÜ
     const final = await invoices.finalizeInvoice(actor, draft.id);
     await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-10-10", amount: 100_00 }, "2026-10-10");
 
+    const nebenbuch = await reports.euerAusNebenbuechern(2026);
+    expect(nebenbuch.einnahmen.find((l) => l.key === "einnahmenKleinunternehmer")?.amount).toBe(100_00);
+    expect((await annual.euerYear(2026)).figures).toMatchObject({ kleinunternehmer: 100_00, kleinunternehmerAbzuege: 100_00 });
     const euer = await reports.euerForYear(2026);
     const betrag = (key: string) => euer.einnahmen.find((l) => l.key === key)?.amount ?? 0;
     expect({ kleinunternehmer: betrag("einnahmenKleinunternehmer"), steuerfrei: betrag("einnahmenSteuerfrei") }).toEqual({
       kleinunternehmer: 100_00,
       steuerfrei: 0,
     });
+  });
+
+  it.each([
+    ["steuerfrei", "DE", { number: "21" }],
+    ["drittland", "US", null],
+    ["reverse_charge", "FR", null],
+    ["eu_sonstige", "FR", null],
+  ] as const)("%s: Zeilen 12 und 13 mit tatsächlichem Zufluss", async (treatment, country, exemption) => {
+    await sql`update company set ust_id = 'DE123456789'`;
+    await sql`update contacts set land = ${country}, ust_id = ${treatment === "reverse_charge" ? "FR40303265045" : ""} where id = ${contactId}`;
+    const draft = await invoices.createDraft(actor, {
+      contactId,
+      issueDate: "2026-10-02",
+      serviceFrom: "2026-10-01",
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      taxTreatment: treatment,
+      exemptionReason: "",
+      lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 100_00, taxRate: 0 }],
+      taxDetails: { exemption, ancillary: null, foreignPlace: country === "DE" ? null : { country, noForeignVat: true }, assetDisposal: false },
+    });
+    const final = await invoices.finalizeInvoice(actor, draft.id);
+    await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-10-10", amount: 100_00 }, "2026-10-10");
+    const result = await annual.euerYear(2026);
+    expect(result.figures).toMatchObject({ kleinunternehmer: 100_00, kleinunternehmerAbzuege: 100_00 });
+    expect(result.figures.steuerfrei ?? 0).toBe(0);
+    expect(result.einnahmen).toBe(100_00);
+    expect(result.gewinn).toBe(100_00);
+  });
+
+  it("Teilzahlungen über den Jahreswechsel behalten den jeweiligen KU-Stand", async () => {
+    // Das Protokoll datiert den Wechsel auf den heutigen Tag. Das Vorjahr liegt sicher davor, das Folgejahr danach.
+    const year = new Date().getUTCFullYear();
+    await sql`update company set kleinunternehmer = false`;
+    const draft = await invoices.createDraft(actor, {
+      contactId,
+      issueDate: `${year - 1}-10-02`,
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      taxTreatment: "steuerfrei",
+      exemptionReason: "",
+      lines: [{ description: "Heilbehandlung", quantity: 1000, unit: "Psch.", unitPrice: 100_00, taxRate: 0 }],
+      taxDetails: { exemption: { number: "14", letter: "a" }, ancillary: null, foreignPlace: null, assetDisposal: false },
+    });
+    const final = await invoices.finalizeInvoice(actor, draft.id);
+    for (const [date, amount] of [
+      [`${year - 1}-10-10`, 30_00],
+      [`${year + 1}-01-10`, 70_00],
+    ] as const)
+      await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: final.id, date, amount }, date);
+    const before = await annual.euerYear(year - 1);
+    const after = await annual.euerYear(year + 1);
+    expect(before.figures).toMatchObject({ kleinunternehmer: 30_00, kleinunternehmerAbzuege: 30_00 });
+    expect(before.figures.steuerfrei ?? 0).toBe(0);
+    expect(after.figures.steuerfrei).toBe(70_00);
+    expect(after.figures.kleinunternehmer ?? 0).toBe(0);
+    expect(after.figures.kleinunternehmerAbzuege ?? 0).toBe(0);
+    expect(before.gewinn + after.gewinn).toBe(100_00);
   });
 });
