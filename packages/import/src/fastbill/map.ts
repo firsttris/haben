@@ -187,11 +187,17 @@ export function isFbCancellation(i: FbInvoice, referenced: FbInvoice | undefined
   return isCanceled(referenced) && Math.abs(cents(i.TOTAL)) === Math.abs(cents(referenced.TOTAL));
 }
 
+/** Status einer stornierten Rechnung, die nur Teilgutschriften aufheben; der Abgleich je Jahr bittet um Prüfung */
+export const FB_PARTLY_CANCELED = "teilstorniert";
+
 /**
  * Rechnung oder Gutschrift. `referenced` ist die Rechnung aus REFERENCED_INVOICE_ID, soweit abgerufen; nur mit ihr
- * lässt sich ein Storno von einer Teilgutschrift unterscheiden.
+ * lässt sich ein Storno von einer Teilgutschrift unterscheiden. `credits` sind die Gutschriften, die auf diese Rechnung
+ * verweisen: Ist sie storniert, aber hebt keine davon sie voll auf, ist es ein Teilstorno (PARTIAL_CANCELLATION). Ob
+ * FastBill die Rechnung dann auf STATE canceled setzt, ist nicht belegt; falls ja, bleibt sie Rechnung mit ihrem offenen
+ * Rest und dem Status „teilstorniert“, statt als storniert zu verschwinden.
  */
-export function mapFbInvoice(i: FbInvoice, referenced?: FbInvoice): FbMappedVoucher {
+export function mapFbInvoice(i: FbInvoice, referenced?: FbInvoice, credits: readonly FbInvoice[] = []): FbMappedVoucher {
   const id = String(i.INVOICE_ID);
   const subtype = text(i.SUBTYPE).toLowerCase();
   const state = text(i.STATE).toLowerCase();
@@ -207,7 +213,8 @@ export function mapFbInvoice(i: FbInvoice, referenced?: FbInvoice): FbMappedVouc
   const date = requireDate(i.INVOICE_DATE, id);
   const serviceFrom = fbDate(i.SERVICE_PERIOD_START) ?? fbDate(i.DELIVERY_DATE);
   const paidDate = fbDate(i.PAID_DATE);
-  const voided = isCanceled(i) || isFbCancellation(i, referenced);
+  const partlyCanceled = isCanceled(i) && credits.length > 0 && !credits.some((c) => isFbCancellation(c, i));
+  const voided = (isCanceled(i) && !partlyCanceled) || isFbCancellation(i, referenced);
   const paid = !voided && (state === "paid" || paidDate !== null);
   const items = paymentItems(i.PAYMENTS, credit);
 
@@ -221,7 +228,7 @@ export function mapFbInvoice(i: FbInvoice, referenced?: FbInvoice): FbMappedVouc
       dueDate: credit ? null : fbDate(i.DUE_DATE),
       serviceFrom,
       serviceTo: fbDate(i.SERVICE_PERIOD_END) ?? serviceFrom,
-      status: voided ? "voided" : paid ? "paid" : state || "open",
+      status: partlyCanceled ? FB_PARTLY_CANCELED : voided ? "voided" : paid ? "paid" : state || "open",
       contactLexofficeId: idOrNull(i.CUSTOMER_ID),
       contactName: i.ORGANIZATION?.trim() || personName(i.FIRST_NAME, i.LAST_NAME),
       currency: i.CURRENCY_CODE?.trim().toUpperCase() || "EUR",

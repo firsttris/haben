@@ -38,7 +38,7 @@ import type { LegacyCategoryRow, LegacyPayment, LegacySource, LegacyTaxRow, Lexo
 import { sniff } from "../../storage.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
 import { latestFastbillImport } from "./fastbill.ts";
-import { fastbillTaxType, fastbillWaitingChecks } from "./fastbill-abgleich.ts";
+import { fastbillPartlyCanceledByYear, fastbillPartlyCanceledChecks, fastbillTaxType, fastbillWaitingChecks } from "./fastbill-abgleich.ts";
 import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 
@@ -593,6 +593,7 @@ export async function reconciliation() {
 
   // Ausgaben aus FastBill, die noch auf ihren Beleg warten, liegen nicht in lexoffice_vouchers: sonst sähe ein Jahr vollständig aus
   const fastbillWaiting = await fastbillWaitingByYear();
+  const fastbillPartlyCanceled = await fastbillPartlyCanceledByYear();
   const years = new Set<number>(fastbillWaiting.keys());
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
   for (const b of bookingRows) years.add(Number(b.year));
@@ -677,6 +678,7 @@ export async function reconciliation() {
         ...(paymentIssueOf(year) ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: paymentIssueOf(year)! }] : []),
         ...accountingTypeChecks(unclearAccountsIn(year)),
         ...fastbillWaitingChecks(fastbillWaiting.get(year)),
+        ...fastbillPartlyCanceledChecks(fastbillPartlyCanceled.get(year)),
         {
           ok: vouchers.length > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),
           label: "Belege und Rechnungen per API abgerufen",

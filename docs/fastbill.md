@@ -57,7 +57,7 @@ Solange Ausgaben warten, zeigt der Abgleich je Jahr den offenen Punkt „Keine A
 
 Gibt es zu einer Ausgabe in FastBill wirklich keinen Beleg, übernimmt „Rest ohne Beleg übernehmen“ die übrigen wartenden Ausgaben beim nächsten Abruf ohne Datei. Im Abgleich bleibt „Jeder Beleg hat eine Datei“ für dieses Jahr dann offen; an einen archivierten Beleg lässt sich später keine Datei mehr hängen.
 
-Einen Download der Ausgabenbelege aus der Oberfläche von FastBill legst du bei Bedarf in Schritt 4 als „Sonstiges“ ab; Haben ordnet daraus nichts zu.
+Ohne Skript in der Konsole: „Rest ohne Beleg übernehmen“, dann die Belege in FastBill selbst herunterladen (einzeln oder über den Sammeldownload unter Finanzen › Ausgaben) und in Schritt 4 je Jahr als „Sonstiges“ ablegen. Einer einzelnen Ausgabe ordnet Haben diese Dateien nicht zu.
 
 ### Wie FastBill-Belege abgebildet werden
 
@@ -69,6 +69,8 @@ Einen Download der Ausgabenbelege aus der Oberfläche von FastBill legst du bei 
 | Ausgabe | Eingangsrechnung; mit negativem Betrag Gutschrift des Lieferanten |
 
 Eine Gutschrift gilt nur als Storno, wenn sie auf eine stornierte Rechnung verweist (`REFERENCED_INVOICE_ID`) und deren Betrag voll aufhebt. Eine Teilgutschrift bleibt eine Gutschrift mit eigenem Zahlungsstand.
+
+Ob FastBill nach einem Teilstorno die Rechnung als storniert führt, ist nicht belegt. Ist eine Rechnung storniert, aber hebt keine Gutschrift sie voll auf, übernimmt Haben sie mit vollem Betrag als „teilstorniert“, und der Abgleich des Jahres zeigt den offenen Punkt „Keine Rechnung mit Teilstorno zu prüfen“. Gleiche sie dann mit FastBill ab.
 
 Die Aufteilung nach Steuersatz kommt aus der Steueraufstellung des Belegs (`VAT_ITEMS`), sonst aus den Positionen.
 

@@ -151,6 +151,9 @@ export function cancelFastbillImport(id: string): boolean {
   return true;
 }
 
+/** Alle abgerufenen Rechnungen je ID und die Gutschriften je Rechnung, auf die sie verweisen */
+type InvoiceIndex = { invoicesById: Map<string, FbInvoice>; creditsByInvoice: Map<string, FbInvoice[]> };
+
 type Listed = { kind: "invoice"; id: string; number: string; raw: FbInvoice } | { kind: "expense"; id: string; number: string; raw: FbExpense };
 
 function checkAborted(signal: AbortSignal) {
@@ -179,11 +182,11 @@ async function runImport(actor: string, importId: string, client: FastbillClient
   checkAborted(signal);
   progress.phase = "liste";
   await save(true);
-  const { listed, invoicesById } = await listVouchers(client, progress, save);
+  const { listed, invoicesById, creditsByInvoice } = await listVouchers(client, progress, save);
   checkAborted(signal);
   progress.phase = "belege";
   await save(true);
-  await importListed(actor, importId, client, listed, invoicesById, progress, save, signal);
+  await importListed(actor, importId, client, listed, { invoicesById, creditsByInvoice }, progress, save, signal);
   await save(true);
 }
 
@@ -222,6 +225,8 @@ async function importCustomers(actor: string, client: FastbillClient, progress: 
 async function listVouchers(client: FastbillClient, progress: LexofficeImportProgress, save: Save) {
   const listed: Listed[] = [];
   const invoicesById = new Map<string, FbInvoice>();
+  /** Gutschriften je Rechnung, auf die sie verweisen: unterscheiden Storno und Teilstorno */
+  const creditsByInvoice = new Map<string, FbInvoice[]>();
   const add = async (item: Listed) => {
     listed.push(item);
     progress.listed = listed.length;
@@ -229,12 +234,14 @@ async function listVouchers(client: FastbillClient, progress: LexofficeImportPro
   };
   for await (const raw of client.invoices()) {
     invoicesById.set(String(raw.INVOICE_ID), raw);
+    const ref = raw.REFERENCED_INVOICE_ID == null ? "" : String(raw.REFERENCED_INVOICE_ID);
+    if (ref && String(raw.TYPE ?? "").toLowerCase() === "credit") creditsByInvoice.set(ref, [...(creditsByInvoice.get(ref) ?? []), raw]);
     if (isFbInvoiceImportable(raw)) await add({ kind: "invoice", id: String(raw.INVOICE_ID), number: String(raw.INVOICE_NUMBER ?? ""), raw });
   }
   for await (const raw of client.expenses()) {
     await add({ kind: "expense", id: String(raw.INVOICE_ID), number: String(raw.INVOICE_NUMBER ?? ""), raw });
   }
-  return { listed, invoicesById };
+  return { listed, invoicesById, creditsByInvoice };
 }
 
 /** 3. Je Beleg das PDF; Fehler einzelner Belege halten den Lauf nicht auf */
@@ -243,7 +250,7 @@ async function importListed(
   importId: string,
   client: FastbillClient,
   listed: Listed[],
-  invoicesById: Map<string, FbInvoice>,
+  invoices: InvoiceIndex,
   progress: LexofficeImportProgress,
   save: Save,
   signal: AbortSignal,
@@ -263,7 +270,7 @@ async function importListed(
     }
     try {
       // übersprungen: ein gleichzeitiger Lauf hat den Beleg schon übernommen; wartet: Ausgabe ohne Datei, siehe fastbill_receipts
-      const outcome = await importVoucher(actor, importId, client, item, invoicesById, progress);
+      const outcome = await importVoucher(actor, importId, client, item, invoices, progress);
       if (outcome === "uebernommen") progress.imported += 1;
       else if (outcome === "wartet") progress.fastbillWaiting = (progress.fastbillWaiting ?? 0) + 1;
       else progress.skipped += 1;
@@ -291,13 +298,13 @@ async function importVoucher(
   importId: string,
   client: FastbillClient,
   item: Listed,
-  invoicesById: Map<string, FbInvoice>,
+  { invoicesById, creditsByInvoice }: InvoiceIndex,
   progress: LexofficeImportProgress,
 ): Promise<"uebernommen" | "uebersprungen" | "wartet"> {
   let mapped: FbMappedVoucher;
   if (item.kind === "invoice") {
     const referenced = item.raw.REFERENCED_INVOICE_ID == null ? undefined : invoicesById.get(String(item.raw.REFERENCED_INVOICE_ID));
-    mapped = mapFbInvoice(item.raw, referenced);
+    mapped = mapFbInvoice(item.raw, referenced, creditsByInvoice.get(item.id));
   } else {
     mapped = mapFbExpense(item.raw);
   }
