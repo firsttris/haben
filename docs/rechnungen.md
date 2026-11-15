@@ -110,8 +110,8 @@ Unter **Einstellungen › Rechnungen › Einheiten** legst du weitere Einheiten 
 - **Bezeichnung:** so, wie sie auf dem Beleg steht, höchstens 10 Zeichen. Groß- und Kleinschreibung zählen nicht: Neben `m²` gibt es kein `M²`, und keine eigene Einheit heißt wie eine feste.
 - **Code:** Die E-Rechnung verlangt für jede Einheit einen Code nach [UN/ECE Recommendation 20](https://unece.org/trade/uncefact/cl-recommendations) mit Rec. 21 (BT-130, Regel BR-CL-23 der EN 16931), etwa `MTK` für Quadratmeter oder `LM` für laufende Meter. Haben nimmt nur Codes aus der Liste, die die XRechnung-Prüfung zulässt. Passt keiner, etwa für eine Unterrichtseinheit, nimm `C62` (Stück).
 - **Häufig im Handwerk:** Meter (`MTR`), Quadratmeter (`MTK`), Kubikmeter (`MTQ`), laufender Meter (`LM`), Kilogramm (`KGM`), Tonne (`TNE`) und Liter (`LTR`) legst du mit einem Klick an.
-- **Archivieren statt löschen:** Eine Einheit lässt sich weder umbenennen noch löschen, weil Entwürfe, Artikel und Vorlagen über ihre Bezeichnung auf sie verweisen. Archiviert steht sie nicht mehr zur Auswahl; wo sie schon steht, bleibt sie und behält ihren Code. Festgeschriebene Rechnungen haben ihr XML ohnehin schon.
-- Fehlt einer Einheit der Code, etwa nach einem Import über die REST-API, nennt Haben das vor dem Festschreiben, statt eine ungültige E-Rechnung zu erzeugen.
+- **Archivieren statt löschen:** Eine Einheit lässt sich weder umbenennen noch löschen, weil Entwürfe, Artikel und Vorlagen über ihre Bezeichnung auf sie verweisen. Archiviert steht sie nicht mehr zur Auswahl, bis du sie wiederherstellst; wo sie schon steht, bleibt sie und behält ihren Code. Festgeschriebene Rechnungen haben ihr XML ohnehin schon.
+- Steht in einer Position eine Einheit, die weder fest noch angelegt ist, etwa aus der [REST-API](api.md), nennt Haben das vor dem Festschreiben, statt eine E-Rechnung ohne gültigen Code zu erzeugen.
 - Auf englischen Belegen steht eine eigene Einheit wie angelegt, ohne Übersetzung.
 
 ### Nettopreise oder Bruttopreise
