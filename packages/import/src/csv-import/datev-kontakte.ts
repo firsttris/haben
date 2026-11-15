@@ -105,9 +105,12 @@ const ustIdLand = (ustId: string): string | null => {
   return ({ EL: "GR", XI: "GB" } as Record<string, string>)[prefix] ?? prefix;
 };
 
+/** Monaco gehört zum Mehrwertsteuergebiet Frankreichs (Art. 7 Abs. 1 MwStSystRL) und hat USt-IdNr. mit FR */
+const passt = (land: string, expected: string) => land === expected || (land === "MC" && expected === "FR");
+
 function landHint(land: string, ustId: string): string | null {
   const expected = ustIdLand(ustId);
-  return expected && expected !== land ? `Land ${land} passt nicht zur USt-IdNr. aus ${ustId.slice(0, 2).toUpperCase()}; bitte das Land prüfen` : null;
+  return expected && !passt(land, expected) ? `Land ${land} passt nicht zur USt-IdNr. aus ${ustId.slice(0, 2).toUpperCase()}; bitte das Land prüfen` : null;
 }
 
 export function datevContactCandidates(rows: readonly DatevGpRow[]): DatevContactCandidate[] {

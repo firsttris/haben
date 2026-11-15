@@ -115,6 +115,12 @@ describe("datevContactCandidates", () => {
     ]);
   });
 
+  // Monaco gehört zum Mehrwertsteuergebiet Frankreichs (Art. 7 Abs. 1 MwStSystRL); Unternehmen dort führen eine USt-IdNr. mit FR
+  it("weist bei Land MC und USt-IdNr. aus FR nicht hin", () => {
+    const candidates = datevContactCandidates([gp(3, { nr: 70001, name: "Erfundene SAM", ustId: "FR12345678901", land: "MC" })]);
+    expect(candidates[0]!.hints).toEqual([]);
+  });
+
   it("zählt ein Personenkonto, das weiter oben schon steht, als Dublette und lässt fehlerhafte Zeilen nicht zusammenführen", () => {
     const rows = datevContactCandidates([
       gp(3, { nr: 10001, name: "A" }),
