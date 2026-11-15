@@ -605,4 +605,26 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(treffer.bankTransactions.hits.length).toBe(5);
     expect(treffer.bankTransactions.more).toBe(true);
   }, 60_000);
+
+  it("bleibt bei einer Kontonummer mit 20.000 Buchungszeilen unter der Grenze für JIT (#617)", async () => {
+    await sql.begin(async (tx) => {
+      await tx`insert into journal_entries (id, date, description, source_type, source_id, kontenrahmen)
+        select md5('jit' || i)::uuid, date '2020-01-01' + (i % 2000), 'Buchung ' || md5(i::text), 'manuell', gen_random_uuid(), 'SKR03'
+        from generate_series(1, 20000) i`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit)
+        select md5('jit' || i)::uuid, a.account, case when a.debit > 0 then a.debit + i else 0 end, case when a.credit > 0 then a.credit + i else 0 end
+        from generate_series(1, 20000) i, (values ('4930', 5000, 0), ('1200', 0, 5000)) a(account, debit, credit)`;
+      await tx`update journal_entries set locked_at = now() where locked_at is null`;
+    });
+    await sql`vacuum analyze journal_entries`;
+    await sql`vacuum analyze journal_lines`;
+    const { bookingEntriesQuery } = await import("../modules/buchhaltung/search.ts");
+    // „4930“ ist Konto und ganzer Euro zugleich; das Übersetzen mit JIT kostete hier rund 100 ms, die Abfrage selbst 10 ms
+    const { select } = await bookingEntriesQuery("4930", 5);
+    const query = select.toSQL();
+    const [row] = await sql.unsafe(`explain (format json) ${query.sql}`, query.params as never[]);
+    const [grenze] = await sql`select current_setting('jit_above_cost')::float as jit_above_cost`;
+    const kosten = (row as unknown as { "QUERY PLAN": { Plan: { "Total Cost": number } }[] })["QUERY PLAN"][0]!.Plan["Total Cost"];
+    expect(kosten).toBeLessThan(grenze!.jit_above_cost);
+  }, 60_000);
 });
