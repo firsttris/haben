@@ -1,0 +1,114 @@
+# Haben in Kubernetes: App mit täglichem Backup im selben Pod, auf Wunsch mit eigener PostgreSQL.
+# Anleitung: https://haben.app/kubernetes.html
+
+# Domain ohne https://, unter der Haben läuft (BETTER_AUTH_URL). Passkeys hängen daran; später nicht mehr ändern.
+domain: ""
+
+image:
+  # Version von Haben in Anführungszeichen, etwa "0.9.0" (https://github.com/firsttris/haben/releases). Gilt für App,
+  # Backup und Datenbank. Für ein Update: Backup, dann anheben.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+app:
+  image: docker.io/tristanteu/haben
+  # Geheime Umgebungsvariablen; das Chart legt daraus ein Secret an. Pflicht sind die beiden Schlüssel
+  # (je `openssl rand -base64 32`, zusätzlich im Passwortmanager sichern), ohne postgresql.enabled auch DATABASE_URL,
+  # für getrennte Datenbankrollen dazu MIGRATION_DATABASE_URL. Weitere geheime Werte wie ANTHROPIC_API_KEY,
+  # OIDC_CLIENT_SECRET, EXTRACTION_API_KEY, ENABLE_BANKING_KEY oder HABEN_SETUP_CODE gehören ebenfalls hierher.
+  secretEnv:
+    BETTER_AUTH_SECRET: ""
+    HABEN_ENCRYPTION_KEY: ""
+  # Oder ein vorhandenes Secret mit den Variablen als Schlüsseln, etwa aus Sealed Secrets oder External Secrets; dann
+  # gilt secretEnv nicht. Mit postgresql.enabled gehören DATABASE_URL und MIGRATION_DATABASE_URL hinein.
+  existingSecret: ""
+  # Übrige Umgebungsvariablen, jeder Wert in Anführungszeichen; siehe
+  # https://haben.app/installation-konfiguration.html#umgebungsvariablen
+  env: {}
+    # ERIC_AUTO_INSTALL: "ja"
+    # EXTRACTION_BASE_URL: "http://ollama.ki.svc:11434/v1"
+    # EXTRACTION_MODEL: "qwen2.5vl:7b"
+  persistence:
+    # Belegdateien; gehören ins Backup
+    belege:
+      size: 10Gi
+      storageClass: ""
+    # Von Haben heruntergeladenes ERiC; ein Wechsel der Version braucht neben der alten rund 800 MB
+    eric:
+      size: 2Gi
+      storageClass: ""
+  resources: {}
+  # Etwa ERiC von Hand (ERIC_HOME) oder die x86_64-Laufzeit für ELSTER auf arm64 (ERIC_WORKER_COMMAND), aus extraVolumes
+  extraVolumeMounts: []
+
+postgresql:
+  # false: eigene Datenbank, etwa CloudNativePG; die Zugänge dann in app.secretEnv
+  enabled: true
+  image: docker.io/tristanteu/haben-db
+  # Ohne Angabe image.tag. Beim Zurücknehmen eines Updates hier die neue Version eintragen: haben-db hebt den Bestand auf
+  # eine neue PostgreSQL-Version an und kann nicht zurück.
+  tag: ""
+  # Eigentümer haben und App-Rolle haben_app, nur Buchstaben und Ziffern: je `openssl rand -hex 24`. Die Datenbank legt
+  # die App-Rolle bei ihrem ersten Start an; danach ändert eine neue Angabe hier kein Passwort in der Datenbank.
+  password: ""
+  appPassword: ""
+  # Oder ein vorhandenes Secret mit den Schlüsseln POSTGRES_PASSWORD und APP_PASSWORD; dann auch app.existingSecret
+  existingSecret: ""
+  persistence:
+    # Ein Upgrade auf eine neue PostgreSQL-Version braucht vorübergehend den doppelten Platz
+    size: 10Gi
+    storageClass: ""
+  resources: {}
+
+backup:
+  # Tägliches Backup von Datenbank und Belegen mit restic im Pod der App
+  enabled: true
+  image: docker.io/tristanteu/haben-backup
+  # RESTIC_PASSWORD ist Pflicht (`openssl rand -base64 32`, im Passwortmanager sichern). Dazu für S3 AWS_ACCESS_KEY_ID
+  # und AWS_SECRET_ACCESS_KEY, ohne postgresql.enabled PGPASSWORD des Eigentümers.
+  secretEnv:
+    RESTIC_PASSWORD: ""
+  # Oder ein vorhandenes Secret mit diesen Variablen als Schlüsseln
+  existingSecret: ""
+  # Jeder Wert in Anführungszeichen; siehe https://haben.app/installation-backup.html#backup-und-wiederherstellen
+  env: {}
+    # RESTIC_REPOSITORY: "s3:s3.eu-central-1.amazonaws.com/bucket/haben"
+    # BACKUP_TIME: "03:15"
+    # BACKUP_HOST: "haben"
+    # RESTORE_CHECK_DAYS: "7"
+    # Ohne postgresql.enabled: Eigentümerzugang zur Datenbank
+    # PGHOST: "haben-db-rw.datenbank.svc"
+    # PGUSER: "haben"
+    # PGDATABASE: "haben"
+  persistence:
+    # restic-Repository unter /backups, solange RESTIC_REPOSITORY nicht gesetzt ist. Liegt im selben Cluster; gegen
+    # dessen Verlust gehört das Repository auf ein zweites System.
+    enabled: true
+    size: 20Gi
+    storageClass: ""
+  resources: {}
+
+# true: App aus, dafür ein Pod zum Wiederherstellen mit restore.sh. Danach wieder false.
+restore:
+  enabled: false
+
+ingress:
+  enabled: false
+  className: ""
+  # Upload-Grenze, Wartezeit und Sicherheits-Header je nach Controller, siehe Anleitung
+  annotations: {}
+  # Secret mit dem Zertifikat, etwa von cert-manager; leer: ohne tls-Abschnitt
+  tlsSecret: ""
+
+# Gateway API statt Ingress; setzt Sicherheits-Header und Wartezeit selbst
+httpRoute:
+  enabled: false
+  parentRefs: []
+    # - name: gateway
+    #   namespace: gateway-system
+    #   sectionName: https
+
+extraVolumes: []
+nodeSelector: {}
+tolerations: []
+affinity: {}

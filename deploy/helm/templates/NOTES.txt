@@ -1,0 +1,26 @@
+{{- if .Values.restore.enabled }}
+Die App ist aus. Stände anzeigen und wiederherstellen:
+
+  kubectl -n {{ .Release.Namespace }} exec -it deploy/{{ include "haben.fullname" . }}-restore -- restore.sh
+  kubectl -n {{ .Release.Namespace }} exec -it deploy/{{ include "haben.fullname" . }}-restore -- restore.sh latest
+
+Danach die App wieder starten: helm upgrade ohne restore.enabled
+{{- else }}
+Haben läuft unter https://{{ .Values.domain }}.
+
+Einrichtungscode für das erste Konto (solange es keins gibt):
+
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "haben.fullname" . }} -c app | grep Einrichtungscode
+
+HABEN_ENCRYPTION_KEY{{ if .Values.backup.enabled }} und RESTIC_PASSWORD{{ end }} gehören zusätzlich in den Passwortmanager;
+ohne sie ist nach dem Verlust des Clusters das Backup wertlos.
+{{- if and .Values.backup.enabled (not (hasKey .Values.backup.env "RESTIC_REPOSITORY")) }}
+
+Das Backup liegt im Volume {{ include "haben.fullname" . }}-backups im selben Cluster. Gegen dessen Verlust
+backup.env.RESTIC_REPOSITORY auf ein zweites System setzen.
+{{- end }}
+{{- if not (or .Values.ingress.enabled .Values.httpRoute.enabled) }}
+
+Weder ingress noch httpRoute ist an: Der Service {{ include "haben.fullname" . }}:3000 braucht davor HTTPS.
+{{- end }}
+{{- end }}
