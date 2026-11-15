@@ -550,7 +550,10 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
       amounts: [{ taxRate: 0 as const, net: 11_544, tax: 0 }],
       warnings: [],
     };
-    vi.mocked(extraction.extractDocument).mockResolvedValueOnce({ extraction: { quelle: "test" } as unknown as import("./extraction.ts").Extraction, fields: etsy });
+    vi.mocked(extraction.extractDocument).mockResolvedValueOnce({
+      extraction: { quelle: "test" } as unknown as import("./extraction.ts").Extraction,
+      fields: etsy,
+    });
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 41]), filename: "etsy.jpg" });
     const doc = (await documents.getDocument(id))!;
     expect(doc.document).toMatchObject({ reverseCharge: "eu", status: "neu", lockedAt: null, net: 11_544, tax: 2_193, gross: 11_544 });
@@ -558,7 +561,10 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect(documents.bookingIssues(doc.document, doc.amounts)).not.toContain("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
     // Von Hand auf Drittland gestellt: ein erneutes Auslesen ändert die Wahl nicht
     await sql`update documents set reverse_charge = 'drittland' where id = ${id}`;
-    vi.mocked(extraction.extractDocument).mockResolvedValueOnce({ extraction: { quelle: "test" } as unknown as import("./extraction.ts").Extraction, fields: etsy });
+    vi.mocked(extraction.extractDocument).mockResolvedValueOnce({
+      extraction: { quelle: "test" } as unknown as import("./extraction.ts").Extraction,
+      fields: etsy,
+    });
     await documents.runExtraction(actor, id);
     expect((await documents.getDocument(id))!.document.reverseCharge).toBe("drittland");
   });
