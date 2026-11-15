@@ -165,4 +165,26 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Vorlagen wiederkehrender Belege als 
     expect(audit).toHaveLength(3);
     expect(audit.every((a) => a.actor === "test-user")).toBe(true);
   });
+
+  it("setzt eine Vorlage ohne Betrag nicht fort, auch wenn sie eine Datei hat", async () => {
+    // Review #1130: Der Import umgeht die Prüfung des Formulars (dauerbelegProbleme); Fortsetzen darf daraus keine Belege über 0 € machen
+    rv = [
+      {
+        voucher: {
+          ...mitTermin!.voucher,
+          id: "ID_60",
+          sumNet: "0",
+          sumGross: "0",
+          document: { id: "ID_5", objectName: "Document" },
+          recurringNextVoucher: "2026-12-01T00:00:00+01:00",
+        },
+        positions: [],
+      },
+    ];
+    await sevdesk.startSevdeskImport("test-user", { wait: true });
+    const [ohneBetrag] = await sql`select id, filename from recurring_documents where sevdesk_id = 'ID_60'`;
+    expect(ohneBetrag).toMatchObject({ filename: "mietvertrag.pdf" });
+    expect((await belege.getDauerbeleg(ohneBetrag!.id as string))!.sevdesk!.hinweise).toContain("In sevDesk ohne Betrag.");
+    await expect(belege.setDauerbelegStatus("test-user", ohneBetrag!.id as string, "fortsetzen", "2026-11-15")).rejects.toThrow("Beträge fehlen.");
+  });
 });
