@@ -112,6 +112,9 @@ async function bisherUmgebucht(tx: Tx, documentId: string): Promise<TaxShare[]> 
  * hat (Altbestand, Kleinunternehmer, 0 %, kein Leistungsdatum nach dem Belegdatum) oder auf diesen Ausgleich kein Anteil
  * entfällt. `amount` trägt das Vorzeichen des Ausgleichs (Zuordnung, Kursdifferenz, Verrechnung), wie in `settledOn`,
  * `datum` ist der Tag seiner Buchung; erst nach dem Sperren von Beleg und Umsatz aufrufen.
+ *
+ * `geparkt` sagt, ob die Vorsteuer überhaupt noch wartet: Wird vor der Ausführung gezahlt, gibt die Zahlung sie frei
+ * (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, #930), und dann ist nichts auszugleichen.
  */
 export async function vorsteuerAusgleich(
   tx: Tx,
@@ -120,9 +123,25 @@ export async function vorsteuerAusgleich(
   amount: number,
   kontenrahmen: Kontenrahmen,
   datum: string,
+  geparkt = true,
 ): Promise<PostingLine[]> {
+  if (!geparkt) return [];
   const anteile = await vorsteuerRest(tx, doc, totals, amount, datum);
   return anteile === null ? [] : vorsteuerAusgleichPosting(anteile, kontenrahmen);
+}
+
+/**
+ * Was von der Vorsteuer eines Belegs auf diesen Ausgleich entfällt, ohne Buchung. Die Zahlung vor der Ausführung gibt
+ * genau diesen Anteil frei (#930) und darf ihn danach nicht noch einmal als Ausgleich ziehen.
+ */
+export async function vorsteuerAnteil(
+  tx: Tx,
+  doc: { id: string; privateShare: number },
+  totals: InvoiceTotals,
+  amount: number,
+  datum: string,
+): Promise<TaxShare[] | null> {
+  return vorsteuerRest(tx, doc, totals, amount, datum);
 }
 
 /**

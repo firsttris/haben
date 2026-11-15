@@ -16,10 +16,24 @@ type Books = Parameters<typeof post>[1];
  * Zwischenkonto auf das Vorsteuerkonto, und Kz 66 sieht sie in diesem Monat. Die Zahlung bucht danach nur noch
  * Verbindlichkeit gegen Bank: Der Ausgleich (vorsteuer-ausgleich.ts) findet nichts mehr vor, weil er das Journal liest.
  *
+ * Wird vor der Ausführung gezahlt, ist die Vorsteuer schon mit der Zahlung abziehbar: § 15 Abs. 1 Satz 1 Nr. 1 Satz 3
+ * UStG verlangt Rechnung und Zahlung, nicht die Ausführung (Abschnitt 15.3 UStAE). Dann gibt die Zahlung selbst frei,
+ * und die Freigabe zur Ausführung unterbleibt — sonst stünde dieselbe Steuer zweimal in der Voranmeldung. Bei
+ * Teilzahlungen gilt das je Zahlung für ihren Anteil; der Rest kommt mit der Ausführung.
+ *
  * Nicht hierher gehören Gutschriften, die bereits Bezahltes erstatten (#786, § 17 Abs. 1 UStG): Ihre Minderung hängt am
  * Ausgleich, nicht an der Ausführung. § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer haben ihren eigenen
  * Zeitpunkt; `leistungNochNichtAusgefuehrt` in belegbuchung.ts lässt sie deshalb schon nicht auf das Zwischenkonto.
  */
+
+/** Trägt der Beleg schon eine wirksame Freigabe (ein Storno zählt nicht)? */
+export async function schonFreigegeben(tx: Tx, documentId: string): Promise<boolean> {
+  const [schon] = await tx
+    .select({ id: schema.journalEntries.id })
+    .from(schema.journalEntries)
+    .where(and(eq(schema.journalEntries.sourceType, "freigabe"), eq(schema.journalEntries.sourceId, documentId), isNull(schema.journalEntries.reversesId)));
+  return schon !== undefined;
+}
 
 /** Beide Konten dieses Zwischenkontos, damit ein Wechsel des Kontenrahmens die Buchung nicht verliert */
 const ZWISCHENKONTEN = [ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar];
@@ -67,16 +81,21 @@ export async function freigabeAmAusfuehrung(
   const am = leistungsdatum({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });
   // Nur ein Zeitraum nach dem Belegdatum parkt überhaupt; sonst gilt der Belegmonat
   if (am <= doc.documentDate) return null;
+  // Zahlung vor der Ausführung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, #930): Dann gibt die Zahlung frei, und hier
+  // bleibt es dabei. Das gilt auch für einen Teil, der schon gezahlt ist, während der Rest auf Ziel steht.
+  const [ersteZahlung] = await tx
+    .select({ date: schema.allocations.date })
+    .from(schema.allocations)
+    .where(and(eq(schema.allocations.documentId, doc.id), isNull(schema.allocations.reversesId)))
+    .orderBy(schema.allocations.date)
+    .limit(1);
+  if (ersteZahlung?.date && ersteZahlung.date < am) return null;
 
   const anteile = await geparkt(tx, entryId);
   if (anteile.length === 0) return null;
 
   // Je Beleg eine Freigabe; ein Storno der Freigabe zählt nicht als Freigabe
-  const [schon] = await tx
-    .select({ id: schema.journalEntries.id })
-    .from(schema.journalEntries)
-    .where(and(eq(schema.journalEntries.sourceType, "freigabe"), eq(schema.journalEntries.sourceId, doc.id), isNull(schema.journalEntries.reversesId)));
-  if (schon) return null;
+  if (await schonFreigegeben(tx, doc.id)) return null;
 
   // Abgeschlossenes Jahr: Dann bleibt es beim Ausgleich mit der Zahlung, statt die Buchung des Belegs scheitern zu
   // lassen. Nur dieser eine Fall wird vorher geprüft; ein LedgerError kann auch vom Wechsel des Kontenrahmens oder von
@@ -134,4 +153,44 @@ export async function freigabeStornieren(tx: Tx, books: Books, documentId: strin
     anzahl += 1;
   }
   return anzahl;
+}
+
+/**
+ * Gibt die geparkte Vorsteuer für eine Zahlung frei, die vor der Ausführung eingeht (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3
+ * UStG, #930). Gebucht wird am Tag der Zahlung, und zwar nur für den Anteil, den diese Zahlung trifft: Wer 40 % anzahlt,
+ * zieht 40 % der Steuer; der Rest kommt mit der Ausführung. Die Freigabe ist dieselbe Buchungsart wie die zur Ausführung,
+ * damit der Ausgleich sie im Journal (`bisherUmgebucht`) sicher wiederfindet und nicht ein zweites Mal zieht.
+ *
+ * `anteil` ist die Steuer, die auf diese Zahlung entfällt (wie `vorsteuerRest` sie rechnet). Ohne Anteil, bei einem schon
+ * freigegebenen Beleg und bei einem abgeschlossenen Zahlungsjahr passiert nichts.
+ */
+export async function freigabeMitZahlung(
+  tx: Tx,
+  doc: { id: string; invoiceNumber: string | null; supplierName: string | null },
+  books: Books,
+  anteil: TaxShare[] | null,
+  zahlungAm: string,
+): Promise<boolean> {
+  if (anteil === null || anteil.length === 0) return false;
+  if (await schonFreigegeben(tx, doc.id)) return false;
+  const [geschlossen] = await tx
+    .select({ year: schema.yearClosings.year })
+    .from(schema.yearClosings)
+    .where(eq(schema.yearClosings.year, Number(zahlungAm.slice(0, 4))));
+  if (geschlossen) return false;
+
+  const anteile = anteil.filter((a) => a.tax !== 0);
+  if (anteile.length === 0) return false;
+
+  await post(tx, books, {
+    date: zahlungAm,
+    description: `Vorsteuer aus Anzahlung: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
+    sourceType: "freigabe",
+    sourceId: doc.id,
+    lines: vorsteuerAusgleichPosting(
+      anteile.map((a) => ({ rate: a.rate, base: -a.base, tax: -a.tax })),
+      books.kontenrahmen,
+    ),
+  });
+  return true;
 }

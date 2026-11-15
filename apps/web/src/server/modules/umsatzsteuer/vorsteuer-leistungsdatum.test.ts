@@ -102,6 +102,43 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum (#693)", () => 
     return { kz66: f.kz66, zeilen: f.inputTax.map((a) => ({ date: a.date, tax: a.tax, base: a.base })) };
   }
 
+  /*
+   * Zahlung vor der Ausführung (#930): § 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG verlangt Rechnung und Zahlung, nicht die
+   * Ausführung (Abschnitt 15.3 UStAE). Die Vorsteuer gehört deshalb in den Monat der Zahlung, und im Monat der
+   * Ausführung darf sie nicht ein zweites Mal auftauchen.
+   */
+  it("Zahlung vor der Ausführung: Vorsteuer im Zahlungsmonat, im Monat der Ausführung nichts mehr", async () => {
+    await firma();
+    const id = await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    await zahlung(id, -3_856, "2026-11-25");
+
+    expect((await monat(11)).kz66).toBe(616);
+    expect((await monat(11)).zeilen).toEqual([{ date: "2026-11-25", tax: 616, base: 3_240 }]);
+    expect((await monat(12)).kz66).toBe(0);
+    expect((await monat(1, 2027)).kz66).toBe(0);
+  });
+
+  it("Teilzahlung vor der Ausführung: ihr Anteil im Zahlungsmonat, der Rest mit der Ausführung", async () => {
+    await firma();
+    const id = await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 4_000, tax: 760 }] });
+    // Die Hälfte des Bruttobetrags: 2.380 von 4.760
+    await zahlung(id, -2_380, "2026-11-25");
+
+    expect((await monat(11)).kz66).toBe(380);
+    expect((await monat(12)).kz66).toBe(380);
+    expect((await monat(1, 2027)).kz66).toBe(0);
+  });
+
+  it("Zahlung erst nach der Ausführung: Vorsteuer bleibt im Monat der Ausführung", async () => {
+    await firma();
+    const id = await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    await zahlung(id, -3_856, "2027-01-15");
+
+    expect((await monat(11)).kz66).toBe(0);
+    expect((await monat(12)).kz66).toBe(616);
+    expect((await monat(1, 2027)).kz66).toBe(0);
+  });
+
   it("Leistungsdatum nach dem Belegdatum: Vorsteuer im Monat der Zahlung", async () => {
     await firma();
     const id = await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
