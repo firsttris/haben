@@ -63,7 +63,7 @@ Statt „Belege und Rechnungen per API abgerufen“ zeigt der Abgleich „Belege
 - **Datei fehlt im Export:** Die Buchung hat einen Beleglink, die Datei fehlt in der ZIP-Datei. Das hält „Jeder Beleg hat eine Datei“ offen;
 - **ohne Belegbild im Export:** Belegdaten ohne Beleglink. Kein Fehler, denn auch sevDesk hat dazu kein Bild.
 
-Buchungen ohne Beleg (Zahlung, Privat, Umbuchung) zählen wie bei den anderen Quellen unter „Jede Buchung mit Belegnummer findet ihren Beleg“. Eine Buchung mit Beleglink findet ihren Beleg nur über dessen Kennung, auch die weiteren Zeilen desselben Belegs. Zwei Belege mit derselben Nummer zählen so getrennt; Zahlungen ohne Beleglink finden ihren Beleg weiter über die Nummer.
+Bei „Jede Buchung mit Belegnummer findet ihren Beleg“ findet eine Buchung mit Beleglink ihren Beleg nur über dessen Kennung, auch die weiteren Zeilen desselben Belegs. Zwei Belege mit derselben Nummer zählen so getrennt; Zahlungen ohne Beleglink finden ihren Beleg weiter über die Nummer.
 
 Ein Jahr aus dem Export wird bei **Soll-Versteuerung** vollständig, wenn alle Prüfungen aufgehen. Bei **Ist-Versteuerung** bleibt „Zahlungshistorie vollständig“ offen: Der Export ordnet Zahlungen keinem Beleg zu, die Umsatzsteuer je Monat lässt sich daraus nicht ableiten. Vergleiche sie mit den Voranmeldungen in sevDesk.
 
