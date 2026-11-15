@@ -515,4 +515,29 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(await texte("500,00")).toEqual([]);
     expect(await texte("95,00")).toEqual([]);
   });
+
+  it("findet eine Buchung nach § 13b über den gezahlten Betrag, obwohl keine Zeile die Summe einer Seite ist (#1038)", async () => {
+    const { documentPosting } = await import("@haben/core");
+    // Beleg aus dem EU-Ausland über 100,00 €: gezahlt wird netto, die Steuer steht als Umsatzsteuer und Vorsteuer
+    const zeilen = documentPosting(
+      { net: 10000, tax: 1900, gross: 10000, taxes: [{ rate: 1900, base: 10000, tax: 1900 }] },
+      "software",
+      "SKR03",
+      "einzelunternehmen",
+      "bank",
+      true,
+      undefined,
+      0,
+      "eu",
+    );
+    await sql.begin(async (tx) => {
+      const [je] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values ('2026-11-14', 'Cloudspeicher EU', 'manuell', gen_random_uuid(), 'SKR03') returning id`;
+      for (const z of zeilen) await tx`insert into journal_lines (entry_id, account, debit, credit) values (${je!.id}, ${z.account}, ${z.debit}, ${z.credit})`;
+      await tx`update journal_entries set locked_at = now() where id = ${je!.id}`;
+    });
+    const texte = async (q: string) => (await search.runCommandPaletteSearch(q, "inhaber")).bookings.hits.map((b) => b.description);
+    expect(await texte("100,00")).toEqual(["Cloudspeicher EU"]);
+    expect(await texte("19,00")).toEqual([]);
+  });
 });
