@@ -175,7 +175,9 @@ describe("steuerPrognose", () => {
     // Die 4 % Krankengeldanteil kürzen nur den Beitrag (§ 10 Abs. 1 Nr. 3 Buchst. a EStG), der Zuschuss
     // mindert die Basisabsicherung vollständig und wird nicht aufgeteilt (§ 10 Abs. 2 Satz 1 Nr. 1 EStG,
     // BFH 2.9.2014, IX R 43/13).
-    const bescheinigung = { brutto: 40_000_00, kvArbeitnehmer: 1_000_00, pvArbeitnehmer: 300_00 };
+    // Die Beiträge liegen über dem Höchstbetrag von 1.900 €, damit nur die Basisabsicherung zählt: Darunter
+    // ergäbe jede Reihenfolge von Kürzung und Zuschuss dieselbe Summe aus Basis und übriger Vorsorge.
+    const bescheinigung = { brutto: 60_000_00, kvArbeitnehmer: 4_000_00, pvArbeitnehmer: 1_000_00 };
     const ohne: PrognoseInput = {
       ...base,
       year: 2025,
@@ -186,14 +188,15 @@ describe("steuerPrognose", () => {
         arbeitnehmer: { a: { bescheinigungen: [bescheinigung], werbungskosten: {} } },
       },
     };
-    // Basis 960 € + 300 €, dazu 40 € Krankengeldanteil in der übrigen Vorsorge
-    expect(steuerPrognose(ohne).vorsorge).toBe(1_300_00);
+    // Basis 3.840 € + 1.000 €, der Krankengeldanteil von 160 € fällt unter den Höchstbetrag
+    expect(steuerPrognose(ohne).vorsorge).toBe(4_840_00);
     const mitZuschuss: PrognoseInput = {
       ...ohne,
-      angaben: { ...ohne.angaben, vorsorge: { a: { agZuschussGkv: 500_00 } } },
+      angaben: { ...ohne.angaben, vorsorge: { a: { agZuschussGkv: 2_000_00 } } },
     };
-    // In voller Höhe: 960 + 300 − 500 = 760, dazu 40; bei hälftiger Aufteilung wären es 840
-    expect(steuerPrognose(mitZuschuss).vorsorge).toBe(800_00);
+    // In voller Höhe: 3.840 + 1.000 − 2.000 = 2.840. Zöge man den Zuschuss vor der Kürzung ab oder teilte ihn
+    // 96 : 4 auf, wären es (4.000 − 2.000) × 96 % + 1.000 = 2.920
+    expect(steuerPrognose(mitZuschuss).vorsorge).toBe(2_840_00);
   });
 
   it("rechnet Einkommensersatzleistungen über den Progressionsvorbehalt ein", () => {
