@@ -100,16 +100,15 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
   it.each([
     { fall: "Gründungsdatum im laufenden Jahr", offset: 0, grenze: 2_500_000 },
     { fall: "Gründungsdatum im Vorjahr", offset: 1, grenze: 10_000_000 },
-    { fall: "nur Gründungsjahr bekannt", offset: null, bisherigesJahr: true, grenze: 2_500_000 },
     { fall: "Gründung unbekannt", offset: null, grenze: 10_000_000 },
   ])(
     "Kleinunternehmer ($fall): Rückfrage erst bei Überschreitung der Grenze",
-    async ({ offset, bisherigesJahr, grenze }) => {
+    async ({ offset, grenze }) => {
       const { createCashIncome } = await import("../bank/index.ts");
       const { today } = await import("../../today.ts");
       const heute = today();
       const foundedOn = offset === null ? null : `${year - offset}-01-01`;
-      await sql`update company set kleinunternehmer = true, founded_on = ${foundedOn}, founding_year = ${bisherigesJahr ? year : null} where id = 1`;
+      await sql`update company set kleinunternehmer = true, founded_on = ${foundedOn} where id = 1`;
       const bar = (amount: number) =>
         createCashIncome(actor, { date: heute, amount, text: "Barumsatz", steuer: { behandlung: "kleinunternehmer", steuersatz: 0 } }, heute);
       const entwurf = (unitPrice: number) =>

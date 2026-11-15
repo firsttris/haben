@@ -1,5 +1,5 @@
 {
-  "id": "aff38179-cb10-44db-8866-ca87fcbf6bcd",
+  "id": "a3833557-a5a0-46b1-b9cf-2f0ffa5b6943",
   "prevId": "e7ac6611-d860-4eac-895d-6174f6d0a2ae",
   "version": "7",
   "dialect": "postgresql",
@@ -765,6 +765,50 @@
           "with": {}
         }
       },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.app_versions": {
+      "name": "app_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "postgres_version": {
+          "name": "postgres_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -2826,18 +2870,6 @@
           "notNull": true,
           "default": false
         },
-        "founding_year": {
-          "name": "founding_year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "founded_on": {
-          "name": "founded_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
         "ohne_vorsteuerabzug": {
           "name": "ohne_vorsteuerabzug",
           "type": "boolean",
@@ -3033,10 +3065,6 @@
         "company_single_row": {
           "name": "company_single_row",
           "value": "\"company\".\"id\" = 1"
-        },
-        "company_founding_year": {
-          "name": "company_founding_year",
-          "value": "\"company\".\"founding_year\" between 1000 and 9999"
         },
         "company_rechtsform": {
           "name": "company_rechtsform",

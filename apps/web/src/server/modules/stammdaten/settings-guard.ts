@@ -127,7 +127,6 @@ export async function saveCompany(actor: string, input: CompanyInput, today: str
       .update(schema.company)
       .set({
         ...input,
-        ...(input.foundedOn ? { foundingYear: null } : {}),
         dunning: keptBaseRateState(current!, input),
         companySavedAt: sql`clock_timestamp()`,
         updatedAt: new Date(),

@@ -7,7 +7,7 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten nach dem Anwenden der Migrationen
     try {
       await sql`insert into company (id, name) values (1, 'Testfirma')`;
       const { loadCompany } = await import("./company.ts");
-      expect(await loadCompany()).toMatchObject({ name: "Testfirma", foundedOn: null, foundingYear: null });
+      expect(await loadCompany()).toMatchObject({ name: "Testfirma", foundedOn: null });
     } finally {
       await sql.end();
     }

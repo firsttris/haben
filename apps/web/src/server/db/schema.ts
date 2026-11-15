@@ -141,7 +141,6 @@ export const company = pgTable(
     paymentPlanTemplates: jsonb("payment_plan_templates").$type<PlanTemplate[]>().notNull().default(DEFAULT_PLAN_TEMPLATES),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
-    foundingYear: smallint("founding_year"),
     foundedOn: date("founded_on", { mode: "string" }),
     /** Nur steuerfreie Umsätze, die den Vorsteuerabzug ausschließen (§ 15 Abs. 2 Satz 1 Nr. 1 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
     ohneVorsteuerabzug: boolean("ohne_vorsteuerabzug").notNull().default(false),
@@ -214,7 +213,6 @@ export const company = pgTable(
   },
   (t) => [
     check("company_single_row", sql`${t.id} = 1`),
-    check("company_founding_year", sql`${t.foundingYear} between 1000 and 9999`),
     check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`),
     check("company_nav_color", sql`${t.navColor} ~ '^#[0-9A-F]{6}$'`),
   ],
@@ -3692,3 +3690,16 @@ export const externalImportSettlements = pgTable(
     check("external_import_settlements_different", sql`${t.paymentImportId} <> ${t.originalImportId}`),
   ],
 );
+
+/**
+ * Eingesetzte Programm- und Datenbankversionen (#841): jeder Start mit einer neuen Haben- oder PostgreSQL-Version (auch eines älteren Stands beim Zurückrollen)
+ * hängt genau eine Zeile an. Nur anhängen (Trigger wie bei audit_log) und im Änderungsprotokoll (audit_log) mitgeschnitten, damit auch
+ * nachträglich feststeht, welche Programmlogik zu einem Buchungszeitpunkt galt (GoBD, BMF-Schreiben vom 28.11.2019, Rz. 150 und Rz. 154).
+ */
+export const appVersions = pgTable("app_versions", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  version: text("version").notNull(),
+  postgresVersion: text("postgres_version").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  note: text("note"),
+});

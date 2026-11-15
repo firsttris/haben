@@ -154,6 +154,22 @@ describe("steuerPrognose", () => {
     expect(steuerPrognose(zuViel).vorsorge).toBe(0);
   });
 
+  it("zieht den Zuschuss zur gesetzlichen KV (Nr. 24 a) bei freiwillig Versicherten ab (§ 10 Abs. 2 Satz 1 Nr. 1 EStG)", () => {
+    // Selbstzahler: Beiträge in Zeile 16 (gkv), Zuschüsse laut Nr. 24 a und 24 c der Lohnsteuerbescheinigung
+    const ohne: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: { gkv: 4_000_00, gpv: 1_000_00 } } },
+    };
+    expect(steuerPrognose(ohne).vorsorge).toBe(5_000_00);
+    const mitZuschuss: PrognoseInput = {
+      ...ohne,
+      angaben: { ...ohne.angaben, vorsorge: { a: { gkv: 4_000_00, gpv: 1_000_00, agZuschussGkv: 2_000_00, agZuschussPv: 500_00 } } },
+    };
+    expect(steuerPrognose(mitZuschuss).vorsorge).toBe(2_500_00);
+  });
+
   it("rechnet Einkommensersatzleistungen über den Progressionsvorbehalt ein", () => {
     const ohne: PrognoseInput = {
       ...base,

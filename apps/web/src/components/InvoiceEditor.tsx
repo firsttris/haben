@@ -19,6 +19,8 @@ import {
   formatEuro,
   counterCircle,
   formatDocumentNumber,
+  issueDateBeforeLastFinalized,
+  type FinalizedCircleRef,
   invoiceDueDate,
   LINE_DETAIL_MAX,
   parseEuro,
@@ -136,6 +138,7 @@ export function InvoiceEditor({
   numberCounters,
   numberFormat,
   numberRunning = false,
+  lastFinalized = {},
   corrects,
   bundesland,
   kleinunternehmer,
@@ -172,6 +175,8 @@ export function InvoiceEditor({
   numberFormat: string;
   /** Zähler läuft über den Jahreswechsel weiter (#328) */
   numberRunning?: boolean;
+  /** Zuletzt festgeschriebene Rechnung je Kreis (#713) */
+  lastFinalized?: Record<number, FinalizedCircleRef>;
   corrects: { number: string | null; issueDate: string } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
@@ -310,6 +315,7 @@ export function InvoiceEditor({
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
   const nextNumber = formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1);
+  const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
   const lastschrift = kind === "rechnung" && paymentMethod === "lastschrift";
@@ -640,6 +646,12 @@ export function InvoiceEditor({
           </>
         ) : (
           <>
+            {earlierThanLast && (
+              <div className="banner banner-warn" role="status">
+                Das Rechnungsdatum ({formatDate(numberDate)}) liegt vor der zuletzt festgeschriebenen Rechnung {earlierThanLast.number} vom{" "}
+                {formatDate(earlierThanLast.issueDate)}.
+              </div>
+            )}
             <p>PDF und XML werden erzeugt und gebucht.</p>
             <p>Danach ist die Rechnung nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
           </>

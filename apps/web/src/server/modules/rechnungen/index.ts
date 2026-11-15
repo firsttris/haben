@@ -130,4 +130,4 @@ export {
   runDueRecurring,
   updateRecurring,
 } from "./recurring.ts";
-export { startRunning, type NumberKind } from "./number-counter.ts";
+export { lastFinalizedByCircle, startRunning, type NumberKind } from "./number-counter.ts";

@@ -60,7 +60,7 @@ import { advanceProcedure } from "./advance-procedure.ts";
 import { advanceInvoicePosting } from "./advance-invoice.ts";
 import { paperCancellationIds } from "./advance-payment-group.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { companyFoundingYear, type UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
+import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
 import { kleinunternehmerStand } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import {
@@ -1181,7 +1181,7 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
   const heute = today();
   if (invoice.kind === "rechnung" && invoice.taxTreatment === "kleinunternehmer" && totals.net > 0 && invoice.issueDate <= `${heute.slice(0, 4)}-12-31`) {
-    const { aktuell, vorjahr, jahresgrenze, vorjahresgrenzeUeberschritten } = await kleinunternehmerStand(heute, companyFoundingYear(company), tx);
+    const { aktuell, vorjahr, jahresgrenze, vorjahresgrenzeUeberschritten } = await kleinunternehmerStand(heute, company.foundedOn, tx);
     const vorjahresumsatz = vorjahresgrenzeUeberschritten ? vorjahr.netto : undefined;
     if (
       (vorjahresgrenzeUeberschritten || aktuell.netto + totals.net > jahresgrenze) &&

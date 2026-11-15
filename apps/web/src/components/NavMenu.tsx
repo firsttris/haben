@@ -4,6 +4,7 @@ import { EINKLAPP_KUERZEL } from "../lib/nav-rail.ts";
 import { ariaKuerzel } from "../lib/tastatur.ts";
 import type { Firma } from "../lib/firmen.ts";
 import type { EigeneSeiteNav as EigeneSeite, NavGroup } from "../lib/navigation.ts";
+import { releaseNotesUrl } from "../lib/release-notes.ts";
 import { STEUERBERATUNG_START } from "../lib/rollen.ts";
 import { FirmaListe, FirmaWechsler } from "./FirmaWechsler.tsx";
 import { Icon } from "./Icon.tsx";
@@ -109,7 +110,7 @@ function NavAccountActions({ onSignOut }: { onSignOut: () => void }) {
         Abmelden
       </button>
       <ThemePicker />
-      <a className="nav-version" href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`} title="Versionshinweise auf GitHub">
+      <a className="nav-version" href={releaseNotesUrl(__HABEN_VERSION__)} title="Versionshinweise auf GitHub">
         Haben {__HABEN_VERSION__}
       </a>
     </>
