@@ -8,12 +8,12 @@
  */
 export { insertImportedArticles, insertImportedContacts, planArticleImport, planContactImport } from "./csv-import.ts";
 export { applyDatevContactImport, planDatevContactImport, type DatevContactImportPlan } from "./datev-kontakte-import.ts";
+export { assertKnownUnit, createUnit, listUnits, loadUnitCodes, setUnitArchived, UnitError, type Unit } from "./units.ts";
 export { articleInputSchema, createArticle, listArticles, setArticleArchived, updateArticle } from "./articles.ts";
 export { searchStammdaten, type ArticleHit, type TextBlockHit } from "./search-catalog.ts";
 export {
   companyIssues,
   companySchema,
-  editorContext,
   kleinunternehmerForMonth,
   kleinunternehmerForYear,
   kleinunternehmerHistory,
@@ -29,6 +29,7 @@ export {
   type Company,
   type CompanyInput,
 } from "./company.ts";
+export { editorContext } from "./editor-context.ts";
 export {
   contactRoleProblem,
   contactSchema,
