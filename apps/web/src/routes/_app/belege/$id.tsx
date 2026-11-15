@@ -714,7 +714,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               )}
             </Field>
           )}
-          {!splitting && readOnly && locked && (
+          {!splitting && locked && !data.cancellation && (
             // Ein gebuchter Beleg ist gesperrt; statt den Knopf stillschweigend zu verstecken, sagt die Seite warum (#1112)
             <p className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
               Gebucht: Die Aufteilung auf mehrere Kategorien geht vor dem Buchen. Ein gebuchter Beleg lässt sich stornieren und die Kopie danach aufteilen.
