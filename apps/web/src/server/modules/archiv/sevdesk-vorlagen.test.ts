@@ -195,4 +195,38 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Vorlagen wiederkehrender Rechnungen (
       known: 3,
     });
   });
+
+  it("hält die nachfällige Vorlage am Monatsende, wenn sie beim Aktivieren gespeichert wird", async () => {
+    const [link] = await sql`select recurring_id from sevdesk_recurring_templates where sevdesk_id = 'ID_26'`;
+    const found = await rechnungen.getRecurring(link!.recurring_id);
+    const r = found!.recurring;
+    // Wie das Formular der Vorlage: alle Felder unverändert, nur Aktiv gesetzt
+    await rechnungen.updateRecurring("test-user", r.id, {
+      name: r.name,
+      active: true,
+      contactId: r.contactId,
+      format: r.format as "zugferd",
+      paymentTermDays: r.paymentTermDays,
+      intro: r.intro,
+      note: r.note,
+      propertyRetention: r.propertyRetention,
+      taxTreatment: r.taxTreatment as "regulaer",
+      exemptionReason: r.exemptionReason,
+      priceMode: r.priceMode as "netto",
+      lines: r.lines as never,
+      intervalMonths: r.intervalMonths as 1,
+      nextDate: r.nextDate,
+      endDate: r.endDate,
+      servicePeriod: r.servicePeriod as "laufend",
+      mode: r.mode as "entwurf",
+      sendByMail: r.sendByMail,
+      paymentMethod: r.paymentMethod as "ueberweisung",
+    });
+    await rechnungen.runDueRecurring("2026-12-31");
+    const issued = await sql`select issue_date, service_to from invoices where recurring_id = ${r.id} order by issue_date`;
+    expect(issued.map((i) => [i.issue_date, i.service_to])).toEqual([
+      ["2026-11-30", "2026-11-30"],
+      ["2026-12-31", "2026-12-31"],
+    ]);
+  });
 });
