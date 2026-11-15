@@ -20,6 +20,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Anlagen übernehmen (Postgres)", () 
   let assets: typeof import("../buchhaltung/assets.ts");
   let importPkg: typeof import("@haben/import");
   const calls: string[] = [];
+  let served: unknown[] = mitKontoart.objects;
 
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
@@ -41,7 +42,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Anlagen übernehmen (Postgres)", () 
             const path = url.pathname.replace(/^\/api\/v1/, "");
             calls.push(`${init?.method ?? "GET"} ${path}?embed=${url.searchParams.get("embed") ?? ""}`);
             if (path === "/Tools/bookkeepingSystemVersion") return json({ objects: { version: "1.0" } });
-            if (path === "/Asset") return json({ objects: url.searchParams.get("offset") === "0" ? mitKontoart.objects : [] });
+            if (path === "/Asset") return json({ objects: url.searchParams.get("offset") === "0" ? served : [] });
             return json({ error: { message: `unbekannt ${path}` } }, 404);
           }) as typeof fetch,
         }),
@@ -58,6 +59,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Anlagen übernehmen (Postgres)", () 
       values (1, 'Testfirma', ${versteuerung}, ${kontenrahmen}, 'BY', ${rechtsform})`;
     await sevdesk.saveSevdeskKey(actor, TOKEN);
     calls.length = 0;
+    served = mitKontoart.objects;
   }
 
   beforeEach(() => company("SKR03", "ist", "einzelunternehmen"));
@@ -149,5 +151,33 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Anlagen übernehmen (Postgres)", () 
     await expect(anlagen.takeOverSevdeskAssets(actor, STICHTAG, [pick("ID_99", "sonstiges")])).rejects.toThrow("gibt es in sevDesk nicht mehr");
     await sevdesk.removeSevdeskKey(actor);
     await expect(anlagen.previewSevdeskAssets(STICHTAG)).rejects.toThrow("API-Token");
+  });
+
+  it("zwei gleiche Anlagen aus sevDesk (gleiche Bezeichnung, Anschaffung, Kosten) sind zwei Anlagen, keine Dublette", async () => {
+    // Etwa zwei gleiche Monitore aus einer Rechnung: in sevDesk zwei Anlagen mit eigener Nummer und Kennung
+    const pkw = mitKontoart.objects[0]!;
+    served = [pkw, { ...pkw, id: "ID_2", assetNumber: "1006" }];
+    const preview = await anlagen.previewSevdeskAssets(STICHTAG);
+    expect(preview.rows.map((r) => [r.sevId, r.status])).toEqual([
+      ["ID_1", "neu"],
+      ["ID_2", "neu"],
+    ]);
+    expect(await anlagen.takeOverSevdeskAssets(actor, STICHTAG, [pick("ID_1")])).toEqual({ created: 1 });
+    // Die erste übernommene Anlage macht die zweite nicht zur Dublette
+    const again = await anlagen.previewSevdeskAssets(STICHTAG);
+    expect(again.rows.map((r) => [r.sevId, r.status])).toEqual([
+      ["ID_1", "vorhanden"],
+      ["ID_2", "neu"],
+    ]);
+    expect(await anlagen.takeOverSevdeskAssets(actor, STICHTAG, [pick("ID_2")])).toEqual({ created: 1 });
+  });
+
+  it("eine von Hand übernommene gleiche Anlage bleibt eine Dublette", async () => {
+    const pkw = mitKontoart.objects[0]!;
+    served = [pkw];
+    await sql`insert into assets (name, kind, method, account, acquisition_date, cost, useful_life_months, opening_date, opening_book_value)
+      values ('<anon>', 'kfz', 'linear', '0320', '2024-05-16', 1200000, 84, ${STICHTAG}, 914286)`;
+    const preview = await anlagen.previewSevdeskAssets(STICHTAG);
+    expect(preview.rows.map((r) => [r.sevId, r.status])).toEqual([["ID_1", "vorhanden"]]);
   });
 });
