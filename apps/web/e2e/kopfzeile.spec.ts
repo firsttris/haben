@@ -40,7 +40,9 @@ for (const [geraet, viewport] of [
       const vorschauBox = await vorschau.boundingBox();
       expect(weitereBox?.x ?? -1).toBeGreaterThanOrEqual(0);
       expect(vorschauBox?.x ?? 0).toBeGreaterThan(weitereBox?.x ?? 0);
-      expect((await festschreiben.boundingBox())?.x ?? 0).toBeGreaterThan((await speichern.boundingBox())?.x ?? 0);
+      // Bricht die Leiste um, füllt „Festschreiben“ die zweite Zeile; es bleibt rechts (DESIGN.md, Reihenfolge der Knöpfe)
+      const rechtsBis = async (knopf: Locator) => ((await knopf.boundingBox())?.x ?? 0) + ((await knopf.boundingBox())?.width ?? 0);
+      expect(await rechtsBis(festschreiben)).toBeGreaterThanOrEqual(await rechtsBis(speichern));
     } else {
       await expect(bar).toBeHidden();
       await sichtbar(head.getByRole("button", { name: "Vorschau", exact: true }));
@@ -424,15 +426,17 @@ test("Bank: Importknöpfe unter dem Titel stehen rechtsbündig, wenn der Kopf um
   expect(Math.abs((knopfBox?.x ?? 0) + (knopfBox?.width ?? 0) - rechts)).toBeLessThanOrEqual(1);
 });
 
+// Am Handy stehen die Aktionen des Rechnungsentwurfs in der Leiste (#396, #355 Variante E); dass die Aktionen im Kopf des
+// Mahnungseditors die Breite füllen, prüft app.spec.ts, weil es nur dort eine überfällige Rechnung gibt
 test("Aktionen am Handy füllen weiter die volle Breite des Kopfes", async ({ page }) => {
   await page.setViewportSize(HANDY);
   await page.goto("/rechnungen/neu");
-  const head = page.locator(".main > .page-head");
-  const aktionen = head.locator("> .actions");
+  const bar = page.locator(".main > .action-bar");
+  const aktionen = bar.locator("> .actions");
   await expect(aktionen).toBeVisible();
-  const { links, rechts } = await kopfInnen(head);
+  const { links, rechts } = await kopfInnen(bar);
   const box = await aktionen.boundingBox();
-  // styles.css: margin -4px, damit der Fokusrahmen in der scrollenden Zeile Platz hat
+  // Die Zeile reicht in der Leiste von Innenkante zu Innenkante
   expect(box?.x).toBeLessThanOrEqual(links);
   expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThanOrEqual(rechts);
 });

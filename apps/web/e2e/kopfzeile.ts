@@ -19,8 +19,12 @@ export function kopfUnterkante(p: Page): Promise<number> {
   return p.locator(".main > .page-head").evaluate((head) => head.getBoundingClientRect().bottom);
 }
 
+/** Oberkante der Aktionsleiste; am Laptop ist sie ausgeblendet und verdeckt nichts */
 export function leisteOberkante(p: Page): Promise<number> {
-  return p.locator(".main > .action-bar").evaluate((bar) => bar.getBoundingClientRect().top);
+  return p.locator(".main > .action-bar").evaluate((bar) => {
+    const box = bar.getBoundingClientRect();
+    return box.height > 0 ? box.top : Number.MAX_SAFE_INTEGER;
+  });
 }
 
 /** Ganz im Fenster und von nichts verdeckt: In der Mitte des Elements liegt das Element selbst */

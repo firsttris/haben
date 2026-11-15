@@ -397,6 +397,15 @@ test("Mahnung am Handy: ohne Aktionsleiste bleiben die Aktionen im Kopf", async 
     await expect(kopf.getByRole("button", { name: "Vorschau", exact: true })).toBeVisible();
     await expect(kopf.getByRole("button", { name: "Entwurf als PDF" })).toBeVisible();
     await expect(kopf.getByRole("button", { name: "Zahlungserinnerung erstellen" })).toBeVisible();
+    // Wie bisher im Rechnungsentwurf (#401): Die Aktionen füllen am Handy die volle Breite des Kopfes
+    const innen = await kopf.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const stil = getComputedStyle(el);
+      return { links: box.left + Number.parseFloat(stil.paddingLeft), rechts: box.right - Number.parseFloat(stil.paddingRight) };
+    });
+    const zeile = await kopf.locator("> .actions").boundingBox();
+    expect(zeile?.x).toBeLessThanOrEqual(innen.links);
+    expect((zeile?.x ?? 0) + (zeile?.width ?? 0)).toBeGreaterThanOrEqual(innen.rechts);
   } finally {
     if (vorher) await page.setViewportSize(vorher);
   }
