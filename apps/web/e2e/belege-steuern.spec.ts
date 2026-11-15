@@ -1055,12 +1055,30 @@ test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz 
   const amounts = laptop.getByRole("group", { name: "Beträge je Steuersatz" });
   await amounts.getByLabel("Brutto", { exact: true }).fill("14.691,26");
   await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("12.345,60");
-  const abgeschnitten = await laptop
-    .locator(".amount-row input[inputmode='decimal']")
-    .evaluateAll((felder) =>
-      (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
-    );
-  expect(abgeschnitten, "Netto, Vorsteuer und Brutto").toEqual([]);
+  const abgeschnitten = () =>
+    laptop
+      .locator(".amount-row input[inputmode='decimal']")
+      .evaluateAll((felder) =>
+        (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
+      );
+  const oben = async (label: string) => (await amounts.getByLabel(label, { exact: true }).boundingBox())!.y;
+  expect(await abgeschnitten(), "Netto, Vorsteuer und Brutto").toEqual([]);
+  // Ausgeklappt ist die Formularspalte zu schmal für drei Betragsfelder: Brutto steht unter Netto
+  expect(await oben("Brutto")).toBeGreaterThan(await oben("Netto"));
+  // Eingeklappt zählt die breitere Arbeitsfläche, nicht das Fenster: alle drei in einer Zeile, keins abgeschnitten
+  await laptop.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  await expect.poll(async () => (await oben("Brutto")) - (await oben("Netto"))).toBe(0);
+  expect(await oben("Vorsteuer")).toBe(await oben("Netto"));
+  expect(await abgeschnitten(), "Netto, Vorsteuer und Brutto eingeklappt").toEqual([]);
+  // 1120 px: ausgeklappt untereinander, eingeklappt Beleg und Formular nebeneinander
+  await laptop.setViewportSize({ width: 1120, height: 800 });
+  const beleg = laptop.locator(".doc-editor > .doc-image");
+  const formular = laptop.locator(".doc-editor > .stack");
+  await expect.poll(async () => (await formular.boundingBox())!.x).toBeGreaterThan((await beleg.boundingBox())!.x + 400);
+  await laptop.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("button", { name: "Seitenleiste ausklappen" }).click();
+  await expect.poll(async () => (await formular.boundingBox())!.y).toBeGreaterThan((await beleg.boundingBox())!.y + 400);
+  // Untereinander bleibt der Beleg nicht stehen, sonst deckt er beim Scrollen das Formular zu und fängt den Klick ab
+  await amounts.getByLabel("Brutto", { exact: true }).click({ timeout: 5_000 });
   await laptop.getByRole("button", { name: "Löschen", exact: true }).click();
   await bestaetigen(laptop, "Beleg löschen");
   await laptop.waitForURL(/\/belege$/);
