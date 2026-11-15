@@ -1,7 +1,7 @@
 import { z } from "zod/mini";
 import type { InvoiceTotals, PriceMode } from "./invoice.ts";
 import { formatEuro, parseEuro, roundHalfAwayFromZero, taxIncluded, type BasisPoints, type Cents } from "./money.ts";
-import { formatPercent } from "./skonto.ts";
+import { formatPercent, parsePercent } from "./skonto.ts";
 
 /*
  * Rabatte auf Rechnung, Angebot und Auftragsbestätigung, nach dem Vorbild von Lexware Office („Rabatte in
@@ -30,7 +30,7 @@ export function parseDiscount(input: string): Discount | null | "ungültig" {
   const text = input.trim();
   if (text === "") return null;
   if (text.includes("%")) {
-    const value = parseEuro(text.replace(/%/g, "").trim());
+    const value = parsePercent(text);
     return value === null || value <= 0 || value > 10_000 ? "ungültig" : { kind: "prozent", value };
   }
   const value = parseEuro(text);

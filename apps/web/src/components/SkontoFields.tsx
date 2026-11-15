@@ -1,4 +1,4 @@
-import { formatDecimal, MAX_SKONTO_STUFEN, parsePercent, type SkontoStufe } from "@haben/core";
+import { formatHundredths, MAX_SKONTO_STUFEN, parsePercent, type SkontoStufe } from "@haben/core";
 import { Icon } from "./Icon.tsx";
 import { Field } from "./Field.tsx";
 
@@ -12,7 +12,7 @@ export interface SkontoRow {
 let nextKey = 1;
 
 export function toSkontoRows(stufen: readonly SkontoStufe[]): SkontoRow[] {
-  return stufen.map((s) => ({ key: nextKey++, percent: formatDecimal(s.percent).replace(/,00$/, ""), days: String(s.days) }));
+  return stufen.map((s) => ({ key: nextKey++, percent: formatHundredths(s.percent).replace(/,00$/, ""), days: String(s.days) }));
 }
 
 function parseRow(row: SkontoRow): SkontoStufe | null {

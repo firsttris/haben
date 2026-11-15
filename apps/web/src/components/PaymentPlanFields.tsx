@@ -40,9 +40,14 @@ export function parsePlanRows(rows: PlanRowState[]): { rows: PaymentPlanRow[]; v
   const parsed = rows.map((row): PaymentPlanRow => {
     const base = { label: row.label.trim(), due: row.due.trim() };
     if (row.kind === "rest") return { ...base, share: { kind: "rest" } };
-    const value = row.kind === "prozent" ? parsePercent(row.value) : parseEuro(row.value);
-    if (value === null || value <= 0 || (row.kind === "prozent" && value > 10_000)) valid = false;
-    return { ...base, share: row.kind === "prozent" ? { kind: "prozent", value: value ?? 0 } : { kind: "betrag", value: value ?? 0 } };
+    if (row.kind === "prozent") {
+      const value = parsePercent(row.value);
+      if (value === null || value <= 0 || value > 10_000) valid = false;
+      return { ...base, share: { kind: "prozent", value: value ?? 0 } };
+    }
+    const value = parseEuro(row.value);
+    if (value === null || value <= 0) valid = false;
+    return { ...base, share: { kind: "betrag", value: value ?? 0 } };
   });
   return { rows: parsed, valid };
 }

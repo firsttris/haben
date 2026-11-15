@@ -1,9 +1,10 @@
 import { z } from "zod/mini";
+import type { Einheit } from "./einheit.ts";
 import { roundHalfAwayFromZero, taxIncluded, taxOf, type BasisPoints, type Cents } from "./money.ts";
 import { discountBasis, discountedLineAmount, netOf, splitDocumentDiscount, type Discount, type DocumentAllowance } from "./rabatt.ts";
 
 /** Mengen als ganze Tausendstel: 152 Std. = 152000, 0,5 Tage = 500. */
-export type Millis = number;
+export type Millis = Einheit<"Millis">;
 
 export const TAX_RATES = [1900, 700, 0] as const;
 

@@ -1,8 +1,10 @@
+import type { Einheit } from "./einheit.ts";
+
 /** Geldbeträge sind immer ganze Cent. */
-export type Cents = number;
+export type Cents = Einheit<"Cents">;
 
 /** Steuersätze in Basispunkten: 1900 = 19 %. */
-export type BasisPoints = number;
+export type BasisPoints = Einheit<"BasisPoints">;
 
 /** Kaufmännisch runden, symmetrisch zur Null: 2,5 → 3, −2,5 → −3 (Math.round ergäbe −2). So heben sich Beleg und Storno exakt auf. */
 export function roundHalfAwayFromZero(value: number): number {
@@ -31,8 +33,13 @@ export function formatEuro(cents: Cents): string {
 
 /** 123456 → "1.234,56" */
 export function formatDecimal(cents: Cents): string {
+  return formatHundredths(cents);
+}
+
+/** Ganze Hundertstel mit zwei Nachkommastellen, ohne Einheit: Cent als Euro, Basispunkte als Prozent (1900 → "19,00") */
+export function formatHundredths(value: number): string {
   // + 0 macht aus −0 (etwa Steuer einer Storno-Zeile zu 0 %) eine 0, sonst steht dort „-0,00“
-  return formatter.format(cents / 100 + 0);
+  return formatter.format(value / 100 + 0);
 }
 
 /**
@@ -67,12 +74,17 @@ export function toCsv(rows: (string | Cents)[][]): string {
  * Gibt null zurück, wenn die Eingabe kein Betrag ist.
  */
 export function parseEuro(input: string): Cents | null {
+  return parseHundredths(input);
+}
+
+/** Zahl mit höchstens zwei Nachkommastellen in ganzen Hundertsteln, ohne Einheit: „19,5“ → 1950 (Euro in Cent, Prozent in Basispunkten) */
+export function parseHundredths(input: string): number | null {
   const cleaned = input.replace(/\s|€/g, "").replace(/−/g, "-");
   if (!/^-?(\d{1,3}(\.\d{3})+|\d+)(,\d{1,2})?$/.test(cleaned)) return null;
   const negative = cleaned.startsWith("-");
   const [whole = "0", fraction = ""] = cleaned.replace("-", "").replace(/\./g, "").split(",");
-  const cents = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
-  return negative ? -cents : cents;
+  const hundredths = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+  return negative ? -hundredths : hundredths;
 }
 
 /** Aufteilung eines Betrags nach Privatanteil in Prozent: privat wird gerundet, betrieblich ist der Rest */

@@ -374,9 +374,10 @@ export function revenueTaxCode(rate: BasisPoints, treatment: TaxTreatment = "reg
 }
 
 /** Steuersatz mit eigenem Umsatzsteuer- und Vorsteuerkonto */
-function vatRate(rate: BasisPoints): Exclude<TaxRate, 0> {
-  if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
-  return rate;
+export function vatRate(rate: BasisPoints): Exclude<TaxRate, 0> {
+  if (rate === 1900) return 1900;
+  if (rate === 700) return 700;
+  throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
 }
 
 export interface PostingLine {
