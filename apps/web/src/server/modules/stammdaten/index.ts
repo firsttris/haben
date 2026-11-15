@@ -14,7 +14,6 @@ export { searchArticles, searchTextBlocks, type ArticleHit, type TextBlockHit } 
 export {
   companyIssues,
   companySchema,
-  editorContext,
   kleinunternehmerForMonth,
   kleinunternehmerForYear,
   kleinunternehmerHistory,
@@ -30,6 +29,7 @@ export {
   type Company,
   type CompanyInput,
 } from "./company.ts";
+export { editorContext } from "./editor-context.ts";
 export {
   contactRoleProblem,
   contactSchema,
