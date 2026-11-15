@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseOrigin } from "@haben/core";
 import { parseFirmen } from "../lib/firmen.ts";
 
 const envSchema = z
@@ -98,6 +99,11 @@ const envSchema = z
     APP_STORE_CONNECT_URL: z.string().url().optional(),
     /** Instanzen der eigenen Firmen zum Wechseln in der Navigation (#504): „Name|https://adresse“, getrennt durch „;“ */
     HABEN_FIRMEN: z.string().optional(),
+    /** Firmenportal über den Instanzen (#504, Stufe 2): die Zeile „Zum Firmenportal“ führt dorthin; nur mit SSO, nicht mit HABEN_FIRMEN */
+    HABEN_FIRMENPORTAL_URL: z
+      .string()
+      .optional()
+      .transform((value) => (value?.trim() ? (parseOrigin(value.trim()) ?? value) : undefined)),
   })
   // Unvollständig eingerichteter Dienst: lieber nicht starten als stillschweigend einen anderen Anbieter nehmen
   .superRefine((value, ctx) => {
@@ -139,6 +145,25 @@ const envSchema = z
     if (value.HABEN_FIRMEN) {
       const firmen = parseFirmen(value.HABEN_FIRMEN);
       if ("fehler" in firmen) ctx.addIssue({ code: "custom", path: ["HABEN_FIRMEN"], message: firmen.fehler });
+    }
+    if (value.HABEN_FIRMENPORTAL_URL) {
+      // Ungültige Adressen lässt transform unverändert durch, damit sie hier mit der Variable gemeldet werden
+      if (parseOrigin(value.HABEN_FIRMENPORTAL_URL) !== value.HABEN_FIRMENPORTAL_URL) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["HABEN_FIRMENPORTAL_URL"],
+          message: "nur https://domain ohne Pfad, Query und Zugangsdaten (http nur für localhost)",
+        });
+      }
+      // Das Firmenportal meldet nur per SSO an; ohne SSO führte die Zeile in ein Firmenportal, das diese Instanz nicht kennt
+      if (!value.OIDC_ONLY) ctx.addIssue({ code: "custom", path: ["HABEN_FIRMENPORTAL_URL"], message: "nur mit SSO (OIDC_ONLY=true)" });
+      if (value.HABEN_FIRMEN?.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["HABEN_FIRMENPORTAL_URL"],
+          message: "nicht zusammen mit HABEN_FIRMEN; mit Firmenportal kommt die Liste aus dem Firmenportal",
+        });
+      }
     }
     const local = value.EXTRACTION_PROVIDER === "openai-compatible" || (!value.EXTRACTION_PROVIDER && value.EXTRACTION_BASE_URL);
     if (local && !value.EXTRACTION_BASE_URL) {

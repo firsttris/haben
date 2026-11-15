@@ -1,0 +1,18 @@
+# Firmenportal (#504, Stufe 2): neben den Instanzen der eigenen Firmen, nur mit SSO. Einrichtung in
+# docs/installation.md, Abschnitt „Firmenportal“. Werte in .env daneben (Vorlage firmenportal.env.example).
+services:
+  firmenportal:
+    image: tristanteu/haben-firmenportal:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "3000"
+    # Gehärtet wie die App: schreibgeschützt, keine Capabilities, keine neuen Rechte. Das Firmenportal schreibt nichts
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Für den eigenen Reverse Proxy auf diesem Rechner; mit dem gemeinsamen Caddy aus deploy/instanzen statt der
+    # Zeile das eigene Netz zum Caddy eintragen (Installation › Firmenportal, Einrichten, Schritt 2)
+    ports:
+      - "127.0.0.1:${PORTAL_PORT:-3010}:3000"

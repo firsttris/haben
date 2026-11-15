@@ -31,6 +31,7 @@ export const Route = createFileRoute("/_app")({
       firma: state.firma,
       zeichen: state.zeichen,
       firmen: state.firmen,
+      firmenportal: state.firmenportal,
     };
   },
   component: AppLayout,
@@ -160,7 +161,7 @@ function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: (
 }
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, firma, oidc } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, firmenportal, firma, oidc } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -226,6 +227,7 @@ function AppLayout() {
             pathname={pathname}
             firma={firma ?? null}
             firmen={firmen}
+            firmenportal={firmenportal ?? null}
             sichtbareGruppen={sichtbareGruppen}
             eigeneSeiten={eigeneSeiten}
             userName={user.name}
