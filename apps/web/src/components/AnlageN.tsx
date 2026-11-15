@@ -1,4 +1,5 @@
 import { formatDecimal, parseEuro } from "@haben/core";
+import { Fragment } from "react";
 import type { EstArbeitnehmer, EstLohnsteuerbescheinigung } from "@haben/elster";
 import { Field } from "./Field.tsx";
 
@@ -45,6 +46,8 @@ export type ArbeitnehmerDraft = {
   urlaubstage: string;
   homeofficeTage: string;
   keinAndererArbeitsplatz: boolean;
+  /** Volle Monate, in denen das Arbeitszimmer der Mittelpunkt der gesamten Tätigkeit ist */
+  arbeitszimmerMonate: string;
 } & Record<WkKey, string>;
 
 const centsText = (cents: number | undefined) => (cents ? formatDecimal(cents) : "");
@@ -74,6 +77,7 @@ export function toArbeitnehmerDraft(an: EstArbeitnehmer | undefined): Arbeitnehm
     homeofficeTage: numberText(w.homeofficeTage),
     keinAndererArbeitsplatz: w.keinAndererArbeitsplatz ?? false,
     ...(Object.fromEntries(WK_BETRAEGE.map(([k]) => [k, centsText(w[k])])) as Record<WkKey, string>),
+    arbeitszimmerMonate: w.arbeitszimmerMonate ? String(w.arbeitszimmerMonate) : "",
   };
 }
 
@@ -127,6 +131,7 @@ export function parseArbeitnehmer(d: ArbeitnehmerDraft, wer: string, bad: string
       homeofficeTage: whole(d.homeofficeTage, "Homeoffice-Tage", 366),
       keinAndererArbeitsplatz: d.keinAndererArbeitsplatz || undefined,
       ...(Object.fromEntries(WK_BETRAEGE.map(([k, label]) => [k, amount(d[k], label)])) as Partial<Record<WkKey, number>>),
+      arbeitszimmerMonate: whole(d.arbeitszimmerMonate, "Monate mit Arbeitszimmer", 12),
     },
   };
 }
@@ -262,9 +267,28 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
                   Dauerhaft kein anderer Arbeitsplatz
                 </label>
                 {WK_BETRAEGE.map(([k, label, hint]) => (
-                  <Field label={label} hint={hint && hint} key={k}>
-                    {(control) => <input {...control} inputMode="decimal" value={draft[k]} onChange={(e) => set({ [k]: e.target.value })} placeholder="0,00" />}
-                  </Field>
+                  <Fragment key={k}>
+                    <Field label={label} hint={hint && hint} key={k}>
+                      {(control) => (
+                        <input {...control} inputMode="decimal" value={draft[k]} onChange={(e) => set({ [k]: e.target.value })} placeholder="0,00" />
+                      )}
+                    </Field>
+                    {k === "arbeitszimmer" && (
+                      <Field
+                        label="Monate als Mittelpunkt"
+                        hint="volle Monate im Jahr, in denen das Zimmer der Mittelpunkt der gesamten Tätigkeit ist; je fehlendem Monat 105 € weniger als 1.260 €"
+                      >
+                        {(control) => (
+                          <input
+                            {...control}
+                            inputMode="numeric"
+                            value={draft.arbeitszimmerMonate}
+                            onChange={(e) => set({ arbeitszimmerMonate: e.target.value })}
+                          />
+                        )}
+                      </Field>
+                    )}
+                  </Fragment>
                 ))}
               </div>
             </details>
