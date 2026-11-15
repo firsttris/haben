@@ -1,6 +1,6 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
 import { datevBookingFound, datevInternalId, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
-import { SEVDESK_EXPORT_IST_CHECK, SEVDESK_EXPORT_IST_ISSUE, sevdeskExportChecks, sevdeskExportYear, withoutExportImage } from "./sevdesk-export-abgleich.ts";
+import { SEVDESK_EXPORT_IST_CHECK, sevdeskExportIstIssue, sevdeskExportYear, voucherSourceChecks, withoutExportImage } from "./sevdesk-export-abgleich.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import { ACCOUNTING_TYPE_ISSUE, accountingTypeChecks, accountingTypeUnclear, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
@@ -566,9 +566,7 @@ export async function reconciliation() {
     return null;
   };
   const unclearAccountsIn = (year: number) => unclearAccountingTypes(businessRows, year, (v) => (versteuerung === "ist" ? legacyPayments(v) : []));
-  // Exportjahr bei Ist: Zahlungen hängen an keinem Beleg (sevdesk-export-abgleich.ts)
-  const exportIstIssueOf = (year: number) =>
-    versteuerung === "ist" && classified.some((v) => v.source === "sevdesk-export" && v.date.startsWith(`${year}-`)) ? SEVDESK_EXPORT_IST_ISSUE : null;
+  const exportIstIssueOf = (year: number) => sevdeskExportIstIssue(versteuerung, classified, year);
   const vatIssueOf = (year: number) =>
     [paymentIssueOf(year), unclearAccountsIn(year) ? ACCOUNTING_TYPE_VAT_ISSUE : null, exportIstIssueOf(year)].filter(Boolean).join(" ") || null;
 
@@ -702,21 +700,7 @@ export async function reconciliation() {
         ...accountingTypeChecks(unclearAccountsIn(year)),
         ...fastbillWaitingChecks(fastbillWaiting.get(year)),
         ...fastbillPartlyCanceledChecks(fastbillPartlyCanceled.get(year)),
-        // Ein Jahr nur aus der Export-ZIP: deren Belege statt der API (sevdesk-export-abgleich.ts)
-        ...(sevdeskExport && vouchers.length === 0
-          ? sevdeskExportChecks(sevdeskExport)
-          : [
-              {
-                ok: vouchers.length > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),
-                label: "Belege und Rechnungen per API abgerufen",
-                detail: [
-                  `${yearRows.filter((v) => !v.ohneBeleg).length} Belege`,
-                  withoutReceipt > 0 ? `${withoutReceipt} ${withoutReceipt === 1 ? "Buchung" : "Buchungen"} ohne Beleg` : "",
-                ]
-                  .filter(Boolean)
-                  .join(", "),
-              },
-            ]),
+        ...voucherSourceChecks({ sevdeskExport, apiVouchers: vouchers.length, yearRows, withoutReceipt }),
         {
           ok: withoutFile === 0,
           label: "Jeder Beleg hat eine Datei",

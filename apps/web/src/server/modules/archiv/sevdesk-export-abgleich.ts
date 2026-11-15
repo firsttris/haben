@@ -69,3 +69,31 @@ export function sevdeskExportChecks(year: SevdeskExportYear): ReconciliationChec
     },
   ];
 }
+
+/** Bei Ist: Hat das Jahr Belege aus dem Export, hängen Zahlungen an keinem Beleg; die Umsatzsteuer je Monat fehlt */
+export function sevdeskExportIstIssue(versteuerung: string, rows: readonly { source: string; date: string }[], year: number): string | null {
+  return versteuerung === "ist" && rows.some((v) => v.source === "sevdesk-export" && v.date.startsWith(`${year}-`)) ? SEVDESK_EXPORT_IST_ISSUE : null;
+}
+
+/** Woher die Belege eines Jahres kommen: nur aus der Export-ZIP deren Prüfungen, sonst die Prüfung auf Belege per API */
+export function voucherSourceChecks(input: {
+  sevdeskExport: SevdeskExportYear | null;
+  apiVouchers: number;
+  yearRows: readonly { source: string; ohneBeleg: boolean }[];
+  withoutReceipt: number;
+}): ReconciliationCheck[] {
+  const { sevdeskExport, apiVouchers, yearRows, withoutReceipt } = input;
+  if (sevdeskExport && apiVouchers === 0) return sevdeskExportChecks(sevdeskExport);
+  return [
+    {
+      ok: apiVouchers > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),
+      label: "Belege und Rechnungen per API abgerufen",
+      detail: [
+        `${yearRows.filter((v) => !v.ohneBeleg).length} Belege`,
+        withoutReceipt > 0 ? `${withoutReceipt} ${withoutReceipt === 1 ? "Buchung" : "Buchungen"} ohne Beleg` : "",
+      ]
+        .filter(Boolean)
+        .join(", "),
+    },
+  ];
+}
