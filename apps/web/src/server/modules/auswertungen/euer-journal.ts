@@ -2,14 +2,19 @@ import {
   ACCOUNTS,
   euerAusZeilen,
   isExternalSettlementPayment,
+  invoicePosting,
   leereEuerAusJournal,
+  recordedTaxShares,
+  totalsFromTaxes,
   zahlungsAnteil,
   type EuerAusJournal,
   type EuerHerkunft,
+  type InvoiceTotals,
   type Kontenrahmen,
 } from "@haben/core";
 import { and, asc, eq, gte, inArray, lt, lte, ne } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { imEuerJahr } from "./euer-jahreswechsel.ts";
 import { ausgleichsBuchungenJe, bloecke, type Buchung, buchungen, buchungenJe, offenerPosten, type Zeile } from "./euer-journal-buchungen.ts";
 import { belegNebenbuecher, belegTeilzahlung, uebernommeneZeilen, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
@@ -34,6 +39,7 @@ interface Ziel {
   invoiceId: string | null;
   documentId: string | null;
   loanId?: string | null;
+  zahlung?: Pick<typeof schema.allocations.$inferSelect, "amount" | "taxShares" | "taxSharesInvoiceId">;
 }
 
 /** Rechnung bzw. Beleg, den eine Zahlung, Ausbuchung oder Bareinnahme ausgleicht, je Herkunft der Buchung */
@@ -43,11 +49,23 @@ async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
   const a = schema.allocations;
   const w = schema.writeOffs;
   const c = schema.cashEntries;
+  const zahlungsfelder = (t: typeof a | typeof c) => ({
+    id: t.id,
+    invoiceId: t.invoiceId,
+    documentId: t.documentId,
+    amount: t.amount,
+    taxShares: t.taxShares,
+    taxSharesInvoiceId: t.taxSharesInvoiceId,
+  });
   for (const block of bloecke(ids)) {
-    for (const r of await q.select({ id: a.id, invoiceId: a.invoiceId, documentId: a.documentId, loanId: a.loanId }).from(a).where(inArray(a.id, block)))
-      result.set(r.id, r);
+    for (const { id, invoiceId, documentId, loanId, ...zahlung } of await q
+      .select({ ...zahlungsfelder(a), loanId: a.loanId })
+      .from(a)
+      .where(inArray(a.id, block)))
+      result.set(id, { invoiceId, documentId, loanId, zahlung });
     for (const r of await q.select({ id: w.id, invoiceId: w.invoiceId, documentId: w.documentId }).from(w).where(inArray(w.id, block))) result.set(r.id, r);
-    for (const r of await q.select({ id: c.id, invoiceId: c.invoiceId, documentId: c.documentId }).from(c).where(inArray(c.id, block))) result.set(r.id, r);
+    for (const { id, invoiceId, documentId, ...zahlung } of await q.select(zahlungsfelder(c)).from(c).where(inArray(c.id, block)))
+      result.set(id, { invoiceId, documentId, zahlung });
   }
   return result;
 }
@@ -146,6 +164,21 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
 
   // Was die Zahlungen ausgleichen, gesammelt für alle Rechnungen und Belege des Jahres statt je Posten (#542, Schritt 9)
   const rechnungIds = [...new Set([...zielVon.values()].flatMap((z) => (z.invoiceId ? [z.invoiceId] : [])))];
+  const bilanzRechnungen = new Map<string, typeof schema.invoices.$inferSelect.taxTreatment>();
+  const bilanzSummen = new Map<string, InvoiceTotals>();
+  if (umsatzBis) {
+    const ids = [...new Set([...rechnungIds, ...jahr.filter((b) => b.sourceType === "invoice").map((b) => b.sourceId)])];
+    const i = schema.invoices;
+    for (const block of bloecke(ids)) {
+      const rechnungen = await q
+        .select({ id: i.id, steuer: i.taxTreatment })
+        .from(i)
+        .where(and(inArray(i.id, block), eq(i.advanceAccounting, "deferred")));
+      for (const { id, steuer } of rechnungen) bilanzRechnungen.set(id, steuer);
+    }
+    for (const block of bloecke(rechnungIds.filter((id) => bilanzRechnungen.has(id))))
+      for (const [id, summen] of await invoiceTotalsById(block, q)) bilanzSummen.set(id, summen);
+  }
   // Verrechnungen des Jahres (#274): Sie wirken wie Zahlungen auf beide Belege, auch wenn in dem Jahr keine Zahlung sie ausgleicht
   const verrechnet = (await verrechnungenImJahr(q, year)).filter((v) => !umsatzBis || v.date <= umsatzBis);
   const einfacheBelege = [...zielVon.values()].flatMap((z) => (!z.invoiceId && z.documentId ? [z.documentId] : []));
@@ -258,7 +291,8 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     if (ausbuchungOhneZahlung(b)) return summe;
     // Eigene Zeilen der Buchung (Kursdifferenz, Umbuchung der Umsatzsteuer, die sich aufhebt) nach ihren Konten
     const eigene = b.zeilen.filter((z) => !offenerPosten(kr, z));
-    erfasseUmsatz(kr, eigene, b.sourceType === "document" && anlagen.has(b.sourceId) ? "anlage" : herkunft);
+    if (b.sourceType !== "invoice" || !bilanzRechnungen.has(b.sourceId))
+      erfasseUmsatz(kr, eigene, b.sourceType === "document" && anlagen.has(b.sourceId) ? "anlage" : herkunft);
     const umkehr = b.sourceType === "allocation" && b.reversesId !== null;
     // Rücknahme in derselben EÜR-Zeile: Eine aufgehobene Zahlung ist keine echte Finanzamtserstattung und umgekehrt.
     // Amtliche Anleitung EÜR 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
@@ -284,16 +318,29 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     const typ = ziel?.invoiceId ? "invoice" : ziel?.documentId ? "document" : null;
     const zielId = ziel?.invoiceId ?? ziel?.documentId;
     if (!typ || !zielId) return summe;
+    const bilanzSteuer = typ === "invoice" ? bilanzRechnungen.get(zielId) : undefined;
+    const bilanzSumme = bilanzSummen.get(zielId);
+    if (bilanzSteuer && bilanzSumme && ziel?.zahlung) {
+      // UStAE 19.2 Abs. 1 Satz 2: Anzahlungen zählen am Zahlungstag. Die Bilanzumbuchungen bei Leistung sind kein Zufluss.
+      // https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-03-18-sonderregelung-kleinunternehmer.pdf?__blob=publicationFile&v=3
+      const { amount, taxShares, taxSharesInvoiceId } = ziel.zahlung;
+      const anteile = recordedTaxShares(bilanzSumme, amount, taxSharesInvoiceId === zielId ? taxShares : null);
+      erfasseUmsatz(kr, invoicePosting(totalsFromTaxes(anteile), kr, "ist", bilanzSteuer), herkunft);
+    }
     const u = await ursprungVon(typ, zielId, kr);
     if (u.uebernommen) uebernommen++;
     // Storniert: nichts mehr offen, Zahlung und Gegenbuchung heben sich auf
     if (u.gesamt === 0) return summe;
     const anteil = u.anteile?.get(b.id);
-    if (anteil) erfasse(u.kontenrahmen, alsZeilen(u.zeilen, anteil), u.herkunft, summe);
     // Teilzahlung auf einen Beleg mit Privatanteil oder ohne Vorsteuerabzug: gerundet wie computeEuer
-    else if (u.beleg && -ausgeglichen !== u.gesamt) belegTeilzahlung(year, u.beleg, ausgeglichen, summe);
+    if (!anteil && u.beleg && -ausgeglichen !== u.gesamt) {
+      belegTeilzahlung(year, u.beleg, ausgeglichen, summe);
+      return summe;
+    }
     // Beleg: jede Zahlung für sich (paidTaxShares)
-    else erfasse(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, -ausgeglichen), u.herkunft, summe);
+    const zeilen = anteil ? alsZeilen(u.zeilen, anteil) : zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, -ausgeglichen);
+    if (!bilanzSteuer) erfasseUmsatz(u.kontenrahmen, zeilen, u.herkunft);
+    euerAusZeilen(u.kontenrahmen, zeilen, u.herkunft, summe);
     return summe;
   }
 }

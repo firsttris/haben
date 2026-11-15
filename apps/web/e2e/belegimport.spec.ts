@@ -341,7 +341,7 @@ test("Kleinunternehmer: Gründungsdatum speichern und bei 25.000 Euro warnen", a
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
   await gehe(page, "/");
   const folgejahr = Number(date.slice(0, 4)) + 1;
-  await expect(page.getByText(new RegExp(`(?:Grenze.*(?:für|in) |Für die Kleinunternehmerregelung im Jahr )${folgejahr}`))).toHaveCount(0);
+  await expect(hinweise).toContainText(`Für die Kleinunternehmerregelung im Jahr ${folgejahr}`);
   await createCashIncome(
     "e2e-import",
     { date, amount: 5_600_000, text: "Zusätzlicher Testumsatz", steuer: { behandlung: "kleinunternehmer", steuersatz: 0 } },

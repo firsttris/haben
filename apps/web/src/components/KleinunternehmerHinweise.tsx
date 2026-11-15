@@ -1,10 +1,12 @@
 import { formatEuro } from "@haben/core";
+import { umsatzgrenzeNahe } from "../lib/kleinunternehmer.ts";
 import type { kleinunternehmerStand } from "../server/modules/auswertungen/index.ts";
 
 export function KleinunternehmerHinweise({ stand }: { stand: Awaited<ReturnType<typeof kleinunternehmerStand>> }) {
   const { aktuell, vorjahr, jahr, gruendungsjahr, naheAktuell, vorjahresgrenzeUeberschritten, jahresgrenze, vorjahresgrenze } = stand;
   const ungeklaert = aktuell.ungeklaert || vorjahr.ungeklaert;
-  if (!naheAktuell && !vorjahresgrenzeUeberschritten && !ungeklaert) return null;
+  const naheFolgejahr = umsatzgrenzeNahe(aktuell.netto, vorjahresgrenze);
+  if (!naheAktuell && !naheFolgejahr && !vorjahresgrenzeUeberschritten && !ungeklaert) return null;
   return (
     <section className="banner banner-warn" aria-label="Umsatzgrenzen für Kleinunternehmer">
       <div>
@@ -16,7 +18,7 @@ export function KleinunternehmerHinweise({ stand }: { stand: Awaited<ReturnType<
               die Kleinunternehmerregelung ab dem 1. Januar {jahr}.
             </li>
           )}
-          {naheAktuell && (
+          {(naheAktuell || naheFolgejahr) && (
             <li>
               {jahr} laut Buchungen vereinnahmt: {formatEuro(aktuell.netto)}.
             </li>
@@ -28,10 +30,10 @@ export function KleinunternehmerHinweise({ stand }: { stand: Awaited<ReturnType<
                 : `Die Grenze ${gruendungsjahr ? "im Gründungsjahr" : "für das laufende Jahr"} liegt bei ${formatEuro(jahresgrenze)}. Die Befreiung entfällt ab dem Umsatz, der sie überschreitet.`}
             </li>
           )}
-          {naheAktuell && !gruendungsjahr && (
+          {naheFolgejahr && (
             <li>
-              Für die Kleinunternehmerregelung im Jahr {jahr + 1} darf dein Gesamtumsatz im Jahr {jahr} höchstens {formatEuro(vorjahresgrenze)} betragen. Laut
-              Buchungen liegst du bereits darüber.
+              Für die Kleinunternehmerregelung im Jahr {jahr + 1} darf dein Gesamtumsatz im Jahr {jahr} höchstens {formatEuro(vorjahresgrenze)} betragen.
+              {aktuell.netto > vorjahresgrenze && " Laut Buchungen liegst du bereits darüber."}
             </li>
           )}
           {ungeklaert && <li>Prüfe steuerfreie Erlöse und uneindeutige Importzahlungen separat, soweit sie auf deine Buchungen zutreffen.</li>}
