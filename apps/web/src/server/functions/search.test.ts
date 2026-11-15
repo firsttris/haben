@@ -333,4 +333,15 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(alle.map((k) => k["Index Name"])).toContain("journal_entries_description_trgm_idx");
     expect(alle.filter((k) => k["Node Type"] === "Seq Scan").map((k) => k["Relation Name"])).toEqual([]);
   }, 60_000);
+
+  it("findet mit dem Betrag 0,00 keine Buchung über die leere Seite ihrer Zeilen", async () => {
+    await sql.begin(async (tx) => {
+      const [je] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values ('2026-11-14', 'Miete November', 'manuell', gen_random_uuid(), 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit) values (${je!.id}, '4210', 5000, 0), (${je!.id}, '1200', 0, 5000)`;
+      await tx`update journal_entries set locked_at = now() where id = ${je!.id}`;
+    });
+    expect((await search.runCommandPaletteSearch("50,00", "inhaber")).bookings.hits.map((b) => b.description)).toEqual(["Miete November"]);
+    expect((await search.runCommandPaletteSearch("0,00", "inhaber")).bookings.hits).toEqual([]);
+  });
 });
