@@ -156,7 +156,7 @@ Ist sevDesk schon gekündigt oder klärt auch ein neuer Abruf das Konto nicht, l
 
 | Nummer des Kontos | Kategorie in Haben |
 | --- | --- |
-| Konto einer Ausgabenkategorie, etwa SKR03 4930 / SKR04 6815 | diese Kategorie, hier Bürobedarf |
+| Konto einer Ausgabenkategorie außer Anlagegut und Einfuhrumsatzsteuer, etwa SKR03 4930 / SKR04 6815 | diese Kategorie, hier Bürobedarf |
 | Verbindlichkeiten gegenüber Gesellschaftern, Gezeichnetes Kapital, Darlehen, Körperschaft-, Gewerbesteuer und Soli, Privatentnahmen, -einlagen und -steuern | Name des DATEV-Kontos; bei GmbH und UG [eingeordnet](lexoffice.md#einordnung-bei-gmbh-und-ug) wie in Lexoffice |
 | Erlöskonto | Erlöse |
 | anderes Konto, keine Nummer, Widerspruch, keine Antwort | „Sonstiges“, in der Belegansicht mit dem Konto |
