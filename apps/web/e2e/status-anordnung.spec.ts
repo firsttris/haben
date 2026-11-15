@@ -18,6 +18,7 @@ test.describe.configure({ mode: "serial" });
 const HANDY = { width: 375, height: 812 };
 const DESKTOP = { width: 1440, height: 900 };
 const BANK = "Statusbank Musterstadt";
+const ARTIKEL = "Statusartikel Listenknopf";
 
 test.beforeAll(async () => {
   const sql = postgres(databaseUrlFuer(), { max: 1 });
@@ -27,6 +28,9 @@ test.beforeAll(async () => {
     // Läuft in 5 Tagen ab: dringend, mit langer Auskunft
     await tx`insert into bank_connections (aspsp_name, aspsp_country, psu_type, status, valid_until, accounts, last_sync_at)
       values (${BANK}, 'DE', 'business', 'aktiv', now() + interval '5 days', '[]', now())`;
+    // Ein Artikel, damit die Liste unter /artikel eine Zeile mit kleinen Knöpfen hat
+    await tx`delete from articles where description = ${ARTIKEL}`;
+    await tx`insert into articles (description, unit, unit_price, tax_rate) values (${ARTIKEL}, 'Stück', 1000, 1900)`;
   });
   await sql.end();
 });
@@ -103,6 +107,28 @@ test("Handy: Knöpfe in den Karten füllen die Zeile", async ({ page }) => {
   // SEPA-Mandat: neben dem Link „Mandat als PDF“ reicht der kleine Knopf bis an die rechte Kante
   const mandat = await knopfRaender((await mandatZeile(page)).zeile);
   expect(Math.abs(mandat.rechts)).toBeLessThanOrEqual(1);
+});
+
+test("Handy: kleine Knöpfe in Listen wie Tabellen (div.table) bleiben so breit wie ihr Text", async ({ page }) => {
+  // DESIGN.md › Knöpfe › Ausrichtung: btn-sm in Tabellen bleibt schmal; die Listen von Artikeln, Leistungen und
+  // Textbausteinen sind Tabellen aus div.table
+  await page.setViewportSize(HANDY);
+  await page.goto("/artikel");
+  const zeile = page.locator(".table-row", { hasText: ARTIKEL });
+  const knopf = zeile.locator(".actions > .btn-sm").first();
+  await expect(knopf).toBeVisible();
+  const { breite, noetig } = await knopf.evaluate((el) => {
+    const s = getComputedStyle(el);
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    const rand = ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"] as const;
+    return {
+      breite: el.getBoundingClientRect().width,
+      noetig: r.getBoundingClientRect().width + rand.reduce((sum, k) => sum + Number.parseFloat(s[k]), 0),
+    };
+  });
+  // Nur Text, Innenabstand und Rand, kein Wachsen in die Zeile
+  expect(breite).toBeLessThanOrEqual(noetig + 2);
 });
 
 test("Desktop: Statuswort in Karten zuerst", async ({ page }) => {
