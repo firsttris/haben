@@ -444,7 +444,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 - Speicher nennt den Platz der Datenbank und der Belege, etwa „Datenbank 45,2 MB, Belege 1,3 GB“; ein Image, das ihn noch nicht meldet, zeigt „?“.
 - Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“.
 - Skripte lesen `haben status --json`, den Commit im Feld `commit` (`null` ohne Angabe beim Bauen); das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert.
-- Den Speicher in Bytes nennt `speicher`, etwa um Platte und Tarife zu planen: `datenbankBytes` ist `pg_database_size` der Datenbank der App (ohne WAL und ohne das Backup), `belegeBytes` die Summe der Dateien unter `DOCUMENTS_DIR`, mit Vorlagen und ihren Paketen. Gezählt werden die Dateien auf der Platte, nicht die Größen in der Datenbank: Eine Datei, die mehrere Belege teilen, liegt nur einmal da. 100.000 Dateien dauern auf einer SSD Bruchteile einer Sekunde.
+- Den Speicher in Bytes nennt `speicher`, etwa um Platte und Tarife zu planen: `datenbankBytes` ist `pg_database_size` der Datenbank der App (ohne WAL und ohne das Backup), `belegeBytes` die Summe der Dateien unter `DOCUMENTS_DIR`, mit Vorlagen und ihren Paketen. Gezählt werden die Dateien auf der Platte (ihre Größe, nicht die belegten Blöcke), nicht die Größen in der Datenbank: Eine Datei, die mehrere Belege teilen, liegt nur einmal da. Ordner, die die App nicht lesen darf, etwa `lost+found`, zählen nicht. 100.000 Dateien dauerten auf einer SSD mit den Dateien im Cache rund 0,2 Sekunden; auf einem Netzlaufwerk oder nach einem Neustart kann es länger dauern.
 
 `firmen`:
 

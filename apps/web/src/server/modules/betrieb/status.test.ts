@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,7 +62,8 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
   it("nennt den Speicher der Datenbank wie pg_database_size", async () => {
     const vorher = await datenbankBytes();
     const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: belege });
-    // Zwischen beiden Abfragen kann Postgres eine Seite anlegen; mehr als eine Seite je Abfrage wäre ein anderer Wert
+    // Zwischen beiden Abfragen kann Postgres Seiten anlegen, etwa für Statistiken; mehr als 1 MB Unterschied wäre ein
+    // anderer Wert als pg_database_size
     expect(s.speicher.datenbankBytes).toBeGreaterThan(1024 * 1024);
     expect(Math.abs(s.speicher.datenbankBytes - vorher)).toBeLessThan(1024 * 1024);
     expect(Number.isInteger(s.speicher.datenbankBytes)).toBe(true);
@@ -86,6 +87,22 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     }
   });
 
+  // Als root (etwa im Container der CI) liest der Prozess auch einen Ordner mit Modus 000; dort lässt sich das nicht zeigen
+  it.skipIf(process.getuid?.() === 0)("überspringt einen Ordner, den die App nicht lesen darf (etwa lost+found), statt am Stand zu scheitern", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "haben-belege-gesperrt-"));
+    try {
+      writeFileSync(join(dir, "beleg"), Buffer.alloc(700));
+      mkdirSync(join(dir, "lost+found"));
+      writeFileSync(join(dir, "lost+found", "fremd"), Buffer.alloc(300));
+      chmodSync(join(dir, "lost+found"), 0o000);
+      const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: dir });
+      expect(s.speicher.belegeBytes).toBe(700);
+    } finally {
+      chmodSync(join(dir, "lost+found"), 0o700);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("ohne Verzeichnis für Belege (noch nichts hochgeladen): 0 Bytes statt eines Fehlers", async () => {
     const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: join(belege, "gibt-es-nicht") });
     expect(s.speicher.belegeBytes).toBe(0);
@@ -102,7 +119,7 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     const s = await status.betriebsStatus({ now, ericHome: eric, ericFromEnv: false });
     expect(s.eric).toEqual({ source: "download", version: "44.3.6.0" });
     expect(s.backup).toEqual({ state: "ok", overdue: false, lastBackup: "2026-10-20T01:15:00.000Z", failed: [] });
-    expect(s.summary).toMatchObject({ eric: "44.3.6.0", backup: "2026-10-20 03:15" });
+    expect(s.summary).toEqual({ eric: "44.3.6.0", backup: "2026-10-20 03:15", speicher: expect.any(String) });
   });
 
   it("nach einer fehlgeschlagenen Sicherung: letzte erfolgreiche mit Hinweis auf den Fehlschlag", async () => {

@@ -7,30 +7,34 @@ import { db } from "../../db/index.ts";
 /** Gleichzeitige lstat-Aufrufe beim Zählen; genug für eine schnelle Platte, ohne die Dateideskriptoren auszuschöpfen */
 const PARALLEL = 64;
 
-/** Belegter Platz der Datenbank, wie Postgres ihn auf der Platte führt (Tabellen, Indizes, TOAST, ohne WAL) */
+/**
+ * Belegter Platz der Datenbank, wie Postgres ihn auf der Platte führt (Tabellen, Indizes, TOAST, ohne WAL). Dafür reicht
+ * das Recht CONNECT der App-Rolle: https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADMIN-DBSIZE
+ */
 export async function datenbankBytes(): Promise<number> {
   const [zeile] = await db.execute<{ bytes: string }>(sql`select pg_database_size(current_database())::text as bytes`);
   return Number(zeile?.bytes ?? 0);
 }
 
-const fehlt = (error: unknown) => (error as { code?: unknown } | null)?.code === "ENOENT";
+/** Fehlt (ENOENT) oder darf die App nicht lesen (EACCES, EPERM, etwa lost+found eines eigenen Dateisystems) */
+const uebergehen = (error: unknown) => ["ENOENT", "EACCES", "EPERM"].includes(String((error as { code?: unknown } | null)?.code));
 
 /**
  * Summe der Dateien unter einem Verzeichnis, mit allen Unterordnern (Belege unter ihrem SHA-256, Vorlagen und ihre
  * Pakete). Gezählt wird die Platte, nicht die Größen in der Datenbank: Eine Datei, die mehrere Belege teilen, liegt nur
- * einmal da, und Vorlagen stehen in keiner Tabelle mit Größe. Symlinks zählen nicht; ein fehlendes Verzeichnis oder eine
- * Datei, die während des Zählens verschwindet, zählt 0.
+ * einmal da, und Vorlagen stehen in keiner Tabelle mit Größe. Symlinks zählen nicht. Ein fehlendes Verzeichnis, eine
+ * Datei, die während des Zählens verschwindet, und was die App nicht lesen darf, zählen 0; sonst scheiterte daran der
+ * ganze Stand.
  */
 export async function verzeichnisBytes(verzeichnis: string): Promise<number> {
   let summe = 0;
   const offen = [verzeichnis];
-  while (offen.length > 0) {
-    const dir = offen.pop() as string;
+  for (let dir = offen.pop(); dir !== undefined; dir = offen.pop()) {
     let eintraege: Dirent[];
     try {
       eintraege = await readdir(dir, { withFileTypes: true });
     } catch (error) {
-      if (fehlt(error)) continue;
+      if (uebergehen(error)) continue;
       throw error;
     }
     const dateien: string[] = [];
@@ -44,7 +48,7 @@ export async function verzeichnisBytes(verzeichnis: string): Promise<number> {
           lstat(pfad).then(
             (s) => s.size,
             (error: unknown) => {
-              if (fehlt(error)) return 0;
+              if (uebergehen(error)) return 0;
               throw error;
             },
           ),
