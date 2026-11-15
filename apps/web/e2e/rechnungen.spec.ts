@@ -1907,8 +1907,13 @@ test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und i
   await page.getByRole("button", { name: "Passwort verwenden" }).click();
   await page.getByLabel("E-Mail").fill(USER.email);
   await page.getByLabel("Passwort").fill(USER.password);
+  const seite = page.waitForResponse((antwort) => new URL(antwort.url()).pathname === "/oauth/autorisieren" && antwort.request().isNavigationRequest());
   await page.getByRole("button", { name: "Mit Passwort anmelden" }).click();
   await page.waitForURL(/\/oauth\/autorisieren\?/);
+  // Clickjacking (RFC 9700, 4.16): die Zustimmung steht in keinem Rahmen, auch nicht auf derselben Origin
+  const kopf = (await seite).headers();
+  expect(kopf["content-security-policy"]).toBe("frame-ancestors 'none'");
+  expect(kopf["x-frame-options"]).toBe("DENY");
   // Den Namen wählt der Client selbst; er steht deshalb nur als „nennt sich …“ da, mit der Warnung davor
   const zustimmung = page.getByRole("main");
   await expect(zustimmung).toContainText("Ein KI-Assistent möchte deine Buchhaltung in Haben lesen. Er nennt sich „Claude E2E“.");
