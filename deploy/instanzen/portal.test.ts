@@ -3,7 +3,7 @@
  * Instanzen mit SSO, samt Farbe und Logo. Ein zweiter Lauf ohne Änderung schreibt nichts und startet nichts neu.
  */
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { envWerte } from "./env-datei.ts";
@@ -103,6 +103,34 @@ describe("portal: Einrichten", () => {
     expect(existsSync(portalDir())).toBe(false);
     expect(existsSync(join(t.basis, "proxy"))).toBe(false);
     expect(t.docker.aufrufe).toEqual([]);
+  });
+
+  it("veröffentlicht hinter dem gemeinsamen Caddy keinen Port auf dem Rechner", async () => {
+    await einrichten();
+    const compose = readFileSync(join(portalDir(), "compose.yml"), "utf8");
+    expect(compose).not.toMatch(/^\s*ports:/m);
+    expect(compose).not.toContain("127.0.0.1:");
+    // Der Rest der Vorlage bleibt: gehärtet, Logos schreibgeschützt
+    expect(compose).toContain("read_only: true");
+    expect(compose).toContain("./logos:/logos:ro");
+  });
+
+  it("übernimmt kein vorhandenes Compose-Projekt firmenportal, etwa ein von Hand eingerichtetes", async () => {
+    t.docker.z.projekte = ["firmenportal"];
+    const r = await t.lauf("portal", "portal.example.de", ...SSO, "haben-firmenportal", "--oidc-client-secret-stdin");
+    expect(r.stderr).toContain("Docker kennt schon ein Compose-Projekt firmenportal");
+    expect(existsSync(portalDir())).toBe(false);
+  });
+
+  it("hält eine Instanz, die vor portal firmenportal hieß, nicht für das Firmenportal", async () => {
+    mkdirSync(portalDir(), { recursive: true });
+    writeFileSync(join(portalDir(), "compose.yml"), "services: {}\n");
+    writeFileSync(join(portalDir(), ".env"), "COMPOSE_PROJECT_NAME=haben-firmenportal\nDOMAIN=fp.example.de\n");
+    const vorher = roh("firmenportal");
+    const r = await t.lauf("portal");
+    expect(r.stderr).toContain("ist nicht das Firmenportal");
+    expect(roh("firmenportal")).toBe(vorher);
+    expect(t.docker.aufrufe.some((a) => a.startsWith("firmenportal "))).toBe(false);
   });
 
   it("lehnt Optionen von neu ab", async () => {
