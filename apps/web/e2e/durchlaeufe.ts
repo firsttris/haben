@@ -23,7 +23,9 @@ export const DURCHLAEUFE = {
   passwort: 16,
   "fastbill-import": 17,
   "wiso-import": 18,
-  vorjahre: 19,
+  "sevdesk-export": 19,
+  // 19 ist an sevdesk-export vergeben (main), vorjahre bekommt den nächsten freien Abstand
+  vorjahre: 20,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

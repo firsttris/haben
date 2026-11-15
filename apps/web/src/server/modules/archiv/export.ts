@@ -26,6 +26,7 @@ import { splitsByDocument } from "../belege/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
+import { dunningFiles } from "./mahnungen-export.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 
@@ -1201,6 +1202,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   // Altbestand aus Lexoffice und sevDesk ----------------------------------------
   yield* legacyFiles(year, problems);
   yield* orderFiles(year, problems);
+  yield* dunningFiles(year, problems);
 
   // Stammdaten ------------------------------------------------------------
   const contacts = await db.select().from(schema.contacts).orderBy(asc(schema.contacts.name), asc(schema.contacts.id));
@@ -1287,6 +1289,7 @@ const LEGACY_SOURCE_LABELS = {
   wiso: "WISO",
   import: "JSON-Import",
   fastbill: "FastBill",
+  "sevdesk-export": "sevDesk-Export",
 } as const;
 
 const LEGACY_TYPE_LABELS: Record<string, string> = {

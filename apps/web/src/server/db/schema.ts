@@ -27,6 +27,7 @@ import type { LetterheadDesign } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
+  INVOICE_PAYMENT_METHODS,
   PAYMENT_METHODS,
   PRICE_MODES,
   RECHTSFORM_KEYS,
@@ -1361,7 +1362,9 @@ export const invoices = pgTable(
     xmlSha256: text("xml_sha256"),
     /** Aus einer wiederkehrenden Rechnung erzeugt, mit dem Termin; je Termin genau eine Rechnung */
     /** Zahlungsart (#445): Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat; eingezogen wird am Fälligkeitstag */
-    paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull().default("ueberweisung"),
+    paymentMethod: text("payment_method", { enum: INVOICE_PAYMENT_METHODS }).notNull().default("ueberweisung"),
+    paidVia: text("paid_via"),
+    paidOn: date("paid_on", { mode: "string" }),
     sepaMandateId: uuid("sepa_mandate_id").references(() => sepaMandates.id),
     /** Gewählter Ansprechpartner des Kunden (#424); der festgeschriebene Stand steht im Käufer */
     contactPersonId: uuid("contact_person_id").references(() => contactPersons.id),
@@ -1381,7 +1384,13 @@ export const invoices = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("invoices_payment_method", sql`${t.paymentMethod} in ('ueberweisung', 'lastschrift')`),
+    check("invoices_payment_method", sql`${t.paymentMethod} in ('ueberweisung', 'lastschrift', 'bereits_bezahlt')`),
+    check(
+      "invoices_paid_payment",
+      sql`case when ${t.paymentMethod} = 'bereits_bezahlt'
+        then ${t.kind} = 'rechnung' and ${t.paidOn} is not null and ${t.paidVia} is not null and length(btrim(${t.paidVia})) between 1 and 120
+        else ${t.paidOn} is null and ${t.paidVia} is null end`,
+    ),
     // Lastschrift nur mit Mandat, Überweisung ohne
     check("invoices_lastschrift_mandat", sql`(${t.paymentMethod} = 'lastschrift') = (${t.sepaMandateId} is not null)`),
     // Externe Referenz nur vollständig: Plattform und Bestellnummer zusammen
@@ -1748,6 +1757,24 @@ export const belegLayouts = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("beleg_layouts_name").on(t.name), check("beleg_layouts_name_laenge", sql`char_length(${t.name}) between 1 and 60`)],
+);
+
+/**
+ * Eigene Mengeneinheiten (#748) neben den festen (UNITS): Bezeichnung auf dem Beleg und Code nach UN/ECE Rec. 20/21 für die
+ * E-Rechnung (BT-130). Nie gelöscht oder umbenannt, nur archiviert: Entwürfe, Artikel und Vorlagen verweisen über die
+ * Bezeichnung darauf, festgeschriebene Rechnungen haben ihr XML schon.
+ */
+export const units = pgTable(
+  "units",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    label: text("label").notNull(),
+    code: text("code").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Groß- und Kleinschreibung zählen nicht: „M²“ und „m²“ wären auf dem Beleg nicht zu unterscheiden
+  (t) => [uniqueIndex("units_label").on(sql`lower(${t.label})`)],
 );
 
 /** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise in Cent, wie eingegeben */
@@ -2972,7 +2999,8 @@ export const fastbillReceipts = pgTable("fastbill_receipts", {
 });
 
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import", "fastbill"] as const;
+/** `sevdesk-export`: Belege aus der Export-ZIP „Buchungsdaten & Belegbilder“ von sevDesk, ohne API-Antwort in `raw` */
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import", "fastbill", "sevdesk-export"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 /**
@@ -3000,6 +3028,38 @@ export type AccountableProgress = {
   note?: string;
 };
 
+/** Analyse und Ergebnis eines Laufs mit der Export-ZIP von sevDesk (sevdesk-export.ts); wie AccountableProgress nur serialisierbare Felder */
+export type SevdeskExportProgress = {
+  filename: string;
+  size: number;
+  /** Jahre der Belege im Export */
+  years: number[];
+  bookings: number;
+  vouchers: number;
+  /** mit Beleglink und Datei */
+  withFile: number;
+  /** mit Beleglink, die Datei fehlt im Export */
+  missingFile: number;
+  /** Belegdaten ohne Beleglink: Beleg „ohne Belegbild im Export“ */
+  withoutImage: number;
+  /** weder Erlös- noch Aufwandskonto (Darlehen, Privat, Zinsen, Steuern, Anlagen) */
+  otherAccounts: number;
+  /** Jahre mit Belegen aus der API; dort legt der Export keine Belege an */
+  apiYears: number[];
+  /** Belege in diesen Jahren */
+  inApiYears: number;
+  /** ZIP liegt schon im Archiv (gleiche Prüfsumme) */
+  zipArchived: boolean;
+  /** Stapel des Exports: schon im Archiv (gleiche Prüfsumme), Zeitraum schon von einem anderen Stapel belegt, oder neu */
+  stacks: { name: string; from: string; to: string; state: "neu" | "vorhanden" | "zeitraum"; other?: string }[];
+  /** Hinweise des Lesers, gekürzt; hintCount bleibt vollständig */
+  hints: string[];
+  hintCount: number;
+  archivedFileId?: string;
+  stackFileIds?: string[];
+  note?: string;
+};
+
 export type LexofficeImportProgress = {
   phase: "kontakte" | "liste" | "belege" | "fertig";
   contacts: number;
@@ -3015,12 +3075,16 @@ export type LexofficeImportProgress = {
   datevFileIds?: string[];
   /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */
   accountable?: AccountableProgress;
+  /** sevDesk ohne API: Analyse der Export-ZIP und Ergebnis; nur beim Lauf mit der Export-ZIP gesetzt */
+  sevdeskExport?: SevdeskExportProgress;
   /** FastBill: Startzeiten der API-Aufrufe der letzten Stunde (ms), damit ein neuer Lauf die Stundengrenze einhält */
   fastbillCalls?: number[];
   /** FastBill: wartet wegen der Stundengrenze bis zu diesem Zeitpunkt (ISO) */
   waitingUntil?: string | null;
   /** FastBill: Ausgaben, die auf ihren Beleg aus dem Browser-Skript warten (fastbill_receipts) */
   fastbillWaiting?: number;
+  /** sevDesk: in diesem Lauf archivierte Mahnungen (legacy_dunnings) */
+  dunnings?: number;
   /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
   sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
 };
@@ -3103,6 +3167,57 @@ export const legacyOrderFiles = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_order_files_unique").on(t.orderId, t.sha256)],
+);
+
+/**
+ * Mahnungen aus der bisherigen Buchhaltung (sevDesk: Invoice mit invoiceType MA), je Stufe eine Zeile. Nur Archiv: keine
+ * Forderung, kein Umsatz, keine Steuer, deshalb nicht in lexoffice_vouchers. Mit der gemahnten Rechnung verbunden über
+ * deren Kennung in der Quelle (lexoffice_vouchers.lexoffice_id), die auch später abgerufen sein kann. Nur anhängen.
+ */
+export const legacyDunnings = pgTable(
+  "legacy_dunnings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    externalId: text("external_id").notNull().unique(),
+    source: text("source", { enum: LEGACY_SOURCES }).notNull().default("sevdesk"),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    /** Kennung der gemahnten Rechnung in der Quelle, z. B. "invoice/123"; null ohne Verweis */
+    invoiceExternalId: text("invoice_external_id"),
+    /** Stufe in der Quelle, bei sevDesk ab 1 (Zahlungserinnerung); null, wenn nicht lesbar */
+    level: smallint("level"),
+    number: text("number").notNull(),
+    date: date("date", { mode: "string" }).notNull(),
+    dueDate: date("due_date", { mode: "string" }),
+    sentDate: date("sent_date", { mode: "string" }),
+    status: text("status").notNull(),
+    contactId: uuid("contact_id").references(() => contacts.id),
+    contactName: text("contact_name").notNull(),
+    currency: text("currency").notNull(),
+    /** Gemahnter Betrag in Cent; Gebühren und Zinsen nur in raw */
+    total: integer("total"),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("legacy_dunnings_invoice").on(t.invoiceExternalId)],
+);
+
+/** Dateien einer archivierten Mahnung (PDF aus der Quelle). Nur anhängen. */
+export const legacyDunningFiles = pgTable(
+  "legacy_dunning_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dunningId: uuid("dunning_id")
+      .notNull()
+      .references(() => legacyDunnings.id),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("legacy_dunning_files_unique").on(t.dunningId, t.sha256)],
 );
 
 /** Nachweis jedes begonnenen automatischen PDF-Abrufs, auch wenn kein PDF übernommen werden konnte. */

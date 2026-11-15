@@ -114,7 +114,7 @@ describe("Gutschriften aus Version 2.0 (Honorar und Provision)", () => {
   });
   const gutschrift = (n: number) => `00000000-0000-0000-0000-00000000000${n}`;
 
-  it("liegen im Rechnungsausgang, sind aber auf Aufwand mit Vorsteuer gebucht", () => {
+  it("liegen im Rechnungsausgang, sind aber auf Aufwand mit Vorsteuer gebucht: Gutschriftverfahren, ohne Hinweis", () => {
     for (const [n, konto] of [
       [1, "4760"],
       [2, "3100"],
@@ -127,8 +127,21 @@ describe("Gutschriften aus Version 2.0 (Honorar und Provision)", () => {
         net: 100,
         tax: 19,
         rate: 1900,
+        selfBilled: true,
       });
-      expect(data.hints).toContainEqual(expect.stringContaining(`Rechnungsausgang, gebucht auf Aufwandskonto ${konto}`));
+      expect(data.hints).not.toContainEqual(expect.stringContaining(`Aufwandskonto ${konto}`));
     }
+  });
+
+  it("ohne Vorsteuer-Schlüssel bleibt der Widerspruch zwischen Ordner und Konto ein Hinweis", () => {
+    const text = new TextDecoder("latin1").decode(fixture("buchhaltung-2.0/extf-buchungsstapel-gutschriften.csv"));
+    const ohneBu = text.replace(/;70001;"9";/g, ';70001;"";');
+    if (ohneBu === text) throw new Error("Testdaten: BU 9 nicht gefunden");
+    const ohne = read({
+      "EXTF_Buchungsstapel_20261001_20261130.csv": new Uint8Array(Buffer.from(ohneBu, "latin1")),
+      "DATEV_Rechnungsausgang_20261001_20261130.zip": innerZip(fixture("buchhaltung-2.0/document-rechnungsausgang-gutschriften.xml")),
+    });
+    expect(byGuid(ohne, gutschrift(2))).toMatchObject({ selfBilled: false });
+    expect(ohne.hints).toContainEqual(expect.stringContaining("Rechnungsausgang, gebucht auf Aufwandskonto 3100; Richtung prüfen"));
   });
 });

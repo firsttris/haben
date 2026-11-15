@@ -18,6 +18,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { type DocumentPreview, renderPreview, withDesign } from "./document-preview.ts";
 import { listInvoices, withCurrentLegalInfo } from "./invoices.ts";
+import { importedDunnings, type ImportedDunning } from "./mahnung-altbestand.ts";
 import { loadDesign, loadLetterhead, logoInfo, withCustomLayout } from "../stammdaten/index.ts";
 
 export class DunningError extends UserError {}
@@ -52,7 +53,11 @@ export async function dunningsFor(invoiceIds: string[]): Promise<Dunning[]> {
     .orderBy(desc(schema.dunnings.date), desc(schema.dunnings.createdAt));
 }
 
-const nextLevel = (last: Pick<Dunning, "level"> | undefined): DunningLevel => Math.min((last?.level ?? 0) + 1, 3) as DunningLevel;
+/** Bisher höchste Stufe, auch aus der bisherigen Buchhaltung (mahnung-altbestand.ts); 0 = noch nicht gemahnt */
+const previousLevel = (last: Pick<Dunning, "level"> | undefined, imported: ImportedDunning | undefined): number =>
+  Math.max(last?.level ?? 0, imported?.level ?? 0);
+const nextLevel = (last: Pick<Dunning, "level"> | undefined, imported?: ImportedDunning): DunningLevel =>
+  Math.min(previousLevel(last, imported) + 1, 3) as DunningLevel;
 
 /**
  * Überfällige Rechnungen mit ihrer letzten Mahnung. „Frist läuft“, solange die Frist der letzten
@@ -60,14 +65,18 @@ const nextLevel = (last: Pick<Dunning, "level"> | undefined): DunningLevel => Ma
  */
 export async function overdueInvoices(today: string) {
   const overdue = owed(await listInvoices(today)).filter((i) => i.listStatus === "ueberfaellig" && i.open > 0);
-  const dunnings = await dunningsFor(overdue.map((i) => i.id));
+  const ids = overdue.map((i) => i.id);
+  const [dunnings, imported] = await Promise.all([dunningsFor(ids), importedDunnings(ids)]);
   return overdue.map((invoice) => {
     const last = dunnings.find((d) => d.invoiceId === invoice.id);
+    const before = imported.get(invoice.id);
     return {
       ...invoice,
       lastDunning: last ?? null,
-      nextLevel: nextLevel(last),
-      waiting: Boolean(last && last.dueDate >= today),
+      // Angezeigt, solange Haben selbst noch nicht gemahnt hat; die Stufe zählt immer
+      importedDunning: last ? null : (before ?? null),
+      nextLevel: nextLevel(last, before),
+      waiting: Boolean(last ? last.dueDate >= today : before?.dueDate && before.dueDate >= today),
     };
   });
 }
@@ -114,8 +123,14 @@ export async function dunningDraft(invoiceId: string, today: string) {
   const found = await finalInvoice(invoiceId, today);
   if (!found) return null;
   const invoice = assertOpen(found);
-  const [{ dunning }, [last], design, logo] = await Promise.all([loadCompany(), dunningsFor([invoiceId]), loadDesign(), logoInfo()]);
-  const level = nextLevel(last);
+  const [{ dunning }, [last], imported, design, logo] = await Promise.all([
+    loadCompany(),
+    dunningsFor([invoiceId]),
+    importedDunnings([invoiceId]),
+    loadDesign(),
+    logoInfo(),
+  ]);
+  const level = nextLevel(last, imported.get(invoiceId));
   return {
     invoice: {
       id: invoice.id,
@@ -198,10 +213,12 @@ async function dunningDocument(
     .where(eq(schema.dunnings.invoiceId, invoice.id))
     .orderBy(desc(schema.dunnings.date), desc(schema.dunnings.createdAt))
     .limit(1);
-  const allowed = nextLevel(last);
+  const imported = (await importedDunnings([invoice.id], q)).get(invoice.id);
+  const allowed = nextLevel(last, imported);
   if (input.level < allowed) {
+    const previous = DUNNING_LEVELS[previousLevel(last, imported) as DunningLevel].label;
     throw new DunningError(
-      `Die Rechnung ist schon mit „${DUNNING_LEVELS[last!.level as DunningLevel].label}“ gemahnt. Als Nächstes folgt „${DUNNING_LEVELS[allowed].label}“.`,
+      `Die Rechnung ist schon mit „${previous}“ gemahnt${last ? "" : ` (in ${imported!.source === "sevdesk" ? "sevDesk" : imported!.source})`}. Als Nächstes folgt „${DUNNING_LEVELS[allowed].label}“.`,
     );
   }
   return {

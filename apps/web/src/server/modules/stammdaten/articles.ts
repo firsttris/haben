@@ -1,9 +1,10 @@
 import { UserError } from "../../errors.ts";
-import { ITEM_NUMBER_MAX, LINE_DETAIL_MAX, UNITS, type UnitLabel } from "@haben/core";
+import { ITEM_NUMBER_MAX, LINE_DETAIL_MAX, UNIT_LABEL_MAX } from "@haben/core";
 import { asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
+import { assertKnownUnit } from "./units.ts";
 
 /** Artikel- und Leistungskatalog: Vorlagen für Positionen in Rechnungen und Angeboten */
 
@@ -16,7 +17,8 @@ export const articleInputSchema = z.object({
   description: z.string().trim().min(1, "Bezeichnung fehlt").max(500),
   /** Text unter der Bezeichnung, mehrzeilig; geht beim Einfügen in den Text der Position */
   detail: z.string().trim().max(LINE_DETAIL_MAX).default(""),
-  unit: z.enum(Object.keys(UNITS) as [UnitLabel, ...UnitLabel[]]),
+  /** Feste oder eigene Einheit (#748); ob es sie gibt, prüft assertKnownUnit beim Speichern */
+  unit: z.string().trim().min(1, "Einheit fehlt").max(UNIT_LABEL_MAX),
   unitPrice: z.number().int().min(-100_000_000_00).max(100_000_000_00),
   taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
   /** Preis inklusive Umsatzsteuer; beim Einfügen in eine Rechnung mit anderem Preismodus umgerechnet */
@@ -41,19 +43,22 @@ export async function createArticle(actor: string, input: ArticleInput): Promise
 
 /** Legt einen Artikel in der laufenden Transaktion an; auch für den CSV-Import */
 export async function insertArticle(tx: Tx, input: ArticleInput): Promise<Article> {
-  const [row] = await tx.insert(schema.articles).values(articleInputSchema.parse(input)).returning();
+  const values = articleInputSchema.parse(input);
+  await assertKnownUnit(values.unit, tx);
+  const [row] = await tx.insert(schema.articles).values(values).returning();
   return row!;
 }
 
 export async function updateArticle(actor: string, id: string, input: ArticleInput): Promise<Article> {
   const values = articleInputSchema.parse(input);
-  const [row] = await withActor(actor, (tx) =>
-    tx
+  const [row] = await withActor(actor, async (tx) => {
+    await assertKnownUnit(values.unit, tx);
+    return tx
       .update(schema.articles)
       .set({ ...values, updatedAt: new Date() })
       .where(eq(schema.articles.id, id))
-      .returning(),
-  );
+      .returning();
+  });
   if (!row) throw new ArticleError("Artikel nicht gefunden.");
   return row;
 }

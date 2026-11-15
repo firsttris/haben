@@ -14,7 +14,7 @@ import {
   invoicePosting,
   legacyCorrectionPosting,
   lineAmount,
-  PAYMENT_METHODS,
+  INVOICE_PAYMENT_METHODS,
   PRICE_MODES,
   TAX_TREATMENT_KEYS,
   type InvoiceCalculation,
@@ -22,6 +22,7 @@ import {
   type PriceMode,
   type TaxTreatment,
   type UnitLabel,
+  UNITS,
   cancellationProblem,
   invoiceEditProblem,
   invoiceListStatus,
@@ -43,7 +44,15 @@ import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "driz
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
-import { ansprechpartnerSnapshot, type Contact, contactPersonProblem, contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
+import {
+  ansprechpartnerSnapshot,
+  type Contact,
+  contactPersonProblem,
+  contactRoleProblem,
+  loadLetterhead,
+  loadUnitCodes,
+  withCustomLayout,
+} from "../stammdaten/index.ts";
 import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "./zahlungsstand.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -51,7 +60,7 @@ import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
 import { invoiceDraftLineSchema } from "./draft-line.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
-import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns } from "./lastschrift.ts";
+import { directDebitFor, directDebitIssues, draftMandateProblem, paidPaymentOf, paymentColumns } from "./lastschrift.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
@@ -126,9 +135,10 @@ export const draftSchema = z
     lines: z.array(invoiceDraftLineSchema).max(200),
     /** Gesamtrabatt in Prozent oder als fester Betrag im Preismodus; null = keiner */
     discount: z.nullable(discountSchema).default(null),
-    /** Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat des Kunden (#445); fehlt = Überweisung */
-    paymentMethod: z.enum(PAYMENT_METHODS).default("ueberweisung"),
+    paymentMethod: z.enum(INVOICE_PAYMENT_METHODS).default("ueberweisung"),
     sepaMandateId: z.uuid().nullable().default(null),
+    paidVia: z.string().trim().max(120).nullable().default(null),
+    paidOn: isoDate.nullable().default(null),
     /** Ansprechpartner des Kunden (#424); der Stand beim Festschreiben steht im Käufer des Belegs */
     contactPersonId: z.uuid().nullable().default(null),
   })
@@ -145,6 +155,12 @@ export const draftSchema = z
     if (discountProblem) ctx.addIssue({ code: "custom", message: discountProblem, path: ["discount"] });
   })
   .superRefine((d, ctx) => {
+    if (d.paymentMethod === "bereits_bezahlt") {
+      if (!d.paidVia) ctx.addIssue({ code: "custom", message: "Zahlungsdienst oder „bar“ angeben.", path: ["paidVia"] });
+      if (!d.paidOn) ctx.addIssue({ code: "custom", message: "Zahlungsdatum angeben.", path: ["paidOn"] });
+      else if (d.paidOn > today()) ctx.addIssue({ code: "custom", message: "Das Zahlungsdatum liegt in der Zukunft.", path: ["paidOn"] });
+      return;
+    }
     if (d.skonto.length === 0) return;
     // Der Bankabgleich erkennt Skonto am Betrag in Euro; bei Fremdwährung stimmt der nach dem Kurs nicht
     if (d.currency !== "EUR") ctx.addIssue({ code: "custom", message: "Skonto gibt es nur bei Rechnungen in Euro.", path: ["skonto"] });
@@ -547,7 +563,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     serviceTo: input.serviceTo,
     paymentTermDays: input.paymentTermDays,
     dueDate: invoiceDueDate(input.issueDate, input.paymentTermDays, bundesland),
-    skonto: sortSkonto(input.skonto ?? []),
+    skonto: input.paymentMethod === "bereits_bezahlt" ? [] : sortSkonto(input.skonto ?? []),
     format: input.format,
     intro: input.intro ?? "",
     note: input.note,
@@ -891,7 +907,10 @@ export function documentFor(
   corrects: { number: string; issueDate: string } | null,
   deducted: { number: string; issueDate: string }[] = [],
   directDebit?: DirectDebit,
+  /** Codes eigener Einheiten (#748) aus loadUnitCodes; feste Einheiten brauchen keinen */
+  unitCodes: Readonly<Record<string, string>> = {},
 ): InvoiceDocument {
+  const paidPayment = paidPaymentOf(invoice);
   return {
     kind: invoice.kind,
     format: invoice.format as InvoiceFormat,
@@ -899,6 +918,7 @@ export function documentFor(
     issueDate: invoice.issueDate,
     dueDate: invoice.dueDate,
     paymentTermDays: invoice.paymentTermDays,
+    ...(paidPayment ? { paidPayment } : {}),
     ...(invoice.kind === "rechnung" && invoice.skonto.length > 0 ? { skonto: invoice.skonto } : {}),
     ...(invoice.serviceFrom ? { serviceFrom: invoice.serviceFrom } : {}),
     ...(invoice.serviceTo ? { serviceTo: invoice.serviceTo } : {}),
@@ -921,7 +941,8 @@ export function documentFor(
       ...(line.detail ? { detail: line.detail } : {}),
       ...(line.itemNumber ? { itemNumber: line.itemNumber } : {}),
       quantity: line.quantity,
-      unit: line.unit as UnitLabel,
+      unit: line.unit,
+      ...(!Object.hasOwn(UNITS, line.unit) && unitCodes[line.unit] ? { unitCode: unitCodes[line.unit] } : {}),
       unitPrice: line.unitPrice,
       taxRate: line.taxRate,
       net: line.net,
@@ -981,7 +1002,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   if (!data) return ["Rechnung nicht gefunden"];
   const { invoice, lines, contact } = data;
   const company = await loadCompany(q);
-  const issues = sellerIssues(company).map((issue) => `Firmendaten: ${issue}`);
+  const issues = sellerIssues(company, invoice.kind === "rechnung" && invoice.paymentMethod !== "bereits_bezahlt").map((issue) => `Firmendaten: ${issue}`);
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
   if (invoice.kind === "rechnung" && company.kleinunternehmer && invoice.taxTreatment !== "kleinunternehmer") {
     issues.push("Als Kleinunternehmer stellst du Rechnungen ohne Umsatzsteuer (§ 19 UStG)");
@@ -1097,6 +1118,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
       await deductedRefs(lines, q),
       await directDebitFor(invoice, company, q),
+      await loadUnitCodes(q),
     );
     issues.push(...validateForFormat(preview));
   }
@@ -1184,6 +1206,7 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
     corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null,
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
+    await loadUnitCodes(tx),
   );
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();

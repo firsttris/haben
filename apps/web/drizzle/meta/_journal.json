@@ -1779,6 +1779,41 @@
       "when": 1794768072654,
       "tag": "0253_dauerbelege_aus_sevdesk",
       "breakpoints": true
+    },
+    {
+      "idx": 254,
+      "version": "7",
+      "when": 1794768439174,
+      "tag": "0254_sevdesk_mahnungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 255,
+      "version": "7",
+      "when": 1794768440022,
+      "tag": "0255_sevdesk_mahnungen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 256,
+      "version": "7",
+      "when": 1794771101800,
+      "tag": "0256_eigene_einheiten",
+      "breakpoints": true
+    },
+    {
+      "idx": 257,
+      "version": "7",
+      "when": 1794771106000,
+      "tag": "0257_eigene_einheiten_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 258,
+      "version": "7",
+      "when": 1794772658049,
+      "tag": "0258_rechnungen_bereits_bezahlt",
+      "breakpoints": true
     }
   ]
 }
