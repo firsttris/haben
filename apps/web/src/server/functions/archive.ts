@@ -29,7 +29,7 @@ import {
   startImport,
   startWebImport,
 } from "../modules/archiv/index.ts";
-import { confirmWithoutFile, openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
+import { confirmWithoutFile, decideAccountingType, openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
 import {
   accountableImportStatus,
   AccountableError,
@@ -328,6 +328,11 @@ export const confirmLegacyWithoutFile = createServerFn({ method: "POST" })
     await confirmWithoutFile(context.user.id, data.id, data.note);
     return { ok: true };
   });
+
+export const decideLegacyAccountingType = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), kind: z.enum(["erloes", "aufwand"]) }))
+  .handler(async ({ data, context }) => decideAccountingType(context.user.id, data.id, data.kind));
 
 export const getDatevBookings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

@@ -1,7 +1,16 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
 import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
-import { ACCOUNTING_TYPE_ISSUE, accountingTypeChecks, accountingTypeUnclear, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
+import {
+  accountingTypeChecks,
+  accountingTypeDecidable,
+  accountingTypeIssue,
+  accountingTypeKinds,
+  type AccountingTypeKinds,
+  accountingTypeUnclear,
+  ACCOUNTING_TYPE_VAT_ISSUE,
+  unclearAccountingTypes,
+} from "./sevdesk-kontoart.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import {
   datevYearSums,
@@ -460,7 +469,7 @@ export async function legacyVoucherDetail(id: string) {
       payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
       remark: schema.lexofficeVouchers.remark,
       createdAt: schema.lexofficeVouchers.createdAt,
-      accountingTypeIssue: sql<string | null>`case when ${accountingTypeUnclear("lexoffice_vouchers")} then ${ACCOUNTING_TYPE_ISSUE} end`,
+      accountingType: accountingTypeKinds("lexoffice_vouchers"),
       ohneBeleg: WITHOUT_RECEIPT,
     })
     .from(schema.lexofficeVouchers)
@@ -484,7 +493,13 @@ export async function legacyVoucherDetail(id: string) {
   const fileStatus = legacyFileStatus(fileStates.at(-1)?.state ?? null, files.length, voucher.ohneBeleg);
   const canConfirmWithoutFile = fileStatus === "ohne_datei_offen" && voucher.source === "sevdesk" && voucher.lexofficeId.startsWith("voucher/");
   return {
-    voucher: { ...voucher, payment: visiblePayment(voucher), paymentHistoryIssue: paymentHistoryIssue(voucher) },
+    voucher: {
+      ...voucher,
+      payment: visiblePayment(voucher),
+      paymentHistoryIssue: paymentHistoryIssue(voucher),
+      accountingTypeIssue: accountingTypeIssue(voucher.accountingType),
+      accountingTypeDecidable: accountingTypeDecidable(voucher.accountingType),
+    },
     files,
     dunnings,
     fileState: { status: fileStatus, label: FILE_STATUS_LABELS[fileStatus], history: fileStates, canConfirmWithoutFile },
@@ -853,14 +868,14 @@ export async function legacyVouchersForPeriod(filter: {
     tax_type: string | null;
     tax_sub_type: string | null;
     files: number;
-    accounting_type_unclear: boolean;
+    accounting_type: AccountingTypeKinds | null;
   }>(sql`
     select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "tax")} as tax, ${effectiveAmount("v", "gross")} as gross,
       ${effectiveTaxes("v")} as taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files, ${latestFileStateSql("v")} as file_state,
-      coalesce((v.raw->>'ohneBeleg')::boolean, false) as ohne_beleg, ${accountingTypeUnclear("v")} as accounting_type_unclear
+      coalesce((v.raw->>'ohneBeleg')::boolean, false) as ohne_beleg, ${accountingTypeKinds("v")} as accounting_type
     from lexoffice_vouchers v
     where (v.date::text like ${like}
       ${
@@ -901,7 +916,7 @@ export async function legacyVouchersForPeriod(filter: {
       taxSubType: r.tax_sub_type,
       payments: legacyPayments({ source: r.source, status: r.status, gross: Number(r.gross), payment: r.payment }),
       paymentHistoryIssue: paymentHistoryIssue({ source: r.source, status: r.status, gross: Number(r.gross), payment: r.payment }),
-      accountingTypeIssue: r.accounting_type_unclear ? ACCOUNTING_TYPE_ISSUE : null,
+      accountingTypeIssue: accountingTypeIssue(r.accounting_type),
       files: Number(r.files),
     }));
   return { total: all.length, vouchers: all.slice(0, filter.limit), neutral };

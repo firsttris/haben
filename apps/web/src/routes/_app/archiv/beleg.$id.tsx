@@ -1,6 +1,7 @@
 import { formatEuro } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { AccountingTypeDecision } from "../../../components/archiv/AccountingTypeDecision.tsx";
 import { FileStateCard, MissingFileBanner } from "../../../components/archiv/Dateistand.tsx";
 import { LEGACY_TYPES } from "../../../components/archiv/LegacyVouchers.tsx";
 import { legacySource } from "../../../lib/altbestand.ts";
@@ -91,11 +92,7 @@ function LegacyVoucherPage() {
             <h2 id="facts-heading" style={{ margin: 0 }}>
               Angaben
             </h2>
-            {voucher.accountingTypeIssue && (
-              <p className="banner banner-info" role="status">
-                {voucher.accountingTypeIssue}
-              </p>
-            )}
+            <AccountingTypeDecision voucher={voucher} />
             <dl className="facts">
               <dt>Kontakt</dt>
               <dd>

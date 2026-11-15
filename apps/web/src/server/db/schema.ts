@@ -3296,6 +3296,29 @@ export const sevdeskAccountingTypes = pgTable(
 );
 
 /**
+ * Kontoart einer sevDesk-Gutschrift auf ein Buchungskonto, von Hand festgelegt, wenn der Kontostamm sie nicht klärt (#888).
+ * Nachtrag zur Archivkopie, die unverändert bleibt. Nur anhängen; die jüngste Entscheidung gilt. Ein Kontostamm mit
+ * erkannter Art geht vor; widerspricht er der Entscheidung, bleibt die Gutschrift unklar (sevdesk-kontoart.ts).
+ */
+export const sevdeskAccountingTypeDecisions = pgTable(
+  "sevdesk_accounting_type_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    voucherId: uuid("voucher_id")
+      .notNull()
+      .references(() => lexofficeVouchers.id),
+    kind: text("kind", { enum: ["erloes", "aufwand"] }).notNull(),
+    /** Wer entschieden hat (Benutzer-ID wie im Audit-Log) */
+    decidedBy: text("decided_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("sevdesk_accounting_type_decisions_voucher").on(t.voucherId),
+    check("sevdesk_accounting_type_decisions_kind", sql`${t.kind} in ('erloes', 'aufwand')`),
+  ],
+);
+
+/**
  * Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. Rolle „vorlage“: Datei der
  * sevDesk-Vorlage, aus der ein wiederkehrender Beleg ohne eigene Datei entstand (lexoffice_file_id ist die Datei der Vorlage).
  */

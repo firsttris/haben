@@ -114,6 +114,8 @@ Die Richtung `creditDebit` beschreibt die OpenAPI nur als „credit (C) or debit
 
 In allen anderen Fällen bleibt die Gutschrift, wie gespeichert, eine Minderung der Einnahmen und gilt als **unklar**: ohne Antwort von sevDesk, ohne Kontonummer, bei einem Widerspruch zwischen beiden Nummern, bei einer Nummer außerhalb von Erlös- und Aufwandskonten und bei mehreren Ständen eines Kontos mit verschiedener Art. Die Belegansicht nennt dann „Buchungskonto nicht erkannt“, die Liste markiert die Zeile, und der Abgleich zeigt den Punkt „Buchungskonto jeder Gutschrift erkannt“ als offen und sperrt den Monatsabgleich der Umsatzsteuer für das Jahr der Gutschrift, bei Ist-Versteuerung auch für das Jahr ihrer Zahlung. Bestand aus einem Abruf vor dieser Erweiterung bleibt unklar, bis du **Erneut abrufen** startest; rufe deshalb vor dem Kündigen von sevDesk noch einmal ab.
 
+Ist sevDesk schon gekündigt oder klärt auch ein neuer Abruf das Konto nicht, legst du die Kontoart in der Belegansicht der Gutschrift **von Hand** fest: **Als Erlöskonto festlegen** oder **Als Aufwandskonto festlegen**, nachdem du in sevDesk oder im DATEV-Export nachgesehen hast, auf welches Konto gebucht ist ([#888](https://github.com/firsttris/haben/issues/888)). Danach rechnet Haben wie mit einem erkannten Konto, der Punkt im Abgleich und die Sperre fallen weg, und die Belegansicht nennt das Buchungskonto „von Hand festgelegt“. Die Archivkopie bleibt unverändert; die Entscheidung ist ein eigener Nachtrag im Änderungsprotokoll, und eine spätere ersetzt sie. Ein Kontostamm mit erkannter Art, den ein späterer Abruf bringt, geht vor: Nennt er dieselbe Art, gilt sie; nennt er eine andere, bleibt die Gutschrift unklar, bis du seine Art festlegst, und die Belegansicht nennt beide.
+
 sevDesk lässt bei vielen Belegen den Namen des Lieferanten leer (`supplierName`). Haben zeigt dann den Namen, den der Beleg beim Speichern trug (`supplierNameAtSave`), und erst ohne ihn den Namen des verknüpften Kontakts. So bleibt ein alter Beleg richtig, wenn der Kontakt später umbenannt wird. Die Archivkopie bleibt unverändert.
 
 Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer. Fehlen die Positionen, leitet Haben den Satz aus Netto und Steuer im Kopf ab (19 oder 7 %, die Sätze 16 und 5 % aus 2020 nur, wenn beide nicht passen); auch das gilt für schon abgerufene Belege. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
@@ -255,7 +257,7 @@ Haben spricht standardmäßig mit `https://my.sevdesk.de/api/v1`. Mit der Umgebu
 
 ## Vor der Kündigung
 
-- [ ] Abruf ist fertig, die Liste der fehlgeschlagenen Belege ist leer, kein Buchungskonto ist unklar
+- [ ] Abruf ist fertig, die Liste der fehlgeschlagenen Belege ist leer, kein Buchungskonto ist unklar (sonst noch einmal abrufen oder die Kontoart von Hand festlegen)
 - [ ] Jeder Beleg hat eine Datei oder ist in sevDesk geprüft als ohne Datei bestätigt (Abgleich je Jahr)
 - [ ] Alle Auftragsdokumente sind vorhanden und deren Original-PDFs ergänzt
 - [ ] Übernommene wiederkehrende Rechnungen geprüft und aktiviert, in sevDesk deaktiviert
