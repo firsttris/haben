@@ -83,7 +83,9 @@ describe.skipIf(!testDatabaseUrl).each([
               case "/Invoice/ID_401/getXml":
                 return json({ error: { message: xmlStatus === 404 ? "keine E-Rechnung" : "Serverfehler" } }, xmlStatus);
             }
-            if (/^\/(Voucher|Contact|ContactAddress|CommunicationWay|CreditNote|Order|CheckAccount|CheckAccountTransactionLog|VoucherPos|VatReport)$/.test(path))
+            if (
+              /^\/(Voucher|Contact|ContactAddress|CommunicationWay|CreditNote|Order|CheckAccount|CheckAccountTransactionLog|VoucherPos|VatReport)$/.test(path)
+            )
               return list([]);
             if (/^\/Invoice\/[^/]+\/getPositions$/.test(path)) return list([]);
             return json({ error: { message: `unbekannt ${path}` } }, 404);
