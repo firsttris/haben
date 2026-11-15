@@ -414,6 +414,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
     .env                   # eigene Schlüssel, Rechte 600
   firma2/
     …
+  firmenportal/            # nur nach portal: Firmenportal mit logos/
 ```
 
 | Befehl | Was es tut |
@@ -423,8 +424,9 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC, Speicher von Datenbank und Belegen und letzte erfolgreiche Sicherung |
 | `liste` | Name, Domain und Verzeichnis |
 | `firmen [<name> …]` | Schreibt die Liste für [Firma wechseln](#firma-wechseln) als `HABEN_FIRMEN` in die `.env` der Instanzen und startet laufende Apps neu |
+| `portal [<domain> --oidc-…]` | Richtet beim ersten Aufruf das [Firmenportal](#firmenportal) unter `firmenportal/` hinter dem gemeinsamen Caddy ein und gleicht es danach bei jedem Aufruf mit den Instanzen mit SSO ab: Firmen, Farbe und Logo, `HABEN_FIRMENPORTAL_URL` in den Instanzen |
 
-`neu` setzt in der `.env` eigene Zufallswerte für `DB_PASSWORD`, das Passwort der App-Rolle in `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`. Der Name besteht aus a–z, 0–9 und `-`, höchstens 31 Zeichen, am Anfang und Ende ein Buchstabe oder eine Ziffer; `proxy`, `app` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben. `neu` bricht ab und ändert nichts, wenn
+`neu` setzt in der `.env` eigene Zufallswerte für `DB_PASSWORD`, das Passwort der App-Rolle in `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`. Der Name besteht aus a–z, 0–9 und `-`, höchstens 31 Zeichen, am Anfang und Ende ein Buchstabe oder eine Ziffer; `proxy`, `app`, `firmenportal` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben. `neu` bricht ab und ändert nichts, wenn
 
 - es das Verzeichnis oder das Compose-Projekt `haben-<name>` schon gibt (auch nur noch seine Volumes),
 - die Domain einer anderen Instanz oder einem übrig gebliebenen Eintrag in `proxy/sites/` gehört,
@@ -453,6 +455,42 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 - Vorher prüft es die Liste wie die App; bei einem Fehler, etwa einem doppelten Namen, nennt es die Instanz und ändert keine Datei. Ebenso, wenn die `compose.yml` einer Instanz `HABEN_FIRMEN` nicht an die App weitergibt (mit einem älteren Stand angelegt): dann die aktuelle aus `deploy/` dorthin kopieren.
 - Danach startet es laufende Apps mit `up -d` neu und wartet, bis sie gesund sind; gestoppte bleiben gestoppt. Schlägt ein Neustart fehl, hält es an und nennt die Instanz.
 - Nennt eine nicht gewählte Instanz in ihrer Liste noch gewählte, weist es darauf hin; ihre Liste leerst du von Hand oder gleichst sie mit `firmen` und ihrer eigenen Gruppe ab.
+
+`portal`:
+
+- Beim ersten Aufruf mit der Domain des Firmenportals und dem eigenen Client beim Anmeldedienst, wie bei `neu --sso`: `portal firmenportal.example.de --oidc-issuer https://auth.example.de --oidc-client-id haben-firmenportal --oidc-client-secret-stdin`. Es legt `firmenportal/` mit `compose.yml` (die Vorlage ohne den Port auf `127.0.0.1`: der Weg führt nur über den Caddy), `.env` (eigenes `PORTAL_SECRET`, Rechte 600), Override-Datei und `logos/` an, trägt die Domain in den gemeinsamen Caddy ein (Netz `haben-proxy-firmenportal`) und nennt die Adressen, die der Client beim Anmeldedienst braucht. Das geht nur mit dem gemeinsamen Caddy; laufen die Instanzen mit `--eigener-proxy`, bricht es ab, und du richtest das Firmenportal von Hand ein (siehe [Firmenportal](#firmenportal)). Ein schon vorhandenes Compose-Projekt `firmenportal`, etwa ein von Hand eingerichtetes Firmenportal, übernimmt es nicht. Bricht der Abgleich danach ab, bleibt `firmenportal/` eingerichtet; nach dem Beheben genügt `portal` ohne Angaben.
+- Danach ohne Angaben: `portal` gleicht nur ab. Eine andere Domain oder neue `--oidc-…` lehnt es ab; die stehen in `firmenportal/.env`.
+- In `PORTAL_FIRMEN` kommen alle Instanzen mit `OIDC_ONLY=true`, je mit `HABEN_FIRMENNAME` (sonst ihr Name), `https://<DOMAIN>` und `OIDC_GROUP_INHABER` aus ihrer `.env`. Instanzen ohne SSO nennt es nur.
+- Farbe und Logo fragt es bei jeder laufenden Instanz ab (`haben status --json`); ein neues Logo holt es mit `haben kennzeichen` nach `logos/<name>.png` bzw. `.jpg`, wenn die Prüfsumme sich geändert hat. Ein Image von vor diesem Feld oder ein Logo, das nicht zur gemeldeten Prüfsumme passt, bricht nichts ab: Die Firma zeigt ihren Anfangsbuchstaben. Gestoppte Instanzen behalten Farbe und Logo von bisher.
+- In jede dieser Instanzen schreibt es `HABEN_FIRMENPORTAL_URL` und leert `HABEN_FIRMEN`, das die App daneben ablehnt. `firmen` lehnt Instanzen mit Firmenportal danach ab. Hat eine Instanz kein SSO mehr, nimmt es die Adresse dort wieder heraus, denn ohne `OIDC_ONLY=true` startete die App mit ihr nicht.
+- Wie `firmen` prüft der Abgleich erst alles und ändert bei einem Fehler, etwa einer fehlenden Gruppe oder einem doppelten Namen, keine Datei. Geschrieben wird nur, was sich ändert; neu gestartet nur das Firmenportal (nach einer geänderten Liste oder einem neuen Logo) und die Instanzen, deren `.env` sich geändert hat. Scheitert ein Neustart, holt ihn der nächste Lauf nach (die ausstehenden stehen in `firmenportal/.neustart-offen`). Ohne Änderung meldet es „Nichts geändert.“ Ein gestopptes Firmenportal bleibt gestoppt.
+- Zwei Läufe zugleich verhindert die Datei `firmenportal/.abgleich.lock`; bleibt sie nach einem Absturz liegen, nennt `portal` sie, und du löschst sie.
+
+Regelmäßig abgleichen, damit eine neue Farbe oder ein neues Logo ohne Zutun im Firmenportal erscheint, etwa stündlich mit cron (`crontab -e` als der Nutzer, der Docker bedienen darf):
+
+```sh
+0 * * * * cd ~/haben-werkzeug && ~/.bun/bin/bun deploy/instanzen/haben-instanzen.ts portal > /dev/null
+```
+
+Oder mit einem systemd-Timer, `~/.config/systemd/user/haben-portal.service` und `haben-portal.timer`, danach `systemctl --user enable --now haben-portal.timer` (und `loginctl enable-linger`, damit er ohne Anmeldung läuft):
+
+```ini
+# haben-portal.service
+[Service]
+Type=oneshot
+WorkingDirectory=%h/haben-werkzeug
+ExecStart=%h/.bun/bin/bun deploy/instanzen/haben-instanzen.ts portal
+
+# haben-portal.timer
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+cron und systemd kennen den `PATH` deiner Shell nicht, deshalb der volle Pfad zu `bun` (dort legt ihn der Installer von Bun ab) und, wenn die Instanzen nicht unter `~/haben` liegen, `--basis <pfad>` hinter `portal`; ein `HABEN_INSTANZEN` aus der Shell kommt dort nicht an. Fehler und Warnungen, etwa zu einem Logo, das nicht passt, schreibt `portal` auf die Fehlerausgabe: Sie stehen trotz `> /dev/null` in der Mail von cron bzw. in `journalctl --user -u haben-portal`.
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 
@@ -611,7 +649,7 @@ Mit [SSO](installation-sso.md) geht es auch ohne eine Liste in jeder Instanz: Da
 Einrichten:
 
 1. **Client beim Anmeldedienst:** ein eigener vertraulicher Client wie für eine Instanz (siehe [Authelia konfigurieren](installation-sso.md#authelia-konfigurieren)), mit `client_id: haben-firmenportal` und `redirect_uris: [https://firmenportal.example.de/callback]`. Bietet der Anmeldedienst eine Abmeldung an, trägst du dort zusätzlich `https://firmenportal.example.de/?abgemeldet=dienst` als Rückweg nach dem Abmelden ein (Keycloak: „Valid post logout redirect URIs“).
-2. **Firmenportal starten:** `deploy/firmenportal/compose.yml` und `deploy/firmenportal/firmenportal.env.example` (als `.env`) in ein eigenes Verzeichnis kopieren, daneben ein Verzeichnis `logos/` anlegen (auch ohne Logos, sonst legt Docker es selbst als root an und Podman startet nicht), die Werte eintragen und `docker compose up -d`. Das Firmenportal lauscht auf `127.0.0.1:3010` (`PORTAL_PORT`); der Reverse Proxy leitet die Adresse des Firmenportals dorthin (Beispiele unter [Eigener Reverse Proxy](#eigener-reverse-proxy)). Ohne gültige Angaben startet es nicht und nennt die Variable im Log. Das Werkzeug richtet das Firmenportal noch nicht selbst ein; mit dessen gemeinsamem Caddy hängst du es wie eine Instanz in ein eigenes Netz zum Caddy (siehe [Mehrere Instanzen](#mehrere-instanzen)), statt den Port auf `127.0.0.1` freizugeben, und legst für seine Adresse eine Datei in `proxy/sites/` an.
+2. **Firmenportal starten:** `deploy/firmenportal/compose.yml` und `deploy/firmenportal/firmenportal.env.example` (als `.env`) in ein eigenes Verzeichnis kopieren, daneben ein Verzeichnis `logos/` anlegen (auch ohne Logos, sonst legt Docker es selbst als root an und Podman startet nicht), die Werte eintragen und `docker compose up -d`. Das Firmenportal lauscht auf `127.0.0.1:3010` (`PORTAL_PORT`); der Reverse Proxy leitet die Adresse des Firmenportals dorthin (Beispiele unter [Eigener Reverse Proxy](#eigener-reverse-proxy)). Ohne gültige Angaben startet es nicht und nennt die Variable im Log. Mit dem [Werkzeug](#mit-dem-werkzeug) übernimmt `portal` diesen Schritt und Schritt 3 und gleicht die Liste danach ab.
 3. **In jeder Instanz:** `HABEN_FIRMENPORTAL_URL=https://firmenportal.example.de` in die `.env` und die App neu starten. `HABEN_FIRMEN` bleibt dort leer; beides zusammen und `HABEN_FIRMENPORTAL_URL` ohne `OIDC_ONLY=true` lehnt Haben beim Start ab.
 
 ```dotenv
@@ -620,7 +658,7 @@ PORTAL_FIRMEN='Studio Nord|https://nord.example.de|haben-nord-inhaber|#1D4ED8|no
 
 - **Format:** je Firma `Name|Adresse|Gruppe`, wahlweise mit `|Farbe|Logo` dahinter, getrennt durch `;`. Name und Adresse wie bei `HABEN_FIRMEN` (siehe [Firma wechseln](#firma-wechseln)), die Gruppe ist `OIDC_GROUP_INHABER` der Instanz, bis 100 Zeichen ohne Leerzeichen. Instanzen aus dem [Werkzeug](#mit-dem-werkzeug) heißen dort `haben-<name>-inhaber`. Jede Gruppe darf nur einmal vorkommen, sonst startet das Firmenportal nicht: Teilten sich zwei Firmen eine Gruppe, wäre jedes Mitglied Inhaber in beiden.
 - **Farbe und Logo:** Ohne Angabe steht vor jeder Firma ihr Anfangsbuchstabe in der Farbe des Firmenportals. Mit einer Farbe (`#RRGGBB`, das Feld darf leer bleiben) steht er auf dieser Farbe, mit einem Logo steht das Logo auf weißer Fläche an seiner Stelle. Gemeint ist das [Zeichen in der Navigation](einrichtung.md#zeichen-in-der-navigation), das die Firma in ihrer Instanz gewählt hat, damit man sie im Firmenportal so wiedererkennt wie in Haben. Das Logo ist ein Dateiname wie `nord.png` (Kleinbuchstaben, Ziffern, `-` und `_`, Endung `.png` oder `.jpg`) im Verzeichnis `logos/` neben der `compose.yml`, das der Container schreibgeschützt als `/logos` einbindet (`PORTAL_LOGOS`). PNG oder JPEG bis 1 MB; wie in der Navigation von Haben steht es verkleinert in einem Quadrat so groß wie die Buchstaben-Kachel, am besten wirkt also ein quadratisches Bildzeichen, ein breiter Schriftzug wird darin klein. Fehlt eine Datei oder ist sie kein Bild, zeigt die Firma ihren Anfangsbuchstaben und das Log nennt die Datei. Logo und Farbe einer Firma gibt das Firmenportal nur an angemeldete Personen heraus, die die Firma sehen.
-- **Farbe und Logo aus der Instanz holen:** Die Instanz gibt beides nur auf der Kommandozeile heraus, nicht ohne Anmeldung im Netz. `docker compose exec -T app haben status --json` nennt unter `zeichen` die Farbe (`farbe`, sonst `null`) und, wenn das Logo als Zeichen gewählt ist, dessen Format und Prüfsumme (`logo`); `haben kennzeichen` schreibt das Logo selbst nach stdout. Die Endung der Datei folgt `format` (`png` oder `jpg`), sonst verwirft das Firmenportal sie; und weil die Umleitung die Datei schon vorher anlegt, schreibst du erst in eine Zwischendatei: `docker compose exec -T app haben kennzeichen > logo.neu && mv logo.neu ../firmenportal/logos/nord.png`. Ist kein Logo als Zeichen gewählt, endet `haben kennzeichen` mit dem Exit-Code 3 und gibt nichts aus.
+- **Farbe und Logo aus der Instanz holen:** Die Instanz gibt beides nur auf der Kommandozeile heraus, nicht ohne Anmeldung im Netz. `docker compose exec -T app haben status --json` nennt unter `zeichen` die Farbe (`farbe`, sonst `null`) und, wenn das Logo als Zeichen gewählt ist, dessen Format und Prüfsumme (`logo`); `haben kennzeichen` schreibt das Logo selbst nach stdout. Die Endung der Datei folgt `format` (`png` oder `jpg`), sonst verwirft das Firmenportal sie; und weil die Umleitung die Datei schon vorher anlegt, schreibst du erst in eine Zwischendatei: `docker compose exec -T app haben kennzeichen > logo.neu && mv logo.neu ../firmenportal/logos/nord.png`. Ist kein Logo als Zeichen gewählt, endet `haben kennzeichen` mit dem Exit-Code 3 und gibt nichts aus. Mit dem [Werkzeug](#mit-dem-werkzeug) holt `portal` beides selbst.
 - **Nach einer Änderung** an `PORTAL_FIRMEN` startest du nur das Firmenportal mit `docker compose up -d` neu (`restart` liest die `.env` nicht neu), nach neuen Logos genügt `docker compose restart`. Wer gerade angemeldet ist, meldet sich dann einmal neu an, wenn sich Firmen, Adressen oder Gruppen geändert haben; eine neue Farbe oder ein neues Logo meldet niemanden ab.
 
 ### Für andere betreiben

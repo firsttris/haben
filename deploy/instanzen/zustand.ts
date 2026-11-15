@@ -50,11 +50,14 @@ export function lauf(d: Dienste, dienst: string): Lauf {
   return s === "running" ? "laeuft" : s === "restarting" ? "neustart" : "gestoppt";
 }
 
-/** Wartet, bis die App gesund ist; false, sobald sie beendet ist oder neu startet, oder nach der Wartezeit */
-export async function wartenAufApp(k: Kontext, dir: string): Promise<boolean> {
+/**
+ * Wartet, bis die App (oder ein anderer Dienst mit Healthcheck, etwa das Firmenportal) gesund ist; false, sobald sie
+ * beendet ist oder neu startet, oder nach der Wartezeit
+ */
+export async function wartenAufApp(k: Kontext, dir: string, dienst = "app"): Promise<boolean> {
   const schritte = Math.floor(k.warten / (k.takt > 0 ? k.takt : 1));
   for (let i = 0; i <= schritte; i++) {
-    const app = (await dienste(k, dir))?.get("app");
+    const app = (await dienste(k, dir))?.get(dienst);
     if (app?.state === "running" && app.health === "healthy") return true;
     if (app && ["exited", "dead", "restarting"].includes(app.state)) return false;
     await k.schlafen(k.takt * 1000);

@@ -382,6 +382,20 @@ jobs:
           bun deploy/instanzen/haben-instanzen.ts status | tee "$RUNNER_TEMP/status.txt"
           grep -E "^firma1 +firma1\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
           grep -E "^firma2 +firma2\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
+          # Zeichen der Firma für das Firmenportal (#1036): ab Werk weder Farbe noch Logo, haben kennzeichen endet mit 3
+          (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben status --json | jq -e '.zeichen == {"farbe": null, "logo": null}')
+          rc=0; (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben kennzeichen > /dev/null) || rc=$?; test "$rc" = 3
+          # portal richtet das Firmenportal hinter dem gemeinsamen Caddy ein; die Instanzen hier haben kein SSO, die
+          # Liste bleibt leer. Ein zweiter Aufruf ändert nichts und startet nichts neu
+          docker tag haben-firmenportal:ci tristanteu/haben-firmenportal:latest
+          printf geheim | bun deploy/instanzen/haben-instanzen.ts portal portal.haben.test \
+            --oidc-issuer https://auth.haben.test --oidc-client-id firmenportal --oidc-client-secret-stdin
+          test "$(cd "$HABEN_INSTANZEN/firmenportal" && docker compose ps firmenportal --format '{{.Health}}')" = healthy
+          bun deploy/instanzen/haben-instanzen.ts portal | tee "$RUNNER_TEMP/portal.txt"
+          grep -qx "Nichts geändert." "$RUNNER_TEMP/portal.txt"
+          grep -q "Ohne SSO, nicht im Firmenportal: firma1 firma2" "$RUNNER_TEMP/portal.txt"
+          # Ohne !: An einer mit ! verneinten Pipeline bricht bash -e nicht ab, sie zählte nur als letzte Zeile des Schritts
+          if bun deploy/instanzen/haben-instanzen.ts liste | grep -q firmenportal; then echo "liste zeigt das Firmenportal" >&2; exit 1; fi
           # Eigenes Netz je Instanz (#872): Der gemeinsame Caddy erreicht jede App, die App von Firma 1 die von
           # Firma 2 nicht; auch nach einem Neuaufbau des Caddy und einem Neustart von Docker. Startet Docker neu,
           # deshalb zuletzt
