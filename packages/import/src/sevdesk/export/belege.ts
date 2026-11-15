@@ -138,6 +138,23 @@ const sumOf = (values: (number | null)[]) => (values.some((v) => v !== null) ? v
 /** Der eine Wert aller Einträge, sonst null */
 const sameOf = <T>(values: T[]) => (values.length > 0 && values.every((v) => v === values[0]) ? values[0]! : null);
 
+/** BU-Schlüssel mit Vorsteuer (DATEV: 8 = 7 %, 9 = 19 %) */
+const INPUT_TAX_KEYS = new Set(["8", "9"]);
+
+/**
+ * Gutschrift im Gutschriftverfahren (§ 14 Abs. 2 Satz 2 UStG): Wer die Leistung empfängt, stellt die Abrechnung aus,
+ * etwa für Honorar oder Provision. sevDesk legt sie in den Rechnungsausgang, bucht sie aber im Soll eines Aufwandskontos
+ * mit Vorsteuer (Testdaten 2.0: 4760 und 3100, BU 9; echte Exporte, #472). Maßgeblich ist die Buchung; der Ordner
+ * widerspricht ihr dann nicht.
+ */
+function selfBilledCredit(group: Group, document: SevExportDocument | null): boolean {
+  if (document?.direction !== "ausgang") return false;
+  const expense = group.lines.filter((l) => l.sach.kind !== null);
+  return (
+    expense.length > 0 && expense.every((l) => l.sach.kind === "aufwand" && l.sach.debited && INPUT_TAX_KEYS.has(l.booking.buKey.trim().replace(/^0+/, "")))
+  );
+}
+
 function voucherOf(key: string, group: Group, document: SevExportDocument | null, hints: string[]): SevExportVoucher {
   const first = group.lines[0]!;
   const label = `Beleg ${first.booking.voucherField1 || "ohne Nummer"}${group.guid ? ` (GUID ${group.guid})` : ""}`;
@@ -149,7 +166,8 @@ function voucherOf(key: string, group: Group, document: SevExportDocument | null
   const direction = document?.direction ?? (accountKind ? KIND_DIRECTION[accountKind] : fromPartner);
   const directionFrom = document?.direction ? "document" : accountKind || fromPartner ? "konten" : null;
   if (group.guid && !document) hints.push(`${label}: keine Datei im Export.`);
-  if (document?.direction && sach?.kind && KIND_DIRECTION[sach.kind] !== document.direction) {
+  const selfBilled = selfBilledCredit(group, document);
+  if (document?.direction && sach?.kind && KIND_DIRECTION[sach.kind] !== document.direction && !selfBilled) {
     hints.push(`${label}: liegt im ${FOLDER[document.direction]}, gebucht auf ${KIND_NAME[sach.kind]} ${sach.account}; Richtung prüfen.`);
   }
   const lines: SevExportLine[] = group.lines.map(({ stack, booking, info, sach: s }) => {
@@ -176,6 +194,7 @@ function voucherOf(key: string, group: Group, document: SevExportDocument | null
     rate: sameOf(rates),
     lines,
     document,
+    selfBilled,
   };
 }
 

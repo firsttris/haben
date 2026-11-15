@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus sevDesk
 
-Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus sevDesk“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
+Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus sevDesk“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md), dazu kommt [Schritt 4](#schritt-4-anlagen-übernehmen) für die Anlagen.
 
 Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md#umzug-einer-gmbh-oder-ug): Die Bestände über die offenen Posten hinaus übernimmst du mit einer Eröffnungsbuchung.
 
@@ -30,7 +30,42 @@ Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffic
 Ist die REST-API nicht Teil deines Tarifs, gibt es zwei Wege:
 
 - **Vorübergehend auf Buchhaltung Pro wechseln**, für die Dauer des Abrufs, und danach kündigen oder zurückwechseln. Laufzeit und Kündigungsfrist des höheren Tarifs prüfst du vorher bei sevDesk.
-- **Nur über die Exporte:** Unter **Steuern › Mein Steuerberater** den Datei-Export **Buchungsdaten & Belegbilder** je Geschäftsjahr erstellen, mit Belegbildern und mit den Häkchen für festgeschriebene Daten und für offene Rechnungen und Belege; ohne sie fehlen diese im Export ([sevDesk-Hilfe: Export](https://hilfe.sevdesk.de/de/articles/9373838-export)). Die ZIP-Datei enthält den Buchungsstapel und die Stammdaten (Kontakte des Zeitraums) als DATEV-kompatible CSV sowie die Belegbilder der Ein- und Ausgangsrechnungen. Lege die ganze ZIP-Datei in Haben als **Sonstiges** ab (höchstens 100 MB je Datei, sonst kürzere Zeiträume exportieren) und daraus entpackt den Buchungsstapel noch einmal als **DATEV-Buchungsstapel**. Die Stammdaten (`EXTF_GP_Stamm_….csv`) kannst du auch einzeln als **Sonstiges** ablegen; dafür gibst du das Geschäftsjahr an. Dazu kommt der GoBD-Export ([Schritt 4](lexoffice.md#schritt-4-exporte-ablegen)), wie beim [Weg ohne API bei Lexoffice](lexoffice.md#nur-über-die-exporte). Dann fehlen die Belege als Datensätze mit Positionen und Zahlungen, die Belegbilder liegen nur als ZIP im Archiv. Die Stammdaten (`EXTF_GP_Stamm_….csv`) übernimmst du mit Debitor und Kreditor über den [CSV-Import der Kontakte](csv-import.md#kontakte-aus-datev). Offene Posten trägst du von Hand ein, und kein Jahr zeigt im Abgleich „vollständig“.
+- **Nur über die Exporte:** Unter **Steuern › Mein Steuerberater** den Datei-Export **Buchungsdaten & Belegbilder** je Geschäftsjahr erstellen, mit Belegbildern und mit den Häkchen für festgeschriebene Daten und für offene Rechnungen und Belege; ohne sie fehlen diese im Export ([sevDesk-Hilfe: Export](https://hilfe.sevdesk.de/de/articles/9373838-export)). Die ZIP-Datei enthält den Buchungsstapel und die Stammdaten (Kontakte des Zeitraums) als DATEV-kompatible CSV sowie die Belegbilder der Ein- und Ausgangsrechnungen. Lade sie unter „Umzug aus sevDesk“ bei **Ohne API: Export hochladen** hoch (höchstens 100 MB je Datei, sonst kürzere Zeiträume exportieren), siehe [Export übernehmen](#export-übernehmen). Die Stammdaten (`EXTF_GP_Stamm_….csv`) übernimmst du mit Debitor und Kreditor über den [CSV-Import der Kontakte](csv-import.md#kontakte-aus-datev). Dazu kommt der GoBD-Export ([Schritt 4](lexoffice.md#schritt-4-exporte-ablegen)), wie beim [Weg ohne API bei Lexoffice](lexoffice.md#nur-über-die-exporte).
+
+#### Export übernehmen
+
+„Hochladen und prüfen“ liest die ZIP-Datei und zeigt, was übernommen wird; angelegt ist dann noch nichts. Eine ZIP-Datei, die nicht der Export von sevDesk ist, lehnt Haben mit Grund ab. „Übernehmen“ legt danach unveränderlich ab:
+
+- die ZIP-Datei als **Sonstiges** und den Buchungsstapel daraus als **DATEV-Buchungsstapel**,
+- je Beleg einen Beleg im Archiv mit seinem Belegbild, zu finden unter **Belege** mit der Quelle „sevDesk-Export“. Ein Beleg ist eine Buchung mit Beleglink; Buchungen mit Netto oder Steuer in der Beleginfo, aber ohne Beleglink, werden ein Beleg ohne Belegbild.
+
+Einnahme oder Ausgabe richtet sich nach der Buchung, nicht nach dem Ordner in sevDesk:
+
+- **Erlöskonto:** Einnahme; im Soll gebucht, etwa eine Gutschrift, mindert sie die Einnahmen. Das gilt auch für einen Beleg aus dem Rechnungseingang auf einem Erlöskonto; der Hinweis „Richtung prüfen“ nennt ihn.
+- **Aufwandskonto:** Ausgabe. Eine Gutschrift aus dem Rechnungsausgang im Soll mit Vorsteuer (BU 8 oder 9), etwa für Honorar oder Provision, ist eine Abrechnung im Gutschriftverfahren (§ 14 Abs. 2 Satz 2 UStG): Ausgabe-Gutschrift mit Vorsteuer wie beim Abruf über die API, ohne Hinweis.
+- **Andere Konten** (Darlehen, Privat, Steuern, Zinsen, Anlagen): Einnahme, wenn das Konto im Haben steht (Geld kommt herein), sonst Ausgabe, immer mit positivem Betrag.
+
+Ein Beleg in Fremdwährung ohne Netto und Steuer in der Beleginfo hat keinen Euro-Betrag. Haben legt ihn nicht an, nennt ihn im Fortschritt mit Grund und behält ihn nur in ZIP-Datei und Buchungsstapel; trage ihn bei Bedarf von Hand ein.
+
+Einnahmen, Ausgaben und Umsatzsteuer eines Jahres nimmt der [Abgleich](#schritt-3-5-und-6) aus dem Buchungsstapel nach Kontenbereich, nicht aus diesen Belegen; ein Darlehen zählt dort also weder als Einnahme noch als Ausgabe. Offene Posten legt der Export nicht an, weil er keinen Zahlungsstand je Beleg kennt; trage sie von Hand ein.
+
+Doppelt angelegt wird nichts:
+
+- Ein zweiter Upload derselben oder einer neueren ZIP-Datei überspringt Belege, die es schon gibt; ein fehlendes Belegbild hängt er an.
+- Liegen ZIP-Datei oder Buchungsstapel schon im Archiv, etwa auf dem früheren Weg als **Sonstiges** und **DATEV-Buchungsstapel**, bleibt es bei der vorhandenen Datei. Belegt ein anderer Buchungsstapel den Zeitraum schon, legt Haben den aus der ZIP-Datei nicht an und sagt das.
+- In einem Jahr mit Belegen aus der API legt der Export keine Belege an.
+
+#### Abgleich für Jahre aus dem Export
+
+Statt „Belege und Rechnungen per API abgerufen“ zeigt der Abgleich „Belege aus dem sevDesk-Export übernommen“, mit Zahlen für die Zustände eines Belegs:
+
+- **mit Datei:** Beleglink und Belegbild im Export;
+- **Datei fehlt im Export:** Die Buchung hat einen Beleglink, die Datei fehlt in der ZIP-Datei. Das hält „Jeder Beleg hat eine Datei“ offen;
+- **ohne Belegbild im Export:** Belegdaten ohne Beleglink. Kein Fehler, denn auch sevDesk hat dazu kein Bild.
+
+Bei „Jede Buchung mit Belegnummer findet ihren Beleg“ findet eine Buchung mit Beleglink ihren Beleg nur über dessen Kennung, auch die weiteren Zeilen desselben Belegs. Zwei Belege mit derselben Nummer zählen so getrennt; Zahlungen ohne Beleglink finden ihren Beleg weiter über die Nummer.
+
+Ein Jahr aus dem Export wird bei **Soll-Versteuerung** vollständig, wenn alle Prüfungen aufgehen. Bei **Ist-Versteuerung** bleibt „Zahlungshistorie vollständig“ offen: Der Export ordnet Zahlungen keinem Beleg zu, die Umsatzsteuer je Monat lässt sich daraus nicht ableiten. Vergleiche sie mit den Voranmeldungen in sevDesk.
 
 #### Was der Export anders enthält als die API
 
@@ -41,9 +76,9 @@ Verglichen an einem Konto mit Buchhaltungsversion 1.0 und SKR03, Jahr 2024: 210 
   - Umgekehrt fehlen nur Vorlagen wiederkehrender Belege (in der API `voucherType` RV); sie sind keine Belege.
   - Belege auf Darlehens-, Privat- und Zinskonten stehen mit Netto und Steuer in der Beleginfo im Stapel, aber ohne Belegbild (19 von 218).
 - **Belegbilder:** Der Export hat auch Bilder, wo die API keine Datei meldet (8 Belege, alle zu einem wiederkehrenden Beleg).
-- **Belegnummern:** Wiederkehrende Belege teilen ihre Nummer (bis zu 9 Belege je Nummer); erst das Datum unterscheidet sie. Zeichen außerhalb des DATEV-Zeichensatzes fehlen (siehe [Schritt 3 bis 5](#schritt-3-bis-5)).
+- **Belegnummern:** Wiederkehrende Belege teilen ihre Nummer (bis zu 9 Belege je Nummer); erst das Datum unterscheidet sie. Zeichen außerhalb des DATEV-Zeichensatzes fehlen (siehe [Schritt 3, 5 und 6](#schritt-3-5-und-6)).
 - **Fremdwährung:** Im Umsatz steht der Betrag in der Fremdwährung, Netto und Steuer in der Beleginfo stehen in Euro. `Kurs` und `Basis-Umsatz` sind leer.
-- **Gutschriften für Honorar und Provision** liegen im Ordner Rechnungsausgang, sind aber auf einem Aufwandskonto im Soll mit BU 9 gebucht (Konten 31xx, 47xx, 49xx; Exporte vom November 2026). Maßgeblich ist die Buchung: Es ist Aufwand mit Vorsteuer, wie beim Abruf über die API.
+- **Gutschriften für Honorar und Provision** liegen im Ordner Rechnungsausgang, sind aber auf einem Aufwandskonto im Soll mit BU 9 gebucht (Konten 31xx, 47xx, 49xx; Exporte vom November 2026), siehe [Export übernehmen](#export-übernehmen).
 - **Was nur die API hat:** Positionen, Steuerregel, Zahlungsstand und die Zuordnung der Zahlungen zu Belegen, Angebote und Aufträge.
 - **Kopf des Stapels:** Der Kontenrahmen steht nicht darin; Haben nimmt den aus den Firmendaten. Ein Export umfasst höchstens ein Wirtschaftsjahr.
 
@@ -220,11 +255,32 @@ Ein neuer Abruf überspringt übernommene Vorlagen, auch wenn du sie in Haben ge
 
 ### Grenzen des aktuellen Imports
 
-- **Keine Buchungen und keine Bankumsätze.** Lade den DATEV-Export aus sevDesk hoch (Schritt 4).
+- **Keine Buchungen und keine Bankumsätze.** Lade den DATEV-Export aus sevDesk hoch (Schritt 5).
 - **Keine Kategorienamen.** Je Beleg-Position steht nur die ID des Buchungskontos. Übernommene offene Ausgabebelege bekommen deshalb die Kategorie „Sonstiges“; ändere sie bei Bedarf in Haben. Aus demselben Grund erkennt der Abgleich bei GmbH und UG Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen aus sevDesk nicht ([Einordnung](lexoffice.md#einordnung-bei-gmbh-und-ug)); sie zählen dort als Einnahme bzw. Ausgabe. Ziehe sie beim Vergleich mit sevDesk selbst ab.
-- Keine übermittelten Voranmeldungen, kein Anlagenverzeichnis ([Anlagen übernehmen](anlagen.md)). Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ebenfalls ausgeschlossen.
+- Keine übermittelten Voranmeldungen. Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ebenfalls ausgeschlossen.
 
-## Schritt 3 bis 5
+## Schritt 4: Anlagen übernehmen
+
+Mit verbundenem Token liest Haben das Anlagenverzeichnis aus sevDesk und schlägt jede Anlage zur [Übernahme mit Restbuchwert](anlagen.md#übernahme-aus-lexoffice) vor. Übernommen wird nur, was du anhakst. Gebucht wird nichts, bis du die AfA des Jahres buchst.
+
+1. **Übernahmestichtag** wählen: ein 1. Januar, in der Regel der erste Tag in Haben. Vorgeschlagen ist der 1. Januar des Jahres, in dem die offenen Posten gebucht werden.
+2. **Anlagen abrufen.** Die Liste zeigt je Anlage Anschaffung, Kosten, Restbuchwert zum Stichtag und die Art in Haben.
+3. Restbuchwerte mit dem Anlagenverzeichnis in sevDesk vergleichen, fehlende Arten wählen, **Anlagen übernehmen**.
+
+sevDesk liefert keine bisherige AfA und keine AfA-Methode, nur Anschaffungsdatum, Nettokaufpreis, Nutzungsdauer in Jahren und Verkaufsdatum. sevDesk schreibt linear ab oder, bei Nutzungsdauer 0, sofort als GWG ([sevDesk: Abschreibungen](https://sevdesk.de/funktion-abschreibungen/)); Sammelposten und degressive AfA gibt es dort nicht. Haben rechnet den Restbuchwert deshalb linear und monatsgenau nach ([§ 7 Abs. 1 EStG](https://www.gesetze-im-internet.de/estg/__7.html)), mit demselben Plan, mit dem es danach weiter abschreibt.
+
+| In sevDesk | Vorschlag in Haben |
+| --- | --- |
+| Nutzungsdauer über 0, Restbuchwert über 0 | Übernehmen, linear über die restliche Nutzungsdauer |
+| Nutzungsdauer 0 (GWG), am Stichtag voll abgeschrieben, vor dem Stichtag verkauft | Nicht nötig |
+| Am oder nach dem Stichtag angeschafft | Von Hand: als Beleg mit der Kategorie Anlagegut |
+| Gebäude, unbekannter Status, Nutzungsdauer 0 über 800 €, Kaufpreis und gebuchter Betrag verschieden | Von Hand mit **Anlage übernehmen** |
+
+Die Art folgt aus dem Buchungskonto in sevDesk: Pkw und Fahrzeug werden **Fahrzeug**, eigene Kategorien nach ihrem Namen („Sonstige Transportmittel“, „Sonstige Betriebs- und Geschäftsausstattung“). Sonst, etwa bei „Kleingeräte“ oder in Buchhaltungsversion 2.0, wählst du die Art; das Anlagekonto in SKR03 oder SKR04 ergibt sich daraus ([Art und Abschreibung](anlagen.md#art-und-abschreibung)). Führte sevDesk die Anlage auf einem anderen Anlagekonto, steht das als Hinweis da. Bei Nutzungsdauer 1 Jahr schreibt Haben wie sevDesk linear über 12 Monate ab; hat sevDesk einen Computer voll im Anschaffungsjahr abgeschrieben, übernimm ihn von Hand. Ist eine Anlage nach dem Stichtag verkauft, trägst du den Abgang danach auf ihrer Seite ein.
+
+Jede übernommene Anlage trägt in der Notiz Nummer und Kennung aus sevDesk. Ein neuer Abruf zeigt sie als übernommen, auch mit geänderter Bezeichnung. Ist für das Jahr des Stichtags schon AfA gebucht oder das Jahr abgeschlossen, sperrt Haben die Übernahme wie beim [CSV-Import](csv-import.md#was-der-import-ablehnt).
+
+## Schritt 3, 5 und 6
 
 Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzug aus Lexoffice](lexoffice.md#schritt-3-offene-posten-übernehmen). Unterschiede:
 
