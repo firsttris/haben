@@ -31,6 +31,16 @@ const EUER_SUMMEN = {
   gewinn: { field: "gewinn", text: "Steuerpflichtiger Gewinn / Verlust" },
 } as const satisfies Record<string, ErklaerteZeile>;
 
+/**
+ * Zeile 65 der Anlage EÜR, Aufwendungen für ein häusliches Arbeitszimmer. Sie steht im Vordruck, hat aber in
+ * `EUER_FIELDS` kein Feld, weil Haben sie nicht übermittelt. Für eine außerhalb von Haben abgegebene Erklärung trägt
+ * der Betreiber sie aus dem Übermittlungsprotokoll nach (#1072); ohne diese Zeile fehlt der Betrag in der Aufstellung.
+ */
+const EUER_ARBEITSZIMMER = {
+  field: "arbeitszimmer",
+  text: "Aufwendungen für ein häusliches Arbeitszimmer",
+} as const satisfies ErklaerteZeile;
+
 type UstBetrag = Exclude<keyof UstErklaerungFigures, "kz48Zeile47Nummern">;
 
 /**
@@ -101,6 +111,7 @@ export const ERKLAERTE_ZEILEN = {
     ...EUER_EINNAHMEN.map(euerZeile),
     EUER_SUMMEN.einnahmen,
     ...EUER_AUSGABEN.map(euerZeile),
+    EUER_ARBEITSZIMMER,
     // Die nicht abziehbaren Teile stehen im Vordruck bei den beschränkt abziehbaren Ausgaben und zählen nicht zur Summe
     euerZeile("bewirtungNichtAbziehbar"),
     euerZeile("gewerbesteuerNichtAbziehbar"),
