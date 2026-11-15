@@ -26,7 +26,8 @@ interface Sachkonto {
 
 interface Group {
   guid: string | null;
-  lines: { stack: string; booking: DatevBooking; info: SevBelegInfo; sach: Sachkonto }[];
+  /** partner: das Personenkonto der Zeile (länger als die Sachkontenlänge), sonst leer */
+  lines: { stack: string; booking: DatevBooking; info: SevBelegInfo; sach: Sachkonto; partner: string }[];
 }
 
 const BEDI = /^BEDI\s+"([^"]+)"\s*$/i;
@@ -59,9 +60,6 @@ function sachkontoOf(booking: DatevBooking, kontenrahmen: Kontenrahmen, accountL
   return { kind: null, account, debited };
 }
 
-/** Das Personenkonto der Zeile: die Seite, die nicht das Sachkonto ist */
-const partnerOf = (booking: DatevBooking, sach: Sachkonto) => (booking.account === sach.account ? booking.contraAccount : booking.account);
-
 /** Positiv: Erlös im Haben, Aufwand im Soll; ohne solches Konto nach der Richtung des Belegs */
 function signOf(sach: Sachkonto, direction: SevExportDirection | null): 1 | -1 {
   const kind = sach.kind ?? (direction === "ausgang" ? "erloese" : direction === "eingang" ? "aufwand" : null);
@@ -75,8 +73,8 @@ type Line = Group["lines"][number];
 function attachNeutral(groups: Map<string, Group>, neutral: { base: string; line: Line }[]) {
   const byBase = new Map<string, Set<string>>();
   for (const [key, group] of groups) {
-    for (const { booking, sach } of group.lines) {
-      const base = `${booking.voucherField1}|${booking.date}|${partnerOf(booking, sach)}`;
+    for (const { booking, partner } of group.lines) {
+      const base = `${booking.voucherField1}|${booking.date}|${partner}`;
       byBase.set(base, (byBase.get(base) ?? new Set()).add(key));
     }
   }
@@ -112,12 +110,12 @@ function groupLines(stacks: SevExportStack[], hints: string[]): Map<string, Grou
         );
       }
       if (neutralBeleg) {
-        neutral.push({ base: `${booking.voucherField1}|${booking.date}|${partner}`, line: { stack: name, booking, info, sach } });
+        neutral.push({ base: `${booking.voucherField1}|${booking.date}|${partner}`, line: { stack: name, booking, info, sach, partner } });
         continue;
       }
       const key = guid ?? (booking.voucherField1 ? `${booking.voucherField1}|${booking.date}|${partner}|${sach.kind}` : `${name}:${booking.row}`);
       const group = groups.get(key) ?? { guid, lines: [] };
-      group.lines.push({ stack: name, booking, info, sach });
+      group.lines.push({ stack: name, booking, info, sach, partner });
       groups.set(key, group);
     }
   }
@@ -141,8 +139,9 @@ function voucherOf(key: string, group: Group, document: SevExportDocument | null
   const label = `Beleg ${first.booking.voucherField1 || "ohne Nummer"}${group.guid ? ` (GUID ${group.guid})` : ""}`;
   const sach = group.lines.find((l) => l.sach.kind)?.sach ?? null;
   const accountKind = sach?.kind ?? null;
-  const partner = Number(partnerOf(first.booking, first.sach));
-  const fromPartner: SevExportDirection | null = partner >= 10000 && partner <= 69999 ? "ausgang" : partner >= 70000 && partner <= 99999 ? "eingang" : null;
+  // Debitoren beginnen mit 1 bis 6, Kreditoren mit 7 bis 9, bei jeder Sachkontenlänge (DATEV-Format, Buchungsstapel)
+  const digit = Number(first.partner[0] ?? 0);
+  const fromPartner: SevExportDirection | null = digit >= 1 && digit <= 6 ? "ausgang" : digit >= 7 ? "eingang" : null;
   const direction = document?.direction ?? (accountKind ? KIND_DIRECTION[accountKind] : fromPartner);
   const directionFrom = document?.direction ? "document" : accountKind || fromPartner ? "konten" : null;
   if (group.guid && !document) hints.push(`${label}: keine Datei im Export.`);
