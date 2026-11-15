@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { useAction } from "../../lib/use-action.ts";
 import { saveAnnualFigures } from "../../server/functions/annual.ts";
-import { ERKLAERTE_ZEILEN, type ErklaerteZeile, type ZeilenForm } from "../../lib/zeilenwerte.ts";
+import { ERKLAERTE_ZEILEN, mitVorzeichen, type ErklaerteZeile, type ZeilenForm } from "../../lib/zeilenwerte.ts";
 import { Field } from "../Field.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { Status } from "../Status.tsx";
@@ -33,6 +33,7 @@ export function ErklaerteZeilen({
   year,
   zeilen,
   vermerkt,
+  vermerkBetrag = null,
 }: {
   form: ZeilenForm;
   year: number;
@@ -40,6 +41,8 @@ export function ErklaerteZeilen({
   zeilen: Record<string, number>;
   /** Gibt es einen Vermerk, an dem Zeilen hängen können? */
   vermerkt: boolean;
+  /** Betrag aus dem Vermerk; richtet das Vorzeichen des Ergebnisses aus (#1082) */
+  vermerkBetrag?: number | null;
 }) {
   if (!vermerkt) return null;
   const vorhanden = ERKLAERTE_ZEILEN[form].filter((z) => z.field in zeilen);
@@ -47,13 +50,23 @@ export function ErklaerteZeilen({
   if (vorhanden.length === 0) return <Erfassen form={form} year={year} felder={offen} />;
   return (
     <>
-      <Tabelle form={form} vorhanden={vorhanden} zeilen={zeilen} />
+      <Tabelle form={form} vorhanden={vorhanden} zeilen={zeilen} vermerkBetrag={vermerkBetrag} />
       {offen.length > 0 && <Erfassen form={form} year={year} felder={offen} nachtragen />}
     </>
   );
 }
 
-function Tabelle({ form, vorhanden, zeilen }: { form: ZeilenForm; vorhanden: readonly ErklaerteZeile[]; zeilen: Record<string, number> }) {
+function Tabelle({
+  form,
+  vorhanden,
+  zeilen,
+  vermerkBetrag,
+}: {
+  form: ZeilenForm;
+  vorhanden: readonly ErklaerteZeile[];
+  zeilen: Record<string, number>;
+  vermerkBetrag?: number | null;
+}) {
   const kern = KERN[form];
   const zuKern = vorhanden.filter((z) => kern.includes(z.field));
   const rest = vorhanden.filter((z) => !kern.includes(z.field));
@@ -65,7 +78,7 @@ function Tabelle({ form, vorhanden, zeilen }: { form: ZeilenForm; vorhanden: rea
           <th scope="row">
             {z.text} <span className="small muted">({z.field})</span>
           </th>
-          <td className="num">{formatEuro(zeilen[z.field] ?? 0)}</td>
+          <td className="num">{formatEuro(mitVorzeichen(z.field, zeilen[z.field] ?? 0, vermerkBetrag))}</td>
         </tr>
       ))}
     </tbody>
