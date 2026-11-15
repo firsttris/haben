@@ -135,7 +135,7 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     const sections = buildRemoteSections(
       {
         ...sampleResult,
-        loans: { hits: [{ id: "l1", name: "Kredit", lender: "bank", openingBalance: 0, openingDate: null }], more: false },
+        loans: { hits: [{ id: "l1", name: "Kredit", lender: "bank", openingBalance: 0, balance: 4800000, openingDate: null }], more: false },
         pauschalen: { hits: [{ id: "p1", art: "fahrt", date: "2026-09-15", description: "Kundentermin", amount: 3600 }], more: false },
         employees: { hits: [{ id: "e1", personalnummer: 7, vorname: "Berta", nachname: "Muster", art: "beschaeftigt" }], more: false },
         zmSubmissions: {

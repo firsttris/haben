@@ -167,7 +167,7 @@ function buildAssetsAndCashSections(remote: CommandPaletteResult): PaletteSectio
         kind: "link",
         title: l.name,
         meta: [DARLEHENSGEBER[l.lender], l.openingDate ? formatDate(l.openingDate) : ""].filter(Boolean).join(" · "),
-        amount: formatEuro(l.openingBalance),
+        amount: formatEuro(l.balance),
         icon: "bank",
         to: "/darlehen",
       }),
