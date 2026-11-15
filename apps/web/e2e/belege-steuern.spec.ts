@@ -3,9 +3,10 @@ import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import AxeBuilder from "@axe-core/playwright";
+import { periodKey, periodLabel } from "@haben/core";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
-import { currentYear, day, YEAR } from "./daten.ts";
+import { currentDay, currentYear, day, YEAR } from "./daten.ts";
 import { appDatabaseUrlFuer, databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
   bestaetigen,
@@ -1553,6 +1554,15 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await expect(page.getByRole("heading", { name: "Finanzamt", level: 1 })).toBeVisible();
 });
 
+test("Umsatzsteuer öffnet ohne Abgabe in Haben den zuletzt abgelaufenen Zeitraum, nie den laufenden (#1102)", async () => {
+  // Bis hier ist in diesem Durchlauf nichts gesendet oder vermerkt und kein Zeitraum eingestellt: also der Vormonat
+  const [jahr, monat] = currentDay().split("-").map(Number) as [number, number];
+  const vormonat = monat === 1 ? { year: jahr - 1, month: 12 } : { year: jahr, month: monat - 1 };
+  await go("/umsatzsteuer");
+  await expect(page).toHaveURL(new RegExp(`/umsatzsteuer/${periodKey(vormonat)}$`));
+  await expect(page.getByRole("heading", { level: 1, name: periodLabel(vormonat) })).toBeVisible();
+});
+
 test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async () => {
   await go("/umsatzsteuer");
   const save = page.getByRole("button", { name: "Entwurf speichern" });
@@ -2889,6 +2899,26 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   // Auch nach dem Neuladen bleibt der Vermerk stehen
   await go(`/jahreserklaerung/${jahr}`);
   await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
+});
+
+test("Jahreserklärung: Einkommensteuererklärung außerhalb von Haben vermerken, ohne Betrag (#1073)", async () => {
+  const jahr = YEAR - 1;
+  await go(`/jahreserklaerung/${jahr}`);
+  const est = page.getByRole("region", { name: `Einkommensteuererklärung ${jahr}`, exact: true });
+  const karte = est.getByRole("region", { name: `Abgabe außerhalb von Haben: Einkommensteuererklärung ${jahr}`, exact: true });
+  await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+
+  // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag: kein Feld dafür, auch keine Schätzung
+  const dialog = page.getByRole("dialog", { name: `Einkommensteuererklärung ${jahr} als abgegeben vermerken` });
+  await expect(dialog.getByLabel("Tag der Abgabe", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Betrag", { exact: true })).toHaveCount(0);
+  await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr + 1}-09-29`);
+  await dialog.getByLabel("Transferticket", { exact: true }).fill("es7k2m9q4x1p");
+  await dialog.getByLabel("Begründung", { exact: true }).fill("Einkommensteuererklärung extern mit WISO abgegeben.");
+  await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
+
+  await expect(karte.locator("p", { hasText: `Abgegeben am 29.09.${jahr + 1}` })).toContainText("Betrag nicht vermerkt");
+  await expect(est).toContainText("Das Ergebnis steht erst mit dem Steuerbescheid fest");
 });
 
 test("Vorgabe „Ohne Vorsteuerabzug“: der Beleg folgt ihr und weicht gespeichert ab (#852)", async ({ browser }) => {

@@ -20,3 +20,9 @@ export const bankOpenAmountSql = sql<number>`(case when ${bankNeutralizedSql} th
  */
 export const bankAccountIncludedSql = (accountIdColumn: string) =>
   sql.raw(`${accountIdColumn} not in (select id from bank_accounts where excluded_at is not null)`);
+
+/**
+ * Für Abfragen auf `bank_transactions`: Der Umsatz ist nicht als „privat, kein Betriebsvorgang“ gekennzeichnet (#1088).
+ * Ein gekennzeichneter Umsatz bleibt ungebucht, zählt aber weder im Bankabgleich noch in der Vorprüfung als offen.
+ */
+export const bankNotPrivateMarkedSql = sql<boolean>`not exists (select 1 from ${schema.bankPrivateMarks} m where m.transaction_id = ${schema.bankTransactions}.id)`;
