@@ -343,6 +343,16 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         .ustIssues(false, { ...basis, figures: { ...basis.figures, kz48Zeile46: 50_000, kz48Zeile47: 30_000, kz48Zeile47Nummern: "21" } }, 2025)
         .every((i) => i.tone !== "fehler"),
     ).toBe(true);
+
+    // Mit Vermerk liegt das Vorauszahlungssoll aus dem Protokoll vor; der Hinweis auf fehlende Voranmeldungen
+    // würde dem erklärten Soll widersprechen (#1077)
+    const hinweis = (vermerkt: boolean) =>
+      annual
+        .ustIssues(false, { ...basis, missingMonths: [1, 2] }, 2025, { vermerkt })
+        .map((i) => i.text)
+        .join(" | ");
+    expect(hinweis(false)).toContain("fehlt eine in Haben gesendete Voranmeldung");
+    expect(hinweis(true)).not.toContain("fehlt eine in Haben gesendete Voranmeldung");
     const gesperrt = annual.ustIssues(
       false,
       {
