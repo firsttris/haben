@@ -45,6 +45,17 @@ export function sevIntervalMonths(iso: string | null | undefined): number | null
 
 const deutsch = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
+/**
+ * Ankertag wie bei eigenen Dauerbelegen (recurring.ts, addMonthsAnchored): Fällt der nächste Termin auf das Monatsende eines
+ * kürzeren Monats und lag der Start auf einem späteren Tag (31.01. → 28.02.), gilt der Tag des Starts; sonst der des Termins.
+ */
+function ankertag(start: string | null, next: string): number {
+  const tag = Number(next.slice(8, 10));
+  const startTag = start ? Number(start.slice(8, 10)) : tag;
+  const monatsende = new Date(Date.UTC(Number(next.slice(0, 4)), Number(next.slice(5, 7)), 0)).getUTCDate();
+  return startTag > tag && tag === monatsende ? startTag : tag;
+}
+
 function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
@@ -67,6 +78,9 @@ export function mapSevRecurringVoucher(v: SevVoucher, positions: SevVoucherPos[]
   const fremd = voucher.taxes.find((t) => !SAETZE.has(t.rate));
   if (fremd) return { ok: false, grund: `Steuersatz ${fremd.rate / 100} %: Dauerbelege kennen 19, 7 und 0 %.` };
   if (voucher.taxes.some((t) => t.net < 0 || t.tax < 0)) return { ok: false, grund: "Negative Position: Dauerbelege sind Ausgaben." };
+  // Ohne Positionen setzt mapSevVoucher einen unbekannten Kopfsatz auf 0 %; Steuer bei 0 % hieße einen Satz raten
+  if (voucher.taxes.some((t) => t.rate === 0 && t.tax !== 0))
+    return { ok: false, grund: "Steuer ohne erkennbaren Steuersatz: Dauerbelege kennen 19, 7 und 0 %." };
 
   const status = sevNumber(v.status);
   const start = lexDate(v.recurringStartDate);
@@ -113,7 +127,7 @@ export function mapSevRecurringVoucher(v: SevVoucher, positions: SevVoucherPos[]
       amounts,
       taxShown: amounts.some((a) => a.tax > 0),
       intervalMonths: months as 1 | 3 | 6 | 12,
-      anchorDay: Number(nextDate.slice(8, 10)),
+      anchorDay: ankertag(start, nextDate),
       startDate: start ?? nextDate,
       nextDate,
       endDate: end,
