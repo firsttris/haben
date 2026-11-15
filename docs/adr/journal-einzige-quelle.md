@@ -12,7 +12,7 @@ description: >-
 Gegenprobe), [Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen),
 [Abgleich im Journal](../buchhaltung.md#abgleich-im-journal), [Update auf das Journal](../einrichtung.md#update-auf-das-journal).
 
-**Anlass:** Mit zwei Rechenwegen musste jede neue Funktion an Steuer und EÜR in beiden stimmen, sonst schlug der Abgleich an; das kostete jede Änderung doppelt. Das Stichjahr betraf höchstens ein Jahr: Das erste Release war v0.1.1 am 5.10.2026, das Stichjahr kam mit v0.7.0 am 11.11.2026 (Migration `0192`). Buchungen ohne Steuerschlüssel oder Bemessungsgrundlage gibt es also nur aus 2026, und nur bei Instanzen, die vor v0.7.0 gebucht haben.
+**Anlass:** Mit zwei Rechenwegen musste jede neue Funktion an Steuer und EÜR in beiden stimmen, sonst schlug der Abgleich an; das kostete jede Änderung doppelt. Das Stichjahr betraf wenig: Das erste Release war v0.1.1 am 5.10.2026, das Stichjahr kam mit v0.7.0 am 11.11.2026 (Migration `0192`, Stichjahr 2027 für Instanzen mit Buchungen). Jahre vor dem Stichjahr gibt es also nur bei Instanzen, die vor v0.7.0 gebucht haben: 2026 und Jahre, die der Datenimport ins Journal übernommen hat (`datenimport/external-import.ts`).
 
 **Entscheidung:**
 

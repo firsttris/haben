@@ -346,7 +346,7 @@ Lehnt die Datenbank eine Umstellung ab, weil gleichzeitig gebucht wurde, siehst 
 
 ## Update auf das Journal
 
-Seit [#1116](https://github.com/firsttris/haben/issues/1116) rechnet Haben Voranmeldung und EÜR für alle Jahre aus dem Journal. Bis dahin rechneten Jahre vor einem Stichjahr aus Rechnungen, Belegen und Zahlungen; das betrifft nur Instanzen, die vor Version 0.7.0 gebucht haben, und dort höchstens 2026.
+Seit [#1116](https://github.com/firsttris/haben/issues/1116) rechnet Haben Voranmeldung und EÜR für alle Jahre aus dem Journal. Bis dahin rechneten Jahre vor einem Stichjahr aus Rechnungen, Belegen und Zahlungen; das betrifft nur Instanzen, die vor Version 0.7.0 gebucht haben, und dort 2026 und Jahre, die per [Datenimport](belegimport.md) ins Journal kamen.
 
 Beim ersten Start nach dem Update prüft Haben diese Jahre, nach den Migrationen und bevor der Server startet:
 
