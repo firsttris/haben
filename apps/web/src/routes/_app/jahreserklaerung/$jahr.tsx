@@ -816,35 +816,32 @@ function SubmitPanel({
 
   return (
     <div className="stack sticky-panel">
-      <ElsterSubmit
-        setup={data}
-        title={`${FORM_LABEL[form]} übermitteln`}
-        className="card"
-        ready={!blocked && !submitted}
-        busy={busy}
-        notice={notice}
-        lockedHint={
-          submitted
-            ? "Außerhalb von Haben abgegeben. Eine Übermittlung aus Haben ist nicht mehr nötig."
-            : sent
-              ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal."
-              : undefined
-        }
-        confirmTitle={`${FORM_LABEL[form]} ${data.year} verbindlich senden?`}
-        confirmFacts={[
-          { label: form === "euer" ? "Meldung" : "Steuerart", value: FORM_LABEL[form] },
-          { label: "Zeitraum", value: String(data.year) },
-        ]}
-        confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt.`}
-        footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."
-        onSubmit={(kind, pin) =>
-          run(async () => {
-            const result = await submit({ data: { form, year: data.year, kind, pin } });
-            setNotice(elsterNotice(kind, result, "Übermittelt."));
-            await router.invalidate();
-          })
-        }
-      />
+      {/* Mit Vermerk ist die Erklärung von außen abgegeben; ein ausgegrautes Übermittlungs-Panel sagt dazu nichts (#1080) */}
+      {!submitted && (
+        <ElsterSubmit
+          setup={data}
+          title={`${FORM_LABEL[form]} übermitteln`}
+          className="card"
+          ready={!blocked}
+          busy={busy}
+          notice={notice}
+          lockedHint={sent ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
+          confirmTitle={`${FORM_LABEL[form]} ${data.year} verbindlich senden?`}
+          confirmFacts={[
+            { label: form === "euer" ? "Meldung" : "Steuerart", value: FORM_LABEL[form] },
+            { label: "Zeitraum", value: String(data.year) },
+          ]}
+          confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt.`}
+          footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."
+          onSubmit={(kind, pin) =>
+            run(async () => {
+              const result = await submit({ data: { form, year: data.year, kind, pin } });
+              setNotice(elsterNotice(kind, result, "Übermittelt."));
+              await router.invalidate();
+            })
+          }
+        />
+      )}
       {(form === "ust" || form === "euer") && <AbgabeVermerken art={form} year={data.year} today={data.today} berechnet={berechnet} vermerkt={submitted} />}
       {!data.herstellerIdConfigured && !sent && !submitted && (
         <MeinElsterWerte load={() => loadWerte({ data: { form, year: data.year } })} label={`${FORM_LABEL[form]} ${data.year}`} blocked={blocked} />
