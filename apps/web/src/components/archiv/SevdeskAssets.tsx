@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { type FormEvent, useState } from "react";
 import { errorMessage, formatDate } from "../../lib/format.ts";
-import { getSevdeskAssets, takeOverSevdeskAssetList } from "../../server/functions/archive.ts";
+import { getSevdeskAssets, takeOverSevdeskAssetList } from "../../server/functions/sevdesk-anlagen.ts";
 import { Field } from "../Field.tsx";
 import { ScrollBox } from "../ScrollTable.tsx";
 import { Status, type StatusProps } from "../Status.tsx";
