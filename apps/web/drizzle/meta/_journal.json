@@ -1779,6 +1779,20 @@
       "when": 1794768072654,
       "tag": "0253_dauerbelege_aus_sevdesk",
       "breakpoints": true
+    },
+    {
+      "idx": 254,
+      "version": "7",
+      "when": 1794768439174,
+      "tag": "0254_sevdesk_mahnungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 255,
+      "version": "7",
+      "when": 1794768440022,
+      "tag": "0255_sevdesk_mahnungen_trigger",
+      "breakpoints": true
     }
   ]
 }
