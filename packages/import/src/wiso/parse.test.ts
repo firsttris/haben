@@ -19,7 +19,7 @@ describe("previewWisoExport", () => {
     const item = previewWisoExport(bytes, skr).vouchers[0]!;
     expect(item.voucher).toMatchObject({ date: "2026-01-15", serviceFrom: null, serviceTo: null, net: 10000, tax: 1900, gross: 11900 });
     expect(item.paid).toBe(11900);
-    expect(item.raw.rows[0]).toMatchObject({ zahlungsdatum: "2026-01-15", wertstellungsdatum: "2026-01-16", buchungsdatum: "2026-02-03" });
+    expect(item.raw).toMatchObject({ rows: [{ zahlungsdatum: "2026-01-15", wertstellungsdatum: "2026-01-16", buchungsdatum: "2026-02-03" }] });
   });
 
   it("liest WISO Steuer (Modul EÜR) mit anonymisiertem Buchungsdatum und Teilbuchungen", () => {

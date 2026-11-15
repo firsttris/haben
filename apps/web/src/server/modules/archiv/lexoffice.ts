@@ -464,7 +464,19 @@ export async function legacyVoucherDetail(id: string) {
     .where(eq(schema.lexofficeVoucherFiles.voucherId, id));
   // Mahnstufen der Rechnung aus der Quelle; nur Archiv, ohne Wirkung auf Betrag und Zahlungsstand
   const dunnings = voucher.direction === "einnahme" ? await legacyDunningsFor([voucher.lexofficeId]) : [];
-  return { voucher: { ...voucher, payment: visiblePayment(voucher), paymentHistoryIssue: paymentHistoryIssue(voucher) }, files, dunnings };
+  // Frühere WISO-Importe setzten das Zahlungsdatum als Leistung, obwohl die Quelle sie nicht belegt (#565).
+  // Nur lesend korrigieren; die unveränderliche Archivzeile bleibt erhalten. Quelle: https://github.com/firsttris/haben/issues/565
+  return {
+    voucher: {
+      ...voucher,
+      serviceFrom: voucher.source === "wiso" ? null : voucher.serviceFrom,
+      serviceTo: voucher.source === "wiso" ? null : voucher.serviceTo,
+      payment: visiblePayment(voucher),
+      paymentHistoryIssue: paymentHistoryIssue(voucher),
+    },
+    files,
+    dunnings,
+  };
 }
 
 export async function legacyVoucherFile(fileId: string) {
