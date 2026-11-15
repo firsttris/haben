@@ -28,9 +28,9 @@ Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Bereich stehen bis zu fünf 
 | Rechnungen | Nummer, Kunde, Bestellnummer, eigene Auftragsnummer, Betrag, Datum | Kunde, Datum, Betrag und Status mit Auskunft, etwa „seit 16 Tagen“ |
 | Angebote | Nummer, Kunde, Betrag, Datum | Kunde, Datum, Betrag und Status |
 | Belege | Lieferant, Rechnungsnummer, Dateiname, Betrag, Datum | Rechnungsnummer, Datum, Betrag und Status |
-| Bankumsätze | Gegenseite, Verwendungszweck, Ende der IBAN ab vier Ziffern, Betrag (mit und ohne Vorzeichen), Datum | Datum, Konto, gekürzte IBAN, Betrag und Status wie im Bankabgleich, ohne „Vorschlag“ |
+| Bankumsätze | Gegenseite, Verwendungszweck, Ende der IBAN ab vier Ziffern, Betrag (mit und ohne Vorzeichen), Datum | Datum, Konto, gekürzte IBAN, Betrag und Status, ohne „Vorschlag“ |
 | Buchungen und Konten | Buchungstext, Datum, Kontonummer und -name (SKR03/SKR04 und eigene Konten), Betrag | Datum, Konten, Betrag und „storniert“ → Herkunft bzw. Kontenblatt |
-| Wiederkehrende Vorgänge | Name, Kunde bei wiederkehrenden Rechnungen, Lieferant bei Dauerbelegen | Kunde/Lieferant, Intervall, nächster Termin und Status wie in der Liste |
+| Wiederkehrende Vorgänge | Name, Kunde bei wiederkehrenden Rechnungen, Lieferant bei Dauerbelegen | Kunde/Lieferant, Intervall, nächster Termin und Status |
 | Artikel, Textbausteine, Leistungen | Nummer und Bezeichnung der Artikel, Name und Text der Textbausteine, beide ohne archivierte; Text, Projekt, Kunde und Datum der Leistungen | Preis/Einheit, Art bzw. Kunde, Datum und Dauer |
 | Anlagen und Darlehen | Name, bei Anlagen auch Anlagekonto und Notiz | Anlagekonto und Anschaffung bzw. Geber und Restschuld |
 | Kasse und Pauschalen | Nummer, Text/Anlass, Art, Datum, Betrag | Nummer/Art, Datum, Betrag und „storniert“ |
