@@ -22,21 +22,57 @@ type Receipt = Awaited<ReturnType<typeof getMigration>>["fastbillReceipts"][numb
  * aus dem Browser-Skript da ist oder jemand „ohne Beleg übernehmen“ wählt; danach holt „Erneut abrufen“ sie nach.
  */
 export function FastbillReceipts({ receipts, running }: { receipts: Receipt[]; running: boolean }) {
-  const router = useRouter();
-  const scriptList = useServerFn(getFastbillReceiptScriptList);
-  const upload = useServerFn(uploadFastbillReceipts);
-  const markMissing = useServerFn(markFastbillReceiptsMissing);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const action = useAction();
   const id = useId();
-  const [copied, setCopied] = useState(false);
-  /** Skript zum Markieren von Hand, wenn der Browser nicht in die Zwischenablage schreiben lässt */
-  const [manual, setManual] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
-
   const waiting = receipts.filter((r) => r.status === "wartet");
-  const ready = receipts.filter((r) => r.status === "datei").length;
-  const without = receipts.filter((r) => r.status === "ohne_beleg").length;
+  if (receipts.length === 0) return null;
+  return (
+    <section className="card stack" aria-labelledby={`${id}-heading`}>
+      <h2 id={`${id}-heading`} style={{ margin: 0 }}>
+        Belege, die FastBill nur im Browser herausgibt
+      </h2>
+      <p className="small muted" style={{ margin: 0 }}>
+        Bei manchen Ausgaben gibt FastBill den Beleg nur heraus, wenn du im Browser angemeldet bist. Haben archiviert diese Ausgaben deshalb noch nicht, damit
+        sie nicht ohne Beleg im unveränderlichen Archiv landen. Ein Skript lädt genau diese Belege mit deiner Anmeldung in FastBill.
+      </p>
+      <div className="progress-facts">
+        <div>
+          <span className="small muted">warten auf Beleg</span>
+          <strong>{waiting.length}</strong>
+        </div>
+        <div>
+          <span className="small muted">Beleg bereit</span>
+          <strong>{receipts.filter((r) => r.status === "datei").length}</strong>
+        </div>
+        <div>
+          <span className="small muted">ohne Beleg</span>
+          <strong>{receipts.filter((r) => r.status === "ohne_beleg").length}</strong>
+        </div>
+      </div>
+      {waiting.length > 0 && (
+        <>
+          <ol className="small" style={{ margin: 0, paddingLeft: 20 }}>
+            <li>In my.fastbill.com anmelden und die Entwicklerwerkzeuge öffnen (F12), dort die Konsole.</li>
+            <li>
+              „Skript kopieren“, in der Konsole einfügen und mit Enter starten. Fragt der Browser beim ersten Einfügen nach einer Bestätigung, tippe ein, was er
+              verlangt (in Chrome, Edge und Brave „allow pasting“).
+            </li>
+            <li>Die heruntergeladenen ZIP-Dateien hier hochladen, danach in Schritt 2 „Erneut abrufen“.</li>
+          </ol>
+          <ScriptCopy />
+          <ReceiptUpload waitingCount={waiting.length} running={running} />
+          <WaitingList waiting={waiting} />
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Skript mit eingesetzter Liste der wartenden Ausgaben; ohne Zwischenablage zum Markieren von Hand */
+function ScriptCopy() {
+  const scriptList = useServerFn(getFastbillReceiptScriptList);
+  const action = useAction();
+  const [copied, setCopied] = useState(false);
+  const [manual, setManual] = useState<string | null>(null);
 
   const copyScript = () =>
     action.run(async () => {
@@ -51,6 +87,45 @@ export function FastbillReceipts({ receipts, running }: { receipts: Receipt[]; r
         action.setNotice({ tone: "info", text: "Der Browser lässt nicht in die Zwischenablage schreiben. Markiere das Skript unten und kopiere es von Hand." });
       }
     });
+
+  return (
+    <>
+      <div className="actions">
+        <button type="button" className="btn" onClick={() => void copyScript()} disabled={action.busy}>
+          {copied ? "Kopiert" : "Skript kopieren"}
+        </button>
+        <a className="btn" href={SCRIPT_URL} target="_blank" rel="noreferrer">
+          Skript ansehen
+        </a>
+      </div>
+      {manual && (
+        <Field label="Skript mit der Liste deiner Belege">
+          {(control) => (
+            <textarea
+              {...control}
+              readOnly
+              rows={6}
+              spellCheck={false}
+              value={manual}
+              onFocus={(event) => event.currentTarget.select()}
+              style={{ fontFamily: "monospace", fontSize: 12 }}
+            />
+          )}
+        </Field>
+      )}
+      <NoticeBanner notice={action.notice} />
+    </>
+  );
+}
+
+/** ZIP-Dateien aus dem Skript hochladen oder den Rest ausdrücklich ohne Beleg übernehmen */
+function ReceiptUpload({ waitingCount, running }: { waitingCount: number; running: boolean }) {
+  const router = useRouter();
+  const upload = useServerFn(uploadFastbillReceipts);
+  const markMissing = useServerFn(markFastbillReceiptsMissing);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const action = useAction();
+  const [confirming, setConfirming] = useState(false);
 
   const onUpload = (event: FormEvent) => {
     event.preventDefault();
@@ -76,88 +151,21 @@ export function FastbillReceipts({ receipts, running }: { receipts: Receipt[]; r
       action.setNotice({ tone: "ok", text: `${count} Ausgaben werden beim nächsten Abruf ohne Beleg übernommen.` });
     });
 
-  if (receipts.length === 0) return null;
   return (
-    <section className="card stack" aria-labelledby={`${id}-heading`}>
-      <h2 id={`${id}-heading`} style={{ margin: 0 }}>
-        Belege, die FastBill nur im Browser herausgibt
-      </h2>
-      <p className="small muted" style={{ margin: 0 }}>
-        Bei manchen Ausgaben gibt FastBill den Beleg nur heraus, wenn du im Browser angemeldet bist. Haben archiviert diese Ausgaben deshalb noch nicht, damit
-        sie nicht ohne Beleg im unveränderlichen Archiv landen. Ein Skript lädt genau diese Belege mit deiner Anmeldung in FastBill.
-      </p>
-      <div className="progress-facts">
-        <div>
-          <span className="small muted">warten auf Beleg</span>
-          <strong>{waiting.length}</strong>
+    <>
+      <form className="stack" onSubmit={onUpload} style={{ gap: 12 }}>
+        <Field label="Belege aus dem Skript (ZIP)">
+          {(control) => <FilePicker {...control} inputRef={fileInput} multiple accept=".zip,application/zip" />}
+        </Field>
+        <div className="actions">
+          <button type="submit" className="btn btn-primary" disabled={action.busy || running}>
+            {action.busy ? "Lade hoch …" : "Hochladen"}
+          </button>
+          <button type="button" className="btn" onClick={() => setConfirming(true)} disabled={action.busy || running}>
+            Rest ohne Beleg übernehmen
+          </button>
         </div>
-        <div>
-          <span className="small muted">Beleg bereit</span>
-          <strong>{ready}</strong>
-        </div>
-        <div>
-          <span className="small muted">ohne Beleg</span>
-          <strong>{without}</strong>
-        </div>
-      </div>
-      {waiting.length > 0 && (
-        <>
-          <ol className="small" style={{ margin: 0, paddingLeft: 20 }}>
-            <li>In my.fastbill.com anmelden und die Entwicklerwerkzeuge öffnen (F12), dort die Konsole.</li>
-            <li>
-              „Skript kopieren“, in der Konsole einfügen und mit Enter starten. Fragt der Browser beim ersten Einfügen nach einer Bestätigung, tippe ein, was er
-              verlangt (in Chrome, Edge und Brave „allow pasting“).
-            </li>
-            <li>Die heruntergeladenen ZIP-Dateien hier hochladen, danach in Schritt 2 „Erneut abrufen“.</li>
-          </ol>
-          <div className="actions">
-            <button type="button" className="btn" onClick={() => void copyScript()} disabled={action.busy}>
-              {copied ? "Kopiert" : "Skript kopieren"}
-            </button>
-            <a className="btn" href={SCRIPT_URL} target="_blank" rel="noreferrer">
-              Skript ansehen
-            </a>
-          </div>
-          {manual && (
-            <Field label="Skript mit der Liste deiner Belege">
-              {(control) => (
-                <textarea
-                  {...control}
-                  readOnly
-                  rows={6}
-                  spellCheck={false}
-                  value={manual}
-                  onFocus={(event) => event.currentTarget.select()}
-                  style={{ fontFamily: "monospace", fontSize: 12 }}
-                />
-              )}
-            </Field>
-          )}
-          <form className="stack" onSubmit={onUpload} style={{ gap: 12 }}>
-            <Field label="Belege aus dem Skript (ZIP)">
-              {(control) => <FilePicker {...control} inputRef={fileInput} multiple accept=".zip,application/zip" />}
-            </Field>
-            <div className="actions">
-              <button type="submit" className="btn btn-primary" disabled={action.busy || running}>
-                {action.busy ? "Lade hoch …" : "Hochladen"}
-              </button>
-              <button type="button" className="btn" onClick={() => setConfirming(true)} disabled={action.busy || running}>
-                Rest ohne Beleg übernehmen
-              </button>
-            </div>
-          </form>
-          <details>
-            <summary className="small">{waiting.length} Ausgaben ohne Beleg</summary>
-            <ul className="small" style={{ margin: "8px 0 0", paddingLeft: 20 }}>
-              {waiting.slice(0, 200).map((r) => (
-                <li key={r.expenseId}>
-                  {r.date ? formatDate(r.date) : "ohne Datum"} · {r.number || `ID ${r.expenseId}`} · {r.supplier || "ohne Lieferant"} · {formatEuro(r.gross)}
-                </li>
-              ))}
-            </ul>
-          </details>
-        </>
-      )}
+      </form>
       <NoticeBanner notice={action.notice} />
       <ConfirmDialog
         open={confirming}
@@ -168,11 +176,26 @@ export function FastbillReceipts({ receipts, running }: { receipts: Receipt[]; r
         onClose={() => setConfirming(false)}
       >
         <p>
-          Die {waiting.length} wartenden Ausgaben kommen beim nächsten Abruf ohne Datei ins Archiv; dort lässt sich später keine Datei mehr anhängen. Wähle das
+          Die {waitingCount} wartenden Ausgaben kommen beim nächsten Abruf ohne Datei ins Archiv; dort lässt sich später keine Datei mehr anhängen. Wähle das
           nur, wenn es in FastBill zu diesen Ausgaben wirklich keinen Beleg gibt.
         </p>
       </ConfirmDialog>
-    </section>
+    </>
+  );
+}
+
+function WaitingList({ waiting }: { waiting: Receipt[] }) {
+  return (
+    <details>
+      <summary className="small">{waiting.length} Ausgaben ohne Beleg</summary>
+      <ul className="small" style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+        {waiting.slice(0, 200).map((r) => (
+          <li key={r.expenseId}>
+            {r.date ? formatDate(r.date) : "ohne Datum"} · {r.number || `ID ${r.expenseId}`} · {r.supplier || "ohne Lieferant"} · {formatEuro(r.gross)}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

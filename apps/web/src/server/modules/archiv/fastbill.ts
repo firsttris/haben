@@ -163,9 +163,11 @@ function stopsRun(error: unknown, signal: AbortSignal): boolean {
   return signal.aborted || (error instanceof Error && error.name === "AbortError");
 }
 
+type Save = (force?: boolean) => Promise<void>;
+
 async function runImport(actor: string, importId: string, client: FastbillClient, progress: LexofficeImportProgress, signal: AbortSignal) {
   let lastSave = 0;
-  const save = async (force = false) => {
+  const save: Save = async (force = false) => {
     if (!force && Date.now() - lastSave < 1000) return;
     lastSave = Date.now();
     progress.fastbillCalls = client.recentCalls();
@@ -173,7 +175,20 @@ async function runImport(actor: string, importId: string, client: FastbillClient
     await db.update(schema.lexofficeImports).set({ progress, updatedAt: new Date() }).where(eq(schema.lexofficeImports.id, importId));
   };
 
-  // 1. Kunden; FastBill führt keine Lieferanten als Kontakte
+  await importCustomers(actor, client, progress, save);
+  checkAborted(signal);
+  progress.phase = "liste";
+  await save(true);
+  const { listed, invoicesById } = await listVouchers(client, progress, save);
+  checkAborted(signal);
+  progress.phase = "belege";
+  await save(true);
+  await importListed(actor, importId, client, listed, invoicesById, progress, save, signal);
+  await save(true);
+}
+
+/** 1. Kunden; FastBill führt keine Lieferanten als Kontakte */
+async function importCustomers(actor: string, client: FastbillClient, progress: LexofficeImportProgress, save: Save) {
   for await (const raw of client.customers()) {
     const contact = mapFbCustomer(raw);
     await withActor(actor, async (tx) => {
@@ -195,28 +210,16 @@ async function runImport(actor: string, importId: string, client: FastbillClient
         progress.contactsLinked += 1;
         return;
       }
-      await tx.insert(schema.contacts).values({
-        fastbillId: contact.fastbillId,
-        isCustomer: true,
-        isSupplier: false,
-        kundennummer: contact.kundennummer,
-        name: contact.name,
-        strasse: contact.strasse,
-        plz: contact.plz,
-        ort: contact.ort,
-        land: contact.land,
-        email: contact.email,
-        ustId: contact.ustId,
-      });
+      const { fastbillId, kundennummer, name, strasse, plz, ort, land, email, ustId } = contact;
+      await tx.insert(schema.contacts).values({ fastbillId, isCustomer: true, isSupplier: false, kundennummer, name, strasse, plz, ort, land, email, ustId });
       progress.contacts += 1;
     });
     await save();
   }
+}
 
-  // 2. Rechnungen, Gutschriften und Stornos ohne Entwürfe, dazu die Ausgaben
-  checkAborted(signal);
-  progress.phase = "liste";
-  await save(true);
+/** 2. Rechnungen, Gutschriften und Stornos ohne Entwürfe, dazu die Ausgaben; alle Rechnungen je ID für die Stornos */
+async function listVouchers(client: FastbillClient, progress: LexofficeImportProgress, save: Save) {
   const listed: Listed[] = [];
   const invoicesById = new Map<string, FbInvoice>();
   const add = async (item: Listed) => {
@@ -231,16 +234,25 @@ async function runImport(actor: string, importId: string, client: FastbillClient
   for await (const raw of client.expenses()) {
     await add({ kind: "expense", id: String(raw.INVOICE_ID), number: String(raw.INVOICE_NUMBER ?? ""), raw });
   }
+  return { listed, invoicesById };
+}
+
+/** 3. Je Beleg das PDF; Fehler einzelner Belege halten den Lauf nicht auf */
+async function importListed(
+  actor: string,
+  importId: string,
+  client: FastbillClient,
+  listed: Listed[],
+  invoicesById: Map<string, FbInvoice>,
+  progress: LexofficeImportProgress,
+  save: Save,
+  signal: AbortSignal,
+) {
   const done = new Set(
     (await db.select({ id: schema.lexofficeVouchers.lexofficeId }).from(schema.lexofficeVouchers).where(eq(schema.lexofficeVouchers.source, "fastbill"))).map(
       (r) => r.id,
     ),
   );
-
-  // 3. Je Beleg das PDF; Fehler einzelner Belege halten den Lauf nicht auf
-  checkAborted(signal);
-  progress.phase = "belege";
-  await save(true);
   for (const item of listed) {
     // Auch wenn nur übersprungen wird: ein Abbruch soll als abgebrochen enden, nicht als fertig
     checkAborted(signal);
@@ -261,7 +273,6 @@ async function runImport(actor: string, importId: string, client: FastbillClient
     }
     await save();
   }
-  await save(true);
 }
 
 /**
@@ -272,6 +283,8 @@ function withoutDocumentUrl(raw: FbInvoice | FbExpense): Record<string, unknown>
   const { DOCUMENT_URL: _, ...rest } = raw as Record<string, unknown>;
   return rest;
 }
+
+type VoucherFile = { role: "pdf" | "anhang"; fileId: string | null; file: FbFile };
 
 async function importVoucher(
   actor: string,
@@ -288,62 +301,66 @@ async function importVoucher(
   } else {
     mapped = mapFbExpense(item.raw);
   }
-  const { voucher, payment } = mapped;
+  const files = await voucherFiles(actor, client, item, mapped, progress);
+  if (files === "wartet") return "wartet";
+  return (await storeVoucher(actor, importId, item, mapped, files, progress)) ? "uebernommen" : "uebersprungen";
+}
 
-  // Rechnungen haben ihr PDF immer; bei Ausgaben ohne hochgeladenen Beleg liefert FastBill eine leere Antwort (null)
-  const files: { role: "pdf" | "anhang"; fileId: string | null; file: FbFile }[] = [];
+/**
+ * Die Datei eines Belegs: Rechnungen haben ihr PDF immer; bei Ausgaben ohne hochgeladenen Beleg liefert FastBill eine leere
+ * Antwort. Gibt FastBill sie nur im angemeldeten Browser heraus, wartet die Ausgabe auf das Browser-Skript oder auf „ohne
+ * Beleg übernehmen“ und wird nie stillschweigend ohne Datei archiviert (fastbill-belege.ts).
+ */
+async function voucherFiles(
+  actor: string,
+  client: FastbillClient,
+  item: Listed,
+  { voucher }: FbMappedVoucher,
+  progress: LexofficeImportProgress,
+): Promise<VoucherFile[] | "wartet"> {
   const documentUrl = item.raw.DOCUMENT_URL?.trim();
+  if (!documentUrl) return [];
   let apiFile: FbFile | null = null;
-  if (documentUrl) {
-    try {
-      apiFile = await client.document(documentUrl);
-      if (apiFile)
-        files.push({ role: item.kind === "invoice" ? "pdf" : "anhang", fileId: item.kind === "expense" ? voucher.lexofficeId : null, file: apiFile });
-    } catch (error) {
-      if (error instanceof FastbillApiError && error.service === "document" && error.status === 0 && /DOCUMENT_URL/.test(error.message)) {
-        // Adresse außerhalb von FastBill: Beleg ohne Datei übernehmen, der Abgleich zeigt sie als fehlend
-        progress.failed.push({ lexofficeId: voucher.lexofficeId, number: item.number, message: `Beleg übernommen, PDF fehlt: ${error.message}` });
-      } else throw error;
-    }
+  try {
+    apiFile = await client.document(documentUrl);
+  } catch (error) {
+    if (!(error instanceof FastbillApiError && error.service === "document" && error.status === 0 && /DOCUMENT_URL/.test(error.message))) throw error;
+    // Adresse außerhalb von FastBill: Beleg ohne Datei übernehmen, der Abgleich zeigt sie als fehlend
+    progress.failed.push({ lexofficeId: voucher.lexofficeId, number: item.number, message: `Beleg übernommen, PDF fehlt: ${error.message}` });
+    return [];
   }
+  if (apiFile) return [{ role: item.kind === "invoice" ? "pdf" : "anhang", fileId: item.kind === "expense" ? voucher.lexofficeId : null, file: apiFile }];
+  if (item.kind !== "expense") return [];
+  const receipt = await waitingReceipt(actor, item.id, voucher, documentUrl);
+  if (receipt === "wartet") return "wartet";
+  return receipt === "ohne_beleg" ? [] : [{ role: "anhang", fileId: voucher.lexofficeId, file: receipt }];
+}
 
-  // Ausgabe mit DOCUMENT_URL, deren Datei FastBill nur im angemeldeten Browser herausgibt: erst mit Datei aus dem
-  // Browser-Skript oder nach „ohne Beleg übernehmen“ archivieren, nie stillschweigend ohne (fastbill-belege.ts)
-  if (item.kind === "expense" && documentUrl && !apiFile) {
-    const receipt = await waitingReceipt(actor, item.id, voucher, documentUrl);
-    if (receipt === "wartet") return "wartet";
-    if (receipt !== "ohne_beleg") files.push({ role: "anhang", fileId: voucher.lexofficeId, file: receipt });
-  }
-
-  const stored = await withActor(actor, async (tx) => {
+/** Archiviert den Beleg samt Dateien; false, wenn ein gleichzeitiger Lauf ihn schon übernommen hat */
+async function storeVoucher(
+  actor: string,
+  importId: string,
+  item: Listed,
+  { voucher, payment }: FbMappedVoucher,
+  files: VoucherFile[],
+  progress: LexofficeImportProgress,
+): Promise<boolean> {
+  return withActor(actor, async (tx) => {
     const [contact] = voucher.contactLexofficeId
       ? await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.fastbillId, voucher.contactLexofficeId))
       : [];
+    const { lexofficeId, type, direction, number, date, dueDate, serviceFrom, serviceTo, status, contactName, currency, net, tax, gross, taxes, remark } =
+      voucher;
     const row = await storeLegacyVoucher(
       tx,
       {
-        lexofficeId: voucher.lexofficeId,
+        ...{ lexofficeId, type, direction, number, date, dueDate, serviceFrom, serviceTo, status, contactName, currency, net, tax, gross, taxes, remark },
         source: "fastbill",
         importId,
-        type: voucher.type,
-        direction: voucher.direction,
-        number: voucher.number,
-        date: voucher.date,
-        dueDate: voucher.dueDate,
-        serviceFrom: voucher.serviceFrom,
-        serviceTo: voucher.serviceTo,
-        status: voucher.status,
         contactId: contact?.id ?? null,
-        contactName: voucher.contactName,
-        currency: voucher.currency,
-        net: voucher.net,
-        tax: voucher.tax,
-        gross: voucher.gross,
-        taxes: voucher.taxes,
         // FastBill nennt nur den Namen der Kategorie; er steht als ID und Name
         categories: voucher.categories.map((c) => ({ ...c, name: c.categoryId })),
         payment,
-        remark: voucher.remark,
         raw: withoutDocumentUrl(item.raw),
       },
       files.map((entry) => ({
@@ -360,5 +377,4 @@ async function importVoucher(
     if (item.kind === "expense") await tx.delete(schema.fastbillReceipts).where(eq(schema.fastbillReceipts.expenseId, item.id));
     return true;
   });
-  return stored ? "uebernommen" : "uebersprungen";
 }
