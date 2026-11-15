@@ -130,10 +130,9 @@ export const getFilingPeriodKey = createServerFn({ method: "GET" })
   });
 
 /**
- * Zeitraum, den /umsatzsteuer öffnet: der älteste abgelaufene, der noch nicht abgegeben ist (#1102). Ein laufender
- * Zeitraum kommt nicht in Frage, weil eine Voranmeldung erst nach Ablauf abzugeben ist (§ 18 Abs. 1 UStG); sind alle
- * abgelaufenen abgegeben, bleibt es beim zuletzt abgelaufenen. Die Auswahl selbst ist eine reine Funktion
- * (`openFilingPeriod` in packages/core, Tests in voranmeldungszeitraum.test.ts).
+ * Zeitraum, den /umsatzsteuer öffnet: der älteste abgelaufene, der noch nicht abgegeben ist, ab der ersten Abgabe in
+ * Haben (#1102); ohne Abgabe in Haben oder wenn alle abgegeben sind, der zuletzt abgelaufene. Nie der laufende
+ * (§ 18 Abs. 1 UStG). Die Auswahl ist eine reine Funktion (`openFilingPeriod` in packages/core).
  */
 export const getOpenFilingPeriodKey = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
