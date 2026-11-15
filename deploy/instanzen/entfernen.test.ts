@@ -56,7 +56,7 @@ describe("entfernen mit laufendem Caddy", () => {
     expect(t.docker.z.caddyLaeuft).toBe(true);
     expect(t.docker.aufrufe.filter((a) => a.startsWith("proxy compose") && !a.includes(" ps "))).toEqual([RELOAD]);
     expect(t.docker.aufrufe.some((a) => /\b(up|restart|down|--force-recreate)\b/.test(a))).toBe(false);
-    expect(t.docker.aufrufe).toContain("proxy compose ps -q caddy");
+    expect(t.docker.aufrufe).toContain("proxy compose ps -a -q caddy");
   });
 
   it("geht in der Reihenfolge Datei weg, Override neu, reload, disconnect, network rm vor", async () => {
@@ -133,13 +133,13 @@ describe("entfernen mit anders geschriebener Netzzeile", () => {
 describe("entfernen mit gestopptem Caddy", () => {
   it("ändert nur Datei, Override und Netz: der Caddy bleibt gestoppt, kein reload, kein up", async () => {
     await zweiInstanzen();
+    // Gestoppt hält der Container keine Endpunkte, behält die Netze aber in seiner Konfiguration (disconnect geht trotzdem)
     t.docker.z.caddyLaeuft = false;
-    // Ein gestoppter Container hält keine Endpunkte mehr in den Netzen
-    t.docker.z.caddyNetze = new Set();
     const r = await t.lauf("entfernen", "firma2");
     expect(r.status, r.stderr).toBe(0);
     expect(t.docker.z.caddyLaeuft).toBe(false);
-    expect(t.docker.aufrufe.some((a) => a.includes("reload") || a.includes(" up ") || a.includes("disconnect"))).toBe(false);
+    expect(t.docker.aufrufe.some((a) => a.includes("reload") || a.includes(" up "))).toBe(false);
+    expect(t.docker.z.caddyNetze).toEqual(new Set(["haben-proxy-firma1"]));
     expect(t.docker.aufrufe).toContain("- network rm haben-proxy-firma2");
     expect(existsSync(site("firma2"))).toBe(false);
     expect(netze(readFileSync(overrideDatei(), "utf8"))).toEqual(["haben-proxy-firma1"]);

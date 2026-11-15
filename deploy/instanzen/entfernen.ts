@@ -83,14 +83,13 @@ export async function proxyEntfernen(k: Kontext, name: string): Promise<void> {
     if (netze.code !== 0) nachholen(k, `docker antwortet nicht; das Netz ${netz} ist noch da`, laeuft ? [loesen, netzWeg] : [netzWeg]);
     // Ein fehlendes Netz ist kein Fehler: Es ist schon weg
     if (netze.stdout.split("\n").some((n) => n.trim() === netz)) {
-      if (laeuft) {
-        const id = (await compose(k, dir, ["ps", "-q", "caddy"])).stdout.trim();
-        if (id === "" || (await docker(k, ["network", "disconnect", netz, id])).code !== 0)
-          nachholen(k, `Der gemeinsame Caddy ließ sich nicht aus dem Netz ${netz} lösen`, [loesen, netzWeg]);
-      }
+      // Auch ein gestoppter Container behält das Netz in seiner Konfiguration; ohne disconnect startete er nicht mehr
+      const id = (await compose(k, dir, ["ps", "-a", "-q", "caddy"])).stdout.trim();
+      if ((laeuft && id === "") || (id !== "" && (await docker(k, ["network", "disconnect", netz, id])).code !== 0))
+        nachholen(k, `Der gemeinsame Caddy ließ sich nicht aus dem Netz ${netz} lösen`, [loesen, netzWeg]);
       if ((await docker(k, ["network", "rm", netz])).code !== 0)
         nachholen(k, `Das Netz ${netz} ließ sich nicht entfernen`, laeuft ? [netzWeg] : [loesen, netzWeg]);
-      k.aus(laeuft ? `Netz ${netz} vom Caddy gelöst und entfernt.` : `Netz ${netz} entfernt.`);
+      k.aus(id !== "" ? `Netz ${netz} vom Caddy gelöst und entfernt.` : `Netz ${netz} entfernt.`);
     }
   }
   if (!laeuft) return k.aus("Fertig. Der Caddy lief nicht und bleibt gestoppt; sein nächster Start liest sites/ ein.");
