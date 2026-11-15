@@ -155,8 +155,9 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
     const ausgefuehrt = leistungsdatum({ belegdatum: k.datum, leistungVon: k.von, leistungBis: k.bis });
     let zahlungenDesBelegs: Zahlung[];
     if (k.payment === "privat") {
-      // Kein Bankweg: Die Zahlung gilt mit der Ausführung der Leistung als geleistet (spätestens dann liegt die Rechnung vor)
-      zahlungenDesBelegs = [];
+      // Privat bezahlt ist der Beleg mit der Buchung ausgeglichen, wie im Journal (belegbuchung.ts parkt nichts): Zahltag
+      // ist das Belegdatum, an dem die Einlage gebucht wird
+      zahlungenDesBelegs = [{ date: k.datum, amount: gross }];
     } else if (k.payment === "kasse") {
       const bar = barAm.get(k.id);
       zahlungenDesBelegs = bar ? [{ date: bar, amount: gross }] : [];
