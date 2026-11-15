@@ -205,6 +205,9 @@ function nextStatus(vorlage: Dauerbeleg, aktion: DauerbelegAktion, heute: string
   }
   if (vorlage.status !== "pausiert") throw new DauerbelegError("Der Dauerbeleg läuft schon.");
   if (!vorlage.sha256) throw new DauerbelegError("Lade zuerst den Vertrag oder die Dauerrechnung hoch.");
+  // Eine aus sevDesk übernommene Vorlage hat die Prüfung des Formulars nicht durchlaufen; das Ende prüft der Status unten
+  const problems = dauerbelegProbleme({ ...vorlage, endDate: null });
+  if (problems.length > 0) throw new DauerbelegError(problems.join(" "));
   const nextDate = terminAbStichtag({ ...vorlage, intervalMonths: vorlage.intervalMonths as RecurringInterval }, heute);
   return { status: vorlage.endDate !== null && nextDate > vorlage.endDate ? "beendet" : "aktiv", nextDate };
 }
