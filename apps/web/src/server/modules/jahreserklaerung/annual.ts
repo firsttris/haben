@@ -71,6 +71,8 @@ export interface Issue {
   tone: "fehler" | "hinweis";
   text: string;
   link?: "/einstellungen" | "/anlagen" | "/umsatzsteuer" | "/bank" | "/pauschalen";
+  /** Bereich der Einstellungen für den Link; am Handy zeigt /einstellungen ohne Bereich nur die Liste */
+  bereich?: "firma" | "persoenlich";
   /** Zeitraum der Umsatzsteuer für den Link („2025-Q4“); ohne Angabe leitet /umsatzsteuer auf den laufenden Zeitraum um */
   zeitraum?: string;
 }
@@ -433,7 +435,7 @@ export function euerIssues(company: Company, data: EuerYear, { vermerkt = false 
   // Rückfall: bliebe danach ein negativer Betrag übrig, lehnt ERiC beim Senden ab (#708)
   for (const text of euerVorzeichenMeldungen(data.figures, data.year)) issues.push({ tone: "fehler", text, link: "/bank" });
   if (!company.einkunftsart || !company.taetigkeit.trim()) {
-    issues.push({ tone: "fehler", text: "Für die Anlage EÜR fehlen Einkunftsart und Art des Betriebs.", link: "/einstellungen" });
+    issues.push({ tone: "fehler", text: "Für die Anlage EÜR fehlen Einkunftsart und Art des Betriebs.", link: "/einstellungen", bereich: "firma" });
   }
   if (data.pendingAssets > 0) {
     issues.push({
@@ -518,14 +520,25 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
 function estIssues(company: Company, euer: EuerYear): Issue[] {
   const issues: Issue[] = [];
   const t = company.taxpayer;
-  if (!t.a) issues.push({ tone: "fehler", text: "Persönliche Angaben (Steuer-ID, Name, Geburtsdatum) fehlen.", link: "/einstellungen" });
+  if (!t.a)
+    issues.push({ tone: "fehler", text: "Persönliche Angaben (Steuer-ID, Name, Geburtsdatum) fehlen.", link: "/einstellungen", bereich: "persoenlich" });
   if (t.veranlagung === "zusammen" && (!t.b || !t.verheiratetSeit)) {
-    issues.push({ tone: "fehler", text: "Für die Zusammenveranlagung fehlen Angaben zum Ehegatten oder das Heiratsdatum.", link: "/einstellungen" });
+    issues.push({
+      tone: "fehler",
+      text: "Für die Zusammenveranlagung fehlen Angaben zum Ehegatten oder das Heiratsdatum.",
+      link: "/einstellungen",
+      bereich: "persoenlich",
+    });
   }
   if (company.strasse && !splitStrasse(company.strasse))
-    issues.push({ tone: "fehler", text: "In der Anschrift fehlt die Hausnummer.", link: "/einstellungen" });
+    issues.push({ tone: "fehler", text: "In der Anschrift fehlt die Hausnummer.", link: "/einstellungen", bereich: "firma" });
   if (!company.einkunftsart) {
-    issues.push({ tone: "fehler", text: "Einkunftsart fehlt; ohne sie weiß Haben nicht, ob der Gewinn in Anlage G oder S gehört.", link: "/einstellungen" });
+    issues.push({
+      tone: "fehler",
+      text: "Einkunftsart fehlt; ohne sie weiß Haben nicht, ob der Gewinn in Anlage G oder S gehört.",
+      link: "/einstellungen",
+      bereich: "firma",
+    });
   }
   if (euer.pendingAssets > 0) {
     issues.push({ tone: "fehler", text: "AfA bzw. Privatnutzung des Jahres ist noch nicht gebucht; der Gewinn wäre falsch.", link: "/anlagen" });
@@ -650,7 +663,7 @@ export async function annualOverview(year: number, today: string) {
   const est = await estYear(year, euer);
   const base = [
     ...yearIssues(year, today),
-    ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen" })),
+    ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen", bereich: "firma" })),
   ];
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
   // Eine außerhalb von Haben abgegebene Erklärung zählt als erledigt und trägt ihren Betrag (Umsatzsteuer: Abschlusszahlung, EÜR: Gewinn)

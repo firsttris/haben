@@ -64,7 +64,9 @@ function ZmPage() {
             {issue.tone === "error" && issue.text.includes("Firmendaten") && (
               <>
                 {" "}
-                <Link to="/einstellungen">In den Einstellungen ergänzen</Link>
+                <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                  In den Einstellungen ergänzen
+                </Link>
               </>
             )}
           </span>
