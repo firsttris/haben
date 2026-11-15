@@ -182,9 +182,14 @@ Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in d
 | Regel 2 „Ausfuhren“ | Kz 43 |
 | Regel 3 „Innergemeinschaftliche Lieferungen“ bzw. taxType `eu` | Kz 41 |
 | Regel 4 „Steuerfreie Umsätze § 4 UStG“, Regel 11 „§ 19 UStG“ bzw. taxType `ss` | Steuerfrei |
+| eigene Steuerart (taxType `custom`) | Kennzahlen der Steuerart |
 | Regel 5 „Reverse Charge § 13b“ und alles andere | Andere Sätze |
 
-Reverse Charge lässt sich ohne weitere Angaben nicht eindeutig Kz 21 oder Kz 60 zuordnen; vergleiche diese Umsätze von Hand.
+Reverse Charge nach Regel 5 lässt sich ohne weitere Angaben nicht eindeutig Kz 21 oder Kz 60 zuordnen; vergleiche diese Umsätze von Hand.
+
+**Eigene Steuerarten:** Ein Beleg mit taxType `custom` verweist per `taxSet` auf eine Steuerart, die in sevDesk die Kennzahlen der Voranmeldung nennt: `vatReportFieldNet` für die Bemessungsgrundlage, `vatReportFieldTax` für die Steuer, mehrere durch Komma. Die [OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt nur taxType `custom` („Using custom tax set“), den Endpunkt `GET /TaxSet` beschreibt sie nicht; das Verhalten ist mit echten Antworten der Buchhaltungsversion 1.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Haben ruft die Steuerarten bei jedem Abruf ab (`GET /TaxSet`), speichert sie unverändert und nimmt im Abgleich die des jüngsten Abrufs, auch für früher abgerufene Belege. Bei Ausgaben zählt das Netto in die genannte Kennzahl, etwa Kz 46 oder 84 für Leistungen, deren Steuer du als Empfänger schuldest ([§ 13b UStG](https://www.gesetze-im-internet.de/ustg_1980/__13b.html)), oder Kz 89 für den innergemeinschaftlichen Erwerb. Die Steuer rechnet Haben wie sevDesk je Beleg aus Netto und Satz der Steuerart und zählt sie in jede genannte Kennzahl, bei Reverse Charge also als Steuer (Kz 47) und Vorsteuer (Kz 67); als Vorsteuer Kz 66 zählt sie dann nicht. Bei Einnahmen ordnet die Kennzahl der Bemessungsgrundlage den Umsatz zu wie die Regeln oben, etwa Kz 41 oder 60. Haben übernimmt die Kennzahlen so, wie sevDesk sie gemeldet hat, und prüft nicht, ob sie stimmen (Bedeutung der Kennzahlen: Anleitung zur Umsatzsteuer-Voranmeldung 2026, [Formular-Management-System des Bundes](https://www.formulare-bfinv.de/)).
+
+Eine Steuerart ohne Kennzahlen, etwa für Bezüge von Kleinunternehmern (§ 19 UStG), meldet nichts. Fehlt die Steuerart, weil ihr Abruf scheiterte, oder nennt sie eine Kennzahl, die Haben nicht kennt, stehen Einnahmen unter „Andere Sätze“ und Ausgaben unter „Andere Bezüge“; ein neuer Abruf holt die Steuerarten nach. Rechnungen und Gutschriften trugen im geprüften Konto keine eigene Steuerart; trügen sie eine, gilt dasselbe.
 
 ### Zahlungen
 

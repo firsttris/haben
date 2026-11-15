@@ -1856,6 +1856,20 @@
       "when": 1794777455362,
       "tag": "0264_sevdesk_voranmeldungen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 265,
+      "version": "7",
+      "when": 1794783408405,
+      "tag": "0265_sevdesk_steuerarten",
+      "breakpoints": true
+    },
+    {
+      "idx": 266,
+      "version": "7",
+      "when": 1794783409485,
+      "tag": "0266_sevdesk_steuerarten_trigger",
+      "breakpoints": true
     }
   ]
 }

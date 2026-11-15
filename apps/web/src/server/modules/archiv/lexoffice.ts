@@ -53,6 +53,7 @@ import { fastbillPartlyCanceledByYear, fastbillPartlyCanceledChecks, fastbillTax
 import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 import { legacyDunningsFor } from "./mahnungen-archiv.ts";
+import { customTaxSetId, legacyTaxSetFields, vatFieldsOf } from "./sevdesk-steuerarten.ts";
 import { FILE_STATUS_LABELS, fileCheck, fileCounts, fileStateHistory, latestFileStateSql, legacyFileStatus, OPEN_FILE_STATUSES } from "./dateistand.ts";
 
 export class LexofficeError extends UserError {}
@@ -527,7 +528,8 @@ function legacyPayments(v: { source: LegacySource; gross: number; status: string
 /**
  * Steuerart aus der gespeicherten API-Antwort, in den Werten von Lexoffice. Lexoffice: Rechnungsmodul unter taxConditions,
  * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
- * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt. FastBill: VAT_CASE (fastbill-abgleich.ts).
+ * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt; eine eigene Steuerart (taxType custom) ordnet
+ * sevdesk-steuerarten.ts über ihre Kennzahlen zu. FastBill: VAT_CASE (fastbill-abgleich.ts).
  */
 function taxTypeOf(t: string) {
   return sql.raw(`case when ${t}.source = 'fastbill' then ${fastbillTaxType(t)}
@@ -582,6 +584,7 @@ export async function reconciliation() {
         payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
         taxType: TAX_TYPE,
         taxSubType: TAX_SUB_TYPE,
+        taxSetId: customTaxSetId("lexoffice_vouchers"),
         ohneBeleg: WITHOUT_RECEIPT,
         fileState: latestFileStateSql("lexoffice_vouchers"),
         ohneBelegbild: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBelegbild')::boolean, false)`,
@@ -629,6 +632,8 @@ export async function reconciliation() {
     .from(schema.legacyVatReportFiles)
     .innerJoin(schema.legacyVatReports, eq(schema.legacyVatReportFiles.vatReportId, schema.legacyVatReports.id));
   const lastImport = await latestImport();
+  // Eigene Steuerarten aus sevDesk: Kennzahlen aus dem jüngsten Abruf, auch für früher abgerufene Belege
+  const taxSets = await legacyTaxSetFields();
   // Für Jahre ohne Belege per API (Umzug nur über DATEV): Summen aus dem Buchungsstapel
   const datevRows = await db
     .select({
@@ -725,6 +730,7 @@ export async function reconciliation() {
                 payments: legacyPayments(v),
                 taxType: v.taxType,
                 taxSubType: v.taxSubType,
+                vatFields: vatFieldsOf(v.taxSetId, taxSets),
               })),
             versteuerung,
           ).filter((m) => m.month.startsWith(`${year}-`));

@@ -3274,6 +3274,21 @@ export const legacyVatReportFiles = pgTable(
   (t) => [uniqueIndex("legacy_vat_report_files_unique").on(t.vatReportId, t.sha256)],
 );
 
+/**
+ * Steuerarten aus sevDesk (GET /TaxSet), je Abruf einmal unverändert in raw (Liste der Objekte). Der Abgleich der
+ * Umsatzsteuer liest die Kennzahlen eigener Steuerarten (taxType custom) aus dem jüngsten Abruf, auch für früher abgerufene
+ * Belege (#472). Nur anhängen.
+ */
+export const sevdeskTaxSets = pgTable("sevdesk_tax_sets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  importId: uuid("import_id")
+    .notNull()
+    .unique()
+    .references(() => lexofficeImports.id),
+  raw: jsonb("raw").$type<Record<string, unknown>[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Nachweis jedes begonnenen automatischen PDF-Abrufs, auch wenn kein PDF übernommen werden konnte. */
 export const legacyOrderPdfAttempts = pgTable(
   "legacy_order_pdf_attempts",
