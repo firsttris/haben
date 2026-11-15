@@ -88,9 +88,10 @@ async function steuerlichAusgeglichen(tx: Tx, documentId: string): Promise<numbe
  * fortgeschriebene Anteil auch dann, wenn ein Ausgleich vor dieser Umbuchung lag — der Saldo des Kontos ist die Wahrheit
  * über das, was noch offen ist.
  *
- * Gezählt wird nur bis zum Tag des Ausgleichs (`bis`): Die Freigabe zum Leistungsdatum steht schon ab dem Buchen im
- * Journal, datiert auf einen Tag, der noch kommen kann (#693, #930). Ohne die Grenze zählte eine Zahlung vor der
- * Ausführung sie mit und zöge ihren Anteil ein zweites Mal — bei Teilzahlungen mit negativem Vorzeichen.
+ * Eine Freigabe nach dem Tag des Ausgleichs (`bis`) zählt nicht mit: Sie steht schon ab dem Buchen im Journal, datiert
+ * auf einen Tag, der noch kommen kann (#693, #930), und eine Zahlung vor der Ausführung zöge ihren Anteil sonst ein
+ * zweites Mal — bei Teilzahlungen mit negativem Vorzeichen. Alle anderen Buchungen zählen unabhängig vom Datum: Ein
+ * nachgereichter, älterer Auszug soll den Anteil nicht neu verteilen.
  */
 async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise<TaxShare[]> {
   const rows = await tx.execute<{ tax_code: string | null; bewegt: number; basis: number }>(sql`
@@ -104,7 +105,8 @@ async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise
                (select id from write_offs where document_id = ${documentId} and kind <> 'skontoErhalten'))
          -- Beim Buchen schon freigegeben (#693): Der Ausgleich darf dieselbe Steuer nicht ein zweites Mal ziehen
          or (e.source_type = 'freigabe' and e.source_id = ${documentId}))
-       and e.date <= ${bis}
+       -- Nur die Freigabe trägt ein Datum, das noch kommen kann; alles andere zählt, auch wenn es nachgereicht wurde
+       and not (e.source_type = 'freigabe' and e.date > ${bis})
      group by l.tax_code`);
   return [...rows].flatMap((r) => {
     const rate = satzZumSchluessel(r.tax_code);
