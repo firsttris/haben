@@ -122,7 +122,7 @@ function anhaengen<T>(map: Map<string, T[]>, key: string, b: T) {
  * Buchungen je Rechnung bzw. Beleg (Herkunft `typ`), je ID in der Reihenfolge von `buchungen`. Alle Buchungen einer ID
  * stehen im selben Block, die Reihenfolge ist deshalb dieselbe wie mit einer Abfrage je ID.
  */
-export async function buchungenJe(q: Db | Tx, typ: "invoice" | "document", ids: string[]): Promise<Map<string, Buchung[]>> {
+export async function buchungenJe(q: Db | Tx, typ: "invoice" | "document" | "freigabe", ids: string[]): Promise<Map<string, Buchung[]>> {
   const e = schema.journalEntries;
   const result = new Map<string, Buchung[]>();
   for (const block of bloecke([...new Set(ids)]))

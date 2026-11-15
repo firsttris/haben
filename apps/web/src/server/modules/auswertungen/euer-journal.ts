@@ -148,7 +148,12 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
   const verrechnet = await verrechnungenImJahr(q, year);
   const einfacheBelege = [...zielVon.values()].flatMap((z) => (!z.invoiceId && z.documentId ? [z.documentId] : []));
   const belegIds = [...new Set([...einfacheBelege, ...verrechnet.map((v) => v.dokumentId)])];
-  const gebuchtVon = { invoice: await buchungenJe(q, "invoice", rechnungIds), document: await buchungenJe(q, "document", belegIds) };
+  // Die Freigabe zum Leistungsdatum (#693) gehört zur Buchung des Belegs: Mit ihr steht die Vorsteuer statt des
+  // Zwischenkontos in den Zeilen, die eine Zahlung anteilig ausgleicht
+  const freigaben = await buchungenJe(q, "freigabe", belegIds);
+  const belegBuchungen = await buchungenJe(q, "document", belegIds);
+  for (const [id, liste] of freigaben) belegBuchungen.set(id, [...(belegBuchungen.get(id) ?? []), ...liste]);
+  const gebuchtVon = { invoice: await buchungenJe(q, "invoice", rechnungIds), document: belegBuchungen };
   const ausgleicheVon = await ausgleichsBuchungenJe(q, rechnungIds);
   const nebenbuchVon = await belegNebenbuecher(q, belegIds);
   const anlagen = new Set<string>();
@@ -219,6 +224,9 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
   /** Was eine Buchung in der EÜR bewirkt */
   async function wirkung(b: Buchung): Promise<EuerAusJournal> {
     const summe = leereEuerAusJournal();
+    // Freigabe zum Leistungsdatum (#693): nur eine Umbuchung vom Zwischenkonto auf die Vorsteuer, kein Abfluss. Die
+    // Vorsteuer ist Betriebsausgabe mit der Zahlung (§ 11 Abs. 2 EStG), über die Zeilen des Belegs (ursprungVon)
+    if (b.sourceType === "freigabe") return summe;
     const kr = b.kontenrahmen;
     const ziel = zielVon.get(b.sourceId);
     const herkunft: EuerHerkunft =
