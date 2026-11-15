@@ -161,7 +161,7 @@ Ist sevDesk schon gekündigt oder klärt auch ein neuer Abruf das Konto nicht, l
 | Erlöskonto | Erlöse |
 | anderes Konto, keine Nummer, Widerspruch, keine Antwort | „Sonstiges“, in der Belegansicht mit dem Konto |
 
-Ein übernommener offener Ausgabebeleg bekommt die Kategorie der Position mit dem größten Nettobetrag. Die Archivkopie bleibt unverändert; Bestand aus einem früheren Abruf bekommt seine Kategorien mit **Erneut abrufen**.
+Ein übernommener offener Ausgabebeleg bekommt die Kategorie der Position mit dem größten Nettobetrag, wenn sie eine Ausgabenkategorie ist, sonst „Sonstiges“. Die Archivkopie bleibt unverändert; Bestand aus einem früheren Abruf bekommt seine Kategorien mit **Erneut abrufen**.
 
 sevDesk lässt bei vielen Belegen den Namen des Lieferanten leer (`supplierName`). Haben zeigt dann den Namen, den der Beleg beim Speichern trug (`supplierNameAtSave`), und erst ohne ihn den Namen des verknüpften Kontakts. So bleibt ein alter Beleg richtig, wenn der Kontakt später umbenannt wird. Die Archivkopie bleibt unverändert.
 
