@@ -85,6 +85,16 @@ describe.skipIf(!testDatabaseUrl)("Artikel aus FastBill und die Stundengrenze (P
     expect(seenPreviousCalls[0]).toHaveLength(1);
   });
 
+  it("zählt die Aufrufe eines Artikel-Abrufs nach einem Abruf der Belege nur einmal", async () => {
+    // Der Lauf der Belege übernimmt die Aufrufe des Artikel-Abrufs in seine fastbillCalls; im Speicher stehen sie auch noch
+    await artikel.fastbillArticlesCsv();
+    await fastbill.startFastbillImport(actor, { wait: true });
+    const bisher = services.length;
+    seenPreviousCalls = [];
+    await artikel.fastbillArticlesCsv();
+    expect(seenPreviousCalls[0]).toHaveLength(bisher);
+  });
+
   it("meldet eine Störung bei FastBill (503 mit Retry-After) nicht als erreichte Stundengrenze des Tarifs", async () => {
     respond = () => new Response("Service Unavailable", { status: 503, headers: { "retry-after": "120" } });
     const error = await artikel.fastbillArticlesCsv().then(
