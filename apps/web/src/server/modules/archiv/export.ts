@@ -1759,8 +1759,9 @@ umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldun
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
-                         Lexware Office, sevDesk oder BuchhaltungsButler (Spalte Quelle;
-                         bei sevDesk steht in Lexoffice-ID die sevDesk-Art und -ID, z. B. invoice/123) mit
+                         Lexware Office, sevDesk, FastBill oder BuchhaltungsButler (Spalte
+                         Quelle; in Lexoffice-ID steht bei sevDesk Art und ID, z. B. invoice/123,
+                         bei FastBill mit Präfix, z. B. fastbill/invoice/123) mit
                          Originaldateien (belege.csv), Einzelzahlungen aus sevDesk
                          (zahlungen.csv), die Zeilen des
                          DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten
