@@ -81,6 +81,34 @@ export function latestEndedPeriod(settings: readonly VatFrequencySetting[], toda
   return null;
 }
 
+/** Liegt der letzte Monat des Zeitraums vor `today`? Ein laufender Zeitraum ist nicht abzugeben (JJJJ-MM-Vergleich) */
+function endedBefore(period: VatPeriod, today: VatPeriod): boolean {
+  const last = lastMonthOfPeriod(period);
+  return last.year < today.year || (last.year === today.year && last.month < today.month);
+}
+
+/** Zeiträume als Zahl JJJJMM, damit sie sich vergleichen und in einer Menge führen lassen */
+const periodNumber = (period: VatPeriod) => period.year * 100 + period.month;
+
+/**
+ * Der älteste abgelaufene Voranmeldungszeitraum, der noch nicht abgegeben ist (#1102). Abgegeben ist ein Zeitraum, wenn
+ * ein Vermerk vorliegt oder die Erklärung gesendet wurde; beides reicht der Aufrufer als Liste herein, damit die Auswahl
+ * eine reine Funktion bleibt. null, wenn alle abgelaufenen Zeiträume abgegeben sind.
+ *
+ * Ein laufender Zeitraum kommt nie in Frage: Eine Voranmeldung ist erst nach Ablauf abzugeben (§ 18 Abs. 1 UStG). Wer
+ * im Quartal steht und im Oktober Q2 abgegeben hat, bekommt also Q3 und nicht das laufende Q4.
+ */
+export function openFilingPeriod(settings: readonly VatFrequencySetting[], today: VatPeriod, abgegeben: readonly VatPeriod[], months = 13): VatPeriod | null {
+  const erledigt = new Set(abgegeben.map(periodNumber));
+  // Nicht vor das erste Jahr der Einstellung zurückgehen: davor kennt Haben den Zeitraum nicht, und die Zeiträume
+  // aus der Zeit davor sind in der Auswahlliste der Seite ebenso wenig zu finden
+  const fruehestesJahr = Math.min(today.year, ...settings.map((s) => s.year));
+  const offen = recentFilingPeriods(settings, today, months)
+    .filter((period) => period.year >= fruehestesJahr && endedBefore(period, today))
+    .sort((a, b) => periodNumber(a) - periodNumber(b));
+  return offen.find((period) => !erledigt.has(periodNumber(period))) ?? null;
+}
+
 /** Die Zeiträume der letzten `months` Monate bis einschließlich `today`, neueste zuerst; befreite Monate fehlen */
 export function recentFilingPeriods(settings: readonly VatFrequencySetting[], today: VatPeriod, months = 13): VatPeriod[] {
   const periods: VatPeriod[] = [];

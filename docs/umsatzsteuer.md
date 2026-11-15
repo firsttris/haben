@@ -25,7 +25,7 @@ Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite o
 
 ## So gehst du vor
 
-1. **Umsatzsteuer** öffnen. Haben springt zum zuletzt abgelaufenen Zeitraum, also dem, der gerade abzugeben ist: bei monatlicher Abgabe der Vormonat, bei vierteljährlicher das letzte volle Quartal. Über **Zeitraum** wählst du den laufenden oder einen der Zeiträume der letzten zwölf Monate.
+1. **Umsatzsteuer** öffnen. Haben springt zum ältesten abgelaufenen Zeitraum, der noch nicht abgegeben ist, also dem, der als Nächstes dran ist: bei monatlicher Abgabe der älteste offene Monat, bei vierteljährlicher das älteste offene Quartal. Sind alle abgelaufenen abgegeben, bleibt es beim zuletzt abgelaufenen. Ein laufender Zeitraum öffnet die Seite nicht, denn eine Voranmeldung ist erst nach Ablauf abzugeben (§ 18 Abs. 1 UStG); über **Zeitraum** wählst du ihn selbst.
 2. Die Hinweise oben abarbeiten (siehe [Vorprüfung](#vorprüfung)).
 3. Kennzahlen prüfen, bei Bedarf die Quellen aufklappen.
 4. **Nur prüfen**: ERiC prüft die Daten, ohne etwas zu senden.

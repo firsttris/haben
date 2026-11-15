@@ -5,8 +5,9 @@ import {
   filingPeriodSchema,
   FREQUENCY_START_MONTHS,
   periodKey,
-  recentFilingPeriods,
   latestEndedPeriod,
+  openFilingPeriod,
+  recentFilingPeriods,
   lastMonthOfPeriod,
   VAT_FREQUENCIES,
   type VatPeriod,
@@ -19,6 +20,7 @@ import {
   computeVatFigures,
   dauerfristFor,
   dauerfristOverview,
+  abgegebeneZeitraeume,
   frequencyOverview,
   kz39For,
   loadFrequencies,
@@ -128,9 +130,10 @@ export const getFilingPeriodKey = createServerFn({ method: "GET" })
   });
 
 /**
- * Zeitraum, den /umsatzsteuer öffnet: der nächste, der noch nicht abgegeben ist (#1099). Wer im Quartal steht, sieht
- * damit das laufende Quartal und nicht das zuletzt abgelaufene. Abgegeben ist ein Zeitraum, wenn ein Vermerk vorliegt
- * oder die Erklärung gesendet wurde; gerechnet wird rückwärts und nie über den laufenden Zeitraum hinaus.
+ * Zeitraum, den /umsatzsteuer öffnet: der älteste abgelaufene, der noch nicht abgegeben ist (#1102). Ein laufender
+ * Zeitraum kommt nicht in Frage, weil eine Voranmeldung erst nach Ablauf abzugeben ist (§ 18 Abs. 1 UStG); sind alle
+ * abgelaufenen abgegeben, bleibt es beim zuletzt abgelaufenen. Die Auswahl selbst ist eine reine Funktion
+ * (`openFilingPeriod` in packages/core, Tests in voranmeldungszeitraum.test.ts).
  */
 export const getOpenFilingPeriodKey = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -138,13 +141,8 @@ export const getOpenFilingPeriodKey = createServerFn({ method: "GET" })
     const now = new Date();
     const settings = await loadFrequencies();
     const today = currentMonth(now);
-    for (const period of recentFilingPeriods(settings, today)) {
-      const returns = await returnsForPeriod(period);
-      const filings = await filingsFor(returns.map((r) => r.id));
-      const abgegeben = filings.length > 0 || returns.some((r) => r.status === "sent");
-      if (!abgegeben) return periodKey(period);
-    }
-    return periodKey(latestEndedPeriod(settings, today) ?? currentFilingPeriod(now));
+    const offen = openFilingPeriod(settings, today, await abgegebeneZeitraeume());
+    return periodKey(offen ?? latestEndedPeriod(settings, today) ?? currentFilingPeriod(now));
   });
 
 export const getOverview = createServerFn({ method: "GET" })

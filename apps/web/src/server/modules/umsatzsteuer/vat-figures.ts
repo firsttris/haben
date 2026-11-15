@@ -662,9 +662,9 @@ export interface PreflightIssue {
   tone: "warn" | "info";
   text: string;
   link: "/bank" | "/belege" | "/rechnungen" | "/konten";
-  /** Filter, mit dem die verlinkte Seite genau die angesprochenen Posten zeigt (#1099) */
-  search?: { filter: "offen" };
 }
+// /bank zeigt ohne Parameter schon die offenen Umsätze (`routes/_app/bank.tsx`, `filter ?? "offen"`); ein eigener
+// Filter in der Verlinkung änderte nichts (#1102)
 
 /** Vorprüfung vor dem Senden: was im Zeitraum noch offen ist und die Zahlen verfälschen könnte */
 export async function preflight(period: VatPeriod, figures: VatFigures): Promise<PreflightIssue[]> {
@@ -692,7 +692,6 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
       tone: "warn",
       text: `${bank.outgoing} ${bank.outgoing === 1 ? "Ausgabe" : "Ausgaben"} im Zeitraum ohne Beleg oder Zuordnung. Ohne Beleg wird keine Vorsteuer angesetzt.`,
       link: "/bank",
-      search: { filter: "offen" },
     });
   }
   if (bank && bank.incoming > 0) {
@@ -700,7 +699,6 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
       tone: figures.versteuerung === "ist" ? "warn" : "info",
       text: `${bank.incoming} ${bank.incoming === 1 ? "Zahlungseingang" : "Zahlungseingänge"} im Zeitraum noch nicht zugeordnet${figures.versteuerung === "ist" ? "; bei Ist-Versteuerung fehlt sonst Umsatzsteuer" : ""}.`,
       link: "/bank",
-      search: { filter: "offen" },
     });
   }
 

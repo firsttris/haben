@@ -122,3 +122,20 @@ export function periodProblem(settings: readonly VatFrequencySetting[], period: 
     return `Für ${periodLabel(period)} ist keine Voranmeldung eingestellt (befreit). Ändere den Voranmeldungszeitraum, wenn das nicht stimmt.`;
   return `Für ${periodLabel(period)} passt die Voranmeldung nicht zum eingestellten Zeitraum (${frequency === "vierteljaehrlich" ? "vierteljährlich" : "monatlich"}).`;
 }
+
+/**
+ * Abgegebene Voranmeldungszeiträume: gesendet (`vat_returns.status = sent`) oder als außerhalb von Haben abgegeben
+ * vermerkt (`vat_return_filings`). Beides gilt als erledigt; offen ist, was weder das eine noch das andere hat (#1102).
+ */
+export async function abgegebeneZeitraeume(q: Db | Tx = db): Promise<VatPeriod[]> {
+  const [gesendet, vermerkt] = await Promise.all([
+    q.select({ year: schema.vatReturns.year, month: schema.vatReturns.month }).from(schema.vatReturns).where(eq(schema.vatReturns.status, "sent")),
+    q
+      .select({ year: schema.vatReturns.year, month: schema.vatReturns.month })
+      .from(schema.vatReturnFilings)
+      .innerJoin(schema.vatReturns, eq(schema.vatReturnFilings.vatReturnId, schema.vatReturns.id)),
+  ]);
+  const einmalig = new Map<string, VatPeriod>();
+  for (const period of [...gesendet, ...vermerkt]) einmalig.set(`${period.year}-${period.month}`, period);
+  return [...einmalig.values()];
+}

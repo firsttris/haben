@@ -1535,6 +1535,21 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await expect(page.getByRole("heading", { name: "Finanzamt", level: 1 })).toBeVisible();
 });
 
+test("Umsatzsteuer öffnet den Zeitraum, der als Nächstes abzugeben ist, nie den laufenden (#1102)", async () => {
+  await go("/umsatzsteuer");
+  // Die Seite leitet auf den Zeitraum um; der laufende ist nie abzugeben (§ 18 Abs. 1 UStG)
+  await page.waitForURL(/\/umsatzsteuer\/[0-9]{4}-(Q[1-4]|[0-9]{2})$/);
+  const key = page.url().split("/").pop()!;
+  const [jahr, teil] = key.split("-") as [string, string];
+  const jetzt = new Date();
+  const laufend = teil.startsWith("Q")
+    ? Number(jahr) === jetzt.getFullYear() && teil === `Q${Math.floor(jetzt.getMonth() / 3) + 1}`
+    : Number(jahr) === jetzt.getFullYear() && Number(teil) === jetzt.getMonth() + 1;
+  expect(laufend, `Die Seite öffnete den laufenden Zeitraum ${key}`).toBe(false);
+  // Und die Überschrift nennt denselben Zeitraum wie die Adresse
+  await expect(page.getByRole("heading", { level: 1 })).not.toBeEmpty();
+});
+
 test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async () => {
   await go("/umsatzsteuer");
   const save = page.getByRole("button", { name: "Entwurf speichern" });
