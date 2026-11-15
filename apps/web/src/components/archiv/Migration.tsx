@@ -23,6 +23,7 @@ import {
   uploadAccountableExport,
   type getMigration,
 } from "../../server/functions/archive.ts";
+import { cancelFastbillImport, removeFastbillLogin, saveFastbillLogin, startFastbillImport } from "../../server/functions/fastbill.ts";
 import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { Icon } from "../Icon.tsx";
 import { ScrollBox } from "../ScrollTable.tsx";
@@ -30,13 +31,16 @@ import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
+import { FastbillReceipts } from "./FastbillReceipts.tsx";
+import { FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
 import { Status } from "../Status.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
 /** Quellen mit API-Verbindung: Schlüssel speichern, entfernen, Abruf starten */
-type ConnectedSource = "lexoffice" | "sevdesk";
+type ConnectedSource = "lexoffice" | "sevdesk" | "fastbill";
+type FastbillPlan = MigrationData["fastbillPlans"][number];
 /** Alle Quellen; Accountable und BuchhaltungsButler kennen keine API, dort gibt es nur den Datei-Upload */
 type Source = ConnectedSource | "accountable" | "buchhaltungsbutler";
 
@@ -69,6 +73,20 @@ const SOURCES = {
     remove: removeSevdeskToken,
     cancel: cancelSevdeskImport,
   },
+  fastbill: {
+    product: "FastBill",
+    keyLabel: "API-Schlüssel",
+    keyHelp:
+      "Den API-Schlüssel findest du in FastBill in den Einstellungen deines Kontos. Dazu die E-Mail, mit der du dich bei FastBill anmeldest, und dein Tarif: Er bestimmt, wie viele Anfragen FastBill je Stunde erlaubt. Haben liest nur, es ändert nichts in FastBill.",
+    removeLabel: "Zugang entfernen",
+    importHelp:
+      "Holt alle Kunden, Ausgangsrechnungen, Gutschriften, Stornos und Ausgaben mit ihren PDFs. FastBill erlaubt je nach Tarif nur 50 bis 1000 Anfragen pro Stunde; an der Grenze wartet der Abruf und macht danach weiter, bei vielen Belegen dauert das Stunden. Du kannst die Seite währenddessen verlassen. Ein neuer Abruf überspringt alles, was schon da ist.",
+    exportsHelp:
+      "Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) aus FastBill hoch, dazu die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF.",
+    save: saveFastbillLogin,
+    remove: removeFastbillLogin,
+    cancel: cancelFastbillImport,
+  },
   accountable: {
     product: "Accountable",
     keyLabel: "API-Zugang",
@@ -97,6 +115,7 @@ export function Migration({ data }: { data: MigrationData }) {
   const [source, setSource] = useState<Source>(() => {
     if (data.connection || data.lastImport) return "lexoffice";
     if (data.sevdeskConnection || data.sevdeskImport) return "sevdesk";
+    if (data.fastbillConnection || data.fastbillImport) return "fastbill";
     if (data.accountableImport) return "accountable";
     if (data.bbImport) return "buchhaltungsbutler";
     return "lexoffice";
@@ -107,9 +126,11 @@ export function Migration({ data }: { data: MigrationData }) {
       ? data.bbImport
       : source === "sevdesk"
         ? data.sevdeskImport
-        : source === "accountable"
-          ? data.accountableImport
-          : data.lastImport;
+        : source === "fastbill"
+          ? data.fastbillImport
+          : source === "accountable"
+            ? data.accountableImport
+            : data.lastImport;
   return (
     <div className="stack">
       {data.externalImports.length > 0 && (
@@ -149,6 +170,21 @@ export function Migration({ data }: { data: MigrationData }) {
               source="sevdesk"
               connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null}
             />
+          ) : source === "fastbill" ? (
+            <Connection
+              key="fastbill"
+              source="fastbill"
+              plans={data.fastbillPlans}
+              connected={
+                data.fastbillConnection
+                  ? {
+                      name: data.fastbillConnection.email,
+                      since: data.fastbillConnection.createdAt,
+                      detail: `Tarif ${data.fastbillPlans.find((p) => p.callsPerHour === data.fastbillConnection?.callsPerHour)?.label ?? ""}, ${data.fastbillConnection.callsPerHour} Anfragen pro Stunde.`,
+                    }
+                  : null
+              }
+            />
           ) : (
             <Connection
               key="lexoffice"
@@ -160,16 +196,19 @@ export function Migration({ data }: { data: MigrationData }) {
           <ImportCard
             key={`${source}-${lastImport?.id ?? "neu"}`}
             source={source}
-            connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : data.connection)}
+            connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : source === "fastbill" ? data.fastbillConnection : data.connection)}
             initial={lastImport}
           />
+          {source === "fastbill" && <FastbillReceipts receipts={data.fastbillReceipts} running={data.fastbillImport?.status === "laeuft"} />}
         </>
       )}
       <OpenItems
         items={data.openItems}
         cutoff={data.cutoff}
         cutoffError={data.cutoffError}
-        imported={Boolean(data.lastImport || data.sevdeskImport || data.accountableImport || data.bbImport || data.externalImports.length)}
+        imported={Boolean(
+          data.lastImport || data.sevdeskImport || data.fastbillImport || data.accountableImport || data.bbImport || data.externalImports.length,
+        )}
       />
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
@@ -211,23 +250,44 @@ export function Migration({ data }: { data: MigrationData }) {
   );
 }
 
-function Connection({ source, connected }: { source: ConnectedSource; connected: { name: string; since: Date } | null }) {
+function Connection({
+  source,
+  connected,
+  plans = [],
+}: {
+  source: ConnectedSource;
+  connected: { name: string; since: Date; detail?: string } | null;
+  /** Nur FastBill: Tarife mit Stundengrenze; dort braucht die Anmeldung auch die Login-E-Mail */
+  plans?: readonly FastbillPlan[];
+}) {
   const router = useRouter();
   const config = SOURCES[source];
   const save = useServerFn(config.save);
+  const saveFastbill = useServerFn(saveFastbillLogin);
   const remove = useServerFn(config.remove);
   const [key, setKey] = useState("");
+  const [email, setEmail] = useState("");
+  const [callsPerHour, setCallsPerHour] = useState<number>(plans[0]?.callsPerHour ?? 50);
+  const fastbill = source === "fastbill";
   const [removing, setRemoving] = useState(false);
   const { busy, notice, run } = useAction();
   const error = notice?.text ?? null;
   const keyId = useId();
-  const { form, error: fehler, check } = useSubmitCheck({ key: key.trim() === "" ? `Trag den ${config.keyLabel} ein.` : null });
+  const {
+    form,
+    error: fehler,
+    check,
+  } = useSubmitCheck({
+    key: key.trim() === "" ? `Trag den ${config.keyLabel} ein.` : null,
+    email: fastbill && email.trim() === "" ? "Trag die E-Mail ein, mit der du dich bei FastBill anmeldest." : null,
+  });
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!check()) return;
     void run(async () => {
-      await save({ data: { apiKey: key } });
+      if (fastbill) await saveFastbill({ data: { email, apiKey: key, callsPerHour } });
+      else await save({ data: { apiKey: key } });
       setKey("");
       await router.invalidate();
     });
@@ -252,7 +312,7 @@ function Connection({ source, connected }: { source: ConnectedSource; connected:
           <div>
             Verbunden mit <strong>{connected.name}</strong>
             <div className="small muted">
-              {config.keyLabel} hinterlegt am {formatDateTime(connected.since)}, verschlüsselt gespeichert.
+              {config.keyLabel} hinterlegt am {formatDateTime(connected.since)}, verschlüsselt gespeichert.{connected.detail ? ` ${connected.detail}` : ""}
             </div>
           </div>
           <button type="button" className="btn btn-danger" onClick={() => setRemoving(true)} disabled={busy}>
@@ -275,6 +335,16 @@ function Connection({ source, connected }: { source: ConnectedSource; connected:
           <p className="small muted" style={{ margin: 0 }}>
             {config.keyHelp}
           </p>
+          {fastbill && (
+            <FastbillLoginFields
+              email={email}
+              onEmail={setEmail}
+              emailError={fehler("email")}
+              callsPerHour={callsPerHour}
+              onCallsPerHour={setCallsPerHour}
+              plans={plans}
+            />
+          )}
           <Field label={config.keyLabel} describedBy={error ? `${keyId}-error` : undefined} error={fehler("key")}>
             {(control) => (
               <input
@@ -311,6 +381,7 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
   const config = SOURCES[source];
   const startLexoffice = useServerFn(startLexofficeImport);
   const startSevdesk = useServerFn(startSevdeskImport);
+  const startFastbill = useServerFn(startFastbillImport);
   const uploadAccountable = useServerFn(uploadAccountableExport);
   const startAccountable = useServerFn(startAccountableImport);
   const cancelAccountable = useServerFn(cancelAccountableImport);
@@ -343,7 +414,14 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
 
   const onStart = () =>
     action.run(async () => {
-      const started = source === "sevdesk" ? await startSevdesk() : source === "accountable" ? await startAccountable() : await startLexoffice();
+      const started =
+        source === "sevdesk"
+          ? await startSevdesk()
+          : source === "fastbill"
+            ? await startFastbill()
+            : source === "accountable"
+              ? await startAccountable()
+              : await startLexoffice();
       setRun(await poll(started.id));
     });
 
@@ -428,6 +506,7 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
               <strong>{progress.files}</strong>
             </div>
           </div>
+          {running && <ImportWaitNotice waitingUntil={progress.waitingUntil} fastbill={source === "fastbill"} updatedAt={run.updatedAt} />}
           {source === "sevdesk" && (
             <div className="banner">
               <p style={{ margin: 0 }}>
@@ -462,12 +541,7 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
         title="Abruf abbrechen?"
         confirmLabel="Abruf abbrechen"
         danger
-        onConfirm={() =>
-          run &&
-          void action.run(() =>
-            (source === "sevdesk" ? cancelSevdeskImport : source === "accountable" ? cancelAccountable : cancelLexofficeImport)({ data: { id: run.id } }),
-          )
-        }
+        onConfirm={() => run && void action.run(() => (source === "accountable" ? cancelAccountable : SOURCES[source].cancel)({ data: { id: run.id } }))}
         onClose={() => setCancellingRun(null)}
       >
         <p>

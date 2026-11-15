@@ -1030,6 +1030,8 @@ export const contacts = pgTable(
     lexofficeId: text("lexoffice_id").unique(),
     /** Herkunft aus dem sevDesk-Import */
     sevdeskId: text("sevdesk_id").unique(),
+    /** Herkunft aus dem FastBill-Import (CUSTOMER_ID) */
+    fastbillId: text("fastbill_id").unique(),
     /**
      * DATEV-Personenkonten für den Buchungsstapel (#327), getrennt von Kunden- und Lieferantennummer; beide an einem
      * Kontakt möglich. Bereiche bei vierstelligen Sachkonten nach DATEV-Kontenrahmen SKR 03/04 2026, S. 36.
@@ -2850,8 +2852,52 @@ export const sevdeskConnection = pgTable(
   (t) => [check("sevdesk_connection_single_row", sql`${t.id} = 1`)],
 );
 
+/**
+ * Zugang zur FastBill-API: Login-E-Mail und API-Schlüssel, der Schlüssel AES-256-GCM-verschlüsselt; eine Zeile.
+ * callsPerHour ist die Stundengrenze des Tarifs (Solo 50, Solo-Plus 100, Pro 500, Premium 1000).
+ */
+export const fastbillConnection = pgTable(
+  "fastbill_connection",
+  {
+    id: smallint("id").primaryKey().default(1),
+    email: text("email").notNull(),
+    ciphertext: bytea("ciphertext").notNull(),
+    callsPerHour: integer("calls_per_hour").notNull().default(50),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("fastbill_connection_single_row", sql`${t.id} = 1`), check("fastbill_connection_calls_per_hour", sql`${t.callsPerHour} between 1 and 10000`)],
+);
+
+/**
+ * Ausgabenbelege aus FastBill, die die API nicht herausgibt (DOCUMENT_URL nur mit Anmeldung im Browser). Der Abruf
+ * merkt eine solche Ausgabe als „wartet“ vor, statt sie ohne Datei zu archivieren; das Browser-Skript lädt die Datei
+ * in der angemeldeten Sitzung, der Upload setzt „datei“, wer keinen Beleg hat „ohne_beleg“. Der nächste Abruf übernimmt
+ * die Ausgabe dann mit Datei bzw. ohne und löscht die Zeile. document_url ist ein Link mit eigenem Schlüssel und steht
+ * deshalb nur hier, nicht im Fortschritt des Abrufs.
+ * Bewusst ohne Audit-Trigger und im Klartext (Entscheidung des Maintainers in #1002): Die Zeile ist nur ein Zwischenlager
+ * und wird beim Archivieren gelöscht, und der Link liefert ohne Anmeldung im Browser keine Datei (0244_fastbill_trigger.sql).
+ */
+export const fastbillReceipts = pgTable("fastbill_receipts", {
+  /** Wie jede Tabelle mit Dateiverweis eine id, über die die Vollprüfung der Dateien den Datensatz nennt */
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** INVOICE_ID der Ausgabe in FastBill */
+  expenseId: text("expense_id").notNull().unique(),
+  status: text("status", { enum: ["wartet", "datei", "ohne_beleg"] }).notNull(),
+  number: text("number").notNull().default(""),
+  date: date("date", { mode: "string" }),
+  supplier: text("supplier").notNull().default(""),
+  /** Cent */
+  gross: integer("gross").notNull().default(0),
+  documentUrl: text("document_url"),
+  sha256: text("sha256"),
+  filename: text("filename"),
+  mimeType: text("mime_type"),
+  size: integer("size"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import"] as const;
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import", "fastbill"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 /**
@@ -2892,6 +2938,12 @@ export type LexofficeImportProgress = {
   datevFileIds?: string[];
   /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */
   accountable?: AccountableProgress;
+  /** FastBill: Startzeiten der API-Aufrufe der letzten Stunde (ms), damit ein neuer Lauf die Stundengrenze einhält */
+  fastbillCalls?: number[];
+  /** FastBill: wartet wegen der Stundengrenze bis zu diesem Zeitpunkt (ISO) */
+  waitingUntil?: string | null;
+  /** FastBill: Ausgaben, die auf ihren Beleg aus dem Browser-Skript warten (fastbill_receipts) */
+  fastbillWaiting?: number;
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
@@ -2988,7 +3040,7 @@ export const legacyOrderPdfAttempts = pgTable(
 );
 
 /**
- * Rechnungen, Gutschriften und Belege aus Lexoffice, sevDesk oder BuchhaltungsButler mit unveränderten Quelldaten. Nur anhängen.
+ * Rechnungen, Gutschriften und Belege aus Lexoffice, sevDesk, FastBill, BuchhaltungsButler und den anderen Umzugsquellen mit unveränderten Quelldaten. Nur anhängen.
  * Beträge in Cent, Gutschriften negativ. Bei sevDesk steht in lexoffice_id "<art>/<id>", z. B. "invoice/123".
  */
 export const lexofficeVouchers = pgTable(

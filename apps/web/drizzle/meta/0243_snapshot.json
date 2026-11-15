@@ -1,5 +1,5 @@
 {
-  "id": "b6ed15d4-83d9-492e-ae89-3b3a44dd46cb",
+  "id": "fb9d35bb-91d7-4271-832d-3d5a8a283af2",
   "prevId": "43665cea-eaf4-4e05-af89-2d03f960ebf4",
   "version": "7",
   "dialect": "postgresql",
@@ -3484,6 +3484,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "fastbill_id": {
+          "name": "fastbill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "debitor_nr": {
           "name": "debitor_nr",
           "type": "integer",
@@ -3689,6 +3695,13 @@
           "nullsNotDistinct": false,
           "columns": [
             "sevdesk_id"
+          ]
+        },
+        "contacts_fastbill_id_unique": {
+          "name": "contacts_fastbill_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "fastbill_id"
           ]
         },
         "contacts_debitor_nr_unique": {
@@ -6299,6 +6312,165 @@
           "value": "(\"external_imports\".\"kind\" = 'invoice' and \"external_imports\".\"voucher_id\" is not null and \"external_imports\".\"order_document_id\" is null and \"external_imports\".\"entry_id\" is null)\n      or (\"external_imports\".\"kind\" = 'quote' and \"external_imports\".\"order_document_id\" is not null and \"external_imports\".\"voucher_id\" is null and \"external_imports\".\"entry_id\" is null)\n      or (\"external_imports\".\"kind\" = 'journal' and \"external_imports\".\"entry_id\" is not null and \"external_imports\".\"voucher_id\" is null and \"external_imports\".\"order_document_id\" is null)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.fastbill_connection": {
+      "name": "fastbill_connection",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "smallint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calls_per_hour": {
+          "name": "calls_per_hour",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 50
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "fastbill_connection_single_row": {
+          "name": "fastbill_connection_single_row",
+          "value": "\"fastbill_connection\".\"id\" = 1"
+        },
+        "fastbill_connection_calls_per_hour": {
+          "name": "fastbill_connection_calls_per_hour",
+          "value": "\"fastbill_connection\".\"calls_per_hour\" between 1 and 10000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.fastbill_receipts": {
+      "name": "fastbill_receipts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "expense_id": {
+          "name": "expense_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supplier": {
+          "name": "supplier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "gross": {
+          "name": "gross",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "document_url": {
+          "name": "document_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "size": {
+          "name": "size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "fastbill_receipts_expense_id_unique": {
+          "name": "fastbill_receipts_expense_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "expense_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.file_checks": {
@@ -10278,93 +10450,10 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.mcp_oauth_clients": {
-      "name": "mcp_oauth_clients",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "client_id": {
-          "name": "client_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "secret_hash": {
-          "name": "secret_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "redirect_uris": {
-          "name": "redirect_uris",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "mcp_oauth_clients_client_id_unique": {
-          "name": "mcp_oauth_clients_client_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "client_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.mcp_tokens": {
       "name": "mcp_tokens",
       "schema": "",
       "columns": {
-        "oauth_client_id": {
-          "name": "oauth_client_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "access_expires_at": {
-          "name": "access_expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "refresh_hash": {
-          "name": "refresh_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "previous_refresh_hash": {
-          "name": "previous_refresh_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by": {
           "name": "created_by",
           "type": "text",
@@ -10447,30 +10536,9 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "mcp_tokens_oauth_client_id_mcp_oauth_clients_id_fk": {
-          "name": "mcp_tokens_oauth_client_id_mcp_oauth_clients_id_fk",
-          "tableFrom": "mcp_tokens",
-          "tableTo": "mcp_oauth_clients",
-          "columnsFrom": [
-            "oauth_client_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "mcp_tokens_refresh_hash_unique": {
-          "name": "mcp_tokens_refresh_hash_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "refresh_hash"
-          ]
-        },
         "mcp_tokens_token_hash_unique": {
           "name": "mcp_tokens_token_hash_unique",
           "nullsNotDistinct": false,
