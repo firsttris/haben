@@ -33,6 +33,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { loadCompany } from "../stammdaten/index.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
+import { ohneJit } from "../../db/ohne-jit.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LegacyCategoryRow, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
@@ -521,33 +522,36 @@ export async function reconciliation() {
   const company = await loadCompany();
   const versteuerung: Versteuerung = company.versteuerung;
 
-  const voucherRows = await db
-    .select({
-      source: schema.lexofficeVouchers.source,
-      lexofficeId: schema.lexofficeVouchers.lexofficeId,
-      direction: effectiveDirection("lexoffice_vouchers"),
-      type: effectiveType("lexoffice_vouchers"),
-      number: schema.lexofficeVouchers.number,
-      date: schema.lexofficeVouchers.date,
-      status: schema.lexofficeVouchers.status,
-      net: effectiveAmount("lexoffice_vouchers", "net"),
-      tax: effectiveAmount("lexoffice_vouchers", "tax"),
-      gross: effectiveAmount("lexoffice_vouchers", "gross"),
-      taxes: effectiveTaxes("lexoffice_vouchers"),
-      categories: schema.lexofficeVouchers.categories,
-      payment: effectivePayment("lexoffice_vouchers"),
-      payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
-      taxType: TAX_TYPE,
-      taxSubType: TAX_SUB_TYPE,
-      ohneBeleg: WITHOUT_RECEIPT,
-      ohneBelegbild: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBelegbild')::boolean, false)`,
-      privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
-      bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
-      accountingTypeUnclear: accountingTypeUnclear("lexoffice_vouchers"),
-      // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
-      files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
-    })
-    .from(schema.lexofficeVouchers);
+  // Die geschätzten Kosten wachsen mit dem Quadrat der Belege; mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
+  const voucherRows = await ohneJit((tx) =>
+    tx
+      .select({
+        source: schema.lexofficeVouchers.source,
+        lexofficeId: schema.lexofficeVouchers.lexofficeId,
+        direction: effectiveDirection("lexoffice_vouchers"),
+        type: effectiveType("lexoffice_vouchers"),
+        number: schema.lexofficeVouchers.number,
+        date: schema.lexofficeVouchers.date,
+        status: schema.lexofficeVouchers.status,
+        net: effectiveAmount("lexoffice_vouchers", "net"),
+        tax: effectiveAmount("lexoffice_vouchers", "tax"),
+        gross: effectiveAmount("lexoffice_vouchers", "gross"),
+        taxes: effectiveTaxes("lexoffice_vouchers"),
+        categories: schema.lexofficeVouchers.categories,
+        payment: effectivePayment("lexoffice_vouchers"),
+        payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
+        taxType: TAX_TYPE,
+        taxSubType: TAX_SUB_TYPE,
+        ohneBeleg: WITHOUT_RECEIPT,
+        ohneBelegbild: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBelegbild')::boolean, false)`,
+        privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
+        bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
+        accountingTypeUnclear: accountingTypeUnclear("lexoffice_vouchers"),
+        // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
+        files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
+      })
+      .from(schema.lexofficeVouchers),
+  );
   // Archiviert, aber weder Einnahme noch Ausgabe: im Einzelunternehmen Privates und Geldtransit, in GmbH und UG
   // Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen; sie stehen je Jahr getrennt (neutral)
   const classified = voucherRows.map((v) => ({ ...v, neutral: neutralKindOf(v, company.rechtsform) ?? (v.bbNeutral ? ("geldtransit" as const) : null) }));
