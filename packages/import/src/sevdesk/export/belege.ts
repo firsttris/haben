@@ -1,7 +1,10 @@
-import { type Cents, formatDecimal } from "@haben/core";
+import { type BasisPoints, type Cents, formatDecimal } from "@haben/core";
 import { datevAccountKind, isPersonenkonto, type DatevBooking, type Kontenrahmen } from "../../datev.ts";
 import { parseGermanAmount } from "../../text.ts";
 import type { SevBelegInfo, SevExportDirection, SevExportDocument, SevExportLine, SevExportStack, SevExportVoucher } from "./types.ts";
+
+/** Der Satz aus Beleginfo ist dieselbe Zahl wie Cent (19 → 1900), aber in Basispunkten (#1139) */
+const basisPoints = (value: Cents): BasisPoints => Number(value);
 
 /*
  * Belege aus den Zeilen der Buchungsstapel. Ein Beleg ist eine GUID aus dem Beleglink (`BEDI "<guid>"`): Am
@@ -44,7 +47,8 @@ export function belegInfo(raw: Record<string, string>): SevBelegInfo {
   }
   // parseGermanAmount rechnet „19“ in 1900 (Cent), das sind zugleich die Basispunkte von 19 %
   const value = (art: string) => (entries[art] ? parseGermanAmount(entries[art]) : null);
-  return { net: value("Nettobetrag"), tax: value("Steuerbetrag"), rate: value("Umsatzsteuerprozent"), entries };
+  const rate = value("Umsatzsteuerprozent");
+  return { net: value("Nettobetrag"), tax: value("Steuerbetrag"), rate: rate === null ? null : basisPoints(rate), entries };
 }
 
 function sachkontoOf(booking: DatevBooking, kontenrahmen: Kontenrahmen, accountLength: number): Sachkonto {
