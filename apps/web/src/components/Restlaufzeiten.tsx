@@ -5,7 +5,7 @@ import { useId, useState, type FormEvent } from "react";
 import { formatDate, formatDateTime } from "../lib/format.ts";
 import { sammelHinweise } from "../lib/hinweise.ts";
 import { useAction } from "../lib/use-action.ts";
-import type { RestlaufzeitBlock, RestlaufzeitenAnsicht } from "../server/modules/buchhaltung/index.ts";
+import type { RestlaufzeitBlock, RestlaufzeitenAnsicht } from "../server/modules/jahreserklaerung/index.ts";
 import { saveRestlaufzeitenFn } from "../server/functions/abschluss.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 

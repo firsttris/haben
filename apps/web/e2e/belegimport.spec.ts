@@ -30,7 +30,8 @@ test.beforeAll(async ({ browser }) => {
     HABEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
     DOCUMENTS_DIR: `${process.env.E2E_DOCUMENTS_DIR ?? "test-results/e2e-belege"}-belegimport`,
   });
-  const { loadCompany, saveCompany } = await import("../src/server/modules/stammdaten/index.ts");
+  const { loadCompany } = await import("../src/server/modules/stammdaten/index.ts");
+  const { saveCompany } = await import("../src/server/modules/auswertungen/index.ts");
   await saveCompany("e2e-import", { ...(await loadCompany()), kleinunternehmer: true }, "2026-01-01");
   const common = { date: "2026-01-03", contactId: null, contactName: "Frida Import", currency: "EUR" as const, net: 100000, tax: 0, gross: 100000, pdfSha256 };
   const { runExternalImport } = await import("../src/server/modules/datenimport/index.ts");

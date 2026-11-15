@@ -10,7 +10,6 @@ export { StichjahrError, stichjahrStand, stichjahrVorziehen, type StichjahrStand
 export { datevExport, DatevExportError, datevNumbersSchema, gebuchteJahre, saveDatevNumbers } from "./datev-export.ts";
 export { chainHead, checkIntegrity, checkPruefwert, formatPruefwert, parsePruefwert, type IntegrityReport } from "./integrity.ts";
 export { runDueFileCheck, runFileCheck, type FileCheck, type FileProblem } from "./file-integrity.ts";
-export { contactHistory, type ContactHistoryRow, type ContactHistorySection } from "./kontakt-historie.ts";
 export { vorauszahlungVorjahrHinweis, ZEHN_TAGE_REGEL, zehnTageKennzeichen, type ZehnTageKennzeichen } from "./euer-jahreswechsel.ts";
 export {
   euerForYear,
@@ -24,3 +23,6 @@ export {
   type OpenPosition,
 } from "./reports.ts";
 export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.ts";
+export { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
+export { runDuePruefwertMail } from "./pruefwert-mail.ts";
+export { saveCompany, settingsLocks } from "./settings-guard.ts";
