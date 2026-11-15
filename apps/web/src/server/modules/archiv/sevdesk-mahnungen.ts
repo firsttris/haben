@@ -1,7 +1,7 @@
 import { isSevDunning, mapSevDunning, SevdeskApiError, type SevdeskClient, type SevInvoice } from "@haben/import";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, storeFile } from "../../storage.ts";
 import { progressMessage } from "./lexoffice.ts";
@@ -34,10 +34,15 @@ export async function importSevdeskDunnings(
     return;
   }
   if (listed.length === 0) return;
-  const known = new Set(
+  // Schon archivierte Mahnungen; die ohne Datei bekommen ihr PDF nachgeladen, ihre Zeile bleibt unverändert
+  const known = new Map(
     (
       await db
-        .select({ id: schema.legacyDunnings.externalId })
+        .select({
+          externalId: schema.legacyDunnings.externalId,
+          id: schema.legacyDunnings.id,
+          hasFile: sql<boolean>`exists (select 1 from legacy_dunning_files f where f.dunning_id = legacy_dunnings.id)`,
+        })
         .from(schema.legacyDunnings)
         .where(
           inArray(
@@ -45,13 +50,15 @@ export async function importSevdeskDunnings(
             listed.map((raw) => `invoice/${raw.id}`),
           ),
         )
-    ).map((r) => r.id),
+    ).map((r) => [r.externalId, r]),
   );
   for (const raw of listed) {
     const externalId = `invoice/${raw.id}`;
-    if (known.has(externalId)) continue;
+    const archived = known.get(externalId);
+    if (archived?.hasFile) continue;
     try {
-      if (await importDunning(actor, importId, client, raw, progress)) progress.dunnings = (progress.dunnings ?? 0) + 1;
+      if (archived) await addMissingPdf(actor, client, raw, archived.id, progress);
+      else if (await importDunning(actor, importId, client, raw, progress)) progress.dunnings = (progress.dunnings ?? 0) + 1;
     } catch (error) {
       if (isFatal(error, signal)) throw error;
       progress.failed.push({ lexofficeId: externalId, number: raw.invoiceNumber ?? "", message: progressMessage(error) });
@@ -89,19 +96,42 @@ async function importDunning(actor: string, importId: string, client: SevdeskCli
       .returning({ id: schema.legacyDunnings.id });
     // Ein gleichzeitiger Lauf hat die Mahnung schon archiviert
     if (!row) return false;
-    if (pdf) {
-      const sha256 = sha256Of(pdf.bytes);
-      await storeFile(pdf.bytes);
-      const base = (dunning.number || dunning.externalId).replace(/[^\w.-]+/g, "_");
-      await tx.insert(schema.legacyDunningFiles).values({
-        dunningId: row.id,
-        filename: (pdf.filename ?? `Mahnung_${base}.pdf`).slice(0, 200),
-        mimeType: pdf.mimeType.split(";")[0]!.trim() || "application/pdf",
-        sha256,
-        size: pdf.bytes.byteLength,
-      });
-      progress.files += 1;
-    }
+    if (pdf) await storePdf(tx, row.id, dunning.number || dunning.externalId, pdf, progress);
     return true;
+  });
+}
+
+type Pdf = NonNullable<Awaited<ReturnType<SevdeskClient["invoicePdf"]>>>;
+
+async function storePdf(tx: Tx, dunningId: string, name: string, pdf: Pdf, progress: LexofficeImportProgress): Promise<void> {
+  const sha256 = sha256Of(pdf.bytes);
+  await storeFile(pdf.bytes);
+  const base = name.replace(/[^\w.-]+/g, "_");
+  const [file] = await tx
+    .insert(schema.legacyDunningFiles)
+    .values({
+      dunningId,
+      filename: (pdf.filename ?? `Mahnung_${base}.pdf`).slice(0, 200),
+      mimeType: pdf.mimeType.split(";")[0]!.trim() || "application/pdf",
+      sha256,
+      size: pdf.bytes.byteLength,
+    })
+    .onConflictDoNothing({ target: [schema.legacyDunningFiles.dunningId, schema.legacyDunningFiles.sha256] })
+    .returning({ id: schema.legacyDunningFiles.id });
+  if (file) progress.files += 1;
+}
+
+/** PDF einer schon archivierten Mahnung, das beim früheren Abruf fehlte; nur anhängend in legacy_dunning_files */
+async function addMissingPdf(actor: string, client: SevdeskClient, raw: SevInvoice, dunningId: string, progress: LexofficeImportProgress): Promise<void> {
+  const pdf = await client.invoicePdf(String(raw.id));
+  if (!pdf) return;
+  await withActor(actor, async (tx) => {
+    // Ein gleichzeitiger Lauf kann die Datei schon angehängt haben
+    const [present] = await tx
+      .select({ id: schema.legacyDunningFiles.id })
+      .from(schema.legacyDunningFiles)
+      .where(eq(schema.legacyDunningFiles.dunningId, dunningId))
+      .limit(1);
+    if (!present) await storePdf(tx, dunningId, raw.invoiceNumber?.trim() || `invoice/${raw.id}`, pdf, progress);
   });
 }
