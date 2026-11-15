@@ -192,12 +192,26 @@ function computeRowAmounts(row: WisoCsvRow, positive: boolean, neutral: boolean)
   return { rate: row.steuersatz, net: gross - tax, tax, gross };
 }
 
+/**
+ * Richtung einer Buchung aus ihren Teilbuchungen: die Seite mit dem größeren Bruttobetrag, nicht die erste Teilbuchung.
+ * Ein Zahlungseingang mit abgezogener Gebühr bleibt so eine Einnahme, gleich in welcher Reihenfolge WISO die Teile ausgibt.
+ */
+function groupDirection(group: WisoCsvRow[], skr: Kontenrahmen): "einnahme" | "ausgabe" {
+  const sum = { einnahme: 0, ausgabe: 0 };
+  for (const row of group) {
+    const rowClass = classifyRow(row, skr);
+    if (rowClass.neutral && !group.every((r) => classifyRow(r, skr).neutral)) continue;
+    sum[rowClass.direction] += computeRowAmounts(row, rowClass.positive, rowClass.neutral).gross;
+  }
+  if (Math.abs(sum.einnahme) === Math.abs(sum.ausgabe)) return classifyRow(group[0]!, skr).direction;
+  return Math.abs(sum.einnahme) > Math.abs(sum.ausgabe) ? "einnahme" : "ausgabe";
+}
+
 function buildGroupVoucher(key: string, group: WisoCsvRow[], skr: Kontenrahmen): WisoVoucher {
   const first = group[0]!;
   const year = Number(first.zahlungsdatum.slice(0, 4));
-  const firstClass = classifyRow(first, skr);
-  const direction = firstClass.direction;
   const neutral = group.every((r) => classifyRow(r, skr).neutral);
+  const direction = groupDirection(group, skr);
 
   const taxByRate = new Map<number, { rate: number; net: number; tax: number }>();
   const categories: LegacyVoucher["categories"] = [];
