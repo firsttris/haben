@@ -35,6 +35,7 @@ import { createOrderPdfImporter } from "./order-pdfs.ts";
 import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
 import { importSevdeskPayments } from "./sevdesk-payments.ts";
 import { importSevdeskTemplateFiles } from "./sevdesk-vorlagen-dateien.ts";
+import { importSevdeskRecurringInvoices } from "./sevdesk-vorlagen.ts";
 
 /*
  * Umzug aus sevDesk. Gleicher Ablauf und dieselben Archivtabellen wie beim Lexoffice-Import (Spalte source = "sevdesk"),
@@ -235,7 +236,10 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     progress.listed = listed.length;
     await save();
   };
+  // Alle Rechnungen, auch Entwürfe: an den aus einer Vorlage erzeugten liest Schritt 6 ab, wie sie abrechnet
+  const invoices: SevInvoice[] = [];
   for await (const raw of client.invoices()) {
+    invoices.push(raw);
     if (isSevInvoiceImportable(raw)) await add({ kind: "invoice", id: String(raw.id), number: raw.invoiceNumber ?? "", raw });
   }
   for await (const raw of client.creditNotes()) {
@@ -301,6 +305,8 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
   await importSevdeskPayments(actor, importId, client, progress, signal);
   // 6. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
   await importSevdeskAccountingTypes(actor, importId, client, progress, signal);
+  // 7. Vorlagen wiederkehrender Rechnungen, pausiert (#472)
+  await importSevdeskRecurringInvoices(actor, importId, client, invoices, progress, signal);
   await save(true);
 }
 

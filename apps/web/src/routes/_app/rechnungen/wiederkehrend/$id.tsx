@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/rechnungen/wiederkehrend/$id")({
 });
 
 function RecurringDetailPage() {
-  const { recurring, invoices, contacts, textBlocks, defaults } = Route.useLoaderData();
+  const { recurring, invoices, contacts, textBlocks, defaults, sevdesk } = Route.useLoaderData();
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveRecurring);
@@ -98,30 +98,74 @@ function RecurringDetailPage() {
             }, "Gespeichert.")
           }
         />
-        <section className="card stack" aria-labelledby="history-heading">
-          <h2 id="history-heading">Erzeugte Rechnungen</h2>
-          {recurring.lastRunAt && (
-            <p className="small muted" style={{ margin: 0 }}>
-              Zuletzt geprüft {formatDateTime(recurring.lastRunAt)}
-            </p>
-          )}
-          {invoices.length === 0 ? (
-            <p className="muted" style={{ margin: 0 }}>
-              Noch keine. Die erste entsteht am {formatDate(recurring.nextDate)}.
-            </p>
-          ) : (
-            <div className="table">
-              {invoices.map((invoice) => (
-                <Link key={invoice.id} to="/rechnungen/$id" params={{ id: invoice.id }} className="table-row recurring-history-cols">
-                  <div className="small">{formatDate(invoice.issueDate)}</div>
-                  <div className="mono small">{invoice.number ?? "Entwurf"}</div>
-                  <div className="num">{formatEuro(invoice.gross)}</div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
+        <div className="stack">
+          {sevdesk && <SevdeskOrigin origin={sevdesk} />}
+          <section className="card stack" aria-labelledby="history-heading">
+            <h2 id="history-heading">Erzeugte Rechnungen</h2>
+            {recurring.lastRunAt && (
+              <p className="small muted" style={{ margin: 0 }}>
+                Zuletzt geprüft {formatDateTime(recurring.lastRunAt)}
+              </p>
+            )}
+            {invoices.length === 0 ? (
+              <p className="muted" style={{ margin: 0 }}>
+                Noch keine. Die erste entsteht am {formatDate(recurring.nextDate)}.
+              </p>
+            ) : (
+              <div className="table">
+                {invoices.map((invoice) => (
+                  <Link key={invoice.id} to="/rechnungen/$id" params={{ id: invoice.id }} className="table-row recurring-history-cols">
+                    <div className="small">{formatDate(invoice.issueDate)}</div>
+                    <div className="mono small">{invoice.number ?? "Entwurf"}</div>
+                    <div className="num">{formatEuro(invoice.gross)}</div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </>
+  );
+}
+
+const SEV_STATUS: Record<string, string> = { "50": "deaktiviert", "100": "aktiv", "1000": "beendet" };
+
+type SevdeskOriginData = {
+  status: string;
+  billing: "nachfaellig" | "vorschuessig" | "unklar";
+  billingEvidence: number;
+  placeholders: string[];
+  hints: string[];
+};
+
+/** Herkunft aus dem Umzug (#472): was Haben abgeleitet hat und was vor dem Aktivieren zu prüfen ist */
+function SevdeskOrigin({ origin }: { origin: SevdeskOriginData }) {
+  const billing =
+    origin.billing === "unklar"
+      ? "unklar, in sevDesk nachsehen"
+      : `${origin.billing === "nachfaellig" ? "nachfällig" : "vorschüssig"}, abgeleitet aus ${origin.billingEvidence} erzeugten ${origin.billingEvidence === 1 ? "Rechnung" : "Rechnungen"}`;
+  return (
+    <section className="card stack" aria-labelledby="sevdesk-heading">
+      <h2 id="sevdesk-heading">Aus sevDesk übernommen</h2>
+      <p className="small" style={{ margin: 0 }}>
+        Pausiert, bis du sie prüfst und aktivierst. In sevDesk {SEV_STATUS[origin.status] ?? `Status ${origin.status}`}.
+      </p>
+      <p className="small" style={{ margin: 0 }}>
+        Abrechnung: {billing}.
+      </p>
+      {origin.placeholders.length > 0 && (
+        <p className="small" style={{ margin: 0 }}>
+          Platzhalter von sevDesk, als Text übernommen: <span className="mono">{origin.placeholders.join(" ")}</span>
+        </p>
+      )}
+      {origin.hints.length > 0 && (
+        <ul className="small" style={{ margin: 0, paddingLeft: 20 }}>
+          {origin.hints.map((hint) => (
+            <li key={hint}>{hint}</li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

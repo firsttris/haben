@@ -97,6 +97,21 @@ export const sevInvoiceSchema = z.looseObject({
   paidAmount: numeric,
   customerInternalNote: str,
   header: str,
+  headText: str,
+  footText: str,
+  /** Rechnung, aus der diese entstand: bei SR die stornierte, bei aus einer Vorlage erzeugten die Vorlage (WKR) */
+  origin: ref,
+  /** Nur WKR: Intervall wie "P0Y1M" (ein Monat) oder "P0Y0M1W" (eine Woche) */
+  accountIntervall: str,
+  accountNextInvoice: str,
+  accountLastInvoice: str,
+  accountStartDate: str,
+  accountEndDate: str,
+  /** "1": Positionen netto, "0": brutto */
+  showNet: numeric,
+  taxType: str,
+  smallSettlement: numeric,
+  sepaMandateReference: str,
 });
 export type SevInvoice = z.infer<typeof sevInvoiceSchema>;
 
@@ -126,7 +141,13 @@ export type SevCreditNote = z.infer<typeof sevCreditNoteSchema>;
 export const sevDocumentPosSchema = z.looseObject({
   id,
   name: str,
+  /** Beschreibung unter der Bezeichnung */
+  text: str,
   quantity: numeric,
+  price: numeric,
+  priceNet: numeric,
+  priceGross: numeric,
+  discount: numeric,
   taxRate: numeric,
   sumNet: numeric,
   sumTax: numeric,

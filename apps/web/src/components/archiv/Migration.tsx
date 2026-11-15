@@ -534,6 +534,18 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
               </p>
             </div>
           )}
+          {source === "sevdesk" && progress.sevdeskRecurring && progress.sevdeskRecurring.imported + progress.sevdeskRecurring.known > 0 && (
+            <p className="small" style={{ margin: 0 }}>
+              {progress.sevdeskRecurring.imported + progress.sevdeskRecurring.known} Vorlagen für{" "}
+              <Link to="/rechnungen/wiederkehrend">wiederkehrende Rechnungen</Link> pausiert übernommen; prüfe und aktiviere sie dort.
+              {progress.sevdeskRecurring.placeholders.length > 0 && (
+                <>
+                  {" "}
+                  Platzhalter von sevDesk stehen als Text darin: <span className="mono">{progress.sevdeskRecurring.placeholders.join(" ")}</span>
+                </>
+              )}
+            </p>
+          )}
           {run.error && (
             <div className="banner banner-danger" role="alert">
               {run.error}
