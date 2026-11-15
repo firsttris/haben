@@ -70,7 +70,10 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     expect(byId.get("est-2026")).toMatchObject({ datum: "2027-08-02", art: "erklaerung", status: "offen" });
     expect(byId.get("vz-2026-q4")).toMatchObject({ datum: "2026-12-10", status: "hinweis" });
     expect(byId.has("vz-2026-q3")).toBe(false); // vorbei
-    expect(byId.get(`zertifikat-${list.find((f) => f.art === "zertifikat")!.id.slice(11)}`)).toMatchObject({ datum: "2027-01-15", link: "/einstellungen?bereich=elster" });
+    expect(byId.get(`zertifikat-${list.find((f) => f.art === "zertifikat")!.id.slice(11)}`)).toMatchObject({
+      datum: "2027-01-15",
+      link: "/einstellungen?bereich=elster",
+    });
     expect(list.map((f) => f.datum)).toEqual([...list.map((f) => f.datum)].sort());
     // Kleinunternehmer: je Monat bzw. Jahr der Stand laut Änderungsprotokoll, siehe vorjahr.test.ts
   });

@@ -266,7 +266,7 @@ export async function listFristen(today: string): Promise<Frist[]> {
       titel: "ELSTER-Zertifikat läuft ab",
       detail: `${certificate.filename}; in Mein ELSTER verlängern und neu hochladen`,
       status: "offen",
-      link: "/einstellungen",
+      link: "/einstellungen?bereich=elster",
     });
   }
 
