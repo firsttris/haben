@@ -195,4 +195,11 @@ describe("openFilingPeriod", () => {
     const abgegeben = [5, 7, 8, 9, 10].map((month) => ({ year: 2026, month }));
     expect(openFilingPeriod(monatlich, { year: 2026, month: 11 }, abgegeben)).toEqual({ year: 2026, month: 6 });
   });
+
+  it("Rückstand über zwölf Monate: der älteste offene ab der ersten Abgabe, nicht der älteste der letzten zwölf Monate", () => {
+    // Abgegeben Januar 2024 bis Juni 2025, danach nichts; der Rückstand verjährt nicht nach einem Jahr (§ 18 Abs. 1 UStG)
+    const monatlich: VatFrequencySetting[] = [{ year: 2024, fromMonth: 1, frequency: "monatlich" }];
+    const abgegeben = [2024, 2025].flatMap((year) => Array.from({ length: year === 2024 ? 12 : 6 }, (_, i) => ({ year, month: i + 1 })));
+    expect(openFilingPeriod(monatlich, { year: 2026, month: 11 }, abgegeben)).toEqual({ year: 2025, month: 7 });
+  });
 });
