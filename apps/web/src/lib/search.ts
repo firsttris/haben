@@ -15,7 +15,10 @@ export function numberRank(column: SQLWrapper, query: string) {
   return sql`case when lower(${column}) = lower(${query}) then 0 when ${column} ilike ${likePattern(query, true)} then 1 else 2 end`;
 }
 
-/** Betrag im Bereich aus `parseEuroSearchRange` (ganzer Euro oder genau); `between` nutzt einen btree-Index auf der Spalte */
+/**
+ * Betrag im Bereich aus `parseEuroSearchRange` (ganzer Euro oder genau); `between` nutzt einen btree-Index auf der Spalte.
+ * Nur auf Brutto- bzw. gezahlte Beträge anwenden, nicht auf netto oder offene Reste (entschieden in #1038, search-money.ts).
+ */
 export function amountIn(column: SQLWrapper, range: CentRange) {
   return between(column, range.min, range.max);
 }

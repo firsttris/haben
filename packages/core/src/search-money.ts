@@ -13,6 +13,10 @@ const INT4_MAX = 2_147_483_647;
  * in Cent: mit Cent genau dieser Betrag, als ganzer Euro alle Cent-Beträge dieses Euros („1190“ → 1.190,00 bis 1.190,99 €,
  * „-1190“ → -1.190,99 bis -1.190,00 €). Nicht-Beträge (wie „RE-2026“) liefern null, ebenso Bereiche, die mit beiden
  * Vorzeichen nicht in PostgreSQL-int4 passen: die Suche vergleicht beim Bankumsatz auch den Gegenwert.
+ *
+ * Entschieden (#1038): Verglichen wird nur der Bruttobetrag bzw. der gezahlte Betrag, nicht netto (gesucht wird fast immer
+ * eine Zahl vom Kontoauszug, Beleg oder aus einer Nachricht; netto findet man über den Namen schneller) und nicht der
+ * offene Rest einer Teilzahlung; ungefähr (±1 € oder ±%) auch nicht. Nicht nachrüsten, ohne das neu zu entscheiden.
  */
 export function parseEuroSearchRange(query: string): CentRange | null {
   const cleaned = query.trim().replace(/\s|€/g, "");
