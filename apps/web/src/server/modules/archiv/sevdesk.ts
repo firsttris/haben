@@ -33,6 +33,7 @@ import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from ".
 import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
 import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
+import { importSevdeskDunnings } from "./sevdesk-mahnungen.ts";
 import { importSevdeskPayments } from "./sevdesk-payments.ts";
 
 /*
@@ -225,7 +226,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     await save();
   }
 
-  // 2. Rechnungen, Gutschriften und Belege; Entwürfe, Vorlagen und Mahnungen bleiben draußen
+  // 2. Rechnungen, Gutschriften und Belege; Entwürfe und Vorlagen bleiben draußen, Mahnungen folgen eigens (3a)
   progress.phase = "liste";
   await save(true);
   const listed: Listed[] = [];
@@ -291,6 +292,9 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     await save();
   }
+  // 3a. Mahnungen nur ins Archiv, ohne Buchungswirkung (#472)
+  await importSevdeskDunnings(actor, importId, client, progress, signal);
+  await save(true);
   // 4. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
   await importSevdeskPayments(actor, importId, client, progress, signal);
   // 5. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)

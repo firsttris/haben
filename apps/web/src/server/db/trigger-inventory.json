@@ -1268,6 +1268,48 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.legacy_dunning_files",
+      "name": "legacy_dunning_files_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_dunning_files_append_only BEFORE DELETE OR UPDATE ON public.legacy_dunning_files FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.legacy_dunning_files",
+      "name": "legacy_dunning_files_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_dunning_files_audit AFTER INSERT ON public.legacy_dunning_files FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.legacy_dunning_files",
+      "name": "legacy_dunning_files_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_dunning_files_no_truncate BEFORE TRUNCATE ON public.legacy_dunning_files FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.legacy_dunnings",
+      "name": "legacy_dunnings_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_dunnings_append_only BEFORE DELETE OR UPDATE ON public.legacy_dunnings FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.legacy_dunnings",
+      "name": "legacy_dunnings_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_dunnings_audit AFTER INSERT ON public.legacy_dunnings FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.legacy_dunnings",
+      "name": "legacy_dunnings_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_dunnings_no_truncate BEFORE TRUNCATE ON public.legacy_dunnings FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.legacy_order_documents",
       "name": "legacy_order_documents_append_only",
       "enabled": "O",

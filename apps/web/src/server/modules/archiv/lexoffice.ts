@@ -41,6 +41,7 @@ import { latestFastbillImport } from "./fastbill.ts";
 import { fastbillPartlyCanceledByYear, fastbillPartlyCanceledChecks, fastbillTaxType, fastbillWaitingChecks } from "./fastbill-abgleich.ts";
 import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
+import { legacyDunningsFor } from "./mahnungen-archiv.ts";
 
 export class LexofficeError extends UserError {}
 
@@ -460,7 +461,9 @@ export async function legacyVoucherDetail(id: string) {
     })
     .from(schema.lexofficeVoucherFiles)
     .where(eq(schema.lexofficeVoucherFiles.voucherId, id));
-  return { voucher: { ...voucher, payment: visiblePayment(voucher), paymentHistoryIssue: paymentHistoryIssue(voucher) }, files };
+  // Mahnstufen der Rechnung aus der Quelle; nur Archiv, ohne Wirkung auf Betrag und Zahlungsstand
+  const dunnings = voucher.direction === "einnahme" ? await legacyDunningsFor([voucher.lexofficeId]) : [];
+  return { voucher: { ...voucher, payment: visiblePayment(voucher), paymentHistoryIssue: paymentHistoryIssue(voucher) }, files, dunnings };
 }
 
 export async function legacyVoucherFile(fileId: string) {

@@ -58,6 +58,22 @@ function DunningPage() {
                       vom {formatDate(invoice.lastDunning.date)}
                       <div className="muted">Frist bis {formatDate(invoice.lastDunning.dueDate)}</div>
                     </>
+                  ) : invoice.importedDunning ? (
+                    <>
+                      {invoice.importedDunning.fileId ? (
+                        <a href={`/api/archiv/mahnungsdatei/${invoice.importedDunning.fileId}`} target="_blank" rel="noreferrer">
+                          Stufe {invoice.importedDunning.sourceLevel} in{" "}
+                          {invoice.importedDunning.source === "sevdesk" ? "sevDesk" : invoice.importedDunning.source}
+                        </a>
+                      ) : (
+                        <>
+                          Stufe {invoice.importedDunning.sourceLevel} in{" "}
+                          {invoice.importedDunning.source === "sevdesk" ? "sevDesk" : invoice.importedDunning.source}
+                        </>
+                      )}{" "}
+                      vom {formatDate(invoice.importedDunning.date)}
+                      {invoice.importedDunning.dueDate && <div className="muted">Frist bis {formatDate(invoice.importedDunning.dueDate)}</div>}
+                    </>
                   ) : (
                     <span className="muted">noch nicht gemahnt</span>
                   )}

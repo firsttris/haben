@@ -2994,6 +2994,8 @@ export type LexofficeImportProgress = {
   waitingUntil?: string | null;
   /** FastBill: Ausgaben, die auf ihren Beleg aus dem Browser-Skript warten (fastbill_receipts) */
   fastbillWaiting?: number;
+  /** sevDesk: in diesem Lauf archivierte Mahnungen (legacy_dunnings) */
+  dunnings?: number;
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
@@ -3074,6 +3076,57 @@ export const legacyOrderFiles = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_order_files_unique").on(t.orderId, t.sha256)],
+);
+
+/**
+ * Mahnungen aus der bisherigen Buchhaltung (sevDesk: Invoice mit invoiceType MA), je Stufe eine Zeile. Nur Archiv: keine
+ * Forderung, kein Umsatz, keine Steuer, deshalb nicht in lexoffice_vouchers. Mit der gemahnten Rechnung verbunden über
+ * deren Kennung in der Quelle (lexoffice_vouchers.lexoffice_id), die auch später abgerufen sein kann. Nur anhängen.
+ */
+export const legacyDunnings = pgTable(
+  "legacy_dunnings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    externalId: text("external_id").notNull().unique(),
+    source: text("source", { enum: LEGACY_SOURCES }).notNull().default("sevdesk"),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    /** Kennung der gemahnten Rechnung in der Quelle, z. B. "invoice/123"; null ohne Verweis */
+    invoiceExternalId: text("invoice_external_id"),
+    /** Stufe in der Quelle, bei sevDesk ab 1 (Zahlungserinnerung); null, wenn nicht lesbar */
+    level: smallint("level"),
+    number: text("number").notNull(),
+    date: date("date", { mode: "string" }).notNull(),
+    dueDate: date("due_date", { mode: "string" }),
+    sentDate: date("sent_date", { mode: "string" }),
+    status: text("status").notNull(),
+    contactId: uuid("contact_id").references(() => contacts.id),
+    contactName: text("contact_name").notNull(),
+    currency: text("currency").notNull(),
+    /** Gemahnter Betrag in Cent; Gebühren und Zinsen nur in raw */
+    total: integer("total"),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("legacy_dunnings_invoice").on(t.invoiceExternalId)],
+);
+
+/** Dateien einer archivierten Mahnung (PDF aus der Quelle). Nur anhängen. */
+export const legacyDunningFiles = pgTable(
+  "legacy_dunning_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dunningId: uuid("dunning_id")
+      .notNull()
+      .references(() => legacyDunnings.id),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("legacy_dunning_files_unique").on(t.dunningId, t.sha256)],
 );
 
 /** Nachweis jedes begonnenen automatischen PDF-Abrufs, auch wenn kein PDF übernommen werden konnte. */

@@ -27,7 +27,7 @@ const PAYMENT_STATUS: Record<string, string> = {
 };
 
 function LegacyVoucherPage() {
-  const { voucher, files } = Route.useLoaderData();
+  const { voucher, files, dunnings } = Route.useLoaderData();
   const [selected, setSelected] = useState(files.find((f) => f.role === "pdf")?.id ?? files[0]?.id ?? null);
   const file = files.find((f) => f.id === selected) ?? null;
   const src = file ? `/api/altbeleg/${file.id}` : null;
@@ -154,6 +154,34 @@ function LegacyVoucherPage() {
                   <span className="amount">{formatEuro(item.amount)}</span>
                 </div>
               ))}
+            </section>
+          )}
+          {dunnings.length > 0 && (
+            <section className="card stack" aria-labelledby="dunning-heading">
+              <h2 id="dunning-heading" style={{ margin: 0 }}>
+                Mahnungen
+              </h2>
+              {dunnings.map((d) => (
+                <div key={d.id} className="history-row small">
+                  <span>{formatDate(d.date)}</span>
+                  <span className="muted">
+                    {d.level ? `Stufe ${d.level}` : "Stufe unbekannt"}
+                    {d.dueDate ? `, Frist ${formatDate(d.dueDate)}` : ""}
+                    {d.files[0] && (
+                      <>
+                        {" · "}
+                        <a href={`/api/archiv/mahnungsdatei/${d.files[0].id}`} target="_blank" rel="noreferrer">
+                          PDF
+                        </a>
+                      </>
+                    )}
+                  </span>
+                  <span className="amount">{d.total == null ? "–" : formatEuro(d.total)}</span>
+                </div>
+              ))}
+              <p className="small muted" style={{ margin: 0 }}>
+                Aus {source.name} archiviert; ohne Wirkung auf Umsatz, Steuer und offene Posten.
+              </p>
             </section>
           )}
           <p className="small muted" style={{ margin: 0 }}>

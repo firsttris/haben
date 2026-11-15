@@ -132,6 +132,11 @@ export class SevdeskClient {
     return this.#pages("/Invoice", {}, sevInvoiceSchema);
   }
 
+  /** Mahnungen; die Liste ohne Filter enthält sie nicht (test-fixtures/sevdesk, Buchhaltungsversion 1.0). */
+  dunnings(): AsyncGenerator<SevInvoice> {
+    return this.#pages("/Invoice", { invoiceType: "MA" }, sevInvoiceSchema);
+  }
+
   creditNotes(): AsyncGenerator<SevCreditNote> {
     return this.#pages("/CreditNote", {}, sevCreditNoteSchema);
   }
