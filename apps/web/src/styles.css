@@ -478,26 +478,63 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 /* Bereiche bleiben mit dem Kopf stehen, nur der Inhalt rechts scrollt; reicht das Fenster nicht, scrollt die Liste selbst;
    4px Innenabstand halten dort den Fokusrahmen der Links sichtbar */
 .settings-nav { position: sticky; top: calc(var(--below-head) + 16px); max-height: calc(100dvh - var(--below-head) - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding: 4px; margin: -4px; }
-.settings-nav-link { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; font-weight: 500; border-left: 3px solid transparent; }
-.settings-nav-link:hover { background: var(--accent-tint); color: var(--ink); }
-.settings-nav-link[aria-current="page"] { background: var(--surface); border-left-color: var(--accent); box-shadow: 0 0 0 1px var(--line); }
+/* Der aktive Bereich trägt nur eine Fläche in --accent-soft, wie die Navigation nur eine Fläche hat; kein Rand, kein Ring */
+.settings-nav-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; padding: 10px 12px; border-radius: 6px; color: var(--ink); text-decoration: none; font-weight: 500; }
+.settings-nav-label, .settings-nav-hint { grid-column: 1; }
+.settings-nav-link > svg { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--muted); display: none; }
+/* Nur mit Maus: am Touchgerät bliebe die Fläche nach dem Tippen stehen, auch nach dem Zurück */
+@media (hover: hover) { .settings-nav-link:hover { background: var(--hover); color: var(--ink); } }
+.settings-nav-link[aria-current="page"] { background: var(--accent-soft); }
+.settings-nav-link[aria-current="page"] .settings-nav-label { color: var(--accent-ink); }
 .settings-nav-hint { font-size: 12px; font-weight: 400; color: var(--muted); }
 .settings-content { max-width: 820px; min-width: 0; }
+/* Kopf: am Desktop „Einstellungen“, das Zurück und der Name des Bereichs nur am Handy */
+.settings-back, .settings-title-area { display: none; }
+.settings-back { align-items: center; gap: 2px; min-height: 44px; margin: -10px 0 -6px -6px; padding-right: 8px; color: var(--link); font-size: 15px; font-weight: 500; text-decoration: none; }
+.settings-back:hover { color: var(--link-hover); }
+/* Safari legt beim Antippen einen dunklen Rahmen um den Link; wie bei iOS wird stattdessen die Schrift blasser */
+.settings-back { -webkit-tap-highlight-color: transparent; }
+.settings-back:active { opacity: 0.5; }
 @media (max-width: 900px) {
+  /* Am Handy ist die Liste der Bereiche eine eigene Seite (/einstellungen ohne ?bereich), wie in den Einstellungen
+     von iOS und Android: ganze Zeilen mit Untertext und Pfeil. Im Bereich führt „‹ Einstellungen“ im Kopf zurück. */
   .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  /* Bereiche als eine Zeile direkt unter dem Kopf, die seitlich scrollt und mit ihm stehen bleibt; die Trennlinie
-     wandert vom Kopf unter diese Zeile, Kopf und Bereiche wirken als ein Block */
-  /* Die Zeile hat eine feste Höhe, damit scroll-padding-top sie mit einrechnen kann: sonst bliebe ein Feld mit Fokus
-     beim Rückwärts-Tabben unter ihr verdeckt (WCAG 2.4.11) */
-  :root { --settings-nav-row: 52px; }
-  html:has(.settings-nav) { scroll-padding-top: calc(var(--below-head) + var(--settings-nav-row) + 16px); }
-  .settings-nav { top: var(--below-head); z-index: 9; height: var(--settings-nav-row); max-height: none; overflow: auto hidden; flex-direction: row; flex-wrap: nowrap; gap: 6px; margin: -12px calc(-1 * var(--main-pad-x)) 0; padding: 8px var(--main-pad-x); background: var(--ground); scrollbar-width: none; }
-  .shell[data-scrolled] .page-head:has(+ .settings-layout) { box-shadow: none; }
-  .shell[data-scrolled] .settings-nav { box-shadow: 0 1px 0 var(--line), 0 6px 12px -10px rgb(0 0 0 / 0.3); }
-  .settings-nav-link { flex: 0 0 auto; padding: 8px 14px; border-left: 0; border: 1px solid var(--line); border-radius: 18px; font-size: 13px; line-height: 18px; background: var(--surface); }
-  .settings-nav-link[aria-current="page"] { background: var(--ink); color: var(--surface); box-shadow: none; }
-  .settings-nav-hint { display: none; }
+  .settings-layout[data-uebersicht] .settings-content, .settings-layout:not([data-uebersicht]) .settings-nav { display: none; }
+  .settings-nav { position: static; max-height: none; overflow: visible; gap: 0; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  .settings-nav-link { min-height: 60px; align-content: center; padding: 10px 12px 10px 16px; border-radius: 0; font-size: 15px; line-height: 20px; }
+  .settings-nav-link:first-child { border-radius: 11px 11px 0 0; }
+  .settings-nav-link:last-child { border-radius: 0 0 11px 11px; }
+  .settings-nav-link + .settings-nav-link { border-top: 1px solid var(--line-soft); }
+  .settings-nav-link > svg { display: block; }
+  .settings-nav-link[aria-current="page"] { background: none; }
+  .settings-nav-link[aria-current="page"] .settings-nav-label { color: inherit; }
+  .settings-nav-link:focus-visible { outline-offset: -2px; }
+  /* Statt des eckigen Grau von Safari färbt sich die angetippte Zeile in ihrer eigenen Form */
+  .settings-nav-link { -webkit-tap-highlight-color: transparent; }
+  .settings-nav-link:active { background: var(--hover); }
+  .settings-nav-hint { font-size: 13px; line-height: 18px; }
+  /* „Haben“ steht am Handy schon in der Leiste darüber */
+  .settings-head .eyebrow, .settings-head:not([data-uebersicht]) .settings-title { display: none; }
+  .settings-head:not([data-uebersicht]) .settings-back { display: inline-flex; }
+  .settings-head:not([data-uebersicht]) .settings-title-area { display: inline; }
 }
+
+/* Seitenwechsel bleiben ohne Bewegung; nur wo die Navigation einen Typ setzt, schiebt sich am Handy die neue Seite
+   herein (SettingsNav.tsx). Die Leiste oben fährt nicht mit. Wischen am Rand animiert der Browser selbst. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+/* Wo sich die Seiten beim Schieben nicht decken, zeigt Safari sonst Schwarz */
+::view-transition { background: var(--ground); }
+@media (max-width: 860px) { .nav { view-transition-name: hauptleiste; } }
+@media (max-width: 900px) and (prefers-reduced-motion: no-preference) {
+  :root:active-view-transition-type(einstellungen-vor)::view-transition-old(root) { animation: 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both seite-nach-links; }
+  :root:active-view-transition-type(einstellungen-vor)::view-transition-new(root) { animation: 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both seite-von-rechts; }
+  :root:active-view-transition-type(einstellungen-zurueck)::view-transition-old(root) { z-index: 1; animation: 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both seite-nach-rechts; }
+  :root:active-view-transition-type(einstellungen-zurueck)::view-transition-new(root) { animation: 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both seite-von-links; }
+}
+@keyframes seite-von-rechts { from { transform: translateX(100%); } }
+@keyframes seite-nach-rechts { to { transform: translateX(100%); } }
+@keyframes seite-nach-links { to { transform: translateX(-30%); opacity: 0.6; } }
+@keyframes seite-von-links { from { transform: translateX(-30%); opacity: 0.6; } }
 
 /* Formular in Abschnitten (Kontakt, Firmendaten, Persönliche Angaben) */
 .form-card { gap: 0; padding: 0; }

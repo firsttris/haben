@@ -101,6 +101,14 @@ Ein Symbol mit Unterpunkten öffnet sein Flyout rechts neben der Leiste beim Üb
 
 Ein Symbol ohne Unterpunkte (Marke, Schnellsuche, `Übersicht`, `Einstellungen`, „Zum Firmenportal“, der Knopf zum Ausklappen) zeigt beim Überfahren und mit Tastaturfokus einen Hinweis mit seinem Namen (`NavTip`, Fläche `--nav-active` wie der aufgeklappte Firmenname), die Marke dabei „Haben“ und die Firma; kein `title`, aus demselben Grund wie beim Firmennamen. `Esc` blendet den Hinweis aus. Die Gruppe der aktiven Seite trägt die Fläche des aktiven Menüpunkts, eine offene Gruppe dieselbe Fläche mit halber Deckkraft. Auf dem Handy bis 860 px gilt das Aufklappmenü.
 
+### Einstellungen
+
+Am Desktop stehen die Bereiche links neben dem Inhalt, jeder mit Name und Untertext. Der Untertext nennt, was im Bereich steht, nicht wofür er da ist („Steuer-ID, Veranlagung, Ehegatte“), und passt in eine Zeile. Der aktive Bereich trägt nur eine Fläche in `--accent-soft` mit dem Namen in `--accent-ink`, ohne Rand und Ring, wie der aktive Menüpunkt der Navigation.
+
+Bis 900 px ist die Liste eine eigene Seite, wie in den Einstellungen von iOS und Android: `/einstellungen` ohne `?bereich` zeigt alle Bereiche als Zeilen einer Karte mit Untertext und Pfeil, eine Zeile öffnet den Bereich. Dort steht im Kopf statt „Einstellungen“ der Name des Bereichs, darüber „‹ Einstellungen“ als Zurück; „Haben“ steht am Handy nicht darüber, das zeigt schon die Leiste. Kam man aus der Liste, geht Zurück im Verlauf zurück, sonst öffnet es die Liste. So bleibt der Verlauf so, wie Wischen am Rand ihn erwartet. Eine Zeile färbt sich beim Antippen in ihrer Form (`--hover`) statt im Grau von Safari.
+
+Beim Tippen auf einen Bereich schiebt sich am Handy die Seite von rechts herein, bei Zurück wieder hinaus (View Transition mit Typ, `SettingsNav.tsx`); die Leiste oben fährt nicht mit. Wischen am Rand animiert der Browser selbst, dort läuft keine zweite Bewegung. Alle anderen Seitenwechsel bleiben ohne Übergang, ebenso mit „Bewegung reduzieren“.
+
 ### Befehlspalette
 
 **Schnellsuche** sitzt am Desktop unter der Marke außerhalb des rollenden Menüs, am Handy als Lupe neben **Menü**. `Strg+K`, am Mac `⌘+K`, oder `/` außerhalb von Eingabefeldern öffnet die Suche auf jeder Seite, solange kein anderer Dialog offen ist.
