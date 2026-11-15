@@ -402,4 +402,76 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
       zwischenkonto: 0,
     });
   });
+
+  // Nach der Ausführung ist die Vorsteuer mit Leistung und Rechnung abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 1 UStG); eine
+  // Aufhebung der Anzahlung danach ändert daran nichts mehr (Vorgabe des Maintainers in #930) und schreibt vor allem den
+  // Monat der Ausführung nicht rückwirkend um (#782: eine Aufhebung wirkt am Tag der Aufhebung)
+  it("Journal als Quelle: Anzahlung vor der Ausführung, Aufhebung nach der Ausführung ändert nichts mehr", async () => {
+    await firma({ journalAb: 2026 });
+    const id = await beleg({ datum: "2026-08-20", von: "2026-09-01", bis: "2026-09-30", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    const zuordnung = await zahlung(id, -3_856, "2026-08-25");
+    await bank.reverseAllocation(actor, zuordnung, "2026-10-10");
+
+    const monate = [
+      { year: 2026, month: 8 },
+      { year: 2026, month: 9 },
+      { year: 2026, month: 10 },
+    ];
+    expect({ journal: (await beideQuellen(monate)).journal, zwischenkonto: await zwischenkontoSaldo() }).toEqual({
+      journal: [616, 0, 0],
+      zwischenkonto: 0,
+    });
+  });
+
+  // Storno nach der Ausführung eines vor der Ausführung bezahlten Belegs: berichtigt im Monat des Stornos (§ 17 Abs. 1
+  // UStG), der Monat der Ausführung bleibt, wie er war
+  it("Journal als Quelle: Anzahlung vor der Ausführung, Storno nach der Ausführung berichtigt nur im Stornomonat", async () => {
+    await firma({ journalAb: 2026, kontenrahmen: "SKR04", versteuerung: "soll" });
+    const id = await beleg({ datum: "2026-08-20", von: "2026-09-01", bis: "2026-09-30", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    const zuordnung = await zahlung(id, -3_856, "2026-08-25");
+    await cancellation.cancelDocument(actor, id, { reason: "falscher Beleg", allocationIds: [zuordnung] }, "2026-10-10");
+
+    const monate = [
+      { year: 2026, month: 8 },
+      { year: 2026, month: 9 },
+      { year: 2026, month: 10 },
+    ];
+    const { journal } = await beideQuellen(monate);
+    expect({ sep: journal[1], summe: journal.reduce((a, b) => a + b, 0), zwischenkonto: await zwischenkontoSaldo() }).toEqual({
+      sep: 0,
+      summe: 0,
+      zwischenkonto: 0,
+    });
+  });
+
+  // Skonto auf eine Zahlung vor der Ausführung: Der erlassene Rest mindert die Vorsteuer (§ 17 Abs. 1 Satz 2 UStG), die
+  // Freigabe zur Ausführung darf seine Steuer nicht noch einmal ziehen; das Zwischenkonto endet bei null
+  it("Journal als Quelle: Zahlung mit Skonto vor der Ausführung, keine Freigabe für den erlassenen Rest", async () => {
+    await firma({ journalAb: 2026 });
+    const id = await beleg({ datum: "2026-10-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    await zahlung(id, -3_779, "2026-11-05");
+    await bank.writeOff(actor, { kind: "skontoErhalten", documentId: id, date: "2026-11-05" });
+
+    const monate = [
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ];
+    const { journal } = await beideQuellen(monate);
+    expect({ journal, zwischenkonto: await zwischenkontoSaldo() }).toEqual({ journal: [604, 0], zwischenkonto: 0 });
+  });
+
+  // Verrechnung mit einer Gutschrift vor der Ausführung, vor der Ausführung wieder aufgehoben: Die Aufhebung legt den
+  // Anteil zurück, die Freigabe zur Ausführung muss ihn wieder mitnehmen; das Zwischenkonto endet bei null
+  it("Journal als Quelle: Verrechnung vor der Ausführung aufgehoben, Freigabe nimmt den Anteil wieder mit", async () => {
+    await firma({ journalAb: 2026 });
+    const rechnung = await beleg({ datum: "2026-09-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    const gutschrift = await beleg({ datum: "2026-10-01", erstattetBezahltes: false, amounts: [{ taxRate: 1900, net: -1_000, tax: -190 }] });
+    const verrechnung = await import("../bank/verrechnung.ts");
+    const { ids } = await verrechnung.settleDocuments(actor, { documentId: rechnung, counterDocumentId: gutschrift, amount: 1_190, date: "2026-10-05", note: "Gutschrift" });
+    await verrechnung.reverseSettlement(actor, ids[0]!, "2026-10-20");
+
+    const [rest] = await sql`select coalesce(sum(l.debit - l.credit), 0)::int as saldo from journal_lines l where l.account = '1548'`;
+    const dezember = await figures.computeVatFigures({ year: 2026, month: 12 });
+    expect({ zwischenkonto: rest!.saldo, dez: dezember.kz66 }).toEqual({ zwischenkonto: 0, dez: 616 });
+  });
 });
