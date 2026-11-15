@@ -810,6 +810,98 @@ test("Fremdwährung: Kurs von Hand mit der Monatsauswahl, fehlende Angaben stehe
   await expect(zeile).toHaveCount(0);
 });
 
+/** Kurse in Monaten weit vor dem Testjahr, damit kein Beleg des Durchlaufs sie nutzt; die Tests räumen sie wieder ab */
+const KURS_JAHR = YEAR - 3;
+async function kurseAnlegen(): Promise<void> {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    await sql`insert into exchange_rates (currency, month, rate, source) values
+      ('CHF', ${`${KURS_JAHR}-01`}, '0.94', 'bmf'), ('USD', ${`${KURS_JAHR}-01`}, '1.08', 'bmf'),
+      ('CHF', ${`${KURS_JAHR}-02`}, '0.95', 'bmf'), ('GBP', ${`${KURS_JAHR}-02`}, '0.85', 'bmf'),
+      ('USD', ${`${KURS_JAHR}-02`}, '1.09', 'bmf'), ('JPY', ${`${KURS_JAHR}-02`}, '160.5', 'manuell')
+      on conflict do nothing`;
+  } finally {
+    await sql.end();
+  }
+}
+async function kurseEntfernen(): Promise<void> {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    await sql`delete from exchange_rates where month like ${`${KURS_JAHR}-%`}`;
+  } finally {
+    await sql.end();
+  }
+}
+
+test("Fremdwährung: Kurse nach Monat, nach Währung und nur eigene (#1040)", async () => {
+  await kurseAnlegen();
+  try {
+    await go("/einstellungen?bereich=waehrung");
+    const karte = page.getByRole("region", { name: "Umsatzsteuer-Umrechnungskurse" });
+    const zeilen = karte.locator("tbody tr");
+    // Ohne Wahl der neueste Monat, ohne Spalte für den Monat
+    await expect(karte.getByRole("combobox", { name: "Monat" })).toHaveValue(`${KURS_JAHR}-02`);
+    await expect(zeilen).toHaveCount(4);
+    await expect(karte.getByRole("columnheader", { name: "Monat" })).toHaveCount(0);
+    await karte.getByRole("searchbox", { name: "Währung filtern" }).fill("us");
+    await expect(zeilen).toHaveCount(1);
+    await expect(zeilen).toContainText("USD");
+    await karte.getByRole("combobox", { name: "Monat" }).selectOption(`${KURS_JAHR}-01`);
+    await expect(zeilen).toHaveCount(1);
+    await expect(zeilen).toContainText("1,08");
+    await karte.getByRole("searchbox", { name: "Währung filtern" }).fill("");
+
+    await karte.getByRole("button", { name: "Nach Währung" }).click();
+    await expect(karte.getByRole("button", { name: "Nach Währung" })).toHaveAttribute("aria-pressed", "true");
+    await expect(karte.getByRole("combobox", { name: "Währung" })).toHaveValue("USD");
+    await expect(zeilen).toHaveCount(2);
+    await expect(zeilen.first()).toContainText(`02/${KURS_JAHR}`);
+    await karte.getByRole("combobox", { name: "Währung" }).selectOption("GBP");
+    await expect(zeilen).toHaveCount(1);
+
+    await karte.getByRole("button", { name: "Nur eigene (1)" }).click();
+    await expect(zeilen).toHaveCount(1);
+    await expect(zeilen).toContainText("JPY");
+    await zeilen.getByRole("button", { name: "Löschen" }).click();
+    await expect(page.getByText("Kurs gelöscht.")).toBeVisible();
+    // Ohne eigene Kurse fällt die Ansicht auf den Monat zurück
+    await expect(karte.getByRole("button", { name: /^Nur eigene/ })).toHaveCount(0);
+    await expect(karte.getByRole("button", { name: "Nach Monat" })).toHaveAttribute("aria-pressed", "true");
+  } finally {
+    await kurseEntfernen();
+  }
+});
+
+test("Fremdwährung: Kursliste am Handy ohne seitliches Scrollen und ohne axe-Verstöße, hell und dunkel (#1040)", async () => {
+  await kurseAnlegen();
+  const vorher = page.viewportSize();
+  try {
+    for (const modus of ["hell", "dunkel"]) {
+      for (const viewport of [LAPTOP, { width: 375, height: 812 }]) {
+        await page.setViewportSize(viewport);
+        await page.evaluate((m) => localStorage.setItem("haben-modus", m), modus);
+        await go("/einstellungen?bereich=waehrung");
+        const karte = page.getByRole("region", { name: "Umsatzsteuer-Umrechnungskurse" });
+        await expect(karte.getByRole("button", { name: "Nur eigene (1)" })).toBeVisible();
+        const ueberstand = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        expect(ueberstand, `${modus}, ${viewport.width} px: seitliches Scrollen`).toBeLessThanOrEqual(1);
+        const kante = await karte.evaluate((el) => el.getBoundingClientRect().right);
+        const gruppe = await karte.getByRole("group", { name: "Darstellung der Kurse" }).evaluate((el) => el.getBoundingClientRect().right);
+        expect(gruppe, `${modus}, ${viewport.width} px: Umschalter ragt aus der Karte`).toBeLessThanOrEqual(kante);
+        const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+        expect(
+          violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+          `${modus}, ${viewport.width} px`,
+        ).toEqual([]);
+      }
+    }
+  } finally {
+    await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
+    if (vorher) await page.setViewportSize(vorher);
+    await kurseEntfernen();
+  }
+});
+
 test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
   // Zwei Spalten am Handy (DESIGN.md, Karten): Die fünfte Karte der Pauschalen und die dritte der Kasse standen allein in halber Breite
   const vorher = page.viewportSize();
