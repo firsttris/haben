@@ -21,9 +21,9 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { loadCompany } from "../stammdaten/index.ts";
+import { accountName } from "../buchhaltung/index.ts";
 import { advanceReceivablesAt } from "../rechnungen/index.ts";
 import { jahresBilanzen } from "./bilanzen.ts";
-import { accountName } from "./journal.ts";
 
 /*
  * Restlaufzeiten der Forderungen und Verbindlichkeiten zum 31.12. (§ 268 Abs. 4 Satz 1, Abs. 5 Satz 1 HGB) für die
