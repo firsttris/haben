@@ -58,7 +58,10 @@ export function SettingsNav({ areas, current, uebersicht }: { areas: Area[]; cur
           state={uebersicht ? ausListeMerken : undefined}
           viewTransition={uebersicht ? VOR : undefined}
           className="settings-nav-link"
-          aria-current={a.id === current ? "page" : undefined}
+          // Ohne ?bereich ist am Handy nur die Liste offen, kein Bereich; am Desktop steht daneben die Firma, die
+          // data-standard nur hervorhebt (styles.css)
+          aria-current={!uebersicht && a.id === current ? "page" : undefined}
+          data-standard={(uebersicht && a.id === current) || undefined}
         >
           <span className="settings-nav-label">{a.label}</span>
           <span className="settings-nav-hint">{a.hint}</span>

@@ -107,7 +107,7 @@ Am Desktop stehen die Bereiche links neben dem Inhalt, jeder mit Name und Untert
 
 Bis 900 px ist die Liste eine eigene Seite, wie in den Einstellungen von iOS und Android: `/einstellungen` ohne `?bereich` zeigt alle Bereiche als Zeilen einer Karte mit Untertext und Pfeil, eine Zeile öffnet den Bereich. Dort steht im Kopf statt „Einstellungen“ der Name des Bereichs, darüber „‹ Einstellungen“ als Zurück; „Haben“ steht am Handy nicht darüber, das zeigt schon die Leiste. Kam man aus der Liste, geht Zurück im Verlauf zurück, sonst öffnet es die Liste. So bleibt der Verlauf so, wie Wischen am Rand ihn erwartet. Eine Zeile färbt sich beim Antippen in ihrer Form (`--hover`) statt im Grau von Safari.
 
-Beim Tippen auf einen Bereich schiebt sich am Handy die Seite von rechts herein, bei Zurück wieder hinaus (View Transition mit Typ, `SettingsNav.tsx`); die Leiste oben fährt nicht mit. Wischen am Rand animiert der Browser selbst, dort läuft keine zweite Bewegung. Alle anderen Seitenwechsel bleiben ohne Übergang, ebenso mit „Bewegung reduzieren“.
+Beim Tippen auf einen Bereich schiebt sich am Handy die Seite von rechts herein, bei Zurück wieder hinaus (View Transition mit Typ, `SettingsNav.tsx`); die Navigation fährt nicht mit, auch nicht die Seitenleiste zwischen 861 und 900 px. Wischen am Rand animiert der Browser selbst, dort läuft keine zweite Bewegung. Alle anderen Seitenwechsel bleiben ohne Übergang, ebenso mit „Bewegung reduzieren“.
 
 ### Befehlspalette
 
