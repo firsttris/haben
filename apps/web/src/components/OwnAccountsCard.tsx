@@ -32,7 +32,7 @@ export function OwnAccountsCard({ overview }: { overview: Overview }) {
       <p className="muted small" style={{ margin: 0, maxWidth: 720 }}>
         Ein Aufwandskonto mit eigener Nummer und eigenem Namen, etwa „4999 Software: Entwicklung“. Es zählt für Umsatzsteuer, EÜR und Bilanz wie seine
         Elternkategorie; die Steuerberatung bekommt im DATEV-Export die eigene Nummer. Am Beleg wählst du es bei der Kategorie, bei einem aufgeteilten Beleg je
-        Zeile. Eine Nummer lässt sich nach der ersten Buchung nicht mehr ändern.
+        Zeile. Nummer und Elternkategorie lassen sich nach dem Anlegen nicht mehr ändern.
       </p>
       <NoticeBanner notice={notice} />
       <ConfirmDialog
