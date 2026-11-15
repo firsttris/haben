@@ -143,7 +143,7 @@ Mahnungen sind keine Forderung: Sie zählen nicht in Umsatz, Umsatzsteuer, EÜR,
 
 Übernimmst du eine offene Rechnung aktiv, zählt ihre höchste Stufe aus sevDesk im [Mahnwesen](rechnungen-zahlung.md#mahnwesen). Laut OpenAPI zählt `dunningLevel` die versendeten Mahnungen und beginnt mit 1 als Zahlungserinnerung. Stufe 1 gilt deshalb als Zahlungserinnerung, Stufe 2 als 1. Mahnung; danach schlägt Haben die letzte Mahnung vor. Ob eine höhere Stufe in sevDesk schon die letzte Mahnung war, ist nicht belegt; sie zählt wie Stufe 2. Eine Mahnung in Haben entsteht dabei nicht.
 
-Mahngebühren und Zinsen (`reminderCharge`, Differenz von `reminderTotal` und `reminderDebit`) übernimmt Haben nicht, sie stehen nur in der gespeicherten Antwort: In den Testdaten aus beiden Buchhaltungsversionen sind sie 0, wie sevDesk sie füllt, ist nicht belegt. Gebühren, die der Kunde zahlt, ordnest du im Bankabgleich zu ([Gebühren und Zinsen buchen](rechnungen-zahlung.md#mahnwesen)).
+Mahngebühren und Zinsen übernimmt Haben nicht, sie stehen nur in der gespeicherten Antwort: In den Testdaten aus beiden Buchhaltungsversionen ist die Gebühr (`reminderCharge`) 0, wie sevDesk Gebühren und Zinsen füllt, ist nicht belegt. Gebühren, die der Kunde zahlt, ordnest du im Bankabgleich zu ([Gebühren und Zinsen buchen](rechnungen-zahlung.md#mahnwesen)).
 
 ### Grenzen des aktuellen Imports
 
