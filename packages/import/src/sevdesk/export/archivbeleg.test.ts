@@ -105,3 +105,22 @@ describe("Gutschrift im Gutschriftverfahren (Honorar, Provision)", () => {
     }
   });
 });
+
+describe.each(["SKR03", "SKR04"] as const)("Beleg mit Zeilen auf beiden Seiten (%s)", (kontenrahmen) => {
+  // Eine Rechnung (100,00 im Haben) und unter derselben GUID eine Minderung im Soll (10,00, etwa Rabatt oder verrechnete
+  // Anzahlung): Die Steuer der Minderung mindert die Steuer des Belegs, sie kommt nicht dazu.
+  const minderung = (zeile: string) =>
+    zeile.replace(/^100,00;"H"/, '10,00;"S"').replace(";84,03;", ";8,40;").replace(";15,97;", ";1,60;");
+
+  it("Steuer aus Beleginfo mit dem Vorzeichen der Zeile", () => {
+    const [v] = archiv(lese(kontenrahmen, [rechnung!, minderung(rechnung!)]));
+    expect(v).toMatchObject({ type: "salesinvoice", direction: "einnahme", gross: 9000, tax: 1437, net: 7563 });
+  });
+
+  it("Steuer aus dem Automatikkonto mit dem Vorzeichen der Zeile", () => {
+    const ohneInfo = (zeile: string) => zeile.replace(/;"Nettobetrag";[^;]*;"Steuerbetrag";[^;]*;/, ';"Nettobetrag";;"Steuerbetrag";;');
+    const [v] = archiv(lese(kontenrahmen, [ohneInfo(rechnung!), ohneInfo(minderung(rechnung!))]));
+    // 100,00 brutto: 15,97 Steuer; 10,00 brutto: 1,60 Steuer
+    expect(v).toMatchObject({ gross: 9000, tax: 1437, net: 7563 });
+  });
+});
