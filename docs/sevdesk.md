@@ -137,7 +137,7 @@ Der Jahresexport enthält `sevdesk/auftraege.csv` sowie PDFs, Quelldaten und PDF
 
 ### Mahnungen
 
-sevDesk führt jede Mahnstufe als eigene Rechnung der Art `MA`, die mit `origin` auf die gemahnte Rechnung zeigt; `GET /Invoice` liefert sie nur mit dem Filter `invoiceType=MA`. Ihre Summen sind 0, der gemahnte Betrag steht in `reminderTotal`, Positionen hat sie keine. Haben archiviert jede gespeicherte Stufe (ohne Entwürfe) mit Datum, Frist, gemahntem Betrag, Antwort der API und PDF, getrennt von den Belegen. Die Belegansicht der gemahnten Rechnung zeigt ihre Stufen unter **Mahnungen**.
+sevDesk führt jede Mahnstufe als eigene Rechnung der Art `MA`, die mit `origin` auf die gemahnte Rechnung zeigt; `GET /Invoice` liefert sie nur mit dem Filter `invoiceType=MA`. Ihre Summen sind 0, der gemahnte Betrag steht in `reminderTotal`, Positionen hat sie keine. Haben archiviert jede gespeicherte Stufe (ohne Entwürfe) mit Datum, Frist, gemahntem Betrag, Antwort der API und PDF, getrennt von den Belegen. Die Belegansicht der gemahnten Rechnung zeigt ihre Stufen unter **Mahnungen**. Der Jahresexport enthält sie im Jahr ihres Datums als `sevdesk/mahnungen.csv` und unter `sevdesk/mahnungen/` mit PDF und Quelldaten.
 
 Mahnungen sind keine Forderung: Sie zählen nicht in Umsatz, Umsatzsteuer, EÜR, offene Posten und Abgleich.
 
