@@ -1,11 +1,13 @@
 /**
  * Befunde aus dem TDD-Review von portal (#1036): Rechte der Logos bei restriktiver umask, Neustarts, die ein
- * abgebrochener Lauf schuldig blieb, und HABEN_FIRMENPORTAL_URL in einer Instanz, die kein SSO mehr hat.
+ * abgebrochener Lauf schuldig blieb, und HABEN_FIRMENPORTAL_URL in einer Instanz, die kein SSO mehr hat (Runde 1); eine
+ * solche Instanz, die deshalb ständig neu startet (Runde 2).
  */
 import { createHash } from "node:crypto";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { Ausfuehren } from "./ausfuehren.ts";
 import { envWerte } from "./env-datei.ts";
 import { umgebung } from "./test-docker.ts";
 
@@ -92,6 +94,28 @@ describe("Review portal", () => {
     expect(r.stdout).toContain("Ohne SSO, nicht im Firmenportal: nord");
     // apps/web/src/server/env.ts: HABEN_FIRMENPORTAL_URL „nur mit SSO (OIDC_ONLY=true)“
     expect(env("nord").get("HABEN_FIRMENPORTAL_URL") ?? "").toBe("");
+    expect(starts()).toContain("nord compose up -d");
+  });
+
+  it("baut eine Instanz ohne SSO neu auf, die wegen HABEN_FIRMENPORTAL_URL ständig neu startet, statt sie für gestoppt zu halten", async () => {
+    await instanz("nord");
+    expect((await einrichten()).status).toBe(0);
+    // SSO in nord von Hand abgeschaltet und neu gestartet: Die App lehnt HABEN_FIRMENPORTAL_URL ohne OIDC_ONLY=true
+    // ab (apps/web/src/server/env.ts) und startet ständig neu, mit der alten Adresse im Container
+    const datei = join(t.basis, "nord", ".env");
+    writeFileSync(datei, readFileSync(datei, "utf8").replace(/^OIDC_ONLY=.*$/m, "OIDC_ONLY=false"));
+    t.docker.z.schleife.add("nord");
+    // Erst up -d baut den Container mit der .env ohne Adresse neu auf; danach läuft die App wieder
+    const echt: Ausfuehren = t.docker.ausfuehren;
+    t.docker.ausfuehren = async (befehl, o) => {
+      const r = await echt(befehl, o);
+      if (o.cwd.endsWith("/nord") && befehl.slice(1).join(" ") === "compose up -d") t.docker.z.schleife.delete("nord");
+      return r;
+    };
+    t.docker.aufrufe.length = 0;
+    const r = await t.lauf("portal");
+    expect(env("nord").get("HABEN_FIRMENPORTAL_URL") ?? "").toBe("");
+    expect(r.stdout).not.toContain("Gestoppt, nur die .env geändert: nord");
     expect(starts()).toContain("nord compose up -d");
   });
 });
