@@ -239,6 +239,20 @@ describe("mapFbInvoice", () => {
     });
   });
 
+  // Ob FastBill nach einem Teilstorno (PARTIAL_CANCELLATION) die Rechnung auf STATE canceled setzt, ist nicht belegt. Tut es
+  // das, darf der offene Rest nicht als storniert verschwinden: Die Rechnung bleibt, wie sie ist, und der Abgleich bittet um
+  // Prüfung (Entscheidung des Maintainers in #1002).
+  it("wertet eine stornierte Rechnung mit nur einer Teilgutschrift nicht als storniert, sondern als teilstorniert", () => {
+    const teil = invoice({ ...storno, TOTAL: -119, VAT_TOTAL: -19, VAT_ITEMS: [{ VAT_PERCENT: 19, COMPLETE_NET: -100, VAT_VALUE: -19 }] });
+    const { voucher, payment } = mapFbInvoice(stornierte, undefined, [teil]);
+    expect(voucher).toMatchObject({ type: "invoice", status: "teilstorniert", gross: 119_000 });
+    expect(payment).toMatchObject({ status: "open", openAmount: 119_000 });
+    // Mit der vollen Stornogutschrift bleibt es beim Storno, auch neben einer Teilgutschrift
+    expect(mapFbInvoice(stornierte, undefined, [teil, storno]).voucher.status).toBe("voided");
+    // Ohne Gutschrift mit Verweis wie bisher storniert
+    expect(mapFbInvoice(stornierte, undefined, []).voucher.status).toBe("voided");
+  });
+
   it("hält eine Rechnung aus einem Angebot nicht für ein Storno", () => {
     const ausAngebot = invoice({ REFERENCED_INVOICE_ID: "900" });
     expect(isFbCancellation(ausAngebot, undefined)).toBe(false);

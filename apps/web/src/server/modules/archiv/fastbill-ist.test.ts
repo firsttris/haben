@@ -127,6 +127,43 @@ describe.skipIf(!testDatabaseUrl)("FastBill-Altbestand bei Ist und Soll (Postgre
     expect(year.checks.map((c) => c.label)).not.toContain("Keine Ausgabe wartet auf ihren Beleg");
   });
 
+  it("bittet im Abgleich je Jahr um Prüfung einer Rechnung mit Teilstorno", async () => {
+    const stornierte = {
+      ...BASE,
+      INVOICE_ID: "9401",
+      TYPE: "outgoing",
+      STATE: "canceled",
+      IS_CANCELED: "1",
+      INVOICE_NUMBER: "2025-9",
+      INVOICE_DATE: "2025-07-01",
+    };
+    const teil = {
+      ...BASE,
+      INVOICE_ID: "9402",
+      TYPE: "credit",
+      STATE: "issued",
+      INVOICE_NUMBER: "2025-10",
+      INVOICE_DATE: "2025-07-05",
+      REFERENCED_INVOICE_ID: "9401",
+      TOTAL: -119,
+      VAT_TOTAL: -19,
+    };
+    const { voucher, payment } = mapFbInvoice(stornierte, undefined, [teil]);
+    const [run] = await sql`select id from lexoffice_imports where source = 'fastbill' limit 1`;
+    await sql`insert into lexoffice_vouchers
+      (lexoffice_id, source, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
+      values (${voucher.lexofficeId}, 'fastbill', ${run!.id}, ${voucher.type}, ${voucher.direction}, ${voucher.number}, ${voucher.date},
+      ${voucher.status}, ${voucher.contactName}, ${voucher.net}, ${voucher.tax}, ${voucher.gross}, ${JSON.stringify(voucher.taxes)}::jsonb,
+      '[]'::jsonb, ${JSON.stringify(payment)}::jsonb, '{"VAT_CASE":"0"}'::jsonb)`;
+    const year = (await archive.reconciliation()).years.find((y) => y.year === 2025)!;
+    expect(year.checks).toContainEqual({
+      ok: false,
+      label: "Keine Rechnung mit Teilstorno zu prüfen",
+      detail: "1 Rechnung aus FastBill mit Teilstorno: bitte prüfen",
+    });
+    expect(year.ready).toBe(false);
+  });
+
   it.each([
     ["ist", "SKR03"],
     ["ist", "SKR04"],
