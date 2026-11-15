@@ -53,6 +53,8 @@ Bei einem Teil der Ausgaben liefert die Download-Adresse aus der API (`DOCUMENT_
 3. Die ZIP-Dateien in Haben hochladen. Haben ordnet jede Datei über die ID ihrer Ausgabe zu und nimmt nur PDFs und Bilder an. Manche Belege speichert FastBill samt der Hülle des Formulars, mit dem sie hochgeladen wurden; dann übernimmt Haben die Datei darin unverändert, ohne die Hülle.
 4. In Schritt 2 „Erneut abrufen“: Haben übernimmt die Ausgaben jetzt mit ihrem Beleg.
 
+Warum das Skript zulässig ist, steht beim Umzug aus Lexoffice unter [Darf ich das?](lexoffice.md#darf-ich-das).
+
 Solange Ausgaben warten, zeigt der Abgleich je Jahr den offenen Punkt „Keine Ausgabe wartet auf ihren Beleg“.
 
 Gibt es zu einer Ausgabe in FastBill wirklich keinen Beleg, übernimmt „Rest ohne Beleg übernehmen“ die übrigen wartenden Ausgaben beim nächsten Abruf ohne Datei. Im Abgleich bleibt „Jeder Beleg hat eine Datei“ für dieses Jahr dann offen; an einen archivierten Beleg lässt sich später keine Datei mehr hängen.
