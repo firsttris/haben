@@ -149,7 +149,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
     const nov = await buche("2026-11-20", 70_000);
 
     // Monat März 2026: genau 01.03. bis 31.03.2026, Kopf 20260301/20260331
-    const maerz = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { kind: "monat", monat: 3 });
+    const maerz = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { year: 2026, month: 3 });
     expect(maerz.filename).toBe("EXTF_Buchungsstapel_2026-03.csv");
     const [kopfMaerz] = new TextDecoder("windows-1252").decode(maerz.bytes).split("\r\n");
     expect(kopfMaerz).toContain(";20260101;4;20260301;20260331;");
@@ -158,16 +158,18 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
     expect([...new Set(maerzStack.bookings.map((b) => b.voucherField1))].sort()).toEqual([mar1.number, mar2.number].sort());
 
     // 1. Quartal 2026: 01.01. bis 31.03.2026
-    const q1 = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { kind: "quartal", quartal: 1 });
+    const q1 = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { year: 2026, month: 41 });
     expect(q1.filename).toBe("EXTF_Buchungsstapel_2026-Q1.csv");
     const q1Stack = parseDatevBuchungsstapel(q1.bytes);
     expect(q1Stack.header).toMatchObject({ dateFrom: "2026-01-01", dateTo: "2026-03-31" });
     expect([...new Set(q1Stack.bookings.map((b) => b.voucherField1))].sort()).toEqual([jan.number, feb.number, mar1.number, mar2.number].sort());
 
-    // Leerer Monat: gültige Datei ohne Buchungen
-    const mai = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { kind: "monat", monat: 5 });
+    // Leerer Monat und Schaltjahr-Februar: gültige Datei ohne Buchungen, korrektes Monatsende
+    const mai = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { year: 2026, month: 5 });
     expect(mai.bookings).toBe(0);
     expect(parseDatevBuchungsstapel(mai.bytes).header).toMatchObject({ dateFrom: "2026-05-01", dateTo: "2026-05-31" });
+    const febSchaltjahr = await datev.datevExport(2024, new Date(2026, 11, 1), undefined, { year: 2024, month: 2 });
+    expect(parseDatevBuchungsstapel(febSchaltjahr.bytes).header).toMatchObject({ dateFrom: "2024-02-01", dateTo: "2024-02-29" });
 
     // Summe der zwölf Monatsexporte ergibt den Jahresexport
     const jahr = await datev.datevExport(2026, new Date(2026, 11, 1));
@@ -178,7 +180,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
 
     const monatsBuchungen = [];
     for (let monat = 1; monat <= 12; monat++) {
-      const m = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { kind: "monat", monat });
+      const m = await datev.datevExport(2026, new Date(2026, 11, 1), undefined, { year: 2026, month: monat });
       monatsBuchungen.push(...parseDatevBuchungsstapel(m.bytes).bookings);
     }
     expect(monatsBuchungen).toHaveLength(jahrStack.bookings.length);

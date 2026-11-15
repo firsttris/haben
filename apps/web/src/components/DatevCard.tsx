@@ -1,4 +1,4 @@
-import { currentYear, datevZeitraumBereich, MONTHS, parseDatevZeitraum, personenkontenBetroffen } from "@haben/core";
+import { currentYear, MONTHS, personenkontenBetroffen } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type MouseEvent } from "react";
 import { downloadFrom } from "../lib/download.ts";
@@ -33,8 +33,7 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
   const abYears = Array.from({ length: thisYear + 2 - firstYear }, (_, i) => firstYear + i);
   const betroffen = personenkontenBetroffen(savedAb, ab, numbers.gebuchteJahre, thisYear);
 
-  const zeitraum = parseDatevZeitraum(zeitraumKey) ?? { kind: "jahr" };
-  const { filename } = datevZeitraumBereich(year, zeitraum);
+  const filename = `EXTF_Buchungsstapel_${zeitraumKey ? `${year}-${zeitraumKey}` : year}.csv`;
   const downloadHref = zeitraumKey ? `/api/datev/${year}?zeitraum=${zeitraumKey}` : `/api/datev/${year}`;
 
   function onSubmit(event: FormEvent) {
