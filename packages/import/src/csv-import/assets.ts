@@ -87,12 +87,17 @@ const KIND_PATTERNS: [RegExp, AssetKind][] = [
   [/^sonstiges$|sonstig|bga|geschäftsausstattung|geschaeftsausstattung|maschine|werkzeug/, "sonstiges"],
 ];
 
-function parseKind(raw: string): Parsed<AssetKind> {
+/** Art aus einem freien Text wie „Pkw“ oder „Sonstige Transportmittel“; null = nicht erkannt */
+export function assetKindFromText(raw: string): AssetKind | null {
   const value = raw.trim().toLowerCase();
-  if (!value) return { ok: true, value: "sonstiges" };
-  const match = KIND_PATTERNS.find(([pattern]) => pattern.test(value));
+  return KIND_PATTERNS.find(([pattern]) => pattern.test(value))?.[1] ?? null;
+}
+
+function parseKind(raw: string): Parsed<AssetKind> {
+  if (!raw.trim()) return { ok: true, value: "sonstiges" };
+  const match = assetKindFromText(raw);
   return match
-    ? { ok: true, value: match[1] }
+    ? { ok: true, value: match }
     : { ok: false, error: `Art: „${raw}“; möglich sind Fahrzeug, Computer, Büromöbel, Sonstige Transportmittel und Sonstiges` };
 }
 

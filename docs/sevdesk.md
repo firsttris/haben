@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus sevDesk
 
-Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus sevDesk“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
+Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus sevDesk“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md), dazu kommt [Schritt 4](#schritt-4-anlagen-übernehmen) für die Anlagen.
 
 Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md#umzug-einer-gmbh-oder-ug): Die Bestände über die offenen Posten hinaus übernimmst du mit einer Eröffnungsbuchung.
 
@@ -47,7 +47,7 @@ Einnahme oder Ausgabe richtet sich nach der Buchung, nicht nach dem Ordner in se
 
 Ein Beleg in Fremdwährung ohne Netto und Steuer in der Beleginfo hat keinen Euro-Betrag. Haben legt ihn nicht an, nennt ihn im Fortschritt mit Grund und behält ihn nur in ZIP-Datei und Buchungsstapel; trage ihn bei Bedarf von Hand ein.
 
-Einnahmen, Ausgaben und Umsatzsteuer eines Jahres nimmt der [Abgleich](#schritt-3-bis-5) aus dem Buchungsstapel nach Kontenbereich, nicht aus diesen Belegen; ein Darlehen zählt dort also weder als Einnahme noch als Ausgabe. Offene Posten legt der Export nicht an, weil er keinen Zahlungsstand je Beleg kennt; trage sie von Hand ein. Kein Jahr aus dem Export zeigt im Abgleich „vollständig“.
+Einnahmen, Ausgaben und Umsatzsteuer eines Jahres nimmt der [Abgleich](#schritt-3-5-und-6) aus dem Buchungsstapel nach Kontenbereich, nicht aus diesen Belegen; ein Darlehen zählt dort also weder als Einnahme noch als Ausgabe. Offene Posten legt der Export nicht an, weil er keinen Zahlungsstand je Beleg kennt; trage sie von Hand ein. Kein Jahr aus dem Export zeigt im Abgleich „vollständig“.
 
 Doppelt angelegt wird nichts:
 
@@ -64,7 +64,7 @@ Verglichen an einem Konto mit Buchhaltungsversion 1.0 und SKR03, Jahr 2024: 210 
   - Umgekehrt fehlen nur Vorlagen wiederkehrender Belege (in der API `voucherType` RV); sie sind keine Belege.
   - Belege auf Darlehens-, Privat- und Zinskonten stehen mit Netto und Steuer in der Beleginfo im Stapel, aber ohne Belegbild (19 von 218).
 - **Belegbilder:** Der Export hat auch Bilder, wo die API keine Datei meldet (8 Belege, alle zu einem wiederkehrenden Beleg).
-- **Belegnummern:** Wiederkehrende Belege teilen ihre Nummer (bis zu 9 Belege je Nummer); erst das Datum unterscheidet sie. Zeichen außerhalb des DATEV-Zeichensatzes fehlen (siehe [Schritt 3 bis 5](#schritt-3-bis-5)).
+- **Belegnummern:** Wiederkehrende Belege teilen ihre Nummer (bis zu 9 Belege je Nummer); erst das Datum unterscheidet sie. Zeichen außerhalb des DATEV-Zeichensatzes fehlen (siehe [Schritt 3, 5 und 6](#schritt-3-5-und-6)).
 - **Fremdwährung:** Im Umsatz steht der Betrag in der Fremdwährung, Netto und Steuer in der Beleginfo stehen in Euro. `Kurs` und `Basis-Umsatz` sind leer.
 - **Gutschriften für Honorar und Provision** liegen im Ordner Rechnungsausgang, sind aber auf einem Aufwandskonto im Soll mit BU 9 gebucht (Konten 31xx, 47xx, 49xx; Exporte vom November 2026), siehe [Export übernehmen](#export-übernehmen).
 - **Was nur die API hat:** Positionen, Steuerregel, Zahlungsstand und die Zuordnung der Zahlungen zu Belegen, Angebote und Aufträge.
@@ -241,11 +241,32 @@ Ein neuer Abruf überspringt übernommene Vorlagen, auch wenn du sie in Haben ge
 
 ### Grenzen des aktuellen Imports
 
-- **Keine Buchungen und keine Bankumsätze.** Lade den DATEV-Export aus sevDesk hoch (Schritt 4).
+- **Keine Buchungen und keine Bankumsätze.** Lade den DATEV-Export aus sevDesk hoch (Schritt 5).
 - **Keine Kategorienamen.** Je Beleg-Position steht nur die ID des Buchungskontos. Übernommene offene Ausgabebelege bekommen deshalb die Kategorie „Sonstiges“; ändere sie bei Bedarf in Haben. Aus demselben Grund erkennt der Abgleich bei GmbH und UG Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen aus sevDesk nicht ([Einordnung](lexoffice.md#einordnung-bei-gmbh-und-ug)); sie zählen dort als Einnahme bzw. Ausgabe. Ziehe sie beim Vergleich mit sevDesk selbst ab.
-- Keine übermittelten Voranmeldungen, kein Anlagenverzeichnis ([Anlagen übernehmen](anlagen.md)). Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ebenfalls ausgeschlossen.
+- Keine übermittelten Voranmeldungen. Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ebenfalls ausgeschlossen.
 
-## Schritt 3 bis 5
+## Schritt 4: Anlagen übernehmen
+
+Mit verbundenem Token liest Haben das Anlagenverzeichnis aus sevDesk und schlägt jede Anlage zur [Übernahme mit Restbuchwert](anlagen.md#übernahme-aus-lexoffice) vor. Übernommen wird nur, was du anhakst. Gebucht wird nichts, bis du die AfA des Jahres buchst.
+
+1. **Übernahmestichtag** wählen: ein 1. Januar, in der Regel der erste Tag in Haben. Vorgeschlagen ist der 1. Januar des Jahres, in dem die offenen Posten gebucht werden.
+2. **Anlagen abrufen.** Die Liste zeigt je Anlage Anschaffung, Kosten, Restbuchwert zum Stichtag und die Art in Haben.
+3. Restbuchwerte mit dem Anlagenverzeichnis in sevDesk vergleichen, fehlende Arten wählen, **Anlagen übernehmen**.
+
+sevDesk liefert keine bisherige AfA und keine AfA-Methode, nur Anschaffungsdatum, Nettokaufpreis, Nutzungsdauer in Jahren und Verkaufsdatum. sevDesk schreibt linear ab oder, bei Nutzungsdauer 0, sofort als GWG ([sevDesk: Abschreibungen](https://sevdesk.de/funktion-abschreibungen/)); Sammelposten und degressive AfA gibt es dort nicht. Haben rechnet den Restbuchwert deshalb linear und monatsgenau nach ([§ 7 Abs. 1 EStG](https://www.gesetze-im-internet.de/estg/__7.html)), mit demselben Plan, mit dem es danach weiter abschreibt.
+
+| In sevDesk | Vorschlag in Haben |
+| --- | --- |
+| Nutzungsdauer über 0, Restbuchwert über 0 | Übernehmen, linear über die restliche Nutzungsdauer |
+| Nutzungsdauer 0 (GWG), am Stichtag voll abgeschrieben, vor dem Stichtag verkauft | Nicht nötig |
+| Am oder nach dem Stichtag angeschafft | Von Hand: als Beleg mit der Kategorie Anlagegut |
+| Gebäude, unbekannter Status, Nutzungsdauer 0 über 800 €, Kaufpreis und gebuchter Betrag verschieden | Von Hand mit **Anlage übernehmen** |
+
+Die Art folgt aus dem Buchungskonto in sevDesk: Pkw und Fahrzeug werden **Fahrzeug**, eigene Kategorien nach ihrem Namen („Sonstige Transportmittel“, „Sonstige Betriebs- und Geschäftsausstattung“). Sonst, etwa bei „Kleingeräte“ oder in Buchhaltungsversion 2.0, wählst du die Art; das Anlagekonto in SKR03 oder SKR04 ergibt sich daraus ([Art und Abschreibung](anlagen.md#art-und-abschreibung)). Führte sevDesk die Anlage auf einem anderen Anlagekonto, steht das als Hinweis da. Bei Nutzungsdauer 1 Jahr schreibt Haben wie sevDesk linear über 12 Monate ab; hat sevDesk einen Computer voll im Anschaffungsjahr abgeschrieben, übernimm ihn von Hand. Ist eine Anlage nach dem Stichtag verkauft, trägst du den Abgang danach auf ihrer Seite ein.
+
+Jede übernommene Anlage trägt in der Notiz Nummer und Kennung aus sevDesk. Ein neuer Abruf zeigt sie als übernommen, auch mit geänderter Bezeichnung. Ist für das Jahr des Stichtags schon AfA gebucht oder das Jahr abgeschlossen, sperrt Haben die Übernahme wie beim [CSV-Import](csv-import.md#was-der-import-ablehnt).
+
+## Schritt 3, 5 und 6
 
 Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzug aus Lexoffice](lexoffice.md#schritt-3-offene-posten-übernehmen). Unterschiede:
 

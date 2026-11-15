@@ -24,8 +24,10 @@ export const DURCHLAEUFE = {
   "fastbill-import": 17,
   "wiso-import": 18,
   "sevdesk-export": 19,
-  // 19 ist an sevdesk-export vergeben (main), vorjahre bekommt den nächsten freien Abstand
-  vorjahre: 20,
+  "sevdesk-anlagen": 21,
+  // Der Abstand 19 gehört sevdesk-export, 20 der nachgebauten sevDesk-API (SEVDESK_PORT), 21 dem
+  // Durchlauf sevdesk-anlagen; vorjahre bekommt deshalb 22
+  vorjahre: 22,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
@@ -34,6 +36,9 @@ export const ENABLE_BANKING_PORT = PORT + 9;
 
 /** Nachgebaute Paketquelle für eigene Layouts in layouts.spec.ts (LAYOUTS_PACKAGES_URL) */
 export const LAYOUT_PAKETE_PORT = PORT + 10;
+
+/** Nachgebaute sevDesk-API in sevdesk-anlagen.spec.ts (SEVDESK_API_URL) */
+export const SEVDESK_PORT = PORT + 20;
 
 /** Zweiter Server in firmen.spec.ts auf derselben Datenbank, mit so vielen Firmen, dass der Wechsler ein Suchfeld hat */
 export const FIRMEN_VIELE_PORT = PORT + 15;
