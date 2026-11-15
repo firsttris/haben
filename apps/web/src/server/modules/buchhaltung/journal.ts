@@ -65,6 +65,31 @@ export function knownAccounts(kontenrahmen: Kontenrahmen): Record<string, string
   return { ...ownAccountNames(kontenrahmen), ...EXTRA_NAMES[kontenrahmen], ...ACCOUNT_NAMES[kontenrahmen] };
 }
 
+/**
+ * Quellen von Verrechnungsbuchungen: je Zeile in document_settlements (Beleg, #786) und in invoice_settlements
+ * (Rechnung mit Kundenkorrektur, #877) der Vorgang, auf den die Oberfläche verlinkt. Beide Tabellen tragen unter ihrer
+ * id die Quelle der Buchung; ein Beleg und eine Rechnung schließen sich aus.
+ */
+export async function verrechnungQuellen(ids: string[]): Promise<{
+  belege: Map<string, string>;
+  rechnungen: Map<string, string>;
+}> {
+  const belege = new Map<string, string>();
+  const rechnungen = new Map<string, string>();
+  if (ids.length === 0) return { belege, rechnungen };
+  const rows = await db
+    .select({ id: schema.documentSettlements.id, documentId: schema.documentSettlements.documentId })
+    .from(schema.documentSettlements)
+    .where(inArray(schema.documentSettlements.id, ids));
+  for (const row of rows) belege.set(row.id, row.documentId);
+  const rechnungszeilen = await db
+    .select({ id: schema.invoiceSettlements.id, invoiceId: schema.invoiceSettlements.invoiceId })
+    .from(schema.invoiceSettlements)
+    .where(inArray(schema.invoiceSettlements.id, ids));
+  for (const row of rechnungszeilen) rechnungen.set(row.id, row.invoiceId);
+  return { belege, rechnungen };
+}
+
 /** Buchungen eines Monats mit ihren Zeilen, nur lesend */
 export async function loadJournal(year: number, month: number) {
   await refreshOwnAccountNames();
@@ -103,25 +128,11 @@ export async function loadJournal(year: number, month: number) {
         ).map((r) => r.id),
       )
     : new Set<string | null>();
-  // Verrechnung zweier Belege (#786): Die Buchung je Seite hängt an ihrer Zeile in document_settlements, die Zeile am Beleg.
-  // Das Journal verlinkt damit auf den Beleg statt auf die Bank.
-  const verrechnungIds = entries.flatMap((e) => (e.sourceType === "verrechnung" ? [e.sourceId] : []));
-  const verrechnungBelege = new Map<string, string>();
-  // Verrechnung zwischen Ausgangsrechnung und Kundenkorrektur (#877): Die Buchung hängt an ihrer Zeile in
-  // invoice_settlements, die Zeile an ihrer Rechnung.
-  const verrechnungRechnungen = new Map<string, string>();
-  if (verrechnungIds.length > 0) {
-    const rows = await db
-      .select({ id: schema.documentSettlements.id, documentId: schema.documentSettlements.documentId })
-      .from(schema.documentSettlements)
-      .where(inArray(schema.documentSettlements.id, verrechnungIds));
-    for (const row of rows) verrechnungBelege.set(row.id, row.documentId);
-    const rechnungen = await db
-      .select({ id: schema.invoiceSettlements.id, invoiceId: schema.invoiceSettlements.invoiceId })
-      .from(schema.invoiceSettlements)
-      .where(inArray(schema.invoiceSettlements.id, verrechnungIds));
-    for (const row of rechnungen) verrechnungRechnungen.set(row.id, row.invoiceId);
-  }
+  // Verrechnungsbuchungen (#786 Belege, #877 Rechnung mit Kundenkorrektur): Die Buchung je Seite hängt an ihrer Zeile
+  // in document_settlements bzw. invoice_settlements, die Zeile am Vorgang. Journal und Kontenblatt verlinken damit auf
+  // den Beleg oder die Rechnung statt auf die Bank.
+  const verrechnungIds = [...new Set(entries.flatMap((e) => (e.sourceType === "verrechnung" ? [e.sourceId] : [])))];
+  const { belege: verrechnungBelege, rechnungen: verrechnungRechnungen } = await verrechnungQuellen(verrechnungIds);
   return entries.map((entry) => ({
     id: entry.id,
     date: entry.date,

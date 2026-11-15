@@ -176,6 +176,29 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung von Ausgangsrechnung und Kundenko
     expect(zeilen[0]).toMatchObject({ amount: -1_750 });
   }, 60_000);
 
+  // Die Herkunft einer Verrechnungsbuchung führt auch auf dem Kontenblatt auf Rechnung bzw. Korrektur (#877).
+  // Ohne invoiceId hinge sie dort weiter an der Bank, während das Journal schon auf die Rechnung zeigt.
+  it("führt im Kontenblatt auf Rechnung und Korrektur statt auf die Bank", async () => {
+    const ledger = await import("../buchhaltung/ledger.ts");
+    const { rechnung, korrektur } = await paar();
+    await verrechnung.settleInvoices(actor, {
+      invoiceId: rechnung,
+      counterInvoiceId: korrektur,
+      amount: 1_750,
+      date: "2026-11-12",
+      note: "Rechnungskorrektur 2026-002",
+    });
+
+    // Forderungen 1400: die Korrektur bucht am 10.11., die Verrechnung am 12.11. mit je einer Zeile pro Seite
+    const zeilen = (await ledger.kontenblatt("1400", ledger.ledgerRange(2026, "m11"))).zeilen;
+    const verrechnungszeilen = zeilen.filter((z) => z.sourceType === "verrechnung");
+    expect(verrechnungszeilen).toHaveLength(2);
+    expect(verrechnungszeilen.map((z) => z.invoiceId).sort()).toEqual([rechnung, korrektur].sort());
+    expect(verrechnungszeilen.every((z) => z.documentId === null)).toBe(true);
+    // Die Rechnungsbuchung selbst bleibt bei ihrer eigenen Quelle
+    expect(zeilen.filter((z) => z.sourceType === "invoice").every((z) => z.invoiceId === null)).toBe(true);
+  }, 60_000);
+
   it("hebt auf und stellt den Rest am Tag der Aufhebung wieder her", async () => {
     const { rechnung, korrektur } = await paar();
     const { ids } = await verrechnung.settleInvoices(actor, {

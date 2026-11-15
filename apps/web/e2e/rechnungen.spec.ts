@@ -2588,9 +2588,15 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   const journalziele = (await verrechnungslinks.evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""))).sort();
   expect(journalziele).toEqual([new URL(rechnungUrl).pathname, new URL(korrekturUrl).pathname].sort());
 
+  // Dieselbe Herkunft führt auch auf dem Kontenblatt der Forderungen auf Rechnung und Korrektur (#877)
+  await go(`/konten/1400?jahr=${YEAR}&zeitraum=jahr`);
+  const kontenlinks = page.locator("tr").filter({ hasText: "Verrechnung" }).getByRole("link", { name: "Verrechnung" });
+  await expect(kontenlinks).toHaveCount(2);
+  const kontenziele = (await kontenlinks.evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""))).sort();
+  expect(kontenziele).toEqual([new URL(rechnungUrl).pathname, new URL(korrekturUrl).pathname].sort());
+
   // Nach dem Neuladen steht die Verrechnung weiterhin
   await page.goto(rechnungUrl);
-  await page.waitForLoadState("networkidle");
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*95,20\s*€/);
 
