@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import { withActor } from "../../db/actor.ts";
+import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { BankError } from "./bank.ts";
 
 /*
@@ -14,21 +15,25 @@ import { BankError } from "./bank.ts";
  * wird nichts; die EÜR bleibt unberührt.
  */
 
-/** Warum sich der Umsatz nicht kennzeichnen lässt; null, wenn es geht. Sperrt den Umsatz wie die Zahlungswege (lockTransaction). */
+/**
+ * Warum sich der Umsatz nicht kennzeichnen lässt; null, wenn es geht. Sperrt den Umsatz wie die Zahlungswege (lockTransaction).
+ * Aufgehobene Zuordnungen, Verrechnungen und Ausbuchungen zählen nicht: Der Umsatz ist dann wieder ganz offen.
+ */
 async function hindernis(tx: Tx, transactionId: string): Promise<string | null> {
   const [row] = (await tx.execute(sql`
-    select t.id, t.amount, a.purpose,
-      coalesce((select sum(al.amount) from allocations al where al.transaction_id = t.id and al.reverses_id is null), 0) as zugeordnet,
-      exists (select 1 from bank_neutralizations n where t.id in (n.transaction_id, n.counter_transaction_id)) as verrechnet,
-      exists (select 1 from write_offs w where w.transaction_id = t.id) as ausgebucht
-    from bank_transactions t join bank_accounts a on a.id = t.bank_account_id
-    where t.id = ${transactionId}
-    for update of t
-  `)) as unknown as { purpose: string; zugeordnet: number; verrechnet: boolean; ausgebucht: boolean }[];
+    select a.purpose,
+      ${bankOpenAmountSql} = bank_transactions.amount as ganz_offen,
+      ${bankNeutralizedSql} as verrechnet,
+      exists (select 1 from write_offs w where w.transaction_id = bank_transactions.id and w.reverses_id is null
+        and not exists (select 1 from write_offs r where r.reverses_id = w.id)) as ausgebucht
+    from bank_transactions join bank_accounts a on a.id = bank_transactions.bank_account_id
+    where bank_transactions.id = ${transactionId}
+    for update of bank_transactions
+  `)) as unknown as { purpose: string; ganz_offen: boolean; verrechnet: boolean; ausgebucht: boolean }[];
   if (!row) return "Umsatz nicht gefunden.";
   if (row.purpose !== "privat") return "Das geht nur auf einem privaten Konto; nur dort fehlt dem Umsatz die Buchungsart.";
   if (row.verrechnet || row.ausgebucht) return "Der Umsatz ist schon verrechnet oder ausgebucht.";
-  if (Number(row.zugeordnet) !== 0) return "Der Umsatz ist schon zugeordnet.";
+  if (!row.ganz_offen) return "Der Umsatz ist schon zugeordnet.";
   return null;
 }
 
