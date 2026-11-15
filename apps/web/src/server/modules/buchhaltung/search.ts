@@ -149,7 +149,7 @@ export async function searchAssets(query: string, limit = 5): Promise<{ hits: As
 
 export interface PauschaleHit {
   id: string;
-  art: string;
+  art: (typeof schema.pauschalen.$inferSelect)["art"];
   date: string;
   description: string;
   amount: number;

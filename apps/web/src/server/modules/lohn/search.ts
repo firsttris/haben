@@ -7,7 +7,7 @@ export interface EmployeeHit {
   personalnummer: number;
   vorname: string;
   nachname: string;
-  art: string;
+  art: (typeof schema.employees.$inferSelect)["art"];
 }
 
 /**

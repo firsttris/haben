@@ -1,5 +1,6 @@
-import { formatEuro } from "@haben/core";
+import { BESCHAEFTIGUNGSARTEN, DARLEHENSGEBER, formatEuro, PAUSCHALE_LABEL } from "@haben/core";
 import type { PaletteItem, PaletteSection } from "./befehlspalette.ts";
+import { ELSTER_KIND_LABEL } from "./elster.ts";
 import { formatDate } from "./format.ts";
 import type { CommandPaletteResult } from "../server/functions/search.ts";
 
@@ -165,7 +166,7 @@ function buildAssetsAndCashSections(remote: CommandPaletteResult): PaletteSectio
         id: `loan-${l.id}`,
         kind: "link",
         title: l.name,
-        meta: [l.lender, l.openingDate ? formatDate(l.openingDate) : ""].filter(Boolean).join(" · "),
+        meta: [DARLEHENSGEBER[l.lender], l.openingDate ? formatDate(l.openingDate) : ""].filter(Boolean).join(" · "),
         amount: formatEuro(l.openingBalance),
         icon: "bank",
         to: "/darlehen",
@@ -191,7 +192,7 @@ function buildAssetsAndCashSections(remote: CommandPaletteResult): PaletteSectio
         id: `pauschale-${p.id}`,
         kind: "link",
         title: p.description,
-        meta: [p.art, formatDate(p.date)].join(" · "),
+        meta: [PAUSCHALE_LABEL[p.art], formatDate(p.date)].join(" · "),
         amount: formatEuro(p.amount),
         icon: "pauschale",
         to: "/pauschalen",
@@ -212,7 +213,7 @@ function buildTaxAndArchiveSections(remote: CommandPaletteResult): PaletteSectio
         id: `employee-${e.id}`,
         kind: "link",
         title: `${e.vorname} ${e.nachname}`,
-        meta: [`Personalnr. ${e.personalnummer}`, e.art].join(" · "),
+        meta: [`Personalnr. ${e.personalnummer}`, BESCHAEFTIGUNGSARTEN[e.art]].join(" · "),
         icon: "badge",
         to: "/lohn/mitarbeiter/$id",
         params: { id: e.id },
@@ -237,7 +238,7 @@ function buildTaxAndArchiveSections(remote: CommandPaletteResult): PaletteSectio
         id: `zm-${z.id}`,
         kind: "link",
         title: `ZM ${periodLabel(z.year, z.month)}`,
-        meta: z.kind,
+        meta: `${ELSTER_KIND_LABEL[z.kind]} · ${z.ok ? "OK" : "Fehler"}`,
         icon: "vat",
         to: "/umsatzsteuer/zm/$quartal",
         params: { quartal: periodParam(z.year, z.month) },
