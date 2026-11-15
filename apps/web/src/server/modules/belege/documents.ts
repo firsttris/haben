@@ -274,7 +274,7 @@ async function applyFields(
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, id)).for("update");
     if (!doc || doc.lockedAt) return;
     // Neu ausgelesen bleibt die Steuerbehandlung des Belegs; § 13b und Erwerbsteuer rechnet der Server aus dem Netto.
-    // Ist am Beleg noch nichts gewählt, gilt der Vorschlag aus dem Beleg (Reverse-Charge-Hinweis, #680), nicht aber bei
+    // Ist am Beleg noch nichts gewählt, gilt der Vorschlag aus dem Beleg (Reverse-Charge-Hinweis, #1054), nicht aber bei
     // einer eigenen Ausgangsrechnung: Dort schuldet der Kunde die Steuer (§ 13b Abs. 5 UStG)
     const reverseCharge = doc.reverseCharge ?? (hint ? null : (fields.reverseCharge ?? null));
     // Der Beleg weist bei § 13b 0 % aus; gebucht wird mit dem Satz, den der Leistungsempfänger schuldet (§ 12 Abs. 1
