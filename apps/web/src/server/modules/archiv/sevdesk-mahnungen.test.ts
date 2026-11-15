@@ -1,3 +1,4 @@
+import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -244,5 +245,21 @@ describe.skipIf(!testDatabaseUrl)("Mahnungen aus sevDesk (Postgres)", { timeout:
     await abruf([mahnung("68", "4", "2026-11-01")]);
     const [overdue] = await dunning.overdueInvoices("2026-11-15");
     expect(overdue).toMatchObject({ nextLevel: 3, importedDunning: { level: 2, sourceLevel: 4 } });
+  });
+  it("nimmt die archivierten Mahnungen mit PDF und Quelldaten in den Jahresexport auf", async () => {
+    await reset("ist", "SKR03");
+    await abruf([mahnung("63", "1", "2026-10-01"), mahnung("64", "2", "2026-10-20")]);
+    const exporter = await import("./export.ts");
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of exporter.exportYear(2026)) chunks.push(chunk);
+    const files = unzipSync(Buffer.concat(chunks));
+    const inhalt = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
+    // Mahnungen sind Handelsbriefe (§ 147 Abs. 1 Nr. 2 und 3 AO): beide PDFs und ihre Angaben gehören ins Archiv des Jahres
+    for (const id of ["63", "64"]) {
+      expect(Object.values(files).some((bytes) => inhalt(bytes) === inhalt(PDF(id)))).toBe(true);
+      expect(Object.entries(files).some(([path, bytes]) => !path.endsWith(".pdf") && inhalt(bytes).includes(`MA-${id}`))).toBe(true);
+    }
+    // Ohne Buchungswirkung: kein Archivbeleg für die Mahnungen
+    expect(inhalt(files["lexoffice/belege.csv"] ?? new Uint8Array())).not.toContain("MA-6");
   });
 });
