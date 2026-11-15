@@ -18,15 +18,24 @@ import { progressMessage } from "./lexoffice.ts";
  * Vorlage, deren Belege seit 2024 entstanden. Deshalb nur an Belege, die sevDesk nach dem Hochladen der Datei angelegt hat
  * (`create` des Belegs nicht vor `create` der Datei aus GET /Document/{id}); ältere und solche ohne lesbare Zeit bleiben ohne
  * Datei und zählen im Abgleich weiter als Beleg ohne Datei.
+ * Listet sevDesk einen Beleg inzwischen mit eigener Datei, obwohl seine Archivkopie keine hat, bleibt die Vorlage weg.
  */
-export async function importSevdeskTemplateFiles(actor: string, client: SevdeskClient, progress: LexofficeImportProgress, signal: AbortSignal): Promise<void> {
-  const rows = await db.execute<{ id: string; templateId: string; created: string | null }>(sql`
-    select v.id, v.raw->'origin'->>'id' as "templateId", v.raw->>'create' as created from lexoffice_vouchers v
+export async function importSevdeskTemplateFiles(
+  actor: string,
+  client: SevdeskClient,
+  progress: LexofficeImportProgress,
+  signal: AbortSignal,
+  /** sevDesk-IDs der Belege, die der aktuelle Abruf mit eigener Datei listet: Die Vorlage tritt nie an deren Stelle */
+  withOwnFile: ReadonlySet<string>,
+): Promise<void> {
+  const all = await db.execute<{ id: string; sevdeskId: string; templateId: string; created: string | null }>(sql`
+    select v.id, split_part(v.lexoffice_id, '/', 2) as "sevdeskId", v.raw->'origin'->>'id' as "templateId", v.raw->>'create' as created from lexoffice_vouchers v
     where v.source = 'sevdesk' and v.lexoffice_id like 'voucher/%'
       and coalesce(v.raw->'document'->>'id', '') = ''
       and v.raw->'origin'->>'objectName' = 'Voucher' and coalesce(v.raw->'origin'->>'id', '') <> ''
       and not exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id)
-    order by 2, 1`);
+    order by 3, 1`);
+  const rows = all.filter((row) => !withOwnFile.has(row.sevdeskId));
   const byTemplate = new Map<string, { id: string; created: string | null }[]>();
   for (const row of rows) byTemplate.set(row.templateId, [...(byTemplate.get(row.templateId) ?? []), row]);
 

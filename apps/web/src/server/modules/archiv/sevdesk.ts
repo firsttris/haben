@@ -293,7 +293,9 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     await save();
   }
   // 4. Datei der Vorlage für Belege aus wiederkehrenden Belegen, auch für früher übernommene (#472)
-  await importSevdeskTemplateFiles(actor, client, progress, signal);
+  // Belege, die sevDesk jetzt mit eigener Datei liefert, auch wenn die Archivkopie aus einem früheren Lauf keine hat
+  const withOwnFile = new Set(listed.filter((i) => i.kind === "voucher" && i.raw.document?.id != null && String(i.raw.document.id) !== "").map((i) => i.id));
+  await importSevdeskTemplateFiles(actor, client, progress, signal, withOwnFile);
   await save(true);
   // 5. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
   await importSevdeskPayments(actor, importId, client, progress, signal);

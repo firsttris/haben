@@ -170,9 +170,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
 
   it("hängt die Vorlage nicht an, wenn der früher ohne Datei archivierte Beleg in sevDesk inzwischen eine eigene Datei hat", async () => {
     await earlier(ohneDatei("ID_14", "ID_1"));
-    answers.set("/Voucher", () =>
-      json({ objects: [vorlage, { ...ohneDatei("ID_14", "ID_1"), document: { id: "ID_98", objectName: "Document" } }] }),
-    );
+    answers.set("/Voucher", () => json({ objects: [vorlage, { ...ohneDatei("ID_14", "ID_1"), document: { id: "ID_98", objectName: "Document" } }] }));
     await sevdesk.startSevdeskImport("test-user", { wait: true });
     expect((await files()).filter((f) => f.voucher === "voucher/ID_14" && f.role === "vorlage")).toEqual([]);
   });
