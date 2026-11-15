@@ -15,6 +15,8 @@ describe("parseEuroSearchCents", () => {
     expect(parseEuroSearchCents("RE-2026-001")).toBeNull();
     expect(parseEuroSearchCents("12.345.67")).toBeNull();
     expect(parseEuroSearchCents("99999999")).toBeNull();
+    expect(parseEuroSearchCents("-21474836,48")).toBeNull();
+    expect(parseEuroSearchCents("-21474836,47")).toBe(-2_147_483_647);
   });
 });
 
