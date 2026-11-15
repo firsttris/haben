@@ -2551,7 +2551,9 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
 
   // Korrektur anlegen und auf 20,00 EUR netto kürzen, dann festschreiben
   await page.getByRole("button", { name: "Rechnungskorrektur anlegen" }).click();
-  await page.waitForURL(/\/rechnungen\/[0-9a-f-]{36}$/);
+  // Die Korrektur ist eine eigene Rechnung: auf ihre Adresse warten, nicht auf das Muster, das die offene schon erfüllt
+  await page.waitForURL((url) => /\/rechnungen\/[0-9a-f-]{36}$/.test(url.pathname) && url.toString() !== rechnungUrl);
+  const korrekturUrl = page.url();
   await page.getByLabel("Einzelpreis Position 1").fill("-20,00");
   await page.getByRole("button", { name: "Entwurf speichern" }).click();
   await page.getByRole("button", { name: "Festschreiben" }).click();
@@ -2579,8 +2581,16 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   await expect(karte).toContainText("Korrektur TE-1");
   await expect(karte).toContainText(/23,80\s*€/);
 
+  // Die Buchung der Verrechnung führt im Journal auf die Rechnung, nicht auf die Bank (#877)
+  await go("/buchungen");
+  const verrechnungslinks = page.locator("tr").filter({ hasText: "Verrechnung" }).getByRole("link", { name: "Verrechnung" });
+  await expect(verrechnungslinks).toHaveCount(2);
+  const journalziele = (await verrechnungslinks.evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""))).sort();
+  expect(journalziele).toEqual([new URL(rechnungUrl).pathname, new URL(korrekturUrl).pathname].sort());
+
   // Nach dem Neuladen steht die Verrechnung weiterhin
-  await page.reload();
+  await page.goto(rechnungUrl);
+  await page.waitForLoadState("networkidle");
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*95,20\s*€/);
 
