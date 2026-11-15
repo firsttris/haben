@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 /**
  * Befehl `haben` im Image (Wrapper /usr/local/bin/haben, gebaut mit `bun build` im Containerfile):
  *
- *   haben status          Version, ERiC und letzte Sicherung
+ *   haben status          Version, ERiC, letzte Sicherung und Speicher
  *   haben status --json   dasselbe als JSON mit dem Zeichen der Firma, für deploy/instanzen/haben-instanzen.ts
  *   haben kennzeichen     das Logo, das die Firma als Zeichen gewählt hat, als Bytes nach stdout (#1036)
  */

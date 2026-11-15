@@ -82,7 +82,7 @@ fi
 # Stichprobe der Dateien: liegen unter /belege/<ersten zwei Zeichen>/<SHA-256>. Tabelle:Spalte jedes Verweises auf eine
 # Datei, wie FILE_REFERENCES in apps/web/src/server/db/file-in-use.ts (restore-check.test.ts vergleicht beide); ältere
 # Backups haben noch nicht alle Tabellen
-refs="documents:sha256 archive_files:sha256 lexoffice_voucher_files:sha256 legacy_order_files:sha256 postfach_documents:sha256 invoice_attachments:sha256 quote_attachments:sha256 quote_default_attachments:sha256 vat_return_filings:sha256 sv_portal_filings:protokoll_sha256 recurring_documents:sha256 sepa_mandate_files:sha256"
+refs="documents:sha256 archive_files:sha256 lexoffice_voucher_files:sha256 legacy_order_files:sha256 postfach_documents:sha256 invoice_attachments:sha256 quote_attachments:sha256 quote_default_attachments:sha256 vat_return_filings:sha256 sv_portal_filings:protokoll_sha256 recurring_documents:sha256 sepa_mandate_files:sha256 fastbill_receipts:sha256"
 sources=()
 for ref in $refs; do
   if [ "$(q -d "$check_db" -c "SELECT to_regclass('public.${ref%%:*}') IS NOT NULL")" = t ]; then

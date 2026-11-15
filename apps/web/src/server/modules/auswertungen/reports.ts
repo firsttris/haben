@@ -24,7 +24,7 @@ import { euerAusDemJournal, mitFreienBuchungen } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { splitsByDocument } from "../belege/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTotalsById, mixNachVerrechnungen } from "../rechnungen/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
 import { ustvaPosten } from "../umsatzsteuer/index.ts";
@@ -221,6 +221,11 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     [...new Set([...allocations, ...exchangeDifferences, ...cashReceipts].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))],
     q,
   );
+  // Nach Verrechnungen verteilen sich die Zahlungen über den Rest der Rechnung, nicht über ihren vollen Mix (#877,
+  // Befund 3): Sonst teilt die EÜR eine Zahlung anders auf als die Voranmeldung, und zwar an beiden Quellen gleich
+  const restMix = await mixNachVerrechnungen(invoiceTotals, q);
+  const mixe = (invoiceId: string) => restMix.get(invoiceId) ?? [invoiceTotals.get(invoiceId)!];
+  const mix = (invoiceId: string) => mixe(invoiceId)[0]!;
   const {
     totals: docTotals,
     reverseCharge,
@@ -258,10 +263,17 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         kind: "invoice",
         date: a.date,
         paid: a.amount,
-        totals: invoiceTotals.get(a.invoiceId)!,
+        totals: mix(a.invoiceId),
         // Wie gebucht; ältere Zahlungen ohne gespeicherten Anteil rechnet die EÜR weiter aus der Summe je Umsatz
         ...(a.taxShares
-          ? { shares: recordedTaxShares(invoiceTotals.get(a.invoiceId)!, a.amount, a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null) }
+          ? {
+              shares: recordedTaxShares(
+                invoiceTotals.get(a.invoiceId)!,
+                a.amount,
+                a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null,
+                mixe(a.invoiceId),
+              ),
+            }
           : {}),
         treatment: a.treatment ?? "regulaer",
         group,
@@ -340,9 +352,16 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         kind: "invoice",
         date: w.date,
         paid: w.amount,
-        totals: invoiceTotals.get(w.invoiceId)!,
+        totals: mix(w.invoiceId),
         ...(w.taxShares
-          ? { shares: recordedTaxShares(invoiceTotals.get(w.invoiceId)!, w.amount, w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null) }
+          ? {
+              shares: recordedTaxShares(
+                invoiceTotals.get(w.invoiceId)!,
+                w.amount,
+                w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null,
+                mixe(w.invoiceId),
+              ),
+            }
           : {}),
         treatment: w.treatment ?? "regulaer",
         group,
@@ -364,13 +383,13 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     payments.push({ kind: "kursdifferenz", date: w.date, amount: -w.amount, group });
   }
   for (const c of cashReceipts) {
-    const totals = invoiceTotals.get(c.invoiceId!)!;
+    const totals = mix(c.invoiceId!);
     payments.push({
       kind: "invoice",
       date: c.date,
       paid: c.amount,
       totals,
-      shares: recordedTaxShares(totals, c.amount, c.taxSharesInvoiceId === c.invoiceId ? c.taxShares : null),
+      shares: recordedTaxShares(invoiceTotals.get(c.invoiceId!)!, c.amount, c.taxSharesInvoiceId === c.invoiceId ? c.taxShares : null, mixe(c.invoiceId!)),
       treatment: c.treatment,
     });
   }

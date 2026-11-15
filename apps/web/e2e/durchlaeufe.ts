@@ -21,6 +21,7 @@ export const DURCHLAEUFE = {
   verrechnung: 13,
   firmen: 14,
   passwort: 16,
+  "fastbill-import": 17,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

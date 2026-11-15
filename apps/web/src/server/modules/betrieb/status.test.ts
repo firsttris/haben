@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,7 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
   let status: typeof import("./status.ts");
   let sql: postgres.Sql;
   let eric: string;
+  let belege: string;
   // 20. Oktober: Sommerzeit, 01:15 UTC ist 03:15 in Berlin
   const now = new Date("2026-10-20T12:00:00Z");
 
@@ -23,11 +24,13 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     sql = await setupTestDb();
     status = await import("./status.ts");
     eric = mkdtempSync(join(tmpdir(), "haben-eric-"));
+    belege = mkdtempSync(join(tmpdir(), "haben-belege-status-"));
   }, 30_000);
 
   afterAll(async () => {
     await sql?.end();
     rmSync(eric, { recursive: true, force: true });
+    rmSync(belege, { recursive: true, force: true });
   });
 
   beforeEach(async () => {
@@ -40,16 +43,77 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
       values (${kind}, ${ok}, ${at}, ${ok ? "a1b2c3d4" : null}, ${ok ? 1234 : null}, ${ok ? "" : "Fatal: wrong password"})`;
   }
 
-  it("ohne Sicherung und ohne ERiC: Version aus der package.json, keine Sicherung, ERiC fehlt", async () => {
-    expect(await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, commit: null })).toEqual({
+  async function datenbankBytes() {
+    const [zeile] = await sql<{ bytes: string }[]>`select pg_database_size(current_database())::text as bytes`;
+    return Number(zeile?.bytes);
+  }
+
+  it("ohne Sicherung, ohne ERiC und ohne Belege: Version aus der package.json, keine Sicherung, ERiC fehlt", async () => {
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, commit: null, belegeVerzeichnis: belege });
+    expect(s).toEqual({
       schema: 1,
       version: VERSION,
       commit: null,
       eric: { source: null, version: null },
       backup: { state: "keins", overdue: false, lastBackup: null, failed: [] },
-      summary: { eric: "fehlt", backup: "keine" },
+      speicher: { datenbankBytes: expect.any(Number), belegeBytes: 0 },
+      summary: { eric: "fehlt", backup: "keine", speicher: expect.stringMatching(/^Datenbank .+, Belege 0 B$/) },
       zeichen: { farbe: null, logo: null },
     });
+  });
+
+  it("nennt den Speicher der Datenbank wie pg_database_size", async () => {
+    const vorher = await datenbankBytes();
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: belege });
+    // Zwischen beiden Abfragen kann Postgres Seiten anlegen, etwa für Statistiken; mehr als 1 MB Unterschied wäre ein
+    // anderer Wert als pg_database_size
+    expect(s.speicher.datenbankBytes).toBeGreaterThan(1024 * 1024);
+    expect(Math.abs(s.speicher.datenbankBytes - vorher)).toBeLessThan(1024 * 1024);
+    expect(Number.isInteger(s.speicher.datenbankBytes)).toBe(true);
+  });
+
+  it("zählt alle Dateien unter DOCUMENTS_DIR, auch in Unterordnern wie vorlagen, ohne Symlinks", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "haben-belege-summe-"));
+    try {
+      mkdirSync(join(dir, "ab"));
+      writeFileSync(join(dir, "ab", "abcdef"), Buffer.alloc(1500));
+      mkdirSync(join(dir, "vorlagen", "layout-1", "pakete"), { recursive: true });
+      writeFileSync(join(dir, "vorlagen", "layout-1", "pakete", "paket.tgz"), Buffer.alloc(2_000_000));
+      writeFileSync(join(dir, "leer"), "");
+      // Ein Link zeigt auf eine Datei, die schon zählt (oder außerhalb liegt); er belegt keinen eigenen Platz
+      symlinkSync(join(dir, "ab", "abcdef"), join(dir, "verweis"));
+      const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: dir });
+      expect(s.speicher.belegeBytes).toBe(2_001_500);
+      expect(s.summary.speicher).toMatch(/, Belege 1,9 MB$/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Als root (etwa im Container der CI) liest der Prozess auch einen Ordner mit Modus 000; dort lässt sich das nicht zeigen
+  it.skipIf(process.getuid?.() === 0)("überspringt einen Ordner, den die App nicht lesen darf (etwa lost+found), statt am Stand zu scheitern", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "haben-belege-gesperrt-"));
+    try {
+      writeFileSync(join(dir, "beleg"), Buffer.alloc(700));
+      mkdirSync(join(dir, "lost+found"));
+      writeFileSync(join(dir, "lost+found", "fremd"), Buffer.alloc(300));
+      chmodSync(join(dir, "lost+found"), 0o000);
+      const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: dir });
+      expect(s.speicher.belegeBytes).toBe(700);
+    } finally {
+      chmodSync(join(dir, "lost+found"), 0o700);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("ohne Verzeichnis für Belege (noch nichts hochgeladen): 0 Bytes statt eines Fehlers", async () => {
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: join(belege, "gibt-es-nicht") });
+    expect(s.speicher.belegeBytes).toBe(0);
+  });
+
+  it("zeigt den Speicher im Text in einer Zeile", async () => {
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: belege });
+    expect(status.statusAlsText(s)).toMatch(/\nSpeicher: {9}Datenbank \d+(,\d)? (KB|MB|GB), Belege 0 B$/);
   });
 
   it("mit erfolgreicher Sicherung und heruntergeladenem ERiC: Zeitpunkt in deutscher Zeit und ERiC-Version", async () => {
@@ -58,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     const s = await status.betriebsStatus({ now, ericHome: eric, ericFromEnv: false });
     expect(s.eric).toEqual({ source: "download", version: "44.3.6.0" });
     expect(s.backup).toEqual({ state: "ok", overdue: false, lastBackup: "2026-10-20T01:15:00.000Z", failed: [] });
-    expect(s.summary).toEqual({ eric: "44.3.6.0", backup: "2026-10-20 03:15" });
+    expect(s.summary).toEqual({ eric: "44.3.6.0", backup: "2026-10-20 03:15", speicher: expect.any(String) });
   });
 
   it("nach einer fehlgeschlagenen Sicherung: letzte erfolgreiche mit Hinweis auf den Fehlschlag", async () => {
@@ -120,6 +184,19 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     expect(r.status, r.stderr).toBe(0);
     const s = JSON.parse(r.stdout);
     expect(s).toMatchObject({ version: VERSION, eric: { source: "env", version: "44.3.6.0" }, backup: { lastBackup: "2026-10-20T01:15:00.000Z" } });
+  });
+
+  it("liest die Belege als Befehl aus DOCUMENTS_DIR der Umgebung", () => {
+    writeFileSync(join(belege, "datei"), Buffer.alloc(4321));
+    try {
+      const r = spawnSync(process.execPath, [CLI, "status", "--json"], { encoding: "utf8", timeout: 20_000, env: { ...process.env, DOCUMENTS_DIR: belege } });
+      expect(r.status, r.stderr).toBe(0);
+      const s = JSON.parse(r.stdout);
+      expect(s.schema).toBe(1);
+      expect(s.speicher).toEqual({ datenbankBytes: expect.any(Number), belegeBytes: 4321 });
+    } finally {
+      rmSync(join(belege, "datei"));
+    }
   });
 
   it("liest den Commit aus HABEN_COMMIT, wie ihn das Image setzt; leer heißt null", () => {
