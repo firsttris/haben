@@ -29,7 +29,6 @@ import {
   skontoFristen,
   skontoProblem,
   TAX_TREATMENTS,
-  UNITS,
   VORJAHRESGRENZE,
   type Bundesland,
   type PriceMode,
@@ -76,6 +75,7 @@ import { Field } from "./Field.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { unitOptions } from "../lib/units.ts";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 import { ActionBar } from "./ActionBar.tsx";
 import { MoreActionsMenu } from "./MoreActionsMenu.tsx";
@@ -147,6 +147,7 @@ export function InvoiceEditor({
   kleinunternehmer,
   articles = [],
   textBlocks = [],
+  units = [],
   abschlaege = [],
   quotes = [],
   tageskurs = false,
@@ -188,6 +189,8 @@ export function InvoiceEditor({
   articles?: ArticleOption[];
   /** Kopf- und Fußtexte zum Einfügen */
   textBlocks?: TextBlockOption[];
+  /** Eigene Einheiten (#748) neben den festen */
+  units?: readonly string[];
   /** Offene Abschlagsrechnungen für die Schlussrechnung */
   abschlaege?: AbschlagOption[];
   /** Festgeschriebene Angebote, für den Bezug von Abschlags- und Schlussrechnungen */
@@ -207,11 +210,17 @@ export function InvoiceEditor({
   /** Ansprechpartner aller Kunden (#424), für die Auswahl unter „Kunde“ */
   contactPersons?: ContactPersonOption[];
   /** Korrektur einer Schlussrechnung: die übernommenen Abzüge, fest; Haben behält sie beim Speichern */
-  keptDeductions?: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
+  keptDeductions?: { description: string; quantity: number; unit: string; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
 }) {
   const [neuerEntwurf, setNeuerEntwurf] = useState<string | null>(null);
   const id = initialId ?? neuerEntwurf;
   const router = useRouter();
+  /**
+   * Neu laden und warten, bis der neue Stand angezeigt wird. Ohne `sync` endet invalidate schon mit den alten Daten und
+   * lädt im Hintergrund nach; die Seite baut den Editor danach mit dem neuen `updatedAt` neu auf und verwirft, was
+   * inzwischen geschah, etwa den Dialog von „Festschreiben“. So bleiben die Knöpfe gesperrt, bis der Editor neu steht
+   */
+  const reload = () => router.invalidate({ sync: true });
   const navigate = useNavigate();
   const barPreviewBtn = useRef<HTMLButtonElement>(null);
   const save = useServerFn(saveInvoiceDraft);
@@ -441,7 +450,7 @@ export function InvoiceEditor({
           },
         },
       });
-      await router.invalidate();
+      await reload();
     }, `„${p.description}“ ist jetzt im Artikelkatalog.`);
   }
 
@@ -570,7 +579,7 @@ export function InvoiceEditor({
       if (initialId === null) {
         await openSaved(savedId);
       } else {
-        await router.invalidate();
+        await reload();
         setNotice({ tone: "ok", text: "Entwurf gespeichert." });
       }
     });
@@ -586,7 +595,7 @@ export function InvoiceEditor({
       if (quote) {
         await finalizeQuote({ data: savedId });
         if (initialId === null) await openSaved(savedId);
-        else await router.invalidate();
+        else await reload();
         return;
       }
       if (initialId === null) setNeuerEntwurf(savedId);
@@ -601,7 +610,7 @@ export function InvoiceEditor({
       return;
     }
     if (initialId === null) await openSaved(result.id);
-    else await router.invalidate();
+    else await reload();
   }
 
   // Entwurf als PDF aus dem gespeicherten Stand: Ungespeichertes erst speichern, damit das PDF zeigt, was im Formular steht
@@ -614,7 +623,7 @@ export function InvoiceEditor({
       if (initialId === null) {
         await openSaved(savedId);
       } else if (saving) {
-        await router.invalidate();
+        await reload();
         setNotice({ tone: "ok", text: "Entwurf gespeichert, das PDF ist heruntergeladen." });
       }
     });
@@ -714,6 +723,7 @@ export function InvoiceEditor({
         onClose={() => setNewContactName(null)}
       />
       <ArticleDialog
+        units={units}
         open={newArticle !== null}
         prefill={newArticle?.prefill ?? {}}
         onSaved={(article) => {
@@ -752,7 +762,12 @@ export function InvoiceEditor({
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Vor dem Festschreiben: {blocking.join(", ")}. {sellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
+            Vor dem Festschreiben: {blocking.join(", ")}.{" "}
+            {sellerIssues.length > 0 && (
+              <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                Firmendaten ergänzen
+              </Link>
+            )}
           </span>
         </div>
       )}
@@ -761,7 +776,10 @@ export function InvoiceEditor({
           <Icon name="alert" />
           <span>
             Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): {letterIssues.join(", ")}. Festschreiben geht trotzdem, der Fuß nennt dann nur, was
-            eingetragen ist. <Link to="/einstellungen">Firmendaten ergänzen</Link>
+            eingetragen ist.{" "}
+            <Link to="/einstellungen" search={{ bereich: "firma" }}>
+              Firmendaten ergänzen
+            </Link>
           </span>
         </div>
       )}
@@ -1253,12 +1271,8 @@ export function InvoiceEditor({
                   </LineCell>
                   <LineCell label="Einheit">
                     {/* biome-ignore lint/plugin: Zeile einer Positionstabelle: Spaltenkopf und aria-label benennen die Zelle, ein Feldname je Zelle gäbe jeder Zeile eine Hülle `.field` */}
-                    <select
-                      aria-label={`Einheit Position ${index + 1}`}
-                      value={line.unit}
-                      onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
-                    >
-                      {Object.keys(UNITS).map((unit) => (
+                    <select aria-label={`Einheit Position ${index + 1}`} value={line.unit} onChange={(e) => updateLine(line.key, { unit: e.target.value })}>
+                      {unitOptions(units, line.unit).map((unit) => (
                         <option key={unit}>{unit}</option>
                       ))}
                     </select>

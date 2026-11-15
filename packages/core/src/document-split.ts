@@ -13,6 +13,7 @@ import {
   type Kontenrahmen,
   type PostingLine,
   type TaxCode,
+  vatRate,
 } from "./posting.ts";
 import type { Rechtsform } from "./rechtsform.ts";
 
@@ -153,13 +154,13 @@ export function documentSplitPosting(
   const result: PostingLine[] = [...expenses.values()].map((e) => side(e.account, e.amount, true, e.code));
   for (const { rate, tax } of totals.taxes) {
     if (tax === 0) continue;
-    if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
+    const satz = vatRate(rate);
     if (rcCode) {
       if (vorsteuerAbzug) result.push(side(accounts.vorsteuerRc, tax, true, "VSt13b"));
       result.push(side(accounts.ustRc, tax, false, rcCode));
     } else if (vorsteuerAbzug) {
-      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[rate];
-      result.push(side(konto, tax, true, inputTaxCode(rate)));
+      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[satz];
+      result.push(side(konto, tax, true, inputTaxCode(satz)));
     }
   }
   const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;

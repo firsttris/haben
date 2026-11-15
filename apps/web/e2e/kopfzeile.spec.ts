@@ -4,8 +4,8 @@ import { kundeWaehlen, neuenKontaktOeffnen } from "./einrichtung.ts";
 import { HANDY, kopfUnterkante, LAPTOP, leisteOberkante, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 
 /**
- * Fester Seitenkopf (#356): Titel, Status und Hauptaktionen bleiben beim Scrollen stehen, in den Einstellungen auch
- * die Bereiche. Was unter dem Kopf steht (Tabellenköpfe, Felder mit Fokus), verschwindet nicht dahinter.
+ * Fester Seitenkopf (#356): Titel, Status und Hauptaktionen bleiben beim Scrollen stehen, in den Einstellungen am
+ * Desktop auch die Bereiche. Was unter dem Kopf steht (Tabellenköpfe, Felder mit Fokus), verschwindet nicht dahinter.
  * Mit den Daten und der Sitzung aus app.spec.ts (Projekt „mit-daten“); geschrieben wird nichts.
  */
 
@@ -55,18 +55,63 @@ for (const [geraet, viewport] of [
     }
   });
 
-  test(`Einstellungen am ${geraet}: Kopf und Bereiche bleiben stehen, nur der Inhalt scrollt`, async ({ page }) => {
+  // Am Handy steht im Bereich dessen Name im Kopf, darüber „‹ Einstellungen“; die Liste der Bereiche ist eine eigene Seite
+  test(`Einstellungen am ${geraet}: der Kopf bleibt stehen, nur der Inhalt scrollt`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/einstellungen?bereich=firma");
-    await expect(page.getByRole("heading", { level: 1, name: "Einstellungen" })).toBeVisible();
+    const titel = geraet === "Handy" ? "Firma" : "Einstellungen";
+    await expect(page.getByRole("heading", { level: 1, name: titel })).toBeVisible();
     await zumEnde(page);
-    await sichtbar(page.getByRole("heading", { level: 1, name: "Einstellungen" }));
+    await sichtbar(page.getByRole("heading", { level: 1, name: titel }));
+    if (geraet === "Handy") {
+      await sichtbar(page.locator(".main > .page-head").getByRole("link", { name: "Einstellungen" }));
+      return;
+    }
     const bereiche = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
     await sichtbar(bereiche.locator("[aria-current=page]"));
     const oben = await bereiche.evaluate((nav) => nav.getBoundingClientRect().top);
     expect(oben).toBeGreaterThanOrEqual((await kopfUnterkante(page)) - 1);
   });
 }
+
+test("Einstellungen am Handy: erst die Liste der Bereiche, Zurück geht im Verlauf zurück", async ({ page }) => {
+  await page.setViewportSize(HANDY);
+  await page.goto("/einstellungen", { waitUntil: "networkidle" });
+  const bereiche = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
+  await expect(bereiche).toBeVisible();
+  await expect(bereiche.getByRole("link", { name: /^Rechnungen/ })).toContainText("Nummern, Zahlungspläne, Anhänge");
+  await expect(page.locator(".settings-content")).toBeHidden();
+  // Noch ist kein Bereich offen: keiner gilt als aktuelle Seite
+  await expect(bereiche.locator("[aria-current]")).toHaveCount(0);
+
+  await bereiche.getByRole("link", { name: /^Rechnungen/ }).click();
+  await expect(page).toHaveURL(/bereich=rechnungen/);
+  await expect(page.getByRole("heading", { level: 1, name: "Rechnungen" })).toBeVisible();
+  await expect(bereiche).toBeHidden();
+
+  // Aus der Liste geöffnet: kein neuer Eintrag, „vor“ führt wieder in den Bereich (wie Wischen nach rechts)
+  await page.locator(".main > .page-head").getByRole("link", { name: "Einstellungen" }).click();
+  await expect(page).toHaveURL(/\/einstellungen$/);
+  await expect(bereiche).toBeVisible();
+  await page.goForward();
+  await expect(page).toHaveURL(/bereich=rechnungen/);
+
+  // Direkt in einen Bereich gekommen: Zurück öffnet die Liste
+  await page.goto("/einstellungen?bereich=elster", { waitUntil: "networkidle" });
+  await page.locator(".main > .page-head").getByRole("link", { name: "Einstellungen" }).click();
+  await expect(page).toHaveURL(/\/einstellungen$/);
+  await expect(bereiche).toBeVisible();
+});
+
+// Links zu Angaben der Firma (hier Mahngebühr und Basiszinssatz) öffnen am Handy die Firma, nicht die Liste der Bereiche
+test("Einstellungen am Handy: der Link aus dem Mahnwesen öffnet die Firma", async ({ page }) => {
+  await page.setViewportSize(HANDY);
+  await page.goto("/rechnungen/mahnwesen", { waitUntil: "networkidle" });
+  await page.locator(".main").getByRole("link", { name: "Einstellungen", exact: true }).click();
+  await expect(page).toHaveURL(/bereich=firma/);
+  await expect(page.getByRole("heading", { level: 1, name: "Firma" })).toBeVisible();
+  await expect(page.getByLabel("Basiszinssatz in %")).toBeVisible();
+});
 
 // Das Angebot prüft rechnungen.spec.ts: seit #381 legt app.spec.ts keine Angebote mehr an
 test("Rechnung am Handy: Status bleibt neben dem Titel sichtbar", async ({ page }) => {
@@ -169,12 +214,11 @@ test("Festschreiben in der Aktionsleiste am Handy: die Rückfrage erscheint im F
   await sichtbar(page.getByRole("dialog", { name: /festschreiben\?$/ }));
 });
 
-test("Einstellungen am Handy, rückwärts tabben: kein Feld mit Fokus liegt unter der Zeile der Bereiche", async ({ page }) => {
+test("Einstellungen am Handy, rückwärts tabben: kein Feld mit Fokus liegt unter dem Kopf", async ({ page }) => {
   await page.setViewportSize(HANDY);
   await page.goto("/einstellungen?bereich=firma");
   const felder = page.locator(".settings-content").locator("input:not([type=hidden]), select, textarea");
   await felder.last().focus();
-  const bereiche = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
   let geprueft = 0;
   for (let i = 0; i < 80; i++) {
     await page.keyboard.press("Shift+Tab");
@@ -185,8 +229,7 @@ test("Einstellungen am Handy, rückwärts tabben: kein Feld mit Fokus liegt unte
       return { name: el.getAttribute("aria-label") ?? (el as HTMLInputElement).labels?.[0]?.textContent?.trim().slice(0, 40) ?? el.tagName, top: box.top };
     });
     if (focus === "ende") break;
-    const unterkante = await bereiche.evaluate((nav) => nav.getBoundingClientRect().bottom);
-    expect(focus.top, `„${focus.name}“ liegt unter der Zeile der Bereiche`).toBeGreaterThanOrEqual(unterkante - 1);
+    expect(focus.top, `„${focus.name}“ liegt unter dem Kopf`).toBeGreaterThanOrEqual((await kopfUnterkante(page)) - 1);
     geprueft++;
   }
   expect(geprueft).toBeGreaterThan(5);
@@ -310,7 +353,9 @@ for (const [geraet, viewport] of [
       } else {
         await page.locator(".main > .page-head").getByRole("button", { name: knopf }).click();
       }
-      await sichtbar(page.locator(".main").getByRole("alert"));
+      // Am Laptop ist die Vorschau angeheftet; setzt sie ihr Blatt nach dem Abfangen neu, scheitert das ebenso und sie
+      // meldet es in ihrer Spalte. Geprüft wird die Meldung zum Speichern außerhalb der Vorschau
+      await sichtbar(page.locator(".main").getByRole("alert").and(page.locator(":not(.preview-pane *)")));
     });
   }
 }

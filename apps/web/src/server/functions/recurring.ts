@@ -1,7 +1,7 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { listTextBlocks, loadCompany } from "../modules/stammdaten/index.ts";
+import { listTextBlocks, listUnits, loadCompany } from "../modules/stammdaten/index.ts";
 import { listContacts } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
@@ -14,13 +14,16 @@ import {
   runDueRecurring,
   updateRecurring,
 } from "../modules/rechnungen/index.ts";
+import { sevdeskRecurringOrigin } from "../modules/archiv/index.ts";
 import { today } from "../today.ts";
 import { detailId } from "./schemas.ts";
 
 async function formContext() {
-  const [company, textBlocks] = await Promise.all([loadCompany(), listTextBlocks()]);
+  const [company, textBlocks, units] = await Promise.all([loadCompany(), listTextBlocks(), listUnits()]);
   return {
     textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
+    /** Eigene Einheiten (#748), ohne archivierte */
+    units: units.filter((unit) => !unit.archivedAt).map((unit) => unit.label),
     contacts: (await listContacts()).map((c) => ({
       id: c.id,
       name: c.name,
@@ -52,7 +55,12 @@ export const getRecurringDetail = createServerFn({ method: "GET" })
     const result = await getRecurring(data);
     if (!result) throw notFound();
     // Vorschau der nächsten Rechnung mit ersetzten Platzhaltern
-    return { ...result, preview: invoiceForDate(result.recurring, result.recurring.nextDate), ...(await formContext()) };
+    return {
+      ...result,
+      preview: invoiceForDate(result.recurring, result.recurring.nextDate),
+      sevdesk: await sevdeskRecurringOrigin(result.recurring.id),
+      ...(await formContext()),
+    };
   });
 
 export const saveRecurring = createServerFn({ method: "POST" })

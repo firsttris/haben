@@ -10,9 +10,10 @@ unser [Verhaltenskodex](CODE_OF_CONDUCT.md).
 Neues Issue über die Formulare: [Issue anlegen](https://github.com/firsttris/haben/issues/new/choose). Bitte vorher
 im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) nachsehen, ob das Thema schon geplant ist, und
 unter [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), ob es ausgeschlossen ist. Wie ein gutes Issue
-aufgebaut ist, steht unter [Issues schreiben](https://haben.app/mitwirken.html#issues-schreiben).
+aufgebaut ist, steht unter [Issues schreiben](https://haben.app/mitwirken.html#issues-schreiben). Fragen und Austausch
+gehen auf [Discord](https://discord.gg/CT2GQytSYH).
 
-**Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, Screenshots oder Logs. Sicherheitslücken
+**Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, auf Discord, in Screenshots oder Logs. Sicherheitslücken
 bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 
 ## Etwas übernehmen

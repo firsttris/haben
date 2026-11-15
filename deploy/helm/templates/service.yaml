@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "haben.fullname" . }}
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  selector:
+    {{- include "haben.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+{{- if .Values.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "haben.fullname" . }}
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.ingress.tlsSecret }}
+  tls:
+    - hosts: [{{ $.Values.domain | quote }}]
+      secretName: {{ . }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.domain | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "haben.fullname" . }}
+                port:
+                  name: http
+{{- end }}
+{{- if .Values.httpRoute.enabled }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "haben.fullname" . }}
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.httpRoute.parentRefs }}
+  {{- fail "httpRoute.parentRefs fehlt: das Gateway, an dem der HTTPRoute hängt" }}
+  {{- end }}
+  parentRefs:
+    {{- toYaml .Values.httpRoute.parentRefs | nindent 4 }}
+  hostnames: [{{ .Values.domain | quote }}]
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      # Wie im Caddyfile von deploy/compose.yml; SAMEORIGIN, nicht DENY, sonst bleiben die eingebetteten Vorschauen leer
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=31536000; includeSubDomains
+              - name: X-Content-Type-Options
+                value: nosniff
+              - name: Referrer-Policy
+                value: same-origin
+              - name: X-Frame-Options
+                value: SAMEORIGIN
+      # Eine Übermittlung an ELSTER wartet in der Anfrage auf ERiC (https://haben.app/installation.html#eigener-reverse-proxy)
+      timeouts:
+        request: 300s
+      backendRefs:
+        - name: {{ include "haben.fullname" . }}
+          port: 3000
+{{- end }}

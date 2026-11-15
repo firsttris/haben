@@ -97,6 +97,21 @@ export const sevInvoiceSchema = z.looseObject({
   paidAmount: numeric,
   customerInternalNote: str,
   header: str,
+  headText: str,
+  footText: str,
+  /** Rechnung, aus der diese entstand: bei SR die stornierte, bei aus einer Vorlage erzeugten die Vorlage (WKR) */
+  origin: ref,
+  /** Nur WKR: Intervall wie "P0Y1M" (ein Monat) oder "P0Y0M1W" (eine Woche) */
+  accountIntervall: str,
+  accountNextInvoice: str,
+  accountLastInvoice: str,
+  accountStartDate: str,
+  accountEndDate: str,
+  /** "1": Positionen netto, "0": brutto */
+  showNet: numeric,
+  taxType: str,
+  smallSettlement: numeric,
+  sepaMandateReference: str,
 });
 export type SevInvoice = z.infer<typeof sevInvoiceSchema>;
 
@@ -126,7 +141,13 @@ export type SevCreditNote = z.infer<typeof sevCreditNoteSchema>;
 export const sevDocumentPosSchema = z.looseObject({
   id,
   name: str,
+  /** Beschreibung unter der Bezeichnung */
+  text: str,
   quantity: numeric,
+  price: numeric,
+  priceNet: numeric,
+  priceGross: numeric,
+  discount: numeric,
   taxRate: numeric,
   sumNet: numeric,
   sumTax: numeric,
@@ -162,6 +183,16 @@ export const sevVoucherSchema = z.looseObject({
   creditDebit: str,
   /** VOU Beleg, RV wiederkehrender Beleg (Vorlage) */
   voucherType: str,
+  /** Vorlage RV: Intervall als ISO-Dauer (P0Y1M) und in Monaten; Start, nächster Beleg und Ende */
+  recurringInterval: str,
+  recurringIntervall: numeric,
+  recurringStartDate: str,
+  recurringNextVoucher: str,
+  recurringEndDate: str,
+  vatNumber: str,
+  taxType: str,
+  /** Bei Belegen aus einer Vorlage wiederkehrender Belege die Vorlage (objectName Voucher, voucherType RV) */
+  origin: ref,
   currency: str,
   paymentDeadline: str,
   deliveryDate: str,
@@ -266,6 +297,10 @@ export const sevRelatedObjectsResponseSchema = z.looseObject({
 // ---------------------------------------------------------------- Dateien
 
 /** getPdf und Document/download: Datei als Base64 in JSON, teils in objects verpackt */
+/** Angaben zu einer Datei (GET /Document/{id}), ohne Inhalt; create ist der Zeitpunkt des Hochladens */
+export const sevDocumentSchema = z.looseObject({ id, objectName: str, create: str, update: str, filename: str, mimeType: str, filesize: numeric });
+export type SevDocument = z.infer<typeof sevDocumentSchema>;
+
 export const sevFileBodySchema = z.looseObject({
   filename: str,
   mimeType: str,

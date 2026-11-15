@@ -87,7 +87,10 @@ function LstbPage() {
           <div className="banner banner-danger" role="note">
             <Icon name="alert" />
             <span>
-              Firmendaten: {data.firmenfehler.join(", ")}. <Link to="/einstellungen">In den Einstellungen ergänzen</Link>
+              Firmendaten: {data.firmenfehler.join(", ")}.{" "}
+              <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                In den Einstellungen ergänzen
+              </Link>
             </span>
           </div>
         )}
