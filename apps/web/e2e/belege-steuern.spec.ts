@@ -803,8 +803,10 @@ test("Fremdwährung: Kurs von Hand mit der Monatsauswahl, fehlende Angaben stehe
   await form.getByRole("button", { name: "Kurs speichern" }).click();
   await expect(page.getByText("Kurs gespeichert.")).toBeVisible();
   await expect(monat).toContainText("Monat wählen");
-  const zeile = page.getByRole("row").filter({ hasText: "ISK" });
-  await expect(zeile).toContainText(`01/${YEAR}`);
+  // Nach dem Speichern zeigt die Liste den Monat des Kurses (#1040); der Monat steht dann in der Auswahl, nicht in der Zeile
+  const karte = page.getByRole("region", { name: "Umsatzsteuer-Umrechnungskurse" });
+  await expect(karte.getByRole("combobox", { name: "Monat" })).toHaveValue(`${YEAR}-01`);
+  const zeile = karte.getByRole("row").filter({ hasText: "ISK" });
   await expect(zeile).toContainText("von Hand");
   await zeile.getByRole("button", { name: "Löschen" }).click();
   await expect(zeile).toHaveCount(0);
