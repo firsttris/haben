@@ -19,7 +19,7 @@ Mit `Pfeil hoch` und `runter` wählst du einen Treffer, `Enter` öffnet ihn, `Es
 
 ## Was sie findet
 
-Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Bereich stehen bis zu fünf Treffer, eine genau passende Nummer zuerst; Gruppen aus mehreren Bereichen, etwa „Kasse und Pauschalen“, zeigen entsprechend mehr. Bei Kontakten, Rechnungen, Angeboten und Belegen öffnet **Alle anzeigen** die Liste mit demselben Suchbegriff. Umlaute findet die Suche auch ohne Akzent oder Punkte („Muller“ findet „Müller“).
+Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Bereich stehen bis zu fünf Treffer, eine genau passende Nummer zuerst; Gruppen aus mehreren Bereichen, etwa „Kasse und Pauschalen“, zeigen entsprechend mehr. Bei Kontakten, Rechnungen, Angeboten und Belegen öffnet **Alle anzeigen** die Liste mit demselben Suchbegriff, bei Bankumsätzen auch, wenn alle Treffer in einem Konto liegen. Den Zustand zeigt ein Treffer so wie seine Seite. Umlaute findet die Suche auch ohne Akzent oder Punkte („Muller“ findet „Müller“).
 
 | Gruppe | Gesucht wird in | Der Treffer zeigt |
 | --- | --- | --- |
@@ -28,17 +28,17 @@ Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Bereich stehen bis zu fünf 
 | Rechnungen | Nummer, Kunde, Bestellnummer, eigene Auftragsnummer, Betrag, Datum | Kunde, Datum, Betrag und Status mit Auskunft, etwa „seit 16 Tagen“ |
 | Angebote | Nummer, Kunde, Betrag, Datum | Kunde, Datum, Betrag und Status |
 | Belege | Lieferant, Rechnungsnummer, Dateiname, Betrag, Datum | Rechnungsnummer, Datum, Betrag und Status |
-| Bankumsätze | Gegenseite, Verwendungszweck, Ende der IBAN ab vier Ziffern, Betrag (mit und ohne Vorzeichen), Datum | Datum, Konto, gekürzte IBAN, Status |
-| Buchungen und Konten | Buchungstext, Datum, Kontonummer und -name (SKR03/SKR04 und eigene Konten), Betrag | Datum, Konten und Betrag → Herkunft bzw. Kontenblatt |
-| Wiederkehrende Vorgänge | Name, Kunde bei wiederkehrenden Rechnungen, Lieferant bei Dauerbelegen | Kunde/Lieferant, Intervall und nächster Termin |
+| Bankumsätze | Gegenseite, Verwendungszweck, Ende der IBAN ab vier Ziffern, Betrag (mit und ohne Vorzeichen), Datum | Datum, Konto, gekürzte IBAN, Betrag und Status wie im Bankabgleich, ohne „Vorschlag“ |
+| Buchungen und Konten | Buchungstext, Datum, Kontonummer und -name (SKR03/SKR04 und eigene Konten), Betrag | Datum, Konten, Betrag und „storniert“ → Herkunft bzw. Kontenblatt |
+| Wiederkehrende Vorgänge | Name, Kunde bei wiederkehrenden Rechnungen, Lieferant bei Dauerbelegen | Kunde/Lieferant, Intervall, nächster Termin und Status wie in der Liste |
 | Artikel, Textbausteine, Leistungen | Nummer und Bezeichnung der Artikel, Name und Text der Textbausteine, beide ohne archivierte; Text, Projekt, Kunde und Datum der Leistungen | Preis/Einheit, Art bzw. Kunde, Datum und Dauer |
 | Anlagen und Darlehen | Name, bei Anlagen auch Anlagekonto und Notiz | Anlagekonto und Anschaffung bzw. Geber und Restschuld |
-| Kasse und Pauschalen | Nummer, Text/Anlass, Art, Datum, Betrag | Nummer/Art, Datum und Betrag |
+| Kasse und Pauschalen | Nummer, Text/Anlass, Art, Datum, Betrag | Nummer/Art, Datum, Betrag und „storniert“ |
 | Mitarbeiter | Name und Personalnummer (nie Steuer-ID, SV-Nummer, IBAN oder Geburtsdatum) | Personalnummer und Art |
-| Finanzamt und Meldungen | Zeitraum bei Voranmeldungen und ZM („03/2026“, „Q1 2026“), Bezeichnung im Postfach | Status bzw. Datum |
+| Finanzamt und Meldungen | Zeitraum bei Voranmeldungen und ZM („03/2026“, „Q1 2026“), Bezeichnung im Postfach | je Zeitraum ein Treffer mit dem Status der Voranmeldung bzw. dem Ergebnis der letzten erfolgreichen Übermittlung der ZM, sonst des letzten Versuchs; im Postfach das Datum |
 | Archiv aus dem Umzug | Nummer, Kontakt, Bemerkung, Betrag, Datum (abschaltbar unter Einstellungen › Export › Schnellsuche) | Kontakt, Datum, Betrag und „Archiv“ |
 
-**Beträge** vergleicht die Suche mit dem Bruttobetrag, ein Nettobetrag findet nichts. Mit Cent trifft sie genau: `1.234,56`, `1234,56`, `19.99` und `89,90 €`. Ein ganzer Euro wie `1190`, `1.190` oder `1190 €` findet alle Beträge dieses Euros, von 1.190,00 bis 1.190,99 €. Bei Bankumsätzen, Kasse, Pauschalen und Archivbelegen zählen beide Vorzeichen. In den Listen der Rechnungen, Angebote und Belege gilt dasselbe.
+**Beträge** vergleicht die Suche mit dem Bruttobetrag, ein Nettobetrag findet nichts. Mit Cent trifft sie genau: `1.234,56`, `1234,56`, `19.99` und `89,90 €`. Ein ganzer Euro wie `1190`, `1.190` oder `1190 €` findet alle Beträge dieses Euros, von 1.190,00 bis 1.190,99 €. Bei Bankumsätzen, Kasse und Archivbelegen zählen beide Vorzeichen. In den Listen der Rechnungen, Angebote und Belege gilt dasselbe.
 
 **Daten** wie `14.11.2026` oder `2026-11-14` treffen das Datum in jeder Gruppe, die oben „Datum“ nennt.
 

@@ -1,6 +1,6 @@
 import { parseDateSearch, parseEuroSearchRange } from "@haben/core";
-import { asc, desc, eq, inArray, or, sql } from "drizzle-orm";
-import { amountIn, amountInEitherSign, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { amountIn, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
 import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { knownAccounts } from "./journal.ts";
@@ -25,6 +25,8 @@ export interface BookingHit {
   sourceId: string;
   amount: number;
   accounts: string;
+  /** Durch eine Gegenbuchung storniert, wie „storniert“ im Journal */
+  reversed: boolean;
 }
 
 /**
@@ -67,7 +69,13 @@ export async function bookingEntriesQuery(query: string, limit: number) {
   const matches = lineConditions.length > 0 ? sql`${textMatches} union ${lineMatches}` : sql`${textMatches}`;
 
   const select = db
-    .select({ id: je.id, date: je.date, description: je.description, sourceType: je.sourceType, sourceId: je.sourceId })
+    .select({
+      id: je.id,
+      date: je.date,
+      description: je.description,
+      sourceType: je.sourceType,
+      sourceId: je.sourceId,
+    })
     .from(je)
     .where(sql`${je.id} in (${matches})`)
     .orderBy(desc(je.date), desc(je.createdAt))
@@ -81,24 +89,21 @@ export async function searchBookings(query: string, limit = 5): Promise<{ hits: 
   const entries = await (await bookingEntriesQuery(query, limit)).select;
 
   const top = entries.slice(0, limit);
-  const lines = top.length
-    ? await db
-        .select()
-        .from(jl)
-        .where(
-          inArray(
-            jl.entryId,
-            top.map((e) => e.id),
-          ),
-        )
-    : [];
+  const ids = top.map((e) => e.id);
+  const [lines, reversals] = top.length
+    ? await Promise.all([
+        db.select().from(jl).where(inArray(jl.entryId, ids)),
+        db.select({ id: schema.journalEntries.reversesId }).from(schema.journalEntries).where(inArray(schema.journalEntries.reversesId, ids)),
+      ])
+    : [[], []];
+  const reversed = new Set(reversals.map((r) => r.id));
 
   return {
     hits: top.map((e) => {
       const entryLines = lines.filter((l) => l.entryId === e.id);
       const debitTotal = entryLines.reduce((sum, l) => sum + l.debit, 0);
       const acctList = [...new Set(entryLines.map((l) => l.account))].slice(0, 3).join(" / ");
-      return { ...e, amount: debitTotal, accounts: acctList };
+      return { ...e, amount: debitTotal, accounts: acctList, reversed: reversed.has(e.id) };
     }),
     more: entries.length > limit,
   };
@@ -155,6 +160,8 @@ export interface PauschaleHit {
   date: string;
   description: string;
   amount: number;
+  /** Storniert wie auf der Seite Pauschalen; die Gegenzeilen selbst erscheinen dort und hier nicht */
+  storniert: boolean;
 }
 
 /** Pauschalen für die Befehlspalette (#617): Anlass/Text, Art, Datum, Betrag */
@@ -164,14 +171,24 @@ export async function searchPauschalen(query: string, limit = 5): Promise<{ hits
   const range = parseEuroSearchRange(query);
   const queryDate = parseDateSearch(query);
   const rows = await db
-    .select({ id: p.id, art: p.art, date: p.date, description: p.description, amount: p.amount })
+    .select({
+      id: p.id,
+      art: p.art,
+      date: p.date,
+      description: p.description,
+      amount: p.amount,
+      storniert: sql<boolean>`exists(select 1 from pauschalen r where r.reverses_id = ${p}.id)`,
+    })
     .from(p)
     .where(
-      or(
-        unaccentIlike(p.description, pattern),
-        unaccentIlike(sql`${p.art}::text`, pattern),
-        ...(range !== null ? [amountInEitherSign(p.amount, range)] : []),
-        ...(queryDate !== null ? [eq(p.date, queryDate)] : []),
+      and(
+        isNull(p.reversesId),
+        or(
+          unaccentIlike(p.description, pattern),
+          unaccentIlike(sql`${p.art}::text`, pattern),
+          ...(range !== null ? [amountIn(p.amount, range)] : []),
+          ...(queryDate !== null ? [eq(p.date, queryDate)] : []),
+        ),
       ),
     )
     .orderBy(numberRank(p.description, query), desc(p.date))

@@ -8,7 +8,8 @@ export interface RecurringDocumentHit {
   supplierName: string;
   intervalMonths: number;
   nextDate: string;
-  status: string;
+  status: (typeof schema.recurringDocuments.$inferSelect)["status"];
+  lastError: string | null;
 }
 
 /** Dauerbelege für die Befehlspalette (#617): Name und Lieferant */
@@ -23,6 +24,7 @@ export async function searchRecurringDocuments(query: string, limit = 5): Promis
       intervalMonths: rd.intervalMonths,
       nextDate: rd.nextDate,
       status: rd.status,
+      lastError: rd.lastError,
     })
     .from(rd)
     .where(or(unaccentIlike(rd.name, pattern), unaccentIlike(rd.supplierName, pattern)))

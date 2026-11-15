@@ -1,4 +1,4 @@
-import { BESCHAEFTIGUNGSARTEN, DARLEHENSGEBER, formatEuro, PAUSCHALE_LABEL } from "@haben/core";
+import { BESCHAEFTIGUNGSARTEN, DARLEHENSGEBER, formatEuro, PAUSCHALE_LABEL, periodKey } from "@haben/core";
 import type { PaletteItem, PaletteSection } from "./befehlspalette.ts";
 import { ELSTER_KIND_LABEL } from "./elster.ts";
 import { formatDate } from "./format.ts";
@@ -15,10 +15,6 @@ function periodLabel(year: number, month: number): string {
   return month >= 41 && month <= 44 ? `Q${month - 40} ${year}` : `${String(month).padStart(2, "0")}/${year}`;
 }
 
-function periodParam(year: number, month: number): string {
-  return month >= 41 && month <= 44 ? `${year}-Q${month - 40}` : `${year}-${String(month).padStart(2, "0")}`;
-}
-
 function bookingTarget(sourceType: string, sourceId: string): { to: string; params?: Record<string, string> } {
   if (sourceType === "invoice") return { to: "/rechnungen/$id", params: { id: sourceId } };
   if (sourceType === "document") return { to: "/belege/$id", params: { id: sourceId } };
@@ -28,17 +24,20 @@ function bookingTarget(sourceType: string, sourceId: string): { to: string; para
 function buildBankAndLedgerSections(remote: CommandPaletteResult, inhaber: boolean): PaletteSection[] {
   const sections: PaletteSection[] = [];
   if (inhaber && remote.bankTransactions.hits.length > 0) {
+    // „Alle anzeigen“ nur, wenn alle Treffer in einem Konto liegen: die Bankseite sucht je Konto
+    const konten = new Set(remote.bankTransactions.hits.map((tx) => tx.bankAccountId));
+    const [konto] = konten;
     sections.push({
       id: "bank",
       label: "Bankumsätze",
+      ...(konten.size === 1 && konto ? { to: "/bank" as const, moreSearch: { konto, filter: "alle" } } : {}),
       items: remote.bankTransactions.hits.map((tx) => ({
         id: `bank-${tx.id}`,
         kind: "link",
         title: tx.counterpartyName || tx.purpose || "Bankumsatz",
-        meta: [formatDate(tx.bookingDate), tx.accountName, tx.ibanLast4 ? `… ${tx.ibanLast4}` : "", tx.allocated ? "zugeordnet" : "offen"]
-          .filter(Boolean)
-          .join(" · "),
+        meta: [formatDate(tx.bookingDate), tx.accountName, tx.ibanLast4 ? `… ${tx.ibanLast4}` : ""].filter(Boolean).join(" · "),
         amount: formatEuro(tx.amount),
+        status: { kind: "bank", tx: { hint: tx.hint, open: tx.open } },
         icon: "bank",
         to: "/bank",
         search: { konto: tx.bankAccountId, filter: "alle", umsatz: tx.id },
@@ -55,7 +54,7 @@ function buildBankAndLedgerSections(remote: CommandPaletteResult, inhaber: boole
           id: `booking-${b.id}`,
           kind: "link",
           title: b.description || "Buchung",
-          meta: [formatDate(b.date), b.accounts].filter(Boolean).join(" · "),
+          meta: [formatDate(b.date), b.accounts, b.reversed ? "storniert" : ""].filter(Boolean).join(" · "),
           amount: formatEuro(b.amount),
           icon: "journal",
           ...target,
@@ -93,6 +92,7 @@ function buildRecurringAndCatalogSections(remote: CommandPaletteResult): Palette
         icon: "invoice",
         to: "/rechnungen/wiederkehrend/$id",
         params: { id: ri.id },
+        status: { kind: "recurringInvoice", active: ri.active, lastError: ri.lastError },
       }),
     ),
     ...remote.recurringDocuments.hits.map(
@@ -104,6 +104,7 @@ function buildRecurringAndCatalogSections(remote: CommandPaletteResult): Palette
         icon: "calendar",
         to: "/dauerbelege/$id",
         params: { id: rd.id },
+        status: { kind: "recurringDocument", status: rd.status, lastError: rd.lastError },
       }),
     ),
   ];
@@ -181,7 +182,7 @@ function buildAssetsAndCashSections(remote: CommandPaletteResult): PaletteSectio
         id: `cash-${ce.id}`,
         kind: "link",
         title: ce.text || `Kasse #${ce.number}`,
-        meta: [`Nr. ${ce.number}`, formatDate(ce.date)].join(" · "),
+        meta: [`Nr. ${ce.number}`, formatDate(ce.date), ce.reversed ? "storniert" : ""].filter(Boolean).join(" · "),
         amount: formatEuro(ce.amount),
         icon: "cash",
         to: "/kasse",
@@ -196,6 +197,7 @@ function buildAssetsAndCashSections(remote: CommandPaletteResult): PaletteSectio
         amount: formatEuro(p.amount),
         icon: "pauschale",
         to: "/pauschalen",
+        status: { kind: "pauschale", storniert: p.storniert },
       }),
     ),
   ];
@@ -227,10 +229,11 @@ function buildTaxAndArchiveSections(remote: CommandPaletteResult): PaletteSectio
         id: `vat-${v.id}`,
         kind: "link",
         title: `USt-VA ${periodLabel(v.year, v.month)}`,
-        meta: v.status === "sent" ? "gesendet" : "Entwurf",
+        meta: "Voranmeldung",
         icon: "vat",
         to: "/umsatzsteuer/$zeitraum",
-        params: { zeitraum: periodParam(v.year, v.month) },
+        params: { zeitraum: periodKey(v) },
+        status: { kind: "vat", vat: v },
       }),
     ),
     ...remote.zmSubmissions.hits.map(
@@ -238,10 +241,11 @@ function buildTaxAndArchiveSections(remote: CommandPaletteResult): PaletteSectio
         id: `zm-${z.id}`,
         kind: "link",
         title: `ZM ${periodLabel(z.year, z.month)}`,
-        meta: `${ELSTER_KIND_LABEL[z.kind]} · ${z.ok ? "OK" : "Fehler"}`,
+        meta: ELSTER_KIND_LABEL[z.kind],
         icon: "vat",
         to: "/umsatzsteuer/zm/$quartal",
-        params: { quartal: periodParam(z.year, z.month) },
+        params: { quartal: periodKey(z) },
+        status: { kind: "zm", ok: z.ok, code: z.code },
       }),
     ),
     ...remote.postfachDocuments.hits.map(
