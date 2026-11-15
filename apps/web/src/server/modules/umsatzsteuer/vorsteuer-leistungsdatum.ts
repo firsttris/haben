@@ -50,6 +50,54 @@ function spaetererTag(a: string, b: string): string {
   return a.localeCompare(b) < 0 ? b : a;
 }
 
+/** Skonto-Ausbuchung des Belegs (write_offs, kind skontoErhalten); `reversesId` bei der Gegenzeile einer Aufhebung */
+interface Skonto {
+  id: string;
+  documentId: string | null;
+  reversesId: string | null;
+  amount: number;
+  date: string;
+}
+
+/**
+ * Storno-Zeilen zu den Aufhebungen nach der Ausführung, deren Skonto vor ihr lag (`erlass`): Die Skonto-Abfrage in
+ * vat-figures.ts zählt die Aufhebung als Vorsteuer im Monat der Aufhebung; der Storno nimmt sie mit umgekehrtem Vorzeichen
+ * zurück, nie vor deren Tag (§ 17 Abs. 1 UStG), wie im Journal die Umkehr der Freigabe aus der Aufhebung.
+ */
+function stornoDerSkontoAufhebung(
+  k: { id: string; supplier: string; number: string; net: Cents; tax: Cents; gross: Cents },
+  betraege: { documentId: string; rate: number; net: Cents; tax: Cents }[],
+  erlass: Skonto[],
+  skontos: Skonto[],
+  ausgefuehrt: string,
+  storno: string,
+): VorsteuerZeile[] {
+  const erlassen = new Set(erlass.filter((x) => !x.reversesId).map((x) => x.id));
+  // Mit Vorzeichen, gerechnet wie die Zeile der Skonto-Abfrage
+  const totals = {
+    net: k.net,
+    tax: k.tax,
+    gross: k.gross,
+    taxes: betraege
+      .filter((b) => b.documentId === k.id)
+      .map((b) => ({ rate: b.rate, base: b.net, tax: b.tax }))
+      .sort((x, y) => y.rate - x.rate),
+  };
+  return skontos
+    .filter((r) => r.reversesId && erlassen.has(r.reversesId) && r.date.localeCompare(ausgefuehrt) >= 0)
+    .flatMap((x) =>
+      paidTaxShares(totals, -x.amount).map((share) => ({
+        documentId: k.id,
+        date: spaetererTag(storno, x.date),
+        supplier: k.supplier,
+        number: `Storno ${k.number}`.trim(),
+        rate: share.rate,
+        base: share.base,
+        tax: share.tax,
+      })),
+    );
+}
+
 /**
  * Vorsteuer der Belege, deren Leistung erst nach dem Belegdatum ausgeführt ist (#693). `belege` enthält alle solche
  * Belege, damit die gewöhnliche Abfrage sie nicht zusätzlich nach dem Belegdatum zählt.
@@ -200,8 +248,10 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
       for (const { rate } of saetze) {
         const nachher = bis.find((x) => x.rate === rate);
         const vorheriger = von.find((x) => x.rate === rate);
-        const base = (nachher?.base ?? 0) - (vorheriger?.base ?? 0);
-        const tax = (nachher?.tax ?? 0) - (vorheriger?.tax ?? 0);
+        // Der geschäftliche Teil wird kumuliert gerundet, wie im Journal (vorsteuer-ausgleich.ts): Je Teilbetrag gerundet
+        // ergäben die Zeilen zusammen nicht genau die geschäftliche Vorsteuer des Belegs
+        const base = geschaeftlich(nachher?.base ?? 0, k.privateShare) - geschaeftlich(vorheriger?.base ?? 0, k.privateShare);
+        const tax = geschaeftlich(nachher?.tax ?? 0, k.privateShare) - geschaeftlich(vorheriger?.tax ?? 0, k.privateShare);
         // Die Rechnung muss vorliegen: nie früher als ihr Datum
         const tag = spaetererTag(z.date, k.datum);
         zeilen.push({
@@ -210,8 +260,8 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
           supplier: k.supplier,
           number: k.number,
           rate,
-          base: geschaeftlich(base, k.privateShare),
-          tax: geschaeftlich(tax, k.privateShare),
+          base,
+          tax,
         });
         // Ein Storno nimmt den Anteil mit umgekehrtem Vorzeichen zurück, aber nie vor dem Stornodatum: Stand er in einem
         // schon gemeldeten Zeitraum, berichtigt er dort, sonst hebt er sich im selben Zeitraum auf (§ 17 Abs. 1 UStG).
@@ -222,12 +272,15 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
             supplier: k.supplier,
             number: `Storno ${k.number}`.trim(),
             rate,
-            base: -geschaeftlich(base, k.privateShare),
-            tax: -geschaeftlich(tax, k.privateShare),
+            base: -base,
+            tax: -tax,
           });
         }
       }
     }
+    // Ein Skonto vor der Ausführung, das erst nach ihr aufgehoben wird, gibt seine Steuer im Monat der Aufhebung frei; das
+    // zählt die gewöhnliche Skonto-Abfrage (vat-figures.ts). Ein späterer Storno nimmt auch das zurück.
+    if (storno) zeilen.push(...stornoDerSkontoAufhebung(k, betraege, erlass, skontos, ausgefuehrt, storno));
   }
 
   return { belege, zeilen: zeilen.filter((z) => z.date >= start && z.date < end && z.tax !== 0), skontoOhneMinderung };
