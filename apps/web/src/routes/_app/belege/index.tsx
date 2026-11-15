@@ -41,23 +41,26 @@ function DocumentsPage() {
           (range !== null && inCentRange(range, doc.gross)),
       )
     : documents;
-  // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#1112)
-  const { sort = "datum", dir = "ab" } = Route.useSearch();
+  // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#1112). Ohne gewählte Spalte
+  // bleibt die Reihenfolge von listDocuments: ungebuchte zuerst, dann nach Belegdatum, wie die Navigation am Beleg.
+  const { sort, dir = "ab" } = Route.useSearch();
   const richtung = dir === "auf" ? 1 : -1;
-  const sorted = [...shown].sort((a, b) => {
-    switch (sort) {
-      case "lieferant":
-        return richtung * (a.supplierName ?? a.filename).localeCompare(b.supplierName ?? b.filename, "de");
-      case "kategorie":
-        return richtung * (a.category ?? "").localeCompare(b.category ?? "", "de");
-      case "brutto":
-        return richtung * (a.gross - b.gross);
-      case "status":
-        return richtung * a.status.localeCompare(b.status);
-      default:
-        return richtung * (a.documentDate ?? "").localeCompare(b.documentDate ?? "");
-    }
-  });
+  const sorted = !sort
+    ? shown
+    : [...shown].sort((a, b) => {
+        switch (sort) {
+          case "lieferant":
+            return richtung * (a.supplierName ?? a.filename).localeCompare(b.supplierName ?? b.filename, "de");
+          case "kategorie":
+            return richtung * (a.category ?? "").localeCompare(b.category ?? "", "de");
+          case "brutto":
+            return richtung * (a.gross - b.gross);
+          case "status":
+            return richtung * a.status.localeCompare(b.status);
+          default:
+            return richtung * (a.documentDate ?? "").localeCompare(b.documentDate ?? "");
+        }
+      });
   const kopf = (feld: "datum" | "lieferant" | "kategorie" | "brutto" | "status", text: string, klasse = "sort-head") => {
     const aktiv = sort === feld;
     const naechste: "auf" | "ab" = aktiv && dir === "ab" ? "auf" : "ab";
