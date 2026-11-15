@@ -33,7 +33,7 @@ Für den laufenden Betrieb gibt es eigene Seiten:
 
 | Seite | Inhalt |
 | --- | --- |
-| <a id="getrennte-datenbankrollen"></a><a id="umgebungsvariablen"></a><a id="datenablage"></a>[Konfiguration](installation-konfiguration.md) | Getrennte Datenbankrollen, alle Umgebungsvariablen, wo Datenbank, Belege und ERiC liegen |
+| <a id="getrennte-datenbankrollen"></a><a id="umgebungsvariablen"></a><a id="datenablage"></a>[Konfiguration](installation-konfiguration.md) | Getrennte Datenbankrollen, Verbindungspooler, alle Umgebungsvariablen, wo Datenbank, Belege und ERiC liegen |
 | <a id="backup-und-wiederherstellen"></a><a id="repository-auf-einem-zweiten-system"></a><a id="wiederherstellen"></a><a id="updates"></a><a id="postgresql-update"></a>[Backup und Updates](installation-backup.md) | Tägliches Backup, zweites System, Test-Restore, Wiederherstellen, Updates, PostgreSQL-Update |
 | <a id="eric-einbinden"></a><a id="elster-auf-arm64"></a><a id="ki-auslesung-anthropic"></a><a id="ki-auslesung-über-openai-kompatible-schnittstelle"></a><a id="kontoabruf-enable-banking"></a><a id="lexware-office-api"></a>[Anbindungen](installation-anbindungen.md) | ERiC (auch auf arm64), KI-Auslesung mit Anthropic oder einem eigenen Dienst, Kontoabruf, Lexware-Office-API |
 | <a id="single-sign-on-mit-openid-connect"></a>[Single Sign-on](installation-sso.md) | Anmeldung über OpenID Connect mit Rollen aus Gruppen |

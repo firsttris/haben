@@ -1,7 +1,7 @@
 ---
 title: "Datenbankrollen, Umgebungsvariablen und Datenablage"
 description: >-
-  Getrennte Datenbankrollen für App und Migrationen, alle Umgebungsvariablen von Haben und wo Datenbank, Belege, ERiC und Backups liegen.
+  Getrennte Datenbankrollen für App und Migrationen, Betrieb hinter PgBouncer, alle Umgebungsvariablen von Haben und wo Datenbank, Belege, ERiC und Backups liegen.
 ---
 
 # Konfiguration
@@ -23,6 +23,22 @@ Eine bloße Mitgliedschaft ohne nutzbare Vererbung, Rollenwechsel oder Verwaltun
 **Extern verwaltete Datenbank, etwa CloudNativePG:** Der Operator stellt beide Anmeldungen bereit. Die Eigentümerrolle darf ohne Superuser und ohne `CREATEROLE` arbeiten, muss aber Eigentümer der Haben-Objekte sein und die Schema- und Datenbankrechte vergeben können. Die App-Rolle braucht keine Mitgliedschaft in ihr. Beide Adressen müssen dieselbe Haben-Datenbank erreichen. Haben vergibt nach jeder Migration die benötigten Tabellen-, Sequenz- und Funktionsrechte, auch ohne neue Migration. Im dedizierten Haben-Datenbankkontext entfallen beim Umstieg die von `PUBLIC` geerbten Rechte zum Anlegen temporärer Tabellen und zum Erzeugen von Objekten in `public`; andere direkte oder geerbte unsichere Rechte muss der Operator vorher entfernen, auch Ausführungsrechte auf [Serverdateifunktionen wie `lo_import` und `lo_export`](https://www.postgresql.org/docs/18/lo-funcs.html). Eine Datenbank für weitere Anwendungen ist dafür ungeeignet.
 
 Ein externer Eigentümer ohne `CREATEDB` reicht zum Migrieren, aber nicht für die eingebauten Restore-Werkzeuge: Sie legen Wegwerf-Datenbanken an und ersetzen beim Restore die bisherige Datenbank. Für diese Betreiberaufgaben einen dafür berechtigten Zugang bereitstellen oder die Sicherung und Wiederherstellung des Operators verwenden. Weder Backup noch Upgrade verwenden die eingeschränkte App-Rolle.
+
+## Verbindungspooler
+
+Hinter PgBouncer braucht Haben `pool_mode = session`, bei anderen Poolern den entsprechenden Sitzungsmodus. Im Transaktionsmodus halten die Sitzungssperren der Migration und des laufenden Servers nicht, weil Sperre und Freigabe auf verschiedenen Serververbindungen landen können. `MIGRATION_DATABASE_URL` kann den Pooler auch umgehen, bei CloudNativePG etwa über den `-rw`-Service.
+
+Endet ein Pooler, brechen die Verbindungen über ihn ab, und PostgreSQL rollt laufende Transaktionen zurück. Wer in dem Moment speichert, bekommt einen Fehler. Haben wiederholt die Aktion nicht selbst: Reißt die Verbindung während des Commits ab, ist offen, ob die Änderung schon gespeichert ist. Vor dem Wiederholen also nachsehen.
+
+Damit ein Neustart des Poolers keine Transaktion trifft, gibt `DATABASE_URL` zwei [Optionen von postgres.js](https://github.com/porsager/postgres#connection-details) mit:
+
+```text
+postgres://haben_app:…@haben-pooler:5432/haben?idle_timeout=20&max_lifetime=60
+```
+
+Haben schließt dann eine unbenutzte Verbindung nach 20 Sekunden und jede nach 60 Sekunden, sobald ihre Abfrage fertig ist. Danach verbindet es sich neu, also über einen Pooler, der noch läuft. Der alte muss so lange auf seine Clients warten: PgBouncer tut das ab 1.23 bei [`SIGTERM`](https://www.pgbouncer.org/usage.html#signals), ältere Versionen enden sofort. In Kubernetes `terminationGracePeriodSeconds` größer als `max_lifetime` setzen, etwa 90.
+
+Die Verbindung, auf der der Server seine Sperre hält, wechselt nicht. Sie reißt erst am Ende dieser Frist ab, darum braucht der alte Pooler die ganze Frist. Danach erkennen [SSO-Übernahme und Wiederherstellung des Inhabers](installation-sso.md#bestehende-instanz-umstellen) die laufende App nicht mehr; die App für sie wie dort beschrieben vorher stoppen.
 
 ## Umgebungsvariablen
 
