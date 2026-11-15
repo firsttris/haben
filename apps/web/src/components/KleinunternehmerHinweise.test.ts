@@ -3,13 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { KleinunternehmerHinweise } from "./KleinunternehmerHinweise.tsx";
 
-function hinweise(netto: number) {
+function hinweise(netto: number, ungeklaert = false) {
   return renderToStaticMarkup(
     createElement(KleinunternehmerHinweise, {
       stand: {
         jahr: 2026,
         gruendungsjahr: false,
-        aktuell: { netto, ungeklaert: false },
+        aktuell: { netto, ungeklaert },
         vorjahr: { netto: 0, ungeklaert: false },
         naheAktuell: false,
         vorjahresgrenzeUeberschritten: false,
@@ -33,5 +33,10 @@ describe("Kleinunternehmerhinweise für das Folgejahr (#717)", () => {
   it("weist bei 25.000,01 Euro auf die Überschreitung für das Folgejahr hin", () => {
     expect(hinweise(2_500_000)).not.toContain("bereits darüber");
     expect(hinweise(2_500_001)).toContain("bereits darüber");
+  });
+
+  it("zeigt ungeklärte Buchungen nur zusammen mit einer Grenzwarnung an", () => {
+    expect(hinweise(1_999_999, true)).toBe("");
+    expect(hinweise(2_000_000, true)).toContain("uneindeutige Importzahlungen");
   });
 });

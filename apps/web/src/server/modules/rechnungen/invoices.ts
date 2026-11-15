@@ -1,4 +1,3 @@
-import { UserError } from "../../errors.ts";
 import {
   computeInvoice,
   CURRENCY_CODE,
@@ -61,8 +60,9 @@ import { advanceInvoicePosting } from "./advance-invoice.ts";
 import { paperCancellationIds } from "./advance-payment-group.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
-import { kleinunternehmerStand } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
+import { InvoiceError } from "./invoice-error.ts";
+import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
 import {
   circleFor,
   countsRunning,
@@ -77,23 +77,6 @@ import {
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
-
-export class InvoiceError extends UserError {}
-
-export class UmsatzgrenzeError extends InvoiceError {
-  constructor(
-    readonly umsatz: number,
-    readonly rechnung: number,
-    readonly grenze: number,
-    readonly vorjahresumsatz?: number,
-  ) {
-    super(
-      vorjahresumsatz === undefined
-        ? "Bei Zahlung dieser Rechnung könnte die Kleinunternehmergrenze überschritten werden. Prüfe den Umsatz und schreibe die Rechnung von Hand fest."
-        : "Der erfasste Vorjahresumsatz liegt über der Kleinunternehmergrenze. Prüfe die Besteuerung und schreibe die Rechnung von Hand fest.",
-    );
-  }
-}
 
 const isoDate = z.iso.date();
 
@@ -1179,20 +1162,7 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
   const seller = sellerFrom(company);
   const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
-  const heute = today();
-  if (invoice.kind === "rechnung" && invoice.taxTreatment === "kleinunternehmer" && totals.net > 0 && invoice.issueDate <= `${heute.slice(0, 4)}-12-31`) {
-    const { aktuell, vorjahr, jahresgrenze, vorjahresgrenzeUeberschritten } = await kleinunternehmerStand(heute, company.foundedOn, tx);
-    const vorjahresumsatz = vorjahresgrenzeUeberschritten ? vorjahr.netto : undefined;
-    if (
-      (vorjahresgrenzeUeberschritten || aktuell.netto + totals.net > jahresgrenze) &&
-      (bestaetigt?.umsatz !== aktuell.netto ||
-        bestaetigt.rechnung !== totals.net ||
-        bestaetigt.grenze !== jahresgrenze ||
-        bestaetigt.vorjahresumsatz !== vorjahresumsatz)
-    ) {
-      throw new UmsatzgrenzeError(aktuell.netto, totals.net, jahresgrenze, vorjahresumsatz);
-    }
-  }
+  await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, bestaetigt);
   const doc = documentFor(
     invoice,
     lines,

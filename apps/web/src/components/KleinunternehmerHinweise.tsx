@@ -3,9 +3,9 @@ import type { kleinunternehmerStand } from "../server/modules/auswertungen/index
 
 export function KleinunternehmerHinweise({ stand }: { stand: Awaited<ReturnType<typeof kleinunternehmerStand>> }) {
   const { aktuell, vorjahr, jahr, gruendungsjahr, naheAktuell, vorjahresgrenzeUeberschritten, jahresgrenze, vorjahresgrenze } = stand;
-  const ungeklaert = aktuell.ungeklaert || vorjahr.ungeklaert;
   const naheFolgejahr = umsatzgrenzeNahe(aktuell.netto, vorjahresgrenze);
-  if (!naheAktuell && !naheFolgejahr && !vorjahresgrenzeUeberschritten && !ungeklaert) return null;
+  if (!naheAktuell && !naheFolgejahr && !vorjahresgrenzeUeberschritten) return null;
+  const ungeklaert = aktuell.ungeklaert || vorjahr.ungeklaert;
   return (
     <section className="banner banner-warn" aria-label="Umsatzgrenzen für Kleinunternehmer">
       <div>
