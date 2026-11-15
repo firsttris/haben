@@ -40,10 +40,21 @@ test("sevDesk: Anlagen als Vorschlag abrufen, Art wählen und übernehmen", asyn
   await page.getByLabel("API-Token").fill("0123456789abcdef0123456789abcdef");
   await page.getByRole("button", { name: "Prüfen und speichern" }).click();
 
+  // Mit dem Schritt „Anlagen übernehmen“ sind die Exporte Schritt 5
+  await expect(page.getByText("sobald die ersten Daten aus Schritt 2 oder 5 da sind")).toBeVisible();
+
   const karte = page.getByRole("region", { name: "Anlagen übernehmen" });
+  const tabelle = karte.getByRole("table", { name: "Anlagen aus sevDesk" });
+  // Ein anderer Stichtag verwirft den Vorschlag: die Restbuchwerte gälten sonst für ein anderes Jahr
   await karte.getByLabel("Übernahmestichtag").fill("2026-01-01");
   await karte.getByRole("button", { name: "Anlagen abrufen" }).click();
-  const tabelle = karte.getByRole("table", { name: "Anlagen aus sevDesk" });
+  await expect(tabelle).toBeVisible();
+  await karte.getByLabel("Übernahmestichtag").fill("2027-01-01");
+  await expect(tabelle).toHaveCount(0);
+  await expect(karte.getByRole("button", { name: /Anlagen? übernehmen/ })).toHaveCount(0);
+
+  await karte.getByLabel("Übernahmestichtag").fill("2026-01-01");
+  await karte.getByRole("button", { name: "Anlagen abrufen" }).click();
   const zeile = (name: string) => tabelle.getByRole("row").filter({ hasText: name });
   await expect(zeile("Motorrad")).toContainText("9.142,86 €");
   await expect(zeile("Motorrad")).toContainText("Konto 0320");
