@@ -140,15 +140,11 @@ export function toFields(extraction: Extraction): ExtractedFields {
     }
     return [{ taxRate: (Number(row.steuersatz) * 100) as 1900 | 700 | 0, net: sign * Math.abs(net), tax: sign * Math.abs(tax) }];
   });
-  // § 13b: die Steuer steht nicht auf dem Beleg, Haben rechnet sie aus dem Netto. Eine Zeile mit 0 % lässt Haben
-  // dort nicht buchen („Bei § 13b steht jede Zeile auf 19 % oder 7 %“), deshalb rechnet die Auslesung sie gleich aus
+  // § 13b nur als Vorschlag; die Beträge bleiben wie auf dem Beleg. Ob er gilt und welcher Satz dann statt 0 % steht,
+  // entscheidet applyFields in documents.ts (nicht bei einer eigenen Ausgangsrechnung)
   const reverseCharge = extraction.reverseCharge ?? null;
-  const rows = reverseCharge
-    ? amounts.map((a) => (a.taxRate === 0 ? { ...a, taxRate: 1900 as const, tax: Math.sign(a.net) * Math.round(Math.abs(a.net) * 0.19) } : a))
-    : amounts;
   const gross = extraction.brutto ? decimalToCents(extraction.brutto) : null;
-  // Bei § 13b ist der Rechnungsbetrag das Netto; die Steuer kommt nicht auf den Beleg
-  const sum = rows.reduce((total, a) => total + a.net + (reverseCharge ? 0 : a.tax), 0);
+  const sum = amounts.reduce((total, a) => total + a.net + a.tax, 0);
   if (gross !== null && Math.abs(sum) !== Math.abs(gross)) {
     warnings.push("Summe aus Netto und Steuer weicht vom Gesamtbetrag ab");
   }
@@ -169,7 +165,7 @@ export function toFields(extraction: Extraction): ExtractedFields {
     currency,
     category: extraction.kategorie,
     reverseCharge,
-    amounts: rows,
+    amounts,
     warnings,
   };
 }

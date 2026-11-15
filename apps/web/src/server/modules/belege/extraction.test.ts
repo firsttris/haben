@@ -51,7 +51,7 @@ describe("KI-Auslesung umwandeln", () => {
     expect(toFields(base).reverseCharge).toBeNull();
   });
 
-  it("rechnet die Steuer bei § 13b aus dem Netto und lässt 0 % nicht stehen", () => {
+  it("lässt die Beträge bei § 13b wie auf dem Beleg; Satz und Steuer setzt erst der Beleg (documents.test.ts)", () => {
     const felder = toFields({
       ...base,
       betraege: [{ steuersatz: "0", netto: "115.44", steuer: "0.00" }],
@@ -59,8 +59,8 @@ describe("KI-Auslesung umwandeln", () => {
       kategorie: "fremdleistung",
       reverseCharge: "eu",
     });
-    expect(felder.amounts).toEqual([{ taxRate: 1900, net: 11544, tax: 2193 }]);
-    // Der Rechnungsbetrag bleibt das Netto, die Steuer steht nicht auf dem Beleg
+    expect(felder.amounts).toEqual([{ taxRate: 0, net: 11544, tax: 0 }]);
+    // Der Rechnungsbetrag ist das Netto, die Steuer steht nicht auf dem Beleg
     expect(felder.warnings).not.toContain("Summe aus Netto und Steuer weicht vom Gesamtbetrag ab");
   });
 
