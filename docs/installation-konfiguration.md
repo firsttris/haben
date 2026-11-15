@@ -26,19 +26,19 @@ Ein externer Eigentümer ohne `CREATEDB` reicht zum Migrieren, aber nicht für d
 
 ## Verbindungspooler
 
-Hinter PgBouncer braucht Haben `pool_mode = session`, bei anderen Poolern den entsprechenden Sitzungsmodus. Im Transaktionsmodus halten die Sitzungssperren der Migration und des laufenden Servers nicht, weil Sperre und Freigabe auf verschiedenen Serververbindungen landen können. `MIGRATION_DATABASE_URL` kann den Pooler auch umgehen, bei CloudNativePG etwa über den `-rw`-Service.
+Hinter PgBouncer braucht Haben `pool_mode = session`, bei anderen Poolern den entsprechenden Sitzungsmodus. Im Transaktionsmodus gehört eine Serververbindung dem Client nur für eine Transaktion; die Sitzungssperren der Migration und des laufenden Servers hängen dann an Verbindungen, die der Pooler an andere Clients weitergibt. `MIGRATION_DATABASE_URL` kann den Pooler auch umgehen, bei CloudNativePG etwa über den `-rw`-Service.
 
 Endet ein Pooler, brechen die Verbindungen über ihn ab, und PostgreSQL rollt laufende Transaktionen zurück. Wer in dem Moment speichert, bekommt einen Fehler. Haben wiederholt die Aktion nicht selbst: Reißt die Verbindung während des Commits ab, ist offen, ob die Änderung schon gespeichert ist. Vor dem Wiederholen also nachsehen.
 
-Damit ein Neustart des Poolers keine Transaktion trifft, gibt `DATABASE_URL` zwei [Optionen von postgres.js](https://github.com/porsager/postgres#connection-details) mit:
+Damit ein Neustart des Poolers keine Transaktion trifft, bekommt `DATABASE_URL` die [Option `max_lifetime` von postgres.js](https://github.com/porsager/postgres#connection-details):
 
 ```text
-postgres://haben_app:…@haben-pooler:5432/haben?idle_timeout=20&max_lifetime=60
+postgres://haben_app:…@haben-pooler:5432/haben?max_lifetime=60
 ```
 
-Haben schließt dann eine unbenutzte Verbindung nach 20 Sekunden und jede nach 60 Sekunden, sobald ihre Abfrage fertig ist. Danach verbindet es sich neu, also über einen Pooler, der noch läuft. Der alte muss so lange auf seine Clients warten: PgBouncer tut das ab 1.23 bei [`SIGTERM`](https://www.pgbouncer.org/usage.html#signals), ältere Versionen enden sofort. In Kubernetes `terminationGracePeriodSeconds` größer als `max_lifetime` setzen, etwa 90.
+Haben schließt dann jede Verbindung nach 60 Sekunden, sobald ihre Abfrage oder Transaktion fertig ist, und verbindet sich über einen Pooler neu, der noch Verbindungen annimmt. Der alte muss so lange auf seine Clients warten. PgBouncer tut das bei [`SIGTERM`](https://www.pgbouncer.org/usage.html#signals) ab 1.23, vorher endet er sofort; im Sitzungsmodus wartet er auch bei `SIGINT`, das CloudNativePG schickt. In Kubernetes für die Pods des Poolers `terminationGracePeriodSeconds` größer als `max_lifetime` plus die längste Transaktion setzen, etwa 90.
 
-Die Verbindung, auf der der Server seine Sperre hält, wechselt nicht. Sie reißt erst am Ende dieser Frist ab, darum braucht der alte Pooler die ganze Frist. Danach erkennen [SSO-Übernahme und Wiederherstellung des Inhabers](installation-sso.md#bestehende-instanz-umstellen) die laufende App nicht mehr; die App für sie wie dort beschrieben vorher stoppen.
+Die Verbindung, auf der der Server seine Sperre hält, wechselt nicht; der alte Pooler läuft deshalb bis zum Ende der Frist. Danach fehlt die Sperre bis zum nächsten Start der App: [SSO-Übernahme](installation-sso.md#bestehende-instanz-umstellen) und [Wiederherstellung des Inhabers](installation-sso.md#zurück-zum-standardmodus) erkennen die laufende App dann nicht.
 
 ## Umgebungsvariablen
 
