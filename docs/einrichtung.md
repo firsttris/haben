@@ -302,7 +302,7 @@ Nur im Einzelunternehmen; bei GmbH und UG fehlt der Abschnitt. Unter **Privatant
 
 Rechnest du Belege oder Rechnungen in US-Dollar, Pfund oder einer anderen Währung ab, braucht Haben die Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG). Das Bundesministerium der Finanzen veröffentlicht sie monatlich im Datenportal als CSV (Datenlizenz Deutschland – Namensnennung 2.0). Haben ruft sie von selbst ab, sobald du Fremdwährung nutzt: höchstens einmal am Tag und nur, solange die Kurse des Vormonats fehlen. Belege und Rechnungsentwürfe, die auf einen Kurs warten, rechnet es danach um.
 
-Unter **Einstellungen → Fremdwährung** siehst du die gespeicherten Kurse nach Monat (Standard: neuester Monat, mit Filter nach Währung) oder als Verlauf für eine einzelne Währung (sowie gesammelt für selbst eingetragene Kurse) und kannst
+Unter **Einstellungen → Fremdwährung** siehst du die gespeicherten Kurse nach Monat (Standard: neuester Monat mit BMF-Kursen, mit Filter nach Währung) oder als Verlauf für eine einzelne Währung (sowie gesammelt für selbst eingetragene Kurse) und kannst
 
 - die Kurse sofort abrufen (**Kurse jetzt abrufen**),
 - die CSV-Datei des BMF selbst hochladen, wenn der Server das Internet nicht erreicht,
