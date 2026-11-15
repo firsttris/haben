@@ -87,6 +87,15 @@ export const EU_COUNTRIES: ReadonlySet<string> = new Set([
   "SK",
 ]);
 
+/**
+ * Liegt die Anschrift im Gemeinschaftsgebiet (§ 1 Abs. 2a UStG)? Die Mitgliedstaaten und Monaco, das als Gebiet
+ * Frankreichs gilt; Unternehmen dort haben eine französische USt-IdNr. Ohne Land: nein.
+ */
+export function inEuVatArea(country: string): boolean {
+  const code = country.toUpperCase();
+  return EU_COUNTRIES.has(code) || code === "MC";
+}
+
 export const TAX_TREATMENT_KEYS = Object.keys(TAX_TREATMENTS) as [TaxTreatment, ...TaxTreatment[]];
 
 /** Hinweis auf der Rechnung: eigener Text (z. B. die genaue Befreiungsvorschrift) oder der Standardtext */
@@ -121,7 +130,7 @@ export function treatmentIssues(
     }
     // Nordirland gehört für Waren weiter zum Gemeinschaftsgebiet (XI-Nummer bei Ländercode GB)
     const nordirland = country === "GB" && buyerUstId.startsWith("XI");
-    if (country && (country === "DE" || !(EU_COUNTRIES.has(country) || nordirland))) {
+    if (country && (country === "DE" || !(inEuVatArea(country) || nordirland))) {
       issues.push("Innergemeinschaftliche Lieferung nur an Kunden in einem anderen EU-Mitgliedstaat");
     }
   }
@@ -129,7 +138,7 @@ export function treatmentIssues(
     // EN 16931 BR-G-02: Kategorie G verlangt die USt-IdNr. des Verkäufers (BT-31) oder seines Steuervertreters
     if (!input.sellerUstId?.trim()) issues.push("Ausfuhrlieferung braucht deine USt-IdNr. in den Firmendaten (EN 16931 BR-G-02)");
     // Haben nimmt die Anschrift des Kunden als Bestimmungsort; liegt sie in der EU, passt die Ausfuhr nicht
-    if (country && EU_COUNTRIES.has(country)) {
+    if (country && inEuVatArea(country)) {
       issues.push("Ausfuhrlieferung nur an Kunden außerhalb der EU; im Gemeinschaftsgebiet ist es eine innergemeinschaftliche Lieferung");
     }
   }

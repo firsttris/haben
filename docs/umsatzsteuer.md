@@ -136,6 +136,8 @@ In der EÜR zählt sie wie jede Umsatzsteuer-Vorauszahlung als gezahlte Umsatzst
 
 Leistungen an Unternehmer im EU-Ausland mit Reverse Charge (Kz 21) und innergemeinschaftliche Lieferungen (Kz 41) meldest du zusätzlich dem Bundeszentralamt für Steuern (BZSt), je USt-IdNr. des Kunden und Umsatzart die Summe der Bemessungsgrundlagen eines Kalendervierteljahres, bis zum 25. Tag nach Quartalsende (§ 18a Abs. 1, 2 und 7 UStG). Eine Dauerfristverlängerung gilt dafür nicht. Kleinunternehmer melden nichts (§ 18a Abs. 4 UStG).
 
+Monaco gilt umsatzsteuerlich als Gebiet Frankreichs ([§ 1 Abs. 2a UStG](https://www.gesetze-im-internet.de/ustg_1980/__1.html)); Unternehmen dort haben eine französische USt-IdNr. Haben behandelt einen Kunden mit Land MC deshalb wie einen in Frankreich: Reverse Charge und innergemeinschaftliche Lieferung passen, eine Ausfuhrlieferung nicht, und der Rechnungsentwurf an eine Store-Gesellschaft in Monaco bekommt Reverse Charge.
+
 Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr>-Q<Quartal>`) erreichst du über den Hinweis auf der Voranmeldung, sobald es im Zeitraum Kz 21 oder 41 gibt, und über die Frist unter [Fristen](fristen.md). Quartale ohne solche Umsätze tauchen nirgends auf, auch nicht, wenn sie sich im Quartal aufheben (etwa durch ein Storno); eine Nullmeldung gibt es nicht.
 
 ### Woher die Zeilen kommen
