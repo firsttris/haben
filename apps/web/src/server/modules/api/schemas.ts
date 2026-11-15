@@ -149,6 +149,9 @@ const lineInputSchema = z
     ...lineFields,
     // Die Felder kommen aus @haben/core (zod/mini) und kennen kein .describe; z.describe als Prüfung gibt es für beide
     quantity: lineFields.quantity.check(z.describe("Menge in Tausendsteln: 1 Stück = 1000, 1,5 Stunden = 1500")),
+    unit: lineFields.unit.check(
+      z.describe("Einheit: Std., Tag, Monat, Stk., Psch., km oder die Bezeichnung einer eigenen Einheit (Einstellungen › Rechnungen › Einheiten)"),
+    ),
     unitPrice: lineFields.unitPrice.check(z.describe("Einzelpreis in Cent, netto oder brutto je nach priceMode")),
     taxRate: lineFields.taxRate.check(z.describe("Steuersatz in Basispunkten: 1900 = 19 %, 700 = 7 %, 0")),
     detail: lineFields.detail.describe("Mehrzeiliger Text unter der Bezeichnung (BT-154)"),
