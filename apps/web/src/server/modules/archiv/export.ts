@@ -1289,6 +1289,7 @@ const LEGACY_SOURCE_LABELS = {
   wiso: "WISO",
   import: "JSON-Import",
   fastbill: "FastBill",
+  "sevdesk-export": "sevDesk-Export",
 } as const;
 
 const LEGACY_TYPE_LABELS: Record<string, string> = {
