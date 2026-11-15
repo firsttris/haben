@@ -62,21 +62,29 @@ export function archiveVoucherOf(exp: SevExport, voucher: SevExportVoucher): Sev
 
   let gross: Cents;
   let direction: SevArchiveVoucher["direction"];
+  // Vorzeichen je Zeile im Verhältnis zum Beleg: Eine Minderung (Rabatt, verrechnete Anzahlung) mindert auch die Steuer
+  let lineSigns: number[];
   if (voucher.accountKind) {
     gross = voucher.amount;
     direction = voucher.accountKind === "erloese" ? "einnahme" : "ausgabe";
+    lineSigns = voucher.lines.map((line) => Math.sign(line.amount));
   } else {
     // Positiv: Geld geht hinaus (Sachkonto im Soll)
-    const outflow = voucher.lines.reduce((sum, line) => sum + (sachkonto(line, accountLength(line)).debited ? 1 : -1) * Math.abs(line.amount), 0);
+    const outflowSigns = voucher.lines.map((line) => (sachkonto(line, accountLength(line)).debited ? 1 : -1));
+    const outflow = voucher.lines.reduce((sum, line, i) => sum + outflowSigns[i]! * Math.abs(line.amount), 0);
     gross = Math.abs(outflow);
     direction = outflow >= 0 ? "ausgabe" : "einnahme";
+    lineSigns = outflowSigns.map((s) => (outflow >= 0 ? s : -s));
   }
-  const sign = gross < 0 ? -1 : 1;
 
   // Steuer aus Beleginfo (in Euro, auch bei Fremdwährung), sonst aus BU-Schlüssel oder Automatikkonto je Zeile
   const rates = voucher.lines.map((line) => lineRate(line, kontenrahmen(line), sachkonto(line, accountLength(line)).account));
-  const derived = voucher.lines.reduce((sum, line, i) => sum + (rates[i] ? Math.round((Math.abs(line.amount) * rates[i]!) / (100 + rates[i]!)) : 0), 0);
-  const tax = sign * Math.abs(voucher.tax ?? derived);
+  const fromInfo = voucher.lines.some((line) => line.info.tax !== null);
+  const tax = voucher.lines.reduce((sum, line, i) => {
+    const rate = rates[i]!;
+    const lineTax = fromInfo ? Math.abs(line.info.tax ?? 0) : rate ? Math.round((Math.abs(line.amount) * rate) / (100 + rate)) : 0;
+    return sum + lineSigns[i]! * lineTax;
+  }, 0);
   const rate = voucher.rate ?? (rates.every((r) => r === rates[0]) ? rates[0]! * 100 : 0);
 
   const type: SevArchiveType =
