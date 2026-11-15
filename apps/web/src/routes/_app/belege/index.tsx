@@ -23,6 +23,8 @@ export const Route = createFileRoute("/_app/belege/")({
   component: DocumentsPage,
 });
 
+const richtungText = (dir: "auf" | "ab") => (dir === "ab" ? "absteigend" : "aufsteigend");
+
 function DocumentsPage() {
   const { documents, aiAvailable, inbox } = Route.useLoaderData();
   const inhaber = Route.useRouteContext().user.role === "inhaber";
@@ -69,10 +71,12 @@ function DocumentsPage() {
         to="/belege"
         search={(prev: Record<string, unknown>) => ({ ...prev, sort: feld, dir: naechste }) as { sort: typeof feld; dir: "auf" | "ab" }}
         className={aktiv ? `${klasse} aktiv` : klasse}
-        title={`nach ${text} ${naechste === "ab" ? "absteigend" : "aufsteigend"} sortieren`}
       >
         {text}
-        {aktiv ? (dir === "ab" ? " \u2193" : " \u2191") : ""}
+        {aktiv && <span aria-hidden="true">{dir === "ab" ? " \u2193" : " \u2191"}</span>}
+        {/* Die Richtung im Namen des Links wie in BankSortierKopf, aber ohne aria-label: Das träfe in getByLabel auch
+            die gleichnamigen Formularfelder (#1113) */}
+        <span className="visually-hidden">{` ${richtungText(naechste)} sortieren${aktiv ? `, zurzeit ${richtungText(dir)} sortiert` : ""}`}</span>
       </Link>
     );
   };

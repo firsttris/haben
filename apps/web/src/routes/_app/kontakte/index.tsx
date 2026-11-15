@@ -28,6 +28,8 @@ export const Route = createFileRoute("/_app/kontakte/")({
   component: ContactsPage,
 });
 
+const richtungText = (dir: "auf" | "ab") => (dir === "ab" ? "absteigend" : "aufsteigend");
+
 const ROLE_FILTERS = [
   { label: "Alle", role: undefined },
   { label: "Kunden", role: "kunde" },
@@ -71,10 +73,13 @@ function ContactsPage() {
         to="/kontakte"
         search={(prev: Record<string, unknown>) => ({ ...prev, sort: feld, dir: naechste }) as { sort: typeof feld; dir: "auf" | "ab" }}
         className={aktiv ? "sort-head aktiv" : "sort-head"}
-        title={`nach ${text} ${naechste === "auf" ? "aufsteigend" : "absteigend"} sortieren`}
       >
         {text}
-        <span className={aktiv ? "" : "muted"}>{aktiv ? (dir === "auf" ? " \u2191" : " \u2193") : " \u2195"}</span>
+        <span className={aktiv ? "" : "muted"} aria-hidden="true">
+          {aktiv ? (dir === "auf" ? " \u2191" : " \u2193") : " \u2195"}
+        </span>
+        {/* Die Richtung im Namen des Links wie in BankSortierKopf, ohne aria-label (siehe Belegliste) */}
+        <span className="visually-hidden">{` ${richtungText(naechste)} sortieren${aktiv ? `, zurzeit ${richtungText(dir)} sortiert` : ""}`}</span>
       </Link>
     );
   };
