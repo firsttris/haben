@@ -259,4 +259,23 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     const [zwischenkonto] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account = '1548'`;
     expect({ ...(await beideQuellen(monate)), zwischenkonto: zwischenkonto!.saldo }).toEqual({ journal: [0, 0], nebenbuecher: [0, 0], zwischenkonto: 0 });
   });
+  // Teilzahlung nach der Ausführung: Die ganze Vorsteuer ist seit Dezember abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 UStG), eine
+  // Teilzahlung im Januar ändert daran nichts und darf keinen Teil auf das Zwischenkonto zurückholen
+  it("Journal als Quelle: Teilzahlung nach der Ausführung mindert Kz 66 nicht", async () => {
+    await firma({ journalAb: 2026, kontenrahmen: "SKR04", versteuerung: "soll" });
+    const id = await beleg({ datum: "2026-11-20", von: "2026-11-15", bis: "2026-12-14", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    await zahlung(id, -1_000, "2027-01-10");
+
+    const monate = [
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+      { year: 2027, month: 1 },
+    ];
+    const [zwischenkonto] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account = '1434'`;
+    expect({ ...(await beideQuellen(monate)), zwischenkonto: zwischenkonto!.saldo }).toEqual({
+      journal: [0, 616, 0],
+      nebenbuecher: [0, 616, 0],
+      zwischenkonto: 0,
+    });
+  });
 });

@@ -113,4 +113,40 @@ describe.skipIf(!testDatabaseUrl)("EÜR: Zwischenkonto der Gutschrift „erstatt
     await erstattung(id, 11_900);
     expect(await zeilen()).toEqual({ "ausgabe:software": -10_000, vorsteuer: -1_900 });
   }, 30_000);
+  // Leistung nach dem Belegdatum (#693): Die Freigabe zum Leistungsdatum bucht nur vom Zwischenkonto auf die Vorsteuer um.
+  // In der EÜR ist die gezahlte Vorsteuer Betriebsausgabe im Jahr der Zahlung (§ 11 Abs. 2 EStG, Anleitung EÜR Zeile
+  // „Gezahlte Vorsteuerbeträge“), nicht im Jahr der Ausführung, und eine unbezahlte Rechnung wirkt gar nicht
+  it("Leistung nach dem Belegdatum, im Folgejahr bezahlt: Vorsteuer in der EÜR im Jahr der Zahlung", async () => {
+    for (const kr of ["SKR03", "SKR04"] as const) {
+      await firma(kr);
+      lauf++;
+      const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, lauf % 251, 7]), filename: `beleg-${lauf}.jpg` });
+      await documents.updateDocument(actor, id, {
+        supplierName: "Stadtwerke Beispiel GmbH",
+        supplierUstId: "",
+        invoiceNumber: `B-${lauf}`,
+        documentDate: "2026-11-20",
+        dueDate: null,
+        serviceFrom: "2026-11-15",
+        serviceTo: "2026-12-14",
+        category: "software",
+        payment: "bank",
+        note: "",
+        amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+      });
+      await documents.bookDocument(actor, id);
+      // Unbezahlt: keine Betriebsausgabe, auch nicht die freigegebene Vorsteuer
+      expect(await zeilen(2026), kr).toEqual({});
+
+      const csv =
+        `"Girokonto";"DE89 3704 0044 0532 0130 00"\n\n` +
+        `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+        `"10.01.27";"10.01.27";"Gebucht";"Stadtwerke Beispiel GmbH";"Testfirma";"Zahlung";"Ausgang";"DE02100100100006820101";"-119,00";"";"";""\n`;
+      await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: `zahlung-${++lauf}.csv` }, null);
+      const [umsatz] = await sql`select id from bank_transactions order by booking_date limit 1`;
+      await bank.allocate(actor, { kind: "document", transactionId: umsatz!.id as string, documentId: id, amount: -11_900 });
+
+      expect({ y26: await zeilen(2026), y27: await zeilen(2027) }, kr).toEqual({ y26: {}, y27: { "ausgabe:software": 10_000, vorsteuer: 1_900 } });
+    }
+  }, 60_000);
 });
