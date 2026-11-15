@@ -1748,15 +1748,29 @@
     {
       "idx": 249,
       "version": "7",
-      "when": 1794755095787,
-      "tag": "0249_sevdesk_wkr_vorlagen",
+      "when": 1794756475655,
+      "tag": "0249_bank_private_marks",
       "breakpoints": true
     },
     {
       "idx": 250,
       "version": "7",
-      "when": 1794755099341,
-      "tag": "0250_sevdesk_wkr_vorlagen_trigger",
+      "when": 1794756478045,
+      "tag": "0250_bank_private_marks_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 251,
+      "version": "7",
+      "when": 1794762523750,
+      "tag": "0251_sevdesk_wkr_vorlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 252,
+      "version": "7",
+      "when": 1794762524880,
+      "tag": "0252_sevdesk_wkr_vorlagen_trigger",
       "breakpoints": true
     }
   ]

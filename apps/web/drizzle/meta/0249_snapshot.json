@@ -1,5 +1,5 @@
 {
-  "id": "ede088cd-eb3d-475f-8abe-324ab9eddeba",
+  "id": "49b21283-73dd-48a8-83fe-7c01f40e6933",
   "prevId": "0848f345-884d-4875-8c62-39f93dd42b19",
   "version": "7",
   "dialect": "postgresql",
@@ -2113,6 +2113,53 @@
           "value": "\"bank_neutralizations\".\"reverses_id\" is not null or length(btrim(\"bank_neutralizations\".\"note\")) > 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.bank_private_marks": {
+      "name": "bank_private_marks",
+      "schema": "",
+      "columns": {
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "marked_at": {
+          "name": "marked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "bank_private_marks_transaction_id_bank_transactions_id_fk": {
+          "name": "bank_private_marks_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "bank_private_marks",
+          "tableTo": "bank_transactions",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.bank_transactions": {
@@ -14793,123 +14840,6 @@
           "value": "\"sevdesk_connection\".\"id\" = 1"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.sevdesk_recurring_templates": {
-      "name": "sevdesk_recurring_templates",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "sevdesk_id": {
-          "name": "sevdesk_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "import_id": {
-          "name": "import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recurring_id": {
-          "name": "recurring_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "billing": {
-          "name": "billing",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "billing_evidence": {
-          "name": "billing_evidence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "placeholders": {
-          "name": "placeholders",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hints": {
-          "name": "hints",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "raw": {
-          "name": "raw",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "sevdesk_recurring_templates_import_id_lexoffice_imports_id_fk": {
-          "name": "sevdesk_recurring_templates_import_id_lexoffice_imports_id_fk",
-          "tableFrom": "sevdesk_recurring_templates",
-          "tableTo": "lexoffice_imports",
-          "columnsFrom": [
-            "import_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "sevdesk_recurring_templates_recurring_id_recurring_invoices_id_fk": {
-          "name": "sevdesk_recurring_templates_recurring_id_recurring_invoices_id_fk",
-          "tableFrom": "sevdesk_recurring_templates",
-          "tableTo": "recurring_invoices",
-          "columnsFrom": [
-            "recurring_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "sevdesk_recurring_templates_sevdesk_id_unique": {
-          "name": "sevdesk_recurring_templates_sevdesk_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "sevdesk_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.sso_issuers": {
