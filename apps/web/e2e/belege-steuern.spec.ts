@@ -3027,7 +3027,7 @@ test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098
   await go(`/jahreserklaerung/${jahr}`);
   const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
 
-  // Vermerkt ist die Maske zu. Ohne Vermerk gäbe es nichts zu sperren, deshalb hier anlegen, falls nötig.
+  // Vermerkt ist die Maske zu. Ohne Vermerk gäbe es nichts zu sperren, deshalb legt der Test ihn hier an.
   const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Einkommensteuererklärung ${jahr}` });
   const vermerken = karte.getByRole("button", { name: "Abgabe vermerken" });
   if (await vermerken.isVisible().catch(() => false)) {
@@ -3036,8 +3036,8 @@ test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098
     await dialog.getByLabel("Tag der Abgabe").fill(`${jahr + 1}-01-05`);
     await dialog.getByLabel("Transferticket").fill("et9f3k2m7q1xb");
     await dialog.getByLabel("Begründung").fill("Einkommensteuererklärung außerhalb von Haben mit WISO abgegeben.");
-    const betrag = dialog.getByLabel("Betrag");
-    if (await betrag.count()) await betrag.fill("1.000,00");
+    // Der ESt-Vermerk trägt keinen Betrag (#1073): den gibt es erst mit dem Bescheid, deshalb steht im Dialog kein Feld
+    await expect(dialog.getByLabel("Betrag")).toHaveCount(0);
     const haken = dialog.getByLabel("Abweichung geprüft und bewusst übernommen");
     if (await haken.count()) await haken.check();
     await dialog.getByRole("button", { name: "Vermerken" }).click();
