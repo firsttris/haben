@@ -364,4 +364,23 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     const treffer = await search.runCommandPaletteSearch("Bergblick Kredit", "inhaber");
     expect(treffer.loans.hits.map((l) => l.balance)).toEqual([1000000]);
   });
+
+  it("nennt einen teilweise zugeordneten Bankumsatz offen wie der Filter auf der Bankseite", async () => {
+    const [loan] = await sql`insert into loans (name, lender, term, purpose, opening_balance)
+      values ('Teilkredit', 'bank', 'ueber5', 'betrieb', 1000000) returning id`;
+    const [ba] = await sql`insert into bank_accounts (name, iban, purpose) values ('Konto', 'DE89370400440532013000', 'geschaeft') returning id`;
+    const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${ba!.id}, 't.csv', 'sha-teil', 'csv', 2, 0) returning id`;
+    const [teil, ganz] = await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, purpose, dedup_hash)
+      values (${ba!.id}, ${bi!.id}, '2026-10-01', -250000, 'Teilbank AG', 'Rate Oktober', 'teil-1'),
+             (${ba!.id}, ${bi!.id}, '2026-11-01', -200000, 'Teilbank AG', 'Rate November', 'teil-2') returning id`;
+    // Nur die Zuordnungen, ohne die Buchungen des Hauptbuchs; der offene Betrag liest nur sie
+    await sql.begin(async (t) => {
+      await t`set local session_replication_role = replica`;
+      await t`insert into allocations (transaction_id, kind, amount, loan_id, loan_part)
+        values (${teil!.id}, 'darlehen', -200000, ${loan!.id}, 'tilgung'), (${ganz!.id}, 'darlehen', -200000, ${loan!.id}, 'tilgung')`;
+    });
+    const treffer = await search.runCommandPaletteSearch("Teilbank", "inhaber");
+    expect(Object.fromEntries(treffer.bankTransactions.hits.map((t) => [t.purpose, t.allocated]))).toEqual({ "Rate Oktober": false, "Rate November": true });
+  });
 });
