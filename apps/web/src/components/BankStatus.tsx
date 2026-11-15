@@ -2,7 +2,7 @@ import { formatEuro } from "@haben/core";
 import { daysUntil, formatDate, formatDayMonth, relativeDays } from "../lib/format.ts";
 import { Status, type StatusLook } from "./Status.tsx";
 
-type Hint = "vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "verrechnet";
+type Hint = "vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "privat" | "verrechnet";
 
 const HINT: Record<Hint, StatusLook> = {
   // Ein Klick erledigt den Umsatz: hebt die Zeilen hervor, die ohne Suchen gehen
@@ -13,6 +13,8 @@ const HINT: Record<Hint, StatusLook> = {
   teilweise: { text: "Teilweise", tone: "info" },
   zugeordnet: { text: "Zugeordnet", tone: "ok" },
   verrechnet: { text: "Verrechnet", tone: "ok" },
+  // Kein offener Posten, obwohl nichts gebucht ist: Auf einem privaten Konto fehlt dem Umsatz die Buchungsart (#1088)
+  privat: { text: "Privat, kein Betriebsvorgang", tone: "neutral" },
 };
 
 const SUGGESTION_KIND = { invoice: "Rechnung", document: "Beleg", ustva: "Voranmeldung" } as const;
