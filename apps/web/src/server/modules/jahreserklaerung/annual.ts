@@ -522,7 +522,8 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
 function estAbweichungHinweis(zeilen: Record<string, number>, est: EstYear): Issue[] {
   const erklaert = zeilen.festgesetzteSteuer;
   if (erklaert === undefined) return [];
-  const gerechnet = est.prognose.gesamt;
+  // Die Zeile ist die Einkommensteuer allein; Soli und Kirchensteuer setzt der Bescheid gesondert fest
+  const gerechnet = est.prognose.einkommensteuer;
   if (gerechnet === erklaert) return [];
   const abweichung = gerechnet - erklaert;
   return [
