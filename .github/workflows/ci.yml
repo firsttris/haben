@@ -394,7 +394,8 @@ jobs:
           bun deploy/instanzen/haben-instanzen.ts portal | tee "$RUNNER_TEMP/portal.txt"
           grep -qx "Nichts geändert." "$RUNNER_TEMP/portal.txt"
           grep -q "Ohne SSO, nicht im Firmenportal: firma1 firma2" "$RUNNER_TEMP/portal.txt"
-          ! bun deploy/instanzen/haben-instanzen.ts liste | grep -q firmenportal
+          # Ohne !: An einer mit ! verneinten Pipeline bricht bash -e nicht ab, sie zählte nur als letzte Zeile des Schritts
+          if bun deploy/instanzen/haben-instanzen.ts liste | grep -q firmenportal; then echo "liste zeigt das Firmenportal" >&2; exit 1; fi
           # Eigenes Netz je Instanz (#872): Der gemeinsame Caddy erreicht jede App, die App von Firma 1 die von
           # Firma 2 nicht; auch nach einem Neuaufbau des Caddy und einem Neustart von Docker. Startet Docker neu,
           # deshalb zuletzt
