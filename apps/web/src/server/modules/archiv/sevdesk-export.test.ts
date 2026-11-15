@@ -154,6 +154,23 @@ describe.skipIf(!testDatabaseUrl)("sevDesk ohne API: Export-ZIP übernehmen (Pos
     expect(await counts()).toEqual({ vouchers: 3, files: 2, archived: 2, bookings: 3 });
   });
 
+  it("Fremdwährung ohne Euro-Betrag in Beleginfo: kein Archivbeleg mit dem Fremdbetrag als Euro, sondern ein Fehler mit Grund", async () => {
+    const usd = rechnung!
+      .replace(/^100,00;"H";"EUR"/, '106,00;"H";"USD"')
+      .replace(";84,03;", ";;")
+      .replace(";15,97;", ";;");
+    const bytes = zip({
+      [STAPEL]: strToU8([kopf, spalten, usd, ausgabe!].join("\n")),
+      "DATEV_Rechnungsausgang_20240101_20241231.zip": innerZip(fixture("buchhaltung-2.0/document-rechnungsausgang.xml")),
+      "DATEV_Rechnungseingang_20240101_20241231.zip": innerZip(fixture("buchhaltung-2.0/document-rechnungseingang.xml")),
+    });
+    const result = await run(bytes);
+    const stored = await sql`select gross, currency from lexoffice_vouchers where raw->>'currency' = 'USD'`;
+    expect(stored).toEqual([]);
+    expect(result.progress.failed).toEqual([expect.objectContaining({ number: "XX-1111111111", message: expect.stringMatching(/USD/) })]);
+    expect(result.progress).toMatchObject({ imported: 1 });
+  });
+
   it("ein Jahr mit Belegen aus der API bekommt keine Belege aus dem Export", async () => {
     const [imp] = await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{"phase":"fertig"}'::jsonb, 'sevdesk') returning id`;
     await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, source, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
@@ -162,7 +179,27 @@ describe.skipIf(!testDatabaseUrl)("sevDesk ohne API: Export-ZIP übernehmen (Pos
     expect(result.sevdeskExport).toMatchObject({ apiYears: [2024], inApiYears: 3 });
     expect(result.progress).toMatchObject({ imported: 0, skipped: 3 });
     expect(await counts()).toMatchObject({ vouchers: 0, archived: 2, bookings: 3 });
+    // Die Summen bleiben die der API-Belege; der Stapel des Exports kommt nicht noch einmal dazu
+    const year = (await lex.reconciliation()).years.find((y) => y.year === 2024)!;
+    expect(year.einnahmen).toMatchObject({ net: 100, tax: 19 });
   });
+
+  it.each(["SKR03", "SKR04"] as const)(
+    "Mischjahr (%s): Belege aus Lexoffice bis zum Wechsel, danach der Export aus sevDesk; dessen Teil zählt aus dem Stapel",
+    async (kontenrahmen) => {
+      await company(kontenrahmen, "soll");
+      const [imp] =
+        await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{"phase":"fertig"}'::jsonb, 'lexoffice') returning id`;
+      await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, source, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
+        values ('lex-1', ${imp!.id}, 'lexoffice', 'salesinvoice', 'einnahme', 'LX-1', '2024-01-05', 'paid', 'Kunde', 10000, 1900, 11900,
+          '[{"rate":1900,"net":10000,"tax":1900}]'::jsonb, '[]'::jsonb, null, '{}'::jsonb)`;
+      await run(exportZip(kontenrahmen));
+      const year = (await lex.reconciliation()).years.find((y) => y.year === 2024)!;
+      // Lexoffice 100,00 + 19,00, dazu aus dem Stapel des Exports Rechnung 84,03 + 15,97 und Ausgabe 84,03 + 15,97
+      expect(year.einnahmen).toMatchObject({ net: 10000 + 8403, tax: 1900 + 1597 });
+      expect(year.ausgaben).toMatchObject({ net: 8403, tax: 1597 });
+    },
+  );
 
   describe.each([
     ["SKR03", "soll"],

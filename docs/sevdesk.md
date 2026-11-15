@@ -42,8 +42,10 @@ Ist die REST-API nicht Teil deines Tarifs, gibt es zwei Wege:
 Einnahme oder Ausgabe richtet sich nach der Buchung, nicht nach dem Ordner in sevDesk:
 
 - **Erlöskonto:** Einnahme; im Soll gebucht, etwa eine Gutschrift, mindert sie die Einnahmen. Das gilt auch für einen Beleg aus dem Rechnungseingang auf einem Erlöskonto; der Hinweis „Richtung prüfen“ nennt ihn.
-- **Aufwandskonto:** Ausgabe. Gutschriften für Honorar und Provision liegen im Rechnungsausgang, sind aber im Soll eines Aufwandskontos mit Vorsteuer (BU 8 oder 9) gebucht: Abrechnung im Gutschriftverfahren (§ 14 Abs. 2 Satz 2 UStG), also Ausgabe-Gutschrift mit Vorsteuer wie beim Abruf über die API, ohne Hinweis.
+- **Aufwandskonto:** Ausgabe. Eine Gutschrift aus dem Rechnungsausgang im Soll mit Vorsteuer (BU 8 oder 9), etwa für Honorar oder Provision, ist eine Abrechnung im Gutschriftverfahren (§ 14 Abs. 2 Satz 2 UStG): Ausgabe-Gutschrift mit Vorsteuer wie beim Abruf über die API, ohne Hinweis.
 - **Andere Konten** (Darlehen, Privat, Steuern, Zinsen, Anlagen): Einnahme, wenn das Konto im Haben steht (Geld kommt herein), sonst Ausgabe, immer mit positivem Betrag.
+
+Ein Beleg in Fremdwährung ohne Netto und Steuer in der Beleginfo hat keinen Euro-Betrag. Haben legt ihn nicht an, nennt ihn im Fortschritt mit Grund und behält ihn nur in ZIP-Datei und Buchungsstapel; trage ihn bei Bedarf von Hand ein.
 
 Einnahmen, Ausgaben und Umsatzsteuer eines Jahres nimmt der [Abgleich](#schritt-3-bis-5) aus dem Buchungsstapel nach Kontenbereich, nicht aus diesen Belegen; ein Darlehen zählt dort also weder als Einnahme noch als Ausgabe. Offene Posten legt der Export nicht an, weil er keinen Zahlungsstand je Beleg kennt; trage sie von Hand ein.
 
@@ -76,7 +78,7 @@ Verglichen an einem Konto mit Buchhaltungsversion 1.0 und SKR03, Jahr 2024: 210 
 - **Belegbilder:** Der Export hat auch Bilder, wo die API keine Datei meldet (8 Belege, alle zu einem wiederkehrenden Beleg).
 - **Belegnummern:** Wiederkehrende Belege teilen ihre Nummer (bis zu 9 Belege je Nummer); erst das Datum unterscheidet sie. Zeichen außerhalb des DATEV-Zeichensatzes fehlen (siehe [Schritt 3 bis 5](#schritt-3-bis-5)).
 - **Fremdwährung:** Im Umsatz steht der Betrag in der Fremdwährung, Netto und Steuer in der Beleginfo stehen in Euro. `Kurs` und `Basis-Umsatz` sind leer.
-- **Gutschriften für Honorar und Provision** liegen im Ordner Rechnungsausgang, sind aber auf einem Aufwandskonto im Soll mit BU 9 gebucht (Konten 31xx, 47xx, 49xx; Exporte vom November 2026). Maßgeblich ist die Buchung: Es ist Aufwand mit Vorsteuer, wie beim Abruf über die API.
+- **Gutschriften für Honorar und Provision** liegen im Ordner Rechnungsausgang, sind aber auf einem Aufwandskonto im Soll mit BU 9 gebucht (Konten 31xx, 47xx, 49xx; Exporte vom November 2026), siehe [Export übernehmen](#export-übernehmen).
 - **Was nur die API hat:** Positionen, Steuerregel, Zahlungsstand und die Zuordnung der Zahlungen zu Belegen, Angebote und Aufträge.
 - **Kopf des Stapels:** Der Kontenrahmen steht nicht darin; Haben nimmt den aus den Firmendaten. Ein Export umfasst höchstens ein Wirtschaftsjahr.
 

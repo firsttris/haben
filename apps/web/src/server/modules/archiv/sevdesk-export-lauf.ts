@@ -1,6 +1,7 @@
 import { archiveVoucherOf, type SevExportStack, type SevExportVoucher } from "@haben/import";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema, type Tx } from "../../db/index.ts";
+import { UserError } from "../../errors.ts";
 import type { LexofficeImportProgress, SevdeskExportProgress } from "../../db/schema.ts";
 import { sha256Of, sniff, storeFile } from "../../storage.ts";
 import { storeDatevBookings } from "./accountable-import.ts";
@@ -59,6 +60,12 @@ export async function runSevdeskExportImport(
       continue;
     }
     try {
+      // Ohne Netto und Steuer in Beleginfo kennt der Export keinen Euro-Betrag: lieber kein Beleg als ein falscher in Euro.
+      // ZIP und Stapel liegen trotzdem als Original im Archiv.
+      const foreign = voucher.lines.find((l) => l.booking.currency !== "EUR" && l.info.net === null && l.info.tax === null);
+      if (foreign) {
+        throw new UserError(`Betrag in ${foreign.booking.currency} ohne Euro-Betrag in Beleginfo; Beleg nicht angelegt, er steht nur in der ZIP.`);
+      }
       const file = voucher.guid ? (exp.files.get(voucher.guid) ?? null) : null;
       const outcome = await storeVoucher(tx, importId, voucher, archive, file, result.archivedFileId);
       if (outcome.created) progress.imported += 1;
