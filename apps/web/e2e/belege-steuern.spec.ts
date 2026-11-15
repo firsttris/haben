@@ -2684,6 +2684,8 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
   // Die Karte traegt Formular und Jahr im Namen, weil sie auf der Seite zweimal vorkommt (USt und EÜR)
   const karte = ust.getByRole("region", { name: `Abgabe außerhalb von Haben: Umsatzsteuererklärung ${jahr}`, exact: true });
+  const uebermitteln = ust.getByRole("form", { name: "Umsatzsteuererklärung übermitteln", exact: true });
+  await expect(uebermitteln).toBeVisible();
   await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
@@ -2715,6 +2717,8 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await expect(karte.locator("p", { hasText: `Abgegeben am 02.01.${jahr + 1}` })).toBeVisible();
   await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
   await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
+  // Neben der Vermerk-Karte steht kein ausgegrauter Kasten zum Übermitteln mehr (#1080)
+  await expect(uebermitteln).toHaveCount(0);
   // Begründung und Protokoll stehen zugeklappt darunter: verdeckt heißt nicht sichtbar, also erst zugeklappt
   // prüfen, dann aufklappen und Begründung wie Protokollverweis sichtbar nachsehen
   const begruendung = karte.getByText("Umsatzsteuererklärung extern mit WISO abgegeben.");
