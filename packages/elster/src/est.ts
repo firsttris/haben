@@ -39,6 +39,19 @@ export interface EstVorsorgePerson {
   ppv?: Cents;
   /** Erstattungen der privaten Kranken- und Pflegeversicherung */
   pkvErstattung?: Cents;
+  /** Beiträge zu zertifizierten Basisrentenverträgen (Rürup, § 10 Abs. 1 Nr. 2 b EStG) */
+  basisrente?: Cents;
+  /** Privat: über die Basisabsicherung hinaus, also Wahlleistungen (§ 10 Abs. 1 Nr. 3 a EStG) */
+  pkvWahlleistungen?: Cents;
+  /**
+   * Steuerfreier Arbeitgeberzuschuss zur gesetzlichen Krankenversicherung (§ 3 Nr. 62 EStG, Nr. 24 a).
+   * ERiC verlangt dazu Beiträge zur Basiskrankenversicherung derselben Person (Regel 100240075).
+   */
+  agZuschussGkv?: Cents;
+  /** Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung (§ 3 Nr. 62 EStG, Nr. 24 b) */
+  agZuschussKv?: Cents;
+  /** Steuerfreier Arbeitgeberzuschuss zur Pflegeversicherung (§ 3 Nr. 62 EStG, Nr. 24 c), gesetzlich wie privat */
+  agZuschussPv?: Cents;
 }
 
 export interface EstKind {
@@ -106,12 +119,21 @@ export interface EstWerbungskosten {
   gewerkschaft?: Cents;
   /** Weitere, etwa Kontoführung oder Bewerbungen */
   sonstige?: Cents;
+  /** Häusliches Arbeitszimmer als Mittelpunkt der gesamten Tätigkeit: Aufwendungen oder Jahrespauschale (§ 4 Abs. 5 Satz 1 Nr. 6b, § 9 Abs. 5 EStG) */
+  arbeitszimmer?: Cents;
 }
 
 /** Arbeitslohn einer Person, Anlage N */
 export interface EstArbeitnehmer {
   bescheinigungen: EstLohnsteuerbescheinigung[];
   werbungskosten: EstWerbungskosten;
+}
+
+/** Einkommensersatzleistung mit Progressionsvorbehalt (§ 32b EStG), Zeile des Hauptvordrucks */
+export interface EstErsatzleistung {
+  /** Art der Leistung, z. B. Arbeitslosengeld, Elterngeld, Krankengeld, Mutterschaftsgeld */
+  art: string;
+  betrag: Cents;
 }
 
 export interface EstAngaben {
@@ -122,6 +144,8 @@ export interface EstAngaben {
   haushaltsnah: { minijobs?: Cents; dienstleistungen?: Cents /** nur Lohn-, Maschinen- und Fahrtkosten */; handwerker?: Cents };
   kinder: EstKind[];
   kap?: EstKap;
+  /** Einkommensersatzleistungen je Person; steuerfrei, erhöhen aber den Steuersatz */
+  ersatzleistungen?: { a?: EstErsatzleistung[]; b?: EstErsatzleistung[] };
   /** Anlage N je Person */
   arbeitnehmer?: { a?: EstArbeitnehmer; b?: EstArbeitnehmer };
 }
@@ -500,6 +524,8 @@ export function buildEstXml(input: EstXmlInput): string {
         const felder: XmlNode[] = [
           ["E2000401", euro(lstb(an, "rvArbeitnehmer"))],
           ["E2000601", euro(v?.rentenversicherung)],
+          // Zeile 8: zertifizierte Basisrentenverträge (Rürup), teilt den Höchstbetrag mit Zeile 4 bis 6
+          ["E2000701", euro(v?.basisrente)],
           ["E2000801", euro(lstb(an, "rvArbeitgeber"))],
         ];
         return felder.some((f) => f[1]) ? ["AVor", [["Person", person], ...felder]] : null;
@@ -536,15 +562,32 @@ export function buildEstXml(input: EstXmlInput): string {
           ],
         ];
       }),
+      ...vorsorgePersonen.map(([person, v]): XmlNode | null => {
+        // Zeile 27: über die Basisabsicherung hinaus, brutto; erstattete Beiträge stehen in Zeile 25 (E2003302)
+        // und sind hier deshalb nicht noch einmal abzuziehen
+        const wahl = euro(v?.pkvWahlleistungen);
+        if (!euro(v?.pkv) && !euro(v?.ppv) && !euro(v?.pkvErstattung) && !wahl) return null;
+        return [
+          "Beitr_p_KV_PV_Inl",
+          [
+            ["Person", person],
+            ["E2003104", euro(v?.pkv)],
+            ["E2003202", euro(v?.ppv)],
+            ["E2003302", euro(v?.pkvErstattung)],
+            wahl ? ["WL_Zvers", [["E2003502", wahl]]] : null,
+          ],
+        ];
+      }),
       ...vorsorgePersonen.map(([person, v]): XmlNode | null =>
-        euro(v?.pkv) || euro(v?.ppv) || euro(v?.pkvErstattung)
+        // Zeilen 34 bis 36: steuerfreie Zuschüsse des Arbeitgebers laut Nr. 24 a, 24 b und 24 c
+        euro(v?.agZuschussGkv) || euro(v?.agZuschussKv) || euro(v?.agZuschussPv)
           ? [
-              "Beitr_p_KV_PV_Inl",
+              "Stfr_AG_Zusch",
               [
                 ["Person", person],
-                ["E2003104", euro(v?.pkv)],
-                ["E2003202", euro(v?.ppv)],
-                ["E2003302", euro(v?.pkvErstattung)],
+                ["E2003705", euro(v?.agZuschussGkv)],
+                ["E2003807", euro(v?.agZuschussKv)],
+                ["E2003907", euro(v?.agZuschussPv)],
               ],
             ]
           : null,
@@ -570,9 +613,47 @@ export function buildEstXml(input: EstXmlInput): string {
     ],
   ];
 
+  // § 32b: steuerfreie Einkommensersatzleistungen stehen im Hauptvordruck je Person mit Art und Betrag
+  const einkErs = (
+    [
+      ["PersonA", x.ersatzleistungen?.a],
+      ["PersonB", zusammen ? x.ersatzleistungen?.b : undefined],
+    ] as [string, EstErsatzleistung[] | undefined][]
+  ).map(([person, liste]): XmlNode | null => {
+    const zeilen = (liste ?? []).filter((l) => l.betrag > 0 && l.art.trim());
+    if (zeilen.length === 0) return null;
+    // ERiC-Regel 725: Die Summe muss die Summe der gerundeten Einzelbeträge sein, nicht die gerundete Summe in Cent
+    const betraege = zeilen.map((l) => Number(euro(l.betrag) ?? 0));
+    const summe = betraege.reduce((acc, b) => acc + b, 0);
+    return [
+      "Eink_Ers",
+      [
+        ["Person", person],
+        [
+          "Inl",
+          [
+            ...zeilen.map(
+              (l, i): XmlNode => [
+                "Einz",
+                [
+                  ["E0104110", l.art.trim()],
+                  ["E0104113", String(betraege[i])],
+                ],
+              ],
+            ),
+            ["Sum", [["E0104801", String(summe)]]],
+          ],
+        ],
+      ],
+    ];
+  });
+
+  // Eink_Ers steht in E10-2025.xsd innerhalb von ESt1A, direkt hinter Allg
+  const est1aMitErsatz: XmlNode = ["ESt1A", [...(est1a[1] as readonly XmlNode[]), ...einkErs]];
+
   return envelope(envelopeInput, [
     `<E10 xmlns="http://finkonsens.de/elster/elstererklaerung/est/e10/v${input.year}" version="${input.year}">`,
-    ...[est1a, sa, agb, ha35a, ...kinder, anlageG, anlageS, ...anlagenN, kap, kapB, vor].flatMap((node) => render(node, "  ")),
+    ...[est1aMitErsatz, sa, agb, ha35a, ...kinder, anlageG, anlageS, ...anlagenN, kap, kapB, vor].flatMap((node) => render(node, "  ")),
     ...render(vorsatz("10", envelopeInput, { a: a.idnr, ...(b ? { b: b.idnr } : {}) }), "  "),
     `</E10>`,
   ]);
@@ -682,6 +763,9 @@ export function anlageN(person: string, an: EstArbeitnehmer, year: number): XmlN
         : null,
       ...berufsverbaende(w, year),
       posten("Arbeitsmittel", ["E0204401", "E0204402", "E0204403"], "Arbeitsmittel", w.arbeitsmittel),
+      // Häusliches Arbeitszimmer: Einzelaufwendung (E0204503 Bezeichnung, E0204505 Betrag),
+      // Summe in E0204504. ERiC verlangt beides zusammen, sonst meldet es die Summe ohne Einzelposten.
+      posten("Arb_Zim", ["E0204503", "E0204505", "E0204504"], "Arbeitszimmer", w.arbeitszimmer),
       ganz(w.homeofficeTage) ? ["Homeoffice", [[w.keinAndererArbeitsplatz ? "E0206206" : "E0204507", ganz(w.homeofficeTage)]]] : null,
       fortbildung(w.fortbildung, year),
       euro(w.sonstige)

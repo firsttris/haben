@@ -34,6 +34,8 @@ import { LineAmount, LineCell } from "./LineCell.tsx";
 import { Icon } from "./Icon.tsx";
 import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
+import { positionsFehler } from "../lib/editor-lines.ts";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
@@ -167,6 +169,17 @@ export function RecurringForm({
     taxIssues.length === 0 &&
     (taxTreatment !== "steuerfrei" || taxNote.trim() !== "");
 
+  const { form, error, check } = useSubmitCheck({
+    ...Object.fromEntries(lines.map((l) => [`pos-${l.key}`, positionsFehler(l)])),
+    name: name.trim() === "" ? "Trag eine Bezeichnung ein, etwa Wartungsvertrag Nordwerk." : null,
+    contact: contactId === "" ? "Wähle den Kunden." : null,
+    nextDate: nextDate ? null : "Wähle den Tag der nächsten Rechnung.",
+    endDate: endDate && endDate < nextDate ? "Wähle einen Tag ab der nächsten Rechnung." : null,
+    term: Number.isInteger(term) && term >= 0 && term <= 120 ? null : "Trag das Zahlungsziel in ganzen Tagen von 0 bis 120 ein.",
+    tax: taxIssues[0] ?? null,
+    exemption: taxTreatment === "steuerfrei" && !taxNote.trim() ? "Trag die Befreiungsvorschrift ein, etwa § 4 Nr. 14 UStG." : null,
+  } as Record<string, string | null>);
+
   const period = nextDate ? servicePeriodFor(nextDate, intervalMonths, servicePeriod) : null;
   const reference = period ?? (nextDate ? { from: nextDate, to: nextDate } : null);
   const sum = parsed.reduce((s, l) => s + (l.valid ? lineAmount(l.quantity, l.unitPrice) : 0), 0);
@@ -177,7 +190,7 @@ export function RecurringForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!valid) return;
+    if (!check() || !valid) return;
     onSubmit({
       name: name.trim(),
       active,
@@ -204,12 +217,12 @@ export function RecurringForm({
 
   return (
     <>
-      <form className="stack" onSubmit={submit}>
+      <form ref={form} className="stack" onSubmit={submit} noValidate>
         <section className="card form-card" aria-label="Vorlage">
           <div className="form-section" role="group" aria-labelledby="recurring-basics">
             <h2 id="recurring-basics">Vorlage</h2>
             <div className="form-row cols-2">
-              <Field label="Bezeichnung">
+              <Field label="Bezeichnung" error={error("name")}>
                 {(control) => (
                   <input
                     {...control}
@@ -221,7 +234,7 @@ export function RecurringForm({
                   />
                 )}
               </Field>
-              <Field label="Kunde">
+              <Field label="Kunde" error={error("contact")}>
                 {(control) => (
                   <ContactCombobox
                     {...control}
@@ -239,7 +252,7 @@ export function RecurringForm({
           <div className="form-section" role="group" aria-labelledby="recurring-dates">
             <h2 id="recurring-dates">Termine</h2>
             <div className="form-row cols-2">
-              <Field label="Nächste Rechnung am" describedBy="next-hint">
+              <Field label="Nächste Rechnung am" describedBy="next-hint" error={error("nextDate")}>
                 {(control) => <input {...control} type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required />}
               </Field>
               <Field label="Intervall">
@@ -258,16 +271,8 @@ export function RecurringForm({
               Rechnungsdatum. Die folgenden Termine liegen am selben Tag im Monat; der 31. wird zum Monatsende.
             </p>
             <div className="form-row cols-2">
-              <Field label="Endet nach dem (optional)">
-                {(control) => (
-                  <input
-                    {...control}
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    aria-invalid={Boolean(endDate) && endDate < nextDate}
-                  />
-                )}
+              <Field label="Endet nach dem (optional)" error={error("endDate")}>
+                {(control) => <input {...control} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />}
               </Field>
               <Field label="Leistungszeitraum">
                 {(control) => (
@@ -285,7 +290,7 @@ export function RecurringForm({
           <div className="form-section" role="group" aria-labelledby="recurring-invoice">
             <h2 id="recurring-invoice">Rechnung</h2>
             <div className="form-row cols-2">
-              <Field label="Zahlungsziel in Tagen">
+              <Field label="Zahlungsziel in Tagen" error={error("term")}>
                 {(control) => <input {...control} inputMode="numeric" value={paymentTermDays} onChange={(e) => setPaymentTermDays(e.target.value)} />}
               </Field>
               <Field label="E-Rechnungsformat">
@@ -328,6 +333,8 @@ export function RecurringForm({
                 details={taxDetails}
                 exemptionReason={exemptionReason}
                 kleinunternehmer={kleinunternehmer}
+                error={error("tax")}
+                reasonError={error("exemption")}
                 onTreatmentChange={setTaxTreatment}
                 onDetailsChange={setTaxDetails}
                 onReasonChange={setExemptionReason}
@@ -391,6 +398,8 @@ export function RecurringForm({
           </div>
           {lines.map((line, index) => {
             const p = parsed[index]!;
+            const posFehler = error(`pos-${line.key}`);
+            const posFehlerId = posFehler ? `pos-fehler-${line.key}` : undefined;
             return (
               <div className="line-row" key={line.key}>
                 <div className="line-title">
@@ -410,6 +419,7 @@ export function RecurringForm({
                     value={line.description}
                     onChange={(e) => updateLine(line.key, { description: e.target.value })}
                     aria-invalid={line.description.trim() === ""}
+                    aria-describedby={posFehlerId}
                   />
                 </div>
                 <FormattedTextarea
@@ -428,7 +438,8 @@ export function RecurringForm({
                     aria-label={`Menge Position ${index + 1}`}
                     value={line.quantity}
                     onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
-                    aria-invalid={parseQuantity(line.quantity) === null}
+                    aria-invalid={!((parseQuantity(line.quantity) ?? 0) > 0)}
+                    aria-describedby={posFehlerId}
                   />
                 </LineCell>
                 <LineCell label="Einheit">
@@ -452,6 +463,7 @@ export function RecurringForm({
                     placeholder="0,00"
                     onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
                     aria-invalid={parseEuro(line.unitPrice) === null}
+                    aria-describedby={posFehlerId}
                   />
                 </LineCell>
                 <LineCell label="USt">
@@ -479,6 +491,11 @@ export function RecurringForm({
                     <Icon name="close" size={16} />
                   </button>
                 </div>
+                {posFehler && (
+                  <span id={posFehlerId} className="field-error" style={{ gridColumn: "1 / -1" }}>
+                    {posFehler}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -553,7 +570,7 @@ export function RecurringForm({
         )}
 
         <div className="actions">
-          <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
             {submitLabel}
           </button>
         </div>

@@ -1,6 +1,6 @@
 import { currentTokenOwners, requireTokenOwner, takeoverProblem, tokenEvent } from "../../token-responsibility.ts";
 import { createHash, randomBytes } from "node:crypto";
-import { and, desc, eq, gt, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -14,7 +14,7 @@ import { loadCompany } from "../stammdaten/index.ts";
  * allein seine Rechte (scopes), ein Schalter in den Firmendaten sperrt alle auf einmal.
  *
  * Alles hinter /api/mcp und /api/v1 kennt nur das Ergebnis von authenticateMcp (Zugang mit Rechten), nicht die Art der
- * Anmeldung. Kommt später OAuth für die Connectors aus claude.ai dazu, wird nur diese Funktion erweitert.
+ * Anmeldung: API-Token (hb_) oder Access-Token einer OAuth-Verbindung (hba_, oauth.ts).
  */
 
 export class McpError extends UserError {}
@@ -62,6 +62,8 @@ export function hasScope(granted: readonly TokenScope[], needed: TokenScope): bo
 }
 
 const TOKEN_PREFIX = "hb_";
+/** Access-Tokens einer OAuth-Verbindung (oauth.ts); gelten eine Stunde */
+export const OAUTH_ACCESS_PREFIX = "hba_";
 /** Protokoll der Aufrufe so lange aufheben */
 const CALL_RETENTION_DAYS = 90;
 
@@ -154,6 +156,8 @@ export async function listMcpTokens(now = new Date(), actor?: string) {
       responsibleName: schema.user.name,
       disabledAt: schema.mcpTokens.disabledAt,
       disabledReason: schema.mcpTokens.disabledReason,
+      /** Verbindung per OAuth (Connector in claude.ai) statt selbst angelegtem Token */
+      oauth: sql<boolean>`${schema.mcpTokens.oauthClientId} is not null`,
     })
     .from(schema.mcpTokens)
     .leftJoin(schema.user, eq(schema.user.id, schema.mcpTokens.responsibleId))
@@ -189,18 +193,21 @@ export async function listMcpTokens(now = new Date(), actor?: string) {
 export async function authenticateMcp(request: Request, now = new Date()): Promise<McpAccess | null> {
   const header = request.headers.get("authorization") ?? "";
   const match = /^Bearer\s+(\S+)$/i.exec(header);
-  if (!match || !match[1]!.startsWith(TOKEN_PREFIX)) return null;
+  const token = match?.[1] ?? "";
+  if (!token.startsWith(TOKEN_PREFIX) && !token.startsWith(OAUTH_ACCESS_PREFIX)) return null;
   if (!(await mcpEnabled())) return null;
-  // Gesucht wird über den Hash; ein Vergleich in konstanter Zeit ist damit nicht nötig
+  // Gesucht wird über den Hash; ein Vergleich in konstanter Zeit ist damit nicht nötig. Ein OAuth-Access-Token gilt
+  // zusätzlich nur bis access_expires_at, ein selbst angelegtes Token hat dort nichts stehen.
   const [row] = await db
     .select({ id: schema.mcpTokens.id, name: schema.mcpTokens.name, scopes: schema.mcpTokens.scopes, responsibleId: schema.mcpTokens.responsibleId })
     .from(schema.mcpTokens)
     .where(
       and(
-        eq(schema.mcpTokens.tokenHash, hashToken(match[1]!)),
+        eq(schema.mcpTokens.tokenHash, hashToken(token)),
         isNull(schema.mcpTokens.revokedAt),
         isNull(schema.mcpTokens.disabledAt),
         gt(schema.mcpTokens.expiresAt, now),
+        or(isNull(schema.mcpTokens.accessExpiresAt), gt(schema.mcpTokens.accessExpiresAt, now)),
       ),
     );
   if (!row?.responsibleId || !(await currentTokenOwners(db, now)).has(row.responsibleId)) return null;

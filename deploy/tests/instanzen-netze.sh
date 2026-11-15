@@ -1,7 +1,9 @@
 #!/bin/sh
 # Netze zweier Instanzen hinter dem gemeinsamen Caddy des Instanzen-Werkzeugs (#872): Der Caddy erreicht jede App
 # unter ihrem Namen, keine App die andere, weder über den Namen noch über die Adresse. Geprüft nach dem Anlegen,
-# nach einem Neuaufbau des Caddy-Containers und nach einem Neustart des Docker-Daemons (wie beim Neustart des Hosts).
+# nach einem Neustart des Docker-Daemons (wie beim Neustart des Hosts) und nach einem Neuaufbau des Caddy-Containers.
+# Der Neustart kommt zuerst: Solange der Caddy nur per docker network connect im Netz von firma2 hängt (#1013), muss
+# er es auch danach noch sein; der Neuaufbau zeigt dann, dass compose.override.yml beide Netze hält.
 #   sh deploy/tests/instanzen-netze.sh <basis>      mit den Instanzen firma1 und firma2 unter <basis>
 # Ohne systemd nennt HABEN_DOCKER_NEUSTART den Befehl, der den Daemon neu startet.
 set -eu
@@ -50,13 +52,13 @@ pruefen() {
 
 pruefen "nach dem Anlegen"
 
-# Compose baut den Container aus compose.yml und compose.override.yml neu auf
-caddy up -d --force-recreate
-pruefen "nach dem Neuaufbau des Caddy"
-
 sh -c "${HABEN_DOCKER_NEUSTART:-sudo systemctl restart docker}"
 for _ in $(seq 60); do
   if caddy_erreicht firma1 && caddy_erreicht firma2; then break; fi
   sleep 2
 done
 pruefen "nach dem Neustart von Docker"
+
+# Compose baut den Container aus compose.yml und compose.override.yml neu auf
+caddy up -d --force-recreate
+pruefen "nach dem Neuaufbau des Caddy"

@@ -4,11 +4,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { deleteExchangeRateFn, importExchangeRatesFn, refreshExchangeRatesFn, saveExchangeRateFn, type getExchangeRates } from "../server/functions/company.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 import { Field } from "./Field.tsx";
 import { FilePicker } from "./FilePicker.tsx";
+import { MonthPicker } from "./MonthPicker.tsx";
 
 type Data = Awaited<ReturnType<typeof getExchangeRates>>;
 
@@ -35,19 +37,32 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
   const [year, setYear] = useState(String(currentYear()));
   // Ein neuer key leert das Dateifeld samt angezeigtem Namen nach dem Hochladen
   const [uploads, setUploads] = useState(0);
+  const [currency, setCurrency] = useState("");
+  const [month, setMonth] = useState("");
+  const [rate, setRate] = useState("");
+  const {
+    form: rateForm,
+    error,
+    check,
+  } = useSubmitCheck({
+    currency: currency.trim() === "" ? "Trag die Währung ein." : null,
+    month: month === "" ? "Wähle den Monat." : null,
+    rate: rate.trim() === "" ? "Trag den Kurs ein." : null,
+  });
 
   const summary = (r: { added: number; changed: number; applied: number }) =>
     `${plural(r.added, "Kurs", "Kurse")} neu, ${r.changed} geändert. ${r.applied > 0 ? `${plural(r.applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}`;
 
   function onSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const values = new FormData(form);
+    if (!check()) return;
     void run(async () => {
       const { applied } = await save({
-        data: { currency: String(values.get("currency") ?? ""), month: String(values.get("month") ?? ""), rate: String(values.get("rate") ?? "") },
+        data: { currency: currency.trim(), month, rate: rate.trim() },
       });
-      form.reset();
+      setCurrency("");
+      setMonth("");
+      setRate("");
       await router.invalidate();
       setNotice({
         tone: "ok",
@@ -82,7 +97,7 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
       </div>
       <NoticeBanner notice={notice} />
 
-      <form className="stack" style={{ gap: 8 }} onSubmit={onSave} aria-labelledby="rate-manual">
+      <form ref={rateForm} className="stack" style={{ gap: 8 }} onSubmit={onSave} aria-labelledby="rate-manual" noValidate>
         <h3 id="rate-manual" style={{ margin: 0 }}>
           Kurs von Hand
         </h3>
@@ -91,13 +106,38 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
           ersetzt der amtliche Kurs deinen.
         </p>
         <div className="form-row cols-3">
-          <Field label="Währung">
+          <Field label="Währung" error={error("currency")}>
             {(control) => (
-              <input {...control} name="currency" required maxLength={3} placeholder="USD" className="mono" style={{ textTransform: "uppercase" }} />
+              <input
+                {...control}
+                name="currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                required
+                maxLength={3}
+                placeholder="USD"
+                className="mono"
+                style={{ textTransform: "uppercase" }}
+              />
             )}
           </Field>
-          <Field label="Monat">{(control) => <input {...control} name="month" type="month" required />}</Field>
-          <Field label="1 EUR = …">{(control) => <input {...control} name="rate" required inputMode="decimal" placeholder="1,0812" className="mono" />}</Field>
+          <Field label="Monat" error={error("month")}>
+            {(control) => <MonthPicker {...control} name="month" value={month} onChange={setMonth} />}
+          </Field>
+          <Field label="1 EUR = …" error={error("rate")}>
+            {(control) => (
+              <input
+                {...control}
+                name="rate"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                required
+                inputMode="decimal"
+                placeholder="1,0812"
+                className="mono"
+              />
+            )}
+          </Field>
         </div>
         <div className="actions">
           <button type="submit" className="btn" disabled={busy}>

@@ -53,7 +53,7 @@ Verkaufst du bar an Privatkunden, etwa am Marktstand, brauchst du keine Rechnung
 | --- | --- | --- | --- |
 | Regulär 19 % | 1000 Kasse (1600) an 8400 Erlöse 19 % (4400) und 1776 Umsatzsteuer 19 % (3806) | Kz 81 | steuerpflichtige Einnahme netto, vereinnahmte Umsatzsteuer |
 | Regulär 7 % | 1000 (1600) an 8300 Erlöse 7 % (4300) und 1771 Umsatzsteuer 7 % (3801) | Kz 86 | ebenso |
-| Kleinunternehmer (§ 19 UStG) | 1000 (1600) an 8195 Erlöse Kleinunternehmer (4185) | keine | Einnahme als Kleinunternehmer |
+| Kleinunternehmer (§ 19 UStG) | 1000 (1600) an 8192 Erlöse Kleinunternehmer (4184) | keine | Einnahme als Kleinunternehmer |
 | steuerfrei (§ 4 Nr. 8 bis 29 UStG) | 1000 (1600) an 8100 steuerfreie Umsätze (4100) | Kz 48 | umsatzsteuerfreie Einnahme |
 
 - **Zeitpunkt:** gebucht am Tag der Bareinnahme, bei Ist- wie bei Soll-Versteuerung; beim Barverkauf fallen Leistung und Zahlung zusammen (§ 13 Abs. 1 Nr. 1 UStG). Die Umsatzsteuer ist sofort fällig, nicht erst „nicht fällig“ wie bei einer Rechnung mit Ist-Versteuerung. So bucht auch [Direkt buchen](bank.md#auf-eine-kategorie-buchen) im Bankabgleich eine Zahlung ohne Rechnung.

@@ -44,6 +44,7 @@ import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
 import { findDocumentByReference, type DocumentReference } from "./external-reference.ts";
+import { MAX_DOCUMENT_SIZE } from "./grenzen.ts";
 import { detectOwnInvoiceFor, ownInvoiceHint, ownInvoiceRecord, partiesOfEInvoice, partiesOfExtraction } from "./own-invoice.ts";
 import { pdfTextLines } from "./pdf-text.ts";
 import { supplierCategory, supplierPayment } from "./vorschlaege.ts";
@@ -56,7 +57,7 @@ export type DocumentAmount = typeof schema.documentAmounts.$inferSelect;
 
 export class DocumentError extends UserError {}
 
-export const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
+export { MAX_DOCUMENT_SIZE };
 
 const isoDate = z.iso.date();
 const cents = z.number().int().min(-100_000_000_00).max(100_000_000_00);
@@ -233,7 +234,6 @@ async function applyFields(
     null,
     company.tageskurs,
   );
-  const extracted = amountsByRate(fields.amounts).map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax }));
   // Mit dem Kurs des Monats ist der Hinweis auf den fehlenden Kurs erledigt
   const rateWarnings = rate.exchangeRate ? fields.warnings.filter((w) => !w.startsWith(`Währung ${fields.currency}`)) : fields.warnings;
   const warnings = hint ? [hint, ...rateWarnings] : rateWarnings;
@@ -243,8 +243,15 @@ async function applyFields(
   await withActor(actor, async (tx) => {
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, id)).for("update");
     if (!doc || doc.lockedAt) return;
-    // Neu ausgelesen bleibt die Steuerbehandlung des Belegs; § 13b und Erwerbsteuer rechnet der Server aus dem Netto
-    const amounts = euroAmounts({ currency: fields.currency, exchangeRate: rate.exchangeRate, reverseCharge: doc.reverseCharge, amounts: extracted });
+    // Neu ausgelesen bleibt die Steuerbehandlung des Belegs; § 13b und Erwerbsteuer rechnet der Server aus dem Netto.
+    // Ist am Beleg noch nichts gewählt, gilt der Vorschlag aus dem Beleg (Reverse-Charge-Hinweis, #1054), nicht aber bei
+    // einer eigenen Ausgangsrechnung: Dort schuldet der Kunde die Steuer (§ 13b Abs. 5 UStG)
+    const reverseCharge = doc.reverseCharge ?? (hint ? null : (fields.reverseCharge ?? null));
+    // Der Beleg weist bei § 13b 0 % aus; gebucht wird mit dem Satz, den der Leistungsempfänger schuldet (§ 12 Abs. 1
+    // UStG, 19 %; einen ermäßigten Satz stellt der Nutzer von Hand ein)
+    const rows = reverseCharge ? fields.amounts.map((a) => (a.taxRate === 0 ? { ...a, taxRate: 1900 as const } : a)) : fields.amounts;
+    const extracted = amountsByRate(rows).map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax }));
+    const amounts = euroAmounts({ currency: fields.currency, exchangeRate: rate.exchangeRate, reverseCharge, amounts: extracted });
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
     if (amounts.length > 0) {
       await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
@@ -270,7 +277,8 @@ async function applyFields(
         ownAccountId: null,
         ...(payment ? { payment } : {}),
         privateShare,
-        ...totalsOf(amounts, doc.reverseCharge),
+        ...totalsOf(amounts, reverseCharge),
+        ...(reverseCharge && !doc.reverseCharge ? { reverseCharge } : {}),
         extractedBy,
         extractionStatus: "fertig",
         extractionError: warnings.length > 0 ? warnings.join(" · ") : null,

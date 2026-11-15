@@ -29,6 +29,7 @@ import {
   invoiceOpen,
   type InvoiceListStatus,
   legalInfo,
+  leistungsdatum,
   skontoProblem,
   sortSkonto,
   discountColumns,
@@ -41,7 +42,7 @@ import {
   outgoingTaxDetailConflict,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
@@ -750,8 +751,12 @@ export type { InvoiceListStatus };
  * im Bankabgleich. Mit `id` nur diese Rechnung. Rechnungsliste, offene Posten, Mahnwesen und die Sperre der
  * Firmendaten zählen über diese Funktion, damit „offen“ überall dasselbe heißt.
  */
-export async function listInvoices(today: string, id?: string, q: Db | Tx = db) {
-  const rows = await q
+export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
+  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
+}
+
+export async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, limit?: number, rank?: SQL) {
+  const query = q
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
@@ -766,6 +771,8 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       contactId: schema.invoices.contactId,
       externalSource: schema.invoices.externalSource,
       externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
       contactName: schema.contacts.name,
       buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
       cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
@@ -777,9 +784,18 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(id ? eq(schema.invoices.id, id) : undefined)
-    .orderBy(desc(schema.invoices.issueDate), sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt), desc(schema.invoices.id));
+    .where(filter)
+    .orderBy(
+      ...(rank ? [rank] : []),
+      desc(schema.invoices.issueDate),
+      sql`${schema.invoices.number} desc nulls first`,
+      desc(schema.invoices.createdAt),
+      desc(schema.invoices.id),
+    )
+    .$dynamic();
+  const rows = await (limit === undefined ? query : query.limit(limit));
 
+  if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
@@ -1144,6 +1160,9 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
   }
   invoice = { ...invoice, ...(await advanceProcedure(invoice, lines, company, tx)) };
+  // „Ausgeführt am“ einfrieren (#694): Der Leistungsmonat entscheidet bei Soll-Versteuerung, wann die Umsatzsteuer
+  // gemeldet wird. Ab hier ist er unveränderlich, damit ein späterer Entwurfsstand die gemeldete Zahl nicht verschiebt.
+  invoice = { ...invoice, serviceDate: leistungsdatum({ belegdatum: invoice.issueDate, leistungVon: invoice.serviceFrom, leistungBis: invoice.serviceTo }) };
   if (invoice.advanceAccounting === "deferred" && invoice.kind === "rechnung" && invoice.variant === "schluss") {
     const performed = invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate;
     if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
@@ -1192,6 +1211,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
         net: totals.net,
         tax: totals.tax,
         gross: totals.gross,
+        // Ab hier fest: der Tag, an dem die Leistung ausgeführt wurde (#694)
+        serviceDate: invoice.serviceDate,
         pdf: Buffer.from(rendered.pdf),
         pdfSha256: sha256(rendered.pdf),
         xml: rendered.xml,
@@ -1336,6 +1357,14 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
       throw new InvoiceError(
         "Die Rechnung ist teilweise ausgebucht (Skonto oder Forderungsausfall). Hebe die Ausbuchung zuerst auf, dann lässt sie sich stornieren.",
       );
+    }
+    // Ebenso eine Verrechnung mit einer Korrektur (#877): Sie zählt als erledigt, ohne dass Geld geflossen ist, und stünde
+    // nach dem Storno als Erstattung an den Kunden und als Forderung aus der Korrektur offen
+    const verrechnet = await tx.execute(
+      sql`select 1 from invoice_settlements where invoice_id in ${[id, ...corrections.map((c) => c.id)]} group by invoice_id having sum(amount) <> 0 limit 1`,
+    );
+    if ([...verrechnet].length > 0) {
+      throw new InvoiceError("Die Rechnung ist mit einer Korrektur verrechnet. Hebe die Verrechnung zuerst auf, dann lässt sie sich stornieren.");
     }
     const stornoOf = async (target: Invoice, targetLines: InvoiceLine[]) => {
       const draft = await insertDraft(

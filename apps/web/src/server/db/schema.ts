@@ -491,6 +491,30 @@ export const annualSubmissions = pgTable(
 );
 
 /**
+ * Zeilenwerte einer außerhalb von Haben abgegebenen Jahreserklärung, je Feldkennung (#997).
+ *
+ * Die Zeilen kommen aus dem Übermittlungsprotokoll und lassen sich nicht an `annual_submissions` hängen:
+ * der Vermerk ist `append_only`, ein späteres UPDATE scheitert. Sie stehen deshalb daneben, verknüpft
+ * über die Übermittlung. Nur anhängbar, auditiert und gegen TRUNCATE gesperrt wie der Vermerk selbst
+ * (0235).
+ */
+export const annualSubmissionFigures = pgTable(
+  "annual_submission_figures",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => annualSubmissions.id, { onDelete: "restrict" }),
+    /** Schlüssel der Erklärung wie in der Übermittlung: `steuerpflichtig`, `base19`, `gewinn`, … */
+    field: text("field").notNull(),
+    /** Betrag in Cent */
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("annual_submission_figures_eindeutig").on(t.submissionId, t.field)],
+);
+
+/**
  * Nachrichten an das Finanzamt über ELSTER (Sonstige Nachricht), etwa der Antrag auf Herabsetzung der
  * Vorauszahlungen; jede Prüfung und Übermittlung mit XML, nur anhängen.
  */
@@ -1008,6 +1032,8 @@ export const contacts = pgTable(
     lexofficeId: text("lexoffice_id").unique(),
     /** Herkunft aus dem sevDesk-Import */
     sevdeskId: text("sevdesk_id").unique(),
+    /** Herkunft aus dem FastBill-Import (CUSTOMER_ID) */
+    fastbillId: text("fastbill_id").unique(),
     /**
      * DATEV-Personenkonten für den Buchungsstapel (#327), getrennt von Kunden- und Lieferantennummer; beide an einem
      * Kontakt möglich. Bereiche bei vierstelligen Sachkonten nach DATEV-Kontenrahmen SKR 03/04 2026, S. 36.
@@ -1022,6 +1048,15 @@ export const contacts = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("contacts_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
+    index("contacts_kundennummer_trgm_idx").using("gin", t.kundennummer.op("gin_trgm_ops")),
+    index("contacts_lieferantennummer_trgm_idx").using("gin", t.lieferantennummer.op("gin_trgm_ops")),
+    index("contacts_email_trgm_idx").using("gin", t.email.op("gin_trgm_ops")),
+    index("contacts_ort_trgm_idx").using("gin", t.ort.op("gin_trgm_ops")),
+    index("contacts_ust_id_trgm_idx").using("gin", t.ustId.op("gin_trgm_ops")),
+    index("contacts_iban_trgm_idx").using("gin", t.iban.op("gin_trgm_ops")),
+    index("contacts_debitor_nr_trgm_idx").using("gin", sql`(${t.debitorNr}::text) gin_trgm_ops`),
+    index("contacts_kreditor_nr_trgm_idx").using("gin", sql`(${t.kreditorNr}::text) gin_trgm_ops`),
     check("contacts_debitor_nr_bereich", sql`${t.debitorNr} between 10000 and 69999`),
     check("contacts_kreditor_nr_bereich", sql`${t.kreditorNr} between 70000 and 99999`),
   ],
@@ -1133,7 +1168,12 @@ export const contactPersons = pgTable(
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("contact_persons_contact").on(t.contactId), check("contact_persons_name", sql`length(btrim(${t.name})) > 0`)],
+  (t) => [
+    index("contact_persons_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
+    index("contact_persons_email_trgm_idx").using("gin", t.email.op("gin_trgm_ops")),
+    index("contact_persons_contact").on(t.contactId),
+    check("contact_persons_name", sql`length(btrim(${t.name})) > 0`),
+  ],
 );
 
 /**
@@ -1233,6 +1273,11 @@ export const invoices = pgTable(
     issueDate: date("issue_date", { mode: "string" }).notNull(),
     serviceFrom: date("service_from", { mode: "string" }),
     serviceTo: date("service_to", { mode: "string" }),
+    /**
+     * „Ausgeführt am“, beim Festschreiben eingefroren (#694): Der Leistungsmonat entscheidet bei Soll-Versteuerung,
+     * in welchem Zeitraum die Umsatzsteuer gemeldet wird. Altrechnungen ohne Angabe zählen nach Rechnungsdatum.
+     */
+    serviceDate: date("service_date", { mode: "string" }),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     dueDate: date("due_date", { mode: "string" }).notNull(),
     /**
@@ -1344,6 +1389,12 @@ export const invoices = pgTable(
     check("invoices_corrects_original", sql`${t.kind} = 'rechnung' or ${t.correctsId} is not null`),
     uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
     uniqueIndex("invoices_recurring_date").on(t.recurringId, t.recurringDate),
+    index("invoices_number_trgm_idx").using("gin", t.number.op("gin_trgm_ops")),
+    index("invoices_buyer_order_reference_trgm_idx").using("gin", t.buyerOrderReference.op("gin_trgm_ops")),
+    index("invoices_seller_order_reference_trgm_idx").using("gin", t.sellerOrderReference.op("gin_trgm_ops")),
+    index("invoices_buyer_name_trgm_idx").using("gin", sql`(${t.buyer} ->> 'name') gin_trgm_ops`),
+    index("invoices_gross_search_idx").on(t.gross),
+    index("invoices_contactId_search_idx").on(t.contactId),
     index("invoices_corrects").on(t.correctsId),
     index("invoices_quote").on(t.quoteId),
     // höchstens ein festgeschriebenes Storno je Rechnung
@@ -1513,6 +1564,10 @@ export const quotes = pgTable(
     check("quotes_decision_final", sql`${t.decision} is null or ${t.status} = 'final'`),
     check("quotes_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
     check("quotes_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
+    index("quotes_number_trgm_idx").using("gin", t.number.op("gin_trgm_ops")),
+    index("quotes_buyer_name_trgm_idx").using("gin", sql`(${t.buyer} ->> 'name') gin_trgm_ops`),
+    index("quotes_gross_search_idx").on(t.gross),
+    index("quotes_contactId_search_idx").on(t.contactId),
     uniqueIndex("quotes_number_counter").on(t.numberYear, t.numberCounter),
   ],
 );
@@ -1967,6 +2022,10 @@ export const documents = pgTable(
   },
   // in 0011 und 0016 von Hand angelegt
   (t) => [
+    index("documents_supplier_name_trgm_idx").using("gin", t.supplierName.op("gin_trgm_ops")),
+    index("documents_invoice_number_trgm_idx").using("gin", t.invoiceNumber.op("gin_trgm_ops")),
+    index("documents_filename_trgm_idx").using("gin", t.filename.op("gin_trgm_ops")),
+    index("documents_gross_search_idx").on(t.gross),
     check("documents_private_share_range", sql`${t.privateShare} between 0 and 100`),
     check("documents_vorsteuer_anteil_range", sql`${t.vorsteuerAnteil} between 0 and 10000`),
     foreignKey({ name: "documents_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
@@ -2549,6 +2608,49 @@ export const documentSettlements = pgTable(
 );
 
 /**
+ * Verrechnung einer Ausgangsrechnung mit ihrer Kundenkorrektur ohne Zahlung (#877, zweite Stufe aus #274): Die Korrektur
+ * mindert die Forderung, der Belegbetrag bleibt stehen. Aufbau wie document_settlements: je Verrechnung zwei Zeilen mit
+ * gemeinsamer settlement_id, damit jede Seite für sich als erledigt zählt; aufgehoben wird per Gegenzeilpaar. Betrag mit
+ * dem Vorzeichen einer Zahlung: positiv bei der Rechnung, deren offener Rest sinkt, negativ bei der Korrektur, deren
+ * Guthaben sich abbaut. Nur anhängen.
+ */
+export const invoiceSettlements = pgTable(
+  "invoice_settlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Rechnung oder Korrektur, deren offener Betrag sich mit dieser Zeile ändert */
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    /** Die andere Seite der Verrechnung */
+    counterInvoiceId: uuid("counter_invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    /** Kennung des Paars: beide Zeilen einer Verrechnung tragen dieselbe, die Gegenzeilen ein neues Paar */
+    settlementId: uuid("settlement_id").notNull().defaultRandom(),
+    date: date("date", { mode: "string" }).notNull(),
+    /** Vorzeichen wie eine Zahlung: positiv bei der Rechnung, negativ bei der Korrektur */
+    amount: integer("amount").notNull(),
+    note: text("note").notNull().default(""),
+    reversesId: uuid("reverses_id"),
+    /** Wer verrechnet bzw. aufgehoben hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("invoice_settlements_two", sql`${t.invoiceId} <> ${t.counterInvoiceId}`),
+    check("invoice_settlements_amount", sql`${t.amount} <> 0`),
+    index("invoice_settlements_invoice").on(t.invoiceId),
+    index("invoice_settlements_counter").on(t.counterInvoiceId),
+    index("invoice_settlements_settlement").on(t.settlementId),
+    /** Je Paar höchstens eine Zeile pro Rechnung: genau zwei Zeilen, eine je Seite */
+    uniqueIndex("invoice_settlements_settlement_invoice").on(t.settlementId, t.invoiceId),
+    uniqueIndex("invoice_settlements_reverses").on(t.reversesId),
+    foreignKey({ name: "invoice_settlements_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
+
+/**
  * Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG) je Währung und Monat: 1 EUR = rate. Abgerufen vom BMF oder von Hand
  * eingetragen. Belege und Rechnungen speichern den verwendeten Kurs selbst; ein später geänderter Kurs ändert sie nicht.
  */
@@ -2763,8 +2865,52 @@ export const sevdeskConnection = pgTable(
   (t) => [check("sevdesk_connection_single_row", sql`${t.id} = 1`)],
 );
 
+/**
+ * Zugang zur FastBill-API: Login-E-Mail und API-Schlüssel, der Schlüssel AES-256-GCM-verschlüsselt; eine Zeile.
+ * callsPerHour ist die Stundengrenze des Tarifs (Solo 50, Solo-Plus 100, Pro 500, Premium 1000).
+ */
+export const fastbillConnection = pgTable(
+  "fastbill_connection",
+  {
+    id: smallint("id").primaryKey().default(1),
+    email: text("email").notNull(),
+    ciphertext: bytea("ciphertext").notNull(),
+    callsPerHour: integer("calls_per_hour").notNull().default(50),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("fastbill_connection_single_row", sql`${t.id} = 1`), check("fastbill_connection_calls_per_hour", sql`${t.callsPerHour} between 1 and 10000`)],
+);
+
+/**
+ * Ausgabenbelege aus FastBill, die die API nicht herausgibt (DOCUMENT_URL nur mit Anmeldung im Browser). Der Abruf
+ * merkt eine solche Ausgabe als „wartet“ vor, statt sie ohne Datei zu archivieren; das Browser-Skript lädt die Datei
+ * in der angemeldeten Sitzung, der Upload setzt „datei“, wer keinen Beleg hat „ohne_beleg“. Der nächste Abruf übernimmt
+ * die Ausgabe dann mit Datei bzw. ohne und löscht die Zeile. document_url ist ein Link mit eigenem Schlüssel und steht
+ * deshalb nur hier, nicht im Fortschritt des Abrufs.
+ * Bewusst ohne Audit-Trigger und im Klartext (Entscheidung des Maintainers in #1002): Die Zeile ist nur ein Zwischenlager
+ * und wird beim Archivieren gelöscht, und der Link liefert ohne Anmeldung im Browser keine Datei (0244_fastbill_trigger.sql).
+ */
+export const fastbillReceipts = pgTable("fastbill_receipts", {
+  /** Wie jede Tabelle mit Dateiverweis eine id, über die die Vollprüfung der Dateien den Datensatz nennt */
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** INVOICE_ID der Ausgabe in FastBill */
+  expenseId: text("expense_id").notNull().unique(),
+  status: text("status", { enum: ["wartet", "datei", "ohne_beleg"] }).notNull(),
+  number: text("number").notNull().default(""),
+  date: date("date", { mode: "string" }),
+  supplier: text("supplier").notNull().default(""),
+  /** Cent */
+  gross: integer("gross").notNull().default(0),
+  documentUrl: text("document_url"),
+  sha256: text("sha256"),
+  filename: text("filename"),
+  mimeType: text("mime_type"),
+  size: integer("size"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import"] as const;
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import", "fastbill"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 /**
@@ -2805,6 +2951,12 @@ export type LexofficeImportProgress = {
   datevFileIds?: string[];
   /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */
   accountable?: AccountableProgress;
+  /** FastBill: Startzeiten der API-Aufrufe der letzten Stunde (ms), damit ein neuer Lauf die Stundengrenze einhält */
+  fastbillCalls?: number[];
+  /** FastBill: wartet wegen der Stundengrenze bis zu diesem Zeitpunkt (ISO) */
+  waitingUntil?: string | null;
+  /** FastBill: Ausgaben, die auf ihren Beleg aus dem Browser-Skript warten (fastbill_receipts) */
+  fastbillWaiting?: number;
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
@@ -2901,7 +3053,7 @@ export const legacyOrderPdfAttempts = pgTable(
 );
 
 /**
- * Rechnungen, Gutschriften und Belege aus Lexoffice, sevDesk oder BuchhaltungsButler mit unveränderten Quelldaten. Nur anhängen.
+ * Rechnungen, Gutschriften und Belege aus Lexoffice, sevDesk, FastBill, BuchhaltungsButler und den anderen Umzugsquellen mit unveränderten Quelldaten. Nur anhängen.
  * Beträge in Cent, Gutschriften negativ. Bei sevDesk steht in lexoffice_id "<art>/<id>", z. B. "invoice/123".
  */
 export const lexofficeVouchers = pgTable(
@@ -3190,11 +3342,70 @@ export const backupStatus = pgTable(
 );
 
 /**
+ * Befund der Vollprüfung: eine Datei im Dokumentenspeicher, die fehlt, verändert oder nicht lesbar ist, mit dem ersten
+ * Datensatz, der auf sie verweist (Reihenfolge von FILE_REFERENCES), und der Zahl der weiteren
+ */
+export interface FileCheckProblem {
+  tabelle: string;
+  /** Bezeichnung aus FILE_REFERENCES, etwa „Beleg“ */
+  art: string;
+  zeile: string;
+  datei: string;
+  sha256: string;
+  befund: "fehlt" | "beschädigt" | "nicht lesbar";
+  weitere: number;
+}
+
+/**
+ * Läufe der Vollprüfung der Dateien im Dokumentenspeicher (modules/auswertungen/file-integrity.ts, #857): Zeitpunkt,
+ * Anzahl der geprüften Dateien und die ersten Befunde. „Kette prüfen“ und die Wochenmail zeigen den letzten Lauf.
+ * Betriebsdaten wie backup_status: ohne Audit-Log und Siegel, sonst stünde jeder Lauf in der Kette.
+ */
+export const fileChecks = pgTable(
+  "file_checks",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    /** Geprüfte Dateien; eine Datei mit mehreren Verweisen zählt einmal */
+    files: integer("files").notNull(),
+    /** Dateien mit Befund; gespeichert sind höchstens die ersten MAX_FILE_PROBLEMS */
+    problemCount: integer("problem_count").notNull(),
+    problems: jsonb("problems").$type<FileCheckProblem[]>().notNull(),
+  },
+  (t) => [index("file_checks_at").on(t.at)],
+);
+
+/**
+ * Per Dynamic Client Registration (RFC 7591) angemeldete OAuth-Clients, etwa ein Connector in claude.ai. Ein Client ist nur
+ * eine Beschreibung mit erlaubten Redirect-URIs; Zugriff bekommt er erst mit der Zustimmung des Inhabers, als Zeile in
+ * mcp_tokens. Ein Client-Secret steht nur als SHA-256 hier. Zugangsdaten: ohne Audit-Log (wie mcp_tokens).
+ */
+export const mcpOauthClients = pgTable("mcp_oauth_clients", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Öffentliche client_id, zufällig */
+  clientId: text("client_id").notNull().unique(),
+  /** SHA-256 des Client-Secrets; leer bei einem öffentlichen Client (token_endpoint_auth_method none) */
+  secretHash: text("secret_hash"),
+  /** client_name aus der Registrierung, gekürzt; nur zur Anzeige */
+  name: text("name").notNull(),
+  redirectUris: text("redirect_uris").array().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * API-Tokens für KI-Assistenten über MCP (/api/mcp) und die REST-API (/api/v1): widerrufbar, mit Ablaufdatum und Rechten. Gespeichert
  * ist nur der SHA-256 des Tokens; das Token selbst gibt es nur beim Anlegen. Zugangsdaten, keine Buchungsdaten: ohne
  * Audit-Log und Siegel (wie die Passkeys).
  */
 export const mcpTokens = pgTable("mcp_tokens", {
+  /** OAuth (Connectors in claude.ai): Client der Verbindung; leer bei einem selbst angelegten Token */
+  oauthClientId: uuid("oauth_client_id").references(() => mcpOauthClients.id),
+  /** OAuth: Ablauf des aktuellen Access-Tokens (token_hash); expires_at ist das Ende der Verbindung (Ablauf des Refresh-Tokens) */
+  accessExpiresAt: timestamp("access_expires_at", { withTimezone: true }),
+  /** OAuth: SHA-256 des aktuellen Refresh-Tokens; jede Erneuerung tauscht beide Tokens */
+  refreshHash: text("refresh_hash").unique(),
+  /** OAuth: SHA-256 des vorigen Refresh-Tokens; kommt es noch einmal, ist es kopiert worden und die Verbindung wird widerrufen */
+  previousRefreshHash: text("previous_refresh_hash"),
   createdBy: text("created_by"),
   responsibleId: text("responsible_id"),
   disabledAt: timestamp("disabled_at", { withTimezone: true }),
@@ -3613,3 +3824,16 @@ export const externalImportSettlements = pgTable(
     check("external_import_settlements_different", sql`${t.paymentImportId} <> ${t.originalImportId}`),
   ],
 );
+
+/**
+ * Eingesetzte Programm- und Datenbankversionen (#841): jeder Start mit einer neuen Haben- oder PostgreSQL-Version (auch eines älteren Stands beim Zurückrollen)
+ * hängt genau eine Zeile an. Nur anhängen (Trigger wie bei audit_log) und im Änderungsprotokoll (audit_log) mitgeschnitten, damit auch
+ * nachträglich feststeht, welche Programmlogik zu einem Buchungszeitpunkt galt (GoBD, BMF-Schreiben vom 28.11.2019, Rz. 150 und Rz. 154).
+ */
+export const appVersions = pgTable("app_versions", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  version: text("version").notNull(),
+  postgresVersion: text("postgres_version").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  note: text("note"),
+});

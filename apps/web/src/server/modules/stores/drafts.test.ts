@@ -110,6 +110,16 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Rechnungsentwürfe an die Store-G
     await expect(stores.setStoreContact(actor, { store: "googleplay", contactId: de!.id })).rejects.toThrow(/im Ausland/);
   });
 
+  it("Reverse Charge auch an eine Gesellschaft in Monaco (§ 1 Abs. 2a UStG: Gebiet Frankreichs)", async () => {
+    const { storeTreatment } = await import("./drafts.ts");
+    expect([storeTreatment("IE"), storeTreatment("MC"), storeTreatment("US"), storeTreatment("DE")]).toEqual([
+      "reverse_charge",
+      "reverse_charge",
+      "drittland",
+      null,
+    ]);
+  });
+
   it("lehnt einen Kontakt ohne die Rolle Kunde ab", async () => {
     const [lieferant] = await sql`insert into contacts (name, land, is_customer, is_supplier) values ('Hosting Irland Ltd', 'IE', false, true) returning id`;
     await expect(stores.setStoreContact(actor, { store: "googleplay", contactId: lieferant!.id })).rejects.toThrow(/Hosting Irland Ltd“ ist kein Kunde/);
@@ -165,8 +175,10 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Rechnungsentwürfe an die Store-G
     const [revenue] = await sql`select id from bank_transactions where bank_reference = 'googleplay-earnings-2026-09'`;
     await bank.allocate(actor, { kind: "invoice", transactionId: revenue!.id, invoiceId: final.id, amount: 8500 });
 
-    const month = Number(final.issueDate.slice(5, 7));
-    const year = Number(final.issueDate.slice(0, 4));
+    // Store-Umsaetze tragen den Leistungszeitraum; seither zaehlt dieser Monat, nicht der Rechnungstag (#694)
+    const bezug = final.serviceDate ?? final.issueDate;
+    const month = Number(bezug.slice(5, 7));
+    const year = Number(bezug.slice(0, 4));
     expect((await vat.computeVatFigures({ year, month })).kz21).toBe(8500);
     const zm = await vat.zmOverview({ year, month: 40 + Math.ceil(month / 3) });
     expect(zm.zeilen).toEqual([expect.objectContaining({ ustId: "IE9825613N", betrag: 8500 })]);

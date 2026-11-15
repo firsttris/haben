@@ -1,5 +1,5 @@
 {
-  "id": "95fdf845-6ce0-4139-ad15-ffe6374d0e37",
+  "id": "3dda30de-8066-4624-ba98-d6bdb7bc8bf6",
   "prevId": "52827897-7522-43e2-a56a-dadb838b5fa8",
   "version": "7",
   "dialect": "postgresql",
@@ -3904,12 +3904,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "vorsteuer_anteil": {
-          "name": "vorsteuer_anteil",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "original_net": {
           "name": "original_net",
           "type": "bigint",
@@ -3964,12 +3958,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "document_amounts_vorsteuer_anteil_range": {
-          "name": "document_amounts_vorsteuer_anteil_range",
-          "value": "\"document_amounts\".\"vorsteuer_anteil\" between 0 and 10000"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.document_cancellations": {
@@ -6670,6 +6659,12 @@
         },
         "service_to": {
           "name": "service_to",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "service_date": {
+          "name": "service_date",
           "type": "date",
           "primaryKey": false,
           "notNull": false

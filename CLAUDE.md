@@ -21,6 +21,7 @@ the change before starting.
 | Screenshots of a change to the look | `mitwirken.md` | `pr-screenshots` |
 | Judge a contribution (do we want it, built from the sources and correct, simplest solution, rules): own pull request as self-check, someone else's as maintainer | `mitwirken.md`: Beiträge annehmen | `beitrag-pruefen` |
 | Review and merge | `mitwirken.md`: Review | `tdd-review` for code, `doku-pruefen` for Markdown, both in parallel if a PR has both |
+| Work through all open pull requests, ranked from easiest to merge | `mitwirken.md`: Beiträge annehmen, Review | `prs-abarbeiten` |
 | Pushing to someone else's fork (fixes, additions), above all from a cloud session | `mitwirken.md`: Review | `fork-pushen` |
 | Issues and labels | `mitwirken.md`: Issues schreiben | `issue-schreiben` |
 | Roadmap board (GitHub Project) | `mitwirken.md`: Etwas übernehmen, Vom Issue zum Release | `board-pflegen` |
@@ -71,4 +72,4 @@ Modules, the audit hash chain and seals: `docs/architektur.md`, tables: `docs/ar
   `server/modules/`; another module only through its `index.ts`.
 - Name the source (EN 16931, ERiC docs, DATEV format and SKR03/SKR04 charts; law over DATEV) where it settles a detail; clone GitHub sources
   shallowly into the scratchpad.
-- Use other ports for tests (E2E takes 3100 to 3116, see `apps/web/e2e/durchlaeufe.ts`; SSO 3216 and 3218 in `playwright.sso-only.config.ts`); an own compose project per worktree (`checks`).
+- Use other ports for tests (E2E takes 3100 to 3118, see `apps/web/e2e/durchlaeufe.ts`; SSO 3216 to 3218 in `playwright.sso-only.config.ts` (Haben behind TLS on 3219 in the production run), 3217 is the Firmenportal (behind TLS on 3221 in the production run), 3220 the Firmenportal in `sso-firmenportal-abmelden.spec.ts`); an own compose project per worktree (`checks`).

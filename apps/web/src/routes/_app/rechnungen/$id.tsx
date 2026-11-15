@@ -20,6 +20,7 @@ import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { InvoiceServiceEntries } from "../../../components/InvoiceServiceEntries.tsx";
+import { RechnungVerrechnung } from "../../../components/RechnungVerrechnung.tsx";
 import { SendMailForm } from "../../../components/SendMail.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
@@ -117,6 +118,7 @@ function InvoicePage() {
           numberCounters={data.numberCounters}
           numberRunning={data.numberRunning}
           numberFormat={data.numberFormat}
+          lastFinalized={data.lastFinalized}
           corrects={data.corrects}
           bundesland={data.bundesland}
           kleinunternehmer={data.kleinunternehmer}
@@ -242,6 +244,12 @@ function FinalInvoice({ data }: { data: Detail }) {
             </Link>
             .
           </span>
+        </div>
+      )}
+      {data.leistungsmonat && (
+        <div className="banner banner-warn" role="status">
+          <Icon name="alert" />
+          <span>{data.leistungsmonat}</span>
         </div>
       )}
       <NoticeBanner notice={notice} />
@@ -462,6 +470,8 @@ function FinalInvoice({ data }: { data: Detail }) {
           {inhaber && invoice.kind !== "storno" && (data.open > 0 || data.writeOffs.length > 0) && (
             <WriteOffs invoiceId={invoice.id} open={data.open} writeOffs={data.writeOffs} today={data.today} />
           )}
+
+          {invoice.status === "final" && invoice.kind !== "storno" && <RechnungVerrechnung invoiceId={invoice.id} readOnly={!inhaber} />}
 
           {correctedBy.length > 0 && (
             <section className="card" aria-labelledby="related-heading">

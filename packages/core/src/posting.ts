@@ -7,6 +7,9 @@ import { isKapitalgesellschaft, ownerLabels, type Rechtsform } from "./rechtsfor
 export type Kontenrahmen = "SKR03" | "SKR04";
 export type Versteuerung = "ist" | "soll";
 
+/** Frühere Haben-Konten bleiben für Bestandsauswertungen und Gegenbuchungen erhalten; neue Erlöse folgen DATEV 2026. */
+export const KLEINUNTERNEHMER_FRUEHERE_KONTEN = { SKR03: "8195", SKR04: "4185" } as const;
+
 /** Konten, die Haben bisher bebucht. Vor dem Echtbetrieb mit dem Steuerberater abgleichen. */
 export const ACCOUNTS = {
   SKR03: {
@@ -21,7 +24,7 @@ export const ACCOUNTS = {
       ig_lieferung: "8125",
       ausfuhr: "8120",
       steuerfrei: "8100",
-      kleinunternehmer: "8195",
+      kleinunternehmer: "8192",
     },
     ust: { 1900: "1776", 700: "1771" },
     ustNichtFaellig: { 1900: "1766", 700: "1761" },
@@ -89,7 +92,7 @@ export const ACCOUNTS = {
       ig_lieferung: "4125",
       ausfuhr: "4120",
       steuerfrei: "4100",
-      kleinunternehmer: "4185",
+      kleinunternehmer: "4184",
     },
     ust: { 1900: "3806", 700: "3801" },
     ustNichtFaellig: { 1900: "3816", 700: "3811" },
@@ -240,6 +243,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "3730": "Erhaltene Skonti",
     "8730": "Gewährte Skonti",
     "8100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
+    "8192": "Erlöse als Kleinunternehmer § 19 UStG",
     "8195": "Erlöse als Kleinunternehmer § 19 UStG",
     "8200": "Erlöse",
     "8300": "Erlöse 7 % USt",
@@ -281,6 +285,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "3811": "Umsatzsteuer nicht fällig 7 %",
     "3816": "Umsatzsteuer nicht fällig 19 %",
     "4100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
+    "4184": "Erlöse als Kleinunternehmer § 19 UStG",
     "4185": "Erlöse als Kleinunternehmer § 19 UStG",
     "4200": "Erlöse",
     "4300": "Erlöse 7 % USt",
@@ -470,7 +475,12 @@ export function paidTaxShares(totals: InvoiceTotals, paid: Cents): TaxShare[] {
  * zusammen genau die Steuer der Rechnung, auch nach einer aufgehobenen Zahlung dazwischen.
  */
 export function settlementTaxShares(totals: InvoiceTotals, settledBefore: Cents, recordedBefore: TaxShare[], amount: Cents): TaxShare[] {
-  return paidTaxShares(totals, settledBefore + amount).map((target) => {
+  const targets = paidTaxShares(totals, settledBefore + amount);
+  // Ein schon erfasster Satz, den der Mix nach einer Verrechnung nicht mehr hat, wird mit dieser Zahlung auf null berichtigt (#877)
+  const entfallen = [...new Set(recordedBefore.map((r) => r.rate))]
+    .filter((rate) => !targets.some((t) => t.rate === rate))
+    .map((rate) => ({ rate, base: 0, tax: 0 }));
+  return [...targets, ...entfallen].map((target) => {
     const recorded = recordedBefore.filter((r) => r.rate === target.rate);
     return {
       rate: target.rate,
@@ -481,18 +491,47 @@ export function settlementTaxShares(totals: InvoiceTotals, settledBefore: Cents,
 }
 
 /**
+ * Der Mix einer Rechnung nach Verrechnungen: Eine Verrechnung nimmt das Entgelt der Gegenrechnung weg, also genau deren
+ * Steueranteile. Was übrig bleibt, ist der Mix, über den die Zahlungen verteilt werden. Ohne diesen Schritt trüge bei zwei
+ * Steuersätzen der falsche Satz die Steuer (Befund aus dem Review zu #877): Die Zahlung verteilte sich anteilig auf die
+ * ursprüngliche Rechnung, auch auf die Position, die die Korrektur zurückgenommen hat.
+ */
+export function ohneSteueranteile(totals: InvoiceTotals, weggenommen: readonly TaxShare[]): InvoiceTotals {
+  const weg = (rate: BasisPoints, feld: "base" | "tax") => weggenommen.filter((s) => s.rate === rate).reduce((sum, s) => sum + s[feld], 0);
+  const taxes = totals.taxes
+    .map((t) => ({ rate: t.rate, base: t.base - weg(t.rate, "base"), tax: t.tax - weg(t.rate, "tax") }))
+    .filter((t) => t.base !== 0 || t.tax !== 0);
+  const tax = taxes.reduce((sum, t) => sum + t.tax, 0);
+  const gross = taxes.reduce((sum, t) => sum + t.base + t.tax, 0);
+  return { net: gross - tax, tax, gross, taxes };
+}
+
+/**
  * Gespeicherter Anteil einer Zahlung bzw. Ausbuchung, wenn er zur Rechnung passt: dieselben Steuersätze und zusammen der
  * Betrag; sonst aus dem Betrag gerechnet (ältere Zeilen ohne Anteil, wie gebucht). Für welche Rechnung er gerechnet ist,
  * prüft der Aufrufer (tax_shares_invoice_id), damit der Abgleich eine umgehängte Zahlung weiter als Abweichung meldet.
+ * `rest` ist der Mix nach Verrechnungen (#877): Ein Anteil passt zum vollen Mix (vor der Verrechnung gebucht) oder zum
+ * Rest; neu gerechnet wird über den Rest. Als Liste der aktuelle Rest und danach die früheren Stände: Ein Anteil, der vor
+ * der Aufhebung einer Verrechnung zum damaligen Rest gebucht wurde, gilt weiter.
  */
-export function recordedTaxShares(totals: InvoiceTotals, amount: Cents, stored: TaxShare[] | null | undefined): TaxShare[] {
-  const computed = paidTaxShares(totals, amount);
+export function recordedTaxShares(
+  totals: InvoiceTotals,
+  amount: Cents,
+  stored: TaxShare[] | null | undefined,
+  rest: InvoiceTotals | readonly InvoiceTotals[] = totals,
+): TaxShare[] {
+  const mixe = Array.isArray(rest) ? (rest as readonly InvoiceTotals[]) : [rest as InvoiceTotals];
+  const computed = paidTaxShares(mixe[0] ?? totals, amount);
   if (!stored) return computed;
-  const fits =
-    stored.length === computed.length &&
-    computed.every((c) => stored.some((s) => s.rate === c.rate)) &&
-    stored.reduce((sum, s) => sum + s.base + s.tax, 0) === amount;
-  return fits ? stored : computed;
+  const fits = (mix: InvoiceTotals) => {
+    const rates = paidTaxShares(mix, amount);
+    return (
+      stored.length === rates.length &&
+      rates.every((c) => stored.some((s) => s.rate === c.rate)) &&
+      stored.reduce((sum, s) => sum + s.base + s.tax, 0) === amount
+    );
+  };
+  return fits(totals) || mixe.some(fits) ? stored : computed;
 }
 
 /** Zeilen ohne Betrag fallen weg, außer sie tragen eine Bemessungsgrundlage (Anteil ohne Steuer bei Ist) */
@@ -620,6 +659,20 @@ export { documentWriteOffPosting } from "./document-write-off.ts";
 export function verrechnungPosting(amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   return [side(accounts.verbindlichkeiten, -amount, true, null), side(accounts.verrechnung, amount, true, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
+}
+
+/**
+ * Eine Seite einer Verrechnung zwischen Ausgangsrechnung und Kundenkorrektur (#877): Die Seite bucht ihren Anteil aus dem
+ * offenen Posten aus, Forderungen gegen das Verrechnungskonto (SKR03 1590, SKR04 1370). `amount` trägt das Vorzeichen der
+ * Zeile in `invoice_settlements`: positiv bei der Rechnung, deren Forderung sinkt (Haben Forderungen), negativ bei der
+ * Korrektur. Zusammen mit der Buchung der anderen Seite steht das Verrechnungskonto auf null. Ohne Steuerzeile: Die
+ * Aufrechnung ist umsatzsteuerlich neutral, die Minderung nach § 17 Abs. 1 UStG hängt an der Korrektur selbst.
+ */
+export function invoiceVerrechnungPosting(amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  return [side(accounts.forderungen, amount, false, null), side(accounts.verrechnung, -amount, false, null)].filter(
     (line) => line.debit !== 0 || line.credit !== 0,
   );
 }

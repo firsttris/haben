@@ -1,7 +1,9 @@
+import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
-import { day, firstLink, YEAR } from "./daten.ts";
+import { day, firstLink, USER, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { HANDY, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
@@ -324,13 +326,62 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
 
+test("Teilleistung ohne Leistungsdatum: Entwurf speichern nennt das Feld (Review #974)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
+  await page.getByRole("checkbox", { name: "Teilleistung bereits erbracht" }).check();
+  await page.getByLabel("Beschreibung Position 1").fill("1. Abschlag");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("1000");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  // Bisher hielt der Browser über required an; mit noValidate nennt useSubmitCheck das Feld
+  await expect(page.getByLabel("Leistung von", { exact: true })).toBeFocused();
+  await expect(page.getByLabel("Leistung von", { exact: true })).toHaveAccessibleDescription(/Teilleistung/);
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+});
+
+test("Festschreiben ohne Kunden nennt den Kunden am Feld statt der Rückfrage (Review #974)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toBeFocused();
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveAccessibleDescription("Wähle den Kunden.");
+});
+
+test("Entwurf speichern nennt bei einem anderen Fehler nicht den fehlenden Kunden, Festschreiben schon", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  const ziel = page.getByLabel("Zahlungsziel in Tagen", { exact: true });
+  await ziel.fill("200");
+  const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+  // Ein Entwurf darf ohne Kunden gespeichert werden: der Kunde ist dabei kein Fehler, nur das Zahlungsziel
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await expect(ziel).toBeFocused();
+  await expect(ziel).toHaveAccessibleDescription(/ganzen Tagen von 0 bis 120/);
+  await expect(kunde).not.toHaveAttribute("aria-invalid", "true");
+  await expect(kunde).not.toHaveAccessibleDescription(/Wähle den Kunden/);
+  // Festschreiben braucht den Kunden: jetzt steht er am Feld
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(kunde).toHaveAccessibleDescription("Wähle den Kunden.");
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+});
+
 test("Wiederkehrende Rechnung: Kunde suchen, ohne Kunde nicht speicherbar, neuen Kunden direkt anlegen", async () => {
   await go("/rechnungen/wiederkehrend/neu");
   await page.getByLabel("Bezeichnung").fill("Wartungsvertrag Test");
   const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
-  // Pflichtfeld: Ohne gewählten Kunden meldet der Browser das Feld und speichert nichts
+  // Pflichtfeld: Ohne gewählten Kunden speichert „Vorlage anlegen“ nicht, sondern sagt es am Feld (DESIGN.md, Gesperrte Knöpfe)
   expect(await kunde.evaluate((feld: HTMLInputElement) => feld.validity.valueMissing)).toBe(true);
-  await expect(page.getByRole("button", { name: "Vorlage anlegen" })).toBeDisabled();
+  await page.getByRole("button", { name: "Vorlage anlegen" }).click();
+  await expect(kunde).toBeFocused();
+  await expect(kunde).toHaveAccessibleDescription(/Wähle den Kunden\./);
+  await expect(page).toHaveURL(/\/rechnungen\/wiederkehrend\/neu$/);
 
   // Suche nach Name; nur Kunden stehen zur Auswahl
   await kunde.fill("Nordwerk");
@@ -1271,7 +1322,10 @@ test("Rechnung mit Positions- und Gesamtrabatt in der Vorschau", async () => {
   await expect(vorschau).toContainText("1.017,45 €");
   await page.getByLabel("Gesamtrabatt (optional)").fill("2000");
   await expect(page.getByText("Der Gesamtrabatt ist höher als die Summe der Positionen")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Entwurf speichern" })).toBeDisabled();
+  // „Entwurf speichern“ speichert nicht, sondern setzt den Fokus auf den Rabatt (DESIGN.md, Gesperrte Knöpfe)
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await expect(page.getByLabel("Gesamtrabatt (optional)")).toBeFocused();
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
 });
 
 test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", async () => {
@@ -1799,6 +1853,115 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer un
   await expect(calls.getByText("POST /belege").first()).toBeVisible();
 });
 
+test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und in den Einstellungen widerrufen", async () => {
+  // Ausgeschaltet gibt es den OAuth-Weg nicht: jeder Endpunkt und die Zustimmungsseite antworten 404
+  await go("/einstellungen?bereich=ki");
+  const zugang = page.getByLabel("Zugang für KI-Assistenten und API einschalten");
+  await zugang.click();
+  await expect(zugang).not.toBeChecked();
+  for (const pfad of ["/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/api/mcp"])
+    expect((await page.request.get(pfad)).status(), pfad).toBe(404);
+  for (const pfad of ["/api/oauth/register", "/api/oauth/token"]) expect((await page.request.post(pfad, { data: {} })).status(), pfad).toBe(404);
+  expect((await page.goto("/oauth/autorisieren?response_type=code"))?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1, name: "Seite nicht gefunden" })).toBeVisible();
+  await go("/einstellungen?bereich=ki");
+  await zugang.click();
+  await expect(zugang).toBeChecked();
+
+  const metadaten = (await (await page.request.get("/.well-known/oauth-authorization-server")).json()) as Record<string, string>;
+  const ressource = (await (await page.request.get("/.well-known/oauth-protected-resource")).json()) as { resource: string };
+  const redirect = "http://127.0.0.1:9/callback";
+  const registriert = await page.request.post(new URL(metadaten.registration_endpoint!).pathname, {
+    data: { redirect_uris: [redirect], client_name: "Claude E2E", token_endpoint_auth_method: "none" },
+  });
+  expect(registriert.status()).toBe(201);
+  const { client_id } = (await registriert.json()) as { client_id: string };
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+
+  // Den Rücksprung zum Client fängt der Test ab; „1e5“ sähe für den Router wie JSON aus und muss unverändert zurückkommen
+  let rueckweg = "";
+  await page.route("http://127.0.0.1:9/**", (route) => {
+    rueckweg = route.request().url();
+    return route.fulfill({ body: "ok" });
+  });
+  const anfrage = new URLSearchParams({
+    response_type: "code",
+    client_id,
+    redirect_uri: redirect,
+    state: "1e5",
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    resource: ressource.resource,
+  });
+  // Zulassen verlangt eine frische Anmeldung: Die Sitzung des Durchlaufs ist älter als fünf Minuten
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  await sql`update session set created_at = now() - interval '10 minutes'`;
+  await sql.end();
+  await go(`/oauth/autorisieren?${anfrage}`);
+  await expect(page.getByRole("heading", { level: 1, name: "KI-Assistent verbinden" })).toBeVisible();
+  await expect(page.getByRole("main")).toContainText("Zum Zulassen melde dich bitte erneut an");
+  await expect(page.getByRole("button", { name: "Zulassen" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Erneut anmelden" }).click();
+  await page.waitForURL(/\/login\?weiter=/);
+  await page.getByRole("button", { name: "Passwort verwenden" }).click();
+  await page.getByLabel("E-Mail").fill(USER.email);
+  await page.getByLabel("Passwort").fill(USER.password);
+  const seite = page.waitForResponse((antwort) => new URL(antwort.url()).pathname === "/oauth/autorisieren" && antwort.request().isNavigationRequest());
+  await page.getByRole("button", { name: "Mit Passwort anmelden" }).click();
+  await page.waitForURL(/\/oauth\/autorisieren\?/);
+  // Clickjacking (RFC 9700, 4.16): die Zustimmung steht in keinem Rahmen, auch nicht auf derselben Origin
+  const kopf = (await seite).headers();
+  expect(kopf["content-security-policy"]).toBe("frame-ancestors 'none'");
+  expect(kopf["x-frame-options"]).toBe("DENY");
+  // Den Namen wählt der Client selbst; er steht deshalb nur als „nennt sich …“ da, mit der Warnung davor
+  const zustimmung = page.getByRole("main");
+  await expect(zustimmung).toContainText("Ein KI-Assistent möchte deine Buchhaltung in Haben lesen. Er nennt sich „Claude E2E“.");
+  await expect(zustimmung).toContainText("Nur zulassen, wenn du diese Verbindung gerade selbst eingerichtet hast.");
+  await expect(zustimmung).toContainText("127.0.0.1:9");
+  expect(await axeVerstoesse(page)).toEqual([]);
+  await page.getByRole("button", { name: "Zulassen" }).click();
+  await expect.poll(() => rueckweg).toContain("code=");
+  const zurueck = new URL(rueckweg);
+  expect(zurueck.searchParams.get("state")).toBe("1e5");
+
+  const tokens = await page.request.post(new URL(metadaten.token_endpoint!).pathname, {
+    form: { grant_type: "authorization_code", code: zurueck.searchParams.get("code")!, code_verifier: verifier, client_id, redirect_uri: redirect },
+  });
+  expect(tokens.status()).toBe(200);
+  const { access_token } = (await tokens.json()) as { access_token: string };
+  const werkzeuge = () =>
+    page.request.post("/api/mcp", {
+      headers: { Authorization: `Bearer ${access_token}`, Accept: "application/json, text/event-stream" },
+      data: { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+    });
+  expect((await werkzeuge()).status()).toBe(200);
+
+  await go("/einstellungen?bereich=ki");
+  const verbindung = page.getByRole("region", { name: "API-Tokens" }).locator(".history-row", { hasText: "Claude E2E" });
+  await expect(verbindung).toContainText("OAuth-Verbindung");
+  await verbindung.getByRole("button", { name: "Widerrufen" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Verbindung „Claude E2E“ widerrufen?");
+  await bestaetigen(page, "Widerrufen");
+  // Der Knopf „Widerrufen“ steht schon vorher in der Zeile; erst ohne ihn ist der Widerruf gespeichert
+  await expect(verbindung.getByRole("button", { name: "Widerrufen" })).toHaveCount(0);
+  await expect(verbindung).toContainText("Widerrufen");
+  const abgelehnt = await werkzeuge();
+  expect(abgelehnt.status()).toBe(401);
+  expect(abgelehnt.headers()["www-authenticate"]).toContain("resource_metadata=");
+});
+
+test("OAuth-Zustimmung steht auch unter anderer Schreibweise der Adresse in keinem Rahmen (RFC 9700, 4.16)", async () => {
+  // Der Router unterscheidet Groß- und Kleinschreibung nicht; dieselbe Seite darf nicht ohne Schutz zu haben sein
+  for (const pfad of ["/OAUTH/Autorisieren", "/oauth/AUTORISIEREN", "/oauth/%61utorisieren"]) {
+    const antwort = await page.request.get(`${pfad}?response_type=code`, { maxRedirects: 0 });
+    expect(antwort.status(), pfad).toBe(200);
+    expect(antwort.headers()["content-type"], pfad).toContain("text/html");
+    expect(antwort.headers()["content-security-policy"], pfad).toBe("frame-ancestors 'none'");
+    expect(antwort.headers()["x-frame-options"], pfad).toBe("DENY");
+  }
+});
+
 test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubletten", async ({ browser }) => {
   // Kontakte wie aus Excel unter Windows: Windows-1252, Semikolon; die E-Mail-Spalte heißt anders und wird von Hand zugeordnet
   const kontakte = [
@@ -1885,6 +2048,99 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await expect(page.getByText("Lastenrad").first()).toBeVisible();
 });
 
+test("CSV-Import: Debitoren und Kreditoren aus DATEV-Stammdaten, Vorschlag nur mit Bestätigung (#472)", async ({ browser }) => {
+  // Kopf und Spalten wie EXTF_GP_Stamm_*.csv aus sevDesk, Zeilen erfunden; Brückenbau Süd GmbH (K-900) kam im Test davor
+  const spalten = readFileSync(new URL("../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/extf-gp-stamm.csv", import.meta.url), "utf-8")
+    .split(/\r?\n/)[1]!
+    .split(";");
+  const zeile = (werte: Record<string, string>) => spalten.map((name) => werte[name] ?? "").join(";");
+  const firma = (konto: string, name: string, werte: Record<string, string> = {}) =>
+    zeile({ Konto: konto, "Name (Adressatentyp Unternehmen)": name, ...werte });
+  const gpStamm = [
+    `"EXTF";700;16;"Debitoren/Kreditoren";5;;;;;;1;1;${YEAR}0101;4;;;;;;;;;;;;;;;;;`,
+    spalten.join(";"),
+    firma("10901", "Nordlicht Design GmbH", { "EU-Mitgliedstaat": "DE", "EU-UStId.": "136695976", Ort: "Kiel" }),
+    firma("70901", "Nordlicht Design GmbH", { "EU-Mitgliedstaat": "DE", "EU-UStId.": "136695976" }),
+    firma("10902", "Brückenbau Süd", { Kundennummer: "K-900" }),
+    firma("8400", "Erlöse 19 %"),
+  ].join("\r\n");
+  const datei = [{ name: `EXTF_GP_Stamm_${YEAR}.csv`, mimeType: "text/csv", buffer: Buffer.from(gpStamm) }];
+  await go("/csv-import?art=kontakte");
+  await page.getByLabel("CSV-Datei").setInputFiles(datei);
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  const preview = page.getByRole("region", { name: "Vorschau" });
+  await expect(preview).toContainText("Erkannt: DATEV-Stammdaten Debitoren/Kreditoren, UTF-8");
+  await expect(page.getByRole("region", { name: "Spalten zuordnen" })).toHaveCount(0);
+  await expect(preview).toContainText("1 neu, 1 Vorschlag zum Bestätigen, 0 Dubletten, 1 mit Fehlern");
+  await expect(preview.getByRole("row", { name: /Nordlicht Design GmbH/ })).toContainText("Debitor 10901 und Kreditor 70901: gleiche USt-IdNr. DE136695976");
+  await expect(preview).toContainText("Debitor 10902 an „Brückenbau Süd GmbH“ vergeben (gleiche Kundennummer)");
+  await expect(preview).toContainText("„8400“ ist kein Personenkonto");
+  // Barrierefreiheit mit dem Kontrollkästchen in der Tabelle, in eigenem Kontext wie im Test davor
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  await axePage.goto(new URL("/csv-import?art=kontakte", page.url()).toString());
+  // Erst nach der Hydration wählen; sonst verwirft React die gewählte Datei
+  await axePage.waitForLoadState("networkidle");
+  await axePage.getByLabel("CSV-Datei").setInputFiles(datei);
+  await axePage.getByRole("button", { name: "Vorschau" }).click();
+  await expect(axePage.getByRole("checkbox", { name: "Bestätigen" })).toBeVisible();
+  expect(await axeVerstoesse(axePage)).toEqual([]);
+  await context.close();
+  // Ohne Bestätigung bleibt der Vorschlag liegen; mit ihr bekommt der vorhandene Kontakt den Debitor
+  await preview.getByRole("button", { name: "1 Kontakt übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText(
+    "1 Kontakt übernommen, 1 nicht bestätigter Vorschlag und 1 fehlerhafte Zeile übersprungen.",
+  );
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await expect(preview).toContainText("0 neu, 1 Vorschlag zum Bestätigen, 1 Dublette, 1 mit Fehlern");
+  await expect(preview.getByRole("button", { name: "0 Kontakte übernehmen" })).toBeDisabled();
+  await preview.getByRole("checkbox", { name: "Bestätigen" }).check();
+  await preview.getByRole("button", { name: "1 Kontakt übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText(
+    "0 Kontakte übernommen, 1 Personenkonto zugeordnet, 1 Dublette und 1 fehlerhafte Zeile übersprungen.",
+  );
+  // Ein zweiter Import findet jede Nummer wieder und ändert nichts
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await expect(preview).toContainText("0 neu, 2 Dubletten, 1 mit Fehlern");
+  await expect(preview).toContainText("Gibt es schon („Brückenbau Süd GmbH“, Debitor 10902)");
+  await expect(preview.getByRole("button", { name: "0 Kontakte übernehmen" })).toBeDisabled();
+  await go("/kontakte");
+  const liste = page.getByRole("region", { name: "Kontaktliste" });
+  await expect(liste.getByText("Nordlicht Design GmbH")).toHaveCount(1);
+});
+
+test("CSV-Import: Bei mehr als 200 Zeilen bleibt jeder Vorschlag aus DATEV-Stammdaten bestätigbar (#472)", async () => {
+  // 201 vorhandene Kontakte mit Kundennummer, der GP-Stamm nennt sie mit Debitor: jede Zeile ein Vorschlag
+  const anzahl = 201;
+  const spalten = readFileSync(new URL("../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/extf-gp-stamm.csv", import.meta.url), "utf-8")
+    .split(/\r?\n/)[1]!
+    .split(";");
+  const zeile = (werte: Record<string, string>) => spalten.map((name) => werte[name] ?? "").join(";");
+  const nummern = Array.from({ length: anzahl }, (_, i) => i + 1);
+  const gpStamm = [
+    `"EXTF";700;16;"Debitoren/Kreditoren";5;;;;;;1;1;${YEAR}0101;4;;;;;;;;;;;;;;;;;`,
+    spalten.join(";"),
+    ...nummern.map((n) => zeile({ Konto: String(12000 + n), "Name (Adressatentyp Unternehmen)": `Vorschlagskunde ${n}`, Kundennummer: `VS-${n}` })),
+  ].join("\r\n");
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  try {
+    const angelegt = await sql<{ id: string }[]>`insert into contacts (name, land, kundennummer, is_customer, is_supplier)
+      select 'Vorschlagskunde ' || n, 'DE', 'VS-' || n, true, false from generate_series(1, ${anzahl}) as n returning id`;
+    try {
+      await go("/csv-import?art=kontakte");
+      await page.getByLabel("CSV-Datei").setInputFiles([{ name: `EXTF_GP_Stamm_${YEAR}.csv`, mimeType: "text/csv", buffer: Buffer.from(gpStamm) }]);
+      await page.getByRole("button", { name: "Vorschau" }).click();
+      const preview = page.getByRole("region", { name: "Vorschau" });
+      await expect(preview).toContainText(`0 neu, ${anzahl} Vorschläge zum Bestätigen`);
+      await expect(preview.getByRole("checkbox", { name: "Bestätigen" })).toHaveCount(anzahl);
+    } finally {
+      await sql`update contacts set archived_at = now() where id in ${sql(angelegt.map((k) => k.id))}`;
+    }
+  } finally {
+    await sql.end();
+  }
+});
+
 test("Ein langes Wort im Titel des Dialogs wird umbrochen, nicht abgeschnitten", async () => {
   const name = "Warenwirtschaftsbestelluebersichtsseiten"; // 40 Zeichen, mehr nimmt das Formular nicht
   await go("/einstellungen?bereich=seiten");
@@ -1944,6 +2200,11 @@ test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fe
   await page.setViewportSize(LAPTOP);
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
   await kundeWaehlen(page);
+  // Leere Position: „Festschreiben“ fragt nicht nach, sondern nennt unter der Position, was fehlt (DESIGN.md, Gesperrte Knöpfe)
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(page.getByLabel("Beschreibung Position 1")).toBeFocused();
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveAccessibleDescription("Trag die Beschreibung und den Einzelpreis ein.");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
@@ -2214,6 +2475,41 @@ test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschre
   await expect(page.getByRole("combobox", { name: "Ansprechpartner" })).toHaveCount(0);
 });
 
+test("Rechnungsdatum vor der letzten festgeschriebenen Rechnung: Warnung beim Festschreiben ohne Sperre (#713)", async () => {
+  await rechnungFestschreiben(page, {
+    customer: "Rheinpixel GmbH · Köln",
+    date: "2026-11-09",
+    lines: [["Beratung", "1", "500,00"]],
+    gross: "595,00",
+  });
+
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  await page.getByLabel("Rechnungsdatum").fill("2026-10-01");
+  await page.getByLabel("Beschreibung Position 1").fill("Rückdatierte Leistung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("200");
+
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("status")).toContainText("Das Rechnungsdatum (01.10.2026) liegt vor der zuletzt festgeschriebenen Rechnung");
+  await expect(dialog.getByRole("status")).toContainText("vom 09.11.2026");
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+
+  // Datum in der Vergangenheit allein (anderer Nummernkreis ohne Rechnung) warnt nicht
+  await page.getByLabel("Rechnungsdatum").fill("2024-12-15");
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+
+  // Warnung sperrt nicht: Festschreiben bleibt möglich
+  await page.getByLabel("Rechnungsdatum").fill("2026-10-01");
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("01.10.2026");
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText("Festgeschrieben", { exact: true })).toBeVisible();
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/rechnungen",
@@ -2351,6 +2647,75 @@ test("Leistungen abrechnen: Vorschau, Rechnungsentwurf mit Nachweis, Einträge g
   await noch.getByLabel("Bis").fill("2099-12-31");
   await expect(noch).toContainText("keine offenen, abrechenbaren Einträge");
   await expect(noch.getByRole("button", { name: "Rechnungsentwurf anlegen" })).toBeDisabled();
+});
+
+test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufheben stellt ihn her", async () => {
+  // Rechnung 100,00 EUR netto, also 119,00 EUR brutto; die Korrektur mindert um 20,00 EUR netto
+  await rechnungFestschreiben(page, {
+    customer: "Rheinpixel GmbH · Köln",
+    date: day(-5),
+    lines: [["Verrechnung Beratung", "1", "100,00"]],
+    gross: "119,00",
+  });
+  const rechnungUrl = page.url();
+
+  // Korrektur anlegen und auf 20,00 EUR netto kürzen, dann festschreiben
+  await page.getByRole("button", { name: "Rechnungskorrektur anlegen" }).click();
+  // Die Korrektur ist eine eigene Rechnung: auf ihre Adresse warten, nicht auf das Muster, das die offene schon erfüllt
+  await page.waitForURL((url) => /\/rechnungen\/[0-9a-f-]{36}$/.test(url.pathname) && url.toString() !== rechnungUrl);
+  const korrekturUrl = page.url();
+  await page.getByLabel("Einzelpreis Position 1").fill("-20,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+
+  // Zurück auf die Rechnung: der Rest steht bei 119,00 EUR, die Verrechnung fehlt noch
+  await page.goto(rechnungUrl);
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Verrechnung" });
+  await expect(karte).toContainText(/offen sind noch\s*119,00\s*€/);
+  await karte.getByRole("button", { name: "Mit der Korrektur verrechnen" }).click();
+
+  // Das Formular ist offen: Betrag und Tag sind vorbelegt, der Grund ist Pflicht
+  const formular = karte.locator("form");
+  await formular.getByLabel("Gegenbeleg").selectOption({ index: 1 });
+  await expect(formular.getByLabel("Betrag")).toHaveValue("23,80");
+  await formular.getByLabel("Tag der Aufrechnung").fill(day(0));
+  await formular.getByLabel("Grund").fill("Korrektur TE-1");
+  await expect(await axeVerstoesse(page)).toEqual([]);
+  await formular.getByRole("button", { name: "Verrechnen" }).click();
+
+  // Der Belegbetrag bleibt, der offene Rest sinkt um die verrechneten 23,80 EUR
+  await expect(karte).toContainText(/offen sind noch\s*95,20\s*€/);
+  await expect(karte).toContainText("Korrektur TE-1");
+  await expect(karte).toContainText(/23,80\s*€/);
+
+  // Die Buchung der Verrechnung führt im Journal auf die Rechnung, nicht auf die Bank (#877)
+  await go("/buchungen");
+  const verrechnungslinks = page.locator("tr").filter({ hasText: "Verrechnung" }).getByRole("link", { name: "Verrechnung" });
+  await expect(verrechnungslinks).toHaveCount(2);
+  const journalziele = (await verrechnungslinks.evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""))).sort();
+  expect(journalziele).toEqual([new URL(rechnungUrl).pathname, new URL(korrekturUrl).pathname].sort());
+
+  // Dieselbe Herkunft führt auch auf dem Kontenblatt der Forderungen auf Rechnung und Korrektur (#877)
+  await go(`/konten/1400?jahr=${YEAR}&zeitraum=jahr`);
+  const kontenlinks = page.locator("tr").filter({ hasText: "Verrechnung" }).getByRole("link", { name: "Verrechnung" });
+  await expect(kontenlinks).toHaveCount(2);
+  const kontenziele = (await kontenlinks.evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""))).sort();
+  expect(kontenziele).toEqual([new URL(rechnungUrl).pathname, new URL(korrekturUrl).pathname].sort());
+
+  // Nach dem Neuladen steht die Verrechnung weiterhin
+  await page.goto(rechnungUrl);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*95,20\s*€/);
+
+  // Aufheben: der Rest ist wieder 119,00 EUR, die Zeile verschwindet
+  await page.getByRole("region", { name: "Verrechnung" }).getByRole("button", { name: "aufheben" }).click();
+  await page.getByLabel("Tag der Aufhebung").fill(day(0));
+  await page.getByRole("button", { name: "Aufheben", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*119,00\s*€/);
+  await expect(page.getByRole("region", { name: "Verrechnung" }).getByText("Korrektur TE-1")).toHaveCount(0);
 });
 
 test("Keine Fehler im Browser", async () => {

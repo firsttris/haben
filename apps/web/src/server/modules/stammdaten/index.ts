@@ -6,6 +6,7 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { insertImportedArticles, insertImportedContacts, planArticleImport, planContactImport } from "./csv-import.ts";
+export { applyDatevContactImport, planDatevContactImport, type DatevContactImportPlan } from "./datev-kontakte-import.ts";
 export { articleInputSchema, createArticle, listArticles, setArticleArchived, updateArticle } from "./articles.ts";
 export {
   companyIssues,
@@ -32,11 +33,13 @@ export {
   getContact,
   listContactChoices,
   listContacts,
+  searchContacts,
   setContactArchived,
   setContactIbanIfEmpty,
   updateContact,
   type Contact,
   type ContactChoice,
+  type ContactHit,
   type ContactInput,
   type ContactRole,
   type UstIdMatch,
@@ -57,7 +60,17 @@ export {
 } from "./exchange-rates.ts";
 export { AccentColorError, loadDesign, loadLetterhead, saveAccentColor, saveDesign } from "./letterhead.ts";
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
-export { loadNavMark, NavMarkError, navMarkSchema, saveNavMark, type NavMarkInput, type NavMarkSetting } from "./nav-mark.ts";
+export {
+  loadNavMark,
+  NavMarkError,
+  navMarkSchema,
+  readNavMark,
+  readNavMarkLogo,
+  saveNavMark,
+  type NavMarkInput,
+  type NavMarkSetting,
+  type NavMarkStand,
+} from "./nav-mark.ts";
 export { backgroundInfo, loadBackground, MAX_BACKGROUND_BYTES, removeBackground, saveBackground } from "./background.ts";
 export { customLayoutJob, dataForVersion, layoutRenderer } from "./layout-renderer.ts";
 export { rendererFor } from "./layout-pakete.ts";

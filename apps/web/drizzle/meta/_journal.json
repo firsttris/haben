@@ -1622,15 +1622,120 @@
     {
       "idx": 231,
       "version": "7",
-      "when": 1794664098066,
-      "tag": "0231_vorsteuer_teilabzug",
+      "when": 1794664787301,
+      "tag": "0231_rechnung_ausgefuehrt_am",
       "breakpoints": true
     },
     {
       "idx": 232,
       "version": "7",
-      "when": 1794664100221,
-      "tag": "0232_outgoing_tax_details",
+      "when": 1794671327848,
+      "tag": "0232_search_pg_trgm",
+      "breakpoints": true
+    },
+    {
+      "idx": 233,
+      "version": "7",
+      "when": 1794671331147,
+      "tag": "0233_search_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 234,
+      "version": "7",
+      "when": 1794681966642,
+      "tag": "0234_passwortwechsel",
+      "breakpoints": true
+    },
+    {
+      "idx": 235,
+      "version": "7",
+      "when": 1794681973469,
+      "tag": "0235_passwortwechsel_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 236,
+      "version": "7",
+      "when": 1794688457252,
+      "tag": "0236_dateipruefung",
+      "breakpoints": true
+    },
+    {
+      "idx": 237,
+      "version": "7",
+      "when": 1794692085794,
+      "tag": "0237_jahreserklaerung_zeilenwerte",
+      "breakpoints": true
+    },
+    {
+      "idx": 238,
+      "version": "7",
+      "when": 1794692093538,
+      "tag": "0238_jahreserklaerung_zeilenwerte_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 239,
+      "version": "7",
+      "when": 1794694652955,
+      "tag": "0239_app_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1794694658816,
+      "tag": "0240_app_versions_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 241,
+      "version": "7",
+      "when": 1794718530726,
+      "tag": "0241_rechnung_verrechnung_korrektur",
+      "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1794718531726,
+      "tag": "0242_rechnung_verrechnung_korrektur_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1794733876948,
+      "tag": "0243_fastbill",
+      "breakpoints": true
+    },
+    {
+      "idx": 244,
+      "version": "7",
+      "when": 1794733884835,
+      "tag": "0244_fastbill_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 245,
+      "version": "7",
+      "when": 1794736111385,
+      "tag": "0245_mcp_oauth",
+      "breakpoints": true
+    },
+    {
+      "idx": 246,
+      "version": "7",
+      "when": 1794747145127,
+      "tag": "0246_vorsteuer_teilabzug",
+      "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1794747147639,
+      "tag": "0247_outgoing_tax_details",
       "breakpoints": true
     }
   ]

@@ -6,6 +6,7 @@ import { useAction } from "../lib/use-action.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Field } from "./Field.tsx";
 import { FilePicker } from "./FilePicker.tsx";
+import { MonthPicker } from "./MonthPicker.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import {
   createStoreDraftsFn,
@@ -239,9 +240,7 @@ function StoreForm({ store, connection, contacts }: { store: Store; connection: 
           </Field>
         </>
       )}
-      <Field label="Berichte ab Monat">
-        {(control) => <input {...control} type="month" value={fetchFrom} onChange={(e) => setFetchFrom(e.target.value)} required />}
-      </Field>
+      <Field label="Berichte ab Monat">{(control) => <MonthPicker {...control} value={fetchFrom} onChange={setFetchFrom} />}</Field>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? "Prüfe …" : "Prüfen und speichern"}

@@ -20,6 +20,17 @@ const PATHS = {
     </>
   ),
   bank: <path d="M3 10l9-6 9 6M5 10v8M19 10v8M9 10v8M15 10v8M3 21h18" />,
+  // Lastschrift: Geld wird eingezogen, Pfeil in die Ablage
+  debit: <path d="M12 3v9M8.5 8.5L12 12l3.5-3.5M3 14h5l1.5 2.5h5L16 14h5M3 14v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5" />,
+  // Überweisung: Geld geht hinaus, Papierflieger
+  transfer: <path d="M21 3L10 14M21 3l-6.5 18-4.5-7-7-4.5z" />,
+  // Darlehen: Hand, die eine Münze gibt
+  loan: (
+    <>
+      <circle cx="16" cy="7" r="3" />
+      <path d="M2 13h3v8H2zM5 14h4l3 1.5h3a1.5 1.5 0 0 1 0 3h-4M5 20h8.5l6.8-3.9a1.5 1.5 0 0 0-1.6-2.5L15 15.6" />
+    </>
+  ),
   cash: <path d="M3 7h18v10H3zM7 7v10M17 7v10M12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />,
   ledger: <path d="M4 4h16v16H4zM4 9h16M9 9v11M14 9v11" />,
   journal: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
@@ -59,6 +70,7 @@ const PATHS = {
       <path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6" />
     </>
   ),
+  company: <path d="M4 21V5a1 1 0 0 1 1-1h8v17M13 10h6a1 1 0 0 1 1 1v10M3 21h18M8 8h2M8 12h2M8 16h2M16 14h2M16 18h2" />,
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />
@@ -85,6 +97,23 @@ const PATHS = {
   "chevron-down": <path d="M6 9l6 6 6-6" />,
   "chevron-left": <path d="M15 6l-6 6 6 6" />,
   "chevron-right": <path d="M9 6l6 6-6 6" />,
+  // Arbeitsbereiche der eingeklappten Leiste: eigene Symbole, keins wiederholt einen Menüpunkt
+  store: <path d="M4 9l1.5-5h13L20 9M4 9h16M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9M5 12v8h14v-8M10 20v-5h4v5" />,
+  cart: (
+    <>
+      <path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H6.2" />
+      <circle cx="9" cy="19" r="1.5" />
+      <circle cx="17" cy="19" r="1.5" />
+    </>
+  ),
+  wallet: <path d="M19 7V5a1 1 0 0 0-1-1H6a2 2 0 0 0 0 4h13a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V6M16 14h.01" />,
+  badge: <path d="M6 3h12v18H6zM12 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM9 17a3 3 0 0 1 6 0" />,
+  calculator: <path d="M6 3h12v18H6zM9 7h6M9 11h.01M12 11h.01M15 11h.01M9 14h.01M12 14h.01M15 14h.01M9 17h.01M12 17h.01M15 17h.01" />,
+  book: <path d="M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3zM21 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z" />,
+  briefcase: <path d="M4 7h16v12H4zM9 7V5h6v2M4 12h16" />,
+  // Seitenleiste ein- und ausklappen: Fenster mit Leiste links, der Pfeil zeigt die Richtung
+  "sidebar-close": <path d="M4 4h16v16H4zM9 4v16M16 9l-3 3 3 3" />,
+  "sidebar-open": <path d="M4 4h16v16H4zM9 4v16M13 9l3 3-3 3" />,
   eye: (
     <>
       <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
@@ -110,6 +139,12 @@ const PATHS = {
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 11v5M12 8h.01" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.35-4.35" />
     </>
   ),
 } as const;

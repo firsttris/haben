@@ -10,6 +10,8 @@ interface TaxFieldsProps {
   exemptionReason: string;
   kleinunternehmer: boolean;
   disabled?: boolean;
+  error?: string;
+  reasonError?: string;
   onTreatmentChange: (value: TaxTreatment) => void;
   onDetailsChange: (value: OutgoingTaxDetails) => void;
   onReasonChange: (value: string) => void;
@@ -23,7 +25,7 @@ interface DetailsProps {
 
 /** Dieselbe ausdrückliche Zuordnung für Rechnung, Angebot und Serienvorlage; kein Lesen der Vorschrift aus freiem Text. */
 export function OutgoingTaxFields(props: TaxFieldsProps) {
-  const { treatment, details, exemptionReason, kleinunternehmer, disabled = false, onTreatmentChange, onDetailsChange, onReasonChange } = props;
+  const { treatment, details, exemptionReason, kleinunternehmer, disabled = false, error, reasonError, onTreatmentChange, onDetailsChange, onReasonChange } = props;
   const values = details ?? EMPTY_DETAILS;
   const canonicalNote = treatment === "steuerfrei" ? section4Note(values.exemption) : null;
   const foreign = treatment === "reverse_charge" || treatment === "drittland" || treatment === "eu_sonstige";
@@ -41,7 +43,7 @@ export function OutgoingTaxFields(props: TaxFieldsProps) {
 
   return (
     <div className="stack" style={{ gridColumn: "1 / -1" }}>
-      <Field label="Umsatzsteuer" hint={treatmentHint(treatment, kleinunternehmer)}>
+      <Field label="Umsatzsteuer" hint={treatmentHint(treatment, kleinunternehmer)} error={error}>
         {(control) => (
           <select {...control} value={treatment} disabled={disabled} onChange={(event) => chooseTreatment(event.target.value as TaxTreatment)}>
             {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
@@ -60,6 +62,7 @@ export function OutgoingTaxFields(props: TaxFieldsProps) {
         <Field
           label={treatment === "steuerfrei" ? "Hinweis zur Steuerbefreiung" : "Hinweis zur Umsatzsteuer (optional)"}
           hint={canonicalNote ? "Aus der zugeordneten Vorschrift; steht auf dem Beleg." : undefined}
+          error={reasonError}
         >
           {(control) => (
             <input
@@ -75,7 +78,7 @@ export function OutgoingTaxFields(props: TaxFieldsProps) {
         </Field>
       )}
       <TurnoverFields {...detailsProps} treatment={treatment} />
-      {problems.map((problem) => (
+      {problems.filter((problem) => problem !== error).map((problem) => (
         <p key={problem} className="field-error" style={{ margin: 0 }}>
           {problem}
         </p>

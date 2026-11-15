@@ -112,7 +112,7 @@ Jede Pauschale wird beim Eintragen gebucht und festgeschrieben, zum Beispiel Hom
 
 Die Einlage erscheint in der Anlage EÜR bei den Einlagen. Umsatzsteuer und Vorsteuer sind nicht betroffen.
 
-Eine falsche Eingabe hebst du mit **Stornieren** auf:
+Eine falsche Eingabe hebst du mit **Stornieren** auf. Die Rückfrage nennt Datum oder Monat mit Jahr, Beschreibung, Angaben und Betrag der Zeile.
 
 - Haben schreibt eine Gegenzeile mit negativem Betrag und eine Gegenbuchung am selben Tag.
 - Das Original bleibt durchgestrichen stehen.

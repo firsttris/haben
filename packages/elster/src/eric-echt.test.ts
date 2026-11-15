@@ -1,7 +1,9 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildBankverbindungXml, isValidIdnr } from "./bankverbindung.ts";
-import { buildEuerXml, buildUstErklaerungXml, type AveuerAnlage, type EuerFigures } from "./erklaerung.ts";
+import { buildEuerXml, type AveuerAnlage } from "./erklaerung.ts";
+import { buildUstErklaerungXml } from "./ust-erklaerung.ts";
+import type { EuerFigures } from "./euer-felder.ts";
 import { buildEstXml, type EstAngaben, type EstArbeitnehmer, type EstXmlInput } from "./est.ts";
 import { checkFormats, ericMeldungen } from "./formatprobe.ts";
 import { ericHomeIn } from "./install.ts";
@@ -257,14 +259,33 @@ const arbeitnehmer = (steuerklasse: 1 | 3 | 4): EstArbeitnehmer => ({
     berufsverbaende: 12_000,
     gewerkschaft: 24_000,
     sonstige: 1_600,
+    arbeitszimmer: 119_800,
   },
 });
 /** Alle Angaben, die Haben kennt */
 const alleAngaben = (year: number): EstAngaben => ({
   vorsorge: {
-    a: { rentenversicherung: 300_000, pkv: 600_000, ppv: 40_049, pkvErstattung: 50_000 },
-    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000 },
+    a: {
+      rentenversicherung: 300_000,
+      pkv: 600_000,
+      ppv: 40_049,
+      pkvErstattung: 50_000,
+      basisrente: 200_000,
+      pkvWahlleistungen: 60_000,
+      agZuschussKv: 120_000,
+      agZuschussPv: 12_000,
+    },
+    // Person B ist gesetzlich versichert. Nr. 24 a gehört hierher, nicht zu Person A (privat), und
+    // ERiC-Regel 100240078 verlangt den Zuschuss zur Pflegeversicherung (24 c) dazu. 24 b und 24 c
+    // für Person A stehen oben.
+    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000, basisrente: 100_000, agZuschussGkv: 84_000, agZuschussPv: 12_000 },
     sonstige: 25_000,
+  },
+  ersatzleistungen: {
+    a: [
+      { art: "Arbeitslosengeld", betrag: 66_400 },
+      { art: "Krankengeld", betrag: 12_000 },
+    ],
   },
   sonderausgaben: { kirchensteuerGezahlt: 12_000, kirchensteuerErstattet: 3_000, spenden: 10_000 },
   krankheitskosten: 150_000,
@@ -401,6 +422,45 @@ const faelle: [string, () => string][] = [
           figures: { base19: 0, tax19: 0, base7: 1_000_000, tax7: 70_000, vorsteuer: 0, vorauszahlungen: 70_000 },
         }),
     ],
+    [
+      // Zeilen, deren Summen sich aufheben: Gutschriften zu 19 % gegen 7 %, negative Rechnungsvorsteuer gegen Einfuhrumsatzsteuer
+      `USt-Erklärung ${year} mit sich aufhebenden Zeilen`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "soll",
+          figures: {
+            base19: -70_000,
+            tax19: -13_300,
+            base7: 190_000,
+            tax7: 13_300,
+            vorsteuer: -19_000,
+            kz62: 19_000,
+            kz47: 9_500,
+            kz46: 50_000,
+            vorauszahlungen: 9_500,
+          },
+        }),
+    ],
+    [
+      `USt-Erklärung ${year} steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48)`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "ist",
+          figures: {
+            base19: 100_000,
+            tax19: 19_000,
+            base7: 0,
+            tax7: 0,
+            vorsteuer: 0,
+            vorauszahlungen: 19_000,
+            kz48Zeile46: 50_000,
+            kz48Zeile47: 130_000,
+            kz48Zeile47Nummern: "8 i, 14, 21",
+          },
+        }),
+    ],
   ]),
   // Anlage EÜR
   ...jahre.flatMap((year): [string, () => string][] => [
@@ -429,6 +489,17 @@ const faelle: [string, () => string][] = [
     [
       `Anlage EÜR ${year} Kleinunternehmer`,
       () => buildEuerXml({ ...envelope(year), allgemein, figures: { kleinunternehmer: 2_000_000, edv: 50_000 }, anlagen: [] }),
+    ],
+    [
+      // Negativer Saldo aus Zeile 58 (#933): wird als Betriebseinnahme in Zeile 18 umgegliedert, beide ohne Vorzeichen
+      `Anlage EÜR ${year} Umsatzsteuer umgegliedert`,
+      () =>
+        buildEuerXml({
+          ...envelope(year),
+          allgemein,
+          figures: { steuerpflichtig: 1_000_000, vereinnahmteUst: 190_000, gezahlteUst: -95_000 },
+          anlagen: [],
+        }),
     ],
     [
       `Anlage EÜR ${year} Verlust`,
@@ -476,6 +547,20 @@ const faelle: [string, () => string][] = [
     est(2025, { angaben: { ...leereAngaben, kap: { ertraegeOhneSteuerabzugInland: 30_000, ertraegeAusland: 20_000 } } }),
   ],
   ["ESt 2025 ohne weitere Angaben", est(2025, { angaben: leereAngaben, telefon: undefined })],
+  [
+    "ESt 2025 Einkommensersatzleistungen mit Cent (Summe der gerundeten Einzelbeträge)",
+    est(2025, {
+      angaben: {
+        ...leereAngaben,
+        ersatzleistungen: {
+          a: [
+            { art: "Krankengeld", betrag: 123_440 },
+            { art: "Arbeitslosengeld", betrag: 200_040 },
+          ],
+        },
+      },
+    }),
+  ],
   // Zusammenfassende Meldung
   [`ZM ${zmJahr} 3. Quartal, sonstige Leistungen mit Gutschrift`, zm()],
   [

@@ -1,11 +1,14 @@
 import { installedEricVersion } from "@haben/elster";
 import pkg from "../../../../../../package.json" with { type: "json" };
+import { formatSize } from "../../../lib/format.ts";
 import { env } from "../../env.ts";
 import { type BackupOverview, backupOverview } from "../archiv/index.ts";
 import { ericHome } from "../elster/index.ts";
+import { type NavMarkStand, readNavMark } from "../stammdaten/index.ts";
+import { datenbankBytes, verzeichnisBytes } from "./speicher.ts";
 
 /**
- * Stand einer Instanz für Betreiber: Version, ERiC und letzte Sicherung. `haben status --json` gibt ihn aus; das
+ * Stand einer Instanz für Betreiber: Version, ERiC, letzte Sicherung, Speicher und Zeichen der Firma. `haben status --json` gibt ihn aus; das
  * Werkzeug für mehrere Instanzen (deploy/instanzen) liest ihn über `docker compose exec -T app`, statt Pfade und
  * Tabellen der App selbst zu kennen.
  */
@@ -14,6 +17,8 @@ export interface BetriebsStatus {
   schema: 1;
   /** Version aus der package.json im Wurzelverzeichnis */
   version: string;
+  /** Commit, aus dem das Image gebaut ist (Build-Argument HABEN_COMMIT); null ohne Angabe beim Bauen */
+  commit: string | null;
   eric: {
     /** env: von Hand eingebunden (ERIC_HOME), download: von Haben heruntergeladen, null: kein ERiC */
     source: "env" | "download" | null;
@@ -28,8 +33,17 @@ export interface BetriebsStatus {
     /** Der letzte fehlgeschlagene Lauf je Art, wenn er der jüngste seiner Art ist */
     failed: { kind: string; at: string }[];
   };
+  /** Belegter Platz in Bytes, etwa um Platte und Tarife zu planen (#951) */
+  speicher: {
+    /** pg_database_size der Datenbank der App */
+    datenbankBytes: number;
+    /** Summe der Dateien unter DOCUMENTS_DIR: Belege, Vorlagen und ihre Pakete */
+    belegeBytes: number;
+  };
   /** Kurzfassung für Menschen; das Werkzeug zeigt sie in seiner Tabelle, ohne die Regeln dahinter zu kennen */
-  summary: { eric: string; backup: string };
+  summary: { eric: string; backup: string; speicher: string };
+  /** Zeichen der Firma in der Navigation, für die Kachel im Firmenportal (#1036); das Logo selbst gibt `haben kennzeichen` aus */
+  zeichen: NavMarkStand;
 }
 
 export interface BetriebsStatusOptions {
@@ -38,11 +52,16 @@ export interface BetriebsStatusOptions {
   ericHome?: string | null;
   /** ERiC über ERIC_HOME eingebunden statt heruntergeladen */
   ericFromEnv?: boolean;
+  /** Commit des Builds; ohne Angabe aus HABEN_COMMIT */
+  commit?: string | null;
+  /** Verzeichnis der Belege; ohne Angabe DOCUMENTS_DIR */
+  belegeVerzeichnis?: string;
 }
 
 export async function betriebsStatus(options: BetriebsStatusOptions = {}): Promise<BetriebsStatus> {
   const home = options.ericHome !== undefined ? options.ericHome : (ericHome() ?? null);
   const fromEnv = options.ericFromEnv ?? Boolean(env().ERIC_HOME?.trim());
+  const commit = options.commit !== undefined ? options.commit : env().HABEN_COMMIT?.trim() || null;
   const overview = await backupOverview(options.now);
   const eric: BetriebsStatus["eric"] = {
     source: home ? (fromEnv ? "env" : "download") : null,
@@ -54,7 +73,23 @@ export async function betriebsStatus(options: BetriebsStatusOptions = {}): Promi
     lastBackup: overview.lastBackup?.at.toISOString() ?? null,
     failed: overview.failed.map(({ kind, run }) => ({ kind, at: run.at.toISOString() })),
   };
-  return { schema: 1, version: pkg.version, eric, backup, summary: { eric: ericKurz(eric), backup: sicherungKurz(backup) } };
+  const [datenbank, belege, zeichen] = await Promise.all([datenbankBytes(), verzeichnisBytes(options.belegeVerzeichnis ?? env().DOCUMENTS_DIR), readNavMark()]);
+  const speicher: BetriebsStatus["speicher"] = { datenbankBytes: datenbank, belegeBytes: belege };
+  return {
+    schema: 1,
+    version: pkg.version,
+    commit,
+    eric,
+    backup,
+    speicher,
+    summary: { eric: ericKurz(eric), backup: sicherungKurz(backup), speicher: speicherKurz(speicher) },
+    zeichen,
+  };
+}
+
+/** Speicher kurz, in KB, MB oder GB wie die Dateigrößen in der App */
+function speicherKurz(speicher: BetriebsStatus["speicher"]): string {
+  return `Datenbank ${formatSize(speicher.datenbankBytes)}, Belege ${formatSize(speicher.belegeBytes)}`;
 }
 
 const BERLIN = new Intl.DateTimeFormat("sv-SE", {
@@ -90,5 +125,11 @@ function sicherungKurz(backup: BetriebsStatus["backup"]): string {
 
 /** Für Menschen: je Zeile ein Wert */
 export function statusAlsText(status: BetriebsStatus): string {
-  return [`Version:          ${status.version}`, `ERiC:             ${status.summary.eric}`, `Letzte Sicherung: ${status.summary.backup}`].join("\n");
+  const version = status.commit ? `${status.version} (${status.commit.slice(0, 7)})` : status.version;
+  return [
+    `Version:          ${version}`,
+    `ERiC:             ${status.summary.eric}`,
+    `Letzte Sicherung: ${status.summary.backup}`,
+    `Speicher:         ${status.summary.speicher}`,
+  ].join("\n");
 }

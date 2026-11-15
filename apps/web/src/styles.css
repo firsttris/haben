@@ -140,7 +140,7 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 /* Shell */
 .shell { display: flex; min-height: 100vh; }
 /* Navigation bleibt am Fenster stehen: sonst wächst sie mit langen Seiten mit und der Fuß rutscht nach unten */
-.nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+.nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; height: 100dvh; overflow: hidden; }
 /* Rechts ohne Innenabstand: Der Platz geht an den Namen, die 40px große Kachel kostet ihn so nicht (#504) */
 .brand { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 0 28px 12px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
 .brand:hover { color: #fff; }
@@ -187,14 +187,93 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .main { flex-grow: 1; min-width: 0; padding: 32px var(--main-pad-x); display: flex; flex-direction: column; gap: 24px; }
 
 .nav-body { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
+/* Tastenkürzel (components/Kuerzel.tsx): ein Kästchen je Taste in der Schriftfarbe der Umgebung */
+.kuerzel { display: inline-flex; gap: 3px; white-space: nowrap; }
+.kuerzel kbd { padding: 0 5px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 4px; font-family: var(--sans); font-size: 12px; line-height: 1.4; color: inherit; }
+/* Suche / Befehlspalette (#617) oben in der Navigation */
+.nav .nav-search-btn { display: flex; flex: none; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; min-height: 36px; margin-bottom: 4px; padding: 0 10px 0 12px; border: 1px solid var(--nav-active); border-radius: 8px; background: color-mix(in srgb, var(--nav-active) 55%, transparent); color: var(--nav-ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+/* Mit :not(:disabled) wie .btn:hover, sonst gewinnt dessen helle Fläche, weil sie später steht */
+.nav .nav-search-btn:hover:not(:disabled) { color: var(--nav-ink-strong); border-color: color-mix(in srgb, var(--nav-ink) 45%, transparent); background: var(--nav-active); }
+.nav .nav-search-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.nav-search-label { flex: 1; }
+.nav-kbd { color: var(--nav-ink); }
+@media (max-width: 860px) {
+  .nav .nav-search-btn { width: 44px; height: 44px; margin: 0; padding: 0; justify-content: center; color: var(--nav-ink-strong); }
+  .nav-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .nav-kbd { display: none; }
+}
+/* Ausgeklappt steht das Kürzel rechts wie bei der Schnellsuche; eingeklappt im Hinweis */
+.nav-collapse-btn > .nav-collapse-label { flex: 1; }
+.nav-tip .kuerzel { margin-left: 8px; }
+/* Desktop-Knopf zum Ein- und Ausklappen der Seitenleiste, ganz unten; am Handy bleibt das Menü unverändert */
+.nav-collapse-btn { flex: none; width: 100%; min-height: 36px; margin-top: 8px; border: 0; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+/* Ausgeklappt und eingeklappt stehen beide Fassungen im DOM; CSS zeigt eine, damit der Server sie schon richtig liefert */
+.nav-variante { display: contents; }
+.nav-variante-rail { display: none; }
+/* Hinweis mit dem Namen eines Symbols, nur eingeklappt am Desktop (NavTip) */
+.nav-tip { display: none; }
+@media not all and (max-width: 860px) {
+  /* Die stehende Leiste bildet eine eigene Stapelebene; über dem Seitenkopf (.page-head, 10), damit Hinweise und
+     Flyouts, die aus ihr herausragen, nicht unter ihm liegen */
+  .nav { z-index: 11; }
+  [data-nav="collapsed"] .nav { width: 64px; padding: 20px 12px; align-items: center; overflow-x: hidden; }
+  [data-nav="collapsed"] .brand { width: 40px; padding: 4px 0 16px; justify-content: center; }
+  [data-nav="collapsed"] .brand-text,
+  [data-nav="collapsed"] .nav-collapse-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  [data-nav="collapsed"] .brand-firma-voll { display: none; }
+  [data-nav="collapsed"] .nav-collapse-btn { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
+  /* Schnellsuche eingeklappt nur als Lupe; Strg+K bleibt, das Kürzel steht in aria-keyshortcuts */
+  [data-nav="collapsed"] .nav .nav-search-btn { width: 40px; height: 40px; min-height: 40px; padding: 0; justify-content: center; }
+  [data-nav="collapsed"] .nav-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  [data-nav="collapsed"] .nav-kbd { display: none; }
+  [data-nav="collapsed"] .nav-variante-voll { display: none; }
+  [data-nav="collapsed"] .nav-variante-rail { display: contents; }
+  /* Fest positioniert ohne top und left bleibt der Hinweis an seinem Platz im Fluss, mitten im 40px-Symbol, und rollt
+     mit; verschoben steht er wie das Flyout bei 68px, 4px neben der Leiste. Esc setzt data-nav-tip="aus" (routes/_app.tsx) */
+  /* Die Marke zeigt ihren eigenen, sonst verborgenen Text als Hinweis: „Haben“ und die Firma, in der man bucht (#504) */
+  :root[data-nav="collapsed"]:not([data-nav-tip="aus"]) :is(.nav-tip-anker:is(:hover, :focus-visible) > .nav-tip, .brand:is(:hover, :focus-visible) > .brand-text) { display: block; height: auto; overflow: visible; clip: auto; position: fixed; z-index: 41; width: max-content; max-width: 240px; padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); color: var(--nav-ink-strong); font-size: 13px; font-weight: 500; line-height: 20px; text-align: left; white-space: normal; overflow-wrap: anywhere; transform: translateX(calc(50% + 36px)); }
+  /* Unsichtbare Brücke über die 16px bis zum Symbol, damit der Zeiger den Hinweis erreicht (WCAG 1.4.13) */
+  :root[data-nav="collapsed"]:not([data-nav-tip="aus"]) :is(.nav-tip-anker:is(:hover, :focus-visible) > .nav-tip, .brand:is(:hover, :focus-visible) > .brand-text)::before { content: ""; position: absolute; top: 0; bottom: 0; right: 100%; width: 16px; }
+}
+.nav-rail-item { position: relative; display: flex; justify-content: center; }
+.nav-rail-link,
+.nav-rail-trigger { width: 40px; min-height: 40px; padding: 0; justify-content: center; border: 0; background: none; font: inherit; cursor: pointer; }
+/* Aktiv mit der Fläche des aktiven Menüpunkts; offen nur mit halber Fläche, damit beides zu unterscheiden bleibt */
+.nav-rail-trigger[aria-expanded="true"] { background: color-mix(in srgb, var(--nav-active) 50%, transparent); color: var(--nav-ink-strong); }
+.nav-rail-trigger[data-active="true"] { background: var(--nav-active); color: var(--nav-ink-strong); }
+.nav-foot-rail { width: 100%; align-items: center; gap: 8px; padding-top: 12px; }
+/* Das Flyout ist die Gruppe der ausgeklappten Leiste in einem schwebenden Menü (wie .split-menu), 4px neben der Leiste: Kopf wie
+   .nav-group-label ohne Linie, Ecken 8px, Innenabstand 4px */
+.nav-flyout { position: fixed; z-index: 40; left: 68px; top: 12px; min-width: 224px; max-width: min(296px, calc(100vw - 84px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 4px; border-radius: 8px; background: var(--nav); border: 1px solid var(--nav-active); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); color: var(--nav-ink); display: flex; flex-direction: column; }
+[data-mode="dark"] .nav-flyout { border-color: var(--line); }
+.nav-flyout[hidden] { display: none; }
+.nav-flyout-title { padding-top: 8px; }
+/* Die eigene Firma unter „Firma wechseln“, in der Schrift der Menüpunkte */
+.nav-flyout-title[data-zusatz]::after { content: attr(data-zusatz); display: block; margin-top: 4px; color: var(--nav-ink-strong); font-size: 13px; overflow-wrap: anywhere; }
+.nav-flyout-links { display: flex; flex-direction: column; gap: 2px; }
+.nav-flyout .nav-link { min-height: 36px; }
+.nav-flyout .nav-theme { margin: 8px 4px 4px; }
+.nav-flyout .nav-version { margin: 8px 8px 4px; }
+.nav-flyout-user { padding: 8px 8px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); }
 /* Im dunklen Modus hat die Navigation den Ton des Grunds; die Linie trennt sie vom Inhalt, am Handy unten statt rechts */
 [data-mode="dark"] .nav { border-right: 1px solid var(--line); }
 @media (max-width: 860px) { [data-mode="dark"] .nav { border-right: 0; border-bottom: 1px solid var(--line); } }
 .nav-toggle { display: none; }
 
+/* Unter der Marke rollt nur .nav-body, so bleibt der Firmenname stehen. Der Rand reicht bis an die Kanten der
+   Navigation, damit die Leiste außen sitzt und der Fokusring nicht abgeschnitten wird. Als Gegenstück zur Handy-Regel
+   formuliert, damit bei Zoom auch Breiten zwischen 860 und 861 Pixel eine Regel haben */
+@media not all and (max-width: 860px) {
+  .nav-body { min-height: 0; overflow-y: auto; margin: -4px -16px -24px; padding: 4px 16px 24px; }
+  [data-nav="collapsed"] .nav-body { align-self: stretch; width: auto; align-items: center; margin: -4px -12px -20px; padding: 4px 12px 20px; }
+}
+/* Schmale Leiste nur beim Rollen; der Daumen hat mindestens 3 : 1 gegen --nav (WCAG 1.4.11). color-scheme hilft
+   Browsern ohne scrollbar-color, im Kontrastmodus gilt die Systemleiste */
+.nav-body, .firma-liste { overscroll-behavior-y: contain; scroll-padding: 8px 0; color-scheme: dark; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--nav-ink) 55%, transparent) transparent; }
+
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
-  .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow-y: visible; }
+  .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow: visible; }
   /* Am Handy nimmt der Firmenname eine Zeile unter „Haben“ (22 + 16px), damit die Leiste --nav-height hoch bleibt;
      er wird gekürzt */
   /* Rechts 8px Abstand zum Menüknopf */
@@ -207,32 +286,41 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .nav-toggle { flex-shrink: 0; }
   .nav-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--nav-active); border-radius: 8px; background: none; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
   .nav-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-  .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); overflow-y: auto; }
+  .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); max-height: calc(100dvh - 64px); overflow-y: auto; }
   .nav.open .nav-body { display: flex; }
   .nav-link[aria-disabled="true"] { display: none; }
   .nav-spacer { display: none; }
   .nav-group .nav-link, .nav-foot-link { min-height: 44px; }
+  .nav-collapse-btn { display: none; }
   .main { padding: 20px var(--main-pad-x); }
 }
 
 /* Firma wechseln (#504): Zeile unter der Marke, die Liste der anderen Firmen klappt darunter im Fluss auf
    (FirmaWechsler). Zeile und Firmen sind .nav-link, am Desktop so hoch wie die Punkte der Gruppen, am Handy 44px */
-.firma-wechsler { --firma-zeile: 36px; padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); }
+.firma-wechsler,
+.nav-flyout { --firma-zeile: 36px; }
+.firma-wechsler { padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); }
 /* Ohne Fläche, sonst sähe die offene Zeile aus wie der aktive Menüpunkt */
-.firma-wechsler-knopf { justify-content: space-between; width: 100%; min-height: var(--firma-zeile); border: 0; background: none; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.firma-wechsler-knopf { justify-content: flex-start; width: 100%; min-height: var(--firma-zeile); border: 0; background: none; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 .firma-wechsler-knopf[aria-expanded="true"] { color: var(--nav-ink-strong); }
-.firma-wechsler-knopf > svg { flex-shrink: 0; transition: transform var(--fade); }
-.firma-wechsler-knopf[aria-expanded="true"] > svg { transform: rotate(180deg); }
+/* Gebäude, Text, Pfeil: der Text füllt die Zeile, nur der Pfeil (letztes Symbol) dreht sich beim Aufklappen */
+.firma-wechsler-text { flex: 1; min-width: 0; }
+.firma-wechsler-knopf > svg { flex-shrink: 0; }
+.firma-wechsler-knopf > svg:last-child { transition: transform var(--fade); }
+.firma-wechsler-knopf[aria-expanded="true"] > svg:last-child { transform: rotate(180deg); }
 /* Sechseinhalb Zeilen: die angeschnittene zeigt, dass die Liste weiterrollt */
 .firma-liste { max-height: calc(6.5 * var(--firma-zeile)); margin: 0; padding: 0; list-style: none; overflow-y: auto; }
 /* Lange Namen brechen um; der Fokusring liegt innen, weil die rollende Liste ihn außen abschnitte */
 .firma-liste .nav-link { min-height: var(--firma-zeile); padding-block: 8px; line-height: 20px; }
 .firma-liste .nav-link:focus-visible { outline-offset: -2px; }
 .firma-suche { padding: 4px 12px 8px; }
-/* Mit .firma-wechsler davor, damit die Regel vor `.field input` weiter unten gilt */
-.firma-wechsler .firma-suche input { border-color: var(--nav-active); background-color: var(--nav-active); color: var(--nav-ink-strong); color-scheme: dark; }
-.firma-wechsler .firma-suche input:focus-visible { outline-color: var(--brand); border-color: var(--brand); }
-.firma-wechsler .firma-suche input::placeholder { color: var(--nav-ink); }
+/* Mit .firma-wechsler / .nav-flyout davor, damit die Regel vor `.field input` weiter unten gilt */
+.firma-wechsler .firma-suche input,
+.nav-flyout .firma-suche input { border-color: var(--nav-active); background-color: var(--nav-active); color: var(--nav-ink-strong); color-scheme: dark; }
+.firma-wechsler .firma-suche input:focus-visible,
+.nav-flyout .firma-suche input:focus-visible { outline-color: var(--brand); border-color: var(--brand); }
+.firma-wechsler .firma-suche input::placeholder,
+.nav-flyout .firma-suche input::placeholder { color: var(--nav-ink); }
 .firma-leer { margin: 0; padding: 0 12px; color: var(--nav-ink); font-size: 13px; }
 .firma-leer:not(:empty) { padding-bottom: 12px; }
 /* Die Zeile rückt an die Marke: 8px statt der 28px, die sonst vor „Übersicht“ stehen */
@@ -275,6 +363,8 @@ dialog .form-footer, .form-dialog > form > .actions:last-child { justify-content
 @media (max-width: 720px) {
   .grid-3, .grid-4, .grid-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .grid-3 > .card, .grid-4 > .card, .grid-5 > .card { padding: 16px; }
+  /* Bei ungerader Zahl stünde die letzte Karte allein in halber Breite; sie füllt die Zeile */
+  .grid-3 > :last-child:nth-child(odd), .grid-4 > :last-child:nth-child(odd), .grid-5 > :last-child:nth-child(odd) { grid-column: 1 / -1; }
   .grid-3 .kpi-value, .grid-4 .kpi-value, .grid-5 .kpi-value { font-size: 18px !important; white-space: normal; overflow-wrap: anywhere; }
 }
 .grid-main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
@@ -337,8 +427,26 @@ dialog .form-footer, .form-dialog > form > .actions:last-child { justify-content
 select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
 /* iOS Safari zeichnet Datumsfelder sonst als Menüknopf und überschreibt dabei min-height und box-sizing
    (WebKit, RenderThemeIOS: adjustMenuListButtonStyle, adjustInputElementButtonStyle); den Wert zentriert es (html.css) */
-.field input:is([type="date"], [type="month"]) { appearance: none; }
-.field input:is([type="date"], [type="month"])::-webkit-date-and-time-value { text-align: start; }
+.field input[type="date"] { appearance: none; }
+.field input[type="date"]::-webkit-date-and-time-value { text-align: start; }
+/* Monatsauswahl (MonthPicker.tsx): einheitlich in allen Browsern */
+.month-picker { position: relative; min-width: 0; }
+.month-picker-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); cursor: pointer; text-align: left; transition: border-color var(--fade), box-shadow var(--fade); }
+.month-picker-trigger svg { flex: none; color: var(--muted); }
+.month-picker-trigger[aria-invalid="true"] { border-color: var(--danger-ink); }
+.month-picker-trigger:disabled { opacity: 0.7; cursor: not-allowed; }
+.month-picker-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.month-picker-placeholder { color: var(--muted); }
+.month-picker-popup { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; width: max(100%, 256px); max-width: calc(100vw - 32px); padding: 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); display: flex; flex-direction: column; gap: 8px; }
+.month-picker-header { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.month-picker-year { font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.month-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.month-picker-cell { min-height: var(--control-h); padding: 0 8px; border: 0; border-radius: 6px; font: inherit; font-size: 13px; color: var(--ink); background: transparent; cursor: pointer; transition: background-color var(--fade), color var(--fade); }
+.month-picker-cell:hover:not(:disabled) { background: var(--accent-tint); }
+.month-picker-cell.active { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.month-picker-cell.active:hover:not(:disabled) { background: var(--accent-hover); }
+.month-picker-cell:disabled { opacity: 0.4; cursor: not-allowed; }
+.month-picker-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 /* Lange Texte wachsen mit dem Inhalt, wo der Browser das kann */
 textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .field input, select, textarea, .combobox input { transition: border-color var(--fade), box-shadow var(--fade); }
@@ -402,6 +510,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 /* Betragszeile: Satz, Netto, Steuer und Platz für den Entfernen-Knopf, auch wenn er fehlt, damit die Zeilen fluchten */
 .form-row.cols-amount { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 40px; align-items: end; }
 .form-row.cols-amount.ohne-steuer { grid-template-columns: 120px minmax(0, 1fr) 40px; }
+/* Dauerbeleg mit ausgewiesener Steuer: dazu das Brutto (#1059) */
+.form-row.cols-amount.mit-brutto { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 40px; }
 .dauerbeleg-summe { margin: 0; padding-top: 12px; border-top: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
 .field-group { display: flex; flex-direction: column; gap: 8px; }
 .field-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
@@ -419,7 +529,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   .form-row.cols-amount { grid-template-columns: 96px minmax(0, 1fr) 40px; }
   .form-row.cols-server { grid-template-columns: minmax(0, 1fr) 96px; }
   .form-row.cols-server > :last-child { grid-column: 1 / -1; }
-  .form-row.cols-amount > .field:nth-child(3) { grid-column: 2; }
+  .form-row.cols-amount.mit-brutto { grid-template-columns: 96px minmax(0, 1fr) 40px; }
+  .form-row.cols-amount > .field:nth-child(3), .form-row.cols-amount > .field:nth-child(4) { grid-column: 2; }
 }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
@@ -428,7 +539,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
    Er rückt auf die Textkante der Beschriftung ein: Kästchen (18px) plus Abstand (10px) plus Außenabstand des Kästchens (7px).
    Auf Touchgeräten ist die Zeile mit dem Kästchen wie bei jedem Kontrollkästchen 44px hoch (--control-h in DESIGN.md) */
 .checkbox-hinted > .checkbox { align-items: flex-start; min-height: 0; }
-.checkbox-hinted > .field-hint { display: block; padding-left: 35px; }
+.checkbox-hinted > .field-hint, .checkbox-hinted > .field-error { display: block; padding-left: 35px; }
 @media (pointer: coarse) { .checkbox-hinted > .checkbox { align-items: center; min-height: 44px; } }
 /* Zwischen Kästchen ohne Hinweis (44px hoch) sonst zu eng: oben und unten so viel Luft, wie deren Zeile hat */
 .design-card .checkbox-hinted { margin-block: 12px; }
@@ -808,7 +919,11 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .doc-preview { width: 100%; height: var(--viewer-height); min-height: 520px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
 .doc-image { width: 100%; max-height: var(--viewer-height); object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
 .amount-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: end; }
-.split-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 40px; gap: 8px; align-items: end; }
+/* Beleg mit Brutto (#917): Satz, Netto, Vorsteuer, Brutto, Entfernen */
+.amount-row.with-gross { grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 40px; }
+/* Oben ausgerichtet: Ein Fehler unter einem Feld verschiebt sonst die Felder daneben */
+.split-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 40px; gap: 8px; align-items: start; }
+.split-row .icon-btn { margin-top: 26px; }
 .split-row select, .split-row input { width: 100%; min-width: 0; }
 .amount-row input, .amount-row select { width: 100%; min-width: 0; }
 /* Aufteilung eines Belegs (#271): Kategorie, Satz, Netto mit Vorsteuer darunter, Entfernen */
@@ -817,11 +932,17 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .document-split-row .icon-btn { margin-top: 22px; }
 /* Auf dem Handy haben Felder 16 px Schrift: Beträge brauchen die halbe Breite, in schmaleren Spalten fehlten die Cent */
 @media (max-width: 560px) {
-  .amount-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .amount-row, .amount-row.with-gross { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .amount-row > .field:first-child { grid-column: 1; grid-row: 1; }
   .amount-row > .icon-btn { grid-column: 2; grid-row: 1; justify-self: end; }
   .document-split-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .document-split-row .field:first-child { grid-column: 1 / -1; }
+}
+/* Neben der Vorschau (ab 1201 px) ist das Formular bis 1400 px zu schmal für drei Betragsfelder: zwei Spalten wie am Handy */
+@media (min-width: 1201px) and (max-width: 1400px) {
+  .amount-row.with-gross { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .amount-row.with-gross > .field:first-child { grid-column: 1; grid-row: 1; }
+  .amount-row.with-gross > .icon-btn { grid-column: 2; grid-row: 1; justify-self: end; }
 }
 .page-head .actions { align-items: center; }
 .doc-nav { display: flex; align-items: center; gap: 8px; }
@@ -1132,3 +1253,53 @@ summary { cursor: pointer; min-height: 24px; }
 .own-layout-name { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .own-layout-rename { display: flex; flex-wrap: wrap; gap: 8px; }
 .own-layouts .actions { flex-wrap: wrap; }
+
+/* Befehlspalette (#617): zentriertes Suchfeld im Dialog, Tastaturauswahl mit klarer Hervorhebung */
+.cmd-dialog { width: min(720px, calc(100vw - 32px)); max-height: min(640px, calc(100dvh - 80px)); margin: 64px auto auto; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: hidden; }
+.cmd-dialog[open] { display: flex; flex-direction: column; }
+.cmd-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+.cmd-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 20px 24px 16px; border-bottom: 1px solid var(--line); }
+.cmd-field { flex: 1; min-width: 0; position: relative; }
+.cmd-field > svg { position: absolute; inset-inline-start: 12px; top: 50%; translate: 0 -50%; color: var(--muted); pointer-events: none; }
+.cmd-field input { width: 100%; padding-inline-start: 40px; }
+.cmd-field input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.cmd-head .cmd-close { display: none; }
+.cmd-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 16px 16px; }
+.cmd-group + .cmd-group { margin-top: 8px; }
+.cmd-group-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; color: var(--muted); font-size: 12px; }
+.cmd-group-head a { padding: 4px 0; }
+.cmd-option { display: grid; grid-template-columns: 32px minmax(0, 1fr) 8rem min(28%, 10rem) 16px; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: background-color var(--fade); }
+.cmd-option[aria-selected="true"] { background: var(--hover); }
+.cmd-option-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--ground); }
+.cmd-option-text { display: flex; flex-direction: column; overflow-wrap: anywhere; }
+.cmd-option-title { font-weight: 500; }
+.cmd-option-meta { font-size: 13px; color: var(--muted); }
+.cmd-option-facts { display: contents; }
+.cmd-option-status { grid-column: 4; text-align: end; }
+.cmd-option-status .status { align-items: flex-end; }
+.cmd-option-status .status-detail { padding-inline-start: 0; }
+.cmd-option .amount { grid-column: 3; justify-self: end; }
+/* Fläche und Pfeil blenden gemeinsam in --fade; bei prefers-reduced-motion schaltet die globale Regel oben die Übergänge ab */
+.cmd-option-arrow { grid-column: -2; color: var(--muted); display: flex; opacity: 0; translate: 4px; transition: opacity var(--fade), translate var(--fade); }
+.cmd-option[aria-selected="true"] .cmd-option-arrow { opacity: 1; translate: 0; }
+.cmd-empty { margin: 0; padding: 20px 12px; text-align: center; font-size: 14px; color: var(--muted); }
+.cmd-foot { flex: none; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 24px; border-top: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); }
+.cmd-foot > :first-child { margin-inline-end: auto; }
+.cmd-foot .kuerzel { color: var(--ink-2); }
+@media (max-width: 600px) {
+  .cmd-dialog { width: 100%; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0; }
+  .cmd-head { padding: 12px 8px 12px 16px; }
+  .cmd-head .cmd-close { display: inline-flex; }
+  .cmd-list { padding-inline: 8px; }
+  .cmd-option { grid-template-columns: 32px minmax(0, 1fr) 16px; gap: 4px 8px; }
+  .cmd-option-icon { align-self: start; }
+  .cmd-option-facts { grid-column: 2 / -1; display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; column-gap: 8px; }
+  .cmd-option .amount { grid-column: 1; justify-self: start; }
+  .cmd-option-status { grid-column: 2; }
+  .cmd-option-status .status { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 6px; }
+  .cmd-option-arrow { grid-column: 3; grid-row: 1; }
+  .cmd-foot { display: none; }
+}
+@media (forced-colors: active) {
+  .cmd-option[aria-selected="true"] { outline: 2px solid Highlight; }
+}

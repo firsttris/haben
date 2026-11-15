@@ -1,0 +1,62 @@
+import { describe, expect, it } from "vitest";
+import { gemeldeterZeitraum, leistungsmonatHinweis, zeitraumLabel } from "./leistungsmonat.ts";
+
+describe("Leistungsmonat gegen gemeldete Voranmeldungen", () => {
+  const q2 = { year: 2026, month: 42 };
+  const mai = { year: 2026, month: 5 };
+
+  it("trifft den Monat in einem gemeldeten Quartal", () => {
+    expect(gemeldeterZeitraum("2026-05-31", [q2])).toEqual(q2);
+  });
+
+  it("trifft den Monat in einer gemeldeten Monatsanmeldung", () => {
+    expect(gemeldeterZeitraum("2026-05-31", [mai])).toEqual(mai);
+  });
+
+  it("trifft nicht, wenn der Zeitraum offen ist", () => {
+    expect(gemeldeterZeitraum("2026-08-15", [q2])).toBeNull();
+  });
+
+  it("trifft nicht über die Jahresgrenze", () => {
+    expect(gemeldeterZeitraum("2025-05-31", [q2])).toBeNull();
+  });
+
+  it("beschriftet Quartal und Monat", () => {
+    expect(zeitraumLabel(q2)).toBe("Q2/2026");
+    expect(zeitraumLabel(mai)).toBe("05/2026");
+  });
+
+  const betrag = { net: 100_000, tax: 19_000 };
+
+  it("nennt Zeitraum, Abgabe und Betrag und führt zur berichtigten Anmeldung", () => {
+    const hinweis = leistungsmonatHinweis("2026-05-31", [{ ...q2, sentAt: new Date("2026-07-10T08:00:00Z") }], betrag);
+    expect(hinweis).toContain("31.05.2026");
+    expect(hinweis).toContain("Q2/2026, übermittelt am 10.07.2026");
+    expect(hinweis).toContain("190,00");
+    expect(hinweis).toContain("berichtigte Anmeldung");
+    expect(hinweis).not.toContain("nächste Voranmeldung");
+  });
+
+  it("schweigt, wenn der Zeitraum offen ist", () => {
+    expect(leistungsmonatHinweis("2026-08-15", [q2], betrag)).toBeNull();
+  });
+
+  it("schweigt, wenn die Rechnung vor der Übermittlung festgeschrieben war: Die Voranmeldung enthält sie", () => {
+    const juli = { year: 2026, month: 7, sentAt: new Date("2026-08-10T08:00:00Z"), source: "berechnet" as const };
+    expect(leistungsmonatHinweis("2026-07-15", [juli], betrag, new Date("2026-07-20T09:00:00Z"))).toBeNull();
+  });
+
+  it("bleibt bei von Hand überschriebenen Werten: Ob sie die Rechnung enthalten, ist offen", () => {
+    const juli = { year: 2026, month: 7, sentAt: new Date("2026-08-10T08:00:00Z"), source: "manuell" as const };
+    expect(leistungsmonatHinweis("2026-07-15", [juli], betrag, new Date("2026-07-20T09:00:00Z"))).toContain("07/2026");
+  });
+
+  it("schweigt nach der Berichtigung: Die zuletzt übermittelte Anmeldung des Zeitraums zählt", () => {
+    const erst = { ...q2, sentAt: new Date("2026-07-10T08:00:00Z") };
+    const berichtigt = { ...q2, sentAt: new Date("2026-08-03T08:00:00Z"), source: "berechnet" as const };
+    const festgeschrieben = new Date("2026-07-20T09:00:00Z");
+    expect(leistungsmonatHinweis("2026-05-31", [erst], betrag, festgeschrieben)).toContain("übermittelt am 10.07.2026");
+    expect(leistungsmonatHinweis("2026-05-31", [erst, berichtigt], betrag, festgeschrieben)).toBeNull();
+    expect(leistungsmonatHinweis("2026-05-31", [berichtigt, erst], betrag, festgeschrieben)).toBeNull();
+  });
+});

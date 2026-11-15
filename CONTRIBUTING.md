@@ -31,7 +31,7 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
 - Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, in einem hellen und einem dunklen
   Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ vor der ersten Änderung aufnehmen und als Anhang
   hochladen (ins Textfeld ziehen).
-- Titel: `Bereich: was sich ändert (#Issue)`, die Nummer nur, falls es ein Issue gibt. Commits gern als
+- Titel: `Bereich: was sich ändert (#Issue)`, die Nummer nur, falls es ein Issue gibt, und immer für jedes `Umgesetzt #…`. Commits gern als
   `fix(bereich): …`, `test: …` mit Beschreibung auf Deutsch. Ein Entwurf ist willkommen; die CI startet mit „Ready for
   review“. Was bei einem Pull Request nur mit Doku geprüft wird, steht unter
   [Branches, Titel und Commits](https://haben.app/mitwirken.html#branches-titel-und-commits).

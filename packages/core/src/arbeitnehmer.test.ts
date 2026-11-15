@@ -37,6 +37,13 @@ describe("Arbeitslohn", () => {
     expect(arbeitslohnErgebnis(2025, { bescheinigungen: [{ brutto: 500_00 }], werbungskosten: {} }).einkuenfte).toBe(0);
   });
 
+  it("zählt das häusliche Arbeitszimmer zu den Werbungskosten", () => {
+    // Jahrespauschale 1.260 € (§ 4 Abs. 5 Satz 1 Nr. 6b Satz 3 i. V. m. § 9 Abs. 5 EStG) plus 300 € Arbeitsmittel
+    const r = arbeitslohnErgebnis(2025, { bescheinigungen: [{ brutto: 40_000_00 }], werbungskosten: { arbeitszimmer: 1_260_00, arbeitsmittel: 300_00 } });
+    expect(r.werbungskosten).toBe(1_560_00);
+    expect(r.einkuenfte).toBe(40_000_00 - 1_560_00);
+  });
+
   it("zieht Gewerkschaftsbeiträge ab 2026 neben dem Pauschbetrag ab", () => {
     const bescheinigungen = [{ brutto: 40_000_00 }];
     const werbungskosten = { arbeitsmittel: 300_00, gewerkschaft: 400_00 };

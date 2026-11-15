@@ -123,10 +123,10 @@ describe.skipIf(!testDatabaseUrl)("Einfuhrumsatzsteuer (Postgres)", () => {
       expect(ebilanzPosition(kr, account, saldo), account).not.toBeNull();
     }
     expect(salden.find((s) => s.account === bankKonto)?.saldo).toBe(-380_00);
-    // Die Jahreserklärung nennt die Einfuhrumsatzsteuer und lässt sich damit nicht übermitteln
+    // Die Jahreserklärung übernimmt die Einfuhrumsatzsteuer als Kz 62 und sperrt deshalb nicht mehr
     const ust = await annual.ustYear(2026);
-    expect(ust.einfuhrumsatzsteuer).toBe(380_00);
-    expect(annual.ustIssues(false, ust, 2026).some((i) => i.text.includes("Einfuhrumsatzsteuer (Kz 62)"))).toBe(true);
+    expect(ust.figures.kz62).toBe(380_00);
+    expect(annual.ustIssues(false, ust, 2026).every((i) => i.tone !== "fehler")).toBe(true);
   });
 
   it("lehnt einen Bescheid mit Steuersatz und als Kleinunternehmer ab", async () => {

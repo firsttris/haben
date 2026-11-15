@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { checkXml } from "./fake-client.ts";
-import { buildEuerXml, buildUstErklaerungXml, euerTotals, euerVorzeichenMeldungen, ustErklaerungResult, type AveuerAnlage } from "./erklaerung.ts";
-import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
+import { buildEuerXml, euerTotals, euerVorzeichenMeldungen, type AveuerAnlage } from "./erklaerung.ts";
+import { euerUstUmgliedern } from "./euer-umgliedern.ts";
+import { datenartVersionFromXml, elsterDecimal } from "./xml.ts";
 
 const base = {
   year: 2025,
@@ -17,59 +18,6 @@ const tag = (xml: string, name: string) => new RegExp(`<${name}>([^<]*)</${name}
 /** Reihenfolge der Elemente im XML */
 const order = (xml: string, names: string[]) => names.map((n) => xml.indexOf(`<${n}>`));
 
-describe("Umsatzsteuererklärung (E50)", () => {
-  const figures = { base19: 10_000_049, tax19: 1_900_009, base7: 50_000, tax7: 3_500, vorsteuer: 120_000, vorauszahlungen: 1_700_000 };
-
-  it("baut Kopf, Umsätze, Vorsteuer und Berechnung", () => {
-    const xml = buildUstErklaerungXml({ ...base, versteuerung: "ist", figures });
-    expect(checkXml(xml)).toBeUndefined();
-    expect(tag(xml, "Verfahren")).toBe("ElsterErklaerung");
-    expect(tag(xml, "DatenArt")).toBe("USt");
-    expect(xml).toContain(`<Empfaenger id="L"><Ziel>BW</Ziel></Empfaenger>`);
-    expect(xml).toContain(`<Empfaenger id="F">2893</Empfaenger>`);
-    expect(xml).toContain(`xmlns="http://finkonsens.de/elster/elstererklaerung/ust/e50/v2025" version="2025"`);
-    expect(hasTestmerker(xml)).toBe(true);
-    expect(datenartVersionFromXml(xml)).toBe("USt_2025");
-    expect(tag(xml, "E3002203")).toBe("2");
-    expect(tag(xml, "E3003303")).toBe("100000");
-    expect(tag(xml, "E3003304")).toBe("19000,09");
-    expect(tag(xml, "E3004401")).toBe("500");
-    expect(tag(xml, "E3006001")).toBe("19035,09");
-    expect(tag(xml, "E3006901")).toBe("1200,00");
-    // 19.035,09 − 1.200,00 = 17.835,09; abzüglich 17.000,00 Vorauszahlungen
-    expect(tag(xml, "E3011101")).toBe("17835,09");
-    expect(tag(xml, "E3011301")).toBe("17000,00");
-    expect(tag(xml, "E3011401")).toBe("835,09");
-    expect(tag(xml, "Unterfallart")).toBe("50");
-    expect(tag(xml, "StNr")).toBe("2893081508152");
-    // USt2A vor dem Vorsatz, Allg vor den Umsätzen
-    const [allg, umsaetze, vost, berech, vorsatz] = order(xml, ["Allg", "Umsaetze", "Abz_VoSt", "Berech_USt", "Vorsatz"]);
-    expect(allg! < umsaetze! && umsaetze! < vost! && vost! < berech! && berech! < vorsatz!).toBe(true);
-    expect(ustErklaerungResult(figures)).toEqual({ steuer: 1_783_509, abschluss: 83_509 });
-  });
-
-  it("lässt leere Abschnitte weg und schreibt Überschüsse mit Minus", () => {
-    const xml = buildUstErklaerungXml({
-      ...base,
-      test: false,
-      versteuerung: "soll",
-      figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 50_000, vorauszahlungen: -40_000 },
-    });
-    expect(hasTestmerker(xml)).toBe(false);
-    expect(tag(xml, "E3002203")).toBe("1");
-    expect(xml).not.toContain("<Umsaetze>");
-    expect(xml).not.toContain("<E3009201>");
-    expect(tag(xml, "E3010601")).toBe("-500,00");
-    expect(tag(xml, "E3011401")).toBe("-100,00");
-  });
-
-  it("lehnt eine leere Erklärung und alte Jahre ab", () => {
-    const zero = { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 0, vorauszahlungen: 0 };
-    expect(() => buildUstErklaerungXml({ ...base, versteuerung: "ist", figures: zero })).toThrow(/Nullerklärung/);
-    expect(() => buildUstErklaerungXml({ ...base, year: 2021, versteuerung: "ist", figures })).toThrow(/ab 2023/);
-  });
-});
-
 describe("Anlage EÜR (E77) mit AVEÜR", () => {
   const figures = {
     steuerpflichtig: 8_000_000,
@@ -82,6 +30,8 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     edv: 60_000,
     vorsteuer: 200_000,
     gezahlteUst: 1_200_000,
+    // Keine Erstattung im Regelfall; die Umgliederung nach #933 prüfen die Tests weiter unten
+    erstatteteUst: 0,
     kfzSonstige: 80_000,
     kfzSteuerVersicherung: 70_000,
     entnahmen: 2_400_000,
@@ -181,22 +131,105 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(buildEuerXml({ ...base, allgemein, figures, anlagen })).not.toContain("<Entnahme_Sonst>");
   });
 
-  it("weist negative gezahlte und erstattete Umsatzsteuer ab (Zeile 18 und 58 ohne Vorzeichen)", () => {
-    // E77-2025/2026: E6000701 und E6005101 sind "DezimalzahlNichtNeg...", ERiC meldet "Unzulässiges Vorzeichen"
-    expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: -19_000 }, anlagen: [] })).toThrow(/Zeile 58 \(Kz E6005101.*190,00/);
-    expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, erstatteteUst: -19_000 }, anlagen: [] })).toThrow(/Zeile 18 \(Kz E6000701.*190,00/);
-    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -19_000 })).toHaveLength(1);
-    // Positive Beträge bleiben unverändert im XML
+  it("gliedert eine negative gezahlte Umsatzsteuer als Betriebseinnahme in Zeile 18 um (#933)", () => {
+    // Vorgabe aus #708: Erstattung ist Betriebseinnahme (Zeile 18), Zahlung Betriebsausgabe (Zeile 58), je ohne Vorzeichen
+    const erstattetVorher = figures.erstatteteUst ?? 0;
+    // Derselbe Jahrgang vor und nach dem Umgliedern: seitenverkehrt gebucht, gleicher Gewinn
+    const roh = { ...figures, gezahlteUst: -19_000 };
+    const gegliedert = euerUstUmgliedern(roh, 2025);
+    expect(gegliedert.figures.gezahlteUst).toBe(0);
+    expect(gegliedert.figures.erstatteteUst).toBe(erstattetVorher + 19_000);
+    expect(gegliedert.umgliederungen).toHaveLength(1);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 18 \(Kz E6000701/);
+    // Der Gewinn bleibt gleich; Einnahmen und Ausgaben steigen um denselben Betrag
+    const vorher = euerTotals(roh);
+    const nachher = euerTotals(gegliedert.figures);
+    expect(nachher.gewinn).toBe(vorher.gewinn);
+    expect(nachher.einnahmen).toBe(vorher.einnahmen + 19_000);
+    expect(nachher.ausgaben).toBe(vorher.ausgaben + 19_000);
+    // Im XML steht Zeile 58 leer, die Erstattung in Zeile 18, beide ohne Vorzeichen
+    const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: -19_000 }, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(xml).not.toContain("<E6005101>");
+    expect(tag(xml, "E6000701")).toBe(elsterDecimal(erstattetVorher + 19_000));
+    expect(xml).not.toMatch(/<E6000701>-/);
+    expect(tag(xml, "E6001201")).toBe(elsterDecimal(nachher.einnahmen));
+    expect(tag(xml, "E6007202")).toBe(elsterDecimal(nachher.gewinn));
+  });
+
+  it("gliedert eine negative erstattete Umsatzsteuer als Betriebsausgabe in Zeile 58 um (#933)", () => {
+    const gezahltVorher = figures.gezahlteUst ?? 0;
+    const gegliedert = euerUstUmgliedern({ ...figures, erstatteteUst: -19_000 }, 2025);
+    expect(gegliedert.figures.erstatteteUst).toBe(0);
+    expect(gegliedert.figures.gezahlteUst).toBe(gezahltVorher + 19_000);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
+    const roh = { ...figures, erstatteteUst: -19_000 };
+    expect(euerTotals(gegliedert.figures).gewinn).toBe(euerTotals(roh).gewinn);
+    const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, erstatteteUst: -19_000 }, anlagen: [] });
+    expect(xml).not.toContain("<E6000701>");
+    expect(tag(xml, "E6005101")).toBe(elsterDecimal(gezahltVorher + 19_000));
+  });
+
+  it("nennt bei zwei seitenverkehrt gebuchten Zeilen die Beträge, die dort standen (#933)", () => {
+    // Beide Zeilen negativ: die Meldung muss die Ausgangsbeträge nennen, nicht den Zwischenstand der Umrechnung
+    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -19_000 }, 2025);
+    expect(gegliedert.figures.gezahlteUst).toBe(14_000);
+    expect(gegliedert.figures.erstatteteUst).toBe(0);
+    expect(gegliedert.umgliederungen).toHaveLength(1);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 58 \(Kz E6005101.*50,00/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/140,00.*Umsatzsteuer gezahlt/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Betriebsausgabe in Zeile 58/);
+  });
+
+  it("nennt bei zwei seitenverkehrt gebuchten Zeilen mit Erstattungsüberschuss Zeile 18 als Ziel (#933)", () => {
+    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -19_000, erstatteteUst: -5_000 }, 2025);
+    expect(gegliedert.figures.gezahlteUst).toBe(0);
+    expect(gegliedert.figures.erstatteteUst).toBe(14_000);
+    expect(gegliedert.umgliederungen[0]).toMatch(/140,00.*Umsatzsteuer erstattet/);
+    expect(gegliedert.umgliederungen[0]).toMatch(/Betriebseinnahme in Zeile 18/);
+    expect(gegliedert.umgliederungen[0]).not.toMatch(/Betriebsausgabe/);
+  });
+
+  it("lässt beide Zeilen leer, wenn sich zwei seitenverkehrte Beträge aufheben (#933)", () => {
+    const gegliedert = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -5_000 }, 2025);
+    expect(gegliedert.figures.gezahlteUst).toBe(0);
+    expect(gegliedert.figures.erstatteteUst).toBe(0);
+    expect(gegliedert.umgliederungen[0]).toMatch(/heben sich auf/);
+  });
+
+  it("lässt positive Beträge unverändert und gliedert bei 0,00 nichts um", () => {
     const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: 19_000 }, anlagen: [] });
     expect(tag(xml, "E6005101")).toBe("190,00");
-    // Grenze: 0,00 und ein fehlender Wert sind keine negativen Beträge und dürfen nicht gemeldet werden
-    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: 0, erstatteteUst: 0 })).toEqual([]);
-    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined })).toEqual([]);
-    // Beide Zeilen negativ: zwei Meldungen in einem Wurf, beide im Text des Fehlers
-    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -1, erstatteteUst: -1 })).toHaveLength(2);
-    expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: -1, erstatteteUst: -1 }, anlagen: [] })).toThrow(
-      /Zeile 58[\s\S]*Zeile 18/,
-    );
+    expect(euerUstUmgliedern({ ...figures, gezahlteUst: 0, erstatteteUst: 0 }, 2025).umgliederungen).toEqual([]);
+    expect(euerUstUmgliedern({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined }, 2025).umgliederungen).toEqual([]);
+  });
+
+  it.each([
+    // Jahresdokumentation E77 2023 bis 2026 (ERiC 45.1.5.0), Spalte Zeile: E6000701 steht 2023 in Zeile 17, sonst 18;
+    // E6005101 2023 in Zeile 56, 2024 und 2025 in Zeile 58, 2026 in Zeile 59 (Zeile 58 ist dort die Vorsteuer)
+    [2023, 17, 56],
+    [2025, 18, 58],
+    [2026, 18, 59],
+  ])("nennt in den Meldungen %i die Zeilen der Anlage EÜR dieses Jahres (Zeile %i und %i)", (year, erstattet, gezahlt) => {
+    const nach18 = euerUstUmgliedern({ ...figures, gezahlteUst: -19_000 }, year).umgliederungen[0];
+    expect(nach18).toMatch(new RegExp(`Zeile ${gezahlt} \\(Kz E6005101.*Zeile ${erstattet} \\(Kz E6000701`));
+    const nach58 = euerUstUmgliedern({ ...figures, erstatteteUst: -19_000 }, year).umgliederungen[0];
+    expect(nach58).toMatch(new RegExp(`Zeile ${erstattet} \\(Kz E6000701.*Zeile ${gezahlt} \\(Kz E6005101`));
+    const beide = euerUstUmgliedern({ ...figures, gezahlteUst: -5_000, erstatteteUst: -19_000 }, year).umgliederungen[0];
+    expect(beide).toMatch(new RegExp(`Zeile ${gezahlt} \\(Kz E6005101.*Zeile ${erstattet} \\(Kz E6000701.*Betriebsausgabe in Zeile ${gezahlt},`));
+    const rueckfall = euerVorzeichenMeldungen({ ...figures, gezahlteUst: -1, erstatteteUst: -1 }, year);
+    expect(rueckfall[0]).toMatch(new RegExp(`^In Zeile ${gezahlt} \\(Kz E6005101`));
+    expect(rueckfall[1]).toMatch(new RegExp(`^In Zeile ${erstattet} \\(Kz E6000701`));
+  });
+
+  it("meldet einen negativen Betrag weiterhin als Fehler, wenn das Umgliedern nicht greift", () => {
+    // Rückfall aus #708/#835: euerVorzeichenMeldungen prüft, was tatsächlich ins XML geht
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -19_000 }, 2025)).toHaveLength(1);
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: 0, erstatteteUst: 0 }, 2025)).toEqual([]);
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: undefined, erstatteteUst: undefined }, 2025)).toEqual([]);
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -1, erstatteteUst: -1 }, 2025)).toHaveLength(2);
   });
 
   it("listet Anlagen je Gruppe in der AVEÜR", () => {

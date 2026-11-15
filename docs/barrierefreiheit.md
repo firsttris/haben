@@ -18,13 +18,17 @@ Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den a
 | --- | --- |
 | `Tab` / `Umschalt+Tab` | Zum nächsten bzw. vorigen Bedienelement. Das Element mit dem Fokus hat immer einen sichtbaren Rahmen. |
 | `Enter` | Link öffnen, Knopf auslösen, Formular absenden |
-| `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt aufklappen |
-| `Esc` | Schließt das Menü auf dem Handy; der Fokus steht danach wieder auf **Menü** |
+| `Leertaste` | Knopf auslösen, Haken setzen, Abschnitt oder Gruppen-Flyout öffnen |
+| `Strg+K` / `⌘+K` | [Schnellsuche](suche.md) öffnen (am Handy auch über die Lupe neben **Menü**); darin `Pfeil hoch`/`runter`, `Home`/`End` und `Enter` zum Öffnen |
+| `Strg+B` / `⌘+B` | Seitenleiste am Desktop ein- und ausklappen (nicht in Eingabefeldern) |
+| `Pfeil hoch`/`runter`, `Pfeil rechts`/`links` | In der eingeklappten Seitenleiste von Symbol zu Symbol, Marke und Schnellsuche eingeschlossen; `Pfeil rechts` öffnet das Flyout einer Gruppe, darin von Link zu Link, `Pfeil links` schließt es wieder |
+| `Esc` | Schließt ein Gruppen-Flyout der eingeklappten Seitenleiste, das Menü auf dem Handy oder die Befehlspalette und gibt den Fokus an den Auslöser zurück; blendet den Namen eines Symbols der eingeklappten Leiste aus |
 
 - **Zum Inhalt springen:** Der erste `Tab` auf jeder Seite zeigt den Link **Zum Inhalt springen**. Mit `Enter` überspringst du die Navigation.
 - **Nach einem Seitenwechsel** steht der Fokus am Anfang des Inhalts, nicht mehr in der Navigation. Der nächste `Tab` führt zum ersten Element der neuen Seite. Filter und Suche ändern nur die Liste, der Fokus bleibt, wo er ist.
 - **Anmelden:** Nach **Passwort verwenden** steht der Fokus im Feld **E-Mail**.
 - **Knopfzeilen:** `Tab` geht die Knöpfe in der Folge durch, in der sie zu sehen sind. Hat die Zeile eine Hauptaktion wie **Speichern**, steht sie zuletzt und ein Gefahrknopf wie **Löschen** zuerst. Ein Gefahrknopf, der Gespeichertes löscht, fragt erst nach. Ausnahme ist die Rückfrage auf dem Handy: **Abbrechen** steht unter der Aktion, wo der Daumen liegt, hat beim Öffnen den Fokus, und `Tab` geht von dort nach oben zur Aktion.
+- **Fehlende Angaben:** Der Knopf eines Formulars bleibt bedienbar, auch wenn noch etwas fehlt. Ein Druck darauf schreibt unter jedes betroffene Feld, was fehlt oder nicht stimmt, und setzt den Fokus ins erste davon; der Screenreader liest dabei Feldname und Fehler. Bei der manuellen Buchung steht, was den Zeilen fehlt, als Liste unter der Tabelle; das Konto der ersten Zeile verweist darauf. Gesperrt ist ein Knopf nur, während er arbeitet, wenn es nichts zu tun gibt, wenn etwas außerhalb des Formulars fehlt, etwa das Zertifikat für ELSTER (der Grund steht dann über dem Knopf), oder wenn direkt darüber steht, was nicht passt, etwa die Abweichung einer Auszahlung von Google Play.
 - **Dateien hochladen:** Statt Drag-and-drop öffnen **Dateien auswählen** und **Foto aufnehmen** den Dateidialog des Systems.
 - **Kunde, Lieferant und Artikel suchen** (Kunde im Rechnungs- und Angebotseditor, bei Serienrechnungen und Textbausteinen, Lieferant im Beleg und im Dauerbeleg, Artikel im Editor): Beim Tippen erscheint eine Trefferliste. `Pfeil runter` und `Pfeil hoch` bewegen den aktiven Treffer, `Enter` übernimmt ihn, `Esc` schließt die Liste; `Alt+Pfeil runter` öffnet sie, ohne einen Treffer zu wechseln. Bei Kunden und Lieferanten übernimmt auch `Tab` den aktiven Treffer.
 - **Diagramm unter Auswertungen:** Mit `Tab` springst du von Monat zu Monat und siehst die Werte. Dieselben Zahlen stehen unter **Als Tabelle anzeigen**.
@@ -34,9 +38,9 @@ Tastenkürzel einzelner Seiten:
 | Seite | Kürzel |
 | --- | --- |
 | [Bankabgleich](bank.md#zuordnen) | `Enter` ordnet zu, `J` nächster, `K` voriger Umsatz |
-| [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` bucht, `Esc` zurück zur Liste |
+| [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` / `⌘+Enter` bucht, `Esc` zurück zur Liste |
 
-Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` (Mac: `Cmd+Enter`) bucht einen Beleg auch aus einem Eingabefeld.
+Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` bucht einen Beleg auch aus einem Eingabefeld. Haben zeigt die Kürzel so, wie sie auf deiner Tastatur stehen: am Mac, iPhone und iPad mit `⌘`, sonst mit `Strg`.
 
 ## Darstellung
 
@@ -57,6 +61,7 @@ Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Str
 5. **Sichtbarer Fokus:** Der Test tabbt durch die wichtigsten Seiten. Jedes Element, das den Fokus bekommt, muss einen mindestens 2 px breiten Rahmen haben.
 6. **Handy-Menü:** öffnet mit Enter, Tab führt hinein, Esc schließt es und gibt den Fokus an den Menüknopf zurück.
 7. **Aktueller Bereich:** Im Archiv tragen nur der gewählte Bereich und die gewählten Filter `aria-current`.
+8. **Befehlspalette (`Strg+K`):** öffnet mit `Strg+K`, lässt sich per `Pfeil hoch`/`runter` und `Home`/`End` navigieren, schließt mit `Esc` unter Rückgabe des Fokus und besteht axe in allen Themes sowie am Handy; Öffnen per Knopf **Schnellsuche** auf Desktop und Handy, Sperre über einem offenen Dialog und `Enter`-Auswahl prüft ergänzend `apps/web/e2e/befehlspalette.spec.ts`.
 
 Findet axe einen Verstoß, nennt der Testbericht Regel, Element und Grund. Wie du die Tests lokal startest, steht unter [Entwicklung](entwicklung.md#ende-zu-ende-tests-mit-playwright).
 

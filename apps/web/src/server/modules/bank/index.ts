@@ -60,6 +60,7 @@ export {
   writeOffSchema,
 } from "./bank.ts";
 export { documentBankAllocations } from "./document-allocations.ts";
+export { umsatzauswahl } from "./umsatzauswahl.ts";
 export {
   nachStatusSortieren,
   SORTIERRICHTUNGEN,
@@ -142,5 +143,6 @@ export {
   type SettlementInput,
 } from "./verrechnung.ts";
 export { invoiceLastSettledOn } from "./zahldatum.ts";
-
 export { gemeldeteVoranmeldungen } from "./bank.ts";
+/** Gegenbuchung zu den Zeilen einer Buchung, auch nach einem Wechsel des Kontenrahmens (Aufhebung einer Verrechnung) */
+export { reverseLines, reverseLinesIn } from "./bank.ts";

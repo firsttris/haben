@@ -1,5 +1,5 @@
 import { notFound } from "@tanstack/react-router";
-import { invoicesSentByMail, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
+import { invoicesSentByMail, leistungsmonatHinweisFuer, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
@@ -20,11 +20,17 @@ import {
   finalizeIssues,
   getInvoice,
   invoiceSummary,
+  lastFinalizedByCircle,
   listInvoices,
   newDraftDefaults,
   numbering,
   abschlagLinks,
   openAbschlaege,
+  invoiceSettlementReversalSchema,
+  invoiceSettlementSchema,
+  invoiceSettlementView,
+  reverseInvoiceSettlement,
+  settleInvoices,
   setNextNumber,
   updateDraft,
 } from "../modules/rechnungen/index.ts";
@@ -81,9 +87,19 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 
 /** Editor-Daten samt offenen Abschlagsrechnungen für die Schlussrechnung */
 async function invoiceEditorContext() {
+  const [context, abschlaege, lastFinalized, quotes] = await Promise.all([
+    editorContext("rechnung"),
+    openAbschlaege(),
+    lastFinalizedByCircle(),
+    db
+      .select({ id: schema.quotes.id, contactId: schema.quotes.contactId, number: schema.quotes.number, issueDate: schema.quotes.issueDate })
+      .from(schema.quotes)
+      .where(eq(schema.quotes.status, "final"))
+      .orderBy(asc(schema.quotes.issueDate)),
+  ]);
   return {
-    ...(await editorContext("rechnung")),
-    abschlaege: (await openAbschlaege()).map(
+    ...context,
+    abschlaege: abschlaege.map(
       ({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, taxDetails, exemptionReason, priceMode, propertyRetention }) => ({
         id,
         contactId,
@@ -99,14 +115,9 @@ async function invoiceEditorContext() {
         propertyRetention,
       }),
     ),
+    lastFinalized,
     /** Festgeschriebene Angebote für den Bezug von Abschlags- und Schlussrechnungen */
-    quotes: (
-      await db
-        .select({ id: schema.quotes.id, contactId: schema.quotes.contactId, number: schema.quotes.number, issueDate: schema.quotes.issueDate })
-        .from(schema.quotes)
-        .where(eq(schema.quotes.status, "final"))
-        .orderBy(asc(schema.quotes.issueDate))
-    ).map((q) => ({ ...q, number: q.number ?? "" })),
+    quotes: quotes.map((q) => ({ ...q, number: q.number ?? "" })),
   };
 }
 
@@ -121,12 +132,15 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
     const result = await getInvoice(data);
     if (!result || (context.user.role !== "inhaber" && result.invoice.status === "draft")) throw notFound();
     const issues = result.invoice.status === "draft" ? await finalizeIssues(data) : [];
+    // Hinweis statt Sperre (#694): Der Leistungsmonat kann in einer schon übermittelten Voranmeldung liegen.
+    const leistungsmonat = await leistungsmonatHinweisFuer(result.invoice);
     // Mahnungen und ob die Rechnung gerade überfällig ist (offen und Fälligkeit vorbei)
     const listed = result.invoice.status === "final" ? (await listInvoices(today(), data))[0] : undefined;
     return {
       ...result,
       invoice: withoutFiles(result.invoice),
       issues,
+      leistungsmonat,
       attachments: (await listInvoiceAttachments(data)).map(({ id, filename, size }) => ({ id, filename, size })),
       dunnings: await dunningsFor([data]),
       mails: result.invoice.status === "final" ? await mailsForInvoice(data) : [],
@@ -166,6 +180,28 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
       ...(await abschlagLinks(data)),
       ...(await invoiceEditorContext()),
     };
+  });
+
+/**
+ * Verrechnung einer Ausgangsrechnung mit ihrer Kundenkorrektur (#877): die Anzeige am Beleg liest hier den offenen Rest,
+ * die Zeilen der Verrechnung und die Gegenbelege; gebucht und aufgehoben wird über die beiden Aufrufe darunter.
+ */
+export const getInvoiceSettlements = createServerFn({ method: "GET" })
+  .middleware([readMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data }) => invoiceSettlementView(data));
+
+export const settleInvoiceFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(invoiceSettlementSchema)
+  .handler(async ({ data, context }) => settleInvoices(context.user.id, data));
+
+export const reverseInvoiceSettlementFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(invoiceSettlementReversalSchema)
+  .handler(async ({ data, context }) => {
+    await reverseInvoiceSettlement(context.user.id, data.id, data.date, data.note);
+    return { ok: true as const };
   });
 
 export const saveInvoiceDraft = createServerFn({ method: "POST" })
