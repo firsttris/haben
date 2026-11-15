@@ -26,8 +26,12 @@ export interface Zustaende {
   caddyLaeuft: boolean;
   /** Netze, in denen der Container des Caddy hängt: aus den Dateien beim Neuaufbau, dazu per network connect */
   caddyNetze: Set<string>;
+  /** Wie oft der Container des Caddy entstanden ist (`up -d` in proxy/ baut ihn auf); entfernen darf sie nicht ändern */
+  caddyErzeugt: number;
   /** docker network connect scheitert */
   connectKaputt: boolean;
+  /** docker network disconnect scheitert */
+  disconnectKaputt: boolean;
   /** caddy reload scheitert, etwa an einem fehlerhaften Block in sites/ */
   reloadKaputt: boolean;
   /** Netze, die docker kennt (docker network create, oder von Compose angelegt) */
@@ -82,11 +86,26 @@ function habenBefehl(z: Zustaende, d: string, sub: string, binaer?: boolean): Er
   return undefined;
 }
 
-/** docker network …: Netze, die docker kennt, und die des Caddy-Containers */
+/** docker network …: Netze, die docker kennt, und die des Caddy-Containers (connect, disconnect, rm, create, inspect, ls) */
 function netzBefehl(z: Zustaende, args: string[]): Ergebnis | undefined {
   if (args[0] === "connect") {
     if (z.connectKaputt || args[2] !== "caddy-id") return { code: 1, stdout: "", stderr: "Error response from daemon: network not found" };
     z.caddyNetze.add(args[1] ?? "");
+    return ok();
+  }
+  if (args[0] === "disconnect") {
+    if (z.disconnectKaputt || args[2] !== "caddy-id")
+      return { code: 1, stdout: "", stderr: "Error response from daemon: container is not connected to the network" };
+    if (!z.caddyNetze.delete(args[1] ?? "")) return { code: 1, stdout: "", stderr: "Error response from daemon: container is not connected to the network" };
+    return ok();
+  }
+  if (args[0] === "rm") {
+    const netz = args[1] ?? "";
+    if (!z.netze.has(netz)) return { code: 1, stdout: "", stderr: `Error response from daemon: network ${netz} not found` };
+    // Ein laufender Container hält einen Endpunkt im Netz; ein gestoppter nicht
+    if (z.caddyLaeuft && z.caddyNetze.has(netz))
+      return { code: 1, stdout: "", stderr: `Error response from daemon: error while removing network: network ${netz} has active endpoints` };
+    z.netze.delete(netz);
     return ok();
   }
   const netz = args.at(-1) ?? "";
@@ -113,6 +132,7 @@ function caddy(z: Zustaende, sub: string, cwd: string): Ergebnis | undefined {
   // Neuaufbau aus den Dateien: Der Container hängt danach in genau den Netzen aus compose.override.yml
   if (sub === "up -d") {
     z.caddyNetze = new Set(netzeAus(cwd));
+    z.caddyErzeugt += 1;
     for (const netz of z.caddyNetze) z.netze.add(netz);
     z.caddyLaeuft = true;
     return ok();
@@ -130,7 +150,9 @@ export function nachbau() {
     zuAlt: new Set(),
     caddyLaeuft: false,
     caddyNetze: new Set(),
+    caddyErzeugt: 0,
     connectKaputt: false,
+    disconnectKaputt: false,
     reloadKaputt: false,
     netze: new Set(),
     projekte: [],
