@@ -98,27 +98,19 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     });
   });
 
-  it("vermerkt auch eine außerhalb abgegebene Einkommensteuererklärung (#1073)", async () => {
-    // Vergleichswert ist Habens Schätzung der verbleibenden Steuer; im leeren Testjahr ist sie 0
-    const berechnet = (await annual.annualOverview(2025, TODAY)).est.prognose.verbleibend;
-    const row = await jahresvermerk.vermerkeJahresabgabe(
-      actor,
-      "est",
-      2025,
-      {
-        ...eingabe("EST123456789", {
-          amount: berechnet,
-          note: "Einkommensteuererklärung außerhalb von Haben mit WISO abgegeben.",
-        }),
-      },
-      TODAY,
-    );
-    expect(row).toMatchObject({ form: "est", year: 2025, amount: berechnet });
-
-    const uebersicht = await annual.annualOverview(2025, TODAY);
-    expect(uebersicht.est.submitted).toMatchObject({ transferTicket: "EST123456789", amount: berechnet });
-    expect(uebersicht.euer.submitted).toBeNull();
-    expect(uebersicht.ust.submitted).toBeNull();
+  it("nimmt bei der Einkommensteuererklärung keinen Betrag an, auch nicht Habens Schätzung (#1073)", async () => {
+    // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag; eine Schätzung gehört nicht in den Vermerk
+    const geschaetzt = (await annual.annualOverview(2025, TODAY)).est.prognose.verbleibend;
+    await expect(
+      jahresvermerk.vermerkeJahresabgabe(
+        actor,
+        "est",
+        2025,
+        eingabe("EST123456789", { amount: geschaetzt, note: "Einkommensteuererklärung außerhalb von Haben mit WISO abgegeben." }),
+        TODAY,
+      ),
+    ).rejects.toThrow(/keinen Betrag/);
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
   });
 
   it("lehnt einen zweiten Vermerk für dasselbe Formular und Jahr ab", async () => {
