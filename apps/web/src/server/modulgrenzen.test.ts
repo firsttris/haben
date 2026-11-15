@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { checkFile } from "../../../../scripts/modulgrenzen/regel.ts";
-import { SCHICHTEN } from "../../../../scripts/modulgrenzen/schichten.ts";
+import { AUSNAHMEN, SCHICHTEN } from "../../../../scripts/modulgrenzen/schichten.ts";
 
 /*
  * Modulgrenzen (#81, Schritt 6): die Prüfung selbst (scripts/modulgrenzen/) und die Struktur der Module.
@@ -94,6 +94,12 @@ describe("Modulgrenzen", () => {
     expect(lint("scheduler.ts", `import { runReminders } from "./modules/finanzamt/index.ts";`)).toEqual([]);
   });
 
+  it("eine Ausnahme gilt nur für ihre Datei und ihr Modul", () => {
+    expect(lint("modules/rechnungen/umsatzgrenze.ts", `import { kleinunternehmerStand } from "../auswertungen/index.ts";`)).toEqual([]);
+    expect(lint("modules/rechnungen/invoices.ts", `import { kleinunternehmerStand } from "../auswertungen/index.ts";`)).toHaveLength(1);
+    expect(lint("modules/rechnungen/umsatzgrenze.ts", `import { annualOverview } from "../jahreserklaerung/index.ts";`)).toHaveLength(1);
+  });
+
   it("ein Modul, das in der Schichtenfolge fehlt, meldet die Prüfung", () => {
     expect(lint("modules/neu/x.ts", `import { loadCompany } from "../stammdaten/index.ts";`)).toEqual([
       expect.stringContaining("Modul „neu“ fehlt in scripts/modulgrenzen/schichten.ts"),
@@ -145,6 +151,17 @@ describe("Struktur der Module", () => {
   it("jedes Modul steht genau einmal in der Schichtenfolge", () => {
     expect([...SCHICHTEN].sort()).toEqual([...names].sort());
     expect(new Set(SCHICHTEN).size).toBe(SCHICHTEN.length);
+  });
+
+  it("jede Ausnahme zeigt auf einen Import, den es gibt, nach oben und mit Grund", () => {
+    const order: readonly string[] = SCHICHTEN;
+    for (const a of AUSNAHMEN) {
+      expect(existsSync(join(modules, a.datei)), a.datei).toBe(true);
+      // Fällt der Import weg, fällt auch die Ausnahme weg
+      expect(readFileSync(join(modules, a.datei), "utf8"), a.datei).toContain(`"../${a.modul}/`);
+      expect(order.indexOf(a.modul), a.datei).toBeGreaterThan(order.indexOf(a.datei.split("/")[0]!));
+      expect(a.grund.length, a.datei).toBeGreaterThan(20);
+    }
   });
 
   it("index.ts gibt nur Dateien des eigenen Moduls weiter und enthält keine Logik", () => {

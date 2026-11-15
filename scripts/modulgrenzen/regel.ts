@@ -1,6 +1,6 @@
 import { basename, dirname, resolve, sep } from "node:path";
 import { parseSync, Visitor } from "oxc-parser";
-import { SCHICHTEN } from "./schichten.ts";
+import { AUSNAHMEN, SCHICHTEN } from "./schichten.ts";
 
 /*
  * Modulgrenzen im Server (#81, Schritt 6). Fachlicher Code liegt in apps/web/src/server/modules/<name>/; was ein Modul
@@ -110,15 +110,17 @@ export function checkImport(file: string, specifier: string): string | null {
   if (target.inner !== "index.ts") {
     return `Modul „${target.name}“ nur über seine index.ts importieren, nicht „${target.inner}“. Fehlt der Name dort, ergänze ihn in modules/${target.name}/index.ts.`;
   }
-  return own ? checkLayer(own.name, target.name) : null;
+  return own ? checkLayer(own, target.name) : null;
 }
 
 /** Ein Modul importiert nur Module, die in SCHICHTEN vor ihm stehen */
-function checkLayer(own: string, target: string): string | null {
+function checkLayer(file: { name: string; inner: string }, target: string): string | null {
+  const own = file.name;
   const order: readonly string[] = SCHICHTEN;
   const unknown = [own, target].find((name) => !order.includes(name));
   if (unknown) return `Modul „${unknown}“ fehlt in scripts/modulgrenzen/schichten.ts. Trage es über den Modulen ein, die es importiert.`;
   if (order.indexOf(target) < order.indexOf(own)) return null;
+  if (AUSNAHMEN.some((a) => a.datei === `${own}/${file.inner}` && a.modul === target)) return null;
   return `Modul „${own}“ steht unter „${target}“ und importiert es nicht (scripts/modulgrenzen/schichten.ts). Gehört der Code nach „${target}“ oder in ein Modul weiter unten?`;
 }
 
