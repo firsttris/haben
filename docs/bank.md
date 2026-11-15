@@ -146,7 +146,7 @@ Importe, Umsätze, Zuordnungen und [Verrechnungen](#gegenläufige-umsätze-verre
 
 Ab zwei Konten zeigt der erste Reiter, **Alle Konten**, die Umsätze aller Konten in einer Liste, unter der Gegenpartei mit dem Namen des Kontos. Dorthin führt auch **Alle anzeigen** bei den Bankumsätzen der [Schnellsuche](suche.md).
 
-Die Filter **Alle**, **Offen** (mit Anzahl), **Zugeordnet** (auch verrechnete Umsätze) und **Vorschlag** schränken die Liste ein. **Vorschlag** zeigt nur Umsätze mit dem gleichnamigen Status. Das Suchfeld findet dieselben Umsätze wie die [Schnellsuche](suche.md): Gegenpartei und Verwendungszweck auch ohne Umlaute, das Ende der IBAN ab vier Ziffern, das Buchungsdatum und den Betrag, auch als `1.190,00` oder `1190 €` mit beiden Vorzeichen. Angezeigt werden höchstens 500 Treffer.
+Die Filter **Alle**, **Offen** (mit Anzahl), **Zugeordnet** (auch verrechnete Umsätze) und **Vorschlag** schränken die Liste ein. **Vorschlag** zeigt nur Umsätze mit dem gleichnamigen Status. Das Suchfeld findet dieselben Umsätze wie die [Schnellsuche](suche.md#was-sie-findet), dazu Beträge, deren Zahl die Eingabe enthält: `19.9` findet 19,90 €. Angezeigt werden höchstens 500 Treffer.
 
 Die Spaltenköpfe Datum, Gegenpartei · Verwendungszweck, Betrag und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Ohne Auswahl steht der neueste Umsatz oben. Am Handy sind Datum und Status ausgeblendet, dort sortieren Gegenpartei und Betrag.
 
