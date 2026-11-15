@@ -46,8 +46,10 @@ function useRemotePaletteSearch(open: boolean, trimmed: string) {
     }
     const reqId = ++latestReqRef.current;
     setLoading(true);
+    // Eine neue Eingabe bricht die laufende Anfrage ab, statt ihre Antwort nur zu verwerfen (#617, Leistung)
+    const abort = new AbortController();
     const timer = window.setTimeout(() => {
-      void searchCommandPalette({ data: { query: trimmed } })
+      void searchCommandPalette({ data: { query: trimmed }, signal: abort.signal })
         .then((res) => {
           if (reqId !== latestReqRef.current) return;
           setResponse({ query: trimmed, result: res });
@@ -59,7 +61,10 @@ function useRemotePaletteSearch(open: boolean, trimmed: string) {
           setLoading(false);
         });
     }, 150);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      abort.abort();
+    };
   }, [open, trimmed, resetRemote]);
 
   return { remote: response?.query === trimmed ? response.result : null, loading, resetRemote };

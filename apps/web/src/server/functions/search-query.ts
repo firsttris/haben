@@ -1,4 +1,5 @@
 import type { Rolle } from "../../lib/rollen.ts";
+import { mitHoechstens, type PaletteGroup, paletteGroups } from "./search-plan.ts";
 import { type ArchiveHit, searchArchive } from "../modules/archiv/index.ts";
 import { type BankTransactionHit, type CashEntryHit, type LoanHit, searchBankTransactions, searchCashEntries, searchLoans } from "../modules/bank/index.ts";
 import { type DocumentHit, type RecurringDocumentHit, searchDocuments, searchRecurringDocuments } from "../modules/belege/index.ts";
@@ -85,97 +86,51 @@ function emptyResult(): CommandPaletteResult {
   };
 }
 
+/** Höchstens so viele Abfragen einer Eingabe gleichzeitig; der Pool hat 10 Verbindungen (db/index.ts) */
+export const PALETTE_PARALLEL = 4;
+
+/** Je Gruppe die Suche im Modul; die Rolle entscheidet `paletteGroups` */
+const SUCHE: { [G in PaletteGroup]: (query: string, role: Rolle) => Promise<CommandPaletteResult[G]> } = {
+  contacts: (q) => searchContacts(q, COMMAND_PALETTE_LIMIT),
+  // Entwürfe nur für den Inhaber
+  invoices: (q, role) => searchInvoices(q, { includeDrafts: role === "inhaber" }, COMMAND_PALETTE_LIMIT),
+  quotes: (q) => searchQuotes(q, COMMAND_PALETTE_LIMIT),
+  documents: (q) => searchDocuments(q, COMMAND_PALETTE_LIMIT),
+  bankTransactions: (q) => searchBankTransactions(q, COMMAND_PALETTE_LIMIT),
+  bookings: (q) => searchBookings(q, COMMAND_PALETTE_LIMIT),
+  accounts: (q) => searchAccounts(q, COMMAND_PALETTE_LIMIT),
+  recurringInvoices: (q) => searchRecurringInvoices(q, COMMAND_PALETTE_LIMIT),
+  recurringDocuments: (q) => searchRecurringDocuments(q, COMMAND_PALETTE_LIMIT),
+  articles: (q) => searchArticles(q, COMMAND_PALETTE_LIMIT),
+  textBlocks: (q) => searchTextBlocks(q, COMMAND_PALETTE_LIMIT),
+  serviceEntries: (q) => searchServiceEntries(q, COMMAND_PALETTE_LIMIT),
+  assets: (q) => searchAssets(q, COMMAND_PALETTE_LIMIT),
+  loans: (q) => searchLoans(q, COMMAND_PALETTE_LIMIT),
+  cashEntries: (q) => searchCashEntries(q, COMMAND_PALETTE_LIMIT),
+  pauschalen: (q) => searchPauschalen(q, COMMAND_PALETTE_LIMIT),
+  employees: (q) => searchEmployees(q, COMMAND_PALETTE_LIMIT),
+  vatReturns: (q) => searchVatReturns(q, COMMAND_PALETTE_LIMIT),
+  zmSubmissions: (q) => searchZmSubmissions(q, COMMAND_PALETTE_LIMIT),
+  postfachDocuments: (q) => searchPostfachDocuments(q, COMMAND_PALETTE_LIMIT),
+  archive: (q) => searchArchive(q, COMMAND_PALETTE_LIMIT),
+};
+
 /**
- * Suche für die Befehlspalette (#617) nach Rolle:
- * - Inhaber durchsucht alle Bereiche (Stufe 1 + Stufe 2).
- * - Steuerberatung sieht ausschließlich festgeschriebene Rechnungen (ohne Entwürfe), Belege, Buchungen und Konten.
+ * Suche für die Befehlspalette (#617): nur die Gruppen, die Rolle und Eingabe zulassen (`paletteGroups`), höchstens
+ * `PALETTE_PARALLEL` gleichzeitig. Die Steuerberatung sieht festgeschriebene Rechnungen, Belege, Buchungen und Konten.
  */
 export async function runCommandPaletteSearch(rawQuery: string, role: Rolle): Promise<CommandPaletteResult> {
   const query = rawQuery.trim();
-  if (query.length < 2) return emptyResult();
-
-  if (role === "inhaber") {
-    const [
-      contacts,
-      invoices,
-      quotes,
-      documents,
-      bankTransactions,
-      bookings,
-      accounts,
-      recurringInvoices,
-      recurringDocuments,
-      articles,
-      textBlocks,
-      serviceEntries,
-      assets,
-      loans,
-      cashEntries,
-      pauschalen,
-      employees,
-      vatReturns,
-      zmSubmissions,
-      postfachDocuments,
-      archive,
-    ] = await Promise.all([
-      searchContacts(query, COMMAND_PALETTE_LIMIT),
-      searchInvoices(query, { includeDrafts: true }, COMMAND_PALETTE_LIMIT),
-      searchQuotes(query, COMMAND_PALETTE_LIMIT),
-      searchDocuments(query, COMMAND_PALETTE_LIMIT),
-      searchBankTransactions(query, COMMAND_PALETTE_LIMIT),
-      searchBookings(query, COMMAND_PALETTE_LIMIT),
-      searchAccounts(query, COMMAND_PALETTE_LIMIT),
-      searchRecurringInvoices(query, COMMAND_PALETTE_LIMIT),
-      searchRecurringDocuments(query, COMMAND_PALETTE_LIMIT),
-      searchArticles(query, COMMAND_PALETTE_LIMIT),
-      searchTextBlocks(query, COMMAND_PALETTE_LIMIT),
-      searchServiceEntries(query, COMMAND_PALETTE_LIMIT),
-      searchAssets(query, COMMAND_PALETTE_LIMIT),
-      searchLoans(query, COMMAND_PALETTE_LIMIT),
-      searchCashEntries(query, COMMAND_PALETTE_LIMIT),
-      searchPauschalen(query, COMMAND_PALETTE_LIMIT),
-      searchEmployees(query, COMMAND_PALETTE_LIMIT),
-      searchVatReturns(query, COMMAND_PALETTE_LIMIT),
-      searchZmSubmissions(query, COMMAND_PALETTE_LIMIT),
-      searchPostfachDocuments(query, COMMAND_PALETTE_LIMIT),
-      searchArchive(query, COMMAND_PALETTE_LIMIT),
-    ]);
-    return {
-      contacts,
-      invoices,
-      quotes,
-      documents,
-      bankTransactions,
-      bookings,
-      accounts,
-      recurringInvoices,
-      recurringDocuments,
-      articles,
-      textBlocks,
-      serviceEntries,
-      assets,
-      loans,
-      cashEntries,
-      pauschalen,
-      employees,
-      vatReturns,
-      zmSubmissions,
-      postfachDocuments,
-      archive,
-    };
-  }
-
-  if (role === "steuerberatung") {
-    const [invoices, documents, bookings, accounts] = await Promise.all([
-      searchInvoices(query, { includeDrafts: false }, COMMAND_PALETTE_LIMIT),
-      searchDocuments(query, COMMAND_PALETTE_LIMIT),
-      searchBookings(query, COMMAND_PALETTE_LIMIT),
-      searchAccounts(query, COMMAND_PALETTE_LIMIT),
-    ]);
-    return { ...emptyResult(), invoices, documents, bookings, accounts };
-  }
-
-  return emptyResult();
+  const groups = paletteGroups(query, role);
+  const result = emptyResult();
+  const found = await mitHoechstens<unknown>(
+    PALETTE_PARALLEL,
+    groups.map((group) => () => SUCHE[group](query, role)),
+  );
+  groups.forEach((group, i) => {
+    (result as Record<PaletteGroup, unknown>)[group] = found[i];
+  });
+  return result;
 }
 
 export interface RecentPaletteItem {
