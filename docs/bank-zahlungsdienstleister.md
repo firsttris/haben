@@ -61,16 +61,15 @@ Der Entwurf geht über den Auszahlungsanspruch des Monats, zu 0 % mit Reverse Ch
 
 ## Etsy-Zahlungsverlauf über die API
 
-Statt der Monatsabrechnung kann Haben den Zahlungsverlauf von Etsy Payments selbst abrufen: nach Zeitplan, mit **Jetzt abrufen** und, wenn eingerichtet, etwa eine Minute nach jeder Bestellung. Nimm für einen Zeitraum nur einen Weg; hat ein Monat schon Umsätze aus der CSV, weist Haben beim Abruf darauf hin.
+Statt der Monatsabrechnung kann Haben den Zahlungsverlauf von Etsy Payments selbst abrufen: nach Zeitplan und mit **Jetzt abrufen**. Nimm für einen Zeitraum nur einen Weg; hat ein Monat schon Umsätze aus der CSV, weist Haben beim Abruf darauf hin.
 
 **Bei Etsy (einmalig):**
 
 1. Auf [etsy.com/developers](https://www.etsy.com/developers) eine App anlegen und **Keystring** und **Shared Secret** kopieren.
 2. Als **Redirect-URI** `<Adresse von Haben>/api/etsy/callback` eintragen, mit genau der Adresse, unter der du Haben im Browser öffnest.
 3. Die App braucht die Rechte `transactions_r` und `shops_r`; Etsy fragt sie bei der Freigabe ab.
-4. Optional für Verkäufe fast in Echtzeit: in der App einen Webhook auf `<Adresse von Haben>/api/etsy/webhook` für die Ereignisse `order.paid` und `order.canceled` anlegen und den **Signaturschlüssel** (`whsec_…`) kopieren.
 
-**In Haben:** Unter **Einstellungen › Bank** in der Karte **Etsy Payments** App-Schlüssel und Geheimnis eintragen, **Abruf ab Monat** wählen, **Speichern** und **Verbinden**. Haben öffnet Etsy zur Freigabe; danach steht in der Karte „Verbunden mit“ und der Name des Shops, dazu, ab welchem Tag der nächste Abruf holt. Den Signaturschlüssel der Webhooks trägst du unter **Webhook-Signaturschlüssel** ein; Haben nimmt dann nur Meldungen mit gültiger Signatur von deinem Shop an und holt danach den Verlauf, aus der Meldung selbst übernimmt es nichts. Voraussetzung ist ein Konto der Art Zahlungsdienstleister mit Anbieter Etsy. Unter **Automatischer Abruf** wählst du stündlich, täglich (Vorgabe), wöchentlich oder monatlich; monatlich ruft Haben einmal ab dem 5. ab. Verkäufe und Erstattungen kommen mit jedem Abruf, Gebühren und Werbung unabhängig vom Rhythmus einmal im Monat. **Trennen** hebt die Verbindung auf und behält den Schlüssel, **Zugang entfernen** löscht beides.
+**In Haben:** Unter **Einstellungen › Bank** in der Karte **Etsy Payments** App-Schlüssel und Geheimnis eintragen, **Abruf ab Monat** wählen, **Speichern** und **Verbinden**. Haben öffnet Etsy zur Freigabe; danach steht in der Karte „Verbunden mit“ und der Name des Shops, dazu, ab welchem Tag der nächste Abruf holt. Voraussetzung ist ein Konto der Art Zahlungsdienstleister mit Anbieter Etsy. Unter **Automatischer Abruf** wählst du stündlich, täglich (Vorgabe), wöchentlich oder monatlich; monatlich ruft Haben einmal ab dem 5. ab. Verkäufe und Erstattungen kommen mit jedem Abruf, Gebühren und Werbung unabhängig vom Rhythmus einmal im Monat. **Trennen** hebt die Verbindung auf und behält den Schlüssel, **Zugang entfernen** löscht beides.
 
 **Was im Konto ankommt:**
 
@@ -82,4 +81,4 @@ Statt der Monatsabrechnung kann Haben den Zahlungsverlauf von Etsy Payments selb
 
 **Der 5. des Folgemonats:** Etsy korrigiert Gebühren in den ersten Tagen des Folgemonats noch. Haben bündelt einen Monat deshalb erst ab dem 5.; bis dahin bleiben seine Gebühren liegen, der Abruf sagt das. Lade auch die Gebührenrechnung erst ab dem 5. herunter, dann passt sie zu den Sammelzeilen. Eine Sammelzeile entsteht nur einmal: Kommt später noch eine Gebühr mit dem Datum eines schon gebündelten Monats, übernimmt Haben sie nicht und weist darauf hin.
 
-**Grenzen:** Etsy beschreibt die Zeilenarten des Verlaufs nicht. Die Zuordnung stammt aus einem echten Verlauf von Juli 2022 bis Mai 2026; jede der 25 Gebührenrechnungen von Juli 2022 bis April 2026 ergibt sich daraus auf den Cent, auch je Position bis auf Rundungscents der Rechnung selbst. Eine unbekannte Art kommt einzeln mit Hinweis. Rechnungen an Kunden legt der Abruf nicht an. Ob Etsy die Rechte und Webhooks für deine App ohne weitere Prüfung freigibt, entscheidet Etsy.
+**Grenzen:** Etsy beschreibt die Zeilenarten des Verlaufs nicht. Die Zuordnung stammt aus einem echten Verlauf von Juli 2022 bis Mai 2026; jede der 25 Gebührenrechnungen von Juli 2022 bis April 2026 ergibt sich daraus auf den Cent, auch je Position bis auf Rundungscents der Rechnung selbst. Eine unbekannte Art kommt einzeln mit Hinweis. Rechnungen an Kunden legt der Abruf nicht an. Ob Etsy die Rechte für deine App ohne weitere Prüfung freigibt, entscheidet Etsy.

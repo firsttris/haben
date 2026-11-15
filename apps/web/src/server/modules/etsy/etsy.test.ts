@@ -1,4 +1,3 @@
-import { createHmac } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { EtsyClient, EtsyLedgerEntry } from "@haben/import";
@@ -246,33 +245,6 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     } finally {
       imAbruf = verlauf;
     }
-  });
-
-  it("plant nach einer signierten Meldung von Etsy einen Abruf und lehnt fremde Meldungen ab", async () => {
-    const schluessel = Buffer.from("erfundener-webhook-schluessel").toString("base64");
-    await etsy.saveEtsyConnection(actor, { keystring: "abc", fetchFrom: "2023-06", sammelzeilen: true, webhookSecret: `whsec_${schluessel}` });
-    expect(await etsy.etsySummary()).toMatchObject({ webhookConfigured: true, connected: true });
-    const jetzt = new Date();
-    const sekunden = String(Math.floor(jetzt.getTime() / 1000));
-    const melde = (rumpf: string, id = "msg_1", key = schluessel) =>
-      etsy.etsyWebhookEmpfangen(
-        rumpf,
-        { id, timestamp: sekunden, signature: `v1,${createHmac("sha256", Buffer.from(key, "base64")).update(`${id}.${sekunden}.${rumpf}`).digest("base64")}` },
-        { jetzt, verzoegerungMs: 0 },
-      );
-
-    expect((await melde('{"event_type":"order.paid","shop_id":35160089}', "msg_0", Buffer.from("fremd").toString("base64"))).status).toBe(401);
-    expect((await melde('{"event_type":"order.paid","shop_id":99}')).status).toBe(400);
-    expect((await melde('{"event_type":"order.shipped","shop_id":35160089}')).status).toBe(200);
-
-    const antwort = await melde('{"event_type":"order.paid","shop_id":35160089}');
-    expect(antwort.status).toBe(202);
-    await antwort.abruf;
-    // Der Abruf lief heute: Die Etsy Ads aus Juli 2023 sind jetzt gebündelt, der Juni blieb, wie er war
-    const [juli] = await sql`select count(*)::int as n from bank_transactions where purpose = 'Gebühr · Etsy Ads (Etsy Ads Fees) 2023-07'`;
-    expect(juli!.n).toBe(1);
-    const [juni] = await sql`select count(*)::int as n from bank_transactions where purpose like 'Gebühr · %2023-06'`;
-    expect(juni!.n).toBe(4);
   });
 
   it("trennt die Verbindung, ohne den Schlüssel zu verlieren", async () => {

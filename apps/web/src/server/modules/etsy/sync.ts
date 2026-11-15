@@ -34,7 +34,7 @@ export interface EtsySyncResult {
 let laufend: Promise<EtsySyncResult> | null = null;
 
 /**
- * Ein Abruf zur Zeit: Zeitplan, Webhook und „Jetzt abrufen“ können zusammenfallen. Läuft schon einer, bekommt der zweite
+ * Ein Abruf zur Zeit: Zeitplan und „Jetzt abrufen“ können zusammenfallen. Läuft schon einer, bekommt der zweite
  * dessen Ergebnis, statt dieselben Zeilen gleichzeitig anzulegen.
  */
 export function syncEtsy(actor: string, now = new Date()): Promise<EtsySyncResult> {

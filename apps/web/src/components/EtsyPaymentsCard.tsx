@@ -42,11 +42,9 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const formular = new FormData(form);
-    const sharedSecret = String(formular.get("sharedSecret") ?? "");
-    const webhookSecret = String(formular.get("webhookSecret") ?? "");
+    const sharedSecret = String(new FormData(form).get("sharedSecret") ?? "");
     void run(async () => {
-      await save({ data: { keystring, fetchFrom, sammelzeilen, rhythmus, sharedSecret, webhookSecret } });
+      await save({ data: { keystring, fetchFrom, sammelzeilen, rhythmus, sharedSecret } });
       form.reset();
       await router.invalidate();
     }, "Zugang gespeichert. Jetzt verbinden, damit Etsy die Freigabe zeigt.");
@@ -94,12 +92,6 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
           )}
         </Field>
         <RhythmusFeld wert={rhythmus} onChange={setRhythmus} />
-        <Field
-          label={data.webhookConfigured ? "Webhook-Signaturschlüssel (leer lassen zum Behalten)" : "Webhook-Signaturschlüssel (optional)"}
-          hint={`Für Verkäufe fast in Echtzeit: in der Etsy-App einen Webhook auf ${data.webhookUrl} für order.paid und order.canceled anlegen und den Signaturschlüssel (whsec_…) hier eintragen`}
-        >
-          {(control) => <input {...control} name="webhookSecret" type="password" autoComplete="off" />}
-        </Field>
         <div className="banner banner-warn" role="note">
           Die Gebührenrechnung (bei Etsy „USt.-Abrechnung“) frühestens am 5. des Folgemonats herunterladen und hochladen: Etsy korrigiert Gebühren im Übergang
           des Monats manchmal nach. Ab dem 5. stimmt sie auf den Cent mit den Sammelzeilen.
@@ -179,7 +171,7 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
   );
 }
 
-/** Stand der Verbindung: verbunden, letzter und nächster Abruf, Webhooks */
+/** Stand der Verbindung: verbunden, letzter und nächster Abruf */
 function EtsyStatus({ data }: { data: Data }) {
   return (
     <p className="small" style={{ margin: "0.5rem 0 0" }}>
@@ -194,7 +186,6 @@ function EtsyStatus({ data }: { data: Data }) {
       )}{" "}
       {data.lastSyncAt ? `Letzter Abruf: ${formatDateTime(data.lastSyncAt)}.` : "Noch kein Abruf."}
       {data.lastSyncAt && data.naechsterAbrufAb ? ` Der nächste Abruf holt ab dem ${formatDate(data.naechsterAbrufAb)}.` : ""}
-      {data.webhookConfigured ? " Webhooks eingerichtet: neue Bestellungen kommen etwa eine Minute nach dem Kauf." : ""}
     </p>
   );
 }
