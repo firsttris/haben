@@ -157,7 +157,7 @@ export interface PrognoseVorsorge {
   agZuschussGkv?: Cents;
   /** Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung; mindert den abzugsfähigen Betrag */
   agZuschussKv?: Cents;
-  /** Steuerfreier Arbeitgeberzuschuss zur privaten Pflegeversicherung; mindert den abzugsfähigen Betrag */
+  /** Steuerfreier Arbeitgeberzuschuss zur Pflegeversicherung (Nr. 24 c); mindert den abzugsfähigen Betrag */
   agZuschussPv?: Cents;
 }
 

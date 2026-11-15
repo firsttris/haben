@@ -50,7 +50,7 @@ export interface EstVorsorgePerson {
   agZuschussGkv?: Cents;
   /** Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung (§ 3 Nr. 62 EStG, Nr. 24 b) */
   agZuschussKv?: Cents;
-  /** Steuerfreier Arbeitgeberzuschuss zur privaten Pflegeversicherung (§ 3 Nr. 62 EStG, Nr. 24 c) */
+  /** Steuerfreier Arbeitgeberzuschuss zur Pflegeversicherung (§ 3 Nr. 62 EStG, Nr. 24 c), gesetzlich wie privat */
   agZuschussPv?: Cents;
 }
 
@@ -579,7 +579,7 @@ export function buildEstXml(input: EstXmlInput): string {
         ];
       }),
       ...vorsorgePersonen.map(([person, v]): XmlNode | null =>
-        // Zeilen 35 und 36: steuerfreie Zuschüsse des Arbeitgebers laut Nr. 24 b und 24 c
+        // Zeilen 34 bis 36: steuerfreie Zuschüsse des Arbeitgebers laut Nr. 24 a, 24 b und 24 c
         euro(v?.agZuschussGkv) || euro(v?.agZuschussKv) || euro(v?.agZuschussPv)
           ? [
               "Stfr_AG_Zusch",

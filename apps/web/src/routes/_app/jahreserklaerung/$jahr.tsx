@@ -493,7 +493,7 @@ function EstSection({ data }: { data: Data }) {
       pkvWahlleistungen: amount(`${p}-pkvWahlleistungen`, "Wahlleistungen der privaten KV"),
       agZuschussGkv: amount(`${p}-agZuschussGkv`, "Arbeitgeberzuschuss zur gesetzlichen KV"),
       agZuschussKv: amount(`${p}-agZuschussKv`, "Arbeitgeberzuschuss zur privaten KV"),
-      agZuschussPv: amount(`${p}-agZuschussPv`, "Arbeitgeberzuschuss zur privaten PV"),
+      agZuschussPv: amount(`${p}-agZuschussPv`, "Arbeitgeberzuschuss zur Pflegeversicherung"),
     });
     const ersatz = (p: "a" | "b") =>
       ERST_ARTEN.map((art) => ({ art, betrag: amount(`erst-${p}-${art}`, `Einkommensersatz ${art}`) ?? 0 })).filter((z) => z.betrag > 0);
@@ -561,7 +561,7 @@ function EstSection({ data }: { data: Data }) {
       <Amount name={`${p}-pkvWahlleistungen`} label="Private KV: Wahlleistungen" value={v?.pkvWahlleistungen} hint="über der Basisabsicherung" />
       <Amount name={`${p}-agZuschussGkv`} label="Arbeitgeberzuschuss zur gesetzlichen KV" value={v?.agZuschussGkv} hint="steuerfrei, Bescheinigung Nr. 24 a" />
       <Amount name={`${p}-agZuschussKv`} label="Arbeitgeberzuschuss zur privaten KV" value={v?.agZuschussKv} hint="steuerfrei, Bescheinigung Nr. 24 b" />
-      <Amount name={`${p}-agZuschussPv`} label="Arbeitgeberzuschuss zur privaten PV" value={v?.agZuschussPv} hint="steuerfrei, Bescheinigung Nr. 24 c" />
+      <Amount name={`${p}-agZuschussPv`} label="Arbeitgeberzuschuss zur Pflegeversicherung" value={v?.agZuschussPv} hint="steuerfrei, Bescheinigung Nr. 24 c" />
     </div>
   );
 
