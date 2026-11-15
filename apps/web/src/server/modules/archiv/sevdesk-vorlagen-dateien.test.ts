@@ -168,6 +168,15 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
     expect(await sevdesk.latestSevdeskImport()).toMatchObject({ status: "fehler", error: "API-Token ungültig oder abgelaufen" });
   });
 
+  it("hängt die Vorlage nicht an, wenn der früher ohne Datei archivierte Beleg in sevDesk inzwischen eine eigene Datei hat", async () => {
+    await earlier(ohneDatei("ID_14", "ID_1"));
+    answers.set("/Voucher", () =>
+      json({ objects: [vorlage, { ...ohneDatei("ID_14", "ID_1"), document: { id: "ID_98", objectName: "Document" } }] }),
+    );
+    await sevdesk.startSevdeskImport("test-user", { wait: true });
+    expect((await files()).filter((f) => f.voucher === "voucher/ID_14" && f.role === "vorlage")).toEqual([]);
+  });
+
   it("hält die angehängten Dateien unveränderlich", async () => {
     await expect(sql`update lexoffice_voucher_files set role = 'anhang' where role = 'vorlage'`).rejects.toThrow();
     await expect(sql`delete from lexoffice_voucher_files where role = 'vorlage'`).rejects.toThrow();
