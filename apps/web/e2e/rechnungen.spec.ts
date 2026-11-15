@@ -2539,6 +2539,59 @@ test("Leistungen abrechnen: Vorschau, Rechnungsentwurf mit Nachweis, Einträge g
   await expect(noch.getByRole("button", { name: "Rechnungsentwurf anlegen" })).toBeDisabled();
 });
 
+test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufheben stellt ihn her", async () => {
+  // Rechnung 100,00 EUR netto, also 119,00 EUR brutto; die Korrektur mindert um 20,00 EUR netto
+  await rechnungFestschreiben(page, {
+    customer: "Rheinpixel GmbH · Köln",
+    date: day(-5),
+    lines: [["Verrechnung Beratung", "1", "100,00"]],
+    gross: "119,00",
+  });
+  const rechnungUrl = page.url();
+
+  // Korrektur anlegen und auf 20,00 EUR netto kürzen, dann festschreiben
+  await page.getByRole("button", { name: "Rechnungskorrektur anlegen" }).click();
+  await page.waitForURL(/\/rechnungen\/[0-9a-f-]{36}$/);
+  await page.getByLabel("Einzelpreis Position 1").fill("-20,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+
+  // Zurück auf die Rechnung: der Rest steht bei 119,00 EUR, die Verrechnung fehlt noch
+  await page.goto(rechnungUrl);
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Verrechnung" });
+  await expect(karte).toContainText(/offen sind noch\s*119,00\s*€/);
+  await karte.getByRole("button", { name: "Mit der Korrektur verrechnen" }).click();
+
+  // Das Formular ist offen: Betrag und Tag sind vorbelegt, der Grund ist Pflicht
+  const formular = karte.locator("form");
+  await formular.getByLabel("Gegenbeleg").selectOption({ index: 1 });
+  await expect(formular.getByLabel("Betrag")).toHaveValue("23,80");
+  await formular.getByLabel("Tag der Aufrechnung").fill(day(0));
+  await formular.getByLabel("Grund").fill("Korrektur TE-1");
+  await expect(await axeVerstoesse(page)).toEqual([]);
+  await formular.getByRole("button", { name: "Verrechnen" }).click();
+
+  // Der Belegbetrag bleibt, der offene Rest sinkt um die verrechneten 23,80 EUR
+  await expect(karte).toContainText(/offen sind noch\s*95,20\s*€/);
+  await expect(karte).toContainText("Korrektur TE-1");
+  await expect(karte).toContainText(/23,80\s*€/);
+
+  // Nach dem Neuladen steht die Verrechnung weiterhin
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*95,20\s*€/);
+
+  // Aufheben: der Rest ist wieder 119,00 EUR, die Zeile verschwindet
+  await page.getByRole("region", { name: "Verrechnung" }).getByRole("button", { name: "aufheben" }).click();
+  await page.getByLabel("Tag der Aufhebung").fill(day(0));
+  await page.getByRole("button", { name: "Aufheben", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*119,00\s*€/);
+  await expect(page.getByRole("region", { name: "Verrechnung" }).getByText("Korrektur TE-1")).toHaveCount(0);
+});
+
 test("Keine Fehler im Browser", async () => {
   expect(pageErrors).toEqual([]);
 });

@@ -84,6 +84,16 @@ async function links(entries: readonly Entry[]): Promise<Map<string, { invoiceId
             .where(inArray(schema.documentSettlements.id, settlementIds))
         ).map((s) => ({ id: s.id, invoiceId: null, documentId: s.documentId }))
       : []),
+    // Verrechnung zwischen Ausgangsrechnung und Kundenkorrektur (#877): Die Buchung je Seite hängt an ihrer Zeile in
+    // invoice_settlements, die Zeile an ihrer Rechnung
+    ...(settlementIds.length
+      ? (
+          await db
+            .select({ id: schema.invoiceSettlements.id, invoiceId: schema.invoiceSettlements.invoiceId })
+            .from(schema.invoiceSettlements)
+            .where(inArray(schema.invoiceSettlements.id, settlementIds))
+        ).map((s) => ({ id: s.id, invoiceId: s.invoiceId, documentId: null }))
+      : []),
   ];
   return new Map(rows.map((r) => [r.id, { invoiceId: r.invoiceId, documentId: r.documentId }]));
 }

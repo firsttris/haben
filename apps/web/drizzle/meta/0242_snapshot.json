@@ -1,6 +1,6 @@
 {
-  "id": "8ad9512b-d662-446c-a6b9-efa9823c27af",
-  "prevId": "9a30a679-ac5d-4056-b3e9-06c3122473bb",
+  "id": "43665cea-eaf4-4e05-af89-2d03f960ebf4",
+  "prevId": "3d69f9e5-bf06-49d1-a21e-38677784eccd",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3484,12 +3484,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "fastbill_id": {
-          "name": "fastbill_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "debitor_nr": {
           "name": "debitor_nr",
           "type": "integer",
@@ -3694,13 +3688,6 @@
           "name": "contacts_sevdesk_id_unique",
           "columns": [
             "sevdesk_id"
-          ],
-          "nullsNotDistinct": false
-        },
-        "contacts_fastbill_id_unique": {
-          "name": "contacts_fastbill_id_unique",
-          "columns": [
-            "fastbill_id"
           ],
           "nullsNotDistinct": false
         },
@@ -6314,165 +6301,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.fastbill_connection": {
-      "name": "fastbill_connection",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "smallint",
-          "primaryKey": true,
-          "notNull": true,
-          "default": 1
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ciphertext": {
-          "name": "ciphertext",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "calls_per_hour": {
-          "name": "calls_per_hour",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 50
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "fastbill_connection_single_row": {
-          "name": "fastbill_connection_single_row",
-          "value": "\"fastbill_connection\".\"id\" = 1"
-        },
-        "fastbill_connection_calls_per_hour": {
-          "name": "fastbill_connection_calls_per_hour",
-          "value": "\"fastbill_connection\".\"calls_per_hour\" between 1 and 10000"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.fastbill_receipts": {
-      "name": "fastbill_receipts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "expense_id": {
-          "name": "expense_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "number": {
-          "name": "number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "date": {
-          "name": "date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "supplier": {
-          "name": "supplier",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "gross": {
-          "name": "gross",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "document_url": {
-          "name": "document_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "size": {
-          "name": "size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "fastbill_receipts_expense_id_unique": {
-          "name": "fastbill_receipts_expense_id_unique",
-          "columns": [
-            "expense_id"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.file_checks": {
       "name": "file_checks",
       "schema": "",
@@ -7109,6 +6937,214 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.invoice_settlements": {
+      "name": "invoice_settlements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "invoice_id": {
+          "name": "invoice_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counter_invoice_id": {
+          "name": "counter_invoice_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "settlement_id": {
+          "name": "settlement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "reverses_id": {
+          "name": "reverses_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "invoice_settlements_invoice": {
+          "name": "invoice_settlements_invoice",
+          "columns": [
+            {
+              "expression": "invoice_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invoice_settlements_counter": {
+          "name": "invoice_settlements_counter",
+          "columns": [
+            {
+              "expression": "counter_invoice_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invoice_settlements_settlement": {
+          "name": "invoice_settlements_settlement",
+          "columns": [
+            {
+              "expression": "settlement_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invoice_settlements_settlement_invoice": {
+          "name": "invoice_settlements_settlement_invoice",
+          "columns": [
+            {
+              "expression": "settlement_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "invoice_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invoice_settlements_reverses": {
+          "name": "invoice_settlements_reverses",
+          "columns": [
+            {
+              "expression": "reverses_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "invoice_settlements_invoice_id_invoices_id_fk": {
+          "name": "invoice_settlements_invoice_id_invoices_id_fk",
+          "tableFrom": "invoice_settlements",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "invoice_settlements_counter_invoice_id_invoices_id_fk": {
+          "name": "invoice_settlements_counter_invoice_id_invoices_id_fk",
+          "tableFrom": "invoice_settlements",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "counter_invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "invoice_settlements_reverses_fk": {
+          "name": "invoice_settlements_reverses_fk",
+          "tableFrom": "invoice_settlements",
+          "tableTo": "invoice_settlements",
+          "columnsFrom": [
+            "reverses_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "invoice_settlements_two": {
+          "name": "invoice_settlements_two",
+          "value": "\"invoice_settlements\".\"invoice_id\" <> \"invoice_settlements\".\"counter_invoice_id\""
+        },
+        "invoice_settlements_amount": {
+          "name": "invoice_settlements_amount",
+          "value": "\"invoice_settlements\".\"amount\" <> 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.invoice_taxes": {

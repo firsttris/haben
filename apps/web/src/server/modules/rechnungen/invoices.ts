@@ -1342,6 +1342,14 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
         "Die Rechnung ist teilweise ausgebucht (Skonto oder Forderungsausfall). Hebe die Ausbuchung zuerst auf, dann lässt sie sich stornieren.",
       );
     }
+    // Ebenso eine Verrechnung mit einer Korrektur (#877): Sie zählt als erledigt, ohne dass Geld geflossen ist, und stünde
+    // nach dem Storno als Erstattung an den Kunden und als Forderung aus der Korrektur offen
+    const verrechnet = await tx.execute(
+      sql`select 1 from invoice_settlements where invoice_id in ${[id, ...corrections.map((c) => c.id)]} group by invoice_id having sum(amount) <> 0 limit 1`,
+    );
+    if ([...verrechnet].length > 0) {
+      throw new InvoiceError("Die Rechnung ist mit einer Korrektur verrechnet. Hebe die Verrechnung zuerst auf, dann lässt sie sich stornieren.");
+    }
     const stornoOf = async (target: Invoice, targetLines: InvoiceLine[]) => {
       const draft = await insertDraft(
         tx,
