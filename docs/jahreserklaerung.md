@@ -11,7 +11,7 @@ Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **U
 
 Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eigenen Bereich zum Übermitteln. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
-Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Die Einkommensteuererklärung kennt keinen Vermerk; solange Haben sie nicht gesendet hat, steht dort „Nicht aus Haben übermittelt“ — gesendet wird sie über den Kasten unter der Tabelle.
+Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der Sendung, „Außerhalb abgegeben“ mit dem Tag aus dem Vermerk oder „Noch nicht übermittelt“. Für die Einkommensteuererklärung lässt sich die Abgabe außerhalb von Haben ebenso vermerken wie für Umsatzsteuer und EÜR; solange weder Übermittlung noch Vermerk vorliegen, steht dort „Nicht aus Haben übermittelt“ — gesendet wird sie über den Kasten unter der Tabelle.
 
 Oben auf der Seite steht **Stand der Erklärungen** als Tabelle mit einer Zeile je Erklärung: der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt, sodass du von der Übersicht direkt bei der Erklärung landest. Bei einer GmbH oder UG entfällt sie.
 
@@ -138,6 +138,10 @@ Nicht abgebildet sind das häusliche Arbeitszimmer als Mittelpunkt (die Tagespau
 Das Anlagenverzeichnis listet jede Anlage mit Bezeichnung, Anschaffungsdatum, Anschaffungskosten, Buchwert zu Beginn, AfA, Abgang und Buchwert am Ende, gruppiert nach Kraftfahrzeugen, Büroeinrichtung und anderen beweglichen Wirtschaftsgütern; Sammelposten stehen je Jahrgang. Geringwertige Wirtschaftsgüter gehören nicht hinein. Anlagen, die im Jahr angeschafft wurden, stehen mit den Anschaffungskosten im Buchwert zu Beginn, wie es auch EasyCash&Tax übermittelt. Degressive AfA und die Staffel für Elektrofahrzeuge stehen in der Spalte AfA, wie die lineare: § 7 Abs. 2 und 2a EStG sind Absetzungen für Abnutzung, die Spalte Sonderabschreibungen (`E6007318`) gehört zu § 7g EStG, den Haben nicht kennt. Ein Kraftfahrzeug mit AfA nach § 7 Abs. 2a meldet Haben als Elektrofahrzeug (`E6007327`), wie eines mit erfasstem Elektro- oder Hybridantrieb. Mit [Erinnerungswert](anlagen.md#erinnerungswert) steht eine abgeschriebene Anlage mit 1 € weiter im Verzeichnis, bis sie ausscheidet.
 
 ## Einkommensteuererklärung
+
+Die Angaben der Anlage N, KAP, der Vorsorge und der Ersatzleistungen trägt der Betreiber ein; Haben rechnet sie nicht aus dem Journal. Liegt ein Vermerk „außerhalb von Haben abgegeben“ vor, ist die Maske nur noch lesbar, und **Angaben bearbeiten** öffnet sie wieder: anders als `annual_submissions` ist die Eingabe nicht anhängend und lässt sich korrigieren.
+
+Die Vordruckzeilen — Bruttoarbeitslohn, Werbungskosten, Einkünfte, Gesamtbetrag, zu versteuerndes Einkommen, festgesetzte Steuer, Soli und Erstattung — stehen unter **Zeilenwerte aus dem Übermittlungsprotokoll**, wie bei Umsatzsteuer und EÜR. Weichen sie von Habens Schätzung ab, nennt ein Hinweis die Differenz.
 
 Die Einkommensteuererklärung (Datenart ESt, Vordruck E10) setzt Haben aus drei Quellen zusammen:
 

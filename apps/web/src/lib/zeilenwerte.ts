@@ -32,14 +32,25 @@ const EUER_SUMMEN = {
 } as const satisfies Record<string, ErklaerteZeile>;
 
 /**
- * Aufwendungen für ein häusliches Arbeitszimmer, Spalte „abziehbar“ (E6003101, im ERiC-Prüfplugin der Anlage EÜR
- * unter /EUER/BAus/Beschr_abziehbar/Abziehbar/Arbeitszimmer). Sie hat in `EUER_FIELDS` kein Feld, weil Haben sie
- * nicht übermittelt; für eine außerhalb von Haben abgegebene Erklärung steht sie trotzdem im Protokoll (#1072).
+ * Zeilen der Einkommensteuererklärung. Sie stehen nicht in den Übermittlungsfeldern, weil Haben sie auf viele
+ * Anlagen verteilt schickt; für eine Erklärung, die außerhalb von Haben abgegeben wurde, trägt der Betreiber sie aus
+ * dem Vordruck nach (#1082). Die Schlüssel bleiben ASCII, die Texte sind die des Vordrucks.
  */
-const EUER_ARBEITSZIMMER = {
-  field: "arbeitszimmer",
-  text: "Aufwendungen für ein häusliches Arbeitszimmer (abziehbar)",
-} as const satisfies ErklaerteZeile;
+const EST_FELDER = {
+  bruttoarbeitslohn: "Bruttoarbeitslohn (Anlage N)",
+  werbungskosten: "Werbungskosten insgesamt",
+  einkuenfteNichtselbstaendig: "Einkünfte aus nichtselbständiger Arbeit",
+  einkuenfteSelbstaendig: "Einkünfte aus selbständiger Arbeit",
+  summeEinkuenfte: "Summe der Einkünfte",
+  gesamtbetrag: "Gesamtbetrag der Einkünfte",
+  vorsorgeaufwendungen: "Abziehbare Vorsorgeaufwendungen",
+  zuVersteuerndesEinkommen: "Zu versteuerndes Einkommen",
+  festgesetzteSteuer: "Festgesetzte Einkommensteuer",
+  soli: "Festgesetzter Solidaritätszuschlag",
+  erstattung: "Erstattung oder Nachzahlung",
+} as const satisfies Record<string, string>;
+
+const EST_ZEILEN: ErklaerteZeile[] = Object.entries(EST_FELDER).map(([field, text]) => ({ field, text }));
 
 type UstBetrag = Exclude<keyof UstErklaerungFigures, "kz48Zeile47Nummern">;
 
@@ -120,11 +131,12 @@ export const ERKLAERTE_ZEILEN = {
     euerZeile("entnahmen"),
     euerZeile("einlagen"),
   ],
+  est: EST_ZEILEN,
 } as const satisfies Record<string, readonly ErklaerteZeile[]>;
 
 export type ZeilenForm = keyof typeof ERKLAERTE_ZEILEN;
 
-export const zeilenForm = z.enum(["ust", "euer"]);
+export const zeilenForm = z.enum(["ust", "euer", "est"]);
 
 /** Die Feldkennungen, die zu dieser Erklärungsart gehören */
 export function zeilenFelder(form: ZeilenForm): readonly string[] {
