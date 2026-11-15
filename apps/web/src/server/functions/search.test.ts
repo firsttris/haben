@@ -500,4 +500,19 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
       ["Stornobuchung", true],
     ]);
   });
+
+  it("findet eine Buchung über ihren Bruttobetrag, nicht über Netto oder Steuer (Entscheidung zu #1038)", async () => {
+    await sql.begin(async (tx) => {
+      const [je] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values ('2026-11-14', 'Bürostuhl', 'manuell', gen_random_uuid(), 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit)
+        values (${je!.id}, '0420', 50000, 0), (${je!.id}, '1576', 9500, 0), (${je!.id}, '1200', 0, 59500)`;
+      await tx`update journal_entries set locked_at = now() where id = ${je!.id}`;
+    });
+    const texte = async (q: string) => (await search.runCommandPaletteSearch(q, "inhaber")).bookings.hits.map((b) => b.description);
+    expect(await texte("595,00")).toEqual(["Bürostuhl"]);
+    expect(await texte("-595,00")).toEqual(["Bürostuhl"]);
+    expect(await texte("500,00")).toEqual([]);
+    expect(await texte("95,00")).toEqual([]);
+  });
 });
