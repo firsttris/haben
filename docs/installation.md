@@ -456,18 +456,18 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 
 `portal`:
 
-- Beim ersten Aufruf mit der Domain des Firmenportals und dem eigenen Client beim Anmeldedienst, wie bei `neu --sso`: `portal firmenportal.example.de --oidc-issuer https://auth.example.de --oidc-client-id haben-firmenportal --oidc-client-secret-stdin`. Es legt `firmenportal/` mit `compose.yml`, `.env` (eigenes `PORTAL_SECRET`, Rechte 600), Override-Datei und `logos/` an, trägt die Domain in den gemeinsamen Caddy ein (Netz `haben-proxy-firmenportal`) und nennt die Adressen, die der Client beim Anmeldedienst braucht.
+- Beim ersten Aufruf mit der Domain des Firmenportals und dem eigenen Client beim Anmeldedienst, wie bei `neu --sso`: `portal firmenportal.example.de --oidc-issuer https://auth.example.de --oidc-client-id haben-firmenportal --oidc-client-secret-stdin`. Es legt `firmenportal/` mit `compose.yml`, `.env` (eigenes `PORTAL_SECRET`, Rechte 600), Override-Datei und `logos/` an, trägt die Domain in den gemeinsamen Caddy ein (Netz `haben-proxy-firmenportal`) und nennt die Adressen, die der Client beim Anmeldedienst braucht. Das geht nur mit dem gemeinsamen Caddy; laufen die Instanzen mit `--eigener-proxy`, bricht es ab, und du richtest das Firmenportal von Hand ein (siehe [Firmenportal](#firmenportal)). Bricht der Abgleich danach ab, bleibt `firmenportal/` eingerichtet; nach dem Beheben genügt `portal` ohne Angaben.
 - Danach ohne Angaben: `portal` gleicht nur ab. Eine andere Domain oder neue `--oidc-…` lehnt es ab; die stehen in `firmenportal/.env`.
 - In `PORTAL_FIRMEN` kommen alle Instanzen mit `OIDC_ONLY=true`, je mit `HABEN_FIRMENNAME` (sonst ihr Name), `https://<DOMAIN>` und `OIDC_GROUP_INHABER` aus ihrer `.env`. Instanzen ohne SSO nennt es nur.
 - Farbe und Logo fragt es bei jeder laufenden Instanz ab (`haben status --json`); ein neues Logo holt es mit `haben kennzeichen` nach `logos/<name>.png` bzw. `.jpg`, wenn die Prüfsumme sich geändert hat. Ein Image von vor diesem Feld oder ein Logo, das nicht zur gemeldeten Prüfsumme passt, bricht nichts ab: Die Firma zeigt ihren Anfangsbuchstaben. Gestoppte Instanzen behalten Farbe und Logo von bisher.
-- In jede dieser Instanzen schreibt es `HABEN_FIRMENPORTAL_URL` und leert `HABEN_FIRMEN`, das die App daneben ablehnt. `firmen` lehnt Instanzen mit Firmenportal danach ab.
-- Wie `firmen` prüft es erst alles und ändert bei einem Fehler, etwa einer fehlenden Gruppe oder einem doppelten Namen, keine Datei. Geschrieben wird nur, was sich ändert; neu gestartet nur das Firmenportal (nach einer geänderten Liste oder einem neuen Logo) und die Instanzen, deren `.env` sich geändert hat. Ohne Änderung meldet es „Nichts geändert.“ Ein gestopptes Firmenportal bleibt gestoppt.
+- In jede dieser Instanzen schreibt es `HABEN_FIRMENPORTAL_URL` und leert `HABEN_FIRMEN`, das die App daneben ablehnt. `firmen` lehnt Instanzen mit Firmenportal danach ab. Hat eine Instanz kein SSO mehr, nimmt es die Adresse dort wieder heraus, denn ohne `OIDC_ONLY=true` startete die App mit ihr nicht.
+- Wie `firmen` prüft der Abgleich erst alles und ändert bei einem Fehler, etwa einer fehlenden Gruppe oder einem doppelten Namen, keine Datei. Geschrieben wird nur, was sich ändert; neu gestartet nur das Firmenportal (nach einer geänderten Liste oder einem neuen Logo) und die Instanzen, deren `.env` sich geändert hat. Scheitert ein Neustart, holt ihn der nächste Lauf nach (die ausstehenden stehen in `firmenportal/.neustart-offen`). Ohne Änderung meldet es „Nichts geändert.“ Ein gestopptes Firmenportal bleibt gestoppt.
 - Zwei Läufe zugleich verhindert die Datei `firmenportal/.abgleich.lock`; bleibt sie nach einem Absturz liegen, nennt `portal` sie, und du löschst sie.
 
 Regelmäßig abgleichen, damit eine neue Farbe oder ein neues Logo ohne Zutun im Firmenportal erscheint, etwa stündlich mit cron (`crontab -e` als der Nutzer, der Docker bedienen darf):
 
 ```sh
-0 * * * * cd ~/haben-werkzeug && bun deploy/instanzen/haben-instanzen.ts portal > /dev/null
+0 * * * * cd ~/haben-werkzeug && ~/.bun/bin/bun deploy/instanzen/haben-instanzen.ts portal > /dev/null
 ```
 
 Oder mit einem systemd-Timer, `~/.config/systemd/user/haben-portal.service` und `haben-portal.timer`, danach `systemctl --user enable --now haben-portal.timer` (und `loginctl enable-linger`, damit er ohne Anmeldung läuft):
@@ -477,7 +477,7 @@ Oder mit einem systemd-Timer, `~/.config/systemd/user/haben-portal.service` und 
 [Service]
 Type=oneshot
 WorkingDirectory=%h/haben-werkzeug
-ExecStart=/usr/bin/env bun deploy/instanzen/haben-instanzen.ts portal
+ExecStart=%h/.bun/bin/bun deploy/instanzen/haben-instanzen.ts portal
 
 # haben-portal.timer
 [Timer]
@@ -488,7 +488,7 @@ Persistent=true
 WantedBy=timers.target
 ```
 
-Fehler stehen dann in der Mail von cron bzw. in `journalctl --user -u haben-portal`. Eine geänderte Farbe oder ein neues Logo meldet niemanden ab.
+cron und systemd kennen den `PATH` deiner Shell nicht, deshalb der volle Pfad zu `bun` (dort legt ihn der Installer von Bun ab) und, wenn die Instanzen nicht unter `~/haben` liegen, `--basis <pfad>` hinter `portal`; ein `HABEN_INSTANZEN` aus der Shell kommt dort nicht an. Fehler und Warnungen, etwa zu einem Logo, das nicht passt, schreibt `portal` auf die Fehlerausgabe: Sie stehen trotz `> /dev/null` in der Mail von cron bzw. in `journalctl --user -u haben-portal`.
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 

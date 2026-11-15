@@ -1,7 +1,7 @@
 /**
  * portal [<domain> --oidc-…]: richtet beim ersten Aufruf das Firmenportal unter <basis>/firmenportal ein, hinter dem
  * gemeinsamen Caddy, und gleicht es bei jedem Aufruf mit den Instanzen ab (portal-abgleich.ts; docs/installation.md,
- * „Firmenportal mit dem Werkzeug“). Eine Sperrdatei hält zwei Läufe auseinander, etwa cron und einen von Hand.
+ * „Mit dem Werkzeug“, `portal`). Eine Sperrdatei hält zwei Läufe auseinander, etwa cron und einen von Hand.
  */
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, mkdtemp, open, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -10,7 +10,7 @@ import { envSchreiben, envSetzen, envWert } from "./env-datei.ts";
 import { instanzen } from "./instanzen.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
 import { abgleichen, PORTAL_DIENST } from "./portal-abgleich.ts";
-import { domainImCaddy, netzFuer, proxyEintragen, proxyStarten } from "./proxy.ts";
+import { domainImCaddy, netzFuer, proxyDir, proxyEintragen, proxyStarten } from "./proxy.ts";
 import { type NeuAngaben, pruefeDomain, pruefeSso } from "./pruefen.ts";
 
 /** Verzeichnis, Name im gemeinsamen Caddy und Netz; als Name einer Instanz reserviert (pruefeName) */
@@ -62,7 +62,14 @@ export function portalOverride(): string {
 async function einrichten(k: Kontext, dir: string, domain: string, sso: NonNullable<NeuAngaben["sso"]>): Promise<void> {
   pruefeDomain(domain);
   pruefeSso(sso);
-  const andere = (await instanzen(k.basis)).find((i) => i.env.get("DOMAIN") === domain);
+  const alle = await instanzen(k.basis);
+  // Mit --eigener-proxy gibt es keinen gemeinsamen Caddy; proxyEintragen legte sonst einen zweiten an, der um die
+  // Ports 80 und 443 mit dem eigenen Proxy stritte
+  if (alle.length > 0 && !existsSync(join(proxyDir(k), "compose.yml")))
+    abbrechen(
+      "Die Instanzen laufen ohne den gemeinsamen Caddy (--eigener-proxy); das Firmenportal dann von Hand einrichten (docs/installation.md, „Firmenportal“). Nichts angelegt.",
+    );
+  const andere = alle.find((i) => i.env.get("DOMAIN") === domain);
   if (andere) abbrechen(`Die Domain ${domain} gehört schon zur Instanz ${andere.name}; nichts angelegt.`);
   const site = await domainImCaddy(k, domain, PORTAL);
   if (site) abbrechen(`Für ${domain} steht schon ein Eintrag im gemeinsamen Caddy (${site}); nichts angelegt.`);

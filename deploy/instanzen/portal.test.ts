@@ -95,6 +95,16 @@ describe("portal: Einrichten", () => {
     expect((await t.lauf("neu", "firmenportal", "fp.example.de")).stderr).toContain("für das Firmenportal reserviert");
   });
 
+  it("richtet nichts ein, wenn die Instanzen einen eigenen Proxy haben, statt einen zweiten Caddy zu starten", async () => {
+    expect((await t.lauf("neu", "nord", "nord.example.de", "--nicht-starten", "--eigener-proxy")).status).toBe(0);
+    t.docker.aufrufe.length = 0;
+    const r = await t.lauf("portal", "portal.example.de", ...SSO, "haben-firmenportal", "--oidc-client-secret-stdin");
+    expect(r.stderr).toContain("ohne den gemeinsamen Caddy");
+    expect(existsSync(portalDir())).toBe(false);
+    expect(existsSync(join(t.basis, "proxy"))).toBe(false);
+    expect(t.docker.aufrufe).toEqual([]);
+  });
+
   it("lehnt Optionen von neu ab", async () => {
     expect((await t.lauf("portal", "portal.example.de", "--sso")).stderr).toContain("--sso gilt nur für neu");
   });
