@@ -78,7 +78,12 @@ export function archiveVoucherOf(exp: SevExport, voucher: SevExportVoucher): Sev
   }
 
   // Steuer aus Beleginfo (in Euro, auch bei Fremdwährung), sonst aus BU-Schlüssel oder Automatikkonto je Zeile
-  const rates = voucher.lines.map((line) => lineRate(line, kontenrahmen(line), sachkonto(line, accountLength(line)).account));
+  // Ist die Buchung steuerpflichtig (BU-Schlüssel oder Automatikkonto), geht der ausdrückliche Satz aus Beleginfo vor, etwa
+  // 16 % von 2020 auf 8400. Ohne Steuer in der Buchung (Darlehen, Privat) bleibt es bei 0, auch wenn Beleginfo einen Satz nennt.
+  const rates = voucher.lines.map((line) => {
+    const booked = lineRate(line, kontenrahmen(line), sachkonto(line, accountLength(line)).account);
+    return booked !== 0 && line.info.rate !== null ? line.info.rate / 100 : booked;
+  });
   const fromInfo = voucher.lines.some((line) => line.info.tax !== null);
   const tax = voucher.lines.reduce((sum, line, i) => {
     const rate = rates[i]!;
