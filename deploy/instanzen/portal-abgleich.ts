@@ -254,7 +254,10 @@ async function neuStarten(k: Kontext, portalDir: string, offen: Set<string>, sta
   const rest = "Die Dateien sind geschrieben; der nächste Lauf von portal startet nach, was noch aussteht.";
   for (const zeile of [...offen].filter((z) => z.startsWith("instanz "))) {
     const i = alle.find((i) => `instanz ${i.name}` === zeile);
-    if (!i || lauf(await dienste(k, i.dir), "app") !== "laeuft") {
+    // Startet die App ständig neu, etwa weil sie die alte Adresse ohne SSO ablehnt, baut erst up -d sie mit der neuen
+    // .env auf; nur eine gestoppte bleibt gestoppt
+    const zustand = i ? lauf(await dienste(k, i.dir), "app") : "fehler";
+    if (!i || (zustand !== "laeuft" && zustand !== "neustart")) {
       if (i) gestoppt.push(i.name);
       await erledigt(zeile);
       continue;
