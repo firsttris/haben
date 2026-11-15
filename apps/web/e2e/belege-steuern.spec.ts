@@ -691,6 +691,91 @@ test("Pauschalen: jeder Reiter ohne axe-Verstöße, hell und dunkel, am Desktop 
   if (vorher) await page.setViewportSize(vorher);
 });
 
+test("Pauschalen: Homeoffice-Monat über die Monatsauswahl wählen (#928)", async () => {
+  await go("/pauschalen");
+  const homeoffice = page.getByRole("region", { name: "Pauschale eintragen" }).getByRole("form", { name: "Homeoffice-Pauschale" });
+  const monat = homeoffice.getByLabel("Monat", { exact: true });
+  await monat.click();
+  const dialog = page.getByRole("dialog", { name: "Monat wählen" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Vorheriges Jahr" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Nächstes Jahr" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(monat).toBeFocused();
+  await monat.click();
+  await dialog.getByRole("button", { name: `Januar ${YEAR}` }).click();
+  await expect(dialog).toBeHidden();
+  await expect(monat).toContainText(`Januar ${YEAR}`);
+});
+
+test("Monatsauswahl: Tab aus dem offenen Raster schließt es, statt das nächste Feld zu verdecken (#928)", async () => {
+  await go("/pauschalen");
+  const homeoffice = page.getByRole("region", { name: "Pauschale eintragen" }).getByRole("form", { name: "Homeoffice-Pauschale" });
+  const monat = homeoffice.getByLabel("Monat", { exact: true });
+  const tage = homeoffice.getByLabel("Tage im Homeoffice", { exact: true });
+  await monat.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Monat wählen" });
+  await expect(dialog).toBeVisible();
+  // Durch Jahreswechsel und Monate bis ins nächste Feld
+  for (let i = 0; i < 20 && !(await tage.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
+  await expect(tage).toBeFocused();
+  await expect(dialog).toBeHidden();
+});
+
+test("Monatsauswahl: offenes Raster ohne axe-Verstöße, hell und dunkel, am Desktop und am Handy (#928)", async () => {
+  const vorher = page.viewportSize();
+  for (const modus of ["hell", "dunkel"]) {
+    for (const viewport of [LAPTOP, { width: 320, height: 720 }]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate((m) => localStorage.setItem("haben-modus", m), modus);
+      await go("/pauschalen");
+      const homeoffice = page.getByRole("region", { name: "Pauschale eintragen" }).getByRole("form", { name: "Homeoffice-Pauschale" });
+      await homeoffice.getByLabel("Monat", { exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "Monat wählen" });
+      await expect(dialog).toBeVisible();
+      const box = await dialog.boundingBox();
+      expect(box && box.x >= 0 && box.x + box.width <= viewport.width, `${modus}, ${viewport.width} px im Bild`).toBe(true);
+      const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+      expect(
+        violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+        `${modus}, ${viewport.width} px`,
+      ).toEqual([]);
+      await page.keyboard.press("Escape");
+    }
+  }
+  await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
+  if (vorher) await page.setViewportSize(vorher);
+});
+
+test("Fremdwährung: Kurs von Hand mit der Monatsauswahl, fehlende Angaben stehen am Feld (#928)", async () => {
+  await go("/einstellungen?bereich=waehrung");
+  const form = page.getByRole("form", { name: "Kurs von Hand" });
+  const waehrung = form.getByLabel("Währung", { exact: true });
+  const monat = form.getByLabel("Monat", { exact: true });
+  await form.getByRole("button", { name: "Kurs speichern" }).click();
+  await expect(waehrung).toBeFocused();
+  await expect(waehrung).toHaveAccessibleDescription("Trag die Währung ein.");
+  await expect(monat).toHaveAccessibleDescription("Wähle den Monat.");
+  await waehrung.fill("ISK");
+  await monat.click();
+  await page
+    .getByRole("dialog", { name: "Monat wählen" })
+    .getByRole("button", { name: `Januar ${YEAR}` })
+    .click();
+  await expect(monat).not.toHaveAttribute("aria-invalid");
+  await form.getByLabel("1 EUR = …", { exact: true }).fill("152,3");
+  await form.getByRole("button", { name: "Kurs speichern" }).click();
+  await expect(page.getByText("Kurs gespeichert.")).toBeVisible();
+  await expect(monat).toContainText("Monat wählen");
+  const zeile = page.getByRole("row").filter({ hasText: "ISK" });
+  await expect(zeile).toContainText(`01/${YEAR}`);
+  await expect(zeile).toContainText("von Hand");
+  await zeile.getByRole("button", { name: "Löschen" }).click();
+  await expect(zeile).toHaveCount(0);
+});
+
 test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
   // Zwei Spalten am Handy (DESIGN.md, Karten): Die fünfte Karte der Pauschalen und die dritte der Kasse standen allein in halber Breite
   const vorher = page.viewportSize();
