@@ -1,6 +1,6 @@
 import {
   type LetterheadDesign,
-  type PaymentMethod,
+  type InvoicePaymentMethod,
   computeInvoice,
   advanceUsesPayments,
   ITEM_NUMBER_MAX,
@@ -247,7 +247,9 @@ export function InvoiceEditor({
   const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(initial.skonto ?? []));
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initial.paymentMethod ?? "ueberweisung");
+  const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>(initial.paymentMethod ?? "ueberweisung");
+  const [paidVia, setPaidVia] = useState(initial.paidVia ?? "");
+  const [paidOn, setPaidOn] = useState(initial.paidOn ?? "");
   const [mandateId, setMandateId] = useState(initial.sepaMandateId ?? "");
   const [discountText, setDiscountText] = useState(() => discountInput(initial.discount));
   const [planRows, setPlanRows] = useState(() => toPlanRows(initial.paymentPlan ?? []));
@@ -315,8 +317,10 @@ export function InvoiceEditor({
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
   const lastschrift = kind === "rechnung" && paymentMethod === "lastschrift";
-  // Bei Lastschrift wird der volle Betrag eingezogen, ohne Skonto
-  const skontoAllowed = kind === "rechnung" && !foreign && !lastschrift;
+  const alreadyPaid = kind === "rechnung" && paymentMethod === "bereits_bezahlt";
+  const paidPayment = alreadyPaid && paidVia.trim() && paidOn ? { paidVia, paidOn } : null;
+  // Skonto kommt bei Überweisung in Euro in Frage.
+  const skontoAllowed = kind === "rechnung" && !foreign && paymentMethod === "ueberweisung";
   const skonto = parseSkontoRows(skontoAllowed ? skontoRows : []);
   const skontoIssue = !skonto.valid ? "Je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben." : termValid ? skontoProblem(skonto.stufen, term) : null;
   const parsedDiscount = parseDiscount(discountText);
@@ -344,7 +348,9 @@ export function InvoiceEditor({
         ? "Wähle den Tag, an dem die Teilleistung erbracht wurde."
         : null,
     validUntil: quote && !validUntilOk ? "Wähle, bis wann das Angebot gilt, frühestens ab seinem Datum." : null,
-    term: !quote && !termValid ? "Trag das Zahlungsziel in ganzen Tagen von 0 bis 120 ein." : null,
+    term: !quote && !alreadyPaid && !termValid ? "Trag das Zahlungsziel in ganzen Tagen von 0 bis 120 ein." : null,
+    paidVia: alreadyPaid && !paidVia.trim() ? "Gib den Zahlungsdienstleister oder „bar“ an." : null,
+    paidOn: alreadyPaid && !paidOn ? "Gib das Zahlungsdatum an." : null,
     skonto: skontoIssue,
     discount: discountIssue,
     kind: kindIssue,
@@ -499,7 +505,7 @@ export function InvoiceEditor({
       issueDate,
       serviceFrom: serviceFrom || null,
       serviceTo: serviceTo || null,
-      paymentTermDays: term,
+      paymentTermDays: termValid ? term : initial.paymentTermDays,
       skonto: skonto.stufen,
       format,
       intro,
@@ -518,8 +524,10 @@ export function InvoiceEditor({
       exchangeRate: foreign && exchangeRate.trim() ? exchangeRate : null,
       exchangeRateDate: foreign && exchangeRate.trim() && exchangeRateDate ? exchangeRateDate : null,
       discount,
-      paymentMethod: lastschrift ? "lastschrift" : "ueberweisung",
+      paymentMethod: kind === "rechnung" ? paymentMethod : "ueberweisung",
       sepaMandateId: lastschrift ? mandateId || null : null,
+      paidVia: alreadyPaid ? paidVia : null,
+      paidOn: alreadyPaid ? paidOn || null : null,
       lines: parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, kind: _kind, ...line }) => line),
     };
   }
@@ -535,6 +543,8 @@ export function InvoiceEditor({
       quoteId: _quote,
       paymentMethod: _method,
       sepaMandateId: _mandate,
+      paidVia: _paidVia,
+      paidOn: _paidOn,
       propertyRetention: _propertyRetention,
       ...common
     } = draft();
@@ -604,7 +614,8 @@ export function InvoiceEditor({
     });
   };
 
-  const blocking = [...sellerIssues.map((i) => `Firmendaten: ${i}`), ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten")))];
+  const currentSellerIssues = alreadyPaid || (!quote && kind !== "rechnung") ? sellerIssues.filter((i) => i !== "IBAN fehlt") : sellerIssues;
+  const blocking = [...currentSellerIssues.map((i) => `Firmendaten: ${i}`), ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten")))];
 
   return (
     <>
@@ -694,7 +705,7 @@ export function InvoiceEditor({
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Vor dem Festschreiben: {blocking.join(", ")}. {sellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
+            Vor dem Festschreiben: {blocking.join(", ")}. {currentSellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
           </span>
         </div>
       )}
@@ -718,54 +729,61 @@ export function InvoiceEditor({
         label="Vorschau"
         caption={quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
         sheet={
-          <RenderedSheet
-            label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
-            render={renderDocumentPreview}
-            revision={logo}
-            input={{
-              kind,
-              number: nextNumber,
-              issueDate: issueDate || initial.issueDate,
-              dueDate,
-              validUntil: quote ? validUntil || null : null,
-              serviceFrom: serviceFrom || null,
-              serviceTo: serviceTo || null,
-              paymentTermDays: termValid ? term : 0,
-              contactId: contactId || null,
-              contactPersonId: contactPersonId || null,
-              ...references,
-              lines: [...parsed, ...deductionPreview]
-                .filter((l) => l.valid)
-                .map((l) => ({
-                  description: l.description,
-                  detail: "detail" in l ? (l.detail ?? "") : "",
-                  itemNumber: "itemNumber" in l ? (l.itemNumber ?? "") : "",
-                  quantity: l.quantity,
-                  unit: l.unit,
-                  unitPrice: l.unitPrice,
-                  taxRate: l.taxRate,
-                  discount: "discount" in l ? (l.discount ?? null) : null,
-                  kind: quote && "kind" in l ? (l.kind ?? null) : null,
-                  ...("deductionOf" in l && l.deductionOf ? { deductionOf: l.deductionOf } : {}),
-                })),
-              discount: discountIssue ? null : discount,
-              plan: planIssue ? [] : plan.rows,
-              intro,
-              note,
-              propertyRetention: !quote && propertyRetention,
-              taxTreatment,
-              exemptionReason: special ? exemptionReason : "",
-              priceMode: grossPrices ? "brutto" : "netto",
-              language,
-              variant: kind === "rechnung" ? variant : null,
-              corrects: corrects ?? null,
-              // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
-              currency: currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR",
-              skonto: skonto.stufen,
-              sepaMandateId: lastschrift ? mandateId || null : null,
-              design: designDraft.changes,
-            }}
-          />
+          alreadyPaid && !paidPayment ? (
+            <p className="muted" role="status">
+              Gib für die Vorschau an, wann und wie die Rechnung bezahlt wurde.
+            </p>
+          ) : (
+            <RenderedSheet
+              label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
+              render={renderDocumentPreview}
+              revision={logo}
+              input={{
+                kind,
+                number: nextNumber,
+                issueDate: issueDate || initial.issueDate,
+                dueDate,
+                validUntil: quote ? validUntil || null : null,
+                serviceFrom: serviceFrom || null,
+                serviceTo: serviceTo || null,
+                paymentTermDays: termValid ? term : 0,
+                contactId: contactId || null,
+                contactPersonId: contactPersonId || null,
+                ...references,
+                lines: [...parsed, ...deductionPreview]
+                  .filter((l) => l.valid)
+                  .map((l) => ({
+                    description: l.description,
+                    detail: "detail" in l ? (l.detail ?? "") : "",
+                    itemNumber: "itemNumber" in l ? (l.itemNumber ?? "") : "",
+                    quantity: l.quantity,
+                    unit: l.unit,
+                    unitPrice: l.unitPrice,
+                    taxRate: l.taxRate,
+                    discount: "discount" in l ? (l.discount ?? null) : null,
+                    kind: quote && "kind" in l ? (l.kind ?? null) : null,
+                    ...("deductionOf" in l && l.deductionOf ? { deductionOf: l.deductionOf } : {}),
+                  })),
+                discount: discountIssue ? null : discount,
+                plan: planIssue ? [] : plan.rows,
+                intro,
+                note,
+                propertyRetention: !quote && propertyRetention,
+                taxTreatment,
+                exemptionReason: special ? exemptionReason : "",
+                priceMode: grossPrices ? "brutto" : "netto",
+                language,
+                variant: kind === "rechnung" ? variant : null,
+                corrects: corrects ?? null,
+                // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
+                currency: currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR",
+                skonto: skonto.stufen,
+                sepaMandateId: lastschrift ? mandateId || null : null,
+                ...(paidPayment ? { paidPayment } : {}),
+                design: designDraft.changes,
+              }}
+            />
+          )
         }
       >
         <form ref={form} id="invoice-form" className="stack" onSubmit={onSave} noValidate>
@@ -877,7 +895,7 @@ export function InvoiceEditor({
                     />
                   )}
                 </Field>
-              ) : (
+              ) : alreadyPaid ? null : (
                 <Field label="Zahlungsziel in Tagen" hint={<>fällig {formatDate(dueDate)}</>} error={error("term")}>
                   {(control) => (
                     <input
@@ -897,6 +915,12 @@ export function InvoiceEditor({
                   mandateId={mandateId}
                   mandates={mandates.filter((m) => m.contactId === contactId || m.id === mandateId)}
                   contactChosen={contactId !== ""}
+                  paidVia={paidVia}
+                  paidOn={paidOn}
+                  paidViaError={error("paidVia") ?? null}
+                  paidOnError={error("paidOn") ?? null}
+                  onPaidVia={touch(setPaidVia)}
+                  onPaidOn={touch(setPaidOn)}
                   onChange={(method, mandate) => {
                     touch(setPaymentMethod)(method);
                     setMandateId(mandate);

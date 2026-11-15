@@ -89,6 +89,8 @@ export const TEXTS = {
     correction: "Die ursprüngliche Rechnung wird um den ausgewiesenen Betrag korrigiert.",
     noPayment: "Es ist keine Zahlung erforderlich.",
     payBy: (date: string) => `Bitte überweisen Sie den Betrag bis zum ${date} unter Angabe der Rechnungsnummer.`,
+    paidOn: (date: string, via: string) =>
+      via.toLowerCase() === "bar" ? `Der Betrag wurde am ${date} bar bezahlt.` : `Der Betrag wurde am ${date} über ${via} bezahlt.`,
     /** Vorabankündigung der Lastschrift (Pre-notification, SDD Core Rulebook PT-04.02): Betrag, Tag, Mandat, Gläubiger-ID */
     directDebit: (amount: string, date: string, iban: string, reference: string, creditorId: string) =>
       `Den Betrag von ${amount} ziehen wir am ${date} per SEPA-Lastschrift von Ihrem Konto ${iban} ein (Mandatsreferenz ${reference}, Gläubiger-ID ${creditorId}). Bitte sorgen Sie für Deckung; überweisen Sie den Betrag nicht.`,
@@ -184,6 +186,8 @@ export const TEXTS = {
     correction: "The original invoice is adjusted by the amount shown.",
     noPayment: "No payment is required.",
     payBy: (date: string) => `Please transfer the amount by ${date}, quoting the invoice number.`,
+    paidOn: (date: string, via: string) =>
+      via.toLowerCase() === "bar" ? `The amount was paid in cash on ${date}.` : `The amount was paid via ${via} on ${date}.`,
     directDebit: (amount: string, date: string, iban: string, reference: string, creditorId: string) =>
       `The amount of ${amount} will be collected by SEPA direct debit on ${date} from your account ${iban} (mandate reference ${reference}, creditor identifier ${creditorId}). Please ensure sufficient funds; do not transfer the amount.`,
     skonto: (percent: string, date: string, amount: string, payable: string) =>

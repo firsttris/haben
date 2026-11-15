@@ -2718,6 +2718,28 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   await expect(page.getByRole("region", { name: "Verrechnung" }).getByText("Korrektur TE-1")).toHaveCount(0);
 });
 
+test("Bereits bezahlt speichert Zahlungsdienst und Datum und lässt die Rechnung offen (#1056)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Beschreibung Position 1").fill("Marktplatzbestellung");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("49,99");
+  const zahlungsart = page.getByLabel("Zahlungsart", { exact: true });
+  await zahlungsart.selectOption("bereits_bezahlt");
+  await expect(page.getByLabel("Zahlungsziel in Tagen")).toHaveCount(0);
+  await page.getByLabel("Bezahlt über").fill("eBay");
+  const paidOn = day(-1);
+  await page.getByLabel("Bezahlt am").fill(paidOn);
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await expect(zahlungsart).toHaveValue("bereits_bezahlt");
+  await expect(page.getByLabel("Bezahlt über")).toHaveValue("eBay");
+  await expect(page.getByLabel("Bezahlt am")).toHaveValue(paidOn);
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByRole("region", { name: "Angaben" }).getByText("eBay")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Angaben" }).getByText("Fällig", { exact: true })).toHaveCount(0);
+});
+
 test("Keine Fehler im Browser", async () => {
   expect(pageErrors).toEqual([]);
 });

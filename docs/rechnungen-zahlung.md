@@ -36,6 +36,12 @@ Läuft dein Konto nicht auf den Firmennamen, z. B. auf dich als Person, trag unt
 
 Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen, Rechnungen per [Lastschrift](#lastschrift) auch nicht. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen. Im [Entwurfs-PDF](rechnungen.md#entwurf-als-pdf) steht an seiner Stelle ein Platzhalter.
 
+## Bereits bezahlt
+
+Wähle im Rechnungseditor unter **Zahlungsart** **Bereits bezahlt**. Trag unter **Bezahlt über** den Namen des Zahlungsdienstleisters (etwa eBay oder PayPal) oder `bar` ein und unter **Bezahlt am** das Zahlungsdatum. Es darf vor dem Rechnungsdatum liegen.
+
+Das PDF nennt die erfolgte Zahlung und enthält weder Zahlungsfrist noch Bankverbindung oder GiroCode. In ZUGFeRD und XRechnung steht der Rechnungsbetrag als bereits gezahlt (BT-113), der Zahlbetrag (BT-115) ist null. Der Vermerk bucht keinen Zahlungseingang. Die Rechnung bleibt offen, bis du die Zahlung im [Bankabgleich](bank.md) oder [Kassenbuch](kasse.md) zuordnest.
+
 ## Lastschrift
 
 Statt auf die Überweisung zu warten, ziehst du den Betrag per SEPA-Lastschrift ein. Dafür braucht es die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten) und ein gültiges [Mandat des Kunden](kontakte.md#sepa-lastschriftmandate).

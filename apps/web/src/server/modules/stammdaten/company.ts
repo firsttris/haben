@@ -367,13 +367,13 @@ export function companyIssues(company: Company): string[] {
 }
 
 /** Was auf einer Rechnung als Absender fehlt (§ 14 UStG und Zahlungsangaben). */
-export function sellerIssues(company: Company): string[] {
+export function sellerIssues(company: Company, requiresIban = true): string[] {
   const issues: string[] = [];
   if (!company.name) issues.push("Firmenname fehlt");
   if (!company.strasse || !company.plz || !company.ort) issues.push("Anschrift unvollständig");
   if (!company.steuernummer && !company.ustId) issues.push("Steuernummer oder USt-IdNr. fehlt");
   if (!company.email) issues.push("E-Mail-Adresse fehlt");
-  if (!company.iban) issues.push("IBAN fehlt");
+  if (requiresIban && !company.iban) issues.push("IBAN fehlt");
   return issues;
 }
 

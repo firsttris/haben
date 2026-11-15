@@ -27,6 +27,7 @@ import type { LetterheadDesign } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
+  INVOICE_PAYMENT_METHODS,
   PAYMENT_METHODS,
   PRICE_MODES,
   RECHTSFORM_KEYS,
@@ -1343,7 +1344,9 @@ export const invoices = pgTable(
     xmlSha256: text("xml_sha256"),
     /** Aus einer wiederkehrenden Rechnung erzeugt, mit dem Termin; je Termin genau eine Rechnung */
     /** Zahlungsart (#445): Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat; eingezogen wird am Fälligkeitstag */
-    paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull().default("ueberweisung"),
+    paymentMethod: text("payment_method", { enum: INVOICE_PAYMENT_METHODS }).notNull().default("ueberweisung"),
+    paidVia: text("paid_via"),
+    paidOn: date("paid_on", { mode: "string" }),
     sepaMandateId: uuid("sepa_mandate_id").references(() => sepaMandates.id),
     /** Gewählter Ansprechpartner des Kunden (#424); der festgeschriebene Stand steht im Käufer */
     contactPersonId: uuid("contact_person_id").references(() => contactPersons.id),
@@ -1363,7 +1366,13 @@ export const invoices = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("invoices_payment_method", sql`${t.paymentMethod} in ('ueberweisung', 'lastschrift')`),
+    check("invoices_payment_method", sql`${t.paymentMethod} in ('ueberweisung', 'lastschrift', 'bereits_bezahlt')`),
+    check(
+      "invoices_paid_payment",
+      sql`case when ${t.paymentMethod} = 'bereits_bezahlt'
+        then ${t.kind} = 'rechnung' and ${t.paidOn} is not null and ${t.paidVia} is not null and length(btrim(${t.paidVia})) between 1 and 120
+        else ${t.paidOn} is null and ${t.paidVia} is null end`,
+    ),
     // Lastschrift nur mit Mandat, Überweisung ohne
     check("invoices_lastschrift_mandat", sql`(${t.paymentMethod} = 'lastschrift') = (${t.sepaMandateId} is not null)`),
     // Externe Referenz nur vollständig: Plattform und Bestellnummer zusammen

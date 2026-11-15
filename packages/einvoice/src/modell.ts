@@ -89,7 +89,7 @@ export interface TaxTotal {
 export interface PaymentMeans {
   /** UNTDID 4461: 58 SEPA-Überweisung, 59 SEPA-Lastschrift, 1 nicht festgelegt */
   "cbc:PaymentMeansCode": string;
-  "cbc:PaymentID": string;
+  "cbc:PaymentID"?: string;
   "cac:PayeeFinancialAccount"?: { "cbc:ID": string; "cbc:Name": string; "cac:FinancialInstitutionBranch"?: { "cbc:ID": string } };
   "cac:PaymentMandate"?: { "cbc:ID": string; "cac:PayerFinancialAccount": { "cbc:ID": string } };
 }
@@ -129,6 +129,8 @@ export interface Invoice {
     "cbc:AllowanceTotalAmount@currencyID"?: string;
     "cbc:TaxInclusiveAmount": string;
     "cbc:TaxInclusiveAmount@currencyID": string;
+    "cbc:PrepaidAmount"?: string;
+    "cbc:PrepaidAmount@currencyID"?: string;
     "cbc:PayableAmount": string;
     "cbc:PayableAmount@currencyID": string;
   };

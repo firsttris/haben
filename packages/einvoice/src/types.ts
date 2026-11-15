@@ -184,6 +184,8 @@ export interface InvoiceDocument extends Letterhead {
   references?: OrderReferences;
   /** Einzug per SEPA-Lastschrift (#445); fehlt = Überweisung. Nur bei Rechnungen mit Zahlbetrag in Euro */
   directDebit?: DirectDebit;
+  /** Bereits vereinnahmte Zahlung, wie sie auf der Rechnung ausgewiesen wird. */
+  paidPayment?: { paidVia: string; paidOn: string };
 }
 
 /** Angaben zum Einzug: im PDF die Vorabankündigung, im XML Zahlungsart 59 mit BT-89, BT-90 und BT-91 */

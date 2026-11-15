@@ -193,7 +193,7 @@ function settlement(invoice: Ubl) {
         date("ram:EndDateTime", list(period)[0]?.["cbc:EndDate"]),
       ]),
     ...list(invoice["cac:AllowanceCharge"]).map(allowanceCharge),
-    el("ram:SpecifiedTradePaymentTerms", [
+    elIf("ram:SpecifiedTradePaymentTerms", [
       txt("ram:Description", list(invoice["cac:PaymentTerms"])[0]?.["cbc:Note"]),
       date("ram:DueDateDateTime", invoice["cbc:DueDate"]),
       txt("ram:DirectDebitMandateID", mandate?.["cbc:ID"]),
@@ -204,6 +204,7 @@ function settlement(invoice: Ubl) {
       txt("ram:TaxBasisTotalAmount", totals["cbc:TaxExclusiveAmount"]),
       ...invoice["cac:TaxTotal"].map((total) => txt("ram:TaxTotalAmount", total["cbc:TaxAmount"], { currencyID: total["cbc:TaxAmount@currencyID"] })),
       txt("ram:GrandTotalAmount", totals["cbc:TaxInclusiveAmount"]),
+      txt("ram:TotalPrepaidAmount", totals["cbc:PrepaidAmount"]),
       txt("ram:DuePayableAmount", totals["cbc:PayableAmount"]),
     ]),
     ...list(invoice["cac:BillingReference"]).map((ref) =>

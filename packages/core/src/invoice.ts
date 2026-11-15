@@ -66,6 +66,8 @@ export const PRICE_MODES = ["netto", "brutto"] as const;
 /** Zahlungsart einer Rechnung (#445): Überweisung durch den Kunden oder Einzug per SEPA-Lastschrift */
 export const PAYMENT_METHODS = ["ueberweisung", "lastschrift"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export const INVOICE_PAYMENT_METHODS = [...PAYMENT_METHODS, "bereits_bezahlt"] as const;
+export type InvoicePaymentMethod = (typeof INVOICE_PAYMENT_METHODS)[number];
 
 export type PriceMode = (typeof PRICE_MODES)[number];
 

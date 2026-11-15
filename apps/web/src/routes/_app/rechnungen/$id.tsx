@@ -94,6 +94,8 @@ function InvoicePage() {
             quoteId: invoice.quoteId,
             discount: discountFromColumns(invoice.discountPercent, invoice.discountAmount),
             paymentMethod: invoice.paymentMethod,
+            paidVia: invoice.paidVia,
+            paidOn: invoice.paidOn,
             sepaMandateId: invoice.sepaMandateId,
             // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
             lines: data.lines
@@ -270,8 +272,19 @@ function FinalInvoice({ data }: { data: Detail }) {
               <dd>{formatDate(invoice.issueDate)}</dd>
               {invoice.kind === "rechnung" && (
                 <>
-                  <dt>Fällig</dt>
-                  <dd>{formatDate(invoice.dueDate)}</dd>
+                  {invoice.paymentMethod === "bereits_bezahlt" && invoice.paidOn ? (
+                    <>
+                      <dt>Bezahlt am</dt>
+                      <dd>{formatDate(invoice.paidOn)}</dd>
+                      <dt>Bezahlt über</dt>
+                      <dd>{invoice.paidVia}</dd>
+                    </>
+                  ) : (
+                    <>
+                      <dt>Fällig</dt>
+                      <dd>{formatDate(invoice.dueDate)}</dd>
+                    </>
+                  )}
                 </>
               )}
               <dt>Netto</dt>

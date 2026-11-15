@@ -31,7 +31,11 @@ export function servicePeriod(doc: InvoiceDocument): { from: string; to: string 
   return { from, to };
 }
 
-type PaymentFields = Pick<InvoiceDocument, "kind" | "totals" | "issueDate" | "dueDate" | "skonto" | "directDebit">;
+type PaymentFields = Pick<InvoiceDocument, "kind" | "totals" | "issueDate" | "dueDate" | "skonto" | "directDebit" | "paidPayment">;
+
+export function paidInvoicePayment(doc: Pick<InvoiceDocument, "kind" | "totals" | "paidPayment">): InvoiceDocument["paidPayment"] {
+  return doc.kind === "rechnung" && doc.totals.gross > 0 ? doc.paidPayment : undefined;
+}
 
 /** Lastschrift nur auf einer Rechnung mit Zahlbetrag; Storno und Erstattung laufen nicht über das Mandat */
 export function collectedByDirectDebit(doc: Pick<InvoiceDocument, "kind" | "totals" | "directDebit">): doc is typeof doc & { directDebit: DirectDebit } {
@@ -40,7 +44,7 @@ export function collectedByDirectDebit(doc: Pick<InvoiceDocument, "kind" | "tota
 
 /** Skontostufen mit Frist und Betrag; nur auf Rechnungen mit Zahlbetrag, nicht auf Storno und Korrektur */
 export function invoiceSkonto(doc: PaymentFields): SkontoFrist[] {
-  return doc.kind === "rechnung" && doc.skonto ? skontoFristen(doc.skonto, doc.issueDate, doc.totals.gross) : [];
+  return doc.kind === "rechnung" && doc.skonto && !paidInvoicePayment(doc) ? skontoFristen(doc.skonto, doc.issueDate, doc.totals.gross) : [];
 }
 
 /** Zahlungssatz unter der Summe, mit Skonto je Stufe; das XML bleibt wie BT-20 und BT-120 deutsch (siehe i18n.ts) */
@@ -51,6 +55,8 @@ export function paymentSentence(doc: PaymentFields, t: Texts = TEXTS.de): string
   if (doc.totals.gross < 0 && doc.kind === "korrektur") return t.correction;
   if (doc.totals.gross < 0) return t.noPayment;
   if (doc.totals.gross === 0) return t.noPayment;
+  const paid = paidInvoicePayment(doc);
+  if (paid) return t.paidOn(t.date(paid.paidOn), paid.paidVia);
   if (collectedByDirectDebit(doc)) {
     const d = doc.directDebit;
     return t.directDebit(t.money(doc.totals.gross), t.date(d.collectionDate), formatIban(d.debtorIban), d.mandateReference, d.creditorId);

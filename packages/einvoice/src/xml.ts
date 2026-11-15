@@ -22,6 +22,7 @@ import {
   invoiceSkonto,
   isCreditNote,
   paymentSentence,
+  paidInvoicePayment,
   presentReferences,
   servicePeriod,
 } from "./format.ts";
@@ -181,6 +182,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   if (!firstLine) throw new Error("Rechnung ohne Positionen");
 
   const payable = sign * doc.totals.gross;
+  const paid = paidInvoicePayment(doc);
   const invoice: Invoice = {
     "cbc:ID": doc.number,
     "cbc:IssueDate": doc.issueDate,
@@ -255,7 +257,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       ...(allowances.length > 0 ? { "cbc:AllowanceTotalAmount": amount(sign * allowanceTotal), "cbc:AllowanceTotalAmount@currencyID": currency } : {}),
       "cbc:TaxInclusiveAmount": amount(payable),
       "cbc:TaxInclusiveAmount@currencyID": currency,
-      "cbc:PayableAmount": amount(payable),
+      ...(paid ? { "cbc:PrepaidAmount": amount(payable), "cbc:PrepaidAmount@currencyID": currency } : {}),
+      "cbc:PayableAmount": amount(paid ? 0 : payable),
       "cbc:PayableAmount@currencyID": currency,
     },
     "cac:InvoiceLine": [firstLine, ...otherLines],
@@ -325,7 +328,11 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     }));
   }
 
-  if (!credit) {
+  if (paid) {
+    // BT-81 nach UNTDID 4461: 10 = bar, 68 = Online-Zahlungsdienst. Bei BT-115 = 0 entfällt die Frist (BR-CO-25).
+    // https://docs.peppol.eu/poacc/billing/3.0/codelist/UNCL4461/
+    invoice["cac:PaymentMeans"] = [{ "cbc:PaymentMeansCode": paid.paidVia.toLowerCase() === "bar" ? "10" : "68" }];
+  } else if (!credit) {
     invoice["cbc:DueDate"] = doc.dueDate;
     if (collectedByDirectDebit(doc)) {
       // SEPA-Lastschrift: 59 nach UNTDID 4461, Mandat (BT-89) und Konto des Kunden (BT-91) in cac:PaymentMandate; ohne
