@@ -199,8 +199,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschrift auf Buchungskonto: Kontoar
       await kontoart.decideAccountingType(ACTOR, id, "erloes");
       expect(await detail(id)).toMatchObject({ accountingTypeIssue: null, accountingTypeDecidable: false });
       expect(kontoCheck(await year())).toBeUndefined();
-      // Zwei Abgleiche und der Zeitraum: unter Last über den 5 s der Vorgabe
-    }, 15_000);
+    });
 
     it("ohne erkannte Art (Widerspruch der Nummern) entscheidet weiter die Hand", async () => {
       const id = await insert();
