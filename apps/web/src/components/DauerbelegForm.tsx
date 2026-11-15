@@ -55,6 +55,7 @@ export function DauerbelegForm({
   kleinunternehmer,
   rechtsform,
   isNew,
+  withoutFile = false,
   busy,
   submitLabel,
   onSubmit,
@@ -65,6 +66,8 @@ export function DauerbelegForm({
   kleinunternehmer: boolean;
   rechtsform: Rechtsform;
   isNew: boolean;
+  /** Übernommene Vorlage ohne Datei: Die Datei ist vor dem Fortsetzen nötig */
+  withoutFile?: boolean;
   busy: boolean;
   submitLabel: string;
   onSubmit: (values: DauerbelegValues, file: File | null) => void;
@@ -276,7 +279,13 @@ export function DauerbelegForm({
         <section className="form-section" aria-labelledby="dauerbeleg-dokument">
           <h2 id="dauerbeleg-dokument">Dokument</h2>
           <Field
-            label={isNew ? "Vertrag oder Dauerrechnung" : "Neuer Vertrag oder Nachtrag (optional, gilt für künftige Belege)"}
+            label={
+              isNew
+                ? "Vertrag oder Dauerrechnung"
+                : withoutFile
+                  ? "Vertrag oder Dauerrechnung (vor dem Fortsetzen nötig)"
+                  : "Neuer Vertrag oder Nachtrag (optional, gilt für künftige Belege)"
+            }
             hint="Der Vertrag ersetzt bei der Miete die monatliche Rechnung (GoBD: keine Buchung ohne Beleg). Jeder Beleg verweist auf diese Datei."
             error={error("file")}
           >

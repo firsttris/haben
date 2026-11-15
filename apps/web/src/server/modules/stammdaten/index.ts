@@ -10,7 +10,7 @@ export { insertImportedArticles, insertImportedContacts, planArticleImport, plan
 export { applyDatevContactImport, planDatevContactImport, type DatevContactImportPlan } from "./datev-kontakte-import.ts";
 export { assertKnownUnit, createUnit, listUnits, loadUnitCodes, setUnitArchived, UnitError, type Unit } from "./units.ts";
 export { articleInputSchema, createArticle, listArticles, setArticleArchived, updateArticle } from "./articles.ts";
-export { searchArticles, searchTextBlocks, type ArticleHit, type TextBlockHit } from "./search-catalog.ts";
+export { searchStammdaten, type ArticleHit, type TextBlockHit } from "./search-catalog.ts";
 export {
   companyIssues,
   companySchema,

@@ -523,6 +523,12 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
               <span className="small muted">Dateien</span>
               <strong>{progress.files}</strong>
             </div>
+            {(progress.recurring ?? 0) > 0 && (
+              <div>
+                <span className="small muted">Dauerbelege angehalten</span>
+                <strong>{progress.recurring}</strong>
+              </div>
+            )}
           </div>
           {running && <ImportWaitNotice waitingUntil={progress.waitingUntil} fastbill={source === "fastbill"} updatedAt={run.updatedAt} />}
           {source === "sevdesk" && (
@@ -533,6 +539,18 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
                 auch Kunde. Entferne diese Rolle bei Bedarf unter Kontakte. Vorhandene Nummern bleiben unverändert.
               </p>
             </div>
+          )}
+          {source === "sevdesk" && progress.sevdeskRecurring && progress.sevdeskRecurring.imported + progress.sevdeskRecurring.known > 0 && (
+            <p className="small" style={{ margin: 0 }}>
+              {progress.sevdeskRecurring.imported + progress.sevdeskRecurring.known} Vorlagen für{" "}
+              <Link to="/rechnungen/wiederkehrend">wiederkehrende Rechnungen</Link> pausiert übernommen; prüfe und aktiviere sie dort.
+              {progress.sevdeskRecurring.placeholders.length > 0 && (
+                <>
+                  {" "}
+                  Platzhalter von sevDesk stehen als Text darin: <span className="mono">{progress.sevdeskRecurring.placeholders.join(" ")}</span>
+                </>
+              )}
+            </p>
           )}
           {run.error && (
             <div className="banner banner-danger" role="alert">

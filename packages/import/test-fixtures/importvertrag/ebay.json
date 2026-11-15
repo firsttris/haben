@@ -1,0 +1,101 @@
+{
+  "contractVersion": 1,
+  "provider": "ebay",
+  "externalAccountId": "verkaeufer-beispiel",
+  "idempotencyKey": "finanzen-2026-10-teil-0",
+  "fetchedAt": "2026-11-01T06:00:00+01:00",
+  "coverage": { "from": "2026-10-01", "to": "2026-10-31" },
+  "part": { "fetchId": "finanzen-2026-10", "index": 0, "last": true },
+  "movements": [
+    {
+      "sourceEventId": "SALE-0001",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-10-03",
+      "sourceTimestamp": "2026-10-03T14:21:07.000Z",
+      "amount": 4999,
+      "currency": "EUR",
+      "counterpartyName": "Erika Beispiel",
+      "purpose": "Bestellung 01-00000-00001",
+      "references": { "eventCode": "SALE", "orderId": "01-00000-00001", "payoutId": "PAYOUT-0001" }
+    },
+    {
+      "sourceEventId": "SALE-0001",
+      "component": "fee",
+      "kind": "payment",
+      "bookingDate": "2026-10-03",
+      "amount": -1006,
+      "currency": "EUR",
+      "counterpartyName": "eBay",
+      "purpose": "Gebühren zu Bestellung 01-00000-00001",
+      "references": { "eventCode": "SALE", "orderId": "01-00000-00001", "payoutId": "PAYOUT-0001" }
+    },
+    {
+      "sourceEventId": "SALE-0002",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-10-09",
+      "amount": 2500,
+      "currency": "EUR",
+      "counterpartyName": "Max Muster",
+      "purpose": "Bestellung 01-00000-00002",
+      "references": { "eventCode": "SALE", "orderId": "01-00000-00002", "payoutId": "PAYOUT-0001" }
+    },
+    {
+      "sourceEventId": "SALE-0002",
+      "component": "fee",
+      "kind": "payment",
+      "bookingDate": "2026-10-09",
+      "amount": -400,
+      "currency": "EUR",
+      "counterpartyName": "eBay",
+      "purpose": "Gebühren zu Bestellung 01-00000-00002",
+      "references": { "eventCode": "SALE", "orderId": "01-00000-00002", "payoutId": "PAYOUT-0001" }
+    },
+    {
+      "sourceEventId": "REFUND-0003",
+      "component": "main",
+      "kind": "refund",
+      "bookingDate": "2026-10-14",
+      "amount": -1500,
+      "currency": "EUR",
+      "counterpartyName": "Erika Beispiel",
+      "purpose": "Teilerstattung zu Bestellung 01-00000-00001",
+      "references": { "eventCode": "REFUND", "orderId": "01-00000-00001", "relatedEventId": "SALE-0001", "payoutId": "PAYOUT-0001" }
+    },
+    {
+      "sourceEventId": "REFUND-0003",
+      "component": "fee",
+      "kind": "refund",
+      "bookingDate": "2026-10-14",
+      "amount": 45,
+      "currency": "EUR",
+      "counterpartyName": "eBay",
+      "purpose": "Gutschrift der Gebühren zur Teilerstattung",
+      "references": { "eventCode": "REFUND", "orderId": "01-00000-00001", "relatedEventId": "SALE-0001", "payoutId": "PAYOUT-0001" }
+    },
+    {
+      "sourceEventId": "CHARGE-0004",
+      "component": "main",
+      "kind": "fee",
+      "bookingDate": "2026-10-15",
+      "amount": -3995,
+      "currency": "EUR",
+      "counterpartyName": "eBay",
+      "purpose": "Shop-Abonnement Oktober",
+      "references": { "eventCode": "NON_SALE_CHARGE", "payoutId": "PAYOUT-0001" }
+    },
+    {
+      "sourceEventId": "PAYOUT-0001",
+      "component": "main",
+      "kind": "payout",
+      "bookingDate": "2026-10-20",
+      "amount": -643,
+      "currency": "EUR",
+      "counterpartyName": "eBay",
+      "purpose": "Auszahlung auf das Geschäftskonto",
+      "references": { "payoutId": "PAYOUT-0001" }
+    }
+  ],
+  "balances": [{ "date": "2026-10-31", "amount": 0, "currency": "EUR" }]
+}

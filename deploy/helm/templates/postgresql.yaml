@@ -1,0 +1,113 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "haben.dbHost" . }}-init
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+data:
+  # Läuft nur beim ersten Start in ein leeres Volume: legt die App-Rolle an, wie createuser in
+  # https://haben.app/installation-konfiguration.html#getrennte-datenbankrollen
+  app-rolle.sh: |
+    psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v pw="$APP_PASSWORD" <<'SQL'
+    CREATE ROLE haben_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD :'pw';
+    SQL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "haben.dbHost" . }}
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+    app.kubernetes.io/component: db
+spec:
+  selector:
+    {{- include "haben.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "haben.dbHost" . }}
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+    app.kubernetes.io/component: db
+spec:
+  replicas: 1
+  serviceName: {{ include "haben.dbHost" . }}
+  selector:
+    matchLabels:
+      {{- include "haben.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: db
+  template:
+    metadata:
+      labels:
+        {{- include "haben.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: db
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with include "haben.scheduling" . | trim }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      containers:
+        # Startet als root, hebt einen älteren Bestand mit pg_upgrade an und wechselt dann zum Nutzer postgres (deploy/db)
+        - name: db
+          image: {{ include "haben.dbImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: POSTGRES_USER
+              value: haben
+            - name: POSTGRES_DB
+              value: haben
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "haben.dbSecret" . }}
+                  key: POSTGRES_PASSWORD
+            - name: APP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "haben.dbSecret" . }}
+                  key: APP_PASSWORD
+          securityContext:
+            allowPrivilegeEscalation: false
+          ports:
+            - name: postgres
+              containerPort: 5432
+          # Ein Upgrade auf eine neue Major-Version läuft vor dem Start und braucht je nach Größe ein paar Minuten
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "haben"]
+            periodSeconds: 5
+            failureThreshold: 360
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "haben"]
+            periodSeconds: 10
+          {{- with .Values.postgresql.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            # Vorgabe von postgres ab 18: je Version <Version>/docker darunter
+            - name: data
+              mountPath: /var/lib/postgresql
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        # Ein eigener Claim statt volumeClaimTemplates, damit sich die Größe später ändern lässt
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "haben.dbHost" . }}
+        - name: init
+          configMap:
+            name: {{ include "haben.dbHost" . }}-init
+{{- end }}

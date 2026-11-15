@@ -1,6 +1,6 @@
 import { z } from "zod/mini";
 import { addDays, naechsterWerktag } from "./holidays.ts";
-import { parseEuro, roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts";
+import { parseHundredths, roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts";
 import type { Bundesland } from "./steuernummer.ts";
 
 /** Eine Skontostufe aus den Zahlungsbedingungen einer E-Rechnung */
@@ -156,7 +156,7 @@ export function skontoGezogen(fristen: readonly SkontoZahlfrist[] | undefined, p
 
 /** "2" oder "2,5 %" → Basispunkte; null, wenn die Eingabe kein Satz mit höchstens zwei Nachkommastellen ist */
 export function parsePercent(input: string): BasisPoints | null {
-  const value = parseEuro(input.replace(/%/g, ""));
+  const value = parseHundredths(input.replace(/%/g, ""));
   return value === null || value < 0 ? null : value;
 }
 

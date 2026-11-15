@@ -1762,15 +1762,36 @@
     {
       "idx": 251,
       "version": "7",
-      "when": 1794761929454,
-      "tag": "0251_eigene_einheiten",
+      "when": 1794762523750,
+      "tag": "0251_sevdesk_wkr_vorlagen",
       "breakpoints": true
     },
     {
       "idx": 252,
       "version": "7",
-      "when": 1794761931962,
-      "tag": "0252_eigene_einheiten_trigger",
+      "when": 1794762524880,
+      "tag": "0252_sevdesk_wkr_vorlagen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 253,
+      "version": "7",
+      "when": 1794768072654,
+      "tag": "0253_dauerbelege_aus_sevdesk",
+      "breakpoints": true
+    },
+    {
+      "idx": 254,
+      "version": "7",
+      "when": 1794768745297,
+      "tag": "0254_eigene_einheiten",
+      "breakpoints": true
+    },
+    {
+      "idx": 255,
+      "version": "7",
+      "when": 1794768747925,
+      "tag": "0255_eigene_einheiten_trigger",
       "breakpoints": true
     }
   ]
