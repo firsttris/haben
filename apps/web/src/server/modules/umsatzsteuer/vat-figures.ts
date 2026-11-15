@@ -550,6 +550,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   // Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz
   const discounts = await q
     .select({
+      id: schema.writeOffs.id,
       documentId: schema.documents.id,
       date: schema.writeOffs.date,
       amount: schema.writeOffs.amount,
@@ -577,7 +578,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       .select()
       .from(schema.documentAmounts)
       .where(inArray(schema.documentAmounts.documentId, [...new Set(discounts.map((d) => d.documentId))]));
-    for (const d of discounts) {
+    // Skonto vor der Ausführung (#930) mindert nichts: seine Steuer war noch nicht abgezogen (vorsteuer-leistungsdatum.ts)
+    for (const d of discounts.filter((x) => !nachLeistungsdatum.skontoOhneMinderung.has(x.id))) {
       const taxes = docAmounts
         .filter((a) => a.documentId === d.documentId)
         .map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }))
