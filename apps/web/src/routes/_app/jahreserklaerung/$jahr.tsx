@@ -492,6 +492,9 @@ function EstSection({ data }: { data: Data }) {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Gesperrt speichert nichts: landet ein Fehlklick beim Umschalten der Fußzeile auf dem Absende-Knopf, darf er die
+    // nur zum Lesen geöffnete Maske nicht überschreiben (#1141)
+    if (gesperrt) return;
     const form = new FormData(event.currentTarget);
     const bad: string[] = [];
     const amount = (name: string, label: string) => {
@@ -817,31 +820,35 @@ function EstSection({ data }: { data: Data }) {
         <p className="small muted" style={{ margin: 0 }}>
           Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
         </p>
-        {/* Speichern bleibt unten sichtbar; der Hinweis steht davor, weil der Footer mit negativem Rand darüber liegt */}
+        {/* Speichern bleibt unten sichtbar; der Hinweis steht davor, weil der Footer mit negativem Rand darüber liegt.
+            Beide Knöpfe stehen an verschiedener Stelle: „Angaben speichern“ links, „Angaben bearbeiten“ rechts. Teilen
+            sie sich denselben Platz, tauscht der Klick den Knopf unter dem aufgelegten Zeiger aus, und das Loslassen
+            speichert die gerade erst geöffnete, leere Maske (#1141). */}
         <div className="form-sticky-footer">
           <NoticeBanner notice={notice} />
           <div className="actions" style={{ alignItems: "center" }}>
-            {gesperrt ? (
-              <>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => {
-                    setNotice(null);
-                    setBearbeiten(true);
-                  }}
-                >
-                  Angaben bearbeiten
-                </button>
-                <span className="small muted">Außerhalb von Haben abgegeben; Haben rechnet {formatEuro(est.prognose.gesamt)}.</span>
-              </>
-            ) : (
-              <>
-                <button type="submit" className="btn btn-primary" disabled={busy}>
-                  Angaben speichern
-                </button>
-                <span className="small muted">Voraussichtliche Steuer {formatEuro(est.prognose.gesamt)}</span>
-              </>
+            {!gesperrt && (
+              <button type="submit" className="btn btn-primary" disabled={busy}>
+                Angaben speichern
+              </button>
+            )}
+            <span className="small muted">
+              {gesperrt
+                ? `Außerhalb von Haben abgegeben; Haben rechnet ${formatEuro(est.prognose.gesamt)}.`
+                : `Voraussichtliche Steuer ${formatEuro(est.prognose.gesamt)}`}
+            </span>
+            {gesperrt && (
+              <button
+                type="button"
+                className="btn"
+                style={{ marginLeft: "auto" }}
+                onClick={() => {
+                  setNotice(null);
+                  setBearbeiten(true);
+                }}
+              >
+                Angaben bearbeiten
+              </button>
             )}
           </div>
         </div>

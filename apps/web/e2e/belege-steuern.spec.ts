@@ -3050,12 +3050,19 @@ test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098
   await expect(bearbeiten).toBeVisible();
   await expect(feld).toBeDisabled();
 
-  // Aufgeschlossen wird nur gelesen, bis jemand speichert. Der Klick geht bewusst über das Element selbst: Im
-  // festen Fuß steht an derselben Stelle der Absende-Knopf, sobald die Maske offen ist. Ein Zeigerklick kommt beim
-  // Loslassen deshalb schon auf „Angaben speichern" an — die Maske speicherte und sperrte sich selbst (#1098).
-  await bearbeiten.evaluate((el) => (el as HTMLElement).click());
+  // Aufgeschlossen wird nur gelesen, bis jemand speichert. Der Klick geht als Zeigerklick dorthin, wo der Mensch
+  // klickt: „Angaben bearbeiten“ steht rechts im Fuß, „Angaben speichern“ links. Stünden beide an derselben Stelle,
+  // träfe das Loslassen schon den Absende-Knopf, und die leere Maske speicherte und sperrte sich selbst (#1098, #1141).
+  await bearbeiten.scrollIntoViewIfNeeded();
+  const kasten = await bearbeiten.boundingBox();
+  if (!kasten) throw new Error("„Angaben bearbeiten“ hat keine Fläche");
+  await page.mouse.move(kasten.x + kasten.width / 2, kasten.y + kasten.height / 2);
+  await page.mouse.down();
+  await page.mouse.up();
   await expect(form.getByRole("button", { name: "Angaben speichern" })).toBeVisible();
   await expect(feld).toBeEnabled();
+  // Der Fehlklick speichert nichts: der Hinweis kommt erst mit dem Speichern weiter unten
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toHaveCount(0);
 
   await form.getByRole("button", { name: "Angaben speichern" }).click();
   await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
