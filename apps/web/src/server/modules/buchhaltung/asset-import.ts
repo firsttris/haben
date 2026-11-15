@@ -9,6 +9,7 @@ import {
   type PlannedRow,
   type RowCandidate,
 } from "@haben/import";
+import type { Cents } from "@haben/core";
 import { gte, max } from "drizzle-orm";
 import type { z } from "zod";
 import { type Db, schema, type Tx } from "../../db/index.ts";
@@ -52,13 +53,13 @@ export async function planAssetImport(
 
 /**
  * Plan einer Übernahme aus Zeilen, wie sie der CSV-Import oder der Umzug aus sevDesk liest: dieselben Prüfungen wie
- * „Anlage übernehmen“, Dubletten gegen den Bestand. `stockKeys` liest aus einer vorhandenen Anlage weitere Merkmale,
- * etwa die Kennung aus sevDesk in der Notiz.
+ * „Anlage übernehmen“, Dubletten gegen den Bestand. `stockKeys` liest die Merkmale des Bestands, etwa die Kennung aus
+ * sevDesk in der Notiz; ohne sie Bezeichnung, Anschaffung und Kosten.
  */
 export async function planAssetCandidates(
   q: Db | Tx,
   rows: readonly RowCandidate<AssetRow>[],
-  stockKeys: (asset: { note: string }) => DuplicateKey[] = () => [],
+  stockKeys: (stock: readonly StockAsset[]) => DuplicateKey[] = (stock) => stock.flatMap(assetKeys),
 ): Promise<PlannedRow<z.output<typeof assetInputSchema>>[]> {
   const { rechtsform } = await loadCompany(q);
   const candidates = rows.map((row) => {
@@ -72,10 +73,14 @@ export async function planAssetCandidates(
   const stock = await q
     .select({ name: schema.assets.name, acquisitionDate: schema.assets.acquisitionDate, cost: schema.assets.cost, note: schema.assets.note })
     .from(schema.assets);
-  return planRows(
-    candidates,
-    stock.flatMap((a) => [...assetKeys(a), ...stockKeys(a)]),
-  );
+  return planRows(candidates, stockKeys(stock));
+}
+
+export interface StockAsset {
+  name: string;
+  acquisitionDate: string;
+  cost: Cents;
+  note: string;
 }
 
 export async function insertImportedAssets(tx: Tx, assets: readonly AssetInput[]): Promise<number> {

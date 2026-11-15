@@ -1,5 +1,5 @@
 import { type AssetKind, assetAccount, type Cents } from "@haben/core";
-import { assetKeys, mapSevAsset, type SevAnlage, sevAnlageKeys, sevAnlageRow, sevKontoHinweis } from "@haben/import";
+import { mapSevAsset, numberedAssetKeys, type SevAnlage, sevAnlageKeys, sevAnlageRow, sevKontoHinweis } from "@haben/import";
 import { sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, type Db, type Tx } from "../../db/index.ts";
@@ -49,14 +49,14 @@ function checkStichtag(stichtag: string) {
 async function plan(q: Db | Tx, assets: readonly SevAnlage[], stichtag: string, kinds: ReadonlyMap<string, AssetKind>) {
   const { kontenrahmen } = await loadCompany(q);
   const offered = assets.filter((a) => a.stand === "uebernehmen");
+  // Ohne Art nur die Dublettenprüfung; übernommen wird eine solche Anlage erst mit gewählter Art
+  const offeredRows = offered.map((a) => sevAnlageRow(a, kinds.get(a.sevId) ?? a.kind ?? "sonstiges", stichtag));
+  const offeredKeys = numberedAssetKeys(offeredRows);
   const planned = await planAssetCandidates(
     q,
-    offered.map((a, index) => {
-      // Ohne Art nur die Dublettenprüfung; übernommen wird eine solche Anlage erst mit gewählter Art
-      const row = sevAnlageRow(a, kinds.get(a.sevId) ?? a.kind ?? "sonstiges", stichtag);
-      return { line: index, title: a.name, value: row, errors: [], keys: [...sevAnlageKeys(row.note), ...assetKeys(row)] };
-    }),
-    (stock) => sevAnlageKeys(stock.note),
+    offeredRows.map((row, index) => ({ line: index, title: row.name, value: row, errors: [], keys: [...sevAnlageKeys(row.note), ...offeredKeys[index]!] })),
+    // Aus sevDesk Übernommenes an der Kennung, von Hand Angelegtes an Bezeichnung, Anschaffung und Kosten
+    (stock) => [...stock.flatMap((a) => sevAnlageKeys(a.note)), ...numberedAssetKeys(stock.filter((a) => sevAnlageKeys(a.note).length === 0)).flat()],
   );
   return assets.map((a): SevdeskAssetPreviewRow & { value: (typeof planned)[number]["value"] } => {
     const kind = kinds.get(a.sevId) ?? a.kind;

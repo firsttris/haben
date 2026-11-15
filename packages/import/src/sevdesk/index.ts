@@ -45,4 +45,13 @@ export {
   type SevRecurringMapped,
   type SevRecurringTemplate,
 } from "./vorlagen.ts";
-export { mapSevAsset, sevAnlageKeys, sevAnlageNotiz, sevAnlageRow, sevKontoHinweis, type SevAnlage, type SevAnlageStand } from "./anlagen.ts";
+export {
+  mapSevAsset,
+  numberedAssetKeys,
+  sevAnlageKeys,
+  sevAnlageNotiz,
+  sevAnlageRow,
+  sevKontoHinweis,
+  type SevAnlage,
+  type SevAnlageStand,
+} from "./anlagen.ts";

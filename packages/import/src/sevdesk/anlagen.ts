@@ -1,5 +1,5 @@
 import { type AssetKind, type Cents, depreciationSchedule, GWG_LIMIT, type Kontenrahmen, assetAccount } from "@haben/core";
-import { assetKindFromText, type AssetRow } from "../csv-import/assets.ts";
+import { assetKeys, assetKindFromText, type AssetRow } from "../csv-import/assets.ts";
 import { duplicateKey, type DuplicateKey } from "../csv-import/plan.ts";
 import { lexDate, lexToCents } from "../lexoffice/map.ts";
 import { sevNumber } from "./map.ts";
@@ -153,6 +153,21 @@ export const sevAnlageNotiz = (anlage: Pick<SevAnlage, "nummer" | "sevId">) => `
 export function sevAnlageKeys(note: string | null): DuplicateKey[] {
   const match = /Aus sevDesk: Anlage Nr\. [^,\n]*, ID (\S+)/.exec(note ?? "");
   return match ? duplicateKey("sevDesk-Anlage ID", match[1]) : [];
+}
+
+/**
+ * Bezeichnung, Anschaffung und Kosten je Anlage, gleiche durchgezählt: Zwei gleiche Monitore aus einer Rechnung sind in
+ * sevDesk zwei Anlagen. Die zweite ist erst dann eine Dublette, wenn es in Haben schon zwei gleiche gibt.
+ */
+export function numberedAssetKeys(assets: readonly { name: string; acquisitionDate: string; cost: Cents }[]): DuplicateKey[][] {
+  const seen = new Map<string, number>();
+  return assets.map((a) =>
+    assetKeys(a).map((key) => {
+      const count = (seen.get(key.value) ?? 0) + 1;
+      seen.set(key.value, count);
+      return count === 1 ? key : { ...key, value: `${key.value} · ${count}.` };
+    }),
+  );
 }
 
 /** Zeile für die Übernahme mit der gewählten Art; nur für Vorschläge mit Stand „uebernehmen“ */
