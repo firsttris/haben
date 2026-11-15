@@ -229,7 +229,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     await save();
   }
 
-  // 2. Rechnungen, Gutschriften und Belege; Entwürfe und Vorlagen bleiben draußen, Mahnungen folgen eigens (3a)
+  // 2. Rechnungen, Gutschriften und Belege; Entwürfe und Vorlagen bleiben draußen, Mahnungen folgen nach 3, nur ins Archiv ohne Buchungswirkung (#472)
   progress.phase = "liste";
   await save(true);
   const listed: Listed[] = [];
@@ -298,9 +298,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     await save();
   }
-  // 3a. Mahnungen nur ins Archiv, ohne Buchungswirkung (#472)
   await importSevdeskDunnings(actor, importId, client, progress, signal);
-  await save(true);
   // Die Datei einer Vorlage brauchen Dauerbeleg und Belege aus der Vorlage; sevDesk liefert sie je Lauf nur einmal
   const templateFiles = new Map<string, Promise<SevFile | null>>();
   const templateFile = (documentId: string) => {
