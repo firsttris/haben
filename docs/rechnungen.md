@@ -497,20 +497,20 @@ Eine ausgebuchte Rechnung lässt sich erst stornieren, wenn die Ausbuchung aufge
 
 ## Verrechnen ohne Zahlung
 
-Eine offene Rechnung und die Kundenkorrektur zu ihr lassen sich ohne Geldfluss gegeneinander ausgleichen. Auf der Seite der festgeschriebenen Rechnung steht dafür der Abschnitt **Verrechnen**: die Korrektur wählen (angeboten werden nur offene Korrekturen derselben Rechnung), Datum, Betrag und einen Grund eintragen. Der Rechnungsbetrag bleibt stehen, offen ist danach nur noch der Rest; die Korrektur gilt als erledigt.
+Eine offene Rechnung und die Kundenkorrektur zu ihr lassen sich ohne Geldfluss gegeneinander ausgleichen. Auf der Seite der festgeschriebenen Rechnung steht dafür der Abschnitt **Verrechnung** mit **Mit der Korrektur verrechnen**: die Korrektur wählen (angeboten werden nur offene Korrekturen derselben Rechnung), Datum, Betrag und einen Grund eintragen. Der Rechnungsbetrag bleibt stehen, offen ist danach nur noch der Rest; die Korrektur gilt als erledigt.
 
-- Verrechnet wird höchstens bis zum offenen Rest der Rechnung. Ist die Korrektur über genau den offenen Betrag, ist das ein Storno — dafür nimmst du **Storno**, nicht die Verrechnung.
+- Verrechnet wird höchstens bis zum offenen Rest der Rechnung. Nimmt die Korrektur den vollen Betrag einer noch unbezahlten Rechnung zurück, ist das ein Storno — dafür nimmst du **Storno**, nicht die Verrechnung.
 - Das Datum ist der Tag der Aufrechnung: nicht vor dem jüngeren der beiden Belege und nicht in der Zukunft.
 - Beide Belege müssen festgeschrieben sein; Rechnungen in fremder Währung verrechnet Haben nicht.
 
-Gebucht wird je Seite eine Buchung, Forderungen gegen Verrechnungskonto:
+Gebucht wird je Seite eine Buchung zwischen Forderungen und Verrechnungskonto, zusammen steht das Verrechnungskonto auf null:
 
-| Konto SKR03 | Konto SKR04 | Soll | Haben |
-| --- | --- | ---: | ---: |
-| 1400 Forderungen | 1200 Forderungen | Betrag | |
-| 1590 Verrechnungskonto | 1370 Verrechnungskonto | | Betrag |
+| Seite | Soll | Haben |
+| --- | --- | --- |
+| Rechnung | 1590 Verrechnungskonto (SKR04 1370) | 1400 Forderungen (SKR04 1200) |
+| Korrektur | 1400 Forderungen (SKR04 1200) | 1590 Verrechnungskonto (SKR04 1370) |
 
-Die Verrechnung selbst trägt keine Umsatzsteuer: Die Minderung hängt an der Korrektur (§ 17 Abs. 1 UStG), nicht an der Aufrechnung. Bei Soll-Versteuerung mindert die Korrektur die Umsatzsteuer in ihrem Monat, bei Ist-Versteuerung, wenn Geld fließt. Verrechnet ist kein Geld geflossen: Haben gibt die Forderung in dieser Höhe auf, statt sie zu kassieren. Bei Ist-Versteuerung entsteht darauf deshalb keine Umsatzsteuer, weder bei der Rechnung noch bei der Korrektur; die Steuer der Zahlungen bleibt die Steuer des tatsächlich vereinnahmten Entgelts. Bei Soll-Versteuerung mindert die Korrektur die Umsatzsteuer in ihrem eigenen Monat, die Aufrechnung ändert daran nichts. Bleibt der Rest offen, bleibt auch seine Steuer offen, wie bei jeder unbezahlten Rechnung. Hat die Rechnung zwei Steuersätze und nimmt die Korrektur nur einen davon zurück, trägt nach der Verrechnung nur noch der verbliebene Satz die Steuer: Die Verrechnung nimmt den Anteil der Gegenrechnung aus dem Mix, die Zahlungen verteilen sich über den Rest (Rechnung 100,00 € zu 19 % und 100,00 € zu 7 %, Korrektur über die 19-%-Position, verrechnet 119,00 €, Zahlung 107,00 € → Kz 81 bleibt bei null, Kz 86 trägt 100,00 € und 7,00 € Steuer). In der EÜR ist die Verrechnung kein Zufluss (§ 11 EStG); in den offenen Posten und im Mahnwesen zählt sie wie eine Zahlung.
+Die Verrechnung selbst trägt keine Umsatzsteuer: Die Minderung hängt an der Korrektur (§ 17 Abs. 1 UStG), nicht an der Aufrechnung. Verrechnet ist kein Geld geflossen: Haben gibt die Forderung in dieser Höhe auf, statt sie zu kassieren. Bei Ist-Versteuerung entsteht darauf deshalb keine Umsatzsteuer, weder bei der Rechnung noch bei der Korrektur; die Steuer der Zahlungen bleibt die Steuer des tatsächlich vereinnahmten Entgelts. Bei Soll-Versteuerung mindert die Korrektur die Umsatzsteuer in ihrem eigenen Monat, die Aufrechnung ändert daran nichts. Bleibt der Rest offen, bleibt auch seine Steuer offen, wie bei jeder unbezahlten Rechnung. Hat die Rechnung zwei Steuersätze und nimmt die Korrektur nur einen davon zurück, trägt nach der Verrechnung nur noch der verbliebene Satz die Steuer: Die Verrechnung nimmt den Anteil der Gegenrechnung aus dem Mix, die Zahlungen verteilen sich über den Rest (Rechnung 100,00 € zu 19 % und 100,00 € zu 7 %, Korrektur über die 19-%-Position, verrechnet 119,00 €, Zahlung 107,00 € → Kz 81 bleibt bei null, Kz 86 trägt 100,00 € und 7,00 € Steuer). War vor der Verrechnung schon ein Teil bezahlt, bleibt dessen Steuer im Monat der Zahlung stehen; berichtigt wird mit der nächsten Zahlung ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). In der EÜR ist die Verrechnung kein Zufluss (§ 11 EStG); in den offenen Posten und im Mahnwesen zählt sie wie eine Zahlung.
 
 Aufgehoben wird im selben Abschnitt mit Datum und Grund; die Gegenbuchung steht am Tag der Aufhebung, nicht rückwirkend. Solange eine Verrechnung besteht, lässt sich die Rechnung nicht stornieren — hebe sie zuerst auf. Im Jahresarchiv stehen die Verrechnungen in `rechnungen/verrechnungen.csv`.
 
