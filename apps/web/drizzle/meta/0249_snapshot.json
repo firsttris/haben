@@ -1,6 +1,6 @@
 {
-  "id": "ccb0f6ea-a913-4cae-b945-2d00d776e444",
-  "prevId": "2f80d30a-dd49-4f2f-925c-6bccdd550865",
+  "id": "55c1f037-0d39-4636-b285-e62af7215329",
+  "prevId": "0848f345-884d-4875-8c62-39f93dd42b19",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2115,53 +2115,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.bank_private_marks": {
-      "name": "bank_private_marks",
-      "schema": "",
-      "columns": {
-        "transaction_id": {
-          "name": "transaction_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "marked_at": {
-          "name": "marked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "bank_private_marks_transaction_id_bank_transactions_id_fk": {
-          "name": "bank_private_marks_transaction_id_bank_transactions_id_fk",
-          "tableFrom": "bank_private_marks",
-          "tableTo": "bank_transactions",
-          "columnsFrom": [
-            "transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.bank_transactions": {
       "name": "bank_transactions",
       "schema": "",
@@ -3083,6 +3036,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "founded_on": {
+          "name": "founded_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
         },
         "ohne_vorsteuerabzug": {
           "name": "ohne_vorsteuerabzug",
@@ -17192,6 +17151,53 @@
           "value": "(\"zm_submissions\".\"month\" between 1 and 12) or (\"zm_submissions\".\"month\" between 41 and 44)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.bank_private_marks": {
+      "name": "bank_private_marks",
+      "schema": "",
+      "columns": {
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "marked_at": {
+          "name": "marked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "bank_private_marks_transaction_id_bank_transactions_id_fk": {
+          "name": "bank_private_marks_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "bank_private_marks",
+          "tableTo": "bank_transactions",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },
