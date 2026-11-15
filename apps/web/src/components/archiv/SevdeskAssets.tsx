@@ -68,6 +68,14 @@ export function SevdeskAssets({ bookingDate }: { bookingDate: string }) {
     }
   }
 
+  // Die Restbuchwerte gelten nur für den Stichtag, zu dem sie abgerufen sind: ein anderer verlangt einen neuen Abruf
+  function changeStichtag(value: string) {
+    setStichtag(value);
+    setPreview(null);
+    setPicked(new Map());
+    setMessage(null);
+  }
+
   const toggle = (row: Row, on: boolean) =>
     setPicked((prev) => {
       const next = new Map(prev);
@@ -97,7 +105,7 @@ export function SevdeskAssets({ bookingDate }: { bookingDate: string }) {
       </p>
       <form onSubmit={fetchPreview} style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
         <Field label="Übernahmestichtag" hint="Ein 1. Januar, in der Regel der erste Tag in Haben">
-          {(control) => <input {...control} type="date" value={stichtag} onChange={(e) => setStichtag(e.target.value)} required disabled={busy !== null} />}
+          {(control) => <input {...control} type="date" value={stichtag} onChange={(e) => changeStichtag(e.target.value)} required disabled={busy !== null} />}
         </Field>
         <button type="submit" className="btn" disabled={busy !== null}>
           {busy === "abrufen" ? "Rufe ab …" : "Anlagen abrufen"}
