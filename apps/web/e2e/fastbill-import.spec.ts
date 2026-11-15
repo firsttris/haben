@@ -7,7 +7,7 @@ import { bestaetigen, durchlaufSeite, einrichten, gehe } from "./einrichtung.ts"
 
 /**
  * Umzug aus FastBill: verbundener Zugang, Ausgaben, deren Beleg FastBill nur im Browser herausgibt, Skript kopieren, ZIP
- * hochladen und den Rest ohne Beleg freigeben, in eigener, leerer Datenbank (Projekt „fastbill-import“, e2e/durchlaeufe.ts).
+ * hochladen und den Rest ohne Beleg freigeben, dazu der Weg zu den Artikeln, in eigener, leerer Datenbank (Projekt „fastbill-import“, e2e/durchlaeufe.ts).
  * Den Abruf über die API prüfen die Postgres-Tests in modules/archiv; hier stellt die Datenbank seinen Stand nach, damit kein
  * Test eine Adresse von FastBill aufruft.
  */
@@ -85,5 +85,14 @@ test("FastBill: wartende Ausgabenbelege per Skript nachreichen oder ohne Beleg f
   await expect(kasten.getByRole("button", { name: "Skript kopieren" })).toHaveCount(0);
   // Wartet keine Ausgabe mehr, muss der Kasten weiter sagen, dass erst „Erneut abrufen“ die Ausgaben ins Archiv bringt
   await expect(kasten.getByRole("status")).toContainText("2 Ausgaben kommen beim nächsten Abruf ins Archiv: Starte in Schritt 2 „Erneut abrufen“.");
+
+  // Artikel kommen über den CSV-Import; „Aus FastBill holen“ ruft FastBill auf und bleibt deshalb ungeklickt
+  await page.getByRole("region", { name: "Artikel", exact: true }).getByRole("link", { name: "Artikel aus FastBill übernehmen" }).click();
+  await expect(page).toHaveURL(/\/csv-import\?art=artikel&quelle=fastbill$/);
+  await expect(page.getByRole("button", { name: "Aus FastBill holen" })).toBeVisible();
+  // Ohne den Weg aus dem Umzug bleibt der CSV-Import für Artikel wie bisher
+  await page.getByRole("navigation", { name: "Was importieren" }).getByRole("link", { name: "Artikel" }).click();
+  await expect(page).toHaveURL(/\/csv-import\?art=artikel$/);
+  await expect(page.getByRole("button", { name: "Aus FastBill holen" })).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
