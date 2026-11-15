@@ -456,8 +456,11 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
       { year: 2026, month: 11 },
       { year: 2026, month: 12 },
     ];
-    const { journal } = await beideQuellen(monate);
-    expect({ journal, zwischenkonto: await zwischenkontoSaldo() }).toEqual({ journal: [604, 0], zwischenkonto: 0 });
+    expect({ ...(await beideQuellen(monate)), zwischenkonto: await zwischenkontoSaldo() }).toEqual({
+      journal: [604, 0],
+      nebenbuecher: [604, 0],
+      zwischenkonto: 0,
+    });
   });
 
   // Verrechnung mit einer Gutschrift vor der Ausführung, vor der Ausführung wieder aufgehoben: Die Aufhebung legt den
