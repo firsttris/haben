@@ -27,6 +27,7 @@ import type { LetterheadDesign } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
+  INVOICE_PAYMENT_METHODS,
   PAYMENT_METHODS,
   PRICE_MODES,
   RECHTSFORM_KEYS,
@@ -1361,7 +1362,9 @@ export const invoices = pgTable(
     xmlSha256: text("xml_sha256"),
     /** Aus einer wiederkehrenden Rechnung erzeugt, mit dem Termin; je Termin genau eine Rechnung */
     /** Zahlungsart (#445): Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat; eingezogen wird am Fälligkeitstag */
-    paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull().default("ueberweisung"),
+    paymentMethod: text("payment_method", { enum: INVOICE_PAYMENT_METHODS }).notNull().default("ueberweisung"),
+    paidVia: text("paid_via"),
+    paidOn: date("paid_on", { mode: "string" }),
     sepaMandateId: uuid("sepa_mandate_id").references(() => sepaMandates.id),
     /** Gewählter Ansprechpartner des Kunden (#424); der festgeschriebene Stand steht im Käufer */
     contactPersonId: uuid("contact_person_id").references(() => contactPersons.id),
@@ -1381,7 +1384,13 @@ export const invoices = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("invoices_payment_method", sql`${t.paymentMethod} in ('ueberweisung', 'lastschrift')`),
+    check("invoices_payment_method", sql`${t.paymentMethod} in ('ueberweisung', 'lastschrift', 'bereits_bezahlt')`),
+    check(
+      "invoices_paid_payment",
+      sql`case when ${t.paymentMethod} = 'bereits_bezahlt'
+        then ${t.kind} = 'rechnung' and ${t.paidOn} is not null and ${t.paidVia} is not null and length(btrim(${t.paidVia})) between 1 and 120
+        else ${t.paidOn} is null and ${t.paidVia} is null end`,
+    ),
     // Lastschrift nur mit Mandat, Überweisung ohne
     check("invoices_lastschrift_mandat", sql`(${t.paymentMethod} = 'lastschrift') = (${t.sepaMandateId} is not null)`),
     // Externe Referenz nur vollständig: Plattform und Bestellnummer zusammen
@@ -1748,6 +1757,24 @@ export const belegLayouts = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("beleg_layouts_name").on(t.name), check("beleg_layouts_name_laenge", sql`char_length(${t.name}) between 1 and 60`)],
+);
+
+/**
+ * Eigene Mengeneinheiten (#748) neben den festen (UNITS): Bezeichnung auf dem Beleg und Code nach UN/ECE Rec. 20/21 für die
+ * E-Rechnung (BT-130). Nie gelöscht oder umbenannt, nur archiviert: Entwürfe, Artikel und Vorlagen verweisen über die
+ * Bezeichnung darauf, festgeschriebene Rechnungen haben ihr XML schon.
+ */
+export const units = pgTable(
+  "units",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    label: text("label").notNull(),
+    code: text("code").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Groß- und Kleinschreibung zählen nicht: „M²“ und „m²“ wären auf dem Beleg nicht zu unterscheiden
+  (t) => [uniqueIndex("units_label").on(sql`lower(${t.label})`)],
 );
 
 /** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise in Cent, wie eingegeben */

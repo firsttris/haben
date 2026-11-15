@@ -450,6 +450,65 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(trefferliste(page).getByRole("option", { name: "Wartungspauschale" })).toContainText("250,00");
 });
 
+test("Eigene Einheiten: in den Einstellungen anlegen, im Artikel und in der Rechnung wählen, Code im XML (#748)", async () => {
+  await go("/einstellungen?bereich=rechnungen");
+  const karte = page.getByRole("region", { name: "Einheiten" });
+  // Bezeichnung und Code nach UN/ECE Rec. 20 eintippen; danach steht die Einheit mit ihrem Code in der Tabelle
+  await karte.getByLabel("Bezeichnung").fill("m²");
+  await karte.getByLabel("Code (UN/ECE Rec. 20)").fill("MTK");
+  await karte.getByRole("button", { name: "Einheit anlegen" }).click();
+  await expect(karte.getByRole("status").filter({ hasText: "Einheit „m²“ angelegt." })).toBeVisible();
+  await expect(karte.getByRole("row", { name: /m²\s+MTK/ })).toBeVisible();
+  await expect(karte.getByLabel("Bezeichnung")).toHaveValue("");
+  // Groß- und Kleinschreibung zählen nicht: neben m² kein M²
+  await karte.getByLabel("Bezeichnung").fill("M²");
+  await expect(karte.getByText("Die Einheit „M²“ gibt es schon")).toBeVisible();
+  await karte.getByLabel("Bezeichnung").fill("");
+  // Ohne Code nennt das Feld, was fehlt, statt den Knopf zu sperren (DESIGN.md, Gesperrte Knöpfe)
+  await karte.getByLabel("Bezeichnung").fill("UE");
+  await karte.getByRole("button", { name: "Einheit anlegen" }).click();
+  await expect(karte.getByLabel("Code (UN/ECE Rec. 20)")).toBeFocused();
+  await expect(karte.getByText("Gib den Code ein, ohne passenden C62.")).toBeVisible();
+  await karte.getByLabel("Code (UN/ECE Rec. 20)").fill("c62");
+  await karte.getByRole("button", { name: "Einheit anlegen" }).click();
+  await expect(karte.getByRole("status").filter({ hasText: "Einheit „UE“ angelegt." })).toBeVisible();
+  await expect(karte.getByRole("row", { name: /UE\s+C62/ })).toBeVisible();
+  // Eine feste Einheit lässt sich nicht noch einmal anlegen
+  await karte.getByLabel("Bezeichnung").fill("std.");
+  await expect(karte.getByText("Die Einheit „std.“ gibt es schon")).toBeVisible();
+  await karte.getByLabel("Bezeichnung").fill("");
+  // Archiviert steht m² nicht mehr zur Auswahl
+  await karte.getByRole("row", { name: /m²/ }).getByRole("button", { name: "Archivieren" }).click();
+  await expect(karte.getByRole("row", { name: /m² \(archiviert\)/ })).toBeVisible();
+
+  await go("/artikel");
+  await page.getByRole("button", { name: "Neuer Artikel" }).click();
+  const form = page.getByRole("form", { name: "Neuer Artikel" });
+  await expect(form.getByLabel("Einheit").locator("option", { hasText: "m²" })).toHaveCount(0);
+  await form.getByLabel("Bezeichnung").fill("Nachhilfe Mathematik");
+  await form.getByLabel("Einheit").selectOption("UE");
+  await form.getByLabel("Preis (€)").fill("25,00");
+  await form.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByRole("region", { name: "Artikelliste" })).toContainText("25,00\u00a0€ je UE");
+
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await artikelEinfuegen(page, "Nachhilfe Mathematik");
+  await expect(page.getByLabel("Einheit Position 1")).toHaveValue("UE");
+  await expect(page.getByLabel("Einheit Position 1").locator("option", { hasText: "m²" })).toHaveCount(0);
+  await page.getByLabel("Menge Position 1").fill("2");
+  await expect(page.getByLabel("Vorschau der Rechnung")).toContainText("2 UE");
+  await page.getByRole("button", { name: "Entwurf speichern" }).first().click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Festschreiben" }).first().click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+  const id = /rechnungen\/([0-9a-f-]{36})/.exec(page.url())![1];
+  const xml = await (await page.request.get(`/api/rechnung/${id}/xml`)).text();
+  expect(xml).toContain('<ram:BilledQuantity unitCode="C62">2</ram:BilledQuantity>');
+});
+
 test("Positionstext: Artikel mit Bezeichnung und Text, die Vorschau zeigt beides", async () => {
   await go("/artikel");
   await page.getByRole("button", { name: "Neuer Artikel" }).click();
@@ -2716,6 +2775,36 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   await page.getByRole("button", { name: "Aufheben", exact: true }).click();
   await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*119,00\s*€/);
   await expect(page.getByRole("region", { name: "Verrechnung" }).getByText("Korrektur TE-1")).toHaveCount(0);
+});
+
+test("Bereits bezahlt speichert Zahlungsdienst und Datum und lässt die Rechnung offen (#1056)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Beschreibung Position 1").fill("Marktplatzbestellung");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("49,99");
+  const zahlungsart = page.getByLabel("Zahlungsart", { exact: true });
+  await zahlungsart.selectOption("bereits_bezahlt");
+  await expect(page.getByLabel("Zahlungsziel in Tagen")).toHaveCount(0);
+  const vorschau = page.getByRole("button", { name: "Vorschau", exact: true });
+  const vorschauDialog = page.getByRole("dialog", { name: "Vorschau" });
+  await vorschau.click();
+  await expect(vorschauDialog.getByText("Gib für die Vorschau an, wann und wie die Rechnung bezahlt wurde.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByLabel("Bezahlt über").fill("eBay");
+  const paidOn = day(-1);
+  await page.getByLabel("Bezahlt am").fill(paidOn);
+  await vorschau.click();
+  await expect(vorschauDialog.getByLabel("Vorschau der Rechnung")).toContainText("über eBay bezahlt");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await expect(zahlungsart).toHaveValue("bereits_bezahlt");
+  await expect(page.getByLabel("Bezahlt über")).toHaveValue("eBay");
+  await expect(page.getByLabel("Bezahlt am")).toHaveValue(paidOn);
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByRole("region", { name: "Angaben" }).getByText("eBay")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Angaben" }).getByText("Fällig", { exact: true })).toHaveCount(0);
 });
 
 test("Festschreiben direkt nach „Entwurf speichern“: erst nach dem Neuladen, der Dialog bleibt offen", async () => {

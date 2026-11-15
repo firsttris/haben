@@ -8,9 +8,13 @@ import { FormattedText } from "../../../components/FormattedText.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import type { Notice } from "../../../lib/use-action.ts";
 import { archiveArticle, getArticles } from "../../../server/functions/articles.ts";
+import { getUnits } from "../../../server/functions/units.ts";
 
 export const Route = createFileRoute("/_app/artikel/")({
-  loader: () => getArticles(),
+  loader: async () => {
+    const [articles, units] = await Promise.all([getArticles(), getUnits()]);
+    return { articles, units: units.filter((unit) => !unit.archivedAt).map((unit) => unit.label) };
+  },
   head: () => ({ meta: [{ title: "Artikel · Haben" }] }),
   component: ArticlesPage,
 });
@@ -18,7 +22,7 @@ export const Route = createFileRoute("/_app/artikel/")({
 type Article = Awaited<ReturnType<typeof getArticles>>[number];
 
 function ArticlesPage() {
-  const articles = Route.useLoaderData();
+  const { articles, units } = Route.useLoaderData();
   const router = useRouter();
   const archive = useServerFn(archiveArticle);
   const [editing, setEditing] = useState<Article | null>(null);
@@ -78,6 +82,7 @@ function ArticlesPage() {
         {formOpen && (
           <ArticleForm
             key={editing?.id ?? "neu"}
+            units={units}
             article={editing}
             onDone={(n) => {
               setEditing(null);
