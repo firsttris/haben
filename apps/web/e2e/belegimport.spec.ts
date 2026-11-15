@@ -299,6 +299,85 @@ test("Gemeinsame Ansichten sind auf Desktop und Handy in beiden Themes bedienbar
 
 test("Übernommene Rechnungen zeigen das tatsächliche Quellprogramm", checkImportedInvoiceSources);
 
+test("Mahnungen aus sevDesk: Stufen an der Rechnung im Archiv, nach der Übernahme im Mahnwesen", async () => {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { sha256Of, storeFile } = await import("../src/server/storage.ts");
+  const { storeLegacyVoucher, takeOverLegacyItem } = await import("../src/server/modules/archiv/index.ts");
+  const [run] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  const mahnPdf = new TextEncoder().encode("%PDF-1.4\n% Mahnung MA-2\n%%EOF");
+  const voucher = await withActor("e2e-import", async (tx) => {
+    const stored = await storeLegacyVoucher(
+      tx,
+      {
+        source: "sevdesk",
+        importId: run!.id,
+        lexofficeId: "invoice/9001",
+        type: "invoice",
+        direction: "einnahme",
+        number: "RE-MAHN-1",
+        date: "2026-01-05",
+        dueDate: "2026-01-19",
+        status: "open",
+        contactName: "Frida Import",
+        net: 20000,
+        tax: 0,
+        gross: 20000,
+        taxes: [{ rate: 0, net: 20000, tax: 0 }],
+        categories: [],
+        payment: { openAmount: 20000, paidDate: null, items: [] },
+        raw: { taxType: "vatfree" },
+      },
+      [{ role: "pdf", sourceFileId: null, filename: "RE-MAHN-1.pdf", mimeType: "application/pdf", bytes: pdf }],
+    );
+    // Aufbau wie legacy_dunnings nach dem Abruf (sevdesk-mahnungen.ts)
+    for (const [level, date] of [
+      [1, "2026-01-26"],
+      [2, "2026-02-09"],
+    ] as const) {
+      const [row] = await tx
+        .insert(schema.legacyDunnings)
+        .values({
+          externalId: `invoice/${9001 + level}`,
+          importId: run!.id,
+          invoiceExternalId: "invoice/9001",
+          level,
+          number: `MA-${level}`,
+          date,
+          dueDate: "2026-02-16",
+          status: "500",
+          contactName: "Frida Import",
+          currency: "EUR",
+          total: 20000,
+          raw: {},
+        })
+        .returning({ id: schema.legacyDunnings.id });
+      if (level === 2) {
+        await storeFile(mahnPdf);
+        await tx
+          .insert(schema.legacyDunningFiles)
+          .values({ dunningId: row!.id, filename: "MA-2.pdf", mimeType: "application/pdf", sha256: sha256Of(mahnPdf), size: mahnPdf.byteLength });
+      }
+    }
+    return stored!;
+  });
+
+  await gehe(page, `/archiv/beleg/${voucher.id}`);
+  const mahnungen = page.getByRole("region", { name: "Mahnungen" });
+  await expect(mahnungen).toContainText("Stufe 1, Frist 16.02.2026");
+  await expect(mahnungen).toContainText("Stufe 2, Frist 16.02.2026");
+  const href = await mahnungen.getByRole("link", { name: "PDF" }).getAttribute("href");
+  expect(sha256Of(new Uint8Array(await (await page.request.get(href!)).body()))).toBe(sha256Of(mahnPdf));
+
+  await takeOverLegacyItem("e2e-import", voucher.id, "2026-01-31");
+  // Die Spalte „Zuletzt“ steht nur am Desktop
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await gehe(page, "/rechnungen/mahnwesen");
+  const zeile = page.locator(".table-row").filter({ hasText: "RE-MAHN-1" });
+  await expect(zeile.getByRole("link", { name: "Stufe 2 in sevDesk" })).toBeVisible();
+  await expect(zeile.getByRole("link", { name: "Letzte Mahnung" })).toBeVisible();
+});
+
 test("Kleinunternehmer: Gründungsdatum speichern und bei 25.000 Euro warnen", async () => {
   const { createCashIncome } = await import("../src/server/modules/bank/index.ts");
   const date = currentDay();

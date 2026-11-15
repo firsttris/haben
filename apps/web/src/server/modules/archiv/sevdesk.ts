@@ -33,6 +33,7 @@ import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from ".
 import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
 import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
+import { importSevdeskDunnings } from "./sevdesk-mahnungen.ts";
 import { importSevdeskRecurringVouchers } from "./sevdesk-dauerbelege.ts";
 import { importSevdeskPayments } from "./sevdesk-payments.ts";
 import { importSevdeskTemplateFiles } from "./sevdesk-vorlagen-dateien.ts";
@@ -228,7 +229,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     await save();
   }
 
-  // 2. Rechnungen, Gutschriften und Belege; Entwürfe, Vorlagen und Mahnungen bleiben draußen
+  // 2. Rechnungen, Gutschriften und Belege; Entwürfe und Vorlagen bleiben draußen, Mahnungen folgen nach 3, nur ins Archiv ohne Buchungswirkung (#472)
   progress.phase = "liste";
   await save(true);
   const listed: Listed[] = [];
@@ -297,6 +298,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     await save();
   }
+  await importSevdeskDunnings(actor, importId, client, progress, signal);
   // Die Datei einer Vorlage brauchen Dauerbeleg und Belege aus der Vorlage; sevDesk liefert sie je Lauf nur einmal
   const templateFiles = new Map<string, Promise<SevFile | null>>();
   const templateFile = (documentId: string) => {

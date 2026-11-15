@@ -56,15 +56,16 @@ Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit di
 „Alles abrufen“ startet den Abruf im Hintergrund, mit Fortschritt, Abbrechen und Fortsetzen wie bei Lexoffice. Es läuft immer nur ein Abruf, gleich aus welcher Quelle.
 
 1. **Kontakte:** Organisationen und Personen mit Name, Rolle, erster Adresse samt Land, Haupt-E-Mail und USt-IdNr. Wer als Kunde angelegt wird, erhält auch seine Kundennummer. Ansprechpartner einer Organisation werden keine eigenen Kontakte. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne sevDesk-Herkunft, verknüpft Haben ihn.
-2. **Belegliste:** alle Rechnungen, Gutschriften und Belege. Draußen bleiben Entwürfe und Mahnungen; die Vorlagen für wiederkehrende Belege und Rechnungen holen eigene Schritte.
+2. **Belegliste:** alle Rechnungen, Gutschriften und Belege. Draußen bleiben Entwürfe; Mahnungen und die Vorlagen für wiederkehrende Belege und Rechnungen holen eigene Schritte.
 3. **Positionen und Dateien:** je Beleg die Positionen (für die Aufteilung nach Steuersatz), das PDF der Rechnung bzw. Gutschrift, bei E-Rechnungen das XML und bei Belegen die hochgeladene Datei.
-4. **Vorlagen für wiederkehrende Belege:** als angehaltene [Dauerbelege](belege.md#dauerbelege), siehe [unten](#vorlagen-für-wiederkehrende-belege).
-5. **Dateien aus Vorlagen:** Belege, die sevDesk aus einer Vorlage für wiederkehrende Belege anlegt, tragen in der API keine eigene Datei, nur den Verweis auf die Vorlage (`origin`). Hat ein Beleg keine Datei und seine Vorlage eine, hängt Haben diese an, auch an Belege aus früheren Abrufen:
+4. **Mahnungen:** jede gespeicherte Mahnstufe mit PDF, siehe [Mahnungen](#mahnungen).
+5. **Vorlagen für wiederkehrende Belege:** als angehaltene [Dauerbelege](belege.md#dauerbelege), siehe [unten](#vorlagen-für-wiederkehrende-belege).
+6. **Dateien aus Vorlagen:** Belege, die sevDesk aus einer Vorlage für wiederkehrende Belege anlegt, tragen in der API keine eigene Datei, nur den Verweis auf die Vorlage (`origin`). Hat ein Beleg keine Datei und seine Vorlage eine, hängt Haben diese an, auch an Belege aus früheren Abrufen:
     - Nur, wenn sevDesk den Beleg nach dem Hochladen der Datei angelegt hat: Eine später an die Vorlage gehängte Datei, etwa ein Zahlplan, gehört nicht zu früheren Monaten. Ältere Belege bleiben ohne Datei und zählen im Abgleich „Jeder Beleg hat eine Datei“ weiter als Beleg ohne Datei.
     - Eine eigene Datei des Belegs ersetzt Haben nie, die Archivkopie bleibt unverändert, und ein weiterer Abruf hängt nichts doppelt an.
     - Hat der Beleg in sevDesk inzwischen eine eigene Datei, etwa nach dem ersten Abruf hochgeladen, bekommt er die Datei der Vorlage nicht. Seine eigene Datei holt Haben für schon archivierte Belege bisher nicht nach.
     - Die Belegansicht nennt die Datei „aus der Vorlage“.
-6. **Wiederkehrende Rechnungen:** die Vorlagen mit ihren Positionen, als pausierte [wiederkehrende Rechnungen](rechnungen.md#wiederkehrende-rechnungen), siehe [unten](#wiederkehrende-rechnungen).
+7. **Wiederkehrende Rechnungen:** die Vorlagen mit ihren Positionen, als pausierte [wiederkehrende Rechnungen](rechnungen.md#wiederkehrende-rechnungen), siehe [unten](#wiederkehrende-rechnungen).
 
 Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine Rechnung als versendet. Die Antwort der API wird je Beleg samt Positionen gespeichert, zum Nachweis.
 
@@ -172,6 +173,16 @@ Ein neuer Abruf lädt fehlende PDFs nach, soweit die Versions- und Quellstandspr
 
 Der Jahresexport enthält `sevdesk/auftraege.csv` sowie PDFs, Quelldaten und PDF-Abrufprotokolle unter `sevdesk/auftraege/`. Die Auftragsdaten verändern keine Umsatz-, Steuer- oder OP-Summen. Für KI-Assistenten stehen eigene lesende Archivwerkzeuge bereit.
 
+### Mahnungen
+
+sevDesk führt jede Mahnstufe als eigene Rechnung der Art `MA`, die mit `origin` auf die gemahnte Rechnung zeigt; `GET /Invoice` liefert sie nur mit dem Filter `invoiceType=MA`. Ihre Summen sind 0, der gemahnte Betrag steht in `reminderTotal`, Positionen hat sie keine. Haben archiviert jede gespeicherte Stufe (ohne Entwürfe) mit Datum, Frist, gemahntem Betrag, Antwort der API und PDF, getrennt von den Belegen. Fehlt das PDF beim Abruf, holt es der nächste Abruf nach. Die Belegansicht der gemahnten Rechnung zeigt ihre Stufen unter **Mahnungen**. Der Jahresexport enthält sie im Jahr ihres Datums als `sevdesk/mahnungen.csv` und unter `sevdesk/mahnungen/` mit PDF und Quelldaten.
+
+Mahnungen sind keine Forderung: Sie zählen nicht in Umsatz, Umsatzsteuer, EÜR, offene Posten und Abgleich.
+
+Übernimmst du eine offene Rechnung aktiv, zählt ihre höchste Stufe aus sevDesk im [Mahnwesen](rechnungen-zahlung.md#mahnwesen). Laut OpenAPI zählt `dunningLevel` die versendeten Mahnungen und beginnt mit 1 als Zahlungserinnerung. Stufe 1 gilt deshalb als Zahlungserinnerung, Stufe 2 als 1. Mahnung; danach schlägt Haben die letzte Mahnung vor. Ob eine höhere Stufe in sevDesk schon die letzte Mahnung war, ist nicht belegt; sie zählt wie Stufe 2. Eine Mahnung in Haben entsteht dabei nicht.
+
+Mahngebühren und Zinsen übernimmt Haben nicht, sie stehen nur in der gespeicherten Antwort: In den Testdaten aus beiden Buchhaltungsversionen ist die Gebühr (`reminderCharge`) 0, wie sevDesk Gebühren und Zinsen füllt, ist nicht belegt. Gebühren, die der Kunde zahlt, ordnest du im Bankabgleich zu ([Gebühren und Zinsen buchen](rechnungen-zahlung.md#mahnwesen)).
+
 ### Wiederkehrende Rechnungen
 
 sevDesk liefert die Vorlagen nur mit dem Filter `invoiceType=WKR`; belegt ist das in Buchhaltungsversion 1.0, in 2.0 ist es ungeprüft. Haben legt jede als wiederkehrende Rechnung an, **pausiert** und mit „Entwurf anlegen“, ohne E-Mail-Versand und mit Zahlungsart Überweisung. Sie erzeugt nichts, bis du sie geprüft und **Aktiv** gesetzt hast. Das gilt für jeden Status in sevDesk: deaktiviert (50), aktiv (100) und beendet (1000). Ein Enddatum übernimmt Haben, auch wenn es vor dem nächsten Termin liegt; die Vorlage erzeugt dann auch aktiviert nichts mehr.
@@ -209,7 +220,7 @@ Ein neuer Abruf überspringt übernommene Vorlagen, auch wenn du sie in Haben ge
 
 - **Keine Buchungen und keine Bankumsätze.** Lade den DATEV-Export aus sevDesk hoch (Schritt 4).
 - **Keine Kategorienamen.** Je Beleg-Position steht nur die ID des Buchungskontos. Übernommene offene Ausgabebelege bekommen deshalb die Kategorie „Sonstiges“; ändere sie bei Bedarf in Haben. Aus demselben Grund erkennt der Abgleich bei GmbH und UG Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen aus sevDesk nicht ([Einordnung](lexoffice.md#einordnung-bei-gmbh-und-ug)); sie zählen dort als Einnahme bzw. Ausgabe. Ziehe sie beim Vergleich mit sevDesk selbst ab.
-- Keine übermittelten Voranmeldungen, kein Anlagenverzeichnis ([Anlagen übernehmen](anlagen.md)), keine Mahnungen. Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ebenfalls ausgeschlossen.
+- Keine übermittelten Voranmeldungen, kein Anlagenverzeichnis ([Anlagen übernehmen](anlagen.md)). Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ebenfalls ausgeschlossen.
 
 ## Schritt 3 bis 5
 

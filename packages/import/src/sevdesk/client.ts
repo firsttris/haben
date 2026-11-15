@@ -134,6 +134,11 @@ export class SevdeskClient {
     return this.#pages("/Invoice", {}, sevInvoiceSchema);
   }
 
+  /** Mahnungen; die Liste ohne Filter enthält sie nicht (test-fixtures/sevdesk, Buchhaltungsversion 1.0). */
+  dunnings(): AsyncGenerator<SevInvoice> {
+    return this.#pages("/Invoice", { invoiceType: "MA" }, sevInvoiceSchema);
+  }
+
   /** Vorlagen wiederkehrender Rechnungen; ohne den Filter invoiceType=WKR fehlen sie in GET /Invoice (Version 1.0 belegt). */
   recurringInvoices(): AsyncGenerator<SevInvoice> {
     return this.#pages("/Invoice", { invoiceType: "WKR" }, sevInvoiceSchema);
