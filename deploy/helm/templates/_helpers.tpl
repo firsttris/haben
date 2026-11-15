@@ -26,16 +26,23 @@
 {{- include "haben.image" (list .Values.app.image .Values.image.tag "image.tag") -}}
 {{- end -}}
 
+{{/* Datenbank und Backup gehören zur selben PostgreSQL-Version (pg_dump der Version des Servers): postgresql.tag,
+sonst image.tag; list Wurzel Repository */}}
+{{- define "haben.pgImage" -}}
+{{- $root := index . 0 -}}
+{{- if $root.Values.postgresql.tag -}}
+{{- include "haben.image" (list (index . 1) $root.Values.postgresql.tag "postgresql.tag") -}}
+{{- else -}}
+{{- include "haben.image" (list (index . 1) $root.Values.image.tag "image.tag") -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "haben.backupImage" -}}
-{{- include "haben.image" (list .Values.backup.image .Values.image.tag "image.tag") -}}
+{{- include "haben.pgImage" (list . .Values.backup.image) -}}
 {{- end -}}
 
 {{- define "haben.dbImage" -}}
-{{- if .Values.postgresql.tag -}}
-{{- include "haben.image" (list .Values.postgresql.image .Values.postgresql.tag "postgresql.tag") -}}
-{{- else -}}
-{{- include "haben.image" (list .Values.postgresql.image .Values.image.tag "image.tag") -}}
-{{- end -}}
+{{- include "haben.pgImage" (list . .Values.postgresql.image) -}}
 {{- end -}}
 
 {{- define "haben.selectorLabels" -}}
@@ -78,6 +85,9 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
 
 {{/* Backup und Wiederherstellen: dieselbe Verbindung, dasselbe Repository */}}
 {{- define "haben.backupEnv" -}}
+{{- if not (or .Values.backup.persistence.enabled .Values.backup.existingSecret .Values.backup.env.RESTIC_REPOSITORY .Values.backup.secretEnv.RESTIC_REPOSITORY) }}
+{{- fail "backup.env.RESTIC_REPOSITORY fehlt: Ohne backup.persistence läge das Repository im Container und wäre nach jedem Neustart weg" }}
+{{- end }}
 {{- with .Values.backup.env.BACKUP_TIME }}
 {{- if not (regexMatch "^([01][0-9]|2[0-3]):[0-5][0-9]$" (toString .)) }}
 {{- /* Sonst endet der Container, und mit ihm wäre der Pod der App nicht mehr bereit */}}

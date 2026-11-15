@@ -94,14 +94,25 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
     for (const image of [...Object.values(images), app.initContainers?.[0].image]) expect(image?.endsWith(":0.9.0")).toBe(true);
   });
 
-  // Ein zurückgenommenes Update darf die Datenbank nicht auf die alte PostgreSQL-Version zurücksetzen
-  test("hält die Datenbank mit postgresql.tag auf einer anderen Version als die App", () => {
-    const alle = manifeste({ ...basis, image: { tag: "0.8.2" }, postgresql: { ...(basis.postgresql as object), tag: "0.9.0" } });
+  // Ein zurückgenommenes Update darf die Datenbank nicht auf die alte PostgreSQL-Version zurücksetzen, und das Backup
+  // braucht dann das pg_dump der neuen (deploy/backup/backup.sh); in Compose bleiben beide Images auf latest
+  test("hält Datenbank und Backup mit postgresql.tag auf einer anderen Version als die App", () => {
+    const werte = { ...basis, image: { tag: "0.8.2" }, postgresql: { ...(basis.postgresql as object), tag: "0.9.0" }, restore: { enabled: true } };
+    const alle = manifeste(werte);
     const app = finde(alle, "Deployment", "haben").spec.template.spec;
     expect(container(finde(alle, "StatefulSet", "haben-db").spec.template.spec, "db").image).toBe("docker.io/tristanteu/haben-db:0.9.0");
     expect(app.initContainers?.[0].image).toBe("docker.io/tristanteu/haben-db:0.9.0");
     expect(container(app, "app").image).toBe("docker.io/tristanteu/haben:0.8.2");
-    expect(container(app, "backup").image).toBe("docker.io/tristanteu/haben-backup:0.8.2");
+    expect(container(app, "backup").image).toBe("docker.io/tristanteu/haben-backup:0.9.0");
+    const restore = finde(alle, "Deployment", "haben-restore").spec.template.spec;
+    expect(container(restore, "restore").image).toBe("docker.io/tristanteu/haben-backup:0.9.0");
+  });
+
+  test("legt ohne eigenes Volume kein Backup-Volume an, wenn das Repository woanders liegt", () => {
+    const werte = { ...basis, backup: { ...(basis.backup as object), persistence: { enabled: false }, env: { RESTIC_REPOSITORY: "s3:s3.example/haben" } } };
+    const alle = manifeste(werte);
+    expect(alle.some((m) => m.metadata.name === "haben-backups")).toBe(false);
+    expect(container(finde(alle, "Deployment", "haben").spec.template.spec, "backup").volumeMounts?.map((m) => m.mountPath)).toEqual(["/belege"]);
   });
 
   test("hängt dieselben Verzeichnisse der App ein und härtet sie wie deploy/compose.yml", () => {
@@ -228,6 +239,22 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
       meldung: "backup.env.BACKUP_TIME braucht",
     },
     { fall: "mit HTTPRoute ohne Gateway", werte: { ...basis, httpRoute: { enabled: true } }, meldung: "httpRoute.parentRefs fehlt" },
+    {
+      fall: "mit einem geheimen Wert als Zahl",
+      werte: { ...basis, app: { secretEnv: { ...(basis.app as { secretEnv: object }).secretEnv, HABEN_SETUP_CODE: 12345678 } } },
+      meldung: "app.secretEnv.HABEN_SETUP_CODE in Anführungszeichen",
+    },
+    {
+      fall: "mit einem geheimen Wert des Backups als Zahl",
+      werte: { ...basis, backup: { secretEnv: { RESTIC_PASSWORD: 1234 } } },
+      meldung: "backup.secretEnv.RESTIC_PASSWORD in Anführungszeichen",
+    },
+    // Sonst läge das Repository in der Schreibschicht des Containers und wäre nach jedem Neustart weg
+    {
+      fall: "ohne Volume und ohne Repository für das Backup",
+      werte: { ...basis, backup: { ...(basis.backup as object), persistence: { enabled: false } } },
+      meldung: "backup.env.RESTIC_REPOSITORY fehlt",
+    },
     { fall: "ohne Schlüssel", werte: { ...basis, app: { secretEnv: { BETTER_AUTH_SECRET: "x" } } }, meldung: "app.secretEnv.HABEN_ENCRYPTION_KEY fehlt" },
     {
       fall: "mit Sonderzeichen im Passwort",

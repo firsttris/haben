@@ -45,8 +45,9 @@ postgresql:
   # false: eigene Datenbank, etwa CloudNativePG; die Zugänge dann in app.secretEnv
   enabled: true
   image: docker.io/tristanteu/haben-db
-  # Ohne Angabe image.tag. Beim Zurücknehmen eines Updates hier die neue Version eintragen: haben-db hebt den Bestand auf
-  # eine neue PostgreSQL-Version an und kann nicht zurück.
+  # Gilt für Datenbank und Backup, ohne Angabe image.tag. Beim Zurücknehmen eines Updates hier die neue Version
+  # eintragen: haben-db hebt den Bestand auf eine neue PostgreSQL-Version an und kann nicht zurück, und das Backup
+  # braucht deren pg_dump.
   tag: ""
   # Eigentümer haben und App-Rolle haben_app, nur Buchstaben und Ziffern: je `openssl rand -hex 24`. Die Datenbank legt
   # die App-Rolle bei ihrem ersten Start an; danach ändert eine neue Angabe hier kein Passwort in der Datenbank.
@@ -82,7 +83,7 @@ backup:
     # PGDATABASE: "haben"
   persistence:
     # restic-Repository unter /backups, solange RESTIC_REPOSITORY nicht gesetzt ist. Liegt im selben Cluster; gegen
-    # dessen Verlust gehört das Repository auf ein zweites System.
+    # dessen Verlust gehört das Repository auf ein zweites System. Ohne Volume ist RESTIC_REPOSITORY Pflicht.
     enabled: true
     size: 20Gi
     storageClass: ""

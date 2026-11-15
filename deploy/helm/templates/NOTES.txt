@@ -14,7 +14,7 @@ Einrichtungscode für das erste Konto (solange es keins gibt):
 
 HABEN_ENCRYPTION_KEY{{ if .Values.backup.enabled }} und RESTIC_PASSWORD{{ end }} gehören zusätzlich in den Passwortmanager;
 ohne sie ist nach dem Verlust des Clusters das Backup wertlos.
-{{- if and .Values.backup.enabled (not (hasKey .Values.backup.env "RESTIC_REPOSITORY")) }}
+{{- if and .Values.backup.enabled .Values.backup.persistence.enabled (not (or .Values.backup.env.RESTIC_REPOSITORY .Values.backup.secretEnv.RESTIC_REPOSITORY)) }}
 
 Das Backup liegt im Volume {{ include "haben.fullname" . }}-backups im selben Cluster. Gegen dessen Verlust
 backup.env.RESTIC_REPOSITORY auf ein zweites System setzen.

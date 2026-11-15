@@ -28,8 +28,6 @@ spec:
     spec:
       # Sonst setzt Kubernetes Variablen wie HABEN_DB_PORT für jeden Service im Namespace
       enableServiceLinks: false
-      # Eine Übermittlung an ELSTER wartet bis zu 120 Sekunden auf ERiC; der Server beendet laufende Anfragen vor dem Ende
-      terminationGracePeriodSeconds: 150
       securityContext:
         # Benutzer bun im Image
         fsGroup: 1000

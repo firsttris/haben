@@ -1,8 +1,8 @@
 ---
 title: "Haben mit Helm in Kubernetes installieren"
 description: >-
-  Haben in Kubernetes mit dem Helm-Chart: App mit täglichem Backup im selben Pod, mitgelieferte PostgreSQL oder eine
-  eigene wie CloudNativePG, Ingress oder Gateway API, Wiederherstellen und Updates.
+  Haben mit dem Helm-Chart in Kubernetes: App mit Backup im selben Pod, eigene oder vorhandene PostgreSQL, Ingress oder
+  Gateway API, Restore und Updates.
 ---
 
 # Kubernetes
@@ -162,4 +162,5 @@ Vor einem Update ein Backup von Hand wie oben, dann `image.tag` in `werte.yaml` 
 [Updates](installation-backup.md#updates).
 
 Zum [Zurücknehmen](installation-backup.md#update-zurücknehmen) setzt du `image.tag` auf die vorige Version und
-`postgresql.tag` auf die neue: Die Datenbank kann eine Anhebung auf eine neue PostgreSQL-Version nicht rückgängig machen.
+`postgresql.tag` auf die neue, für Datenbank und Backup: Die Datenbank kann eine Anhebung auf eine neue
+PostgreSQL-Version nicht rückgängig machen, und das Backup braucht deren `pg_dump`.
