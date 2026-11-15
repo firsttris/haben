@@ -17,6 +17,7 @@ import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx"
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
+import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { BEZUGSJAHR_FEHLER, SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
@@ -1154,30 +1155,7 @@ function AllocationPanel({
   if (detail.privat)
     return (
       <aside ref={panel} className="card" aria-label="Umsatz" style={{ gap: 16 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
-          <div className="amount" style={{ fontSize: 24, fontWeight: 600, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
-            {tx.amount > 0 ? "+" : "−"}
-            {formatEuro(Math.abs(tx.amount))}
-          </div>
-          <div className="small muted" style={{ overflowWrap: "anywhere" }}>
-            {tx.purpose}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div className="section-label">Privat, kein Betriebsvorgang</div>
-          <p className="small muted" style={{ margin: 0 }}>
-            Auf diesem Konto gibt es für den Umsatz keine Buchungsart. Er bleibt ungebucht, zählt nicht als offener Posten, und die EÜR bleibt wie sie ist. Zum
-            Buchen die Kennzeichnung aufheben.
-          </p>
-        </div>
-        <div className="actions">
-          <button type="button" className="btn" disabled={busy} onClick={() => void run(() => unmarkPrivatFn({ data: { transactionId: tx.id } }))}>
-            Kennzeichnung aufheben
-          </button>
-        </div>
-        <NoticeBanner notice={notice} />
+        <PrivatUmsatz tx={tx} busy={busy} notice={notice} onAufheben={() => void run(() => unmarkPrivatFn({ data: { transactionId: tx.id } }))} />
       </aside>
     );
 
@@ -1229,14 +1207,7 @@ function AllocationPanel({
       )}
 
       {detail.privatKonto && tx.open !== 0 && (
-        <div className="actions">
-          <button type="button" className="btn" disabled={busy} onClick={() => void run(() => markPrivatFn({ data: { transactionId: tx.id } }))}>
-            Privat, kein Betriebsvorgang
-          </button>
-          <span className="small muted">
-            Für diesen Umsatz gibt es auf dem privaten Konto keine Buchungsart; kennzeichnen nimmt ihn aus den offenen Posten.
-          </span>
-        </div>
+        <PrivatKennzeichnen busy={busy} onKennzeichnen={() => void run(() => markPrivatFn({ data: { transactionId: tx.id } }))} />
       )}
 
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
