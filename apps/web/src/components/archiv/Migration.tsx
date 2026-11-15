@@ -32,6 +32,7 @@ import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
+import { FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
 import { Status } from "../Status.tsx";
 
@@ -335,32 +336,14 @@ function Connection({
             {config.keyHelp}
           </p>
           {fastbill && (
-            <>
-              <Field label="Login-E-Mail von FastBill" error={fehler("email")}>
-                {(control) => (
-                  <input
-                    {...control}
-                    type="email"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    aria-invalid={fehler("email") ? true : undefined}
-                  />
-                )}
-              </Field>
-              <Field label="Tarif">
-                {(control) => (
-                  <select {...control} value={callsPerHour} onChange={(event) => setCallsPerHour(Number(event.target.value))}>
-                    {plans.map((p) => (
-                      <option key={p.callsPerHour} value={p.callsPerHour}>
-                        {p.label} ({p.callsPerHour} Anfragen pro Stunde)
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Field>
-            </>
+            <FastbillLoginFields
+              email={email}
+              onEmail={setEmail}
+              emailError={fehler("email")}
+              callsPerHour={callsPerHour}
+              onCallsPerHour={setCallsPerHour}
+              plans={plans}
+            />
           )}
           <Field label={config.keyLabel} describedBy={error ? `${keyId}-error` : undefined} error={fehler("key")}>
             {(control) => (
@@ -390,9 +373,6 @@ function Connection({
     </section>
   );
 }
-
-/** Ab so langer Stille im laufenden Abruf erklärt die Seite, worauf er wartet */
-const STALLED_MS = 60_000;
 
 const PHASES = { kontakte: "Kontakte", liste: "Belegliste", belege: "Belege und Dateien", fertig: "Fertig" } as const;
 
@@ -526,22 +506,7 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
               <strong>{progress.files}</strong>
             </div>
           </div>
-          {running && progress.waitingUntil && Date.parse(progress.waitingUntil) > Date.now() ? (
-            <div className="banner banner-info" role="status">
-              Wartet bis {formatDateTime(new Date(progress.waitingUntil))}: Die Anfragen dieser Stunde sind aufgebraucht, danach geht der Abruf von selbst
-              weiter.
-            </div>
-          ) : (
-            // Der Fortschritt wird bei jeder Bewegung gespeichert; steht er still, wartet der Abruf auf die Gegenseite
-            running &&
-            source === "fastbill" &&
-            Date.now() - new Date(run.updatedAt).getTime() > STALLED_MS && (
-              <div className="banner banner-info" role="status">
-                FastBill antwortet gerade langsam oder bremst die Anfragen, etwa weil andere Programme dieselbe Stundengrenze nutzen. Der Abruf versucht es
-                weiter; letzte Bewegung {formatDateTime(new Date(run.updatedAt))}. Endet er mit einem Fehler, starte ihn später neu: Übernommenes bleibt.
-              </div>
-            )
-          )}
+          {running && <ImportWaitNotice waitingUntil={progress.waitingUntil} fastbill={source === "fastbill"} updatedAt={run.updatedAt} />}
           {source === "sevdesk" && (
             <div className="banner">
               <p style={{ margin: 0 }}>
