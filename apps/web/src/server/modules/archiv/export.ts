@@ -525,23 +525,12 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         )
     : [];
   const amountsByDocument = groupBy(amounts, (a) => a.documentId);
-  const splits = await splitsByDocument(documents.map((d) => d.id));
-  // Eigene Sachkonten (#270): Nummer am Beleg bzw. je Zeile der Aufteilung, zusätzlich zur Kategorie
+  // Eigene Sachkonten (#270): Nummer am Beleg bzw. je Zeile der Aufteilung (account), zusätzlich zur Kategorie
   const ownNumbers = await loadOwnAccountNumbers();
-  const splitOwnAccounts = groupBy(
-    documents.length === 0
-      ? []
-      : await db
-          .select({ documentId: schema.documentSplits.documentId, ownAccountId: schema.documentSplits.ownAccountId })
-          .from(schema.documentSplits)
-          .where(
-            inArray(
-              schema.documentSplits.documentId,
-              documents.map((d) => d.id),
-            ),
-          )
-          .orderBy(asc(schema.documentSplits.documentId), asc(schema.documentSplits.position)),
-    (l) => l.documentId,
+  const splits = await splitsByDocument(
+    documents.map((d) => d.id),
+    db,
+    ownNumbers,
   );
   const usedDocumentPaths = new Set<string>();
   const documentPaths = new Map<string, string>();
@@ -571,8 +560,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       // Eigenes Konto: am Beleg die Nummer, bei einer Aufteilung je Zeile in derselben Reihenfolge wie die Kategorien, leer ohne eigenes Konto
       doc.ownAccountId
         ? (ownNumbers.get(doc.ownAccountId) ?? "")
-        : (splitOwnAccounts.get(doc.id) ?? []).some((l) => l.ownAccountId)
-          ? (splitOwnAccounts.get(doc.id) ?? []).map((l) => (l.ownAccountId ? (ownNumbers.get(l.ownAccountId) ?? "") : "–")).join(" | ")
+        : (splits.get(doc.id) ?? []).some((l) => l.account)
+          ? (splits.get(doc.id) ?? []).map((l) => l.account ?? "–").join(" | ")
           : "",
       money(rate(1900)?.net),
       money(rate(1900)?.tax),
