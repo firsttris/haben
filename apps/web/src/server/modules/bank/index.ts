@@ -102,9 +102,7 @@ export {
 } from "./cash.ts";
 export { createLoan, DarlehenError, listLoans, loanSchema } from "./darlehen.ts";
 export {
-  searchBankTransactions,
-  searchCashEntries,
-  searchLoans,
+  searchBank,
   type BankTransactionHit,
   type CashEntryHit,
   type LoanHit,

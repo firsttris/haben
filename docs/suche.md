@@ -19,7 +19,7 @@ Mit `Pfeil hoch` und `runter` wählst du einen Treffer, `Enter` öffnet ihn, `Es
 
 ## Was sie findet
 
-Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Bereich stehen bis zu fünf Treffer, eine genau passende Nummer zuerst; Gruppen aus mehreren Bereichen, etwa „Kasse und Pauschalen“, zeigen entsprechend mehr. Bei Kontakten, Rechnungen, Angeboten und Belegen öffnet **Alle anzeigen** die Liste mit demselben Suchbegriff, bei Bankumsätzen auch, wenn alle Treffer in einem Konto liegen. Den Zustand zeigt ein Treffer so wie seine Seite. Umlaute findet die Suche auch ohne Akzent oder Punkte („Muller“ findet „Müller“).
+Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Bereich stehen bis zu fünf Treffer, eine genau passende Nummer zuerst; Gruppen aus mehreren Bereichen, etwa „Kasse und Pauschalen“, zeigen entsprechend mehr. Bei Kontakten, Rechnungen, Angeboten, Belegen und Bankumsätzen öffnet **Alle anzeigen** die Liste mit demselben Suchbegriff, bei Bankumsätzen über [alle Konten](bank.md#umsatzliste). Den Zustand zeigt ein Treffer so wie seine Seite. Umlaute findet die Suche auch ohne Akzent oder Punkte („Muller“ findet „Müller“).
 
 | Gruppe | Gesucht wird in | Der Treffer zeigt |
 | --- | --- | --- |

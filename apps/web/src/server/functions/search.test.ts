@@ -553,4 +553,78 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(await texte("100,00")).toEqual(["Cloudspeicher EU"]);
     expect(await texte("19,00")).toEqual([]);
   });
+
+  /** Zählt die Abfragen einer Suche an der Verbindung, über die alle Module lesen */
+  async function abfragenFuer(eingabe: string, rolle: "inhaber" | "steuerberatung") {
+    const { db } = await import("../db/index.ts");
+    const client = db.$client as unknown as { unsafe: (...args: unknown[]) => unknown };
+    const original = client.unsafe;
+    let anzahl = 0;
+    client.unsafe = (...args: unknown[]) => {
+      anzahl += 1;
+      return original.apply(client, args);
+    };
+    try {
+      await search.runCommandPaletteSearch(eingabe, rolle);
+    } finally {
+      client.unsafe = original;
+    }
+    return anzahl;
+  }
+
+  it("fragt je Modul eine Abfrage statt je Gruppe (#617: vorher 24 für Text, 26 für Ziffern, 7 für die Steuerberatung)", async () => {
+    // Stammdaten, Rechnungen, Belege, Bank, Buchhaltung (eigene Konten, Kontenrahmen, Abfrage), Leistungen, Lohn, Postfach, Archiv
+    expect(await abfragenFuer("Zzyzx", "inhaber")).toBeLessThanOrEqual(11);
+    // dazu Voranmeldungen und ZM in einer Abfrage
+    expect(await abfragenFuer("4931", "inhaber")).toBeLessThanOrEqual(12);
+    expect(await abfragenFuer("Zzyzx", "steuerberatung")).toBeLessThanOrEqual(5);
+  });
+
+  it("nutzt in der gemeinsamen Abfrage der Bank bei 100.000 Bankumsätzen weiter die Trigramm-Indizes", async () => {
+    const [ba] = await sql`insert into bank_accounts (name, iban, purpose) values ('Konto', 'DE89370400440532013000', 'geschaeft') returning id`;
+    const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${ba!.id}, 'gemeinsam.csv', 'sha-gemeinsam', 'csv', 100000, 0) returning id`;
+    await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, counterparty_iban, purpose, dedup_hash)
+      select ${ba!.id}, ${bi!.id}, date '2020-01-01' + (i % 2000), i - 50000, 'Gegenseite ' || (i % 5000),
+        'DE' || lpad(i::text, 20, '0'), 'Verwendung ' || md5(i::text), 'gemeinsam-' || i
+      from generate_series(1, 100000) i`;
+    await sql`vacuum analyze bank_transactions`;
+    const { bankSearchParts } = await import("../modules/bank/search.ts");
+    const { searchPartsQuery } = await import("../db/search-parts.ts");
+    const { PgDialect } = await import("drizzle-orm/pg-core");
+    const query = new PgDialect().sqlToQuery(searchPartsQuery(bankSearchParts("Hosting", ["bankTransactions", "loans", "cashEntries"], 5)));
+    const [row] = await sql.unsafe(`explain (format json) ${query.sql}`, query.params as never[]);
+    type Knoten = { "Node Type": string; "Relation Name"?: string; "Index Name"?: string; Plans?: Knoten[] };
+    const knoten = (k: Knoten): Knoten[] => [k, ...(k.Plans ?? []).flatMap(knoten)];
+    const alle = knoten((row as unknown as { "QUERY PLAN": { Plan: Knoten }[] })["QUERY PLAN"][0]!.Plan);
+    expect(alle.map((k) => k["Index Name"])).toEqual(
+      expect.arrayContaining(["bank_transactions_counterparty_name_trgm_idx", "bank_transactions_purpose_trgm_idx"]),
+    );
+    expect(alle.filter((k) => k["Node Type"] === "Seq Scan").map((k) => k["Relation Name"])).not.toContain("bank_transactions");
+    const treffer = await search.runCommandPaletteSearch("Gegenseite 4711", "inhaber");
+    expect(treffer.bankTransactions.hits.length).toBe(5);
+    expect(treffer.bankTransactions.more).toBe(true);
+  }, 60_000);
+
+  it("bleibt bei einer Kontonummer mit 20.000 Buchungszeilen unter der Grenze für JIT (#617)", async () => {
+    await sql.begin(async (tx) => {
+      await tx`insert into journal_entries (id, date, description, source_type, source_id, kontenrahmen)
+        select md5('jit' || i)::uuid, date '2020-01-01' + (i % 2000), 'Buchung ' || md5(i::text), 'manuell', gen_random_uuid(), 'SKR03'
+        from generate_series(1, 20000) i`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit)
+        select md5('jit' || i)::uuid, a.account, case when a.debit > 0 then a.debit + i else 0 end, case when a.credit > 0 then a.credit + i else 0 end
+        from generate_series(1, 20000) i, (values ('4930', 5000, 0), ('1200', 0, 5000)) a(account, debit, credit)`;
+      await tx`update journal_entries set locked_at = now() where locked_at is null`;
+    });
+    await sql`vacuum analyze journal_entries`;
+    await sql`vacuum analyze journal_lines`;
+    const { bookingEntriesQuery } = await import("../modules/buchhaltung/search.ts");
+    // „4930“ ist Konto und ganzer Euro zugleich; das Übersetzen mit JIT kostete hier rund 100 ms, die Abfrage selbst 10 ms
+    const { select } = await bookingEntriesQuery("4930", 5);
+    const query = select.toSQL();
+    const [row] = await sql.unsafe(`explain (format json) ${query.sql}`, query.params as never[]);
+    const [grenze] = await sql`select current_setting('jit_above_cost')::float as jit_above_cost`;
+    const kosten = (row as unknown as { "QUERY PLAN": { Plan: { "Total Cost": number } }[] })["QUERY PLAN"][0]!.Plan["Total Cost"];
+    expect(kosten).toBeLessThan(grenze!.jit_above_cost);
+  }, 60_000);
 });
