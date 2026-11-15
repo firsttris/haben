@@ -47,7 +47,6 @@ import {
   type PostingLine,
   type Steuerart,
   type SteuerPosten,
-  type Suggestion,
   steuerzahlungText,
   type DarlehenTeil,
   darlehenText,
@@ -84,6 +83,7 @@ import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
+import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
 import { belegTotals, vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 
@@ -642,26 +642,6 @@ export async function openItems(): Promise<OpenItem[]> {
   return items;
 }
 
-/**
- * Summe der noch offenen Gebührenzeilen eines Zahlungsdienstleisters in einem Monat. Der Dienstleister stellt seine
- * Gebühren als Sammelrechnung über alle Zeilen eines Monats; erst diese Summe passt zum offenen Betrag des Belegs.
- */
-async function offeneGebuehrenSumme(bankAccountId: string, monat: string): Promise<number> {
-  const [row] = await db
-    .select({ total: sql<number>`coalesce(sum(${openAmountSql}), 0)`.mapWith(Number) })
-    .from(schema.bankTransactions)
-    .where(
-      and(
-        eq(schema.bankTransactions.bankAccountId, bankAccountId),
-        sql`to_char(${schema.bankTransactions.bookingDate}, 'YYYY-MM') = ${monat}`,
-        sql`${schema.bankTransactions.purpose} like 'Gebühr%'`,
-        sql`${schema.bankTransactions.amount} < 0`,
-        sql`${openAmountSql} <> 0`,
-      ),
-    );
-  return row?.total ?? 0;
-}
-
 export async function transactionDetail(id: string) {
   const [tx] = await db
     .select({
@@ -732,23 +712,8 @@ export async function transactionDetail(id: string) {
   // Ohne Rechnung: Vorschlag aus dem Zweck der Konten, bei Geldtransit mit der Gegenbuchung auf dem anderen Konto
   const accounts = await ownAccounts();
   const account = accounts.find((a) => a.id === tx.bankAccountId);
-  // Gebühren eines Zahlungsdienstleisters kommen als mehrere Zeilen eines Monats an; die Sammelrechnung des Monats
-  // trägt ihre Summe. Der Abgleich bewertet eine Zeile gegen einen Beleg und passt nie; erst die Monatssumme stimmt exakt.
-  let sammelbeleg: Suggestion | null = null;
-  let sammelrechnung: { summe: number; documentId: string | null } | null = null;
-  if (account?.purpose === "zahlungsdienstleister" && tx.amount < 0 && tx.open !== 0 && tx.purpose.startsWith("Gebühr")) {
-    const monat = tx.bookingDate.slice(0, 7);
-    const summe = await offeneGebuehrenSumme(tx.bankAccountId, monat);
-    // Nur der Beleg, dessen offener Betrag genau dieser Summe entspricht, ist der Sammelbeleg des Monats
-    const beleg = summe !== 0 ? items.find((i) => i.type === "document" && i.open === summe) : undefined;
-    sammelrechnung = { summe, documentId: beleg?.id ?? null };
-    if (beleg) {
-      // Bewertung mit der Monatssumme: nur so greift „Betrag stimmt exakt“ (50 Punkte)
-      const [treffer] = suggestMatches({ ...tx, amount: summe }, [beleg], 1);
-      // Zugeordnet würde der Sammelknopf alle Zeilen; als Vorschlag der Zeile zählt ihr eigener offener Betrag
-      if (treffer) sammelbeleg = { ...treffer, amount: tx.open };
-    }
-  }
+  // Sammelrechnung des Monats an einer Gebührenzeile eines Zahlungsdienstleisters (#680)
+  const { sammelrechnung, sammelbeleg } = await sammelrechnungVorschlag(tx, account?.purpose, items);
   let direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
   let counterpart: TransferCounterpart | null = null;
   if (direct?.kind === "geldtransit" && account) {
@@ -794,7 +759,7 @@ export async function transactionDetail(id: string) {
   // Lastschriften aus Haben (#445): Sammelgutschrift aufteilen oder Rücklastschrift zuordnen
   const lastschrift = await directDebitMatch(tx);
   // Der Sammelbeleg des Monats steht ganz oben, damit er in der Oberfläche als Treffer erscheint
-  const vorschlaege = sammelbeleg ? [sammelbeleg, ...suggestions.filter((s) => s.item.id !== sammelbeleg!.item.id)] : suggestions;
+  const vorschlaege = sammelbeleg ? [sammelbeleg, ...suggestions.filter((s) => s.item.id !== sammelbeleg.item.id)] : suggestions;
   return {
     lastschrift,
     transaction: tx,

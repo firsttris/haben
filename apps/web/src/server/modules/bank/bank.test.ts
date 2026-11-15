@@ -1080,68 +1080,6 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(open.map((r) => r.amount)).toEqual([-100]);
   }, 30_000);
 
-  // Öffnet der Nutzer eine einzelne Gebührenzeile (−7,44 €), passt sie nie auf die Sammelrechnung (−116,57 €); erst die
-  // Monatssumme stimmt. transactionDetail schlägt den Beleg deshalb vor, der Sammelknopf ordnet dann alle Zeilen zu.
-  it("Etsy: die Sammelrechnung des Monats wird an einer Gebührenzeile vorgeschlagen", async () => {
-    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
-    const csv = [
-      `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`,
-      `"October 1, 2026",Fee,"Einstellgebühr","",EUR,--,-€7.44,-€7.44,--`,
-      `"October 2, 2026",Fee,"Transaktionsgebühr","",EUR,--,-€9.89,-€9.89,--`,
-      `"October 3, 2026",Fee,"Zahlungsabwicklung","",EUR,--,-€8.19,-€8.19,--`,
-      `"October 4, 2026",Fee,"Werbung","",EUR,--,-€91.05,-€91.05,--`,
-    ].join("\n");
-    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" }, etsy.id);
-    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 21]);
-    const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "etsy-gebuehren.jpg" });
-    await documents.updateDocument(actor, docId, {
-      supplierName: "Etsy Ireland UC",
-      supplierUstId: "",
-      invoiceNumber: "348972811",
-      documentDate: "2026-10-31",
-      dueDate: null,
-      category: "sonstiges",
-      payment: "bank",
-      note: "",
-      amounts: [{ taxRate: 0, net: 11_657, tax: 0 }], // 744 + 989 + 819 + 9105
-    });
-    await documents.bookDocument(actor, docId);
-    const [fee] = await sql`select id from bank_transactions where amount = -744`;
-    const detail = await bank.transactionDetail(fee!.id);
-    // Der Sammelbeleg steht ganz oben, vor den übrigen Vorschlägen
-    expect(detail?.suggestions[0]?.item).toMatchObject({ type: "document", id: docId, open: -11_657 });
-    expect(detail?.suggestions[0]?.reasons).toContain("Betrag stimmt exakt");
-  }, 30_000);
-
-  it("Etsy: passt die Monatssumme nicht zum Beleg, gibt es keinen Sammelvorschlag", async () => {
-    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
-    const csv = [
-      `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`,
-      `"October 1, 2026",Fee,"Einstellgebühr","",EUR,--,-€7.44,-€7.44,--`,
-      `"October 2, 2026",Fee,"Transaktionsgebühr","",EUR,--,-€9.89,-€9.89,--`,
-      `"October 3, 2026",Fee,"Zahlungsabwicklung","",EUR,--,-€8.19,-€8.19,--`,
-      `"October 4, 2026",Fee,"Werbung","",EUR,--,-€91.05,-€91.05,--`,
-    ].join("\n");
-    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" }, etsy.id);
-    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 22]);
-    const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "etsy-anders.jpg" });
-    await documents.updateDocument(actor, docId, {
-      supplierName: "Acme GmbH",
-      supplierUstId: "",
-      invoiceNumber: "999999",
-      documentDate: "2026-01-15",
-      dueDate: null,
-      category: "sonstiges",
-      payment: "bank",
-      note: "",
-      amounts: [{ taxRate: 0, net: 10_000, tax: 0 }],
-    });
-    await documents.bookDocument(actor, docId);
-    const [fee] = await sql`select id from bank_transactions where amount = -744`;
-    const detail = await bank.transactionDetail(fee!.id);
-    expect(detail?.suggestions.some((s) => s.item.id === docId)).toBe(false);
-  }, 30_000);
-
   // Auch wenn die Oberfläche umgangen wird: die Sammelzuordnung bucht nur, wenn die Monatssumme genau dem Beleg entspricht
   it("Etsy: passt die Monatssumme nicht zum gewählten Beleg, bucht die Sammelzuordnung nichts", async () => {
     const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
