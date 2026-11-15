@@ -188,6 +188,22 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
       expect(q.journal).toEqual([0, 17_254, 319, 0]);
     });
 
+    it(`${n} Kursdifferenz nach der Ausführung: die ganze Vorsteuer bleibt im Monat der Ausführung`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const id = await beleg({
+        datum: "2026-10-20",
+        von: "2026-11-01",
+        bis: "2026-11-30",
+        amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 100_000, originalTax: 19_000 }],
+        extra: { currency: "USD", exchangeRate: "1,0812" },
+      });
+      const [doc] = await sql`select gross, tax from documents where id = ${id}`;
+      const umsatz = await bankumsatz(-(Math.abs(doc!.gross as number) - 2_000), "2026-12-05");
+      await bank.allocateWithRest(actor, { transactionId: umsatz, target: { kind: "document", documentId: id }, rest: "kursdifferenz" });
+      const q = await beideQuellen(M([2026, 10], 3));
+      expect({ ...q, zw: await zw() }).toEqual({ journal: [0, doc!.tax, 0], nebenbuecher: [0, doc!.tax, 0], zw: 0 });
+    });
+
     it(`${n} Privatanteil, zwei Steuersätze, Teilzahlung vor der Ausführung: kumuliert gerundet`, async () => {
       await firma({ journalAb: 2026, ...p });
       const id = await beleg({
