@@ -16,7 +16,7 @@ import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { waitingReceipt } from "./fastbill-belege.ts";
-import { FastbillError, fastbillCredentials, newFastbillClient, otherFastbillCalls } from "./fastbill-zugang.ts";
+import { FastbillError, fastbillCredentials, forgetOtherFastbillCalls, newFastbillClient, otherFastbillCalls } from "./fastbill-zugang.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
@@ -110,6 +110,8 @@ export async function startFastbillImport(actor: string, options: { wait?: boole
     if (isUniqueViolation(error, "lexoffice_imports_one_running")) throw new FastbillError("Ein Abruf läuft bereits.");
     throw error;
   });
+  // Der Lauf führt die Aufrufe des Artikel-Abrufs ab jetzt in fastbillCalls; im Speicher zählten sie sonst doppelt
+  forgetOtherFastbillCalls();
   const id = row!.id;
   const controller = new AbortController();
   running.set(id, controller);
