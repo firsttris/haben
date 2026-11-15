@@ -5,3 +5,4 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { betriebsStatus, statusAlsText, type BetriebsStatus, type BetriebsStatusOptions } from "./status.ts";
+export { appVersionsForYear, listAppVersions, type AppVersionEntry } from "./versionen.ts";

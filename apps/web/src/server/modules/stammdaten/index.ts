@@ -6,6 +6,7 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { insertImportedArticles, insertImportedContacts, planArticleImport, planContactImport } from "./csv-import.ts";
+export { applyDatevContactImport, planDatevContactImport, type DatevContactImportPlan } from "./datev-kontakte-import.ts";
 export { articleInputSchema, createArticle, listArticles, setArticleArchived, updateArticle } from "./articles.ts";
 export {
   companyIssues,
@@ -32,11 +33,13 @@ export {
   getContact,
   listContactChoices,
   listContacts,
+  searchContacts,
   setContactArchived,
   setContactIbanIfEmpty,
   updateContact,
   type Contact,
   type ContactChoice,
+  type ContactHit,
   type ContactInput,
   type ContactRole,
   type UstIdMatch,

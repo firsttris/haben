@@ -147,10 +147,12 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | --- | --- | --- |
 | `audit_log` | Jede Änderung mit Zeitpunkt, Nutzer, Tabelle, altem und neuem Wert; als Hash-Kette mit Nummer (`seq`), Vorgänger-Hash und Hash | nur anhängen, auch kein `TRUNCATE` |
 | `audit_chain` | Kopf der Hash-Kette: letzte Nummer und Hash, genau eine Zeile | nur vom Trigger auf `audit_log` fortgeschrieben |
+| `app_versions` | Eingesetzte Haben- und PostgreSQL-Version mit Startzeitpunkt, eine Zeile je Wechsel einer der beiden (auch beim Zurückrollen) | nur anhängen (`UPDATE`, `DELETE` und `TRUNCATE` abgelehnt), über `audit_log` mitgeschnitten |
 | `seals` | Siegel festgeschriebener Buchungen, Rechnungen, Belege, Voranmeldungen und Lohnabrechnungen sowie jeder Zeile in Kassenbuch, Zuordnungen, Pauschalen, AfA und der Stornos von Belegen und Lohnabrechnungen: SHA-256 über Datensatz und abhängige Zeilen, mit den Spalten, über die er gebildet ist | nur anhängen, Audit |
 | `user`, `session`, `account`, `verification`, `passkey` | Tabellen von Better Auth samt Passkey-Plugin; `user` trägt Rolle (`inhaber`, `steuerberatung`) und Sperre | `user`: genau ein lokaler Inhaber (`user_inhaber_single`), lokale Rolle nur durch den auditierten Offline-Rückweg änderbar, Audit; Passwörter und Sitzungen ohne Audit |
 | `invitations` | Einladungen für die Steuerberatung: SHA-256 des Tokens, Rolle, Bezeichnung, Frist, eingelöst bzw. zurückgezogen | nur einmal einlösen oder zurückziehen, nie löschen; Audit |
 | `user_logins` | Jede Anmeldung mit Konto, Rolle und Art (Passwort, Passkey, Einrichtung, SSO) | nur anhängen, Audit |
+| `password_changes` | Jeder Passwortwechsel mit Konto und Zeitpunkt, ohne Passwort oder Hash | nur anhängen, Audit |
 | `sso_issuers`, `sso_takeovers` | Einrichtung je Issuer und Betreiberzuordnung | nur anhängen, Audit |
 | `sso_roles` | Zuletzt bestätigte externe Rolle je Konto und Issuer | Audit |
 | `token_events`, `local_owner_recoveries` | Token-Verwaltung ohne Geheimnisse und Offline-Vorbereitung eines lokalen Inhabers | nur anhängen, Audit |
@@ -158,3 +160,4 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `mcp_oauth_clients` | Per Dynamic Client Registration angemeldete OAuth-Clients: `client_id`, SHA-256 des Secrets, Name, Redirect-URIs; ohne Verbindung nach einem Tag gelöscht | ohne Audit (Zugangsdaten) |
 | `mcp_calls` | Aufrufe über MCP und REST-API ohne Inhalte: Token, Werkzeug, Erfolg, Dauer; nach 90 Tagen gelöscht | ohne Audit |
 | `backup_status` | Läufe des Backup-Containers (tägliches Backup, wöchentlicher Test-Restore) mit Ergebnis, Snapshot und Größe; der Container schreibt, die App liest | ohne Audit und Siegel (Betriebsdaten) |
+| `file_checks` | Läufe der Vollprüfung der Dateien im Dokumentenspeicher: Zeitpunkt, Anzahl der Dateien, Zahl der Befunde und die ersten 100 davon (Tabelle, Datensatz, Dateiname, Befund); nach 90 Tagen gelöscht | ohne Audit und Siegel (Betriebsdaten) |

@@ -33,7 +33,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Rahmenvertrag oder Anrede; Bestell-, Auftrags- und Lieferscheinnummer haben eigene Felder. Vorbelegt ist sie mit der Standard-Einleitung für Rechnungen aus den [Firmendaten](einrichtung.md). **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
 9. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
 10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein. Für private Grundstücksleistungen darunter den [Aufbewahrungshinweis](#aufbewahrungshinweis-bei-grundstücksleistungen) einschalten.
-11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt in einem Dialog nach und nennt Nummer, Kunde und Betrag; erst **Festschreiben** dort führt es aus.
+11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt in einem Dialog nach und nennt Nummer, Kunde und Betrag; erst **Festschreiben** dort führt es aus. Liegt das Rechnungsdatum vor dem der zuletzt festgeschriebenen Rechnung im Nummernkreis, weist der Dialog darauf hin; festschreiben lässt sich trotzdem.
 
 Die [Vorschau](#vorschau) zeigt die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
 
@@ -50,7 +50,7 @@ Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet de
 - **Neben Formular anheften** fährt die Vorschau von rechts neben das Formular. Sie bleibt beim Scrollen stehen und scrollt selbst, wenn die Rechnung länger ist als das Fenster. **Vergrößern** lässt sie breiter über das Formular fahren, **Ausblenden** gibt dem Formular wieder die volle Breite.
 - **Vorschau abheften** macht dasselbe wie **Ausblenden**.
 
-Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
+Haben merkt sich die Wahl in diesem Browser, für Rechnungen, Angebote und Mahnungen gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
 
 **Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Schrift, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer, Artikelnummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein. Ein eigenes Layout zeigt nur die Einstellungen, deren Felder es verwendet ([Eigene Belegvorlagen](belegvorlagen.md#einstellungen-der-gestaltung)).
 
@@ -227,7 +227,7 @@ Der Editor listet alles auf, was noch fehlt. Geprüft werden:
 
 - Firmendaten: Name, Anschrift, E-Mail-Adresse, IBAN, Steuernummer oder USt-IdNr.
 - Kunde gewählt, mindestens eine Position, keine Position mit Betrag 0.
-- Umsatzsteuer: Außer bei „Regulär“ müssen alle Positionen 0 % haben. Reverse Charge braucht deine USt-IdNr. in den Firmendaten und die USt-IdNr. des Kunden, und der Kunde darf nicht in Deutschland sitzen. Die innergemeinschaftliche Lieferung braucht deine USt-IdNr., eine USt-IdNr. des Kunden aus einem anderen EU-Land und einen Kunden in einem anderen EU-Land. Die Ausfuhrlieferung braucht deine USt-IdNr. und einen Kunden außerhalb der EU. Bei „Leistung ins Nicht-EU-Ausland“ darf der Kunde nicht in Deutschland sitzen. „Steuerfrei nach § 4 UStG“ braucht die Befreiungsvorschrift.
+- Umsatzsteuer: Außer bei „Regulär“ müssen alle Positionen 0 % haben. Reverse Charge braucht deine USt-IdNr. in den Firmendaten und die USt-IdNr. des Kunden, und der Kunde darf nicht in Deutschland sitzen. Die innergemeinschaftliche Lieferung braucht deine USt-IdNr., eine USt-IdNr. des Kunden aus einem anderen EU-Land und einen Kunden in einem anderen EU-Land. Die Ausfuhrlieferung braucht deine USt-IdNr. und einen Kunden außerhalb der EU. Monaco zählt dabei zu Frankreich ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)). Bei „Leistung ins Nicht-EU-Ausland“ darf der Kunde nicht in Deutschland sitzen. „Steuerfrei nach § 4 UStG“ braucht die Befreiungsvorschrift.
 - Kleinunternehmer: Bist du in den Einstellungen als Kleinunternehmer eingetragen, lässt sich nur eine Kleinunternehmer-Rechnung festschreiben; bist du es nicht, keine.
 - Eine Rechnung muss einen positiven Gesamtbetrag haben, eine Rechnungskorrektur einen negativen.
 - GmbH und UG: Fehlen Pflichtangaben nach § 35a GmbHG (Registergericht, Registernummer, Geschäftsführer), zeigt der Editor einen Hinweis. Festschreiben geht trotzdem, siehe [Pflichtangaben einer GmbH oder UG](#pflichtangaben-einer-gmbh-oder-ug).
@@ -311,7 +311,7 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 | Innergemeinschaftliche Lieferung | 8125 | 4125 | `IGL` (Kz 41) |
 | Ausfuhrlieferung ins Drittland | 8120 | 4120 | `Ausfuhr` (Kz 43) |
 | Steuerfrei nach § 4 UStG | 8100 | 4100 | `Steuerfrei` (Kz 48) |
-| Kleinunternehmer nach § 19 UStG | 8195 | 4185 | `KU` (keine Kennzahl) |
+| Kleinunternehmer nach § 19 UStG | 8192 | 4184 | `KU` (keine Kennzahl) |
 
 > [!IMPORTANT]
 > Die Kontenzuordnung stammt aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
@@ -435,7 +435,7 @@ Die Seite einer Vorlage listet alle daraus erzeugten Rechnungen. Löschen lässt
 
 Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und einen Status. Der Status wird bei jedem Aufruf aus den Zuordnungen im Bankabgleich und den Bareinnahmen im Kassenbuch abgeleitet; gespeichert ist nur „Entwurf“ oder „festgeschrieben“.
 
-Die Liste ist nach Rechnungsdatum sortiert, neueste zuerst, bei gleichem Datum nach Rechnungsnummer absteigend. In derselben Reihenfolge zeigt die Übersicht unter **Letzte Rechnungen** die fünf jüngsten festgeschriebenen Rechnungen.
+Die Liste ist nach Rechnungsdatum sortiert, neueste zuerst, bei gleichem Datum nach Rechnungsnummer absteigend. Das Suchfeld darüber filtert nach Nummer, Kunde, Bestellnummer, eigener Auftragsnummer und Bruttobetrag; über alle Bereiche sucht die [Schnellsuche](suche.md). In derselben Reihenfolge zeigt die Übersicht unter **Letzte Rechnungen** die fünf jüngsten festgeschriebenen Rechnungen.
 
 Unter dem Status steht in Grau, was er für diese Rechnung gerade heißt. Überfällige Rechnungen sind farbig hinterlegt, auch die Zeile darunter, damit sie in der Liste auffallen; ein Entwurf hat einen leeren Ring statt eines Punkts.
 

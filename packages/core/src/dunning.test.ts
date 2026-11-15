@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysOverdue, dunningAmounts, lateInterest } from "./dunning.ts";
+import { daysOverdue, dunningAmounts, dunningFeeError, lateInterest } from "./dunning.ts";
 import { computeEuer } from "./euer.ts";
 import { directPosting } from "./posting.ts";
 
@@ -39,5 +39,17 @@ describe("Mahnung", () => {
     ]);
     const euer = computeEuer(2026, [{ kind: "mahnerloes", date: "2026-10-05", amount: 4_500 }]);
     expect(euer.einnahmen.find((l) => l.key === "einnahmenSteuerfrei")?.amount).toBe(4_500);
+  });
+});
+
+describe("Mahngebühr prüfen", () => {
+  it("lässt leer, 0 und Beträge bis 1.000 € durch", () => {
+    for (const text of ["", "  ", "0", "5,00", "1.000,00"]) expect(dunningFeeError(text), text).toBeNull();
+  });
+
+  it("meldet Unlesbares, Negatives und mehr als 1.000 €", () => {
+    expect(dunningFeeError("fünf")).toContain("etwa 5,00");
+    expect(dunningFeeError("-5,00")).toContain("etwa 5,00");
+    expect(dunningFeeError("1.000,01")).toMatch(/höchstens 1\.000,00\s€/);
   });
 });

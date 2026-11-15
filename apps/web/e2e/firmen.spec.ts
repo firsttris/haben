@@ -43,8 +43,10 @@ test("Inhaber klappt die Zeile auf und sieht nur die anderen Firmen", async () =
   await expect(nav().getByRole("link", { name: `Haben ${FIRMA}` })).toBeVisible();
   await expect(knopf()).toHaveAttribute("aria-expanded", "false");
   await expect(auswahl()).toHaveCount(0);
-  // Gleich nach der Marke in der Tab-Reihenfolge: Sprunglink, Marke, Zeile
+  // Die Schnellsuche liegt vor dem rollenden Menü, „Firma wechseln“ ist dessen erster Tab-Stopp.
   for (let i = 0; i < 3; i++) await page.keyboard.press("Tab");
+  await expect(nav().getByRole("button", { name: "Schnellsuche" })).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(knopf()).toBeFocused();
 
   await page.keyboard.press("Enter");
@@ -305,5 +307,36 @@ test.describe("mit 20 anderen Firmen", () => {
       .getByRole("list")
       .evaluate((liste) => ({ rollt: liste.scrollHeight > liste.clientHeight, breiter: liste.scrollWidth - liste.clientWidth }));
     expect(gemessen).toEqual({ rollt: true, breiter: 0 });
+  });
+
+  test("begrenzt im eingeklappten Flyout die Liste auf sechseinhalb Zeilen und leert die Suche beim Wiederöffnen", async () => {
+    await gehe(page, `${adresse}/`);
+    await nav().getByRole("button", { name: "Seitenleiste einklappen" }).click();
+    await knopf().click();
+
+    const gruppe = auswahl();
+    const suche = gruppe.getByRole("searchbox", { name: "Firma suchen" });
+    await expect(suche).toBeFocused();
+    await expect(gruppe.getByRole("link")).toHaveCount(20);
+    // Eingeklappt ist der Firmenname unter „Haben“ verborgen; der Kopf des Flyouts nennt die eigene Firma (#504)
+    expect(await gruppe.locator(".nav-flyout-title").evaluate((kopf) => getComputedStyle(kopf, "::after").content)).toBe(JSON.stringify(FIRMA));
+
+    const gemessen = await gruppe.getByRole("list").evaluate((liste) => ({
+      maxHeight: getComputedStyle(liste).maxHeight,
+      rollt: liste.scrollHeight > liste.clientHeight,
+    }));
+    expect(gemessen).toEqual({ maxHeight: "234px", rollt: true });
+
+    await suche.fill("WERK");
+    await expect(gruppe.getByRole("link")).toHaveText([SUED.name]);
+
+    await page.keyboard.press("Escape");
+    await expect(knopf()).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(suche).toHaveValue("");
+    await expect(gruppe.getByRole("link")).toHaveCount(20);
+
+    await page.keyboard.press("Escape");
+    await nav().getByRole("button", { name: "Seitenleiste ausklappen" }).click();
   });
 });

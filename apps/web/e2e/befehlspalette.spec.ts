@@ -1,0 +1,96 @@
+import { expect, test } from "@playwright/test";
+import { SESSION } from "./daten.ts";
+
+/**
+ * Befehlspalette (#617): Strg+K und Knopf in der Navigation öffnen sie auf jeder Seite,
+ * Seiten erscheinen sofort, Kontakte/Rechnungen/Angebote/Belege ab zwei Zeichen mit Link
+ * zur gefilterten Liste (?suche=...), andere offene Dialoge werden nicht überlagert.
+ */
+
+test.use({ storageState: SESSION });
+
+test("Knopf in der Navigation und Strg+K öffnen die Befehlspalette und navigieren zu Seiten", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  await page
+    .getByRole("navigation", { name: "Hauptnavigation" })
+    .getByRole("button", { name: /Schnellsuche/ })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+  await expect(dialog).toBeVisible();
+
+  const input = dialog.getByRole("combobox");
+  await expect(input).toBeFocused();
+  await input.fill("Dauerbe");
+  await expect(dialog.getByRole("option", { name: /Dauerbelege/ })).toBeVisible();
+  await page.keyboard.press("Enter");
+
+  await expect(dialog).toBeHidden();
+  await page.waitForURL(/\/dauerbelege$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Dauerbelege" })).toBeVisible();
+});
+
+test("findet eine Rechnung über ihre Nummer und öffnet „Alle in Rechnungen anzeigen“ mit Suchfilter", async ({ page }) => {
+  await page.goto("/rechnungen", { waitUntil: "networkidle" });
+  const ersteZeile = page.locator("section[aria-label='Rechnungsliste'] a.table-row").first();
+  const nummer = (await ersteZeile.locator(".mono").textContent())?.trim() ?? "";
+  expect(nummer).toMatch(/\d/);
+  const statusDetail = (await ersteZeile.locator(".status-detail").textContent())?.trim();
+  expect(statusDetail).toBeTruthy();
+
+  await page.goto("/belege", { waitUntil: "networkidle" });
+  await page.keyboard.press("Control+k");
+  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+  const input = dialog.getByRole("combobox");
+  await input.fill(nummer);
+
+  const rechnungTreffer = dialog.getByRole("option", { name: new RegExp(nummer) });
+  await expect(rechnungTreffer.locator(".status-detail")).toHaveText(statusDetail ?? "");
+  const alle = dialog.getByRole("link", { name: "Alle anzeigen: Rechnungen" });
+  await expect(alle).toBeVisible();
+
+  await alle.click();
+  await expect(dialog).toBeHidden();
+  await page.waitForURL(new RegExp(`/rechnungen\\?suche=${encodeURIComponent(nummer)}`));
+  await expect(page.getByLabel("Rechnungen durchsuchen")).toHaveValue(nummer);
+  await expect(page.locator("section[aria-label='Rechnungsliste'] a.table-row")).toHaveCount(1);
+
+  // Derselbe Suchbegriff über die Palette direkt öffnet die Detailseite der Rechnung
+  await page.keyboard.press("Control+k");
+  await expect(dialog).toBeVisible();
+  await input.fill(nummer);
+  await expect(rechnungTreffer).toBeVisible();
+  await rechnungTreffer.click();
+  await page.waitForURL(/\/rechnungen\/[0-9a-f-]+$/);
+  await page.keyboard.press("Control+k");
+  await expect(dialog.getByRole("group", { name: "Zuletzt angesehen" }).getByRole("option", { name: new RegExp(nummer) })).toBeVisible();
+});
+
+test("öffnet nicht über einem anderen bereits offenen Dialog", async ({ page }) => {
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Kunde", exact: true }).click();
+  await page.getByRole("listbox", { name: "Treffer" }).getByRole("option", { name: "Neuen Kontakt anlegen" }).click();
+  const kontaktDialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+  await expect(kontaktDialog).toBeVisible();
+
+  await page.keyboard.press("Control+k");
+  await expect(page.getByRole("dialog", { name: "Befehlspalette" })).toBeHidden();
+  await expect(kontaktDialog).toBeVisible();
+});
+
+test("Schnellsuche ist am Handy neben dem geschlossenen Menü erreichbar", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const menu = page.getByRole("button", { name: "Menü" });
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
+  const search = page.getByRole("button", { name: "Schnellsuche" });
+  const searchBox = await search.boundingBox();
+  const menuBox = await menu.boundingBox();
+  expect(searchBox!.x + searchBox!.width).toBeLessThan(menuBox!.x);
+  await search.click();
+  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+  await expect(dialog.getByRole("combobox")).toBeFocused();
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(search).toBeFocused();
+});

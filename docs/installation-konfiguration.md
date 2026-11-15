@@ -79,6 +79,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `LEXOFFICE_API_URL` | nein | Andere Basis-URL der Lexware-Office-API. Standard `https://api.lexware.io/v1` | `https://api.lexoffice.io/v1` |
 | `SEVDESK_API_URL` | nein | Andere Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert. Standard `https://my.sevdesk.de/api/v1`; Ablauf in [Umzug aus sevDesk](sevdesk.md) | `https://my.sevdesk.de/api/v1` |
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
+| `HABEN_COMMIT` | nein | Commit, aus dem das Image gebaut ist; `haben status` zeigt ihn hinter der Version ([Image](installation.md#image)). Im Image aus dem Build-Argument `HABEN_COMMIT` gesetzt, ohne Angabe leer | `0123abc4567def890123abc4567def890123abcd` |
 | `HABEN_EINVOICE_DIR` | nein | Verzeichnis von `packages/einvoice` (Typst-Vorlage und Schriften für das Rechnungs-PDF). Im Image gesetzt | `/app/packages/einvoice` |
 
 Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` und `MIGRATION_DATABASE_URL` wie eingetragen, ohne `DATABASE_URL` den bisherigen Zugang aus `DB_PASSWORD`; `BETTER_AUTH_URL` aus `DOMAIN`, `BETTER_AUTH_SECRET` aus `AUTH_SECRET`, `HABEN_ENCRYPTION_KEY` aus `ENCRYPTION_KEY`). Bei den Quadlets kommen die geheimen Werte aus Podman Secrets, der Rest aus `haben.env`; für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
@@ -96,4 +97,4 @@ In den App-Container reicht `compose.yml` nur die Variablen durch, die dort unte
 | TLS-Zertifikate von Caddy | Volume `haben-caddy` |
 | Backup (restic-Repository), wenn `RESTIC_REPOSITORY` nicht gesetzt ist | Volume `haben-backups` (Compose: `backups`), im Backup-Container `/backups` |
 
-Belege und Rechnungen müssen nach GoBD zehn Jahre aufbewahrt werden. Beide Volumes mit Buchhaltungsdaten gehören deshalb ins Backup.
+Bücher und Aufzeichnungen bewahrst du 10 Jahre auf, Buchungsbelege wie Rechnungen 8 Jahre (§ 147 Abs. 3 AO, siehe [Aufbewahrung](auswertungen.md#aufbewahrung)). Beide Volumes mit Buchhaltungsdaten gehören deshalb ins Backup.

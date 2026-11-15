@@ -60,7 +60,7 @@ export const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
 const isoDate = z.iso.date();
 const cents = z.number().int().min(-100_000_000_00).max(100_000_000_00);
 
-export const documentInputSchema = z.object({
+const documentFields = z.object({
   supplierName: z.string().trim().max(200),
   supplierUstId: z.string().trim().max(20),
   /** Aus den Kontakten gewählter Lieferant; null = frei eingetragen */
@@ -68,6 +68,9 @@ export const documentInputSchema = z.object({
   invoiceNumber: z.string().trim().max(100),
   documentDate: isoDate.nullable(),
   dueDate: isoDate.nullable(),
+  /** Leistungszeitraum aus dem Beleg (#693): „ausgeführt am“ ist der letzte Tag, siehe leistungsdatum() in @haben/core */
+  serviceFrom: isoDate.nullable().default(null),
+  serviceTo: isoDate.nullable().default(null),
   category: z.enum(EXPENSE_CATEGORY_KEYS).nullable(),
   /** Eigenes Sachkonto (#270) der Kategorie; fehlt = das Konto der Kategorie. Mit Aufteilung stehen die Konten in den Zeilen */
   ownAccountId: z.uuid().nullable().default(null),
@@ -128,6 +131,12 @@ export const documentInputSchema = z.object({
     .refine((rows) => new Set(rows.map((r) => r.taxRate)).size === rows.length, "Jeder Steuersatz nur einmal"),
   /** Aufteilung auf mehrere Kategorien (#271); leer = die Kategorie oben gilt für den ganzen Beleg */
   splits: z.array(splitInputSchema).max(50).default([]),
+});
+
+// wie bei Rechnungen (invoices.ts): sonst nähme leistungsdatum() ein Ende vor dem Beginn als „ausgeführt am“
+export const documentInputSchema = documentFields.refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
+  message: "Leistungszeitraum endet vor seinem Beginn",
+  path: ["serviceTo"],
 });
 
 /** Höchstwert der int4-Spalten: umgerechnete Beträge (kleiner Kurs) dürfen ihn nicht sprengen */
@@ -211,6 +220,9 @@ function fieldsFromEInvoice(invoice: IncomingInvoice): ExtractedFields {
     invoiceNumber: invoice.number,
     documentDate: invoice.issueDate,
     dueDate: invoice.dueDate ?? null,
+    // BT-73/BT-74 der E-Rechnung: der Leistungszeitraum ist die beste Vorbelegung, die ein Beleg mitbringt (#693)
+    serviceFrom: invoice.serviceFrom ?? null,
+    serviceTo: invoice.serviceTo ?? null,
     currency: invoice.currency,
     category: "sonstiges",
     amounts,
@@ -252,7 +264,6 @@ async function applyFields(
     null,
     company.tageskurs,
   );
-  const extracted = amountsByRate(fields.amounts).map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax }));
   // Mit dem Kurs des Monats ist der Hinweis auf den fehlenden Kurs erledigt
   const rateWarnings = rate.exchangeRate ? fields.warnings.filter((w) => !w.startsWith(`Währung ${fields.currency}`)) : fields.warnings;
   const warnings = hint ? [hint, ...rateWarnings] : rateWarnings;
@@ -262,8 +273,15 @@ async function applyFields(
   await withActor(actor, async (tx) => {
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, id)).for("update");
     if (!doc || doc.lockedAt) return;
-    // Neu ausgelesen bleibt die Steuerbehandlung des Belegs; § 13b und Erwerbsteuer rechnet der Server aus dem Netto
-    const amounts = euroAmounts({ currency: fields.currency, exchangeRate: rate.exchangeRate, reverseCharge: doc.reverseCharge, amounts: extracted });
+    // Neu ausgelesen bleibt die Steuerbehandlung des Belegs; § 13b und Erwerbsteuer rechnet der Server aus dem Netto.
+    // Ist am Beleg noch nichts gewählt, gilt der Vorschlag aus dem Beleg (Reverse-Charge-Hinweis, #1054), nicht aber bei
+    // einer eigenen Ausgangsrechnung: Dort schuldet der Kunde die Steuer (§ 13b Abs. 5 UStG)
+    const reverseCharge = doc.reverseCharge ?? (hint ? null : (fields.reverseCharge ?? null));
+    // Der Beleg weist bei § 13b 0 % aus; gebucht wird mit dem Satz, den der Leistungsempfänger schuldet (§ 12 Abs. 1
+    // UStG, 19 %; einen ermäßigten Satz stellt der Nutzer von Hand ein)
+    const rows = reverseCharge ? fields.amounts.map((a) => (a.taxRate === 0 ? { ...a, taxRate: 1900 as const } : a)) : fields.amounts;
+    const extracted = amountsByRate(rows).map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax }));
+    const amounts = euroAmounts({ currency: fields.currency, exchangeRate: rate.exchangeRate, reverseCharge, amounts: extracted });
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
     if (amounts.length > 0) {
       await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
@@ -280,6 +298,8 @@ async function applyFields(
         invoiceNumber: fields.invoiceNumber,
         documentDate: fields.documentDate,
         dueDate: fields.dueDate,
+        serviceFrom: fields.serviceFrom,
+        serviceTo: fields.serviceTo,
         currency: fields.currency,
         ...rate,
         category,
@@ -287,7 +307,8 @@ async function applyFields(
         ownAccountId: null,
         ...(payment ? { payment } : {}),
         privateShare,
-        ...totalsOf(amounts, doc.reverseCharge),
+        ...totalsOf(amounts, reverseCharge),
+        ...(reverseCharge && !doc.reverseCharge ? { reverseCharge } : {}),
         extractedBy,
         extractionStatus: "fertig",
         extractionError: warnings.length > 0 ? warnings.join(" · ") : null,

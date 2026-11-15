@@ -1,5 +1,5 @@
 import { notFound } from "@tanstack/react-router";
-import { invoicesSentByMail, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
+import { invoicesSentByMail, leistungsmonatHinweisFuer, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
@@ -20,6 +20,7 @@ import {
   finalizeIssues,
   getInvoice,
   invoiceSummary,
+  lastFinalizedByCircle,
   listInvoices,
   newDraftDefaults,
   numbering,
@@ -81,9 +82,19 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 
 /** Editor-Daten samt offenen Abschlagsrechnungen für die Schlussrechnung */
 async function invoiceEditorContext() {
+  const [context, abschlaege, lastFinalized, quotes] = await Promise.all([
+    editorContext("rechnung"),
+    openAbschlaege(),
+    lastFinalizedByCircle(),
+    db
+      .select({ id: schema.quotes.id, contactId: schema.quotes.contactId, number: schema.quotes.number, issueDate: schema.quotes.issueDate })
+      .from(schema.quotes)
+      .where(eq(schema.quotes.status, "final"))
+      .orderBy(asc(schema.quotes.issueDate)),
+  ]);
   return {
-    ...(await editorContext("rechnung")),
-    abschlaege: (await openAbschlaege()).map(({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, priceMode, propertyRetention }) => ({
+    ...context,
+    abschlaege: abschlaege.map(({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, priceMode, propertyRetention }) => ({
       id,
       contactId,
       quoteId,
@@ -95,14 +106,9 @@ async function invoiceEditorContext() {
       priceMode,
       propertyRetention,
     })),
+    lastFinalized,
     /** Festgeschriebene Angebote für den Bezug von Abschlags- und Schlussrechnungen */
-    quotes: (
-      await db
-        .select({ id: schema.quotes.id, contactId: schema.quotes.contactId, number: schema.quotes.number, issueDate: schema.quotes.issueDate })
-        .from(schema.quotes)
-        .where(eq(schema.quotes.status, "final"))
-        .orderBy(asc(schema.quotes.issueDate))
-    ).map((q) => ({ ...q, number: q.number ?? "" })),
+    quotes: quotes.map((q) => ({ ...q, number: q.number ?? "" })),
   };
 }
 
@@ -117,12 +123,15 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
     const result = await getInvoice(data);
     if (!result || (context.user.role !== "inhaber" && result.invoice.status === "draft")) throw notFound();
     const issues = result.invoice.status === "draft" ? await finalizeIssues(data) : [];
+    // Hinweis statt Sperre (#694): Der Leistungsmonat kann in einer schon übermittelten Voranmeldung liegen.
+    const leistungsmonat = await leistungsmonatHinweisFuer(result.invoice);
     // Mahnungen und ob die Rechnung gerade überfällig ist (offen und Fälligkeit vorbei)
     const listed = result.invoice.status === "final" ? (await listInvoices(today(), data))[0] : undefined;
     return {
       ...result,
       invoice: withoutFiles(result.invoice),
       issues,
+      leistungsmonat,
       attachments: (await listInvoiceAttachments(data)).map(({ id, filename, size }) => ({ id, filename, size })),
       dunnings: await dunningsFor([data]),
       mails: result.invoice.status === "final" ? await mailsForInvoice(data) : [],

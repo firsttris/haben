@@ -101,6 +101,25 @@ describe.skipIf(!testDatabaseUrl)("Eigene Ausgangsrechnung beim Beleg-Upload erk
     expect(document.extractionError).toMatch(/^Das ist eine eigene Ausgangsrechnung.*· Datum unleserlich$/);
   });
 
+  it("eigene Rechnung mit Reverse-Charge-Hinweis an einen Kunden in der EU: kein § 13b am Beleg, Beträge wie ausgelesen", async () => {
+    // Hier ist der Nutzer der leistende Unternehmer; die Steuer schuldet der Kunde, nicht er (§ 13b Abs. 5 UStG)
+    const rc = {
+      ...kiExtraction,
+      empfaenger: "Kunde GmbH",
+      empfaengerUstId: "ATU12345678",
+      betraege: [{ steuersatz: "0" as const, netto: "500.00", steuer: "0.00" }],
+      brutto: "500.00",
+      kategorie: "fremdleistung" as const,
+      reverseCharge: "eu" as const,
+    };
+    vi.mocked(extraction.extractDocument).mockResolvedValueOnce({ extraction: rc, fields: extraction.toFields(rc) });
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 9]), filename: "rc.jpg" });
+    const result = (await documents.getDocument(id))!;
+    expect(result.document.extractionError).toMatch(/^Das ist eine eigene Ausgangsrechnung/);
+    expect(result.document).toMatchObject({ reverseCharge: null, category: null, net: 50_000, tax: 0, gross: 50_000 });
+    expect(result.amounts.map((a) => ({ taxRate: a.taxRate, net: a.net, tax: a.tax }))).toEqual([{ taxRate: 0, net: 50_000, tax: 0 }]);
+  });
+
   it("KI-Auslesung eines fremden Belegs: Kategorie wie bisher, kein Hinweis", async () => {
     vi.mocked(extraction.extractDocument).mockResolvedValueOnce({
       extraction: {

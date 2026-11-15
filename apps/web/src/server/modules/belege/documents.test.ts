@@ -91,6 +91,27 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect((await documents.getDocument(id))!.document.supplierContactId).toBeNull();
   });
 
+  it("speichert den Leistungszeitraum von Hand und lehnt ein Ende vor dem Beginn ab, wie bei Rechnungen (#693)", async () => {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 97]), filename: "leistungszeitraum.jpg" });
+    const input = {
+      supplierName: "Hetzner Online GmbH",
+      supplierUstId: "",
+      invoiceNumber: "R7",
+      documentDate: "2026-03-05",
+      dueDate: null,
+      category: "software" as const,
+      payment: "bank" as const,
+      note: "",
+      amounts: [{ taxRate: 1900 as const, net: 1_000, tax: 190 }],
+    };
+    await documents.updateDocument(actor, id, { ...input, serviceFrom: "2026-02-01", serviceTo: "2026-02-28" });
+    expect((await documents.getDocument(id))!.document).toMatchObject({ serviceFrom: "2026-02-01", serviceTo: "2026-02-28" });
+    await expect(documents.updateDocument(actor, id, { ...input, serviceFrom: "2026-02-28", serviceTo: "2026-02-01" })).rejects.toThrow(
+      /Leistungszeitraum endet vor seinem Beginn/,
+    );
+    expect((await documents.getDocument(id))!.document).toMatchObject({ serviceFrom: "2026-02-01", serviceTo: "2026-02-28" });
+  });
+
   it("erneutes Auslesen mit anderem Lieferanten löst die Verknüpfung zum Kontakt", async () => {
     const stammdaten = await import("../stammdaten/index.ts");
     const hetzner = await stammdaten.createContact(actor, {
@@ -191,6 +212,9 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
       issueDate: "2026-09-30",
       dueDate: "2026-10-14",
       paymentTermDays: 14,
+      // Leistungszeitraum in der E-Rechnung (BT-73/BT-74): kommt als Vorbelegung an den Beleg (#693)
+      serviceFrom: "2026-09-01",
+      serviceTo: "2026-09-30",
       currency: "EUR",
       seller: {
         name: "Hetzner Online GmbH",
@@ -218,6 +242,8 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
       supplierName: sample.seller.name,
       invoiceNumber: sample.number,
       documentDate: sample.issueDate,
+      serviceFrom: "2026-09-01",
+      serviceTo: "2026-09-30",
       gross: sample.totals.gross,
       category: null,
     });
@@ -508,6 +534,39 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     // 100,00 USD / 1,0812 = 92,49 €; § 13b: 19 % davon = 17,57 € in Kz 85, gezahlt wird netto
     expect(doc.amounts.map((a) => [a.net, a.tax])).toEqual([[9249, 1757]]);
     expect(doc.document).toMatchObject({ net: 9249, tax: 1757, gross: 9249 });
+  });
+
+  it("Reverse-Charge-Hinweis aus der Auslesung: § 13b als Vorschlag, 19 % aus dem Netto; eine Wahl von Hand bleibt", async () => {
+    const extraction = await import("./extraction.ts");
+    const etsy = {
+      supplierName: "Etsy Ireland UC",
+      supplierUstId: "IE9777587C",
+      invoiceNumber: "ETSY-2026-10",
+      documentDate: "2026-10-31",
+      dueDate: null,
+      currency: "EUR",
+      category: "fremdleistung" as const,
+      reverseCharge: "eu" as const,
+      amounts: [{ taxRate: 0 as const, net: 11_544, tax: 0 }],
+      warnings: [],
+    };
+    vi.mocked(extraction.extractDocument).mockResolvedValueOnce({
+      extraction: { quelle: "test" } as unknown as import("./extraction.ts").Extraction,
+      fields: etsy,
+    });
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 41]), filename: "etsy.jpg" });
+    const doc = (await documents.getDocument(id))!;
+    expect(doc.document).toMatchObject({ reverseCharge: "eu", status: "neu", lockedAt: null, net: 11_544, tax: 2_193, gross: 11_544 });
+    expect(doc.amounts.map((a) => [a.taxRate, a.net, a.tax])).toEqual([[1900, 11_544, 2_193]]);
+    expect(documents.bookingIssues(doc.document, doc.amounts)).not.toContain("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
+    // Von Hand auf Drittland gestellt: ein erneutes Auslesen ändert die Wahl nicht
+    await sql`update documents set reverse_charge = 'drittland' where id = ${id}`;
+    vi.mocked(extraction.extractDocument).mockResolvedValueOnce({
+      extraction: { quelle: "test" } as unknown as import("./extraction.ts").Extraction,
+      fields: etsy,
+    });
+    await documents.runExtraction(actor, id);
+    expect((await documents.getDocument(id))!.document.reverseCharge).toBe("drittland");
   });
 
   it("Fremdwährung mit § 13b: Steuer aus dem umgerechneten Netto; zurück auf Euro löscht Kurs und Originalbeträge", async () => {

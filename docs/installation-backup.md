@@ -15,7 +15,7 @@ Ein Update lässt sich nicht einfach zurücknehmen: Migrationen ändern die Date
 | Zeitplan | Dienst `backup`, täglich um `BACKUP_TIME` (Standard 03:15, Zeitzone Europe/Berlin) | `haben-backup.timer` startet `haben-backup.container` täglich um 03:15 Uhr, ein verpasster Lauf wird nachgeholt (`Persistent=true`) |
 | Backup jetzt | `docker compose exec backup backup.sh` | `systemctl --user start haben-backup` |
 | Protokoll | `docker compose logs backup` | `journalctl --user -u haben-backup` |
-| Stand | `docker compose exec app haben status`: Version, ERiC und letzte erfolgreiche Sicherung, mit Hinweis, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner gelang (`--json` für Skripte) | `podman exec haben-app haben status` |
+| Stand | `docker compose exec app haben status`: Version (mit Commit, wenn das Image ihn kennt), ERiC und letzte erfolgreiche Sicherung, mit Hinweis, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner gelang (`--json` für Skripte) | `podman exec haben-app haben status` |
 | Passwort des Backups | `RESTIC_PASSWORD` in `.env` | Secret `haben-restic-password` |
 | Repository auf einem zweiten System | `RESTIC_REPOSITORY` in `.env` | `RESTIC_REPOSITORY` in `~/.config/haben/backup.env` |
 | Test-Restore | alle `RESTORE_CHECK_DAYS` Tage (`.env`, Standard 7) | alle `RESTORE_CHECK_DAYS` Tage (`backup.env`, Standard 7) |
@@ -25,7 +25,7 @@ Ein Lauf
 1. legt beim ersten Mal das restic-Repository an,
 2. erzeugt mit `pg_dump` über das Netz einen SQL-Dump der Datenbank, packt ihn mit gzip und prüft ihn: Das Archiv muss sich entpacken lassen und mit der Abschlusszeile von `pg_dump` enden, sonst bricht das Backup mit Fehler ab,
 3. sichert den Dump und die Belegdateien (Volume `belege` bzw. `haben-belege`, nur lesend eingehängt) verschlüsselt mit `restic backup --tag haben`,
-4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die zehnjährige Aufbewahrung nach GoBD ab,
+4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die längste Aufbewahrungsfrist ab, 10 Jahre für Bücher und Aufzeichnungen (§ 147 Abs. 3 AO),
 5. trägt das Ergebnis in die Datenbank ein; die App zeigt es unter Einstellungen › Export und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
 6. spielt alle `RESTORE_CHECK_DAYS` Tage (Standard 7) das neue Backup probeweise ein (siehe [Test-Restore](#test-restore)).
 
@@ -61,7 +61,7 @@ Auf ein erfolgreiches Backup folgt alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `
 1. `restic check --read-data-subset 5%` liest einen Teil der Daten im Repository und prüft sie (`RESTORE_CHECK_SUBSET`),
 2. der Dump aus dem Snapshot wird in eine Wegwerf-Datenbank `haben_restore_check_…` eingespielt (eigener Name je Lauf),
 3. darin prüft es Hash-Kette und Siegel wie „Kette prüfen“ in der App, und der letzte Eintrag der Kette im Backup muss mit demselben Hash in der laufenden Datenbank stehen,
-4. 20 zufällige Belege (`RESTORE_CHECK_FILES`) kommen aus dem Snapshot und müssen ihre SHA-256-Prüfsumme haben,
+4. 20 zufällige Dateien (`RESTORE_CHECK_FILES`), auf die ein Datensatz verweist (Belege, Anhänge, Bescheide, Protokolle und Dateien aus dem Umzug), kommen aus dem Snapshot und müssen ihre SHA-256-Prüfsumme haben,
 5. die Wegwerf-Datenbank wird wieder gelöscht, das Ergebnis steht in der App.
 
 `RESTORE_CHECK_SUBSET` (Standard `5%`) und `RESTORE_CHECK_FILES` (Standard 20) wirken nur bei den Quadlets in `backup.env`; `compose.yml` reicht sie nicht an den Dienst `backup` durch.

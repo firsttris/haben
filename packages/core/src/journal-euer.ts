@@ -7,7 +7,7 @@ import { isSachentnahmeKonto } from "./manual.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import { roundHalfAwayFromZero, type Cents } from "./money.ts";
 import { PAUSCHALE_KONTEN, type PauschaleArt } from "./pauschalen.ts";
-import { ACCOUNTS, EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
+import { ACCOUNTS, EXPENSE_CATEGORIES, KLEINUNTERNEHMER_FRUEHERE_KONTEN, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
 import { PRIVATE_USE_ACCOUNTS } from "./private-use.ts";
 import { abziehbareNebenleistungen, nichtAbziehbareNebenleistungen, STEUER_KONTEN } from "./steuerzahlung.ts";
 
@@ -80,7 +80,7 @@ export function euerZuordnung(kontenrahmen: Kontenrahmen, account: string, herku
   if ([a.ustVorauszahlung, a.sondervorauszahlung, steuer.ustVorjahr, steuer.ustFruehereJahre].includes(account as never)) return "ustZahlung";
   // Erlöse
   if (account === a.erloese[1900] || account === a.erloese[700]) return "einnahmenSteuerpflichtig";
-  if (account === a.erloeseSonder.kleinunternehmer) return "einnahmenKleinunternehmer";
+  if (account === a.erloeseSonder.kleinunternehmer || account === KLEINUNTERNEHMER_FRUEHERE_KONTEN[kontenrahmen]) return "einnahmenKleinunternehmer";
   if (account === a.erloese[0] || Object.values(a.erloeseSonder).includes(account as never)) return "einnahmenSteuerfrei";
   if (account === a.mahnerloes || account === a.zinsertraege || account === steuer.erstattungszinsen) return "einnahmenSteuerfrei";
   if (account === a.kursErtrag) return "kursgewinne";

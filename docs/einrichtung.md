@@ -41,6 +41,8 @@ Auf der Anmeldeseite wählst du „Mit Passkey anmelden“. Über „Passwort ve
 
 Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weitere hinzufügen (z. B. für Handy und Laptop) oder alte nach einer Rückfrage entfernen. Passkeys hängen an der Domain aus `BETTER_AUTH_URL`; bei einem Domainwechsel musst du sie neu anlegen.
 
+Unter **Einstellungen › Sicherheit › Passwort ändern** gibst du dein bisheriges Passwort ein und bestätigst das neue Passwort mit mindestens 12 Zeichen durch erneute Eingabe. Alle Sitzungen enden, auch die im aktuellen Browser und die per Passkey eröffneten. Danach kannst du dich mit dem neuen Passwort oder einem vorhandenen Passkey anmelden. Im Änderungsprotokoll steht der Wechsel ohne Passwort oder Hash.
+
 ## Zugang für die Steuerberatung
 
 Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann: Auswertungen, Journal, Kontenblätter, Belege und Rechnungen ansehen, Dateien, DATEV-Export und Jahresarchiv herunterladen. Unter **Einstellungen › Sicherheit › Zugänge** erzeugst du einen Einladungslink, der einmal und 72 Stunden gilt; die Steuerberatung legt damit Passwort und Passkey selbst an. Sperren und Entfernen geht an derselben Stelle. Buchen, Festschreiben, Senden an ELSTER, Einstellungen, Zertifikat, Bankzugang und API-Tokens bleiben bei dir. Alles Weitere steht in [Zugang für die Steuerberatung](steuerberatung.md).
@@ -123,7 +125,7 @@ Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](
 Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
 
 - Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Seite stellst du unter [Logo und Blatt](#logo-und-blatt) ein. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
-- Die Vorschau im Rechnungs- und Angebotseditor zeigt es ebenfalls.
+- Die Vorschau bei Rechnung, Angebot und Mahnung zeigt es ebenfalls.
 - Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
 - Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
 
@@ -286,7 +288,7 @@ Führst du nur Umsätze aus, die den Vorsteuerabzug ausschließen — etwa Heilb
 | Basiszinssatz in % | Grundlage der Verzugszinsen. Er ändert sich zum 1. Januar und 1. Juli und wird von der Deutschen Bundesbank veröffentlicht. **Bei der Bundesbank abrufen** fragt den aktuellen Satz im [SDMX-Webservice der Bundesbank](https://statistiken.bundesbank.de/statistiken-de/hilfe-970224?article=bundesbank-sdmx-web-service-api-991208) ab (Zeitreihe BBIN1.M.DE.BBK.BBKBAS2.EUR.ME) und trägt ihn ins Feld ein; er gilt erst nach dem Speichern. Steht der neue Satz Anfang Januar oder Juli noch nicht in der Zeitreihe, sagt Haben das; dann später erneut abrufen oder von Hand eintragen. Leer heißt: keine Verzugszinsen. |
 | Basiszinssatz automatisch abrufen | Aus, bis du den Haken setzt. Dann fragt Haben die Bundesbank nach dem 1. Januar und 1. Juli einmal am Tag, bis der Satz des neuen Halbjahrs in der Zeitreihe steht, und trägt ihn ein; dazwischen fragt Haben nicht, weil sich der Satz nur zu diesen Terminen ändert (§ 247 Abs. 1 BGB). Änderst du den Satz von Hand, prüft der nächste Lauf ihn einmal gegen die Bundesbank und ersetzt ihn durch den veröffentlichten Wert. |
 | Zahlungsfrist in Mahnungen | Tage ab dem Mahndatum, Vorgabe 10 |
-| Gebühr je Stufe | Vorschlag für Zahlungserinnerung, 1. Mahnung und letzte Mahnung, z. B. 0 €, 5 €, 10 € |
+| Gebühr je Stufe | Vorschlag für Zahlungserinnerung, 1. Mahnung und letzte Mahnung, z. B. 0 €, 5 €, 10 €; höchstens 1.000 € |
 
 Mehr unter [Rechnungen › Mahnwesen](rechnungen-zahlung.md#mahnwesen).
 

@@ -22,6 +22,7 @@ Die Steuerberatung sieht:
 - **Buchungen** (Journal) und **Konten** (Saldenliste, Kontenblätter) mit CSV
 - **Belege** mit Originaldatei
 - **Rechnungen**, nur festgeschriebene, mit PDF, XML und Anhängen, dazu ihre Mahnungen
+- die [Schnellsuche](suche.md#steuerberatung) über diese Seiten, Rechnungen und Belege
 - **Exporte**: Jahresarchiv (ZIP), DATEV-Buchungsstapel, Saldenliste. Mit [Personenkonten im DATEV-Export](auswertungen.md#personenkonten) lädt die Steuerberatung den Stapel nur, wenn alle Debitoren und Kreditoren darin schon einmal vom Inhaber exportiert und damit festgeschrieben sind; sonst nennt Haben die neuen Nummern, und der Inhaber lädt den Stapel einmal selbst herunter
 
 Nicht für die Steuerberatung sind: buchen, festschreiben, stornieren, ändern, löschen, hochladen, senden an ELSTER oder per E-Mail, die Einstellungen (Firmendaten, Nummernkreise, E-Mail, Eigene Seiten), ELSTER-Zertifikat und PIN, Bankzugang und SEPA-Überweisungen, API-Tokens für [KI-Assistenten](ki-assistenten.md) und die [REST-API](api.md), die Verwaltung der Zugänge. Ebenfalls beim Inhaber bleiben in dieser ersten Stufe Angebote, Bank, Kasse, Anlagen, Lohn, Umsatzsteuer, Jahreserklärungen, Finanzamt, Jahresabschluss und das Archiv aus dem Umzug; was davon für die Steuerberatung zählt, steht im Jahresarchiv.

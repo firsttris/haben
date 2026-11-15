@@ -491,6 +491,30 @@ export const annualSubmissions = pgTable(
 );
 
 /**
+ * Zeilenwerte einer außerhalb von Haben abgegebenen Jahreserklärung, je Feldkennung (#997).
+ *
+ * Die Zeilen kommen aus dem Übermittlungsprotokoll und lassen sich nicht an `annual_submissions` hängen:
+ * der Vermerk ist `append_only`, ein späteres UPDATE scheitert. Sie stehen deshalb daneben, verknüpft
+ * über die Übermittlung. Nur anhängbar, auditiert und gegen TRUNCATE gesperrt wie der Vermerk selbst
+ * (0235).
+ */
+export const annualSubmissionFigures = pgTable(
+  "annual_submission_figures",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => annualSubmissions.id, { onDelete: "restrict" }),
+    /** Schlüssel der Erklärung wie in der Übermittlung: `steuerpflichtig`, `base19`, `gewinn`, … */
+    field: text("field").notNull(),
+    /** Betrag in Cent */
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("annual_submission_figures_eindeutig").on(t.submissionId, t.field)],
+);
+
+/**
  * Nachrichten an das Finanzamt über ELSTER (Sonstige Nachricht), etwa der Antrag auf Herabsetzung der
  * Vorauszahlungen; jede Prüfung und Übermittlung mit XML, nur anhängen.
  */
@@ -1020,6 +1044,15 @@ export const contacts = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("contacts_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
+    index("contacts_kundennummer_trgm_idx").using("gin", t.kundennummer.op("gin_trgm_ops")),
+    index("contacts_lieferantennummer_trgm_idx").using("gin", t.lieferantennummer.op("gin_trgm_ops")),
+    index("contacts_email_trgm_idx").using("gin", t.email.op("gin_trgm_ops")),
+    index("contacts_ort_trgm_idx").using("gin", t.ort.op("gin_trgm_ops")),
+    index("contacts_ust_id_trgm_idx").using("gin", t.ustId.op("gin_trgm_ops")),
+    index("contacts_iban_trgm_idx").using("gin", t.iban.op("gin_trgm_ops")),
+    index("contacts_debitor_nr_trgm_idx").using("gin", sql`(${t.debitorNr}::text) gin_trgm_ops`),
+    index("contacts_kreditor_nr_trgm_idx").using("gin", sql`(${t.kreditorNr}::text) gin_trgm_ops`),
     check("contacts_debitor_nr_bereich", sql`${t.debitorNr} between 10000 and 69999`),
     check("contacts_kreditor_nr_bereich", sql`${t.kreditorNr} between 70000 and 99999`),
   ],
@@ -1131,7 +1164,12 @@ export const contactPersons = pgTable(
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("contact_persons_contact").on(t.contactId), check("contact_persons_name", sql`length(btrim(${t.name})) > 0`)],
+  (t) => [
+    index("contact_persons_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
+    index("contact_persons_email_trgm_idx").using("gin", t.email.op("gin_trgm_ops")),
+    index("contact_persons_contact").on(t.contactId),
+    check("contact_persons_name", sql`length(btrim(${t.name})) > 0`),
+  ],
 );
 
 /**
@@ -1231,6 +1269,11 @@ export const invoices = pgTable(
     issueDate: date("issue_date", { mode: "string" }).notNull(),
     serviceFrom: date("service_from", { mode: "string" }),
     serviceTo: date("service_to", { mode: "string" }),
+    /**
+     * „Ausgeführt am“, beim Festschreiben eingefroren (#694): Der Leistungsmonat entscheidet bei Soll-Versteuerung,
+     * in welchem Zeitraum die Umsatzsteuer gemeldet wird. Altrechnungen ohne Angabe zählen nach Rechnungsdatum.
+     */
+    serviceDate: date("service_date", { mode: "string" }),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     dueDate: date("due_date", { mode: "string" }).notNull(),
     /**
@@ -1340,6 +1383,12 @@ export const invoices = pgTable(
     check("invoices_corrects_original", sql`${t.kind} = 'rechnung' or ${t.correctsId} is not null`),
     uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
     uniqueIndex("invoices_recurring_date").on(t.recurringId, t.recurringDate),
+    index("invoices_number_trgm_idx").using("gin", t.number.op("gin_trgm_ops")),
+    index("invoices_buyer_order_reference_trgm_idx").using("gin", t.buyerOrderReference.op("gin_trgm_ops")),
+    index("invoices_seller_order_reference_trgm_idx").using("gin", t.sellerOrderReference.op("gin_trgm_ops")),
+    index("invoices_buyer_name_trgm_idx").using("gin", sql`(${t.buyer} ->> 'name') gin_trgm_ops`),
+    index("invoices_gross_search_idx").on(t.gross),
+    index("invoices_contactId_search_idx").on(t.contactId),
     index("invoices_corrects").on(t.correctsId),
     index("invoices_quote").on(t.quoteId),
     // höchstens ein festgeschriebenes Storno je Rechnung
@@ -1507,6 +1556,10 @@ export const quotes = pgTable(
     check("quotes_decision_final", sql`${t.decision} is null or ${t.status} = 'final'`),
     check("quotes_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
     check("quotes_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
+    index("quotes_number_trgm_idx").using("gin", t.number.op("gin_trgm_ops")),
+    index("quotes_buyer_name_trgm_idx").using("gin", sql`(${t.buyer} ->> 'name') gin_trgm_ops`),
+    index("quotes_gross_search_idx").on(t.gross),
+    index("quotes_contactId_search_idx").on(t.contactId),
     uniqueIndex("quotes_number_counter").on(t.numberYear, t.numberCounter),
   ],
 );
@@ -1891,6 +1944,9 @@ export const documents = pgTable(
     invoiceNumber: text("invoice_number").notNull().default(""),
     documentDate: date("document_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),
+    /** Leistungszeitraum aus dem Beleg (#693); „ausgeführt am“ ist der letzte Tag, siehe leistungsdatum() in @haben/core */
+    serviceFrom: date("service_from", { mode: "string" }),
+    serviceTo: date("service_to", { mode: "string" }),
     category: text("category"),
     /** Eigenes Sachkonto (#270) der Kategorie; `category` bleibt die Elternkategorie, auf die Steuer und EÜR rechnen */
     ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
@@ -1958,6 +2014,10 @@ export const documents = pgTable(
   },
   // in 0011 und 0016 von Hand angelegt
   (t) => [
+    index("documents_supplier_name_trgm_idx").using("gin", t.supplierName.op("gin_trgm_ops")),
+    index("documents_invoice_number_trgm_idx").using("gin", t.invoiceNumber.op("gin_trgm_ops")),
+    index("documents_filename_trgm_idx").using("gin", t.filename.op("gin_trgm_ops")),
+    index("documents_gross_search_idx").on(t.gross),
     check("documents_private_share_range", sql`${t.privateShare} between 0 and 100`),
     check("documents_vorsteuer_anteil_range", sql`${t.vorsteuerAnteil} between 0 and 10000`),
     foreignKey({ name: "documents_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
@@ -3172,6 +3232,40 @@ export const backupStatus = pgTable(
 );
 
 /**
+ * Befund der Vollprüfung: eine Datei im Dokumentenspeicher, die fehlt, verändert oder nicht lesbar ist, mit dem ersten
+ * Datensatz, der auf sie verweist (Reihenfolge von FILE_REFERENCES), und der Zahl der weiteren
+ */
+export interface FileCheckProblem {
+  tabelle: string;
+  /** Bezeichnung aus FILE_REFERENCES, etwa „Beleg“ */
+  art: string;
+  zeile: string;
+  datei: string;
+  sha256: string;
+  befund: "fehlt" | "beschädigt" | "nicht lesbar";
+  weitere: number;
+}
+
+/**
+ * Läufe der Vollprüfung der Dateien im Dokumentenspeicher (modules/auswertungen/file-integrity.ts, #857): Zeitpunkt,
+ * Anzahl der geprüften Dateien und die ersten Befunde. „Kette prüfen“ und die Wochenmail zeigen den letzten Lauf.
+ * Betriebsdaten wie backup_status: ohne Audit-Log und Siegel, sonst stünde jeder Lauf in der Kette.
+ */
+export const fileChecks = pgTable(
+  "file_checks",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    /** Geprüfte Dateien; eine Datei mit mehreren Verweisen zählt einmal */
+    files: integer("files").notNull(),
+    /** Dateien mit Befund; gespeichert sind höchstens die ersten MAX_FILE_PROBLEMS */
+    problemCount: integer("problem_count").notNull(),
+    problems: jsonb("problems").$type<FileCheckProblem[]>().notNull(),
+  },
+  (t) => [index("file_checks_at").on(t.at)],
+);
+
+/**
  * Per Dynamic Client Registration (RFC 7591) angemeldete OAuth-Clients, etwa ein Connector in claude.ai. Ein Client ist nur
  * eine Beschreibung mit erlaubten Redirect-URIs; Zugriff bekommt er erst mit der Zustimmung des Inhabers, als Zeile in
  * mcp_tokens. Ein Client-Secret steht nur als SHA-256 hier. Zugangsdaten: ohne Audit-Log (wie mcp_tokens).
@@ -3620,3 +3714,16 @@ export const externalImportSettlements = pgTable(
     check("external_import_settlements_different", sql`${t.paymentImportId} <> ${t.originalImportId}`),
   ],
 );
+
+/**
+ * Eingesetzte Programm- und Datenbankversionen (#841): jeder Start mit einer neuen Haben- oder PostgreSQL-Version (auch eines älteren Stands beim Zurückrollen)
+ * hängt genau eine Zeile an. Nur anhängen (Trigger wie bei audit_log) und im Änderungsprotokoll (audit_log) mitgeschnitten, damit auch
+ * nachträglich feststeht, welche Programmlogik zu einem Buchungszeitpunkt galt (GoBD, BMF-Schreiben vom 28.11.2019, Rz. 150 und Rz. 154).
+ */
+export const appVersions = pgTable("app_versions", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  version: text("version").notNull(),
+  postgresVersion: text("postgres_version").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  note: text("note"),
+});

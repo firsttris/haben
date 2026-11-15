@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { bunAusfuehren } from "./ausfuehren.ts";
 import { standardeingabe } from "./eingabe.ts";
+import { firmen } from "./firmen.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
 import { liste } from "./liste.ts";
 import { neu } from "./neu.ts";
@@ -23,6 +24,9 @@ export const HILFE = `Mehrere Instanzen von Haben nebeneinander, je Firma eine (
   bun deploy/instanzen/haben-instanzen.ts update     alle nacheinander sichern, aktualisieren, Stopp beim ersten Fehler
   bun deploy/instanzen/haben-instanzen.ts status     je Instanz Version, Erreichbarkeit, ERiC und letzte Sicherung
   bun deploy/instanzen/haben-instanzen.ts liste      Name, Domain und Verzeichnis
+  bun deploy/instanzen/haben-instanzen.ts firmen [<name> …]
+                     Liste für „Firma wechseln“ (HABEN_FIRMEN) in alle bzw. die genannten Instanzen schreiben,
+                     laufende Apps neu starten; vorher geprüft wie von der App, bei einem Fehler nichts geändert
 
 Ablage unter --basis bzw. $HABEN_INSTANZEN (Vorgabe ~/haben): je Instanz ein Verzeichnis mit compose.yml,
 compose.override.yml und .env, dazu proxy/ mit dem gemeinsamen Caddy und einer Datei je Domain in proxy/sites/.
@@ -30,6 +34,7 @@ Braucht Bun, diesen Checkout und docker mit Compose 2.23 oder neuer.
 
 Optionen für neu:
   --hersteller-id ID         ELSTER_HERSTELLER_ID setzen (sonst bleibt sie leer)
+  --firmenname NAME          Eintrag dieser Instanz in der Liste von firmen (HABEN_FIRMENNAME, Vorgabe: <name>)
   --eric-home PFAD           von Hand entpacktes ERiC einbinden, das sich alle Instanzen teilen können
   --eigener-proxy            keinen gemeinsamen Caddy starten; das Netz haben-proxy-<name> der Instanz anlegen und
                              den Block für den vorhandenen Proxy ausgeben
@@ -49,6 +54,7 @@ const OPTIONEN = {
   basis: { type: "string" },
   help: { type: "boolean", short: "h" },
   "hersteller-id": { type: "string" },
+  firmenname: { type: "string" },
   "eric-home": { type: "string" },
   "eigener-proxy": { type: "boolean" },
   sso: { type: "boolean" },
@@ -116,6 +122,7 @@ function neuAngaben(werte: Werte, positionen: string[], a: Abhaengigkeiten): Neu
     name,
     domain,
     herstellerId: werte["hersteller-id"],
+    firmenname: werte.firmenname,
     ericHome: werte["eric-home"],
     eigenerProxy: werte["eigener-proxy"] === true,
     starten: werte["nicht-starten"] !== true,
@@ -149,13 +156,13 @@ export async function main(args: string[], a: Abhaengigkeiten): Promise<number> 
       await neu(k, neuAngaben(werte, rest, a));
       return 0;
     }
-    const befehle: Record<string, (k: Kontext) => Promise<void>> = { update, status, liste };
+    const befehle: Record<string, (k: Kontext, namen: string[]) => Promise<void>> = { update, status, liste, firmen };
     const ausfuehren = befehle[befehl];
-    if (!ausfuehren) abbrechen(`Unbekannter Befehl: ${befehl} (neu, update, status, liste)`);
+    if (!ausfuehren) abbrechen(`Unbekannter Befehl: ${befehl} (neu, update, status, liste, firmen)`);
     const nurNeu = Object.keys(werte).filter((o) => o !== "basis" && o !== "help");
     if (nurNeu.length > 0) abbrechen(`--${nurNeu[0]} gilt nur für neu.`);
-    if (rest.length > 0) abbrechen(`${befehl} nimmt keine weiteren Angaben: ${rest.join(" ")}`);
-    await ausfuehren(k);
+    if (rest.length > 0 && befehl !== "firmen") abbrechen(`${befehl} nimmt keine weiteren Angaben: ${rest.join(" ")}`);
+    await ausfuehren(k, rest);
     return 0;
   } catch (error) {
     a.fehler(`Fehler: ${error instanceof Error ? error.message : String(error)}`);

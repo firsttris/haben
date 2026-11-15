@@ -28,6 +28,7 @@ not_in_nav: |
 nav:
   - Start: index.md
   - Übersicht: ueberblick.md
+  - Suchen: suche.md
   - Betrieb:
       - Installation: installation.md
       - Synology: synology.md

@@ -116,6 +116,7 @@ function InvoicePage() {
           numberCounters={data.numberCounters}
           numberRunning={data.numberRunning}
           numberFormat={data.numberFormat}
+          lastFinalized={data.lastFinalized}
           corrects={data.corrects}
           bundesland={data.bundesland}
           kleinunternehmer={data.kleinunternehmer}
@@ -241,6 +242,12 @@ function FinalInvoice({ data }: { data: Detail }) {
             </Link>
             .
           </span>
+        </div>
+      )}
+      {data.leistungsmonat && (
+        <div className="banner banner-warn" role="status">
+          <Icon name="alert" />
+          <span>{data.leistungsmonat}</span>
         </div>
       )}
       <NoticeBanner notice={notice} />

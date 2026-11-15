@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
@@ -325,13 +326,62 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
 
+test("Teilleistung ohne Leistungsdatum: Entwurf speichern nennt das Feld (Review #974)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
+  await page.getByRole("checkbox", { name: "Teilleistung bereits erbracht" }).check();
+  await page.getByLabel("Beschreibung Position 1").fill("1. Abschlag");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("1000");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  // Bisher hielt der Browser über required an; mit noValidate nennt useSubmitCheck das Feld
+  await expect(page.getByLabel("Leistung von", { exact: true })).toBeFocused();
+  await expect(page.getByLabel("Leistung von", { exact: true })).toHaveAccessibleDescription(/Teilleistung/);
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+});
+
+test("Festschreiben ohne Kunden nennt den Kunden am Feld statt der Rückfrage (Review #974)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toBeFocused();
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveAccessibleDescription("Wähle den Kunden.");
+});
+
+test("Entwurf speichern nennt bei einem anderen Fehler nicht den fehlenden Kunden, Festschreiben schon", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  const ziel = page.getByLabel("Zahlungsziel in Tagen", { exact: true });
+  await ziel.fill("200");
+  const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+  // Ein Entwurf darf ohne Kunden gespeichert werden: der Kunde ist dabei kein Fehler, nur das Zahlungsziel
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await expect(ziel).toBeFocused();
+  await expect(ziel).toHaveAccessibleDescription(/ganzen Tagen von 0 bis 120/);
+  await expect(kunde).not.toHaveAttribute("aria-invalid", "true");
+  await expect(kunde).not.toHaveAccessibleDescription(/Wähle den Kunden/);
+  // Festschreiben braucht den Kunden: jetzt steht er am Feld
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(kunde).toHaveAccessibleDescription("Wähle den Kunden.");
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
+});
+
 test("Wiederkehrende Rechnung: Kunde suchen, ohne Kunde nicht speicherbar, neuen Kunden direkt anlegen", async () => {
   await go("/rechnungen/wiederkehrend/neu");
   await page.getByLabel("Bezeichnung").fill("Wartungsvertrag Test");
   const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
-  // Pflichtfeld: Ohne gewählten Kunden meldet der Browser das Feld und speichert nichts
+  // Pflichtfeld: Ohne gewählten Kunden speichert „Vorlage anlegen“ nicht, sondern sagt es am Feld (DESIGN.md, Gesperrte Knöpfe)
   expect(await kunde.evaluate((feld: HTMLInputElement) => feld.validity.valueMissing)).toBe(true);
-  await expect(page.getByRole("button", { name: "Vorlage anlegen" })).toBeDisabled();
+  await page.getByRole("button", { name: "Vorlage anlegen" }).click();
+  await expect(kunde).toBeFocused();
+  await expect(kunde).toHaveAccessibleDescription(/Wähle den Kunden\./);
+  await expect(page).toHaveURL(/\/rechnungen\/wiederkehrend\/neu$/);
 
   // Suche nach Name; nur Kunden stehen zur Auswahl
   await kunde.fill("Nordwerk");
@@ -1272,7 +1322,10 @@ test("Rechnung mit Positions- und Gesamtrabatt in der Vorschau", async () => {
   await expect(vorschau).toContainText("1.017,45 €");
   await page.getByLabel("Gesamtrabatt (optional)").fill("2000");
   await expect(page.getByText("Der Gesamtrabatt ist höher als die Summe der Positionen")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Entwurf speichern" })).toBeDisabled();
+  // „Entwurf speichern“ speichert nicht, sondern setzt den Fokus auf den Rabatt (DESIGN.md, Gesperrte Knöpfe)
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await expect(page.getByLabel("Gesamtrabatt (optional)")).toBeFocused();
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
 });
 
 test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", async () => {
@@ -1947,6 +2000,99 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await expect(page.getByText("Lastenrad").first()).toBeVisible();
 });
 
+test("CSV-Import: Debitoren und Kreditoren aus DATEV-Stammdaten, Vorschlag nur mit Bestätigung (#472)", async ({ browser }) => {
+  // Kopf und Spalten wie EXTF_GP_Stamm_*.csv aus sevDesk, Zeilen erfunden; Brückenbau Süd GmbH (K-900) kam im Test davor
+  const spalten = readFileSync(new URL("../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/extf-gp-stamm.csv", import.meta.url), "utf-8")
+    .split(/\r?\n/)[1]!
+    .split(";");
+  const zeile = (werte: Record<string, string>) => spalten.map((name) => werte[name] ?? "").join(";");
+  const firma = (konto: string, name: string, werte: Record<string, string> = {}) =>
+    zeile({ Konto: konto, "Name (Adressatentyp Unternehmen)": name, ...werte });
+  const gpStamm = [
+    `"EXTF";700;16;"Debitoren/Kreditoren";5;;;;;;1;1;${YEAR}0101;4;;;;;;;;;;;;;;;;;`,
+    spalten.join(";"),
+    firma("10901", "Nordlicht Design GmbH", { "EU-Mitgliedstaat": "DE", "EU-UStId.": "136695976", Ort: "Kiel" }),
+    firma("70901", "Nordlicht Design GmbH", { "EU-Mitgliedstaat": "DE", "EU-UStId.": "136695976" }),
+    firma("10902", "Brückenbau Süd", { Kundennummer: "K-900" }),
+    firma("8400", "Erlöse 19 %"),
+  ].join("\r\n");
+  const datei = [{ name: `EXTF_GP_Stamm_${YEAR}.csv`, mimeType: "text/csv", buffer: Buffer.from(gpStamm) }];
+  await go("/csv-import?art=kontakte");
+  await page.getByLabel("CSV-Datei").setInputFiles(datei);
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  const preview = page.getByRole("region", { name: "Vorschau" });
+  await expect(preview).toContainText("Erkannt: DATEV-Stammdaten Debitoren/Kreditoren, UTF-8");
+  await expect(page.getByRole("region", { name: "Spalten zuordnen" })).toHaveCount(0);
+  await expect(preview).toContainText("1 neu, 1 Vorschlag zum Bestätigen, 0 Dubletten, 1 mit Fehlern");
+  await expect(preview.getByRole("row", { name: /Nordlicht Design GmbH/ })).toContainText("Debitor 10901 und Kreditor 70901: gleiche USt-IdNr. DE136695976");
+  await expect(preview).toContainText("Debitor 10902 an „Brückenbau Süd GmbH“ vergeben (gleiche Kundennummer)");
+  await expect(preview).toContainText("„8400“ ist kein Personenkonto");
+  // Barrierefreiheit mit dem Kontrollkästchen in der Tabelle, in eigenem Kontext wie im Test davor
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  await axePage.goto(new URL("/csv-import?art=kontakte", page.url()).toString());
+  // Erst nach der Hydration wählen; sonst verwirft React die gewählte Datei
+  await axePage.waitForLoadState("networkidle");
+  await axePage.getByLabel("CSV-Datei").setInputFiles(datei);
+  await axePage.getByRole("button", { name: "Vorschau" }).click();
+  await expect(axePage.getByRole("checkbox", { name: "Bestätigen" })).toBeVisible();
+  expect(await axeVerstoesse(axePage)).toEqual([]);
+  await context.close();
+  // Ohne Bestätigung bleibt der Vorschlag liegen; mit ihr bekommt der vorhandene Kontakt den Debitor
+  await preview.getByRole("button", { name: "1 Kontakt übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText(
+    "1 Kontakt übernommen, 1 nicht bestätigter Vorschlag und 1 fehlerhafte Zeile übersprungen.",
+  );
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await expect(preview).toContainText("0 neu, 1 Vorschlag zum Bestätigen, 1 Dublette, 1 mit Fehlern");
+  await expect(preview.getByRole("button", { name: "0 Kontakte übernehmen" })).toBeDisabled();
+  await preview.getByRole("checkbox", { name: "Bestätigen" }).check();
+  await preview.getByRole("button", { name: "1 Kontakt übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText(
+    "0 Kontakte übernommen, 1 Personenkonto zugeordnet, 1 Dublette und 1 fehlerhafte Zeile übersprungen.",
+  );
+  // Ein zweiter Import findet jede Nummer wieder und ändert nichts
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await expect(preview).toContainText("0 neu, 2 Dubletten, 1 mit Fehlern");
+  await expect(preview).toContainText("Gibt es schon („Brückenbau Süd GmbH“, Debitor 10902)");
+  await expect(preview.getByRole("button", { name: "0 Kontakte übernehmen" })).toBeDisabled();
+  await go("/kontakte");
+  const liste = page.getByRole("region", { name: "Kontaktliste" });
+  await expect(liste.getByText("Nordlicht Design GmbH")).toHaveCount(1);
+});
+
+test("CSV-Import: Bei mehr als 200 Zeilen bleibt jeder Vorschlag aus DATEV-Stammdaten bestätigbar (#472)", async () => {
+  // 201 vorhandene Kontakte mit Kundennummer, der GP-Stamm nennt sie mit Debitor: jede Zeile ein Vorschlag
+  const anzahl = 201;
+  const spalten = readFileSync(new URL("../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/extf-gp-stamm.csv", import.meta.url), "utf-8")
+    .split(/\r?\n/)[1]!
+    .split(";");
+  const zeile = (werte: Record<string, string>) => spalten.map((name) => werte[name] ?? "").join(";");
+  const nummern = Array.from({ length: anzahl }, (_, i) => i + 1);
+  const gpStamm = [
+    `"EXTF";700;16;"Debitoren/Kreditoren";5;;;;;;1;1;${YEAR}0101;4;;;;;;;;;;;;;;;;;`,
+    spalten.join(";"),
+    ...nummern.map((n) => zeile({ Konto: String(12000 + n), "Name (Adressatentyp Unternehmen)": `Vorschlagskunde ${n}`, Kundennummer: `VS-${n}` })),
+  ].join("\r\n");
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  try {
+    const angelegt = await sql<{ id: string }[]>`insert into contacts (name, land, kundennummer, is_customer, is_supplier)
+      select 'Vorschlagskunde ' || n, 'DE', 'VS-' || n, true, false from generate_series(1, ${anzahl}) as n returning id`;
+    try {
+      await go("/csv-import?art=kontakte");
+      await page.getByLabel("CSV-Datei").setInputFiles([{ name: `EXTF_GP_Stamm_${YEAR}.csv`, mimeType: "text/csv", buffer: Buffer.from(gpStamm) }]);
+      await page.getByRole("button", { name: "Vorschau" }).click();
+      const preview = page.getByRole("region", { name: "Vorschau" });
+      await expect(preview).toContainText(`0 neu, ${anzahl} Vorschläge zum Bestätigen`);
+      await expect(preview.getByRole("checkbox", { name: "Bestätigen" })).toHaveCount(anzahl);
+    } finally {
+      await sql`update contacts set archived_at = now() where id in ${sql(angelegt.map((k) => k.id))}`;
+    }
+  } finally {
+    await sql.end();
+  }
+});
+
 test("Ein langes Wort im Titel des Dialogs wird umbrochen, nicht abgeschnitten", async () => {
   const name = "Warenwirtschaftsbestelluebersichtsseiten"; // 40 Zeichen, mehr nimmt das Formular nicht
   await go("/einstellungen?bereich=seiten");
@@ -2006,6 +2152,11 @@ test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fe
   await page.setViewportSize(LAPTOP);
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
   await kundeWaehlen(page);
+  // Leere Position: „Festschreiben“ fragt nicht nach, sondern nennt unter der Position, was fehlt (DESIGN.md, Gesperrte Knöpfe)
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(page.getByLabel("Beschreibung Position 1")).toBeFocused();
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveAccessibleDescription("Trag die Beschreibung und den Einzelpreis ein.");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
@@ -2274,6 +2425,41 @@ test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschre
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
   await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await expect(page.getByRole("combobox", { name: "Ansprechpartner" })).toHaveCount(0);
+});
+
+test("Rechnungsdatum vor der letzten festgeschriebenen Rechnung: Warnung beim Festschreiben ohne Sperre (#713)", async () => {
+  await rechnungFestschreiben(page, {
+    customer: "Rheinpixel GmbH · Köln",
+    date: "2026-11-09",
+    lines: [["Beratung", "1", "500,00"]],
+    gross: "595,00",
+  });
+
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  await page.getByLabel("Rechnungsdatum").fill("2026-10-01");
+  await page.getByLabel("Beschreibung Position 1").fill("Rückdatierte Leistung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("200");
+
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("status")).toContainText("Das Rechnungsdatum (01.10.2026) liegt vor der zuletzt festgeschriebenen Rechnung");
+  await expect(dialog.getByRole("status")).toContainText("vom 09.11.2026");
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+
+  // Datum in der Vergangenheit allein (anderer Nummernkreis ohne Rechnung) warnt nicht
+  await page.getByLabel("Rechnungsdatum").fill("2024-12-15");
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+
+  // Warnung sperrt nicht: Festschreiben bleibt möglich
+  await page.getByLabel("Rechnungsdatum").fill("2026-10-01");
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("01.10.2026");
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText("Festgeschrieben", { exact: true })).toBeVisible();
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {

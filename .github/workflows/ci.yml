@@ -327,6 +327,12 @@ jobs:
           docker tag haben:ci tristanteu/haben:latest
           bun deploy/instanzen/haben-instanzen.ts neu firma1 firma1.haben.test
           bun deploy/instanzen/haben-instanzen.ts neu firma2 firma2.haben.test
+          # Firma wechseln (#909): firmen schreibt die Liste in beide, startet die Apps neu und wartet, bis sie gesund sind
+          bun deploy/instanzen/haben-instanzen.ts firmen
+          for f in firma1 firma2; do
+            test "$(cd "$HABEN_INSTANZEN/$f" && docker compose exec -T app printenv HABEN_FIRMEN)" = "firma1|https://firma1.haben.test;firma2|https://firma2.haben.test"
+            test "$(cd "$HABEN_INSTANZEN/$f" && docker compose ps app --format '{{.Health}}')" = healthy
+          done
           # Ein Beleg in Firma 1 ist in Firma 2 nicht zu finden
           sha="$(echo beleg | sha256sum | cut -d' ' -f1)"
           (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T db psql -U haben -d haben -qc \
@@ -339,6 +345,10 @@ jobs:
           # Der Befehl haben im Image nennt die Version aus package.json, status zeigt sie je Instanz
           version="$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben status --json | jq -r .version)"
           test "$version" = "$(jq -r .version package.json)"
+          # Ohne Build-Argument HABEN_COMMIT startet das Image und meldet keinen Commit; mit HABEN_COMMIT steht die kurze
+          # Kennung hinter der Version (#887)
+          test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben status --json | jq -r .commit)" = null
+          test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T -e HABEN_COMMIT=0123abc4567 app haben status | head -n1)" = "Version:          $version (0123abc)"
           bun deploy/instanzen/haben-instanzen.ts status | tee "$RUNNER_TEMP/status.txt"
           grep -E "^firma1 +firma1\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
           grep -E "^firma2 +firma2\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
@@ -434,7 +444,7 @@ jobs:
           # Backup und der erste Test-Restore stehen als erfolgreich in der App
           test "$(docker compose exec -T db psql -U haben -d haben -Atc "SELECT string_agg(kind || '=' || ok, ',' ORDER BY id) FROM backup_status")" \
             = "backup=true,restore_check=true"
-          docker compose exec -T db psql -U haben -d haben -Atc "SELECT message FROM backup_status WHERE kind = 'restore_check'" | grep -q ', 1 Beleg,'
+          docker compose exec -T db psql -U haben -d haben -Atc "SELECT message FROM backup_status WHERE kind = 'restore_check'" | grep -q ', 1 Datei,'
           test "$(docker compose exec -T db psql -U haben -d postgres -Atc "SELECT count(*) FROM pg_database WHERE datname LIKE 'haben\_restore\_check%'")" = 0
           docker compose exec -T db psql -U haben -d haben -qc "UPDATE t SET x = 'nachher'"
           docker compose run --rm --no-deps -T --entrypoint sh restore -c 'rm /belege/ab/cd && echo neu > /belege/neu'
