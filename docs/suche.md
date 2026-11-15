@@ -7,7 +7,7 @@ description: >-
 
 # Suchen
 
-Die Schnellsuche findet von jeder Seite aus, was in Haben steht: Seiten, Einstellungen und alle Arbeitsbereiche – von Kontakten, Rechnungen und Belegen über Bankumsätze und Buchungen bis zu Meldungen und dem Umzugsarchiv.
+Die Schnellsuche findet von jeder Seite aus Seiten, Einstellungen und Einträge von Kontakten, Rechnungen und Belegen über Bankumsätze und Buchungen bis zu Meldungen und dem Umzugsarchiv.
 
 ## Öffnen
 
