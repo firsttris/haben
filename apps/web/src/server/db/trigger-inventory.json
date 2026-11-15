@@ -3115,6 +3115,14 @@
       "definitionHash": "6ff440a018bb3a717a65df0f5f4539288b3ccdc3c574cc7e6976faa6bdd67384"
     },
     {
+      "name": "public.haben_unaccent(t text)",
+      "config": [],
+      "language": "sql",
+      "securityDefiner": false,
+      "sourceHash": "dcf495b6431a58bee24466492f7c88b651cec050e355c4ff12dd6fcb2f246500",
+      "definitionHash": "45f257ffb0276b71934a117a1df3a8e1559d7c8e9e59697ee166a230d1403646"
+    },
+    {
       "name": "public.haben_user_role_fixed()",
       "config": [],
       "language": "plpgsql",

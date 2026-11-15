@@ -2,6 +2,7 @@ import { insertAllocation, insertWriteOff } from "./settlement-store.ts";
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
+  parseEuroSearchRange,
   zeilenImKontenrahmen,
   ACCOUNTS,
   paymentProviderAccount,
@@ -87,6 +88,7 @@ import { belegSkontoPosting } from "./skonto-vorsteuer.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
 import { belegTotals, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
+import { amountInEitherSign } from "../../../lib/search.ts";
 
 export class BankError extends UserError {}
 
@@ -381,11 +383,14 @@ export async function listTransactions(
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
   if (search.trim()) {
     const term = `%${search.trim()}%`;
+    // Betrag auch wie in der Schnellsuche („1.190,00“, „1190 €“), deren „Alle anzeigen“ hierher führt (#617)
+    const range = parseEuroSearchRange(search);
     conditions.push(
       or(
         ilike(schema.bankTransactions.counterpartyName, term),
         ilike(schema.bankTransactions.purpose, term),
         sql`(${schema.bankTransactions.amount}::numeric / 100)::text like ${`%${search.trim().replace(",", ".")}%`}`,
+        ...(range !== null ? [amountInEitherSign(schema.bankTransactions.amount, range)] : []),
       )!,
     );
   }

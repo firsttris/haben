@@ -9,13 +9,14 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VatFrequencyCard } from "../../../components/umsatzsteuer/VatFrequencyCard.tsx";
 import { DauerfristCard } from "../../../components/umsatzsteuer/DauerfristCard.tsx";
 import { AbgabeVermerken } from "../../../components/umsatzsteuer/AbgabeVermerken.tsx";
+import { VatStatus } from "../../../components/umsatzsteuer/VatStatus.tsx";
 import { UstvaZahlung } from "../../../components/umsatzsteuer/UstvaZahlung.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt, type ElsterKind } from "../../../lib/elster.ts";
-import { daysUntil, formatDate, formatDateTime, formatDayMonth, formatLongDate, errorMessage, relativeDays } from "../../../lib/format.ts";
+import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import { createVatCorrection, getMeinElsterUstvaWerte, getVatPeriod, saveVatDraft, submitVatReturn } from "../../../server/functions/vat.ts";
 import type { Notice } from "../../../lib/use-action.ts";
 import { Field } from "../../../components/Field.tsx";
-import { OutcomeStatus, Status, Tag } from "../../../components/Status.tsx";
+import { OutcomeStatus, Tag } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
   loader: ({ params }) => {
@@ -106,7 +107,7 @@ function VatPeriodPage() {
           <div className="eyebrow">Umsatzsteuer › Voranmeldung</div>
           <div className="title-with-status">
             <h1>{periodLabel(data.period)}</h1>
-            <VatStatus current={data.current} filing={data.filings.find((f) => f.vatReturnId === data.current?.id)} dueDate={data.dueDate} />
+            <VatStatus current={data.current} filedOn={data.filings.find((f) => f.vatReturnId === data.current?.id)?.filedOn ?? null} dueDate={data.dueDate} />
           </div>
         </div>
         <Field label="Zeitraum">
@@ -829,34 +830,6 @@ function SourcesTable({ id, kind, rows }: { id: string; kind: "revenue" | "input
         </tbody>
       </table>
     </div>
-  );
-}
-
-function VatStatus({ current, filing, dueDate }: { current: PageData["current"]; filing: PageData["filings"][number] | undefined; dueDate: string }) {
-  if (!current) return <Status>Noch nicht angelegt</Status>;
-  const berichtigt = current.berichtigt ? ", berichtigt" : "";
-  if (current.status === "sent") {
-    return filing ? (
-      <Status tone="ok" detail={`${formatDate(filing.filedOn)} (vermerkt)${berichtigt}`}>
-        Abgegeben
-      </Status>
-    ) : (
-      <Status tone="ok" detail={`${formatDate(current.sentAt!)}${berichtigt}`}>
-        Gesendet
-      </Status>
-    );
-  }
-  // Noch nicht gesendet: ab 7 Tagen vor der Frist dringend, wie auf der Seite Fristen
-  const days = daysUntil(dueDate);
-  return (
-    <Status
-      draft
-      tone={days <= 7 ? "warn" : "neutral"}
-      emphasis={days <= 7 ? "urgent" : undefined}
-      detail={`fällig ${days < 0 ? relativeDays(days) : formatDayMonth(dueDate)}${berichtigt}`}
-    >
-      Entwurf
-    </Status>
   );
 }
 

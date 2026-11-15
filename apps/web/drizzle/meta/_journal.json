@@ -1727,15 +1727,29 @@
     {
       "idx": 246,
       "version": "7",
-      "when": 1794747145127,
-      "tag": "0246_vorsteuer_teilabzug",
+      "when": 1794745098644,
+      "tag": "0246_search_unaccent",
       "breakpoints": true
     },
     {
       "idx": 247,
       "version": "7",
-      "when": 1794747147639,
-      "tag": "0247_outgoing_tax_details",
+      "when": 1794745106907,
+      "tag": "0247_search_stufe2_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 248,
+      "version": "7",
+      "when": 1794749868504,
+      "tag": "0248_vorsteuer_teilabzug",
+      "breakpoints": true
+    },
+    {
+      "idx": 249,
+      "version": "7",
+      "when": 1794749870574,
+      "tag": "0249_outgoing_tax_details",
       "breakpoints": true
     }
   ]
