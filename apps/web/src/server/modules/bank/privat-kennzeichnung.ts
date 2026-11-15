@@ -1,4 +1,5 @@
 import { eq, sql, type SQL } from "drizzle-orm";
+import { bankNotPrivateMarkedSql } from "../../db/bank-open.ts";
 import { db, schema } from "../../db/index.ts";
 
 /*
@@ -7,9 +8,9 @@ import { db, schema } from "../../db/index.ts";
  * benutzen und ein gekennzeichneter Umsatz nirgends mehr als offener Posten zählt.
  */
 
-/** Bedingung: der Umsatz ist nicht als privat gekennzeichnet */
+/** Bedingung: der Umsatz ist nicht als privat gekennzeichnet; dieselbe wie in der Vorprüfung der Voranmeldung */
 export function nichtPrivat(): SQL {
-  return sql`not exists (select 1 from ${schema.bankPrivateMarks} m where m.transaction_id = ${schema.bankTransactions.id})`;
+  return bankNotPrivateMarkedSql;
 }
 
 /** Anzahl der gekennzeichneten Umsätze eines Kontos */
