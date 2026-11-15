@@ -150,7 +150,6 @@ function neuAngaben(werte: Werte, positionen: string[], a: Abhaengigkeiten): Neu
 }
 
 export type Abhaengigkeiten = Omit<Kontext, "basis"> & {
-  fehler: (zeile: string) => void;
   /** Liest die Standardeingabe bis zum Ende, für --oidc-client-secret-stdin; ohne Angabe standardeingabe() */
   eingabe?: () => string;
 };

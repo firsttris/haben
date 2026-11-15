@@ -7,7 +7,7 @@
  * Werkzeug ohne bun install läuft; portal-app.test.ts hält beide zusammen.
  */
 import { existsSync } from "node:fs";
-import { readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { compose } from "./ausfuehren.ts";
 import { envSchreiben, envSetzen, envWerte } from "./env-datei.ts";
@@ -23,6 +23,8 @@ const MAX_GRUPPE = 100;
 /** Name der Logo-Dateien, wie parsePortalFirmen sie annimmt; nur solche räumt der Abgleich auch weg */
 const LOGO_DATEI = /^[a-z0-9][a-z0-9_-]*\.(png|jpg)$/;
 export const PORTAL_DIENST = "firmenportal";
+/** Name des Firmenportals in der Liste der offenen Neustarts */
+const PORTAL = "firmenportal";
 
 /** Eine Firma im Firmenportal, wie sie in PORTAL_FIRMEN steht */
 interface Eintrag {
@@ -67,12 +69,12 @@ async function reichtDurch(i: Instanz): Promise<boolean> {
 }
 
 /** Die Instanzen mit SSO, geprüft und mit ihrem Lauf; ohne SSO bleiben sie außen vor */
-async function auswaehlen(k: Kontext): Promise<{ mitSso: { i: Instanz; laeuft: boolean }[]; ohneSso: string[] }> {
+async function auswaehlen(k: Kontext): Promise<{ mitSso: { i: Instanz; laeuft: boolean }[]; ohneSso: Instanz[] }> {
   const mitSso: { i: Instanz; laeuft: boolean }[] = [];
-  const ohneSso: string[] = [];
+  const ohneSso: Instanz[] = [];
   for (const i of await instanzen(k.basis)) {
     if (i.env.get("OIDC_ONLY") !== "true") {
-      ohneSso.push(i.name);
+      ohneSso.push(i);
       continue;
     }
     if (!(await reichtDurch(i)))
@@ -98,7 +100,7 @@ async function logoHolen(k: Kontext, logos: string, i: Instanz, zeichen: Zeichen
   const r = await compose(k, i.dir, ["exec", "-T", "app", "haben", "kennzeichen"], false, undefined, true);
   const grund = r.code !== 0 || !r.daten ? `ließ sich nicht holen (Exit-Code ${r.code})` : logoPruefen(r.daten, zeichen.logo);
   if (grund || !r.daten) {
-    k.aus(`Warnung: Das Logo von ${i.name} ${grund}; das Firmenportal zeigt den Anfangsbuchstaben.`);
+    k.fehler(`Warnung: Das Logo von ${i.name} ${grund}; das Firmenportal zeigt den Anfangsbuchstaben.`);
     return null;
   }
   neu.set(datei, r.daten);
@@ -148,7 +150,11 @@ async function schreiben(dateien: Datei[]): Promise<void> {
   try {
     for (const d of zuSchreiben) {
       if (d.geheim) await envSchreiben(neu(d.pfad), d.inhalt as string);
-      else await writeFile(neu(d.pfad), d.inhalt as Uint8Array, { mode: 0o644 });
+      else {
+        await writeFile(neu(d.pfad), d.inhalt as Uint8Array | string);
+        // Für den Container lesbar (USER bun), auch bei umask 027 oder 077
+        await chmod(neu(d.pfad), 0o644);
+      }
     }
   } catch (error) {
     for (const d of zuSchreiben) await rm(neu(d.pfad), { force: true }).catch(() => undefined);
@@ -158,18 +164,27 @@ async function schreiben(dateien: Datei[]): Promise<void> {
   for (const d of dateien.filter((d) => d.inhalt === null)) await rm(d.pfad, { force: true });
 }
 
-/** Die geänderten .env-Dateien der Instanzen: Adresse des Firmenportals, HABEN_FIRMEN leer (die App lehnt beides ab) */
-async function instanzDateien(liste: Eintrag[], portalUrl: string, geleert: string[]): Promise<Datei[]> {
-  const dateien: Datei[] = [];
-  for (const { instanz: i } of liste) {
+/**
+ * Die geänderten .env-Dateien der Instanzen: mit SSO die Adresse des Firmenportals und HABEN_FIRMEN leer (die App
+ * lehnt beides zusammen ab); ohne SSO die Adresse wieder heraus, die das Werkzeug gesetzt hat (die App lehnt sie
+ * ohne OIDC_ONLY ab)
+ */
+async function instanzDateien(liste: Eintrag[], ohneSso: Instanz[], portalUrl: string, geleert: string[]): Promise<{ i: Instanz; datei: Datei }[]> {
+  const dateien: { i: Instanz; datei: Datei }[] = [];
+  const pruefen = async (i: Instanz, aendern: (text: string) => string) => {
     const alt = await readFile(join(i.dir, ".env"), "utf8");
-    let neu = envSetzen(alt, "HABEN_FIRMENPORTAL_URL", portalUrl);
-    if (envWerte(neu).get("HABEN_FIRMEN")) {
-      neu = envSetzen(neu, "HABEN_FIRMEN", "", true);
+    const neu = aendern(alt);
+    if (neu !== alt) dateien.push({ i, datei: { pfad: join(i.dir, ".env"), inhalt: neu, geheim: true } });
+  };
+  for (const { instanz: i } of liste)
+    await pruefen(i, (alt) => {
+      const neu = envSetzen(alt, "HABEN_FIRMENPORTAL_URL", portalUrl);
+      if (!envWerte(neu).get("HABEN_FIRMEN")) return neu;
       geleert.push(i.name);
-    }
-    if (neu !== alt) dateien.push({ pfad: join(i.dir, ".env"), inhalt: neu, geheim: true });
-  }
+      return envSetzen(neu, "HABEN_FIRMEN", "", true);
+    });
+  for (const i of ohneSso.filter((i) => i.env.get("HABEN_FIRMENPORTAL_URL") === portalUrl))
+    await pruefen(i, (alt) => envSetzen(alt, "HABEN_FIRMENPORTAL_URL", ""));
   return dateien;
 }
 
@@ -183,40 +198,74 @@ async function logoDateien(logos: string, liste: Eintrag[], neu: Map<string, Uin
   ];
 }
 
-/** Startet neu, was eine geänderte Datei hat; `erstmals` startet das Firmenportal auch ohne Änderung */
-async function neuStarten(
-  k: Kontext,
-  portalDir: string,
-  envNeu: boolean,
-  logosNeu: boolean,
-  instanzenNeu: Instanz[],
-  laufend: Set<Instanz>,
-  erstmals: boolean,
-) {
-  const gestartet: string[] = [];
+/**
+ * Neustarts, die noch ausstehen, als Zeilen „firmenportal up“, „firmenportal restart“ oder „instanz <name>“. Sie
+ * stehen in einer Datei, bevor neu gestartet wird: Scheitert ein Neustart, sind die Dateien schon auf dem neuen
+ * Stand, und erst diese Liste sagt dem nächsten Lauf, was er nachholen muss.
+ */
+const OFFEN = ".neustart-offen";
+
+async function offenLesen(portalDir: string): Promise<Set<string>> {
+  const datei = join(portalDir, OFFEN);
+  if (!existsSync(datei)) return new Set();
+  return new Set((await readFile(datei, "utf8")).split("\n").filter((z) => z.trim() !== ""));
+}
+
+const offenDatei = (portalDir: string, offen: Set<string>): Datei => ({
+  pfad: join(portalDir, OFFEN),
+  inhalt: offen.size > 0 ? `${[...offen].join("\n")}\n` : null,
+  geheim: false,
+});
+
+/** Was neu gestartet werden muss: aus dieser Änderung und was ein abgebrochener Lauf schuldig blieb */
+async function offeneNeustarts(k: Kontext, portalDir: string, envNeu: boolean, logosNeu: boolean, instanzenNeu: Instanz[], erstmals: boolean) {
+  const offen = await offenLesen(portalDir);
   const stand = await dienste(k, portalDir);
-  const portalLaeuft = lauf(stand, PORTAL_DIENST) === "laeuft";
   // Ohne Container (etwa wenn der erste Abgleich nach dem Einrichten abbrach) wie beim ersten Mal starten; einen
   // gestoppten Container startet nur, wer ihn gestoppt hat
-  const starten = erstmals || (stand !== null && !stand.has(PORTAL_DIENST));
+  const ohneContainer = stand !== null && !stand.has(PORTAL_DIENST);
   // Compose erstellt den Container neu, wenn sich die .env geändert hat (env_file geht in die Konfiguration ein);
   // die Logos liest das Firmenportal nur beim Start
-  const befehl = starten || envNeu ? ["up", "-d"] : logosNeu ? ["restart", PORTAL_DIENST] : null;
-  if (befehl && (starten || portalLaeuft)) {
+  if (erstmals || ohneContainer || envNeu) offen.add(`${PORTAL} up`);
+  else if (logosNeu) offen.add(`${PORTAL} restart`);
+  if (offen.has(`${PORTAL} up`)) offen.delete(`${PORTAL} restart`);
+  for (const i of instanzenNeu) offen.add(`instanz ${i.name}`);
+  return { offen, starten: erstmals || ohneContainer, portalLaeuft: lauf(stand, PORTAL_DIENST) === "laeuft" };
+}
+
+/** Arbeitet die offenen Neustarts ab und streicht jeden gelungenen aus der Datei; gestoppte bleiben gestoppt */
+async function neuStarten(k: Kontext, portalDir: string, offen: Set<string>, starten: boolean, portalLaeuft: boolean, alle: Instanz[]) {
+  const gestartet: string[] = [];
+  const gestoppt: string[] = [];
+  const erledigt = async (zeile: string) => {
+    offen.delete(zeile);
+    await schreiben([offenDatei(portalDir, offen)]);
+  };
+  for (const zeile of [...offen].filter((z) => z.startsWith(`${PORTAL} `))) {
+    if (!starten && !portalLaeuft) continue;
+    const befehl = zeile.endsWith(" up") ? ["up", "-d"] : ["restart", PORTAL_DIENST];
     if ((await compose(k, portalDir, befehl, true)).code !== 0)
       abbrechen(`Das Firmenportal ließ sich nicht starten; siehe: cd ${portalDir} && docker compose logs`);
     if (!(await wartenAufApp(k, portalDir, PORTAL_DIENST)))
       abbrechen(`Das Firmenportal ist nicht gesund geworden; siehe: cd ${portalDir} && docker compose logs ${PORTAL_DIENST}`);
     gestartet.push("Firmenportal");
+    await erledigt(zeile);
   }
-  for (const i of instanzenNeu.filter((i) => laufend.has(i))) {
-    const rest = "Die Dateien sind geschrieben; die übrigen Instanzen laufen noch mit der alten Einstellung.";
+  const rest = "Die Dateien sind geschrieben; der nächste Lauf von portal startet nach, was noch aussteht.";
+  for (const zeile of [...offen].filter((z) => z.startsWith("instanz "))) {
+    const i = alle.find((i) => `instanz ${i.name}` === zeile);
+    if (!i || lauf(await dienste(k, i.dir), "app") !== "laeuft") {
+      if (i) gestoppt.push(i.name);
+      await erledigt(zeile);
+      continue;
+    }
     if ((await compose(k, i.dir, ["up", "-d"], true)).code !== 0) abbrechen(`${i.name}: Neustart fehlgeschlagen. ${rest}`);
     if (!(await wartenAufApp(k, i.dir)))
       abbrechen(`${i.name}: Die App ist nach dem Neustart nicht gesund; siehe: cd ${i.dir} && docker compose logs app. ${rest}`);
     gestartet.push(i.name);
+    await erledigt(zeile);
   }
-  return { gestartet, portalGestoppt: !portalLaeuft && !starten };
+  return { gestartet, gestoppt, portalGestoppt: [...offen].some((z) => z.startsWith(`${PORTAL} `)) };
 }
 
 /** Der Abgleich; `erstmals` nach dem Einrichten */
@@ -230,28 +279,34 @@ export async function abgleichen(k: Kontext, portalDir: string, erstmals: boolea
 
   const envNeu = envSetzen(envAlt, "PORTAL_FIRMEN", liste.map(zeile).join(";"), true);
   const geleert: string[] = [];
-  const instanzen = await instanzDateien(liste, portalUrl, geleert);
-  const logos = await logoDateien(join(portalDir, "logos"), liste, neueLogos);
-  await schreiben([...(envNeu !== envAlt ? [{ pfad: envPfad, inhalt: envNeu, geheim: true }] : []), ...logos, ...instanzen]);
-
-  const geaendert = new Set(instanzen.map((d) => d.pfad));
-  const instanzenNeu = liste.map((e) => e.instanz).filter((i) => geaendert.has(join(i.dir, ".env")));
-  const laufend = new Set(mitSso.filter((m) => m.laeuft).map((m) => m.i));
-  const { gestartet, portalGestoppt } = await neuStarten(k, portalDir, envNeu !== envAlt, logos.length > 0, instanzenNeu, laufend, erstmals);
+  const instanzen = await instanzDateien(liste, ohneSso, portalUrl, geleert);
+  const logosDir = join(portalDir, "logos");
+  const logos = await logoDateien(logosDir, liste, neueLogos);
+  const geaendert = envNeu !== envAlt || logos.length > 0 || instanzen.length > 0;
+  const neustarts = await offeneNeustarts(
+    k,
+    portalDir,
+    envNeu !== envAlt,
+    logos.length > 0,
+    instanzen.map((d) => d.i),
+    erstmals,
+  );
+  await mkdir(logosDir, { recursive: true });
+  await chmod(logosDir, 0o755);
+  await schreiben([
+    ...(envNeu !== envAlt ? [{ pfad: envPfad, inhalt: envNeu, geheim: true }] : []),
+    ...logos,
+    ...instanzen.map((d) => d.datei),
+    offenDatei(portalDir, neustarts.offen),
+  ]);
+  const alle = [...mitSso.map((m) => m.i), ...ohneSso];
+  const { gestartet, gestoppt, portalGestoppt } = await neuStarten(k, portalDir, neustarts.offen, neustarts.starten, neustarts.portalLaeuft, alle);
 
   const kurz = (e: Eintrag) => (e.logo ? "Logo" : (e.zeichen.farbe ?? "–"));
   for (const z of tabelle([["INSTANZ", "DOMAIN", "ZEICHEN"], ...liste.map((e) => [e.instanz.name, new URL(e.url).hostname, kurz(e)])])) k.aus(z);
   if (geleert.length > 0) k.aus(`HABEN_FIRMEN geleert (die Liste kommt jetzt aus dem Firmenportal): ${geleert.join(" ")}`);
-  if (ohneSso.length > 0) k.aus(`Ohne SSO, nicht im Firmenportal: ${ohneSso.join(" ")}`);
-  const gestoppt = instanzenNeu.filter((i) => !laufend.has(i)).map((i) => i.name);
+  if (ohneSso.length > 0) k.aus(`Ohne SSO, nicht im Firmenportal: ${ohneSso.map((i) => i.name).join(" ")}`);
   if (gestoppt.length > 0) k.aus(`Gestoppt, nur die .env geändert: ${gestoppt.join(" ")}`);
-  if (portalGestoppt && (envNeu !== envAlt || logos.length > 0))
-    k.aus(`Das Firmenportal ist gestoppt; die Änderungen gelten nach: cd ${portalDir} && docker compose up -d`);
-  k.aus(
-    gestartet.length > 0
-      ? `Neu gestartet: ${gestartet.join(" ")}`
-      : envNeu === envAlt && logos.length === 0 && instanzen.length === 0
-        ? "Nichts geändert."
-        : "Keine Neustarts nötig.",
-  );
+  if (portalGestoppt) k.aus(`Das Firmenportal ist gestoppt; die Änderungen gelten nach: cd ${portalDir} && docker compose up -d`);
+  k.aus(gestartet.length > 0 ? `Neu gestartet: ${gestartet.join(" ")}` : geaendert ? "Keine Neustarts nötig." : "Nichts geändert.");
 }

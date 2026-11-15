@@ -171,12 +171,13 @@ describe("portal: Abgleich", () => {
     expect(r.stdout).toMatch(/nord\s+nord\.example\.de\s+–/);
   });
 
-  it("nimmt kein Logo, dessen Prüfsumme nicht zur Meldung passt, und warnt", async () => {
+  it("nimmt kein Logo, dessen Prüfsumme nicht zur Meldung passt, und warnt auf stderr (cron meldet es auch mit > /dev/null)", async () => {
     t.docker.z.logos.set("sued", PNG2);
-    const r = await einrichten();
+    const r = await t.lauf("portal", "portal.example.de", ...SSO, "haben-firmenportal", "--oidc-client-secret-stdin");
+    expect(r.status).toBe(0);
     expect(firmenImPortal()).not.toContain("sued.png");
     expect(existsSync(join(portalDir(), "logos", "sued.png"))).toBe(false);
-    expect(r.stdout).toContain("Warnung: Das Logo von sued hat eine andere Prüfsumme als gemeldet");
+    expect(r.stderr).toContain("Warnung: Das Logo von sued hat eine andere Prüfsumme als gemeldet");
   });
 
   it("lässt einer gestoppten Instanz Farbe und Logo von bisher und fragt sie nicht", async () => {
