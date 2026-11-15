@@ -29,7 +29,7 @@ import {
   startImport,
   startWebImport,
 } from "../modules/archiv/index.ts";
-import { openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
+import { confirmWithoutFile, openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
 import {
   accountableImportStatus,
   AccountableError,
@@ -318,6 +318,15 @@ export const getLegacyVoucher = createServerFn({ method: "GET" })
     const detail = await legacyVoucherDetail(data.id);
     if (!detail) throw notFound();
     return detail;
+  });
+
+/** Beleg aus sevDesk ohne Datei: eine Person hat in sevDesk geprüft, dass es keine gibt (#345) */
+export const confirmLegacyWithoutFile = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), note: z.string().max(500).default("") }))
+  .handler(async ({ data, context }) => {
+    await confirmWithoutFile(context.user.id, data.id, data.note);
+    return { ok: true };
   });
 
 export const getDatevBookings = createServerFn({ method: "GET" })

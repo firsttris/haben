@@ -1814,6 +1814,20 @@
       "when": 1794772658049,
       "tag": "0258_rechnungen_bereits_bezahlt",
       "breakpoints": true
+    },
+    {
+      "idx": 259,
+      "version": "7",
+      "when": 1794775015022,
+      "tag": "0259_dateistand_umzug",
+      "breakpoints": true
+    },
+    {
+      "idx": 260,
+      "version": "7",
+      "when": 1794775016465,
+      "tag": "0260_dateistand_umzug_trigger",
+      "breakpoints": true
     }
   ]
 }
