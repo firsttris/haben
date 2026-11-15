@@ -4,6 +4,7 @@ import {
   filingPeriodsOfYear,
   frequencyAt,
   latestEndedPeriod,
+  openFilingPeriod,
   periodMatchesFrequency,
   recentFilingPeriods,
   suggestFrequency,
@@ -112,5 +113,86 @@ describe("suggestFrequency (§ 18 Abs. 2 UStG)", () => {
     expect(suggestFrequency({ year: 2026, previousYearTax: 300_001, firstActivity: "2025-09" })?.frequency).toBe("monatlich");
     // Im Gründungsjahr zählt die voraussichtliche Steuer, die Haben nicht kennt
     expect(suggestFrequency({ year: 2026, previousYearTax: null, firstActivity: "2026-03" })).toBeNull();
+  });
+});
+
+describe("openFilingPeriod", () => {
+  it("Quartal, im Oktober sind Q4/2025 und Q1/Q2/2026 abgegeben: Q3 ist dran, nicht das laufende Q4", () => {
+    // Der Fall aus #1102: der laufende Zeitraum ist nie abzugeben (§ 18 Abs. 1 UStG)
+    const ergebnis = openFilingPeriod(quartal2026, { year: 2026, month: 10 }, [
+      { year: 2025, month: 44 },
+      { year: 2026, month: 41 },
+      { year: 2026, month: 42 },
+    ]);
+    expect(ergebnis).toEqual({ year: 2026, month: 43 });
+  });
+
+  it("Quartal, alle abgelaufenen Zeiträume im Fenster abgegeben: null", () => {
+    // Am 5. Oktober sind Q4/2025 und Q1 bis Q3/2026 abgegeben; Q4 läuft noch, also gibt es nichts zu öffnen
+    expect(
+      openFilingPeriod(quartal2026, { year: 2026, month: 10 }, [
+        { year: 2025, month: 44 },
+        { year: 2026, month: 41 },
+        { year: 2026, month: 42 },
+        { year: 2026, month: 43 },
+      ]),
+    ).toBeNull();
+  });
+
+  it("Quartal über den Jahreswechsel: das offene Q4 des Vorjahrs bleibt dran", () => {
+    const ergebnis = openFilingPeriod(quartal2026, { year: 2027, month: 2 }, [
+      { year: 2026, month: 41 },
+      { year: 2026, month: 42 },
+      { year: 2026, month: 43 },
+    ]);
+    expect(ergebnis).toEqual({ year: 2026, month: 44 });
+  });
+
+  it("monatlich: der älteste offene Monat im Fenster, nicht der letzte", () => {
+    const monatlich: VatFrequencySetting[] = [{ year: 2026, fromMonth: 1, frequency: "monatlich" }];
+    // November 2025 bis Oktober 2026, alles abgegeben außer September 2026
+    const abgegeben = [
+      ...Array.from({ length: 2 }, (_, i) => ({ year: 2025, month: 11 + i })),
+      ...Array.from({ length: 10 }, (_, i) => ({ year: 2026, month: 1 + i })).filter((p) => p.month !== 9),
+    ];
+    expect(openFilingPeriod(monatlich, { year: 2026, month: 11 }, abgegeben)).toEqual({ year: 2026, month: 9 });
+  });
+
+  it("monatlich, alles abgegeben: null", () => {
+    const monatlich: VatFrequencySetting[] = [{ year: 2026, fromMonth: 1, frequency: "monatlich" }];
+    const alle = [
+      ...Array.from({ length: 2 }, (_, i) => ({ year: 2025, month: 11 + i })),
+      ...Array.from({ length: 10 }, (_, i) => ({ year: 2026, month: 1 + i })),
+    ];
+    expect(openFilingPeriod(monatlich, { year: 2026, month: 11 }, alle)).toBeNull();
+  });
+
+  it("ohne Voranmeldungspflicht gibt es nichts zu öffnen", () => {
+    const befreit: VatFrequencySetting[] = [{ year: 2026, fromMonth: 1, frequency: "keine" }];
+    expect(openFilingPeriod(befreit, { year: 2026, month: 11 }, [])).toBeNull();
+  });
+
+  it("ohne Abgabe in Haben: der zuletzt abgelaufene Zeitraum, wie bisher", () => {
+    // Wer Haben neu nutzt, hat die älteren Zeiträume meist anderswo abgegeben
+    expect(openFilingPeriod([], { year: 2026, month: 11 }, [])).toEqual({ year: 2026, month: 10 });
+    expect(openFilingPeriod(quartal2026, { year: 2026, month: 11 }, [])).toEqual({ year: 2026, month: 43 });
+  });
+
+  it("Gründung im Juli, vierteljährlich ab Juli, Q3 abgegeben: nichts offen, nicht Januar", () => {
+    // Die Monate vor der ersten Einstellung gelten sonst als monatlich und wären nie abgegeben
+    const abJuli: VatFrequencySetting[] = [{ year: 2026, fromMonth: 7, frequency: "vierteljaehrlich" }];
+    expect(openFilingPeriod(abJuli, { year: 2026, month: 11 }, [{ year: 2026, month: 43 }])).toBeNull();
+    expect(openFilingPeriod(abJuli, { year: 2027, month: 2 }, [{ year: 2026, month: 43 }])).toEqual({ year: 2026, month: 44 });
+  });
+
+  it("Abgabe vor der ersten Einstellung: gesucht wird erst ab Jahr und Monat der Einstellung", () => {
+    const abJuli: VatFrequencySetting[] = [{ year: 2026, fromMonth: 7, frequency: "vierteljaehrlich" }];
+    expect(openFilingPeriod(abJuli, { year: 2026, month: 11 }, [{ year: 2026, month: 3 }])).toEqual({ year: 2026, month: 43 });
+  });
+
+  it("erste Abgabe in Haben im Mai, Juni fehlt: Juni, nicht Januar", () => {
+    const monatlich: VatFrequencySetting[] = [{ year: 2026, fromMonth: 1, frequency: "monatlich" }];
+    const abgegeben = [5, 7, 8, 9, 10].map((month) => ({ year: 2026, month }));
+    expect(openFilingPeriod(monatlich, { year: 2026, month: 11 }, abgegeben)).toEqual({ year: 2026, month: 6 });
   });
 });

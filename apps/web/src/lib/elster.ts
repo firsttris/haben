@@ -14,9 +14,9 @@ export interface AbgabePille {
 }
 
 /**
- * Stand einer Jahreserklärung für die Pille: in Haben übermittelt, außerhalb abgegeben oder offen. Die
- * Einkommensteuererklärung kann Haben übermitteln, kennt dafür aber keinen Vermerk; ohne Übermittlung aus Haben ist „offen“ dort keine Pflicht,
- * sondern der Normalfall, und die Pille sagt das neutral (#869).
+ * Stand einer Jahreserklärung für die Pille: in Haben übermittelt, außerhalb abgegeben oder offen. Bei der
+ * Einkommensteuererklärung ist „offen“ ohne Übermittlung aus Haben und ohne Vermerk keine Pflicht, sondern der Normalfall,
+ * und die Pille sagt das neutral (#869).
  */
 export function abgabePille({
   sent,

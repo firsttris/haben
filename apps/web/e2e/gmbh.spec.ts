@@ -253,6 +253,8 @@ test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als
   await expect(region).toContainText("Das Register berechnet eine Gebühr und für ein PDF ein Entgelt");
   await expect(region).not.toContainText("Kostenlos");
   await expect(region).toContainText("Das Registergericht fehlt in den Firmendaten.");
+  // Am Handy zeigt /einstellungen ohne ?bereich nur die Liste der Bereiche; der Link führt direkt in die Firma
+  await expect(region.getByRole("link", { name: "Einstellungen › Firmendaten" })).toHaveAttribute("href", "/einstellungen?bereich=firma");
   await expect(region.getByRole("button", { name: "Bilanz als PDF herunterladen" })).toBeDisabled();
 
   await go("/einstellungen");
@@ -546,6 +548,7 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
   // Fehlende Angaben sind ein Hinweis, keine Sperre (eine Vor-GmbH hat noch keine Registernummer)
   await go("/rechnungen/neu");
   await expect(page.locator("#letter-issues")).toContainText("Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): Geschäftsführer fehlt.");
+  await expect(page.locator("#letter-issues").getByRole("link", { name: "Firmendaten ergänzen" })).toHaveAttribute("href", "/einstellungen?bereich=firma");
   await kundeWaehlen(page, "Hafenkontor Logistik GmbH · Hamburg");
   await page.getByLabel("Beschreibung Position 1").fill("Softwarewartung");
   await page.getByLabel("Menge Position 1").fill("1");
