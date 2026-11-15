@@ -636,8 +636,10 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) { row-gap: 4px; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child { justify-self: end; min-width: 0; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) > :last-child .status { flex-direction: row; align-items: baseline; gap: 6px; min-height: 0; max-width: 100%; }
-  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-label { flex: none; }
-  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-detail { padding-left: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-label, .status-edge .status-label { flex: none; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-detail, .status-edge .status-detail { padding-left: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Karten (Status mit edge): das Wort an der rechten Kante, die Auskunft davor, auch wenn der Status in eine eigene Zeile umbricht */
+  .status-edge { flex-direction: row-reverse; align-items: baseline; gap: 6px; max-width: 100%; margin-left: auto; }
   /* Rechnungen und Angebote: die Auskunft vorn, das Wort an der rechten Kante unter dem Betrag. Die Fläche des dringenden
      Worts ragt nach rechts in den Rand, damit das Wort mit dem Betrag fluchtet; davor etwas mehr Luft zur Auskunft */
   :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status { flex-direction: row-reverse; }
@@ -1079,9 +1081,12 @@ fieldset.card > legend + * { clear: both; }
 .kpi-value { white-space: nowrap; }
 
 @media (max-width: 720px) {
-  /* Knopfzeilen: Knöpfe füllen die Zeile, die Hauptaktion steht rechts im Daumenbereich; kleine Knöpfe in Tabellen bleiben.
-     Vor dem Kopf, damit dessen gleich spezifische Regeln gewinnen: dort scrollt die Zeile seitlich statt zu schrumpfen */
-  .actions > .btn:not(.btn-sm) { flex: 1 1 auto; }
+  /* Knopfzeilen: Knöpfe füllen die Zeile, die Hauptaktion steht rechts im Daumenbereich; kleine Knöpfe in Tabellen (auch `.table`) und
+     Bannern bleiben. Vor dem Kopf, damit dessen gleich spezifische Regeln gewinnen: dort scrollt die Zeile seitlich statt
+     zu schrumpfen; :where hält die Ausnahme dafür ohne Spezifität. In einer Zeile mit Verlauf nimmt die Knopfzeile die
+     ganze Breite statt nur die ihrer Knöpfe */
+  .actions > .btn:not(:where(table, .table, .banner) .btn-sm) { flex: 1 1 auto; }
+  .history-row > .actions { width: 100%; }
   /* Kopf kompakt, weil er stehen bleibt: Titel oben, Aktionen darunter in einer Zeile, die seitlich scrollt, statt
      mehrerer Zeilen voller Knöpfe. Wenige Knöpfe füllen die Breite wie bisher. 4px Innenabstand halten den Fokusrahmen
      in der scrollenden Zeile sichtbar */

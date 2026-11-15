@@ -334,15 +334,15 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
           {titel}: {formatEuro(a.brutto)}
         </h2>
         {a.storniert ? (
-          <Status tone="danger" inline>
+          <Status tone="danger" inline edge>
             Storniert
           </Status>
         ) : a.angemeldet ? (
-          <Status tone="ok" inline>
+          <Status tone="ok" inline edge>
             Angemeldet
           </Status>
         ) : (
-          <Status inline detail={`bis ${formatDate(faellig)}`}>
+          <Status inline edge detail={`bis ${formatDate(faellig)}`}>
             Anmelden
           </Status>
         )}

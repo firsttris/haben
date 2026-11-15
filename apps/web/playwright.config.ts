@@ -120,6 +120,7 @@ export default defineConfig({
         "knopfreihenfolge.spec.ts",
         "rechtsform.spec.ts",
         "seiten.spec.ts",
+        "status-anordnung.spec.ts",
         "steuerberatung.spec.ts",
         "vorschau.spec.ts",
         "zz-doku-screenshots.spec.ts",
