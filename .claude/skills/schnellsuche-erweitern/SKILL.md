@@ -22,7 +22,7 @@ Was die Schnellsuche findet und warum, steht in `docs/suche.md` und `docs/archit
 
 ## Tests
 
-- **Postgres** in `server/functions/search.test.ts`: findet nach Text, Umlaut ohne Akzent, Betrag und Datum; nichts außerhalb des Bereichs; die Steuerberatung bekommt die Gruppe nicht (oder nur das Erlaubte); `EXPLAIN` mit vielen Zeilen zeigt den Index (`vacuum analyze` vorher), kein `Seq Scan` auf großen Tabellen, auch für die gemeinsame Abfrage des Moduls (`searchPartsQuery`); die Zahl der Abfragen je Eingabe steigt nur mit einem neuen Modul.
+- **Postgres** in `server/functions/search.test.ts`: findet nach Text, Umlaut ohne Akzent, Betrag und Datum; nichts außerhalb des Bereichs; die Steuerberatung bekommt die Gruppe nicht (oder nur das Erlaubte); `EXPLAIN` mit vielen Zeilen zeigt den Index (`vacuum analyze` vorher), kein `Seq Scan` auf großen Tabellen, auch für die gemeinsame Abfrage des Moduls (`searchPartsQuery` über die Teile, dafür eine eigene Funktion wie `bankSearchParts`); die Zahl der Abfragen je Eingabe steigt nur mit einem neuen Modul.
 - **Vitest:** `search-plan.test.ts`, wenn sich die Auswahl der Gruppen ändert; `lib/befehlspalette.test.ts` für Kontext, Ziel und Status des Treffers.
 - **Playwright** in `e2e/befehlspalette.spec.ts`, wenn sich die Bedienung ändert.
 
