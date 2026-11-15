@@ -501,6 +501,19 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     ]);
   });
 
+  it("findet Pauschalen über die Bezeichnung ihrer Art, die der Treffer zeigt, nicht über den gespeicherten Schlüssel", async () => {
+    await sql.begin(async (t) => {
+      await t`set local session_replication_role = replica`;
+      await t`insert into pauschalen (art, date, description, details, amount, journal_entry_id) values ('fahrt', '2026-09-15', 'Kundentermin', '{}', 3600, gen_random_uuid())`;
+      await t`insert into pauschalen (art, date, description, details, amount, journal_entry_id) values ('entfernung', '2026-09-16', 'Pendeln', '{}', 1500, gen_random_uuid())`;
+    });
+    const texte = async (q: string) => (await search.runCommandPaletteSearch(q, "inhaber")).pauschalen.hits.map((h) => h.description);
+    // PAUSCHALE_LABEL: „Fahrten mit dem Privatfahrzeug“, „Wege zwischen Wohnung und Betriebsstätte“
+    expect(await texte("Privatfahrzeug")).toEqual(["Kundentermin"]);
+    expect(await texte("Betriebsstatte")).toEqual(["Pendeln"]);
+    expect(await texte("entfernung")).toEqual([]);
+  });
+
   it("findet eine Buchung über ihren Bruttobetrag, nicht über Netto oder Steuer (Entscheidung zu #1038)", async () => {
     await sql.begin(async (tx) => {
       const [je] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
