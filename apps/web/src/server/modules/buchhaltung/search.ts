@@ -50,7 +50,8 @@ export async function bookingEntriesQuery(query: string, limit: number) {
   const accounts = /^\d{4,9}$/.test(query.trim()) ? [...new Set([...matchingAccounts, query.trim()])] : matchingAccounts;
   const lineConditions = [
     ...(accounts.length > 0 ? [inArray(jl.account, accounts)] : []),
-    ...(cents !== null ? [eq(jl.debit, Math.abs(cents)), eq(jl.credit, Math.abs(cents))] : []),
+    // 0 steht in jeder Zeile auf der leeren Seite und fände jede Buchung
+    ...(cents !== null && cents !== 0 ? [eq(jl.debit, Math.abs(cents)), eq(jl.credit, Math.abs(cents))] : []),
   ];
   // Ein `id in (Unterabfrage)` im `or` ließe Postgres alle Buchungen lesen; als `union` nutzt jeder Teil seinen Index.
   const textMatches = db
