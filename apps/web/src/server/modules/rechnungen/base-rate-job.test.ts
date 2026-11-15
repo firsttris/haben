@@ -9,13 +9,13 @@ const DAY = 24 * 60 * 60 * 1000;
 describe.skipIf(!testDatabaseUrl)("Basiszinssatz automatisch (Postgres)", () => {
   let sql: postgres.Sql;
   let job: typeof import("./base-rate-job.ts");
-  let guard: typeof import("../stammdaten/settings-guard.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let company: typeof import("../stammdaten/company.ts");
 
   beforeAll(async () => {
     sql = await setupTestDb();
     job = await import("./base-rate-job.ts");
-    guard = await import("../stammdaten/settings-guard.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     company = await import("../stammdaten/company.ts");
   }, 30_000);
 

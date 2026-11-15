@@ -17,11 +17,11 @@ import { einlagekontoJahr } from "../ausschuettung/index.ts";
 import { jahresabschluss } from "../buchhaltung/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 import { companyIssues, loadCompany, type Company } from "../stammdaten/index.ts";
-import { kapgErklaerungAngaben, kapgSteuernJahr, KoerperschaftError, type KapgErklaerungAngaben } from "./koerperschaft.ts";
+import { kapgErklaerungAngaben, kapgSteuernJahr, KoerperschaftError, type KapgErklaerungAngaben } from "../koerperschaft/index.ts";
 
 /*
  * Körperschaft- und Gewerbesteuererklärung einer GmbH oder UG über ELSTER: Werte aus der Steuerberechnung des Jahres
- * (koerperschaft.ts), dazu die Angaben zur Erklärung (Anteilseigner, Verträge, Gründung). Prüfen, Test und Senden wie
+ * (koerperschaft/koerperschaft.ts), dazu die Angaben zur Erklärung (Anteilseigner, Verträge, Gründung). Prüfen, Test und Senden wie
  * die anderen Jahreserklärungen über das ELSTER-Gateway, Protokoll in annual_submissions (Formular kst bzw. gewst).
  * Echt gesendet wird erst, wenn das Jahr abgeschlossen ist: Die Erklärung beruht auf dem Jahresabschluss.
  */

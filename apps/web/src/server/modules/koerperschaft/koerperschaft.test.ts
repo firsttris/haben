@@ -9,7 +9,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Körperschaft- und Gewerbesteuer (Postgres)", () => {
   let sql: postgres.Sql;
   let kst: typeof import("./koerperschaft.ts");
-  let ebilanz: typeof import("./ebilanz.ts");
+  let ebilanz: typeof import("../jahreserklaerung/ebilanz.ts");
   let ledger: typeof import("../buchhaltung/ledger.ts");
   let stammdaten: typeof import("../stammdaten/index.ts");
   const actor = "test-user";
@@ -18,7 +18,7 @@ describe.skipIf(!testDatabaseUrl)("Körperschaft- und Gewerbesteuer (Postgres)",
   beforeAll(async () => {
     sql = await setupTestDb();
     kst = await import("./koerperschaft.ts");
-    ebilanz = await import("./ebilanz.ts");
+    ebilanz = await import("../jahreserklaerung/ebilanz.ts");
     ledger = await import("../buchhaltung/ledger.ts");
     stammdaten = await import("../stammdaten/index.ts");
   }, 30_000);
