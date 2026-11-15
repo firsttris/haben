@@ -238,7 +238,13 @@ test("Belegliste: ohne Sortierung ungebuchte zuerst, Spaltenkopf sortiert und ne
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/belege");
   const zeilen = page.locator("a.table-row.document-cols");
-  await expect(zeilen.first()).toContainText("Altpapier Ahrens");
+  // Ohne Sortierung stehen ungebuchte Belege oben, auch wenn ihr Datum älter ist (docs/belege.md, „Liste und Status“).
+  // Mehrere ungebuchte Belege sind möglich, deshalb die Reihenfolge prüfen statt den ersten Namen:
+  const texte = await zeilen.allInnerTexts();
+  const altpapier = texte.findIndex((t) => t.includes("Altpapier Ahrens"));
+  const gebuchtL4711 = texte.findIndex((t) => t.includes("L-4711"));
+  expect(altpapier).toBeGreaterThanOrEqual(0);
+  expect(gebuchtL4711).toBeGreaterThan(altpapier);
 
   // Die Richtung steht im Namen des Links wie in der Bankliste (BankSortierKopf), damit Screenreader sie vorlesen
   await page.getByRole("link", { name: "Lieferant absteigend sortieren" }).click();
