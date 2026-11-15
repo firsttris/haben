@@ -114,6 +114,7 @@ export const documentPreviewSchema = z.object({
     .max(10)
     .transform((stufen) => stufen.filter((stufe) => skontoStufeSchema.safeParse(stufe).success)),
   sepaMandateId: z.uuid().nullable(),
+  paidPayment: z.object({ paidVia: z.string().trim().min(1).max(120), paidOn: z.iso.date() }).optional(),
   design: letterheadDesignInputSchema,
 });
 
@@ -186,6 +187,7 @@ function invoiceDocument(input: Input, company: Company, buyer: Buyer, letterhea
     ...(input.variant ? { variant: input.variant } : {}),
     ...documentReferences(referenceColumns(input)),
     ...(directDebit ? { directDebit } : {}),
+    ...(input.kind === "rechnung" && input.paidPayment ? { paidPayment: input.paidPayment } : {}),
   };
 }
 

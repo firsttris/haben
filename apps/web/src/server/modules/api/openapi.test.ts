@@ -57,6 +57,8 @@ describe("OpenAPI-Beschreibung der REST-API", () => {
     expect(line.properties.unitPrice!.description).toMatch(/Cent/);
     expect(line.properties.taxRate!.description).toMatch(/Basispunkten/);
     expect(line.required).toEqual(expect.arrayContaining(["description", "quantity", "unit", "unitPrice", "taxRate"]));
+    // Seit den eigenen Einheiten (#748) ist die Einheit Text statt Aufzählung; die Beschreibung nennt, was geht
+    expect(line.properties.unit!.description).toMatch(/Std\., Tag, Monat, Stk\., Psch\., km.*eigenen Einheit/);
     const invoice = doc.components.schemas.Invoice as { properties: Record<string, { description?: string }> };
     expect(invoice.properties.gross!.description).toMatch(/Cent/);
     expect(doc.info.description).toMatch(/Basispunkten/);

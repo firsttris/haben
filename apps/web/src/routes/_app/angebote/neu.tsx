@@ -27,6 +27,7 @@ function NewQuotePage() {
       bundesland={data.bundesland}
       kleinunternehmer={data.kleinunternehmer}
       articles={data.articles}
+      units={data.units}
       textBlocks={data.textBlocks}
       planTemplates={data.planTemplates}
       contactPersons={data.contactPersons}
