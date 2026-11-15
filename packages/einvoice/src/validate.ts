@@ -1,7 +1,7 @@
 import { treatmentIssues } from "@haben/core";
 import { EINHEITENCODES, LAENDERCODES, WAEHRUNGSCODES } from "./codelisten.ts";
 import { unitCodeOf } from "./einheit-code.ts";
-import { isCreditNote } from "./format.ts";
+import { isCreditNote, paidInvoicePayment } from "./format.ts";
 import type { InvoiceDocument } from "./types.ts";
 
 const blank = (value: string | undefined) => !value?.trim();
@@ -20,7 +20,7 @@ export function validateForFormat(doc: InvoiceDocument): string[] {
   if (blank(seller.email)) problems.push("E-Mail-Adresse des Rechnungsstellers fehlt");
   if (blank(seller.steuernummer) && blank(seller.ustId)) problems.push("Steuernummer oder USt-IdNr. fehlt");
   if (xrechnung && blank(seller.telefon)) problems.push("Telefonnummer fehlt (für XRechnung Pflicht)");
-  if (!isCreditNote(doc) && doc.totals.gross > 0 && blank(seller.iban)) problems.push("IBAN fehlt");
+  if (!isCreditNote(doc) && doc.totals.gross > 0 && !paidInvoicePayment(doc) && blank(seller.iban)) problems.push("IBAN fehlt");
 
   if (blank(buyer.name)) problems.push("Name des Kunden fehlt");
   if (blank(buyer.strasse) || blank(buyer.plz) || blank(buyer.ort)) problems.push("Anschrift des Kunden unvollständig");
