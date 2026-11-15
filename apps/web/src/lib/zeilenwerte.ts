@@ -115,6 +115,16 @@ const UST_REIHENFOLGE = [
 
 const ustZeile = (field: keyof typeof UST_FELDER): ErklaerteZeile => ({ field, text: UST_FELDER[field] });
 
+/**
+ * Aufwendungen für ein häusliches Arbeitszimmer, Spalte „abziehbar“ (E6003101, im ERiC-Prüfplugin der Anlage EÜR
+ * unter /EUER/BAus/Beschr_abziehbar/Abziehbar/Arbeitszimmer). Sie hat in `EUER_FIELDS` kein Feld, weil Haben sie
+ * nicht übermittelt; für eine außerhalb von Haben abgegebene Erklärung steht sie trotzdem im Protokoll (#1072).
+ */
+const EUER_ARBEITSZIMMER = {
+  field: "arbeitszimmer",
+  text: "Aufwendungen für ein häusliches Arbeitszimmer (abziehbar)",
+} as const satisfies ErklaerteZeile;
+
 /** Zeilen je Erklärungsart, in der Reihenfolge der amtlichen Vordrucke */
 export const ERKLAERTE_ZEILEN = {
   ust: UST_REIHENFOLGE.map(ustZeile),
