@@ -34,6 +34,8 @@ Von oben nach unten, wie einfach der Merge ist:
 
 Gleich einfache Pull Requests nach Alter. Belegen zwei dieselbe Migrationsnummer, kommt der fertigere zuerst; der andere erzeugt seine Migration nach dem Merge neu.
 
+**Migrationen nacheinander:** Es gibt immer nur eine nächste freie Nummer. Pull Requests mit Migration gehen einzeln durch: Erst wenn einer gemergt ist, holt der nächste `main` per Merge herein und erzeugt seine Migration mit `bun run db:generate` neu, und zwar erst kurz vor seinem eigenen Merge, nach Prüfung und grüner CI. Bis er gemergt ist, geht kein anderer Pull Request mit Migration rein. Pull Requests ohne Migration dürfen jederzeit dazwischen. In der Rangliste steht deshalb die Reihenfolge der Pull Requests mit Migration, und ihre Autoren erfahren, wann sie dran sind, statt nach jedem Merge erneut umzunummerieren.
+
 Die Rangliste geht als Tabelle an den Maintainer, mit einer Zeile je Pull Request: Platz, Nummer, Titel, Stand, nächster Schritt.
 
 Hat der Maintainer nur gefragt, endet der Skill hier; Schritt 3 erst auf sein Wort.
