@@ -41,7 +41,7 @@ test.beforeAll(async ({ browser }) => {
   closeDatabase = (await import("../src/server/db/index.ts")).closeDatabase;
 });
 
-async function receipt(browser: Browser, supplier: string, number: string) {
+async function receipt(browser: Browser, supplier: string, number: string, book = true) {
   const documents = await import("../src/server/modules/belege/index.ts");
   const image = await browser.newPage({ viewport: { width: 620, height: 400 } });
   await image.setContent(`<body style="font: 16px sans-serif; padding: 32px"><h2>${supplier}</h2>
@@ -61,7 +61,7 @@ async function receipt(browser: Browser, supplier: string, number: string) {
     note: "",
     amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
   });
-  await documents.bookDocument("e2e-storno", id);
+  if (book) await documents.bookDocument("e2e-storno", id);
   return id;
 }
 
@@ -82,6 +82,31 @@ test.afterAll(async () => {
   await closeDatabase?.();
   await page?.context().close();
   expect(errors).toEqual([]);
+});
+
+test("Beleg speichern, dann „Bestätigen und buchen“: der Dialog bleibt nach dem Neuladen offen", async ({ browser }) => {
+  const id = await receipt(browser, "Review Flake GmbH", "R-1", false);
+  await page.goto(`/belege/${id}`);
+  await page.waitForLoadState("networkidle");
+  let neuGeladen = false;
+  const ladeBeleg = (url: URL) => url.pathname.startsWith("/_serverFn/") && decodeURIComponent(url.search).includes(id);
+  await page.route(ladeBeleg, async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await new Promise((fertig) => setTimeout(fertig, 1500));
+    const antwort = await route.fetch();
+    neuGeladen = true;
+    await route.fulfill({ response: antwort });
+  });
+  await page.getByLabel("Rechnungsnummer").fill("R-2");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  await page.getByRole("button", { name: "Bestätigen und buchen", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Buchen", exact: true })).toBeVisible();
+  await expect.poll(() => neuGeladen).toBe(true);
+  await page.waitForTimeout(1000);
+  await expect(dialog.getByRole("button", { name: "Buchen", exact: true })).toBeVisible();
+  await page.unroute(ladeBeleg);
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
 });
 
 test("Bankzuordnung im Stornodialog bestätigen und zusammen mit dem Beleg zurücknehmen", async () => {

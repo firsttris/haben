@@ -522,7 +522,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     if (!check()) return;
     void run(async () => {
       await persist();
-      await router.invalidate();
+      await router.invalidate({ sync: true });
     });
   };
 
