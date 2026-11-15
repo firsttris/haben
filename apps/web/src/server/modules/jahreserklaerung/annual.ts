@@ -62,7 +62,6 @@ import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
 export { AnnualError } from "./fehler.ts";
 import { AnnualError } from "./fehler.ts";
-import { bescheidFuerJahr } from "./bescheid.ts";
 import { erklaerteZeilen } from "./zeilenwerte.ts";
 
 export type AnnualForm = "ust" | "euer" | "est";
@@ -733,8 +732,6 @@ export async function annualOverview(year: number, today: string) {
       ],
       sent: sent("est"),
       submitted: estVermerk,
-      // Der Steuerbescheid hält das Ergebnis fest; bei der Einkommensteuer steht der Betrag erst dort (#1073)
-      bescheid: await bescheidFuerJahr(year),
       verwaltet: false,
     },
     history,

@@ -13,7 +13,7 @@ import { VastBelege } from "../../../components/VastBelege.tsx";
 import { ELSTER_KIND_LABEL, abgabePille, elsterNotice } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
-import { erfasseBescheid, getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
+import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../../components/ScrollTable.tsx";
 import { Field } from "../../../components/Field.tsx";
@@ -32,98 +32,6 @@ export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
 
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 
-/**
- * Der Steuerbescheid zur Einkommensteuer (#1073). Das Übermittlungsprotokoll nennt keinen Steuerbetrag; er steht erst
- * hier. Der Vermerk belegt die Abgabe, der Bescheid hält das Ergebnis fest — als eigener Eintrag neben dem Vermerk.
- */
-function BescheidKarte({ year, bescheid }: { year: number; bescheid: Data["est"]["bescheid"] }) {
-  const erfassen = useServerFn(erfasseBescheid);
-  const router = useRouter();
-  const [vom, setVom] = useState("");
-  const [steuer, setSteuer] = useState("");
-  const [art, setArt] = useState<"erstattung" | "nachzahlung">("erstattung");
-  const [betrag, setBetrag] = useState("");
-  const [aktenzeichen, setAktenzeichen] = useState("");
-  const [fehler, setFehler] = useState<string | null>(null);
-  const [laeuft, setLaeuft] = useState(false);
-
-  if (bescheid)
-    return (
-      <p className="small muted" style={{ margin: 0 }}>
-        Bescheid vom {formatDate(bescheid.bescheidVom)}
-        {bescheid.festgesetzteSteuer !== null ? ` · festgesetzte Steuer ${formatEuro(bescheid.festgesetzteSteuer)}` : ""}
-        {bescheid.erstattung !== null ? ` · Erstattung ${formatEuro(bescheid.erstattung)}` : ""}
-        {bescheid.nachzahlung !== null ? ` · Nachzahlung ${formatEuro(bescheid.nachzahlung)}` : ""}
-        {bescheid.aktenzeichen ? ` · Aktenzeichen ${bescheid.aktenzeichen}` : ""}
-      </p>
-    );
-
-  async function absenden(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const betragCents = betrag.trim() === "" ? null : parseEuro(betrag);
-    const steuerCents = steuer.trim() === "" ? null : parseEuro(steuer);
-    if (betrag.trim() !== "" && betragCents === null) {
-      setFehler("Trag den Betrag als Zahl ein, etwa 1.234,56.");
-      return;
-    }
-    if (steuer.trim() !== "" && steuerCents === null) {
-      setFehler("Trag die festgesetzte Steuer als Zahl ein.");
-      return;
-    }
-    setLaeuft(true);
-    setFehler(null);
-    try {
-      await erfassen({
-        data: {
-          year,
-          bescheidVom: vom,
-          ...(steuerCents === null ? {} : { festgesetzteSteuer: steuerCents }),
-          ...(betragCents === null ? {} : art === "erstattung" ? { erstattung: betragCents } : { nachzahlung: betragCents }),
-          ...(aktenzeichen.trim() === "" ? {} : { aktenzeichen: aktenzeichen.trim() }),
-        },
-      });
-      await router.invalidate();
-    } catch (error) {
-      setFehler(error instanceof Error ? error.message : "Der Bescheid ließ sich nicht speichern.");
-    } finally {
-      setLaeuft(false);
-    }
-  }
-
-  return (
-    <details className="est-bescheid">
-      <summary>Steuerbescheid erfassen</summary>
-      <form className="form-grid" onSubmit={absenden}>
-        <Field label="Bescheid vom" hint="Datum des Bescheids">
-          {(control) => <input {...control} type="date" value={vom} onChange={(event) => setVom(event.target.value)} required />}
-        </Field>
-        <Field label="Festgesetzte Steuer" hint="Wie im Bescheid ausgewiesen">
-          {(control) => (
-            <input {...control} inputMode="decimal" className="mono" value={steuer} onChange={(event) => setSteuer(event.target.value)} placeholder="0,00" />
-          )}
-        </Field>
-        <Field label="Erstattung oder Nachzahlung">
-          {(control) => (
-            <span style={{ display: "flex", gap: 8 }}>
-              <select {...control} value={art} onChange={(event) => setArt(event.target.value as "erstattung" | "nachzahlung")}>
-                <option value="erstattung">Erstattung</option>
-                <option value="nachzahlung">Nachzahlung</option>
-              </select>
-              <input inputMode="decimal" className="mono" value={betrag} onChange={(event) => setBetrag(event.target.value)} placeholder="0,00" />
-            </span>
-          )}
-        </Field>
-        <Field label="Aktenzeichen" hint="Steuernummer oder Aktenzeichen des Bescheids">
-          {(control) => <input {...control} value={aktenzeichen} onChange={(event) => setAktenzeichen(event.target.value)} />}
-        </Field>
-        {fehler && <p className="small muted">{fehler}</p>}
-        <button type="submit" className="btn" disabled={laeuft}>
-          {laeuft ? "Speichert …" : "Bescheid speichern"}
-        </button>
-      </form>
-    </details>
-  );
-}
 type Form = "ust" | "euer" | "est";
 type Issue = Data["ust"]["issues"][number];
 const FORM_LABEL = {
@@ -725,8 +633,6 @@ function EstSection({ data }: { data: Data }) {
             )}
           </tbody>
         </ScrollTable>
-
-        {est.submitted && <BescheidKarte year={data.year} bescheid={est.bescheid} />}
 
         <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />
         {est.zusammen && <AnlageNFields wer={nameB} draft={anB} onChange={setAnB} />}
