@@ -3,8 +3,8 @@ import { fixture, innerZip, unmaskedStack10, zip } from "../../../packages/impor
 import { bestaetigen, durchlaufSeite, einrichten, gehe } from "./einrichtung.ts";
 
 /**
- * Umzug aus sevDesk ohne API (#1105): Export-ZIP hochladen, Vorschau, übernehmen, Beleg mit Belegbild im Archiv. Eigene,
- * leere Datenbank (Projekt „sevdesk-export“, e2e/durchlaeufe.ts); die ZIP entsteht aus den Testdaten in
+ * Umzug aus sevDesk ohne API (#1105): Export-ZIP hochladen, Vorschau, übernehmen, Abgleich je Jahr (#1106), Beleg mit
+ * Belegbild im Archiv. Eigene, leere Datenbank (Projekt „sevdesk-export“, e2e/durchlaeufe.ts); die ZIP entsteht aus den Testdaten in
  * packages/import/test-fixtures/sevdesk, Version 1.0, Jahr 2024.
  */
 function exportZip(): Buffer {
@@ -45,6 +45,14 @@ test("sevDesk ohne API: Export prüfen, übernehmen und Beleg mit Belegbild im A
   await card.getByRole("button", { name: "Übernehmen", exact: true }).click();
   await bestaetigen(page, "Übernehmen");
   await expect(card.getByText(/Übernommen am .*: 4 neu, 0 übersprungen, 4 Belegbilder/)).toBeVisible({ timeout: 60_000 });
+
+  // Abgleich je Jahr mit den Belegen aus dem Export (#1106)
+  await gehe(page, "/archiv");
+  await page.getByRole("button", { name: "Umzug aus sevDesk", exact: true }).click();
+  const jahr = page.getByRole("region", { name: "Geschäftsjahr 2024" });
+  await expect(jahr.getByRole("listitem").filter({ hasText: "Belege aus dem sevDesk-Export übernommen" })).toContainText("4 Belege, 4 mit Datei");
+  await expect(jahr.getByRole("listitem").filter({ hasText: "Jeder Beleg hat eine Datei" })).toContainText("alle mit Datei");
+  await expect(jahr.getByText("Belege und Rechnungen per API abgerufen")).toHaveCount(0);
 
   await page.getByRole("navigation", { name: "Bereich wählen" }).getByRole("link", { name: "Belege", exact: true }).click();
   await page.getByRole("link", { name: /XX-1111-11-1111/ }).click();

@@ -1,3 +1,4 @@
+import { bildFormat } from "@haben/core";
 import { join } from "node:path";
 import type { RenderJob } from "./render-protocol.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
@@ -333,11 +334,9 @@ export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.d
   return { footer: runs.map((column) => column.map((line) => line.map((run) => run.text).join(""))), footerFormatted: runs, legal };
 }
 
-/** Erkennt PNG und JPEG an den ersten Bytes; anderes lehnt Haben als Logo ab */
+/** Erkennt PNG und JPEG an den ersten Bytes (bildFormat in @haben/core); anderes lehnt Haben als Logo ab */
 export function logoFormat(data: Uint8Array): Logo["format"] | null {
-  if (data.length > 8 && data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return "png";
-  if (data.length > 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "jpg";
-  return null;
+  return bildFormat(data);
 }
 
 /** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe und passende Grautöne immer, das Logo als Dateiname neben der Vorlage */

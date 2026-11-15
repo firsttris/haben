@@ -18,7 +18,7 @@ import { documentQuerySchema, documentUploadSchema, type documentSchema, type do
  * Haben, auf die Seite zeigt `url` in jeder Antwort.
  */
 
-type ListRow = Omit<Awaited<ReturnType<typeof listDocuments>>[number], "splitCount">;
+type ListRow = Omit<Awaited<ReturnType<typeof listDocuments>>[number], "splitCount" | "ownAccount">;
 type Loaded = NonNullable<Awaited<ReturnType<typeof getDocument>>> & Awaited<ReturnType<typeof documentCancellation>>;
 
 const DOCUMENT_NOT_FOUND = "Beleg nicht gefunden.";

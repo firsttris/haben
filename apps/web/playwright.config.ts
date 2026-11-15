@@ -9,6 +9,7 @@ import {
   habenFirmen,
   LAYOUT_PAKETE_PORT,
   portFuer,
+  SEVDESK_PORT,
 } from "./e2e/durchlaeufe.ts";
 
 /**
@@ -59,6 +60,8 @@ function webServer(durchlauf?: Durchlauf) {
       ENABLE_BANKING_APP_ID: "",
       ENABLE_BANKING_KEY: "",
       ENABLE_BANKING_KEY_FILE: "",
+      // Nachgebaute sevDesk-API in sevdesk-anlagen.spec.ts; ohne gespeicherten Token fragt kein Server dort an
+      SEVDESK_API_URL: `http://127.0.0.1:${SEVDESK_PORT}/api/v1`,
       // Nachgebaute Paketquelle in layouts.spec.ts, nie Typst Universe aus dem Test
       LAYOUTS_PACKAGES_URL: `http://127.0.0.1:${LAYOUT_PAKETE_PORT}`,
       // Firma wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und zwei andere
@@ -117,6 +120,7 @@ export default defineConfig({
         "knopfreihenfolge.spec.ts",
         "rechtsform.spec.ts",
         "seiten.spec.ts",
+        "status-anordnung.spec.ts",
         "steuerberatung.spec.ts",
         "vorschau.spec.ts",
         "zz-doku-screenshots.spec.ts",

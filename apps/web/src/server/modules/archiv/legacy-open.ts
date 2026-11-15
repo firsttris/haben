@@ -17,12 +17,14 @@ import {
 import { and, eq, getTableColumns, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
+import { ohneJit } from "../../db/ohne-jit.ts";
 import { activeOpenings, openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { lastStapelYear } from "./datev-eroeffnung.ts";
 import { storeInvoiceTaxes } from "../rechnungen/index.ts";
-import type { LegacyCategoryRow } from "../../db/schema.ts";
+import type { LegacyCategoryRow, LegacyFileState } from "../../db/schema.ts";
+import { latestFileStates, takeoverFileIssue } from "./dateistand.ts";
 import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
@@ -128,7 +130,7 @@ export async function legacyTakeoverCutoff(requested?: string | null, q: Db | Tx
   return takeoverCutoff({ ...input, requested });
 }
 
-function blockerFor(voucher: LegacyVoucher, state: LegacyOpenAt, cutoff: string, hasPdf: boolean): string | null {
+function blockerFor(voucher: LegacyVoucher, state: LegacyOpenAt, cutoff: string, hasPdf: boolean, fileState: LegacyFileState | null = null): string | null {
   // Zahllast an das Finanzamt (#269): als Beleg zählte die Zahlung in der EÜR als Ausgabe ihrer Kategorie. Im Bankabgleich
   // als „Umsatzsteuer an das Finanzamt“ zugeordnet, bucht sie auf die Vorauszahlungen (SKR03 1780, SKR04 3820) und steht in
   // der EÜR unter der gezahlten Umsatzsteuer, wie die Zahllast für Dezember nach dem Jahreswechsel.
@@ -143,7 +145,9 @@ function blockerFor(voucher: LegacyVoucher, state: LegacyOpenAt, cutoff: string,
     return `bis zum Stichtag teilweise bezahlt – Restbetrag erst in ${SOURCE_LABEL[voucher.source]} ausgleichen oder in Haben direkt buchen`;
   if (voucher.taxes.some((t) => ![1900, 700, 0].includes(t.rate))) return "Steuersatz, den Haben nicht kennt";
   if (voucher.gross <= 0) return "Betrag nicht positiv";
-  if (!hasPdf) return `keine Datei aus ${SOURCE_LABEL[voucher.source]}`;
+  // Dateistand (#345): ein fehlendes XML neben dem PDF blockiert ebenso, das XML einer E-Rechnung ist das Original
+  if (fileState === "anhang_fehlt") return `XML der E-Rechnung fehlt – „Erneut abrufen“ versucht es noch einmal`;
+  if (!hasPdf) return takeoverFileIssue(fileState) ?? `keine Datei aus ${SOURCE_LABEL[voucher.source]}`;
   return null;
 }
 
@@ -189,25 +193,28 @@ function sevPayDate(raw: Record<string, unknown>): string | null {
 }
 
 async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
-  const vouchers = await db
-    .select({
-      ...getTableColumns(schema.lexofficeVouchers),
-      type: effectiveType("lexoffice_vouchers"),
-      direction: effectiveDirection("lexoffice_vouchers"),
-      contactName: effectiveContactName("lexoffice_vouchers"),
-      taxes: effectiveTaxes("lexoffice_vouchers"),
-      payment: effectivePayment("lexoffice_vouchers"),
-    })
-    .from(schema.lexofficeVouchers)
-    // Auch die gespeicherte Art: Früher als Ausgabebeleg übernommene D-Belege bleiben als übernommen sichtbar. Belege aus der
-    // Export-ZIP von sevDesk kennen keinen Zahlungsstand; offene Posten von dort trägt man von Hand ein (#1105)
-    .where(
-      and(
-        ne(schema.lexofficeVouchers.source, "sevdesk-export"),
-        or(inArray(effectiveType("lexoffice_vouchers"), [...OPEN_ITEM_TYPES]), inArray(schema.lexofficeVouchers.type, [...OPEN_ITEM_TYPES])),
-      ),
-    )
-    .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number);
+  // Alle Archivbelege mit korrelierten Unterabfragen: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
+  const vouchers = await ohneJit((tx) =>
+    tx
+      .select({
+        ...getTableColumns(schema.lexofficeVouchers),
+        type: effectiveType("lexoffice_vouchers"),
+        direction: effectiveDirection("lexoffice_vouchers"),
+        contactName: effectiveContactName("lexoffice_vouchers"),
+        taxes: effectiveTaxes("lexoffice_vouchers"),
+        payment: effectivePayment("lexoffice_vouchers"),
+      })
+      .from(schema.lexofficeVouchers)
+      // Auch die gespeicherte Art: Früher als Ausgabebeleg übernommene D-Belege bleiben als übernommen sichtbar. Belege aus der
+      // Export-ZIP von sevDesk kennen keinen Zahlungsstand; offene Posten von dort trägt man von Hand ein (#1105)
+      .where(
+        and(
+          ne(schema.lexofficeVouchers.source, "sevdesk-export"),
+          or(inArray(effectiveType("lexoffice_vouchers"), [...OPEN_ITEM_TYPES]), inArray(schema.lexofficeVouchers.type, [...OPEN_ITEM_TYPES])),
+        ),
+      )
+      .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number),
+  );
   const [invoices, documents] = await Promise.all([
     db
       .select({ id: schema.invoices.id, voucherId: schema.invoices.lexofficeVoucherId })
@@ -258,6 +265,7 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
       ),
     );
   const withFile = new Set(files.map((f) => f.voucherId));
+  const fileStates = await latestFileStates(candidates.map((c) => c.voucher.id));
   const journalCovered = new Set(
     (
       await db.execute<{ id: string }>(sql`select i.voucher_id as id from external_imports i
@@ -279,7 +287,7 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
     paidAfter: v.date <= cutoff ? state.paidAfter : 0,
     takenOver,
     blocker:
-      blockerFor(v, state, cutoff, withFile.has(v.id)) ??
+      blockerFor(v, state, cutoff, withFile.has(v.id), fileStates.get(v.id) ?? null) ??
       (!takenOver && journalCovered.has(v.id)
         ? "Quelljournal bereits übernommen: Forderungen und Verbindlichkeiten vor einer weiteren Eröffnungsbuchung abgleichen."
         : v.source === "import" && !v.dueDate

@@ -29,7 +29,7 @@ import {
   startImport,
   startWebImport,
 } from "../modules/archiv/index.ts";
-import { openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
+import { confirmWithoutFile, decideAccountingType, openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
 import {
   accountableImportStatus,
   AccountableError,
@@ -323,6 +323,20 @@ export const getLegacyVoucher = createServerFn({ method: "GET" })
     if (!detail) throw notFound();
     return detail;
   });
+
+/** Beleg aus sevDesk ohne Datei: eine Person hat in sevDesk geprüft, dass es keine gibt (#345) */
+export const confirmLegacyWithoutFile = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), note: z.string().max(500).default("") }))
+  .handler(async ({ data, context }) => {
+    await confirmWithoutFile(context.user.id, data.id, data.note);
+    return { ok: true };
+  });
+
+export const decideLegacyAccountingType = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), kind: z.enum(["erloes", "aufwand"]) }))
+  .handler(async ({ data, context }) => decideAccountingType(context.user.id, data.id, data.kind));
 
 export const getDatevBookings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

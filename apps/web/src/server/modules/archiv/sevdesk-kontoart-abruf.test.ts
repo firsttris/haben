@@ -93,6 +93,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf der Buchungskonten (Postgres)",
               case "/Invoice":
               case "/Voucher":
               case "/Order":
+              case "/VatReport":
               case "/CheckAccount":
               case "/CheckAccountTransactionLog":
                 return list([]);

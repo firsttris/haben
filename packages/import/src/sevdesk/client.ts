@@ -4,6 +4,7 @@ import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
 import {
   listSchema,
   sevAccountingTypeSchema,
+  sevAssetSchema,
   sevBookkeepingVersionSchema,
   sevCheckAccountSchema,
   sevCheckAccountTransactionLogSchema,
@@ -19,8 +20,10 @@ import {
   sevOrderSchema,
   sevRelatedObjectsResponseSchema,
   sevVoucherPosSchema,
+  sevVatReportSchema,
   sevVoucherSchema,
   type SevAccountingType,
+  type SevAsset,
   type SevCheckAccount,
   type SevCheckAccountTransactionLog,
   type SevCommunicationWay,
@@ -32,6 +35,7 @@ import {
   type SevFile,
   type SevInvoice,
   type SevOrder,
+  type SevVatReport,
   type SevVoucher,
   type SevVoucherPos,
 } from "./types.ts";
@@ -139,6 +143,11 @@ export class SevdeskClient {
     return this.#pages("/Invoice", { invoiceType: "MA" }, sevInvoiceSchema);
   }
 
+  /** Übermittelte Umsatzsteuer-Voranmeldungen samt Testfällen (testCase 1); Protokoll-PDF unter document (Version 1.0 belegt). */
+  vatReports(): AsyncGenerator<SevVatReport> {
+    return this.#pages("/VatReport", {}, sevVatReportSchema);
+  }
+
   /** Vorlagen wiederkehrender Rechnungen; ohne den Filter invoiceType=WKR fehlen sie in GET /Invoice (Version 1.0 belegt). */
   recurringInvoices(): AsyncGenerator<SevInvoice> {
     return this.#pages("/Invoice", { invoiceType: "WKR" }, sevInvoiceSchema);
@@ -184,6 +193,11 @@ export class SevdeskClient {
     const objects = Array.isArray(data.objects) ? data.objects : [data.objects];
     if (objects.length !== 1 || String(objects[0]!.id) !== accountingTypeId) throw new SevdeskApiError("Buchungskonto nicht eindeutig gefunden.", 200, path);
     return objects[0]!;
+  }
+
+  /** Anlagenverzeichnis mit eingebettetem Buchungskonto; nur lesen, sevDesk liefert keine bisherige AfA */
+  assets(): AsyncGenerator<SevAsset> {
+    return this.#pages("/Asset", { embed: "accountingType" }, sevAssetSchema);
   }
 
   orders(): AsyncGenerator<SevOrder> {

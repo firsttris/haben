@@ -19,12 +19,15 @@ In beiden Ordnern:
 Nur `buchhaltung-1.0/`:
 
 - `check-account-transaction-log*.json`, `invoice-teilzahlung*.json`: Teilzahlungen und aufgehobene Zuordnungen.
-- `asset.json`, `vat-report.json`: Antworten von `GET /Asset` und `GET /VatReport`, je drei Einträge. Reine Referenz, noch liest sie kein Code.
+- `asset.json`, `vat-report.json`: Antworten von `GET /Asset` und `GET /VatReport`, je drei Einträge; Jahr und Daten maskiert.
+- `vat-report-zeitraeume.json`: fünf übermittelte Voranmeldungen aus `GET /VatReport` mit echtem Jahr und Zeitraum: Quartal und Monat, Soll (`actualTaxation` 0) und Ist, Kennzahlen der Formulare bis 2025 und ab 2026 (dazu 46, 47, 67, einmal 61 und 89). In `reportingValues` sind Bemessungsgrundlagen Zahlen (ganze Euro), Steuerbeträge Text mit zwei Nachkommastellen; die Werte sind durch 0 und 100 ersetzt, Übermittlungsdaten erfunden (der 10. nach dem Zeitraum).
+- `vat-report-document.json`: Angaben zum Protokoll unter `document` (`GET /Document/{id}`): PDF (`extension` pdf), `mimeType` leer, Dateiname in sevDesk zufällig und ohne Endung.
+- `asset-mit-kontoart.json`: fünf Anlagen aus `GET /Asset?embed=accountingType`: Pkw (Buchungskonto 2812, 0320/0520), GWG mit Nutzungsdauer 0 und `status` 500, je eine Anlage auf den eigenen Kategorien „Sonstige Betriebs- und Geschäftsausstattung“ und „Sonstige Transportmittel“ (ohne Kontonummern, `type` IC, mit `sevClient`) und eine auf „Kleingeräte“ mit Nutzungsdauer 3. Datum und Kaufpreis erfunden, Nummern 1001 bis 1005.
 - `rechnungsvorlage-wkr.json`: drei wiederkehrende Rechnungen; `GET /Invoice` liefert sie nur mit dem Filter `invoiceType=WKR`. Eine hat `status` 50 und `accountIntervall` `P0Y0M1W` (7 Tage) und ist in sevDesk auf nachfällig gestellt.
 - `rechnungen-aus-vorlage.json`: drei aus diesen Vorlagen erzeugte Rechnungen (`origin.id` zeigt auf die Vorlage), nur Status, die drei Datumsfelder und Texte, ohne Beträge.
 - `platzhalter-auftrag.json`: Angebot mit Platzhalter in `footText`.
 - `mahnung-mit-rechnung.json`: zwei Mahnungen (`invoiceType` MA, `status` 500, `dunningLevel` 1 und 2), von sevDesk nach dem Speichern als versendet geführt, dazu unter `gemahnteRechnung` die Rechnung, auf die `origin` zeigt; `GET /Invoice` liefert Mahnungen nur mit dem Filter `invoiceType=MA`.
-- `gutschrift.json`: sechs Gutschriften (`creditNote` und `positions`), je eine für jeden Wert von `bookingCategory`, `ACCOUNTING_TYPE` einmal mit Erlöskonto und einmal mit dem Aufwandskonto „Dienstleister / Agenturen / Freelancer“. Alle fertiggestellt (`status` 200, `sendDate` gesetzt, `sendType` `VPDF`), die beiden Honorar-Gutschriften danach bezahlt (`status` 1000, `payDate` gesetzt, `paidAmount` fehlt bei Gutschriften). sevDesk bucht `ACCOUNTING_TYPE` mit Aufwandskonto wie Honorar (DATEV: Soll 3100, BU 9).
+- `gutschrift.json`: sechs Gutschriften (`creditNote` und `positions`), je eine für jeden Wert von `bookingCategory`, `ACCOUNTING_TYPE` einmal mit Erlöskonto und einmal mit dem Aufwandskonto „Dienstleister / Agenturen / Freelancer“. Alle fertiggestellt (`status` 200, `sendDate` gesetzt, `sendType` `VPDF`), die beiden Honorar-Gutschriften danach bezahlt (`status` 1000, `payDate` gesetzt, `paidAmount` fehlt bei Gutschriften). sevDesk bucht `ACCOUNTING_TYPE` mit Aufwandskonto als Ausgabe auf das gewählte Konto, hier 3100 (DATEV: BU 9).
 - `accounting-type.json`: Antworten von `GET /AccountingType/{id}` zu den beiden Buchungskonten der `ACCOUNTING_TYPE`-Gutschriften in `gutschrift.json`, nur `id`, `objectName`, `name`, `skr03`, `skr04`, `type` und `translationCode`: „Dienstleister / Agenturen / Freelancer“ (3100/5900, `type` leer) und das Erlöskonto (8200/4200, `type` E). Kennungen wie in `gutschrift.json`.
 - `gutschrift-zahlungen.json`: die beiden Zahlungen aus `CheckAccountTransactionLog` zu den bezahlten Honorar-Gutschriften, als Auszahlung (`amountPaid` negativ, `fromStatus` 100, `toStatus` 400). Der Filter `object[id]` auf `CheckAccountTransactionLog` wirkt bei sevDesk nicht; die Einträge sind aus der vollen Liste über `object.id` gesucht.
 - `belege-zu-buchungen.json`: Rechnung und Belege, deren Nummer genau dem `Belegfeld 1` im Stapel entspricht, Beträge maskiert. Der Beleg zur Zahlungsbuchung ist erfunden.
@@ -33,6 +36,7 @@ Nur `buchhaltung-1.0/`:
 - `beleg-ohne-datei.json`: Belege ohne `document`, in diesem Konto mehr als ein Viertel aller Belege.
 - `beleg-aus-vorlage.json`: eine Vorlage wiederkehrender Belege (`voucherType` RV) mit `document` und ein daraus erzeugter Beleg (`voucherType` VOU) ohne `document`, dessen `origin` auf die Vorlage zeigt. Im Konto hatten 30 solche Belege seit Mai 2024 keine Datei; die Datei der Vorlage wurde laut `GET /Document/{id}` (`create`) erst im Februar 2026 hochgeladen.
 - `document-download.json`: Hülle von `GET /Document/{id}/download`, Datei als Base64 in `objects`.
+- `dateistand.json`: woran sich der Dateistand eines Belegs erkennen lässt ([#345](https://github.com/firsttris/haben/issues/345)), nur Metadaten ohne Dateiinhalt: Beleg mit `document` und dazu `GET /Document/{id}`, Beleg ohne `document` und ohne `origin`, fertige Rechnung mit ihrem Eintrag aus `GET /Document` (`baseObject` zeigt auf die Rechnung), Rechnungsentwurf ohne Eintrag, ein Eintrag aus `GET /Document` ohne Bezug, die leere Antwort von `GET /Document` mit `object[objectName]=Voucher` und der Fehler von `GET /Voucher/{id}/getDocuments`.
 
 Nur `buchhaltung-2.0/`:
 
@@ -63,16 +67,17 @@ Nur `buchhaltung-2.0/`:
 | Beleg ohne `document` | ja | ja |
 | Mahnung (`MA`) | Stufen 1 und 2, von sevDesk als versendet geführt, Zustellung sowie Gebühren und Zinsen nicht belegt | Stufe 1 mit `status` 1000, `reminderDebit` 0 |
 | Antwort von `Document/download` | ja, Hülle ohne Inhalt | Statuscode, Inhaltstyp und dieselben Feldnamen |
-| Anlagen (`/Asset`), nur Aufbau | ja | ja, Konto als `accountDatev` |
+| Anlagen (`/Asset`) | ja, mit Buchungskonto (`embed=accountingType`) | nur Aufbau, Konto als `accountDatev` |
 | Umsatzsteuer-Voranmeldungen (`/VatReport`), nur Aufbau | ja | ja |
-| Datei mit Rechnungsbezug (`Document.baseObject`) | nein | ja |
+| Datei mit Rechnungsbezug (`Document.baseObject`) | ja, je fertiger Rechnung und Gutschrift ein Eintrag, nur Verweis | ja |
+| Datei eines Belegs nur über `document` | ja | nein |
 | Gutschrift (`CreditNote`), alle Werte von `bookingCategory` | ja, alle fertiggestellt | `UNDERACHIEVEMENT`, `PROVISION`, `ROYALTY_ASSIGNED` und `ROYALTY_UNASSIGNED` (0 €), mit Positionen und DATEV-Export; `ACCOUNTING_TYPE` gibt es in 2.0 nicht |
 | DATEV-Export mit Beleglinks und `document.xml` | ja | ja, Auszug |
 | `taxRule` am Beleg | nein | 1, 4, 9, 10, 11, 12, 14, 15; dazu `taxType` `default` und `noteu` |
 
 Offen für 2.0 ([#472](https://github.com/firsttris/haben/issues/472)): echte Beträge und damit Steueraufteilung und Summen, Teilzahlungen (Status 750), wiederkehrende Rechnungen und Belege, Mahnstufe 2, `taxRule` 17 (in beiden Konten nicht vorhanden). Ob D bei „KFZ-Versicherung“ eine Erstattung ist, lässt sich an den maskierten Beträgen nicht prüfen.
 
-`/Asset` hat kein Feld für die bisherige AfA, nur Anschaffungsdatum, Kaufpreis, Nutzungsdauer und Verkaufsdatum. Die Beträge in `asset.json` und `vat-report.json` (auch in `reportingValues`) sind maskiert und tragen keine Summen.
+`/Asset` hat kein Feld für die bisherige AfA und keins für die Methode, nur Anschaffungsdatum, Kaufpreis, Nutzungsdauer in Jahren und Verkaufsdatum. Im Konto aus 1.0 (29 Anlagen) war `purchasePrice` gleich `sumNet` der Belegposition, also netto; `status` 100 stand nur bei Nutzungsdauer über 0, 500 nur bei 0. `GET /Depreciation` antwortet mit einer leeren Liste, Methoden wie `getDepreciation` gibt es an `Asset` nicht; die OpenAPI nennt `/Asset` nicht. Die Beträge in `asset.json` und `vat-report.json` (auch in `reportingValues`) sind maskiert und tragen keine Summen.
 
 Bei den Vorlagen ist die Bedeutung der Statuswerte aus diesen Beispielen abgeleitet, sevDesk beschreibt sie nicht. „Nachfällig“ hat an der Vorlage kein erkennbares Feld; verglichen wurde nur, welche Felder leer sind.
 
@@ -92,6 +97,8 @@ Belege mit `taxRule` 12 und 14 aus Version 2.0 sind Ausgaben (`creditDebit` C) m
 
 Mahnung aus Version 2.0: `status` 1000, Summen im Kopf 0, `reminderTotal` mit Betrag, `reminderDebit` 0 (in 1.0 gleich `reminderTotal`). Die Dateien mit Rechnungsbezug machen im Konto des Melders rund drei Viertel aller Dokumente aus.
 
+Dateistand aus Version 1.0 (15.11.2026, nur GET auf Listen und `GET /Document/{id}`, keine Dateiinhalte): Von 924 Belegen hatten 673 einen `document`-Verweis, 251 keinen; 195 davon zeigen mit `origin` auf eine Vorlage, 16 sind selbst Vorlagen (RV), 40 normale Belege haben weder Datei noch Vorlage. `GET /Voucher?hasDocument=true` lieferte genau die 673 mit Verweis. Alle 673 Verweise ließen sich mit `GET /Document/{id}` auflösen (`status` 50, `mimeType` leer, `filesize` und `contentHash` gesetzt); die Liste `GET /Document` enthält sie nicht. Kein Feld am Beleg unterscheidet einen Beleg, der nie eine Datei hatte, von einem, dessen Datei entfernt wurde: `resultDisdar`, `inSource`, `sendType`, `enshrined` und `additionalInformation` waren bei allen 40 leer, `resultDisdar` auch bei 216 Belegen mit Datei. Weitere Anhänge eines Belegs nennt die API nicht: `GET /Voucher/{id}/getDocuments` gibt es nicht (404), `GET /Document` mit `object` oder `baseObject` auf den Beleg ist leer. 52 Einträge der Liste `GET /Document` haben keinen Bezug; keiner hat den `contentHash` einer Belegdatei, keiner entstand innerhalb von 10 Minuten nach einem der 40 Belege. Von 101 Rechnungen haben 100 einen Eintrag mit `baseObject` Invoice, nur der Entwurf nicht; alle 6 Gutschriften haben einen. `einvoiceReference` war an 9 Rechnungen gesetzt; ob sevDesk zu ihnen ein XML führt, ist ohne `getXml` nicht geprüft.
+
 Platzhalter wie `[%KONTAKTPERSON%]` sollen bisher nur als Text übernommen werden, Haben ersetzt sie nicht.
 
 Nur als Befund festgehalten, ohne Datei:
@@ -105,7 +112,7 @@ Aufbau, Feldnamen und Datentypen bleiben, denn auf sie kommt es an (`paidAmount`
 
 - Kennungen sind durchgehend ersetzt, Verweise (`origin`) passen weiter zusammen. Kennungen von Stammdaten bleiben (`AccountingType`, `AccountDatev`, `TaxRule`, `StaticCountry`).
 - Texte, Namen und Adressen sind `<anon>`; in `rechnungsvorlage-wkr.json` bleiben die Platzhalter wie `[%KONTAKTPERSON%]` stehen. In `buchhaltung-2.0/` sind auch Rechnungs- und Belegnummern, `creditNoteDate` und `bookingDate` maskiert.
-- In `buchhaltung-1.0/` sind Beträge erfunden, Vorzeichen und Null bleiben. In `invoice-teilzahlung*.json` und `check-account-transaction-log*.json` sind Beträge und Daten maskiert, die Summen und der Steuersatz stimmen weiter; in `belege-credit-debit.json` sind die Daten maskiert, technische Platzhalter wie 1968 bleiben. In `asset.json`, `vat-report.json`, `rechnungsvorlage-wkr.json`, `beleg-wiederkehrend-rv.json`, `beleg-ohne-datei.json` und `beleg-aus-vorlage.json` stehen sie auf ±100, in `mahnung-mit-rechnung.json` die `reminder*`-Beträge auf 1, alle Daten in diesen Dateien auf dem 15.01.2024; die Dateien stammen aus einem eigenen Lauf mit eigenen Kennungen. In `rechnungen-aus-vorlage.json` sind die drei Datumsfelder nur ins Jahr 2024 verschoben, Monat und Tag sind echt, damit die Abstände stimmen.
+- In `buchhaltung-1.0/` sind Beträge erfunden, Vorzeichen und Null bleiben. In `invoice-teilzahlung*.json` und `check-account-transaction-log*.json` sind Beträge und Daten maskiert, die Summen und der Steuersatz stimmen weiter; in `belege-credit-debit.json` sind die Daten maskiert, technische Platzhalter wie 1968 bleiben. In `asset.json`, `vat-report.json`, `rechnungsvorlage-wkr.json`, `beleg-wiederkehrend-rv.json`, `beleg-ohne-datei.json`, `beleg-aus-vorlage.json` und `dateistand.json` stehen sie auf ±100, in `mahnung-mit-rechnung.json` die `reminder*`-Beträge auf 1, alle Daten in diesen Dateien auf dem 15.01.2024; die Dateien stammen aus einem eigenen Lauf mit eigenen Kennungen. In `dateistand.json` sind dazu `contentHash` Nullen und `filesize` 100. In `rechnungen-aus-vorlage.json` sind die drei Datumsfelder nur ins Jahr 2024 verschoben, Monat und Tag sind echt, damit die Abstände stimmen.
 - In `buchhaltung-2.0/` hat der Melder die Summen auf ±100.00 gesetzt, auch `discount` und `discountTime`; das sind keine echten Werte. Netto, Steuer und Brutto können gleich sein, mehrere Zahlungen ergeben nicht den Beleg.
 - Datumsangaben sind verschoben, in den GET-Antworten aus 2.0 um ganze Jahre, damit der Jahreswechsel erhalten bleibt. Der Versatz zu UTC ist dabei geblieben und kann in der Woche der Zeitumstellung abweichen; das Datum liest Haben aus den ersten zehn Zeichen (`lexDate`).
 - `zahlungen.json` stammt aus einem eigenen Anonymisierungslauf: Gleiche Kennungen dort und in `belege-credit-debit.json` meinen nicht dasselbe Objekt.
