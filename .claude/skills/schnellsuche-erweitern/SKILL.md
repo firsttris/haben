@@ -18,7 +18,7 @@ Was die Schnellsuche findet und warum, steht in `docs/suche.md` und `docs/archit
 7. **Datum:** `parseDateSearch` aus `@haben/core`, `eq(spalte, datum)`.
 8. **Treffer:** in `lib/befehlspalette-stufe2.ts` (Stufe-1-Gruppen in `lib/befehlspalette.ts`) mit Titel, Kontext in `meta` und Ziel. Bezeichnungen statt gespeicherter Schlüssel (`PAUSCHALE_LABEL`, `ELSTER_KIND_LABEL` …).
 9. **Zustand:** Hat das Objekt einen Zustand, kommt er aus der Status-Komponente, die auch seine Seite nutzt (`TransactionStatus`, `VatStatus`, `RecurringInvoiceStatus` …): als `status` am Treffer (`PaletteStatus` in `lib/befehlspalette.ts`) und gezeigt in `LinkStatus` in `components/PaletteListbox.tsx`. Zeigt die Seite den Zustand nur inline, ihn erst als eigene Komponente herausziehen und auf der Seite nutzen. Ohne Zustand kein Status. Am Handy steht das Statuswort **immer am Ende** (`DESIGN.md`, Status › Anordnung).
-10. **Alle anzeigen:** nur, wo die Liste `?suche=` kennt und dieselben Treffer zeigt; `to` und, wenn nötig, `moreSearch` an der Gruppe.
+10. **Alle anzeigen:** nur, wo die Liste `?suche=` kennt und dieselben Treffer zeigt; `to` und, wenn nötig, `moreSearch` an der Gruppe; eine neue Liste kommt in `MoreTarget` (`lib/befehlspalette.ts`).
 
 ## Tests
 
