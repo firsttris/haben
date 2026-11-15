@@ -55,7 +55,13 @@ export async function bookingEntriesQuery(query: string, limit: number) {
   const accounts = /^\d{4,9}$/.test(query.trim()) ? [...new Set([...matchingAccounts, query.trim()])] : matchingAccounts;
   const lineConditions = [
     ...(accounts.length > 0 ? [inArray(jl.account, accounts)] : []),
-    ...(lineRange !== null && lineRange.max > 0 ? [amountIn(jl.debit, lineRange), amountIn(jl.credit, lineRange)] : []),
+    // Nur die Bruttozeile (#1038): ihr Betrag ist die Summe ihrer Seite, Netto- und Steuerzeilen sind kleiner
+    ...(lineRange !== null && lineRange.max > 0
+      ? [
+          and(amountIn(jl.debit, lineRange), sql`${jl.debit} = (select sum(x.debit) from journal_lines x where x.entry_id = ${jl}.entry_id)`),
+          and(amountIn(jl.credit, lineRange), sql`${jl.credit} = (select sum(x.credit) from journal_lines x where x.entry_id = ${jl}.entry_id)`),
+        ]
+      : []),
   ];
   // Ein `id in (Unterabfrage)` im `or` ließe Postgres alle Buchungen lesen; als `union` nutzt jeder Teil seinen Index.
   const textMatches = db
