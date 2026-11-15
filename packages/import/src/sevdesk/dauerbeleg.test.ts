@@ -116,4 +116,22 @@ describe("mapSevRecurringVoucher", () => {
     const r = mapSevRecurringVoucher(v, [{ id: "1", taxRate: "16", sumNet: "100", sumTax: "16", sumGross: "116" }], HEUTE);
     expect(r).toEqual({ ok: false, grund: "Steuersatz 16 %: Dauerbelege kennen 19, 7 und 0 %." });
   });
+
+  it("behält den Monatsletzten als Ankertag, wenn der nächste Termin in einen kürzeren Monat fällt (Review #1130)", () => {
+    const v = { ...mitTermin!.voucher, recurringStartDate: "2027-01-31T00:00:00+01:00", recurringNextVoucher: "2027-02-28T00:00:00+01:00" };
+    const r = mapSevRecurringVoucher(v, mitTermin!.positions, HEUTE);
+    expect(r.ok && r.dauerbeleg).toMatchObject({ nextDate: "2027-02-28", anchorDay: 31 });
+  });
+
+  it("nimmt bei verschobenem Termin den Tag des nächsten Termins als Ankertag (Review #1130)", () => {
+    const v = { ...mitTermin!.voucher, recurringStartDate: "2027-01-15T00:00:00+01:00", recurringNextVoucher: "2027-03-01T00:00:00+01:00" };
+    const r = mapSevRecurringVoucher(v, mitTermin!.positions, HEUTE);
+    expect(r.ok && r.dauerbeleg).toMatchObject({ nextDate: "2027-03-01", anchorDay: 1 });
+  });
+
+  it("übernimmt keine Steuer ohne erkennbaren Satz (Review #1130)", () => {
+    const v = { ...mitTermin!.voucher, sumNet: "100", sumTax: "20", sumGross: "120" };
+    const r = mapSevRecurringVoucher(v, [], HEUTE);
+    expect(r.ok).toBe(false);
+  });
 });
