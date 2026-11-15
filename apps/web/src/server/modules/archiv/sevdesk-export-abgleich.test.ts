@@ -206,4 +206,19 @@ describe.skipIf(!testDatabaseUrl)("sevDesk ohne API: Abgleich je Jahr (Postgres)
     // Das Darlehen (DL-1) hat keinen Beleg aus der API: wie vor #1106 ohne passenden Beleg
     expect(year.bookings).toEqual({ total: 5, unmatched: 1, withoutNumber: 1 });
   });
+  it("Mischjahr bei Ist (Lexoffice bis zum Wechsel, dann Export): nicht vollständig, solange die Umsatzsteuer fehlt", async () => {
+    await company("SKR03", "ist");
+    const [imp] = await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{"phase":"fertig"}'::jsonb, 'lexoffice') returning id`;
+    const [v] =
+      await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, source, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
+      values ('lex-1', ${imp!.id}, 'lexoffice', 'purchaseinvoice', 'ausgabe', 'LX-1', '2024-01-05', 'paid', 'Lieferant', 1000, 190, 1190, '[]'::jsonb, '[]'::jsonb, null, '{}'::jsonb) returning id`;
+    await sql`insert into lexoffice_voucher_files (voucher_id, role, filename, mime_type, sha256, size) values (${v!.id}, 'pdf', 'lx-1.pdf', 'application/pdf', ${"a".repeat(64)}, 1)`;
+    await run(exportZip("SKR03"));
+    await archivieren();
+    const year = await jahr();
+    expect(year.sevdeskExport).toMatchObject({ withFile: 2, missingFile: 0 });
+    expect(year.vatIssue).toMatch(/ordnet Zahlungen keinem Beleg zu/);
+    // Ohne Umsatzsteuer je Monat ist das Jahr nicht vollständig, wie in einem Jahr nur aus dem Export
+    expect(year.ready).toBe(false);
+  });
 });
