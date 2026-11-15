@@ -528,7 +528,7 @@ function estAbweichungHinweis(zeilen: Record<string, number>, est: EstYear): Iss
   return [
     {
       tone: "hinweis",
-      text: `Einkommensteuer: Haben rechnet ${formatEuro(gerechnet)}, im Vordruck stehen ${formatEuro(erklaert)} (${abweichung > 0 ? "plus" : "minus"} ${formatEuro(Math.abs(abweichung))}). Was in Haben nicht erfasst ist, etwa Zuschüsse oder einbehaltene Kapitalertragsteuer, erklärt den Unterschied.`,
+      text: `Einkommensteuer: Haben rechnet ${formatEuro(gerechnet)}, im Vordruck stehen ${formatEuro(erklaert)}, also ${formatEuro(Math.abs(abweichung))} ${abweichung > 0 ? "mehr" : "weniger"} bei Haben. Was nicht erfasst ist, etwa Zuschüsse oder einbehaltene Kapitalertragsteuer, erklärt den Unterschied.`,
     },
   ];
 }
