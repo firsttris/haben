@@ -297,6 +297,7 @@ export async function exportYears(now = new Date()): Promise<number[]> {
     union select extract(year from date)::int from lexoffice_vouchers
     union select extract(year from date)::int from legacy_order_documents
     union select extract(year from date)::int from datev_bookings
+    union select year::int from legacy_vat_reports
     union select year::int from archive_files where year is not null`);
   const current = Number(today(now).slice(0, 4));
   const years = new Set([current, current - 1, ...rows.map((r) => Number(r.y))]);
