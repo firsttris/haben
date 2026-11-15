@@ -37,6 +37,7 @@ import { db, schema } from "../../db/index.ts";
 import type { LegacyCategoryRow, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sniff } from "../../storage.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
+import { latestFastbillImport } from "./fastbill.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 
 export class LexofficeError extends UserError {}
@@ -147,6 +148,7 @@ async function launchImport(actor: string, sourceFor: (signal: AbortSignal) => L
   if (current?.status === "laeuft") throw new LexofficeError("Ein Abruf läuft bereits.");
   // Der eindeutige Index gilt für beide Quellen: auch einen verwaisten sevDesk-Lauf als abgebrochen markieren
   if ((await latestSevdeskImport())?.status === "laeuft") throw new LexofficeError("Ein Abruf aus sevDesk läuft bereits.");
+  if ((await latestFastbillImport())?.status === "laeuft") throw new LexofficeError("Ein Abruf aus FastBill läuft bereits.");
   const progress: LexofficeImportProgress = {
     phase: "kontakte",
     contacts: 0,

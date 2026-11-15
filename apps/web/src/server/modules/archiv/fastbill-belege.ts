@@ -41,9 +41,21 @@ export async function waitingReceipt(
     tx
       .insert(schema.fastbillReceipts)
       .values({ expenseId, ...waiting })
-      .onConflictDoUpdate({ target: schema.fastbillReceipts.expenseId, set: waiting }),
+      // Nur eine wartende Zeile auffrischen: Ein bereitgelegter Beleg oder „ohne Beleg“ bleibt, auch wenn der Upload
+      // zwischen dem Lesen oben und hier kam
+      .onConflictDoUpdate({ target: schema.fastbillReceipts.expenseId, set: waiting, setWhere: eq(schema.fastbillReceipts.status, "wartet") }),
   );
   return "wartet";
+}
+
+/** Während eines FastBill-Abrufs nichts am Zwischenlager ändern; der Lauf liest und schreibt es gerade */
+async function refuseWhileRunning() {
+  const [run] = await db
+    .select({ id: schema.lexofficeImports.id })
+    .from(schema.lexofficeImports)
+    .where(and(eq(schema.lexofficeImports.source, "fastbill"), eq(schema.lexofficeImports.status, "laeuft")))
+    .limit(1);
+  if (run) throw new FastbillError("Während eines Abrufs aus FastBill geht das nicht. Warte, bis er fertig ist, oder brich ihn ab.");
 }
 
 /** Format des ZIPs aus dem Browser-Skript public/fastbill-belege.js */
@@ -97,6 +109,7 @@ export interface FastbillReceiptUpload {
  * Archiviert wird erst beim nächsten Abruf, zusammen mit der Ausgabe.
  */
 export async function uploadFastbillReceipts(actor: string, zip: Uint8Array): Promise<FastbillReceiptUpload> {
+  await refuseWhileRunning();
   let entries: Record<string, Uint8Array>;
   try {
     entries = unzipSync(zip);
@@ -150,6 +163,7 @@ export async function uploadFastbillReceipts(actor: string, zip: Uint8Array): Pr
 
 /** Wartende Ausgaben ohne Datei archivieren lassen, etwa wenn es in FastBill wirklich keinen Beleg gibt */
 export async function markFastbillWithoutReceipt(actor: string, expenseIds?: string[]): Promise<number> {
+  await refuseWhileRunning();
   const rows = await withActor(actor, (tx) =>
     tx
       .update(schema.fastbillReceipts)

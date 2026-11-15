@@ -339,6 +339,25 @@ describe("mapFbExpense", () => {
     expect(payment).toEqual({ status: "open", openAmount: -5950, paidDate: null, items: [] });
   });
 
+  it("verteilt eine negative Ausgabe mit zwei Sätzen und positiven VAT_ITEMS mit dem Vorzeichen des Kopfs", () => {
+    // Wie bei Gutschriften der Rechnungen (im echten Konto beide Vorzeichen): Kopf negativ, Aufteilung positiv
+    const { voucher } = mapFbExpense(
+      expense({
+        SUB_TOTAL: "-200.00",
+        VAT_TOTAL: "-26.00",
+        TOTAL: "-226.00",
+        VAT_ITEMS: [
+          { VAT_PERCENT: 19, COMPLETE_NET: 100, VAT_VALUE: 19 },
+          { VAT_PERCENT: 7, COMPLETE_NET: 100, VAT_VALUE: 7 },
+        ],
+      }),
+    );
+    expect(voucher.taxes).toEqual([
+      { rate: 1900, net: -10_000, tax: -1900 },
+      { rate: 700, net: -10_000, tax: -700 },
+    ]);
+  });
+
   it("lässt Kategorie und Datei weg, wenn FastBill keine nennt (im echten Konto CATEGORY: [])", () => {
     const { voucher } = mapFbExpense(expense({ CATEGORY: [], DOCUMENT_URL: null }));
     expect(voucher).toMatchObject({ categories: [], fileIds: [] });

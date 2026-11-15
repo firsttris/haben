@@ -264,6 +264,15 @@ async function runImport(actor: string, importId: string, client: FastbillClient
   await save(true);
 }
 
+/**
+ * Antwort der API fürs Archiv ohne DOCUMENT_URL: Der Link trägt einen eigenen Schlüssel und öffnet die Datei ohne Anmeldung;
+ * im unveränderlichen Archiv und im Jahresexport (quelle.json) bliebe er für immer stehen. Die Datei selbst liegt im Archiv.
+ */
+function withoutDocumentUrl(raw: FbInvoice | FbExpense): Record<string, unknown> {
+  const { DOCUMENT_URL: _, ...rest } = raw as Record<string, unknown>;
+  return rest;
+}
+
 async function importVoucher(
   actor: string,
   importId: string,
@@ -335,7 +344,7 @@ async function importVoucher(
         categories: voucher.categories.map((c) => ({ ...c, name: c.categoryId })),
         payment,
         remark: voucher.remark,
-        raw: item.raw as Record<string, unknown>,
+        raw: withoutDocumentUrl(item.raw),
       },
       files.map((entry) => ({
         role: entry.role,

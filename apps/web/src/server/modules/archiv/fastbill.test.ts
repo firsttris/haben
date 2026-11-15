@@ -325,6 +325,19 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
     expect(await sql`select * from fastbill_receipts`).toEqual([]);
   });
 
+  it("ändert das Zwischenlager nicht, solange ein Abruf aus FastBill läuft", async () => {
+    const [run] = await sql`insert into lexoffice_imports (source, status, progress)
+      values ('fastbill', 'laeuft', '{"phase":"belege","contacts":0,"contactsLinked":0,"listed":0,"imported":0,"skipped":0,"files":0,"failed":[]}'::jsonb)
+      returning id`;
+    try {
+      const manifest = new TextEncoder().encode(JSON.stringify({ format: "haben-fastbill-belege", version: 1 }));
+      await expect(fastbill.uploadFastbillReceipts(actor, zipSync({ "manifest.json": manifest }))).rejects.toThrow("Während eines Abrufs aus FastBill");
+      await expect(fastbill.markFastbillWithoutReceipt(actor)).rejects.toThrow("Während eines Abrufs aus FastBill");
+    } finally {
+      await sql`update lexoffice_imports set status = 'abgebrochen', finished_at = now() where id = ${run!.id}`;
+    }
+  });
+
   it("übernimmt eine wartende Ausgabe ohne Beleg erst nach ausdrücklicher Entscheidung", async () => {
     EXPENSES.push({ ...EXPENSES[1]!, INVOICE_ID: "8003", INVOICE_NUMBER: "S-3", DOCUMENT_URL: "https://my.fastbill.com/download/beleg-8003" });
     try {
@@ -387,5 +400,24 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
     await fastbill.startFastbillImport(actor, { wait: true });
     const run = await fastbill.latestFastbillImport();
     expect(run).toMatchObject({ status: "fehler", error: "Login-E-Mail oder API-Schlüssel falsch" });
+  });
+
+  it("legt die DOCUMENT_URL (Link mit eigenem Schlüssel) nicht ins unveränderliche Archiv", async () => {
+    const rows = await sql`select lexoffice_id from lexoffice_vouchers where source = 'fastbill' and raw ? 'DOCUMENT_URL' order by lexoffice_id`;
+    expect(rows.map((r) => r.lexoffice_id)).toEqual([]);
+  });
+
+  it("ein verwaister FastBill-Lauf blockiert den Abruf aus Lexware Office nicht", async () => {
+    const { encrypt } = await import("../../crypto.ts");
+    await sql`insert into lexoffice_imports (source, status, progress, updated_at, started_at)
+      values ('fastbill', 'laeuft', '{"phase":"belege","contacts":0,"contactsLinked":0,"listed":0,"imported":0,"skipped":0,"files":0,"failed":[]}'::jsonb,
+        now() - interval '1 hour', now())`;
+    await sql`insert into lexoffice_connection (id, ciphertext) values (1, ${encrypt(Buffer.from("x".repeat(32)))})`;
+    lexoffice.setLexofficeClientFactory(() => ({}) as never);
+    try {
+      await expect(lexoffice.startImport(actor, { wait: true })).resolves.toBeTypeOf("string");
+    } finally {
+      await sql`delete from lexoffice_connection`;
+    }
   });
 });

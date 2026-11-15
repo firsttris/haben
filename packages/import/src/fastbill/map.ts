@@ -252,7 +252,8 @@ export function mapFbExpense(e: FbExpense): FbMappedVoucher {
   const tax = cents(e.VAT_TOTAL);
   const net = gross - tax;
   const credit = gross < 0;
-  const buckets = taxes(e.VAT_ITEMS, e.ITEMS, net, tax, (n) => n);
+  // Wie bei Gutschriften der Rechnungen: eine negative Ausgabe ist es in allen Sätzen, egal wie FastBill die Aufteilung schreibt
+  const buckets = taxes(e.VAT_ITEMS, e.ITEMS, net, tax, (n) => (credit ? neg(Math.abs(n)) : n));
   const category = categoryName(e.CATEGORY);
   const serviceFrom = fbDate(e.SERVICE_PERIOD_START);
   const paidDate = fbDate(e.PAID_DATE);
