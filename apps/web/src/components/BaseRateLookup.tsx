@@ -1,4 +1,4 @@
-import { formatDecimal, formatRateMonth } from "@haben/core";
+import { formatHundredths, formatRateMonth } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useAction } from "../lib/use-action.ts";
 import { fetchBaseRateFn } from "../server/functions/dunning.ts";
@@ -12,7 +12,7 @@ export function BaseRateLookup({ onFound }: { onFound: (value: string) => void }
   function onClick() {
     void run(async () => {
       const rate = await lookup();
-      const value = formatDecimal(rate.basisPoints);
+      const value = formatHundredths(rate.basisPoints);
       // Ein Wert aus dem vorigen Halbjahr bleibt draußen, sonst stünden falsche Zinsen in der nächsten Mahnung
       if (rate.current) onFound(value);
       setNotice(

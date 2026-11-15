@@ -1,4 +1,4 @@
-import { formatDecimal } from "@haben/core";
+import { formatHundredths } from "@haben/core";
 import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
 import { runDueBankSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
@@ -73,7 +73,7 @@ export async function runScheduledJobs(): Promise<void> {
     const result = await runDueBaseRate(today());
     if (result?.updated)
       console.log(
-        `Basiszinssatz: ${formatDecimal(result.basisPoints)} % (Bundesbank, Stand ${result.month})${result.changed ? ", geändert" : ", unverändert"}`,
+        `Basiszinssatz: ${formatHundredths(result.basisPoints)} % (Bundesbank, Stand ${result.month})${result.changed ? ", geändert" : ", unverändert"}`,
       );
     else if (result) console.log(`Basiszinssatz: Bundesbank meldet noch Stand ${result.month}, neuer Versuch morgen`);
   } catch (error) {

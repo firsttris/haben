@@ -37,7 +37,7 @@ export function formatDecimal(cents: Cents): string {
 }
 
 /** Ganze Hundertstel mit zwei Nachkommastellen, ohne Einheit: Cent als Euro, Basispunkte als Prozent (1900 → "19,00") */
-export function formatHundredths(value: number): string {
+export function formatHundredths(value: Cents | BasisPoints): string {
   // + 0 macht aus −0 (etwa Steuer einer Storno-Zeile zu 0 %) eine 0, sonst steht dort „-0,00“
   return formatter.format(value / 100 + 0);
 }

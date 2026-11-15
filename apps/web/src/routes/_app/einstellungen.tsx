@@ -5,9 +5,11 @@ import {
   currentFilingPeriod,
   dunningFeeError,
   formatDecimal,
+  formatHundredths,
   formatRateMonth,
   isKapitalgesellschaft,
   parseEuro,
+  parseHundredths,
   type Bundesland,
   type Rechtsform,
 } from "@haben/core";
@@ -315,7 +317,7 @@ function CompanyForm() {
   const [rechtsform, setRechtsform] = useState<Rechtsform>(company.rechtsform);
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(company.skonto));
-  const [baseRate, setBaseRate] = useState(company.dunning.baseRate === null ? "" : formatDecimal(company.dunning.baseRate));
+  const [baseRate, setBaseRate] = useState(company.dunning.baseRate === null ? "" : formatHundredths(company.dunning.baseRate));
   const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
   const [fees, setFees] = useState({ "1": fee("1"), "2": fee("2"), "3": fee("3") });
   const [email, setEmail] = useState(company.email);
@@ -376,8 +378,8 @@ function CompanyForm() {
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
           taetigkeit: text("taetigkeit"),
           dunning: {
-            // Prozent mit zwei Nachkommastellen wie ein Eurobetrag lesen: "1,27" → 127 Basispunkte
-            baseRate: text("dunning-baseRate").trim() ? parseEuro(text("dunning-baseRate")) : null,
+            // Prozent mit zwei Nachkommastellen: "1,27" → 127 Basispunkte, auch negativ (§ 247 BGB), daher nicht parsePercent
+            baseRate: text("dunning-baseRate").trim() ? parseHundredths(text("dunning-baseRate")) : null,
             fees: {
               "1": parseEuro(fees["1"] || "0") ?? 0,
               "2": parseEuro(fees["2"] || "0") ?? 0,
