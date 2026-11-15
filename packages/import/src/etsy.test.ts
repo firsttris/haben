@@ -121,6 +121,40 @@ describe("Etsy-Monatsabrechnung", () => {
     expect(s.warnings).toEqual([]);
   });
 
+  it("deutsche Abrechnung mit englischem Monatsnamen im Datum (#1090): Oktober, Dezember, März und Mai", () => {
+    // So kommen echte Dateien aus einem Konto mit deutscher Oberfläche: deutscher Tag, englischer Monat
+    const zeile = (datum: string) => `"${datum}",Fee,"Listing fee","Listing #1500000002",EUR,--,-€0.18,-€0.18,--`;
+    const s = parseStatement(
+      german([
+        zeile("30. May 2024"),
+        zeile("31. May 2023"),
+        zeile("31. March 2024"),
+        zeile("31. März 2024"),
+        zeile("31. December 2023"),
+        zeile("31. October 2022"),
+        zeile("31. Oktober 2022"),
+        zeile("05. November 2026"),
+      ]),
+      "etsy_statement_2024_5.csv",
+    );
+    expect(s.transactions.map((t) => t.bookingDate)).toEqual([
+      "2022-10-31",
+      "2022-10-31",
+      "2023-05-31",
+      "2023-12-31",
+      "2024-03-31",
+      "2024-03-31",
+      "2024-05-30",
+      "2026-11-05",
+    ]);
+  });
+
+  it("bricht bei einem unbekannten Monatsnamen weiter ab, statt zu raten", () => {
+    const lesen = () => parseStatement(german([`"31. Brumaire 2022",Fee,"Listing fee","Listing #1",EUR,--,-€0.18,-€0.18,--`]), "etsy.csv");
+    expect(lesen).toThrow(StatementParseError);
+    expect(lesen).toThrow(/Ungültiges Datum „31\. Brumaire 2022“/);
+  });
+
   it("Gutschriften und Erstattungen tragen das Vorzeichen aus den Beträgen, nicht aus der Art (dylancaponi im Issue #296)", () => {
     // Fee und Tax kommen mit umgekehrtem Vorzeichen, wenn Etsy etwas zurückgibt; Teilerstattungen stehen wie Verkäufe in „Amount“
     const s = parseStatement(

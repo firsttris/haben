@@ -20,7 +20,7 @@ import { journalAbJahr, kleinunternehmerForMonth } from "../stammdaten/index.ts"
 import { gutschriftAnteile } from "./gutschrift.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
+import { bankAccountIncludedSql, bankNotPrivateMarkedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { advanceVatPlans, invoiceTaxReader, invoiceTotalsById, mixNachVerrechnungen } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
@@ -682,6 +682,7 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
         gte(schema.bankTransactions.bookingDate, start),
         lt(schema.bankTransactions.bookingDate, end),
         sql`${open} <> 0`,
+        bankNotPrivateMarkedSql,
         bankAccountIncludedSql("bank_account_id"),
       ),
     );
