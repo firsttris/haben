@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { authClient } from "../lib/auth-client.ts";
+import { weiterNachAnmeldung } from "../lib/weiter.ts";
 
 /** Hinweise zu ?sso=… nach einem abgewiesenen Callback; der Grund kommt vom Server, nie mit Details zur Identität */
 const ssoReasons = (provider: string): Record<string, string> => ({
@@ -28,10 +29,11 @@ export const ssoAutoStart = (search: string): boolean => {
 };
 
 /**
- * Einziger Weg hinein im SSO-Modus: startet die Anmeldung beim konfigurierten Anbieter, ohne weitere Angaben. Mit
- * `autoStart` (Login-Seite) startet sie bei ?anmelden=sso von selbst, damit der Wechsel aus dem Firmenportal ohne Klick geht.
+ * Einziger Weg hinein im SSO-Modus: startet die Anmeldung beim konfigurierten Anbieter, ohne weitere Angaben. Mit `weiter`
+ * geht es danach zu ?weiter=… (Zustimmungsseite eines KI-Assistenten), sonst zur Startseite. Mit `autoStart` (Login-Seite)
+ * startet sie bei ?anmelden=sso von selbst, damit der Wechsel aus dem Firmenportal ohne Klick geht.
  */
-export function SsoSignIn({ name, label, autoStart = false }: { name: string; label?: string; autoStart?: boolean }) {
+export function SsoSignIn({ name, label, weiter = false, autoStart = false }: { name: string; label?: string; weiter?: boolean; autoStart?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function SsoSignIn({ name, label, autoStart = false }: { name: string; la
     setBusy(true);
     setError(null);
     try {
-      const result = await authClient.signIn.social({ provider: "oidc", callbackURL: "/" });
+      const result = await authClient.signIn.social({ provider: "oidc", callbackURL: (weiter && weiterNachAnmeldung(window.location.search)) || "/" });
       // Better Auth begrenzt Anmeldeversuche je Adresse (3 in 10 Sekunden)
       if (result.error)
         setError(result.error.status === 429 ? "Zu viele Anmeldeversuche. Bitte einen Moment warten und erneut versuchen." : ssoReasons(name).fehler!);

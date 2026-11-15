@@ -216,7 +216,7 @@ Läuft auf dem Server schon ein Reverse Proxy, etwa Apache, nginx, Nginx Proxy M
 - Anfragen bis 250 MB annehmen (Archivdateien bis 100 MB, mehrere Belege auf einmal), auch auf einer langsamen Leitung.
 - bis zu 300 Sekunden auf eine Antwort warten. Eine Übermittlung an ELSTER wartet in der Anfrage auf ERiC, und ein Lauf darf bis zu 120 Sekunden dauern. Die Belegerkennung läuft dagegen im Hintergrund. Der Standard liegt bei nginx und Apache bei 60 Sekunden (im Apache-Paket von Debian bei 300), bei Nginx Proxy Manager bei 90; danach sieht der Browser einen Fehler 502 oder 504.
 - `X-Forwarded-For` mit genau einer Adresse setzen, der des Clients. Haben begrenzt Anmeldeversuche je Client-Adresse; ohne den Header zählen alle Anfragen als eine Adresse. Apache, Caddy, Nginx Proxy Manager und Traefik setzen ihn von selbst, bei nginx und HAProxy trägst du ihn ein.
-- die Sicherheits-Header setzen wie in den Beispielen: HSTS, `X-Content-Type-Options`, `Referrer-Policy` und `X-Frame-Options: SAMEORIGIN` (nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer). Haben setzt nur `Content-Security-Policy: frame-ancestors 'self'` selbst.
+- die Sicherheits-Header setzen wie in den Beispielen: HSTS, `X-Content-Type-Options`, `Referrer-Policy` und `X-Frame-Options: SAMEORIGIN` (nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer). Haben setzt nur `Content-Security-Policy: frame-ancestors 'self'` selbst, auf der Zustimmungsseite für [Connectors](ki-assistenten.md#connector-in-claudeai) `'none'` und `X-Frame-Options: DENY`.
 
 Port 3000 der App gehört nicht ins Internet: Dort könnte jeder `X-Forwarded-For` fälschen, und es gäbe kein HTTPS.
 

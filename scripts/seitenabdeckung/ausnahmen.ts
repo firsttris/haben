@@ -13,6 +13,9 @@ const REDIRECTS: Record<string, string> = {
   "/lohn/anmeldung": "leitet auf /lohn/anmeldung/$zeitraum weiter",
 };
 
+/** Gibt es nur bei eingeschaltetem Zugang für KI-Assistenten, den die Daten aus app.spec.ts nicht haben */
+const OAUTH = "nur mit eingeschaltetem Zugang; Laden, axe und 404 prüft rechnungen.spec.ts im Test „Connector per OAuth“";
+
 export const EXCEPTIONS: Record<"seiten" | "barrierefreiheit", Record<string, string>> = {
   seiten: {
     ...REDIRECTS,
@@ -26,10 +29,12 @@ export const EXCEPTIONS: Record<"seiten" | "barrierefreiheit", Record<string, st
     "/rechnungen/wiederkehrend/neu": OPEN,
     // Der Pfad steht in der Spec, aber nur im Test „Mahnung zu einer unbekannten Rechnung“, der eine 404 erwartet
     "/rechnungen/mahnwesen/$id": "nur ein 404-Test ruft sie auf, nicht die Seite selbst",
+    "/oauth/autorisieren": OAUTH,
   },
   barrierefreiheit: {
     ...REDIRECTS,
     "/belege/$id": "axe prüft gmbh.spec.ts am stornierten Beleg",
+    "/oauth/autorisieren": OAUTH,
     "/angebote/$id": OPEN,
     "/anlagen/$id": OPEN,
     "/archiv/beleg/$id": OPEN,
