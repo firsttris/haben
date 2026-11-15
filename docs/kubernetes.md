@@ -138,12 +138,13 @@ networkPolicy:
           app.kubernetes.io/name: traefik
 ```
 
-Ein Ingress-Controller mit `hostNetwork: true` hat die Adresse seines Knotens, und die meisten Netzwerk-Plugins finden
-ihn dann nicht über `podSelector` und `namespaceSelector`
-([Kubernetes](https://kubernetes.io/docs/concepts/services-networking/network-policies/#networkpolicy-and-hostnetwork-pods)).
-In `ingressFrom` gehören stattdessen die Adressen der Knoten als `ipBlock`, etwa `- ipBlock: {cidr: 192.168.1.0/24}`.
-
 Andere Dienste im Cluster, etwa Paperless, rufen Haben dann über die Domain auf.
+
+Ein Ingress-Controller mit `hostNetwork: true` hat die Adresse seines Knotens, und die meisten Netzwerk-Plugins finden
+ihn nicht über `podSelector` und `namespaceSelector`
+([Kubernetes](https://kubernetes.io/docs/concepts/services-networking/network-policies/#networkpolicy-and-hostnetwork-pods)).
+Für ihn gehört meist ein `ipBlock` mit den Adressen der Knoten in `ingressFrom`; Cilium wertet ihn erst mit
+`policyCIDRMatchMode: nodes` aus ([Cilium](https://docs.cilium.io/en/stable/network/kubernetes/policy/)).
 
 ## ELSTER
 
