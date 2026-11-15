@@ -1744,6 +1744,13 @@
       "when": 1794750748349,
       "tag": "0248_kleinunternehmer_gruendungsdatum",
       "breakpoints": true
+    },
+    {
+      "idx": 249,
+      "version": "7",
+      "when": 1794756288384,
+      "tag": "0249_dauerbelege_aus_sevdesk",
+      "breakpoints": true
     }
   ]
 }

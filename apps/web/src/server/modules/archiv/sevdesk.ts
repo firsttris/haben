@@ -33,6 +33,7 @@ import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from ".
 import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
 import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
+import { importSevdeskRecurringVouchers } from "./sevdesk-dauerbelege.ts";
 import { importSevdeskPayments } from "./sevdesk-payments.ts";
 
 /*
@@ -291,9 +292,15 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     await save();
   }
-  // 4. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
+  // 4. Vorlagen wiederkehrender Belege als angehaltene Dauerbelege (#472)
+  const knownTemplates = new Set(
+    (await db.select({ id: schema.recurringDocuments.sevdeskId }).from(schema.recurringDocuments)).flatMap((r) => (r.id ? [r.id] : [])),
+  );
+  await importSevdeskRecurringVouchers(actor, client, progress, signal, knownTemplates);
+  await save(true);
+  // 5. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
   await importSevdeskPayments(actor, importId, client, progress, signal);
-  // 5. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
+  // 6. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
   await importSevdeskAccountingTypes(actor, importId, client, progress, signal);
   await save(true);
 }

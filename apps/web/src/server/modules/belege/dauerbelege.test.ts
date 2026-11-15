@@ -271,7 +271,7 @@ describe.skipIf(!testDatabaseUrl)("Dauerbelege (Postgres)", () => {
     await lauf.runDueDauerbelege("2026-11-05");
     expect(await belege(vorlage.id)).toHaveLength(0);
     const { loadFile } = await import("../../storage.ts");
-    expect((await loadFile(vorlage.sha256)).byteLength).toBeGreaterThan(0);
+    expect((await loadFile(vorlage.sha256!)).byteLength).toBeGreaterThan(0);
 
     const leer = await dauer.createDauerbeleg(actor, miete({ name: "Abo", nextDate: "2027-01-01" }), vertrag("Abo"));
     await dauer.deleteDauerbeleg(actor, leer.id);

@@ -41,7 +41,7 @@ Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit di
 „Alles abrufen“ startet den Abruf im Hintergrund, mit Fortschritt, Abbrechen und Fortsetzen wie bei Lexoffice. Es läuft immer nur ein Abruf, gleich aus welcher Quelle.
 
 1. **Kontakte:** Organisationen und Personen mit Name, Rolle, erster Adresse samt Land, Haupt-E-Mail und USt-IdNr. Wer als Kunde angelegt wird, erhält auch seine Kundennummer. Ansprechpartner einer Organisation werden keine eigenen Kontakte. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne sevDesk-Herkunft, verknüpft Haben ihn.
-2. **Belegliste:** alle Rechnungen, Gutschriften und Belege. Draußen bleiben Entwürfe, Vorlagen für wiederkehrende Rechnungen und Belege sowie Mahnungen.
+2. **Belegliste:** alle Rechnungen, Gutschriften und Belege. Draußen bleiben Entwürfe, Vorlagen für wiederkehrende Rechnungen sowie Mahnungen; Vorlagen für wiederkehrende Belege werden [Dauerbelege](#vorlagen-für-wiederkehrende-belege).
 3. **Positionen und Dateien:** je Beleg die Positionen (für die Aufteilung nach Steuersatz), das PDF der Rechnung bzw. Gutschrift, bei E-Rechnungen das XML und bei Belegen die hochgeladene Datei.
 
 Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine Rechnung als versendet. Die Antwort der API wird je Beleg samt Positionen gespeichert, zum Nachweis.
@@ -78,6 +78,22 @@ In allen anderen Fällen bleibt die Gutschrift, wie gespeichert, eine Minderung 
 sevDesk lässt bei vielen Belegen den Namen des Lieferanten leer (`supplierName`). Haben zeigt dann den Namen, den der Beleg beim Speichern trug (`supplierNameAtSave`), und erst ohne ihn den Namen des verknüpften Kontakts. So bleibt ein alter Beleg richtig, wenn der Kontakt später umbenannt wird. Die Archivkopie bleibt unverändert.
 
 Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer. Fehlen die Positionen, leitet Haben den Satz aus Netto und Steuer im Kopf ab (19 oder 7 %, die Sätze 16 und 5 % aus 2020 nur, wenn beide nicht passen); auch das gilt für schon abgerufene Belege. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
+
+### Vorlagen für wiederkehrende Belege
+
+Eine Vorlage für wiederkehrende Belege (`voucherType` RV) wird ein [Dauerbeleg](belege.md#dauerbelege), **angehalten**: Haben legt daraus keine Belege an, bis du ihn geprüft und fortgesetzt hast. Die Seite des Dauerbelegs zeigt unter „Aus sevDesk übernommen“, was du prüfen musst. Ein neuer Abruf legt eine übernommene Vorlage nicht noch einmal an und ändert sie nicht.
+
+| sevDesk | Dauerbeleg |
+| --- | --- |
+| Status 100, nächster Termin (`recurringNextVoucher`) | angehalten, nächster Beleg an diesem Termin |
+| Status 50, ohne nächsten Termin | angehalten, nächster Beleg am Start (`recurringStartDate`) |
+| Status 1000, mit Ende (`recurringEndDate`) | beendet, wenn das Ende vorbei ist, sonst angehalten mit diesem Ende |
+| Intervall `recurringInterval` (`P0Y1M`, `P0Y3M`, `P0Y6M`, `P1Y`) | monatlich, vierteljährlich, halbjährlich, jährlich |
+| Lieferant, Belegnummer, Beträge je Steuersatz, Datei | Lieferant (mit Kontakt, wenn er Lieferant ist), Vertrags- oder Kundennummer, Beträge, Vertrag |
+
+Die Bedeutung der Status hat sevDesk nicht beschrieben; sie ist aus echten Antworten der Buchhaltungsversion 1.0 abgeleitet. Kategorie und Bezahlung kennt die Vorlage nicht: Haben setzt „Sonstiger Aufwand“ und das Geschäftskonto, ändere beides vor dem Fortsetzen. Hat die Vorlage keine Datei, lädst du den Vertrag oder die Dauerrechnung hoch; ohne Datei lässt sich ein Dauerbeleg nicht fortsetzen.
+
+Nicht übernommen werden Vorlagen für Einnahmen, in anderer Währung als Euro, mit negativer Summe, mit einem anderen Intervall (etwa wöchentlich) oder einem Steuersatz außer 19, 7 und 0 %. Der Abruf nennt sie mit Grund in der Liste der fehlgeschlagenen Belege; lege sie bei Bedarf selbst an.
 
 ### Steuerarten im Abgleich
 
@@ -138,7 +154,7 @@ Der Jahresexport enthält `sevdesk/auftraege.csv` sowie PDFs, Quelldaten und PDF
 
 - **Keine Buchungen und keine Bankumsätze.** Lade den DATEV-Export aus sevDesk hoch (Schritt 4).
 - **Keine Kategorienamen.** Je Beleg-Position steht nur die ID des Buchungskontos. Übernommene offene Ausgabebelege bekommen deshalb die Kategorie „Sonstiges“; ändere sie bei Bedarf in Haben. Aus demselben Grund erkennt der Abgleich bei GmbH und UG Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen aus sevDesk nicht ([Einordnung](lexoffice.md#einordnung-bei-gmbh-und-ug)); sie zählen dort als Einnahme bzw. Ausgabe. Ziehe sie beim Vergleich mit sevDesk selbst ab.
-- Keine übermittelten Voranmeldungen, kein Anlagenverzeichnis ([Anlagen übernehmen](anlagen.md)), keine Mahnungen oder wiederkehrenden Vorlagen. Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ebenfalls ausgeschlossen.
+- Keine übermittelten Voranmeldungen, kein Anlagenverzeichnis ([Anlagen übernehmen](anlagen.md)), keine Mahnungen oder Vorlagen für wiederkehrende Rechnungen. Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ebenfalls ausgeschlossen.
 
 ## Schritt 3 bis 5
 

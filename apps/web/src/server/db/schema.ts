@@ -1933,11 +1933,18 @@ export const recurringDocuments = pgTable(
     endDate: date("end_date", { mode: "string" }),
     /** Fällig am = Termin plus so viele Tage */
     dueDays: smallint("due_days").notNull().default(0),
-    /** Vertrag oder Dauerrechnung im Dokumentenspeicher; jeder Beleg nutzt die Datei, die beim Anlegen hinterlegt war */
-    sha256: text("sha256").notNull(),
-    filename: text("filename").notNull(),
-    mimeType: text("mime_type").notNull(),
-    size: integer("size").notNull(),
+    /**
+     * Vertrag oder Dauerrechnung im Dokumentenspeicher; jeder Beleg nutzt die Datei, die beim Anlegen hinterlegt war. Leer nur
+     * bei einer übernommenen Vorlage ohne Datei (sevDesk), die nicht aktiv ist: Fortsetzen braucht erst eine Datei.
+     */
+    sha256: text("sha256"),
+    filename: text("filename"),
+    mimeType: text("mime_type"),
+    size: integer("size"),
+    /** Übernommen aus sevDesk: ID der Vorlage wiederkehrender Belege (voucherType RV); ein weiterer Abruf legt sie nicht neu an */
+    sevdeskId: text("sevdesk_id").unique(),
+    /** Antwort von sevDesk zur Vorlage samt Positionen, unverändert; die Hinweise zur Übernahme liest Haben daraus */
+    sevdeskRaw: jsonb("sevdesk_raw").$type<Record<string, unknown>>(),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     lastError: text("last_error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1948,6 +1955,11 @@ export const recurringDocuments = pgTable(
     check("recurring_documents_anchor_day", sql`${t.anchorDay} between 1 and 31`),
     check("recurring_documents_private_share", sql`${t.privateShare} between 0 and 100`),
     check("recurring_documents_due_days", sql`${t.dueDays} between 0 and 120`),
+    check(
+      "recurring_documents_file",
+      sql`(${t.sha256} is null) = (${t.filename} is null) and (${t.sha256} is null) = (${t.mimeType} is null) and (${t.sha256} is null) = (${t.size} is null)`,
+    ),
+    check("recurring_documents_active_file", sql`${t.status} <> 'aktiv' or ${t.sha256} is not null`),
     index("recurring_documents_sha256").on(t.sha256),
     index("recurring_documents_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
     index("recurring_documents_supplier_name_trgm_idx").using("gin", sql`haben_unaccent(${t.supplierName}) gin_trgm_ops`),
@@ -2984,6 +2996,8 @@ export type LexofficeImportProgress = {
   skipped: number;
   files: number;
   failed: { lexofficeId: string; number: string; message: string }[];
+  /** sevDesk: Vorlagen wiederkehrender Belege, in diesem Lauf als Dauerbelege übernommen */
+  recurring?: number;
   /** BuchhaltungsButler: Archivdateien mit dem DATEV-Stapel des Exports, auch wenn sie schon vorher im Archiv lagen */
   datevFileIds?: string[];
   /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */

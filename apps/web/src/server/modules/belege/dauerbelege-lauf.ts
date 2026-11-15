@@ -25,10 +25,19 @@ export interface DauerbelegLauf {
 /** 2026-11-01 → 01.11.2026 */
 const deutsch = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
+/** Datei der Vorlage; eine aktive Vorlage hat immer eine (Prüfung recurring_documents_active_file) */
+function contractOf(vorlage: Dauerbeleg) {
+  const { sha256, filename, mimeType, size } = vorlage;
+  if (!sha256 || !filename || !mimeType || size === null)
+    throw new DauerbelegError("Der Dauerbeleg hat keine Datei. Lade den Vertrag oder die Dauerrechnung hoch.");
+  return { sha256, filename, mimeType, size };
+}
+
 /** Notiz am Beleg: woher er stammt und welche Datei ihn belegt */
 function noteFor(vorlage: Dauerbeleg, termin: string): string {
+  const { filename, sha256 } = contractOf(vorlage);
   const lines = [
-    `Aus Dauerbeleg „${vorlage.name}“, Termin ${deutsch(termin)}. Beleg: ${vorlage.filename} (SHA-256 ${vorlage.sha256.slice(0, 12)}…).`,
+    `Aus Dauerbeleg „${vorlage.name}“, Termin ${deutsch(termin)}. Beleg: ${filename} (SHA-256 ${sha256.slice(0, 12)}…).`,
     vorlage.taxShown ? "" : "Das Dokument weist keine Umsatzsteuer aus; ohne Steuerausweis keine Vorsteuer.",
     vorlage.note,
   ];
@@ -41,10 +50,7 @@ async function insertBeleg(tx: Tx, vorlage: Dauerbeleg, termin: string): Promise
   const [created] = await tx
     .insert(schema.documents)
     .values({
-      sha256: vorlage.sha256,
-      filename: vorlage.filename,
-      mimeType: vorlage.mimeType,
-      size: vorlage.size,
+      ...contractOf(vorlage),
       supplierName: vorlage.supplierName,
       supplierUstId: vorlage.supplierUstId,
       supplierContactId: vorlage.supplierContactId,

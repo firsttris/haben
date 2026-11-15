@@ -23,7 +23,7 @@ const STATUS_TEXT = {
 } as const;
 
 function DauerbelegDetailPage() {
-  const { vorlage, belege, termine, suppliers, categories, kleinunternehmer } = Route.useLoaderData();
+  const { vorlage, belege, termine, sevdesk, suppliers, categories, kleinunternehmer } = Route.useLoaderData();
   const { rechtsform } = Route.useRouteContext();
   const router = useRouter();
   const navigate = useNavigate();
@@ -140,6 +140,7 @@ function DauerbelegDetailPage() {
             kleinunternehmer={kleinunternehmer}
             rechtsform={rechtsform}
             isNew={false}
+            withoutFile={!vorlage.sha256}
             busy={busy}
             submitLabel="Speichern"
             onSubmit={(values, file) =>
@@ -151,19 +152,40 @@ function DauerbelegDetailPage() {
           />
         )}
         <div className="stack">
+          {sevdesk && (
+            <section className="card stack" aria-labelledby="sevdesk-heading">
+              <h2 id="sevdesk-heading">Aus sevDesk übernommen</h2>
+              <p className="small muted" style={{ margin: 0 }}>
+                Vorlage {sevdesk.id}. Prüfe die Angaben, bevor du fortsetzt; ein neuer Abruf ändert diesen Dauerbeleg nicht.
+              </p>
+              {sevdesk.hinweise.length > 0 && (
+                <ul className="small" style={{ margin: 0 }}>
+                  {sevdesk.hinweise.map((h) => (
+                    <li key={h}>{h}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
           <section className="card stack" aria-labelledby="vertrag-heading">
             <h2 id="vertrag-heading">Vertrag</h2>
-            <p style={{ margin: 0 }}>
-              <a href={`/api/dauerbeleg/${vorlage.id}`} target="_blank" rel="noreferrer">
-                {vorlage.filename}
-              </a>{" "}
-              <span className="small muted">
-                {formatSize(vorlage.size)} · SHA-256 {vorlage.sha256.slice(0, 12)}…
-              </span>
-            </p>
-            <p className="small muted" style={{ margin: 0 }}>
-              Jeder Beleg nutzt die Datei, die bei seinem Anlegen hinterlegt war.
-            </p>
+            {vorlage.sha256 && vorlage.size !== null ? (
+              <>
+                <p style={{ margin: 0 }}>
+                  <a href={`/api/dauerbeleg/${vorlage.id}`} target="_blank" rel="noreferrer">
+                    {vorlage.filename}
+                  </a>{" "}
+                  <span className="small muted">
+                    {formatSize(vorlage.size)} · SHA-256 {vorlage.sha256.slice(0, 12)}…
+                  </span>
+                </p>
+                <p className="small muted" style={{ margin: 0 }}>
+                  Jeder Beleg nutzt die Datei, die bei seinem Anlegen hinterlegt war.
+                </p>
+              </>
+            ) : (
+              <p style={{ margin: 0 }}>Noch keine Datei. Lade den Vertrag oder die Dauerrechnung im Formular hoch, bevor du fortsetzt.</p>
+            )}
           </section>
           <section className="card stack" aria-labelledby="belege-heading">
             <h2 id="belege-heading">Angelegte Belege</h2>

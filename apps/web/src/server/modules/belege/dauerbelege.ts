@@ -5,6 +5,7 @@
  * deaktivieren hält ihn an. Anders als dort bucht Haben nichts selbst: Jeder Termin wird ein Beleg „Zu prüfen“
  * (dauerbelege-lauf.ts).
  */
+import { mapSevRecurringVoucher, type SevDauerbeleg, type SevVoucher, type SevVoucherPos } from "@haben/import";
 import { dauerbelegProbleme, EXPENSE_CATEGORY_KEYS, terminAbStichtag, vorschauTermine, type DauerbelegStatus, type RecurringInterval } from "@haben/core";
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -99,12 +100,15 @@ export async function listDauerbelege() {
     .leftJoin(schema.documents, eq(schema.documents.recurringDocumentId, schema.recurringDocuments.id))
     .groupBy(schema.recurringDocuments.id)
     .orderBy(sql`${schema.recurringDocuments.status} = 'beendet'`, asc(schema.recurringDocuments.nextDate));
-  return rows;
+  return rows.map(({ vorlage: { sevdeskRaw: _raw, ...vorlage }, ...rest }) => ({ vorlage, ...rest }));
 }
 
 export async function getDauerbeleg(id: string) {
-  const [vorlage] = await db.select().from(schema.recurringDocuments).where(eq(schema.recurringDocuments.id, id));
-  if (!vorlage) return null;
+  const [row] = await db.select().from(schema.recurringDocuments).where(eq(schema.recurringDocuments.id, id));
+  if (!row) return null;
+  const { sevdeskRaw: _raw, ...vorlage } = row;
+  /** Übernommen aus sevDesk: was der Nutzer prüfen muss; null bei eigenen Dauerbelegen */
+  const sevdesk = row.sevdeskId ? { id: row.sevdeskId, hinweise: sevdeskHinweise(row) } : null;
   const belege = await db
     .select({
       id: schema.documents.id,
@@ -119,7 +123,7 @@ export async function getDauerbeleg(id: string) {
     .where(eq(schema.documents.recurringDocumentId, id))
     .orderBy(desc(schema.documents.recurringPeriod));
   const termine = vorlage.status === "beendet" ? [] : vorschauTermine({ ...vorlage, intervalMonths: vorlage.intervalMonths as RecurringInterval }, 3);
-  return { vorlage, belege, termine };
+  return { vorlage, belege, termine, sevdesk };
 }
 
 /** Name des Dauerbelegs, aus dem ein Beleg stammt; für die Belegseite */
@@ -165,7 +169,7 @@ export async function updateDauerbeleg(actor: string, id: string, input: Dauerbe
       .set({ ...row, anchorDay, ...contract, lastError: null })
       .where(eq(schema.recurringDocuments.id, id))
       .returning();
-    const replaced = file && previous.sha256 !== saved!.sha256 ? await unusedFile(tx, previous.sha256) : null;
+    const replaced = file && previous.sha256 && previous.sha256 !== saved!.sha256 ? await unusedFile(tx, previous.sha256) : null;
     return { updated: saved!, unused: replaced };
   });
   if (unused) await removeFile(unused);
@@ -200,6 +204,7 @@ function nextStatus(vorlage: Dauerbeleg, aktion: DauerbelegAktion, heute: string
     return { status: "pausiert" };
   }
   if (vorlage.status !== "pausiert") throw new DauerbelegError("Der Dauerbeleg läuft schon.");
+  if (!vorlage.sha256) throw new DauerbelegError("Lade zuerst den Vertrag oder die Dauerrechnung hoch.");
   const nextDate = terminAbStichtag({ ...vorlage, intervalMonths: vorlage.intervalMonths as RecurringInterval }, heute);
   return { status: vorlage.endDate !== null && nextDate > vorlage.endDate ? "beendet" : "aktiv", nextDate };
 }
@@ -211,7 +216,7 @@ export async function deleteDauerbeleg(actor: string, id: string): Promise<void>
     const [used] = await tx.select({ id: schema.documents.id }).from(schema.documents).where(eq(schema.documents.recurringDocumentId, id)).limit(1);
     if (used) throw new DauerbelegError("Aus dem Dauerbeleg sind schon Belege entstanden. Beende ihn stattdessen.");
     await tx.delete(schema.recurringDocuments).where(eq(schema.recurringDocuments.id, id));
-    return unusedFile(tx, vorlage.sha256);
+    return vorlage.sha256 ? unusedFile(tx, vorlage.sha256) : null;
   });
   if (unused) await removeFile(unused);
 }
@@ -226,5 +231,62 @@ export async function dauerbelegFile(id: string) {
     })
     .from(schema.recurringDocuments)
     .where(and(eq(schema.recurringDocuments.id, id)));
-  return row ?? null;
+  return row?.sha256 && row.filename && row.mimeType ? { sha256: row.sha256, filename: row.filename, mimeType: row.mimeType } : null;
+}
+
+/**
+ * Vorlage aus sevDesk (#472), angehalten oder beendet übernommen; ohne Datei, wenn sevDesk keine hat oder ihre Art nicht
+ * passt. false, wenn die Vorlage schon übernommen ist: Änderungen des Nutzers bleiben, ein neuer Abruf überschreibt nichts.
+ */
+export async function importSevdeskDauerbeleg(
+  actor: string,
+  vorlage: SevDauerbeleg,
+  raw: Record<string, unknown>,
+  file: DauerbelegFile | null,
+): Promise<boolean> {
+  const contract = file && !documentFileProblem(file) ? file : null;
+  return withActor(actor, async (tx) => {
+    const [known] = await tx
+      .select({ id: schema.recurringDocuments.id })
+      .from(schema.recurringDocuments)
+      .where(eq(schema.recurringDocuments.sevdeskId, vorlage.sevdeskId));
+    if (known) return false;
+    const [contact] = vorlage.supplierSevdeskId
+      ? await tx
+          .select({ id: schema.contacts.id, name: schema.contacts.name })
+          .from(schema.contacts)
+          .where(and(eq(schema.contacts.sevdeskId, vorlage.supplierSevdeskId), eq(schema.contacts.isSupplier, true)))
+      : [];
+    const stored = contract ? await storeContract(tx, contract) : {};
+    const { supplierSevdeskId: _supplier, documentId: _document, ...felder } = vorlage;
+    const [created] = await tx
+      .insert(schema.recurringDocuments)
+      .values({
+        ...felder,
+        supplierContactId: contact?.id ?? null,
+        ...stored,
+        sevdeskRaw: raw,
+        note: "Aus sevDesk übernommen.",
+      })
+      .onConflictDoNothing({ target: schema.recurringDocuments.sevdeskId })
+      .returning({ id: schema.recurringDocuments.id });
+    return Boolean(created);
+  });
+}
+
+/** Hinweise zu einer aus sevDesk übernommenen Vorlage, aus der gespeicherten Antwort; leer bei eigenen Dauerbelegen */
+export function sevdeskHinweise(vorlage: Pick<Dauerbeleg, "sevdeskRaw" | "sha256" | "createdAt">): string[] {
+  const raw = vorlage.sevdeskRaw as { voucher?: SevVoucher; positions?: SevVoucherPos[] } | null;
+  if (!raw?.voucher) return [];
+  const heute = vorlage.createdAt.toISOString().slice(0, 10);
+  const mapped = mapSevRecurringVoucher(raw.voucher, raw.positions ?? [], heute);
+  if (!mapped.ok) return [mapped.grund];
+  const hinweise = mapped.hinweise.filter((h) => !h.startsWith("In sevDesk ohne Datei"));
+  if (!vorlage.sha256)
+    hinweise.push(
+      mapped.dauerbeleg.documentId
+        ? "Die Datei aus sevDesk ließ sich nicht übernehmen (Art oder Größe); bitte hochladen."
+        : "In sevDesk ohne Datei: Vor dem Fortsetzen den Vertrag oder die Dauerrechnung hochladen.",
+    );
+  return hinweise;
 }
