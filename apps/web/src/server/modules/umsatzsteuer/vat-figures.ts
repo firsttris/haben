@@ -663,8 +663,6 @@ export interface PreflightIssue {
   text: string;
   link: "/bank" | "/belege" | "/rechnungen" | "/konten";
 }
-// /bank zeigt ohne Parameter schon die offenen Umsätze (`routes/_app/bank.tsx`, `filter ?? "offen"`); ein eigener
-// Filter in der Verlinkung änderte nichts (#1102)
 
 /** Vorprüfung vor dem Senden: was im Zeitraum noch offen ist und die Zahlen verfälschen könnte */
 export async function preflight(period: VatPeriod, figures: VatFigures): Promise<PreflightIssue[]> {
