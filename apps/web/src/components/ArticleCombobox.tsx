@@ -31,6 +31,7 @@ export function ArticleCombobox({
   value,
   articles,
   invalid,
+  describedBy,
   onInput,
   onPick,
   onCreate,
@@ -41,6 +42,8 @@ export function ArticleCombobox({
   value: string;
   articles: ArticleOption[];
   invalid: boolean;
+  /** Fehler der Position unter ihr (useSubmitCheck) */
+  describedBy?: string | undefined;
   onInput: (text: string) => void;
   onPick: (article: ArticleOption) => void;
   onCreate: (description: string) => void;
@@ -56,6 +59,7 @@ export function ArticleCombobox({
       placeholder={placeholder}
       value={value}
       aria-invalid={invalid}
+      aria-describedby={describedBy}
       onInput={onInput}
       onBlur={onBlur}
       search={() => searchOptions(articles, value, articleFields)}

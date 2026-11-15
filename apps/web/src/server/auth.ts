@@ -5,7 +5,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { count } from "drizzle-orm";
 import { INVITATION_HEADER, accountState, claimInvitation, linkInvitation, loginMethod, openInvitation, recordLogin } from "./anmeldung.ts";
-import { atomicAuthCallback, authDatabase, authDatabaseProxy, authTransaction } from "./auth-transaction.ts";
+import { atomicAuthCallback, authDatabase, authDatabaseProxy, authTransaction, passwordChangeTransaction } from "./auth-transaction.ts";
+import { changePasswordRequest } from "./change-password.ts";
 import { schema } from "./db/index.ts";
 import { env } from "./env.ts";
 import { oidcProvider, withoutProviderTokens } from "./oidc.ts";
@@ -76,6 +77,16 @@ function authHooks(sso: boolean): Pick<BetterAuthOptions, "hooks" | "databaseHoo
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         await enforceMode(ctx);
+        if (ctx.path === "/change-password") {
+          if (!passwordChangeTransaction() || ctx.body?.revokeOtherSessions !== true) {
+            throw forbidden("Beim Passwortwechsel müssen die anderen Sitzungen abgemeldet werden.");
+          }
+          const { currentPassword, newPassword } = ctx.body;
+          // Better Auth normalisiert beide Passwörter vor dem Hashen: https://github.com/better-auth/utils/blob/v0.5.1/src/password.node.ts
+          if (typeof currentPassword === "string" && typeof newPassword === "string" && currentPassword.normalize("NFKC") === newPassword.normalize("NFKC")) {
+            throw new APIError("BAD_REQUEST", { code: "PASSWORD_UNCHANGED", message: "Wähle ein anderes neues Passwort." });
+          }
+        }
         // Name und Bild ändert Haben nicht über Better Auth: das schriebe ohne Audit-Akteur und an der Rollenprüfung
         // vorbei, auch für die Steuerberatung, die nur lesen darf
         if (ctx.path === "/update-user") throw forbidden("Das Konto lässt sich hier nicht ändern.");
@@ -130,6 +141,7 @@ function authHooks(sso: boolean): Pick<BetterAuthOptions, "hooks" | "databaseHoo
           },
           // Jede Anmeldung steht im Audit-Log, mit der wirksamen Rolle und Art
           after: async (session, ctx) => {
+            if (ctx?.path === "/change-password") return;
             const role = sso ? (session as { ssoRole?: string }).ssoRole : (await accountState(session.userId, authDatabase()))?.role;
             if (role === "inhaber" || role === "steuerberatung") await recordLogin(session.userId, role, loginMethod(ctx?.path), authTransaction());
           },
@@ -178,6 +190,9 @@ async function handleAuthRequest(request: Request): Promise<Response> {
   const path = new URL(request.url).pathname;
   if (ssoOnly() && path === "/api/auth/callback/oidc") {
     return atomicAuthCallback(() => current.handler(request), { errorUrl: loginUrl, afterRejection: revokeRejectedIdentity });
+  }
+  if (!ssoOnly() && request.method === "POST" && path.replace(/\/+$/, "") === "/api/auth/change-password") {
+    return changePasswordRequest(current, request);
   }
   return current.handler(request);
 }

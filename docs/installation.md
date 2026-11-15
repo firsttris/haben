@@ -78,6 +78,10 @@ Das `Containerfile` baut die App in zwei Stufen: gebaut wird auf `oven/bun` (Deb
 
 Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_DIR=/var/lib/haben/eric`, `ERIC_WORKER_PATH`, `HABEN_EINVOICE_DIR`, `HABEN_COMMIT` (aus dem Build-Argument) und `XDG_CACHE_HOME=/tmp/.cache` (Cache der Schriften für `pdftoppm`).
 
+Für Uptime-Monitore und Load-Balancer meldet `GET /api/health` ohne Anmeldung `200` mit `{"status":"pass"}`, sobald die Datenbank erreichbar und alle Migrationen angewendet sind, sonst `503` mit `{"status":"fail","reason":"database"}` oder `"reason":"migrations"`. `status` folgt dem Entwurf [Health Check Response Format](https://datatracker.ietf.org/doc/draft-inadarei-api-health-check/), `reason` mit festen Werten ergänzt Haben; `warn` mit `200` kann später für Hinweise wie eine überfällige Sicherung dazukommen. Der `HEALTHCHECK` im `Containerfile` fragt denselben Endpunkt ab. Version, ERiC, letzte Sicherung und Speicher meldet `haben status`, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
+
+Hinter PgBouncer braucht Haben `pool_mode = session`, bei anderen Poolern den entsprechenden Sitzungsmodus. Im Transaktionsmodus gehört eine Serververbindung dem Client nur für eine Transaktion: Die Sitzungssperren der Migration und des laufenden Servers hängen dann an Verbindungen, die der Pooler an andere Clients weitergibt, und steht [`max_prepared_statements`](https://www.pgbouncer.org/config.html#max_prepared_statements) auf 0, wie vor PgBouncer 1.24 voreingestellt, scheitern die Prepared Statements von postgres.js.
+
 `compose.yml` und `haben-app.container` starten die App gehärtet: Das Dateisystem des Containers ist schreibgeschützt, beschreibbar sind nur die Volumes unter `/var/lib/haben` und `/tmp` (tmpfs, beim Neustart leer). Dazu kommen keine Capabilities (`cap_drop: [ALL]` bzw. `DropCapability=ALL`) und `no-new-privileges`. Haben braucht nichts davon; ein Angreifer, der über eine Lücke Code im Container ausführt, kann so weder Programme im Image verändern noch sich höhere Rechte verschaffen. Schreibt etwas Eigenes außerhalb dieser Verzeichnisse, hängst du dafür ein Volume ein, statt den Schreibschutz abzuschalten.
 
 ## Docker Compose
@@ -214,7 +218,7 @@ Läuft auf dem Server schon ein Reverse Proxy, etwa Apache, nginx, Nginx Proxy M
 - Anfragen bis 250 MB annehmen (Archivdateien bis 100 MB, mehrere Belege auf einmal), auch auf einer langsamen Leitung.
 - bis zu 300 Sekunden auf eine Antwort warten. Eine Übermittlung an ELSTER wartet in der Anfrage auf ERiC, und ein Lauf darf bis zu 120 Sekunden dauern. Die Belegerkennung läuft dagegen im Hintergrund. Der Standard liegt bei nginx und Apache bei 60 Sekunden (im Apache-Paket von Debian bei 300), bei Nginx Proxy Manager bei 90; danach sieht der Browser einen Fehler 502 oder 504.
 - `X-Forwarded-For` mit genau einer Adresse setzen, der des Clients. Haben begrenzt Anmeldeversuche je Client-Adresse; ohne den Header zählen alle Anfragen als eine Adresse. Apache, Caddy, Nginx Proxy Manager und Traefik setzen ihn von selbst, bei nginx und HAProxy trägst du ihn ein.
-- die Sicherheits-Header setzen wie in den Beispielen: HSTS, `X-Content-Type-Options`, `Referrer-Policy` und `X-Frame-Options: SAMEORIGIN` (nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer). Haben setzt nur `Content-Security-Policy: frame-ancestors 'self'` selbst.
+- die Sicherheits-Header setzen wie in den Beispielen: HSTS, `X-Content-Type-Options`, `Referrer-Policy` und `X-Frame-Options: SAMEORIGIN` (nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer). Haben setzt nur `Content-Security-Policy: frame-ancestors 'self'` selbst, auf der Zustimmungsseite für [Connectors](ki-assistenten.md#connector-in-claudeai) `'none'` und `X-Frame-Options: DENY`.
 
 Port 3000 der App gehört nicht ins Internet: Dort könnte jeder `X-Forwarded-For` fälschen, und es gäbe kein HTTPS.
 
@@ -412,16 +416,19 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
     .env                   # eigene Schlüssel, Rechte 600
   firma2/
     …
+  firmenportal/            # nur nach portal: Firmenportal mit logos/
 ```
 
 | Befehl | Was es tut |
 | --- | --- |
 | `neu <name> <domain>` | Legt Verzeichnis, `.env` mit eigenen Zufallswerten, Override-Datei und den Eintrag im gemeinsamen Caddy an. Startet den Proxy, dann die Datenbank, legt die App-Rolle `haben_app` an ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)), startet die App und nennt den Einrichtungscode |
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Beim ersten Fehler hält es an |
-| `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC und letzte erfolgreiche Sicherung |
+| `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC, Speicher von Datenbank und Belegen und letzte erfolgreiche Sicherung |
 | `liste` | Name, Domain und Verzeichnis |
+| `firmen [<name> …]` | Schreibt die Liste für [Firma wechseln](#firma-wechseln) als `HABEN_FIRMEN` in die `.env` der Instanzen und startet laufende Apps neu |
+| `portal [<domain> --oidc-…]` | Richtet beim ersten Aufruf das [Firmenportal](#firmenportal) unter `firmenportal/` hinter dem gemeinsamen Caddy ein und gleicht es danach bei jedem Aufruf mit den Instanzen mit SSO ab: Firmen, Farbe und Logo, `HABEN_FIRMENPORTAL_URL` in den Instanzen |
 
-`neu` setzt in der `.env` eigene Zufallswerte für `DB_PASSWORD`, das Passwort der App-Rolle in `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`. Der Name besteht aus a–z, 0–9 und `-`, höchstens 31 Zeichen, am Anfang und Ende ein Buchstabe oder eine Ziffer; `proxy`, `app` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben. `neu` bricht ab und ändert nichts, wenn
+`neu` setzt in der `.env` eigene Zufallswerte für `DB_PASSWORD`, das Passwort der App-Rolle in `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`. Der Name besteht aus a–z, 0–9 und `-`, höchstens 31 Zeichen, am Anfang und Ende ein Buchstabe oder eine Ziffer; `proxy`, `app`, `firmenportal` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben. `neu` bricht ab und ändert nichts, wenn
 
 - es das Verzeichnis oder das Compose-Projekt `haben-<name>` schon gibt (auch nur noch seine Volumes),
 - die Domain einer anderen Instanz oder einem übrig gebliebenen Eintrag in `proxy/sites/` gehört,
@@ -436,14 +443,69 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 
 `status`:
 
-- Version, ERiC und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste.
+- Version, ERiC, Speicher und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste.
 - Bei ERiC steht die Version, „von Hand“ bei einem mit `ERIC_HOME` eingebundenen Paket ohne Versionsdatei oder „fehlt“ ohne ERiC.
+- Speicher nennt den Platz der Datenbank und der Belege, etwa „Datenbank 45,2 MB, Belege 1,3 GB“; ein Image, das ihn noch nicht meldet, zeigt „?“.
 - Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“.
 - Skripte lesen `haben status --json`, den Commit im Feld `commit` (`null` ohne Angabe beim Bauen); das Feld `schema` (derzeit `1`) steigt, wenn ein Feld entfällt oder seine Bedeutung ändert.
+- Den Speicher in Bytes nennt `speicher`, etwa um Platte und Tarife zu planen: `datenbankBytes` ist `pg_database_size` der Datenbank der App (ohne WAL und ohne das Backup), `belegeBytes` die Summe der Dateien unter `DOCUMENTS_DIR`, mit Vorlagen und ihren Paketen. Gezählt werden die Dateien auf der Platte (ihre Größe, nicht die belegten Blöcke), nicht die Größen in der Datenbank: Eine Datei, die mehrere Belege teilen, liegt nur einmal da. Ordner, die die App nicht lesen darf, etwa `lost+found`, zählen nicht. 100.000 Dateien dauerten auf einer SSD mit den Dateien im Cache rund 0,2 Sekunden; auf einem Netzlaufwerk oder nach einem Neustart kann es länger dauern.
+
+`firmen`:
+
+- Ohne Namen schreibt es die Liste in alle Instanzen der Basis, mit Namen nur in diese; die übrigen bleiben unverändert und stehen in keiner Liste.
+- Je Instanz steht darin `HABEN_FIRMENNAME` aus ihrer `.env` (sonst ihr Name) mit `https://<DOMAIN>`.
+- Vorher prüft es die Liste wie die App; bei einem Fehler, etwa einem doppelten Namen, nennt es die Instanz und ändert keine Datei. Ebenso, wenn die `compose.yml` einer Instanz `HABEN_FIRMEN` nicht an die App weitergibt (mit einem älteren Stand angelegt): dann die aktuelle aus `deploy/` dorthin kopieren.
+- Danach startet es laufende Apps mit `up -d` neu und wartet, bis sie gesund sind; gestoppte bleiben gestoppt. Schlägt ein Neustart fehl, hält es an und nennt die Instanz.
+- Nennt eine nicht gewählte Instanz in ihrer Liste noch gewählte, weist es darauf hin; ihre Liste leerst du von Hand oder gleichst sie mit `firmen` und ihrer eigenen Gruppe ab.
+
+`portal`:
+
+- Beim ersten Aufruf mit der Domain des Firmenportals und dem eigenen Client beim Anmeldedienst, wie bei `neu --sso`: `portal firmenportal.example.de --oidc-issuer https://auth.example.de --oidc-client-id haben-firmenportal --oidc-client-secret-stdin`. Es legt `firmenportal/` mit `compose.yml` (die Vorlage ohne den Port auf `127.0.0.1`: der Weg führt nur über den Caddy), `.env` (eigenes `PORTAL_SECRET`, Rechte 600), Override-Datei und `logos/` an, trägt die Domain in den gemeinsamen Caddy ein (Netz `haben-proxy-firmenportal`) und nennt die Adressen, die der Client beim Anmeldedienst braucht. Das geht nur mit dem gemeinsamen Caddy; laufen die Instanzen mit `--eigener-proxy`, bricht es ab, und du richtest das Firmenportal von Hand ein (siehe [Firmenportal](#firmenportal)). Ein schon vorhandenes Compose-Projekt `firmenportal`, etwa ein von Hand eingerichtetes Firmenportal, übernimmt es nicht. Bricht der Abgleich danach ab, bleibt `firmenportal/` eingerichtet; nach dem Beheben genügt `portal` ohne Angaben.
+- Danach ohne Angaben: `portal` gleicht nur ab. Eine andere Domain oder neue `--oidc-…` lehnt es ab; die stehen in `firmenportal/.env`.
+- In `PORTAL_FIRMEN` kommen alle Instanzen mit `OIDC_ONLY=true`, je mit `HABEN_FIRMENNAME` (sonst ihr Name), `https://<DOMAIN>` und `OIDC_GROUP_INHABER` aus ihrer `.env`. Instanzen ohne SSO nennt es nur.
+- Farbe und Logo fragt es bei jeder laufenden Instanz ab (`haben status --json`); ein neues Logo holt es mit `haben kennzeichen` nach `logos/<name>.png` bzw. `.jpg`, wenn die Prüfsumme sich geändert hat. Ein Image von vor diesem Feld oder ein Logo, das nicht zur gemeldeten Prüfsumme passt, bricht nichts ab: Die Firma zeigt ihren Anfangsbuchstaben. Gestoppte Instanzen behalten Farbe und Logo von bisher.
+- In jede dieser Instanzen schreibt es `HABEN_FIRMENPORTAL_URL` und leert `HABEN_FIRMEN`, das die App daneben ablehnt. `firmen` lehnt Instanzen mit Firmenportal danach ab. Hat eine Instanz kein SSO mehr, nimmt es die Adresse dort wieder heraus, denn ohne `OIDC_ONLY=true` startete die App mit ihr nicht.
+- Wie `firmen` prüft der Abgleich erst alles und ändert bei einem Fehler, etwa einer fehlenden Gruppe oder einem doppelten Namen, keine Datei. Geschrieben wird nur, was sich ändert; neu gestartet nur das Firmenportal (nach einer geänderten Liste oder einem neuen Logo) und die Instanzen, deren `.env` sich geändert hat. Scheitert ein Neustart, holt ihn der nächste Lauf nach (die ausstehenden stehen in `firmenportal/.neustart-offen`). Ohne Änderung meldet es „Nichts geändert.“ Ein gestopptes Firmenportal bleibt gestoppt.
+- Zwei Läufe zugleich verhindert die Datei `firmenportal/.abgleich.lock`; bleibt sie nach einem Absturz liegen, nennt `portal` sie, und du löschst sie.
+
+Regelmäßig abgleichen, damit eine neue Farbe oder ein neues Logo ohne Zutun im Firmenportal erscheint, etwa stündlich mit cron (`crontab -e` als der Nutzer, der Docker bedienen darf):
+
+```sh
+0 * * * * cd ~/haben-werkzeug && ~/.bun/bin/bun deploy/instanzen/haben-instanzen.ts portal > /dev/null
+```
+
+Oder mit einem systemd-Timer, `~/.config/systemd/user/haben-portal.service` und `haben-portal.timer`, danach `systemctl --user enable --now haben-portal.timer` (und `loginctl enable-linger`, damit er ohne Anmeldung läuft):
+
+```ini
+# haben-portal.service
+[Service]
+Type=oneshot
+WorkingDirectory=%h/haben-werkzeug
+ExecStart=%h/.bun/bin/bun deploy/instanzen/haben-instanzen.ts portal
+
+# haben-portal.timer
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+cron und systemd kennen den `PATH` deiner Shell nicht, deshalb der volle Pfad zu `bun` (dort legt ihn der Installer von Bun ab) und, wenn die Instanzen nicht unter `~/haben` liegen, `--basis <pfad>` hinter `portal`; ein `HABEN_INSTANZEN` aus der Shell kommt dort nicht an. Fehler und Warnungen, etwa zu einem Logo, das nicht passt, schreibt `portal` auf die Fehlerausgabe: Sie stehen trotz `> /dev/null` in der Mail von cron bzw. in `journalctl --user -u haben-portal`.
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter.
 
-Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Das gilt für Docker unter Linux, das Bridge-Netze mit Firewall-Regeln voneinander trennt; Laufzeiten wie OrbStack trennen sie nicht, dort erreicht eine App die andere über deren IP-Adresse. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu und baut den Caddy-Container neu auf; dabei sind alle Instanzen einige Sekunden nicht erreichbar.
+Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Das gilt für Docker unter Linux, das Bridge-Netze mit Firewall-Regeln voneinander trennt; Laufzeiten wie OrbStack trennen sie nicht, dort erreicht eine App die andere über deren IP-Adresse. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu. Einen laufenden Caddy baut es dabei nicht neu auf: Es legt das neue Netz mit `docker compose up -d --no-recreate` an, hängt den Container mit `docker network connect` hinein und liest `sites/` mit `caddy reload` neu ein. Die anderen Instanzen bleiben währenddessen erreichbar, auch laufende Uploads oder Übermittlungen an ELSTER brechen nicht ab. Läuft der Caddy nicht, startet `neu` ihn mit `docker compose up -d`.
+
+Alle Instanzen sind noch kurz nicht erreichbar (höchstens einige Sekunden), wenn der Caddy-Container neu entsteht oder neu startet:
+
+- beim ersten schlichten `docker compose up -d` in `proxy/` nach einem `neu`: Compose sieht die neuen Netze in der Datei und baut den Container einmal neu auf, auch wenn er schon in allen hängt;
+- mit `docker compose up -d --force-recreate`, mit `docker compose up -d` nach einem `docker compose pull`, das ein neues Image des Caddy holt, und mit `docker compose restart caddy`;
+- beim Löschen einer Instanz (Schritt 3 unten) und beim ersten Start von Hand nach `--nicht-starten` oder einem Abbruch, mit den Schritten, die `neu` dann nennt;
+- beim Neustart von Docker oder des Rechners. Die Netze, in die `neu` den Container gehängt hat, bleiben ihm dabei erhalten.
+
+Bestehende Instanzen und ihr Caddy brauchen dafür keine Umstellung.
 
 Eine Instanz löschst du in dieser Reihenfolge. `docker compose down -v` entfernt alle Volumes der Instanz: Datenbank, Belege und, solange `RESTIC_REPOSITORY` nicht auf ein zweites System zeigt, auch das Backup im Volume `backups`. Vorher gehören deshalb der [Jahresexport](auswertungen.md#jahresexport) jedes Jahres und ein Backup an einen zweiten Ort ([Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system)); Bücher und Aufzeichnungen bewahrst du 10 Jahre auf, Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO), siehe [Aufbewahrung](auswertungen.md#aufbewahrung).
 
@@ -454,7 +516,7 @@ Eine Instanz löschst du in dieser Reihenfolge. `docker compose down -v` entfern
 Zwei Fälle weichen bei Schritt 2 und 3 ab:
 
 - **Mit `--eigener-proxy`** gibt es kein `proxy/`: den Block der Domain und das Netz aus der Konfiguration deines Proxys entfernen, ihn neu aufbauen, dann `docker network rm haben-proxy-<name>`.
-- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht, und `up -d` baut den Caddy deshalb nicht neu auf. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose restart caddy`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart.
+- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart.
 
 `update`, `status` und `liste` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
 
@@ -481,6 +543,7 @@ Optionen für `neu`:
 
 | Option | Wirkung |
 | --- | --- |
+| `--firmenname NAME` | Eintrag dieser Instanz in der Liste von `firmen`, als `HABEN_FIRMENNAME` in der `.env` (Vorgabe: der Name der Instanz); 1 bis 60 Zeichen ohne `\|`, `;` und `'`, nicht mit `\` am Ende. `neu` schreibt die Liste nicht selbst, sonst startete jede neue Firma alle laufenden Apps neu; es nennt am Ende den Befehl `firmen` |
 | `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID` (fünf Ziffern). Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
 | `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`, siehe [Weitere Punkte](#weitere-punkte) |
 | `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy-<name>` der Instanz an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy). `docker network connect haben-proxy-<name> <proxy>` hält bis zum Neuaufbau des Proxy-Containers; dauerhaft steht das Netz in seiner Compose-Datei, wie unter [Von Hand](#von-hand) |
@@ -570,9 +633,35 @@ HABEN_FIRMEN='Studio Nord|https://nord.example.de;Werkstatt Süd|https://werksta
 - **Format:** je Firma `Name|Adresse`, getrennt durch `;`, in der `.env` jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`.
 - **Anführungszeichen** um die Liste nur in der `.env` von Compose, das sie entfernt. In `haben.env` der Quadlets und in den Feldern von Unraid oder Coolify blieben sie im Wert, und die App lehnte die Liste ab; dort ohne.
 - **Grenzen:** nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal, höchstens 50 Firmen; sonst startet die App nicht und nennt den Fehler im Log.
-- **Nach einer Änderung** startest du die App jeder Instanz neu (`docker compose up -d`).
+- **Nach einer Änderung** startest du die App jeder Instanz neu (`docker compose up -d`). Mit dem [Werkzeug](#mit-dem-werkzeug) erledigt `firmen` das Eintragen und den Neustart.
 - **Vorlagen:** Für Synology, TrueNAS, Unraid und Coolify ist `HABEN_FIRMEN` ein optionales Feld.
 - **Wer sie sieht:** nur der Inhaber, und nur wenn die Liste andere Firmen nennt; der [Zugang für die Steuerberatung](steuerberatung.md) erfährt nicht, welche anderen es gibt.
+- **Mit SSO** geht es auch ohne diese Liste, über das [Firmenportal](#firmenportal).
+
+### Firmenportal
+
+Mit [SSO](installation-sso.md) geht es auch ohne eine Liste in jeder Instanz: Das Firmenportal (`apps/firmenportal`, Image `tristanteu/haben-firmenportal`) läuft neben den Instanzen unter einer eigenen Adresse. Wer sich dort anmeldet, sieht die Firmen, in deren Inhaber-Gruppe er beim Anmeldedienst ist, und wechselt mit einem Klick dorthin. In Haben steht dann statt **Firma wechseln** die Zeile **Zum Firmenportal**: Sie klappt keine Liste auf, sondern führt ins Firmenportal. Eine neue Firma trägst du nur im Firmenportal ein. Ob jemand sie sieht, entscheiden die Gruppen beim Anmeldedienst, ohne Neustart der Instanzen.
+
+- **Was das Firmenportal kennt:** Namen, Adressen und Gruppen aus `PORTAL_FIRMEN`, wahlweise Farbe und Logo jeder Firma, und, für die Dauer der Sitzung, wer angemeldet ist. Sitzung (Subject, E-Mail oder Name und die Firmen, die die Person sieht) und ID-Token (mit den Claims, die der Anmeldedienst hineinschreibt, für die Abmeldung) liegen 15 Minuten in signierten, nicht verschlüsselten `HttpOnly`-Cookies im Browser der Person. Es hat keine Datenbank, hält keine Buchhaltungsdaten und leitet keine Anfragen an die Instanzen weiter; die Instanz meldet beim selben Anmeldedienst selbst an, meist ohne Rückfrage.
+- **Ablauf:** Ohne Sitzung leitet das Firmenportal gleich zum Anmeldedienst weiter, ohne eigene Seite davor; ist man dort schon angemeldet, fragt er nicht noch einmal. Ein Klick auf eine Firma öffnet ihre Instanz unter `/login?anmelden=sso`. Haben startet dort die SSO-Anmeldung selbst, ohne Klick auf der Login-Seite, und zeigt nach einer abgewiesenen Anmeldung den Grund statt es erneut zu versuchen.
+- **Wer was sieht:** nur Firmen, in deren Inhaber-Gruppe (`OIDC_GROUP_INHABER` der Instanz) die Person ist, nach Namen sortiert, dazu unten „Angemeldet als“ mit E-Mail, Benutzername oder Name aus dem Anmeldedienst. Ist es genau eine Firma, geht es nach der Anmeldung direkt dorthin; wer über **Zum Firmenportal** aus Haben kommt, sieht auch dann die Liste, statt in dieselbe Instanz zurückzukommen. Die Gruppen der Steuerberatung zählen nicht, wie bei `HABEN_FIRMEN`; in Haben sieht die Steuerberatung die Zeile nicht.
+- **Begrenzung:** Wie Haben lässt das Firmenportal je Client-Adresse höchstens 20 Starts der Anmeldung und 20 Rückmeldungen des Anmeldedienstes je Minute zu, danach antwortet es mit 429. IPv6 zählt wie in Haben je /64. Die Adresse ist die letzte aus `X-Forwarded-For`, die der Reverse Proxy selbst setzt (siehe [Eigener Reverse Proxy](#eigener-reverse-proxy)); ohne den Header die Adresse der Verbindung, hinter einem Proxy also die des Proxys, und dann zählen alle Anfragen als eine. Die Zähler liegen im Speicher und beginnen nach einem Neustart neu.
+- **Sitzung:** Nach 15 Minuten fragt das Firmenportal den Anmeldedienst erneut; signiert ist sie mit `PORTAL_SECRET`. „Abmelden“ löscht sie und leitet zur Abmeldung des Anmeldedienstes weiter, wenn er eine anbietet (`end_session_endpoint`, OpenID Connect RP-Initiated Logout), mit dem ID-Token als `id_token_hint` (passt es nicht in ein Cookie, etwa bei sehr vielen Gruppen, ohne; Keycloak fragt dann nach) und dem Rückweg `<PORTAL_URL>/?abgemeldet=dienst`. Keycloak beendet seine Sitzung dann ohne Rückfrage und leitet zurück; das Firmenportal sagt „Du bist im Firmenportal und bei … abgemeldet.“, und die nächste Anmeldung verlangt wieder das Passwort. Bietet der Anmeldedienst keine Abmeldung an (Authelia 4.39), sagt das Firmenportal, dass man dort weiter angemeldet ist, und meldet erst auf „Wieder anmelden“ neu an, dann ohne Rückfrage. Instanzen, in denen man noch angemeldet ist, bleiben es höchstens 15 Minuten (siehe [Single Sign-on](installation-sso.md#höchstens-15-minuten-alte-berechtigungen)); danach fragen sie den Anmeldedienst erneut.
+
+Einrichten:
+
+1. **Client beim Anmeldedienst:** ein eigener vertraulicher Client wie für eine Instanz (siehe [Authelia konfigurieren](installation-sso.md#authelia-konfigurieren)), mit `client_id: haben-firmenportal` und `redirect_uris: [https://firmenportal.example.de/callback]`. Bietet der Anmeldedienst eine Abmeldung an, trägst du dort zusätzlich `https://firmenportal.example.de/?abgemeldet=dienst` als Rückweg nach dem Abmelden ein (Keycloak: „Valid post logout redirect URIs“).
+2. **Firmenportal starten:** `deploy/firmenportal/compose.yml` und `deploy/firmenportal/firmenportal.env.example` (als `.env`) in ein eigenes Verzeichnis kopieren, daneben ein Verzeichnis `logos/` anlegen (auch ohne Logos, sonst legt Docker es selbst als root an und Podman startet nicht), die Werte eintragen und `docker compose up -d`. Das Firmenportal lauscht auf `127.0.0.1:3010` (`PORTAL_PORT`); der Reverse Proxy leitet die Adresse des Firmenportals dorthin (Beispiele unter [Eigener Reverse Proxy](#eigener-reverse-proxy)). Ohne gültige Angaben startet es nicht und nennt die Variable im Log. Mit dem [Werkzeug](#mit-dem-werkzeug) übernimmt `portal` diesen Schritt und Schritt 3 und gleicht die Liste danach ab.
+3. **In jeder Instanz:** `HABEN_FIRMENPORTAL_URL=https://firmenportal.example.de` in die `.env` und die App neu starten. `HABEN_FIRMEN` bleibt dort leer; beides zusammen und `HABEN_FIRMENPORTAL_URL` ohne `OIDC_ONLY=true` lehnt Haben beim Start ab.
+
+```dotenv
+PORTAL_FIRMEN='Studio Nord|https://nord.example.de|haben-nord-inhaber|#1D4ED8|nord.png;Werkstatt Süd|https://werkstatt.example.de|haben-werkstatt-inhaber'
+```
+
+- **Format:** je Firma `Name|Adresse|Gruppe`, wahlweise mit `|Farbe|Logo` dahinter, getrennt durch `;`. Name und Adresse wie bei `HABEN_FIRMEN` (siehe [Firma wechseln](#firma-wechseln)), die Gruppe ist `OIDC_GROUP_INHABER` der Instanz, bis 100 Zeichen ohne Leerzeichen. Instanzen aus dem [Werkzeug](#mit-dem-werkzeug) heißen dort `haben-<name>-inhaber`. Jede Gruppe darf nur einmal vorkommen, sonst startet das Firmenportal nicht: Teilten sich zwei Firmen eine Gruppe, wäre jedes Mitglied Inhaber in beiden.
+- **Farbe und Logo:** Ohne Angabe steht vor jeder Firma ihr Anfangsbuchstabe in der Farbe des Firmenportals. Mit einer Farbe (`#RRGGBB`, das Feld darf leer bleiben) steht er auf dieser Farbe, mit einem Logo steht das Logo auf weißer Fläche an seiner Stelle. Gemeint ist das [Zeichen in der Navigation](einrichtung.md#zeichen-in-der-navigation), das die Firma in ihrer Instanz gewählt hat, damit man sie im Firmenportal so wiedererkennt wie in Haben. Das Logo ist ein Dateiname wie `nord.png` (Kleinbuchstaben, Ziffern, `-` und `_`, Endung `.png` oder `.jpg`) im Verzeichnis `logos/` neben der `compose.yml`, das der Container schreibgeschützt als `/logos` einbindet (`PORTAL_LOGOS`). PNG oder JPEG bis 1 MB; wie in der Navigation von Haben steht es verkleinert in einem Quadrat so groß wie die Buchstaben-Kachel, am besten wirkt also ein quadratisches Bildzeichen, ein breiter Schriftzug wird darin klein. Fehlt eine Datei oder ist sie kein Bild, zeigt die Firma ihren Anfangsbuchstaben und das Log nennt die Datei. Logo und Farbe einer Firma gibt das Firmenportal nur an angemeldete Personen heraus, die die Firma sehen.
+- **Farbe und Logo aus der Instanz holen:** Die Instanz gibt beides nur auf der Kommandozeile heraus, nicht ohne Anmeldung im Netz. `docker compose exec -T app haben status --json` nennt unter `zeichen` die Farbe (`farbe`, sonst `null`) und, wenn das Logo als Zeichen gewählt ist, dessen Format und Prüfsumme (`logo`); `haben kennzeichen` schreibt das Logo selbst nach stdout. Die Endung der Datei folgt `format` (`png` oder `jpg`), sonst verwirft das Firmenportal sie; und weil die Umleitung die Datei schon vorher anlegt, schreibst du erst in eine Zwischendatei: `docker compose exec -T app haben kennzeichen > logo.neu && mv logo.neu ../firmenportal/logos/nord.png`. Ist kein Logo als Zeichen gewählt, endet `haben kennzeichen` mit dem Exit-Code 3 und gibt nichts aus. Mit dem [Werkzeug](#mit-dem-werkzeug) holt `portal` beides selbst.
+- **Nach einer Änderung** an `PORTAL_FIRMEN` startest du nur das Firmenportal mit `docker compose up -d` neu (`restart` liest die `.env` nicht neu), nach neuen Logos genügt `docker compose restart`. Wer gerade angemeldet ist, meldet sich dann einmal neu an, wenn sich Firmen, Adressen oder Gruppen geändert haben; eine neue Farbe oder ein neues Logo meldet niemanden ab.
 
 ### Für andere betreiben
 

@@ -127,12 +127,13 @@ ganze Jahr als ZIP mit Prüfsummen – für die Aufbewahrung und für die Steuer
 
 ## Umziehen, ohne etwas zu verlieren
 
-Aus Lexware Office und sevDesk kommen Rechnungen, Belege, Buchungen und Kontakte mit, aus
+Aus Lexware Office, sevDesk und FastBill kommen Rechnungen, Belege und Kontakte mit, aus Lexware Office und sevDesk
+auch Buchungen, aus
 BuchhaltungsButler und Accountable Buchungen und Belege; die Originale bleiben im Archiv. Ein
 Abgleich je Jahr zeigt, dass alles da ist, bevor du kündigst. Kontakte, Artikel und Anlagen gehen
 auch per CSV.
 
-[Lexoffice](lexoffice.md) · [sevDesk](sevdesk.md) · [BuchhaltungsButler](buchhaltungsbutler.md) · [Accountable](accountable.md) · [CSV-Import](csv-import.md)
+[Lexoffice](lexoffice.md) · [sevDesk](sevdesk.md) · [FastBill](fastbill.md) · [BuchhaltungsButler](buchhaltungsbutler.md) · [Accountable](accountable.md) · [CSV-Import](csv-import.md)
 </div>
 <div class="showcase-shot" markdown>
 ![Archiv mit Umzug aus Lexware Office](screenshot-archiv-oben.png#only-light){ width="1504" height="972" loading="lazy" }

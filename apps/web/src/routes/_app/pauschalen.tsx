@@ -27,7 +27,8 @@ import styles from "../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { EntfernungForm } from "../../components/EntfernungForm.tsx";
 import { Field } from "../../components/Field.tsx";
-import { Status } from "../../components/Status.tsx";
+import { MonthPicker } from "../../components/MonthPicker.tsx";
+import { PauschaleStatus } from "../../components/PauschaleStatus.tsx";
 
 export const Route = createFileRoute("/_app/pauschalen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -50,10 +51,30 @@ const ART_KURZ: Record<PauschaleArt, string> = {
 const MAHLZEIT_LABEL = { fruehstueck: "Frühstück", mittag: "Mittagessen", abend: "Abendessen" } as const;
 
 /** Homeoffice und Wege zur Betriebsstätte gelten für einen Monat, die anderen Pauschalen für einen Tag */
-function pauschaleDatum(e: { art: string; date: string }): string {
-  return e.art === "homeoffice" || e.art === "entfernung"
-    ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`))
-    : formatDate(e.date);
+const monatlich = (art: string) => art === "homeoffice" || art === "entfernung";
+
+/** Ohne Jahr in der Liste unter der Überschrift mit dem Jahr, mit Jahr im Storno-Dialog */
+function pauschaleDatum(e: { art: string; date: string }, mitJahr = false): string {
+  if (!monatlich(e.art)) return formatDate(e.date);
+  return new Intl.DateTimeFormat("de-DE", { month: "long", year: mitJahr ? "numeric" : undefined, timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`));
+}
+
+/** Die Beschriftung der Beschreibung wie im Formular der Pauschale */
+const BESCHREIBUNG_LABEL: Record<PauschaleArt, string> = {
+  homeoffice: "Notiz",
+  fahrt: "Anlass und Ziel",
+  verpflegung: "Anlass und Ort",
+  entfernung: "Betriebsstätte",
+};
+
+/** Was der Storno-Dialog nennt: dasselbe wie die Zeile, die er zurücknimmt (DESIGN.md, Rückfragen) */
+function stornoFakten(e: Entry) {
+  return [
+    { label: monatlich(e.art) ? "Monat" : "Datum", value: pauschaleDatum(e, true) },
+    ...(e.description ? [{ label: BESCHREIBUNG_LABEL[e.art], value: e.description }] : []),
+    { label: "Angaben", value: detailText(e) },
+    { label: "Betrag", value: formatEuro(e.amount), strong: true },
+  ];
 }
 
 const parseKm = (value: string) => Number(value.replace(/\./g, "").replace(",", "."));
@@ -256,17 +277,7 @@ function HomeofficeForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) 
       </p>
       <div className="form-grid">
         <Field label="Monat" error={error("month")}>
-          {(control) => (
-            <input
-              {...control}
-              type="month"
-              value={month}
-              min={`${data.year}-01`}
-              max={defaultDate(data).slice(0, 7)}
-              onChange={(e) => setMonth(e.target.value)}
-              required
-            />
-          )}
+          {(control) => <MonthPicker {...control} value={month} min={`${data.year}-01`} max={defaultDate(data).slice(0, 7)} onChange={setMonth} />}
         </Field>
         <Field label="Tage im Homeoffice" error={error("tage")}>
           {(control) => <input {...control} value={tage} onChange={(e) => setTage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}
@@ -487,14 +498,7 @@ function Liste({ data }: { data: Data }) {
       <ConfirmDialog
         open={confirm !== null}
         title={`${confirm ? PAUSCHALE_LABEL[confirm.art] : ""} stornieren?`}
-        facts={
-          confirm
-            ? [
-                { label: "Datum", value: pauschaleDatum(confirm) },
-                { label: "Betrag", value: formatEuro(confirm.amount), strong: true },
-              ]
-            : undefined
-        }
+        facts={confirm ? stornoFakten(confirm) : undefined}
         confirmLabel="Stornieren"
         danger
         onConfirm={() => confirm && storno(confirm.id)}
@@ -538,7 +542,7 @@ function Liste({ data }: { data: Data }) {
                 </td>
                 <td>
                   {e.storniert ? (
-                    <Status tone="danger">Storniert</Status>
+                    <PauschaleStatus storniert />
                   ) : (
                     <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirm(e)}>
                       Stornieren

@@ -40,6 +40,8 @@ gh issue list --repo firsttris/haben --state open --limit 300 --json number,titl
 
 Daraus ermitteln:
 - offene Issues ohne Karte (weiter mit Schritt 2);
+- offene Issues, die eine Karte, aber noch keinen Kommentar des Maintainers zur Einordnung haben: Der Workflow „Board“ legt Karten selbst an, wenn ein Pull Request mit `Refs` oder `Umgesetzt` kommt, oft am selben Tag wie das Issue (`jq '.[]|select([.comments[].author.login]|index("firsttris")|not)' issues.json`, Bots wie Renovate ausgenommen). Kommentar wie in Schritt 5, bei gemergtem Pull Request mit der Vorlage „Erledigt“ und Hinweis aufs nächste Release;
+- Karten ohne Aufwand oder Bereich, etwa vom Workflow angelegte: Felder nachtragen;
 - offene Issues ohne Typ-Label (`jq '.[]|select([.labels[].name]|any(. as $l|["fehler","wunsch","steuer","umzug","frage","technik","doku"]|index($l))|not)' issues.json`), auch solche, die schon eine Karte haben;
 - **offene Gespräche:** offene Issues, deren letzter Kommentar nicht vom Maintainer und nicht von einem Bot stammt (`jq '.[]|select((.comments|length)>0 and (.comments|last|.author.login)!="firsttris")' issues.json`). Jedes lesen und einordnen: **Übernahme** (jemand will die Karte bauen und ist nicht zugewiesen; meist hat der Workflow „Übernehmen“ dann mit Begründung abgelehnt, oder die Person hat ohne `/übernehmen` geschrieben: dann auf den Befehl hinweisen oder nach OK von Hand zuweisen), **Frage an den Maintainer**, **neue Angaben** (Anwendungsfall, Beispieldatei, Rückmeldung zu einem Release) oder **keine Antwort nötig** (Dank, Notiz eines Collaborators, Verweis auf ein anderes Issue);
 - Karten in „In Arbeit“ ohne offenen PR und ohne Kommentar seit 14 Tagen (`gh issue view <n> --json comments,updatedAt`, `gh pr list --search "<n> in:body"`);

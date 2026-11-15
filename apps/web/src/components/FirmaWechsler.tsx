@@ -6,6 +6,39 @@ import { Icon } from "./Icon.tsx";
 /** Ab so vielen anderen Firmen bekommt die Liste ein Suchfeld */
 const SUCHE_AB = 20;
 
+/** Liste der anderen Firmen inkl. Suchfeld ab 20 Einträgen, gemeinsam für Seitenleiste und Flyout */
+export function FirmaListe({ andere }: { andere: Firma[] }) {
+  const [suche, setSuche] = useState("");
+  const mitSuche = andere.length >= SUCHE_AB;
+  const gesucht = suche.trim().toLocaleLowerCase("de");
+  const treffer = gesucht ? andere.filter((firma) => firma.name.toLocaleLowerCase("de").includes(gesucht)) : andere;
+  return (
+    <>
+      {mitSuche && (
+        <Field label="Firma suchen" hideLabel className="firma-suche">
+          {(control) => (
+            <input {...control} type="search" placeholder="Firma suchen" autoComplete="off" value={suche} onChange={(event) => setSuche(event.target.value)} />
+          )}
+        </Field>
+      )}
+      <ul className="firma-liste">
+        {treffer.map((firma) => (
+          <li key={firma.url}>
+            <a href={firma.url} className="nav-link">
+              {firma.name}
+            </a>
+          </li>
+        ))}
+      </ul>
+      {mitSuche && (
+        <p className="firma-leer" role="status">
+          {treffer.length === 0 ? "Keine Firma gefunden." : ""}
+        </p>
+      )}
+    </>
+  );
+}
+
 /**
  * Firma wechseln (#504): eine Zeile der Navigation, unter der die Instanzen der anderen Firmen im Fluss aufklappen.
  * Die eigene Firma steht nicht darin, ihr Name steht unter „Haben“. Die Firmen sind Links im selben Tab, deshalb eine
@@ -13,17 +46,14 @@ const SUCHE_AB = 20;
  */
 export function FirmaWechsler({ andere }: { andere: Firma[] }) {
   const [open, setOpen] = useState(false);
-  const [suche, setSuche] = useState("");
+  const [renderKey, setRenderKey] = useState(0);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const auswahl = useRef<HTMLDivElement>(null);
   const auswahlId = useId();
-  const mitSuche = andere.length >= SUCHE_AB;
-  const gesucht = suche.trim().toLocaleLowerCase("de");
-  const treffer = gesucht ? andere.filter((firma) => firma.name.toLocaleLowerCase("de").includes(gesucht)) : andere;
 
   function toggle() {
-    setSuche("");
+    setRenderKey((k) => k + 1);
     setOpen((war) => !war);
   }
 
@@ -68,40 +98,33 @@ export function FirmaWechsler({ andere }: { andere: Firma[] }) {
   return (
     <div className="firma-wechsler" ref={root}>
       <button ref={button} type="button" className="nav-link firma-wechsler-knopf" aria-expanded={open} aria-controls={auswahlId} onClick={toggle}>
-        Firma wechseln
+        {/* Das Gebäude wie eingeklappt und bei den Menüpunkten; der Name der Zeile bleibt der Text (Symbol aria-hidden) */}
+        <Icon name="company" />
+        <span className="firma-wechsler-text">Firma wechseln</span>
         <Icon name="chevron-down" size={16} />
       </button>
       {/* Bleibt im Dokument, damit aria-controls immer ein Ziel hat */}
       <div ref={auswahl} id={auswahlId} role="group" aria-label="Firma wechseln" hidden={!open}>
-        {mitSuche && (
-          <Field label="Firma suchen" hideLabel className="firma-suche">
-            {(control) => (
-              <input
-                {...control}
-                type="search"
-                placeholder="Firma suchen"
-                autoComplete="off"
-                value={suche}
-                onChange={(event) => setSuche(event.target.value)}
-              />
-            )}
-          </Field>
-        )}
-        <ul className="firma-liste">
-          {treffer.map((firma) => (
-            <li key={firma.url}>
-              <a href={firma.url} className="nav-link">
-                {firma.name}
-              </a>
-            </li>
-          ))}
-        </ul>
-        {mitSuche && (
-          <p className="firma-leer" role="status">
-            {treffer.length === 0 ? "Keine Firma gefunden." : ""}
-          </p>
-        )}
+        <FirmaListe key={renderKey} andere={andere} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Mit Firmenportal (#504, Stufe 2, HABEN_FIRMENPORTAL_URL) steht an der Stelle von „Firma wechseln“ ein Link ins
+ * Firmenportal im selben Tab. Er heißt „Zum Firmenportal“, weil er nichts aufklappt, sondern aus Haben hinausführt.
+ * Welche Firmen es gibt, weiß nur das Firmenportal, aus den Gruppen beim Anmeldedienst; mit ?von=haben zeigt es die
+ * Liste auch dann, wenn es nur diese eine Firma gibt, statt gleich hierher zurückzuleiten.
+ */
+export function ZumFirmenportal({ url }: { url: string }) {
+  return (
+    <div className="firma-wechsler">
+      <a href={`${url}/?von=haben`} className="nav-link firma-wechsler-knopf">
+        <Icon name="company" />
+        <span className="firma-wechsler-text">Zum Firmenportal</span>
+        <Icon name="chevron-right" size={16} />
+      </a>
     </div>
   );
 }

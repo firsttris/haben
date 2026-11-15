@@ -115,6 +115,8 @@ test("BuchhaltungsButler: Testlauf, Import und PDF im Archiv", async ({ browser 
   await page.getByRole("button", { name: "Umzug aus BuchhaltungsButler", exact: true }).click();
   const card = page.getByRole("region", { name: "BuchhaltungsButler-Exporte prüfen und importieren" });
   await card.getByLabel("BuchhaltungsButler-Exporte").setInputFiles(exportFiles());
+  // Dateiauswahl von Haben statt des Dateifelds des Browsers (#927)
+  await expect(card.getByText("3 Dateien", { exact: true })).toBeVisible();
   await card.getByRole("button", { name: "Testlauf starten" }).click();
   await expect(card.getByText(/Testlauf ohne Fehler/)).toBeVisible({ timeout: 30_000 });
   await expect(card.locator(".progress-facts")).toContainText("2023");

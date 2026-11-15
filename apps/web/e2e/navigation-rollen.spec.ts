@@ -10,36 +10,50 @@ import { THEMES } from "../src/lib/theme.ts";
 
 const links = Array.from({ length: 40 }, (_, i) => `<a class="nav-link" href="#">Punkt ${i + 1}</a>`).join("");
 
-async function navigationLaden(page: Page, theme = "wald", mode = "light"): Promise<void> {
+async function navigationLaden(page: Page, theme = "wald", mode = "light", eingeklappt = false): Promise<void> {
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
   await page.setContent(
-    `<html data-theme="${theme}" data-mode="${mode}"><style>${css}</style><body><div class="shell"><nav class="nav">
+    `<html data-theme="${theme}" data-mode="${mode}"${eingeklappt ? ' data-nav="collapsed"' : ""}><style>${css}</style><body><div class="shell"><nav class="nav">
       <a class="brand" href="#"><span class="brand-text">Haben<span class="brand-firma">Muster GmbH</span></span></a>
-      <div class="nav-body">${links}<div class="nav-spacer"></div><div class="nav-foot"><a class="nav-link" href="#">Abmelden</a></div></div>
+      <button type="button" class="btn btn-icon nav-search-btn"><span class="nav-search-label">Schnellsuche</span><span class="kuerzel nav-kbd"><kbd>Strg</kbd><kbd>K</kbd></span></button>
+      <div class="nav-body">${links}<div class="nav-spacer"></div><div class="nav-foot${eingeklappt ? " nav-foot-rail" : ""}"><a class="nav-link" href="#">Abmelden</a></div></div>
     </nav><main class="main"></main></div></body></html>`,
   );
 }
 
-test("am Desktop rollen nur die Menüpunkte, die Marke bleibt stehen", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 600 });
-  await navigationLaden(page);
-  const markeVorher = await page.locator(".brand").boundingBox();
-  await page.getByRole("link", { name: "Abmelden" }).focus();
-  const gemessen = await page.evaluate(() => {
-    const nav = document.querySelector<HTMLElement>(".nav")!;
-    const body = document.querySelector<HTMLElement>(".nav-body")!;
-    const abmelden = [...body.querySelectorAll<HTMLElement>(".nav-link")].at(-1)!.getBoundingClientRect();
-    return {
-      navRollt: nav.scrollTop,
-      bodyRollt: body.scrollTop > 0,
-      abmeldenSichtbar: abmelden.bottom <= innerHeight,
-      leisteAnDerKante: Math.round(body.getBoundingClientRect().right) === Math.round(nav.getBoundingClientRect().right),
-      breite: getComputedStyle(body).scrollbarWidth,
-    };
+for (const eingeklappt of [false, true]) {
+  test(`am Desktop rollen nur die Menüpunkte, die Marke bleibt stehen${eingeklappt ? " (eingeklappt)" : ""}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await navigationLaden(page, "wald", "light", eingeklappt);
+    const markeVorher = await page.locator(".brand").boundingBox();
+    const sucheVorher = await page.locator(".nav-search-btn").boundingBox();
+    await page.getByRole("link", { name: "Abmelden" }).focus();
+    const gemessen = await page.evaluate(() => {
+      const nav = document.querySelector<HTMLElement>(".nav")!;
+      const body = document.querySelector<HTMLElement>(".nav-body")!;
+      const abmelden = [...body.querySelectorAll<HTMLElement>(".nav-link")].at(-1)!.getBoundingClientRect();
+      return {
+        navRollt: nav.scrollTop,
+        bodyRollt: body.scrollTop > 0,
+        abmeldenSichtbar: abmelden.bottom <= innerHeight,
+        leisteAnDerKante: Math.round(body.getBoundingClientRect().right) === Math.round(nav.getBoundingClientRect().right),
+        breite: getComputedStyle(body).scrollbarWidth,
+      };
+    });
+    expect(gemessen).toEqual({ navRollt: 0, bodyRollt: true, abmeldenSichtbar: true, leisteAnDerKante: true, breite: "thin" });
+    expect(await page.locator(".brand").boundingBox()).toEqual(markeVorher);
+    // Die Schnellsuche steht über dem rollenden Bereich und rollt nicht mit; eingeklappt passt sie als Lupe in die Leiste
+    expect(await page.locator(".nav-search-btn").boundingBox()).toEqual(sucheVorher);
+    if (eingeklappt) {
+      const passt = await page.evaluate(() => {
+        const nav = document.querySelector<HTMLElement>(".nav")!.getBoundingClientRect();
+        const suche = document.querySelector<HTMLElement>(".nav-search-btn")!.getBoundingClientRect();
+        return { navBreite: nav.width, suche: suche.width, drin: suche.left >= nav.left && suche.right <= nav.right };
+      });
+      expect(passt).toEqual({ navBreite: 64, suche: 40, drin: true });
+    }
   });
-  expect(gemessen).toEqual({ navRollt: 0, bodyRollt: true, abmeldenSichtbar: true, leisteAnDerKante: true, breite: "thin" });
-  expect(await page.locator(".brand").boundingBox()).toEqual(markeVorher);
-});
+}
 
 // Mit Zoom oder Skalierung ist das Fenster auch zwischen 860 und 861 CSS-Pixel breit (hier 1,17-fach: 860,68). Dort
 // darf keine der beiden Regeln fehlen, sonst schneidet .nav ab, .nav-body rollt nicht und mit Maus oder Touchpad ist

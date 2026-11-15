@@ -3,7 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { databaseUrlFuer, portFuer } from "./durchlaeufe.ts";
-import { einrichten, gehe } from "./einrichtung.ts";
+import { currentDay } from "./daten.ts";
+import { einrichten, gehe, kontaktAnlegen, kundeWaehlen } from "./einrichtung.ts";
 
 /**
  * Kleinunternehmer-Ersteinrichtung ohne reguläre UStVA-Hinweise und der lokale JSON-Eingang (docs/belegimport.md) mit
@@ -296,3 +297,56 @@ test("Gemeinsame Ansichten sind auf Desktop und Handy in beiden Themes bedienbar
 });
 
 test("Übernommene Rechnungen zeigen das tatsächliche Quellprogramm", checkImportedInvoiceSources);
+
+test("Kleinunternehmer: Gründungsdatum speichern und bei 25.000 Euro warnen", async () => {
+  const { createCashIncome } = await import("../src/server/modules/bank/index.ts");
+  const date = currentDay();
+  await gehe(page, "/einstellungen?bereich=firma");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  const gruendungsdatum = firma.getByRole("region", { name: "Unternehmen", exact: true }).getByLabel("Gründungsdatum");
+  await expect(gruendungsdatum).toHaveValue("");
+  await gruendungsdatum.fill(date);
+  await firma.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  await gehe(page, "/einstellungen?bereich=firma");
+  await expect(gruendungsdatum).toHaveValue(date);
+
+  await createCashIncome("e2e-import", { date, amount: 2_400_000, text: "Testumsatz", steuer: { behandlung: "kleinunternehmer", steuersatz: 0 } }, date);
+  await gehe(page, "/");
+  const hinweise = page.getByRole("region", { name: "Umsatzgrenzen für Kleinunternehmer" });
+  await expect(hinweise).toContainText("25.000");
+  await expect(hinweise).toContainText("im Gründungsjahr");
+
+  await kontaktAnlegen(page, { name: "Testkunde", street: "Teststraße 1", zip: "93047", city: "Regensburg" });
+  await gehe(page, "/rechnungen/neu");
+  await kundeWaehlen(page, "Testkunde · Regensburg");
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("2000");
+  const frage = page.getByRole("dialog", { name: /möglicher Überschreitung der Umsatzgrenze/ });
+  for (const aktion of ["Abbrechen", "Trotzdem festschreiben"]) {
+    await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+    await page.getByRole("dialog", { name: "Rechnung festschreiben?" }).getByRole("button", { name: "Festschreiben", exact: true }).click();
+    await expect(frage).toBeVisible();
+    await expect(frage).toContainText("25.000");
+    await frage.getByRole("button", { name: aktion, exact: true }).click();
+    await expect(frage).toHaveCount(0);
+  }
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible();
+  await gehe(page, "/");
+  await expect(page.getByText("Rechnungsentwurf", { exact: false })).toHaveCount(0);
+
+  await gehe(page, "/einstellungen?bereich=firma");
+  await gruendungsdatum.fill(`${Number(date.slice(0, 4)) - 1}-01-01`);
+  await firma.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  await gehe(page, "/");
+  const folgejahr = Number(date.slice(0, 4)) + 1;
+  await expect(hinweise).toContainText(`Für die Kleinunternehmerregelung im Jahr ${folgejahr}`);
+  await createCashIncome(
+    "e2e-import",
+    { date, amount: 5_600_000, text: "Zusätzlicher Testumsatz", steuer: { behandlung: "kleinunternehmer", steuersatz: 0 } },
+    date,
+  );
+  await gehe(page, "/");
+  await expect(hinweise).toContainText("100.000");
+});

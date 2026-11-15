@@ -10,6 +10,7 @@ import {
   isKapitalgesellschaft,
   legalInfo,
   legalInfoGaps,
+  MAX_DUNNING_FEE,
   skontoProblem,
   skontoStufenSchema,
   toElsterSteuernummer,
@@ -97,6 +98,11 @@ export const companySchema = z
     invoiceIntro: z.string().trim().max(2000).default(""),
     quoteIntro: z.string().trim().max(2000).default(""),
     kleinunternehmer: z.boolean(),
+    foundedOn: z.iso
+      .date()
+      .refine((date) => date >= "0001-01-01", "Das Gründungsdatum ist ungültig.")
+      .nullable()
+      .optional(),
     /** Nur steuerfreie Umsätze ohne Vorsteuerabzug (§ 15 Abs. 2 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
     ohneVorsteuerabzug: z.boolean().default(false),
     /** Anlage EÜR: Gewerbebetrieb oder selbständige (freiberufliche) Arbeit und Art des Betriebs */
@@ -109,7 +115,11 @@ export const companySchema = z
     dunning: z
       .object({
         baseRate: z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max).nullable(),
-        fees: z.object({ "1": z.number().int().min(0).max(100_000), "2": z.number().int().min(0).max(100_000), "3": z.number().int().min(0).max(100_000) }),
+        fees: z.object({
+          "1": z.number().int().min(0).max(MAX_DUNNING_FEE),
+          "2": z.number().int().min(0).max(MAX_DUNNING_FEE),
+          "3": z.number().int().min(0).max(MAX_DUNNING_FEE),
+        }),
         deadlineDays: z.number().int().min(1).max(60),
         /** Basiszinssatz zum 1. Januar und 1. Juli bei der Bundesbank abrufen (opt-in); fehlt = unverändert */
         autoBaseRate: z.boolean().optional(),
@@ -380,4 +390,10 @@ export function sellerIssues(company: Company): string[] {
  */
 export function letterIssues(company: Company): string[] {
   return legalInfoGaps(company);
+}
+
+/** Schaltet das Durchsuchen des Umzugsarchivs in der Schnellsuche ein oder aus (#617). */
+export async function setArchiveSearch(actor: string, enabled: boolean): Promise<void> {
+  await loadCompany();
+  await withActor(actor, (tx) => tx.update(schema.company).set({ archiveSearch: enabled, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
 }

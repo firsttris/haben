@@ -3,17 +3,20 @@
  * Fund ab, bevor etwas angelegt ist.
  */
 import { existsSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { docker } from "./ausfuehren.ts";
 import { instanzen } from "./instanzen.ts";
+import { pruefeFirmenname } from "./firmen.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
-import { netzFuer, proxyDir } from "./proxy.ts";
+import { domainImCaddy, netzFuer, proxyDir } from "./proxy.ts";
 
 export interface NeuAngaben {
   name: string;
   domain: string;
   herstellerId?: string;
+  /** Eintrag in der Liste von firmen (HABEN_FIRMENNAME); ohne gilt der Name */
+  firmenname?: string;
   ericHome?: string;
   eigenerProxy: boolean;
   starten: boolean;
@@ -30,6 +33,8 @@ export function pruefeName(name: string): void {
   if (name === "proxy") abbrechen("Der Name proxy ist für den gemeinsamen Caddy reserviert.");
   // haben-app ist der Alias einer einzelnen Instanz nach deploy/compose.override.example.yml
   if (name === "app") abbrechen("Der Name app ist reserviert (Alias haben-app einer einzelnen Instanz).");
+  // Verzeichnis, Eintrag im Caddy und Netz des Firmenportals (portal.ts)
+  if (name === "firmenportal") abbrechen("Der Name firmenportal ist für das Firmenportal reserviert.");
 }
 
 export function pruefeDomain(domain: string): void {
@@ -47,14 +52,18 @@ export function pruefeAngaben(a: NeuAngaben): void {
   pruefeDomain(a.domain);
   // Wie ELSTER_HERSTELLER_ID in apps/web/src/server/env.ts: die App startet sonst nicht
   if (a.herstellerId !== undefined && !/^\d{5}$/.test(a.herstellerId)) abbrechen("Die Hersteller-ID besteht aus fünf Ziffern.");
+  if (a.firmenname !== undefined) pruefeFirmenname(a.firmenname, "--firmenname");
   if (a.ericHome !== undefined && !/^\/[A-Za-z0-9._/-]+$/.test(a.ericHome)) abbrechen("--eric-home braucht einen absoluten Pfad ohne Leerzeichen.");
-  if (a.sso) {
-    if (!a.sso.issuer.startsWith("https://")) abbrechen("--oidc-issuer muss mit https:// beginnen.");
-    pruefeWoertlich(a.sso.issuer, "--oidc-issuer");
-    pruefeWoertlich(a.sso.clientId, "--oidc-client-id");
-    pruefeWoertlich(a.sso.clientSecret, "Das Clientsecret");
-    pruefeWoertlich(a.sso.anzeigename, "--oidc-name");
-  }
+  if (a.sso) pruefeSso(a.sso);
+}
+
+/** Die Angaben zum Anmeldedienst, für neu und portal */
+export function pruefeSso(sso: NonNullable<NeuAngaben["sso"]>): void {
+  if (!sso.issuer.startsWith("https://")) abbrechen("--oidc-issuer muss mit https:// beginnen.");
+  pruefeWoertlich(sso.issuer, "--oidc-issuer");
+  pruefeWoertlich(sso.clientId, "--oidc-client-id");
+  pruefeWoertlich(sso.clientSecret, "Das Clientsecret");
+  pruefeWoertlich(sso.anzeigename, "--oidc-name");
 }
 
 const DOCKER_TOT = "docker antwortet nicht (läuft der Daemon, darfst du ihn nutzen?); nichts angelegt.";
@@ -73,12 +82,8 @@ export async function pruefeTrennung(k: Kontext, name: string, domain: string): 
   }
   // Ein übrig gebliebener Eintrag einer gelöschten Instanz: zwei Blöcke für dieselbe Domain lehnt Caddy ab
   // („ambiguous site definition“), und der gemeinsame Proxy startete für keine Instanz mehr
-  const sites = join(proxyDir(k), "sites");
-  const dateien = existsSync(sites) ? (await readdir(sites)).filter((d) => d.endsWith(".caddy") && d !== `${name}.caddy`) : [];
-  for (const datei of dateien) {
-    const zeilen = (await readFile(join(sites, datei), "utf8")).split("\n");
-    if (zeilen.includes(`${domain} {`)) abbrechen(`Für ${domain} steht schon ein Eintrag im gemeinsamen Caddy (${join(sites, datei)}); nichts angelegt.`);
-  }
+  const site = await domainImCaddy(k, domain, name);
+  if (site) abbrechen(`Für ${domain} steht schon ein Eintrag im gemeinsamen Caddy (${site}); nichts angelegt.`);
   // Auch ein Projekt dieses Namens außerhalb der Basis: mit Containern oder, nach docker compose down, nur noch mit
   // seinen Volumes (Datenbank und Belege einer anderen Firma). Kann docker das nicht sagen, lieber nichts anlegen
   const projekte = await docker(k, ["compose", "ls", "-a", "-q"]);

@@ -145,7 +145,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     const meldeQ2 = () =>
       sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 0, 0, 0, 0, '2026-07-10T08:00:00Z')`;
 
-    it("führt zur berichtigten Anmeldung des Leistungszeitraums, nennt Betrag und Abgabe (§ 18b Satz 5 UStG, § 153 AO)", async () => {
+    it("führt zur berichtigten Anmeldung des Leistungszeitraums, nennt Betrag und Abgabe (§ 153 Abs. 1 AO)", async () => {
       await meldeQ2();
       const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
       const hinweis = await invoices.leistungsmonatHinweisFuer(final);
@@ -156,6 +156,20 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
       expect(hinweis).not.toContain("nächste Voranmeldung");
       // Die nächste Voranmeldung enthält die Steuer nicht: Ein Verweis dorthin ließe sie unangemeldet
       expect(await vat.computeVatFigures({ year: 2026, month: 43 })).toMatchObject({ kz81: 0, tax81: 0 });
+    }, 30_000);
+
+    it("schweigt, wenn die Voranmeldung erst nach dem Festschreiben übermittelt wurde: Sie enthält die Rechnung", async () => {
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      await sql`insert into vat_returns (year, month, status, source, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 'berechnet', 100000, 0, 0, 19000, now() + interval '1 minute')`;
+      expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
+    }, 30_000);
+
+    it("schweigt nach der berichtigten Anmeldung des Leistungszeitraums", async () => {
+      await meldeQ2();
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      expect(await invoices.leistungsmonatHinweisFuer(final)).toContain("Q2/2026");
+      await sql`insert into vat_returns (year, month, status, source, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 'berechnet', 100000, 0, 0, 19000, now() + interval '1 minute')`;
+      expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
     }, 30_000);
 
     it("schweigt bei Anzahlung und Storno, die nicht nach dem Leistungstag gemeldet werden", async () => {

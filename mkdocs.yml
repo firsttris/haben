@@ -28,6 +28,7 @@ not_in_nav: |
 nav:
   - Start: index.md
   - Übersicht: ueberblick.md
+  - Suchen: suche.md
   - Betrieb:
       - Installation: installation.md
       - Synology: synology.md
@@ -79,6 +80,7 @@ nav:
   - Umzug und Import:
       - Umzug aus Lexoffice: lexoffice.md
       - Umzug aus sevDesk: sevdesk.md
+      - Umzug aus FastBill: fastbill.md
       - Umzug aus BuchhaltungsButler: buchhaltungsbutler.md
       - Umzug aus Accountable: accountable.md
       - Umzug aus WISO EÜR & Kasse: wiso.md

@@ -282,8 +282,10 @@ test("Rechnungen schreiben und festschreiben", async () => {
 test("Entwurf als PDF: speichert vorher, lädt herunter und vergibt keine Nummer (#342)", async () => {
   await go("/rechnungen/neu");
   const heading = await page.getByRole("heading", { level: 1 }).textContent();
-  // Ohne Kunden gibt es noch kein Dokument
-  await expect(page.getByRole("button", { name: "Speichern und als PDF" })).toBeDisabled();
+  // Ohne Kunden gibt es noch kein Dokument: der Knopf sagt es am Feld Kunde (DESIGN.md, Gesperrte Knöpfe)
+  await page.getByRole("button", { name: "Speichern und als PDF" }).click();
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toBeFocused();
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
   await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await page.getByLabel("Beschreibung Position 1").fill("Konzept zur Prüfung");
   await page.getByLabel("Menge Position 1").fill("2");
@@ -325,6 +327,14 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
   await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  // Ohne Einleitung kein Entwurf: der Fehler steht am Feld, der Fokus dort (DESIGN.md, Gesperrte Knöpfe)
+  const einleitung = page.getByLabel("Einleitung", { exact: true });
+  const text = await einleitung.inputValue();
+  await einleitung.fill("");
+  await page.getByRole("button", { name: "Entwurf als PDF" }).click();
+  await expect(einleitung).toBeFocused();
+  await expect(einleitung).toHaveAccessibleDescription(/^Trag eine Einleitung ein\./);
+  await einleitung.fill(text);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Entwurf als PDF" }).click();
   const file = await download;
@@ -337,6 +347,68 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   // Nichts gespeichert: jede Rechnung ist weiter „noch nicht gemahnt“
   await go("/rechnungen/mahnwesen");
   await expect(page.getByText("noch nicht gemahnt")).toHaveCount(offen);
+});
+
+test("Mahnung: Die Vorschau zeigt das Blatt, während das Formular sich ändert", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  // Angeheftet wie in jedem Durchlauf (vorschauAnheften): neben dem Formular, ohne Klick
+  const blatt = page.getByLabel("Vorschau der Mahnung");
+  await expect(blatt.getByRole("img", { name: "Seite 1 von 1" })).toBeVisible();
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Zahlungserinnerung");
+
+  await page.getByLabel("Stufe").selectOption({ label: "1. Mahnung" });
+  await page.getByLabel("Mahngebühr (€)").fill("5,00");
+  await page.getByRole("textbox", { name: "Einleitung", exact: true }).fill("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="summen"]')).toContainText(/Mahngebühr: 5,00\s€/);
+});
+
+// Hier statt in knopfreihenfolge.spec.ts: Nach „ablauf“ ist keine Rechnung mehr überfällig, die Mahnseite gibt es nur jetzt
+test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf (DESIGN.md, Reihenfolge der Knöpfe)", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kopf = page.locator(".page-head .actions");
+  const knoepfe = kopf.locator(":scope > .btn");
+  await expect(knoepfe).toHaveText(["Entwurf als PDF", "Zahlungserinnerung erstellen"]);
+  await expect(knoepfe.last()).toHaveClass(/btn-primary/);
+  await expect(kopf).toHaveCSS("flex-direction", "row");
+  await knoepfe.first().focus();
+  await page.keyboard.press("Tab");
+  await expect(knoepfe.last()).toBeFocused();
+});
+
+test("Mahnung: Eine Gebühr über der Grenze steht am Feld und zählt weder in Forderung noch Vorschau", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const blatt = page.getByLabel("Vorschau der Mahnung");
+  await page.getByLabel("Mahngebühr (€)").fill("1.500,00");
+  await page.getByRole("button", { name: "Zahlungserinnerung erstellen" }).click();
+  await expect(page.getByLabel("Mahngebühr (€)")).toBeFocused();
+  await expect(page.getByLabel("Mahngebühr (€)")).toHaveAccessibleDescription(/höchstens 1\.000,00\s€/);
+  await expect(page.getByRole("region", { name: "Forderung" }).getByText("Mahngebühr", { exact: true })).toHaveCount(0);
+  await expect(blatt.getByRole("img", { name: "Seite 1 von 1" })).toBeVisible();
+  await expect(blatt.locator('[data-teil="summen"]')).not.toContainText("Mahngebühr");
+});
+
+test("Mahnung: Das Zahnrad zeigt nur Schalter, die auf das Blatt wirken", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Gestaltung" }).first().click();
+  const gestaltung = page.getByRole("complementary", { name: "Gestaltung" });
+  for (const schalter of ["Falz- und Lochmarken", "GiroCode", "Kundennummer"]) await expect(gestaltung.getByRole("checkbox", { name: schalter })).toBeVisible();
+  // mahnung.typ hat keine Positionen
+  for (const schalter of ["Artikelnummer", "Spalte USt je Position"]) await expect(gestaltung.getByRole("checkbox", { name: schalter })).toHaveCount(0);
+  await expect(gestaltung).not.toContainText("Spalte USt");
+  await page.keyboard.press("Escape");
 });
 
 test("Mahnung: Einleitung und Schluss lassen sich mit den Knöpfen auszeichnen (#359)", async () => {
@@ -586,6 +658,19 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   expect(body).toContain(";29098;55003;");
   // Keine Nummern, die im Belegfeld 1 zusammenfallen: kein Hinweis
   expect(response.headers()["x-haben-hinweis"]).toBeUndefined();
+
+  // Zeitraum Monat und Quartal (#960)
+  await card.getByLabel("Zeitraum").selectOption("03");
+  const maerzRes = await page.request.get((await link.getAttribute("href"))!);
+  expect(maerzRes.status()).toBe(200);
+  expect(maerzRes.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-03\.csv/);
+  await card.getByLabel("Zeitraum").selectOption("Q1");
+  const q1Res = await page.request.get((await link.getAttribute("href"))!);
+  expect(q1Res.status()).toBe(200);
+  expect(q1Res.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-Q1\.csv/);
+  const badPeriodRes = await page.request.get("/api/datev/2026?zeitraum=ungueltig");
+  expect(badPeriodRes.status()).toBe(400);
+  await card.getByLabel("Zeitraum").selectOption("");
 
   // Mit Hinweis (#675; welche Nummern zusammenfallen, prüft datev-belegfeld.test.ts): Die Datei kommt, die Karte nennt die Nummern
   const hinweis = "„RE.2026.001“ und „RE-2026-001“ stehen im Belegfeld 1 als „RE-2026-001“; DATEV kann ihre offenen Posten verwechseln.";
@@ -849,7 +934,8 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await expect(form.getByLabel("Adresse")).toHaveValue("");
   await expect(form.getByLabel("Öffnen")).toHaveValue("haben");
   await expect(paperless).toHaveAccessibleName("Paperless (öffnet in neuem Tab)");
-  await expect(page.getByText("Öffnet in neuem Tab")).toBeVisible();
+  // Die eingeklappte Leiste steht verborgen daneben im DOM, mit demselben Hinweis
+  await expect(page.getByText("Öffnet in neuem Tab").filter({ visible: true })).toBeVisible();
   await page.getByRole("button", { name: "Paperless bearbeiten" }).click();
   await expect(page.getByRole("form", { name: "Paperless bearbeiten" }).getByLabel("Öffnen")).toHaveValue("tab");
   await page.getByRole("button", { name: "Paperless entfernen" }).click();
@@ -1002,6 +1088,38 @@ test("Dauerbeleg: Miete mit Vertrag anlegen, Beleg zu prüfen, im Bankabgleich b
   await expect(page.getByText(/Pausiert: Bis zum Fortsetzen/)).toBeVisible();
   await page.getByRole("button", { name: "Fortsetzen" }).click();
   await expect(page.getByText(/Aktiv: Haben legt zu jedem Termin/)).toBeVisible();
+});
+
+test("Kette prüfen unterscheidet Betreiberhinweise von abgeschalteten und fehlenden Sperren", async () => {
+  const sql = postgres(databaseUrlFuer(), { max: 1, onnotice: () => {} });
+  const [original] = await sql`select pg_get_triggerdef(oid) as definition from pg_trigger
+    where tgrelid = 'public.contacts'::regclass and tgname = 'contacts_no_delete'`;
+  try {
+    await sql`create function betreiber_probe() returns trigger language plpgsql as $$ begin return NEW; end $$`;
+    await sql`create trigger betreiber_probe after insert on contacts for each row execute function betreiber_probe()`;
+    await go("/einstellungen?bereich=export");
+    const card = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Änderungsprotokoll prüfen", exact: true }) });
+    await card.getByRole("button", { name: "Kette prüfen", exact: true }).click();
+    await expect(card).toContainText("Zusätzlicher Trigger public.contacts.betreiber_probe");
+    await expect(card).toContainText("Kette, Siegel und Sperren sind unverändert");
+    await expect(card.locator(".banner-danger")).toHaveCount(0);
+    await sql`alter table year_closings disable trigger year_closings_append_only`;
+    await card.getByRole("button", { name: "Kette prüfen", exact: true }).click();
+    await expect(card).toContainText("Trigger public.year_closings.year_closings_append_only ist abgeschaltet");
+    await expect(card).toContainText("1 Befunde");
+    await sql`alter table year_closings enable trigger year_closings_append_only`;
+    await sql`drop trigger contacts_no_delete on contacts`;
+    await card.getByRole("button", { name: "Kette prüfen", exact: true }).click();
+    await expect(card).toContainText("Trigger public.contacts.contacts_no_delete fehlt");
+    await expect(card).toContainText("1 Befunde");
+  } finally {
+    await sql`alter table year_closings enable trigger year_closings_append_only`;
+    await sql`drop trigger if exists contacts_no_delete on contacts`;
+    await sql.unsafe(original!.definition);
+    await sql`drop trigger if exists betreiber_probe on contacts`;
+    await sql`drop function if exists betreiber_probe()`;
+    await sql.end();
+  }
 });
 
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {

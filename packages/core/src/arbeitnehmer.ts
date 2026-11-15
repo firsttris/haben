@@ -31,7 +31,20 @@ export interface Arbeitslohn {
     /** Ab 2026 zusätzlich zum Pauschbetrag (§ 9a Satz 3 EStG) */
     gewerkschaft?: Cents;
     sonstige?: Cents;
+    /** Häusliches Arbeitszimmer (§ 9 Abs. 5 i. V. m. § 4 Abs. 5 Satz 1 Nr. 6b EStG) */
+    arbeitszimmer?: Cents;
   };
+}
+
+/**
+ * Jahrespauschale für das häusliche Arbeitszimmer, zeitanteilig (§ 4 Abs. 5 Satz 1 Nr. 6b Satz 2 bis 4 EStG, für
+ * Arbeitnehmer über § 9 Abs. 5): 1.260 EUR im Jahr, für jeden vollen Monat ohne die Voraussetzung 105 EUR weniger.
+ * `monate` zählt die Monate, in denen das Zimmer wenigstens zeitweise der Mittelpunkt der gesamten Tätigkeit war:
+ * gekürzt wird nur um volle Kalendermonate ohne die Voraussetzung (Satz 4).
+ */
+export function arbeitszimmerPauschale(monate = 12): Cents {
+  const voll = Math.max(0, Math.min(12, Math.trunc(monate)));
+  return voll * 105_00;
 }
 
 /** Arbeitnehmer-Pauschbetrag (§ 9a Satz 1 Nr. 1a EStG) */
@@ -81,7 +94,7 @@ export function arbeitslohnErgebnis(year: number, an: Arbeitslohn): ArbeitslohnE
   const werbungskosten =
     (w.wege ? entfernungspauschale(year, w.wege.tage, w.wege.km) : 0) +
     homeofficeWerbungskosten(year, w.homeofficeTage) +
-    sum([w.arbeitsmittel, w.fortbildung, w.berufsverbaende, w.gewerkschaft, w.sonstige]);
+    sum([w.arbeitsmittel, w.fortbildung, w.berufsverbaende, w.gewerkschaft, w.sonstige, w.arbeitszimmer]);
   const pausch = arbeitnehmerPauschbetrag(year);
   // Gewerkschaftsbeiträge zählen ab 2026 neben dem Pauschbetrag (§ 9a Satz 3 EStG), vorher wie alle Werbungskosten
   const neben = year >= 2026 ? (w.gewerkschaft ?? 0) : 0;

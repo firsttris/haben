@@ -6,6 +6,7 @@ import type { Notice } from "../lib/use-action.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { ConfirmDialog, type ConfirmFact } from "./ConfirmDialog.tsx";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 
 /** Was eine Seite über ERiC und das Zertifikat aus dem Loader mitbringt */
@@ -123,6 +124,8 @@ export function ElsterSubmit({
   const [testOnly, setTestOnly] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const live = submitKind(testOnly, setup.herstellerIdConfigured && !lockedHint) === "send";
+  // Zertifikat und ready sind Voraussetzungen außerhalb des Formulars und sperren den Knopf; die PIN gehört ins Formular
+  const { form, error, check } = useSubmitCheck({ pin: pin.length === 0 ? "Trag die PIN des Zertifikats ein." : null });
 
   async function transmit() {
     await onSubmit(live ? "send" : "test", pin);
@@ -131,15 +134,16 @@ export function ElsterSubmit({
 
   function send(event: FormEvent) {
     event.preventDefault();
+    if (!check()) return;
     if (live) setConfirming(true);
     else void transmit();
   }
 
   return (
-    <form className={className} onSubmit={send} aria-labelledby={headingId}>
+    <form ref={form} className={className} onSubmit={send} aria-labelledby={headingId} noValidate>
       <h2 id={headingId}>{title}</h2>
       <CertificateStatus certificate={setup.certificate} />
-      <Field label="Zertifikats-PIN">
+      <Field label="Zertifikats-PIN" error={error("pin")}>
         {(control) => <input {...control} type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" required />}
       </Field>
       <TestOnlyToggle setup={setup} testOnly={testOnly} lockedHint={lockedHint} onChange={setTestOnly} />
@@ -159,7 +163,7 @@ export function ElsterSubmit({
         <button type="button" className="btn" disabled={busy || !ready} onClick={() => void onSubmit("validate")}>
           Nur prüfen
         </button>
-        <button type="submit" className="btn btn-primary" disabled={busy || !ready || !setup.certificate || pin.length === 0} style={{ flexGrow: 1 }}>
+        <button type="submit" className="btn btn-primary" disabled={busy || !ready || !setup.certificate} style={{ flexGrow: 1 }}>
           {busy ? "Läuft …" : live ? "Prüfen und senden" : "Prüfen und testweise senden"}
         </button>
       </div>

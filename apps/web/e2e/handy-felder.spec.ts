@@ -64,8 +64,7 @@ for (const pfad of FORMULARE) {
 test("Die Auswahl von Farbe und Modus im Handy-Menü zoomt die Seite nicht", async ({ page }) => {
   await laden(page, "/");
   await page.getByRole("button", { name: "Menü" }).click();
-  // Farbe und Modus
-  await expect(page.locator(".nav-theme select")).toHaveCount(2);
-  for (const auswahl of await page.locator(".nav-theme select").all()) await expect(auswahl).toBeVisible();
+  // Farbe und Modus; die schmale Leiste des Desktops steht verborgen daneben im DOM
+  await expect(page.locator(".nav-theme select:visible")).toHaveCount(2);
   expect(await zuKleineFelder(page)).toEqual([]);
 });

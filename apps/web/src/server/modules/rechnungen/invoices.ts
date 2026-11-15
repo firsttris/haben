@@ -1,4 +1,3 @@
-import { UserError } from "../../errors.ts";
 import {
   computeInvoice,
   CURRENCY_CODE,
@@ -40,7 +39,7 @@ import {
   negateDiscount,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
@@ -60,7 +59,10 @@ import { advanceProcedure } from "./advance-procedure.ts";
 import { advanceInvoicePosting } from "./advance-invoice.ts";
 import { paperCancellationIds } from "./advance-payment-group.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
+import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
 import { today } from "../../today.ts";
+import { InvoiceError } from "./invoice-error.ts";
+import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
 import {
   circleFor,
   countsRunning,
@@ -75,8 +77,6 @@ import {
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
-
-export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
 
@@ -737,8 +737,12 @@ export type { InvoiceListStatus };
  * im Bankabgleich. Mit `id` nur diese Rechnung. Rechnungsliste, offene Posten, Mahnwesen und die Sperre der
  * Firmendaten zählen über diese Funktion, damit „offen“ überall dasselbe heißt.
  */
-export async function listInvoices(today: string, id?: string, q: Db | Tx = db) {
-  const rows = await q
+export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
+  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
+}
+
+export async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, limit?: number, rank?: SQL) {
+  const query = q
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
@@ -753,6 +757,8 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       contactId: schema.invoices.contactId,
       externalSource: schema.invoices.externalSource,
       externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
       contactName: schema.contacts.name,
       buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
       cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
@@ -764,9 +770,18 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(id ? eq(schema.invoices.id, id) : undefined)
-    .orderBy(desc(schema.invoices.issueDate), sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt), desc(schema.invoices.id));
+    .where(filter)
+    .orderBy(
+      ...(rank ? [rank] : []),
+      desc(schema.invoices.issueDate),
+      sql`${schema.invoices.number} desc nulls first`,
+      desc(schema.invoices.createdAt),
+      desc(schema.invoices.id),
+    )
+    .$dynamic();
+  const rows = await (limit === undefined ? query : query.limit(limit));
 
+  if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
@@ -1082,12 +1097,12 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
  * Festschreiben: Nummer ziehen, PDF und XML erzeugen, sperren und buchen – alles in einer
  * Transaktion. Schlägt etwas fehl, bleibt der Entwurf ohne Nummer und es entsteht keine Lücke.
  */
-export async function finalizeInvoice(actor: string, id: string): Promise<Invoice> {
-  return withActor(actor, (tx) => finalizeDraft(tx, id));
+export async function finalizeInvoice(actor: string, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
+  return withActor(actor, (tx) => finalizeDraft(tx, id, bestaetigt));
 }
 
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
-async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
+async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
   // Angebote zuerst (lockQuotes): Die Prüfungen gegen andere Rechnungen desselben Angebots laufen erst unter der Sperre
   const [peek] = await tx.select({ correctsId: schema.invoices.correctsId }).from(schema.invoices).where(eq(schema.invoices.id, id));
   const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id, peek?.correctsId]));
@@ -1147,6 +1162,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   const seller = sellerFrom(company);
   const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
+  await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, bestaetigt);
   const doc = documentFor(
     invoice,
     lines,
@@ -1326,6 +1342,14 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
       throw new InvoiceError(
         "Die Rechnung ist teilweise ausgebucht (Skonto oder Forderungsausfall). Hebe die Ausbuchung zuerst auf, dann lässt sie sich stornieren.",
       );
+    }
+    // Ebenso eine Verrechnung mit einer Korrektur (#877): Sie zählt als erledigt, ohne dass Geld geflossen ist, und stünde
+    // nach dem Storno als Erstattung an den Kunden und als Forderung aus der Korrektur offen
+    const verrechnet = await tx.execute(
+      sql`select 1 from invoice_settlements where invoice_id in ${[id, ...corrections.map((c) => c.id)]} group by invoice_id having sum(amount) <> 0 limit 1`,
+    );
+    if ([...verrechnet].length > 0) {
+      throw new InvoiceError("Die Rechnung ist mit einer Korrektur verrechnet. Hebe die Verrechnung zuerst auf, dann lässt sie sich stornieren.");
     }
     const stornoOf = async (target: Invoice, targetLines: InvoiceLine[]) => {
       const draft = await insertDraft(
