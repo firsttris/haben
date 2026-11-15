@@ -45,6 +45,8 @@ Einnahme oder Ausgabe richtet sich nach der Buchung, nicht nach dem Ordner in se
 - **Aufwandskonto:** Ausgabe. Eine Gutschrift aus dem Rechnungsausgang im Soll mit Vorsteuer (BU 8 oder 9), etwa für Honorar oder Provision, ist eine Abrechnung im Gutschriftverfahren (§ 14 Abs. 2 Satz 2 UStG): Ausgabe-Gutschrift mit Vorsteuer wie beim Abruf über die API, ohne Hinweis.
 - **Andere Konten** (Darlehen, Privat, Steuern, Zinsen, Anlagen): Einnahme, wenn das Konto im Haben steht (Geld kommt herein), sonst Ausgabe, immer mit positivem Betrag.
 
+Ein Beleg in Fremdwährung ohne Netto und Steuer in der Beleginfo hat keinen Euro-Betrag. Haben legt ihn nicht an, nennt ihn im Fortschritt mit Grund und behält ihn nur in ZIP-Datei und Buchungsstapel; trage ihn bei Bedarf von Hand ein.
+
 Einnahmen, Ausgaben und Umsatzsteuer eines Jahres nimmt der [Abgleich](#schritt-3-bis-5) aus dem Buchungsstapel nach Kontenbereich, nicht aus diesen Belegen; ein Darlehen zählt dort also weder als Einnahme noch als Ausgabe. Offene Posten legt der Export nicht an, weil er keinen Zahlungsstand je Beleg kennt; trage sie von Hand ein. Kein Jahr aus dem Export zeigt im Abgleich „vollständig“.
 
 Doppelt angelegt wird nichts:
