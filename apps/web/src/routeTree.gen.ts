@@ -83,6 +83,7 @@ import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiDatevJahrRouteImport } from './routes/api/datev/$jahr'
 import { Route as ApiDauerbelegIdRouteImport } from './routes/api/dauerbeleg/$id'
 import { Route as ApiEtsyCallbackRouteImport } from './routes/api/etsy/callback'
+import { Route as ApiEtsyWebhookRouteImport } from './routes/api/etsy/webhook'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
 import { Route as ApiFristenKalenderRouteImport } from './routes/api/fristen/kalender'
 import { Route as ApiHinterlegungJahrRouteImport } from './routes/api/hinterlegung/$jahr'
@@ -498,6 +499,11 @@ const ApiEtsyCallbackRoute = ApiEtsyCallbackRouteImport.update({
   path: '/api/etsy/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEtsyWebhookRoute = ApiEtsyWebhookRouteImport.update({
+  id: '/api/etsy/webhook',
+  path: '/api/etsy/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiExportJahrRoute = ApiExportJahrRouteImport.update({
   id: '/api/export/$jahr',
   path: '/api/export/$jahr',
@@ -775,6 +781,7 @@ export interface FileRoutesByFullPath {
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
   '/api/etsy/callback': typeof ApiEtsyCallbackRoute
+  '/api/etsy/webhook': typeof ApiEtsyWebhookRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
@@ -891,6 +898,7 @@ export interface FileRoutesByTo {
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
   '/api/etsy/callback': typeof ApiEtsyCallbackRoute
+  '/api/etsy/webhook': typeof ApiEtsyWebhookRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
@@ -1009,6 +1017,7 @@ export interface FileRoutesById {
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
   '/api/etsy/callback': typeof ApiEtsyCallbackRoute
+  '/api/etsy/webhook': typeof ApiEtsyWebhookRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
@@ -1127,6 +1136,7 @@ export interface FileRouteTypes {
     | '/api/datev/$jahr'
     | '/api/dauerbeleg/$id'
     | '/api/etsy/callback'
+    | '/api/etsy/webhook'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/hinterlegung/$jahr'
@@ -1243,6 +1253,7 @@ export interface FileRouteTypes {
     | '/api/datev/$jahr'
     | '/api/dauerbeleg/$id'
     | '/api/etsy/callback'
+    | '/api/etsy/webhook'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/hinterlegung/$jahr'
@@ -1360,6 +1371,7 @@ export interface FileRouteTypes {
     | '/api/datev/$jahr'
     | '/api/dauerbeleg/$id'
     | '/api/etsy/callback'
+    | '/api/etsy/webhook'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/hinterlegung/$jahr'
@@ -1444,6 +1456,7 @@ export interface RootRouteChildren {
   ApiDatevJahrRoute: typeof ApiDatevJahrRoute
   ApiDauerbelegIdRoute: typeof ApiDauerbelegIdRoute
   ApiEtsyCallbackRoute: typeof ApiEtsyCallbackRoute
+  ApiEtsyWebhookRoute: typeof ApiEtsyWebhookRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
   ApiFristenKalenderRoute: typeof ApiFristenKalenderRoute
   ApiHinterlegungJahrRoute: typeof ApiHinterlegungJahrRoute
@@ -1994,6 +2007,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEtsyCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/etsy/webhook': {
+      id: '/api/etsy/webhook'
+      path: '/api/etsy/webhook'
+      fullPath: '/api/etsy/webhook'
+      preLoaderRoute: typeof ApiEtsyWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/export/$jahr': {
       id: '/api/export/$jahr'
       path: '/api/export/$jahr'
@@ -2457,6 +2477,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDatevJahrRoute: ApiDatevJahrRoute,
   ApiDauerbelegIdRoute: ApiDauerbelegIdRoute,
   ApiEtsyCallbackRoute: ApiEtsyCallbackRoute,
+  ApiEtsyWebhookRoute: ApiEtsyWebhookRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
   ApiFristenKalenderRoute: ApiFristenKalenderRoute,
   ApiHinterlegungJahrRoute: ApiHinterlegungJahrRoute,

@@ -181,24 +181,28 @@ const orderFor = (referenceId: string) =>
 const summe = (list: { amount: number }[]) => list.reduce((acc, t) => acc + t.amount, 0);
 
 describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
-  it("bündelt Gebühren und Werbung je Monat und lässt Verkäufe einzeln", () => {
+  it("bündelt Gebühren und Werbung je Monat und Art wie die Positionen der Gebührenrechnung", () => {
     const statement = parseEtsyLedger(zeilen, { orderFor });
     const gebuehren = statement.transactions.filter((t) => t.purpose.startsWith("Gebühr"));
-    expect(gebuehren.map((t) => t.purpose).sort()).toEqual([
-      "Gebühr · Einstellgebühren 2023-06",
-      "Gebühr · Transaktionsgebühren 2023-06",
-      "Gebühr · Werbung 2023-06",
-      "Gebühr · Zahlungsabwicklung 2023-06",
-    ]);
-    // Einstellgebühren 19 + 19 + 18 + Mengengebühr 19, Transaktionsgebühr 143 + Porto 23, Zahlungsabwicklung 118,
-    // Werbung 2130 + 2900 + 374
-    expect(summe(gebuehren)).toBe(-75 - 166 - 118 - 5404);
-    expect(statement.transactions.find((t) => t.purpose.includes("Einstellgebühren"))?.amount).toBe(-75);
-    expect(statement.transactions.find((t) => t.purpose.includes("Transaktionsgebühren"))?.amount).toBe(-166);
+    const jeArt = Object.fromEntries(gebuehren.map((t) => [t.purpose, t.amount]));
+    expect(jeArt).toEqual({
+      // Einstellgebühr 19 und Mengengebühr 19 (Rechnungsposition „Listing Fees“)
+      "Gebühr · Einstellgebühren (Listing Fees) 2023-06": -38,
+      "Gebühr · Verlängerungen (Renew Expired Fees) 2023-06": -18,
+      "Gebühr · Verlängerungen nach Verkauf (Renew Sold Fees) 2023-06": -19,
+      // Transaktionsgebühr 143 und Portogebühr 23
+      "Gebühr · Transaktionsgebühren (Transaction Fees) 2023-06": -166,
+      "Gebühr · Zahlungsabwicklung (Processing Fees) 2023-06": -118,
+      "Gebühr · Etsy Ads (Etsy Ads Fees) 2023-06": -5030,
+      "Gebühr · Offsite Ads (Offsite Ads Fees) 2023-06": -374,
+    });
+    // Dieselbe Summe wie mit weniger Arten: Gebühren und Werbung des Monats zusammen
+    expect(summe(gebuehren)).toBe(-5763);
     for (const gebuehr of gebuehren) {
       expect(gebuehr.bookingDate).toBe("2023-06-30");
     }
-    expect(statement.transactions.find((t) => t.purpose.includes("Werbung"))?.type).toBe("Werbung");
+    expect(statement.transactions.find((t) => t.purpose.includes("Etsy Ads"))?.type).toBe("Werbung");
+    expect(statement.transactions.find((t) => t.purpose.includes("Offsite Ads"))?.type).toBe("Werbung");
     expect(statement.transactions.find((t) => t.purpose.includes("Einstellgebühren"))?.bankReference).toBe("etsy-einstellgebuehren-2023-06");
   });
 
@@ -218,8 +222,10 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
   it("verrechnet die Sales Tax mit dem Verkauf derselben Bestellung am selben Tag, wie der CSV-Import", () => {
     const statement = parseEtsyLedger(zeilen, { orderFor });
     expect(statement.transactions.filter((t) => t.type === "Umsatzsteuer")).toHaveLength(0);
-    const verkauf = statement.transactions.find((t) => t.purpose === `Verkauf · Etsy Bestellung ${BESTELLUNG_2}`);
+    const verkauf = statement.transactions.find((t) => t.purpose.startsWith(`Verkauf · Etsy Bestellung ${BESTELLUNG_2}`));
     expect(verkauf?.amount).toBe(2350);
+    // Der Zweck sagt, warum der Verkauf unter der Zahlung des Käufers liegt
+    expect(verkauf?.purpose).toBe(`Verkauf · Etsy Bestellung ${BESTELLUNG_2} · Sales Tax 1,45 € von Etsy abgeführt`);
     expect(statement.warnings.join(" ")).not.toContain("Steuerzeile");
   });
 
@@ -233,9 +239,9 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
       ],
       { orderFor },
     );
-    expect(statement.transactions.map((t) => [t.type, t.amount])).toEqual([
-      ["Verkauf", 1249],
-      ["Erstattung", -1249],
+    expect(statement.transactions.map((t) => [t.type, t.amount, t.purpose])).toEqual([
+      ["Verkauf", 1249, `Verkauf · Etsy Bestellung ${BESTELLUNG_1} · Sales Tax 2,37 € von Etsy abgeführt`],
+      ["Erstattung", -1249, `Erstattung · Etsy Bestellung ${BESTELLUNG_1} · Sales Tax 2,37 € von Etsy abgeführt`],
     ]);
   });
 
@@ -252,11 +258,17 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
   });
 
   it("bildet keine zweite Sammelzeile für einen Monat, der schon im Konto gebündelt steht", () => {
-    const statement = parseEtsyLedger(zeilen, { orderFor, schonGebuendelt: new Set(["werbung-2023-06", "einstellgebuehren-2023-06"]) });
+    const schon = new Set(["etsyads-2023-06", "offsiteads-2023-06", "einstellgebuehren-2023-06"]);
+    const statement = parseEtsyLedger(zeilen, { orderFor, schonGebuendelt: schon });
     const gebuehren = statement.transactions.filter((t) => t.purpose.startsWith("Gebühr")).map((t) => t.purpose);
-    expect(gebuehren.sort()).toEqual(["Gebühr · Transaktionsgebühren 2023-06", "Gebühr · Zahlungsabwicklung 2023-06"]);
-    // drei Werbezeilen und vier Einstellgebühren
-    expect(statement.warnings.join(" ")).toContain("7 Gebühren- und Werbezeile(n) aus einem schon gebündelten Monat");
+    expect(gebuehren.sort()).toEqual([
+      "Gebühr · Transaktionsgebühren (Transaction Fees) 2023-06",
+      "Gebühr · Verlängerungen (Renew Expired Fees) 2023-06",
+      "Gebühr · Verlängerungen nach Verkauf (Renew Sold Fees) 2023-06",
+      "Gebühr · Zahlungsabwicklung (Processing Fees) 2023-06",
+    ]);
+    // drei Werbezeilen und zwei Einstellgebühren
+    expect(statement.warnings.join(" ")).toContain("5 Gebühren- und Werbezeile(n) aus einem schon gebündelten Monat");
     expect(statement.transactions.filter((t) => t.type === "Verkauf")).toHaveLength(2);
   });
 

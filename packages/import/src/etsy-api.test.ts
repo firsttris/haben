@@ -189,6 +189,40 @@ describe("Etsy-Client", () => {
     expect(() => tokenFromResponse({ error: "invalid_grant" }, "alt", 1_000)).toThrow(/invalid_grant/);
   });
 
+  it("liest das Land aus der Liste der Bestellungen des Zeitraums und fragt nur Fehlende einzeln nach", async () => {
+    const { fetch, rufe } = mockFetch((ruf) => {
+      const url = new URL(ruf.url);
+      if (url.pathname.endsWith("/shops/35160089/receipts")) {
+        return {
+          count: 2,
+          results: [
+            { receipt_id: 2001, country_iso: "DE" },
+            { receipt_id: 2002, country_iso: "us" },
+          ],
+        };
+      }
+      if (url.pathname.endsWith("/receipts/1999")) return { receipt_id: 1999, country_iso: "FR" };
+      return {};
+    });
+    const client = createEtsyClient({
+      keystring: "abc",
+      shopId: "35160089",
+      tokens: GUELTIG,
+      baseUrl: "https://etsy.test/v3/application",
+      runtime: { ...lauf, fetch },
+    });
+    // 1999 ist eine ältere Bestellung (etwa erstattet) und steht nicht in der Liste des Zeitraums
+    const laender = await client.countriesFor(["2001", "2002", "1999"], { from: 1_700_000_000, to: 1_700_100_000 });
+    expect(laender).toEqual(
+      new Map([
+        ["2001", "DE"],
+        ["2002", "US"],
+        ["1999", "FR"],
+      ]),
+    );
+    expect(rufe.map((r) => new URL(r.url).pathname)).toEqual(["/v3/application/shops/35160089/receipts", "/v3/application/shops/35160089/receipts/1999"]);
+  });
+
   it("liest das Land je Bestellung aus dem Receipt und lässt Bestellungen ohne Land weg", async () => {
     const antworten: Record<string, unknown> = {
       "/shops/35160089/receipts/1001": { receipt_id: 1001, country_iso: "de" },

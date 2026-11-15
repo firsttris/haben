@@ -120,7 +120,7 @@ export const settlementKey = (order: string, day: string) => `${day} ${order}`;
  * Tag oder bei mehreren Erstattungen am selben Tag), bleibt die Zeile einzeln, damit nichts geraten wird; die Anzahl dieser
  * Zeilen steht in `unsettled`.
  */
-export function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled: number } {
+export function settleTax(list: Tx[], orders: Map<Tx, string>, describe?: (tx: Tx, tax: number) => string): { list: Tx[]; unsettled: number } {
   const adjustment = new Map<Tx, number>();
   const settled = new Set<Tx>();
   const taxes = list.filter((t) => t.type === "Umsatzsteuer");
@@ -132,7 +132,10 @@ export function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; un
     adjustment.set(targets[0]!, (adjustment.get(targets[0]!) ?? 0) + tax.amount);
     settled.add(tax);
   }
-  const result = list.filter((t) => !settled.has(t)).map((t) => (adjustment.has(t) ? { ...t, amount: t.amount + adjustment.get(t)! } : t));
+  // describe (nur der Abruf über die API) nennt die verrechnete Steuer im Zweck; der CSV-Import lässt ihn wie bisher
+  const result = list
+    .filter((t) => !settled.has(t))
+    .map((t) => (adjustment.has(t) ? { ...t, amount: t.amount + adjustment.get(t)!, purpose: describe ? describe(t, adjustment.get(t)!) : t.purpose } : t));
   return { list: result, unsettled: taxes.length - settled.size };
 }
 

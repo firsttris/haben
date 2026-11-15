@@ -4,8 +4,11 @@ import { env } from "./env.ts";
 type CsrfOptions = NonNullable<Parameters<typeof createCsrfMiddleware>[0]>;
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-/** Prüfen selbst: MCP per Bearer-Token ohne Browser, OAuth-Registrierung und Token ohne Sitzungscookie, das Teilen-Ziel lässt auch das Teilen-Menü des Systems zu */
-const OWN_CHECK = new Set(["/api/mcp", "/api/belege/teilen", "/api/oauth/register", "/api/oauth/token"]);
+/**
+ * Prüfen selbst: MCP per Bearer-Token ohne Browser, OAuth-Registrierung und Token ohne Sitzungscookie, das Teilen-Ziel
+ * lässt auch das Teilen-Menü des Systems zu, Meldungen von Etsy prüft die Signatur (etsy/webhook.ts)
+ */
+const OWN_CHECK = new Set(["/api/mcp", "/api/belege/teilen", "/api/oauth/register", "/api/oauth/token", "/api/etsy/webhook"]);
 /** REST-API: meldet sich nur mit Bearer-Token an, nie mit dem Sitzungscookie; eine fremde Seite erbt also keine Rechte */
 const API_PREFIX = "/api/v1/";
 

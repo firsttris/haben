@@ -1,0 +1,1 @@
+ALTER TABLE "etsy_connections" ADD COLUMN "abruf_start" date;

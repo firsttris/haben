@@ -99,8 +99,11 @@ export interface EtsyClient {
   ledger(from: number, to: number): Promise<EtsyLedgerEntry[]>;
   /** Zahlungs- und Erstattungsnummer → Bestellnummer, für die gegebenen Verlaufszeilen (`entry_id`) */
   ordersFor(ledgerEntryIds: string[]): Promise<Map<string, string>>;
-  /** Land des Käufers (ISO-Code) je Bestellnummer; Haben entscheidet daran die Steuer der Rechnung */
-  countriesFor(receiptIds: string[]): Promise<Map<string, string>>;
+  /**
+   * Land des Käufers (ISO-Code) je Bestellnummer. Mit Zeitraum (Epoch-Sekunden) liest es die Bestellungen dieses Zeitraums
+   * seitenweise und fragt nur fehlende einzeln nach; ohne Zeitraum fragt es jede einzeln.
+   */
+  countriesFor(receiptIds: string[], zeitraum?: { from: number; to: number }): Promise<Map<string, string>>;
   /** Shop des angemeldeten Kontos; er wird beim Verbinden einmal ermittelt */
   shop(): Promise<EtsyShop>;
   tokens(): EtsyTokens;
@@ -218,7 +221,7 @@ export function createEtsyClient(options: EtsyClientOptions): EtsyClient {
     },
 
     ordersFor: (ledgerEntryIds) => bestellungenZu(request, options.shopId, runtime, ledgerEntryIds),
-    countriesFor: (receiptIds) => laenderZu(request, options.shopId, runtime, receiptIds),
+    countriesFor: (receiptIds, zeitraum) => laenderZu(request, options.shopId, runtime, receiptIds, zeitraum),
   };
 }
 
@@ -250,13 +253,47 @@ async function bestellungenZu(request: EtsyRequest, shopId: string, runtime: Res
   return out;
 }
 
-/** Land des Käufers je Bestellnummer aus dem Receipt (`country_iso`); Bestellungen ohne Land fehlen in der Antwort */
-async function laenderZu(request: EtsyRequest, shopId: string, runtime: ResolvedRuntime, receiptIds: string[]): Promise<Map<string, string>> {
+type EtsyReceipt = { receipt_id?: number | string; country_iso?: string | null };
+
+/**
+ * Land des Käufers je Bestellnummer aus dem Receipt (`country_iso`); Bestellungen ohne Land fehlen in der Antwort. Mit
+ * Zeitraum zuerst die Liste GET /shops/{shop_id}/receipts (je Seite 100, in 31-Tage-Fenstern), dann einzeln nur, was dort
+ * fehlt, etwa eine Erstattung zu einer älteren Bestellung.
+ */
+async function laenderZu(
+  request: EtsyRequest,
+  shopId: string,
+  runtime: ResolvedRuntime,
+  receiptIds: string[],
+  zeitraum?: { from: number; to: number },
+): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  for (const id of [...new Set(receiptIds.filter(Boolean))]) {
-    const receipt = await request<{ country_iso?: string | null }>(`/shops/${shopId}/receipts/${id}`, {});
+  const offen = new Set(receiptIds.filter(Boolean));
+  const merke = (receipt: EtsyReceipt, id: string) => {
     const land = receipt.country_iso?.trim().toUpperCase();
     if (land) out.set(id, land);
+    offen.delete(id);
+  };
+  for (let start = zeitraum?.from ?? 0; zeitraum && offen.size > 0 && start <= zeitraum.to; start += ETSY_MAX_WINDOW_SECONDS) {
+    const ende = Math.min(start + ETSY_MAX_WINDOW_SECONDS, zeitraum.to);
+    for (let offset = 0; offen.size > 0; offset += PAGE_SIZE) {
+      const page = await request<{ count?: number; results?: EtsyReceipt[] }>(`/shops/${shopId}/receipts`, {
+        min_created: String(start),
+        max_created: String(ende),
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
+      });
+      const results = page.results ?? [];
+      for (const receipt of results) {
+        const id = String(receipt.receipt_id ?? "");
+        if (offen.has(id)) merke(receipt, id);
+      }
+      await runtime.sleep(250);
+      if (results.length === 0 || offset + PAGE_SIZE >= (page.count ?? 0)) break;
+    }
+  }
+  for (const id of [...offen]) {
+    merke(await request<EtsyReceipt>(`/shops/${shopId}/receipts/${id}`, {}), id);
     await runtime.sleep(250);
   }
   return out;

@@ -1,7 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { formatDateTime } from "../lib/format.ts";
+import { formatDate, formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Field } from "./Field.tsx";
@@ -42,9 +42,11 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const sharedSecret = String(new FormData(form).get("sharedSecret") ?? "");
+    const formular = new FormData(form);
+    const sharedSecret = String(formular.get("sharedSecret") ?? "");
+    const webhookSecret = String(formular.get("webhookSecret") ?? "");
     void run(async () => {
-      await save({ data: { keystring, fetchFrom, sammelzeilen, rhythmus, sharedSecret } });
+      await save({ data: { keystring, fetchFrom, sammelzeilen, rhythmus, sharedSecret, webhookSecret } });
       form.reset();
       await router.invalidate();
     }, "Zugang gespeichert. Jetzt verbinden, damit Etsy die Freigabe zeigt.");
@@ -62,18 +64,7 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
         ; als Redirect-URI gehört <code>{data.callbackUrl}</code> hinein. Die monatliche CSV von Hand entfällt damit.
       </p>
 
-      <p className="small" style={{ margin: "0.5rem 0 0" }}>
-        {data.connected ? (
-          <strong>
-            Verbunden mit {data.shopName || "dem Shop"} ({data.shopId}).
-          </strong>
-        ) : data.configured ? (
-          <strong>Nicht verbunden. Schlüssel gespeichert, die Freigabe bei Etsy fehlt noch.</strong>
-        ) : (
-          <strong>Nicht eingerichtet.</strong>
-        )}{" "}
-        {data.lastSyncAt ? `Letzter Abruf: ${formatDateTime(data.lastSyncAt)}.` : "Noch kein Abruf."}
-      </p>
+      <EtsyStatus data={data} />
 
       {data.lastError && (
         <div className="banner banner-danger" role="status">
@@ -102,19 +93,12 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
             <input {...control} name="sammelzeilen" type="checkbox" checked={sammelzeilen} onChange={(event) => setSammelzeilen(event.target.checked)} />
           )}
         </Field>
+        <RhythmusFeld wert={rhythmus} onChange={setRhythmus} />
         <Field
-          label="Automatischer Abruf"
-          hint="Verkäufe und Erstattungen kommen mit jedem Abruf; Gebühren und Werbung einmal im Monat ab dem 5. als Sammelzeile"
+          label={data.webhookConfigured ? "Webhook-Signaturschlüssel (leer lassen zum Behalten)" : "Webhook-Signaturschlüssel (optional)"}
+          hint={`Für Verkäufe fast in Echtzeit: in der Etsy-App einen Webhook auf ${data.webhookUrl} für order.paid und order.canceled anlegen und den Signaturschlüssel (whsec_…) hier eintragen`}
         >
-          {(control) => (
-            <select {...control} name="rhythmus" value={rhythmus} onChange={(event) => setRhythmus(event.target.value as Data["rhythmus"])}>
-              {Object.entries(RHYTHMUS_LABELS).map(([wert, label]) => (
-                <option key={wert} value={wert}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          )}
+          {(control) => <input {...control} name="webhookSecret" type="password" autoComplete="off" />}
         </Field>
         <div className="banner banner-warn" role="note">
           Die Gebührenrechnung (bei Etsy „USt.-Abrechnung“) frühestens am 5. des Folgemonats herunterladen und hochladen: Etsy korrigiert Gebühren im Übergang
@@ -192,5 +176,42 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
         </ConfirmDialog>
       </form>
     </section>
+  );
+}
+
+/** Stand der Verbindung: verbunden, letzter und nächster Abruf, Webhooks */
+function EtsyStatus({ data }: { data: Data }) {
+  return (
+    <p className="small" style={{ margin: "0.5rem 0 0" }}>
+      {data.connected ? (
+        <strong>
+          Verbunden mit {data.shopName || "dem Shop"} ({data.shopId}).
+        </strong>
+      ) : data.configured ? (
+        <strong>Nicht verbunden. Schlüssel gespeichert, die Freigabe bei Etsy fehlt noch.</strong>
+      ) : (
+        <strong>Nicht eingerichtet.</strong>
+      )}{" "}
+      {data.lastSyncAt ? `Letzter Abruf: ${formatDateTime(data.lastSyncAt)}.` : "Noch kein Abruf."}
+      {data.lastSyncAt && data.naechsterAbrufAb ? ` Der nächste Abruf holt ab dem ${formatDate(data.naechsterAbrufAb)}.` : ""}
+      {data.webhookConfigured ? " Webhooks eingerichtet: neue Bestellungen kommen etwa eine Minute nach dem Kauf." : ""}
+    </p>
+  );
+}
+
+/** Wie oft der Zeitplan abruft; Gebühren kommen davon unabhängig einmal im Monat */
+function RhythmusFeld({ wert, onChange }: { wert: Data["rhythmus"]; onChange: (wert: Data["rhythmus"]) => void }) {
+  return (
+    <Field label="Automatischer Abruf" hint="Verkäufe und Erstattungen kommen mit jedem Abruf; Gebühren und Werbung einmal im Monat ab dem 5. als Sammelzeile">
+      {(control) => (
+        <select {...control} name="rhythmus" value={wert} onChange={(event) => onChange(event.target.value as Data["rhythmus"])}>
+          {Object.entries(RHYTHMUS_LABELS).map(([schluessel, label]) => (
+            <option key={schluessel} value={schluessel}>
+              {label}
+            </option>
+          ))}
+        </select>
+      )}
+    </Field>
   );
 }

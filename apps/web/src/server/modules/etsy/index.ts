@@ -11,6 +11,7 @@ export {
   etsyCallbackUrl,
   etsyClientFor,
   etsyConnected,
+  etsyWebhookUrl,
   EtsyError,
   etsySettingsSchema,
   etsySummary,
@@ -23,3 +24,5 @@ export {
 } from "./connections.ts";
 export { etsyStatement, importEtsyLedger, type EtsyImportOptions, type EtsyImportResult } from "./import.ts";
 export { ETSY_SYNC_ACTOR, runDueEtsySyncs, syncEtsy, type EtsySyncResult } from "./sync.ts";
+export { etsyWebhookEmpfangen, ETSY_WEBHOOK_EREIGNISSE } from "./webhook.ts";
+export { etsyWebhookSignaturOk, type EtsyWebhookKopf } from "./webhook-signatur.ts";

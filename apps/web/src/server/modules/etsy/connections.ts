@@ -24,6 +24,9 @@ import { ETSY_RHYTHMEN, type EtsyRhythmus } from "./abruf-regeln.ts";
  * Das gemeinsame Geheimnis, die Token und die offene Anmeldung liegen AES-256-GCM-verschlüsselt in ciphertext; der
  * App-Schlüssel ist nicht geheim. Wird die Verbindung getrennt, bleiben Schlüssel und Geheimnis stehen, damit sie
  * ohne neue Eingabe wieder aufgenommen werden kann.
+ *
+ * Optional meldet Etsy jede bezahlte oder stornierte Bestellung an /api/etsy/webhook (webhook.ts); der Signaturschlüssel
+ * dafür liegt ebenfalls in ciphertext.
  */
 
 export class EtsyError extends UserError {}
@@ -34,6 +37,11 @@ export const ETSY_SCOPES = "transactions_r shops_r";
 /** Rückleitung nach der Freigabe bei Etsy; muss in der Etsy-App als Redirect-URI eingetragen sein */
 export function etsyCallbackUrl(): string {
   return `${env().BETTER_AUTH_URL.replace(/\/+$/, "")}/api/etsy/callback`;
+}
+
+/** Empfangsadresse für die Webhooks von Etsy; gehört in der Etsy-App unter den Webhooks eingetragen */
+export function etsyWebhookUrl(): string {
+  return `${env().BETTER_AUTH_URL.replace(/\/+$/, "")}/api/etsy/webhook`;
 }
 
 /** Für Tests austauschbar: baut den API-Client */
@@ -52,6 +60,8 @@ interface EtsySecret {
   expiresAt?: number;
   /** Offene Anmeldung: state und PKCE-Verifier, bis Etsy zurückleitet */
   pending?: { state: string; verifier: string; ts: number };
+  /** Signaturschlüssel der Webhooks („whsec_…“ aus der Etsy-App); ohne ihn nimmt Haben keine Meldung an */
+  webhookSecret?: string;
 }
 
 async function loadRow() {
@@ -124,6 +134,8 @@ export const etsySettingsSchema = z.object({
   sammelzeilen: z.boolean().default(true),
   /** Wie oft der Zeitplan abruft */
   rhythmus: z.enum(ETSY_RHYTHMEN).default("taeglich"),
+  /** Signaturschlüssel der Webhooks; leer: den gespeicherten behalten */
+  webhookSecret: z.string().max(200).optional(),
 });
 
 /**
@@ -137,9 +149,12 @@ export async function saveEtsyConnection(actor: string, input: z.input<typeof et
   if (!sharedSecret) throw new EtsyError("Das gemeinsame Geheimnis der Etsy-App (shared secret) fehlt.");
   if (data.fetchFrom > today().slice(0, 7)) throw new EtsyError("Der erste Monat des Abrufs liegt in der Zukunft.");
   const gleicheApp = existing?.row.keystring === data.keystring;
-  await storeEtsySecret(actor, gleicheApp ? { ...existing!.secret, sharedSecret } : { sharedSecret }, {
+  const webhookSecret = data.webhookSecret?.trim() || (gleicheApp ? existing?.secret.webhookSecret : undefined);
+  const basis: EtsySecret = gleicheApp ? { ...existing!.secret, sharedSecret } : { sharedSecret };
+  await storeEtsySecret(actor, webhookSecret ? { ...basis, webhookSecret } : basis, {
     keystring: data.keystring,
     fetchFrom: `${data.fetchFrom}-01`,
+    abrufStart: `${data.fetchFrom}-01`,
     sammelzeilen: data.sammelzeilen,
     rhythmus: data.rhythmus,
     // Ein neuer Schlüssel gilt für eine andere App: Shop und Fehler gehören nicht mehr dazu
@@ -210,7 +225,8 @@ export async function completeEtsyConnection(
 export async function disconnectEtsyConnection(actor: string): Promise<void> {
   const connection = await loadEtsyConnection();
   if (!connection) return;
-  await storeEtsySecret(actor, { sharedSecret: connection.secret.sharedSecret }, { shopId: "", shopName: "", lastError: null });
+  const { sharedSecret, webhookSecret } = connection.secret;
+  await storeEtsySecret(actor, webhookSecret ? { sharedSecret, webhookSecret } : { sharedSecret }, { shopId: "", shopName: "", lastError: null });
 }
 
 /** Entfernt den Zugang ganz; importierte Umsätze bleiben im Konto stehen */
@@ -223,13 +239,17 @@ export async function etsySummary() {
   const connection = await loadEtsyConnection();
   return {
     callbackUrl: etsyCallbackUrl(),
+    webhookUrl: etsyWebhookUrl(),
+    webhookConfigured: Boolean(connection?.secret.webhookSecret),
     scopes: ETSY_SCOPES,
     configured: connection !== null,
     connected: Boolean(connection?.secret.refreshToken && connection.row.shopId),
     keystring: connection?.row.keystring ?? "",
     shopId: connection?.row.shopId ?? "",
     shopName: connection?.row.shopName ?? "",
-    fetchFrom: connection?.row.fetchFrom.slice(0, 7) ?? today().slice(0, 7),
+    // Die Wahl aus den Einstellungen, nicht der vorrückende Stand des Abrufs (der steht in naechsterAbrufAb)
+    fetchFrom: (connection?.row.abrufStart ?? connection?.row.fetchFrom)?.slice(0, 7) ?? today().slice(0, 7),
+    naechsterAbrufAb: connection?.row.fetchFrom ?? null,
     sammelzeilen: connection?.row.sammelzeilen ?? true,
     rhythmus: (connection?.row.rhythmus ?? "taeglich") as EtsyRhythmus,
     lastSyncAt: connection?.row.lastSyncAt ?? null,

@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { EtsyClient, EtsyLedgerEntry } from "@haben/import";
@@ -189,21 +190,21 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     const umsaetze = await sql`select purpose, amount, type from bank_transactions order by purpose`;
     expect(umsaetze.map((u) => u.purpose)).toEqual([
       "Auszahlung · Etsy 2023-06-20",
-      "Gebühr · Einstellgebühren 2023-06",
-      "Gebühr · Transaktionsgebühren 2023-06",
-      "Gebühr · Werbung 2023-06",
-      "Gebühr · Zahlungsabwicklung 2023-06",
+      "Gebühr · Einstellgebühren (Listing Fees) 2023-06",
+      "Gebühr · Offsite Ads (Offsite Ads Fees) 2023-06",
+      "Gebühr · Transaktionsgebühren (Transaction Fees) 2023-06",
+      "Gebühr · Zahlungsabwicklung (Processing Fees) 2023-06",
       `Verkauf · Etsy Bestellung ${BESTELLUNG_1}`,
-      `Verkauf · Etsy Bestellung ${BESTELLUNG_2}`,
+      `Verkauf · Etsy Bestellung ${BESTELLUNG_2} · Sales Tax 1,45 € von Etsy abgeführt`,
     ]);
     const summe = (name: string) => Number(umsaetze.find((u) => u.purpose === name)!.amount);
-    expect(summe("Gebühr · Einstellgebühren 2023-06")).toBe(-19);
-    expect(summe("Gebühr · Transaktionsgebühren 2023-06")).toBe(-143);
-    expect(summe("Gebühr · Zahlungsabwicklung 2023-06")).toBe(-118);
-    // Werbung: 374 Offsite Ads aus Juni; die 500 aus Juli bleiben für den nächsten Abruf liegen
-    expect(summe("Gebühr · Werbung 2023-06")).toBe(-374);
+    expect(summe("Gebühr · Einstellgebühren (Listing Fees) 2023-06")).toBe(-19);
+    expect(summe("Gebühr · Transaktionsgebühren (Transaction Fees) 2023-06")).toBe(-143);
+    expect(summe("Gebühr · Zahlungsabwicklung (Processing Fees) 2023-06")).toBe(-118);
+    // Offsite Ads aus Juni; die 5 € Etsy Ads aus Juli bleiben für den nächsten Abruf liegen
+    expect(summe("Gebühr · Offsite Ads (Offsite Ads Fees) 2023-06")).toBe(-374);
     // Verkauf mit dem Betrag der Rechnung: 24,95 € brutto ohne die 1,45 € Sales Tax, die Etsy abführt
-    expect(summe(`Verkauf · Etsy Bestellung ${BESTELLUNG_2}`)).toBe(2350);
+    expect(summe(`Verkauf · Etsy Bestellung ${BESTELLUNG_2} · Sales Tax 1,45 € von Etsy abgeführt`)).toBe(2350);
     expect(summe("Auszahlung · Etsy 2023-06-20")).toBe(-3490);
   });
 
@@ -245,6 +246,33 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     } finally {
       imAbruf = verlauf;
     }
+  });
+
+  it("plant nach einer signierten Meldung von Etsy einen Abruf und lehnt fremde Meldungen ab", async () => {
+    const schluessel = Buffer.from("erfundener-webhook-schluessel").toString("base64");
+    await etsy.saveEtsyConnection(actor, { keystring: "abc", fetchFrom: "2023-06", sammelzeilen: true, webhookSecret: `whsec_${schluessel}` });
+    expect(await etsy.etsySummary()).toMatchObject({ webhookConfigured: true, connected: true });
+    const jetzt = new Date();
+    const sekunden = String(Math.floor(jetzt.getTime() / 1000));
+    const melde = (rumpf: string, id = "msg_1", key = schluessel) =>
+      etsy.etsyWebhookEmpfangen(
+        rumpf,
+        { id, timestamp: sekunden, signature: `v1,${createHmac("sha256", Buffer.from(key, "base64")).update(`${id}.${sekunden}.${rumpf}`).digest("base64")}` },
+        { jetzt, verzoegerungMs: 0 },
+      );
+
+    expect((await melde('{"event_type":"order.paid","shop_id":35160089}', "msg_0", Buffer.from("fremd").toString("base64"))).status).toBe(401);
+    expect((await melde('{"event_type":"order.paid","shop_id":99}')).status).toBe(400);
+    expect((await melde('{"event_type":"order.shipped","shop_id":35160089}')).status).toBe(200);
+
+    const antwort = await melde('{"event_type":"order.paid","shop_id":35160089}');
+    expect(antwort.status).toBe(202);
+    await antwort.abruf;
+    // Der Abruf lief heute: Die Etsy Ads aus Juli 2023 sind jetzt gebündelt, der Juni blieb, wie er war
+    const [juli] = await sql`select count(*)::int as n from bank_transactions where purpose = 'Gebühr · Etsy Ads (Etsy Ads Fees) 2023-07'`;
+    expect(juli!.n).toBe(1);
+    const [juni] = await sql`select count(*)::int as n from bank_transactions where purpose like 'Gebühr · %2023-06'`;
+    expect(juni!.n).toBe(4);
   });
 
   it("trennt die Verbindung, ohne den Schlüssel zu verlieren", async () => {

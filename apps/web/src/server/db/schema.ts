@@ -3841,8 +3841,10 @@ export const etsyConnections = pgTable(
     shopName: text("shop_name").notNull().default(""),
     /** Gemeinsames Geheimnis, Token und die offene Anmeldung (state, PKCE-Verifier): AES-256-GCM */
     ciphertext: bytea("ciphertext").notNull(),
-    /** Erster Tag, den der Abruf noch holt */
+    /** Erster Tag, den der nächste Abruf holt (Stand des Abrufs, rückt mit jedem Lauf vor) */
     fetchFrom: date("fetch_from").notNull(),
+    /** Der in den Einstellungen gewählte erste Monat (1. des Monats); leer bei Zugängen von vor der Spalte */
+    abrufStart: date("abruf_start"),
     /** Gebühren und Werbung je Monat zu einer Zeile bündeln, wie die Gebührenrechnung sie zeigt */
     sammelzeilen: boolean("sammelzeilen").notNull().default(true),
     /** Wie oft der Zeitplan abruft: stuendlich, taeglich, woechentlich oder monatlich (ab dem 5.) */

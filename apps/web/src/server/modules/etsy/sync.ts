@@ -31,7 +31,21 @@ export interface EtsySyncResult {
   error: string | null;
 }
 
-export async function syncEtsy(actor: string, now = new Date()): Promise<EtsySyncResult> {
+let laufend: Promise<EtsySyncResult> | null = null;
+
+/**
+ * Ein Abruf zur Zeit: Zeitplan, Webhook und „Jetzt abrufen“ können zusammenfallen. Läuft schon einer, bekommt der zweite
+ * dessen Ergebnis, statt dieselben Zeilen gleichzeitig anzulegen.
+ */
+export function syncEtsy(actor: string, now = new Date()): Promise<EtsySyncResult> {
+  if (laufend) return laufend;
+  laufend = syncEtsyEinmal(actor, now).finally(() => {
+    laufend = null;
+  });
+  return laufend;
+}
+
+async function syncEtsyEinmal(actor: string, now: Date): Promise<EtsySyncResult> {
   const connection = await loadEtsyConnection();
   if (!connection) throw new EtsyError("Der Etsy-Zugang ist nicht eingerichtet (Einstellungen › Bank).");
   if (!connection.secret.refreshToken || !connection.row.shopId) {
@@ -65,7 +79,7 @@ export async function syncEtsy(actor: string, now = new Date()): Promise<EtsySyn
         .map((entry) => String(entry.reference_id ?? "")),
     );
     const bestellungen = [...new Set([...neueZahlungen].map((id) => orders.get(id)).filter((id): id is string => Boolean(id)))];
-    const laender = bestellungen.length > 0 ? await client.countriesFor(bestellungen) : new Map<string, string>();
+    const laender = bestellungen.length > 0 ? await client.countriesFor(bestellungen, { from: Math.max(von, seit), to: bis }) : new Map<string, string>();
     const gebuehrenBis = gebuehrenBisAm(todayInGermany(now));
     const imported: EtsyImportResult = await importEtsyLedger(actor, entries, {
       orderFor: (referenceId) => orders.get(referenceId),

@@ -24,8 +24,11 @@ import type { ParsedStatement } from "./types.ts";
  *   Gebühr. Wie beim CSV-Import wird sie mit dem Verkauf bzw. der Erstattung derselben Bestellung am selben Tag verrechnet
  *   (settleTax), damit der Verkauf mit dem Betrag der Rechnung ankommt. Ohne genau einen solchen Partner bleibt sie mit
  *   Bestellnummer einzeln stehen.
- * - Gebühren und Werbung je Monat zu je einer Zeile gebündelt, am letzten Tag des Monats, mit dem Wort „Gebühr“ am
- *   Anfang, damit der Bankabgleich sie der Sammelrechnung zuordnen kann.
+ *   Im Zweck des Verkaufs steht dann, welche Steuer Etsy abgeführt hat.
+ * - Gebühren und Werbung je Monat und Art zu je einer Zeile gebündelt, am letzten Tag des Monats: dieselben Arten wie die
+ *   Positionen der Gebührenrechnung (Listing, Renew Expired, Renew Sold, Transaction, Processing, Etsy Ads, Offsite Ads),
+ *   Gutschriften jeweils in ihrer Art. Jede Zeile beginnt mit „Gebühr“, damit der Bankabgleich sie der Sammelrechnung
+ *   zuordnen kann.
  * - Auszahlung (DISBURSE2) als eigener Umsatz: Geldtransit, kein Erlös.
  * - Karteneinzug (billing_payment) und Verrechnung (RECOUP) bleiben einzeln und werden nicht zu Gebühren gerechnet.
  *
@@ -58,9 +61,12 @@ type Kind =
   | "erstattung"
   | "steuer"
   | "einstellgebuehr"
+  | "verlaengerung"
+  | "verkaufsverlaengerung"
   | "transaktionsgebuehr"
   | "zahlungsgebuehr"
-  | "werbung"
+  | "etsyads"
+  | "offsiteads"
   | "auszahlung"
   | "karteneinzug"
   | "verrechnung";
@@ -72,33 +78,50 @@ const KINDS: Record<string, Kind> = {
   sales_tax: "steuer",
   sales_tax_refund: "steuer",
   listing: "einstellgebuehr",
-  renew_expired: "einstellgebuehr",
-  auto_renew_expired: "einstellgebuehr",
-  renew_sold_auto: "einstellgebuehr",
   listing_refund: "einstellgebuehr",
-  renew_sold_auto_refund: "einstellgebuehr",
   transaction_quantity: "einstellgebuehr",
+  renew_expired: "verlaengerung",
+  auto_renew_expired: "verlaengerung",
+  renew_sold_auto: "verkaufsverlaengerung",
+  renew_sold_auto_refund: "verkaufsverlaengerung",
   transaction: "transaktionsgebuehr",
   transaction_refund: "transaktionsgebuehr",
   shipping_transaction: "transaktionsgebuehr",
   shipping_transaction_refund: "transaktionsgebuehr",
   PAYMENT_PROCESSING_FEE: "zahlungsgebuehr",
   REFUND_PROCESSING_FEE: "zahlungsgebuehr",
-  prolist: "werbung",
-  offsite_ads_fee: "werbung",
+  prolist: "etsyads",
+  offsite_ads_fee: "offsiteads",
   DISBURSE2: "auszahlung",
   billing_payment: "karteneinzug",
   RECOUP: "verrechnung",
 };
 
-/** Bezeichnung der Sammelzeile je Art; Gebühren und Werbung beginnen mit „Gebühr“ (Zuordnung zur Sammelrechnung) */
+/**
+ * Bezeichnung der Sammelzeile je Art, in der Reihenfolge und mit den Namen der Rechnungspositionen (in Klammern).
+ * Gebühren und Werbung beginnen mit „Gebühr“ (Zuordnung zur Sammelrechnung); Werbung bleibt als Art „Werbung“ wie beim
+ * CSV-Import.
+ */
 const BUCKETS: Partial<Record<Kind, { purpose: string; type: string; prefix: string; reference: string }>> = {
-  einstellgebuehr: { purpose: "Einstellgebühren", type: "Gebühr", prefix: "Gebühr", reference: "einstellgebuehren" },
-  transaktionsgebuehr: { purpose: "Transaktionsgebühren", type: "Gebühr", prefix: "Gebühr", reference: "transaktionsgebuehren" },
-  zahlungsgebuehr: { purpose: "Zahlungsabwicklung", type: "Gebühr", prefix: "Gebühr", reference: "zahlungsgebuehren" },
-  // Werbung steht auf der Gebührenrechnung, bleibt aber als Art „Werbung“ wie beim CSV-Import
-  werbung: { purpose: "Werbung", type: "Werbung", prefix: "Gebühr", reference: "werbung" },
+  einstellgebuehr: { purpose: "Einstellgebühren (Listing Fees)", type: "Gebühr", prefix: "Gebühr", reference: "einstellgebuehren" },
+  verlaengerung: { purpose: "Verlängerungen (Renew Expired Fees)", type: "Gebühr", prefix: "Gebühr", reference: "verlaengerungen" },
+  verkaufsverlaengerung: { purpose: "Verlängerungen nach Verkauf (Renew Sold Fees)", type: "Gebühr", prefix: "Gebühr", reference: "verkaufsverlaengerungen" },
+  transaktionsgebuehr: { purpose: "Transaktionsgebühren (Transaction Fees)", type: "Gebühr", prefix: "Gebühr", reference: "transaktionsgebuehren" },
+  zahlungsgebuehr: { purpose: "Zahlungsabwicklung (Processing Fees)", type: "Gebühr", prefix: "Gebühr", reference: "zahlungsgebuehren" },
+  etsyads: { purpose: "Etsy Ads (Etsy Ads Fees)", type: "Werbung", prefix: "Gebühr", reference: "etsyads" },
+  offsiteads: { purpose: "Offsite Ads (Offsite Ads Fees)", type: "Werbung", prefix: "Gebühr", reference: "offsiteads" },
 };
+
+/** Betrag in Euro für den Zweck, aus ganzen Cent ohne Gleitkomma */
+function euro(cent: number): string {
+  const betrag = Math.abs(cent);
+  return `${Math.floor(betrag / 100)},${String(betrag % 100).padStart(2, "0")} €`;
+}
+
+/** Zweck eines Verkaufs oder einer Erstattung, mit der die Steuer des Käufers verrechnet ist */
+function mitSteuer(tx: Tx, steuer: number): string {
+  return `${tx.purpose} · Sales Tax ${euro(steuer)} von Etsy abgeführt`;
+}
 
 /** Kennung einer Sammelzeile (Art und Monat), wie sie hinter „etsy-“ in der Bankreferenz steht */
 export function etsySammelKennung(reference: string, monat: string): string {
@@ -109,7 +132,7 @@ export interface EtsyLedgerOptions {
   /** Bestellnummer zur Zahlungs- oder Erstattungsnummer (Payments-Abruf); fehlt sie, steht die Referenz im Zweck */
   orderFor?: (referenceId: string) => string | undefined;
   /**
-   * Gebühren und Werbung je Monat zu einer Zeile bündeln (Vorgabe). Aus schaltet das ab: dann bleibt jede Zeile des
+   * Gebühren und Werbung je Monat und Art zu einer Zeile bündeln (Vorgabe). Aus schaltet das ab: dann bleibt jede Zeile des
    * Verlaufs ein eigener Umsatz, wie in der CSV-Datei von Etsy.
    */
   sammelzeilen?: boolean;
@@ -175,7 +198,8 @@ function typeOf(kind: Kind): string {
       return "Karteneinzug";
     case "verrechnung":
       return "Verrechnung";
-    case "werbung":
+    case "etsyads":
+    case "offsiteads":
       return "Werbung";
     case "steuer":
       return "Umsatzsteuer";
@@ -263,7 +287,7 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
       }
     });
 
-  const settled = settleTax(list, orders);
+  const settled = settleTax(list, orders, mitSteuer);
   for (const b of gebuendelt.values()) {
     settled.list.push({
       bookingDate: monatsende(b.monat),
