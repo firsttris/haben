@@ -510,6 +510,9 @@ function neutralKindOf(v: { privat: boolean; categories: LegacyCategoryRow[]; ta
   return legacyNeutralKind({ privat: v.privat, categories: v.categories.map((c) => c.name), tax: Number(v.tax) }, rechtsform);
 }
 
+/** Belege nur als Archiv (Suche, Datei): Summen und Umsatzsteuer ihrer Jahre kommen aus dem DATEV-Buchungsstapel */
+const ARCHIVE_ONLY_SOURCES = new Set<LegacySource>(["buchhaltungsbutler", "sevdesk-export"]);
+
 export type ReconciliationCheck = { ok: boolean; label: string; detail: string };
 
 /** Abgleich je Geschäftsjahr: Was liegt vor, was fehlt noch vor der Kündigung? */
@@ -547,8 +550,9 @@ export async function reconciliation() {
   // Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen; sie stehen je Jahr getrennt (neutral)
   const classified = voucherRows.map((v) => ({ ...v, neutral: neutralKindOf(v, company.rechtsform) ?? (v.bbNeutral ? ("geldtransit" as const) : null) }));
   // BuchhaltungsButler-Belege nur als Archiv (Suche, PDF): Einnahme, Ausgabe oder neutral ließe sich aus den Konten nur
-  // schätzen. Summen und Steuer kommen für diese Jahre aus dem DATEV-Buchungsstapel desselben Exports.
-  const figures = classified.filter((v) => v.source !== "buchhaltungsbutler");
+  // schätzen. Summen und Steuer kommen für diese Jahre aus dem DATEV-Buchungsstapel desselben Exports. Ebenso die Belege aus
+  // der Export-ZIP von sevDesk: Darlehen, Privates, Steuern und Zinsen stehen dort als Beleg ohne Kategorie (#1105).
+  const figures = classified.filter((v) => !ARCHIVE_ONLY_SOURCES.has(v.source));
   const businessRows = figures.filter((v) => !v.neutral);
   // Ohne Einzelzahlungen können selbst bereits vollständig bezahlte sevDesk-Rechnungen mehrere Monate betreffen.
   // Gesperrt ist jedes Jahr, in das eine solche Zahlung fallen kann: bis zum Ausgleich, ohne Ausgleichsdatum alle.
@@ -593,6 +597,12 @@ export async function reconciliation() {
     .from(schema.lexofficeImports)
     .where(eq(schema.lexofficeImports.source, "buchhaltungsbutler"));
   const bbFileIds = new Set(bbImports.flatMap((i) => i.progress.datevFileIds ?? []));
+  // Ebenso die Stapel aus der Export-ZIP von sevDesk; in Jahren mit Belegen aus der API zählen diese (keine Doppelung)
+  const sevExportImports = await db
+    .select({ progress: schema.lexofficeImports.progress })
+    .from(schema.lexofficeImports)
+    .where(eq(schema.lexofficeImports.source, "sevdesk-export"));
+  const sevExportFileIds = new Set(sevExportImports.flatMap((i) => i.progress.sevdeskExport?.stackFileIds ?? []));
 
   // Ausgaben aus FastBill, die noch auf ihren Beleg warten, liegen nicht in lexoffice_vouchers: sonst sähe ein Jahr vollständig aus
   const fastbillWaiting = await fastbillWaitingByYear();
@@ -614,8 +624,10 @@ export async function reconciliation() {
       // Buchungsstapel. Ohne diese Ausnahme blieben die Einnahmen bei 0, obwohl die Buchung da ist.
       const yearEinnahmeBelege = vouchers.some((v) => v.direction === "einnahme" && v.date.startsWith(`${year}-`));
       const fromDatev = (vouchers.length === 0 || !yearEinnahmeBelege) && yearDatev.length > 0 ? datevYearSums(yearDatev, company.kontenrahmen) : null;
-      // Mischjahr (Wechsel unter dem Jahr): Belege aus Lexoffice oder sevDesk, dazu der BuchhaltungsButler-Teil aus dessen Stapel
-      const bbDatev = yearDatev.filter((b) => b.fileId !== null && bbFileIds.has(b.fileId));
+      // Mischjahr (Wechsel unter dem Jahr): Belege aus Lexoffice oder sevDesk, dazu der Teil aus dem Stapel von BuchhaltungsButler
+      // oder aus der Export-ZIP von sevDesk
+      const sevApiYear = yearRows.some((v) => v.source === "sevdesk");
+      const bbDatev = yearDatev.filter((b) => b.fileId !== null && (bbFileIds.has(b.fileId) || (!sevApiYear && sevExportFileIds.has(b.fileId))));
       const bbPart = !fromDatev && bbDatev.length > 0 ? datevYearSums(bbDatev, company.kontenrahmen) : null;
       const sum = (direction: "einnahme" | "ausgabe") => {
         const pick = (sums: NonNullable<typeof fromDatev>) => (direction === "einnahme" ? sums.einnahmen : sums.ausgaben);
@@ -847,8 +859,8 @@ export async function legacyVouchersForPeriod(filter: {
               )})))`
           : sql``
       })
-      -- BuchhaltungsButler-Belege gehen nicht in die Umsatzsteuer ein, wie im Abgleich (Summen aus dem DATEV-Stapel)
-      and v.source <> 'buchhaltungsbutler'
+      -- Belege aus BuchhaltungsButler und der Export-ZIP von sevDesk gehen nicht in die Umsatzsteuer ein, wie im Abgleich (Summen aus dem DATEV-Stapel)
+      and v.source not in ('buchhaltungsbutler', 'sevdesk-export')
       ${filter.direction === "alle" ? sql`` : sql`and ${effectiveDirection("v")} = ${filter.direction}`}
       ${term ? sql`and (v.number ilike ${term} or ${effectiveContactName("v")} ilike ${term} or v.remark ilike ${term})` : sql``}
     order by v.date, v.number`);

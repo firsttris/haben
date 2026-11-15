@@ -195,4 +195,26 @@ describe("openFilingPeriod", () => {
     const abgegeben = [5, 7, 8, 9, 10].map((month) => ({ year: 2026, month }));
     expect(openFilingPeriod(monatlich, { year: 2026, month: 11 }, abgegeben)).toEqual({ year: 2026, month: 6 });
   });
+
+  it("Rückstand über zwölf Monate: der älteste offene ab der ersten Abgabe, nicht der älteste der letzten zwölf Monate", () => {
+    // Abgegeben Januar 2024 bis Juni 2025, danach nichts; der Rückstand verjährt nicht nach einem Jahr (§ 18 Abs. 1 UStG)
+    const monatlich: VatFrequencySetting[] = [{ year: 2024, fromMonth: 1, frequency: "monatlich" }];
+    const abgegeben = [2024, 2025].flatMap((year) => Array.from({ length: year === 2024 ? 12 : 6 }, (_, i) => ({ year, month: i + 1 })));
+    expect(openFilingPeriod(monatlich, { year: 2026, month: 11 }, abgegeben)).toEqual({ year: 2025, month: 7 });
+  });
+
+  it("Rückstand über mehrere Jahre mit Wechsel monatlich, vierteljährlich, befreit, monatlich: Zeiträume je Einstellung", () => {
+    const wechsel: VatFrequencySetting[] = [
+      { year: 2024, fromMonth: 1, frequency: "monatlich" },
+      { year: 2025, fromMonth: 1, frequency: "vierteljaehrlich" },
+      { year: 2026, fromMonth: 1, frequency: "keine" },
+      { year: 2027, fromMonth: 4, frequency: "monatlich" },
+    ];
+    const jahr2024 = Array.from({ length: 12 }, (_, i) => ({ year: 2024, month: i + 1 }));
+    const today = { year: 2027, month: 8 };
+    expect(openFilingPeriod(wechsel, today, [...jahr2024, { year: 2025, month: 41 }])).toEqual({ year: 2025, month: 42 });
+    const bis2025 = [...jahr2024, ...[41, 42, 43, 44].map((month) => ({ year: 2025, month }))];
+    expect(openFilingPeriod(wechsel, today, bis2025)).toEqual({ year: 2027, month: 4 });
+    expect(openFilingPeriod(wechsel, today, [...bis2025, ...[4, 5, 6, 7].map((month) => ({ year: 2027, month }))])).toBeNull();
+  });
 });

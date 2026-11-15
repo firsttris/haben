@@ -33,6 +33,7 @@ import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
 import { SevdeskAssets } from "./SevdeskAssets.tsx";
 import { WisoImport } from "./WisoImport.tsx";
+import { SevdeskExportImport } from "./SevdeskExportImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
 import { FastbillArticles, FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
@@ -121,7 +122,7 @@ export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready) && data.orderArchive.withoutPdf === 0;
   const [source, setSource] = useState<Source>(() => {
     if (data.connection || data.lastImport) return "lexoffice";
-    if (data.sevdeskConnection || data.sevdeskImport) return "sevdesk";
+    if (data.sevdeskConnection || data.sevdeskImport || data.sevdeskExportImport) return "sevdesk";
     if (data.fastbillConnection || data.fastbillImport) return "fastbill";
     if (data.accountableImport) return "accountable";
     if (data.bbImport) return "buchhaltungsbutler";
@@ -213,6 +214,7 @@ export function Migration({ data }: { data: MigrationData }) {
             connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : source === "fastbill" ? data.fastbillConnection : data.connection)}
             initial={lastImport}
           />
+          {source === "sevdesk" && <SevdeskExportImport key={`sevdesk-export-${data.sevdeskExportImport?.id ?? "neu"}`} initial={data.sevdeskExportImport} />}
           {source === "fastbill" && <FastbillReceipts receipts={data.fastbillReceipts} running={data.fastbillImport?.status === "laeuft"} />}
           {source === "fastbill" && data.fastbillConnection && <FastbillArticles />}
         </>
@@ -224,6 +226,7 @@ export function Migration({ data }: { data: MigrationData }) {
         imported={Boolean(
           data.lastImport ||
             data.sevdeskImport ||
+            data.sevdeskExportImport ||
             data.fastbillImport ||
             data.accountableImport ||
             data.bbImport ||

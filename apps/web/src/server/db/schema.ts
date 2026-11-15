@@ -2999,7 +2999,8 @@ export const fastbillReceipts = pgTable("fastbill_receipts", {
 });
 
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import", "fastbill"] as const;
+/** `sevdesk-export`: Belege aus der Export-ZIP „Buchungsdaten & Belegbilder“ von sevDesk, ohne API-Antwort in `raw` */
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import", "fastbill", "sevdesk-export"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 /**
@@ -3027,6 +3028,38 @@ export type AccountableProgress = {
   note?: string;
 };
 
+/** Analyse und Ergebnis eines Laufs mit der Export-ZIP von sevDesk (sevdesk-export.ts); wie AccountableProgress nur serialisierbare Felder */
+export type SevdeskExportProgress = {
+  filename: string;
+  size: number;
+  /** Jahre der Belege im Export */
+  years: number[];
+  bookings: number;
+  vouchers: number;
+  /** mit Beleglink und Datei */
+  withFile: number;
+  /** mit Beleglink, die Datei fehlt im Export */
+  missingFile: number;
+  /** Belegdaten ohne Beleglink: Beleg „ohne Belegbild im Export“ */
+  withoutImage: number;
+  /** weder Erlös- noch Aufwandskonto (Darlehen, Privat, Zinsen, Steuern, Anlagen) */
+  otherAccounts: number;
+  /** Jahre mit Belegen aus der API; dort legt der Export keine Belege an */
+  apiYears: number[];
+  /** Belege in diesen Jahren */
+  inApiYears: number;
+  /** ZIP liegt schon im Archiv (gleiche Prüfsumme) */
+  zipArchived: boolean;
+  /** Stapel des Exports: schon im Archiv (gleiche Prüfsumme), Zeitraum schon von einem anderen Stapel belegt, oder neu */
+  stacks: { name: string; from: string; to: string; state: "neu" | "vorhanden" | "zeitraum"; other?: string }[];
+  /** Hinweise des Lesers, gekürzt; hintCount bleibt vollständig */
+  hints: string[];
+  hintCount: number;
+  archivedFileId?: string;
+  stackFileIds?: string[];
+  note?: string;
+};
+
 export type LexofficeImportProgress = {
   phase: "kontakte" | "liste" | "belege" | "fertig";
   contacts: number;
@@ -3042,6 +3075,8 @@ export type LexofficeImportProgress = {
   datevFileIds?: string[];
   /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */
   accountable?: AccountableProgress;
+  /** sevDesk ohne API: Analyse der Export-ZIP und Ergebnis; nur beim Lauf mit der Export-ZIP gesetzt */
+  sevdeskExport?: SevdeskExportProgress;
   /** FastBill: Startzeiten der API-Aufrufe der letzten Stunde (ms), damit ein neuer Lauf die Stundengrenze einhält */
   fastbillCalls?: number[];
   /** FastBill: wartet wegen der Stundengrenze bis zu diesem Zeitpunkt (ISO) */
