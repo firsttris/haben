@@ -32,7 +32,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
   beforeEach(async () => {
     await leeren(
       sql,
-    )`truncate bank_private_marks, allocations, journal_lines, journal_entries, bank_transactions, bank_imports, bank_accounts, company cascade`;
+    )`truncate bank_private_marks, bank_neutralizations, allocations, journal_lines, journal_entries, bank_transactions, bank_imports, bank_accounts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', 'SKR03', 'ist')`;
   });
@@ -139,5 +139,31 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
     await expect(
       verrechnung.neutralizeTransactions(actor, { transactionId: ueberweisung, counterTransactionId: erstattung, note: "hebt sich auf" }),
     ).rejects.toThrow();
+  });
+
+  // Ein Umsatz, dessen Zuordnung aufgehoben wurde, ist wieder ganz offen (bankOpenAmountSql) und muss sich
+  // kennzeichnen lassen; das gilt ebenso nach einer aufgehobenen Verrechnung (privat.ts, `hindernis`).
+  it("kennzeichnet einen Umsatz, dessen Zuordnung aufgehoben wurde", async () => {
+    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const id = await umsatz(privatKonto, "2026-11-11", 119_00, "Kunde zahlt auf Privatkonto");
+    await bank.allocate(actor, { kind: "kategorie", transactionId: id, amount: 119_00, kategorie: { kategorie: "erloese", steuersatz: 1900 } });
+    const [al] = await sql`select id from allocations where transaction_id = ${id} and reverses_id is null`;
+    await bank.reverseAllocation(actor, (al as { id: string }).id, "2026-11-12");
+    expect((await bank.listAccounts()).find((a) => a.id === privatKonto)?.openCount).toBe(1);
+
+    await privat.markierePrivat(actor, id);
+    expect((await bank.listAccounts()).find((a) => a.id === privatKonto)?.openCount).toBe(0);
+  });
+
+  it("kennzeichnet einen Umsatz, dessen Verrechnung aufgehoben wurde", async () => {
+    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const a = await umsatz(privatKonto, "2026-11-11", 250_00);
+    const b = await umsatz(privatKonto, "2026-11-12", -250_00, "Übertrag");
+    await verrechnung.neutralizeTransactions(actor, { transactionId: a, counterTransactionId: b, note: "hebt sich auf" });
+    const [n] = await sql`select id from bank_neutralizations where reverses_id is null`;
+    await verrechnung.reverseNeutralization(actor, (n as { id: string }).id);
+
+    await privat.markierePrivat(actor, a);
+    expect((await bank.listAccounts()).find((x) => x.id === privatKonto)?.openCount).toBe(1);
   });
 });
