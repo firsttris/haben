@@ -76,6 +76,8 @@ export async function importSevdeskArticles(actor: string, client: SevdeskClient
   const own = await ownUnits();
   const ignored = new Map<string, number>();
   for (const raw of parts) {
+    // Das Speichern ruft die API nicht auf; ohne diese Prüfung liefe die Schleife nach „Abbrechen“ bis zum Ende
+    signal.throwIfAborted();
     const id = String(raw.id);
     if (done.has(id)) {
       stats.known += 1;
