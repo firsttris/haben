@@ -1,6 +1,7 @@
 import { lexDate } from "../lexoffice/map.ts";
 import { mapSevVoucher, sevNumber } from "./map.ts";
 import type { SevVoucher, SevVoucherPos } from "./types.ts";
+import { sevIntervalMonths } from "./vorlagen.ts";
 
 /*
  * Vorlage wiederkehrender Belege aus sevDesk (Voucher mit voucherType RV) als Dauerbeleg von Haben (#472). Die Bedeutung der
@@ -35,13 +36,6 @@ export type SevDauerbelegErgebnis = { ok: true; dauerbeleg: SevDauerbeleg; hinwe
 
 const INTERVALLE = new Set([1, 3, 6, 12]);
 const SAETZE = new Set([1900, 700, 0]);
-
-/** P0Y1M → 1, P1Y → 12; null bei Wochen, Tagen oder unlesbarem Wert */
-export function sevIntervalMonths(iso: string | null | undefined): number | null {
-  const m = /^P(?:(\d+)Y)?(?:(\d+)M)?$/.exec((iso ?? "").trim());
-  if (!m || (m[1] === undefined && m[2] === undefined)) return null;
-  return Number(m[1] ?? 0) * 12 + Number(m[2] ?? 0);
-}
 
 const deutsch = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 

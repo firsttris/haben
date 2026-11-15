@@ -1,28 +1,12 @@
 import { describe, expect, it } from "vitest";
 import vorlagen from "../../test-fixtures/sevdesk/buchhaltung-1.0/beleg-wiederkehrend-rv.json";
-import { mapSevRecurringVoucher, sevIntervalMonths } from "./dauerbeleg.ts";
+import { mapSevRecurringVoucher } from "./dauerbeleg.ts";
 import type { SevVoucher, SevVoucherPos } from "./types.ts";
 
 /* #472: Vorlagen wiederkehrender Belege (RV) aus sevDesk als Dauerbelege, angehalten bis zur Prüfung. */
 
 const [ohneTermin, mitTermin, mitEnde] = vorlagen as unknown as { voucher: SevVoucher; positions: SevVoucherPos[] }[];
 const HEUTE = "2024-06-01";
-
-describe("sevIntervalMonths", () => {
-  it.each([
-    ["P0Y1M", 1],
-    ["P0Y3M", 3],
-    ["P0Y6M", 6],
-    ["P1Y", 12],
-    ["P1Y0M", 12],
-    ["P0Y0M1W", null],
-    ["P14D", null],
-    ["", null],
-    [null, null],
-  ])("%s → %s", (iso, months) => {
-    expect(sevIntervalMonths(iso)).toBe(months);
-  });
-});
 
 describe("mapSevRecurringVoucher", () => {
   it("übernimmt Status 100 mit nächstem Termin angehalten, Betrag aus dem Kopf, ohne Datei mit Hinweis", () => {
