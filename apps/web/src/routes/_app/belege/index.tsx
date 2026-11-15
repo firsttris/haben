@@ -12,12 +12,7 @@ import { inCentRange, parseEuroSearchRange } from "@haben/core";
 import { getDocuments } from "../../../server/functions/documents.ts";
 
 export const Route = createFileRoute("/_app/belege/")({
-  validateSearch: z.object({
-    suche: z.optional(z.string()),
-    /** Spaltenkopf sortiert; der Zustand steht im Link, damit er sich teilen lässt (#1112) */
-    sort: z.optional(z.enum(["datum", "lieferant", "kategorie", "brutto", "status"])),
-    dir: z.optional(z.enum(["auf", "ab"])),
-  }),
+  validateSearch: z.object({ suche: z.optional(z.string()) }),
   loader: () => getDocuments(),
   head: () => ({ meta: [{ title: "Belege · Haben" }] }),
   component: DocumentsPage,
@@ -41,38 +36,6 @@ function DocumentsPage() {
           (range !== null && inCentRange(range, doc.gross)),
       )
     : documents;
-  // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#1112)
-  const { sort = "datum", dir = "ab" } = Route.useSearch();
-  const richtung = dir === "auf" ? 1 : -1;
-  const sorted = [...shown].sort((a, b) => {
-    switch (sort) {
-      case "lieferant":
-        return richtung * (a.supplierName ?? a.filename).localeCompare(b.supplierName ?? b.filename, "de");
-      case "kategorie":
-        return richtung * (a.category ?? "").localeCompare(b.category ?? "", "de");
-      case "brutto":
-        return richtung * (a.gross - b.gross);
-      case "status":
-        return richtung * a.status.localeCompare(b.status);
-      default:
-        return richtung * (a.documentDate ?? "").localeCompare(b.documentDate ?? "");
-    }
-  });
-  const kopf = (feld: "datum" | "lieferant" | "kategorie" | "brutto" | "status", text: string, klasse = "sort-head") => {
-    const aktiv = sort === feld;
-    const naechste: "auf" | "ab" = aktiv && dir === "ab" ? "auf" : "ab";
-    return (
-      <Link
-        to="/belege"
-        search={(prev: Record<string, unknown>) => ({ ...prev, sort: feld, dir: naechste }) as { sort: typeof feld; dir: "auf" | "ab" }}
-        className={aktiv ? `${klasse} aktiv` : klasse}
-        aria-label={`${text} ${naechste === "ab" ? "absteigend" : "aufsteigend"} sortieren`}
-      >
-        {text}
-        {aktiv ? (dir === "ab" ? " \u2193" : " \u2191") : ""}
-      </Link>
-    );
-  };
   const running = documents.some((d) => d.extractionStatus === "laeuft");
   const open = documents.filter((d) => d.status === "neu").length;
 
@@ -149,13 +112,13 @@ function DocumentsPage() {
         ) : (
           <div className="table">
             <div className="table-row head document-cols">
-              {kopf("datum", "Datum")}
-              {kopf("lieferant", "Lieferant")}
-              {kopf("kategorie", "Kategorie")}
-              {kopf("brutto", "Brutto", "sort-head num")}
-              {kopf("status", "Status")}
+              <div>Datum</div>
+              <div>Lieferant</div>
+              <div>Kategorie</div>
+              <div className="num">Brutto</div>
+              <div>Status</div>
             </div>
-            {sorted.map((doc) => (
+            {shown.map((doc) => (
               <Link key={doc.id} to="/belege/$id" params={{ id: doc.id }} className="table-row document-cols">
                 <div className="muted small">{doc.documentDate ? formatDate(doc.documentDate) : "–"}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>

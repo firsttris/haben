@@ -7,14 +7,7 @@ import { Field } from "../../../components/Field.tsx";
 import { Tag } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/kontakte/")({
-  validateSearch: z.object({
-    archiv: z.optional(z.boolean()),
-    rolle: z.optional(z.enum(["kunde", "lieferant"])),
-    suche: z.optional(z.string()),
-    /** Spaltenkopf sortiert; der Zustand steht im Link, damit er sich teilen lässt (#1112) */
-    sort: z.optional(z.enum(["name", "email", "ort", "format"])),
-    dir: z.optional(z.enum(["auf", "ab"])),
-  }),
+  validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])), suche: z.optional(z.string()) }),
   loaderDeps: ({ search }) => ({ archived: search.archiv ?? false, role: search.rolle, query: search.suche?.trim().slice(0, 100) }),
   loader: async ({ deps }) => {
     const filters = { archived: deps.archived, ...(deps.role ? { role: deps.role } : {}) };
@@ -48,36 +41,6 @@ function ContactsPage() {
       : needle
         ? contacts.filter((c) => [c.name, c.kundennummer, c.lieferantennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
         : contacts;
-  // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#1112)
-  const { sort = "name", dir = "auf" } = Route.useSearch();
-  const richtung = dir === "auf" ? 1 : -1;
-  const sorted = [...shown].sort((a, b) => {
-    switch (sort) {
-      case "email":
-        return richtung * (a.email ?? "").localeCompare(b.email ?? "", "de");
-      case "ort":
-        return richtung * [a.plz, a.ort].filter(Boolean).join(" ").localeCompare([b.plz, b.ort].filter(Boolean).join(" "), "de");
-      case "format":
-        return richtung * (a.defaultFormat ?? "").localeCompare(b.defaultFormat ?? "");
-      default:
-        return richtung * a.name.localeCompare(b.name, "de");
-    }
-  });
-  const kopf = (feld: "name" | "email" | "ort" | "format", text: string) => {
-    const aktiv = sort === feld;
-    const naechste: "auf" | "ab" = aktiv && dir === "auf" ? "ab" : "auf";
-    return (
-      <Link
-        to="/kontakte"
-        search={(prev: Record<string, unknown>) => ({ ...prev, sort: feld, dir: naechste }) as { sort: typeof feld; dir: "auf" | "ab" }}
-        className={aktiv ? "sort-head aktiv" : "sort-head"}
-        aria-label={`${text} ${naechste === "auf" ? "aufsteigend" : "absteigend"} sortieren`}
-      >
-        {text}
-        {aktiv ? (dir === "auf" ? " \u2191" : " \u2193") : ""}
-      </Link>
-    );
-  };
   return (
     <>
       <div className="page-head">
@@ -135,12 +98,12 @@ function ContactsPage() {
         ) : (
           <div className="table">
             <div className="table-row head contact-cols">
-              {kopf("name", "Name")}
-              {kopf("email", "E-Mail")}
-              {kopf("ort", "Ort")}
-              {kopf("format", "Rechnungsformat")}
+              <div>Name</div>
+              <div>E-Mail</div>
+              <div>Ort</div>
+              <div>Rechnungsformat</div>
             </div>
-            {sorted.map((contact) => (
+            {shown.map((contact) => (
               <Link key={contact.id} to="/kontakte/$id" params={{ id: contact.id }} className="table-row contact-cols">
                 <div style={{ minWidth: 0 }}>
                   <span className="row-title">{contact.name}</span>{" "}

@@ -564,7 +564,9 @@ export async function openPositionsImJahr(jahr: number): Promise<JahresPosten> {
   const imJahr = (posten: OpenPosition[]) => posten.filter((p) => p.date.slice(0, 4) === String(jahr));
   const forderungen = imJahr(alle.receivables);
   const verbindlichkeiten = imJahr(alle.payables);
-  const altlasten = [...alle.receivables, ...alle.payables].filter((p) => p.date.slice(0, 4) !== String(jahr));
+  // Altlasten sind Posten aus früheren Jahren; ein Posten aus einem späteren Jahr ist keine Last des Abschlusses
+  const frueher = (p: OpenPosition) => Number(p.date.slice(0, 4)) < jahr;
+  const altlasten = [...alle.receivables, ...alle.payables].filter(frueher);
   return {
     jahr,
     forderungen,
@@ -574,7 +576,7 @@ export async function openPositionsImJahr(jahr: number): Promise<JahresPosten> {
     altlasten,
     // Überfällig am Jahresende: Fälligkeit vor dem Stichtag und noch offen. Die Overdue-Felder der Übersicht sind
     // Summen in Cent, deshalb zählen hier die Posten selbst.
-    ueberfaellig: [...alle.receivables, ...alle.payables].filter((p) => p.date.slice(0, 4) !== String(jahr) && p.daysOverdue > 0).length,
+    ueberfaellig: [...alle.receivables, ...alle.payables].filter((p) => frueher(p) && p.daysOverdue > 0).length,
   };
 }
 
