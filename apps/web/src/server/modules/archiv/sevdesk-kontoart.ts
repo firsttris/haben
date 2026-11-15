@@ -53,7 +53,7 @@ function isAccountingTypeNote(alias: string): string {
 
 /** Art aller Antworten zum Konto der Gutschrift, ohne Antwort null; ein späterer Abruf kann einen neuen Stand anhängen */
 function stammKind(alias: string): string {
-  return `(select case when count(*) = 0 then null when count(distinct sat_kind.kind) = 1 then min(sat_kind.kind) else 'unklar' end
+  return `(select case when count(*) = 0 then null when count(distinct sat_kind.kind) = 1 then min(sat_kind.kind) else 'unklar' end as kind
     from (select ${answerKind("sat.raw")} as kind from sevdesk_accounting_types sat
       where sat.accounting_type_id = ${alias}.raw->'accountingType'->>'id') sat_kind)`;
 }
@@ -63,11 +63,16 @@ function manualKind(alias: string): string {
   return `(select d.kind from sevdesk_accounting_type_decisions d where d.voucher_id = ${alias}.id order by d.created_at desc, d.id desc limit 1)`;
 }
 
-/** Erkannter Kontostamm geht vor, ein Widerspruch zur Entscheidung von Hand bleibt unklar; ohne erkannten Kontostamm die Entscheidung */
+/**
+ * Erkannter Kontostamm geht vor, ein Widerspruch zur Entscheidung von Hand bleibt unklar; ohne erkannten Kontostamm die
+ * Entscheidung. Beide stehen in `from`, nicht in der Spaltenliste einer Unterabfrage: Die zöge Postgres hoch und setzte für
+ * jedes `stamm` und `hand` im `case` die ganze Unterabfrage neu ein. Mit den sieben Einsätzen je Beleg im Abgleich trieb
+ * das die Kostenschätzung über die Schwellen des JIT; das Übersetzen kostete Sekunden.
+ */
 function noteKind(alias: string): string {
-  return `(select case when k.stamm in ('erloes', 'aufwand') then case when k.hand is null or k.hand = k.stamm then k.stamm else 'unklar' end
-      else coalesce(k.hand, 'unklar') end
-    from (select ${stammKind(alias)} as stamm, ${manualKind(alias)} as hand) k)`;
+  return `(select case when s.kind in ('erloes', 'aufwand') then case when h.kind is null or h.kind = s.kind then s.kind else 'unklar' end
+      else coalesce(h.kind, 'unklar') end
+    from ${stammKind(alias)} s left join ${manualKind(alias)} h on true)`;
 }
 
 /** Gutschrift auf Buchungskonto mit Aufwandskonto: Ausgabe-Gutschrift wie Honorar (expenseCreditNote) */
