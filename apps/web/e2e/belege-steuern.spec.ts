@@ -3050,10 +3050,9 @@ test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098
   await expect(bearbeiten).toBeVisible();
   await expect(feld).toBeDisabled();
 
-  // Aufgeschlossen wird nur gelesen, bis jemand speichert. Der Klick geht bewusst über das Element selbst: Im
-  // festen Fuß steht an derselben Stelle der Absende-Knopf, sobald die Maske offen ist. Ein Zeigerklick kommt beim
-  // Loslassen deshalb schon auf „Angaben speichern" an — die Maske speicherte und sperrte sich selbst (#1098).
-  await bearbeiten.evaluate((el) => (el as HTMLElement).click());
+  // Aufgeschlossen wird nur gelesen, bis jemand speichert. Ein echter Zeigerklick wie mit der Maus: An derselben Stelle
+  // steht danach „Angaben speichern“, und derselbe Klick darf die Maske nicht gleich speichern und wieder sperren
+  await bearbeiten.click();
   await expect(form.getByRole("button", { name: "Angaben speichern" })).toBeVisible();
   await expect(feld).toBeEnabled();
 
