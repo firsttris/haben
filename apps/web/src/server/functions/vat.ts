@@ -121,14 +121,6 @@ export const getVatPeriod = createServerFn({ method: "GET" })
     };
   });
 
-/** Zeitraum, den /umsatzsteuer öffnet: der zuletzt abgelaufene, befreit der Vormonat */
-export const getFilingPeriodKey = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async () => {
-    const now = new Date();
-    return periodKey(latestEndedPeriod(await loadFrequencies(), currentMonth(now)) ?? currentFilingPeriod(now));
-  });
-
 /**
  * Zeitraum, den /umsatzsteuer öffnet: der älteste abgelaufene, der noch nicht abgegeben ist, ab der ersten Abgabe in
  * Haben (#1102); ohne Abgabe in Haben oder wenn alle abgegeben sind, der zuletzt abgelaufene. Nie der laufende
