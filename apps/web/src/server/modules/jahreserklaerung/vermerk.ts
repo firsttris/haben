@@ -22,7 +22,7 @@ import { AnnualError, annualOverview } from "./annual.ts";
 /**
  * Alle drei Jahreserklärungen lassen sich außerhalb von Haben abgeben (#1073). Für die Umsatzsteuererklärung und die
  * Anlage EÜR vergleicht der Vermerk gegen den aus den Buchungen gerechneten Wert, für die Einkommensteuer gegen die
- * eigene Schätzung aus der Anlage N (est.prognose.verbleibend).
+ * eigene Schätzung der verbleibenden Steuer (est.prognose.verbleibend).
  */
 export type VermerkForm = "euer" | "est" | "ust";
 

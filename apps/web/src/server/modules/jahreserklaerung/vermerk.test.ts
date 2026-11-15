@@ -87,7 +87,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   });
 
   it("vermerkt auch eine außerhalb abgegebene Einkommensteuererklärung (#1073)", async () => {
-    // Vergleichswert ist die eigene Schätzung aus der Anlage N; im leeren Testjahr ist sie 0
+    // Vergleichswert ist Habens Schätzung der verbleibenden Steuer; im leeren Testjahr ist sie 0
     const berechnet = (await annual.annualOverview(2025, TODAY)).est.prognose.verbleibend;
     const row = await jahresvermerk.vermerkeJahresabgabe(
       actor,
