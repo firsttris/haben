@@ -828,6 +828,12 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     });
     expect((await annual.annualOverview(2025, TODAY)).est.issues.some((i) => /Jahrespauschale/.test(i.text))).toBe(false);
 
+    // Kein Monat als Mittelpunkt: keine Jahrespauschale (Satz 4 kürzt um zwölf Zwölftel)
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, arbeitszimmerMonate: 0 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text))?.text).toContain("Bei 0 von 12 Monaten");
+
     // Dasselbe gegen die Tagespauschale in der EÜR: auch dort gibt es das Arbeitszimmer je Person nur einmal
     await incomeTax.saveEstAngaben(actor, 2025, {
       arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000 } } },
