@@ -1744,6 +1744,13 @@
       "when": 1794750748349,
       "tag": "0248_kleinunternehmer_gruendungsdatum",
       "breakpoints": true
+    },
+    {
+      "idx": 251,
+      "version": "7",
+      "when": 1794762000000,
+      "tag": "0251_integritaet_leere_kette",
+      "breakpoints": true
     }
   ]
 }
