@@ -59,6 +59,28 @@ describe("Sonderfälle im Export von sevDesk", () => {
     ]);
   });
 
+  // Echter Export 2024 (#472): 19 Belege auf Darlehen, Privat und Zinsen tragen Netto und Steuer in Beleginfo gegen ein
+  // Personenkonto, ohne BEDI; Zahlungen (Bank gegen Personenkonto) tragen nie Netto oder Steuer
+  it("Beleg ohne BEDI auf einem Konto, das weder Erlös noch Aufwand ist, wird ein Beleg; Richtung aus dem Personenkonto", () => {
+    const darlehen = ohneBeleglink(ausgabe).replace(";70002;4985;9;", ";70002;1705;;");
+    expect(darlehen).not.toBe(ohneBeleglink(ausgabe));
+    const data = ok(read({ [STAPEL]: stapel(darlehen), [EINGANG]: eingangDoc() }));
+    expect(data.vouchers.map((v) => [v.key, v.amount, v.direction, v.accountKind, v.net, v.tax])).toEqual([
+      ["1111111111111111112|2024-01-15|70002|", 10000, "eingang", null, 8403, 1597],
+    ]);
+  });
+
+  it("Zeile ohne BEDI auf einem neutralen Konto gehört zum Beleg mit gleicher Nummer, gleichem Datum und Personenkonto", () => {
+    const neutral = ohneBeleglink(ausgabe)
+      .replace(/^100,00;/, "5,00;")
+      .replace(";70002;4985;9;", ";70002;2300;;")
+      .replace(";84,03;", ";4,20;")
+      .replace(";15,97;", ";0,80;");
+    const data = ok(read({ [STAPEL]: stapel(neutral, ausgabe), [EINGANG]: eingangDoc() }));
+    expect(data.vouchers).toHaveLength(1);
+    expect(data.vouchers[0]).toMatchObject({ guid: guid(2), amount: 10500, net: 8823, tax: 1677, accountKind: "aufwand" });
+  });
+
   it("Zahlung mit auf 36 Zeichen gekürztem Belegfeld wird kein Beleg, auch nicht mit Satz in Beleginfo", () => {
     const mitSatz = zahlung.replace('"Umsatzsteuerprozent";;', '"Umsatzsteuerprozent";19;');
     expect(mitSatz).not.toBe(zahlung);
