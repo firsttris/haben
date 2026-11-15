@@ -156,7 +156,11 @@ function NewDunningPage() {
                 hint={
                   draft.baseRate === null ? (
                     <>
-                      Für Zinsen den Basiszinssatz in den <Link to="/einstellungen">Einstellungen</Link> eintragen.
+                      Für Zinsen den Basiszinssatz in den{" "}
+                      <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                        Einstellungen
+                      </Link>{" "}
+                      eintragen.
                     </>
                   ) : (
                     `Basiszinssatz ${percent(draft.baseRate)}`

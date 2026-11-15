@@ -764,6 +764,12 @@ export function InvoiceEditor({
           <Icon name="alert" />
           <span>
             Vor dem Festschreiben: {blocking.join(", ")}. {currentSellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
+            Vor dem Festschreiben: {blocking.join(", ")}.{" "}
+            {sellerIssues.length > 0 && (
+              <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                Firmendaten ergänzen
+              </Link>
+            )}
           </span>
         </div>
       )}
@@ -772,7 +778,10 @@ export function InvoiceEditor({
           <Icon name="alert" />
           <span>
             Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): {letterIssues.join(", ")}. Festschreiben geht trotzdem, der Fuß nennt dann nur, was
-            eingetragen ist. <Link to="/einstellungen">Firmendaten ergänzen</Link>
+            eingetragen ist.{" "}
+            <Link to="/einstellungen" search={{ bereich: "firma" }}>
+              Firmendaten ergänzen
+            </Link>
           </span>
         </div>
       )}
