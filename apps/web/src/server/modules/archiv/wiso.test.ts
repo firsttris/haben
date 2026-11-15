@@ -92,4 +92,16 @@ describe.skipIf(!testDatabaseUrl)("WISO-Import (Postgres)", () => {
     const januar = jahr.vat.find((m) => m.month === "2026-01")!;
     expect({ kz81: januar.kz81, tax81: januar.tax81, kz66: januar.kz66 }).toEqual({ kz81: 16807, tax81: 3193, kz66: 1084 });
   });
+  // § 13b UStG und innergemeinschaftlicher Erwerb: Der Lieferant bekommt nur das Netto (§ 14a Abs. 5 UStG), die Steuer
+  // schuldet der Empfänger selbst. Im WISO-CSV steht der tatsächliche Abfluss; die selbst berechnete Steuer ist keine Zahlung
+  // (Gegenprobe von SteGun93 in #1033)
+  it.each([
+    ["13b 19% And", "80,00", 8000],
+    ["EU VSt 19 %", "55,80", 5580],
+  ] as const)("%s: der tatsächliche Abfluss bleibt die Zahlung", async (key, amount, paid) => {
+    const bytes = wisoBytes([`8;1;10.01.2026;10.01.2026;Fremdleistung;4806;Wartung;1200;Bank;${amount};0,00;${key};19,00;Steuer;TEST-8;03.02.2026;;0`]);
+    await wiso.startWisoImport("test-user", bytes, "synthetisch.csv");
+    const [row] = await sql`select payment from lexoffice_vouchers where lexoffice_id = 'wiso/2026/8'`;
+    expect(row!.payment.items).toEqual([{ type: "payment", date: "2026-01-10", amount: paid }]);
+  });
 });
