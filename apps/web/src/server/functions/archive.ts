@@ -1,3 +1,4 @@
+import { currentYear } from "@haben/core";
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -16,6 +17,8 @@ import {
   orderArchiveOverview,
   orderDocumentDetail,
   externalImportOverview,
+  legacyVatReports,
+  legacyVatReportYears,
 } from "../modules/archiv/index.ts";
 import {
   cancelImport,
@@ -349,6 +352,16 @@ export const getOrderDocuments = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(z.object({ year: yearSchema, search: z.string().max(100).default(""), kind: z.enum(["AN", "AB", "LI"]).optional() }))
   .handler(async ({ data }) => listOrderDocuments(data));
+
+/** Übermittelte Voranmeldungen aus der bisherigen Buchhaltung eines Jahres; dazu alle Jahre, in denen es welche gibt */
+export const getLegacyVatReports = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(z.object({ year: yearSchema.optional() }))
+  .handler(async ({ data }) => {
+    const years = await legacyVatReportYears();
+    const year = data.year ?? years[0] ?? currentYear() - 1;
+    return { year, years, rows: await legacyVatReports(year) };
+  });
 
 export const getOrderDocument = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

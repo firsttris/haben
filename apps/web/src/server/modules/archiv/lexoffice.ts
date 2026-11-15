@@ -571,6 +571,11 @@ export async function reconciliation() {
       count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number
     from datev_bookings b group by 1`);
   const files = await db.select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year }).from(schema.archiveFiles);
+  // Protokolle der aus sevDesk übernommenen Voranmeldungen zählen wie abgelegte ELSTER-Protokolle (#472)
+  const vatProtocols = await db
+    .select({ year: schema.legacyVatReports.year })
+    .from(schema.legacyVatReportFiles)
+    .innerJoin(schema.legacyVatReports, eq(schema.legacyVatReportFiles.vatReportId, schema.legacyVatReports.id));
   const lastImport = await latestImport();
   // Für Jahre ohne Belege per API (Umzug nur über DATEV): Summen aus dem Buchungsstapel
   const datevRows = await db
@@ -636,6 +641,7 @@ export async function reconciliation() {
       const unchecked = vouchers.filter((v) => v.status === "unchecked").length;
       const bookings = bookingRows.find((b) => Number(b.year) === year);
       const kinds = (kind: string) => files.filter((f) => f.year === year && f.kind === kind).length;
+      const elster = kinds("elster") + vatProtocols.filter((p) => p.year === year).length;
       // Ist-Versteuerung: Zahlungen aus dem Zahlungsstatus; sonst Belegdatum
       const vatIssue = vatIssueOf(year);
       const vat = vatIssue
@@ -717,9 +723,9 @@ export async function reconciliation() {
         },
         ...(nurAccountable ? [] : [{ ok: kinds("idea") > 0, label: "IDEA-Export archiviert", detail: kinds("idea") > 0 ? "liegt vor" : "fehlt" }]),
         {
-          ok: kinds("elster") > 0,
+          ok: elster > 0,
           label: "ELSTER-Protokolle archiviert",
-          detail: kinds("elster") > 0 ? `${kinds("elster")} Dateien` : "fehlen",
+          detail: elster > 0 ? `${elster} Dateien` : "fehlen",
         },
         {
           ok: kinds("kontoauszug") > 0,

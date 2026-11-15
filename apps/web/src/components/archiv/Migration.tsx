@@ -552,6 +552,15 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
               )}
             </p>
           )}
+          {source === "sevdesk" && (progress.vatReports ?? 0) > 0 && (
+            <p className="small" style={{ margin: 0 }}>
+              {progress.vatReports} übermittelte Voranmeldungen archiviert, zu finden unter{" "}
+              <Link to="/archiv" search={{ ansicht: "voranmeldungen" }}>
+                Voranmeldungen
+              </Link>
+              .
+            </p>
+          )}
           {run.error && (
             <div className="banner banner-danger" role="alert">
               {run.error}
