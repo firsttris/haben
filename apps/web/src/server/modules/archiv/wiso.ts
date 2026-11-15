@@ -2,7 +2,7 @@ import { previewWisoExport, WisoParseError, type WisoPreview } from "@haben/impo
 import { and, desc, eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
-import type { LexofficeImportProgress } from "../../db/schema.ts";
+import type { LegacyPayment, LexofficeImportProgress } from "../../db/schema.ts";
 import { UserError } from "../../errors.ts";
 import { sha256Of } from "../../storage.ts";
 import { loadCompany } from "../stammdaten/index.ts";
@@ -53,6 +53,17 @@ export async function latestWisoImport() {
     return updated ?? row;
   }
   return row;
+}
+
+/**
+ * WISO EÜR bucht nach Zahlung: „Zahlungsdatum“ ist der Tag des Zu- oder Abflusses. Als Zahlung festgehalten, zählt die
+ * Einnahme bei Ist-Versteuerung im Abgleich in diesem Monat (legacyPayments); offen ist danach nichts. Neutrale Buchungen
+ * (Saldovortrag, Geldtransit, Privat) sind kein Entgelt und bekommen keine.
+ */
+function wisoPayment(item: WisoPreview["vouchers"][number]): LegacyPayment | null {
+  if (item.neutral) return null;
+  const { date, gross } = item.voucher;
+  return { status: "paid", openAmount: 0, paidDate: date, items: [{ type: "payment", date, amount: gross }] };
 }
 
 async function archiveOriginalCsv(actor: string, bytes: Uint8Array, filename: string, year: number): Promise<void> {
@@ -111,7 +122,7 @@ export async function startWisoImport(actor: string, bytes: Uint8Array, filename
           gross: v.gross,
           taxes: v.taxes,
           categories: v.categories.map((c) => ({ ...c, name: "" })),
-          payment: null,
+          payment: wisoPayment(item),
           remark: v.remark,
           raw: item.raw,
         });
