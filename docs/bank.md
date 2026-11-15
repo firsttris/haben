@@ -511,3 +511,7 @@ Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt,
 - Zahlungsdienstleister nur in Euro; Zeilen in anderen Währungen (etwa ein USD-Guthaben bei PayPal) übernimmt Haben nicht und meldet sie. Ausnahme ist der App Store: Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs in Euro um (siehe [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store)).
 - Kursdifferenzen nur beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung; Bankkonten und Verrechnungskonten von Zahlungsdienstleistern nur in Euro.
 - Zuordnungen werden mit dem Buchungsdatum des Umsatzes gebucht, ihre Aufhebung am gewählten Tag (siehe [Zuordnung aufheben](#zuordnung-aufheben)). Eine schon gesendete Voranmeldung bleibt, wie sie ist (siehe [umsatzsteuer.md](umsatzsteuer.md)).
+
+## Privates Konto: Umsätze ohne Buchungsart
+
+Auf einem Konto mit dem Zweck **privat** sind „Privat", Bankgebühren, Zinserträge, Geldtransit und Spenden gesperrt ([#873](https://github.com/firsttris/haben/issues/873)); eine private Einkommensteuer-Erstattung lässt sich dort also nicht buchen, ohne sie zum Betriebsvorgang zu machen. Solche Umsätze bleiben ungebucht und lassen sich im Umsatz als **privat, kein Betriebsvorgang** kennzeichnen ([#1088](https://github.com/firsttris/haben/issues/1088)): Sie zählen dann nicht mehr als offene Posten, stehen in der Liste mit dieser Kennzeichnung und lassen sich jederzeit wieder öffnen. Gebucht wird dabei nichts, die EÜR bleibt unberührt.

@@ -32,6 +32,8 @@ import {
   allocateDirectDebitBatchFn,
   allocateDirectDebitReturnFn,
   allocateTransaction,
+  markBankTransactionPrivate,
+  unmarkBankTransactionPrivate,
   allocateTransactionWithRest,
   allocateProviderFees,
   connectBank,
@@ -989,6 +991,8 @@ function AllocationPanel({
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const allocateFn = useServerFn(allocateTransaction);
+  const markPrivatFn = useServerFn(markBankTransactionPrivate);
+  const unmarkPrivatFn = useServerFn(unmarkBankTransactionPrivate);
   const splitFn = useServerFn(splitTransaction);
   const restFn = useServerFn(allocateTransactionWithRest);
   const feesFn = useServerFn(allocateProviderFees);
@@ -1189,6 +1193,27 @@ function AllocationPanel({
 
       {detail.storePayout && tx.open === tx.amount && (
         <StorePayoutBox key={tx.id} view={detail.storePayout} amount={tx.amount} transactionId={tx.id} busy={busy} run={(work) => void run(work)} />
+      )}
+
+      {detail.privatKonto && (
+        <div className="actions">
+          {detail.privat ? (
+            <button type="button" className="btn" disabled={busy} onClick={() => void run(() => unmarkPrivatFn({ data: { transactionId: tx.id } }))}>
+              Kennzeichnung aufheben
+            </button>
+          ) : (
+            tx.open !== 0 && (
+              <button type="button" className="btn" disabled={busy} onClick={() => void run(() => markPrivatFn({ data: { transactionId: tx.id } }))}>
+                Privat, kein Betriebsvorgang
+              </button>
+            )
+          )}
+          <span className="small muted">
+            {detail.privat
+              ? "Zählt nicht als offener Posten; gebucht wird nichts, die EÜR bleibt wie sie ist."
+              : "Für diesen Umsatz gibt es auf dem privaten Konto keine Buchungsart; kennzeichnen nimmt ihn aus den offenen Posten."}
+          </span>
+        </div>
       )}
 
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />

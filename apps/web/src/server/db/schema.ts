@@ -2218,6 +2218,19 @@ export const bankTransactions = pgTable(
 );
 
 /**
+ * Ein Umsatz auf einem privaten Konto, für den es dort keine Buchungsart gibt (#1088): Er bleibt ungebucht, zählt nicht
+ * als offener Posten und steht als „privat, kein Betriebsvorgang" in der Liste. Die Markierung steht neben dem Umsatz,
+ * weil `bank_transactions` anhängend ist; eine Buchung entsteht dabei nicht.
+ */
+export const bankPrivateMarks = pgTable("bank_private_marks", {
+  transactionId: uuid("transaction_id")
+    .primaryKey()
+    .references(() => bankTransactions.id),
+  note: text("note").notNull().default(""),
+  markedAt: timestamp("marked_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Erzeugte SEPA-Überweisungsdateien (pain.001) für offene Belege, nur anhängen. Gebucht wird dabei nichts: Bezahlt ist
  * ein Beleg erst, wenn der Bankabgleich die Abbuchung zuordnet.
  */

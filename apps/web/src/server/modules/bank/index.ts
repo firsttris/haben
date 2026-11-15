@@ -69,6 +69,7 @@ export {
   type UmsatzSortierung,
 } from "./umsatzliste.ts";
 export { excludeAccount, excludeBlocker, includeAccount, listExcludedAccounts } from "./konto-ausschliessen.ts";
+export { hebePrivatAuf, markierePrivat } from "./privat.ts";
 export { decideDocumentIban, documentIbanCheck, ibanDecisionSchema, type IbanDecisionInput } from "./iban-entscheidung.ts";
 export {
   createSepaTransfer,

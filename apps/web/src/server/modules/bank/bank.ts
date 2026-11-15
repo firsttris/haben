@@ -121,7 +121,19 @@ export async function listAccounts() {
       const [open] = await db
         .select({ n: sql<number>`count(*)::int` })
         .from(schema.bankTransactions)
-        .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`));
+        .where(
+          and(
+            eq(schema.bankTransactions.bankAccountId, account.id),
+            sql`${openAmountSql} <> 0`,
+            sql`not exists (select 1 from ${schema.bankPrivateMarks} m where m.transaction_id = ${schema.bankTransactions.id})`,
+          ),
+        );
+      // Umsätze, die auf einem privaten Konto nicht buchbar sind, zählen nicht als offen, sondern stehen daneben (#1088)
+      const [privat] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(schema.bankPrivateMarks)
+        .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.bankPrivateMarks.transactionId))
+        .where(eq(schema.bankTransactions.bankAccountId, account.id));
       // Zahlungsdienstleister nennen keinen Kontostand: Guthaben als Summe der importierten Umsätze
       const [sum] =
         account.purpose === "zahlungsdienstleister"
@@ -144,7 +156,14 @@ export async function listAccounts() {
                 ),
               )
           : [];
-      return { ...account, lastImport: last ?? null, openCount: open?.n ?? 0, providerBalance: sum ? Number(sum.total) : null, staleOpenCount: stale?.n ?? 0 };
+      return {
+        ...account,
+        lastImport: last ?? null,
+        openCount: open?.n ?? 0,
+        privateCount: privat?.n ?? 0,
+        providerBalance: sum ? Number(sum.total) : null,
+        staleOpenCount: stale?.n ?? 0,
+      };
     }),
   );
 }
@@ -377,7 +396,11 @@ export async function listTransactions(
   offset?: number,
 ) {
   const conditions = [eq(schema.bankTransactions.bankAccountId, accountId)];
-  if (filter === "offen") conditions.push(sql`${openAmountSql} <> 0`);
+  if (filter === "offen")
+    conditions.push(
+      sql`${openAmountSql} <> 0`,
+      sql`not exists (select 1 from ${schema.bankPrivateMarks} m where m.transaction_id = ${schema.bankTransactions.id})`,
+    );
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
   if (search.trim()) {
     const term = `%${search.trim()}%`;
@@ -394,6 +417,8 @@ export async function listTransactions(
   if (offset !== undefined) order.push(asc(schema.bankTransactions.id));
   return db
     .select({
+      /** Auf einem privaten Konto als „kein Betriebsvorgang" gekennzeichnet (#1088) */
+      privat: sql<boolean>`exists (select 1 from ${schema.bankPrivateMarks} m where m.transaction_id = ${schema.bankTransactions.id})`,
       id: schema.bankTransactions.id,
       bookingDate: schema.bankTransactions.bookingDate,
       amount: schema.bankTransactions.amount,
@@ -776,7 +801,15 @@ export async function transactionDetail(id: string) {
   const lastschrift = await directDebitMatch(tx);
   // Der Sammelbeleg des Monats steht ganz oben, damit er in der Oberfläche als Treffer erscheint
   const vorschlaege = sammelbeleg ? [sammelbeleg, ...suggestions.filter((s) => s.item.id !== sammelbeleg.item.id)] : suggestions;
+  // Für die Kennzeichnung „privat, kein Betriebsvorgang" (#1088): Zweck des Kontos und bestehende Markierung
+  const [konto] = await db.select({ purpose: schema.bankAccounts.purpose }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, tx.bankAccountId));
+  const [marke] = await db
+    .select({ transactionId: schema.bankPrivateMarks.transactionId })
+    .from(schema.bankPrivateMarks)
+    .where(eq(schema.bankPrivateMarks.transactionId, tx.id));
   return {
+    privatKonto: konto?.purpose === "privat",
+    privat: marke !== undefined,
     lastschrift,
     transaction: tx,
     allocations,
