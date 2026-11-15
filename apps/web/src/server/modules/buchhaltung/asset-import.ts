@@ -1,4 +1,14 @@
-import { assetCandidates, assetKeys, type ColumnMapping, type CsvTable, planRows, type PlannedRow } from "@haben/import";
+import {
+  assetCandidates,
+  assetKeys,
+  type AssetRow,
+  type ColumnMapping,
+  type CsvTable,
+  type DuplicateKey,
+  planRows,
+  type PlannedRow,
+  type RowCandidate,
+} from "@haben/import";
 import { gte, max } from "drizzle-orm";
 import type { z } from "zod";
 import { type Db, schema, type Tx } from "../../db/index.ts";
@@ -37,8 +47,21 @@ export async function planAssetImport(
   mapping: ColumnMapping,
   stichtag: string,
 ): Promise<PlannedRow<z.output<typeof assetInputSchema>>[]> {
+  return planAssetCandidates(q, assetCandidates(table, mapping, stichtag));
+}
+
+/**
+ * Plan einer Übernahme aus Zeilen, wie sie der CSV-Import oder der Umzug aus sevDesk liest: dieselben Prüfungen wie
+ * „Anlage übernehmen“, Dubletten gegen den Bestand. `stockKeys` liest aus einer vorhandenen Anlage weitere Merkmale,
+ * etwa die Kennung aus sevDesk in der Notiz.
+ */
+export async function planAssetCandidates(
+  q: Db | Tx,
+  rows: readonly RowCandidate<AssetRow>[],
+  stockKeys: (asset: { note: string }) => DuplicateKey[] = () => [],
+): Promise<PlannedRow<z.output<typeof assetInputSchema>>[]> {
   const { rechtsform } = await loadCompany(q);
-  const candidates = assetCandidates(table, mapping, stichtag).map((row) => {
+  const candidates = rows.map((row) => {
     if (!row.value) return { ...row, value: null };
     // Wie insertAsset: in GmbH und UG keine Staffel nach § 7 Abs. 2a EStG, schon in der Vorschau
     const issues = elektroIssues({ method: row.value.method, privateUse: null }, rechtsform);
@@ -46,8 +69,13 @@ export async function planAssetImport(
     const result = assetInputSchema.safeParse({ ...row.value, disposalDate: null, privateUse: null });
     return result.success ? { ...row, value: result.data } : { ...row, value: null, errors: result.error.issues.map((i) => i.message) };
   });
-  const stock = await q.select({ name: schema.assets.name, acquisitionDate: schema.assets.acquisitionDate, cost: schema.assets.cost }).from(schema.assets);
-  return planRows(candidates, stock.flatMap(assetKeys));
+  const stock = await q
+    .select({ name: schema.assets.name, acquisitionDate: schema.assets.acquisitionDate, cost: schema.assets.cost, note: schema.assets.note })
+    .from(schema.assets);
+  return planRows(
+    candidates,
+    stock.flatMap((a) => [...assetKeys(a), ...stockKeys(a)]),
+  );
 }
 
 export async function insertImportedAssets(tx: Tx, assets: readonly AssetInput[]): Promise<number> {

@@ -2,7 +2,7 @@
 title: "Anlagen und AfA: Abschreibung und Anlagenverzeichnis"
 description: >-
   Anlagegüter über 800 € netto erfassen und abschreiben: lineare AfA, GWG, Sammelposten,
-  Anlagenverzeichnis (AVEÜR) und Übernahme aus Lexoffice.
+  Anlagenverzeichnis (AVEÜR) und Übernahme aus Lexoffice und sevDesk.
 ---
 
 # Anlagen und AfA
@@ -12,7 +12,7 @@ Wirtschaftsgüter, die länger als ein Jahr im Betrieb bleiben und mehr als 800 
 ## So gehst du vor
 
 1. **Neue Anschaffung:** Lade die Rechnung als [Beleg](belege.md) hoch und wähle die Kategorie **Anlagegut (wird abgeschrieben)**. Gib Bezeichnung, Art, Abschreibung und gegebenenfalls die Nutzungsdauer an und buche den Beleg. Dabei entsteht die Anlage im Verzeichnis.
-2. **Anlage aus Lexoffice oder einer anderen Buchhaltung:** Unter **Anlagen › Anlage übernehmen** trägst du sie mit dem Restbuchwert zum Übernahmestichtag ein (siehe [Übernahme](#übernahme-aus-lexoffice)). Viele auf einmal übernimmst du mit **CSV importieren** aus einer Liste ([CSV-Import](csv-import.md#anlagen)).
+2. **Anlage aus Lexoffice oder einer anderen Buchhaltung:** Unter **Anlagen › Anlage übernehmen** trägst du sie mit dem Restbuchwert zum Übernahmestichtag ein (siehe [Übernahme](#übernahme-aus-lexoffice)). Viele auf einmal übernimmst du mit **CSV importieren** aus einer Liste ([CSV-Import](csv-import.md#anlagen)). Aus sevDesk holt Haben das Anlagenverzeichnis selbst ([Umzug aus sevDesk](sevdesk.md#schritt-4-anlagen-übernehmen)).
 3. **Zum Jahresende:** Ab dem 1. Dezember buchst du unter **Anlagen** mit **AfA … buchen** die Abschreibungen des Jahres. Die Übersicht erinnert daran.
 
 In der EÜR steht die AfA schon vorher, sobald die Anlage im Verzeichnis ist.
@@ -113,6 +113,8 @@ Ab dem Stichtag schreibt Haben den Restbuchwert über die restliche Nutzungsdaue
 Voll abgeschriebene Anlagen, GWG aus Vorjahren und Computer mit einjähriger Nutzungsdauer musst du nicht übernehmen.
 
 **Degressive und Elektro-AfA** übernimmt Haben nur zum 01.01. eines Jahres nach der Anschaffung und nur, wenn der Restbuchwert zum eigenen Plan passt (bis 1 € Rundung je Jahr). Eine abweichende Zahl heißt meist, dass die bisherige Buchhaltung anders gerechnet oder schon zur linearen AfA gewechselt hat. Dann lehnt Haben ab und nennt den rechnerischen Wert; du übernimmst die Anlage linear mit Restbuchwert und Restnutzungsdauer, was rechtlich der Wechsel nach § 7 Abs. 3 EStG ist. Hat die bisherige Buchhaltung schon gewechselt, trägst du zusätzlich **Linear ab Jahr** ein.
+
+Aus sevDesk schlägt Haben die Anlagen unter **Archiv › Umzug** selbst vor, mit linear nachgerechnetem Restbuchwert, weil die sevDesk-Schnittstelle keine bisherige AfA liefert ([Umzug aus sevDesk](sevdesk.md#schritt-4-anlagen-übernehmen)).
 
 Mehrere Anlagen übernimmst du mit **Anlagen › CSV importieren** aus einer Liste, mit denselben Regeln und einem Stichtag für die ganze Datei ([CSV-Import](csv-import.md#anlagen)).
 

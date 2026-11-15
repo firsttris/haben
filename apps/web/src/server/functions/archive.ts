@@ -1,5 +1,6 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { ASSET_KIND_KEYS } from "@haben/core";
 import { z } from "zod";
 import {
   accountTotals,
@@ -42,10 +43,12 @@ import {
 import {
   cancelSevdeskImport as cancelSevdesk,
   latestSevdeskImport,
+  previewSevdeskAssets,
   removeSevdeskKey,
   saveSevdeskKey,
   sevdeskConnectionStatus,
   startSevdeskImport as startSevdesk,
+  takeOverSevdeskAssets,
 } from "../modules/archiv/index.ts";
 import { FASTBILL_PLANS, fastbillConnectionStatus, fastbillReceiptsOverview, latestFastbillImport } from "../modules/archiv/index.ts";
 import { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "../modules/archiv/index.ts";
@@ -344,6 +347,25 @@ export const takeOverAllOpenItems = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ stichtag: stichtagSchema }))
   .handler(async ({ data, context }) => takeOverAll(context.user.id, data.stichtag));
+
+/** Anlagenverzeichnis aus sevDesk als Vorschlag zum Stichtag (01.01.); liest sevDesk, speichert nichts */
+export const getSevdeskAssets = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ stichtag: stichtagSchema }))
+  .handler(async ({ data }) => previewSevdeskAssets(data.stichtag));
+
+export const takeOverSevdeskAssetList = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(
+    z.object({
+      stichtag: stichtagSchema,
+      picks: z
+        .array(z.object({ sevId: z.string().min(1).max(40), kind: z.enum(ASSET_KIND_KEYS).nullable() }))
+        .min(1)
+        .max(2000),
+    }),
+  )
+  .handler(async ({ data, context }) => takeOverSevdeskAssets(context.user.id, data.stichtag, data.picks));
 
 export const getOrderDocuments = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

@@ -48,6 +48,7 @@ export {
   startSevdeskImport,
 } from "./sevdesk.ts";
 export { sevdeskPlaceholders, sevdeskRecurringOrigin } from "./sevdesk-vorlagen.ts";
+export { previewSevdeskAssets, takeOverSevdeskAssets, type SevdeskAssetPreview } from "./sevdesk-anlagen.ts";
 export {
   cancelFastbillImport,
   FASTBILL_PLANS,
