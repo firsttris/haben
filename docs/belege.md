@@ -22,16 +22,6 @@ Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen lie
 
 Mit **Speichern** sicherst du Zwischenstände, ohne zu buchen.
 
-## Die Liste sortieren
-
-Die Spaltenköpfe in der Belegliste sind anklickbar: Datum, Lieferant, Kategorie, Brutto und Status. Der erste Klick
-sortiert absteigend, ein zweiter auf demselben Kopf dreht die Richtung; der Pfeil im Kopf zeigt, welche Spalte gerade
-gilt. Die Sortierung steht als `sort` und `dir` in der Adresse, lässt sich also verlinken und bleibt beim Neuladen
-erhalten. Dieselbe Bedienung hat die Bankliste.
-
-Bequemer wird die Suche darüber: Sie filtert zusätzlich nach Lieferant, Rechnungsnummer, Dateiname und einem
-Betragsbereich, etwa `50 bis 200`.
-
 ## Hochladen
 
 | Weg | Wie |
@@ -286,6 +276,8 @@ Stehen auf einer Rechnung Dinge, die auf verschiedene Konten gehören, etwa Hand
 4. Unter den Zeilen steht je Steuersatz, wie viel schon verteilt ist, etwa „19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen“, bis es „stimmt“. Unter jedem Netto steht der Anteil an der Vorsteuer.
 5. **Speichern** oder **Bestätigen und buchen** wie sonst. Mit **Aufteilung aufheben** gilt wieder eine Kategorie für den ganzen Beleg, die der ersten Zeile.
 
+Ein gebuchter Beleg lässt sich nicht mehr aufteilen: [Storniere](#stornieren-und-neu-erfassen) ihn und teile die Neuerfassung auf.
+
 Beispiel, alles zu 19 %: 100,00 € Handelsware, 50,00 € Software und 20,00 € Bürobedarf ergeben 170,00 € netto, 32,30 € Vorsteuer und 202,30 € Zahlbetrag. Gebucht wird eine Buchung (SKR04 in Klammern):
 
 | Konto | Soll | Haben |
@@ -488,7 +480,9 @@ Nicht stornieren lassen sich:
 
 ## Liste und Status
 
-Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechnung, KI oder Hand), Kategorie (bei einer Aufteilung „Aufgeteilt auf 3 Zeilen“), Bruttobetrag und Status. Ungebuchte Belege stehen oben; die Zahl „… zu prüfen“ in der Kopfzeile zählt sie.
+Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechnung, KI oder Hand), Kategorie (bei einer Aufteilung „Aufgeteilt auf 3 Zeilen“), Bruttobetrag und Status. Ungebuchte Belege stehen oben, solange du nicht nach einer Spalte sortierst; die Zahl „… zu prüfen“ in der Kopfzeile zählt sie.
+
+Die Spaltenköpfe Datum, Lieferant, Kategorie, Brutto und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Die Sortierung steht als `sort` und `dir` in der Adresse, lässt sich also verlinken und bleibt beim Neuladen erhalten.
 
 | Status | Bedeutung |
 | --- | --- |
