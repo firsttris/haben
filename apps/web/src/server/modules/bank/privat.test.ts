@@ -87,15 +87,15 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
     const id = await umsatz(privatKonto, "2026-11-11", 1_032_197);
     const sortierung = { feld: "datum", richtung: "ab" } as const;
 
-    const vorher = await auswahl.umsatzauswahl({ id: privatKonto, purpose: "privat" }, "alle", "", sortierung);
+    const vorher = await auswahl.umsatzauswahl([{ id: privatKonto, purpose: "privat" }], "alle", "", sortierung);
     expect(vorher.find((row) => row.id === id)?.hint).toBe("offen");
 
     await privat.markierePrivat(actor, id);
 
-    const nachher = await auswahl.umsatzauswahl({ id: privatKonto, purpose: "privat" }, "alle", "", sortierung);
+    const nachher = await auswahl.umsatzauswahl([{ id: privatKonto, purpose: "privat" }], "alle", "", sortierung);
     expect(nachher.find((row) => row.id === id)?.hint).toBe("privat");
     // Und in der Arbeitsliste „offen" taucht er nicht auf
-    expect(await auswahl.umsatzauswahl({ id: privatKonto, purpose: "privat" }, "offen", "", sortierung)).toEqual([]);
+    expect(await auswahl.umsatzauswahl([{ id: privatKonto, purpose: "privat" }], "offen", "", sortierung)).toEqual([]);
   });
 
   it("steht mit Kennzeichnen und Aufheben im Änderungsprotokoll (CLAUDE.md: neue Tabelle mit Audit-Trigger)", async () => {
