@@ -927,6 +927,50 @@ test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift, Hinweis „Buchu
   }
 });
 
+// #888: Widerspricht ein später abgerufener Kontostamm der Entscheidung von Hand, klärt nur noch die Art des Kontostamms;
+// die Rückfrage nennt nur Kennzahlen, die für die Gutschrift stimmen (hier 7 %: Kz 86, nicht Kz 81). Daten in 2018, danach entfernt.
+test("sevDesk-Gutschrift auf Buchungskonto: Widerspruch zum Kontostamm bietet nur dessen Art an, Rückfrage bei 7 %", async () => {
+  const sql = postgres(databaseUrlFuer(), { max: 1 });
+  let runId = "";
+  try {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('haben.actor', 'e2e', true)`;
+      const [run] = await tx`insert into lexoffice_imports (source, status, progress)
+        values ('sevdesk', 'fertig', '{"phase":"fertig","contacts":0,"contactsLinked":0,"listed":1,"imported":1,"skipped":0,"files":0,"failed":[]}') returning id`;
+      runId = run!.id as string;
+      const [voucher] =
+        await tx`insert into lexoffice_vouchers (lexoffice_id, source, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
+        values ('creditnote/903', 'sevdesk', ${runId}, 'creditnote', 'einnahme', 'GS-E2E-3', '2018-05-14', 'open', 'Erfundener Verlag', -10000, -700, -10700,
+        '[{"rate":700,"net":-10000,"tax":-700}]', '[]', '{"status":"open","openAmount":-10700,"paidDate":null,"items":[]}',
+        ${tx.json({ id: "903", bookingCategory: "ACCOUNTING_TYPE", accountingType: { id: "E2E-3", objectName: "AccountingType" } })}) returning id`;
+      await tx`insert into sevdesk_accounting_type_decisions (voucher_id, kind, decided_by) values (${voucher!.id as string}, 'aufwand', 'e2e')`;
+      await tx`insert into sevdesk_accounting_types (import_id, accounting_type_id, raw)
+        values (${runId}, 'E2E-3', '{"id":"E2E-3","objectName":"AccountingType","skr03":"8300","skr04":"4300"}')`;
+    });
+    await go("/archiv?ansicht=belege&jahr=2018");
+    await page.getByRole("link", { name: /GS-E2E-3/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "GS-E2E-3" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "von Hand festgelegt ist ein Aufwandskonto" })).toBeVisible();
+    // Aufwand steht schon von Hand fest; ein zweites Aufwand klärt den Widerspruch nicht
+    await expect(page.getByRole("button", { name: "Als Aufwandskonto festlegen" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Als Erlöskonto festlegen" }).click();
+    const dialog = page.getByRole("dialog", { name: "Kontoart von GS-E2E-3 festlegen?" });
+    await expect(dialog).toContainText("107,00 €");
+    await expect(dialog).not.toContainText("Kz 81");
+    await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  } finally {
+    if (runId)
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`delete from sevdesk_accounting_type_decisions where voucher_id in (select id from lexoffice_vouchers where import_id = ${runId})`;
+        await tx`delete from sevdesk_accounting_types where import_id = ${runId}`;
+        await tx`delete from lexoffice_vouchers where import_id = ${runId}`;
+        await tx`delete from lexoffice_imports where id = ${runId}`;
+      });
+    await sql.end();
+  }
+});
+
 test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfernen", async () => {
   await fakeEigeneSeite(page);
   await page.route("https://lager.example/**", (route) =>
