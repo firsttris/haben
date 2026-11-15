@@ -5,7 +5,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und fachliche Einstellung (Postgres)", () => {
   let sql: postgres.Sql;
   let company: typeof import("./company.ts");
-  let guard: typeof import("./settings-guard.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let fristen: typeof import("../finanzamt/fristen.ts");
   const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
   const year = Number(today.slice(0, 4));
@@ -16,7 +16,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
   beforeAll(async () => {
     sql = await setupTestDb();
     company = await import("./company.ts");
-    guard = await import("./settings-guard.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     fristen = await import("../finanzamt/fristen.ts");
   }, 30_000);
 

@@ -9,6 +9,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
   let bank: typeof import("./index.ts");
   let invoices: typeof import("../rechnungen/index.ts");
   let stammdaten: typeof import("../stammdaten/index.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
   let auswertungen: typeof import("../auswertungen/index.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
@@ -26,6 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
     bank = await import("./index.ts");
     invoices = await import("../rechnungen/index.ts");
     stammdaten = await import("../stammdaten/index.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     vat = await import("../umsatzsteuer/index.ts");
     auswertungen = await import("../auswertungen/index.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
@@ -109,7 +111,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
     const oldReturn = await vat.saveDraft(actor, { year: previousYear, month: 12 }, { mode: "berechnet" });
     await sql`update vat_returns set status = 'sent', sent_at = now(), locked_at = now() where id = ${oldReturn.id}`;
     const originalReturn = await sql`select * from vat_returns where id = ${oldReturn.id}`;
-    await stammdaten.saveCompany(
+    await guard.saveCompany(
       actor,
       {
         ...(await stammdaten.loadCompany()),

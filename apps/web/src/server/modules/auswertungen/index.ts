@@ -15,3 +15,4 @@ export { euerForYear, lohnZahlungenUmJahreswechsel, openPositions, reportYears, 
 export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.ts";
 export { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
 export { runDuePruefwertMail } from "./pruefwert-mail.ts";
+export { saveCompany, settingsLocks } from "./settings-guard.ts";
