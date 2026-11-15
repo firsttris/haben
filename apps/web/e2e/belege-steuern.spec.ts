@@ -2997,9 +2997,8 @@ test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098
 
   const feld = form.locator("input").first();
   const bearbeiten = form.getByRole("button", { name: "Angaben bearbeiten" });
-  // Sperren kann die Maske nur, was vermerkt ist: den Vermerk der Einkommensteuer bringt #1075. Solange das nicht
-  // gemergt ist, lässt sich hier keiner anlegen, und der Test hätte nichts zu prüfen. Er läuft ab dem Merge mit.
-  test.skip((await bearbeiten.count()) === 0, "Ohne Einkommensteuer-Vermerk (#1075 offen) ist die Maske nicht zu sperren");
+  // Sperren kann die Maske nur, was vermerkt ist; den Vermerk legt der Test oben selbst an. Kein Selbst-Überspringen:
+  // Fehlt der Vermerk oder die Karte dazu, ist das ein echter Fehler und der Lauf gehört rot (#1098).
   await expect(bearbeiten).toBeVisible();
   await expect(feld).toBeDisabled();
 
