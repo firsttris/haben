@@ -57,15 +57,19 @@ export function advanceCheckpoint(checkpoint: string | undefined, parts: PartRes
   for (const p of parts) fetches.set(p.part.fetchId, [...(fetches.get(p.part.fetchId) ?? []), p]);
   const ordered = [...fetches.values()].sort((a, b) => (a[0]!.coverage.from < b[0]!.coverage.from ? -1 : a[0]!.coverage.from > b[0]!.coverage.from ? 1 : 0));
   let current = checkpoint;
-  const open: { to: string; reason: string }[] = [];
+  const open: { from: string; to: string; reason: string }[] = [];
+  const done: { from: string; to: string }[] = [];
   for (const group of ordered) {
     const { from, to } = group[0]!.coverage;
     const problem =
       fetchProblem(group) ?? (current && from > addDays(current, 1) ? `Lücke: vollständig bis ${current}, das Fenster beginnt erst am ${from}.` : null);
-    if (problem) open.push({ to, reason: problem });
-    else if (!current || to > current) current = to;
+    if (problem) open.push({ from, to, reason: problem });
+    else {
+      done.push({ from, to });
+      if (!current || to > current) current = to;
+    }
   }
-  // Was ein späterer vollständiger Abruf abdeckt, ist nicht mehr offen
-  const stillOpen = open.filter((o) => !current || o.to > current);
+  // Offen bleibt, was kein vollständiger Abruf dieses Aufrufs abdeckt, auch ein Fenster vor dem bisherigen Stand
+  const stillOpen = open.filter((o) => !done.some((d) => d.from <= o.from && d.to >= o.to));
   return stillOpen.length === 0 ? { checkpoint: current, complete: true } : { checkpoint: current, complete: false, reason: stillOpen.at(-1)!.reason };
 }

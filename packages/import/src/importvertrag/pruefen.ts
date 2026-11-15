@@ -28,9 +28,6 @@ const label = (m: Pick<ImportMovement, "sourceEventId" | "component">) => `${m.s
 
 /** Fehler, die die ganze Lieferung ungültig machen: Haben nimmt dann nichts davon an, auch keinen Teil */
 function hardProblems(batch: ImportBatch, binding: SourceBinding): string[] {
-  if (batch.contractVersion !== IMPORT_CONTRACT_VERSION) {
-    return [`Vertragsversion ${batch.contractVersion} wird nicht unterstützt, erwartet ${IMPORT_CONTRACT_VERSION}.`];
-  }
   if (batch.provider !== binding.provider || batch.externalAccountId !== binding.externalAccountId) {
     return [
       `Die Lieferung gehört zu ${batch.provider}/${batch.externalAccountId}, das Konto ist mit ${binding.provider}/${binding.externalAccountId} verknüpft.`,
@@ -39,6 +36,9 @@ function hardProblems(batch: ImportBatch, binding: SourceBinding): string[] {
   const { from, to } = batch.coverage;
   // Ohne gültiges Fenster lässt sich keine Bewegung zuordnen
   if (from > to) return [`Das Fenster endet vor seinem Anfang (${from} bis ${to}).`];
+  // Ein Fenster bis nach dem Abruf gälte als abgerufen, obwohl die Tage danach fehlen; Tag des Abrufs in dessen Zeitzone
+  const fetchedOn = batch.fetchedAt.slice(0, 10);
+  if (to > fetchedOn) return [`Das Fenster endet am ${to}, nach dem Abruf am ${fetchedOn}.`];
   const problems: string[] = [];
   const seen = new Set<string>();
   for (const m of batch.movements) {
@@ -53,11 +53,12 @@ function hardProblems(batch: ImportBatch, binding: SourceBinding): string[] {
 
 /** Grund, eine sonst gültige Bewegung nicht zu übernehmen, oder null */
 function rejection(m: ImportMovement, binding: SourceBinding): Omit<RejectedMovement, "sourceEventId" | "component"> | null {
-  // Zunächst nur Euro; alles andere sichtbar ablehnen (#306)
-  if (m.currency !== "EUR") return { reason: `Währung ${m.currency}: Haben übernimmt nur Euro.`, blocking: true };
+  // Vor dem Stichtag zuerst: Diese Zeit decken Dateiimporte ab, auch für Bewegungen in fremder Währung
   if (binding.cutoverDate && m.bookingDate < binding.cutoverDate) {
     return { reason: `Vor dem Stichtag ${binding.cutoverDate} der Quelle; diese Zeit decken Dateiimporte ab.`, blocking: false };
   }
+  // Zunächst nur Euro; alles andere sichtbar ablehnen (#306)
+  if (m.currency !== "EUR") return { reason: `Währung ${m.currency}: Haben übernimmt nur Euro.`, blocking: true };
   if (m.amount === 0) return { reason: "Betrag ist 0.", blocking: false };
   return null;
 }
@@ -67,6 +68,11 @@ function rejection(m: ImportMovement, binding: SourceBinding): Omit<RejectedMove
  * ab; einzelne Bewegungen in fremder Währung, vor dem Stichtag oder mit Betrag 0 weist Haben mit Grund zurück.
  */
 export function validateBatch(input: unknown, binding: SourceBinding): BatchValidation {
+  // Die Version zuerst: Eine neuere bringt oft Felder mit, die das Schema dieser Version nicht kennt
+  const version = typeof input === "object" && input !== null ? (input as { contractVersion?: unknown }).contractVersion : undefined;
+  if (typeof version === "number" && version !== IMPORT_CONTRACT_VERSION) {
+    return { ok: false, problems: [`Vertragsversion ${version} wird nicht unterstützt, erwartet ${IMPORT_CONTRACT_VERSION}.`] };
+  }
   const parsed = batchSchema.safeParse(input);
   if (!parsed.success) {
     const fields = [...new Set(parsed.error.issues.map((i) => i.path.join(".") || "Lieferung"))];
