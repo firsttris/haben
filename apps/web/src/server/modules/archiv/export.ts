@@ -19,6 +19,7 @@ import {
 import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
+import { ohneJit } from "../../db/ohne-jit.ts";
 import { accountName, openingCash } from "../buchhaltung/index.ts";
 import { loadFile } from "../../storage.ts";
 import { cashBookCsv } from "../bank/index.ts";
@@ -1380,21 +1381,24 @@ async function* orderFiles(year: number, problems: string[]): AsyncGenerator<Arc
 }
 
 async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile> {
-  const vouchers = await db
-    .select({
-      ...getTableColumns(schema.lexofficeVouchers),
-      type: effectiveType("lexoffice_vouchers"),
-      direction: effectiveDirection("lexoffice_vouchers"),
-      contactName: effectiveContactName("lexoffice_vouchers"),
-      taxes: effectiveTaxes("lexoffice_vouchers"),
-      net: effectiveAmount("lexoffice_vouchers", "net"),
-      tax: effectiveAmount("lexoffice_vouchers", "tax"),
-      gross: effectiveAmount("lexoffice_vouchers", "gross"),
-      payment: effectivePayment("lexoffice_vouchers"),
-    })
-    .from(schema.lexofficeVouchers)
-    .where(between(schema.lexofficeVouchers.date, yearStart(year), yearEnd(year)))
-    .orderBy(asc(schema.lexofficeVouchers.date), asc(schema.lexofficeVouchers.number), asc(schema.lexofficeVouchers.id));
+  // Ausdrücke über alle Archivbelege: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
+  const vouchers = await ohneJit((tx) =>
+    tx
+      .select({
+        ...getTableColumns(schema.lexofficeVouchers),
+        type: effectiveType("lexoffice_vouchers"),
+        direction: effectiveDirection("lexoffice_vouchers"),
+        contactName: effectiveContactName("lexoffice_vouchers"),
+        taxes: effectiveTaxes("lexoffice_vouchers"),
+        net: effectiveAmount("lexoffice_vouchers", "net"),
+        tax: effectiveAmount("lexoffice_vouchers", "tax"),
+        gross: effectiveAmount("lexoffice_vouchers", "gross"),
+        payment: effectivePayment("lexoffice_vouchers"),
+      })
+      .from(schema.lexofficeVouchers)
+      .where(between(schema.lexofficeVouchers.date, yearStart(year), yearEnd(year)))
+      .orderBy(asc(schema.lexofficeVouchers.date), asc(schema.lexofficeVouchers.number), asc(schema.lexofficeVouchers.id)),
+  );
   const files = vouchers.length
     ? await db
         .select()
