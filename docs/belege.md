@@ -11,7 +11,7 @@ Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen lie
 
 <img src="screenshot-belege.png" alt="Belegdetail mit PDF-Vorschau links und den ausgelesenen Feldern Lieferant, Belegdatum, Kategorie und Beträge je Steuersatz rechts" width="900">
 
-Beleg und Formular stehen nebeneinander, wenn die Fläche neben der Seitenleiste breit genug ist. Auf dem Laptop schafft das Einklappen der Seitenleiste (`Strg+B`, am Mac `⌘+B`) Platz dafür, und die Beträge stehen in einer Zeile.
+Beleg und Formular stehen nebeneinander, wenn die Fläche neben der Seitenleiste breit genug ist. Ist sie dafür zu schmal oder stehen die Beträge in zwei Zeilen, schafft das Einklappen der Seitenleiste (`Strg+B`, am Mac `⌘+B`) Platz.
 
 ## So gehst du vor
 
