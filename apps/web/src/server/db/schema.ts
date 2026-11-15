@@ -3822,3 +3822,32 @@ export const appVersions = pgTable("app_versions", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   note: text("note"),
 });
+
+/**
+ * Zugang zum Zahlungsverlauf von Etsy Payments über die Open API v3 (Einstellungen › Bank). Genau eine Zeile, weil
+ * Haben einen Shop je Installation anbindet. Das gemeinsame Geheimnis der Etsy-App und die Zugangs- und
+ * Erneuerungstoken liegen verschlüsselt in ciphertext; der App-Schlüssel (keystring) ist nicht geheim. Wird die
+ * Verbindung getrennt, bleibt nur der Schlüssel stehen, damit sie ohne neue Eingabe wieder aufgenommen werden kann.
+ */
+export const etsyConnections = pgTable(
+  "etsy_connections",
+  {
+    /** Es gibt genau eine Verbindung; der feste Wert hält es dabei */
+    id: text("id").primaryKey().default("etsy"),
+    /** App-Schlüssel der Etsy-App (keystring) */
+    keystring: text("keystring").notNull(),
+    /** Kennung und Name des Shops, beim Verbinden von Etsy ermittelt */
+    shopId: text("shop_id").notNull().default(""),
+    shopName: text("shop_name").notNull().default(""),
+    /** Gemeinsames Geheimnis, Token und die offene Anmeldung (state, PKCE-Verifier): AES-256-GCM */
+    ciphertext: bytea("ciphertext").notNull(),
+    /** Erster Tag, den der Abruf noch holt */
+    fetchFrom: date("fetch_from").notNull(),
+    /** Gebühren, Werbung und Steuer je Monat zu einer Zeile bündeln, wie die Gebührenrechnung sie zeigt */
+    sammelzeilen: boolean("sammelzeilen").notNull().default(true),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("etsy_connections_id", sql`${t.id} = 'etsy'`)],
+);

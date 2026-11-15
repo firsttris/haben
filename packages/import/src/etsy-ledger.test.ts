@@ -17,31 +17,155 @@ const BESTELLUNG_1 = "1000000001";
 const BESTELLUNG_2 = "1000000002";
 
 const zeilen: EtsyLedgerEntry[] = [
-  { entry_id: 900000001, amount: 2200, currency: "EUR", ledger_type: "PAYMENT_GROSS", reference_type: "shop_payment", reference_id: String(VERKAUF_1), created_timestamp: am("2023-06-07") },
-  { entry_id: 900000002, amount: -118, currency: "EUR", ledger_type: "PAYMENT_PROCESSING_FEE", reference_type: "processing_fee", reference_id: String(VERKAUF_1), created_timestamp: am("2023-06-07") },
-  { entry_id: 900000003, amount: -19, currency: "EUR", ledger_type: "listing", reference_type: "listing", reference_id: "1470058658", created_timestamp: am("2023-06-07") },
-  { entry_id: 900000004, amount: -19, currency: "EUR", ledger_type: "renew_sold_auto", reference_type: "listing", reference_id: "1470071198", created_timestamp: am("2023-06-07") },
-  { entry_id: 900000005, amount: -143, currency: "EUR", ledger_type: "transaction", reference_type: "transaction", reference_id: "3588992730", created_timestamp: am("2023-06-07") },
-  { entry_id: 900000006, amount: 2495, currency: "EUR", ledger_type: "PAYMENT_GROSS", reference_type: "shop_payment", reference_id: String(VERKAUF_2), created_timestamp: am("2023-06-13") },
-  { entry_id: 900000007, amount: -2130, currency: "EUR", ledger_type: "prolist", reference_type: "prolist", reference_id: "1170673972595", created_timestamp: am("2023-06-13") },
-  { entry_id: 900000008, amount: -374, currency: "EUR", ledger_type: "offsite_ads_fee", reference_type: "receipt", reference_id: BESTELLUNG_2, created_timestamp: am("2023-06-13") },
-  { entry_id: 900000009, amount: -145, currency: "EUR", ledger_type: "sales_tax", reference_type: "receipt", reference_id: BESTELLUNG_2, created_timestamp: am("2023-06-13") },
-  { entry_id: 900000010, amount: -2900, currency: "EUR", ledger_type: "prolist", reference_type: "prolist", reference_id: "1148556226084", created_timestamp: am("2023-06-15") },
-  { entry_id: 900000011, amount: -2121, currency: "EUR", ledger_type: "REFUND_GROSS", reference_type: "payment_adjustment", reference_id: String(ERSTATTUNG), created_timestamp: am("2023-06-16") },
-  { entry_id: 900000012, amount: 2006, currency: "EUR", ledger_type: "RECOUP", reference_type: "recoupment", reference_id: "131745422754", created_timestamp: am("2023-06-16") },
-  { entry_id: 900000013, amount: -3490, currency: "EUR", ledger_type: "DISBURSE2", reference_type: "disbursement", reference_id: "133244522577", created_timestamp: am("2023-06-20") },
-  { entry_id: 900000014, amount: 0, currency: "EUR", ledger_type: "transaction_quantity", reference_type: "transaction", reference_id: "3588992730", created_timestamp: am("2023-06-20") },
-  { entry_id: 900000015, amount: -18, currency: "EUR", ledger_type: "renew_expired", reference_type: "listing", reference_id: "1319289841", created_timestamp: am("2023-06-25") },
-  { entry_id: 900000016, amount: 2175, currency: "EUR", ledger_type: "billing_payment", reference_type: "billing", reference_id: "131745422999", created_timestamp: am("2023-06-28") },
+  {
+    entry_id: 900000001,
+    amount: 2200,
+    currency: "EUR",
+    ledger_type: "PAYMENT_GROSS",
+    reference_type: "shop_payment",
+    reference_id: String(VERKAUF_1),
+    created_timestamp: am("2023-06-07"),
+  },
+  {
+    entry_id: 900000002,
+    amount: -118,
+    currency: "EUR",
+    ledger_type: "PAYMENT_PROCESSING_FEE",
+    reference_type: "processing_fee",
+    reference_id: String(VERKAUF_1),
+    created_timestamp: am("2023-06-07"),
+  },
+  {
+    entry_id: 900000003,
+    amount: -19,
+    currency: "EUR",
+    ledger_type: "listing",
+    reference_type: "listing",
+    reference_id: "1470058658",
+    created_timestamp: am("2023-06-07"),
+  },
+  {
+    entry_id: 900000004,
+    amount: -19,
+    currency: "EUR",
+    ledger_type: "renew_sold_auto",
+    reference_type: "listing",
+    reference_id: "1470071198",
+    created_timestamp: am("2023-06-07"),
+  },
+  {
+    entry_id: 900000005,
+    amount: -143,
+    currency: "EUR",
+    ledger_type: "transaction",
+    reference_type: "transaction",
+    reference_id: "3588992730",
+    created_timestamp: am("2023-06-07"),
+  },
+  {
+    entry_id: 900000006,
+    amount: 2495,
+    currency: "EUR",
+    ledger_type: "PAYMENT_GROSS",
+    reference_type: "shop_payment",
+    reference_id: String(VERKAUF_2),
+    created_timestamp: am("2023-06-13"),
+  },
+  {
+    entry_id: 900000007,
+    amount: -2130,
+    currency: "EUR",
+    ledger_type: "prolist",
+    reference_type: "prolist",
+    reference_id: "1170673972595",
+    created_timestamp: am("2023-06-13"),
+  },
+  {
+    entry_id: 900000008,
+    amount: -374,
+    currency: "EUR",
+    ledger_type: "offsite_ads_fee",
+    reference_type: "receipt",
+    reference_id: BESTELLUNG_2,
+    created_timestamp: am("2023-06-13"),
+  },
+  {
+    entry_id: 900000009,
+    amount: -145,
+    currency: "EUR",
+    ledger_type: "sales_tax",
+    reference_type: "receipt",
+    reference_id: BESTELLUNG_2,
+    created_timestamp: am("2023-06-13"),
+  },
+  {
+    entry_id: 900000010,
+    amount: -2900,
+    currency: "EUR",
+    ledger_type: "prolist",
+    reference_type: "prolist",
+    reference_id: "1148556226084",
+    created_timestamp: am("2023-06-15"),
+  },
+  {
+    entry_id: 900000011,
+    amount: -2121,
+    currency: "EUR",
+    ledger_type: "REFUND_GROSS",
+    reference_type: "payment_adjustment",
+    reference_id: String(ERSTATTUNG),
+    created_timestamp: am("2023-06-16"),
+  },
+  {
+    entry_id: 900000012,
+    amount: 2006,
+    currency: "EUR",
+    ledger_type: "RECOUP",
+    reference_type: "recoupment",
+    reference_id: "131745422754",
+    created_timestamp: am("2023-06-16"),
+  },
+  {
+    entry_id: 900000013,
+    amount: -3490,
+    currency: "EUR",
+    ledger_type: "DISBURSE2",
+    reference_type: "disbursement",
+    reference_id: "133244522577",
+    created_timestamp: am("2023-06-20"),
+  },
+  {
+    entry_id: 900000014,
+    amount: 0,
+    currency: "EUR",
+    ledger_type: "transaction_quantity",
+    reference_type: "transaction",
+    reference_id: "3588992730",
+    created_timestamp: am("2023-06-20"),
+  },
+  {
+    entry_id: 900000015,
+    amount: -18,
+    currency: "EUR",
+    ledger_type: "renew_expired",
+    reference_type: "listing",
+    reference_id: "1319289841",
+    created_timestamp: am("2023-06-25"),
+  },
+  {
+    entry_id: 900000016,
+    amount: 2175,
+    currency: "EUR",
+    ledger_type: "billing_payment",
+    reference_type: "billing",
+    reference_id: "131745422999",
+    created_timestamp: am("2023-06-28"),
+  },
 ];
 
 /** Wie der Payments-Abruf des Backoffice: Zahlungs- und Erstattungsnummer → Bestellnummer */
 const orderFor = (referenceId: string) =>
-  referenceId === String(VERKAUF_1) || referenceId === String(ERSTATTUNG)
-    ? BESTELLUNG_1
-    : referenceId === String(VERKAUF_2)
-      ? BESTELLUNG_2
-      : undefined;
+  referenceId === String(VERKAUF_1) || referenceId === String(ERSTATTUNG) ? BESTELLUNG_1 : referenceId === String(VERKAUF_2) ? BESTELLUNG_2 : undefined;
 
 const summe = (list: { amount: number }[]) => list.reduce((acc, t) => acc + t.amount, 0);
 
@@ -61,9 +185,7 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
       expect(gebuehr.bookingDate).toBe("2023-06-30");
     }
     expect(statement.transactions.find((t) => t.purpose.includes("Werbung"))?.type).toBe("Werbung");
-    expect(statement.transactions.find((t) => t.purpose.includes("Einstellgebühren"))?.bankReference).toBe(
-      "etsy-einstellgebuehren-2023-06",
-    );
+    expect(statement.transactions.find((t) => t.purpose.includes("Einstellgebühren"))?.bankReference).toBe("etsy-einstellgebuehren-2023-06");
   });
 
   it("bucht Verkauf und Erstattung einzeln mit der Bestellnummer", () => {
@@ -119,6 +241,17 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
     expect(statement.warnings.join(" ")).toContain("nicht in Euro");
     expect(statement.transactions.some((t) => t.amount === -100 && t.type === "etwas_neues")).toBe(true);
     expect(statement.transactions.some((t) => t.amount === -500)).toBe(false);
+  });
+
+  it("lässt Gebühren eines noch laufenden Monats liegen", () => {
+    // Bündeln nur bis Mai: die Juni-Gebühren kommen erst mit dem Abruf im Juli als Sammelzeile
+    const statement = parseEtsyLedger(zeilen, { orderFor, gebuehrenBis: "2023-05-31" });
+    expect(statement.transactions.filter((t) => t.purpose.startsWith("Gebühr"))).toHaveLength(0);
+    expect(statement.transactions.filter((t) => t.type === "Umsatzsteuer")).toHaveLength(0);
+    expect(statement.warnings.join(" ")).toContain("noch laufenden Monat");
+    // Verkäufe, Erstattung und Auszahlung kommen trotzdem
+    expect(statement.transactions.filter((t) => t.type === "Verkauf")).toHaveLength(2);
+    expect(statement.transactions.filter((t) => t.type === "Auszahlung")).toHaveLength(1);
   });
 
   it("setzt den Zeitraum aus den Buchungstagen", () => {

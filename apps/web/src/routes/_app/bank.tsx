@@ -201,13 +201,13 @@ const FORMAT_LABEL = (format: string) =>
                 ? "Etsy"
                 : format === "etsy-ledger"
                   ? "Etsy (Abruf)"
-                : format === "googleplay-earnings"
-                  ? "Google Play"
-                  : format === "appstore-finance"
-                    ? "App Store"
-                    : format === "store-payout"
-                      ? "Auszahlung"
-                      : "CSV";
+                  : format === "googleplay-earnings"
+                    ? "Google Play"
+                    : format === "appstore-finance"
+                      ? "App Store"
+                      : format === "store-payout"
+                        ? "Auszahlung"
+                        : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();

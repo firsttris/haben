@@ -105,6 +105,13 @@ export interface EtsyLedgerOptions {
    * Zeile des Verlaufs ein eigener Umsatz, wie in der CSV-Datei von Etsy.
    */
   sammelzeilen?: boolean;
+  /**
+   * Bündeln nur bis zu diesem Tag (JJJJ-MM-TT), in der Regel der letzte Tag des Vormonats. Etsy ändert die Gebühren
+   * eines Monats bis zum 2. des Folgemonats, deshalb entsteht die Sammelzeile erst, wenn der Monat vorbei ist. Spätere
+   * Gebührenzeilen werden übersprungen und mit dem nächsten Abruf gebündelt; sonst stünde derselbe Betrag zweimal im
+   * Konto (einmal einzeln, einmal in der Sammelzeile).
+   */
+  gebuehrenBis?: string;
 }
 
 /** Buchungstag aus dem Zeitstempel, in UTC wie im Backoffice; Etsy liefert Epoch-Sekunden */
@@ -183,12 +190,12 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
   const unbekannt: string[] = [];
   let fremdwaehrung = 0;
   let mengen = 0;
+  let spaeter = 0;
 
   entries
     .map((entry, position) => ({ entry, tag: tag(entry, `Zeile ${position + 1}`) }))
     .sort((a, b) => (a.entry.created_timestamp ?? 0) - (b.entry.created_timestamp ?? 0))
-    .forEach(({ entry, tag: buchungstag }, position) => {
-      const where = `Zeile ${position + 1} (${entry.ledger_type})`;
+    .forEach(({ entry, tag: buchungstag }) => {
       if (entry.currency && entry.currency.toUpperCase() !== "EUR") {
         fremdwaehrung++;
         return;
@@ -208,6 +215,11 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
       const bucket = kind ? BUCKETS[kind] : undefined;
       if (sammelzeilen && kind && bucket) {
         const monat = buchungstag.slice(0, 7);
+        // Gebühren eines noch laufenden Monats bleiben liegen: die Sammelzeile entsteht erst, wenn er vorbei ist
+        if (options.gebuehrenBis !== undefined && monatsende(monat) > options.gebuehrenBis) {
+          spaeter++;
+          return;
+        }
         const schluessel = `${bucket.reference}-${monat}`;
         const vorhanden = gebuendelt.get(schluessel);
         if (vorhanden) {
@@ -252,6 +264,7 @@ export function parseEtsyLedger(entries: EtsyLedgerEntry[], options: EtsyLedgerO
   const warnings = [...unbekanntWarning(unbekannt)];
   if (fremdwaehrung > 0) warnings.push(`${fremdwaehrung} ${fremdwaehrung === 1 ? "Zeile" : "Zeilen"} nicht in Euro übersprungen.`);
   if (mengen > 0) warnings.push(`${mengen} Mengenzeile(n) ohne Betrag übersprungen.`);
+  if (spaeter > 0) warnings.push(`${spaeter} Gebühren- und Werbezeile(n) aus einem noch laufenden Monat kommen mit dem nächsten Abruf als Sammelzeile.`);
   return finish({
     format: "etsy-ledger",
     currency: "EUR",
