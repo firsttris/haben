@@ -533,7 +533,8 @@ test("Beleg aus sevDesk: später hochgeladene Datei zeigt die Belegansicht als n
   await expect(datei).toContainText("Ein späterer Abruf aus sevDesk hat die Datei angehängt.");
   await expect(datei.getByRole("link", { name: "rechnung-januar.pdf herunterladen" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Dateistand" })).toContainText("sevDesk nennt die Datei erst nach dem ersten Abruf");
-  expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
+  // Die PDF-Vorschau ist ein eigenes Dokument ohne Landmarke
+  expect((await new AxeBuilder({ page }).include("main").exclude(".doc-preview").analyze()).violations).toEqual([]);
 });
 
 test("Kleinunternehmer: Gründungsdatum speichern und bei 25.000 Euro warnen", async () => {
