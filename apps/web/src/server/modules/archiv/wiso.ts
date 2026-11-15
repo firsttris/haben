@@ -58,12 +58,13 @@ export async function latestWisoImport() {
 /**
  * WISO EÜR bucht nach Zahlung: „Zahlungsdatum“ ist der Tag des Zu- oder Abflusses. Als Zahlung festgehalten, zählt die
  * Einnahme bei Ist-Versteuerung im Abgleich in diesem Monat (legacyPayments); offen ist danach nichts. Neutrale Buchungen
- * (Saldovortrag, Geldtransit, Privat) sind kein Entgelt und bekommen keine.
+ * (Saldovortrag, Geldtransit, Privat) sind kein Entgelt und bekommen keine. Gezahlt ist der Betrag aus dem CSV: Bei § 13b
+ * UStG und innergemeinschaftlichem Erwerb bekommt der Lieferant nur das Netto (§ 14a Abs. 5 UStG), die Steuer ist keine Zahlung.
  */
 function wisoPayment(item: WisoPreview["vouchers"][number]): LegacyPayment | null {
   if (item.neutral) return null;
-  const { date, gross } = item.voucher;
-  return { status: "paid", openAmount: 0, paidDate: date, items: [{ type: "payment", date, amount: gross }] };
+  const { date } = item.voucher;
+  return { status: "paid", openAmount: 0, paidDate: date, items: [{ type: "payment", date, amount: item.paid }] };
 }
 
 async function archiveOriginalCsv(actor: string, bytes: Uint8Array, filename: string, year: number): Promise<void> {

@@ -35,6 +35,8 @@ export interface WisoVoucher {
   year: number;
   raw: Record<string, unknown>;
   neutral: boolean;
+  /** Tatsächlicher Zu- oder Abfluss in Cent; bei § 13b UStG und EU-Erwerb ohne die selbst geschuldete Steuer */
+  paid: number;
 }
 
 export interface WisoPreview {

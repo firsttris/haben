@@ -186,23 +186,24 @@ function classifyRow(row: WisoCsvRow, skr: Kontenrahmen): { direction: "einnahme
   };
 }
 
-function computeRowAmounts(row: WisoCsvRow, positive: boolean, neutral: boolean): { rate: number; net: number; tax: number; gross: number } {
+/** Beträge einer Zeile; `paid` ist der tatsächliche Zu- oder Abfluss, bei § 13b und EU-Erwerb ohne die selbst geschuldete Steuer */
+function computeRowAmounts(row: WisoCsvRow, positive: boolean, neutral: boolean): { rate: number; net: number; tax: number; gross: number; paid: number } {
   const amount = Math.abs(row.soll - row.haben);
   const sign = positive ? 1 : -1;
   if (neutral || row.steuersatz === 0) {
     const net = sign * amount;
-    return { rate: 0, net, tax: 0, gross: net };
+    return { rate: 0, net, tax: 0, gross: net, paid: net };
   }
   // Bei § 13b UStG und innergemeinschaftlichem Erwerb steht im WISO-CSV-Export der Nettobetrag (Abgleich zu #565)
   const isNetInCsv = /^(13b\b|EU\s+VSt\b)/i.test(row.steuerschluessel);
   if (isNetInCsv) {
     const net = sign * amount;
     const tax = taxOf(net, row.steuersatz);
-    return { rate: row.steuersatz, net, tax, gross: net + tax };
+    return { rate: row.steuersatz, net, tax, gross: net + tax, paid: net };
   }
   const gross = sign * amount;
   const tax = sign * taxIncluded(amount, row.steuersatz);
-  return { rate: row.steuersatz, net: gross - tax, tax, gross };
+  return { rate: row.steuersatz, net: gross - tax, tax, gross, paid: gross };
 }
 
 /**
@@ -231,10 +232,11 @@ function buildGroupVoucher(key: string, group: WisoCsvRow[], skr: Kontenrahmen):
   let totalNet = 0;
   let totalTax = 0;
   let totalGross = 0;
+  let totalPaid = 0;
 
   for (const row of group) {
     const rowClass = classifyRow(row, skr);
-    const { rate, net: rowNet, tax: rowTax, gross: rowGross } = computeRowAmounts(row, rowClass.positive, rowClass.neutral);
+    const { rate, net: rowNet, tax: rowTax, gross: rowGross, paid: rowPaid } = computeRowAmounts(row, rowClass.positive, rowClass.neutral);
     const dirSign = rowClass.direction === direction ? 1 : -1;
     const net = dirSign * rowNet;
     const tax = dirSign * rowTax;
@@ -242,6 +244,7 @@ function buildGroupVoucher(key: string, group: WisoCsvRow[], skr: Kontenrahmen):
     totalNet += net;
     totalTax += tax;
     totalGross += gross;
+    totalPaid += dirSign * rowPaid;
     const existingTax = taxByRate.get(rate);
     if (existingTax) {
       existingTax.net += net;
@@ -288,6 +291,7 @@ function buildGroupVoucher(key: string, group: WisoCsvRow[], skr: Kontenrahmen):
     bookingKey: key,
     year,
     neutral,
+    paid: totalPaid,
     raw: {
       ohneBeleg: true,
       neutral,
