@@ -58,3 +58,4 @@ export {
   type SevAnlage,
   type SevAnlageStand,
 } from "./anlagen.ts";
+export { sevAccountCategory, type SevAccountCategory, type SevAccountNumbers } from "./kategorie.ts";

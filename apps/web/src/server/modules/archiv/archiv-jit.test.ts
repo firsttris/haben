@@ -45,8 +45,13 @@ describe.skipIf(!testDatabaseUrl)("Archiv ohne JIT (Postgres)", () => {
         'B-' || i, date '2023-01-01' + (i % 1000), case when i % 5 = 0 then 'open' else 'paid' end, 10000, 1900,
         case i % 3 when 2 then -11900 else 11900 end, '[{"rate":1900,"net":10000,"tax":1900}]'::jsonb, '[]'::jsonb,
         jsonb_build_object('status', case when i % 5 = 0 then 'open' else 'paid' end, 'openAmount', case when i % 5 = 0 then 119 else 0 end, 'items', '[]'::jsonb, 'history', 'storno'),
-        jsonb_build_object('creditDebit', case when i % 2 = 0 then 'C' else 'D' end, 'positions', '[]'::jsonb, 'taxRule', jsonb_build_object('id', '1'))
+        jsonb_build_object('creditDebit', case when i % 2 = 0 then 'C' else 'D' end, 'taxRule', jsonb_build_object('id', '1'),
+          'positions', jsonb_build_array(jsonb_build_object('accountingType', jsonb_build_object('id', 'K' || (i % 20))),
+            jsonb_build_object('accountingType', jsonb_build_object('id', 'K' || (i % 7)))))
       from generate_series(1, 600) i`;
+    // Kontostamm der Konten aus den Positionen (#472)
+    await sql`insert into sevdesk_accounting_types (import_id, accounting_type_id, raw)
+      select ${importId}, 'K' || k, jsonb_build_object('id', 'K' || k, 'skr03', (4900 + k)::text, 'skr04', (6300 + k)::text) from generate_series(0, 19) k`;
     await sql`analyze lexoffice_vouchers`;
 
     vi.spyOn(console, "log").mockImplementation((notice: { message?: string }) => {

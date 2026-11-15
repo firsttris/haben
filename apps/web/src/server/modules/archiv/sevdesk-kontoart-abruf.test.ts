@@ -4,9 +4,9 @@ import antworten from "../../../../../../packages/import/test-fixtures/sevdesk/b
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
- * #472: Der Abruf holt nach den Belegen zu jeder archivierten Gutschrift mit `bookingCategory` ACCOUNTING_TYPE den Kontostamm
- * (GET /AccountingType/{id}), auch für Gutschriften aus einem früheren Lauf, und legt die Antwort unverändert ab. Ein gleicher
- * Stand kommt nicht doppelt; die Archivkopie der Gutschrift bleibt unverändert.
+ * #472: Der Abruf holt nach den Belegen zu jeder archivierten Gutschrift mit `bookingCategory` ACCOUNTING_TYPE und zu jedem
+ * Konto einer Beleg-Position den Kontostamm (GET /AccountingType/{id}), auch für Belege aus einem früheren Lauf, und legt die
+ * Antwort unverändert ab. Ein gleicher Stand kommt nicht doppelt; die Archivkopie bleibt unverändert.
  */
 
 const [dienstleister, erloese] = antworten as unknown as [Record<string, unknown>, Record<string, unknown>];
@@ -53,6 +53,16 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf der Buchungskonten (Postgres)",
     await earlier("creditnote/44", { id: "44", bookingCategory: "accounting_type", accountingType: ref("ID_99") });
     await earlier("creditnote/45", { id: "45", bookingCategory: "ACCOUNTING_TYPE" });
     await earlier("voucher/46", { id: "46", bookingCategory: "ACCOUNTING_TYPE", accountingType: ref("ID_77") });
+    // Positionen: ID_66 kommt schon von einer Gutschrift, mit accountDatev zählt das Konto aus Version 2.0 (ID_89 nicht)
+    await earlier("voucher/47", {
+      id: "47",
+      positions: [
+        { id: "1", accountingType: ref("ID_88") },
+        { id: "2", accountingType: ref("ID_66") },
+        { id: "3", accountingType: ref("ID_89"), accountDatev: { id: "4279", objectName: "AccountDatev" } },
+        { id: "4", accountingType: null },
+      ],
+    });
 
     sevdesk.setSevdeskClientFactory(
       (o) =>
@@ -114,14 +124,16 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf der Buchungskonten (Postgres)",
     answers.clear();
     answers.set("/AccountingType/ID_66", () => json({ objects: [dienstleister] }));
     answers.set("/AccountingType/ID_63", () => json({ objects: [erloese] }));
+    answers.set("/AccountingType/ID_88", () => json({ objects: [{ id: "ID_88", objectName: "AccountingType", skr03: "4930", skr04: "6815" }] }));
   });
 
-  it("ruft jede ID einmal ab, auch für Gutschriften aus einem früheren Lauf, und legt die Antwort unverändert ab", async () => {
+  it("ruft jede ID einmal ab, auch für Belege aus einem früheren Lauf, und legt die Antwort unverändert ab", async () => {
     await sevdesk.startSevdeskImport("test-user", { wait: true });
     const latest = (await sevdesk.latestSevdeskImport())!;
     expect(latest.status).toBe("fertig");
-    expect(accountingTypeCalls()).toEqual(["/AccountingType/ID_63", "/AccountingType/ID_66", "/AccountingType/ID_99"]);
-    expect(await stored()).toEqual([
+    expect(accountingTypeCalls()).toEqual(["/AccountingType/ID_63", "/AccountingType/ID_66", "/AccountingType/ID_88", "/AccountingType/ID_99"]);
+    expect((await stored()).map((r) => r.id)).toEqual(["ID_63", "ID_66", "ID_88"]);
+    expect((await stored()).slice(0, 2)).toEqual([
       { id: "ID_63", raw: erloese },
       { id: "ID_66", raw: dienstleister },
     ]);
@@ -134,11 +146,21 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf der Buchungskonten (Postgres)",
 
   it("legt beim zweiten Lauf keinen gleichen Stand doppelt an, einen geänderten schon", async () => {
     await sevdesk.startSevdeskImport("test-user", { wait: true });
-    expect(await stored()).toHaveLength(2);
-    expect(accountingTypeCalls()).toHaveLength(3);
+    expect(await stored()).toHaveLength(3);
+    expect(accountingTypeCalls()).toHaveLength(4);
     answers.set("/AccountingType/ID_66", () => json({ objects: [{ ...dienstleister, name: "Dienstleister (umbenannt)" }] }));
     await sevdesk.startSevdeskImport("test-user", { wait: true });
-    expect((await stored()).map((r) => r.id)).toEqual(["ID_63", "ID_66", "ID_66"]);
+    expect((await stored()).map((r) => r.id)).toEqual(["ID_63", "ID_66", "ID_66", "ID_88"]);
+  });
+
+  it("fragt in Buchhaltungsversion 2.0 nur die Konten der Gutschriften ab, nicht die der Positionen", async () => {
+    await sql`update sevdesk_connection set bookkeeping_version = '2.0'`;
+    try {
+      await sevdesk.startSevdeskImport("test-user", { wait: true });
+      expect(accountingTypeCalls()).toEqual(["/AccountingType/ID_63", "/AccountingType/ID_66", "/AccountingType/ID_99"]);
+    } finally {
+      await sql`update sevdesk_connection set bookkeeping_version = '1.0'`;
+    }
   });
 
   it("ändert die archivierten Gutschriften nicht", async () => {
