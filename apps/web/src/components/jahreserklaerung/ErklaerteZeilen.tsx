@@ -73,14 +73,26 @@ function Tabelle({
 
   const rows = (auswahl: readonly ErklaerteZeile[], hervorheben: boolean) => (
     <tbody>
-      {auswahl.map((z) => (
-        <tr key={z.field} className={hervorheben ? "total-row" : undefined}>
-          <th scope="row">
-            {z.text} <span className="small muted">({z.field})</span>
-          </th>
-          <td className="num">{formatEuro(mitVorzeichen(z.field, zeilen[z.field] ?? 0, vermerkBetrag))}</td>
-        </tr>
-      ))}
+      {auswahl.flatMap((z, i) => {
+        const zeile = (
+          <tr key={z.field} className={hervorheben ? "total-row" : undefined}>
+            <th scope="row">
+              {z.text} <span className="small muted">({z.field})</span>
+            </th>
+            <td className="num">{formatEuro(mitVorzeichen(z.field, zeilen[z.field] ?? 0, vermerkBetrag))}</td>
+          </tr>
+        );
+        // Die Anlage steht einmal über ihrer Gruppe, nicht an jeder Zeile der Einkommensteuererklärung (#1149)
+        const kopf =
+          z.gruppe && z.gruppe !== auswahl[i - 1]?.gruppe ? (
+            <tr key={`gruppe-${z.gruppe}`} className="group-row">
+              <th scope="colgroup" colSpan={2}>
+                {z.gruppe}
+              </th>
+            </tr>
+          ) : null;
+        return kopf ? [kopf, zeile] : [zeile];
+      })}
     </tbody>
   );
 

@@ -12,11 +12,16 @@ import { z } from "zod";
  * Zeile 17 statt Kz 15) und deckte die Zeilen nicht ab, die Haben selbst übermittelt.
  */
 
-/** Eine Zeile, die außerhalb von Haben erklärt wurde: Schlüssel der Erklärung und Zeilentext */
+/** Eine Zeile, die außerhalb von Haben erklärt wurde: Schlüssel der Erklärung, Zeilentext und Anlage */
 export interface ErklaerteZeile {
   /** Schlüssel wie in der Übermittlung: `steuerpflichtig`, `base19`, `gewinn`, … */
   field: string;
   text: string;
+  /**
+   * Anlage des Vordrucks, in der die Zeile steht: „Anlage N“, „Anlage Vorsorgeaufwand“, … Leer, wo die Aufstellung
+   * keine Anlagen kennt (Umsatzsteuererklärung, Anlage EÜR).
+   */
+  gruppe?: string;
 }
 
 const euerZeile = (field: keyof typeof EUER_FIELDS): ErklaerteZeile => ({ field, text: EUER_FIELDS[field].label });
@@ -32,14 +37,9 @@ const EUER_SUMMEN = {
 } as const satisfies Record<string, ErklaerteZeile>;
 
 /**
- * Zeilen der Einkommensteuererklärung. Sie stehen nicht in den Übermittlungsfeldern, weil Haben sie auf viele
- * Anlagen verteilt schickt; für eine Erklärung, die außerhalb von Haben abgegeben wurde, trägt der Betreiber sie aus
- * dem Vordruck nach (#1082). Die Schlüssel bleiben ASCII, die Texte sind die des Vordrucks.
- */
-/**
  * Gleicht das Vorzeichen einer erklärten Zeile an den Vermerk an (#1082).
  *
- * Der Vordruck druckt „Erstattung oder Nachzahlung" als Betrag ohne Richtung; Haben führt Erstattungen dagegen
+ * Der Vordruck druckt „Erstattung oder Nachzahlung“ als Betrag ohne Richtung; Haben führt Erstattungen dagegen
  * negativ, so wie in den Vermerken und in der Abschlusszeile der Umsatzsteuer. Ohne diesen Abgleich stünde
  * dieselbe Erstattung mit zwei Vorzeichen auf einer Seite: −10.321,97 EUR im Vermerk, +10.321,97 EUR in der
  * erklärten Zeile.
@@ -50,23 +50,101 @@ export function mitVorzeichen(field: string, wert: number, vermerkBetrag: number
   return Math.sign(vermerkBetrag) * Math.abs(wert);
 }
 
-const EST_FELDER = {
-  bruttoarbeitslohn: "Bruttoarbeitslohn (Anlage N)",
-  werbungskosten: "Werbungskosten insgesamt",
-  einkuenfteNichtselbstaendig: "Einkünfte aus nichtselbständiger Arbeit",
-  einkuenfteSelbstaendig: "Einkünfte aus selbständiger Arbeit",
-  summeEinkuenfte: "Summe der Einkünfte",
-  gesamtbetrag: "Gesamtbetrag der Einkünfte",
-  vorsorgeaufwendungen: "Abziehbare Vorsorgeaufwendungen",
-  zuVersteuerndesEinkommen: "Zu versteuerndes Einkommen",
-  // In der Erklärung setzt niemand etwas fest: Die Zahl kommt aus dem Steuerprogramm, festgesetzt wird sie erst im
-  // Bescheid. Die Beschriftung sagt deshalb, woher sie stammt (#1084)
-  festgesetzteSteuer: "Einkommensteuer laut Steuerprogramm",
-  soli: "Solidaritätszuschlag laut Steuerprogramm",
-  erstattung: "Erstattung oder Nachzahlung laut Steuerprogramm",
-} as const satisfies Record<string, string>;
+/**
+ * Zeilen der Einkommensteuererklärung, nach den Anlagen des Vordrucks (#1082, #1149).
+ *
+ * Haben schickt die Erklärung auf viele Anlagen verteilt; für eine Erklärung, die außerhalb von Haben abgegeben
+ * wurde, trägt der Betreiber die Zeilen aus dem Vordruck nach. Die Reihenfolge folgt dem Vordruck: erst die Anlagen,
+ * in denen die Beträge entstehen, dann die Berechnung, die sie zusammenführt. Die Anlage steht am Feld, weil
+ * `annual_submission_figures` nur Feldkennung und Betrag speichert. Die Schlüssel bleiben ASCII, die Texte sind die
+ * des Vordrucks.
+ */
+const EST_ANLAGEN: readonly { anlage: string; felder: Readonly<Record<string, string>> }[] = [
+  {
+    anlage: "Anlage N",
+    felder: {
+      bruttoarbeitslohn: "Bruttoarbeitslohn",
+      werbungskostenArbeitsmittel: "Aufwendungen für Arbeitsmittel",
+      werbungskostenArbeitszimmer: "Aufwendungen für ein häusliches Arbeitszimmer",
+      werbungskostenUebrige: "Übrige Werbungskosten",
+      werbungskostenBewerbung: "davon Bewerbungskosten",
+      werbungskostenSonstige: "davon weitere Werbungskosten",
+      werbungskosten: "Werbungskosten insgesamt",
+      einkuenfteNichtselbstaendig: "Einkünfte aus nichtselbständiger Arbeit",
+    },
+  },
+  {
+    anlage: "Anlage S",
+    felder: {
+      einkuenfteSelbstaendigLaufend: "Laufende Gewinne, darin Gewinne aus freiberuflicher Tätigkeit",
+      einkuenfteSelbstaendig: "Einkünfte aus selbständiger Arbeit",
+    },
+  },
+  {
+    anlage: "Anlage Vorsorgeaufwand",
+    felder: {
+      altersvorsorgeArbeitnehmeranteil: "Arbeitnehmeranteil zu gesetzlichen Rentenversicherungen",
+      altersvorsorgeEigeneVertraege: "Eigene kapitalgedeckte Rentenversicherungen",
+      altersvorsorgeArbeitgeberanteil: "Arbeitgeberanteil zu gesetzlichen Rentenversicherungen",
+      altersvorsorgeSumme: "Summe der Altersvorsorgeaufwendungen",
+      altersvorsorgeHoechstbetrag: "Höchstbetrag nach § 10 Abs. 3 EStG",
+      altersvorsorgeAbziehbar: "Abziehbare Altersvorsorgebeiträge",
+      basisabsicherung: "Basisabsicherungen (Nr. 3)",
+      pflegePflichtversicherung: "Pflege-Pflichtversicherungen (Nr. 3)",
+      vorsorgeZuschuesse: "Zuschüsse und Erstattungen (Nr. 3)",
+      vorsorgeAufwendungenNr3: "Summe der übrigen Vorsorgeaufwendungen (Nr. 3)",
+      krankenPflegeUebrige: "Übrige Kranken- und Pflegeversicherungen (Nr. 3a)",
+      arbeitslosenversicherung: "Arbeitslosenversicherungen (Nr. 3a)",
+      berufsunfaehigkeit: "Erwerbs- und Berufsunfähigkeitsversicherungen (Nr. 3a)",
+      unfallHaftpflicht: "Unfall-, Haftpflicht- und Risikoversicherungen (Nr. 3a)",
+      vorsorgeAufwendungenNr3a: "Summe der übrigen Vorsorgeaufwendungen (Nr. 3a)",
+      vorsorgeAufwendungenNr3aAbziehbar: "davon abziehbar",
+      vorsorgeaufwendungen: "Summe der abziehbaren Vorsorgeaufwendungen",
+    },
+  },
+  {
+    anlage: "Sonderausgaben",
+    felder: {
+      sonderausgabenPauschbetrag: "Sonderausgaben-Pauschbetrag",
+      erstattungsueberhang: "Erstattungsüberhang bei Beiträgen der Basisversorgung (§ 10 Abs. 4b EStG)",
+    },
+  },
+  {
+    anlage: "Anlage KAP",
+    felder: {
+      kapitalertraege: "Kapitalerträge",
+      sparerPauschbetrag: "Sparer-Pauschbetrag",
+      kapitalertraegeMassgeblich: "Maßgebliche Einkünfte nach § 32d EStG",
+      abgeltungsteuer: "Steuern nach § 32d EStG (Abgeltungsteuer)",
+      kapitalertragsteuer: "Einbehaltene Kapitalertragsteuer",
+      kapitalertragsteuerSoli: "Solidaritätszuschlag auf Kapitalerträge",
+    },
+  },
+  {
+    anlage: "Progressionsvorbehalt",
+    felder: {
+      einkuenfteProgressionsvorbehalt: "Einkünfte unter Progressionsvorbehalt (§ 32b EStG)",
+      tariflicheEinkommensteuer: "Tarifliche Einkommensteuer",
+    },
+  },
+  {
+    anlage: "Berechnung",
+    felder: {
+      summeEinkuenfte: "Summe der Einkünfte",
+      gesamtbetrag: "Gesamtbetrag der Einkünfte",
+      zuVersteuerndesEinkommen: "Zu versteuerndes Einkommen",
+      // In der Erklärung setzt niemand etwas fest: Die Zahl kommt aus dem Steuerprogramm, festgesetzt wird sie erst im
+      // Bescheid. Die Beschriftung sagt deshalb, woher sie stammt (#1084)
+      festgesetzteSteuer: "Einkommensteuer laut Steuerprogramm",
+      soli: "Solidaritätszuschlag laut Steuerprogramm",
+      erstattung: "Erstattung oder Nachzahlung laut Steuerprogramm",
+    },
+  },
+];
 
-const EST_ZEILEN: ErklaerteZeile[] = Object.entries(EST_FELDER).map(([field, text]) => ({ field, text }));
+const EST_ZEILEN: readonly ErklaerteZeile[] = EST_ANLAGEN.flatMap(({ anlage, felder }) =>
+  Object.entries(felder).map(([field, text]) => ({ field, text, gruppe: anlage })),
+);
 
 type UstBetrag = Exclude<keyof UstErklaerungFigures, "kz48Zeile47Nummern">;
 
