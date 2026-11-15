@@ -168,4 +168,30 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     expect({ nov: november.kz66, dez: dezember.kz66 }).toEqual({ nov: 0, dez: 616 });
     expect({ nov: november.nebenbuecher?.kz66, dez: dezember.nebenbuecher?.kz66 }).toEqual({ nov: 0, dez: 616 });
   });
+
+  /** Kz 66 aus dem Journal und aus den Nebenbüchern je Monat */
+  async function beideQuellen(monate: { year: number; month: number }[]) {
+    const journal: number[] = [];
+    const nebenbuecher: (number | undefined)[] = [];
+    for (const m of monate) {
+      const f = await figures.computeVatFigures(m);
+      journal.push(f.kz66);
+      nebenbuecher.push(f.nebenbuecher?.kz66);
+    }
+    return { journal, nebenbuecher };
+  }
+
+  // Bar oder privat bezahlt ist der Beleg mit der Buchung ausgeglichen (docs/umsatzsteuer.md, Vorsteuer Kz 66; belegbuchung.ts
+  // parkt deshalb nichts): gezahlt vor der Ausführung, also abziehbar im Monat der Zahlung (UStAE 15.3 Abs. 1 Satz 2).
+  // Journal und Nebenbücher müssen denselben Monat nennen
+  it("Journal als Quelle: privat bezahlt vor der Ausführung, Journal und Nebenbücher im selben Monat", async () => {
+    await firma({ journalAb: 2026, kontenrahmen: "SKR04", versteuerung: "soll" });
+    await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", payment: "privat", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+
+    const monate = [
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ];
+    expect(await beideQuellen(monate)).toEqual({ journal: [616, 0], nebenbuecher: [616, 0] });
+  });
 });
