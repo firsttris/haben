@@ -709,6 +709,21 @@ test("Pauschalen: Homeoffice-Monat über die Monatsauswahl wählen (#928)", asyn
   await expect(monat).toContainText(`Januar ${YEAR}`);
 });
 
+test("Monatsauswahl: Tab aus dem offenen Raster schließt es, statt das nächste Feld zu verdecken (#928)", async () => {
+  await go("/pauschalen");
+  const homeoffice = page.getByRole("region", { name: "Pauschale eintragen" }).getByRole("form", { name: "Homeoffice-Pauschale" });
+  const monat = homeoffice.getByLabel("Monat", { exact: true });
+  const tage = homeoffice.getByLabel("Tage im Homeoffice", { exact: true });
+  await monat.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Monat wählen" });
+  await expect(dialog).toBeVisible();
+  // Durch Jahreswechsel und Monate bis ins nächste Feld
+  for (let i = 0; i < 20 && !(await tage.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
+  await expect(tage).toBeFocused();
+  await expect(dialog).toBeHidden();
+});
+
 test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
   // Zwei Spalten am Handy (DESIGN.md, Karten): Die fünfte Karte der Pauschalen und die dritte der Kasse standen allein in halber Breite
   const vorher = page.viewportSize();
