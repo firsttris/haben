@@ -510,7 +510,7 @@ Gebucht wird je Seite eine Buchung, Forderungen gegen Verrechnungskonto:
 | 1400 Forderungen | 1200 Forderungen | Betrag | |
 | 1590 Verrechnungskonto | 1370 Verrechnungskonto | | Betrag |
 
-Die Verrechnung selbst trägt keine Umsatzsteuer: Die Minderung hängt an der Korrektur (§ 17 Abs. 1 UStG), nicht an der Aufrechnung. In der EÜR ist sie kein Zufluss (§ 11 EStG); in den offenen Posten und im Mahnwesen zählt sie wie eine Zahlung.
+Die Verrechnung selbst trägt keine Umsatzsteuer: Die Minderung hängt an der Korrektur (§ 17 Abs. 1 UStG), nicht an der Aufrechnung. Bei Soll-Versteuerung mindert die Korrektur die Umsatzsteuer in ihrem Monat, bei Ist-Versteuerung, wenn Geld fließt. Verrechnet ist kein Geld geflossen: Haben gibt die Forderung in dieser Höhe auf, statt sie zu kassieren. Bei Ist-Versteuerung entsteht darauf deshalb keine Umsatzsteuer, weder bei der Rechnung noch bei der Korrektur; die Steuer der Zahlungen bleibt die Steuer des tatsächlich vereinnahmten Entgelts. Bei Soll-Versteuerung mindert die Korrektur die Umsatzsteuer in ihrem eigenen Monat, die Aufrechnung ändert daran nichts. Bleibt der Rest offen, bleibt auch seine Steuer offen, wie bei jeder unbezahlten Rechnung. In der EÜR ist die Verrechnung kein Zufluss (§ 11 EStG); in den offenen Posten und im Mahnwesen zählt sie wie eine Zahlung.
 
 Aufgehoben wird im selben Abschnitt mit Datum und Grund; die Gegenbuchung steht am Tag der Aufhebung, nicht rückwirkend. Solange eine Verrechnung besteht, lässt sich die Rechnung nicht stornieren — hebe sie zuerst auf. Im Jahresarchiv stehen die Verrechnungen in `rechnungen/verrechnungen.csv`.
 
