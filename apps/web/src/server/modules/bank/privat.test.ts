@@ -10,6 +10,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)", () => {
   let bank: typeof import("./bank.ts");
   let privat: typeof import("./privat.ts");
+  let auswahl: typeof import("./umsatzauswahl.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
 
@@ -17,6 +18,7 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
     sql = await setupTestDb();
     bank = await import("./bank.ts");
     privat = await import("./privat.ts");
+    auswahl = await import("./umsatzauswahl.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -72,5 +74,25 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
     const geschaeft = await konto("geschaeft", "Geschäftskonto", "DE42100140009610447304");
     const id = await umsatz(geschaeft, "2026-11-11", 1_032_197);
     await expect(privat.markierePrivat(actor, id)).rejects.toThrow(/nur auf einem privaten Konto/);
+  });
+
+  /*
+   * Die Zeile trug weiter „Offen", während der Filter „offen" sie schon ausschloss — das war inkonsistent. Ein
+   * gekennzeichneter Umsatz steht jetzt als „privat, kein Betriebsvorgang" in der Liste.
+   */
+  it("zeigt einen gekennzeichneten Umsatz als privat statt offen", async () => {
+    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const id = await umsatz(privatKonto, "2026-11-11", 1_032_197);
+    const sortierung = { feld: "datum", richtung: "ab" } as const;
+
+    const vorher = await auswahl.umsatzauswahl({ id: privatKonto, purpose: "privat" }, "alle", "", sortierung);
+    expect(vorher.find((row) => row.id === id)?.hint).toBe("offen");
+
+    await privat.markierePrivat(actor, id);
+
+    const nachher = await auswahl.umsatzauswahl({ id: privatKonto, purpose: "privat" }, "alle", "", sortierung);
+    expect(nachher.find((row) => row.id === id)?.hint).toBe("privat");
+    // Und in der Arbeitsliste „offen" taucht er nicht auf
+    expect(await auswahl.umsatzauswahl({ id: privatKonto, purpose: "privat" }, "offen", "", sortierung)).toEqual([]);
   });
 });

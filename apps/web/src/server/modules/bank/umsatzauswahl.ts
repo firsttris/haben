@@ -15,6 +15,8 @@ async function mitHinweisen(
   const learned = await learnedDirectSuggestions(umsatze.filter((row) => row.open !== 0 && row.open === row.amount));
   return umsatze.map((row) => {
     if (row.neutralized) return { ...row, suggestion: null, hint: "verrechnet" as const };
+    // Gekennzeichnete Umsätze auf privaten Konten sind erledigt, ohne gebucht zu sein (#1088): nicht „Offen"
+    if (row.privat) return { ...row, suggestion: null, hint: "privat" as const };
     if (row.open === 0) return { ...row, suggestion: null, hint: "zugeordnet" as const };
     const [match] = suggestMatches({ ...row, amount: row.open }, items, 1);
     // PayPal auf dem Bankkonto braucht die Gegenbuchung, die erst die Detailansicht sucht.

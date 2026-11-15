@@ -37,7 +37,8 @@ export function umsatzReihenfolge({ feld, richtung }: UmsatzSortierung): SQL[] {
  * Wie dringend ein Hinweis in der Liste ist. Absteigend, also beim ersten Klick, steht oben, was zu tun ist:
  * Beleg fehlt, Vorschlag, offen, teilweise, zugeordnet, verrechnet. Aufsteigend umgekehrt.
  */
-const DRINGLICHKEIT = { belegFehlt: 5, vorschlag: 4, offen: 3, teilweise: 2, zugeordnet: 1, verrechnet: 0 } as const;
+// „privat" steht hinter allem, was zu tun ist: Auf einem privaten Konto gibt es für den Umsatz keine Buchungsart (#1088)
+const DRINGLICHKEIT = { belegFehlt: 5, vorschlag: 4, offen: 3, teilweise: 2, zugeordnet: 1, privat: -1, verrechnet: 0 } as const;
 export type UmsatzHinweis = keyof typeof DRINGLICHKEIT;
 
 /** Sortiert die geladenen Umsätze nach Status; bei gleichem Status bleibt die Reihenfolge aus der Datenbank */
