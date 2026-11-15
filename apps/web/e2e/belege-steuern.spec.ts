@@ -760,7 +760,10 @@ test("Fremdwährung: Kurs von Hand mit der Monatsauswahl, fehlende Angaben stehe
   await expect(monat).toHaveAccessibleDescription("Wähle den Monat.");
   await waehrung.fill("ISK");
   await monat.click();
-  await page.getByRole("dialog", { name: "Monat wählen" }).getByRole("button", { name: `Januar ${YEAR}` }).click();
+  await page
+    .getByRole("dialog", { name: "Monat wählen" })
+    .getByRole("button", { name: `Januar ${YEAR}` })
+    .click();
   await expect(monat).not.toHaveAttribute("aria-invalid");
   await form.getByLabel("1 EUR = …", { exact: true }).fill("152,3");
   await form.getByRole("button", { name: "Kurs speichern" }).click();
