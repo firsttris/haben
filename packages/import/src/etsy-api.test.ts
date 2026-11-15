@@ -188,4 +188,32 @@ describe("Etsy-Client", () => {
     expect(ohne.refreshToken).toBe("alt");
     expect(() => tokenFromResponse({ error: "invalid_grant" }, "alt", 1_000)).toThrow(/invalid_grant/);
   });
+
+  it("liest das Land je Bestellung aus dem Receipt und lässt Bestellungen ohne Land weg", async () => {
+    const antworten: Record<string, unknown> = {
+      "/shops/35160089/receipts/1001": { receipt_id: 1001, country_iso: "de" },
+      "/shops/35160089/receipts/1002": { receipt_id: 1002, country_iso: "US" },
+      "/shops/35160089/receipts/1003": { receipt_id: 1003, country_iso: null },
+    };
+    const { fetch, rufe } = mockFetch((ruf) => antworten[new URL(ruf.url).pathname.replace("/v3/application", "")] ?? {});
+    const client = createEtsyClient({
+      keystring: "abc",
+      shopId: "35160089",
+      tokens: GUELTIG,
+      baseUrl: "https://etsy.test/v3/application",
+      runtime: { ...lauf, fetch },
+    });
+    const laender = await client.countriesFor(["1001", "1002", "1003", "1001"]);
+    expect(laender).toEqual(
+      new Map([
+        ["1001", "DE"],
+        ["1002", "US"],
+      ]),
+    );
+    expect(rufe.map((r) => new URL(r.url).pathname)).toEqual([
+      "/v3/application/shops/35160089/receipts/1001",
+      "/v3/application/shops/35160089/receipts/1002",
+      "/v3/application/shops/35160089/receipts/1003",
+    ]);
+  });
 });

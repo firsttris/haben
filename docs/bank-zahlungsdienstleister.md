@@ -58,3 +58,26 @@ Jeder Monat lässt sich nur einer Auszahlung zuordnen; die Übernahme ist unver�
 Der Entwurf geht über den Auszahlungsanspruch des Monats, zu 0 % mit Reverse Charge bei einer Gesellschaft im EU-Ausland (auch in Monaco, siehe [Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)) bzw. als nicht steuerbare Leistung ins Drittland (Kz 45) bei einer außerhalb, auf Englisch, mit dem Berichtszeitraum als Leistungszeitraum. Bei Fremdwährung trägt er den Kurs, mit dem Haben den Monatsumsatz umgerechnet hat, damit Rechnung und Umsatz in Euro übereinstimmen. Jeder Entwurf hat die Referenz des Monatsumsatzes als externe Referenz; dieselbe Abrechnung bekommt keinen zweiten, und ein gelöschter Entwurf kommt beim Abruf nicht wieder. Keinen Entwurf gibt es ohne gewählten Kontakt, für einen Monat ohne positiven Betrag und als Kleinunternehmer (das klärst du mit deiner Steuerberatung).
 
 **Grenzen:** Der Aufbau der Berichte stammt aus den Beschreibungen von Google und Apple; mit echten Dateien geprüft ist er noch nicht. Haben erkennt die Spalten an ihren Namen und bricht bei unbekannter Währung, unlesbarem Betrag oder Datum ab, statt zu raten. Auch die Namen, unter denen Google und Apple auf dem Kontoauszug stehen, sind noch nicht an echten Auszügen geprüft. Apple verkauft in manchen Ländern über andere Gesellschaften als Apple Distribution International; Haben legt alle Entwürfe an den einen gewählten Kontakt an, prüfe sie vor dem Festschreiben gegen deinen Vertrag. Kz 21 zählt Haben nach dem Rechnungsdatum, nicht nach dem Monat der Leistung (siehe [Umsätze ohne Steuer](umsatzsteuer.md#umsätze-ohne-steuer-kz-21-41-43-45-und-48)); ein Entwurf vom Abruf Anfang des Folgemonats landet damit einen Monat später. Wie der Monatsumsatz zu buchen ist, klärst du mit deiner Steuerberatung. Zahlungsavis, Rechnungen und Steuerdokumente bieten beide Stores nicht über die Schnittstelle an.
+
+## Etsy-Zahlungsverlauf über die API
+
+Statt der Monatsabrechnung kann Haben den Zahlungsverlauf von Etsy Payments selbst abrufen: einmal täglich und mit **Jetzt abrufen**. Nimm für einen Zeitraum nur einen Weg; hat ein Monat schon Umsätze aus der CSV, weist Haben beim Abruf darauf hin.
+
+**Bei Etsy (einmalig):**
+
+1. Auf [etsy.com/developers](https://www.etsy.com/developers) eine App anlegen und **Keystring** und **Shared Secret** kopieren.
+2. Als **Redirect-URI** `<Adresse von Haben>/api/etsy/callback` eintragen, mit genau der Adresse, unter der du Haben im Browser öffnest.
+3. Die App braucht die Rechte `transactions_r` und `shops_r`; Etsy fragt sie bei der Freigabe ab.
+
+**In Haben:** Unter **Einstellungen › Bank** in der Karte **Etsy Payments** App-Schlüssel und Geheimnis eintragen, **Abruf ab Monat** wählen, **Speichern** und **Verbinden**. Haben öffnet Etsy zur Freigabe; danach steht in der Karte „Verbunden mit“ und der Name des Shops. Voraussetzung ist ein Konto der Art Zahlungsdienstleister mit Anbieter Etsy. **Trennen** hebt die Verbindung auf und behält den Schlüssel, **Zugang entfernen** löscht beides.
+
+**Was im Konto ankommt:**
+
+- Jeder Verkauf und jede Erstattung einzeln, mit der Bestellnummer im Zweck. Die Steuer, die Etsy für den Käufer einzieht und abführt (etwa US Sales Tax), verrechnet Haben wie bei der Monatsabrechnung mit dem Verkauf bzw. der Erstattung derselben Bestellung am selben Tag; der Verkauf kommt mit dem Betrag der Rechnung an. Ohne passenden Verkauf bleibt sie mit Bestellnummer als eigener Umsatz stehen.
+- Mit **Gebühren bündeln** je Monat und Art eine Zeile am Monatsletzten: Einstellgebühren, Transaktionsgebühren, Zahlungsabwicklung und Werbung (Etsy Ads und Offsite Ads). Zusammen ergeben sie die Summe der Gebührenrechnung, die Etsy „USt.-Abrechnung“ nennt, und lassen sich ihr mit einem Klick zuordnen. Die Transaktionsgebühr auf das Porto zählt zu den Transaktionsgebühren, die Gebühr für weitere verkaufte Stücke zu den Einstellgebühren, wie auf der Rechnung.
+- Auszahlungen als Geldtransit, Karteneinzug und Verrechnung einzeln.
+- Im Abrufergebnis stehen die Bestellungen nach Land des Käufers: Deutschland, USA und andere.
+
+**Der 5. des Folgemonats:** Etsy korrigiert Gebühren in den ersten Tagen des Folgemonats noch. Haben bündelt einen Monat deshalb erst ab dem 5.; bis dahin bleiben seine Gebühren liegen, der Abruf sagt das. Lade auch die Gebührenrechnung erst ab dem 5. herunter, dann passt sie zu den Sammelzeilen. Eine Sammelzeile entsteht nur einmal: Kommt später noch eine Gebühr mit dem Datum eines schon gebündelten Monats, übernimmt Haben sie nicht und weist darauf hin.
+
+**Grenzen:** Etsy beschreibt die Zeilenarten des Verlaufs nicht. Die Zuordnung stammt aus einem echten Verlauf von Juli 2022 bis Mai 2026; jede der 21 Gebührenrechnungen von August 2022 bis April 2024 ergibt sich daraus auf den Cent. Eine unbekannte Art kommt einzeln mit Hinweis. Rechnungen an Kunden legt der Abruf nicht an. Ob Etsy die Rechte für deine App ohne weitere Prüfung freigibt, entscheidet Etsy.

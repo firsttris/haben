@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { parseEtsyLedger, type EtsyLedgerEntry, type ParsedStatement } from "@haben/import";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, like } from "drizzle-orm";
 import { storeStatement } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -35,7 +35,7 @@ async function providerAccount() {
 export interface EtsyImportOptions {
   /** Bestellnummer je Zahlungs- oder Erstattungsnummer aus dem Payments-Abruf */
   orderFor?: (referenceId: string) => string | undefined;
-  /** Gebühren, Werbung und Steuer je Monat bündeln (Vorgabe des Zugangs) */
+  /** Gebühren und Werbung je Monat bündeln (Vorgabe des Zugangs) */
   sammelzeilen: boolean;
   /** Bündeln nur bis zu diesem Tag; später entstandene Gebühren kommen mit dem nächsten Abruf */
   gebuehrenBis?: string;
@@ -44,12 +44,27 @@ export interface EtsyImportOptions {
 }
 
 /** Verlauf als Kontoauszug lesen, ohne ihn zu buchen (Vorschau und Tests) */
-export function etsyStatement(entries: EtsyLedgerEntry[], options: EtsyImportOptions): ParsedStatement {
+export function etsyStatement(entries: EtsyLedgerEntry[], options: EtsyImportOptions, schonGebuendelt?: ReadonlySet<string>): ParsedStatement {
   return parseEtsyLedger(entries, {
     orderFor: options.orderFor,
     sammelzeilen: options.sammelzeilen,
     gebuehrenBis: options.gebuehrenBis,
+    schonGebuendelt,
   });
+}
+
+/** Sammelzeilen (Art und Monat), die schon im Konto stehen; ihre Bankreferenz ist „etsy-<art>-<JJJJ-MM>“ */
+async function sammelzeilenImKonto(accountId: string): Promise<Set<string>> {
+  const rows = await db
+    .select({ reference: schema.bankTransactions.bankReference })
+    .from(schema.bankTransactions)
+    .where(and(eq(schema.bankTransactions.bankAccountId, accountId), like(schema.bankTransactions.bankReference, "etsy-%")));
+  const kennungen = new Set<string>();
+  for (const { reference } of rows) {
+    const treffer = reference?.match(/^etsy-([a-z]+-\d{4}-\d{2})$/);
+    if (treffer?.[1]) kennungen.add(treffer[1]);
+  }
+  return kennungen;
 }
 
 /** Den Verlauf ins Konto des Dienstleisters übernehmen */
@@ -64,7 +79,7 @@ export async function importEtsyLedger(actor: string, entries: EtsyLedgerEntry[]
       ],
     };
   }
-  const statement = etsyStatement(entries, options);
+  const statement = etsyStatement(entries, options, await sammelzeilenImKonto(account.id));
   const result: EtsyImportResult = { accountName: account.name, added: 0, messages: [...statement.warnings] };
   if (statement.transactions.length === 0) return result;
   const bytes = new TextEncoder().encode(JSON.stringify(statement.transactions));

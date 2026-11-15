@@ -883,6 +883,20 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.etsy_connections",
+      "name": "etsy_connections_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER etsy_connections_audit AFTER INSERT OR DELETE OR UPDATE ON public.etsy_connections FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.etsy_connections",
+      "name": "etsy_connections_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER etsy_connections_no_truncate BEFORE TRUNCATE ON public.etsy_connections FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.exchange_rates",
       "name": "exchange_rates_audit",
       "enabled": "O",

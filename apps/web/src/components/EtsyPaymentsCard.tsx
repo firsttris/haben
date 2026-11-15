@@ -85,11 +85,17 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
         <Field label="Abruf ab Monat" hint="Erster Monat, den Haben holt (JJJJ-MM)">
           {(control) => <input {...control} name="fetchFrom" value={fetchFrom} onChange={(event) => setFetchFrom(event.target.value)} />}
         </Field>
-        <Field label="Gebühren bündeln" hint="Gebühren, Werbung und Steuer je Monat zu einer Zeile, wie die Gebührenrechnung sie zeigt">
+        <Field
+          label="Gebühren bündeln"
+          hint="Gebühren und Werbung je Monat und Art zu einer Zeile, wie die Gebührenrechnung sie zeigt; die Sales Tax wird mit dem Verkauf derselben Bestellung verrechnet"
+        >
           {(control) => (
             <input {...control} name="sammelzeilen" type="checkbox" checked={sammelzeilen} onChange={(event) => setSammelzeilen(event.target.checked)} />
           )}
         </Field>
+        <p className="small muted" style={{ margin: 0 }}>
+          Die Gebühren-PDF von Etsy erst ab dem 5. des Folgemonats hochladen. Etsy korrigiert Gebühren bis dahin noch nachträglich.
+        </p>
         <div className="row" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? "Speichere …" : "Speichern"}

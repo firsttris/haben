@@ -3,8 +3,8 @@ import { parseEtsyLedger, type EtsyLedgerEntry } from "./etsy-ledger.ts";
 
 /*
  * Beispieldaten in der Form des echten Verlaufs (Juni 2023), Beträge und Typen wie dort, Kennungen erfunden:
- * im Repository stehen keine echten Bestellnummern. Die echten Zahlen des Monats stehen in der Gebührenrechnung
- * (116,57 €) und wurden gegen den vollständigen Verlauf geprüft.
+ * im Repository stehen keine echten Bestellnummern. Die Zuordnung der Typen wurde gegen den vollständigen Verlauf und
+ * alle 21 Gebührenrechnungen von August 2022 bis April 2024 geprüft (jede Rechnungssumme auf den Cent).
  */
 
 /** Zeitstempel in Epoch-Sekunden; Etsy liefert sie so */
@@ -135,8 +135,9 @@ const zeilen: EtsyLedgerEntry[] = [
     created_timestamp: am("2023-06-20"),
   },
   {
+    // Einstellgebühr für ein weiteres verkauftes Stück; im echten Verlauf −0,19 € und −0,18 €
     entry_id: 900000014,
-    amount: 0,
+    amount: -19,
     currency: "EUR",
     ledger_type: "transaction_quantity",
     reference_type: "transaction",
@@ -161,6 +162,16 @@ const zeilen: EtsyLedgerEntry[] = [
     reference_id: "131745422999",
     created_timestamp: am("2023-06-28"),
   },
+  {
+    // Transaktionsgebühr auf das Porto (Rechnungsposition „Transaction Fees“), kein Versand
+    entry_id: 900000017,
+    amount: -23,
+    currency: "EUR",
+    ledger_type: "shipping_transaction",
+    reference_type: "receipt",
+    reference_id: BESTELLUNG_2,
+    created_timestamp: am("2023-06-13"),
+  },
 ];
 
 /** Wie der Payments-Abruf des Backoffice: Zahlungs- und Erstattungsnummer → Bestellnummer */
@@ -170,7 +181,7 @@ const orderFor = (referenceId: string) =>
 const summe = (list: { amount: number }[]) => list.reduce((acc, t) => acc + t.amount, 0);
 
 describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
-  it("bündelt Gebühren, Werbung und Steuer je Monat und lässt Verkäufe einzeln", () => {
+  it("bündelt Gebühren und Werbung je Monat und lässt Verkäufe einzeln", () => {
     const statement = parseEtsyLedger(zeilen, { orderFor });
     const gebuehren = statement.transactions.filter((t) => t.purpose.startsWith("Gebühr"));
     expect(gebuehren.map((t) => t.purpose).sort()).toEqual([
@@ -179,8 +190,11 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
       "Gebühr · Werbung 2023-06",
       "Gebühr · Zahlungsabwicklung 2023-06",
     ]);
-    // Einstellgebühren 19 + 19 + 18, Transaktionsgebühr 143, Zahlungsabwicklung 118, Werbung 2130 + 2900 + 374
-    expect(summe(gebuehren)).toBe(-56 - 143 - 118 - 5404);
+    // Einstellgebühren 19 + 19 + 18 + Mengengebühr 19, Transaktionsgebühr 143 + Porto 23, Zahlungsabwicklung 118,
+    // Werbung 2130 + 2900 + 374
+    expect(summe(gebuehren)).toBe(-75 - 166 - 118 - 5404);
+    expect(statement.transactions.find((t) => t.purpose.includes("Einstellgebühren"))?.amount).toBe(-75);
+    expect(statement.transactions.find((t) => t.purpose.includes("Transaktionsgebühren"))?.amount).toBe(-166);
     for (const gebuehr of gebuehren) {
       expect(gebuehr.bookingDate).toBe("2023-06-30");
     }
@@ -191,7 +205,8 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
   it("bucht Verkauf und Erstattung einzeln mit der Bestellnummer", () => {
     const statement = parseEtsyLedger(zeilen, { orderFor });
     const verkaeufe = statement.transactions.filter((t) => t.type === "Verkauf");
-    expect(verkaeufe.map((t) => t.amount)).toEqual([2200, 2495]);
+    // Der zweite Verkauf ohne die Sales Tax derselben Bestellung (2495 − 145), siehe nächster Test
+    expect(verkaeufe.map((t) => t.amount)).toEqual([2200, 2350]);
     expect(verkaeufe[0]?.purpose).toBe(`Verkauf · Etsy Bestellung ${BESTELLUNG_1}`);
     expect(verkaeufe[0]?.bankReference).toBe("etsy-900000001");
     const erstattung = statement.transactions.filter((t) => t.type === "Erstattung");
@@ -200,12 +215,49 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
     expect(erstattung[0]?.purpose).toBe(`Erstattung · Etsy Bestellung ${BESTELLUNG_1}`);
   });
 
-  it("bündelt die Steuer des Käufers als eigene Monatszeile", () => {
+  it("verrechnet die Sales Tax mit dem Verkauf derselben Bestellung am selben Tag, wie der CSV-Import", () => {
     const statement = parseEtsyLedger(zeilen, { orderFor });
-    const steuer = statement.transactions.filter((t) => t.type === "Umsatzsteuer");
-    expect(steuer).toHaveLength(1);
-    expect(steuer[0]?.amount).toBe(-145);
-    expect(steuer[0]?.purpose).toBe("Umsatzsteuer · Sales Tax 2023-06");
+    expect(statement.transactions.filter((t) => t.type === "Umsatzsteuer")).toHaveLength(0);
+    const verkauf = statement.transactions.find((t) => t.purpose === `Verkauf · Etsy Bestellung ${BESTELLUNG_2}`);
+    expect(verkauf?.amount).toBe(2350);
+    expect(statement.warnings.join(" ")).not.toContain("Steuerzeile");
+  });
+
+  it("verrechnet die erstattete Sales Tax mit der Erstattung derselben Bestellung", () => {
+    const statement = parseEtsyLedger(
+      [
+        { entry_id: 1, amount: 1486, currency: "EUR", ledger_type: "PAYMENT_GROSS", reference_id: String(VERKAUF_1), created_timestamp: am("2023-01-03") },
+        { entry_id: 2, amount: -237, currency: "EUR", ledger_type: "sales_tax", reference_id: BESTELLUNG_1, created_timestamp: am("2023-01-03") },
+        { entry_id: 3, amount: -1486, currency: "EUR", ledger_type: "REFUND_GROSS", reference_id: String(ERSTATTUNG), created_timestamp: am("2023-01-03") },
+        { entry_id: 4, amount: 237, currency: "EUR", ledger_type: "sales_tax_refund", reference_id: BESTELLUNG_1, created_timestamp: am("2023-01-03") },
+      ],
+      { orderFor },
+    );
+    expect(statement.transactions.map((t) => [t.type, t.amount])).toEqual([
+      ["Verkauf", 1249],
+      ["Erstattung", -1249],
+    ]);
+  });
+
+  it("lässt eine Sales Tax ohne Verkauf am selben Tag mit Bestellnummer einzeln stehen und meldet sie", () => {
+    const statement = parseEtsyLedger(
+      [{ entry_id: 5, amount: -106, currency: "EUR", ledger_type: "sales_tax", reference_id: BESTELLUNG_2, created_timestamp: am("2024-05-08") }],
+      { orderFor },
+    );
+    expect(statement.transactions).toHaveLength(1);
+    expect(statement.transactions[0]?.type).toBe("Umsatzsteuer");
+    expect(statement.transactions[0]?.purpose).toBe(`Sales Tax · Etsy Bestellung ${BESTELLUNG_2}`);
+    expect(statement.transactions[0]?.amount).toBe(-106);
+    expect(statement.warnings.join(" ")).toContain("Steuerzeile ohne Verkauf");
+  });
+
+  it("bildet keine zweite Sammelzeile für einen Monat, der schon im Konto gebündelt steht", () => {
+    const statement = parseEtsyLedger(zeilen, { orderFor, schonGebuendelt: new Set(["werbung-2023-06", "einstellgebuehren-2023-06"]) });
+    const gebuehren = statement.transactions.filter((t) => t.purpose.startsWith("Gebühr")).map((t) => t.purpose);
+    expect(gebuehren.sort()).toEqual(["Gebühr · Transaktionsgebühren 2023-06", "Gebühr · Zahlungsabwicklung 2023-06"]);
+    // drei Werbezeilen und vier Einstellgebühren
+    expect(statement.warnings.join(" ")).toContain("7 Gebühren- und Werbezeile(n) aus einem schon gebündelten Monat");
+    expect(statement.transactions.filter((t) => t.type === "Verkauf")).toHaveLength(2);
   });
 
   it("hält Auszahlung, Karteneinzug und Verrechnung von den Gebühren getrennt", () => {
@@ -219,13 +271,15 @@ describe("Etsy-Zahlungsverlauf als Kontoauszug", () => {
 
   it("übernimmt ohne Bündelung jede Zeile einzeln", () => {
     const statement = parseEtsyLedger(zeilen, { orderFor, sammelzeilen: false });
-    // 16 Zeilen, davon eine Mengenzeile ohne Betrag
-    expect(statement.transactions).toHaveLength(15);
-    // Fünf Gebührenzeilen, drei Werbezeilen einzeln, dazu die Steuerzeile des Käufers
-    expect(statement.transactions.filter((t) => t.type === "Gebühr")).toHaveLength(5);
+    // 17 Zeilen; die Sales Tax geht im Verkauf derselben Bestellung auf
+    expect(statement.transactions).toHaveLength(16);
+    // Sieben Gebührenzeilen (mit Porto- und Mengengebühr) und drei Werbezeilen einzeln
+    expect(statement.transactions.filter((t) => t.type === "Gebühr")).toHaveLength(7);
     expect(statement.transactions.filter((t) => t.type === "Werbung")).toHaveLength(3);
-    expect(statement.transactions.filter((t) => t.type === "Umsatzsteuer")).toHaveLength(1);
-    expect(summe(statement.transactions)).toBe(-2601);
+    expect(statement.transactions.filter((t) => t.type === "Umsatzsteuer")).toHaveLength(0);
+    // Jeder Cent des Verlaufs kommt an, mit und ohne Bündelung
+    expect(summe(statement.transactions)).toBe(summe(zeilen));
+    expect(summe(parseEtsyLedger(zeilen, { orderFor }).transactions)).toBe(summe(zeilen));
   });
 
   it("meldet unbekannte Typen und überspringt Fremdwährung", () => {

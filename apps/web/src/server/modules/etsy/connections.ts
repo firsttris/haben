@@ -119,7 +119,7 @@ export const etsySettingsSchema = z.object({
   sharedSecret: z.string().max(200).optional(),
   /** Erster Monat, den der Abruf holt */
   fetchFrom: month,
-  /** Gebühren, Werbung und Steuer je Monat zu einer Zeile bündeln */
+  /** Gebühren und Werbung je Monat zu einer Zeile bündeln */
   sammelzeilen: z.boolean().default(true),
 });
 

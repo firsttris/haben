@@ -1,20 +1,20 @@
 import { eq } from "drizzle-orm";
-import type { EtsyLedgerEntry } from "@haben/import";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { today as todayInGermany } from "../../today.ts";
+import { dayOf, gebuehrenBisAm, laenderHinweis, naechsterAbrufStart } from "./abruf-regeln.ts";
 import { etsyClientFor, EtsyError, loadEtsyConnection, storeEtsySecret } from "./connections.ts";
 import { importEtsyLedger, type EtsyImportResult } from "./import.ts";
 
 /*
  * Abruf des Etsy-Zahlungsverlaufs: holt die Zeilen seit dem letzten Anlauf, löst zu Verkäufen und Erstattungen die
- * Bestellnummer nach und übernimmt alles ins Konto des Zahlungsdienstleisters (import.ts).
+ * Bestellnummer und das Land des Käufers nach und übernimmt alles ins Konto des Zahlungsdienstleisters (import.ts).
  *
  * - Der Verlauf ist kein Monatsbericht: Etsy kann Zeilen nachtragen. Deshalb beginnt jeder Abruf drei Tage vor der
- *   jüngsten Zeile des letzten Laufs, nicht an ihr.
- * - Gebühren, Werbung und Steuer eines Monats werden erst gebündelt, wenn der Monat vorbei ist: Etsy ändert die
- *   Gebühren bis zum 2. des Folgemonats, und die Gebührenrechnung entsteht ebenfalls erst dann. Solange ein Monat
- *   läuft, bleiben seine Gebühren liegen (der Abruf sagt das im Ergebnis).
+ *   jüngsten Zeile des letzten Laufs, höchstens aber am 1. des ersten noch nicht gebündelten Monats (abruf-regeln.ts).
+ * - Gebühren und Werbung eines Monats werden erst ab dem 5. des Folgemonats gebündelt: Etsy korrigiert die Gebühren bis
+ *   dahin noch nachträglich. Bis dahin bleiben sie liegen (der Abruf sagt das im Ergebnis); Sammelzeilen, die schon im
+ *   Konto stehen, entstehen nicht ein zweites Mal.
  * - Ein Fehler landet am Zugang (lastError) und im Ergebnis; der nächste Lauf versucht es erneut.
  */
 
@@ -24,9 +24,6 @@ export const ETSY_SYNC_ACTOR = "system:etsyabruf";
 /** Der automatische Abruf läuft höchstens so oft; Etsy schreibt laufend, aber nicht im Minutentakt */
 const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 60 * 1000;
 
-/** Überlappung in Tagen: Etsy trägt Zeilen nach, die kurz vor dem letzten Abruf entstanden sind */
-const OVERLAP_DAYS = 3;
-
 export interface EtsySyncResult {
   /** Zeilen aus dem Verlauf */
   entries: number;
@@ -35,23 +32,6 @@ export interface EtsySyncResult {
   accountName: string | null;
   messages: string[];
   error: string | null;
-}
-
-/** Buchungstag einer Zeile, in UTC wie im Parser */
-function dayOf(entry: EtsyLedgerEntry): string {
-  return new Date((entry.created_timestamp ?? 0) * 1000).toISOString().slice(0, 10);
-}
-
-/** Letzter Tag des Vormonats; bis dahin werden Gebühren gebündelt */
-function lastDayOfPreviousMonth(now: Date): string {
-  const [jahr, monat] = todayInGermany(now).slice(0, 7).split("-").map(Number) as [number, number];
-  return new Date(Date.UTC(jahr, monat - 1, 0)).toISOString().slice(0, 10);
-}
-
-function minusDays(day: string, days: number): string {
-  const date = new Date(`${day}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - days);
-  return date.toISOString().slice(0, 10);
 }
 
 export async function syncEtsy(actor: string, now = new Date()): Promise<EtsySyncResult> {
@@ -79,18 +59,22 @@ export async function syncEtsy(actor: string, now = new Date()): Promise<EtsySyn
       .map((entry) => (entry.entry_id === undefined ? "" : String(entry.entry_id)))
       .filter(Boolean);
     const orders = verlaufsKennungen.length > 0 ? await client.ordersFor(verlaufsKennungen) : new Map<string, string>();
+    // Das Land des Käufers entscheidet die Steuer der Rechnung (DE 19 %, USA nicht steuerbar, übrige klären)
+    const bestellungen = [...new Set(orders.values())];
+    const laender = bestellungen.length > 0 ? await client.countriesFor(bestellungen) : new Map<string, string>();
+    const gebuehrenBis = gebuehrenBisAm(todayInGermany(now));
     const imported: EtsyImportResult = await importEtsyLedger(actor, entries, {
       orderFor: (referenceId) => orders.get(referenceId),
       sammelzeilen: connection.row.sammelzeilen,
-      gebuehrenBis: lastDayOfPreviousMonth(now),
+      gebuehrenBis,
       reference: todayInGermany(now),
     });
     result.added = imported.added;
     result.accountName = imported.accountName;
     result.messages.push(...imported.messages);
-    // Der nächste Abruf beginnt vor der jüngsten Zeile, damit nachgetragene Zeilen nicht verloren gehen
-    const juengste = entries.map(dayOf).sort().at(-1);
-    if (juengste) neuerStart = [minusDays(juengste, OVERLAP_DAYS), connection.row.fetchFrom].sort().at(-1)!;
+    const hinweis = laenderHinweis(bestellungen, laender);
+    if (hinweis) result.messages.push(hinweis);
+    neuerStart = naechsterAbrufStart(entries.map(dayOf), connection.row.fetchFrom, gebuehrenBis);
     await update(actor, { lastSyncAt: now, lastError: null, fetchFrom: neuerStart });
   } catch (error) {
     const meldung = `Abruf fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`;

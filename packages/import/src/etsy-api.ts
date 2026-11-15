@@ -99,6 +99,8 @@ export interface EtsyClient {
   ledger(from: number, to: number): Promise<EtsyLedgerEntry[]>;
   /** Zahlungs- und Erstattungsnummer → Bestellnummer, für die gegebenen Verlaufszeilen (`entry_id`) */
   ordersFor(ledgerEntryIds: string[]): Promise<Map<string, string>>;
+  /** Land des Käufers (ISO-Code) je Bestellnummer; Haben entscheidet daran die Steuer der Rechnung */
+  countriesFor(receiptIds: string[]): Promise<Map<string, string>>;
   /** Shop des angemeldeten Kontos; er wird beim Verbinden einmal ermittelt */
   shop(): Promise<EtsyShop>;
   tokens(): EtsyTokens;
@@ -215,32 +217,49 @@ export function createEtsyClient(options: EtsyClientOptions): EtsyClient {
       return out.sort((a, b) => (a.created_timestamp ?? 0) - (b.created_timestamp ?? 0));
     },
 
-    /**
-     * Bestellnummern zu Verkaufs- und Erstattungszeilen. Etsy will hier die Kennung der Verlaufszeile
-     * (`entry_id`), nicht die Zahlungsnummer aus `reference_id`; die Antwort nennt je Zahlung die
-     * Bestellnummer und die Zahlungs- bzw. Erstattungsnummer, über die der Aufrufer sie zuordnet.
-     */
-    async ordersFor(ledgerEntryIds: string[]): Promise<Map<string, string>> {
-      const out = new Map<string, string>();
-      const eindeutig = [...new Set(ledgerEntryIds.filter(Boolean))];
-      for (let i = 0; i < eindeutig.length; i += PAYMENT_BATCH) {
-        const teil = eindeutig.slice(i, i + PAYMENT_BATCH);
-        const answer = await request<{ results: EtsyPayment[] }>(`/shops/${options.shopId}/payment-account/ledger-entries/payments`, {
-          ledger_entry_ids: teil.join(","),
-        });
-        for (const payment of answer.results ?? []) {
-          const bestellung = payment.receipt_id ? String(payment.receipt_id) : undefined;
-          if (!bestellung) continue;
-          if (payment.payment_id) out.set(String(payment.payment_id), bestellung);
-          for (const adjustment of payment.payment_adjustments ?? []) {
-            if (adjustment.payment_adjustment_id) out.set(String(adjustment.payment_adjustment_id), bestellung);
-          }
-        }
-        await runtime.sleep(250);
-      }
-      return out;
-    },
+    ordersFor: (ledgerEntryIds) => bestellungenZu(request, options.shopId, runtime, ledgerEntryIds),
+    countriesFor: (receiptIds) => laenderZu(request, options.shopId, runtime, receiptIds),
   };
+}
+
+type EtsyRequest = <T>(path: string, params?: Record<string, string>) => Promise<T>;
+
+/**
+ * Bestellnummern zu Verkaufs- und Erstattungszeilen. Etsy will hier die Kennung der Verlaufszeile (`entry_id`), nicht
+ * die Zahlungsnummer aus `reference_id`; die Antwort nennt je Zahlung die Bestellnummer und die Zahlungs- bzw.
+ * Erstattungsnummer, über die der Aufrufer sie zuordnet.
+ */
+async function bestellungenZu(request: EtsyRequest, shopId: string, runtime: ResolvedRuntime, ledgerEntryIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const eindeutig = [...new Set(ledgerEntryIds.filter(Boolean))];
+  for (let i = 0; i < eindeutig.length; i += PAYMENT_BATCH) {
+    const teil = eindeutig.slice(i, i + PAYMENT_BATCH);
+    const answer = await request<{ results: EtsyPayment[] }>(`/shops/${shopId}/payment-account/ledger-entries/payments`, {
+      ledger_entry_ids: teil.join(","),
+    });
+    for (const payment of answer.results ?? []) {
+      const bestellung = payment.receipt_id ? String(payment.receipt_id) : undefined;
+      if (!bestellung) continue;
+      if (payment.payment_id) out.set(String(payment.payment_id), bestellung);
+      for (const adjustment of payment.payment_adjustments ?? []) {
+        if (adjustment.payment_adjustment_id) out.set(String(adjustment.payment_adjustment_id), bestellung);
+      }
+    }
+    await runtime.sleep(250);
+  }
+  return out;
+}
+
+/** Land des Käufers je Bestellnummer aus dem Receipt (`country_iso`); Bestellungen ohne Land fehlen in der Antwort */
+async function laenderZu(request: EtsyRequest, shopId: string, runtime: ResolvedRuntime, receiptIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const id of [...new Set(receiptIds.filter(Boolean))]) {
+    const receipt = await request<{ country_iso?: string | null }>(`/shops/${shopId}/receipts/${id}`, {});
+    const land = receipt.country_iso?.trim().toUpperCase();
+    if (land) out.set(id, land);
+    await runtime.sleep(250);
+  }
+  return out;
 }
 
 async function errorText(response: Response, path: string): Promise<string> {

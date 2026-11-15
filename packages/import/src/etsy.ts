@@ -111,7 +111,7 @@ const ORDER_TYPES = new Set(["Verkauf", "Erstattung", "Umsatzsteuer"]);
  * jedem Import mit demselben Betrag ankommt: Eine spätere Teilerstattung derselben Bestellung (anderer Tag) ändert die
  * Verrechnung der früheren nicht, und Haben legt sie beim zweiten Import nicht ein weiteres Mal an (Review #506, Runde 2).
  */
-const settlementKey = (order: string, day: string) => `${day} ${order}`;
+export const settlementKey = (order: string, day: string) => `${day} ${order}`;
 
 /**
  * Verrechnet die Steuer des Käufers, die Etsy abführt, mit dem Verkauf derselben Bestellung (negative Steuer) bzw. mit der
@@ -120,7 +120,7 @@ const settlementKey = (order: string, day: string) => `${day} ${order}`;
  * Tag oder bei mehreren Erstattungen am selben Tag), bleibt die Zeile einzeln, damit nichts geraten wird; die Anzahl dieser
  * Zeilen steht in `unsettled`.
  */
-function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled: number } {
+export function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled: number } {
   const adjustment = new Map<Tx, number>();
   const settled = new Set<Tx>();
   const taxes = list.filter((t) => t.type === "Umsatzsteuer");
@@ -136,7 +136,7 @@ function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled
   return { list: result, unsettled: taxes.length - settled.size };
 }
 
-function unsettledTaxWarning(count: number): string[] {
+export function unsettledTaxWarning(count: number): string[] {
   if (count === 0) return [];
   return [
     `${count} ${count === 1 ? "Steuerzeile" : "Steuerzeilen"} ohne Verkauf oder Erstattung derselben Bestellung am selben Tag mit dem Nettobetrag übernommen.`,

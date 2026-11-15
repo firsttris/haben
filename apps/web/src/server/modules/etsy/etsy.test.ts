@@ -102,11 +102,20 @@ const verlauf: EtsyLedgerEntry[] = [
   },
 ];
 
+/** Was der nachgebaute Zugang beim nächsten Abruf liefert */
+let imAbruf: EtsyLedgerEntry[] = verlauf;
+
 /** Nachgebauter Etsy-Zugang: liefert den Verlauf und die Bestellnummern */
 function fakeClient(): EtsyClient {
   return {
     async ledger() {
-      return verlauf;
+      return imAbruf;
+    },
+    async countriesFor() {
+      return new Map([
+        [BESTELLUNG_1, "DE"],
+        [BESTELLUNG_2, "US"],
+      ]);
     },
     async ordersFor() {
       return new Map([
@@ -163,9 +172,11 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     expect(result.error).toBeNull();
     expect(result.accountName).toBe("Etsy Payments");
     expect(result.entries).toBe(9);
-    // Zwei Verkäufe, eine Auszahlung und fünf Sammelzeilen (Einstell-, Transaktions- und Zahlungsgebühren, Werbung, Steuer)
-    expect(result.added).toBe(8);
+    // Zwei Verkäufe, eine Auszahlung und vier Sammelzeilen (Einstell-, Transaktions- und Zahlungsgebühren, Werbung);
+    // die Sales Tax geht im Verkauf derselben Bestellung auf
+    expect(result.added).toBe(7);
     expect(result.messages.join(" ")).toContain("noch laufenden Monat");
+    expect(result.messages.join(" ")).toContain("Bestellungen nach Land: 1 Deutschland (19 %), 1 USA (nicht steuerbar, Kz 45)");
 
     const umsaetze = await sql`select purpose, amount, type from bank_transactions order by purpose`;
     expect(umsaetze.map((u) => u.purpose)).toEqual([
@@ -174,7 +185,6 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
       "Gebühr · Transaktionsgebühren 2023-06",
       "Gebühr · Werbung 2023-06",
       "Gebühr · Zahlungsabwicklung 2023-06",
-      "Umsatzsteuer · Sales Tax 2023-06",
       `Verkauf · Etsy Bestellung ${BESTELLUNG_1}`,
       `Verkauf · Etsy Bestellung ${BESTELLUNG_2}`,
     ]);
@@ -184,7 +194,8 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     expect(summe("Gebühr · Zahlungsabwicklung 2023-06")).toBe(-118);
     // Werbung: 374 Offsite Ads aus Juni; die 500 aus Juli bleiben für den nächsten Abruf liegen
     expect(summe("Gebühr · Werbung 2023-06")).toBe(-374);
-    expect(summe("Umsatzsteuer · Sales Tax 2023-06")).toBe(-145);
+    // Verkauf mit dem Betrag der Rechnung: 24,95 € brutto ohne die 1,45 € Sales Tax, die Etsy abführt
+    expect(summe(`Verkauf · Etsy Bestellung ${BESTELLUNG_2}`)).toBe(2350);
     expect(summe("Auszahlung · Etsy 2023-06-20")).toBe(-3490);
   });
 
@@ -192,7 +203,7 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     const result = await etsy.syncEtsy(actor, HEUTE);
     expect(result.added).toBe(0);
     const [anzahl] = await sql`select count(*)::int as n from bank_transactions`;
-    expect(anzahl!.n).toBe(8);
+    expect(anzahl!.n).toBe(7);
     // Der nächste Abruf beginnt drei Tage vor der jüngsten Zeile (03.07. minus drei Tage)
     const stand = await etsy.etsySummary();
     expect(stand.fetchFrom).toBe("2023-06");
@@ -200,6 +211,32 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
     expect(row!.f).toBe("2023-06-30");
     expect(row!.last_error).toBeNull();
     expect(row!.last_sync_at).not.toBeNull();
+  });
+
+  it("bildet keine zweite Sammelzeile, wenn ein späterer Abruf noch Zeilen des gebündelten Monats bringt", async () => {
+    // Die Überlappung reicht in den Juni, und Etsy liefert dort eine Gebühr: Ohne Prüfung entstünde eine zweite
+    // Sammelzeile „Zahlungsabwicklung 2023-06“ mit nur diesem Betrag (anderer Betrag, also keine Dublette im Hash)
+    imAbruf = [
+      {
+        entry_id: 10,
+        amount: -50,
+        currency: "EUR",
+        ledger_type: "PAYMENT_PROCESSING_FEE",
+        reference_type: "processing_fee",
+        reference_id: "5000000003",
+        created_timestamp: am("2023-06-30"),
+      },
+    ];
+    try {
+      const result = await etsy.syncEtsy(actor, new Date("2023-07-06T10:00:00Z"));
+      expect(result.error).toBeNull();
+      expect(result.added).toBe(0);
+      expect(result.messages.join(" ")).toContain("schon gebündelten Monat");
+      const [anzahl] = await sql`select count(*)::int as n from bank_transactions where purpose like 'Gebühr · Zahlungsabwicklung%'`;
+      expect(anzahl!.n).toBe(1);
+    } finally {
+      imAbruf = verlauf;
+    }
   });
 
   it("trennt die Verbindung, ohne den Schlüssel zu verlieren", async () => {

@@ -3843,7 +3843,7 @@ export const etsyConnections = pgTable(
     ciphertext: bytea("ciphertext").notNull(),
     /** Erster Tag, den der Abruf noch holt */
     fetchFrom: date("fetch_from").notNull(),
-    /** Gebühren, Werbung und Steuer je Monat zu einer Zeile bündeln, wie die Gebührenrechnung sie zeigt */
+    /** Gebühren und Werbung je Monat zu einer Zeile bündeln, wie die Gebührenrechnung sie zeigt */
     sammelzeilen: boolean("sammelzeilen").notNull().default(true),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     lastError: text("last_error"),
