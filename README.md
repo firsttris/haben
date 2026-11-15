@@ -17,6 +17,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
 [![Doku](https://img.shields.io/badge/Doku-haben.app-4f46e5?logo=zensical&logoColor=white)](https://haben.app/)
 [![Discord](https://img.shields.io/badge/Discord-Fragen%20%26%20Austausch-5865f2?logo=discord&logoColor=white)](https://discord.gg/CT2GQytSYH)
+[![Discussions](https://img.shields.io/badge/GitHub-Discussions-24292f?logo=github&logoColor=white)](https://github.com/firsttris/haben/discussions)
 [![E-Rechnung](https://img.shields.io/badge/E--Rechnung-ZUGFeRD%20%7C%20XRechnung-1f6f5c)](https://haben.app/rechnungen.html)
 [![ELSTER](https://img.shields.io/badge/ELSTER-ERiC-1f6f5c)](https://haben.app/umsatzsteuer.html)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -340,7 +341,7 @@ Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirk
 <div align="center">
 
 ⭐ Gefällt dir Haben? Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.<br>
-🐛 [Fehler melden](https://github.com/firsttris/haben/issues/new) · 💡 [Idee vorschlagen](https://github.com/firsttris/haben/issues/new) · 💬 [Discord](https://discord.gg/CT2GQytSYH)
+🐛 [Fehler melden](https://github.com/firsttris/haben/issues/new) · 💡 [Idee besprechen](https://github.com/firsttris/haben/discussions/categories/ideas) · ❓ [Frage stellen](https://github.com/firsttris/haben/discussions/categories/q-a) · 💬 [Discord](https://discord.gg/CT2GQytSYH)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
 Wer Haben für andere betreibt, muss ihnen den Quellcode anbieten; der Link steht in der Navigation. Eine kommerzielle Lizenz ohne diese Pflichten gibt es über <a href="https://teufel-it.de">teufel-it.de</a>.<br>
