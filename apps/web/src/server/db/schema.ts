@@ -3184,7 +3184,10 @@ export const sevdeskAccountingTypes = pgTable(
   (t) => [uniqueIndex("sevdesk_accounting_types_stand").on(t.accountingTypeId, sql`md5(${t.raw}::text)`)],
 );
 
-/** Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. */
+/**
+ * Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. Rolle „vorlage“: Datei der
+ * sevDesk-Vorlage, aus der ein wiederkehrender Beleg ohne eigene Datei entstand (lexoffice_file_id ist die Datei der Vorlage).
+ */
 export const lexofficeVoucherFiles = pgTable(
   "lexoffice_voucher_files",
   {
@@ -3192,7 +3195,7 @@ export const lexofficeVoucherFiles = pgTable(
     voucherId: uuid("voucher_id")
       .notNull()
       .references(() => lexofficeVouchers.id),
-    role: text("role", { enum: ["pdf", "xml", "anhang"] }).notNull(),
+    role: text("role", { enum: ["pdf", "xml", "anhang", "vorlage"] }).notNull(),
     lexofficeFileId: text("lexoffice_file_id"),
     filename: text("filename").notNull(),
     mimeType: text("mime_type").notNull(),

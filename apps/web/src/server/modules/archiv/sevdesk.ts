@@ -34,6 +34,7 @@ import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
 import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
 import { importSevdeskPayments } from "./sevdesk-payments.ts";
+import { importSevdeskTemplateFiles } from "./sevdesk-vorlagen-dateien.ts";
 
 /*
  * Umzug aus sevDesk. Gleicher Ablauf und dieselben Archivtabellen wie beim Lexoffice-Import (Spalte source = "sevdesk"),
@@ -291,9 +292,12 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     await save();
   }
-  // 4. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
+  // 4. Datei der Vorlage für Belege aus wiederkehrenden Belegen, auch für früher übernommene (#472)
+  await importSevdeskTemplateFiles(actor, client, progress, signal);
+  await save(true);
+  // 5. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
   await importSevdeskPayments(actor, importId, client, progress, signal);
-  // 5. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
+  // 6. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
   await importSevdeskAccountingTypes(actor, importId, client, progress, signal);
   await save(true);
 }

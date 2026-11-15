@@ -57,10 +57,15 @@ function LegacyVoucherPage() {
                   aria-pressed={f.id === selected}
                   onClick={() => setSelected(f.id)}
                 >
-                  {f.role === "xml" ? "E-Rechnung (XML)" : f.filename}
+                  {f.role === "xml" ? "E-Rechnung (XML)" : f.role === "vorlage" ? `${f.filename} (aus der Vorlage)` : f.filename}
                 </button>
               ))}
             </div>
+          )}
+          {file?.role === "vorlage" && (
+            <p className="small muted" style={{ margin: 0 }}>
+              Aus der Vorlage: {source.product} führt die Datei nur an der Vorlage des wiederkehrenden Belegs, nicht am einzelnen Beleg.
+            </p>
           )}
           {!file || !src ? (
             <div className="banner banner-info">Zu diesem Beleg hat {source.product} keine Datei geliefert.</div>

@@ -162,6 +162,8 @@ export const sevVoucherSchema = z.looseObject({
   creditDebit: str,
   /** VOU Beleg, RV wiederkehrender Beleg (Vorlage) */
   voucherType: str,
+  /** Bei Belegen aus einer Vorlage wiederkehrender Belege die Vorlage (objectName Voucher, voucherType RV) */
+  origin: ref,
   currency: str,
   paymentDeadline: str,
   deliveryDate: str,

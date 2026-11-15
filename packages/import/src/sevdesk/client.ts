@@ -140,6 +140,14 @@ export class SevdeskClient {
     return this.#pages("/Voucher", {}, sevVoucherSchema);
   }
 
+  /** Ein Beleg, auch eine Vorlage wiederkehrender Belege (RV); sevDesk liefert ihn als Liste mit einem Eintrag. */
+  async voucher(voucherId: string): Promise<SevVoucher> {
+    const path = `/Voucher/${enc(voucherId)}`;
+    const data = await this.#json(path, {}, listSchema(sevVoucherSchema));
+    if (data.objects.length !== 1 || String(data.objects[0]!.id) !== voucherId) throw new SevdeskApiError("Beleg nicht eindeutig gefunden.", 200, path);
+    return data.objects[0]!;
+  }
+
   /**
    * Alle Zuordnungen von Bankumsätzen zu Belegen, mit eingebettetem Umsatz. Ein Filter auf das Objekt (object[id])
    * ignoriert V1, deshalb seitenweise alle und die Zuordnung in map.ts.
