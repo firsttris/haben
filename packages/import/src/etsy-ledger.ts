@@ -10,7 +10,7 @@ import type { ParsedStatement } from "./types.ts";
  * eindeutige `entry_id` und einen Typ.
  *
  * Die Typen sind nirgends beschrieben; die Zuordnung stammt aus dem echten Verlauf (2.347 Zeilen, Juli 2022 bis
- * Mai 2026) und ist gegen alle 21 Gebührenrechnungen von August 2022 bis April 2024 geprüft: Die Summe der Gebühren
+ * Mai 2026) und ist gegen alle 25 Gebührenrechnungen von Juli 2022 bis April 2026 geprüft: Die Summe der Gebühren
  * und Werbung eines Monats (nach dem Tag der Zeile) ergibt jede Rechnungssumme auf den Cent, auch je Rechnungsposition
  * bis auf Rundungscents der Rechnung selbst. Zwei Typen sind leicht zu verkennen:
  *
@@ -65,7 +65,7 @@ type Kind =
   | "karteneinzug"
   | "verrechnung";
 
-/** Zuordnung der Ledger-Typen; geprüft gegen die Gebührenrechnungen 08/2022 bis 04/2024 */
+/** Zuordnung der Ledger-Typen; geprüft gegen die Gebührenrechnungen 07/2022 bis 04/2026 */
 const KINDS: Record<string, Kind> = {
   PAYMENT_GROSS: "verkauf",
   REFUND_GROSS: "erstattung",

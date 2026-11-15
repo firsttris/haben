@@ -4,7 +4,7 @@ import { parseEtsyLedger, type EtsyLedgerEntry } from "./etsy-ledger.ts";
 /*
  * Beispieldaten in der Form des echten Verlaufs (Juni 2023), Beträge und Typen wie dort, Kennungen erfunden:
  * im Repository stehen keine echten Bestellnummern. Die Zuordnung der Typen wurde gegen den vollständigen Verlauf und
- * alle 21 Gebührenrechnungen von August 2022 bis April 2024 geprüft (jede Rechnungssumme auf den Cent).
+ * alle 25 Gebührenrechnungen von Juli 2022 bis April 2026 geprüft (jede Rechnungssumme auf den Cent).
  */
 
 /** Zeitstempel in Epoch-Sekunden; Etsy liefert sie so */
