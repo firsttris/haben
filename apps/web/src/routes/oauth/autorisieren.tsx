@@ -1,11 +1,11 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { errorMessage } from "../../lib/format.ts";
-import { decideOAuthConsent, getOAuthConsent } from "../../server/functions/oauth.ts";
+import { decideOAuthConsent, getOAuthAvailable, getOAuthConsent } from "../../server/functions/oauth.ts";
 import { getAuthState } from "../../server/functions/setup.ts";
 
 type Anfrage = Record<string, string>;
-type Ansicht = { clientName: string; redirectHost: string; enabled: boolean };
+type Ansicht = { clientName: string; redirectHost: string };
 
 const PARAMETER = ["response_type", "client_id", "redirect_uri", "state", "scope", "code_challenge", "code_challenge_method", "resource"];
 
@@ -17,6 +17,8 @@ export const Route = createFileRoute("/oauth/autorisieren")({
   beforeLoad: async () => {
     const state = await getAuthState();
     if (!state.initialized) throw redirect({ to: "/setup" });
+    // Ausgeschaltet gibt es den OAuth-Weg nicht, auch nicht diese Seite
+    if (!(await getOAuthAvailable())) throw notFound();
     return { angemeldet: !!state.user };
   },
   head: () => ({ meta: [{ title: "KI-Assistent verbinden · Haben" }] }),
@@ -79,16 +81,11 @@ function ZustimmungsSeite() {
               <li>Nur lesen: Buchen, Festschreiben und Senden an ELSTER bleiben bei dir in Haben.</li>
               <li>Jeder Aufruf steht unter Einstellungen → KI-Assistenten und API; dort kannst du die Verbindung jederzeit widerrufen.</li>
             </ul>
-            {!ansicht.enabled && (
-              <p className="field-error" role="alert">
-                Der Zugang für KI-Assistenten ist ausgeschaltet. Schalte ihn unter Einstellungen → KI-Assistenten und API ein und lade diese Seite neu.
-              </p>
-            )}
             <div className="actions">
               <button type="button" className="btn" onClick={() => void entscheiden(false)} disabled={busy}>
                 Ablehnen
               </button>
-              <button type="button" className="btn btn-primary" onClick={() => void entscheiden(true)} disabled={busy || !ansicht.enabled}>
+              <button type="button" className="btn btn-primary" onClick={() => void entscheiden(true)} disabled={busy}>
                 Zulassen
               </button>
             </div>

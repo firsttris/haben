@@ -1854,7 +1854,20 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer un
 });
 
 test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und in den Einstellungen widerrufen", async () => {
-  // Der Zugang ist seit dem Test der REST-API eingeschaltet
+  // Ausgeschaltet gibt es den OAuth-Weg nicht: jeder Endpunkt und die Zustimmungsseite antworten 404
+  await go("/einstellungen?bereich=ki");
+  const zugang = page.getByLabel("Zugang für KI-Assistenten und API einschalten");
+  await zugang.click();
+  await expect(zugang).not.toBeChecked();
+  for (const pfad of ["/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/api/mcp"])
+    expect((await page.request.get(pfad)).status(), pfad).toBe(404);
+  for (const pfad of ["/api/oauth/register", "/api/oauth/token"]) expect((await page.request.post(pfad, { data: {} })).status(), pfad).toBe(404);
+  expect((await page.goto("/oauth/autorisieren?response_type=code"))?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1, name: "Seite nicht gefunden" })).toBeVisible();
+  await go("/einstellungen?bereich=ki");
+  await zugang.click();
+  await expect(zugang).toBeChecked();
+
   const metadaten = (await (await page.request.get("/.well-known/oauth-authorization-server")).json()) as Record<string, string>;
   const ressource = (await (await page.request.get("/.well-known/oauth-protected-resource")).json()) as { resource: string };
   const redirect = "http://127.0.0.1:9/callback";

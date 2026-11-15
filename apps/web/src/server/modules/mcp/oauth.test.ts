@@ -54,6 +54,9 @@ describe.skipIf(!testDatabaseUrl)("OAuth für Connectors (Postgres)", () => {
   /** Jede Anfrage von einer eigenen Adresse, damit das Rate-Limit nur greift, wo es geprüft wird */
   const headers = (extra: Record<string, string> = {}) => ({ "x-forwarded-for": `10.0.0.${++ip % 250}`, ...extra });
 
+  /** Ausgeschaltet antworten die Endpunkte mit einer schlichten 404 ohne JSON */
+  const jsonBody = (response: Response) => (response.headers.get("content-type")?.includes("json") ? response.json() : Promise.resolve({}));
+
   async function register(body: Record<string, unknown>, from = headers()) {
     const response = await mcp.handleRegister(
       new Request("http://localhost:3000/api/oauth/register", {
@@ -62,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("OAuth für Connectors (Postgres)", () => {
         body: JSON.stringify(body),
       }),
     );
-    return { status: response.status, body: (await response.json()) as Record<string, string> };
+    return { status: response.status, body: (await jsonBody(response)) as Record<string, string> };
   }
 
   function token(form: Record<string, string>, extra: Record<string, string> = {}, now?: Date) {
@@ -75,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("OAuth für Connectors (Postgres)", () => {
         }),
         now,
       )
-      .then(async (response) => ({ status: response.status, body: (await response.json()) as Record<string, string | number> }));
+      .then(async (response) => ({ status: response.status, body: (await jsonBody(response)) as Record<string, string | number> }));
   }
 
   function rpc(bearer: string) {
@@ -140,7 +143,7 @@ describe.skipIf(!testDatabaseUrl)("OAuth für Connectors (Postgres)", () => {
     expect((await register({ redirect_uris: ["https://evil.example/cb"] })).body.error).toBe("invalid_redirect_uri");
     expect((await register({})).body.error).toBe("invalid_client_metadata");
     await mcp.setMcpEnabled(actor, false);
-    expect((await register({ redirect_uris: [CLAUDE] })).status).toBe(403);
+    expect((await register({ redirect_uris: [CLAUDE] })).status).toBe(404);
   });
 
   it("begrenzt Registrierungen je Adresse", async () => {
@@ -265,7 +268,7 @@ describe.skipIf(!testDatabaseUrl)("OAuth für Connectors (Postgres)", () => {
     const connection = await connect();
     await mcp.setMcpEnabled(actor, false);
     expect((await rpc(connection.access_token)).status).toBe(401);
-    expect((await token({ grant_type: "refresh_token", refresh_token: connection.refresh_token, client_id: connection.clientId })).status).toBe(400);
+    expect((await token({ grant_type: "refresh_token", refresh_token: connection.refresh_token, client_id: connection.clientId })).status).toBe(404);
   });
   it("lässt bei Loopback-Adressen jeden Port zu (RFC 8252, 7.3)", async () => {
     // „The authorization server MUST allow any port to be specified at the time of the request for loopback IP redirect URIs“

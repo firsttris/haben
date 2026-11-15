@@ -15,6 +15,7 @@ import { mcpEnabled, OAUTH_ACCESS_PREFIX } from "./tokens.ts";
  * Eine Verbindung ist eine Zeile in mcp_tokens mit oauth_client_id: Aufrufprotokoll, Liste in den Einstellungen, Widerruf,
  * Verantwortliche und der Hauptschalter gelten damit wie für ein selbst angelegtes Token. Die Rechte sind immer nur
  * „haben:lesen“. Codes leben 60 Sekunden im Speicher (ein Prozess, wie das Rate-Limit), Tokens nur als SHA-256 in der Datenbank.
+ * Ist der Zugang ausgeschaltet (ab Werk), gibt es den Weg nicht: jeder Endpunkt antwortet 404, auch die Zustimmungsseite.
  */
 
 export const OAUTH_SCOPE = "haben:lesen";
@@ -62,6 +63,11 @@ export function authorizationServerMetadata() {
 
 /* ---------- Autorisierung ---------- */
 
+const NOT_AVAILABLE = "Die Verbindung von KI-Assistenten ist in Haben nicht verfügbar.";
+
+/** Ob es den OAuth-Weg gerade gibt; ohne ihn zeigt /oauth/autorisieren „Seite nicht gefunden“ */
+export const oauthAvailable = mcpEnabled;
+
 export interface AuthorizeParams {
   response_type?: string;
   client_id?: string;
@@ -93,6 +99,7 @@ const sameResource = (value: string) => value.replace(/\/+$/, "") === mcpResourc
  * Unbekannte Rechte fallen weg; es gibt nur „haben:lesen“.
  */
 export async function checkAuthorizeRequest(params: AuthorizeParams): Promise<AuthorizeCheck> {
+  if (!(await mcpEnabled())) return { kind: "fehler", message: NOT_AVAILABLE };
   const client = params.client_id ? await findClient(params.client_id) : undefined;
   if (!client) return { kind: "fehler", message: "Dieser Client ist in Haben nicht registriert. Bitte die Verbindung im KI-Assistenten neu einrichten." };
   const redirectUri = params.redirect_uri ?? (client.redirectUris.length === 1 ? client.redirectUris[0] : undefined);
@@ -134,7 +141,6 @@ export async function decideAuthorization(params: AuthorizeParams, userId: strin
   if (check.kind === "fehler") throw new OAuthError("invalid_request", check.message);
   if (check.kind === "zurueck") return check.url;
   if (!approve) return withQuery(check.redirectUri, { error: "access_denied", error_description: "Der Inhaber hat abgelehnt.", state: check.state });
-  if (!(await mcpEnabled())) throw new OAuthError("access_denied", "Erst unter Einstellungen → KI-Assistenten und API den Zugang einschalten.");
   for (const [key, pending] of codes) if (pending.expiresAt <= now) codes.delete(key);
   const code = randomBytes(32).toString("base64url");
   codes.set(hashSecret(code), {
@@ -278,11 +284,24 @@ function oauthError(error: unknown): Response {
   return json({ error: "server_error" }, 500);
 }
 
+const notFound = () => new Response("Nicht gefunden", { status: 404, headers: { "Cache-Control": "no-store" } });
+
+/** GET der Metadaten: „resource“ nach RFC 9728, auch unter dem Pfad der Ressource (rest „api/mcp“), „server“ nach RFC 8414 */
+export async function handleMetadata(kind: "resource" | "server", rest = ""): Promise<Response> {
+  if (!(await mcpEnabled()) || (rest && rest !== "api/mcp")) return notFound();
+  return json(kind === "resource" ? protectedResourceMetadata() : authorizationServerMetadata());
+}
+
+/** CORS-Vorabanfrage an die öffentlichen Endpunkte */
+export async function handlePreflight(): Promise<Response> {
+  return (await mcpEnabled()) ? new Response(null, { status: 204, headers: CORS_HEADERS }) : notFound();
+}
+
 /** POST /api/oauth/register: 10 je Stunde und Adresse */
 export async function handleRegister(request: Request): Promise<Response> {
+  if (!(await mcpEnabled())) return notFound();
   try {
     if (limited(request, "register", 10, 3_600_000)) throw new OAuthError("temporarily_unavailable", "Zu viele Registrierungen.", 429);
-    if (!(await mcpEnabled())) throw new OAuthError("access_denied", "Der Zugang für KI-Assistenten ist in Haben ausgeschaltet.", 403);
     const body: unknown = await request.json().catch(() => null);
     return json(await registerClient(body), 201);
   } catch (error) {
@@ -292,12 +311,12 @@ export async function handleRegister(request: Request): Promise<Response> {
 
 /** POST /api/oauth/token: 30 je Minute und Adresse; Body als Formular (RFC 6749), JSON wird ebenfalls angenommen */
 export async function handleToken(request: Request, now = new Date()): Promise<Response> {
+  if (!(await mcpEnabled())) return notFound();
   try {
     if (limited(request, "token", 30, 60_000)) throw new OAuthError("temporarily_unavailable", "Zu viele Anfragen.", 429);
     const form = (request.headers.get("content-type") ?? "").includes("application/json")
       ? new URLSearchParams((await request.json().catch(() => ({}))) as Record<string, string>)
       : new URLSearchParams(await request.text());
-    if (!(await mcpEnabled())) throw new OAuthError("invalid_grant", "Der Zugang für KI-Assistenten ist in Haben ausgeschaltet.");
     const client = await authenticateClient(request, form);
     const grant = form.get("grant_type");
     if (grant === "authorization_code") return json(await exchangeCode(client, form, now));
