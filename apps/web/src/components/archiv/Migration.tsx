@@ -523,6 +523,12 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
               <span className="small muted">Dateien</span>
               <strong>{progress.files}</strong>
             </div>
+            {(progress.recurring ?? 0) > 0 && (
+              <div>
+                <span className="small muted">Dauerbelege angehalten</span>
+                <strong>{progress.recurring}</strong>
+              </div>
+            )}
           </div>
           {running && <ImportWaitNotice waitingUntil={progress.waitingUntil} fastbill={source === "fastbill"} updatedAt={run.updatedAt} />}
           {source === "sevdesk" && (

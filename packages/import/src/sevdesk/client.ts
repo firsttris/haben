@@ -147,6 +147,11 @@ export class SevdeskClient {
     return this.#pages("/Voucher", {}, sevVoucherSchema);
   }
 
+  /** Vorlagen wiederkehrender Belege; die Liste ohne Filter enthält sie in Version 1.0 auch, mit Filter sicher nur sie. */
+  recurringVouchers(): AsyncGenerator<SevVoucher> {
+    return this.#pages("/Voucher", { voucherType: "RV" }, sevVoucherSchema);
+  }
+
   /** Ein Beleg, auch eine Vorlage wiederkehrender Belege (RV); sevDesk liefert ihn als Liste mit einem Eintrag. */
   async voucher(voucherId: string): Promise<SevVoucher> {
     const path = `/Voucher/${enc(voucherId)}`;

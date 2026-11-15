@@ -183,6 +183,14 @@ export const sevVoucherSchema = z.looseObject({
   creditDebit: str,
   /** VOU Beleg, RV wiederkehrender Beleg (Vorlage) */
   voucherType: str,
+  /** Vorlage RV: Intervall als ISO-Dauer (P0Y1M) und in Monaten; Start, nächster Beleg und Ende */
+  recurringInterval: str,
+  recurringIntervall: numeric,
+  recurringStartDate: str,
+  recurringNextVoucher: str,
+  recurringEndDate: str,
+  vatNumber: str,
+  taxType: str,
   /** Bei Belegen aus einer Vorlage wiederkehrender Belege die Vorlage (objectName Voucher, voucherType RV) */
   origin: ref,
   currency: str,

@@ -1772,6 +1772,13 @@
       "when": 1794762524880,
       "tag": "0252_sevdesk_wkr_vorlagen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 253,
+      "version": "7",
+      "when": 1794768072654,
+      "tag": "0253_dauerbelege_aus_sevdesk",
+      "breakpoints": true
     }
   ]
 }

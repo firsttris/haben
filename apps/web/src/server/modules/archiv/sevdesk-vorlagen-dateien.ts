@@ -1,4 +1,4 @@
-import { SevdeskApiError, type SevdeskClient } from "@haben/import";
+import { SevdeskApiError, type SevdeskClient, type SevFile } from "@haben/import";
 import { sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -27,6 +27,8 @@ export async function importSevdeskTemplateFiles(
   signal: AbortSignal,
   /** sevDesk-IDs der Belege, die der aktuelle Abruf mit eigener Datei listet: Die Vorlage tritt nie an deren Stelle */
   withOwnFile: ReadonlySet<string>,
+  /** Lädt die Datei der Vorlage; der Lauf teilt sie mit dem Dauerbeleg aus derselben Vorlage */
+  download: (documentId: string) => Promise<SevFile | null> = (id) => client.document(id),
 ): Promise<void> {
   const all = await db.execute<{ id: string; sevdeskId: string; templateId: string; created: string | null }>(sql`
     select v.id, split_part(v.lexoffice_id, '/', 2) as "sevdeskId", v.raw->'origin'->>'id' as "templateId", v.raw->>'create' as created from lexoffice_vouchers v
@@ -49,7 +51,7 @@ export async function importSevdeskTemplateFiles(
       const uploaded = time((await client.documentInfo(documentId)).create);
       const voucherIds = vouchers.filter((v) => uploaded !== null && (time(v.created) ?? -Infinity) >= uploaded).map((v) => v.id);
       if (voucherIds.length === 0) continue;
-      const file = await client.document(documentId);
+      const file = await download(documentId);
       if (!file) continue;
       const sha256 = sha256Of(file.bytes);
       await storeFile(file.bytes);
