@@ -4,6 +4,7 @@ import {
   dunningAmounts,
   formatDecimal,
   formatEuro,
+  formatHundredths,
   dunningFeeError,
   parseEuro,
   type CustomerType,
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/_app/rechnungen/mahnwesen/$id")({
 });
 
 /** Basispunkte als Prozent: 127 → „1,27 %“ */
-const percent = (basisPoints: number) => `${formatDecimal(basisPoints)} %`;
+const percent = (basisPoints: number) => `${formatHundredths(basisPoints)} %`;
 
 function NewDunningPage() {
   const draft = Route.useLoaderData();
