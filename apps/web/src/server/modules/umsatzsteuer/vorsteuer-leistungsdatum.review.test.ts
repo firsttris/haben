@@ -12,6 +12,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
   let figures: typeof import("./vat-figures.ts");
   let bank: typeof import("../bank/index.ts");
   let documents: typeof import("../belege/documents.ts");
+  let cancellation: typeof import("../belege/cancellation.ts");
   let sql: postgres.Sql;
   const actor = "leistungsdatum-review";
   let lauf = 0;
@@ -22,6 +23,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     figures = await import("./vat-figures.ts");
     bank = await import("../bank/index.ts");
     documents = await import("../belege/documents.ts");
+    cancellation = await import("../belege/cancellation.ts");
   }, 60_000);
 
   afterAll(async () => {
@@ -193,5 +195,23 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
       { year: 2026, month: 12 },
     ];
     expect(await beideQuellen(monate)).toEqual({ journal: [616, 0], nebenbuecher: [616, 0] });
+  });
+
+  // Storno am 20.12., der November ist noch nicht gemeldet (Dauerfristverlängerung, § 46 UStDV): Die Gegenbuchung kommt
+  // auf das Belegdatum (cancellationDate). Die mit aufgehobene Zahlung vom 5.12. nimmt ihre Umbuchung vom Zwischenkonto
+  // zurück; im November stand aber noch keine Vorsteuer. Kz 66 darf dort nicht negativ werden (§ 17 Abs. 1 UStG:
+  // Berichtigung im Zeitraum der Änderung), Journal und Nebenbücher müssen übereinstimmen
+  it("Journal als Quelle: Storno eines geparkten, bezahlten Belegs mindert keinen Monat vor der Zahlung", async () => {
+    await firma({ journalAb: 2026 });
+    const id = await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    const zuordnung = await zahlung(id, -3_856, "2026-12-05");
+    await cancellation.cancelDocument(actor, id, { reason: "falscher Beleg", allocationIds: [zuordnung] }, "2026-12-20");
+
+    const monate = [
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ];
+    const [zwischenkonto] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account = '1548'`;
+    expect({ ...(await beideQuellen(monate)), zwischenkonto: zwischenkonto!.saldo }).toEqual({ journal: [0, 0], nebenbuecher: [0, 0], zwischenkonto: 0 });
   });
 });
