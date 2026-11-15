@@ -485,9 +485,11 @@ export async function legacyVoucherDetail(id: string) {
       mimeType: schema.lexofficeVoucherFiles.mimeType,
       size: schema.lexofficeVoucherFiles.size,
       sha256: schema.lexofficeVoucherFiles.sha256,
+      lexofficeFileId: schema.lexofficeVoucherFiles.lexofficeFileId,
     })
     .from(schema.lexofficeVoucherFiles)
-    .where(eq(schema.lexofficeVoucherFiles.voucherId, id));
+    .where(eq(schema.lexofficeVoucherFiles.voucherId, id))
+    .orderBy(schema.lexofficeVoucherFiles.createdAt, schema.lexofficeVoucherFiles.id);
   // Mahnstufen der Rechnung aus der Quelle; nur Archiv, ohne Wirkung auf Betrag und Zahlungsstand
   const dunnings = voucher.direction === "einnahme" ? await legacyDunningsFor([voucher.lexofficeId]) : [];
   // Dateistand mit Verlauf (#345); bestätigen lässt sich nur ein Beleg aus sevDesk mit dem offenen Stand „ohne Datei“
@@ -502,7 +504,13 @@ export async function legacyVoucherDetail(id: string) {
       accountingTypeIssue: accountingTypeIssue(voucher.accountingType),
       accountingTypeDecidable: accountingTypeDecidable(voucher.accountingType),
     },
-    files,
+    // Von einem späteren Abruf angehängt: Zeitpunkt des Stands „nachgeladen“ zu Rolle und Quell-ID der Datei
+    files: files.map((f) => ({
+      ...f,
+      reloadedAt:
+        fileStates.find((s) => s.state === "nachgeladen" && s.role === f.role && s.sourceFileId === (f.role === "anhang" ? f.lexofficeFileId : null))
+          ?.createdAt ?? null,
+    })),
     dunnings,
     fileState: { status: fileStatus, label: FILE_STATUS_LABELS[fileStatus], history: fileStates, canConfirmWithoutFile },
   };
