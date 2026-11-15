@@ -48,6 +48,13 @@ export function FastbillReceipts({ receipts, running }: { receipts: Receipt[]; r
           <strong>{receipts.filter((r) => r.status === "ohne_beleg").length}</strong>
         </div>
       </div>
+      {waiting.length === 0 && (
+        // Anleitung und Upload sind dann weg; ins Archiv kommen die Ausgaben erst mit dem nächsten Abruf
+        <p className="small" role="status" style={{ margin: 0 }}>
+          {receipts.length === 1 ? "1 Ausgabe kommt" : `${receipts.length} Ausgaben kommen`} beim nächsten Abruf ins Archiv: Starte in Schritt 2 „Erneut
+          abrufen“.
+        </p>
+      )}
       {waiting.length > 0 && (
         <>
           <ol className="small" style={{ margin: 0, paddingLeft: 20 }}>
