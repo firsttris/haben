@@ -41,6 +41,7 @@ export const AUSNAHMEN: readonly { datei: string; modul: string; grund: string }
   {
     datei: "rechnungen/umsatzgrenze.ts",
     modul: "auswertungen",
-    grund: "Festschreiben prüft die Kleinunternehmergrenze am vereinnahmten Umsatz aus der EÜR des Journals (#1049); die EÜR braucht selbst rechnungen.",
+    grund:
+      "Festschreiben prüft die Kleinunternehmergrenze am vereinnahmten Umsatz aus der EÜR des Journals (#1049); die EÜR braucht selbst rechnungen. Auflösen: #1108.",
   },
 ];
