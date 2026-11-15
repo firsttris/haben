@@ -151,7 +151,7 @@ sevDesk liefert die Vorlagen nur mit dem Filter `invoiceType=WKR`; belegt ist da
 | `accountEndDate` | Endet nach dem |
 | `taxType` `default`, `eu`, `noteu`, Kleinunternehmer | Umsatzsteuer regulär, innergemeinschaftliche Lieferung, Drittland, Kleinunternehmer; alles außer regulär mit Hinweis zum Prüfen |
 
-**Nicht übernommen** und als offener Punkt im Abruf genannt werden Vorlagen mit Wochen- oder Tagesintervall (etwa `P0Y0M1W`), in Fremdwährung, mit einem Steuersatz außer 19, 7 oder 0 %, mit Rabatt an einer Position oder ohne Positionen. Lege sie in Haben von Hand an. Skonto der Vorlage übernimmt Haben nicht und nennt es.
+**Nicht übernommen** und als offener Punkt im Abruf genannt werden Vorlagen mit Wochen- oder Tagesintervall (etwa `P0Y0M1W`), in Fremdwährung, mit einem Steuersatz außer 19, 7 oder 0 %, mit Rabatt an einer Position, ohne Positionen, mit einer anderen Steuerart oder ohne übernommenen Kunden. Lege sie in Haben von Hand an. Skonto der Vorlage übernimmt Haben nicht und nennt es.
 
 **Platzhalter** wie `[%KONTAKTPERSON%]`, `[%ZAHLUNGSZIEL%]` oder `[%Rechnungsnummer%]` stehen als Text in der Vorlage; Haben ersetzt sie nicht. Der Abruf und die Seite der Vorlage listen, welche vorkommen. Ersetze sie vor dem Aktivieren, etwa durch die [Platzhalter von Haben](rechnungen.md#wiederkehrende-rechnungen) oder festen Text.
 
