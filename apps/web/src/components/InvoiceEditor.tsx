@@ -204,8 +204,7 @@ export function InvoiceEditor({
 }) {
   const router = useRouter();
   const navigate = useNavigate();
-  const desktopPreviewBtn = useRef<HTMLButtonElement>(null);
-  const mobilePreviewBtn = useRef<HTMLButtonElement>(null);
+  const barPreviewBtn = useRef<HTMLButtonElement>(null);
   const save = useServerFn(saveInvoiceDraft);
   const finalize = useServerFn(finalizeInvoiceDraft);
   const remove = useServerFn(removeInvoiceDraft);
@@ -663,16 +662,7 @@ export function InvoiceEditor({
           </h1>
         </div>
         <div className="actions editor-actions">
-          <PreviewButton
-            preview={{
-              ...preview,
-              triggerRef: desktopPreviewBtn,
-              openOverlay: () => {
-                preview.triggerRef.current = desktopPreviewBtn.current;
-                preview.openOverlay();
-              },
-            }}
-          />
+          <PreviewButton preview={preview} />
           <button
             type="button"
             className="btn"
@@ -1400,12 +1390,15 @@ export function InvoiceEditor({
             },
           ]}
         />
+        {/* triggerRef bleibt der Knopf im Kopf: Anheften, Ausblenden und Schließen geben den Fokus dorthin zurück, und
+            anheften lässt sich nur am Laptop. Die Überblendung am Handy merkt sich den Knopf in der Leiste als Auslöser;
+            Safari fokussiert Knöpfe beim Tippen nicht, deshalb hier ausdrücklich */}
         <PreviewButton
           preview={{
             ...preview,
-            triggerRef: mobilePreviewBtn,
+            triggerRef: barPreviewBtn,
             openOverlay: () => {
-              preview.triggerRef.current = mobilePreviewBtn.current;
+              barPreviewBtn.current?.focus({ preventScroll: true });
               preview.openOverlay();
             },
           }}
