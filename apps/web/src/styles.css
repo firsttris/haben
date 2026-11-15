@@ -636,8 +636,10 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) { row-gap: 4px; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child { justify-self: end; min-width: 0; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) > :last-child .status { flex-direction: row; align-items: baseline; gap: 6px; min-height: 0; max-width: 100%; }
-  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-label { flex: none; }
-  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-detail { padding-left: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-label, .status-edge .status-label { flex: none; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-detail, .status-edge .status-detail { padding-left: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Karten (Status mit edge): das Wort an der rechten Kante, die Auskunft davor, auch wenn der Status in eine eigene Zeile umbricht */
+  .status-edge { flex-direction: row-reverse; align-items: baseline; gap: 6px; max-width: 100%; margin-left: auto; }
   /* Rechnungen und Angebote: die Auskunft vorn, das Wort an der rechten Kante unter dem Betrag. Die Fläche des dringenden
      Worts ragt nach rechts in den Rand, damit das Wort mit dem Betrag fluchtet; davor etwas mehr Luft zur Auskunft */
   :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status { flex-direction: row-reverse; }
