@@ -114,8 +114,6 @@ Voll abgeschriebene Anlagen, GWG aus Vorjahren und Computer mit einjähriger Nut
 
 **Degressive und Elektro-AfA** übernimmt Haben nur zum 01.01. eines Jahres nach der Anschaffung und nur, wenn der Restbuchwert zum eigenen Plan passt (bis 1 € Rundung je Jahr). Eine abweichende Zahl heißt meist, dass die bisherige Buchhaltung anders gerechnet oder schon zur linearen AfA gewechselt hat. Dann lehnt Haben ab und nennt den rechnerischen Wert; du übernimmst die Anlage linear mit Restbuchwert und Restnutzungsdauer, was rechtlich der Wechsel nach § 7 Abs. 3 EStG ist. Hat die bisherige Buchhaltung schon gewechselt, trägst du zusätzlich **Linear ab Jahr** ein.
 
-Aus sevDesk schlägt Haben die Anlagen unter **Archiv › Umzug** selbst vor, mit linear nachgerechnetem Restbuchwert, weil die sevDesk-Schnittstelle keine bisherige AfA liefert ([Umzug aus sevDesk](sevdesk.md#schritt-4-anlagen-übernehmen)).
-
 Mehrere Anlagen übernimmst du mit **Anlagen › CSV importieren** aus einer Liste, mit denselben Regeln und einem Stichtag für die ganze Datei ([CSV-Import](csv-import.md#anlagen)).
 
 Solange nichts gebucht ist, lässt sich eine übernommene Anlage ändern und löschen. Mit der ersten AfA-Buchung bucht Haben auch die Eröffnung:
