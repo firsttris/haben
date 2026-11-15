@@ -2718,6 +2718,44 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   await expect(page.getByRole("region", { name: "Verrechnung" }).getByText("Korrektur TE-1")).toHaveCount(0);
 });
 
+test("Festschreiben direkt nach „Entwurf speichern“: erst nach dem Neuladen, der Dialog bleibt offen", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Beschreibung Position 1").fill("Gleich festschreiben");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100,00");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await page.waitForURL(/\/rechnungen\/[0-9a-f-]{36}$/);
+  // Neu laden, damit sicher der gespeicherte Entwurf im Editor steht und nicht mehr das Formular von „/rechnungen/neu“
+  await page.reload({ waitUntil: "networkidle" });
+  const id = new URL(page.url()).pathname.split("/").pop()!;
+
+  // Nach dem Speichern lädt die Seite den Entwurf neu und baut den Editor mit dem neuen Stand neu auf. Kommt die Antwort
+  // spät (langsamer Server, CI), darf „Festschreiben“ bis dahin nicht gehen: sonst verwirft der Neuaufbau den offenen Dialog
+  let neuGeladen = false;
+  const ladeEntwurf = (url: URL) => url.pathname.startsWith("/_serverFn/") && decodeURIComponent(url.search).includes(id);
+  await page.route(ladeEntwurf, async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await new Promise((fertig) => setTimeout(fertig, 1500));
+    const antwort = await route.fetch();
+    neuGeladen = true;
+    await route.fulfill({ response: antwort });
+  });
+  await page.getByLabel(/Einzelpreis Position 1/).fill("120,00");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Festschreiben", exact: true })).toBeVisible();
+  expect(neuGeladen).toBe(true);
+  await page.unroute(ladeEntwurf);
+
+  // Nicht festschreiben: die Nummern der übrigen Tests bleiben, wie sie sind
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await page.getByRole("button", { name: "Entwurf löschen", exact: true }).click();
+  await bestaetigen(page, "Entwurf löschen");
+  await expect(page).toHaveURL(/\/rechnungen(?:\?.*)?$/);
+});
+
 test("Keine Fehler im Browser", async () => {
   expect(pageErrors).toEqual([]);
 });
