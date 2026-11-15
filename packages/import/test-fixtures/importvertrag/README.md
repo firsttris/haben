@@ -15,7 +15,10 @@ Namen und Beträge sind ausgedacht. Sie zeigen, wie ein Connector die Daten sein
   [API-Referenz](https://enablebanking.com/docs/api/reference/) ist `entry_reference` eindeutig für Konten mit demselben
   `identification_hash`, `transaction_id` kann sich ändern; als Kontokennung dient deshalb der `identification_hash`.
 - `paypal.json`: Zahlungsdienstleister mit dem Beispiel aus #306 (+100,00 € Zahlung, −3,00 € Gebühr), Teilerstattung,
-  Abbuchung auf die Bank und ein ausstehendes Ereignis, das der Connector nicht einordnet. Codes nach
+  Abbuchung auf die Bank, ein ausstehendes Ereignis, das der Connector nicht einordnet, und eine nachträglich
+  zurückgebuchte Zahlung (Status V): Die Zahlung bleibt gebucht, die Rückbuchung ist ein eigenes Ereignis mit
+  `relatedEventId` (so entschieden in #306). Behält PayPal die Gebühr nicht ein, käme ihre Erstattung als Komponente
+  `fee` der Rückbuchung. Codes nach
   [Transaction Event Codes](https://developer.paypal.com/docs/transaction-search/transaction-event-codes/) (T0006 Zahlung,
-  T1107 Erstattung durch den Händler, T0400 Abbuchung) und dem Status P (ausstehend) der
-  [Transaction Search API](https://developer.paypal.com/docs/api/transaction-search/v1/).
+  T1107 Erstattung durch den Händler, T1106 Rückbuchung durch PayPal, T0400 Abbuchung) und den Status P (ausstehend)
+  und V (zurückgebucht) der [Transaction Search API](https://developer.paypal.com/docs/api/transaction-search/v1/).

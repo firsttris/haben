@@ -99,7 +99,7 @@ describe("Beispiel PayPal", () => {
 
   it("zählt die Gebühr einmal und lässt den Zeitraum mit einem ausstehenden Ereignis offen", () => {
     expect(sum(result.accepted.filter((m) => m.sourceEventId === "PP-0001"))).toBe(9700);
-    expect(sum(result.accepted)).toBe(0);
+    expect(sum(result.accepted.filter((m) => m.sourceEventId <= "PP-0003"))).toBe(0);
     expect(result.blocking).toBe(1);
     expect(advanceCheckpoint("2026-09-30", [{ coverage: result.batch.coverage, part: result.batch.part, blocking: result.blocking, conflict: false }])).toEqual(
       {
@@ -108,5 +108,15 @@ describe("Beispiel PayPal", () => {
         reason: "1 Ereignis ist nicht übernommen (fremde Währung oder vom Connector nicht eingeordnet); der Zeitraum bleibt offen.",
       },
     );
+  });
+
+  it("bildet eine nachträglich zurückgebuchte Zahlung (Status V) als zwei Ereignisse mit Bezug ab", () => {
+    // Die Zahlung bleibt gebucht, die Rückbuchung ist ein eigenes Ereignis: nichts fehlt, nichts wird doppelt zurückgebucht
+    const payment = result.accepted.find((m) => m.sourceEventId === "PP-0005" && m.component === "main")!;
+    const reversal = result.accepted.find((m) => m.sourceEventId === "PP-0006")!;
+    expect(reversal.kind).toBe("chargeback");
+    expect(reversal.references.relatedEventId).toBe(payment.sourceEventId);
+    expect(payment.amount + reversal.amount).toBe(0);
+    expect(result.hints).toEqual([]);
   });
 });
