@@ -149,7 +149,7 @@ Die Einkommensteuererklärung (Datenart ESt, Vordruck E10) setzt Haben aus drei 
 
 Die eingetragenen Angaben speichert Haben je Jahr; jede Änderung steht im Audit-Log. Übermittelt wird, was gespeichert ist. Leere Anlagen schickt Haben nicht mit.
 
-Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe Aufwendungen, Kinder und Kapitalerträge stehen zugeklappt; im Titel steht, was eingetragen ist (z. B. „Vorsorgeaufwand · 4.230,00 €“, bei der Anlage N Bruttoarbeitslohn und Lohnsteuer aller Bescheinigungen zusammen). In der Anlage N klappen auch jede Lohnsteuerbescheinigung und die Werbungskosten einzeln auf. Fehlt beim Speichern eine Pflichtangabe in einem zugeklappten Block, klappt Haben ihn auf und setzt den Cursor ins Feld. **Angaben speichern** und die voraussichtliche Steuer bleiben am unteren Rand sichtbar. Über die Leiste oben springst du zwischen Umsatzsteuer, Anlage EÜR, Einkommensteuer, den Belegen von ELSTER und dem Verlauf.
+Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe Aufwendungen, Kinder, Kapitalerträge und die Einkommensersatzleistungen stehen zugeklappt; im Titel steht, was eingetragen ist (z. B. „Vorsorgeaufwand · 4.230,00 €“, bei der Anlage N Bruttoarbeitslohn und Lohnsteuer aller Bescheinigungen zusammen). In der Anlage N klappen auch jede Lohnsteuerbescheinigung und die Werbungskosten einzeln auf. Fehlt beim Speichern eine Pflichtangabe in einem zugeklappten Block, klappt Haben ihn auf und setzt den Cursor ins Feld. **Angaben speichern** und die voraussichtliche Steuer bleiben am unteren Rand sichtbar. Über die Leiste oben springst du zwischen Umsatzsteuer, Anlage EÜR, Einkommensteuer, den Belegen von ELSTER und dem Verlauf.
 
 | Anlage | Angaben |
 | --- | --- |

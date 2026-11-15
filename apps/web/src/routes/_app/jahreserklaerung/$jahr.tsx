@@ -785,7 +785,7 @@ function EstSection({ data }: { data: Data }) {
             </div>
           );
           return (
-            <Block title="Einkommensersatzleistungen (Progressionsvorbehalt)" summary={sumText(total)} open={total > 0}>
+            <Block title="Einkommensersatzleistungen (Progressionsvorbehalt)" summary={sumText(total)} open={false}>
               <h4 className="est-sub">{est.zusammen ? (est.person.a ?? "Person A") : "Leistungen"}</h4>
               {felder("a")}
               {est.zusammen && (
