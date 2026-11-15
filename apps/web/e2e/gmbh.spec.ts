@@ -369,6 +369,22 @@ test("Ausschüttung mit Gewinnvortrag buchen, Steuerbescheinigung des Gesellscha
   const pdf = await readFile((await download.path())!);
   expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   expect(await axe(), "/ausschuettungen mit Ausschüttung").toEqual([]);
+
+  // Am Handy steht „Anmelden“ rechts an der Kante des Kartenkopfs am Ende, die Frist davor (DESIGN.md › Status › Anordnung)
+  const vorher = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 812 });
+  const kopf = karte.locator(":scope > div").first();
+  const status = kopf.locator(".status");
+  await expect(status.locator(".status-detail")).toBeVisible();
+  const rand = await kopf.evaluate((e) => e.getBoundingClientRect().right);
+  const lage = await status.evaluate((e, rechts) => {
+    const wort = e.querySelector(".status-label")!.getBoundingClientRect();
+    const auskunft = e.querySelector(".status-detail")!.getBoundingClientRect();
+    return { wortZuerst: wort.left < auskunft.left, abstand: rechts - wort.right };
+  }, rand);
+  if (vorher) await page.setViewportSize(vorher);
+  expect(lage.wortZuerst).toBe(false);
+  expect(Math.abs(lage.abstand)).toBeLessThanOrEqual(8);
 });
 
 test("Archiv: Abschluss eines alten Jahres aus dem DATEV-Stapel", async () => {
