@@ -179,6 +179,24 @@ export const fbExpenseSchema = z.looseObject({
 });
 export type FbExpense = z.infer<typeof fbExpenseSchema>;
 
+// ---------------------------------------------------------------- Artikel
+
+/** article.get (https://apidocs.fastbill.com/fastbill/de/article.html) */
+export const fbArticleSchema = z.looseObject({
+  ARTICLE_ID: id,
+  ARTICLE_NUMBER: numeric,
+  TITLE: str,
+  DESCRIPTION: str,
+  UNIT: str,
+  /** Immer netto, auch bei IS_GROSS 1 (echtes Konto, November 2026) */
+  UNIT_PRICE: numeric,
+  CURRENCY_CODE: str,
+  VAT_PERCENT: numeric,
+  /** 0/1: Preis in FastBill brutto eingegeben */
+  IS_GROSS: numeric,
+});
+export type FbArticle = z.infer<typeof fbArticleSchema>;
+
 /** Bytes einer Datei mit MIME-Typ und – falls bekannt – Dateiname. */
 export interface FbFile {
   bytes: Uint8Array;
