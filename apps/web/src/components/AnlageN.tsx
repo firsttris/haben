@@ -77,7 +77,7 @@ export function toArbeitnehmerDraft(an: EstArbeitnehmer | undefined): Arbeitnehm
     homeofficeTage: numberText(w.homeofficeTage),
     keinAndererArbeitsplatz: w.keinAndererArbeitsplatz ?? false,
     ...(Object.fromEntries(WK_BETRAEGE.map(([k]) => [k, centsText(w[k])])) as Record<WkKey, string>),
-    arbeitszimmerMonate: w.arbeitszimmerMonate ? String(w.arbeitszimmerMonate) : "",
+    arbeitszimmerMonate: w.arbeitszimmerMonate === undefined ? "" : String(w.arbeitszimmerMonate),
   };
 }
 
@@ -93,14 +93,15 @@ export function parseArbeitnehmer(d: ArbeitnehmerDraft, wer: string, bad: string
     }
     return cents || undefined;
   };
-  const whole = (text: string, label: string, max: number) => {
+  // `null0`: eine 0 heißt „nichts“ und wird nicht gespeichert; bei den Monaten des Arbeitszimmers zählt sie
+  const whole = (text: string, label: string, max: number, null0 = true) => {
     if (!text.trim()) return undefined;
     const n = Number(text.replace(",", "."));
     if (!Number.isFinite(n) || n < 0 || n > max) {
       bad.push(`${label} (${wer})`);
       return undefined;
     }
-    return n || undefined;
+    return n || (null0 ? undefined : 0);
   };
   const bescheinigungen = d.bescheinigungen.map((b, i): EstLohnsteuerbescheinigung => {
     const values = Object.fromEntries(BETRAEGE.map(([k, label]) => [k, amount(b[k], `Bescheinigung ${i + 1}: ${label}`)])) as Partial<
@@ -131,7 +132,7 @@ export function parseArbeitnehmer(d: ArbeitnehmerDraft, wer: string, bad: string
       homeofficeTage: whole(d.homeofficeTage, "Homeoffice-Tage", 366),
       keinAndererArbeitsplatz: d.keinAndererArbeitsplatz || undefined,
       ...(Object.fromEntries(WK_BETRAEGE.map(([k, label]) => [k, amount(d[k], label)])) as Partial<Record<WkKey, number>>),
-      arbeitszimmerMonate: whole(d.arbeitszimmerMonate, "Monate mit Arbeitszimmer", 12),
+      arbeitszimmerMonate: whole(d.arbeitszimmerMonate, "Monate als Mittelpunkt", 12, false),
     },
   };
 }

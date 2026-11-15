@@ -69,7 +69,7 @@ const arbeitnehmer = z.object({
       gewerkschaft: cents,
       sonstige: cents,
       arbeitszimmer: cents,
-      arbeitszimmerMonate: z.number().int().min(1).max(12).optional(),
+      arbeitszimmerMonate: z.number().int().min(0).max(12).optional(),
     })
     .default({}),
 });
