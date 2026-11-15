@@ -10,6 +10,7 @@ export function parseEuroSearchCents(query: string): number | null {
   // Einfaches Punkt-Dezimalformat („19.99“, „-42.5“) vor der Übergabe an parseEuro (Ganzzahl-Cent) angleichen
   const german = /^-?\d+\.\d{1,2}$/.test(cleaned) ? cleaned.replace(".", ",") : cleaned;
   const cents = parseEuro(german);
-  if (cents === null || !Number.isSafeInteger(cents) || cents < -2_147_483_648 || cents > 2_147_483_647) return null;
+  // Symmetrisch, weil die Suche auch das umgekehrte Vorzeichen vergleicht: -2147483648 hat in int4 kein Gegenstück
+  if (cents === null || !Number.isSafeInteger(cents) || Math.abs(cents) > 2_147_483_647) return null;
   return cents;
 }
