@@ -75,9 +75,8 @@ async function ruhigesBlatt(p: Page): Promise<string> {
 const fuss = (p: Page) => blatt(p).locator('[data-teil="fuss"]');
 
 async function gestaltungOeffnen(p: Page): Promise<void> {
-  if ((p.viewportSize()?.width ?? 1280) <= 720) {
-    await head(p).getByRole("button", { name: "Weitere Aktionen" }).click();
-    await p.getByRole("menuitem", { name: "Vorschau" }).click();
+  if ((p.viewportSize()?.width ?? 1280) <= 860) {
+    await p.locator(".main > .action-bar").getByRole("button", { name: "Vorschau", exact: true }).click();
   } else {
     await vorschauKnopf(p).click();
   }

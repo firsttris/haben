@@ -15,7 +15,7 @@ for (const [geraet, viewport] of [
   ["Laptop", LAPTOP],
   ["Handy", HANDY],
 ] as const) {
-  test(`Rechnungsentwurf am ${geraet}: Titel, Status, Kopf und Aktionsleiste bleiben beim Scrollen sichtbar`, async ({ page }) => {
+  test(`Rechnungsentwurf am ${geraet}: Titel, Status und Aktionen bleiben beim Scrollen sichtbar`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/rechnungen/neu");
     const head = page.locator(".main > .page-head");
@@ -27,20 +27,30 @@ for (const [geraet, viewport] of [
     await sichtbar(head.getByRole("heading", { level: 1 }));
     await sichtbar(head.getByText("Entwurf", { exact: false }).first());
     if (geraet === "Handy") {
-      const weitere = head.getByRole("button", { name: "Weitere Aktionen" });
+      await expect(head.locator(".actions")).toBeHidden();
+      const weitere = bar.getByRole("button", { name: "Weitere Aktionen" });
+      const vorschau = bar.getByRole("button", { name: "Vorschau", exact: true });
+      const speichern = bar.getByRole("button", { name: "Entwurf speichern" });
+      const festschreiben = bar.getByRole("button", { name: "Festschreiben" });
       await sichtbar(weitere);
-      const box = await weitere.boundingBox();
-      expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
-      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(HANDY.width);
+      await sichtbar(vorschau);
+      await sichtbar(speichern);
+      await sichtbar(festschreiben);
+      const weitereBox = await weitere.boundingBox();
+      const vorschauBox = await vorschau.boundingBox();
+      expect(weitereBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+      expect(vorschauBox?.x ?? 0).toBeGreaterThan(weitereBox?.x ?? 0);
+      expect((await festschreiben.boundingBox())?.x ?? 0).toBeGreaterThan((await speichern.boundingBox())?.x ?? 0);
     } else {
+      await expect(bar).toBeHidden();
       await sichtbar(head.getByRole("button", { name: "Vorschau", exact: true }));
       await sichtbar(head.getByRole("button", { name: "Speichern und als PDF" }));
+      const speichern = head.getByRole("button", { name: "Entwurf speichern" });
+      const festschreiben = head.getByRole("button", { name: "Festschreiben" });
+      await sichtbar(speichern);
+      await sichtbar(festschreiben);
+      expect((await festschreiben.boundingBox())?.x ?? 0).toBeGreaterThan((await speichern.boundingBox())?.x ?? 0);
     }
-    const speichern = bar.getByRole("button", { name: "Entwurf speichern" });
-    const festschreiben = bar.getByRole("button", { name: "Festschreiben" });
-    await sichtbar(speichern);
-    await sichtbar(festschreiben);
-    expect((await festschreiben.boundingBox())?.x ?? 0).toBeGreaterThan((await speichern.boundingBox())?.x ?? 0);
   });
 
   test(`Einstellungen am ${geraet}: Kopf und Bereiche bleiben stehen, nur der Inhalt scrollt`, async ({ page }) => {
@@ -107,23 +117,23 @@ for (const [geraet, viewport] of [
   });
 }
 
-test("Rechnungsentwurf am Handy: Weitere Aktionen im Kopf per Tastatur bedienbar (Enter, Pfeile, Esc)", async ({ page }) => {
+test("Rechnungsentwurf am Handy: Weitere Aktionen in der Aktionsleiste per Tastatur bedienbar (Enter, Esc)", async ({ page }) => {
   await page.setViewportSize(HANDY);
   await page.goto("/rechnungen/neu");
-  const head = page.locator(".main > .page-head");
-  const weitere = head.getByRole("button", { name: "Weitere Aktionen" });
+  const bar = page.locator(".main > .action-bar");
+  const weitere = bar.getByRole("button", { name: "Weitere Aktionen" });
   await weitere.focus();
   await page.keyboard.press("Enter");
   await expect(weitere).toHaveAttribute("aria-expanded", "true");
-  const vorschau = page.getByRole("menuitem", { name: "Vorschau" });
+  const menu = page.getByRole("menu");
   const pdf = page.getByRole("menuitem", { name: "Speichern und als PDF" });
-  await expect(vorschau).toBeFocused();
-  await page.keyboard.press("ArrowDown");
   await expect(pdf).toBeFocused();
-  await page.keyboard.press("ArrowUp");
-  await expect(vorschau).toBeFocused();
+  const menuBox = await menu.boundingBox();
+  const weitereBox = await weitere.boundingBox();
+  expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual((weitereBox?.y ?? 0) + 1);
+  expect(menuBox?.x ?? -1).toBeGreaterThanOrEqual(0);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(menu).toHaveCount(0);
   await expect(weitere).toBeFocused();
 });
 
@@ -144,8 +154,8 @@ test("Saldenliste: der Tabellenkopf steht unter dem Seitenkopf, nicht dahinter",
   await sichtbar(th);
 });
 
-test("Festschreiben in der Aktionsleiste: die Rückfrage erscheint im Fenster, auch weit unten auf der Seite", async ({ page }) => {
-  await page.setViewportSize(LAPTOP);
+test("Festschreiben in der Aktionsleiste am Handy: die Rückfrage erscheint im Fenster, auch weit unten auf der Seite", async ({ page }) => {
+  await page.setViewportSize(HANDY);
   await page.goto("/rechnungen/neu");
   await kundeWaehlen(page);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
@@ -290,10 +300,10 @@ for (const [geraet, viewport] of [
       await entwurfAusfuellen(page);
       await zumEnde(page);
       await serverAntwortetNicht(page);
-      if (knopf === "Entwurf speichern") {
+      if (geraet === "Handy" && knopf === "Entwurf speichern") {
         await page.locator(".main > .action-bar").getByRole("button", { name: knopf }).click();
       } else if (geraet === "Handy") {
-        await page.locator(".main > .page-head").getByRole("button", { name: "Weitere Aktionen" }).click();
+        await page.locator(".main > .action-bar").getByRole("button", { name: "Weitere Aktionen" }).click();
         await page.getByRole("menuitem", { name: knopf }).click();
       } else {
         await page.locator(".main > .page-head").getByRole("button", { name: knopf }).click();

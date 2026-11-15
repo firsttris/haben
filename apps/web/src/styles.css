@@ -345,18 +345,19 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .page-head > .actions, .page-head > .stack > .actions { justify-content: flex-end; }
 }
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-/* Feste Aktionsleiste am unteren Fensterrand für abschließende Formularaktionen (#396) */
-.action-bar { position: sticky; bottom: 0; z-index: 10; margin: auto calc(-1 * var(--main-pad-x)) -32px; padding: 12px var(--main-pad-x) max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--ground); box-shadow: 0 -6px 12px -10px rgb(0 0 0 / 0.3); }
+/* Feste Aktionsleiste am unteren Fensterrand am Handy (< 861 px) für alle Aktionen (#396, Variante E) */
+.action-bar { position: sticky; bottom: 0; z-index: 10; margin: auto calc(-1 * var(--main-pad-x)) -20px; padding: 12px var(--main-pad-x) max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--ground); box-shadow: 0 -6px 12px -10px rgb(0 0 0 / 0.3); }
+@media (min-width: 861px) { .action-bar { display: none; } }
+@media (max-width: 860px) { .page-head > .actions.editor-actions { display: none; } }
 @media (max-height: 300px) { .action-bar { position: static; } }
-@media (max-width: 860px) { .action-bar { margin-bottom: -20px; } }
-.action-bar > .actions { justify-content: flex-end; }
 .more-actions-menu { position: relative; display: inline-flex; }
 .more-actions-menu .split-menu { min-width: min(240px, calc(100vw - 2 * var(--main-pad-x))); max-width: calc(100vw - 2 * var(--main-pad-x)); }
+.action-bar .more-actions-menu .split-menu { top: auto; bottom: calc(100% + 4px); left: 0; right: auto; }
 @media (max-width: 720px) {
   .action-bar { padding-block: 8px max(8px, env(safe-area-inset-bottom)); }
-  .page-head .actions:has(> .more-actions-menu) { overflow: visible; }
-  .page-head .actions > .more-actions-menu { flex: 1 0 auto; }
-  .page-head .actions > .more-actions-menu > .btn { width: 100%; justify-content: center; }
+  .action-bar > .actions { gap: 8px; }
+  .action-bar .split-btn-solo { flex: 1 1 auto; display: flex; }
+  .action-bar .split-btn-solo > .btn { flex: 1 1 auto; justify-content: center; }
 }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-actions > .banner { flex: 0 0 100%; }

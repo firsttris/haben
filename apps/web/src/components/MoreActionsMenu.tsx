@@ -15,8 +15,8 @@ function enabledMenuItems(menu: HTMLElement | null): HTMLElement[] {
 }
 
 /**
- * Menüknopf für Dokumentaktionen im Seitenkopf auf schmalen Bildschirmen (#396), nach dem Muster „Menu Button“ der
- * WAI-ARIA APG: öffnet mit Enter, Leertaste oder Pfeil nach unten/oben, hält die Pfeiltasten im Menü und setzt den
+ * Menüknopf `⋯` für weitere Aktionen in der Aktionsleiste am Handy (#396, Variante E), nach dem Muster „Menu Button“
+ * der WAI-ARIA APG: öffnet mit Enter, Leertaste oder Pfeil nach unten/oben, hält die Pfeiltasten im Menü und setzt den
  * Fokus bei Escape zurück auf den Auslöser.
  */
 export function MoreActionsMenu({
@@ -96,7 +96,8 @@ export function MoreActionsMenu({
       <button
         ref={setTriggerRef}
         type="button"
-        className="btn"
+        className="btn btn-icon"
+        aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -106,8 +107,7 @@ export function MoreActionsMenu({
         }}
         onKeyDown={onTriggerKey}
       >
-        {label}
-        <Icon name="chevron-down" size={16} />
+        <Icon name="more" size={16} />
       </button>
       {open && (
         <div ref={menu} id={menuId} role="menu" aria-label={label} className="split-menu" onKeyDown={onMenuKey}>
