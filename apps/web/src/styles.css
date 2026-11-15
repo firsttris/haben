@@ -510,6 +510,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 /* Betragszeile: Satz, Netto, Steuer und Platz für den Entfernen-Knopf, auch wenn er fehlt, damit die Zeilen fluchten */
 .form-row.cols-amount { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 40px; align-items: end; }
 .form-row.cols-amount.ohne-steuer { grid-template-columns: 120px minmax(0, 1fr) 40px; }
+/* Dauerbeleg mit ausgewiesener Steuer: dazu das Brutto (#1059) */
+.form-row.cols-amount.mit-brutto { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 40px; }
 .dauerbeleg-summe { margin: 0; padding-top: 12px; border-top: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
 .field-group { display: flex; flex-direction: column; gap: 8px; }
 .field-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
@@ -527,7 +529,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   .form-row.cols-amount { grid-template-columns: 96px minmax(0, 1fr) 40px; }
   .form-row.cols-server { grid-template-columns: minmax(0, 1fr) 96px; }
   .form-row.cols-server > :last-child { grid-column: 1 / -1; }
-  .form-row.cols-amount > .field:nth-child(3) { grid-column: 2; }
+  .form-row.cols-amount.mit-brutto { grid-template-columns: 96px minmax(0, 1fr) 40px; }
+  .form-row.cols-amount > .field:nth-child(3), .form-row.cols-amount > .field:nth-child(4) { grid-column: 2; }
 }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
@@ -591,6 +594,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .mail-mark { margin-left: 8px; vertical-align: middle; }
 /* Merkmal: Eigenschaft ohne Zustand (Lieferant, Rolle, archiviert) */
 .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); font-size: 12px; line-height: 1; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
+/* Merkmal und Status nebeneinander (etwa „inaktiv“ und „Fehler“): auf einer Mittellinie, statt nach Grundlinie und vertical-align versetzt */
+.status-gruppe { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; max-width: 100%; vertical-align: middle; }
 
 .banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
 .banner-info { background: var(--info-soft); color: var(--info-ink); }
@@ -1293,7 +1298,12 @@ summary { cursor: pointer; min-height: 24px; }
   .cmd-option-facts { grid-column: 2 / -1; display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; column-gap: 8px; }
   .cmd-option .amount { grid-column: 1; justify-self: start; }
   .cmd-option-status { grid-column: 2; }
-  .cmd-option-status .status { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 6px; }
+  /* Am Handy steht das Statuswort immer an der rechten Kante, die Auskunft davor (wie in den Listen, DESIGN.md › Status);
+     eine zu lange Auskunft endet mit „…“ */
+  .cmd-option-status { display: flex; justify-content: flex-end; min-width: 0; }
+  .cmd-option-status .status { flex-direction: row-reverse; align-items: baseline; gap: 6px; max-width: 100%; }
+  .cmd-option-status .status-label { flex: none; }
+  .cmd-option-status .status-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cmd-option-arrow { grid-column: 3; grid-row: 1; }
   .cmd-foot { display: none; }
 }

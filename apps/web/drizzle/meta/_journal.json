@@ -1727,15 +1727,29 @@
     {
       "idx": 246,
       "version": "7",
-      "when": 1794745237082,
-      "tag": "0246_modern_ravenous",
+      "when": 1794745098644,
+      "tag": "0246_search_unaccent",
       "breakpoints": true
     },
     {
       "idx": 247,
       "version": "7",
-      "when": 1794748251733,
-      "tag": "0247_bank_private_marks_trigger",
+      "when": 1794745106907,
+      "tag": "0247_search_stufe2_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 248,
+      "version": "7",
+      "when": 1794749399497,
+      "tag": "0248_bank_privat_kennzeichnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 249,
+      "version": "7",
+      "when": 1794749402101,
+      "tag": "0249_bank_privat_kennzeichnung_trigger",
       "breakpoints": true
     }
   ]

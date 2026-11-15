@@ -5,6 +5,7 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
+export { searchPostfachDocuments, type PostfachDocumentHit } from "./search.ts";
 export {
   activateBerechtigung,
   berechtigungEhegatte,
