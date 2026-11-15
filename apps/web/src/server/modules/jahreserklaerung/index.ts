@@ -23,3 +23,4 @@ export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./
 export { meinElsterWerte } from "./mein-elster.ts";
 export { vermerkBetrag, vermerkFelder, vermerkPruefung, vermerkeJahresabgabe } from "./vermerk.ts";
 export { erklaerteZeilen, speichereErklaerteZeilen, zeilenwerteSchema } from "./zeilenwerte.ts";
+export { bescheidErfassen, bescheidFelder, bescheidFuerJahr, bescheidProblem, bescheidSchema, type Bescheid } from "./bescheid.ts";

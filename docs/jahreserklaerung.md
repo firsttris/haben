@@ -275,3 +275,11 @@ Die Entfernungspauschale (`KFZ_u_Fahrtkosten/Entfernungspausch_Familienheimfahrt
 Die Beträge in Zeile 18 (`E6000701`, erstattete Umsatzsteuer) und Zeile 58, ab 2026 Zeile 59 (`E6005101`, gezahlte Umsatzsteuer), tragen laut Jahresdokumentation E77 2025 („GeldBetragMitCent ohne Vorzeichen“) und den Schemas E77-2025 und E77-2026 kein Vorzeichen; ERiC lehnt `-190,00` dort mit „Unzulässiges Vorzeichen“ ab. Haben schickt deshalb kein negatives Feld. Ein negativer Betrag heißt, dass im Jahr mehr Umsatzsteuer erstattet als gezahlt wurde: Die Anlage EÜR weist ihn dann als Betriebseinnahme in Zeile 18 aus, umgekehrt einen negativen Betrag in Zeile 18 als Betriebsausgabe in Zeile 58 (2026: 59), jeweils ohne Vorzeichen und getrennt in beiden Zeilen. Der Gewinn bleibt gleich, gebuchte Daten ändern sich nicht. Die Vorprüfung der Anlage EÜR nennt das Umgliedern als Hinweis; bliebe danach ein negativer Betrag übrig, wäre das ein Fehler vor dem Senden.
 
 Die Vordrucke ändern sich jedes Jahr ein wenig. Deshalb vor der Echtübermittlung immer erst prüfen oder testweise senden: Meldet ERiC ein unbekanntes Feld oder eine verletzte Regel, steht die Meldung im Verlauf. Bitte dann als Issue melden.
+
+## Einkommensteuer: Vermerk ohne Betrag, Bescheid als Nachtrag
+
+Umsatzsteuererklärung und Anlage EÜR nennen ihren Betrag in der Erklärung selbst: Abschlusszahlung bzw. Erstattung, Gewinn. Der Vermerk hält ihn fest und vergleicht ihn mit dem, was Haben gerechnet hat.
+
+Bei der Einkommensteuer gibt es diesen Betrag beim Abgeben nicht. Das Übermittlungsprotokoll nennt keinen Steuerbetrag, er entsteht erst mit dem Steuerbescheid. Deshalb bleibt das Feld **Betrag** im Vermerk der Einkommensteuer leer; jede Zahl wäre eine Schätzung in einem Dokument, das die Abgabe belegt. Für Umsatzsteuer und EÜR bleibt der Betrag Pflicht.
+
+Kommt der Bescheid, wird er an der Jahresübersicht nachgetragen: Datum, festgesetzte Steuer, Erstattung oder Nachzahlung, Aktenzeichen. Er steht als eigener Eintrag neben dem Vermerk, nicht in ihm — der Vermerk ist anhängend und wird nicht verändert. Erst mit dem Bescheid gibt es wieder einen Vergleich; die Abgabe selbst bleibt unberührt, und `submitted` zeigt weiter den Vermerk, nicht den Bescheid. Je Jahr ist ein Bescheid vorgesehen; ein geänderter Bescheid braucht einen eigenen Weg.

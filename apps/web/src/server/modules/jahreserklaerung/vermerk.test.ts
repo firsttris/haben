@@ -10,6 +10,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgres)", () => {
   let annual: typeof import("./annual.ts");
   let jahresvermerk: typeof import("./vermerk.ts");
+  let bescheid: typeof import("./bescheid.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   const TODAY = "2026-10-02";
@@ -19,6 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     sql = await setupTestDb();
     annual = await import("./annual.ts");
     jahresvermerk = await import("./vermerk.ts");
+    bescheid = await import("./bescheid.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -247,5 +249,62 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
 
     const [zeile] = await sql`select figures from annual_submissions`;
     expect(zeile).toMatchObject({ figures: { amount: berechnet } });
+  });
+
+  /*
+   * Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag; er steht erst im Bescheid (#1073).
+   * Der Vermerk belegt die Abgabe, der Bescheid hält das Ergebnis fest — als eigener Eintrag daneben.
+   */
+  it("vermerkt die Einkommensteuer ohne Betrag und nimmt den Bescheid danach auf", async () => {
+    const est = await jahresvermerk.vermerkeJahresabgabe(
+      actor,
+      "est",
+      2025,
+      { filedOn: "2026-05-20", transferTicket: "EST123456789", note: "Einkommensteuererklärung im ELSTER-Portal abgegeben." },
+      TODAY,
+    );
+    expect(est.amount).toBeNull();
+
+    const vorher = await annual.annualOverview(2025, TODAY);
+    expect(vorher.est.submitted).toMatchObject({ transferTicket: "EST123456789", amount: null });
+    expect(vorher.est.bescheid).toBeNull();
+
+    const row = await bescheid.bescheidErfassen(
+      actor,
+      2025,
+      { bescheidVom: "2026-09-20", festgesetzteSteuer: 2_012_700, erstattung: 1_032_197, aktenzeichen: "20/183/01861" },
+      TODAY,
+    );
+    expect(row).toMatchObject({ erstattung: 1_032_197, nachzahlung: null, festgesetzteSteuer: 2_012_700 });
+
+    const nachher = await annual.annualOverview(2025, TODAY);
+    // Der Bescheid ist kein zweiter Vermerk: submitted bleibt die Abgabe
+    expect(nachher.est.submitted).toMatchObject({ transferTicket: "EST123456789", amount: null });
+    expect(nachher.est.bescheid).toMatchObject({ bescheidVom: "2026-09-20", erstattung: 1_032_197, aktenzeichen: "20/183/01861" });
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
+  });
+
+  it("verlangt bei Umsatzsteuer und EÜR weiter einen Betrag", async () => {
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, { ...eingabe("UST123456789"), amount: undefined }, TODAY)).rejects.toThrow(
+      /Betrag laut Übermittlungsprotokoll fehlt/,
+    );
+  });
+
+  it("nimmt je Jahr einen Bescheid, nur nach der Abgabe und nur mit einem Ergebnis", async () => {
+    await jahresvermerk.vermerkeJahresabgabe(
+      actor,
+      "est",
+      2025,
+      { filedOn: "2026-05-20", transferTicket: "EST987654321", note: "Im ELSTER-Portal abgegeben, Betrag folgt mit dem Bescheid." },
+      TODAY,
+    );
+    await expect(bescheid.bescheidErfassen(actor, 2025, { bescheidVom: "2026-04-01", erstattung: 100 }, TODAY)).rejects.toThrow(/vor dem Tag der Abgabe/);
+    await expect(bescheid.bescheidErfassen(actor, 2025, { bescheidVom: "2026-09-20", erstattung: 100, nachzahlung: 100 }, TODAY)).rejects.toThrow(
+      /nicht beides/,
+    );
+    await expect(bescheid.bescheidErfassen(actor, 2025, { bescheidVom: "2026-09-20" }, TODAY)).rejects.toThrow(/mindestens die festgesetzte Steuer/);
+    await expect(bescheid.bescheidErfassen(actor, 2024, { bescheidVom: "2026-09-20", erstattung: 500 }, TODAY)).rejects.toThrow(/keine Abgabe vermerkt/);
+    await bescheid.bescheidErfassen(actor, 2025, { bescheidVom: "2026-09-20", erstattung: 500 }, TODAY);
+    await expect(bescheid.bescheidErfassen(actor, 2025, { bescheidVom: "2026-10-01", erstattung: 600 }, TODAY)).rejects.toThrow(/schon ein Bescheid/);
   });
 });

@@ -16,6 +16,8 @@ import {
   vermerkeJahresabgabe,
   speichereErklaerteZeilen,
   zeilenwerteSchema,
+  bescheidErfassen,
+  bescheidFelder,
 } from "../modules/jahreserklaerung/index.ts";
 import { zeilenForm } from "../../lib/zeilenwerte.ts";
 import { loadCompany } from "../modules/stammdaten/index.ts";
@@ -233,6 +235,15 @@ export const submitKapgReturn = createServerFn({ method: "POST" })
       today: today(),
     });
     return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
+  });
+
+export const erfasseBescheid = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ year: z.number().int().min(2000).max(2100), ...bescheidFelder }))
+  .handler(async ({ data, context }) => {
+    const { year, ...eingabe } = data;
+    await bescheidErfassen(context.user.id, year, eingabe);
+    return { ok: true };
   });
 
 export const saveKapgErklaerung = createServerFn({ method: "POST" })

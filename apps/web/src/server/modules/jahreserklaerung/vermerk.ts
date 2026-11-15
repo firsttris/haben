@@ -32,9 +32,10 @@ export interface JahresvermerkInput {
   transferTicket: string;
   /**
    * Betrag der Erklärung in Cent: Abschlusszahlung bzw. Erstattung (USt), Gewinn (EÜR) oder voraussichtliche
-   * Nachzahlung bzw. Erstattung (ESt)
+   * Nachzahlung bzw. Erstattung (ESt). Bei der Einkommensteuer bleibt er leer: Den Betrag nennt erst der Bescheid
+   * (#1073), und eine Schätzung gehört nicht in einen Vermerk, der die Abgabe belegt.
    */
-  amount: Cents;
+  amount?: Cents;
   /** Warum außerhalb von Haben abgegeben wurde */
   note: string;
   /** Abweichung zum gerechneten Wert ausdrücklich bestätigt; ohne sie wird ein abweichender Betrag abgelehnt */
@@ -53,7 +54,8 @@ export const vermerkBetrag = z.number().int().min(-1_000_000_000_00).max(1_000_0
 export const vermerkFelder = {
   filedOn: z.iso.date("Bitte den Tag der Abgabe angeben."),
   transferTicket: z.string().trim().min(10, "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben.").max(64, "Das Transferticket ist zu lang."),
-  amount: vermerkBetrag,
+  /** Bei der Einkommensteuer bleibt der Betrag leer: Er steht erst im Bescheid (#1073) */
+  amount: vermerkBetrag.optional(),
   note: z.string().trim().min(10, "Bitte kurz begründen, warum außerhalb von Haben abgegeben wurde.").max(2000, "Die Begründung ist zu lang."),
 };
 
@@ -81,6 +83,8 @@ const FORM_LABEL: Record<VermerkForm, string> = { ust: "Umsatzsteuererklärung",
 export interface Jahresvermerk {
   id: string;
   form: VermerkForm;
+  /** null beim Abgabevermerk, "bescheid" beim nachgetragenen Steuerbescheid */
+  art: string | null;
   year: number;
   filedOn: string | null;
   transferTicket: string | null;
@@ -98,6 +102,7 @@ const VERMERK_COLUMNS = {
   transferTicket: schema.annualSubmissions.transferTicket,
   note: schema.annualSubmissions.note,
   amount: sql<number | null>`(${schema.annualSubmissions.figures}->>'amount')::bigint`.mapWith(Number),
+  art: sql<string | null>`${schema.annualSubmissions.figures}->>'art'`,
   hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
   createdAt: schema.annualSubmissions.createdAt,
 };
@@ -130,6 +135,9 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
       `Eine Kapitalgesellschaft gibt keine ${form === "euer" ? "Anlage EÜR" : "Einkommensteuererklärung"} ab; vermerken lässt sich nur die Umsatzsteuererklärung.`,
     );
   const transferTicket = data.transferTicket.trim();
+  // Bei Umsatzsteuer und EÜR steht der Betrag in der abgegebenen Erklärung; bei der Einkommensteuer entsteht er erst
+  // mit dem Bescheid, deshalb bleibt er dort leer (#1073)
+  if (data.amount === undefined && form !== "est") throw new AnnualError("Der Betrag laut Übermittlungsprotokoll fehlt.");
 
   return underSendLock(`haben.jahreserklaerung.${form}.${year}`, "send", async () => {
     const [closed] = await db.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
@@ -137,7 +145,15 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
     const [schonVermerkt] = await db
       .select({ id: schema.annualSubmissions.id })
       .from(schema.annualSubmissions)
-      .where(and(eq(schema.annualSubmissions.form, form), eq(schema.annualSubmissions.year, year), eq(schema.annualSubmissions.kind, "vermerk")));
+      .where(
+        and(
+          eq(schema.annualSubmissions.form, form),
+          eq(schema.annualSubmissions.year, year),
+          eq(schema.annualSubmissions.kind, "vermerk"),
+          // Ein nachgetragener Bescheid ist kein zweiter Vermerk
+          sql`${schema.annualSubmissions.figures}->>'art' is distinct from 'bescheid'`,
+        ),
+      );
     if (schonVermerkt) throw new AnnualError(`Für die ${FORM_LABEL[form]} ${year} ist die Abgabe schon vermerkt.`);
     const [gesendet] = await db
       .select({ id: schema.annualSubmissions.id })
@@ -159,8 +175,10 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
 
     // Eine erfolgte Abgabe lässt sich nicht zurücknehmen: Der Betrag laut Protokoll gilt, aber eine Abweichung muss
     // ausdrücklich bestätigt werden, statt sie stillschweigend zu übernehmen.
-    const { berechnet, abweichung } = await vermerkPruefung(form, year, data.amount);
-    if (abweichung !== 0 && !data.abweichungBestaetigt) throw new AnnualError(abweichungMeldung(data.amount, berechnet, abweichung));
+    // Ohne Betrag gibt es nichts zu vergleichen; er kommt bei der Einkommensteuer mit dem Bescheid
+    const pruefung = data.amount === undefined ? null : await vermerkPruefung(form, year, data.amount);
+    const abweichung = pruefung?.abweichung ?? 0;
+    if (pruefung && abweichung !== 0 && !data.abweichungBestaetigt) throw new AnnualError(abweichungMeldung(data.amount!, pruefung.berechnet, abweichung));
 
     // Wie bei der Übermittlung: Welche Januarzahlungen die abgegebene EÜR verschiebt, bleibt fest (ZEHN_TAGE_REGEL, #583)
     const zehnTage = form === "euer" ? { [ZEHN_TAGE_REGEL]: await zehnTageKennzeichen(year) } : {};
@@ -178,7 +196,8 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
           transferTicket,
           // Ohne Abweichung bleibt die Zeile wie bisher; mit Bestätigung hält sie den Vergleich dauerhaft fest
           figures: {
-            ...(abweichung === 0 ? { amount: data.amount } : { amount: data.amount, berechnet, abweichung, abweichungBestaetigt: true }),
+            ...(data.amount === undefined ? {} : { amount: data.amount }),
+            ...(pruefung && abweichung !== 0 ? { berechnet: pruefung.berechnet, abweichung, abweichungBestaetigt: true } : {}),
             ...zehnTage,
           },
           filedOn: data.filedOn,
@@ -198,7 +217,7 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
           hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
           createdAt: schema.annualSubmissions.createdAt,
         });
-      return { ...row!, form: row!.form as VermerkForm, amount: data.amount };
+      return { ...row!, form: row!.form as VermerkForm, art: null, amount: data.amount ?? null };
     });
   });
 }
@@ -208,7 +227,13 @@ export async function jahresvermerke(year: number): Promise<Jahresvermerk[]> {
   const rows = await db
     .select(VERMERK_COLUMNS)
     .from(schema.annualSubmissions)
-    .where(and(eq(schema.annualSubmissions.year, year), eq(schema.annualSubmissions.kind, "vermerk")))
+    .where(
+      and(
+        eq(schema.annualSubmissions.year, year),
+        eq(schema.annualSubmissions.kind, "vermerk"),
+        sql`${schema.annualSubmissions.figures}->>'art' is distinct from 'bescheid'`,
+      ),
+    )
     .orderBy(desc(schema.annualSubmissions.createdAt));
   return rows.map((row) => ({ ...row, form: row.form as VermerkForm }));
 }
@@ -218,9 +243,11 @@ export async function jahresvermerke(year: number): Promise<Jahresvermerk[]> {
  * nicht maßgeblich (außerhalb von Haben kann eine andere Rechnung gelten), eine Abweichung verlangt aber eine
  * ausdrückliche Bestätigung.
  */
-export async function vermerkPruefung(form: VermerkForm, year: number, amount: Cents) {
+export async function vermerkPruefung(form: VermerkForm, year: number, amount: Cents | null) {
   const overview = await annualOverview(year, today());
   const berechnet = form === "ust" ? overview.ust.abschluss : form === "est" ? overview.est.prognose.verbleibend : overview.euer.gewinn;
+  // Ohne Betrag gibt es keinen Vergleich: Bei der Einkommensteuer kommt er mit dem Bescheid (#1073)
+  if (amount === null) return { berechnet, abweichung: 0, hinweis: null };
   return { berechnet, abweichung: amount - berechnet, hinweis: abweichungHinweis(amount, berechnet) };
 }
 

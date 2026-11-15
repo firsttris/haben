@@ -468,7 +468,8 @@ export const annualSubmissions = pgTable(
     /** GmbH und UG: kst Körperschaftsteuer, gewst Gewerbesteuer, ebilanz E-Bilanz (§ 5b EStG) */
     form: text("form", { enum: ["ust", "euer", "est", "kst", "gewst", "ebilanz"] }).notNull(),
     year: smallint("year").notNull(),
-    kind: text("kind", { enum: ["validate", "test", "send", "vermerk"] }).notNull(),
+    /** bescheid: der Steuerbescheid zur Einkommensteuererklärung, ein eigener Eintrag neben dem Vermerk (#1073) */
+    kind: text("kind", { enum: ["validate", "test", "send", "vermerk", "bescheid"] }).notNull(),
     ok: boolean("ok").notNull(),
     code: integer("code").notNull(),
     message: text("message").notNull(),

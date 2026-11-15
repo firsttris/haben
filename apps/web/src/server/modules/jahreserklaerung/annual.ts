@@ -62,6 +62,7 @@ import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
 export { AnnualError } from "./fehler.ts";
 import { AnnualError } from "./fehler.ts";
+import { bescheidFuerJahr } from "./bescheid.ts";
 import { erklaerteZeilen } from "./zeilenwerte.ts";
 
 export type AnnualForm = "ust" | "euer" | "est";
@@ -617,6 +618,8 @@ export async function submissions(year: number) {
         filedOn: schema.annualSubmissions.filedOn,
         note: schema.annualSubmissions.note,
         amount: sql<number | null>`(${schema.annualSubmissions.figures}->>'amount')::bigint`.mapWith(Number),
+        /** null beim Abgabevermerk, "bescheid" beim nachgetragenen Steuerbescheid (#1073) */
+        art: sql<string | null>`${schema.annualSubmissions.figures}->>'art'`,
         hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
         createdAt: schema.annualSubmissions.createdAt,
       })
@@ -655,7 +658,8 @@ export async function annualOverview(year: number, today: string) {
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
   // Eine außerhalb von Haben abgegebene Erklärung zählt als erledigt und trägt ihren Betrag (Umsatzsteuer: Abschlusszahlung, EÜR: Gewinn)
   const submitted = (form: AnnualForm) => {
-    const vermerk = history.find((h) => h.form === form && h.kind === "vermerk" && h.ok);
+    // Ein nachgetragener Bescheid ist kein Abgabevermerk (#1073)
+    const vermerk = history.find((h) => h.form === form && h.kind === "vermerk" && h.ok && h.art !== "bescheid");
     if (!vermerk) return null;
     return {
       id: vermerk.id,
@@ -708,6 +712,8 @@ export async function annualOverview(year: number, today: string) {
       issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est)), ...(await arbeitszimmerIssues(year, est))],
       sent: sent("est"),
       submitted: submitted("est"),
+      // Der Steuerbescheid hält das Ergebnis fest; bei der Einkommensteuer steht der Betrag erst dort (#1073)
+      bescheid: await bescheidFuerJahr(year),
       verwaltet: false,
     },
     history,
