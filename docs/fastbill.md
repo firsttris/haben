@@ -95,9 +95,18 @@ Bei Ausgaben zählt im Abgleich nur die Vorsteuer (Kz 66), im Monat des Belegs; 
 
 Die Einzelzahlungen einer Rechnung (`PAYMENTS`) übernimmt Haben mit Datum, Betrag und Zahlungsweg; bei Ist-Versteuerung zählt der Umsatz im Monat der Zahlung. Nennt FastBill nur ein Zahlungsdatum (`PAID_DATE`) ohne Einzelzahlungen, wie bei Ausgaben, gilt der Beleg an diesem Tag als voll bezahlt. Ist eine Rechnung nur zum Teil bezahlt, steht sie als teilweise bezahlt mit dem Rest offen. Eine bezahlte und danach stornierte Rechnung zeigt ihre Zahlung weiter an, sie zählt aber nicht als Umsatz: Die Erstattung führt FastBill nicht als Zahlung.
 
+### Artikel
+
+Artikel sind keine Belege und kommen nicht ins Archiv, sondern in den [Artikelkatalog](rechnungen.md#artikelkatalog). Steht der API-Schlüssel, zeigt die Seite unter dem Abruf den Kasten **Artikel**. **Artikel aus FastBill übernehmen** öffnet den [CSV-Import](csv-import.md#artikel), dort holt **Aus FastBill holen** den Artikelkatalog mit je einer Anfrage für 100 Artikel. Du siehst dieselbe Vorschau wie bei einer CSV-Datei, mit neuen Artikeln, Dubletten und Fehlern; angelegt wird erst mit **Artikel übernehmen**. Ein zweiter Abruf legt nichts doppelt an.
+
+- **Preis:** FastBill liefert den Preis immer netto, auch wenn du ihn brutto eingegeben hast. Solche Artikel legt Haben mit Endpreis an, den Bruttopreis aus Nettopreis und Steuersatz auf den Cent gerundet. Nettopreise mit mehr als zwei Nachkommastellen rundet Haben auf den Cent.
+- **Einheit und Steuersatz:** Haben kennt Std., Tag, Monat, Stk., Psch. und km (auch ausgeschrieben, leer ist Stück) und die Sätze 0, 7 und 19 %. Andere zeigt die Vorschau als Fehler; ändere sie in FastBill und hol die Artikel noch einmal.
+- **Währung:** Einen Preis in anderer Währung als Euro übernimmt Haben nicht; die Vorschau zeigt ihn als Fehler.
+- **Stundengrenze:** Der Abruf zählt auf dieselbe Grenze wie der Abruf der Belege. Ist sie erreicht, sagt Haben, in wie vielen Minuten es wieder geht. Während eines laufenden Abrufs holt Haben keine Artikel.
+
 ### Grenzen des aktuellen Imports
 
-Angebote, wiederkehrende Rechnungen, Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht. Artikel kommen per [CSV-Import](csv-import.md#artikel).
+Angebote, wiederkehrende Rechnungen, Projekte, Zeiten und die Dokumentenablage von FastBill übernimmt Haben nicht.
 
 ## Schritt 3 bis 5
 
