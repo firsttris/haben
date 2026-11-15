@@ -38,9 +38,6 @@ export interface DauerbelegValues {
   dueDays: number;
 }
 
-/** Dieselbe Zeile wie am Beleg (#917): Netto, Steuer und Brutto, das jeweils andere wird vorgerechnet */
-type AmountState = Betragszeile;
-
 let nextKey = 1;
 
 const RATES: Rate[] = [1900, 700, 0];
@@ -88,9 +85,11 @@ export function DauerbelegForm({
   const [nextDate, setNextDate] = useState(initial.nextDate);
   const [endDate, setEndDate] = useState(initial.endDate ?? "");
   const [dueDays, setDueDays] = useState(String(initial.dueDays));
-  const [amounts, setAmounts] = useState<AmountState[]>(() =>
-    // Steuer aus dem Netto rechnen, solange sie dazu passt
-    initial.amounts.map((a) => betragszeileAus(nextKey++, a.taxRate, a.net, a.tax, a.net === 0 && a.tax === 0, a.tax !== taxOf(a.net, a.taxRate))),
+  const [amounts, setAmounts] = useState<Betragszeile[]>(() =>
+    // Steuer aus dem Netto rechnen, solange sie dazu passt; ohne Steuerausweis ist die gespeicherte 0 keine Eingabe
+    initial.amounts.map((a) =>
+      betragszeileAus(nextKey++, a.taxRate, a.net, a.tax, a.net === 0 && a.tax === 0, initial.taxShown && a.tax !== taxOf(a.net, a.taxRate)),
+    ),
   );
   const fileRef = useRef<HTMLInputElement>(null);
   // Ob eine Datei gewählt ist, für die Prüfung beim Speichern; die Datei selbst liest submit aus fileRef
@@ -133,8 +132,15 @@ export function DauerbelegForm({
   } as Record<string, string | null>);
 
   // Selbst geschuldete Steuer (§ 13b) gibt es am Dauerbeleg nicht
-  function updateAmount(key: number, patch: Partial<Omit<AmountState, "key">>) {
+  function updateAmount(key: number, patch: Partial<Omit<Betragszeile, "key">>) {
     setAmounts((prev) => prev.map((a) => (a.key === key ? aendereBetragszeile(a, patch, false) : a)));
+  }
+
+  // Haken aus: das Brutto ist nicht mehr zu sehen, Grundlage ist wieder das Netto (wie bei § 13b am Beleg).
+  // Haken an: eine nicht von Hand geänderte Steuer aus dem Netto vorrechnen.
+  function chooseTaxShown(an: boolean) {
+    setTaxShown(an);
+    setAmounts((prev) => prev.map((a) => (an ? (a.taxTouched ? a : aendereBetragszeile(a, { taxRate: a.taxRate }, false)) : { ...a, basis: "net" })));
   }
 
   function addRate() {
@@ -293,7 +299,7 @@ export function DauerbelegForm({
             )}
           </Field>
           <label className="checkbox">
-            <input type="checkbox" checked={taxShown} onChange={(e) => setTaxShown(e.target.checked)} />
+            <input type="checkbox" checked={taxShown} onChange={(e) => chooseTaxShown(e.target.checked)} />
             Das Dokument weist die Umsatzsteuer gesondert aus (Dauerrechnung oder Vertrag mit Steuerbetrag)
           </label>
           {!taxShown && (

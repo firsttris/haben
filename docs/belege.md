@@ -79,7 +79,7 @@ Für Ausgaben, die in festen Abständen mit gleichem Betrag anfallen, etwa Büro
 1. **Neuer Dauerbeleg** öffnen.
 2. **Bezeichnung**, **Lieferant** (aus den Kontakten, mit Suche und Anlegen wie am Beleg, oder frei), optional **USt-IdNr.** und **Vertrags- oder Kundennummer**, **Kategorie** und **Bezahlung** eintragen.
 3. Unter **Termine** das **Intervall** (monatlich, vierteljährlich, halbjährlich, jährlich), **Erster Beleg am**, optional **Endet nach dem** und **Fällig Tage nach dem Termin** wählen.
-4. Unter **Dokument** den **Vertrag oder die Dauerrechnung** hochladen (PDF, Foto oder E-Rechnung wie beim Hochladen eines Belegs, bis 20 MB) und angeben, ob das Dokument die Umsatzsteuer gesondert ausweist; unter **Beträge je Termin** die Beträge je Steuersatz eintragen. Mit ausgewiesener Steuer genügt wie am Beleg das **Brutto** (siehe [Beträge](#beträge)).
+4. Unter **Dokument** den **Vertrag oder die Dauerrechnung** hochladen (PDF, Foto oder E-Rechnung wie beim Hochladen eines Belegs, bis 20 MB) und angeben, ob das Dokument die Umsatzsteuer gesondert ausweist; unter **Beträge je Termin** die Beträge je Steuersatz eintragen.
 5. **Dauerbeleg anlegen**.
 
 | Feld | Bedeutung |
@@ -104,7 +104,7 @@ Einen ungebuchten Beleg aus einem Dauerbeleg kannst du [löschen](#löschen), et
 
 Vorsteuer ziehst du nur aus einer Rechnung ab, die die Umsatzsteuer gesondert ausweist (§ 15 Abs. 1 Nr. 1 und § 14 Abs. 4 Nr. 8 UStG). Ein Vertrag gilt als Rechnung, wenn er die Pflichtangaben enthält, bei Miete etwa ein Mietvertrag mit Steuerbetrag nach einer Option zur Umsatzsteuer (§ 9 UStG), oder eine Dauerrechnung des Leasinggebers.
 
-- Weist das Dokument die Steuer aus, setzt du den Haken **Das Dokument weist die Umsatzsteuer gesondert aus** und trägst Netto und Umsatzsteuer je Satz ein; die Steuer rechnet Haben aus dem Netto vor.
+- Weist das Dokument die Steuer aus, setzt du den Haken **Das Dokument weist die Umsatzsteuer gesondert aus** und trägst Netto und Umsatzsteuer je Satz ein; die Steuer rechnet Haben aus dem Netto vor. Wie am Beleg genügt auch das **Brutto** (siehe [Beträge](#beträge)).
 - Ohne Haken gibt es kein Feld für die Steuer, und Haben lehnt eine Vorlage mit Steuer ab: „Vorsteuer nur mit einem Dokument, das die Umsatzsteuer gesondert ausweist …“. Den Betrag erfasst du dann mit 0 %, etwa für steuerfreie Miete (§ 4 Nr. 12 UStG) oder Versicherungsbeiträge. Die Notiz am Beleg sagt, dass das Dokument keine Steuer ausweist.
 - Ohne Vorsteuerabzug bucht Haben wie bei jedem Beleg den Bruttobetrag als Aufwand, ohne Vorsteuer.
 

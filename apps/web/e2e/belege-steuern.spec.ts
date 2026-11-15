@@ -972,11 +972,13 @@ test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz 
   await context.close();
 });
 
-test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#917)", async () => {
+test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#1059)", async () => {
   await go("/dauerbelege/neu");
   // Ohne ausgewiesene Steuer ist der Betrag zugleich das Brutto; ein eigenes Feld gibt es dann nicht
   await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveCount(0);
   await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  // Ein neuer Dauerbeleg beginnt mit 0 %
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
   await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
   await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("100,00");
   await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("19,00");
@@ -994,6 +996,14 @@ test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne aus
   await page.getByRole("button", { name: "Dauerbeleg anlegen" }).click();
   await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveAccessibleDescription(/Trag den Betrag als Zahl ein/);
   await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
+  // Haken aus nach einem Brutto: Grundlage ist wieder das Netto; ein anderer Satz rechnet es nicht aus dem verborgenen Brutto neu
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("111,21");
+  // Haken wieder an: die nicht von Hand geänderte Steuer folgt dem Netto
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("21,13");
 });
 
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
