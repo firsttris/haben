@@ -2,6 +2,7 @@ import { parseDateSearch, parseEuroSearchCents } from "@haben/core";
 import { asc, desc, eq, or, sql } from "drizzle-orm";
 import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
+import { bestaende } from "./darlehen.ts";
 
 export interface BankTransactionHit {
   id: string;
@@ -66,6 +67,8 @@ export interface LoanHit {
   name: string;
   lender: (typeof schema.loans.$inferSelect)["lender"];
   openingBalance: number;
+  /** Restschuld wie auf der Seite Darlehen: Stand beim Anlegen plus Auszahlungen und Tilgungen */
+  balance: number;
   openingDate: string | null;
 }
 
@@ -83,7 +86,12 @@ export async function searchLoans(query: string, limit = 5): Promise<{ hits: Loa
     .where(unaccentIlike(schema.loans.name, likePattern(query)))
     .orderBy(asc(schema.loans.name))
     .limit(limit + 1);
-  return { hits: rows.slice(0, limit), more: rows.length > limit };
+  const hits = rows.slice(0, limit);
+  const bewegt = await bestaende(
+    hits.map((l) => l.id),
+    db,
+  );
+  return { hits: hits.map((l) => ({ ...l, balance: l.openingBalance + (bewegt.get(l.id) ?? 0) })), more: rows.length > limit };
 }
 
 export interface CashEntryHit {
