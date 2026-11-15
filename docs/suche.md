@@ -38,7 +38,9 @@ Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Bereich stehen bis zu fünf 
 | Finanzamt und Meldungen | Zeitraum bei Voranmeldungen und ZM („03/2026“, „Q1 2026“), Bezeichnung im Postfach | Status bzw. Datum |
 | Archiv aus dem Umzug | Nummer, Kontakt, Bemerkung, Betrag, Datum (abschaltbar unter Einstellungen › Export › Schnellsuche) | Kontakt, Datum, Betrag und „Archiv“ |
 
-**Beträge und Daten** trifft die Suche genau: `1.234,56`, `1234,56`, `19.99` und `89,90 €` finden Beträge (bei Bankumsätzen, Kasse, Pauschalen und Archivbelegen mit beiden Vorzeichen), ein Datum wie `14.11.2026` oder `2026-11-14` trifft das Datum in jeder Gruppe, die oben „Datum“ nennt.
+**Beträge** vergleicht die Suche mit dem Bruttobetrag, ein Nettobetrag findet nichts. Mit Cent trifft sie genau: `1.234,56`, `1234,56`, `19.99` und `89,90 €`. Ein ganzer Euro wie `1190`, `1.190` oder `1190 €` findet alle Beträge dieses Euros, von 1.190,00 bis 1.190,99 €. Bei Bankumsätzen, Kasse, Pauschalen und Archivbelegen zählen beide Vorzeichen. In den Listen der Rechnungen, Angebote und Belege gilt dasselbe.
+
+**Daten** wie `14.11.2026` oder `2026-11-14` treffen das Datum in jeder Gruppe, die oben „Datum“ nennt.
 
 ## Zuletzt angesehen
 

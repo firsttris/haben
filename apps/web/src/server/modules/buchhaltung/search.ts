@@ -1,6 +1,6 @@
-import { parseDateSearch, parseEuroSearchCents } from "@haben/core";
+import { parseDateSearch, parseEuroSearchRange } from "@haben/core";
 import { asc, desc, eq, inArray, or, sql } from "drizzle-orm";
-import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
+import { amountIn, amountInEitherSign, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
 import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { knownAccounts } from "./journal.ts";
@@ -43,15 +43,17 @@ export async function bookingEntriesQuery(query: string, limit: number) {
   const je = schema.journalEntries;
   const jl = schema.journalLines;
   const pattern = likePattern(query);
-  const cents = parseEuroSearchCents(query);
+  const range = parseEuroSearchRange(query);
+  // Soll und Haben stehen ohne Vorzeichen; 0 steht in jeder Zeile auf der leeren Seite und fände jede Buchung
+  const lineRange =
+    range === null ? null : { min: Math.max(1, Math.min(Math.abs(range.min), Math.abs(range.max))), max: Math.max(Math.abs(range.min), Math.abs(range.max)) };
   const queryDate = parseDateSearch(query);
 
   // Konten aus dem Kontenrahmen nach Nummer oder Name, eine unbekannte Nummer (etwa ein Personenkonto) genau
   const accounts = /^\d{4,9}$/.test(query.trim()) ? [...new Set([...matchingAccounts, query.trim()])] : matchingAccounts;
   const lineConditions = [
     ...(accounts.length > 0 ? [inArray(jl.account, accounts)] : []),
-    // 0 steht in jeder Zeile auf der leeren Seite und fände jede Buchung
-    ...(cents !== null && cents !== 0 ? [eq(jl.debit, Math.abs(cents)), eq(jl.credit, Math.abs(cents))] : []),
+    ...(lineRange !== null && lineRange.max > 0 ? [amountIn(jl.debit, lineRange), amountIn(jl.credit, lineRange)] : []),
   ];
   // Ein `id in (Unterabfrage)` im `or` ließe Postgres alle Buchungen lesen; als `union` nutzt jeder Teil seinen Index.
   const textMatches = db
@@ -159,7 +161,7 @@ export interface PauschaleHit {
 export async function searchPauschalen(query: string, limit = 5): Promise<{ hits: PauschaleHit[]; more: boolean }> {
   const p = schema.pauschalen;
   const pattern = likePattern(query);
-  const cents = parseEuroSearchCents(query);
+  const range = parseEuroSearchRange(query);
   const queryDate = parseDateSearch(query);
   const rows = await db
     .select({ id: p.id, art: p.art, date: p.date, description: p.description, amount: p.amount })
@@ -168,7 +170,7 @@ export async function searchPauschalen(query: string, limit = 5): Promise<{ hits
       or(
         unaccentIlike(p.description, pattern),
         unaccentIlike(sql`${p.art}::text`, pattern),
-        ...(cents !== null ? [eq(p.amount, cents), eq(p.amount, -cents)] : []),
+        ...(range !== null ? [amountInEitherSign(p.amount, range)] : []),
         ...(queryDate !== null ? [eq(p.date, queryDate)] : []),
       ),
     )

@@ -1,6 +1,6 @@
-import { parseDateSearch, parseEuroSearchCents } from "@haben/core";
+import { parseDateSearch, parseEuroSearchRange } from "@haben/core";
 import { asc, desc, eq, or, sql } from "drizzle-orm";
-import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
+import { amountInEitherSign, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema } from "../../db/index.ts";
 import { bestaende } from "./darlehen.ts";
@@ -23,7 +23,7 @@ export interface BankTransactionHit {
 export async function searchBankTransactions(query: string, limit = 5): Promise<{ hits: BankTransactionHit[]; more: boolean }> {
   const bt = schema.bankTransactions;
   const pattern = likePattern(query);
-  const cents = parseEuroSearchCents(query);
+  const range = parseEuroSearchRange(query);
   const queryDate = parseDateSearch(query);
   const ibanTail = /^\d{4,}$/.test(query.trim()) ? `%${query.trim()}` : null;
 
@@ -48,7 +48,7 @@ export async function searchBankTransactions(query: string, limit = 5): Promise<
         unaccentIlike(bt.counterpartyName, pattern),
         unaccentIlike(bt.purpose, pattern),
         ibanTail ? unaccentIlike(bt.counterpartyIban, ibanTail) : unaccentIlike(bt.counterpartyIban, pattern),
-        ...(cents !== null ? [eq(bt.amount, cents), eq(bt.amount, -cents)] : []),
+        ...(range !== null ? [amountInEitherSign(bt.amount, range)] : []),
         ...(queryDate !== null ? [eq(bt.bookingDate, queryDate)] : []),
       ),
     )
@@ -109,7 +109,7 @@ export interface CashEntryHit {
 export async function searchCashEntries(query: string, limit = 5): Promise<{ hits: CashEntryHit[]; more: boolean }> {
   const ce = schema.cashEntries;
   const pattern = likePattern(query);
-  const cents = parseEuroSearchCents(query);
+  const range = parseEuroSearchRange(query);
   const queryDate = parseDateSearch(query);
   const num = /^\d+$/.test(query.trim()) ? Number(query.trim()) : null;
 
@@ -127,7 +127,7 @@ export async function searchCashEntries(query: string, limit = 5): Promise<{ hit
       or(
         unaccentIlike(ce.text, pattern),
         ...(num !== null && Number.isSafeInteger(num) && num <= 2_147_483_647 ? [eq(ce.number, num)] : []),
-        ...(cents !== null ? [eq(ce.amount, cents), eq(ce.amount, -cents)] : []),
+        ...(range !== null ? [amountInEitherSign(ce.amount, range)] : []),
         ...(queryDate !== null ? [eq(ce.date, queryDate)] : []),
       ),
     )

@@ -8,7 +8,7 @@ import { Status } from "../../../components/Status.tsx";
 import { DocumentUpload } from "../../../components/DocumentUpload.tsx";
 import { Field } from "../../../components/Field.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
-import { parseEuroSearchCents } from "@haben/core";
+import { inCentRange, parseEuroSearchRange } from "@haben/core";
 import { getDocuments } from "../../../server/functions/documents.ts";
 
 export const Route = createFileRoute("/_app/belege/")({
@@ -28,10 +28,12 @@ function DocumentsPage() {
     setQuery(suche ?? "");
   }, [suche]);
   const needle = query.trim().toLowerCase();
-  const cents = needle ? parseEuroSearchCents(query) : null;
+  const range = needle ? parseEuroSearchRange(query) : null;
   const shown = needle
     ? documents.filter(
-        (doc) => [doc.supplierName, doc.invoiceNumber, doc.filename].some((v) => v?.toLowerCase().includes(needle)) || (cents !== null && doc.gross === cents),
+        (doc) =>
+          [doc.supplierName, doc.invoiceNumber, doc.filename].some((v) => v?.toLowerCase().includes(needle)) ||
+          (range !== null && inCentRange(range, doc.gross)),
       )
     : documents;
   const running = documents.some((d) => d.extractionStatus === "laeuft");
