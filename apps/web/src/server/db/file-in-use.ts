@@ -20,6 +20,7 @@ export const FILE_REFERENCES: readonly FileReference[] = [
   { table: "archive_files", column: "sha256", nameColumn: "filename", label: "Archivdatei" },
   { table: "lexoffice_voucher_files", column: "sha256", nameColumn: "filename", label: "Datei aus dem Umzug" },
   { table: "legacy_order_files", column: "sha256", nameColumn: "filename", label: "Auftrags-PDF aus dem Umzug" },
+  { table: "legacy_dunning_files", column: "sha256", nameColumn: "filename", label: "Mahnung aus dem Umzug" },
   { table: "postfach_documents", column: "sha256", nameColumn: "filename", label: "Bescheid aus dem Postfach" },
   { table: "invoice_attachments", column: "sha256", nameColumn: "filename", label: "Anhang einer Rechnung" },
   { table: "quote_attachments", column: "sha256", nameColumn: "filename", label: "Anhang eines Angebots" },

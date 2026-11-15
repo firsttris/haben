@@ -5,9 +5,11 @@ import {
   currentFilingPeriod,
   dunningFeeError,
   formatDecimal,
+  formatHundredths,
   formatRateMonth,
   isKapitalgesellschaft,
   parseEuro,
+  parseHundredths,
   type Bundesland,
   type Rechtsform,
 } from "@haben/core";
@@ -82,6 +84,8 @@ import { SettingsHead, SettingsNav } from "../../components/SettingsNav.tsx";
 import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
+import { UnitsCard } from "../../components/UnitsCard.tsx";
+import { getUnits } from "../../server/functions/units.ts";
 import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
@@ -116,6 +120,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       extraction,
       quoteDefaultAttachments,
       stichjahr,
+      units,
     ] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
@@ -142,6 +147,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
       getStichjahr(),
+      getUnits(),
     ]);
     return {
       ...company,
@@ -171,6 +177,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       extraction,
       quoteDefaultAttachments,
       stichjahr,
+      units,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -206,6 +213,7 @@ function SettingsPage() {
     extraction,
     quoteDefaultAttachments,
     stichjahr,
+    units,
   } = Route.useLoaderData();
   const search = Route.useSearch();
   const bereich = search.bereich ?? "firma";
@@ -241,6 +249,7 @@ function SettingsPage() {
                 quoteRunning={company.quoteCounterRunning}
                 date={numbering.invoice.date}
               />
+              <UnitsCard units={units} />
               <PlanTemplatesCard templates={company.paymentPlanTemplates} />
               <InvoiceAttachments kind="standard" attachments={quoteDefaultAttachments} editable />
               <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} date={numbering.invoice.date} />
@@ -315,7 +324,7 @@ function CompanyForm() {
   const [rechtsform, setRechtsform] = useState<Rechtsform>(company.rechtsform);
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(company.skonto));
-  const [baseRate, setBaseRate] = useState(company.dunning.baseRate === null ? "" : formatDecimal(company.dunning.baseRate));
+  const [baseRate, setBaseRate] = useState(company.dunning.baseRate === null ? "" : formatHundredths(company.dunning.baseRate));
   const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
   const [fees, setFees] = useState({ "1": fee("1"), "2": fee("2"), "3": fee("3") });
   const [email, setEmail] = useState(company.email);
@@ -376,8 +385,8 @@ function CompanyForm() {
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
           taetigkeit: text("taetigkeit"),
           dunning: {
-            // Prozent mit zwei Nachkommastellen wie ein Eurobetrag lesen: "1,27" → 127 Basispunkte
-            baseRate: text("dunning-baseRate").trim() ? parseEuro(text("dunning-baseRate")) : null,
+            // Prozent mit zwei Nachkommastellen: "1,27" → 127 Basispunkte, auch negativ (§ 247 BGB), daher nicht parsePercent
+            baseRate: text("dunning-baseRate").trim() ? parseHundredths(text("dunning-baseRate")) : null,
             fees: {
               "1": parseEuro(fees["1"] || "0") ?? 0,
               "2": parseEuro(fees["2"] || "0") ?? 0,

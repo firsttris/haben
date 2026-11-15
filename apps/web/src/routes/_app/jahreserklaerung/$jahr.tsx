@@ -202,7 +202,7 @@ function Row({ label, kz, value, extra, total, text }: { label: string; kz?: str
   );
 }
 
-/** Stand der Abgabe; `verwaltet` ist false für die Einkommensteuer, für die Haben keinen Vermerk kennt (#869) */
+/** Stand der Abgabe; `verwaltet` ist false für die Einkommensteuer, deren Abgabe Haben ohne Vermerk nicht kennt (#869) */
 function SentPill({ sent, submitted, verwaltet }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"]; verwaltet?: boolean }) {
   const pille = abgabePille({ sent: sent?.createdAt ?? null, submitted, verwaltet });
   return (
@@ -868,7 +868,7 @@ function SubmitPanel({
           }
         />
       )}
-      {(form === "ust" || form === "euer") && <AbgabeVermerken art={form} year={data.year} today={data.today} berechnet={berechnet} vermerkt={submitted} />}
+      <AbgabeVermerken art={form} year={data.year} today={data.today} berechnet={berechnet} vermerkt={submitted} />
       {!data.herstellerIdConfigured && !sent && !submitted && (
         <MeinElsterWerte load={() => loadWerte({ data: { form, year: data.year } })} label={`${FORM_LABEL[form]} ${data.year}`} blocked={blocked} />
       )}
