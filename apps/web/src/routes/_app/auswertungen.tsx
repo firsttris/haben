@@ -4,7 +4,7 @@ import { useState } from "react";
 import { z } from "zod/mini";
 import { barPath, euroAxis, niceTicks, useChartWidth } from "../../lib/chart.ts";
 import { formatDate, relativeDays } from "../../lib/format.ts";
-import { jahresPostenHinweis, type OpenPosition } from "../../server/modules/auswertungen/index.ts";
+import type { OpenPosition } from "../../server/modules/auswertungen/index.ts";
 import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { Icon } from "../../components/Icon.tsx";
@@ -178,7 +178,7 @@ function ReportsPage() {
         empty="Keine offenen Rechnungen."
         partyLabel="Kunde"
         items={receivables}
-        hinweise={jahresPostenHinweis(offenImJahr)}
+        hinweise={offenImJahr.hinweise}
         total={open.receivablesTotal}
         overdue={open.receivablesOverdue}
         kind="invoice"
