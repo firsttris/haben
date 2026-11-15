@@ -12,6 +12,7 @@ import {
   sevContactSchema,
   sevCreditNoteSchema,
   sevDocumentPosSchema,
+  sevDocumentSchema,
   type sevFileBodySchema,
   sevFileResponseSchema,
   sevInvoiceSchema,
@@ -26,6 +27,7 @@ import {
   type SevContact,
   type SevContactAddress,
   type SevCreditNote,
+  type SevDocument,
   type SevDocumentPos,
   type SevFile,
   type SevInvoice,
@@ -140,6 +142,14 @@ export class SevdeskClient {
     return this.#pages("/Voucher", {}, sevVoucherSchema);
   }
 
+  /** Ein Beleg, auch eine Vorlage wiederkehrender Belege (RV); sevDesk liefert ihn als Liste mit einem Eintrag. */
+  async voucher(voucherId: string): Promise<SevVoucher> {
+    const path = `/Voucher/${enc(voucherId)}`;
+    const data = await this.#json(path, {}, listSchema(sevVoucherSchema));
+    if (data.objects.length !== 1 || String(data.objects[0]!.id) !== voucherId) throw new SevdeskApiError("Beleg nicht eindeutig gefunden.", 200, path);
+    return data.objects[0]!;
+  }
+
   /**
    * Alle Zuordnungen von Bankumsätzen zu Belegen, mit eingebettetem Umsatz. Ein Filter auf das Objekt (object[id])
    * ignoriert V1, deshalb seitenweise alle und die Zuordnung in map.ts.
@@ -230,6 +240,15 @@ export class SevdeskClient {
     }
     if (!xml.trimStart().startsWith("<")) return null;
     return { bytes: new TextEncoder().encode(xml), mimeType: "application/xml", filename: null };
+  }
+
+  /** Angaben zu einer Datei ohne ihren Inhalt; sevDesk liefert sie als Liste mit einem Eintrag oder als Objekt. */
+  async documentInfo(documentId: string): Promise<SevDocument> {
+    const path = `/Document/${enc(documentId)}`;
+    const data = await this.#json(path, {}, z.looseObject({ objects: z.union([z.array(sevDocumentSchema), sevDocumentSchema]) }));
+    const objects = Array.isArray(data.objects) ? data.objects : [data.objects];
+    if (objects.length !== 1 || String(objects[0]!.id) !== documentId) throw new SevdeskApiError("Datei nicht eindeutig gefunden.", 200, path);
+    return objects[0]!;
   }
 
   /** Datei eines Belegs (Document); null, wenn sevDesk sie nicht herausgibt (404). */

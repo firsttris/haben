@@ -162,6 +162,8 @@ export const sevVoucherSchema = z.looseObject({
   creditDebit: str,
   /** VOU Beleg, RV wiederkehrender Beleg (Vorlage) */
   voucherType: str,
+  /** Bei Belegen aus einer Vorlage wiederkehrender Belege die Vorlage (objectName Voucher, voucherType RV) */
+  origin: ref,
   currency: str,
   paymentDeadline: str,
   deliveryDate: str,
@@ -266,6 +268,10 @@ export const sevRelatedObjectsResponseSchema = z.looseObject({
 // ---------------------------------------------------------------- Dateien
 
 /** getPdf und Document/download: Datei als Base64 in JSON, teils in objects verpackt */
+/** Angaben zu einer Datei (GET /Document/{id}), ohne Inhalt; create ist der Zeitpunkt des Hochladens */
+export const sevDocumentSchema = z.looseObject({ id, objectName: str, create: str, update: str, filename: str, mimeType: str, filesize: numeric });
+export type SevDocument = z.infer<typeof sevDocumentSchema>;
+
 export const sevFileBodySchema = z.looseObject({
   filename: str,
   mimeType: str,
