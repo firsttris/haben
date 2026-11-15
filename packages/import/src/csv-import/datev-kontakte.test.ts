@@ -14,6 +14,7 @@ const gp = (line: number, values: Partial<DatevGpRow>): DatevGpRow => ({
   plz: "",
   ort: "",
   land: "DE",
+  landAngenommen: false,
   email: "",
   telefon: "",
   ustId: "",
@@ -119,6 +120,18 @@ describe("datevContactCandidates", () => {
   it("weist bei Land MC und USt-IdNr. aus FR nicht hin", () => {
     const candidates = datevContactCandidates([gp(3, { nr: 70001, name: "Erfundene SAM", ustId: "FR12345678901", land: "MC" })]);
     expect(candidates[0]!.hints).toEqual([]);
+  });
+
+  // Entscheidung in #1032: DE bleibt, die Vorschau nennt die Kontakte, bei denen es nur angenommen ist
+  it("nennt Kontakte, bei denen DE nur angenommen ist, auch zusammen mit einer USt-IdNr. aus einem anderen Land", () => {
+    const candidates = datevContactCandidates([
+      gp(3, { nr: 70001, name: "Erfundene GmbH", landAngenommen: true }),
+      gp(4, { nr: 70002, name: "Erfundene KG", landAngenommen: true, ustId: "ATU12345678" }),
+    ]);
+    expect(candidates.map((c) => c.hints)).toEqual([
+      ["Land fehlt, DE angenommen; bitte prüfen"],
+      ["Land fehlt, DE angenommen; passt nicht zur USt-IdNr. aus AT, bitte das Land prüfen"],
+    ]);
   });
 
   it("zählt ein Personenkonto, das weiter oben schon steht, als Dublette und lässt fehlerhafte Zeilen nicht zusammenführen", () => {

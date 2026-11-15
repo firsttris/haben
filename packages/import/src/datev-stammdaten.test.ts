@@ -206,6 +206,21 @@ describe("parseDatevStammdaten", () => {
     ]);
   });
 
+  it("merkt sich, wenn das Land leer oder „UN“ ist und DE nur angenommen wird", () => {
+    const { rows } = parsed(
+      utf8(
+        row({ Konto: "70017", "Name (Adressatentyp Unternehmen)": "Erfundener Verlag", Land: "UN" }),
+        row({ Konto: "70018", "Name (Adressatentyp Unternehmen)": "Erfundene Druckerei", Land: "" }),
+        row({ Konto: "70019", "Name (Adressatentyp Unternehmen)": "Erfundene Werkstatt", Land: "DE" }),
+      ),
+    );
+    expect(rows.map((r) => [r.land, r.landAngenommen])).toEqual([
+      ["DE", true],
+      ["DE", true],
+      ["DE", false],
+    ]);
+  });
+
   it("lehnt andere DATEV-Exporte und Dateien ohne Spalte Konto ab", () => {
     expect(parseDatevStammdaten(fixture("2.0").subarray(0, 0))).toEqual({ ok: false, error: "Die Datei ist leer." });
     const stapel = new TextEncoder().encode(`"EXTF";700;21;"Buchungsstapel";13\nUmsatz;Konto`);
