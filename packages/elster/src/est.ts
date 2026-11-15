@@ -122,7 +122,7 @@ export interface EstWerbungskosten {
   /** Häusliches Arbeitszimmer als Mittelpunkt der gesamten Tätigkeit: Aufwendungen oder Jahrespauschale (§ 4 Abs. 5 Satz 1 Nr. 6b, § 9 Abs. 5 EStG) */
   arbeitszimmer?: Cents;
   /**
-   * Volle Monate, in denen das Arbeitszimmer der Mittelpunkt der gesamten Tätigkeit ist. Zeitanteilig sinkt die
+   * Monate, in denen das Arbeitszimmer wenigstens zeitweise der Mittelpunkt der gesamten Tätigkeit war. Zeitanteilig sinkt die
    * Jahrespauschale um 105 EUR je fehlendem Monat. Das Feld geht nicht ins XML; es dient Habens Hinweis.
    */
   arbeitszimmerMonate?: number;

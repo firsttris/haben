@@ -39,7 +39,8 @@ export interface Arbeitslohn {
 /**
  * Jahrespauschale für das häusliche Arbeitszimmer, zeitanteilig (§ 4 Abs. 5 Satz 1 Nr. 6b Satz 2 bis 4 EStG, für
  * Arbeitnehmer über § 9 Abs. 5): 1.260 EUR im Jahr, für jeden vollen Monat ohne die Voraussetzung 105 EUR weniger.
- * `monate` sind die vollen Monate, in denen das Zimmer der Mittelpunkt der gesamten Tätigkeit ist.
+ * `monate` zählt die Monate, in denen das Zimmer wenigstens zeitweise der Mittelpunkt der gesamten Tätigkeit war:
+ * gekürzt wird nur um volle Kalendermonate ohne die Voraussetzung (Satz 4).
  */
 export function arbeitszimmerPauschale(monate = 12): Cents {
   const voll = Math.max(0, Math.min(12, Math.trunc(monate)));

@@ -46,7 +46,7 @@ export type ArbeitnehmerDraft = {
   urlaubstage: string;
   homeofficeTage: string;
   keinAndererArbeitsplatz: boolean;
-  /** Volle Monate, in denen das Arbeitszimmer der Mittelpunkt der gesamten Tätigkeit ist */
+  /** Monate, in denen das Arbeitszimmer wenigstens zeitweise der Mittelpunkt der gesamten Tätigkeit war */
   arbeitszimmerMonate: string;
 } & Record<WkKey, string>;
 
@@ -277,7 +277,7 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
                     {k === "arbeitszimmer" && (
                       <Field
                         label="Monate als Mittelpunkt"
-                        hint="volle Monate im Jahr, in denen das Zimmer der Mittelpunkt der gesamten Tätigkeit ist; je fehlendem Monat 105 € weniger als 1.260 €"
+                        hint="Monate, in denen das Zimmer wenigstens zeitweise der Mittelpunkt war; je vollem Monat ohne 105 € weniger als 1.260 €"
                       >
                         {(control) => (
                           <input
