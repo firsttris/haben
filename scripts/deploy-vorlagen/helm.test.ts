@@ -31,11 +31,16 @@ type Manifest = {
     replicas?: number;
     volumeClaimTemplates?: unknown[];
     strategy?: { type: string };
-    template: { spec: Pod };
+    template: { metadata?: { labels?: Record<string, string> }; spec: Pod };
     rules: { filters: { responseHeaderModifier: { set: { name: string; value: string }[] } }[]; timeouts: { request: string } }[];
   };
 };
 type Werte = Record<string, unknown>;
+type Auswahl = { matchLabels: Record<string, string> };
+type Quelle = { podSelector?: Auswahl; namespaceSelector?: Auswahl };
+type Richtlinie = {
+  spec: { podSelector: Auswahl; policyTypes: string[]; ingress: { from: Quelle[]; ports: { port: number; protocol: string }[] }[] };
+};
 
 const root = join(import.meta.dirname, "../..");
 const helm = spawnSync("helm", ["version"], { encoding: "utf8" });
@@ -219,7 +224,53 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
     expect(variable(container(pod, "backup"), "PGPASSWORD")?.valueFrom?.secretKeyRef.name).toBe("d");
   });
 
+  // Wie das eigene Netz in Compose: Port 3000 erreicht nur der Proxy, die Datenbank nur App und Backup. Sonst könnte jeder
+  // Pod im Cluster X-Forwarded-For setzen (docs/installation.md, „Eigener Reverse Proxy“)
+  describe("networkPolicy", () => {
+    const traefik = {
+      namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "kube-system" } },
+      podSelector: { matchLabels: { "app.kubernetes.io/name": "traefik" } },
+    };
+    const mitRichtlinie = { ...basis, networkPolicy: { enabled: true, ingressFrom: [traefik] }, restore: { enabled: true } };
+    const passt = (auswahl: Auswahl | undefined, labels: Record<string, string> = {}) =>
+      Object.keys(auswahl?.matchLabels ?? {}).length > 0 && Object.entries(auswahl?.matchLabels ?? {}).every(([k, v]) => labels[k] === v);
+    const labels = (alle: Manifest[], kind: string, name: string) => finde(alle, kind, name).spec.template.metadata?.labels;
+    const richtlinie = (alle: Manifest[], name: string) => finde(alle, "NetworkPolicy", name) as unknown as Richtlinie;
+
+    test("legt ohne Schalter keine NetworkPolicy an", () => {
+      expect(liste().some((m) => m.kind === "NetworkPolicy")).toBe(false);
+    });
+
+    test("lässt nur die Pods aus ingressFrom an Port 3000 der App, ausgehend bleibt alles offen", () => {
+      const alle = manifeste(mitRichtlinie);
+      const app = richtlinie(alle, "haben");
+      expect(passt(app.spec.podSelector, labels(alle, "Deployment", "haben"))).toBe(true);
+      expect(passt(app.spec.podSelector, labels(alle, "Deployment", "haben-restore"))).toBe(false);
+      expect(app.spec.policyTypes).toEqual(["Ingress"]);
+      expect(app.spec.ingress).toEqual([{ from: [traefik], ports: [{ port: 3000, protocol: "TCP" }] }]);
+    });
+
+    test("lässt nur App und Wiederherstellen derselben Installation an die Datenbank", () => {
+      const alle = manifeste(mitRichtlinie);
+      const db = richtlinie(alle, "haben-db");
+      expect(passt(db.spec.podSelector, labels(alle, "StatefulSet", "haben-db"))).toBe(true);
+      expect(db.spec.policyTypes).toEqual(["Ingress"]);
+      expect(db.spec.ingress).toHaveLength(1);
+      const [regel] = db.spec.ingress;
+      expect(regel.ports).toEqual([{ port: 5432, protocol: "TCP" }]);
+      // Nur aus dem eigenen Namespace und nur diese Installation, nicht eine zweite daneben
+      expect(regel.from.every((q) => !q.namespaceSelector && q.podSelector?.matchLabels["app.kubernetes.io/instance"] === "haben")).toBe(true);
+      for (const name of ["haben", "haben-restore"]) expect(regel.from.some((q) => passt(q.podSelector, labels(alle, "Deployment", name)))).toBe(true);
+    });
+
+    test("legt mit eigener Datenbank nur die Richtlinie der App an", () => {
+      const alle = manifeste({ ...extern, networkPolicy: mitRichtlinie.networkPolicy });
+      expect(alle.filter((m) => m.kind === "NetworkPolicy").map((m) => m.metadata.name)).toEqual(["haben"]);
+    });
+  });
+
   test.each([
+    { fall: "mit NetworkPolicy ohne ingressFrom", werte: { ...basis, networkPolicy: { enabled: true } }, meldung: "networkPolicy.ingressFrom fehlt" },
     { fall: "ohne Domain", werte: { ...basis, domain: "" }, meldung: "domain fehlt" },
     { fall: "ohne Version", werte: { ...basis, image: {} }, meldung: "image.tag fehlt" },
     { fall: "mit der Version als Zahl", werte: { ...basis, image: { tag: 0.1 } }, meldung: "image.tag in Anführungszeichen" },

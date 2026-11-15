@@ -118,6 +118,27 @@ spec:
             readTimeout: 600s
 ```
 
+### NetworkPolicy
+
+Ohne NetworkPolicy erreicht jeder Pod im Cluster Port 3000 der App und kann `X-Forwarded-For` fälschen.
+`networkPolicy.enabled: true` lässt wie das eigene Netz in Compose nur die Pods aus `networkPolicy.ingressFrom` an die
+App und nur App und Wiederherstellen an die Datenbank; ausgehend bleibt alles offen. Das Netzwerk-Plugin des Clusters
+muss NetworkPolicy umsetzen, in k3s ist das eingebaut. Für Traefik in k3s:
+
+```yaml
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+```
+
+Andere Dienste im Cluster, etwa Paperless, rufen Haben dann über die Domain auf.
+
 ## ELSTER
 
 ERiC gibt es nur für Linux x86_64. In einem Cluster mit beiden Architekturen setzt `nodeSelector` mit
