@@ -27,7 +27,6 @@ the change before starting.
 | Roadmap board (GitHub Project) | `mitwirken.md`: Etwas übernehmen, Vom Issue zum Release | `board-pflegen` |
 | Releasing a version | `entwicklung.md`: Veröffentlichen, Release Candidates | `release` |
 | Yearly official values (PAP, social insurance, ERiC, taxonomy, laws) | `entwicklung.md`: Jahreswerte | `jahreswerte` |
-| Quick search (command palette): new group or field | `architektur.md`: Schnellsuche, `suche.md` | `schnellsuche-erweitern` |
 | Rules a script checks | `mitwirken.md`: Automatische Prüfungen der Regeln | |
 
 Modules, the audit hash chain and seals: `docs/architektur.md`, tables: `docs/architektur-datenmodell.md`; the user page of the area
