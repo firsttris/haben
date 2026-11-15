@@ -81,6 +81,8 @@ test("Einstellungen am Handy: erst die Liste der Bereiche, Zurück geht im Verla
   await expect(bereiche).toBeVisible();
   await expect(bereiche.getByRole("link", { name: /^Rechnungen/ })).toContainText("Nummern, Zahlungspläne, Anhänge");
   await expect(page.locator(".settings-content")).toBeHidden();
+  // Noch ist kein Bereich offen: keiner gilt als aktuelle Seite
+  await expect(bereiche.locator("[aria-current]")).toHaveCount(0);
 
   await bereiche.getByRole("link", { name: /^Rechnungen/ }).click();
   await expect(page).toHaveURL(/bereich=rechnungen/);
