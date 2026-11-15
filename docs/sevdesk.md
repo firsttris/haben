@@ -60,7 +60,7 @@ Doppelt angelegt wird nichts:
 Statt „Belege und Rechnungen per API abgerufen“ zeigt der Abgleich „Belege aus dem sevDesk-Export übernommen“, mit Zahlen für die Zustände eines Belegs:
 
 - **mit Datei:** Beleglink und Belegbild im Export;
-- **Datei fehlt im Export:** Die Buchung hat einen Beleglink, die Datei fehlt in der ZIP-Datei. Das hält „Jeder Beleg hat eine Datei“ offen; ein späterer Upload mit dem Belegbild hängt es an;
+- **Datei fehlt im Export:** Die Buchung hat einen Beleglink, die Datei fehlt in der ZIP-Datei. Das hält „Jeder Beleg hat eine Datei“ offen;
 - **ohne Belegbild im Export:** Belegdaten ohne Beleglink. Kein Fehler, denn auch sevDesk hat dazu kein Bild.
 
 Buchungen ohne Beleg (Zahlung, Privat, Umbuchung) zählen wie bei den anderen Quellen unter „Jede Buchung mit Belegnummer findet ihren Beleg“. Eine Buchung mit Beleglink findet ihren Beleg nur über dessen Kennung, auch die weiteren Zeilen desselben Belegs. Zwei Belege mit derselben Nummer zählen so getrennt; Zahlungen ohne Beleglink finden ihren Beleg weiter über die Nummer.
