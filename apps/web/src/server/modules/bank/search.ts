@@ -5,6 +5,8 @@ import { db, schema } from "../../db/index.ts";
 
 export interface BankTransactionHit {
   id: string;
+  /** Konto des Umsatzes: Die Bankseite zeigt einen Umsatz nur im gewählten Konto */
+  bankAccountId: string;
   bookingDate: string;
   amount: number;
   currency: string;
@@ -26,6 +28,7 @@ export async function searchBankTransactions(query: string, limit = 5): Promise<
   const rows = await db
     .select({
       id: bt.id,
+      bankAccountId: bt.bankAccountId,
       bookingDate: bt.bookingDate,
       amount: bt.amount,
       currency: bt.currency,

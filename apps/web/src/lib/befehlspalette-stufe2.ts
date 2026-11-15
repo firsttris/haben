@@ -40,7 +40,7 @@ function buildBankAndLedgerSections(remote: CommandPaletteResult, inhaber: boole
         amount: formatEuro(tx.amount),
         icon: "bank",
         to: "/bank",
-        search: { filter: "alle", umsatz: tx.id },
+        search: { konto: tx.bankAccountId, filter: "alle", umsatz: tx.id },
       })),
     });
   }
