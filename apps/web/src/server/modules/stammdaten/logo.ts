@@ -1,4 +1,5 @@
 import { UserError } from "../../errors.ts";
+import { MAX_LOGO_BYTES } from "@haben/core";
 import { logoFormat, type Logo } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
@@ -9,7 +10,7 @@ import { db, schema } from "../../db/index.ts";
 
 export class LogoError extends UserError {}
 
-export const MAX_LOGO_BYTES = 1024 * 1024;
+export { MAX_LOGO_BYTES };
 
 export async function loadLogo(): Promise<Logo | undefined> {
   const [row] = await db.select({ logo: schema.companyLogo.logo, format: schema.companyLogo.format }).from(schema.companyLogo);

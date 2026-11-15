@@ -40,6 +40,11 @@ describe("logoAus", () => {
   ])("lehnt ein Logo ab, das %s ist", (_fall, datei, daten, grund) => {
     expect(logoAus(datei, new Uint8Array(daten))).toEqual({ grund: expect.stringContaining(grund) });
   });
+
+  it("lehnt eine Datei ab, die nur aus der Signatur besteht (bildFormat in @haben/core, #1069)", () => {
+    expect(logoAus("nord.png", new Uint8Array(PNG.subarray(0, 8)))).toEqual({ grund: "ist kein PNG" });
+    expect(logoAus("sued.jpg", new Uint8Array(JPEG.subarray(0, 3)))).toEqual({ grund: "ist kein JPEG" });
+  });
 });
 
 describe("Logos jeder Größe (#1036, Rückfrage in #1044)", () => {
