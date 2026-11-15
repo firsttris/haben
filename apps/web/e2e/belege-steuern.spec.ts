@@ -3050,6 +3050,11 @@ test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098
   await expect(bearbeiten).toBeVisible();
   await expect(feld).toBeDisabled();
 
+  // Mit Vermerk und noch keiner gespeicherten Zeile muss die Eingabe offen stehen, sonst ließen sich die Anlagen
+  // der Einkommensteuer nie erfassen (#1149)
+  await expect(form.getByText("Zeilenwerte aus dem Übermittlungsprotokoll")).toBeVisible();
+  await expect(form.getByText("noch nicht erfasst")).toBeVisible();
+
   // Aufgeschlossen wird nur gelesen, bis jemand speichert. Der Klick geht als Zeigerklick dorthin, wo der Mensch
   // klickt: „Angaben bearbeiten“ steht rechts im Fuß, „Angaben speichern“ links. Stünden beide an derselben Stelle,
   // träfe das Loslassen schon den Absende-Knopf, und die leere Maske speicherte und sperrte sich selbst (#1098, #1141).

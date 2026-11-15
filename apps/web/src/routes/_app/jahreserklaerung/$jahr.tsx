@@ -646,10 +646,9 @@ function EstSection({ data }: { data: Data }) {
           </tbody>
         </ScrollTable>
 
-        {Object.keys(est.erklaert).length > 0 && (
-          // Der Betrag aus dem Vermerk richtet das Vorzeichen der Schlusszeile aus (#1082)
-          <ErklaerteZeilen form="est" year={data.year} zeilen={est.erklaert} vermerkBetrag={est.submitted?.amount ?? null} vermerkt />
-        )}
+        {/* Ohne Vermerk hängt keine Zeile, dann zeigt der Baustein nichts. Mit Vermerk muss die Eingabe auch ohne
+            gespeicherte Zeile erreichbar sein, sonst ließen sich die Anlagen nie erfassen (#1149) */}
+        <ErklaerteZeilen form="est" year={data.year} zeilen={est.erklaert} vermerkt={est.submitted !== null} />
 
         <fieldset disabled={gesperrt} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />

@@ -45,6 +45,34 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
     );
   }
 
+  it("nimmt Zeilen der Einkommensteuer an einem Vermerk ohne Betrag auf (#1149)", async () => {
+    // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Betrag (#1073); der Vermerk bleibt ohne, die
+    // Zeilen der Anlagen hängen trotzdem an ihm
+    await jahresvermerk.vermerkeJahresabgabe(
+      actor,
+      "est",
+      2025,
+      { filedOn: "2026-05-20", transferTicket: "EST123456789", note: "Außerhalb von Haben mit WISO abgegeben." },
+      TODAY,
+    );
+
+    const anzahl = await zeilen.speichereErklaerteZeilen(actor, "est", 2025, [
+      { field: "werbungskostenArbeitsmittel", amount: 11_300 },
+      { field: "werbungskostenArbeitszimmer", amount: 119_800 },
+      { field: "werbungskostenUebrige", amount: 1_900 },
+      { field: "werbungskosten", amount: 133_000 },
+    ]);
+    expect(anzahl).toBe(4);
+
+    const uebersicht = await annual.annualOverview(2025, TODAY);
+    expect(uebersicht.est.erklaert).toEqual({
+      werbungskostenArbeitsmittel: 11_300,
+      werbungskostenArbeitszimmer: 119_800,
+      werbungskostenUebrige: 1_900,
+      werbungskosten: 133_000,
+    });
+  });
+
   it("speichert Zeilen zu einem Vermerk und liest sie in der Jahreserklärung wieder", async () => {
     await vermerken("ust", "ABC123456789");
 
