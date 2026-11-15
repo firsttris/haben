@@ -1,6 +1,8 @@
 import { formatEuro } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { AccountingTypeDecision } from "../../../components/archiv/AccountingTypeDecision.tsx";
+import { FileStateCard, MissingFileBanner } from "../../../components/archiv/Dateistand.tsx";
 import { LEGACY_TYPES } from "../../../components/archiv/LegacyVouchers.tsx";
 import { legacySource } from "../../../lib/altbestand.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
@@ -27,7 +29,7 @@ const PAYMENT_STATUS: Record<string, string> = {
 };
 
 function LegacyVoucherPage() {
-  const { voucher, files, dunnings } = Route.useLoaderData();
+  const { voucher, files, dunnings, fileState } = Route.useLoaderData();
   const [selected, setSelected] = useState(files.find((f) => f.role === "pdf")?.id ?? files[0]?.id ?? null);
   const file = files.find((f) => f.id === selected) ?? null;
   const src = file ? `/api/altbeleg/${file.id}` : null;
@@ -62,13 +64,16 @@ function LegacyVoucherPage() {
               ))}
             </div>
           )}
+          {fileState.status === "anhang_fehlt" && (
+            <div className="banner banner-info">Das XML der E-Rechnung fehlt. „Erneut abrufen“ im Umzug versucht es noch einmal.</div>
+          )}
           {file?.role === "vorlage" && (
             <p className="small muted" style={{ margin: 0 }}>
               Aus der Vorlage: {source.product} führt die Datei nur an der Vorlage des wiederkehrenden Belegs, nicht am einzelnen Beleg.
             </p>
           )}
           {!file || !src ? (
-            <div className="banner banner-info">Zu diesem Beleg hat {source.product} keine Datei geliefert.</div>
+            <MissingFileBanner status={fileState.status} product={source.product} />
           ) : file.mimeType === "application/pdf" ? (
             <iframe className="doc-preview" src={`${src}#view=Fit`} title={`Datei ${file.filename}`} />
           ) : file.mimeType.startsWith("image/") ? (
@@ -87,11 +92,7 @@ function LegacyVoucherPage() {
             <h2 id="facts-heading" style={{ margin: 0 }}>
               Angaben
             </h2>
-            {voucher.accountingTypeIssue && (
-              <p className="banner banner-info" role="status">
-                {voucher.accountingTypeIssue}
-              </p>
-            )}
+            <AccountingTypeDecision voucher={voucher} />
             <dl className="facts">
               <dt>Kontakt</dt>
               <dd>
@@ -138,6 +139,16 @@ function LegacyVoucherPage() {
               </p>
             )}
           </section>
+          <FileStateCard
+            voucherId={voucher.id}
+            fileState={fileState}
+            product={source.product}
+            facts={[
+              { label: "Kontakt", value: voucher.contactName || "–" },
+              { label: "Datum", value: formatDate(voucher.date) },
+              { label: "Betrag", value: formatEuro(voucher.gross), strong: true },
+            ]}
+          />
           {voucher.payment && (
             <section className="card stack" aria-labelledby="payment-heading">
               <h2 id="payment-heading" style={{ margin: 0 }}>

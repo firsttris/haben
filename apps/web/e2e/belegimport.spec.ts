@@ -378,6 +378,112 @@ test("Mahnungen aus sevDesk: Stufen an der Rechnung im Archiv, nach der Übernah
   await expect(zeile.getByRole("link", { name: "Letzte Mahnung" })).toBeVisible();
 });
 
+test("Voranmeldungen aus sevDesk: im Archiv je Jahr mit Kennzahlen, Protokoll und Link zum Zeitraum in Haben", async () => {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { sha256Of, storeFile } = await import("../src/server/storage.ts");
+  const [run] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  const protokoll = new TextEncoder().encode("%PDF-1.4\n% Protokoll 2025-Q1\n%%EOF");
+  await withActor("e2e-import", async (tx) => {
+    // Aufbau wie legacy_vat_reports nach dem Abruf (sevdesk-voranmeldungen.ts), Antwort wie vat-report-zeitraeume.json
+    const [row] = await tx
+      .insert(schema.legacyVatReports)
+      .values({
+        externalId: "vatreport/e2e-1",
+        importId: run!.id,
+        year: 2025,
+        month: 41,
+        periodText: "quarterly 1",
+        submittedAt: new Date("2025-04-10T10:00:00Z"),
+        actualTaxation: true,
+        corrected: false,
+        transferTicket: "et9k3m2x7q4w8z1a",
+        kz83: 12345,
+        raw: {
+          id: "e2e-1",
+          reportingYear: "2025",
+          reportingPeriod: "1",
+          reportingPeriodCode: "quarterly",
+          reportingValues: '{"81":650,"66":"0.00","83":"123.45"}',
+        },
+      })
+      .returning({ id: schema.legacyVatReports.id });
+    await storeFile(protokoll);
+    await tx.insert(schema.legacyVatReportFiles).values({
+      vatReportId: row!.id,
+      filename: "UStVA_2025-Q1_Protokoll.pdf",
+      mimeType: "application/pdf",
+      sha256: sha256Of(protokoll),
+      size: protokoll.byteLength,
+    });
+  });
+
+  await gehe(page, "/archiv?ansicht=voranmeldungen");
+  await expect(page.getByRole("link", { name: "Voranmeldungen", exact: true })).toHaveAttribute("aria-current", "page");
+  const zeile = page.getByRole("row").filter({ hasText: "1. Quartal 2025" });
+  await expect(zeile).toContainText("Ist");
+  await expect(zeile).toContainText("123,45");
+  await expect(zeile.getByRole("link", { name: "1. Quartal 2025" })).toHaveAttribute("href", "/umsatzsteuer/2025-Q1");
+  await zeile.getByText("3 Kennzahlen").click();
+  await expect(zeile).toContainText("Kz 81");
+  await expect(zeile).toContainText("650,00");
+  await expect(zeile).toContainText("et9k3m2x7q4w8z1a");
+  const href = await zeile.getByRole("link", { name: "PDF" }).getAttribute("href");
+  expect(sha256Of(new Uint8Array(await (await page.request.get(href!)).body()))).toBe(sha256Of(protokoll));
+  expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
+});
+
+test("Beleg aus sevDesk ohne Datei: in der Belegansicht prüfen und bestätigen (#345)", async () => {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { storeLegacyVoucher } = await import("../src/server/modules/archiv/index.ts");
+  const [run] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  // Aufbau wie nach dem Abruf eines Belegs ohne `document` (sevdesk-dateien.ts)
+  const voucher = await withActor("e2e-import", async (tx) => {
+    const stored = await storeLegacyVoucher(
+      tx,
+      {
+        source: "sevdesk",
+        importId: run!.id,
+        lexofficeId: "voucher/9345",
+        type: "purchaseinvoice",
+        direction: "ausgabe",
+        number: "B-OHNE-1",
+        date: "2026-01-06",
+        status: "paid",
+        contactName: "Frida Import",
+        net: 1000,
+        tax: 0,
+        gross: 1000,
+        taxes: [{ rate: 0, net: 1000, tax: 0 }],
+        categories: [],
+        raw: { voucherType: "VOU", document: null },
+      },
+      [],
+    );
+    await tx.insert(schema.legacyFileStates).values({
+      voucherId: stored!.id,
+      importId: run!.id,
+      state: "ohne_datei",
+      message: "sevDesk nennt keine Datei. Das beweist nicht, dass es nie eine gab.",
+      createdBy: "e2e-import",
+    });
+    return stored!;
+  });
+
+  await gehe(page, `/archiv/beleg/${voucher.id}`);
+  const karte = page.getByRole("region", { name: "Dateistand" });
+  await expect(karte).toContainText("Prüfen");
+  await karte.getByLabel("Was du geprüft hast").fill("Kassenbon verloren");
+  await karte.getByRole("button", { name: "In sevDesk ohne Datei bestätigen" }).click();
+  const dialog = page.getByRole("dialog", { name: "Beleg ohne Datei bestätigen?" });
+  await expect(dialog).toContainText("Frida Import");
+  await dialog.getByRole("button", { name: "Ohne Datei bestätigen" }).click();
+  await expect(karte).toContainText("in sevDesk ohne Datei, bestätigt");
+  await expect(karte).toContainText("In sevDesk geprüft: Kassenbon verloren");
+  await expect(karte.getByRole("button", { name: "In sevDesk ohne Datei bestätigen" })).toHaveCount(0);
+});
+
 test("Kleinunternehmer: Gründungsdatum speichern und bei 25.000 Euro warnen", async () => {
   const { createCashIncome } = await import("../src/server/modules/bank/index.ts");
   const date = currentDay();

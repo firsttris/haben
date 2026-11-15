@@ -224,8 +224,9 @@ describe.skipIf(helm.status !== 0)("deploy/helm", () => {
     expect(variable(container(pod, "backup"), "PGPASSWORD")?.valueFrom?.secretKeyRef.name).toBe("d");
   });
 
-  // Wie das eigene Netz in Compose: Port 3000 erreicht nur der Proxy, die Datenbank nur App und Backup. Sonst könnte jeder
-  // Pod im Cluster X-Forwarded-For setzen (docs/installation.md, „Eigener Reverse Proxy“)
+  // Wie das eigene Netz in Compose: Port 3000 erreicht nur der Proxy, die Datenbank nur der Pod der App mit dem Backup und
+  // der zum Wiederherstellen. Sonst könnte jeder Pod im Cluster X-Forwarded-For setzen (docs/installation.md, „Eigener
+  // Reverse Proxy“)
   describe("networkPolicy", () => {
     const traefik = {
       namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "kube-system" } },
