@@ -1,5 +1,6 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
+import { datevBookingFound, datevInternalId, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
+import { SEVDESK_EXPORT_IST_ISSUE, sevdeskExportChecks, sevdeskExportYear, withoutExportImage } from "./sevdesk-export-abgleich.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import { ACCOUNTING_TYPE_ISSUE, accountingTypeChecks, accountingTypeUnclear, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
@@ -539,6 +540,7 @@ export async function reconciliation() {
       taxType: TAX_TYPE,
       taxSubType: TAX_SUB_TYPE,
       ohneBeleg: WITHOUT_RECEIPT,
+      ohneBelegbild: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBelegbild')::boolean, false)`,
       privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
       bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
       accountingTypeUnclear: accountingTypeUnclear("lexoffice_vouchers"),
@@ -564,13 +566,16 @@ export async function reconciliation() {
     return null;
   };
   const unclearAccountsIn = (year: number) => unclearAccountingTypes(businessRows, year, (v) => (versteuerung === "ist" ? legacyPayments(v) : []));
-  const vatIssueOf = (year: number) => [paymentIssueOf(year), unclearAccountsIn(year) ? ACCOUNTING_TYPE_VAT_ISSUE : null].filter(Boolean).join(" ") || null;
+  // Exportjahr bei Ist: Zahlungen hängen an keinem Beleg (sevdesk-export-abgleich.ts)
+  const exportIstIssueOf = (year: number) =>
+    versteuerung === "ist" && classified.some((v) => v.source === "sevdesk-export" && v.date.startsWith(`${year}-`)) ? SEVDESK_EXPORT_IST_ISSUE : null;
+  const vatIssueOf = (year: number) =>
+    [paymentIssueOf(year), unclearAccountsIn(year) ? ACCOUNTING_TYPE_VAT_ISSUE : null, exportIstIssueOf(year)].filter(Boolean).join(" ") || null;
 
   const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,
       count(*) filter (where b.voucher_field1 <> '' and not ${datevInternalId("b.voucher_field1")}
-        and not ${datevVoucherFound("b.voucher_field1")}
-        and not ${datevGuidFound("b.document_link")}
+        and not ${datevBookingFound({ number: "b.voucher_field1", link: "b.document_link", file: "b.file_id", date: "b.date" })}
         and not ${datevWithoutReceipt(company.kontenrahmen, "b.contra_account", "b.file_id")})::int as unmatched,
       count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number
     from datev_bookings b group by 1`);
@@ -636,7 +641,9 @@ export async function reconciliation() {
           gross: rows.reduce((s, r) => s + r.gross, 0) + bb.net + bb.tax,
         };
       };
-      const withoutFile = yearRows.filter((v) => !v.ohneBeleg && Number(v.files) === 0).length;
+      // Ohne Belegbild im Export braucht ein Exportbeleg keine Datei; er steht mit eigener Zahl im Abgleich
+      const withoutFile = yearRows.filter((v) => !v.ohneBeleg && Number(v.files) === 0 && !withoutExportImage(v)).length;
+      const sevdeskExport = sevdeskExportYear(yearRows);
       const unchecked = vouchers.filter((v) => v.status === "unchecked").length;
       const bookings = bookingRows.find((b) => Number(b.year) === year);
       const kinds = (kind: string) => files.filter((f) => f.year === year && f.kind === kind).length;
@@ -686,16 +693,21 @@ export async function reconciliation() {
         ...accountingTypeChecks(unclearAccountsIn(year)),
         ...fastbillWaitingChecks(fastbillWaiting.get(year)),
         ...fastbillPartlyCanceledChecks(fastbillPartlyCanceled.get(year)),
-        {
-          ok: vouchers.length > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),
-          label: "Belege und Rechnungen per API abgerufen",
-          detail: [
-            `${yearRows.filter((v) => !v.ohneBeleg).length} Belege`,
-            withoutReceipt > 0 ? `${withoutReceipt} ${withoutReceipt === 1 ? "Buchung" : "Buchungen"} ohne Beleg` : "",
-          ]
-            .filter(Boolean)
-            .join(", "),
-        },
+        // Ein Jahr nur aus der Export-ZIP: deren Belege statt der API (sevdesk-export-abgleich.ts)
+        ...(sevdeskExport && vouchers.length === 0
+          ? sevdeskExportChecks(sevdeskExport, versteuerung)
+          : [
+              {
+                ok: vouchers.length > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),
+                label: "Belege und Rechnungen per API abgerufen",
+                detail: [
+                  `${yearRows.filter((v) => !v.ohneBeleg).length} Belege`,
+                  withoutReceipt > 0 ? `${withoutReceipt} ${withoutReceipt === 1 ? "Buchung" : "Buchungen"} ohne Beleg` : "",
+                ]
+                  .filter(Boolean)
+                  .join(", "),
+              },
+            ]),
         {
           ok: withoutFile === 0,
           label: "Jeder Beleg hat eine Datei",
@@ -741,6 +753,8 @@ export async function reconciliation() {
         ),
         /** "datev": keine Belege per API, die Summen stammen aus dem Buchungsstapel; "gemischt": Belege und BB-Stapel */
         sumsFrom: fromDatev ? ("datev" as const) : bbPart ? ("gemischt" as const) : ("belege" as const),
+        /** Belege aus der Export-ZIP von sevDesk je Zustand; null ohne solche Belege */
+        sevdeskExport,
         withoutFile,
         unchecked,
         bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.without_number } : null,

@@ -45,13 +45,25 @@ Einnahme oder Ausgabe richtet sich nach der Buchung, nicht nach dem Ordner in se
 - **Aufwandskonto:** Ausgabe. Gutschriften für Honorar und Provision liegen im Rechnungsausgang, sind aber im Soll eines Aufwandskontos mit Vorsteuer (BU 8 oder 9) gebucht: Abrechnung im Gutschriftverfahren (§ 14 Abs. 2 Satz 2 UStG), also Ausgabe-Gutschrift mit Vorsteuer wie beim Abruf über die API, ohne Hinweis.
 - **Andere Konten** (Darlehen, Privat, Steuern, Zinsen, Anlagen): Einnahme, wenn das Konto im Haben steht (Geld kommt herein), sonst Ausgabe, immer mit positivem Betrag.
 
-Einnahmen, Ausgaben und Umsatzsteuer eines Jahres nimmt der [Abgleich](#schritt-3-bis-5) aus dem Buchungsstapel nach Kontenbereich, nicht aus diesen Belegen; ein Darlehen zählt dort also weder als Einnahme noch als Ausgabe. Offene Posten legt der Export nicht an, weil er keinen Zahlungsstand je Beleg kennt; trage sie von Hand ein. Kein Jahr aus dem Export zeigt im Abgleich „vollständig“.
+Einnahmen, Ausgaben und Umsatzsteuer eines Jahres nimmt der [Abgleich](#schritt-3-bis-5) aus dem Buchungsstapel nach Kontenbereich, nicht aus diesen Belegen; ein Darlehen zählt dort also weder als Einnahme noch als Ausgabe. Offene Posten legt der Export nicht an, weil er keinen Zahlungsstand je Beleg kennt; trage sie von Hand ein.
 
 Doppelt angelegt wird nichts:
 
 - Ein zweiter Upload derselben oder einer neueren ZIP-Datei überspringt Belege, die es schon gibt; ein fehlendes Belegbild hängt er an.
 - Liegen ZIP-Datei oder Buchungsstapel schon im Archiv, etwa auf dem früheren Weg als **Sonstiges** und **DATEV-Buchungsstapel**, bleibt es bei der vorhandenen Datei. Belegt ein anderer Buchungsstapel den Zeitraum schon, legt Haben den aus der ZIP-Datei nicht an und sagt das.
 - In einem Jahr mit Belegen aus der API legt der Export keine Belege an.
+
+#### Abgleich für Jahre aus dem Export
+
+Statt „Belege und Rechnungen per API abgerufen“ zeigt der Abgleich „Belege aus dem sevDesk-Export übernommen“, mit Zahlen für die Zustände eines Belegs:
+
+- **mit Datei:** Beleglink und Belegbild im Export;
+- **Datei fehlt im Export:** Die Buchung hat einen Beleglink, die Datei fehlt in der ZIP-Datei. Das hält „Jeder Beleg hat eine Datei“ offen; ein späterer Upload mit dem Belegbild hängt es an;
+- **ohne Belegbild im Export:** Belegdaten ohne Beleglink. Kein Fehler, denn auch sevDesk hat dazu kein Bild.
+
+Buchungen ohne Beleg (Zahlung, Privat, Umbuchung) zählen wie bei den anderen Quellen unter „Jede Buchung mit Belegnummer findet ihren Beleg“. Eine Buchung mit Beleglink findet ihren Beleg nur über dessen Kennung, auch die weiteren Zeilen desselben Belegs. Zwei Belege mit derselben Nummer zählen so getrennt; Zahlungen ohne Beleglink finden ihren Beleg weiter über die Nummer.
+
+Ein Jahr aus dem Export wird bei **Soll-Versteuerung** vollständig, wenn alle Prüfungen aufgehen. Bei **Ist-Versteuerung** bleibt „Zahlungshistorie vollständig“ offen: Der Export ordnet Zahlungen keinem Beleg zu, die Umsatzsteuer je Monat lässt sich daraus nicht ableiten. Vergleiche sie mit den Voranmeldungen in sevDesk.
 
 #### Was der Export anders enthält als die API
 

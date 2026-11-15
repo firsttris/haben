@@ -32,24 +32,54 @@ export function datevVoucherFound(field: string): SQL<boolean> {
   return sql<boolean>`exists (select 1 from lexoffice_vouchers v where v.number <> '' and (${exact} or ${truncatedNumberMatches("v", sql.raw(field))}))`;
 }
 
+/** Die GUID aus einem Beleglink `BEDI "<guid>"`, sonst null */
+function linkGuid(linkField: string): SQL {
+  return sql.raw(`substring(${linkField} from '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')`);
+}
+
 /**
  * Accountable hängt an jede Buchung einen Beleglink `BEDI "<guid>"` und legt den Beleg unter derselben
  * GUID ab. Eine Rechnung kann mehrere Buchungszeilen haben (Hauptbetrag, Versand, Kleinteile); nur die
  * erste Zeile trägt dann die Belegnummer. Über die GUID finden auch die übrigen Zeilen ihren Beleg.
+ * Ebenso die Belege aus der Export-ZIP von sevDesk (#1106): Schlüssel ist dort die GUID aus dem Beleglink.
  */
 export function datevGuidFound(linkField: string): SQL<boolean> {
-  const pattern = "'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'";
-  const guid = sql.raw(`substring(${linkField} from ${pattern})`);
+  const guid = linkGuid(linkField);
   return sql<boolean>`(${guid} is not null and exists (
     select 1 from lexoffice_vouchers g
-     where g.source = 'accountable' and lower(g.raw->>'guid') = lower(${guid})))`;
+     where g.source in ('accountable', 'sevdesk-export') and lower(g.raw->>'guid') = lower(${guid})))`;
+}
+
+/**
+ * Buchung mit Beleglink aus einem Stapel der Export-ZIP von sevDesk, in einem Jahr, für das der Lauf Belege angelegt hat
+ * (nicht in den Jahren mit Belegen aus der API, sevdesk-export-lauf.ts). Sie findet ihren Beleg nur über die GUID: Zwei
+ * Belege können dieselbe Nummer tragen (#1106), dann zählte die Nummer auch die Buchung des fehlenden als gefunden.
+ */
+function sevdeskExportLinked(linkField: string, fileField: string, dateField: string): SQL<boolean> {
+  const file = sql.raw(fileField);
+  const date = sql.raw(dateField);
+  return sql<boolean>`(${linkGuid(linkField)} is not null and exists (
+    select 1 from lexoffice_imports i
+     where i.source = 'sevdesk-export'
+       and coalesce(i.progress->'sevdeskExport'->'stackFileIds', '[]'::jsonb) ? (${file}::text)
+       and not coalesce(i.progress->'sevdeskExport'->'apiYears', '[]'::jsonb) @> to_jsonb(extract(year from ${date})::int)))`;
+}
+
+/**
+ * Findet die Buchung ihren Beleg? Über die Belegnummer oder die GUID im Beleglink; Buchungen mit Beleglink aus der
+ * Export-ZIP von sevDesk nur über die GUID. Zahlungen ohne Beleglink finden ihren Beleg weiter über die Nummer.
+ */
+export function datevBookingFound(fields: { number: string; link: string; file: string; date: string }): SQL<boolean> {
+  return sql<boolean>`(case when ${sevdeskExportLinked(fields.link, fields.file, fields.date)} then ${datevGuidFound(fields.link)}
+    else ${datevVoucherFound(fields.number)} or ${datevGuidFound(fields.link)} end)`;
 }
 
 /**
  * Buchungen, die nie einen Eingangsbeleg haben: Privat, Geldtransit und Vortragskonten (Klasse 9), je nach Kontenrahmen
  * (packages/core/src/posting.ts: SKR03 Privat 1800–1899 und Geldtransit 1360, SKR04 Privat 2100–2199 und Geldtransit
  * 1460; in SKR04 ist 1800 die Bank). Dazu die Erlöse, aber nur in einem Stapel aus dem Accountable-Umzug: Accountable
- * exportiert keine Ausgangsrechnungen, aus Lexoffice und sevDesk fehlt eine Rechnung zur Erlösbuchung dagegen wirklich.
+ * exportiert keine Ausgangsrechnungen, aus Lexoffice und sevDesk fehlt eine Rechnung zur Erlösbuchung dagegen wirklich. Das
+ * gilt auch für die Export-ZIP von sevDesk: Sie enthält die Ausgangsrechnungen (#1106).
  */
 export function datevWithoutReceipt(kontenrahmen: "SKR03" | "SKR04", contraField: string, fileField: string): SQL<boolean> {
   const neutral = kontenrahmen === "SKR04" ? "^(21[0-9]{2}|1460|9[0-9]{3})$" : "^(18[0-9]{2}|1360|9[0-9]{3})$";
