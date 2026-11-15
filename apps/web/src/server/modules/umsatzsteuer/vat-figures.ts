@@ -5,13 +5,11 @@ import {
   kategorieArt,
   lastMonthOfPeriod,
   monthsOfPeriod,
-  ohneSteueranteile,
   paidTaxShares,
   periodRange,
   recordedTaxShares,
   splitPrivateShare,
   type Cents,
-  type InvoiceTotals,
   type JournalKennzahlen,
   type TaxTreatment,
   type VatPeriod,
@@ -23,7 +21,7 @@ import { gutschriftAnteile } from "./gutschrift.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
-import { advanceVatPlans, invoiceTaxReader, invoiceTotalsById } from "../rechnungen/index.ts";
+import { advanceVatPlans, invoiceTaxReader, invoiceTotalsById, mixNachVerrechnungen } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
   /**
@@ -170,38 +168,6 @@ export function vatFiguresContext(q: Db | Tx = db) {
       return plans;
     },
   };
-}
-
-/**
- * Steuermix je Rechnung nach Verrechnungen: Eine Verrechnung nimmt das Entgelt der Gegenrechnung weg, also deren
- * Steueranteile. Nur der Rest ist vereinnahmbar, und nur darüber verteilen sich die Zahlungen (#877, Befund 2).
- */
-async function mixNachVerrechnungen(totals: Map<string, InvoiceTotals>, q: Db | Tx): Promise<Map<string, InvoiceTotals>> {
-  const ids = [...totals.keys()];
-  if (ids.length === 0) return new Map();
-  const rows = await q
-    .select({
-      invoiceId: schema.invoiceSettlements.invoiceId,
-      counterInvoiceId: schema.invoiceSettlements.counterInvoiceId,
-      amount: schema.invoiceSettlements.amount,
-    })
-    .from(schema.invoiceSettlements)
-    .where(inArray(schema.invoiceSettlements.invoiceId, ids));
-  // Netto je Rechnung und Gegenrechnung: Die Gegenzeile einer Aufhebung gibt das Entgelt wieder zurück
-  const netto = new Map<string, { invoiceId: string; counterInvoiceId: string; amount: number }>();
-  for (const r of rows) {
-    const key = `${r.invoiceId}|${r.counterInvoiceId}`;
-    netto.set(key, { ...r, amount: (netto.get(key)?.amount ?? 0) + r.amount });
-  }
-  const positiv = [...netto.values()].filter((r) => r.amount > 0);
-  if (positiv.length === 0) return new Map();
-  const gegen = await invoiceTotalsById([...new Set(positiv.map((r) => r.counterInvoiceId))], q);
-  const out = new Map<string, InvoiceTotals>();
-  for (const id of ids) {
-    const weg = positiv.filter((r) => r.invoiceId === id).flatMap((r) => paidTaxShares(gegen.get(r.counterInvoiceId) ?? totals.get(id)!, r.amount));
-    if (weg.length > 0) out.set(id, ohneSteueranteile(totals.get(id)!, weg));
-  }
-  return out;
 }
 
 export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, context = vatFiguresContext(q)): Promise<VatFigures> {

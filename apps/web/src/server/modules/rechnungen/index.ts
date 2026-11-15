@@ -141,3 +141,4 @@ export {
   type InvoiceSettlementInput,
   type SettlementCandidate,
 } from "./verrechnung.ts";
+export { mixNachVerrechnungen } from "./verrechnung-steuermix.ts";

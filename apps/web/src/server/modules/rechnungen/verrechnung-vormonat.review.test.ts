@@ -15,6 +15,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist: Teil
   let contacts: typeof import("../stammdaten/contacts.ts");
   let bank: typeof import("../bank/bank.ts");
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
+  let reports: typeof import("../auswertungen/reports.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let contactId: string;
@@ -26,6 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist: Teil
     contacts = await import("../stammdaten/contacts.ts");
     bank = await import("../bank/bank.ts");
     figures = await import("../umsatzsteuer/vat-figures.ts");
+    reports = await import("../auswertungen/reports.ts");
   }, 60_000);
 
   afterAll(async () => {
@@ -156,5 +158,48 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist: Teil
 
     const nov = await figures.computeVatFigures({ year: 2026, month: 11 });
     expect({ kz81: nov.kz81, tax81: nov.tax81, kz86: nov.kz86, tax86: nov.tax86 }).toEqual({ kz81: 10_000, tax81: 1_900, kz86: 10_000, tax86: 700 });
+  }, 60_000);
+  it("Ist: die EÜR teilt die Zahlung nach der Verrechnung wie die Voranmeldung (netto und Umsatzsteuer)", async () => {
+    const rechnung = await beleg(
+      "rechnung",
+      [
+        { netto: 10_000, satz: 1900 },
+        { netto: 10_000, satz: 700 },
+      ],
+      "2026-11-01",
+    );
+    const korrektur = await beleg("korrektur", [{ netto: -10_000, satz: 1900 }], "2026-11-10", rechnung);
+    await verrechnung.settleInvoices(actor, { invoiceId: rechnung, counterInvoiceId: korrektur, amount: 11_900, date: "2026-11-12", note: "19 % zurück" });
+    await zahle(rechnung, 10_700, "2026-11-13");
+    const zeilen = (r: { einnahmen: { key: string; amount: number }[]; ausgaben: { key: string; amount: number }[] }) =>
+      Object.fromEntries([...r.einnahmen, ...r.ausgaben].filter((l) => l.amount !== 0).map((l) => [l.key, l.amount]));
+    const journal = zeilen(await reports.euerForYear(2026));
+    expect(journal).toMatchObject({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 700 });
+    expect(zeilen(await reports.euerAusNebenbuechern(2026))).toEqual(journal);
+  }, 60_000);
+  it("Ist: die EÜR lässt den schon gemeldeten Vormonat stehen und berichtigt im November", async () => {
+    const rechnung = await beleg(
+      "rechnung",
+      [
+        { netto: 10_000, satz: 1900 },
+        { netto: 10_000, satz: 700 },
+      ],
+      "2026-10-01",
+    );
+    await zahle(rechnung, 5_000, "2026-10-05");
+    const korrektur = await beleg("korrektur", [{ netto: -10_000, satz: 1900 }], "2026-11-10", rechnung);
+    await verrechnung.settleInvoices(actor, { invoiceId: rechnung, counterInvoiceId: korrektur, amount: 11_900, date: "2026-11-12", note: "19 % zurück" });
+    await zahle(rechnung, 5_700, "2026-11-13");
+
+    const journal = await reports.euerForYear(2026);
+    const nebenbuecher = await reports.euerAusNebenbuechern(2026);
+    // Oktober bleibt, wie er gemeldet wurde: die 5.000 € verteilten sich über die volle Rechnung, davon 4.425 € netto
+    expect(journal.monthly.einnahmen[9]).toBe(4_425);
+    expect(nebenbuecher.monthly.einnahmen).toEqual(journal.monthly.einnahmen);
+    const zeilen = (r: { einnahmen: { key: string; amount: number }[]; ausgaben: { key: string; amount: number }[] }) =>
+      Object.fromEntries([...r.einnahmen, ...r.ausgaben].filter((l) => l.amount !== 0).map((l) => [l.key, l.amount]));
+    // Berichtigt wird im November: zusammen 10.000 € netto und 700 € Umsatzsteuer auf die vereinnahmten 107,00 €
+    expect(zeilen(journal)).toMatchObject({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 700 });
+    expect(zeilen(nebenbuecher)).toEqual(zeilen(journal));
   }, 60_000);
 });

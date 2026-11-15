@@ -18,6 +18,8 @@ export interface Buchung {
   sourceType: string;
   sourceId: string;
   zeilen: Zeile[];
+  /** Position der Buchung im Audit-Log: daran richtet sich die Reihenfolge von Zahlungen und Verrechnungen (#877) */
+  position?: number;
 }
 
 /** Höchstzahl der IDs je Abfrage mit inArray; PostgreSQL nimmt höchstens 65 535 Parameter je Abfrage */
@@ -195,10 +197,11 @@ export async function ausgleichsBuchungenJe(q: Db | Tx, invoiceIds: string[]): P
   }
   const position = await positionen(
     q,
-    [...gefunden.values()].flatMap((liste) => (liste.length < 2 ? [] : liste.map((b) => b.id))),
+    [...gefunden.values()].flatMap((liste) => liste.map((b) => b.id)),
   );
   const result = new Map<string, Buchung[]>();
   for (const [invoiceId, liste] of gefunden) {
+    for (const b of liste) b.position = position.get(b.id);
     if (liste.length < 2) {
       result.set(invoiceId, liste);
       continue;
@@ -209,6 +212,81 @@ export async function ausgleichsBuchungenJe(q: Db | Tx, invoiceIds: string[]): P
       invoiceId,
       [...liste].sort((a, b) => (position.get(a.id) ?? Infinity) - (position.get(b.id) ?? Infinity) || index.get(a.id)! - index.get(b.id)!),
     );
+  }
+  return result;
+}
+
+/**
+ * Eine Verrechnung aus Sicht der EÜR (#877): der mit dieser Rechnung verrechnete Betrag, die Zeilen der Gegenrechnung und
+ * die Position der eigenen Buchung im Audit-Log.
+ */
+export interface Verrechnung {
+  kontenrahmen: Kontenrahmen;
+  /** Zeilen der Gegenrechnung ohne ihren offenen Posten */
+  zeilen: Zeile[];
+  /** Offener Posten der Gegenrechnung (Soll − Haben, bei einer Korrektur negativ) */
+  gesamt: number;
+  /** Verrechneter Betrag, positiv */
+  betrag: number;
+  position: number;
+}
+
+/**
+ * Verrechnungen je Rechnung (#274, #877): je Aufrechnung mit einer Gegenrechnung der Betrag und die Zeilen der
+ * Gegenrechnung. Aufgehobene Verrechnungen fehlen — ihre Gegenzeilen heben die ursprünglichen auf, dann mindert nichts mehr
+ * den Mix. Dazu die Position der Buchung im Audit-Log, damit die EÜR sie zwischen die Zahlungen stellt: Der Bankabgleich
+ * rechnet beim Buchen, eine Zahlung vor der Verrechnung verteilt sich deshalb über die volle Rechnung, eine danach nur über
+ * den Rest (Befund 3 im Review zu #877).
+ */
+export async function verrechnungenJeRechnung(q: Db | Tx, invoiceIds: string[]): Promise<Map<string, Verrechnung[]>> {
+  const result = new Map<string, Verrechnung[]>();
+  if (invoiceIds.length === 0) return result;
+  const s = schema.invoiceSettlements;
+  const zeilen: { id: string; invoiceId: string; counterInvoiceId: string; amount: number; reversesId: string | null }[] = [];
+  for (const block of bloecke([...new Set(invoiceIds)]))
+    zeilen.push(
+      ...(await q
+        .select({ id: s.id, invoiceId: s.invoiceId, counterInvoiceId: s.counterInvoiceId, amount: s.amount, reversesId: s.reversesId })
+        .from(s)
+        .where(inArray(s.invoiceId, block))),
+    );
+  // Eine Aufhebung hebt genau ihre ursprüngliche Zeile auf; beide zusammen zählen nicht mehr
+  const aufgehoben = new Set(zeilen.flatMap((z) => (z.reversesId ? [z.reversesId] : [])));
+  const offen = zeilen.filter((z) => z.amount > 0 && !aufgehoben.has(z.id));
+  if (offen.length === 0) return result;
+  const e = schema.journalEntries;
+  const gebucht = await buchungen(
+    q,
+    and(
+      eq(e.sourceType, "verrechnung"),
+      inArray(
+        e.sourceId,
+        offen.map((z) => z.id),
+      ),
+    ),
+  );
+  const position = await positionen(
+    q,
+    gebucht.map((b) => b.id),
+  );
+  const gegen = await buchungenJe(q, "invoice", [...new Set(offen.map((z) => z.counterInvoiceId))]);
+  for (const z of offen) {
+    const gegenbuchungen = gegen.get(z.counterInvoiceId) ?? [];
+    const kontenrahmen = gegenbuchungen[0]?.kontenrahmen;
+    if (!kontenrahmen) continue;
+    const alle = gegenbuchungen.flatMap((b) => b.zeilen);
+    const gesamt = alle.filter((x) => offenerPosten(kontenrahmen, x)).reduce((sum, x) => sum + x.debit - x.credit, 0);
+    if (gesamt === 0) continue;
+    const buchung = gebucht.find((b) => b.sourceId === z.id);
+    const liste = result.get(z.invoiceId) ?? [];
+    liste.push({
+      kontenrahmen,
+      zeilen: alle.filter((x) => !offenerPosten(kontenrahmen, x)),
+      gesamt,
+      betrag: z.amount,
+      position: buchung ? (position.get(buchung.id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER,
+    });
+    result.set(z.invoiceId, liste);
   }
   return result;
 }
