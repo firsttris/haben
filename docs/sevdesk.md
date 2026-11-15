@@ -253,7 +253,7 @@ Haben spricht standardmäßig mit `https://my.sevdesk.de/api/v1`. Mit der Umgebu
 - [ ] Alle Auftragsdokumente sind vorhanden und deren Original-PDFs ergänzt
 - [ ] Übernommene wiederkehrende Rechnungen geprüft und aktiviert, in sevDesk deaktiviert
 - [ ] Übernommene Dauerbelege geprüft und fortgesetzt, in sevDesk deaktiviert
-- [ ] Für jedes Geschäftsjahr: DATEV-Export, GoBD-Export, ELSTER-Protokolle und Kontoauszüge abgelegt, jeweils mit Jahr
+- [ ] Für jedes Geschäftsjahr: DATEV-Export, GoBD-Export, ELSTER-Protokolle (außer denen der [übermittelten Voranmeldungen](#übermittelte-voranmeldungen)) und Kontoauszüge abgelegt, jeweils mit Jahr
 - [ ] Einnahmen, Ausgaben, Umsatz- und Vorsteuer je Jahr mit sevDesk verglichen
 - [ ] Offene Posten übernommen oder die Gründe geklärt
 - [ ] Nächste Rechnungsnummer in Haben gesetzt
