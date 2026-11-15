@@ -406,6 +406,10 @@ test("Laptop: Der Fokus bleibt auf „Vorschau“, wenn der Pfeil beim Verkleine
   // Auch Browser-Zoom ändert die Breite (WCAG 1.4.4); der Knopf darf dabei nicht neu aufgebaut werden
   await page.setViewportSize({ width: 800, height: 800 });
   await expect(pfeil(page)).toHaveCount(0);
+  // Unter 861 px steht „Vorschau“ in der Aktionsleiste (#396, #355 Variante E); der Fokus geht mit und beim Vergrößern zurück
+  const inDerLeiste = page.locator(".main > .action-bar").getByRole("button", { name: "Vorschau", exact: true });
+  await expect(inDerLeiste).toBeFocused();
+  await page.setViewportSize(LAPTOP);
   await expect(vorschauKnopf(page)).toBeFocused();
   await page.context().close();
 });
