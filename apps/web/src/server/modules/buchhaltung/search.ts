@@ -46,21 +46,27 @@ export async function bookingEntriesQuery(query: string, limit: number) {
   const cents = parseEuroSearchCents(query);
   const queryDate = parseDateSearch(query);
 
+  // Konten aus dem Kontenrahmen nach Nummer oder Name, eine unbekannte Nummer (etwa ein Personenkonto) genau
+  const accounts = /^\d{4,9}$/.test(query.trim()) ? [...new Set([...matchingAccounts, query.trim()])] : matchingAccounts;
+  const lineConditions = [
+    ...(accounts.length > 0 ? [inArray(jl.account, accounts)] : []),
+    ...(cents !== null ? [eq(jl.debit, Math.abs(cents)), eq(jl.credit, Math.abs(cents))] : []),
+  ];
+  // Ein `id in (Unterabfrage)` im `or` ließe Postgres alle Buchungen lesen; als `union` nutzt jeder Teil seinen Index.
+  const textMatches = db
+    .select({ id: je.id })
+    .from(je)
+    .where(or(unaccentIlike(je.description, pattern), ...(queryDate !== null ? [eq(je.date, queryDate)] : [])));
   const lineMatches = db
-    .select({ entryId: jl.entryId })
+    .select({ id: jl.entryId })
     .from(jl)
-    .where(
-      or(
-        unaccentIlike(jl.account, pattern),
-        ...(matchingAccounts.length > 0 ? [inArray(jl.account, matchingAccounts)] : []),
-        ...(cents !== null ? [eq(jl.debit, Math.abs(cents)), eq(jl.credit, Math.abs(cents))] : []),
-      ),
-    );
+    .where(or(...lineConditions));
+  const matches = lineConditions.length > 0 ? sql`${textMatches} union ${lineMatches}` : sql`${textMatches}`;
 
   const select = db
     .select({ id: je.id, date: je.date, description: je.description, sourceType: je.sourceType, sourceId: je.sourceId })
     .from(je)
-    .where(or(unaccentIlike(je.description, pattern), inArray(je.id, lineMatches), ...(queryDate !== null ? [eq(je.date, queryDate)] : [])))
+    .where(sql`${je.id} in (${matches})`)
     .orderBy(desc(je.date), desc(je.createdAt))
     .limit(limit + 1);
   return { select };
