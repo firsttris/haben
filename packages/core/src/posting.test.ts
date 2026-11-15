@@ -20,6 +20,7 @@ import {
   openingDocumentPosting,
   openingInvoicePosting,
   paidTaxShares,
+  ohneSteueranteile,
   recordedTaxShares,
   settlementTaxShares,
   type TaxShare,
@@ -456,6 +457,21 @@ describe("settlementTaxShares", () => {
     ]);
     expect(settlementTaxShares(totals, 0, [], 595)).toEqual(paidTaxShares(totals, 595));
   });
+
+  it("berichtigt einen schon erfassten Satz, der im Mix nach einer Verrechnung fehlt (#877)", () => {
+    // Rechnung 100 € zu 19 % und 100 € zu 7 %, 50 € vor der Korrektur bezahlt; die Korrektur nimmt die 19-%-Position zurück
+    const voll = computeInvoiceTotals([
+      { quantity: 1000, unitPrice: 10_000, taxRate: 1900 },
+      { quantity: 1000, unitPrice: 10_000, taxRate: 700 },
+    ]);
+    const rest = ohneSteueranteile(voll, [{ rate: 1900, base: 10_000, tax: 1_900 }]);
+    const erste = paidTaxShares(voll, 5_000);
+    const zweite = settlementTaxShares(rest, 5_000, erste, 5_700);
+    expect(zweite.reduce((s, r) => s + r.base + r.tax, 0)).toBe(5_700);
+    const alle = [...erste, ...zweite];
+    const satz = (rate: number) => alle.filter((r) => r.rate === rate).reduce((s, r) => ({ base: s.base + r.base, tax: s.tax + r.tax }), { base: 0, tax: 0 });
+    expect({ s19: satz(1900), s7: satz(700) }).toEqual({ s19: { base: 0, tax: 0 }, s7: { base: 10_000, tax: 700 } });
+  });
 });
 
 describe("recordedTaxShares", () => {
@@ -473,6 +489,14 @@ describe("recordedTaxShares", () => {
     expect(recordedTaxShares(mixed, 10_000, [{ rate: 1900, base: 8_403, tax: 1_597 }])).toEqual(paidTaxShares(mixed, 10_000));
     expect(recordedTaxShares(totals, 3_966, [{ rate: 1900, base: 3_333, tax: 634 }])).toEqual(paidTaxShares(totals, 3_966));
     expect(recordedTaxShares(totals, 3_966, null)).toEqual(paidTaxShares(totals, 3_966));
+  });
+
+  it("nach einer Verrechnung: behält den vor ihr gespeicherten Anteil, neu gerechnet wird über den Rest (#877)", () => {
+    const rest = ohneSteueranteile(mixed, [{ rate: 1900, base: 5_000, tax: 950 }]);
+    const vorher = paidTaxShares(mixed, 5_000);
+    expect(recordedTaxShares(mixed, 5_000, vorher, rest)).toEqual(vorher);
+    expect(recordedTaxShares(mixed, 2_140, [{ rate: 700, base: 2_000, tax: 140 }], rest)).toEqual([{ rate: 700, base: 2_000, tax: 140 }]);
+    expect(recordedTaxShares(mixed, 2_140, null, rest)).toEqual(paidTaxShares(rest, 2_140));
   });
 });
 
