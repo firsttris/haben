@@ -501,7 +501,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     await year2025();
     await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
       values ('est', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
-    const [vermerk] = await sql<{ id: string }>`select id from annual_submissions where form = 'est' and year = 2025 and kind = 'vermerk'`;
+    const [vermerk] = (await sql`select id from annual_submissions where form = 'est' and year = 2025 and kind = 'vermerk'`) as { id: string }[];
+    if (!vermerk) throw new Error("Der Vermerk fehlt, obwohl er eben angelegt wurde.");
     await sql`insert into annual_submission_figures (submission_id, field, amount) values (${vermerk.id}, 'festgesetzteSteuer', 2012700)`;
 
     const overview = await annual.annualOverview(2025, TODAY);
