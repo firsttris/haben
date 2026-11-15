@@ -113,6 +113,24 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     expect(sections.map((s) => s.label)).toEqual(["Rechnungen", "Belege"]);
   });
 
+  it("öffnet einen Bankumsatz im Konto, zu dem er gehört, nicht im ersten Konto", () => {
+    const umsatz = {
+      id: "11111111-1111-4111-8111-111111111111",
+      bankAccountId: "22222222-2222-4222-8222-222222222222",
+      bookingDate: "2026-11-14",
+      amount: -123456,
+      currency: "EUR",
+      counterpartyName: "Cloud Hosting GmbH",
+      purpose: "Rechnung 42",
+      accountName: "Zweitkonto",
+      allocated: false,
+      ibanLast4: "9900",
+    };
+    const sections = buildRemoteSections({ ...sampleResult, bankTransactions: { hits: [umsatz], more: false } }, true);
+    const item = sections.find((s) => s.id === "bank")?.items[0];
+    expect(item).toMatchObject({ to: "/bank", search: { konto: umsatz.bankAccountId, umsatz: umsatz.id, filter: "alle" } });
+  });
+
   it("formuliert die Statusmeldung für Screenreader im Singular und Plural", () => {
     expect(statusMessage(true, 3, 0)).toBe("Suche läuft …");
     expect(statusMessage(false, 2, 0)).toBe("Keine Treffer gefunden.");
