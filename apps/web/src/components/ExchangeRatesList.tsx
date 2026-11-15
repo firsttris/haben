@@ -94,7 +94,6 @@ function ExchangeRatesFilterBar({
               onChange={(e) => onCurrencyQueryChange(e.target.value)}
               placeholder="z. B. USD"
               className="mono"
-              style={{ textTransform: "uppercase" }}
             />
           )}
         </Field>

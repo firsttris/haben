@@ -26,31 +26,32 @@ async function readText(file: File): Promise<string> {
   }
 }
 
-function ManualExchangeRateForm({
-  busy,
-  currency,
-  month,
-  rate,
-  error,
-  formRef,
-  onCurrencyChange,
-  onMonthChange,
-  onRateChange,
-  onSubmit,
-}: {
-  busy: boolean;
-  currency: string;
-  month: string;
-  rate: string;
-  error: (field: "currency" | "month" | "rate") => string | undefined;
-  formRef: React.RefObject<HTMLFormElement | null>;
-  onCurrencyChange: (value: string) => void;
-  onMonthChange: (value: string) => void;
-  onRateChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
+function ManualExchangeRateForm({ busy, onSave }: { busy: boolean; onSave: (currency: string, month: string, rate: string, reset: () => void) => void }) {
+  const [currency, setCurrency] = useState("");
+  const [month, setMonth] = useState("");
+  const [rate, setRate] = useState("");
+  const {
+    form: rateForm,
+    error,
+    check,
+  } = useSubmitCheck({
+    currency: currency.trim() === "" ? "Trag die Währung ein." : null,
+    month: month === "" ? "Wähle den Monat." : null,
+    rate: rate.trim() === "" ? "Trag den Kurs ein." : null,
+  });
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!check()) return;
+    onSave(currency.trim(), month, rate.trim(), () => {
+      setCurrency("");
+      setMonth("");
+      setRate("");
+    });
+  }
+
   return (
-    <form ref={formRef} className="stack" style={{ gap: 8 }} onSubmit={onSubmit} aria-labelledby="rate-manual" noValidate>
+    <form ref={rateForm} className="stack" style={{ gap: 8 }} onSubmit={onSubmit} aria-labelledby="rate-manual" noValidate>
       <h3 id="rate-manual" style={{ margin: 0 }}>
         Kurs von Hand
       </h3>
@@ -65,7 +66,7 @@ function ManualExchangeRateForm({
               {...control}
               name="currency"
               value={currency}
-              onChange={(e) => onCurrencyChange(e.target.value)}
+              onChange={(e) => setCurrency(e.target.value)}
               required
               maxLength={3}
               placeholder="USD"
@@ -75,7 +76,7 @@ function ManualExchangeRateForm({
           )}
         </Field>
         <Field label="Monat" error={error("month")}>
-          {(control) => <MonthPicker {...control} name="month" value={month} onChange={onMonthChange} />}
+          {(control) => <MonthPicker {...control} name="month" value={month} onChange={setMonth} />}
         </Field>
         <Field label="1 EUR = …" error={error("rate")}>
           {(control) => (
@@ -83,7 +84,7 @@ function ManualExchangeRateForm({
               {...control}
               name="rate"
               value={rate}
-              onChange={(e) => onRateChange(e.target.value)}
+              onChange={(e) => setRate(e.target.value)}
               required
               inputMode="decimal"
               placeholder="1,0812"
@@ -155,18 +156,6 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
   const [year, setYear] = useState(String(currentYear()));
   // Ein neuer key leert das Dateifeld samt angezeigtem Namen nach dem Hochladen
   const [uploads, setUploads] = useState(0);
-  const [currency, setCurrency] = useState("");
-  const [month, setMonth] = useState("");
-  const [rate, setRate] = useState("");
-  const {
-    form: rateForm,
-    error,
-    check,
-  } = useSubmitCheck({
-    currency: currency.trim() === "" ? "Trag die Währung ein." : null,
-    month: month === "" ? "Wähle den Monat." : null,
-    rate: rate.trim() === "" ? "Trag den Kurs ein." : null,
-  });
   const [mode, setMode] = useState<ExchangeRateViewMode>("month");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState("");
@@ -174,27 +163,6 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
 
   const summary = (r: { added: number; changed: number; applied: number }) =>
     `${plural(r.added, "Kurs", "Kurse")} neu, ${r.changed} geändert. ${r.applied > 0 ? `${plural(r.applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}`;
-
-  function onSave(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!check()) return;
-    const savedCurrency = currency.trim().toUpperCase();
-    const savedMonth = month;
-    void run(async () => {
-      const { applied } = await save({ data: { currency: currency.trim(), month, rate: rate.trim() } });
-      setCurrency("");
-      setMonth("");
-      setRate("");
-      if (savedMonth) setSelectedMonth(savedMonth);
-      if (savedCurrency) setSelectedCurrency(savedCurrency);
-      setCurrencyQuery("");
-      await router.invalidate();
-      setNotice({
-        tone: "ok",
-        text: `Kurs gespeichert.${applied > 0 ? ` ${plural(applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}`,
-      });
-    });
-  }
 
   return (
     <section className="card" aria-labelledby="rates-heading">
@@ -223,15 +191,20 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
       <NoticeBanner notice={notice} />
       <ManualExchangeRateForm
         busy={busy}
-        currency={currency}
-        month={month}
-        rate={rate}
-        error={error}
-        formRef={rateForm}
-        onCurrencyChange={setCurrency}
-        onMonthChange={setMonth}
-        onRateChange={setRate}
-        onSubmit={onSave}
+        onSave={(currency, month, rate, reset) =>
+          void run(async () => {
+            const { applied } = await save({ data: { currency, month, rate } });
+            reset();
+            if (month) setSelectedMonth(month);
+            if (currency) setSelectedCurrency(currency.toUpperCase());
+            setCurrencyQuery("");
+            await router.invalidate();
+            setNotice({
+              tone: "ok",
+              text: `Kurs gespeichert.${applied > 0 ? ` ${plural(applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}`,
+            });
+          })
+        }
       />
       <BmfUploadSection
         year={year}

@@ -14,9 +14,9 @@ describe("summarizeExchangeRates", () => {
   it("sortiert Monate absteigend, Währungen alphabetisch und zählt manuelle Kurse", () => {
     const summary = summarizeExchangeRates(sample);
     expect(summary.months).toEqual([
-      { month: "2026-11", count: 1 },
-      { month: "2026-10", count: 3 },
-      { month: "2026-09", count: 2 },
+      { month: "2026-11", count: 1, hasBmf: false },
+      { month: "2026-10", count: 3, hasBmf: true },
+      { month: "2026-09", count: 2, hasBmf: true },
     ]);
     expect(summary.currencies).toEqual([
       { currency: "CHF", count: 2 },
@@ -30,9 +30,10 @@ describe("summarizeExchangeRates", () => {
 describe("resolveSelectedMonth / resolveSelectedCurrency", () => {
   const summary = summarizeExchangeRates(sample);
 
-  it("behält gültigen Monat oder fällt auf den neuesten zurück", () => {
+  it("behält gültigen Monat oder fällt auf den neuesten BMF-Monat zurück", () => {
     expect(resolveSelectedMonth(summary.months, "2026-09")).toBe("2026-09");
-    expect(resolveSelectedMonth(summary.months, "2025-01")).toBe("2026-11");
+    expect(resolveSelectedMonth(summary.months, "2025-01")).toBe("2026-10");
+    expect(resolveSelectedMonth([{ month: "2026-11", count: 1, hasBmf: false }], "")).toBe("2026-11");
     expect(resolveSelectedMonth([], "2026-10")).toBe("");
   });
 
