@@ -45,7 +45,6 @@ Verglichen an einem Konto mit Buchhaltungsversion 1.0 und SKR03, Jahr 2024: 210 
 - **Fremdwährung:** Im Umsatz steht der Betrag in der Fremdwährung, Netto und Steuer in der Beleginfo stehen in Euro. `Kurs` und `Basis-Umsatz` sind leer.
 - **Was nur die API hat:** Positionen, Steuerregel, Zahlungsstand und die Zuordnung der Zahlungen zu Belegen, Angebote und Aufträge.
 - **Kopf des Stapels:** Der Kontenrahmen steht nicht darin; Haben nimmt den aus den Firmendaten. Ein Export umfasst höchstens ein Wirtschaftsjahr.
-- **Kontakte:** Die Besonderheiten des GP-Stamms (leere Kundennummer, Telefon mit `'`, Land „UN“) beschreibt der [CSV-Import](csv-import.md#kontakte-aus-datev).
 
 ## Schritt 1: Verbindung zu sevDesk
 
