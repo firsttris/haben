@@ -972,6 +972,30 @@ test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz 
   await context.close();
 });
 
+test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#917)", async () => {
+  await go("/dauerbelege/neu");
+  // Ohne ausgewiesene Steuer ist der Betrag zugleich das Brutto; ein eigenes Feld gibt es dann nicht
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveCount(0);
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("100,00");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("19,00");
+  await expect(page.locator(".dauerbeleg-summe")).toContainText(/= 119,00\s€/);
+  // Anderer Satz: das Brutto bleibt, Netto und Steuer ändern sich
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("700");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("111,21");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,79");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("119,00");
+  // Steuer laut Vertrag von Hand: das Brutto folgt
+  await page.getByLabel("Umsatzsteuer 1", { exact: true }).fill("7,78");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("118,99");
+  // Ein vertipptes Brutto sperrt das Anlegen wie ein vertipptes Netto
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,005");
+  await page.getByRole("button", { name: "Dauerbeleg anlegen" }).click();
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveAccessibleDescription(/Trag den Betrag als Zahl ein/);
+  await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
+});
+
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
   // Beispiel aus #271, je 19 %: 100 € Handelsware, 50 € Software, 20 € Bürobedarf = 170 € netto, 32,30 € Vorsteuer
   await go("/belege");
