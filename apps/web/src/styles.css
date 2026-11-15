@@ -570,6 +570,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .mail-mark { margin-left: 8px; vertical-align: middle; }
 /* Merkmal: Eigenschaft ohne Zustand (Lieferant, Rolle, archiviert) */
 .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); font-size: 12px; line-height: 1; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
+/* Merkmal und Status nebeneinander (etwa „inaktiv“ und „Fehler“): auf einer Mittellinie, statt nach Grundlinie und vertical-align versetzt */
+.status-gruppe { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
 
 .banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
 .banner-info { background: var(--info-soft); color: var(--info-ink); }
