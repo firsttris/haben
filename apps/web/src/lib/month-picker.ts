@@ -1,8 +1,5 @@
 import { MONTHS } from "@haben/core";
 
-/** Dreistellige deutsche Monatskürzel für das 3×4-Raster */
-export const MONTH_SHORT = MONTHS.map((m) => m.slice(0, 3));
-
 /** Liest einen Monatswert im Format `JJJJ-MM`; gibt bei ungültigem Text `null` zurück. */
 export function parseMonth(value: string): { year: number; month: number } | null {
   const match = /^(\d{4})-(\d{2})$/.exec(value);

@@ -1,6 +1,6 @@
 import { MONTHS } from "@haben/core";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import { formatMonthLabel, formatMonthValue, initialViewYear, isMonthDisabled, MONTH_SHORT, yearBounds } from "../lib/month-picker.ts";
+import { formatMonthLabel, formatMonthValue, initialViewYear, isMonthDisabled, yearBounds } from "../lib/month-picker.ts";
 import { Icon } from "./Icon.tsx";
 
 export interface MonthPickerProps {
@@ -182,7 +182,7 @@ function MonthPopup({
               disabled={isMonthDisabled(ym, min, max)}
               onClick={() => onPick(ym)}
             >
-              {MONTH_SHORT[index]}
+              {fullName}
             </button>
           );
         })}

@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { formatMonthLabel, formatMonthValue, initialViewYear, isMonthDisabled, MONTH_SHORT, parseMonth, yearBounds } from "./month-picker.ts";
+import { formatMonthLabel, formatMonthValue, initialViewYear, isMonthDisabled, parseMonth, yearBounds } from "./month-picker.ts";
 
 describe("month-picker", () => {
-  it("liefert zwölf dreistellige deutsche Monatskürzel", () => {
-    expect(MONTH_SHORT).toEqual(["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]);
-  });
-
   it("parst gültige JJJJ-MM-Werte und verwirft ungültige", () => {
     expect(parseMonth("2026-11")).toEqual({ year: 2026, month: 11 });
     expect(parseMonth("2026-01")).toEqual({ year: 2026, month: 1 });
