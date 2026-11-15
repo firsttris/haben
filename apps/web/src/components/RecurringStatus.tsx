@@ -9,9 +9,10 @@ const FEHLER = (
 /** Zustand einer wiederkehrenden Rechnung, in ihrer Liste und in der Schnellsuche: „inaktiv“ als Merkmal, ein Fehler dringend */
 export function RecurringInvoiceStatus({ active, lastError }: { active: boolean; lastError: string | null }) {
   return (
-    <>
-      {!active && <Tag>inaktiv</Tag>} {lastError && FEHLER}
-    </>
+    <span className="status-gruppe">
+      {!active && <Tag>inaktiv</Tag>}
+      {lastError && FEHLER}
+    </span>
   );
 }
 
@@ -21,8 +22,9 @@ const DAUERBELEG_MERKMAL = { aktiv: null, pausiert: "pausiert", beendet: "beende
 export function RecurringDocumentStatus({ status, lastError }: { status: keyof typeof DAUERBELEG_MERKMAL; lastError: string | null }) {
   const merkmal = DAUERBELEG_MERKMAL[status];
   return (
-    <>
-      {merkmal && <Tag>{merkmal}</Tag>} {lastError && FEHLER}
-    </>
+    <span className="status-gruppe">
+      {merkmal && <Tag>{merkmal}</Tag>}
+      {lastError && FEHLER}
+    </span>
   );
 }
