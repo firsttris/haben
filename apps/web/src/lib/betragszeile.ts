@@ -82,3 +82,24 @@ function vonBrutto(row: Betragszeile): Betragszeile {
   const { net, tax } = bruttoZerlegen(gross, row.taxRate);
   return { ...row, net: formatDecimal(net), tax: formatDecimal(tax), taxTouched: false };
 }
+
+/**
+ * Zeile eines gespeicherten Dauerbelegs (#1059). Ohne Steuerausweis ist die gespeicherte Steuer 0 keine Eingabe: Haben rechnet
+ * sie für den Fall vor, dass der Haken gesetzt wird. Von Hand geändert ist eine Steuer nur, wenn sie weder aus dem Netto noch,
+ * nach einem eingegebenen Brutto, aus Netto plus Steuer folgt (45,00 € zu 19 %: 37,82 € + 7,18 €, aus dem Netto wären es 7,19 €).
+ */
+export function betragszeileAusVorlage(key: number, a: { taxRate: BetragsSatz; net: Cents; tax: Cents }, steuerAusgewiesen: boolean): Betragszeile {
+  const leer = a.net === 0 && a.tax === 0;
+  if (!steuerAusgewiesen) return betragszeileAus(key, a.taxRate, a.net, taxOf(a.net, a.taxRate), leer, false);
+  const vonHand = a.tax !== taxOf(a.net, a.taxRate) && a.tax !== taxIncluded(a.net + a.tax, a.taxRate);
+  return betragszeileAus(key, a.taxRate, a.net, a.tax, leer, vonHand);
+}
+
+/**
+ * Haken „Das Dokument weist die Umsatzsteuer gesondert aus“ am Dauerbeleg (#1059). Aus: Das Brutto ist nicht mehr zu sehen,
+ * Grundlage ist wieder das Netto (wie bei § 13b am Beleg). An: Nichts wird neu gerechnet; die verborgene Steuer folgt dem Netto
+ * ohnehin, und ein zuvor eingegebenes Brutto bleibt auf den Cent erhalten.
+ */
+export function steuerausweisUmschalten(row: Betragszeile, an: boolean): Betragszeile {
+  return an ? row : { ...row, basis: "net" };
+}

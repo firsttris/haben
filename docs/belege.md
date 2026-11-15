@@ -104,7 +104,7 @@ Einen ungebuchten Beleg aus einem Dauerbeleg kannst du [löschen](#löschen), et
 
 Vorsteuer ziehst du nur aus einer Rechnung ab, die die Umsatzsteuer gesondert ausweist (§ 15 Abs. 1 Nr. 1 und § 14 Abs. 4 Nr. 8 UStG). Ein Vertrag gilt als Rechnung, wenn er die Pflichtangaben enthält, bei Miete etwa ein Mietvertrag mit Steuerbetrag nach einer Option zur Umsatzsteuer (§ 9 UStG), oder eine Dauerrechnung des Leasinggebers.
 
-- Weist das Dokument die Steuer aus, setzt du den Haken **Das Dokument weist die Umsatzsteuer gesondert aus** und trägst Netto und Umsatzsteuer je Satz ein; die Steuer rechnet Haben aus dem Netto vor.
+- Weist das Dokument die Steuer aus, setzt du den Haken **Das Dokument weist die Umsatzsteuer gesondert aus** und trägst Netto und Umsatzsteuer je Satz ein; die Steuer rechnet Haben aus dem Netto vor. Statt des Netto kannst du das **Brutto** eintragen; Haben teilt es wie am Beleg auf (siehe [Beträge](#beträge)).
 - Ohne Haken gibt es kein Feld für die Steuer, und Haben lehnt eine Vorlage mit Steuer ab: „Vorsteuer nur mit einem Dokument, das die Umsatzsteuer gesondert ausweist …“. Den Betrag erfasst du dann mit 0 %, etwa für steuerfreie Miete (§ 4 Nr. 12 UStG) oder Versicherungsbeiträge. Die Notiz am Beleg sagt, dass das Dokument keine Steuer ausweist.
 - Ohne Vorsteuerabzug bucht Haben wie bei jedem Beleg den Bruttobetrag als Aufwand, ohne Vorsteuer.
 

@@ -1,6 +1,5 @@
 import {
   dauerbelegSummen,
-  formatDecimal,
   formatEuro,
   ownerLabels,
   parseEuro,
@@ -14,6 +13,7 @@ import { FilePicker } from "./FilePicker.tsx";
 import { Icon } from "./Icon.tsx";
 import { ContactCombobox, savedAsChoice, type ContactChoice } from "./ContactCombobox.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
+import { aendereBetragszeile, betragszeileAus, betragszeileAusVorlage, bruttoLesbar, steuerausweisUmschalten, type Betragszeile } from "../lib/betragszeile.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 
@@ -37,23 +37,12 @@ export interface DauerbelegValues {
   dueDays: number;
 }
 
-interface AmountState {
-  key: number;
-  taxRate: Rate;
-  net: string;
-  tax: string;
-  /** Steuer von Hand geändert: dann nicht mehr aus dem Netto rechnen */
-  taxEdited: boolean;
-}
-
 let nextKey = 1;
 
 const RATES: Rate[] = [1900, 700, 0];
 /** Aus eigenem Geld bezahlt heißt je nach Rechtsform Privateinlage oder Verrechnungskonto des Gesellschafters */
 const paymentLabels = (rechtsform: Rechtsform) =>
   ({ bank: "Über das Geschäftskonto (Bankabgleich)", privat: ownerLabels(rechtsform).documentPaid, kasse: "Bar aus der Kasse" }) as const;
-
-const taxOf = (net: number | null, rate: Rate) => (net === null ? 0 : Math.round((net * rate) / 10_000));
 
 /**
  * Formular für einen Dauerbeleg: Lieferant, Kategorie, Beträge je Steuersatz, Intervall und Vertrag. Beim Anlegen ist der
@@ -95,16 +84,7 @@ export function DauerbelegForm({
   const [nextDate, setNextDate] = useState(initial.nextDate);
   const [endDate, setEndDate] = useState(initial.endDate ?? "");
   const [dueDays, setDueDays] = useState(String(initial.dueDays));
-  const [amounts, setAmounts] = useState<AmountState[]>(() =>
-    initial.amounts.map((a) => ({
-      key: nextKey++,
-      taxRate: a.taxRate,
-      net: a.net ? formatDecimal(a.net) : "",
-      tax: a.tax ? formatDecimal(a.tax) : "",
-      // Steuer aus dem Netto rechnen, solange sie dazu passt
-      taxEdited: a.tax !== taxOf(a.net, a.taxRate),
-    })),
-  );
+  const [amounts, setAmounts] = useState<Betragszeile[]>(() => initial.amounts.map((a) => betragszeileAusVorlage(nextKey++, a, initial.taxShown)));
   const fileRef = useRef<HTMLInputElement>(null);
   // Ob eine Datei gewählt ist, für die Prüfung beim Speichern; die Datei selbst liest submit aus fileRef
   const [hasFile, setHasFile] = useState(false);
@@ -130,6 +110,8 @@ export function DauerbelegForm({
       amounts.flatMap((a, i) => [
         [`netto-${a.key}`, parseEuro(a.net) === null || parseEuro(a.net)! < 0 ? BETRAG : null],
         [`steuer-${a.key}`, taxShown && (parseEuro(a.tax) === null || parseEuro(a.tax)! < 0) ? BETRAG : null],
+        // Ein vertipptes Brutto lässt die vorigen Beträge stehen; gespeichert würde dann etwas anderes als eingegeben
+        [`brutto-${a.key}`, taxShown && !bruttoLesbar(a) ? BETRAG : null],
         [`satz-${a.key}`, amounts.findIndex((x) => x.taxRate === a.taxRate) < i ? "Diesen Satz gibt es schon in einer Zeile darüber." : null],
       ]),
     ),
@@ -143,20 +125,19 @@ export function DauerbelegForm({
     file: isNew && !hasFile ? "Wähle den Vertrag oder die Dauerrechnung." : null,
   } as Record<string, string | null>);
 
-  function updateAmount(key: number, patch: Partial<AmountState>) {
-    setAmounts((prev) =>
-      prev.map((a) => {
-        if (a.key !== key) return a;
-        const next = { ...a, ...patch };
-        if (!next.taxEdited) next.tax = formatDecimal(taxOf(parseEuro(next.net), next.taxRate));
-        return next;
-      }),
-    );
+  // Selbst geschuldete Steuer (§ 13b) gibt es am Dauerbeleg nicht
+  function updateAmount(key: number, patch: Partial<Omit<Betragszeile, "key">>) {
+    setAmounts((prev) => prev.map((a) => (a.key === key ? aendereBetragszeile(a, patch, false) : a)));
+  }
+
+  function chooseTaxShown(an: boolean) {
+    setTaxShown(an);
+    setAmounts((prev) => prev.map((a) => steuerausweisUmschalten(a, an)));
   }
 
   function addRate() {
     const rate = RATES.find((r) => !usedRates.has(r));
-    if (rate !== undefined) setAmounts((prev) => [...prev, { key: nextKey++, taxRate: rate, net: "", tax: "", taxEdited: false }]);
+    if (rate !== undefined) setAmounts((prev) => [...prev, betragszeileAus(nextKey++, rate, 0, 0, true, false)]);
   }
 
   function submit(event: FormEvent) {
@@ -310,7 +291,7 @@ export function DauerbelegForm({
             )}
           </Field>
           <label className="checkbox">
-            <input type="checkbox" checked={taxShown} onChange={(e) => setTaxShown(e.target.checked)} />
+            <input type="checkbox" checked={taxShown} onChange={(e) => chooseTaxShown(e.target.checked)} />
             Das Dokument weist die Umsatzsteuer gesondert aus (Dauerrechnung oder Vertrag mit Steuerbetrag)
           </label>
           {!taxShown && (
@@ -324,7 +305,7 @@ export function DauerbelegForm({
         <section className="form-section" aria-labelledby="dauerbeleg-betraege">
           <h2 id="dauerbeleg-betraege">Beträge je Termin</h2>
           {amounts.map((a, index) => (
-            <div key={a.key} className={taxShown ? "form-row cols-amount" : "form-row cols-amount ohne-steuer"}>
+            <div key={a.key} className={taxShown ? "form-row cols-amount mit-brutto" : "form-row cols-amount ohne-steuer"}>
               <Field label={<>Steuersatz {index + 1}</>} error={error(`satz-${a.key}`)}>
                 {(control) => (
                   <select {...control} value={a.taxRate} onChange={(e) => updateAmount(a.key, { taxRate: Number(e.target.value) as Rate })}>
@@ -349,8 +330,15 @@ export function DauerbelegForm({
                       inputMode="decimal"
                       className="num"
                       value={a.tax}
-                      onChange={(e) => updateAmount(a.key, { tax: e.target.value, taxEdited: true })}
+                      onChange={(e) => updateAmount(a.key, { tax: e.target.value, taxTouched: true })}
                     />
+                  )}
+                </Field>
+              )}
+              {taxShown && (
+                <Field label={<>Brutto {index + 1}</>} error={error(`brutto-${a.key}`)}>
+                  {(control) => (
+                    <input {...control} inputMode="decimal" className="num" value={a.gross} onChange={(e) => updateAmount(a.key, { gross: e.target.value })} />
                   )}
                 </Field>
               )}
