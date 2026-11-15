@@ -224,7 +224,8 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   // Nach Verrechnungen verteilen sich die Zahlungen über den Rest der Rechnung, nicht über ihren vollen Mix (#877,
   // Befund 3): Sonst teilt die EÜR eine Zahlung anders auf als die Voranmeldung, und zwar an beiden Quellen gleich
   const restMix = await mixNachVerrechnungen(invoiceTotals, q);
-  const mix = (invoiceId: string) => restMix.get(invoiceId) ?? invoiceTotals.get(invoiceId)!;
+  const mixe = (invoiceId: string) => restMix.get(invoiceId) ?? [invoiceTotals.get(invoiceId)!];
+  const mix = (invoiceId: string) => mixe(invoiceId)[0]!;
   const {
     totals: docTotals,
     reverseCharge,
@@ -266,7 +267,12 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         // Wie gebucht; ältere Zahlungen ohne gespeicherten Anteil rechnet die EÜR weiter aus der Summe je Umsatz
         ...(a.taxShares
           ? {
-              shares: recordedTaxShares(invoiceTotals.get(a.invoiceId)!, a.amount, a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null, mix(a.invoiceId)),
+              shares: recordedTaxShares(
+                invoiceTotals.get(a.invoiceId)!,
+                a.amount,
+                a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null,
+                mixe(a.invoiceId),
+              ),
             }
           : {}),
         treatment: a.treatment ?? "regulaer",
@@ -349,7 +355,12 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         totals: mix(w.invoiceId),
         ...(w.taxShares
           ? {
-              shares: recordedTaxShares(invoiceTotals.get(w.invoiceId)!, w.amount, w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null, mix(w.invoiceId)),
+              shares: recordedTaxShares(
+                invoiceTotals.get(w.invoiceId)!,
+                w.amount,
+                w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null,
+                mixe(w.invoiceId),
+              ),
             }
           : {}),
         treatment: w.treatment ?? "regulaer",
@@ -378,7 +389,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       date: c.date,
       paid: c.amount,
       totals,
-      shares: recordedTaxShares(invoiceTotals.get(c.invoiceId!)!, c.amount, c.taxSharesInvoiceId === c.invoiceId ? c.taxShares : null, totals),
+      shares: recordedTaxShares(invoiceTotals.get(c.invoiceId!)!, c.amount, c.taxSharesInvoiceId === c.invoiceId ? c.taxShares : null, mixe(c.invoiceId!)),
       treatment: c.treatment,
     });
   }

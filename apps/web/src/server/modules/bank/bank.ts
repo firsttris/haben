@@ -35,8 +35,6 @@ import {
   invoicePaymentPosting,
   advancePaymentDateProblem,
   recordedTaxShares,
-  ohneSteueranteile,
-  paidTaxShares,
   settlementTaxShares,
   skontoZahlfristen,
   suggestMatches,
@@ -67,6 +65,7 @@ import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import {
   invoicePaymentPostingMode,
   invoiceTotalsById,
+  mixeNachVerrechnungen,
   invoicePostingMode,
   lockInvoice,
   invoicePaymentGroup,
@@ -462,19 +461,15 @@ export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: Invoic
   // nicht über den vollen Mix: Bei zwei Steuersätzen trüge sonst der zurückgenommene Satz die Steuer mit (#877, Befund 2).
   const verrechnet = [
     ...(await tx.execute<{ counter_invoice_id: string; amount: number }>(
-      // Netto je Gegenrechnung: Die Gegenzeile einer Aufhebung gibt das Entgelt wieder zurück
-      sql`select counter_invoice_id, sum(amount)::int as amount from invoice_settlements where invoice_id in ${ids}
-          group by counter_invoice_id having sum(amount) > 0`,
+      // In der Reihenfolge, in der sie entstanden sind: Die Gegenzeile einer Aufhebung gibt das Entgelt wieder zurück
+      sql`select counter_invoice_id, amount from invoice_settlements where invoice_id in ${ids} order by created_at, id`,
     )),
-  ];
-  const gegen =
-    verrechnet.length > 0 ? await invoiceTotalsById([...new Set(verrechnet.map((r) => r.counter_invoice_id))], tx) : new Map<string, InvoiceTotals>();
-  const rest = ohneSteueranteile(
-    totals,
-    verrechnet.flatMap((r) => paidTaxShares(gegen.get(r.counter_invoice_id) ?? totals, Number(r.amount))),
-  );
+  ].map((r) => ({ counterInvoiceId: r.counter_invoice_id, amount: Number(r.amount) }));
+  const gegen = verrechnet.length > 0 ? await invoiceTotalsById([...new Set(verrechnet.map((r) => r.counterInvoiceId))], tx) : new Map<string, InvoiceTotals>();
+  const mixe = mixeNachVerrechnungen(totals, verrechnet, gegen);
+  const rest = mixe[0]!;
   // Wie Voranmeldung und EÜR (recordedTaxShares): ein Anteil zählt nur für die Rechnung, für die er gerechnet ist
-  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null, rest));
+  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null, mixe));
   return settlementTaxShares(rest, settled, recorded, amount);
 }
 

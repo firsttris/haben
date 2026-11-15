@@ -629,10 +629,17 @@ export function ohneSteueranteile(totals: InvoiceTotals, weggenommen: readonly T
  * Betrag; sonst aus dem Betrag gerechnet (ältere Zeilen ohne Anteil, wie gebucht). Für welche Rechnung er gerechnet ist,
  * prüft der Aufrufer (tax_shares_invoice_id), damit der Abgleich eine umgehängte Zahlung weiter als Abweichung meldet.
  * `rest` ist der Mix nach Verrechnungen (#877): Ein Anteil passt zum vollen Mix (vor der Verrechnung gebucht) oder zum
- * Rest; neu gerechnet wird über den Rest.
+ * Rest; neu gerechnet wird über den Rest. Als Liste der aktuelle Rest und danach die früheren Stände: Ein Anteil, der vor
+ * der Aufhebung einer Verrechnung zum damaligen Rest gebucht wurde, gilt weiter.
  */
-export function recordedTaxShares(totals: InvoiceTotals, amount: Cents, stored: TaxShare[] | null | undefined, rest: InvoiceTotals = totals): TaxShare[] {
-  const computed = paidTaxShares(rest, amount);
+export function recordedTaxShares(
+  totals: InvoiceTotals,
+  amount: Cents,
+  stored: TaxShare[] | null | undefined,
+  rest: InvoiceTotals | readonly InvoiceTotals[] = totals,
+): TaxShare[] {
+  const mixe = Array.isArray(rest) ? (rest as readonly InvoiceTotals[]) : [rest as InvoiceTotals];
+  const computed = paidTaxShares(mixe[0] ?? totals, amount);
   if (!stored) return computed;
   const fits = (mix: InvoiceTotals) => {
     const rates = paidTaxShares(mix, amount);
@@ -642,7 +649,7 @@ export function recordedTaxShares(totals: InvoiceTotals, amount: Cents, stored: 
       stored.reduce((sum, s) => sum + s.base + s.tax, 0) === amount
     );
   };
-  return fits(totals) || fits(rest) ? stored : computed;
+  return fits(totals) || mixe.some(fits) ? stored : computed;
 }
 
 /** Zeilen ohne Betrag fallen weg, außer sie tragen eine Bemessungsgrundlage (Anteil ohne Steuer bei Ist) */

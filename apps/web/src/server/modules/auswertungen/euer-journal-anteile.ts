@@ -59,11 +59,15 @@ export function rechnungsAnteile(
     ...verrechnungen.map((v) => ({ position: v.position, verrechnung: v })),
   ].sort((a, b) => a.position - b.position);
   let rahmen = { zeilen, gesamt };
+  let aktiv: Verrechnung[] = [];
   let ausgeglichen = 0;
   let erfasst = zeilen.map(() => 0);
   for (const e of ereignisse) {
     if (e.verrechnung) {
-      rahmen = restNachVerrechnungen(rahmen.zeilen, rahmen.gesamt, [e.verrechnung]);
+      const v = e.verrechnung;
+      // Eine Aufhebung gibt das Entgelt ab ihrer Stelle zurück; Zahlungen davor bleiben beim damaligen Rest
+      aktiv = v.hebtAuf ? aktiv.filter((a) => a.id !== v.hebtAuf) : [...aktiv, v];
+      rahmen = restNachVerrechnungen(zeilen, gesamt, aktiv);
       continue;
     }
     const b = e.zahlung!;

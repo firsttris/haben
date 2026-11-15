@@ -290,7 +290,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
       const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
       const voll = totals.get(p.invoiceId)!;
-      for (const share of recordedTaxShares(voll, p.amount, stored, mix.get(p.invoiceId) ?? voll)) {
+      for (const share of recordedTaxShares(voll, p.amount, stored, mix.get(p.invoiceId) ?? [voll])) {
         revenue.push({
           type: "payment",
           date: p.date,
@@ -391,7 +391,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       if ((await invoiceMode(r)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === r.treatment)) continue;
       const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
       const voll = totals.get(r.invoiceId)!;
-      const shares = recordedTaxShares(voll, -r.amount, stored, mix.get(r.invoiceId) ?? voll);
+      const shares = recordedTaxShares(voll, -r.amount, stored, mix.get(r.invoiceId) ?? [voll]);
       for (const share of shares) {
         revenue.push({
           type: "ausbuchung",

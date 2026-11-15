@@ -498,6 +498,14 @@ describe("recordedTaxShares", () => {
     expect(recordedTaxShares(mixed, 2_140, [{ rate: 700, base: 2_000, tax: 140 }], rest)).toEqual([{ rate: 700, base: 2_000, tax: 140 }]);
     expect(recordedTaxShares(mixed, 2_140, null, rest)).toEqual(paidTaxShares(rest, 2_140));
   });
+
+  it("nach der Aufhebung einer Verrechnung: behält den zum damaligen Rest gespeicherten Anteil (#877)", () => {
+    const damals = ohneSteueranteile(mixed, [{ rate: 1900, base: 5_000, tax: 950 }]);
+    const anteil = [{ rate: 700, base: 2_000, tax: 140 }];
+    expect(recordedTaxShares(mixed, 2_140, anteil, [mixed, damals])).toEqual(anteil);
+    expect(recordedTaxShares(mixed, 2_140, anteil, [mixed])).toEqual(paidTaxShares(mixed, 2_140));
+    expect(recordedTaxShares(mixed, 2_140, null, [mixed, damals])).toEqual(paidTaxShares(mixed, 2_140));
+  });
 });
 
 describe("Kapitalgesellschaft: Gesellschafter-Verrechnungskonto statt Privat", () => {

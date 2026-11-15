@@ -221,6 +221,10 @@ export async function ausgleichsBuchungenJe(q: Db | Tx, invoiceIds: string[]): P
  * die Position der eigenen Buchung im Audit-Log.
  */
 export interface Verrechnung {
+  /** Zeile in invoice_settlements */
+  id: string;
+  /** Bei einer Aufhebung die Zeile der Verrechnung, die sie aufhebt; ab ihrer Position mindert jene den Mix nicht mehr */
+  hebtAuf?: string;
   kontenrahmen: Kontenrahmen;
   /** Zeilen der Gegenrechnung ohne ihren offenen Posten */
   zeilen: Zeile[];
@@ -233,8 +237,9 @@ export interface Verrechnung {
 
 /**
  * Verrechnungen je Rechnung (#274, #877): je Aufrechnung mit einer Gegenrechnung der Betrag und die Zeilen der
- * Gegenrechnung. Aufgehobene Verrechnungen fehlen — ihre Gegenzeilen heben die ursprünglichen auf, dann mindert nichts mehr
- * den Mix. Dazu die Position der Buchung im Audit-Log, damit die EÜR sie zwischen die Zahlungen stellt: Der Bankabgleich
+ * Gegenrechnung, dazu je Aufhebung ein Eintrag mit `hebtAuf`: Ab ihrer Position mindert die aufgehobene Verrechnung den
+ * Mix nicht mehr, eine Zahlung davor bleibt beim damaligen Rest. Dazu die Position der Buchung im Audit-Log, damit die EÜR
+ * sie zwischen die Zahlungen stellt: Der Bankabgleich
  * rechnet beim Buchen, eine Zahlung vor der Verrechnung verteilt sich deshalb über die volle Rechnung, eine danach nur über
  * den Rest (Befund 3 im Review zu #877).
  */
@@ -250,10 +255,11 @@ export async function verrechnungenJeRechnung(q: Db | Tx, invoiceIds: string[]):
         .from(s)
         .where(inArray(s.invoiceId, block))),
     );
-  // Eine Aufhebung hebt genau ihre ursprüngliche Zeile auf; beide zusammen zählen nicht mehr
-  const aufgehoben = new Set(zeilen.flatMap((z) => (z.reversesId ? [z.reversesId] : [])));
-  const offen = zeilen.filter((z) => z.amount > 0 && !aufgehoben.has(z.id));
+  const offen = zeilen.filter((z) => z.amount > 0 && !z.reversesId);
   if (offen.length === 0) return result;
+  // Eine Aufhebung hebt genau ihre ursprüngliche Zeile auf, und zwar ab ihrer eigenen Position
+  const offenIds = new Set(offen.map((z) => z.id));
+  const aufhebungen = zeilen.filter((z) => z.reversesId && offenIds.has(z.reversesId));
   const e = schema.journalEntries;
   const gebucht = await buchungen(
     q,
@@ -261,7 +267,7 @@ export async function verrechnungenJeRechnung(q: Db | Tx, invoiceIds: string[]):
       eq(e.sourceType, "verrechnung"),
       inArray(
         e.sourceId,
-        offen.map((z) => z.id),
+        [...offen, ...aufhebungen].map((z) => z.id),
       ),
     ),
   );
@@ -270,6 +276,10 @@ export async function verrechnungenJeRechnung(q: Db | Tx, invoiceIds: string[]):
     gebucht.map((b) => b.id),
   );
   const gegen = await buchungenJe(q, "invoice", [...new Set(offen.map((z) => z.counterInvoiceId))]);
+  const stelle = (id: string) => {
+    const buchung = gebucht.find((b) => b.sourceId === id);
+    return buchung ? (position.get(buchung.id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+  };
   for (const z of offen) {
     const gegenbuchungen = gegen.get(z.counterInvoiceId) ?? [];
     const kontenrahmen = gegenbuchungen[0]?.kontenrahmen;
@@ -277,15 +287,17 @@ export async function verrechnungenJeRechnung(q: Db | Tx, invoiceIds: string[]):
     const alle = gegenbuchungen.flatMap((b) => b.zeilen);
     const gesamt = alle.filter((x) => offenerPosten(kontenrahmen, x)).reduce((sum, x) => sum + x.debit - x.credit, 0);
     if (gesamt === 0) continue;
-    const buchung = gebucht.find((b) => b.sourceId === z.id);
     const liste = result.get(z.invoiceId) ?? [];
-    liste.push({
+    const v: Verrechnung = {
+      id: z.id,
       kontenrahmen,
       zeilen: alle.filter((x) => !offenerPosten(kontenrahmen, x)),
       gesamt,
       betrag: z.amount,
-      position: buchung ? (position.get(buchung.id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER,
-    });
+      position: stelle(z.id),
+    };
+    liste.push(v);
+    for (const a of aufhebungen.filter((x) => x.reversesId === z.id)) liste.push({ ...v, id: a.id, hebtAuf: z.id, position: stelle(a.id) });
     result.set(z.invoiceId, liste);
   }
   return result;
