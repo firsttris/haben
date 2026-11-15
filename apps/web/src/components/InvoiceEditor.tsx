@@ -40,7 +40,7 @@ import {
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
@@ -77,6 +77,8 @@ import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
+import { ActionBar } from "./ActionBar.tsx";
+import { MoreActionsMenu } from "./MoreActionsMenu.tsx";
 
 interface ContactOption {
   id: string;
@@ -211,6 +213,7 @@ export function InvoiceEditor({
   const id = initialId ?? neuerEntwurf;
   const router = useRouter();
   const navigate = useNavigate();
+  const barPreviewBtn = useRef<HTMLButtonElement>(null);
   const save = useServerFn(saveInvoiceDraft);
   const finalize = useServerFn(finalizeInvoiceDraft);
   const remove = useServerFn(removeInvoiceDraft);
@@ -1442,6 +1445,38 @@ export function InvoiceEditor({
           )}
         </form>
       </PreviewLayout>
+      <ActionBar>
+        <MoreActionsMenu
+          items={[
+            {
+              key: "pdf",
+              label: dirty ? "Speichern und als PDF" : "Entwurf als PDF",
+              icon: "invoice",
+              disabled: busy,
+              onSelect: onDraftPdf,
+            },
+          ]}
+        />
+        {/* triggerRef bleibt der Knopf im Kopf: Anheften, Ausblenden und Schließen geben den Fokus dorthin zurück, und
+            anheften lässt sich nur am Laptop. Die Überblendung am Handy merkt sich den Knopf in der Leiste als Auslöser;
+            Safari fokussiert Knöpfe beim Tippen nicht, deshalb hier ausdrücklich */}
+        <PreviewButton
+          preview={{
+            ...preview,
+            triggerRef: barPreviewBtn,
+            openOverlay: () => {
+              barPreviewBtn.current?.focus({ preventScroll: true });
+              preview.openOverlay();
+            },
+          }}
+        />
+        <button type="submit" form="invoice-form" className="btn" disabled={busy || !dirty}>
+          Entwurf speichern
+        </button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={onFinalize}>
+          Festschreiben
+        </button>
+      </ActionBar>
     </>
   );
 }
