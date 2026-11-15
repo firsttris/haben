@@ -246,16 +246,32 @@ test("Belegliste: ohne Sortierung ungebuchte zuerst, Spaltenkopf sortiert und ne
   expect(altpapier).toBeGreaterThanOrEqual(0);
   expect(gebuchtL4711).toBeGreaterThan(altpapier);
 
-  // Die Richtung steht im Namen des Links wie in der Bankliste (BankSortierKopf), damit Screenreader sie vorlesen
+  // Die Richtung steht im Namen des Links wie in der Bankliste (BankSortierKopf), damit Screenreader sie vorlesen.
+  // Keine festen Namen: in dieser Datei entstehen im Lauf mehrere Belege, teils mit gleichem Lieferanten (R-2 steht zu
+  // Recht vor „Nordlicht“, S-4801/S-4802 verdoppeln Codewerk und Nordlicht). Geprüft wird die Ordnung selbst, nicht wer oben steht.
+  const lieferanten = async () => (await zeilen.locator(":scope > div:nth-child(2) > span:first-child").allInnerTexts()).map((name) => name.trim());
+  /** „ab“/„auf“: die Spalte steht in dieser Richtung sortiert; „gleich“, wenn alle Namen gleich sind */
+  const ordnung = (namen: string[]) => {
+    const auf = namen.slice(1).every((name, i) => (namen[i] ?? "").localeCompare(name, "de") <= 0);
+    const ab = namen.slice(1).every((name, i) => (namen[i] ?? "").localeCompare(name, "de") >= 0);
+    return auf && ab ? "gleich" : auf ? "auf" : ab ? "ab" : "gemischt";
+  };
   await page.getByRole("link", { name: "Lieferant absteigend sortieren" }).click();
   await expect(page).toHaveURL(/sort=lieferant&dir=ab/);
-  await expect(zeilen.first()).toContainText("Nordlicht Software GmbH");
-  await expect(zeilen.last()).toContainText("Altpapier Ahrens");
+  // Die Adresse steht früher als die neu gezeichnete Tabelle, deshalb auf die Ordnung warten statt einmal zu lesen
+  await expect.poll(async () => ordnung(await lieferanten())).toBe("ab");
+  const absteigend = await lieferanten();
+  expect(absteigend.length).toBeGreaterThan(1);
   await page.getByRole("link", { name: "Lieferant aufsteigend sortieren, zurzeit absteigend sortiert" }).click();
   await expect(page).toHaveURL(/sort=lieferant&dir=auf/);
-  await expect(zeilen.first()).toContainText("Altpapier Ahrens");
+  await expect.poll(async () => ordnung(await lieferanten())).toBe("auf");
+  const aufsteigend = await lieferanten();
+  // Dieselben Belege, nur andersherum: der Kopf dreht die Richtung, er filtert nichts weg
+  expect([...aufsteigend].sort()).toEqual([...absteigend].sort());
+  const ersterName = aufsteigend[0] ?? "";
+  expect(ersterName.length).toBeGreaterThan(0);
   await page.reload();
-  await expect(zeilen.first()).toContainText("Altpapier Ahrens");
+  await expect(zeilen.first()).toContainText(ersterName);
 });
 
 test("Kontaktliste: Spaltenkopf sortiert und nennt die Richtung (#1112)", async () => {
