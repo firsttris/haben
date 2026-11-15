@@ -32,6 +32,7 @@ export {
   type SevPaymentItem,
 } from "./map.ts";
 export { mapSevRecurringVoucher, type SevDauerbeleg, type SevDauerbelegErgebnis } from "./dauerbeleg.ts";
+export { sevFileExpectation, sevFileFinding, type SevFileExpectation, type SevFileFinding } from "./dateistand.ts";
 export { SEV_HEAD_RATES, SEV_TEMPORARY_HEAD_RATES } from "./steuersaetze.ts";
 export { isSevDunning, mapSevDunning, type SevMappedDunning } from "./mahnung.ts";
 export * from "./export/index.ts";

@@ -93,3 +93,4 @@ export { bookDatevEroeffnung, datevEroeffnung, DatevEroeffnungError, datevEroeff
 export { legacyDunningFile, legacyDunningsFor, type LegacyDunningRow } from "./mahnungen-archiv.ts";
 export { attachOrderPdf, listOrderDocuments, orderArchiveOverview, orderDocumentDetail, orderDocumentFile, ORDER_KINDS, ORDER_STATUSES } from "./orders.ts";
 export { contactHistory, type ContactHistoryRow, type ContactHistorySection } from "./kontakt-historie.ts";
+export { confirmWithoutFile, FileStateError } from "./dateistand.ts";

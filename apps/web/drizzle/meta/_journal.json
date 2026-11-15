@@ -1828,6 +1828,20 @@
       "when": 1794774988136,
       "tag": "0260_sevdesk_kontoart_von_hand_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 261,
+      "version": "7",
+      "when": 1794776739217,
+      "tag": "0261_dateistand_umzug",
+      "breakpoints": true
+    },
+    {
+      "idx": 262,
+      "version": "7",
+      "when": 1794776740117,
+      "tag": "0262_dateistand_umzug_trigger",
+      "breakpoints": true
     }
   ]
 }

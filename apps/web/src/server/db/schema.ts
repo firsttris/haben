@@ -3087,6 +3087,8 @@ export type LexofficeImportProgress = {
   dunnings?: number;
   /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
   sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
+  /** sevDesk: Dateistand der Belege dieses Laufs nach den Zuständen in legacy_file_states (#345) */
+  sevdeskFiles?: { ohneDatei: number; abrufFehlgeschlagen: number; anhangFehlt: number; nachgeladen: number };
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
@@ -3371,6 +3373,42 @@ export const lexofficeVoucherFiles = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("lexoffice_voucher_files_unique").on(t.voucherId, t.sha256)],
+);
+
+/** Dateistand eines archivierten Belegs, soweit er von „alle Dateien da“ abweicht (#345) */
+export const LEGACY_FILE_STATES = ["ohne_datei", "abruf_fehlgeschlagen", "anhang_fehlt", "bestaetigt_ohne_datei", "nachgeladen", "kein_anhang"] as const;
+export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
+
+/**
+ * Dateistand eines archivierten Belegs aus sevDesk (#345). Nur anhängen; es gilt die jüngste Zeile je Beleg.
+ * - ohne_datei: sevDesk nennt keine Datei (`document` leer). Das beweist nicht, dass es nie eine gab; offen, bis jemand bestätigt.
+ * - abruf_fehlgeschlagen: sevDesk nennt eine Datei (oder bei Rechnung und Gutschrift ist das PDF Pflicht), der Abruf scheiterte.
+ * - anhang_fehlt: die Hauptdatei ist da, eine weitere erwartete Datei (etwa das XML einer E-Rechnung) nicht.
+ * - bestaetigt_ohne_datei: eine Person hat in sevDesk geprüft, dass der Beleg keine Datei hat (created_by, Zeitpunkt).
+ * - nachgeladen: ein späterer Abruf hat die fehlende Datei angehängt.
+ * - kein_anhang: ein späterer Abruf sagt ohne Fehler, dass es den fehlenden Anhang nicht gibt (keine E-Rechnung).
+ */
+export const legacyFileStates = pgTable(
+  "legacy_file_states",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    voucherId: uuid("voucher_id")
+      .notNull()
+      .references(() => lexofficeVouchers.id),
+    /** Lauf, der den Stand festgestellt hat; null bei der Bestätigung durch eine Person */
+    importId: uuid("import_id").references(() => lexofficeImports.id),
+    state: text("state", { enum: LEGACY_FILE_STATES }).notNull(),
+    /** Welche Datei: pdf, xml oder anhang (Datei eines Belegs) */
+    role: text("role", { enum: ["pdf", "xml", "anhang"] }),
+    /** Kennung der Datei in der Quelle (sevDesk: Document-ID), soweit bekannt */
+    sourceFileId: text("source_file_id"),
+    /** Fehlergrund bzw. Herkunft der Bestätigung */
+    message: text("message").notNull().default(""),
+    /** Benutzer-ID wie im Audit-Log; beim Abruf die Person, die ihn gestartet hat */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("legacy_file_states_voucher").on(t.voucherId, t.createdAt)],
 );
 
 /**
