@@ -790,11 +790,18 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 }
 
 /* Rechnungseditor */
-/* Belegansicht so hoch wie das Fenster unter dem stehenden Seitenkopf; bleibt beim Scrollen des Formulars darunter stehen */
+/* Belegansicht so hoch wie das Fenster unter dem stehenden Seitenkopf; neben dem Formular bleibt sie beim Scrollen stehen */
 :root { --viewer-height: calc(100dvh - var(--below-head) - var(--action-bar-height, 0px) - 32px); }
-.editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: calc(var(--below-head) + 16px); }
-.editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
+.editor-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+/* Formular und Beleg nebeneinander ab 889 px Arbeitsfläche: Es zählt die Breite von .main, nicht die des Fensters, damit
+   die eingeklappte Seitenleiste (168 px schmaler) den Platz dafür schafft. Ausgeklappt ab 1201 px Fenster, eingeklappt ab
+   1033 px (Leiste 232 bzw. 64 px, dazu 2 × 40 px Rand). Die Containment-Regeln gelten nur auf diesen Seiten */
+.main:has(> .editor-grid) { container: arbeitsflaeche / inline-size; }
+/* Der Beleg bleibt nur neben dem Formular stehen; darüber deckte er beim Scrollen das Formular zu */
+@container arbeitsflaeche (min-width: 889px) {
+  .editor-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: calc(var(--below-head) + 16px); }
+}
 /* Vorschau der Belegeditoren (#357): angeheftet als zweite Spalte, sonst hat das Formular die volle Breite. Die
    Mindestbreiten sind FORM_MIN_WIDTH und PREVIEW_MIN_WIDTH aus lib/vorschau.ts; darunter bietet der Editor kein Anheften an */
 /* clip statt hidden: kein Scrollbereich, die Vorschau bleibt sticky; die Fahrt von rechts zieht die Seite nicht in die Breite */
@@ -865,10 +872,12 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
 .split-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .split-menu [role="menuitem"] > svg { flex-shrink: 0; color: var(--muted); }
 .split-menu-text { display: flex; flex-direction: column; gap: 2px; }
-/* Beleg prüfen: nebeneinander höchstens so hoch wie die Vorschau, das Formular scrollt, die Knöpfe bleiben sichtbar */
-@media (min-width: 1201px) {
-  /* Zeile auf die Gridhöhe begrenzen, sonst wächst sie mit dem Formular und es scrollt die Seite statt der Spalte */
-  .main:has(> .doc-editor) { box-sizing: border-box; height: 100dvh; }
+/* Beleg prüfen: nebeneinander höchstens so hoch wie die Vorschau, das Formular scrollt, die Knöpfe bleiben sichtbar.
+   Zeile auf die Gridhöhe begrenzen, sonst wächst sie mit dem Formular und es scrollt die Seite statt der Spalte. Die Höhe
+   gehört .main selbst, das nicht nach seiner eigenen Breite fragen kann: dieselben 889 px als Fensterbreite je Leiste */
+@media (min-width: 1201px) { .main:has(> .doc-editor) { box-sizing: border-box; height: 100dvh; } }
+@media (min-width: 1033px) { [data-nav="collapsed"] .main:has(> .doc-editor) { box-sizing: border-box; height: 100dvh; } }
+@container arbeitsflaeche (min-width: 889px) {
   .doc-editor { flex: 1 1 0; min-height: 520px; align-items: stretch; grid-template-rows: minmax(0, 1fr); }
   .doc-editor > .doc-preview, .doc-editor > .doc-image { position: static; height: 100%; max-height: none; min-height: 0; }
   .doc-editor > .stack { min-height: 0; overflow-y: auto; padding-right: 4px; }
@@ -997,8 +1006,9 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
   .document-split-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .document-split-row .field:first-child { grid-column: 1 / -1; }
 }
-/* Neben der Vorschau (ab 1201 px) ist das Formular bis 1400 px zu schmal für drei Betragsfelder: zwei Spalten wie am Handy */
-@media (min-width: 1201px) and (max-width: 1400px) {
+/* Neben dem Beleg ist das Formular bis 1088 px Arbeitsfläche (536 px je Spalte) zu schmal für drei Betragsfelder: zwei
+   Spalten wie am Handy. Ausgeklappt bis 1400 px Fenster, eingeklappt bis 1232 px */
+@container arbeitsflaeche (min-width: 889px) and (max-width: 1088px) {
   .amount-row.with-gross { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .amount-row.with-gross > .field:first-child { grid-column: 1; grid-row: 1; }
   .amount-row.with-gross > .icon-btn { grid-column: 2; grid-row: 1; justify-self: end; }
