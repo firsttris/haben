@@ -1,6 +1,7 @@
 import { treatmentIssues } from "@haben/core";
-import { LAENDERCODES, WAEHRUNGSCODES } from "./codelisten.ts";
-import { isCreditNote } from "./format.ts";
+import { EINHEITENCODES, LAENDERCODES, WAEHRUNGSCODES } from "./codelisten.ts";
+import { unitCodeOf } from "./einheit-code.ts";
+import { isCreditNote, paidInvoicePayment } from "./format.ts";
 import type { InvoiceDocument } from "./types.ts";
 
 const blank = (value: string | undefined) => !value?.trim();
@@ -19,7 +20,7 @@ export function validateForFormat(doc: InvoiceDocument): string[] {
   if (blank(seller.email)) problems.push("E-Mail-Adresse des Rechnungsstellers fehlt");
   if (blank(seller.steuernummer) && blank(seller.ustId)) problems.push("Steuernummer oder USt-IdNr. fehlt");
   if (xrechnung && blank(seller.telefon)) problems.push("Telefonnummer fehlt (für XRechnung Pflicht)");
-  if (!isCreditNote(doc) && doc.totals.gross > 0 && blank(seller.iban)) problems.push("IBAN fehlt");
+  if (!isCreditNote(doc) && doc.totals.gross > 0 && !paidInvoicePayment(doc) && blank(seller.iban)) problems.push("IBAN fehlt");
 
   if (blank(buyer.name)) problems.push("Name des Kunden fehlt");
   if (blank(buyer.strasse) || blank(buyer.plz) || blank(buyer.ort)) problems.push("Anschrift des Kunden unvollständig");
@@ -33,6 +34,12 @@ export function validateForFormat(doc: InvoiceDocument): string[] {
   if (!WAEHRUNGSCODES.has(doc.currency)) problems.push(`Währung „${doc.currency}“ unbekannt`);
 
   if (doc.lines.length === 0) problems.push("Rechnung hat keine Positionen");
+  // Eigene Einheiten (#748): Ohne Code nach UN/ECE Rec. 20/21 (BR-CL-23) lehnt der Empfänger die E-Rechnung ab
+  for (const line of new Map(doc.lines.map((l) => [l.unit, l])).values()) {
+    const code = unitCodeOf(line);
+    if (!code) problems.push(`Einheit „${line.unit}“ hat keinen Code für die E-Rechnung`);
+    else if (!EINHEITENCODES.has(code)) problems.push(`Code „${code}“ der Einheit „${line.unit}“ steht nicht in UN/ECE Rec. 20/21`);
+  }
   if (doc.totals.taxes.some((t) => t.rate !== 1900 && t.rate !== 700 && t.rate !== 0)) {
     problems.push("Nur Steuersätze 19 %, 7 % und 0 % werden unterstützt");
   }

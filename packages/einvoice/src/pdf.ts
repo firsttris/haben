@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { RenderJob } from "./render-protocol.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
-import { accountHolder, collectedByDirectDebit, countryName, formatIban, paymentSentence, referenceMeta } from "./format.ts";
+import { accountHolder, collectedByDirectDebit, countryName, formatIban, paidInvoicePayment, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import {
@@ -101,6 +101,7 @@ export function documentPdfData(
     "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "intro" | "note" | "priceMode" | "discount" | "options"
   >,
   t: Texts,
+  showBank = true,
 ) {
   const { seller, buyer } = doc;
   const treatment = doc.taxTreatment ?? "regulaer";
@@ -144,7 +145,7 @@ export function documentPdfData(
     note: doc.note?.trim() ? doc.note.trim() : null,
     introFormatted: doc.intro?.trim() ? parseTextFormatting(doc.intro.trim()) : null,
     noteFormatted: doc.note?.trim() ? parseTextFormatting(doc.note.trim()) : null,
-    ...footerData(seller, t, doc, treatment),
+    ...footerData(showBank ? seller : { ...seller, bank: "", iban: "", bic: "", kontoinhaber: "" }, t, doc, treatment),
   };
 }
 
@@ -170,7 +171,8 @@ export function pdfData(doc: InvoiceDocument) {
   // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)
   if (buyer.ustId) meta.push({ label: t.buyerVatId, value: buyer.ustId });
 
-  const { totalRows, included, grossLabel, ...body } = documentPdfData(doc, t);
+  const paid = paidInvoicePayment(doc);
+  const { totalRows, included, grossLabel, ...body } = documentPdfData(doc, t, !paid);
   // Fremdwährung: die Umsatzsteuer zusätzlich in Euro (§ 14 Abs. 4 Nr. 8 UStG, Abschn. 14.5 UStAE)
   const euroTax = doc.euroTax
     ? {
@@ -199,6 +201,7 @@ export function pdfData(doc: InvoiceDocument) {
       doc.totals.gross > 0 &&
       seller.iban &&
       doc.options?.giroCode !== false &&
+      !paid &&
       !collectedByDirectDebit(doc)
         ? girocodeSvg({
             name: accountHolder(seller),

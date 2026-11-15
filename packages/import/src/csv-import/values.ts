@@ -1,4 +1,4 @@
-import { type BasisPoints, type Cents, UNITS, type UnitLabel } from "@haben/core";
+import { type Cents, UNITS, type UnitLabel } from "@haben/core";
 import { parseDate, parseDotAmount, parseGermanAmount } from "../text.ts";
 
 /**
@@ -43,7 +43,7 @@ export function parseImportTaxRate(raw: string): Parsed<0 | 700 | 1900> {
   // „USt 19%“ ist die Steuerart der Artikelvorlage von Lexware Office
   // (https://help.lexware.de/de-form/articles/625906-fehlercodes-beim-artikel-import-csv-beheben)
   const match = /^(?:(?:USt|MwSt)\.?\s*)?(\d{1,2})(?:[,.]0{1,2})?\s*%?$/i.exec(raw.trim());
-  const rate = match ? ((Number(match[1]) * 100) as BasisPoints) : null;
+  const rate = match ? Number(match[1]) * 100 : null;
   if (rate === 1900 || rate === 700 || rate === 0) return ok(rate);
   return fail(`Steuersatz: „${raw}“; möglich sind 19 %, 7 % und 0 %`);
 }
@@ -71,13 +71,19 @@ const UNIT_ALIASES: Record<string, UnitLabel> = {
   kilometer: "km",
 };
 
-/** Einheit aus dem Katalog von Haben (UNITS); leer = Stück wie in Lexware Office */
-export function parseImportUnit(raw: string): Parsed<UnitLabel> {
+/** Einheit aus dem Katalog von Haben (UNITS) oder eine eigene (#748), an der Bezeichnung erkannt; leer = Stück wie in Lexware Office */
+export function parseImportUnit(raw: string, own: readonly string[] = []): Parsed<string> {
   const value = raw.trim();
   if (!value) return ok("Stk.");
-  if (value in UNITS) return ok(value as UnitLabel);
-  const unit = UNIT_ALIASES[value.toLowerCase().replace(/\./g, "")];
-  return unit ? ok(unit) : fail(`Einheit: „${raw}“; möglich sind ${Object.keys(UNITS).join(", ")}`);
+  // hasOwn statt in: „toString“ oder „valueOf“ sind keine Einheiten
+  if (Object.hasOwn(UNITS, value)) return ok(value as UnitLabel);
+  const custom = own.find((label) => label.toLowerCase() === value.toLowerCase());
+  if (custom) return ok(custom);
+  const key = value.toLowerCase().replace(/\./g, "");
+  const unit = Object.hasOwn(UNIT_ALIASES, key) ? UNIT_ALIASES[key] : undefined;
+  return unit
+    ? ok(unit)
+    : fail(`Einheit: „${raw}“; möglich sind ${[...Object.keys(UNITS), ...own].join(", ")} oder eine neue unter Einstellungen › Rechnungen › Einheiten`);
 }
 
 const COUNTRIES: Record<string, string> = {

@@ -54,13 +54,17 @@ const MONTHS_EN = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep"
 
 const monthNumber = (name: string, names: string[]) => names.indexOf(name.toLowerCase().slice(0, 3)) + 1;
 
-/** Datum aus „05. November 2026“ (deutsch) oder „March 31, 2025“ (englisch); sonst die Formate der übrigen Dienstleister */
+/**
+ * Datum aus „05. November 2026“ (deutsch) oder „March 31, 2025“ (englisch); sonst die Formate der übrigen Dienstleister.
+ * Konten mit deutscher Oberfläche schreiben den Tag deutsch und den Monat englisch („31. October 2022“, #1090); der Monat
+ * wird deshalb erst deutsch, dann englisch gesucht. Beide Listen unterscheiden sich nur bei März, Mai, Oktober und Dezember.
+ */
 function etsyDate(raw: string, where: string): string {
   const text = raw.trim();
   const german = /^(\d{1,2})\.\s*([a-zäöü]+)\.?\s+(\d{4})$/i.exec(text);
   const english = /^([a-z]+)\.?\s+(\d{1,2}),?\s+(\d{4})$/i.exec(text);
   const parts = german
-    ? { day: german[1]!, month: monthNumber(german[2]!, MONTHS_DE), year: german[3]! }
+    ? { day: german[1]!, month: monthNumber(german[2]!, MONTHS_DE) || monthNumber(german[2]!, MONTHS_EN), year: german[3]! }
     : english
       ? { day: english[2]!, month: monthNumber(english[1]!, MONTHS_EN), year: english[3]! }
       : null;
