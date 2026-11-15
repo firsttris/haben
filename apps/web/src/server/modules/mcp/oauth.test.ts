@@ -101,7 +101,7 @@ describe.skipIf(!testDatabaseUrl)("OAuth für Connectors (Postgres)", () => {
     const url = new URL(
       await mcp.decideAuthorization(
         { response_type: "code", client_id: clientId, redirect_uri: CLAUDE, state, code_challenge: challenge, code_challenge_method: "S256" },
-        actor,
+        { id: actor, signedInAt: new Date() },
         true,
       ),
     );
@@ -174,7 +174,7 @@ describe.skipIf(!testDatabaseUrl)("OAuth für Connectors (Postgres)", () => {
     expect(target.kind === "zurueck" && new URL(target.url).searchParams.get("error")).toBe("invalid_target");
     expect((await mcp.checkAuthorizeRequest({ ...base, resource: "http://localhost:3000/api/mcp" })).kind).toBe("ok");
 
-    const denied = new URL(await mcp.decideAuthorization(base, actor, false));
+    const denied = new URL(await mcp.decideAuthorization(base, { id: actor, signedInAt: new Date() }, false));
     expect(denied.searchParams.get("error")).toBe("access_denied");
     expect(denied.searchParams.get("code")).toBeNull();
   });

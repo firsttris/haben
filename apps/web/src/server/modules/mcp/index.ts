@@ -30,6 +30,7 @@ export {
   authorizationServerMetadata,
   checkAuthorizeRequest,
   decideAuthorization,
+  freshLogin,
   handleMetadata,
   handlePreflight,
   handleRegister,
@@ -38,4 +39,5 @@ export {
   protectedResourceMetadata,
   resetOAuthStateForTests,
   type AuthorizeParams,
+  type ConsentOwner,
 } from "./oauth.ts";

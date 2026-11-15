@@ -5,7 +5,7 @@ import { decideOAuthConsent, getOAuthAvailable, getOAuthConsent } from "../../se
 import { getAuthState } from "../../server/functions/setup.ts";
 
 type Anfrage = Record<string, string>;
-type Ansicht = { clientName: string; redirectHost: string };
+type Ansicht = { clientName: string; redirectHost: string; fresh: boolean };
 
 const PARAMETER = ["response_type", "client_id", "redirect_uri", "state", "scope", "code_challenge", "code_challenge_method", "resource"];
 
@@ -25,6 +25,9 @@ export const Route = createFileRoute("/oauth/autorisieren")({
   component: ZustimmungsSeite,
 });
 
+/** Anmeldung mit Rückkehr auf diese Seite samt unveränderter Anfrage */
+const zurAnmeldung = () => `/login?weiter=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+
 function ZustimmungsSeite() {
   const { angemeldet } = Route.useRouteContext();
   const [anfrage, setAnfrage] = useState<Anfrage | null>(null);
@@ -34,11 +37,11 @@ function ZustimmungsSeite() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: nur einmal beim Öffnen prüfen
   useEffect(() => {
-    const { pathname, search } = window.location;
     if (!angemeldet) {
-      window.location.replace(`/login?weiter=${encodeURIComponent(pathname + search)}`);
+      window.location.replace(zurAnmeldung());
       return;
     }
+    const { search } = window.location;
     const roh = new URLSearchParams(search);
     const daten = Object.fromEntries(PARAMETER.flatMap((name) => (roh.has(name) ? [[name, roh.get(name)!]] : [])));
     setAnfrage(daten);
@@ -50,6 +53,15 @@ function ZustimmungsSeite() {
       })
       .catch((e: unknown) => setError(errorMessage(e)));
   }, []);
+
+  /** Für das Zulassen braucht es eine frische Anmeldung: abmelden und über die Anmeldung hierher zurück */
+  async function erneutAnmelden() {
+    setBusy(true);
+    // Erst hier laden: der Auth-Client bringt den Passkey-Code mit
+    const { authClient } = await import("../../lib/auth-client.ts");
+    await authClient.signOut();
+    window.location.assign(zurAnmeldung());
+  }
 
   async function entscheiden(approve: boolean) {
     if (!anfrage) return;
@@ -81,13 +93,20 @@ function ZustimmungsSeite() {
               <li>Nur lesen: Buchen, Festschreiben und Senden an ELSTER bleiben bei dir in Haben.</li>
               <li>Jeder Aufruf steht unter Einstellungen → KI-Assistenten und API; dort kannst du die Verbindung jederzeit widerrufen.</li>
             </ul>
+            {!ansicht.fresh && <p style={{ margin: 0 }}>Zum Zulassen melde dich bitte erneut an; danach kommst du hierher zurück.</p>}
             <div className="actions">
               <button type="button" className="btn" onClick={() => void entscheiden(false)} disabled={busy}>
                 Ablehnen
               </button>
-              <button type="button" className="btn btn-primary" onClick={() => void entscheiden(true)} disabled={busy}>
-                Zulassen
-              </button>
+              {ansicht.fresh ? (
+                <button type="button" className="btn btn-primary" onClick={() => void entscheiden(true)} disabled={busy}>
+                  Zulassen
+                </button>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={() => void erneutAnmelden()} disabled={busy}>
+                  Erneut anmelden
+                </button>
+              )}
             </div>
           </>
         )}

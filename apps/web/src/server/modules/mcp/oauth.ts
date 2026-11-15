@@ -133,21 +133,37 @@ export function resetOAuthStateForTests() {
 }
 
 /**
+ * Zulassen nur mit frischer Anmeldung (#96): Jemand kann in seinem eigenen claude.ai-Konto diese Adresse eintragen und dem
+ * Inhaber den Link schicken; ein Klick in einer alten, offenen Sitzung würde dann das fremde Konto verbinden. Gezählt wird
+ * ab dem Anlegen der Sitzung, wie bei `freshAge` von Better Auth, das aber für alle Endpunkte gälte.
+ */
+export const FRESH_LOGIN_MS = 5 * 60_000;
+
+export const freshLogin = (signedInAt: Date, now = Date.now()) => now - signedInAt.getTime() < FRESH_LOGIN_MS;
+
+/** Der Inhaber auf der Zustimmungsseite und wann er sich angemeldet hat */
+export interface ConsentOwner {
+  id: string;
+  signedInAt: Date;
+}
+
+/**
  * Entscheidung des Inhabers auf der Zustimmungsseite. Gibt die Adresse zurück, zu der der Browser weitergeht: mit Code bei
  * Zustimmung, mit access_denied bei Ablehnung.
  */
-export async function decideAuthorization(params: AuthorizeParams, userId: string, approve: boolean, now = Date.now()): Promise<string> {
+export async function decideAuthorization(params: AuthorizeParams, owner: ConsentOwner, approve: boolean, now = Date.now()): Promise<string> {
   const check = await checkAuthorizeRequest(params);
   if (check.kind === "fehler") throw new OAuthError("invalid_request", check.message);
   if (check.kind === "zurueck") return check.url;
   if (!approve) return withQuery(check.redirectUri, { error: "access_denied", error_description: "Der Inhaber hat abgelehnt.", state: check.state });
+  if (!freshLogin(owner.signedInAt, now)) throw new OAuthError("login_required", "Bitte für die Freigabe erneut anmelden.", 403);
   for (const [key, pending] of codes) if (pending.expiresAt <= now) codes.delete(key);
   const code = randomBytes(32).toString("base64url");
   codes.set(hashSecret(code), {
     clientId: check.client.id,
     redirectUri: check.redirectUri,
     codeChallenge: check.codeChallenge,
-    userId,
+    userId: owner.id,
     expiresAt: now + CODE_TTL_MS,
   });
   return withQuery(check.redirectUri, { code, state: check.state, iss: baseUrl() });

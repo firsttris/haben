@@ -87,6 +87,22 @@ describe.skipIf(!testDatabaseUrl)("Zugang zum OAuth-Weg (Postgres)", () => {
     // Auch eine Anfrage, die vor dem Ausschalten gültig war, kommt nicht mehr bis zur Zustimmung
     const check = await mcp.checkAuthorizeRequest(authorizeParams(client.client_id));
     expect(check.kind).toBe("fehler");
-    await expect(mcp.decideAuthorization(authorizeParams(client.client_id), actor, false)).rejects.toThrow(/nicht verfügbar/);
+    await expect(mcp.decideAuthorization(authorizeParams(client.client_id), { id: actor, signedInAt: new Date() }, false)).rejects.toThrow(/nicht verfügbar/);
+  });
+
+  it("lässt nur mit frischer Anmeldung zu; Ablehnen geht immer", async () => {
+    const client = (await (await mcp.handleRegister(post("/api/oauth/register", JSON.stringify({ redirect_uris: [CLAUDE] }), "application/json"))).json()) as {
+      client_id: string;
+    };
+    const now = Date.now();
+    const vor = (minuten: number) => ({ id: actor, signedInAt: new Date(now - minuten * 60_000) });
+    expect(mcp.freshLogin(vor(4).signedInAt, now)).toBe(true);
+    expect(mcp.freshLogin(vor(6).signedInAt, now)).toBe(false);
+
+    await expect(mcp.decideAuthorization(authorizeParams(client.client_id), vor(6), true, now)).rejects.toThrow(/erneut anmelden/);
+    const denied = new URL(await mcp.decideAuthorization(authorizeParams(client.client_id), vor(60), false, now));
+    expect(denied.searchParams.get("error")).toBe("access_denied");
+    const approved = new URL(await mcp.decideAuthorization(authorizeParams(client.client_id), vor(4), true, now));
+    expect(approved.searchParams.get("code")).toBeTruthy();
   });
 });

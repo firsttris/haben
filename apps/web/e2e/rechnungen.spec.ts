@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
-import { day, firstLink, YEAR } from "./daten.ts";
+import { day, firstLink, USER, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { HANDY, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
@@ -1894,8 +1894,21 @@ test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und i
     code_challenge_method: "S256",
     resource: ressource.resource,
   });
+  // Zulassen verlangt eine frische Anmeldung: Die Sitzung des Durchlaufs ist älter als fünf Minuten
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  await sql`update session set created_at = now() - interval '10 minutes'`;
+  await sql.end();
   await go(`/oauth/autorisieren?${anfrage}`);
   await expect(page.getByRole("heading", { level: 1, name: "KI-Assistent verbinden" })).toBeVisible();
+  await expect(page.getByRole("main")).toContainText("Zum Zulassen melde dich bitte erneut an");
+  await expect(page.getByRole("button", { name: "Zulassen" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Erneut anmelden" }).click();
+  await page.waitForURL(/\/login\?weiter=/);
+  await page.getByRole("button", { name: "Passwort verwenden" }).click();
+  await page.getByLabel("E-Mail").fill(USER.email);
+  await page.getByLabel("Passwort").fill(USER.password);
+  await page.getByRole("button", { name: "Mit Passwort anmelden" }).click();
+  await page.waitForURL(/\/oauth\/autorisieren\?/);
   await expect(page.getByRole("main")).toContainText("Claude E2E möchte deine Buchhaltung in Haben lesen");
   await expect(page.getByRole("main")).toContainText("127.0.0.1:9");
   await page.getByRole("button", { name: "Zulassen" }).click();

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { checkAuthorizeRequest, decideAuthorization, oauthAvailable } from "../modules/mcp/index.ts";
+import { checkAuthorizeRequest, decideAuthorization, freshLogin, oauthAvailable } from "../modules/mcp/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 /** Parameter der Autorisierungsanfrage (RFC 6749 4.1.1, PKCE, RFC 8707), wie sie in der Adresse der Zustimmungsseite stehen */
@@ -18,14 +18,14 @@ export const authorizeParamsSchema = z.object({
 /** Öffentlich: ob es /oauth/autorisieren gibt; ausgeschaltet antwortet die Seite wie jede unbekannte Adresse (404) */
 export const getOAuthAvailable = createServerFn({ method: "GET" }).handler(() => oauthAvailable());
 
-/** Zustimmungsseite: wer fragt und wohin es danach geht; nur der Inhaber */
+/** Zustimmungsseite: wer fragt, wohin es danach geht und ob die Anmeldung frisch genug zum Zulassen ist; nur der Inhaber */
 export const getOAuthConsent = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(authorizeParamsSchema)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const check = await checkAuthorizeRequest(data);
     if (check.kind !== "ok") return check;
-    return { kind: "ok" as const, clientName: check.client.name, redirectHost: new URL(check.redirectUri).host };
+    return { kind: "ok" as const, clientName: check.client.name, redirectHost: new URL(check.redirectUri).host, fresh: freshLogin(context.user.signedInAt) };
   });
 
 /** Zustimmen oder ablehnen; die Antwort ist die Adresse, zu der der Browser zurück zum Client geht */
@@ -34,5 +34,5 @@ export const decideOAuthConsent = createServerFn({ method: "POST" })
   .validator(authorizeParamsSchema.extend({ approve: z.boolean() }))
   .handler(async ({ data, context }) => {
     const { approve, ...params } = data;
-    return { url: await decideAuthorization(params, context.user.id, approve) };
+    return { url: await decideAuthorization(params, { id: context.user.id, signedInAt: context.user.signedInAt }, approve) };
   });
