@@ -8,7 +8,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
  * Bankkonten buchen auf dasselbe Sachkonto (SKR03 1200, SKR04 1800); was zu einem Konto gehört, sagen die Zuordnungen der
  * Buchungen. Verglichen wird deshalb: Anfangssaldo des ersten Auszugs mit Salden plus die im Journal gebuchten Zahlungen
  * der Umsätze bis zum Ende des letzten Auszugs mit Salden plus deren noch offener Teil (nicht zugeordnet, also nicht
- * gebucht) gegen dessen Endsaldo.
+ * gebucht) gegen dessen Endsaldo. Umsätze, die erst nach diesem Auszug importiert wurden, zählen nicht mit.
  * Verrechnete Umsätze (#457) sind ohne Buchung erledigt und heben sich gegenseitig auf.
  *
  * Nur Konten mit Salden im Auszug (CAMT, MT940; nicht jede CSV nennt sie), ohne private Konten (sie buchen auf
@@ -41,13 +41,21 @@ export async function bankZeilen(q: Db | Tx = db): Promise<BankZeile[]> {
       .orderBy(asc(bi.periodFrom), asc(bi.createdAt))
       .limit(1);
     const [letzter] = await q
-      .select({ periodTo: bi.periodTo, closingBalance: bi.closingBalance })
+      .select({ id: bi.id, periodTo: bi.periodTo, closingBalance: bi.closingBalance })
       .from(bi)
       .where(and(eq(bi.bankAccountId, account.id), isNotNull(bi.periodTo), isNotNull(bi.closingBalance)))
       .orderBy(desc(bi.periodTo), desc(bi.createdAt))
       .limit(1);
     if (erster?.openingBalance == null || !erster.periodFrom || letzter?.closingBalance == null || !letzter.periodTo) continue;
-    const imZeitraum = and(eq(t.bankAccountId, account.id), gte(t.bookingDate, erster.periodFrom), lte(t.bookingDate, letzter.periodTo));
+    // Nur Umsätze, die beim letzten Auszug schon da waren: Ein späterer Import (etwa eine einzelne Zahlung als CSV) mit
+    // einem Umsatz im Zeitraum steckt nicht in dessen Endsaldo
+    const imZeitraum = and(
+      eq(t.bankAccountId, account.id),
+      gte(t.bookingDate, erster.periodFrom),
+      lte(t.bookingDate, letzter.periodTo),
+      // In SQL verglichen: Date in JavaScript kennt nur Millisekunden, der Zeitstempel in Postgres Mikrosekunden
+      sql`${t.createdAt} <= (select created_at from bank_imports where id = ${letzter.id})`,
+    );
     const [offen] = await q
       .select({ betrag: sql<string>`coalesce(sum(${bankOpenAmountSql}), 0)` })
       .from(t)

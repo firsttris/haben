@@ -17,8 +17,7 @@ export function integrityNotice(result: IntegrityReport): NonNullable<Notice> {
   const collisions = result.accountCollisions.length;
   const fileProblems = result.files?.problemCount ?? 0;
   const dateien = fileProblems > 0 ? ` ${dateienText(fileProblems)}.` : "";
-  const abweichungen =
-    differences > 0 ? ` Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.` : "";
+  const abweichungen = differences > 0 ? ` Der Abgleich im Journal zeigt ${differences === 1 ? "eine Abweichung" : `${differences} Abweichungen`}.` : "";
   if (result.problems.length > 0)
     return {
       tone: "danger",
@@ -28,7 +27,7 @@ export function integrityNotice(result: IntegrityReport): NonNullable<Notice> {
   if (differences > 0)
     return {
       tone: "danger",
-      text: `Kette, Siegel und Sperren sind unverändert, aber Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
+      text: `Kette, Siegel und Sperren sind unverändert, aber der Abgleich im Journal zeigt ${differences === 1 ? "eine Abweichung" : `${differences} Abweichungen`}.`,
     };
   if (collisions > 0)
     return {

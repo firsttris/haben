@@ -316,16 +316,36 @@ describe.skipIf(!testDatabaseUrl)("Abgleich im Journal (Postgres)", () => {
         values (${konto!.id}, 'auszug.xml', ${crypto.randomUUID()}, 'camt', '2026-01-01', '2026-03-31', 1000, ${closing}, 0, 0)`;
     await auszug(1000 + Number(summe!.s) + 5_000);
     expect((await gefunden()).filter((z) => z.bereich === "bank")).toEqual([]);
-    // Ein neuer Auszug mit anderem Endsaldo: Es fehlt ein Umsatz, oder eine Buchung passt nicht
-    await auszug(1000 + Number(summe!.s) + 5_000 + 100);
+    // Ein späterer Import ohne Salden mit einem Umsatz im Zeitraum des Auszugs (etwa eine einzelne Zahlung als CSV): Er
+    // steckt nicht im Endsaldo des früheren Auszugs und zählt deshalb nicht mit, auch zugeordnet nicht (E2E app.spec.ts)
+    await transactions([ausgang("15.03.26", "Hafen Immobilien", "-595,00")]);
+    const [miete] = await sql`select id from bank_transactions where amount = -59500`;
+    await bank.allocate(actor, { kind: "privat", transactionId: miete!.id, amount: -59_500 });
+    expect((await gefunden()).filter((z) => z.bereich === "bank")).toEqual([]);
+    // Ein neuer Auszug mit anderem Endsaldo (jetzt mit der Miete): Es fehlt ein Umsatz, oder eine Buchung passt nicht
+    await auszug(1000 + Number(summe!.s) + 5_000 - 59_500 + 100);
     expect((await gefunden()).filter((z) => z.bereich === "bank")).toEqual([
       expect.objectContaining({
         zeitraum: "2026-03-31",
-        journal: 1000 + Number(summe!.s) + 5_000,
-        quelle: 1000 + Number(summe!.s) + 5_100,
+        journal: 1000 + Number(summe!.s) + 5_000 - 59_500,
+        quelle: 1000 + Number(summe!.s) + 5_000 - 59_500 + 100,
         gegen: "laut Kontoauszug",
       }),
     ]);
+  }, 60_000);
+
+  it("Bank: Umsätze aus demselben Import wie der Auszug zählen mit (Zeitstempel in Mikrosekunden)", async () => {
+    await reset("ist");
+    // Auszug und Umsätze in einer Transaktion: gleicher Zeitstempel bis auf die Mikrosekunde, wie beim echten Import
+    await sql.begin(async (tx) => {
+      const [konto] = await tx`insert into bank_accounts (name, iban) values ('Zweitkonto', 'DE02120300000000202051') returning id`;
+      const [auszug] =
+        await tx`insert into bank_imports (bank_account_id, filename, sha256, format, period_from, period_to, opening_balance, closing_balance, added, skipped)
+        values (${konto!.id}, 'auszug.csv', ${crypto.randomUUID()}, 'dkb-csv', '2026-02-01', '2026-02-28', 10000, 22345, 1, 0) returning id`;
+      await tx`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, dedup_hash)
+        values (${konto!.id}, ${auszug!.id}, '2026-02-10', 12345, ${crypto.randomUUID()})`;
+    });
+    expect((await gefunden()).filter((z) => z.bereich === "bank")).toEqual([]);
   }, 60_000);
 
   it("EÜR: Gewinn nach der DATEV-Formel gegen den Gewinn der Zeilen", async () => {
