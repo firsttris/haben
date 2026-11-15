@@ -5,9 +5,7 @@ import {
   AnnualError,
   annualOverview,
   kapgErklaerungen,
-  kapgErklaerungSchema,
   meinElsterWerte,
-  saveKapgErklaerungAngaben,
   submitAnnual,
   submitKapg,
   vermerkBetrag,
@@ -22,6 +20,7 @@ import { loadCompany } from "../modules/stammdaten/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
 import { estAngabenSchema, saveEstAngaben } from "../modules/jahreserklaerung/index.ts";
+import { kapgErklaerungSchema, saveKapgErklaerungAngaben } from "../modules/koerperschaft/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { reportYears } from "../modules/auswertungen/index.ts";
 import { today } from "../today.ts";

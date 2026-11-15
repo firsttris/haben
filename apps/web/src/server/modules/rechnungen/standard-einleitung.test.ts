@@ -7,6 +7,7 @@ describe.skipIf(!testDatabaseUrl)("Standard-Einleitung für Rechnungen und Angeb
   let invoices: typeof import("./invoices.ts");
   let quotes: typeof import("./quotes.ts");
   let stammdaten: typeof import("../stammdaten/index.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   const actor = "test-user";
 
   beforeAll(async () => {
@@ -14,6 +15,7 @@ describe.skipIf(!testDatabaseUrl)("Standard-Einleitung für Rechnungen und Angeb
     invoices = await import("./invoices.ts");
     quotes = await import("./quotes.ts");
     stammdaten = await import("../stammdaten/index.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -29,7 +31,7 @@ describe.skipIf(!testDatabaseUrl)("Standard-Einleitung für Rechnungen und Angeb
   /** Firmendaten wie aus dem Formular der Einstellungen speichern */
   async function saveIntros(invoiceIntro: string, quoteIntro: string) {
     const current = stammdaten.companySchema.parse(await stammdaten.loadCompany());
-    await stammdaten.saveCompany(actor, stammdaten.companySchema.parse({ ...current, invoiceIntro, quoteIntro }), "2026-11-04");
+    await guard.saveCompany(actor, stammdaten.companySchema.parse({ ...current, invoiceIntro, quoteIntro }), "2026-11-04");
   }
 
   it("ohne Vorgabe beginnen Rechnung und Angebot ohne Einleitung", async () => {

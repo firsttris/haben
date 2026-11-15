@@ -17,6 +17,7 @@ import {
   documentPreviewSchema,
   draftSchema,
   finalizeInvoice,
+  UmsatzgrenzeError,
   finalizeIssues,
   getInvoice,
   invoiceSummary,
@@ -218,10 +219,24 @@ export const removeInvoiceDraft = createServerFn({ method: "POST" })
 
 export const finalizeInvoiceDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(
+    z.object({ id: z.uuid(), bestaetigt: z.object({ umsatz: z.int(), rechnung: z.int(), grenze: z.int(), vorjahresumsatz: z.int().optional() }).optional() }),
+  )
   .handler(async ({ data, context }) => {
-    const invoice = await finalizeInvoice(context.user.id, data);
-    return { id: invoice.id, number: invoice.number };
+    try {
+      const invoice = await finalizeInvoice(context.user.id, data.id, data.bestaetigt);
+      return { status: "final" as const, id: invoice.id };
+    } catch (error) {
+      if (!(error instanceof UmsatzgrenzeError)) throw error;
+      return {
+        status: "umsatzgrenze" as const,
+        id: data.id,
+        umsatz: error.umsatz,
+        rechnung: error.rechnung,
+        grenze: error.grenze,
+        vorjahresumsatz: error.vorjahresumsatz,
+      };
+    }
   });
 
 export const cancelFinalInvoice = createServerFn({ method: "POST" })

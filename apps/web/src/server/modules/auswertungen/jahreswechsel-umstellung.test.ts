@@ -51,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let company: typeof import("../stammdaten/company.ts");
-  let guard: typeof import("../stammdaten/settings-guard.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let mandates: typeof import("../stammdaten/sepa-mandate.ts");
   let documents: typeof import("../belege/documents.ts");
   let abgleich: typeof import("./abgleich.ts");
@@ -68,7 +68,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     company = await import("../stammdaten/company.ts");
-    guard = await import("../stammdaten/settings-guard.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     mandates = await import("../stammdaten/sepa-mandate.ts");
     documents = await import("../belege/documents.ts");
     abgleich = await import("./abgleich.ts");

@@ -21,6 +21,7 @@ describe.skipIf(!testDatabaseUrl)("Vollprüfung der Belegdateien (Postgres)", ()
   let integrity: typeof import("./integrity.ts");
   let storage: typeof import("../../storage.ts");
   let mail: typeof import("../mail/mail.ts");
+  let pruefwertMail: typeof import("./pruefwert-mail.ts");
   const sent: { subject: string; text: string }[] = [];
 
   beforeAll(async () => {
@@ -29,6 +30,7 @@ describe.skipIf(!testDatabaseUrl)("Vollprüfung der Belegdateien (Postgres)", ()
     integrity = await import("./integrity.ts");
     storage = await import("../../storage.ts");
     mail = await import("../mail/mail.ts");
+    pruefwertMail = await import("./pruefwert-mail.ts");
     mail.setMailTransportForTests(() => {
       const transport = nodemailer.createTransport({ jsonTransport: true });
       return {
@@ -182,7 +184,7 @@ describe.skipIf(!testDatabaseUrl)("Vollprüfung der Belegdateien (Postgres)", ()
     await files.runFileCheck();
     const now = new Date(Date.now() + 2 * DAY);
     now.setUTCHours(9, 0, 0, 0);
-    expect(await mail.runDuePruefwertMail(now)).toMatchObject({ problems: 0, fileProblems: 1 });
+    expect(await pruefwertMail.runDuePruefwertMail(now)).toMatchObject({ problems: 0, fileProblems: 1 });
     expect(sent.at(-1)!.subject).toMatch(/^Haben: Änderungsprotokoll mit Befunden/);
     expect(sent.at(-1)!.text).toContain("1 Datei fehlt oder ist verändert (Beleg bahncard.pdf: fehlt)");
   });

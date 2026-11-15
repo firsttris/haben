@@ -412,6 +412,7 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
 describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
   let sql: postgres.Sql;
   let mail: typeof import("../mail/mail.ts");
+  let pruefwertMail: typeof import("./pruefwert-mail.ts");
   const sent: { to: string; subject: string; text: string }[] = [];
   const DAY = 24 * 60 * 60 * 1000;
   /** Vormittags in Berlin, so viele Tage ab heute */
@@ -424,6 +425,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     mail = await import("../mail/mail.ts");
+    pruefwertMail = await import("./pruefwert-mail.ts");
     mail.setMailTransportForTests(() => {
       const transport = nodemailer.createTransport({ jsonTransport: true });
       return {
@@ -440,7 +442,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
   });
 
   it("schickt den Prüfwert wöchentlich, nur bei Änderungen und nur wenn eingeschaltet", async () => {
-    expect(await mail.runDuePruefwertMail(at(1))).toBeNull(); // kein E-Mail-Zugang
+    expect(await pruefwertMail.runDuePruefwertMail(at(1))).toBeNull(); // kein E-Mail-Zugang
     await mail.saveMailSettings("test", {
       host: "smtp.example.com",
       port: 465,
@@ -453,7 +455,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
       reminderDays: [],
     });
 
-    const first = await mail.runDuePruefwertMail(at(1));
+    const first = await pruefwertMail.runDuePruefwertMail(at(1));
     expect(first).toEqual({ seq: expect.any(Number), problems: 0, rewritten: false, fileProblems: 0 });
     expect(sent).toHaveLength(1);
     expect(sent[0]!.to).toBe("max@example.com");
@@ -463,13 +465,13 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
     expect(sent[0]!.text).toContain("unverändert");
 
     // Innerhalb einer Woche nicht noch einmal
-    expect(await mail.runDuePruefwertMail(at(5))).toBeNull();
+    expect(await pruefwertMail.runDuePruefwertMail(at(5))).toBeNull();
     // Nach einer Woche nicht, wenn nur die eigene Mail im Protokoll steht; danach wird nur einmal am Tag geprüft
-    expect(await mail.runDuePruefwertMail(at(9))).toBeNull();
+    expect(await pruefwertMail.runDuePruefwertMail(at(9))).toBeNull();
     await sql`insert into bank_accounts (name, iban) values ('Neu', 'DE00PRUEFWERT')`;
-    expect(await mail.runDuePruefwertMail(at(9))).toBeNull();
+    expect(await pruefwertMail.runDuePruefwertMail(at(9))).toBeNull();
     // Nach einer Änderung am nächsten Tag schon
-    expect(await mail.runDuePruefwertMail(at(10))).toEqual({ seq: expect.any(Number), problems: 0, rewritten: false, fileProblems: 0 });
+    expect(await pruefwertMail.runDuePruefwertMail(at(10))).toEqual({ seq: expect.any(Number), problems: 0, rewritten: false, fileProblems: 0 });
     expect(sent).toHaveLength(2);
 
     // Ohne neuen Eintrag, aber neu verkettet: der Prüfwert der letzten Mail passt nicht mehr
@@ -485,7 +487,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
           update audit_chain set hash = prev;
         end $$`;
     });
-    expect(await mail.runDuePruefwertMail(at(18))).toMatchObject({ problems: 0, rewritten: true });
+    expect(await pruefwertMail.runDuePruefwertMail(at(18))).toMatchObject({ problems: 0, rewritten: true });
     expect(sent).toHaveLength(3);
     expect(sent[2]!.subject).toMatch(/^Haben: Änderungsprotokoll mit Befunden/);
     expect(sent[2]!.text).toContain("hat jetzt einen anderen Hash");
@@ -493,7 +495,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
     // Abgeschaltet: keine Mail
     await sql`update mail_settings set pruefwert_mail = false`;
     await sql`insert into bank_accounts (name, iban) values ('Neu 2', 'DE00PRUEFWERT2')`;
-    expect(await mail.runDuePruefwertMail(at(30))).toBeNull();
+    expect(await pruefwertMail.runDuePruefwertMail(at(30))).toBeNull();
     expect(sent).toHaveLength(3);
   });
 });

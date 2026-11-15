@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { legacySource } from "../lib/altbestand.ts";
 import { formatDate } from "../lib/format.ts";
 import { invoiceTitle } from "../lib/invoice.ts";
-import type { ContactHistoryRow, ContactHistorySection } from "../server/modules/auswertungen/index.ts";
+import type { ContactHistoryRow, ContactHistorySection } from "../server/modules/archiv/index.ts";
 import { LEGACY_TYPES } from "./archiv/LegacyVouchers.tsx";
 import { DocumentStatus } from "./DocumentStatus.tsx";
 import { InvoiceStatus } from "./InvoiceStatus.tsx";

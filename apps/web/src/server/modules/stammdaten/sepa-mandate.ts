@@ -1,11 +1,10 @@
 import { compactIban, isEwrIban, isValidBic, isValidIban, mandatStatus, mandatsreferenzProblem, type MandatStatus } from "@haben/core";
-import { and, asc, desc, eq, inArray, lte, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lte, max, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation, UserError } from "../../errors.ts";
-import { lastCollections } from "../bank/index.ts";
-import { attachmentFileProblem, storeAttachmentFile, type AttachmentFile } from "../rechnungen/index.ts";
+import { attachmentFileProblem, storeAttachmentFile, type AttachmentFile } from "../../pdf-anhang.ts";
 
 /**
  * SEPA-Lastschriftmandate am Kontakt (#445). Mandat, PDF und Widerruf stehen in nur anhängbaren Tabellen
@@ -14,6 +13,20 @@ import { attachmentFileProblem, storeAttachmentFile, type AttachmentFile } from 
  */
 
 export class MandateError extends UserError {}
+
+/**
+ * Letzter Einzug aus Haben je Mandat (Fälligkeit der jüngsten Lastschrift), auch wenn er zurückgegeben wurde. Nur lesend:
+ * Die Lastschriften schreibt bank (sepa-lastschriften.ts) und liest sie von hier für FRST oder RCUR.
+ */
+export async function lastCollections(mandateIds: string[], q: Db | Tx = db): Promise<Map<string, string>> {
+  if (mandateIds.length === 0) return new Map();
+  const rows = await q
+    .select({ mandateId: schema.sepaDirectDebitItems.mandateId, last: max(schema.sepaDirectDebitItems.collectionDate) })
+    .from(schema.sepaDirectDebitItems)
+    .where(inArray(schema.sepaDirectDebitItems.mandateId, mandateIds))
+    .groupBy(schema.sepaDirectDebitItems.mandateId);
+  return new Map(rows.flatMap((r) => (r.last ? [[r.mandateId, r.last] as const] : [])));
+}
 
 /** Kalendertag JJJJ-MM-TT; das Muster allein ließe den 30. Februar bis zur Datenbank durch */
 const datum = z.iso.date("Datum fehlt oder gibt es nicht");
