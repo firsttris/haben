@@ -1730,6 +1730,13 @@
       "when": 1794745237082,
       "tag": "0246_modern_ravenous",
       "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1794748251733,
+      "tag": "0247_bank_private_marks_trigger",
+      "breakpoints": true
     }
   ]
 }
