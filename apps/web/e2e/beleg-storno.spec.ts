@@ -41,7 +41,7 @@ test.beforeAll(async ({ browser }) => {
   closeDatabase = (await import("../src/server/db/index.ts")).closeDatabase;
 });
 
-async function receipt(browser: Browser, supplier: string, number: string) {
+async function receipt(browser: Browser, supplier: string, number: string, date = currentDay(), book = true) {
   const documents = await import("../src/server/modules/belege/index.ts");
   const image = await browser.newPage({ viewport: { width: 620, height: 400 } });
   await image.setContent(`<body style="font: 16px sans-serif; padding: 32px"><h2>${supplier}</h2>
@@ -54,14 +54,14 @@ async function receipt(browser: Browser, supplier: string, number: string) {
     supplierName: supplier,
     supplierUstId: "",
     invoiceNumber: number,
-    documentDate: currentDay(),
+    documentDate: date,
     dueDate: null,
     category: "software",
     payment: "bank",
     note: "",
     amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
   });
-  await documents.bookDocument("e2e-storno", id);
+  if (book) await documents.bookDocument("e2e-storno", id);
   return id;
 }
 
@@ -133,6 +133,15 @@ test("Bankzuordnung im Stornodialog bestätigen und zusammen mit dem Beleg zurü
   await expect(page.getByText(/Storno: Beleg L-4711/)).toBeVisible();
 });
 
+test("gebuchter Beleg erklärt die Aufteilung über Storno, ein stornierter nicht mehr (#1112)", async () => {
+  await page.goto(`/belege/${unpaidDocumentId}`);
+  await expect(page.getByText("Die Aufteilung auf mehrere Kategorien geht vor dem Buchen.")).toBeVisible();
+  // Der Beleg aus dem ersten Test ist storniert: Er lässt sich nicht noch einmal stornieren, der Weg ist die Neuerfassung
+  await page.goto(`/belege/${documentId}`);
+  await expect(page.locator(".page-head").getByText("Storniert", { exact: true })).toBeVisible();
+  await expect(page.getByText(/lässt sich stornieren/)).toHaveCount(0);
+});
+
 test("ganze Aufteilung einschließlich weiterem Beleg vor dem Storno ausdrücklich anzeigen", async ({ browser }) => {
   const chosen = await receipt(browser, "Codewerk Lizenzen GmbH", "S-4801");
   const other = await receipt(browser, "Nordlicht Software GmbH", "S-4802");
@@ -196,4 +205,24 @@ test("Fehlermeldung bei abgeschlossenem Jahr bleibt vor der Aktionsleiste vollst
     counts,
   );
   expect(hidden).toEqual([]);
+});
+
+test("Belegliste: ohne Sortierung ungebuchte zuerst, Spaltenkopf sortiert und nennt die Richtung (#1112)", async ({ browser }) => {
+  // Ein ungebuchter Beleg aus dem Vorjahr: Nach Datum stünde er unten, die Liste zeigt offene zuerst (docs/belege.md, Liste und Status)
+  await receipt(browser, "Altpapier Ahrens", "A-1", `${Number(currentDay().slice(0, 4)) - 1}-01-15`, false);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/belege");
+  const zeilen = page.locator("a.table-row.document-cols");
+  await expect(zeilen.first()).toContainText("Altpapier Ahrens");
+
+  // Die Richtung steht im Namen des Links wie in der Bankliste (BankSortierKopf), damit Screenreader sie vorlesen
+  await page.getByRole("link", { name: "Lieferant absteigend sortieren" }).click();
+  await expect(page).toHaveURL(/sort=lieferant&dir=ab/);
+  await expect(zeilen.first()).toContainText("Nordlicht Software GmbH");
+  await expect(zeilen.last()).toContainText("Altpapier Ahrens");
+  await page.getByRole("link", { name: "Lieferant aufsteigend sortieren, zurzeit absteigend sortiert" }).click();
+  await expect(page).toHaveURL(/sort=lieferant&dir=auf/);
+  await expect(zeilen.first()).toContainText("Altpapier Ahrens");
+  await page.reload();
+  await expect(zeilen.first()).toContainText("Altpapier Ahrens");
 });
