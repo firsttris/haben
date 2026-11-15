@@ -207,4 +207,12 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldungen aus sevDesk (Postgres)", { tim
     expect(hinweise && Buffer.from(hinweise[1]).toString("utf8")).toContain("sevdesk-Voranmeldung 2026-Q1: Übermittlungsprotokoll fehlt.");
     expect(uebersicht).not.toContain("2023-");
   });
+
+  it("bietet den Jahresexport auch für Jahre an, in denen es nur archivierte Voranmeldungen gibt", async () => {
+    await reset();
+    await abruf(REPORTS);
+    const exporter = await import("./export.ts");
+    // 2023 und 2024 haben in diesem Umzug keine Belege, nur Voranmeldungen; ohne das Jahr in der Auswahl kommt man nicht an ihr ZIP
+    expect(await exporter.exportYears(new Date("2026-10-02T10:00:00Z"))).toEqual([2026, 2025, 2024, 2023]);
+  });
 });
