@@ -5,7 +5,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 /*
  * Sammelrechnung des Monats an einer Gebührenzeile (Refs #680): Etsy bucht jede Gebühr als eigene Zeile, die
  * Gebührenrechnung trägt die Summe des Monats. Eine einzelne Zeile (−7,44 €) passt nie auf den Beleg (−116,57 €).
- * Kontenrahmen: der Vorschlag bucht nichts.
+ * Kontenrahmen: der Vorschlag bucht nichts; die Zuordnung bucht über die Kategorie des Belegs, darum einmal SKR04.
  */
 
 const ETSY_OKTOBER = [
@@ -83,5 +83,16 @@ describe.skipIf(!testDatabaseUrl)("Sammelrechnung an einer Gebührenzeile (Postg
     const detail = await bank.transactionDetail(await ersteGebuehr());
     expect(detail?.suggestions.some((s) => s.item.id === docId)).toBe(false);
     expect(detail?.sammelrechnung).toEqual({ summe: -11_657, documentId: null });
+  }, 30_000);
+
+  // Gutschriften (#680) machen die Rechnung kleiner als die Summe der Gebührenzeilen. Die Sammelzuordnung bricht dann
+  // nicht ab, sondern ordnet wie bisher zu, bis der Beleg aufgebraucht ist.
+  it("weicht die Monatssumme vom gewählten Beleg ab, ordnet die Sammelzuordnung bis zum Betrag des Belegs zu (SKR04)", async () => {
+    await firma("SKR04");
+    await etsyOktober();
+    const docId = await beleg(23, "Etsy Ireland UC", "2026-10-31", 10_000);
+    expect(await bank.allocateFeesToDocument(actor, { transactionId: await ersteGebuehr(), documentId: docId })).toBe(4);
+    const [zugeordnet] = await sql<{ summe: number }[]>`select coalesce(sum(amount), 0)::int as summe from allocations where document_id = ${docId}`;
+    expect(zugeordnet!.summe).toBe(-10_000);
   }, 30_000);
 });

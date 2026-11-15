@@ -1525,7 +1525,7 @@ export async function allocateFeesToDocument(actor: string, input: z.infer<typeo
     if (chosen.purpose !== "zahlungsdienstleister") throw new BankError("Sammelrechnungen gibt es nur für Gebühren eines Zahlungsdienstleisters.");
     const month = chosen.bookingDate.slice(0, 7);
     const fees = await tx
-      .select({ id: schema.bankTransactions.id, open: openAmountSql.mapWith(Number) })
+      .select({ id: schema.bankTransactions.id })
       .from(schema.bankTransactions)
       .where(
         and(
@@ -1537,20 +1537,11 @@ export async function allocateFeesToDocument(actor: string, input: z.infer<typeo
         ),
       )
       .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.id));
-    const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId));
-    if (!doc) throw new BankError("Beleg nicht gefunden.");
-    // Die offenen Gebührenzeilen des Monats müssen genau dem offenen Betrag des Belegs entsprechen. Sonst würde die
-    // Sammelzuordnung schweigend gegen einen falschen Beleg buchen, etwa den eines anderen Monats.
-    const summe = fees.reduce((s, f) => s + f.open, 0);
-    const docOpen = documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
-    if (summe !== docOpen) {
-      throw new BankError(
-        `Die offenen Gebühren von ${month} ergeben ${formatEuro(Math.abs(summe))}, der Beleg steht mit ${formatEuro(Math.abs(docOpen))} offen.`,
-      );
-    }
     let count = 0;
     for (const fee of fees) {
       const bank = await lockTransaction(tx, fee.id);
+      const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId));
+      if (!doc) throw new BankError("Beleg nicht gefunden.");
       const open = documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
       if (open === 0 || Math.sign(open) !== Math.sign(bank.open)) break;
       const amount = Math.abs(bank.open) <= Math.abs(open) ? bank.open : open;

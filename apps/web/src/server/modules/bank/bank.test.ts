@@ -1080,41 +1080,6 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(open.map((r) => r.amount)).toEqual([-100]);
   }, 30_000);
 
-  // Auch wenn die Oberfläche umgangen wird: die Sammelzuordnung bucht nur, wenn die Monatssumme genau dem Beleg entspricht
-  it("Etsy: passt die Monatssumme nicht zum gewählten Beleg, bucht die Sammelzuordnung nichts", async () => {
-    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
-    const csv = [
-      `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`,
-      `"October 1, 2026",Fee,"Einstellgebühr","",EUR,--,-€7.44,-€7.44,--`,
-      `"October 2, 2026",Fee,"Transaktionsgebühr","",EUR,--,-€9.89,-€9.89,--`,
-      `"October 3, 2026",Fee,"Zahlungsabwicklung","",EUR,--,-€8.19,-€8.19,--`,
-      `"October 4, 2026",Fee,"Werbung","",EUR,--,-€91.05,-€91.05,--`,
-    ].join("\n");
-    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" }, etsy.id);
-    // Beleg über 100,00 € statt über die Monatssumme von 116,57 €
-    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 23]);
-    const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "etsy-falsch.jpg" });
-    await documents.updateDocument(actor, docId, {
-      supplierName: "Etsy Ireland UC",
-      supplierUstId: "",
-      invoiceNumber: "111111",
-      documentDate: "2026-10-31",
-      dueDate: null,
-      category: "sonstiges",
-      payment: "bank",
-      note: "",
-      amounts: [{ taxRate: 0, net: 10_000, tax: 0 }],
-    });
-    await documents.bookDocument(actor, docId);
-    const [fee] = await sql`select id from bank_transactions where amount = -744`;
-    await expect(bank.allocateFeesToDocument(actor, { transactionId: fee!.id, documentId: docId })).rejects.toThrow(/116,57/);
-    await expect(bank.allocateFeesToDocument(actor, { transactionId: fee!.id, documentId: docId })).rejects.toThrow(/100,00/);
-    // Nichts gebucht: alle vier Gebührenzeilen des Monats sind noch offen
-    const [offen] = await sql`select count(*)::int as n from bank_transactions t where amount < 0
-      and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
-    expect(offen!.n).toBe(4);
-  }, 30_000);
-
   it("Etsy: Etsy Ads und Offsite Ads gehören zur Sammelrechnung des Monats (#296)", async () => {
     const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
     // Deutsche Abrechnung: Werbung steht als Art „Marketing“ und steht auf derselben Gebührenrechnung wie die übrigen Gebühren
