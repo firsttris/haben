@@ -254,7 +254,7 @@ export function Migration({ data }: { data: MigrationData }) {
           </div>
           {data.years.length === 0 ? (
             <p className="small muted" style={{ margin: 0 }}>
-              Noch nichts übernommen. Der Abgleich erscheint, sobald die ersten Daten aus Schritt 2 oder 4 da sind.
+              Noch nichts übernommen. Der Abgleich erscheint, sobald die ersten Daten aus Schritt 2 oder {assets ? 5 : 4} da sind.
             </p>
           ) : (
             <div className={ready ? "banner banner-ok" : "banner banner-info"} role="status">
