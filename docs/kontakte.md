@@ -29,6 +29,11 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 
 **Kundennummern automatisch.** Unter **Einstellungen › Rechnungen › Kundennummern** trägst du ein Format wie `K-{NNNN}` und die nächste laufende Nummer ein. Legst du dann einen Kontakt ohne Kundennummer an, vergibt Haben die nächste (`K-0001`, `K-0002` …); das Formular zeigt sie vorab an. Platzhalter wie beim [Nummernformat](einrichtung.md#nummernformat), das Jahr ist hier aber nicht nötig, weil der Zähler nicht jährlich neu beginnt. Eine eingetragene Nummer bleibt, wie sie ist, und zählt nicht mit; Nummern, die ein Kontakt schon trägt, etwa aus einem Import, überspringt Haben. Beim Bearbeiten eines Kontakts vergibt Haben keine Nummer, und einem reinen Lieferanten (ohne Häkchen **Kunde**) auch nicht. Leeres Format schaltet die automatische Vergabe ab.
 
+## Die Liste sortieren
+
+Die Spaltenköpfe der Kontaktliste sortieren nach Name, E-Mail, Ort und Rechnungsformat; ein zweiter Klick dreht die
+Richtung, der Pfeil zeigt die geltende Spalte. Die Sortierung steht in der Adresse und bleibt beim Neuladen erhalten.
+
 ## Ansprechpartner
 
 Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine oder mehrere Personen mit Name, E-Mail, Telefon und Funktion (etwa „Einkauf“). Im Entwurf von Rechnung und Angebot wählst du unter **Kunde** den **Ansprechpartner**; das Feld erscheint nur, wenn der Kunde Personen hat, und setzt sich beim Wechsel des Kunden zurück.

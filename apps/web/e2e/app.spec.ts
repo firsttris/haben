@@ -202,12 +202,14 @@ test("Kunden anlegen", async () => {
   for (const c of CUSTOMERS) await expect(page.getByText(c.name).first()).toBeVisible();
   // Die Suche filtert die Liste, ohne neu zu laden
   const liste = page.getByRole("region", { name: "Kontaktliste" });
+  // Zeilen sind Links auf den Kontakt; die Spaltenköpfe sind seit #1112 ebenfalls Links, deshalb der Pfad
+  const zeilen = liste.locator('a[href^="/kontakte/"]');
   await page.getByPlaceholder(/^Suchen:/).fill("hamburg");
-  await expect(liste.getByRole("link")).toHaveCount(1);
+  await expect(zeilen).toHaveCount(1);
   await expect(liste).toContainText("Nordwerk Software GmbH");
   // Auch nach der Telefonnummer (#322), die unter der E-Mail steht
   await page.getByPlaceholder(/^Suchen:/).fill("123456-0");
-  await expect(liste.getByRole("link")).toHaveCount(1);
+  await expect(zeilen).toHaveCount(1);
   await expect(liste).toContainText("+49 40 123456-0");
   await page.getByPlaceholder(/^Suchen:/).fill("gibt es nicht");
   await expect(liste).toContainText("Kein Kontakt passt");

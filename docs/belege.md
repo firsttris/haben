@@ -22,6 +22,16 @@ Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen lie
 
 Mit **Speichern** sicherst du Zwischenstände, ohne zu buchen.
 
+## Die Liste sortieren
+
+Die Spaltenköpfe in der Belegliste sind anklickbar: Datum, Lieferant, Kategorie, Brutto und Status. Der erste Klick
+sortiert absteigend, ein zweiter auf demselben Kopf dreht die Richtung; der Pfeil im Kopf zeigt, welche Spalte gerade
+gilt. Die Sortierung steht als `sort` und `dir` in der Adresse, lässt sich also verlinken und bleibt beim Neuladen
+erhalten. Dieselbe Bedienung hat die Bankliste.
+
+Bequemer wird die Suche darüber: Sie filtert zusätzlich nach Lieferant, Rechnungsnummer, Dateiname und einem
+Betragsbereich, etwa `50 bis 200`.
+
 ## Hochladen
 
 | Weg | Wie |

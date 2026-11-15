@@ -66,7 +66,7 @@ function DocumentsPage() {
         to="/belege"
         search={(prev: Record<string, unknown>) => ({ ...prev, sort: feld, dir: naechste }) as { sort: typeof feld; dir: "auf" | "ab" }}
         className={aktiv ? `${klasse} aktiv` : klasse}
-        aria-label={`${text} ${naechste === "ab" ? "absteigend" : "aufsteigend"} sortieren`}
+        title={`nach ${text} ${naechste === "ab" ? "absteigend" : "aufsteigend"} sortieren`}
       >
         {text}
         {aktiv ? (dir === "ab" ? " \u2193" : " \u2191") : ""}

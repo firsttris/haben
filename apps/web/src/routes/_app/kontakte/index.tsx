@@ -71,10 +71,10 @@ function ContactsPage() {
         to="/kontakte"
         search={(prev: Record<string, unknown>) => ({ ...prev, sort: feld, dir: naechste }) as { sort: typeof feld; dir: "auf" | "ab" }}
         className={aktiv ? "sort-head aktiv" : "sort-head"}
-        aria-label={`${text} ${naechste === "auf" ? "aufsteigend" : "absteigend"} sortieren`}
+        title={`nach ${text} ${naechste === "auf" ? "aufsteigend" : "absteigend"} sortieren`}
       >
         {text}
-        {aktiv ? (dir === "auf" ? " \u2191" : " \u2193") : ""}
+        <span className={aktiv ? "" : "muted"}>{aktiv ? (dir === "auf" ? " \u2191" : " \u2193") : " \u2195"}</span>
       </Link>
     );
   };
