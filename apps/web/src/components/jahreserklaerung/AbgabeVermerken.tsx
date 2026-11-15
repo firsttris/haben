@@ -41,7 +41,7 @@ export function AbgabeVermerken({
   art: "ust" | "euer" | "est";
   year: number;
   today: string;
-  /** Betrag aus den Buchungen; dient als Vorschlag und zum Vergleich */
+  /** Betrag aus den Buchungen, bei der Einkommensteuer Habens Schätzung; dient als Vorschlag und zum Vergleich */
   berechnet: number;
   vermerkt: JahresvermerkStand | null;
 }) {
@@ -192,7 +192,11 @@ export function AbgabeVermerken({
               />
             )}
           </Field>
-          <Field label="Betrag" hint={`Aus den Buchungen gerechnet: ${formatEuro(berechnet)}.`} error={error("betrag")}>
+          <Field
+            label="Betrag"
+            hint={`${art === "est" ? "Von Haben geschätzt (voraussichtliche Nachzahlung oder Erstattung)" : "Aus den Buchungen gerechnet"}: ${formatEuro(berechnet)}.`}
+            error={error("betrag")}
+          >
             {(control) => (
               <input
                 {...control}
