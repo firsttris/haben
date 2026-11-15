@@ -250,6 +250,27 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(inhaber.articles.hits).toHaveLength(1);
   });
 
+  it("nennt bei einem Bankumsatz das Konto, damit die Palette ihn im richtigen Konto öffnet", async () => {
+    await sql`insert into bank_accounts (name, iban, purpose) values ('Erstkonto', 'DE89370400440532013000', 'geschaeft')`;
+    const [zweit] = await sql`insert into bank_accounts (name, iban, purpose) values ('Zweitkonto', 'DE02120300000000202051', 'geschaeft') returning id`;
+    const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${zweit!.id}, 'zweit.csv', 'sha-zweit', 'csv', 1, 0) returning id`;
+    await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, purpose, dedup_hash)
+      values (${zweit!.id}, ${bi!.id}, '2026-11-14', -4200, 'Zweitkonto Lieferant', 'Miete', 'dedup-zweit')`;
+    const treffer = await search.runCommandPaletteSearch("Zweitkonto Lieferant", "inhaber");
+    expect(treffer.bankTransactions.hits[0]).toMatchObject({ bankAccountId: zweit!.id });
+  });
+
+  it("schaltet die Archivsuche mit Audit-Eintrag aus", async () => {
+    const { setArchiveSearch } = await import("../modules/stammdaten/index.ts");
+    await setArchiveSearch(actor, false);
+    const [company] = await sql`select archive_search from company where id = 1`;
+    expect(company!.archive_search).toBe(false);
+    const [audit] = await sql`select actor, new_value from audit_log where table_name = 'company' order by seq desc limit 1`;
+    expect(audit!.actor).toBe(actor);
+    expect(audit!.new_value).toMatchObject({ archive_search: false });
+  });
+
   it("nutzt bei 100.000 Bankumsätzen die Trigramm-Indizes", async () => {
     const [ba] = await sql`insert into bank_accounts (name, iban, purpose) values ('Konto', 'DE89370400440532013000', 'geschaeft') returning id`;
     const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
