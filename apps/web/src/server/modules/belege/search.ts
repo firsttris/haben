@@ -1,6 +1,6 @@
-import { parseDateSearch, parseEuroSearchCents } from "@haben/core";
+import { parseDateSearch, parseEuroSearchRange } from "@haben/core";
 import { desc, eq, isNotNull, or } from "drizzle-orm";
-import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
+import { amountIn, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
 
 export interface DocumentHit {
@@ -22,7 +22,7 @@ export interface DocumentHit {
 /** Belegsuche für die Befehlspalette (#617): Lieferant, Belegnummer, Dateiname und Betrag */
 export async function searchDocuments(query: string | { id: string }, limit = 5): Promise<{ hits: DocumentHit[]; more: boolean }> {
   const pattern = typeof query === "string" ? likePattern(query) : "";
-  const queryCents = typeof query === "string" ? parseEuroSearchCents(query) : null;
+  const queryRange = typeof query === "string" ? parseEuroSearchRange(query) : null;
   const queryDate = typeof query === "string" ? parseDateSearch(query) : null;
   const rows = await db
     .select({
@@ -48,7 +48,7 @@ export async function searchDocuments(query: string | { id: string }, limit = 5)
             unaccentIlike(schema.documents.supplierName, pattern),
             unaccentIlike(schema.documents.invoiceNumber, pattern),
             unaccentIlike(schema.documents.filename, pattern),
-            ...(queryCents !== null ? [eq(schema.documents.gross, queryCents)] : []),
+            ...(queryRange !== null ? [amountIn(schema.documents.gross, queryRange)] : []),
             ...(queryDate !== null ? [eq(schema.documents.documentDate, queryDate)] : []),
           )
         : eq(schema.documents.id, query.id),

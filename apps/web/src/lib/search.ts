@@ -1,4 +1,5 @@
-import { type SQLWrapper, sql } from "drizzle-orm";
+import type { CentRange } from "@haben/core";
+import { type SQLWrapper, between, or, sql } from "drizzle-orm";
 
 /** Maskiert SQL-LIKE-Platzhalter, damit Nutzereingaben mit % oder _ buchstäblich gesucht werden */
 export function likePattern(query: string, prefix = false): string {
@@ -12,4 +13,14 @@ export function unaccentIlike(column: SQLWrapper, pattern: string) {
 
 export function numberRank(column: SQLWrapper, query: string) {
   return sql`case when lower(${column}) = lower(${query}) then 0 when ${column} ilike ${likePattern(query, true)} then 1 else 2 end`;
+}
+
+/** Betrag im Bereich aus `parseEuroSearchRange` (ganzer Euro oder genau); `between` nutzt einen btree-Index auf der Spalte */
+export function amountIn(column: SQLWrapper, range: CentRange) {
+  return between(column, range.min, range.max);
+}
+
+/** Wie `amountIn`, dazu der Gegenwert mit umgekehrtem Vorzeichen (Bankumsatz, Kasse, Pauschalen, Archiv) */
+export function amountInEitherSign(column: SQLWrapper, range: CentRange) {
+  return or(between(column, range.min, range.max), between(column, -range.max, -range.min));
 }

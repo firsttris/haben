@@ -1,6 +1,6 @@
-import { parseDateSearch, parseEuroSearchCents } from "@haben/core";
+import { parseDateSearch, parseEuroSearchRange } from "@haben/core";
 import { desc, eq, or } from "drizzle-orm";
-import { likePattern, unaccentIlike } from "../../../lib/search.ts";
+import { amountIn, amountInEitherSign, likePattern, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
 
 export interface ArchiveHit {
@@ -26,7 +26,7 @@ export async function searchArchive(query: string, limit = 5): Promise<{ hits: A
   if (!(await isArchiveSearchEnabled())) return { hits: [], more: false };
 
   const pattern = likePattern(query);
-  const cents = parseEuroSearchCents(query);
+  const range = parseEuroSearchRange(query);
   const queryDate = parseDateSearch(query);
 
   const lv = schema.lexofficeVouchers;
@@ -41,7 +41,7 @@ export async function searchArchive(query: string, limit = 5): Promise<{ hits: A
           unaccentIlike(lv.number, pattern),
           unaccentIlike(lv.contactName, pattern),
           unaccentIlike(lv.remark, pattern),
-          ...(cents !== null ? [eq(lv.gross, cents), eq(lv.gross, -cents)] : []),
+          ...(range !== null ? [amountInEitherSign(lv.gross, range)] : []),
           ...(queryDate !== null ? [eq(lv.date, queryDate)] : []),
         ),
       )
@@ -54,7 +54,7 @@ export async function searchArchive(query: string, limit = 5): Promise<{ hits: A
         or(
           unaccentIlike(lo.number, pattern),
           unaccentIlike(lo.contactName, pattern),
-          ...(cents !== null ? [eq(lo.gross, cents)] : []),
+          ...(range !== null ? [amountIn(lo.gross, range)] : []),
           ...(queryDate !== null ? [eq(lo.date, queryDate)] : []),
         ),
       )
