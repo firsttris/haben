@@ -94,6 +94,14 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(res.documents.hits).toHaveLength(0);
   });
 
+  it("sucht Beträge an der Grenze von int4 mit beiden Vorzeichen ohne Datenbankfehler", async () => {
+    for (const betrag of ["-21474836,48", "21474836,48", "21474836,47", "-21474836,47"]) {
+      const res = await search.runCommandPaletteSearch(betrag, "inhaber");
+      expect(res.bankTransactions.hits).toEqual([]);
+      expect(res.bookings.hits).toEqual([]);
+    }
+  });
+
   it("ignoriert überlange Zahlen oberhalb von int4 ohne Datenbankfehler", async () => {
     const res = await search.runCommandPaletteSearch("99999999", "inhaber");
     expect(res.documents.hits).toHaveLength(0);
