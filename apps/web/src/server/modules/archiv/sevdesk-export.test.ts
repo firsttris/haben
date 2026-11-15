@@ -162,6 +162,9 @@ describe.skipIf(!testDatabaseUrl)("sevDesk ohne API: Export-ZIP übernehmen (Pos
     expect(result.sevdeskExport).toMatchObject({ apiYears: [2024], inApiYears: 3 });
     expect(result.progress).toMatchObject({ imported: 0, skipped: 3 });
     expect(await counts()).toMatchObject({ vouchers: 0, archived: 2, bookings: 3 });
+    // Die Summen bleiben die der API-Belege; der Stapel des Exports kommt nicht noch einmal dazu
+    const year = (await lex.reconciliation()).years.find((y) => y.year === 2024)!;
+    expect(year.einnahmen).toMatchObject({ net: 100, tax: 19 });
   });
 
   it.each(["SKR03", "SKR04"] as const)(
