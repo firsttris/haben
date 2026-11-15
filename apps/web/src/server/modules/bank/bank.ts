@@ -35,6 +35,8 @@ import {
   invoicePaymentPosting,
   advancePaymentDateProblem,
   recordedTaxShares,
+  ohneSteueranteile,
+  paidTaxShares,
   settlementTaxShares,
   skontoZahlfristen,
   suggestMatches,
@@ -456,9 +458,22 @@ export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: Invoic
         union all select invoice_id, amount, tax_shares, tax_shares_invoice_id from cash_entries where invoice_id in ${ids}`,
   );
   const settled = [...rows].reduce((sum, r) => sum + Number(r.amount), 0);
+  // Verrechnungen mindern das Entgelt um den Anteil der Gegenrechnung. Die Zahlungen verteilen sich danach über den Rest,
+  // nicht über den vollen Mix: Bei zwei Steuersätzen trüge sonst der zurückgenommene Satz die Steuer mit (#877, Befund 2).
+  const verrechnet = [
+    ...(await tx.execute<{ counter_invoice_id: string; amount: number }>(
+      sql`select counter_invoice_id, amount from invoice_settlements where invoice_id in ${ids} and amount > 0`,
+    )),
+  ];
+  const gegen =
+    verrechnet.length > 0 ? await invoiceTotalsById([...new Set(verrechnet.map((r) => r.counter_invoice_id))], tx) : new Map<string, InvoiceTotals>();
+  const rest = ohneSteueranteile(
+    totals,
+    verrechnet.flatMap((r) => paidTaxShares(gegen.get(r.counter_invoice_id) ?? totals, Number(r.amount))),
+  );
   // Wie Voranmeldung und EÜR (recordedTaxShares): ein Anteil zählt nur für die Rechnung, für die er gerechnet ist
-  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null));
-  return settlementTaxShares(totals, settled, recorded, amount);
+  const recorded = [...rows].flatMap((r) => recordedTaxShares(rest, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null));
+  return settlementTaxShares(rest, settled, recorded, amount);
 }
 
 /** Gespeicherter Steueranteil einer Gegenzeile: genau umgekehrt */

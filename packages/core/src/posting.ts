@@ -604,6 +604,22 @@ export function settlementTaxShares(totals: InvoiceTotals, settledBefore: Cents,
 }
 
 /**
+ * Der Mix einer Rechnung nach Verrechnungen: Eine Verrechnung nimmt das Entgelt der Gegenrechnung weg, also genau deren
+ * Steueranteile. Was übrig bleibt, ist der Mix, über den die Zahlungen verteilt werden. Ohne diesen Schritt trüge bei zwei
+ * Steuersätzen der falsche Satz die Steuer (Befund aus dem Review zu #877): Die Zahlung verteilte sich anteilig auf die
+ * ursprüngliche Rechnung, auch auf die Position, die die Korrektur zurückgenommen hat.
+ */
+export function ohneSteueranteile(totals: InvoiceTotals, weggenommen: readonly TaxShare[]): InvoiceTotals {
+  const weg = (rate: BasisPoints, feld: "base" | "tax") => weggenommen.filter((s) => s.rate === rate).reduce((sum, s) => sum + s[feld], 0);
+  const taxes = totals.taxes
+    .map((t) => ({ rate: t.rate, base: t.base - weg(t.rate, "base"), tax: t.tax - weg(t.rate, "tax") }))
+    .filter((t) => t.base !== 0 || t.tax !== 0);
+  const tax = taxes.reduce((sum, t) => sum + t.tax, 0);
+  const gross = taxes.reduce((sum, t) => sum + t.base + t.tax, 0);
+  return { net: gross - tax, tax, gross, taxes };
+}
+
+/**
  * Gespeicherter Anteil einer Zahlung bzw. Ausbuchung, wenn er zur Rechnung passt: dieselben Steuersätze und zusammen der
  * Betrag; sonst aus dem Betrag gerechnet (ältere Zeilen ohne Anteil, wie gebucht). Für welche Rechnung er gerechnet ist,
  * prüft der Aufrufer (tax_shares_invoice_id), damit der Abgleich eine umgehängte Zahlung weiter als Abweichung meldet.

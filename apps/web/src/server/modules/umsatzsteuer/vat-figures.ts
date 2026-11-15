@@ -1,18 +1,20 @@
 import {
+  JOURNAL_KENNZAHLEN,
   bareinnahmeAnteil,
   kategorieAnteil,
   kategorieArt,
   lastMonthOfPeriod,
   monthsOfPeriod,
+  ohneSteueranteile,
   paidTaxShares,
   periodRange,
   recordedTaxShares,
   splitPrivateShare,
   type Cents,
+  type InvoiceTotals,
+  type JournalKennzahlen,
   type TaxTreatment,
   type VatPeriod,
-  JOURNAL_KENNZAHLEN,
-  type JournalKennzahlen,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
@@ -170,6 +172,32 @@ export function vatFiguresContext(q: Db | Tx = db) {
   };
 }
 
+/**
+ * Steuermix je Rechnung nach Verrechnungen: Eine Verrechnung nimmt das Entgelt der Gegenrechnung weg, also deren
+ * Steueranteile. Nur der Rest ist vereinnahmbar, und nur darüber verteilen sich die Zahlungen (#877, Befund 2).
+ */
+async function mixNachVerrechnungen(totals: Map<string, InvoiceTotals>, q: Db | Tx): Promise<Map<string, InvoiceTotals>> {
+  const ids = [...totals.keys()];
+  if (ids.length === 0) return new Map();
+  const rows = await q
+    .select({
+      invoiceId: schema.invoiceSettlements.invoiceId,
+      counterInvoiceId: schema.invoiceSettlements.counterInvoiceId,
+      amount: schema.invoiceSettlements.amount,
+    })
+    .from(schema.invoiceSettlements)
+    .where(inArray(schema.invoiceSettlements.invoiceId, ids));
+  const positiv = rows.filter((r) => r.amount > 0);
+  if (positiv.length === 0) return new Map();
+  const gegen = await invoiceTotalsById([...new Set(positiv.map((r) => r.counterInvoiceId))], q);
+  const out = new Map<string, InvoiceTotals>();
+  for (const id of ids) {
+    const weg = positiv.filter((r) => r.invoiceId === id).flatMap((r) => paidTaxShares(gegen.get(r.counterInvoiceId) ?? totals.get(id)!, r.amount));
+    if (weg.length > 0) out.set(id, ohneSteueranteile(totals.get(id)!, weg));
+  }
+  return out;
+}
+
 export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, context = vatFiguresContext(q)): Promise<VatFigures> {
   const { start, end } = periodRange(period);
   const versteuerung = await context.taxes.modeForYear(period.year);
@@ -281,12 +309,15 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       .where(and(gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end), notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM])));
     payments.push(...differences, ...cash);
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))], q);
+    // Nach einer Verrechnung trägt die Zahlung nur noch die Sätze, die die Rechnung nach der Korrektur hat (#877, Befund 2).
+    // Sonst rechnet die Voranmeldung aus den Nebenbüchern den zurückgenommenen Satz wieder mit.
+    const mix = await mixNachVerrechnungen(totals, q);
     for (const p of payments) {
       if (advanceIds.has(p.invoiceId)) continue;
       if ((await invoiceMode(p)) !== "ist") continue;
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
       const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
-      for (const share of recordedTaxShares(totals.get(p.invoiceId)!, p.amount, stored)) {
+      for (const share of recordedTaxShares(mix.get(p.invoiceId) ?? totals.get(p.invoiceId)!, p.amount, stored)) {
         revenue.push({
           type: "payment",
           date: p.date,
@@ -380,11 +411,13 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
         ),
       );
     const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))], q);
+    // Nach einer Verrechnung trägt die Ausbuchung nur noch die Sätze, die die Rechnung nach der Korrektur hat (#877, Befund 2).
+    const mix = await mixNachVerrechnungen(totals, q);
     for (const r of rows) {
       if (advanceIds.has(r.invoiceId)) continue;
       if ((await invoiceMode(r)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === r.treatment)) continue;
       const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
-      const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, stored);
+      const shares = recordedTaxShares(mix.get(r.invoiceId) ?? totals.get(r.invoiceId)!, -r.amount, stored);
       for (const share of shares) {
         revenue.push({
           type: "ausbuchung",
