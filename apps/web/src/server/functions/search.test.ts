@@ -344,4 +344,24 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect((await search.runCommandPaletteSearch("50,00", "inhaber")).bookings.hits.map((b) => b.description)).toEqual(["Miete November"]);
     expect((await search.runCommandPaletteSearch("0,00", "inhaber")).bookings.hits).toEqual([]);
   });
+
+  it("zeigt bei Darlehen die aktuelle Restschuld wie die Seite Darlehen", async () => {
+    const bank = await import("../modules/bank/index.ts");
+    const [loan] = await sql`insert into loans (name, lender, term, purpose, opening_balance)
+      values ('Bergblick Kredit', 'bank', 'ueber5', 'betrieb', 0) returning id`;
+    const [ba] = await sql`insert into bank_accounts (name, iban, purpose) values ('Konto', 'DE89370400440532013000', 'geschaeft') returning id`;
+    const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${ba!.id}, 'k.csv', 'sha-kredit', 'csv', 1, 0) returning id`;
+    const [tx] = await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, purpose, dedup_hash)
+      values (${ba!.id}, ${bi!.id}, '2026-02-01', 1000000, 'Bank', 'Auszahlung', 'kredit-1') returning id`;
+    // Nur die Zuordnung, ohne die Buchung, die der Weg über das Hauptbuch dazu anlegt; die Restschuld liest nur sie
+    await sql.begin(async (t) => {
+      await t`set local session_replication_role = replica`;
+      await t`insert into allocations (transaction_id, kind, amount, loan_id, loan_part) values (${tx!.id}, 'darlehen', 1000000, ${loan!.id}, 'auszahlung')`;
+    });
+    const [seite] = (await bank.listLoans()).filter((l) => l.id === loan!.id);
+    expect(seite!.balance).toBe(1000000);
+    const treffer = await search.runCommandPaletteSearch("Bergblick Kredit", "inhaber");
+    expect(treffer.loans.hits.map((l) => l.balance)).toEqual([1000000]);
+  });
 });
