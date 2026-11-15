@@ -516,6 +516,20 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
   };
 }
 
+/**
+ * Ohne Bescheid trägt der ESt-Vermerk keinen Betrag (#1073). Dann gibt es nichts zu vergleichen, und die Seite sagt das
+ * auch: Ohne diesen Satz stünde Habens Schätzung allein da und sähe aus wie das Ergebnis der Veranlagung.
+ */
+export function ohneBetragHinweis(vermerk: { amount: number | null } | null): Issue[] {
+  if (!vermerk || vermerk.amount !== null) return [];
+  return [
+    {
+      tone: "hinweis",
+      text: "Die Einkommensteuererklärung ist ohne Betrag vermerkt. Das Ergebnis steht erst mit dem Steuerbescheid fest, deshalb steht hier kein Vergleich. Trag den Bescheid ein, sobald er vorliegt.",
+    },
+  ];
+}
+
 function estIssues(company: Company, euer: EuerYear): Issue[] {
   const issues: Issue[] = [];
   const t = company.taxpayer;
@@ -673,6 +687,7 @@ export async function annualOverview(year: number, today: string) {
   // Ein Vermerk „außerhalb von Haben abgegeben“ nimmt den Meldungen zu Habens leerem Jahr den Grund (#869)
   const ustVermerk = submitted("ust");
   const euerVermerk = submitted("euer");
+  const estVermerk = submitted("est");
   const [ustZeilen, euerZeilen] = await Promise.all([erklaerteZeilen(ustVermerk?.id ?? null), erklaerteZeilen(euerVermerk?.id ?? null)]);
   /*
    * Die Summenzeilen der Seite zeigen nach einem Vermerk die erklärte Zahl (#1076): Habens eigene Rechnung kennt die
@@ -709,9 +724,15 @@ export async function annualOverview(year: number, today: string) {
     // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
     est: {
       ...est,
-      issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est)), ...(await arbeitszimmerIssues(year, est))],
+      issues: [
+        ...base,
+        ...estIssues(company, euer),
+        ...ohneBetragHinweis(estVermerk),
+        ...(await homeofficeIssues(year, est)),
+        ...(await arbeitszimmerIssues(year, est)),
+      ],
       sent: sent("est"),
-      submitted: submitted("est"),
+      submitted: estVermerk,
       // Der Steuerbescheid hält das Ergebnis fest; bei der Einkommensteuer steht der Betrag erst dort (#1073)
       bescheid: await bescheidFuerJahr(year),
       verwaltet: false,
