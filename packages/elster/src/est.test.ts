@@ -71,7 +71,7 @@ describe("buildEstXml", () => {
     expect(xml).toMatch(/<Unterfallart>10<\/Unterfallart>[\s\S]*<StNr>2836216146249<\/StNr>[\s\S]*<Zeitraum>2025<\/Zeitraum>/);
   });
 
-  it("überträgt Basisrente, private Wahlleistungen und Arbeitgeberzuschüsse in die Anlage Vorsorgeaufwand", () => {
+  it("überträgt Basisrente, private Wahlleistungen und die Arbeitgeberzuschüsse in die Anlage Vorsorgeaufwand", () => {
     const fest = estInput();
     const xml = buildEstXml(
       estInput({
@@ -84,6 +84,7 @@ describe("buildEstXml", () => {
               ppv: 40_049,
               basisrente: 200_000,
               pkvWahlleistungen: 60_000,
+              agZuschussGkv: 84_000,
               agZuschussKv: 120_000,
               agZuschussPv: 12_000,
             },
@@ -100,7 +101,7 @@ describe("buildEstXml", () => {
     // Zeile 27 als eigener Unterknoten der privaten Krankenversicherung
     expect(xml).toMatch(/<WL_Zvers>\s*<E2003502>600<\/E2003502>\s*<\/WL_Zvers>/);
     // Zeilen 35 und 36, je Person
-    expect(xml).toMatch(/<Stfr_AG_Zusch>\s*<Person>PersonA<\/Person>\s*<E2003807>1200<\/E2003807>\s*<E2003907>120<\/E2003907>/);
+    expect(xml).toMatch(/<Stfr_AG_Zusch>\s*<Person>PersonA<\/Person>\s*<E2003705>840<\/E2003705>\s*<E2003807>1200<\/E2003807>\s*<E2003907>120<\/E2003907>/);
 
     // Ohne Angaben entstehen die Felder nicht
     const ohne = buildEstXml(estInput({ angaben: { ...fest.angaben, vorsorge: { a: { pkv: 600_000 } } } }));

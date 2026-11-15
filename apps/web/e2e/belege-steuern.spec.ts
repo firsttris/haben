@@ -248,6 +248,26 @@ test("Vorsorgeaufwand: Rürup, Wahlleistungen und Zuschüsse überstehen das Spe
   await expect(feld("agZuschussPv")).toHaveValue("200,00");
 });
 
+test("Vorsorgeaufwand: Zuschüsse zur gesetzlichen KV (Nr. 24 a) und zur Pflegeversicherung (Nr. 24 c) speichern (#1009)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  const block = () => form.locator("details.est-block").filter({ has: page.locator(".est-block-title", { hasText: /^Vorsorgeaufwand$/ }) });
+  const feld = (name: string) => block().locator(`input[name="a-${name}"]`);
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("agZuschussGkv")).toHaveAccessibleName("Arbeitgeberzuschuss zur gesetzlichen KV");
+  // Nr. 24 c gilt auch für freiwillig gesetzlich Versicherte (E2003907: „Gesetzliche Pflegeversicherung laut Nr. 24 c“)
+  await expect(feld("agZuschussPv")).toHaveAccessibleName("Arbeitgeberzuschuss zur Pflegeversicherung");
+  await feld("agZuschussGkv").fill("840,00");
+  await feld("agZuschussPv").fill("120,00");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("agZuschussGkv")).toHaveValue("840,00");
+  await expect(feld("agZuschussPv")).toHaveValue("120,00");
+});
+
 test("Einkommensersatzleistungen: eintragen, speichern, nach dem Neuladen wieder da (#941)", async () => {
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
