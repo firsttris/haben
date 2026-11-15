@@ -1077,8 +1077,9 @@ fieldset.card > legend + * { clear: both; }
 @media (max-width: 720px) {
   /* Knopfzeilen: Knöpfe füllen die Zeile, die Hauptaktion steht rechts im Daumenbereich; kleine Knöpfe in Tabellen und
      Bannern bleiben. Vor dem Kopf, damit dessen gleich spezifische Regeln gewinnen: dort scrollt die Zeile seitlich statt
-     zu schrumpfen. In einer Zeile mit Verlauf nimmt die Knopfzeile die ganze Breite statt nur die ihrer Knöpfe */
-  .actions > .btn:not(:is(table, .banner) .btn-sm) { flex: 1 1 auto; }
+     zu schrumpfen; :where hält die Ausnahme dafür ohne Spezifität. In einer Zeile mit Verlauf nimmt die Knopfzeile die
+     ganze Breite statt nur die ihrer Knöpfe */
+  .actions > .btn:not(:where(table, .banner) .btn-sm) { flex: 1 1 auto; }
   .history-row > .actions { width: 100%; }
   /* Kopf kompakt, weil er stehen bleibt: Titel oben, Aktionen darunter in einer Zeile, die seitlich scrollt, statt
      mehrerer Zeilen voller Knöpfe. Wenige Knöpfe füllen die Breite wie bisher. 4px Innenabstand halten den Fokusrahmen
