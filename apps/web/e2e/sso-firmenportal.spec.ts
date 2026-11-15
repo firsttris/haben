@@ -110,7 +110,7 @@ test("Firmenportal: Kachel mit Logo oder in der Farbe der Firma (#1036)", async 
   const page = await portalAnmelden(browser, "haben-inhaber, haben-sued-inhaber");
   await page.waitForURL(`${PORTAL}/`);
   // Studio Nord zeigt sein Logo statt des Buchstabens, vom Firmenportal selbst ausgeliefert
-  const logo = firmen(page).nth(0).locator(".firma-logo img");
+  const logo = firmen(page).nth(0).locator("img.firma-logo");
   await expect(logo).toBeVisible();
   await expect(logo).toHaveAttribute("src", /^\/zeichen\/[0-9a-f]{16}\.png$/);
   expect(await logo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
@@ -132,6 +132,52 @@ test("Firmenportal: Kachel mit Logo oder in der Farbe der Firma (#1036)", async 
   const fremd = await (await browser.newContext()).newPage();
   expect((await fremd.request.get(`${PORTAL}${adresse}`, { maxRedirects: 0 })).status()).toBe(404);
   await fremd.context().close();
+  await page.context().close();
+});
+
+test("Firmenportal: Logos jeder Form bleiben in ihrer Kachel, skaliert wie in Haben (#1036)", async ({ browser }) => {
+  const page = await portalAnmelden(browser, "haben-inhaber, haben-ost-inhaber, haben-klein-inhaber, haben-gross-inhaber, haben-voll-inhaber");
+  await page.waitForURL(`${PORTAL}/`);
+  // Breite und Höhe der erfundenen Logos aus test-logos.ts
+  const logos: [firma: string, breite: number, hoehe: number][] = [
+    ["Bäckerei Ost", 120, 360],
+    ["Kanzlei Klein", 16, 16],
+    ["Lager Groß", 1024, 1024],
+    ["Studio Nord", 480, 120],
+    ["Zentrale Voll", 256, 256],
+  ];
+  await expect(firmen(page)).toHaveCount(logos.length);
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 812 });
+    for (const [firma, breite, hoehe] of logos) {
+      const logo = page.getByRole("link", { name: firma }).locator("img.firma-logo");
+      await expect(logo).toBeVisible();
+      const mass = await logo.evaluate((img: HTMLImageElement) => {
+        const bild = img.getBoundingClientRect();
+        const zeile = img.closest("a")!.getBoundingClientRect();
+        const stil = getComputedStyle(img);
+        return {
+          kachel: [Math.round(bild.width), Math.round(bild.height)],
+          natur: [img.naturalWidth, img.naturalHeight],
+          fit: stil.objectFit,
+          innen: stil.paddingTop,
+          flaeche: stil.backgroundColor,
+          inZeile: bild.top >= zeile.top && bild.bottom <= zeile.bottom,
+        };
+      });
+      // Jede Form in derselben quadratischen Kachel, eingepasst statt beschnitten oder darüber hinaus
+      expect(mass, `${firma}, ${width}px`).toEqual({
+        kachel: [32, 32],
+        natur: [breite, hoehe],
+        fit: "contain",
+        innen: "3px",
+        flaeche: "rgb(255, 255, 255)",
+        inZeile: true,
+      });
+    }
+    expect(await kanten(page, ".fuss .btn"), `${width}px`).toEqual({ zeichen: 0, ueberschrift: 0, kachel: 0, knopf: 0 });
+  }
+  await ohneVerstoesse(page);
   await page.context().close();
 });
 

@@ -1,7 +1,18 @@
 import { ssoTestTls } from "./e2e/sso-tls.ts";
-import { fileURLToPath } from "node:url";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
+import { testLogos } from "../firmenportal/src/test-logos.ts";
 import { appDatabaseUrlFuer } from "./e2e/durchlaeufe.ts";
+
+/**
+ * Erfundene Logos verschiedener Größen für das Firmenportal (#1036). Nicht in test-results/: Das leert Playwright erst
+ * nach dem Laden der Konfiguration, und der Server des Firmenportals liest die Logos beim Start
+ */
+const PORTAL_LOGOS = join(tmpdir(), "haben-e2e-portal-logos");
+mkdirSync(PORTAL_LOGOS, { recursive: true });
+for (const logo of testLogos()) writeFileSync(join(PORTAL_LOGOS, logo.datei), logo.daten);
 
 /** Getrennter Durchlauf: keine vorhandene Entwicklungsinstanz oder Datenbank wird verwendet. */
 const database = process.env.E2E_DATABASE_URL;
@@ -86,10 +97,18 @@ export default defineConfig({
         PORT: production ? "3221" : "3217",
         PORTAL_URL: PORTAL,
         PORTAL_SECRET: "e2e-portal-secret-mindestens-32-zeichen",
-        // Diese Instanz mit Logo als Zeichen, eine in eigener Farbe und eine ohne beides; die beiden anderen muss es nicht geben
-        PORTAL_FIRMEN: `Studio Nord|${baseURL}|haben-inhaber||icon-192.png;Werkstatt Süd|https://sued.example.de|haben-sued-inhaber|#B45309;Atelier West|https://west.example.de|haben-west-inhaber`,
-        // Das Logo von Haben als Logo einer Firma (#1036)
-        PORTAL_LOGOS: fileURLToPath(new URL("./public", import.meta.url)),
+        // Diese Instanz mit einem Schriftzug als Logo, eine in eigener Farbe, eine ohne beides und vier mit Logos anderer
+        // Formen (test-logos.ts); außer dieser Instanz muss es keine geben
+        PORTAL_FIRMEN: [
+          `Studio Nord|${baseURL}|haben-inhaber||breit.png`,
+          "Werkstatt Süd|https://sued.example.de|haben-sued-inhaber|#B45309",
+          "Atelier West|https://west.example.de|haben-west-inhaber",
+          "Bäckerei Ost|https://ost.example.de|haben-ost-inhaber||hoch.png",
+          "Kanzlei Klein|https://klein.example.de|haben-klein-inhaber||klein.png",
+          "Lager Groß|https://gross.example.de|haben-gross-inhaber||gross.png",
+          "Zentrale Voll|https://voll.example.de|haben-voll-inhaber||voll.png",
+        ].join(";"),
+        PORTAL_LOGOS,
         OIDC_ISSUER: issuer,
         OIDC_CLIENT_ID: "haben",
         OIDC_CLIENT_SECRET: "secret",

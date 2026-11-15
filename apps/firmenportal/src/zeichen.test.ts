@@ -10,7 +10,8 @@ import { cacheLeeren } from "./oidc.ts";
 import { portal } from "./server.ts";
 import { firmenSeite } from "./seiten.ts";
 import { SITZUNG_COOKIE } from "./sitzung.ts";
-import { farbStil } from "./stil.ts";
+import { farbStil, STIL } from "./stil.ts";
+import { testLogos } from "./test-logos.ts";
 
 /*
  * Farbe und Logo der Firmen im Firmenportal (#1036): aus PORTAL_FIRMEN und PORTAL_LOGOS, nur vom Firmenportal selbst
@@ -38,6 +39,24 @@ describe("logoAus", () => {
     ["kein Bild", "nord.png", new TextEncoder().encode("<svg onload=alert(1)>"), "ist kein PNG"],
   ])("lehnt ein Logo ab, das %s ist", (_fall, datei, daten, grund) => {
     expect(logoAus(datei, new Uint8Array(daten))).toEqual({ grund: expect.stringContaining(grund) });
+  });
+});
+
+describe("Logos jeder Größe (#1036, Rückfrage in #1044)", () => {
+  it.each(testLogos().map((l) => [l.wozu, l] as const))("nimmt das erfundene Logo an: %s", (_wozu, logo) => {
+    expect(logoAus(logo.datei, logo.daten)).toMatchObject({ typ: "image/png", adresse: expect.stringMatching(/^\/zeichen\/[0-9a-f]{16}\.png$/) });
+  });
+
+  it("skaliert das Logo wie das Zeichen in der Navigation von Haben (.brand-logo)", () => {
+    const regel = (css: string, name: string) => new RegExp(`\\.${name} \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+    const haben = regel(readFileSync(new URL("../../web/src/styles.css", import.meta.url), "utf8"), "brand-logo");
+    const portal = regel(STIL, "firma-logo");
+    for (const angabe of ["object-fit: contain", "padding: 3px", "background: #fff", "display: block"]) {
+      expect(haben, `Haben: ${angabe}`).toContain(angabe);
+      expect(portal, `Firmenportal: ${angabe}`).toContain(angabe);
+    }
+    // Die Größe kommt von .firma-zeichen, 32px wie die Kacheln mit Buchstaben
+    expect(regel(STIL, "firma-zeichen")).toMatch(/width: 32px; height: 32px/);
   });
 });
 
@@ -116,7 +135,8 @@ describe("Kachel", () => {
 
   it("zeigt das Logo statt des Buchstabens, ohne eigenen Namen für Screenreader", () => {
     const html = seite({ name: "Studio Nord", url: "https://nord.example.de", farbe: "#1D4ED8", logo: "/zeichen/0123456789abcdef.png" });
-    expect(html).toContain('<span class="firma-zeichen firma-logo" aria-hidden="true"><img src="/zeichen/0123456789abcdef.png" alt=""');
+    // Wie .brand-logo in Haben ist das Bild selbst die Kachel; mit leerem alt zählt es für Screenreader nicht
+    expect(html).toContain('<img class="firma-zeichen firma-logo" src="/zeichen/0123456789abcdef.png" alt="" width="32" height="32">');
     expect(html).toContain('<span class="firma-name">Studio Nord</span>');
   });
 
