@@ -53,7 +53,6 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal: nur im Einzelunternehme
     kontenrahmen: "SKR03" | "SKR04" = "SKR03",
     kleinunternehmer = false,
     rechtsform: "einzelunternehmen" | "gmbh" = "einzelunternehmen",
-    journalAb: number | null = null,
   ) {
     await leeren(sql)`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
       cash_entries, write_offs, year_closings, loans, journal_lines, journal_entries, document_splits, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,

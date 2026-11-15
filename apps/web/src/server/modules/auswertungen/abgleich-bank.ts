@@ -24,13 +24,15 @@ export interface BankZeile {
 
 export async function bankZeilen(q: Db | Tx = db): Promise<BankZeile[]> {
   const ba = schema.bankAccounts;
-  const accounts = await q
-    .select({ id: ba.id, name: ba.name })
-    .from(ba)
-    .where(and(isNull(ba.excludedAt), notInArray(ba.purpose, ["privat", "zahlungsdienstleister"])));
-  const result: BankZeile[] = [];
   const bi = schema.bankImports;
   const t = schema.bankTransactions;
+  // Nur Konten mit Salden im Auszug; ohne sie gibt es nichts zu vergleichen (ein Konto je Abfrage wäre bei vielen Konten zu langsam)
+  const accounts = await q
+    .selectDistinct({ id: ba.id, name: ba.name })
+    .from(ba)
+    .innerJoin(bi, eq(bi.bankAccountId, ba.id))
+    .where(and(isNull(ba.excludedAt), notInArray(ba.purpose, ["privat", "zahlungsdienstleister"]), isNotNull(bi.closingBalance)));
+  const result: BankZeile[] = [];
   for (const account of accounts) {
     const [erster] = await q
       .select({ periodFrom: bi.periodFrom, openingBalance: bi.openingBalance })
