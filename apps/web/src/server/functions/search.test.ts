@@ -26,7 +26,7 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     await leeren(
       sql,
     )`truncate mail_log, quote_lines, quotes, quote_number_counters, document_amounts, documents, journal_lines, journal_entries, invoice_lines, invoices,
-      invoice_number_counters, contact_versions, contacts, company cascade`;
+      invoice_number_counters, contact_versions, contacts, allocations, bank_transactions, bank_imports, bank_accounts, loans, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank, payment_term_days)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',
               'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank', 21)`;
@@ -214,7 +214,7 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
 
   it("durchsucht bei Mitarbeitern nur Name und Personalnummer, nie Steuer-ID, SV-Nummer, IBAN oder Geburtsdatum", async () => {
     await sql`insert into employees (personalnummer, vorname, nachname, geburtsdatum, steuer_id, sv_nummer, art, monatsgehalt, eintritt, iban)
-      values (42, 'Erika', 'Mustermann', '1988-05-12', '12345678901', '65120588M001', 'vollzeit', 450000, '2026-01-01', 'DE02120300000000202051')`;
+      values (42, 'Erika', 'Mustermann', '1988-05-12', '12345678901', '65120588M001', 'beschaeftigt', 450000, '2026-01-01', 'DE02120300000000202051')`;
 
     expect((await search.runCommandPaletteSearch("Mustermann", "inhaber")).employees.hits).toHaveLength(1);
     expect((await search.runCommandPaletteSearch("42", "inhaber")).employees.hits).toHaveLength(1);
@@ -236,4 +236,35 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     const aus = await search.runCommandPaletteSearch("Altlieferant", "inhaber");
     expect(aus.archive.hits).toEqual([]);
   });
+  it("liefert der Steuerberatung aus Stufe 2 nur Buchungen und Konten", async () => {
+    await sql`insert into employees (personalnummer, vorname, nachname, geburtsdatum, steuer_id, sv_nummer, art, monatsgehalt, eintritt, iban)
+      values (77, 'Berta', 'Bergblick', '1990-01-01', '98765432109', '65010190B002', 'beschaeftigt', 300000, '2026-01-01', 'DE02120300000000202051')`;
+    await sql`insert into articles (number, description, unit, unit_price, tax_rate) values ('ART-1', 'Bergblick Lizenz', 'Stk.', 1000, 1900)`;
+    const stb = await search.runCommandPaletteSearch("Bergblick", "steuerberatung");
+    const erlaubt = new Set(["invoices", "documents", "bookings", "accounts"]);
+    for (const [gruppe, ergebnis] of Object.entries(stb)) {
+      if (!erlaubt.has(gruppe)) expect({ gruppe, hits: ergebnis.hits }).toEqual({ gruppe, hits: [] });
+    }
+    const inhaber = await search.runCommandPaletteSearch("Bergblick", "inhaber");
+    expect(inhaber.employees.hits).toHaveLength(1);
+    expect(inhaber.articles.hits).toHaveLength(1);
+  });
+
+  it("nutzt bei 100.000 Bankumsätzen die Trigramm-Indizes", async () => {
+    const [ba] = await sql`insert into bank_accounts (name, iban, purpose) values ('Konto', 'DE89370400440532013000', 'geschaeft') returning id`;
+    const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${ba!.id}, 'massen.csv', 'sha-massen', 'csv', 100000, 0) returning id`;
+    await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, counterparty_iban, purpose, dedup_hash)
+      select ${ba!.id}, ${bi!.id}, date '2020-01-01' + (i % 2000), i - 50000, 'Gegenseite ' || (i % 5000),
+        'DE' || lpad(i::text, 20, '0'), 'Verwendung ' || md5(i::text), 'massen-' || i
+      from generate_series(1, 100000) i`;
+    await sql`vacuum analyze bank_transactions`;
+    const plan = await sql`explain (format json) select id from bank_transactions
+      where haben_unaccent(counterparty_name) ilike haben_unaccent('%Hosting%')
+         or haben_unaccent(purpose) ilike haben_unaccent('%Hosting%')
+         or haben_unaccent(counterparty_iban) ilike haben_unaccent('%Hosting%')
+      order by booking_date desc, created_at desc limit 6`;
+    expect(JSON.stringify(plan)).toContain("bank_transactions_counterparty_name_trgm_idx");
+    expect(JSON.stringify(plan)).toContain("bank_transactions_purpose_trgm_idx");
+  }, 60_000);
 });
