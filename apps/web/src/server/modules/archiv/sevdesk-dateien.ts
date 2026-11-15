@@ -71,6 +71,7 @@ type Row = {
   lexofficeId: string;
   raw: { document?: unknown; origin?: unknown };
   pdf: boolean;
+  xml: boolean;
   files: number;
   latest: LegacyFileState | null;
   latestRole: "pdf" | "xml" | "anhang" | null;
@@ -86,6 +87,7 @@ export async function checkSevdeskFiles(actor: string, importId: string, client:
   const rows = await db.execute<Row>(sql`
     select v.id, v.lexoffice_id as "lexofficeId", jsonb_build_object('document', v.raw->'document', 'origin', v.raw->'origin') as raw,
       exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id and f.role = 'pdf') as pdf,
+      exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id and f.role = 'xml') as xml,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files,
       s.state as latest, s.role as "latestRole"
     from lexoffice_vouchers v
@@ -133,6 +135,11 @@ export async function checkSevdeskFiles(actor: string, importId: string, client:
       });
       progress.files += 1;
       counts.nachgeladen += 1;
+      // Fehlte beim ersten Abruf auch das XML, verdeckte der Fehler beim PDF es; jetzt das XML getrennt anfragen
+      if (attempt.role === "pdf" && kind === "invoice" && !row.xml && (await xmlAfterPdf(actor, importId, client, signal, row, id))) {
+        progress.files += 1;
+        counts.nachgeladen += 1;
+      }
       continue;
     }
     // Ein XML, das sevDesk jetzt ohne Fehler nicht liefert, gibt es nicht: dann fehlt nichts mehr. Mit Fehler bleibt der Stand.
@@ -157,6 +164,35 @@ export async function checkSevdeskFiles(actor: string, importId: string, client:
     if (finding) await withActor(actor, (tx) => recordFileState(tx, row.id, finding, { actor, importId }));
   }
   Object.assign(counts, await openCounts());
+}
+
+/**
+ * XML einer Rechnung, deren PDF gerade nachgeladen wurde: angehängt („nachgeladen“), mit Fehler „Anhang fehlt“ (ein
+ * späterer Abruf versucht es erneut), ohne Fehler leer heißt keine E-Rechnung. Eigene Transaktion, damit der Stand nach
+ * dem des PDFs kommt. true, wenn das XML angehängt wurde.
+ */
+async function xmlAfterPdf(actor: string, importId: string, client: SevdeskClient, signal: AbortSignal, row: Row, id: string): Promise<boolean> {
+  let xml: SevFile | null;
+  try {
+    xml = await client.invoiceXml(id);
+  } catch (error) {
+    if (fatal(error, signal)) throw error;
+    const finding = sevFileFinding({ kind: "pdf" }, { main: true, xmlError: progressMessage(error) })!;
+    await withActor(actor, (tx) => recordFileState(tx, row.id, finding, { actor, importId }));
+    return false;
+  }
+  if (!xml) return false;
+  const file = xml;
+  await withActor(actor, async (tx) => {
+    await appendFile(tx, row.id, "xml", null, file, row.lexofficeId);
+    await recordFileState(
+      tx,
+      row.id,
+      { state: "nachgeladen", role: "xml", sourceFileId: null, message: "Ein späterer Abruf hat die Datei angehängt." },
+      { actor, importId },
+    );
+  });
+  return true;
 }
 
 /** Offene Dateistände aller Belege aus sevDesk nach dem Lauf */
