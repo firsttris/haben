@@ -122,8 +122,9 @@ spec:
 
 Ohne NetworkPolicy erreicht jeder Pod im Cluster Port 3000 der App und kann `X-Forwarded-For` fälschen.
 `networkPolicy.enabled: true` lässt wie das eigene Netz in Compose nur die Pods aus `networkPolicy.ingressFrom` an die
-App und nur App und Wiederherstellen an die Datenbank; ausgehend bleibt alles offen. Das Netzwerk-Plugin des Clusters
-muss NetworkPolicy umsetzen, in k3s ist das eingebaut. Für Traefik in k3s:
+App und nur App und Wiederherstellen an die mitgelieferte Datenbank; ausgehend bleibt alles offen. Eine eigene
+Datenbank braucht eine eigene Richtlinie. Das Netzwerk-Plugin des Clusters muss NetworkPolicy umsetzen, in k3s ist das
+eingebaut. Für Traefik in k3s:
 
 ```yaml
 networkPolicy:

@@ -109,8 +109,9 @@ httpRoute:
     #   namespace: gateway-system
     #   sectionName: https
 
-# Wie das eigene Netz in Compose: An die App kommen nur die Pods aus ingressFrom, an die Datenbank nur App und
-# Wiederherstellen. Braucht ein Netzwerk-Plugin, das NetworkPolicy umsetzt (in k3s eingebaut).
+# Wie das eigene Netz in Compose: An die App kommen nur die Pods aus ingressFrom, an die mitgelieferte Datenbank nur
+# App und Wiederherstellen; eine eigene Datenbank braucht eine eigene Richtlinie. Braucht ein Netzwerk-Plugin, das
+# NetworkPolicy umsetzt (in k3s eingebaut).
 networkPolicy:
   enabled: false
   # Pods des Ingress-Controllers oder Gateways, als Einträge für from einer NetworkPolicy. In k3s mit Traefik:
