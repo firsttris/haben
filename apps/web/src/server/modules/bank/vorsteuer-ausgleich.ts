@@ -1,5 +1,6 @@
 import {
   ACCOUNTS,
+  leistungsdatum,
   paidTaxShares,
   splitPrivateShare,
   vorsteuerAusgleichPosting,
@@ -9,7 +10,7 @@ import {
   type PostingLine,
   type TaxShare,
 } from "@haben/core";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 
 /*
@@ -27,6 +28,11 @@ import { schema, type Tx } from "../../db/index.ts";
  * Ob der Beleg überhaupt etwas auf dem Zwischenkonto hat, sagt das Journal und nicht die Angabe am Beleg: Der Nachweis
  * ist die Buchung selbst, damit Altbestand, Kleinunternehmer und 0 % unberührt bleiben und ein nachträglich gesetztes
  * Leistungsdatum nicht rückwirkend umbucht.
+ *
+ * Eine Kursdifferenz vor der Ausführung zieht nichts (#930, Entscheidung des Maintainers): Sie ist weder Zahlung noch
+ * Entgeltminderung, die Vorsteuer bemisst sich nach dem Kurs der Rechnung (§ 16 Abs. 6 UStG) und wird nur durch
+ * tatsächliche Zahlung vorgezogen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG). Ihr Anteil bleibt auf dem Zwischenkonto und
+ * wird mit der Ausführung frei (umsatzsteuer/vorsteuer-freigabe.ts), wie in den Nebenbüchern.
  *
  * Ausgebuchtes Skonto zählt hier nicht mit: Es erstattet nichts, sondern erlässt den Rest. Seine Steuer wird deshalb
  * nicht gezogen, sondern vom Zwischenkonto abgeschrieben (documentWriteOffPosting mit der Angabe), sonst stünde die
@@ -70,16 +76,37 @@ async function aufDemZwischenkonto(tx: Tx, documentId: string): Promise<boolean>
 
 /**
  * Erledigter Betrag, der die Vorsteuer berichtigt: Zuordnungen, Verrechnungen und Kursdifferenzen, ohne ausgebuchtes
- * Skonto. Vorzeichen wie in `settledOn` (Gutschrift positiv).
+ * Skonto und ohne Kursdifferenzen vor `ausfuehrung` (sie ziehen nichts, siehe oben). Vorzeichen wie in `settledOn`
+ * (Gutschrift positiv).
  */
-async function steuerlichAusgeglichen(tx: Tx, documentId: string): Promise<number> {
+async function steuerlichAusgeglichen(tx: Tx, documentId: string, ausfuehrung: string | null): Promise<number> {
   const [row] = await tx.execute<{ summe: number }>(sql`
     select coalesce(sum(amount), 0)::int as summe from (
       select amount from allocations where document_id = ${documentId}
       union all select amount from document_settlements where document_id = ${documentId}
       union all select amount from write_offs where document_id = ${documentId} and kind <> 'skontoErhalten'
+        and not (kind = 'kursdifferenz' and ${ausfuehrung}::date is not null and date < ${ausfuehrung}::date)
     ) ausgeglichen`);
   return Number(row?.summe ?? 0);
+}
+
+/**
+ * Tag der Ausführung, wenn der Beleg eine Freigabe zum Leistungsdatum trägt oder trug (#693); sonst null, etwa bei der
+ * Gutschrift „erstattet bereits Bezahltes“ (#786), deren Kursdifferenz weiter ausgleicht
+ */
+async function ausfuehrungMitFreigabe(tx: Tx, documentId: string): Promise<string | null> {
+  const [doc] = await tx
+    .select({ documentDate: schema.documents.documentDate, serviceFrom: schema.documents.serviceFrom, serviceTo: schema.documents.serviceTo })
+    .from(schema.documents)
+    .where(eq(schema.documents.id, documentId));
+  if (!doc?.documentDate) return null;
+  const [freigabe] = await tx
+    .select({ id: schema.journalEntries.id })
+    .from(schema.journalEntries)
+    .where(and(eq(schema.journalEntries.sourceType, "freigabe"), eq(schema.journalEntries.sourceId, documentId)))
+    .limit(1);
+  if (!freigabe) return null;
+  return leistungsdatum({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });
 }
 
 /**
@@ -122,7 +149,8 @@ async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise
  *
  * Vor der Ausführung gezahlt zieht die Zahlung ihren Anteil hier schon ab (#930); die Freigabe zum Ausführungsdatum
  * schreibt umsatzsteuer/vorsteuer-freigabe.ts danach für den Rest fort. Ein Ausgleich nach der Ausführung zieht nichts mehr, weil die
- * Freigabe dann steht (siehe `vorsteuerRest`).
+ * Freigabe dann steht (siehe `vorsteuerRest`). `kursdifferenz`: Der Ausgleich ist eine Kursdifferenz; vor der Ausführung
+ * zieht sie nichts.
  */
 export async function vorsteuerAusgleich(
   tx: Tx,
@@ -131,8 +159,9 @@ export async function vorsteuerAusgleich(
   amount: number,
   kontenrahmen: Kontenrahmen,
   datum: string,
+  kursdifferenz = false,
 ): Promise<PostingLine[]> {
-  const anteile = await vorsteuerRest(tx, doc, totals, amount, datum);
+  const anteile = await vorsteuerRest(tx, doc, totals, amount, datum, kursdifferenz);
   return anteile === null ? [] : vorsteuerAusgleichPosting(anteile, kontenrahmen);
 }
 
@@ -177,6 +206,7 @@ async function vorsteuerRest(
   totals: InvoiceTotals,
   amount: number,
   datum: string,
+  kursdifferenz = false,
 ): Promise<TaxShare[] | null> {
   // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; die Umbuchung selbst
   // bucht dann im eingestellten Rahmen, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht
@@ -186,11 +216,13 @@ async function vorsteuerRest(
   // Vorsteuer wie bei jedem Beleg (§ 17 Abs. 1 Satz 2 UStG)
   const freigabe = await freigabeAm(tx, doc.id);
   if (freigabe !== null && datum >= freigabe) return null;
+  const ausfuehrung = await ausfuehrungMitFreigabe(tx, doc.id);
+  if (kursdifferenz && ausfuehrung !== null && datum < ausfuehrung) return [];
   const bisher = await bisherUmgebucht(tx, doc.id, datum);
   // Der Privatanteil steht schon beim Buchen nicht auf dem Zwischenkonto: Der geschäftliche Teil des Ziels wird
   // deshalb vor dem Abzug der bisherigen Umbuchungen gebildet. So schreiben die Ausgleiche zusammen genau den
   // geschäftlichen Teil der Vorsteuer fort, und das Konto endet bei null statt um den Privatanteil im Soll.
-  const ziel = paidTaxShares(totals, (await steuerlichAusgeglichen(tx, doc.id)) + amount).map((s) => ({
+  const ziel = paidTaxShares(totals, (await steuerlichAusgeglichen(tx, doc.id, ausfuehrung)) + amount).map((s) => ({
     rate: s.rate,
     base: geschaeftlich(s.base, doc.privateShare),
     tax: geschaeftlich(s.tax, doc.privateShare),
