@@ -32,6 +32,21 @@ Ist die REST-API nicht Teil deines Tarifs, gibt es zwei Wege:
 - **Vorübergehend auf Buchhaltung Pro wechseln**, für die Dauer des Abrufs, und danach kündigen oder zurückwechseln. Laufzeit und Kündigungsfrist des höheren Tarifs prüfst du vorher bei sevDesk.
 - **Nur über die Exporte:** Unter **Steuern › Mein Steuerberater** den Datei-Export **Buchungsdaten & Belegbilder** je Geschäftsjahr erstellen, mit Belegbildern und mit den Häkchen für festgeschriebene Daten und für offene Rechnungen und Belege; ohne sie fehlen diese im Export ([sevDesk-Hilfe: Export](https://hilfe.sevdesk.de/de/articles/9373838-export)). Die ZIP-Datei enthält den Buchungsstapel und die Stammdaten (Kontakte des Zeitraums) als DATEV-kompatible CSV sowie die Belegbilder der Ein- und Ausgangsrechnungen. Lege die ganze ZIP-Datei in Haben als **Sonstiges** ab (höchstens 100 MB je Datei, sonst kürzere Zeiträume exportieren) und daraus entpackt den Buchungsstapel noch einmal als **DATEV-Buchungsstapel**. Die Stammdaten (`EXTF_GP_Stamm_….csv`) kannst du auch einzeln als **Sonstiges** ablegen; dafür gibst du das Geschäftsjahr an. Dazu kommt der GoBD-Export ([Schritt 4](lexoffice.md#schritt-4-exporte-ablegen)), wie beim [Weg ohne API bei Lexoffice](lexoffice.md#nur-über-die-exporte). Dann fehlen die Belege als Datensätze mit Positionen und Zahlungen, die Belegbilder liegen nur als ZIP im Archiv. Die Stammdaten (`EXTF_GP_Stamm_….csv`) übernimmst du mit Debitor und Kreditor über den [CSV-Import der Kontakte](csv-import.md#kontakte-aus-datev). Offene Posten trägst du von Hand ein, und kein Jahr zeigt im Abgleich „vollständig“.
 
+#### Was der Export anders enthält als die API
+
+Verglichen an einem Konto mit Buchhaltungsversion 1.0 und SKR03, Jahr 2024: 191 Belege aus dem Export gegen 218 Rechnungen, Belege und Gutschriften aus der API ([#472](https://github.com/firsttris/haben/issues/472)). Version 2.0 ist nicht verglichen.
+
+- **Vollständigkeit:**
+  - Jeder Beleg aus dem Export hat seine Entsprechung in der API, mit gleichem Datum.
+  - Umgekehrt fehlen nur Vorlagen wiederkehrender Belege (in der API `voucherType` RV); sie sind keine Belege.
+  - Belege auf Darlehens-, Privat- und Zinskonten stehen mit Netto und Steuer in der Beleginfo im Stapel, aber ohne Belegbild (19 von 218).
+- **Belegbilder:** Der Export hat auch Bilder, wo die API keine Datei meldet (8 Belege, alle zu einem wiederkehrenden Beleg).
+- **Belegnummern:** Wiederkehrende Belege teilen ihre Nummer (bis zu 9 Belege je Nummer); erst das Datum unterscheidet sie. Zeichen außerhalb des DATEV-Zeichensatzes fehlen (siehe [Schritt 3 bis 5](#schritt-3-bis-5)).
+- **Fremdwährung:** Im Umsatz steht der Betrag in der Fremdwährung, Netto und Steuer in der Beleginfo stehen in Euro. `Kurs` und `Basis-Umsatz` sind leer.
+- **Was nur die API hat:** Positionen, Steuerregel, Zahlungsstand und die Zuordnung der Zahlungen zu Belegen, Angebote und Aufträge. Offene Belege und Rechnungen enthält der Export nur mit dem Häkchen dafür.
+- **Kopf des Stapels:** Der Kontenrahmen steht nicht darin; Haben nimmt den aus den Firmendaten. Ein Export umfasst höchstens ein Wirtschaftsjahr.
+- **Kontakte:** Die Besonderheiten des GP-Stamms (leere Kundennummer, Telefon mit `'`, Land „UN“) beschreibt der [CSV-Import](csv-import.md#kontakte-aus-datev).
+
 ## Schritt 1: Verbindung zu sevDesk
 
 Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit die Version der Buchhaltung ab (`/Tools/bookkeepingSystemVersion`); klappt das, ist der Token gültig. Er wird wie der Lexoffice-Schlüssel mit AES-256-GCM verschlüsselt gespeichert und taucht weder im Änderungsprotokoll noch im Jahresexport auf. Auftrags-PDFs werden ausschließlich bei frisch ermittelter Buchhaltungsversion 1.0 automatisch abgerufen, siehe unten. Nach dem Umzug entfernst du den Token mit „Token entfernen“.
