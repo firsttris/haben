@@ -55,9 +55,8 @@ p { margin: 0; line-height: 1.5; }
 .firma:hover { background: var(--firma-hover); }
 .firma:focus-visible { outline-offset: -2px; }
 .firma-zeichen { flex-shrink: 0; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
-/* Logo der Firma (#1036) auf weißer Fläche wie in der Navigation von Haben (DESIGN.md), mit Kante gegen die weiße Karte */
-.firma-logo { padding: 2px; background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
-.firma-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+/* Logo der Firma (#1036): das Bild selbst als Kachel wie .brand-logo in Haben (DESIGN.md), mit Kante gegen die weiße Karte */
+.firma-logo { display: block; padding: 3px; background: #fff; object-fit: contain; box-shadow: inset 0 0 0 1px var(--line); }
 .firma-name { flex: 1; min-width: 0; overflow-wrap: break-word; hyphens: auto; }
 .firma-pfeil { flex-shrink: 0; color: var(--muted); transition: transform var(--fade); }
 .firma:hover .firma-pfeil { transform: translateX(2px); color: var(--ink); }

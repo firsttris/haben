@@ -81,7 +81,8 @@ const PFEIL =
 
 /** Logo, sonst Anfangsbuchstabe auf eigener Farbe oder der des Firmenportals; für Screenreader zählt nur der Name */
 function kachel(firma: FirmaKachel): string {
-  if (firma.logo) return `<span class="firma-zeichen firma-logo" aria-hidden="true"><img src="${html(firma.logo)}" alt="" width="28" height="28"></span>`;
+  // Wie .brand-logo in Haben (NavMarkSymbol) ist das Bild selbst die Kachel: feste Größe, das Logo darin eingepasst
+  if (firma.logo) return `<img class="firma-zeichen firma-logo" src="${html(firma.logo)}" alt="" width="32" height="32">`;
   const initiale = Array.from(firma.name.trim())[0]?.toLocaleUpperCase("de") ?? "";
   const farbe = firma.farbe ? ` farbe-${firma.farbe.slice(1)}` : "";
   return `<span class="firma-zeichen${html(farbe)}" aria-hidden="true">${html(initiale)}</span>`;

@@ -231,7 +231,7 @@ describe("Firmenportal mit Farbe und Logo", () => {
     const handler = await handlerFuer(LISTE);
     const cookies = await anmelden(handler, NORD_SUED);
     const seite = await (await handler(anfrage("/", cookies))).text();
-    const logo = seite.match(/<img src="(\/zeichen\/[0-9a-f]{16}\.png)" alt=""/)?.[1];
+    const logo = seite.match(/<img class="firma-zeichen firma-logo" src="(\/zeichen\/[0-9a-f]{16}\.png)" alt=""/)?.[1];
     expect(logo).toBeDefined();
     expect(seite).toContain('<span class="firma-zeichen farbe-B45309" aria-hidden="true">W</span><span class="firma-name">Werkstatt Süd</span>');
     expect(seite).toMatch(/<link rel="stylesheet" href="\/farben\.css\?v=[0-9a-f]{12}">/);
@@ -249,7 +249,7 @@ describe("Firmenportal mit Farbe und Logo", () => {
     const handler = await handlerFuer(LISTE);
     const alle = await anmelden(handler, { sub: "b", email: "b@example.de", groups: ["haben-nord-inhaber", "haben-west-inhaber"] });
     const seite = await (await handler(anfrage("/", alle))).text();
-    const west = seite.match(/<img src="(\/zeichen\/[0-9a-f]{16}\.jpg)"/)?.[1];
+    const west = seite.match(/<img class="firma-zeichen firma-logo" src="(\/zeichen\/[0-9a-f]{16}\.jpg)"/)?.[1];
     expect(west).toBeDefined();
     expect((await handler(anfrage(west!))).status).toBe(404);
     const nurNord = await anmelden(handler, { sub: "c", email: "c@example.de", groups: ["haben-nord-inhaber"] });
