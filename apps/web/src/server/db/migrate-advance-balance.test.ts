@@ -87,7 +87,7 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       await migrate(database, { migrationsFolder: MIGRATIONS });
       expect(await sql`select founded_on from company order by id`).toEqual([{ founded_on: null }]);
       expect(await snapshot()).toEqual(old);
-      // Neu im Audit-Log ist nur die Zeile der Prüfung beim Update (Migration 0252, #1116)
+      // Neu im Audit-Log ist nur die Zeile der Prüfung beim Update (Migration 0255, #1116)
       expect(await sql`select table_name, action from audit_log where seq > ${auditHead!.seq}`).toEqual([
         { table_name: "journal_umstellung", action: "INSERT" },
       ]);

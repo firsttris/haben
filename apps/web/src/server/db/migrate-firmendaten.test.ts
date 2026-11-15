@@ -68,7 +68,7 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
         await sql`select to_jsonb(company) - 'firmendaten_gespeichert_at' - 'nav_color' - 'nav_logo' - 'ohne_vorsteuerabzug'
           - 'archive_search' - 'founded_on' as value from company`,
       ).toEqual(before.company);
-      // Bisherige Einträge unverändert; neu ist nur die Zeile der Prüfung beim Update (Migration 0252, #1116)
+      // Bisherige Einträge unverändert; neu ist nur die Zeile der Prüfung beim Update (Migration 0255, #1116)
       const audit = await sql`select * from audit_log order by seq`;
       expect(audit.slice(0, before.audit.length)).toEqual(before.audit);
       expect(audit.slice(before.audit.length).map((a) => [a.table_name, a.action])).toEqual([["journal_umstellung", "INSERT"]]);

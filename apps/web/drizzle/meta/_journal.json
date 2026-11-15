@@ -1779,6 +1779,20 @@
       "when": 1794768072654,
       "tag": "0253_dauerbelege_aus_sevdesk",
       "breakpoints": true
+    },
+    {
+      "idx": 254,
+      "version": "7",
+      "when": 1794769037737,
+      "tag": "0254_journal_umstellung",
+      "breakpoints": true
+    },
+    {
+      "idx": 255,
+      "version": "7",
+      "when": 1794769040921,
+      "tag": "0255_journal_umstellung_trigger",
+      "breakpoints": true
     }
   ]
 }

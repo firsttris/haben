@@ -165,7 +165,7 @@ export const company = pgTable(
      */
     datevPersonenkontenAb: integer("datev_personenkonten_ab"),
     /**
-     * Früheres Stichjahr (#542). Haben liest es nicht mehr (#1116): Migration 0252 hat es nach journal_umstellung übernommen.
+     * Früheres Stichjahr (#542). Haben liest es nicht mehr (#1116): Migration 0255 hat es nach journal_umstellung übernommen.
      * Die Spalte bleibt, damit eine Instanz, die die Prüfung beim Update nicht besteht, auf derselben Datenbank mit der
      * bisherigen Version weiterlaufen kann; sie entfällt mit modules/umstellung.
      */
