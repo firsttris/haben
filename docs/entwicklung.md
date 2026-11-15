@@ -165,6 +165,7 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 | `AUTHELIA_TEST_ISSUER`, `AUTHELIA_TEST_USERS_FILE` | Reale Authelia-Referenztests ohne eigene Testinstanz übersprungen | nein | nein |
 | `TEST_DATABASE_URL` | alle Postgres-Tests übersprungen | mit `-e`, siehe oben | ja |
 | `pdftotext`, `pdftoppm`, `pdffonts`, `pdfimages` (poppler-utils) | Textebene, Seitenbilder, eingebettete Schriften und Bilder von PDFs übersprungen | ja | ja |
+| `helm` | Tests des Helm-Charts in `scripts/deploy-vorlagen/helm.test.ts` übersprungen | nein | ja |
 | `zip`, `unzip` | Test des Pakets „Haben für Mein ELSTER“ schlägt fehl | ja | ja |
 | `cc` | ERiC-Tests mit nachgebauter Bibliothek übersprungen | nein | ja |
 | ERiC (`ERIC_HOME` oder `ERIC_DIR`) | Tests mit echtem ERiC übersprungen | nein | nein |
@@ -284,7 +285,8 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 
 - **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
 - **Steuersätze in Basispunkten** (`BasisPoints`): 1900 = 19 %, 700 = 7 %.
-- **Mengen in Tausendsteln**: 152 Stunden = 152000, 0,5 Tage = 500.
+- **Mengen in Tausendsteln** (`Millis`): 152 Stunden = 152000, 0,5 Tage = 500.
+- **Einheit im Typ:** `Cents`, `BasisPoints` und `Millis` tragen ihre Einheit (`packages/core/src/einheit.ts`, #1132), verschiedene Einheiten passen nicht zueinander. Basispunkte als Text gehen nicht über `parseEuro` und `formatDecimal`, die nur Cent kennen, sondern über `parsePercent` und `formatPercent` oder, ohne `%` und auch negativ, über `parseHundredths` und `formatHundredths`.
 - **Daten der Belegvorlagen:** Jedes Feld, das eine Vorlage bekommt, steht mit Beschreibung im Feldvertrag (`packages/einvoice/src/layout-schema.ts`). Danach schreibt `bun scripts/feldvertrag/schreiben.ts` den Skill `belegvorlage` und die Feldtabellen in [Eigene Belegvorlagen](belegvorlagen.md) neu. Felder kommen nur dazu: Wegfallen, umbenennen oder den Typ wechseln darf keines einer veröffentlichten Version, sonst brechen eigene Layouts. Steigt `LAYOUT_SCHEMA_VERSION`, friert `bun scripts/feldvertrag/einfrieren.ts` den neuen Stand einmal als `layout-schema.v<n>.json` ein; eine vorhandene Datei überschreibt es nie.
 - **Formatierung mit Biome:** `bun run format` formatiert JavaScript, TypeScript und JSON (160 Zeichen breit, doppelte Anführungszeichen); `bun run lint` und die CI prüfen das. CSS und Markdown formatiert Biome nicht. Reine Formatier-Commits stehen in `.git-blame-ignore-revs`; damit `git blame` sie lokal überspringt, einmal `git config blame.ignoreRevsFile .git-blame-ignore-revs` und `git config blame.markIgnoredLines true`.
 - **Lint mit Biome:** Abgeschaltete Regeln stehen mit Grund in `biome.jsonc`. Eine Ausnahme an einer Stelle steht direkt davor als `// biome-ignore lint/<gruppe>/<regel>: <Grund>`.

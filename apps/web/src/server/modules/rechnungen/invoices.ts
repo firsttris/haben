@@ -22,6 +22,7 @@ import {
   type PriceMode,
   type TaxTreatment,
   type UnitLabel,
+  UNITS,
   cancellationProblem,
   invoiceEditProblem,
   invoiceListStatus,
@@ -43,7 +44,15 @@ import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "driz
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
-import { ansprechpartnerSnapshot, type Contact, contactPersonProblem, contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
+import {
+  ansprechpartnerSnapshot,
+  type Contact,
+  contactPersonProblem,
+  contactRoleProblem,
+  loadLetterhead,
+  loadUnitCodes,
+  withCustomLayout,
+} from "../stammdaten/index.ts";
 import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "./zahlungsstand.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -741,33 +750,37 @@ export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
   return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
 }
 
-export async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, limit?: number, rank?: SQL) {
-  const query = q
-    .select({
-      id: schema.invoices.id,
-      kind: schema.invoices.kind,
-      variant: schema.invoices.variant,
-      status: schema.invoices.status,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      dueDate: schema.invoices.dueDate,
-      gross: schema.invoices.gross,
-      net: schema.invoices.net,
-      correctsId: schema.invoices.correctsId,
-      contactId: schema.invoices.contactId,
-      externalSource: schema.invoices.externalSource,
-      externalId: schema.invoices.externalId,
-      buyerOrderReference: schema.invoices.buyerOrderReference,
-      sellerOrderReference: schema.invoices.sellerOrderReference,
-      contactName: schema.contacts.name,
-      buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
-      cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
-      // Für die Auskunft unter dem Status: welches Storno die Rechnung aufhebt, welche Rechnung Storno oder Korrektur betrifft
-      cancelledBy: sql<
-        string | null
-      >`(select s.number from invoices s where s.kind = 'storno' and s.status = 'final' and s.corrects_id = ${schema.invoices.id} order by s.number limit 1)`,
-      correctsNumber: sql<string | null>`(select o.number from invoices o where o.id = ${schema.invoices.correctsId})`,
-    })
+/** Spalten der Rechnungsliste; die Schnellsuche liest dieselben (search.ts) */
+export const invoiceListFields = {
+  id: schema.invoices.id,
+  kind: schema.invoices.kind,
+  variant: schema.invoices.variant,
+  status: schema.invoices.status,
+  number: schema.invoices.number,
+  issueDate: schema.invoices.issueDate,
+  dueDate: schema.invoices.dueDate,
+  gross: schema.invoices.gross,
+  net: schema.invoices.net,
+  correctsId: schema.invoices.correctsId,
+  contactId: schema.invoices.contactId,
+  externalSource: schema.invoices.externalSource,
+  externalId: schema.invoices.externalId,
+  buyerOrderReference: schema.invoices.buyerOrderReference,
+  sellerOrderReference: schema.invoices.sellerOrderReference,
+  contactName: schema.contacts.name,
+  buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
+  cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
+  // Für die Auskunft unter dem Status: welches Storno die Rechnung aufhebt, welche Rechnung Storno oder Korrektur betrifft
+  cancelledBy: sql<
+    string | null
+  >`(select s.number from invoices s where s.kind = 'storno' and s.status = 'final' and s.corrects_id = ${schema.invoices.id} order by s.number limit 1)`,
+  correctsNumber: sql<string | null>`(select o.number from invoices o where o.id = ${schema.invoices.correctsId})`,
+};
+
+/** Abfrage der Rechnungsliste, noch ohne Zahlungen und Status (`withListStatus`) */
+export function invoiceListQuery(fields: typeof invoiceListFields, filter: SQL | undefined, q: Db | Tx = db, rank?: SQL) {
+  return q
+    .select(fields)
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(filter)
@@ -779,8 +792,14 @@ export async function selectInvoiceList(today: string, filter: SQL | undefined, 
       desc(schema.invoices.id),
     )
     .$dynamic();
-  const rows = await (limit === undefined ? query : query.limit(limit));
+}
 
+async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db) {
+  return withListStatus(await invoiceListQuery(invoiceListFields, filter, q), today, q);
+}
+
+/** Zeilen der Rechnungsliste mit Zahlungen, offenem Betrag und Status */
+export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db) {
   if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
@@ -881,6 +900,8 @@ export function documentFor(
   corrects: { number: string; issueDate: string } | null,
   deducted: { number: string; issueDate: string }[] = [],
   directDebit?: DirectDebit,
+  /** Codes eigener Einheiten (#748) aus loadUnitCodes; feste Einheiten brauchen keinen */
+  unitCodes: Readonly<Record<string, string>> = {},
 ): InvoiceDocument {
   return {
     kind: invoice.kind,
@@ -911,7 +932,8 @@ export function documentFor(
       ...(line.detail ? { detail: line.detail } : {}),
       ...(line.itemNumber ? { itemNumber: line.itemNumber } : {}),
       quantity: line.quantity,
-      unit: line.unit as UnitLabel,
+      unit: line.unit,
+      ...(!Object.hasOwn(UNITS, line.unit) && unitCodes[line.unit] ? { unitCode: unitCodes[line.unit] } : {}),
       unitPrice: line.unitPrice,
       taxRate: line.taxRate,
       net: line.net,
@@ -1087,6 +1109,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
       await deductedRefs(lines, q),
       await directDebitFor(invoice, company, q),
+      await loadUnitCodes(q),
     );
     issues.push(...validateForFormat(preview));
   }
@@ -1174,6 +1197,7 @@ async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestae
     corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null,
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
+    await loadUnitCodes(tx),
   );
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();

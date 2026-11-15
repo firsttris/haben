@@ -24,7 +24,16 @@ import {
   recordedTaxShares,
   settlementTaxShares,
   type TaxShare,
+  vatRate,
 } from "./posting.ts";
+
+describe("vatRate", () => {
+  it("lässt nur Sätze mit eigenem Umsatzsteuer- und Vorsteuerkonto durch", () => {
+    expect([vatRate(1900), vatRate(700)]).toEqual([1900, 700]);
+    expect(() => vatRate(0)).toThrow(new RangeError("Steuersatz 0 wird nicht unterstützt"));
+    expect(() => vatRate(1600)).toThrow(new RangeError("Steuersatz 1600 wird nicht unterstützt"));
+  });
+});
 
 const balanced = (lines: { debit: number; credit: number }[]) => lines.reduce((s, l) => s + l.debit, 0) === lines.reduce((s, l) => s + l.credit, 0);
 

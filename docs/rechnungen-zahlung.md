@@ -77,6 +77,8 @@ Der Knopf rechts schlägt die nächste Stufe vor:
 
 Läuft die Frist der letzten Mahnung noch, ist der Knopf hell. Mahnen kannst du trotzdem.
 
+Bei einer aus sevDesk übernommenen Rechnung zählt die Mahnstufe aus sevDesk mit ([Mahnungen aus sevDesk](sevdesk.md#mahnungen)).
+
 Gemahnt wird immer der volle offene Betrag. Bot die Rechnung [Skonto](#skonto) an, ist dessen Frist bei der Mahnung vorbei (sie endet spätestens mit dem Zahlungsziel); das Schreiben sagt deshalb unter der Zahlungsaufforderung, dass das Skonto entfallen ist.
 
 Im Formular legst du fest:

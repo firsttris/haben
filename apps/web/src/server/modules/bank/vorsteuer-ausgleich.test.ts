@@ -117,13 +117,21 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus dem Zwischenkonto beim Ausgleic
     ) as Record<string, number>;
   }
 
-  /** Die Umbuchungszeilen aller Ausgleichsbuchungen: nur die Buchungen der Ausgleichswege, nicht die Belegbuchung */
+  /**
+   * Die Umbuchungszeilen aller Ausgleichsbuchungen: nur die Buchungen der Ausgleichswege, nicht die Belegbuchung.
+   *
+   * Die Reihenfolge ist fest: Zwischenkonto zuerst, dann die Vorsteuerkonten, innerhalb dessen der größere Betrag
+   * zuerst. Ohne die Sortierung hing die Folge am Abfrageplan — dieselben Zeilen kamen bei gleichem Stand einmal
+   * andersherum zurück, und die Vergleiche unten wurden rot (#1121).
+   */
   async function umbuchungen(p: Profil) {
     const k = KONTEN[p.kr];
     const rows = await sql`select l.account, l.debit, l.credit, l.tax_code, l.basis
         from journal_lines l join journal_entries e on e.id = l.entry_id
        where e.source_type in ('allocation', 'ausbuchung', 'verrechnung')
-         and l.account in (${k.zwischen}, ${k.vorsteuer}, ${k.vorsteuer7})`;
+         and l.account in (${k.zwischen}, ${k.vorsteuer}, ${k.vorsteuer7})
+       order by case l.account when ${k.zwischen} then 0 when ${k.vorsteuer} then 1 else 2 end,
+                l.debit desc, l.tax_code`;
     return rows.map((r) => ({ account: r.account, debit: r.debit, credit: r.credit, tax_code: r.tax_code, basis: r.basis }));
   }
 

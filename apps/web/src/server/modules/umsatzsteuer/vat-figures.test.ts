@@ -247,6 +247,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
       "1 Beleg ist noch nicht gebucht.",
       "1 Rechnungsentwurf mit Datum im Zeitraum.",
     ]);
+    // Beide Bank-Hinweise verlinken auf /bank; die Seite zeigt dort ohne Parameter schon die offenen Umsätze (#1102)
+    expect(issues.filter((i) => i.link === "/bank")).toHaveLength(2);
   });
 
   it("berechneter Entwurf wird vor dem Senden aktualisiert, manuelle Werte bleiben mit Begründung", async () => {

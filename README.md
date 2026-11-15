@@ -16,6 +16,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 [![Release](https://img.shields.io/github/v/release/firsttris/haben?logo=github&label=release)](https://github.com/firsttris/haben/releases/latest)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
 [![Doku](https://img.shields.io/badge/Doku-haben.app-4f46e5?logo=zensical&logoColor=white)](https://haben.app/)
+[![Discord](https://img.shields.io/badge/Discord-Fragen%20%26%20Austausch-5865f2?logo=discord&logoColor=white)](https://discord.gg/CT2GQytSYH)
 [![E-Rechnung](https://img.shields.io/badge/E--Rechnung-ZUGFeRD%20%7C%20XRechnung-1f6f5c)](https://haben.app/rechnungen.html)
 [![ELSTER](https://img.shields.io/badge/ELSTER-ERiC-1f6f5c)](https://haben.app/umsatzsteuer.html)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -115,7 +116,7 @@ Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), 
 tägliches Backup mit restic.
 Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
 denn Passkeys funktionieren nur über HTTPS.
-Vorlagen gibt es für [Synology](https://haben.app/synology.html) und [TrueNAS](https://haben.app/truenas.html) (beide ohne Kommandozeile), [Unraid](https://haben.app/unraid.html) und [Coolify](https://haben.app/coolify.html).
+Vorlagen gibt es für [Synology](https://haben.app/synology.html) und [TrueNAS](https://haben.app/truenas.html) (beide ohne Kommandozeile), [Unraid](https://haben.app/unraid.html) und [Coolify](https://haben.app/coolify.html), ein Helm-Chart für [Kubernetes](https://haben.app/kubernetes.html).
 
 ### 1. Von einem Agenten aufsetzen lassen
 

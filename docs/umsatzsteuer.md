@@ -25,7 +25,7 @@ Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite o
 
 ## So gehst du vor
 
-1. **Umsatzsteuer** öffnen. Haben springt zum zuletzt abgelaufenen Zeitraum, also dem, der gerade abzugeben ist: bei monatlicher Abgabe der Vormonat, bei vierteljährlicher das letzte volle Quartal. Über **Zeitraum** wählst du den laufenden oder einen der Zeiträume der letzten zwölf Monate.
+1. **Umsatzsteuer** öffnen. Haben springt zum ältesten abgelaufenen Zeitraum, der weder gesendet noch vermerkt ist, gesucht ab dem ersten Zeitraum, den du in Haben abgegeben hast. Ohne Abgabe in Haben oder wenn alle abgegeben sind, ist es der zuletzt abgelaufene: bei monatlicher Abgabe der Vormonat, bei vierteljährlicher das letzte volle Quartal. Den laufenden öffnet Haben nicht, denn eine Voranmeldung ist erst nach Ablauf abzugeben (§ 18 Abs. 1 UStG). Über **Zeitraum** wählst du den laufenden oder einen der Zeiträume der letzten zwölf Monate.
 2. Die Hinweise oben abarbeiten (siehe [Vorprüfung](#vorprüfung)).
 3. Kennzahlen prüfen, bei Bedarf die Quellen aufklappen.
 4. **Nur prüfen**: ERiC prüft die Daten, ohne etwas zu senden.
@@ -322,6 +322,8 @@ Solange die Anmeldung nicht gesendet ist, prüft Haben, was im Monat noch fehlt 
 | … Rechnungsentwürfe mit Datum im Zeitraum | Hinweis | Nicht festgeschriebene Rechnungen mit Rechnungsdatum im Monat. |
 | Regulär besteuerte Umsätze zu 0 % | Warnung | Im Monat gibt es regulär besteuerte Umsätze zu 0 %, die Haben nicht meldet. Ist es Reverse Charge, eine Leistung ins Drittland oder steuerfrei, stellst du das an der Rechnung ein. |
 | Buchungen und Voranmeldung weichen ab | Warnung | Die Steuerkonten im Journal passen nicht zu den Kennzahlen aus Rechnungen, Belegen und Zahlungen, mit beiden Beträgen. Was verglichen wird, steht unter [Abgleich von Journal, Umsatzsteuer und EÜR](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür). Der Link führt zu den Konten. |
+
+Verrechnete und als [privat gekennzeichnete](bank.md#privates-konto-umsätze-ohne-buchungsart) Bankumsätze zählen bei Ein- und Ausgängen nicht.
 
 Die Hinweise blockieren nichts.
 
