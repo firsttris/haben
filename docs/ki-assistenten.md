@@ -58,11 +58,13 @@ Claude Desktop bindet lokal konfigurierte Server über die Datei `claude_desktop
 
 Ein Connector gilt für claude.ai im Browser, Claude Desktop und die Handy-App zugleich und braucht kein Token: Claude meldet sich per OAuth an, und du stimmst in Haben zu. Dafür muss Haben unter seiner Adresse aus dem Internet erreichbar sein, denn Anthropic ruft es von seinen Servern auf.
 
-1. In Haben den Zugang für KI-Assistenten einschalten (siehe oben).
+1. In Haben den Zugang für KI-Assistenten einschalten (siehe oben). Solange er aus ist, gibt es den OAuth-Weg nicht: Alle seine Adressen antworten mit 404.
 2. In claude.ai unter **Einstellungen → Connectors → Benutzerdefinierten Connector hinzufügen** einen Namen und die Adresse `https://haben.example.de/api/mcp` eintragen. Client-ID und Secret bleiben leer.
-3. **Verbinden** öffnet Haben. Nach der Anmeldung als Inhaber zeigt Haben, wer zugreifen will und wohin es danach zurückgeht; **Zulassen** schließt die Einrichtung ab.
+3. **Verbinden** öffnet Haben. Haben zeigt, wohin es danach zurückgeht und wie sich der Assistent nennt; den Namen wählt er selbst. **Zulassen** schließt die Einrichtung ab.
 
-Die Verbindung steht danach unter **API-Tokens** wie ein Token, mit dem Namen des Clients und „OAuth“, und lässt sich dort widerrufen. Sie hat nur `haben:lesen`. Claude holt sich jede Stunde ein neues Zugriffstoken; wird die Verbindung 30 Tage nicht genutzt, endet sie, und du verbindest erneut. Haben nimmt Rücksprungadressen nur von claude.ai, claude.com und vom eigenen Rechner (Loopback) an.
+Zulassen geht nur innerhalb von fünf Minuten nach der Anmeldung. Ist deine Sitzung älter, meldest du dich mit **Erneut anmelden** neu an und kommst zurück. Das schützt davor, dass dir jemand den Link seines eigenen claude.ai-Kontos schickt und ein Klick in der offenen Sitzung sein Konto verbindet. Im [SSO-Modus](installation-sso.md) entscheidet der Anbieter, ob er bei der neuen Anmeldung wieder nach dem Passwort fragt.
+
+Die Verbindung steht danach unter **API-Tokens** wie ein Token, mit dem Namen des Clients und „OAuth“, und lässt sich dort widerrufen. Sie hat nur `haben:lesen`. Claude holt sich jede Stunde ein neues Zugriffstoken; wird die Verbindung 30 Tage nicht genutzt, endet sie, und du verbindest erneut. Wer den Zugang ausschaltet, sperrt auch die Verbindungen; nach dem Einschalten gelten sie wieder, solange sie nicht widerrufen oder abgelaufen sind. Haben nimmt Rücksprungadressen nur von claude.ai, claude.com und vom eigenen Rechner (Loopback) an, und die Zustimmungsseite lässt sich in keine andere Seite einbetten.
 
 ### Claude-App auf dem Handy über deinen Rechner
 
