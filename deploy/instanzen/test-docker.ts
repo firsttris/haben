@@ -24,7 +24,7 @@ export interface Zustaende {
   zuAlt: Set<string>;
   /** Der gemeinsame Caddy läuft; `up -d` in proxy/ startet ihn */
   caddyLaeuft: boolean;
-  /** Netze, in denen der Container des Caddy hängt: aus den Dateien beim Neuaufbau, dazu per network connect */
+  /** Netze, in denen der Container des Caddy hängt, laufend oder gestoppt: aus den Dateien beim Neuaufbau, dazu per network connect */
   caddyNetze: Set<string>;
   /** Wie oft der Container des Caddy entstanden ist (`up -d` in proxy/ baut ihn auf); entfernen darf sie nicht ändern */
   caddyErzeugt: number;
@@ -122,6 +122,16 @@ function netzBefehl(z: Zustaende, args: string[]): Ergebnis | undefined {
 function caddy(z: Zustaende, sub: string, cwd: string): Ergebnis | undefined {
   if (sub === "ps -a --format json") return ok(z.caddyLaeuft ? ps([["caddy", "running", ""]]) : "");
   if (sub === "ps -q caddy") return ok(z.caddyLaeuft ? "caddy-id\n" : "");
+  // Mit -a auch der gestoppte Container, solange es ihn gibt
+  if (sub === "ps -a -q caddy") return ok(z.caddyLaeuft || z.caddyErzeugt > 0 ? "caddy-id\n" : "");
+  // Ein gestoppter Container behält seine Netze in der Konfiguration; fehlt eines davon, startet er nicht
+  // (Docker: „failed to set up container networking: network … not found“)
+  if (sub === "start caddy") {
+    const fehlt = [...z.caddyNetze].find((netz) => !z.netze.has(netz));
+    if (fehlt) return { code: 1, stdout: "", stderr: `Error response from daemon: failed to set up container networking: network ${fehlt} not found` };
+    z.caddyLaeuft = true;
+    return ok();
+  }
   if (sub === "exec -T caddy caddy reload --config /etc/caddy/Caddyfile")
     return z.reloadKaputt ? { code: 1, stdout: "", stderr: "Error: adapting config using caddyfile" } : ok();
   // Compose legt fehlende Netze aus den Dateien an; --no-recreate lässt den laufenden Container, wie er ist

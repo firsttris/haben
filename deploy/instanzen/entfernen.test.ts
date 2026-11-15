@@ -160,6 +160,18 @@ describe("entfernen mit gestopptem Caddy", () => {
     expect(r.stderr).toContain("docker network rm haben-proxy-firma2");
   });
 
+  it("löst auch den gestoppten Caddy vom Netz: danach startet er mit docker compose start wieder", async () => {
+    await zweiInstanzen();
+    // Gestoppt behält der Container beide Netze in seiner Konfiguration (Review in #1165, nachgestellt mit Docker 29.8.2)
+    t.docker.z.caddyLaeuft = false;
+    const r = await t.lauf("entfernen", "firma2");
+    expect(r.status, r.stderr).toBe(0);
+    expect(t.docker.z.netze.has("haben-proxy-firma2")).toBe(false);
+    const start = await t.docker.ausfuehren(["docker", "compose", "start", "caddy"], { cwd: join(t.basis, "proxy"), env: {} });
+    expect(start.stderr).toBe("");
+    expect(t.docker.aufrufe).toContain("- network disconnect haben-proxy-firma2 caddy-id");
+  });
+
   it("nimmt ein Netz, das docker nicht mehr kennt, nicht als Fehler", async () => {
     await zweiInstanzen();
     t.docker.z.caddyLaeuft = false;
