@@ -8,6 +8,8 @@ import { dunningsFor } from "./dunning.ts";
 import { invoiceListFields, invoiceListQuery, withListStatus } from "./invoices.ts";
 import { recurringInvoicesPart } from "./search-recurring.ts";
 
+export type { RecurringInvoiceHit } from "./search-recurring.ts";
+
 type Lookup = string | { id: string };
 
 /** Rechnungen für die Befehlspalette (#617) mit Status wie in der Rechnungsliste und der letzten Mahnung */

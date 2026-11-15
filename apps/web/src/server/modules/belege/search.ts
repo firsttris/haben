@@ -5,6 +5,8 @@ import { db, schema } from "../../db/index.ts";
 import { firstHits, partsFor, runSearchParts, searchPart } from "../../db/search-parts.ts";
 import { recurringDocumentsPart } from "./search-recurring.ts";
 
+export type { RecurringDocumentHit } from "./search-recurring.ts";
+
 export interface DocumentHit {
   id: string;
   supplierName: string;

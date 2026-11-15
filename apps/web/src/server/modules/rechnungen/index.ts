@@ -22,7 +22,6 @@ export {
   removeQuoteDefaultAttachment,
 } from "./quote-default-attachments.ts";
 export { fetchBaseRate } from "./base-rate.ts";
-export type { RecurringInvoiceHit } from "./search-recurring.ts";
 export { runDueBaseRate } from "./base-rate-job.ts";
 export {
   createDunning,
@@ -120,7 +119,7 @@ export {
   updateQuoteDraft,
   type QuoteListStatus,
 } from "./quotes.ts";
-export { searchInvoices, searchQuotes, searchRechnungen, type InvoiceHit, type QuoteHit } from "./search.ts";
+export { searchInvoices, searchQuotes, searchRechnungen, type InvoiceHit, type QuoteHit, type RecurringInvoiceHit } from "./search.ts";
 export {
   createRecurring,
   deleteRecurring,
