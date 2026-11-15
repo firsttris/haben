@@ -80,4 +80,26 @@ describe.skipIf(!testDatabaseUrl)("Integrität ohne einen einzigen Eintrag (#113
     });
     expect(ohneKopf).toEqual([{ art: "kopf", tabelle: "audit_chain", zeile: null, befund: "Kopf der Kette fehlt" }]);
   });
+
+  it("frisch migriert: das Audit-Log ist nicht leer, der Kopf steht beim letzten Eintrag, kein Befund", async () => {
+    const [stand] = await sql<{ eintraege: number; letzter: number | null; kopf: number | null }[]>`
+      select (select count(*)::int from audit_log) as eintraege, (select max(seq)::int from audit_log) as letzter,
+             (select seq::int from audit_chain) as kopf`;
+    expect(stand!.eintraege).toBeGreaterThan(0);
+    expect(stand!.kopf).toBe(stand!.letzter);
+    expect(await befunde()).toEqual([]);
+  });
+
+  it("meldet eine an den Triggern vorbei gelöschte Kette, wenn Daten da sind", async () => {
+    const geloescht = await imReset(async (tx) => {
+      await tx`set local session_replication_role = origin`;
+      await tx`select set_config('haben.actor', 'test', true)`;
+      await tx`insert into company (id, name) values (1, 'Muster GmbH')`;
+      await tx`set local session_replication_role = replica`;
+      await tx`delete from audit_log`;
+      await tx`delete from audit_chain`;
+      return befunde(tx);
+    });
+    expect(geloescht).toEqual([{ art: "kopf", tabelle: "audit_chain", zeile: null, befund: "Kopf der Kette fehlt" }]);
+  });
 });
