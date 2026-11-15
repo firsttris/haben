@@ -4,7 +4,7 @@ import { useState } from "react";
 import { z } from "zod/mini";
 import { barPath, euroAxis, niceTicks, useChartWidth } from "../../lib/chart.ts";
 import { formatDate, relativeDays } from "../../lib/format.ts";
-import type { OpenPosition } from "../../server/modules/auswertungen/index.ts";
+import { jahresPostenHinweis, type OpenPosition } from "../../server/modules/auswertungen/index.ts";
 import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { Icon } from "../../components/Icon.tsx";
@@ -25,7 +25,7 @@ type Data = Awaited<ReturnType<typeof getReports>>;
 const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
 function ReportsPage() {
-  const { euer, open, years, today, versteuerung } = Route.useLoaderData();
+  const { euer, open, offenImJahr, years, today, versteuerung } = Route.useLoaderData();
   // GmbH und UG bilanzieren (§ 238 HGB): Die Zahlen nach Zahlung sind dort keine EÜR, den Gewinn zeigt der Jahresabschluss
   const { rechtsform, user } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
@@ -178,6 +178,7 @@ function ReportsPage() {
         empty="Keine offenen Rechnungen."
         partyLabel="Kunde"
         items={receivables}
+        hinweise={jahresPostenHinweis(offenImJahr)}
         total={open.receivablesTotal}
         overdue={open.receivablesOverdue}
         kind="invoice"
@@ -318,6 +319,8 @@ function OpenTable(props: {
   overdue: number;
   kind: "invoice" | "document" | "ustva";
   hint?: string;
+  /** Was im Jahr offen blieb und was aus früheren Jahren hereingereicht wird (#1099) */
+  hinweise?: string[];
 }) {
   const { id, title, items, kind } = props;
   return (
@@ -339,6 +342,11 @@ function OpenTable(props: {
           {props.hint}
         </p>
       )}
+      {props.hinweise?.map((zeile) => (
+        <p key={zeile} className="small muted" style={{ margin: 0 }}>
+          {zeile}
+        </p>
+      ))}
       {items.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
           {props.empty}

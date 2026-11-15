@@ -522,6 +522,62 @@ async function paidSums(ids: string[]) {
  * Stornos bezahlter Rechnungen) und offene Verbindlichkeiten (gebuchte, über die Bank zu zahlende Belege), nach
  * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
  */
+/**
+ * Offene Posten eines Jahres für die Abschlusskontrolle (#1099): Forderungen und Verbindlichkeiten, deren Datum in
+ * dieses Jahr fällt. Beim Abschluss zählt, was im Jahr entstanden und noch offen ist; die offenen Posten zum Stichtag
+ * zeigen zusätzlich, was aus früheren Jahren hereingereicht wird und welche davon überfällig sind.
+ */
+export interface JahresPosten {
+  jahr: number;
+  forderungen: OpenPosition[];
+  verbindlichkeiten: OpenPosition[];
+  forderungenOffen: number;
+  verbindlichkeitenOffen: number;
+  /** Offen aus früheren Jahren, nach Fälligkeit am Jahresende bereits überfällig */
+  altlasten: OpenPosition[];
+  ueberfaellig: number;
+}
+
+/**
+ * Hinweiszeile für die Abschlusskontrolle: was im Jahr offen blieb und was aus früheren Jahren hereingereicht wird.
+ * Ohne den zweiten Teil sieht der Abschluss sauber aus, obwohl ein Beleg von 2025 noch als Verbindlichkeit steht.
+ */
+export function jahresPostenHinweis(posten: JahresPosten): string[] {
+  const zeilen: string[] = [];
+  if (posten.forderungen.length > 0 || posten.verbindlichkeiten.length > 0) {
+    const teile: string[] = [];
+    if (posten.forderungen.length > 0) teile.push(`${posten.forderungen.length} Forderung aus dem Jahr offen`);
+    if (posten.verbindlichkeiten.length > 0) teile.push(`${posten.verbindlichkeiten.length} Verbindlichkeit aus dem Jahr offen`);
+    zeilen.push(`${teile.join(", ")}.`);
+  }
+  if (posten.altlasten.length > 0) {
+    zeilen.push(
+      `${posten.altlasten.length} offener Posten aus früheren Jahren, davon ${posten.ueberfaellig} überfällig. Er gehört nicht in die Abschlusskontrolle ${posten.jahr}, steht aber noch in den offenen Posten.`,
+    );
+  }
+  return zeilen;
+}
+
+export async function openPositionsImJahr(jahr: number): Promise<JahresPosten> {
+  const stichtag = `${jahr}-12-31`;
+  const alle = await openPositions(stichtag);
+  const imJahr = (posten: OpenPosition[]) => posten.filter((p) => p.date.slice(0, 4) === String(jahr));
+  const forderungen = imJahr(alle.receivables);
+  const verbindlichkeiten = imJahr(alle.payables);
+  const altlasten = [...alle.receivables, ...alle.payables].filter((p) => p.date.slice(0, 4) !== String(jahr));
+  return {
+    jahr,
+    forderungen,
+    verbindlichkeiten,
+    forderungenOffen: forderungen.reduce((s, p) => s + p.open, 0),
+    verbindlichkeitenOffen: verbindlichkeiten.reduce((s, p) => s + p.open, 0),
+    altlasten,
+    // Überfällig am Jahresende: Fälligkeit vor dem Stichtag und noch offen. Die Overdue-Felder der Übersicht sind
+    // Summen in Cent, deshalb zählen hier die Posten selbst.
+    ueberfaellig: [...alle.receivables, ...alle.payables].filter((p) => p.date.slice(0, 4) !== String(jahr) && p.daysOverdue > 0).length,
+  };
+}
+
 export async function openPositions(today: string) {
   const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(today);
   const separate = new Set(invoiceIds);
