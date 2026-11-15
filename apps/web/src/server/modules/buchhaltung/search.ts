@@ -27,8 +27,11 @@ export interface BookingHit {
   accounts: string;
 }
 
-/** Buchungen für die Befehlspalette (#617): Buchungstext, Konto, Betrag und Datum; auch für Steuerberatung */
-export async function searchBookings(query: string, limit = 5): Promise<{ hits: BookingHit[]; more: boolean }> {
+/**
+ * Abfrage der Buchungen zur Schnellsuche, noch nicht ausgeführt; eigene Funktion, damit ein Test ihren Plan prüft.
+ * In ein Objekt verpackt, weil ein `await` die Abfrage sonst gleich ausführen würde.
+ */
+export async function bookingEntriesQuery(query: string, limit: number) {
   await refreshOwnAccountNames();
   const frame = await companyKontenrahmen();
   const needle = normalizeForMatch(query.trim());
@@ -54,12 +57,19 @@ export async function searchBookings(query: string, limit = 5): Promise<{ hits: 
       ),
     );
 
-  const entries = await db
+  const select = db
     .select({ id: je.id, date: je.date, description: je.description, sourceType: je.sourceType, sourceId: je.sourceId })
     .from(je)
     .where(or(unaccentIlike(je.description, pattern), inArray(je.id, lineMatches), ...(queryDate !== null ? [eq(je.date, queryDate)] : [])))
     .orderBy(desc(je.date), desc(je.createdAt))
     .limit(limit + 1);
+  return { select };
+}
+
+/** Buchungen für die Befehlspalette (#617): Buchungstext, Konto, Betrag und Datum; auch für Steuerberatung */
+export async function searchBookings(query: string, limit = 5): Promise<{ hits: BookingHit[]; more: boolean }> {
+  const jl = schema.journalLines;
+  const entries = await (await bookingEntriesQuery(query, limit)).select;
 
   const top = entries.slice(0, limit);
   const lines = top.length
