@@ -51,6 +51,9 @@ describe("filterExchangeRates", () => {
 
     const octUsd = filterExchangeRates(sample, { mode: "month", month: "2026-10", currency: "USD", currencyQuery: " us " });
     expect(octUsd.map((r) => r.currency)).toEqual(["USD"]);
+
+    const octNone = filterExchangeRates(sample, { mode: "month", month: "2026-10", currency: "USD", currencyQuery: "JPY" });
+    expect(octNone).toEqual([]);
   });
 
   it("filtert nach Währung über alle Monate hinweg (neuester Monat zuerst)", () => {
@@ -58,9 +61,12 @@ describe("filterExchangeRates", () => {
     expect(usd.map((r) => r.month)).toEqual(["2026-11", "2026-10", "2026-09"]);
   });
 
-  it("filtert nur manuell eingetragene Kurse", () => {
+  it("filtert nur manuell eingetragene Kurse (auch mit Suchbegriff)", () => {
     const manual = filterExchangeRates(sample, { mode: "manual", month: "2026-10", currency: "USD", currencyQuery: "" });
     expect(manual).toHaveLength(1);
     expect(manual[0]).toMatchObject({ currency: "USD", month: "2026-11", source: "manuell" });
+
+    const manualMiss = filterExchangeRates(sample, { mode: "manual", month: "2026-10", currency: "USD", currencyQuery: "CHF" });
+    expect(manualMiss).toEqual([]);
   });
 });
