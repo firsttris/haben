@@ -20,6 +20,17 @@ const PATHS = {
     </>
   ),
   bank: <path d="M3 10l9-6 9 6M5 10v8M19 10v8M9 10v8M15 10v8M3 21h18" />,
+  // Lastschrift: Geld wird eingezogen, Pfeil in die Ablage
+  debit: <path d="M12 3v9M8.5 8.5L12 12l3.5-3.5M3 14h5l1.5 2.5h5L16 14h5M3 14v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5" />,
+  // Überweisung: Geld geht hinaus, Papierflieger
+  transfer: <path d="M21 3L10 14M21 3l-6.5 18-4.5-7-7-4.5z" />,
+  // Darlehen: Hand, die eine Münze gibt
+  loan: (
+    <>
+      <circle cx="16" cy="7" r="3" />
+      <path d="M2 13h3v8H2zM5 14h4l3 1.5h3a1.5 1.5 0 0 1 0 3h-4M5 20h8.5l6.8-3.9a1.5 1.5 0 0 0-1.6-2.5L15 15.6" />
+    </>
+  ),
   cash: <path d="M3 7h18v10H3zM7 7v10M17 7v10M12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />,
   ledger: <path d="M4 4h16v16H4zM4 9h16M9 9v11M14 9v11" />,
   journal: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,

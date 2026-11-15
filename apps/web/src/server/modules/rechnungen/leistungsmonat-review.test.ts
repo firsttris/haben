@@ -145,7 +145,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     const meldeQ2 = () =>
       sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 0, 0, 0, 0, '2026-07-10T08:00:00Z')`;
 
-    it("führt zur berichtigten Anmeldung des Leistungszeitraums, nennt Betrag und Abgabe (§ 18b Satz 5 UStG, § 153 AO)", async () => {
+    it("führt zur berichtigten Anmeldung des Leistungszeitraums, nennt Betrag und Abgabe (§ 153 Abs. 1 AO)", async () => {
       await meldeQ2();
       const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
       const hinweis = await invoices.leistungsmonatHinweisFuer(final);

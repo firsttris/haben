@@ -34,9 +34,13 @@ function schemaErrors(error: z.ZodError, fields: readonly ImportField[]): string
 }
 
 /** Das Ergebnis des Schemas an die Zeile hängen: entweder der geprüfte Wert oder die Meldungen */
-function validated<T, U>(row: RowCandidate<T>, check: (value: T) => z.ZodSafeParseResult<U>, fields: readonly ImportField[]): RowCandidate<U> {
+export function validated<R extends RowCandidate<unknown>, U>(
+  row: R,
+  check: (value: NonNullable<R["value"]>) => z.ZodSafeParseResult<U>,
+  fields: readonly ImportField[],
+): Omit<R, "value"> & { value: U | null } {
   if (!row.value) return { ...row, value: null };
-  const result = check(row.value);
+  const result = check(row.value as NonNullable<R["value"]>);
   return result.success ? { ...row, value: result.data } : { ...row, value: null, errors: [...row.errors, ...schemaErrors(result.error, fields)] };
 }
 

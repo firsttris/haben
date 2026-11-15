@@ -3,6 +3,7 @@ import {
   RECHTSFORM_KEYS,
   RECHTSFORMEN,
   currentFilingPeriod,
+  dunningFeeError,
   formatDecimal,
   formatRateMonth,
   isKapitalgesellschaft,
@@ -50,7 +51,7 @@ import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/Sk
 import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
-import { useSubmitCheck } from "../../lib/use-submit-check.ts";
+import { emailFehler, useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { getStoreConnections } from "../../server/functions/stores.ts";
@@ -317,9 +318,23 @@ function CompanyForm() {
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(company.skonto));
   const [baseRate, setBaseRate] = useState(company.dunning.baseRate === null ? "" : formatDecimal(company.dunning.baseRate));
+  const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
+  const [fees, setFees] = useState({ "1": fee("1"), "2": fee("2"), "3": fee("3") });
+  const [email, setEmail] = useState(company.email);
+  const {
+    form: checkScope,
+    error,
+    check,
+  } = useSubmitCheck({
+    email: emailFehler(email),
+    "dunning-fee-1": dunningFeeError(fees["1"]),
+    "dunning-fee-2": dunningFeeError(fees["2"]),
+    "dunning-fee-3": dunningFeeError(fees["3"]),
+  });
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!check()) return;
     const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "");
     const skonto = parseSkontoRows(skontoRows);
@@ -365,9 +380,9 @@ function CompanyForm() {
             // Prozent mit zwei Nachkommastellen wie ein Eurobetrag lesen: "1,27" → 127 Basispunkte
             baseRate: text("dunning-baseRate").trim() ? parseEuro(text("dunning-baseRate")) : null,
             fees: {
-              "1": parseEuro(text("dunning-fee-1") || "0") ?? 0,
-              "2": parseEuro(text("dunning-fee-2") || "0") ?? 0,
-              "3": parseEuro(text("dunning-fee-3") || "0") ?? 0,
+              "1": parseEuro(fees["1"] || "0") ?? 0,
+              "2": parseEuro(fees["2"] || "0") ?? 0,
+              "3": parseEuro(fees["3"] || "0") ?? 0,
             },
             deadlineDays: Number(text("dunning-deadlineDays") || 10),
             autoBaseRate: form.get("dunning-autoBaseRate") === "on",
@@ -383,10 +398,8 @@ function CompanyForm() {
     }, "Firmendaten gespeichert.");
   }
 
-  const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
-
   return (
-    <form className="card form-card" onSubmit={onSubmit} aria-labelledby="company-heading">
+    <form ref={checkScope} className="card form-card" onSubmit={onSubmit} aria-labelledby="company-heading" noValidate>
       <div className="form-card-head">
         <h2 id="company-heading">Firmendaten</h2>
         {issues.length > 0 && <div className="banner">Für ELSTER fehlt noch: {issues.join(", ")}.</div>}
@@ -401,7 +414,9 @@ function CompanyForm() {
           </Field>
         </div>
         <div className="form-row cols-2">
-          <Field label="E-Mail">{(control) => <input {...control} name="email" type="email" defaultValue={company.email} autoComplete="email" />}</Field>
+          <Field label="E-Mail" error={error("email")}>
+            {(control) => <input {...control} name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />}
+          </Field>
           <Field label="Telefon (Pflicht für XRechnung)">
             {(control) => <input {...control} name="telefon" type="tel" defaultValue={company.telefon} autoComplete="tel" />}
           </Field>
@@ -741,14 +756,41 @@ function CompanyForm() {
           </span>
         </div>
         <div className="form-row cols-3">
-          <Field label="Gebühr Zahlungserinnerung (€)">
-            {(control) => <input {...control} name="dunning-fee-1" inputMode="decimal" defaultValue={fee("1")} placeholder="0,00" />}
+          <Field label="Gebühr Zahlungserinnerung (€)" error={error("dunning-fee-1")}>
+            {(control) => (
+              <input
+                {...control}
+                name="dunning-fee-1"
+                inputMode="decimal"
+                value={fees["1"]}
+                onChange={(e) => setFees((current) => ({ ...current, "1": e.target.value }))}
+                placeholder="0,00"
+              />
+            )}
           </Field>
-          <Field label="Gebühr 1. Mahnung (€)">
-            {(control) => <input {...control} name="dunning-fee-2" inputMode="decimal" defaultValue={fee("2")} placeholder="0,00" />}
+          <Field label="Gebühr 1. Mahnung (€)" error={error("dunning-fee-2")}>
+            {(control) => (
+              <input
+                {...control}
+                name="dunning-fee-2"
+                inputMode="decimal"
+                value={fees["2"]}
+                onChange={(e) => setFees((current) => ({ ...current, "2": e.target.value }))}
+                placeholder="0,00"
+              />
+            )}
           </Field>
-          <Field label="Gebühr letzte Mahnung (€)">
-            {(control) => <input {...control} name="dunning-fee-3" inputMode="decimal" defaultValue={fee("3")} placeholder="0,00" />}
+          <Field label="Gebühr letzte Mahnung (€)" error={error("dunning-fee-3")}>
+            {(control) => (
+              <input
+                {...control}
+                name="dunning-fee-3"
+                inputMode="decimal"
+                value={fees["3"]}
+                onChange={(e) => setFees((current) => ({ ...current, "3": e.target.value }))}
+                placeholder="0,00"
+              />
+            )}
           </Field>
         </div>
       </section>

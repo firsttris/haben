@@ -1,4 +1,4 @@
-import type { Cents } from "./money.ts";
+import { type Cents, formatEuro, parseEuro } from "./money.ts";
 
 /** Mahnstufen; nach der letzten Mahnung bleibt nur Inkasso oder Mahnbescheid */
 export const DUNNING_LEVELS = {
@@ -36,6 +36,14 @@ export type CustomerType = keyof typeof DEFAULT_INTEREST_MARKUP;
 
 /** Höchste Mahngebühr je Mahnung; Grenze der Eingabe, keine gesetzliche */
 export const MAX_DUNNING_FEE: Cents = 100_000;
+
+/** Fehler der eingegebenen Mahngebühr als Satz für das Feld, null wenn sie stimmt; leer heißt keine Gebühr */
+export function dunningFeeError(text: string): string | null {
+  if (text.trim() === "") return null;
+  const cents = parseEuro(text);
+  if (cents === null || cents < 0) return "Trag die Mahngebühr als Betrag ein, etwa 5,00, oder lass das Feld leer.";
+  return cents > MAX_DUNNING_FEE ? `Die Mahngebühr beträgt höchstens ${formatEuro(MAX_DUNNING_FEE)}.` : null;
+}
 
 /** Verzugspauschale für Geschäftskunden (§ 288 Abs. 5 BGB) */
 export const LATE_PAYMENT_FLAT_FEE: Cents = 4_000;
