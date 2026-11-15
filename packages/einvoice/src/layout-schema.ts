@@ -166,6 +166,45 @@ export const mahnungDatenSchema = z
       .describe("Gemahnte Rechnungen"),
     rows: z.array(row).describe("Forderung: offener Betrag, Gebühren, Pauschale, Zinsen"),
     total: row.describe("Zu zahlen"),
+    paymentDetails: z
+      .strictObject({
+        amount: text("Zahlbetrag einschließlich angesetzter Kosten, wie total.value"),
+        dueDate: text("Neue Zahlungsfrist der Mahnung"),
+        reference: text("Verwendungszweck, wie im GiroCode"),
+        accountHolder: text("Kontoinhaber, ersatzweise Firmenname"),
+        bank: text("Name der Bank, leer ohne Angabe"),
+        iban: text("IBAN in Vierergruppen, leer ohne Angabe"),
+        bic: text("BIC, leer ohne Angabe"),
+      })
+      .optional()
+      .describe("Zahlungsanweisung als einzelne Felder"),
+    paymentHistory: z
+      .array(
+        z.strictObject({
+          date: text("Buchungsdatum der Bankzahlung bzw. Datum der Bareinnahme"),
+          amount: text("Zugeordneter Zahlbetrag; Erstattung negativ"),
+          effect: text("Wirkung auf die Forderung: Zahlung negativ, Erstattung positiv; null bei Aufhebung").nullable(),
+          method: text("Zahlungsweg: Bank oder Bar"),
+          note: text("Bank: Name der Gegenpartei; Bar: Buchungstext"),
+          reversed: flag("Bankzuordnung aufgehoben bzw. Bareinnahme storniert"),
+        }),
+      )
+      .optional()
+      .describe("Zugeordnete Bank- und Barzahlungen nach Datum, ohne Gegenzeilen; keine Verrechnungen oder Ausbuchungen"),
+    claimDetails: z
+      .strictObject({
+        originalAmount: text("Bruttobetrag der gemahnten Rechnung; null, wenn der Aufrufer ihn nicht liefert").nullable(),
+        openAmount: text("Aktueller offener Betrag nach Zahlungen, Korrekturen und sonstigem Ausgleich"),
+        fee: text("Angesetzte Mahngebühr nach Anrechnung auf die Pauschale; null ohne").nullable(),
+        flatFee: text("Angesetzte Verzugspauschale; null ohne").nullable(),
+        interest: text("Berechnete Verzugszinsen; null ohne").nullable(),
+        interestRate: text("Jährlicher Zinssatz mit Prozentzeichen; null ohne Zinsen").nullable(),
+        interestDays: text("Anzahl der Zinstage"),
+        invoiceDueDate: text("Fälligkeit der Rechnung"),
+        calculatedOn: text("Datum der Mahnung und Zinsberechnung"),
+      })
+      .optional()
+      .describe("Forderungsbestandteile aus der bestehenden Berechnung; keine neue Berechnung im Layout"),
     closing: text("Schlusstext ohne Auszeichnungszeichen"),
     closingFormatted: runs.describe("Schlusstext mit Auszeichnungen"),
     greeting: text("Gruß und Firmenname, mit Zeilenumbruch"),
