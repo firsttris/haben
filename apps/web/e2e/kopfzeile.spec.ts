@@ -103,6 +103,16 @@ test("Einstellungen am Handy: erst die Liste der Bereiche, Zurück geht im Verla
   await expect(bereiche).toBeVisible();
 });
 
+// Links zu Angaben der Firma (hier Mahngebühr und Basiszinssatz) öffnen am Handy die Firma, nicht die Liste der Bereiche
+test("Einstellungen am Handy: der Link aus dem Mahnwesen öffnet die Firma", async ({ page }) => {
+  await page.setViewportSize(HANDY);
+  await page.goto("/rechnungen/mahnwesen", { waitUntil: "networkidle" });
+  await page.locator(".main").getByRole("link", { name: "Einstellungen", exact: true }).click();
+  await expect(page).toHaveURL(/bereich=firma/);
+  await expect(page.getByRole("heading", { level: 1, name: "Firma" })).toBeVisible();
+  await expect(page.getByLabel("Basiszinssatz in %")).toBeVisible();
+});
+
 // Das Angebot prüft rechnungen.spec.ts: seit #381 legt app.spec.ts keine Angebote mehr an
 test("Rechnung am Handy: Status bleibt neben dem Titel sichtbar", async ({ page }) => {
   const rechnung = await firstLink(page, "/rechnungen", /^\/rechnungen\/[0-9a-f-]{36}$/);
