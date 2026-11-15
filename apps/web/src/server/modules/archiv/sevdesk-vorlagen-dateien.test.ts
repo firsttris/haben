@@ -100,6 +100,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
               case "/CreditNote":
               case "/Order":
               case "/VatReport":
+              case "/Part":
               case "/CheckAccount":
               case "/CheckAccountTransactionLog":
                 return list([]);

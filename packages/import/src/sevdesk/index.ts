@@ -12,6 +12,8 @@ export type {
   SevFile,
   SevInvoice,
   SevOrder,
+  SevPart,
+  SevUnity,
   SevVatReport,
   SevVoucher,
   SevVoucherPos,
@@ -37,6 +39,7 @@ export { sevFileExpectation, sevFileFinding, type SevFileExpectation, type SevFi
 export { SEV_HEAD_RATES, SEV_TEMPORARY_HEAD_RATES } from "./steuersaetze.ts";
 export { isSevDunning, mapSevDunning, type SevMappedDunning } from "./mahnung.ts";
 export { isSevVatReportArchivable, mapSevVatReport, type SevMappedVatReport } from "./voranmeldung.ts";
+export { mapSevPart, resolveSevUnity, type SevArticle, type SevArticleResult, type SevUnitOption } from "./artikel.ts";
 export * from "./export/index.ts";
 export {
   mapSevRecurringInvoice,

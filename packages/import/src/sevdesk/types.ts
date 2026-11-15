@@ -320,6 +320,36 @@ export const sevRelatedObjectsResponseSchema = z.looseObject({
 // ---------------------------------------------------------------- Dateien
 
 /** getPdf und Document/download: Datei als Base64 in JSON, teils in objects verpackt */
+// ---------------------------------------------------------------- Artikel
+
+/**
+ * Artikel (GET /Part), Felder nach dem Schema Model_Part der OpenAPI (https://api.sevdesk.de/openapi.yaml).
+ * status: 100 aktiv, 50 inaktiv. price ist laut OpenAPI der Nettopreis wie priceNet.
+ */
+export const sevPartSchema = z.looseObject({
+  id,
+  objectName: str,
+  name: str,
+  partNumber: str,
+  text: str,
+  unity: ref,
+  price: numeric,
+  priceNet: numeric,
+  priceGross: numeric,
+  pricePurchase: numeric,
+  taxRate: numeric,
+  status: numeric,
+  internalComment: str,
+  stock: numeric,
+  stockEnabled: z.union([z.string(), z.number(), z.boolean()]).nullish(),
+  image: z.unknown().optional(),
+});
+export type SevPart = z.infer<typeof sevPartSchema>;
+
+/** Einheit (GET /Unity): feste von sevDesk (kleine IDs, translationCode wie UNITY_HOUR) und eigene; Code nach UN/ECE Rec. 20 */
+export const sevUnitySchema = z.looseObject({ id, objectName: str, name: str, translationCode: str, uneceTradeUnitCode: str });
+export type SevUnity = z.infer<typeof sevUnitySchema>;
+
 /** Angaben zu einer Datei (GET /Document/{id}), ohne Inhalt; create ist der Zeitpunkt des Hochladens */
 /** Übermittelte Umsatzsteuer-Voranmeldung (GET /VatReport); die Felder liest voranmeldung.ts lose, die Antwort wird unverändert archiviert. */
 export const sevVatReportSchema = z.looseObject({ id, objectName: str });

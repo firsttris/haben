@@ -1795,6 +1795,8 @@ export const articles = pgTable(
     priceIncludesTax: boolean("price_includes_tax").notNull().default(false),
     /** Interne Notiz, erscheint nicht auf Belegen */
     note: text("note").notNull().default(""),
+    /** Herkunft aus dem sevDesk-Abruf (GET /Part); ein neuer Abruf legt den Artikel nicht noch einmal an */
+    sevdeskId: text("sevdesk_id").unique(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -3089,6 +3091,8 @@ export type LexofficeImportProgress = {
   vatReports?: number;
   /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
   sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
+  /** sevDesk: Artikel aus GET /Part, in diesem Lauf neu angelegt, mit vorhandenen verknüpft und schon früher übernommen */
+  sevdeskArticles?: { imported: number; linked: number; known: number };
   /** sevDesk: Dateistand der Belege dieses Laufs nach den Zuständen in legacy_file_states (#345) */
   sevdeskFiles?: { ohneDatei: number; abrufFehlgeschlagen: number; anhangFehlt: number; nachgeladen: number };
 };

@@ -1856,6 +1856,13 @@
       "when": 1794777455362,
       "tag": "0264_sevdesk_voranmeldungen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 265,
+      "version": "7",
+      "when": 1794783062744,
+      "tag": "0265_sevdesk_artikel",
+      "breakpoints": true
     }
   ]
 }

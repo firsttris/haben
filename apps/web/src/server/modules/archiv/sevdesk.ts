@@ -30,6 +30,7 @@ import { latestFastbillImport } from "./fastbill.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
 import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
+import { importSevdeskArticles } from "./sevdesk-artikel.ts";
 import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
 import { importSevdeskArchiveOnly } from "./sevdesk-nur-archiv.ts";
 import { importSevdeskRecurringVouchers } from "./sevdesk-dauerbelege.ts";
@@ -215,6 +216,9 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     });
     await save();
   }
+
+  // 1b. Artikel (GET /Part) in den Artikelkatalog, verknüpft über die sevDesk-ID
+  await importSevdeskArticles(actor, client, progress, signal);
 
   // 2. Rechnungen, Gutschriften und Belege; Entwürfe und Vorlagen bleiben draußen, Mahnungen und Voranmeldungen folgen nach 3, nur ins Archiv (#472)
   progress.phase = "liste";

@@ -91,18 +91,19 @@ Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit di
 „Alles abrufen“ startet den Abruf im Hintergrund, mit Fortschritt, Abbrechen und Fortsetzen wie bei Lexoffice. Es läuft immer nur ein Abruf, gleich aus welcher Quelle.
 
 1. **Kontakte:** Organisationen und Personen mit Name, Rolle, erster Adresse samt Land, Haupt-E-Mail und USt-IdNr. Wer als Kunde angelegt wird, erhält auch seine Kundennummer. Ansprechpartner einer Organisation werden keine eigenen Kontakte. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne sevDesk-Herkunft, verknüpft Haben ihn.
-2. **Belegliste:** alle Rechnungen, Gutschriften und Belege. Draußen bleiben Entwürfe; Mahnungen, Voranmeldungen und die Vorlagen für wiederkehrende Belege und Rechnungen holen eigene Schritte.
-3. **Positionen und Dateien:** je Beleg die Positionen (für die Aufteilung nach Steuersatz), das PDF der Rechnung bzw. Gutschrift, bei E-Rechnungen das XML und bei Belegen die hochgeladene Datei.
-4. **Mahnungen:** jede gespeicherte Mahnstufe mit PDF, siehe [Mahnungen](#mahnungen).
-5. **Voranmeldungen:** jede übermittelte Umsatzsteuer-Voranmeldung mit Protokoll, nur zum Nachweis, siehe [Übermittelte Voranmeldungen](#übermittelte-voranmeldungen).
-6. **Vorlagen für wiederkehrende Belege:** als angehaltene [Dauerbelege](belege.md#dauerbelege), siehe [unten](#vorlagen-für-wiederkehrende-belege).
-7. **Dateien aus Vorlagen:** Belege, die sevDesk aus einer Vorlage für wiederkehrende Belege anlegt, tragen in der API keine eigene Datei, nur den Verweis auf die Vorlage (`origin`). Hat ein Beleg keine Datei und seine Vorlage eine, hängt Haben diese an, auch an Belege aus früheren Abrufen:
+2. **Artikel:** alle Artikel mit Nummer, Bezeichnung, Beschreibung, Einheit, Preis, Steuersatz und internem Kommentar; inaktive kommen archiviert an, siehe [Artikel](#artikel).
+3. **Belegliste:** alle Rechnungen, Gutschriften und Belege. Draußen bleiben Entwürfe; Mahnungen, Voranmeldungen und die Vorlagen für wiederkehrende Belege und Rechnungen holen eigene Schritte.
+4. **Positionen und Dateien:** je Beleg die Positionen (für die Aufteilung nach Steuersatz), das PDF der Rechnung bzw. Gutschrift, bei E-Rechnungen das XML und bei Belegen die hochgeladene Datei.
+5. **Mahnungen:** jede gespeicherte Mahnstufe mit PDF, siehe [Mahnungen](#mahnungen).
+6. **Voranmeldungen:** jede übermittelte Umsatzsteuer-Voranmeldung mit Protokoll, nur zum Nachweis, siehe [Übermittelte Voranmeldungen](#übermittelte-voranmeldungen).
+7. **Vorlagen für wiederkehrende Belege:** als angehaltene [Dauerbelege](belege.md#dauerbelege), siehe [unten](#vorlagen-für-wiederkehrende-belege).
+8. **Dateien aus Vorlagen:** Belege, die sevDesk aus einer Vorlage für wiederkehrende Belege anlegt, tragen in der API keine eigene Datei, nur den Verweis auf die Vorlage (`origin`). Hat ein Beleg keine Datei und seine Vorlage eine, hängt Haben diese an, auch an Belege aus früheren Abrufen:
     - Nur, wenn sevDesk den Beleg nach dem Hochladen der Datei angelegt hat: Eine später an die Vorlage gehängte Datei, etwa ein Zahlplan, gehört nicht zu früheren Monaten. Ältere Belege bleiben ohne Datei und zählen im Abgleich „Jeder Beleg hat eine Datei“ weiter als Beleg ohne Datei.
     - Eine eigene Datei des Belegs ersetzt Haben nie, die Archivkopie bleibt unverändert, und ein weiterer Abruf hängt nichts doppelt an.
     - Hat der Beleg in sevDesk inzwischen eine eigene Datei, etwa nach dem ersten Abruf hochgeladen, bekommt er die Datei der Vorlage nicht. Seine eigene Datei holt Haben für schon archivierte Belege nicht nach.
     - Die Belegansicht nennt die Datei „aus der Vorlage“.
-8. **Fehlende Dateien:** Zu früher übernommenen Belegen holt jeder Abruf die Dateien noch einmal, deren Abruf fehlgeschlagen war, und hängt sie an denselben Beleg, siehe [Dateistand](#dateistand).
-9. **Wiederkehrende Rechnungen:** die Vorlagen mit ihren Positionen, als pausierte [wiederkehrende Rechnungen](rechnungen.md#wiederkehrende-rechnungen), siehe [unten](#wiederkehrende-rechnungen).
+9. **Fehlende Dateien:** Zu früher übernommenen Belegen holt jeder Abruf die Dateien noch einmal, deren Abruf fehlgeschlagen war, und hängt sie an denselben Beleg, siehe [Dateistand](#dateistand).
+10. **Wiederkehrende Rechnungen:** die Vorlagen mit ihren Positionen, als pausierte [wiederkehrende Rechnungen](rechnungen.md#wiederkehrende-rechnungen), siehe [unten](#wiederkehrende-rechnungen).
 
 Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine Rechnung als versendet. Die Antwort der API wird je Beleg samt Positionen gespeichert, zum Nachweis.
 
@@ -120,6 +121,15 @@ Fehlt einem Beleg eine Datei, hält Haben fest, warum. Fortschritt, Belegliste, 
 Ein Beleg ohne Verweis auf eine Datei hat nicht sicher nie eine gehabt: In der API unterscheidet ihn kein Feld von einem Beleg, dessen Datei entfernt wurde. Deshalb bestätigst du „ohne Datei“ selbst; Haben speichert dazu deinen Namen, die Uhrzeit und deine Notiz. Eine Rechnung oder Gutschrift lässt sich nicht als „ohne Datei“ bestätigen: Jede fertige hat in sevDesk ein PDF. Die Bestätigung ändert nichts an der Steuer; für den Vorsteuerabzug braucht es weiter die Rechnung ([§ 15 Abs. 1 Nr. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__15.html)).
 
 Weitere Anhänge eines Belegs nennt die API nicht, nur die eine Datei unter `document`. Ob einem Beleg in sevDesk mehr Dateien gehören, sieht Haben deshalb nicht. Ein Stand wird nie überschrieben: Jede Feststellung, Bestätigung und nachgeladene Datei ist eine neue Zeile, der Jahresexport führt sie in `lexoffice/dateistand.csv`. Offene Posten ohne Datei übernimmt Haben nicht; die Liste nennt den Grund nach dem Stand.
+
+### Artikel
+
+Haben legt jeden Artikel aus sevDesk einmal an und merkt sich seine ID. Ein weiterer Abruf überspringt ihn, auch wenn du ihn in Haben geändert hast. Gibt es in Haben schon einen Artikel mit derselben Nummer (ohne Nummer: derselben Bezeichnung) und ohne sevDesk-Herkunft, verknüpft Haben ihn und lässt ihn, wie er ist.
+
+- **Preis:** der Nettopreis; ist nur ein Bruttopreis gesetzt, ein Artikel mit Endpreis.
+- **Einheit:** an der Bezeichnung wie beim [CSV-Import](csv-import.md#artikel), auch eigene Einheiten, sonst am Code nach UN/ECE, etwa „Tag(e)“ als „Tag“. Fehlt die Einheit in Haben, etwa „%“ oder „kg“, bleibt der Artikel draußen: unter **Einstellungen › Rechnungen › Einheiten** anlegen und erneut abrufen.
+- **Steuersatz:** 19, 7 oder 0 %; einen Artikel mit anderem Satz übernimmt Haben nicht.
+- **Nicht übernommen:** Einkaufspreis, Lagerbestand, Bild und Kategorie; Haben hat dafür keine Felder. Die offenen Punkte des Abrufs nennen, bei wie vielen Artikeln Einkaufspreis, Lagerbestand oder Bild gesetzt war, und jeden Artikel, der draußen blieb, mit Grund.
 
 ### Kontaktrollen und Nummern prüfen
 
