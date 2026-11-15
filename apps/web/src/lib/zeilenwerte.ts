@@ -36,6 +36,20 @@ const EUER_SUMMEN = {
  * Anlagen verteilt schickt; für eine Erklärung, die außerhalb von Haben abgegeben wurde, trägt der Betreiber sie aus
  * dem Vordruck nach (#1082). Die Schlüssel bleiben ASCII, die Texte sind die des Vordrucks.
  */
+/**
+ * Gleicht das Vorzeichen einer erklärten Zeile an den Vermerk an (#1082).
+ *
+ * Der Vordruck druckt „Erstattung oder Nachzahlung" als Betrag ohne Richtung; Haben führt Erstattungen dagegen
+ * negativ, so wie in den Vermerken und in der Abschlusszeile der Umsatzsteuer. Ohne diesen Abgleich stünde
+ * dieselbe Erstattung mit zwei Vorzeichen auf einer Seite: −10.321,97 EUR im Vermerk, +10.321,97 EUR in der
+ * erklärten Zeile.
+ */
+export function mitVorzeichen(field: string, wert: number, vermerkBetrag: number | null | undefined): number {
+  // Nur das Ergebnis der Veranlagung trägt eine Richtung; alle anderen Zeilen sind Beträge in eine Richtung
+  if (field !== "erstattung" || !vermerkBetrag) return wert;
+  return Math.sign(vermerkBetrag) * Math.abs(wert);
+}
+
 const EST_FELDER = {
   bruttoarbeitslohn: "Bruttoarbeitslohn (Anlage N)",
   werbungskosten: "Werbungskosten insgesamt",
