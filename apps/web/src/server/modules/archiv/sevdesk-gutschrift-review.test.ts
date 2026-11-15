@@ -22,7 +22,7 @@ const simple = [{ sumNet: "100.00", sumTax: "19.00", sumGross: "119.00", taxRate
 describe.skipIf(!testDatabaseUrl)("Review #535 (Postgres)", () => {
   let lexoffice: typeof import("./lexoffice.ts");
   let kontakt: typeof import("./kontakt-altbestand.ts");
-  let history: typeof import("../auswertungen/kontakt-historie.ts");
+  let history: typeof import("./kontakt-historie.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let sql: postgres.Sql;
 
@@ -30,7 +30,7 @@ describe.skipIf(!testDatabaseUrl)("Review #535 (Postgres)", () => {
     sql = await setupTestDb();
     lexoffice = await import("./lexoffice.ts");
     kontakt = await import("./kontakt-altbestand.ts");
-    history = await import("../auswertungen/kontakt-historie.ts");
+    history = await import("./kontakt-historie.ts");
     contacts = await import("../stammdaten/contacts.ts");
   }, 30_000);
 

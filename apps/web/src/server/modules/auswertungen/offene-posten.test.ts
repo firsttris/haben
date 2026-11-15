@@ -32,7 +32,7 @@ describe.skipIf(!testDatabaseUrl)("offener Betrag überall gleich (Postgres)", (
   let contacts: typeof import("../stammdaten/contacts.ts");
   let bank: typeof import("../bank/bank.ts");
   let reports: typeof import("./reports.ts");
-  let guard: typeof import("../stammdaten/settings-guard.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let dunning: typeof import("../rechnungen/dunning.ts");
   const actor = "test-user";
   const today = "2026-06-30";
@@ -44,7 +44,7 @@ describe.skipIf(!testDatabaseUrl)("offener Betrag überall gleich (Postgres)", (
     contacts = await import("../stammdaten/contacts.ts");
     bank = await import("../bank/bank.ts");
     reports = await import("./reports.ts");
-    guard = await import("../stammdaten/settings-guard.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     dunning = await import("../rechnungen/dunning.ts");
   }, 30_000);
 

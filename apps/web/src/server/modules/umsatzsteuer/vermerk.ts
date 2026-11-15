@@ -6,7 +6,7 @@ import { lockFileUse } from "../../db/file-in-use.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadFile, sha256Of, sniff, storeFile } from "../../storage.ts";
 import { today } from "../../today.ts";
-import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
+import { MAX_DOCUMENT_SIZE } from "../../grenzen.ts";
 import { underSendLock } from "../elster/index.ts";
 import { saveDraft, VatError, type VatReturn } from "./vat.ts";
 import { loadFrequencies, periodProblem } from "./zeitraum.ts";

@@ -36,7 +36,7 @@ import {
 } from "../modules/umsatzsteuer/index.ts";
 import { UserError } from "../errors.ts";
 import { MAX_DOCUMENT_SIZE } from "../modules/belege/index.ts";
-import { abgleichIssues, vatAbgleich } from "../modules/auswertungen/index.ts";
+import { abgleichIssues, kleinunternehmerStand, vatAbgleich } from "../modules/auswertungen/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -170,6 +170,7 @@ export const getOverview = createServerFn({ method: "GET" })
       period,
       /** Zahllast aus den Buchungen, solange keine Anmeldung gespeichert ist */
       computedKz83: computed.kz83,
+      kleinunternehmerStand: company.kleinunternehmer ? await kleinunternehmerStand(today(now), company.foundedOn) : null,
       /** Geldtransit ohne Gegenseite (Saldo von 1360 bzw. 1460) */
       transit: await transitBalance(),
       /**

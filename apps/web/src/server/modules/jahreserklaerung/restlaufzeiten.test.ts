@@ -11,8 +11,8 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
   let sql: postgres.Sql;
   let restlaufzeiten: typeof import("./restlaufzeiten.ts");
   let hinterlegung: typeof import("./hinterlegung.ts");
-  let manual: typeof import("./manual.ts");
-  let ledger: typeof import("./ledger.ts");
+  let manual: typeof import("../buchhaltung/manual.ts");
+  let ledger: typeof import("../buchhaltung/ledger.ts");
   const actor = "test-user";
   const today = "2027-02-10";
   const KEINE = { haftungsverhaeltnisse: "", organkredite: "", festgestelltAm: "2027-02-01" };
@@ -21,8 +21,8 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
     sql = await setupTestDb();
     restlaufzeiten = await import("./restlaufzeiten.ts");
     hinterlegung = await import("./hinterlegung.ts");
-    manual = await import("./manual.ts");
-    ledger = await import("./ledger.ts");
+    manual = await import("../buchhaltung/manual.ts");
+    ledger = await import("../buchhaltung/ledger.ts");
   }, 30_000);
 
   afterAll(async () => {

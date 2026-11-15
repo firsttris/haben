@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { formatDate } from "../lib/format.ts";
-import type { HinterlegungStand } from "../server/modules/buchhaltung/index.ts";
+import type { HinterlegungStand } from "../server/modules/jahreserklaerung/index.ts";
 import { Icon } from "./Icon.tsx";
 import { Field } from "./Field.tsx";
 

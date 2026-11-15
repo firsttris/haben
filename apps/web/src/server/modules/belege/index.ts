@@ -67,6 +67,5 @@ export {
   bookAndAllocateDauerbeleg,
   bookAndAllocateSchema,
   DAUERBELEG_ACTOR,
-  dauerbelegSuggestions,
   runDueDauerbelege,
 } from "./dauerbelege-lauf.ts";

@@ -2,7 +2,7 @@ import { isKapitalgesellschaft } from "@haben/core";
 import { and, count, eq, gte, lt, sql } from "drizzle-orm";
 import { listAssets } from "../buchhaltung/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
-import { loadCompany, type Company, type CompanyInput } from "./company.ts";
+import { loadCompany, type Company, type CompanyInput } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -115,6 +115,9 @@ function keptBaseRateState(current: Company, input: CompanyInput): Company["dunn
 }
 
 export async function saveCompany(actor: string, input: CompanyInput, today: string): Promise<void> {
+  if (input.foundedOn && input.foundedOn > today) {
+    throw new UserError("Das Gründungsdatum darf nicht in der Zukunft liegen.");
+  }
   await withActor(actor, async (tx) => {
     await loadCompany(tx);
     const [current] = await tx.select().from(schema.company).where(eq(schema.company.id, 1)).for("update");
@@ -122,7 +125,12 @@ export async function saveCompany(actor: string, input: CompanyInput, today: str
     if (locked) throw new UserError(locked);
     await tx
       .update(schema.company)
-      .set({ ...input, dunning: keptBaseRateState(current!, input), companySavedAt: sql`clock_timestamp()`, updatedAt: new Date() })
+      .set({
+        ...input,
+        dunning: keptBaseRateState(current!, input),
+        companySavedAt: sql`clock_timestamp()`,
+        updatedAt: new Date(),
+      })
       .where(eq(schema.company.id, 1));
   });
 }

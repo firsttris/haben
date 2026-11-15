@@ -150,7 +150,7 @@ describe.skipIf(!testDatabaseUrl)("SEPA-Lastschriftmandate am Kontakt (Postgres,
   describe("Gläubiger-ID in den Firmendaten", () => {
     it("speichert sie ohne Leerzeichen in Großbuchstaben", async () => {
       const company = await import("./company.ts");
-      const guard = await import("./settings-guard.ts");
+      const guard = await import("../auswertungen/settings-guard.ts");
       const current = company.companySchema.parse(await company.loadCompany());
       await guard.saveCompany(actor, company.companySchema.parse({ ...current, glaeubigerId: "de98 zzz 0999 9999 999" }), "2026-11-09");
       expect((await company.loadCompany()).glaeubigerId).toBe("DE98ZZZ09999999999");

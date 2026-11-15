@@ -4,19 +4,8 @@
  * sperren, Beleg anlegen, nächsten Termin weiterrücken. Je Vorlage und Periode entsteht höchstens ein Beleg (eindeutiger
  * Index documents_recurring_period), auch nach einem Neustart oder bei zwei gleichzeitigen Läufen.
  */
-import {
-  dauerbelegFaellig,
-  dauerbelegPeriode,
-  dauerbelegSummen,
-  documentOpen,
-  folgeTermin,
-  suggestMatches,
-  type MatchTransaction,
-  type OpenItem,
-  type RecurringInterval,
-  type Suggestion,
-} from "@haben/core";
-import { and, eq, isNotNull, lte } from "drizzle-orm";
+import { dauerbelegFaellig, dauerbelegPeriode, dauerbelegSummen, documentOpen, folgeTermin, type RecurringInterval } from "@haben/core";
+import { and, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
@@ -132,44 +121,6 @@ export async function runDueDauerbelege(heute: string): Promise<DauerbelegLauf> 
     }
   }
   return result;
-}
-
-/** Ungebuchte Belege aus Dauerbelegen, die über das Geschäftskonto bezahlt werden: Kandidaten für den Bankabgleich */
-export async function pendingDauerbelegItems(): Promise<OpenItem[]> {
-  const rows = await db
-    .select({
-      id: schema.documents.id,
-      invoiceNumber: schema.documents.invoiceNumber,
-      documentDate: schema.documents.documentDate,
-      dueDate: schema.documents.dueDate,
-      gross: schema.documents.gross,
-      supplierName: schema.documents.supplierName,
-      contactIban: schema.contacts.iban,
-    })
-    .from(schema.documents)
-    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.documents.supplierContactId))
-    .where(and(isNotNull(schema.documents.recurringDocumentId), eq(schema.documents.status, "neu"), eq(schema.documents.payment, "bank")));
-  return rows
-    .filter((r) => r.gross !== 0 && r.documentDate)
-    .map((r) => ({
-      type: "document" as const,
-      id: r.id,
-      number: r.invoiceNumber,
-      date: r.documentDate!,
-      dueDate: r.dueDate,
-      open: documentOpen(r.gross, 0),
-      partyName: r.supplierName,
-      partyIbans: r.contactIban ? [r.contactIban] : [],
-    }));
-}
-
-/**
- * Vorschläge aus ungebuchten Dauerbelegen für einen Umsatz: nur Treffer mit passendem Betrag, damit ein Klick nicht
- * einen falschen Beleg bucht
- */
-export async function dauerbelegSuggestions(tx: MatchTransaction): Promise<Suggestion[]> {
-  const items = await pendingDauerbelegItems();
-  return suggestMatches(tx, items).filter((s) => s.amount === s.item.open);
 }
 
 export const bookAndAllocateSchema = z.object({ documentId: z.uuid(), transactionId: z.uuid() });

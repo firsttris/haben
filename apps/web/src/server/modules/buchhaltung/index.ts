@@ -1,10 +1,11 @@
 /*
  * Buchhaltung: Hauptbuch (ledger.post ist der einzige Schreiber des Journals), Kontennamen, Anlagenverzeichnis mit AfA
- * Pauschalen ohne Beleg, manuelle Buchungen, Jahresabschluss mit Restlaufzeiten und Bilanz zur Hinterlegung (GmbH, UG).
+ * Pauschalen ohne Beleg, manuelle Buchungen, Jahresabschluss (GmbH, UG).
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
+export { reverseLinesIn } from "./gegenbuchung.ts";
 export { AbschlussError, closeYear, jahresabschluss, reportIssues as abschlussHinweise, type AbschlussHinweis } from "./abschluss.ts";
 export {
   assetInputSchema,
@@ -22,17 +23,6 @@ export {
   withdrawalsForEuer,
 } from "./assets.ts";
 export { assetImportStichtagProblem, insertImportedAssets, planAssetImport } from "./asset-import.ts";
-export { HinterlegungError, hinterlegungAngabenSchema, hinterlegungPdf, hinterlegungStand, type HinterlegungStand } from "./hinterlegung.ts";
-export {
-  bilanzVermerkeFuer,
-  ebilanzDavon,
-  RestlaufzeitError,
-  restlaufzeitenAnsicht,
-  restlaufzeitenSchema,
-  saveRestlaufzeiten,
-  type RestlaufzeitBlock,
-  type RestlaufzeitenAnsicht,
-} from "./restlaufzeiten.ts";
 export { accountName, knownAccounts, loadJournal, transitBalance } from "./journal.ts";
 export {
   searchAccounts,
@@ -44,7 +34,7 @@ export {
   type BookingHit,
   type PauschaleHit,
 } from "./search.ts";
-export { kontenblatt, ledgerPeriodSchema, ledgerRange, openBooks, post, saldenliste } from "./ledger.ts";
+export { kontenblatt, ledgerPeriodSchema, ledgerRange, openBooks, post, saldenliste, uebernahmen } from "./ledger.ts";
 export {
   activeOpenings,
   firstEntryBefore,
