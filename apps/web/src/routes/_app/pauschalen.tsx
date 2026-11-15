@@ -27,6 +27,7 @@ import styles from "../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { EntfernungForm } from "../../components/EntfernungForm.tsx";
 import { Field } from "../../components/Field.tsx";
+import { MonthPicker } from "../../components/MonthPicker.tsx";
 import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/pauschalen")({
@@ -276,17 +277,7 @@ function HomeofficeForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) 
       </p>
       <div className="form-grid">
         <Field label="Monat" error={error("month")}>
-          {(control) => (
-            <input
-              {...control}
-              type="month"
-              value={month}
-              min={`${data.year}-01`}
-              max={defaultDate(data).slice(0, 7)}
-              onChange={(e) => setMonth(e.target.value)}
-              required
-            />
-          )}
+          {(control) => <MonthPicker {...control} value={month} min={`${data.year}-01`} max={defaultDate(data).slice(0, 7)} onChange={setMonth} />}
         </Field>
         <Field label="Tage im Homeoffice" error={error("tage")}>
           {(control) => <input {...control} value={tage} onChange={(e) => setTage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}

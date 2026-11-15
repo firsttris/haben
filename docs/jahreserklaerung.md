@@ -170,7 +170,9 @@ Die Beiträge zur gesetzlichen Rentenversicherung und die einer zertifizierten B
 
 Wahlleistungen einer privaten Krankenversicherung, also was über die Basisabsicherung hinausgeht, gehören nicht zur Basisabsicherung, sondern zu den sonstigen Vorsorgeaufwendungen und damit in deren Höchstbetrag (2.800 € für Selbständige, 1.900 € für Arbeitnehmer).
 
-Die steuerfreien Arbeitgeberzuschüsse zur privaten Kranken- und Pflegeversicherung stehen getrennt in der Lohnsteuerbescheinigung (Nr. 24 b und 24 c). Sie mindern den abzugsfähigen Betrag, sie erhöhen ihn nicht. Trag sie ein, wenn deine Bescheinigung sie ausweist — und zwar beide: ERiC nimmt den Zuschuss zur Krankenversicherung (Nr. 24 b) nur zusammen mit dem zur Pflegeversicherung (Nr. 24 c) an (Regel 100240078). Bei privat versicherten Arbeitnehmern weist die Bescheinigung beide aus.
+Die steuerfreien Arbeitgeberzuschüsse stehen getrennt in der Lohnsteuerbescheinigung: Nr. 24 a zur gesetzlichen Krankenversicherung (freiwillig gesetzlich Versicherte), Nr. 24 b zur privaten Krankenversicherung und Nr. 24 c zur Pflegeversicherung. Alle drei mindern den abzugsfähigen Betrag, sie erhöhen ihn nicht. Trag sie ein, wenn deine Bescheinigung sie ausweist, und zwar immer mit Nr. 24 c: ERiC nimmt den Zuschuss zur Krankenversicherung (Nr. 24 a oder 24 b) nur zusammen mit dem zur Pflegeversicherung an (Regel 100240078). Nr. 24 a nimmt ERiC außerdem nur an, wenn bei derselben Person Beiträge zur gesetzlichen Krankenversicherung stehen (Regel 100240075): laut Lohnsteuerbescheinigung Nr. 25 oder, als Selbstzahler, unter **Gesetzliche Krankenversicherung**.
+
+Der Zuschuss mindert in voller Höhe den Beitrag zur Basisabsicherung, auch wenn er rechnerisch zum Teil auf den Krankengeldanteil oder auf Wahlleistungen entfällt; eine Aufteilung ist nicht zulässig ([§ 10 Abs. 2 Satz 1 Nr. 1 Halbsatz 2 EStG](https://www.gesetze-im-internet.de/estg/__10.html), BFH 2.9.2014, IX R 43/13). Die pauschale Kürzung um 4 % trifft nur die Beiträge, nicht den Zuschuss ([§ 10 Abs. 1 Nr. 3 Buchst. a EStG](https://www.gesetze-im-internet.de/estg/__10.html)): Haben rechnet die Beiträge laut Nr. 25 der Bescheinigung zu 96 % zur Basisabsicherung und die restlichen 4 % zur übrigen Vorsorge, den Zuschuss aber vollständig von der Basisabsicherung.
 
 ### Einkommensersatzleistungen
 
@@ -203,7 +205,7 @@ In der Prognose rechnet Haben die Entfernungspauschale mit 0,30 € je Kilometer
 
 Die Homeoffice-Pauschale gibt es je Person nur einmal im Jahr. Hast du als Person A auch [Homeoffice-Tage in der EÜR](pauschalen.md), weist Haben darauf hin, wenn beide zusammen mehr als 210 Tage ergeben.
 
-Nicht abgebildet sind Versorgungsbezüge, ermäßigt besteuerte Entschädigungen (Abfindungen), Arbeitslohn ohne Steuerabzug oder aus dem Ausland, Kurzarbeiter- und Elterngeld, Fahrtkostenersatz des Arbeitgebers, Reisekosten, doppelte Haushaltsführung. Steuerfreie Zuschüsse zur privaten Kranken- und Pflegeversicherung (Nr. 24 b und 24 c) stehen in der Anlage Vorsorgeaufwand, siehe [Was die Vorsorgezeilen bedeuten](#was-die-vorsorgezeilen-bedeuten).
+Nicht abgebildet sind Versorgungsbezüge, ermäßigt besteuerte Entschädigungen (Abfindungen), Arbeitslohn ohne Steuerabzug oder aus dem Ausland, Kurzarbeiter- und Elterngeld, Fahrtkostenersatz des Arbeitgebers, Reisekosten, doppelte Haushaltsführung. Steuerfreie Zuschüsse des Arbeitgebers zur Kranken- und Pflegeversicherung (Nr. 24 a, 24 b und 24 c) stehen in der Anlage Vorsorgeaufwand, siehe [Was die Vorsorgezeilen bedeuten](#was-die-vorsorgezeilen-bedeuten).
 
 Beträge gehen in vollen Euro an ELSTER, nur die Steuern auf Kapitalerträge mit Cent. Pflicht sind die IBAN in den Firmendaten und je Kind die Familienkasse. Lohn- und Kirchensteuer einer Lohnsteuerbescheinigung schickt Haben auch mit 0, wenn das Feld leer ist; so verlangt es ELSTER.
 

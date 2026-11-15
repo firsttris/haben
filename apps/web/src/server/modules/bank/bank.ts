@@ -83,6 +83,7 @@ import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
+import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
 import { belegTotals, vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 
@@ -711,6 +712,8 @@ export async function transactionDetail(id: string) {
   // Ohne Rechnung: Vorschlag aus dem Zweck der Konten, bei Geldtransit mit der Gegenbuchung auf dem anderen Konto
   const accounts = await ownAccounts();
   const account = accounts.find((a) => a.id === tx.bankAccountId);
+  // Sammelrechnung des Monats an einer Gebührenzeile eines Zahlungsdienstleisters (#680)
+  const { sammelrechnung, sammelbeleg } = await sammelrechnungVorschlag(tx, account?.purpose, items);
   let direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
   let counterpart: TransferCounterpart | null = null;
   if (direct?.kind === "geldtransit" && account) {
@@ -755,11 +758,14 @@ export async function transactionDetail(id: string) {
   const dauerbelege = tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
   // Lastschriften aus Haben (#445): Sammelgutschrift aufteilen oder Rücklastschrift zuordnen
   const lastschrift = await directDebitMatch(tx);
+  // Der Sammelbeleg des Monats steht ganz oben, damit er in der Oberfläche als Treffer erscheint
+  const vorschlaege = sammelbeleg ? [sammelbeleg, ...suggestions.filter((s) => s.item.id !== sammelbeleg.item.id)] : suggestions;
   return {
     lastschrift,
     transaction: tx,
     allocations,
-    suggestions,
+    suggestions: vorschlaege,
+    sammelrechnung,
     candidates,
     splitCandidates: items,
     dauerbelege,

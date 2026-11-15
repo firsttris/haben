@@ -1,4 +1,4 @@
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS, type Cents } from "@haben/core";
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS, SELF_ASSESSED_TAX_KEYS, type Cents } from "@haben/core";
 import { z } from "zod";
 import { UserError } from "../../errors.ts";
 import type { DocumentKind } from "../../storage.ts";
@@ -41,6 +41,12 @@ export const extractionSchema = z.object({
     .describe("Je Steuersatz eine Zeile, positive Beträge"),
   brutto: z.string().nullable().describe("Gesamtbetrag, Dezimalpunkt"),
   kategorie: z.enum(EXPENSE_CATEGORY_KEYS),
+  // § 13b steht als Hinweis auf dem Beleg; die Wahl am Beleg bleibt bestehen und geht vor
+  reverseCharge: z
+    .enum(SELF_ASSESSED_TAX_KEYS)
+    .nullable()
+    .default(null)
+    .describe("Steuerbehandlung nach § 13b, wenn der Beleg sie nennt: eu (EU-Ausland), drittland (Drittes Land), ig_erwerb (Ware aus der EU), sonst null"),
   hinweis: z.string().nullable().describe("Kurzer Hinweis, wenn etwas unklar oder unleserlich ist"),
 });
 
@@ -58,6 +64,8 @@ export interface ExtractedFields {
   serviceTo?: string | null;
   currency: string;
   category: (typeof EXPENSE_CATEGORY_KEYS)[number];
+  /** § 13b aus dem Beleg, nur als Vorschlag; eine Wahl am Beleg gilt weiter */
+  reverseCharge?: (typeof SELF_ASSESSED_TAX_KEYS)[number] | null;
   amounts: { taxRate: 1900 | 700 | 0; net: Cents; tax: Cents }[];
   warnings: string[];
 }
@@ -91,6 +99,7 @@ Die IBAN des Rechnungsstellers nur, wenn sie als dessen Bankverbindung auf dem B
 Weise die Beträge je Umsatzsteuersatz (19, 7 oder 0 %) aus. Wenn der Beleg nur einen Bruttobetrag und den Steuersatz nennt, rechne Netto und Steuer daraus.
 Wähle die passende Ausgabenkategorie:
 ${CATEGORY_LIST}
+Steht ein Reverse-Charge-Hinweis auf dem Beleg (Steuerschuldnerschaft des Leistungsempfängers, Art. 196 MwStSystRL, „0 % USt. ausgewiesen“, „reverse charge“), dann setze reverseCharge: eu bei einem Rechnungssteller in der EU, drittland bei einem Dritten Land, ig_erwerb bei Ware aus der EU. Die Beträge bleiben wie auf dem Beleg, also mit 0 % USt.; Haben rechnet die Steuer aus dem Netto. Wähle für sonstige Leistungen in diesem Fall fremdleistung statt sonstiges.
 Beschreibe Unklarheiten kurz im Feld hinweis.`;
 
 export const EXTRACTION_REQUEST = "Lies diesen Beleg aus.";
@@ -131,6 +140,12 @@ export function toFields(extraction: Extraction): ExtractedFields {
     }
     return [{ taxRate: (Number(row.steuersatz) * 100) as 1900 | 700 | 0, net: sign * Math.abs(net), tax: sign * Math.abs(tax) }];
   });
+  // § 13b nur als Vorschlag; die Beträge bleiben wie auf dem Beleg. Ob er gilt und welcher Satz dann statt 0 % steht,
+  // entscheidet applyFields in documents.ts (nicht bei einer eigenen Ausgangsrechnung)
+  const supplierUstId = extraction.lieferantUstId?.replace(/\s/g, "").toUpperCase().slice(0, 20) ?? "";
+  // Kein Vorschlag, wenn der Beleg Steuer ausweist (§ 14a Abs. 5 UStG: bei § 13b keine) oder aus Deutschland kommt:
+  // Haben kennt § 13b nur für Leistungen aus dem EU-Ausland und dem Drittland
+  const reverseCharge = amounts.some((a) => a.tax !== 0) || supplierUstId.startsWith("DE") ? null : (extraction.reverseCharge ?? null);
   const gross = extraction.brutto ? decimalToCents(extraction.brutto) : null;
   const sum = amounts.reduce((total, a) => total + a.net + a.tax, 0);
   if (gross !== null && Math.abs(sum) !== Math.abs(gross)) {
@@ -144,7 +159,7 @@ export function toFields(extraction: Extraction): ExtractedFields {
   // Längen wie im Beleg-Formular (documentInputSchema)
   return {
     supplierName: extraction.lieferant?.trim().slice(0, 200) ?? "",
-    supplierUstId: extraction.lieferantUstId?.replace(/\s/g, "").toUpperCase().slice(0, 20) ?? "",
+    supplierUstId,
     invoiceNumber: extraction.rechnungsnummer?.trim().slice(0, 100) ?? "",
     documentDate: isoDate(extraction.belegdatum),
     dueDate: isoDate(extraction.faelligAm),
@@ -152,6 +167,7 @@ export function toFields(extraction: Extraction): ExtractedFields {
     serviceTo: isoDate(extraction.leistungBis ?? null),
     currency,
     category: extraction.kategorie,
+    reverseCharge,
     amounts,
     warnings,
   };

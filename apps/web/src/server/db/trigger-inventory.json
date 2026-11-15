@@ -99,6 +99,27 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.app_versions",
+      "name": "app_versions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER app_versions_append_only BEFORE DELETE OR UPDATE ON public.app_versions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.app_versions",
+      "name": "app_versions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER app_versions_audit AFTER INSERT ON public.app_versions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.app_versions",
+      "name": "app_versions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER app_versions_no_truncate BEFORE TRUNCATE ON public.app_versions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.archive_files",
       "name": "archive_files_append_only",
       "enabled": "O",

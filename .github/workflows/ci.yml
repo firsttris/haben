@@ -309,6 +309,25 @@ jobs:
         with:
           dockerfile: Containerfile
           tags: haben:ci
+      # Firmenportal (#504, Stufe 2): Image bauen, mit gültiger Konfiguration gesund, mit ungültiger startet es nicht
+      - name: Firmenportal
+        run: |
+          set -x
+          docker build -f apps/firmenportal/Containerfile -t haben-firmenportal:ci .
+          docker run -d --name haben-firmenportal-ci -p 127.0.0.1:3010:3000 \
+            -e PORTAL_URL=https://portal.haben.test -e PORTAL_SECRET="$(openssl rand -base64 32)" \
+            -e OIDC_ISSUER=https://auth.haben.test -e OIDC_CLIENT_ID=firmenportal -e OIDC_CLIENT_SECRET=geheim \
+            -e PORTAL_FIRMEN='Firma 1|https://firma1.haben.test|haben-firma1-inhaber' haben-firmenportal:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3010/gesund && break; sleep 1; done
+          test "$(curl -sf http://127.0.0.1:3010/gesund)" = ok
+          # Ohne Sitzung gleich zur Anmeldung, nach dem Abmelden die Seite dazu; die Schrift liefert das Firmenportal selbst
+          test "$(curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:3010/)" = http://127.0.0.1:3010/anmelden
+          curl -sf 'http://127.0.0.1:3010/?abgemeldet' | grep -q 'href="/anmelden"'
+          test "$(curl -sf -o /dev/null -w '%{content_type}' http://127.0.0.1:3010/schrift/plex-400.woff2)" = font/woff2
+          for i in $(seq 1 30); do [ "$(docker inspect -f '{{.State.Health.Status}}' haben-firmenportal-ci)" = healthy ] && break; sleep 2; done
+          test "$(docker inspect -f '{{.State.Health.Status}}' haben-firmenportal-ci)" = healthy
+          docker rm -f haben-firmenportal-ci
+          ! docker run --rm -e PORTAL_URL=http://portal.haben.test haben-firmenportal:ci
       - name: Ausgelieferte Compose-Konfiguration mit App-Rolle und Legacy-Zugang prüfen
         run: bash deploy/tests/rollen-start.sh
         env:

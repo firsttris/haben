@@ -1674,6 +1674,20 @@
       "when": 1794692093538,
       "tag": "0238_jahreserklaerung_zeilenwerte_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 239,
+      "version": "7",
+      "when": 1794694652955,
+      "tag": "0239_app_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1794694658816,
+      "tag": "0240_app_versions_trigger",
+      "breakpoints": true
     }
   ]
 }
