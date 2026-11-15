@@ -204,7 +204,7 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
   if (!vermerkt && ustErklaerungLeer(data.figures) && data.kz48Gesperrt.length === 0) {
     issues.push({ tone: "fehler", text: "Keine Umsätze und keine Vorsteuer: eine Nullerklärung geht über das ELSTER-Portal." });
   }
-  if (data.missingMonths.length > 0 && !kleinunternehmer) {
+  if (data.missingMonths.length > 0 && !kleinunternehmer && !vermerkt) {
     issues.push({
       tone: "hinweis",
       text: `${data.missingMonths.length === 12 ? "Für keinen Monat gibt es" : `Für ${data.missingMonths.length} Monat${data.missingMonths.length === 1 ? "" : "e"} fehlt`} eine in Haben gesendete Voranmeldung. Als Vorauszahlungssoll zählen nur diese; Voranmeldungen aus einem anderen Programm fehlen darin.`,
@@ -654,6 +654,16 @@ export async function annualOverview(year: number, today: string) {
   const ustVermerk = submitted("ust");
   const euerVermerk = submitted("euer");
   const [ustZeilen, euerZeilen] = await Promise.all([erklaerteZeilen(ustVermerk?.id ?? null), erklaerteZeilen(euerVermerk?.id ?? null)]);
+  /*
+   * Die Summenzeilen der Seite zeigen nach einem Vermerk die erklärte Zahl (#1076): Habens eigene Rechnung kennt die
+   * Veranlagung nicht, und in einem Jahr ohne Buchungen kehrt sie sogar das Vorzeichen um (0,00 - erklärtes Soll).
+   * Die gerechneten Werte bleiben daneben stehen, weil vermerkPruefung und der Abweichungshinweis sie brauchen.
+   */
+  const ustAnzeige = {
+    vorauszahlungen: ustZeilen.vorauszahlungen ?? ust.figures.vorauszahlungen,
+    abschluss: ustZeilen.abschluss ?? ust.abschluss,
+    ausVermerk: { vorauszahlungen: ustZeilen.vorauszahlungen !== undefined, abschluss: ustZeilen.abschluss !== undefined },
+  };
   return {
     year,
     ust: {
@@ -666,6 +676,7 @@ export async function annualOverview(year: number, today: string) {
       sent: sent("ust"),
       submitted: ustVermerk,
       erklaert: ustZeilen,
+      anzeige: ustAnzeige,
     },
     euer: {
       ...euer,
