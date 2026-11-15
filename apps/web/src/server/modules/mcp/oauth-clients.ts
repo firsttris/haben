@@ -98,8 +98,12 @@ export async function authenticateClient(request: Request, form: URLSearchParams
     const decoded = Buffer.from(basic[1]!, "base64").toString("utf8");
     const colon = decoded.indexOf(":");
     if (colon < 0) throw new OAuthError("invalid_client", "Client-Anmeldung ungültig.", 401);
-    clientId = decodeURIComponent(decoded.slice(0, colon));
-    secret = decodeURIComponent(decoded.slice(colon + 1));
+    try {
+      clientId = decodeURIComponent(decoded.slice(0, colon));
+      secret = decodeURIComponent(decoded.slice(colon + 1));
+    } catch {
+      throw new OAuthError("invalid_client", "Client-Anmeldung ungültig.", 401);
+    }
   }
   const client = clientId ? await findClient(clientId) : undefined;
   if (!client) throw new OAuthError("invalid_client", "Client unbekannt.", 401);

@@ -5,6 +5,7 @@ import { db, schema } from "../../db/index.ts";
 import { env } from "../../env.ts";
 import { currentTokenOwners, tokenEvent } from "../../token-responsibility.ts";
 import { AUTH_METHODS, authenticateClient, findClient, hashSecret, OAuthError, registerClient, type OAuthClient } from "./oauth-clients.ts";
+import { redirectUriMatches } from "./oauth-redirect.ts";
 import { mcpEnabled, OAUTH_ACCESS_PREFIX } from "./tokens.ts";
 
 /*
@@ -95,7 +96,7 @@ export async function checkAuthorizeRequest(params: AuthorizeParams): Promise<Au
   const client = params.client_id ? await findClient(params.client_id) : undefined;
   if (!client) return { kind: "fehler", message: "Dieser Client ist in Haben nicht registriert. Bitte die Verbindung im KI-Assistenten neu einrichten." };
   const redirectUri = params.redirect_uri ?? (client.redirectUris.length === 1 ? client.redirectUris[0] : undefined);
-  if (!redirectUri || !client.redirectUris.includes(redirectUri))
+  if (!redirectUri || !client.redirectUris.some((registered) => redirectUriMatches(registered, redirectUri)))
     return { kind: "fehler", message: "Die Rücksprungadresse passt nicht zum registrierten Client." };
   const back = (error: string, description: string) => ({
     kind: "zurueck" as const,
