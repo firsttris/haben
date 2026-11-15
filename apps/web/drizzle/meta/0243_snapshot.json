@@ -1,5 +1,5 @@
 {
-  "id": "453ef2a0-e725-4aa5-b34e-3e0ebee15e87",
+  "id": "fb9d35bb-91d7-4271-832d-3d5a8a283af2",
   "prevId": "43665cea-eaf4-4e05-af89-2d03f960ebf4",
   "version": "7",
   "dialect": "postgresql",
@@ -6419,9 +6419,9 @@
           "notNull": true,
           "default": 0
         },
-        "ciphertext": {
-          "name": "ciphertext",
-          "type": "bytea",
+        "document_url": {
+          "name": "document_url",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },

@@ -1,7 +1,6 @@
 import { type FbFile, type LegacyVoucher, unwrapFormUpload } from "@haben/import";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { unzipSync } from "fflate";
-import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadFile, sniff, storeFile } from "../../storage.ts";
@@ -35,7 +34,7 @@ export async function waitingReceipt(
     date: voucher.date,
     supplier: voucher.contactName,
     gross: voucher.gross,
-    ciphertext: encrypt(Buffer.from(documentUrl, "utf8")),
+    documentUrl,
     updatedAt: new Date(),
   };
   await withActor(actor, (tx) =>
@@ -97,11 +96,11 @@ export async function fastbillWaitingByYear(): Promise<Map<number, number>> {
 /** Liste für das Browser-Skript: ID und Download-Adresse jeder wartenden Ausgabe */
 export async function fastbillReceiptScriptList(): Promise<{ id: string; url: string }[]> {
   const rows = await db
-    .select({ id: schema.fastbillReceipts.expenseId, ciphertext: schema.fastbillReceipts.ciphertext })
+    .select({ id: schema.fastbillReceipts.expenseId, url: schema.fastbillReceipts.documentUrl })
     .from(schema.fastbillReceipts)
     .where(eq(schema.fastbillReceipts.status, "wartet"))
     .orderBy(asc(schema.fastbillReceipts.expenseId));
-  return rows.flatMap((r) => (r.ciphertext ? [{ id: r.id, url: decrypt(r.ciphertext).toString("utf8") }] : []));
+  return rows.flatMap((r) => (r.url ? [{ id: r.id, url: r.url }] : []));
 }
 
 export interface FastbillReceiptUpload {

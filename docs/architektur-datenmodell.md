@@ -132,7 +132,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `lexoffice_connection` | API-Schlüssel für Lexware Office, verschlüsselt; eine Zeile | Audit ohne Chiffrat |
 | `sevdesk_connection` | API-Token für sevDesk, verschlüsselt, mit Buchhaltungsversion; eine Zeile | Audit ohne Chiffrat |
 | `fastbill_connection` | Login-E-Mail und API-Schlüssel für FastBill, der Schlüssel verschlüsselt, mit Stundengrenze des Tarifs; eine Zeile | Audit ohne Chiffrat |
-| `fastbill_receipts` | Ausgaben, deren Beleg FastBill nur im Browser herausgibt, bis zum Archivieren: wartend, mit Datei aus dem Browser-Skript oder „ohne Beleg“; Download-Link verschlüsselt | Audit ohne Chiffrat |
+| `fastbill_receipts` | Ausgaben, deren Beleg FastBill nur im Browser herausgibt, bis zum Archivieren: wartend, mit Datei aus dem Browser-Skript oder „ohne Beleg“ | kein Audit (Zwischenlager, Download-Links mit eigenem Schlüssel) |
 | `lexoffice_imports` | Läufe aller Umzugsquellen (`source`: Lexoffice, sevDesk, FastBill, BuchhaltungsButler, Accountable, lokale Paketübernahme) mit Fortschritt; höchstens ein Lauf zugleich | Audit beim Anlegen |
 | `lexoffice_vouchers` | Rechnungen und Belege aller Umzugsquellen (`source`) mit vollständiger Quellantwort beziehungsweise Originalpaket | nur anhängen |
 | `lexoffice_voucher_files` | Dateien zu einem Lexoffice-Beleg | nur anhängen |
