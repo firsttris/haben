@@ -33,9 +33,9 @@ async function abrufNachstellen() {
         values (1, 'inhaber@example.de', ${verschluesseln("0123456789abcdef0123456789abcdef")}, 500)`;
       await tx`insert into lexoffice_imports (source, status, progress, finished_at) values ('fastbill', 'fertig',
         '{"phase":"fertig","contacts":0,"contactsLinked":0,"listed":2,"imported":0,"skipped":0,"files":0,"failed":[],"fastbillWaiting":2}', now())`;
-      await tx`insert into fastbill_receipts (expense_id, status, number, date, supplier, gross, ciphertext) values
-        ('8101', 'wartet', 'L-881', '2024-02-15', 'Software Beispiel', 595, ${verschluesseln(URL_8101)}),
-        ('8102', 'wartet', 'L-882', '2024-03-01', 'Hosting Beispiel', 1190, ${verschluesseln(URL_8102)})`;
+      await tx`insert into fastbill_receipts (expense_id, status, number, date, supplier, gross, document_url) values
+        ('8101', 'wartet', 'L-881', '2024-02-15', 'Software Beispiel', 595, ${URL_8101}),
+        ('8102', 'wartet', 'L-882', '2024-03-01', 'Hosting Beispiel', 1190, ${URL_8102})`;
     });
   } finally {
     await sql.end();
@@ -59,7 +59,7 @@ test("FastBill: wartende Ausgabenbelege per Skript nachreichen oder ohne Beleg f
 
   const kasten = page.getByRole("region", { name: "Belege, die FastBill nur im Browser herausgibt" });
   await expect(kasten.locator(".progress-facts")).toContainText("warten auf Beleg2");
-  // Das Skript bekommt die entschlüsselten Download-Adressen der wartenden Ausgaben eingesetzt
+  // Das Skript bekommt die Download-Adressen der wartenden Ausgaben eingesetzt
   await kasten.getByRole("button", { name: "Skript kopieren" }).click();
   await expect(kasten.getByRole("button", { name: "Kopiert" })).toBeVisible();
   const skript = await page.evaluate(() => navigator.clipboard.readText());

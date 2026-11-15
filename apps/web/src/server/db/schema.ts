@@ -2874,6 +2874,8 @@ export const fastbillConnection = pgTable(
  * in der angemeldeten Sitzung, der Upload setzt „datei“, wer keinen Beleg hat „ohne_beleg“. Der nächste Abruf übernimmt
  * die Ausgabe dann mit Datei bzw. ohne und löscht die Zeile. document_url ist ein Link mit eigenem Schlüssel und steht
  * deshalb nur hier, nicht im Fortschritt des Abrufs.
+ * Bewusst ohne Audit-Trigger und im Klartext (Entscheidung des Maintainers in #1002): Die Zeile ist nur ein Zwischenlager
+ * und wird beim Archivieren gelöscht, und der Link liefert ohne Anmeldung im Browser keine Datei (0244_fastbill_trigger.sql).
  */
 export const fastbillReceipts = pgTable("fastbill_receipts", {
   /** Wie jede Tabelle mit Dateiverweis eine id, über die die Vollprüfung der Dateien den Datensatz nennt */
