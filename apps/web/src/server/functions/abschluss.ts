@@ -4,17 +4,14 @@ import { closeYear, jahresabschluss } from "../modules/buchhaltung/index.ts";
 import { elsterClient, elsterMode, loadActiveCertificate } from "../modules/elster/index.ts";
 import {
   bilanzVermerkeFuer,
-  bookSteuerrueckstellungen,
   ebilanzOverview,
   hinterlegungStand,
-  kapgAngabenSchema,
-  kapgSteuernJahr,
   restlaufzeitenAnsicht,
   restlaufzeitenSchema,
-  saveKapgAngaben,
   saveRestlaufzeiten,
   submitEbilanz,
 } from "../modules/jahreserklaerung/index.ts";
+import { bookSteuerrueckstellungen, kapgAngabenSchema, kapgSteuernJahr, saveKapgAngaben } from "../modules/koerperschaft/index.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
