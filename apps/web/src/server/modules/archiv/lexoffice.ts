@@ -2,7 +2,16 @@ import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../..
 import { datevBookingFound, datevInternalId, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { SEVDESK_EXPORT_IST_CHECK, sevdeskExportIstIssue, sevdeskExportYear, voucherSourceChecks, withoutExportImage } from "./sevdesk-export-abgleich.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
-import { ACCOUNTING_TYPE_ISSUE, accountingTypeChecks, accountingTypeUnclear, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
+import {
+  accountingTypeChecks,
+  accountingTypeDecidable,
+  accountingTypeIssue,
+  accountingTypeKinds,
+  type AccountingTypeKinds,
+  accountingTypeUnclear,
+  ACCOUNTING_TYPE_VAT_ISSUE,
+  unclearAccountingTypes,
+} from "./sevdesk-kontoart.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import {
   datevYearSums,
@@ -35,7 +44,7 @@ import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
-import type { LegacyCategoryRow, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
+import type { LegacyCategoryRow, LegacyFileState, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sniff } from "../../storage.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
 import { latestFastbillImport } from "./fastbill.ts";
@@ -43,6 +52,7 @@ import { fastbillPartlyCanceledByYear, fastbillPartlyCanceledChecks, fastbillTax
 import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 import { legacyDunningsFor } from "./mahnungen-archiv.ts";
+import { FILE_STATUS_LABELS, fileCheck, fileCounts, fileStateHistory, latestFileStateSql, legacyFileStatus, OPEN_FILE_STATUSES } from "./dateistand.ts";
 
 export class LexofficeError extends UserError {}
 
@@ -390,32 +400,46 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
     tax: number;
     gross: number;
     files: number;
+    file_state: LegacyFileState | null;
+    ohne_beleg: boolean;
     accounting_type_unclear: boolean;
   }>(sql`
     select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "tax")} as tax, ${effectiveAmount("v", "gross")} as gross,
-      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files, ${accountingTypeUnclear("v")} as accounting_type_unclear
+      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files, ${latestFileStateSql("v")} as file_state,
+      coalesce((v.raw->>'ohneBeleg')::boolean, false) as ohne_beleg, ${accountingTypeUnclear("v")} as accounting_type_unclear
     from lexoffice_vouchers v
     where v.date between ${`${filter.year}-01-01`} and ${`${filter.year}-12-31`}
       ${filter.direction === "alle" ? sql`` : sql`and ${effectiveDirection("v")} = ${filter.direction}`}
       ${term ? sql`and (v.number ilike ${term} or ${effectiveContactName("v")} ilike ${term} or v.remark ilike ${term})` : sql``}
-      ${filter.ohneDatei ? sql`and not exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id) and not coalesce((v.raw->>'ohneBeleg')::boolean, false)` : sql``}
+      ${
+        // Vorauswahl vor dem Limit; welcher Stand offen ist, entscheidet legacyFileStatus unten
+        filter.ohneDatei
+          ? sql`and not coalesce((v.raw->>'ohneBeleg')::boolean, false) and (not exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id)
+              or ${latestFileStateSql("v")} in ('abruf_fehlgeschlagen', 'anhang_fehlt'))`
+          : sql``
+      }
     order by v.date, v.number
     limit 1000`);
-  return [...rows].map((r) => ({
-    id: r.id,
-    source: r.source,
-    type: r.type,
-    direction: r.direction,
-    number: r.number,
-    date: r.date,
-    status: r.status,
-    contactName: r.contact_name,
-    net: Number(r.net),
-    tax: Number(r.tax),
-    gross: Number(r.gross),
-    files: Number(r.files),
-    accountingTypeUnclear: r.accounting_type_unclear,
-  }));
+  // Ohne Datei: alles, was noch Arbeit braucht (#345), nicht die bestätigt dateilosen und nicht Buchungen ohne Beleg
+  const status = (r: (typeof rows)[number]) => legacyFileStatus(r.file_state, Number(r.files), r.ohne_beleg);
+  return [...rows]
+    .filter((r) => !filter.ohneDatei || OPEN_FILE_STATUSES.has(status(r)))
+    .map((r) => ({
+      id: r.id,
+      source: r.source,
+      type: r.type,
+      direction: r.direction,
+      number: r.number,
+      date: r.date,
+      status: r.status,
+      contactName: r.contact_name,
+      net: Number(r.net),
+      tax: Number(r.tax),
+      gross: Number(r.gross),
+      files: Number(r.files),
+      fileStatus: status(r),
+      accountingTypeUnclear: r.accounting_type_unclear,
+    }));
 }
 
 export async function legacyVoucherDetail(id: string) {
@@ -446,7 +470,8 @@ export async function legacyVoucherDetail(id: string) {
       payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
       remark: schema.lexofficeVouchers.remark,
       createdAt: schema.lexofficeVouchers.createdAt,
-      accountingTypeIssue: sql<string | null>`case when ${accountingTypeUnclear("lexoffice_vouchers")} then ${ACCOUNTING_TYPE_ISSUE} end`,
+      accountingType: accountingTypeKinds("lexoffice_vouchers"),
+      ohneBeleg: WITHOUT_RECEIPT,
     })
     .from(schema.lexofficeVouchers)
     .where(eq(schema.lexofficeVouchers.id, id));
@@ -464,6 +489,10 @@ export async function legacyVoucherDetail(id: string) {
     .where(eq(schema.lexofficeVoucherFiles.voucherId, id));
   // Mahnstufen der Rechnung aus der Quelle; nur Archiv, ohne Wirkung auf Betrag und Zahlungsstand
   const dunnings = voucher.direction === "einnahme" ? await legacyDunningsFor([voucher.lexofficeId]) : [];
+  // Dateistand mit Verlauf (#345); bestätigen lässt sich nur ein Beleg aus sevDesk mit dem offenen Stand „ohne Datei“
+  const fileStates = await fileStateHistory(id);
+  const fileStatus = legacyFileStatus(fileStates.at(-1)?.state ?? null, files.length, voucher.ohneBeleg);
+  const canConfirmWithoutFile = fileStatus === "ohne_datei_offen" && voucher.source === "sevdesk" && voucher.lexofficeId.startsWith("voucher/");
   // Frühere WISO-Importe setzten das Zahlungsdatum als Leistung, obwohl die Quelle sie nicht belegt (#565).
   // Nur lesend korrigieren; die unveränderliche Archivzeile bleibt erhalten. Quelle: https://github.com/firsttris/haben/issues/565
   return {
@@ -473,9 +502,12 @@ export async function legacyVoucherDetail(id: string) {
       serviceTo: voucher.source === "wiso" ? null : voucher.serviceTo,
       payment: visiblePayment(voucher),
       paymentHistoryIssue: paymentHistoryIssue(voucher),
+      accountingTypeIssue: accountingTypeIssue(voucher.accountingType),
+      accountingTypeDecidable: accountingTypeDecidable(voucher.accountingType),
     },
     files,
     dunnings,
+    fileState: { status: fileStatus, label: FILE_STATUS_LABELS[fileStatus], history: fileStates, canConfirmWithoutFile },
   };
 }
 
@@ -552,6 +584,7 @@ export async function reconciliation() {
       taxType: TAX_TYPE,
       taxSubType: TAX_SUB_TYPE,
       ohneBeleg: WITHOUT_RECEIPT,
+      fileState: latestFileStateSql("lexoffice_vouchers"),
       ohneBelegbild: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBelegbild')::boolean, false)`,
       privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
       bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
@@ -590,6 +623,11 @@ export async function reconciliation() {
       count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number
     from datev_bookings b group by 1`);
   const files = await db.select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year }).from(schema.archiveFiles);
+  // Protokolle der aus sevDesk übernommenen Voranmeldungen zählen wie abgelegte ELSTER-Protokolle (#472)
+  const vatProtocols = await db
+    .select({ year: schema.legacyVatReports.year })
+    .from(schema.legacyVatReportFiles)
+    .innerJoin(schema.legacyVatReports, eq(schema.legacyVatReportFiles.vatReportId, schema.legacyVatReports.id));
   const lastImport = await latestImport();
   // Für Jahre ohne Belege per API (Umzug nur über DATEV): Summen aus dem Buchungsstapel
   const datevRows = await db
@@ -626,6 +664,8 @@ export async function reconciliation() {
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
   for (const b of bookingRows) years.add(Number(b.year));
   for (const f of files) if (f.year) years.add(f.year);
+  // Jahre mit aus sevDesk übernommenen Voranmeldungen, auch ohne Belege und ohne Protokoll (#472)
+  for (const r of await db.selectDistinct({ year: schema.legacyVatReports.year }).from(schema.legacyVatReports)) years.add(r.year);
 
   const result = [...years]
     .sort((a, b) => b - a)
@@ -659,12 +699,15 @@ export async function reconciliation() {
           gross: rows.reduce((s, r) => s + r.gross, 0) + bb.net + bb.tax,
         };
       };
-      // Ohne Belegbild im Export braucht ein Exportbeleg keine Datei; er steht mit eigener Zahl im Abgleich
-      const withoutFile = yearRows.filter((v) => !v.ohneBeleg && Number(v.files) === 0 && !withoutExportImage(v)).length;
+      // Dateistand (#345): bestätigt dateilose Belege zählen getrennt und blockieren nicht. Ein Exportbeleg ohne Belegbild
+      // braucht keine Datei; er steht mit eigener Zahl im Abgleich (#1106)
+      const fileStatuses = yearRows.filter((v) => !withoutExportImage(v)).map((v) => legacyFileStatus(v.fileState, Number(v.files), v.ohneBeleg));
+      const withoutFile = fileStatuses.filter((f) => OPEN_FILE_STATUSES.has(f) && f !== "anhang_fehlt").length;
       const sevdeskExport = sevdeskExportYear(yearRows);
       const unchecked = vouchers.filter((v) => v.status === "unchecked").length;
       const bookings = bookingRows.find((b) => Number(b.year) === year);
       const kinds = (kind: string) => files.filter((f) => f.year === year && f.kind === kind).length;
+      const elster = kinds("elster") + vatProtocols.filter((p) => p.year === year).length;
       // Ist-Versteuerung: Zahlungen aus dem Zahlungsstatus; sonst Belegdatum
       const vatIssue = vatIssueOf(year);
       const vat = vatIssue
@@ -713,11 +756,7 @@ export async function reconciliation() {
         ...fastbillWaitingChecks(fastbillWaiting.get(year)),
         ...fastbillPartlyCanceledChecks(fastbillPartlyCanceled.get(year)),
         ...voucherSourceChecks({ sevdeskExport, apiVouchers: vouchers.length, yearRows, withoutReceipt }),
-        {
-          ok: withoutFile === 0,
-          label: "Jeder Beleg hat eine Datei",
-          detail: withoutFile === 0 ? "alle mit Datei" : `${withoutFile} ohne Datei`,
-        },
+        fileCheck(fileStatuses),
         {
           ok: Boolean(bookings && bookings.total > 0),
           label: "DATEV-Buchungsstapel übernommen",
@@ -738,9 +777,9 @@ export async function reconciliation() {
         },
         ...(nurAccountable ? [] : [{ ok: kinds("idea") > 0, label: "IDEA-Export archiviert", detail: kinds("idea") > 0 ? "liegt vor" : "fehlt" }]),
         {
-          ok: kinds("elster") > 0,
+          ok: elster > 0,
           label: "ELSTER-Protokolle archiviert",
-          detail: kinds("elster") > 0 ? `${kinds("elster")} Dateien` : "fehlen",
+          detail: elster > 0 ? `${elster} Dateien` : "fehlen",
         },
         {
           ok: kinds("kontoauszug") > 0,
@@ -761,6 +800,7 @@ export async function reconciliation() {
         /** Belege aus der Export-ZIP von sevDesk je Zustand; null ohne solche Belege */
         sevdeskExport,
         withoutFile,
+        files: fileCounts(fileStatuses),
         unchecked,
         bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.without_number } : null,
         vat,
@@ -851,13 +891,14 @@ export async function legacyVouchersForPeriod(filter: {
     tax_type: string | null;
     tax_sub_type: string | null;
     files: number;
-    accounting_type_unclear: boolean;
+    accounting_type: AccountingTypeKinds | null;
   }>(sql`
     select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "tax")} as tax, ${effectiveAmount("v", "gross")} as gross,
       ${effectiveTaxes("v")} as taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
-      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files, ${accountingTypeUnclear("v")} as accounting_type_unclear
+      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files, ${latestFileStateSql("v")} as file_state,
+      coalesce((v.raw->>'ohneBeleg')::boolean, false) as ohne_beleg, ${accountingTypeKinds("v")} as accounting_type
     from lexoffice_vouchers v
     where (v.date::text like ${like}
       ${
@@ -898,7 +939,7 @@ export async function legacyVouchersForPeriod(filter: {
       taxSubType: r.tax_sub_type,
       payments: legacyPayments({ source: r.source, status: r.status, gross: Number(r.gross), payment: r.payment }),
       paymentHistoryIssue: paymentHistoryIssue({ source: r.source, status: r.status, gross: Number(r.gross), payment: r.payment }),
-      accountingTypeIssue: r.accounting_type_unclear ? ACCOUNTING_TYPE_ISSUE : null,
+      accountingTypeIssue: accountingTypeIssue(r.accounting_type),
       files: Number(r.files),
     }));
   return { total: all.length, vouchers: all.slice(0, filter.limit), neutral };

@@ -1,3 +1,4 @@
+import { FILE_STATE_LABELS, FILE_STATUS_LABELS, fileStatesForYear, latestFileStates, legacyFileStatus } from "./dateistand.ts";
 import { mitIndexXml } from "./beschreibung.ts";
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
@@ -28,6 +29,7 @@ import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
 import { dunningFiles } from "./mahnungen-export.ts";
+import { vatReportFiles } from "./voranmeldungen-export.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 
@@ -297,6 +299,7 @@ export async function exportYears(now = new Date()): Promise<number[]> {
     union select extract(year from date)::int from lexoffice_vouchers
     union select extract(year from date)::int from legacy_order_documents
     union select extract(year from date)::int from datev_bookings
+    union select year::int from legacy_vat_reports
     union select year::int from archive_files where year is not null`);
   const current = Number(today(now).slice(0, 4));
   const years = new Set([current, current - 1, ...rows.map((r) => Number(r.y))]);
@@ -1218,6 +1221,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   yield* legacyFiles(year, problems);
   yield* orderFiles(year, problems);
   yield* dunningFiles(year, problems);
+  yield* await vatReportFiles(year, problems);
 
   // Stammdaten ------------------------------------------------------------
   const contacts = await db.select().from(schema.contacts).orderBy(asc(schema.contacts.name), asc(schema.contacts.id));
@@ -1408,6 +1412,7 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
         .orderBy(asc(schema.lexofficeVoucherFiles.createdAt), asc(schema.lexofficeVoucherFiles.id))
     : [];
   const filesByVoucher = groupBy(files, (f) => f.voucherId);
+  const fileStates = await latestFileStates(vouchers.map((v) => v.id));
   const usedPaths = new Set<string>();
   const rows: CsvValue[][] = [];
   for (const voucher of vouchers) {
@@ -1447,6 +1452,7 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
       (filesByVoucher.get(voucher.id) ?? []).map((f) => f.sha256).join(" | "),
       voucher.lexofficeId,
       LEGACY_SOURCE_LABELS[voucher.source],
+      FILE_STATUS_LABELS[legacyFileStatus(fileStates.get(voucher.id) ?? null, filesByVoucher.get(voucher.id)?.length ?? 0, voucher.raw.ohneBeleg === true)],
     ]);
   }
   if (vouchers.length > 0) {
@@ -1473,8 +1479,32 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
           "SHA-256",
           "Lexoffice-ID",
           "Quelle",
+          "Dateistand",
         ],
         rows,
+      ),
+      compress: true,
+    };
+  }
+
+  // Verlauf des Dateistands (#345): was fehlte, warum, wer ohne Datei bestätigt hat und was nachgeladen wurde
+  const states = await fileStatesForYear(year);
+  if (states.length > 0) {
+    yield {
+      path: "lexoffice/dateistand.csv",
+      content: csv(
+        ["Zeitpunkt", "Belegnummer", "Beleg-ID der Quelle", "Stand", "Datei", "Datei-ID der Quelle", "Grund oder Herkunft", "Abruf", "Benutzer-ID"],
+        states.map((r) => [
+          r.createdAt.toISOString(),
+          r.number,
+          r.lexofficeId,
+          FILE_STATE_LABELS[r.state],
+          r.role ?? "",
+          r.sourceFileId ?? "",
+          r.message,
+          r.importId ?? "",
+          r.importId ? "" : r.createdBy,
+        ]),
       ),
       compress: true,
     };
@@ -1799,8 +1829,9 @@ lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege
                          Lexware Office, sevDesk, FastBill oder BuchhaltungsButler (Spalte
                          Quelle; in Lexoffice-ID steht bei sevDesk Art und ID, z. B. invoice/123,
                          bei FastBill mit Präfix, z. B. fastbill/invoice/123) mit
-                         Originaldateien (belege.csv), Einzelzahlungen aus sevDesk
-                         (zahlungen.csv), die Zeilen des
+                         Originaldateien und Dateistand (belege.csv), Einzelzahlungen aus
+                         sevDesk (zahlungen.csv), was an Dateien fehlte oder nachkam
+                         (dateistand.csv), die Zeilen des
                          DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten
                          Originalexporte des Jahres (originale/: DATEV, IDEA,
                          ELSTER-Protokolle, Kontoauszüge, Finanzberichte der
