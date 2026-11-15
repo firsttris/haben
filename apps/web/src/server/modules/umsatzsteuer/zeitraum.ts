@@ -124,18 +124,9 @@ export function periodProblem(settings: readonly VatFrequencySetting[], period: 
 }
 
 /**
- * Abgegebene Voranmeldungszeiträume: gesendet (`vat_returns.status = sent`) oder als außerhalb von Haben abgegeben
- * vermerkt (`vat_return_filings`). Beides gilt als erledigt; offen ist, was weder das eine noch das andere hat (#1102).
+ * Abgegebene Voranmeldungszeiträume: über ERiC gesendet oder als außerhalb von Haben abgegeben vermerkt; der Vermerk
+ * setzt ebenso `status = sent` (vermerk.ts). Offen ist, was keins von beiden hat (#1102).
  */
 export async function abgegebeneZeitraeume(q: Db | Tx = db): Promise<VatPeriod[]> {
-  const [gesendet, vermerkt] = await Promise.all([
-    q.select({ year: schema.vatReturns.year, month: schema.vatReturns.month }).from(schema.vatReturns).where(eq(schema.vatReturns.status, "sent")),
-    q
-      .select({ year: schema.vatReturns.year, month: schema.vatReturns.month })
-      .from(schema.vatReturnFilings)
-      .innerJoin(schema.vatReturns, eq(schema.vatReturnFilings.vatReturnId, schema.vatReturns.id)),
-  ]);
-  const einmalig = new Map<string, VatPeriod>();
-  for (const period of [...gesendet, ...vermerkt]) einmalig.set(`${period.year}-${period.month}`, period);
-  return [...einmalig.values()];
+  return q.selectDistinct({ year: schema.vatReturns.year, month: schema.vatReturns.month }).from(schema.vatReturns).where(eq(schema.vatReturns.status, "sent"));
 }
