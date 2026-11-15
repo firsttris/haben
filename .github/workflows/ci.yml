@@ -345,7 +345,16 @@ jobs:
           set -x
           docker tag haben:ci tristanteu/haben:latest
           bun deploy/instanzen/haben-instanzen.ts neu firma1 firma1.haben.test
+          # Die zweite Instanz baut den gemeinsamen Caddy nicht neu auf (#1013): derselbe Container, und er antwortet für
+          # firma1 durchgehend. Ohne Zertifikat leitet er HTTP auf HTTPS um (308); 000 hieße: keine Verbindung
+          caddy_id="$(cd "$HABEN_INSTANZEN/proxy" && docker compose ps -q caddy)"
+          (set +x; while :; do curl -s -o /dev/null -m 2 -w '%{http_code}\n' -H 'Host: firma1.haben.test' http://127.0.0.1/; sleep 0.1; done) > "$RUNNER_TEMP/antworten.txt" &
+          schleife=$!
           bun deploy/instanzen/haben-instanzen.ts neu firma2 firma2.haben.test
+          kill "$schleife"
+          test "$(cd "$HABEN_INSTANZEN/proxy" && docker compose ps -q caddy)" = "$caddy_id"
+          test "$(grep -c . "$RUNNER_TEMP/antworten.txt")" -gt 10
+          test -z "$(grep -v '^308$' "$RUNNER_TEMP/antworten.txt")"
           # Firma wechseln (#909): firmen schreibt die Liste in beide, startet die Apps neu und wartet, bis sie gesund sind
           bun deploy/instanzen/haben-instanzen.ts firmen
           for f in firma1 firma2; do

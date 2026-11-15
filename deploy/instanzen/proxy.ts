@@ -6,15 +6,19 @@
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { compose } from "./ausfuehren.ts";
+import { compose, docker } from "./ausfuehren.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
+import { dienste, lauf } from "./zustand.ts";
 
 /** Das Netz zwischen Proxy und App einer Instanz; beginnt nie mit einer Ziffer und taugt so auch als YAML-Schlüssel */
 export function netzFuer(name: string): string {
   return `haben-proxy-${name}`;
 }
 
-/** Derselbe Block wie in compose.yml für eine einzelne Instanz, mit dem Alias als Ziel */
+/**
+ * Derselbe Block wie in compose.yml für eine einzelne Instanz und in deploy/Caddyfile, mit dem Alias als Ziel;
+ * caddy-block.test.ts vergleicht die drei Stellen
+ */
 export function caddyBlock(domain: string, name: string): string {
   return `${domain} {
 \tencode zstd gzip
@@ -58,9 +62,9 @@ export function proxyDir(k: Kontext): string {
 /**
  * Die Netze des Caddy als compose.override.yml: Compose liest sie neben compose.yml mit und führt die Netzlisten
  * beider Dateien zusammen (compose-go, override/merge.go, mergeNetworks), eine ältere compose.yml behält so ihr
- * gemeinsames Netz haben-proxy. Die Liste steht in einer Datei und nicht nur am Container (docker network connect),
- * weil Compose den Container aus den Dateien neu aufbaut; die Netze legt der Caddy selbst an (kein external), ein
- * fehlendes hält seinen Start so nicht auf.
+ * gemeinsames Netz haben-proxy. Den laufenden Container hängt proxyStarten mit docker network connect ein; die Liste
+ * steht trotzdem in der Datei, weil ein Neuaufbau (von Hand, neues Image) den Container allein aus den Dateien
+ * erzeugt. Die Netze legt Compose im Projekt des Caddy an (kein external), ein fehlendes hält seinen Start so nicht auf.
  */
 function netzeDatei(netze: string[]): string {
   return [
@@ -109,13 +113,30 @@ export async function proxyEintragen(k: Kontext, name: string, domain: string): 
   await writeFile(join(dir, "compose.override.yml"), netzeDatei(await netzeDerInstanzen(k)));
 }
 
+/** Bricht mit der Meldung ab und nennt, wo der Caddy seine Gründe schreibt */
+function caddyFehler(k: Kontext, meldung: string): never {
+  abbrechen(`${meldung}; siehe: cd ${proxyDir(k)} && docker compose logs caddy`);
+}
+
 /**
- * Startet den gemeinsamen Caddy. Läuft er schon, baut Compose den Container neu auf, weil sich seine Netze geändert
- * haben (kurze Unterbrechung für alle Instanzen); dabei liest er auch sites/ neu ein. Ein caddy reload reichte nicht:
- * Es hängt ihn in kein Netz.
+ * Startet den gemeinsamen Caddy oder hängt den laufenden in das Netz der neuen Instanz, ohne ihn neu aufzubauen (#1013).
+ * Ein schlichtes `up -d` baute einen laufenden Container neu auf, sobald sich seine Netze in compose.override.yml
+ * ändern (das Netz zählt zum Config-Hash des Dienstes), und jede Instanz dahinter wäre kurz nicht erreichbar.
+ * Stattdessen: `up -d --no-recreate` legt das Netz an, ohne den Container anzufassen, `docker network connect` hängt
+ * ihn hinein, `caddy reload` liest sites/ ohne Unterbrechung neu. Läuft der Caddy nicht, unterbricht ein Neuaufbau
+ * nichts; dann baut ihn `up -d` aus den Dateien auf und liest dabei auch sites/ ein.
  */
-export async function proxyStarten(k: Kontext): Promise<void> {
+export async function proxyStarten(k: Kontext, name: string): Promise<void> {
   const dir = proxyDir(k);
-  if ((await compose(k, dir, ["up", "-d"], true)).code !== 0)
-    abbrechen(`Der gemeinsame Caddy ließ sich nicht starten; siehe: cd ${dir} && docker compose logs caddy`);
+  if (lauf(await dienste(k, dir), "caddy") !== "laeuft") {
+    if ((await compose(k, dir, ["up", "-d"], true)).code !== 0) caddyFehler(k, "Der gemeinsame Caddy ließ sich nicht starten");
+    return;
+  }
+  const netz = netzFuer(name);
+  if ((await compose(k, dir, ["up", "-d", "--no-recreate"], true)).code !== 0) caddyFehler(k, `Das Netz ${netz} ließ sich nicht anlegen`);
+  const id = (await compose(k, dir, ["ps", "-q", "caddy"])).stdout.trim();
+  if (id === "" || (await docker(k, ["network", "connect", netz, id])).code !== 0)
+    caddyFehler(k, `Der gemeinsame Caddy ließ sich nicht in das Netz ${netz} hängen`);
+  if ((await compose(k, dir, ["exec", "-T", "caddy", "caddy", "reload", "--config", "/etc/caddy/Caddyfile"])).code !== 0)
+    caddyFehler(k, "Der gemeinsame Caddy hat sites/ nicht neu eingelesen und behält die bisherige Konfiguration");
 }
