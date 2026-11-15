@@ -1,4 +1,4 @@
-import { contrast, inkOnAccent, type PortalFirma } from "@haben/core";
+import { contrast, inkOnAccent } from "@haben/core";
 import { GEWICHTE } from "./schrift.ts";
 
 /*
@@ -78,10 +78,10 @@ const KANTE = "box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 40%, tr
 
 /**
  * Farben der Kacheln (#1036) als eigenes Stylesheet, weil die CSP nur Stylesheets des Firmenportals zulässt
- * (kein style-Attribut): je Farbe aus PORTAL_FIRMEN eine Klasse, Schrift schwarz oder weiß wie das „H“ in Haben.
- * Es nennt nur Farbwerte, keine Firmen.
+ * (kein style-Attribut): je Farbe der übergebenen Firmen eine Klasse, Schrift schwarz oder weiß wie das „H“ in
+ * Haben. Das Firmenportal gibt es nur einer Sitzung, mit den Firmen, die sie sieht.
  */
-export function farbStil(firmen: readonly PortalFirma[]): string {
+export function farbStil(firmen: readonly { farbe: string | null }[]): string {
   const farben = [...new Set(firmen.flatMap((f) => (f.farbe ? [f.farbe] : [])))];
   const regel = (farbe: string, schema: keyof typeof KARTE) => (contrast(farbe, KARTE[schema]) < 3 ? KANTE : "box-shadow: none;");
   const klasse = (farbe: string) => `.firma-zeichen.farbe-${farbe.slice(1)}`;

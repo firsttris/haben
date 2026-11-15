@@ -134,19 +134,30 @@ async function abmelden(config: PortalConfig, request: Request, jetzt: number): 
   return weiter(abmeldeAdresse(config, meta, hinweis?.idToken), cookies);
 }
 
-/** Logos und Farben der Kacheln (#1036), beim Start einmal aufbereitet */
+/** Logos der Kacheln (#1036), beim Start einmal geladen */
 interface Zeichen {
   logos: ReadonlyMap<string, LogoDatei>;
-  /** Stylesheet mit den Farben; leer ohne Farben */
-  farben: string;
-  /** Adresse des Stylesheets mit Prüfsumme, damit eine neue Farbe gleich gilt; undefined ohne Farben */
-  farbenAdresse: string | undefined;
 }
 
-function zeichenAus(config: PortalConfig, logos: ReadonlyMap<string, LogoDatei>): Zeichen {
-  const farben = farbStil(config.firmen);
-  const farbenAdresse = farben ? `/farben.css?v=${createHash("sha256").update(farben).digest("hex").slice(0, 12)}` : undefined;
-  return { logos, farben, farbenAdresse };
+/**
+ * Adresse des Stylesheets mit den Farben der Firmen einer Sitzung, mit Prüfsumme, damit eine neue Farbe gleich gilt;
+ * undefined ohne Farben
+ */
+function farbenAdresse(firmen: readonly PortalZeile[]): string | undefined {
+  const farben = farbStil(firmen);
+  return farben ? `/farben.css?v=${createHash("sha256").update(farben).digest("hex").slice(0, 12)}` : undefined;
+}
+
+/**
+ * Die Farben nur für eine gültige Sitzung und nur die ihrer Firmen: Ohne Anmeldung kommt niemand an Farbe oder Logo
+ * einer Firma (Bedingung in #1036)
+ */
+function farbenAntwort(config: PortalConfig, request: Request, jetzt: number): Response {
+  const sitzung = sitzungLesen(config, request, jetzt);
+  if (!sitzung) return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Firmenportal nicht."), 404);
+  return new Response(farbStil(sitzung.firmen), {
+    headers: { ...KOPF, "content-type": "text/css; charset=utf-8", "cache-control": "private, max-age=86400" },
+  });
 }
 
 /** Eine Firma, wie die Seite sie zeigt: das Logo als Adresse, nur wenn es geladen ist, sonst der Buchstabe */
@@ -174,8 +185,7 @@ async function route(config: PortalConfig, zeichen: Zeichen, request: Request, j
   if (request.method === "GET" && pathname === "/gesund") return new Response("ok", { headers: { "content-type": "text/plain", ...KOPF } });
   if (request.method === "GET" && pathname === "/stil.css")
     return new Response(STIL, { headers: { ...KOPF, "content-type": "text/css; charset=utf-8", "cache-control": "max-age=3600" } });
-  if (request.method === "GET" && pathname === "/farben.css")
-    return new Response(zeichen.farben, { headers: { ...KOPF, "content-type": "text/css; charset=utf-8", "cache-control": "max-age=86400" } });
+  if (request.method === "GET" && pathname === "/farben.css") return farbenAntwort(config, request, jetzt);
   if (request.method === "GET" && pathname.startsWith("/zeichen/")) return logoAntwort(config, zeichen, request, pathname, jetzt);
   const datei = request.method === "GET" ? schrift(pathname) : null;
   if (datei) {
@@ -195,7 +205,7 @@ async function route(config: PortalConfig, zeichen: Zeichen, request: Request, j
     const meta = await entdecken(config, jetzt).catch(() => null);
     const abmeldeZiel = meta?.endSessionEndpoint ? [new URL(meta.endSessionEndpoint).origin] : [];
     const kacheln = sitzung.firmen.map((firma) => kachelFuer(zeichen, firma));
-    const seite = firmenSeite(kacheln, url.searchParams.get("suche") ?? "", sitzung.anzeige, einstieg, zeichen.farbenAdresse);
+    const seite = firmenSeite(kacheln, url.searchParams.get("suche") ?? "", sitzung.anzeige, einstieg, farbenAdresse(sitzung.firmen));
     return antwort(seite, 200, { "content-security-policy": csp(abmeldeZiel) });
   }
   if (request.method === "GET" && pathname === "/anmelden") return anmelden(config, url, jetzt);
@@ -229,7 +239,7 @@ export function portal(
   logos: ReadonlyMap<string, LogoDatei> = new Map(),
 ): (request: Request, verbindung?: string) => Promise<Response> {
   const grenze = begrenzer();
-  const zeichen = zeichenAus(config, logos);
+  const zeichen: Zeichen = { logos };
   return async (request, verbindung) => {
     const zeit = jetzt();
     try {
