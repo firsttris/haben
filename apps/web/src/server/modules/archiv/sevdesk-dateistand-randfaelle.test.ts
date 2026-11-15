@@ -10,6 +10,8 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  *    die Übernahme und den Abgleich sperren.
  * 2. Der Filter „Ohne Datei“ der Belegliste findet jeden betroffenen Beleg, auch in einem Jahr mit mehr als 1000 Belegen
  *    (die Liste zeigt höchstens 1000).
+ * 3. Fehlen beim ersten Abruf PDF und XML einer Rechnung, darf das spätere Nachladen des PDFs den fehlenden XML nicht
+ *    verdecken: Der Abruf fragt das XML wieder an und hält „Anhang fehlt“ fest, solange es scheitert.
  */
 
 type Raw = Record<string, unknown>;
@@ -21,6 +23,7 @@ const pdf = (text: string) =>
     objects: { base64Encoded: true, content: Buffer.from(`%PDF-1.4\n% ${text}\n`).toString("base64"), filename: `${text}.pdf`, mimetype: "application/pdf" },
   });
 const rechnung = { ...fx.rechnungMitDokument.invoice, id: "ID_401", invoiceNumber: "RE-2024-0401", invoiceDate: "2024-04-01T00:00:00+02:00" };
+const eRechnung = { ...fx.rechnungMitDokument.invoice, id: "ID_402", invoiceNumber: "RE-2024-0402", invoiceDate: "2024-04-02T00:00:00+02:00" };
 
 describe.skipIf(!testDatabaseUrl).each([
   ["SKR03", "ist"],
@@ -32,6 +35,10 @@ describe.skipIf(!testDatabaseUrl).each([
   let offen: typeof import("./legacy-open.ts");
   /** Antwort auf getXml: erst ein Serverfehler, dann „keine E-Rechnung“ */
   let xmlStatus = 500;
+  /** E-Rechnung ID_402: erst ab dem dritten Test gelistet; PDF und XML scheitern, bis die Schalter umgelegt sind */
+  let mitERechnung = false;
+  let pdf402 = false;
+  let xml402 = false;
 
   const run = async () => {
     const id = await sevdesk.startSevdeskImport("test-user", { wait: true });
@@ -64,9 +71,15 @@ describe.skipIf(!testDatabaseUrl).each([
               case "/Tools/bookkeepingSystemVersion":
                 return json({ objects: { version: "1.0" } });
               case "/Invoice":
-                return list(url.searchParams.get("invoiceType") ? [] : [rechnung]);
+                return list(url.searchParams.get("invoiceType") ? [] : mitERechnung ? [rechnung, eRechnung] : [rechnung]);
               case "/Invoice/ID_401/getPdf":
                 return pdf("RE-2024-0401");
+              case "/Invoice/ID_402/getPdf":
+                return pdf402 ? pdf("RE-2024-0402") : json({ error: {} }, 404);
+              case "/Invoice/ID_402/getXml":
+                return xml402
+                  ? new Response("<?xml version='1.0'?><Invoice/>", { status: 200, headers: { "content-type": "application/xml" } })
+                  : json({ error: { message: "Serverfehler" } }, 500);
               case "/Invoice/ID_401/getXml":
                 return json({ error: { message: xmlStatus === 404 ? "keine E-Rechnung" : "Serverfehler" } }, xmlStatus);
             }
@@ -107,5 +120,22 @@ describe.skipIf(!testDatabaseUrl).each([
       values ('lx-dezember', 'lexoffice', ${imp!.id}, 'purchaseinvoice', 'ausgabe', 'Z-0001', '2024-12-30', 'paid', 100, 0, 100, '[]', '[]', '{}'::jsonb)`;
     const rows = await archiv.listLegacyVouchers({ year: 2024, direction: "alle", search: "", ohneDatei: true });
     expect(rows.map((r) => r.number)).toContain("Z-0001");
+  });
+
+  it("verfolgt PDF und XML getrennt: das nachgeladene PDF verdeckt kein fehlendes XML", async () => {
+    mitERechnung = true;
+    await run();
+    const status = async () => (await archiv.listLegacyVouchers({ year: 2024, direction: "alle", search: "RE-2024-0402", ohneDatei: false }))[0]!.fileStatus;
+    expect(await status()).toBe("abruf_fehlgeschlagen");
+    pdf402 = true;
+    await run();
+    expect(await status()).toBe("anhang_fehlt");
+    expect((await fileCheck()).ok).toBe(false);
+    xml402 = true;
+    await run();
+    expect(await status()).toBe("vollstaendig");
+    const roles = await sql`select f.role from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id
+      where v.lexoffice_id = 'invoice/ID_402' order by 1`;
+    expect(roles.map((r) => r.role)).toEqual(["pdf", "xml"]);
   });
 });
