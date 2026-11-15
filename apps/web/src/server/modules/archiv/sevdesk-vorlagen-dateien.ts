@@ -13,25 +13,33 @@ import { progressMessage } from "./lexoffice.ts";
  * Beleg ohne eigene Datei, auch aus früheren Läufen, holt der Abruf deshalb die Vorlage (GET /Voucher/{id}) und hängt deren
  * Datei mit der Rolle „vorlage“ an. Die Archivkopie bleibt unverändert; ein Beleg mit Datei wird nicht mehr angefragt, und
  * dieselbe Datei kommt je Beleg nur einmal an (eindeutig über Beleg und Hash).
+ *
+ * Eine Datei kann erst später an die Vorlage kommen (etwa ein Zahlplan): Im echten Konto hing sie seit Februar 2026 an einer
+ * Vorlage, deren Belege seit 2024 entstanden. Deshalb nur an Belege, die sevDesk nach dem Hochladen der Datei angelegt hat
+ * (`create` des Belegs nicht vor `create` der Datei aus GET /Document/{id}); ältere und solche ohne lesbare Zeit bleiben ohne
+ * Datei und zählen im Abgleich weiter als Beleg ohne Datei.
  */
 export async function importSevdeskTemplateFiles(actor: string, client: SevdeskClient, progress: LexofficeImportProgress, signal: AbortSignal): Promise<void> {
-  const rows = await db.execute<{ id: string; templateId: string }>(sql`
-    select v.id, v.raw->'origin'->>'id' as "templateId" from lexoffice_vouchers v
+  const rows = await db.execute<{ id: string; templateId: string; created: string | null }>(sql`
+    select v.id, v.raw->'origin'->>'id' as "templateId", v.raw->>'create' as created from lexoffice_vouchers v
     where v.source = 'sevdesk' and v.lexoffice_id like 'voucher/%'
       and coalesce(v.raw->'document'->>'id', '') = ''
       and v.raw->'origin'->>'objectName' = 'Voucher' and coalesce(v.raw->'origin'->>'id', '') <> ''
       and not exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id)
     order by 2, 1`);
-  const byTemplate = new Map<string, string[]>();
-  for (const row of rows) byTemplate.set(row.templateId, [...(byTemplate.get(row.templateId) ?? []), row.id]);
+  const byTemplate = new Map<string, { id: string; created: string | null }[]>();
+  for (const row of rows) byTemplate.set(row.templateId, [...(byTemplate.get(row.templateId) ?? []), row]);
 
-  for (const [templateId, voucherIds] of byTemplate) {
+  for (const [templateId, vouchers] of byTemplate) {
     try {
       const template = await client.voucher(templateId);
       // Nur Vorlagen wiederkehrender Belege; ohne Datei an der Vorlage bleibt der Beleg ohne Datei
       if ((template.voucherType ?? "").toUpperCase() !== "RV") continue;
       const documentId = template.document?.id == null ? "" : String(template.document.id);
       if (!documentId) continue;
+      const uploaded = time((await client.documentInfo(documentId)).create);
+      const voucherIds = vouchers.filter((v) => uploaded !== null && (time(v.created) ?? -Infinity) >= uploaded).map((v) => v.id);
+      if (voucherIds.length === 0) continue;
       const file = await client.document(documentId);
       if (!file) continue;
       const sha256 = sha256Of(file.bytes);
@@ -61,8 +69,14 @@ export async function importSevdeskTemplateFiles(actor: string, client: SevdeskC
       progress.failed.push({
         lexofficeId: `voucher/${templateId}`,
         number: `Vorlage ${templateId}`,
-        message: `Datei der Vorlage nicht abgerufen (${voucherIds.length} Belege ohne Datei): ${progressMessage(error)}`,
+        message: `Datei der Vorlage nicht abgerufen (${vouchers.length} Belege ohne Datei): ${progressMessage(error)}`,
       });
     }
   }
+}
+
+/** Zeitpunkt einer Angabe von sevDesk (ISO mit Versatz) in Millisekunden; null, wenn sie fehlt oder unlesbar ist */
+function time(value: string | null | undefined): number | null {
+  const ms = value ? Date.parse(value) : Number.NaN;
+  return Number.isNaN(ms) ? null : ms;
 }

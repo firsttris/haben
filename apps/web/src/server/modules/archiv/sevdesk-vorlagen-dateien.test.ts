@@ -6,13 +6,23 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 /*
  * #472: Belege aus einer Vorlage wiederkehrender Belege (RV) tragen in der API keine Datei, nur `origin` auf die Vorlage;
  * die Datei hängt an der Vorlage. Der Abruf hängt sie jedem solchen Beleg ohne eigene Datei an, auch Belegen aus einem
- * früheren Lauf, mit der Rolle „vorlage“. Die Archivkopie bleibt unverändert, ein zweiter Lauf legt nichts doppelt an.
+ * früheren Lauf, mit der Rolle „vorlage“, aber nur, wenn sevDesk den Beleg nach dem Hochladen der Datei angelegt hat: Eine
+ * später angehängte Datei (etwa ein Zahlplan) gehört nicht zu früheren Monaten. Eine eigene Datei des Belegs bleibt allein.
+ * Die Archivkopie bleibt unverändert, ein zweiter Lauf legt nichts doppelt an.
  */
 
 const { vorlage, beleg } = antworten as unknown as { vorlage: Record<string, unknown>; beleg: Record<string, unknown> };
 const TOKEN = "0123456789abcdef0123456789abcdef";
 const PDF = "%PDF-1.4\n% Vorlage\n";
-const ohneDatei = (id: string, origin: string) => ({ ...beleg, id, description: `B-${id}`, origin: { id: origin, objectName: "Voucher" } });
+/** Die Datei der Vorlage kam am 15.03.2024 um 12 Uhr; Belege sind standardmäßig danach angelegt */
+const HOCHGELADEN = "2024-03-15T12:00:00+01:00";
+const ohneDatei = (id: string, origin: string, create = "2024-04-15T12:00:00+02:00") => ({
+  ...beleg,
+  id,
+  create,
+  description: `B-${id}`,
+  origin: { id: origin, objectName: "Voucher" },
+});
 
 describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden Belegen (Postgres)", () => {
   let sql: postgres.Sql;
@@ -46,9 +56,9 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR03', 'ist', 'einzelunternehmen')`;
     await sql`insert into lexoffice_imports (source, status, progress) values ('sevdesk', 'fertig', '{}')`;
-    // früherer Lauf: zwei Belege aus der Vorlage mit Datei, einer aus einer Vorlage ohne Datei
-    await earlier(ohneDatei("ID_10", "ID_1"));
-    await earlier(ohneDatei("ID_11", "ID_1"));
+    // früherer Lauf: ein Beleg vor dem Hochladen der Datei, einer genau dann, einer aus einer Vorlage ohne Datei
+    await earlier(ohneDatei("ID_10", "ID_1", "2024-03-15T11:59:59+01:00"));
+    await earlier(ohneDatei("ID_11", "ID_1", "2024-03-15T12:00:00+01:00"));
     await earlier(ohneDatei("ID_20", "ID_2"));
 
     sevdesk.setSevdeskClientFactory(
@@ -77,6 +87,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
                 return json({ objects: [vorlage] });
               case "/Voucher/ID_2":
                 return json({ objects: [{ ...vorlage, id: "ID_2", document: null }] });
+              case "/Document/ID_5":
+                return json({ objects: [{ id: "ID_5", objectName: "Document", create: HOCHGELADEN, update: HOCHGELADEN }] });
               case "/Document/ID_5/download":
                 return download(PDF, "vertrag.pdf");
               case "/Document/ID_99/download":
@@ -107,34 +119,34 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
     answers.clear();
   });
 
-  it("hängt die Datei der Vorlage an Belege ohne eigene Datei, auch aus einem früheren Lauf", async () => {
+  it("hängt die Datei der Vorlage an Belege ohne eigene Datei, die nach dem Hochladen entstanden, auch aus einem früheren Lauf", async () => {
     await sevdesk.startSevdeskImport("test-user", { wait: true });
     const latest = (await sevdesk.latestSevdeskImport())!;
     expect(latest.status).toBe("fertig");
     expect(latest.progress.failed).toEqual([]);
     const ausVorlage = { role: "vorlage", fileId: "ID_5", filename: "vertrag.pdf", mimeType: "application/pdf" };
+    // ID_10 entstand vor dem Hochladen und bleibt ohne Datei
     expect(await files()).toEqual([
-      { voucher: "voucher/ID_10", ...ausVorlage },
       { voucher: "voucher/ID_11", ...ausVorlage },
       { voucher: "voucher/ID_12", ...ausVorlage },
       { voucher: "voucher/ID_13", role: "anhang", fileId: "ID_99", filename: "eigen.pdf", mimeType: "application/pdf" },
     ]);
     // die Vorlage ist kein Beleg; jede Vorlage und ihre Datei nur einmal angefragt
     expect(await sql`select 1 from lexoffice_vouchers where lexoffice_id = 'voucher/ID_1'`).toHaveLength(0);
-    expect(templateCalls().sort()).toEqual(["/Document/ID_5/download", "/Document/ID_99/download", "/Voucher/ID_1", "/Voucher/ID_2"]);
+    expect(templateCalls().sort()).toEqual(["/Document/ID_5", "/Document/ID_5/download", "/Document/ID_99/download", "/Voucher/ID_1", "/Voucher/ID_2"]);
     expect(calls.every((c) => c.method === "GET")).toBe(true);
   });
 
   it("legt beim zweiten Lauf nichts doppelt an und fragt Belege mit Datei nicht mehr an", async () => {
     await sevdesk.startSevdeskImport("test-user", { wait: true });
-    expect(await files()).toHaveLength(4);
-    // nur die Vorlage ohne Datei wird erneut angefragt, ihr Beleg hat weiter keine
-    expect(templateCalls()).toEqual(["/Voucher/ID_2"]);
+    expect(await files()).toHaveLength(3);
+    // nur für Belege weiter ohne Datei wird die Vorlage erneut angefragt; die Datei selbst nicht mehr
+    expect(templateCalls().sort()).toEqual(["/Document/ID_5", "/Voucher/ID_1", "/Voucher/ID_2"]);
   });
 
   it("ändert die Archivkopie nicht und zeigt die Datei mit ihrer Herkunft", async () => {
-    const [row] = await sql`select id, raw from lexoffice_vouchers where lexoffice_id = 'voucher/ID_10'`;
-    expect(row!.raw).toEqual(ohneDatei("ID_10", "ID_1"));
+    const [row] = await sql`select id, raw from lexoffice_vouchers where lexoffice_id = 'voucher/ID_11'`;
+    expect(row!.raw).toEqual(ohneDatei("ID_11", "ID_1", "2024-03-15T12:00:00+01:00"));
     const detail = (await archiv.legacyVoucherDetail(row!.id as string))!;
     expect(detail.files).toEqual([expect.objectContaining({ role: "vorlage", filename: "vertrag.pdf" })]);
   });

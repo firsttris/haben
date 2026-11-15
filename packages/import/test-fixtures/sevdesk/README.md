@@ -31,7 +31,7 @@ Nur `buchhaltung-1.0/`:
 - `extf-buchungsstapel.csv`, `extf-gp-stamm.csv`, `document-rechnungseingang.xml`, `document-rechnungsausgang.xml`: Auszug aus einem DATEV-Jahresexport, 7 Buchungen und 2 Personenkonten. Die Beleglink-GUIDs der CSV passen zu den XML-Dateien. Die beiden CSV-Dateien sind Windows-1252 mit CRLF und müssen es bleiben.
 - `beleg-wiederkehrend-rv.json`: drei Vorlagen wiederkehrender Belege (`voucherType` RV): `status` 50 ohne nächsten Termin, 100 mit nächstem Termin, 1000 mit Enddatum.
 - `beleg-ohne-datei.json`: Belege ohne `document`, in diesem Konto mehr als ein Viertel aller Belege.
-- `beleg-aus-vorlage.json`: eine Vorlage wiederkehrender Belege (`voucherType` RV) mit `document` und ein daraus erzeugter Beleg (`voucherType` VOU) ohne `document`, dessen `origin` auf die Vorlage zeigt. Im Konto hatten 30 solche Belege keine Datei, der DATEV-Export führte für die aus 2024 die Datei der Vorlage.
+- `beleg-aus-vorlage.json`: eine Vorlage wiederkehrender Belege (`voucherType` RV) mit `document` und ein daraus erzeugter Beleg (`voucherType` VOU) ohne `document`, dessen `origin` auf die Vorlage zeigt. Im Konto hatten 30 solche Belege seit Mai 2024 keine Datei; die Datei der Vorlage wurde laut `GET /Document/{id}` (`create`) erst im Februar 2026 hochgeladen.
 - `document-download.json`: Hülle von `GET /Document/{id}/download`, Datei als Base64 in `objects`.
 
 Nur `buchhaltung-2.0/`:
