@@ -135,8 +135,24 @@ export async function checkSevdeskFiles(actor: string, importId: string, client:
       counts.nachgeladen += 1;
       continue;
     }
-    // Ein XML, das sevDesk jetzt ohne Fehler nicht liefert, gibt es nicht: der Stand bleibt, bis jemand nachsieht
-    if (attempt.role === "xml") continue;
+    // Ein XML, das sevDesk jetzt ohne Fehler nicht liefert, gibt es nicht: dann fehlt nichts mehr. Mit Fehler bleibt der Stand.
+    if (attempt.role === "xml") {
+      if (reason === null)
+        await withActor(actor, (tx) =>
+          recordFileState(
+            tx,
+            row.id,
+            {
+              state: "kein_anhang",
+              role: "xml",
+              sourceFileId: null,
+              message: "Ein späterer Abruf fand ohne Fehler kein XML: die Rechnung ist keine E-Rechnung.",
+            },
+            { actor, importId },
+          ),
+        );
+      continue;
+    }
     const finding = sevFileFinding(expectation, { main: false, mainError: reason });
     if (finding) await withActor(actor, (tx) => recordFileState(tx, row.id, finding, { actor, importId }));
   }

@@ -79,7 +79,7 @@ Fehlt einem Beleg eine Datei, hält Haben fest, warum. Fortschritt, Belegliste, 
 | Abruf fehlgeschlagen | sevDesk nennt eine Datei (`document`), gibt sie aber nicht heraus, oder eine Rechnung bzw. Gutschrift kommt ohne PDF | offen; ein neuer Abruf versucht es noch einmal |
 | Ohne Datei, zu prüfen | Ein Beleg nennt keine Datei | offen, bis du es bestätigst |
 | Ohne Datei, bestätigt | Du hast in sevDesk nachgesehen und es in der Belegansicht bestätigt | zählt getrennt, blockiert nicht |
-| Anhang fehlt | Das PDF ist da, das XML der E-Rechnung kam mit einem Fehler | offen; ein neuer Abruf versucht es noch einmal |
+| Anhang fehlt | Das PDF ist da, das XML der E-Rechnung kam mit einem Fehler | offen; ein neuer Abruf versucht es noch einmal, meldet sevDesk dann ohne Fehler kein XML, ist nichts mehr offen |
 
 Ein Beleg ohne Verweis auf eine Datei hat nicht sicher nie eine gehabt: In der API unterscheidet ihn kein Feld von einem Beleg, dessen Datei entfernt wurde. Deshalb bestätigst du „ohne Datei“ selbst; Haben speichert dazu deinen Namen, die Uhrzeit und deine Notiz. Eine Rechnung oder Gutschrift lässt sich nicht als „ohne Datei“ bestätigen: Jede fertige hat in sevDesk ein PDF. Die Bestätigung ändert nichts an der Steuer; für den Vorsteuerabzug braucht es weiter die Rechnung ([§ 15 Abs. 1 Nr. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__15.html)).
 

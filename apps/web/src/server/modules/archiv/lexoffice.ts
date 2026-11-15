@@ -401,6 +401,13 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
     where v.date between ${`${filter.year}-01-01`} and ${`${filter.year}-12-31`}
       ${filter.direction === "alle" ? sql`` : sql`and ${effectiveDirection("v")} = ${filter.direction}`}
       ${term ? sql`and (v.number ilike ${term} or ${effectiveContactName("v")} ilike ${term} or v.remark ilike ${term})` : sql``}
+      ${
+        // Vorauswahl vor dem Limit; welcher Stand offen ist, entscheidet legacyFileStatus unten
+        filter.ohneDatei
+          ? sql`and not coalesce((v.raw->>'ohneBeleg')::boolean, false) and (not exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id)
+              or ${latestFileStateSql("v")} in ('abruf_fehlgeschlagen', 'anhang_fehlt'))`
+          : sql``
+      }
     order by v.date, v.number
     limit 1000`);
   // Ohne Datei: alles, was noch Arbeit braucht (#345), nicht die bestätigt dateilosen und nicht Buchungen ohne Beleg

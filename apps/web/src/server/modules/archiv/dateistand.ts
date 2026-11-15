@@ -44,6 +44,7 @@ export const FILE_STATE_LABELS: Record<LegacyFileState, string> = {
   anhang_fehlt: "Anhang fehlt",
   bestaetigt_ohne_datei: "ohne Datei bestätigt",
   nachgeladen: "Datei nachgeladen",
+  kein_anhang: "Anhang entfällt, sevDesk führt keinen",
 };
 
 /** Ein Beleg dieses Stands braucht noch Arbeit, bevor das Jahr vollständig ist */

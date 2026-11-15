@@ -3318,7 +3318,7 @@ export const lexofficeVoucherFiles = pgTable(
 );
 
 /** Dateistand eines archivierten Belegs, soweit er von „alle Dateien da“ abweicht (#345) */
-export const LEGACY_FILE_STATES = ["ohne_datei", "abruf_fehlgeschlagen", "anhang_fehlt", "bestaetigt_ohne_datei", "nachgeladen"] as const;
+export const LEGACY_FILE_STATES = ["ohne_datei", "abruf_fehlgeschlagen", "anhang_fehlt", "bestaetigt_ohne_datei", "nachgeladen", "kein_anhang"] as const;
 export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
 
 /**
@@ -3328,6 +3328,7 @@ export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
  * - anhang_fehlt: die Hauptdatei ist da, eine weitere erwartete Datei (etwa das XML einer E-Rechnung) nicht.
  * - bestaetigt_ohne_datei: eine Person hat in sevDesk geprüft, dass der Beleg keine Datei hat (created_by, Zeitpunkt).
  * - nachgeladen: ein späterer Abruf hat die fehlende Datei angehängt.
+ * - kein_anhang: ein späterer Abruf sagt ohne Fehler, dass es den fehlenden Anhang nicht gibt (keine E-Rechnung).
  */
 export const legacyFileStates = pgTable(
   "legacy_file_states",
