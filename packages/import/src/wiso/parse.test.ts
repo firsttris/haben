@@ -143,4 +143,15 @@ describe("previewWisoExport", () => {
     const { voucher } = previewWisoExport(bytes, "SKR03").vouchers[0]!;
     expect({ direction: voucher.direction, type: voucher.type, gross: voucher.gross }).toEqual({ direction: "einnahme", type: "salesinvoice", gross: 9500 });
   });
+
+  it("erkennt auch 9008 und 9009 als neutralen Saldovortrag und akzeptiert Steuerschlüssel-Umlaute", () => {
+    const header =
+      "Buchungsnummer;Teilbuchung;Zahlungsdatum;Wertstellungsdatum;Buchungstext;Konto;Kontobezeichnung;Gegenkonto;Gegenkontobezeichnung;Soll;Haben;Steuerschlüssel;Steuersatz;Steuerschlüsselbezeichnung;Belegnummer;Buchungsdatum;UStID;Umsatzart";
+    const rows = [
+      "1;1;01.01.2026;01.01.2026;Saldovortrag Debitor;9008;Saldovortrag Debitoren;1400;Forderungen;500,00;0,00;;0,00;;SV-1;01.01.2026;;0",
+      "2;1;01.01.2026;01.01.2026;Saldovortrag Kreditor;1600;Verbindlichkeiten;9009;Saldovortrag Kreditoren;0,00;300,00;;0,00;;SV-2;01.01.2026;;0",
+    ];
+    const preview = previewWisoExport(new TextEncoder().encode([header, ...rows].join("\n")), "SKR03");
+    expect(preview.vouchers.map((v) => v.neutral)).toEqual([true, true]);
+  });
 });

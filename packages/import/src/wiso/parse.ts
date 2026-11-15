@@ -30,6 +30,13 @@ const REQUIRED_COLUMNS = [
 type ColumnName = (typeof REQUIRED_COLUMNS)[number];
 type AccountKind = "erloes" | "aufwand" | "anlage" | "bank" | null;
 
+const COLUMN_ALIASES: Partial<Record<ColumnName, readonly string[]>> = {
+  Steuerschluessel: ["steuerschlüssel"],
+  Steuerschluesselbezeichnung: ["steuerschlüsselbezeichnung"],
+};
+
+const SALDOVORTRAG_ACCOUNTS = new Set(["9000", "9008", "9009"]);
+
 function buildColumnMap(header: string[]): Map<ColumnName, number> {
   const normalized = new Map<string, number>();
   header.forEach((col, index) => {
@@ -38,7 +45,13 @@ function buildColumnMap(header: string[]): Map<ColumnName, number> {
   const map = new Map<ColumnName, number>();
   const missing: string[] = [];
   for (const col of REQUIRED_COLUMNS) {
-    const idx = normalized.get(col.toLowerCase());
+    let idx = normalized.get(col.toLowerCase());
+    if (idx === undefined) {
+      for (const alias of COLUMN_ALIASES[col] ?? []) {
+        idx = normalized.get(alias);
+        if (idx !== undefined) break;
+      }
+    }
     if (idx === undefined) missing.push(col);
     else map.set(col, idx);
   }
@@ -131,12 +144,12 @@ function accountKind(account: string, skr: Kontenrahmen): AccountKind {
 }
 
 function classifyRow(row: WisoCsvRow, skr: Kontenrahmen): { direction: "einnahme" | "ausgabe"; positive: boolean; neutral: boolean; categoryAccount: string } {
-  if (row.konto === "9000" || row.gegenkonto === "9000") {
+  if (SALDOVORTRAG_ACCOUNTS.has(row.konto) || SALDOVORTRAG_ACCOUNTS.has(row.gegenkonto)) {
     return {
       direction: row.soll >= row.haben ? "ausgabe" : "einnahme",
       positive: true,
       neutral: true,
-      categoryAccount: row.konto === "9000" ? row.gegenkonto : row.konto,
+      categoryAccount: SALDOVORTRAG_ACCOUNTS.has(row.konto) ? row.gegenkonto : row.konto,
     };
   }
   const debit = accountKind(row.konto, skr);
