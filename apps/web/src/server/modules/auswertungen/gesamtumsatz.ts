@@ -25,11 +25,11 @@ async function privateUseItems(year: number, q: Db | Tx): Promise<GesamtumsatzIt
   );
 }
 
-export async function gesamtumsatzForYear(year: number, q: Db | Tx = db): Promise<GesamtumsatzResult> {
-  turnoverForYear(year, []);
+export async function gesamtumsatzForYear(year: number, q: Db | Tx = db, throughDate?: string): Promise<GesamtumsatzResult> {
+  turnoverForYear(year, [], throughDate);
   const groups = await Promise.all([nativeTurnoverItems(year, q), legacyTurnoverItems(year, q), journalTurnoverItems(year, q), privateUseItems(year, q)]);
   const items = groups.flat();
-  const result = turnoverForYear(year, items);
+  const result = turnoverForYear(year, items, throughDate);
   return {
     ...result,
     items: result.items.map((item, i) => ({

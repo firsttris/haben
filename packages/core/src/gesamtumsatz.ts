@@ -115,10 +115,11 @@ function isDay(value: string | null): value is string {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-function evaluate(item: TurnoverItem, year: number): TurnoverOutcome {
+function evaluate(item: TurnoverItem, year: number, throughDate?: string): TurnoverOutcome {
   const occurredOn = item.occurredOn;
   const validDay = isDay(occurredOn);
   if (validDay && !occurredOn.startsWith(`${year}-`)) return outcome("excluded", "Der Zahlungstag liegt außerhalb des gewählten Jahres.");
+  if (validDay && throughDate && occurredOn > throughDate) return outcome("excluded", "Der Zahlungstag liegt nach dem gewählten Stichtag.");
   const classification = classifyTurnover(item.classification);
   if (classification.decision !== "included") return classification;
   if (!validDay) return outcome("unknown", "Der tatsächliche Zahlungstag ist noch ungeklärt.");
@@ -133,14 +134,16 @@ function evaluate(item: TurnoverItem, year: number): TurnoverOutcome {
  * Frühere Jahre werden nicht stillschweigend nach dieser Fassung berechnet. Die Warnschwellen sind ein eigener Schritt.
  * Die Quellenidentität kommt vom Zahlungsleser; nur sicher identische Quellen werden als doppelt zurückgewiesen.
  */
-export function turnoverForYear(year: number, sourceItems: readonly TurnoverItem[]): TurnoverResult {
+export function turnoverForYear(year: number, sourceItems: readonly TurnoverItem[], throughDate?: string): TurnoverResult {
   if (!Number.isInteger(year) || year < 2025 || year > 2100) throw new RangeError("Diese Gesamtumsatzberechnung unterstützt Jahre von 2025 bis 2100.");
+  if (throughDate !== undefined && (!isDay(throughDate) || !throughDate.startsWith(`${year}-`)))
+    throw new RangeError("Der Stichtag muss ein gültiger Tag des gewählten Jahres sein.");
   const seen = new Set<string>();
   const items = sourceItems.map((item) => {
     const key = `${item.source}:${item.sourceId}`;
     if (seen.has(key)) throw new RangeError(`Umsatzquelle doppelt: ${key}`);
     seen.add(key);
-    return { ...item, ...evaluate(item, year) };
+    return { ...item, ...evaluate(item, year, throughDate) };
   });
   let included = 0;
   for (const item of items) {
