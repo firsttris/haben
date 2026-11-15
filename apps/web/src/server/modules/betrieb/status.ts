@@ -4,10 +4,11 @@ import { formatSize } from "../../../lib/format.ts";
 import { env } from "../../env.ts";
 import { type BackupOverview, backupOverview } from "../archiv/index.ts";
 import { ericHome } from "../elster/index.ts";
+import { type NavMarkStand, readNavMark } from "../stammdaten/index.ts";
 import { datenbankBytes, verzeichnisBytes } from "./speicher.ts";
 
 /**
- * Stand einer Instanz für Betreiber: Version, ERiC, letzte Sicherung und Speicher. `haben status --json` gibt ihn aus; das
+ * Stand einer Instanz für Betreiber: Version, ERiC, letzte Sicherung, Speicher und Zeichen der Firma. `haben status --json` gibt ihn aus; das
  * Werkzeug für mehrere Instanzen (deploy/instanzen) liest ihn über `docker compose exec -T app`, statt Pfade und
  * Tabellen der App selbst zu kennen.
  */
@@ -41,6 +42,8 @@ export interface BetriebsStatus {
   };
   /** Kurzfassung für Menschen; das Werkzeug zeigt sie in seiner Tabelle, ohne die Regeln dahinter zu kennen */
   summary: { eric: string; backup: string; speicher: string };
+  /** Zeichen der Firma in der Navigation, für die Kachel im Firmenportal (#1036); das Logo selbst gibt `haben kennzeichen` aus */
+  zeichen: NavMarkStand;
 }
 
 export interface BetriebsStatusOptions {
@@ -70,7 +73,7 @@ export async function betriebsStatus(options: BetriebsStatusOptions = {}): Promi
     lastBackup: overview.lastBackup?.at.toISOString() ?? null,
     failed: overview.failed.map(({ kind, run }) => ({ kind, at: run.at.toISOString() })),
   };
-  const [datenbank, belege] = await Promise.all([datenbankBytes(), verzeichnisBytes(options.belegeVerzeichnis ?? env().DOCUMENTS_DIR)]);
+  const [datenbank, belege, zeichen] = await Promise.all([datenbankBytes(), verzeichnisBytes(options.belegeVerzeichnis ?? env().DOCUMENTS_DIR), readNavMark()]);
   const speicher: BetriebsStatus["speicher"] = { datenbankBytes: datenbank, belegeBytes: belege };
   return {
     schema: 1,
@@ -80,6 +83,7 @@ export async function betriebsStatus(options: BetriebsStatusOptions = {}): Promi
     backup,
     speicher,
     summary: { eric: ericKurz(eric), backup: sicherungKurz(backup), speicher: speicherKurz(speicher) },
+    zeichen,
   };
 }
 

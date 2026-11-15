@@ -1,10 +1,12 @@
-import { type Firma, portalFirmenFuer } from "@haben/core";
+import { createHash } from "node:crypto";
+import { type PortalZeile, portalFirmenFuer } from "@haben/core";
 import type { PortalConfig } from "./env.ts";
 import { type Begrenzer, begrenzer, clientAdresse } from "./grenze.ts";
+import type { LogoDatei } from "./logos.ts";
 import { abmeldeAdresse, abschliessen, anmeldeAdresse, entdecken, istAnmeldeFehler } from "./oidc.ts";
 import { schrift } from "./schrift.ts";
-import { abgemeldetSeite, anmeldeSeite, fehlerSeite, firmenSeite } from "./seiten.ts";
-import { STIL } from "./stil.ts";
+import { abgemeldetSeite, anmeldeSeite, type FirmaKachel, fehlerSeite, firmenSeite } from "./seiten.ts";
+import { farbStil, STIL } from "./stil.ts";
 import {
   ABLAUF_COOKIE,
   ABLAUF_MS,
@@ -25,9 +27,12 @@ import {
  * Anmeldedienst selbst an.
  */
 
-/** Content Security Policy; `formZiele` sind weitere Origins, zu denen ein Formular (auch per Weiterleitung) führen darf */
+/**
+ * Content Security Policy; `formZiele` sind weitere Origins, zu denen ein Formular (auch per Weiterleitung) führen darf.
+ * Bilder nur vom Firmenportal selbst: die Logos der Firmen (#1036)
+ */
 const csp = (formZiele: string[] = []) =>
-  `default-src 'none'; style-src 'self'; font-src 'self'; form-action ${["'self'", ...formZiele].join(" ")}; frame-ancestors 'none'; base-uri 'none'`;
+  `default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; form-action ${["'self'", ...formZiele].join(" ")}; frame-ancestors 'none'; base-uri 'none'`;
 
 const KOPF = {
   "content-security-policy": csp(),
@@ -50,8 +55,11 @@ const weiter = (ziel: string, cookies: string[] = []) => antwort("", 303, { loca
  */
 const einstieg = (url: string) => `${url}/login?anmelden=sso`;
 
-/** Die Firmen einer gültigen Sitzung und wer angemeldet ist, sonst null (abgelaufen, manipuliert oder andere Liste) */
-function sitzungLesen(config: PortalConfig, request: Request, jetzt: number): { firmen: Firma[]; anzeige: string } | null {
+/**
+ * Die Firmen einer gültigen Sitzung und wer angemeldet ist, sonst null (abgelaufen, manipuliert oder andere Liste). Farbe
+ * und Logo zählen nicht zur Liste (listenAbdruck): Ändern sie sich, bleibt man angemeldet (#1036).
+ */
+function sitzungLesen(config: PortalConfig, request: Request, jetzt: number): { firmen: PortalZeile[]; anzeige: string } | null {
   const inhalt = pruefen(config.secret, cookieLesen(request, SITZUNG_COOKIE), "sitzung", jetzt);
   if (!inhalt || inhalt.sitzung.liste !== listenAbdruck(config.firmen)) return null;
   const sichtbar = inhalt.sitzung.firmen.map((i) => config.firmen[i]).filter((f) => f !== undefined);
@@ -126,12 +134,59 @@ async function abmelden(config: PortalConfig, request: Request, jetzt: number): 
   return weiter(abmeldeAdresse(config, meta, hinweis?.idToken), cookies);
 }
 
-async function route(config: PortalConfig, request: Request, jetzt: number): Promise<Response> {
+/** Logos der Kacheln (#1036), beim Start einmal geladen */
+interface Zeichen {
+  logos: ReadonlyMap<string, LogoDatei>;
+}
+
+/**
+ * Adresse des Stylesheets mit den Farben der Firmen einer Sitzung, mit Prüfsumme, damit eine neue Farbe gleich gilt;
+ * undefined ohne Farben
+ */
+function farbenAdresse(firmen: readonly PortalZeile[]): string | undefined {
+  const farben = farbStil(firmen);
+  return farben ? `/farben.css?v=${createHash("sha256").update(farben).digest("hex").slice(0, 12)}` : undefined;
+}
+
+/**
+ * Die Farben nur für eine gültige Sitzung und nur die ihrer Firmen: Ohne Anmeldung kommt niemand an Farbe oder Logo
+ * einer Firma (Bedingung in #1036)
+ */
+function farbenAntwort(config: PortalConfig, request: Request, jetzt: number): Response {
+  const sitzung = sitzungLesen(config, request, jetzt);
+  if (!sitzung) return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Firmenportal nicht."), 404);
+  return new Response(farbStil(sitzung.firmen), {
+    headers: { ...KOPF, "content-type": "text/css; charset=utf-8", "cache-control": "private, max-age=86400" },
+  });
+}
+
+/** Eine Firma, wie die Seite sie zeigt: das Logo als Adresse, nur wenn es geladen ist, sonst der Buchstabe */
+const kachelFuer = (zeichen: Zeichen, firma: PortalZeile): FirmaKachel => ({
+  name: firma.name,
+  url: firma.url,
+  farbe: firma.farbe,
+  logo: (firma.logo && zeichen.logos.get(firma.logo)?.adresse) || null,
+});
+
+/**
+ * Ein Logo nur für eine gültige Sitzung, zu deren Firmen es gehört: Ohne Anmeldung kommt niemand an das Logo, wie in
+ * der Instanz selbst (/api/kennzeichen)
+ */
+function logoAntwort(config: PortalConfig, zeichen: Zeichen, request: Request, pfad: string, jetzt: number): Response {
+  const sitzung = sitzungLesen(config, request, jetzt);
+  const logo = sitzung?.firmen.flatMap((f) => (f.logo ? [zeichen.logos.get(f.logo)] : [])).find((l) => l?.adresse === pfad);
+  if (!logo) return antwort(fehlerSeite("Nicht gefunden", "Diese Seite gibt es im Firmenportal nicht."), 404);
+  return new Response(logo.daten, { headers: { ...KOPF, "content-type": logo.typ, "cache-control": "private, max-age=31536000, immutable" } });
+}
+
+async function route(config: PortalConfig, zeichen: Zeichen, request: Request, jetzt: number): Promise<Response> {
   const url = new URL(request.url);
   const { pathname } = url;
   if (request.method === "GET" && pathname === "/gesund") return new Response("ok", { headers: { "content-type": "text/plain", ...KOPF } });
   if (request.method === "GET" && pathname === "/stil.css")
     return new Response(STIL, { headers: { ...KOPF, "content-type": "text/css; charset=utf-8", "cache-control": "max-age=3600" } });
+  if (request.method === "GET" && pathname === "/farben.css") return farbenAntwort(config, request, jetzt);
+  if (request.method === "GET" && pathname.startsWith("/zeichen/")) return logoAntwort(config, zeichen, request, pathname, jetzt);
   const datei = request.method === "GET" ? schrift(pathname) : null;
   if (datei) {
     const inhalt = await datei;
@@ -149,7 +204,8 @@ async function route(config: PortalConfig, request: Request, jetzt: number): Pro
     // die Weiterleitung danach, deshalb steht dessen Origin in der CSP dieser Seite
     const meta = await entdecken(config, jetzt).catch(() => null);
     const abmeldeZiel = meta?.endSessionEndpoint ? [new URL(meta.endSessionEndpoint).origin] : [];
-    const seite = firmenSeite(sitzung.firmen, url.searchParams.get("suche") ?? "", sitzung.anzeige, einstieg);
+    const kacheln = sitzung.firmen.map((firma) => kachelFuer(zeichen, firma));
+    const seite = firmenSeite(kacheln, url.searchParams.get("suche") ?? "", sitzung.anzeige, einstieg, farbenAdresse(sitzung.firmen));
     return antwort(seite, 200, { "content-security-policy": csp(abmeldeZiel) });
   }
   if (request.method === "GET" && pathname === "/anmelden") return anmelden(config, url, jetzt);
@@ -175,16 +231,21 @@ function zuViele(grenze: Begrenzer, request: Request, verbindung: string | undef
 
 /**
  * Der Request-Handler des Firmenportals; `verbindung` ist die Adresse der Verbindung (Bun: server.requestIP), `jetzt`
- * nur für Tests
+ * nur für Tests, `logos` die beim Start geladenen Logos (ladeLogos)
  */
-export function portal(config: PortalConfig, jetzt: () => number = Date.now): (request: Request, verbindung?: string) => Promise<Response> {
+export function portal(
+  config: PortalConfig,
+  jetzt: () => number = Date.now,
+  logos: ReadonlyMap<string, LogoDatei> = new Map(),
+): (request: Request, verbindung?: string) => Promise<Response> {
   const grenze = begrenzer();
+  const zeichen: Zeichen = { logos };
   return async (request, verbindung) => {
     const zeit = jetzt();
     try {
       const begrenzt = zuViele(grenze, request, verbindung, zeit);
       if (begrenzt) return begrenzt;
-      return await route(config, request, zeit);
+      return await route(config, zeichen, request, zeit);
     } catch (fehler) {
       if (istAnmeldeFehler(fehler)) {
         console.error(`Firmenportal: ${fehler.ursache}`);

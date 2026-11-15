@@ -1,3 +1,5 @@
+import { ACCENT_PATTERN } from "./accent.ts";
+
 /*
  * Firmen wechseln (#504): Jede Firma ist eine eigene Instanz von Haben mit eigener Adresse. Haben (HABEN_FIRMEN) und das
  * Firmenportal (PORTAL_FIRMEN, apps/firmenportal) kennen dabei nur Namen, Adressen und Gruppen, keine Daten der Firmen. Ohne
@@ -10,8 +12,16 @@ export interface Firma {
   url: string;
 }
 
+/** Kachel einer Firma im Firmenportal (#1036): Farbe und Logo, wie sie die Instanz als Zeichen der Navigation gewählt hat */
+export interface PortalZeile extends Firma {
+  /** #RRGGBB in Großbuchstaben; null: Kachel in der Farbe des Firmenportals */
+  farbe: string | null;
+  /** Dateiname im Verzeichnis PORTAL_LOGOS; null: Anfangsbuchstabe statt Logo */
+  logo: string | null;
+}
+
 /** Eine Firma im Firmenportal: wer in `gruppe` ist (die Inhaber-Gruppe der Instanz beim Anmeldedienst), sieht sie */
-export interface PortalFirma extends Firma {
+export interface PortalFirma extends PortalZeile {
   gruppe: string;
 }
 
@@ -23,6 +33,8 @@ const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 // Zeichen einer Domain (Umlaute stehen nach new URL als Punycode da). Die URL-Norm lässt im Host auch ' " ! und
 // ähnliche zu; so bliebe ein Anführungszeichen aus der .env unbemerkt an der letzten Adresse hängen
 const DOMAIN = /^[a-z0-9._-]+$/;
+/** Nur ein Dateiname, kein Pfad: Das Firmenportal liest Logos nur direkt aus PORTAL_LOGOS */
+const LOGO_DATEI = /^[a-z0-9][a-z0-9_-]*\.(png|jpg)$/;
 
 /**
  * Die Origin einer Instanz oder des Firmenportals: nur https://domain ohne Pfad, Query, Fragment und Zugangsdaten, HTTP nur
@@ -80,10 +92,22 @@ export function parseFirmen(text: string): { firmen: Firma[] } | { fehler: strin
   return { firmen };
 }
 
+/** Farbe und Logo hinter der Gruppe; leer heißt: keins */
+function zeichenAus(name: string, farbeRoh = "", logoRoh = ""): Pick<PortalZeile, "farbe" | "logo"> | { fehler: string } {
+  const farbe = farbeRoh.trim();
+  const logo = logoRoh.trim();
+  if (farbe !== "" && !ACCENT_PATTERN.test(farbe)) return { fehler: `„${name}“: Farbe als #RRGGBB, z. B. #1D4ED8` };
+  if (logo !== "" && !LOGO_DATEI.test(logo)) {
+    return { fehler: `„${name}“: Logo als Dateiname wie nord.png, mit Kleinbuchstaben, Ziffern, - und _, Endung .png oder .jpg` };
+  }
+  return { farbe: farbe === "" ? null : farbe.toUpperCase(), logo: logo === "" ? null : logo };
+}
+
 /**
- * Liest PORTAL_FIRMEN: Einträge „Name|https://adresse|gruppe“, getrennt durch „;“. Name und Adresse wie in
- * HABEN_FIRMEN; die Gruppe ist die Inhaber-Gruppe der Instanz (OIDC_GROUP_INHABER dort), ohne Leerraum und je Firma
- * eine eigene. Teilten sich zwei Firmen eine Gruppe, wäre jedes Mitglied Inhaber in beiden (#504, „Mit SSO“).
+ * Liest PORTAL_FIRMEN: Einträge „Name|https://adresse|gruppe“, getrennt durch „;“, dahinter wahlweise „|Farbe|Logo“
+ * (#1036). Name und Adresse wie in HABEN_FIRMEN; die Gruppe ist die Inhaber-Gruppe der Instanz (OIDC_GROUP_INHABER
+ * dort), ohne Leerraum und je Firma eine eigene. Teilten sich zwei Firmen eine Gruppe, wäre jedes Mitglied Inhaber in
+ * beiden (#504, „Mit SSO“). Farbe als #RRGGBB, Logo als Dateiname in PORTAL_LOGOS; beide dürfen leer sein.
  */
 export function parsePortalFirmen(text: string): { firmen: PortalFirma[] } | { fehler: string } {
   const firmen: PortalFirma[] = [];
@@ -91,7 +115,9 @@ export function parsePortalFirmen(text: string): { firmen: PortalFirma[] } | { f
   if (eintraege.length > MAX_FIRMEN) return { fehler: `höchstens ${MAX_FIRMEN} Firmen` };
   for (const eintrag of eintraege) {
     const teile = eintrag.split("|");
-    if (teile.length !== 3) return { fehler: `„${eintrag}“: je Firma Name|Adresse|Gruppe, getrennt durch ;` };
+    if (teile.length < 3 || teile.length > 5) {
+      return { fehler: `„${eintrag}“: je Firma Name|Adresse|Gruppe, wahlweise mit |Farbe|Logo dahinter, getrennt durch ;` };
+    }
     const firma = firmaAus(eintrag, teile[0]!, teile[1]!, firmen);
     if ("fehler" in firma) return firma;
     const gruppe = teile[2]!.trim();
@@ -99,7 +125,9 @@ export function parsePortalFirmen(text: string): { firmen: PortalFirma[] } | { f
       return { fehler: `„${firma.name}“: Gruppe mit 1 bis ${MAX_GRUPPE} Zeichen ohne Leerzeichen` };
     }
     if (firmen.some((f) => f.gruppe === gruppe)) return { fehler: `Gruppe „${gruppe}“ steht mehrfach in der Liste` };
-    firmen.push({ ...firma, gruppe });
+    const zeichen = zeichenAus(firma.name, teile[3], teile[4]);
+    if ("fehler" in zeichen) return zeichen;
+    firmen.push({ ...firma, gruppe, ...zeichen });
   }
   return { firmen };
 }
@@ -123,9 +151,9 @@ export function gruppenAus(profile: Record<string, unknown>, claim: string): { g
  * Die Firmen, die das Firmenportal einer Person zeigt: genau die, in deren Gruppe sie ist (exakt und
  * groß-/kleinschreibungssensitiv), nach Namen sortiert.
  */
-export function portalFirmenFuer(gruppen: readonly string[], firmen: readonly PortalFirma[]): Firma[] {
+export function portalFirmenFuer(gruppen: readonly string[], firmen: readonly PortalFirma[]): PortalZeile[] {
   return firmen
     .filter((firma) => gruppen.includes(firma.gruppe))
-    .map(({ name, url }) => ({ name, url }))
+    .map(({ name, url, farbe, logo }) => ({ name, url, farbe, logo }))
     .sort((a, b) => a.name.localeCompare(b.name, "de"));
 }
