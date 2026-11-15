@@ -7,9 +7,9 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * 100,00 € zu 7 %, im Oktober 50,00 € bezahlt (anteilig auf beide Sätze gebucht und gemeldet), im November die Korrektur
  * über die 19-%-Position, mit 119,00 € verrechnet, dann die restlichen 57,00 €. Ein schon gemeldeter Monat darf sich durch
  * die spätere Verrechnung nicht ändern (§ 17 Abs. 1 Satz 8 UStG: berichtigt wird im Zeitraum der Änderung), und Journal und
- * Nebenbücher müssen in jedem Monat dasselbe zeigen.
+ * Nebenbücher müssen in jedem Monat dasselbe zeigen. Eine aufgehobene Verrechnung nimmt dem Mix nichts mehr weg.
  */
-describe.skipIf(!testDatabaseUrl)("Verrechnung nach einer Teilzahlung im Vormonat, zwei Steuersätze, Ist (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist: Teilzahlung im Vormonat und Aufhebung (Postgres)", () => {
   let invoices: typeof import("./invoices.ts");
   let verrechnung: typeof import("./verrechnung.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
@@ -131,5 +131,30 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung nach einer Teilzahlung im Vormona
     }
     // Vereinnahmt sind am Ende 107,00 € für die 7-%-Position; der 19-%-Anteil aus dem Oktober wird im November berichtigt
     expect(summe).toEqual({ kz81: 0, tax81: 0, kz86: 10_000, tax86: 700 });
+  }, 60_000);
+
+  it("Ist: nach der Aufhebung der Verrechnung verteilt sich die Zahlung wieder über die ganze Rechnung", async () => {
+    const rechnung = await beleg(
+      "rechnung",
+      [
+        { netto: 10_000, satz: 1900 },
+        { netto: 10_000, satz: 700 },
+      ],
+      "2026-11-01",
+    );
+    const korrektur = await beleg("korrektur", [{ netto: -10_000, satz: 1900 }], "2026-11-10", rechnung);
+    const { ids } = await verrechnung.settleInvoices(actor, {
+      invoiceId: rechnung,
+      counterInvoiceId: korrektur,
+      amount: 11_900,
+      date: "2026-11-12",
+      note: "19 % zurück",
+    });
+    await verrechnung.reverseInvoiceSettlement(actor, ids[0]!, "2026-11-12", "versehentlich");
+    // Ohne Verrechnung zahlt der Kunde die ganze Rechnung; das Guthaben der Korrektur bleibt offen
+    await zahle(rechnung, 22_600, "2026-11-13");
+
+    const nov = await figures.computeVatFigures({ year: 2026, month: 11 });
+    expect({ kz81: nov.kz81, tax81: nov.tax81, kz86: nov.kz86, tax86: nov.tax86 }).toEqual({ kz81: 10_000, tax81: 1_900, kz86: 10_000, tax86: 700 });
   }, 60_000);
 });
