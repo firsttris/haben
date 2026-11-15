@@ -62,16 +62,18 @@ const saveButton = (editor: Editor, existing = false) =>
     exact: true,
   });
 
-/** Wie in allen Formularen: Speichern bleibt erreichbar, ungültige Steuerangaben werden am Feld erklärt, ohne Schreibzugriff. */
-async function taxSaveRejected(editor: Editor, existing = false) {
+/** Ungültige Steuerangaben werden beim Speichern oder Festschreiben am Feld erklärt, ohne Schreibzugriff oder Rückfrage. */
+async function taxActionRejected(editor: Editor, existing = false, finalize = false) {
   const url = page.url();
   const before = await sql`select to_jsonb(t) as record from ${sql(editor.table)} t order by id`;
-  await expect(saveButton(editor, existing)).toBeEnabled();
-  await saveButton(editor, existing).click();
+  const action = finalize ? page.getByRole("button", { name: "Festschreiben", exact: true }) : saveButton(editor, existing);
+  await expect(action).toBeEnabled();
+  await action.click();
   const treatment = page.getByLabel("Umsatzsteuer", { exact: true });
   await expect(treatment).toBeFocused();
   await expect(treatment).toHaveAttribute("aria-invalid", "true");
   await expect(treatment).toHaveAccessibleDescription(/bitte/);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(page.url()).toBe(url);
   const after = await sql`select to_jsonb(t) as record from ${sql(editor.table)} t order by id`;
   expect(after).toEqual(before);
@@ -117,7 +119,7 @@ for (const editor of editors) {
     test(`${editor.kind}: KU-Befreiung ${provision} speichern, erneut öffnen und Vorschau`, async () => {
       await newDraft(editor);
       await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption("steuerfrei");
-      await taxSaveRejected(editor);
+      await taxActionRejected(editor);
       await page.getByLabel("Befreiungsvorschrift", { exact: true }).selectOption(provision);
       await expect(page.getByLabel("Hinweis zur Steuerbefreiung", { exact: true })).toHaveValue(`Steuerfreie Leistung nach ${note}.`);
       await saveAndReopen(editor);
@@ -142,7 +144,9 @@ test("Alte Befreiungstexte bleiben in Rechnung, Angebot und Serie ausdrücklich 
       await expect(page.getByLabel("Befreiungsvorschrift", { exact: true })).toHaveValue("");
       await expect(page.getByLabel("Hinweis zur Steuerbefreiung", { exact: true })).toHaveValue("Alter Freitext: § 4 Nr. 14a UStG");
       await expect(page.getByText("Gesamtumsatz: Vorschrift ungeklärt. Ein bisheriger Befreiungstext wird nicht automatisch zugeordnet.")).toBeVisible();
-      await taxSaveRejected(editor, true);
+      // Ein unveränderter Entwurf bietet nichts zu speichern; Festschreiben muss die alte Zuordnung trotzdem prüfen.
+      if (editor.kind !== "Serie") await expect(saveButton(editor, true)).toBeDisabled();
+      await taxActionRejected(editor, true, editor.kind !== "Serie");
       const [stored] = await sql`select tax_details from ${sql(editor.table)} where id = ${id}`;
       expect(stored!.tax_details).toBeNull();
     });
@@ -155,10 +159,10 @@ test("EU-Ausland verlangt Leistungsort und ausdrückliche Bestätigung ohne ausl
       await newDraft(editor);
       // Die österreichische Anschrift hat die Steuerbehandlung nicht selbst auf Ausland gesetzt.
       await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption("eu_sonstige");
-      await taxSaveRejected(editor);
+      await taxActionRejected(editor);
       await page.getByLabel("Land des tatsächlichen Leistungsorts").fill("AT");
       await expect(page.getByLabel("Ausländische Umsatzsteuer", { exact: true })).toHaveValue("");
-      await taxSaveRejected(editor);
+      await taxActionRejected(editor);
       await page.getByLabel("Ausländische Umsatzsteuer", { exact: true }).selectOption("bestaetigt");
       await saveAndReopen(editor);
       await expect(page.getByLabel("Umsatzsteuer", { exact: true })).toHaveValue("eu_sonstige");
@@ -167,7 +171,7 @@ test("EU-Ausland verlangt Leistungsort und ausdrückliche Bestätigung ohne ausl
       await preview(editor, "Im Inland nicht steuerbare sonstige Leistung");
       await page.getByLabel("Land des tatsächlichen Leistungsorts").fill("FR");
       await expect(page.getByLabel("Ausländische Umsatzsteuer", { exact: true })).toHaveValue("");
-      await taxSaveRejected(editor, true);
+      await taxActionRejected(editor, true);
     });
   }
 });

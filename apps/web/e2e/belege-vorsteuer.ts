@@ -27,12 +27,26 @@ export function vorsteuerPruefen(getPage: () => Page) {
       await rateShare.fill("12,34");
       await expect(preview).toContainText("Abziehbare Vorsteuer 10,36");
       await expect(preview).toContainText("Aufwand 215,64");
+      const id = route.split("/").at(-1)!;
       await share.fill("100,001");
       await expect(share).toHaveAttribute("aria-invalid", "true");
-      await expect(page.getByRole("button", { name: "Bestätigen und buchen" })).toBeDisabled();
+      // Die Aktionen bleiben erreichbar; ein ungültiger Anteil darf weder speichern noch die Buchungsrückfrage öffnen.
+      const before = await sql`select to_jsonb(d) as record from documents d where id=${id}`;
+      const amountsBefore = await sql`select to_jsonb(a) as record from document_amounts a where document_id=${id} order by tax_rate`;
+      for (const name of ["Speichern", "Bestätigen und buchen"]) {
+        const action = page.getByRole("button", { name, exact: true });
+        await expect(action).toBeEnabled();
+        await action.click();
+        await expect(share).toBeFocused();
+        await expect(share).toHaveAttribute("aria-invalid", "true");
+        await expect(share).toHaveAccessibleDescription(/0 bis 100 %/);
+        await expect(page.getByRole("dialog", { name: "Beleg buchen?" })).toHaveCount(0);
+        expect(new URL(page.url()).pathname).toBe(route);
+        expect(await sql`select to_jsonb(d) as record from documents d where id=${id}`).toEqual(before);
+        expect(await sql`select to_jsonb(a) as record from document_amounts a where document_id=${id} order by tax_rate`).toEqual(amountsBefore);
+      }
       await share.fill("50");
       await page.getByRole("button", { name: "Speichern", exact: true }).click();
-      const id = route.split("/").at(-1)!;
       await expect.poll(async () => (await sql`select vorsteuer_anteil from documents where id=${id}`)[0]?.vorsteuer_anteil).toBe(5000);
       await page.reload();
       await page.waitForLoadState("networkidle");
