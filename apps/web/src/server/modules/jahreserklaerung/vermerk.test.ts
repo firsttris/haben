@@ -148,10 +148,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   });
 
   for (const rechtsform of ["gmbh", "ug"] as const)
-    it(`lehnt bei einer Kapitalgesellschaft (${rechtsform}) die Anlage EÜR ab, die Umsatzsteuererklärung nicht`, async () => {
+    it(`lehnt bei einer Kapitalgesellschaft (${rechtsform}) die Anlage EÜR und die Einkommensteuererklärung ab, die Umsatzsteuererklärung nicht`, async () => {
       // Kapitalgesellschaften bilanzieren (§ 6, § 238 HGB); die EÜR nach § 4 Abs. 3 EStG gibt es für sie nicht
       await sql`update company set rechtsform = ${rechtsform} where id = 1`;
       await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
+        /Kapitalgesellschaft/,
+      );
+      // Sie zahlt Körperschaftsteuer, keine Einkommensteuer (§ 1 KStG); wie beim Senden (checkAnnual) kein Vermerk (#1073)
+      await expect(jahresvermerk.vermerkeJahresabgabe(actor, "est", 2025, eingabe("GHI123456789", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
         /Kapitalgesellschaft/,
       );
       expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
