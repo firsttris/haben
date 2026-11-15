@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { addDays, collectionDateFor, invoiceOpen, pain008, type Cents, type SepaDirectDebitBatch, type SepaSequence } from "@haben/core";
-import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { findMandate, loadCompany, type Mandate } from "../stammdaten/index.ts";
+import { findMandate, lastCollections, loadCompany, type Mandate } from "../stammdaten/index.ts";
 import { invoicePayments } from "../rechnungen/index.ts";
 import { BankError } from "./bank.ts";
 import { invoicesWithPendingDirectDebit } from "./lastschrift-abgleich.ts";
@@ -41,17 +41,6 @@ export interface DirectDebitCandidate {
 }
 
 const germanDate = (day: string) => day.split("-").reverse().join(".");
-
-/** Letzter Einzug aus Haben je Mandat (Fälligkeit der jüngsten Lastschrift), auch wenn er zurückgegeben wurde */
-export async function lastCollections(mandateIds: string[], q: Db | Tx = db): Promise<Map<string, string>> {
-  if (mandateIds.length === 0) return new Map();
-  const rows = await q
-    .select({ mandateId: schema.sepaDirectDebitItems.mandateId, last: max(schema.sepaDirectDebitItems.collectionDate) })
-    .from(schema.sepaDirectDebitItems)
-    .where(inArray(schema.sepaDirectDebitItems.mandateId, mandateIds))
-    .groupBy(schema.sepaDirectDebitItems.mandateId);
-  return new Map(rows.flatMap((r) => (r.last ? [[r.mandateId, r.last] as const] : [])));
-}
 
 /** Erste Lastschrift aus Haben auf ein neues Mandat: FRST, sonst RCUR (FRST ist optional, EPC132-17 v5.1, Kap. 2.7) */
 function sequenceFor(mandate: Mandate, collected: Set<string>): SepaSequence {

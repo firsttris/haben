@@ -14,7 +14,6 @@ export {
   type InvoiceAttachment,
 } from "./attachments.ts";
 export { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
-export { storeAttachmentFile, type AttachmentFile } from "./attachment-store.ts";
 export { addQuoteAttachment, listQuoteAttachments, loadQuoteAttachment, removeQuoteAttachment, type QuoteAttachment } from "./quote-attachments.ts";
 export {
   addQuoteDefaultAttachment,
@@ -145,3 +144,4 @@ export {
   type SettlementCandidate,
 } from "./verrechnung.ts";
 export { mixeNachVerrechnungen, mixNachVerrechnungen } from "./verrechnung-steuermix.ts";
+export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";

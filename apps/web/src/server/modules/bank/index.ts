@@ -123,7 +123,6 @@ export {
   directDebitCandidates,
   directDebitFile,
   directDebitFileSchema,
-  lastCollections,
   listDirectDebitFiles,
   type DirectDebitCandidate,
   type DirectDebitFileInput,

@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
-import { startRunning } from "../rechnungen/index.ts";
-import { loadCompany } from "./company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
+import { startRunning } from "./number-counter.ts";
 
 /** Nummernformate für Rechnungen und Angebote; sie gelten für alles, was ab dann festgeschrieben wird */
 
