@@ -1,4 +1,5 @@
 import {
+  JOURNAL_KENNZAHLEN,
   bareinnahmeAnteil,
   kategorieAnteil,
   kategorieArt,
@@ -9,10 +10,9 @@ import {
   recordedTaxShares,
   splitPrivateShare,
   type Cents,
+  type JournalKennzahlen,
   type TaxTreatment,
   type VatPeriod,
-  JOURNAL_KENNZAHLEN,
-  type JournalKennzahlen,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
@@ -21,7 +21,7 @@ import { gutschriftAnteile } from "./gutschrift.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
-import { advanceVatPlans, invoiceTaxReader, invoiceTotalsById } from "../rechnungen/index.ts";
+import { advanceVatPlans, invoiceTaxReader, invoiceTotalsById, mixNachVerrechnungen } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
   /**
@@ -281,12 +281,16 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       .where(and(gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end), notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM])));
     payments.push(...differences, ...cash);
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))], q);
+    // Nach einer Verrechnung trägt die Zahlung nur noch die Sätze, die die Rechnung nach der Korrektur hat (#877, Befund 2).
+    // Sonst rechnet die Voranmeldung aus den Nebenbüchern den zurückgenommenen Satz wieder mit.
+    const mix = await mixNachVerrechnungen(totals, q);
     for (const p of payments) {
       if (advanceIds.has(p.invoiceId)) continue;
       if ((await invoiceMode(p)) !== "ist") continue;
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
       const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
-      for (const share of recordedTaxShares(totals.get(p.invoiceId)!, p.amount, stored)) {
+      const voll = totals.get(p.invoiceId)!;
+      for (const share of recordedTaxShares(voll, p.amount, stored, mix.get(p.invoiceId) ?? [voll])) {
         revenue.push({
           type: "payment",
           date: p.date,
@@ -380,11 +384,14 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
         ),
       );
     const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))], q);
+    // Nach einer Verrechnung trägt die Ausbuchung nur noch die Sätze, die die Rechnung nach der Korrektur hat (#877, Befund 2).
+    const mix = await mixNachVerrechnungen(totals, q);
     for (const r of rows) {
       if (advanceIds.has(r.invoiceId)) continue;
       if ((await invoiceMode(r)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === r.treatment)) continue;
       const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
-      const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, stored);
+      const voll = totals.get(r.invoiceId)!;
+      const shares = recordedTaxShares(voll, -r.amount, stored, mix.get(r.invoiceId) ?? [voll]);
       for (const share of shares) {
         revenue.push({
           type: "ausbuchung",
