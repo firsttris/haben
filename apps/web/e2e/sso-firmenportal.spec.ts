@@ -129,7 +129,8 @@ test("Firmenportal: Kachel mit Logo oder in der Farbe der Firma (#1036)", async 
   expect(await kanten(page, ".fuss .btn")).toEqual({ zeichen: 0, ueberschrift: 0, kachel: 0, knopf: 0 });
   // Ohne Sitzung gibt es das Logo nicht
   const adresse = await logo.getAttribute("src");
-  const fremd = await (await browser.newContext()).newPage();
+  // Im Produktionslauf mit dem TLS-Testzertifikat (sso-tls.ts): Die Anfrage aus dem Kontext prüft es selbst, nicht Chromium
+  const fremd = await (await browser.newContext({ ignoreHTTPSErrors: true })).newPage();
   expect((await fremd.request.get(`${PORTAL}${adresse}`, { maxRedirects: 0 })).status()).toBe(404);
   await fremd.context().close();
   await page.context().close();
