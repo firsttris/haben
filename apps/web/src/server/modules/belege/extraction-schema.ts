@@ -142,7 +142,10 @@ export function toFields(extraction: Extraction): ExtractedFields {
   });
   // § 13b nur als Vorschlag; die Beträge bleiben wie auf dem Beleg. Ob er gilt und welcher Satz dann statt 0 % steht,
   // entscheidet applyFields in documents.ts (nicht bei einer eigenen Ausgangsrechnung)
-  const reverseCharge = extraction.reverseCharge ?? null;
+  const supplierUstId = extraction.lieferantUstId?.replace(/\s/g, "").toUpperCase().slice(0, 20) ?? "";
+  // Kein Vorschlag, wenn der Beleg Steuer ausweist (§ 14a Abs. 5 UStG: bei § 13b keine) oder aus Deutschland kommt:
+  // Haben kennt § 13b nur für Leistungen aus dem EU-Ausland und dem Drittland
+  const reverseCharge = amounts.some((a) => a.tax !== 0) || supplierUstId.startsWith("DE") ? null : (extraction.reverseCharge ?? null);
   const gross = extraction.brutto ? decimalToCents(extraction.brutto) : null;
   const sum = amounts.reduce((total, a) => total + a.net + a.tax, 0);
   if (gross !== null && Math.abs(sum) !== Math.abs(gross)) {
@@ -156,7 +159,7 @@ export function toFields(extraction: Extraction): ExtractedFields {
   // Längen wie im Beleg-Formular (documentInputSchema)
   return {
     supplierName: extraction.lieferant?.trim().slice(0, 200) ?? "",
-    supplierUstId: extraction.lieferantUstId?.replace(/\s/g, "").toUpperCase().slice(0, 20) ?? "",
+    supplierUstId,
     invoiceNumber: extraction.rechnungsnummer?.trim().slice(0, 100) ?? "",
     documentDate: isoDate(extraction.belegdatum),
     dueDate: isoDate(extraction.faelligAm),

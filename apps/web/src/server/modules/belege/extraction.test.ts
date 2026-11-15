@@ -40,6 +40,9 @@ describe("KI-Auslesung umwandeln", () => {
   it("übernimmt den Reverse-Charge-Hinweis als Vorschlag für § 13b", () => {
     const felder = toFields({
       ...base,
+      // Gebührenrechnung aus Irland; mit deutscher USt-IdNr. gäbe es keinen Vorschlag (Test unten)
+      lieferant: "Etsy Ireland UC",
+      lieferantUstId: "IE9777587C",
       betraege: [{ steuersatz: "0", netto: "115.44", steuer: "0.00" }],
       brutto: "115.44",
       kategorie: "fremdleistung",
@@ -54,6 +57,9 @@ describe("KI-Auslesung umwandeln", () => {
   it("lässt die Beträge bei § 13b wie auf dem Beleg; Satz und Steuer setzt erst der Beleg (documents.test.ts)", () => {
     const felder = toFields({
       ...base,
+      // Gebührenrechnung aus Irland; mit deutscher USt-IdNr. gäbe es keinen Vorschlag (Test unten)
+      lieferant: "Etsy Ireland UC",
+      lieferantUstId: "IE9777587C",
       betraege: [{ steuersatz: "0", netto: "115.44", steuer: "0.00" }],
       brutto: "115.44",
       kategorie: "fremdleistung",
