@@ -300,4 +300,106 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     expect((await monat(1, 2026)).kz66).toBe(0);
     expect((await monat(2, 2027)).kz66).toBe(616);
   });
+  /** Saldo des Zwischenkontos (SKR03 1548, SKR04 1434) über alle Buchungen */
+  async function zwischenkontoSaldo() {
+    const [z] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account in ('1548', '1434')`;
+    return z!.saldo as number;
+  }
+
+  // Zahlung vor der Ausführung mit Rechnung: abziehbar im Monat der Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG,
+  // Abschnitt 15.3 UStAE). Ab dem Stichjahr ist das Journal die Quelle von Kz 66; es muss denselben Monat nennen wie die
+  // Gegenprobe, und die Freigabe zur Ausführung darf nicht zusätzlich wirken (#930)
+  it("Journal als Quelle: Zahlung vor der Ausführung, Kz 66 im Zahlungsmonat, SKR03/Ist", async () => {
+    await firma({ journalAb: 2026 });
+    const id = await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    await zahlung(id, -3_856, "2026-11-25");
+
+    const monate = [
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ];
+    expect({ ...(await beideQuellen(monate)), zwischenkonto: await zwischenkontoSaldo() }).toEqual({
+      journal: [616, 0],
+      nebenbuecher: [616, 0],
+      zwischenkonto: 0,
+    });
+  });
+
+  it("Journal als Quelle: Zahlung vor der Ausführung, Kz 66 im Zahlungsmonat, SKR04/Soll", async () => {
+    await firma({ journalAb: 2026, kontenrahmen: "SKR04", versteuerung: "soll" });
+    const id = await beleg({ datum: "2026-10-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    await zahlung(id, -3_856, "2026-11-03");
+
+    const monate = [
+      { year: 2026, month: 10 },
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ];
+    expect({ ...(await beideQuellen(monate)), zwischenkonto: await zwischenkontoSaldo() }).toEqual({
+      journal: [0, 616, 0],
+      nebenbuecher: [0, 616, 0],
+      zwischenkonto: 0,
+    });
+  });
+
+  // Zwei Teilzahlungen vor der Ausführung (je ein Drittel, krumme Cent): jede zieht ihren Anteil im Monat der Zahlung, der
+  // Rest kommt mit der Ausführung; zusammen genau die Vorsteuer des Belegs
+  it("Journal als Quelle: zwei Teilzahlungen vor der Ausführung, Rest mit der Ausführung", async () => {
+    await firma({ journalAb: 2026 });
+    const id = await beleg({ datum: "2026-09-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 1_000, tax: 190 }] });
+    await zahlung(id, -397, "2026-10-05");
+    await zahlung(id, -397, "2026-11-05");
+
+    const monate = [
+      { year: 2026, month: 10 },
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ];
+    const ergebnis = await beideQuellen(monate);
+    expect({ ...ergebnis, zwischenkonto: await zwischenkontoSaldo() }).toEqual({
+      journal: ergebnis.nebenbuecher,
+      nebenbuecher: [63, 64, 63],
+      zwischenkonto: 0,
+    });
+  });
+
+  // Aufgehobene Zuordnung einer Anzahlung: Rücknahme am Tag der Aufhebung (#782), mit der Ausführung kommt die Vorsteuer
+  // wieder; Journal und Nebenbücher gleich, das Zwischenkonto am Ende leer
+  it("Journal als Quelle: Anzahlung, Zuordnung aufgehoben, dann Ausführung", async () => {
+    await firma({ journalAb: 2026 });
+    const id = await beleg({ datum: "2026-08-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    const zuordnung = await zahlung(id, -3_856, "2026-09-05");
+    await bank.reverseAllocation(actor, zuordnung, "2026-10-10");
+
+    const monate = [
+      { year: 2026, month: 9 },
+      { year: 2026, month: 10 },
+      { year: 2026, month: 12 },
+    ];
+    expect({ ...(await beideQuellen(monate)), zwischenkonto: await zwischenkontoSaldo() }).toEqual({
+      journal: [616, -616, 616],
+      nebenbuecher: [616, -616, 616],
+      zwischenkonto: 0,
+    });
+  });
+
+  // Storno eines vor der Ausführung bezahlten Belegs, der Oktober noch nicht gemeldet: Die Gegenbuchung kommt auf das
+  // Belegdatum (cancellationDate), die Vorsteuer der Anzahlung hebt sich im Oktober auf; Journal wie Nebenbücher
+  it("Journal als Quelle: Storno nach Anzahlung vor der Ausführung", async () => {
+    await firma({ journalAb: 2026 });
+    const id = await beleg({ datum: "2026-10-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+    const zuordnung = await zahlung(id, -3_856, "2026-10-25");
+    await cancellation.cancelDocument(actor, id, { reason: "falscher Beleg", allocationIds: [zuordnung] }, "2026-11-10");
+
+    const monate = [
+      { year: 2026, month: 10 },
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ];
+    expect({ ...(await beideQuellen(monate)), zwischenkonto: await zwischenkontoSaldo() }).toEqual({
+      journal: [0, 0, 0],
+      nebenbuecher: [0, 0, 0],
+      zwischenkonto: 0,
+    });
+  });
 });
