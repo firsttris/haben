@@ -286,9 +286,10 @@ test("Einkommensersatzleistungen: eintragen, speichern, nach dem Neuladen wieder
   await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
   await page.reload();
   await page.waitForLoadState("networkidle");
-  // Nach dem Neuladen trägt der Blocktitel die Summe; die Blöcke starten zugeklappt, also aufklappen.
+  // Nach dem Neuladen trägt der Blocktitel die Summe; der Block startet trotzdem zugeklappt wie die anderen (#1086)
   await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
-  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(block()).not.toHaveAttribute("open");
+  await block().locator("summary").click();
   await expect(feld("Elterngeld")).toHaveValue("1.200,40");
   await expect(feld("Krankengeld")).toHaveValue("480,00");
   await expect(feld("Arbeitslosengeld")).toHaveValue("");
