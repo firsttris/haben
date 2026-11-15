@@ -57,8 +57,8 @@ describe.skipIf(!testDatabaseUrl)("Review #706: USt-Teile und Rechtsformen (Post
         for (const sign of [-1, 1] as const) {
           it(`${kr}, ${vat}, ${rechtsform}, ${sign}: verrechnete USt-Zahlung und Erstattung behalten beide Richtungen`, async () => {
             await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, company cascade`;
-            await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, journal_ab)
-              values (1, 'Reviewbetrieb', 'Ring 1', '93047', 'Regensburg', 'review@example.com', '198/113/10010', 'BY', ${kr}, ${vat}, ${rechtsform}, 2026)`;
+            await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
+              values (1, 'Reviewbetrieb', 'Ring 1', '93047', 'Regensburg', 'review@example.com', '198/113/10010', 'BY', ${kr}, ${vat}, ${rechtsform})`;
             const id = await transaction(sign < 0 ? "-190,01" : "190,01", "03.06.26");
             // Das Finanzamt verrechnet 25,00 € Erstattung mit 215,01 € Zahllast (bzw. umgekehrt).
             await bank.allocateSplit("test-user", {
@@ -70,7 +70,6 @@ describe.skipIf(!testDatabaseUrl)("Review #706: USt-Teile und Rechtsformen (Post
             });
             const expected = sign < 0 ? { paid: 21501, refunded: 2500 } : { paid: 2500, refunded: 21501 };
             const check = async (value: { paid: number; refunded: number }) => {
-              expect(amounts(await reports.euerAusNebenbuechern(2026))).toEqual(value);
               expect(amounts(await reports.euerForYear(2026))).toEqual(value);
               const j = (await journal.euerAusJournal(2026)).summe.zeilen;
               expect({ paid: j.gezahlteUst ?? 0, refunded: j.erstatteteUst ?? 0 }).toEqual(value);
@@ -98,8 +97,8 @@ describe.skipIf(!testDatabaseUrl)("Review #706: USt-Teile und Rechtsformen (Post
           for (const sign of [-1, 1] as const) {
             it(`${kr}, ${vat}, ${rechtsform}, ${kind}, ${sign}: Teilrücknahmen bleiben in ihrer Zeile`, async () => {
               await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, company cascade`;
-              await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, journal_ab)
-                values (1, 'Reviewbetrieb', 'Ring 1', '93047', 'Regensburg', 'review@example.com', '198/113/10010', 'BY', ${kr}, ${vat}, ${rechtsform}, 2026)`;
+              await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
+                values (1, 'Reviewbetrieb', 'Ring 1', '93047', 'Regensburg', 'review@example.com', '198/113/10010', 'BY', ${kr}, ${vat}, ${rechtsform})`;
               const first = await transaction(sign < 0 ? "-190,01" : "190,01", "03.06.26");
               const opposite = await transaction(sign < 0 ? "37,03" : "-37,03", "04.06.26");
               const allocate = async (transactionId: string, amount: number) => {
@@ -111,7 +110,6 @@ describe.skipIf(!testDatabaseUrl)("Review #706: USt-Teile und Rechtsformen (Post
               };
               const check = async (remaining: number) => {
                 const expected = sign < 0 ? { paid: remaining, refunded: 3703 } : { paid: 3703, refunded: remaining };
-                expect(amounts(await reports.euerAusNebenbuechern(2026))).toEqual(expected);
                 expect(amounts(await reports.euerForYear(2026))).toEqual(expected);
                 const j = (await journal.euerAusJournal(2026)).summe.zeilen;
                 expect({ paid: j.gezahlteUst ?? 0, refunded: j.erstatteteUst ?? 0 }).toEqual(expected);

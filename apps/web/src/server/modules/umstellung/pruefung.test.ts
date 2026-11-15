@@ -1,0 +1,191 @@
+import { formatEuro } from "@haben/core";
+import type postgres from "postgres";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+
+/*
+ * Prüfung beim Update auf das Journal als einzige Quelle (#1116): Jahre vor dem früheren Stichjahr müssen aus dem Journal so
+ * herauskommen wie bisher; gesendete Voranmeldungen mit ihren gespeicherten Werten. Je SKR03 und SKR04, Ist und Soll.
+ */
+
+function dkbCsv(rows: string[][]) {
+  const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
+  const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
+  return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
+}
+const eingang = (date: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  "Nordwerk",
+  "Testfirma",
+  purpose,
+  "Eingang",
+  "DE02100100100006820101",
+  amount,
+  "",
+  "",
+  "",
+];
+
+describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgres)", () => {
+  let sql: postgres.Sql;
+  let umstellung: typeof import("./index.ts");
+  let invoices: typeof import("../rechnungen/invoices.ts");
+  let contacts: typeof import("../stammdaten/contacts.ts");
+  let documents: typeof import("../belege/documents.ts");
+  let bank: typeof import("../bank/bank.ts");
+  let vat: typeof import("../umsatzsteuer/index.ts");
+  let abgleich: typeof import("../auswertungen/abgleich.ts");
+  const actor = "test-user";
+  const today = "2026-10-04";
+  let docSeq = 0;
+
+  beforeAll(async () => {
+    sql = await setupTestDb();
+    umstellung = await import("./index.ts");
+    invoices = await import("../rechnungen/invoices.ts");
+    contacts = await import("../stammdaten/contacts.ts");
+    documents = await import("../belege/documents.ts");
+    bank = await import("../bank/bank.ts");
+    vat = await import("../umsatzsteuer/index.ts");
+    abgleich = await import("../auswertungen/abgleich.ts");
+  }, 30_000);
+  afterAll(async () => {
+    await sql?.end();
+  });
+
+  /** Wie eine Instanz nach den Migrationen: Stichjahr 2027 übernommen, Umstellung offen */
+  async function reset(kr: "SKR03" | "SKR04", v: "ist" | "soll") {
+    await leeren(sql)`truncate journal_umstellung, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports,
+      bank_accounts, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
+      contact_versions, contacts, company cascade`;
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
+      values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
+              'DE123456789', 'BY', 'DE89370400440532013000', ${v}, ${kr})`;
+    await sql`insert into journal_umstellung (stichjahr_vorher, ergebnis) values (2027, 'offen')`;
+  }
+  async function invoice(issueDate: string) {
+    const c = await contacts.createContact(actor, {
+      kundennummer: "",
+      name: "Nordwerk",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "a@b.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    const d = await invoices.createDraft(actor, {
+      contactId: c.id,
+      issueDate,
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      lines: [{ description: "L", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 }],
+    });
+    return invoices.finalizeInvoice(actor, d.id);
+  }
+  async function pay(invoiceId: string, date: string, amount: string) {
+    const purpose = crypto.randomUUID();
+    await bank.importStatement(actor, { bytes: dkbCsv([eingang(date, purpose, amount)]), filename: `${purpose}.csv` }, null);
+    const [tx] = await sql`select id, amount from bank_transactions where purpose = ${purpose}`;
+    await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId, amount: Number(tx!.amount) });
+  }
+  async function beleg(date: string) {
+    docSeq++;
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, docSeq, 7, 9]), filename: `b${docSeq}.jpg` });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Lieferant",
+      supplierUstId: "",
+      invoiceNumber: `R${docSeq}`,
+      documentDate: date,
+      dueDate: null,
+      category: "edv",
+      payment: "privat",
+      note: "",
+      amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+      privateShare: 0,
+      reverseCharge: null,
+    });
+    await documents.bookDocument(actor, id);
+  }
+  /** Gesendete Voranmeldung mit den Werten, die Haben heute rechnet, und `delta` auf Kz 81 */
+  async function gesendet(month: number, delta = 0) {
+    const werte = await vat.computedValues({ year: 2026, month });
+    await sql`insert into vat_returns ${sql({ year: 2026, month, ...werte, kz81: werte.kz81 + delta, status: "sent", source: "berechnet", sent_at: new Date().toISOString() } as never)}`;
+  }
+  /** Daten wie aus einer Version vor v0.7.0: Steuerschlüssel bzw. Bemessungsgrundlage an der Zahlung fehlen (#551, #552) */
+  async function alteBuchung(kr: "SKR03" | "SKR04", v: "ist" | "soll") {
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      if (v === "ist") await tx`update journal_lines set basis = null where basis is not null`;
+      else await tx`update journal_lines set tax_code = null where account = ${kr === "SKR03" ? "8400" : "4400"}`;
+    });
+  }
+  const stand = async () => (await sql`select ergebnis, stichjahr_vorher, befunde from journal_umstellung order by id desc limit 1`)[0];
+
+  for (const kr of ["SKR03", "SKR04"] as const)
+    for (const v of ["ist", "soll"] as const) {
+      it(`besteht, wenn alles gleich herauskommt, auch mit gesendeter Voranmeldung; danach nichts mehr zu prüfen (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        const inv = await invoice("2026-03-10");
+        await pay(inv.id, "20.04.2026", "119,00");
+        await beleg("2026-04-02");
+        await gesendet(3);
+        const ergebnis = await umstellung.umstellungPruefen(today, [], "1.0.0");
+        expect(ergebnis.status).toBe("gespeichert");
+        expect(await stand()).toEqual({ ergebnis: "bestanden", stichjahr_vorher: 2027, befunde: [] });
+        const [log] = await sql`select actor from audit_log where table_name = 'journal_umstellung' order by seq desc limit 1`;
+        expect(log).toEqual({ actor: "system:umstellung" });
+        expect((await umstellung.umstellungPruefen(today)).status).toBe("fertig");
+      }, 60_000);
+
+      it(`gesendete Voranmeldung weicht ab: startet nicht, ändert nichts; übernommen gilt das Journal (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        await invoice("2026-03-10");
+        await gesendet(3, 100);
+        const ergebnis = await umstellung.umstellungPruefen(today);
+        expect(ergebnis).toEqual({
+          status: "abweichung",
+          befunde: [{ jahr: 2026, text: expect.stringMatching(/^Voranmeldung März 2026, Kz 81: gesendet .* aus dem Journal/) }],
+        });
+        expect((await stand())!.ergebnis).toBe("offen");
+        // Ein anderes Jahr zu übernehmen reicht nicht
+        expect((await umstellung.umstellungPruefen(today, [2025])).status).toBe("abweichung");
+        expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
+        expect(await stand()).toEqual({ ergebnis: "uebernommen", stichjahr_vorher: 2027, befunde: (ergebnis as { befunde: unknown }).befunde });
+        // Die Integritätsprüfung gleicht das übernommene Jahr nicht mehr ab und sagt es
+        const jahr = await abgleich.abgleichJahr(2026, today);
+        expect(jahr.zeilen.filter((z) => z.bereich === "ustva")).toEqual([]);
+        expect(jahr.hinweise.join()).toMatch(/Für 2026 sind beim Update auf das Journal Abweichungen/);
+      }, 60_000);
+
+      it(`ältere Buchungen ohne Steuerschlüssel bzw. Bemessungsgrundlage: Monat und Kennzahl im Befund (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        const inv = await invoice("2026-03-10");
+        await pay(inv.id, "20.04.2026", "119,00");
+        await alteBuchung(kr, v);
+        const ergebnis = await umstellung.umstellungPruefen(today);
+        expect(ergebnis.status).toBe("abweichung");
+        const befunde = (ergebnis as { befunde: { jahr: number; text: string }[] }).befunde;
+        expect(befunde).toEqual([
+          { jahr: 2026, text: `Voranmeldung ${v === "ist" ? "April" : "März"} 2026: Kz 81 bisher ${formatEuro(100_00)}, aus dem Journal ${formatEuro(0)}` },
+        ]);
+        expect((await stand())!.ergebnis).toBe("offen");
+      }, 60_000);
+    }
+
+  it("ohne Buchungen vor dem Stichjahr besteht sie sofort; ohne offene Umstellung gibt es nichts zu tun", async () => {
+    await reset("SKR03", "soll");
+    expect((await umstellung.umstellungPruefen(today)).status).toBe("gespeichert");
+    expect((await stand())!.ergebnis).toBe("bestanden");
+    await leeren(sql)`truncate journal_umstellung`;
+    expect(await umstellung.umstellungPruefen(today)).toEqual({ status: "fertig", stand: null });
+  }, 60_000);
+});

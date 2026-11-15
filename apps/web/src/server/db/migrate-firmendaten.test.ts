@@ -48,7 +48,8 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
         await tx`update company set kleinunternehmer = true where id = 1`;
       });
       const before = {
-        company: await sql`select to_jsonb(company) as value from company`,
+        // journal_ab entfernt Migration 0251 (#1116)
+        company: await sql`select to_jsonb(company) - 'journal_ab' as value from company`,
         audit: await sql`select * from audit_log order by seq`,
         entries: await sql`select * from journal_entries order by id`,
         lines: await sql`select * from journal_lines order by id`,
@@ -68,7 +69,10 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
         await sql`select to_jsonb(company) - 'firmendaten_gespeichert_at' - 'nav_color' - 'nav_logo' - 'ohne_vorsteuerabzug'
           - 'archive_search' - 'founded_on' as value from company`,
       ).toEqual(before.company);
-      expect(await sql`select * from audit_log order by seq`).toEqual(before.audit);
+      // Bisherige Einträge unverändert; neu ist nur die Zeile der Prüfung beim Update (Migration 0250, #1116)
+      const audit = await sql`select * from audit_log order by seq`;
+      expect(audit.slice(0, before.audit.length)).toEqual(before.audit);
+      expect(audit.slice(before.audit.length).map((a) => [a.table_name, a.action])).toEqual([["journal_umstellung", "INSERT"]]);
       expect(await sql`select * from journal_entries order by id`).toEqual(before.entries);
       expect(await sql`select * from journal_lines order by id`).toEqual(before.lines);
 

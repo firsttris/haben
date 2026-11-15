@@ -11,6 +11,7 @@
     "typecheck": "bun --bun tsc -p .",
     "db:generate": "bun --bun drizzle-kit generate",
     "db:migrate": "bun src/server/db/migrate.ts",
+    "db:umstellung": "bun src/server/modules/umstellung/cli.ts",
     "e2e": "bun --bun playwright test"
   },
   "dependencies": {

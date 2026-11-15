@@ -6,7 +6,6 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { documentBankAllocations, lockCash, reverseAllocationIn, reverseDocumentCashEntry } from "../bank/index.ts";
 import { loadOwnAccountNumbers } from "../eigene-konten/index.ts";
-import { journalAbJahr } from "../stammdaten/index.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { belegZeilen } from "./belegbuchung.ts";
 
@@ -173,13 +172,11 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       .from(schema.journalLines)
       .where(eq(schema.journalLines.entryId, original.id))
       .orderBy(asc(schema.journalLines.id));
-    // Vor dem Stichjahr gebucht: im heutigen Format, wenn es auf jedem Konto dasselbe ergibt (zeilenWieHeute)
+    // Im heutigen Format, wenn es auf jedem Konto dasselbe ergibt (zeilenWieHeute): Ältere Buchungen tragen den
+    // Steuerschlüssel am privaten Teil noch nicht (#551, #1116)
     const gebucht: PostingLine[] = lines.map((l) => ({ ...l, taxCode: l.taxCode as TaxCode | null }));
-    const vorStichjahr = Number(original.date.slice(0, 4)) < (await journalAbJahr(tx));
-    const amounts = vorStichjahr ? await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)) : [];
-    const zeilen = vorStichjahr
-      ? zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books, await loadOwnAccountNumbers(tx)) ?? [])
-      : gebucht;
+    const amounts = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
+    const zeilen = zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books, await loadOwnAccountNumbers(tx)) ?? []);
     const journalEntryId = await post(tx, books, {
       date,
       description: `Storno: ${original.description}`,

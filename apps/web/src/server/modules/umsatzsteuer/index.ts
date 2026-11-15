@@ -6,7 +6,8 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { searchUmsatzsteuer, type VatReturnHit, type ZmSubmissionHit } from "./search.ts";
-export { computeVatFigures, kennzahlenBeiderQuellen, preflight, type PreflightIssue, type RevenueSource } from "./vat-figures.ts";
+export { computeVatFigures, preflight, type PreflightIssue, type RevenueSource, type VatFigures } from "./vat-figures.ts";
+export { kennzahlenAusDemJournal } from "./vat-journal.ts";
 export { abgegebeneZeitraeume, frequencyOverview, loadFrequencies, periodProblem, saveFrequency, type FrequencyOverview } from "./zeitraum.ts";
 export { computedValues, createCorrection, recentSentReturns, returnsForPeriod, saveDraft, submissionsFor, submitReturn } from "./vat.ts";
 export { meinElsterUpload, meinElsterUstvaWerte } from "./mein-elster.ts";
@@ -24,3 +25,4 @@ export { loadZmProtocol, submitZm, zmOverview, zmQuartale, zmSubmissions, type Z
 export { VatError } from "./vat.ts";
 export { filingsFor, loadFilingProtocol, vermerkeAbgabe, type VatReturnFiling, type VermerkInput } from "./vermerk.ts";
 export { assertUstvaOffen, ustvaLabels, ustvaOpenItems, ustvaPosten, ustvaPostenForPeriod, type UstvaPostenUebersicht } from "./zahlung.ts";
+export { gesendeteAbweichungen, gesendetText, type GesendetAbweichung } from "./gesendet-pruefen.ts";

@@ -99,7 +99,7 @@ export async function runDuePruefwertMail(now = new Date()) {
       : []),
     ...(report.abgleich.abweichungen.length > 0
       ? [
-          `Abgleich von Journal und Steuerwerten: ${report.abgleich.abweichungen.length} ${report.abgleich.abweichungen.length === 1 ? "Abweichung" : "Abweichungen"} (${report.abgleich.abweichungen
+          `Abgleich im Journal: ${report.abgleich.abweichungen.length} ${report.abgleich.abweichungen.length === 1 ? "Abweichung" : "Abweichungen"} (${report.abgleich.abweichungen
             .slice(0, 3)
             .map((a) => `${a.zeitraum} ${a.posten}`)
             .join("; ")}${report.abgleich.abweichungen.length > 3 ? " …" : ""}).`,

@@ -12,9 +12,10 @@ const journal = (folder: string) => JSON.parse(readFileSync(join(folder, "meta",
 /*
  * Migration 0192 (#542, Stichjahr für Voranmeldung und EÜR aus dem Journal) auf einer bestehenden Instanz: mit Buchungen
  * das Jahr nach dem Update in deutscher Zeit, ohne Buchungen leer; die Hash-Kette bleibt intakt (Fälle aus dem TDD-Review
- * von Pull Request #575).
+ * von Pull Request #575). Seit #1116 übernimmt Migration 0250 das Stichjahr in journal_umstellung, offen nur mit Buchungen
+ * davor, und 0251 entfernt company.journal_ab.
  */
-describe.skipIf(!testDatabaseUrl)("Migration 0192: Stichjahr auf einer bestehenden Instanz (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Migration 0192 und 0250: Stichjahr auf einer bestehenden Instanz (Postgres)", () => {
   async function bis0191(): Promise<postgres.Sql> {
     const name = decodeURIComponent(new URL(testDatabaseUrl!).pathname.slice(1));
     const admin = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });
@@ -46,9 +47,12 @@ describe.skipIf(!testDatabaseUrl)("Migration 0192: Stichjahr auf einer bestehend
       const { drizzle } = await import("drizzle-orm/postgres-js");
       const { migrate } = await import("drizzle-orm/postgres-js/migrator");
       await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS });
-      const [c] = await sql`select journal_ab from company`;
       const [y] = await sql`select extract(year from now() at time zone 'Europe/Berlin')::int + 1 as y`;
-      expect(c!.journal_ab).toBe(y!.y);
+      // Buchung vor dem Stichjahr: Die Prüfung beim Update ist offen
+      expect(await sql`select stichjahr_vorher, ergebnis, befunde from journal_umstellung`).toEqual([
+        { stichjahr_vorher: y!.y, ergebnis: "offen", befunde: [] },
+      ]);
+      expect(await sql`select column_name from information_schema.columns where table_name = 'company' and column_name = 'journal_ab'`).toEqual([]);
       const problems = await sql`select * from haben_integrity_problems(100)`;
       expect(problems).toEqual([]);
       const [a] = await sql`select new_value from audit_log where table_name = 'company' order by seq desc limit 1`;
@@ -58,15 +62,14 @@ describe.skipIf(!testDatabaseUrl)("Migration 0192: Stichjahr auf einer bestehend
     }
   }, 120_000);
 
-  it("lässt das Stichjahr ohne Buchungen leer", async () => {
+  it("lässt das Stichjahr ohne Buchungen leer; nichts zu prüfen", async () => {
     const sql = await bis0191();
     try {
       await sql`insert into company(id,name) values(1,'Testfirma')`;
       const { drizzle } = await import("drizzle-orm/postgres-js");
       const { migrate } = await import("drizzle-orm/postgres-js/migrator");
       await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS });
-      const [c] = await sql`select journal_ab from company`;
-      expect(c!.journal_ab).toBeNull();
+      expect(await sql`select stichjahr_vorher, ergebnis from journal_umstellung`).toEqual([{ stichjahr_vorher: null, ergebnis: "bestanden" }]);
     } finally {
       await sql.end();
     }

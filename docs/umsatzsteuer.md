@@ -190,7 +190,7 @@ Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` fü
 
 Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 
-**Ab dem Stichjahr aus dem Journal.** Ab einem Stichjahr rechnet Haben die Kennzahlen wie DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum ([Steuerschlüssel und Kennzahlen](buchhaltung.md#steuerschlüssel-und-kennzahlen)); bei Ist-Versteuerung zählt ein Verkauf auf Ziel mit der Zahlung, die die Bemessungsgrundlage trägt. Die Privatnutzung von Fahrzeugen kommt weiter je Monat aus dem Anlagenverzeichnis. Die Abschnitte unten beschreiben, was die Rechnungen, Belege und Zahlungen dazu beitragen; sie bleiben die Gegenprobe im [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür). Das Stichjahr ist das Jahr der ersten Buchung; bei Instanzen, die schon vor diesem Update gebucht haben, das Jahr nach dem Update. Unter **Einstellungen › Firma** steht es in der Karte „Voranmeldung und EÜR aus dem Journal“. Dort lässt es sich auf das laufende Jahr vorziehen, solange für das Jahr keine Voranmeldung gesendet ist, der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) des Jahres keine Abweichung zeigt und jede Voranmeldung des Jahres sowie die EÜR aus dem Journal genauso herauskommen wie aus Rechnungen, Belegen und Zahlungen; dann ändert der Umstieg keine Zahl. Ältere Buchungen ohne Bemessungsgrundlage oder Steuerschlüssel, die der Abgleich bewusst auslässt, verhindern das Vorziehen deshalb. Zurück geht es nicht. Davor rechnet Haben aus den Rechnungen, Belegen und Zahlungen; gesendete Voranmeldungen ändern sich nicht. Storniert ihr im Stichjahr eine Bareinnahme oder einen Beleg aus der Zeit davor, bucht Haben die Gegenbuchung mit den Steuerangaben von heute, damit sie in der Voranmeldung voll zählt. Hintergrund: [Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen).
+**Aus dem Journal.** Haben rechnet die Kennzahlen wie DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum ([Steuerschlüssel und Kennzahlen](buchhaltung.md#steuerschlüssel-und-kennzahlen)); bei Ist-Versteuerung zählt ein Verkauf auf Ziel mit der Zahlung, die die Bemessungsgrundlage trägt. Die Privatnutzung von Fahrzeugen kommt je Monat aus dem Anlagenverzeichnis, weil das Journal sie erst mit der AfA bucht. Die Abschnitte unten beschreiben, welche Vorgänge wann gebucht werden; die Listen der Rechnungen, Belege und Zahlungen unter jeder Kennzahl erläutern die Werte, gerechnet wird aus ihnen nicht. Ob das Journal in sich und zu den gespeicherten Daten passt, prüft der [Abgleich](buchhaltung.md#abgleich-im-journal). Bis Version 0.x rechneten Jahre vor einem Stichjahr aus den Rechnungen, Belegen und Zahlungen; was beim Update darauf geprüft wird, steht unter [Update auf das Journal](einrichtung.md#update-auf-das-journal). Gesendete Voranmeldungen ändern sich nicht. Hintergrund: [Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen).
 
 ### Umsatzsteuer (Kz 81 und 86)
 
@@ -203,7 +203,7 @@ Bankumsätze, die im Bankabgleich [direkt auf eine Einnahmekategorie](bank.md#au
 
 Ausbuchungen (§ 17 UStG, gewährtes Skonto und Forderungsausfall, siehe [Bank](bank.md#rest-ausbuchen-skonto-und-forderungsausfall)) mindern bei Soll Kz 81 bzw. 86 und die Steuer im Monat der Ausbuchung, anteilig je Steuersatz. Bei Ist zählt nur, was bezahlt wurde; ausgebuchte Reste kamen nie in die Anmeldung. In den Quellen stehen sie als „Ausbuchung“.
 
-Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Dazu zählen regulär besteuerte Rechnungen, Direktbuchungen, Bareinnahmen ohne Rechnung im [Kassenbuch](kasse.md), ab dem Stichjahr [freie Buchungen mit Steuerschlüssel](buchhaltung.md#manuelle-und-freie-buchungen) einschließlich der Sachentnahme und, in Kz 81, die private Nutzung von Firmenwagen im Monat der Nutzung ([Anlagen und AfA](anlagen.md#private-nutzung-von-firmenwagen)). Belege mit Privatanteil zählen in Kz 66 nur mit dem betrieblichen Teil. Regulär besteuerte Umsätze zu 0 % meldet Haben nicht; die Vorprüfung weist darauf hin.
+Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Dazu zählen regulär besteuerte Rechnungen, Direktbuchungen, Bareinnahmen ohne Rechnung im [Kassenbuch](kasse.md), [freie Buchungen mit Steuerschlüssel](buchhaltung.md#manuelle-und-freie-buchungen) einschließlich der Sachentnahme und, in Kz 81, die private Nutzung von Firmenwagen im Monat der Nutzung ([Anlagen und AfA](anlagen.md#private-nutzung-von-firmenwagen)). Belege mit Privatanteil zählen in Kz 66 nur mit dem betrieblichen Teil. Regulär besteuerte Umsätze zu 0 % meldet Haben nicht; die Vorprüfung weist darauf hin.
 
 ### Umsätze ohne Steuer (Kz 21, 41, 43, 45 und 48)
 
@@ -241,7 +241,7 @@ Zwei Vorgänge verschieben die Minderung. Ein erhaltenes Skonto mindert die Vors
 
 Ausgebuchtes Skonto an einer solchen Gutschrift zählt nicht mit: Es erstattet nichts, sondern erlässt den Rest, und wird deshalb vom Zwischenkonto abgeschrieben, ohne die Vorsteuer zu ziehen.
 
-Beide Quellen sagen dasselbe: Die Buchung legt die Vorsteuer beim Buchen auf das Zwischenkonto (SKR03 1548, SKR04 1434) und zieht sie erst mit dem Ausgleich auf die Vorsteuer, und die Voranmeldung aus den Nebenbüchern verteilt sie nach derselben Regel. Kz 66 stimmt deshalb aus Journal und Nebenbüchern je Monat überein (`kz66-paritaet.test.ts`).
+Die Buchung legt die Vorsteuer beim Buchen auf das Zwischenkonto (SKR03 1548, SKR04 1434) und zieht sie erst mit dem Ausgleich auf die Vorsteuer; Kz 66 sieht die Minderung so im Monat des Ausgleichs.
 
 ### § 13b als Leistungsempfänger
 
@@ -298,7 +298,7 @@ Beispiel: Zahlungseingänge zu 19 % mit 2.345,67 € netto ergeben Kz 81 = 2.345
 
 ### Quellen aufklappen
 
-Unter jeder Kennzahl steht, wie viele Zahlungseingänge, Rechnungen oder Belege dahinterstehen. Ein Klick klappt die Liste auf: Datum, Rechnungs- oder Belegnummer mit Kunde bzw. Lieferant, Netto und Steuer, jeweils mit Link zur Rechnung oder zum Beleg; direkt gebuchte Bankumsätze (Direktbuchungen) verlinken auf den Umsatz im Bankabgleich. Die Beträge dort sind centgenau, also vor dem Abschneiden. [Freie Buchungen](buchhaltung.md#manuelle-und-freie-buchungen) stehen nicht in den Quellen, denn sie haben kein Nebenbuch; sie zählen ab dem Stichjahr trotzdem in den Kennzahlen und stehen im Journal unter der Herkunft „Manuell“.
+Unter jeder Kennzahl steht, wie viele Zahlungseingänge, Rechnungen oder Belege dahinterstehen. Ein Klick klappt die Liste auf: Datum, Rechnungs- oder Belegnummer mit Kunde bzw. Lieferant, Netto und Steuer, jeweils mit Link zur Rechnung oder zum Beleg; direkt gebuchte Bankumsätze (Direktbuchungen) verlinken auf den Umsatz im Bankabgleich. Die Beträge dort sind centgenau, also vor dem Abschneiden. [Freie Buchungen](buchhaltung.md#manuelle-und-freie-buchungen) stehen nicht in den Quellen, denn sie haben kein Nebenbuch; sie zählen trotzdem in den Kennzahlen und stehen im Journal unter der Herkunft „Manuell“.
 
 ## Manuell überschreiben
 
@@ -321,7 +321,7 @@ Solange die Anmeldung nicht gesendet ist, prüft Haben, was im Monat noch fehlt 
 | … Belege sind noch nicht gebucht | Warnung | Ungebuchte Belege mit Belegdatum im Monat oder ganz ohne Belegdatum. |
 | … Rechnungsentwürfe mit Datum im Zeitraum | Hinweis | Nicht festgeschriebene Rechnungen mit Rechnungsdatum im Monat. |
 | Regulär besteuerte Umsätze zu 0 % | Warnung | Im Monat gibt es regulär besteuerte Umsätze zu 0 %, die Haben nicht meldet. Ist es Reverse Charge, eine Leistung ins Drittland oder steuerfrei, stellst du das an der Rechnung ein. |
-| Buchungen und Voranmeldung weichen ab | Warnung | Die Steuerkonten im Journal passen nicht zu den Kennzahlen aus Rechnungen, Belegen und Zahlungen, mit beiden Beträgen. Was verglichen wird, steht unter [Abgleich von Journal, Umsatzsteuer und EÜR](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür). Der Link führt zu den Konten. |
+| Im Journal passt etwas nicht | Warnung | Eine Buchung im Zeitraum, deren Steuer nicht zur Bemessungsgrundlage passt (Verprobung), mit gebuchtem und erwartetem Betrag. Was verglichen wird, steht unter [Abgleich im Journal](buchhaltung.md#abgleich-im-journal). Der Link führt zu den Konten. |
 
 Verrechnete und als [privat gekennzeichnete](bank.md#privates-konto-umsätze-ohne-buchungsart) Bankumsätze zählen bei Ein- und Ausgängen nicht.
 

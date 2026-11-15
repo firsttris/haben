@@ -14,12 +14,12 @@ import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
- * Kennzahlen der Voranmeldung aus dem Journal (#542, docs/adr/journal-als-quelle.md): ab dem Stichjahr die Quelle der
- * Voranmeldung, wie bei DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum (kennzahlenAusJournal). Ohne
+ * Kennzahlen der Voranmeldung aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md): die Quelle der Voranmeldung,
+ * wie bei DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum (kennzahlenAusJournal). Ohne
  * Eröffnungen (vorgetragen, im Vorjahr angemeldet) und ohne die Buchungen des Anlagenverzeichnisses: Die Privatnutzung von
  * Fahrzeugen rechnet die Voranmeldung je Monat aus dem Anlagenverzeichnis, das Journal bucht sie erst mit der AfA.
- * `nurManuell`: nur die manuellen Buchungen (freie Buchungen, #502); sie haben kein Nebenbuch, ihr Beleg ist die
- * festgeschriebene Buchung selbst, und sie zählen deshalb auch in der Gegenprobe aus den Nebenbüchern.
+ * `nurManuell`: nur die manuellen Buchungen (freie Buchungen, #502), für die eingefrorene Rechnung aus den Nebenbüchern in
+ * der Prüfung beim Update (modules/umstellung): Sie haben kein Nebenbuch, ihr Beleg ist die festgeschriebene Buchung selbst.
  */
 export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: Versteuerung, q: Db | Tx, nurManuell = false): Promise<JournalKennzahlen> {
   const { start, end } = periodRange(period);

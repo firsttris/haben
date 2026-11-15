@@ -190,9 +190,9 @@ Du musst Haben nicht glauben, du kannst nachrechnen:
   So siehst du vor der Kündigung, ob Haben auf dieselben Zahlen kommt, siehe
   [Abgleich je Jahr](https://haben.app/lexoffice.html#schritt-5-abgleich-je-jahr).
 - **Im laufenden Jahr:** Unter jeder Kennzahl der Voranmeldung stehen die Rechnungen, Belege und Zahlungen dahinter,
-  jede Buchung im Journal führt zu ihrem Vorgang. Voranmeldung und EÜR rechnet Haben zweimal, aus dem Journal und aus
-  Rechnungen und Belegen, und zeigt, wo beides abweicht, siehe
-  [Abgleich von Journal, Umsatzsteuer und EÜR](https://haben.app/buchhaltung.html#abgleich-von-journal-umsatzsteuer-und-eür).
+  jede Buchung im Journal führt zu ihrem Vorgang. Voranmeldung und EÜR rechnet Haben aus dem Journal und prüft es gegen
+  Rechnungen, Belege, gesendete Anmeldungen und Kontoauszüge, siehe
+  [Abgleich im Journal](https://haben.app/buchhaltung.html#abgleich-im-journal).
 - **Danach:** Das Änderungsprotokoll ist eine Hashkette, festgeschriebene Daten sind versiegelt, und den Prüfwert
   bekommst du per E-Mail und im Jahresarchiv mit SHA-256-Prüfsummen, siehe
   [Hash-Kette und Siegel](https://haben.app/buchhaltung.html#manipulationserkennung-hash-kette-und-siegel).

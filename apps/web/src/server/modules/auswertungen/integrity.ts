@@ -41,8 +41,9 @@ export interface IntegrityReport {
   /** true, wenn eine Art von Befund mehr als die angezeigten hat */
   truncated: boolean;
   /**
-   * Abgleich Journal ↔ Umsatzsteuer und EÜR (abgleich.ts): Abweichungen und was nicht verglichen werden konnte.
-   * Eine Abweichung ist kein Beweis für eine Manipulation, aber ein Widerspruch in den Büchern, der zu klären ist.
+   * Abgleich im Journal (abgleich.ts): Verprobung der Umsatzsteuer, gesendete Voranmeldungen, Rechnungen, Bank, EÜR und
+   * Anzahlungsbestände; Abweichungen und was nicht verglichen werden konnte. Eine Abweichung ist kein Beweis für eine
+   * Manipulation, aber ein Widerspruch in den Büchern, der zu klären ist.
    */
   abgleich: { abweichungen: AbgleichZeile[]; hinweise: string[] };
   /** Eigene Nummern, die eine spätere Version von Haben selbst nutzt; kein Beweis einer Manipulation. */

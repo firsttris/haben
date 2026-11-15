@@ -30,8 +30,8 @@ describe.skipIf(!testDatabaseUrl)("Review #585: EÜR-Abgleich mit freien Buchung
     for (const art of ["gewst", "zinsen", "zuschlag", "ustVorjahr"] as const) {
       it(`${art} privat bezahlt: keine Abweichung im EÜR-Abgleich (${kr})`, async () => {
         await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
-        await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
-          values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false, 2026)`;
+        await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer)
+          values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false)`;
         await manual.createManualEntry(
           "test-user",
           {
@@ -49,8 +49,8 @@ describe.skipIf(!testDatabaseUrl)("Review #585: EÜR-Abgleich mit freien Buchung
     }
     it(`Aufwand privat bezahlt: Integrität ohne Befund (${kr})`, async () => {
       await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
-      await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
-        values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false, 2026)`;
+      await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer)
+        values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false)`;
       const id = await manual.createManualEntry(
         "test-user",
         {

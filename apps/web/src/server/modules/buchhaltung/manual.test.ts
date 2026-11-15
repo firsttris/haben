@@ -103,7 +103,7 @@ describe.skipIf(!testDatabaseUrl)("Manuelle Buchungen (Postgres)", () => {
     });
   });
 
-  it("im Einzelunternehmen erst ab dem Stichjahr, nicht in der Zukunft, nur ausgeglichen", async () => {
+  it("im Einzelunternehmen nur gegen Privat, nicht in der Zukunft, nur ausgeglichen", async () => {
     const input = (date: string, credit = 100) => ({
       date,
       description: "Umbuchung",
@@ -112,10 +112,10 @@ describe.skipIf(!testDatabaseUrl)("Manuelle Buchungen (Postgres)", () => {
         { account: "0730", debit: 0, credit },
       ],
     });
-    // Vor dem Stichjahr rechnet die EÜR aus den Nebenbüchern und sähe die Buchung nicht (freie Buchungen, #502)
+    // Im Einzelunternehmen eine freie Buchung (#502): neben dem Erfolgskonto nur ein Privatkonto, nicht das
+    // Gesellschafter-Verrechnungskonto
     await setup("einzelunternehmen", "SKR03");
-    await sql`update company set journal_ab = 2027`;
-    await expect(manual.createManualEntry(actor, input("2026-10-01"), today)).rejects.toThrow("erst ab dem Stichjahr");
+    await expect(manual.createManualEntry(actor, input("2026-10-01"), today)).rejects.toThrow("neben einem Erfolgskonto nur ein Privatkonto");
     await expect(manual.createManualEntry(actor, { ...input("2026-01-01"), kind: "eroeffnung" }, today)).rejects.toThrow("nur für GmbH und UG");
     await setup("gmbh", "SKR03");
     await expect(manual.createManualEntry(actor, input("2026-10-05"), today)).rejects.toThrow("Zukunft");

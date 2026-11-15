@@ -48,10 +48,10 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
       const xml = '<?xml version="1.0"?><Anzahlung nummer="2026-001">357.00</Anzahlung>';
       const { oldId, entryId, contactId } = await sql.begin(async (tx) => {
         await tx`select set_config('haben.actor','transition:altbestand',true)`;
-        await tx`insert into company(id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,rechtsform,kontenrahmen,versteuerung,journal_ab,
+        await tx`insert into company(id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,rechtsform,kontenrahmen,versteuerung,
           datev_berater_nr,datev_mandant_nr)
           values(1,'Muster GmbH','Musterstraße 1','93047','Regensburg','rechnung@example.com','0941 1','198/113/10010','BY',
-            'DE89370400440532013000','gmbh','SKR03','soll',2026,'12345','123')`;
+            'DE89370400440532013000','gmbh','SKR03','soll','12345','123')`;
         const [contact] = await tx`insert into contacts(name,strasse,plz,ort,land,email)
           values('Musterkunde GmbH','Musterweg 7','12345','Musterstadt','DE','kunde@example.org') returning id`;
         const [old] = await tx`insert into invoices(contact_id,issue_date,due_date,variant,advance_type,net,tax,gross,pdf,pdf_sha256,xml,xml_sha256)

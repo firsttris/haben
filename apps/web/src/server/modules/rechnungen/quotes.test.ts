@@ -132,7 +132,7 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     ["2026-12-10", "2026-12-20"],
     ["2026-09-01", null],
   ])("Schlussrechnung übernimmt geplante Angebotsdaten %s bis %s nicht als tatsächliche Schlussleistung (#622)", async (serviceFrom, serviceTo) => {
-    await sql`update company set versteuerung = 'soll', journal_ab = 2026, telefon = '0941 1'`;
+    await sql`update company set versteuerung = 'soll', telefon = '0941 1'`;
     const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft({ serviceFrom, serviceTo }))).id);
     await abschlag(quote.id, 95_000, "2026-10-05");
     const final = await quotes.quoteToInvoice(actor, quote.id, "2026-11-10", "schluss");

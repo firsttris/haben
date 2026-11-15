@@ -1,0 +1,417 @@
+import {
+  bareinnahmeTotals,
+  EXPENSE_CATEGORIES,
+  isLohnZahlung,
+  LOHN_ZAHLUNGEN,
+  recordedTaxShares,
+  totalsFromTaxes,
+  type EuerPayment,
+  type ExpenseCategory,
+  type InvoiceTotals,
+} from "@haben/core";
+import { and, eq, gte, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { euerVerschiebung, verrechnungenImJahr } from "../auswertungen/index.ts";
+import { splitsByDocument } from "../belege/index.ts";
+import { invoiceTotalsById, mixNachVerrechnungen } from "../rechnungen/index.ts";
+
+/*
+ * EINGEFROREN, nur für die Prüfung beim Update (#1116, pruefung.ts): die Zahlungen eines Jahres für die EÜR aus den
+ * Nebenbüchern (früher auswertungen/reports.ts). Nicht weiterentwickeln; fällt mit dem Modul weg.
+ */
+
+const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
+
+/** Summen aus den Beträgen eines Belegs je Steuersatz */
+function documentTotals(amounts: { taxRate: number; net: number; tax: number }[]): InvoiceTotals {
+  return totalsFromTaxes(amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })));
+}
+
+/** Summen je Beleg; reverseCharge sind die Belege mit selbst geschuldeter Steuer (§ 13b, innergemeinschaftlicher Erwerb) */
+async function documentTotalsById(
+  ids: string[],
+  q: Db | Tx = db,
+): Promise<{ totals: Map<string, InvoiceTotals>; reverseCharge: Set<string>; selbstGeschuldet: Map<string, number[]> }> {
+  if (ids.length === 0) return { totals: new Map(), reverseCharge: new Set(), selbstGeschuldet: new Map() };
+  const amounts = await q.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, ids));
+  const reverseCharge = new Set(
+    (
+      await q
+        .select({ id: schema.documents.id })
+        .from(schema.documents)
+        .where(and(inArray(schema.documents.id, ids), isNotNull(schema.documents.reverseCharge)))
+    ).map((d) => d.id),
+  );
+  // § 13b: Gezahlt ist nur netto. Die selbst geschuldete Steuer und die Vorsteuer daraus heben sich auf;
+  // ohne Vorsteuerabzug zählt die Steuer, wenn sie mit der Voranmeldung ans Finanzamt geht.
+  const totals = new Map(
+    ids.map((id) => {
+      const rows = amounts.filter((a) => a.documentId === id);
+      return [id, documentTotals(reverseCharge.has(id) ? rows.map((a) => ({ ...a, tax: 0 })) : rows)];
+    }),
+  );
+  return {
+    totals,
+    reverseCharge,
+    selbstGeschuldet: new Map([...reverseCharge].map((id) => [id, amounts.filter((a) => a.documentId === id).map((a) => a.tax)])),
+  };
+}
+
+/**
+ * Alle Zahlungen eines Jahres für die EÜR: Zuordnungen im Bankabgleich nach Buchungsdatum
+ * des Umsatzes, privat bezahlte Belege nach Belegdatum. Privat und Geldtransit sind nicht
+ * betrieblich und fehlen deshalb.
+ */
+export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerPayment[]> {
+  const start = `${year}-01-01`;
+  const end = `${year + 1}-01-01`;
+  // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar: zählt im Vorjahr (euer-jahreswechsel.ts)
+  const { herein, hinaus } = await euerVerschiebung(year, q);
+  // Tag der Zuordnung: die Gegenzeile einer Aufhebung wirkt an ihrem eigenen Tag (#782), sonst am Buchungsdatum
+  const zuordnungstag = sql<string>`coalesce(${schema.allocations.date}, ${schema.bankTransactions.bookingDate})`;
+  const imJahr = and(gte(zuordnungstag, start), lt(zuordnungstag, end));
+  const allocations = await q
+    .select({
+      id: schema.allocations.id,
+      reversesId: schema.allocations.reversesId,
+      kind: schema.allocations.kind,
+      amount: schema.allocations.amount,
+      taxShares: schema.allocations.taxShares,
+      taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
+      invoiceId: schema.allocations.invoiceId,
+      documentId: schema.allocations.documentId,
+      transactionId: schema.allocations.transactionId,
+      date: zuordnungstag,
+      category: schema.documents.category,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+      privateShare: schema.documents.privateShare,
+      treatment: schema.invoices.taxTreatment,
+      taxType: schema.allocations.taxType,
+      taxItem: schema.allocations.taxItem,
+      loanPart: schema.allocations.loanPart,
+      loanPurpose: schema.loans.purpose,
+      directCategory: schema.allocations.category,
+      directTaxRate: schema.allocations.taxRate,
+    })
+    .from(schema.allocations)
+    .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
+    .leftJoin(schema.documents, eq(schema.documents.id, schema.allocations.documentId))
+    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
+    .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
+    .where(
+      and(
+        herein.size > 0 ? or(imJahr, inArray(schema.allocations.id, [...herein])) : imJahr,
+        inArray(schema.allocations.kind, [
+          "invoice",
+          "document",
+          "ustVorauszahlung",
+          "sondervorauszahlung",
+          "gebuehren",
+          "mahnerloes",
+          "kursdifferenz",
+          "zinsertrag",
+          "steuer",
+          "darlehen",
+          "kategorie",
+          ...LOHN_ZAHLUNGEN,
+        ]),
+      ),
+    );
+
+  const privateDocs = await q
+    .select({
+      id: schema.documents.id,
+      date: schema.documents.documentDate,
+      gross: schema.documents.gross,
+      category: schema.documents.category,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+      privateShare: schema.documents.privateShare,
+    })
+    .from(schema.documents)
+    .where(
+      and(
+        eq(schema.documents.status, "gebucht"),
+        // Privat oder bar aus der Kasse bezahlt: Abfluss am Belegdatum
+        inArray(schema.documents.payment, ["privat", "kasse"]),
+        isNotNull(schema.documents.documentDate),
+        gte(schema.documents.documentDate, start),
+        lt(schema.documents.documentDate, end),
+      ),
+    );
+
+  // Storno eines privat oder bar bezahlten Belegs (#237): fließt am Datum der Gegenbuchung zurück. Über die Bank bezahlte Belege
+  // lassen sich nur ohne Zahlung stornieren, sie haben in der EÜR nichts zurückzunehmen.
+  const cancelledDocs = await q
+    .select({
+      id: schema.documents.id,
+      date: schema.documentCancellations.date,
+      gross: schema.documents.gross,
+      category: schema.documents.category,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+      privateShare: schema.documents.privateShare,
+    })
+    .from(schema.documentCancellations)
+    .innerJoin(schema.documents, eq(schema.documents.id, schema.documentCancellations.documentId))
+    .where(
+      and(inArray(schema.documents.payment, ["privat", "kasse"]), gte(schema.documentCancellations.date, start), lt(schema.documentCancellations.date, end)),
+    );
+
+  // Verrechnungen zweier Belege ohne Zahlung (#274), siehe verrechnungen.ts
+  const settlements = await verrechnungenImJahr(start, end, q);
+
+  // Kursdifferenz beim Ausgleich einer Fremdwährungsrechnung: in der EÜR zählt der gezahlte Euro-Betrag. Der ausgebuchte
+  // Rest wird als Teil der Rechnung bzw. des Belegs gezählt und als eigener Posten Kursgewinn bzw. -verlust wieder abgezogen.
+  const exchangeDifferences = await q
+    .select({
+      amount: schema.writeOffs.amount,
+      taxShares: schema.writeOffs.taxShares,
+      taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
+      date: schema.writeOffs.date,
+      invoiceId: schema.writeOffs.invoiceId,
+      documentId: schema.writeOffs.documentId,
+      transactionId: schema.writeOffs.transactionId,
+      category: schema.documents.category,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+      privateShare: schema.documents.privateShare,
+      treatment: schema.invoices.taxTreatment,
+    })
+    .from(schema.writeOffs)
+    .leftJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
+    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.writeOffs.invoiceId))
+    .where(and(eq(schema.writeOffs.kind, "kursdifferenz"), gte(schema.writeOffs.date, start), lt(schema.writeOffs.date, end)));
+
+  // Bareinnahmen auf Rechnungen im Kassenbuch: Zufluss am Tag der Bareinnahme (§ 11 Abs. 1 EStG), Storno am Tag des Stornos
+  const cashReceipts = await q
+    .select({
+      amount: schema.cashEntries.amount,
+      taxShares: schema.cashEntries.taxShares,
+      taxSharesInvoiceId: schema.cashEntries.taxSharesInvoiceId,
+      invoiceId: schema.cashEntries.invoiceId,
+      date: schema.cashEntries.date,
+      treatment: schema.invoices.taxTreatment,
+    })
+    .from(schema.cashEntries)
+    .innerJoin(schema.invoices, eq(schema.invoices.id, schema.cashEntries.invoiceId))
+    .where(and(gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end)));
+
+  // Bareinnahmen ohne Rechnung (#276): Zufluss am Tag der Bareinnahme, Storno am Tag des Stornos
+  const cashIncome = await q
+    .select({
+      id: schema.cashEntries.id,
+      reversesId: schema.cashEntries.reversesId,
+      amount: schema.cashEntries.amount,
+      date: schema.cashEntries.date,
+      treatment: schema.cashEntries.taxTreatment,
+      rate: schema.cashEntries.taxRate,
+    })
+    .from(schema.cashEntries)
+    .where(and(eq(schema.cashEntries.kind, "einnahme"), gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end)));
+
+  const invoiceTotals = await invoiceTotalsById(
+    [...new Set([...allocations, ...exchangeDifferences, ...cashReceipts].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))],
+    q,
+  );
+  // Nach Verrechnungen verteilen sich die Zahlungen über den Rest der Rechnung, nicht über ihren vollen Mix (#877,
+  // Befund 3): Sonst teilt die EÜR eine Zahlung anders auf als die Voranmeldung, und zwar an beiden Quellen gleich
+  const restMix = await mixNachVerrechnungen(invoiceTotals, q);
+  const mixe = (invoiceId: string) => restMix.get(invoiceId) ?? [invoiceTotals.get(invoiceId)!];
+  const mix = (invoiceId: string) => mixe(invoiceId)[0]!;
+  const {
+    totals: docTotals,
+    reverseCharge,
+    selbstGeschuldet,
+  } = await documentTotalsById(
+    [
+      ...new Set([
+        ...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])),
+        ...settlements.map((s) => s.documentId),
+        ...privateDocs.map((d) => d.id),
+        ...cancelledDocs.map((d) => d.id),
+      ]),
+    ],
+    q,
+  );
+  // Aufgeteilte Belege (#271): Ausgaben je Kontierungszeile statt je Kategorie des Belegs; § 13b: die selbst geschuldete Steuer
+  const docSplits = await splitsByDocument([...docTotals.keys()], q);
+  const belegAngaben = (documentId: string) => {
+    const splits = docSplits.get(documentId);
+    const steuer = selbstGeschuldet.get(documentId);
+    const rc = steuer ? { selbstGeschuldet: steuer } : {};
+    if (!splits) return rc;
+    // § 13b (#508): Die Zeilen tragen ihren Anteil der selbst geschuldeten Steuer; gezahlt ist wie in docTotals nur netto
+    return { ...rc, splits: reverseCharge.has(documentId) ? splits.map((line) => ({ ...line, tax: 0 })) : splits };
+  };
+
+  const payments: EuerPayment[] = [];
+  for (const zuordnung of allocations) {
+    if (hinaus.has(zuordnung.id)) continue;
+    const a = herein.has(zuordnung.id) ? { ...zuordnung, date: `${year}-12-31` } : zuordnung;
+    // Zuordnung und Gegenzeile hängen am selben Umsatz und heben sich so exakt auf
+    const group = `${a.transactionId}|${a.invoiceId ?? a.documentId ?? a.kind}`;
+    if (a.kind === "invoice" && a.invoiceId) {
+      payments.push({
+        kind: "invoice",
+        date: a.date,
+        paid: a.amount,
+        totals: mix(a.invoiceId),
+        // Wie gebucht; ältere Zahlungen ohne gespeicherten Anteil rechnet die EÜR weiter aus der Summe je Umsatz
+        ...(a.taxShares
+          ? {
+              shares: recordedTaxShares(
+                invoiceTotals.get(a.invoiceId)!,
+                a.amount,
+                a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null,
+                mixe(a.invoiceId),
+              ),
+            }
+          : {}),
+        treatment: a.treatment ?? "regulaer",
+        group,
+      });
+    } else if (a.kind === "document" && a.documentId) {
+      payments.push({
+        kind: "document",
+        date: a.date,
+        paid: -a.amount,
+        totals: docTotals.get(a.documentId)!,
+        category: isCategory(a.category) ? a.category : "sonstiges",
+        vorsteuerAbzug: a.vorsteuerAbzug ?? true,
+        privateShare: a.privateShare ?? 0,
+        ...belegAngaben(a.documentId),
+        group,
+      });
+    } else if (
+      a.kind === "ustVorauszahlung" ||
+      a.kind === "sondervorauszahlung" ||
+      a.kind === "gebuehren" ||
+      a.kind === "mahnerloes" ||
+      a.kind === "zinsertrag" ||
+      a.kind === "kursdifferenz"
+    ) {
+      payments.push({
+        kind: a.kind,
+        date: a.date,
+        amount: a.amount,
+        // Verrechnete Zahlung und Erstattung desselben Umsatzes bleiben eigene EÜR-Zeilen (Anleitung EÜR 2025, Z. 18/58).
+        // Nur eine Zuordnung und ihre Gegenzeile verrechnen; ustAbfluss gehört jeweils zu dieser ursprünglichen Zuordnung.
+        group: a.kind === "ustVorauszahlung" || a.kind === "sondervorauszahlung" ? (a.reversesId ?? a.id) : group,
+        // Die Richtung bleibt die der ursprünglichen Zuordnung, auch nach einer jahresübergreifenden Rücknahme.
+        ...(a.kind === "ustVorauszahlung" || a.kind === "sondervorauszahlung" ? { ustAbfluss: (a.reversesId ? -a.amount : a.amount) < 0 } : {}),
+      });
+    } else if (a.kind === "steuer" && a.taxType && a.taxItem) {
+      // Im Jahr der Zahlung (§ 11 EStG), unabhängig vom Bezugsjahr; Teil und Steuerart bestimmen die Zeile
+      // Je Zuordnung, nicht je Umsatz: Die Wirkung hängt am Vorzeichen jedes Teils (Erstattungszinsen sind Einnahme,
+      // Nachzahlungszinsen zur Gewerbesteuer nicht); nur Zuordnung und Gegenzeile heben sich auf
+      payments.push({ kind: "steuer", date: a.date, amount: a.amount, art: a.taxType, posten: a.taxItem, group: a.reversesId ?? a.id });
+    } else if (a.kind === "darlehen" && a.loanPart && a.loanPurpose) {
+      // Zinsen und Gebühren als Schuldzinsen, wenn sie abfließen; Auszahlung und Tilgung sind erfolgsneutral
+      payments.push({ kind: "darlehen", date: a.date, amount: a.amount, zweck: a.loanPurpose, teil: a.loanPart, group });
+    } else if (a.kind === "kategorie" && a.directCategory && a.directTaxRate !== null) {
+      // Direkt auf eine Kategorie (#324): Einnahme netto und Umsatzsteuer, Ausgabe brutto, am Tag der Zahlung. Je Teil mit
+      // seiner Gegenzeile verrechnet, nicht je Umsatz: Journal und Voranmeldung runden die Steuer je Teil
+      payments.push({
+        kind: "kategorie",
+        date: a.date,
+        amount: a.amount,
+        kategorie: a.directCategory,
+        steuersatz: a.directTaxRate,
+        group: a.reversesId ?? a.id,
+      });
+    } else if (isLohnZahlung(a.kind)) {
+      // Lohn, Lohnsteuer und Beiträge: Ausgaben für Personal, wenn sie von der Bank abfließen (§ 11 Abs. 2 Satz 1 EStG)
+      payments.push({ kind: "lohn", date: a.date, amount: a.amount, group });
+    }
+  }
+  // Verrechnung wie eine Zahlung auf den Beleg: ausgeglichen ist `-amount`, gezahlt also `amount` mit umgekehrtem Vorzeichen
+  for (const s of settlements) {
+    payments.push({
+      kind: "document",
+      date: s.date,
+      paid: -s.amount,
+      totals: docTotals.get(s.documentId)!,
+      category: isCategory(s.category) ? s.category : "sonstiges",
+      vorsteuerAbzug: s.vorsteuerAbzug ?? true,
+      privateShare: s.privateShare ?? 0,
+      ...belegAngaben(s.documentId),
+    });
+  }
+  for (const w of exchangeDifferences) {
+    const group = `kurs|${w.transactionId}|${w.invoiceId ?? w.documentId}`;
+    if (w.invoiceId) {
+      payments.push({
+        kind: "invoice",
+        date: w.date,
+        paid: w.amount,
+        totals: mix(w.invoiceId),
+        ...(w.taxShares
+          ? {
+              shares: recordedTaxShares(
+                invoiceTotals.get(w.invoiceId)!,
+                w.amount,
+                w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null,
+                mixe(w.invoiceId),
+              ),
+            }
+          : {}),
+        treatment: w.treatment ?? "regulaer",
+        group,
+      });
+    } else if (w.documentId) {
+      payments.push({
+        kind: "document",
+        date: w.date,
+        paid: -w.amount,
+        totals: docTotals.get(w.documentId)!,
+        category: isCategory(w.category) ? w.category : "sonstiges",
+        vorsteuerAbzug: w.vorsteuerAbzug ?? true,
+        privateShare: w.privateShare ?? 0,
+        ...belegAngaben(w.documentId),
+        group,
+      });
+    }
+    // Rechnung: weniger erhalten (Rest positiv) ist Verlust; Beleg: weniger gezahlt (Rest negativ) ist Gewinn
+    payments.push({ kind: "kursdifferenz", date: w.date, amount: -w.amount, group });
+  }
+  for (const c of cashReceipts) {
+    const totals = mix(c.invoiceId!);
+    payments.push({
+      kind: "invoice",
+      date: c.date,
+      paid: c.amount,
+      totals,
+      shares: recordedTaxShares(invoiceTotals.get(c.invoiceId!)!, c.amount, c.taxSharesInvoiceId === c.invoiceId ? c.taxShares : null, mixe(c.invoiceId!)),
+      treatment: c.treatment,
+    });
+  }
+  for (const c of cashIncome) {
+    if (!c.treatment || c.rate === null) continue;
+    // Wie eine bezahlte Rechnung mit einem Steuersatz: dieselbe Zuordnung zu steuerpflichtig, steuerfrei und Kleinunternehmer
+    const angabe = { behandlung: c.treatment, steuersatz: c.rate };
+    const totals = bareinnahmeTotals(angabe, c.amount);
+    payments.push({ kind: "invoice", date: c.date, paid: c.amount, totals, shares: totals.taxes, treatment: c.treatment, group: c.reversesId ?? c.id });
+  }
+  const documentPayment = (d: (typeof privateDocs)[number], date: string, paid: number): EuerPayment => ({
+    kind: "document",
+    date,
+    paid,
+    totals: docTotals.get(d.id)!,
+    category: isCategory(d.category) ? d.category : "sonstiges",
+    vorsteuerAbzug: d.vorsteuerAbzug,
+    privateShare: d.privateShare,
+    ...belegAngaben(d.id),
+  });
+  for (const d of privateDocs) payments.push(documentPayment(d, d.date!, d.gross));
+  for (const d of cancelledDocs) payments.push(documentPayment(d, d.date, -d.gross));
+  const pauschalen = await q
+    .select({
+      date: schema.pauschalen.date,
+      amount: schema.pauschalen.amount,
+      art: schema.pauschalen.art,
+      id: schema.pauschalen.id,
+      reversesId: schema.pauschalen.reversesId,
+    })
+    .from(schema.pauschalen)
+    .where(and(gte(schema.pauschalen.date, `${year}-01-01`), lt(schema.pauschalen.date, `${year + 1}-01-01`)));
+  for (const p of pauschalen) payments.push({ kind: "pauschale", date: p.date, amount: p.amount, art: p.art, group: p.reversesId ?? p.id });
+  return payments;
+}

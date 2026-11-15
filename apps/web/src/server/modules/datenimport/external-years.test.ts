@@ -54,8 +54,8 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
   });
   async function reset(kr: Kontenrahmen, mode: Versteuerung) {
     await leeren(sql)`truncate company, journal_entries, external_imports, lexoffice_imports, vat_returns, vat_frequencies, cash_entries cascade`;
-    await sql`insert into company (id,name,strasse,plz,ort,email,steuernummer,bundesland,iban,versteuerung,kontenrahmen,journal_ab)
-      values (1,'Erfundener Testbetrieb','Musterweg 1','93047','Regensburg','test@example.com','198/113/10010','BY','DE89370400440532013000',${mode},${kr},2026)`;
+    await sql`insert into company (id,name,strasse,plz,ort,email,steuernummer,bundesland,iban,versteuerung,kontenrahmen)
+      values (1,'Erfundener Testbetrieb','Musterweg 1','93047','Regensburg','test@example.com','198/113/10010','BY','DE89370400440532013000',${mode},${kr})`;
   }
   const income = (euer: Awaited<ReturnType<typeof reports.euerForYear>>) => euer.einnahmen.find((l) => l.key === "einnahmenSteuerpflichtig")?.amount ?? 0;
   const expense = (euer: Awaited<ReturnType<typeof reports.euerForYear>>) => euer.ausgaben.find((l) => l.key === "ausgabe:edv")?.amount ?? 0;

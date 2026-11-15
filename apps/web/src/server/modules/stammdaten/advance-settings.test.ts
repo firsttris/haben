@@ -48,9 +48,9 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
   beforeEach(async () => {
     rendering.hook = null;
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung, rechtsform, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Muster GmbH', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
-        'BY', 'DE89370400440532013000', 'SKR03', 'soll', 'gmbh', 2026)`;
+        'BY', 'DE89370400440532013000', 'SKR03', 'soll', 'gmbh')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",

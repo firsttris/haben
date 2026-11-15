@@ -1,3 +1,4 @@
+import type { EuerLine, EuerResult } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -10,6 +11,19 @@ function dkbCsv(rows: string[][]) {
 
 const PDF = new TextEncoder().encode("%PDF-1.4\n% RE1019 aus Lexoffice\n%%EOF\n");
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 8, 7]);
+
+/** Was euerForYear liefert, kurz: Zeilen mit Betrag (und Notiz), Gewinn, nachrichtliche Beträge, Monate */
+function kurz(e: EuerResult) {
+  const zeilen = (l: EuerLine[]) => l.map((z) => (z.note ? [z.key, z.amount, z.note] : [z.key, z.amount]));
+  return {
+    einnahmen: zeilen(e.einnahmen),
+    ausgaben: zeilen(e.ausgaben),
+    gewinn: e.gewinn,
+    bewirtung: e.bewirtungNichtAbziehbar,
+    gewerbesteuer: e.gewerbesteuerNichtAbziehbar,
+    monate: e.monthly,
+  };
+}
 
 describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten in der EÜR aus dem Journal (Postgres)", () => {
   let legacy: typeof import("./legacy-open.ts");
@@ -30,6 +44,16 @@ describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten in der EÜR aus
   afterAll(async () => {
     await sql?.end();
   });
+
+  /** EÜR des Jahres gegen die festen Werte (ERWARTET), je Test und Jahr; ein zweiter Aufruf im selben Test hat „|2“ */
+  const aufrufe = new Map<string, number>();
+  async function wieErwartet(year: number) {
+    const test = `${expect.getState().currentTestName!.split(" > ").at(-1)}|${year}`;
+    const n = (aufrufe.get(test) ?? 0) + 1;
+    aufrufe.set(test, n);
+    const key = n === 1 ? test : `${test}|${n}`;
+    expect(kurz(await reports.euerForYear(year)), key).toEqual(ERWARTET[key]);
+  }
 
   async function legacyVoucher(values: {
     type: string;
@@ -87,7 +111,7 @@ describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten in der EÜR aus
   };
 
   const gleich = async (year: number) => {
-    expect(await reports.euerForYear(year)).toEqual(await reports.euerAusNebenbuechern(year));
+    await wieErwartet(year);
   };
   const zeile = (date: string, name: string, purpose: string, amount: string, eingang: boolean) => [
     date,
@@ -206,3 +230,180 @@ describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten in der EÜR aus
     }, 60_000);
   }
 });
+
+/**
+ * Feste Werte der EÜR je Test und Jahr. Bis #1116 verglich der Test die EÜR aus dem Journal mit der aus den Nebenbüchern;
+ * die Werte sind die der Nebenbücher, wie sie die Rechnung aus dem Journal seither ergeben muss.
+ */
+const ERWARTET: Record<string, ReturnType<typeof kurz>> = {
+  "Teilzahlungen mit krummen Beträgen auf übernommene Rechnung und übernommenen Beleg, auch über den Jahreswechsel (SKR03, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 8404],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1597],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1961, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 532],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 7508,
+    bewirtung: 840,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 8404, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1961, 0, 0] },
+  },
+  "Teilzahlungen mit krummen Beträgen auf übernommene Rechnung und übernommenen Beleg, auch über den Jahreswechsel (SKR03, ist)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 24929],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 4736],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1540, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 418],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 27707,
+    bewirtung: 660,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [24929, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [1540, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Teilzahlungen mit krummen Beträgen auf übernommene Rechnung und übernommenen Beleg, auch über den Jahreswechsel (SKR03, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 8404],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1597],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1961, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 532],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 7508,
+    bewirtung: 840,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 8404, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1961, 0, 0] },
+  },
+  "Teilzahlungen mit krummen Beträgen auf übernommene Rechnung und übernommenen Beleg, auch über den Jahreswechsel (SKR03, soll)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 24929],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 4736],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1540, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 418],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 27707,
+    bewirtung: 660,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [24929, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [1540, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Teilzahlungen mit krummen Beträgen auf übernommene Rechnung und übernommenen Beleg, auch über den Jahreswechsel (SKR04, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 8404],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1597],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1961, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 532],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 7508,
+    bewirtung: 840,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 8404, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1961, 0, 0] },
+  },
+  "Teilzahlungen mit krummen Beträgen auf übernommene Rechnung und übernommenen Beleg, auch über den Jahreswechsel (SKR04, ist)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 24929],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 4736],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1540, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 418],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 27707,
+    bewirtung: 660,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [24929, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [1540, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Teilzahlungen mit krummen Beträgen auf übernommene Rechnung und übernommenen Beleg, auch über den Jahreswechsel (SKR04, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 8404],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1597],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1961, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 532],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 7508,
+    bewirtung: 840,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 8404, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1961, 0, 0] },
+  },
+  "Teilzahlungen mit krummen Beträgen auf übernommene Rechnung und übernommenen Beleg, auch über den Jahreswechsel (SKR04, soll)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 24929],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 4736],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1540, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 418],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 27707,
+    bewirtung: 660,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [24929, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [1540, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Teilzahlung und Skonto auf übernommene Rechnung und übernommenen Beleg (ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 32586],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 6191],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:buero", 4900],
+      ["vorsteuer", 931],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 32946,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 32586, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 4900, 0, 0] },
+  },
+  "Teilzahlung und Skonto auf übernommene Rechnung und übernommenen Beleg (soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 32586],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 6191],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:buero", 4900],
+      ["vorsteuer", 931],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 32946,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 32586, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 4900, 0, 0] },
+  },
+};

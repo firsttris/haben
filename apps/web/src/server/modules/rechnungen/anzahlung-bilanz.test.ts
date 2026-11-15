@@ -29,9 +29,9 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
   });
   beforeEach(async () => {
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, bank_accounts, cash_entries cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
-      'BY', 'DE89370400440532013000', 'SKR03', 'soll', 2026)`;
+      'BY', 'DE89370400440532013000', 'SKR03', 'soll')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -155,9 +155,6 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
         { base: 0, tax: 0 },
         { base: 0, tax: 0 },
       ]);
-      expect(figures.map(({ nebenbuecher }) => ({ base: nebenbuecher?.kz81, tax: nebenbuecher?.tax81 }))).toEqual(
-        figures.map(({ kz81, tax81 }) => ({ base: kz81, tax: tax81 })),
-      );
       expect((await bank.cashBook(2026)).entries).toHaveLength(1);
       expect((await bank.cashBook(2027)).entries).toHaveLength(0);
       expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);

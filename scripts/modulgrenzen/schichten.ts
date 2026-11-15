@@ -21,6 +21,7 @@ export const SCHICHTEN = [
   "belege",
   "sv-meldungen",
   "auswertungen",
+  "umstellung",
   "koerperschaft",
   "ausschuettung",
   "jahreserklaerung",

@@ -17,7 +17,6 @@ const kontext = (kontenrahmen: "SKR03" | "SKR04", rechtsform: "einzelunternehmen
   kontenrahmen,
   rechtsform,
   kleinunternehmer: false,
-  ausDemJournal: true,
 });
 
 for (const kr of ["SKR03", "SKR04"] as const) {
@@ -61,12 +60,11 @@ for (const kr of ["SKR03", "SKR04"] as const) {
       expect(reverseManualPosting([{ account: k.ust19, debit: 0, credit: 0, taxCode: "USt19", basis: 500 }])[0]!.basis).toBe(-500);
     });
 
-    it("lehnt ab: Schlüssel auf einem anderen Konto, ohne Stichjahr, als Kleinunternehmer, Gegenkonto Bank", () => {
+    it("lehnt ab: Schlüssel auf einem anderen Konto, als Kleinunternehmer, Gegenkonto Bank", () => {
       const falsch: ManualLine[] = [entnahme[0]!, { ...entnahme[1]!, account: k.erloese7 }];
       expect(manualPostingIssues(falsch, kr, "einzelunternehmen")).toContain(
         `Zeile 2: Mit USt19 bucht die Zeile auf ${k.erloese19} oder ${kr === "SKR03" ? "8910" : "4620"}`,
       );
-      expect(freieBuchungIssues(entnahme, { ...kontext(kr), ausDemJournal: false })[0]).toMatch(/erst ab dem Stichjahr/);
       expect(freieBuchungIssues(entnahme, { ...kontext(kr), kleinunternehmer: true })).toContain(
         "Als Kleinunternehmer bucht Haben keine Umsatzsteuer (§ 19 Abs. 1 UStG)",
       );
@@ -74,7 +72,7 @@ for (const kr of ["SKR03", "SKR04"] as const) {
       expect(manualPostingIssues(bank, kr, "einzelunternehmen").join()).toMatch(/Nebenbuch Bank/);
     });
 
-    it("GmbH: Gegenkonto Gesellschafter-Verrechnungskonto, Privat nicht; ohne Schlüssel vor dem Stichjahr wie bisher", () => {
+    it("GmbH: Gegenkonto Gesellschafter-Verrechnungskonto, Privat nicht; Umbuchung ohne Schlüssel", () => {
       const gesellschafter: ManualLine[] = [{ ...entnahme[0]!, account: k.gesellschafter }, entnahme[1]!];
       expect(manualPostingIssues(gesellschafter, kr, "gmbh")).toEqual([]);
       expect(freieBuchungIssues(gesellschafter, kontext(kr, "gmbh"))).toEqual([]);
@@ -83,7 +81,7 @@ for (const kr of ["SKR03", "SKR04"] as const) {
         { account: k.aufwand, debit: 100, credit: 0 },
         { account: k.gesellschafter, debit: 0, credit: 100 },
       ];
-      expect(freieBuchungIssues(umbuchung, { ...kontext(kr, "gmbh"), ausDemJournal: false })).toEqual([]);
+      expect(freieBuchungIssues(umbuchung, kontext(kr, "gmbh"))).toEqual([]);
     });
 
     it("Einzelunternehmen: neben einem Erfolgskonto nur Privat; jedes Erfolgskonto mit Zeile der EÜR", () => {

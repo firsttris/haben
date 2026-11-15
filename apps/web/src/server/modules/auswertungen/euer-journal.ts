@@ -145,12 +145,20 @@ function dazu(nach: EuerAusJournal, von: EuerAusJournal, vorzeichen: 1 | -1 = 1)
   nach.gewerbesteuerNichtAbziehbar += vorzeichen * von.gewerbesteuerNichtAbziehbar;
 }
 
-/** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
-export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string): Promise<EuerJournal> {
+/**
+ * Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind.
+ * `ohneManuelle`: ohne manuelle Buchungen (GmbH und UG, dort Abschlussbuchungen, reports.ts).
+ */
+export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string, ohneManuelle = false): Promise<EuerJournal> {
   const e = schema.journalEntries;
   const buchungenImJahr = await buchungen(
     q,
-    and(gte(e.date, `${year}-01-01`), umsatzBis ? lte(e.date, umsatzBis) : lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung")),
+    and(
+      gte(e.date, `${year}-01-01`),
+      umsatzBis ? lte(e.date, umsatzBis) : lt(e.date, `${year + 1}-01-01`),
+      ne(e.sourceType, "eroeffnung"),
+      ohneManuelle ? ne(e.sourceType, "manuell") : undefined,
+    ),
   );
   // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
   const jahr = umsatzBis ? buchungenImJahr : await imEuerJahr(year, buchungenImJahr, q);

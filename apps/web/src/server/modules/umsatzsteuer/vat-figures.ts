@@ -1,5 +1,4 @@
 import {
-  JOURNAL_KENNZAHLEN,
   bareinnahmeAnteil,
   kategorieAnteil,
   kategorieArt,
@@ -10,13 +9,12 @@ import {
   recordedTaxShares,
   splitPrivateShare,
   type Cents,
-  type JournalKennzahlen,
   type TaxTreatment,
   type VatPeriod,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
-import { journalAbJahr, kleinunternehmerForMonth } from "../stammdaten/index.ts";
+import { kleinunternehmerForMonth } from "../stammdaten/index.ts";
 import { gutschriftAnteile } from "./gutschrift.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -80,6 +78,11 @@ export interface IgErwerbSource extends InputTaxSource {
  */
 export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung", "drittland"] as const satisfies readonly TaxTreatment[];
 
+/**
+ * Kennzahlen der Voranmeldung aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md). Die Listen (revenue,
+ * inputTax, …) kommen aus den Nebenbüchern; sie erläutern die Kennzahlen in Oberfläche und Vorprüfung und tragen die ZM,
+ * gerechnet wird aus ihnen nicht.
+ */
 export interface VatFigures {
   versteuerung: "ist" | "soll";
   /** Kleinunternehmer geben keine Voranmeldung ab */
@@ -119,40 +122,8 @@ export interface VatFigures {
   igErwerb: IgErwerbSource[];
   /** Belege zur Einfuhrumsatzsteuer: der ganze Betrag als Steuer */
   einfuhr: InputTaxSource[];
-  /**
-   * Woher die Kennzahlen kommen: ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md), davor aus den
-   * Nebenbüchern. Die Listen (revenue, inputTax, …) kommen immer aus den Nebenbüchern; sie erläutern die Kennzahlen.
-   */
-  quelle: "journal" | "nebenbuecher";
-  /** Ab dem Stichjahr: die Kennzahlen aus den Nebenbüchern, die Gegenprobe im Abgleich */
-  nebenbuecher?: JournalKennzahlen;
 }
 
-/**
- * Ab dem Stichjahr (journalAbJahr) sind die Kennzahlen die aus dem Journal; die Privatnutzung von Fahrzeugen kommt dazu wie
- * in den Nebenbüchern aus dem Anlagenverzeichnis. Die Kennzahlen der Nebenbücher bleiben als Gegenprobe für den Abgleich.
- */
-async function journalAlsQuelle(period: VatPeriod, figures: VatFigures, q: Db | Tx): Promise<VatFigures> {
-  if (period.year < (await journalAbJahr(q))) return figures;
-  return ausDemJournal(period, figures, q);
-}
-
-async function ausDemJournal(period: VatPeriod, figures: VatFigures, q: Db | Tx): Promise<VatFigures> {
-  const journal = await kennzahlenAusDemJournal(period, figures.versteuerung, q);
-  const entnahme = figures.revenue.filter((r) => r.type === "entnahme");
-  journal.kz81 += entnahme.reduce((s, r) => s + r.base, 0);
-  journal.tax81 += entnahme.reduce((s, r) => s + r.tax, 0);
-  // Freie Buchungen haben kein Nebenbuch; die Gegenprobe zählt sie aus der festgeschriebenen Buchung selbst
-  const manuell = await kennzahlenAusDemJournal(period, figures.versteuerung, q, true);
-  const nebenbuecher = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, figures[feld] + manuell[feld]])) as JournalKennzahlen;
-  return { ...figures, ...journal, quelle: "journal", nebenbuecher };
-}
-
-/**
- * Kennzahlen eines Monats oder Quartals aus den Buchungen; ein Quartal umfasst die Buchungen seiner drei Monate. Ist-Versteuerung: Umsatzsteuer nach Datum des
- * zugeordneten Zahlungseingangs, bei Teilzahlungen anteilig. Soll: nach Rechnungsdatum.
- * Vorsteuer in beiden Fällen nach Belegdatum.
- */
 /** Gemeinsame, auf diesen Leseaufruf begrenzte Caches, etwa für die Quartale einer ZM-Auswahl. */
 export function vatFiguresContext(q: Db | Tx = db) {
   const taxes = invoiceTaxReader(q);
@@ -170,6 +141,11 @@ export function vatFiguresContext(q: Db | Tx = db) {
   };
 }
 
+/**
+ * Voranmeldung eines Monats oder Quartals: Kennzahlen aus den Buchungen des Zeitraums, Erläuterungen aus den Nebenbüchern.
+ * Ist-Versteuerung: Umsatzsteuer nach Datum des zugeordneten Zahlungseingangs, bei Teilzahlungen anteilig. Soll: nach
+ * Rechnungsdatum. Vorsteuer in beiden Fällen nach Belegdatum.
+ */
 export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, context = vatFiguresContext(q)): Promise<VatFigures> {
   const { start, end } = periodRange(period);
   const versteuerung = await context.taxes.modeForYear(period.year);
@@ -614,48 +590,23 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       base: 0,
       tax: sign * (a.base + a.tax),
     }));
-  const ige = (rate: number, key: "base" | "tax") => igErwerb.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
-  const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") => reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
-
-  const regular = revenue.filter((r) => r.treatment === "regulaer");
-  const sum = (rows: { base: Cents; tax: Cents; rate: number }[], rate: number, key: "base" | "tax") =>
-    rows.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
-  const treated = (treatment: TaxTreatment) => revenue.filter((r) => r.treatment === treatment).reduce((s, r) => s + r.base, 0);
-
-  const figures: VatFigures = {
+  // Die Kennzahlen aus dem Journal (#542, #1116), wie bei DATEV aus Konto und Steuerschlüssel; die Privatnutzung von
+  // Fahrzeugen je Monat aus dem Anlagenverzeichnis (das Journal bucht sie erst mit der AfA)
+  const kennzahlen = await kennzahlenAusDemJournal(period, versteuerung, q);
+  const entnahme = revenue.filter((r) => r.type === "entnahme");
+  kennzahlen.kz81 += entnahme.reduce((s, r) => s + r.base, 0);
+  kennzahlen.tax81 += entnahme.reduce((s, r) => s + r.tax, 0);
+  return {
     versteuerung,
     // Stand am Ende des Zeitraums der Voranmeldung, nicht der heutige
     kleinunternehmer: await kleinunternehmerForMonth(lastMonthOfPeriod(period).year, lastMonthOfPeriod(period).month, q),
-    kz81: sum(regular, 1900, "base"),
-    tax81: sum(regular, 1900, "tax"),
-    kz86: sum(regular, 700, "base"),
-    tax86: sum(regular, 700, "tax"),
-    kz21: treated("reverse_charge"),
-    kz45: treated("drittland"),
-    kz48: treated("steuerfrei"),
-    kz66: inputTax.reduce((s, a) => s + a.tax, 0),
-    kz46: rcSum("eu", "base"),
-    kz47: rcSum("eu", "tax"),
-    kz84: rcSum("drittland", "base"),
-    kz85: rcSum("drittland", "tax"),
-    kz67: reverseCharge.reduce((s, r) => s + r.deductible, 0),
-    kz41: treated("ig_lieferung"),
-    kz43: treated("ausfuhr"),
-    kz89: ige(1900, "base"),
-    tax89: ige(1900, "tax"),
-    kz93: ige(700, "base"),
-    tax93: ige(700, "tax"),
-    kz61: igErwerb.reduce((s, r) => s + r.deductible, 0),
-    kz62: einfuhr.reduce((s, r) => s + r.tax, 0),
-    steuerfrei: sum(regular, 0, "base"),
+    ...kennzahlen,
     revenue,
     inputTax,
     reverseCharge,
     igErwerb,
     einfuhr,
-    quelle: "nebenbuecher",
   };
-  return journalAlsQuelle(period, figures, q);
 }
 
 export interface PreflightIssue {
@@ -730,16 +681,4 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
     });
   }
   return issues;
-}
-
-/**
- * Kennzahlen eines Zeitraums aus dem Journal und aus den Nebenbüchern, unabhängig vom Stichjahr. Für das Vorziehen des
- * Stichjahrs (auswertungen/stichjahr.ts): Es ändert keine Zahl, wenn beide gleich sind. Der Abgleich allein reicht dafür
- * nicht, er lässt ältere Buchungen ohne Bemessungsgrundlage bzw. Steuerschlüssel bewusst aus.
- */
-export async function kennzahlenBeiderQuellen(period: VatPeriod, q: Db | Tx = db): Promise<{ journal: JournalKennzahlen; nebenbuecher: JournalKennzahlen }> {
-  const figures = await computeVatFigures(period, q);
-  const beide = figures.quelle === "journal" ? figures : await ausDemJournal(period, figures, q);
-  const journal = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, beide[feld]])) as JournalKennzahlen;
-  return { journal, nebenbuecher: beide.nebenbuecher! };
 }

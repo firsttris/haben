@@ -71,7 +71,6 @@ describe.skipIf(!testDatabaseUrl)("Beleg: Gutschrift „erstattet bereits Bezahl
         expect(lines).toContainEqual({ account: ZWISCHEN[kontenrahmen], debit: 0, credit: 1_900, tax_code: "VSt19" });
         expect(lines.map((l) => l.account)).not.toContain(VORSTEUER[kontenrahmen]);
         const figures = await vat.computeVatFigures({ year: 2026, month: 9 });
-        expect(figures.quelle).toBe("journal");
         expect(figures.kz66).toBe(0);
       });
 

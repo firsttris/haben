@@ -27,8 +27,8 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
   async function reset(kr: "SKR03" | "SKR04" = "SKR03", vat: "ist" | "soll" = "ist") {
     await leeren(sql)`truncate document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, year_closings, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, journal_ab)
-      values (1, 'Musterbetrieb', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, ${vat}, 2026)`;
+    await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung)
+      values (1, 'Musterbetrieb', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, ${vat})`;
   }
   async function receipt() {
     sequence++;

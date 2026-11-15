@@ -113,7 +113,5 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist (Post
       kz86: 10_000,
       tax86: 700,
     });
-    const beide = await figures.kennzahlenBeiderQuellen({ year: 2026, month: 11 });
-    expect({ kz81: beide.journal.kz81, kz86: beide.journal.kz86 }).toEqual({ kz81: beide.nebenbuecher.kz81, kz86: beide.nebenbuecher.kz86 });
   }, 60_000);
 });

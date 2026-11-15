@@ -38,10 +38,10 @@ const ausgang = (date: string, name: string, amount: string) => [
 ];
 
 /*
- * EÜR ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md, Entscheidung 3): euerForYear rechnet aus dem
- * Journal (euer-quelle.ts), die Nebenbücher sind die Gegenprobe im Abgleich. Gleiche Zeilen, gleicher Gewinn, gleiche Monate.
+ * EÜR aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md): euerForYear rechnet aus dem Journal (euer-quelle.ts).
+ * Die festen Werte sind die, die bis #1116 die Nebenbücher als Gegenprobe lieferten.
  */
-describe.skipIf(!testDatabaseUrl)("EÜR ab dem Stichjahr aus dem Journal (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal (Postgres)", () => {
   let abgleich: typeof import("./abgleich.ts");
   let reports: typeof import("./reports.ts");
   let pauschalen: typeof import("../buchhaltung/pauschalen.ts");
@@ -76,14 +76,13 @@ describe.skipIf(!testDatabaseUrl)("EÜR ab dem Stichjahr aus dem Journal (Postgr
     kontenrahmen: "SKR03" | "SKR04" = "SKR03",
     kleinunternehmer = false,
     rechtsform: "einzelunternehmen" | "gmbh" = "einzelunternehmen",
-    journalAb: number | null = null,
   ) {
     await leeren(sql)`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
       cash_entries, write_offs, year_closings, loans, journal_lines, journal_entries, document_splits, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer, rechtsform, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer, rechtsform)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer}, ${rechtsform}, ${journalAb})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer}, ${rechtsform})`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -187,24 +186,41 @@ describe.skipIf(!testDatabaseUrl)("EÜR ab dem Stichjahr aus dem Journal (Postgr
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const versteuerung of ["ist", "soll"] as const) {
-      it(`ab dem Stichjahr aus dem Journal: Zeilen, Gewinn und Monate wie aus den Nebenbüchern (${kontenrahmen}, ${versteuerung})`, async () => {
+      it(`Zeilen, Gewinn und Monate aus dem Journal, Teilzahlung über den Jahreswechsel (${kontenrahmen}, ${versteuerung})`, async () => {
         await reset(versteuerung, kontenrahmen);
         await geschaeftsjahr();
-        for (const year of [2026, 2027]) {
+        const nur = (einnahmen: number, ausgaben: number, monat: number) => ({
+          einnahmen: Array.from({ length: 12 }, (_, i) => (i === monat ? einnahmen : 0)),
+          ausgaben: Array.from({ length: 12 }, (_, i) => (i === monat ? ausgaben : 0)),
+        });
+        // Bis #1116 die Werte der Gegenprobe aus den Nebenbüchern, bei Ist und Soll gleich (EÜR nach Zahlung)
+        const erwartet = {
+          2026: {
+            zeilen: {
+              einnahmenSteuerpflichtig: 8_640,
+              vereinnahmteUst: 1_361,
+              "ausgabe:edv": 10_000,
+              "ausgabe:telefon": 1_750,
+              "pauschale:homeoffice": 5_400,
+              vorsteuer: 2_232,
+            },
+            gewinn: -9_381,
+            monthly: nur(8_640, 17_150, 11),
+          },
+          2027: { zeilen: { einnahmenSteuerpflichtig: 37_038, vereinnahmteUst: 5_836 }, gewinn: 42_874, monthly: nur(37_038, 0, 0) },
+        };
+        for (const year of [2026, 2027] as const) {
           const journal = await reports.euerForYear(year);
-          const nebenbuecher = await reports.euerAusNebenbuechern(year);
-          const zeilen = (r: typeof journal) => Object.fromEntries([...r.einnahmen, ...r.ausgaben].filter((l) => l.amount !== 0).map((l) => [l.key, l.amount]));
-          expect(zeilen(journal), String(year)).toEqual(zeilen(nebenbuecher));
-          expect(journal.gewinn, String(year)).toBe(nebenbuecher.gewinn);
-          expect(journal.monthly, String(year)).toEqual(nebenbuecher.monthly);
-          expect(journal.bewirtungNichtAbziehbar).toBe(nebenbuecher.bewirtungNichtAbziehbar);
+          const zeilen = Object.fromEntries([...journal.einnahmen, ...journal.ausgaben].filter((l) => l.amount !== 0).map((l) => [l.key, l.amount]));
+          expect({ zeilen, gewinn: journal.gewinn, monthly: journal.monthly }, String(year)).toEqual(erwartet[year]);
+          expect(journal.bewirtungNichtAbziehbar).toBe(0);
         }
         expect((await reports.euerForYear(2026)).gewinn).not.toBe(0);
         await pruefe(2026, 2027);
       }, 60_000);
     }
 
-    it(`ab dem Stichjahr zählt, was im Journal steht; der Abgleich zeigt die Nebenbücher dagegen (${kontenrahmen})`, async () => {
+    it(`es zählt, was im Journal steht; die Verprobung zeigt die Änderung (${kontenrahmen})`, async () => {
       await reset("ist", kontenrahmen);
       await bookedDocument("2026-03-01", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { payment: "privat" });
       // An Haben vorbei: der Aufwand im Journal um 1 € erhöht
@@ -212,23 +228,18 @@ describe.skipIf(!testDatabaseUrl)("EÜR ab dem Stichjahr aus dem Journal (Postgr
         await tx`set local session_replication_role = replica`;
         await tx`update journal_lines set debit = debit + 100 where debit = 10000`;
       });
-      const journal = await reports.euerForYear(2026);
-      const nebenbuecher = await reports.euerAusNebenbuechern(2026);
-      expect(journal.gewinn).toBe(nebenbuecher.gewinn - 100);
-      expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual(
-        expect.arrayContaining([expect.objectContaining({ posten: "EÜR: Hosting und IT-Dienste", journal: 10_100, quelle: 10_000 })]),
-      );
-    }, 60_000);
-
-    it(`vor dem Stichjahr aus den Nebenbüchern (${kontenrahmen})`, async () => {
-      await reset("ist", kontenrahmen, false, "einzelunternehmen", 2027);
-      await bookedDocument("2026-03-01", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { payment: "privat" });
-      // Auch eine Änderung an Haben vorbei im Journal ändert die EÜR vor dem Stichjahr nicht
-      await sql.begin(async (tx) => {
-        await tx`set local session_replication_role = replica`;
-        await tx`update journal_lines set debit = debit + 100 where debit = 10000`;
-      });
-      expect((await reports.euerForYear(2026)).gewinn).toBe((await reports.euerAusNebenbuechern(2026)).gewinn);
+      // Bisher 100 € Aufwand und 19 € Vorsteuer, jetzt 1 € Aufwand mehr
+      expect((await reports.euerForYear(2026)).gewinn).toBe(-12_000);
+      // Die Vorsteuer passt nicht mehr zur Bemessungsgrundlage
+      expect(abgleich.abweichungen((await abgleich.abgleichJahr(2026, "2026-12-31")).zeilen)).toEqual([
+        expect.objectContaining({
+          bereich: "ustva",
+          zeitraum: "2026-03",
+          journal: 1_900,
+          quelle: 1_919,
+          posten: expect.stringMatching(/^Vorsteuer 19 % zur Bemessungsgrundlage /),
+        }),
+      ]);
     }, 60_000);
 
     it(`AfA und Privatnutzung: vor dem Buchen aus dem Anlagenverzeichnis, danach aus dem Journal (${kontenrahmen})`, async () => {
@@ -249,7 +260,8 @@ describe.skipIf(!testDatabaseUrl)("EÜR ab dem Stichjahr aus dem Journal (Postgr
       await invoice("2025-06-01", [{ net: 10_000, rate: 1900 }]);
       const vorher = await reports.euerForYear(2025);
       expect(vorher.ausgaben.find((l) => l.key === "afa")!.amount).toBeGreaterThan(0);
-      expect(vorher.gewinn).toBe((await reports.euerAusNebenbuechern(2025)).gewinn);
+      // Bis #1116 auch der Gewinn der Gegenprobe aus den Nebenbüchern
+      expect(vorher.gewinn).toBe(-47_040);
       await assets.bookDepreciation(actor, 2025, "2025-12-15");
       const nachher = await reports.euerForYear(2025);
       expect(nachher.gewinn).toBe(vorher.gewinn);

@@ -1,58 +1,52 @@
 import {
   ACCOUNTS,
   ASSET_ACCOUNTS,
-  PAUSCHALE_KONTEN,
-  PAUSCHALE_LABEL,
   PRIVATE_USE_ACCOUNTS,
-  EXPENSE_CATEGORIES,
-  STEUER_KONTEN,
-  DARLEHEN_KONTEN,
-  abziehbareNebenleistungen,
-  nichtAbziehbareNebenleistungen,
-  EUER_LABELS,
   type Cents,
-  type EuerLineKey,
   type Kontenrahmen,
-  type PauschaleArt,
   formatEuro,
   isKapitalgesellschaft,
-  monthsOfPeriod,
   periodKey,
   type VatPeriod,
 } from "@haben/core";
-import { and, gte, lt, ne, sql } from "drizzle-orm";
+import { and, desc, gte, lt, ne, sql } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { bemessungsZeilen, journalBuchungen, type JournalBuchung } from "./abgleich-kennzahlen.ts";
+import { versteuerungForYear } from "../stammdaten/index.ts";
+import { bankZeilen } from "./abgleich-bank.ts";
+import { belegVorsteuerZeilen, belegZeilen } from "./abgleich-beleg.ts";
+import { journalBuchungen, verprobungsZeilen, type JournalBuchung } from "./abgleich-verprobung.ts";
 import { gewinnNachDatevFormel } from "./euer-formel.ts";
-import { verschobeneBuchungen } from "./euer-jahreswechsel.ts";
-import type { Buchung } from "./euer-journal-buchungen.ts";
 import { euerAusJournal } from "./euer-journal.ts";
-import { euerAusNebenbuechern } from "./reports.ts";
-import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
+import { euerForYear } from "./reports.ts";
+import { gesendeteAbweichungen, type PreflightIssue } from "../umsatzsteuer/index.ts";
 import { oposAbgleichJahr, oposYears } from "./opos-abgleich.ts";
 
 /*
- * Abgleich Journal ↔ Umsatzsteuer und EÜR (#81). Voranmeldung und EÜR rechnen aus Rechnungen, Belegen, Zuordnungen,
- * Pauschalen und dem Anlagenverzeichnis; das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen.
- * Eine Abweichung heißt: eine der beiden Rechnungen ist falsch, oder Daten wurden an Haben vorbei geändert.
- *
- * Verglichen wird, was sich im Journal eindeutig wiederfindet:
- * - Umsatzsteuer: je Monat die Steuerkonten gegen die Kennzahlen der Voranmeldung, ohne Privatnutzung von Fahrzeugen
- *   (deren Umsatzsteuer bucht erst die AfA im Dezember; sie wird mit der EÜR verglichen, sobald das Jahr gebucht ist).
- * - EÜR: Pauschalen, Umsatzsteuer-Vorauszahlungen und Erstattungen, AfA und Privatnutzung; Einnahmen, Umsatzsteuer,
- *   Vorsteuer, Personal und Ausgaben je Kategorie nach Zahlung aus dem Journal (euer-journal.ts, #542): Jede Zahlung wird
- *   anteilig auf die Rechnung bzw. den Beleg verteilt, die sie ausgleicht. Ausnahme: Zahlungen auf aus Lexoffice
- *   übernommene Rechnungen und Belege, deren Buchung keine Erlös- und Aufwandszeilen hat.
+ * Abgleich im Journal (#81, #1116). Voranmeldung und EÜR rechnen aus dem Journal; statt sie ein zweites Mal aus den
+ * Nebenbüchern zu rechnen, prüft der Abgleich gespeicherte Daten gegen das Journal und das Journal in sich:
+ * - Umsatzsteuer-Verprobung: je Buchung die Steuer gegen Bemessungsgrundlage mal Satz (abgleich-verprobung.ts);
+ * - gesendete Voranmeldungen: die Werte in vat_returns gegen die Rechnung aus dem Journal (umsatzsteuer/gesendet-pruefen.ts);
+ * - Beleg gegen Buchung: Steuerzeilen festgeschriebener Rechnungen und Vorsteuer gebuchter Belege gegen ihre Buchung
+ *   (abgleich-beleg.ts);
+ * - Bank: Endsaldo des letzten Kontoauszugs gegen die gebuchten Zahlungen (abgleich-bank.ts);
+ * - EÜR: AfA und Privatnutzung gegen das Anlagenverzeichnis, der Gewinn nach der DATEV-Formel gegen den Gewinn der Zeilen;
+ * - OPOS-Abgleich der Anzahlungsbestände (opos-abgleich.ts).
+ * Eine Abweichung heißt: eine Buchung passt nicht zu ihrem Beleg oder zur gesendeten Anmeldung, oder Daten wurden an Haben
+ * vorbei geändert. Jahre, deren Abweichung beim Update ausdrücklich übernommen wurde (journal_umstellung), prüfen
+ * Verprobung und gesendete Voranmeldungen nicht; ältere Buchungen dort tragen die Bemessungsgrundlage nicht.
  */
 
 export interface AbgleichZeile {
-  bereich: "ustva" | "euer" | "opos";
-  /** JJJJ-MM für die Voranmeldung, JJJJ für die EÜR, JJJJ-MM-TT für den OPOS-Stichtag */
+  bereich: "ustva" | "euer" | "opos" | "beleg" | "bank";
+  /** JJJJ-MM für die Voranmeldung und Belege, JJJJ für die EÜR, JJJJ-MM-TT für den OPOS-Stichtag und den Kontoauszug */
   zeitraum: string;
   posten: string;
   journal: Cents;
+  /** Der Vergleichswert, benannt in `gegen` */
   quelle: Cents;
+  /** Wogegen verglichen wird, z. B. „erwartet“, „gesendet“, „laut Rechnung“ */
+  gegen: string;
 }
 
 export interface Abgleich {
@@ -69,15 +63,11 @@ interface Summe {
   kontenrahmen: Kontenrahmen;
   sourceType: SourceType;
   account: string;
-  month: number;
   debit: number;
   credit: number;
 }
 
-/**
- * Soll und Haben je Kontenrahmen, Herkunft, Konto und Monat im Zeitraum. Ohne Eröffnungen: Was die Eröffnung aus dem
- * DATEV-Stapel auf Umsatz- und Vorsteuer vorträgt, ist im Vorjahr angemeldet und gehört nicht zur Voranmeldung im Januar.
- */
+/** Soll und Haben je Kontenrahmen, Herkunft und Konto im Zeitraum, ohne Eröffnungen */
 async function journalSums(from: string, to: string, q: Db | Tx = db): Promise<Summe[]> {
   const e = schema.journalEntries;
   const l = schema.journalLines;
@@ -86,15 +76,14 @@ async function journalSums(from: string, to: string, q: Db | Tx = db): Promise<S
       kontenrahmen: e.kontenrahmen,
       sourceType: e.sourceType,
       account: l.account,
-      month: sql<number>`extract(month from ${e.date})::int`,
       debit: sql<string>`sum(${l.debit})`,
       credit: sql<string>`sum(${l.credit})`,
     })
     .from(l)
     .innerJoin(e, sql`${e.id} = ${l.entryId}`)
     .where(and(gte(e.date, from), lt(e.date, to), ne(e.sourceType, "eroeffnung")))
-    .groupBy(e.kontenrahmen, e.sourceType, l.account, sql`extract(month from ${e.date})`);
-  return rows.map((r) => ({ ...r, kontenrahmen: r.kontenrahmen as Kontenrahmen, month: Number(r.month), debit: Number(r.debit), credit: Number(r.credit) }));
+    .groupBy(e.kontenrahmen, e.sourceType, l.account);
+  return rows.map((r) => ({ ...r, kontenrahmen: r.kontenrahmen as Kontenrahmen, debit: Number(r.debit), credit: Number(r.credit) }));
 }
 
 /** Saldo Soll − Haben der Zeilen, deren Konto im jeweiligen Kontenrahmen zu `accounts` gehört */
@@ -102,188 +91,56 @@ function saldo(sums: Summe[], accounts: (kr: Kontenrahmen) => string[], filter: 
   return sums.filter((s) => filter(s) && accounts(s.kontenrahmen).includes(s.account)).reduce((sum, s) => sum + s.debit - s.credit, 0);
 }
 
-const ust = (rate: 1900 | 700) => (kr: Kontenrahmen) => [ACCOUNTS[kr].ust[rate]];
+const yearRange = (year: number) => ({ from: `${year}-01-01`, to: `${year + 1}-01-01` });
 
-/**
- * Umsatzsteuer eines Monats oder Quartals: Steuerkonten im Journal gegen die Kennzahlen aus den Nebenbüchern, dazu die
- * Bemessungsgrundlagen aus Konto und Steuerschlüssel (abgleich-kennzahlen.ts), soweit nicht null
- */
-function vatRows(
-  period: VatPeriod,
-  sums: Summe[],
-  buchungen: readonly JournalBuchung[],
-  voranmeldung: Awaited<ReturnType<typeof computeVatFigures>>,
-): AbgleichZeile[] {
-  // Ab dem Stichjahr sind die Kennzahlen der Voranmeldung die aus dem Journal; verglichen wird dann mit den Nebenbüchern
-  // als Gegenprobe (#542, docs/adr/journal-als-quelle.md)
-  const figures = voranmeldung.nebenbuecher ? { ...voranmeldung, ...voranmeldung.nebenbuecher } : voranmeldung;
-  const zeitraum = periodKey(period);
-  const months = new Set(monthsOfPeriod(period).map((m) => m.month));
-  const monat = sums.filter((s) => months.has(s.month));
-  // Privatnutzung von Fahrzeugen: in der Voranmeldung monatlich, im Journal erst mit der AfA gebucht (siehe oben)
-  const keinAnlagenbuch = (s: Summe) => s.sourceType !== "asset";
-  const entnahme = figures.revenue.filter((r) => r.type === "entnahme").reduce((sum, r) => sum + r.tax, 0);
-  const row = (posten: string, journal: Cents, quelle: Cents): AbgleichZeile => ({ bereich: "ustva", zeitraum, posten, journal, quelle });
-  return [
-    row("Umsatzsteuer 19 % (Kz 81)", -saldo(monat, ust(1900), keinAnlagenbuch), figures.tax81 - entnahme),
-    row("Umsatzsteuer 7 % (Kz 86)", -saldo(monat, ust(700), keinAnlagenbuch), figures.tax86),
-    row("Umsatzsteuer § 13b (Kz 47, 85)", -saldo(monat, (kr) => [ACCOUNTS[kr].ustRc]), figures.kz47 + figures.kz85),
-    row(
-      "Vorsteuer (Kz 66)",
-      saldo(monat, (kr) => Object.values(ACCOUNTS[kr].vorsteuer)),
-      figures.kz66,
-    ),
-    row(
-      "Vorsteuer § 13b (Kz 67)",
-      saldo(monat, (kr) => [ACCOUNTS[kr].vorsteuerRc]),
-      figures.kz67,
-    ),
-    row("Erwerbsteuer (Kz 89, 93)", -saldo(monat, (kr) => Object.values(ACCOUNTS[kr].ustIge)), figures.tax89 + figures.tax93),
-    row(
-      "Einfuhrumsatzsteuer (Kz 62)",
-      saldo(monat, (kr) => [EXPENSE_CATEGORIES.einfuhrumsatzsteuer[kr]]),
-      figures.kz62,
-    ),
-    row(
-      "Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61)",
-      saldo(monat, (kr) => Object.values(ACCOUNTS[kr].vorsteuerIge)),
-      figures.kz61,
-    ),
-    ...bemessungsZeilen(period, buchungen, figures)
-      .filter((z) => z.journal !== 0 || z.quelle !== 0)
-      .map((z) => row(z.posten, z.journal, z.quelle)),
-  ];
+/** Jahre, deren Abweichungen beim Update auf das Journal ausdrücklich übernommen wurden (#1116) */
+async function uebernommeneJahre(q: Db | Tx): Promise<Set<number>> {
+  const [stand] = await q.select().from(schema.journalUmstellung).orderBy(desc(schema.journalUmstellung.id)).limit(1);
+  return new Set(stand?.ergebnis === "uebernommen" ? stand.befunde.map((b) => b.jahr) : []);
 }
 
-/** Zeilen der EÜR nach Zahlung, die nur der Abgleich aus dem Journal prüft (dazu die Ausgaben je Kategorie) */
-const NACH_ZAHLUNG: EuerLineKey[] = [
-  "einnahmenKleinunternehmer",
-  "einnahmenSteuerpflichtig",
-  "einnahmenSteuerfrei",
-  "vereinnahmteUst",
-  "vorsteuer",
-  "personal",
-];
-
-const yearRange = (year: number) => ({ from: `${year}-01-01`, to: `${year + 1}-01-01` });
+/** Verprobung eines Zeitraums der Voranmeldung */
+function vatRows(period: VatPeriod, buchungen: readonly JournalBuchung[], versteuerung: "ist" | "soll"): AbgleichZeile[] {
+  return verprobungsZeilen(period, buchungen, versteuerung).map((z) => ({
+    bereich: "ustva",
+    zeitraum: periodKey(period),
+    posten: z.posten,
+    journal: z.journal,
+    quelle: z.erwartet,
+    gegen: "aus der Bemessungsgrundlage",
+  }));
+}
 
 /** Abgleich für einen Zeitraum der Voranmeldung (Monat oder Quartal), z. B. in der Vorprüfung vor dem Senden */
 export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
+  if ((await uebernommeneJahre(db)).has(period.year)) return { zeilen: [], hinweise: [] };
   const { from, to } = yearRange(period.year);
-  const [sums, buchungen] = await Promise.all([journalSums(from, to), journalBuchungen(from, to)]);
-  return { zeilen: vatRows(period, sums, buchungen, await computeVatFigures(period)), hinweise: [] };
+  return { zeilen: vatRows(period, await journalBuchungen(from, to), await versteuerungForYear(period.year)), hinweise: [] };
 }
 
-/** Abgleich für die EÜR eines Jahres */
+/** Abgleich für die EÜR eines Jahres: AfA und Privatnutzung, Gewinn nach der DATEV-Formel */
 export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgleich> {
   const { from, to } = yearRange(year);
-  // Wie die EÜR: Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
-  const { herein, hinaus } = await verschobeneBuchungen(year, q);
-  const verschoben = (b: Buchung, vorzeichen: 1 | -1): Summe[] =>
-    b.zeilen.map((z) => ({
-      kontenrahmen: b.kontenrahmen,
-      sourceType: "allocation",
-      account: z.account,
-      month: Number(b.date.slice(5, 7)),
-      debit: vorzeichen * z.debit,
-      credit: vorzeichen * z.credit,
-    }));
-  const sums = [...(await journalSums(from, to, q)), ...herein.flatMap((b) => verschoben(b, 1)), ...hinaus.flatMap((b) => verschoben(b, -1))];
-  // Gegenprobe ist immer die Rechnung aus den Nebenbüchern; ab dem Stichjahr ist euerForYear die aus dem Journal (#542)
-  const euer = await euerAusNebenbuechern(year, q);
-  // Gezahlt über die Bank oder, im Einzelunternehmen, privat als freie Buchung (#502); die Gegenprobe zählt freie Buchungen
-  // ebenso (mitFreienBuchungen). Manuelle Buchungen einer GmbH oder UG sind Abschlussbuchungen (etwa Rückstellungen), keine
-  // Zahlung, und die Gegenprobe zählt sie dort nicht
-  const [rechtsform] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
-  const freieZaehlen = !rechtsform || !isKapitalgesellschaft(rechtsform.rechtsform);
-  const zahlung = (s: Summe) => s.sourceType === "allocation" || (freieZaehlen && s.sourceType === "manuell");
-  const line = (key: string) => [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
+  const sums = await journalSums(from, to, q);
   const zeitraum = String(year);
-  const row = (posten: string, journal: Cents, quelle: Cents): AbgleichZeile => ({ bereich: "euer", zeitraum, posten, journal, quelle });
+  const row = (posten: string, journal: Cents, quelle: Cents, gegen = "laut Anlagenverzeichnis"): AbgleichZeile => ({
+    bereich: "euer",
+    zeitraum,
+    posten,
+    journal,
+    quelle,
+    gegen,
+  });
   const zeilen: AbgleichZeile[] = [];
   const hinweise: string[] = [];
-
-  // Pauschalen je Art, jede hat ihr eigenes Aufwandskonto
-  for (const art of Object.keys(PAUSCHALE_KONTEN) as PauschaleArt[]) {
-    const journal = saldo(
-      sums,
-      (kr) => [PAUSCHALE_KONTEN[art][kr].konto],
-      (s) => s.sourceType === "pauschale",
-    );
-    const quelle = line(`pauschale:${art}`);
-    if (journal !== 0 || quelle !== 0) zeilen.push(row(`Pauschale: ${PAUSCHALE_LABEL[art]}`, journal, quelle));
-  }
-
-  zeilen.push(
-    row(
-      "Umsatzsteuer an das Finanzamt (mit Sondervorauszahlung), abzüglich Erstattungen",
-      saldo(
-        sums,
-        // Mit der Umsatzsteuer früherer Jahre (Steuerzahlungen, steuerzahlung.ts): gezahlt bzw. erstattet im Jahr der Zahlung
-        (kr) => [ACCOUNTS[kr].ustVorauszahlung, ACCOUNTS[kr].sondervorauszahlung, STEUER_KONTEN[kr].ustVorjahr, STEUER_KONTEN[kr].ustFruehereJahre],
-        zahlung,
-      ),
-      line("gezahlteUst") - line("erstatteteUst"),
-    ),
-  );
-
-  // Steuerzahlungen: Zinsen und Zuschläge zu betrieblichen Steuern als Ausgabe, Gewerbesteuer samt Nebenleistungen nur
-  // nachrichtlich. Im Einzelunternehmen gibt es keine Körperschaftsteuer; die nicht abziehbaren Zinskonten bucht dort nur
-  // die Gewerbesteuer, dazu Hinterziehungszinsen (§ 235 AO) zur Umsatzsteuer.
-
-  const nebenleistungen = saldo(sums, (kr) => abziehbareNebenleistungen(kr), zahlung);
-  if (nebenleistungen !== 0 || line("steuerNebenleistungen") !== 0) {
-    zeilen.push(row("Zinsen und Zuschläge zu betrieblichen Steuern", nebenleistungen, line("steuerNebenleistungen")));
-  }
-  // Darlehen: Zinsen und Gebühren gegen die Schuldzinsen der EÜR
-  const darlehen = saldo(
-    sums,
-    (kr) => [
-      DARLEHEN_KONTEN[kr].zinsenKurzfristig,
-      DARLEHEN_KONTEN[kr].zinsenLangfristig,
-      DARLEHEN_KONTEN[kr].zinsenAnlagevermoegen,
-      DARLEHEN_KONTEN[kr].gebuehren,
-    ],
-    zahlung,
-  );
-  const schuldzinsen = line("schuldzinsen") + line("schuldzinsenAnlage");
-  if (darlehen !== 0 || schuldzinsen !== 0) zeilen.push(row("Schuldzinsen und Gebühren der Darlehen", darlehen, schuldzinsen));
-  const gewerbesteuer = saldo(sums, (kr) => [STEUER_KONTEN[kr].gewst, STEUER_KONTEN[kr].gewstVorjahre, ...nichtAbziehbareNebenleistungen(kr)], zahlung);
-  if (gewerbesteuer !== 0 || euer.gewerbesteuerNichtAbziehbar !== 0) {
-    zeilen.push(row("Gewerbesteuer und Nebenleistungen darauf, Hinterziehungszinsen (nicht abziehbar)", gewerbesteuer, euer.gewerbesteuerNichtAbziehbar));
-  }
-
-  // Kursdifferenzen bei Fremdwährung: Aufwand und Ertrag aus Kursdifferenzen gegen die Posten der EÜR
-  const kurs = saldo(sums, (kr) => [ACCOUNTS[kr].kursAufwand, ACCOUNTS[kr].kursErtrag]);
-  const kursQuelle = line("kursverluste") - line("kursgewinne");
-  if (kurs !== 0 || kursQuelle !== 0) zeilen.push(row("Kursdifferenzen (Aufwand abzüglich Ertrag)", kurs, kursQuelle));
-
-  // Einnahmen und Ausgaben nach Zahlung, aus dem Journal mit jeder Zahlung anteilig auf die ausgeglichene Buchung. Nur im
-  // Einzelunternehmen: GmbH und UG bilanzieren und machen keine EÜR; Körperschaftsteuer, Ergebnisverwendung und manuelle
-  // Buchungen stehen dort auf Erfolgskonten, die die EÜR nicht kennt
   const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
+  // Nur im Einzelunternehmen: GmbH und UG bilanzieren und machen keine EÜR
   const euerAusDemJournal = !firma || !isKapitalgesellschaft(firma.rechtsform);
-  const ausJournal = await euerAusJournal(year, q);
-  if (euerAusDemJournal && ausJournal.ungeklaerteImporte > 0)
+  const ausJournal = euerAusDemJournal ? await euerAusJournal(year, q) : null;
+  if (ausJournal && ausJournal.ungeklaerteImporte > 0)
     hinweise.push(
       `${ausJournal.ungeklaerteImporte} Import-Buchungen auf Forderungen oder Verbindlichkeiten haben keinen Zahlungsbezug. Vor der EÜR die Quellzuordnung prüfen; daraus werden keine Einnahmen oder Ausgaben geschätzt.`,
     );
-  if (euerAusDemJournal) {
-    const label = (key: EuerLineKey) =>
-      [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.label ??
-      (key.startsWith("ausgabe:") ? EXPENSE_CATEGORIES[key.slice(8) as keyof typeof EXPENSE_CATEGORIES].label : EUER_LABELS[key as keyof typeof EUER_LABELS]);
-    const journalZeile = (key: EuerLineKey) => ausJournal.summe.zeilen[key] ?? 0;
-    const keys = new Set<EuerLineKey>([...NACH_ZAHLUNG]);
-    for (const key of [...Object.keys(ausJournal.summe.zeilen), ...euer.ausgaben.map((l) => l.key)] as EuerLineKey[]) {
-      if (key.startsWith("ausgabe:")) keys.add(key);
-    }
-    for (const key of keys) {
-      if (journalZeile(key) !== 0 || line(key) !== 0) zeilen.push(row(`EÜR: ${label(key)}`, journalZeile(key), line(key)));
-    }
-    if (ausJournal.summe.bewirtungNichtAbziehbar !== 0 || euer.bewirtungNichtAbziehbar !== 0) {
-      zeilen.push(row("EÜR: Bewirtung, nicht abziehbarer Teil", ausJournal.summe.bewirtungNichtAbziehbar, euer.bewirtungNichtAbziehbar));
-    }
-  }
 
   // AfA und Privatnutzung stehen erst im Journal, wenn das Jahr gebucht ist
   const pending = (await listAssets(year, q)).filter((a) => a.pending).length;
@@ -317,13 +174,20 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
         afa.restbuchwert,
       ),
       row("Private Kfz-Nutzung", -saldo(sums, (kr) => Object.values(PRIVATE_USE_ACCOUNTS[kr]), anlage), privat.privateKfz),
-      row("Umsatzsteuer auf die private Kfz-Nutzung", -saldo(sums, ust(1900), anlage), privat.ustEntnahmen),
+      row("Umsatzsteuer auf die private Kfz-Nutzung", -saldo(sums, (kr) => [ACCOUNTS[kr].ust[1900]], anlage), privat.ustEntnahmen),
     );
     // Gegenprobe (#542): der Gewinn nach der DATEV-Formel aus Erfolgs- und Steuerkonten, Forderungen und Verbindlichkeiten;
     // erst, wenn AfA und Privatnutzung gebucht sind, denn die EÜR rechnet sie aus dem Anlagenverzeichnis
-    if (euerAusDemJournal) {
+    if (ausJournal) {
       const nichtAbziehbar = ausJournal.summe.bewirtungNichtAbziehbar + ausJournal.summe.gewerbesteuerNichtAbziehbar;
-      zeilen.push(row("EÜR: Gewinn nach der DATEV-Formel", await gewinnNachDatevFormel(year, nichtAbziehbar, q), euer.gewinn));
+      zeilen.push(
+        row(
+          "EÜR: Gewinn nach der DATEV-Formel",
+          await gewinnNachDatevFormel(year, nichtAbziehbar, q),
+          (await euerForYear(year, q)).gewinn,
+          "aus den Zeilen der EÜR",
+        ),
+      );
     }
   }
   return { zeilen, hinweise };
@@ -339,25 +203,43 @@ async function journalYears(q: Db | Tx): Promise<number[]> {
 }
 
 /**
- * Ein Jahr: Umsatzsteuer je Monat (bis zum laufenden) und EÜR. Auch Monate ohne Journal: die Nebenbücher dürfen dann
- * keine Steuer haben.
+ * Ein Jahr: Verprobung je Monat (bis zum laufenden), gesendete Voranmeldungen, Rechnungen gegen ihre Buchung, EÜR und
+ * Anzahlungsbestände
  */
-export async function abgleichJahr(year: number, today: string, q: Db | Tx = db): Promise<Abgleich> {
+export async function abgleichJahr(year: number, today: string, q: Db | Tx = db, uebernommen?: Set<number>): Promise<Abgleich> {
   const { from, to } = yearRange(year);
-  const sums = await journalSums(from, to, q);
-  const buchungen = await journalBuchungen(from, to, q);
   const zeilen: AbgleichZeile[] = [];
-  const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
-  for (let month = 1; month <= lastMonth; month++) {
-    zeilen.push(...vatRows({ year, month }, sums, buchungen, await computeVatFigures({ year, month }, q)));
+  const hinweise: string[] = [];
+  if ((uebernommen ?? (await uebernommeneJahre(q))).has(year)) {
+    hinweise.push(
+      `Für ${year} sind beim Update auf das Journal Abweichungen zu den Nebenbüchern übernommen worden; Verprobung und gesendete Voranmeldungen werden für ${year} nicht abgeglichen.`,
+    );
+  } else {
+    const buchungen = await journalBuchungen(from, to, q);
+    const versteuerung = await versteuerungForYear(year, q);
+    const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
+    for (let month = 1; month <= lastMonth; month++) zeilen.push(...vatRows({ year, month }, buchungen, versteuerung));
+    for (const a of await gesendeteAbweichungen([year], q))
+      zeilen.push({
+        bereich: "ustva",
+        zeitraum: periodKey(a.period),
+        posten: `Gesendete Voranmeldung, ${a.feld}`,
+        journal: a.journal,
+        quelle: a.gesendet,
+        gegen: "gesendet",
+      });
   }
+  for (const b of await belegZeilen(year, q))
+    zeilen.push({ bereich: "beleg", zeitraum: b.zeitraum, posten: b.posten, journal: b.journal, quelle: b.rechnung, gegen: "laut Rechnung" });
+  for (const b of await belegVorsteuerZeilen(year, q))
+    zeilen.push({ bereich: "beleg", zeitraum: b.zeitraum, posten: b.posten, journal: b.journal, quelle: b.rechnung, gegen: "laut Beleg" });
   const euer = await euerAbgleich(year, q);
   const opos = await oposAbgleichJahr(year, today, q);
-  return { zeilen: [...zeilen, ...euer.zeilen, ...opos.zeilen], hinweise: [...euer.hinweise, ...opos.hinweise] };
+  return { zeilen: [...zeilen, ...euer.zeilen, ...opos.zeilen], hinweise: [...hinweise, ...euer.hinweise, ...opos.hinweise] };
 }
 
 /**
- * Jahre mit Buchungen und neue Anzahlungsverfahren ohne Journal. Für die Integritätsprüfung.
+ * Jahre mit Buchungen und neue Anzahlungsverfahren ohne Journal, dazu die Bankkonten. Für die Integritätsprüfung.
  * Liest in vielen Abfragen nacheinander; damit eine Buchung nebenher nicht nur auf einer Seite erscheint, läuft das
  * in einer Transaktion mit festem Stand (REPEATABLE READ, siehe checkIntegrity).
  */
@@ -365,13 +247,16 @@ export async function abgleichAll(today: string, q: Db | Tx = db): Promise<Abgle
   const zeilen: AbgleichZeile[] = [];
   const hinweise: string[] = [];
   const journal = new Set(await journalYears(q));
+  const uebernommen = await uebernommeneJahre(q);
   const years = [...new Set([...journal, ...(await oposYears(today, q))])].sort((a, b) => a - b);
   for (const year of years) {
     // Ohne Journal nur den lesenden OPOS-Weg: EÜR-/Anlagenleser könnten sonst fehlende Firmendaten erst anlegen.
-    const jahr = journal.has(year) ? await abgleichJahr(year, today, q) : await oposAbgleichJahr(year, today, q);
+    const jahr = journal.has(year) ? await abgleichJahr(year, today, q, uebernommen) : await oposAbgleichJahr(year, today, q);
     zeilen.push(...jahr.zeilen);
     hinweise.push(...jahr.hinweise);
   }
+  for (const b of await bankZeilen(q))
+    zeilen.push({ bereich: "bank", zeitraum: b.zeitraum, posten: b.posten, journal: b.journal, quelle: b.auszug, gegen: "laut Kontoauszug" });
   return { zeilen, hinweise };
 }
 
@@ -381,7 +266,7 @@ export function abgleichIssues({ zeilen, hinweise }: Abgleich): PreflightIssue[]
     ...abweichungen(zeilen.filter((z) => z.bereich === "ustva")).map(
       (z): PreflightIssue => ({
         tone: "warn",
-        text: `Buchungen und Voranmeldung weichen ab: ${z.posten} laut Journal ${formatEuro(z.journal)}, laut Rechnungen, Belegen und Zahlungen ${formatEuro(z.quelle)}. Bitte vor dem Senden klären.`,
+        text: `Im Journal passt etwas nicht: ${z.posten}, gebucht ${formatEuro(z.journal)}, ${z.gegen} ${formatEuro(z.quelle)}. Bitte vor dem Senden klären.`,
         link: "/konten",
       }),
     ),

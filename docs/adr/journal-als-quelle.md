@@ -1,15 +1,16 @@
 ---
 title: "Entscheidung: Voranmeldung und EÜR aus dem Journal"
 description: >-
-  Entscheidung zu #542: ab einem Stichjahr rechnen Voranmeldung und EÜR aus dem Journal wie bei DATEV, die
-  Nebenbücher werden zur Gegenprobe; Grundlage für freie Buchungen mit Steuerschlüssel (#502).
+  Entscheidung zu #542 und #1116: Voranmeldung und EÜR rechnen wie bei DATEV aus dem Journal, zuerst ab einem Stichjahr,
+  seit #1116 für alle Jahre; der Abgleich prüft gespeicherte Daten gegen das Journal. Grundlage für freie Buchungen mit
+  Steuerschlüssel (#502).
 ---
 
 # Entscheidung: Voranmeldung und EÜR aus dem Journal
 
-**Status:** umgesetzt in den Schritten unten (siehe „Entschieden und offen“). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
+**Status:** umgesetzt; Stichjahr und Gegenprobe aus den Nebenbüchern seit [#1116](https://github.com/firsttris/haben/issues/1116) überholt (siehe [Nur noch das Journal](#nur-noch-das-journal-1116)). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`), danach #1116.
 **Bezug:** [#542](https://github.com/firsttris/haben/issues/542), [#502](https://github.com/firsttris/haben/issues/502),
-[Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen), [Abgleich](../buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
+[Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen), [Abgleich](../buchhaltung.md#abgleich-im-journal).
 DATEV-Hilfe-Center: [1080673](https://help-center.apps.datev.de/documents/1080673) (Ist-Versteuerung),
 [1049448](https://help-center.apps.datev.de/documents/1049448) (Steuerschlüssel bei Zahlung),
 [1036819](https://help-center.apps.datev.de/documents/1036819), [1029628](https://help-center.apps.datev.de/documents/1029628),
@@ -48,6 +49,8 @@ Messung über die ganze Postgres-Suite (bei jedem Aufruf der heutigen Rechnung d
 
 ### 1. Stichjahr statt Umbau der Vergangenheit
 
+> Überholt durch [#1116](#nur-noch-das-journal-1116): kein Stichjahr mehr, alle Jahre aus dem Journal.
+
 Ab einem **Stichjahr** sind Voranmeldung und EÜR aus dem Journal; davor bleibt alles, wie es ist.
 
 - Gesendete Voranmeldungen ändern sich nie: Gesendet ist gesendet, die Werte stehen in `vat_returns`.
@@ -79,7 +82,7 @@ Ab einem **Stichjahr** sind Voranmeldung und EÜR aus dem Journal; davor bleibt 
   den Nebenbüchern; es sind Erläuterungen, keine Kennzahlen. Die Zusammenfassende Meldung (§ 18a UStG) rechnet weiter aus
   den Rechnungen, sie braucht die USt-IdNr. des Empfängers.
 - Die **Umsatzsteuererklärung** summiert die Monate über dieselbe Rechnung (`annual.ts`) und folgt damit von selbst.
-- Der **Abgleich** bleibt derselbe, die Rollen tauschen: Quelle ist das Journal, Gegenprobe die Nebenbücher. Eine
+- Der **Abgleich** (überholt durch #1116, siehe unten) bleibt derselbe, die Rollen tauschen: Quelle ist das Journal, Gegenprobe die Nebenbücher. Eine
   Abweichung heißt wie bisher, dass eine Seite falsch ist oder Daten an Haben vorbei geändert wurden; die Vorprüfung warnt
   vor dem Senden.
 
@@ -133,7 +136,7 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   Liegt dazwischen ein Wechsel des Kontenrahmens, überträgt sie die Konten wie #570 (`kontoImKontenrahmen`); die Konten der
   festen Liste haben alle eine Entsprechung, sonst lehnt Haben ab.
 - Unbekannte Kombinationen lehnt Haben vor dem Buchen ab; Buchungen sind sofort festgeschrieben.
-- Freie Buchungen mit Steuerschlüssel gibt es nur ab dem Stichjahr, in jeder Rechtsform; davor sähe die Voranmeldung aus
+- (Überholt durch #1116: freie Buchungen gibt es immer.) Freie Buchungen mit Steuerschlüssel gibt es nur ab dem Stichjahr, in jeder Rechtsform; davor sähe die Voranmeldung aus
   den Nebenbüchern sie nicht. Im Einzelunternehmen wirken sie ab dem Stichjahr auch in der EÜR.
 
 ## Umsetzung
@@ -146,6 +149,20 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
 4. `architektur.md` (Entscheidung „Umsatzsteuer und EÜR aus den Nebenbüchern“), `umsatzsteuer.md`, `auswertungen.md`,
    `buchhaltung.md` im jeweiligen Pull Request.
 
+## Nur noch das Journal (#1116)
+
+**Anlass:** Mit zwei Rechenwegen musste jede neue Funktion an Steuer und EÜR in beiden stimmen, sonst schlug der Abgleich an; das kostete jede Änderung doppelt. Das Stichjahr betraf höchstens ein Jahr: Das erste Release war v0.1.1 am 5.10.2026, das Stichjahr kam mit v0.7.0 am 11.11.2026 (Migration `0192`). Buchungen ohne Steuerschlüssel oder Bemessungsgrundlage gibt es also nur aus 2026, und nur bei Instanzen, die vor v0.7.0 gebucht haben.
+
+**Entscheidung:**
+
+- Voranmeldung und EÜR rechnen für alle Jahre aus dem Journal. Stichjahr (`company.journal_ab`), Weiche und die Karte in den Einstellungen sind entfernt; das frühere Stichjahr steht in `journal_umstellung`. Die Listen in der Voranmeldung (Rechnungen, Belege, Zahlungen je Kennzahl) und die Zusammenfassende Meldung kommen weiter aus den Nebenbüchern; sie sind Erläuterung bzw. Daten, kein zweiter Rechenweg. Die Zuordnungen bleiben, wie oben.
+- **GmbH und UG:** Ihre Übersicht nach Zahlung kommt ebenfalls aus dem Journal, ohne manuelle Buchungen (dort Abschlussbuchungen wie Rückstellungen, keine Zahlung).
+- **Freie Buchungen** gibt es im Einzelunternehmen und mit Steuerschlüssel ohne Einschränkung auf ein Jahr, weiter nur außerhalb gemeldeter Zeiträume.
+- **Storno von Beleg und Bareinnahme** bucht immer die Zeilen von heute, wenn sie auf jedem Konto denselben Saldo ergeben (`zeilenWieHeute`), sonst die gebuchten; so trägt auch der Storno einer alten Buchung Steuerschlüssel und Bemessungsgrundlage.
+- **Prüfung beim Update** (`modules/umstellung`, nach den Migrationen in `deploy/entrypoint.sh`): Für jedes Jahr vor dem früheren Stichjahr mit Buchungen müssen gesendete Voranmeldungen mit ihren gespeicherten Werten (bei von Hand überschriebenen mit den beim Speichern berechneten), die übrigen Monate und im Einzelunternehmen die EÜR aus dem Journal so herauskommen wie aus den Nebenbüchern. Anders als beim früheren Vorziehen sperrt eine gesendete Voranmeldung nicht. Weicht etwas ab, startet die neue Version nicht, nennt Jahr und Abweichung und ändert nichts. Mit `HABEN_ABWEICHUNG_UEBERNEHMEN` übernimmt der Betreiber die Abweichung ausdrücklich: Gesendete Voranmeldungen bleiben, wie sie gesendet sind, alles Offene rechnet aus dem Journal, und der Abgleich prüft Verprobung und gesendete Voranmeldungen dieses Jahres nicht. Wer nicht übernimmt, bleibt auf der letzten Version davor; eine Berichtigung eines abweichenden Jahres geht dann nur dort. Dafür braucht die Prüfung die alte Rechnung aus den Nebenbüchern: Sie liegt eingefroren in `modules/umstellung` und fällt mit dem Modul weg, sobald ein Release das Update über diese Version voraussetzt.
+- **Ersatz für die Gegenprobe** (Vorschlag aus #1116): kein verkleinerter Abgleich gegen die Nebenbücher, sondern gespeicherte Daten gegen das Journal: Umsatzsteuer-Verprobung je Buchung (Steuer gegen Bemessungsgrundlage mal Satz, ein Cent Toleranz je Buchung und Satz, `ust-verprobung.ts`), gesendete Voranmeldungen gegen die Rechnung aus dem Journal, Steuerzeilen festgeschriebener Rechnungen und die Vorsteuer gebuchter Belege gegen ihre Buchung, Bankkonten gegen den Endsaldo des letzten Kontoauszugs; OPOS-Abgleich, AfA gegen Anlagenverzeichnis und Gewinn nach der DATEV-Formel bleiben. Alles läuft in der Integritätsprüfung und der wöchentlichen Mail, die Verprobung auch in der Vorprüfung der Voranmeldung.
+- **Offen:** Referenzfälle mit Kennzahlen aus einer unabhängigen Quelle (Beispiele aus DATEV oder der Steuerberatung), je SKR03 und SKR04, Ist und Soll.
+
 ## Entschieden und offen
 
 - **Entschieden:** Stichjahr statt Umbau; Vorziehen auf das laufende Jahr nur mit sauberem Abgleich und ohne gesendete
@@ -153,7 +170,7 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   Anlagenverzeichnis, AfA und Privatnutzung in der EÜR vor dem Buchen ebenso; Lexoffice-Zahlungen aus dem Nebenbuch;
   freie Buchungen als Erweiterung der manuellen Buchungen, nur ab dem Stichjahr, mit fester Liste der Schlüssel und Konten,
   ohne Vorsteuer (Eigenbeleg), Storno mit Steuerschlüssel.
-- **Offen:** nichts; Abweichungen von diesem Entwurf beim Umsetzen stehen hier nach.
+- **Offen:** siehe [Nur noch das Journal](#nur-noch-das-journal-1116); Abweichungen von diesem Entwurf beim Umsetzen stehen hier nach.
 - **Umgesetzt:** Schritt 1 ohne Oberfläche (Stichjahr, Migration 0192, Voranmeldung aus dem Journal, Abgleich mit
   getauschten Rollen). Anzeige und Vorziehen des Stichjahrs: Karte in Einstellungen › Firma (`auswertungen/stichjahr.ts`); der
   Abgleich des laufenden Jahres (`abgleichJahr`) muss ohne Abweichung sein, und jede Voranmeldung des Jahres sowie die EÜR
