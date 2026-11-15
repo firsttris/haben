@@ -162,16 +162,22 @@ function VatPeriodPage() {
             <Icon name={issue.tone === "info" ? "info" : "alert"} />
             <span>
               {issue.text}{" "}
-              <Link to={issue.link}>
-                {
+              {issue.link === "/bank" && issue.search ? (
+                <Link to="/bank" search={issue.search}>
+                  Zur Bank
+                </Link>
+              ) : (
+                <Link to={issue.link}>
                   {
-                    "/bank": "Zur Bank",
-                    "/belege": "Zu den Belegen",
-                    "/rechnungen": "Zu den Rechnungen",
-                    "/konten": "Zu den Konten",
-                  }[issue.link]
-                }
-              </Link>
+                    {
+                      "/bank": "Zur Bank",
+                      "/belege": "Zu den Belegen",
+                      "/rechnungen": "Zu den Rechnungen",
+                      "/konten": "Zu den Konten",
+                    }[issue.link]
+                  }
+                </Link>
+              )}
             </span>
           </div>
         ))}

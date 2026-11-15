@@ -127,6 +127,26 @@ export const getFilingPeriodKey = createServerFn({ method: "GET" })
     return periodKey(latestEndedPeriod(await loadFrequencies(), currentMonth(now)) ?? currentFilingPeriod(now));
   });
 
+/**
+ * Zeitraum, den /umsatzsteuer öffnet: der nächste, der noch nicht abgegeben ist (#1099). Wer im Quartal steht, sieht
+ * damit das laufende Quartal und nicht das zuletzt abgelaufene. Abgegeben ist ein Zeitraum, wenn ein Vermerk vorliegt
+ * oder die Erklärung gesendet wurde; gerechnet wird rückwärts und nie über den laufenden Zeitraum hinaus.
+ */
+export const getOpenFilingPeriodKey = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async () => {
+    const now = new Date();
+    const settings = await loadFrequencies();
+    const today = currentMonth(now);
+    for (const period of recentFilingPeriods(settings, today)) {
+      const returns = await returnsForPeriod(period);
+      const filings = await filingsFor(returns.map((r) => r.id));
+      const abgegeben = filings.length > 0 || returns.some((r) => r.status === "sent");
+      if (!abgegeben) return periodKey(period);
+    }
+    return periodKey(latestEndedPeriod(settings, today) ?? currentFilingPeriod(now));
+  });
+
 export const getOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {

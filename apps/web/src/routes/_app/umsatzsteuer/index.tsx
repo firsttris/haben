@@ -1,12 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { getFilingPeriodKey } from "../../../server/functions/vat.ts";
+import { getOpenFilingPeriodKey } from "../../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/umsatzsteuer/")({
-  // Der zuletzt abgelaufene Zeitraum nach dem eingestellten Voranmeldungszeitraum: Vormonat oder letztes volles Quartal
+  // Der Zeitraum, der noch abgegeben werden muss: solange das laufende Quartal bzw. der laufende Monat offen ist, dieser (#1099)
   beforeLoad: async () => {
     throw redirect({
       to: "/umsatzsteuer/$zeitraum",
-      params: { zeitraum: await getFilingPeriodKey() },
+      params: { zeitraum: await getOpenFilingPeriodKey() },
     });
   },
 });
