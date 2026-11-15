@@ -1562,6 +1562,188 @@
       "when": 1794562426655,
       "tag": "0222_leistungen_abgerechnet_sperre",
       "breakpoints": true
+    },
+    {
+      "idx": 223,
+      "version": "7",
+      "when": 1794575514495,
+      "tag": "0223_anzahlung_bilanz",
+      "breakpoints": true
+    },
+    {
+      "idx": 224,
+      "version": "7",
+      "when": 1794575516087,
+      "tag": "0224_anzahlung_rechtsform",
+      "breakpoints": true
+    },
+    {
+      "idx": 225,
+      "version": "7",
+      "when": 1794597893345,
+      "tag": "0225_sevdesk_buchungskonten",
+      "breakpoints": true
+    },
+    {
+      "idx": 226,
+      "version": "7",
+      "when": 1794597894109,
+      "tag": "0226_sevdesk_buchungskonten_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 227,
+      "version": "7",
+      "when": 1794601897072,
+      "tag": "0227_gutschrift_erstattet_bezahltes",
+      "breakpoints": true
+    },
+    {
+      "idx": 228,
+      "version": "7",
+      "when": 1794605361767,
+      "tag": "0228_zuordnung_aufhebung_datum",
+      "breakpoints": true
+    },
+    {
+      "idx": 229,
+      "version": "7",
+      "when": 1794643109074,
+      "tag": "0229_vorsteuerabzug_vorgabe",
+      "breakpoints": true
+    },
+    {
+      "idx": 230,
+      "version": "7",
+      "when": 1794645219072,
+      "tag": "0230_beleg_leistungszeitraum",
+      "breakpoints": true
+    },
+    {
+      "idx": 231,
+      "version": "7",
+      "when": 1794664787301,
+      "tag": "0231_rechnung_ausgefuehrt_am",
+      "breakpoints": true
+    },
+    {
+      "idx": 232,
+      "version": "7",
+      "when": 1794671327848,
+      "tag": "0232_search_pg_trgm",
+      "breakpoints": true
+    },
+    {
+      "idx": 233,
+      "version": "7",
+      "when": 1794671331147,
+      "tag": "0233_search_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 234,
+      "version": "7",
+      "when": 1794681966642,
+      "tag": "0234_passwortwechsel",
+      "breakpoints": true
+    },
+    {
+      "idx": 235,
+      "version": "7",
+      "when": 1794681973469,
+      "tag": "0235_passwortwechsel_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 236,
+      "version": "7",
+      "when": 1794688457252,
+      "tag": "0236_dateipruefung",
+      "breakpoints": true
+    },
+    {
+      "idx": 237,
+      "version": "7",
+      "when": 1794692085794,
+      "tag": "0237_jahreserklaerung_zeilenwerte",
+      "breakpoints": true
+    },
+    {
+      "idx": 238,
+      "version": "7",
+      "when": 1794692093538,
+      "tag": "0238_jahreserklaerung_zeilenwerte_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 239,
+      "version": "7",
+      "when": 1794694652955,
+      "tag": "0239_app_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1794694658816,
+      "tag": "0240_app_versions_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 241,
+      "version": "7",
+      "when": 1794718530726,
+      "tag": "0241_rechnung_verrechnung_korrektur",
+      "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1794718531726,
+      "tag": "0242_rechnung_verrechnung_korrektur_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1794733876948,
+      "tag": "0243_fastbill",
+      "breakpoints": true
+    },
+    {
+      "idx": 244,
+      "version": "7",
+      "when": 1794733884835,
+      "tag": "0244_fastbill_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 245,
+      "version": "7",
+      "when": 1794736111385,
+      "tag": "0245_mcp_oauth",
+      "breakpoints": true
+    },
+    {
+      "idx": 246,
+      "version": "7",
+      "when": 1794745098644,
+      "tag": "0246_search_unaccent",
+      "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1794745106907,
+      "tag": "0247_search_stufe2_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 248,
+      "version": "7",
+      "when": 1794750748349,
+      "tag": "0248_kleinunternehmer_gruendungsdatum",
+      "breakpoints": true
     }
   ]
 }

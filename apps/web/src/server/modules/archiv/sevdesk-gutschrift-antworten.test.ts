@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import gutschriften from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/gutschrift.json";
 import zahlungen from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/gutschrift-zahlungen.json";
+import buchungskonten from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/accounting-type.json";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
@@ -44,8 +45,12 @@ describe.skipIf(!testDatabaseUrl)("Gutschriften aus sevDesk 1.0 mit Zahlungen (P
 
   beforeEach(() => reset("SKR03", "ist"));
 
-  async function importAll() {
+  /** Mit den Antworten von GET /AccountingType zu beiden Buchungskonten, wie der Abruf sie ablegt */
+  async function importAll(withAccountingTypes = true) {
     const [{ id: importId }] = (await sql`select id from lexoffice_imports limit 1`) as unknown as [{ id: string }];
+    if (withAccountingTypes)
+      for (const raw of buchungskonten)
+        await sql`insert into sevdesk_accounting_types (import_id, accounting_type_id, raw) values (${importId}, ${raw.id}, ${JSON.stringify(raw)}::jsonb)`;
     const ids = new Map<string, string>();
     for (const n of notes) {
       const { voucher: v, payment } = mapSevCreditNote(n.creditNote as unknown as SevCreditNote, n.positions as never[]);
@@ -98,15 +103,34 @@ describe.skipIf(!testDatabaseUrl)("Gutschriften aus sevDesk 1.0 mit Zahlungen (P
     await importAll();
     const year = (await lexoffice.reconciliation()).years.find((y) => y.year === 2024)!;
     expect(year.vatIssue).toBeNull();
-    expect(year.ausgaben.count).toBe(3);
+    // Honorar zweimal, Provision und das Buchungskonto auf dem Aufwandskonto
+    expect(year.ausgaben.count).toBe(4);
   });
 
-  it("führt ein Buchungskonto auf einem Aufwandskonto bis zur Kontoart weiter als Einnahme", async () => {
+  const buchungskonto = (name: string) =>
+    byCategory("ACCOUNTING_TYPE").find((n) => (n.creditNote.accountingType as { name?: string } | undefined)?.name === name)!;
+
+  it("führt ein Buchungskonto auf dem Aufwandskonto 3100/5900 als Ausgabe-Gutschrift, auf dem Erlöskonto als Einnahme", async () => {
     const ids = await importAll();
-    const aufwand = byCategory("ACCOUNTING_TYPE").find(
-      (n) => (n.creditNote.accountingType as { name?: string } | undefined)?.name !== "Einnahmen / Erlöse / Verkäufe",
-    )!;
-    expect(await detail(ids, aufwand)).toMatchObject({ type: "creditnote", direction: "einnahme" });
+    expect(await detail(ids, buchungskonto("Dienstleister / Agenturen / Freelancer"))).toMatchObject({
+      type: "purchasecreditnote",
+      direction: "ausgabe",
+      accountingTypeIssue: null,
+    });
+    expect(await detail(ids, buchungskonto("Einnahmen / Erlöse / Verkäufe"))).toMatchObject({
+      type: "creditnote",
+      direction: "einnahme",
+      accountingTypeIssue: null,
+    });
+  });
+
+  it("führt beide Buchungskonten ohne Antwort zum Konto als unklare Einnahme", async () => {
+    const ids = await importAll(false);
+    for (const name of ["Dienstleister / Agenturen / Freelancer", "Einnahmen / Erlöse / Verkäufe"]) {
+      const v = await detail(ids, buchungskonto(name));
+      expect(v).toMatchObject({ type: "creditnote", direction: "einnahme" });
+      expect(v.accountingTypeIssue).toMatch(/^Buchungskonto nicht erkannt/);
+    }
   });
 
   it("bietet keine der Gutschriften als offenen Posten an", async () => {

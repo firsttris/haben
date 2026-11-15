@@ -2,6 +2,7 @@ import { formatEuro } from "@haben/core";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 
 /*
@@ -73,6 +74,7 @@ export function VerrechnenFormular({
   const [offen, setOffen] = useState(false);
   const [gegenumsatz, setGegenumsatz] = useState(candidates[0]?.id ?? "");
   const [notiz, setNotiz] = useState("");
+  const { form, error, check } = useSubmitCheck({ notiz: notiz.trim() === "" ? "Trag eine Notiz ein, warum sich die Umsätze aufheben." : null });
   if (candidates.length === 0) return null;
   if (!offen) {
     return (
@@ -84,12 +86,12 @@ export function VerrechnenFormular({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!gegenumsatz || !notiz.trim()) return;
+    if (!check() || !gegenumsatz) return;
     onSubmit({ counterTransactionId: gegenumsatz, note: notiz.trim() });
   }
 
   return (
-    <form className="stack" style={{ gap: 10 }} aria-label="Mit Gegenumsatz verrechnen" onSubmit={submit}>
+    <form ref={form} className="stack" style={{ gap: 10 }} aria-label="Mit Gegenumsatz verrechnen" onSubmit={submit} noValidate>
       <div className="section-label">Mit Gegenumsatz verrechnen</div>
       <p className="small muted" style={{ margin: 0 }}>
         Für Umsätze, die sich aufheben, etwa Kartenprüfung und Rückbuchung. Beide gelten danach als erledigt; es entsteht keine Buchung, Voranmeldung und EÜR
@@ -107,7 +109,7 @@ export function VerrechnenFormular({
           </select>
         )}
       </Field>
-      <Field label="Notiz" hint="Steht mit der Verrechnung im Änderungsprotokoll.">
+      <Field label="Notiz" hint="Steht mit der Verrechnung im Änderungsprotokoll." error={error("notiz")}>
         {(control) => (
           <input
             {...control}
@@ -120,11 +122,11 @@ export function VerrechnenFormular({
         )}
       </Field>
       <div className="actions">
-        <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }} disabled={busy || !notiz.trim()}>
-          Verrechnen
-        </button>
         <button type="button" className="btn" onClick={() => setOffen(false)} disabled={busy}>
           Abbrechen
+        </button>
+        <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }} disabled={busy}>
+          Verrechnen
         </button>
       </div>
     </form>

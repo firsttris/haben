@@ -5,16 +5,19 @@ import type { Kontenrahmen } from "./posting.ts";
  * Pauschalen ohne Beleg, die als Betriebsausgabe zählen (§ 4 Abs. 5 EStG):
  * - Tagespauschale für die Arbeit in der Wohnung (Homeoffice, § 4 Abs. 5 Satz 1 Nr. 6c EStG),
  * - Fahrten mit dem privaten Fahrzeug zu Kunden und auf Geschäftsreisen (Kilometersatz nach BRKG),
- * - Verpflegungsmehraufwand auf Geschäftsreisen im Inland (§ 9 Abs. 4a EStG).
+ * - Verpflegungsmehraufwand auf Geschäftsreisen im Inland (§ 9 Abs. 4a EStG),
+ * - Wege zwischen Wohnung und Betriebsstätte nach der Entfernungspauschale (§ 4 Abs. 5 Satz 1 Nr. 6 Satz 2 EStG
+ *   i. V. m. § 9 Abs. 1 Satz 3 Nr. 4 EStG), nicht mit dem Kilometersatz der Fahrten.
  * Bezahlt wird privat, deshalb Ausgabe an Privateinlage.
  */
 
-export type PauschaleArt = "homeoffice" | "fahrt" | "verpflegung";
+export type PauschaleArt = "homeoffice" | "fahrt" | "verpflegung" | "entfernung";
 
 export const PAUSCHALE_LABEL: Record<PauschaleArt, string> = {
   homeoffice: "Homeoffice-Tagespauschale",
   fahrt: "Fahrten mit dem Privatfahrzeug",
   verpflegung: "Verpflegungsmehraufwand",
+  entfernung: "Wege zwischen Wohnung und Betriebsstätte",
 };
 
 /** Tagespauschale je Tag und Höchstzahl der Tage im Jahr: ab 2023 6 € für bis zu 210 Tage (1.260 €), 2020–2022 5 € für 120 Tage */
@@ -30,6 +33,15 @@ export type Fahrzeug = "pkw" | "andere";
 export const KM_SATZ: Record<Fahrzeug, Cents> = { pkw: 30, andere: 20 };
 
 export const FAHRZEUG_LABEL: Record<Fahrzeug, string> = { pkw: "Auto", andere: "Motorrad, Roller oder Moped" };
+
+/**
+ * Kilometer aus einem Eingabefeld: Punkt als Tausenderpunkt, Komma als Dezimaltrenner (wie bei den Fahrten). Für die
+ * Entfernungspauschale zählen nur volle Kilometer der einfachen Strecke (§ 9 Abs. 1 Satz 3 Nr. 4 Satz 2 EStG), es wird abgerundet.
+ */
+export function volleKilometer(eingabe: string): number {
+  const km = Number(eingabe.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(km) && km > 0 ? Math.floor(km) : 0;
+}
 
 /** Betrag einer Fahrt; km mit einer Nachkommastelle, gerundet auf Cent */
 export function fahrtBetrag(km: number, fahrzeug: Fahrzeug): Cents {
@@ -79,7 +91,9 @@ export function verpflegungBetrag(year: number, tag: Reisetag, mahlzeiten: Mahlz
 
 /**
  * Aufwandskonto je Pauschale; Gegenkonto ist die Privateinlage. Homeoffice auf dem Konto für das
- * häusliche Arbeitszimmer (abziehbarer Anteil), Fahrten und Verpflegung auf den Reisekosten des Unternehmers.
+ * häusliche Arbeitszimmer (abziehbarer Anteil), Fahrten und Verpflegung auf den Reisekosten des Unternehmers. Die Wege
+ * zur Betriebsstätte auf dem Konto für den abziehbaren Anteil; der DATEV-Kontenrahmen 2026 beschriftet es für Fahrzeuge
+ * im Betriebsvermögen und kennt kein eigenes Konto für das Privatfahrzeug.
  */
 export const PAUSCHALE_KONTEN: Record<PauschaleArt, Record<Kontenrahmen, { konto: string; name: string }>> = {
   homeoffice: {
@@ -93,5 +107,9 @@ export const PAUSCHALE_KONTEN: Record<PauschaleArt, Record<Kontenrahmen, { konto
   verpflegung: {
     SKR03: { konto: "4674", name: "Reisekosten Unternehmer Verpflegungsmehraufwand" },
     SKR04: { konto: "6674", name: "Reisekosten Unternehmer Verpflegungsmehraufwand" },
+  },
+  entfernung: {
+    SKR03: { konto: "4678", name: "Fahrten zwischen Wohnung und Betriebsstätte (abziehbarer Anteil)" },
+    SKR04: { konto: "6688", name: "Fahrten zwischen Wohnung und Betriebsstätte (abziehbarer Anteil)" },
   },
 };

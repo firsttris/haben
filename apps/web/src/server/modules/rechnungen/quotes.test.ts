@@ -163,6 +163,8 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     const detail = (await quotes.getQuote(quote.id))!;
     expect(detail.quote).toMatchObject({ decision: "angenommen", invoiceId: invoice.id });
     expect(quotes.quoteStatus(detail.quote, "2026-12-01")).toBe("abgerechnet");
+    // Solange die Rechnung Entwurf ist, nennt die Liste noch keine Nummer
+    expect((await quotes.listQuotes("2026-12-01")).find((q) => q.id === quote.id)).toMatchObject({ listStatus: "abgerechnet", invoiceNumber: null });
     await expect(quotes.quoteToInvoice(actor, quote.id, "2026-10-20")).rejects.toThrow(/bereits eine Rechnung/);
     await expect(quotes.setQuoteDecision(actor, quote.id, null)).rejects.toThrow(/bereits eine Rechnung/);
 
@@ -171,6 +173,11 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBeNull();
     const again = await quotes.quoteToInvoice(actor, quote.id, "2026-10-21");
     expect(again.issueDate).toBe("2026-10-21");
+
+    // Festgeschrieben hat die Rechnung eine Nummer; XRechnung verlangt dafür eine Telefonnummer des Verkäufers
+    await sql`update company set telefon = '+49 941 123456'`;
+    const final = await invoices.finalizeInvoice(actor, again.id);
+    expect((await quotes.listQuotes("2026-12-01")).find((q) => q.id === quote.id)?.invoiceNumber).toBe(final.number);
   });
 
   it("Abschläge mit Bezug zum Angebot; die Schlussrechnung zieht nur die Abschläge dieses Angebots ab", async () => {

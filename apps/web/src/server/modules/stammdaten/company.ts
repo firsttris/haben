@@ -10,6 +10,7 @@ import {
   isKapitalgesellschaft,
   legalInfo,
   legalInfoGaps,
+  MAX_DUNNING_FEE,
   skontoProblem,
   skontoStufenSchema,
   toElsterSteuernummer,
@@ -97,6 +98,13 @@ export const companySchema = z
     invoiceIntro: z.string().trim().max(2000).default(""),
     quoteIntro: z.string().trim().max(2000).default(""),
     kleinunternehmer: z.boolean(),
+    foundedOn: z.iso
+      .date()
+      .refine((date) => date >= "0001-01-01", "Das Gründungsdatum ist ungültig.")
+      .nullable()
+      .optional(),
+    /** Nur steuerfreie Umsätze ohne Vorsteuerabzug (§ 15 Abs. 2 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
+    ohneVorsteuerabzug: z.boolean().default(false),
     /** Anlage EÜR: Gewerbebetrieb oder selbständige (freiberufliche) Arbeit und Art des Betriebs */
     einkunftsart: z.enum(["gewerbe", "selbstaendig"]).nullable().default(null),
     taetigkeit: z.string().trim().max(100).default(""),
@@ -107,7 +115,11 @@ export const companySchema = z
     dunning: z
       .object({
         baseRate: z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max).nullable(),
-        fees: z.object({ "1": z.number().int().min(0).max(100_000), "2": z.number().int().min(0).max(100_000), "3": z.number().int().min(0).max(100_000) }),
+        fees: z.object({
+          "1": z.number().int().min(0).max(MAX_DUNNING_FEE),
+          "2": z.number().int().min(0).max(MAX_DUNNING_FEE),
+          "3": z.number().int().min(0).max(MAX_DUNNING_FEE),
+        }),
         deadlineDays: z.number().int().min(1).max(60),
         /** Basiszinssatz zum 1. Januar und 1. Juli bei der Bundesbank abrufen (opt-in); fehlt = unverändert */
         autoBaseRate: z.boolean().optional(),
@@ -138,7 +150,7 @@ export async function loadCompany(q: Db | Tx = db): Promise<Company> {
 
 /**
  * Versteuerung (Ist oder Soll), nach der ein Jahr gebucht ist. Umstellen geht nur zum Jahreswechsel, bevor im neuen
- * Jahr gebucht wird (settings-guard.ts); es gilt also, was beim Anlegen der ersten Buchung des Jahres eingestellt war.
+ * Jahr gebucht wird (auswertungen/settings-guard.ts); es gilt also, was beim Anlegen der ersten Buchung des Jahres eingestellt war.
  * Das steht im Audit-Log der Firmendaten. Ohne Buchung im Jahr gilt die aktuelle Einstellung.
  *
  * Wichtig für alles, was frühere Zeiträume rechnet: Voranmeldungen des Vorjahres und vor allem die
@@ -183,7 +195,7 @@ export async function setJournalAb(tx: Tx, year: number): Promise<void> {
  * Kleinunternehmer (§ 19 UStG) an einem Tag, nach dem Änderungsprotokoll der Firmendaten. Liefert eine Funktion
  * Datum (JJJJ-MM-TT, deutsche Zeit) → Status am Ende dieses Tages; vor dem ersten Eintrag gilt der erste bekannte
  * fachlich gespeicherte Stand. Unbenutzte technische Vorgaben zählen nicht als Regelbesteuerung. Einschalten geht nur,
- * solange im Jahr nichts gebucht ist (settings-guard.ts), ausschalten jederzeit.
+ * solange im Jahr nichts gebucht ist (auswertungen/settings-guard.ts), ausschalten jederzeit.
  *
  * Für alles, was frühere Zeiträume betrifft: Wer zum Jahreswechsel auf Kleinunternehmer umstellt, schuldet die
  * Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres trotzdem.
@@ -378,4 +390,10 @@ export function sellerIssues(company: Company): string[] {
  */
 export function letterIssues(company: Company): string[] {
   return legalInfoGaps(company);
+}
+
+/** Schaltet das Durchsuchen des Umzugsarchivs in der Schnellsuche ein oder aus (#617). */
+export async function setArchiveSearch(actor: string, enabled: boolean): Promise<void> {
+  await loadCompany();
+  await withActor(actor, (tx) => tx.update(schema.company).set({ archiveSearch: enabled, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
 }

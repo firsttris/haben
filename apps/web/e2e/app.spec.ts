@@ -282,8 +282,10 @@ test("Rechnungen schreiben und festschreiben", async () => {
 test("Entwurf als PDF: speichert vorher, lädt herunter und vergibt keine Nummer (#342)", async () => {
   await go("/rechnungen/neu");
   const heading = await page.getByRole("heading", { level: 1 }).textContent();
-  // Ohne Kunden gibt es noch kein Dokument
-  await expect(page.getByRole("button", { name: "Speichern und als PDF" })).toBeDisabled();
+  // Ohne Kunden gibt es noch kein Dokument: der Knopf sagt es am Feld Kunde (DESIGN.md, Gesperrte Knöpfe)
+  await page.getByRole("button", { name: "Speichern und als PDF" }).click();
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toBeFocused();
+  await expect(page).toHaveURL(/\/rechnungen\/neu$/);
   await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await page.getByLabel("Beschreibung Position 1").fill("Konzept zur Prüfung");
   await page.getByLabel("Menge Position 1").fill("2");
@@ -325,6 +327,14 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
   await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
+  // Ohne Einleitung kein Entwurf: der Fehler steht am Feld, der Fokus dort (DESIGN.md, Gesperrte Knöpfe)
+  const einleitung = page.getByLabel("Einleitung", { exact: true });
+  const text = await einleitung.inputValue();
+  await einleitung.fill("");
+  await page.getByRole("button", { name: "Entwurf als PDF" }).click();
+  await expect(einleitung).toBeFocused();
+  await expect(einleitung).toHaveAccessibleDescription(/^Trag eine Einleitung ein\./);
+  await einleitung.fill(text);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Entwurf als PDF" }).click();
   const file = await download;
@@ -337,6 +347,97 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   // Nichts gespeichert: jede Rechnung ist weiter „noch nicht gemahnt“
   await go("/rechnungen/mahnwesen");
   await expect(page.getByText("noch nicht gemahnt")).toHaveCount(offen);
+});
+
+test("Mahnung: Die Vorschau zeigt das Blatt, während das Formular sich ändert", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  // Angeheftet wie in jedem Durchlauf (vorschauAnheften): neben dem Formular, ohne Klick
+  const blatt = page.getByLabel("Vorschau der Mahnung");
+  await expect(blatt.getByRole("img", { name: "Seite 1 von 1" })).toBeVisible();
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Zahlungserinnerung");
+
+  await page.getByLabel("Stufe").selectOption({ label: "1. Mahnung" });
+  await page.getByLabel("Mahngebühr (€)").fill("5,00");
+  await page.getByRole("textbox", { name: "Einleitung", exact: true }).fill("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="kopf"]')).toContainText("Bitte überweisen Sie den offenen Betrag.");
+  await expect(blatt.locator('[data-teil="summen"]')).toContainText(/Mahngebühr: 5,00\s€/);
+});
+
+// Hier statt in knopfreihenfolge.spec.ts: Nach „ablauf“ ist keine Rechnung mehr überfällig, die Mahnseite gibt es nur jetzt
+test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf (DESIGN.md, Reihenfolge der Knöpfe)", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const kopf = page.locator(".page-head .actions");
+  const knoepfe = kopf.locator(":scope > .btn");
+  await expect(knoepfe).toHaveText(["Entwurf als PDF", "Zahlungserinnerung erstellen"]);
+  await expect(knoepfe.last()).toHaveClass(/btn-primary/);
+  await expect(kopf).toHaveCSS("flex-direction", "row");
+  await knoepfe.first().focus();
+  await page.keyboard.press("Tab");
+  await expect(knoepfe.last()).toBeFocused();
+});
+
+// Die Aktionsleiste gibt es nur im Rechnungs- und Angebotseditor (#396); der Mahnungseditor hat keine und behält seine
+// Aktionen am Handy im Kopf, sonst ließe sich dort keine Mahnung erstellen
+test("Mahnung am Handy: ohne Aktionsleiste bleiben die Aktionen im Kopf", async () => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 812 });
+  try {
+    await go("/rechnungen/mahnwesen");
+    await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+    await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+    await page.waitForLoadState("networkidle");
+    const kopf = page.locator(".main > .page-head");
+    await expect(page.locator(".main > .action-bar")).toHaveCount(0);
+    await expect(kopf.getByRole("button", { name: "Vorschau", exact: true })).toBeVisible();
+    await expect(kopf.getByRole("button", { name: "Entwurf als PDF" })).toBeVisible();
+    await expect(kopf.getByRole("button", { name: "Zahlungserinnerung erstellen" })).toBeVisible();
+    // Wie bisher im Rechnungsentwurf (#401): Die Aktionen füllen am Handy die volle Breite des Kopfes
+    const innen = await kopf.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const stil = getComputedStyle(el);
+      return { links: box.left + Number.parseFloat(stil.paddingLeft), rechts: box.right - Number.parseFloat(stil.paddingRight) };
+    });
+    const zeile = await kopf.locator("> .actions").boundingBox();
+    expect(zeile?.x).toBeLessThanOrEqual(innen.links);
+    expect((zeile?.x ?? 0) + (zeile?.width ?? 0)).toBeGreaterThanOrEqual(innen.rechts);
+  } finally {
+    if (vorher) await page.setViewportSize(vorher);
+  }
+});
+
+test("Mahnung: Eine Gebühr über der Grenze steht am Feld und zählt weder in Forderung noch Vorschau", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const blatt = page.getByLabel("Vorschau der Mahnung");
+  await page.getByLabel("Mahngebühr (€)").fill("1.500,00");
+  await page.getByRole("button", { name: "Zahlungserinnerung erstellen" }).click();
+  await expect(page.getByLabel("Mahngebühr (€)")).toBeFocused();
+  await expect(page.getByLabel("Mahngebühr (€)")).toHaveAccessibleDescription(/höchstens 1\.000,00\s€/);
+  await expect(page.getByRole("region", { name: "Forderung" }).getByText("Mahngebühr", { exact: true })).toHaveCount(0);
+  await expect(blatt.getByRole("img", { name: "Seite 1 von 1" })).toBeVisible();
+  await expect(blatt.locator('[data-teil="summen"]')).not.toContainText("Mahngebühr");
+});
+
+test("Mahnung: Das Zahnrad zeigt nur Schalter, die auf das Blatt wirken", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Gestaltung" }).first().click();
+  const gestaltung = page.getByRole("complementary", { name: "Gestaltung" });
+  for (const schalter of ["Falz- und Lochmarken", "GiroCode", "Kundennummer"]) await expect(gestaltung.getByRole("checkbox", { name: schalter })).toBeVisible();
+  // mahnung.typ hat keine Positionen
+  for (const schalter of ["Artikelnummer", "Spalte USt je Position"]) await expect(gestaltung.getByRole("checkbox", { name: schalter })).toHaveCount(0);
+  await expect(gestaltung).not.toContainText("Spalte USt");
+  await page.keyboard.press("Escape");
 });
 
 test("Mahnung: Einleitung und Schluss lassen sich mit den Knöpfen auszeichnen (#359)", async () => {
@@ -559,7 +660,7 @@ test("Buchungen und Konten stimmen mit den Vorgängen überein", async () => {
   await expect(page.getByRole("table")).toBeVisible();
   await page.getByRole("button", { name: /^Rechnung \(/ }).click();
   for (const row of await page.locator("tbody tr:not(.lines-row)").all()) {
-    if ((await row.locator("td").count()) > 1) await expect(row.locator(".pill")).toHaveText(/Rechnung|Gegenbuchung/);
+    if ((await row.locator("td").count()) > 1) await expect(row.locator(".journal-source")).toHaveText(/Rechnung|Gegenbuchung/);
   }
 });
 
@@ -586,6 +687,19 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   expect(body).toContain(";29098;55003;");
   // Keine Nummern, die im Belegfeld 1 zusammenfallen: kein Hinweis
   expect(response.headers()["x-haben-hinweis"]).toBeUndefined();
+
+  // Zeitraum Monat und Quartal (#960)
+  await card.getByLabel("Zeitraum").selectOption("03");
+  const maerzRes = await page.request.get((await link.getAttribute("href"))!);
+  expect(maerzRes.status()).toBe(200);
+  expect(maerzRes.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-03\.csv/);
+  await card.getByLabel("Zeitraum").selectOption("Q1");
+  const q1Res = await page.request.get((await link.getAttribute("href"))!);
+  expect(q1Res.status()).toBe(200);
+  expect(q1Res.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-Q1\.csv/);
+  const badPeriodRes = await page.request.get("/api/datev/2026?zeitraum=ungueltig");
+  expect(badPeriodRes.status()).toBe(400);
+  await card.getByLabel("Zeitraum").selectOption("");
 
   // Mit Hinweis (#675; welche Nummern zusammenfallen, prüft datev-belegfeld.test.ts): Die Datei kommt, die Karte nennt die Nummern
   const hinweis = "„RE.2026.001“ und „RE-2026-001“ stehen im Belegfeld 1 als „RE-2026-001“; DATEV kann ihre offenen Posten verwechseln.";
@@ -709,6 +823,79 @@ test("Auftragsarchiv: suchen, Original-PDF nachreichen und unverändert herunter
   await expect(page.getByRole("row").filter({ hasText: "AN-ARCHIV-1" })).toContainText("1 vorhanden");
 });
 
+// #472: Gutschrift auf ein Buchungskonto aus sevDesk folgt dem Kontostamm; ohne erkannte Kontoart markiert Haben sie. Die Daten
+// stehen in 2019 und werden danach wieder entfernt, damit spätere Tests und Bilder das Archiv wie vorher sehen.
+test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift oder Hinweis „Buchungskonto nicht erkannt“", async ({ browser }) => {
+  const sql = postgres(databaseUrlFuer(), { max: 1 });
+  const note = (id: string, accountingTypeId: string) => ({
+    id,
+    bookingCategory: "ACCOUNTING_TYPE",
+    accountingType: { id: accountingTypeId, objectName: "AccountingType" },
+  });
+  let runId = "";
+  try {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('haben.actor', 'e2e', true)`;
+      const [run] = await tx`insert into lexoffice_imports (source, status, progress)
+        values ('sevdesk', 'fertig', '{"phase":"fertig","contacts":0,"contactsLinked":0,"listed":2,"imported":2,"skipped":0,"files":0,"failed":[]}') returning id`;
+      runId = run!.id as string;
+      await tx`insert into sevdesk_accounting_types (import_id, accounting_type_id, raw)
+        values (${runId}, 'E2E-1', '{"id":"E2E-1","objectName":"AccountingType","skr03":"3100","skr04":"5900"}')`;
+      for (const [id, number, accountingTypeId] of [
+        ["901", "GS-E2E-1", "E2E-1"],
+        ["902", "GS-E2E-2", "E2E-2"],
+      ])
+        await tx`insert into lexoffice_vouchers (lexoffice_id, source, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
+          values (${`creditnote/${id}`}, 'sevdesk', ${runId}, 'creditnote', 'einnahme', ${number}, '2019-03-10', 'open', 'Erfundene Agentur', -10000, -1900, -11900,
+          '[{"rate":1900,"net":-10000,"tax":-1900}]', '[]', '{"status":"open","openAmount":-11900,"paidDate":null,"items":[]}', ${tx.json(note(id!, accountingTypeId!))})`;
+    });
+    await go("/archiv?ansicht=belege&jahr=2019");
+    await expect(page.getByRole("link", { name: /GS-E2E-1/ })).toContainText("Ausgabe-Gutschrift");
+    await expect(page.getByRole("link", { name: /GS-E2E-1/ })).not.toContainText("Buchungskonto nicht erkannt");
+    await expect(page.getByRole("link", { name: /GS-E2E-2/ })).toContainText("Buchungskonto nicht erkannt");
+    await page.getByRole("link", { name: /GS-E2E-2/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "GS-E2E-2" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Buchungskonto nicht erkannt" })).toContainText("„Erneut abrufen“");
+    // Markierung und Hinweis prüft axe am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
+    const context = await browser.newContext({ storageState: await page.context().storageState() });
+    const axePage = await context.newPage();
+    // 320 px ist die schmalste Breite nach WCAG 1.4.10, wie in barrierefreiheit.spec.ts
+    for (const url of ["/archiv?ansicht=belege&jahr=2019", page.url()])
+      for (const width of [1440, 390, 320]) {
+        await axePage.setViewportSize({ width, height: 900 });
+        await axePage.goto(new URL(url, page.url()).toString());
+        await axePage.waitForLoadState("networkidle");
+        // Die Markierung steht ganz in ihrer Spalte, auch am Handy, wo Kontakt und Art schmal sind
+        if (url.startsWith("/archiv?"))
+          expect(
+            await axePage.getByText("Buchungskonto nicht erkannt").evaluate((el) => {
+              const cell = el.closest(".table-row > div")!.getBoundingClientRect();
+              const pill = el.getBoundingClientRect();
+              return pill.left >= cell.left - 0.5 && pill.right <= cell.right + 0.5;
+            }),
+            `Markierung ganz sichtbar bei ${width} px`,
+          ).toBe(true);
+        const { violations } = await new AxeBuilder({ page: axePage })
+          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+          .analyze();
+        expect(
+          violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+          `${url} bei ${width} px`,
+        ).toEqual([]);
+      }
+    await context.close();
+  } finally {
+    if (runId)
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`delete from sevdesk_accounting_types where import_id = ${runId}`;
+        await tx`delete from lexoffice_vouchers where import_id = ${runId}`;
+        await tx`delete from lexoffice_imports where id = ${runId}`;
+      });
+    await sql.end();
+  }
+});
+
 test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfernen", async () => {
   await fakeEigeneSeite(page);
   await page.route("https://lager.example/**", (route) =>
@@ -776,7 +963,8 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await expect(form.getByLabel("Adresse")).toHaveValue("");
   await expect(form.getByLabel("Öffnen")).toHaveValue("haben");
   await expect(paperless).toHaveAccessibleName("Paperless (öffnet in neuem Tab)");
-  await expect(page.getByText("Öffnet in neuem Tab")).toBeVisible();
+  // Die eingeklappte Leiste steht verborgen daneben im DOM, mit demselben Hinweis
+  await expect(page.getByText("Öffnet in neuem Tab").filter({ visible: true })).toBeVisible();
   await page.getByRole("button", { name: "Paperless bearbeiten" }).click();
   await expect(page.getByRole("form", { name: "Paperless bearbeiten" }).getByLabel("Öffnen")).toHaveValue("tab");
   await page.getByRole("button", { name: "Paperless entfernen" }).click();
@@ -929,6 +1117,38 @@ test("Dauerbeleg: Miete mit Vertrag anlegen, Beleg zu prüfen, im Bankabgleich b
   await expect(page.getByText(/Pausiert: Bis zum Fortsetzen/)).toBeVisible();
   await page.getByRole("button", { name: "Fortsetzen" }).click();
   await expect(page.getByText(/Aktiv: Haben legt zu jedem Termin/)).toBeVisible();
+});
+
+test("Kette prüfen unterscheidet Betreiberhinweise von abgeschalteten und fehlenden Sperren", async () => {
+  const sql = postgres(databaseUrlFuer(), { max: 1, onnotice: () => {} });
+  const [original] = await sql`select pg_get_triggerdef(oid) as definition from pg_trigger
+    where tgrelid = 'public.contacts'::regclass and tgname = 'contacts_no_delete'`;
+  try {
+    await sql`create function betreiber_probe() returns trigger language plpgsql as $$ begin return NEW; end $$`;
+    await sql`create trigger betreiber_probe after insert on contacts for each row execute function betreiber_probe()`;
+    await go("/einstellungen?bereich=export");
+    const card = page.locator("section.card").filter({ has: page.getByRole("heading", { name: "Änderungsprotokoll prüfen", exact: true }) });
+    await card.getByRole("button", { name: "Kette prüfen", exact: true }).click();
+    await expect(card).toContainText("Zusätzlicher Trigger public.contacts.betreiber_probe");
+    await expect(card).toContainText("Kette, Siegel und Sperren sind unverändert");
+    await expect(card.locator(".banner-danger")).toHaveCount(0);
+    await sql`alter table year_closings disable trigger year_closings_append_only`;
+    await card.getByRole("button", { name: "Kette prüfen", exact: true }).click();
+    await expect(card).toContainText("Trigger public.year_closings.year_closings_append_only ist abgeschaltet");
+    await expect(card).toContainText("1 Befunde");
+    await sql`alter table year_closings enable trigger year_closings_append_only`;
+    await sql`drop trigger contacts_no_delete on contacts`;
+    await card.getByRole("button", { name: "Kette prüfen", exact: true }).click();
+    await expect(card).toContainText("Trigger public.contacts.contacts_no_delete fehlt");
+    await expect(card).toContainText("1 Befunde");
+  } finally {
+    await sql`alter table year_closings enable trigger year_closings_append_only`;
+    await sql`drop trigger if exists contacts_no_delete on contacts`;
+    await sql.unsafe(original!.definition);
+    await sql`drop trigger if exists betreiber_probe on contacts`;
+    await sql`drop function if exists betreiber_probe()`;
+    await sql.end();
+  }
 });
 
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {

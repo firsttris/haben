@@ -1,8 +1,9 @@
-import type { z } from "zod";
+import { z } from "zod";
 import { parseContentDispositionFilename } from "../lexoffice/client.ts";
 import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
 import {
   listSchema,
+  sevAccountingTypeSchema,
   sevBookkeepingVersionSchema,
   sevCheckAccountSchema,
   sevCheckAccountTransactionLogSchema,
@@ -18,6 +19,7 @@ import {
   sevRelatedObjectsResponseSchema,
   sevVoucherPosSchema,
   sevVoucherSchema,
+  type SevAccountingType,
   type SevCheckAccount,
   type SevCheckAccountTransactionLog,
   type SevCommunicationWay,
@@ -148,6 +150,15 @@ export class SevdeskClient {
 
   checkAccountTransactionLogs(): AsyncGenerator<SevCheckAccountTransactionLog> {
     return this.#pages("/CheckAccountTransactionLog", { embed: "checkAccountTransaction" }, sevCheckAccountTransactionLogSchema);
+  }
+
+  /** Kontostamm eines Buchungskontos; sevDesk liefert ihn als Liste mit einem Eintrag oder als einzelnes Objekt. */
+  async accountingType(accountingTypeId: string): Promise<SevAccountingType> {
+    const path = `/AccountingType/${enc(accountingTypeId)}`;
+    const data = await this.#json(path, {}, z.looseObject({ objects: z.union([z.array(sevAccountingTypeSchema), sevAccountingTypeSchema]) }));
+    const objects = Array.isArray(data.objects) ? data.objects : [data.objects];
+    if (objects.length !== 1 || String(objects[0]!.id) !== accountingTypeId) throw new SevdeskApiError("Buchungskonto nicht eindeutig gefunden.", 200, path);
+    return objects[0]!;
   }
 
   orders(): AsyncGenerator<SevOrder> {

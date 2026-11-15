@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 
 /**
- * Umsatzliste im Bankabgleich (#681): Datum mit Jahr, Spaltenköpfe sortieren, der zweite Klick dreht die Richtung.
+ * Umsatzliste im Bankabgleich: Spalten sortieren (#681) und Vorschläge filtern (#932).
  * Mit den Umsätzen und der Sitzung aus app.spec.ts (Projekt „mit-daten“); geschrieben wird nichts.
  */
 
@@ -51,4 +51,23 @@ test("Filterwechsel behält die Sortierung, wie er die Suche behält", async ({ 
   await expect(page).toHaveURL(/filter=zugeordnet/);
   await expect(page).toHaveURL(/sort=betrag&dir=ab/);
   await expect(page.getByRole("link", { name: "Betrag aufsteigend sortieren, zurzeit absteigend sortiert" })).toHaveText("Betrag ↓");
+});
+
+test("Vorschlag zeigt nur Umsätze mit diesem Status", async ({ page }) => {
+  await page.goto("/bank?filter=alle&sort=betrag&dir=ab");
+  await page.waitForLoadState("networkidle");
+  const rows = page.locator(".tx-row");
+  await expect(rows.filter({ hasText: "Rheinpixel GmbH" })).toContainText("Vorschlag");
+  await expect(rows.filter({ hasText: "Alpenblick Media AG" })).toContainText("Zugeordnet");
+
+  const filter = page.getByRole("group", { name: "Filter" }).getByRole("link", { name: "Vorschlag", exact: true });
+  await filter.click();
+  await expect(filter).toHaveAttribute("aria-current", "page");
+  await expect(page).toHaveURL(/filter=vorschlag/);
+  await expect(page).toHaveURL(/sort=betrag&dir=ab/);
+  await expect(rows.filter({ hasText: "Rheinpixel GmbH" })).toBeVisible();
+  await expect(rows.filter({ hasNotText: "Vorschlag" })).toHaveCount(0);
+
+  await page.goto("/bank?filter=vorschlag&suche=Alpenblick");
+  await expect(page.getByText("Keine Umsätze mit Vorschlag.")).toBeVisible();
 });

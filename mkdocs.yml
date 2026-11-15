@@ -28,12 +28,14 @@ not_in_nav: |
 nav:
   - Start: index.md
   - Übersicht: ueberblick.md
+  - Suchen: suche.md
   - Betrieb:
       - Installation: installation.md
       - Synology: synology.md
       - TrueNAS SCALE: truenas.md
       - Unraid: unraid.md
       - Coolify: coolify.md
+      - Plesk: plesk.md
       - Konfiguration: installation-konfiguration.md
       - Anbindungen: installation-anbindungen.md
       - Single Sign-on: installation-sso.md
@@ -78,6 +80,7 @@ nav:
   - Umzug und Import:
       - Umzug aus Lexoffice: lexoffice.md
       - Umzug aus sevDesk: sevdesk.md
+      - Umzug aus FastBill: fastbill.md
       - Umzug aus BuchhaltungsButler: buchhaltungsbutler.md
       - Umzug aus Accountable: accountable.md
       - Umzug aus WISO EÜR & Kasse: wiso.md
@@ -194,3 +197,6 @@ extra:
     - icon: fontawesome/brands/docker
       link: https://hub.docker.com/r/tristanteu/haben
       name: Image auf Docker Hub
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/CT2GQytSYH
+      name: Fragen und Austausch auf Discord

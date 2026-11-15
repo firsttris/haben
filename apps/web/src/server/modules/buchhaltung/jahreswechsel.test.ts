@@ -4,7 +4,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Buchungen ins Vorjahr nach einem Wechsel von Kontenrahmen oder Versteuerung zum Jahreswechsel.
- * Umstellen erlaubt Haben, solange im neuen Jahr nichts gebucht ist (settings-guard.ts). Was danach noch ins Vorjahr
+ * Umstellen erlaubt Haben, solange im neuen Jahr nichts gebucht ist (auswertungen/settings-guard.ts). Was danach noch ins Vorjahr
  * gebucht würde, hinge von der neuen Einstellung ab, das Vorjahr rechnet aber nach der alten.
  */
 
@@ -171,7 +171,8 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
 
       await sql`update company set kontenrahmen = 'SKR04'`;
       const before = await entryCount();
-      expect(await failure(bank.reverseAllocation(actor, allocationId))).toMatch(
+      // Aufhebung noch im alten Jahr datiert: dann muss das alte Jahr im alten Kontenrahmen gebucht sein
+      expect(await failure(bank.reverseAllocation(actor, allocationId, "2025-12-20"))).toMatch(
         /Das Jahr 2025 ist im Kontenrahmen SKR03 gebucht, eingestellt ist jetzt SKR04/,
       );
       // Nichts gebucht, die Zuordnung steht noch

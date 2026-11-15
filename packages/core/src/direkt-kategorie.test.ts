@@ -103,9 +103,9 @@ describe("kategoriePosting", () => {
   it("Kleinunternehmer: Erlöse nach § 19 UStG ohne Steuer", () => {
     expect(kategoriePosting({ kategorie: "erloese", steuersatz: 0 }, 50_00, "SKR03")).toEqual([
       { account: "1200", debit: 50_00, credit: 0, taxCode: null },
-      { account: "8195", debit: 0, credit: 50_00, taxCode: "KU" },
+      { account: "8192", debit: 0, credit: 50_00, taxCode: "KU" },
     ]);
-    expect(kategoriePosting({ kategorie: "erloese", steuersatz: 0 }, 50_00, "SKR04").map((l) => l.account)).toEqual(["1800", "4185"]);
+    expect(kategoriePosting({ kategorie: "erloese", steuersatz: 0 }, 50_00, "SKR04").map((l) => l.account)).toEqual(["1800", "4184"]);
   });
 
   it("Ausgabe auf eine Kategorie: Aufwand brutto an Bank, ohne Vorsteuer", () => {

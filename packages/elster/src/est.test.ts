@@ -71,6 +71,95 @@ describe("buildEstXml", () => {
     expect(xml).toMatch(/<Unterfallart>10<\/Unterfallart>[\s\S]*<StNr>2836216146249<\/StNr>[\s\S]*<Zeitraum>2025<\/Zeitraum>/);
   });
 
+  it("überträgt Basisrente, private Wahlleistungen und die Arbeitgeberzuschüsse in die Anlage Vorsorgeaufwand", () => {
+    const fest = estInput();
+    const xml = buildEstXml(
+      estInput({
+        angaben: {
+          ...fest.angaben,
+          vorsorge: {
+            a: {
+              rentenversicherung: 300_000,
+              pkv: 600_000,
+              ppv: 40_049,
+              basisrente: 200_000,
+              pkvWahlleistungen: 60_000,
+              agZuschussGkv: 84_000,
+              agZuschussKv: 120_000,
+              agZuschussPv: 12_000,
+            },
+            sonstige: 25_000,
+          },
+        },
+      }),
+    );
+    // Zeile 8 im AVor-Block, vor dem Arbeitgeberanteil in Zeile 9
+    const avor = xml.slice(xml.indexOf("<AVor>"), xml.indexOf("</AVor>"));
+    expect(avor).toContain("<E2000701>2000</E2000701>");
+    // Zeile 6 (gesetzliche RV) steht vor Zeile 8 (Basisrente)
+    expect(avor.indexOf("<E2000601>")).toBeLessThan(avor.indexOf("<E2000701>"));
+    // Zeile 27 als eigener Unterknoten der privaten Krankenversicherung
+    expect(xml).toMatch(/<WL_Zvers>\s*<E2003502>600<\/E2003502>\s*<\/WL_Zvers>/);
+    // Zeilen 35 und 36, je Person
+    expect(xml).toMatch(/<Stfr_AG_Zusch>\s*<Person>PersonA<\/Person>\s*<E2003705>840<\/E2003705>\s*<E2003807>1200<\/E2003807>\s*<E2003907>120<\/E2003907>/);
+
+    // Ohne Angaben entstehen die Felder nicht
+    const ohne = buildEstXml(estInput({ angaben: { ...fest.angaben, vorsorge: { a: { pkv: 600_000 } } } }));
+    expect(ohne).not.toContain("<E2000701>");
+    expect(ohne).not.toContain("<WL_Zvers>");
+    expect(ohne).not.toContain("<Stfr_AG_Zusch>");
+  });
+
+  it("schreibt Einkommensersatzleistungen mit Art und Betrag in den Hauptvordruck", () => {
+    const fest = estInput();
+    const xml = buildEstXml(
+      estInput({
+        angaben: {
+          ...fest.angaben,
+          ersatzleistungen: {
+            a: [
+              { art: "Arbeitslosengeld", betrag: 66_400 },
+              { art: "Elterngeld", betrag: 10_000 },
+            ],
+          },
+        },
+      }),
+    );
+    // Der Vordruck führt den Block innerhalb von ESt1A; auf der Ebene von SA/AgB weist ERiC ihn ab
+    const est1a = xml.slice(xml.indexOf("<ESt1A>"), xml.indexOf("</ESt1A>"));
+    expect(est1a).toMatch(/<Eink_Ers>\s*<Person>PersonA<\/Person>\s*<Inl>/);
+    expect(xml.match(/<Eink_Ers>/g)?.length).toBe(1);
+    expect(xml).toContain("<E0104110>Arbeitslosengeld</E0104110>");
+    expect(xml).toContain("<E0104113>664</E0104113>");
+    expect(xml).toContain("<E0104110>Elterngeld</E0104110>");
+    // Summe der Leistungen der Person
+    expect(xml).toContain("<E0104801>764</E0104801>");
+    // Leere Angaben erzeugen keinen Block
+    expect(buildEstXml(estInput()).includes("<Eink_Ers>")).toBe(false);
+  });
+
+  it("bildet die Summe der Einkommensersatzleistungen aus den gerundeten Einzelbeträgen", () => {
+    // ERiC-Regel 725 (Jahresdokumentation E10 2025, ESt1A - Regeln): E0104801 muss der Summe der Einzelbeträge E0104113 entsprechen.
+    // Zweimal x,40 € runden einzeln ab, die Summe in Cent (3.234,80 €) dagegen auf.
+    const fest = estInput();
+    const xml = buildEstXml(
+      estInput({
+        angaben: {
+          ...fest.angaben,
+          ersatzleistungen: {
+            a: [
+              { art: "Krankengeld", betrag: 123_440 },
+              { art: "Arbeitslosengeld", betrag: 200_040 },
+            ],
+          },
+        },
+      }),
+    );
+    expect(xml).toContain("<E0104113>1234</E0104113>");
+    expect(xml).toContain("<E0104113>2000</E0104113>");
+    expect(xml).toContain("<E0104801>3234</E0104801>");
+  });
+
   it("hält die Reihenfolge der Anlagen ein", () => {
     const xml = buildEstXml(estInput({ gewinn: { einkunftsart: "gewerbe", taetigkeit: "Handel", betrag: -100_000 } }));
     const order = ["<ESt1A>", "<SA>", "<AgB>", "<HA_35a>", "<Kind>", "<G>", "<KAP>", "<VOR>", "<Vorsatz>"].map((tag) => xml.indexOf(tag));
@@ -82,6 +171,26 @@ describe("buildEstXml", () => {
   it("rundet negative Beträge kaufmännisch (symmetrisch zur Null)", () => {
     const xml = buildEstXml(estInput({ gewinn: { einkunftsart: "gewerbe", taetigkeit: "Handel", betrag: -100_050 } }));
     expect(xml).toContain("<E0800302>-1001</E0800302>");
+  });
+
+  it("baut das häusliche Arbeitszimmer als Einzelaufwendung mit Summe", () => {
+    const base = estInput();
+    const xml = buildEstXml({
+      ...base,
+      angaben: {
+        ...base.angaben,
+        arbeitnehmer: {
+          a: {
+            bescheinigungen: [{ steuerklasse: 1, brutto: 5_000_000 }],
+            werbungskosten: { arbeitszimmer: 119_800 },
+          },
+        },
+      },
+    });
+    expect(checkXml(xml)).toBeUndefined();
+    const n = /<N>[\s\S]*?<\/N>/.exec(xml)![0];
+    // Einzelaufwendung mit Bezeichnung und Betrag, danach die Summe; ERiC lehnt eine Summe ohne Einzelposten ab
+    expect(n).toMatch(/<Arb_Zim>\s*<Einz>\s*<E0204503>Arbeitszimmer<\/E0204503>\s*<E0204505>1198<\/E0204505>\s*<\/Einz>\s*<Sum>\s*<E0204504>1198<\/E0204504>/);
   });
 
   it("baut Anlage N je Person mit Lohnsteuerbescheinigungen, Werbungskosten und Vorsorge aus der Bescheinigung", () => {

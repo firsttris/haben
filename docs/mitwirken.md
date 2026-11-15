@@ -7,6 +7,8 @@ description: >-
 
 # Mitwirken
 
+**Programmieren musst du nicht.** Wissen zu Steuern und Buchhaltung hilft genauso: Fehler melden, die Doku korrigieren, neue Versionen testen. Ein [Issue](#issues-schreiben) genügt.
+
 Vor jedem Push dieselben Prüfungen wie in der CI (ohne Bun auf dem Rechner siehe [Prüfungen ohne Bun auf dem Rechner](entwicklung.md#prüfungen-ohne-bun-auf-dem-rechner)):
 
 ```sh
@@ -40,7 +42,7 @@ Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://gi
 
 - **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht. Vor jedem Push prüfen, ob der Pull Request des Branches noch offen ist; ist er gemergt, neu von `origin/main` und ein neuer Pull Request. Force-Push nur mit `--force-with-lease` auf den eigenen Branch nach einem Merge.
 - **Entwurf:** Ein Pull Request darf als Entwurf beginnen; die CI startet erst mit „Ready for review“. Sie lässt Jobs aus, die die Änderung nicht berührt, bei reinem Markdown alles außer dem Doku-Build (Job `changes` in `ci.yml`); auf `main` und im Release laufen alle.
-- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“; die Nummer nur, falls es ein Issue gibt. Der Bereich ist ein bis drei Wörter, groß geschrieben (klein nur bei Namen wie „sevDesk“), ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe; Pull Requests von Bots wie Renovate behalten ihre eigenen Titel (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
+- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“; die Nummer nur, falls es ein Issue gibt. Jede Nummer aus `Umgesetzt #…` gehört hinein; bei `Refs #…` nur, wenn es ein Issue ist und kein anderer Pull Request. Der Bereich ist ein bis drei Wörter, groß geschrieben (klein nur bei Namen wie „sevDesk“), ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe; Pull Requests von Bots wie Renovate behalten ihre eigenen Titel (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
 - **Beschreibung:** Beim Squash wird die Beschreibung des Pull Requests die Nachricht des Commits auf `main` (Einstellung des Repositorys: `PR_BODY`) und bleibt so in der Historie. Sie muss deshalb bis zum Merge zum Stand des Pull Requests passen: Ändert ein weiterer Push, was der Pull Request tut oder wie er geprüft wurde, ändert sich die Beschreibung mit, auch nach Fixes aus dem Review und nach einem Rebase. Sie nennt alles, was der Pull Request ändert, und beschreibt das Ergebnis, nicht den Weg dorthin; Zwischenstände und Antworten auf Reviews gehören in Kommentare.
 - **Issues in der Beschreibung:** mit `Umgesetzt #…`, wenn der Pull Request das Issue fertig macht, sonst mit `Refs #…` (ein Teil, ein Bezug). Mehrere gehen als Liste: `Umgesetzt #12, #13`. Nie `Closes` oder `Fixes`: GitHub schlösse das Issue schon beim Merge, die Nutzer haben es aber erst mit dem Release; „PR-Regeln“ meldet es als Fehler.
 - **Vom Issue zum Release:** Das [Project „Roadmap“](https://github.com/users/firsttris/projects/2) zieht die Karte mit (Workflows „Board“ und „Übernehmen“, `scripts/board/`), nie zurück:
@@ -69,6 +71,8 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Regel | Prüfung | Wirkung |
 | --- | --- | --- |
 | Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
+| Ein Modul importiert nur Module, die in `scripts/modulgrenzen/schichten.ts` vor ihm stehen, außer den Ausnahmen dort | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
+| Pakete importieren nichts aus `apps/`, der GoBD-Kern keine Pakete von Haben | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
 | Höchstens 80 Zeilen je Funktion ohne Leerzeilen, außer in Tests | Biome-Regel `noExcessiveLinesPerFunction` im Editor und in `bun run lint` | Hinweis |
@@ -76,9 +80,9 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Auswahllisten über `Field`, kein `<select>` außerhalb | `scripts/felder/keine-nackte-auswahl.grit` (Biome-Regel) in `bun run lint`; Ausnahmen mit `// biome-ignore lint/plugin: Grund` | Fehler |
 | Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
 | Seite unter `docs/` wächst über 8.000 Wörter oder darüber um 300 und mehr ([Seiten der Doku](entwicklung.md#befehle)) | `scripts/pr-regeln/` | Hinweis |
-| Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
+| Titel `Bereich: was sich ändert`, `(#Issue)` für jedes Issue aus `Umgesetzt` (fehlt eins aus `Refs`: Hinweis) | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Issues mit `Umgesetzt #…` oder `Refs #…`, nicht `Closes` oder `Fixes` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
-| Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
+| Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src`, `apps/firmenportal/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
 | Selbstprüfung und unabhängiges Review mitbringen ([Beiträge annehmen](#beiträge-annehmen)) | `scripts/pr-regeln/`: Pull Request außerhalb des Entwurfs von jemandem ohne Schreibrecht, nennt `tdd-review` für Code, `doku-pruefen` für Markdown (`docs/`, `mkdocs.yml`, `LICENSE`), bei beidem beide | Hinweis |
 | Jedes Feld der Belegvorlagen im Feldvertrag, mit Beschreibung | `layout-schema.test.ts` in `bun run test` | Fehler |
@@ -97,7 +101,7 @@ Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibu
 
 Titel, Issue-Verweise, Dateigröße und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
 
-- **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen.
+- **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen; steht das andere Modul höher, gehört der Code meist woanders hin ([Module im Server](architektur.md#module-im-server)); was ein Paket aus `apps/` oder der GoBD-Kern aus einem anderen Paket braucht, in das importierende Paket verschieben.
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
 - **Funktionslänge:** in neuem Code einen Teil in eine eigene Funktion mit Namen auslagern; ältere lange Funktionen werden nur in einem eigenen Pull Request geteilt.
 - **Felder und Auswahllisten:** das Feld in `Field` setzen; eine bewusst allein stehende Liste bekommt `// biome-ignore lint/plugin: Grund`.
@@ -107,7 +111,7 @@ Wie die Prüfungen im Einzelnen entscheiden und wo sie nicht hinsehen, steht in 
 
 ## Issues schreiben
 
-Für neue Issues gibt es Formulare unter **Issues → New issue** (`.github/ISSUE_TEMPLATE/`), jedes mit nur einem Pflichtfeld; ein leeres Issue bleibt möglich. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
+Für neue Issues gibt es Formulare unter **Issues → New issue** (`.github/ISSUE_TEMPLATE/`), jedes mit nur einem Pflichtfeld; ein leeres Issue bleibt möglich. Fragen und lockerer Austausch gehen auf [Discord](https://discord.gg/CT2GQytSYH); entschieden wird im Issue, auch über Ideen von dort. In keinem Issue und keinem Beitrag auf Discord stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
 
 Größere Vorhaben und Issues von Agenten folgen dieser Gliederung:
 
@@ -147,7 +151,7 @@ Bevor ein Pull Request ins [Review](#review) geht, egal von wem, beantwortet ein
 
 **Ergebnis:** Nicht gewollt oder offene Grundsatzfrage: Der Maintainer entscheidet, ein grundsätzlich abgelehntes Thema kommt nach [Bewusst nicht](roadmap.md#bewusst-nicht). Gewollt, aber unvollständig: Kleinigkeiten ergänzen wir selbst; fehlt mehr, darf der Beitragende zwei Tage lang selbst nachbessern, danach machen wir es fertig. Dann Review und Merge bei grüner CI; fachlich heikle Änderungen (auch Migrationen auf bestehenden Daten) erst nach einem „OK“ des Maintainers auf eine kurze Zusammenfassung mit Quelle und Gegenrechnung.
 
-Rückmeldungen folgen dem [Verhaltenskodex](https://github.com/firsttris/haben/blob/main/CODE_OF_CONDUCT.md) und trennen, was vor dem Merge nötig ist, von Vorschlägen. Mit Claude Code führt der Skill `beitrag-pruefen` durch.
+Rückmeldungen folgen dem [Verhaltenskodex](https://github.com/firsttris/haben/blob/main/CODE_OF_CONDUCT.md) und trennen, was vor dem Merge nötig ist, von Vorschlägen. Mit Claude Code führt der Skill `beitrag-pruefen` durch. Alle offenen Pull Requests nacheinander, vom einfachsten Merge an, arbeitet der Skill `prs-abarbeiten` ab.
 
 ## Review
 

@@ -45,6 +45,27 @@ export function counterCircle(running: boolean, date: string): number {
   return running ? 0 : Number(date.slice(0, 4));
 }
 
+/** Zuletzt festgeschriebene Rechnung eines Nummernkreises (für die Datumsprüfung beim Festschreiben, #713) */
+export type FinalizedCircleRef = { number: string; issueDate: string };
+
+/**
+ * Gibt die zuletzt festgeschriebene Rechnung des Nummernkreises zurück, wenn das gewählte Rechnungsdatum davor liegt;
+ * sonst null. Beim Wechsel auf den durchlaufenden Zähler gilt vor der ersten neuen Rechnung noch das jüngste Jahr.
+ */
+export function issueDateBeforeLastFinalized(byCircle: Record<number, FinalizedCircleRef>, running: boolean, issueDate: string): FinalizedCircleRef | null {
+  if (!issueDate) return null;
+  const circle = counterCircle(running, issueDate);
+  let last = byCircle[circle];
+  if (!last && running) {
+    const years = Object.keys(byCircle)
+      .map(Number)
+      .filter((y) => y > 0);
+    if (years.length > 0) last = byCircle[Math.max(...years)];
+  }
+  if (!last || issueDate >= last.issueDate) return null;
+  return last;
+}
+
 /**
  * Warum ein Format nicht taugt, als Satz für die Oberfläche; null = in Ordnung. requireYear: false für Nummern, deren
  * Zähler nicht jährlich neu beginnt (Kundennummern, durchlaufende Nummernkreise); dort ist das Jahr erlaubt, aber nicht

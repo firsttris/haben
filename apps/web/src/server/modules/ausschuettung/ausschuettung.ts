@@ -17,7 +17,7 @@ import type { AusschuettungEmpfaenger } from "../../db/schema.ts";
 import { UserError } from "../../errors.ts";
 import { ledgerRange, openBooks, post, saldenliste } from "../buchhaltung/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
-import { kapgErklaerungAngaben } from "../jahreserklaerung/index.ts";
+import { kapgErklaerungAngaben } from "../koerperschaft/index.ts";
 import { companyIssues, loadCompany, type Company } from "../stammdaten/index.ts";
 
 /*

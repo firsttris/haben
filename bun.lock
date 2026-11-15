@@ -7,6 +7,7 @@
       "devDependencies": {
         "@biomejs/biome": "2.6.4",
         "@tanstack/redact": "0.3.1",
+        "@types/node": "^26.0.0",
         "oxc-parser": "^0.156.0",
         "typescript": "^7.0.2",
         "vitest": "^5.0.3",
@@ -22,6 +23,19 @@
         "vite": "^8.3.2",
       },
     },
+    "apps/firmenportal": {
+      "name": "@haben/firmenportal",
+      "version": "0.1.0",
+      "dependencies": {
+        "@fontsource/ibm-plex-sans": "^5.3.0",
+        "@haben/core": "workspace:*",
+        "openid-client": "^6.8.8",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@types/node": "^26.0.0",
+      },
+    },
     "apps/web": {
       "name": "@haben/web",
       "version": "0.1.0",
@@ -29,6 +43,7 @@
         "@anthropic-ai/sdk": "^1.0.0",
         "@azure/msal-node": "^7.2.1",
         "@better-auth/passkey": "^1.7.14",
+        "@firsttris/gobd-kern": "workspace:*",
         "@haben/core": "workspace:*",
         "@haben/einvoice": "workspace:*",
         "@haben/elster": "workspace:*",
@@ -101,6 +116,14 @@
       "devDependencies": {
         "@types/node": "^26.0.0",
         "fflate": "^0.8.3",
+      },
+    },
+    "packages/gobd-kern": {
+      "name": "@firsttris/gobd-kern",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "^26.0.0",
+        "postgres": "^4.0.0",
       },
     },
     "packages/import": {
@@ -272,6 +295,8 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.25.12", "", { "os": "win32", "cpu": "x64" }, "sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA=="],
 
+    "@firsttris/gobd-kern": ["@firsttris/gobd-kern@workspace:packages/gobd-kern"],
+
     "@fontsource/ibm-plex-mono": ["@fontsource/ibm-plex-mono@5.3.0", "", {}, "sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q=="],
 
     "@fontsource/ibm-plex-sans": ["@fontsource/ibm-plex-sans@5.3.0", "", {}, "sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w=="],
@@ -283,6 +308,8 @@
     "@haben/elster": ["@haben/elster@workspace:packages/elster"],
 
     "@haben/elster-helfer": ["@haben/elster-helfer@workspace:apps/elster-helfer"],
+
+    "@haben/firmenportal": ["@haben/firmenportal@workspace:apps/firmenportal"],
 
     "@haben/import": ["@haben/import@workspace:packages/import"],
 
@@ -984,6 +1011,8 @@
 
     "nth-check": ["nth-check@2.1.1", "", { "dependencies": { "boolbase": "^1.0.0" } }, "sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w=="],
 
+    "oauth4webapi": ["oauth4webapi@3.8.8", "", {}, "sha512-8N28E+a/oxfXWBgOMt+ZP/JUf/XR+IFbvkAEPP3gznXOMv9BpAAwiIj0TFNz3tGTPc0ZQ8zmWBNgN1nAys0gng=="],
+
     "object-assign": ["object-assign@4.1.1", "", {}, "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="],
 
     "object-inspect": ["object-inspect@1.13.4", "", {}, "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew=="],
@@ -997,6 +1026,8 @@
     "on-finished": ["on-finished@2.4.2", "", { "dependencies": { "ee-first": "1.1.1" } }, "sha512-ATWUv387i+nLD49EiDoOft5scf32Vsdz3ktrQJG9bi7jRFmaXTssvyvj1EmeKVVgvesbqUtvQQvaS2TpTukAZQ=="],
 
     "once": ["once@1.4.0", "", { "dependencies": { "wrappy": "1" } }, "sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w=="],
+
+    "openid-client": ["openid-client@6.8.8", "", { "dependencies": { "jose": "^6.2.12", "oauth4webapi": "^3.8.8" } }, "sha512-ZsucJA5Ad04Uv7YN4ql+s4GXNmb9uAYQwyJTsJx7CH/MX3JZioLE2pVKi1SC+YrbSLA4Px3Gi30dMjgOZtb6pA=="],
 
     "oxc-parser": ["oxc-parser@0.156.0", "", { "dependencies": { "@oxc-project/types": "^0.156.0" }, "optionalDependencies": { "@oxc-parser/binding-android-arm-eabi": "0.156.0", "@oxc-parser/binding-android-arm64": "0.156.0", "@oxc-parser/binding-darwin-arm64": "0.156.0", "@oxc-parser/binding-darwin-x64": "0.156.0", "@oxc-parser/binding-freebsd-x64": "0.156.0", "@oxc-parser/binding-linux-arm-gnueabihf": "0.156.0", "@oxc-parser/binding-linux-arm-musleabihf": "0.156.0", "@oxc-parser/binding-linux-arm64-gnu": "0.156.0", "@oxc-parser/binding-linux-arm64-musl": "0.156.0", "@oxc-parser/binding-linux-ppc64-gnu": "0.156.0", "@oxc-parser/binding-linux-riscv64-gnu": "0.156.0", "@oxc-parser/binding-linux-riscv64-musl": "0.156.0", "@oxc-parser/binding-linux-s390x-gnu": "0.156.0", "@oxc-parser/binding-linux-x64-gnu": "0.156.0", "@oxc-parser/binding-linux-x64-musl": "0.156.0", "@oxc-parser/binding-openharmony-arm64": "0.156.0", "@oxc-parser/binding-win32-arm64-msvc": "0.156.0", "@oxc-parser/binding-win32-ia32-msvc": "0.156.0", "@oxc-parser/binding-win32-x64-msvc": "0.156.0" } }, "sha512-7JhjgOfZjrIFJH5TlHrpRua864Si5GvwrPr5+eIRCY2sszhKXo6pyhP0HQKOGTtfO4UowwZ72XTGba0+lZphOQ=="],
 

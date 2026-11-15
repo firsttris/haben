@@ -120,14 +120,14 @@ export function EigeneSeitenCard({ pages }: { pages: Page[] }) {
         </Field>
         <PageTargetFields editing={editing} />
         <div className="actions" style={{ gridColumn: "1 / -1" }}>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {editing ? "Speichern" : "Seite hinzufügen"}
-          </button>
           {editing && (
             <button type="button" className="btn" disabled={busy} onClick={() => setEditing(null)}>
               Abbrechen
             </button>
           )}
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {editing ? "Speichern" : "Seite hinzufügen"}
+          </button>
         </div>
       </form>
       <NoticeBanner notice={notice} />

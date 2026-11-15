@@ -26,7 +26,8 @@ import { splitsByDocument } from "../belege/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
-import { VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
+import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
+import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -236,6 +237,7 @@ const SOURCE_LABELS: Record<JournalSource, string> = {
   ausschuettung: "Ausschüttung",
   lohn: "Lohn",
   import: "Import",
+  verrechnung: "Verrechnung",
 };
 
 /**
@@ -633,6 +635,20 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   });
   if (verrechnungen) {
     yield { path: "belege/verrechnungen.csv", content: csv(VERRECHNUNGEN_HEADER, verrechnungen), compress: true };
+  }
+
+  // Verrechnungen einer Ausgangsrechnung mit einer Kundenkorrektur (#877): eigene Datei, siehe export-verrechnung.ts
+  const rechnungsVerrechnungen = await rechnungsVerrechnungenFuerArchiv(invoiceNumbers, {
+    documentDay,
+    von: yearStart(year),
+    bis: yearEnd(year),
+    safeName,
+    extension: (mimeType) => EXTENSIONS[mimeType] ?? "bin",
+    money,
+    iso,
+  });
+  if (rechnungsVerrechnungen) {
+    yield { path: "rechnungen/verrechnungen.csv", content: csv(RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungen), compress: true };
   }
 
   // Buchungen -------------------------------------------------------------
@@ -1256,6 +1272,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   // Änderungsprotokoll, seitenweise gelesen ----------------------------------
   yield { path: "protokoll/audit.csv", content: auditCsv(year), compress: true };
   yield { path: "protokoll/pruefwert.txt", content: encoder.encode(await pruefwertText(year, now)), compress: true };
+  yield { path: "protokoll/versionen.csv", content: csv(VERSIONEN_HEADER, await versionenFuerArchiv(year)), compress: true };
 
   if (problems.length > 0) {
     yield { path: "FEHLER.txt", content: encoder.encode(`Beim Erstellen des Archivs fehlten Dateien:\n\n${problems.join("\n")}\n`), compress: true };
@@ -1267,7 +1284,9 @@ const LEGACY_SOURCE_LABELS = {
   sevdesk: "sevDesk",
   buchhaltungsbutler: "BuchhaltungsButler",
   accountable: "Accountable",
+  wiso: "WISO",
   import: "JSON-Import",
+  fastbill: "FastBill",
 } as const;
 
 const LEGACY_TYPE_LABELS: Record<string, string> = {
@@ -1711,6 +1730,10 @@ rechnungen/              Festgeschriebene Ausgangsrechnungen als PDF und E-Rechn
                          Entwürfe ohne Rechnungsnummer sind nicht enthalten. Nur wenn
                          vorhanden: zusätzliche Anhänge der Rechnungen unter anhaenge/,
                          Name: Nummer_Dateiname, mit anhaenge.csv.
+rechnungen/verrechnungen.csv
+                         Nur wenn vorhanden: Verrechnungen einer Ausgangsrechnung mit
+                         einer Kundenkorrektur ohne Zahlung, je Verrechnung beide Seiten
+                         mit Datum, Betrag und Grund; aufgehobene als Gegenzeile.
 angebote/                Nur wenn vorhanden: festgeschriebene Angebote des Jahres als PDF,
                          angebote.csv mit Antwort des Kunden und daraus entstandener
                          Rechnung. Nur wenn vorhanden: zusätzliche Anhänge der Angebote
@@ -1731,8 +1754,8 @@ anlagen/anlagenverzeichnis.csv
                          Jahresanfang, Zugang, AfA, Abgang und Buchwert am Jahresende.
 pauschalen/pauschalen.csv
                          Nur wenn vorhanden: Pauschalen ohne Beleg (Homeoffice-Tage,
-                         Fahrten, Verpflegungsmehraufwand) mit ihren Angaben als
-                         Eigenbeleg; Stornos als Gegenzeile.
+                         Fahrten, Verpflegungsmehraufwand, Wege zur Betriebsstätte) mit
+                         ihren Angaben als Eigenbeleg; Stornos als Gegenzeile.
 kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufender
                          Nummer, Anfangsbestand und Bestand nach jeder Zeile; bei
                          Bareinnahmen auf Rechnungen die Rechnungsnummer.
@@ -1755,8 +1778,9 @@ umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldun
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
-                         Lexware Office, sevDesk oder BuchhaltungsButler (Spalte Quelle;
-                         bei sevDesk steht in Lexoffice-ID die sevDesk-Art und -ID, z. B. invoice/123) mit
+                         Lexware Office, sevDesk, FastBill oder BuchhaltungsButler (Spalte
+                         Quelle; in Lexoffice-ID steht bei sevDesk Art und ID, z. B. invoice/123,
+                         bei FastBill mit Präfix, z. B. fastbill/invoice/123) mit
                          Originaldateien (belege.csv), Einzelzahlungen aus sevDesk
                          (zahlungen.csv), die Zeilen des
                          DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten
@@ -1767,6 +1791,8 @@ protokoll/audit.csv      Änderungsprotokoll des Jahres mit altem und neuem Wert
                          Reihenfolge der Hash-Kette mit Vorgänger-Hash und Hash je Eintrag.
 protokoll/pruefwert.txt  Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am
                          Ende des Jahres.
+protokoll/versionen.csv  Eingesetzte Haben- und PostgreSQL-Versionen im Jahr mit Startzeitpunkt
+                         (einschließlich fortgeführtem Vorjahresstand und Verweis auf Hinweise).
 index.xml                Beschreibung aller CSV-Dateien (Pfad, Zeichensatz, Trenner, Spalten,
                          Beträge und Daten) nach dem Beschreibungsstandard der Finanzverwaltung
                          (GDPdU), mit der eine Prüfsoftware die Dateien einliest. Die DTD

@@ -12,7 +12,7 @@ description: >-
 
 **„DATABASE_URL fehlt“ oder Verbindungsfehler beim Start.** Prüfe die Adresse und das Passwort der darin genannten Datenbankrolle. Bei Quadlets enthält `haben-database-url` den App-Zugang; bei getrennten Rollen enthält `haben-migration-database-url` den Eigentümerzugang mit dem Passwort aus `haben-db-password`. Beachte: Postgres übernimmt `POSTGRES_PASSWORD` nur beim ersten Anlegen des Volumes. Ein später geändertes Secret ändert das Passwort in der Datenbank nicht.
 
-**Passkey-Anmeldung schlägt fehl.** Meist passt `BETTER_AUTH_URL` nicht zur aufgerufenen Adresse (anderer Hostname, `http` statt `https`, Port). Mit Passwort anmelden geht unabhängig davon. Die Anmeldung ist auf 20 Anfragen pro Minute begrenzt.
+**Passkey-Anmeldung schlägt fehl.** Meist passt `BETTER_AUTH_URL` nicht zur aufgerufenen Adresse (anderer Hostname, `http` statt `https`, Port). Mit Passwort anmelden geht unabhängig davon. Je Client-Adresse sind Passkey-Anmeldungen auf 20 pro Minute begrenzt, Anmeldungen mit Passwort auf 3 in 10 Sekunden ([Anmeldung](architektur-anmeldung.md#anmeldung)).
 
 **„Haben ist bereits eingerichtet.“** Im Standardmodus hat Haben genau einen Inhaber. Ein zweites Konto entsteht nur über einen Einladungslink für die [Steuerberatung](steuerberatung.md), weder mit dem Einrichtungscode noch über die API.
 
@@ -41,5 +41,7 @@ description: >-
 **restic meldet beim Sichern der Belege „permission denied“.** Das passiert mit dem früheren Host-Skript `~/.config/haben/backup.sh`: Bei rootless Podman gehören die Dateien im Volume einer Unter-UID des Hosts, nicht deinem Nutzer. Das Backup läuft inzwischen im Container `haben-backup`, der das Volume selbst einhängt; stell um wie unter [Umzug vom Host-Skript der Quadlets](installation-backup.md#umzug-vom-host-skript-der-quadlets). Prüfe danach mit `journalctl --user -u haben-backup`, ob der Lauf durchging.
 
 **`systemctl --user enable haben-backup.timer` findet die Unit nicht.** Der Timer gehört nach `~/.config/systemd/user/`, nicht ins Quadlet-Verzeichnis; `haben-backup.container` dagegen ins Quadlet-Verzeichnis, daraus erzeugt Podman `haben-backup.service`. Danach `systemctl --user daemon-reload`.
+
+Nicht dabei? Frag im Forum `#hilfe` auf [Discord](https://discord.gg/CT2GQytSYH); ist es ein Fehler in Haben, wird daraus ein Issue.
 
 Weiter: [Erste Schritte](einrichtung.md) · [Entwicklung](entwicklung.md) · [Zurück zur Übersicht](ueberblick.md)

@@ -9,6 +9,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { bookDepreciationFn, getAssets } from "../../../server/functions/assets.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
+import { Status } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/anlagen/")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -121,9 +122,13 @@ function AssetsPage() {
                 <div>
                   {asset.name}{" "}
                   {asset.bookedYears.includes(year) ? (
-                    <span className="pill">gebucht</span>
+                    <Status tone="ok" inline>
+                      Gebucht
+                    </Status>
                   ) : asset.year && (asset.year.depreciation || asset.year.disposal) ? (
-                    <span className="pill">offen</span>
+                    <Status inline detail="Abschreibung nicht gebucht">
+                      Offen
+                    </Status>
                   ) : null}
                   <div className="small muted">
                     {ASSET_KINDS[asset.kind].label} · {ASSET_METHODS[asset.method]}

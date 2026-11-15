@@ -76,6 +76,8 @@ Gesendete Voranmeldungen bleiben, wie sie sind. Passt eine gesendete Voranmeldun
 
 Jede Änderung der Einstellung steht im Änderungsprotokoll.
 
+Ein Wechsel im Jahr ist kein Beginn der Tätigkeit: Welche Monate die [Umsatzsteuererklärung](jahreserklaerung.md#umsatzsteuererklärung) als fehlend meldet, hängt davon ab, ob ein früheres Jahr einen Eintrag hat.
+
 ## Dauerfristverlängerung
 
 Mit der Dauerfristverlängerung gibst du jede Voranmeldung einen Monat später ab und zahlst auch einen Monat später (§ 46 UStDV): die für Oktober am 10. Dezember statt am 10. November, die für das 3. Quartal am 10. November statt am 10. Oktober. Das Finanzamt muss sie auf Antrag gewähren, außer der Steueranspruch erscheint gefährdet.
@@ -134,16 +136,18 @@ In der EÜR zählt sie wie jede Umsatzsteuer-Vorauszahlung als gezahlte Umsatzst
 
 Leistungen an Unternehmer im EU-Ausland mit Reverse Charge (Kz 21) und innergemeinschaftliche Lieferungen (Kz 41) meldest du zusätzlich dem Bundeszentralamt für Steuern (BZSt), je USt-IdNr. des Kunden und Umsatzart die Summe der Bemessungsgrundlagen eines Kalendervierteljahres, bis zum 25. Tag nach Quartalsende (§ 18a Abs. 1, 2 und 7 UStG). Eine Dauerfristverlängerung gilt dafür nicht. Kleinunternehmer melden nichts (§ 18a Abs. 4 UStG).
 
+Monaco gilt umsatzsteuerlich als Gebiet Frankreichs ([§ 1 Abs. 2a UStG](https://www.gesetze-im-internet.de/ustg_1980/__1.html)); Unternehmen dort haben eine französische USt-IdNr. Haben behandelt einen Kunden mit Land MC deshalb wie einen in Frankreich: Reverse Charge und innergemeinschaftliche Lieferung passen, eine Ausfuhrlieferung nicht.
+
 Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr>-Q<Quartal>`) erreichst du über den Hinweis auf der Voranmeldung, sobald es im Zeitraum Kz 21 oder 41 gibt, und über die Frist unter [Fristen](fristen.md). Quartale ohne solche Umsätze tauchen nirgends auf, auch nicht, wenn sie sich im Quartal aufheben (etwa durch ein Storno); eine Nullmeldung gibt es nicht.
 
 ### Woher die Zeilen kommen
 
 | Umsatz | Quartal |
 | --- | --- |
-| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Bei neuen ausdrücklich erbrachten Teilleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung, wie Kz 21 |
+| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Wie [Kz 21](#umsätze-ohne-steuer-kz-21-41-43-45-und-48), unabhängig von Ist/Soll |
 | Rechnung mit **Innergemeinschaftliche Lieferung**, Umsatzart L (Lieferung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 41 |
-| Storno und Rechnungskorrektur (Gutschrift) dazu | ihr eigenes Datum: Sie mindern das Quartal, in dem sie ausgestellt sind (§ 18a Abs. 7 Satz 2 mit § 17 UStG); überwiegen sie, steht die Zeile negativ |
-| Skonto und Forderungsausfall dazu | Datum der Ausbuchung |
+| Storno und Rechnungskorrektur (Gutschrift) dazu | ihr eigenes Datum: Sie mindern das Quartal, in dem sie ausgestellt sind (§ 18a Abs. 7 Satz 2 mit § 17 UStG); überwiegen sie, steht die Zeile negativ. Ausgenommen ist das [Papierstorno einer neuen Bilanz-Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung) |
+| Skonto und Forderungsausfall dazu | Datum der Ausbuchung; für Skonto vor der Schlussleistung gelten die [Ausnahmen bei neuen Bilanz-Anzahlungsketten](#umsätze-ohne-steuer-kz-21-41-43-45-und-48) |
 
 Haben fasst alles je USt-IdNr. des Kunden und Umsatzart zusammen (in Großbuchstaben, ohne Leerzeichen; griechische Nummern mit EL statt GR) und meldet volle Euro, die Cent fallen wie in der Voranmeldung weg. Unter **Rechnungen dazu** steht jede Rechnung mit ihrem Betrag. Aus Lexoffice übernommene Rechnungen zählen nicht mit, ihre Meldung lief dort.
 
@@ -179,7 +183,7 @@ Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` fü
 
 - Sonstige Leistungen (§ 3a Abs. 2 UStG, Umsatzart S) und innergemeinschaftliche Lieferungen (Umsatzart L). Keine Dreiecksgeschäfte (Umsatzart D, § 25b UStG): Die Rechnungen von Haben kennen sie nicht.
 - Keine Monatsmeldung: Liegen die Lieferungen im Quartal oder in einem der vier vorangegangenen über 50.000 €, ist monatlich zu melden (§ 18a Abs. 1 Satz 2 UStG). Über 50.000 € im Quartal sperrt Haben das Senden; die vorangegangenen Quartale prüft es nicht.
-- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist bzw. die Rechnung für die Lieferung ausgestellt, spätestens der Folgemonat (§ 18a Abs. 8 UStG). Haben nimmt dafür bei neuen ausdrücklich erbrachten EU-Teilleistungen das Leistungsdatum, sonst das Rechnungsdatum, wie bei Kz 21 und 41.
+- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist bzw. die Rechnung für die Lieferung ausgestellt, spätestens der Folgemonat (§ 18a Abs. 8 UStG). Haben nimmt dafür bei sonstigen Leistungen den [Leistungstag](#leistungstag-bei-soll-versteuerung), bei Lieferungen das Rechnungsdatum, wie bei Kz 21 und 41.
 - Die Meldung geht nur für ganze Quartale, nicht monatlich nach § 18a Abs. 3 UStG.
 
 ## Wie die Kennzahlen entstehen
@@ -192,8 +196,8 @@ Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 
 | Versteuerung | Maßgeblich | Quelle |
 | --- | --- | --- |
-| Ist (vereinnahmte Entgelte) | Buchungsdatum des Zahlungseingangs | Zuordnungen im [Bankabgleich](bank.md). Bei Teilzahlungen zählt der Anteil der Zahlung, bei mehreren Steuersätzen anteilig je Satz. Aufgehobene Zuordnungen heben sich mit ihrer Gegenzeile auf. |
-| Soll (vereinbarte Entgelte) | Rechnungsdatum; Ausnahme: [neue Abschläge und erbrachte Teilleistungen](rechnungen.md#abschlags--und-schlussrechnung) | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
+| Ist (vereinnahmte Entgelte) | Buchungsdatum des Zahlungseingangs | Zuordnungen im [Bankabgleich](bank.md). Bei Teilzahlungen zählt der Anteil der Zahlung, bei mehreren Steuersätzen anteilig je Satz. Aufgehobene Zuordnungen wirken mit ihrer Gegenzeile am Tag der Aufhebung; ältere Zuordnungen ohne eigenes Datum am Buchungsdatum des Umsatzes (siehe [Zuordnung aufheben](bank.md#zuordnung-aufheben)). |
+| Soll (vereinbarte Entgelte) | [Leistungstag](#leistungstag-bei-soll-versteuerung), ohne Angabe das Rechnungsdatum; Ausnahme: [Anzahlungen](rechnungen.md#abschlags--und-schlussrechnung) | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
 
 Bankumsätze, die im Bankabgleich [direkt auf eine Einnahmekategorie](bank.md#auf-eine-kategorie-buchen) gebucht sind, zählen ohne Rechnung bei Ist und Soll am Buchungstag des Umsatzes, mit Netto und Steuer aus dem Betrag und dem gewählten Steuersatz. In den Quellen stehen sie als „Direktbuchung“.
 
@@ -205,21 +209,39 @@ Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Dazu zählen regul�
 
 Rechnungen ohne Steuerausweis (siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung)) meldet Haben mit ihrer Bemessungsgrundlage, ohne Steuer. Sie ändern Kz 83 nicht.
 
+Bei neuen Bilanz-Anzahlungs-/Schlussketten von GmbH und UG gehen reine Anforderungen bei Reverse Charge, innergemeinschaftlicher Lieferung und Leistungen ins Drittland noch nicht in die Meldung ein. Mit der Schlussrechnung zählt der gesamte Leistungsbetrag einschließlich Anzahlungsanteil zum jeweiligen Meldezeitpunkt. Skonto auf die Anforderung vor der Schlussleistung mindert diesen späteren Betrag. Für den [bloßen Schlussrechnungsaustausch](rechnungen.md#abschlags--und-schlussrechnung) bleibt der bereits gemeldete Umsatz bestehen.
+
 | Kennzahl | Umsatzsteuer an der Rechnung | Maßgeblich |
 | --- | --- | --- |
-| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | bei neuen ausdrücklich erbrachten Teilleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
+| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | [Leistungstag](#leistungstag-bei-soll-versteuerung); vor diesem Update festgeschriebene Rechnungen Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
 | 41 | Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
-| 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
+| 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Leistungstag |
 | 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
-| 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
+| 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Leistungstag |
 
-Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Bei neuen ausdrücklich erbrachten Teilleistungen nimmt Haben das Leistungsdatum, sonst weiterhin das Rechnungsdatum als Näherung dafür ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
+Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
 
 In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nicht null sind oder du die Werte von Hand überschreibst.
 
+### Leistungstag bei Soll-Versteuerung
+
+Bei Soll-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem die Leistung ausgeführt ist, nicht mit der Rechnung ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)). Haben nimmt dafür den **Leistungstag**: **Leistung bis**, ist nur **Leistung von** angegeben dieser Tag, ohne Angabe das Rechnungsdatum. Beispiel: Beratung im Oktober, Rechnung vom 03.11. mit Leistungszeitraum 01.10. bis 31.10.: Die Steuer gehört in die Voranmeldung für Oktober, auch die Buchung steht am 31.10. Das gilt ebenso für Kz 43 und 48 und, unabhängig von Ist und Soll, für Kz 21 und die ZM ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)).
+
+Haben schreibt den Leistungstag beim Festschreiben fest. Rechnungen, die vor diesem Update festgeschrieben wurden, haben keinen und zählen weiter nach Rechnungsdatum; gemeldete Zahlen ändern sich durch das Update nicht. Nicht nach dem Leistungstag zählen Anzahlungen vor der Leistung (die Steuer entsteht mit der Zahlung, [Abschlags- und Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung)), Stornos und Korrekturen (im Monat ihres Datums, § 17 UStG) und innergemeinschaftliche Lieferungen (Kz 41) und Leistungen ins Drittland (Kz 45), die beim Rechnungsdatum bleiben.
+
+Liegt der Leistungstag in einem Zeitraum, dessen Voranmeldung schon gesendet oder vermerkt ist, schreibt Haben die Rechnung trotzdem fest und zeigt an der Rechnung einen Hinweis mit Zeitraum, Abgabedatum und Betrag. Keine spätere Voranmeldung enthält die Rechnung; lege für den genannten Zeitraum eine [berichtigte Anmeldung](#berichtigte-anmeldung) an ([§ 153 Abs. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html)). Wurde die zuletzt gesendete Anmeldung des Zeitraums nach der Festschreibung aus den Buchungen berechnet, enthält sie die Rechnung, und der Hinweis entfällt; bei von Hand überschriebenen Werten bleibt er.
+
+Vereinbarte **Teilleistungen** (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 2 und 3 UStG) schreibst du als eigene Rechnungen, je Teilleistung mit ihrem Leistungszeitraum, oder als Abschlag mit **Teilleistung bereits erbracht**.
+
 ### Vorsteuer (Kz 66)
 
-Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung. Ob und wann der Beleg bezahlt wurde, spielt keine Rolle. Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG).
+Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung.
+
+Zwei Vorgänge verschieben die Minderung. Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG). Eine **Gutschrift mit der Angabe „erstattet bereits Bezahltes“** erstattet ein schon bezahltes Entgelt; ihre Vorsteuer mindert sich erst, wenn das Geld tatsächlich zurückkommt oder der Posten verrechnet wird, je Zahlung, Verrechnung und Kursdifferenz anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum. Ohne die Angabe gilt auch für eine Gutschrift das Belegdatum; bar oder privat bezahlt ist sie mit der Buchung ausgeglichen.
+
+Ausgebuchtes Skonto an einer solchen Gutschrift zählt nicht mit: Es erstattet nichts, sondern erlässt den Rest, und wird deshalb vom Zwischenkonto abgeschrieben, ohne die Vorsteuer zu ziehen.
+
+Beide Quellen sagen dasselbe: Die Buchung legt die Vorsteuer beim Buchen auf das Zwischenkonto (SKR03 1548, SKR04 1434) und zieht sie erst mit dem Ausgleich auf die Vorsteuer, und die Voranmeldung aus den Nebenbüchern verteilt sie nach derselben Regel. Kz 66 stimmt deshalb aus Journal und Nebenbüchern je Monat überein (`kz66-paritaet.test.ts`).
 
 ### § 13b als Leistungsempfänger
 
@@ -229,7 +251,7 @@ Aus [Belegen mit § 13b](belege-ausland.md#reverse-charge-als-leistungsempfänge
 | --- | --- |
 | 46 / 47 | Sonstige Leistungen eines Unternehmers aus dem EU-Ausland (§ 13b Abs. 1): Netto in vollen Euro, Steuer centgenau |
 | 84 / 85 | Andere Leistungen nach § 13b Abs. 2, hier Leistungen von Unternehmern aus dem Drittland: Netto in vollen Euro, Steuer centgenau |
-| 67 | Vorsteuer aus diesen Leistungen, bei Privatanteil nur der betriebliche Teil; bei Kleinunternehmern 0 |
+| 67 | Vorsteuer aus diesen Leistungen, bei Privatanteil nur der betriebliche Teil; ohne Vorsteuerabzug 0 |
 
 Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst. Ein [auf mehrere Kategorien aufgeteilter Beleg](belege.md#auf-mehrere-kategorien-aufteilen) zählt mit seinen Beträgen je Satz, genau wie ohne Aufteilung.
 
@@ -388,7 +410,7 @@ Die Sondervorauszahlung selbst ist kein Posten der Voranmeldung; sie wird als **
 
 Bei einer Lastschrift oder Erstattung des Finanzamts schlägt der [Bankabgleich](bank.md#vorschläge) die passende Voranmeldung vor, etwa „Voranmeldung USt 10/2026“, mit den Gründen Betrag, Zeitraum im Verwendungszweck („USt 10/26“, „10.2026“, „Okt. 2026“, für Quartale „Q3/26“, „3. VJ 2026“, „III/26“) und Finanzamt als Gegenpartei. Unter **Andere Rechnung** steht sie in der Auswahl **Rechnung, Beleg oder Voranmeldung**.
 
-Gebucht wird „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820, gegen die Bank); in der EÜR zählt die Zahlung als gezahlte bzw. erstattete Umsatzsteuer. Neu ist nur der Bezug auf die Voranmeldung, mit dem Haben den Posten ausgleicht. Mehr als offen ist, lässt sich nicht zuordnen, und nur in der Richtung des Postens.
+Gebucht wird „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820, gegen die Bank, auf einem Konto mit dem Zweck **privat** gegen die Privatentnahme bzw. die Einlage, siehe [Bank](bank.md#voranmeldung-zahllast-und-erstattung)); in der EÜR zählt die Zahlung als gezahlte bzw. erstattete Umsatzsteuer. Neu ist nur der Bezug auf die Voranmeldung, mit dem Haben den Posten ausgleicht. Mehr als offen ist, lässt sich nicht zuordnen, und nur in der Richtung des Postens.
 
 - **Teilzahlung:** Ordnest du weniger zu, bleibt der Rest offen, bis die nächste Zahlung kommt.
 - **Säumniszuschlag:** Zieht das Finanzamt nach der Fälligkeit mehr ein, erkennt Haben einen Säumniszuschlag nach § 240 AO (je angefangenem Monat 1 % der auf 50 € abgerundeten Zahllast, gezählt ab der Fälligkeit; keiner bei Zahlung in der Schonfrist von drei Tagen, § 240 Abs. 3 AO, die an einem Samstag, Sonntag oder Feiertag im Bundesland der Firma erst am nächsten Werktag endet, § 108 Abs. 3 AO) und schlägt nur die Zahllast vor. Der Zuschlag ist keine Umsatzsteuer, sondern eine steuerliche Nebenleistung und Betriebsausgabe: Den Rest ordnest du einem Beleg zu, etwa dem Schreiben des Finanzamts.

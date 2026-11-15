@@ -27,7 +27,7 @@ Rechnungen ohne Steuerausweis (siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf
 | 1400 Forderungen | 1200 Forderungen | 1.000,00 | |
 | 8336 Erlöse Reverse Charge | 4336 Erlöse Reverse Charge | | 1.000,00 |
 
-Leistungen ins Drittland gehen auf 8338 bzw. 4338, steuerfreie Umsätze nach § 4 UStG auf 8100 bzw. 4100, Kleinunternehmer-Rechnungen auf 8195 bzw. 4185.
+Leistungen ins Drittland gehen auf 8338 bzw. 4338, steuerfreie Umsätze nach § 4 UStG auf 8100 bzw. 4100, Kleinunternehmer-Rechnungen auf 8192 bzw. 4184.
 
 ## Stornorechnung und Rechnungskorrektur
 
@@ -75,7 +75,7 @@ Beim Buchen eines Eingangsbelegs, gebucht auf das Belegdatum. Beschreibung: `Bel
 
 Ein privat oder bar aus der [Kasse](kasse.md) bezahlter Beleg ist damit erledigt. Ein über die Bank zu zahlender bleibt als Verbindlichkeit offen, bis die Zahlung im Bankabgleich zugeordnet ist. Gutschriften (negative Beträge) drehen die Seiten.
 
-Bist du als Kleinunternehmer eingetragen, entfällt die Vorsteuerzeile: Der Bruttobetrag je Satz geht mit dem Steuerschlüssel `keineVSt` auf das Aufwandskonto. Ob mit oder ohne Vorsteuerabzug gebucht wurde, speichert Haben am Beleg (`documents.vorsteuer_abzug`), damit Voranmeldung und EÜR auch nach einem späteren Wechsel stimmen.
+Ohne Vorsteuerabzug (Kleinunternehmer, steuerfreie Umsätze nach § 4 UStG oder am Beleg gewählt) entfällt die Vorsteuerzeile: Der Bruttobetrag je Satz geht mit dem Steuerschlüssel `keineVSt` auf das Aufwandskonto. Ob mit oder ohne Vorsteuerabzug gebucht wurde, speichert Haben am Beleg (`documents.vorsteuer_abzug`, den angewandten Anteil in `documents.vorsteuer_anteil`), damit Voranmeldung und EÜR auch nach einem späteren Wechsel stimmen.
 
 ## Zahlung eines Belegs
 
@@ -101,11 +101,13 @@ Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer dieser Arten
 | Mahngebühren und Verzugszinsen | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
 | Steuerzahlung oder Erstattung | nach Steuerart, Bezugsjahr und Teil, siehe [Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen) | ebenso | Steuerkonto an Bank | Bank an Steuerkonto |
-| Einnahme oder Ausgabe (Kategorie, Steuersatz) | Erlöse 8400/8300 mit Umsatzsteuer 1776/1771, Kleinunternehmer 8195, Ausgaben auf das Konto der Kategorie, siehe [Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen) | 4400/4300 mit 3806/3801, 4185, Konto der Kategorie | Aufwand an Bank (ohne Vorsteuer), Erlösminderung | Bank an Erlöse und Umsatzsteuer |
+| Einnahme oder Ausgabe (Kategorie, Steuersatz) | Erlöse 8400/8300 mit Umsatzsteuer 1776/1771, Kleinunternehmer 8192, Ausgaben auf das Konto der Kategorie, siehe [Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen) | 4400/4300 mit 3806/3801, 4184, Konto der Kategorie | Aufwand an Bank (ohne Vorsteuer), Erlösminderung | Bank an Erlöse und Umsatzsteuer |
 | Darlehen: Auszahlung, Tilgung, Zinsen, Gebühren | Darlehenskonto (0630–0650, 1705–1708), Zinsen 2110/2120/2126, Gebühren 2141, siehe [Darlehen](bank-steuern-darlehen.md#darlehen) | 3150–3170, 3560–3567, 7310/7320/7326, 7355 | Tilgung, Zinsen, Gebühren an Bank | Bank an Darlehen (Auszahlung) |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Rückzahlung) |
 | Lohnsteuer an das Finanzamt | 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
 | SV-Beiträge an Krankenkasse oder Minijob-Zentrale | 1742 Verbindlichkeiten im Rahmen der sozialen Sicherheit | 3740 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
+
+Auf einem Konto mit dem Zweck **privat** bucht die Umsatzsteuer gegen die Privatentnahme bzw. die Einlage statt gegen die Bank ([Bank](bank.md#voranmeldung-zahllast-und-erstattung)).
 
 Eine Steuerzahlung trägt Steuerart (`allocations.tax_type`), Bezugsjahr (`tax_year`) und Teil (`tax_item`: Steuer, Zinsen nach § 233a AO, §§ 234, 237 AO oder § 235 AO, Säumnis- oder Verspätungszuschlag); die drei Angaben sind mit der Zuordnung gesperrt und versiegelt, eine Aufhebung übernimmt sie in die Gegenzeile. Kontierung und EÜR folgen daraus (`packages/core/src/steuerzahlung.ts`), Buchungszeilen ohne Steuerschlüssel: Eine Steuerzahlung erzeugt weder Umsatz noch Vorsteuer. In der EÜR (Einzelunternehmen, nach Zahlung) zählt die Umsatzsteuer früherer Jahre als gezahlte bzw. erstattete Umsatzsteuer, Zinsen und Zuschläge zur Umsatzsteuer als übrige Betriebsausgaben, Erstattungszinsen zur Umsatz- und Gewerbesteuer als Einnahme (BFH, Urteil vom 26.09.2025, IV R 16/23); Gewerbesteuer samt Nachzahlungszinsen und Zuschlägen mindert den Gewinn nicht (§ 4 Abs. 5b EStG) und steht wie Hinterziehungszinsen (§ 4 Abs. 5 Satz 1 Nr. 8a EStG) nur nachrichtlich da; private Steuern sind Entnahmen. Der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) vergleicht die Steuerkonten im Journal mit diesen Posten.
 
@@ -150,17 +152,18 @@ Die spätere Zahlung wird wie jede andere gebucht. Für die Voranmeldung zählt 
 
 ## Anlagen und AfA
 
-Ein Beleg mit der Kategorie „Anlagegut“ bucht den Nettobetrag auf das Anlagekonto statt in den Aufwand (ohne Vorsteuerabzug den Bruttobetrag). Zum Jahresende bucht **AfA … buchen** je Anlage AfA-Konto an Anlagekonto, beim Abgang zusätzlich den Restbuchwert (2310 bzw. 6895) an Anlagekonto. Übernommene Anlagen bekommen mit der ersten AfA ihre Eröffnung Anlagekonto an 9000. Konten und Beispiele stehen unter [Anlagen und AfA](anlagen.md).
+Ein Beleg mit der Kategorie „Anlagegut“ bucht den Nettobetrag auf das Anlagekonto statt in den Aufwand (ohne Vorsteuerabzug Netto und Steuer). Zum Jahresende bucht **AfA … buchen** je Anlage AfA-Konto an Anlagekonto, beim Abgang zusätzlich den Restbuchwert (2310 bzw. 6895) an Anlagekonto. Übernommene Anlagen bekommen mit der ersten AfA ihre Eröffnung Anlagekonto an 9000. Konten und Beispiele stehen unter [Anlagen und AfA](anlagen.md).
 
 ## Pauschalen ohne Beleg
 
-Homeoffice-Tage, Fahrten mit dem Privatfahrzeug und Verpflegungsmehraufwand bucht Haben beim Eintragen als Aufwand an Privateinlage (1890 bzw. 2180):
+Homeoffice-Tage, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand und Wege zur Betriebsstätte bucht Haben beim Eintragen als Aufwand an Privateinlage (1890 bzw. 2180):
 
 | Pauschale | SKR03 | SKR04 |
 | --- | --- | --- |
 | Homeoffice-Tagespauschale | 4288 | 6348 |
 | Fahrten mit dem Privatfahrzeug | 4673 | 6673 |
 | Verpflegungsmehraufwand | 4674 | 6674 |
+| Wege zwischen Wohnung und Betriebsstätte (Entfernungspauschale) | 4678 | 6688 |
 
 Ein Storno ist eine Gegenbuchung am selben Tag. Sätze und Grenzen stehen unter [Pauschalen](pauschalen.md).
 

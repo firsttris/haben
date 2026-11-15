@@ -8,15 +8,18 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { useAction } from "../../lib/use-action.ts";
 import { previewCsvImportFn, runCsvImportFn } from "../../server/functions/csv-import.ts";
+import { getFastbillArticlesCsv } from "../../server/functions/fastbill.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { Field } from "../../components/Field.tsx";
+import { Status, type StatusLook } from "../../components/Status.tsx";
 
 type Kind = "kontakte" | "artikel" | "anlagen";
 type Preview = Awaited<ReturnType<typeof previewCsvImportFn>>;
 type Settings = { encoding: "auto" | "utf-8" | "windows-1252"; delimiter: "auto" | ";" | "," | "\t"; stichtag: string };
 
 export const Route = createFileRoute("/_app/csv-import")({
-  validateSearch: z.object({ art: z.optional(z.enum(["kontakte", "artikel", "anlagen"])) }),
+  // quelle=fastbill: Artikel aus dem Umzug aus FastBill statt aus einer Datei (docs/fastbill.md#artikel)
+  validateSearch: z.object({ art: z.optional(z.enum(["kontakte", "artikel", "anlagen"])), quelle: z.optional(z.enum(["fastbill"])) }),
   head: () => ({ meta: [{ title: "CSV-Import · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: CsvImportPage,
 });
@@ -29,23 +32,24 @@ const KINDS: { kind: Kind; label: string; list: "/kontakte" | "/artikel" | "/anl
 
 const INTRO: Record<Kind, string> = {
   kontakte:
-    "Kunden und Lieferanten aus einer Liste übernehmen, etwa aus dem Kontakt-Export von Lexware Office oder aus Excel. Ohne Kundennummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht.",
+    "Kunden und Lieferanten aus einer Liste übernehmen, etwa aus dem Kontakt-Export von Lexware Office oder aus Excel, auch Debitoren und Kreditoren aus einem DATEV-Export (EXTF_GP_Stamm). Ohne Kundennummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht.",
   artikel: "Artikel und Leistungen mit Preis, Einheit und Steuersatz übernehmen, etwa aus „Produkte und Services“ von Lexware Office.",
   anlagen:
     "Anlagen aus der bisherigen Buchhaltung mit dem Restbuchwert zum Stichtag übernehmen, wie unter „Anlage übernehmen“. Der Import bucht nichts; die Eröffnung bucht Haben mit der ersten AfA.",
 };
 
-const STATUS: Record<Preview["rows"][number]["status"], { label: string; pill: string }> = {
-  neu: { label: "neu", pill: "pill pill-ok" },
-  dublette: { label: "Dublette", pill: "pill pill-info" },
-  fehler: { label: "Fehler", pill: "pill pill-danger" },
+const STATUS: Record<Preview["rows"][number]["status"], StatusLook> = {
+  neu: { text: "Neu", tone: "ok" },
+  zuordnen: { text: "Vorschlag", tone: "info", emphasis: "notice" },
+  dublette: { text: "Dublette", tone: "info" },
+  fehler: { text: "Fehler", tone: "danger", emphasis: "urgent" },
 };
 
 /** So viele Zeilen zeigt die Vorschau; Fehler und Dubletten stehen vorn, damit keiner im Rest untergeht */
 const SHOWN_ROWS = 200;
 
 function CsvImportPage() {
-  const { art } = Route.useSearch();
+  const { art, quelle } = Route.useSearch();
   const kind: Kind = art ?? "kontakte";
   const meta = KINDS.find((k) => k.kind === kind)!;
   return (
@@ -75,19 +79,22 @@ function CsvImportPage() {
         {INTRO[kind]}
       </p>
       {/* Neu aufbauen beim Wechsel der Art: Zuordnung und Vorschau gehören zur Art */}
-      <CsvImport key={kind} kind={kind} />
+      <CsvImport key={kind} kind={kind} fastbill={kind === "artikel" && quelle === "fastbill"} />
     </>
   );
 }
 
-function CsvImport({ kind }: { kind: Kind }) {
+function CsvImport({ kind, fastbill }: { kind: Kind; fastbill: boolean }) {
   const meta = KINDS.find((k) => k.kind === kind)!;
   const previewFn = useServerFn(previewCsvImportFn);
   const importFn = useServerFn(runCsvImportFn);
+  const fastbillFn = useServerFn(getFastbillArticlesCsv);
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [settings, setSettings] = useState<Settings>({ encoding: "auto", delimiter: "auto", stichtag: `${currentYear()}-01-01` });
   const [preview, setPreview] = useState<Preview | null>(null);
+  // DATEV-Stammdaten: Zeilen, deren Vorschlag an einen vorhandenen Kontakt bestätigt ist
+  const [confirm, setConfirm] = useState<ReadonlySet<number>>(new Set());
   const { busy, notice, setNotice, run } = useAction();
   // Die Vorschau gilt nur für die Einstellungen, mit denen sie gerechnet ist; der Import schickt die aktuellen
   const changeSettings = (patch: Partial<Settings>) => {
@@ -98,7 +105,14 @@ function CsvImport({ kind }: { kind: Kind }) {
   const send = (fn: typeof previewFn | typeof importFn, chosen: File, mapping: Record<string, number | null> | null) => {
     const form = new FormData();
     form.set("file", chosen);
-    const options = { kind, encoding: settings.encoding, delimiter: settings.delimiter, mapping, stichtag: kind === "anlagen" ? settings.stichtag : null };
+    const options = {
+      kind,
+      encoding: settings.encoding,
+      delimiter: settings.delimiter,
+      mapping,
+      stichtag: kind === "anlagen" ? settings.stichtag : null,
+      confirm: [...confirm],
+    };
     form.set("options", JSON.stringify(options));
     return fn({ data: form });
   };
@@ -106,6 +120,7 @@ function CsvImport({ kind }: { kind: Kind }) {
   const showPreview = (chosen: File, mapping: Record<string, number | null> | null) =>
     void run(async () => {
       setPreview((await send(previewFn, chosen, mapping)) as Preview);
+      setConfirm(new Set());
     });
 
   const onSubmit = (event: FormEvent) => {
@@ -119,12 +134,25 @@ function CsvImport({ kind }: { kind: Kind }) {
     showPreview(chosen, null);
   };
 
+  // Die CSV aus FastBill geht wie eine gewählte Datei durch Vorschau und Import
+  const onFastbill = () =>
+    void run(async () => {
+      const { csv, filename, count } = await fastbillFn();
+      const chosen = new File([csv], filename, { type: "text/csv" });
+      setFile(chosen);
+      setPreview((await send(previewFn, chosen, null)) as Preview);
+      setConfirm(new Set());
+      setNotice({ tone: "info", text: `${count} Artikel aus FastBill geholt. Prüf die Vorschau; übernommen wird erst mit dem Knopf darunter.` });
+    });
+
   const onImport = () => {
     if (!file || !preview) return;
     void run(async () => {
-      const result = (await send(importFn, file, preview.mapping)) as { created: number; duplicates: number; failed: number };
+      const result = (await send(importFn, file, preview.mapping)) as Awaited<ReturnType<typeof runCsvImportFn>>;
       setPreview(null);
+      const assigned = result.assigned ? `, ${result.assigned} ${result.assigned === 1 ? "Personenkonto" : "Personenkonten"} zugeordnet` : "";
       const skipped = [
+        result.unconfirmed && `${result.unconfirmed} nicht ${result.unconfirmed === 1 ? "bestätigter Vorschlag" : "bestätigte Vorschläge"}`,
         result.duplicates > 0 && `${result.duplicates} ${result.duplicates === 1 ? "Dublette" : "Dubletten"}`,
         result.failed > 0 && `${result.failed} fehlerhafte ${result.failed === 1 ? "Zeile" : "Zeilen"}`,
       ]
@@ -132,7 +160,7 @@ function CsvImport({ kind }: { kind: Kind }) {
         .join(" und ");
       setNotice({
         tone: "ok",
-        text: `${result.created} ${result.created === 1 ? meta.singular : meta.plural} übernommen${skipped ? `, ${skipped} übersprungen` : ""}.`,
+        text: `${result.created} ${result.created === 1 ? meta.singular : meta.plural} übernommen${assigned}${skipped ? `, ${skipped} übersprungen` : ""}.`,
       });
     });
   };
@@ -172,17 +200,27 @@ function CsvImport({ kind }: { kind: Kind }) {
             </Field>
           )}
         </div>
+        {fastbill && (
+          <p className="muted small" style={{ margin: 0 }}>
+            Statt einer Datei: „Aus FastBill holen“ ruft den Artikelkatalog mit dem API-Schlüssel aus dem Umzug ab, je 100 Artikel eine Anfrage.
+          </p>
+        )}
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={busy}>
             Vorschau
           </button>
+          {fastbill && (
+            <button type="button" className="btn" disabled={busy} onClick={onFastbill}>
+              Aus FastBill holen
+            </button>
+          )}
         </div>
       </form>
       <NoticeBanner notice={notice} />
       {preview && file && (
         <>
-          <MappingCard preview={preview} busy={busy} onChange={(mapping) => showPreview(file, mapping)} />
-          <PreviewCard preview={preview} busy={busy} meta={meta} onImport={onImport} />
+          {preview.source === "csv" && <MappingCard preview={preview} busy={busy} onChange={(mapping) => showPreview(file, mapping)} />}
+          <PreviewCard preview={preview} busy={busy} meta={meta} onImport={onImport} confirm={confirm} onConfirm={setConfirm} />
         </>
       )}
     </div>
@@ -222,16 +260,48 @@ function MappingCard({ preview, busy, onChange }: { preview: Preview; busy: bool
   );
 }
 
-function PreviewCard({ preview, busy, meta, onImport }: { preview: Preview; busy: boolean; meta: (typeof KINDS)[number]; onImport: () => void }) {
+function PreviewCard({
+  preview,
+  busy,
+  meta,
+  onImport,
+  confirm,
+  onConfirm,
+}: {
+  preview: Preview;
+  busy: boolean;
+  meta: (typeof KINDS)[number];
+  onImport: () => void;
+  confirm: ReadonlySet<number>;
+  onConfirm: (confirm: ReadonlySet<number>) => void;
+}) {
   const { counts } = preview;
-  const order = { fehler: 0, dublette: 1, neu: 2 } as const;
+  const proposals = counts.zuordnen ?? 0;
+  const taken = counts.neu + confirm.size;
+  const toggle = (line: number, checked: boolean) => {
+    const next = new Set(confirm);
+    if (checked) next.add(line);
+    else next.delete(line);
+    onConfirm(next);
+  };
+  const order = { fehler: 0, zuordnen: 1, dublette: 2, neu: 3 } as const;
   const rows = [...preview.rows].sort((a, b) => order[a.status] - order[b.status] || a.line - b.line);
+  // Vorschläge stehen alle in der Liste, sonst ließe sich einer jenseits der Grenze nicht bestätigen; die Grenze gilt für den Rest
+  const limited = new Set(rows.filter((r) => r.status !== "zuordnen").slice(0, SHOWN_ROWS));
+  const shown = rows.filter((r) => r.status === "zuordnen" || limited.has(r));
   return (
     <section className="card stack" aria-labelledby="csv-preview-heading">
       <h2 id="csv-preview-heading">Vorschau</h2>
+      {preview.source === "datev" && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Erkannt: DATEV-Stammdaten Debitoren/Kreditoren, {preview.encoding}. Haben liest die Spalten nach dem DATEV-Format; das Personenkonto ist der
+          Schlüssel, die Rolle folgt aus dem Kontenbereich.
+        </p>
+      )}
       <p style={{ margin: 0 }} role="status">
-        {counts.neu} neu, {counts.dublette} {counts.dublette === 1 ? "Dublette" : "Dubletten"}, {counts.fehler} mit Fehlern. Übernommen werden nur die neuen;
-        Dubletten und fehlerhafte Zeilen überspringt Haben.
+        {counts.neu} neu, {proposals > 0 && `${proposals} ${proposals === 1 ? "Vorschlag" : "Vorschläge"} zum Bestätigen, `}
+        {counts.dublette} {counts.dublette === 1 ? "Dublette" : "Dubletten"}, {counts.fehler} mit Fehlern. Übernommen werden die neuen
+        {proposals > 0 && " und die bestätigten Vorschläge"}; Dubletten und fehlerhafte Zeilen überspringt Haben.
       </p>
       {preview.problem && (
         <div className="banner banner-danger" role="alert">
@@ -250,32 +320,46 @@ function PreviewCard({ preview, busy, meta, onImport }: { preview: Preview; busy
           </tr>
         </thead>
         <tbody>
-          {rows.slice(0, SHOWN_ROWS).map((row) => (
+          {shown.map((row) => (
             <tr key={row.line}>
-              <td className="num">{row.line}</td>
+              <td className="num">{row.lines.join(", ")}</td>
               <td style={{ overflowWrap: "anywhere" }}>{row.title}</td>
               <td>
-                <span className={STATUS[row.status].pill}>{STATUS[row.status].label}</span>
+                <Status tone={STATUS[row.status].tone} emphasis={STATUS[row.status].emphasis}>
+                  {STATUS[row.status].text}
+                </Status>
               </td>
               <td className="small" style={{ overflowWrap: "anywhere" }}>
-                {row.message ?? ""}
+                <span id={`csv-hint-${row.line}`}>{row.message ?? ""}</span>
+                {row.status === "zuordnen" && (
+                  <label className="checkbox" style={{ overflowWrap: "normal", hyphens: "auto" }}>
+                    <input
+                      type="checkbox"
+                      checked={confirm.has(row.line)}
+                      disabled={busy}
+                      aria-describedby={`csv-hint-${row.line}`}
+                      onChange={(e) => toggle(row.line, e.target.checked)}
+                    />
+                    Bestätigen
+                  </label>
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </ScrollTable>
-      {rows.length > SHOWN_ROWS && (
+      {rows.length > shown.length && (
         <p className="small muted" style={{ margin: 0 }}>
-          Weitere {rows.length - SHOWN_ROWS} neue Zeilen sind nicht aufgeführt.
+          Weitere {rows.length - shown.length} neue Zeilen sind nicht aufgeführt.
         </p>
       )}
       <div className="actions">
-        <button type="button" className="btn btn-primary" disabled={busy || counts.neu === 0 || preview.problem !== null} onClick={onImport}>
-          {counts.neu} {counts.neu === 1 ? meta.singular : meta.plural} übernehmen
-        </button>
         <Link to={meta.list} className="btn">
           {meta.back}
         </Link>
+        <button type="button" className="btn btn-primary" disabled={busy || taken === 0 || preview.problem !== null} onClick={onImport}>
+          {taken} {taken === 1 ? meta.singular : meta.plural} übernehmen
+        </button>
       </div>
     </section>
   );

@@ -14,7 +14,6 @@ export {
   type InvoiceAttachment,
 } from "./attachments.ts";
 export { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
-export { storeAttachmentFile, type AttachmentFile } from "./attachment-store.ts";
 export { addQuoteAttachment, listQuoteAttachments, loadQuoteAttachment, removeQuoteAttachment, type QuoteAttachment } from "./quote-attachments.ts";
 export {
   addQuoteDefaultAttachment,
@@ -23,8 +22,20 @@ export {
   removeQuoteDefaultAttachment,
 } from "./quote-default-attachments.ts";
 export { fetchBaseRate } from "./base-rate.ts";
+export { searchRecurringInvoices, type RecurringInvoiceHit } from "./search-recurring.ts";
 export { runDueBaseRate } from "./base-rate-job.ts";
-export { createDunning, dunningDraft, dunningDraftPdf, dunningInputSchema, dunningsFor, loadDunningPdf, overdueInvoices } from "./dunning.ts";
+export {
+  createDunning,
+  dunningDraft,
+  dunningDraftPdf,
+  dunningInputSchema,
+  dunningPreview,
+  type DunningPreviewInput,
+  dunningPreviewSchema,
+  dunningsFor,
+  loadDunningPdf,
+  overdueInvoices,
+} from "./dunning.ts";
 export {
   dunningMailDraft,
   invoiceMailDraft,
@@ -48,9 +59,17 @@ export {
 } from "./external-reference.ts";
 export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
+export { gemeldeterZeitraum, leistungsmonatHinweis, zeitraumLabel } from "./leistungsmonat.ts";
+export { leistungsmonatHinweisFuer } from "./leistungsmonat-hinweis.ts";
 export { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
 export { advanceVatPlans } from "./advance-vat-plan.ts";
+export { invoicePaymentGroup, invoicePaymentGroups, paperCancellationIds } from "./advance-payment-group.ts";
+export { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff, paidByTarget } from "./zahlungsstand.ts";
+export { advanceReceivablesAt } from "./advance-receivables.ts";
+export { unbilledAdvanceRequest } from "./advance-invoice.ts";
 export { defaultSkonto } from "./skonto.ts";
+export { InvoiceError } from "./invoice-error.ts";
+export { UmsatzgrenzeError } from "./umsatzgrenze.ts";
 export {
   abschlagLinks,
   assertCustomer,
@@ -64,7 +83,6 @@ export {
   finalizeInvoice,
   finalizeIssues,
   getInvoice,
-  InvoiceError,
   insertDraft,
   invoiceSummary,
   listInvoices,
@@ -102,6 +120,7 @@ export {
   updateQuoteDraft,
   type QuoteListStatus,
 } from "./quotes.ts";
+export { searchInvoices, searchQuotes, type InvoiceHit, type QuoteHit } from "./search.ts";
 export {
   createRecurring,
   deleteRecurring,
@@ -112,4 +131,17 @@ export {
   runDueRecurring,
   updateRecurring,
 } from "./recurring.ts";
-export { startRunning, type NumberKind } from "./number-counter.ts";
+export { lastFinalizedByCircle, startRunning, type NumberKind } from "./number-counter.ts";
+export {
+  InvoiceSettlementError,
+  invoiceSettlementReversalSchema,
+  invoiceSettlementSchema,
+  invoiceSettlementView,
+  listInvoiceSettlements,
+  reverseInvoiceSettlement,
+  settleInvoices,
+  type InvoiceSettlementInput,
+  type SettlementCandidate,
+} from "./verrechnung.ts";
+export { mixeNachVerrechnungen, mixNachVerrechnungen } from "./verrechnung-steuermix.ts";
+export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";

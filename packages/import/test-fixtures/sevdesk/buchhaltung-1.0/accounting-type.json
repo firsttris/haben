@@ -1,0 +1,20 @@
+[
+  {
+    "id": "ID_66",
+    "objectName": "AccountingType",
+    "name": "Dienstleister / Agenturen / Freelancer",
+    "skr03": "3100",
+    "skr04": "5900",
+    "type": "",
+    "translationCode": "ACCOUNTING_TYPE_SERVICE_PROVIDER"
+  },
+  {
+    "id": "ID_63",
+    "objectName": "AccountingType",
+    "name": "Einnahmen / Erlöse / Verkäufe",
+    "skr03": "8200",
+    "skr04": "4200",
+    "type": "E",
+    "translationCode": "ACCOUNTING_TYPE_REVENUE"
+  }
+]

@@ -82,6 +82,11 @@ function LegacyVoucherPage() {
             <h2 id="facts-heading" style={{ margin: 0 }}>
               Angaben
             </h2>
+            {voucher.accountingTypeIssue && (
+              <p className="banner banner-info" role="status">
+                {voucher.accountingTypeIssue}
+              </p>
+            )}
             <dl className="facts">
               <dt>Kontakt</dt>
               <dd>

@@ -25,19 +25,23 @@ interface OpenTransaction {
   rollback: () => Promise<void>;
 }
 
-interface CallbackScope {
+interface AuthScope {
   transaction?: OpenTransaction;
+  passwordChange?: Tx;
   proof?: SsoProof;
   rejection?: CallbackRejection;
   /** Fehlercode aus dem Redirect von Better Auth oder vom Anbieter, etwa invalid_scope; nur fürs Log */
   failure?: string;
 }
 
-const scope = new AsyncLocalStorage<CallbackScope>();
+const scope = new AsyncLocalStorage<AuthScope>();
 
-/** Adapter und Hooks benutzen im Callback dieselbe Verbindung: Konto, Zuordnung, Rolle und Sitzung entstehen gemeinsam */
-export const authTransaction = () => scope.getStore()?.transaction?.tx;
+/** Adapter und Hooks nutzen beim SSO-Callback und Passwortwechsel dieselbe Transaktion. */
+export const authTransaction = () => scope.getStore()?.transaction?.tx ?? scope.getStore()?.passwordChange;
 export const authDatabase = () => authTransaction() ?? db;
+
+export const passwordChangeTransaction = () => scope.getStore()?.passwordChange;
+export const runPasswordChange = (tx: Tx, work: () => Promise<Response>) => scope.run({ passwordChange: tx }, work);
 
 /** Nachweis des laufenden Callbacks; nur innerhalb von atomicAuthCallback gesetzt, nie aus Browserdaten */
 export const callbackProof = () => scope.getStore()?.proof;
@@ -120,7 +124,7 @@ export interface AtomicCallbackOptions {
  * (Sitzungen widerrufen), läuft danach und bleibt ebenfalls bestehen.
  */
 export async function atomicAuthCallback(work: () => Promise<Response>, options: AtomicCallbackOptions): Promise<Response> {
-  const store: CallbackScope = {};
+  const store: AuthScope = {};
   try {
     const response = await scope.run(store, work);
     const failed = failedLocation(response);

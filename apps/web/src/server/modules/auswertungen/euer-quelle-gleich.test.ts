@@ -213,6 +213,9 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal gleich den Nebenbüchern
       await bank.allocate(actor, { kind: "invoice", transactionId: txs.find((t) => t.amount === 33_333)!.id, invoiceId: a.id, amount: 33_333 });
       await bank.allocate(actor, { kind: "document", transactionId: txs.find((t) => t.amount === -3_333)!.id, documentId: bew, amount: -3_333 });
       await bank.allocate(actor, { kind: "document", transactionId: txs.find((t) => t.amount === -1_555)!.id, documentId: bew, amount: -1_555 });
+      const { vereinnahmterUmsatz } = await import("./kleinunternehmer.ts");
+      expect(await vereinnahmterUmsatz("2026-02-28")).toEqual({ netto: 0, ungeklaert: false });
+      expect(await vereinnahmterUmsatz("2026-12-31")).toEqual({ netto: 33_333, ungeklaert: false });
       await gleich(2026);
     }, 60_000);
 
@@ -292,7 +295,8 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal gleich den Nebenbüchern
     const txs = await transactions([eingang("01.03.26", `RE ${a.number}`, "1000,00")]);
     await bank.allocate(actor, { kind: "invoice", transactionId: txs[0]!.id, invoiceId: a.id, amount: 100_000 });
     const [alloc] = await sql<{ id: string }[]>`select id from allocations where invoice_id = ${a.id}`;
-    await bank.reverseAllocation(actor, alloc!.id);
+    // Aufhebung am Tag der Zahlung: Es geht hier um die leere Zeile, nicht um den Zeitraum der Gegenzeile
+    await bank.reverseAllocation(actor, alloc!.id, "2026-03-01");
     await gleich(2026);
   }, 60_000);
 });

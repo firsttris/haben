@@ -20,4 +20,4 @@ export {
   zugang,
   type ElsterVorgang,
 } from "./elster-gateway.ts";
-export { confirmElsterDatenschutz, elsterClient, elsterMode, ericKennt, ericStatus, startEricInstall } from "./elster.ts";
+export { confirmElsterDatenschutz, elsterClient, elsterMode, ericHome, ericKennt, ericStatus, startEricInstall } from "./elster.ts";

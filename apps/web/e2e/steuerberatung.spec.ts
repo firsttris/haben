@@ -134,7 +134,7 @@ test("Einladung, lesen ja, ändern nein, sperren", async ({ page: owner, browser
   const row = owner.locator(".history-row", { hasText: KANZLEI.email }).filter({ hasText: "Steuerberatung" });
   await expect(row).toContainText("zuletzt angemeldet");
   await row.getByRole("button", { name: "Sperren" }).click();
-  await expect(row).toContainText("gesperrt");
+  await expect(row).toContainText("Gesperrt");
   await stb.goto("/steuerberatung");
   await stb.waitForURL(/\/login$/);
   await row.getByRole("button", { name: "Freigeben" }).click();

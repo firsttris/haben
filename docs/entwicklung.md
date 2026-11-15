@@ -30,6 +30,14 @@ In `apps/web/.env` trägst du mindestens `DATABASE_URL`, `BETTER_AUTH_SECRET` un
 > [!NOTE]
 > Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Ohne ERiC (`ERIC_HOME` oder unter Einstellungen geladen nach `ERIC_DIR`) arbeitet Haben mit dem simulierten ELSTER-Client, ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` ohne KI-Auslesung. Für die Auslesung mit einem eigenen Modell genügt ein lokales Ollama mit `EXTRACTION_BASE_URL=http://localhost:11434/v1` und `EXTRACTION_MODEL=qwen2.5vl:7b`; PDFs brauchen dafür `pdftoppm` (Paket poppler-utils). Für die Entwicklung reicht beides.
 
+Läuft die Instanz hinter einem Proxy mit eigener Domain, lehnt Vite fremde Hostnamen ab („Blocked request. This host … is not allowed"). Die erlaubten Hosts gehören nicht in `vite.config.ts`, sondern in die Umgebungsvariable — sie gilt dann nur für die eigene Umgebung:
+
+```sh
+__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.example.org bun run dev
+```
+
+Mehrere Domains mit Komma trennen, ein führender Punkt schließt Subdomains ein. `localhost` ist immer erlaubt.
+
 Datenbank anlegen und Migrationen anwenden. Das Migrationsskript liest `DATABASE_URL` aus der Umgebung, nicht aus der `.env`-Datei:
 
 ```sh
@@ -109,7 +117,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | --- | --- |
 | `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `bun run build` | Baut die Web-App (`apps/web/.output`) |
-| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go) |
+| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace, Gründe in `deploy/tsconfig.json`) |
 | `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung und Dateigröße ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
 | `bunx knip@5.88.1 --include files,dependencies,unlisted` | Unbenutzte Dateien und Abhängigkeiten (Einstiegspunkte in `knip.jsonc`); nicht in der CI, vor dem Löschen mit `git grep` gegenprüfen |
@@ -122,6 +130,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `bun run --cwd packages/einvoice zugferd [ausgabeverzeichnis]` | ZUGFeRD-PDFs der Beispielrechnungen erzeugen und mit dem Mustang-Validator prüfen ([ZUGFeRD-PDFs](#zugferd-pdfs)) |
 | `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Regeln für die Seiten unter der Tabelle |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, hell und dunkel, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)), danach Vorschaubild und Hero |
+| `bun run --cwd apps/firmenportal start` | Startet das Firmenportal (#504); die Variablen wie in `deploy/firmenportal/firmenportal.env.example`, etwa in `apps/firmenportal/.env` (Bun liest sie selbst). Mit `PORTAL_URL=http://localhost:…` geht die Anmeldung nur in Chromium: Safari und WebKit speichern die `Secure`-Cookies dort nicht, für sie gehört TLS davor; Tests laufen mit `bun run test` (`apps/firmenportal/src/*.test.ts`, gegen einen OIDC-Testanbieter auf Loopback) |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
 | `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (1280 × 360 bei doppelter Auflösung, mit Rahmen wie die Screenshots, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku); Bild oben in der README; Slogan in IBM Plex Serif aus `packages/einvoice/fonts`) |
@@ -249,6 +258,10 @@ Trigger und Funktionen (Festschreibung, Versionierung, Audit-Log) kann drizzle-k
 cd apps/web && bun --bun drizzle-kit generate --custom --name=mein_trigger
 ```
 
+Ändert eine Migration Trigger oder `haben_*`-Funktionen, muss auch der ausgelieferte Sollbestand zur [Manipulationserkennung](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel) aktualisiert werden. `TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun apps/web/src/server/db/write-trigger-inventory.ts` erzeugt ihn ausschließlich aus einer dafür neu angelegten und frisch migrierten Testdatenbank. Der Test `apps/web/src/server/db/trigger-inventory.test.ts` schlägt fehl, solange `trigger-inventory.json` daneben abweicht. Erzeuge den Sollbestand auch beim Wechsel der PostgreSQL-Hauptversion neu, weil sich die von [`pg_get_functiondef`](https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE) rekonstruierte SQL-Darstellung ändern kann.
+
+Pull Requests mit Migration werden einzeln gemergt; deine Migration erzeugst du erst kurz vor dem Merge auf dem aktuellen `main` neu, wenn der Maintainer sagt, dass du dran bist.
+
 Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen schon angewendet.
 
 ## Jahreswerte
@@ -285,11 +298,14 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 - **Oberfläche:** Gestaltung, Knopfarten, Seitenkopf, Rückfragen, Vorschau der Belegeditoren und Barrierefreiheit stehen in [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md).
 - **Unveränderlichkeit (GoBD) in der Datenbank:** Festgeschriebene Rechnungen, Buchungen, gesendete Voranmeldungen, Bankumsätze und übernommene Lexoffice-Daten sperren Postgres-Trigger gegen `UPDATE` und `DELETE`, ebenso gegen `TRUNCATE`; eine neue Tabelle mit Trigger gegen `DELETE` oder mit Audit-Trigger braucht auch einen vor `TRUNCATE` (`haben_reject_truncate`, sonst schlägt `apps/web/src/server/db/truncate.test.ts` fehl). Korrekturen sind neue Datensätze (Storno, Gegenbuchung, berichtigte Anmeldung). Beim Festschreiben einer Buchung prüft ein Trigger Soll = Haben. In versiegelten Tabellen (`invoices`, `journal_entries`, …) wird keine Spalte umbenannt, gelöscht oder neu berechnet; neue Spalten gehen. Eine Sperre oder ein Siegel wird nie gelockert, damit etwas funktioniert.
 - **Audit-Log:** Änderungen laufen über `withActor` (`apps/web/src/server/db/actor.ts`), damit der Trigger sie dem Nutzer zuschreibt. Neue Tabellen bekommen einen Audit-Trigger.
+- **Jedes Paket ist die einzige Stelle für sein Thema:** Fachlogik ohne Datenbank steht in `packages/core`, ELSTER-XML und ERiC in `packages/elster`, PDF und E-Rechnung in `packages/einvoice`, Parser für Kontoauszüge und Exporte anderer Programme in `packages/import`, die Unveränderbarkeit in `packages/gobd-kern` (was genau wohin gehört: [Pakete](architektur.md#pakete)). Die App ruft sie auf und baut nichts davon nach. Pakete importieren nichts aus `apps/`, der GoBD-Kern auch keine anderen Pakete von Haben; das prüft `scripts/modulgrenzen/`.
+- **GoBD-Bausteine gibt es einmal:** Neue Tabellen nutzen die vorhandenen Trigger-Funktionen (`haben_audit`, `haben_append_only`, `haben_reject_truncate`, `haben_seal`), Dateien und Prüfwert die aus `packages/gobd-kern` (`apps/web/src/server/storage.ts`, `apps/web/src/lib/pruefwert.ts`). Es gibt keine eigene Hash-Kette, Siegel- oder Sperrlogik und kein direktes Schreiben in `audit_log`; ein Ereignis ohne eigene Tabelle bekommt eine Ereignistabelle mit Audit-Trigger wie `token_events` (`0186_oidc_gruppen_trigger.sql`). Was ohne Bezug auf Haben auch andere Apps brauchen, gehört in [`packages/gobd-kern`](#paket-firsttrisgobd-kern).
 - **Geheimnisse** (Schlüssel, Passwörter, Tokens) liegen mit AES-256-GCM verschlüsselt in einer Spalte namens `ciphertext`, die `haben_audit` auslässt.
-- **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.
-- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)). Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
+- **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf.
+- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)). Fehlt dort ein Name, ergänze ihn in der `index.ts`. Ein Modul importiert nur Module, die in `scripts/modulgrenzen/schichten.ts` vor ihm stehen. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
 - **Quellen statt Gedächtnis:** Details richten sich nach der Quelle, und wo sie ein Detail entscheidet, steht sie im Kommentar und in der Commit-Nachricht. E-Rechnung: EN 16931 und XRechnung (Business Terms wie BT-22), geprüft vom KoSIT-Validator mit `itplr-kosit/validator-configuration-xrechnung` (Versionen in `.github/workflows/ci.yml`). ELSTER: die [Entwicklerdokumentation von ERiC](https://www.elster.de/elsterweb/entwickler/infoseite/eric). DATEV: die Formatbeschreibung für EXTF/Buchungsstapel; Exporte von Lexware Office weichen davon ab ([Lexoffice](lexoffice.md)). Kontenrahmen: SKR03 und SKR04 von DATEV in dem Stand, den `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` nennt (Kontonummer, Bezeichnung, Funktion); DATEV entscheidet nur über Format und Kontenrahmen. Widerspricht eine Kontenfunktion dem Gesetz, einer ELSTER-Kennzahl oder der Taxonomie der E-Bilanz, gilt die Norm. [Enable Banking](https://enablebanking.com/docs/api/reference/), [Lexware Office](https://developers.lexware.io/docs/).
+- **Browser-Skripte für den Umzug** (`apps/web/public/lexware-sicherung.js`, `fastbill-belege.js`): Sie holen nur die eigenen Daten der Person, wo die dokumentierte Schnittstelle sie nicht hergibt, und bleiben dabei auf der sicheren Seite ([Darf ich das?](lexoffice.md#darf-ich-das)). Sie laufen nur im angemeldeten Browser der Person, rufen nur lesend die Adressen auf, die die Web-Oberfläche selbst abfragt, mit Pausen, und schicken nichts an Haben oder Dritte; das Ergebnis ist ein Download. Sie enthalten keinen Code des Anbieters und umgehen keinen Schutz: keine Captchas, keine Umgehung von Rate-Limits, keine Sitzungstoken auf den Server. Gibt es eine dokumentierte Schnittstelle, ist sie der erste Weg. Marken der Anbieter nur als Name, keine Logos.
 - **Neue Systemkonten:** Bei neuen Kategorien oder Kontenfunktionen prüfen, dass `reservedAccountNumbers` (`packages/core/src/own-accounts.ts`) die Nummern erfasst. Eine beim Anlegen freie Nummer kann bereits in `own_accounts` stehen, auch archiviert oder in einem früheren Kontenrahmen. „Kette prüfen“ meldet solche [Kontenkollisionen](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel). Bestehende Kontenzuordnungen und Buchungszeilen nicht automatisch umdeuten oder umschreiben; dafür braucht es einen gesondert abgestimmten Umgang mit dem Bestand.
 
 ## Projektstruktur
@@ -304,10 +320,11 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
 | `packages/elster` | ERiC-Anbindung, XML für Voranmeldung und Jahreserklärungen, Worker |
-| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Accountable-Export (`accountable/`), Finanzberichte von Google Play und App Store Connect (`stores/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
+| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Accountable-Export (`accountable/`), WISO-Buchungs-CSV (`wiso/`), Finanzberichte von Google Play und App Store Connect (`stores/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
-| `deploy` | Compose, Quadlets, Caddyfile, Startskript; `deploy/backup`: Backup-Image (backup.sh, restore.sh) |
+| `apps/firmenportal` | Firmenportal über den Instanzen (#504): Anmeldung per SSO, Links auf die Firmen der Person, ohne Datenbank (Bun, HTML auf dem Server); `deploy/firmenportal`: Compose-Vorlage |
+| `deploy` | Compose, Quadlets, Caddyfile, Startskript, Befehl `haben` im Image (`haben.sh`); `deploy/backup`: Backup-Image (backup.sh, restore.sh); `deploy/instanzen`: Werkzeug für mehrere Instanzen (TypeScript, läuft mit Bun ohne `bun install`, nur `node:`-Module und Bun) |
 | `docs`, `mkdocs.yml` | Diese Dokumentation; auf `main` baut `.github/workflows/docs.yml` sie nach https://haben.app/ |
 
 ## Neues Bankformat
@@ -337,6 +354,10 @@ Ein Tag `vX.Y.Z` veröffentlicht eine Version über `.github/workflows/release.y
 Den Tag legt Actions → *Bump version* (`bump.yml`) mit patch, minor oder major an: Er committet `Release vX.Y.Z` auf `main` und taggt, mit dem Deploy Key aus `BUMP_DEPLOY_KEY`, der auf der Bypass-Liste des Rulesets steht ([firsttris/workflows](https://github.com/firsttris/workflows#bump-version)). Wer selbst auf der Bypass-Liste steht, kann lokal `bun run release:patch` (oder `:minor`, `:major`) nehmen. Von Hand gestartet (Actions → Release → Run workflow) veröffentlicht der Workflow nur `:edge`, ohne Release.
 
 Secrets: `DOCKER_PAT` (Docker-Hub-Token mit Schreibrecht für `tristanteu/haben`); für GHCR reicht `GITHUB_TOKEN`, das Paket muss nach dem ersten Push einmal auf öffentlich gestellt werden.
+
+### Paket `@firsttris/gobd-kern`
+
+`packages/gobd-kern` erscheint unabhängig von der App als Datei an einem GitHub-Release, damit auch andere Apps es nutzen, ohne npm ([#935](https://github.com/firsttris/haben/issues/935)): Version in `packages/gobd-kern/package.json` erhöhen und mergen, dann Actions → *GoBD-Kern als Release* → Run workflow auf `main`. `.github/workflows/gobd-kern-release.yml` lehnt eine schon vorhandene Version ab, führt Typecheck und die Tests des Pakets gegen Postgres aus, baut `firsttris-gobd-kern-X.Y.Z.tgz` und legt Tag und Release `gobd-kern-vX.Y.Z` an, nicht als „Latest“. Ein anderes Projekt installiert es mit `bun add https://github.com/firsttris/haben/releases/download/gobd-kern-vX.Y.Z/firsttris-gobd-kern-X.Y.Z.tgz`; `bun.lock` hält den Hash der Datei fest. Das Paket enthält TypeScript-Quellen, für Bun und Bundler wie Vite, und bleibt `private`, damit es nicht versehentlich auf npm landet.
 
 ### Release Candidates
 
@@ -370,7 +391,7 @@ Die Postgres-Tests starten mit `sso-test-provider.ts` einen Anbieter auf Loopbac
 E2E_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_sso_e2e bun run --cwd apps/web e2e --config playwright.sso-only.config.ts
 ```
 
-Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`) und 3218 müssen frei sein, und `openssl` erzeugt die Testzertifikate. Was der Durchlauf prüft, steht im Kopf von `e2e/sso-only.spec.ts`; `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Der Betriebscode bekommt keine Ausnahme für HTTP.
+Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`), 3217 (Firmenportal, `e2e/sso-firmenportal.spec.ts`; mit `E2E_SERVER_COMMAND` hinter TLS wie Haben, das Firmenportal selbst dann auf 3221, `e2e/sso-firmenportal-server.ts`), 3218 (mit `E2E_SERVER_COMMAND` hinter TLS, Haben selbst dann auf 3219, `e2e/sso-production-server.ts`) und 3220 (Firmenportal in `e2e/sso-firmenportal-abmelden.spec.ts`) müssen frei sein, und `openssl` erzeugt die Testzertifikate. Was der Durchlauf prüft, steht im Kopf von `e2e/sso-only.spec.ts` und der beiden `e2e/sso-firmenportal*.spec.ts`; `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Der Betriebscode bekommt keine Ausnahme für HTTP.
 
 ### Mit Authelia
 

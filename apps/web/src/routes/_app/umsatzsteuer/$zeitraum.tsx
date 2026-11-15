@@ -9,12 +9,14 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VatFrequencyCard } from "../../../components/umsatzsteuer/VatFrequencyCard.tsx";
 import { DauerfristCard } from "../../../components/umsatzsteuer/DauerfristCard.tsx";
 import { AbgabeVermerken } from "../../../components/umsatzsteuer/AbgabeVermerken.tsx";
+import { VatStatus } from "../../../components/umsatzsteuer/VatStatus.tsx";
 import { UstvaZahlung } from "../../../components/umsatzsteuer/UstvaZahlung.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import { createVatCorrection, getMeinElsterUstvaWerte, getVatPeriod, saveVatDraft, submitVatReturn } from "../../../server/functions/vat.ts";
 import type { Notice } from "../../../lib/use-action.ts";
 import { Field } from "../../../components/Field.tsx";
+import { OutcomeStatus, Tag } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
   loader: ({ params }) => {
@@ -105,7 +107,7 @@ function VatPeriodPage() {
           <div className="eyebrow">Umsatzsteuer › Voranmeldung</div>
           <div className="title-with-status">
             <h1>{periodLabel(data.period)}</h1>
-            <StatusPill current={data.current} filing={data.filings.find((f) => f.vatReturnId === data.current?.id)} />
+            <VatStatus current={data.current} filedOn={data.filings.find((f) => f.vatReturnId === data.current?.id)?.filedOn ?? null} dueDate={data.dueDate} />
           </div>
         </div>
         <Field label="Zeitraum">
@@ -831,19 +833,6 @@ function SourcesTable({ id, kind, rows }: { id: string; kind: "revenue" | "input
   );
 }
 
-function StatusPill({ current, filing }: { current: PageData["current"]; filing: PageData["filings"][number] | undefined }) {
-  if (!current) return <span className="pill">Noch nicht angelegt</span>;
-  if (current.status === "sent") {
-    return (
-      <span className="pill pill-ok">
-        {filing ? `Abgegeben ${formatDate(filing.filedOn)} (vermerkt)` : `Gesendet ${formatDate(current.sentAt!)}`}
-        {current.berichtigt ? " · berichtigt" : ""}
-      </span>
-    );
-  }
-  return <span className="pill pill-info">Entwurf{current.berichtigt ? " · berichtigte Anmeldung" : ""}</span>;
-}
-
 function History({ data }: { data: PageData }) {
   return (
     <section className="card" aria-labelledby="history-heading">
@@ -852,7 +841,7 @@ function History({ data }: { data: PageData }) {
         <div key={filing.id} className="history-row">
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
             <span style={{ fontWeight: 500 }}>
-              Abgabe vermerkt <span className="pill pill-ok">außerhalb von Haben</span>
+              Abgabe vermerkt <Tag>außerhalb von Haben</Tag>
             </span>
             <span className="small muted" style={{ overflowWrap: "anywhere" }}>
               abgegeben {formatDate(filing.filedOn)} · vermerkt {formatDateTime(filing.createdAt)} · Ticket {filing.transferTicket} · Kz 83{" "}
@@ -873,8 +862,7 @@ function History({ data }: { data: PageData }) {
           <div key={entry.id} className="history-row">
             <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
               <span style={{ fontWeight: 500 }}>
-                {ELSTER_KIND_LABEL[entry.kind]}{" "}
-                <span className={`pill ${entry.ok ? "pill-ok" : "pill-danger"}`}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</span>
+                {ELSTER_KIND_LABEL[entry.kind]} <OutcomeStatus ok={entry.ok}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</OutcomeStatus>
               </span>
               <span className="small muted" style={{ overflowWrap: "anywhere" }}>
                 {formatDateTime(entry.createdAt)}

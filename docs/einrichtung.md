@@ -41,6 +41,8 @@ Auf der Anmeldeseite wählst du „Mit Passkey anmelden“. Über „Passwort ve
 
 Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weitere hinzufügen (z. B. für Handy und Laptop) oder alte nach einer Rückfrage entfernen. Passkeys hängen an der Domain aus `BETTER_AUTH_URL`; bei einem Domainwechsel musst du sie neu anlegen.
 
+Unter **Einstellungen › Sicherheit › Passwort ändern** gibst du dein bisheriges Passwort ein und bestätigst das neue Passwort mit mindestens 12 Zeichen durch erneute Eingabe. Alle Sitzungen enden, auch die im aktuellen Browser und die per Passkey eröffneten. Danach kannst du dich mit dem neuen Passwort oder einem vorhandenen Passkey anmelden. Im Änderungsprotokoll steht der Wechsel ohne Passwort oder Hash.
+
 ## Zugang für die Steuerberatung
 
 Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann: Auswertungen, Journal, Kontenblätter, Belege und Rechnungen ansehen, Dateien, DATEV-Export und Jahresarchiv herunterladen. Unter **Einstellungen › Sicherheit › Zugänge** erzeugst du einen Einladungslink, der einmal und 72 Stunden gilt; die Steuerberatung legt damit Passwort und Passkey selbst an. Sperren und Entfernen geht an derselben Stelle. Buchen, Festschreiben, Senden an ELSTER, Einstellungen, Zertifikat, Bankzugang und API-Tokens bleiben bei dir. Alles Weitere steht in [Zugang für die Steuerberatung](steuerberatung.md).
@@ -98,6 +100,8 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Standard-Einleitung für Rechnungen, für Angebote | Steht in neuen Rechnungen bzw. Angeboten als Einleitung über den Positionen, etwa eine Anrede oder „Für die erbrachten Leistungen berechne ich Ihnen:“. Im Beleg änderbar; bestehende Belege ändern sich nicht. Leer = keine Einleitung, höchstens 2000 Zeichen |
 | Versteuerung | Ist oder Soll, siehe unten |
 | Kleinunternehmer nach § 19 UStG | Haken setzen, wenn du die Kleinunternehmerregelung nutzt, siehe unten |
+| Gründungsdatum | Datum der tatsächlichen Aufnahme deiner unternehmerischen Tätigkeit, siehe [Kleinunternehmer](#kleinunternehmer) |
+| Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG) | Haken nur, wenn alle Umsätze den Vorsteuerabzug ausschließen, siehe unten |
 
 Fehlt einer GmbH oder UG etwas davon, zeigt das Formular im Abschnitt **Handelsregister und Geschäftsführung** „Für Rechnungen und Geschäftsbriefe fehlt noch (§ 35a GmbHG): …“, etwa „Geschäftsführer fehlt“ oder bei „E. Mustermann“ den fehlenden ausgeschriebenen Vornamen.
 
@@ -115,6 +119,8 @@ Unter **Einstellungen › Firma › Zeichen in der Navigation** wählst du, wora
 - **„H“ in eigener Farbe:** mit dem Farbfeld oder als Hex-Wert `#RRGGBB`. Die Schrift darauf ist weiß oder schwarz, je nachdem, was sich besser liest; so ist das „H“ in jeder Farbe lesbar (Kontrast mindestens 4,5 : 1 nach WCAG). Hebt sich eine sehr dunkle Farbe kaum von der Navigation ab, bekommt die Kachel eine feine helle Kante.
 - **Logo aus der Beleggestaltung:** statt des „H“ steht das [Logo](#logo) der Belege auf weißer Fläche, in einem Quadrat so groß wie das „H“. Am besten wirkt ein quadratisches Bildzeichen; ein breiter Schriftzug wird darin klein. Das geht nur, wenn ein Logo hochgeladen ist, und es ändert sich mit diesem Logo. Wird es entfernt, zeigt die Navigation wieder die eigene Farbe bzw. das „H“ des Themes.
 
+Mit [Firmenportal](installation.md#firmenportal) steht das Zeichen auch dort auf der Kachel der Firma, nach dem nächsten Abgleich mit `portal` oder, ohne Werkzeug, nachdem es jemand dort eingetragen hat.
+
 Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](steuerberatung.md), und hängt nicht an der Beleggestaltung: Ändern sich [Akzentfarbe](#akzentfarbe), Layout oder Logo-Einstellungen der Belege, bleibt die eigene Farbe, und Firmen mit gleich aussehenden Belegen haben trotzdem verschiedene Zeichen. Das Theme (Hell, Dunkel, Farbe der Oberfläche) wählt dagegen jeder Zugang für sich. Die Änderung steht im Änderungsprotokoll.
 
 ### Logo
@@ -122,7 +128,7 @@ Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](
 Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
 
 - Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Seite stellst du unter [Logo und Blatt](#logo-und-blatt) ein. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
-- Die Vorschau im Rechnungs- und Angebotseditor zeigt es ebenfalls.
+- Die Vorschau bei Rechnung, Angebot und Mahnung zeigt es ebenfalls.
 - Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
 - Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
 
@@ -221,7 +227,7 @@ Den Ablauf eines Jahres für eine GmbH oder UG zeigt [GmbH und UG](gmbh.md).
 > [!WARNING]
 > **Nur das Kalenderjahr als Wirtschaftsjahr:** Haben rechnet jedes Geschäftsjahr vom 1. Januar bis 31. Dezember. Ein abweichendes Wirtschaftsjahr unterstützt Haben nicht. Das betrifft eine GmbH, UG oder einen im Handelsregister eingetragenen Gewerbetreibenden, die mit dem Finanzamt einen anderen Abschlussstichtag vereinbart haben (§ 4a Abs. 1 Satz 2 Nr. 2 EStG, § 7 Abs. 4 KStG), und das Wirtschaftsjahr von Land- und Forstwirten (Nr. 1). In diesen Fällen wären [Jahresabschluss](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug), [Hinterlegung](gmbh-abschluss.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug), [E-Bilanz](gmbh-abschluss.md#e-bilanz-gmbh-und-ug), Körperschaft- und Gewerbesteuer und der [DATEV-Export](auswertungen.md) falsch. Freiberufler und nicht eingetragene Gewerbetreibende rechnen ohnehin im Kalenderjahr (§ 4a Abs. 1 Satz 1 und Satz 2 Nr. 3 EStG). Für die Umsatzsteuer gilt immer das Kalenderjahr (§ 16 Abs. 1 Satz 2 UStG).
 
-Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
+Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Bei neuen Anzahlungsanforderungen im Bilanzverfahren von GmbH und UG bindet bereits das Festschreiben die Rechtsform, auch ohne Zahlung oder Journalbuchung. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
 
 > [!IMPORTANT]
 > Das Gesellschafter-Verrechnungskonto ist das Sammelkonto „Verbindlichkeiten gegenüber Gesellschaftern“ aus dem DATEV-Kontenrahmen. Im Abschluss steht sein Saldo je nach Seite unter den Verbindlichkeiten oder Forderungen, jeweils mit dem Vermerk „gegenüber Gesellschaftern“ (§ 42 Abs. 3 GmbHG); welcher Teil länger als ein Jahr läuft, bestätigst du beim [Jahresabschluss](gmbh-abschluss.md#vermerke-unter-der-bilanz). Stimme die Konten vor dem Echtbetrieb mit der Steuerberatung ab.
@@ -267,12 +273,24 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 | Bereich | Wirkung |
 | --- | --- |
 | Rechnungen | Neue Rechnungen bekommen „Kleinunternehmer nach § 19 UStG“, alle Positionen 0 %, mit dem Hinweis „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ Die Auswahl im Editor ist gesperrt. Eine regulär besteuerte Rechnung lässt sich nicht festschreiben. Siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung). |
-| Belege | Gebucht ohne Vorsteuerabzug: der Bruttobetrag geht auf das Aufwandskonto. Siehe [Belege](belege.md#als-kleinunternehmer). |
+| Belege | Gebucht ohne Vorsteuerabzug: der Bruttobetrag geht auf das Aufwandskonto. Siehe [Belege](belege.md#ohne-vorsteuerabzug). |
 | Voranmeldung | Die Seite weist darauf hin, dass du in der Regel keine Voranmeldung abgibst. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). |
 | Übersicht | Die Aufgaben „Voranmeldung senden“, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER entfallen. |
 | EÜR | Die Einnahmen stehen in der Zeile „Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer“. |
 
-Überschreitest du die Umsatzgrenze, nimmst du den Haken heraus; ab dann gilt die Regelbesteuerung. Ausschalten geht jederzeit, auch mitten im Jahr. Eine Kleinunternehmer-Rechnung lässt sich danach nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
+Trage in den **Firmendaten** unter **Unternehmen** das **Gründungsdatum** ein. Im Gründungsjahr gilt eine Grenze von 25.000 €. Danach gilt für das laufende Jahr die Grenze von 100.000 €, sofern dein Gesamtumsatz im Vorjahr höchstens 25.000 € betrug. Ohne Gründungsdatum rechnet Haben für das laufende Jahr mit 100.000 €. [§ 19 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html), [BMF-Schreiben vom 18. März 2025, Abschnitt 19.1](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-03-18-sonderregelung-kleinunternehmer.pdf?__blob=publicationFile&v=3)
+
+Die **Übersicht** warnt ab 80 % der laufenden Grenze, also ab 20.000 € im Gründungsjahr und ab 80.000 € im bestehenden Betrieb. Ab 20.000 € weist sie auch auf die 25.000-€-Grenze für das Folgejahr hin. Liegt der erfasste Vorjahresumsatz über 25.000 €, erscheint ein Hinweis für das laufende Jahr.
+
+Für den Gesamtumsatz zählen die vereinnahmten Nettoentgelte aus im Inland steuerbaren Umsätzen abzüglich der gesetzlichen Ausnahmen. Offene Rechnungen zählen erst bei Zahlung. Anlagenverkäufe bleiben außen vor. Hast du sie als normale Rechnungen erfasst, prüfe den Betrag, da Haben solche Verkäufe derzeit am Beleg nicht erkennt. Bei einer Grenzwarnung weist Haben auch auf uneindeutige Importzahlungen und steuerfreie Erlöse mit frei erfasstem Befreiungsgrund hin. Prüfe diese Buchungen separat. [§ 19 Abs. 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)
+
+Überschreitest du die laufende Grenze, unterliegt bereits der Umsatz, der sie überschreitet, in voller Höhe der Regelbesteuerung. Lag dein Gesamtumsatz im Vorjahr über 25.000 €, entfällt die Befreiung ab dem 1. Januar des laufenden Jahres. [BMF-Schreiben, Abschnitte 19.1 und 19.7](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-03-18-sonderregelung-kleinunternehmer.pdf?__blob=publicationFile&v=3)
+
+Für Rechnungen unter der Regelbesteuerung nimmst du in den Firmendaten den Haken heraus; das geht jederzeit, auch mitten im Jahr. Danach lassen sich Kleinunternehmer-Rechnungen nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
+
+## Steuerfreie Umsätze nach § 4 UStG
+
+Führst du nur Umsätze aus, die den Vorsteuerabzug ausschließen — etwa Heilbehandlung oder Unterricht nach § 4 Nr. 14 oder 21 UStG —, setzt du unter **Einstellungen › Firma** den Haken **Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)**. Belege buchst du ab dann ohne Vorsteuer, am einzelnen Beleg änderbar; Rechnungen bleiben, wie sie sind. Setze den Haken nur, wenn wirklich alle Umsätze den Abzug ausschließen: steuerfreie Umsätze nach § 4 Nr. 1 bis 7, etwa Ausfuhren und innergemeinschaftliche Lieferungen, behalten ihn (§ 15 Abs. 3 UStG). Mehr unter [Belege](belege.md#ohne-vorsteuerabzug).
 
 ## Mahnwesen
 
@@ -281,7 +299,7 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 | Basiszinssatz in % | Grundlage der Verzugszinsen. Er ändert sich zum 1. Januar und 1. Juli und wird von der Deutschen Bundesbank veröffentlicht. **Bei der Bundesbank abrufen** fragt den aktuellen Satz im [SDMX-Webservice der Bundesbank](https://statistiken.bundesbank.de/statistiken-de/hilfe-970224?article=bundesbank-sdmx-web-service-api-991208) ab (Zeitreihe BBIN1.M.DE.BBK.BBKBAS2.EUR.ME) und trägt ihn ins Feld ein; er gilt erst nach dem Speichern. Steht der neue Satz Anfang Januar oder Juli noch nicht in der Zeitreihe, sagt Haben das; dann später erneut abrufen oder von Hand eintragen. Leer heißt: keine Verzugszinsen. |
 | Basiszinssatz automatisch abrufen | Aus, bis du den Haken setzt. Dann fragt Haben die Bundesbank nach dem 1. Januar und 1. Juli einmal am Tag, bis der Satz des neuen Halbjahrs in der Zeitreihe steht, und trägt ihn ein; dazwischen fragt Haben nicht, weil sich der Satz nur zu diesen Terminen ändert (§ 247 Abs. 1 BGB). Änderst du den Satz von Hand, prüft der nächste Lauf ihn einmal gegen die Bundesbank und ersetzt ihn durch den veröffentlichten Wert. |
 | Zahlungsfrist in Mahnungen | Tage ab dem Mahndatum, Vorgabe 10 |
-| Gebühr je Stufe | Vorschlag für Zahlungserinnerung, 1. Mahnung und letzte Mahnung, z. B. 0 €, 5 €, 10 € |
+| Gebühr je Stufe | Vorschlag für Zahlungserinnerung, 1. Mahnung und letzte Mahnung, z. B. 0 €, 5 €, 10 €; höchstens 1.000 € |
 
 Mehr unter [Rechnungen › Mahnwesen](rechnungen-zahlung.md#mahnwesen).
 
@@ -293,7 +311,7 @@ Nur im Einzelunternehmen; bei GmbH und UG fehlt der Abschnitt. Unter **Privatant
 
 Rechnest du Belege oder Rechnungen in US-Dollar, Pfund oder einer anderen Währung ab, braucht Haben die Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG). Das Bundesministerium der Finanzen veröffentlicht sie monatlich im Datenportal als CSV (Datenlizenz Deutschland – Namensnennung 2.0). Haben ruft sie von selbst ab, sobald du Fremdwährung nutzt: höchstens einmal am Tag und nur, solange die Kurse des Vormonats fehlen. Belege und Rechnungsentwürfe, die auf einen Kurs warten, rechnet es danach um.
 
-Unter **Einstellungen → Fremdwährung** siehst du die gespeicherten Kurse und kannst
+Unter **Einstellungen → Fremdwährung** siehst du die gespeicherten Kurse nach Monat (Standard: neuester Monat mit BMF-Kursen, mit Filter nach Währung) oder als Verlauf für eine einzelne Währung (sowie gesammelt für selbst eingetragene Kurse) und kannst
 
 - die Kurse sofort abrufen (**Kurse jetzt abrufen**),
 - die CSV-Datei des BMF selbst hochladen, wenn der Server das Internet nicht erreicht,
@@ -313,7 +331,7 @@ Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Ges
 | Versteuerung (Ist oder Soll) | im laufenden Jahr gebucht wurde oder Rechnungen noch offen sind; ihre Umsatzsteuer würde sonst doppelt oder gar nicht angemeldet |
 | Kleinunternehmer einschalten | im laufenden Jahr gebucht wurde |
 | Kleinunternehmer ausschalten | nie |
-| Rechtsform | überhaupt schon gebucht wurde, in irgendeinem Jahr |
+| Rechtsform | überhaupt schon gebucht wurde oder eine neue Anzahlungsanforderung im Bilanzverfahren festgeschrieben ist |
 
 Umstellen kannst du also nur zum Jahreswechsel, bevor im neuen Jahr die erste Buchung entsteht. Das Vorjahr rechnet danach weiter nach der alten Versteuerung, auch die Umsatzsteuererklärung dafür. Ebenso beim Kleinunternehmerstatus: Wer zum 1. Januar Kleinunternehmer wird, sieht die Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres weiter als Frist und kann sie abgeben; maßgeblich ist der Stand im jeweiligen Monat bzw. Jahr laut Änderungsprotokoll.
 

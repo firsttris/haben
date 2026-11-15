@@ -1,4 +1,3 @@
-import { UserError } from "../../errors.ts";
 import {
   computeInvoice,
   CURRENCY_CODE,
@@ -29,6 +28,7 @@ import {
   invoiceOpen,
   type InvoiceListStatus,
   legalInfo,
+  leistungsdatum,
   skontoProblem,
   sortSkonto,
   discountColumns,
@@ -39,12 +39,12 @@ import {
   negateDiscount,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
 import { ansprechpartnerSnapshot, type Contact, contactPersonProblem, contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
-import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
+import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "./zahlungsstand.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
@@ -55,8 +55,14 @@ import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns 
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
+import { advanceProcedure } from "./advance-procedure.ts";
+import { advanceInvoicePosting } from "./advance-invoice.ts";
+import { paperCancellationIds } from "./advance-payment-group.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
+import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
 import { today } from "../../today.ts";
+import { InvoiceError } from "./invoice-error.ts";
+import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
 import {
   circleFor,
   countsRunning,
@@ -71,8 +77,6 @@ import {
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
-
-export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
 
@@ -733,8 +737,12 @@ export type { InvoiceListStatus };
  * im Bankabgleich. Mit `id` nur diese Rechnung. Rechnungsliste, offene Posten, Mahnwesen und die Sperre der
  * Firmendaten zählen über diese Funktion, damit „offen“ überall dasselbe heißt.
  */
-export async function listInvoices(today: string, id?: string, q: Db | Tx = db) {
-  const rows = await q
+export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
+  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
+}
+
+export async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, limit?: number, rank?: SQL) {
+  const query = q
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
@@ -749,20 +757,44 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       contactId: schema.invoices.contactId,
       externalSource: schema.invoices.externalSource,
       externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
       contactName: schema.contacts.name,
       buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
       cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
+      // Für die Auskunft unter dem Status: welches Storno die Rechnung aufhebt, welche Rechnung Storno oder Korrektur betrifft
+      cancelledBy: sql<
+        string | null
+      >`(select s.number from invoices s where s.kind = 'storno' and s.status = 'final' and s.corrects_id = ${schema.invoices.id} order by s.number limit 1)`,
+      correctsNumber: sql<string | null>`(select o.number from invoices o where o.id = ${schema.invoices.correctsId})`,
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
-    .where(id ? eq(schema.invoices.id, id) : undefined)
-    .orderBy(desc(schema.invoices.issueDate), sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt), desc(schema.invoices.id));
+    .where(filter)
+    .orderBy(
+      ...(rank ? [rank] : []),
+      desc(schema.invoices.issueDate),
+      sql`${schema.invoices.number} desc nulls first`,
+      desc(schema.invoices.createdAt),
+      desc(schema.invoices.id),
+    )
+    .$dynamic();
+  const rows = await (limit === undefined ? query : query.limit(limit));
 
+  if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
   );
   const losses = await invoiceLosses(
+    rows.filter((r) => r.status === "final").map((r) => r.id),
+    q,
+  );
+  const paperStornos = await paperCancellationIds(
+    rows.filter((r) => r.kind === "storno").map((r) => r.id),
+    q,
+  );
+  const settledOn = await invoiceLastSettledOn(
     rows.filter((r) => r.status === "final").map((r) => r.id),
     q,
   );
@@ -780,7 +812,9 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       customer: row.buyerName ?? row.contactName ?? "–",
       listStatus: invoiceListStatus(facts, today),
       paid: facts.paid,
-      open: invoiceOpen(facts),
+      open: paperStornos.has(row.id) ? 0 : invoiceOpen(facts),
+      /** Letzte Zahlung oder Ausbuchung, JJJJ-MM-TT */
+      settledOn: settledOn.get(row.id) ?? null,
     };
   });
 }
@@ -1063,12 +1097,12 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
  * Festschreiben: Nummer ziehen, PDF und XML erzeugen, sperren und buchen – alles in einer
  * Transaktion. Schlägt etwas fehl, bleibt der Entwurf ohne Nummer und es entsteht keine Lücke.
  */
-export async function finalizeInvoice(actor: string, id: string): Promise<Invoice> {
-  return withActor(actor, (tx) => finalizeDraft(tx, id));
+export async function finalizeInvoice(actor: string, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
+  return withActor(actor, (tx) => finalizeDraft(tx, id, bestaetigt));
 }
 
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
-async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
+async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
   // Angebote zuerst (lockQuotes): Die Prüfungen gegen andere Rechnungen desselben Angebots laufen erst unter der Sperre
   const [peek] = await tx.select({ correctsId: schema.invoices.correctsId }).from(schema.invoices).where(eq(schema.invoices.id, id));
   const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id, peek?.correctsId]));
@@ -1109,6 +1143,14 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     const { problems } = await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, tx);
     if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
   }
+  invoice = { ...invoice, ...(await advanceProcedure(invoice, lines, company, tx)) };
+  // „Ausgeführt am“ einfrieren (#694): Der Leistungsmonat entscheidet bei Soll-Versteuerung, wann die Umsatzsteuer
+  // gemeldet wird. Ab hier ist er unveränderlich, damit ein späterer Entwurfsstand die gemeldete Zahl nicht verschiebt.
+  invoice = { ...invoice, serviceDate: leistungsdatum({ belegdatum: invoice.issueDate, leistungVon: invoice.serviceFrom, leistungBis: invoice.serviceTo }) };
+  if (invoice.advanceAccounting === "deferred" && invoice.kind === "rechnung" && invoice.variant === "schluss") {
+    const performed = invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate;
+    if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
+  }
 
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
@@ -1120,6 +1162,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   const seller = sellerFrom(company);
   const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
+  await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, bestaetigt);
   const doc = documentFor(
     invoice,
     lines,
@@ -1142,6 +1185,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
       .set({
         status: "final",
         advanceType: invoice.advanceType,
+        advanceAccounting: invoice.advanceAccounting,
+        replacesInvoiceId: invoice.replacesInvoiceId,
         number,
         numberYear: circle,
         numberCounter: counter,
@@ -1151,6 +1196,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
         net: totals.net,
         tax: totals.tax,
         gross: totals.gross,
+        // Ab hier fest: der Tag, an dem die Leistung ausgeführt wurde (#694)
+        serviceDate: invoice.serviceDate,
         pdf: Buffer.from(rendered.pdf),
         pdfSha256: sha256(rendered.pdf),
         xml: rendered.xml,
@@ -1163,17 +1210,27 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   );
 
   const versteuerung = await invoicePostingMode(invoice, tx);
-  await post(tx, company, {
-    date: await invoiceVatDate(invoice, tx),
-    description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
-    sourceType: "invoice",
-    sourceId: id,
-    // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern. Auch das Storno einer
-    // Korrektur dazu: Maßgeblich ist die Rechnung am Anfang der Kette, nicht die direkt korrigierte
-    lines: (await correctsLegacyInvoice(tx, corrects))
-      ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
-      : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
-  });
+  const bookings =
+    invoice.advanceAccounting === "deferred"
+      ? await advanceInvoicePosting(invoice, totals, company.kontenrahmen, tx)
+      : [
+          {
+            date: await invoiceVatDate(invoice, tx),
+            // Übernommene Erlöse stehen in den alten Büchern; auch spätere Korrektur-Stornos folgen deren Ursprung.
+            lines: (await correctsLegacyInvoice(tx, corrects))
+              ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
+              : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
+          },
+        ];
+  for (const booking of bookings)
+    if (booking.lines.length)
+      await post(tx, company, {
+        date: booking.date,
+        description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
+        sourceType: "invoice",
+        sourceId: id,
+        lines: booking.lines,
+      });
   // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
   await syncQuoteBilling(tx, quoteIds);
 
@@ -1285,6 +1342,14 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
       throw new InvoiceError(
         "Die Rechnung ist teilweise ausgebucht (Skonto oder Forderungsausfall). Hebe die Ausbuchung zuerst auf, dann lässt sie sich stornieren.",
       );
+    }
+    // Ebenso eine Verrechnung mit einer Korrektur (#877): Sie zählt als erledigt, ohne dass Geld geflossen ist, und stünde
+    // nach dem Storno als Erstattung an den Kunden und als Forderung aus der Korrektur offen
+    const verrechnet = await tx.execute(
+      sql`select 1 from invoice_settlements where invoice_id in ${[id, ...corrections.map((c) => c.id)]} group by invoice_id having sum(amount) <> 0 limit 1`,
+    );
+    if ([...verrechnet].length > 0) {
+      throw new InvoiceError("Die Rechnung ist mit einer Korrektur verrechnet. Hebe die Verrechnung zuerst auf, dann lässt sie sich stornieren.");
     }
     const stornoOf = async (target: Invoice, targetLines: InvoiceLine[]) => {
       const draft = await insertDraft(

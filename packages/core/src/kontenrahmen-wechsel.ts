@@ -2,7 +2,7 @@ import { ASSET_ACCOUNTS } from "./afa.ts";
 import { DARLEHEN_KONTEN } from "./darlehen.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import { PAUSCHALE_KONTEN } from "./pauschalen.ts";
-import { ACCOUNTS, EXPENSE_CATEGORIES, type Kontenrahmen } from "./posting.ts";
+import { ACCOUNTS, EXPENSE_CATEGORIES, KLEINUNTERNEHMER_FRUEHERE_KONTEN, type Kontenrahmen } from "./posting.ts";
 import { SACHENTNAHME_FRUEHERE_KONTEN, SACHENTNAHME_KONTEN } from "./manual.ts";
 import { PRIVATE_USE_ACCOUNTS } from "./private-use.ts";
 import { STEUER_KONTEN } from "./steuerzahlung.ts";
@@ -52,13 +52,15 @@ function tabelle(): Record<Kontenrahmen, Map<string, string | null>> {
     eintragen(nach04, skr03, skr04);
     eintragen(nach03, skr04, skr03);
   }
-  // Frühere Konten der Sachentnahme nur in eine Richtung, auf das heutige Konto des Satzes
+  // Frühere Haben-Konten nur in eine Richtung, auf das heutige Konto gleicher Rolle
   for (const [von, nach] of [
     ["SKR03", "SKR04"],
     ["SKR04", "SKR03"],
-  ] as const)
+  ] as const) {
     for (const [konto, satz] of Object.entries(SACHENTNAHME_FRUEHERE_KONTEN[von]))
       eintragen(von === "SKR03" ? nach04 : nach03, konto, SACHENTNAHME_KONTEN[nach][satz]);
+    eintragen(von === "SKR03" ? nach04 : nach03, KLEINUNTERNEHMER_FRUEHERE_KONTEN[von], ACCOUNTS[nach].erloeseSonder.kleinunternehmer);
+  }
   zuordnung = { SKR03: nach04, SKR04: nach03 };
   return zuordnung;
 }

@@ -51,6 +51,8 @@ export function belegZeilen(
         vorsteuerAbzug,
         // ig_erwerb lehnt splitBookingIssues mit Aufteilung ab; § 13b (#508) bucht je Zeile mit RC13bEU bzw. RC13bDrittland
         doc.reverseCharge === "eu" || doc.reverseCharge === "drittland" ? doc.reverseCharge : null,
+        // Gutschrift, die bereits Bezahltes erstattet: Vorsteuerminderung erst mit dem Ausgleich (#786)
+        doc.erstattetBezahltes,
       )
     : documentPosting(
         totals,
@@ -62,5 +64,6 @@ export function belegZeilen(
         assetAccountNo,
         doc.privateShare,
         doc.reverseCharge,
+        doc.erstattetBezahltes,
       );
 }

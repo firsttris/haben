@@ -1,0 +1,6 @@
+ALTER TABLE "invoices" ADD COLUMN "advance_accounting" text;--> statement-breakpoint
+ALTER TABLE "invoices" ADD COLUMN "replaces_invoice_id" uuid;--> statement-breakpoint
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_replaces_fk" FOREIGN KEY ("replaces_invoice_id") REFERENCES "public"."invoices"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "invoices_one_final_replacement" ON "invoices" USING btree ("replaces_invoice_id") WHERE "invoices"."status" = 'final';--> statement-breakpoint
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_advance_accounting" CHECK ("invoices"."advance_accounting" is null or "invoices"."advance_accounting" = 'deferred');--> statement-breakpoint
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_replaces_schluss" CHECK ("invoices"."replaces_invoice_id" is null or ("invoices"."replaces_invoice_id" <> "invoices"."id" and "invoices"."kind" = 'rechnung' and "invoices"."variant" is not distinct from 'schluss' and "invoices"."advance_accounting" is not distinct from 'deferred' and "invoices"."corrects_id" is null));

@@ -5,15 +5,27 @@ export { decodeText } from "./decode.ts";
 export { parseStatement, detectStatementFormat } from "./parse.ts";
 export { transactionHash, withDedupHashes } from "./dedup.ts";
 export { checkBalanceContinuity } from "./continuity.ts";
-export { parseDatevBuchungsstapel, isDatevFile, otherDatevExportName, datevAccountTotals, datevYearSums, DatevParseError } from "./datev.ts";
+export {
+  parseDatevBuchungsstapel,
+  isDatevFile,
+  otherDatevExportName,
+  datevAccountKind,
+  datevAccountTotals,
+  datevYearSums,
+  DatevParseError,
+  RANGES,
+} from "./datev.ts";
 export { datevSalden, hasOpeningBalances, type DatevSaldenBooking, type DatevSaldo } from "./datev-salden.ts";
 export { buildDatevBuchungsstapel, DATEV_AUTOMATIC_ACCOUNTS, type DatevExportEntry } from "./datev-export.ts";
 export { type PersonenkontoBezug, personenkontenEinsetzen } from "./datev-personenkonten.ts";
 export type { DatevHeader, DatevBooking, DatevStack, DatevYearSums } from "./datev.ts";
+export { isDatevStammdaten, parseDatevStammdaten, type DatevGpRow, type DatevStammdatenResult } from "./datev-stammdaten.ts";
 export * from "./lexoffice/index.ts";
 export * from "./sevdesk/index.ts";
 export * from "./accountable/index.ts";
+export * from "./fastbill/index.ts";
 export * from "./enablebanking/index.ts";
 export * from "./stores/index.ts";
 export * from "./csv-import/index.ts";
 export * from "./buchhaltungsbutler/index.ts";
+export * from "./wiso/index.ts";

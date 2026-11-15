@@ -1,4 +1,4 @@
-import { schliessendeStichwoerter } from "../board/regel.ts";
+import { schliessendeStichwoerter, verweise } from "../board/regel.ts";
 
 /*
  * Regeln für Pull Requests aus CLAUDE.md und docs/mitwirken.md, die sich am Pull Request selbst
@@ -10,7 +10,8 @@ export type Report = { level: "error" | "warning"; message: string };
 const CONVENTIONAL = /^(feat|fix|docs|test|refactor|chore|style|perf|build|ci|revert)(\(.*\))?!?:/;
 /**
  * Bereich: ein bis drei Wörter („Belege“, „E-Rechnung“, „Doku-Bilder“, „ELSTER“); klein nur, wenn ein Name so
- * geschrieben wird („sevDesk“, Review von #463). Die Issue-Nummer ist freiwillig, nicht jeder Pull Request hat eins.
+ * geschrieben wird („sevDesk“, Review von #463). Die Issue-Nummer steht nur, wenn es ein Issue gibt; ob sie fehlt, prüft
+ * checkTitleIssues.
  */
 const TITLE = /^\p{L}[\p{L}\d-]*(?: [\p{L}\d-]+){0,2}: \S.*$/u;
 
@@ -38,6 +39,36 @@ export function checkTitle(title: string): Report[] {
 }
 
 /**
+ * `Umgesetzt #…` heißt: Dieses Issue wird fertig. Seine Nummer gehört in den Titel, sonst fehlt sie im Squash-Commit auf
+ * main (#954 hatte nur `Refs #357` und keinen Titel mit Nummer). `Refs` zeigt oft auch auf andere Pull Requests, die das
+ * Skript von Issues nicht unterscheiden kann; dort nur ein Hinweis.
+ */
+export function checkTitleIssues(title: string, body: string | null): Report[] {
+  const { refs, umgesetzt } = verweise(body ?? "");
+  // Eigene Nummern: nicht „owner/repo#12“, nicht Anker wie „seite.html#12“
+  const imTitel = new Set([...title.matchAll(/(?<![\w/.-])#(\d+)\b/g)].map((treffer) => Number(treffer[1])));
+  const fehlend = (nummern: number[]) => nummern.filter((nummer) => !imTitel.has(nummer)).map((nummer) => `#${nummer}`);
+  const reports: Report[] = [];
+  const umgesetztFehlt = fehlend(umgesetzt);
+  if (umgesetztFehlt.length > 0) {
+    const liste = umgesetztFehlt.join(", ");
+    reports.push({
+      level: "error",
+      message: `Titel: Die Beschreibung setzt ${liste} um, der Titel nennt ${umgesetztFehlt.length > 1 ? "sie" : "es"} nicht. Ans Ende gehört „(${liste})“, sonst fehlt die Nummer im Commit auf main.`,
+    });
+  }
+  const refsFehlt = fehlend(refs);
+  if (refsFehlt.length > 0) {
+    const liste = refsFehlt.join(", ");
+    reports.push({
+      level: "warning",
+      message: `Titel: Die Beschreibung verweist mit „Refs“ auf ${liste}. Ist das ein Issue, gehört „(${liste})“ ans Ende des Titels; bei einem Pull Request nicht.`,
+    });
+  }
+  return reports;
+}
+
+/**
  * Issues verweist die Beschreibung mit `Refs #…` (Teil) oder `Umgesetzt #…` (fertig). `Closes` und `Fixes`
  * schlössen das Issue schon beim Merge; geschlossen wird aber erst beim Release (scripts/board).
  */
@@ -49,7 +80,8 @@ export function checkBody(body: string | null): Report[] {
 }
 
 const isTest = (file: string) => /\.(test|spec)\.tsx?$/.test(file) || file.includes("/e2e/");
-const isCode = (file: string) => /^(apps\/web\/src|packages\/[^/]+\/src)\/.*\.tsx?$/.test(file) && !isTest(file) && !file.endsWith("routeTree.gen.ts");
+const isCode = (file: string) =>
+  /^(apps\/(web|firmenportal)\/src|packages\/[^/]+\/src)\/.*\.tsx?$/.test(file) && !isTest(file) && !file.endsWith("routeTree.gen.ts");
 const isFix = (subject: string) => /^fix(\(.*\))?!?:/.test(subject);
 
 /**

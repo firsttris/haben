@@ -336,11 +336,11 @@ describe.skipIf(!testDatabaseUrl)("Steuerzahlungen im Bankabgleich (Postgres)", 
     });
     await bank.allocate(actor, { kind: "steuer", transactionId: await umsatz(-100_00), amount: -100_00, steuer: { art: "kst", jahr: 2025, posten: "steuer" } });
     expect(await salden()).toEqual({ "0963": 1000_00, "1200": -2100_00, "2200": 800_00, "2203": 300_00 });
-    // Aufheben gibt die Rückstellung wieder frei
+    // Aufheben gibt die Rückstellung wieder frei; am Tag der Zahlung, damit die Wiederzuordnung ihn sieht (#782)
     const [zweite] = await sql`select a.id from allocations a join bank_transactions t on t.id = a.transaction_id where t.amount = -120000`;
-    await bank.reverseAllocation(actor, zweite!.id);
+    await bank.reverseAllocation(actor, zweite!.id, "2026-07-15");
     const [dritte] = await sql`select a.id from allocations a join bank_transactions t on t.id = a.transaction_id where t.amount = -10000`;
-    await bank.reverseAllocation(actor, dritte!.id);
+    await bank.reverseAllocation(actor, dritte!.id, "2026-07-16");
     await bank.allocate(actor, { kind: "steuer", transactionId: await umsatz(-100_00), amount: -100_00, steuer: { art: "kst", jahr: 2025, posten: "steuer" } });
     expect(await salden()).toEqual({ "0963": 100_00, "1200": -900_00, "2200": 800_00 });
     // Einkommensteuer gibt es in der GmbH nicht

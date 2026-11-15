@@ -157,4 +157,26 @@ describe.skipIf(!testDatabaseUrl)("Umsatzliste sortieren (Postgres, #681)", () =
     expect((await liste("datum", "auf"))[0]).toBe("2024-01-02 Altkunde GmbH 999900");
     expect((await liste("gegenpartei", "auf"))[0]).toBe("2024-01-02 Altkunde GmbH 999900");
   });
+
+  it("filtert nach dem angezeigten Status und findet Vorschläge auch hinter den ersten 500 offenen Umsätzen", async () => {
+    const account = { id: await kontoId(), purpose: "geschaeft" as const };
+    await sql`insert into bank_accounts (name, iban, purpose) values ('Privatkonto', 'DE89370400440532013000', 'privat')`;
+    await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, counterparty_iban, purpose, dedup_hash)
+      select bank_account_id, import_id, '2024-01-01', 5500, 'Privatkonto', 'DE89370400440532013000', 'Übertrag', 'alter-vorschlag'
+      from bank_transactions where amount = 999900`;
+    await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, counterparty_name, purpose, dedup_hash)
+      select bank_account_id, import_id, '2026-10-20', 100, 'Masse', 'Verkauf', 'vorschlag-masse-' || g
+      from bank_transactions, generate_series(1, 500) g where amount = 999900`;
+    const sort = { feld: "datum", richtung: "ab" } as const;
+    expect(await bank.umsatzauswahl(account, "vorschlag", "", sort)).toMatchObject([{ counterpartyName: "Privatkonto", hint: "vorschlag" }]);
+    expect(await bank.umsatzauswahl(account, "vorschlag", "Masse", sort)).toEqual([]);
+  });
+  it("findet mit einem Betrag aus der Schnellsuche dieselben Umsätze, die dort „Alle anzeigen“ öffnet (#617)", async () => {
+    for (const suche of ["9.999,00", "9999 €", "-120,00"]) {
+      const palette = (await bank.searchBankTransactions(suche)).hits.map((t) => t.counterpartyName);
+      expect(palette.length, suche).toBeGreaterThan(0);
+      const liste = (await bank.listTransactions(await kontoId(), "alle", suche)).map((t) => t.counterpartyName);
+      expect(liste, suche).toEqual(expect.arrayContaining(palette));
+    }
+  });
 });

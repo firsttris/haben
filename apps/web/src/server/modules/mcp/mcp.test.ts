@@ -334,6 +334,21 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     expect(await run("umsatzsteuer_voranmeldung")).toMatchObject({ zeitraum: "2026-10" });
   });
 
+  it("verlinkt bei fehlenden Voranmeldungen den letzten Zeitraum des Jahres, nicht den laufenden (#869)", async () => {
+    await sql`delete from vat_frequencies`;
+    await sql`insert into vat_frequencies (year, from_month, frequency) values (2025, 1, 'vierteljaehrlich')`;
+    try {
+      const context = tools.todayContext(new Date("2026-11-14T10:00:00Z"));
+      const result = (await tools.MCP_TOOLS.find((t) => t.name === "jahreserklaerung")!.run({ jahr: 2025 }, context)) as {
+        umsatzsteuererklaerung: { hinweise: { hinweis: string; link?: string }[] };
+      };
+      const hinweis = result.umsatzsteuererklaerung.hinweise.find((h) => h.hinweis.includes("gesendete Voranmeldung"));
+      expect(hinweis?.link).toBe("http://localhost:3000/umsatzsteuer/2025-Q4");
+    } finally {
+      await sql`delete from vat_frequencies`;
+    }
+  });
+
   it("schaltet das Ein und Aus ins Änderungsprotokoll", async () => {
     await mcp.setMcpEnabled(actor, true);
     const [entry] = await sql`select actor, new_value->>'mcp_enabled' as enabled from audit_log where table_name = 'company' order by id desc limit 1`;

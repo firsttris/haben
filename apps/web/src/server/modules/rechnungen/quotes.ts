@@ -344,6 +344,7 @@ export async function listQuotes(today: string) {
       gross: schema.quotes.gross,
       decision: schema.quotes.decision,
       invoiceId: schema.quotes.invoiceId,
+      invoiceNumber: sql<string | null>`(select i.number from invoices i where i.id = ${schema.quotes.invoiceId})`,
       contactName: schema.contacts.name,
       buyerName: sql<string | null>`${schema.quotes.buyer} ->> 'name'`,
     })

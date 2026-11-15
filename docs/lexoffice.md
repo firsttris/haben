@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus Lexoffice / Lexware Office
 
-Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
+Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus FastBill](fastbill.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
 
 <img src="screenshot-archiv.png" alt="Seite Archiv mit den Schritten des Umzugs und dem Abgleich je Geschäftsjahr" width="900">
 
@@ -79,6 +79,16 @@ Das Skript ändert nichts in Lexware Office. Es ruft nur die Adressen auf, die d
 Belege, die das Skript nicht laden konnte, stehen in der ZIP-Datei und nach dem Hochladen in Schritt 2 unter „nicht übernommen“. Lässt du das Skript später noch einmal laufen und lädst die neue Sicherung hoch, überspringt Haben alles, was schon da ist, und holt die fehlenden nach.
 
 Buchungen, Bankumsätze, Voranmeldungen und Anlagen holst du wie beim Abruf über die API aus den Exporten (Schritt 4).
+
+### Darf ich das?
+
+Ja, nach unserer Einschätzung, ohne Gewähr und ohne Rechtsberatung: Du holst deine eigenen Daten mit deiner eigenen Anmeldung, das Skript umgeht keinen Schutz und ändert nichts. Dafür sprechen:
+
+- **EU Data Act** ([Verordnung (EU) 2023/2854](https://eur-lex.europa.eu/eli/reg/2023/2854/oj), Art. 23 ff., seit 12. September 2025): Anbieter von Cloud- und Software-Diensten dürfen den Wechsel zu einem anderen Dienst und die Mitnahme deiner Daten nicht behindern.
+- **Datenübertragbarkeit** ([Art. 20 DSGVO](https://eur-lex.europa.eu/eli/reg/2016/679/oj)), soweit die Daten dich als Person betreffen, etwa als Einzelunternehmer.
+- **Aufbewahrungspflicht** ([§ 147 AO](https://www.gesetze-im-internet.de/ao_1977/__147.html)): Du musst Rechnungen, Belege und Buchungen zehn Jahre vorlegen können, auch nach der Kündigung.
+
+Lies trotzdem die AGB deines Anbieters; sie gelten zwischen dir und ihm. Haben gehört nicht zu Lexware oder FastBill und wird von ihnen weder unterstützt noch geprüft. Lexware, Lexoffice und FastBill sind Marken ihrer Inhaber.
 
 ### Was die Web-Oberfläche anders liefert
 
@@ -266,9 +276,9 @@ Jede Datei bleibt byte-genau erhalten und liegt unter ihrem SHA-256. Dieselbe Da
 
 ### DATEV-Buchungsstapel
 
-Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewählt hast. Erwartet wird das DATEV-Format EXTF (oder DTVF), Formatkategorie 21 „Buchungsstapel“, Version 7xx. Andere DATEV-Exporte, etwa Kontenbeschriftungen oder Debitoren/Kreditoren, liest Haben nicht ein: Sie liegen als Originale unter der gewählten Art im Archiv. Hast du **DATEV-Buchungsstapel** gewählt, legt Haben sie als **Sonstiges** ab und sagt es dir; das Geschäftsjahr gibst du dann selbst an. Ein beschädigter Buchungsstapel wird weiter abgelehnt.
+Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewählt hast. Erwartet wird das DATEV-Format EXTF (oder DTVF), Formatkategorie 21 „Buchungsstapel“, Version 7xx. Andere DATEV-Exporte, etwa Kontenbeschriftungen oder Debitoren/Kreditoren, liest Haben hier nicht ein: Sie liegen als Originale unter der gewählten Art im Archiv. Debitoren/Kreditoren übernimmst du über den [CSV-Import der Kontakte](csv-import.md#kontakte-aus-datev). Hast du **DATEV-Buchungsstapel** gewählt, legt Haben sie als **Sonstiges** ab und sagt es dir; das Geschäftsjahr gibst du dann selbst an. Ein beschädigter Buchungsstapel wird weiter abgelehnt.
 
-- **Kodierung:** UTF-8 (mit oder ohne BOM), UTF-16 mit BOM; alles andere liest Haben als Windows-1252.
+- **Kodierung:** UTF-8 (mit oder ohne BOM), UTF-16 mit BOM; alles andere liest Haben als Windows-1252. Bei unbekannten Formatkategorien nennt der Hinweis den vollständigen Exportnamen aus der Kopfzeile, auch mit Umlauten.
 - **Spalten:** Haben sucht die Spalten über ihren Namen, nicht ihre Position. Pflicht sind Umsatz, Soll/Haben-Kennzeichen, Konto, Gegenkonto und Belegdatum. Beim Vergleich der Namen zählen Groß- und Kleinschreibung, Leerzeichen und Bindestriche nicht, und „ae“, „oe“, „ue“, „ss“ gelten wie „ä“, „ö“, „ü“, „ß“. So passen auch die vereinfachten Namen aus Lexware Office wie „Umsatz“, „Gegenkonto“, „BU-Schluessel“ oder „Basisumsatz“. Übernommen werden außerdem Währung, BU-Schlüssel, Belegfeld 1 und 2, Buchungstext und Beleglink; alle anderen nicht leeren Spalten bleiben je Zeile unverändert gespeichert.
 - **Belegdatum:** DATEV schreibt meist nur Tag und Monat (`TTMM`). Das Jahr ergibt sich aus dem Wirtschaftsjahresbeginn in der Kopfzeile; Monate vor dem Beginnmonat gehören ins Folgejahr. Liegt das Datum außerhalb des Zeitraums aus der Kopfzeile, nimmt Haben das andere Kalenderjahr des Zeitraums, sonst gibt es eine Warnung. `TTMMJJJJ` wird direkt gelesen.
 - **Geschäftsjahr:** Lässt du das Feld leer, nimmt Haben das Jahr des Wirtschaftsjahresbeginns.

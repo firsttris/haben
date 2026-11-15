@@ -1,6 +1,7 @@
 import {
   STEUER_POSTEN_KEYS,
   STEUERART_KEYS,
+  privatZahlung,
   steuerKontierung,
   steuerzahlungPosting,
   steuerzahlungText,
@@ -71,17 +72,23 @@ export interface Steuerbuchung {
 export async function steuerbuchung(
   tx: Tx,
   company: { kontenrahmen: Kontenrahmen; rechtsform: Rechtsform },
-  bank: { bookingDate: string; counterpartyName: string },
+  bank: { bookingDate: string; counterpartyName: string; purpose: string | null },
   angabe: Steuerangabe,
   amount: Cents,
 ): Promise<Steuerbuchung> {
-  const kontierung = steuerKontierung(angabe, amount, bank.bookingDate, company.kontenrahmen, company.rechtsform);
+  const privatesKonto = bank.purpose === "privat";
+  const kontierung = steuerKontierung(angabe, amount, bank.bookingDate, company.kontenrahmen, company.rechtsform, privatesKonto);
   if (!kontierung.ok) throw new SteuerzahlungError(kontierung.fehler);
   const ausRueckstellung = kontierung.rueckstellung
     ? Math.min(-amount, await offeneRueckstellung(tx, kontierung.rueckstellung, angabe.jahr, bank.bookingDate, company.kontenrahmen))
     : 0;
+  // Privates Konto (#866, #873): Das Geld fließt ins Private oder kommt von dort, die Gegenzeile ist deshalb die
+  // Privatentnahme bzw. -einlage und nicht die Bank. Das gilt für jede Steuerart, nicht nur die Umsatzsteuer: Auch
+  // Gewerbesteuer und die Steuern der GmbH laufen über das Privatkonto. Die Steuern des Inhabers und die einbehaltene
+  // Kapitalertragsteuer lehnt die Kontierung dort ab, weil sie kein Geschäftsvorfall sind (#873).
+  const zahlungskonto = privatesKonto ? privatZahlung(amount, company.kontenrahmen, company.rechtsform) : undefined;
   return {
-    lines: steuerzahlungPosting(kontierung, amount, ausRueckstellung, company.kontenrahmen),
+    lines: steuerzahlungPosting(kontierung, amount, ausRueckstellung, company.kontenrahmen, zahlungskonto),
     description: `${steuerzahlungText(angabe, amount)} · ${bank.counterpartyName || "Finanzamt"}`,
     target: { taxType: angabe.art, taxYear: angabe.jahr, taxItem: angabe.posten },
   };

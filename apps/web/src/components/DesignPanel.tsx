@@ -59,8 +59,8 @@ const SWITCHES = [
   { key: "foldMarks", label: "Falz- und Lochmarken" },
   { key: "giroCode", label: "GiroCode" },
   { key: "customerNumber", label: "Kundennummer" },
-  { key: "itemNumber", label: "Artikelnummer" },
-  { key: "vatColumn", label: "Spalte USt je Position" },
+  { key: "itemNumber", label: "Artikelnummer", positions: true },
+  { key: "vatColumn", label: "Spalte USt je Position", positions: true },
 ] as const;
 
 const SWATCHES = [
@@ -111,6 +111,7 @@ export function DesignOptionFields({
   design,
   onChange,
   vatRates = 0,
+  positions = true,
   logoUpload,
   hints,
 }: {
@@ -118,6 +119,8 @@ export function DesignOptionFields({
   onChange: (input: LetterheadDesignInput) => void;
   /** Steuersätze des geöffneten Belegs; in den Einstellungen gibt es keinen */
   vatRates?: number;
+  /** Ohne Positionen (Mahnung) fehlen die Schalter, die nur auf Positionen wirken */
+  positions?: boolean;
   /** Das Hochladen; deaktiviert es selbst, wenn layoutHint(hints, "logo") aus ist, der Hinweis steht hier */
   logoUpload: ReactNode;
   /** Nur in den Einstellungen: Einstellungen, die ein zugeordnetes eigenes Layout nicht verwendet */
@@ -173,7 +176,7 @@ export function DesignOptionFields({
       <section>
         <h3>Auf dem Blatt</h3>
         <div>
-          {SWITCHES.map(({ key, label }) => {
+          {SWITCHES.filter((entry) => positions || !("positions" in entry)).map(({ key, label }) => {
             const entry = hint(key);
             const box = (
               <label key={key} className="checkbox">
@@ -203,7 +206,9 @@ export function DesignOptionFields({
             Dieser Beleg hat mehrere Steuersätze, deshalb bleibt die Spalte USt stehen.
           </div>
         )}
-        <p className="small muted">Bei mehreren Steuersätzen bleibt die Spalte USt stehen. Pflichtangaben und Summen lassen sich hier nicht ausblenden.</p>
+        <p className="small muted">
+          {positions && "Bei mehreren Steuersätzen bleibt die Spalte USt stehen. "}Pflichtangaben und Summen lassen sich hier nicht ausblenden.
+        </p>
       </section>
     </>
   );
@@ -251,11 +256,14 @@ function AccentField({ accent, onChange }: { accent: string; onChange: (accent: 
 export function DesignPanel({
   draft,
   vatRates,
+  positions = true,
   logo,
   onLogoChanged,
 }: {
   draft: DesignDraft;
   vatRates: number;
+  /** Ohne Positionen (Mahnung) fehlen Artikelnummer und Spalte USt */
+  positions?: boolean;
   logo: string | null;
   onLogoChanged: (sha256: string | null) => void;
 }) {
@@ -277,6 +285,7 @@ export function DesignPanel({
           design={draft.design}
           onChange={draft.set}
           vatRates={vatRates}
+          positions={positions}
           logoUpload={<LogoUpload sha256={logo} onChanged={onLogoChanged} />}
         />
       </div>

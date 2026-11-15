@@ -21,3 +21,6 @@ site/
 .cache/
 # Tests der Erweiterung für das Änderungsdatum (scripts/doku-aenderungsdatum)
 __pycache__/
+
+# macOS
+.DS_Store

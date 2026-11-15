@@ -76,6 +76,8 @@ services:
       - OIDC_GROUPS_CLAIM=${OIDC_GROUPS_CLAIM:-groups}
       - OIDC_GROUP_INHABER=${OIDC_GROUP_INHABER:-}
       - OIDC_GROUP_STEUERBERATUNG=${OIDC_GROUP_STEUERBERATUNG:-}
+      # Nur mit SSO und mehreren Firmen: Adresse des Firmenportals für „Zum Firmenportal“ (statt HABEN_FIRMEN)
+      - HABEN_FIRMENPORTAL_URL=${HABEN_FIRMENPORTAL_URL:-}
       # ERiC beim Start laden (ja = Zustimmung zu den Nutzungsbedingungen), nur auf x86_64
       - ERIC_AUTO_INSTALL=${ERIC_AUTO_INSTALL:-}
       - ERIC_SHA256=${ERIC_SHA256:-}
@@ -92,8 +94,10 @@ services:
       - LAYOUTS_MAX_COUNT=${LAYOUTS_MAX_COUNT:-}
       - LAYOUTS_MAX_MB=${LAYOUTS_MAX_MB:-}
       - LAYOUTS_PACKAGES_URL=${LAYOUTS_PACKAGES_URL:-}
+      # Mehrere Firmen: die Instanzen zum Wechseln in der Navigation, „Name|https://adresse“ getrennt durch „;“
+      - HABEN_FIRMEN=${HABEN_FIRMEN:-}
     volumes:
-      # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
+      # Belegdateien: gehören ins Backup; Aufbewahrung: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO)
       - belege:/var/lib/haben/belege
       - eric-log:/var/lib/haben/eric-log
       - eric:/var/lib/haben/eric

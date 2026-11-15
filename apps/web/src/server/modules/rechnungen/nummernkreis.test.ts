@@ -5,9 +5,10 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zähler (Postgres, #328)", () => {
   let sql: postgres.Sql;
   let invoices: typeof import("./invoices.ts");
+  let lastFinalizedByCircle: typeof import("./number-counter.ts").lastFinalizedByCircle;
   let quotes: typeof import("./quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let formats: typeof import("../stammdaten/number-formats.ts");
+  let formats: typeof import("./number-formats.ts");
   const actor = "test-user";
   let contactId: string;
 
@@ -39,9 +40,10 @@ describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zä
   beforeAll(async () => {
     sql = await setupTestDb();
     invoices = await import("./invoices.ts");
+    ({ lastFinalizedByCircle } = await import("./number-counter.ts"));
     quotes = await import("./quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    formats = await import("../stammdaten/number-formats.ts");
+    formats = await import("./number-formats.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -141,5 +143,22 @@ describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zä
     expect(await finalizeNew("2027-01-05")).toBe("RE-2027-0002");
     await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: QUOTE, invoiceRunning: true });
     expect(await finalizeNew("2027-02-01")).toBe("RE-2027-0003");
+  });
+
+  it("liefert je Nummernkreis die zuletzt festgeschriebene Rechnung für die Datumsprüfung (#713)", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: QUOTE });
+    expect(await lastFinalizedByCircle()).toEqual({});
+    // Entwurf zählt noch nicht
+    await invoiceDraft("2026-12-01");
+    expect(await lastFinalizedByCircle()).toEqual({});
+    const nr1 = await finalizeNew("2026-11-09");
+    expect(await lastFinalizedByCircle()).toEqual({
+      2026: { number: nr1, issueDate: "2026-11-09" },
+    });
+    // Rückdatierte Rechnung wird danach die zuletzt festgeschriebene Rechnung des Kreises
+    const nr2 = await finalizeNew("2026-10-01");
+    expect(await lastFinalizedByCircle()).toEqual({
+      2026: { number: nr2, issueDate: "2026-10-01" },
+    });
   });
 });

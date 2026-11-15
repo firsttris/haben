@@ -1,11 +1,21 @@
 import AxeBuilder from "@axe-core/playwright";
-import { type Browser, expect, type Page } from "@playwright/test";
+import { type Browser, expect, type Locator, type Page } from "@playwright/test";
 import { day, USER, vorschauAnheften } from "./daten.ts";
 
 /**
  * Was die Durchläufe app.spec.ts, rechnungen.spec.ts und belege-steuern.spec.ts gemeinsam brauchen (e2e/durchlaeufe.ts):
  * jeder fängt mit einer leeren Datenbank an und richtet sich dasselbe Unternehmen ein.
  */
+
+/** Formular-Dialoge setzen den Rand selbst (FormDialog, DESIGN.md): Felder und Knöpfe halten links und rechts mindestens 16 px Abstand */
+export async function randImDialog(dialog: Locator, elemente: Locator[]): Promise<void> {
+  const rahmen = (await dialog.boundingBox())!;
+  for (const element of elemente) {
+    const box = (await element.boundingBox())!;
+    expect(box.x - rahmen.x, "Abstand links").toBeGreaterThanOrEqual(16);
+    expect(rahmen.x + rahmen.width - (box.x + box.width), "Abstand rechts").toBeGreaterThanOrEqual(16);
+  }
+}
 
 /** Wie HABEN_SETUP_CODE in playwright.config.ts */
 export const SETUP_CODE = "e2e-einrichtungscode";

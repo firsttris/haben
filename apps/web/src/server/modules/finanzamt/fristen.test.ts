@@ -7,6 +7,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
   let fristen: typeof import("./fristen.ts");
   let kalender: typeof import("./kalender-abo.ts");
   let mail: typeof import("../mail/mail.ts");
+  let erinnerung: typeof import("./fristen-mail.ts");
   let taxpayer: typeof import("../stammdaten/taxpayer.ts");
   let crypto: typeof import("../../crypto.ts");
   let sql: postgres.Sql;
@@ -20,6 +21,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     fristen = await import("./fristen.ts");
     kalender = await import("./kalender-abo.ts");
     mail = await import("../mail/mail.ts");
+    erinnerung = await import("./fristen-mail.ts");
     taxpayer = await import("../stammdaten/taxpayer.ts");
     crypto = await import("../../crypto.ts");
     mail.setMailTransportForTests(() => {
@@ -137,10 +139,10 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
 
     const morgens = new Date("2026-10-05T06:00:00Z"); // 8 Uhr in Berlin
     // Nachts nichts
-    expect(await mail.runDueFristenMails("2026-10-05", new Date("2026-10-05T02:00:00Z"))).toBeNull();
+    expect(await erinnerung.runDueFristenMails("2026-10-05", new Date("2026-10-05T02:00:00Z"))).toBeNull();
 
     // 5.10.: Juli (10.8.) und August (10.9.) überfällig, September in 7 Tagen (12.10.)
-    expect(await mail.runDueFristenMails("2026-10-05", morgens)).toEqual({ sent: 3 });
+    expect(await erinnerung.runDueFristenMails("2026-10-05", morgens)).toEqual({ sent: 3 });
     expect(sent).toHaveLength(1);
     expect(sent[0]!.to).toBe("max@example.com");
     expect(sent[0]!.subject).toBe("3 Steuerfristen stehen an");
@@ -148,20 +150,20 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     expect(sent[0]!.text).toContain("12.10.2026 (in 7 Tagen): Umsatzsteuer-Voranmeldung September 2026");
 
     // Am selben und am nächsten Tag nichts Neues; einen Tag vorher die nächste Stufe
-    expect(await mail.runDueFristenMails("2026-10-05", morgens)).toEqual({ sent: 0 });
-    expect(await mail.runDueFristenMails("2026-10-06", new Date("2026-10-06T06:00:00Z"))).toEqual({ sent: 0 });
-    expect(await mail.runDueFristenMails("2026-10-11", new Date("2026-10-11T06:00:00Z"))).toEqual({ sent: 1 });
+    expect(await erinnerung.runDueFristenMails("2026-10-05", morgens)).toEqual({ sent: 0 });
+    expect(await erinnerung.runDueFristenMails("2026-10-06", new Date("2026-10-06T06:00:00Z"))).toEqual({ sent: 0 });
+    expect(await erinnerung.runDueFristenMails("2026-10-11", new Date("2026-10-11T06:00:00Z"))).toEqual({ sent: 1 });
     expect(sent.at(-1)!.subject).toBe("Frist morgen: Umsatzsteuer-Voranmeldung September 2026");
 
     // Erledigtes erinnert nicht mehr: Oktober ist gesendet, nur der überfällige September kommt einmal
     await sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 10, 'sent', 0, 0, 0, 0, now())`;
-    expect(await mail.runDueFristenMails("2026-11-09", new Date("2026-11-09T06:00:00Z"))).toEqual({ sent: 1 });
+    expect(await erinnerung.runDueFristenMails("2026-11-09", new Date("2026-11-09T06:00:00Z"))).toEqual({ sent: 1 });
     expect(sent.at(-1)!.subject).toBe("Frist seit 28 Tagen überfällig: Umsatzsteuer-Voranmeldung September 2026");
 
     // Ein Fehler des Servers wird protokolliert und beim nächsten Lauf nachgeholt
     failNext = true;
-    await expect(mail.runDueFristenMails("2026-12-03", new Date("2026-12-03T06:00:00Z"))).rejects.toThrow(/Authentifizierung/);
-    expect(await mail.runDueFristenMails("2026-12-03", new Date("2026-12-03T06:00:00Z"))).toMatchObject({ sent: expect.any(Number) });
+    await expect(erinnerung.runDueFristenMails("2026-12-03", new Date("2026-12-03T06:00:00Z"))).rejects.toThrow(/Authentifizierung/);
+    expect(await erinnerung.runDueFristenMails("2026-12-03", new Date("2026-12-03T06:00:00Z"))).toMatchObject({ sent: expect.any(Number) });
     const log = await sql`select ok, error from mail_log order by created_at`;
     expect(log.some((r) => !r.ok && r.error === "Authentifizierung fehlgeschlagen")).toBe(true);
     await expect(sql`delete from mail_log`).rejects.toThrow();
@@ -187,7 +189,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     expect(new TextDecoder().decode(crypto.decrypt(row!.ciphertext))).toBe("geheim");
     expect(await mail.sendTestMail(actor)).toEqual({ ok: true, error: null });
     expect(sent.at(-1)).toMatchObject({ to: "b@example.com", subject: "Haben: Test-Mail" });
-    expect(await mail.runDueFristenMails("2026-10-05", new Date("2026-10-05T06:00:00Z"))).toBeNull(); // Erinnerungen aus
+    expect(await erinnerung.runDueFristenMails("2026-10-05", new Date("2026-10-05T06:00:00Z"))).toBeNull(); // Erinnerungen aus
     expect((await mail.mailSettingsSummary()) as object).not.toHaveProperty("ciphertext");
   });
 

@@ -206,11 +206,33 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await zahlung(dez.id, "08.01.27");
     await uebermittelt(2026, await wieUebermittelt(2026));
     const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
-    await bank.reverseAllocation(actor, a!.id as string);
+    await bank.reverseAllocation(actor, a!.id as string, "2027-01-20");
     expect(await euer(2026)).toEqual(MIT_DEZEMBER);
     expect(await euer(2027)).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
     expect(zeilen(await reports.euerAusNebenbuechern(2027))).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
     await beideWegeGleich();
+  }, 60_000);
+
+  it("Zuordnung nach der Übermittlung der EÜR 2026 aufgehoben: die Anlage EÜR 2027 gliedert die negative Zahlung nach Zeile 18 um (#933)", async () => {
+    await reset();
+    const dez = await dezemberMitVoranmeldung();
+    await zahlung(dez.id, "08.01.27");
+    await uebermittelt(2026, await wieUebermittelt(2026));
+    const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
+    await bank.reverseAllocation(actor, a!.id as string, "2027-01-20");
+    // Die Auswertung zeigt die Buchung (Zeile 58 negativ); die Anlage EÜR weist den Rückfluss ohne Vorzeichen als Einnahme aus
+    const jahr = await annual.euerYear(2027);
+    expect(jahr.figures.gezahlteUst ?? 0).toBe(0);
+    expect(jahr.figures.erstatteteUst).toBe(19_000);
+    expect({ einnahmen: jahr.einnahmen, ausgaben: jahr.ausgaben, gewinn: jahr.gewinn }).toEqual({ einnahmen: 19_000, ausgaben: 0, gewinn: 19_000 });
+    // Anzeige und Übermittlung zeigen dieselben Werte; der Gewinn ist der der Auswertung
+    const daten = await wieUebermittelt(2027);
+    expect(daten).toMatchObject({ erstatteteUst: 19_000, gewinn: (await reports.euerForYear(2027)).gewinn });
+    expect(daten.gezahlteUst ?? 0).toBe(0);
+    // Hinweis statt Fehler; ab 2026 steht E6005101 in Zeile 59 (Jahresdokumentation E77 2026)
+    const issues = annual.euerIssues(await stammdaten.loadCompany(), jahr).filter((i) => /Kz E6005101/.test(i.text));
+    expect(issues.map((i) => i.tone)).toEqual(["hinweis"]);
+    expect(issues[0]!.text).toMatch(/^In Zeile 59 \(Kz E6005101.*Betriebseinnahme in Zeile 18 \(Kz E6000701/);
   }, 60_000);
 
   it("Zuordnung nach der Übermittlung der EÜR 2026 aufgehoben und neu zugeordnet: die Zahlung zählt schon in 2026, kein Hinweis", async () => {
@@ -220,7 +242,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await zahlung(dez.id, "08.01.27");
     await uebermittelt(2026, await wieUebermittelt(2026));
     const [a] = await sql`select id, transaction_id from allocations where kind = 'ustVorauszahlung'`;
-    await bank.reverseAllocation(actor, a!.id as string);
+    await bank.reverseAllocation(actor, a!.id as string, "2027-01-20");
     await bank.allocate(actor, { kind: "ustva", transactionId: a!.transaction_id as string, vatReturnId: dez.id, amount: -19_000 });
     expect(await euer(2026)).toEqual(MIT_DEZEMBER);
     expect((await euer(2027)).gewinn).toBe(0);
@@ -261,7 +283,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await zahlung(dez.id, "08.01.27");
     await vermerkt(2026);
     const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
-    await bank.reverseAllocation(actor, a!.id as string);
+    await bank.reverseAllocation(actor, a!.id as string, "2027-01-20");
     expect(await euer(2026)).toEqual(MIT_DEZEMBER);
     expect(await euer(2027)).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
     await beideWegeGleich();

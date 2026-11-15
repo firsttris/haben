@@ -44,7 +44,9 @@ const SOURCE_LABEL = {
   sevdesk: "sevDesk",
   buchhaltungsbutler: "BuchhaltungsButler",
   accountable: "Accountable",
+  wiso: "WISO",
   import: "JSON-Import",
+  fastbill: "FastBill",
 } as const;
 
 export interface OpenLegacyItem {
@@ -475,7 +477,13 @@ async function takeOverInvoice(
       .update(schema.invoices)
       .set({
         status: "final",
-        number: voucher.number || (voucher.source === "sevdesk" ? `SD-${voucher.lexofficeId.split("/").pop()}` : `LX-${voucher.lexofficeId.slice(0, 8)}`),
+        number:
+          voucher.number ||
+          (voucher.source === "sevdesk"
+            ? `SD-${voucher.lexofficeId.split("/").pop()}`
+            : voucher.source === "fastbill"
+              ? `FB-${voucher.lexofficeId.split("/").pop()}`
+              : `LX-${voucher.lexofficeId.slice(0, 8)}`),
         contactVersion: contact!.version,
         seller: sellerFrom(company),
         buyer: buyerFrom(contact!),

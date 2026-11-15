@@ -7,13 +7,20 @@ import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { createMcpTokenFn, reactivateMcpTokenFn, revokeMcpTokenFn, setMcpEnabledFn, type getMcpSettings } from "../server/functions/mcp.ts";
 import { Field } from "./Field.tsx";
+import { Status, type StatusLook } from "./Status.tsx";
 
 type Data = Awaited<ReturnType<typeof getMcpSettings>>;
 
 export const MCP_DOCS = "https://haben.app/ki-assistenten.html";
 export const API_DOCS = "https://haben.app/api.html";
 
-const STATUS = { aktiv: "pill-ok", abgelaufen: "pill-warn", widerrufen: "pill", deaktiviert: "pill-warn", unbestaetigt: "pill-warn" } as const;
+const STATUS: Record<"aktiv" | "abgelaufen" | "widerrufen" | "deaktiviert" | "unbestaetigt", StatusLook> = {
+  aktiv: { text: "Aktiv", tone: "ok" },
+  abgelaufen: { text: "Abgelaufen", tone: "warn" },
+  widerrufen: { text: "Widerrufen" },
+  deaktiviert: { text: "Deaktiviert", tone: "warn" },
+  unbestaetigt: { text: "Unbestätigt", tone: "warn", emphasis: "notice" },
+};
 
 /** Einstellungen → KI-Assistenten und API: Zugang ein- und ausschalten, API-Tokens mit Rechten und Protokoll */
 export function McpCard({ data }: { data: Data }) {
@@ -107,7 +114,7 @@ export function McpCard({ data }: { data: Data }) {
           <h2 id="mcp-token-heading">API-Tokens</h2>
           <ConfirmDialog
             open={revoking !== null}
-            title={`Token „${revoking?.name}“ widerrufen?`}
+            title={`${revoking?.oauth ? "Verbindung" : "Token"} „${revoking?.name}“ widerrufen?`}
             confirmLabel="Widerrufen"
             danger
             onConfirm={() => {
@@ -120,11 +127,16 @@ export function McpCard({ data }: { data: Data }) {
             }}
             onClose={() => setRevoking(null)}
           >
-            <p>Das Werkzeug verliert sofort den Zugriff. Für neuen Zugriff legst du ein neues Token an und trägst es dort ein.</p>
+            <p>
+              {revoking?.oauth
+                ? "Der Connector verliert sofort den Zugriff. Für neuen Zugriff verbindest du ihn im KI-Assistenten neu."
+                : "Das Werkzeug verliert sofort den Zugriff. Für neuen Zugriff legst du ein neues Token an und trägst es dort ein."}
+            </p>
           </ConfirmDialog>
           <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
             Jeder Assistent und jedes Werkzeug bekommt ein eigenes Token mit nur den Rechten, die es braucht, und du kannst es jederzeit widerrufen. Haben
-            speichert nur einen Hash; das Token siehst du nur direkt nach dem Anlegen.
+            speichert nur einen Hash; das Token siehst du nur direkt nach dem Anlegen. Connectors aus claude.ai verbinden sich per OAuth ohne Token und stehen
+            danach ebenfalls hier.
           </p>
           <ConfirmDialog
             open={takingOver !== null}
@@ -187,10 +199,13 @@ export function McpCard({ data }: { data: Data }) {
               <div key={token.id} className="history-row">
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontWeight: 500 }}>
-                    {token.name} <span className={`pill ${STATUS[token.status]}`}>{token.status === "unbestaetigt" ? "unbestätigt" : token.status}</span>
+                    {token.name}{" "}
+                    <Status tone={STATUS[token.status].tone} emphasis={STATUS[token.status].emphasis} inline>
+                      {STATUS[token.status].text}
+                    </Status>
                   </span>
                   <span className="small muted">
-                    <span className="mono">{token.prefix}…</span> · angelegt {formatDate(token.createdAt)} ·{" "}
+                    {token.oauth ? "OAuth-Verbindung" : <span className="mono">{token.prefix}…</span>} · angelegt {formatDate(token.createdAt)} ·{" "}
                     {token.status === "widerrufen" ? `widerrufen ${formatDate(token.revokedAt!)}` : `gültig bis ${formatDate(token.expiresAt)}`} ·{" "}
                     {token.lastUsedAt ? `zuletzt benutzt ${formatDateTime(token.lastUsedAt)}` : "noch nicht benutzt"}
                   </span>

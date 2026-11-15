@@ -7,9 +7,11 @@ description: >-
 
 # Entwurf: Erhaltene Anzahlungen bei GmbH und UG
 
-**Status:** Vorschlag, noch keine beschlossene oder implementierte Änderung der Buchungen.
+**Status:** Beitrags- und Entscheidungsentwurf zu #750. Der unten fortgeschriebene Kern ist vom Maintainer bestätigt; dieses ADR und der gesamte Implementierungsumfang sind damit noch nicht als angenommen gekennzeichnet.
 **Bezug:** [#750](https://github.com/firsttris/haben/issues/750),
 [#622](https://github.com/firsttris/haben/issues/622), [PR #745](https://github.com/firsttris/haben/pull/745).
+
+Die folgenden Abschnitte halten den ursprünglichen Vorschlag mit seinen damaligen Prüffragen fest. Den bestätigten Kern und die späteren Umfangsentscheidungen dokumentiert die [Fortschreibung](#fortschreibung-des-beitrags-zu-750).
 
 ## Fachlicher Sollzustand
 
@@ -86,3 +88,16 @@ Der Maintainer entscheidet über Kontierung und Umfang der Folgeänderung. Die b
 [`invoicePosting`](https://github.com/firsttris/haben/blob/f38f82dfb631ae0c2647e513364bc86cd3547536/packages/core/src/posting.ts#L378)
 wird durch dieses Dokument nicht umgestellt. Umsetzung und rote Regressionen gehören in die Fortführung des
 gesonderten Pull Requests nach dieser Klärung.
+
+## Fortschreibung des Beitrags zu #750
+
+Die [Maintainerentscheidung](https://github.com/firsttris/haben/issues/750#issuecomment-6837873675) bestätigt für neue reine Anforderungen von GmbH und UG:
+
+- Vor Zahlung und Leistung entsteht keine Journalbuchung. Tatsächliche Nettozahlungen stehen auf 1710 (SKR03) beziehungsweise 3250 (SKR04), ohne AM-Funktion; die Umsatzsteuer bleibt getrennt.
+- Die erste reale Schlussleistung realisiert den gesamten Nettoerlös unabhängig von Ist oder Soll, auch wenn die Schlussrechnung keinen Restbetrag mehr verlangt.
+- Ein bloßes Schluss-Papierstorno nimmt die erbrachte Leistung nicht zurück. Ein eindeutiger, betragsgleicher Ersatz mit unverändertem Abzugssatz setzt sie fort; er realisiert keinen zweiten Erlös. Zahlungen bleiben an ihren gespeicherten Belegen und werden über die Ersatzkette berücksichtigt.
+- Die Einführung ist additiv. Alte Belege, Journalzeilen, Siegel und abgeschlossene Jahre bleiben unverändert.
+
+Der Beitrag speichert das Verfahren in `advance_accounting`; `null` behält den bisherigen Weg. `replaces_invoice_id` verbindet den Ersatz mit seinem eindeutigen Vorgänger. Der Stichtagsleser trennt unbilanzierte Anforderungen, bilanzierte Forderungen einschließlich des offenen Anspruchs ohne aktuellen Schlussbeleg und echte Anzahlungs-Erstattungen. Journalgegenprobe und Restlaufzeiten verwenden dieselben datierten Belege und Erledigungen. Das aktuelle Verhalten steht in [Buchhaltung](../buchhaltung.md#anzahlungen-vor-leistung) und [Rechnungen](../rechnungen.md#abschlags--und-schlussrechnung).
+
+Die [ergänzende Maintainerentscheidung](https://github.com/firsttris/haben/issues/750#issuecomment-6850907108) bestätigt die Ersatzgrenze, datierte Entgeltkorrekturen sowie die Sperren für Forderungsausfall auf eine noch unbilanzierte Anforderung und für Zahlungen vor Leistung auf neue Bilanz-Schlussketten. Die Bedienung steht in den oben verlinkten Nutzerseiten. Der allgemeine Vorauszahlungsfall normaler Rechnungen folgt in [#853](https://github.com/firsttris/haben/issues/853). Fremdwährungs-Abschläge bleiben im bisherigen Festschreibungsweg ausgeschlossen.
