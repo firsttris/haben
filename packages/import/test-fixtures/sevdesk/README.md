@@ -19,7 +19,8 @@ In beiden Ordnern:
 Nur `buchhaltung-1.0/`:
 
 - `check-account-transaction-log*.json`, `invoice-teilzahlung*.json`: Teilzahlungen und aufgehobene Zuordnungen.
-- `asset.json`, `vat-report.json`: Antworten von `GET /Asset` und `GET /VatReport`, je drei Einträge. Reine Referenz, noch liest sie kein Code.
+- `asset.json`, `vat-report.json`: Antworten von `GET /Asset` und `GET /VatReport`, je drei Einträge.
+- `asset-mit-kontoart.json`: fünf Anlagen aus `GET /Asset?embed=accountingType`: Pkw (Buchungskonto 2812, 0320/0520), GWG mit Nutzungsdauer 0 und `status` 500, je eine Anlage auf den eigenen Kategorien „Sonstige Betriebs- und Geschäftsausstattung“ und „Sonstige Transportmittel“ (ohne Kontonummern, `type` IC, mit `sevClient`) und eine auf „Kleingeräte“ mit Nutzungsdauer 3. Datum und Kaufpreis erfunden, Nummern 1001 bis 1005.
 - `rechnungsvorlage-wkr.json`: drei wiederkehrende Rechnungen; `GET /Invoice` liefert sie nur mit dem Filter `invoiceType=WKR`. Eine hat `status` 50 und `accountIntervall` `P0Y0M1W` (7 Tage) und ist in sevDesk auf nachfällig gestellt.
 - `rechnungen-aus-vorlage.json`: drei aus diesen Vorlagen erzeugte Rechnungen (`origin.id` zeigt auf die Vorlage), nur Status, die drei Datumsfelder und Texte, ohne Beträge.
 - `platzhalter-auftrag.json`: Angebot mit Platzhalter in `footText`.
@@ -64,7 +65,7 @@ Nur `buchhaltung-2.0/`:
 | Beleg ohne `document` | ja | ja |
 | Mahnung (`MA`) | Stufen 1 und 2, von sevDesk als versendet geführt, Zustellung sowie Gebühren und Zinsen nicht belegt | Stufe 1 mit `status` 1000, `reminderDebit` 0 |
 | Antwort von `Document/download` | ja, Hülle ohne Inhalt | Statuscode, Inhaltstyp und dieselben Feldnamen |
-| Anlagen (`/Asset`), nur Aufbau | ja | ja, Konto als `accountDatev` |
+| Anlagen (`/Asset`) | ja, mit Buchungskonto (`embed=accountingType`) | nur Aufbau, Konto als `accountDatev` |
 | Umsatzsteuer-Voranmeldungen (`/VatReport`), nur Aufbau | ja | ja |
 | Datei mit Rechnungsbezug (`Document.baseObject`) | ja, je fertiger Rechnung und Gutschrift ein Eintrag, nur Verweis | ja |
 | Datei eines Belegs nur über `document` | ja | nein |
@@ -74,7 +75,7 @@ Nur `buchhaltung-2.0/`:
 
 Offen für 2.0 ([#472](https://github.com/firsttris/haben/issues/472)): echte Beträge und damit Steueraufteilung und Summen, Teilzahlungen (Status 750), wiederkehrende Rechnungen und Belege, Mahnstufe 2, `taxRule` 17 (in beiden Konten nicht vorhanden). Ob D bei „KFZ-Versicherung“ eine Erstattung ist, lässt sich an den maskierten Beträgen nicht prüfen.
 
-`/Asset` hat kein Feld für die bisherige AfA, nur Anschaffungsdatum, Kaufpreis, Nutzungsdauer und Verkaufsdatum. Die Beträge in `asset.json` und `vat-report.json` (auch in `reportingValues`) sind maskiert und tragen keine Summen.
+`/Asset` hat kein Feld für die bisherige AfA und keins für die Methode, nur Anschaffungsdatum, Kaufpreis, Nutzungsdauer in Jahren und Verkaufsdatum. Im Konto aus 1.0 (29 Anlagen) war `purchasePrice` gleich `sumNet` der Belegposition, also netto; `status` 100 stand nur bei Nutzungsdauer über 0, 500 nur bei 0. `GET /Depreciation` antwortet mit einer leeren Liste, Methoden wie `getDepreciation` gibt es an `Asset` nicht; die OpenAPI nennt `/Asset` nicht. Die Beträge in `asset.json` und `vat-report.json` (auch in `reportingValues`) sind maskiert und tragen keine Summen.
 
 Bei den Vorlagen ist die Bedeutung der Statuswerte aus diesen Beispielen abgeleitet, sevDesk beschreibt sie nicht. „Nachfällig“ hat an der Vorlage kein erkennbares Feld; verglichen wurde nur, welche Felder leer sind.
 

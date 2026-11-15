@@ -49,6 +49,7 @@ export {
 } from "./sevdesk.ts";
 export { sevdeskPlaceholders, sevdeskRecurringOrigin } from "./sevdesk-vorlagen.ts";
 export { decideAccountingType } from "./sevdesk-kontoart-hand.ts";
+export { previewSevdeskAssets, takeOverSevdeskAssets, type SevdeskAssetPreview } from "./sevdesk-anlagen.ts";
 export {
   cancelFastbillImport,
   FASTBILL_PLANS,
@@ -77,6 +78,16 @@ export {
   type AccountableAnalysis,
   type AccountableImportRun,
 } from "./accountable.ts";
+export {
+  analyseSevdeskExport,
+  cancelSevdeskExportImport,
+  latestSevdeskExportImport,
+  MAX_SEVDESK_EXPORT_SIZE,
+  SevdeskExportError,
+  sevdeskExportImportStatus,
+  startSevdeskExportImport,
+  type SevdeskExportRun,
+} from "./sevdesk-export.ts";
 
 export { bookDatevEroeffnung, datevEroeffnung, DatevEroeffnungError, datevEroeffnungSchema, type DatevEroeffnung } from "./datev-eroeffnung.ts";
 export { legacyDunningFile, legacyDunningsFor, type LegacyDunningRow } from "./mahnungen-archiv.ts";

@@ -134,7 +134,7 @@ function noteFor(accountable: AccountableAnalysis, warnings: string[]): string {
  * ("Jede Buchung mit Belegnummer findet ihren Beleg"), Kontoauszug-Zuordnung und Jahresexport.
  * In Blöcken, damit große Stapel die Parametergrenze von Postgres nicht reißen.
  */
-async function storeDatevBookings(tx: Tx, fileId: string, bookings: AccountableExport["stack"]["bookings"]): Promise<void> {
+export async function storeDatevBookings(tx: Tx, fileId: string, bookings: AccountableExport["stack"]["bookings"]): Promise<void> {
   for (let i = 0; i < bookings.length; i += 1000) {
     await tx.insert(schema.datevBookings).values(
       bookings.slice(i, i + 1000).map((b) => ({

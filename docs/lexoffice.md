@@ -343,7 +343,7 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 | Prüfung | Erfüllt, wenn |
 | --- | --- |
 | Belege und Rechnungen per API abgerufen | mindestens ein Beleg mit Datum in diesem Jahr vorliegt; Buchungen ohne Beleg werden extra gezählt |
-| Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist, Buchungen ohne Beleg und bei sevDesk bestätigt dateilose Belege ausgenommen ([Dateistand](sevdesk.md#dateistand)); „Belege mit fehlender Datei ansehen“ zeigt die Liste |
+| Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist, Buchungen ohne Beleg, bei sevDesk bestätigt dateilose Belege ([Dateistand](sevdesk.md#dateistand)) und Belege aus der Export-ZIP ohne Belegbild ausgenommen; „Belege mit fehlender Datei ansehen“ zeigt die Liste |
 | DATEV-Buchungsstapel übernommen | Buchungen mit Datum in diesem Jahr eingelesen sind |
 | Jede Buchung mit Belegnummer findet ihren Beleg | für jede Buchung mit Belegfeld 1 ein Lexoffice-Beleg mit derselben Nummer existiert (Leerzeichen und Groß-/Kleinschreibung egal); Buchungen ohne Belegnummer, etwa Umbuchungen, werden nur gezählt; „Buchungen ohne passenden Beleg ansehen“ zeigt die übrigen |
 | IDEA-Export archiviert | eine Datei der Art IDEA mit diesem Jahr vorliegt |

@@ -22,7 +22,7 @@ export {
   updateAsset,
   withdrawalsForEuer,
 } from "./assets.ts";
-export { assetImportStichtagProblem, insertImportedAssets, planAssetImport } from "./asset-import.ts";
+export { assetImportStichtagProblem, insertImportedAssets, planAssetCandidates, planAssetImport } from "./asset-import.ts";
 export { accountName, knownAccounts, loadJournal, transitBalance } from "./journal.ts";
 export {
   searchBuchhaltung,

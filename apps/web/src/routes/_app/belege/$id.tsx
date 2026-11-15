@@ -28,6 +28,7 @@ import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
 import { BelegVerrechnung } from "../../../components/BelegVerrechnung.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
+import { EigenesKontoWahl, passendesKonto } from "../../../components/EigenesKontoWahl.tsx";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
@@ -302,7 +303,7 @@ function Preview({ doc }: { doc: Detail["document"] }) {
 
 function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (dirty: boolean) => void }) {
   const buchenText = useKuerzelText(BUCHEN_KUERZEL);
-  const { document: doc, amounts, splits, categories, issues, aiAvailable, navigation } = data;
+  const { document: doc, amounts, splits, categories, ownAccounts, issues, aiAvailable, navigation } = data;
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveDocument);
@@ -329,6 +330,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [serviceFrom, setServiceFrom] = useState(doc.serviceFrom ?? "");
   const [serviceTo, setServiceTo] = useState(doc.serviceTo ?? "");
   const [category, setCategory] = useState(doc.category ?? "");
+  // Eigenes Sachkonto statt des Kontos der Kategorie (#270); leer = das Konto der Kategorie
+  const [ownAccountId, setOwnAccountId] = useState(doc.ownAccountId ?? "");
   const [payment, setPayment] = useState(doc.payment);
   const [privateShare, setPrivateShare] = useState(doc.privateShare ? String(doc.privateShare) : "");
   // Abziehbarer Anteil der Vorsteuer (#852): null = Vorgabe der Firmendaten, sonst 0 oder VOLLER_ABZUG
@@ -355,7 +358,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   );
   // Aufteilung auf mehrere Kategorien (#271); leer = die Kategorie gilt für den ganzen Beleg
   const [splitRows, setSplitRows] = useState<SplitRowState[]>(() =>
-    splits.map((s) => splitRow(s.category as ExpenseCategory, s.taxRate as Rate, formatDecimal(s.net))),
+    splits.map((s) => splitRow(s.category as ExpenseCategory, s.taxRate as Rate, formatDecimal(s.net), s.ownAccountId ?? "")),
   );
   const splitting = splitRows.length > 0;
   const [dirty, setDirty] = useState(
@@ -442,7 +445,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   /** Aufteilen: je Betragszeile eine Zeile mit der bisherigen Kategorie, dazu eine leere zum Verteilen */
   function startSplitting() {
     const first = category === "anlage" ? "" : (category as ExpenseCategory | "");
-    const fromAmounts = rows.map((row, i) => splitRow(i === 0 ? first : "", row.taxRate, row.net));
+    const fromAmounts = rows.map((row, i) => splitRow(i === 0 ? first : "", row.taxRate, row.net, i === 0 ? ownAccountId : ""));
     touch(setSplitRows)([...fromAmounts, splitRow("", rows[0]?.taxRate ?? 1900, "")]);
   }
 
@@ -486,6 +489,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           serviceFrom: serviceFrom || null,
           serviceTo: serviceTo || null,
           category: splitting ? null : ((category || null) as ExpenseCategory | null),
+          ownAccountId: splitting ? null : passendesKonto(ownAccounts, category, ownAccountId) || null,
           payment,
           note,
           privateShare: privateShareValue,
@@ -699,6 +703,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   value={category}
                   onChange={(e) => {
                     touch(setCategory)(e.target.value);
+                    setOwnAccountId(passendesKonto(ownAccounts, e.target.value, ownAccountId));
                     // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
                     const preset = data.privateShares[e.target.value];
                     setPrivateShare(preset ? String(preset) : "");
@@ -713,6 +718,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 </select>
               )}
             </Field>
+          )}
+          {!splitting && category !== "anlage" && (
+            <EigenesKontoWahl
+              accounts={ownAccounts}
+              category={category}
+              value={ownAccountId}
+              onChange={touch(setOwnAccountId)}
+              style={{ gridColumn: "1 / -1" }}
+            />
           )}
           {!splitting && !readOnly && (
             <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
@@ -1050,6 +1064,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               parsed.every((p) => p.net !== null && p.tax !== null) && !foreign ? parsed.map((p) => ({ taxRate: p.taxRate, net: p.net!, tax: p.tax! })) : null
             }
             categories={categories}
+            ownAccounts={ownAccounts}
             disabled={readOnly || running}
             onChange={touch(setSplitRows)}
             taxLabel={reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
@@ -1057,6 +1072,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             onDissolve={() => {
               // Zurück zu einer Kategorie: die der ersten Zeile
               touch(setCategory)(splitRows[0]?.category ?? "");
+              setOwnAccountId(splitRows[0]?.ownAccountId ?? "");
               setSplitRows([]);
             }}
           />
