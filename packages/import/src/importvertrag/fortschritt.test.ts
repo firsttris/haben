@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { advanceCheckpoint, type PartResult } from "./index.ts";
 
 const window = { from: "2026-10-01", to: "2026-10-31" };
-const part = (index: number, last: boolean, over: Partial<PartResult> = {}): PartResult => ({
+const part = (index: number, last: boolean, over: Partial<PartResult> = {}, fetchId = "abruf-1"): PartResult => ({
   coverage: window,
-  part: { index, last },
+  part: { fetchId, index, last },
   blocking: 0,
   conflict: false,
   ...over,
@@ -78,6 +78,24 @@ describe("advanceCheckpoint", () => {
 
   it("geht nie zurück, wenn ein älteres Fenster noch einmal abgerufen wird", () => {
     expect(advanceCheckpoint("2026-11-15", [part(0, true)])).toEqual({ checkpoint: "2026-11-15", complete: true });
+  });
+
+  it("rückt nach einem abgebrochenen Abruf mit dem neuen Abruf desselben Fensters vor", () => {
+    const abgebrochen = [part(0, false), part(1, false)];
+    const neu = [part(0, false, {}, "abruf-2"), part(1, true, {}, "abruf-2")];
+    expect(advanceCheckpoint("2026-09-30", [...abgebrochen, ...neu])).toEqual({ checkpoint: "2026-10-31", complete: true });
+  });
+
+  it("rückt bei zwei vollständigen Abrufen desselben Fensters vor", () => {
+    expect(advanceCheckpoint("2026-09-30", [part(0, true), part(0, true, {}, "abruf-2")])).toEqual({ checkpoint: "2026-10-31", complete: true });
+  });
+
+  it("rückt über aufeinanderfolgende Abrufe vor und nennt einen offenen späteren", () => {
+    const november = { from: "2026-11-01", to: "2026-11-30" };
+    const dezember = { from: "2026-12-01", to: "2026-12-31" };
+    expect(
+      advanceCheckpoint("2026-09-30", [part(0, true), part(0, true, { coverage: november }, "abruf-2"), part(0, false, { coverage: dezember }, "abruf-3")]),
+    ).toEqual({ checkpoint: "2026-11-30", complete: false, reason: "Der letzte Teil der Lieferung fehlt." });
   });
 
   it("bleibt ohne Lieferung stehen", () => {
