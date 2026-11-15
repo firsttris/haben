@@ -573,10 +573,10 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
   }
 
   it("fragt je Modul eine Abfrage statt je Gruppe (#617: vorher 24 für Text, 26 für Ziffern, 7 für die Steuerberatung)", async () => {
-    // Stammdaten, Rechnungen (2), Belege, Bank, Buchhaltung (eigene Konten, Kontenrahmen, Abfrage), Leistungen, Lohn, Postfach, Archiv
-    expect(await abfragenFuer("Zzyzx", "inhaber")).toBeLessThanOrEqual(12);
+    // Stammdaten, Rechnungen, Belege, Bank, Buchhaltung (eigene Konten, Kontenrahmen, Abfrage), Leistungen, Lohn, Postfach, Archiv
+    expect(await abfragenFuer("Zzyzx", "inhaber")).toBeLessThanOrEqual(11);
     // dazu Voranmeldungen und ZM in einer Abfrage
-    expect(await abfragenFuer("4931", "inhaber")).toBeLessThanOrEqual(13);
+    expect(await abfragenFuer("4931", "inhaber")).toBeLessThanOrEqual(12);
     expect(await abfragenFuer("Zzyzx", "steuerberatung")).toBeLessThanOrEqual(5);
   });
 

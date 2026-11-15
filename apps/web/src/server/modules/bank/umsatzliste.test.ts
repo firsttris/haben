@@ -173,7 +173,7 @@ describe.skipIf(!testDatabaseUrl)("Umsatzliste sortieren (Postgres, #681)", () =
   });
   it("findet mit einem Betrag aus der Schnellsuche dieselben Umsätze, die dort „Alle anzeigen“ öffnet (#617)", async () => {
     for (const suche of ["9.999,00", "9999 €", "-120,00"]) {
-      const palette = (await bank.searchBankTransactions(suche)).hits.map((t) => t.counterpartyName);
+      const palette = (await bank.searchBank(suche, ["bankTransactions"])).bankTransactions!.hits.map((t) => t.counterpartyName);
       expect(palette.length, suche).toBeGreaterThan(0);
       const liste = (await bank.listTransactions(await kontoId(), "alle", suche)).map((t) => t.counterpartyName);
       expect(liste, suche).toEqual(expect.arrayContaining(palette));

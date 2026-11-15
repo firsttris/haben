@@ -31,7 +31,18 @@ describe("paletteGroups (#617)", () => {
 describe("paletteModules (#617)", () => {
   it("fasst die Gruppen eines Moduls zu einer Aufgabe zusammen und verliert keine Gruppe", () => {
     const module = paletteModules([...PALETTE_GROUPS]);
-    expect(module.map((m) => m.modul)).toEqual(["stammdaten", "rechnungen", "belege", "bank", "buchhaltung", "leistungen", "lohn", "umsatzsteuer", "finanzamt", "archiv"]);
+    expect(module.map((m) => m.modul)).toEqual([
+      "stammdaten",
+      "rechnungen",
+      "belege",
+      "bank",
+      "buchhaltung",
+      "leistungen",
+      "lohn",
+      "umsatzsteuer",
+      "finanzamt",
+      "archiv",
+    ]);
     expect(module.flatMap((m) => m.groups).sort()).toEqual([...PALETTE_GROUPS].sort());
     expect(module.find((m) => m.modul === "stammdaten")?.groups).toEqual(["contacts", "articles", "textBlocks"]);
   });

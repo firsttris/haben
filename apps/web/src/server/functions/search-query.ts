@@ -1,31 +1,15 @@
 import type { Rolle } from "../../lib/rollen.ts";
-import { mitHoechstens, type PaletteGroup, paletteGroups } from "./search-plan.ts";
+import { mitHoechstens, type PaletteModule, paletteGroups, paletteModules } from "./search-plan.ts";
 import { type ArchiveHit, searchArchive } from "../modules/archiv/index.ts";
-import { type BankTransactionHit, type CashEntryHit, type LoanHit, searchBankTransactions, searchCashEntries, searchLoans } from "../modules/bank/index.ts";
-import { type DocumentHit, type RecurringDocumentHit, searchDocuments, searchRecurringDocuments } from "../modules/belege/index.ts";
-import {
-  type AccountHit,
-  type AssetHit,
-  type BookingHit,
-  type PauschaleHit,
-  searchAccounts,
-  searchAssets,
-  searchBookings,
-  searchPauschalen,
-} from "../modules/buchhaltung/index.ts";
+import { type BankTransactionHit, type CashEntryHit, type LoanHit, searchBank } from "../modules/bank/index.ts";
+import { type DocumentHit, type RecurringDocumentHit, searchBelege, searchDocuments } from "../modules/belege/index.ts";
+import { type AccountHit, type AssetHit, type BookingHit, type PauschaleHit, searchBuchhaltung } from "../modules/buchhaltung/index.ts";
 import { type PostfachDocumentHit, searchPostfachDocuments } from "../modules/finanzamt/index.ts";
 import { type ServiceEntryHit, searchServiceEntries } from "../modules/leistungen/index.ts";
 import { type EmployeeHit, searchEmployees } from "../modules/lohn/index.ts";
-import {
-  type InvoiceHit,
-  type QuoteHit,
-  type RecurringInvoiceHit,
-  searchInvoices,
-  searchQuotes,
-  searchRecurringInvoices,
-} from "../modules/rechnungen/index.ts";
-import { type ArticleHit, type ContactHit, type TextBlockHit, searchArticles, searchContacts, searchTextBlocks } from "../modules/stammdaten/index.ts";
-import { type VatReturnHit, type ZmSubmissionHit, searchVatReturns, searchZmSubmissions } from "../modules/umsatzsteuer/index.ts";
+import { type InvoiceHit, type QuoteHit, type RecurringInvoiceHit, searchInvoices, searchQuotes, searchRechnungen } from "../modules/rechnungen/index.ts";
+import { type ArticleHit, type ContactHit, type TextBlockHit, searchContacts, searchStammdaten } from "../modules/stammdaten/index.ts";
+import { type VatReturnHit, type ZmSubmissionHit, searchUmsatzsteuer } from "../modules/umsatzsteuer/index.ts";
 
 export const COMMAND_PALETTE_LIMIT = 5;
 
@@ -86,51 +70,40 @@ function emptyResult(): CommandPaletteResult {
   };
 }
 
-/** Höchstens so viele Abfragen einer Eingabe gleichzeitig; der Pool hat 10 Verbindungen (db/index.ts) */
+/** Höchstens so viele Module einer Eingabe gleichzeitig; der Pool hat 10 Verbindungen (db/index.ts) */
 export const PALETTE_PARALLEL = 4;
 
-/** Je Gruppe die Suche im Modul; die Rolle entscheidet `paletteGroups` */
-const SUCHE: { [G in PaletteGroup]: (query: string, role: Rolle) => Promise<CommandPaletteResult[G]> } = {
-  contacts: (q) => searchContacts(q, COMMAND_PALETTE_LIMIT),
+/** Je Modul die Suche über seine gefragten Gruppen, in einer Abfrage; welche Gruppen, entscheidet `paletteGroups` */
+const SUCHE: { [M in PaletteModule]: (query: string, groups: string[], role: Rolle) => Promise<Partial<CommandPaletteResult>> } = {
+  stammdaten: (q, groups) => searchStammdaten(q, groups, COMMAND_PALETTE_LIMIT),
   // Entwürfe nur für den Inhaber
-  invoices: (q, role) => searchInvoices(q, { includeDrafts: role === "inhaber" }, COMMAND_PALETTE_LIMIT),
-  quotes: (q) => searchQuotes(q, COMMAND_PALETTE_LIMIT),
-  documents: (q) => searchDocuments(q, COMMAND_PALETTE_LIMIT),
-  bankTransactions: (q) => searchBankTransactions(q, COMMAND_PALETTE_LIMIT),
-  bookings: (q) => searchBookings(q, COMMAND_PALETTE_LIMIT),
-  accounts: (q) => searchAccounts(q, COMMAND_PALETTE_LIMIT),
-  recurringInvoices: (q) => searchRecurringInvoices(q, COMMAND_PALETTE_LIMIT),
-  recurringDocuments: (q) => searchRecurringDocuments(q, COMMAND_PALETTE_LIMIT),
-  articles: (q) => searchArticles(q, COMMAND_PALETTE_LIMIT),
-  textBlocks: (q) => searchTextBlocks(q, COMMAND_PALETTE_LIMIT),
-  serviceEntries: (q) => searchServiceEntries(q, COMMAND_PALETTE_LIMIT),
-  assets: (q) => searchAssets(q, COMMAND_PALETTE_LIMIT),
-  loans: (q) => searchLoans(q, COMMAND_PALETTE_LIMIT),
-  cashEntries: (q) => searchCashEntries(q, COMMAND_PALETTE_LIMIT),
-  pauschalen: (q) => searchPauschalen(q, COMMAND_PALETTE_LIMIT),
-  employees: (q) => searchEmployees(q, COMMAND_PALETTE_LIMIT),
-  vatReturns: (q) => searchVatReturns(q, COMMAND_PALETTE_LIMIT),
-  zmSubmissions: (q) => searchZmSubmissions(q, COMMAND_PALETTE_LIMIT),
-  postfachDocuments: (q) => searchPostfachDocuments(q, COMMAND_PALETTE_LIMIT),
-  archive: (q) => searchArchive(q, COMMAND_PALETTE_LIMIT),
+  rechnungen: (q, groups, role) => searchRechnungen(q, groups, { includeDrafts: role === "inhaber" }, COMMAND_PALETTE_LIMIT),
+  belege: (q, groups) => searchBelege(q, groups, COMMAND_PALETTE_LIMIT),
+  bank: (q, groups) => searchBank(q, groups, COMMAND_PALETTE_LIMIT),
+  buchhaltung: (q, groups) => searchBuchhaltung(q, groups, COMMAND_PALETTE_LIMIT),
+  leistungen: async (q) => ({ serviceEntries: await searchServiceEntries(q, COMMAND_PALETTE_LIMIT) }),
+  lohn: async (q) => ({ employees: await searchEmployees(q, COMMAND_PALETTE_LIMIT) }),
+  umsatzsteuer: (q, groups) => searchUmsatzsteuer(q, groups, COMMAND_PALETTE_LIMIT),
+  finanzamt: async (q) => ({ postfachDocuments: await searchPostfachDocuments(q, COMMAND_PALETTE_LIMIT) }),
+  archiv: async (q) => ({ archive: await searchArchive(q, COMMAND_PALETTE_LIMIT) }),
 };
 
 /**
- * Suche für die Befehlspalette (#617): nur die Gruppen, die Rolle und Eingabe zulassen (`paletteGroups`), höchstens
- * `PALETTE_PARALLEL` gleichzeitig. Die Steuerberatung sieht festgeschriebene Rechnungen, Belege, Buchungen und Konten.
+ * Suche für die Befehlspalette (#617): nur die Gruppen, die Rolle und Eingabe zulassen (`paletteGroups`), je Modul eine
+ * Abfrage, höchstens `PALETTE_PARALLEL` gleichzeitig. Die Steuerberatung sieht festgeschriebene Rechnungen, Belege,
+ * Buchungen und Konten.
  */
 export async function runCommandPaletteSearch(rawQuery: string, role: Rolle): Promise<CommandPaletteResult> {
   const query = rawQuery.trim();
-  const groups = paletteGroups(query, role);
-  const result = emptyResult();
-  const found = await mitHoechstens<unknown>(
+  const found = await mitHoechstens(
     PALETTE_PARALLEL,
-    groups.map((group) => () => SUCHE[group](query, role)),
+    paletteModules(paletteGroups(query, role)).map(
+      ({ modul, groups }) =>
+        () =>
+          SUCHE[modul](query, groups, role),
+    ),
   );
-  groups.forEach((group, i) => {
-    (result as Record<PaletteGroup, unknown>)[group] = found[i];
-  });
-  return result;
+  return Object.assign(emptyResult(), ...found);
 }
 
 export interface RecentPaletteItem {

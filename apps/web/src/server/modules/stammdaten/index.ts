@@ -9,7 +9,7 @@
 export { insertImportedArticles, insertImportedContacts, planArticleImport, planContactImport } from "./csv-import.ts";
 export { applyDatevContactImport, planDatevContactImport, type DatevContactImportPlan } from "./datev-kontakte-import.ts";
 export { articleInputSchema, createArticle, listArticles, setArticleArchived, updateArticle } from "./articles.ts";
-export { searchArticles, searchTextBlocks, type ArticleHit, type TextBlockHit } from "./search-catalog.ts";
+export { searchStammdaten, type ArticleHit, type TextBlockHit } from "./search-catalog.ts";
 export {
   companyIssues,
   companySchema,
