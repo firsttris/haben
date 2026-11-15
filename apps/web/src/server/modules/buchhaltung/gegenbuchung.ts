@@ -2,7 +2,7 @@ import { zeilenImKontenrahmen, type Kontenrahmen, type PostingLine } from "@habe
 import { LedgerError } from "./ledger.ts";
 
 /** Gegenbuchung zu den Zeilen einer Buchung: Soll und Haben getauscht */
-export function reverseLines(lines: PostingLine[]): PostingLine[] {
+function reverseLines(lines: PostingLine[]): PostingLine[] {
   // Die Bemessungsgrundlage trägt ihr Vorzeichen selbst (#542) und dreht sich mit
   return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit, ...(l.basis != null ? { basis: -l.basis } : {}) }));
 }

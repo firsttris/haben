@@ -9,8 +9,8 @@ import { SCHICHTEN } from "./schichten.ts";
  * - Aus einem anderen Modul nur über dessen index.ts, nie direkt in eine Datei dahinter.
  * - Gemeinsame Infrastruktur (server/*.ts, server/db/) importiert gar kein Modul, sonst hängt sie an der Fachlogik.
  *   Ausgenommen sind die Stellen, die Module zusammensetzen: functions/, plugins/ und scheduler.ts.
- * - Module importieren weder Server Functions noch Oberfläche (routes/, components/); src/lib/ ist erlaubt. Die
- *   Abhängigkeit läuft nur von außen nach innen.
+ * - Module importieren weder Server Functions noch Oberfläche (routes/, components/) noch scheduler.ts; src/lib/ ist
+ *   erlaubt. Die Abhängigkeit läuft nur von außen nach innen.
  * - Ein Modul importiert nur Module, die in schichten.ts vor ihm stehen. Damit hängen keine Module im Ring aneinander:
  *   Ein Ring ließ etwa documents.ts nicht als erstes Modul laden, weil eine Konstante noch nicht ausgewertet war (#1063).
  *
