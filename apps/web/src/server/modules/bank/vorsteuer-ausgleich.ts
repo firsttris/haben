@@ -13,15 +13,20 @@ import { eq, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 
 /*
- * Vorsteuer einer Gutschrift, die bereits Bezahltes erstattet (#786): Beim Buchen steht sie auf dem Zwischenkonto
- * (SKR03 1548, SKR04 1434). Erst der Ausgleich — Bankerstattung, Verrechnung, Kursdifferenz — zieht den Anteil auf die
- * Vorsteuer um (§ 17 Abs. 1 Satz 2 und 8 UStG), damit Kz 66 die Minderung genau dann sieht. Der Anteil ist anteilig je
+ * Vorsteuer, die beim Buchen auf dem Zwischenkonto steht (SKR03 1548, SKR04 1434): bei der Gutschrift, die bereits
+ * Bezahltes erstattet (#786), und bei der Rechnung, deren Leistung beim Buchen noch nicht ausgeführt ist (#693). Erst der
+ * Ausgleich — Bankerstattung, Zahlung, Verrechnung, Kursdifferenz — zieht den Anteil auf die Vorsteuer um (§ 15 Abs. 1
+ * Satz 1 Nr. 1 UStG, § 17 Abs. 1 Satz 2 und 8 UStG), damit Kz 66 den Betrag genau dann sieht. Der Anteil ist anteilig je
  * Steuersatz und wird fortgeschrieben wie bei den Rechnungen (settlementTaxShares): Ziel kumuliert minus dem, was die
  * bisherigen Ausgleiche schon umgebucht haben. So ergeben alle Ausgleiche zusammen genau die Vorsteuer des Belegs.
  *
  * Bei Zuordnung, Ausbuchung und Kursdifferenz hängt die Umbuchung an der Buchung des Ausgleichs: Aufheben und Storno
  * drehen dann dieselben Zeilen mit um, ohne eigenen Weg und ohne Rückwirkung (reverseLines). Die Verrechnung bucht sonst
  * nichts und bekommt deshalb eine eigene Buchung, die ihre Gegenzeile mit umdreht.
+ *
+ * Ob der Beleg überhaupt etwas auf dem Zwischenkonto hat, sagt das Journal und nicht die Angabe am Beleg: Der Nachweis
+ * ist die Buchung selbst, damit Altbestand, Kleinunternehmer und 0 % unberührt bleiben und ein nachträglich gesetztes
+ * Leistungsdatum nicht rückwirkend umbucht.
  *
  * Ausgebuchtes Skonto zählt hier nicht mit: Es erstattet nichts, sondern erlässt den Rest. Seine Steuer wird deshalb
  * nicht gezogen, sondern vom Zwischenkonto abgeschrieben (documentWriteOffPosting mit der Angabe), sonst stünde die
@@ -101,14 +106,14 @@ async function bisherUmgebucht(tx: Tx, documentId: string): Promise<TaxShare[]> 
 }
 
 /**
- * Zeilen der Umbuchung für einen Ausgleich dieses Belegs; leer, wenn der Beleg die Angabe nicht trägt, seine Buchung
- * nichts auf das Zwischenkonto gelegt hat (Altbestand, Kleinunternehmer, 0 %) oder auf diesen Ausgleich kein Anteil
+ * Zeilen der Umbuchung für einen Ausgleich dieses Belegs; leer, wenn seine Buchung nichts auf das Zwischenkonto gelegt
+ * hat (Altbestand, Kleinunternehmer, 0 %, kein Leistungsdatum nach dem Belegdatum) oder auf diesen Ausgleich kein Anteil
  * entfällt. `amount` trägt das Vorzeichen des Ausgleichs (Zuordnung, Kursdifferenz, Verrechnung), wie in `settledOn`;
  * erst nach dem Sperren von Beleg und Umsatz aufrufen.
  */
 export async function vorsteuerAusgleich(
   tx: Tx,
-  doc: { id: string; erstattetBezahltes: boolean; privateShare: number },
+  doc: { id: string; privateShare: number },
   totals: InvoiceTotals,
   amount: number,
   kontenrahmen: Kontenrahmen,
@@ -118,15 +123,15 @@ export async function vorsteuerAusgleich(
 }
 
 /**
- * Anteile einer Ausbuchung (Skonto) auf eine Gutschrift „erstattet bereits Bezahltes“ (#786), mit dem Vorzeichen der
- * Ausbuchung — also negativ, wo `vorsteuerAusgleich` positiv bucht. Was die Ausbuchung nicht mehr erstattet, wird vom
- * Zwischenkonto abgeschrieben statt auf die Vorsteuer gezogen; der Rest ist der Anteil am dann Ausgeglichenen abzüglich
- * dessen, was die bisherigen Ausgleiche schon umgebucht haben. `null`, wenn der Beleg die Angabe nicht trägt oder seine
- * Buchung nichts auf das Zwischenkonto gelegt hat: Dann bucht der Aufrufer wie bisher auf die Vorsteuer.
+ * Anteile einer Ausbuchung (Skonto) auf einen Beleg, dessen Vorsteuer noch auf dem Zwischenkonto steht, mit dem
+ * Vorzeichen der Ausbuchung — also negativ, wo `vorsteuerAusgleich` positiv bucht. Was die Ausbuchung nicht mehr
+ * erstattet, wird vom Zwischenkonto abgeschrieben statt auf die Vorsteuer gezogen; der Rest ist der Anteil am dann
+ * Ausgeglichenen abzüglich dessen, was die bisherigen Ausgleiche schon umgebucht haben. `null`, wenn die Buchung des
+ * Belegs nichts auf das Zwischenkonto gelegt hat: Dann bucht der Aufrufer wie bisher auf die Vorsteuer.
  */
 export async function vorsteuerAbschreibung(
   tx: Tx,
-  doc: { id: string; erstattetBezahltes: boolean; privateShare: number },
+  doc: { id: string; privateShare: number },
   totals: InvoiceTotals,
   amount: number,
 ): Promise<TaxShare[] | null> {
@@ -135,13 +140,7 @@ export async function vorsteuerAbschreibung(
 }
 
 /** Der Anteil dieses Ausgleichs je Steuersatz, mit dem Vorzeichen des Ausgleichs; null ohne Zwischenkonto-Buchung */
-async function vorsteuerRest(
-  tx: Tx,
-  doc: { id: string; erstattetBezahltes: boolean; privateShare: number },
-  totals: InvoiceTotals,
-  amount: number,
-): Promise<TaxShare[] | null> {
-  if (!doc.erstattetBezahltes) return null;
+async function vorsteuerRest(tx: Tx, doc: { id: string; privateShare: number }, totals: InvoiceTotals, amount: number): Promise<TaxShare[] | null> {
   // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; die Umbuchung selbst
   // bucht dann im eingestellten Rahmen, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht
   if (!(await aufDemZwischenkonto(tx, doc.id))) return null;

@@ -20,3 +20,12 @@ export interface Leistungsangabe {
 export function leistungsdatum({ belegdatum, leistungVon, leistungBis }: Leistungsangabe): string {
   return leistungBis ?? leistungVon ?? belegdatum;
 }
+
+/**
+ * Beim Buchen ist die Leistung noch nicht ausgeführt: Das Leistungsdatum liegt nach dem Belegdatum. Die Vorsteuer ist
+ * dann noch nicht abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 UStG, beide Voraussetzungen müssen erfüllt sein) und bleibt bis
+ * zum Ausgleich geparkt. Der Vergleich läuft über die Schreibweise, nicht über Zahlen.
+ */
+export function leistungNichtAusgefuehrt(angabe: Leistungsangabe): boolean {
+  return leistungsdatum(angabe).localeCompare(angabe.belegdatum) > 0;
+}

@@ -463,6 +463,13 @@ export function documentPosting(
    * Zwischenkonto. Nur an Gutschriften (negativer Beleg); ohne die Angabe bleibt alles wie bisher.
    */
   erstattetBezahltes = false,
+  /**
+   * Leistung beim Buchen noch nicht ausgeführt (#693): Nach § 15 Abs. 1 Satz 1 Nr. 1 UStG ist die Vorsteuer erst
+   * abziehbar, wenn die Leistung ausgeführt ist (und die Rechnung vorliegt). Bis zum Ausgleich steht sie deshalb auf
+   * dem Zwischenkonto, wie bei einer Gutschrift, die bereits Bezahltes erstattet. Nur an einer Rechnung mit
+   * Vorsteuerabzug; § 13b und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt.
+   */
+  vorsteuerNochNichtAbziehbar = false,
 ): PostingLine[] {
   // Privat genutzt ist bei einer GmbH keine Entnahme, sondern Arbeitslohn oder verdeckte Gewinnausschüttung
   if (privateShare !== 0 && isKapitalgesellschaft(rechtsform)) throw new RangeError("Privatanteil gibt es nur im Einzelunternehmen");
@@ -472,6 +479,11 @@ export function documentPosting(
     if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
     if (category === "einfuhrumsatzsteuer") throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls");
   }
+  if (vorsteuerNochNichtAbziehbar && (reverseCharge || category === "einfuhrumsatzsteuer"))
+    throw new RangeError("Noch nicht abziehbare Vorsteuer gibt es nicht bei § 13b oder Einfuhrumsatzsteuer; beide haben ihren eigenen Zeitpunkt");
+  // Beides stellt die Vorsteuer auf das Zwischenkonto: die Gutschrift, die bereits Bezahltes erstattet, und die
+  // Leistung, die beim Buchen noch nicht ausgeführt ist
+  const parken = erstattetBezahltes || vorsteuerNochNichtAbziehbar;
   if (category === "einfuhrumsatzsteuer")
     return einfuhrumsatzsteuerPosting(totals, kontenrahmen, rechtsform, payment, vorsteuerAbzug, privateShare, reverseCharge);
   const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
@@ -513,7 +525,7 @@ export function documentPosting(
     if (base !== 0) lines.push(side(expense, base, true, code));
     if (tax !== 0) {
       // Mit der Angabe bleibt die Vorsteuerminderung auf dem Zwischenkonto, mit Steuerschlüssel und Bemessungsgrundlage
-      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[vatRate(rate)];
+      const konto = parken ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[vatRate(rate)];
       lines.push(side(konto, tax, true, code));
     }
   }

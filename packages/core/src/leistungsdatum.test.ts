@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { leistungsdatum } from "./leistungsdatum.ts";
+import { leistungNichtAusgefuehrt, leistungsdatum } from "./leistungsdatum.ts";
 
 describe("Leistungsdatum (#693, #694, #622)", () => {
   it("Leistungszeitraum: der letzte Tag ist „ausgeführt am“", () => {
@@ -20,5 +20,25 @@ describe("Leistungsdatum (#693, #694, #622)", () => {
 
   it("einpunktiger Zeitraum: von und bis gleich", () => {
     expect(leistungsdatum({ belegdatum: "2026-03-05", leistungVon: "2026-02-10", leistungBis: "2026-02-10" })).toBe("2026-02-10");
+  });
+});
+
+describe("Leistung beim Buchen noch nicht ausgeführt (#693)", () => {
+  it("Leistungszeitraum nach dem Belegdatum: noch nicht ausgeführt", () => {
+    expect(leistungNichtAusgefuehrt({ belegdatum: "2026-11-20", leistungVon: "2026-12-01", leistungBis: "2026-12-31" })).toBe(true);
+  });
+
+  it("nur „Leistung von“ nach dem Belegdatum: noch nicht ausgeführt", () => {
+    expect(leistungNichtAusgefuehrt({ belegdatum: "2026-11-20", leistungVon: "2026-12-01" })).toBe(true);
+  });
+
+  it("Leistung vor oder am Belegdatum: ausgeführt", () => {
+    expect(leistungNichtAusgefuehrt({ belegdatum: "2026-11-20", leistungVon: "2026-11-01", leistungBis: "2026-11-20" })).toBe(false);
+    expect(leistungNichtAusgefuehrt({ belegdatum: "2026-11-20", leistungVon: "2026-10-01", leistungBis: "2026-11-19" })).toBe(false);
+  });
+
+  it("ohne Angabe: ausgeführt, wie ohne Leistungsdatum", () => {
+    expect(leistungNichtAusgefuehrt({ belegdatum: "2026-11-20" })).toBe(false);
+    expect(leistungNichtAusgefuehrt({ belegdatum: "2026-11-20", leistungVon: null, leistungBis: null })).toBe(false);
   });
 });

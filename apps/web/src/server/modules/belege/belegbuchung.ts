@@ -1,4 +1,13 @@
-import { assetAccount, documentPosting, documentSplitPosting, type ExpenseCategory, type Kontenrahmen, type PostingLine, type Rechtsform } from "@haben/core";
+import {
+  assetAccount,
+  documentPosting,
+  documentSplitPosting,
+  leistungNichtAusgefuehrt,
+  type ExpenseCategory,
+  type Kontenrahmen,
+  type PostingLine,
+  type Rechtsform,
+} from "@haben/core";
 import type { schema } from "../../db/index.ts";
 import { splitLines, type DocumentSplit } from "./splits.ts";
 
@@ -25,6 +34,20 @@ export function belegSummen(doc: Pick<Document, "reverseCharge">, amounts: Amoun
   };
 }
 
+/**
+ * Die Leistung ist beim Buchen noch nicht ausgeführt (#693): Nach § 15 Abs. 1 Satz 1 Nr. 1 UStG ist die Vorsteuer erst
+ * abziehbar, wenn Leistung und Rechnung vorliegen. Sie bleibt deshalb bis zum Ausgleich auf dem Zwischenkonto und geht
+ * erst mit Zahlung oder Verrechnung auf die Vorsteuer. Nur über die Bank: bar und privat ist der Beleg mit der Buchung
+ * bezahlt, da gäbe es kein Ereignis, das sie nachzieht. § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer
+ * haben ihren eigenen Zeitpunkt, eine Gutschrift den ihren nach § 17 Abs. 1 UStG — dort gilt die Angabe „erstattet
+ * bereits Bezahltes“.
+ */
+function leistungNochNichtAusgefuehrt(doc: Document): boolean {
+  if (doc.payment !== "bank" || doc.reverseCharge || doc.category === "einfuhrumsatzsteuer") return false;
+  if (!doc.documentDate || (doc.gross ?? 0) < 0) return false;
+  return leistungNichtAusgefuehrt({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });
+}
+
 /** Die Zeilen der Belegbuchung; `vorsteuerAbzug` wie am Beleg festgehalten (Kleinunternehmer ziehen keine Vorsteuer ab) */
 export function belegZeilen(
   doc: Document,
@@ -41,6 +64,7 @@ export function belegZeilen(
   const eigenesKonto = doc.ownAccountId ? eigene.get(doc.ownAccountId) : undefined;
   const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, books.kontenrahmen) : eigenesKonto;
   // Aufgeteilt (#271): eine Buchung mit einer Aufwandszeile je Kategorie; sonst über die Kategorie des Belegs
+  const spaeter = leistungNochNichtAusgefuehrt(doc);
   return splits.length > 0
     ? documentSplitPosting(
         totals,
@@ -53,6 +77,8 @@ export function belegZeilen(
         doc.reverseCharge === "eu" || doc.reverseCharge === "drittland" ? doc.reverseCharge : null,
         // Gutschrift, die bereits Bezahltes erstattet: Vorsteuerminderung erst mit dem Ausgleich (#786)
         doc.erstattetBezahltes,
+        // Leistung beim Buchen noch nicht ausgeführt: Vorsteuer erst mit dem Ausgleich (#693)
+        spaeter,
       )
     : documentPosting(
         totals,
@@ -65,5 +91,6 @@ export function belegZeilen(
         doc.privateShare,
         doc.reverseCharge,
         doc.erstattetBezahltes,
+        spaeter,
       );
 }

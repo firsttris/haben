@@ -90,6 +90,23 @@ describe("documentPosting", () => {
     ]);
   });
 
+  it("Leistung beim Buchen noch nicht ausgeführt: Vorsteuer aufs Zwischenkonto statt auf die Vorsteuer (#693)", () => {
+    const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 3_240, taxRate: 1900 }]);
+    for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+      const lines = documentPosting(totals, "edv", kontenrahmen, "einzelunternehmen", "bank", true, undefined, 0, null, false, true);
+      expect(lines.find((l) => l.account === ACCOUNTS[kontenrahmen].vorsteuerNochNichtAbziehbar)).toEqual({
+        account: ACCOUNTS[kontenrahmen].vorsteuerNochNichtAbziehbar,
+        debit: 616,
+        credit: 0,
+        taxCode: "VSt19",
+      });
+      expect(lines.some((l) => l.account === ACCOUNTS[kontenrahmen].vorsteuer[1900])).toBe(false);
+      expect(balanced(lines)).toBe(true);
+    }
+    // § 13b und Einfuhrumsatzsteuer haben ihren eigenen Zeitpunkt
+    expect(() => documentPosting(totals, "edv", "SKR03", "einzelunternehmen", "bank", true, undefined, 0, "eu", false, true)).toThrow(RangeError);
+  });
+
   it("§ 13b: Steuer selbst schulden und als Vorsteuer abziehen, gezahlt wird netto", () => {
     const base = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
     const totals = { ...base, gross: base.net };
