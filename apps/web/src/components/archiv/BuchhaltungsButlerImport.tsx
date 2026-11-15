@@ -6,9 +6,9 @@ import { useAction } from "../../lib/use-action.ts";
 import { importBuchhaltungsbutler, previewBuchhaltungsbutlerImport, type getMigration } from "../../server/functions/archive.ts";
 import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { Field } from "../Field.tsx";
+import { FilePicker } from "../FilePicker.tsx";
 import { Icon } from "../Icon.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
-import { FilePicker } from "../FilePicker.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["bbImport"]>;
