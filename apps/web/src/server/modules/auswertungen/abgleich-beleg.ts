@@ -70,8 +70,9 @@ export async function belegZeilen(year: number, q: Db | Tx = db): Promise<BelegZ
     const steuerkonten = new Set<string>([...Object.values(a.ust), ...Object.values(a.ustNichtFaellig)]);
     const eigene = lines.filter((l) => l.entryId === entry.id);
     const haben = (l: (typeof eigene)[number]) => l.credit - l.debit;
+    // Korrektur einer übernommenen Rechnung (legacyCorrectionPosting): das Netto auf dem Saldenvortrag, bei Ist ohne Schlüssel
     const netto = eigene
-      .filter((l) => l.taxCode !== null && ERLOES_SCHLUESSEL.has(l.taxCode) && !steuerkonten.has(l.account))
+      .filter((l) => (l.account === a.saldenvortrag || (l.taxCode !== null && ERLOES_SCHLUESSEL.has(l.taxCode))) && !steuerkonten.has(l.account))
       .reduce((s, l) => s + haben(l), 0);
     const steuer = eigene.filter((l) => steuerkonten.has(l.account)).reduce((s, l) => s + haben(l), 0);
     const eigeneSteuern = taxes.filter((t) => t.invoiceId === entry.invoiceId);
