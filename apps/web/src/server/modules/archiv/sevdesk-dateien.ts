@@ -79,6 +79,7 @@ type Row = {
   ownIds: string[];
   latest: LegacyFileState | null;
   latestRole: "pdf" | "xml" | "anhang" | null;
+  latestSourceFileId: string | null;
 };
 
 /**
@@ -116,9 +117,9 @@ export async function checkSevdeskFiles(
       array(select f.lexoffice_file_id from lexoffice_voucher_files f where f.voucher_id = v.id and f.role = 'anhang' and f.lexoffice_file_id is not null
         union select n.source_file_id from legacy_file_states n where n.voucher_id = v.id and n.state = 'nachgeladen' and n.role = 'anhang'
           and n.source_file_id is not null) as "ownIds",
-      s.state as latest, s.role as "latestRole"
+      s.state as latest, s.role as "latestRole", s.source_file_id as "latestSourceFileId"
     from lexoffice_vouchers v
-    left join lateral (select state, role from legacy_file_states s where s.voucher_id = v.id order by s.created_at desc, s.id desc limit 1) s on true
+    left join lateral (select state, role, source_file_id from legacy_file_states s where s.voucher_id = v.id order by s.created_at desc, s.id desc limit 1) s on true
     where v.source = 'sevdesk' and v.import_id <> ${importId}
     order by v.lexoffice_id`);
   for (const row of rows) {
@@ -133,12 +134,37 @@ export async function checkSevdeskFiles(
         if (added) progress.files += 1;
         continue;
       }
-      // Die neu genannte Datei ist in sevDesk wieder weg: der Beleg nennt keine Datei mehr, wie in der Archivkopie
+      // Der Abruf einer später genannten Datei scheiterte, und sevDesk nennt sie nicht mehr (entfernt oder zurück zur
+      // archivierten Datei): Mit Datei am Beleg fehlt nichts mehr, ohne gilt wieder der Stand der Archivkopie
       const archived = sevFileExpectation(kind, row.raw);
-      if (listedDocuments.has(id) && !listedDocuments.get(id) && archived.kind === "keine" && row.latest === "abruf_fehlgeschlagen") {
-        const finding = sevFileFinding(archived, { main: Number(row.files) > 0 });
-        if (finding) await withActor(actor, (tx) => recordFileState(tx, row.id, finding, { actor, importId }));
-        continue;
+      const failed = row.latest === "abruf_fehlgeschlagen" && row.latestRole === "anhang" ? row.latestSourceFileId : null;
+      if (
+        listedDocuments.has(id) &&
+        failed &&
+        failed !== (listedDocuments.get(id) ?? null) &&
+        failed !== (archived.kind === "verweis" ? archived.documentId : null)
+      ) {
+        if (Number(row.files) > 0) {
+          await withActor(actor, (tx) =>
+            recordFileState(
+              tx,
+              row.id,
+              {
+                state: "kein_anhang",
+                role: "anhang",
+                sourceFileId: failed,
+                message: `sevDesk nennt die Datei ${failed} nicht mehr; die übrigen Dateien des Belegs bleiben.`,
+              },
+              { actor, importId },
+            ),
+          );
+          continue;
+        }
+        if (archived.kind === "keine") {
+          const finding = sevFileFinding(archived, { main: false });
+          if (finding) await withActor(actor, (tx) => recordFileState(tx, row.id, finding, { actor, importId }));
+          continue;
+        }
       }
     }
     if (row.latest === "bestaetigt_ohne_datei") continue;
