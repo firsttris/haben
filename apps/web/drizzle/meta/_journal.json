@@ -1744,6 +1744,20 @@
       "when": 1794750748349,
       "tag": "0248_kleinunternehmer_gruendungsdatum",
       "breakpoints": true
+    },
+    {
+      "idx": 249,
+      "version": "7",
+      "when": 1794759239676,
+      "tag": "0249_eigene_einheiten",
+      "breakpoints": true
+    },
+    {
+      "idx": 250,
+      "version": "7",
+      "when": 1794759242972,
+      "tag": "0250_eigene_einheiten_trigger",
+      "breakpoints": true
     }
   ]
 }
