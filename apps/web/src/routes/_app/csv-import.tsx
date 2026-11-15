@@ -8,6 +8,7 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { useAction } from "../../lib/use-action.ts";
 import { previewCsvImportFn, runCsvImportFn } from "../../server/functions/csv-import.ts";
+import { getFastbillArticlesCsv } from "../../server/functions/fastbill.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { Field } from "../../components/Field.tsx";
 import { Status, type StatusLook } from "../../components/Status.tsx";
@@ -17,7 +18,8 @@ type Preview = Awaited<ReturnType<typeof previewCsvImportFn>>;
 type Settings = { encoding: "auto" | "utf-8" | "windows-1252"; delimiter: "auto" | ";" | "," | "\t"; stichtag: string };
 
 export const Route = createFileRoute("/_app/csv-import")({
-  validateSearch: z.object({ art: z.optional(z.enum(["kontakte", "artikel", "anlagen"])) }),
+  // quelle=fastbill: Artikel aus dem Umzug aus FastBill statt aus einer Datei (docs/fastbill.md#artikel)
+  validateSearch: z.object({ art: z.optional(z.enum(["kontakte", "artikel", "anlagen"])), quelle: z.optional(z.enum(["fastbill"])) }),
   head: () => ({ meta: [{ title: "CSV-Import · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: CsvImportPage,
 });
@@ -47,7 +49,7 @@ const STATUS: Record<Preview["rows"][number]["status"], StatusLook> = {
 const SHOWN_ROWS = 200;
 
 function CsvImportPage() {
-  const { art } = Route.useSearch();
+  const { art, quelle } = Route.useSearch();
   const kind: Kind = art ?? "kontakte";
   const meta = KINDS.find((k) => k.kind === kind)!;
   return (
@@ -77,15 +79,16 @@ function CsvImportPage() {
         {INTRO[kind]}
       </p>
       {/* Neu aufbauen beim Wechsel der Art: Zuordnung und Vorschau gehören zur Art */}
-      <CsvImport key={kind} kind={kind} />
+      <CsvImport key={kind} kind={kind} fastbill={kind === "artikel" && quelle === "fastbill"} />
     </>
   );
 }
 
-function CsvImport({ kind }: { kind: Kind }) {
+function CsvImport({ kind, fastbill }: { kind: Kind; fastbill: boolean }) {
   const meta = KINDS.find((k) => k.kind === kind)!;
   const previewFn = useServerFn(previewCsvImportFn);
   const importFn = useServerFn(runCsvImportFn);
+  const fastbillFn = useServerFn(getFastbillArticlesCsv);
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [settings, setSettings] = useState<Settings>({ encoding: "auto", delimiter: "auto", stichtag: `${currentYear()}-01-01` });
@@ -130,6 +133,17 @@ function CsvImport({ kind }: { kind: Kind }) {
     setFile(chosen);
     showPreview(chosen, null);
   };
+
+  // Die CSV aus FastBill geht wie eine gewählte Datei durch Vorschau und Import
+  const onFastbill = () =>
+    void run(async () => {
+      const { csv, filename, count } = await fastbillFn();
+      const chosen = new File([csv], filename, { type: "text/csv" });
+      setFile(chosen);
+      setPreview((await send(previewFn, chosen, null)) as Preview);
+      setConfirm(new Set());
+      setNotice({ tone: "info", text: `${count} Artikel aus FastBill geholt. Prüf die Vorschau; übernommen wird erst mit dem Knopf darunter.` });
+    });
 
   const onImport = () => {
     if (!file || !preview) return;
@@ -186,10 +200,20 @@ function CsvImport({ kind }: { kind: Kind }) {
             </Field>
           )}
         </div>
+        {fastbill && (
+          <p className="muted small" style={{ margin: 0 }}>
+            Statt einer Datei: „Aus FastBill holen“ ruft den Artikelkatalog mit dem API-Schlüssel aus dem Umzug ab, je 100 Artikel eine Anfrage.
+          </p>
+        )}
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={busy}>
             Vorschau
           </button>
+          {fastbill && (
+            <button type="button" className="btn" disabled={busy} onClick={onFastbill}>
+              Aus FastBill holen
+            </button>
+          )}
         </div>
       </form>
       <NoticeBanner notice={notice} />

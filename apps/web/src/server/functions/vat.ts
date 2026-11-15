@@ -5,8 +5,9 @@ import {
   filingPeriodSchema,
   FREQUENCY_START_MONTHS,
   periodKey,
-  recentFilingPeriods,
   latestEndedPeriod,
+  openFilingPeriod,
+  recentFilingPeriods,
   lastMonthOfPeriod,
   VAT_FREQUENCIES,
   type VatPeriod,
@@ -19,6 +20,7 @@ import {
   computeVatFigures,
   dauerfristFor,
   dauerfristOverview,
+  abgegebeneZeitraeume,
   frequencyOverview,
   kz39For,
   loadFrequencies,
@@ -36,7 +38,7 @@ import {
 } from "../modules/umsatzsteuer/index.ts";
 import { UserError } from "../errors.ts";
 import { MAX_DOCUMENT_SIZE } from "../modules/belege/index.ts";
-import { abgleichIssues, vatAbgleich } from "../modules/auswertungen/index.ts";
+import { abgleichIssues, kleinunternehmerStand, vatAbgleich } from "../modules/auswertungen/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -119,12 +121,19 @@ export const getVatPeriod = createServerFn({ method: "GET" })
     };
   });
 
-/** Zeitraum, den /umsatzsteuer öffnet: der zuletzt abgelaufene, befreit der Vormonat */
-export const getFilingPeriodKey = createServerFn({ method: "GET" })
+/**
+ * Zeitraum, den /umsatzsteuer öffnet: der älteste abgelaufene, der noch nicht abgegeben ist, ab der ersten Abgabe in
+ * Haben (#1102); ohne Abgabe in Haben oder wenn alle abgegeben sind, der zuletzt abgelaufene. Nie der laufende
+ * (§ 18 Abs. 1 UStG). Die Auswahl ist eine reine Funktion (`openFilingPeriod` in packages/core).
+ */
+export const getOpenFilingPeriodKey = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const now = new Date();
-    return periodKey(latestEndedPeriod(await loadFrequencies(), currentMonth(now)) ?? currentFilingPeriod(now));
+    const settings = await loadFrequencies();
+    const today = currentMonth(now);
+    const offen = openFilingPeriod(settings, today, await abgegebeneZeitraeume());
+    return periodKey(offen ?? latestEndedPeriod(settings, today) ?? currentFilingPeriod(now));
   });
 
 export const getOverview = createServerFn({ method: "GET" })
@@ -150,6 +159,7 @@ export const getOverview = createServerFn({ method: "GET" })
       period,
       /** Zahllast aus den Buchungen, solange keine Anmeldung gespeichert ist */
       computedKz83: computed.kz83,
+      kleinunternehmerStand: company.kleinunternehmer ? await kleinunternehmerStand(today(now), company.foundedOn) : null,
       /** Geldtransit ohne Gegenseite (Saldo von 1360 bzw. 1460) */
       transit: await transitBalance(),
       /**

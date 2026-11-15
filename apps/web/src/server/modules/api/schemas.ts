@@ -1,4 +1,4 @@
-import { PRICE_MODES, TAX_TREATMENT_KEYS } from "@haben/core";
+import { INVOICE_PAYMENT_METHODS, PRICE_MODES, TAX_TREATMENT_KEYS } from "@haben/core";
 import { z } from "zod";
 import { documentReferenceSchema, MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { draftSchema, externalReferenceSchema } from "../rechnungen/index.ts";
@@ -149,6 +149,9 @@ const lineInputSchema = z
     ...lineFields,
     // Die Felder kommen aus @haben/core (zod/mini) und kennen kein .describe; z.describe als Prüfung gibt es für beide
     quantity: lineFields.quantity.check(z.describe("Menge in Tausendsteln: 1 Stück = 1000, 1,5 Stunden = 1500")),
+    unit: lineFields.unit.check(
+      z.describe("Einheit: Std., Tag, Monat, Stk., Psch., km oder die Bezeichnung einer eigenen Einheit (Einstellungen › Rechnungen › Einheiten)"),
+    ),
     unitPrice: lineFields.unitPrice.check(z.describe("Einzelpreis in Cent, netto oder brutto je nach priceMode")),
     taxRate: lineFields.taxRate.check(z.describe("Steuersatz in Basispunkten: 1900 = 19 %, 700 = 7 %, 0")),
     detail: lineFields.detail.describe("Mehrzeiliger Text unter der Bezeichnung (BT-154)"),
@@ -167,6 +170,9 @@ const draftApiFields = {
   serviceFrom: draftFields.serviceFrom,
   serviceTo: draftFields.serviceTo,
   paymentTermDays: draftFields.paymentTermDays.describe("Zahlungsziel in Tagen, Vorgabe aus den Firmendaten"),
+  paymentMethod: z.enum(["ueberweisung", "bereits_bezahlt"]).describe("Zahlungsart; bereits_bezahlt erfordert paidVia und paidOn"),
+  paidVia: draftFields.paidVia.describe("Bei bereits_bezahlt: Zahlungsdienstleister (z. B. eBay) oder bar"),
+  paidOn: draftFields.paidOn.describe("Bei bereits_bezahlt: Zahlungsdatum JJJJ-MM-TT, auch vor dem Rechnungsdatum"),
   skonto: draftFields.skonto.describe(
     "Skontostufen: Frist in Tagen ab Rechnungsdatum (höchstens das Zahlungsziel) und Satz in Basispunkten (200 = 2 %); [] = ohne Skonto. Vorgabe vom Kontakt, sonst aus den Firmendaten; nur in Euro",
   ),
@@ -251,6 +257,9 @@ export const invoiceSchema = z
     serviceFrom: isoDate.nullable(),
     serviceTo: isoDate.nullable(),
     paymentTermDays: z.number().int(),
+    paymentMethod: z.enum(INVOICE_PAYMENT_METHODS),
+    paidVia: z.string().nullable(),
+    paidOn: isoDate.nullable(),
     skonto: z.array(z.object({ days: z.number().int(), percent: z.number().int() })).describe("Skontostufen: Frist in Tagen, Satz in Basispunkten"),
     format: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     intro: z.string(),

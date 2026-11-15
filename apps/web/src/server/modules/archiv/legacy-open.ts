@@ -14,7 +14,7 @@ import {
   type PriceMode,
   type TakeoverCutoff,
 } from "@haben/core";
-import { and, eq, getTableColumns, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
 import { activeOpenings, openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
@@ -44,8 +44,10 @@ const SOURCE_LABEL = {
   sevdesk: "sevDesk",
   buchhaltungsbutler: "BuchhaltungsButler",
   accountable: "Accountable",
+  wiso: "WISO",
   import: "JSON-Import",
   fastbill: "FastBill",
+  "sevdesk-export": "sevDesk",
 } as const;
 
 export interface OpenLegacyItem {
@@ -197,8 +199,14 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
       payment: effectivePayment("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
-    // Auch die gespeicherte Art: Früher als Ausgabebeleg übernommene D-Belege bleiben als übernommen sichtbar
-    .where(or(inArray(effectiveType("lexoffice_vouchers"), [...OPEN_ITEM_TYPES]), inArray(schema.lexofficeVouchers.type, [...OPEN_ITEM_TYPES])))
+    // Auch die gespeicherte Art: Früher als Ausgabebeleg übernommene D-Belege bleiben als übernommen sichtbar. Belege aus der
+    // Export-ZIP von sevDesk kennen keinen Zahlungsstand; offene Posten von dort trägt man von Hand ein (#1105)
+    .where(
+      and(
+        ne(schema.lexofficeVouchers.source, "sevdesk-export"),
+        or(inArray(effectiveType("lexoffice_vouchers"), [...OPEN_ITEM_TYPES]), inArray(schema.lexofficeVouchers.type, [...OPEN_ITEM_TYPES])),
+      ),
+    )
     .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number);
   const [invoices, documents] = await Promise.all([
     db
@@ -246,7 +254,7 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
           schema.lexofficeVoucherFiles.voucherId,
           candidates.map((c) => c.voucher.id),
         ),
-        inArray(schema.lexofficeVoucherFiles.role, ["pdf", "anhang"]),
+        inArray(schema.lexofficeVoucherFiles.role, ["pdf", "anhang", "vorlage"]),
       ),
     );
   const withFile = new Set(files.map((f) => f.voucherId));

@@ -97,6 +97,83 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     expect(entry!.locked_at).not.toBeNull();
   }, 30_000);
 
+  it.each([
+    { fall: "Gründungsdatum im laufenden Jahr", offset: 0, grenze: 2_500_000 },
+    { fall: "Gründungsdatum im Vorjahr", offset: 1, grenze: 10_000_000 },
+    { fall: "Gründung unbekannt", offset: null, grenze: 10_000_000 },
+  ])(
+    "Kleinunternehmer ($fall): Rückfrage erst bei Überschreitung der Grenze",
+    async ({ offset, grenze }) => {
+      const { createCashIncome } = await import("../bank/index.ts");
+      const { today } = await import("../../today.ts");
+      const heute = today();
+      const foundedOn = offset === null ? null : `${year - offset}-01-01`;
+      await sql`update company set kleinunternehmer = true, founded_on = ${foundedOn} where id = 1`;
+      const bar = (amount: number) =>
+        createCashIncome(actor, { date: heute, amount, text: "Barumsatz", steuer: { behandlung: "kleinunternehmer", steuersatz: 0 } }, heute);
+      const entwurf = (unitPrice: number) =>
+        invoices.createDraft(actor, {
+          ...draft(),
+          issueDate: heute,
+          taxTreatment: "kleinunternehmer",
+          lines: [{ ...draft().lines[0]!, unitPrice, taxRate: 0 }],
+        });
+      const umsatz = grenze - 100;
+      await bar(umsatz);
+      const genau = await entwurf(100);
+      expect(await invoices.finalizeInvoice(actor, genau.id)).toMatchObject({ status: "final", numberCounter: 1 });
+
+      const darueber = await entwurf(101);
+      await expect(invoices.finalizeInvoice(actor, darueber.id)).rejects.toMatchObject({ umsatz, rechnung: 101, grenze });
+      expect(await sql`select status, number from invoices where id = ${darueber.id}`).toEqual([{ status: "draft", number: null }]);
+      await bar(1);
+      await expect(invoices.finalizeInvoice(actor, darueber.id, { umsatz, rechnung: 101, grenze })).rejects.toMatchObject({ umsatz: umsatz + 1 });
+      const aktuell = { umsatz: umsatz + 1, rechnung: 101 };
+      await expect(invoices.finalizeInvoice(actor, darueber.id, { ...aktuell, grenze: grenze + 1 })).rejects.toMatchObject({ grenze });
+      expect(await invoices.finalizeInvoice(actor, darueber.id, { ...aktuell, grenze })).toMatchObject({ status: "final", numberCounter: 2 });
+    },
+    30_000,
+  );
+
+  it("fragt ab 25.000,01 € Vorjahresumsatz auch bei einer kleinen Rechnung nach", async () => {
+    const { bareinnahmePosting } = await import("@haben/core");
+    const { withActor } = await import("../../db/actor.ts");
+    const { openBooks, post } = await import("../buchhaltung/index.ts");
+    const { today } = await import("../../today.ts");
+    const heute = today();
+    const vorjahr = `${year - 1}-12-31`;
+    await sql`update company set kleinunternehmer = true, founded_on = ${`${year - 1}-01-01`} where id = 1`;
+    const einnahme = (amount: number) =>
+      withActor(actor, async (tx) => {
+        const books = await openBooks(tx);
+        await post(tx, books, {
+          date: vorjahr,
+          description: "Vorjahresumsatz",
+          sourceType: "manuell",
+          sourceId: crypto.randomUUID(),
+          lines: bareinnahmePosting({ behandlung: "kleinunternehmer", steuersatz: 0 }, amount, books.kontenrahmen),
+        });
+      });
+    const entwurf = () =>
+      invoices.createDraft(actor, {
+        ...draft(),
+        issueDate: heute,
+        taxTreatment: "kleinunternehmer",
+        lines: [{ ...draft().lines[0]!, taxRate: 0 }],
+      });
+
+    await einnahme(2_500_000);
+    const genau = await entwurf();
+    expect(await invoices.finalizeInvoice(actor, genau.id)).toMatchObject({ status: "final" });
+
+    await einnahme(1);
+    const darueber = await entwurf();
+    const bestaetigung = { umsatz: 0, rechnung: 10_000, grenze: 10_000_000 };
+    await expect(invoices.finalizeInvoice(actor, darueber.id, bestaetigung)).rejects.toMatchObject({ vorjahresumsatz: 2_500_001 });
+    expect(await sql`select status, number from invoices where id = ${darueber.id}`).toEqual([{ status: "draft", number: null }]);
+    expect(await invoices.finalizeInvoice(actor, darueber.id, { ...bestaetigung, vorjahresumsatz: 2_500_001 })).toMatchObject({ status: "final" });
+  }, 30_000);
+
   it("andere Schreibvorgänge laufen, während eine Rechnung gerendert wird", async () => {
     const created = await invoices.createDraft(actor, draft());
     let writtenMeanwhile = false;

@@ -1,7 +1,7 @@
 import { ACCOUNTS, settlementTaxShares, type InvoiceTotals, type Kontenrahmen, type TaxShare } from "@haben/core";
 import { and, asc, eq, gte, inArray, lt, type SQL } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
-import { externalSettlementLinks } from "../datenimport/index.ts";
+import { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
 import { turnoverRange, unknownTurnover, type GesamtumsatzItem } from "./gesamtumsatz-quellen.ts";
 
 type JournalLine = typeof schema.journalLines.$inferSelect;

@@ -8,7 +8,6 @@ import {
   normalizeGlaeubigerId,
   RECHTSFORM_KEYS,
   isKapitalgesellschaft,
-  legalInfo,
   legalInfoGaps,
   MAX_DUNNING_FEE,
   skontoProblem,
@@ -18,18 +17,9 @@ import {
   type Versteuerung,
 } from "@haben/core";
 import { and, desc, eq, gte, lt, lte, min, sql } from "drizzle-orm";
-import { legalLine } from "@haben/einvoice";
 import { z } from "zod";
-import { listArticles } from "./articles.ts";
-import { listTextBlocks } from "./text-blocks.ts";
-import { listContacts } from "./contacts.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { loadDesign } from "./letterhead.ts";
-import { backgroundInfo } from "./background.ts";
-import { logoInfo } from "./logo.ts";
-import { contactPersonOptions } from "./contact-persons.ts";
-import { mandateOptions } from "./sepa-mandate.ts";
 import { today } from "../../today.ts";
 
 export const companySchema = z
@@ -98,6 +88,11 @@ export const companySchema = z
     invoiceIntro: z.string().trim().max(2000).default(""),
     quoteIntro: z.string().trim().max(2000).default(""),
     kleinunternehmer: z.boolean(),
+    foundedOn: z.iso
+      .date()
+      .refine((date) => date >= "0001-01-01", "Das Gründungsdatum ist ungültig.")
+      .nullable()
+      .optional(),
     /** Nur steuerfreie Umsätze ohne Vorsteuerabzug (§ 15 Abs. 2 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
     ohneVorsteuerabzug: z.boolean().default(false),
     /** Anlage EÜR: Gewerbebetrieb oder selbständige (freiberufliche) Arbeit und Art des Betriebs */
@@ -145,7 +140,7 @@ export async function loadCompany(q: Db | Tx = db): Promise<Company> {
 
 /**
  * Versteuerung (Ist oder Soll), nach der ein Jahr gebucht ist. Umstellen geht nur zum Jahreswechsel, bevor im neuen
- * Jahr gebucht wird (settings-guard.ts); es gilt also, was beim Anlegen der ersten Buchung des Jahres eingestellt war.
+ * Jahr gebucht wird (auswertungen/settings-guard.ts); es gilt also, was beim Anlegen der ersten Buchung des Jahres eingestellt war.
  * Das steht im Audit-Log der Firmendaten. Ohne Buchung im Jahr gilt die aktuelle Einstellung.
  *
  * Wichtig für alles, was frühere Zeiträume rechnet: Voranmeldungen des Vorjahres und vor allem die
@@ -190,7 +185,7 @@ export async function setJournalAb(tx: Tx, year: number): Promise<void> {
  * Kleinunternehmer (§ 19 UStG) an einem Tag, nach dem Änderungsprotokoll der Firmendaten. Liefert eine Funktion
  * Datum (JJJJ-MM-TT, deutsche Zeit) → Status am Ende dieses Tages; vor dem ersten Eintrag gilt der erste bekannte
  * fachlich gespeicherte Stand. Unbenutzte technische Vorgaben zählen nicht als Regelbesteuerung. Einschalten geht nur,
- * solange im Jahr nichts gebucht ist (settings-guard.ts), ausschalten jederzeit.
+ * solange im Jahr nichts gebucht ist (auswertungen/settings-guard.ts), ausschalten jederzeit.
  *
  * Für alles, was frühere Zeiträume betrifft: Wer zum Jahreswechsel auf Kleinunternehmer umstellt, schuldet die
  * Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres trotzdem.
@@ -280,73 +275,6 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
   return (await kleinunternehmerHistory())(`${year}-12-31`);
 }
 
-/** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
-export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, textBlocks, logo, background, design, mandates, contactPersons] = await Promise.all([
-    loadCompany(),
-    kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
-    listContacts(),
-    listArticles(),
-    listTextBlocks(),
-    logoInfo(),
-    backgroundInfo(),
-    loadDesign(),
-    kind === "rechnung" ? mandateOptions(today()) : Promise.resolve([]),
-    contactPersonOptions(),
-  ]);
-  const { name, strasse, plz, ort, email, telefon, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
-  return {
-    contacts,
-    /** Gültige Lastschriftmandate je Kunde (#445), für die Zahlungsart der Rechnung */
-    mandates,
-    /** Ansprechpartner aller Kunden (#424), für die Auswahl unter „Kunde“ */
-    contactPersons,
-    articles: articles.map(({ id, number, description, detail, unit, unitPrice, taxRate, priceIncludesTax }) => ({
-      id,
-      number,
-      description,
-      detail,
-      unit,
-      unitPrice,
-      taxRate,
-      priceIncludesTax,
-    })),
-    textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
-    company: {
-      name,
-      strasse,
-      plz,
-      ort,
-      email,
-      telefon,
-      steuernummer,
-      ustId,
-      iban,
-      bic,
-      bank,
-      kontoinhaber,
-      logo: logo?.sha256 ?? null,
-      background: background?.sha256 ?? null,
-      accent: design.accent,
-      design,
-      legal: legalLine(legalInfo(company)),
-    },
-    sellerIssues: sellerIssues(company),
-    letterIssues: letterIssues(company),
-    bundesland: company.bundesland,
-    kleinunternehmer: company.kleinunternehmer,
-    tageskurs: company.tageskurs,
-    /** Skonto-Vorgabe für Kunden ohne eigenes */
-    companySkonto: company.skonto,
-    /** Vorlagen für den Zahlungsplan im Angebot */
-    planTemplates: company.paymentPlanTemplates,
-    numberFormat: kind === "rechnung" ? company.invoiceNumberFormat : company.quoteNumberFormat,
-    /** Letzte Nummer je Kreis: Jahr, 0 = durchlaufender Zähler */
-    numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
-    numberRunning: kind === "rechnung" ? company.invoiceCounterRunning : company.quoteCounterRunning,
-  };
-}
-
 /** Was fehlt, bevor eine Voranmeldung gesendet werden kann. */
 export function companyIssues(company: Company): string[] {
   const issues: string[] = [];
@@ -367,13 +295,13 @@ export function companyIssues(company: Company): string[] {
 }
 
 /** Was auf einer Rechnung als Absender fehlt (§ 14 UStG und Zahlungsangaben). */
-export function sellerIssues(company: Company): string[] {
+export function sellerIssues(company: Company, requiresIban = true): string[] {
   const issues: string[] = [];
   if (!company.name) issues.push("Firmenname fehlt");
   if (!company.strasse || !company.plz || !company.ort) issues.push("Anschrift unvollständig");
   if (!company.steuernummer && !company.ustId) issues.push("Steuernummer oder USt-IdNr. fehlt");
   if (!company.email) issues.push("E-Mail-Adresse fehlt");
-  if (!company.iban) issues.push("IBAN fehlt");
+  if (requiresIban && !company.iban) issues.push("IBAN fehlt");
   return issues;
 }
 

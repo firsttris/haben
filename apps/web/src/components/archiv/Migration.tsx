@@ -31,8 +31,10 @@ import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
+import { WisoImport } from "./WisoImport.tsx";
+import { SevdeskExportImport } from "./SevdeskExportImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
-import { FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
+import { FastbillArticles, FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
 import { Status } from "../Status.tsx";
 
@@ -41,8 +43,8 @@ type ImportRow = NonNullable<MigrationData["lastImport"]>;
 /** Quellen mit API-Verbindung: Schlüssel speichern, entfernen, Abruf starten */
 type ConnectedSource = "lexoffice" | "sevdesk" | "fastbill";
 type FastbillPlan = MigrationData["fastbillPlans"][number];
-/** Alle Quellen; Accountable und BuchhaltungsButler kennen keine API, dort gibt es nur den Datei-Upload */
-type Source = ConnectedSource | "accountable" | "buchhaltungsbutler";
+/** Alle Quellen; Accountable, BuchhaltungsButler und WISO kennen keine API, dort gibt es nur den Datei-Upload */
+type Source = ConnectedSource | "accountable" | "buchhaltungsbutler" | "wiso";
 
 /** Was sich je Quelle unterscheidet: Name, Schlüssel und die Server-Funktionen für Verbindung und Abruf */
 const SOURCES = {
@@ -108,29 +110,37 @@ const BB_CONFIG = {
   exportsHelp:
     "Der BB-Import legt die Originalexporte bereits an. Ergänze je Geschäftsjahr noch den Datenexport für die Betriebsprüfung, ELSTER-Protokolle und Kontoauszüge.",
 } as const;
-const ALL_SOURCES = { ...SOURCES, buchhaltungsbutler: BB_CONFIG } as const;
+const WISO_CONFIG = {
+  product: "WISO",
+  importHelp: "Liest den CSV-Export der Buchungen aus WISO Steuer (Modul EÜR) oder WISO EÜR & Kasse ins Archiv ein.",
+  exportsHelp: "Der WISO-Import legt die Original-CSV bereits ab. Ergänze je Geschäftsjahr noch GoBD-Export, ELSTER-Protokolle und Kontoauszüge.",
+} as const;
+const ALL_SOURCES = { ...SOURCES, buchhaltungsbutler: BB_CONFIG, wiso: WISO_CONFIG } as const;
 
 export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready) && data.orderArchive.withoutPdf === 0;
   const [source, setSource] = useState<Source>(() => {
     if (data.connection || data.lastImport) return "lexoffice";
-    if (data.sevdeskConnection || data.sevdeskImport) return "sevdesk";
+    if (data.sevdeskConnection || data.sevdeskImport || data.sevdeskExportImport) return "sevdesk";
     if (data.fastbillConnection || data.fastbillImport) return "fastbill";
     if (data.accountableImport) return "accountable";
     if (data.bbImport) return "buchhaltungsbutler";
+    if (data.wisoImport) return "wiso";
     return "lexoffice";
   });
   const config = ALL_SOURCES[source];
   const lastImport =
     source === "buchhaltungsbutler"
       ? data.bbImport
-      : source === "sevdesk"
-        ? data.sevdeskImport
-        : source === "fastbill"
-          ? data.fastbillImport
-          : source === "accountable"
-            ? data.accountableImport
-            : data.lastImport;
+      : source === "wiso"
+        ? data.wisoImport
+        : source === "sevdesk"
+          ? data.sevdeskImport
+          : source === "fastbill"
+            ? data.fastbillImport
+            : source === "accountable"
+              ? data.accountableImport
+              : data.lastImport;
   return (
     <div className="stack">
       {data.externalImports.length > 0 && (
@@ -160,6 +170,8 @@ export function Migration({ data }: { data: MigrationData }) {
       </div>
       {source === "buchhaltungsbutler" ? (
         <BuchhaltungsButlerImport key="buchhaltungsbutler" initial={data.bbImport} />
+      ) : source === "wiso" ? (
+        <WisoImport key="wiso" initial={data.wisoImport} />
       ) : source === "accountable" ? (
         <ImportCard key={`accountable-${lastImport?.id ?? "neu"}`} source="accountable" connected initial={lastImport} />
       ) : (
@@ -199,7 +211,9 @@ export function Migration({ data }: { data: MigrationData }) {
             connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : source === "fastbill" ? data.fastbillConnection : data.connection)}
             initial={lastImport}
           />
+          {source === "sevdesk" && <SevdeskExportImport key={`sevdesk-export-${data.sevdeskExportImport?.id ?? "neu"}`} initial={data.sevdeskExportImport} />}
           {source === "fastbill" && <FastbillReceipts receipts={data.fastbillReceipts} running={data.fastbillImport?.status === "laeuft"} />}
+          {source === "fastbill" && data.fastbillConnection && <FastbillArticles />}
         </>
       )}
       <OpenItems
@@ -207,7 +221,14 @@ export function Migration({ data }: { data: MigrationData }) {
         cutoff={data.cutoff}
         cutoffError={data.cutoffError}
         imported={Boolean(
-          data.lastImport || data.sevdeskImport || data.fastbillImport || data.accountableImport || data.bbImport || data.externalImports.length,
+          data.lastImport ||
+            data.sevdeskImport ||
+            data.sevdeskExportImport ||
+            data.fastbillImport ||
+            data.accountableImport ||
+            data.bbImport ||
+            data.wisoImport ||
+            data.externalImports.length,
         )}
       />
       <section className="card stack" aria-labelledby="upload-heading">
@@ -505,6 +526,12 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
               <span className="small muted">Dateien</span>
               <strong>{progress.files}</strong>
             </div>
+            {(progress.recurring ?? 0) > 0 && (
+              <div>
+                <span className="small muted">Dauerbelege angehalten</span>
+                <strong>{progress.recurring}</strong>
+              </div>
+            )}
           </div>
           {running && <ImportWaitNotice waitingUntil={progress.waitingUntil} fastbill={source === "fastbill"} updatedAt={run.updatedAt} />}
           {source === "sevdesk" && (
@@ -515,6 +542,18 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
                 auch Kunde. Entferne diese Rolle bei Bedarf unter Kontakte. Vorhandene Nummern bleiben unverändert.
               </p>
             </div>
+          )}
+          {source === "sevdesk" && progress.sevdeskRecurring && progress.sevdeskRecurring.imported + progress.sevdeskRecurring.known > 0 && (
+            <p className="small" style={{ margin: 0 }}>
+              {progress.sevdeskRecurring.imported + progress.sevdeskRecurring.known} Vorlagen für{" "}
+              <Link to="/rechnungen/wiederkehrend">wiederkehrende Rechnungen</Link> pausiert übernommen; prüfe und aktiviere sie dort.
+              {progress.sevdeskRecurring.placeholders.length > 0 && (
+                <>
+                  {" "}
+                  Platzhalter von sevDesk stehen als Text darin: <span className="mono">{progress.sevdeskRecurring.placeholders.join(" ")}</span>
+                </>
+              )}
+            </p>
           )}
           {run.error && (
             <div className="banner banner-danger" role="alert">

@@ -6,6 +6,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
   let sql: postgres.Sql;
   let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/index.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let bank: typeof import("../bank/index.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
   let reports: typeof import("../auswertungen/index.ts");
@@ -16,6 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
     sql = await setupTestDb();
     invoices = await import("./index.ts");
     contacts = await import("../stammdaten/index.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     bank = await import("../bank/index.ts");
     vat = await import("../umsatzsteuer/index.ts");
     reports = await import("../auswertungen/index.ts");
@@ -132,7 +134,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
       ).id,
     );
     await bank.createCashInvoiceEntry(actor, { invoiceId: old.id, date: "2025-11-05", amount: 11_900 }, "2025-11-05");
-    await contacts.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: "soll" }, "2026-01-01");
+    await guard.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: "soll" }, "2026-01-01");
     const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, { ...input(), serviceFrom: "2025-11-20" })).id);
     expect(await vat.computeVatFigures({ year: 2025, month: 11 })).toMatchObject({ kz81: 10_000, tax81: 1_900 });
     expect(await vat.computeVatFigures({ year: 2026, month: 12 })).toMatchObject({ kz81: 0, tax81: 0 });
@@ -159,7 +161,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
       const payment = await bank.createCashInvoiceEntry(actor, { invoiceId: advance.id, date: "2025-12-12", amount: 35_700 }, "2025-12-12");
       // Erst vollständig bezahlt umstellen, wie es die echte Einstellungssperre verlangt. Die spätere Gegenzeile ist
       // ein normaler Schreibweg; keine manipulierte Firmenhistorie und keine übersprungene Sperre.
-      await contacts.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: next }, "2026-01-01");
+      await guard.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: next }, "2026-01-01");
       await bank.reverseCashEntry(actor, payment.id, "2026-01-12");
       await invoices.finalizeInvoice(
         actor,
@@ -196,7 +198,7 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
         ).id,
       );
       await bank.createCashInvoiceEntry(actor, { invoiceId: advance.id, date: "2025-12-12", amount: 35_700 }, "2025-12-12");
-      await contacts.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: next }, "2026-01-01");
+      await guard.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: next }, "2026-01-01");
       const final = await invoices.finalizeInvoice(
         actor,
         (

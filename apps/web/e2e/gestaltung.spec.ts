@@ -75,7 +75,11 @@ async function ruhigesBlatt(p: Page): Promise<string> {
 const fuss = (p: Page) => blatt(p).locator('[data-teil="fuss"]');
 
 async function gestaltungOeffnen(p: Page): Promise<void> {
-  await vorschauKnopf(p).click();
+  if ((p.viewportSize()?.width ?? 1280) <= 860) {
+    await p.locator(".main > .action-bar").getByRole("button", { name: "Vorschau", exact: true }).click();
+  } else {
+    await vorschauKnopf(p).click();
+  }
   await dialog(p).getByRole("button", { name: "Gestaltung" }).click();
   await expect(panel(p)).toBeVisible();
 }

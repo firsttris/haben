@@ -16,7 +16,7 @@ async function failure(work: Promise<unknown>): Promise<string> {
 describe.skipIf(!testDatabaseUrl)("Rechtsform: GmbH und UG (Postgres)", () => {
   let sql: postgres.Sql;
   let company: typeof import("./company.ts");
-  let guard: typeof import("./settings-guard.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let cash: typeof import("../bank/cash.ts");
   let documents: typeof import("../belege/documents.ts");
   let pauschalen: typeof import("../buchhaltung/pauschalen.ts");
@@ -28,7 +28,7 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform: GmbH und UG (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     company = await import("./company.ts");
-    guard = await import("./settings-guard.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     cash = await import("../bank/cash.ts");
     documents = await import("../belege/documents.ts");
     pauschalen = await import("../buchhaltung/pauschalen.ts");

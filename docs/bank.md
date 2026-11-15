@@ -144,11 +144,13 @@ Importe, Umsätze, Zuordnungen und [Verrechnungen](#gegenläufige-umsätze-verre
 
 ## Umsatzliste
 
-Die Filter **Alle**, **Offen** (mit Anzahl), **Zugeordnet** (auch verrechnete Umsätze) und **Vorschlag** schränken die Liste ein. **Vorschlag** zeigt nur Umsätze mit dem gleichnamigen Status. Das Suchfeld durchsucht Gegenpartei, Verwendungszweck und Betrag, den Betrag wie die [Schnellsuche](suche.md) auch als `1.190,00` oder `1190 €` mit beiden Vorzeichen. Angezeigt werden höchstens 500 Treffer.
+Ab zwei Konten zeigt der erste Reiter, **Alle Konten**, die Umsätze aller Konten in einer Liste, unter der Gegenpartei mit dem Namen des Kontos. Dorthin führt auch **Alle anzeigen** bei den Bankumsätzen der [Schnellsuche](suche.md).
+
+Die Filter **Alle**, **Offen** (mit Anzahl), **Zugeordnet** (auch verrechnete Umsätze) und **Vorschlag** schränken die Liste ein. **Vorschlag** zeigt nur Umsätze mit dem gleichnamigen Status. Das Suchfeld findet dieselben Umsätze wie die [Schnellsuche](suche.md#was-sie-findet), dazu Beträge, deren Zahl die Eingabe enthält: `19.9` findet 19,90 €. Angezeigt werden höchstens 500 Treffer.
 
 Die Spaltenköpfe Datum, Gegenpartei · Verwendungszweck, Betrag und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Ohne Auswahl steht der neueste Umsatz oben. Am Handy sind Datum und Status ausgeblendet, dort sortieren Gegenpartei und Betrag.
 
-Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos, die zu Filter und Suche passen, und zeigt davon die ersten 500: „Betrag absteigend“ zeigt also die größten Beträge, auch wenn sie Jahre zurückliegen. Umsätze ohne Gegenpartei stehen beim Sortieren nach Gegenpartei unten. Den Status bestimmt Haben erst beim Anzeigen; nach Status sortiert es deshalb die neuesten 500 Umsätze. Absteigend steht oben, was zu tun ist, in der Reihenfolge „Beleg fehlt“, „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, zuletzt „Verrechnet“.
+Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. aller Konten, die zu Filter und Suche passen, und zeigt davon die ersten 500: „Betrag absteigend“ zeigt also die größten Beträge, auch wenn sie Jahre zurückliegen. Umsätze ohne Gegenpartei stehen beim Sortieren nach Gegenpartei unten. Den Status bestimmt Haben erst beim Anzeigen; nach Status sortiert es deshalb die neuesten 500 Umsätze. Absteigend steht oben, was zu tun ist, in der Reihenfolge „Beleg fehlt“, „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, zuletzt „Verrechnet“.
 
 | Hinweis | Bedeutung |
 | --- | --- |
@@ -511,3 +513,7 @@ Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt,
 - Zahlungsdienstleister nur in Euro; Zeilen in anderen Währungen (etwa ein USD-Guthaben bei PayPal) übernimmt Haben nicht und meldet sie. Ausnahme ist der App Store: Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs in Euro um (siehe [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store)).
 - Kursdifferenzen nur beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung; Bankkonten und Verrechnungskonten von Zahlungsdienstleistern nur in Euro.
 - Zuordnungen werden mit dem Buchungsdatum des Umsatzes gebucht, ihre Aufhebung am gewählten Tag (siehe [Zuordnung aufheben](#zuordnung-aufheben)). Eine schon gesendete Voranmeldung bleibt, wie sie ist (siehe [umsatzsteuer.md](umsatzsteuer.md)).
+
+## Privates Konto: Umsätze ohne Buchungsart
+
+Auf einem Konto mit dem Zweck **privat** sind „Privat", Bankgebühren, Zinserträge, Geldtransit und Spenden gesperrt ([#873](https://github.com/firsttris/haben/issues/873)); eine private Einkommensteuer-Erstattung lässt sich dort also nicht buchen, ohne sie zum Betriebsvorgang zu machen. Solche Umsätze bleiben ungebucht und lassen sich im Umsatz als **privat, kein Betriebsvorgang** kennzeichnen ([#1088](https://github.com/firsttris/haben/issues/1088)): Sie zählen dann nicht mehr als offene Posten, tragen in der Liste den Status **privat, kein Betriebsvorgang** statt „Offen" und lassen sich jederzeit wieder öffnen. Auch die [Vorprüfung der Voranmeldung](umsatzsteuer.md#vorprüfung_1) mahnt sie nicht an. Gebucht wird dabei nichts, die EÜR bleibt unberührt.

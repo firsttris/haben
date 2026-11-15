@@ -13,6 +13,7 @@ import {
   type Kontenrahmen,
   type PostingLine,
   type TaxCode,
+  vatRate,
 } from "./posting.ts";
 import type { Rechtsform } from "./rechtsform.ts";
 import { abziehbareSteuer, buchungsAnteil } from "./vorsteuerabzug.ts";
@@ -166,13 +167,13 @@ export function documentSplitPosting(
     const { rate, tax } = row;
     const abzugsfaehig = abziehbareSteuer(tax, buchungsAnteil(vorsteuerAbzug, row.vorsteuerAnteil));
     if (tax === 0) continue;
-    if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
+    const satz = vatRate(rate);
     if (rcCode) {
       if (abzugsfaehig !== 0) result.push(side(accounts.vorsteuerRc, abzugsfaehig, true, "VSt13b"));
       result.push(side(accounts.ustRc, tax, false, rcCode));
     } else if (abzugsfaehig !== 0) {
-      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[rate];
-      result.push(side(konto, abzugsfaehig, true, inputTaxCode(rate)));
+      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[satz];
+      result.push(side(konto, abzugsfaehig, true, inputTaxCode(satz)));
     }
   }
   const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;

@@ -1,7 +1,8 @@
+import { Link } from "@tanstack/react-router";
 import { formatDateTime } from "../../lib/format.ts";
 import { Field } from "../Field.tsx";
 
-/* Teile der Seite Archiv › Umzug, die nur FastBill braucht: Login-E-Mail und Tarif beim Zugang, Hinweise beim Warten des Abrufs. */
+/* Teile der Seite Archiv › Umzug, die nur FastBill braucht: Login-E-Mail und Tarif beim Zugang, Hinweise beim Warten des Abrufs, der Weg zu den Artikeln. */
 
 /** Ab so langer Stille im laufenden Abruf erklärt die Seite, worauf er wartet */
 const STALLED_MS = 60_000;
@@ -68,5 +69,25 @@ export function ImportWaitNotice({ waitingUntil, fastbill, updatedAt }: { waitin
       FastBill antwortet gerade langsam oder bremst die Anfragen, etwa weil andere Programme dieselbe Stundengrenze nutzen. Der Abruf versucht es weiter; letzte
       Bewegung {formatDateTime(new Date(updatedAt))}. Endet er mit einem Fehler, starte ihn später neu: Übernommenes bleibt.
     </div>
+  );
+}
+
+/** Artikel sind keine Belege: Sie kommen über den CSV-Import mit dessen Vorschau in den Artikelkatalog, nicht ins Archiv */
+export function FastbillArticles() {
+  return (
+    <section className="card stack" aria-labelledby="fastbill-articles-heading">
+      <h2 id="fastbill-articles-heading" style={{ margin: 0 }}>
+        Artikel
+      </h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        Artikel kommen nicht ins Archiv, sondern in den Artikelkatalog. Haben holt sie mit deinem API-Schlüssel und zeigt sie im CSV-Import zur Prüfung;
+        übernommen wird erst dort. Brutto eingegebene Preise bleiben Endpreise.
+      </p>
+      <div className="actions">
+        <Link to="/csv-import" search={{ art: "artikel", quelle: "fastbill" }} className="btn">
+          Artikel aus FastBill übernehmen
+        </Link>
+      </div>
+    </section>
   );
 }

@@ -260,10 +260,11 @@ test("Großer Bildschirm: ohne gespeicherte Wahl angeheftet", async ({ browser }
 
 test("Handy: nur Überblendung, ohne Pfeil und ohne waagrechtes Scrollen", async ({ browser }) => {
   const page = await editor(browser, HANDY);
-  await expect(vorschauKnopf(page)).toBeVisible();
+  const vorschau = page.locator(".main > .action-bar").getByRole("button", { name: "Vorschau", exact: true });
+  await expect(vorschau).toBeVisible();
   await expect(pfeil(page)).toHaveCount(0);
   await expect(seitenansicht(page)).toHaveCount(0);
-  await vorschauKnopf(page).click();
+  await vorschau.click();
   await expect(dialog(page)).toBeVisible();
   // Von unten über die ganze Breite, oben bleibt ein Streifen der Seite sichtbar
   const lage = await lageNachDerFahrt(page);
@@ -275,13 +276,14 @@ test("Handy: nur Überblendung, ohne Pfeil und ohne waagrechtes Scrollen", async
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   expect(await axe(page), "Überblendung am Handy").toEqual([]);
   await dialog(page).getByRole("button", { name: "Schließen" }).click();
-  await expect(vorschauKnopf(page)).toBeFocused();
+  await expect(vorschau).toBeFocused();
   await page.context().close();
 });
 
 test("Handy: Die Überblendung ist oben rund und lässt sich am Griff nach unten wegziehen", async ({ browser }) => {
   const page = await editor(browser, HANDY);
-  await vorschauKnopf(page).click();
+  const vorschau = page.locator(".main > .action-bar").getByRole("button", { name: "Vorschau", exact: true });
+  await vorschau.click();
   const griff = dialog(page).locator(".sheet-grip");
   await expect(griff).toBeVisible();
   await lageNachDerFahrt(page);
@@ -296,7 +298,7 @@ test("Handy: Die Überblendung ist oben rund und lässt sich am Griff nach unten
   await ziehen(page, dialog(page).getByRole("heading", { name: "Vorschau" }), 120);
   await page.mouse.up();
   await expect(dialog(page)).toHaveCount(0);
-  await expect(vorschauKnopf(page)).toBeFocused();
+  await expect(vorschau).toBeFocused();
   await page.context().close();
 });
 
@@ -404,6 +406,10 @@ test("Laptop: Der Fokus bleibt auf „Vorschau“, wenn der Pfeil beim Verkleine
   // Auch Browser-Zoom ändert die Breite (WCAG 1.4.4); der Knopf darf dabei nicht neu aufgebaut werden
   await page.setViewportSize({ width: 800, height: 800 });
   await expect(pfeil(page)).toHaveCount(0);
+  // Unter 861 px steht „Vorschau“ in der Aktionsleiste (#396, #355 Variante E); der Fokus geht mit und beim Vergrößern zurück
+  const inDerLeiste = page.locator(".main > .action-bar").getByRole("button", { name: "Vorschau", exact: true });
+  await expect(inDerLeiste).toBeFocused();
+  await page.setViewportSize(LAPTOP);
   await expect(vorschauKnopf(page)).toBeFocused();
   await page.context().close();
 });

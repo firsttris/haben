@@ -4,6 +4,7 @@ import { UserError } from "../errors.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
   cancelFastbillImport as cancelFastbill,
+  fastbillArticlesCsv,
   fastbillReceiptScriptList,
   markFastbillWithoutReceipt,
   MAX_ARCHIVE_SIZE,
@@ -13,7 +14,7 @@ import {
   uploadFastbillReceipts as uploadFastbillReceiptsZip,
 } from "../modules/archiv/index.ts";
 
-/* Umzug aus FastBill: Zugang, Abruf und die Belege, die FastBill nur im Browser herausgibt. Status und Übersicht liefern getMigration und getImportStatus in archive.ts. */
+/* Umzug aus FastBill: Zugang, Abruf, Artikel für den CSV-Import und die Belege, die FastBill nur im Browser herausgibt. Status und Übersicht liefern getMigration und getImportStatus in archive.ts. */
 
 export const saveFastbillLogin = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -74,3 +75,8 @@ export const markFastbillReceiptsMissing = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ ids: z.array(z.string().regex(/^\d+$/)).max(10_000).optional() }))
   .handler(async ({ data, context }) => ({ count: await markFastbillWithoutReceipt(context.user.id, data.ids) }));
+
+/** Artikelkatalog aus FastBill als CSV für den Artikel-Import; übernommen wird erst dort nach der Vorschau */
+export const getFastbillArticlesCsv = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async () => fastbillArticlesCsv());

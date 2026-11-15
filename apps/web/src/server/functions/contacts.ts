@@ -1,7 +1,7 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { contactHistory } from "../modules/auswertungen/index.ts";
+import { contactHistory } from "../modules/archiv/index.ts";
 import { contactSchema, createContact, findContactsByUstId, getContact, listContacts, setContactArchived, updateContact } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";

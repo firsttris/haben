@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { checkFile } from "../../../../scripts/modulgrenzen/regel.ts";
+import { AUSNAHMEN, SCHICHTEN } from "../../../../scripts/modulgrenzen/schichten.ts";
 
 /*
  * Modulgrenzen (#81, Schritt 6): die Prüfung selbst (scripts/modulgrenzen/) und die Struktur der Module.
@@ -70,9 +71,40 @@ describe("Modulgrenzen", () => {
       expect.stringContaining("Ein Modul importiert keine Server Functions und keine Oberfläche"),
     ]);
     expect(lint("modules/rechnungen/invoices.ts", `import { Badge } from "../../../components/Badge.tsx";`)).toHaveLength(1);
+    // Auch nicht den Scheduler, der Module zusammensetzt; sonst entstünde über ihn ein Ring
+    expect(lint("modules/rechnungen/invoices.ts", `import { runScheduledJobs } from "../../scheduler.ts";`)).toHaveLength(1);
+    // Auch ohne Endung, wie ihn ein automatischer Import des Editors schreibt
+    expect(lint("modules/rechnungen/invoices.ts", `import { runScheduledJobs } from "../../scheduler";`)).toHaveLength(1);
     expect(lint("modules/auswertungen/integrity.ts", `import { formatPruefwert } from "../../../lib/pruefwert.ts";`)).toEqual([]);
     // Pakete und Infrastruktur bleiben frei
     expect(lint("modules/rechnungen/invoices.ts", `import { lineAmount } from "@haben/core";\nimport { db } from "../../db/index.ts";`)).toEqual([]);
+  });
+
+  it("ein Modul importiert nur Module, die in der Schichtenfolge vor ihm stehen", () => {
+    expect(lint("modules/rechnungen/invoices.ts", `import { loadCompany } from "../stammdaten/index.ts";`)).toEqual([]);
+    expect(lint("modules/stammdaten/company.ts", `import { listInvoices } from "../rechnungen/index.ts";`)).toEqual([
+      expect.stringContaining("Modul „stammdaten“ steht unter „rechnungen“ und importiert es nicht"),
+    ]);
+    // Auch Typen, Re-Exporte und dynamische Importe
+    expect(lint("modules/stammdaten/company.ts", `import type { Invoice } from "../rechnungen/index.ts";`)).toHaveLength(1);
+    expect(lint("modules/stammdaten/company.ts", `export { listInvoices } from "../rechnungen/index.ts";`)).toHaveLength(1);
+    expect(lint("modules/stammdaten/company.ts", `const m = await import("../rechnungen/index.ts");`)).toHaveLength(1);
+    // Server Functions, Oberfläche und die zusammensetzenden Stellen stehen über allen Modulen
+    expect(lint("functions/company.ts", `import { listInvoices } from "../modules/rechnungen/index.ts";`)).toEqual([]);
+    expect(lint("scheduler.ts", `import { runReminders } from "./modules/finanzamt/index.ts";`)).toEqual([]);
+  });
+
+  it("eine Ausnahme gilt nur für ihre Datei und ihr Modul", () => {
+    expect(lint("modules/rechnungen/umsatzgrenze.ts", `import { kleinunternehmerStand } from "../auswertungen/index.ts";`)).toEqual([]);
+    expect(lint("modules/rechnungen/invoices.ts", `import { kleinunternehmerStand } from "../auswertungen/index.ts";`)).toHaveLength(1);
+    expect(lint("modules/rechnungen/umsatzgrenze.ts", `import { annualOverview } from "../jahreserklaerung/index.ts";`)).toHaveLength(1);
+  });
+
+  it("ein Modul, das in der Schichtenfolge fehlt, meldet die Prüfung", () => {
+    expect(lint("modules/neu/x.ts", `import { loadCompany } from "../stammdaten/index.ts";`)).toEqual([
+      expect.stringContaining("Modul „neu“ fehlt in scripts/modulgrenzen/schichten.ts"),
+    ]);
+    expect(lint("modules/stammdaten/x.ts", `import { y } from "../neu/index.ts";`)).toHaveLength(1);
   });
 
   it("Pakete importieren nichts aus der App, der GoBD-Kern auch keine Pakete von Haben", () => {
@@ -116,6 +148,22 @@ describe("Struktur der Module", () => {
     expect(names.filter((name) => !existsSync(join(modules, name, "index.ts")))).toEqual([]);
   });
 
+  it("jedes Modul steht genau einmal in der Schichtenfolge", () => {
+    expect([...SCHICHTEN].sort()).toEqual([...names].sort());
+    expect(new Set(SCHICHTEN).size).toBe(SCHICHTEN.length);
+  });
+
+  it("jede Ausnahme zeigt auf einen Import, den es gibt, nach oben und mit Grund", () => {
+    const order: readonly string[] = SCHICHTEN;
+    for (const a of AUSNAHMEN) {
+      expect(existsSync(join(modules, a.datei)), a.datei).toBe(true);
+      // Fällt der Import weg, fällt auch die Ausnahme weg
+      expect(readFileSync(join(modules, a.datei), "utf8"), a.datei).toContain(`"../${a.modul}/`);
+      expect(order.indexOf(a.modul), a.datei).toBeGreaterThan(order.indexOf(a.datei.split("/")[0]!));
+      expect(a.grund.length, a.datei).toBeGreaterThan(20);
+    }
+  });
+
   it("index.ts gibt nur Dateien des eigenen Moduls weiter und enthält keine Logik", () => {
     for (const name of names) {
       const lines = readFileSync(join(modules, name, "index.ts"), "utf8")
@@ -137,11 +185,13 @@ describe("Struktur der Module", () => {
         "auth-transaction.ts",
         "change-password.ts",
         "oidc.ts",
+        "pdf-anhang.ts",
         "crypto.ts",
         "csrf.ts",
         "env.ts",
         "errors.ts",
         "file-response.ts",
+        "grenzen.ts",
         "lese-route.ts",
         "middleware.ts",
         "rollen.ts",

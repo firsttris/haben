@@ -129,6 +129,61 @@ describe.skipIf(!testDatabaseUrl)("Neues Anzahlungsverfahren zum historischen St
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
 
+  it.each([
+    ["SKR03", "soll"],
+    ["SKR04", "ist"],
+  ] as const)(
+    "%s/%s: Kleinunternehmer zählt eine Anzahlung im Zahlungsjahr genau einmal",
+    async (frame, mode) => {
+      await sql`update company set kontenrahmen = ${frame}, versteuerung = ${mode}, kleinunternehmer = true`;
+      const draft = await invoices.createDraft(actor, {
+        contactId,
+        issueDate: "2025-12-01",
+        serviceFrom: null,
+        serviceTo: null,
+        paymentTermDays: 14,
+        format: "zugferd",
+        note: "",
+        variant: "abschlag",
+        advanceType: "anzahlung",
+        taxTreatment: "kleinunternehmer",
+        lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 300_000, taxRate: 0 }],
+      });
+      const a = await invoices.finalizeInvoice(actor, draft.id);
+      const { vereinnahmterUmsatz } = await import("../auswertungen/kleinunternehmer.ts");
+      expect(await vereinnahmterUmsatz("2025-12-11")).toMatchObject({ netto: 0 });
+      await bank.createCashInvoiceEntry(actor, { invoiceId: a.id, date: "2025-12-12", amount: 100_000 }, "2026-04-20");
+      const nachZahlung = await vereinnahmterUmsatz("2025-12-31");
+
+      const schluss = await invoices.createDraft(actor, {
+        contactId,
+        issueDate: "2026-01-20",
+        serviceFrom: "2026-01-20",
+        serviceTo: null,
+        paymentTermDays: 14,
+        format: "zugferd",
+        note: "",
+        variant: "schluss",
+        taxTreatment: "kleinunternehmer",
+        deducts: [a.id],
+        lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 500_000, taxRate: 0 }],
+      });
+      const final = await invoices.finalizeInvoice(actor, schluss.id);
+      const nachSchluss = await vereinnahmterUmsatz("2025-12-31");
+      const folgejahr = await vereinnahmterUmsatz("2026-01-31");
+      expect([nachZahlung.netto, nachSchluss.netto, folgejahr.netto]).toEqual([100_000, 100_000, 0]);
+      expect(final.gross).toBe(200_000);
+      await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-01-25", amount: final.gross }, "2026-04-20");
+      expect(await vereinnahmterUmsatz("2026-01-31")).toMatchObject({ netto: 200_000 });
+      const rest = await bank.createCashInvoiceEntry(actor, { invoiceId: a.id, date: "2026-01-26", amount: 200_000 }, "2026-04-20");
+      expect(await vereinnahmterUmsatz("2026-01-31")).toMatchObject({ netto: 400_000 });
+      await bank.reverseCashEntry(actor, rest.id, "2026-02-01");
+      expect(await vereinnahmterUmsatz("2026-02-01")).toMatchObject({ netto: 200_000 });
+      expect(await vereinnahmterUmsatz("2025-12-31")).toMatchObject({ netto: 100_000 });
+    },
+    30_000,
+  );
+
   it("Einzelunternehmen und deren bestehender Erlösweg werden nicht zum neuen Bilanzverfahren erklärt", async () => {
     await sql`update company set rechtsform='einzelunternehmen'`;
     const invoice = await advance();

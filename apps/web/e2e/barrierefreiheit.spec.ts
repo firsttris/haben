@@ -538,7 +538,8 @@ test.describe("Kontrollkästchen mit Hinweis am Handy", () => {
 
   // Auf Touchgeräten sind Felder und Zeilen mit Kästchen 44px hoch (DESIGN.md); der Hinweis darunter nimmt davon nichts weg
   test("Die Zeile mit dem Kästchen ist mindestens 44px hoch", async ({ page }) => {
-    await open(page, "/einstellungen");
+    // Am Handy zeigt /einstellungen nur die Liste der Bereiche
+    await open(page, "/einstellungen?bereich=firma");
     for (const name of [
       "Kleinunternehmer nach § 19 UStG",
       "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",

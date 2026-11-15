@@ -16,7 +16,7 @@ import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { waitingReceipt } from "./fastbill-belege.ts";
-import { FastbillError, fastbillCredentials, newFastbillClient } from "./fastbill-zugang.ts";
+import { FastbillError, fastbillCredentials, forgetOtherFastbillCalls, newFastbillClient, otherFastbillCalls } from "./fastbill-zugang.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
@@ -71,10 +71,13 @@ export async function latestFastbillImport() {
   return row;
 }
 
-/** Aufrufe der letzten Stunde aus dem letzten Lauf, damit ein Neustart nicht sofort über die Stundengrenze geht */
-async function previousCalls(): Promise<number[]> {
+/**
+ * Aufrufe der letzten Stunde aus dem letzten Lauf und aus dem Abruf der Artikel, damit weder ein Neustart noch ein Abruf
+ * danach sofort über die Stundengrenze geht
+ */
+export async function fastbillPreviousCalls(): Promise<number[]> {
   const last = await latestFastbillImport();
-  return last?.progress.fastbillCalls ?? [];
+  return [...(last?.progress.fastbillCalls ?? []), ...otherFastbillCalls()].sort((a, b) => a - b);
 }
 
 /**
@@ -84,7 +87,7 @@ async function previousCalls(): Promise<number[]> {
 export async function startFastbillImport(actor: string, options: { wait?: boolean } = {}): Promise<string> {
   const login = await fastbillCredentials();
   if (!login) throw new FastbillError("Zuerst Login-E-Mail und API-Schlüssel hinterlegen.");
-  const calls = await previousCalls();
+  const calls = await fastbillPreviousCalls();
   // Der eindeutige Index gilt für alle Quellen: auch verwaiste Läufe aus Lexoffice und sevDesk als abgebrochen markieren
   await latestImport();
   await latestSevdeskImport();
@@ -107,6 +110,8 @@ export async function startFastbillImport(actor: string, options: { wait?: boole
     if (isUniqueViolation(error, "lexoffice_imports_one_running")) throw new FastbillError("Ein Abruf läuft bereits.");
     throw error;
   });
+  // Der Lauf führt die Aufrufe des Artikel-Abrufs ab jetzt in fastbillCalls; im Speicher zählten sie sonst doppelt
+  forgetOtherFastbillCalls();
   const id = row!.id;
   const controller = new AbortController();
   running.set(id, controller);

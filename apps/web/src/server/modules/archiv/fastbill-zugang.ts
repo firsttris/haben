@@ -18,6 +18,29 @@ export function setFastbillClientFactory(factory: (options: FastbillClientOption
   clientFactory = factory;
 }
 
+/**
+ * Startzeiten von Aufrufen außerhalb eines Abrufs der Belege (Artikel), damit sie auf die Stundengrenze anzählen. Nur im
+ * Speicher: Nach einem Neustart fehlen sie höchstens eine Stunde lang, dann bremst FastBill selbst (429) und der Client wartet.
+ * Neue Zugangsdaten können ein anderes Konto sein und beginnen ohne.
+ */
+let otherCalls: number[] = [];
+
+/** Neue Aufrufe merken; gleiche Zeitstempel sind verschiedene Aufrufe und bleiben alle stehen */
+export function noteFastbillCalls(calls: readonly number[]) {
+  const since = Date.now() - 3_600_000;
+  otherCalls = [...otherCalls, ...calls].filter((t) => t > since).sort((a, b) => a - b);
+}
+
+export function otherFastbillCalls(): number[] {
+  noteFastbillCalls([]);
+  return otherCalls;
+}
+
+/** Vergessen, sobald ein Lauf der Belege sie in seine fastbillCalls übernommen hat oder die Zugangsdaten wechseln */
+export function forgetOtherFastbillCalls() {
+  otherCalls = [];
+}
+
 /** Stundengrenzen der Tarife laut API-Doku (https://apidocs.fastbill.com/fastbill/en/fundamentals.html) */
 export const FASTBILL_PLANS = [
   { callsPerHour: 50, label: "Solo" },
@@ -51,6 +74,7 @@ export async function saveFastbillKey(actor: string, input: { email: string; api
   } catch (error) {
     throw new FastbillError(`FastBill lehnt die Anmeldung ab: ${progressMessage(error)}`);
   }
+  forgetOtherFastbillCalls();
   await withActor(actor, async (tx) => {
     await tx.delete(schema.fastbillConnection).where(eq(schema.fastbillConnection.id, 1));
     await tx.insert(schema.fastbillConnection).values({ id: 1, email, ciphertext: encrypt(Buffer.from(apiKey, "utf8")), callsPerHour: input.callsPerHour });
@@ -59,6 +83,7 @@ export async function saveFastbillKey(actor: string, input: { email: string; api
 }
 
 export async function removeFastbillKey(actor: string) {
+  forgetOtherFastbillCalls();
   await withActor(actor, (tx) => tx.delete(schema.fastbillConnection).where(eq(schema.fastbillConnection.id, 1)));
 }
 

@@ -8,7 +8,7 @@ import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { DocumentError, uploadDocument } from "./documents.ts";
-import { MAX_MAIL_SIZE } from "./grenzen.ts";
+import { MAX_MAIL_SIZE } from "../../grenzen.ts";
 
 /**
  * Belege per E-Mail: Haben ruft ein Postfach über IMAP ab, legt die Anhänge ungelesener Mails als

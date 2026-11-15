@@ -118,7 +118,10 @@ function FinanzamtPage() {
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Firmendaten unvollständig: {data.issues.join(", ")}. <Link to="/einstellungen">In den Einstellungen ergänzen</Link>
+            Firmendaten unvollständig: {data.issues.join(", ")}.{" "}
+            <Link to="/einstellungen" search={{ bereich: "firma" }}>
+              In den Einstellungen ergänzen
+            </Link>
           </span>
         </div>
       )}

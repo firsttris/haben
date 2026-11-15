@@ -57,7 +57,12 @@ export function KapgGemeinsameHinweise({ data }: { data: Data }) {
 function HinweisText({ issue }: { issue: Hinweis }) {
   return (
     <>
-      {issue.text} {issue.link && <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>}
+      {issue.text}{" "}
+      {issue.link && (
+        <Link to={issue.link} search={issue.link === "/einstellungen" && issue.bereich ? { bereich: issue.bereich } : {}}>
+          {LINK_LABEL[issue.link]}
+        </Link>
+      )}
     </>
   );
 }

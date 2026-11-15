@@ -2,6 +2,7 @@ import { formatEuro, periodKey, periodLabel } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { daysUntil, formatDate, formatDateTime, formatLongDate } from "../../lib/format.ts";
 import { InvoiceStatus } from "../../components/InvoiceStatus.tsx";
+import { KleinunternehmerHinweise } from "../../components/KleinunternehmerHinweise.tsx";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getInvoiceSummary } from "../../server/functions/invoices.ts";
 import { getOverview } from "../../server/functions/vat.ts";
@@ -159,13 +160,8 @@ function OverviewPage() {
     });
   }
   if (data.companyIssues.length > 0 && !data.kleinunternehmer) {
-    todos.push({
-      title: "Firmendaten vervollständigen",
-      detail: data.companyIssues.join(" · "),
-      action: "Ergänzen",
-      tone: "warn",
-      to: "/einstellungen",
-    });
+    const detail = data.companyIssues.join(" · ");
+    todos.push({ title: "Firmendaten vervollständigen", detail, action: "Ergänzen", tone: "warn", to: "/einstellungen", bereich: "firma" });
   }
   if (!data.certificate) {
     if (!data.kleinunternehmer)
@@ -243,6 +239,8 @@ function OverviewPage() {
           ERiC ist nicht eingerichtet (Einstellungen › ERiC). Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.
         </div>
       )}
+
+      {data.kleinunternehmerStand && <KleinunternehmerHinweise stand={data.kleinunternehmerStand} />}
 
       <div className="grid-4">
         <Link to="/auswertungen" hash="receivables" className="card card-link">

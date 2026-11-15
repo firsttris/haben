@@ -19,7 +19,7 @@ function nextMonthStart(today: string): string {
 }
 
 function NewRecurringPage() {
-  const { contacts, textBlocks, defaults, today } = Route.useLoaderData();
+  const { contacts, textBlocks, units, defaults, today } = Route.useLoaderData();
   const navigate = useNavigate();
   const save = useServerFn(saveRecurring);
   const { busy, notice, run } = useAction();
@@ -59,6 +59,7 @@ function NewRecurringPage() {
         }}
         contacts={contacts}
         textBlocks={textBlocks}
+        units={units}
         kleinunternehmer={defaults.kleinunternehmer}
         busy={busy}
         submitLabel="Vorlage anlegen"

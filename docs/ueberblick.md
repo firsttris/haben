@@ -14,7 +14,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 
 | | |
 |---|---|
-| [Installation](installation.md) | Docker Compose, Podman Quadlets, Caddy, Secrets, eigener Reverse Proxy; Vorlagen für [Synology](synology.md), [TrueNAS SCALE](truenas.md), [Unraid](unraid.md) und [Coolify](coolify.md), Anleitung für [Plesk](plesk.md); dazu [Konfiguration](installation-konfiguration.md) (Datenbankrollen, Umgebungsvariablen), [Backup und Updates](installation-backup.md), [Anbindungen](installation-anbindungen.md) (ERiC, KI, Kontoabruf), [Single Sign-on](installation-sso.md) und [Häufige Probleme](installation-probleme.md) |
+| [Installation](installation.md) | Docker Compose, Podman Quadlets, Caddy, Secrets, eigener Reverse Proxy; Vorlagen für [Synology](synology.md), [TrueNAS SCALE](truenas.md), [Unraid](unraid.md) und [Coolify](coolify.md), Anleitung für [Plesk](plesk.md), Helm-Chart für [Kubernetes](kubernetes.md); dazu [Konfiguration](installation-konfiguration.md) (Datenbankrollen, Umgebungsvariablen), [Backup und Updates](installation-backup.md), [Anbindungen](installation-anbindungen.md) (ERiC, KI, Kontoabruf), [Single Sign-on](installation-sso.md) und [Häufige Probleme](installation-probleme.md) |
 
 ## Einrichten
 
@@ -81,7 +81,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Umzug aus FastBill](fastbill.md) | API-Abruf aus FastBill mit Stundengrenze je Tarif, Stornos und Einzelzahlungen, ins selbe Archiv |
 | [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) | BB Standardexport, DATEV-Stapel und Original-PDFs mit Testlauf archivieren |
 | [Umzug aus Accountable](accountable.md) | Exportdatei hochladen, DATEV-Buchungsstapel und Belege verknüpfen, ohne API-Zugang |
-| [Umzug aus WISO EÜR & Kasse](wiso.md) | Wechsel zum 1. Januar vorbereiten, Originalexporte sichern, Kontakte, Artikel und Anlagen per CSV übernehmen, Grenzen bei offenen Posten |
+| [Umzug aus WISO EÜR & Kasse](wiso.md) | Wechsel zum 1. Januar vorbereiten, Originalexporte sichern, Buchungs-CSV (WISO EÜR & Kasse und WISO Steuer, Modul EÜR) ins Archiv übernehmen, Kontakte, Artikel und Anlagen per CSV importieren, Grenzen bei offenen Posten |
 | [CSV-Import](csv-import.md) | Kontakte, Artikel und Anlagen aus CSV: Trennzeichen und Kodierung erkennen, Spalten zuordnen, Vorschau mit Fehlern je Zeile, Dubletten überspringen |
 | [Belegimport](belegimport.md) | Geprüfte Bestände als JSON-Paket per Betreiber-CLI übernehmen, mit Herkunft und Prüflauf |
 

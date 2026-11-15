@@ -151,7 +151,10 @@ function VatPeriodPage() {
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Firmendaten unvollständig: {data.companyIssues.join(", ")}. <Link to="/einstellungen">In den Einstellungen ergänzen</Link>
+            Firmendaten unvollständig: {data.companyIssues.join(", ")}.{" "}
+            <Link to="/einstellungen" search={{ bereich: "firma" }}>
+              In den Einstellungen ergänzen
+            </Link>
           </span>
         </div>
       )}

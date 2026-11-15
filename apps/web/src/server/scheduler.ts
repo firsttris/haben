@@ -1,12 +1,11 @@
-import { formatDecimal } from "@haben/core";
-import { runDueFileCheck } from "./modules/auswertungen/index.ts";
+import { formatHundredths } from "@haben/core";
+import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
 import { runDueBankSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
 import { applyPublishedRates, runDueDauerbelege, runDueInboxFetch } from "./modules/belege/index.ts";
 import { runDueExchangeRates } from "./modules/stammdaten/index.ts";
-import { runDueFristenMails, runDuePruefwertMail } from "./modules/mail/index.ts";
-import { runDuePostfachFetch } from "./modules/finanzamt/index.ts";
+import { runDueFristenMails, runDuePostfachFetch } from "./modules/finanzamt/index.ts";
 import { applyPublishedRatesToDrafts, runDueBaseRate, runDueRecurring } from "./modules/rechnungen/index.ts";
 import { runDueStoreSyncs } from "./modules/stores/index.ts";
 import { today } from "./today.ts";
@@ -74,7 +73,7 @@ export async function runScheduledJobs(): Promise<void> {
     const result = await runDueBaseRate(today());
     if (result?.updated)
       console.log(
-        `Basiszinssatz: ${formatDecimal(result.basisPoints)} % (Bundesbank, Stand ${result.month})${result.changed ? ", geändert" : ", unverändert"}`,
+        `Basiszinssatz: ${formatHundredths(result.basisPoints)} % (Bundesbank, Stand ${result.month})${result.changed ? ", geändert" : ", unverändert"}`,
       );
     else if (result) console.log(`Basiszinssatz: Bundesbank meldet noch Stand ${result.month}, neuer Versuch morgen`);
   } catch (error) {

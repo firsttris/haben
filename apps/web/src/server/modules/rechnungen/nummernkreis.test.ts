@@ -8,7 +8,7 @@ describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zä
   let lastFinalizedByCircle: typeof import("./number-counter.ts").lastFinalizedByCircle;
   let quotes: typeof import("./quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let formats: typeof import("../stammdaten/number-formats.ts");
+  let formats: typeof import("./number-formats.ts");
   const actor = "test-user";
   let contactId: string;
 
@@ -43,7 +43,7 @@ describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zä
     ({ lastFinalizedByCircle } = await import("./number-counter.ts"));
     quotes = await import("./quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    formats = await import("../stammdaten/number-formats.ts");
+    formats = await import("./number-formats.ts");
   }, 30_000);
 
   afterAll(async () => {

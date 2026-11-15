@@ -1,6 +1,6 @@
 {
-  "id": "556baff3-8aa5-4256-84e7-c62dcb6a9f6a",
-  "prevId": "a1d73277-0865-4793-b7e3-867fce22e0c0",
+  "id": "49b21283-73dd-48a8-83fe-7c01f40e6933",
+  "prevId": "0848f345-884d-4875-8c62-39f93dd42b19",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -266,12 +266,6 @@
         "tax_rate": {
           "name": "tax_rate",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -2121,6 +2115,53 @@
       },
       "isRLSEnabled": false
     },
+    "public.bank_private_marks": {
+      "name": "bank_private_marks",
+      "schema": "",
+      "columns": {
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "marked_at": {
+          "name": "marked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "bank_private_marks_transaction_id_bank_transactions_id_fk": {
+          "name": "bank_private_marks_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "bank_private_marks",
+          "tableTo": "bank_transactions",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.bank_transactions": {
       "name": "bank_transactions",
       "schema": "",
@@ -2660,12 +2701,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "reverses_id": {
           "name": "reverses_id",
           "type": "uuid",
@@ -3048,6 +3083,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "founded_on": {
+          "name": "founded_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
         },
         "ohne_vorsteuerabzug": {
           "name": "ohne_vorsteuerabzug",
@@ -4394,12 +4435,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "vorsteuer_anteil": {
-          "name": "vorsteuer_anteil",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "original_net": {
           "name": "original_net",
           "type": "bigint",
@@ -4454,12 +4489,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "document_amounts_vorsteuer_anteil_range": {
-          "name": "document_amounts_vorsteuer_anteil_range",
-          "value": "\"document_amounts\".\"vorsteuer_anteil\" between 0 and 10000"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.document_cancellations": {
@@ -7802,12 +7832,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
-        },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "price_mode": {
           "name": "price_mode",
@@ -12641,12 +12665,6 @@
           "notNull": true,
           "default": "''"
         },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "price_mode": {
           "name": "price_mode",
           "type": "text",
@@ -13261,12 +13279,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
-        },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "price_mode": {
           "name": "price_mode",

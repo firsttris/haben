@@ -13,21 +13,29 @@ import { loadCompany } from "../stammdaten/index.ts";
 import { AnnualError, annualOverview } from "./annual.ts";
 
 /*
- * Abgabe vermerken: Eine Jahreserklärung (Umsatzsteuererklärung oder Anlage EÜR), die außerhalb von Haben abgegeben
- * wurde (WISO, Accountable, ELSTER-Portal), wird mit Tag der Abgabe, Transferticket, Betrag und Übermittlungsprotokoll
- * an der Erklärung festgehalten. Die Frist ist damit erledigt; der Vorgang steht im Verlauf und im Jahresüberblick.
- * Das Gegenstück für die Voranmeldung ist umsatzsteuer/vermerk.ts.
+ * Abgabe vermerken: Eine Jahreserklärung (Umsatzsteuererklärung, Anlage EÜR oder Einkommensteuererklärung), die
+ * außerhalb von Haben abgegeben wurde (WISO, Accountable, ELSTER-Portal), wird mit Tag der Abgabe, Transferticket,
+ * Betrag und Übermittlungsprotokoll an der Erklärung festgehalten. Die Frist ist damit erledigt; der Vorgang steht im
+ * Verlauf und im Jahresüberblick. Das Gegenstück für die Voranmeldung ist umsatzsteuer/vermerk.ts.
  */
 
-/** Nur diese beiden Formulare lassen sich außerhalb von Haben abgeben; Est rechnet der Betreiber selbst */
-export type VermerkForm = "euer" | "ust";
+/**
+ * Alle drei Jahreserklärungen lassen sich außerhalb von Haben abgeben (#1073). Für die Umsatzsteuererklärung und die
+ * Anlage EÜR vergleicht der Vermerk den Betrag gegen den aus den Buchungen gerechneten Wert; der Vermerk der
+ * Einkommensteuer trägt keinen Betrag.
+ */
+export type VermerkForm = "euer" | "est" | "ust";
 
 export interface JahresvermerkInput {
   /** Tag der Abgabe laut Übermittlungsprotokoll, JJJJ-MM-TT */
   filedOn: string;
   transferTicket: string;
-  /** Betrag der Erklärung in Cent: Abschlusszahlung bzw. Erstattung (USt) oder Gewinn (EÜR) */
-  amount: Cents;
+  /**
+   * Betrag der Erklärung in Cent: Abschlusszahlung bzw. Erstattung (USt) oder Gewinn (EÜR). Bei der Einkommensteuer
+   * bleibt er leer: Das Übermittlungsprotokoll nennt keinen Steuerbetrag (#1073), und eine Schätzung gehört nicht in
+   * einen Vermerk, der die Abgabe belegt.
+   */
+  amount?: Cents;
   /** Warum außerhalb von Haben abgegeben wurde */
   note: string;
   /** Abweichung zum gerechneten Wert ausdrücklich bestätigt; ohne sie wird ein abweichender Betrag abgelehnt */
@@ -46,7 +54,8 @@ export const vermerkBetrag = z.number().int().min(-1_000_000_000_00).max(1_000_0
 export const vermerkFelder = {
   filedOn: z.iso.date("Bitte den Tag der Abgabe angeben."),
   transferTicket: z.string().trim().min(10, "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben.").max(64, "Das Transferticket ist zu lang."),
-  amount: vermerkBetrag,
+  /** Bei der Einkommensteuer bleibt der Betrag leer (#1073) */
+  amount: vermerkBetrag.optional(),
   note: z.string().trim().min(10, "Bitte kurz begründen, warum außerhalb von Haben abgegeben wurde.").max(2000, "Die Begründung ist zu lang."),
 };
 
@@ -69,7 +78,7 @@ export function vermerkProblem(data: z.infer<typeof vermerkSchema>, heute: strin
   return null;
 }
 
-const FORM_LABEL: Record<VermerkForm, string> = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR" };
+const FORM_LABEL: Record<VermerkForm, string> = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" };
 
 export interface Jahresvermerk {
   id: string;
@@ -105,7 +114,7 @@ const VERMERK_COLUMNS = {
  * ohne Ausweg brächte nur, dass eine bereits erfolgte Abgabe nicht in Haben steht.
  */
 export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, year: number, input: JahresvermerkInput, heute = today()): Promise<Jahresvermerk> {
-  if (form !== "euer" && form !== "ust") throw new AnnualError("Außerhalb von Haben lässt sich nur die Umsatzsteuererklärung oder die Anlage EÜR vermerken.");
+  if (!(form in FORM_LABEL)) throw new AnnualError("Diese Jahreserklärung lässt sich nicht vermerken.");
   const parsed = vermerkSchema.safeParse(input);
   if (!parsed.success) throw new AnnualError(parsed.error.issues[0]?.message ?? "Angaben unvollständig.");
   const data = parsed.data;
@@ -117,9 +126,17 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
   if (data.filedOn < `${year + 1}-01-01`)
     throw new AnnualError(`Der Tag der Abgabe liegt vor dem Ende des Jahres ${year}; so früh kann die Erklärung nicht abgegeben worden sein.`);
   // Kapitalgesellschaften bilanzieren (§ 6, § 238 HGB); eine EÜR nach § 4 Abs. 3 EStG gibt es für sie nicht
-  if (form === "euer" && isKapitalgesellschaft((await loadCompany()).rechtsform))
-    throw new AnnualError("Eine Kapitalgesellschaft gibt keine Anlage EÜR ab; vermerken lässt sich nur die Umsatzsteuererklärung.");
+  // Einkommensteuer zahlt sie auch nicht, sondern Körperschaftsteuer (§ 1 KStG); wie checkAnnual beim Senden
+  if (form !== "ust" && isKapitalgesellschaft((await loadCompany()).rechtsform))
+    throw new AnnualError(
+      `Eine Kapitalgesellschaft gibt keine ${form === "euer" ? "Anlage EÜR" : "Einkommensteuererklärung"} ab; vermerken lässt sich nur die Umsatzsteuererklärung.`,
+    );
   const transferTicket = data.transferTicket.trim();
+  // Bei Umsatzsteuer und EÜR steht der Betrag in der abgegebenen Erklärung; das Übermittlungsprotokoll der
+  // Einkommensteuer nennt keinen, er entsteht erst mit dem Bescheid (#1073)
+  if (form === "est" && data.amount !== undefined)
+    throw new AnnualError("Das Übermittlungsprotokoll der Einkommensteuererklärung nennt keinen Betrag; der Vermerk bleibt ohne.");
+  if (form !== "est" && data.amount === undefined) throw new AnnualError("Der Betrag laut Übermittlungsprotokoll fehlt.");
 
   return underSendLock(`haben.jahreserklaerung.${form}.${year}`, "send", async () => {
     const [closed] = await db.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
@@ -149,11 +166,14 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
 
     // Eine erfolgte Abgabe lässt sich nicht zurücknehmen: Der Betrag laut Protokoll gilt, aber eine Abweichung muss
     // ausdrücklich bestätigt werden, statt sie stillschweigend zu übernehmen.
-    const { berechnet, abweichung } = await vermerkPruefung(form, year, data.amount);
-    if (abweichung !== 0 && !data.abweichungBestaetigt) throw new AnnualError(abweichungMeldung(data.amount, berechnet, abweichung));
+    // Ohne Betrag (Einkommensteuer) gibt es nichts zu vergleichen
+    const pruefung = data.amount === undefined ? null : await vermerkPruefung(form, year, data.amount);
+    const abweichung = pruefung?.abweichung ?? 0;
+    if (pruefung && abweichung !== 0 && !data.abweichungBestaetigt) throw new AnnualError(abweichungMeldung(data.amount!, pruefung.berechnet, abweichung));
 
-    // Wie bei der Übermittlung: Welche Januarzahlungen die abgegebene EÜR verschiebt, bleibt fest (ZEHN_TAGE_REGEL, #583)
-    const zehnTage = form === "euer" ? { [ZEHN_TAGE_REGEL]: await zehnTageKennzeichen(year) } : {};
+    // Wie bei der Übermittlung: Welche Januarzahlungen die abgegebene EÜR verschiebt, bleibt fest (ZEHN_TAGE_REGEL, #583);
+    // die Einkommensteuererklärung enthält deren Gewinn und hält es ebenso fest (#1073)
+    const zehnTage = form !== "ust" ? { [ZEHN_TAGE_REGEL]: await zehnTageKennzeichen(year) } : {};
 
     return withActor(actor, async (tx) => {
       const [row] = await tx
@@ -168,7 +188,8 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
           transferTicket,
           // Ohne Abweichung bleibt die Zeile wie bisher; mit Bestätigung hält sie den Vergleich dauerhaft fest
           figures: {
-            ...(abweichung === 0 ? { amount: data.amount } : { amount: data.amount, berechnet, abweichung, abweichungBestaetigt: true }),
+            ...(data.amount === undefined ? {} : { amount: data.amount }),
+            ...(pruefung && abweichung !== 0 ? { berechnet: pruefung.berechnet, abweichung, abweichungBestaetigt: true } : {}),
             ...zehnTage,
           },
           filedOn: data.filedOn,
@@ -188,7 +209,7 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
           hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
           createdAt: schema.annualSubmissions.createdAt,
         });
-      return { ...row!, form: row!.form as VermerkForm, amount: data.amount };
+      return { ...row!, form: row!.form as VermerkForm, amount: data.amount ?? null };
     });
   });
 }
@@ -208,9 +229,11 @@ export async function jahresvermerke(year: number): Promise<Jahresvermerk[]> {
  * nicht maßgeblich (außerhalb von Haben kann eine andere Rechnung gelten), eine Abweichung verlangt aber eine
  * ausdrückliche Bestätigung.
  */
-export async function vermerkPruefung(form: VermerkForm, year: number, amount: Cents) {
+export async function vermerkPruefung(form: VermerkForm, year: number, amount: Cents | null) {
   const overview = await annualOverview(year, today());
   const berechnet = form === "ust" ? overview.ust.abschluss : overview.euer.gewinn;
+  // Ohne Betrag gibt es keinen Vergleich: Der Vermerk der Einkommensteuer trägt keinen (#1073)
+  if (amount === null) return { berechnet, abweichung: 0, hinweis: null };
   return { berechnet, abweichung: amount - berechnet, hinweis: abweichungHinweis(amount, berechnet) };
 }
 

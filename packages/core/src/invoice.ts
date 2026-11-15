@@ -1,9 +1,10 @@
 import { z } from "zod/mini";
+import type { Einheit } from "./einheit.ts";
 import { roundHalfAwayFromZero, taxIncluded, taxOf, type BasisPoints, type Cents } from "./money.ts";
 import { discountBasis, discountedLineAmount, netOf, splitDocumentDiscount, type Discount, type DocumentAllowance } from "./rabatt.ts";
 
 /** Mengen als ganze Tausendstel: 152 Std. = 152000, 0,5 Tage = 500. */
-export type Millis = number;
+export type Millis = Einheit<"Millis">;
 
 export const TAX_RATES = [1900, 700, 0] as const;
 
@@ -24,7 +25,8 @@ export type UnitLabel = keyof typeof UNITS;
 export const invoiceLineInputSchema = z.object({
   description: z.string().check(z.trim(), z.minLength(1, "Beschreibung fehlt"), z.maxLength(500)),
   quantity: z.int().check(z.minimum(1), z.maximum(1_000_000_000)),
-  unit: z.enum(Object.keys(UNITS) as [UnitLabel, ...UnitLabel[]]),
+  // Feste (UNITS) oder eigene Einheit (#748); ob es die eigene gibt, prüft der Server
+  unit: z.string().check(z.trim(), z.minLength(1, "Einheit fehlt"), z.maxLength(10, "Einheit höchstens 10 Zeichen")),
   unitPrice: z.int().check(z.minimum(-100_000_000_00), z.maximum(100_000_000_00)),
   taxRate: z.literal(TAX_RATES),
 });
@@ -68,6 +70,8 @@ export const PRICE_MODES = ["netto", "brutto"] as const;
 /** Zahlungsart einer Rechnung (#445): Überweisung durch den Kunden oder Einzug per SEPA-Lastschrift */
 export const PAYMENT_METHODS = ["ueberweisung", "lastschrift"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export const INVOICE_PAYMENT_METHODS = [...PAYMENT_METHODS, "bereits_bezahlt"] as const;
+export type InvoicePaymentMethod = (typeof INVOICE_PAYMENT_METHODS)[number];
 
 export type PriceMode = (typeof PRICE_MODES)[number];
 

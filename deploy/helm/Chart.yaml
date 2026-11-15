@@ -1,0 +1,10 @@
+apiVersion: v2
+name: haben
+description: Haben, selbst gehostete Buchhaltung für Freiberufler und kleine GmbHs (App, PostgreSQL, Backup)
+type: application
+# Version des Charts; die Version von Haben steht in image.tag
+version: 0.1.0
+home: https://haben.app/
+sources:
+  - https://github.com/firsttris/haben
+icon: https://raw.githubusercontent.com/firsttris/haben/main/apps/web/public/favicon.svg

@@ -17,6 +17,7 @@ import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx"
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
+import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { BEZUGSJAHR_FEHLER, SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
@@ -32,6 +33,8 @@ import {
   allocateDirectDebitBatchFn,
   allocateDirectDebitReturnFn,
   allocateTransaction,
+  markBankTransactionPrivate,
+  unmarkBankTransactionPrivate,
   allocateTransactionWithRest,
   allocateProviderFees,
   connectBank,
@@ -59,7 +62,8 @@ import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
 
 const searchSchema = z.object({
-  konto: z.optional(z.uuid()),
+  /** Ein Konto oder „alle“ (#617) */
+  konto: z.optional(z.union([z.uuid(), z.literal("alle")])),
   filter: z.optional(z.enum(["offen", "zugeordnet", "alle", "vorschlag"])),
   suche: z.optional(z.string()),
   umsatz: z.optional(z.uuid()),
@@ -218,7 +222,10 @@ function BankPage() {
   const selectedId = data.detail?.transaction.id;
   const index = data.transactions.findIndex((t) => t.id === selectedId);
   const selectedAccount = data.accounts.find((a) => a.id === data.accountId);
-  const openCount = selectedAccount?.openCount ?? 0;
+  // „Alle Konten“ zeigt die Umsätze aller Konten, etwa für „Alle anzeigen“ der Schnellsuche (#617)
+  const konto = data.allAccounts ? ("alle" as const) : (data.accountId ?? undefined);
+  const openCount = data.allAccounts ? data.accounts.reduce((sum, a) => sum + a.openCount, 0) : (selectedAccount?.openCount ?? 0);
+  const accountName = new Map(data.accounts.map((a) => [a.id, a.name]));
 
   // J/K springen zum nächsten bzw. vorigen Umsatz
   useEffect(() => {
@@ -261,6 +268,12 @@ function BankPage() {
       ) : (
         <>
           <nav className="account-tabs" aria-label="Konten">
+            {data.accounts.length > 1 && (
+              <Link to="/bank" search={{ konto: "alle", filter }} aria-current={data.allAccounts ? "page" : undefined} className="account-tab">
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Alle Konten</span>
+                <span className="small muted">{data.accounts.length} Konten</span>
+              </Link>
+            )}
             {data.accounts.map((account) => {
               const age = account.lastImport ? -daysUntil(account.lastImport.createdAt) : null;
               return (
@@ -302,7 +315,7 @@ function BankPage() {
                     <Link
                       key={f}
                       to="/bank"
-                      search={{ konto: data.accountId ?? undefined, filter: f, suche: search.suche, sort: search.sort, dir: search.dir }}
+                      search={{ konto, filter: f, suche: search.suche, sort: search.sort, dir: search.dir }}
                       className={`chip${filter === f ? " active" : ""}`}
                       aria-current={filter === f ? "page" : undefined}
                     >
@@ -311,7 +324,7 @@ function BankPage() {
                   ))}
                 </div>
                 {/* key: beim Kontowechsel leer neu aufsetzen, sonst trägt die Suche ins neue Konto */}
-                <SearchBox key={data.accountId ?? ""} initial={search.suche ?? ""} />
+                <SearchBox key={konto ?? ""} initial={search.suche ?? ""} />
               </div>
               <BankSortierKopf sort={sortierung} dir={richtung} />
               {data.transactions.length === 0 && (
@@ -334,7 +347,9 @@ function BankPage() {
                     <span className="ellipsis" style={{ fontWeight: 500 }}>
                       {tx.counterpartyName || "–"}
                     </span>
-                    <span className="small muted ellipsis">{tx.purpose}</span>
+                    <span className="small muted ellipsis">
+                      {data.allAccounts ? [accountName.get(tx.bankAccountId), tx.purpose].filter(Boolean).join(" · ") : tx.purpose}
+                    </span>
                   </div>
                   <div className="num" style={{ color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
                     {tx.amount > 0 ? "+" : "−"}
@@ -989,6 +1004,8 @@ function AllocationPanel({
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const allocateFn = useServerFn(allocateTransaction);
+  const markPrivatFn = useServerFn(markBankTransactionPrivate);
+  const unmarkPrivatFn = useServerFn(unmarkBankTransactionPrivate);
   const splitFn = useServerFn(splitTransaction);
   const restFn = useServerFn(allocateTransactionWithRest);
   const feesFn = useServerFn(allocateProviderFees);
@@ -1144,6 +1161,16 @@ function AllocationPanel({
     }
   }
 
+  // Auf einem privaten Konto ohne Buchungsart bleibt nur die Kennzeichnung: „Zuordnen", „Direkt buchen" und „Aufteilen"
+  // wären beim selben Umsatz eine zweite Aussage zum selben Vorgang — sie gelten erst, wenn die Kennzeichnung aufgehoben
+  // ist (#1088)
+  if (detail.privat)
+    return (
+      <aside ref={panel} className="card" aria-label="Umsatz" style={{ gap: 16 }}>
+        <PrivatUmsatz tx={tx} busy={busy} notice={notice} onAufheben={() => void run(() => unmarkPrivatFn({ data: { transactionId: tx.id } }))} />
+      </aside>
+    );
+
   return (
     <aside ref={panel} className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -1189,6 +1216,10 @@ function AllocationPanel({
 
       {detail.storePayout && tx.open === tx.amount && (
         <StorePayoutBox key={tx.id} view={detail.storePayout} amount={tx.amount} transactionId={tx.id} busy={busy} run={(work) => void run(work)} />
+      )}
+
+      {detail.privatKonto && tx.open !== 0 && (
+        <PrivatKennzeichnen busy={busy} onKennzeichnen={() => void run(() => markPrivatFn({ data: { transactionId: tx.id } }))} />
       )}
 
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />

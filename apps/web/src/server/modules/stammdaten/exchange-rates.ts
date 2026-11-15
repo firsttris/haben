@@ -62,7 +62,7 @@ export async function resolveExchangeRate(
 }
 
 /** Gespeicherte Kurse, neueste Monate zuerst */
-export async function listExchangeRates(limit = 200): Promise<ExchangeRate[]> {
+export async function listExchangeRates(limit = 2000): Promise<ExchangeRate[]> {
   return db.select().from(schema.exchangeRates).orderBy(desc(schema.exchangeRates.month), schema.exchangeRates.currency).limit(limit);
 }
 

@@ -5,7 +5,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und fachliche Einstellung (Postgres)", () => {
   let sql: postgres.Sql;
   let company: typeof import("./company.ts");
-  let guard: typeof import("./settings-guard.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let fristen: typeof import("../finanzamt/fristen.ts");
   const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
   const year = Number(today.slice(0, 4));
@@ -16,7 +16,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
   beforeAll(async () => {
     sql = await setupTestDb();
     company = await import("./company.ts");
-    guard = await import("./settings-guard.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     fristen = await import("../finanzamt/fristen.ts");
   }, 30_000);
 
@@ -152,7 +152,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
   it.each(["Nummernformat", "ELSTER-Datenschutzhinweis"])("%s vor Firmendaten bestätigt keine Regelbesteuerung", async (setting) => {
     await company.loadCompany();
     if (setting === "Nummernformat") {
-      const { saveNumberFormats } = await import("./number-formats.ts");
+      const { saveNumberFormats } = await import("../rechnungen/number-formats.ts");
       await saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: "AN-{JJJJ}-{NNNN}" });
     } else {
       const { confirmElsterDatenschutz } = await import("../elster/elster.ts");
@@ -175,7 +175,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
 
   it("nach einer fachfremden Einstellung tatsächlich verwendete Vorgaben bleiben erhalten", async () => {
     const initial = await company.loadCompany();
-    const { saveNumberFormats } = await import("./number-formats.ts");
+    const { saveNumberFormats } = await import("../rechnungen/number-formats.ts");
     await saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: "AN-{JJJJ}-{NNNN}" });
     const previousYear = Number(today.slice(0, 4)) - 1;
     await sql.begin(async (tx) => {
@@ -192,7 +192,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
 
   it("Speichern der unveränderten Nummernformate bestätigt keine Regelbesteuerung", async () => {
     const initial = await company.loadCompany();
-    const { saveNumberFormats } = await import("./number-formats.ts");
+    const { saveNumberFormats } = await import("../rechnungen/number-formats.ts");
     await saveNumberFormats(actor, { invoice: initial.invoiceNumberFormat, quote: initial.quoteNumberFormat });
     await guard.saveCompany(actor, company.companySchema.parse({ ...initial, name: "Synthetische Musterfirma", kleinunternehmer: true }), today);
 
@@ -249,7 +249,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
     expect(second!.previous).toBe(first!.confirmation);
     expect(second!.confirmation).toEqual(expect.any(String));
     expect(second!.confirmation).not.toBe(first!.confirmation);
-    const { saveNumberFormats } = await import("./number-formats.ts");
+    const { saveNumberFormats } = await import("../rechnungen/number-formats.ts");
     await saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: "AN-{JJJJ}-{NNNN}" });
     const [admin] = await sql`select new_value ->> 'firmendaten_gespeichert_at' as confirmation
       from audit_log where table_name = 'company' order by seq desc limit 1`;

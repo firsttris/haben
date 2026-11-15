@@ -45,6 +45,18 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   /** Der in Haben gerechnete Gewinn der EÜR im leeren Testjahr; die Abweichung hängt davon ab */
   const gerechnet = async () => (await annual.annualOverview(2025, TODAY)).euer.gewinn;
 
+  // Der ESt-Vermerk trägt keinen Betrag; dann soll die Seite das sagen und nicht vergleichen (#1073)
+  it("weist darauf hin, dass das Ergebnis erst mit dem Bescheid feststeht, statt zu vergleichen", () => {
+    const hinweis = annual.ohneBetragHinweis({ amount: null });
+    expect(hinweis).toHaveLength(1);
+    expect(hinweis[0]?.text).toContain("ohne Betrag vermerkt");
+  });
+
+  it("schweigt, wenn ein Betrag vermerkt ist oder es keinen Vermerk gibt", () => {
+    expect(annual.ohneBetragHinweis({ amount: -1_032_197 })).toHaveLength(0);
+    expect(annual.ohneBetragHinweis(null)).toHaveLength(0);
+  });
+
   it("vermerkt eine außerhalb abgegebene Erklärung und findet sie wieder", async () => {
     const berechnet = await gerechnet();
     const row = await jahresvermerk.vermerkeJahresabgabe(
@@ -86,6 +98,21 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     });
   });
 
+  it("nimmt bei der Einkommensteuererklärung keinen Betrag an, auch nicht Habens Schätzung (#1073)", async () => {
+    // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag; eine Schätzung gehört nicht in den Vermerk
+    const geschaetzt = (await annual.annualOverview(2025, TODAY)).est.prognose.verbleibend;
+    await expect(
+      jahresvermerk.vermerkeJahresabgabe(
+        actor,
+        "est",
+        2025,
+        eingabe("EST123456789", { amount: geschaetzt, note: "Einkommensteuererklärung außerhalb von Haben mit WISO abgegeben." }),
+        TODAY,
+      ),
+    ).rejects.toThrow(/keinen Betrag/);
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
+  });
+
   it("lehnt einen zweiten Vermerk für dasselbe Formular und Jahr ab", async () => {
     await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY);
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("XYZ987654321"), TODAY)).rejects.toThrow(/schon vermerkt/);
@@ -125,10 +152,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   });
 
   for (const rechtsform of ["gmbh", "ug"] as const)
-    it(`lehnt bei einer Kapitalgesellschaft (${rechtsform}) die Anlage EÜR ab, die Umsatzsteuererklärung nicht`, async () => {
+    it(`lehnt bei einer Kapitalgesellschaft (${rechtsform}) die Anlage EÜR und die Einkommensteuererklärung ab, die Umsatzsteuererklärung nicht`, async () => {
       // Kapitalgesellschaften bilanzieren (§ 6, § 238 HGB); die EÜR nach § 4 Abs. 3 EStG gibt es für sie nicht
       await sql`update company set rechtsform = ${rechtsform} where id = 1`;
       await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
+        /Kapitalgesellschaft/,
+      );
+      // Sie zahlt Körperschaftsteuer, keine Einkommensteuer (§ 1 KStG); wie beim Senden (checkAnnual) kein Vermerk (#1073)
+      await expect(jahresvermerk.vermerkeJahresabgabe(actor, "est", 2025, eingabe("GHI123456789", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
         /Kapitalgesellschaft/,
       );
       expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
@@ -220,5 +251,30 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
 
     const [zeile] = await sql`select figures from annual_submissions`;
     expect(zeile).toMatchObject({ figures: { amount: berechnet } });
+  });
+
+  /*
+   * Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag (#1073). Der Vermerk belegt die Abgabe,
+   * ohne Betrag; das Ergebnis steht in den erklärten Zeilen, nicht in einem zweiten Eintrag.
+   */
+  it("vermerkt die Einkommensteuer ohne Betrag", async () => {
+    const est = await jahresvermerk.vermerkeJahresabgabe(
+      actor,
+      "est",
+      2025,
+      { filedOn: "2026-05-20", transferTicket: "EST123456789", note: "Einkommensteuererklärung im ELSTER-Portal abgegeben." },
+      TODAY,
+    );
+    expect(est.amount).toBeNull();
+
+    const uebersicht = await annual.annualOverview(2025, TODAY);
+    expect(uebersicht.est.submitted).toMatchObject({ transferTicket: "EST123456789", amount: null });
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
+  });
+
+  it("verlangt bei Umsatzsteuer und EÜR weiter einen Betrag", async () => {
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, { ...eingabe("UST123456789"), amount: undefined }, TODAY)).rejects.toThrow(
+      /Betrag laut Übermittlungsprotokoll fehlt/,
+    );
   });
 });

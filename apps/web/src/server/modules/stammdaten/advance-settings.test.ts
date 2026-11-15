@@ -24,7 +24,7 @@ vi.mock("@haben/einvoice", async (importOriginal) => {
 describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsanforderung (Postgres)", () => {
   let sql: postgres.Sql;
   let company: typeof import("./company.ts");
-  let guard: typeof import("./settings-guard.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let contacts: typeof import("./contacts.ts");
   let invoices: typeof import("../rechnungen/index.ts");
   let database: typeof import("../../db/index.ts");
@@ -36,7 +36,7 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
   beforeAll(async () => {
     sql = await setupTestDb();
     company = await import("./company.ts");
-    guard = await import("./settings-guard.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     contacts = await import("./contacts.ts");
     invoices = await import("../rechnungen/index.ts");
     database = await import("../../db/index.ts");

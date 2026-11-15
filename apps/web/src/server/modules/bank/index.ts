@@ -35,9 +35,6 @@ export {
   importStatement,
   storeStatement,
   type ImportResult,
-  invoiceLosses,
-  invoiceWrittenOff,
-  invoicePayments,
   listAccounts,
   learnedDirectSuggestions,
   listTransactions,
@@ -69,6 +66,7 @@ export {
   type UmsatzSortierung,
 } from "./umsatzliste.ts";
 export { excludeAccount, excludeBlocker, includeAccount, listExcludedAccounts } from "./konto-ausschliessen.ts";
+export { hebePrivatAuf, markierePrivat } from "./privat.ts";
 export { decideDocumentIban, documentIbanCheck, ibanDecisionSchema, type IbanDecisionInput } from "./iban-entscheidung.ts";
 export {
   createSepaTransfer,
@@ -104,9 +102,7 @@ export {
 } from "./cash.ts";
 export { createLoan, DarlehenError, listLoans, loanSchema } from "./darlehen.ts";
 export {
-  searchBankTransactions,
-  searchCashEntries,
-  searchLoans,
+  searchBank,
   type BankTransactionHit,
   type CashEntryHit,
   type LoanHit,
@@ -126,7 +122,6 @@ export {
   directDebitCandidates,
   directDebitFile,
   directDebitFileSchema,
-  lastCollections,
   listDirectDebitFiles,
   type DirectDebitCandidate,
   type DirectDebitFileInput,
@@ -150,7 +145,4 @@ export {
   settlementSchema,
   type SettlementInput,
 } from "./verrechnung.ts";
-export { invoiceLastSettledOn } from "./zahldatum.ts";
 export { gemeldeteVoranmeldungen } from "./bank.ts";
-/** Gegenbuchung zu den Zeilen einer Buchung, auch nach einem Wechsel des Kontenrahmens (Aufhebung einer Verrechnung) */
-export { reverseLines, reverseLinesIn } from "./bank.ts";
