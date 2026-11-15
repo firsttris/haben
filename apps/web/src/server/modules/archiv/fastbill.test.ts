@@ -266,7 +266,7 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
       status: "balanced",
       openAmount: 0,
       paidDate: "2024-03-20",
-      items: [{ type: "Bank", date: "2024-03-20", amount: 11_900 }],
+      items: [{ type: "payment", date: "2024-03-20", amount: 11_900, account: "Bank" }],
     });
     expect(byId.get("fastbill/invoice/7003")!.payment).toMatchObject({ status: "balanced", openAmount: 0 });
     expect(byId.get("fastbill/invoice/7004")!.payment).toMatchObject({ status: "partlyPaid", openAmount: 20_000 });
@@ -368,13 +368,13 @@ describe.skipIf(!testDatabaseUrl)("Umzug aus FastBill (Postgres)", () => {
     expect(count!.n).toBe(7);
   });
 
-  it("ordnet die Steuerart nach VAT_CASE ein: 0 regulär, 1 innergemeinschaftliche Lieferung", async () => {
+  it("ordnet die Steuerart nach VAT_CASE ein: 0 regulär, 1 unbekannt (Lieferung oder sonstige Leistung)", async () => {
     const check = await lexoffice.reconciliation();
     const year = check.years.find((y: { year: number }) => y.year === 2024) as { taxTypes: { taxType: string; count: number }[] } | undefined;
     expect(year?.taxTypes).toEqual(
       expect.arrayContaining([
         { taxType: "net", count: 3 },
-        { taxType: "intraCommunitySupply", count: 1 },
+        { taxType: "fastbill:eu", count: 1 },
       ]),
     );
   });

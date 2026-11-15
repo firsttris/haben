@@ -136,7 +136,12 @@ describe("mapFbInvoice", () => {
   it("wertet eine bezahlte Rechnung mit Zahlungstag als ausgeglichen", () => {
     const { voucher, payment } = mapFbInvoice(invoice({ STATE: "paid", PAID_DATE: "2025-04-02 00:00:00" }));
     expect(voucher.status).toBe("paid");
-    expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: "2025-04-02", items: [] });
+    expect(payment).toEqual({
+      status: "balanced",
+      openAmount: 0,
+      paidDate: "2025-04-02",
+      items: [{ type: "payment", date: "2025-04-02", amount: 119_000, account: null }],
+    });
   });
 
   it("teilt gemischte Steuersätze nach VAT_ITEMS auf", () => {
@@ -248,13 +253,23 @@ describe("mapFbInvoice", () => {
         PAYMENTS: [{ PAYMENT_ID: "1", DATE: "02.04.2025", AMOUNT: "1190.00", CURRENCY_CODE: "EUR", NOTE: "", TYPE: "Paypal" }],
       }),
     );
-    expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: "2025-04-02", items: [{ type: "Paypal", date: "2025-04-02", amount: 119_000 }] });
+    expect(payment).toEqual({
+      status: "balanced",
+      openAmount: 0,
+      paidDate: "2025-04-02",
+      items: [{ type: "payment", date: "2025-04-02", amount: 119_000, account: "Paypal" }],
+    });
   });
 
   it("rechnet eine Teilzahlung als teilweise bezahlt", () => {
     const { voucher, payment } = mapFbInvoice(invoice({ PAYMENTS: [{ DATE: "01.04.2025", AMOUNT: "500.00", TYPE: "Bank" }] }));
     expect(voucher.status).toBe("unpaid");
-    expect(payment).toEqual({ status: "partlyPaid", openAmount: 69_000, paidDate: null, items: [{ type: "Bank", date: "2025-04-01", amount: 50_000 }] });
+    expect(payment).toEqual({
+      status: "partlyPaid",
+      openAmount: 69_000,
+      paidDate: null,
+      items: [{ type: "payment", date: "2025-04-01", amount: 50_000, account: "Bank" }],
+    });
   });
 
   it("wertet eine voll bezahlte Rechnung ohne Zahlungstag am Kopf über die Zahlungen als ausgeglichen", () => {
@@ -271,7 +286,12 @@ describe("mapFbInvoice", () => {
 
   it("zeigt die Zahlung an einer später stornierten Rechnung, ohne sie offen zu führen", () => {
     const { payment } = mapFbInvoice(invoice({ STATE: "canceled", IS_CANCELED: "1", PAYMENTS: [{ DATE: "20.07.2025", AMOUNT: 1190, TYPE: "Paypal" }] }));
-    expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: null, items: [{ type: "Paypal", date: "2025-07-20", amount: 119_000 }] });
+    expect(payment).toEqual({
+      status: "balanced",
+      openAmount: 0,
+      paidDate: null,
+      items: [{ type: "storniert", date: "2025-07-20", amount: 119_000, account: "Paypal" }],
+    });
   });
 
   it("führt Zahlungen an Gutschriften negativ und lässt leere Zahlungen weg", () => {
@@ -288,7 +308,7 @@ describe("mapFbInvoice", () => {
         ],
       }),
     );
-    expect(payment).toMatchObject({ status: "balanced", openAmount: 0, items: [{ type: "Bank", date: "2025-05-03", amount: -119_000 }] });
+    expect(payment).toMatchObject({ status: "balanced", openAmount: 0, items: [{ type: "payment", date: "2025-05-03", amount: -119_000, account: "Bank" }] });
   });
 
   it("übernimmt Fremdwährung, Kontakt 0 als kein Kontakt und den Namen der Person", () => {
@@ -330,7 +350,12 @@ describe("mapFbExpense", () => {
       fileIds: ["fastbill/expense/11"],
       remark: "Papier",
     });
-    expect(payment).toEqual({ status: "balanced", openAmount: 0, paidDate: "2025-02-05", items: [] });
+    expect(payment).toEqual({
+      status: "balanced",
+      openAmount: 0,
+      paidDate: "2025-02-05",
+      items: [{ type: "payment", date: "2025-02-05", amount: 5950, account: null }],
+    });
   });
 
   it("hält eine negative Ausgabe als Gutschrift des Lieferanten, offen ohne Zahlungstag", () => {

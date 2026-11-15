@@ -53,6 +53,8 @@ Bei einem Teil der Ausgaben liefert die Download-Adresse aus der API (`DOCUMENT_
 3. Die ZIP-Dateien in Haben hochladen. Haben ordnet jede Datei über die ID ihrer Ausgabe zu und nimmt nur PDFs und Bilder an. Manche Belege speichert FastBill samt der Hülle des Formulars, mit dem sie hochgeladen wurden; dann übernimmt Haben die Datei darin unverändert, ohne die Hülle.
 4. In Schritt 2 „Erneut abrufen“: Haben übernimmt die Ausgaben jetzt mit ihrem Beleg.
 
+Solange Ausgaben warten, zeigt der Abgleich je Jahr den offenen Punkt „Keine Ausgabe wartet auf ihren Beleg“.
+
 Gibt es zu einer Ausgabe in FastBill wirklich keinen Beleg, übernimmt „Rest ohne Beleg übernehmen“ die übrigen wartenden Ausgaben beim nächsten Abruf ohne Datei. Im Abgleich bleibt „Jeder Beleg hat eine Datei“ für dieses Jahr dann offen; an einen archivierten Beleg lässt sich später keine Datei mehr hängen.
 
 Einen Download der Ausgabenbelege aus der Oberfläche von FastBill legst du bei Bedarf in Schritt 4 als „Sonstiges“ ab; Haben ordnet daraus nichts zu.
@@ -77,18 +79,19 @@ Die Steuerart einer Rechnung liest Haben aus `VAT_CASE`. FastBill liefert dort e
 | `VAT_CASE` | Im Abgleich |
 | --- | --- |
 | 0, `standard` | Kz 81, Kz 86 |
-| 1 bei Rechnungen, `b2b_eu_goods` | innergemeinschaftliche Lieferung (Kz 41) |
+| `b2b_eu_goods` | innergemeinschaftliche Lieferung (Kz 41) |
 | `b2b_eu_services` | sonstige Leistung im übrigen Gemeinschaftsgebiet (Kz 21) |
 | `b2b_noneu_goods`, `b2c_noneu_goods` | Ausfuhrlieferung (Kz 43) |
 | `b2b_noneu_services` | sonstige Leistung im Drittland (Kz 45) |
 | `small_business_regulation` | Steuerfrei (Kleinunternehmer) |
 | `b2c_eu_goods` | Andere Sätze: ob der Fernverkauf über OSS lief, steht nicht in der Antwort |
+| 1 | Andere Sätze: innergemeinschaftlich, aber ob Lieferung (Kz 41) oder sonstige Leistung (Kz 21), sagt die Antwort nicht |
 
-Ausgaben zählen als regulär (Vorsteuer Kz 66); eine 1 an einer Ausgabe (innergemeinschaftlicher Erwerb) steht unter „Andere Sätze“.
+Bei Ausgaben zählt im Abgleich nur die Vorsteuer (Kz 66), im Monat des Belegs; `VAT_CASE` spielt dort keine Rolle.
 
 ### Zahlungen
 
-Die Einzelzahlungen einer Rechnung (`PAYMENTS`) übernimmt Haben mit Datum, Betrag und Zahlungsweg. Ist eine Rechnung nur zum Teil bezahlt, steht sie als teilweise bezahlt mit dem Rest offen. Eine bezahlte und danach stornierte Rechnung zeigt ihre Zahlung weiter an, ist aber ausgeglichen.
+Die Einzelzahlungen einer Rechnung (`PAYMENTS`) übernimmt Haben mit Datum, Betrag und Zahlungsweg; bei Ist-Versteuerung zählt der Umsatz im Monat der Zahlung. Nennt FastBill nur ein Zahlungsdatum (`PAID_DATE`) ohne Einzelzahlungen, wie bei Ausgaben, gilt der Beleg an diesem Tag als voll bezahlt. Ist eine Rechnung nur zum Teil bezahlt, steht sie als teilweise bezahlt mit dem Rest offen. Eine bezahlte und danach stornierte Rechnung zeigt ihre Zahlung weiter an, sie zählt aber nicht als Umsatz: Die Erstattung führt FastBill nicht als Zahlung.
 
 ### Grenzen des aktuellen Imports
 
@@ -98,8 +101,8 @@ Angebote, wiederkehrende Rechnungen, Projekte, Zeiten und die Dokumentenablage v
 
 Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzug aus Lexoffice](lexoffice.md#schritt-3-offene-posten-übernehmen). Unterschiede:
 
-- Die API liefert keine Buchungen und keine Bankumsätze. Lege je Geschäftsjahr den DATEV-Export aus FastBill ab, dazu die ELSTER-Protokolle und die Kontoauszüge.
-- Einen Export für die Betriebsprüfung (GoBD, Datenträgerüberlassung) legst du als „IDEA-Export“ ab; danach richtet sich die Prüfung „IDEA-Export archiviert“. Ohne ihn bleibt diese Prüfung offen.
+- Die API liefert keine Buchungen und keine Bankumsätze. Die Exporte stehen in FastBill unter **Import & Export** (Stand November 2026). Lege je Geschäftsjahr „Buchungen im DATEV-Format“ als **DATEV-Buchungsstapel** ab und „DATEV XML-Schnittstelle online“ (ZIP mit Rechnungsdaten und Belegbildern) als **Sonstiges**, dazu die ELSTER-Protokolle und die Kontoauszüge.
+- Einen Export für die Betriebsprüfung (GoBD, IDEA-Format) bietet FastBill dort nicht an; die Prüfung „IDEA-Export archiviert“ bleibt deshalb offen.
 - Eine offene Rechnung ohne Nummer bekommt in Haben die Nummer `FB-` plus die ID aus FastBill.
 - Im Jahresexport stehen die Belege aus FastBill ebenfalls unter `lexoffice/`; die Spalte „Quelle“ in `belege.csv` sagt, woher ein Beleg stammt.
 
@@ -112,7 +115,7 @@ Haben spricht standardmäßig mit `https://my.fastbill.com/api/1.0/api.php`. Mit
 - [ ] Abruf ist fertig, die Liste der fehlgeschlagenen Belege ist leer
 - [ ] Keine Ausgabe wartet mehr auf ihren Beleg aus dem Browser-Skript
 - [ ] Jeder Beleg hat eine Datei (Abgleich je Jahr); Ausgaben ohne Beleg in FastBill geklärt
-- [ ] Für jedes Geschäftsjahr: DATEV-Export, ELSTER-Protokolle und Kontoauszüge abgelegt, jeweils mit Jahr; ein GoBD-Export, falls es ihn gibt
+- [ ] Für jedes Geschäftsjahr: DATEV-Buchungsstapel, DATEV-XML-Export, ELSTER-Protokolle und Kontoauszüge abgelegt, jeweils mit Jahr
 - [ ] Einnahmen, Ausgaben, Umsatz- und Vorsteuer je Jahr mit FastBill verglichen
 - [ ] Umsatzsteuer je Monat mit den übermittelten Voranmeldungen verglichen
 - [ ] Offene Posten übernommen oder die Gründe geklärt

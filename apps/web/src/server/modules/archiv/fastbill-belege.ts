@@ -1,5 +1,5 @@
 import { type FbFile, type LegacyVoucher, unwrapFormUpload } from "@haben/import";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { unzipSync } from "fflate";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -82,6 +82,15 @@ export async function fastbillReceiptsOverview() {
     })
     .from(schema.fastbillReceipts)
     .orderBy(asc(schema.fastbillReceipts.date), asc(schema.fastbillReceipts.expenseId));
+}
+
+/** Je Jahr, wie viele Ausgaben noch nicht im Archiv sind, weil sie auf ihren Beleg warten (auch bereit oder „ohne Beleg“) */
+export async function fastbillWaitingByYear(): Promise<Map<number, number>> {
+  const rows = await db
+    .select({ year: sql<number>`extract(year from ${schema.fastbillReceipts.date})::int`, count: sql<number>`count(*)::int` })
+    .from(schema.fastbillReceipts)
+    .groupBy(sql`1`);
+  return new Map(rows.filter((r) => r.year).map((r) => [r.year, r.count]));
 }
 
 /** Liste für das Browser-Skript: ID und Download-Adresse jeder wartenden Ausgabe */

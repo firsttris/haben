@@ -138,9 +138,14 @@ function paymentItems(payments: FbPayment[] | null | undefined, negative: boolea
     const date = fbDate(p.DATE);
     const amount = Math.abs(cents(p.AMOUNT));
     if (!date || amount === 0) return [];
-    return [{ type: text(p.TYPE), date, amount: negative ? neg(amount) : amount }];
+    // „payment“ wie bei Lexoffice (LEGACY_PAYMENT_TYPES): Nur dann zählt die Zahlung bei Ist als Entgelt und nach dem
+    // Stichtag beim offenen Posten. Der Zahlungsweg aus FastBill („Bank“, „Paypal“) steht als Konto daneben.
+    return [{ type: "payment", date, amount: negative ? neg(amount) : amount, account: text(p.TYPE) || null }];
   });
 }
+
+/** Zahlungen an einem Storno: sichtbar, aber kein Entgelt; die Erstattung führt FastBill nicht als Zahlung */
+const VOIDED_PAYMENT = "storniert";
 
 /**
  * Zahlungsstand. Bezahlt heißt PAID_DATE gesetzt oder STATE paid; sonst ergibt die Summe der Einzelzahlungen, was
@@ -148,9 +153,13 @@ function paymentItems(payments: FbPayment[] | null | undefined, negative: boolea
  * etwa eine bezahlte und danach stornierte Rechnung, damit der Altbestand die Erstattung nicht verschweigt.
  */
 function payments(gross: number, items: ImportedPayments["items"], settled: "paid" | "voided" | null, paidDate: string | null): ImportedPayments {
-  if (settled === "voided") return { status: "balanced", openAmount: 0, paidDate: null, items };
+  if (settled === "voided") return { status: "balanced", openAmount: 0, paidDate: null, items: items.map((i) => ({ ...i, type: VOIDED_PAYMENT })) };
   const lastPayment = items.at(-1)?.date ?? null;
-  if (settled === "paid") return { status: "balanced", openAmount: 0, paidDate: paidDate ?? lastPayment, items };
+  if (settled === "paid") {
+    // PAID_DATE ohne Einzelzahlungen heißt „voll bezahlt an diesem Tag“; ohne die Zahlung zählte der Beleg bei Ist nie
+    const derived = items.length === 0 && paidDate && gross !== 0 ? [{ type: "payment", date: paidDate, amount: gross, account: null }] : items;
+    return { status: "balanced", openAmount: 0, paidDate: paidDate ?? lastPayment, items: derived };
+  }
   const paid = Math.min(
     items.reduce((s, i) => s + Math.abs(i.amount), 0),
     Math.abs(gross),
