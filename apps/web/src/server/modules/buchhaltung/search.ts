@@ -1,5 +1,5 @@
-import { parseDateSearch, parseEuroSearchRange } from "@haben/core";
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { ACCOUNTS, type Kontenrahmen, parseDateSearch, parseEuroSearchRange } from "@haben/core";
+import { type SQL, and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { amountIn, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
 import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
@@ -15,6 +15,16 @@ function normalizeForMatch(value: string): string {
 async function companyKontenrahmen(): Promise<"SKR03" | "SKR04"> {
   const [row] = await db.select({ kontenrahmen: schema.company.kontenrahmen }).from(schema.company).limit(1);
   return row?.kontenrahmen ?? "SKR03";
+}
+
+/** Konten der selbst geschuldeten Umsatzsteuer und der Vorsteuer daraus (§ 13b UStG, § 1a UStG) */
+function selfAssessedTaxAccounts(frame: Kontenrahmen): SQL {
+  const a = ACCOUNTS[frame];
+  const accounts = [a.ustRc, a.vorsteuerRc, ...Object.values(a.ustIge), ...Object.values(a.vorsteuerIge)];
+  return sql`array[${sql.join(
+    accounts.map((account) => sql`${account}`),
+    sql`, `,
+  )}]::text[]`;
 }
 
 export interface BookingHit {
@@ -51,6 +61,12 @@ export async function bookingEntriesQuery(query: string, limit: number) {
     range === null ? null : { min: Math.max(1, Math.min(Math.abs(range.min), Math.abs(range.max))), max: Math.max(Math.abs(range.min), Math.abs(range.max)) };
   const queryDate = parseDateSearch(query);
 
+  // Selbst geschuldete Steuer (§ 13b, innergemeinschaftlicher Erwerb) steht auf beiden Seiten neben dem Zahlbetrag und zählt nicht mit
+  const sideTotal = (side: SQL) =>
+    sql`(select sum(${side}) from journal_lines x where x.entry_id = ${jl}.entry_id and x.account <> all(case
+      (select e.kontenrahmen from journal_entries e where e.id = ${jl}.entry_id) when 'SKR04' then ${selfAssessedTaxAccounts("SKR04")}
+      else ${selfAssessedTaxAccounts("SKR03")} end))`;
+
   // Konten aus dem Kontenrahmen nach Nummer oder Name, eine unbekannte Nummer (etwa ein Personenkonto) genau
   const accounts = /^\d{4,9}$/.test(query.trim()) ? [...new Set([...matchingAccounts, query.trim()])] : matchingAccounts;
   const lineConditions = [
@@ -58,8 +74,8 @@ export async function bookingEntriesQuery(query: string, limit: number) {
     // Nur die Bruttozeile (#1038): ihr Betrag ist die Summe ihrer Seite, Netto- und Steuerzeilen sind kleiner
     ...(lineRange !== null && lineRange.max > 0
       ? [
-          and(amountIn(jl.debit, lineRange), sql`${jl.debit} = (select sum(x.debit) from journal_lines x where x.entry_id = ${jl}.entry_id)`),
-          and(amountIn(jl.credit, lineRange), sql`${jl.credit} = (select sum(x.credit) from journal_lines x where x.entry_id = ${jl}.entry_id)`),
+          and(amountIn(jl.debit, lineRange), sql`${jl.debit} = ${sideTotal(sql`x.debit`)}`),
+          and(amountIn(jl.credit, lineRange), sql`${jl.credit} = ${sideTotal(sql`x.credit`)}`),
         ]
       : []),
   ];
