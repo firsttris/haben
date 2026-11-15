@@ -34,7 +34,7 @@ Ist die REST-API nicht Teil deines Tarifs, gibt es zwei Wege:
 
 #### Was der Export anders enthält als die API
 
-Verglichen an einem Konto mit Buchhaltungsversion 1.0 und SKR03, Jahr 2024: 191 Belege aus dem Export gegen 218 Rechnungen, Belege und Gutschriften aus der API ([#472](https://github.com/firsttris/haben/issues/472)). Version 2.0 ist nicht verglichen.
+Verglichen an einem Konto mit Buchhaltungsversion 1.0 und SKR03, Jahr 2024: 210 Belege aus dem Export gegen 218 Rechnungen, Belege und Gutschriften aus der API ([#472](https://github.com/firsttris/haben/issues/472)). Version 2.0 ist nicht verglichen.
 
 - **Vollständigkeit:**
   - Jeder Beleg aus dem Export hat seine Entsprechung in der API, mit gleichem Datum.
