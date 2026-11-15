@@ -1,4 +1,4 @@
-import { UNIT_LABEL_MAX, UNIT_SUGGESTIONS, unitLabelIssues, UNITS } from "@haben/core";
+import { UNIT_LABEL_MAX, unitLabelIssues, UNITS } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -27,7 +27,6 @@ export function UnitsCard({ units }: { units: UnitRow[] }) {
   const labels = units.map((unit) => unit.label);
   // Dubletten und Zeichen ohne Belegschrift zeigt das Feld schon beim Tippen, Fehlendes erst beim Anlegen
   const issues = label.trim() ? unitLabelIssues(label, labels) : [];
-  const suggestions = UNIT_SUGGESTIONS.filter((s) => unitLabelIssues(s.label, labels).length === 0);
   const { form, error, check } = useSubmitCheck({
     label: label.trim() === "" ? "Gib die Bezeichnung ein." : issues.join(" · ") || null,
     // Codes nach UN/ECE Rec. 20/21 haben zwei oder drei Zeichen; ob es ihn gibt, prüft der Server gegen die Liste
@@ -39,18 +38,15 @@ export function UnitsCard({ units }: { units: UnitRow[] }) {
           : "Der Code hat zwei oder drei Zeichen, etwa MTK.",
   });
 
-  const create = (input: { label: string; code: string }) =>
-    run(async () => {
-      await add({ data: input });
-      setLabel("");
-      setCode("");
-      await router.invalidate();
-    }, `Einheit „${input.label.trim()}“ angelegt.`);
-
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (!check()) return;
-    void create({ label, code });
+    void run(async () => {
+      await add({ data: { label, code } });
+      setLabel("");
+      setCode("");
+      await router.invalidate();
+    }, `Einheit „${label.trim()}“ angelegt.`);
   };
 
   return (
@@ -61,6 +57,23 @@ export function UnitsCard({ units }: { units: UnitRow[] }) {
         die E-Rechnung braucht jede einen Code nach UN/ECE Recommendation 20; passt keiner, nimm C62 (Stück). Eine Einheit lässt sich nicht umbenennen oder
         löschen, nur archivieren.
       </p>
+      <form ref={form} onSubmit={onSubmit} className="form-row cols-2" noValidate>
+        <Field
+          label="Bezeichnung"
+          hint={`Wie auf dem Beleg, höchstens ${UNIT_LABEL_MAX} Zeichen, etwa UE oder m²`}
+          error={issues.join(" · ") || error("label")}
+        >
+          {(control) => <input {...control} value={label} maxLength={UNIT_LABEL_MAX} onChange={(e) => setLabel(e.target.value)} />}
+        </Field>
+        <Field label="Code (UN/ECE Rec. 20)" hint="Zwei oder drei Zeichen, etwa MTK für Quadratmeter; ohne passenden Code C62" error={error("code")}>
+          {(control) => <input {...control} className="mono" value={code} maxLength={3} onChange={(e) => setCode(e.target.value.toUpperCase())} />}
+        </Field>
+        <div className="actions" style={{ gridColumn: "1 / -1" }}>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            Einheit anlegen
+          </button>
+        </div>
+      </form>
       {units.length > 0 && (
         <ScrollTable className="report-table">
           <thead>
@@ -102,42 +115,6 @@ export function UnitsCard({ units }: { units: UnitRow[] }) {
             ))}
           </tbody>
         </ScrollTable>
-      )}
-      <form ref={form} onSubmit={onSubmit} className="form-row cols-2" noValidate>
-        <Field
-          label="Bezeichnung"
-          hint={`Wie auf dem Beleg, höchstens ${UNIT_LABEL_MAX} Zeichen, etwa UE oder m²`}
-          error={issues.join(" · ") || error("label")}
-        >
-          {(control) => <input {...control} value={label} maxLength={UNIT_LABEL_MAX} onChange={(e) => setLabel(e.target.value)} />}
-        </Field>
-        <Field label="Code (UN/ECE Rec. 20)" hint="Zwei oder drei Zeichen, etwa MTK für Quadratmeter; ohne passenden Code C62" error={error("code")}>
-          {(control) => <input {...control} className="mono" value={code} maxLength={3} onChange={(e) => setCode(e.target.value.toUpperCase())} />}
-        </Field>
-        <div className="actions" style={{ gridColumn: "1 / -1" }}>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            Einheit anlegen
-          </button>
-        </div>
-      </form>
-      {suggestions.length > 0 && (
-        <div>
-          <h3 className="small">Häufig im Handwerk</h3>
-          <div className="actions">
-            {suggestions.map((s) => (
-              <button
-                key={s.label}
-                type="button"
-                className="btn"
-                disabled={busy}
-                aria-label={`${s.name} (${s.label}, Code ${s.code}) anlegen`}
-                onClick={() => void create({ label: s.label, code: s.code })}
-              >
-                + {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
       )}
       <NoticeBanner notice={notice} />
     </section>

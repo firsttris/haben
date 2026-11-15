@@ -23,19 +23,5 @@ export function unitLabelIssues(label: string, existing: readonly string[]): str
   return issues;
 }
 
-/**
- * Vorschläge zum Anlegen mit einem Klick, mit dem Code aus UN/ECE Recommendation 20: Meter MTR, Quadratmeter MTK,
- * Kubikmeter MTQ, laufender Meter LM (linear metre), Kilogramm KGM, Tonne TNE, Liter LTR, Stück als Rückfall C62 (one).
- */
-export const UNIT_SUGGESTIONS: readonly { label: string; code: string; name: string }[] = [
-  { label: "m", code: "MTR", name: "Meter" },
-  { label: "m²", code: "MTK", name: "Quadratmeter" },
-  { label: "m³", code: "MTQ", name: "Kubikmeter" },
-  { label: "lfm", code: "LM", name: "laufender Meter" },
-  { label: "kg", code: "KGM", name: "Kilogramm" },
-  { label: "t", code: "TNE", name: "Tonne" },
-  { label: "l", code: "LTR", name: "Liter" },
-];
-
 /** Rückfall, wenn keine Einheit aus der Liste passt, etwa für eine Unterrichtseinheit */
 export const FALLBACK_UNIT_CODE = "C62";

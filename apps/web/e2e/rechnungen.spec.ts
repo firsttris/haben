@@ -453,10 +453,17 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
 test("Eigene Einheiten: in den Einstellungen anlegen, im Artikel und in der Rechnung wählen, Code im XML (#748)", async () => {
   await go("/einstellungen?bereich=rechnungen");
   const karte = page.getByRole("region", { name: "Einheiten" });
-  // Vorschlag mit einem Klick: Bezeichnung und Code nach UN/ECE Rec. 20
-  await karte.getByRole("button", { name: "Quadratmeter (m², Code MTK) anlegen" }).click();
+  // Bezeichnung und Code nach UN/ECE Rec. 20 eintippen; danach steht die Einheit mit ihrem Code in der Tabelle
+  await karte.getByLabel("Bezeichnung").fill("m²");
+  await karte.getByLabel("Code (UN/ECE Rec. 20)").fill("MTK");
+  await karte.getByRole("button", { name: "Einheit anlegen" }).click();
   await expect(karte.getByRole("status").filter({ hasText: "Einheit „m²“ angelegt." })).toBeVisible();
-  await expect(karte.getByRole("button", { name: "Quadratmeter (m², Code MTK) anlegen" })).toHaveCount(0);
+  await expect(karte.getByRole("row", { name: /m²\s+MTK/ })).toBeVisible();
+  await expect(karte.getByLabel("Bezeichnung")).toHaveValue("");
+  // Groß- und Kleinschreibung zählen nicht: neben m² kein M²
+  await karte.getByLabel("Bezeichnung").fill("M²");
+  await expect(karte.getByText("Die Einheit „M²“ gibt es schon")).toBeVisible();
+  await karte.getByLabel("Bezeichnung").fill("");
   // Ohne Code nennt das Feld, was fehlt, statt den Knopf zu sperren (DESIGN.md, Gesperrte Knöpfe)
   await karte.getByLabel("Bezeichnung").fill("UE");
   await karte.getByRole("button", { name: "Einheit anlegen" }).click();

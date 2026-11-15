@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { invoiceLineInputSchema, UNITS } from "./invoice.ts";
-import { UNIT_LABEL_MAX, UNIT_SUGGESTIONS, unitLabelIssues } from "./units.ts";
+import { invoiceLineInputSchema } from "./invoice.ts";
+import { UNIT_LABEL_MAX, unitLabelIssues } from "./units.ts";
 
 /*
  * Eigene Mengeneinheiten (#748): Bezeichnung, wie sie auf dem Beleg steht, und Code nach UN/ECE Recommendation 20/21 für die
@@ -17,21 +17,6 @@ describe("Eigene Einheiten", () => {
     expect(unitLabelIssues("std.", [])).toEqual([expect.stringContaining("gibt es schon")]);
     expect(unitLabelIssues("UE", ["ue"])).toEqual([expect.stringContaining("gibt es schon")]);
     expect(unitLabelIssues("☎", [])).toEqual([expect.stringContaining("☎")]);
-  });
-
-  it("schlägt häufige Einheiten aus dem Handwerk mit ihren Codes vor, keine davon fest eingebaut", () => {
-    expect(UNIT_SUGGESTIONS.map((s) => [s.label, s.code])).toEqual(
-      expect.arrayContaining([
-        ["m", "MTR"],
-        ["m²", "MTK"],
-        ["m³", "MTQ"],
-        ["lfm", "LM"],
-        ["kg", "KGM"],
-        ["t", "TNE"],
-        ["l", "LTR"],
-      ]),
-    );
-    for (const s of UNIT_SUGGESTIONS) expect(Object.keys(UNITS)).not.toContain(s.label);
   });
 
   it("eine Position nimmt jede Bezeichnung bis zur Höchstlänge; ob es sie gibt, prüft der Server", () => {
