@@ -2880,6 +2880,44 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
   await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
 });
 
+test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098)", async () => {
+  const jahr = YEAR - 1;
+  await go(`/jahreserklaerung/${jahr}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+
+  // Vermerkt ist die Maske zu. Ohne Vermerk gäbe es nichts zu sperren, deshalb hier anlegen, falls nötig.
+  const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Einkommensteuererklärung ${jahr}` });
+  const vermerken = karte.getByRole("button", { name: "Abgabe vermerken" });
+  if (await vermerken.isVisible().catch(() => false)) {
+    await vermerken.click();
+    const dialog = page.getByRole("dialog", { name: `Einkommensteuererklärung ${jahr} als abgegeben vermerken` });
+    await dialog.getByLabel("Tag der Abgabe").fill(`${jahr + 1}-01-05`);
+    await dialog.getByLabel("Transferticket").fill("et9f3k2m7q1xb");
+    await dialog.getByLabel("Begründung").fill("Einkommensteuererklärung außerhalb von Haben mit WISO abgegeben.");
+    const betrag = dialog.getByLabel("Betrag");
+    if (await betrag.count()) await betrag.fill("1.000,00");
+    const haken = dialog.getByLabel("Abweichung geprüft und bewusst übernommen");
+    if (await haken.count()) await haken.check();
+    await dialog.getByRole("button", { name: "Vermerken" }).click();
+  }
+
+  const feld = form.locator("input").first();
+  const bearbeiten = form.getByRole("button", { name: "Angaben bearbeiten" });
+  await expect(bearbeiten).toBeVisible();
+  await expect(feld).toBeDisabled();
+
+  // Aufgeschlossen wird nur gelesen, bis jemand speichert
+  await bearbeiten.click();
+  await expect(form.getByRole("button", { name: "Angaben speichern" })).toBeVisible();
+  await expect(feld).toBeEnabled();
+
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  // Nach dem Speichern wieder zu: kein Dauerbearbeiten, der Knopf heißt wieder „Angaben bearbeiten"
+  await expect(bearbeiten).toBeVisible();
+  await expect(feld).toBeDisabled();
+});
+
 test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997)", async () => {
   await go(`/jahreserklaerung/${YEAR - 1}`);
 

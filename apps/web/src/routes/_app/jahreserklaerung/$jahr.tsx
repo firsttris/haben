@@ -566,10 +566,13 @@ function EstSection({ data }: { data: Data }) {
       setNotice({ tone: "danger", text: `Kein gültiger Betrag: ${bad.join(", ")}.` });
       return;
     }
-    await run(async () => {
+    // Nach dem Speichern wieder sperren: die Maske ist ohne „Angaben bearbeiten" nur zum Lesen da, und ein
+    // zweiter Klick auf „Angaben speichern" darf die Eingabe nicht offen lassen (#1098)
+    const gespeichert = await run(async () => {
       await save({ data: { year: data.year, angaben } });
       await router.invalidate();
     }, "Angaben gespeichert.");
+    if (gespeichert) setBearbeiten(false);
   }
 
   const updateKind = (key: number, patch: Partial<KindDraft>) => setKinder((list) => list.map((k) => (k.key === key ? { ...k, ...patch } : k)));
@@ -816,7 +819,14 @@ function EstSection({ data }: { data: Data }) {
           <div className="actions" style={{ alignItems: "center" }}>
             {gesperrt ? (
               <>
-                <button type="button" className="btn" onClick={() => setBearbeiten(true)}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setNotice(null);
+                    setBearbeiten(true);
+                  }}
+                >
                   Angaben bearbeiten
                 </button>
                 <span className="small muted">Außerhalb von Haben abgegeben; Haben rechnet {formatEuro(est.prognose.gesamt)}.</span>
