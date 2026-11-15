@@ -716,8 +716,8 @@ export async function annualOverview(year: number, today: string) {
       submitted: euerVermerk,
       erklaert: euerZeilen,
     },
-    // Für die Einkommensteuererklärung gibt es keinen Vermerk: Was außerhalb von Haben abgegeben wurde, weiß
-    // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
+    // Was außerhalb von Haben an Einkommensteuer abgegeben wurde, weiß Haben ohne Vermerk nicht. Die Seite zeigt sie
+    // deshalb nicht als offene Pflicht (#869).
     est: {
       ...est,
       issues: [
