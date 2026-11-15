@@ -141,6 +141,7 @@ export const company = pgTable(
     paymentPlanTemplates: jsonb("payment_plan_templates").$type<PlanTemplate[]>().notNull().default(DEFAULT_PLAN_TEMPLATES),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
+    foundedOn: date("founded_on", { mode: "string" }),
     /** Nur steuerfreie Umsätze, die den Vorsteuerabzug ausschließen (§ 15 Abs. 2 Satz 1 Nr. 1 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
     ohneVorsteuerabzug: boolean("ohne_vorsteuerabzug").notNull().default(false),
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */

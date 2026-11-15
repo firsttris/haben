@@ -1,4 +1,3 @@
-import { UserError } from "../../errors.ts";
 import {
   computeInvoice,
   CURRENCY_CODE,
@@ -60,7 +59,10 @@ import { advanceProcedure } from "./advance-procedure.ts";
 import { advanceInvoicePosting } from "./advance-invoice.ts";
 import { paperCancellationIds } from "./advance-payment-group.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
+import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
 import { today } from "../../today.ts";
+import { InvoiceError } from "./invoice-error.ts";
+import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
 import {
   circleFor,
   countsRunning,
@@ -75,8 +77,6 @@ import {
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
-
-export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
 
@@ -1097,12 +1097,12 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
  * Festschreiben: Nummer ziehen, PDF und XML erzeugen, sperren und buchen – alles in einer
  * Transaktion. Schlägt etwas fehl, bleibt der Entwurf ohne Nummer und es entsteht keine Lücke.
  */
-export async function finalizeInvoice(actor: string, id: string): Promise<Invoice> {
-  return withActor(actor, (tx) => finalizeDraft(tx, id));
+export async function finalizeInvoice(actor: string, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
+  return withActor(actor, (tx) => finalizeDraft(tx, id, bestaetigt));
 }
 
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
-async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
+async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
   // Angebote zuerst (lockQuotes): Die Prüfungen gegen andere Rechnungen desselben Angebots laufen erst unter der Sperre
   const [peek] = await tx.select({ correctsId: schema.invoices.correctsId }).from(schema.invoices).where(eq(schema.invoices.id, id));
   const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id, peek?.correctsId]));
@@ -1162,6 +1162,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   const seller = sellerFrom(company);
   const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
+  await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, bestaetigt);
   const doc = documentFor(
     invoice,
     lines,
