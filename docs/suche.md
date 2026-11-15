@@ -19,7 +19,7 @@ Mit `Pfeil hoch` und `runter` wählst du einen Treffer, `Enter` öffnet ihn, `Es
 
 ## Was sie findet
 
-Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Gruppe stehen bis zu fünf Treffer, eine genau passende Nummer zuerst; **Alle anzeigen** öffnet die Liste mit demselben Suchbegriff. Umlaute findet die Suche auch ohne Akzent oder Punkte („Muller“ findet „Müller“).
+Seiten erscheinen sofort, Daten ab zwei Zeichen. Je Bereich stehen bis zu fünf Treffer, eine genau passende Nummer zuerst; Gruppen aus mehreren Bereichen, etwa „Kasse und Pauschalen“, zeigen entsprechend mehr. Bei Kontakten, Rechnungen, Angeboten und Belegen öffnet **Alle anzeigen** die Liste mit demselben Suchbegriff. Umlaute findet die Suche auch ohne Akzent oder Punkte („Muller“ findet „Müller“).
 
 | Gruppe | Gesucht wird in | Der Treffer zeigt |
 | --- | --- | --- |
