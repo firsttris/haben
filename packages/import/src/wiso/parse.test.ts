@@ -59,7 +59,9 @@ describe("previewWisoExport", () => {
     expect(preview.warnings.some((w) => w.includes("Buchungsdatum in 5 Zeilen"))).toBe(true);
   });
 
-  it("behandelt § 13b und innergemeinschaftlichen Erwerb als Nettobeträge", () => {
+  // Bei § 13b UStG und EU-Erwerb weist der Lieferant keine Steuer aus (§ 14a Abs. 5 UStG); die selbst geschuldete Steuer
+  // steht in der Voranmeldung in Kz 67 bzw. Kz 61, nicht als Vorsteuer des Belegs in Kz 66
+  it("behandelt § 13b und innergemeinschaftlichen Erwerb als Nettobeträge ohne ausgewiesene Steuer", () => {
     const bytes = csvBytes([
       "8;1;10.01.2026;10.01.2026;Software-Lizenz;4806;Wartungskosten;1361;Geldtransit;80,00;0,00;13b 19% And;19,00;USt § 13b;2601-05;03.02.2026;;0",
       "10;1;22.09.2026;22.09.2026;Verbrauchsmaterial EU;4930;Bürobedarf;1200;Bank;55,80;0,00;EU VSt 19 %;19,00;EU USt 19 %;2609-01;06.10.2026;;0",
@@ -69,14 +71,15 @@ describe("previewWisoExport", () => {
     const reverse = preview.vouchers[0]!;
     expect(reverse.voucher.direction).toBe("ausgabe");
     expect(reverse.voucher.net).toBe(8000);
-    expect(reverse.voucher.tax).toBe(1520);
-    expect(reverse.voucher.gross).toBe(9520);
+    expect(reverse.voucher.tax).toBe(0);
+    expect(reverse.voucher.gross).toBe(8000);
+    expect(reverse.voucher.taxes).toEqual([{ rate: 1900, net: 8000, tax: 0 }]);
 
     const eu = preview.vouchers[1]!;
     expect(eu.voucher.direction).toBe("ausgabe");
     expect(eu.voucher.net).toBe(5580);
-    expect(eu.voucher.tax).toBe(1060);
-    expect(eu.voucher.gross).toBe(6640);
+    expect(eu.voucher.tax).toBe(0);
+    expect(eu.voucher.gross).toBe(5580);
   });
 
   it("funktioniert im SKR04 für Erlös- und Aufwandskonten", () => {
@@ -112,16 +115,15 @@ describe("previewWisoExport", () => {
     expect(preview.vouchers[1]!.voucher.categories[0]!.categoryId).toBe("4600");
   });
 
-  it("rundet Steuer bei §-13b-Storno symmetrisch zur Null (Beleg + Storno = 0)", () => {
+  it("hebt Beleg und Storno bei § 13b auf (Beleg + Storno = 0, keine ausgewiesene Steuer)", () => {
     const bytes = csvBytes([
       "1;1;10.01.2026;10.01.2026;Lizenz;4806;Wartung;1200;Bank;0,50;0,00;13b 19% And;19,00;USt § 13b;B1;10.01.2026;;0",
       "2;1;11.01.2026;11.01.2026;Storno Lizenz;4806;Wartung;1200;Bank;-0,50;0,00;13b 19% And;19,00;USt § 13b;B2;11.01.2026;;0",
     ]);
     const preview = previewWisoExport(bytes, "SKR03");
-    const sumTax = preview.vouchers[0]!.voucher.tax + preview.vouchers[1]!.voucher.tax;
-    expect(preview.vouchers[0]!.voucher.tax).toBe(10);
-    expect(preview.vouchers[1]!.voucher.tax).toBe(-10);
-    expect(sumTax).toBe(0);
+    const [beleg, storno] = preview.vouchers.map((v) => v.voucher);
+    expect({ gross: beleg!.gross, tax: beleg!.tax }).toEqual({ gross: 50, tax: 0 });
+    expect({ gross: storno!.gross, tax: storno!.tax }).toEqual({ gross: -50, tax: 0 });
   });
 
   it("addiert bei einer Splittbuchung mit Erlös und Ausgabe nicht die Ausgabe auf die Einnahme", () => {

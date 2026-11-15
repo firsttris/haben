@@ -104,4 +104,20 @@ describe.skipIf(!testDatabaseUrl)("WISO-Import (Postgres)", () => {
     const [row] = await sql`select payment from lexoffice_vouchers where lexoffice_id = 'wiso/2026/8'`;
     expect(row!.payment.items).toEqual([{ type: "payment", date: "2026-01-10", amount: paid }]);
   });
+
+  // Die selbst geschuldete Steuer gehört in Kz 67 (§ 13b) bzw. Kz 61 (EU-Erwerb), nicht als Vorsteuer des Belegs in Kz 66:
+  // Der Beleg trägt wie die Rechnung des Lieferanten keine Steuer (§ 14a Abs. 5 UStG)
+  it.each([
+    ["13b 19% And", "80,00", 8000],
+    ["EU VSt 19 %", "55,80", 5580],
+  ] as const)("%s: der Beleg zählt im Abgleich nicht als Vorsteuer in Kz 66", async (key, amount, net) => {
+    const bytes = wisoBytes([`8;1;10.01.2026;10.01.2026;Fremdleistung;4806;Wartung;1200;Bank;${amount};0,00;${key};19,00;Steuer;TEST-8;03.02.2026;;0`]);
+    await wiso.startWisoImport("test-user", bytes, "synthetisch.csv");
+    const [row] = await sql`select net, tax, gross from lexoffice_vouchers where lexoffice_id = 'wiso/2026/8'`;
+    expect(row).toEqual({ net, tax: 0, gross: net });
+
+    const { reconciliation } = await import("./lexoffice.ts");
+    const januar = (await reconciliation()).years.find((y) => y.year === 2026)!.vat.find((m) => m.month === "2026-01")!;
+    expect(januar.kz66).toBe(0);
+  });
 });
