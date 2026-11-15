@@ -298,6 +298,10 @@ export const sevRelatedObjectsResponseSchema = z.looseObject({
 
 /** getPdf und Document/download: Datei als Base64 in JSON, teils in objects verpackt */
 /** Angaben zu einer Datei (GET /Document/{id}), ohne Inhalt; create ist der Zeitpunkt des Hochladens */
+/** Übermittelte Umsatzsteuer-Voranmeldung (GET /VatReport); die Felder liest voranmeldung.ts lose, die Antwort wird unverändert archiviert. */
+export const sevVatReportSchema = z.looseObject({ id, objectName: str });
+export type SevVatReport = z.infer<typeof sevVatReportSchema>;
+
 export const sevDocumentSchema = z.looseObject({ id, objectName: str, create: str, update: str, filename: str, mimeType: str, filesize: numeric });
 export type SevDocument = z.infer<typeof sevDocumentSchema>;
 

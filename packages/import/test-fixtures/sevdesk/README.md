@@ -19,7 +19,9 @@ In beiden Ordnern:
 Nur `buchhaltung-1.0/`:
 
 - `check-account-transaction-log*.json`, `invoice-teilzahlung*.json`: Teilzahlungen und aufgehobene Zuordnungen.
-- `asset.json`, `vat-report.json`: Antworten von `GET /Asset` und `GET /VatReport`, je drei Einträge. Reine Referenz, noch liest sie kein Code.
+- `asset.json`, `vat-report.json`: Antworten von `GET /Asset` und `GET /VatReport`, je drei Einträge; Jahr und Daten maskiert.
+- `vat-report-zeitraeume.json`: fünf übermittelte Voranmeldungen aus `GET /VatReport` mit echtem Jahr und Zeitraum: Quartal und Monat, Soll (`actualTaxation` 0) und Ist, Kennzahlen der Formulare bis 2025 und ab 2026 (dazu 46, 47, 67, einmal 61 und 89). In `reportingValues` sind Bemessungsgrundlagen Zahlen (ganze Euro), Steuerbeträge Text mit zwei Nachkommastellen; die Werte sind durch 0 und 100 ersetzt, Übermittlungsdaten erfunden (der 10. nach dem Zeitraum).
+- `vat-report-document.json`: Angaben zum Protokoll unter `document` (`GET /Document/{id}`): PDF (`extension` pdf), `mimeType` leer, Dateiname in sevDesk zufällig und ohne Endung.
 - `rechnungsvorlage-wkr.json`: drei wiederkehrende Rechnungen; `GET /Invoice` liefert sie nur mit dem Filter `invoiceType=WKR`. Eine hat `status` 50 und `accountIntervall` `P0Y0M1W` (7 Tage) und ist in sevDesk auf nachfällig gestellt.
 - `rechnungen-aus-vorlage.json`: drei aus diesen Vorlagen erzeugte Rechnungen (`origin.id` zeigt auf die Vorlage), nur Status, die drei Datumsfelder und Texte, ohne Beträge.
 - `platzhalter-auftrag.json`: Angebot mit Platzhalter in `footText`.

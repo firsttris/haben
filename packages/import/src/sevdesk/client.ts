@@ -19,6 +19,7 @@ import {
   sevOrderSchema,
   sevRelatedObjectsResponseSchema,
   sevVoucherPosSchema,
+  sevVatReportSchema,
   sevVoucherSchema,
   type SevAccountingType,
   type SevCheckAccount,
@@ -32,6 +33,7 @@ import {
   type SevFile,
   type SevInvoice,
   type SevOrder,
+  type SevVatReport,
   type SevVoucher,
   type SevVoucherPos,
 } from "./types.ts";
@@ -137,6 +139,11 @@ export class SevdeskClient {
   /** Mahnungen; die Liste ohne Filter enthält sie nicht (test-fixtures/sevdesk, Buchhaltungsversion 1.0). */
   dunnings(): AsyncGenerator<SevInvoice> {
     return this.#pages("/Invoice", { invoiceType: "MA" }, sevInvoiceSchema);
+  }
+
+  /** Übermittelte Umsatzsteuer-Voranmeldungen samt Testfällen (testCase 1); Protokoll-PDF unter document (Version 1.0 belegt). */
+  vatReports(): AsyncGenerator<SevVatReport> {
+    return this.#pages("/VatReport", {}, sevVatReportSchema);
   }
 
   /** Vorlagen wiederkehrender Rechnungen; ohne den Filter invoiceType=WKR fehlen sie in GET /Invoice (Version 1.0 belegt). */

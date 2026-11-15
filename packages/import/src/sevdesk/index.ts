@@ -11,6 +11,7 @@ export type {
   SevFile,
   SevInvoice,
   SevOrder,
+  SevVatReport,
   SevVoucher,
   SevVoucherPos,
 } from "./types.ts";
@@ -33,6 +34,7 @@ export {
 export { mapSevRecurringVoucher, type SevDauerbeleg, type SevDauerbelegErgebnis } from "./dauerbeleg.ts";
 export { SEV_HEAD_RATES, SEV_TEMPORARY_HEAD_RATES } from "./steuersaetze.ts";
 export { isSevDunning, mapSevDunning, type SevMappedDunning } from "./mahnung.ts";
+export { isSevVatReportArchivable, mapSevVatReport, type SevMappedVatReport } from "./voranmeldung.ts";
 export * from "./export/index.ts";
 export {
   mapSevRecurringInvoice,
