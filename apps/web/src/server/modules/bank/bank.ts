@@ -2,6 +2,7 @@ import { insertAllocation, insertWriteOff } from "./settlement-store.ts";
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
+  parseEuroSearchRange,
   zeilenImKontenrahmen,
   ACCOUNTS,
   paymentProviderAccount,
@@ -65,6 +66,7 @@ import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import {
   invoicePaymentPostingMode,
   invoiceTotalsById,
+  mixeNachVerrechnungen,
   invoicePostingMode,
   lockInvoice,
   invoicePaymentGroup,
@@ -83,8 +85,10 @@ import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
+import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
 import { belegTotals, vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
+import { amountInEitherSign } from "../../../lib/search.ts";
 
 export class BankError extends UserError {}
 
@@ -379,11 +383,14 @@ export async function listTransactions(
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
   if (search.trim()) {
     const term = `%${search.trim()}%`;
+    // Betrag auch wie in der Schnellsuche („1.190,00“, „1190 €“), deren „Alle anzeigen“ hierher führt (#617)
+    const range = parseEuroSearchRange(search);
     conditions.push(
       or(
         ilike(schema.bankTransactions.counterpartyName, term),
         ilike(schema.bankTransactions.purpose, term),
         sql`(${schema.bankTransactions.amount}::numeric / 100)::text like ${`%${search.trim().replace(",", ".")}%`}`,
+        ...(range !== null ? [amountInEitherSign(schema.bankTransactions.amount, range)] : []),
       )!,
     );
   }
@@ -413,14 +420,18 @@ export async function listTransactions(
 /**
  * Erledigter Betrag je Rechnung bzw. Beleg: Zuordnungen und Ausbuchungen (Skonto, Forderungsausfall), Vorzeichen
  * wie auf dem Konto. Ausbuchungen bewegen kein Geld, zählen für „offen“ aber wie eine Zahlung. Bei Rechnungen auch die
- * Bareinnahmen im Kassenbuch (samt Gegenzeilen); bar bezahlte Belege sind schon beim Buchen bezahlt und zählen hier nicht.
+ * Bareinnahmen im Kassenbuch (samt Gegenzeilen) und die Verrechnung mit einer Kundenkorrektur (#877); bar bezahlte Belege
+ * sind schon beim Buchen bezahlt und zählen hier nicht.
  */
 async function paidByTarget(column: "invoice_id" | "document_id", ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
   if (ids.length === 0) return new Map();
   const col = sql.raw(column);
   const cash = column === "invoice_id" ? sql`union all select invoice_id as id, amount from cash_entries where invoice_id in ${ids}` : sql``;
-  // Verrechnungen gibt es nur zwischen Belegen, Rechnungen kennen keine Gegenrechnung
-  const verrechnet = column === "document_id" ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}` : sql``;
+  // Verrechnungen: zwischen Belegen (#274) und zwischen Ausgangsrechnung und Kundenkorrektur (#877)
+  const verrechnet =
+    column === "document_id"
+      ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}`
+      : sql`union all select invoice_id as id, amount from invoice_settlements where invoice_id in ${ids}`;
   const rows = await q.execute<{ id: string; paid: string }>(
     sql`select id, sum(amount) as paid from (
           select ${col} as id, amount from allocations where ${col} in ${ids}
@@ -452,9 +463,20 @@ export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: Invoic
         union all select invoice_id, amount, tax_shares, tax_shares_invoice_id from cash_entries where invoice_id in ${ids}`,
   );
   const settled = [...rows].reduce((sum, r) => sum + Number(r.amount), 0);
+  // Verrechnungen mindern das Entgelt um den Anteil der Gegenrechnung. Die Zahlungen verteilen sich danach über den Rest,
+  // nicht über den vollen Mix: Bei zwei Steuersätzen trüge sonst der zurückgenommene Satz die Steuer mit (#877, Befund 2).
+  const verrechnet = [
+    ...(await tx.execute<{ counter_invoice_id: string; amount: number }>(
+      // In der Reihenfolge, in der sie entstanden sind: Die Gegenzeile einer Aufhebung gibt das Entgelt wieder zurück
+      sql`select counter_invoice_id, amount from invoice_settlements where invoice_id in ${ids} order by created_at, id`,
+    )),
+  ].map((r) => ({ counterInvoiceId: r.counter_invoice_id, amount: Number(r.amount) }));
+  const gegen = verrechnet.length > 0 ? await invoiceTotalsById([...new Set(verrechnet.map((r) => r.counterInvoiceId))], tx) : new Map<string, InvoiceTotals>();
+  const mixe = mixeNachVerrechnungen(totals, verrechnet, gegen);
+  const rest = mixe[0]!;
   // Wie Voranmeldung und EÜR (recordedTaxShares): ein Anteil zählt nur für die Rechnung, für die er gerechnet ist
-  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null));
-  return settlementTaxShares(totals, settled, recorded, amount);
+  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null, mixe));
+  return settlementTaxShares(rest, settled, recorded, amount);
 }
 
 /** Gespeicherter Steueranteil einer Gegenzeile: genau umgekehrt */
@@ -711,6 +733,8 @@ export async function transactionDetail(id: string) {
   // Ohne Rechnung: Vorschlag aus dem Zweck der Konten, bei Geldtransit mit der Gegenbuchung auf dem anderen Konto
   const accounts = await ownAccounts();
   const account = accounts.find((a) => a.id === tx.bankAccountId);
+  // Sammelrechnung des Monats an einer Gebührenzeile eines Zahlungsdienstleisters (#680)
+  const { sammelrechnung, sammelbeleg } = await sammelrechnungVorschlag(tx, account?.purpose, items);
   let direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
   let counterpart: TransferCounterpart | null = null;
   if (direct?.kind === "geldtransit" && account) {
@@ -755,11 +779,14 @@ export async function transactionDetail(id: string) {
   const dauerbelege = tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
   // Lastschriften aus Haben (#445): Sammelgutschrift aufteilen oder Rücklastschrift zuordnen
   const lastschrift = await directDebitMatch(tx);
+  // Der Sammelbeleg des Monats steht ganz oben, damit er in der Oberfläche als Treffer erscheint
+  const vorschlaege = sammelbeleg ? [sammelbeleg, ...suggestions.filter((s) => s.item.id !== sammelbeleg.item.id)] : suggestions;
   return {
     lastschrift,
     transaction: tx,
     allocations,
-    suggestions,
+    suggestions: vorschlaege,
+    sammelrechnung,
     candidates,
     splitCandidates: items,
     dauerbelege,

@@ -23,6 +23,7 @@ export {
   removeQuoteDefaultAttachment,
 } from "./quote-default-attachments.ts";
 export { fetchBaseRate } from "./base-rate.ts";
+export { searchRecurringInvoices, type RecurringInvoiceHit } from "./search-recurring.ts";
 export { runDueBaseRate } from "./base-rate-job.ts";
 export {
   createDunning,
@@ -129,4 +130,16 @@ export {
   runDueRecurring,
   updateRecurring,
 } from "./recurring.ts";
-export { startRunning, type NumberKind } from "./number-counter.ts";
+export { lastFinalizedByCircle, startRunning, type NumberKind } from "./number-counter.ts";
+export {
+  InvoiceSettlementError,
+  invoiceSettlementReversalSchema,
+  invoiceSettlementSchema,
+  invoiceSettlementView,
+  listInvoiceSettlements,
+  reverseInvoiceSettlement,
+  settleInvoices,
+  type InvoiceSettlementInput,
+  type SettlementCandidate,
+} from "./verrechnung.ts";
+export { mixeNachVerrechnungen, mixNachVerrechnungen } from "./verrechnung-steuermix.ts";

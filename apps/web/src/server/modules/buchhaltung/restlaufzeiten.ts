@@ -69,6 +69,7 @@ async function spaetFaellig(year: number): Promise<SpaetFaellig> {
         select w.amount from write_offs w where w.${sql.raw(spalte)} = ${id} and w.date <= ${stichtag}
         ${spalte === "document_id" ? sql`union all select s.amount from document_settlements s where s.document_id = ${id} and s.date <= ${stichtag}` : sql``}
         ${spalte === "invoice_id" ? sql`union all select c.amount from cash_entries c where c.invoice_id = ${id} and c.date <= ${stichtag}` : sql``}
+        ${spalte === "invoice_id" ? sql`union all select v.amount from invoice_settlements v where v.invoice_id = ${id} and v.date <= ${stichtag}` : sql``}
       ) z), 0)`;
   const [row] = await db.execute<{ forderungen: string; verbindlichkeiten: string }>(sql`
     select

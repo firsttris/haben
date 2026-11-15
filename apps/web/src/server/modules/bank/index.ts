@@ -104,6 +104,14 @@ export {
 } from "./cash.ts";
 export { createLoan, DarlehenError, listLoans, loanSchema } from "./darlehen.ts";
 export {
+  searchBankTransactions,
+  searchCashEntries,
+  searchLoans,
+  type BankTransactionHit,
+  type CashEntryHit,
+  type LoanHit,
+} from "./search.ts";
+export {
   neutralizationView,
   neutralizeSchema,
   neutralizeTransactions,
@@ -143,5 +151,6 @@ export {
   type SettlementInput,
 } from "./verrechnung.ts";
 export { invoiceLastSettledOn } from "./zahldatum.ts";
-
 export { gemeldeteVoranmeldungen } from "./bank.ts";
+/** Gegenbuchung zu den Zeilen einer Buchung, auch nach einem Wechsel des Kontenrahmens (Aufhebung einer Verrechnung) */
+export { reverseLines, reverseLinesIn } from "./bank.ts";

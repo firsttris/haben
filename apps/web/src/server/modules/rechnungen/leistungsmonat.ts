@@ -35,7 +35,8 @@ const deutsch = (tag: string) => tag.split("-").reverse().join(".");
 /**
  * Hinweis statt Sperre (#694): Die Meldung der Rechnung gehört in einen Zeitraum, dessen Voranmeldung schon übermittelt
  * ist. Eine spätere Voranmeldung enthält sie nicht, weil Haben nach dem Leistungstag zuordnet; die übermittelte ist zu
- * berichtigen (§ 18b Satz 5 UStG, § 153 Abs. 1 AO). Wurde die zuletzt übermittelte Anmeldung des Zeitraums erst nach dem
+ * berichtigen (§ 153 Abs. 1 AO; bei EU-Leistungen nach § 18b Satz 1 Nr. 2 UStG, die Haben im Leistungsmonat meldet, auch
+ * § 18b Satz 5 UStG). Wurde die zuletzt übermittelte Anmeldung des Zeitraums erst nach dem
  * Festschreiben gesendet und dabei aus den Buchungen berechnet, enthält sie die Rechnung schon: kein Hinweis. Von Hand
  * überschriebene Werte rechnet Haben vor dem Senden nicht neu; ob sie die Rechnung enthalten, ist offen, der Hinweis bleibt.
  */

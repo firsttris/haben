@@ -43,9 +43,14 @@ export interface EstVorsorgePerson {
   basisrente?: Cents;
   /** Privat: über die Basisabsicherung hinaus, also Wahlleistungen (§ 10 Abs. 1 Nr. 3 a EStG) */
   pkvWahlleistungen?: Cents;
+  /**
+   * Steuerfreier Arbeitgeberzuschuss zur gesetzlichen Krankenversicherung (§ 3 Nr. 62 EStG, Nr. 24 a).
+   * ERiC verlangt dazu Beiträge zur Basiskrankenversicherung derselben Person (Regel 100240075).
+   */
+  agZuschussGkv?: Cents;
   /** Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung (§ 3 Nr. 62 EStG, Nr. 24 b) */
   agZuschussKv?: Cents;
-  /** Steuerfreier Arbeitgeberzuschuss zur privaten Pflegeversicherung (§ 3 Nr. 62 EStG, Nr. 24 c) */
+  /** Steuerfreier Arbeitgeberzuschuss zur Pflegeversicherung (§ 3 Nr. 62 EStG, Nr. 24 c), gesetzlich wie privat */
   agZuschussPv?: Cents;
 }
 
@@ -116,6 +121,11 @@ export interface EstWerbungskosten {
   sonstige?: Cents;
   /** Häusliches Arbeitszimmer als Mittelpunkt der gesamten Tätigkeit: Aufwendungen oder Jahrespauschale (§ 4 Abs. 5 Satz 1 Nr. 6b, § 9 Abs. 5 EStG) */
   arbeitszimmer?: Cents;
+  /**
+   * Monate, in denen das Arbeitszimmer wenigstens zeitweise der Mittelpunkt der gesamten Tätigkeit war. Zeitanteilig sinkt die
+   * Jahrespauschale um 105 EUR je fehlendem Monat. Das Feld geht nicht ins XML; es dient Habens Hinweis.
+   */
+  arbeitszimmerMonate?: number;
 }
 
 /** Arbeitslohn einer Person, Anlage N */
@@ -574,12 +584,13 @@ export function buildEstXml(input: EstXmlInput): string {
         ];
       }),
       ...vorsorgePersonen.map(([person, v]): XmlNode | null =>
-        // Zeilen 35 und 36: steuerfreie Zuschüsse des Arbeitgebers laut Nr. 24 b und 24 c
-        euro(v?.agZuschussKv) || euro(v?.agZuschussPv)
+        // Zeilen 34 bis 36: steuerfreie Zuschüsse des Arbeitgebers laut Nr. 24 a, 24 b und 24 c
+        euro(v?.agZuschussGkv) || euro(v?.agZuschussKv) || euro(v?.agZuschussPv)
           ? [
               "Stfr_AG_Zusch",
               [
                 ["Person", person],
+                ["E2003705", euro(v?.agZuschussGkv)],
                 ["E2003807", euro(v?.agZuschussKv)],
                 ["E2003907", euro(v?.agZuschussPv)],
               ],

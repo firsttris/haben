@@ -21,6 +21,7 @@ const vorsorgePerson = z
     pkvErstattung: cents,
     basisrente: cents,
     pkvWahlleistungen: cents,
+    agZuschussGkv: cents,
     agZuschussKv: cents,
     agZuschussPv: cents,
   })
@@ -68,6 +69,7 @@ const arbeitnehmer = z.object({
       gewerkschaft: cents,
       sonstige: cents,
       arbeitszimmer: cents,
+      arbeitszimmerMonate: z.number().int().min(0).max(12).optional(),
     })
     .default({}),
 });

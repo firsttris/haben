@@ -1,12 +1,13 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
 import { type PointerEvent, type RefObject, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { NavTip, NavVarianten } from "../components/NavMenu.tsx";
+import { NavTip, NavVarianten, symbolWechseln } from "../components/NavMenu.tsx";
 import type { FlyoutWeg } from "../components/NavFlyout.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
-import { CommandPalette, PALETTE_KUERZEL } from "../components/CommandPalette.tsx";
+import { CommandPalette, PALETTE_ALT_KUERZEL, PALETTE_KUERZEL } from "../components/CommandPalette.tsx";
 import { Kuerzel } from "../components/Kuerzel.tsx";
+import { isDialogOpen } from "../components/ConfirmDialog.tsx";
 import { ariaKuerzel } from "../lib/tastatur.ts";
 import { NAV_GROUPS, STEUERBERATUNG_NAV, navLinkSichtbar } from "../lib/navigation.ts";
 import { readNavCollapsed, saveNavCollapsed, subscribeNavCollapsed } from "../lib/nav-rail.ts";
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/_app")({
       firma: state.firma,
       zeichen: state.zeichen,
       firmen: state.firmen,
+      firmenportal: state.firmenportal,
     };
   },
   component: AppLayout,
@@ -62,6 +64,25 @@ function useFirmaBrand() {
     return () => window.removeEventListener("keydown", zu, true);
   }, [firmaVoll]);
   return { firmaRef, firmaVoll, firmaAufklappen, firmaZuklappen, firmaZeigerWeg };
+}
+
+/** Strg+B bzw. ⌘+B klappt am Desktop die Seitenleiste ein und aus; nicht in Feldern (dort ist es Fett) und nicht über Dialogen */
+function useEinklappKuerzel() {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "b") return;
+      if (isDialogOpen() || (event.target as HTMLElement).closest?.("input, select, textarea, [contenteditable]")) return;
+      if (!window.matchMedia("(min-width: 861px)").matches) return;
+      event.preventDefault();
+      const collapsed = !readNavCollapsed();
+      // Verschwindet die Fassung mit dem Fokus, geht er auf den Knopf der sichtbaren (WCAG 2.4.3)
+      const fokusInFassung = document.activeElement?.closest(".nav-variante");
+      saveNavCollapsed(collapsed);
+      if (fokusInFassung) document.querySelector<HTMLElement>(`.nav-variante-${collapsed ? "rail" : "voll"} .nav-collapse-btn`)?.focus();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 }
 
 /**
@@ -140,7 +161,7 @@ function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: (
 }
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, firma, oidc } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, firmenportal, firma, oidc } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -149,6 +170,7 @@ function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const { collapsed, openFlyout, setOpenFlyout } = useRailState();
   useNavTipEscape();
+  useEinklappKuerzel();
   // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);
@@ -183,7 +205,7 @@ function AppLayout() {
       <a href="#inhalt" className="skip-link">
         Zum Inhalt springen
       </a>
-      <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
+      <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation" onKeyDown={symbolWechseln}>
         <NavBrand inhaber={inhaber} />
         <NavSearch onOpen={() => setPaletteOpen(true)} />
         <button
@@ -205,6 +227,7 @@ function AppLayout() {
             pathname={pathname}
             firma={firma ?? null}
             firmen={firmen}
+            firmenportal={firmenportal ?? null}
             sichtbareGruppen={sichtbareGruppen}
             eigeneSeiten={eigeneSeiten}
             userName={user.name}
@@ -277,12 +300,13 @@ function NavSearch({ onOpen }: { onOpen: () => void }) {
         event.currentTarget.focus();
         onOpen();
       }}
-      aria-keyshortcuts={ariaKuerzel(PALETTE_KUERZEL)}
+      aria-keyshortcuts={`${ariaKuerzel(PALETTE_KUERZEL)} ${ariaKuerzel(PALETTE_ALT_KUERZEL)}`}
     >
       <Icon name="search" size={18} />
       <span className="nav-search-label">Schnellsuche</span>
       <NavTip>Schnellsuche</NavTip>
       <Kuerzel tasten={PALETTE_KUERZEL} className="nav-kbd" aria-hidden="true" />
+      <Kuerzel tasten={PALETTE_ALT_KUERZEL} className="nav-kbd" aria-hidden="true" />
     </button>
   );
 }

@@ -21,7 +21,8 @@ export const DURCHLAEUFE = {
   verrechnung: 13,
   firmen: 14,
   passwort: 16,
-  "wiso-import": 17,
+  "fastbill-import": 17,
+  "wiso-import": 18,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

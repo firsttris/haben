@@ -8,6 +8,7 @@ export const LEGACY_SOURCE: Record<LegacySource, { name: string; product: string
   accountable: { name: "Accountable", product: "Accountable" },
   wiso: { name: "WISO", product: "WISO EÜR & Kasse / WISO Steuer" },
   import: { name: "JSON-Import", product: "Quellprogramm" },
+  fastbill: { name: "FastBill", product: "FastBill" },
 };
 
 /** Beim JSON-Import nennt das Paket das Quellprogramm selbst */

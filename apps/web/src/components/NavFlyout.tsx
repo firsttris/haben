@@ -1,4 +1,15 @@
-import { type MouseEvent, type PointerEvent, type ReactNode, type RefObject, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  type KeyboardEvent as TastenEreignis,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { haeltKurs, type Punkt } from "../lib/zielkurs.ts";
 import { Icon, type IconName } from "./Icon.tsx";
 
@@ -21,6 +32,16 @@ interface NavFlyoutProps {
 }
 
 const RAND_ABSTAND = 12;
+const FOKUSSIERBAR = "a[href], button:not([disabled]), select, input";
+
+/** Fokus um `schritt` weiter in `elemente`, ab dem fokussierten, am Ende wieder vorn (für ↑/↓ in Leiste und Flyout) */
+export function weiter(elemente: ArrayLike<HTMLElement>, schritt: number) {
+  const liste = Array.from(elemente);
+  if (!liste.length) return;
+  const jetzt = liste.indexOf(document.activeElement as HTMLElement);
+  const ziel = jetzt < 0 ? (schritt > 0 ? 0 : liste.length - 1) : (jetzt + schritt + liste.length) % liste.length;
+  liste[ziel]?.focus();
+}
 // Öffnen sofort wie bei GitLab; den schrägen Weg ins Flyout schützt der Zielkurs. Schließen mit Verzug, damit der
 // Weg über die Lücke ins Flyout reicht (WCAG 1.4.13, „hoverable“)
 const SCHLIESSEN_NACH = 300;
@@ -163,6 +184,32 @@ export function NavFlyout({ label, icon, active, open, onOpen, onClose, zusatz, 
     // Nur was das Überfahren geöffnet hat, schließt das Verlassen; ein Klick heftet das Flyout an
     if (open === "zeiger") timer.current = setTimeout(onClose, SCHLIESSEN_NACH);
   }
+  // → auf dem Symbol öffnet und legt den Fokus in die Links; im Flyout wandern ↑/↓ von Link zu Link, ← schließt
+  // zurück auf das Symbol. stopPropagation: Die Seite bekommt die Pfeile nicht (die Beleg-Ansicht blättert mit ← →)
+  function tasteAmSymbol(event: TastenEreignis) {
+    if (event.key !== "ArrowRight") return;
+    event.preventDefault();
+    event.stopPropagation();
+    // Ein überfahrenes Flyout heftet → an wie ein Klick: das Verlassen mit der Maus schließt es samt Fokus nicht mehr
+    clearTimeout(timer.current);
+    if (open === null || open === "zeiger") onOpen("tastatur");
+    else panelRef.current?.querySelector<HTMLElement>(FOKUSSIERBAR)?.focus();
+  }
+  function tasteImFlyout(event: TastenEreignis) {
+    if ((event.target as HTMLElement).closest("input, select, textarea")) return;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+      triggerRef.current?.focus();
+      return;
+    }
+    const schritt = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+    if (!schritt || !panelRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    weiter(panelRef.current.querySelectorAll<HTMLElement>(FOKUSSIERBAR), schritt);
+  }
   function klick(event: MouseEvent) {
     clearTimeout(timer.current);
     // detail 0: per Enter oder Leertaste ausgelöst
@@ -183,6 +230,7 @@ export function NavFlyout({ label, icon, active, open, onOpen, onClose, zusatz, 
         aria-label={label}
         data-active={active || undefined}
         onClick={klick}
+        onKeyDown={tasteAmSymbol}
       >
         {triggerContent ?? <Icon name={icon} />}
       </button>
@@ -194,6 +242,7 @@ export function NavFlyout({ label, icon, active, open, onOpen, onClose, zusatz, 
         aria-label={label}
         hidden={open === null}
         style={top !== null ? { top: `${top}px` } : undefined}
+        onKeyDown={tasteImFlyout}
         onClick={(event) => {
           if ((event.target as HTMLElement).closest("a")) onClose();
         }}

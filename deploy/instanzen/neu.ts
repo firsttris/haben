@@ -135,7 +135,7 @@ async function vorDerApp(k: Kontext, a: NeuAngaben, dir: string): Promise<void> 
     if (a.eigenerProxy) {
       if ((await docker(k, ["network", "inspect", netz])).code !== 0 && (await docker(k, ["network", "create", netz])).code !== 0)
         abbrechen(`Das Netz ${netz} ließ sich nicht anlegen.`);
-    } else await proxyStarten(k);
+    } else await proxyStarten(k, a.name);
     await appRolleAnlegen(k, a, dir);
   } catch (error) {
     if (!(error instanceof Error) || error.name !== "Abbruch") throw error;

@@ -104,7 +104,7 @@ Einen ungebuchten Beleg aus einem Dauerbeleg kannst du [löschen](#löschen), et
 
 Vorsteuer ziehst du nur aus einer Rechnung ab, die die Umsatzsteuer gesondert ausweist (§ 15 Abs. 1 Nr. 1 und § 14 Abs. 4 Nr. 8 UStG). Ein Vertrag gilt als Rechnung, wenn er die Pflichtangaben enthält, bei Miete etwa ein Mietvertrag mit Steuerbetrag nach einer Option zur Umsatzsteuer (§ 9 UStG), oder eine Dauerrechnung des Leasinggebers.
 
-- Weist das Dokument die Steuer aus, setzt du den Haken **Das Dokument weist die Umsatzsteuer gesondert aus** und trägst Netto und Umsatzsteuer je Satz ein; die Steuer rechnet Haben aus dem Netto vor.
+- Weist das Dokument die Steuer aus, setzt du den Haken **Das Dokument weist die Umsatzsteuer gesondert aus** und trägst Netto und Umsatzsteuer je Satz ein; die Steuer rechnet Haben aus dem Netto vor. Statt des Netto kannst du das **Brutto** eintragen; Haben teilt es wie am Beleg auf (siehe [Beträge](#beträge)).
 - Ohne Haken gibt es kein Feld für die Steuer, und Haben lehnt eine Vorlage mit Steuer ab: „Vorsteuer nur mit einem Dokument, das die Umsatzsteuer gesondert ausweist …“. Den Betrag erfasst du dann mit 0 %, etwa für steuerfreie Miete (§ 4 Nr. 12 UStG) oder Versicherungsbeiträge. Die Notiz am Beleg sagt, dass das Dokument keine Steuer ausweist.
 - Ohne Vorsteuerabzug bucht Haben wie bei jedem Beleg den Bruttobetrag als Aufwand, ohne Vorsteuer.
 
@@ -262,7 +262,7 @@ Mit **Anlagegut** wird der Beleg nicht zum Aufwand, sondern legt beim Buchen ein
 
 Bei Belegen mit deutscher Umsatzsteuer gibst du je Steuersatz Netto und Vorsteuer ein. Solange du die Vorsteuer nicht selbst geändert hast, rechnet Haben sie aus dem Netto vor. Beim Buchen übernimmt Haben die Vorsteuer genau so, wie sie im Formular steht, und rechnet nicht nach: maßgeblich ist der Betrag auf der Rechnung.
 
-Auf einer Kleinbetragsrechnung bis 250 € stehen oft nur Endbetrag und Steuersatz (§ 33 UStDV). Den Endbetrag trägst du unter **Brutto** ein: Haben teilt ihn in Netto und Vorsteuer auf (§ 35 Abs. 1 UStDV), kaufmännisch gerundet (11,90 € zu 19 % ergeben 10,00 € und 1,90 €). Auch bei größeren Rechnungen hilft das Brutto beim Erfassen; maßgeblich bleibt dort die ausgewiesene Steuer. Wechselst du danach den Satz, bleibt das Brutto und Netto und Vorsteuer ändern sich. Weicht die Vorsteuer auf der Rechnung um einen Cent ab, korrigierst du sie von Hand; das Brutto folgt dann Netto und Vorsteuer. Bei § 13b und beim innergemeinschaftlichen Erwerb gibt es kein Brutto, gezahlt wird das Netto.
+Auf einer Kleinbetragsrechnung bis 250 € stehen oft nur Endbetrag und Steuersatz (§ 33 UStDV). Den Endbetrag trägst du unter **Brutto** ein: Haben teilt ihn in Netto und Vorsteuer auf (§ 35 Abs. 1 UStDV), kaufmännisch gerundet (11,90 € zu 19 % ergeben 10,00 € und 1,90 €). Für Fahrausweise gilt das unabhängig vom Betrag (§ 34 und § 35 Abs. 2 UStDV): Steht auf dem Fahrschein kein Steuersatz, wählst du 7 %, bei Flugscheinen gibt es Vorsteuer nur mit angegebenem Satz von 19 %, bei grenzüberschreitenden Fahrten nur für den Inlandsanteil laut Bescheinigung des Beförderers. Auch bei größeren Rechnungen hilft das Brutto beim Erfassen; maßgeblich bleibt dort die ausgewiesene Steuer. Wechselst du danach den Satz, bleibt das Brutto und Netto und Vorsteuer ändern sich. Weicht die Vorsteuer auf der Rechnung um einen Cent ab, korrigierst du sie von Hand; das Brutto folgt dann Netto und Vorsteuer. Bei § 13b und beim innergemeinschaftlichen Erwerb gibt es kein Brutto, gezahlt wird das Netto.
 
 Gutschriften gibst du mit Minus ein.
 
@@ -468,7 +468,7 @@ Nicht stornieren lassen sich:
 | --- | --- |
 | Es bleibt eine separate Ausbuchung ohne zugehörige Bankzuordnung offen | Erst die Ausbuchung im [Bankabgleich](bank.md) aufheben, dann stornieren. |
 | Anlagegut | Die Anlage bliebe im Verzeichnis und würde weiter abgeschrieben. Erfasse den Abgang im [Anlagenverzeichnis](anlagen.md). |
-| Beim Umzug als offener Posten übernommen (aus Lexware Office, sevDesk, BuchhaltungsButler, Accountable oder über den [JSON-Eingang](belegimport.md)) | Die Vorsteuer ist im bisherigen Programm angemeldet; korrigiere den Beleg dort. |
+| Beim Umzug als offener Posten übernommen (aus Lexware Office, sevDesk, FastBill, BuchhaltungsButler, Accountable oder über den [JSON-Eingang](belegimport.md)) | Die Vorsteuer ist im bisherigen Programm angemeldet; korrigiere den Beleg dort. |
 | Das Jahr des Stornos oder der Zahlung ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr; auch eine gemeinsame Rücknahme bleibt dann vollständig aus. Liegt schon die Zahlung darin, lässt sich ihre Zuordnung nicht aufheben, weil sie danach nicht neu gebucht werden könnte. Korrigiere den Vorgang stattdessen mit einer Buchung im offenen Jahr, etwa einer Stornorechnung mit Datum im offenen Jahr oder einer Direktbuchung auf die betroffene Kategorie. |
 | Der Kontenrahmen wurde seit dem Buchen gewechselt | Die Kontonummern bedeuten im neuen Rahmen etwas anderes. |
 

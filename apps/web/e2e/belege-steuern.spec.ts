@@ -28,8 +28,9 @@ import { receiptJpeg } from "./belegbild.ts";
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
  * app.spec.ts: ELSTER mit Zertifikat, Voranmeldung, Dauerfristverlängerung und Zusammenfassende Meldung, Belege mit
- * § 13b, Aufteilung und innergemeinschaftlichem Erwerb, Pauschalen, Skonto, Anlagen, Darlehen und Steuerzahlungen im
- * Bankabgleich, dazu Einstellungen ohne eigene Daten. Am Anfang dieselbe Einrichtung wie in app.spec.ts.
+ * § 13b, Aufteilung und innergemeinschaftlichem Erwerb, Pauschalen, Skonto, Anlagen, Darlehen, Steuerzahlungen und die
+ * Sammelrechnung eines Zahlungsdienstleisters im Bankabgleich, dazu Einstellungen ohne eigene Daten. Am Anfang dieselbe
+ * Einrichtung wie in app.spec.ts.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -248,6 +249,26 @@ test("Vorsorgeaufwand: Rürup, Wahlleistungen und Zuschüsse überstehen das Spe
   await expect(feld("agZuschussPv")).toHaveValue("200,00");
 });
 
+test("Vorsorgeaufwand: Zuschüsse zur gesetzlichen KV (Nr. 24 a) und zur Pflegeversicherung (Nr. 24 c) speichern (#1009)", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  const block = () => form.locator("details.est-block").filter({ has: page.locator(".est-block-title", { hasText: /^Vorsorgeaufwand$/ }) });
+  const feld = (name: string) => block().locator(`input[name="a-${name}"]`);
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("agZuschussGkv")).toHaveAccessibleName("Arbeitgeberzuschuss zur gesetzlichen KV");
+  // Nr. 24 c gilt auch für freiwillig gesetzlich Versicherte (E2003907: „Gesetzliche Pflegeversicherung laut Nr. 24 c“)
+  await expect(feld("agZuschussPv")).toHaveAccessibleName("Arbeitgeberzuschuss zur Pflegeversicherung");
+  await feld("agZuschussGkv").fill("840,00");
+  await feld("agZuschussPv").fill("120,00");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(feld("agZuschussGkv")).toHaveValue("840,00");
+  await expect(feld("agZuschussPv")).toHaveValue("120,00");
+});
+
 test("Einkommensersatzleistungen: eintragen, speichern, nach dem Neuladen wieder da (#941)", async () => {
   await go(`/jahreserklaerung/${YEAR - 1}`);
   const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
@@ -295,6 +316,19 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await field.fill(pruefwert.slice(0, -1) + (pruefwert.endsWith("0") ? "1" : "0"));
   await card.getByRole("button", { name: "Vergleichen" }).click();
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
+});
+
+test("Eingesetzte Versionen: Verlauf und Versionshinweise anzeigen (#841)", async () => {
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("region", { name: "Eingesetzte Versionen" });
+  await expect(card).toBeVisible();
+  const rows = card.locator("tbody tr");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText(/v\d+\.\d+\.\d+/);
+  await expect(rows.first().getByRole("link", { name: /Versionshinweise/ })).toHaveAttribute(
+    "href",
+    /^https:\/\/github\.com\/firsttris\/haben\/releases\/tag\/v\d+\.\d+\.\d+/,
+  );
 });
 
 test("Datenbankzugriff: tatsächliche Verbindungsrollen in den Einstellungen anzeigen (#619)", async () => {
@@ -662,6 +696,120 @@ test("Pauschalen: Entfernungspauschale für Wege zur Betriebsstätte und Storno 
   await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
 });
 
+test("Pauschalen: jeder Reiter ohne axe-Verstöße, hell und dunkel, am Desktop und am Handy", async () => {
+  // barrierefreiheit.spec.ts prüft /pauschalen nur mit dem ersten Reiter; die übrigen Formulare erscheinen erst per Klick
+  const vorher = page.viewportSize();
+  for (const modus of ["hell", "dunkel"]) {
+    for (const viewport of [LAPTOP, { width: 320, height: 720 }]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate((m) => localStorage.setItem("haben-modus", m), modus);
+      await go("/pauschalen");
+      const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+      for (const [reiter, formular] of [
+        ["Homeoffice", "Homeoffice-Pauschale"],
+        ["Fahrt", "Fahrt mit dem Privatfahrzeug"],
+        ["Verpflegung", "Verpflegungsmehraufwand"],
+        ["Wege zur Betriebsstätte", "Wege zwischen Wohnung und Betriebsstätte"],
+      ] as const) {
+        await neu.getByRole("button", { name: reiter, exact: true }).click();
+        await expect(neu.getByRole("form", { name: formular })).toBeVisible();
+        const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+        expect(
+          violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+          `${reiter}, ${modus}, ${viewport.width} px`,
+        ).toEqual([]);
+      }
+    }
+  }
+  await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
+  if (vorher) await page.setViewportSize(vorher);
+});
+
+test("Pauschalen: Homeoffice-Monat über die Monatsauswahl wählen (#928)", async () => {
+  await go("/pauschalen");
+  const homeoffice = page.getByRole("region", { name: "Pauschale eintragen" }).getByRole("form", { name: "Homeoffice-Pauschale" });
+  const monat = homeoffice.getByLabel("Monat", { exact: true });
+  await monat.click();
+  const dialog = page.getByRole("dialog", { name: "Monat wählen" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Vorheriges Jahr" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Nächstes Jahr" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(monat).toBeFocused();
+  await monat.click();
+  await dialog.getByRole("button", { name: `Januar ${YEAR}` }).click();
+  await expect(dialog).toBeHidden();
+  await expect(monat).toContainText(`Januar ${YEAR}`);
+});
+
+test("Monatsauswahl: Tab aus dem offenen Raster schließt es, statt das nächste Feld zu verdecken (#928)", async () => {
+  await go("/pauschalen");
+  const homeoffice = page.getByRole("region", { name: "Pauschale eintragen" }).getByRole("form", { name: "Homeoffice-Pauschale" });
+  const monat = homeoffice.getByLabel("Monat", { exact: true });
+  const tage = homeoffice.getByLabel("Tage im Homeoffice", { exact: true });
+  await monat.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Monat wählen" });
+  await expect(dialog).toBeVisible();
+  // Durch Jahreswechsel und Monate bis ins nächste Feld
+  for (let i = 0; i < 20 && !(await tage.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
+  await expect(tage).toBeFocused();
+  await expect(dialog).toBeHidden();
+});
+
+test("Monatsauswahl: offenes Raster ohne axe-Verstöße, hell und dunkel, am Desktop und am Handy (#928)", async () => {
+  const vorher = page.viewportSize();
+  for (const modus of ["hell", "dunkel"]) {
+    for (const viewport of [LAPTOP, { width: 320, height: 720 }]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate((m) => localStorage.setItem("haben-modus", m), modus);
+      await go("/pauschalen");
+      const homeoffice = page.getByRole("region", { name: "Pauschale eintragen" }).getByRole("form", { name: "Homeoffice-Pauschale" });
+      await homeoffice.getByLabel("Monat", { exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "Monat wählen" });
+      await expect(dialog).toBeVisible();
+      const box = await dialog.boundingBox();
+      expect(box && box.x >= 0 && box.x + box.width <= viewport.width, `${modus}, ${viewport.width} px im Bild`).toBe(true);
+      const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+      expect(
+        violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+        `${modus}, ${viewport.width} px`,
+      ).toEqual([]);
+      await page.keyboard.press("Escape");
+    }
+  }
+  await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
+  if (vorher) await page.setViewportSize(vorher);
+});
+
+test("Fremdwährung: Kurs von Hand mit der Monatsauswahl, fehlende Angaben stehen am Feld (#928)", async () => {
+  await go("/einstellungen?bereich=waehrung");
+  const form = page.getByRole("form", { name: "Kurs von Hand" });
+  const waehrung = form.getByLabel("Währung", { exact: true });
+  const monat = form.getByLabel("Monat", { exact: true });
+  await form.getByRole("button", { name: "Kurs speichern" }).click();
+  await expect(waehrung).toBeFocused();
+  await expect(waehrung).toHaveAccessibleDescription("Trag die Währung ein.");
+  await expect(monat).toHaveAccessibleDescription("Wähle den Monat.");
+  await waehrung.fill("ISK");
+  await monat.click();
+  await page
+    .getByRole("dialog", { name: "Monat wählen" })
+    .getByRole("button", { name: `Januar ${YEAR}` })
+    .click();
+  await expect(monat).not.toHaveAttribute("aria-invalid");
+  await form.getByLabel("1 EUR = …", { exact: true }).fill("152,3");
+  await form.getByRole("button", { name: "Kurs speichern" }).click();
+  await expect(page.getByText("Kurs gespeichert.")).toBeVisible();
+  await expect(monat).toContainText("Monat wählen");
+  const zeile = page.getByRole("row").filter({ hasText: "ISK" });
+  await expect(zeile).toContainText(`01/${YEAR}`);
+  await expect(zeile).toContainText("von Hand");
+  await zeile.getByRole("button", { name: "Löschen" }).click();
+  await expect(zeile).toHaveCount(0);
+});
+
 test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
   // Zwei Spalten am Handy (DESIGN.md, Karten): Die fünfte Karte der Pauschalen und die dritte der Kasse standen allein in halber Breite
   const vorher = page.viewportSize();
@@ -822,6 +970,47 @@ test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz 
   await bestaetigen(laptop, "Beleg löschen");
   await laptop.waitForURL(/\/belege$/);
   await context.close();
+});
+
+test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#1059)", async () => {
+  await go("/dauerbelege/neu");
+  // Ohne ausgewiesene Steuer ist der Betrag zugleich das Brutto; ein eigenes Feld gibt es dann nicht
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveCount(0);
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  // Ein neuer Dauerbeleg beginnt mit 0 %
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("100,00");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("19,00");
+  await expect(page.locator(".dauerbeleg-summe")).toContainText(/= 119,00\s€/);
+  // Anderer Satz: das Brutto bleibt, Netto und Steuer ändern sich
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("700");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("111,21");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,79");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("119,00");
+  // Steuer laut Vertrag von Hand: das Brutto folgt
+  await page.getByLabel("Umsatzsteuer 1", { exact: true }).fill("7,78");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("118,99");
+  // Ein vertipptes Brutto sperrt das Anlegen wie ein vertipptes Netto
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,005");
+  await page.getByRole("button", { name: "Dauerbeleg anlegen" }).click();
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveAccessibleDescription(/Trag den Betrag als Zahl ein/);
+  await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
+  // Haken aus nach einem Brutto: Grundlage ist wieder das Netto; ein anderer Satz rechnet es nicht aus dem verborgenen Brutto neu
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("111,21");
+  // Haken wieder an: die nicht von Hand geänderte Steuer folgt dem Netto
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("21,13");
+  // Haken aus und wieder an ändert ein eingegebenes Brutto nicht: 45,00 € zu 19 % sind 37,82 € + 7,18 € (aus dem Netto wären es 7,19 €)
+  await page.getByLabel("Brutto 1", { exact: true }).fill("45,00");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("45,00");
 });
 
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
@@ -2723,4 +2912,63 @@ test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997
   await expect(nachtragen).toBeVisible();
   await nachtragen.locator("summary").first().click();
   await expect(nachtragen.getByLabel("Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben (vereinnahmteUst)")).toBeVisible();
+});
+
+test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffer, ein Klick ordnet alle Gebühren des Monats zu (#680)", async ({ browser }) => {
+  // Oktober vor dem Vorjahr: ohne Buchungen, damit die übrigen Auswertungen dieses Durchlaufs unverändert bleiben
+  const year = YEAR - 2;
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "etsy-gebuehren.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Etsy Ireland UC") }]);
+  await expect(page.getByText("etsy-gebuehren.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /etsy-gebuehren\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Etsy Ireland UC");
+  await page.getByLabel("Rechnungsnummer").fill(`ETSY-${year}-10`);
+  await page.getByLabel("Belegdatum").fill(`${year}-10-31`);
+  await page.getByLabel("Kategorie").selectOption("geldverkehr");
+  await page.getByRole("combobox", { name: /^Satz/ }).selectOption("0");
+  // Summe der vier Gebührenzeilen unten: 7,44 + 9,89 + 8,19 + 91,05
+  await page.getByLabel("Netto", { exact: true }).fill("116,57");
+  await page.locator(".doc-actions").getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await bestaetigen(page, "Buchen");
+  await expect(page.locator(".page-head").getByText("Gebucht", { exact: true })).toBeVisible();
+
+  await go("/bank");
+  await page.getByRole("button", { name: "Konto hinzufügen" }).click();
+  const neuesKonto = page.locator("form", { has: page.getByRole("button", { name: "Konto anlegen" }) });
+  await neuesKonto.getByLabel("Art", { exact: true }).selectOption("provider");
+  await neuesKonto.getByLabel("Dienstleister", { exact: true }).selectOption("etsy");
+  await neuesKonto.getByLabel("Name", { exact: true }).fill("Etsy Shop");
+  await neuesKonto.getByRole("button", { name: "Konto anlegen" }).click();
+  await expect(page.getByText("Konto angelegt.")).toBeVisible();
+  const csv = [
+    `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`,
+    `"October 1, ${year}",Fee,"Einstellgebühr","",EUR,--,-€7.44,-€7.44,--`,
+    `"October 2, ${year}",Fee,"Transaktionsgebühr","",EUR,--,-€9.89,-€9.89,--`,
+    `"October 3, ${year}",Fee,"Zahlungsabwicklung","",EUR,--,-€8.19,-€8.19,--`,
+    `"October 4, ${year}",Fee,"Werbung","",EUR,--,-€91.05,-€91.05,--`,
+  ].join("\n");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "etsy.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/4 neue Umsätze für Etsy Shop/)).toBeVisible({ timeout: 30_000 });
+
+  await go("/bank?filter=alle&suche=Etsy");
+  const gebuehren = page.locator(".tx-row", { hasText: "Etsy" });
+  await expect(gebuehren).toHaveCount(4);
+  await gebuehren.filter({ hasText: "7,44" }).click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  // Die einzelne Gebühr passt nie auf die Rechnung; die Summe des Monats schon
+  await expect(panel.getByText("Beleg Etsy Ireland UC", { exact: true })).toBeVisible();
+  await expect(panel.getByText("Betrag stimmt exakt")).toBeVisible();
+  await panel.getByRole("button", { name: `Alle offenen Gebühren aus 10.${year} diesem Beleg zuordnen` }).click();
+  await page.waitForLoadState("networkidle");
+  for (const zeile of await gebuehren.all()) await expect(zeile).toContainText("Zugeordnet");
 });

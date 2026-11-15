@@ -28,6 +28,7 @@ import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
+import { latestFastbillImport } from "./fastbill.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
 import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
@@ -113,6 +114,7 @@ export async function startSevdeskImport(actor: string, options: { wait?: boolea
   if (!key) throw new SevdeskError("Zuerst den API-Token hinterlegen.");
   // Der eindeutige Index gilt für beide Quellen: auch einen verwaisten Lexoffice-Lauf als abgebrochen markieren
   await latestImport();
+  await latestFastbillImport();
   const progress: LexofficeImportProgress = {
     phase: "kontakte",
     contacts: 0,

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { z } from "zod";
 import { formatDate } from "./format.ts";
 
 /** Je Feld der Fehler als Satz, der sagt, was zu tun ist, oder null, wenn die Angabe stimmt */
@@ -57,4 +58,10 @@ export function monatFehler(value: string, min: string, max: string): string | n
   if (value === "") return "Wähle den Monat.";
   if (value >= min && value <= max) return null;
   return min === max ? `Wähle ${monatName(min)}.` : `Wähle einen Monat von ${monatName(min)} bis ${monatName(max)}.`;
+}
+
+/** Fehler einer E-Mail-Adresse wie im Schema des Servers (z.email()); leer ist erlaubt */
+export function emailFehler(value: string): string | null {
+  const adresse = value.trim();
+  return adresse === "" || z.email().safeParse(adresse).success ? null : "Trag eine gültige E-Mail-Adresse ein, etwa rechnung@firma.de.";
 }

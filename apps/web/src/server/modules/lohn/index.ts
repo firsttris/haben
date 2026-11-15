@@ -7,6 +7,7 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { employeeSchema, getEmployee, hasEmployees, listEmployees, LohnError, saveEmployee, type Employee, type EmployeeInput } from "./employees.ts";
+export { searchEmployees, type EmployeeHit } from "./search.ts";
 export {
   abrechnen,
   abrechnenSchema,

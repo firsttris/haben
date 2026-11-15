@@ -275,7 +275,10 @@ const alleAngaben = (year: number): EstAngaben => ({
       agZuschussKv: 120_000,
       agZuschussPv: 12_000,
     },
-    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000, basisrente: 100_000 },
+    // Person B ist gesetzlich versichert. Nr. 24 a gehört hierher, nicht zu Person A (privat), und
+    // ERiC-Regel 100240078 verlangt den Zuschuss zur Pflegeversicherung (24 c) dazu. 24 b und 24 c
+    // für Person A stehen oben.
+    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000, basisrente: 100_000, agZuschussGkv: 84_000, agZuschussPv: 12_000 },
     sonstige: 25_000,
   },
   ersatzleistungen: {

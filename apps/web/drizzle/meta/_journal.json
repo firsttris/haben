@@ -1674,6 +1674,69 @@
       "when": 1794692093538,
       "tag": "0238_jahreserklaerung_zeilenwerte_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 239,
+      "version": "7",
+      "when": 1794694652955,
+      "tag": "0239_app_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1794694658816,
+      "tag": "0240_app_versions_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 241,
+      "version": "7",
+      "when": 1794718530726,
+      "tag": "0241_rechnung_verrechnung_korrektur",
+      "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1794718531726,
+      "tag": "0242_rechnung_verrechnung_korrektur_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1794733876948,
+      "tag": "0243_fastbill",
+      "breakpoints": true
+    },
+    {
+      "idx": 244,
+      "version": "7",
+      "when": 1794733884835,
+      "tag": "0244_fastbill_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 245,
+      "version": "7",
+      "when": 1794736111385,
+      "tag": "0245_mcp_oauth",
+      "breakpoints": true
+    },
+    {
+      "idx": 246,
+      "version": "7",
+      "when": 1794745098644,
+      "tag": "0246_search_unaccent",
+      "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1794745106907,
+      "tag": "0247_search_stufe2_indexes",
+      "breakpoints": true
     }
   ]
 }

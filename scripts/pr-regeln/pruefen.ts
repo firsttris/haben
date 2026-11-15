@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { countLines, grownOldFiles } from "../dateigroesse/regel.ts";
-import { checkBody, checkTitle, countWords, docPageHints, growthHints, hints, isBot, type Report, reviewHint } from "./regel.ts";
+import { checkBody, checkTitle, checkTitleIssues, countWords, docPageHints, growthHints, hints, isBot, type Report, reviewHint } from "./regel.ts";
 
 /*
  * Prüft einen Pull Request nach regel.ts. Läuft in .github/workflows/pr-regeln.yml mit dem Ereignis aus
@@ -92,7 +92,7 @@ const docPages = files
   .map((file) => ({ file, before: wordsAt(mergeBase, renamedFrom[file] ?? file), after: wordsAt(pr.head.sha, file) }));
 
 const reports: Report[] = [
-  ...(isBot(pr.user) || pr.title === null ? [] : [...checkTitle(pr.title), ...checkBody(pr.body)]),
+  ...(isBot(pr.user) || pr.title === null ? [] : [...checkTitle(pr.title), ...checkTitleIssues(pr.title, pr.body), ...checkBody(pr.body)]),
   ...hints(files, subjects),
   ...growthHints(grown),
   ...docPageHints(docPages),

@@ -20,6 +20,7 @@ const STEUERBERATUNG_LIEST = [
   "documents.ts:getDocumentSettlements",
   "export.ts:getExportYears",
   "invoices.ts:getInvoiceDetail",
+  "invoices.ts:getInvoiceSettlements",
   "invoices.ts:getInvoices",
   "journal.ts:getJournal",
   "ledger.ts:getKontenblatt",
@@ -30,8 +31,8 @@ const STEUERBERATUNG_LIEST = [
   "zugang.ts:getSteuerberatungStart",
 ];
 
-/** Ohne Anmeldung: Zustand für Anmelde- und Einrichtungsseite, Prüfung eines Einladungslinks. Beide lesen nur. */
-const OEFFENTLICH = ["setup.ts:getAuthState", "zugang.ts:checkInvitation"];
+/** Ohne Anmeldung: Zustand für Anmelde- und Einrichtungsseite, Prüfung eines Einladungslinks, ob es die OAuth-Zustimmung gibt. Alle lesen nur. */
+const OEFFENTLICH = ["oauth.ts:getOAuthAvailable", "setup.ts:getAuthState", "zugang.ts:checkInvitation"];
 
 /**
  * API-Routen mit Sitzung, die auch die Steuerberatung abrufen darf (nur GET, Dateien und Exporte). Ihr Handler steht in
@@ -49,8 +50,8 @@ const STEUERBERATUNG_LAEDT = [
   "rechnungsanhang/$id.ts",
 ];
 
-/** API-Routen ohne Sitzung: eigene Anmeldung, API-Token, geheimer Link oder öffentlicher Healthcheck */
-const OHNE_SITZUNG = ["auth/$.ts", "fristen/kalender.ts", "health.ts", "mcp.ts", "v1/$.ts"];
+/** API-Routen ohne Sitzung: eigene Anmeldung (Better Auth), API-Token (MCP, REST), OAuth-Client (Registrierung, Token), geheimer Link (Kalender) oder öffentlicher Healthcheck */
+const OHNE_SITZUNG = ["auth/$.ts", "fristen/kalender.ts", "health.ts", "mcp.ts", "oauth/register.ts", "oauth/token.ts", "v1/$.ts"];
 
 interface ServerFn {
   id: string;
@@ -207,8 +208,11 @@ describe("Wo Server-Code steht", () => {
     expect(elsewhere).toEqual([]);
   });
 
+  // Ausnahme: OAuth-Metadaten (RFC 8414, RFC 9728) müssen unter /.well-known liegen; öffentlich, ohne Sitzung und ohne Daten
   it("HTTP-Handler stehen nur in routes/api", () => {
-    const elsewhere = files.filter((f) => /\bhandlers\s*:/.test(f.code) && !f.id.startsWith("routes/api/")).map((f) => f.id);
+    const elsewhere = files
+      .filter((f) => /\bhandlers\s*:/.test(f.code) && !f.id.startsWith("routes/api/") && !f.id.startsWith("routes/[.]well-known/"))
+      .map((f) => f.id);
     expect(elsewhere).toEqual([]);
   });
 

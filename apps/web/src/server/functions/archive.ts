@@ -47,6 +47,7 @@ import {
   sevdeskConnectionStatus,
   startSevdeskImport as startSevdesk,
 } from "../modules/archiv/index.ts";
+import { FASTBILL_PLANS, fastbillConnectionStatus, fastbillReceiptsOverview, latestFastbillImport } from "../modules/archiv/index.ts";
 import { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "../modules/archiv/index.ts";
 import { latestWisoImport, MAX_WISO_CSV_SIZE, previewWisoCsv, startWisoImport, wisoSummary } from "../modules/archiv/index.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -73,6 +74,9 @@ export const getMigration = createServerFn({ method: "GET" })
       externalImports,
       bbImport,
       wisoImport,
+      fastbillConnection,
+      fastbillImport,
+      fastbillReceipts,
     ] = await Promise.all([
       connectionStatus(),
       reconciliation(),
@@ -85,11 +89,18 @@ export const getMigration = createServerFn({ method: "GET" })
       externalImportOverview(),
       latestBuchhaltungsbutlerImport(),
       latestWisoImport(),
+      fastbillConnectionStatus(),
+      latestFastbillImport(),
+      fastbillReceiptsOverview(),
     ]);
     return {
       connection,
       sevdeskConnection,
       sevdeskImport,
+      fastbillConnection,
+      fastbillImport,
+      fastbillPlans: FASTBILL_PLANS.map((p) => ({ ...p })),
+      fastbillReceipts,
       bbImport,
       wisoImport,
       accountableImport,
@@ -111,8 +122,8 @@ export const getMigration = createServerFn({ method: "GET" })
 
 export const getImportStatus = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.object({ source: z.enum(["lexoffice", "sevdesk"]) }))
-  .handler(async ({ data }) => (data.source === "sevdesk" ? latestSevdeskImport() : latestImport()));
+  .validator(z.object({ source: z.enum(["lexoffice", "sevdesk", "fastbill"]) }))
+  .handler(async ({ data }) => (data.source === "sevdesk" ? latestSevdeskImport() : data.source === "fastbill" ? latestFastbillImport() : latestImport()));
 
 export const saveLexofficeKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
