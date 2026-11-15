@@ -278,4 +278,26 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
       zwischenkonto: 0,
     });
   });
+
+  // Abgeschlossenes Jahr der Ausführung: Die Buchung des Belegs bleibt möglich und die Freigabe entfällt; die Vorsteuer
+  // kommt dann mit der Zahlung (der Weg vor #693). Vorher fing ein `catch {}` dafür jeden Fehler ab, auch einen echten
+  // wie den Wechsel des Kontenrahmens.
+  it("abgeschlossenes Jahr der Ausführung: Buchung bleibt möglich, Freigabe entfällt", async () => {
+    await firma({ journalAb: 2026 });
+    await sql`insert into year_closings (year) values (2026)`;
+    const id = await beleg({
+      datum: "2025-11-20",
+      von: "2025-12-01",
+      bis: "2026-01-31",
+      amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }],
+    });
+
+    expect((await monat(12, 2025)).kz66).toBe(0);
+    expect((await monat(1, 2026)).kz66).toBe(0);
+
+    await zahlung(id, -3_856, "2027-02-10");
+
+    expect((await monat(1, 2026)).kz66).toBe(0);
+    expect((await monat(2, 2027)).kz66).toBe(616);
+  });
 });

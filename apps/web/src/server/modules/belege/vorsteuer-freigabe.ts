@@ -78,22 +78,26 @@ export async function freigabeAmAusfuehrung(
     .where(and(eq(schema.journalEntries.sourceType, "freigabe"), eq(schema.journalEntries.sourceId, doc.id), isNull(schema.journalEntries.reversesId)));
   if (schon) return null;
 
-  try {
-    return await post(tx, books, {
-      date: am,
-      description: `Vorsteuer aus Leistungszeitraum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
-      sourceType: "freigabe",
-      sourceId: doc.id,
-      // Umgekehrte Richtung des Parkens: Haben Zwischenkonto, Soll Vorsteuer
-      lines: vorsteuerAusgleichPosting(
-        anteile.map((a) => ({ rate: a.rate, base: -a.base, tax: -a.tax })),
-        books.kontenrahmen,
-      ),
-    });
-  } catch {
-    // Abgeschlossenes Jahr: Dann bleibt es beim Ausgleich mit der Zahlung, statt die Buchung des Belegs scheitern zu lassen
-    return null;
-  }
+  // Abgeschlossenes Jahr: Dann bleibt es beim Ausgleich mit der Zahlung, statt die Buchung des Belegs scheitern zu
+  // lassen. Nur dieser eine Fall wird vorher geprüft; ein LedgerError kann auch vom Wechsel des Kontenrahmens oder von
+  // geänderten Firmendaten kommen, und der darf nicht stillschweigend eine Buchung verschlucken.
+  const [geschlossen] = await tx
+    .select({ year: schema.yearClosings.year })
+    .from(schema.yearClosings)
+    .where(eq(schema.yearClosings.year, Number(am.slice(0, 4))));
+  if (geschlossen) return null;
+
+  return await post(tx, books, {
+    date: am,
+    description: `Vorsteuer aus Leistungszeitraum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
+    sourceType: "freigabe",
+    sourceId: doc.id,
+    // Umgekehrte Richtung des Parkens: Haben Zwischenkonto, Soll Vorsteuer
+    lines: vorsteuerAusgleichPosting(
+      anteile.map((a) => ({ rate: a.rate, base: -a.base, tax: -a.tax })),
+      books.kontenrahmen,
+    ),
+  });
 }
 
 /**
