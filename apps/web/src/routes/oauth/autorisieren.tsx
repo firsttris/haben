@@ -85,9 +85,13 @@ function ZustimmungsSeite() {
         <h1 style={{ fontSize: 24 }}>KI-Assistent verbinden</h1>
         {ansicht && (
           <>
+            {/* Den Namen wählt der Client bei der Registrierung selbst; er belegt nicht, wer dahintersteht */}
             <p style={{ margin: 0 }}>
-              <strong>{ansicht.clientName}</strong> möchte deine Buchhaltung in Haben lesen. Nach der Zustimmung geht es zurück zu{" "}
+              Ein KI-Assistent möchte deine Buchhaltung in Haben lesen. Er nennt sich „{ansicht.clientName}“. Nach der Zustimmung geht es zurück zu{" "}
               <strong>{ansicht.redirectHost}</strong>.
+            </p>
+            <p style={{ margin: 0 }}>
+              <strong>Nur zulassen, wenn du diese Verbindung gerade selbst eingerichtet hast.</strong>
             </p>
             <ul className="muted small" style={{ margin: 0, paddingLeft: 18 }}>
               <li>Nur lesen: Buchen, Festschreiben und Senden an ELSTER bleiben bei dir in Haben.</li>

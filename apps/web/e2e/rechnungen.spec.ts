@@ -1909,8 +1909,12 @@ test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und i
   await page.getByLabel("Passwort").fill(USER.password);
   await page.getByRole("button", { name: "Mit Passwort anmelden" }).click();
   await page.waitForURL(/\/oauth\/autorisieren\?/);
-  await expect(page.getByRole("main")).toContainText("Claude E2E möchte deine Buchhaltung in Haben lesen");
-  await expect(page.getByRole("main")).toContainText("127.0.0.1:9");
+  // Den Namen wählt der Client selbst; er steht deshalb nur als „nennt sich …“ da, mit der Warnung davor
+  const zustimmung = page.getByRole("main");
+  await expect(zustimmung).toContainText("Ein KI-Assistent möchte deine Buchhaltung in Haben lesen. Er nennt sich „Claude E2E“.");
+  await expect(zustimmung).toContainText("Nur zulassen, wenn du diese Verbindung gerade selbst eingerichtet hast.");
+  await expect(zustimmung).toContainText("127.0.0.1:9");
+  expect(await axeVerstoesse(page)).toEqual([]);
   await page.getByRole("button", { name: "Zulassen" }).click();
   await expect.poll(() => rueckweg).toContain("code=");
   const zurueck = new URL(rueckweg);
