@@ -267,4 +267,33 @@ describe.skipIf(!testDatabaseUrl)("OAuth für Connectors (Postgres)", () => {
     expect((await rpc(connection.access_token)).status).toBe(401);
     expect((await token({ grant_type: "refresh_token", refresh_token: connection.refresh_token, client_id: connection.clientId })).status).toBe(400);
   });
+  it("lässt bei Loopback-Adressen jeden Port zu (RFC 8252, 7.3)", async () => {
+    // „The authorization server MUST allow any port to be specified at the time of the request for loopback IP redirect URIs“
+    const { body: client } = await register({ redirect_uris: ["http://127.0.0.1/callback"], token_endpoint_auth_method: "none" });
+    const check = await mcp.checkAuthorizeRequest({
+      response_type: "code",
+      client_id: client.client_id,
+      redirect_uri: "http://127.0.0.1:51234/callback",
+      code_challenge: pkce().challenge,
+      code_challenge_method: "S256",
+    });
+    expect(check.kind).toBe("ok");
+    // Pfad und Host bleiben exakt
+    const other = await mcp.checkAuthorizeRequest({
+      response_type: "code",
+      client_id: client.client_id,
+      redirect_uri: "http://127.0.0.1:51234/anders",
+      code_challenge: pkce().challenge,
+      code_challenge_method: "S256",
+    });
+    expect(other.kind).toBe("fehler");
+  });
+
+  it("antwortet auf einen kaputten Basic-Header mit invalid_client statt server_error (RFC 6749, 5.2)", async () => {
+    const { body: client } = await register({ redirect_uris: [CLAUDE], client_name: "Claude" });
+    const basic = `Basic ${Buffer.from(`${client.client_id}:%E0%A4%A`).toString("base64")}`;
+    const response = await token({ grant_type: "refresh_token", refresh_token: "hbr_x" }, { Authorization: basic });
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe("invalid_client");
+  });
 });
