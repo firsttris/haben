@@ -126,7 +126,7 @@ Die Namen folgen der [Mustervorlage für Produkte und Services](https://help.lex
 
 Stehen Netto- und Bruttopreis da, wie im Export von Lexware Office, gilt der Nettopreis, und der Bruttopreis muss auf einen Cent genau dazu passen. Sonst wäre unklar, welcher stimmt, und Haben übernimmt die Zeile nicht.
 
-Aus FastBill brauchst du keine Datei: Im [Umzug aus FastBill](fastbill.md#artikel) führt **Artikel aus FastBill übernehmen** hierher, und **Aus FastBill holen** lädt den Artikelkatalog über die API in dieselbe Vorschau.
+Artikel aus FastBill holt Haben ohne Datei über die API, siehe [Umzug aus FastBill](fastbill.md#artikel).
 
 ## Anlagen
 

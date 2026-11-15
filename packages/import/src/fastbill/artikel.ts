@@ -4,8 +4,8 @@ import type { FbArticle } from "./types.ts";
  * Artikel aus FastBill (article.get) als CSV für den Artikel-Import von Haben (docs/csv-import.md#artikel). Die Spalten
  * heißen wie die Felder des Imports, damit er sie von selbst zuordnet; Prüfung, Vorschau und Dubletten bleiben dort.
  *
- * UNIT_PRICE ist in FastBill immer netto, auch wenn der Preis brutto eingegeben wurde (IS_GROSS 1, echtes Konto,
- * November 2026: 84,0336 netto bei 100,00 brutto). Dann bekommt Haben einen Artikel mit Endpreis, den Bruttopreis aus
+ * UNIT_PRICE ist in FastBill immer netto, auch wenn der Preis brutto eingegeben wurde (IS_GROSS 1; beobachtet an einem
+ * echten Konto, November 2026, mit vier Nachkommastellen, etwa 84,0336 für 100,00 € bei 19 %). Dann bekommt Haben einen Artikel mit Endpreis, den Bruttopreis aus
  * UNIT_PRICE und VAT_PERCENT ohne Gleitkomma auf den Cent gerundet. Ein Preis in anderer Währung steht mit ihrem Kürzel
  * in der Zelle, damit der Import ihn als Fehler meldet, statt ihn als Euro zu lesen.
  */

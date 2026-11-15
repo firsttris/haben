@@ -1,7 +1,7 @@
 ---
 title: "Umzug aus FastBill ohne Datenverlust"
 description: >-
-  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben und Kunden über die API übernehmen,
+  Von FastBill zu Haben wechseln: Rechnungen, Gutschriften, Ausgaben, Kunden und Artikel über die API übernehmen,
   unveränderlich archivieren und kündigen.
 ---
 
@@ -97,12 +97,12 @@ Die Einzelzahlungen einer Rechnung (`PAYMENTS`) übernimmt Haben mit Datum, Betr
 
 ### Artikel
 
-Artikel sind keine Belege und kommen nicht ins Archiv, sondern in den [Artikelkatalog](rechnungen.md#artikelkatalog). Steht der API-Schlüssel, zeigt die Seite unter dem Abruf den Kasten **Artikel**. **Artikel aus FastBill übernehmen** öffnet den [CSV-Import](csv-import.md#artikel), dort holt **Aus FastBill holen** den Artikelkatalog mit je einer Anfrage für 100 Artikel. Du siehst dieselbe Vorschau wie bei einer CSV-Datei, mit neuen Artikeln, Dubletten und Fehlern; angelegt wird erst mit **Artikel übernehmen**. Ein zweiter Abruf legt nichts doppelt an.
+Artikel sind keine Belege und kommen nicht ins Archiv, sondern in den [Artikelkatalog](rechnungen.md#artikelkatalog). Steht der API-Schlüssel, zeigt die Seite unter dem Abruf den Kasten **Artikel**. **Artikel aus FastBill übernehmen** öffnet den [CSV-Import](csv-import.md#artikel), dort holt **Aus FastBill holen** den Artikelkatalog mit je einer Anfrage für 100 Artikel. Die Vorschau ist dieselbe wie bei einer CSV-Datei, mit denselben [Dubletten und Fehlern](csv-import.md#dubletten-und-fehler); angelegt wird erst mit dem Knopf darunter.
 
 - **Preis:** FastBill liefert den Preis immer netto, auch wenn du ihn brutto eingegeben hast. Solche Artikel legt Haben mit Endpreis an, den Bruttopreis aus Nettopreis und Steuersatz auf den Cent gerundet. Nettopreise mit mehr als zwei Nachkommastellen rundet Haben auf den Cent.
-- **Einheit und Steuersatz:** Haben kennt Std., Tag, Monat, Stk., Psch. und km (auch ausgeschrieben, leer ist Stück) und die Sätze 0, 7 und 19 %. Andere zeigt die Vorschau als Fehler; ändere sie in FastBill und hol die Artikel noch einmal.
+- **Einheit und Steuersatz:** Einheiten wie im [Artikel-Import](csv-import.md#artikel), Steuersätze 0, 7 und 19 %. Andere zeigt die Vorschau als Fehler; ändere sie in FastBill und hol die Artikel noch einmal.
 - **Währung:** Einen Preis in anderer Währung als Euro übernimmt Haben nicht; die Vorschau zeigt ihn als Fehler.
-- **Stundengrenze:** Der Abruf zählt auf dieselbe Grenze wie der Abruf der Belege. Ist sie erreicht, sagt Haben, in wie vielen Minuten es wieder geht. Während eines laufenden Abrufs holt Haben keine Artikel.
+- **Stundengrenze:** Der Abruf zählt auf dieselbe Grenze wie der Abruf der Belege, und umgekehrt. Ist sie erreicht oder antwortet FastBill gerade nicht, sagt Haben, in wie vielen Minuten es wieder geht. Während eines laufenden Abrufs holt Haben keine Artikel.
 
 ### Grenzen des aktuellen Imports
 

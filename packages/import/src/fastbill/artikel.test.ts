@@ -44,7 +44,7 @@ describe("fbArticlesCsv", () => {
   });
 
   it("rechnet bei IS_GROSS 1 den Endpreis aus dem Nettopreis zurück, den FastBill liefert", () => {
-    // FastBill speichert brutto eingegebene Preise netto mit vier Nachkommastellen: 100,00 brutto bei 19 % ist 84,0336
+    // FastBill liefert brutto eingegebene Preise netto mit vier Nachkommastellen, etwa 100,00 € bei 19 % als 84,0336
     const rows = imported([
       article({ ARTICLE_NUMBER: "B-19", IS_GROSS: "1", UNIT_PRICE: "84.0336", VAT_PERCENT: "19.00" }),
       article({ ARTICLE_NUMBER: "B-7", IS_GROSS: 1, UNIT_PRICE: 9.3458, VAT_PERCENT: 7 }),
@@ -78,6 +78,13 @@ describe("fbArticlesCsv", () => {
     expect(rows[1]!.value).toBeNull();
     expect(rows[1]!.errors.join(" ")).toMatch(/16/);
     expect(rows[2]!.errors).toContain("Preis fehlt (Netto- oder Bruttopreis)");
+  });
+
+  it("meldet eine Einheit aus FastBill, die Haben nicht kennt, als Fehler der Zeile statt Stück", () => {
+    const rows = imported([article({ UNIT: "Lizenz" }), article({ ARTICLE_NUMBER: "A-2", UNIT: "" })]);
+    expect(rows[0]!.value).toBeNull();
+    expect(rows[0]!.errors.join(" ")).toContain("Einheit: „Lizenz“");
+    expect(rows[1]!.value?.unit).toBe("Stk.");
   });
 
   it("maskiert Semikolon, Anführungszeichen und Zeilenumbruch, damit jede Zeile ein Artikel bleibt", () => {
