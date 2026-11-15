@@ -1,6 +1,6 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
 import { datevBookingFound, datevInternalId, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
-import { SEVDESK_EXPORT_IST_ISSUE, sevdeskExportChecks, sevdeskExportYear, withoutExportImage } from "./sevdesk-export-abgleich.ts";
+import { SEVDESK_EXPORT_IST_CHECK, SEVDESK_EXPORT_IST_ISSUE, sevdeskExportChecks, sevdeskExportYear, withoutExportImage } from "./sevdesk-export-abgleich.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import { ACCOUNTING_TYPE_ISSUE, accountingTypeChecks, accountingTypeUnclear, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
 import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
@@ -698,12 +698,13 @@ export async function reconciliation() {
       const nurAccountable = voucherRows.length > 0 && voucherRows.every((v) => v.source === "accountable");
       const checks: ReconciliationCheck[] = [
         ...(paymentIssueOf(year) ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: paymentIssueOf(year)! }] : []),
+        ...(exportIstIssueOf(year) ? [SEVDESK_EXPORT_IST_CHECK] : []),
         ...accountingTypeChecks(unclearAccountsIn(year)),
         ...fastbillWaitingChecks(fastbillWaiting.get(year)),
         ...fastbillPartlyCanceledChecks(fastbillPartlyCanceled.get(year)),
         // Ein Jahr nur aus der Export-ZIP: deren Belege statt der API (sevdesk-export-abgleich.ts)
         ...(sevdeskExport && vouchers.length === 0
-          ? sevdeskExportChecks(sevdeskExport, versteuerung)
+          ? sevdeskExportChecks(sevdeskExport)
           : [
               {
                 ok: vouchers.length > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),

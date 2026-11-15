@@ -33,6 +33,13 @@ export const SEVDESK_EXPORT_IST_ISSUE =
 /** Belege mit Belegdaten, aber ohne Belegbild im Export: brauchen keine Datei */
 export const withoutExportImage = (v: ExportVoucherRow) => v.source === "sevdesk-export" && v.ohneBelegbild && Number(v.files) === 0;
 
+/** Bei Ist in jedem Jahr mit Exportbelegen, auch im Mischjahr mit Belegen aus Lexoffice */
+export const SEVDESK_EXPORT_IST_CHECK: ReconciliationCheck = {
+  ok: false,
+  label: "Zahlungshistorie vollständig",
+  detail: "Der sevDesk-Export ordnet Zahlungen keinem Beleg zu",
+};
+
 /** Zahlen der Exportbelege eines Jahres; null, wenn das Jahr keine hat */
 export function sevdeskExportYear(yearRows: ExportVoucherRow[]): SevdeskExportYear | null {
   const rows = yearRows.filter((v) => v.source === "sevdesk-export");
@@ -45,10 +52,9 @@ export function sevdeskExportYear(yearRows: ExportVoucherRow[]): SevdeskExportYe
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** Ersetzt „Belege und Rechnungen per API abgerufen“ in einem Jahr nur aus dem Export */
-export function sevdeskExportChecks(year: SevdeskExportYear, versteuerung: "ist" | "soll"): ReconciliationCheck[] {
+export function sevdeskExportChecks(year: SevdeskExportYear): ReconciliationCheck[] {
   const total = year.withFile + year.missingFile + year.withoutImage;
   return [
-    ...(versteuerung === "ist" ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: "Der sevDesk-Export ordnet Zahlungen keinem Beleg zu" }] : []),
     {
       ok: true,
       label: "Belege aus dem sevDesk-Export übernommen",
