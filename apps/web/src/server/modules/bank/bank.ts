@@ -1154,7 +1154,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     directDebitItemId?: string;
   } = {};
   // Beleg dieses Teils, damit die Freigabe zum Leistungsdatum nachgezogen wird (#930)
-  let beleg: Parameters<typeof freigabeNachziehen>[1] | null = null;
+  let beleg: string | null = null;
 
   if (part.kind === "invoice") {
     const invoice = await lockInvoice(tx, part.invoiceId);
@@ -1212,7 +1212,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), part.amount, company.kontenrahmen, bank.bookingDate)));
     description = `Zahlung Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { documentId: doc.id };
-    beleg = doc;
+    beleg = doc.id;
   } else if (part.kind === "ustva") {
     // Buchung wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820); neu ist nur der Bezug auf die Voranmeldung
     const label = await assertUstvaOffen(tx, part.vatReturnId, part.amount);
@@ -1253,7 +1253,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   });
   // Zahlung vor der Ausführung (#930): Die vorausdatierte Freigabe zurücknehmen, den Rest wieder festschreiben —
   // nach der Buchung, damit der gezogene Anteil im Journal steht und der Saldo den Rest zeigt
-  if (beleg) await freigabeNachziehen(tx, beleg, company);
+  if (beleg) await freigabeNachziehen(tx, beleg, company, bank.bookingDate);
 }
 
 /** Ordnet (einen Teil) eines Umsatzes zu und bucht die Zahlung. */
@@ -1454,10 +1454,7 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
     });
     // Aufgehobene Zahlung vor der Ausführung (#930): Der Vorgang ist wieder offen; der freigegebene Anteil fällt am Tag
     // der Aufhebung zurück, der Rest gehört wieder zum Ausführungsdatum
-    if (allocation.documentId) {
-      const [aufgehoben] = await tx.select().from(schema.documents).where(eq(schema.documents.id, allocation.documentId));
-      if (aufgehoben) await freigabeNachziehen(tx, aufgehoben, books);
-    }
+    if (allocation.documentId) await freigabeNachziehen(tx, allocation.documentId, books, date);
   }
 }
 
@@ -1534,6 +1531,8 @@ export async function bookWriteOff(
   let lines: PostingLine[];
   let description: string;
   let target: { invoiceId: string | null; documentId: string | null; taxShares?: TaxShare[]; taxSharesInvoiceId?: string };
+  // Beleg der Ausbuchung, damit die Freigabe zum Leistungsdatum nachgezogen wird (#930)
+  let beleg: string | null = null;
   if (input.kind === "kursdifferenz") {
     if ("invoiceId" in input) {
       const invoice = await lockInvoice(tx, input.invoiceId);
@@ -1567,6 +1566,7 @@ export async function bookWriteOff(
       lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), amount, company.kontenrahmen, input.date)));
       description = `Kursdifferenz · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
       target = { invoiceId: null, documentId: doc.id };
+      beleg = doc.id;
     }
     if (amount === 0) return 0;
   } else if (input.kind === "skontoErhalten") {
@@ -1590,6 +1590,7 @@ export async function bookWriteOff(
     lines = documentWriteOffPosting(totals, amount, company.kontenrahmen, doc.vorsteuerAbzug, await vorsteuerAbschreibung(tx, doc, totals, amount, input.date));
     description = `Skonto erhalten · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { invoiceId: null, documentId: doc.id };
+    beleg = doc.id;
   } else {
     const invoice = await lockInvoice(tx, input.invoiceId);
     if (invoice?.status !== "final") throw new BankError("Rechnung nicht gefunden.");
@@ -1625,6 +1626,8 @@ export async function bookWriteOff(
     cashEntryId: "cashEntryId" in input ? (input.cashEntryId ?? null) : null,
   });
   await post(tx, company, { date: input.date, description, sourceType: "ausbuchung", sourceId: row!.id, lines });
+  // Skonto oder Kursdifferenz vor der Ausführung (#930): Die Freigabe zum Ausführungsdatum deckt nur noch, was wartet
+  if (beleg) await freigabeNachziehen(tx, beleg, company, input.date);
   return amount;
 }
 
@@ -1787,6 +1790,8 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
       ),
       reversesId: entry.id,
     });
+    // Aufgehobene Ausbuchung auf einen Beleg (#930): wie bei der Zuordnung die Freigabe zum Leistungsdatum nachziehen
+    if (row.documentId) await freigabeNachziehen(tx, row.documentId, books, date);
   }
 }
 

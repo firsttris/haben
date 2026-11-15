@@ -163,7 +163,10 @@ async function freigabeAm(tx: Tx, documentId: string): Promise<string | null> {
     select e.date::text as date
       from journal_entries e
      where e.source_type = 'freigabe' and e.source_id = ${documentId} and e.reverses_id is null
-       and not exists (select 1 from journal_entries r where r.reverses_id = e.id)`);
+       and not exists (select 1 from journal_entries r where r.reverses_id = e.id)
+     -- Nach einer Aufhebung nach der Ausführung kann eine zweite Freigabe dazukommen; es zählt die erste
+     order by e.date
+     limit 1`);
   return row?.date ?? null;
 }
 

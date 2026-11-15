@@ -467,7 +467,13 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     const rechnung = await beleg({ datum: "2026-09-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
     const gutschrift = await beleg({ datum: "2026-10-01", erstattetBezahltes: false, amounts: [{ taxRate: 1900, net: -1_000, tax: -190 }] });
     const verrechnung = await import("../bank/verrechnung.ts");
-    const { ids } = await verrechnung.settleDocuments(actor, { documentId: rechnung, counterDocumentId: gutschrift, amount: 1_190, date: "2026-10-05", note: "Gutschrift" });
+    const { ids } = await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 1_190,
+      date: "2026-10-05",
+      note: "Gutschrift",
+    });
     await verrechnung.reverseSettlement(actor, ids[0]!, "2026-10-20");
 
     const [rest] = await sql`select coalesce(sum(l.debit - l.credit), 0)::int as saldo from journal_lines l where l.account = '1548'`;
