@@ -749,6 +749,30 @@ test("Monatsauswahl: offenes Raster ohne axe-Verstöße, hell und dunkel, am Des
   if (vorher) await page.setViewportSize(vorher);
 });
 
+test("Fremdwährung: Kurs von Hand mit der Monatsauswahl, fehlende Angaben stehen am Feld (#928)", async () => {
+  await go("/einstellungen?bereich=waehrung");
+  const form = page.getByRole("form", { name: "Kurs von Hand" });
+  const waehrung = form.getByLabel("Währung", { exact: true });
+  const monat = form.getByLabel("Monat", { exact: true });
+  await form.getByRole("button", { name: "Kurs speichern" }).click();
+  await expect(waehrung).toBeFocused();
+  await expect(waehrung).toHaveAccessibleDescription("Trag die Währung ein.");
+  await expect(monat).toHaveAccessibleDescription("Wähle den Monat.");
+  await waehrung.fill("ISK");
+  await monat.click();
+  await page.getByRole("dialog", { name: "Monat wählen" }).getByRole("button", { name: `Januar ${YEAR}` }).click();
+  await expect(monat).not.toHaveAttribute("aria-invalid");
+  await form.getByLabel("1 EUR = …", { exact: true }).fill("152,3");
+  await form.getByRole("button", { name: "Kurs speichern" }).click();
+  await expect(page.getByText("Kurs gespeichert.")).toBeVisible();
+  await expect(monat).toContainText("Monat wählen");
+  const zeile = page.getByRole("row").filter({ hasText: "ISK" });
+  await expect(zeile).toContainText(`01/${YEAR}`);
+  await expect(zeile).toContainText("von Hand");
+  await zeile.getByRole("button", { name: "Löschen" }).click();
+  await expect(zeile).toHaveCount(0);
+});
+
 test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
   // Zwei Spalten am Handy (DESIGN.md, Karten): Die fünfte Karte der Pauschalen und die dritte der Kasse standen allein in halber Breite
   const vorher = page.viewportSize();
