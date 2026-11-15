@@ -197,3 +197,6 @@ extra:
     - icon: fontawesome/brands/docker
       link: https://hub.docker.com/r/tristanteu/haben
       name: Image auf Docker Hub
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/CT2GQytSYH
+      name: Fragen und Austausch auf Discord
