@@ -32,9 +32,9 @@ Von oben nach unten, wie einfach der Merge ist:
 5. **Konflikt oder rote CI**, die der Pull Request selbst verursacht
 6. **Wartet auf den Autor:** Befunde stehen schon im Pull Request, seitdem nichts Neues. Nichts tun.
 
-Gleich einfache Pull Requests nach Alter. Belegen zwei dieselbe Migrationsnummer, kommt der fertigere zuerst; der andere erzeugt seine Migration nach dem Merge neu.
+Gleich einfache Pull Requests nach Alter.
 
-**Migrationen nacheinander:** Es gibt immer nur eine nächste freie Nummer. Pull Requests mit Migration gehen einzeln durch: Erst wenn einer gemergt ist, holt der nächste `main` per Merge herein und erzeugt seine Migration mit `bun run db:generate` neu, und zwar erst kurz vor seinem eigenen Merge, nach Prüfung und grüner CI. Bis er gemergt ist, geht kein anderer Pull Request mit Migration rein. Pull Requests ohne Migration dürfen jederzeit dazwischen. In der Rangliste steht deshalb die Reihenfolge der Pull Requests mit Migration, und ihre Autoren erfahren, wann sie dran sind, statt nach jedem Merge erneut umzunummerieren.
+**Migrationen nacheinander:** Pull Requests mit Migration gehen einzeln durch, der fertigere zuerst; Pull Requests ohne Migration dürfen dazwischen. Erst nach dem Merge des vorigen holt der nächste `main` per Merge herein und erzeugt seine Migrationen neu, kurz vor seinem eigenen Merge, nach Prüfung und grüner CI: eigene Dateien in `apps/web/drizzle/` verwerfen, `drizzle/meta/` auf den Stand von `main` (nicht von Hand), dann `bun run db:generate`, eine eigene SQL-Migration (Trigger) mit `drizzle-kit generate --custom` und dem bisherigen SQL (`docs/entwicklung.md`, „Migrationen“). Die Rangliste nennt die Reihenfolge der Pull Requests mit Migration, der Kommentar aus Schritt 3 jedem Autor seinen Platz.
 
 Die Rangliste geht als Tabelle an den Maintainer, mit einer Zeile je Pull Request: Platz, Nummer, Titel, Stand, nächster Schritt.
 
