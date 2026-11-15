@@ -3845,9 +3845,14 @@ export const etsyConnections = pgTable(
     fetchFrom: date("fetch_from").notNull(),
     /** Gebühren und Werbung je Monat zu einer Zeile bündeln, wie die Gebührenrechnung sie zeigt */
     sammelzeilen: boolean("sammelzeilen").notNull().default(true),
+    /** Wie oft der Zeitplan abruft: stuendlich, taeglich, woechentlich oder monatlich (ab dem 5.) */
+    rhythmus: text("rhythmus").notNull().default("taeglich"),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     lastError: text("last_error"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("etsy_connections_id", sql`${t.id} = 'etsy'`)],
+  (t) => [
+    check("etsy_connections_id", sql`${t.id} = 'etsy'`),
+    check("etsy_connections_rhythmus", sql`${t.rhythmus} in ('stuendlich', 'taeglich', 'woechentlich', 'monatlich')`),
+  ],
 );

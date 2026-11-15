@@ -152,11 +152,19 @@ describe.skipIf(!testDatabaseUrl)("Etsy-Zahlungsverlauf (Postgres)", () => {
   it("speichert den Zugang verschlüsselt und ohne Geheimnis in der Zusammenfassung", async () => {
     await etsy.saveEtsyConnection(actor, { keystring: "abc", sharedSecret: "geheim", fetchFrom: "2023-06", sammelzeilen: true });
     const stand = await etsy.etsySummary();
-    expect(stand).toMatchObject({ configured: true, connected: false, keystring: "abc", fetchFrom: "2023-06", sammelzeilen: true });
+    expect(stand).toMatchObject({ configured: true, connected: false, keystring: "abc", fetchFrom: "2023-06", sammelzeilen: true, rhythmus: "taeglich" });
     expect(JSON.stringify(stand)).not.toContain("geheim");
     const [row] = await sql`select ciphertext::text as c from etsy_connections`;
     expect(row!.c).not.toContain("geheim");
     expect(await etsy.etsyConnected()).toBe(false);
+  });
+
+  it("speichert den Rhythmus des automatischen Abrufs und lehnt unbekannte Werte ab", async () => {
+    await etsy.saveEtsyConnection(actor, { keystring: "abc", fetchFrom: "2023-06", sammelzeilen: true, rhythmus: "monatlich" });
+    expect((await etsy.etsySummary()).rhythmus).toBe("monatlich");
+    await expect(etsy.saveEtsyConnection(actor, { keystring: "abc", fetchFrom: "2023-06", rhythmus: "minuetlich" as "taeglich" })).rejects.toThrow();
+    await etsy.saveEtsyConnection(actor, { keystring: "abc", fetchFrom: "2023-06", sammelzeilen: true, rhythmus: "taeglich" });
+    expect((await etsy.etsySummary()).rhythmus).toBe("taeglich");
   });
 
   it("übernimmt den Verlauf ins Konto des Dienstleisters und bündelt die Gebühren", async () => {

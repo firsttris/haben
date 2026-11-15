@@ -47,6 +47,37 @@ export function naechsterAbrufStart(tage: string[], fetchFrom: string, gebuehren
   return [kandidat, fetchFrom].sort().at(-1)!;
 }
 
+/** Wie oft der Zeitplan den Verlauf holt; Gebühren und Werbung kommen unabhängig davon einmal im Monat als Sammelzeile */
+export const ETSY_RHYTHMEN = ["stuendlich", "taeglich", "woechentlich", "monatlich"] as const;
+export type EtsyRhythmus = (typeof ETSY_RHYTHMEN)[number];
+
+const STUNDE = 60 * 60 * 1000;
+/** Abstand je Rhythmus mit etwas Luft, weil der Zeitplan selbst nur stündlich läuft */
+const ABSTAND: Record<Exclude<EtsyRhythmus, "monatlich">, number> = {
+  stuendlich: 50 * 60 * 1000,
+  taeglich: 20 * STUNDE,
+  woechentlich: 7 * 24 * STUNDE - 4 * STUNDE,
+};
+
+/**
+ * Ist der automatische Abruf fällig? Monatlich heißt: einmal ab dem 5. (BUENDEL_TAG), wenn die Gebühren des Vormonats
+ * gebündelt werden können. Nach einem Fehlschlag versucht es der Zeitplan spätestens nach einem Tag erneut, auch beim
+ * wöchentlichen und monatlichen Rhythmus. `heute` und `letzterTag` sind Tage in deutscher Zeit (JJJJ-MM-TT).
+ */
+export function abrufFaellig(
+  rhythmus: EtsyRhythmus,
+  letzter: { zeit: Date; tag: string; fehlgeschlagen: boolean } | null,
+  jetzt: Date,
+  heute: string,
+): boolean {
+  if (!letzter) return true;
+  const vergangen = jetzt.getTime() - letzter.zeit.getTime();
+  if (letzter.fehlgeschlagen && vergangen >= ABSTAND.taeglich) return true;
+  if (rhythmus !== "monatlich") return vergangen >= ABSTAND[rhythmus];
+  const stichtag = `${heute.slice(0, 7)}-${String(BUENDEL_TAG).padStart(2, "0")}`;
+  return heute >= stichtag && letzter.tag < stichtag;
+}
+
 /** Verteilung der Bestellungen nach dem Land des Käufers, als Hinweis im Abrufergebnis */
 export function laenderHinweis(bestellungen: string[], laender: Map<string, string>): string | null {
   if (bestellungen.length === 0) return null;

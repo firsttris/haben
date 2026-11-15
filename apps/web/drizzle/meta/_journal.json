@@ -1737,6 +1737,13 @@
       "when": 1794742839465,
       "tag": "0247_etsy_zugang_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 248,
+      "version": "7",
+      "when": 1794752568160,
+      "tag": "0248_etsy_rhythmus",
+      "breakpoints": true
     }
   ]
 }

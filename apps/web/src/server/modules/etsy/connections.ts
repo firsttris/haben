@@ -7,6 +7,7 @@ import { db, schema } from "../../db/index.ts";
 import { env } from "../../env.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
+import { ETSY_RHYTHMEN, type EtsyRhythmus } from "./abruf-regeln.ts";
 
 /*
  * Zugang zum Zahlungsverlauf von Etsy Payments (Einstellungen › Bank).
@@ -121,6 +122,8 @@ export const etsySettingsSchema = z.object({
   fetchFrom: month,
   /** Gebühren und Werbung je Monat zu einer Zeile bündeln */
   sammelzeilen: z.boolean().default(true),
+  /** Wie oft der Zeitplan abruft */
+  rhythmus: z.enum(ETSY_RHYTHMEN).default("taeglich"),
 });
 
 /**
@@ -138,6 +141,7 @@ export async function saveEtsyConnection(actor: string, input: z.input<typeof et
     keystring: data.keystring,
     fetchFrom: `${data.fetchFrom}-01`,
     sammelzeilen: data.sammelzeilen,
+    rhythmus: data.rhythmus,
     // Ein neuer Schlüssel gilt für eine andere App: Shop und Fehler gehören nicht mehr dazu
     ...(gleicheApp ? {} : { shopId: "", shopName: "", lastError: null }),
   });
@@ -227,6 +231,7 @@ export async function etsySummary() {
     shopName: connection?.row.shopName ?? "",
     fetchFrom: connection?.row.fetchFrom.slice(0, 7) ?? today().slice(0, 7),
     sammelzeilen: connection?.row.sammelzeilen ?? true,
+    rhythmus: (connection?.row.rhythmus ?? "taeglich") as EtsyRhythmus,
     lastSyncAt: connection?.row.lastSyncAt ?? null,
     lastError: connection?.row.lastError ?? null,
     updatedAt: connection?.row.updatedAt ?? null,

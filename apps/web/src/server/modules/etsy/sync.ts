@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { today as todayInGermany } from "../../today.ts";
-import { dayOf, gebuehrenBisAm, laenderHinweis, naechsterAbrufStart } from "./abruf-regeln.ts";
+import { abrufFaellig, dayOf, type EtsyRhythmus, gebuehrenBisAm, laenderHinweis, naechsterAbrufStart } from "./abruf-regeln.ts";
 import { etsyClientFor, EtsyError, loadEtsyConnection, storeEtsySecret } from "./connections.ts";
 import { importEtsyLedger, type EtsyImportResult } from "./import.ts";
 
@@ -20,9 +20,6 @@ import { importEtsyLedger, type EtsyImportResult } from "./import.ts";
 
 /** Urheber im Protokoll für den automatischen Abruf */
 export const ETSY_SYNC_ACTOR = "system:etsyabruf";
-
-/** Der automatische Abruf läuft höchstens so oft; Etsy schreibt laufend, aber nicht im Minutentakt */
-const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 60 * 1000;
 
 export interface EtsySyncResult {
   /** Zeilen aus dem Verlauf */
@@ -59,8 +56,15 @@ export async function syncEtsy(actor: string, now = new Date()): Promise<EtsySyn
       .map((entry) => (entry.entry_id === undefined ? "" : String(entry.entry_id)))
       .filter(Boolean);
     const orders = verlaufsKennungen.length > 0 ? await client.ordersFor(verlaufsKennungen) : new Map<string, string>();
-    // Das Land des Käufers entscheidet die Steuer der Rechnung (DE 19 %, USA nicht steuerbar, übrige klären)
-    const bestellungen = [...new Set(orders.values())];
+    // Das Land des Käufers entscheidet die Steuer der Rechnung (DE 19 %, USA nicht steuerbar, übrige klären). Gefragt
+    // wird nur für Verkäufe und Erstattungen seit dem letzten Abruf (ein Tag Luft), nicht bei jedem Lauf für den ganzen Monat
+    const seit = connection.row.lastSyncAt ? connection.row.lastSyncAt.getTime() / 1000 - 24 * 60 * 60 : 0;
+    const neueZahlungen = new Set(
+      entries
+        .filter((entry) => (entry.ledger_type === "PAYMENT_GROSS" || entry.ledger_type === "REFUND_GROSS") && (entry.created_timestamp ?? 0) >= seit)
+        .map((entry) => String(entry.reference_id ?? "")),
+    );
+    const bestellungen = [...new Set([...neueZahlungen].map((id) => orders.get(id)).filter((id): id is string => Boolean(id)))];
     const laender = bestellungen.length > 0 ? await client.countriesFor(bestellungen) : new Map<string, string>();
     const gebuehrenBis = gebuehrenBisAm(todayInGermany(now));
     const imported: EtsyImportResult = await importEtsyLedger(actor, entries, {
@@ -93,14 +97,17 @@ export async function runDueEtsySyncs(now = new Date()): Promise<{ synced: numbe
   const summary = { synced: 0, added: 0, errors: [] as string[] };
   const connection = await loadEtsyConnection();
   if (!connection?.secret.refreshToken || !connection.row.shopId) return summary;
-  if (connection.row.lastSyncAt && now.getTime() - connection.row.lastSyncAt.getTime() < AUTO_SYNC_INTERVAL_MS) return summary;
+  const letzter = connection.row.lastSyncAt
+    ? { zeit: connection.row.lastSyncAt, tag: todayInGermany(connection.row.lastSyncAt), fehlgeschlagen: connection.row.lastError !== null }
+    : null;
+  if (!abrufFaellig(connection.row.rhythmus as EtsyRhythmus, letzter, now, todayInGermany(now))) return summary;
   try {
     const result = await syncEtsy(ETSY_SYNC_ACTOR, now);
     summary.synced = 1;
     summary.added = result.added;
     if (result.error) {
       summary.errors.push(`Etsy Payments: ${result.error}`);
-      // Fehlschlag zählt als Abruf, damit der nächste Versuch erst am nächsten Tag kommt
+      // Fehlschlag zählt als Anlauf; der nächste Versuch kommt nach einem Tag (abrufFaellig)
       await update(ETSY_SYNC_ACTOR, { lastSyncAt: now });
     }
   } catch (error) {

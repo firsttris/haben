@@ -61,7 +61,7 @@ Der Entwurf geht über den Auszahlungsanspruch des Monats, zu 0 % mit Reverse Ch
 
 ## Etsy-Zahlungsverlauf über die API
 
-Statt der Monatsabrechnung kann Haben den Zahlungsverlauf von Etsy Payments selbst abrufen: einmal täglich und mit **Jetzt abrufen**. Nimm für einen Zeitraum nur einen Weg; hat ein Monat schon Umsätze aus der CSV, weist Haben beim Abruf darauf hin.
+Statt der Monatsabrechnung kann Haben den Zahlungsverlauf von Etsy Payments selbst abrufen: nach Zeitplan und mit **Jetzt abrufen**. Nimm für einen Zeitraum nur einen Weg; hat ein Monat schon Umsätze aus der CSV, weist Haben beim Abruf darauf hin.
 
 **Bei Etsy (einmalig):**
 
@@ -69,13 +69,14 @@ Statt der Monatsabrechnung kann Haben den Zahlungsverlauf von Etsy Payments selb
 2. Als **Redirect-URI** `<Adresse von Haben>/api/etsy/callback` eintragen, mit genau der Adresse, unter der du Haben im Browser öffnest.
 3. Die App braucht die Rechte `transactions_r` und `shops_r`; Etsy fragt sie bei der Freigabe ab.
 
-**In Haben:** Unter **Einstellungen › Bank** in der Karte **Etsy Payments** App-Schlüssel und Geheimnis eintragen, **Abruf ab Monat** wählen, **Speichern** und **Verbinden**. Haben öffnet Etsy zur Freigabe; danach steht in der Karte „Verbunden mit“ und der Name des Shops. Voraussetzung ist ein Konto der Art Zahlungsdienstleister mit Anbieter Etsy. **Trennen** hebt die Verbindung auf und behält den Schlüssel, **Zugang entfernen** löscht beides.
+**In Haben:** Unter **Einstellungen › Bank** in der Karte **Etsy Payments** App-Schlüssel und Geheimnis eintragen, **Abruf ab Monat** wählen, **Speichern** und **Verbinden**. Haben öffnet Etsy zur Freigabe; danach steht in der Karte „Verbunden mit“ und der Name des Shops. Voraussetzung ist ein Konto der Art Zahlungsdienstleister mit Anbieter Etsy. Unter **Automatischer Abruf** wählst du stündlich, täglich (Vorgabe), wöchentlich oder monatlich; monatlich ruft Haben einmal ab dem 5. ab. Verkäufe und Erstattungen kommen mit jedem Abruf, Gebühren und Werbung unabhängig vom Rhythmus einmal im Monat. **Trennen** hebt die Verbindung auf und behält den Schlüssel, **Zugang entfernen** löscht beides.
 
 **Was im Konto ankommt:**
 
 - Jeder Verkauf und jede Erstattung einzeln, mit der Bestellnummer im Zweck. Die Steuer, die Etsy für den Käufer einzieht und abführt (etwa US Sales Tax), verrechnet Haben wie bei der Monatsabrechnung mit dem Verkauf bzw. der Erstattung derselben Bestellung am selben Tag; der Verkauf kommt mit dem Betrag der Rechnung an. Ohne passenden Verkauf bleibt sie mit Bestellnummer als eigener Umsatz stehen.
 - Mit **Gebühren bündeln** je Monat und Art eine Zeile am Monatsletzten: Einstellgebühren, Transaktionsgebühren, Zahlungsabwicklung und Werbung (Etsy Ads und Offsite Ads). Zusammen ergeben sie die Summe der Gebührenrechnung, die Etsy „USt.-Abrechnung“ nennt, und lassen sich ihr mit einem Klick zuordnen. Die Transaktionsgebühr auf das Porto zählt zu den Transaktionsgebühren, die Gebühr für weitere verkaufte Stücke zu den Einstellgebühren, wie auf der Rechnung.
 - Auszahlungen als Geldtransit, Karteneinzug und Verrechnung einzeln.
+- Damit der Bankabgleich einen Verkauf seiner Rechnung vorschlägt, muss die Etsy-Bestellnummer an der Rechnung stehen, als [Bestellnummer oder eigene Auftragsnummer](rechnungen.md#bestellnummer-auftrag-und-lieferschein) oder über die REST-API als [externe Referenz](api.md#externe-referenz-eine-rechnung-je-bestellung) (`externalSource` `etsy`, `externalId` die Bestellnummer). Der Betrag muss genau stimmen; bei Käufern in den USA ist das der Betrag ohne die Sales Tax, die Etsy abführt.
 - Im Abrufergebnis stehen die Bestellungen nach Land des Käufers: Deutschland, USA und andere.
 
 **Der 5. des Folgemonats:** Etsy korrigiert Gebühren in den ersten Tagen des Folgemonats noch. Haben bündelt einen Monat deshalb erst ab dem 5.; bis dahin bleiben seine Gebühren liegen, der Abruf sagt das. Lade auch die Gebührenrechnung erst ab dem 5. herunter, dann passt sie zu den Sammelzeilen. Eine Sammelzeile entsteht nur einmal: Kommt später noch eine Gebühr mit dem Datum eines schon gebündelten Monats, übernimmt Haben sie nicht und weist darauf hin.

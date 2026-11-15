@@ -10,6 +10,14 @@ import { connectEtsyFn, disconnectEtsyFn, type getEtsySettings, removeEtsyConnec
 
 type Data = Awaited<ReturnType<typeof getEtsySettings>>;
 
+/** Auswahl für den automatischen Abruf; die Werte prüft der Server (ETSY_RHYTHMEN in etsy/abruf-regeln.ts) */
+const RHYTHMUS_LABELS: Record<Data["rhythmus"], string> = {
+  stuendlich: "Stündlich (Verkäufe fast in Echtzeit)",
+  taeglich: "Täglich",
+  woechentlich: "Wöchentlich",
+  monatlich: "Monatlich (ab dem 5.)",
+};
+
 /**
  * Zahlungsverlauf von Etsy Payments: App-Schlüssel hinterlegen, den Shop freigeben und den Verlauf abrufen.
  *
@@ -27,6 +35,7 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
   const [keystring, setKeystring] = useState(data.keystring);
   const [fetchFrom, setFetchFrom] = useState(data.fetchFrom);
   const [sammelzeilen, setSammelzeilen] = useState(data.sammelzeilen);
+  const [rhythmus, setRhythmus] = useState(data.rhythmus);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const { busy, notice, run } = useAction();
 
@@ -35,7 +44,7 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
     const form = event.currentTarget;
     const sharedSecret = String(new FormData(form).get("sharedSecret") ?? "");
     void run(async () => {
-      await save({ data: { keystring, fetchFrom, sammelzeilen, sharedSecret } });
+      await save({ data: { keystring, fetchFrom, sammelzeilen, rhythmus, sharedSecret } });
       form.reset();
       await router.invalidate();
     }, "Zugang gespeichert. Jetzt verbinden, damit Etsy die Freigabe zeigt.");
@@ -93,9 +102,24 @@ export function EtsyPaymentsCard({ data }: { data: Data }) {
             <input {...control} name="sammelzeilen" type="checkbox" checked={sammelzeilen} onChange={(event) => setSammelzeilen(event.target.checked)} />
           )}
         </Field>
-        <p className="small muted" style={{ margin: 0 }}>
-          Die Gebühren-PDF von Etsy erst ab dem 5. des Folgemonats hochladen. Etsy korrigiert Gebühren bis dahin noch nachträglich.
-        </p>
+        <Field
+          label="Automatischer Abruf"
+          hint="Verkäufe und Erstattungen kommen mit jedem Abruf; Gebühren und Werbung einmal im Monat ab dem 5. als Sammelzeile"
+        >
+          {(control) => (
+            <select {...control} name="rhythmus" value={rhythmus} onChange={(event) => setRhythmus(event.target.value as Data["rhythmus"])}>
+              {Object.entries(RHYTHMUS_LABELS).map(([wert, label]) => (
+                <option key={wert} value={wert}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <div className="banner banner-warn" role="note">
+          Die Gebührenrechnung (bei Etsy „USt.-Abrechnung“) frühestens am 5. des Folgemonats herunterladen und hochladen: Etsy korrigiert Gebühren im Übergang
+          des Monats manchmal nach. Ab dem 5. stimmt sie auf den Cent mit den Sammelzeilen.
+        </div>
         <div className="row" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? "Speichere …" : "Speichern"}
