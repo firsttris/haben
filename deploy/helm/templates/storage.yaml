@@ -1,0 +1,33 @@
+{{- define "haben.pvc" -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "haben.fullname" .root }}-{{ .name }}
+  labels:
+    {{- include "haben.labels" .root | nindent 4 }}
+  {{- if .keep }}
+  # Buchhaltungsdaten: Aufbewahrung 8 und 10 Jahre (§ 147 Abs. 3 AO); helm uninstall löscht sie nicht
+  annotations:
+    helm.sh/resource-policy: keep
+  {{- end }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .persistence.size }}
+{{- end -}}
+
+{{ include "haben.pvc" (dict "root" . "name" "belege" "persistence" .Values.app.persistence.belege "keep" true) }}
+---
+{{ include "haben.pvc" (dict "root" . "name" "eric" "persistence" .Values.app.persistence.eric) }}
+{{- if .Values.postgresql.enabled }}
+---
+{{ include "haben.pvc" (dict "root" . "name" "db" "persistence" .Values.postgresql.persistence "keep" true) }}
+{{- end }}
+{{- if and .Values.backup.enabled .Values.backup.persistence.enabled }}
+---
+{{ include "haben.pvc" (dict "root" . "name" "backups" "persistence" .Values.backup.persistence "keep" true) }}
+{{- end }}

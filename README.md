@@ -115,7 +115,7 @@ Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), 
 tägliches Backup mit restic.
 Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
 denn Passkeys funktionieren nur über HTTPS.
-Vorlagen gibt es für [Synology](https://haben.app/synology.html) und [TrueNAS](https://haben.app/truenas.html) (beide ohne Kommandozeile), [Unraid](https://haben.app/unraid.html) und [Coolify](https://haben.app/coolify.html).
+Vorlagen gibt es für [Synology](https://haben.app/synology.html) und [TrueNAS](https://haben.app/truenas.html) (beide ohne Kommandozeile), [Unraid](https://haben.app/unraid.html) und [Coolify](https://haben.app/coolify.html), ein Helm-Chart für [Kubernetes](https://haben.app/kubernetes.html).
 
 ### 1. Von einem Agenten aufsetzen lassen
 
