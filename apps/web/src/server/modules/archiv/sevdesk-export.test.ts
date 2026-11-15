@@ -155,7 +155,10 @@ describe.skipIf(!testDatabaseUrl)("sevDesk ohne API: Export-ZIP übernehmen (Pos
   });
 
   it("Fremdwährung ohne Euro-Betrag in Beleginfo: kein Archivbeleg mit dem Fremdbetrag als Euro, sondern ein Fehler mit Grund", async () => {
-    const usd = rechnung!.replace(/^100,00;"H";"EUR"/, '106,00;"H";"USD"').replace(";84,03;", ";;").replace(";15,97;", ";;");
+    const usd = rechnung!
+      .replace(/^100,00;"H";"EUR"/, '106,00;"H";"USD"')
+      .replace(";84,03;", ";;")
+      .replace(";15,97;", ";;");
     const bytes = zip({
       [STAPEL]: strToU8([kopf, spalten, usd, ausgabe!].join("\n")),
       "DATEV_Rechnungsausgang_20240101_20241231.zip": innerZip(fixture("buchhaltung-2.0/document-rechnungsausgang.xml")),
@@ -185,7 +188,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk ohne API: Export-ZIP übernehmen (Pos
     "Mischjahr (%s): Belege aus Lexoffice bis zum Wechsel, danach der Export aus sevDesk; dessen Teil zählt aus dem Stapel",
     async (kontenrahmen) => {
       await company(kontenrahmen, "soll");
-      const [imp] = await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{"phase":"fertig"}'::jsonb, 'lexoffice') returning id`;
+      const [imp] =
+        await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{"phase":"fertig"}'::jsonb, 'lexoffice') returning id`;
       await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, source, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
         values ('lex-1', ${imp!.id}, 'lexoffice', 'salesinvoice', 'einnahme', 'LX-1', '2024-01-05', 'paid', 'Kunde', 10000, 1900, 11900,
           '[{"rate":1900,"net":10000,"tax":1900}]'::jsonb, '[]'::jsonb, null, '{}'::jsonb)`;
