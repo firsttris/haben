@@ -724,6 +724,31 @@ test("Monatsauswahl: Tab aus dem offenen Raster schließt es, statt das nächste
   await expect(dialog).toBeHidden();
 });
 
+test("Monatsauswahl: offenes Raster ohne axe-Verstöße, hell und dunkel, am Desktop und am Handy (#928)", async () => {
+  const vorher = page.viewportSize();
+  for (const modus of ["hell", "dunkel"]) {
+    for (const viewport of [LAPTOP, { width: 320, height: 720 }]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate((m) => localStorage.setItem("haben-modus", m), modus);
+      await go("/pauschalen");
+      const homeoffice = page.getByRole("region", { name: "Pauschale eintragen" }).getByRole("form", { name: "Homeoffice-Pauschale" });
+      await homeoffice.getByLabel("Monat", { exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "Monat wählen" });
+      await expect(dialog).toBeVisible();
+      const box = await dialog.boundingBox();
+      expect(box && box.x >= 0 && box.x + box.width <= viewport.width, `${modus}, ${viewport.width} px im Bild`).toBe(true);
+      const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+      expect(
+        violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+        `${modus}, ${viewport.width} px`,
+      ).toEqual([]);
+      await page.keyboard.press("Escape");
+    }
+  }
+  await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
+  if (vorher) await page.setViewportSize(vorher);
+});
+
 test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
   // Zwei Spalten am Handy (DESIGN.md, Karten): Die fünfte Karte der Pauschalen und die dritte der Kasse standen allein in halber Breite
   const vorher = page.viewportSize();
