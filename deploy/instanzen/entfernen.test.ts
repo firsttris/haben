@@ -244,6 +244,19 @@ describe("entfernen ändert nichts, wenn es die Instanz noch gibt", () => {
     expect(r.stderr).toContain("nichts geändert");
   });
 
+  it("nennt vor down -v Jahresexport, Backup an einem zweiten Ort und die Aufbewahrung nach § 147 AO", async () => {
+    await t.lauf("neu", "firma1", "firma1.example.de");
+    await t.lauf("neu", "firma2", "firma2.example.de");
+    t.docker.aufrufe.length = 0;
+    const r = await t.lauf("entfernen", "firma2");
+    await unverandert(r);
+    // down -v löscht Datenbank, Belege und das Backup im Volume: Wer die Meldung liest, erfährt vorher, was zu sichern ist
+    expect(r.stderr).toContain("Jahresexport");
+    expect(r.stderr).toContain("zweiten Ort");
+    expect(r.stderr).toContain("§ 147 Abs. 3 AO");
+    expect(r.stderr.indexOf("Jahresexport")).toBeLessThan(r.stderr.indexOf("docker compose down -v"));
+  });
+
   it("bricht ab, solange das Verzeichnis noch da ist, auch ohne .env und compose.yml", async () => {
     await zweiInstanzen();
     mkdirSync(join(t.basis, "firma2"));
