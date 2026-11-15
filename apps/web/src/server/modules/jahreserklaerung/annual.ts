@@ -516,7 +516,7 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
 }
 
 /**
- * Ohne Bescheid trägt der ESt-Vermerk keinen Betrag (#1073). Dann gibt es nichts zu vergleichen, und die Seite sagt das
+ * Der ESt-Vermerk trägt keinen Betrag (#1073). Dann gibt es nichts zu vergleichen, und die Seite sagt das
  * auch: Ohne diesen Satz stünde Habens Schätzung allein da und sähe aus wie das Ergebnis der Veranlagung.
  */
 export function ohneBetragHinweis(vermerk: { amount: number | null } | null): Issue[] {
@@ -524,7 +524,7 @@ export function ohneBetragHinweis(vermerk: { amount: number | null } | null): Is
   return [
     {
       tone: "hinweis",
-      text: "Die Einkommensteuererklärung ist ohne Betrag vermerkt. Das Ergebnis steht erst mit dem Steuerbescheid fest, deshalb steht hier kein Vergleich. Trag den Bescheid ein, sobald er vorliegt.",
+      text: "Die Einkommensteuererklärung ist ohne Betrag vermerkt. Das Ergebnis steht erst mit dem Steuerbescheid fest, deshalb steht hier kein Vergleich.",
     },
   ];
 }
@@ -631,8 +631,6 @@ export async function submissions(year: number) {
         filedOn: schema.annualSubmissions.filedOn,
         note: schema.annualSubmissions.note,
         amount: sql<number | null>`(${schema.annualSubmissions.figures}->>'amount')::bigint`.mapWith(Number),
-        /** null beim Abgabevermerk, "bescheid" beim nachgetragenen Steuerbescheid (#1073) */
-        art: sql<string | null>`${schema.annualSubmissions.figures}->>'art'`,
         hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
         createdAt: schema.annualSubmissions.createdAt,
       })
@@ -671,8 +669,7 @@ export async function annualOverview(year: number, today: string) {
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
   // Eine außerhalb von Haben abgegebene Erklärung zählt als erledigt und trägt ihren Betrag (Umsatzsteuer: Abschlusszahlung, EÜR: Gewinn)
   const submitted = (form: AnnualForm) => {
-    // Ein nachgetragener Bescheid ist kein Abgabevermerk (#1073)
-    const vermerk = history.find((h) => h.form === form && h.kind === "vermerk" && h.ok && h.art !== "bescheid");
+    const vermerk = history.find((h) => h.form === form && h.kind === "vermerk" && h.ok);
     if (!vermerk) return null;
     return {
       id: vermerk.id,

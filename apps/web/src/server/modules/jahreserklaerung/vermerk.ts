@@ -83,8 +83,6 @@ const FORM_LABEL: Record<VermerkForm, string> = { ust: "Umsatzsteuererklärung",
 export interface Jahresvermerk {
   id: string;
   form: VermerkForm;
-  /** null beim Abgabevermerk, "bescheid" beim nachgetragenen Steuerbescheid */
-  art: string | null;
   year: number;
   filedOn: string | null;
   transferTicket: string | null;
@@ -102,7 +100,6 @@ const VERMERK_COLUMNS = {
   transferTicket: schema.annualSubmissions.transferTicket,
   note: schema.annualSubmissions.note,
   amount: sql<number | null>`(${schema.annualSubmissions.figures}->>'amount')::bigint`.mapWith(Number),
-  art: sql<string | null>`${schema.annualSubmissions.figures}->>'art'`,
   hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
   createdAt: schema.annualSubmissions.createdAt,
 };
@@ -147,15 +144,7 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
     const [schonVermerkt] = await db
       .select({ id: schema.annualSubmissions.id })
       .from(schema.annualSubmissions)
-      .where(
-        and(
-          eq(schema.annualSubmissions.form, form),
-          eq(schema.annualSubmissions.year, year),
-          eq(schema.annualSubmissions.kind, "vermerk"),
-          // Ein nachgetragener Bescheid ist kein zweiter Vermerk
-          sql`${schema.annualSubmissions.figures}->>'art' is distinct from 'bescheid'`,
-        ),
-      );
+      .where(and(eq(schema.annualSubmissions.form, form), eq(schema.annualSubmissions.year, year), eq(schema.annualSubmissions.kind, "vermerk")));
     if (schonVermerkt) throw new AnnualError(`Für die ${FORM_LABEL[form]} ${year} ist die Abgabe schon vermerkt.`);
     const [gesendet] = await db
       .select({ id: schema.annualSubmissions.id })
@@ -219,7 +208,7 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
           hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
           createdAt: schema.annualSubmissions.createdAt,
         });
-      return { ...row!, form: row!.form as VermerkForm, art: null, amount: data.amount ?? null };
+      return { ...row!, form: row!.form as VermerkForm, amount: data.amount ?? null };
     });
   });
 }
@@ -229,13 +218,7 @@ export async function jahresvermerke(year: number): Promise<Jahresvermerk[]> {
   const rows = await db
     .select(VERMERK_COLUMNS)
     .from(schema.annualSubmissions)
-    .where(
-      and(
-        eq(schema.annualSubmissions.year, year),
-        eq(schema.annualSubmissions.kind, "vermerk"),
-        sql`${schema.annualSubmissions.figures}->>'art' is distinct from 'bescheid'`,
-      ),
-    )
+    .where(and(eq(schema.annualSubmissions.year, year), eq(schema.annualSubmissions.kind, "vermerk")))
     .orderBy(desc(schema.annualSubmissions.createdAt));
   return rows.map((row) => ({ ...row, form: row.form as VermerkForm }));
 }

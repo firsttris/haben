@@ -4,7 +4,7 @@ import { formatDate } from "./format.ts";
 import type { Notice } from "./use-action.ts";
 
 export type ElsterKind = "validate" | "test" | "send";
-export const ELSTER_KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung", vermerk: "Vermerk", bescheid: "Bescheid" } as const;
+export const ELSTER_KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung", vermerk: "Vermerk" } as const;
 
 /** Pille über einer Jahreserklärung */
 export interface AbgabePille {

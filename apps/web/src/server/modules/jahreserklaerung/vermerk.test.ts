@@ -45,8 +45,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   /** Der in Haben gerechnete Gewinn der EÜR im leeren Testjahr; die Abweichung hängt davon ab */
   const gerechnet = async () => (await annual.annualOverview(2025, TODAY)).euer.gewinn;
 
-  // Ohne Bescheid gibt es keinen Betrag; dann soll die Seite das sagen und nicht vergleichen (#1073)
-  it("weist auf den fehlenden Bescheid hin, statt zu vergleichen", () => {
+  // Der ESt-Vermerk trägt keinen Betrag; dann soll die Seite das sagen und nicht vergleichen (#1073)
+  it("weist darauf hin, dass das Ergebnis erst mit dem Bescheid feststeht, statt zu vergleichen", () => {
     const hinweis = annual.ohneBetragHinweis({ amount: null });
     expect(hinweis).toHaveLength(1);
     expect(hinweis[0]?.text).toContain("ohne Betrag vermerkt");
