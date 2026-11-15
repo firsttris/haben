@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { errorMessage } from "../../lib/format.ts";
 import { decideOAuthConsent, getOAuthAvailable, getOAuthConsent } from "../../server/functions/oauth.ts";
 import { getAuthState } from "../../server/functions/setup.ts";
+import { NEVER_FRAMED_HEADERS } from "../../server/security-headers.ts";
 
 type Anfrage = Record<string, string>;
 type Ansicht = { clientName: string; redirectHost: string; fresh: boolean };
@@ -22,6 +23,8 @@ export const Route = createFileRoute("/oauth/autorisieren")({
     return { angemeldet: !!state.user };
   },
   head: () => ({ meta: [{ title: "KI-Assistent verbinden · Haben" }] }),
+  // In keinem Rahmen (RFC 9700, 4.16), unter jeder Schreibweise der Adresse
+  headers: () => NEVER_FRAMED_HEADERS,
   component: ZustimmungsSeite,
 });
 

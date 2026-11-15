@@ -1951,7 +1951,7 @@ test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und i
 
 test("OAuth-Zustimmung steht auch unter anderer Schreibweise der Adresse in keinem Rahmen (RFC 9700, 4.16)", async () => {
   // Der Router unterscheidet Groß- und Kleinschreibung nicht; dieselbe Seite darf nicht ohne Schutz zu haben sein
-  for (const pfad of ["/OAUTH/Autorisieren", "/oauth/AUTORISIEREN"]) {
+  for (const pfad of ["/OAUTH/Autorisieren", "/oauth/AUTORISIEREN", "/oauth/%61utorisieren"]) {
     const antwort = await page.request.get(`${pfad}?response_type=code`, { maxRedirects: 0 });
     expect(antwort.status(), pfad).toBe(200);
     expect(antwort.headers()["content-type"], pfad).toContain("text/html");
