@@ -28,8 +28,9 @@ import { receiptJpeg } from "./belegbild.ts";
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
  * app.spec.ts: ELSTER mit Zertifikat, Voranmeldung, Dauerfristverlängerung und Zusammenfassende Meldung, Belege mit
- * § 13b, Aufteilung und innergemeinschaftlichem Erwerb, Pauschalen, Skonto, Anlagen, Darlehen und Steuerzahlungen im
- * Bankabgleich, dazu Einstellungen ohne eigene Daten. Am Anfang dieselbe Einrichtung wie in app.spec.ts.
+ * § 13b, Aufteilung und innergemeinschaftlichem Erwerb, Pauschalen, Skonto, Anlagen, Darlehen, Steuerzahlungen und die
+ * Sammelrechnung eines Zahlungsdienstleisters im Bankabgleich, dazu Einstellungen ohne eigene Daten. Am Anfang dieselbe
+ * Einrichtung wie in app.spec.ts.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -969,6 +970,47 @@ test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz 
   await bestaetigen(laptop, "Beleg löschen");
   await laptop.waitForURL(/\/belege$/);
   await context.close();
+});
+
+test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#1059)", async () => {
+  await go("/dauerbelege/neu");
+  // Ohne ausgewiesene Steuer ist der Betrag zugleich das Brutto; ein eigenes Feld gibt es dann nicht
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveCount(0);
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  // Ein neuer Dauerbeleg beginnt mit 0 %
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("100,00");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("19,00");
+  await expect(page.locator(".dauerbeleg-summe")).toContainText(/= 119,00\s€/);
+  // Anderer Satz: das Brutto bleibt, Netto und Steuer ändern sich
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("700");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("111,21");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,79");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("119,00");
+  // Steuer laut Vertrag von Hand: das Brutto folgt
+  await page.getByLabel("Umsatzsteuer 1", { exact: true }).fill("7,78");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("118,99");
+  // Ein vertipptes Brutto sperrt das Anlegen wie ein vertipptes Netto
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,005");
+  await page.getByRole("button", { name: "Dauerbeleg anlegen" }).click();
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveAccessibleDescription(/Trag den Betrag als Zahl ein/);
+  await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
+  // Haken aus nach einem Brutto: Grundlage ist wieder das Netto; ein anderer Satz rechnet es nicht aus dem verborgenen Brutto neu
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("111,21");
+  // Haken wieder an: die nicht von Hand geänderte Steuer folgt dem Netto
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("21,13");
+  // Haken aus und wieder an ändert ein eingegebenes Brutto nicht: 45,00 € zu 19 % sind 37,82 € + 7,18 € (aus dem Netto wären es 7,19 €)
+  await page.getByLabel("Brutto 1", { exact: true }).fill("45,00");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("45,00");
 });
 
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
@@ -2870,4 +2912,63 @@ test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997
   await expect(nachtragen).toBeVisible();
   await nachtragen.locator("summary").first().click();
   await expect(nachtragen.getByLabel("Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben (vereinnahmteUst)")).toBeVisible();
+});
+
+test("Sammelrechnung des Dienstleisters: an der Gebührenzeile als bester Treffer, ein Klick ordnet alle Gebühren des Monats zu (#680)", async ({ browser }) => {
+  // Oktober vor dem Vorjahr: ohne Buchungen, damit die übrigen Auswertungen dieses Durchlaufs unverändert bleiben
+  const year = YEAR - 2;
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "etsy-gebuehren.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Etsy Ireland UC") }]);
+  await expect(page.getByText("etsy-gebuehren.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /etsy-gebuehren\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Etsy Ireland UC");
+  await page.getByLabel("Rechnungsnummer").fill(`ETSY-${year}-10`);
+  await page.getByLabel("Belegdatum").fill(`${year}-10-31`);
+  await page.getByLabel("Kategorie").selectOption("geldverkehr");
+  await page.getByRole("combobox", { name: /^Satz/ }).selectOption("0");
+  // Summe der vier Gebührenzeilen unten: 7,44 + 9,89 + 8,19 + 91,05
+  await page.getByLabel("Netto", { exact: true }).fill("116,57");
+  await page.locator(".doc-actions").getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await bestaetigen(page, "Buchen");
+  await expect(page.locator(".page-head").getByText("Gebucht", { exact: true })).toBeVisible();
+
+  await go("/bank");
+  await page.getByRole("button", { name: "Konto hinzufügen" }).click();
+  const neuesKonto = page.locator("form", { has: page.getByRole("button", { name: "Konto anlegen" }) });
+  await neuesKonto.getByLabel("Art", { exact: true }).selectOption("provider");
+  await neuesKonto.getByLabel("Dienstleister", { exact: true }).selectOption("etsy");
+  await neuesKonto.getByLabel("Name", { exact: true }).fill("Etsy Shop");
+  await neuesKonto.getByRole("button", { name: "Konto anlegen" }).click();
+  await expect(page.getByText("Konto angelegt.")).toBeVisible();
+  const csv = [
+    `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`,
+    `"October 1, ${year}",Fee,"Einstellgebühr","",EUR,--,-€7.44,-€7.44,--`,
+    `"October 2, ${year}",Fee,"Transaktionsgebühr","",EUR,--,-€9.89,-€9.89,--`,
+    `"October 3, ${year}",Fee,"Zahlungsabwicklung","",EUR,--,-€8.19,-€8.19,--`,
+    `"October 4, ${year}",Fee,"Werbung","",EUR,--,-€91.05,-€91.05,--`,
+  ].join("\n");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "etsy.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/4 neue Umsätze für Etsy Shop/)).toBeVisible({ timeout: 30_000 });
+
+  await go("/bank?filter=alle&suche=Etsy");
+  const gebuehren = page.locator(".tx-row", { hasText: "Etsy" });
+  await expect(gebuehren).toHaveCount(4);
+  await gebuehren.filter({ hasText: "7,44" }).click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  // Die einzelne Gebühr passt nie auf die Rechnung; die Summe des Monats schon
+  await expect(panel.getByText("Beleg Etsy Ireland UC", { exact: true })).toBeVisible();
+  await expect(panel.getByText("Betrag stimmt exakt")).toBeVisible();
+  await panel.getByRole("button", { name: `Alle offenen Gebühren aus 10.${year} diesem Beleg zuordnen` }).click();
+  await page.waitForLoadState("networkidle");
+  for (const zeile of await gebuehren.all()) await expect(zeile).toContainText("Zugeordnet");
 });

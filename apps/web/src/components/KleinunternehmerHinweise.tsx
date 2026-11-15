@@ -1,5 +1,4 @@
-import { formatEuro } from "@haben/core";
-import { umsatzgrenzeNahe } from "../lib/kleinunternehmer.ts";
+import { formatEuro, umsatzgrenzeNahe } from "@haben/core";
 import type { kleinunternehmerStand } from "../server/modules/auswertungen/index.ts";
 
 export function KleinunternehmerHinweise({ stand }: { stand: Awaited<ReturnType<typeof kleinunternehmerStand>> }) {

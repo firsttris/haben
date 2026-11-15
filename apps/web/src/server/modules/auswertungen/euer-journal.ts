@@ -3,6 +3,7 @@ import {
   euerAusZeilen,
   isExternalSettlementPayment,
   invoicePosting,
+  kleinunternehmerKonten,
   leereEuerAusJournal,
   recordedTaxShares,
   totalsFromTaxes,
@@ -16,11 +17,19 @@ import { and, asc, eq, gte, inArray, lt, lte, ne } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { imEuerJahr } from "./euer-jahreswechsel.ts";
-import { ausgleichsBuchungenJe, bloecke, type Buchung, buchungen, buchungenJe, offenerPosten, type Zeile } from "./euer-journal-buchungen.ts";
+import {
+  ausgleichsBuchungenJe,
+  bloecke,
+  type Buchung,
+  buchungen,
+  buchungenJe,
+  offenerPosten,
+  verrechnungenJeRechnung,
+  type Zeile,
+} from "./euer-journal-buchungen.ts";
 import { belegNebenbuecher, belegTeilzahlung, uebernommeneZeilen, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
 import { offenerSaldo as offen, rechnungsAnteile } from "./euer-journal-anteile.ts";
 import { importAnteile } from "./euer-import.ts";
-import { kleinunternehmerKonten } from "./kleinunternehmer-konten.ts";
 
 /*
  * EÜR aus dem Journal (#542, Schritt 5b), als Schattenrechnung neben euerForYear. Eine Buchung ohne Forderungen und
@@ -185,6 +194,9 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   const belegIds = [...new Set([...einfacheBelege, ...verrechnet.map((v) => v.dokumentId)])];
   const gebuchtVon = { invoice: await buchungenJe(q, "invoice", rechnungIds), document: await buchungenJe(q, "document", belegIds) };
   const ausgleicheVon = await ausgleichsBuchungenJe(q, rechnungIds);
+  // Verrechnungen des Jahres (#274): Sie nehmen das Entgelt der Gegenrechnung aus dem Steuermix, an ihrer Stelle in der
+  // Reihenfolge der Buchungen — sonst teilt die EÜR eine Zahlung über die volle Rechnung (#877, Befund 3)
+  const verrechnungenVon = await verrechnungenJeRechnung(q, rechnungIds);
   const nebenbuchVon = await belegNebenbuecher(q, belegIds);
   const anlagen = new Set<string>();
   const anlageKandidaten = umsatzBis ? [...new Set([...belegIds, ...jahr.filter((b) => b.sourceType === "document").map((b) => b.sourceId)])] : belegIds;
@@ -219,7 +231,9 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
       zeilen,
       gesamt,
       herkunft,
-      ...(typ === "invoice" && gesamt !== 0 ? { anteile: rechnungsAnteile(kontenrahmen, zeilen, gesamt, ausgleicheVon.get(id) ?? []) } : {}),
+      ...(typ === "invoice" && gesamt !== 0
+        ? { anteile: rechnungsAnteile(kontenrahmen, zeilen, gesamt, ausgleicheVon.get(id) ?? [], verrechnungenVon.get(id) ?? []) }
+        : {}),
       ...(typ === "document" ? { beleg: nebenbuchVon.get(id) } : {}),
     };
     ursprung.set(key, u);

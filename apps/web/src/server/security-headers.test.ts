@@ -10,6 +10,16 @@ describe("withFrameAncestors", () => {
     expect(await response.text()).toBe("<!doctype html>");
   });
 
+  it("verbietet für die OAuth-Zustimmung jede Einbettung, auch von derselben Origin (RFC 9700, 4.16)", () => {
+    const html = () => new Response("<!doctype html>", { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    const zustimmung = withFrameAncestors(html(), "/oauth/autorisieren");
+    expect(zustimmung.headers.get("content-security-policy")).toBe("frame-ancestors 'none'");
+    expect(zustimmung.headers.get("x-frame-options")).toBe("DENY");
+    const andere = withFrameAncestors(html(), "/oauth/autorisieren-nicht");
+    expect(andere.headers.get("content-security-policy")).toBe(FRAME_ANCESTORS);
+    expect(andere.headers.has("x-frame-options")).toBe(false);
+  });
+
   it("lässt Dateien mit eigener CSP und andere Inhalte unverändert", () => {
     const pdf = fileResponse(new Uint8Array([1]), { mimeType: "application/pdf", filename: "beleg.pdf" }, false);
     expect(withFrameAncestors(pdf)).toBe(pdf);

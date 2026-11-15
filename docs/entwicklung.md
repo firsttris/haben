@@ -130,6 +130,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `bun run --cwd packages/einvoice zugferd [ausgabeverzeichnis]` | ZUGFeRD-PDFs der Beispielrechnungen erzeugen und mit dem Mustang-Validator prüfen ([ZUGFeRD-PDFs](#zugferd-pdfs)) |
 | `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Regeln für die Seiten unter der Tabelle |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, hell und dunkel, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)), danach Vorschaubild und Hero |
+| `bun run --cwd apps/firmenportal start` | Startet das Firmenportal (#504); die Variablen wie in `deploy/firmenportal/firmenportal.env.example`, etwa in `apps/firmenportal/.env` (Bun liest sie selbst). Mit `PORTAL_URL=http://localhost:…` geht die Anmeldung nur in Chromium: Safari und WebKit speichern die `Secure`-Cookies dort nicht, für sie gehört TLS davor; Tests laufen mit `bun run test` (`apps/firmenportal/src/*.test.ts`, gegen einen OIDC-Testanbieter auf Loopback) |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
 | `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (1280 × 360 bei doppelter Auflösung, mit Rahmen wie die Screenshots, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku); Bild oben in der README; Slogan in IBM Plex Serif aus `packages/einvoice/fonts`) |
@@ -259,6 +260,8 @@ cd apps/web && bun --bun drizzle-kit generate --custom --name=mein_trigger
 
 Ändert eine Migration Trigger oder `haben_*`-Funktionen, muss auch der ausgelieferte Sollbestand zur [Manipulationserkennung](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel) aktualisiert werden. `TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun apps/web/src/server/db/write-trigger-inventory.ts` erzeugt ihn ausschließlich aus einer dafür neu angelegten und frisch migrierten Testdatenbank. Der Test `apps/web/src/server/db/trigger-inventory.test.ts` schlägt fehl, solange `trigger-inventory.json` daneben abweicht. Erzeuge den Sollbestand auch beim Wechsel der PostgreSQL-Hauptversion neu, weil sich die von [`pg_get_functiondef`](https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE) rekonstruierte SQL-Darstellung ändern kann.
 
+Pull Requests mit Migration werden einzeln gemergt; deine Migration erzeugst du erst kurz vor dem Merge auf dem aktuellen `main` neu, wenn der Maintainer sagt, dass du dran bist.
+
 Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen schon angewendet.
 
 ## Jahreswerte
@@ -319,6 +322,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 | `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Accountable-Export (`accountable/`), Finanzberichte von Google Play und App Store Connect (`stores/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
+| `apps/firmenportal` | Firmenportal über den Instanzen (#504): Anmeldung per SSO, Links auf die Firmen der Person, ohne Datenbank (Bun, HTML auf dem Server); `deploy/firmenportal`: Compose-Vorlage |
 | `deploy` | Compose, Quadlets, Caddyfile, Startskript, Befehl `haben` im Image (`haben.sh`); `deploy/backup`: Backup-Image (backup.sh, restore.sh); `deploy/instanzen`: Werkzeug für mehrere Instanzen (TypeScript, läuft mit Bun ohne `bun install`, nur `node:`-Module und Bun) |
 | `docs`, `mkdocs.yml` | Diese Dokumentation; auf `main` baut `.github/workflows/docs.yml` sie nach https://haben.app/ |
 
@@ -386,7 +390,7 @@ Die Postgres-Tests starten mit `sso-test-provider.ts` einen Anbieter auf Loopbac
 E2E_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_sso_e2e bun run --cwd apps/web e2e --config playwright.sso-only.config.ts
 ```
 
-Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`) und 3218 müssen frei sein, und `openssl` erzeugt die Testzertifikate. Was der Durchlauf prüft, steht im Kopf von `e2e/sso-only.spec.ts`; `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Der Betriebscode bekommt keine Ausnahme für HTTP.
+Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`), 3217 (Firmenportal, `e2e/sso-firmenportal.spec.ts`; mit `E2E_SERVER_COMMAND` hinter TLS wie Haben, das Firmenportal selbst dann auf 3221, `e2e/sso-firmenportal-server.ts`), 3218 (mit `E2E_SERVER_COMMAND` hinter TLS, Haben selbst dann auf 3219, `e2e/sso-production-server.ts`) und 3220 (Firmenportal in `e2e/sso-firmenportal-abmelden.spec.ts`) müssen frei sein, und `openssl` erzeugt die Testzertifikate. Was der Durchlauf prüft, steht im Kopf von `e2e/sso-only.spec.ts` und der beiden `e2e/sso-firmenportal*.spec.ts`; `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Der Betriebscode bekommt keine Ausnahme für HTTP.
 
 ### Mit Authelia
 

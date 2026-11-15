@@ -30,6 +30,7 @@ import {
   skontoProblem,
   TAX_TREATMENTS,
   UNITS,
+  VORJAHRESGRENZE,
   type Bundesland,
   type PriceMode,
   type SkontoStufe,
@@ -44,7 +45,7 @@ import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
-import { VORJAHRESGRENZE, type UmsatzgrenzeBestaetigung } from "../lib/kleinunternehmer.ts";
+import type { UmsatzgrenzeBestaetigung } from "../lib/kleinunternehmer.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { emptyLine, type EditorLine, type LineState, type ParsedLine, parseLine, positionsFehler, sameText, toLineState } from "../lib/editor-lines.ts";

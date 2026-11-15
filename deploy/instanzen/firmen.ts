@@ -33,7 +33,7 @@ export function pruefeFirmenname(name: string, herkunft: string): void {
 }
 
 /** Origin von https://<domain>, wie die App ihn annimmt: nur die Domain, ohne Pfad, Query und Zugangsdaten */
-function adresse(instanz: string, domain: string): string {
+export function adresse(instanz: string, domain: string): string {
   const roh = `https://${domain}`;
   const url = URL.canParse(roh) ? new URL(roh) : undefined;
   const nurDomain = url && DOMAIN.test(url.hostname) && !url.username && !url.password && !url.search && !url.hash && url.pathname === "/";
@@ -115,6 +115,9 @@ export async function firmen(k: Kontext, namen: string[]): Promise<void> {
   const laufend: Instanz[] = [];
   const gestoppt: string[] = [];
   for (const i of gewaehlt) {
+    // Mit Firmenportal lehnt die App HABEN_FIRMEN ab (apps/web/src/server/env.ts); die Liste schreibt dann portal
+    if (i.env.get("HABEN_FIRMENPORTAL_URL"))
+      abbrechen(`${i.name} nutzt das Firmenportal (HABEN_FIRMENPORTAL_URL); dessen Liste gleicht portal ab. Nichts geändert.`);
     if (!(await reichtDurch(i)))
       abbrechen(`${i.dir}/compose.yml gibt HABEN_FIRMEN nicht an die App weiter; die aktuelle deploy/compose.yml dorthin kopieren. Nichts geändert.`);
     const zustand = lauf(await dienste(k, i.dir), "app");

@@ -1,18 +1,19 @@
-import { ACCOUNTS, KLEINUNTERNEHMER_FRUEHERE_KONTEN } from "@haben/core";
 import { describe, expect, it } from "vitest";
-import { kleinunternehmerKonten } from "./kleinunternehmer-konten.ts";
-import { JAHRESGRENZE, umsatzgrenzeNahe, VORJAHRESGRENZE } from "../../../lib/kleinunternehmer.ts";
+import { JAHRESGRENZE, kleinunternehmerKonten, umsatzgrenzeNahe, VORJAHRESGRENZE } from "./kleinunternehmer-umsatz.ts";
+import { ACCOUNTS, KLEINUNTERNEHMER_FRUEHERE_KONTEN } from "./posting.ts";
 
 describe("Umsatzgrenzen für Kleinunternehmer", () => {
-  it.each([VORJAHRESGRENZE, JAHRESGRENZE])("warnt ab 80 %% von %s Cent", (grenze) => {
-    const warnung = grenze * 0.8;
+  it.each([
+    [VORJAHRESGRENZE, 2_000_000],
+    [JAHRESGRENZE, 8_000_000],
+  ])("warnt ab 80 %% von %s Cent", (grenze, warnung) => {
     expect(umsatzgrenzeNahe(warnung - 1, grenze)).toBe(false);
     expect(umsatzgrenzeNahe(warnung, grenze)).toBe(true);
   });
 
   it.each(["SKR03", "SKR04"] as const)("zählt in %s steuerbare Nettoerlöse und ihre Gegenbuchungen", (kr) => {
     const a = ACCOUNTS[kr];
-    const zeile = (account: string, saldo: number) => ({ account, debit: Math.max(0, -saldo), credit: Math.max(0, saldo), taxCode: null });
+    const zeile = (account: string, saldo: number) => ({ account, debit: Math.max(0, -saldo), credit: Math.max(0, saldo) });
     expect(
       kleinunternehmerKonten(kr, [
         zeile(a.erloese[1900], 100),

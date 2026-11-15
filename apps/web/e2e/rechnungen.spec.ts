@@ -1,8 +1,9 @@
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
-import { day, firstLink, YEAR } from "./daten.ts";
+import { day, firstLink, USER, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { HANDY, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
@@ -1852,6 +1853,115 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer un
   await expect(calls.getByText("POST /belege").first()).toBeVisible();
 });
 
+test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und in den Einstellungen widerrufen", async () => {
+  // Ausgeschaltet gibt es den OAuth-Weg nicht: jeder Endpunkt und die Zustimmungsseite antworten 404
+  await go("/einstellungen?bereich=ki");
+  const zugang = page.getByLabel("Zugang für KI-Assistenten und API einschalten");
+  await zugang.click();
+  await expect(zugang).not.toBeChecked();
+  for (const pfad of ["/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/api/mcp"])
+    expect((await page.request.get(pfad)).status(), pfad).toBe(404);
+  for (const pfad of ["/api/oauth/register", "/api/oauth/token"]) expect((await page.request.post(pfad, { data: {} })).status(), pfad).toBe(404);
+  expect((await page.goto("/oauth/autorisieren?response_type=code"))?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1, name: "Seite nicht gefunden" })).toBeVisible();
+  await go("/einstellungen?bereich=ki");
+  await zugang.click();
+  await expect(zugang).toBeChecked();
+
+  const metadaten = (await (await page.request.get("/.well-known/oauth-authorization-server")).json()) as Record<string, string>;
+  const ressource = (await (await page.request.get("/.well-known/oauth-protected-resource")).json()) as { resource: string };
+  const redirect = "http://127.0.0.1:9/callback";
+  const registriert = await page.request.post(new URL(metadaten.registration_endpoint!).pathname, {
+    data: { redirect_uris: [redirect], client_name: "Claude E2E", token_endpoint_auth_method: "none" },
+  });
+  expect(registriert.status()).toBe(201);
+  const { client_id } = (await registriert.json()) as { client_id: string };
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+
+  // Den Rücksprung zum Client fängt der Test ab; „1e5“ sähe für den Router wie JSON aus und muss unverändert zurückkommen
+  let rueckweg = "";
+  await page.route("http://127.0.0.1:9/**", (route) => {
+    rueckweg = route.request().url();
+    return route.fulfill({ body: "ok" });
+  });
+  const anfrage = new URLSearchParams({
+    response_type: "code",
+    client_id,
+    redirect_uri: redirect,
+    state: "1e5",
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    resource: ressource.resource,
+  });
+  // Zulassen verlangt eine frische Anmeldung: Die Sitzung des Durchlaufs ist älter als fünf Minuten
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  await sql`update session set created_at = now() - interval '10 minutes'`;
+  await sql.end();
+  await go(`/oauth/autorisieren?${anfrage}`);
+  await expect(page.getByRole("heading", { level: 1, name: "KI-Assistent verbinden" })).toBeVisible();
+  await expect(page.getByRole("main")).toContainText("Zum Zulassen melde dich bitte erneut an");
+  await expect(page.getByRole("button", { name: "Zulassen" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Erneut anmelden" }).click();
+  await page.waitForURL(/\/login\?weiter=/);
+  await page.getByRole("button", { name: "Passwort verwenden" }).click();
+  await page.getByLabel("E-Mail").fill(USER.email);
+  await page.getByLabel("Passwort").fill(USER.password);
+  const seite = page.waitForResponse((antwort) => new URL(antwort.url()).pathname === "/oauth/autorisieren" && antwort.request().isNavigationRequest());
+  await page.getByRole("button", { name: "Mit Passwort anmelden" }).click();
+  await page.waitForURL(/\/oauth\/autorisieren\?/);
+  // Clickjacking (RFC 9700, 4.16): die Zustimmung steht in keinem Rahmen, auch nicht auf derselben Origin
+  const kopf = (await seite).headers();
+  expect(kopf["content-security-policy"]).toBe("frame-ancestors 'none'");
+  expect(kopf["x-frame-options"]).toBe("DENY");
+  // Den Namen wählt der Client selbst; er steht deshalb nur als „nennt sich …“ da, mit der Warnung davor
+  const zustimmung = page.getByRole("main");
+  await expect(zustimmung).toContainText("Ein KI-Assistent möchte deine Buchhaltung in Haben lesen. Er nennt sich „Claude E2E“.");
+  await expect(zustimmung).toContainText("Nur zulassen, wenn du diese Verbindung gerade selbst eingerichtet hast.");
+  await expect(zustimmung).toContainText("127.0.0.1:9");
+  expect(await axeVerstoesse(page)).toEqual([]);
+  await page.getByRole("button", { name: "Zulassen" }).click();
+  await expect.poll(() => rueckweg).toContain("code=");
+  const zurueck = new URL(rueckweg);
+  expect(zurueck.searchParams.get("state")).toBe("1e5");
+
+  const tokens = await page.request.post(new URL(metadaten.token_endpoint!).pathname, {
+    form: { grant_type: "authorization_code", code: zurueck.searchParams.get("code")!, code_verifier: verifier, client_id, redirect_uri: redirect },
+  });
+  expect(tokens.status()).toBe(200);
+  const { access_token } = (await tokens.json()) as { access_token: string };
+  const werkzeuge = () =>
+    page.request.post("/api/mcp", {
+      headers: { Authorization: `Bearer ${access_token}`, Accept: "application/json, text/event-stream" },
+      data: { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+    });
+  expect((await werkzeuge()).status()).toBe(200);
+
+  await go("/einstellungen?bereich=ki");
+  const verbindung = page.getByRole("region", { name: "API-Tokens" }).locator(".history-row", { hasText: "Claude E2E" });
+  await expect(verbindung).toContainText("OAuth-Verbindung");
+  await verbindung.getByRole("button", { name: "Widerrufen" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Verbindung „Claude E2E“ widerrufen?");
+  await bestaetigen(page, "Widerrufen");
+  // Der Knopf „Widerrufen“ steht schon vorher in der Zeile; erst ohne ihn ist der Widerruf gespeichert
+  await expect(verbindung.getByRole("button", { name: "Widerrufen" })).toHaveCount(0);
+  await expect(verbindung).toContainText("Widerrufen");
+  const abgelehnt = await werkzeuge();
+  expect(abgelehnt.status()).toBe(401);
+  expect(abgelehnt.headers()["www-authenticate"]).toContain("resource_metadata=");
+});
+
+test("OAuth-Zustimmung steht auch unter anderer Schreibweise der Adresse in keinem Rahmen (RFC 9700, 4.16)", async () => {
+  // Der Router unterscheidet Groß- und Kleinschreibung nicht; dieselbe Seite darf nicht ohne Schutz zu haben sein
+  for (const pfad of ["/OAUTH/Autorisieren", "/oauth/AUTORISIEREN", "/oauth/%61utorisieren"]) {
+    const antwort = await page.request.get(`${pfad}?response_type=code`, { maxRedirects: 0 });
+    expect(antwort.status(), pfad).toBe(200);
+    expect(antwort.headers()["content-type"], pfad).toContain("text/html");
+    expect(antwort.headers()["content-security-policy"], pfad).toBe("frame-ancestors 'none'");
+    expect(antwort.headers()["x-frame-options"], pfad).toBe("DENY");
+  }
+});
+
 test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubletten", async ({ browser }) => {
   // Kontakte wie aus Excel unter Windows: Windows-1252, Semikolon; die E-Mail-Spalte heißt anders und wird von Hand zugeordnet
   const kontakte = [
@@ -2537,6 +2647,75 @@ test("Leistungen abrechnen: Vorschau, Rechnungsentwurf mit Nachweis, Einträge g
   await noch.getByLabel("Bis").fill("2099-12-31");
   await expect(noch).toContainText("keine offenen, abrechenbaren Einträge");
   await expect(noch.getByRole("button", { name: "Rechnungsentwurf anlegen" })).toBeDisabled();
+});
+
+test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufheben stellt ihn her", async () => {
+  // Rechnung 100,00 EUR netto, also 119,00 EUR brutto; die Korrektur mindert um 20,00 EUR netto
+  await rechnungFestschreiben(page, {
+    customer: "Rheinpixel GmbH · Köln",
+    date: day(-5),
+    lines: [["Verrechnung Beratung", "1", "100,00"]],
+    gross: "119,00",
+  });
+  const rechnungUrl = page.url();
+
+  // Korrektur anlegen und auf 20,00 EUR netto kürzen, dann festschreiben
+  await page.getByRole("button", { name: "Rechnungskorrektur anlegen" }).click();
+  // Die Korrektur ist eine eigene Rechnung: auf ihre Adresse warten, nicht auf das Muster, das die offene schon erfüllt
+  await page.waitForURL((url) => /\/rechnungen\/[0-9a-f-]{36}$/.test(url.pathname) && url.toString() !== rechnungUrl);
+  const korrekturUrl = page.url();
+  await page.getByLabel("Einzelpreis Position 1").fill("-20,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+
+  // Zurück auf die Rechnung: der Rest steht bei 119,00 EUR, die Verrechnung fehlt noch
+  await page.goto(rechnungUrl);
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Verrechnung" });
+  await expect(karte).toContainText(/offen sind noch\s*119,00\s*€/);
+  await karte.getByRole("button", { name: "Mit der Korrektur verrechnen" }).click();
+
+  // Das Formular ist offen: Betrag und Tag sind vorbelegt, der Grund ist Pflicht
+  const formular = karte.locator("form");
+  await formular.getByLabel("Gegenbeleg").selectOption({ index: 1 });
+  await expect(formular.getByLabel("Betrag")).toHaveValue("23,80");
+  await formular.getByLabel("Tag der Aufrechnung").fill(day(0));
+  await formular.getByLabel("Grund").fill("Korrektur TE-1");
+  await expect(await axeVerstoesse(page)).toEqual([]);
+  await formular.getByRole("button", { name: "Verrechnen" }).click();
+
+  // Der Belegbetrag bleibt, der offene Rest sinkt um die verrechneten 23,80 EUR
+  await expect(karte).toContainText(/offen sind noch\s*95,20\s*€/);
+  await expect(karte).toContainText("Korrektur TE-1");
+  await expect(karte).toContainText(/23,80\s*€/);
+
+  // Die Buchung der Verrechnung führt im Journal auf die Rechnung, nicht auf die Bank (#877)
+  await go("/buchungen");
+  const verrechnungslinks = page.locator("tr").filter({ hasText: "Verrechnung" }).getByRole("link", { name: "Verrechnung" });
+  await expect(verrechnungslinks).toHaveCount(2);
+  const journalziele = (await verrechnungslinks.evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""))).sort();
+  expect(journalziele).toEqual([new URL(rechnungUrl).pathname, new URL(korrekturUrl).pathname].sort());
+
+  // Dieselbe Herkunft führt auch auf dem Kontenblatt der Forderungen auf Rechnung und Korrektur (#877)
+  await go(`/konten/1400?jahr=${YEAR}&zeitraum=jahr`);
+  const kontenlinks = page.locator("tr").filter({ hasText: "Verrechnung" }).getByRole("link", { name: "Verrechnung" });
+  await expect(kontenlinks).toHaveCount(2);
+  const kontenziele = (await kontenlinks.evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""))).sort();
+  expect(kontenziele).toEqual([new URL(rechnungUrl).pathname, new URL(korrekturUrl).pathname].sort());
+
+  // Nach dem Neuladen steht die Verrechnung weiterhin
+  await page.goto(rechnungUrl);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*95,20\s*€/);
+
+  // Aufheben: der Rest ist wieder 119,00 EUR, die Zeile verschwindet
+  await page.getByRole("region", { name: "Verrechnung" }).getByRole("button", { name: "aufheben" }).click();
+  await page.getByLabel("Tag der Aufhebung").fill(day(0));
+  await page.getByRole("button", { name: "Aufheben", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*119,00\s*€/);
+  await expect(page.getByRole("region", { name: "Verrechnung" }).getByText("Korrektur TE-1")).toHaveCount(0);
 });
 
 test("Keine Fehler im Browser", async () => {

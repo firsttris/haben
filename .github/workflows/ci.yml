@@ -309,6 +309,25 @@ jobs:
         with:
           dockerfile: Containerfile
           tags: haben:ci
+      # Firmenportal (#504, Stufe 2): Image bauen, mit gültiger Konfiguration gesund, mit ungültiger startet es nicht
+      - name: Firmenportal
+        run: |
+          set -x
+          docker build -f apps/firmenportal/Containerfile -t haben-firmenportal:ci .
+          docker run -d --name haben-firmenportal-ci -p 127.0.0.1:3010:3000 \
+            -e PORTAL_URL=https://portal.haben.test -e PORTAL_SECRET="$(openssl rand -base64 32)" \
+            -e OIDC_ISSUER=https://auth.haben.test -e OIDC_CLIENT_ID=firmenportal -e OIDC_CLIENT_SECRET=geheim \
+            -e PORTAL_FIRMEN='Firma 1|https://firma1.haben.test|haben-firma1-inhaber' haben-firmenportal:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3010/gesund && break; sleep 1; done
+          test "$(curl -sf http://127.0.0.1:3010/gesund)" = ok
+          # Ohne Sitzung gleich zur Anmeldung, nach dem Abmelden die Seite dazu; die Schrift liefert das Firmenportal selbst
+          test "$(curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:3010/)" = http://127.0.0.1:3010/anmelden
+          curl -sf 'http://127.0.0.1:3010/?abgemeldet' | grep -q 'href="/anmelden"'
+          test "$(curl -sf -o /dev/null -w '%{content_type}' http://127.0.0.1:3010/schrift/plex-400.woff2)" = font/woff2
+          for i in $(seq 1 30); do [ "$(docker inspect -f '{{.State.Health.Status}}' haben-firmenportal-ci)" = healthy ] && break; sleep 2; done
+          test "$(docker inspect -f '{{.State.Health.Status}}' haben-firmenportal-ci)" = healthy
+          docker rm -f haben-firmenportal-ci
+          ! docker run --rm -e PORTAL_URL=http://portal.haben.test haben-firmenportal:ci
       - name: Ausgelieferte Compose-Konfiguration mit App-Rolle und Legacy-Zugang prüfen
         run: bash deploy/tests/rollen-start.sh
         env:
@@ -326,7 +345,16 @@ jobs:
           set -x
           docker tag haben:ci tristanteu/haben:latest
           bun deploy/instanzen/haben-instanzen.ts neu firma1 firma1.haben.test
+          # Die zweite Instanz baut den gemeinsamen Caddy nicht neu auf (#1013): derselbe Container, und er antwortet für
+          # firma1 durchgehend. Ohne Zertifikat leitet er HTTP auf HTTPS um (308); 000 hieße: keine Verbindung
+          caddy_id="$(cd "$HABEN_INSTANZEN/proxy" && docker compose ps -q caddy)"
+          (set +x; while :; do curl -s -o /dev/null -m 2 -w '%{http_code}\n' -H 'Host: firma1.haben.test' http://127.0.0.1/; sleep 0.1; done) > "$RUNNER_TEMP/antworten.txt" &
+          schleife=$!
           bun deploy/instanzen/haben-instanzen.ts neu firma2 firma2.haben.test
+          kill "$schleife"
+          test "$(cd "$HABEN_INSTANZEN/proxy" && docker compose ps -q caddy)" = "$caddy_id"
+          test "$(grep -c . "$RUNNER_TEMP/antworten.txt")" -gt 10
+          test -z "$(grep -v '^308$' "$RUNNER_TEMP/antworten.txt")"
           # Firma wechseln (#909): firmen schreibt die Liste in beide, startet die Apps neu und wartet, bis sie gesund sind
           bun deploy/instanzen/haben-instanzen.ts firmen
           for f in firma1 firma2; do
@@ -348,10 +376,26 @@ jobs:
           # Ohne Build-Argument HABEN_COMMIT startet das Image und meldet keinen Commit; mit HABEN_COMMIT steht die kurze
           # Kennung hinter der Version (#887)
           test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben status --json | jq -r .commit)" = null
+          # Speicher (#951): pg_database_size als eingeschränkte Rolle haben_app, Belege als Benutzer der App
+          (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben status --json) | jq -e '.speicher.datenbankBytes > 0 and (.speicher.belegeBytes | type) == "number"'
           test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T -e HABEN_COMMIT=0123abc4567 app haben status | head -n1)" = "Version:          $version (0123abc)"
           bun deploy/instanzen/haben-instanzen.ts status | tee "$RUNNER_TEMP/status.txt"
           grep -E "^firma1 +firma1\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
           grep -E "^firma2 +firma2\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
+          # Zeichen der Firma für das Firmenportal (#1036): ab Werk weder Farbe noch Logo, haben kennzeichen endet mit 3
+          (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben status --json | jq -e '.zeichen == {"farbe": null, "logo": null}')
+          rc=0; (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben kennzeichen > /dev/null) || rc=$?; test "$rc" = 3
+          # portal richtet das Firmenportal hinter dem gemeinsamen Caddy ein; die Instanzen hier haben kein SSO, die
+          # Liste bleibt leer. Ein zweiter Aufruf ändert nichts und startet nichts neu
+          docker tag haben-firmenportal:ci tristanteu/haben-firmenportal:latest
+          printf geheim | bun deploy/instanzen/haben-instanzen.ts portal portal.haben.test \
+            --oidc-issuer https://auth.haben.test --oidc-client-id firmenportal --oidc-client-secret-stdin
+          test "$(cd "$HABEN_INSTANZEN/firmenportal" && docker compose ps firmenportal --format '{{.Health}}')" = healthy
+          bun deploy/instanzen/haben-instanzen.ts portal | tee "$RUNNER_TEMP/portal.txt"
+          grep -qx "Nichts geändert." "$RUNNER_TEMP/portal.txt"
+          grep -q "Ohne SSO, nicht im Firmenportal: firma1 firma2" "$RUNNER_TEMP/portal.txt"
+          # Ohne !: An einer mit ! verneinten Pipeline bricht bash -e nicht ab, sie zählte nur als letzte Zeile des Schritts
+          if bun deploy/instanzen/haben-instanzen.ts liste | grep -q firmenportal; then echo "liste zeigt das Firmenportal" >&2; exit 1; fi
           # Eigenes Netz je Instanz (#872): Der gemeinsame Caddy erreicht jede App, die App von Firma 1 die von
           # Firma 2 nicht; auch nach einem Neuaufbau des Caddy und einem Neustart von Docker. Startet Docker neu,
           # deshalb zuletzt

@@ -131,3 +131,15 @@ export {
   updateRecurring,
 } from "./recurring.ts";
 export { lastFinalizedByCircle, startRunning, type NumberKind } from "./number-counter.ts";
+export {
+  InvoiceSettlementError,
+  invoiceSettlementReversalSchema,
+  invoiceSettlementSchema,
+  invoiceSettlementView,
+  listInvoiceSettlements,
+  reverseInvoiceSettlement,
+  settleInvoices,
+  type InvoiceSettlementInput,
+  type SettlementCandidate,
+} from "./verrechnung.ts";
+export { mixeNachVerrechnungen, mixNachVerrechnungen } from "./verrechnung-steuermix.ts";

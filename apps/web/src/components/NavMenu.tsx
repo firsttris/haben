@@ -6,7 +6,7 @@ import type { Firma } from "../lib/firmen.ts";
 import type { EigeneSeiteNav as EigeneSeite, NavGroup } from "../lib/navigation.ts";
 import { releaseNotesUrl } from "../lib/release-notes.ts";
 import { STEUERBERATUNG_START } from "../lib/rollen.ts";
-import { FirmaListe, FirmaWechsler } from "./FirmaWechsler.tsx";
+import { FirmaListe, FirmaWechsler, ZumFirmenportal } from "./FirmaWechsler.tsx";
 import { Icon } from "./Icon.tsx";
 import { Kuerzel } from "./Kuerzel.tsx";
 import { type FlyoutWeg, NavFlyout, weiter } from "./NavFlyout.tsx";
@@ -59,6 +59,8 @@ interface NavBodyProps extends CollapseButtonProps {
   firma: string | null;
   pathname: string;
   firmen: Firma[];
+  /** HABEN_FIRMENPORTAL_URL, nur für den Inhaber (#504, Stufe 2); dann statt der Liste ein Link dorthin */
+  firmenportal: string | null;
   sichtbareGruppen: readonly NavGroup[];
   eigeneSeiten: readonly EigeneSeite[];
   userName: string;
@@ -123,6 +125,7 @@ export function NavRailBody({
   inhaber,
   pathname,
   firmen,
+  firmenportal,
   sichtbareGruppen,
   eigeneSeiten,
   userName,
@@ -141,10 +144,18 @@ export function NavRailBody({
   });
   return (
     <>
-      {firmen.length > 0 && (
-        <NavFlyout label="Firma wechseln" icon="company" zusatz={firma} {...flyout("firma")}>
-          <FirmaListe key={openFlyout?.key === "firma" ? "open" : "closed"} andere={firmen} />
-        </NavFlyout>
+      {firmenportal ? (
+        // Kein Flyout: Der Link führt aus Haben hinaus, die Liste der Firmen kennt nur das Ziel
+        <a href={`${firmenportal}/?von=haben`} className="nav-link nav-rail-link nav-tip-anker" aria-label="Zum Firmenportal">
+          <Icon name="company" />
+          <NavTip>Zum Firmenportal</NavTip>
+        </a>
+      ) : (
+        firmen.length > 0 && (
+          <NavFlyout label="Firma wechseln" icon="company" zusatz={firma} {...flyout("firma")}>
+            <FirmaListe key={openFlyout?.key === "firma" ? "open" : "closed"} andere={firmen} />
+          </NavFlyout>
+        )
       )}
       <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link nav-rail-link nav-tip-anker" aria-label="Übersicht" activeOptions={{ exact: true }}>
         <Icon name="overview" />
@@ -212,6 +223,7 @@ export function NavExpandedBody({
   onToggleCollapse,
   inhaber,
   firmen,
+  firmenportal,
   sichtbareGruppen,
   eigeneSeiten,
   userName,
@@ -221,8 +233,8 @@ export function NavExpandedBody({
 }: Omit<NavBodyProps, "pathname" | "firma" | "openFlyout" | "onFlyoutOpen" | "onFlyoutClose">) {
   return (
     <>
-      {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im rollenden Menü */}
-      {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
+      {/* Firma wechseln (#504), mit HABEN_FIRMENPORTAL_URL stattdessen der Link „Zum Firmenportal“; sonst nur mit anderen Firmen. Als Erstes im rollenden Menü */}
+      {firmenportal ? <ZumFirmenportal url={firmenportal} /> : firmen.length > 0 && <FirmaWechsler andere={firmen} />}
       <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
         <Icon name="overview" />
         <span className="nav-collapse-label">Übersicht</span>
