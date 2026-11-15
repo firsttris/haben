@@ -2150,6 +2150,13 @@
       "function": "public.haben_audit()"
     },
     {
+      "table": "public.sevdesk_recurring_templates",
+      "name": "sevdesk_recurring_templates_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_recurring_templates_no_truncate BEFORE TRUNCATE ON public.sevdesk_recurring_templates FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.sso_issuers",
       "name": "sso_issuers_append_only",
       "enabled": "O",
