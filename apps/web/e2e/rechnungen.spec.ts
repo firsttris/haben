@@ -1943,6 +1943,8 @@ test("Connector per OAuth (#96): registrieren, im Browser zustimmen, lesen und i
   await verbindung.getByRole("button", { name: "Widerrufen" }).click();
   await expect(page.getByRole("dialog")).toContainText("Verbindung „Claude E2E“ widerrufen?");
   await bestaetigen(page, "Widerrufen");
+  // Der Knopf „Widerrufen“ steht schon vorher in der Zeile; erst ohne ihn ist der Widerruf gespeichert
+  await expect(verbindung.getByRole("button", { name: "Widerrufen" })).toHaveCount(0);
   await expect(verbindung).toContainText("Widerrufen");
   const abgelehnt = await werkzeuge();
   expect(abgelehnt.status()).toBe(401);
