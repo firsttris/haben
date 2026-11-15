@@ -10,7 +10,8 @@ type Kind = "erloes" | "aufwand";
 const LABEL: Record<Kind, string> = { erloes: "Erlöskonto", aufwand: "Aufwandskonto" };
 
 const EFFECT: Record<Kind, string> = {
-  erloes: "Haben führt die Gutschrift dann als Minderung der Einnahmen, mit der Umsatzsteuer in Kz 81.",
+  // Die Kennzahl hängt am Steuersatz (Kz 81 bei 19 %, Kz 86 bei 7 %), deshalb ohne Nummer
+  erloes: "Haben führt die Gutschrift dann als Minderung der Einnahmen, mit der Umsatzsteuer in der Kennzahl ihres Steuersatzes.",
   aufwand: "Haben führt die Gutschrift dann als Ausgabe-Gutschrift, mit der Vorsteuer in Kz 66.",
 };
 
@@ -44,7 +45,8 @@ export function AccountingTypeDecision({ voucher }: Props) {
   const { stamm, hand } = kinds;
   // Ohne Hinweis gilt eine Art: die des Kontostamms, wenn er sie nennt, sonst die von Hand
   const current = voucher.accountingTypeIssue ? null : stamm === "erloes" || stamm === "aufwand" ? stamm : hand;
-  const choices: Kind[] = !voucher.accountingTypeDecidable ? [] : current ? (current === "erloes" ? ["aufwand"] : ["erloes"]) : ["erloes", "aufwand"];
+  // Was schon gilt oder von Hand feststeht, klärt nichts; im Widerspruch bleibt so nur die Art des Kontostamms
+  const choices = voucher.accountingTypeDecidable ? (["erloes", "aufwand"] as const).filter((kind) => kind !== (current ?? hand)) : [];
 
   async function decide(kind: Kind) {
     setBusy(true);
