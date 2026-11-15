@@ -155,7 +155,7 @@ sevDesk liefert die Vorlagen nur mit dem Filter `invoiceType=WKR`; belegt ist da
 
 **Platzhalter** wie `[%KONTAKTPERSON%]`, `[%ZAHLUNGSZIEL%]` oder `[%Rechnungsnummer%]` stehen als Text in der Vorlage; Haben ersetzt sie nicht. Der Abruf und die Seite der Vorlage listen, welche vorkommen. Ersetze sie vor dem Aktivieren, etwa durch die [Platzhalter von Haben](rechnungen.md#wiederkehrende-rechnungen) oder festen Text.
 
-**Nachfällig oder vorschüssig** steht in sevDesk in keinem Feld der Vorlage. Haben liest es an den Rechnungen ab, die sevDesk aus ihr erzeugt hat (`origin` zeigt auf die Vorlage): Rechnungsdatum gleich Ende des Leistungszeitraums heißt nachfällig, gleich Anfang vorschüssig. Belegt ist das nur für das Monatsintervall in Version 1.0, an 39 Rechnungen einer nachfälligen Vorlage und einer vorschüssigen.
+**Nachfällig oder vorschüssig** steht in sevDesk in keinem Feld der Vorlage. Haben liest es an den Rechnungen ab, die sevDesk aus ihr erzeugt hat (`origin` zeigt auf die Vorlage): Rechnungsdatum gleich Ende des Leistungszeitraums heißt nachfällig, gleich Anfang vorschüssig. Belegt ist das nur für das Monatsintervall in Version 1.0, an 39 Rechnungen einer nachfälligen Vorlage und einer Rechnung einer vorschüssigen.
 
 | Ergebnis | Leistungszeitraum in Haben |
 | --- | --- |
