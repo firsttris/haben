@@ -4,14 +4,15 @@ import { firstLink, SESSION } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 
 /**
- * Reihenfolge von Statuswort und Auskunft (DESIGN.md › Status › Anordnung): Am Handy steht das Wort an der Kante einer
- * Zeile am Ende (Karten wie Bankverbindung und SEPA-Mandat), allein in eigener Zeile wie im Seitenkopf zuerst. Am Desktop
- * kommt das Wort überall zuerst. Mit den Daten und der Sitzung aus app.spec.ts (Projekt „mit-daten“); legt eine
- * Bankverbindung über SQL an, weil der Abruf eine echte Bank bräuchte.
+ * Reihenfolge von Statuswort und Auskunft (DESIGN.md › Status › Anordnung): Steht der Status am Desktop rechts in einer
+ * Zeile (SEPA-Mandat), steht am Handy das Wort am Ende; steht er neben dem Titel (Bankverbindung neben dem Banknamen,
+ * Seitenkopf), kommt das Wort zuerst. Dazu, dass die Knöpfe dieser Karten am Handy die Zeile füllen (DESIGN.md › Knöpfe ›
+ * Ausrichtung). Mit den Daten und der Sitzung aus app.spec.ts (Projekt „mit-daten“); legt eine Bankverbindung über SQL
+ * an, weil der Abruf eine echte Bank bräuchte.
  */
 
 test.use({ storageState: SESSION });
-// Ein Worker für beide Tests, damit beforeAll die Bankverbindung nur einmal anlegt
+// Ein Worker für alle Tests, damit beforeAll die Bankverbindung nur einmal anlegt
 test.describe.configure({ mode: "serial" });
 
 const HANDY = { width: 375, height: 812 };
@@ -64,15 +65,16 @@ async function mandatZeile(page: Page) {
   return { zeile, status: zeile.locator(".status") };
 }
 
-test("Handy: in Karten steht das Statuswort an der Kante am Ende, im Seitenkopf zuerst", async ({ page }) => {
+test("Handy: Statuswort rechts in der Zeile am Ende, neben dem Titel zuerst", async ({ page }) => {
   await page.setViewportSize(HANDY);
-  for (const finden of [bankZeile, mandatZeile]) {
-    const { zeile, status } = await finden(page);
-    const r = await reihenfolge(status, zeile);
-    expect(r.wortZuerst).toBe(false);
-    // Das Wort endet an der rechten Kante der Zeile
-    expect(Math.abs(r.wortRechts)).toBeLessThanOrEqual(8);
-  }
+  const mandat = await mandatZeile(page);
+  const r = await reihenfolge(mandat.status, mandat.zeile);
+  expect(r.wortZuerst).toBe(false);
+  // Das Wort endet an der rechten Kante der Zeile
+  expect(Math.abs(r.wortRechts)).toBeLessThanOrEqual(8);
+
+  const bank = await bankZeile(page);
+  expect((await reihenfolge(bank.status, bank.zeile)).wortZuerst).toBe(true);
 
   const rechnung = await firstLink(page, "/rechnungen", /^\/rechnungen\/[0-9a-f-]{36}$/);
   await page.goto(rechnung ?? "");
@@ -80,6 +82,27 @@ test("Handy: in Karten steht das Statuswort an der Kante am Ende, im Seitenkopf 
   await page.waitForLoadState("networkidle");
   // Im Entwicklungsserver kommen die Styles nach; bis dahin erneut messen
   await expect.poll(async () => (await reihenfolge(status, status)).wortZuerst).toBe(true);
+});
+
+/** Linke Kante des ersten und rechte Kante des letzten Knopfs einer Knopfzeile, gemessen an der Zeile darum */
+async function knopfRaender(zeile: Locator) {
+  const knoepfe = zeile.locator(".actions > .btn");
+  await expect(knoepfe.first()).toBeVisible();
+  const rahmen = await zeile.evaluate((e) => e.getBoundingClientRect());
+  const erster = await knoepfe.first().evaluate((e) => e.getBoundingClientRect());
+  const letzter = await knoepfe.last().evaluate((e) => e.getBoundingClientRect());
+  return { rechts: rahmen.right - letzter.right, links: erster.left - rahmen.left };
+}
+
+test("Handy: Knöpfe in den Karten füllen die Zeile", async ({ page }) => {
+  await page.setViewportSize(HANDY);
+  // Automatischer Abruf: „Trennen“ vorn an der linken, „Jetzt abrufen“ an der rechten Kante
+  const bank = await knopfRaender((await bankZeile(page)).zeile);
+  expect(Math.abs(bank.links)).toBeLessThanOrEqual(1);
+  expect(Math.abs(bank.rechts)).toBeLessThanOrEqual(1);
+  // SEPA-Mandat: neben dem Link „Mandat als PDF“ reicht der kleine Knopf bis an die rechte Kante
+  const mandat = await knopfRaender((await mandatZeile(page)).zeile);
+  expect(Math.abs(mandat.rechts)).toBeLessThanOrEqual(1);
 });
 
 test("Desktop: Statuswort in Karten zuerst", async ({ page }) => {

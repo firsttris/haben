@@ -65,7 +65,6 @@ export function ConnectionStatus({ connection: c }: { connection: { status: keyo
         tone="warn"
         emphasis="urgent"
         inline
-        edge
         detail={c.validUntil ? `${relativeDays(daysUntil(c.validUntil))}, am ${formatDayMonth(c.validUntil)}` : null}
       >
         Läuft bald ab
@@ -73,7 +72,7 @@ export function ConnectionStatus({ connection: c }: { connection: { status: keyo
     );
   const { text, ...look } = CONNECTION_STATUS[c.status];
   return (
-    <Status {...look} inline edge detail={c.status === "aktiv" && c.validUntil ? `bis ${formatDate(c.validUntil)}` : null}>
+    <Status {...look} inline detail={c.status === "aktiv" && c.validUntil ? `bis ${formatDate(c.validUntil)}` : null}>
       {text}
     </Status>
   );
