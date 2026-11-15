@@ -382,6 +382,35 @@ test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf (DESIGN.md, Rei
   await expect(knoepfe.last()).toBeFocused();
 });
 
+// Die Aktionsleiste gibt es nur im Rechnungs- und Angebotseditor (#396); der Mahnungseditor hat keine und behält seine
+// Aktionen am Handy im Kopf, sonst ließe sich dort keine Mahnung erstellen
+test("Mahnung am Handy: ohne Aktionsleiste bleiben die Aktionen im Kopf", async () => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 812 });
+  try {
+    await go("/rechnungen/mahnwesen");
+    await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+    await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+    await page.waitForLoadState("networkidle");
+    const kopf = page.locator(".main > .page-head");
+    await expect(page.locator(".main > .action-bar")).toHaveCount(0);
+    await expect(kopf.getByRole("button", { name: "Vorschau", exact: true })).toBeVisible();
+    await expect(kopf.getByRole("button", { name: "Entwurf als PDF" })).toBeVisible();
+    await expect(kopf.getByRole("button", { name: "Zahlungserinnerung erstellen" })).toBeVisible();
+    // Wie bisher im Rechnungsentwurf (#401): Die Aktionen füllen am Handy die volle Breite des Kopfes
+    const innen = await kopf.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const stil = getComputedStyle(el);
+      return { links: box.left + Number.parseFloat(stil.paddingLeft), rechts: box.right - Number.parseFloat(stil.paddingRight) };
+    });
+    const zeile = await kopf.locator("> .actions").boundingBox();
+    expect(zeile?.x).toBeLessThanOrEqual(innen.links);
+    expect((zeile?.x ?? 0) + (zeile?.width ?? 0)).toBeGreaterThanOrEqual(innen.rechts);
+  } finally {
+    if (vorher) await page.setViewportSize(vorher);
+  }
+});
+
 test("Mahnung: Eine Gebühr über der Grenze steht am Feld und zählt weder in Forderung noch Vorschau", async () => {
   await go("/rechnungen/mahnwesen");
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
@@ -658,6 +687,19 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   expect(body).toContain(";29098;55003;");
   // Keine Nummern, die im Belegfeld 1 zusammenfallen: kein Hinweis
   expect(response.headers()["x-haben-hinweis"]).toBeUndefined();
+
+  // Zeitraum Monat und Quartal (#960)
+  await card.getByLabel("Zeitraum").selectOption("03");
+  const maerzRes = await page.request.get((await link.getAttribute("href"))!);
+  expect(maerzRes.status()).toBe(200);
+  expect(maerzRes.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-03\.csv/);
+  await card.getByLabel("Zeitraum").selectOption("Q1");
+  const q1Res = await page.request.get((await link.getAttribute("href"))!);
+  expect(q1Res.status()).toBe(200);
+  expect(q1Res.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-Q1\.csv/);
+  const badPeriodRes = await page.request.get("/api/datev/2026?zeitraum=ungueltig");
+  expect(badPeriodRes.status()).toBe(400);
+  await card.getByLabel("Zeitraum").selectOption("");
 
   // Mit Hinweis (#675; welche Nummern zusammenfallen, prüft datev-belegfeld.test.ts): Die Datei kommt, die Karte nennt die Nummern
   const hinweis = "„RE.2026.001“ und „RE-2026-001“ stehen im Belegfeld 1 als „RE-2026-001“; DATEV kann ihre offenen Posten verwechseln.";

@@ -1,6 +1,6 @@
-import { parseEuroSearchCents } from "@haben/core";
-import { desc, eq, ilike, isNotNull, or } from "drizzle-orm";
-import { likePattern, numberRank } from "../../../lib/search.ts";
+import { parseDateSearch, parseEuroSearchRange } from "@haben/core";
+import { desc, eq, isNotNull, or } from "drizzle-orm";
+import { amountIn, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
 
 export interface DocumentHit {
@@ -22,7 +22,8 @@ export interface DocumentHit {
 /** Belegsuche für die Befehlspalette (#617): Lieferant, Belegnummer, Dateiname und Betrag */
 export async function searchDocuments(query: string | { id: string }, limit = 5): Promise<{ hits: DocumentHit[]; more: boolean }> {
   const pattern = typeof query === "string" ? likePattern(query) : "";
-  const queryCents = typeof query === "string" ? parseEuroSearchCents(query) : null;
+  const queryRange = typeof query === "string" ? parseEuroSearchRange(query) : null;
+  const queryDate = typeof query === "string" ? parseDateSearch(query) : null;
   const rows = await db
     .select({
       id: schema.documents.id,
@@ -44,10 +45,11 @@ export async function searchDocuments(query: string | { id: string }, limit = 5)
     .where(
       typeof query === "string"
         ? or(
-            ilike(schema.documents.supplierName, pattern),
-            ilike(schema.documents.invoiceNumber, pattern),
-            ilike(schema.documents.filename, pattern),
-            ...(queryCents !== null ? [eq(schema.documents.gross, queryCents)] : []),
+            unaccentIlike(schema.documents.supplierName, pattern),
+            unaccentIlike(schema.documents.invoiceNumber, pattern),
+            unaccentIlike(schema.documents.filename, pattern),
+            ...(queryRange !== null ? [amountIn(schema.documents.gross, queryRange)] : []),
+            ...(queryDate !== null ? [eq(schema.documents.documentDate, queryDate)] : []),
           )
         : eq(schema.documents.id, query.id),
     )

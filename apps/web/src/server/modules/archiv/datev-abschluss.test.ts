@@ -26,14 +26,14 @@ describe.skipIf(!testDatabaseUrl)("Abschluss aus dem DATEV-Stapel (Postgres)", (
   let sql: postgres.Sql;
   let archive: typeof import("./archive.ts");
   let modul: typeof import("./datev-abschluss.ts");
-  let kst: typeof import("../jahreserklaerung/koerperschaft.ts");
+  let kst: typeof import("../koerperschaft/koerperschaft.ts");
   const actor = "test-user";
 
   beforeAll(async () => {
     sql = await setupTestDb();
     archive = await import("./archive.ts");
     modul = await import("./datev-abschluss.ts");
-    kst = await import("../jahreserklaerung/koerperschaft.ts");
+    kst = await import("../koerperschaft/koerperschaft.ts");
   }, 30_000);
 
   afterAll(async () => {

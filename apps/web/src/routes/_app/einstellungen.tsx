@@ -16,6 +16,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
+import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
@@ -304,6 +305,7 @@ function SettingsPage() {
               <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
+              <ArchiveSearchCard enabled={company.archiveSearch} />
             </>
           )}
         </div>
@@ -376,6 +378,7 @@ function CompanyForm() {
           invoiceIntro: text("invoiceIntro"),
           quoteIntro: text("quoteIntro"),
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          foundedOn: text("foundedOn") || null,
           ohneVorsteuerabzug: form.get("ohneVorsteuerabzug") === "on",
           tageskurs: form.get("tageskurs") === "on",
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
@@ -425,6 +428,9 @@ function CompanyForm() {
             {(control) => <input {...control} name="telefon" type="tel" defaultValue={company.telefon} autoComplete="tel" />}
           </Field>
         </div>
+        <Field label="Gründungsdatum" hint="Datum, an dem du deine unternehmerische Tätigkeit aufgenommen hast.">
+          {(control) => <input {...control} name="foundedOn" type="date" min="0001-01-01" defaultValue={company.foundedOn ?? ""} />}
+        </Field>
       </section>
 
       <section className="form-section" aria-labelledby="company-address">

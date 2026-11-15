@@ -10,7 +10,7 @@ import { EricGeprueftClient } from "../../test-eric.ts";
 describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
   let sql: postgres.Sql;
   let a: typeof import("./ausschuettung.ts");
-  let kst: typeof import("../jahreserklaerung/koerperschaft.ts");
+  let kst: typeof import("../koerperschaft/koerperschaft.ts");
   let manual: typeof import("../buchhaltung/manual.ts");
   let crypto: typeof import("../../crypto.ts");
   const actor = "test-user";
@@ -19,7 +19,7 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     a = await import("./ausschuettung.ts");
-    kst = await import("../jahreserklaerung/koerperschaft.ts");
+    kst = await import("../koerperschaft/koerperschaft.ts");
     manual = await import("../buchhaltung/manual.ts");
     crypto = await import("../../crypto.ts");
   }, 30_000);

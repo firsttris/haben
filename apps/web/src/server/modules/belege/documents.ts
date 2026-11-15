@@ -44,7 +44,7 @@ import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
 import { findDocumentByReference, type DocumentReference } from "./external-reference.ts";
-import { MAX_DOCUMENT_SIZE } from "./grenzen.ts";
+import { MAX_DOCUMENT_SIZE } from "../../grenzen.ts";
 import { detectOwnInvoiceFor, ownInvoiceHint, ownInvoiceRecord, partiesOfEInvoice, partiesOfExtraction } from "./own-invoice.ts";
 import { pdfTextLines } from "./pdf-text.ts";
 import { supplierCategory, supplierPayment } from "./vorschlaege.ts";

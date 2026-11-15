@@ -6,8 +6,8 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
   let sql: postgres.Sql;
   let hinterlegung: typeof import("./hinterlegung.ts");
   let restlaufzeiten: typeof import("./restlaufzeiten.ts");
-  let manual: typeof import("./manual.ts");
-  let ledger: typeof import("./ledger.ts");
+  let manual: typeof import("../buchhaltung/manual.ts");
+  let ledger: typeof import("../buchhaltung/ledger.ts");
   const actor = "test-user";
   const today = "2027-02-10";
   const KEINE = { haftungsverhaeltnisse: "", organkredite: "", festgestelltAm: "2027-02-01" };
@@ -16,8 +16,8 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
     sql = await setupTestDb();
     hinterlegung = await import("./hinterlegung.ts");
     restlaufzeiten = await import("./restlaufzeiten.ts");
-    manual = await import("./manual.ts");
-    ledger = await import("./ledger.ts");
+    manual = await import("../buchhaltung/manual.ts");
+    ledger = await import("../buchhaltung/ledger.ts");
   }, 30_000);
 
   afterAll(async () => {

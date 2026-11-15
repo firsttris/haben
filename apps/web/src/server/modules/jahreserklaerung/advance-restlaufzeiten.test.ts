@@ -12,7 +12,8 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten neuer Anzahlungs- und Schlussk
   let sql: postgres.Sql;
   let database: typeof import("../../db/index.ts");
   let withActor: typeof import("../../db/actor.ts")["withActor"];
-  let bookkeeping: typeof import("./index.ts");
+  let bookkeeping: typeof import("../buchhaltung/index.ts");
+  let jahreserklaerung: typeof import("./index.ts");
   let bank: typeof import("../bank/index.ts");
   let frame: Kontenrahmen;
   let seq = 0;
@@ -22,7 +23,8 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten neuer Anzahlungs- und Schlussk
     sql = await setupTestDb();
     database = await import("../../db/index.ts");
     ({ withActor } = await import("../../db/actor.ts"));
-    bookkeeping = await import("./index.ts");
+    bookkeeping = await import("../buchhaltung/index.ts");
+    jahreserklaerung = await import("./index.ts");
     bank = await import("../bank/index.ts");
   });
   afterAll(async () => {
@@ -115,7 +117,7 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten neuer Anzahlungs- und Schlussk
   }
   const paid = (id: string, date: string, amount: number) => bank.createCashInvoiceEntry(actor, { invoiceId: id, date, amount }, "2026-12-31");
   async function receivables(year: number) {
-    const view = await bookkeeping.restlaufzeitenAnsicht(year);
+    const view = await jahreserklaerung.restlaufzeitenAnsicht(year);
     return view!.jahr.zeilen.find((row) => row.account === ACCOUNTS[frame].forderungen);
   }
 

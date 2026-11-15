@@ -2,7 +2,7 @@ import { installedEricVersion } from "@haben/elster";
 import pkg from "../../../../../../package.json" with { type: "json" };
 import { formatSize } from "../../../lib/format.ts";
 import { env } from "../../env.ts";
-import { type BackupOverview, backupOverview } from "../archiv/index.ts";
+import { type BackupOverview, backupOverview } from "./backup-status.ts";
 import { ericHome } from "../elster/index.ts";
 import { type NavMarkStand, readNavMark } from "../stammdaten/index.ts";
 import { datenbankBytes, verzeichnisBytes } from "./speicher.ts";

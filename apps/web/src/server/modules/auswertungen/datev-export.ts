@@ -1,7 +1,7 @@
 import { UserError } from "../../errors.ts";
-import { ACCOUNTS, currentYear, PERSONENKONTO_LABEL, personenkontenBetroffen, personenkontenIm } from "@haben/core";
+import { ACCOUNTS, currentYear, periodKey, periodRange, PERSONENKONTO_LABEL, personenkontenBetroffen, personenkontenIm, type VatPeriod } from "@haben/core";
 import { buildDatevBuchungsstapel, type DatevExportEntry, personenkontenEinsetzen } from "@haben/import";
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, personenkontoKey, vergibPersonenkonten } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
@@ -82,13 +82,19 @@ export async function datevExport(
   year: number,
   now = new Date(),
   exporteur?: DatevExporteur,
+  period?: VatPeriod,
 ): Promise<{ bytes: Uint8Array; filename: string; bookings: number; warnings: string[] }> {
   const company = await loadCompany();
   if (!company.datevBeraterNr || !company.datevMandantNr) throw new DatevExportError("Berater- und Mandantennummer fehlen.");
+  const { start, end } = period ? periodRange(period) : { start: `${year}-01-01`, end: `${year + 1}-01-01` };
+  const key = period ? periodKey(period) : String(year);
+  // DATEV Dok.-Nr. 1003221 (Felder 15/16): Datum vom/bis einschließlich; letzter Tag des Zeitraums ist der Vortag von `end`
+  const [ey, em] = end.split("-").map(Number) as [number, number];
+  const dateTo = new Date(Date.UTC(ey, em - 1, 0)).toISOString().slice(0, 10);
   const entries = await db
     .select()
     .from(schema.journalEntries)
-    .where(and(gte(schema.journalEntries.date, `${year}-01-01`), lte(schema.journalEntries.date, `${year}-12-31`)))
+    .where(and(gte(schema.journalEntries.date, start), lt(schema.journalEntries.date, end)))
     .orderBy(asc(schema.journalEntries.date), asc(schema.journalEntries.createdAt), asc(schema.journalEntries.id));
   // Kontenrahmen des Jahres aus den Buchungen: Nach einem Wechsel bleibt das Vorjahr im alten Rahmen exportierbar
   const rahmen = [...new Set(entries.map((e) => e.kontenrahmen))].sort();
@@ -157,16 +163,16 @@ export async function datevExport(
       beraterNr: company.datevBeraterNr,
       mandantNr: company.datevMandantNr,
       fiscalYearStart: `${year}-01-01`,
-      dateFrom: `${year}-01-01`,
-      dateTo: `${year}-12-31`,
-      description: `Haben ${year}`,
+      dateFrom: start,
+      dateTo,
+      description: `Haben ${key}`,
       kontenrahmen,
       createdAt: now,
     },
     exportEntries,
   );
   if (verwendet.length > 0) await festschreiben(exporteur, verwendet, year);
-  return { bytes, filename: `EXTF_Buchungsstapel_${year}.csv`, bookings: rows.length, warnings };
+  return { bytes, filename: `EXTF_Buchungsstapel_${key}.csv`, bookings: rows.length, warnings };
 }
 
 /** Ablehnung für jemanden ohne Recht zum Vergeben: welche Kontakte noch keine Nummer haben */

@@ -1727,8 +1727,29 @@
     {
       "idx": 246,
       "version": "7",
-      "when": 1794747930293,
-      "tag": "0246_rechnungen_bereits_bezahlt",
+      "when": 1794745098644,
+      "tag": "0246_search_unaccent",
+      "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1794745106907,
+      "tag": "0247_search_stufe2_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 248,
+      "version": "7",
+      "when": 1794750748349,
+      "tag": "0248_kleinunternehmer_gruendungsdatum",
+      "breakpoints": true
+    },
+    {
+      "idx": 249,
+      "version": "7",
+      "when": 1794756314716,
+      "tag": "0249_rechnungen_bereits_bezahlt",
       "breakpoints": true
     }
   ]

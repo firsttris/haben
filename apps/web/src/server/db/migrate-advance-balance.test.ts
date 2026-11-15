@@ -67,7 +67,7 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       });
       // PostgreSQL-Text umfasst auch Zeitstempel, Binärdaten, Hash-Kette und die gespeicherten Siegelspalten.
       const snapshot = async () => ({
-        company: await sql`select (to_jsonb(c)-'ohne_vorsteuerabzug')::text as bytes from company c order by id`,
+        company: await sql`select (to_jsonb(c)-'ohne_vorsteuerabzug'-'archive_search'-'founded_on')::text as bytes from company c order by id`,
         invoice:
           await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'paid_via'-'paid_on')::text as bytes from invoices i order by id`,
         invoiceLines: await sql`select to_jsonb(l)::text as bytes from invoice_lines l order by id`,
@@ -86,6 +86,7 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
 
       await migrate(database, { migrationsFolder: MIGRATIONS });
+      expect(await sql`select founded_on from company order by id`).toEqual([{ founded_on: null }]);
       expect(await snapshot()).toEqual(old);
       expect(await sql`select paid_via, paid_on from invoices where id=${invoiceId}`).toEqual([{ paid_via: null, paid_on: null }]);
       expect(await sql`select status,advance_type,advance_accounting,replaces_invoice_id from invoices where id=${invoiceId}`).toEqual([

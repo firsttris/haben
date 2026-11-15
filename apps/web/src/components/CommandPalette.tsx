@@ -14,6 +14,7 @@ import type { Taste } from "../lib/tastatur.ts";
 
 /** Öffnet die Befehlspalette von jeder Seite; angezeigt in der Navigation */
 export const PALETTE_KUERZEL: readonly Taste[] = ["mod", "K"];
+export const PALETTE_ALT_KUERZEL: readonly Taste[] = ["/"];
 
 export interface CommandPaletteProps {
   open: boolean;
@@ -45,8 +46,10 @@ function useRemotePaletteSearch(open: boolean, trimmed: string) {
     }
     const reqId = ++latestReqRef.current;
     setLoading(true);
+    // Eine neue Eingabe bricht die laufende Anfrage ab, statt ihre Antwort nur zu verwerfen (#617, Leistung)
+    const abort = new AbortController();
     const timer = window.setTimeout(() => {
-      void searchCommandPalette({ data: { query: trimmed } })
+      void searchCommandPalette({ data: { query: trimmed }, signal: abort.signal })
         .then((res) => {
           if (reqId !== latestReqRef.current) return;
           setResponse({ query: trimmed, result: res });
@@ -58,16 +61,26 @@ function useRemotePaletteSearch(open: boolean, trimmed: string) {
           setLoading(false);
         });
     }, 150);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      abort.abort();
+    };
   }, [open, trimmed, resetRemote]);
 
   return { remote: response?.query === trimmed ? response.result : null, loading, resetRemote };
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable;
+}
+
 function useShortcutKey(open: boolean, openerRef: RefObject<HTMLElement | null>, onOpen: () => void, onClose: () => void) {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "k") return;
+      const isModK = (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k";
+      const isSlash = !open && !event.ctrlKey && !event.metaKey && !event.altKey && event.key === "/" && !isEditableTarget(event.target);
+      if (!isModK && !isSlash) return;
       if (open) {
         event.preventDefault();
         onClose();
@@ -89,6 +102,10 @@ function navigatePaletteItem(router: ReturnType<typeof useRouter>, item: Palette
     else if (item.page.settingsArea) void router.navigate({ to: "/einstellungen", search: { bereich: item.page.settingsArea } });
     else if (item.page.params) void router.navigate({ to: "/seiten/$id", params: item.page.params });
     else void router.navigate({ to: item.page.to });
+    return;
+  }
+  if (item.kind === "link") {
+    void router.navigate({ to: item.to as never, params: item.params as never, search: item.search as never });
     return;
   }
   void router.navigate({ to: item.to, params: { id: item.entityId } });
@@ -117,7 +134,7 @@ function PaletteHeader({
 }) {
   return (
     <div className="cmd-head">
-      <Field label="Seiten, Kontakte, Rechnungen, Angebote oder Belege suchen" hideLabel className="cmd-field">
+      <Field label="Kontakte, Rechnungen, Belege, Umsätze suchen" hideLabel className="cmd-field">
         {(control) => (
           <>
             <Icon name="search" size={18} />
@@ -136,7 +153,7 @@ function PaletteHeader({
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Seiten, Kontakte, Rechnungen, Angebote oder Belege suchen …"
+              placeholder="Kontakte, Rechnungen, Belege, Umsätze …"
             />
           </>
         )}
