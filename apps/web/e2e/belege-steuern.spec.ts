@@ -1004,6 +1004,13 @@ test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne aus
   // Haken wieder an: die nicht von Hand geänderte Steuer folgt dem Netto
   await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
   await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("21,13");
+  // Haken aus und wieder an ändert ein eingegebenes Brutto nicht: 45,00 € zu 19 % sind 37,82 € + 7,18 € (aus dem Netto wären es 7,19 €)
+  await page.getByLabel("Brutto 1", { exact: true }).fill("45,00");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("45,00");
 });
 
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {

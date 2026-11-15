@@ -4,7 +4,6 @@ import {
   ownerLabels,
   parseEuro,
   RECURRING_INTERVALS,
-  taxOf,
   VORSTEUER_HINWEIS,
   type RecurringInterval,
   type Rechtsform,
@@ -14,7 +13,7 @@ import { FilePicker } from "./FilePicker.tsx";
 import { Icon } from "./Icon.tsx";
 import { ContactCombobox, savedAsChoice, type ContactChoice } from "./ContactCombobox.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
-import { aendereBetragszeile, betragszeileAus, bruttoLesbar, type Betragszeile } from "../lib/betragszeile.ts";
+import { aendereBetragszeile, betragszeileAus, betragszeileAusVorlage, bruttoLesbar, steuerausweisUmschalten, type Betragszeile } from "../lib/betragszeile.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
 
@@ -85,12 +84,7 @@ export function DauerbelegForm({
   const [nextDate, setNextDate] = useState(initial.nextDate);
   const [endDate, setEndDate] = useState(initial.endDate ?? "");
   const [dueDays, setDueDays] = useState(String(initial.dueDays));
-  const [amounts, setAmounts] = useState<Betragszeile[]>(() =>
-    // Steuer aus dem Netto rechnen, solange sie dazu passt; ohne Steuerausweis ist die gespeicherte 0 keine Eingabe
-    initial.amounts.map((a) =>
-      betragszeileAus(nextKey++, a.taxRate, a.net, a.tax, a.net === 0 && a.tax === 0, initial.taxShown && a.tax !== taxOf(a.net, a.taxRate)),
-    ),
-  );
+  const [amounts, setAmounts] = useState<Betragszeile[]>(() => initial.amounts.map((a) => betragszeileAusVorlage(nextKey++, a, initial.taxShown)));
   const fileRef = useRef<HTMLInputElement>(null);
   // Ob eine Datei gewählt ist, für die Prüfung beim Speichern; die Datei selbst liest submit aus fileRef
   const [hasFile, setHasFile] = useState(false);
@@ -136,11 +130,9 @@ export function DauerbelegForm({
     setAmounts((prev) => prev.map((a) => (a.key === key ? aendereBetragszeile(a, patch, false) : a)));
   }
 
-  // Haken aus: das Brutto ist nicht mehr zu sehen, Grundlage ist wieder das Netto (wie bei § 13b am Beleg).
-  // Haken an: eine nicht von Hand geänderte Steuer aus dem Netto vorrechnen.
   function chooseTaxShown(an: boolean) {
     setTaxShown(an);
-    setAmounts((prev) => prev.map((a) => (an ? (a.taxTouched ? a : aendereBetragszeile(a, { taxRate: a.taxRate }, false)) : { ...a, basis: "net" })));
+    setAmounts((prev) => prev.map((a) => steuerausweisUmschalten(a, an)));
   }
 
   function addRate() {
