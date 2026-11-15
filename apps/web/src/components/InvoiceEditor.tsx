@@ -212,6 +212,12 @@ export function InvoiceEditor({
   const [neuerEntwurf, setNeuerEntwurf] = useState<string | null>(null);
   const id = initialId ?? neuerEntwurf;
   const router = useRouter();
+  /**
+   * Neu laden und warten, bis der neue Stand angezeigt wird. Ohne `sync` endet invalidate schon mit den alten Daten und
+   * lädt im Hintergrund nach; die Seite baut den Editor danach mit dem neuen `updatedAt` neu auf und verwirft, was
+   * inzwischen geschah, etwa den Dialog von „Festschreiben“. So bleiben die Knöpfe gesperrt, bis der Editor neu steht
+   */
+  const reload = () => router.invalidate({ sync: true });
   const navigate = useNavigate();
   const barPreviewBtn = useRef<HTMLButtonElement>(null);
   const save = useServerFn(saveInvoiceDraft);
@@ -441,7 +447,7 @@ export function InvoiceEditor({
           },
         },
       });
-      await router.invalidate();
+      await reload();
     }, `„${p.description}“ ist jetzt im Artikelkatalog.`);
   }
 
@@ -570,7 +576,7 @@ export function InvoiceEditor({
       if (initialId === null) {
         await openSaved(savedId);
       } else {
-        await router.invalidate();
+        await reload();
         setNotice({ tone: "ok", text: "Entwurf gespeichert." });
       }
     });
@@ -586,7 +592,7 @@ export function InvoiceEditor({
       if (quote) {
         await finalizeQuote({ data: savedId });
         if (initialId === null) await openSaved(savedId);
-        else await router.invalidate();
+        else await reload();
         return;
       }
       if (initialId === null) setNeuerEntwurf(savedId);
@@ -601,7 +607,7 @@ export function InvoiceEditor({
       return;
     }
     if (initialId === null) await openSaved(result.id);
-    else await router.invalidate();
+    else await reload();
   }
 
   // Entwurf als PDF aus dem gespeicherten Stand: Ungespeichertes erst speichern, damit das PDF zeigt, was im Formular steht
@@ -614,7 +620,7 @@ export function InvoiceEditor({
       if (initialId === null) {
         await openSaved(savedId);
       } else if (saving) {
-        await router.invalidate();
+        await reload();
         setNotice({ tone: "ok", text: "Entwurf gespeichert, das PDF ist heruntergeladen." });
       }
     });

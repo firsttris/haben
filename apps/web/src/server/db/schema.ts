@@ -1933,11 +1933,18 @@ export const recurringDocuments = pgTable(
     endDate: date("end_date", { mode: "string" }),
     /** Fällig am = Termin plus so viele Tage */
     dueDays: smallint("due_days").notNull().default(0),
-    /** Vertrag oder Dauerrechnung im Dokumentenspeicher; jeder Beleg nutzt die Datei, die beim Anlegen hinterlegt war */
-    sha256: text("sha256").notNull(),
-    filename: text("filename").notNull(),
-    mimeType: text("mime_type").notNull(),
-    size: integer("size").notNull(),
+    /**
+     * Vertrag oder Dauerrechnung im Dokumentenspeicher; jeder Beleg nutzt die Datei, die beim Anlegen hinterlegt war. Leer nur
+     * bei einer übernommenen Vorlage ohne Datei (sevDesk), die nicht aktiv ist: Fortsetzen braucht erst eine Datei.
+     */
+    sha256: text("sha256"),
+    filename: text("filename"),
+    mimeType: text("mime_type"),
+    size: integer("size"),
+    /** Übernommen aus sevDesk: ID der Vorlage wiederkehrender Belege (voucherType RV); ein weiterer Abruf legt sie nicht neu an */
+    sevdeskId: text("sevdesk_id").unique(),
+    /** Antwort von sevDesk zur Vorlage samt Positionen, unverändert; die Hinweise zur Übernahme liest Haben daraus */
+    sevdeskRaw: jsonb("sevdesk_raw").$type<Record<string, unknown>>(),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     lastError: text("last_error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1948,6 +1955,11 @@ export const recurringDocuments = pgTable(
     check("recurring_documents_anchor_day", sql`${t.anchorDay} between 1 and 31`),
     check("recurring_documents_private_share", sql`${t.privateShare} between 0 and 100`),
     check("recurring_documents_due_days", sql`${t.dueDays} between 0 and 120`),
+    check(
+      "recurring_documents_file",
+      sql`(${t.sha256} is null) = (${t.filename} is null) and (${t.sha256} is null) = (${t.mimeType} is null) and (${t.sha256} is null) = (${t.size} is null)`,
+    ),
+    check("recurring_documents_active_file", sql`${t.status} <> 'aktiv' or ${t.sha256} is not null`),
     index("recurring_documents_sha256").on(t.sha256),
     index("recurring_documents_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
     index("recurring_documents_supplier_name_trgm_idx").using("gin", sql`haben_unaccent(${t.supplierName}) gin_trgm_ops`),
@@ -2997,6 +3009,8 @@ export type LexofficeImportProgress = {
   skipped: number;
   files: number;
   failed: { lexofficeId: string; number: string; message: string }[];
+  /** sevDesk: Vorlagen wiederkehrender Belege, in diesem Lauf als Dauerbelege übernommen */
+  recurring?: number;
   /** BuchhaltungsButler: Archivdateien mit dem DATEV-Stapel des Exports, auch wenn sie schon vorher im Archiv lagen */
   datevFileIds?: string[];
   /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */
@@ -3009,6 +3023,8 @@ export type LexofficeImportProgress = {
   fastbillWaiting?: number;
   /** sevDesk: in diesem Lauf archivierte Mahnungen (legacy_dunnings) */
   dunnings?: number;
+  /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
+  sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
@@ -3250,7 +3266,10 @@ export const sevdeskAccountingTypes = pgTable(
   (t) => [uniqueIndex("sevdesk_accounting_types_stand").on(t.accountingTypeId, sql`md5(${t.raw}::text)`)],
 );
 
-/** Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. */
+/**
+ * Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. Rolle „vorlage“: Datei der
+ * sevDesk-Vorlage, aus der ein wiederkehrender Beleg ohne eigene Datei entstand (lexoffice_file_id ist die Datei der Vorlage).
+ */
 export const lexofficeVoucherFiles = pgTable(
   "lexoffice_voucher_files",
   {
@@ -3258,7 +3277,7 @@ export const lexofficeVoucherFiles = pgTable(
     voucherId: uuid("voucher_id")
       .notNull()
       .references(() => lexofficeVouchers.id),
-    role: text("role", { enum: ["pdf", "xml", "anhang"] }).notNull(),
+    role: text("role", { enum: ["pdf", "xml", "anhang", "vorlage"] }).notNull(),
     lexofficeFileId: text("lexoffice_file_id"),
     filename: text("filename").notNull(),
     mimeType: text("mime_type").notNull(),
@@ -3402,6 +3421,31 @@ export const recurringInvoices = pgTable(
     index("recurring_invoices_name_trgm_idx").using("gin", sql`haben_unaccent(${t.name}) gin_trgm_ops`),
   ],
 );
+
+/**
+ * Aus sevDesk übernommene Vorlagen wiederkehrender Rechnungen (invoiceType WKR, #472): Antwort der API, wie Haben sie
+ * gelesen hat, und die Vorlage in Haben. Je sevDesk-Vorlage eine Zeile, ein neuer Abruf überspringt sie; wird die Vorlage
+ * in Haben gelöscht, bleibt der Nachweis ohne Verweis.
+ */
+export const sevdeskRecurringTemplates = pgTable("sevdesk_recurring_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sevdeskId: text("sevdesk_id").notNull().unique(),
+  importId: uuid("import_id")
+    .notNull()
+    .references(() => lexofficeImports.id),
+  recurringId: uuid("recurring_id").references(() => recurringInvoices.id, { onDelete: "set null" }),
+  /** Status der Vorlage in sevDesk: 50, 100, 1000 */
+  status: text("status").notNull(),
+  /** Aus den erzeugten Rechnungen abgeleitet; unklar ohne solche */
+  billing: text("billing", { enum: ["nachfaellig", "vorschuessig", "unklar"] }).notNull(),
+  /** Anzahl der erzeugten Rechnungen, die billing belegen */
+  billingEvidence: integer("billing_evidence").notNull().default(0),
+  /** Platzhalter von sevDesk wie [%KONTAKTPERSON%], als Text übernommen */
+  placeholders: jsonb("placeholders").$type<string[]>().notNull(),
+  hints: jsonb("hints").$type<string[]>().notNull(),
+  raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Mahnungen und Zahlungserinnerungen mit PDF; wie ein verschicktes Schreiben unveränderlich */
 export const dunnings = pgTable(

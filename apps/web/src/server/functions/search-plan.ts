@@ -61,6 +61,29 @@ export function paletteGroups(rawQuery: string, role: Rolle): PaletteGroup[] {
   return [...erlaubt];
 }
 
+/** Gruppen je Modul; ein Modul sucht seine Gruppen in einer Abfrage (#617, Entscheidung zu #1038) */
+const PALETTE_MODULES = {
+  stammdaten: ["contacts", "articles", "textBlocks"],
+  rechnungen: ["invoices", "quotes", "recurringInvoices"],
+  belege: ["documents", "recurringDocuments"],
+  bank: ["bankTransactions", "loans", "cashEntries"],
+  buchhaltung: ["bookings", "accounts", "assets", "pauschalen"],
+  leistungen: ["serviceEntries"],
+  lohn: ["employees"],
+  umsatzsteuer: ["vatReturns", "zmSubmissions"],
+  finanzamt: ["postfachDocuments"],
+  archiv: ["archive"],
+} as const satisfies Record<string, readonly PaletteGroup[]>;
+
+export type PaletteModule = keyof typeof PALETTE_MODULES;
+
+/** Die Gruppen nach Modul, nur Module mit mindestens einer gefragten Gruppe */
+export function paletteModules(groups: readonly PaletteGroup[]): { modul: PaletteModule; groups: PaletteGroup[] }[] {
+  return (Object.entries(PALETTE_MODULES) as [PaletteModule, readonly PaletteGroup[]][])
+    .map(([modul, eigene]) => ({ modul, groups: eigene.filter((g) => groups.includes(g)) }))
+    .filter((m) => m.groups.length > 0);
+}
+
 /** Führt Aufgaben mit höchstens `n` gleichzeitig aus, damit eine Eingabe nicht alle Verbindungen des Pools belegt */
 export async function mitHoechstens<T>(n: number, aufgaben: (() => Promise<T>)[]): Promise<T[]> {
   const ergebnisse: T[] = new Array(aufgaben.length);

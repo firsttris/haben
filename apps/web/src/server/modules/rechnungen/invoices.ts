@@ -741,33 +741,37 @@ export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
   return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
 }
 
-export async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, limit?: number, rank?: SQL) {
-  const query = q
-    .select({
-      id: schema.invoices.id,
-      kind: schema.invoices.kind,
-      variant: schema.invoices.variant,
-      status: schema.invoices.status,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      dueDate: schema.invoices.dueDate,
-      gross: schema.invoices.gross,
-      net: schema.invoices.net,
-      correctsId: schema.invoices.correctsId,
-      contactId: schema.invoices.contactId,
-      externalSource: schema.invoices.externalSource,
-      externalId: schema.invoices.externalId,
-      buyerOrderReference: schema.invoices.buyerOrderReference,
-      sellerOrderReference: schema.invoices.sellerOrderReference,
-      contactName: schema.contacts.name,
-      buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
-      cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
-      // Für die Auskunft unter dem Status: welches Storno die Rechnung aufhebt, welche Rechnung Storno oder Korrektur betrifft
-      cancelledBy: sql<
-        string | null
-      >`(select s.number from invoices s where s.kind = 'storno' and s.status = 'final' and s.corrects_id = ${schema.invoices.id} order by s.number limit 1)`,
-      correctsNumber: sql<string | null>`(select o.number from invoices o where o.id = ${schema.invoices.correctsId})`,
-    })
+/** Spalten der Rechnungsliste; die Schnellsuche liest dieselben (search.ts) */
+export const invoiceListFields = {
+  id: schema.invoices.id,
+  kind: schema.invoices.kind,
+  variant: schema.invoices.variant,
+  status: schema.invoices.status,
+  number: schema.invoices.number,
+  issueDate: schema.invoices.issueDate,
+  dueDate: schema.invoices.dueDate,
+  gross: schema.invoices.gross,
+  net: schema.invoices.net,
+  correctsId: schema.invoices.correctsId,
+  contactId: schema.invoices.contactId,
+  externalSource: schema.invoices.externalSource,
+  externalId: schema.invoices.externalId,
+  buyerOrderReference: schema.invoices.buyerOrderReference,
+  sellerOrderReference: schema.invoices.sellerOrderReference,
+  contactName: schema.contacts.name,
+  buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
+  cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
+  // Für die Auskunft unter dem Status: welches Storno die Rechnung aufhebt, welche Rechnung Storno oder Korrektur betrifft
+  cancelledBy: sql<
+    string | null
+  >`(select s.number from invoices s where s.kind = 'storno' and s.status = 'final' and s.corrects_id = ${schema.invoices.id} order by s.number limit 1)`,
+  correctsNumber: sql<string | null>`(select o.number from invoices o where o.id = ${schema.invoices.correctsId})`,
+};
+
+/** Abfrage der Rechnungsliste, noch ohne Zahlungen und Status (`withListStatus`) */
+export function invoiceListQuery(fields: typeof invoiceListFields, filter: SQL | undefined, q: Db | Tx = db, rank?: SQL) {
+  return q
+    .select(fields)
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(filter)
@@ -779,8 +783,14 @@ export async function selectInvoiceList(today: string, filter: SQL | undefined, 
       desc(schema.invoices.id),
     )
     .$dynamic();
-  const rows = await (limit === undefined ? query : query.limit(limit));
+}
 
+async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db) {
+  return withListStatus(await invoiceListQuery(invoiceListFields, filter, q), today, q);
+}
+
+/** Zeilen der Rechnungsliste mit Zahlungen, offenem Betrag und Status */
+export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db) {
   if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],

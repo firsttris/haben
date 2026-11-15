@@ -1762,15 +1762,36 @@
     {
       "idx": 251,
       "version": "7",
-      "when": 1794762523747,
-      "tag": "0251_sevdesk_mahnungen",
+      "when": 1794762523750,
+      "tag": "0251_sevdesk_wkr_vorlagen",
       "breakpoints": true
     },
     {
       "idx": 252,
       "version": "7",
-      "when": 1794762524878,
-      "tag": "0252_sevdesk_mahnungen_trigger",
+      "when": 1794762524880,
+      "tag": "0252_sevdesk_wkr_vorlagen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 253,
+      "version": "7",
+      "when": 1794768072654,
+      "tag": "0253_dauerbelege_aus_sevdesk",
+      "breakpoints": true
+    },
+    {
+      "idx": 254,
+      "version": "7",
+      "when": 1794768439174,
+      "tag": "0254_sevdesk_mahnungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 255,
+      "version": "7",
+      "when": 1794768440022,
+      "tag": "0255_sevdesk_mahnungen_trigger",
       "breakpoints": true
     }
   ]
