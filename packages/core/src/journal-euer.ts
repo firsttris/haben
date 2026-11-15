@@ -65,7 +65,7 @@ export type EuerHerkunft = "pauschale" | "asset" | "anlage" | "darlehenAnlagever
  * Privatkonten, Anlagekonten, Darlehen, Steuer nach § 13b und Erwerb). Die Pauschale „Fahrt“ teilt ihr Konto mit den
  * Fahrtkosten; die Herkunft unterscheidet sie. Die Umsatzsteuer auf die Privatnutzung (Herkunft „asset“) ist eine eigene Zeile.
  */
-export function euerZuordnung(kontenrahmen: Kontenrahmen, account: string, herkunft: EuerHerkunft = "sonst"): EuerZuordnung | null {
+export function euerZuordnung(kontenrahmen: Kontenrahmen, account: string, herkunft: EuerHerkunft = "sonst", kleinunternehmer = false): EuerZuordnung | null {
   const a = ACCOUNTS[kontenrahmen];
   if (herkunft === "pauschale") {
     for (const [art, konten] of Object.entries(PAUSCHALE_KONTEN) as [PauschaleArt, (typeof PAUSCHALE_KONTEN)[PauschaleArt]][])
@@ -78,10 +78,13 @@ export function euerZuordnung(kontenrahmen: Kontenrahmen, account: string, herku
   if (account === EXPENSE_CATEGORIES.einfuhrumsatzsteuer[kontenrahmen]) return "vorsteuer";
   const steuer = STEUER_KONTEN[kontenrahmen];
   if ([a.ustVorauszahlung, a.sondervorauszahlung, steuer.ustVorjahr, steuer.ustFruehereJahre].includes(account as never)) return "ustZahlung";
+  // Anleitung EÜR 2025, Zeile 12: auch eigene Befreiungen und nicht steuerbare Leistungen sind KU-Einnahmen.
+  // https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
+  const steuerfrei = kleinunternehmer ? "einnahmenKleinunternehmer" : "einnahmenSteuerfrei";
   // Erlöse
   if (account === a.erloese[1900] || account === a.erloese[700]) return "einnahmenSteuerpflichtig";
   if (account === a.erloeseSonder.kleinunternehmer || account === KLEINUNTERNEHMER_FRUEHERE_KONTEN[kontenrahmen]) return "einnahmenKleinunternehmer";
-  if (account === a.erloese[0] || Object.values(a.erloeseSonder).includes(account as never)) return "einnahmenSteuerfrei";
+  if (account === a.erloese[0] || Object.values(a.erloeseSonder).includes(account as never)) return steuerfrei;
   if (account === a.mahnerloes || account === a.zinsertraege || account === steuer.erstattungszinsen) return "einnahmenSteuerfrei";
   if (account === a.kursErtrag) return "kursgewinne";
   if (account === a.kursAufwand) return "kursverluste";
@@ -137,6 +140,7 @@ export function euerAusZeilen(
   zeilen: readonly Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">[],
   herkunft: EuerHerkunft = "sonst",
   summe: EuerAusJournal = leereEuerAusJournal(),
+  kleinunternehmer = false,
 ): EuerAusJournal {
   const add = (key: EuerLineKey, betrag: Cents) => {
     if (betrag !== 0) summe.zeilen[key] = (summe.zeilen[key] ?? 0) + betrag;
@@ -152,7 +156,7 @@ export function euerAusZeilen(
   if (selbstGeschuldet) add("vereinnahmteUst", privateSelbstGeschuldeteSteuer(kontenrahmen, zeilen));
   for (const zeile of zeilen) {
     if (selbstGeschuldet && zeile.taxCode === "keineVSt") continue;
-    const zuordnung = euerZuordnung(kontenrahmen, zeile.account, herkunft);
+    const zuordnung = euerZuordnung(kontenrahmen, zeile.account, herkunft, kleinunternehmer);
     if (zuordnung === null) continue;
     const soll = zeile.debit - zeile.credit;
     if (zuordnung === "ustZahlung") {

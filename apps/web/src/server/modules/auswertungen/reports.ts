@@ -1,3 +1,4 @@
+import { kleinunternehmerForMonth } from "../stammdaten/index.ts";
 import {
   isKapitalgesellschaft,
   bareinnahmeTotals,
@@ -438,7 +439,8 @@ export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | 
 
 /** Die EÜR aus den Nebenbüchern (Zahlungen, Belege, Pauschalen, Anlagenverzeichnis); ab dem Stichjahr die Gegenprobe */
 export async function euerAusNebenbuechern(year: number, q: Db | Tx = db): Promise<EuerResult> {
-  const euer = computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q));
+  const monate = await Promise.all(Array.from({ length: 12 }, (_, i) => kleinunternehmerForMonth(year, i + 1, q)));
+  const euer = computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q), monate);
   // Freie Buchungen gibt es in der EÜR nur im Einzelunternehmen; manuelle Buchungen einer GmbH sind Abschlussbuchungen
   return isKapitalgesellschaft((await loadCompany(q)).rechtsform) ? euer : mitFreienBuchungen(euer, q);
 }

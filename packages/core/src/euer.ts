@@ -241,7 +241,14 @@ export interface EuerWithdrawals {
   ustEntnahmen: Cents;
 }
 
-export function computeEuer(year: number, payments: EuerPayment[], depreciation?: EuerDepreciation, withdrawals?: EuerWithdrawals): EuerResult {
+export function computeEuer(
+  year: number,
+  payments: EuerPayment[],
+  depreciation?: EuerDepreciation,
+  withdrawals?: EuerWithdrawals,
+  /** KU-Status je Zahlungsmonat (Index 0 = Januar), unabhängig von der eigenen Befreiung der Rechnung. */
+  kleinunternehmerMonate: readonly boolean[] = [],
+): EuerResult {
   const sums = new Map<EuerLineKey, Cents>();
   const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
   const monthlyIn: Cents[] = Array.from({ length: 12 }, () => 0);
@@ -251,10 +258,14 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
 
   for (const p of netGroups(payments.filter((p) => yearOf(p.date) === year))) {
     const month = monthIndex(p.date);
+    const steuerfrei = kleinunternehmerMonate[month] ? "einnahmenKleinunternehmer" : "einnahmenSteuerfrei";
     switch (p.kind) {
       case "invoice":
         for (const { rate, base, tax } of p.shares ?? paidTaxShares(p.totals, p.sum)) {
-          add(p.treatment === "kleinunternehmer" ? "einnahmenKleinunternehmer" : rate === 0 ? "einnahmenSteuerfrei" : "einnahmenSteuerpflichtig", base);
+          // Anleitung EÜR 2025, Zeile 12: vollständige KU-Einnahmen, auch bei eigener Befreiung oder ausländischem Leistungsort.
+          // Vor dem KU-Wechsel regelbesteuerte Leistungen behalten dagegen Zeilen 15/17.
+          // https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
+          add(p.treatment === "kleinunternehmer" ? "einnahmenKleinunternehmer" : rate === 0 ? steuerfrei : "einnahmenSteuerpflichtig", base);
           add("vereinnahmteUst", tax);
           monthlyIn[month]! += base;
         }
