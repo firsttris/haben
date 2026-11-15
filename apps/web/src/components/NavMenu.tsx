@@ -1,15 +1,19 @@
 import { Link } from "@tanstack/react-router";
+import type { KeyboardEvent, ReactNode } from "react";
+import { EINKLAPP_KUERZEL } from "../lib/nav-rail.ts";
+import { ariaKuerzel } from "../lib/tastatur.ts";
 import type { Firma } from "../lib/firmen.ts";
 import type { EigeneSeiteNav as EigeneSeite, NavGroup } from "../lib/navigation.ts";
 import { STEUERBERATUNG_START } from "../lib/rollen.ts";
 import { FirmaListe, FirmaWechsler } from "./FirmaWechsler.tsx";
 import { Icon } from "./Icon.tsx";
-import { type FlyoutWeg, NavFlyout } from "./NavFlyout.tsx";
+import { Kuerzel } from "./Kuerzel.tsx";
+import { type FlyoutWeg, NavFlyout, weiter } from "./NavFlyout.tsx";
 import { ThemePicker } from "./ThemePicker.tsx";
 
 /** Name eines Symbols der eingeklappten Leiste, beim Überfahren und mit Fokus (styles.css, .nav-tip); der Name für
  * Hilfstechnik steht im aria-label des Elements */
-export function NavTip({ children }: { children: string }) {
+export function NavTip({ children }: { children: ReactNode }) {
   return (
     <span className="nav-tip" aria-hidden="true">
       {children}
@@ -28,12 +32,22 @@ function CollapseSidebarButton({ collapsed, onToggleCollapse }: CollapseButtonPr
       type="button"
       className="nav-link nav-collapse-btn nav-tip-anker"
       aria-expanded={!collapsed}
-      aria-label={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
+      // Ausgeklappt kommt der Name aus dem Text, sonst passte das sichtbare Kürzel nicht zu einem aria-label
+      // (axe: label-content-name-mismatch, WCAG 2.5.3); das Kürzel steht in aria-keyshortcuts
+      aria-label={collapsed ? "Seitenleiste ausklappen" : undefined}
+      aria-keyshortcuts={ariaKuerzel(EINKLAPP_KUERZEL)}
       onClick={onToggleCollapse}
     >
       <Icon name={collapsed ? "sidebar-open" : "sidebar-close"} />
-      <span className="nav-collapse-label">Einklappen</span>
-      {collapsed && <NavTip>Seitenleiste ausklappen</NavTip>}
+      <span className="nav-collapse-label">
+        <span className="visually-hidden">Seitenleiste </span>Einklappen
+      </span>
+      {!collapsed && <Kuerzel tasten={EINKLAPP_KUERZEL} className="nav-kbd" aria-hidden="true" />}
+      {collapsed && (
+        <NavTip>
+          Seitenleiste ausklappen <Kuerzel tasten={EINKLAPP_KUERZEL} />
+        </NavTip>
+      )}
     </button>
   );
 }
@@ -257,6 +271,24 @@ export function NavExpandedBody({
       <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
     </>
   );
+}
+
+// Die Symbole der eingeklappten Leiste von oben nach unten: Marke und Lupe stehen vor den Fassungen in der Navigation
+const SYMBOLE = ".brand, .nav-search-btn, .nav-variante-rail :is(.nav-rail-trigger, .nav-rail-link, .nav-collapse-btn)";
+
+/** Eingeklappt am Desktop wandern ↑/↓ von Symbol zu Symbol, Marke und Lupe eingeschlossen; im Flyout übernimmt NavFlyout.
+ * Kein Pfeil aus der Leiste erreicht die Seite (die Beleg-Ansicht blättert sonst mit ← →). An der Navigation (`<nav>`) */
+export function symbolWechseln(event: KeyboardEvent<HTMLElement>) {
+  if (!event.key.startsWith("Arrow") || !document.documentElement.dataset.nav || !window.matchMedia("(min-width: 861px)").matches) return;
+  const ziel = event.target as HTMLElement;
+  const symbole = [...event.currentTarget.querySelectorAll<HTMLElement>(SYMBOLE)].filter((symbol) => !symbol.closest(".nav-flyout"));
+  const amSymbol = symbole.includes(ziel);
+  if (!amSymbol && !ziel.closest(".nav-flyout")) return;
+  event.stopPropagation();
+  const schritt = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+  if (!schritt || !amSymbol) return;
+  event.preventDefault();
+  weiter(symbole, schritt);
 }
 
 /** Beide Fassungen im DOM, CSS zeigt eine (display: contents, die Kinder bleiben Teil von .nav-body); so liefert der
