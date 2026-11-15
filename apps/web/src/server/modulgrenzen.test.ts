@@ -164,6 +164,7 @@ describe("Struktur der Module", () => {
         "auth-transaction.ts",
         "change-password.ts",
         "oidc.ts",
+        "pdf-anhang.ts",
         "crypto.ts",
         "csrf.ts",
         "env.ts",

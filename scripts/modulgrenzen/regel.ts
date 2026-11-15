@@ -1,5 +1,6 @@
 import { basename, dirname, resolve, sep } from "node:path";
 import { parseSync, Visitor } from "oxc-parser";
+import { SCHICHTEN } from "./schichten.ts";
 
 /*
  * Modulgrenzen im Server (#81, Schritt 6). Fachlicher Code liegt in apps/web/src/server/modules/<name>/; was ein Modul
@@ -10,6 +11,8 @@ import { parseSync, Visitor } from "oxc-parser";
  *   Ausgenommen sind die Stellen, die Module zusammensetzen: functions/, plugins/ und scheduler.ts.
  * - Module importieren weder Server Functions noch Oberfläche (routes/, components/); src/lib/ ist erlaubt. Die
  *   Abhängigkeit läuft nur von außen nach innen.
+ * - Ein Modul importiert nur Module, die in schichten.ts vor ihm stehen. Damit hängen keine Module im Ring aneinander:
+ *   Ein Ring ließ etwa documents.ts nicht als erstes Modul laden, weil eine Konstante noch nicht ausgewertet war (#1063).
  *
  * - Pakete unter packages/ importieren nichts aus apps/ (weder relativ noch als @haben/web); der GoBD-Kern kennt
  *   zusätzlich keine Pakete von Haben (@haben/… oder relativ außerhalb seines Ordners), weil auch andere Apps ihn nutzen.
@@ -98,7 +101,16 @@ export function checkImport(file: string, specifier: string): string | null {
   if (target.inner !== "index.ts") {
     return `Modul „${target.name}“ nur über seine index.ts importieren, nicht „${target.inner}“. Fehlt der Name dort, ergänze ihn in modules/${target.name}/index.ts.`;
   }
-  return null;
+  return own ? checkLayer(own.name, target.name) : null;
+}
+
+/** Ein Modul importiert nur Module, die in SCHICHTEN vor ihm stehen */
+function checkLayer(own: string, target: string): string | null {
+  const order: readonly string[] = SCHICHTEN;
+  const unknown = [own, target].find((name) => !order.includes(name));
+  if (unknown) return `Modul „${unknown}“ fehlt in scripts/modulgrenzen/schichten.ts. Trage es über den Modulen ein, die es importiert.`;
+  if (order.indexOf(target) < order.indexOf(own)) return null;
+  return `Modul „${own}“ steht unter „${target}“ und importiert es nicht (scripts/modulgrenzen/schichten.ts). Gehört der Code nach „${target}“ oder in ein Modul weiter unten?`;
 }
 
 /** Alle Importpfade einer Datei: import, export … from, import() und Typen wie import("…").T */
