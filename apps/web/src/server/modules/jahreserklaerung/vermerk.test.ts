@@ -86,6 +86,29 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     });
   });
 
+  it("vermerkt auch eine außerhalb abgegebene Einkommensteuererklärung (#1073)", async () => {
+    // Vergleichswert ist die eigene Schätzung aus der Anlage N; im leeren Testjahr ist sie 0
+    const berechnet = (await annual.annualOverview(2025, TODAY)).est.prognose.verbleibend;
+    const row = await jahresvermerk.vermerkeJahresabgabe(
+      actor,
+      "est",
+      2025,
+      {
+        ...eingabe("EST123456789", {
+          amount: berechnet,
+          note: "Einkommensteuererklärung außerhalb von Haben mit WISO abgegeben.",
+        }),
+      },
+      TODAY,
+    );
+    expect(row).toMatchObject({ form: "est", year: 2025, amount: berechnet });
+
+    const uebersicht = await annual.annualOverview(2025, TODAY);
+    expect(uebersicht.est.submitted).toMatchObject({ transferTicket: "EST123456789", amount: berechnet });
+    expect(uebersicht.euer.submitted).toBeNull();
+    expect(uebersicht.ust.submitted).toBeNull();
+  });
+
   it("lehnt einen zweiten Vermerk für dasselbe Formular und Jahr ab", async () => {
     await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY);
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("XYZ987654321"), TODAY)).rejects.toThrow(/schon vermerkt/);

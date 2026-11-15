@@ -121,7 +121,7 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
     if (!(data instanceof FormData)) throw new UserError("FormData erwartet");
     const fields = z
       .object({
-        form: z.enum(["ust", "euer"]),
+        form: z.enum(["ust", "euer", "est"]),
         // FormData liefert Text; die Jahresgrenzen prüft yearSchema
         year: z.coerce.number().pipe(yearSchema),
         // Tag, Ticket, Betrag und Begründung prüfen wie das Modul; hier nur die Form des FormData-Felds davor
