@@ -1,0 +1,89 @@
+{
+  "contractVersion": 1,
+  "provider": "paypal",
+  "externalAccountId": "haendler-beispiel",
+  "idempotencyKey": "suche-2026-10-01-bis-2026-10-31-seite-1",
+  "fetchedAt": "2026-11-01T06:00:00Z",
+  "coverage": { "from": "2026-10-01", "to": "2026-10-31" },
+  "part": { "fetchId": "suche-2026-10", "index": 0, "last": true },
+  "movements": [
+    {
+      "sourceEventId": "PP-0001",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-10-06",
+      "amount": 10000,
+      "currency": "EUR",
+      "counterpartyName": "Erika Beispiel",
+      "purpose": "Bestellung 2026-117",
+      "references": { "eventCode": "T0006" }
+    },
+    {
+      "sourceEventId": "PP-0001",
+      "component": "fee",
+      "kind": "payment",
+      "bookingDate": "2026-10-06",
+      "amount": -300,
+      "currency": "EUR",
+      "counterpartyName": "PayPal",
+      "purpose": "Gebühr zu PP-0001",
+      "references": { "eventCode": "T0006" }
+    },
+    {
+      "sourceEventId": "PP-0002",
+      "component": "main",
+      "kind": "refund",
+      "bookingDate": "2026-10-12",
+      "amount": -2000,
+      "currency": "EUR",
+      "counterpartyName": "Erika Beispiel",
+      "purpose": "Teilerstattung Bestellung 2026-117",
+      "references": { "eventCode": "T1107", "relatedEventId": "PP-0001" }
+    },
+    {
+      "sourceEventId": "PP-0003",
+      "component": "main",
+      "kind": "payout",
+      "bookingDate": "2026-10-20",
+      "amount": -7700,
+      "currency": "EUR",
+      "counterpartyName": "PayPal",
+      "purpose": "Abbuchung auf das Bankkonto",
+      "references": { "eventCode": "T0400" }
+    },
+    {
+      "sourceEventId": "PP-0005",
+      "component": "main",
+      "kind": "payment",
+      "bookingDate": "2026-10-22",
+      "amount": 5000,
+      "currency": "EUR",
+      "counterpartyName": "Max Muster",
+      "purpose": "Bestellung 2026-131",
+      "references": { "eventCode": "T0006" }
+    },
+    {
+      "sourceEventId": "PP-0005",
+      "component": "fee",
+      "kind": "payment",
+      "bookingDate": "2026-10-22",
+      "amount": -175,
+      "currency": "EUR",
+      "counterpartyName": "PayPal",
+      "purpose": "Gebühr zu PP-0005",
+      "references": { "eventCode": "T0006" }
+    },
+    {
+      "sourceEventId": "PP-0006",
+      "component": "main",
+      "kind": "chargeback",
+      "bookingDate": "2026-10-27",
+      "amount": -5000,
+      "currency": "EUR",
+      "counterpartyName": "Max Muster",
+      "purpose": "Rückbuchung der Zahlung PP-0005",
+      "references": { "eventCode": "T1106", "relatedEventId": "PP-0005" }
+    }
+  ],
+  "unsupported": [{ "sourceEventId": "PP-0004", "reason": "Status P (ausstehend); folgt, sobald PayPal ihn abschließt." }]
+}

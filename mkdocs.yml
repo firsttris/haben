@@ -36,6 +36,7 @@ nav:
       - Unraid: unraid.md
       - Coolify: coolify.md
       - Plesk: plesk.md
+      - Kubernetes: kubernetes.md
       - Konfiguration: installation-konfiguration.md
       - Anbindungen: installation-anbindungen.md
       - Single Sign-on: installation-sso.md

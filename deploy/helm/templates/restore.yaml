@@ -1,0 +1,64 @@
+{{- if .Values.restore.enabled }}
+{{- if not .Values.backup.enabled }}
+{{- fail "restore.enabled braucht die Einstellungen von backup (backup.enabled)" }}
+{{- end }}
+# Wartet auf restore.sh per kubectl exec; die App ist solange aus (replicas 0)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "haben.fullname" . }}-restore
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+    app.kubernetes.io/component: restore
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "haben.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: restore
+  template:
+    metadata:
+      labels:
+        {{- include "haben.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: restore
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with include "haben.scheduling" . | trim }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      containers:
+        - name: restore
+          image: {{ include "haben.backupImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["sleep", "infinity"]
+          {{- with include "haben.backupEnv" . | trim }}
+          env:
+            {{- . | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "haben.backupSecret" . }}
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            # Schreibbar: restore.sh ersetzt die Belege
+            - name: belege
+              mountPath: /belege
+            {{- with include "haben.backupVolumeMounts" . | trim }}
+            {{- . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: belege
+          persistentVolumeClaim:
+            claimName: {{ include "haben.fullname" . }}-belege
+        {{- with include "haben.backupVolumes" . | trim }}
+        {{- . | nindent 8 }}
+        {{- end }}
+{{- end }}

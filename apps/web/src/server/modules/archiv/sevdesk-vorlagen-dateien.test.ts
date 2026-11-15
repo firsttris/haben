@@ -131,7 +131,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Datei der Vorlage an wiederkehrenden
       { voucher: "voucher/ID_12", ...ausVorlage },
       { voucher: "voucher/ID_13", role: "anhang", fileId: "ID_99", filename: "eigen.pdf", mimeType: "application/pdf" },
     ]);
-    // die Vorlage ist kein Beleg, sondern ein Dauerbeleg (#1130); jede Vorlage und ihre Datei nur einmal angefragt, auch für den Dauerbeleg
+    // die Vorlage ist kein Beleg, sondern ein Dauerbeleg; jede Vorlage und ihre Datei nur einmal angefragt, auch für den Dauerbeleg
     expect(await sql`select 1 from lexoffice_vouchers where lexoffice_id = 'voucher/ID_1'`).toHaveLength(0);
     expect(await sql`select sevdesk_id as "sevdeskId", filename from recurring_documents`).toEqual([{ sevdeskId: "ID_1", filename: "vertrag.pdf" }]);
     expect(templateCalls().sort()).toEqual(["/Document/ID_5", "/Document/ID_5/download", "/Document/ID_99/download", "/Voucher/ID_1", "/Voucher/ID_2"]);
