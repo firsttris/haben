@@ -271,6 +271,28 @@ describe.skipIf(!testDatabaseUrl)("Befehlspalette-Suche nach Rolle (Postgres)", 
     expect(audit!.new_value).toMatchObject({ archive_search: false });
   });
 
+  it("liest bei einer Betragssuche in 20.000 Buchungen nicht alle Buchungszeilen", async () => {
+    await sql.begin(async (tx) => {
+      await tx`insert into journal_entries (id, date, description, source_type, source_id, kontenrahmen)
+        select md5('jb' || i)::uuid, date '2020-01-01' + (i % 2000), 'Buchung ' || md5(i::text), 'manuell', gen_random_uuid(), 'SKR03'
+        from generate_series(1, 20000) i`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit)
+        select md5('jb' || i)::uuid, a.account, case when a.debit > 0 then a.debit + i else 0 end, case when a.credit > 0 then a.credit + i else 0 end
+        from generate_series(1, 20000) i, (values ('4930', 5000, 0), ('1200', 0, 5000)) a(account, debit, credit)`;
+      await tx`update journal_entries set locked_at = now() where locked_at is null`;
+    });
+    await sql`vacuum analyze journal_entries`;
+    await sql`vacuum analyze journal_lines`;
+    const { bookingEntriesQuery } = await import("../modules/buchhaltung/search.ts");
+    const { select } = await bookingEntriesQuery("123,45", 5);
+    const query = select.toSQL();
+    const [row] = await sql.unsafe(`explain (format json) ${query.sql}`, query.params as never[]);
+    type Knoten = { "Node Type": string; "Relation Name"?: string; Plans?: Knoten[] };
+    const knoten = (k: Knoten): Knoten[] => [k, ...(k.Plans ?? []).flatMap(knoten)];
+    const alle = knoten((row as unknown as { "QUERY PLAN": { Plan: Knoten }[] })["QUERY PLAN"][0]!.Plan);
+    expect(alle.filter((k) => k["Node Type"] === "Seq Scan").map((k) => k["Relation Name"])).toEqual([]);
+  }, 60_000);
+
   it("nutzt bei 100.000 Bankumsätzen die Trigramm-Indizes", async () => {
     const [ba] = await sql`insert into bank_accounts (name, iban, purpose) values ('Konto', 'DE89370400440532013000', 'geschaeft') returning id`;
     const [bi] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
