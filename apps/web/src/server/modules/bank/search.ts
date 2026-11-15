@@ -1,6 +1,7 @@
 import { parseDateSearch, parseEuroSearchCents } from "@haben/core";
 import { asc, desc, eq, or, sql } from "drizzle-orm";
 import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
+import { bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema } from "../../db/index.ts";
 import { bestaende } from "./darlehen.ts";
 
@@ -37,7 +38,8 @@ export async function searchBankTransactions(query: string, limit = 5): Promise<
       purpose: bt.purpose,
       counterpartyIban: bt.counterpartyIban,
       accountName: schema.bankAccounts.name,
-      allocated: sql<boolean>`exists(select 1 from allocations a where a.transaction_id = ${bt.id} and a.reverses_id is null and not exists (select 1 from allocations r where r.reverses_id = a.id)) or exists(select 1 from bank_neutralizations n where n.transaction_id = ${bt.id})`,
+      // wie der Filter „zugeordnet“ der Bankseite; null heißt mit einem gegenläufigen Umsatz verrechnet (#457)
+      allocated: sql<boolean>`coalesce(${bankOpenAmountSql}, 0) = 0`,
     })
     .from(bt)
     .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, bt.bankAccountId))
