@@ -132,4 +132,15 @@ describe("previewWisoExport", () => {
     const preview = previewWisoExport(bytes, "SKR03");
     expect(preview.vouchers[0]!.voucher.gross).toBe(9500);
   });
+
+  // Die Richtung einer Splittbuchung hängt an ihrem Inhalt, nicht an der Reihenfolge der Teilbuchungen im Export:
+  // Zahlungseingang 100,00 € mit 5,00 € Gebühr bleibt eine Einnahme über 95,00 €, auch wenn die Gebühr Teil 1 ist
+  it("bestimmt die Richtung einer Splittbuchung unabhängig von der Reihenfolge der Teilbuchungen", () => {
+    const bytes = csvBytes([
+      "50;1;20.02.2026;20.02.2026;Gebühr;4970;Nebenkosten des Geldverkehrs;1200;Bank;5,00;0,00;;0,00;;R50;20.02.2026;;0",
+      "50;2;20.02.2026;20.02.2026;Zahlungseingang;8400;Erlöse 19 % USt;1200;Bank;0,00;100,00;USt 19 %;19,00;Umsatzsteuer 19 %;R50;20.02.2026;;0",
+    ]);
+    const { voucher } = previewWisoExport(bytes, "SKR03").vouchers[0]!;
+    expect({ direction: voucher.direction, type: voucher.type, gross: voucher.gross }).toEqual({ direction: "einnahme", type: "salesinvoice", gross: 9500 });
+  });
 });
