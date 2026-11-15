@@ -939,6 +939,20 @@
       "function": "public.haben_external_imports_no_truncate()"
     },
     {
+      "table": "public.fastbill_connection",
+      "name": "fastbill_connection_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER fastbill_connection_audit AFTER INSERT OR DELETE OR UPDATE ON public.fastbill_connection FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.fastbill_connection",
+      "name": "fastbill_connection_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER fastbill_connection_no_truncate BEFORE TRUNCATE ON public.fastbill_connection FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.inbox_messages",
       "name": "inbox_messages_append_only",
       "enabled": "O",
@@ -1069,6 +1083,27 @@
       "name": "invoice_number_counters_no_truncate",
       "enabled": "O",
       "definition": "CREATE TRIGGER invoice_number_counters_no_truncate BEFORE TRUNCATE ON public.invoice_number_counters FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.invoice_settlements",
+      "name": "invoice_settlements_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_settlements_append_only BEFORE DELETE OR UPDATE ON public.invoice_settlements FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.invoice_settlements",
+      "name": "invoice_settlements_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_settlements_audit AFTER INSERT ON public.invoice_settlements FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.invoice_settlements",
+      "name": "invoice_settlements_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER invoice_settlements_no_truncate BEFORE TRUNCATE ON public.invoice_settlements FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
       "function": "public.haben_reject_truncate()"
     },
     {
@@ -2283,27 +2318,6 @@
       "function": "public.haben_reject_truncate()"
     },
     {
-      "table": "public.units",
-      "name": "units_audit",
-      "enabled": "O",
-      "definition": "CREATE TRIGGER units_audit AFTER INSERT OR DELETE OR UPDATE ON public.units FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
-      "function": "public.haben_audit()"
-    },
-    {
-      "table": "public.units",
-      "name": "units_guard",
-      "enabled": "O",
-      "definition": "CREATE TRIGGER units_guard BEFORE DELETE OR UPDATE ON public.units FOR EACH ROW EXECUTE FUNCTION public.haben_units_guard()",
-      "function": "public.haben_units_guard()"
-    },
-    {
-      "table": "public.units",
-      "name": "units_no_truncate",
-      "enabled": "O",
-      "definition": "CREATE TRIGGER units_no_truncate BEFORE TRUNCATE ON public.units FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
-      "function": "public.haben_reject_truncate()"
-    },
-    {
       "table": "public.\"user\"",
       "name": "user_audit",
       "enabled": "O",
@@ -3101,12 +3115,12 @@
       "definitionHash": "6ff440a018bb3a717a65df0f5f4539288b3ccdc3c574cc7e6976faa6bdd67384"
     },
     {
-      "name": "public.haben_units_guard()",
+      "name": "public.haben_unaccent(t text)",
       "config": [],
-      "language": "plpgsql",
+      "language": "sql",
       "securityDefiner": false,
-      "sourceHash": "e6c52ac0e7b93c906805e09ac12eb4c680f21ae5906d1b59f2835ce7ba7a3e12",
-      "definitionHash": "72ae26689a413f55d4e89ec8335e33dd50cde3605bd92ebe83c245dc105c3f9b"
+      "sourceHash": "dcf495b6431a58bee24466492f7c88b651cec050e355c4ff12dd6fcb2f246500",
+      "definitionHash": "45f257ffb0276b71934a117a1df3a8e1559d7c8e9e59697ee166a230d1403646"
     },
     {
       "name": "public.haben_user_role_fixed()",

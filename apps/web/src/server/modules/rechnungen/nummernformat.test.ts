@@ -7,7 +7,7 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
   let invoices: typeof import("./invoices.ts");
   let quotes: typeof import("./quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let formats: typeof import("../stammdaten/number-formats.ts");
+  let formats: typeof import("./number-formats.ts");
   const actor = "test-user";
   let contactId: string;
 
@@ -39,7 +39,7 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
     invoices = await import("./invoices.ts");
     quotes = await import("./quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    formats = await import("../stammdaten/number-formats.ts");
+    formats = await import("./number-formats.ts");
   }, 30_000);
 
   afterAll(async () => {

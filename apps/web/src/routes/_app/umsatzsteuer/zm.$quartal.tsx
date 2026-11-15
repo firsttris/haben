@@ -2,6 +2,7 @@ import { formatEuro, parsePeriodKey, periodKey, periodLabel, ZM_ART_LABEL, zmEur
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
+import { OutcomeStatus } from "../../../components/Status.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate } from "../../../lib/format.ts";
@@ -63,7 +64,9 @@ function ZmPage() {
             {issue.tone === "error" && issue.text.includes("Firmendaten") && (
               <>
                 {" "}
-                <Link to="/einstellungen">In den Einstellungen ergänzen</Link>
+                <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                  In den Einstellungen ergänzen
+                </Link>
               </>
             )}
           </span>
@@ -198,8 +201,8 @@ function ZmSenden({ data }: { data: Data }) {
             {data.submissions.map((entry) => (
               <li key={entry.id}>
                 {ELSTER_KIND_LABEL[entry.kind]}
-                {entry.berichtigt ? " (Berichtigung)" : ""} {entry.ok ? "OK" : `Fehler ${entry.code}`} · {formatDateTime(entry.createdAt)} ·{" "}
-                {entry.zeilen.length} {entry.zeilen.length === 1 ? "Zeile" : "Zeilen"}
+                {entry.berichtigt ? " (Berichtigung)" : ""} <OutcomeStatus ok={entry.ok}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</OutcomeStatus> ·{" "}
+                {formatDateTime(entry.createdAt)} · {entry.zeilen.length} {entry.zeilen.length === 1 ? "Zeile" : "Zeilen"}
                 {entry.transferTicket ? ` · Ticket ${entry.transferTicket}` : ""}
                 {entry.hasPdf && (
                   <>

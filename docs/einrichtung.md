@@ -49,7 +49,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Einheiten, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Sicherheit** (Passkeys, Passwort, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab. Am Handy zeigt **Einstellungen** zuerst die Liste der Bereiche, „‹ Einstellungen“ oben führt aus einem Bereich zurück.
 
 Ebenfalls unten links wählst du **Farbe** und **Modus**: Wald (Grün, Standard), Ozean, Pflaume oder Graphit, jeweils hell, dunkel oder **System**, das der Einstellung deines Geräts folgt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jeder Farbe gleich.
 
@@ -100,6 +100,7 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Standard-Einleitung für Rechnungen, für Angebote | Steht in neuen Rechnungen bzw. Angeboten als Einleitung über den Positionen, etwa eine Anrede oder „Für die erbrachten Leistungen berechne ich Ihnen:“. Im Beleg änderbar; bestehende Belege ändern sich nicht. Leer = keine Einleitung, höchstens 2000 Zeichen |
 | Versteuerung | Ist oder Soll, siehe unten |
 | Kleinunternehmer nach § 19 UStG | Haken setzen, wenn du die Kleinunternehmerregelung nutzt, siehe unten |
+| Gründungsdatum | Datum der tatsächlichen Aufnahme deiner unternehmerischen Tätigkeit, siehe [Kleinunternehmer](#kleinunternehmer) |
 | Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG) | Haken nur, wenn alle Umsätze den Vorsteuerabzug ausschließen, siehe unten |
 
 Fehlt einer GmbH oder UG etwas davon, zeigt das Formular im Abschnitt **Handelsregister und Geschäftsführung** „Für Rechnungen und Geschäftsbriefe fehlt noch (§ 35a GmbHG): …“, etwa „Geschäftsführer fehlt“ oder bei „E. Mustermann“ den fehlenden ausgeschriebenen Vornamen.
@@ -117,6 +118,8 @@ Unter **Einstellungen › Firma › Zeichen in der Navigation** wählst du, wora
 - **„H“ in der Farbe des Themes:** wie ab Werk.
 - **„H“ in eigener Farbe:** mit dem Farbfeld oder als Hex-Wert `#RRGGBB`. Die Schrift darauf ist weiß oder schwarz, je nachdem, was sich besser liest; so ist das „H“ in jeder Farbe lesbar (Kontrast mindestens 4,5 : 1 nach WCAG). Hebt sich eine sehr dunkle Farbe kaum von der Navigation ab, bekommt die Kachel eine feine helle Kante.
 - **Logo aus der Beleggestaltung:** statt des „H“ steht das [Logo](#logo) der Belege auf weißer Fläche, in einem Quadrat so groß wie das „H“. Am besten wirkt ein quadratisches Bildzeichen; ein breiter Schriftzug wird darin klein. Das geht nur, wenn ein Logo hochgeladen ist, und es ändert sich mit diesem Logo. Wird es entfernt, zeigt die Navigation wieder die eigene Farbe bzw. das „H“ des Themes.
+
+Mit [Firmenportal](installation.md#firmenportal) steht das Zeichen auch dort auf der Kachel der Firma, nach dem nächsten Abgleich mit `portal` oder, ohne Werkzeug, nachdem es jemand dort eingetragen hat.
 
 Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](steuerberatung.md), und hängt nicht an der Beleggestaltung: Ändern sich [Akzentfarbe](#akzentfarbe), Layout oder Logo-Einstellungen der Belege, bleibt die eigene Farbe, und Firmen mit gleich aussehenden Belegen haben trotzdem verschiedene Zeichen. Das Theme (Hell, Dunkel, Farbe der Oberfläche) wählt dagegen jeder Zugang für sich. Die Änderung steht im Änderungsprotokoll.
 
@@ -275,7 +278,15 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 | Übersicht | Die Aufgaben „Voranmeldung senden“, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER entfallen. |
 | EÜR | Die Einnahmen stehen in der Zeile „Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer“. |
 
-Überschreitest du die Umsatzgrenze, nimmst du den Haken heraus; ab dann gilt die Regelbesteuerung. Ausschalten geht jederzeit, auch mitten im Jahr. Eine Kleinunternehmer-Rechnung lässt sich danach nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
+Trage in den **Firmendaten** unter **Unternehmen** das **Gründungsdatum** ein. Im Gründungsjahr gilt eine Grenze von 25.000 €. Danach gilt für das laufende Jahr die Grenze von 100.000 €, sofern dein Gesamtumsatz im Vorjahr höchstens 25.000 € betrug. Ohne Gründungsdatum rechnet Haben für das laufende Jahr mit 100.000 €. [§ 19 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html), [BMF-Schreiben vom 18. März 2025, Abschnitt 19.1](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-03-18-sonderregelung-kleinunternehmer.pdf?__blob=publicationFile&v=3)
+
+Die **Übersicht** warnt ab 80 % der laufenden Grenze, also ab 20.000 € im Gründungsjahr und ab 80.000 € im bestehenden Betrieb. Ab 20.000 € weist sie auch auf die 25.000-€-Grenze für das Folgejahr hin. Liegt der erfasste Vorjahresumsatz über 25.000 €, erscheint ein Hinweis für das laufende Jahr.
+
+Für den Gesamtumsatz zählen die vereinnahmten Nettoentgelte aus im Inland steuerbaren Umsätzen abzüglich der gesetzlichen Ausnahmen. Offene Rechnungen zählen erst bei Zahlung. Anlagenverkäufe bleiben außen vor. Hast du sie als normale Rechnungen erfasst, prüfe den Betrag, da Haben solche Verkäufe derzeit am Beleg nicht erkennt. Bei einer Grenzwarnung weist Haben auch auf uneindeutige Importzahlungen und steuerfreie Erlöse mit frei erfasstem Befreiungsgrund hin. Prüfe diese Buchungen separat. [§ 19 Abs. 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)
+
+Überschreitest du die laufende Grenze, unterliegt bereits der Umsatz, der sie überschreitet, in voller Höhe der Regelbesteuerung. Lag dein Gesamtumsatz im Vorjahr über 25.000 €, entfällt die Befreiung ab dem 1. Januar des laufenden Jahres. [BMF-Schreiben, Abschnitte 19.1 und 19.7](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-03-18-sonderregelung-kleinunternehmer.pdf?__blob=publicationFile&v=3)
+
+Für Rechnungen unter der Regelbesteuerung nimmst du in den Firmendaten den Haken heraus; das geht jederzeit, auch mitten im Jahr. Danach lassen sich Kleinunternehmer-Rechnungen nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
 
 ## Steuerfreie Umsätze nach § 4 UStG
 
@@ -300,7 +311,7 @@ Nur im Einzelunternehmen; bei GmbH und UG fehlt der Abschnitt. Unter **Privatant
 
 Rechnest du Belege oder Rechnungen in US-Dollar, Pfund oder einer anderen Währung ab, braucht Haben die Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG). Das Bundesministerium der Finanzen veröffentlicht sie monatlich im Datenportal als CSV (Datenlizenz Deutschland – Namensnennung 2.0). Haben ruft sie von selbst ab, sobald du Fremdwährung nutzt: höchstens einmal am Tag und nur, solange die Kurse des Vormonats fehlen. Belege und Rechnungsentwürfe, die auf einen Kurs warten, rechnet es danach um.
 
-Unter **Einstellungen → Fremdwährung** siehst du die gespeicherten Kurse und kannst
+Unter **Einstellungen → Fremdwährung** siehst du die gespeicherten Kurse nach Monat (Standard: neuester Monat mit BMF-Kursen, mit Filter nach Währung) oder als Verlauf für eine einzelne Währung (sowie gesammelt für selbst eingetragene Kurse) und kannst
 
 - die Kurse sofort abrufen (**Kurse jetzt abrufen**),
 - die CSV-Datei des BMF selbst hochladen, wenn der Server das Internet nicht erreicht,

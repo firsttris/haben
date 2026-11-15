@@ -71,6 +71,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Regel | Prüfung | Wirkung |
 | --- | --- | --- |
 | Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
+| Ein Modul importiert nur Module, die in `scripts/modulgrenzen/schichten.ts` vor ihm stehen, außer den Ausnahmen dort | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Pakete importieren nichts aus `apps/`, der GoBD-Kern keine Pakete von Haben | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
@@ -81,7 +82,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Seite unter `docs/` wächst über 8.000 Wörter oder darüber um 300 und mehr ([Seiten der Doku](entwicklung.md#befehle)) | `scripts/pr-regeln/` | Hinweis |
 | Titel `Bereich: was sich ändert`, `(#Issue)` für jedes Issue aus `Umgesetzt` (fehlt eins aus `Refs`: Hinweis) | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Issues mit `Umgesetzt #…` oder `Refs #…`, nicht `Closes` oder `Fixes` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
-| Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
+| Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src`, `apps/firmenportal/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
 | Selbstprüfung und unabhängiges Review mitbringen ([Beiträge annehmen](#beiträge-annehmen)) | `scripts/pr-regeln/`: Pull Request außerhalb des Entwurfs von jemandem ohne Schreibrecht, nennt `tdd-review` für Code, `doku-pruefen` für Markdown (`docs/`, `mkdocs.yml`, `LICENSE`), bei beidem beide | Hinweis |
 | Jedes Feld der Belegvorlagen im Feldvertrag, mit Beschreibung | `layout-schema.test.ts` in `bun run test` | Fehler |
@@ -100,7 +101,7 @@ Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibu
 
 Titel, Issue-Verweise, Dateigröße und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
 
-- **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen; was ein Paket aus `apps/` oder der GoBD-Kern aus einem anderen Paket braucht, in das importierende Paket verschieben.
+- **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen; steht das andere Modul höher, gehört der Code meist woanders hin ([Module im Server](architektur.md#module-im-server)); was ein Paket aus `apps/` oder der GoBD-Kern aus einem anderen Paket braucht, in das importierende Paket verschieben.
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
 - **Funktionslänge:** in neuem Code einen Teil in eine eigene Funktion mit Namen auslagern; ältere lange Funktionen werden nur in einem eigenen Pull Request geteilt.
 - **Felder und Auswahllisten:** das Feld in `Field` setzen; eine bewusst allein stehende Liste bekommt `// biome-ignore lint/plugin: Grund`.
@@ -110,7 +111,7 @@ Wie die Prüfungen im Einzelnen entscheiden und wo sie nicht hinsehen, steht in 
 
 ## Issues schreiben
 
-Für neue Issues gibt es Formulare unter **Issues → New issue** (`.github/ISSUE_TEMPLATE/`), jedes mit nur einem Pflichtfeld; ein leeres Issue bleibt möglich. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
+Für neue Issues gibt es Formulare unter **Issues → New issue** (`.github/ISSUE_TEMPLATE/`), jedes mit nur einem Pflichtfeld; ein leeres Issue bleibt möglich. Fragen und lockerer Austausch gehen auf [Discord](https://discord.gg/CT2GQytSYH); entschieden wird im Issue, auch über Ideen von dort. In keinem Issue und keinem Beitrag auf Discord stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
 
 Größere Vorhaben und Issues von Agenten folgen dieser Gliederung:
 

@@ -6,6 +6,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
   let sql: postgres.Sql;
   let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/index.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let bank: typeof import("../bank/index.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
   let reports: typeof import("../auswertungen/index.ts");
@@ -16,6 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     sql = await setupTestDb();
     invoices = await import("./index.ts");
     contacts = await import("../stammdaten/index.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     bank = await import("../bank/index.ts");
     vat = await import("../umsatzsteuer/index.ts");
     reports = await import("../auswertungen/index.ts");
@@ -116,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
       (await invoices.createDraft(actor, { ...input(), issueDate: "2025-11-05", serviceFrom: null, serviceTo: null })).id,
     );
     await bank.createCashInvoiceEntry(actor, { invoiceId: frueher.id, date: "2025-11-05", amount: 119_000 }, "2025-11-05");
-    await contacts.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: "soll" }, "2026-01-01");
+    await guard.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: "soll" }, "2026-01-01");
     const final = await invoices.finalizeInvoice(
       actor,
       (await invoices.createDraft(actor, { ...input(), issueDate: "2026-01-08", serviceFrom: "2025-12-01", serviceTo: "2025-12-31" })).id,

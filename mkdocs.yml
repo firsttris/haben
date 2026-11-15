@@ -80,6 +80,7 @@ nav:
   - Umzug und Import:
       - Umzug aus Lexoffice: lexoffice.md
       - Umzug aus sevDesk: sevdesk.md
+      - Umzug aus FastBill: fastbill.md
       - Umzug aus BuchhaltungsButler: buchhaltungsbutler.md
       - Umzug aus Accountable: accountable.md
       - Umzug aus WISO EÜR & Kasse: wiso.md
@@ -196,3 +197,6 @@ extra:
     - icon: fontawesome/brands/docker
       link: https://hub.docker.com/r/tristanteu/haben
       name: Image auf Docker Hub
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/CT2GQytSYH
+      name: Fragen und Austausch auf Discord

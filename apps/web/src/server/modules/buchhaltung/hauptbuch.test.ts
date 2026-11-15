@@ -47,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Hauptbuch, Transaktionen und Sperre der Firme
   let invoices: typeof import("../rechnungen/invoices.ts");
   let quotes: typeof import("../rechnungen/quotes.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
-  let guard: typeof import("../stammdaten/settings-guard.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let company: typeof import("../stammdaten/company.ts");
   let withActor: typeof import("../../db/actor.ts")["withActor"];
   const actor = "test-user";
@@ -77,7 +77,7 @@ describe.skipIf(!testDatabaseUrl)("Hauptbuch, Transaktionen und Sperre der Firme
     invoices = await import("../rechnungen/invoices.ts");
     quotes = await import("../rechnungen/quotes.ts");
     contacts = await import("../stammdaten/contacts.ts");
-    guard = await import("../stammdaten/settings-guard.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     company = await import("../stammdaten/company.ts");
     ({ withActor } = await import("../../db/actor.ts"));
   }, 30_000);

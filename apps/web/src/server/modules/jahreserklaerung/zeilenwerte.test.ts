@@ -59,6 +59,27 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
     expect(uebersicht.ust.erklaert).toEqual({ base19: 70_000, vorsteuer: 95_546, abschluss: -50_368 });
   });
 
+  it("zeigt in den Schlusszeilen die erklärten Beträge und kennzeichnet nur sie als laut Vermerk (#1076)", async () => {
+    await vermerken("ust", "ABC123456789");
+    const gerechnet = (await annual.annualOverview(2025, TODAY)).ust;
+
+    // Nur das Vorauszahlungssoll ist erklärt: der Abschluss bleibt Habens Rechnung und trägt kein „laut Vermerk“
+    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "vorauszahlungen", amount: -24_552 }]);
+    expect((await annual.annualOverview(2025, TODAY)).ust.anzeige).toEqual({
+      vorauszahlungen: -24_552,
+      abschluss: gerechnet.abschluss,
+      ausVermerk: { vorauszahlungen: true, abschluss: false },
+    });
+
+    // Der erklärte Abschluss gilt mit seinem Vorzeichen: eine Erstattung bleibt eine Erstattung
+    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "abschluss", amount: -50_368 }]);
+    expect((await annual.annualOverview(2025, TODAY)).ust.anzeige).toEqual({
+      vorauszahlungen: -24_552,
+      abschluss: -50_368,
+      ausVermerk: { vorauszahlungen: true, abschluss: true },
+    });
+  });
+
   it("lehnt eine Feldkennung ab, die nicht zu dieser Erklärung gehört", async () => {
     await vermerken("ust", "ABC123456789");
     // steuerpflichtig ist eine Zeile der Anlage EÜR, nicht der Umsatzsteuererklärung

@@ -5,7 +5,7 @@ import { NavTip, NavVarianten, symbolWechseln } from "../components/NavMenu.tsx"
 import type { FlyoutWeg } from "../components/NavFlyout.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
-import { CommandPalette, PALETTE_KUERZEL } from "../components/CommandPalette.tsx";
+import { CommandPalette, PALETTE_ALT_KUERZEL, PALETTE_KUERZEL } from "../components/CommandPalette.tsx";
 import { Kuerzel } from "../components/Kuerzel.tsx";
 import { isDialogOpen } from "../components/ConfirmDialog.tsx";
 import { ariaKuerzel } from "../lib/tastatur.ts";
@@ -31,6 +31,7 @@ export const Route = createFileRoute("/_app")({
       firma: state.firma,
       zeichen: state.zeichen,
       firmen: state.firmen,
+      firmenportal: state.firmenportal,
     };
   },
   component: AppLayout,
@@ -160,7 +161,7 @@ function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: (
 }
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, firma, oidc } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, firmenportal, firma, oidc } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -226,6 +227,7 @@ function AppLayout() {
             pathname={pathname}
             firma={firma ?? null}
             firmen={firmen}
+            firmenportal={firmenportal ?? null}
             sichtbareGruppen={sichtbareGruppen}
             eigeneSeiten={eigeneSeiten}
             userName={user.name}
@@ -298,12 +300,13 @@ function NavSearch({ onOpen }: { onOpen: () => void }) {
         event.currentTarget.focus();
         onOpen();
       }}
-      aria-keyshortcuts={ariaKuerzel(PALETTE_KUERZEL)}
+      aria-keyshortcuts={`${ariaKuerzel(PALETTE_KUERZEL)} ${ariaKuerzel(PALETTE_ALT_KUERZEL)}`}
     >
       <Icon name="search" size={18} />
       <span className="nav-search-label">Schnellsuche</span>
       <NavTip>Schnellsuche</NavTip>
       <Kuerzel tasten={PALETTE_KUERZEL} className="nav-kbd" aria-hidden="true" />
+      <Kuerzel tasten={PALETTE_ALT_KUERZEL} className="nav-kbd" aria-hidden="true" />
     </button>
   );
 }

@@ -1,4 +1,4 @@
-import { currentYear, personenkontenBetroffen } from "@haben/core";
+import { currentYear, MONTHS, personenkontenBetroffen } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type MouseEvent } from "react";
 import { downloadFrom } from "../lib/download.ts";
@@ -7,10 +7,18 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { saveDatevNumbersFn, type getDatevNumbers } from "../server/functions/datev-export.ts";
 import { Field } from "./Field.tsx";
 
+const QUARTALE = [
+  ["Q1", "1. Quartal"],
+  ["Q2", "2. Quartal"],
+  ["Q3", "3. Quartal"],
+  ["Q4", "4. Quartal"],
+] as const;
+
 /** DATEV-Buchungsstapel für die Steuerberatung (Einstellungen); Jahre und Nummern kommen aus dem Loader */
 export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaited<ReturnType<typeof getDatevNumbers>> }) {
   const save = useServerFn(saveDatevNumbersFn);
   const [year, setYear] = useState(() => currentYear());
+  const [zeitraumKey, setZeitraumKey] = useState("");
   const [beraterNr, setBeraterNr] = useState(numbers.beraterNr);
   const [mandantNr, setMandantNr] = useState(numbers.mandantNr);
   const [ab, setAb] = useState<number | null>(numbers.personenkontenAb);
@@ -24,6 +32,9 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
   const firstYear = Math.min(numbers.gebuchteJahre[0] ?? thisYear, savedAb ?? thisYear, thisYear);
   const abYears = Array.from({ length: thisYear + 2 - firstYear }, (_, i) => firstYear + i);
   const betroffen = personenkontenBetroffen(savedAb, ab, numbers.gebuchteJahre, thisYear);
+
+  const filename = `EXTF_Buchungsstapel_${zeitraumKey ? `${year}-${zeitraumKey}` : year}.csv`;
+  const downloadHref = zeitraumKey ? `/api/datev/${year}?zeitraum=${zeitraumKey}` : `/api/datev/${year}`;
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -40,7 +51,7 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
     event.preventDefault();
     const href = event.currentTarget.href;
     void run(async () => {
-      const hinweis = await downloadFrom(href, `EXTF_Buchungsstapel_${year}.csv`);
+      const hinweis = await downloadFrom(href, filename);
       if (hinweis) setNotice({ tone: "info", text: hinweis });
     });
   }
@@ -49,8 +60,8 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
     <form className="card" onSubmit={onSubmit} aria-labelledby="datev-heading">
       <h2 id="datev-heading">DATEV-Export</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Alle Buchungen eines Jahres als DATEV-Buchungsstapel ({kontenrahmen || "SKR03/SKR04"}) für die Steuerberatung. Die Kontensalden stimmen mit der
-        Saldenliste in Haben überein; die Umsatzsteuer steht wie im Journal auf eigenen Steuerkonten.
+        Alle Buchungen eines Jahres oder Zeitraums als DATEV-Buchungsstapel ({kontenrahmen || "SKR03/SKR04"}) für die Steuerberatung. Die Kontensalden stimmen
+        mit der Saldenliste in Haben überein; die Umsatzsteuer steht wie im Journal auf eigenen Steuerkonten.
       </p>
       <div className="form-grid">
         <Field label="Beraternummer">
@@ -136,8 +147,32 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
             </select>
           )}
         </Field>
+        <Field label="Zeitraum" style={{ minWidth: 160 }}>
+          {(control) => (
+            <select {...control} value={zeitraumKey} onChange={(e) => setZeitraumKey(e.target.value)}>
+              <option value="">Ganzes Jahr</option>
+              <optgroup label="Quartal">
+                {QUARTALE.map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Monat">
+                {MONTHS.map((label, i) => {
+                  const key = String(i + 1).padStart(2, "0");
+                  return (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </optgroup>
+            </select>
+          )}
+        </Field>
         {saved ? (
-          <a className="btn btn-primary" href={`/api/datev/${year}`} download onClick={onDownload}>
+          <a className="btn btn-primary" href={downloadHref} download={filename} onClick={onDownload}>
             Buchungsstapel herunterladen
           </a>
         ) : (

@@ -8,6 +8,8 @@ export interface Ergebnis {
   code: number;
   stdout: string;
   stderr: string;
+  /** stdout als Bytes, nur mit `binaer` (dann bleibt stdout leer): Text würde ein Logo zerstören */
+  daten?: Uint8Array;
 }
 
 export interface AusfuehrenOptionen {
@@ -18,6 +20,8 @@ export interface AusfuehrenOptionen {
   sichtbar?: boolean;
   /** Text für die Standardeingabe des Befehls, etwa ein Passwort, das nicht in den Argumenten stehen soll */
   eingabe?: string;
+  /** stdout als Bytes in `daten` statt als Text, etwa für `haben kennzeichen` */
+  binaer?: boolean;
 }
 
 export type Ausfuehren = (befehl: string[], optionen: AusfuehrenOptionen) => Promise<Ergebnis>;
@@ -35,7 +39,7 @@ export function umgebungFuerDocker(shell: Record<string, string | undefined>): R
 }
 
 /** Ausfuehren mit Bun.spawn; fehlt das Programm, Code 127 wie in der Shell */
-export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar, eingabe }) => {
+export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar, eingabe, binaer }) => {
   const stdin = eingabe === undefined ? "ignore" : new TextEncoder().encode(eingabe);
   let prozess: Bun.Prozess;
   try {
@@ -44,13 +48,18 @@ export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar, ei
     return { code: 127, stdout: "", stderr: error instanceof Error ? error.message : String(error) };
   }
   const text = (strom: unknown) => (strom instanceof ReadableStream ? new Response(strom).text() : Promise.resolve(""));
+  const bytes = async (strom: unknown) => (strom instanceof ReadableStream ? new Uint8Array(await new Response(strom).arrayBuffer()) : new Uint8Array());
+  if (binaer) {
+    const [daten, stderr, code] = await Promise.all([bytes(prozess.stdout), text(prozess.stderr), prozess.exited]);
+    return { code, stdout: "", stderr, daten };
+  }
   const [stdout, stderr, code] = await Promise.all([text(prozess.stdout), text(prozess.stderr), prozess.exited]);
   return { code, stdout, stderr };
 };
 
 /** docker compose im Verzeichnis einer Instanz: Compose liest dort compose.yml, die Override-Datei und .env */
-export function compose(k: Kontext, dir: string, args: string[], sichtbar = false, eingabe?: string): Promise<Ergebnis> {
-  return k.ausfuehren(["docker", "compose", ...args], { cwd: dir, env: umgebungFuerDocker(k.shell), sichtbar, eingabe });
+export function compose(k: Kontext, dir: string, args: string[], sichtbar = false, eingabe?: string, binaer?: boolean): Promise<Ergebnis> {
+  return k.ausfuehren(["docker", "compose", ...args], { cwd: dir, env: umgebungFuerDocker(k.shell), sichtbar, eingabe, ...(binaer ? { binaer } : {}) });
 }
 
 /** docker ohne Projekt (Volumes, Netze, Liste der Projekte); im Wurzelverzeichnis, damit keine compose.yml mitliest */

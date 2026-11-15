@@ -343,6 +343,16 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         .ustIssues(false, { ...basis, figures: { ...basis.figures, kz48Zeile46: 50_000, kz48Zeile47: 30_000, kz48Zeile47Nummern: "21" } }, 2025)
         .every((i) => i.tone !== "fehler"),
     ).toBe(true);
+
+    // Mit Vermerk liegt das Vorauszahlungssoll aus dem Protokoll vor; der Hinweis auf fehlende Voranmeldungen
+    // würde dem erklärten Soll widersprechen (#1077)
+    const hinweis = (vermerkt: boolean) =>
+      annual
+        .ustIssues(false, { ...basis, missingMonths: [1, 2] }, 2025, { vermerkt })
+        .map((i) => i.text)
+        .join(" | ");
+    expect(hinweis(false)).toContain("fehlt eine in Haben gesendete Voranmeldung");
+    expect(hinweis(true)).not.toContain("fehlt eine in Haben gesendete Voranmeldung");
     const gesperrt = annual.ustIssues(
       false,
       {
@@ -536,7 +546,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     await sql`update company set kontenrahmen = 'SKR03'`;
 
     await sql`update company set einkunftsart = null`;
-    expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]!.link).toBe("/einstellungen");
+    // Der Link öffnet den Bereich Firma; am Handy zeigte /einstellungen sonst nur die Liste der Bereiche
+    expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]).toMatchObject({ link: "/einstellungen", bereich: "firma" });
   });
 
   it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 wird vor dem Senden umgegliedert (#708, #933)", async () => {
@@ -813,6 +824,26 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       tone: "hinweis",
       link: "/pauschalen",
     });
+
+    // Zeitanteilige Jahrespauschale: sechs Monate Mittelpunkt ergeben 630 EUR, mehr geht nur mit tatsächlichen Aufwendungen
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, arbeitszimmerMonate: 6 } } },
+    });
+    const teil = (await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text));
+    expect(teil?.text).toContain("Bei 6 von 12 Monaten");
+    expect(teil?.text).toContain("630,00");
+
+    // Genau die Pauschale für sechs Monate ist kein Fall für den Hinweis
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 63_000, arbeitszimmerMonate: 6 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.some((i) => /Jahrespauschale/.test(i.text))).toBe(false);
+
+    // Kein Monat als Mittelpunkt: keine Jahrespauschale (Satz 4 kürzt um zwölf Zwölftel)
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, arbeitszimmerMonate: 0 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text))?.text).toContain("Bei 0 von 12 Monaten");
 
     // Dasselbe gegen die Tagespauschale in der EÜR: auch dort gibt es das Arbeitszimmer je Person nur einmal
     await incomeTax.saveEstAngaben(actor, 2025, {

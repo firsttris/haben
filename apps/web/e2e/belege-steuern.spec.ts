@@ -286,9 +286,10 @@ test("Einkommensersatzleistungen: eintragen, speichern, nach dem Neuladen wieder
   await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
   await page.reload();
   await page.waitForLoadState("networkidle");
-  // Nach dem Neuladen trägt der Blocktitel die Summe; die Blöcke starten zugeklappt, also aufklappen.
+  // Nach dem Neuladen trägt der Blocktitel die Summe; der Block startet trotzdem zugeklappt wie die anderen (#1086)
   await expect(block().locator("summary")).toContainText(/1\.680,40\s€/);
-  if ((await block().getAttribute("open")) === null) await block().locator("summary").click();
+  await expect(block()).not.toHaveAttribute("open");
+  await block().locator("summary").click();
   await expect(feld("Elterngeld")).toHaveValue("1.200,40");
   await expect(feld("Krankengeld")).toHaveValue("480,00");
   await expect(feld("Arbeitslosengeld")).toHaveValue("");
@@ -803,11 +804,105 @@ test("Fremdwährung: Kurs von Hand mit der Monatsauswahl, fehlende Angaben stehe
   await form.getByRole("button", { name: "Kurs speichern" }).click();
   await expect(page.getByText("Kurs gespeichert.")).toBeVisible();
   await expect(monat).toContainText("Monat wählen");
-  const zeile = page.getByRole("row").filter({ hasText: "ISK" });
-  await expect(zeile).toContainText(`01/${YEAR}`);
+  // Nach dem Speichern zeigt die Liste den Monat des Kurses (#1040); der Monat steht dann in der Auswahl, nicht in der Zeile
+  const karte = page.getByRole("region", { name: "Umsatzsteuer-Umrechnungskurse" });
+  await expect(karte.getByRole("combobox", { name: "Monat" })).toHaveValue(`${YEAR}-01`);
+  const zeile = karte.getByRole("row").filter({ hasText: "ISK" });
   await expect(zeile).toContainText("von Hand");
   await zeile.getByRole("button", { name: "Löschen" }).click();
   await expect(zeile).toHaveCount(0);
+});
+
+/** Kurse in Monaten weit vor dem Testjahr, damit kein Beleg des Durchlaufs sie nutzt; die Tests räumen sie wieder ab */
+const KURS_JAHR = YEAR - 3;
+async function kurseAnlegen(): Promise<void> {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    await sql`insert into exchange_rates (currency, month, rate, source) values
+      ('CHF', ${`${KURS_JAHR}-01`}, '0.94', 'bmf'), ('USD', ${`${KURS_JAHR}-01`}, '1.08', 'bmf'),
+      ('CHF', ${`${KURS_JAHR}-02`}, '0.95', 'bmf'), ('GBP', ${`${KURS_JAHR}-02`}, '0.85', 'bmf'),
+      ('USD', ${`${KURS_JAHR}-02`}, '1.09', 'bmf'), ('JPY', ${`${KURS_JAHR}-02`}, '160.5', 'manuell')
+      on conflict do nothing`;
+  } finally {
+    await sql.end();
+  }
+}
+async function kurseEntfernen(): Promise<void> {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    await sql`delete from exchange_rates where month like ${`${KURS_JAHR}-%`}`;
+  } finally {
+    await sql.end();
+  }
+}
+
+test("Fremdwährung: Kurse nach Monat, nach Währung und nur eigene (#1040)", async () => {
+  await kurseAnlegen();
+  try {
+    await go("/einstellungen?bereich=waehrung");
+    const karte = page.getByRole("region", { name: "Umsatzsteuer-Umrechnungskurse" });
+    const zeilen = karte.locator("tbody tr");
+    // Ohne Wahl der neueste Monat, ohne Spalte für den Monat
+    await expect(karte.getByRole("combobox", { name: "Monat" })).toHaveValue(`${KURS_JAHR}-02`);
+    await expect(zeilen).toHaveCount(4);
+    await expect(karte.getByRole("columnheader", { name: "Monat" })).toHaveCount(0);
+    await karte.getByRole("searchbox", { name: "Währung filtern" }).fill("us");
+    await expect(zeilen).toHaveCount(1);
+    await expect(zeilen).toContainText("USD");
+    await karte.getByRole("combobox", { name: "Monat" }).selectOption(`${KURS_JAHR}-01`);
+    await expect(zeilen).toHaveCount(1);
+    await expect(zeilen).toContainText("1,08");
+    await karte.getByRole("searchbox", { name: "Währung filtern" }).fill("");
+
+    await karte.getByRole("button", { name: "Nach Währung" }).click();
+    await expect(karte.getByRole("button", { name: "Nach Währung" })).toHaveAttribute("aria-pressed", "true");
+    await expect(karte.getByRole("combobox", { name: "Währung" })).toHaveValue("USD");
+    await expect(zeilen).toHaveCount(2);
+    await expect(zeilen.first()).toContainText(`02/${KURS_JAHR}`);
+    await karte.getByRole("combobox", { name: "Währung" }).selectOption("GBP");
+    await expect(zeilen).toHaveCount(1);
+
+    await karte.getByRole("button", { name: "Nur eigene (1)" }).click();
+    await expect(zeilen).toHaveCount(1);
+    await expect(zeilen).toContainText("JPY");
+    await zeilen.getByRole("button", { name: "Löschen" }).click();
+    await expect(page.getByText("Kurs gelöscht.")).toBeVisible();
+    // Ohne eigene Kurse fällt die Ansicht auf den Monat zurück
+    await expect(karte.getByRole("button", { name: /^Nur eigene/ })).toHaveCount(0);
+    await expect(karte.getByRole("button", { name: "Nach Monat" })).toHaveAttribute("aria-pressed", "true");
+  } finally {
+    await kurseEntfernen();
+  }
+});
+
+test("Fremdwährung: Kursliste am Handy ohne seitliches Scrollen und ohne axe-Verstöße, hell und dunkel (#1040)", async () => {
+  await kurseAnlegen();
+  const vorher = page.viewportSize();
+  try {
+    for (const modus of ["hell", "dunkel"]) {
+      for (const viewport of [LAPTOP, { width: 375, height: 812 }]) {
+        await page.setViewportSize(viewport);
+        await page.evaluate((m) => localStorage.setItem("haben-modus", m), modus);
+        await go("/einstellungen?bereich=waehrung");
+        const karte = page.getByRole("region", { name: "Umsatzsteuer-Umrechnungskurse" });
+        await expect(karte.getByRole("button", { name: "Nur eigene (1)" })).toBeVisible();
+        const ueberstand = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        expect(ueberstand, `${modus}, ${viewport.width} px: seitliches Scrollen`).toBeLessThanOrEqual(1);
+        const kante = await karte.evaluate((el) => el.getBoundingClientRect().right);
+        const gruppe = await karte.getByRole("group", { name: "Darstellung der Kurse" }).evaluate((el) => el.getBoundingClientRect().right);
+        expect(gruppe, `${modus}, ${viewport.width} px: Umschalter ragt aus der Karte`).toBeLessThanOrEqual(kante);
+        const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+        expect(
+          violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+          `${modus}, ${viewport.width} px`,
+        ).toEqual([]);
+      }
+    }
+  } finally {
+    await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
+    if (vorher) await page.setViewportSize(vorher);
+    await kurseEntfernen();
+  }
 });
 
 test("Kennzahlen am Handy: Bei ungerader Zahl füllt die letzte Karte die Zeile", async () => {
@@ -960,16 +1055,75 @@ test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz 
   const amounts = laptop.getByRole("group", { name: "Beträge je Steuersatz" });
   await amounts.getByLabel("Brutto", { exact: true }).fill("14.691,26");
   await expect(amounts.getByLabel("Netto", { exact: true })).toHaveValue("12.345,60");
-  const abgeschnitten = await laptop
-    .locator(".amount-row input[inputmode='decimal']")
-    .evaluateAll((felder) =>
-      (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
-    );
-  expect(abgeschnitten, "Netto, Vorsteuer und Brutto").toEqual([]);
+  const abgeschnitten = () =>
+    laptop
+      .locator(".amount-row input[inputmode='decimal']")
+      .evaluateAll((felder) =>
+        (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
+      );
+  const oben = async (label: string) => (await amounts.getByLabel(label, { exact: true }).boundingBox())!.y;
+  expect(await abgeschnitten(), "Netto, Vorsteuer und Brutto").toEqual([]);
+  // Ausgeklappt ist die Formularspalte zu schmal für drei Betragsfelder: Brutto steht unter Netto
+  expect(await oben("Brutto")).toBeGreaterThan(await oben("Netto"));
+  // Eingeklappt zählt die breitere Arbeitsfläche, nicht das Fenster: alle drei in einer Zeile, keins abgeschnitten
+  await laptop.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("button", { name: "Seitenleiste einklappen" }).click();
+  await expect.poll(async () => (await oben("Brutto")) - (await oben("Netto"))).toBe(0);
+  expect(await oben("Vorsteuer")).toBe(await oben("Netto"));
+  expect(await abgeschnitten(), "Netto, Vorsteuer und Brutto eingeklappt").toEqual([]);
+  // 1120 px: ausgeklappt untereinander, eingeklappt Beleg und Formular nebeneinander
+  await laptop.setViewportSize({ width: 1120, height: 800 });
+  const beleg = laptop.locator(".doc-editor > .doc-image");
+  const formular = laptop.locator(".doc-editor > .stack");
+  await expect.poll(async () => (await formular.boundingBox())!.x).toBeGreaterThan((await beleg.boundingBox())!.x + 400);
+  await laptop.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("button", { name: "Seitenleiste ausklappen" }).click();
+  await expect.poll(async () => (await formular.boundingBox())!.y).toBeGreaterThan((await beleg.boundingBox())!.y + 400);
+  // Untereinander bleibt der Beleg nicht stehen, sonst deckt er beim Scrollen das Formular zu und fängt den Klick ab
+  await amounts.getByLabel("Brutto", { exact: true }).click({ timeout: 5_000 });
   await laptop.getByRole("button", { name: "Löschen", exact: true }).click();
   await bestaetigen(laptop, "Beleg löschen");
   await laptop.waitForURL(/\/belege$/);
   await context.close();
+});
+
+test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#1059)", async () => {
+  await go("/dauerbelege/neu");
+  // Ohne ausgewiesene Steuer ist der Betrag zugleich das Brutto; ein eigenes Feld gibt es dann nicht
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveCount(0);
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  // Ein neuer Dauerbeleg beginnt mit 0 %
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("100,00");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("19,00");
+  await expect(page.locator(".dauerbeleg-summe")).toContainText(/= 119,00\s€/);
+  // Anderer Satz: das Brutto bleibt, Netto und Steuer ändern sich
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("700");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("111,21");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,79");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("119,00");
+  // Steuer laut Vertrag von Hand: das Brutto folgt
+  await page.getByLabel("Umsatzsteuer 1", { exact: true }).fill("7,78");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("118,99");
+  // Ein vertipptes Brutto sperrt das Anlegen wie ein vertipptes Netto
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,005");
+  await page.getByRole("button", { name: "Dauerbeleg anlegen" }).click();
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveAccessibleDescription(/Trag den Betrag als Zahl ein/);
+  await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
+  // Haken aus nach einem Brutto: Grundlage ist wieder das Netto; ein anderer Satz rechnet es nicht aus dem verborgenen Brutto neu
+  await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
+  await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("111,21");
+  // Haken wieder an: die nicht von Hand geänderte Steuer folgt dem Netto
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("21,13");
+  // Haken aus und wieder an ändert ein eingegebenes Brutto nicht: 45,00 € zu 19 % sind 37,82 € + 7,18 € (aus dem Netto wären es 7,19 €)
+  await page.getByLabel("Brutto 1", { exact: true }).fill("45,00");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("45,00");
 });
 
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
@@ -2684,6 +2838,8 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
   // Die Karte traegt Formular und Jahr im Namen, weil sie auf der Seite zweimal vorkommt (USt und EÜR)
   const karte = ust.getByRole("region", { name: `Abgabe außerhalb von Haben: Umsatzsteuererklärung ${jahr}`, exact: true });
+  const uebermitteln = ust.getByRole("form", { name: "Umsatzsteuererklärung übermitteln", exact: true });
+  await expect(uebermitteln).toBeVisible();
   await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
@@ -2715,6 +2871,8 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await expect(karte.locator("p", { hasText: `Abgegeben am 02.01.${jahr + 1}` })).toBeVisible();
   await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
   await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
+  // Neben der Vermerk-Karte steht kein ausgegrauter Kasten zum Übermitteln mehr (#1080)
+  await expect(uebermitteln).toHaveCount(0);
   // Begründung und Protokoll stehen zugeklappt darunter: verdeckt heißt nicht sichtbar, also erst zugeklappt
   // prüfen, dann aufklappen und Begründung wie Protokollverweis sichtbar nachsehen
   const begruendung = karte.getByText("Umsatzsteuererklärung extern mit WISO abgegeben.");

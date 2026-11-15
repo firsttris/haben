@@ -11,11 +11,12 @@ import {
   type Bundesland,
   type Rechtsform,
 } from "@haben/core";
-import { redirect, Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { redirect, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
+import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
@@ -77,6 +78,7 @@ import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
 import { StichjahrCard } from "../../components/StichjahrCard.tsx";
 import { NavMarkCard } from "../../components/NavMarkCard.tsx";
+import { SettingsHead, SettingsNav } from "../../components/SettingsNav.tsx";
 import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
@@ -211,29 +213,20 @@ function SettingsPage() {
     stichjahr,
     units,
   } = Route.useLoaderData();
-  const { bereich = "firma" } = Route.useSearch();
-  const areas = settingsAreas(oidc.only);
-  const area = areas.find((a) => a.id === bereich)!;
+  const search = Route.useSearch();
+  const bereich = search.bereich ?? "firma";
+  // Ohne ?bereich zeigt das Handy nur die Liste der Bereiche, der Desktop daneben die Firma
+  const uebersicht = search.bereich === undefined;
   // Eine GmbH oder UG zahlt keine Einkommensteuer; die persönlichen Angaben braucht ELSTER dort für Nachrichten und Postfach
-  const hint = (a: ReturnType<typeof settingsAreas>[number]) =>
-    a.id === "persoenlich" && isKapitalgesellschaft(company.rechtsform) ? "Für Nachrichten an das Finanzamt" : a.hint;
+  const areas = settingsAreas(oidc.only).map((a) =>
+    a.id === "persoenlich" && isKapitalgesellschaft(company.rechtsform) ? { ...a, hint: "Für Nachrichten an das Finanzamt" } : a,
+  );
+  const area = areas.find((a) => a.id === bereich)!;
   return (
     <>
-      <div className="page-head">
-        <div>
-          <div className="eyebrow">Haben</div>
-          <h1>Einstellungen</h1>
-        </div>
-      </div>
-      <div className="settings-layout">
-        <nav className="settings-nav" aria-label="Bereiche der Einstellungen">
-          {areas.map((a) => (
-            <Link key={a.id} to="/einstellungen" search={{ bereich: a.id }} className="settings-nav-link" aria-current={a.id === bereich ? "page" : undefined}>
-              <span>{a.label}</span>
-              <span className="settings-nav-hint">{hint(a)}</span>
-            </Link>
-          ))}
-        </nav>
+      <SettingsHead area={area} uebersicht={uebersicht} />
+      <div className="settings-layout" data-uebersicht={uebersicht || undefined}>
+        <SettingsNav areas={areas} current={bereich} uebersicht={uebersicht} />
         <div className="stack settings-content" aria-label={area.label}>
           {bereich === "firma" && (
             <>
@@ -311,6 +304,7 @@ function SettingsPage() {
               <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
+              <ArchiveSearchCard enabled={company.archiveSearch} />
             </>
           )}
         </div>
@@ -383,6 +377,7 @@ function CompanyForm() {
           invoiceIntro: text("invoiceIntro"),
           quoteIntro: text("quoteIntro"),
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          foundedOn: text("foundedOn") || null,
           ohneVorsteuerabzug: form.get("ohneVorsteuerabzug") === "on",
           tageskurs: form.get("tageskurs") === "on",
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
@@ -432,6 +427,9 @@ function CompanyForm() {
             {(control) => <input {...control} name="telefon" type="tel" defaultValue={company.telefon} autoComplete="tel" />}
           </Field>
         </div>
+        <Field label="Gründungsdatum" hint="Datum, an dem du deine unternehmerische Tätigkeit aufgenommen hast.">
+          {(control) => <input {...control} name="foundedOn" type="date" min="0001-01-01" defaultValue={company.foundedOn ?? ""} />}
+        </Field>
       </section>
 
       <section className="form-section" aria-labelledby="company-address">

@@ -35,9 +35,6 @@ export {
   importStatement,
   storeStatement,
   type ImportResult,
-  invoiceLosses,
-  invoiceWrittenOff,
-  invoicePayments,
   listAccounts,
   learnedDirectSuggestions,
   listTransactions,
@@ -104,6 +101,14 @@ export {
 } from "./cash.ts";
 export { createLoan, DarlehenError, listLoans, loanSchema } from "./darlehen.ts";
 export {
+  searchBankTransactions,
+  searchCashEntries,
+  searchLoans,
+  type BankTransactionHit,
+  type CashEntryHit,
+  type LoanHit,
+} from "./search.ts";
+export {
   neutralizationView,
   neutralizeSchema,
   neutralizeTransactions,
@@ -118,7 +123,6 @@ export {
   directDebitCandidates,
   directDebitFile,
   directDebitFileSchema,
-  lastCollections,
   listDirectDebitFiles,
   type DirectDebitCandidate,
   type DirectDebitFileInput,
@@ -142,6 +146,4 @@ export {
   settlementSchema,
   type SettlementInput,
 } from "./verrechnung.ts";
-export { invoiceLastSettledOn } from "./zahldatum.ts";
-
 export { gemeldeteVoranmeldungen } from "./bank.ts";

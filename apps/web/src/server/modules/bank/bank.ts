@@ -2,7 +2,7 @@ import { insertAllocation, insertWriteOff } from "./settlement-store.ts";
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
-  zeilenImKontenrahmen,
+  parseEuroSearchRange,
   ACCOUNTS,
   paymentProviderAccount,
   providerPattern,
@@ -57,7 +57,7 @@ import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzl
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
+import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
@@ -65,14 +65,16 @@ import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import {
   invoicePaymentPostingMode,
   invoiceTotalsById,
+  mixeNachVerrechnungen,
   invoicePostingMode,
   lockInvoice,
   invoicePaymentGroup,
-  invoicePaymentGroups,
+  invoicePayments,
+  paidByTarget,
   paperCancellationIds,
   unbilledAdvanceRequest,
 } from "../rechnungen/index.ts";
-import { dauerbelegSuggestions } from "../belege/index.ts";
+import { dauerbelegSuggestions } from "./dauerbeleg-vorschlaege.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
@@ -86,6 +88,7 @@ import { quellenHinweis } from "./quellen.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
 import { belegTotals, vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
+import { amountInEitherSign } from "../../../lib/search.ts";
 
 export class BankError extends UserError {}
 
@@ -380,11 +383,14 @@ export async function listTransactions(
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
   if (search.trim()) {
     const term = `%${search.trim()}%`;
+    // Betrag auch wie in der Schnellsuche („1.190,00“, „1190 €“), deren „Alle anzeigen“ hierher führt (#617)
+    const range = parseEuroSearchRange(search);
     conditions.push(
       or(
         ilike(schema.bankTransactions.counterpartyName, term),
         ilike(schema.bankTransactions.purpose, term),
         sql`(${schema.bankTransactions.amount}::numeric / 100)::text like ${`%${search.trim().replace(",", ".")}%`}`,
+        ...(range !== null ? [amountInEitherSign(schema.bankTransactions.amount, range)] : []),
       )!,
     );
   }
@@ -411,28 +417,6 @@ export async function listTransactions(
     .offset(offset ?? 0);
 }
 
-/**
- * Erledigter Betrag je Rechnung bzw. Beleg: Zuordnungen und Ausbuchungen (Skonto, Forderungsausfall), Vorzeichen
- * wie auf dem Konto. Ausbuchungen bewegen kein Geld, zählen für „offen“ aber wie eine Zahlung. Bei Rechnungen auch die
- * Bareinnahmen im Kassenbuch (samt Gegenzeilen); bar bezahlte Belege sind schon beim Buchen bezahlt und zählen hier nicht.
- */
-async function paidByTarget(column: "invoice_id" | "document_id", ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
-  if (ids.length === 0) return new Map();
-  const col = sql.raw(column);
-  const cash = column === "invoice_id" ? sql`union all select invoice_id as id, amount from cash_entries where invoice_id in ${ids}` : sql``;
-  // Verrechnungen gibt es nur zwischen Belegen, Rechnungen kennen keine Gegenrechnung
-  const verrechnet = column === "document_id" ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}` : sql``;
-  const rows = await q.execute<{ id: string; paid: string }>(
-    sql`select id, sum(amount) as paid from (
-          select ${col} as id, amount from allocations where ${col} in ${ids}
-          union all select ${col} as id, amount from write_offs where ${col} in ${ids}
-          ${verrechnet}
-          ${cash}
-        ) settled group by 1`,
-  );
-  return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
-}
-
 /** Erledigter Betrag einer Rechnung bzw. eines Belegs innerhalb einer Transaktion (nach dem Sperren) */
 export async function settledOn(tx: Tx, column: "invoice_id" | "document_id", id: string): Promise<number> {
   const ids = column === "invoice_id" ? await invoicePaymentGroup(id, tx) : [id];
@@ -453,49 +437,28 @@ export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: Invoic
         union all select invoice_id, amount, tax_shares, tax_shares_invoice_id from cash_entries where invoice_id in ${ids}`,
   );
   const settled = [...rows].reduce((sum, r) => sum + Number(r.amount), 0);
+  // Verrechnungen mindern das Entgelt um den Anteil der Gegenrechnung. Die Zahlungen verteilen sich danach über den Rest,
+  // nicht über den vollen Mix: Bei zwei Steuersätzen trüge sonst der zurückgenommene Satz die Steuer mit (#877, Befund 2).
+  const verrechnet = [
+    ...(await tx.execute<{ counter_invoice_id: string; amount: number }>(
+      // In der Reihenfolge, in der sie entstanden sind: Die Gegenzeile einer Aufhebung gibt das Entgelt wieder zurück
+      sql`select counter_invoice_id, amount from invoice_settlements where invoice_id in ${ids} order by created_at, id`,
+    )),
+  ].map((r) => ({ counterInvoiceId: r.counter_invoice_id, amount: Number(r.amount) }));
+  const gegen = verrechnet.length > 0 ? await invoiceTotalsById([...new Set(verrechnet.map((r) => r.counterInvoiceId))], tx) : new Map<string, InvoiceTotals>();
+  const mixe = mixeNachVerrechnungen(totals, verrechnet, gegen);
+  const rest = mixe[0]!;
   // Wie Voranmeldung und EÜR (recordedTaxShares): ein Anteil zählt nur für die Rechnung, für die er gerechnet ist
-  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null));
-  return settlementTaxShares(totals, settled, recorded, amount);
+  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null, mixe));
+  return settlementTaxShares(rest, settled, recorded, amount);
 }
 
 /** Gespeicherter Steueranteil einer Gegenzeile: genau umgekehrt */
 export const negatedShares = (shares: TaxShare[] | null) => shares?.map((s) => ({ rate: s.rate, base: -s.base, tax: -s.tax })) ?? null;
 
-export async function invoicePayments(ids: string[], q: Db | Tx = db) {
-  const groups = await invoicePaymentGroups(ids, q);
-  const paid = await paidByTarget("invoice_id", [...new Set([...groups.values()].flat())], q);
-  return new Map(
-    [...groups]
-      .filter(([, group]) => group.some((id) => paid.has(id)))
-      .map(([id, group]) => [id, group.reduce((sum, target) => sum + (paid.get(target) ?? 0), 0)]),
-  );
-}
-
 /** Erledigter Betrag je Beleg (Zuordnungen und Ausbuchungen), Vorzeichen wie auf dem Konto */
 export async function documentPayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("document_id", ids, q);
-}
-
-/** Ausgebuchte Beträge je Rechnung (Skonto und Forderungsausfall, Gegenzeilen abgezogen) */
-export async function invoiceWrittenOff(ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
-  if (ids.length === 0) return new Map();
-  const rows = await q
-    .select({ id: schema.writeOffs.invoiceId, sum: sql<string>`sum(${schema.writeOffs.amount})` })
-    .from(schema.writeOffs)
-    .where(inArray(schema.writeOffs.invoiceId, ids))
-    .groupBy(schema.writeOffs.invoiceId);
-  return new Map(rows.filter((r) => Number(r.sum) !== 0).map((r) => [r.id!, Number(r.sum)]));
-}
-
-/** Als Forderungsausfall ausgebuchte Beträge je Rechnung (Gegenzeilen abgezogen) */
-export async function invoiceLosses(ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
-  if (ids.length === 0) return new Map();
-  const rows = await q
-    .select({ id: schema.writeOffs.invoiceId, sum: sql<string>`sum(${schema.writeOffs.amount})` })
-    .from(schema.writeOffs)
-    .where(and(inArray(schema.writeOffs.invoiceId, ids), eq(schema.writeOffs.kind, "forderungsausfall")))
-    .groupBy(schema.writeOffs.invoiceId);
-  return new Map(rows.map((r) => [r.id!, Number(r.sum)]));
 }
 
 /** Bestellnummern einer Rechnung für den Abgleich: externe Referenz, Bestellnummer des Kunden, eigene Auftragsnummer */
@@ -1025,27 +988,6 @@ function onLedger(lines: PostingLine[], kontenrahmen: Kontenrahmen, ledgerIndex:
   const bank = ACCOUNTS[kontenrahmen].bank;
   const ledger = paymentProviderAccount(kontenrahmen, ledgerIndex);
   return lines.map((l) => (l.account === bank ? { ...l, account: ledger } : l));
-}
-
-export function reverseLines(lines: PostingLine[]): PostingLine[] {
-  // Die Bemessungsgrundlage trägt ihr Vorzeichen selbst (#542) und dreht sich mit
-  return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit, ...(l.basis != null ? { basis: -l.basis } : {}) }));
-}
-
-/**
- * Gegenbuchung zu den Zeilen einer Buchung im Kontenrahmen `von`, gebucht im eingestellten Kontenrahmen `nach`. Nach einem
- * Wechsel zum Jahreswechsel (Storno einer Bareinnahme, Aufheben einer Ausbuchung aus dem Vorjahr) mit den Konten derselben
- * Rolle im neuen Rahmen (kontoImKontenrahmen); die alten Kontonummern bedeuteten dort etwas anderes. Lässt sich ein Konto
- * nicht eindeutig übertragen, geht die Gegenbuchung nicht.
- */
-export function reverseLinesIn(von: Kontenrahmen, nach: Kontenrahmen, lines: PostingLine[]): PostingLine[] {
-  const uebertragen = zeilenImKontenrahmen(von, nach, lines);
-  if (!uebertragen) {
-    throw new BankError(
-      `Die Buchung ist im Kontenrahmen ${von} gebucht, eingestellt ist jetzt ${nach}; nicht jedes Konto hat dort eine eindeutige Entsprechung. Stornieren geht nach dem Wechsel deshalb nicht.`,
-    );
-  }
-  return reverseLines(uebertragen);
 }
 
 const DIRECT_KINDS = [

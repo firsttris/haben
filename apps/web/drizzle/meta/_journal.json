@@ -1692,15 +1692,57 @@
     {
       "idx": 241,
       "version": "7",
-      "when": 1794719655944,
-      "tag": "0241_eigene_einheiten",
+      "when": 1794718530726,
+      "tag": "0241_rechnung_verrechnung_korrektur",
       "breakpoints": true
     },
     {
       "idx": 242,
       "version": "7",
-      "when": 1794719663976,
-      "tag": "0242_eigene_einheiten_trigger",
+      "when": 1794718531726,
+      "tag": "0242_rechnung_verrechnung_korrektur_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1794733876948,
+      "tag": "0243_fastbill",
+      "breakpoints": true
+    },
+    {
+      "idx": 244,
+      "version": "7",
+      "when": 1794733884835,
+      "tag": "0244_fastbill_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 245,
+      "version": "7",
+      "when": 1794736111385,
+      "tag": "0245_mcp_oauth",
+      "breakpoints": true
+    },
+    {
+      "idx": 246,
+      "version": "7",
+      "when": 1794745098644,
+      "tag": "0246_search_unaccent",
+      "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1794745106907,
+      "tag": "0247_search_stufe2_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 248,
+      "version": "7",
+      "when": 1794750748349,
+      "tag": "0248_kleinunternehmer_gruendungsdatum",
       "breakpoints": true
     }
   ]

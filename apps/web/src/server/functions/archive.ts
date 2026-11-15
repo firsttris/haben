@@ -47,7 +47,9 @@ import {
   sevdeskConnectionStatus,
   startSevdeskImport as startSevdesk,
 } from "../modules/archiv/index.ts";
+import { FASTBILL_PLANS, fastbillConnectionStatus, fastbillReceiptsOverview, latestFastbillImport } from "../modules/archiv/index.ts";
 import { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "../modules/archiv/index.ts";
+import { latestWisoImport, MAX_WISO_CSV_SIZE, previewWisoCsv, startWisoImport, wisoSummary } from "../modules/archiv/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 import { detailId, yearSchema } from "./schemas.ts";
@@ -71,6 +73,10 @@ export const getMigration = createServerFn({ method: "GET" })
       orderArchive,
       externalImports,
       bbImport,
+      wisoImport,
+      fastbillConnection,
+      fastbillImport,
+      fastbillReceipts,
     ] = await Promise.all([
       connectionStatus(),
       reconciliation(),
@@ -82,12 +88,21 @@ export const getMigration = createServerFn({ method: "GET" })
       orderArchiveOverview(),
       externalImportOverview(),
       latestBuchhaltungsbutlerImport(),
+      latestWisoImport(),
+      fastbillConnectionStatus(),
+      latestFastbillImport(),
+      fastbillReceiptsOverview(),
     ]);
     return {
       connection,
       sevdeskConnection,
       sevdeskImport,
+      fastbillConnection,
+      fastbillImport,
+      fastbillPlans: FASTBILL_PLANS.map((p) => ({ ...p })),
+      fastbillReceipts,
       bbImport,
+      wisoImport,
       accountableImport,
       openItems,
       cutoff,
@@ -107,8 +122,8 @@ export const getMigration = createServerFn({ method: "GET" })
 
 export const getImportStatus = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.object({ source: z.enum(["lexoffice", "sevdesk"]) }))
-  .handler(async ({ data }) => (data.source === "sevdesk" ? latestSevdeskImport() : latestImport()));
+  .validator(z.object({ source: z.enum(["lexoffice", "sevdesk", "fastbill"]) }))
+  .handler(async ({ data }) => (data.source === "sevdesk" ? latestSevdeskImport() : data.source === "fastbill" ? latestFastbillImport() : latestImport()));
 
 export const saveLexofficeKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -190,6 +205,24 @@ export const importBuchhaltungsbutler = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(bbFiles)
   .handler(async ({ data, context }) => startBuchhaltungsbutlerImport(context.user.id, await bbParts(data.files)));
+
+function wisoFile(input: unknown): { file: File } {
+  if (!(input instanceof FormData)) throw new UserError("FormData erwartet");
+  const file = input.get("file");
+  if (!(file instanceof File) || file.size === 0) throw new UserError("Keine Datei ausgewählt.");
+  if (file.size > MAX_WISO_CSV_SIZE) throw new UserError("Die Datei ist größer als 100 MB.");
+  return { file };
+}
+
+export const previewWisoImport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(wisoFile)
+  .handler(async ({ data }) => wisoSummary(await previewWisoCsv(new Uint8Array(await data.file.arrayBuffer()))));
+
+export const importWiso = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(wisoFile)
+  .handler(async ({ data, context }) => startWisoImport(context.user.id, new Uint8Array(await data.file.arrayBuffer()), data.file.name));
 
 /*
  * Accountable hat keine API: Der Export (ZIP je Geschäftsjahr) wird hochgeladen, geprüft und erst auf Knopfdruck
