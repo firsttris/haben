@@ -97,7 +97,9 @@ export function checkImport(file: string, specifier: string): string | null {
   if (!specifier.startsWith(".")) return null;
   const own = moduleOf(file);
   const path = resolve(dirname(file), specifier);
-  if (own && OUTSIDE.some((dir) => path.includes(dir))) {
+  // Ohne Endung löst "../../scheduler" wie scheduler.ts auf
+  const withExtension = /\.[cm]?[jt]sx?$/.test(path) ? path : `${path}.ts`;
+  if (own && OUTSIDE.some((dir) => withExtension.includes(dir))) {
     return `Ein Modul importiert keine Server Functions und keine Oberfläche („${specifier}“). Gemeinsames gehört in das Modul oder in src/lib/.`;
   }
   const target = moduleOf(path);
