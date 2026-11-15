@@ -2901,6 +2901,26 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
 });
 
+test("Jahreserklärung: Einkommensteuererklärung außerhalb von Haben vermerken, ohne Betrag (#1073)", async () => {
+  const jahr = YEAR - 1;
+  await go(`/jahreserklaerung/${jahr}`);
+  const est = page.getByRole("region", { name: `Einkommensteuererklärung ${jahr}`, exact: true });
+  const karte = est.getByRole("region", { name: `Abgabe außerhalb von Haben: Einkommensteuererklärung ${jahr}`, exact: true });
+  await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+
+  // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag: kein Feld dafür, auch keine Schätzung
+  const dialog = page.getByRole("dialog", { name: `Einkommensteuererklärung ${jahr} als abgegeben vermerken` });
+  await expect(dialog.getByLabel("Tag der Abgabe", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Betrag", { exact: true })).toHaveCount(0);
+  await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr + 1}-09-29`);
+  await dialog.getByLabel("Transferticket", { exact: true }).fill("es7k2m9q4x1p");
+  await dialog.getByLabel("Begründung", { exact: true }).fill("Einkommensteuererklärung extern mit WISO abgegeben.");
+  await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
+
+  await expect(karte.locator("p", { hasText: `Abgegeben am 29.09.${jahr + 1}` })).toContainText("Betrag nicht vermerkt");
+  await expect(est).toContainText("Das Ergebnis steht erst mit dem Steuerbescheid fest");
+});
+
 test("Vorgabe „Ohne Vorsteuerabzug“: der Beleg folgt ihr und weicht gespeichert ab (#852)", async ({ browser }) => {
   // Vorgabe in den Firmendaten setzen
   await go("/einstellungen");
