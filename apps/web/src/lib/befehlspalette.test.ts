@@ -170,10 +170,10 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     const einKonto = buildRemoteSections({ ...sampleResult, bankTransactions: { hits: [umsatz("a", "k1"), umsatz("b", "k1")], more: true } }, true);
     const bank = einKonto.find((s) => s.id === "bank");
     expect(bank?.items[0]).toMatchObject({ status: { kind: "bank", tx: { hint: "teilweise", open: -50000 } } });
-    expect(bank).toMatchObject({ to: "/bank", moreSearch: { konto: "k1", filter: "alle" } });
-    // Zwei Konten: die Bankseite sucht je Konto, deshalb kein „Alle anzeigen“
+    // „Alle anzeigen“ sucht über alle Konten, auch wenn die ersten Treffer in einem liegen: weitere können in anderen stehen
+    expect(bank).toMatchObject({ to: "/bank", moreSearch: { konto: "alle", filter: "alle" } });
     const zweiKonten = buildRemoteSections({ ...sampleResult, bankTransactions: { hits: [umsatz("a", "k1"), umsatz("b", "k2")], more: false } }, true);
-    expect(zweiKonten.find((s) => s.id === "bank")?.to).toBeUndefined();
+    expect(zweiKonten.find((s) => s.id === "bank")).toMatchObject({ to: "/bank", moreSearch: { konto: "alle", filter: "alle" } });
 
     const vat = { id: "v1", year: 2026, month: 41, status: "draft" as const, sentAt: null, berichtigt: false, filedOn: null, dueDate: "2026-05-11" };
     const sections = buildRemoteSections(
