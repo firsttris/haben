@@ -433,6 +433,57 @@ test("Voranmeldungen aus sevDesk: im Archiv je Jahr mit Kennzahlen, Protokoll un
   expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
 });
 
+test("Beleg aus sevDesk ohne Datei: in der Belegansicht prüfen und bestätigen (#345)", async () => {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { storeLegacyVoucher } = await import("../src/server/modules/archiv/index.ts");
+  const [run] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  // Aufbau wie nach dem Abruf eines Belegs ohne `document` (sevdesk-dateien.ts)
+  const voucher = await withActor("e2e-import", async (tx) => {
+    const stored = await storeLegacyVoucher(
+      tx,
+      {
+        source: "sevdesk",
+        importId: run!.id,
+        lexofficeId: "voucher/9345",
+        type: "purchaseinvoice",
+        direction: "ausgabe",
+        number: "B-OHNE-1",
+        date: "2026-01-06",
+        status: "paid",
+        contactName: "Frida Import",
+        net: 1000,
+        tax: 0,
+        gross: 1000,
+        taxes: [{ rate: 0, net: 1000, tax: 0 }],
+        categories: [],
+        raw: { voucherType: "VOU", document: null },
+      },
+      [],
+    );
+    await tx.insert(schema.legacyFileStates).values({
+      voucherId: stored!.id,
+      importId: run!.id,
+      state: "ohne_datei",
+      message: "sevDesk nennt keine Datei. Das beweist nicht, dass es nie eine gab.",
+      createdBy: "e2e-import",
+    });
+    return stored!;
+  });
+
+  await gehe(page, `/archiv/beleg/${voucher.id}`);
+  const karte = page.getByRole("region", { name: "Dateistand" });
+  await expect(karte).toContainText("Prüfen");
+  await karte.getByLabel("Was du geprüft hast").fill("Kassenbon verloren");
+  await karte.getByRole("button", { name: "In sevDesk ohne Datei bestätigen" }).click();
+  const dialog = page.getByRole("dialog", { name: "Beleg ohne Datei bestätigen?" });
+  await expect(dialog).toContainText("Frida Import");
+  await dialog.getByRole("button", { name: "Ohne Datei bestätigen" }).click();
+  await expect(karte).toContainText("in sevDesk ohne Datei, bestätigt");
+  await expect(karte).toContainText("In sevDesk geprüft: Kassenbon verloren");
+  await expect(karte.getByRole("button", { name: "In sevDesk ohne Datei bestätigen" })).toHaveCount(0);
+});
+
 test("Kleinunternehmer: Gründungsdatum speichern und bei 25.000 Euro warnen", async () => {
   const { createCashIncome } = await import("../src/server/modules/bank/index.ts");
   const date = currentDay();

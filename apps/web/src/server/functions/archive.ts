@@ -1,4 +1,3 @@
-import { currentYear } from "@haben/core";
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -17,8 +16,6 @@ import {
   orderArchiveOverview,
   orderDocumentDetail,
   externalImportOverview,
-  legacyVatReports,
-  legacyVatReportYears,
 } from "../modules/archiv/index.ts";
 import {
   cancelImport,
@@ -32,7 +29,7 @@ import {
   startImport,
   startWebImport,
 } from "../modules/archiv/index.ts";
-import { openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
+import { confirmWithoutFile, decideAccountingType, openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
 import {
   accountableImportStatus,
   AccountableError,
@@ -323,6 +320,20 @@ export const getLegacyVoucher = createServerFn({ method: "GET" })
     return detail;
   });
 
+/** Beleg aus sevDesk ohne Datei: eine Person hat in sevDesk geprüft, dass es keine gibt (#345) */
+export const confirmLegacyWithoutFile = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), note: z.string().max(500).default("") }))
+  .handler(async ({ data, context }) => {
+    await confirmWithoutFile(context.user.id, data.id, data.note);
+    return { ok: true };
+  });
+
+export const decideLegacyAccountingType = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), kind: z.enum(["erloes", "aufwand"]) }))
+  .handler(async ({ data, context }) => decideAccountingType(context.user.id, data.id, data.kind));
+
 export const getDatevBookings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(
@@ -352,16 +363,6 @@ export const getOrderDocuments = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(z.object({ year: yearSchema, search: z.string().max(100).default(""), kind: z.enum(["AN", "AB", "LI"]).optional() }))
   .handler(async ({ data }) => listOrderDocuments(data));
-
-/** Übermittelte Voranmeldungen aus der bisherigen Buchhaltung eines Jahres; dazu alle Jahre, in denen es welche gibt */
-export const getLegacyVatReports = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .validator(z.object({ year: yearSchema.optional() }))
-  .handler(async ({ data }) => {
-    const years = await legacyVatReportYears();
-    const year = data.year ?? years[0] ?? currentYear() - 1;
-    return { year, years, rows: await legacyVatReports(year) };
-  });
 
 export const getOrderDocument = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

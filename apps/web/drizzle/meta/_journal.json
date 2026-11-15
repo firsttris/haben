@@ -1818,15 +1818,43 @@
     {
       "idx": 259,
       "version": "7",
-      "when": 1794774952682,
-      "tag": "0259_sevdesk_voranmeldungen",
+      "when": 1794774987042,
+      "tag": "0259_sevdesk_kontoart_von_hand",
       "breakpoints": true
     },
     {
       "idx": 260,
       "version": "7",
-      "when": 1794774953583,
-      "tag": "0260_sevdesk_voranmeldungen_trigger",
+      "when": 1794774988136,
+      "tag": "0260_sevdesk_kontoart_von_hand_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 261,
+      "version": "7",
+      "when": 1794776739217,
+      "tag": "0261_dateistand_umzug",
+      "breakpoints": true
+    },
+    {
+      "idx": 262,
+      "version": "7",
+      "when": 1794776740117,
+      "tag": "0262_dateistand_umzug_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 263,
+      "version": "7",
+      "when": 1794777454228,
+      "tag": "0263_sevdesk_voranmeldungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 264,
+      "version": "7",
+      "when": 1794777455362,
+      "tag": "0264_sevdesk_voranmeldungen_trigger",
       "breakpoints": true
     }
   ]

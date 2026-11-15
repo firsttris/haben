@@ -1,6 +1,6 @@
 {
-  "id": "d082e0c0-34e7-4edf-bb33-142245c30f24",
-  "prevId": "9df4ec60-a9b6-4ebe-932b-6fa9404b24da",
+  "id": "f1fdf25e-31ab-430b-9a8c-38d60bc88b13",
+  "prevId": "0f798d83-3c1b-4755-a354-7ca836107bed",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -9498,243 +9498,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.legacy_vat_report_files": {
-      "name": "legacy_vat_report_files",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "vat_report_id": {
-          "name": "vat_report_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "size": {
-          "name": "size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "legacy_vat_report_files_unique": {
-          "name": "legacy_vat_report_files_unique",
-          "columns": [
-            {
-              "expression": "vat_report_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sha256",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "legacy_vat_report_files_vat_report_id_legacy_vat_reports_id_fk": {
-          "name": "legacy_vat_report_files_vat_report_id_legacy_vat_reports_id_fk",
-          "tableFrom": "legacy_vat_report_files",
-          "columnsFrom": [
-            "vat_report_id"
-          ],
-          "tableTo": "legacy_vat_reports",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.legacy_vat_reports": {
-      "name": "legacy_vat_reports",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "external_id": {
-          "name": "external_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'sevdesk'"
-        },
-        "import_id": {
-          "name": "import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "year": {
-          "name": "year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "month": {
-          "name": "month",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "period_text": {
-          "name": "period_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "submitted_at": {
-          "name": "submitted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "actual_taxation": {
-          "name": "actual_taxation",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "corrected": {
-          "name": "corrected",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transfer_ticket": {
-          "name": "transfer_ticket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kz83": {
-          "name": "kz83",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "raw": {
-          "name": "raw",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "legacy_vat_reports_period": {
-          "name": "legacy_vat_reports_period",
-          "columns": [
-            {
-              "expression": "year",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "month",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "legacy_vat_reports_import_id_lexoffice_imports_id_fk": {
-          "name": "legacy_vat_reports_import_id_lexoffice_imports_id_fk",
-          "tableFrom": "legacy_vat_reports",
-          "columnsFrom": [
-            "import_id"
-          ],
-          "tableTo": "lexoffice_imports",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "legacy_vat_reports_external_id_unique": {
-          "name": "legacy_vat_reports_external_id_unique",
-          "columns": [
-            "external_id"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.legacy_voucher_payments": {
       "name": "legacy_voucher_payments",
       "schema": "",
@@ -15257,6 +15020,86 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sevdesk_accounting_type_decisions": {
+      "name": "sevdesk_accounting_type_decisions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "voucher_id": {
+          "name": "voucher_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "sevdesk_accounting_type_decisions_voucher": {
+          "name": "sevdesk_accounting_type_decisions_voucher",
+          "columns": [
+            {
+              "expression": "voucher_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "sevdesk_accounting_type_decisions_voucher_id_lexoffice_vouchers_id_fk": {
+          "name": "sevdesk_accounting_type_decisions_voucher_id_lexoffice_vouchers_id_fk",
+          "tableFrom": "sevdesk_accounting_type_decisions",
+          "columnsFrom": [
+            "voucher_id"
+          ],
+          "tableTo": "lexoffice_vouchers",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sevdesk_accounting_type_decisions_kind": {
+          "name": "sevdesk_accounting_type_decisions_kind",
+          "value": "\"sevdesk_accounting_type_decisions\".\"kind\" in ('erloes', 'aufwand')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.sevdesk_accounting_types": {

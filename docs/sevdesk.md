@@ -64,11 +64,27 @@ Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit di
 7. **Dateien aus Vorlagen:** Belege, die sevDesk aus einer Vorlage für wiederkehrende Belege anlegt, tragen in der API keine eigene Datei, nur den Verweis auf die Vorlage (`origin`). Hat ein Beleg keine Datei und seine Vorlage eine, hängt Haben diese an, auch an Belege aus früheren Abrufen:
     - Nur, wenn sevDesk den Beleg nach dem Hochladen der Datei angelegt hat: Eine später an die Vorlage gehängte Datei, etwa ein Zahlplan, gehört nicht zu früheren Monaten. Ältere Belege bleiben ohne Datei und zählen im Abgleich „Jeder Beleg hat eine Datei“ weiter als Beleg ohne Datei.
     - Eine eigene Datei des Belegs ersetzt Haben nie, die Archivkopie bleibt unverändert, und ein weiterer Abruf hängt nichts doppelt an.
-    - Hat der Beleg in sevDesk inzwischen eine eigene Datei, etwa nach dem ersten Abruf hochgeladen, bekommt er die Datei der Vorlage nicht. Seine eigene Datei holt Haben für schon archivierte Belege bisher nicht nach.
+    - Hat der Beleg in sevDesk inzwischen eine eigene Datei, etwa nach dem ersten Abruf hochgeladen, bekommt er die Datei der Vorlage nicht. Seine eigene Datei holt Haben für schon archivierte Belege nicht nach.
     - Die Belegansicht nennt die Datei „aus der Vorlage“.
-8. **Wiederkehrende Rechnungen:** die Vorlagen mit ihren Positionen, als pausierte [wiederkehrende Rechnungen](rechnungen.md#wiederkehrende-rechnungen), siehe [unten](#wiederkehrende-rechnungen).
+8. **Fehlende Dateien:** Zu früher übernommenen Belegen holt jeder Abruf die Dateien noch einmal, deren Abruf fehlgeschlagen war, und hängt sie an denselben Beleg, siehe [Dateistand](#dateistand).
+9. **Wiederkehrende Rechnungen:** die Vorlagen mit ihren Positionen, als pausierte [wiederkehrende Rechnungen](rechnungen.md#wiederkehrende-rechnungen), siehe [unten](#wiederkehrende-rechnungen).
 
 Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine Rechnung als versendet. Die Antwort der API wird je Beleg samt Positionen gespeichert, zum Nachweis.
+
+### Dateistand
+
+Fehlt einem Beleg eine Datei, hält Haben fest, warum. Fortschritt, Belegliste, Belegansicht, Abgleich und Jahresexport zeigen den Stand ([#345](https://github.com/firsttris/haben/issues/345)):
+
+| Stand | Wann | Im Abgleich |
+| --- | --- | --- |
+| Abruf fehlgeschlagen | sevDesk nennt eine Datei (`document`), gibt sie aber nicht heraus, oder eine Rechnung bzw. Gutschrift kommt ohne PDF | offen; ein neuer Abruf versucht es noch einmal |
+| Ohne Datei, zu prüfen | Ein Beleg nennt keine Datei | offen, bis du es bestätigst |
+| Ohne Datei, bestätigt | Du hast in sevDesk nachgesehen und es in der Belegansicht bestätigt | zählt getrennt, blockiert nicht |
+| Anhang fehlt | Das PDF ist da, das XML der E-Rechnung kam mit einem Fehler | offen; ein neuer Abruf versucht es noch einmal, meldet sevDesk dann ohne Fehler kein XML, ist nichts mehr offen |
+
+Ein Beleg ohne Verweis auf eine Datei hat nicht sicher nie eine gehabt: In der API unterscheidet ihn kein Feld von einem Beleg, dessen Datei entfernt wurde. Deshalb bestätigst du „ohne Datei“ selbst; Haben speichert dazu deinen Namen, die Uhrzeit und deine Notiz. Eine Rechnung oder Gutschrift lässt sich nicht als „ohne Datei“ bestätigen: Jede fertige hat in sevDesk ein PDF. Die Bestätigung ändert nichts an der Steuer; für den Vorsteuerabzug braucht es weiter die Rechnung ([§ 15 Abs. 1 Nr. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__15.html)).
+
+Weitere Anhänge eines Belegs nennt die API nicht, nur die eine Datei unter `document`. Ob einem Beleg in sevDesk mehr Dateien gehören, sieht Haben deshalb nicht. Ein Stand wird nie überschrieben: Jede Feststellung, Bestätigung und nachgeladene Datei ist eine neue Zeile, der Jahresexport führt sie in `lexoffice/dateistand.csv`. Offene Posten ohne Datei übernimmt Haben nicht; die Liste nennt den Grund nach dem Stand.
 
 ### Kontaktrollen und Nummern prüfen
 
@@ -98,6 +114,8 @@ Die Richtung `creditDebit` beschreibt die OpenAPI nur als „credit (C) or debit
 **Gutschriften auf ein Buchungskonto** (`ACCOUNTING_TYPE`, nur Buchhaltungsversion 1.0) bucht sevDesk nach dem gewählten Konto: auf einem Erlöskonto als Minderung der Einnahmen (DATEV: Soll 8200, BU 3, belegt am DATEV-Export von sevDesk), auf einem Aufwandskonto analog Honorar (Soll 3100, BU 9) nach der Entscheidung in [#472](https://github.com/firsttris/haben/issues/472); einen Export einer solchen Gutschrift mit Aufwandskonto gibt es noch nicht. Die Gutschrift nennt nur die ID des Kontos. Seine Nummern holt Haben deshalb nach den Belegen über `GET /AccountingType/{id}`, auch für früher abgerufene Gutschriften; der Endpunkt steht in der OpenAPI nur im Abschnitt „Accounting type“, nicht unter den Pfaden. Die Antwort wird unverändert gespeichert. Die Nummer für SKR03 zählt nach SKR03, die für SKR04 nach SKR04, gleich welcher Kontenrahmen in Haben eingerichtet ist; nennen beide dieselbe Art oder fehlt eine, gilt diese Art. Mit Aufwandskonto erscheint die Gutschrift als „Ausgabe-Gutschrift“ in Kz 66 und wird kein offener Posten.
 
 In allen anderen Fällen bleibt die Gutschrift, wie gespeichert, eine Minderung der Einnahmen und gilt als **unklar**: ohne Antwort von sevDesk, ohne Kontonummer, bei einem Widerspruch zwischen beiden Nummern, bei einer Nummer außerhalb von Erlös- und Aufwandskonten und bei mehreren Ständen eines Kontos mit verschiedener Art. Die Belegansicht nennt dann „Buchungskonto nicht erkannt“, die Liste markiert die Zeile, und der Abgleich zeigt den Punkt „Buchungskonto jeder Gutschrift erkannt“ als offen und sperrt den Monatsabgleich der Umsatzsteuer für das Jahr der Gutschrift, bei Ist-Versteuerung auch für das Jahr ihrer Zahlung. Bestand aus einem Abruf vor dieser Erweiterung bleibt unklar, bis du **Erneut abrufen** startest; rufe deshalb vor dem Kündigen von sevDesk noch einmal ab.
+
+Ist sevDesk schon gekündigt oder klärt auch ein neuer Abruf das Konto nicht, legst du die Kontoart in der Belegansicht der Gutschrift **von Hand** fest: **Als Erlöskonto festlegen** oder **Als Aufwandskonto festlegen**, nachdem du in sevDesk oder im DATEV-Export nachgesehen hast, auf welches Konto gebucht ist ([#888](https://github.com/firsttris/haben/issues/888)). Danach rechnet Haben wie mit einem erkannten Konto, der Punkt im Abgleich und die Sperre fallen weg, und die Belegansicht nennt das Buchungskonto „von Hand festgelegt“. Die Archivkopie bleibt unverändert; die Entscheidung ist ein eigener Nachtrag im Änderungsprotokoll, und eine spätere ersetzt sie. Ein Kontostamm mit erkannter Art, den ein späterer Abruf bringt, geht vor: Nennt er dieselbe Art, gilt sie; nennt er eine andere, bleibt die Gutschrift unklar, bis du seine Art festlegst, und die Belegansicht nennt beide.
 
 sevDesk lässt bei vielen Belegen den Namen des Lieferanten leer (`supplierName`). Haben zeigt dann den Namen, den der Beleg beim Speichern trug (`supplierNameAtSave`), und erst ohne ihn den Namen des verknüpften Kontakts. So bleibt ein alter Beleg richtig, wenn der Kontakt später umbenannt wird. Die Archivkopie bleibt unverändert.
 
@@ -248,8 +266,8 @@ Haben spricht standardmäßig mit `https://my.sevdesk.de/api/v1`. Mit der Umgebu
 
 ## Vor der Kündigung
 
-- [ ] Abruf ist fertig, die Liste der fehlgeschlagenen Belege ist leer, kein Buchungskonto ist unklar
-- [ ] Jeder Beleg hat eine Datei (Abgleich je Jahr)
+- [ ] Abruf ist fertig, die Liste der fehlgeschlagenen Belege ist leer, kein Buchungskonto ist unklar (sonst noch einmal abrufen oder die Kontoart von Hand festlegen)
+- [ ] Jeder Beleg hat eine Datei oder ist in sevDesk geprüft als ohne Datei bestätigt (Abgleich je Jahr)
 - [ ] Alle Auftragsdokumente sind vorhanden und deren Original-PDFs ergänzt
 - [ ] Übernommene wiederkehrende Rechnungen geprüft und aktiviert, in sevDesk deaktiviert
 - [ ] Übernommene Dauerbelege geprüft und fortgesetzt, in sevDesk deaktiviert

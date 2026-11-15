@@ -2,7 +2,7 @@ import { formatEuro, periodKey, periodLabel } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import { formatDateTime } from "../../lib/format.ts";
 import type { ArchiveSearch } from "../../routes/_app/archiv/index.tsx";
-import type { getLegacyVatReports } from "../../server/functions/archive.ts";
+import type { getLegacyVatReports } from "../../server/functions/sevdesk-voranmeldungen.ts";
 import { ScrollBox } from "../ScrollTable.tsx";
 import { YearSwitch } from "./YearSwitch.tsx";
 

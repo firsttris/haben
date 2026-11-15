@@ -33,6 +33,7 @@ import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
 import { WisoImport } from "./WisoImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
+import { SevdeskFileFacts } from "./Dateistand.tsx";
 import { FastbillArticles, FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
 import { Status } from "../Status.tsx";
@@ -523,6 +524,7 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
               <span className="small muted">Dateien</span>
               <strong>{progress.files}</strong>
             </div>
+            {source === "sevdesk" && progress.sevdeskFiles && <SevdeskFileFacts files={progress.sevdeskFiles} />}
             {(progress.recurring ?? 0) > 0 && (
               <div>
                 <span className="small muted">Dauerbelege angehalten</span>
@@ -723,9 +725,9 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
             Buchungen ohne passenden Beleg ansehen
           </Link>
         )}{" "}
-        {year.withoutFile > 0 && (
+        {(year.withoutFile > 0 || year.files.anhangFehlt > 0) && (
           <Link to="/archiv" activeProps={{}} search={{ ansicht: "belege", jahr: year.year, ohneDatei: true }}>
-            Belege ohne Datei ansehen
+            Belege mit fehlender Datei ansehen
           </Link>
         )}
       </div>

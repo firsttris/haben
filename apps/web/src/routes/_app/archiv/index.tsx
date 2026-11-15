@@ -7,7 +7,8 @@ import { LegacyVatReports } from "../../../components/archiv/LegacyVatReports.ts
 import { EXACT_SEARCH, LegacyVouchers } from "../../../components/archiv/LegacyVouchers.tsx";
 import { Migration } from "../../../components/archiv/Migration.tsx";
 import { OrderDocuments } from "../../../components/archiv/OrderDocuments.tsx";
-import { getDatevBookings, getLegacyVatReports, getLegacyVouchers, getMigration, getOrderDocuments } from "../../../server/functions/archive.ts";
+import { getDatevBookings, getLegacyVouchers, getMigration, getOrderDocuments } from "../../../server/functions/archive.ts";
+import { getLegacyVatReports } from "../../../server/functions/sevdesk-voranmeldungen.ts";
 import styles from "../../../styles/archiv.css?url";
 
 const searchSchema = z.object({
