@@ -29,7 +29,7 @@ import {
   startImport,
   startWebImport,
 } from "../modules/archiv/index.ts";
-import { openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
+import { decideAccountingType, openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
 import {
   accountableImportStatus,
   AccountableError,
@@ -323,6 +323,11 @@ export const getLegacyVoucher = createServerFn({ method: "GET" })
     if (!detail) throw notFound();
     return detail;
   });
+
+export const decideLegacyAccountingType = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), kind: z.enum(["erloes", "aufwand"]) }))
+  .handler(async ({ data, context }) => decideAccountingType(context.user.id, data.id, data.kind));
 
 export const getDatevBookings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
