@@ -131,6 +131,27 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     expect(item).toMatchObject({ to: "/bank", search: { konto: umsatz.bankAccountId, umsatz: umsatz.id, filter: "alle" } });
   });
 
+  it("zeigt Art, Geber und Übermittlung mit ihren Bezeichnungen statt der gespeicherten Schlüssel", () => {
+    const sections = buildRemoteSections(
+      {
+        ...sampleResult,
+        loans: { hits: [{ id: "l1", name: "Kredit", lender: "bank", openingBalance: 0, openingDate: null }], more: false },
+        pauschalen: { hits: [{ id: "p1", art: "fahrt", date: "2026-09-15", description: "Kundentermin", amount: 3600 }], more: false },
+        employees: { hits: [{ id: "e1", personalnummer: 7, vorname: "Berta", nachname: "Muster", art: "beschaeftigt" }], more: false },
+        zmSubmissions: {
+          hits: [{ id: "z1", year: 2026, month: 41, kind: "send", ok: true, createdAt: new Date("2026-04-10") }],
+          more: false,
+        },
+      },
+      true,
+    );
+    const meta = (id: string) => sections.flatMap((s) => s.items).find((item) => item.id === id)?.meta;
+    expect(meta("loan-l1")).toBe("Kreditinstitut");
+    expect(meta("pauschale-p1")).toBe("Fahrten mit dem Privatfahrzeug · 15.09.2026");
+    expect(meta("employee-e1")).toBe("Personalnr. 7 · Sozialversicherungspflichtig beschäftigt");
+    expect(meta("zm-z1")).toBe("Übermittlung · OK");
+  });
+
   it("formuliert die Statusmeldung für Screenreader im Singular und Plural", () => {
     expect(statusMessage(true, 3, 0)).toBe("Suche läuft …");
     expect(statusMessage(false, 2, 0)).toBe("Keine Treffer gefunden.");
