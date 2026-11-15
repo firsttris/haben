@@ -317,11 +317,13 @@ Solange die Anmeldung nicht gesendet ist, prüft Haben, was im Monat noch fehlt 
 | Hinweis | Gewicht | Prüfung |
 | --- | --- | --- |
 | … Ausgaben im Zeitraum ohne Beleg oder Zuordnung | Warnung | Bankausgänge mit Buchungsdatum im Monat, die nicht voll zugeordnet sind. Ohne Beleg wird keine Vorsteuer angesetzt. |
-| … Zahlungseingänge im Zeitraum noch nicht zugeordnet | Warnung bei Ist, Hinweis bei Soll | Bankeingänge im Monat ohne volle Zuordnung; verrechnete und als [privat gekennzeichnete](bank.md#privates-konto-umsätze-ohne-buchungsart) zählen nicht. Bei Ist fehlt sonst Umsatzsteuer. |
+| … Zahlungseingänge im Zeitraum noch nicht zugeordnet | Warnung bei Ist, Hinweis bei Soll | Bankeingänge im Monat ohne volle Zuordnung. Bei Ist fehlt sonst Umsatzsteuer. |
 | … Belege sind noch nicht gebucht | Warnung | Ungebuchte Belege mit Belegdatum im Monat oder ganz ohne Belegdatum. |
 | … Rechnungsentwürfe mit Datum im Zeitraum | Hinweis | Nicht festgeschriebene Rechnungen mit Rechnungsdatum im Monat. |
 | Regulär besteuerte Umsätze zu 0 % | Warnung | Im Monat gibt es regulär besteuerte Umsätze zu 0 %, die Haben nicht meldet. Ist es Reverse Charge, eine Leistung ins Drittland oder steuerfrei, stellst du das an der Rechnung ein. |
 | Buchungen und Voranmeldung weichen ab | Warnung | Die Steuerkonten im Journal passen nicht zu den Kennzahlen aus Rechnungen, Belegen und Zahlungen, mit beiden Beträgen. Was verglichen wird, steht unter [Abgleich von Journal, Umsatzsteuer und EÜR](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür). Der Link führt zu den Konten. |
+
+Verrechnete und als [privat gekennzeichnete](bank.md#privates-konto-umsätze-ohne-buchungsart) Bankumsätze zählen bei Ein- und Ausgängen nicht.
 
 Die Hinweise blockieren nichts.
 
