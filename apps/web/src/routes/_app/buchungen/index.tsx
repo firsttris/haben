@@ -48,6 +48,13 @@ function SourceLink({ entry }: { entry: Entry }) {
         {label}
       </Link>
     );
+  // Verrechnung mit einer Kundenkorrektur (#877): je Rechnung eine Buchung, der Link führt auf die Rechnung
+  if (entry.sourceType === "verrechnung" && entry.invoiceId)
+    return (
+      <Link to="/rechnungen/$id" params={{ id: entry.invoiceId }} className="journal-source">
+        {label}
+      </Link>
+    );
   // Verrechnung zweier Belege (#786): je Belegseite eine Buchung, der Link führt auf ihren Beleg
   if (entry.sourceType === "verrechnung" && entry.documentId)
     return (
