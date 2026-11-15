@@ -124,3 +124,12 @@ describe.each(["SKR03", "SKR04"] as const)("Beleg mit Zeilen auf beiden Seiten (
     expect(v).toMatchObject({ gross: 9000, tax: 1437, net: 7563 });
   });
 });
+
+describe.each(["SKR03", "SKR04"] as const)("Steuersatz aus Beleginfo (%s)", (kontenrahmen) => {
+  it("geht vor BU-Schlüssel und Automatikkonto, wenn der Steuerbetrag fehlt (historisch 16 %)", () => {
+    const zeile = gutschrift!.replace('"Umsatzsteuerprozent";19;', '"Umsatzsteuerprozent";16;');
+    const [v] = archiv(lese(kontenrahmen, [zeile]));
+    // 100,00 brutto bei 16 %: 13,79 Steuer, nicht 15,97 aus dem Automatikkonto (19 %)
+    expect(v).toMatchObject({ type: "salescreditnote", gross: -10000, tax: -1379, net: -8621, rate: 1600 });
+  });
+});

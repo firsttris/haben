@@ -154,6 +154,20 @@ describe.skipIf(!testDatabaseUrl)("sevDesk ohne API: Export-ZIP übernehmen (Pos
     expect(await counts()).toEqual({ vouchers: 3, files: 2, archived: 2, bookings: 3 });
   });
 
+  it("Fremdwährung ohne Euro-Betrag in Beleginfo: kein Archivbeleg mit dem Fremdbetrag als Euro, sondern ein Fehler mit Grund", async () => {
+    const usd = rechnung!.replace(/^100,00;"H";"EUR"/, '106,00;"H";"USD"').replace(";84,03;", ";;").replace(";15,97;", ";;");
+    const bytes = zip({
+      [STAPEL]: strToU8([kopf, spalten, usd, ausgabe!].join("\n")),
+      "DATEV_Rechnungsausgang_20240101_20241231.zip": innerZip(fixture("buchhaltung-2.0/document-rechnungsausgang.xml")),
+      "DATEV_Rechnungseingang_20240101_20241231.zip": innerZip(fixture("buchhaltung-2.0/document-rechnungseingang.xml")),
+    });
+    const result = await run(bytes);
+    const stored = await sql`select gross, currency from lexoffice_vouchers where raw->>'currency' = 'USD'`;
+    expect(stored).toEqual([]);
+    expect(result.progress.failed).toEqual([expect.objectContaining({ number: "XX-1111111111", message: expect.stringMatching(/USD/) })]);
+    expect(result.progress).toMatchObject({ imported: 1 });
+  });
+
   it("ein Jahr mit Belegen aus der API bekommt keine Belege aus dem Export", async () => {
     const [imp] = await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{"phase":"fertig"}'::jsonb, 'sevdesk') returning id`;
     await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, source, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
