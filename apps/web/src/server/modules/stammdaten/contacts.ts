@@ -12,9 +12,9 @@ import {
   splitEmails,
   telefonProblem,
 } from "@haben/core";
-import { and, asc, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { likePattern, numberRank } from "../../../lib/search.ts";
+import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
@@ -348,23 +348,23 @@ function contactSearchFilter(query: string, listFields = false) {
   const persons = schema.contactPersons;
   const pattern = likePattern(query);
   return or(
-    ilike(contacts.name, pattern),
-    ilike(contacts.kundennummer, pattern),
-    ilike(contacts.lieferantennummer, pattern),
-    ilike(contacts.email, pattern),
-    ilike(contacts.ort, pattern),
-    ilike(contacts.ustId, pattern),
-    ilike(sql`${contacts.debitorNr}::text`, pattern),
-    ilike(sql`${contacts.kreditorNr}::text`, pattern),
-    /^\d{4,}$/.test(query) ? ilike(contacts.iban, `%${query}`) : undefined,
+    unaccentIlike(contacts.name, pattern),
+    unaccentIlike(contacts.kundennummer, pattern),
+    unaccentIlike(contacts.lieferantennummer, pattern),
+    unaccentIlike(contacts.email, pattern),
+    unaccentIlike(contacts.ort, pattern),
+    unaccentIlike(contacts.ustId, pattern),
+    unaccentIlike(sql`${contacts.debitorNr}::text`, pattern),
+    unaccentIlike(sql`${contacts.kreditorNr}::text`, pattern),
+    /^\d{4,}$/.test(query) ? unaccentIlike(contacts.iban, `%${query}`) : undefined,
     inArray(
       contacts.id,
       db
         .select({ id: persons.contactId })
         .from(persons)
-        .where(or(ilike(persons.name, pattern), ilike(persons.email, pattern))),
+        .where(or(unaccentIlike(persons.name, pattern), unaccentIlike(persons.email, pattern))),
     ),
-    listFields ? ilike(contacts.telefon, pattern) : undefined,
-    listFields ? ilike(contacts.plz, pattern) : undefined,
+    listFields ? unaccentIlike(contacts.telefon, pattern) : undefined,
+    listFields ? unaccentIlike(contacts.plz, pattern) : undefined,
   );
 }
