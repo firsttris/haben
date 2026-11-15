@@ -14,7 +14,7 @@ describe("erklärte Zeilen (#997)", () => {
     // Im Protokoll steht "Aufwendungen für ein häusliches Arbeitszimmer" mit einem Betrag; ohne eigene Zeile fehlt
     // er in der Aufstellung und die Einzelzeilen ergeben weniger als die Summe der Betriebsausgaben
     const zeile = ERKLAERTE_ZEILEN.euer.find((z) => z.field === "arbeitszimmer");
-    expect(zeile?.text).toBe("Aufwendungen für ein häusliches Arbeitszimmer");
+    expect(zeile?.text).toBe("Aufwendungen für ein häusliches Arbeitszimmer (abziehbar)");
     expect(zeilenFelder("euer")).toContain("arbeitszimmer");
   });
 
