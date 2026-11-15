@@ -19,7 +19,8 @@ const RELOAD = "docker compose exec caddy caddy reload --config /etc/caddy/Caddy
 
 /** Bricht ab, solange es die Instanz noch gibt: ihre Daten gehen vor, das Werkzeug löscht keine */
 async function pruefeGeloescht(k: Kontext, name: string): Promise<void> {
-  const erst = "Erst in ihrem Verzeichnis `docker compose down -v`, dann das Verzeichnis löschen: Das Werkzeug löscht keine Daten.";
+  const erst =
+    "Das Werkzeug löscht keine Daten. Vorher den Jahresexport jedes Jahres und ein Backup an einen zweiten Ort: Bücher 10 und Buchungsbelege 8 Jahre aufbewahren (§ 147 Abs. 3 AO; docs/installation.md, „Mehrere Instanzen“). Dann in ihrem Verzeichnis `docker compose down -v` (löscht Datenbank, Belege und das Backup im Volume) und das Verzeichnis löschen.";
   const instanz = (await instanzen(k.basis)).find((i) => i.name === name);
   if (instanz) abbrechen(`Die Instanz ${name} gibt es noch (${instanz.dir}); nichts geändert. ${erst}`);
   // Auch ein Rest ohne .env und compose.yml zählt: Ein Verzeichnis, das noch da ist, löscht der Mensch zuerst
