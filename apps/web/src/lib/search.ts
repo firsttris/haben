@@ -23,7 +23,7 @@ export function amountIn(column: SQLWrapper, range: CentRange) {
   return between(column, range.min, range.max);
 }
 
-/** Wie `amountIn`, dazu der Gegenwert mit umgekehrtem Vorzeichen (Bankumsatz, Kasse, Pauschalen, Archiv) */
+/** Wie `amountIn`, dazu der Gegenwert mit umgekehrtem Vorzeichen (Bankumsatz, Kasse, Belege im Archiv) */
 export function amountInEitherSign(column: SQLWrapper, range: CentRange) {
   return or(between(column, range.min, range.max), between(column, -range.max, -range.min));
 }
