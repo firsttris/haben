@@ -42,7 +42,10 @@ describe("erklärte Zeilen (#997)", () => {
   });
 
   it("meint die Spalte „abziehbar“ und steht wie im Vordruck vor der Tagespauschale (#1072)", () => {
+    // Die Zeile hat zwei Spalten: nicht abziehbar (E6005102) und abziehbar (E6003101); zur Summe der Betriebsausgaben
+    // zählt nur die zweite (ERiC-Prüfplugin EUER 2025, /EUER/BAus/Beschr_abziehbar/Abziehbar/Arbeitszimmer/Sum/E6003101)
     const felder = zeilenFelder("euer");
-    expect(felder.indexOf("arbeitszimmer")).toBeLessThan(felder.indexOf("tagespauschale"));
+    expect(ERKLAERTE_ZEILEN.euer.find((z) => z.field === "arbeitszimmer")?.text).toBe("Aufwendungen für ein häusliches Arbeitszimmer (abziehbar)");
+    expect(felder.indexOf("arbeitszimmer")).toBe(felder.indexOf("tagespauschale") - 1);
   });
 });
