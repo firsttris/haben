@@ -3,9 +3,10 @@ import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import AxeBuilder from "@axe-core/playwright";
+import { periodKey, periodLabel } from "@haben/core";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
-import { currentYear, day, YEAR } from "./daten.ts";
+import { currentDay, currentYear, day, YEAR } from "./daten.ts";
 import { appDatabaseUrlFuer, databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
   bestaetigen,
@@ -1535,19 +1536,13 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await expect(page.getByRole("heading", { name: "Finanzamt", level: 1 })).toBeVisible();
 });
 
-test("Umsatzsteuer öffnet den Zeitraum, der als Nächstes abzugeben ist, nie den laufenden (#1102)", async () => {
+test("Umsatzsteuer öffnet ohne Abgabe in Haben den zuletzt abgelaufenen Zeitraum, nie den laufenden (#1102)", async () => {
+  // Bis hier ist in diesem Durchlauf nichts gesendet oder vermerkt und kein Zeitraum eingestellt: also der Vormonat
+  const [jahr, monat] = currentDay().split("-").map(Number) as [number, number];
+  const vormonat = monat === 1 ? { year: jahr - 1, month: 12 } : { year: jahr, month: monat - 1 };
   await go("/umsatzsteuer");
-  // Die Seite leitet auf den Zeitraum um; der laufende ist nie abzugeben (§ 18 Abs. 1 UStG)
-  await page.waitForURL(/\/umsatzsteuer\/[0-9]{4}-(Q[1-4]|[0-9]{2})$/);
-  const key = page.url().split("/").pop()!;
-  const [jahr, teil] = key.split("-") as [string, string];
-  const jetzt = new Date();
-  const laufend = teil.startsWith("Q")
-    ? Number(jahr) === jetzt.getFullYear() && teil === `Q${Math.floor(jetzt.getMonth() / 3) + 1}`
-    : Number(jahr) === jetzt.getFullYear() && Number(teil) === jetzt.getMonth() + 1;
-  expect(laufend, `Die Seite öffnete den laufenden Zeitraum ${key}`).toBe(false);
-  // Und die Überschrift nennt denselben Zeitraum wie die Adresse
-  await expect(page.getByRole("heading", { level: 1 })).not.toBeEmpty();
+  await expect(page).toHaveURL(new RegExp(`/umsatzsteuer/${periodKey(vormonat)}$`));
+  await expect(page.getByRole("heading", { level: 1, name: periodLabel(vormonat) })).toBeVisible();
 });
 
 test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async () => {
