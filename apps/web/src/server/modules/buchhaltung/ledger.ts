@@ -14,7 +14,7 @@ import { z } from "zod";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { loadOwnAccountParents, refreshOwnAccountNames } from "../eigene-konten/index.ts";
-import { accountName } from "./journal.ts";
+import { accountName, verrechnungQuellen } from "./journal.ts";
 import { UserError } from "../../errors.ts";
 
 /*
@@ -254,7 +254,14 @@ export interface Kontenblatt {
   name: string;
   kontenrahmen: Kontenrahmen | null;
   eroeffnung: Cents;
-  zeilen: (KontenblattZeile & { entryId: string; sourceType: string; sourceId: string; reversal: boolean })[];
+  zeilen: (KontenblattZeile & {
+    entryId: string;
+    sourceType: string;
+    sourceId: string;
+    reversal: boolean;
+    invoiceId: string | null;
+    documentId: string | null;
+  })[];
   soll: Cents;
   haben: Cents;
   saldo: Cents;
@@ -293,6 +300,10 @@ export async function kontenblatt(account: string, { from, to }: LedgerRange): P
         .where(inArray(l.entryId, [...new Set(lines.map((x) => x.entryId))]))
     : [];
 
+  // Verrechnungsbuchungen (#786, #877): Die Herkunft führt auf dem Kontenblatt genauso auf Beleg bzw. Rechnung wie im Journal
+  const verrechnungIds = [...new Set(lines.filter((x) => x.sourceType === "verrechnung").map((x) => x.sourceId))];
+  const { belege: verrechnungBelege, rechnungen: verrechnungRechnungen } = await verrechnungQuellen(verrechnungIds);
+
   const vortrag = await openingBalances(yearStart(from));
   const eroeffnung = Number(opening?.saldo ?? 0) + (vortrag.balances.get(account) ?? 0);
   let saldo = eroeffnung;
@@ -303,6 +314,8 @@ export async function kontenblatt(account: string, { from, to }: LedgerRange): P
       sourceType: x.sourceType,
       sourceId: x.sourceId,
       reversal: x.reversesId !== null,
+      invoiceId: verrechnungRechnungen.get(x.sourceId) ?? null,
+      documentId: verrechnungBelege.get(x.sourceId) ?? null,
       date: x.date,
       description: x.description,
       gegenkonten: [...new Set(others.filter((o) => o.entryId === x.entryId && o.account !== account).map((o) => o.account))],
