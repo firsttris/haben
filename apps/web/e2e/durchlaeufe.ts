@@ -23,6 +23,7 @@ export const DURCHLAEUFE = {
   passwort: 16,
   "fastbill-import": 17,
   "wiso-import": 18,
+  "sevdesk-export": 19,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 

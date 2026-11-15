@@ -277,7 +277,8 @@ Stehen auf einer Rechnung Dinge, die auf verschiedene Konten gehören, etwa Hand
 2. Unter dem Feld **Kategorie** auf **Auf mehrere Kategorien aufteilen** klicken. Darunter erscheint **Aufteilung auf Kategorien** mit einer Zeile je Steuersatz (die erste mit der bisherigen Kategorie und dem Netto des Satzes) und einer leeren Zeile.
 3. Je Zeile **Kategorie**, **Satz** und **Netto** eintragen. Mit **+ Zeile** kommt eine weitere dazu, mit dem Kreuz neben der Zeile fällt sie weg (mindestens zwei bleiben). Mehrere Zeilen mit demselben Satz und auch derselben Kategorie sind erlaubt.
 4. Unter den Zeilen steht je Steuersatz, wie viel schon verteilt ist, etwa „19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen“, bis es „stimmt“. Unter jedem Netto steht der Anteil an der Vorsteuer.
-5. **Speichern** oder **Bestätigen und buchen** wie sonst. Mit **Aufteilung aufheben** gilt wieder eine Kategorie für den ganzen Beleg, die der ersten Zeile.
+5. Gibt es zur Kategorie einer Zeile ein [eigenes Konto](buchhaltung.md#eigene-konten), wählst du es in der Zeile unter **Eigenes Konto**; Betrag und Vorsteuer bleiben, nur die Kontonummer der Aufwandszeile ist eine andere.
+6. **Speichern** oder **Bestätigen und buchen** wie sonst. Mit **Aufteilung aufheben** gilt wieder eine Kategorie für den ganzen Beleg, die der ersten Zeile.
 
 Ein gebuchter Beleg lässt sich nicht mehr aufteilen: [Storniere](#stornieren-und-neu-erfassen) ihn und teile die Neuerfassung auf.
 
@@ -483,7 +484,7 @@ Nicht stornieren lassen sich:
 
 ## Liste und Status
 
-Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechnung, KI oder Hand), Kategorie (bei einer Aufteilung „Aufgeteilt auf 3 Zeilen“), Bruttobetrag und Status. Ungebuchte Belege stehen oben, solange du nicht nach einer Spalte sortierst; die Zahl „… zu prüfen“ in der Kopfzeile zählt sie.
+Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechnung, KI oder Hand), Kategorie (bei einer Aufteilung „Aufgeteilt auf 3 Zeilen“, darunter ein [eigenes Konto](buchhaltung.md#eigene-konten), wenn der Beleg eines hat), Bruttobetrag und Status. Ungebuchte Belege stehen oben, solange du nicht nach einer Spalte sortierst; die Zahl „… zu prüfen“ in der Kopfzeile zählt sie.
 
 Die Spaltenköpfe Datum, Lieferant, Kategorie, Brutto und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Die Sortierung steht als `sort` und `dir` in der Adresse, lässt sich also verlinken und bleibt beim Neuladen erhalten.
 

@@ -1807,6 +1807,13 @@
       "when": 1794771106000,
       "tag": "0257_eigene_einheiten_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 258,
+      "version": "7",
+      "when": 1794772658049,
+      "tag": "0258_rechnungen_bereits_bezahlt",
+      "breakpoints": true
     }
   ]
 }
