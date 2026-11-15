@@ -80,20 +80,22 @@ export async function proxyEntfernen(k: Kontext, name: string): Promise<void> {
   }
   if (eigenesNetz) {
     const netze = await docker(k, ["network", "ls", "--format", "{{.Name}}"]);
-    if (netze.code !== 0) nachholen(k, `docker antwortet nicht; das Netz ${netz} ist noch da`, laeuft ? [loesen, netzWeg] : [netzWeg]);
+    if (netze.code !== 0) nachholen(k, `docker antwortet nicht; das Netz ${netz} ist noch da`, [loesen, netzWeg]);
     // Ein fehlendes Netz ist kein Fehler: Es ist schon weg
     if (netze.stdout.split("\n").some((n) => n.trim() === netz)) {
-      if (laeuft) {
-        const id = (await compose(k, dir, ["ps", "-q", "caddy"])).stdout.trim();
-        if (id === "" || (await docker(k, ["network", "disconnect", netz, id])).code !== 0)
-          nachholen(k, `Der gemeinsame Caddy ließ sich nicht aus dem Netz ${netz} lösen`, [loesen, netzWeg]);
-      }
-      if ((await docker(k, ["network", "rm", netz])).code !== 0)
-        nachholen(k, `Das Netz ${netz} ließ sich nicht entfernen`, laeuft ? [netzWeg] : [loesen, netzWeg]);
-      k.aus(laeuft ? `Netz ${netz} vom Caddy gelöst und entfernt.` : `Netz ${netz} entfernt.`);
+      // Auch ein gestoppter Container behält das Netz in seiner Konfiguration: Ohne disconnect scheiterte danach
+      // `docker start` (failed to set up container networking). Nur `up -d` käme ohne aus, weil es ihn neu aufbaut
+      const ps = await compose(k, dir, ["ps", "-a", "-q", "caddy"]);
+      if (ps.code !== 0) nachholen(k, `docker antwortet nicht; das Netz ${netz} ist noch da`, [loesen, netzWeg]);
+      const id = ps.stdout.trim();
+      if (id === "" && laeuft) nachholen(k, `Der gemeinsame Caddy ließ sich nicht aus dem Netz ${netz} lösen`, [loesen, netzWeg]);
+      if (id !== "" && (await docker(k, ["network", "disconnect", netz, id])).code !== 0)
+        nachholen(k, `Der gemeinsame Caddy ließ sich nicht aus dem Netz ${netz} lösen`, [loesen, netzWeg]);
+      if ((await docker(k, ["network", "rm", netz])).code !== 0) nachholen(k, `Das Netz ${netz} ließ sich nicht entfernen`, [netzWeg]);
+      k.aus(id !== "" ? `Netz ${netz} vom Caddy gelöst und entfernt.` : `Netz ${netz} entfernt.`);
     }
   }
-  if (!laeuft) return k.aus("Fertig. Der Caddy lief nicht und bleibt gestoppt; sein nächster Start liest sites/ ein.");
+  if (!laeuft) return k.aus("Fertig. Der Caddy lief nicht und bleibt gestoppt; sein nächster Start (start, restart oder up -d) liest sites/ ein.");
   k.aus("Fertig. Der Caddy-Container blieb unverändert.");
   // Nur wenn sich die Netzliste in compose.override.yml geändert hat, weicht der Container von den Dateien ab
   if (eigenesNetz)

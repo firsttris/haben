@@ -56,7 +56,7 @@ describe("entfernen mit laufendem Caddy", () => {
     expect(t.docker.z.caddyLaeuft).toBe(true);
     expect(t.docker.aufrufe.filter((a) => a.startsWith("proxy compose") && !a.includes(" ps "))).toEqual([RELOAD]);
     expect(t.docker.aufrufe.some((a) => /\b(up|restart|down|--force-recreate)\b/.test(a))).toBe(false);
-    expect(t.docker.aufrufe).toContain("proxy compose ps -q caddy");
+    expect(t.docker.aufrufe).toContain("proxy compose ps -a -q caddy");
   });
 
   it("geht in der Reihenfolge Datei weg, Override neu, reload, disconnect, network rm vor", async () => {
@@ -131,23 +131,45 @@ describe("entfernen mit anders geschriebener Netzzeile", () => {
 });
 
 describe("entfernen mit gestopptem Caddy", () => {
-  it("ändert nur Datei, Override und Netz: der Caddy bleibt gestoppt, kein reload, kein up", async () => {
+  /** Startet den vorhandenen Container ohne Neuaufbau, wie `docker compose start caddy` */
+  const starten = () => t.docker.ausfuehren(["docker", "compose", "start", "caddy"], { cwd: join(t.basis, "proxy"), env: {} });
+
+  it("löst den gestoppten Caddy vom Netz, bevor es weg ist: kein reload, kein up, und er startet danach wieder", async () => {
     await zweiInstanzen();
     t.docker.z.caddyLaeuft = false;
-    // Ein gestoppter Container hält keine Endpunkte mehr in den Netzen
-    t.docker.z.caddyNetze = new Set();
     const r = await t.lauf("entfernen", "firma2");
     expect(r.status, r.stderr).toBe(0);
     expect(t.docker.z.caddyLaeuft).toBe(false);
-    expect(t.docker.aufrufe.some((a) => a.includes("reload") || a.includes(" up ") || a.includes("disconnect"))).toBe(false);
-    expect(t.docker.aufrufe).toContain("- network rm haben-proxy-firma2");
+    expect(t.docker.aufrufe.some((a) => a.includes("reload") || a.includes(" up ") || a.includes(" start"))).toBe(false);
+    const a = t.docker.aufrufe;
+    const [disconnect = -1, rm = -1] = ["- network disconnect haben-proxy-firma2 caddy-id", "- network rm haben-proxy-firma2"].map((x) => a.indexOf(x));
+    expect(disconnect).toBeGreaterThanOrEqual(0);
+    expect(rm).toBeGreaterThan(disconnect);
     expect(existsSync(site("firma2"))).toBe(false);
     expect(netze(readFileSync(overrideDatei(), "utf8"))).toEqual(["haben-proxy-firma1"]);
     expect(t.docker.z.netze.has("haben-proxy-firma2")).toBe(false);
     expect(r.stdout).toContain("bleibt gestoppt");
+    // Ein gestoppter Container behält seine Netze; fehlte eines, scheiterte docker start (failed to set up container networking)
+    const start = await starten();
+    expect(start.code, start.stderr).toBe(0);
+    expect([...t.docker.z.caddyNetze]).toEqual(["haben-proxy-firma1"]);
   });
 
-  it("nennt bei einem gestoppten (oder pausierten) Caddy und scheiterndem network rm auch disconnect zum Nachholen", async () => {
+  it("bricht bei disconnect am gestoppten Caddy ab: kein network rm, Meldung mit den Befehlen zum Nachholen", async () => {
+    await zweiInstanzen();
+    t.docker.z.caddyLaeuft = false;
+    t.docker.z.disconnectKaputt = true;
+    const r = await t.lauf("entfernen", "firma2");
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("nicht aus dem Netz haben-proxy-firma2 lösen");
+    expect(r.stderr).toContain("docker network disconnect haben-proxy-firma2 $(cd");
+    expect(r.stderr).toContain("docker compose ps -a -q caddy");
+    expect(r.stderr).toContain("docker network rm haben-proxy-firma2");
+    expect(t.docker.aufrufe.some((a) => a.includes("network rm"))).toBe(false);
+    expect(t.docker.z.netze.has("haben-proxy-firma2")).toBe(true);
+  });
+
+  it("nennt bei scheiterndem network rm nur noch network rm zum Nachholen: gelöst ist der Caddy schon", async () => {
     await zweiInstanzen();
     t.docker.z.caddyLaeuft = false;
     const echt = t.docker.ausfuehren;
@@ -156,14 +178,26 @@ describe("entfernen mit gestopptem Caddy", () => {
     const r = await t.lauf("entfernen", "firma2");
     expect(r.status).toBe(1);
     expect(r.stderr).toContain("Das Netz haben-proxy-firma2 ließ sich nicht entfernen");
-    expect(r.stderr).toContain("docker network disconnect haben-proxy-firma2");
     expect(r.stderr).toContain("docker network rm haben-proxy-firma2");
+    expect(r.stderr).not.toContain("docker network disconnect");
+    expect(t.docker.aufrufe).toContain("- network disconnect haben-proxy-firma2 caddy-id");
+  });
+
+  it("entfernt das Netz ohne disconnect, wenn es keinen Container des Caddy gibt", async () => {
+    await zweiInstanzen();
+    t.docker.z.caddyLaeuft = false;
+    t.docker.z.caddyErzeugt = 0;
+    t.docker.z.caddyNetze = new Set();
+    const r = await t.lauf("entfernen", "firma2");
+    expect(r.status, r.stderr).toBe(0);
+    expect(t.docker.aufrufe.some((a) => a.includes("disconnect"))).toBe(false);
+    expect(t.docker.z.netze.has("haben-proxy-firma2")).toBe(false);
+    expect(r.stdout).toContain("Netz haben-proxy-firma2 entfernt.");
   });
 
   it("nimmt ein Netz, das docker nicht mehr kennt, nicht als Fehler", async () => {
     await zweiInstanzen();
     t.docker.z.caddyLaeuft = false;
-    t.docker.z.caddyNetze = new Set();
     t.docker.z.netze.delete("haben-proxy-firma2");
     const r = await t.lauf("entfernen", "firma2");
     expect(r.status, r.stderr).toBe(0);

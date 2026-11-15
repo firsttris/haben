@@ -73,9 +73,14 @@ rm -rf "${basis:?}/firma2"
 antworten=$(mktemp)
 (while :; do curl -s -o /dev/null -m 2 -w '%{http_code}\n' -H 'Host: firma1.haben.test' http://127.0.0.1/; sleep 0.1; done) > "$antworten" &
 schleife=$!
+# Erst die erste Antwort abwarten: Dann läuft die Schleife während des ganzen Aufrufs, wie schnell entfernen auch ist
+for _ in $(seq 50); do
+  if test -s "$antworten"; then break; fi
+  sleep 0.1
+done
+test -s "$antworten" || { kill "$schleife"; echo "Der Caddy antwortete vor entfernen nicht für firma1" >&2; exit 1; }
 HABEN_INSTANZEN=$basis bun "$(dirname "$0")/../instanzen/haben-instanzen.ts" entfernen firma2 || { kill "$schleife"; exit 1; }
 kill "$schleife"
-test "$(grep -c . "$antworten")" -gt 10
 if grep -qv '^308$' "$antworten"; then
   echo "Während entfernen antwortete der Caddy nicht immer mit 308:" >&2
   sort "$antworten" | uniq -c >&2
@@ -94,7 +99,17 @@ if docker network inspect haben-proxy-firma2 > /dev/null 2>&1; then
   echo "Das Netz haben-proxy-firma2 gibt es noch" >&2
   exit 1
 fi
-# Der Caddy hängt nur noch in haben-proxy-firma1
-test "$(docker inspect -f '{{range $n, $_ := .NetworkSettings.Networks}}{{$n}} {{end}}' "$caddy_id")" = "haben-proxy-firma1 "
+# Der Caddy hängt nicht mehr in haben-proxy-firma2, aber weiter in haben-proxy-firma1 (dazu etwa im Netz des Firmenportals)
+caddy_netze=" $(docker inspect -f '{{range $n, $_ := .NetworkSettings.Networks}}{{$n}} {{end}}' "$caddy_id")"
+case $caddy_netze in *" haben-proxy-firma2 "*)
+  echo "Der Caddy hängt noch in haben-proxy-firma2:$caddy_netze" >&2
+  exit 1
+  ;;
+esac
+case $caddy_netze in *" haben-proxy-firma1 "*) ;; *)
+  echo "Der Caddy hängt nicht mehr in haben-proxy-firma1:$caddy_netze" >&2
+  exit 1
+  ;;
+esac
 caddy_erreicht firma1
 echo "Netze geprüft: nach dem Entfernen von firma2"
