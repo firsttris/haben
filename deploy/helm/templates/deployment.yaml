@@ -1,0 +1,162 @@
+{{- if not .Values.domain }}
+{{- fail "domain fehlt, etwa haben.example.de" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "haben.fullname" . }}
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  # Ein Container je Instanz; mehrere auf derselben Datenbank sind nicht vorgesehen (#766)
+  replicas: {{ ternary 0 1 .Values.restore.enabled }}
+  # Die Migrationen beim Start gehen nur vorwärts; die alte Version darf nicht neben der neuen laufen
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "haben.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        {{- include "haben.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: app
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+    spec:
+      # Sonst setzt Kubernetes Variablen wie HABEN_DB_PORT für jeden Service im Namespace
+      enableServiceLinks: false
+      securityContext:
+        # Benutzer bun im Image
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with include "haben.scheduling" . | trim }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.postgresql.enabled }}
+      initContainers:
+        # Die Migrationen brauchen die Datenbank; ein Upgrade auf eine neue Major-Version dauert ein paar Minuten
+        - name: warten
+          image: {{ include "haben.dbImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["sh", "-c", "until pg_isready -q -h {{ include "haben.dbHost" . }} -U haben; do sleep 2; done"]
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+      {{- end }}
+      containers:
+        - name: app
+          image: {{ include "haben.appImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: BETTER_AUTH_URL
+              value: {{ printf "https://%s" .Values.domain | quote }}
+            {{- with include "haben.env" (list .Values.app.env "app.env") | trim }}
+            {{- . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "haben.appSecret" . }}
+          # Wie in deploy/compose.yml: Dateisystem schreibgeschützt bis auf die Volumes und /tmp, keine Capabilities
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          # Vor dem Server laufen die Migrationen und mit ERIC_AUTO_INSTALL=ja der Download von ERiC
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 180
+          # /api/health prüft auch die Datenbank; ohne sie nimmt der Pod keine Anfragen an, startet aber nicht neu
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+          {{- with .Values.app.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: belege
+              mountPath: /var/lib/haben/belege
+            - name: eric
+              mountPath: /var/lib/haben/eric
+            # Nur zur Fehlersuche bei einer Übermittlung, nicht im Backup
+            - name: eric-log
+              mountPath: /var/lib/haben/eric-log
+            {{- with .Values.app.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- if .Values.backup.enabled }}
+        # Im selben Pod, damit es das Volume mit den Belegen auch mit ReadWriteOnce lesen kann
+        - name: backup
+          image: {{ include "haben.backupImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with include "haben.backupEnv" . | trim }}
+          env:
+            {{- . | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "haben.backupSecret" . }}
+          securityContext:
+            allowPrivilegeEscalation: false
+          {{- with .Values.backup.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: belege
+              mountPath: /belege
+              readOnly: true
+            {{- with include "haben.backupVolumeMounts" . | trim }}
+            {{- . | nindent 12 }}
+            {{- end }}
+        {{- end }}
+      volumes:
+        # Im Speicher wie tmpfs in Compose: Haben legt hier für jeden Aufruf von ERiC das ELSTER-Zertifikat ab
+        - name: tmp
+          emptyDir:
+            medium: Memory
+        - name: belege
+          persistentVolumeClaim:
+            claimName: {{ include "haben.fullname" . }}-belege
+        - name: eric
+          persistentVolumeClaim:
+            claimName: {{ include "haben.fullname" . }}-eric
+        - name: eric-log
+          emptyDir: {}
+        {{- if .Values.backup.enabled }}
+        {{- with include "haben.backupVolumes" . | trim }}
+        {{- . | nindent 8 }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

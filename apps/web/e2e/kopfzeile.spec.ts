@@ -353,7 +353,9 @@ for (const [geraet, viewport] of [
       } else {
         await page.locator(".main > .page-head").getByRole("button", { name: knopf }).click();
       }
-      await sichtbar(page.locator(".main").getByRole("alert"));
+      // Am Laptop ist die Vorschau angeheftet; setzt sie ihr Blatt nach dem Abfangen neu, scheitert das ebenso und sie
+      // meldet es in ihrer Spalte. Geprüft wird die Meldung zum Speichern außerhalb der Vorschau
+      await sichtbar(page.locator(".main").getByRole("alert").and(page.locator(":not(.preview-pane *)")));
     });
   }
 }
