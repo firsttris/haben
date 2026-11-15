@@ -78,6 +78,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 |---|---|
 | [Umzug aus Lexoffice](lexoffice.md) | API-Abruf, Sicherung über die Web-Oberfläche oder Umzug nur über die Exporte, DATEV-Buchungsstapel, Originalexporte, offene Posten, Abgleich vor der Kündigung |
 | [Umzug aus sevDesk](sevdesk.md) | API-Abruf aus sevDesk ins selbe Archiv, Unterschiede zu Lexoffice |
+| [Umzug aus FastBill](fastbill.md) | API-Abruf aus FastBill mit Stundengrenze je Tarif, Stornos und Einzelzahlungen, ins selbe Archiv |
 | [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) | BB Standardexport, DATEV-Stapel und Original-PDFs mit Testlauf archivieren |
 | [Umzug aus Accountable](accountable.md) | Exportdatei hochladen, DATEV-Buchungsstapel und Belege verknüpfen, ohne API-Zugang |
 | [Umzug aus WISO EÜR & Kasse](wiso.md) | Wechsel zum 1. Januar vorbereiten, Originalexporte sichern, Kontakte, Artikel und Anlagen per CSV übernehmen, Grenzen bei offenen Posten |
