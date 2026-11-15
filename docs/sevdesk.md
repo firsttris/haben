@@ -30,7 +30,28 @@ Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffic
 Ist die REST-API nicht Teil deines Tarifs, gibt es zwei Wege:
 
 - **Vorübergehend auf Buchhaltung Pro wechseln**, für die Dauer des Abrufs, und danach kündigen oder zurückwechseln. Laufzeit und Kündigungsfrist des höheren Tarifs prüfst du vorher bei sevDesk.
-- **Nur über die Exporte:** Unter **Steuern › Mein Steuerberater** den Datei-Export **Buchungsdaten & Belegbilder** je Geschäftsjahr erstellen, mit Belegbildern und mit den Häkchen für festgeschriebene Daten und für offene Rechnungen und Belege; ohne sie fehlen diese im Export ([sevDesk-Hilfe: Export](https://hilfe.sevdesk.de/de/articles/9373838-export)). Die ZIP-Datei enthält den Buchungsstapel und die Stammdaten (Kontakte des Zeitraums) als DATEV-kompatible CSV sowie die Belegbilder der Ein- und Ausgangsrechnungen. Lege die ganze ZIP-Datei in Haben als **Sonstiges** ab (höchstens 100 MB je Datei, sonst kürzere Zeiträume exportieren) und daraus entpackt den Buchungsstapel noch einmal als **DATEV-Buchungsstapel**. Die Stammdaten (`EXTF_GP_Stamm_….csv`) kannst du auch einzeln als **Sonstiges** ablegen; dafür gibst du das Geschäftsjahr an. Dazu kommt der GoBD-Export ([Schritt 4](lexoffice.md#schritt-4-exporte-ablegen)), wie beim [Weg ohne API bei Lexoffice](lexoffice.md#nur-über-die-exporte). Dann fehlen die Belege als Datensätze mit Positionen und Zahlungen, die Belegbilder liegen nur als ZIP im Archiv. Die Stammdaten (`EXTF_GP_Stamm_….csv`) übernimmst du mit Debitor und Kreditor über den [CSV-Import der Kontakte](csv-import.md#kontakte-aus-datev). Offene Posten trägst du von Hand ein, und kein Jahr zeigt im Abgleich „vollständig“.
+- **Nur über die Exporte:** Unter **Steuern › Mein Steuerberater** den Datei-Export **Buchungsdaten & Belegbilder** je Geschäftsjahr erstellen, mit Belegbildern und mit den Häkchen für festgeschriebene Daten und für offene Rechnungen und Belege; ohne sie fehlen diese im Export ([sevDesk-Hilfe: Export](https://hilfe.sevdesk.de/de/articles/9373838-export)). Die ZIP-Datei enthält den Buchungsstapel und die Stammdaten (Kontakte des Zeitraums) als DATEV-kompatible CSV sowie die Belegbilder der Ein- und Ausgangsrechnungen. Lade sie unter „Umzug aus sevDesk“ bei **Ohne API: Export hochladen** hoch (höchstens 100 MB je Datei, sonst kürzere Zeiträume exportieren), siehe [Export übernehmen](#export-übernehmen). Die Stammdaten (`EXTF_GP_Stamm_….csv`) übernimmst du mit Debitor und Kreditor über den [CSV-Import der Kontakte](csv-import.md#kontakte-aus-datev). Dazu kommt der GoBD-Export ([Schritt 4](lexoffice.md#schritt-4-exporte-ablegen)), wie beim [Weg ohne API bei Lexoffice](lexoffice.md#nur-über-die-exporte).
+
+#### Export übernehmen
+
+„Hochladen und prüfen“ liest die ZIP-Datei und zeigt, was übernommen wird; angelegt ist dann noch nichts. Eine ZIP-Datei, die nicht der Export von sevDesk ist, lehnt Haben mit Grund ab. „Übernehmen“ legt danach unveränderlich ab:
+
+- die ZIP-Datei als **Sonstiges** und den Buchungsstapel daraus als **DATEV-Buchungsstapel**,
+- je Beleg einen Beleg im Archiv mit seinem Belegbild, zu finden unter **Belege** mit der Quelle „sevDesk-Export“. Ein Beleg ist eine Buchung mit Beleglink; Buchungen mit Netto oder Steuer in der Beleginfo, aber ohne Beleglink, werden ein Beleg ohne Belegbild.
+
+Einnahme oder Ausgabe richtet sich nach der Buchung, nicht nach dem Ordner in sevDesk:
+
+- **Erlöskonto:** Einnahme; im Soll gebucht, etwa eine Gutschrift, mindert sie die Einnahmen. Das gilt auch für einen Beleg aus dem Rechnungseingang auf einem Erlöskonto; der Hinweis „Richtung prüfen“ nennt ihn.
+- **Aufwandskonto:** Ausgabe. Gutschriften für Honorar und Provision liegen im Rechnungsausgang, sind aber im Soll eines Aufwandskontos mit Vorsteuer (BU 8 oder 9) gebucht: Abrechnung im Gutschriftverfahren (§ 14 Abs. 2 Satz 2 UStG), also Ausgabe-Gutschrift mit Vorsteuer wie beim Abruf über die API, ohne Hinweis.
+- **Andere Konten** (Darlehen, Privat, Steuern, Zinsen, Anlagen): Einnahme, wenn das Konto im Haben steht (Geld kommt herein), sonst Ausgabe, immer mit positivem Betrag.
+
+Einnahmen, Ausgaben und Umsatzsteuer eines Jahres nimmt der [Abgleich](#schritt-3-bis-5) aus dem Buchungsstapel nach Kontenbereich, nicht aus diesen Belegen; ein Darlehen zählt dort also weder als Einnahme noch als Ausgabe. Offene Posten legt der Export nicht an, weil er keinen Zahlungsstand je Beleg kennt; trage sie von Hand ein. Kein Jahr aus dem Export zeigt im Abgleich „vollständig“.
+
+Doppelt angelegt wird nichts:
+
+- Ein zweiter Upload derselben oder einer neueren ZIP-Datei überspringt Belege, die es schon gibt; ein fehlendes Belegbild hängt er an.
+- Liegen ZIP-Datei oder Buchungsstapel schon im Archiv, etwa auf dem früheren Weg als **Sonstiges** und **DATEV-Buchungsstapel**, bleibt es bei der vorhandenen Datei. Belegt ein anderer Buchungsstapel den Zeitraum schon, legt Haben den aus der ZIP-Datei nicht an und sagt das.
+- In einem Jahr mit Belegen aus der API legt der Export keine Belege an.
 
 #### Was der Export anders enthält als die API
 
