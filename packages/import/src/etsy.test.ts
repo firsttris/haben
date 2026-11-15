@@ -127,6 +127,7 @@ describe("Etsy-Monatsabrechnung", () => {
     const s = parseStatement(
       german([
         zeile("30. May 2024"),
+        zeile("31. May 2023"),
         zeile("31. March 2024"),
         zeile("31. März 2024"),
         zeile("31. December 2023"),
@@ -139,6 +140,7 @@ describe("Etsy-Monatsabrechnung", () => {
     expect(s.transactions.map((t) => t.bookingDate)).toEqual([
       "2022-10-31",
       "2022-10-31",
+      "2023-05-31",
       "2023-12-31",
       "2024-03-31",
       "2024-03-31",
@@ -148,9 +150,9 @@ describe("Etsy-Monatsabrechnung", () => {
   });
 
   it("bricht bei einem unbekannten Monatsnamen weiter ab, statt zu raten", () => {
-    expect(() => parseStatement(german([`"31. Brumaire 2022",Fee,"Listing fee","Listing #1",EUR,--,-€0.18,-€0.18,--`]), "etsy.csv")).toThrow(
-      StatementParseError,
-    );
+    const lesen = () => parseStatement(german([`"31. Brumaire 2022",Fee,"Listing fee","Listing #1",EUR,--,-€0.18,-€0.18,--`]), "etsy.csv");
+    expect(lesen).toThrow(StatementParseError);
+    expect(lesen).toThrow(/Ungültiges Datum „31\. Brumaire 2022“/);
   });
 
   it("Gutschriften und Erstattungen tragen das Vorzeichen aus den Beträgen, nicht aus der Art (dylancaponi im Issue #296)", () => {
