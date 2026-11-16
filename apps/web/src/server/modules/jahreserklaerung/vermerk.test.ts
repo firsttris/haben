@@ -137,6 +137,19 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
   });
 
+  // Befund 1 der Selbstprüfung Runde 4 in #1144: Die Abschlusszahlung der Umsatzsteuer hängt an den Vorauszahlungen aus den
+  // Voranmeldungen, nicht am Journal. Werden Voranmeldungen erst nach dem Vermerk nachgetragen, ändert sich das Journal nicht;
+  // neue Vermerke vergleichen deshalb Steuer und Zeilen, nicht die Abschlusszahlung
+  it("Umsatzsteuererklärung vermerkt, danach eine Voranmeldung nachgetragen: Journal unverändert, kein Befund", async () => {
+    await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
+    const ust = await annual.ustYear(2025);
+    await jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, eingabe("UST123456789", { amount: ust.abschluss }), TODAY);
+    await sql`insert into vat_returns (year, month, kz81, kz83, status, source, sent_at) values (2025, 12, 0, 50000, 'sent', 'berechnet', now())`;
+    expect((await annual.ustYear(2025)).abschluss).not.toBe(ust.abschluss);
+    const pruefen = await import("./erklaert-pruefen.ts");
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+  });
+
   it("nimmt bei der Einkommensteuererklärung keinen Betrag an, auch nicht Habens Schätzung (#1073)", async () => {
     // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag; eine Schätzung gehört nicht in den Vermerk
     const geschaetzt = (await annual.annualOverview(2025, TODAY)).est.prognose.verbleibend;
