@@ -7,7 +7,7 @@ description: "Einen Pull Request an Haben vor dem TDD-Review auf vier Fragen pr�
 
 Der Skill beantwortet vier Fragen, die das TDD-Review nicht stellt: **Wollen wir das in Haben?** **Ist es nach den Quellen gebaut und fachlich richtig?** **Ist es die einfachste Lösung?** **Ist es nach unseren Regeln gemacht?** Danach übernimmt `tdd-review`. Die Regeln stehen in `docs/mitwirken.md` unter „Beiträge annehmen“, hier die Schritte. Zwei Rollen:
 
-- **Selbstprüfung:** Der Beitragende prüft seinen eigenen Pull Request, bevor er auf „Ready for review“ geht und vor dem TDD-Review. Schritte 0 bis 4, dann „Selbstprüfung“ statt der Schritte 5 bis 7. Danach ist der Beitrag noch nicht fertig: Das unabhängige Review (`tdd-review`, `doku-pruefen`) bringt der Beitragende ebenfalls mit.
+- **Selbstprüfung:** Der Beitragende prüft seinen eigenen Pull Request, bevor er auf „Ready for review“ geht und vor dem TDD-Review. Schritte 0 bis 4, dann „Selbstprüfung“ samt unabhängigem Review statt der Schritte 5 bis 7.
 - **Maintainer-Prüfung:** Ein Maintainer oder Collaborator (die prüfende Person) prüft einen fremden Pull Request, alle Schritte außer „Selbstprüfung“.
 
 Grundsätze:
@@ -111,7 +111,7 @@ Stand: <Commit-SHA>, geprüft in einem frischen Agenten ohne den Verlauf der Ent
 ### Nachtrag: nachgebessert bis <Commit-SHA>   <je Punkt: vorher → jetzt, Commit; nur nach dem Nachbessern>
 ```
 
-- **Unabhängiges Review mitbringen:** Danach, je in einem frischen Agenten ohne den Verlauf der Entstehung, Code nach Skill `tdd-review` und Markdown nach Skill `doku-pruefen`, bei beidem parallel (Skill `beitrag`, Schritt 6), mit dem Ergebnis als Kommentar. Pusht der Beitragende danach noch, nennt der Kommentar den neuen Stand oder ist als veraltet markiert.
+- **Unabhängiges Review mitbringen:** Danach Code nach Skill `tdd-review`, Markdown nach Skill `doku-pruefen`, bei beidem parallel, je in einem frischen Agenten (Skill `beitrag`, Schritt 6).
 
 ## 5. Urteil
 
