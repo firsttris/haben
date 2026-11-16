@@ -648,6 +648,22 @@ test("Kontoauszug importieren und zuordnen", async () => {
   }
 });
 
+test("Zuordnen-Panel: der Satz zur Rechnung sagt bei einer Teilzahlung nicht „bezahlt“", async () => {
+  await go("/bank");
+  await page
+    .getByRole("link", { name: /Rheinpixel GmbH/ })
+    .first()
+    .click();
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await expect(panel.getByRole("heading", { name: "Rheinpixel GmbH" })).toBeVisible();
+  await expect(panel.getByText("Bester Treffer")).toBeVisible();
+  // Nur ein Teilbetrag im Feld: zugeordnet wird er, die Rechnung bleibt offen (nichts wird gebucht)
+  await panel.getByLabel("Betrag").fill("500,00");
+  await expect(panel).toContainText("Buchung: Bank an Forderungen");
+  await expect(panel).toContainText("deckt sie den offenen Betrag, gilt die Rechnung als bezahlt, sonst bleibt der Rest offen");
+  await expect(panel).not.toContainText("gilt dann als bezahlt");
+});
+
 test("Buchungen und Konten stimmen mit den Vorgängen überein", async () => {
   await go(`/konten?jahr=${YEAR}&zeitraum=jahr`);
   const kpis = page.getByLabel("Kennzahlen");

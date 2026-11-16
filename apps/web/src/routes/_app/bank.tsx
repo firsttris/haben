@@ -112,7 +112,7 @@ const KIND_LABEL = {
   document: "Beleg",
   privat: "Privat",
   spende: "Spende",
-  geldtransit: "Geldtransit",
+  geldtransit: "Umbuchung (Geldtransit)",
   ustVorauszahlung: "Umsatzsteuer",
   sondervorauszahlung: "Sondervorauszahlung",
   gebuehren: "Bankgebühren",
@@ -1301,7 +1301,7 @@ function AllocationPanel({
               </div>
               <p className="small muted" style={{ margin: 0 }}>
                 {best.item.type === "invoice"
-                  ? "Die Rechnung gilt dann als bezahlt (Buchung: Bank an Forderungen); bei Ist-Versteuerung wird die Umsatzsteuer mit diesem Zahlungseingang fällig."
+                  ? "Die Zahlung wird dieser Rechnung zugeordnet (Buchung: Bank an Forderungen); deckt sie den offenen Betrag, gilt die Rechnung als bezahlt, sonst bleibt der Rest offen. Bei Ist-Versteuerung wird die Umsatzsteuer mit diesem Zahlungseingang fällig, bei einer Teilzahlung anteilig."
                   : best.item.type === "ustva"
                     ? "Bucht wie „Umsatzsteuer an das Finanzamt“ (Umsatzsteuer-Vorauszahlungen), mit Bezug auf die Voranmeldung."
                     : "Bucht Verbindlichkeiten an Bank."}
