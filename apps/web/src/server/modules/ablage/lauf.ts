@@ -77,7 +77,7 @@ async function kandidaten(target: ArchiveTarget, alle: boolean): Promise<Kandida
         eq(i.status, "final"),
         isNotNull(i.number),
         gte(i.lockedAt, target.since),
-        // Aus Lexware Office übernommene Rechnungen liegen schon im alten Programm
+        // Aus einem Umzug übernommene Rechnungen (lexofficeVoucherId gilt für jede Quelle) liegen schon im alten Programm
         isNull(i.lexofficeVoucherId),
         or(isNull(d.id), and(eq(d.status, "fehler"), alle ? sql`true` : lt(d.attempts, MAX_VERSUCHE))),
       ),
