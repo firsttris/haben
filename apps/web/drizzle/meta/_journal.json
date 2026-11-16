@@ -1954,6 +1954,13 @@
       "when": 1794841647792,
       "tag": "0278_inbox_absender",
       "breakpoints": true
+    },
+    {
+      "idx": 279,
+      "version": "7",
+      "when": 1794846770640,
+      "tag": "0279_inbox_audit_spalten",
+      "breakpoints": true
     }
   ]
 }

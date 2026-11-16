@@ -302,4 +302,43 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
       ["eingang", 1],
     ]);
   });
+
+  it("protokolliert einen Fehler nach nachträglicher Freigabe unter eigenem Schlüssel statt ihn zu verschlucken", async () => {
+    await inbox.saveInboxSettings(actor, { ...settings, allowedSenders: ["lieferant.example"] });
+    await deliver({
+      from: "x@fremd.example",
+      subject: "Fremd",
+      messageId: "<fremd@fremd.example>",
+      attachments: [{ filename: "kaputt.pdf", content: pdf("kaputt") }],
+    });
+    expect(await inbox.fetchInbox(actor)).toMatchObject({ messages: 0, rejected: 1 });
+    await inbox.saveInboxSettings(actor, { ...settings, allowedSenders: ["fremd.example"] });
+    await sql`alter table documents add constraint test_kaputt check (filename <> 'kaputt.pdf')`;
+    try {
+      expect(await inbox.fetchInbox(actor)).toMatchObject({ messages: 1, documents: 0, skipped: 1, rejected: 0 });
+    } finally {
+      await sql`alter table documents drop constraint test_kaputt`;
+    }
+    const logs = await sql`select message_id, skipped from inbox_messages where message_id like '<fremd@fremd.example>%' order by created_at`;
+    expect(logs.map((r) => [r.message_id, r.skipped[0].split(":")[0]])).toEqual([
+      ["<fremd@fremd.example>", "Absender nicht freigegeben"],
+      ["<fremd@fremd.example> (nachgeholt)", "Verarbeitung fehlgeschlagen"],
+    ]);
+    // Ursache behoben, wieder ungelesen: der zweite Versuch kommt unter einem dritten Schlüssel ins Protokoll
+    box.get(1)!.seen = false;
+    expect(await inbox.fetchInbox(actor)).toMatchObject({ messages: 1, documents: 1 });
+    expect(await sql`select 1 from inbox_messages where message_id like '<fremd@fremd.example>%'`).toHaveLength(3);
+  });
+
+  it("protokolliert eine Änderung nur der Absenderfreigabe oder des Ausgangsordners", async () => {
+    await inbox.saveInboxSettings(actor, settings);
+    const max = Number((await sql`select coalesce(max(id), 0) as max from audit_log`)[0]!.max);
+    await sql`update inbox_settings set allowed_senders = '{a.example}'`;
+    await sql`update inbox_settings set outbound_folder = 'Ausgang'`;
+    const audit = await sql`select action, new_value from audit_log where table_name = 'inbox_settings' and id > ${max} order by id`;
+    expect(audit.map((r) => r.action)).toEqual(["UPDATE", "UPDATE"]);
+    expect(audit[0]!.new_value).toMatchObject({ allowed_senders: ["a.example"] });
+    expect(audit[1]!.new_value).toMatchObject({ outbound_folder: "Ausgang" });
+    expect(audit[1]!.new_value).not.toHaveProperty("ciphertext");
+  });
 });

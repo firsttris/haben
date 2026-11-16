@@ -146,7 +146,26 @@ const isRetryable = (row: { skipped: string[]; documentIds: string[] }) =>
 /** Schlüssel in inbox_messages: dieselbe Mail im Eingangs- und im Ausgangsordner zählt zweimal */
 const keyOf = (messageId: string, richtung: Richtung) => (richtung === "ausgang" ? `${messageId.slice(0, 980)} (ausgang)` : messageId.slice(0, 998));
 /** Schlüssel für das Nachholen einer Mail, deren erster Versuch fehlschlug */
-const retryKey = (messageId: string) => `${messageId.slice(0, 980)} (nachgeholt)`;
+const retryKey = (messageId: string, n: number) => `${messageId.slice(0, 970)}${n === 1 ? " (nachgeholt)" : ` (nachgeholt ${n})`}`;
+/** Der Schlüssel und bis zu fünf Nachhol-Schlüssel einer Mail */
+const keysOf = (base: string) => [base, ...[1, 2, 3, 4, 5].map((n) => retryKey(base, n))];
+
+/**
+ * Der Schlüssel, unter dem diese Mail jetzt ins Abrufprotokoll kommt: der erste freie. null, wenn sie schon
+ * abgelegt ist oder alle Schlüssel vergeben sind. Verarbeitung und Fehlerprotokoll nehmen denselben Schlüssel,
+ * sonst verschluckt `onConflictDoNothing` den Eintrag eines Fehlschlags nach einem Nachholen.
+ */
+async function freeKey(base: string): Promise<string | null> {
+  const earlier = await db
+    .select({ messageId: schema.inboxMessages.messageId, skipped: schema.inboxMessages.skipped, documentIds: schema.inboxMessages.documentIds })
+    .from(schema.inboxMessages)
+    .where(inArray(schema.inboxMessages.messageId, keysOf(base)));
+  // inbox_messages ist nur zu ergänzen: der Eintrag eines Fehlschlags oder einer Ablehnung bleibt stehen,
+  // und wer die Mail wieder auf ungelesen setzt, holt sie unter einem eigenen Schlüssel nach
+  if (earlier.some((row) => !isRetryable(row))) return null;
+  const taken = new Set(earlier.map((row) => row.messageId));
+  return keysOf(base).find((key) => !taken.has(key)) ?? null;
+}
 
 /** Steuerzeichen aus Mail-Kopfzeilen entfernen: Postgres-Text nimmt kein NUL an, und im Beleg stört der Rest */
 // biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
@@ -174,15 +193,8 @@ export function setOutboundHandler(next: OutboundHandler | null): void {
 async function processMessage(actor: string, richtung: Richtung, source: { bytes: Buffer; tooLarge: boolean }, background: (work: Promise<void>) => void) {
   const mail = await simpleParser(source.bytes);
   const messageId = messageIdOf(mail, source.bytes);
-  // inbox_messages ist nur zu ergänzen: der Eintrag eines früheren Fehlschlags bleibt stehen, und wer die
-  // Mail wieder auf ungelesen setzt, holt sie unter einem eigenen Schlüssel nach
-  const base = keyOf(messageId, richtung);
-  const earlier = await db
-    .select({ messageId: schema.inboxMessages.messageId, skipped: schema.inboxMessages.skipped, documentIds: schema.inboxMessages.documentIds })
-    .from(schema.inboxMessages)
-    .where(inArray(schema.inboxMessages.messageId, [base, retryKey(base)]));
-  if (earlier.some((row) => !isRetryable(row))) return null;
-  const key = earlier.length > 0 ? retryKey(base) : base;
+  const key = await freeKey(keyOf(messageId, richtung));
+  if (!key) return null;
 
   const from = mail.from?.value[0];
   const sender = clean(from ? (from.name ? `${from.name} <${from.address ?? ""}>` : (from.address ?? "")) : "");
@@ -251,11 +263,13 @@ function messageIdOf(mail: { messageId?: string }, bytes: Buffer) {
 async function recordFailure(actor: string, richtung: Richtung, bytes: Buffer, error: unknown) {
   const mail = await simpleParser(bytes).catch(() => null);
   const from = mail?.from?.value[0];
+  const key = await freeKey(keyOf(mail ? messageIdOf(mail, bytes) : messageIdOf({}, bytes), richtung));
+  if (!key) return;
   await withActor(actor, (tx) =>
     tx
       .insert(schema.inboxMessages)
       .values({
-        messageId: keyOf(mail ? messageIdOf(mail, bytes) : messageIdOf({}, bytes), richtung),
+        messageId: key,
         direction: richtung,
         sender: clean(from?.address ?? "").slice(0, 500),
         subject: clean(mail?.subject ?? "").slice(0, 500),
