@@ -76,7 +76,7 @@ Gesendete Voranmeldungen bleiben, wie sie sind. Passt eine gesendete Voranmeldun
 
 Jede Änderung der Einstellung steht im Änderungsprotokoll.
 
-Ein Wechsel im Jahr ist kein Beginn der Tätigkeit: Welche Monate die [Umsatzsteuererklärung](jahreserklaerung.md#umsatzsteuererklärung) als fehlend meldet, hängt davon ab, ob ein früheres Jahr einen Eintrag hat.
+Welche Monate die [Umsatzsteuererklärung](jahreserklaerung.md#umsatzsteuererklärung) als fehlend meldet, hängt davon ab, ob ein früheres Jahr einen Eintrag hat: Ohne ihn gilt der erste Eintrag des Jahres als Beginn der Tätigkeit, mit ihm als Wechsel.
 
 ## Dauerfristverlängerung
 
@@ -151,7 +151,7 @@ Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr
 
 Haben fasst alles je USt-IdNr. des Kunden und Umsatzart zusammen (in Großbuchstaben, ohne Leerzeichen; griechische Nummern mit EL statt GR) und meldet volle Euro, die Cent fallen wie in der Voranmeldung weg. Unter **Rechnungen dazu** steht jede Rechnung mit ihrem Betrag. Aus Lexoffice übernommene Rechnungen zählen nicht mit, ihre Meldung lief dort.
 
-### Vorprüfung
+### Vorprüfung der ZM
 
 | Prüfung | Folge |
 | --- | --- |
@@ -213,7 +213,7 @@ Bei neuen Bilanz-Anzahlungs-/Schlussketten von GmbH und UG gehen reine Anforderu
 
 | Kennzahl | Umsatzsteuer an der Rechnung | Maßgeblich |
 | --- | --- | --- |
-| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | [Leistungstag](#leistungstag-bei-soll-versteuerung); vor diesem Update festgeschriebene Rechnungen Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
+| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | [Leistungstag](#leistungstag-bei-soll-versteuerung); vor Version 0.9.0 festgeschriebene Rechnungen Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
 | 41 | Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
 | 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Leistungstag |
 | 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
@@ -227,7 +227,7 @@ In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nich
 
 Bei Soll-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem die Leistung ausgeführt ist, nicht mit der Rechnung ([§ 13 Abs. 1 Nr. 1 Buchst. a Satz 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)). Haben nimmt dafür den **Leistungstag**: **Leistung bis**, ist nur **Leistung von** angegeben dieser Tag, ohne Angabe das Rechnungsdatum. Beispiel: Beratung im Oktober, Rechnung vom 03.11. mit Leistungszeitraum 01.10. bis 31.10.: Die Steuer gehört in die Voranmeldung für Oktober, auch die Buchung steht am 31.10. Das gilt ebenso für Kz 43 und 48 und, unabhängig von Ist und Soll, für Kz 21 und die ZM ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)).
 
-Haben schreibt den Leistungstag beim Festschreiben fest. Rechnungen, die vor diesem Update festgeschrieben wurden, haben keinen und zählen weiter nach Rechnungsdatum; gemeldete Zahlen ändern sich durch das Update nicht. Nicht nach dem Leistungstag zählen Anzahlungen vor der Leistung (die Steuer entsteht mit der Zahlung, [Abschlags- und Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung)), Stornos und Korrekturen (im Monat ihres Datums, § 17 UStG) und innergemeinschaftliche Lieferungen (Kz 41) und Leistungen ins Drittland (Kz 45), die beim Rechnungsdatum bleiben.
+Haben schreibt den Leistungstag beim Festschreiben fest. Rechnungen, die vor Version 0.9.0 festgeschrieben wurden, haben keinen und zählen weiter nach Rechnungsdatum; gemeldete Zahlen ändern sich dadurch nicht. Nicht nach dem Leistungstag zählen Anzahlungen vor der Leistung (die Steuer entsteht mit der Zahlung, [Abschlags- und Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung)), Stornos und Korrekturen (im Monat ihres Datums, § 17 UStG) und innergemeinschaftliche Lieferungen (Kz 41) und Leistungen ins Drittland (Kz 45), die beim Rechnungsdatum bleiben.
 
 Liegt der Leistungstag in einem Zeitraum, dessen Voranmeldung schon gesendet oder vermerkt ist, schreibt Haben die Rechnung trotzdem fest und zeigt an der Rechnung einen Hinweis mit Zeitraum, Abgabedatum und Betrag. Keine spätere Voranmeldung enthält die Rechnung; lege für den genannten Zeitraum eine [berichtigte Anmeldung](#berichtigte-anmeldung) an ([§ 153 Abs. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html)). Wurde die zuletzt gesendete Anmeldung des Zeitraums nach der Festschreibung aus den Buchungen berechnet, enthält sie die Rechnung, und der Hinweis entfällt; bei von Hand überschriebenen Werten bleibt er.
 
@@ -235,13 +235,13 @@ Vereinbarte **Teilleistungen** (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 2 und 3 UStG) 
 
 ### Vorsteuer (Kz 66)
 
-Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung.
+Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung. Bei [anteiligem Vorsteuerabzug](belege.md#anteiliger-vorsteuerabzug) zählt nur der beim Buchen festgehaltene abziehbare Teil. Ist die Leistung beim Buchen noch nicht ausgeführt — das Leistungsdatum liegt nach dem Belegdatum, etwa bei einer im Voraus gestellten Rechnung oder einem Abschlag —, ist die Vorsteuer noch nicht abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 UStG): Haben bucht sie auf das Zwischenkonto (SKR03 1548, SKR04 1434) und gibt sie im Monat der Ausführung frei, auch wenn erst später oder nie bezahlt wird. Bei anteiligem Abzug parkt Haben nur den abziehbaren Teil; der übrige ist mit dem Buchen Aufwand (§ 15 Abs. 4 UStG). Wer vorher zahlt oder verrechnet, zieht den bezahlten Teil im Monat der Zahlung, frühestens im Monat der Rechnung, bei Teilzahlungen je Zahlung ihren Anteil (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1). In der EÜR ist die Vorsteuer weiter Betriebsausgabe im Jahr der Zahlung (§ 11 Abs. 2 EStG). Geparkt wird nur bei Zahlung über die Bank: Bar und privat bezahlt ist der Beleg mit der Buchung ausgeglichen und zählt nach dem Belegdatum. Gutschriften (siehe unten), § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer werden nicht geparkt, sie haben ihren eigenen Zeitpunkt. Je Beleg genügt ein Feldpaar **Leistung von** und **Leistung bis**: Bei Teilleistungen (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 3 UStG) ist jede Teilleistung ein eigener Beleg mit ihrem eigenen Zeitraum. Abschlags- und Schlussrechnungen zu einer Teilleistung tragen denselben Zeitraum wie die zugrunde liegende Leistung; die Endrechnung zählt nur den Rest (UStAE 15.3 Abs. 5).
 
-Zwei Vorgänge verschieben die Minderung. Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG). Eine **Gutschrift mit der Angabe „erstattet bereits Bezahltes“** erstattet ein schon bezahltes Entgelt; ihre Vorsteuer mindert sich erst, wenn das Geld tatsächlich zurückkommt oder der Posten verrechnet wird, je Zahlung, Verrechnung und Kursdifferenz anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum. Ohne die Angabe gilt auch für eine Gutschrift das Belegdatum; bar oder privat bezahlt ist sie mit der Buchung ausgeglichen.
+Zwei weitere Vorgänge verschieben die Minderung. Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG); vor der Ausführung wird sein Anteil stattdessen vom Zwischenkonto abgeschrieben, er war noch nicht abgezogen. Eine **Gutschrift mit der Angabe „erstattet bereits Bezahltes“** erstattet ein schon bezahltes Entgelt; ihre Vorsteuer mindert sich erst, wenn das Geld tatsächlich zurückkommt oder der Posten verrechnet wird, je Zahlung, Verrechnung und Kursdifferenz anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum. Ohne die Angabe gilt auch für eine Gutschrift das Belegdatum; die Angabe gibt es nur an Gutschriften, die über die Bank laufen ([Gutschrift für schon Bezahltes](belege.md#gutschrift-für-schon-bezahltes)).
 
 Ausgebuchtes Skonto an einer solchen Gutschrift zählt nicht mit: Es erstattet nichts, sondern erlässt den Rest, und wird deshalb vom Zwischenkonto abgeschrieben, ohne die Vorsteuer zu ziehen.
 
-Beide Quellen sagen dasselbe: Die Buchung legt die Vorsteuer beim Buchen auf das Zwischenkonto (SKR03 1548, SKR04 1434) und zieht sie erst mit dem Ausgleich auf die Vorsteuer, und die Voranmeldung aus den Nebenbüchern verteilt sie nach derselben Regel. Kz 66 stimmt deshalb aus Journal und Nebenbüchern je Monat überein (`kz66-paritaet.test.ts`).
+Beide Quellen sagen dasselbe: Die Buchung legt die Vorsteuer beim Buchen auf das Zwischenkonto. Bei der Gutschrift zieht erst der Ausgleich sie auf die Vorsteuer; bei einem Leistungsdatum nach dem Belegdatum schreibt Haben zugleich eine zweite Buchung mit dem Leistungsdatum fest, die sie umbucht. Die Voranmeldung aus den Nebenbüchern verteilt sie nach derselben Regel. Eine Zahlung vor der Ausführung nimmt diese vorausdatierte Umbuchung zurück, zieht ihren Anteil an ihrem eigenen Tag um, frühestens aber zum Rechnungsdatum, und schreibt den Rest wieder zum Leistungsdatum fest; eine schon gezahlte Steuer wird nicht ein zweites Mal freigegeben. Skonto, Verrechnung und Aufhebungen vor der Ausführung ziehen die Umbuchung ebenso nach. Eine Kursdifferenz vor der Ausführung ist keine Zahlung und zieht nichts um: Die Vorsteuer bleibt beim Kurs der Rechnung (§ 16 Abs. 6 UStG), ihr Anteil wird mit der Ausführung frei. Nach der Ausführung bleibt ihr Monat unberührt: Was eine spätere Aufhebung auf das Zwischenkonto zurücklegt, wird am selben Tag wieder frei. Ein Storno vor der Ausführung hebt die Umbuchung in ihrem eigenen Monat auf, nicht schon am Tag des Stornos. Kz 66 stimmt deshalb aus Journal und Nebenbüchern je Monat überein (`kz66-paritaet.test.ts`).
 
 ### § 13b als Leistungsempfänger
 
@@ -251,7 +251,7 @@ Aus [Belegen mit § 13b](belege-ausland.md#reverse-charge-als-leistungsempfänge
 | --- | --- |
 | 46 / 47 | Sonstige Leistungen eines Unternehmers aus dem EU-Ausland (§ 13b Abs. 1): Netto in vollen Euro, Steuer centgenau |
 | 84 / 85 | Andere Leistungen nach § 13b Abs. 2, hier Leistungen von Unternehmern aus dem Drittland: Netto in vollen Euro, Steuer centgenau |
-| 67 | Vorsteuer aus diesen Leistungen, bei Privatanteil nur der betriebliche Teil; ohne Vorsteuerabzug 0 |
+| 67 | Vorsteuer aus diesen Leistungen, bei Privatanteil nur der betriebliche Teil, bei anteiligem Abzug nur der abziehbare Teil; ohne Vorsteuerabzug 0 |
 
 Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst. Ein [auf mehrere Kategorien aufgeteilter Beleg](belege.md#auf-mehrere-kategorien-aufteilen) zählt mit seinen Beträgen je Satz, genau wie ohne Aufteilung.
 
@@ -263,7 +263,7 @@ Aus [Belegen mit innergemeinschaftlichem Erwerb](belege-ausland.md#innergemeinsc
 | --- | --- |
 | 89 | Steuerpflichtige innergemeinschaftliche Erwerbe zu 19 %: Netto in vollen Euro, die Steuer rechnet das Formular daraus wie bei Kz 81 |
 | 93 | Steuerpflichtige innergemeinschaftliche Erwerbe zu 7 %: ebenso |
-| 61 | Vorsteuer aus dem innergemeinschaftlichen Erwerb (§ 15 Abs. 1 Satz 1 Nr. 3 UStG), centgenau; bei Privatanteil nur der betriebliche Teil |
+| 61 | Vorsteuer aus dem innergemeinschaftlichen Erwerb (§ 15 Abs. 1 Satz 1 Nr. 3 UStG), centgenau; bei Privatanteil nur der betriebliche Teil, bei anteiligem Abzug nur der abziehbare Teil |
 
 Bei vollem Vorsteuerabzug heben sich Erwerbsteuer und Kz 61 auf, bis auf die Rundung der Bemessungsgrundlage auf volle Euro. Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst.
 

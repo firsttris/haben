@@ -595,6 +595,22 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
   await expect(insert).toHaveValue("");
 });
 
+// Die allgemeine Regel für Knopfzeilen (Knöpfe füllen die Zeile) steht vor der des Seitenkopfs und darf sie nicht schlagen: Im
+// Kopf scrollt die Zeile am Handy seitlich, die Knöpfe schrumpfen nicht und ihre Beschriftung bricht nicht um (DESIGN.md › Seitenkopf)
+test("Handy: Knöpfe im Seitenkopf schrumpfen nicht, die Zeile scrollt seitlich", async () => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize(HANDY);
+  try {
+    await go("/bank");
+    const knoepfe = page.locator(".main > .page-head .actions > .btn");
+    await expect(knoepfe.first()).toBeVisible();
+    const schrumpfen = await knoepfe.evaluateAll((alle) => alle.map((k) => getComputedStyle(k).flexShrink));
+    expect(schrumpfen).toEqual(schrumpfen.map(() => "0"));
+  } finally {
+    if (vorher) await page.setViewportSize(vorher);
+  }
+});
+
 test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zurück, Leiste an der Markierung", async () => {
   await go("/rechnungen/neu");
   const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
@@ -2725,6 +2741,10 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   const korrekturUrl = page.url();
   await page.getByLabel("Einzelpreis Position 1").fill("-20,00");
   await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  // Das Neuladen setzt den Editor mit den gespeicherten Werten neu auf; erst danach die Rückfrage öffnen.
+  await expect(page.getByText("Entwurf gespeichert.", { exact: true })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByLabel("Einzelpreis Position 1")).toHaveValue("-20,00");
   await page.getByRole("button", { name: "Festschreiben" }).click();
   await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });

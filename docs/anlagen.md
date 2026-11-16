@@ -2,7 +2,7 @@
 title: "Anlagen und AfA: Abschreibung und Anlagenverzeichnis"
 description: >-
   Anlagegüter über 800 € netto erfassen und abschreiben: lineare AfA, GWG, Sammelposten,
-  Anlagenverzeichnis (AVEÜR) und Übernahme aus Lexoffice.
+  Anlagenverzeichnis (AVEÜR) und Übernahme aus Lexoffice und sevDesk.
 ---
 
 # Anlagen und AfA
@@ -12,7 +12,7 @@ Wirtschaftsgüter, die länger als ein Jahr im Betrieb bleiben und mehr als 800 
 ## So gehst du vor
 
 1. **Neue Anschaffung:** Lade die Rechnung als [Beleg](belege.md) hoch und wähle die Kategorie **Anlagegut (wird abgeschrieben)**. Gib Bezeichnung, Art, Abschreibung und gegebenenfalls die Nutzungsdauer an und buche den Beleg. Dabei entsteht die Anlage im Verzeichnis.
-2. **Anlage aus Lexoffice oder einer anderen Buchhaltung:** Unter **Anlagen › Anlage übernehmen** trägst du sie mit dem Restbuchwert zum Übernahmestichtag ein (siehe [Übernahme](#übernahme-aus-lexoffice)). Viele auf einmal übernimmst du mit **CSV importieren** aus einer Liste ([CSV-Import](csv-import.md#anlagen)).
+2. **Anlage aus Lexoffice oder einer anderen Buchhaltung:** Unter **Anlagen › Anlage übernehmen** trägst du sie mit dem Restbuchwert zum Übernahmestichtag ein (siehe [Übernahme](#übernahme-aus-lexoffice)). Viele auf einmal übernimmst du mit **CSV importieren** aus einer Liste ([CSV-Import](csv-import.md#anlagen)). Aus sevDesk holt Haben das Anlagenverzeichnis selbst ([Umzug aus sevDesk](sevdesk.md#schritt-4-anlagen-übernehmen)).
 3. **Zum Jahresende:** Ab dem 1. Dezember buchst du unter **Anlagen** mit **AfA … buchen** die Abschreibungen des Jahres. Die Übersicht erinnert daran.
 
 In der EÜR steht die AfA schon vorher, sobald die Anlage im Verzeichnis ist.
@@ -91,7 +91,7 @@ Beim Buchen eines Belegs mit der Kategorie **Anlagegut** bucht Haben den Nettobe
 1576 Vorsteuer 19 %          6.840,00
 ```
 
-Die Vorsteuer zählt wie bei jedem Beleg in der Voranmeldung und, sobald bezahlt, in der EÜR. Der Kaufpreis selbst ist keine Ausgabe; er wirkt nur über die AfA. Ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten.
+Die Vorsteuer zählt wie bei jedem Beleg in der Voranmeldung und, sobald bezahlt, in der EÜR. Der Kaufpreis selbst ist keine Ausgabe; er wirkt nur über die AfA. Der nicht abziehbare Teil der Vorsteuer gehört zu den Anschaffungskosten. Für Anlagen aus innergemeinschaftlichem Erwerb gelten die [Grenzen der Belegbuchung](belege.md#grenzen).
 
 Die Anlage übernimmt Datum und Betrag vom Beleg. Art und Anlagekonto stehen damit fest. Abschreibung (außer GWG und Sammelposten), Nutzungsdauer, degressiven Satz und Erinnerungswert kannst du bis zur ersten gebuchten AfA auf der Seite der Anlage noch ändern; bei degressiver AfA nimmt Haben zuerst den Höchstsatz. Von der Anlage führt ein Link zum Beleg und umgekehrt.
 

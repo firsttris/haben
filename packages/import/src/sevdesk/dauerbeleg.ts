@@ -1,3 +1,4 @@
+import type { Cents } from "@haben/core";
 import { lexDate } from "../lexoffice/map.ts";
 import { mapSevVoucher, sevNumber } from "./map.ts";
 import type { SevVoucher, SevVoucherPos } from "./types.ts";
@@ -21,7 +22,7 @@ export interface SevDauerbeleg {
   reference: string;
   category: "sonstiges";
   payment: "bank";
-  amounts: { taxRate: 1900 | 700 | 0; net: number; tax: number }[];
+  amounts: { taxRate: 1900 | 700 | 0; net: Cents; tax: Cents }[];
   taxShown: boolean;
   intervalMonths: 1 | 3 | 6 | 12;
   anchorDay: number;

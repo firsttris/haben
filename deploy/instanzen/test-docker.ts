@@ -24,10 +24,17 @@ export interface Zustaende {
   zuAlt: Set<string>;
   /** Der gemeinsame Caddy läuft; `up -d` in proxy/ startet ihn */
   caddyLaeuft: boolean;
-  /** Netze, in denen der Container des Caddy hängt: aus den Dateien beim Neuaufbau, dazu per network connect */
+  /**
+   * Netze, in denen der Container des Caddy hängt: aus den Dateien beim Neuaufbau, dazu per network connect. Ein
+   * gestoppter Container behält sie in seiner Konfiguration; löscht network rm eines davon, startet er nicht mehr
+   */
   caddyNetze: Set<string>;
+  /** Wie oft der Container des Caddy entstanden ist (`up -d` in proxy/ baut ihn auf); entfernen darf sie nicht ändern */
+  caddyErzeugt: number;
   /** docker network connect scheitert */
   connectKaputt: boolean;
+  /** docker network disconnect scheitert */
+  disconnectKaputt: boolean;
   /** caddy reload scheitert, etwa an einem fehlerhaften Block in sites/ */
   reloadKaputt: boolean;
   /** Netze, die docker kennt (docker network create, oder von Compose angelegt) */
@@ -46,6 +53,10 @@ export interface Zustaende {
   zeichen: Map<string, unknown>;
   /** Was `haben kennzeichen` je Instanz ausgibt; ohne Eintrag Exit-Code 3 (kein Logo als Zeichen) */
   logos: Map<string, Uint8Array>;
+  /** `haben status --json` scheitert mit diesem Code und dieser Meldung, etwa -1 für ein Zeitlimit oder 1, wenn die Datenbank neu startet */
+  statusFehler: Map<string, { code: number; stderr?: string }>;
+  /** `haben kennzeichen` scheitert mit diesem Code (3 ist dort kein Fehler, sondern „kein Logo“) */
+  kennzeichenFehler: Map<string, number>;
 }
 
 export const STATUS_JSON = JSON.stringify({
@@ -65,16 +76,19 @@ const ps = (dienste: [string, string, string][]) => dienste.map(([Service, State
 /** Die Befehle im Container der App (haben status, haben kennzeichen) und der Neustart des Firmenportals */
 function habenBefehl(z: Zustaende, d: string, sub: string, binaer?: boolean): Ergebnis | undefined {
   if (sub === "exec -T app haben status --json")
-    return z.zuAlt.has(d)
-      ? {
-          code: 127,
-          stdout: "",
-          stderr: 'OCI runtime exec failed: exec failed: unable to start container process: exec: "haben": executable file not found in $PATH',
-        }
-      : ok(z.zeichen.has(d) ? JSON.stringify({ ...JSON.parse(STATUS_JSON), zeichen: z.zeichen.get(d) }) : STATUS_JSON);
+    return z.statusFehler.has(d)
+      ? { code: z.statusFehler.get(d)?.code ?? 1, stdout: "", stderr: z.statusFehler.get(d)?.stderr ?? "connection refused" }
+      : z.zuAlt.has(d)
+        ? {
+            code: 127,
+            stdout: "",
+            stderr: 'OCI runtime exec failed: exec failed: unable to start container process: exec: "haben": executable file not found in $PATH',
+          }
+        : ok(z.zeichen.has(d) ? JSON.stringify({ ...JSON.parse(STATUS_JSON), zeichen: z.zeichen.get(d) }) : STATUS_JSON);
   if (sub === "exec -T app haben kennzeichen") {
     if (!binaer) return { code: 2, stdout: "", stderr: "kennzeichen nur als Bytes lesen" };
     if (z.zuAlt.has(d)) return { code: 127, stdout: "", stderr: "executable file not found", daten: new Uint8Array() };
+    if (z.kennzeichenFehler.has(d)) return { code: z.kennzeichenFehler.get(d) ?? 1, stdout: "", stderr: "connection refused", daten: new Uint8Array() };
     const logo = z.logos.get(d);
     return logo ? { code: 0, stdout: "", stderr: "", daten: logo } : { code: 3, stdout: "", stderr: "Kein Logo als Zeichen gewählt", daten: new Uint8Array() };
   }
@@ -82,11 +96,30 @@ function habenBefehl(z: Zustaende, d: string, sub: string, binaer?: boolean): Er
   return undefined;
 }
 
-/** docker network …: Netze, die docker kennt, und die des Caddy-Containers */
+/** Den Container des Caddy gibt es, sobald er läuft oder einmal mit `up -d` entstanden ist; auch gestoppt */
+const caddyDa = (z: Zustaende) => z.caddyLaeuft || z.caddyErzeugt > 0;
+
+/** docker network …: Netze, die docker kennt, und die des Caddy-Containers (connect, disconnect, rm, create, inspect, ls) */
 function netzBefehl(z: Zustaende, args: string[]): Ergebnis | undefined {
   if (args[0] === "connect") {
     if (z.connectKaputt || args[2] !== "caddy-id") return { code: 1, stdout: "", stderr: "Error response from daemon: network not found" };
     z.caddyNetze.add(args[1] ?? "");
+    return ok();
+  }
+  // disconnect geht auch bei einem gestoppten Container
+  if (args[0] === "disconnect") {
+    if (z.disconnectKaputt || args[2] !== "caddy-id" || !caddyDa(z))
+      return { code: 1, stdout: "", stderr: "Error response from daemon: container is not connected to the network" };
+    if (!z.caddyNetze.delete(args[1] ?? "")) return { code: 1, stdout: "", stderr: "Error response from daemon: container is not connected to the network" };
+    return ok();
+  }
+  if (args[0] === "rm") {
+    const netz = args[1] ?? "";
+    if (!z.netze.has(netz)) return { code: 1, stdout: "", stderr: `Error response from daemon: network ${netz} not found` };
+    // Ein laufender Container hält einen Endpunkt im Netz; ein gestoppter nicht, er behält das Netz aber in caddyNetze
+    if (z.caddyLaeuft && z.caddyNetze.has(netz))
+      return { code: 1, stdout: "", stderr: `Error response from daemon: error while removing network: network ${netz} has active endpoints` };
+    z.netze.delete(netz);
     return ok();
   }
   const netz = args.at(-1) ?? "";
@@ -101,8 +134,16 @@ function netzBefehl(z: Zustaende, args: string[]): Ergebnis | undefined {
 
 /** docker compose im Verzeichnis proxy/ des gemeinsamen Caddy; undefined für alles, was dort wie überall antwortet */
 function caddy(z: Zustaende, sub: string, cwd: string): Ergebnis | undefined {
-  if (sub === "ps -a --format json") return ok(z.caddyLaeuft ? ps([["caddy", "running", ""]]) : "");
+  if (sub === "ps -a --format json") return ok(caddyDa(z) ? ps([["caddy", z.caddyLaeuft ? "running" : "exited", ""]]) : "");
   if (sub === "ps -q caddy") return ok(z.caddyLaeuft ? "caddy-id\n" : "");
+  if (sub === "ps -a -q caddy") return ok(caddyDa(z) ? "caddy-id\n" : "");
+  // Start des vorhandenen Containers ohne Neuaufbau: scheitert wie bei Docker, wenn eines seiner Netze fehlt
+  if (sub === "start caddy" && caddyDa(z)) {
+    const fehlt = [...z.caddyNetze].find((n) => !z.netze.has(n));
+    if (fehlt) return { code: 1, stdout: "", stderr: `Error response from daemon: failed to set up container networking: network ${fehlt} not found` };
+    z.caddyLaeuft = true;
+    return ok();
+  }
   if (sub === "exec -T caddy caddy reload --config /etc/caddy/Caddyfile")
     return z.reloadKaputt ? { code: 1, stdout: "", stderr: "Error: adapting config using caddyfile" } : ok();
   // Compose legt fehlende Netze aus den Dateien an; --no-recreate lässt den laufenden Container, wie er ist
@@ -113,6 +154,7 @@ function caddy(z: Zustaende, sub: string, cwd: string): Ergebnis | undefined {
   // Neuaufbau aus den Dateien: Der Container hängt danach in genau den Netzen aus compose.override.yml
   if (sub === "up -d") {
     z.caddyNetze = new Set(netzeAus(cwd));
+    z.caddyErzeugt += 1;
     for (const netz of z.caddyNetze) z.netze.add(netz);
     z.caddyLaeuft = true;
     return ok();
@@ -130,7 +172,9 @@ export function nachbau() {
     zuAlt: new Set(),
     caddyLaeuft: false,
     caddyNetze: new Set(),
+    caddyErzeugt: 0,
     connectKaputt: false,
+    disconnectKaputt: false,
     reloadKaputt: false,
     netze: new Set(),
     projekte: [],
@@ -141,20 +185,25 @@ export function nachbau() {
     upKaputt: new Set(),
     zeichen: new Map(),
     logos: new Map(),
+    statusFehler: new Map(),
+    kennzeichenFehler: new Map(),
   };
   const aufrufe: string[] = [];
+  /** Das Zeitlimit je Aufruf, wenn eins übergeben wurde */
+  const zeitlimits: { aufruf: string; zeitlimit: number }[] = [];
   const umgebungen: { aufruf: string; env: Record<string, string> }[] = [];
   /** Was ein Aufruf auf der Standardeingabe bekam, etwa createuser das Passwort */
   const eingaben: { aufruf: string; eingabe: string }[] = [];
   const neugestartet = new Set<string>();
   const hochgefahren = new Set<string>();
 
-  const ausfuehren: Ausfuehren = async (befehl, { cwd, env, eingabe, binaer }) => {
+  const ausfuehren: Ausfuehren = async (befehl, { cwd, env, eingabe, binaer, zeitlimit }) => {
     const [programm, ...args] = befehl;
     const d = basename(cwd) || "-";
     const aufruf = `${d} ${args.join(" ")}`;
     aufrufe.push(aufruf);
     umgebungen.push({ aufruf, env });
+    if (zeitlimit !== undefined) zeitlimits.push({ aufruf, zeitlimit });
     if (eingabe !== undefined) eingaben.push({ aufruf, eingabe });
     if (programm !== "docker") return { code: 127, stdout: "", stderr: `${programm}: not found` };
     if (z.tot) return { code: 1, stdout: "", stderr: "permission denied while trying to connect to the Docker daemon socket" };
@@ -204,7 +253,7 @@ export function nachbau() {
     if (sub === "pull") return ok();
     return { code: 2, stdout: "", stderr: `unbekannt: ${sub}` };
   };
-  return { z, aufrufe, umgebungen, eingaben, ausfuehren };
+  return { z, aufrufe, umgebungen, zeitlimits, eingaben, ausfuehren };
 }
 
 /** Ein Testlauf: eigenes Verzeichnis, nachgebautes docker, Ausgaben eingesammelt */

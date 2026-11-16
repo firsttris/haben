@@ -1,13 +1,20 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod/mini";
-import { FORMAT_LABEL } from "../../../lib/invoice.ts";
+import { FORMAT_LABEL, type InvoiceFormat } from "../../../lib/invoice.ts";
 import { getContacts } from "../../../server/functions/contacts.ts";
 import { Field } from "../../../components/Field.tsx";
 import { Tag } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/kontakte/")({
-  validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])), suche: z.optional(z.string()) }),
+  validateSearch: z.object({
+    archiv: z.optional(z.boolean()),
+    rolle: z.optional(z.enum(["kunde", "lieferant"])),
+    suche: z.optional(z.string()),
+    /** Spaltenkopf sortiert; der Zustand steht im Link, damit er sich teilen lässt (#1112) */
+    sort: z.optional(z.enum(["name", "email", "ort", "format"])),
+    dir: z.optional(z.enum(["auf", "ab"])),
+  }),
   loaderDeps: ({ search }) => ({ archived: search.archiv ?? false, role: search.rolle, query: search.suche?.trim().slice(0, 100) }),
   loader: async ({ deps }) => {
     const filters = { archived: deps.archived, ...(deps.role ? { role: deps.role } : {}) };
@@ -20,6 +27,12 @@ export const Route = createFileRoute("/_app/kontakte/")({
   head: () => ({ meta: [{ title: "Kontakte · Haben" }] }),
   component: ContactsPage,
 });
+
+const richtungText = (dir: "auf" | "ab") => (dir === "ab" ? "absteigend" : "aufsteigend");
+
+/** Text der Spalte Rechnungsformat; die Sortierung nimmt denselben, damit die Liste so sortiert ist, wie sie aussieht */
+const formatText = (c: { leitwegId: string | null; defaultFormat: InvoiceFormat | null }) =>
+  c.leitwegId ? "XRechnung (Leitweg-ID)" : c.defaultFormat ? FORMAT_LABEL[c.defaultFormat] : "wie in den Einstellungen";
 
 const ROLE_FILTERS = [
   { label: "Alle", role: undefined },
@@ -41,6 +54,39 @@ function ContactsPage() {
       : needle
         ? contacts.filter((c) => [c.name, c.kundennummer, c.lieferantennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
         : contacts;
+  // Spaltenkopf sortiert: Ohne Auswahl nach Name aufsteigend, ein anderer Kopf aufsteigend, derselbe Kopf nochmal dreht die Richtung (#1112)
+  const { sort = "name", dir = "auf" } = Route.useSearch();
+  const richtung = dir === "auf" ? 1 : -1;
+  const sorted = [...shown].sort((a, b) => {
+    switch (sort) {
+      case "email":
+        return richtung * (a.email ?? "").localeCompare(b.email ?? "", "de");
+      case "ort":
+        return richtung * [a.plz, a.ort].filter(Boolean).join(" ").localeCompare([b.plz, b.ort].filter(Boolean).join(" "), "de");
+      case "format":
+        return richtung * formatText(a).localeCompare(formatText(b), "de");
+      default:
+        return richtung * a.name.localeCompare(b.name, "de");
+    }
+  });
+  const kopf = (feld: "name" | "email" | "ort" | "format", text: string) => {
+    const aktiv = sort === feld;
+    const naechste: "auf" | "ab" = aktiv && dir === "auf" ? "ab" : "auf";
+    return (
+      <Link
+        to="/kontakte"
+        search={(prev: Record<string, unknown>) => ({ ...prev, sort: feld, dir: naechste }) as { sort: typeof feld; dir: "auf" | "ab" }}
+        className={aktiv ? "sort-head aktiv" : "sort-head"}
+      >
+        {text}
+        <span className={aktiv ? "" : "muted"} aria-hidden="true">
+          {aktiv ? (dir === "auf" ? " \u2191" : " \u2193") : " \u2195"}
+        </span>
+        {/* Die Richtung im Namen des Links wie in BankSortierKopf, ohne aria-label (siehe Belegliste) */}
+        <span className="visually-hidden">{` ${richtungText(naechste)} sortieren${aktiv ? `, zurzeit ${richtungText(dir)} sortiert` : ""}`}</span>
+      </Link>
+    );
+  };
   return (
     <>
       <div className="page-head">
@@ -98,12 +144,12 @@ function ContactsPage() {
         ) : (
           <div className="table">
             <div className="table-row head contact-cols">
-              <div>Name</div>
-              <div>E-Mail</div>
-              <div>Ort</div>
-              <div>Rechnungsformat</div>
+              {kopf("name", "Name")}
+              {kopf("email", "E-Mail")}
+              {kopf("ort", "Ort")}
+              {kopf("format", "Rechnungsformat")}
             </div>
-            {shown.map((contact) => (
+            {sorted.map((contact) => (
               <Link key={contact.id} to="/kontakte/$id" params={{ id: contact.id }} className="table-row contact-cols">
                 <div style={{ minWidth: 0 }}>
                   <span className="row-title">{contact.name}</span>{" "}
@@ -119,9 +165,7 @@ function ContactsPage() {
                   {contact.telefon && <span style={{ display: "block" }}>{contact.telefon}</span>}
                 </div>
                 <div className="muted">{[contact.plz, contact.ort].filter(Boolean).join(" ") || "–"}</div>
-                <div className="small muted">
-                  {contact.leitwegId ? "XRechnung (Leitweg-ID)" : contact.defaultFormat ? FORMAT_LABEL[contact.defaultFormat] : "wie in den Einstellungen"}
-                </div>
+                <div className="small muted">{formatText(contact)}</div>
               </Link>
             ))}
           </div>

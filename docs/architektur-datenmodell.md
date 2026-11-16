@@ -29,6 +29,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `beleg_layouts` | Eigene Belegvorlagen (#113): Name, Art (`beleg` oder `mahnung`), Typst-Quelltext, SHA-256, Version des Feldvertrags, Pakete und `approved_sha256` (Freigabe der Pakete für genau diesen Quelltext); Paket-Cache je Layout unter `DOCUMENTS_DIR/vorlagen/<id>/pakete` | Audit mit Quelltext |
 | `letterhead_profiles` | Gestaltung der Belege als JSON (`settings`: Layout je Belegart, Akzentfarbe, Logo-Größe und -Seite, Schalter, eigene Fußzeile); heute genau ein Standardprofil (`is_default`), ohne Zeile gelten die Vorgaben aus `packages/core` | höchstens ein Standardprofil, Akzentfarbe nur `#RRGGBB`, Audit |
 | `custom_pages` | [Eigene Seiten](eigene-seiten.md): Name, Adresse und ob der Menüeintrag die Seite im Rahmen zeigt oder in einem neuen Tab öffnet (`open_in_new_tab`) | Audit |
+| `procedure_details` | [Angaben zum Betrieb](verfahrensdokumentation.md#angaben-zum-betrieb) für die Verfahrensdokumentation (Verantwortliche, Ort der Aufbewahrung, Papierbelege, Betrieb des Servers, Datensicherung, Ablage von Schlüsseln, Ergänzungen); genau eine Zeile | Audit, kein `TRUNCATE` |
 | `exchange_rates` | Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG) je Währung und Monat, vom BMF abgerufen oder von Hand eingetragen; Belege und Rechnungen speichern ihren Kurs selbst | Audit |
 
 ## Rechnungen und Belege
@@ -139,11 +140,14 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `lexoffice_voucher_files` | Dateien zu einem Lexoffice-Beleg | nur anhängen |
 | `legacy_voucher_payments` | Belegte Einzelzahlungen aus sevDesk oder lokalen Paketen mit Datum, Betrag, Konto und Herkunft; eindeutig je Zuordnung | nur anhängen, Audit |
 | `sevdesk_accounting_types` | Kontostamm der Buchungskonten aus sevDesk (`GET /AccountingType/{id}`), unverändert; eindeutig je Konto und Stand | nur anhängen, Audit, TRUNCATE gesperrt |
+| `sevdesk_accounting_type_decisions` | Kontoart einer sevDesk-Gutschrift auf ein Buchungskonto, von Hand festgelegt (Erlös- oder Aufwandskonto); die jüngste gilt | nur anhängen, Audit, TRUNCATE gesperrt |
 | `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk oder lokalen Paketen mit Positionen und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit |
 | `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer V1-Auftrags-PDF-Abrufe | nur anhängen, Audit |
 | `legacy_order_files` | Automatisch abgerufene oder manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |
 | `legacy_dunnings` | Mahnungen aus sevDesk, je Stufe eine Zeile mit Kennung der gemahnten Rechnung, Stufe, Frist, gemahntem Betrag und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit, TRUNCATE gesperrt |
 | `legacy_dunning_files` | PDFs der Mahnungen aus sevDesk mit Prüfsumme | nur anhängen, Audit, TRUNCATE gesperrt |
+| `legacy_vat_reports` | übermittelte Umsatzsteuer-Voranmeldungen aus sevDesk: Zeitraum, Übermittlung, Transferticket, Kz 83 und die unveränderte API-Antwort; nur Archiv, nicht in `vat_returns` | nur anhängen, Audit, TRUNCATE gesperrt |
+| `legacy_vat_report_files` | Übermittlungsprotokolle (PDF) dieser Voranmeldungen mit Prüfsumme | nur anhängen, Audit, TRUNCATE gesperrt |
 | `external_imports` | Quellidentität und Inhaltshash eines lokalen Paketvorgangs mit genau einem Verweis auf Originalbeleg, Auftragsdokument oder Journalbuchung; keine eigene Zahlungs-/EÜR-Quelle | nur anhängen, Audit; vorhandene Herkunft nicht per TRUNCATE leerbar |
 | `external_import_settlements` | Bestätigter Bezug einer importierten Zahlungsbuchung zur ursprünglichen OP-Buchung derselben Quelle; ohne zusätzliche Journalbuchung | nur anhängen, Audit, TRUNCATE gesperrt; bestehende Originale und Herkunftshashes unverändert |
 
@@ -165,5 +169,5 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `mcp_tokens` | API-Tokens für MCP und REST-API: Name, SHA-256 des Tokens, Anfang zum Wiedererkennen, Rechte, Ablauf, letzte Nutzung, Widerruf; eine OAuth-Verbindung (Connector) zusätzlich mit Client, Ablauf des Access-Tokens und SHA-256 des aktuellen und vorigen Refresh-Tokens | ohne Audit (Zugangsdaten wie die Passkeys) |
 | `mcp_oauth_clients` | Per Dynamic Client Registration angemeldete OAuth-Clients: `client_id`, SHA-256 des Secrets, Name, Redirect-URIs; ohne Verbindung nach einem Tag gelöscht | ohne Audit (Zugangsdaten) |
 | `mcp_calls` | Aufrufe über MCP und REST-API ohne Inhalte: Token, Werkzeug, Erfolg, Dauer; nach 90 Tagen gelöscht | ohne Audit |
-| `backup_status` | Läufe des Backup-Containers (tägliches Backup, wöchentlicher Test-Restore) mit Ergebnis, Snapshot und Größe; der Container schreibt, die App liest | ohne Audit und Siegel (Betriebsdaten) |
+| `backup_status` | Läufe des Backup-Containers (tägliches Backup, wöchentlicher Test-Restore) mit Ergebnis, Snapshot, Größe und Ziel ohne Zugangsdaten (`target`, für die [Verfahrensdokumentation](verfahrensdokumentation.md)); der Container schreibt, die App liest | ohne Audit und Siegel (Betriebsdaten) |
 | `file_checks` | Läufe der Vollprüfung der Dateien im Dokumentenspeicher: Zeitpunkt, Anzahl der Dateien, Zahl der Befunde und die ersten 100 davon (Tabelle, Datensatz, Dateiname, Befund); nach 90 Tagen gelöscht | ohne Audit und Siegel (Betriebsdaten) |

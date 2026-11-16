@@ -339,6 +339,7 @@ export function buildEuerXml(input: EuerXmlInput): string {
         "BEin",
         [
           sumNode("Kleinunternehmer", kz("kleinunternehmer"), f.kleinunternehmer),
+          sumNode("Umsatz_nicht_steuerbar", EUER_FIELDS.kleinunternehmerAbzuege.kz, f.kleinunternehmerAbzuege),
           sumNode("USt_StPflicht", kz("steuerpflichtig"), f.steuerpflichtig),
           sumNode("USt_StFrei", kz("steuerfrei"), f.steuerfrei),
           sumNode("USt_Vereinnahmt_Unentgeltl", kz("vereinnahmteUst"), f.vereinnahmteUst),

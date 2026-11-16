@@ -14,7 +14,10 @@ export interface Zeichen {
 
 export const KEIN_ZEICHEN: Zeichen = { farbe: null, logo: null };
 
-/** Wie MAX_LOGO_BYTES in Haben und im Firmenportal */
+/*
+ * Wie MAX_LOGO_BYTES und bildFormat in @haben/core (packages/core/src/bildformat.ts): hier eigen, weil dieses Werkzeug nichts
+ * aus packages/ importieren darf; portal-bildformat.test.ts gleicht beides ab.
+ */
 const MAX_BYTES = 1024 * 1024;
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const JPEG = [0xff, 0xd8, 0xff];
@@ -43,7 +46,7 @@ export function logoPruefen(daten: Uint8Array, erwartet: NonNullable<Zeichen["lo
   if (daten.length === 0) return "ist leer";
   if (daten.length > MAX_BYTES) return "ist größer als 1 MB";
   const kopf = erwartet.format === "png" ? PNG : JPEG;
-  if (!kopf.every((byte, i) => daten[i] === byte)) return `ist kein ${erwartet.format === "png" ? "PNG" : "JPEG"}`;
+  if (daten.length <= kopf.length || !kopf.every((byte, i) => daten[i] === byte)) return `ist kein ${erwartet.format === "png" ? "PNG" : "JPEG"}`;
   if (sha256(daten) !== erwartet.sha256) return "hat eine andere Prüfsumme als gemeldet";
   return null;
 }

@@ -1,3 +1,4 @@
+import type { BasisPoints, Cents } from "@haben/core";
 import type { LegacyVoucher } from "../lexoffice/map.ts";
 
 export class WisoParseError extends Error {
@@ -18,10 +19,10 @@ export interface WisoCsvRow {
   kontobezeichnung: string;
   gegenkonto: string;
   gegenkontobezeichnung: string;
-  soll: number;
-  haben: number;
+  soll: Cents;
+  haben: Cents;
   steuerschluessel: string;
-  steuersatz: number;
+  steuersatz: BasisPoints;
   steuerschluesselbezeichnung: string;
   belegnummer: string;
   buchungsdatum: string | null;
@@ -35,8 +36,8 @@ export interface WisoVoucher {
   year: number;
   raw: Record<string, unknown>;
   neutral: boolean;
-  /** Tatsächlicher Zu- oder Abfluss in Cent; bei § 13b UStG und EU-Erwerb das Netto */
-  paid: number;
+  /** Tatsächlicher Zu- oder Abfluss; bei § 13b UStG und EU-Erwerb das Netto */
+  paid: Cents;
 }
 
 export interface WisoPreview {

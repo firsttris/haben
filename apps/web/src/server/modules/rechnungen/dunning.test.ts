@@ -1,7 +1,23 @@
-import { startvorlage } from "@haben/einvoice";
+import { dunningPdfData, startvorlage, type DunningDocument } from "@haben/einvoice";
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+
+const seen = vi.hoisted(() => ({ docs: [] as DunningDocument[] }));
+vi.mock("@haben/einvoice", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@haben/einvoice")>();
+  return {
+    ...original,
+    buildDunningPdf: (doc: DunningDocument) => {
+      seen.docs.push(doc);
+      return original.buildDunningPdf(doc);
+    },
+    buildDunningDraftPdf: (doc: DunningDocument) => {
+      seen.docs.push(doc);
+      return original.buildDunningDraftPdf(doc);
+    },
+  };
+});
 
 describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
   let dunning: typeof import("./dunning.ts");
@@ -25,7 +41,8 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await leeren(sql)`truncate dunnings, journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices, invoice_number_counters,
+    await leeren(sql)`truncate dunnings, write_offs, allocations, cash_entries, bank_transactions, bank_imports, bank_accounts,
+      journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices, invoice_number_counters,
       contact_versions, contacts, company, beleg_layouts cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank, dunning)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
@@ -95,6 +112,44 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
     // Die letzte Stufe darf sich wiederholen
     expect((await dunning.createDunning(actor, { ...input, level: 3 }, "2026-10-17")).level).toBe(3);
   });
+
+  it("übergibt Bank- und Barteilzahlungen samt Aufhebung an Entwurf und gespeichertes Mahn-PDF", async () => {
+    const bank = await import("../bank/index.ts");
+    const csv = [
+      '"Girokonto";"DE12120300001234567890"',
+      '""',
+      '"Kontostand vom 01.10.2026:";"300,00 €"',
+      '""',
+      '"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"',
+      '"01.10.26";"01.10.26";"Gebucht";"Teilzahler";"Testfirma";"Teilzahlung";"Eingang";"DE02100100100006820101";"200,00";"";"";""',
+      '"02.10.26";"02.10.26";"Gebucht";"Aufgehoben";"Testfirma";"Irrtum";"Eingang";"DE02100100100006820101";"100,00";"";"";""',
+    ].join("\n");
+    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "teilzahlungen.csv" }, null);
+    const txs = await sql`select id from bank_transactions order by booking_date`;
+    await bank.allocate(actor, { kind: "invoice", transactionId: txs[0]!.id, invoiceId, amount: 20000 });
+    await bank.allocate(actor, { kind: "invoice", transactionId: txs[1]!.id, invoiceId, amount: 10000 });
+    const [wrong] = await sql`select id from allocations where transaction_id = ${txs[1]!.id}`;
+    await bank.reverseAllocation(actor, wrong!.id, "2026-10-15");
+    await bank.createCashInvoiceEntry(actor, { invoiceId, date: "2026-10-03", amount: 5000, text: "Barteilzahlung" }, "2026-10-15");
+    const cash = await bank.createCashInvoiceEntry(actor, { invoiceId, date: "2026-10-04", amount: 2500, text: "Bar storniert" }, "2026-10-15");
+    await bank.reverseCashEntry(actor, cash.id, "2026-10-15");
+    const input = { invoiceId, level: 1 as const, dueDate: "2026-10-25", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" };
+    const journalBefore = await sql`select count(*)::int as n from journal_entries`;
+    await dunning.dunningDraftPdf(input, "2026-10-15");
+    await dunning.createDunning(actor, input, "2026-10-15");
+    for (const doc of seen.docs.slice(-2)) {
+      const data = dunningPdfData(doc);
+      expect(data.claimDetails).toMatchObject({ originalAmount: "1.190,00 €", openAmount: "940,00 €" });
+      expect(data.paymentDetails).toMatchObject({ amount: "940,00 €", dueDate: "25.10.2026", reference: "Rechnung 2026-001" });
+      expect(data.paymentHistory.map((p) => [p.date, p.method, p.amount, p.effect, p.reversed])).toEqual([
+        ["01.10.2026", "Bank", "200,00 €", "-200,00 €", false],
+        ["02.10.2026", "Bank", "100,00 €", null, true],
+        ["03.10.2026", "Bar", "50,00 €", "-50,00 €", false],
+        ["04.10.2026", "Bar", "25,00 €", null, true],
+      ]);
+    }
+    expect(await sql`select count(*)::int as n from journal_entries`).toEqual(journalBefore);
+  }, 60_000);
 
   it("lehnt Mahnungen vor Fälligkeit und mit Frist in der Vergangenheit ab", async () => {
     const input = { invoiceId, level: 1 as const, dueDate: "2026-09-20", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" };

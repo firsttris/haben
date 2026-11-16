@@ -131,7 +131,7 @@ export function reviewHint(pr: { draft?: boolean; author_association?: string; u
   return [
     {
       level: "warning",
-      message: `Vor dem Merge: Selbstprüfung mit \`beitrag-pruefen\` als Kommentar im Pull Request, dann ein unabhängiges Review mit ${review} durch jemand anderen oder einen frischen Agenten. Die Skills liegen in .claude/skills/; ohne beides prüfen wir alles selbst nach, und der Merge dauert (docs/mitwirken.md, Beiträge annehmen).`,
+      message: `Vor dem Merge: Selbstprüfung mit \`beitrag-pruefen\` als Kommentar im Pull Request, dann ein unabhängiges Review mit ${review} durch jemand anderen oder einen frischen Agenten. Die Skills liegen in .claude/skills/; fehlt eins davon, prüfen wir den Pull Request nicht (docs/mitwirken.md, Beiträge annehmen).`,
     },
   ];
 }

@@ -1,10 +1,11 @@
 import { mapSevPaymentLogs, SevdeskApiError, type SevCheckAccountTransactionLog, type SevdeskClient } from "@haben/import";
 import { eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { schema } from "../../db/index.ts";
+import { ohneJit } from "../../db/ohne-jit.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { progressMessage } from "./lexoffice.ts";
-import { effectivePayment, paymentHistoryIssue } from "./payment-history.ts";
+import { effectivePayment, paymentHistoryIssue } from "../auswertungen/index.ts";
 
 /*
  * Einzelzahlungen aus sevDesk (#343): CheckAccountTransactionLog ordnet einen Bankumsatz mit Betrag einem Beleg zu,
@@ -19,17 +20,20 @@ export async function importSevdeskPayments(
   progress: LexofficeImportProgress,
   signal: AbortSignal,
 ): Promise<void> {
-  const vouchers = await db
-    .select({
-      id: schema.lexofficeVouchers.id,
-      lexofficeId: schema.lexofficeVouchers.lexofficeId,
-      source: schema.lexofficeVouchers.source,
-      gross: schema.lexofficeVouchers.gross,
-      status: schema.lexofficeVouchers.status,
-      payment: effectivePayment("lexoffice_vouchers"),
-    })
-    .from(schema.lexofficeVouchers)
-    .where(eq(schema.lexofficeVouchers.source, "sevdesk"));
+  // Ausdrücke über alle sevDesk-Belege: mit JIT dauerte schon das Kompilieren Sekunden (ohne-jit.ts)
+  const vouchers = await ohneJit((tx) =>
+    tx
+      .select({
+        id: schema.lexofficeVouchers.id,
+        lexofficeId: schema.lexofficeVouchers.lexofficeId,
+        source: schema.lexofficeVouchers.source,
+        gross: schema.lexofficeVouchers.gross,
+        status: schema.lexofficeVouchers.status,
+        payment: effectivePayment("lexoffice_vouchers"),
+      })
+      .from(schema.lexofficeVouchers)
+      .where(eq(schema.lexofficeVouchers.source, "sevdesk")),
+  );
   // Alle Logs kosten viele Seiten; nur abrufen, wenn noch eine Zahlungshistorie offen ist
   // Auch Stornopaare: Sie gelten nur als storniert, solange keine Zahlung zu ihnen bekannt ist
   const pending = new Map(vouchers.filter((v) => v.payment?.history === "storno" || paymentHistoryIssue(v)).map((v) => [v.lexofficeId, v.id]));

@@ -1,0 +1,52 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- if not .Values.networkPolicy.ingressFrom }}
+{{- fail "networkPolicy.ingressFrom fehlt: die Pods des Ingress-Controllers oder Gateways, die an die App dürfen" }}
+{{- end }}
+# Wie das eigene Netz in Compose: An Port 3000 kommt nur der Proxy, sonst könnte jeder Pod im Cluster X-Forwarded-For
+# setzen (https://haben.app/installation.html#eigener-reverse-proxy). Ausgehend bleibt alles offen, wie in Compose.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "haben.fullname" . }}
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "haben.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: app
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- toYaml .Values.networkPolicy.ingressFrom | nindent 8 }}
+      ports:
+        - port: 3000
+          protocol: TCP
+{{- if .Values.postgresql.enabled }}
+---
+# An die Datenbank kommen nur die App mit dem Backup und der Pod zum Wiederherstellen dieser Installation
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "haben.dbHost" . }}
+  labels:
+    {{- include "haben.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "haben.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: db
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- range list "app" "restore" }}
+        - podSelector:
+            matchLabels:
+              {{- include "haben.selectorLabels" $ | nindent 14 }}
+              app.kubernetes.io/component: {{ . }}
+        {{- end }}
+      ports:
+        - port: 5432
+          protocol: TCP
+{{- end }}
+{{- end }}

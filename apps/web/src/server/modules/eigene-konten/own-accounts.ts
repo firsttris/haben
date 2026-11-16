@@ -1,4 +1,4 @@
-import { ownAccountProblem, type ExpenseCategory, type Kontenrahmen, OWN_ACCOUNT_NAME_MAX } from "@haben/core";
+import { EXPENSE_CATEGORIES, ownAccountParents, ownAccountProblem, type ExpenseCategory, type Kontenrahmen, OWN_ACCOUNT_NAME_MAX } from "@haben/core";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -210,4 +210,26 @@ export async function deleteOwnAccount(actor: string, id: string): Promise<void>
     await tx.delete(schema.ownAccounts).where(eq(schema.ownAccounts.id, id));
   });
   await refreshOwnAccountNames();
+}
+
+/** Die eigenen Konten des Kontenrahmens der Firma mit den Elternkategorien, die für ein neues Konto zur Wahl stehen (Einstellungen, Beleg) */
+export async function ownAccountsOverview() {
+  const company = await loadCompany();
+  const accounts = (await listOwnAccounts())
+    .filter((a) => a.kontenrahmen === company.kontenrahmen)
+    .map((a) => ({
+      id: a.id,
+      account: a.account,
+      name: a.name,
+      parentCategory: a.parentCategory,
+      parentLabel: EXPENSE_CATEGORIES[a.parentCategory]?.label ?? a.parentCategory,
+      archived: a.archivedAt !== null,
+    }));
+  const parents = ownAccountParents(company.kontenrahmen).map((value) => ({
+    value,
+    label: EXPENSE_CATEGORIES[value].label,
+    /** Nummer des Kontos der Kategorie; das eigene Konto liegt im selben Bereich */
+    account: EXPENSE_CATEGORIES[value][company.kontenrahmen],
+  }));
+  return { kontenrahmen: company.kontenrahmen, accounts, parents };
 }

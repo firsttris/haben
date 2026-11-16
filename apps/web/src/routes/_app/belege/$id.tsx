@@ -1,5 +1,4 @@
 import {
-  abziehbarerAnteil,
   ASSET_KINDS,
   ASSET_METHODS,
   convertForeignAmounts,
@@ -16,7 +15,6 @@ import {
   usesUsefulLife,
   type ExpenseCategory,
   type SelfAssessedTax,
-  VOLLER_ABZUG,
   isKapitalgesellschaft,
   elektroAvailable,
   ownerLabels,
@@ -28,6 +26,7 @@ import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
 import { BelegVerrechnung } from "../../../components/BelegVerrechnung.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
+import { EigenesKontoWahl, passendesKonto } from "../../../components/EigenesKontoWahl.tsx";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
@@ -36,11 +35,12 @@ import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
-import { aendereBetragszeile, betragszeileAus, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
+import { aendereBetragszeile, betragszeileAus, betragszeileGespeichert, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
 import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
+import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil } from "../../../components/VorsteuerAnteil.tsx";
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
@@ -63,6 +63,10 @@ export const Route = createFileRoute("/_app/belege/$id")({
 
 type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
 type Rate = BetragsSatz;
+
+interface AmountState extends Betragszeile {
+  vorsteuerAnteil: string;
+}
 
 let nextKey = 1;
 
@@ -302,7 +306,7 @@ function Preview({ doc }: { doc: Detail["document"] }) {
 
 function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (dirty: boolean) => void }) {
   const buchenText = useKuerzelText(BUCHEN_KUERZEL);
-  const { document: doc, amounts, splits, categories, issues, aiAvailable, navigation } = data;
+  const { document: doc, amounts, splits, categories, ownAccounts, issues, aiAvailable, navigation } = data;
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveDocument);
@@ -329,10 +333,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [serviceFrom, setServiceFrom] = useState(doc.serviceFrom ?? "");
   const [serviceTo, setServiceTo] = useState(doc.serviceTo ?? "");
   const [category, setCategory] = useState(doc.category ?? "");
+  // Eigenes Sachkonto statt des Kontos der Kategorie (#270); leer = das Konto der Kategorie
+  const [ownAccountId, setOwnAccountId] = useState(doc.ownAccountId ?? "");
   const [payment, setPayment] = useState(doc.payment);
   const [privateShare, setPrivateShare] = useState(doc.privateShare ? String(doc.privateShare) : "");
-  // Abziehbarer Anteil der Vorsteuer (#852): null = Vorgabe der Firmendaten, sonst 0 oder VOLLER_ABZUG
-  const [vorsteuerAnteil, setVorsteuerAnteil] = useState(doc.vorsteuerAnteil);
+  // Leer = Firmenvorgabe, sonst wirtschaftlich zugeordneter Anteil mit bis zu zwei Nachkommastellen.
+  const [vorsteuerAnteil, setVorsteuerAnteil] = useState(formatVorsteuerAnteil(doc.vorsteuerAnteil));
   // Gutschrift erstattet bereits Bezahltes (#786): die Vorsteuerminderung wartet auf den Ausgleich
   const [erstattetBezahltes, setErstattetBezahltes] = useState(doc.erstattetBezahltes);
   // Angaben zur Anlage bei Kategorie „anlage“; Vorschläge laut AfA-Tabelle
@@ -346,16 +352,19 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
   const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
   // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
-  const [rows, setRows] = useState<Betragszeile[]>(() =>
-    (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null }]).map((a) => {
+  const [rows, setRows] = useState<AmountState[]>(() =>
+    (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null, vorsteuerAnteil: null }]).map((a) => {
       const net = doc.currency === "EUR" ? a.net : (a.originalNet ?? 0);
       const tax = calculateInitialTax ? taxOf(net, a.taxRate) : doc.currency === "EUR" ? a.tax : (a.originalTax ?? 0);
-      return betragszeileAus(nextKey++, a.taxRate as Rate, net, tax, amounts.length === 0, amounts.length > 0);
+      return {
+        ...betragszeileGespeichert(nextKey++, a.taxRate as Rate, net, tax, amounts.length === 0),
+        vorsteuerAnteil: formatVorsteuerAnteil(a.vorsteuerAnteil),
+      };
     }),
   );
   // Aufteilung auf mehrere Kategorien (#271); leer = die Kategorie gilt für den ganzen Beleg
   const [splitRows, setSplitRows] = useState<SplitRowState[]>(() =>
-    splits.map((s) => splitRow(s.category as ExpenseCategory, s.taxRate as Rate, formatDecimal(s.net))),
+    splits.map((s) => splitRow(s.category as ExpenseCategory, s.taxRate as Rate, formatDecimal(s.net), s.ownAccountId ?? "")),
   );
   const splitting = splitRows.length > 0;
   const [dirty, setDirty] = useState(
@@ -370,13 +379,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
 
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
 
-  const parsed = rows.map((r) => ({ taxRate: r.taxRate, net: parseEuro(r.net || "0"), tax: parseEuro(r.tax || "0") }));
+  const parsed = rows.map((r) => ({
+    taxRate: r.taxRate,
+    net: parseEuro(r.net || "0"),
+    tax: parseEuro(r.tax || "0"),
+    vorsteuerAnteil: parseVorsteuerAnteil(r.vorsteuerAnteil),
+  }));
   // Mit Aufteilung gibt es (noch) keinen Privatanteil, siehe Grenzen in docs/belege.md
   const privateShareValue = category === "anlage" || splitting ? 0 : Number(privateShare || 0);
   const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
-  // Gebucht gilt der festgehaltene Abzug (deckt Altbelege ab), im Entwurf Belegwahl vor Firmenvorgabe
-  const vorgabeOhne = abziehbarerAnteil(data, null) === 0;
-  const ohneAbzug = doc.lockedAt ? !doc.vorsteuerAbzug : abziehbarerAnteil(data, vorsteuerAnteil) === 0;
   const currencyCode = currency.trim().toUpperCase();
   const foreign = currencyCode !== "EUR";
   const rate = exchangeRate.trim() ? parseExchangeRate(exchangeRate) : null;
@@ -388,6 +399,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     (Boolean(reverseCharge) || rows.every(bruttoLesbar)) &&
     new Set(rows.map((r) => r.taxRate)).size === rows.length &&
     privateShareValid &&
+    [vorsteuerAnteil, ...rows.map((row) => row.vorsteuerAnteil)].every((text) => text.trim() === "" || parseVorsteuerAnteil(text) !== null) &&
     currencyValid &&
     parsedSplits !== null;
   const BETRAG_FEHLER = "Trag den Betrag als Zahl ein, etwa 120,50.";
@@ -398,6 +410,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         [`netto-${r.key}`, parsed[i]!.net === null ? BETRAG_FEHLER : null],
         [`steuer-${r.key}`, parsed[i]!.tax === null ? BETRAG_FEHLER : null],
         [`brutto-${r.key}`, reverseCharge || bruttoLesbar(r) ? null : BETRAG_FEHLER],
+        [
+          `vorsteuer-${r.key}`,
+          r.vorsteuerAnteil.trim() === "" || parsed[i]!.vorsteuerAnteil !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein.",
+        ],
       ]),
     ),
     ...Object.fromEntries(
@@ -409,6 +425,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     waehrung: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
     kurs: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
     privatanteil: privateShareValid ? null : "Trag eine ganze Zahl von 0 bis 100 ein.",
+    vorsteuer: vorsteuerAnteil.trim() === "" || parseVorsteuerAnteil(vorsteuerAnteil) !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein.",
   } as Record<string, string | null>);
   // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
   const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : foreign ? "Fremdwährung" : null;
@@ -434,7 +451,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     // Gezahlt wird das Netto; ein vorher eingegebenes Brutto ist keine Grundlage mehr
     if (value) {
       setRows((prev) =>
-        prev.map((row) => aendereBetragszeile(row, { taxRate: row.taxRate === 0 ? 1900 : row.taxRate, taxTouched: false, basis: "net" }, true)),
+        prev.map((row) => ({
+          ...aendereBetragszeile(row, { taxRate: row.taxRate === 0 ? 1900 : row.taxRate, taxTouched: false, basis: "net" }, true),
+          vorsteuerAnteil: row.vorsteuerAnteil,
+        })),
       );
     }
   }
@@ -442,7 +462,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   /** Aufteilen: je Betragszeile eine Zeile mit der bisherigen Kategorie, dazu eine leere zum Verteilen */
   function startSplitting() {
     const first = category === "anlage" ? "" : (category as ExpenseCategory | "");
-    const fromAmounts = rows.map((row, i) => splitRow(i === 0 ? first : "", row.taxRate, row.net));
+    const fromAmounts = rows.map((row, i) => splitRow(i === 0 ? first : "", row.taxRate, row.net, i === 0 ? ownAccountId : ""));
     touch(setSplitRows)([...fromAmounts, splitRow("", rows[0]?.taxRate ?? 1900, "")]);
   }
 
@@ -453,8 +473,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     };
   }
 
-  function updateRow(key: number, patch: Partial<Omit<Betragszeile, "key">>) {
-    setRows((prev) => prev.map((row) => (row.key === key ? aendereBetragszeile(row, patch, Boolean(reverseCharge)) : row)));
+  function updateRow(key: number, patch: Partial<Omit<AmountState, "key">>) {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.key === key ? { ...aendereBetragszeile(row, patch, Boolean(reverseCharge)), vorsteuerAnteil: patch.vorsteuerAnteil ?? row.vorsteuerAnteil } : row,
+      ),
+    );
     setDirty(true);
   }
 
@@ -486,10 +510,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           serviceFrom: serviceFrom || null,
           serviceTo: serviceTo || null,
           category: splitting ? null : ((category || null) as ExpenseCategory | null),
+          ownAccountId: splitting ? null : passendesKonto(ownAccounts, category, ownAccountId) || null,
           payment,
           note,
           privateShare: privateShareValue,
-          vorsteuerAnteil,
+          vorsteuerAnteil: parseVorsteuerAnteil(vorsteuerAnteil),
           // Nur an einer Gutschrift über die Bank sinnvoll; sonst schickt der Editor immer „nein“ (#786)
           erstattetBezahltes: gross !== null && gross < 0 && payment === "bank" ? erstattetBezahltes : false,
           reverseCharge,
@@ -509,7 +534,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           amounts: parsed
             .filter((p) => p.net !== 0 || p.tax !== 0)
             .map((p) =>
-              foreign ? { taxRate: p.taxRate, net: 0, tax: 0, originalNet: p.net!, originalTax: p.tax! } : { taxRate: p.taxRate, net: p.net!, tax: p.tax! },
+              foreign
+                ? { taxRate: p.taxRate, net: 0, tax: 0, originalNet: p.net!, originalTax: p.tax!, vorsteuerAnteil: p.vorsteuerAnteil }
+                : { taxRate: p.taxRate, net: p.net!, tax: p.tax!, vorsteuerAnteil: p.vorsteuerAnteil },
             ),
         },
       },
@@ -699,6 +726,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   value={category}
                   onChange={(e) => {
                     touch(setCategory)(e.target.value);
+                    setOwnAccountId(passendesKonto(ownAccounts, e.target.value, ownAccountId));
                     // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
                     const preset = data.privateShares[e.target.value];
                     setPrivateShare(preset ? String(preset) : "");
@@ -713,6 +741,23 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 </select>
               )}
             </Field>
+          )}
+          {/* Beide Seiten: eigenes Konto (main, #842) und der Hinweis bei gebuchtem Beleg (#1112) */}
+          {!splitting && category !== "anlage" && (
+            <EigenesKontoWahl
+              accounts={ownAccounts}
+              category={category}
+              value={ownAccountId}
+              onChange={touch(setOwnAccountId)}
+              style={{ gridColumn: "1 / -1" }}
+            />
+          )}
+          {!splitting && locked && !data.cancellation && data.cancellationIssues.length === 0 && (
+            // Ein gebuchter Beleg ist gesperrt; statt den Knopf stillschweigend zu verstecken, sagt die Seite warum (#1112).
+            // Nur, wenn er sich stornieren lässt: Bei einem Anlagegut oder einem übernommenen Beleg nennt die Seite den Grund
+            <p className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
+              Gebucht: Die Aufteilung auf mehrere Kategorien geht vor dem Buchen. Ein gebuchter Beleg lässt sich stornieren und die Kopie danach aufteilen.
+            </p>
           )}
           {!splitting && !readOnly && (
             <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
@@ -797,16 +842,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             reverseCharge === "ig_erwerb" ? (
               <>
                 Ein Unternehmer aus einem anderen EU-Land liefert dir Ware ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. auf der Rechnung. Die Erwerbsteuer
-                schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung
-                {ohneAbzug ? "; ohne Vorsteuerabzug wird sie Teil der Ausgabe" : ", und zieht sie zugleich als Vorsteuer ab (Kz 61)"}. Bezahlt wird nur der
-                Nettobetrag. Weist der Händler deutsche Umsatzsteuer aus, bleibt es ein gewöhnlicher Beleg.
+                schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung, und
+                zieht den abziehbaren Anteil als Vorsteuer ab (Kz 61). Nicht abziehbare Steuer wird Teil der Ausgabe. Bezahlt wird nur der Nettobetrag. Weist
+                der Händler deutsche Umsatzsteuer aus, bleibt es ein gewöhnlicher Beleg.
               </>
             ) : reverseCharge ? (
               <>
                 Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz{" "}
-                {reverseCharge === "eu" ? "46/47" : "84/85"}
-                {ohneAbzug ? "; ohne Vorsteuerabzug wird sie Teil der Ausgabe" : " und zieht sie zugleich als Vorsteuer ab (Kz 67)"}. Bezahlt wird nur der
-                Nettobetrag.
+                {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht den abziehbaren Anteil als Vorsteuer ab (Kz 67). Nicht abziehbare Steuer wird Teil der
+                Ausgabe. Bezahlt wird nur der Nettobetrag.
               </>
             ) : (
               looksLikeReverseCharge && (
@@ -969,7 +1013,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             onClick={() => {
               const used = new Set(rows.map((r) => r.taxRate));
               const rate = ([1900, 700, 0] as Rate[]).find((r) => !used.has(r)) ?? 0;
-              setRows((prev) => [...prev, betragszeileAus(nextKey++, rate, 0, 0, true, false)]);
+              setRows((prev) => [...prev, { ...betragszeileAus(nextKey++, rate, 0, 0, true, false), vorsteuerAnteil: "" }]);
+              setDirty(true);
             }}
           >
             + Steuersatz
@@ -1004,6 +1049,24 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         <p className="small muted" style={{ margin: 0 }}>
           Gutschriften mit Minus eingeben.
         </p>
+        <VorsteuerAnteil
+          value={vorsteuerAnteil}
+          company={data}
+          booked={locked}
+          storedDeduction={doc.vorsteuerAbzug}
+          privateShare={privateShareValue}
+          asset={category === "anlage"}
+          importVat={category === "einfuhrumsatzsteuer"}
+          onChange={touch(setVorsteuerAnteil)}
+          onRateChange={(key, value) => updateRow(key, { vorsteuerAnteil: value })}
+          rows={rows.map((row, index) => ({
+            key: row.key,
+            taxRate: row.taxRate,
+            vorsteuerAnteil: row.vorsteuerAnteil,
+            net: foreign ? (euroRows?.[index]?.net ?? null) : parsed[index]!.net,
+            tax: foreign ? (euroRows?.[index]?.tax ?? null) : parsed[index]!.tax,
+          }))}
+        />
         {/* Privatanteil nur im Einzelunternehmen; in GmbH und UG wäre er Arbeitslohn oder verdeckte Gewinnausschüttung */}
         {category !== "anlage" && !splitting && !isKapitalgesellschaft(data.rechtsform) && (
           <Field
@@ -1023,23 +1086,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             )}
           </Field>
         )}
-        {/* Kleinunternehmer ziehen nie ab (§ 19 Abs. 1 UStG): dort gibt es nichts zu wählen */}
-        {!data.kleinunternehmer && (
-          <div className="checkbox-hinted">
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={ohneAbzug}
-                onChange={(e) => touch(setVorsteuerAnteil)(e.target.checked === vorgabeOhne ? null : e.target.checked ? 0 : VOLLER_ABZUG)}
-                aria-describedby="vorsteuer-ohne-hint"
-              />
-              <span>Ohne Vorsteuerabzug</span>
-            </label>
-            <span id="vorsteuer-ohne-hint" className="field-hint">
-              Die Steuer wird Teil der Ausgabe, keine Vorsteuer (§ 15 Abs. 2 UStG). Vorgabe in den Firmendaten: {vorgabeOhne ? "ohne" : "mit"} Vorsteuerabzug.
-            </span>
-          </div>
-        )}
       </fieldset>
 
       {splitting && (
@@ -1050,6 +1096,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               parsed.every((p) => p.net !== null && p.tax !== null) && !foreign ? parsed.map((p) => ({ taxRate: p.taxRate, net: p.net!, tax: p.tax! })) : null
             }
             categories={categories}
+            ownAccounts={ownAccounts}
             disabled={readOnly || running}
             onChange={touch(setSplitRows)}
             taxLabel={reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
@@ -1057,6 +1104,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             onDissolve={() => {
               // Zurück zu einer Kategorie: die der ersten Zeile
               touch(setCategory)(splitRows[0]?.category ?? "");
+              setOwnAccountId(splitRows[0]?.ownAccountId ?? "");
               setSplitRows([]);
             }}
           />

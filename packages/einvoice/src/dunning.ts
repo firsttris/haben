@@ -1,4 +1,5 @@
-import { DUNNING_LEVELS, formatEuro, parseTextFormatting, type DunningAmounts, type DunningLevel } from "@haben/core";
+import { DUNNING_LEVELS, formatEuro, parseTextFormatting, type Cents, type DunningAmounts, type DunningLevel } from "@haben/core";
+import { dunningLayoutData, dunningRate } from "./dunning-layout-data.ts";
 import { accountHolder, formatDate, formatIban } from "./format.ts";
 import { TEXTS } from "./i18n.ts";
 import { asDraft, draftFilename, footerData, recipientLines, renderDunningPdf, showsCustomerNumber, type DraftPdf } from "./pdf.ts";
@@ -14,18 +15,18 @@ export interface DunningDocument extends Letterhead {
   seller: Seller;
   buyer: Buyer;
   /** skontoExpired: Die Rechnung bot Skonto an; nach Fristablauf weist die Mahnung darauf hin, dass es entfallen ist */
-  invoice: { number: string; issueDate: string; dueDate: string; skontoExpired?: boolean };
+  invoice: { number: string; issueDate: string; dueDate: string; skontoExpired?: boolean; gross?: Cents };
+  /** Zugeordnete Bank- und Barzahlungen; aufgehobene Originalzeilen bleiben gekennzeichnet erhalten. */
+  payments?: { date: string; amount: Cents; via: "bank" | "bar"; text: string; reversed: boolean }[];
   amounts: DunningAmounts;
   intro: string;
   closing: string;
 }
 
-const percent = (basisPoints: number) =>
-  `${new Intl.NumberFormat("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(basisPoints / 100)} %`;
-
 /** Druckfertige Texte für templates/mahnung.typ */
 export function dunningPdfData(doc: DunningDocument) {
   const { seller, buyer, amounts } = doc;
+  const details = dunningLayoutData(doc);
   const title = DUNNING_LEVELS[doc.level].title;
   const meta = [
     { label: "Datum", value: formatDate(doc.date) },
@@ -39,13 +40,14 @@ export function dunningPdfData(doc: DunningDocument) {
   if (amounts.flatFee) rows.push({ label: "Verzugspauschale (§ 288 Abs. 5 BGB)", value: formatEuro(amounts.flatFee) });
   if (amounts.interest) {
     rows.push({
-      label: `Verzugszinsen ${percent(amounts.interestRate)} p. a. für ${amounts.interestDays} Tage`,
+      label: `Verzugszinsen ${dunningRate(amounts.interestRate)} p. a. für ${amounts.interestDays} Tage`,
       value: formatEuro(amounts.interest),
     });
   }
 
   const account = seller.iban ? ` auf das Konto IBAN ${formatIban(seller.iban)}${seller.bic ? ` (BIC ${seller.bic})` : ""}` : "";
   return {
+    ...details,
     docTitle: `${title} zur Rechnung ${doc.invoice.number}`,
     author: seller.name,
     title,
@@ -77,7 +79,7 @@ export function dunningPdfData(doc: DunningDocument) {
             iban: seller.iban,
             ...(seller.bic ? { bic: seller.bic } : {}),
             amount: amounts.total,
-            text: `Rechnung ${doc.invoice.number}`,
+            text: details.paymentDetails.reference,
           })
         : null,
     closing: doc.closing.trim(),

@@ -5,9 +5,9 @@ import {
   ASSET_METHOD_KEYS,
   assetAccount,
   assetIssues,
-  convertForeignAmounts,
   CURRENCY_CODE,
   abziehbarerAnteil,
+  abziehbareSteuer,
   einfuhrumsatzsteuerIssues,
   EXPENSE_CATEGORY_KEYS,
   formatRateMonth,
@@ -38,6 +38,7 @@ import { contactRoleProblem, loadCompany, resolveExchangeRate, type Company } fr
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
+import { freigabeAmAusfuehrung } from "../umsatzsteuer/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { fileInUse } from "../../db/file-in-use.ts";
 import { today } from "../../today.ts";
@@ -49,7 +50,8 @@ import { detectOwnInvoiceFor, ownInvoiceHint, ownInvoiceRecord, partiesOfEInvoic
 import { pdfTextLines } from "./pdf-text.ts";
 import { supplierCategory, supplierPayment } from "./vorschlaege.ts";
 import { loadSplits, replaceSplits, splitBookingIssues, splitInputSchema, type DocumentSplit } from "./splits.ts";
-import { belegSummen, belegZeilen, totalsOf } from "./belegbuchung.ts";
+import { euroAmounts } from "./belegbetraege.ts";
+import { belegSummen, belegZeilen, totalsOf, leistungNochNichtAusgefuehrt } from "./belegbuchung.ts";
 
 export type Document = typeof schema.documents.$inferSelect;
 export type DocumentAmount = typeof schema.documentAmounts.$inferSelect;
@@ -79,11 +81,8 @@ const documentFields = z.object({
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
   privateShare: z.number().int().min(0).max(100).default(0),
-  /** Vorsteuerabzug am Beleg (#852): 0 = ohne, 10000 = voll; null = Vorgabe der Firmendaten. Teilabzug folgt mit #433 */
-  vorsteuerAnteil: z
-    .union([z.literal(0), z.literal(VOLLER_ABZUG)])
-    .nullable()
-    .default(null),
+  /** § 15 Abs. 4 UStG: wirtschaftlich zugeordneter Anteil in Basispunkten; null erbt die Firmendaten. */
+  vorsteuerAnteil: z.number().int().min(0).max(VOLLER_ABZUG).nullable().default(null),
   /**
    * Gutschrift erstattet bereits Bezahltes (#786): etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
    * schon bezahlte Rechnung. Die Vorsteuerminderung wird dann erst mit der Erstattung oder Verrechnung gezogen
@@ -123,6 +122,8 @@ const documentFields = z.object({
         taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
         net: cents,
         tax: cents,
+        /** null erbt den Anteil des Belegs. */
+        vorsteuerAnteil: z.number().int().min(0).max(VOLLER_ABZUG).nullable().default(null),
         /** Nur bei Fremdwährung: Beträge laut Beleg in der Fremdwährung */
         originalNet: cents.nullable().default(null),
         originalTax: cents.nullable().default(null),
@@ -140,38 +141,7 @@ export const documentInputSchema = documentFields.refine((d) => !d.serviceFrom |
   path: ["serviceTo"],
 });
 
-/** Höchstwert der int4-Spalten: umgerechnete Beträge (kleiner Kurs) dürfen ihn nicht sprengen */
-const MAX_EURO_CENTS = 2_147_483_647;
-
-/**
- * Euro-Beträge je Zeile: in Euro wie eingegeben, bei Fremdwährung mit dem Kurs umgerechnet.
- * Ohne Kurs bleiben die Euro-Beträge 0; der Beleg ist dann noch nicht buchbar.
- * Die Steuer nach § 13b und beim innergemeinschaftlichen Erwerb steht nicht auf der Rechnung, der Empfänger berechnet
- * sie aus dem Netto (§ 13b Abs. 5, § 13 Abs. 1 Nr. 6 UStG); deshalb rechnet sie der Server wie bei Fremdwährung selbst.
- */
-export function euroAmounts(input: {
-  currency: string;
-  exchangeRate: string | null;
-  reverseCharge: string | null;
-  amounts: { taxRate: number; net: number; tax: number; originalNet: number | null; originalTax: number | null }[];
-}): { taxRate: number; net: number; tax: number; originalNet: number | null; originalTax: number | null }[] {
-  if (input.currency === "EUR") {
-    return input.amounts.map((a) => ({
-      taxRate: a.taxRate,
-      net: a.net,
-      tax: input.reverseCharge ? taxOf(a.net, a.taxRate) : a.tax,
-      originalNet: null,
-      originalTax: null,
-    }));
-  }
-  const originals = input.amounts.map((a) => ({ taxRate: a.taxRate, originalNet: a.originalNet ?? 0, originalTax: a.originalTax ?? 0 }));
-  if (!input.exchangeRate) return originals.map((o) => ({ ...o, net: 0, tax: 0 }));
-  const euro = convertForeignAmounts(originals, input.exchangeRate, Boolean(input.reverseCharge));
-  if (euro.some((e) => Math.abs(e.net) > MAX_EURO_CENTS || Math.abs(e.tax) > MAX_EURO_CENTS)) {
-    throw new DocumentError("Der umgerechnete Betrag ist zu groß. Stimmt der Kurs (1 EUR = … Fremdwährung)?");
-  }
-  return originals.map((o, i) => ({ ...o, net: euro[i]!.net, tax: euro[i]!.tax }));
-}
+export { euroAmounts } from "./belegbetraege.ts";
 
 export type DocumentInput = z.input<typeof documentInputSchema>;
 
@@ -686,13 +656,14 @@ function igErwerbIssues(doc: Document, amounts: DocumentAmount[]): string[] {
 // oder mit Verzicht steuerpflichtig (§ 1a Abs. 3 Nr. 1 Buchst. a und Abs. 4 UStG). Die Erwerbsteuer in den
 // Anschaffungskosten einer Anlage wirkt nur über AfA, die Zahlung ans Finanzamt läge in der EÜR sonst zusätzlich
 // als Ausgabe — doppelt (§ 9b Abs. 1, § 4 Abs. 3 Satz 3 EStG); bis die EÜR das trennt: sperren
-function igErwerbFirmaIssues(doc: Document, company: Company, vorsteuerAbzug: boolean): string[] {
+function igErwerbFirmaIssues(doc: Document, company: Company, vollerVorsteuerabzug: boolean): string[] {
   if (doc.reverseCharge !== "ig_erwerb") return [];
   if (company.kleinunternehmer || company.ohneVorsteuerabzug)
     return [
       "Innergemeinschaftlicher Erwerb als Kleinunternehmer oder mit nur steuerfreien Umsätzen (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt",
     ];
-  if (doc.category === "anlage" && !vorsteuerAbzug) return ["Innergemeinschaftlicher Erwerb einer Anlage ohne Vorsteuerabzug wird nicht unterstützt"];
+  if (doc.category === "anlage" && !vollerVorsteuerabzug)
+    return ["Innergemeinschaftlicher Erwerb einer Anlage ohne Vorsteuerabzug oder mit Teilabzug wird nicht unterstützt"];
   return [];
 }
 
@@ -764,16 +735,30 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   // Abziehbarer Anteil der Vorsteuer: Kleinunternehmer nie, sonst die Angabe am Beleg vor der Firmenvorgabe (#852);
   // beim Buchen am Beleg festgehalten, damit spätere Auswertungen stimmen
   const vorsteuerAnteil = abziehbarerAnteil(company, doc.vorsteuerAnteil);
-  const vorsteuerAbzug = vorsteuerAnteil > 0;
+  const wirksameBetraege = amounts.map((a) => ({ ...a, vorsteuerAnteil: abziehbarerAnteil(company, a.vorsteuerAnteil ?? vorsteuerAnteil) }));
+  const vorsteuerAbzug = wirksameBetraege.some((a) => a.vorsteuerAnteil > 0);
   const issues = bookingIssues(doc, amounts, today(), splits);
   // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
   if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
   if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
-  issues.push(...igErwerbFirmaIssues(doc, company, vorsteuerAbzug));
+  issues.push(
+    ...igErwerbFirmaIssues(
+      doc,
+      company,
+      wirksameBetraege.every((a) => a.vorsteuerAnteil === VOLLER_ABZUG),
+    ),
+  );
   // Einfuhrumsatzsteuer (Kz 62): nur der Bescheid des Zolls allein, als Vorsteuer
   if (splits.length === 0 && doc.category === "einfuhrumsatzsteuer") {
     const rows = amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }));
-    issues.push(...einfuhrumsatzsteuerIssues({ taxes: rows }, vorsteuerAbzug, doc.privateShare, doc.reverseCharge));
+    issues.push(
+      ...einfuhrumsatzsteuerIssues(
+        { taxes: rows },
+        wirksameBetraege.every((a) => a.vorsteuerAnteil === VOLLER_ABZUG),
+        doc.privateShare,
+        doc.reverseCharge,
+      ),
+    );
   }
   if (splits.some((s) => s.category === "einfuhrumsatzsteuer")) issues.push("Die Einfuhrumsatzsteuer lässt sich nicht mit anderen Kategorien aufteilen");
   // Gutschrift, die bereits Bezahltes erstattet (#786): nur an einer Gutschrift und nur im noch nicht gemeldeten Zeitraum
@@ -792,7 +777,7 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
   const totals = belegSummen(doc, amounts);
   const asset = doc.category === "anlage" ? doc.asset : null;
-  const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug, await loadOwnAccountNumbers(tx));
+  const lines = belegZeilen(doc, wirksameBetraege, splits, company, vorsteuerAnteil, await loadOwnAccountNumbers(tx));
   const now = new Date();
   const entryId = await post(tx, company, {
     date: doc.documentDate!,
@@ -801,6 +786,9 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
     sourceId: id,
     lines,
   });
+  // Leistung beim Buchen noch nicht ausgeführt: Die Vorsteuer verlässt das Zwischenkonto im Monat der Ausführung (#693),
+  // nicht erst mit der Zahlung. Die Freigabe entsteht als eigene Buchung, damit der Beleg selbst unverändert bleibt.
+  if (leistungNochNichtAusgefuehrt(doc)) await freigabeAmAusfuehrung(tx, doc, company);
   // Bar aus der Kasse: Zeile im Kassenbuch; lehnt ab, wenn der Bestand dadurch negativ würde
   if (doc.payment === "kasse") {
     await addDocumentCashEntry(tx, {
@@ -811,6 +799,9 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
       journalEntryId: entryId,
     });
   }
+  // Vor dem Sperren festhalten: Entwürfe erben, gebuchte Satzzeilen tragen stets die tatsächlich angewandten Werte.
+  for (const a of wirksameBetraege)
+    await tx.update(schema.documentAmounts).set({ vorsteuerAnteil: a.vorsteuerAnteil }).where(eq(schema.documentAmounts.id, a.id));
   await tx
     .update(schema.documents)
     .set({ status: "gebucht", vorsteuerAbzug, vorsteuerAnteil, lockedAt: now, updatedAt: now })
@@ -822,7 +813,8 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
       method: asset.method,
       account: assetAccount(asset.kind, asset.method, company.kontenrahmen),
       acquisitionDate: doc.documentDate!,
-      cost: vorsteuerAbzug ? totals.net : totals.gross,
+      // Nicht abziehbare Vorsteuer gehört zu den Anschaffungskosten (§ 9b Abs. 1 EStG).
+      cost: totals.net + wirksameBetraege.reduce((sum, a) => sum + a.tax - abziehbareSteuer(a.tax, a.vorsteuerAnteil), 0),
       ...documentAssetMethod(asset, doc.documentDate!),
       documentId: id,
     });
@@ -852,6 +844,8 @@ export async function listDocuments() {
       invoiceNumber: schema.documents.invoiceNumber,
       documentDate: schema.documents.documentDate,
       category: schema.documents.category,
+      /** Eigenes Sachkonto (#270): Nummer und Name statt des Kontos der Kategorie; null ohne eigenes Konto */
+      ownAccount: sql<string | null>`(select o.account || ' ' || o.name from own_accounts o where o.id = ${schema.documents.ownAccountId})`,
       /** Zahl der Kontierungszeilen (#271); 0 = die Kategorie gilt für den ganzen Beleg */
       splitCount: sql<number>`(select count(*)::int from document_splits s where s.document_id = ${schema.documents.id})`,
       gross: schema.documents.gross,

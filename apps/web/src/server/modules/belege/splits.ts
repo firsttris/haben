@@ -55,8 +55,12 @@ export async function loadSplits(documentId: string, q: Db | Tx = db): Promise<D
   return q.select().from(schema.documentSplits).where(eq(schema.documentSplits.documentId, documentId)).orderBy(asc(schema.documentSplits.position));
 }
 
-/** Zeilen mehrerer Belege, je Beleg in Reihenfolge; Belege ohne Aufteilung fehlen */
-export async function splitsByDocument(ids: string[], q: Db | Tx = db): Promise<Map<string, AllocatedSplitLine[]>> {
+/** Zeilen mehrerer Belege, je Beleg in Reihenfolge; Belege ohne Aufteilung fehlen. `eigene` wie bei splitLines */
+export async function splitsByDocument(
+  ids: string[],
+  q: Db | Tx = db,
+  eigene: ReadonlyMap<string, string> = new Map(),
+): Promise<Map<string, AllocatedSplitLine[]>> {
   if (ids.length === 0) return new Map();
   const rows = await q
     .select()
@@ -64,7 +68,7 @@ export async function splitsByDocument(ids: string[], q: Db | Tx = db): Promise<
     .where(inArray(schema.documentSplits.documentId, ids))
     .orderBy(asc(schema.documentSplits.documentId), asc(schema.documentSplits.position));
   const result = new Map<string, AllocatedSplitLine[]>();
-  for (const row of rows) result.set(row.documentId, [...(result.get(row.documentId) ?? []), ...splitLines([row])]);
+  for (const row of rows) result.set(row.documentId, [...(result.get(row.documentId) ?? []), ...splitLines([row], eigene)]);
   return result;
 }
 

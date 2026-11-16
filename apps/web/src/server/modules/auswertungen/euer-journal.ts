@@ -1,3 +1,4 @@
+import { kleinunternehmerForMonth } from "../stammdaten/index.ts";
 import {
   ACCOUNTS,
   euerAusZeilen,
@@ -50,6 +51,16 @@ interface Ziel {
   loanId?: string | null;
   zahlung?: Pick<typeof schema.allocations.$inferSelect, "amount" | "taxShares" | "taxSharesInvoiceId">;
 }
+
+/** Herkunft einer Buchung in der EÜR: Pauschale, Anlage, Zahlung auf ein Darlehen für Anlagevermögen oder sonst */
+const herkunftVon = (b: Buchung, ziel: Ziel | undefined, anlageDarlehen: ReadonlySet<string>): EuerHerkunft =>
+  b.sourceType === "pauschale"
+    ? "pauschale"
+    : b.sourceType === "asset"
+      ? "asset"
+      : ziel?.loanId && anlageDarlehen.has(ziel.loanId)
+        ? "darlehenAnlagevermoegen"
+        : "sonst";
 
 /** Rechnung bzw. Beleg, den eine Zahlung, Ausbuchung oder Bareinnahme ausgleicht, je Herkunft der Buchung */
 async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
@@ -145,9 +156,22 @@ function dazu(nach: EuerAusJournal, von: EuerAusJournal, vorzeichen: 1 | -1 = 1)
   nach.gewerbesteuerNichtAbziehbar += vorzeichen * von.gewerbesteuerNichtAbziehbar;
 }
 
+/**
+ * Das Zwischenkonto der noch nicht abziehbaren Vorsteuer (SKR03 1548, SKR04 1434; #693, #786) zählt wie die Vorsteuer: In
+ * der EÜR ist gezahlte Vorsteuer Betriebsausgabe im Jahr der Zahlung (§ 11 Abs. 2 EStG), gleich, ob sie bis zur Ausführung
+ * geparkt ist. Die Umbuchung vom Zwischenkonto auf die Vorsteuer (Freigabe, Zahlung vor der Ausführung) hebt sich so auf;
+ * eine Zahlung zieht ihren Anteil an der geparkten Steuer, gerundet wie die Steuer der Nebenbücher (zahlungsStand).
+ * Liefert die Zeilen ohne Forderungen und Verbindlichkeiten (offenerPosten).
+ */
+function zwischenkontoAlsVorsteuer(kr: Kontenrahmen, zeilen: readonly Zeile[]): Zeile[] {
+  const a = ACCOUNTS[kr];
+  return zeilen.filter((z) => !offenerPosten(kr, z)).map((z) => (z.account === a.vorsteuerNochNichtAbziehbar ? { ...z, account: a.vorsteuer[1900] } : z));
+}
+
 /** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
 export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string): Promise<EuerJournal> {
   const e = schema.journalEntries;
+  const kuMonate = await Promise.all(Array.from({ length: 12 }, (_, i) => kleinunternehmerForMonth(year, i + 1, q)));
   const buchungenImJahr = await buchungen(
     q,
     and(gte(e.date, `${year}-01-01`), umsatzBis ? lte(e.date, umsatzBis) : lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung")),
@@ -222,7 +246,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     const istUebernommen = gebucht.length === 0 || alle.some((z) => z.account === ACCOUNTS[kontenrahmen].saldenvortrag);
     // Aus Lexoffice übernommen: verteilt wird auf die Zeilen, die Haben gebucht hätte
     const ersatz = istUebernommen ? await uebernommeneZeilen(q, typ, id, kontenrahmen) : null;
-    const zeilen = ersatz?.zeilen ?? alle.filter((z) => !offenerPosten(kontenrahmen, z));
+    const zeilen = ersatz?.zeilen ?? zwischenkontoAlsVorsteuer(kontenrahmen, alle);
     const gesamt = ersatz ? ersatz.gesamt : alle.filter((z) => offenerPosten(kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0);
     const herkunft: EuerHerkunft = typ === "document" && anlagen.has(id) ? "anlage" : "sonst";
     const u: Ursprung = {
@@ -262,9 +286,9 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     kleinunternehmerUmsatz.steuerfrei ||= beitrag.steuerfrei;
   }
 
-  function erfasse(kr: Kontenrahmen, zeilen: Zeile[], herkunft: EuerHerkunft, summe: EuerAusJournal) {
+  function erfasse(kr: Kontenrahmen, zeilen: Zeile[], herkunft: EuerHerkunft, summe: EuerAusJournal, kleinunternehmer?: boolean) {
     erfasseUmsatz(kr, zeilen, herkunft);
-    euerAusZeilen(kr, zeilen, herkunft, summe);
+    euerAusZeilen(kr, zeilen, herkunft, summe, kleinunternehmer);
   }
 
   /** Was eine Verrechnung zweier Belege bewirkt: wie eine Zahlung von `-betrag` auf den Beleg, ohne eigene Buchung */
@@ -274,24 +298,20 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     if (u.uebernommen) uebernommen++;
     if (u.gesamt === 0) return summe;
     // betrag trägt das Vorzeichen des offenen Postens wie eine Buchung, ausgeglichen ist das Umgekehrte
-    if (u.beleg && v.betrag !== u.gesamt) belegTeilzahlung(year, u.beleg, -v.betrag, summe);
-    else erfasse(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, v.betrag), u.herkunft, summe);
+    if (u.beleg && (u.beleg.effects?.has(v.id) || v.betrag !== u.gesamt)) belegTeilzahlung(year, u.beleg, -v.betrag, summe, v.id);
+    else erfasse(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, v.betrag), u.herkunft, summe, kuMonate[Number(v.date.slice(5, 7)) - 1]);
     return summe;
   }
 
   /** Was eine Buchung in der EÜR bewirkt */
   async function wirkung(b: Buchung): Promise<EuerAusJournal> {
     const summe = leereEuerAusJournal();
+    // Freigabe zum Leistungsdatum (#693): nur eine Umbuchung vom Zwischenkonto auf die Vorsteuer, kein Abfluss
+    if (b.sourceType === "freigabe") return summe;
     const kr = b.kontenrahmen;
+    const kleinunternehmer = kuMonate[Number(b.date.slice(5, 7)) - 1];
     const ziel = zielVon.get(b.sourceId);
-    const herkunft: EuerHerkunft =
-      b.sourceType === "pauschale"
-        ? "pauschale"
-        : b.sourceType === "asset"
-          ? "asset"
-          : ziel?.loanId && anlageDarlehen.has(ziel.loanId)
-            ? "darlehenAnlagevermoegen"
-            : "sonst";
+    const herkunft = herkunftVon(b, ziel, anlageDarlehen);
     const ausgeglichen = offen(b);
     const hatOffenenPosten = b.zeilen.some((z) => offenerPosten(kr, z));
     const importAnteil = importiert.get(b.id);
@@ -304,7 +324,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
       return summe;
     if (ausbuchungOhneZahlung(b)) return summe;
     // Eigene Zeilen der Buchung (Kursdifferenz, Umbuchung der Umsatzsteuer, die sich aufhebt) nach ihren Konten
-    const eigene = b.zeilen.filter((z) => !offenerPosten(kr, z));
+    const eigene = zwischenkontoAlsVorsteuer(kr, b.zeilen);
     if (b.sourceType !== "invoice" || !bilanzRechnungen.has(b.sourceId))
       erfasseUmsatz(kr, eigene, b.sourceType === "document" && anlagen.has(b.sourceId) ? "anlage" : herkunft);
     const umkehr = b.sourceType === "allocation" && b.reversesId !== null;
@@ -321,11 +341,13 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
             )
           : eigene,
         herkunft,
+        undefined,
+        kleinunternehmer,
       ),
       umkehr ? -1 : 1,
     );
     if (importAnteil) {
-      erfasse(importAnteil.kontenrahmen, alsZeilen(importAnteil.zeilen, importAnteil.anteil), "sonst", summe);
+      erfasse(importAnteil.kontenrahmen, alsZeilen(importAnteil.zeilen, importAnteil.anteil), "sonst", summe, kleinunternehmer);
       return summe;
     }
     if (!hatOffenenPosten || ausgeglichen === 0) return summe;
@@ -347,14 +369,14 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     if (u.gesamt === 0) return summe;
     const anteil = u.anteile?.get(b.id);
     // Teilzahlung auf einen Beleg mit Privatanteil oder ohne Vorsteuerabzug: gerundet wie computeEuer
-    if (!anteil && u.beleg && -ausgeglichen !== u.gesamt) {
-      belegTeilzahlung(year, u.beleg, ausgeglichen, summe);
+    if (!anteil && u.beleg && (u.beleg.effects?.has(b.sourceId) || -ausgeglichen !== u.gesamt)) {
+      belegTeilzahlung(year, u.beleg, ausgeglichen, summe, b.sourceId);
       return summe;
     }
     // Beleg: jede Zahlung für sich (paidTaxShares)
     const zeilen = anteil ? alsZeilen(u.zeilen, anteil) : zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, -ausgeglichen);
     if (!bilanzSteuer) erfasseUmsatz(u.kontenrahmen, zeilen, u.herkunft);
-    euerAusZeilen(u.kontenrahmen, zeilen, u.herkunft, summe);
+    euerAusZeilen(u.kontenrahmen, zeilen, u.herkunft, summe, kleinunternehmer);
     return summe;
   }
 }

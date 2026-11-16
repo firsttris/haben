@@ -1,4 +1,4 @@
-import { paidTaxShares, periodRange, splitPrivateShare, type Cents, type TaxShare, type VatPeriod } from "@haben/core";
+import { abziehbareSteuer, gespeicherterAnteil, paidTaxShares, periodRange, splitPrivateShare, type Cents, type TaxShare, type VatPeriod } from "@haben/core";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
@@ -37,6 +37,8 @@ const beleg = {
   tax: schema.documents.tax,
   gross: schema.documents.gross,
   privateShare: schema.documents.privateShare,
+  vorsteuerAnteil: schema.documents.vorsteuerAnteil,
+  vorsteuerAbzug: schema.documents.vorsteuerAbzug,
 };
 
 /**
@@ -66,6 +68,8 @@ interface Vorgang {
   tax: Cents;
   gross: Cents;
   privateShare: number;
+  vorsteuerAnteil: number | null;
+  vorsteuerAbzug: boolean;
   createdAt: Date;
   id: string;
   reversesId: string | null;
@@ -140,7 +144,7 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
   for (const v of vorgaenge) {
     const taxes = rows
       .filter((a) => a.documentId === v.documentId)
-      .map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }))
+      .map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax, vorsteuerAnteil: a.vorsteuerAnteil }))
       .sort((a, b) => b.rate - a.rate);
     const totals = { net: v.net, tax: v.tax, gross: v.gross, taxes };
     // Der Vorgang ist eine Zahlung auf die Gutschrift (positiv); mit dem Vorzeichen des Belegs ist das -amount.
@@ -161,7 +165,9 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
         return {
           rate: t.rate,
           base: splitPrivateShare(t.base, v.privateShare).business - recorded.reduce((sum, r) => sum + r.base, 0),
-          tax: splitPrivateShare(t.tax, v.privateShare).business - recorded.reduce((sum, r) => sum + r.tax, 0),
+          tax:
+            abziehbareSteuer(splitPrivateShare(t.tax, v.privateShare).business, gespeicherterAnteil(v, taxes.find((a) => a.rate === t.rate)?.vorsteuerAnteil)) -
+            recorded.reduce((sum, r) => sum + r.tax, 0),
         };
       });
     jeVorgang.set(v.id, neu);

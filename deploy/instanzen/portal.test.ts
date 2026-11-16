@@ -236,6 +236,124 @@ describe("portal: Abgleich", () => {
     expect(t.docker.aufrufe.some((a) => a.includes("haben status"))).toBe(false);
   });
 
+  describe("wenn eine laufende Instanz nicht antwortet", () => {
+    const MIT_LOGO = "nord|https://nord.example.de|haben-nord-inhaber|#1D4ED8;sued|https://sued.example.de|haben-sued-inhaber||sued.png";
+
+    it("behält Farbe und Logo, startet nichts neu und nennt die Instanz als nicht erreicht", async () => {
+      await einrichten();
+      const vorher = [roh("firmenportal"), roh("nord"), roh("sued")];
+      t.docker.z.statusFehler.set("nord", { code: 1 });
+      t.docker.z.statusFehler.set("sued", { code: -1 });
+      t.docker.z.zeichen.set("nord", { farbe: "#000000", logo: null });
+      t.docker.aufrufe.length = 0;
+      const r = await t.lauf("portal");
+      expect(firmenImPortal()).toBe(MIT_LOGO);
+      expect(new Uint8Array(readFileSync(join(portalDir(), "logos", "sued.png")))).toEqual(PNG);
+      expect([roh("firmenportal"), roh("nord"), roh("sued")]).toEqual(vorher);
+      expect(starts()).toEqual([]);
+      expect(r.stdout).toContain("Nicht erreicht, Farbe und Logo wie bisher: nord sued");
+      expect(r.stdout).toContain("Nichts geändert.");
+      expect(r.stderr).toContain("Warnung: nord nicht erreicht (haben status: Exit-Code 1)");
+      expect(r.stderr).toContain("Warnung: sued nicht erreicht (haben status: Zeitüberschreitung)");
+    });
+
+    it("hält Code 127 ohne „executable file not found“ (Container startet neu) für nicht erreicht und behält Farbe und Logo", async () => {
+      await einrichten();
+      t.docker.z.statusFehler.set("sued", { code: 127, stderr: "container is restarting" });
+      const r = await t.lauf("portal");
+      expect(firmenImPortal()).toBe(MIT_LOGO);
+      expect(existsSync(join(portalDir(), "logos", "sued.png"))).toBe(true);
+      expect(r.stdout).toContain("Nicht erreicht, Farbe und Logo wie bisher: sued");
+      expect(r.stderr).toContain("Warnung: sued nicht erreicht (haben status: Exit-Code 127)");
+    });
+
+    it("hält Code 1 mit „executable file not found“ nicht für ein Image ohne haben, sondern für nicht erreicht", async () => {
+      await einrichten();
+      t.docker.z.statusFehler.set("sued", { code: 1, stderr: "executable file not found" });
+      const r = await t.lauf("portal");
+      expect(firmenImPortal()).toBe(MIT_LOGO);
+      expect(existsSync(join(portalDir(), "logos", "sued.png"))).toBe(true);
+      expect(r.stdout).toContain("Nicht erreicht, Farbe und Logo wie bisher: sued");
+    });
+
+    it("übernimmt nach einer Pause die neue Farbe und meldet nichts mehr", async () => {
+      await einrichten();
+      t.docker.z.statusFehler.set("nord", { code: 1 });
+      await t.lauf("portal");
+      t.docker.z.statusFehler.delete("nord");
+      t.docker.z.zeichen.set("nord", { farbe: "#0F766E", logo: null });
+      const r = await abgleich();
+      expect(firmenImPortal()).toContain("haben-nord-inhaber|#0F766E");
+      expect(r.stdout).not.toContain("Nicht erreicht");
+    });
+
+    it("behält ohne Vorgänger weder Farbe noch Logo, auch nicht erreicht", async () => {
+      t.docker.z.statusFehler.set("sued", { code: 1 });
+      const r = await t.lauf("portal", "portal.example.de", ...SSO, "haben-firmenportal", "--oidc-client-secret-stdin");
+      expect(r.status).toBe(0);
+      expect(firmenImPortal()).toBe("nord|https://nord.example.de|haben-nord-inhaber|#1D4ED8;sued|https://sued.example.de|haben-sued-inhaber");
+      expect(r.stdout).toContain("Nicht erreicht, Farbe und Logo wie bisher: sued");
+    });
+
+    it("behält Farbe und Logo, wenn nur haben kennzeichen scheitert, auch bei neuer Farbe, und startet nichts neu", async () => {
+      await einrichten();
+      const vorher = [roh("firmenportal"), roh("nord"), roh("sued")];
+      t.docker.z.zeichen.set("sued", logoZeichen(PNG2, "#0F766E"));
+      t.docker.z.logos.set("sued", PNG2);
+      t.docker.z.kennzeichenFehler.set("sued", 1);
+      t.docker.aufrufe.length = 0;
+      const r = await t.lauf("portal");
+      expect(firmenImPortal()).toBe(MIT_LOGO);
+      expect(new Uint8Array(readFileSync(join(portalDir(), "logos", "sued.png")))).toEqual(PNG);
+      expect([roh("firmenportal"), roh("nord"), roh("sued")]).toEqual(vorher);
+      expect(starts()).toEqual([]);
+      expect(r.stdout).toContain("Nicht erreicht, Farbe und Logo wie bisher: sued");
+      expect(r.stdout).toContain("Nichts geändert.");
+      expect(r.stderr).toContain("Warnung: sued nicht erreicht (haben kennzeichen: Exit-Code 1)");
+    });
+
+    it("fragt haben status und haben kennzeichen mit einem Zeitlimit von 60 Sekunden", async () => {
+      await einrichten();
+      t.docker.z.zeichen.set("sued", logoZeichen(PNG2));
+      t.docker.z.logos.set("sued", PNG2);
+      t.docker.zeitlimits.length = 0;
+      await abgleich();
+      expect(t.docker.zeitlimits).toEqual(
+        expect.arrayContaining([
+          { aufruf: "nord compose exec -T app haben status --json", zeitlimit: 60_000 },
+          { aufruf: "sued compose exec -T app haben status --json", zeitlimit: 60_000 },
+          { aufruf: "sued compose exec -T app haben kennzeichen", zeitlimit: 60_000 },
+        ]),
+      );
+    });
+
+    it("zählt ein Zeitlimit von haben kennzeichen ebenfalls als nicht erreicht", async () => {
+      await einrichten();
+      t.docker.z.zeichen.set("sued", logoZeichen(PNG2));
+      t.docker.z.kennzeichenFehler.set("sued", -1);
+      const r = await t.lauf("portal");
+      expect(firmenImPortal()).toContain("sued.png");
+      expect(r.stdout).toContain("Nicht erreicht, Farbe und Logo wie bisher: sued");
+    });
+
+    it("lässt das Logo weg, wenn haben kennzeichen scheitert und es keins von bisher gibt", async () => {
+      t.docker.z.kennzeichenFehler.set("sued", 1);
+      const r = await t.lauf("portal", "portal.example.de", ...SSO, "haben-firmenportal", "--oidc-client-secret-stdin");
+      expect(firmenImPortal()).not.toContain("sued.png");
+      expect(r.stdout).toContain("Nicht erreicht, Farbe und Logo wie bisher: sued");
+    });
+
+    it("entfernt das Logo bei Exit-Code 3 von haben kennzeichen: kein Logo gewählt, nicht erreicht ist es nicht", async () => {
+      await einrichten();
+      t.docker.z.zeichen.set("sued", logoZeichen(PNG2));
+      t.docker.z.logos.delete("sued");
+      const r = await abgleich();
+      expect(firmenImPortal()?.endsWith("sued|https://sued.example.de|haben-sued-inhaber")).toBe(true);
+      expect(existsSync(join(portalDir(), "logos", "sued.png"))).toBe(false);
+      expect(r.stdout).not.toContain("Nicht erreicht");
+    });
+  });
+
   it("leert HABEN_FIRMEN, das die App neben dem Firmenportal ablehnte, und sagt es", async () => {
     expect((await t.lauf("firmen", "nord", "sued")).status).toBe(0);
     const r = await einrichten();

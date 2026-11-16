@@ -30,6 +30,7 @@ import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
 import { VersionsCard } from "../../components/VersionsCard.tsx";
+import { ProcedureDocCard } from "../../components/ProcedureDocCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LetterheadBackgroundCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
 import { LayoutsCard } from "../../components/LayoutsCard.tsx";
@@ -43,6 +44,7 @@ import { InvoiceAttachments } from "../../components/InvoiceAttachments.tsx";
 import { getQuoteDefaultAttachments } from "../../server/functions/invoice-attachments.ts";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
+import { OwnAccountsCard } from "../../components/OwnAccountsCard.tsx";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
 import { ExtractionCard } from "../../components/ExtractionCard.tsx";
@@ -82,6 +84,7 @@ import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
 import { StichjahrCard } from "../../components/StichjahrCard.tsx";
 import { NavMarkCard } from "../../components/NavMarkCard.tsx";
+import { getOwnAccounts } from "../../server/functions/eigene-konten.ts";
 import { SettingsHead, SettingsNav } from "../../components/SettingsNav.tsx";
 import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
@@ -123,6 +126,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       extraction,
       quoteDefaultAttachments,
       stichjahr,
+      ownAccounts,
       units,
     ] = await Promise.all([
       getCompany(),
@@ -151,6 +155,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
       getStichjahr(),
+      getOwnAccounts(),
       getUnits(),
     ]);
     return {
@@ -182,6 +187,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       extraction,
       quoteDefaultAttachments,
       stichjahr,
+      ownAccounts,
       units,
     };
   },
@@ -219,6 +225,7 @@ function SettingsPage() {
     extraction,
     quoteDefaultAttachments,
     stichjahr,
+    ownAccounts,
     units,
   } = Route.useLoaderData();
   const search = Route.useSearch();
@@ -303,6 +310,7 @@ function SettingsPage() {
               <ExtractionCard settings={extraction} />
             </>
           )}
+          {bereich === "konten" && <OwnAccountsCard overview={ownAccounts} />}
           {bereich === "seiten" && <EigeneSeitenCard pages={customPages} />}
           {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}
           {bereich === "export" && (
@@ -313,6 +321,7 @@ function SettingsPage() {
               <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
+              <ProcedureDocCard />
               <ArchiveSearchCard enabled={company.archiveSearch} />
             </>
           )}

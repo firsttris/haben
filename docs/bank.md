@@ -94,9 +94,9 @@ Viele Selbständige haben bei derselben Bank mehrere Konten, etwa ein Geschäfts
 | Geschäftskonto (Standard) | wie bisher; sein Kontostand steht in der Übersicht |
 | Steuerkonto | Vorbelegung für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern); Lastschriften und Erstattungen der Umsatzsteuer auf diesem Konto bekommen „Umsatzsteuer an das Finanzamt“ als Vorschlag; die Übersicht zeigt den Stand neben der noch offenen Zahllast (abzüglich schon zugeordneter Zahlungen an das Finanzamt nach Ende des Zeitraums) und warnt, wenn er nicht reicht |
 | Rücklagen- oder Sparkonto | Überträge zu und von eigenen Konten bekommen „Geldtransit“ als Vorschlag |
-| Privatkonto | Umsätze dort bleiben zuordenbar; Umsatzsteuer und Steuerzahlungen bucht Haben gegen Entnahme bzw. Einlage ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Auf deinen anderen Konten bekommen Überweisungen dorthin oder von dort „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an; Umsätze importierst du nur, wenn du sie buchen willst, denn ungebuchte stehen unter „offen“. |
+| Privatkonto | Umsätze dort bleiben zuordenbar; Umsatzsteuer und Steuerzahlungen bucht Haben gegen Entnahme bzw. Einlage ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Auf deinen anderen Konten bekommen Überweisungen dorthin oder von dort „Privat“ als Vorschlag. Das Konto legst du mit **Konto hinzufügen** an; Umsätze importierst du nur, wenn du sie buchen willst, denn ungebuchte stehen unter „offen“, bis du sie [kennzeichnest](#privates-konto-umsätze-ohne-buchungsart). |
 
-Auf einem Privatkonto bietet der Abgleich Kontoführung und Bankgebühren, Zinserträge, Privat und Geldtransit nicht an, schlägt sie nicht vor und lehnt sie ab. Gebühren und Zinsen eines privaten Kontos sind privat: kein Betriebsaufwand (§ 12 Nr. 1 EStG) und keine Betriebseinnahme (§ 20 EStG); „Privat“ buchte privat gegen privat, und Geldtransit wäre Entnahme gegen Entnahme. Schon gebuchte Zuordnungen bleiben sichtbar und lassen sich aufheben.
+Auf einem Privatkonto bietet der Abgleich Kontoführung und Bankgebühren, Zinserträge, Privat, Spende und Geldtransit nicht an, schlägt sie nicht vor und lehnt sie ab. Gebühren und Zinsen eines privaten Kontos sind privat: kein Betriebsaufwand (§ 12 Nr. 1 EStG) und keine Betriebseinnahme (§ 20 EStG); „Privat“ und „Spende“ buchten privat gegen privat, und Geldtransit wäre Entnahme gegen Entnahme. Schon gebuchte Zuordnungen bleiben sichtbar und lassen sich aufheben.
 
 Jedes Konto hat einen Zweck. Gebucht wird weiter auf das eine Bankkonto (1200 bzw. 1800); welche IBAN auf Rechnungen steht, bestimmen die Firmendaten.
 
@@ -105,6 +105,12 @@ N26-Exporte enthalten keine eigene IBAN. Dafür legst du das Konto vorher mit **
 Wählst du ein Konto aus und die Datei nennt eine andere IBAN, bricht der Import mit einer Meldung ab.
 
 Über der Liste steht je Konto ein Reiter mit Format und Datum des letzten Imports und dem Endsaldo. Ist der letzte Import älter als sieben Tage, ist die Angabe hervorgehoben.
+
+### Privates Konto: Umsätze ohne Buchungsart
+
+Für manche Umsätze auf einem privaten Konto gibt es keine Buchungsart, etwa für eine private Einkommensteuer-Erstattung: Die Arten oben fehlen dort, und die Steuern des Inhabers lehnt Haben ab ([Voranmeldung](#voranmeldung-zahllast-und-erstattung)). Einen solchen Umsatz kennzeichnest du rechts mit **Privat, kein Betriebsvorgang**. Gebucht wird nichts, die EÜR bleibt unberührt. Der Umsatz zählt nicht mehr als offener Posten, steht in der Liste nur unter **Alle**, mit dem Status „Privat“, und die [Vorprüfung der Voranmeldung](umsatzsteuer.md#vorprüfung) mahnt ihn nicht an. **Kennzeichnung aufheben** macht ihn wieder offen.
+
+Kennzeichnen lässt sich nur ein ganz offener Umsatz. Zuordnen, Direkt buchen, Aufteilen und Verrechnen gehen erst nach dem Aufheben; als Gegenstück einer Verrechnung bietet Haben einen gekennzeichneten Umsatz nicht an. Die Kennzeichnung wirkt nur auf einem privaten Konto: Änderst du den Zweck des Kontos, etwa auf geschäftlich, zählt der Umsatz dort wieder als offen; wird das Konto wieder privat, gilt sie wieder. Ist der Umsatz inzwischen teilweise zugeordnet, bleibt der Rest offen.
 
 ### Fremdes Konto ausschließen
 
@@ -150,7 +156,7 @@ Die Filter **Alle**, **Offen** (mit Anzahl), **Zugeordnet** (auch verrechnete Um
 
 Die Spaltenköpfe Datum, Gegenpartei · Verwendungszweck, Betrag und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Ohne Auswahl steht der neueste Umsatz oben. Am Handy sind Datum und Status ausgeblendet, dort sortieren Gegenpartei und Betrag.
 
-Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. aller Konten, die zu Filter und Suche passen, und zeigt davon die ersten 500: „Betrag absteigend“ zeigt also die größten Beträge, auch wenn sie Jahre zurückliegen. Umsätze ohne Gegenpartei stehen beim Sortieren nach Gegenpartei unten. Den Status bestimmt Haben erst beim Anzeigen; nach Status sortiert es deshalb die neuesten 500 Umsätze. Absteigend steht oben, was zu tun ist, in der Reihenfolge „Beleg fehlt“, „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, zuletzt „Verrechnet“.
+Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. aller Konten, die zu Filter und Suche passen, und zeigt davon die ersten 500: „Betrag absteigend“ zeigt also die größten Beträge, auch wenn sie Jahre zurückliegen. Umsätze ohne Gegenpartei stehen beim Sortieren nach Gegenpartei unten. Den Status bestimmt Haben erst beim Anzeigen; nach Status sortiert es deshalb die neuesten 500 Umsätze. Absteigend steht oben, was zu tun ist, in der Reihenfolge „Beleg fehlt“, „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, „Verrechnet“, zuletzt „Privat“.
 
 | Hinweis | Bedeutung |
 | --- | --- |
@@ -160,6 +166,7 @@ Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos bzw. 
 | Offen | Eingang ohne Zuordnung und ohne Vorschlag. |
 | Zugeordnet | Der ganze Betrag ist zugeordnet. |
 | Verrechnet | Mit einem gegenläufigen Umsatz verrechnet, ohne Buchung (siehe [Gegenläufige Umsätze verrechnen](#gegenläufige-umsätze-verrechnen)). |
+| Privat | Auf einem privaten Konto als kein Betriebsvorgang gekennzeichnet; darunter „kein Betriebsvorgang“ (siehe [Umsätze ohne Buchungsart](#privates-konto-umsätze-ohne-buchungsart)). |
 
 Der Hinweis „Vorschlag“ in der Liste rechnet wie die Detailansicht, also auch mit der IBAN der Gegenseite.
 
@@ -204,7 +211,7 @@ Jede gesendete oder [vermerkte](umsatzsteuer.md#abgabe-außerhalb-von-haben-verm
 
 Wie bei Rechnungen ab 40 Punkten. Zwei Zeiträume mit gleicher Zahllast unterscheidet der Zeitraum im Verwendungszweck. Gebucht wird wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820), mit dem Bezug auf die Voranmeldung; in der Liste der Zuordnungen steht er dahinter, etwa „Umsatzsteuer USt 10/2026“. In der EÜR zählt die Zahlung am Buchungstag; die Vorauszahlung für Dezember bzw. das vierte Quartal, gezahlt bis 10. Januar, ohne Dauerfristverlängerung im Vorjahr (§ 11 Abs. 2 Satz 2 EStG, [Vorauszahlung um den Jahreswechsel](auswertungen.md#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)).
 
-Liegt der Umsatz auf einem Konto mit dem Zweck **privat**, bucht Haben die Gegenzeile nicht gegen die Bank, sondern gegen die Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto; eine Zahlung an das Finanzamt von dort wird zur Einlage (SKR03 1890, SKR04 2180, in GmbH und UG dasselbe Verrechnungskonto). Das Geld fließt ins Private, die Forderung bzw. Verbindlichkeit gegenüber dem Finanzamt wird trotzdem erfüllt; die Entnahme steht in § 4 Abs. 1 Satz 2 EStG, die Einlage in Satz 8 (beides im Einzelunternehmen; in GmbH und UG trägt § 4 EStG die Buchung nicht). Ohne diese Unterscheidung stünde die Erstattung auf dem Geschäftskonto, auf dem sie nie war. Das gilt auch für die Umsatzsteuer des Vorjahres als [Steuerzahlung](bank-steuern-darlehen.md#steuerzahlungen), ebenso für Gewerbesteuer und die Steuern der GmbH. Anders die Steuern des Inhabers: Einkommen-, Kirchensteuer und Soli samt Nebenleistungen sind privat (§ 12 Nr. 3 EStG); von einem privaten Konto gezahlt ist das kein Geschäftsvorfall, und Haben lehnt die Zuordnung ab — sonst meldete die Anlage EÜR dieselbe Summe als Entnahme und als Einlage.
+Liegt der Umsatz auf einem Konto mit dem Zweck **privat**, bucht Haben die Gegenzeile nicht gegen die Bank, sondern gegen die Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto; eine Zahlung an das Finanzamt von dort wird zur Einlage (SKR03 1890, SKR04 2180, in GmbH und UG dasselbe Verrechnungskonto). Das Geld fließt ins Private, die Forderung bzw. Verbindlichkeit gegenüber dem Finanzamt wird trotzdem erfüllt; die Entnahme steht in § 4 Abs. 1 Satz 2 EStG, die Einlage in Satz 8 (beides im Einzelunternehmen; in GmbH und UG trägt § 4 EStG die Buchung nicht). Ohne diese Unterscheidung stünde die Erstattung auf dem Geschäftskonto, auf dem sie nie war. Das gilt auch für die anderen [Steuerzahlungen](bank-steuern-darlehen.md#steuerzahlungen) des Betriebs; die Steuern des Inhabers lehnt Haben dort ab.
 
 ### Dauerbelege: noch zu prüfen
 
@@ -289,7 +296,7 @@ Der ausgebuchte Rest mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§
 
 Beispiel: Rechnung 4.760,00 €, der Kunde überweist 4.664,80 € (2 % Skonto). Bei Soll-Versteuerung mindert das Skonto die Umsatzsteuer in der Voranmeldung des Monats, in dem ausgebucht wird. Bei Ist-Versteuerung wird ohnehin nur fällig, was bezahlt ist; Haben mindert dann die noch nicht fällige Umsatzsteuer.
 
-Hast du selbst Skonto abgezogen, liegt die Abbuchung unter dem Beleg. Dann gibt es **Rest … als erhaltenes Skonto**: Verbindlichkeiten an 3730 bzw. 5730 Erhaltene Skonti und an Vorsteuer, anteilig je Steuersatz; die Vorsteuer in der Voranmeldung sinkt im Monat der Ausbuchung. Ohne Vorsteuerabzug mindert das Skonto den Aufwand brutto. Bei Belegen mit § 13b, mit Privatanteil oder für Anlagen gibt es das nicht.
+Hast du selbst Skonto abgezogen, liegt die Abbuchung unter dem Beleg. Dann gibt es **Rest … als erhaltenes Skonto**: Verbindlichkeiten an 3730 bzw. 5730 Erhaltene Skonti und an Vorsteuer, anteilig je Steuersatz; die Vorsteuer in der Voranmeldung sinkt im Monat der Ausbuchung, vor der Ausführung einer Leistung nach dem Belegdatum nicht ([Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66)). Ohne Vorsteuerabzug mindert das Skonto den Aufwand brutto. Bei Belegen mit § 13b, mit Privatanteil oder für Anlagen gibt es das nicht.
 
 Einen Forderungsausfall ohne Zahlung, etwa bei Insolvenz des Kunden, buchst du auf der Seite der Rechnung unter **Ausbuchen** (siehe [Rechnungen](rechnungen.md#ausbuchen)). Hebst du die Zuordnung einer Zahlung auf, hebt Haben einen mit ihr ausgebuchten Rest mit auf.
 
@@ -395,7 +402,7 @@ Beispiel: Ein Privatkunde überweist für eine Reparatur 119,00 €, Erlöse 19 
 
 Kategorie und Steuersatz stehen an der Zuordnung, gesperrt und versiegelt; eine Aufhebung übernimmt sie in die Gegenzeile. In den Quellen der [Voranmeldung](umsatzsteuer.md#quellen-aufklappen) erscheint die Buchung als „Direktbuchung“ mit Link auf den Bankumsatz.
 
-**Zinserträge** sind Zinsen auf das Guthaben eines betrieblichen Kontos, ohne Umsatzsteuer (§ 4 Nr. 8 Buchst. a UStG); in der EÜR zählen sie bei den umsatzsteuerfreien Betriebseinnahmen. Hat die Bank Kapitalertragsteuer und Solidaritätszuschlag einbehalten, teilst du die Gutschrift mit **Aufteilen** auf: den Bruttozins als Zinserträge (positiv) und die einbehaltenen Steuern als [Steuerzahlung](bank-steuern-darlehen.md#steuerzahlungen) mit der Steuerart „Kapitalertragsteuer (von der Bank einbehalten)“ bzw. „Solidaritätszuschlag zur Kapitalertragsteuer“ (negativ). Beispiel: 100,00 € Zinsen, 25,00 € Kapitalertragsteuer und 1,37 € Soli, gutgeschrieben 73,63 €:
+**Zinserträge** sind Zinsen auf das Guthaben eines betrieblichen Kontos, ohne Umsatzsteuer (§ 4 Nr. 8 Buchst. a UStG); zur Zuordnung in der EÜR siehe [Bruttomethode](auswertungen.md#bruttomethode). Hat die Bank Kapitalertragsteuer und Solidaritätszuschlag einbehalten, teilst du die Gutschrift mit **Aufteilen** auf: den Bruttozins als Zinserträge (positiv) und die einbehaltenen Steuern als [Steuerzahlung](bank-steuern-darlehen.md#steuerzahlungen) mit der Steuerart „Kapitalertragsteuer (von der Bank einbehalten)“ bzw. „Solidaritätszuschlag zur Kapitalertragsteuer“ (negativ). Beispiel: 100,00 € Zinsen, 25,00 € Kapitalertragsteuer und 1,37 € Soli, gutgeschrieben 73,63 €:
 
 | Konto SKR03 | Konto SKR04 | Soll | Haben |
 | --- | --- | ---: | ---: |
@@ -509,11 +516,6 @@ Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt,
 ## Grenzen
 
 - Automatischer Abruf nur über Enable Banking (PSD2), nicht über FinTS/HBCI. Ohne Enable Banking kommen die Umsätze per Datei.
-- Dateiimport nur für DKB, Commerzbank, N26, Swan und CAMT.053. Andere Banken gehen, wenn sie CAMT.053 exportieren. Zahlungsdienstleister: PayPal, Stripe, Shopify Payments, eBay und Etsy per CSV, [Etsy](bank-zahlungsdienstleister.md#etsy-zahlungsverlauf-über-die-api) auch per Abruf des Zahlungsverlaufs, [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store) per Abruf der Finanzberichte; SumUp und andere lassen sich anlegen, aber noch nicht importieren.
+- Dateiimport nur für DKB, Commerzbank, C24, N26, Swan und CAMT.053. Andere Banken gehen, wenn sie CAMT.053 exportieren. Zahlungsdienstleister: PayPal, Stripe, Shopify Payments, eBay und Etsy per CSV, [Etsy](bank-zahlungsdienstleister.md#etsy-zahlungsverlauf-über-die-api) auch per Abruf des Zahlungsverlaufs, [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store) per Abruf der Finanzberichte; SumUp und andere lassen sich anlegen, aber noch nicht importieren.
 - Zahlungsdienstleister nur in Euro; Zeilen in anderen Währungen (etwa ein USD-Guthaben bei PayPal) übernimmt Haben nicht und meldet sie. Ausnahme ist der App Store: Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs in Euro um (siehe [Google Play und App Store](bank-zahlungsdienstleister.md#google-play-und-app-store)).
 - Kursdifferenzen nur beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung; Bankkonten und Verrechnungskonten von Zahlungsdienstleistern nur in Euro.
-- Zuordnungen werden mit dem Buchungsdatum des Umsatzes gebucht, ihre Aufhebung am gewählten Tag (siehe [Zuordnung aufheben](#zuordnung-aufheben)). Eine schon gesendete Voranmeldung bleibt, wie sie ist (siehe [umsatzsteuer.md](umsatzsteuer.md)).
-
-## Privates Konto: Umsätze ohne Buchungsart
-
-Auf einem Konto mit dem Zweck **privat** sind „Privat", Bankgebühren, Zinserträge, Geldtransit und Spenden gesperrt ([#873](https://github.com/firsttris/haben/issues/873)); eine private Einkommensteuer-Erstattung lässt sich dort also nicht buchen, ohne sie zum Betriebsvorgang zu machen. Solche Umsätze bleiben ungebucht und lassen sich im Umsatz als **privat, kein Betriebsvorgang** kennzeichnen ([#1088](https://github.com/firsttris/haben/issues/1088)): Sie zählen dann nicht mehr als offene Posten, tragen in der Liste den Status **privat, kein Betriebsvorgang** statt „Offen" und lassen sich jederzeit wieder öffnen. Auch die [Vorprüfung der Voranmeldung](umsatzsteuer.md#vorprüfung_1) mahnt sie nicht an. Gebucht wird dabei nichts, die EÜR bleibt unberührt.

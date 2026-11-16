@@ -73,7 +73,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
   }
 
   it("bucht die Erstattung auf dem Geschäftskonto gegen die Bank", async () => {
-    const account = await konto("geschaeft", "Swan Geschäftskonto", "DE42100140009610447304");
+    const account = await konto("geschaeft", "Geschäftskonto", "DE02120300000000202051");
     const transaction = await umsatz(account, "2026-10-15", 87_73);
     const returnId = await vermerk(-87_73);
 
@@ -86,7 +86,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
   });
 
   it("bucht die Erstattung auf dem privaten Konto als Entnahme, nicht gegen die Bank", async () => {
-    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const account = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-10-15", 87_73);
     const returnId = await vermerk(-87_73);
 
@@ -99,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
   });
 
   it("bucht Gewerbesteuer auf dem privaten Konto als Einlage, nicht gegen die Bank (#873)", async () => {
-    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const account = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-11-10", -50_000);
 
     await bank.allocate(actor, {
@@ -116,7 +116,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
   });
 
   it("bucht eine Erstattung ohne Voranmeldungsbezug auf dem privaten Konto ebenfalls als Entnahme", async () => {
-    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const account = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-10-12", 503_68);
 
     await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: transaction, amount: 503_68 });
@@ -128,7 +128,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
   });
 
   it("bucht eine Erstattung Umsatzsteuer Vorjahr (Steuerzahlung mit Bezugsjahr) auf dem privaten Konto als Entnahme", async () => {
-    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const account = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-10-12", 503_68);
 
     await bank.allocate(actor, {
@@ -146,7 +146,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
 
   it("bucht im SKR04 bei Soll-Versteuerung die Privatentnahme 2100 gegen 3820", async () => {
     await firma("SKR04", "einzelunternehmen", "soll");
-    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const account = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-10-12", 87_73);
 
     await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: transaction, amount: 87_73 });
@@ -159,7 +159,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
 
   it("bucht in der GmbH gegen das Gesellschafter-Verrechnungskonto", async () => {
     await firma("SKR03", "gmbh");
-    const account = await konto("privat", "Gesellschafter privat", "DE13120300000012099776");
+    const account = await konto("privat", "Gesellschafter privat", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-10-12", 87_73);
 
     await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: transaction, amount: 87_73 });
@@ -171,7 +171,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
   });
 
   it("bucht eine Zahlung an das Finanzamt vom privaten Konto als Einlage", async () => {
-    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const account = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-10-12", -87_73);
 
     await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: transaction, amount: -87_73 });
@@ -183,7 +183,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
   });
 
   it("lehnt die Einkommensteuer des Inhabers auf dem privaten Konto ab (#873)", async () => {
-    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const account = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-11-10", -100_000);
 
     await expect(
@@ -199,7 +199,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
   });
 
   it("lehnt die einbehaltene Kapitalertragsteuer auf dem privaten Konto ab (#873)", async () => {
-    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const account = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-11-10", -25_00);
 
     await expect(
@@ -215,7 +215,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
 
   it("bucht im SKR04 die Gewerbesteuer vom privaten Konto als Einlage gegen 7610", async () => {
     await firma("SKR04", "einzelunternehmen");
-    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const account = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-11-10", -50_000);
 
     await bank.allocate(actor, {
@@ -248,7 +248,7 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
       },
       "2026-01-15",
     );
-    const account = await konto("privat", "Gesellschafter privat", "DE13120300000012099776");
+    const account = await konto("privat", "Gesellschafter privat", "DE44500105175407324931");
     const transaction = await umsatz(account, "2026-03-10", -1200_00);
 
     await bank.allocate(actor, {

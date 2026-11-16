@@ -78,6 +78,8 @@ const PAGES = [
   "/einstellungen?bereich=bank",
   "/einstellungen?bereich=ki",
   "/einstellungen?bereich=export",
+  "/einstellungen/verfahrensdokumentation",
+  "/einstellungen?bereich=konten",
   "/einstellungen?bereich=seiten",
   "/einstellungen?bereich=sicherheit",
   "/einstellungen?bereich=persoenlich",
