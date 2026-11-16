@@ -215,12 +215,6 @@ export const company = pgTable(
     navLogo: boolean("nav_logo").notNull().default(false),
     /** Archiv aus dem Umzug in der Schnellsuche mitdurchsuchen (#617); Vorgabe an */
     archiveSearch: boolean("archive_search").notNull().default(true),
-    /** Bereiche ohne Menüpunkt (#266, lib/bereiche.ts); nur die Navigation, Daten und Links bleiben. Leer = alle sichtbar */
-    ausgeblendeteBereiche: jsonb("ausgeblendete_bereiche").$type<string[]>().notNull().default([]),
-    /** Fragen zur Einrichtung zuletzt durchgegangen (#266); null = noch nie, dann erinnert die Startseite. Bestehende Instanzen setzt die Migration */
-    einrichtungAt: timestamp("einrichtung_at", { withTimezone: true }),
-    /** Fragen, die mit „weiß ich nicht“ beantwortet sind; die Startseite erinnert, bis die Firmendaten gespeichert werden */
-    einrichtungOffen: jsonb("einrichtung_offen").$type<("rechtsform" | "kleinunternehmer")[]>().notNull().default([]),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -228,6 +222,26 @@ export const company = pgTable(
     check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`),
     check("company_nav_color", sql`${t.navColor} ~ '^#[0-9A-F]{6}$'`),
   ],
+);
+
+/**
+ * Fragen zur Einrichtung und ausgeblendete Bereiche (#266), genau eine Zeile (id = 1), angelegt beim ersten Speichern.
+ * Eine eigene Tabelle statt Spalten in `company`: Die Firmendaten bleiben, wie sie sind, und eine Instanz von vor dem
+ * Update hat keine Zeile, zeigt also alle Bereiche.
+ */
+export const einrichtung = pgTable(
+  "einrichtung",
+  {
+    id: smallint("id").primaryKey().default(1),
+    /** Bereiche ohne Menüpunkt (lib/bereiche.ts); nur die Navigation, Daten und Links bleiben. Leer = alle sichtbar */
+    ausgeblendeteBereiche: jsonb("ausgeblendete_bereiche").$type<string[]>().notNull().default([]),
+    /** Fragen zuletzt durchgegangen; null = noch nie */
+    fragenAt: timestamp("fragen_at", { withTimezone: true }),
+    /** Mit „weiß ich nicht“ beantwortet; die Übersicht erinnert, bis die Firmendaten gespeichert werden */
+    offen: jsonb("offen").$type<("rechtsform" | "kleinunternehmer")[]>().notNull().default([]),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("einrichtung_single_row", sql`${t.id} = 1`)],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */

@@ -126,6 +126,14 @@ export function offeneFragen(antworten: Antworten): OffeneFrage[] {
   );
 }
 
+/**
+ * Fragen noch nie durchgegangen und die Firma noch leer. Instanzen von vor #266 haben Firmendaten und keine Zeile in
+ * `einrichtung`: Die Übersicht fragt sie nicht, sie sehen alle Bereiche wie bisher.
+ */
+export function fragenFehlen({ eingerichtet, firmendatenGespeichert, firmenname }: { eingerichtet: boolean; firmendatenGespeichert: boolean; firmenname: string }) {
+  return !eingerichtet && !firmendatenGespeichert && firmenname.trim() === "";
+}
+
 /** Woran die Übersicht erinnert, solange die Fragen fehlen oder etwas offen ist */
 export function einrichtungsAufgaben({ fehlt, offen }: { fehlt: boolean; offen: readonly OffeneFrage[] }) {
   const aufgaben: {

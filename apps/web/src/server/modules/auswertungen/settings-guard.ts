@@ -2,7 +2,7 @@ import { isKapitalgesellschaft } from "@haben/core";
 import { and, count, eq, gte, lt, sql } from "drizzle-orm";
 import { listAssets } from "../buchhaltung/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
-import { loadCompany, type Company, type CompanyInput } from "../stammdaten/index.ts";
+import { loadCompany, offeneFragenErledigt, type Company, type CompanyInput } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -133,10 +133,10 @@ export async function saveCompany(actor: string, input: CompanyInput, today: str
         ...input,
         dunning: keptBaseRateState(current!, input),
         companySavedAt: sql`clock_timestamp()`,
-        // Wer die Firmendaten speichert, hat Rechtsform und Kleinunternehmer selbst entschieden (#266)
-        einrichtungOffen: [],
         updatedAt: new Date(),
       })
       .where(eq(schema.company.id, 1));
+    // Wer die Firmendaten speichert, hat Rechtsform und Kleinunternehmer selbst entschieden: Die Übersicht erinnert nicht mehr (#266)
+    await offeneFragenErledigt(tx);
   });
 }

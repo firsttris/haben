@@ -834,6 +834,20 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.einrichtung",
+      "name": "einrichtung_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER einrichtung_audit AFTER INSERT OR DELETE OR UPDATE ON public.einrichtung FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.einrichtung",
+      "name": "einrichtung_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER einrichtung_no_truncate BEFORE TRUNCATE ON public.einrichtung FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.elster_certificates",
       "name": "elster_certificates_audit",
       "enabled": "O",

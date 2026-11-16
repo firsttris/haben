@@ -194,7 +194,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { oidc } = Route.useRouteContext();
+  const { oidc, ausgeblendet } = Route.useRouteContext();
   const {
     company,
     numbering,
@@ -246,7 +246,7 @@ function SettingsPage() {
             </>
           )}
           {bereich === "persoenlich" && <TaxpayerForm />}
-          {bereich === "bereiche" && <BereicheCard ausgeblendet={company.ausgeblendeteBereiche} />}
+          {bereich === "bereiche" && <BereicheCard ausgeblendet={ausgeblendet} />}
           {bereich === "rechnungen" && (
             <>
               <NumberingCard numbering={numbering.invoice} />

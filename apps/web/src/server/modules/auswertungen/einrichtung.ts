@@ -7,7 +7,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { hasEmployees } from "../lohn/index.ts";
-import { type Company, loadCompany } from "../stammdaten/index.ts";
+import { type Company, loadCompany, loadEinrichtung, setEinrichtung } from "../stammdaten/index.ts";
 import { loadFrequencies, saveFrequencyIn } from "../umsatzsteuer/index.ts";
 import { lockedChange, settingsLocks, type SettingsLocks } from "./settings-guard.ts";
 
@@ -36,13 +36,14 @@ function steuerangaben(company: Company, voranmeldung: Steuerangaben["voranmeldu
 
 async function standIn(today: string, q: Db | Tx): Promise<Stand> {
   const company = await loadCompany(q);
+  const einrichtung = await loadEinrichtung(q);
   return {
     ...steuerangaben(company, frequencyAt(await loadFrequencies(q), monat(today))),
-    eingerichtet: company.einrichtungAt !== null,
+    eingerichtet: einrichtung?.fragenAt != null,
     firmendatenGespeichert: company.companySavedAt !== null,
-    einrichtungOffen: company.einrichtungOffen,
-    ausgeblendet: company.ausgeblendeteBereiche,
-    hatMitarbeiter: await hasEmployees(),
+    einrichtungOffen: einrichtung?.offen ?? [],
+    ausgeblendet: einrichtung?.ausgeblendeteBereiche ?? [],
+    hatMitarbeiter: await hasEmployees(q),
   };
 }
 
@@ -65,20 +66,21 @@ export async function einrichtungSpeichern(actor: string, antworten: Antworten, 
       throw new UserError("Privatanteile gibt es nur im Einzelunternehmen. Erst in den Firmendaten entfernen, dann die Rechtsform ändern.");
     }
     const { voranmeldung, ...firma } = nachher;
-    await tx
-      .update(schema.company)
-      .set({
-        ...firma,
-        // Nur „nein“ blendet aus; „ja“ und „weiß ich noch nicht“ zeigen den Bereich
-        ausgeblendeteBereiche: BEREICH_IDS.filter((id) => antworten.bereiche[id] === false).sort(),
-        einrichtungAt: sql`clock_timestamp()`,
-        einrichtungOffen: offeneFragen(antworten),
-        // Wie bewusst gespeicherte Firmendaten erst, wenn Kleinunternehmer beantwortet ist: Die Vorgabe „nein“ bestätigt sonst
-        // eine Regelbesteuerung, die niemand gewählt hat (stammdaten/company.ts, kleinunternehmerStand)
-        ...(antworten.kleinunternehmer === null ? {} : { companySavedAt: sql`clock_timestamp()` }),
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.company.id, 1));
+    const geaendert = (Object.keys(firma) as (keyof typeof firma)[]).some((key) => firma[key] !== current[key]);
+    // Wie bewusst gespeicherte Firmendaten erst, wenn Kleinunternehmer beantwortet ist: Die Vorgabe „nein“ bestätigt sonst
+    // eine Regelbesteuerung, die niemand gewählt hat (stammdaten/company.ts, kleinunternehmerStand)
+    if (geaendert || antworten.kleinunternehmer !== null) {
+      await tx
+        .update(schema.company)
+        .set({ ...firma, ...(antworten.kleinunternehmer === null ? {} : { companySavedAt: sql`clock_timestamp()` }), updatedAt: new Date() })
+        .where(eq(schema.company.id, 1));
+    }
+    await setEinrichtung(tx, {
+      // Nur „nein“ blendet aus; „ja“ und „weiß ich noch nicht“ zeigen den Bereich
+      ausgeblendeteBereiche: BEREICH_IDS.filter((id) => antworten.bereiche[id] === false).sort(),
+      fragenAt: new Date(),
+      offen: offeneFragen(antworten),
+    });
     // Ab Januar wie auf der Seite der Voranmeldung; passt eine gesendete nicht mehr, lehnt saveFrequencyIn ab
     if (voranmeldung !== stand.voranmeldung) await saveFrequencyIn(tx, { year: monat(today).year, fromMonth: 1, frequency: voranmeldung });
   });

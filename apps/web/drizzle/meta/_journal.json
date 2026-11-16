@@ -1909,8 +1909,15 @@
     {
       "idx": 272,
       "version": "7",
-      "when": 1794821643571,
-      "tag": "0272_einrichtung_bereiche",
+      "when": 1794825715299,
+      "tag": "0272_einrichtung",
+      "breakpoints": true
+    },
+    {
+      "idx": 273,
+      "version": "7",
+      "when": 1794825719090,
+      "tag": "0273_einrichtung_trigger",
       "breakpoints": true
     }
   ]

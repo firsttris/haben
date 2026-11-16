@@ -52,7 +52,7 @@ Nach dem ersten Konto stellt Haben ein paar Fragen in drei Schritten:
 - **Start in Haben:** Wer von einem anderen Programm wechselt, findet hier den Weg zum Umzug im Archiv.
 - **Bereiche:** ob du Angebote schreibst, Angestellte hast, Bargeld einnimmst, per Lastschrift einziehst und Anlagen oder Darlehen hast.
 
-Jede Frage hat „Weiß ich nicht“, und „Später“ überspringt alles; dann erinnert die Übersicht daran. Die Antworten schreiben die vorhandenen Angaben der [Firmendaten](#firmendaten) und den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) ab Januar des laufenden Jahres, mit denselben [Sperren](#wann-sich-die-einstellungen-ändern-lassen) wie dort. Bleiben Rechtsform oder Kleinunternehmer offen, gelten die Vorgaben (Einzelunternehmen, kein Kleinunternehmer), und die Übersicht erinnert, bis du die Firmendaten speicherst.
+Jede Frage hat „Weiß ich nicht“, und „Später“ überspringt alles; dann erinnert die Übersicht daran, bis du die Fragen beantwortest oder die Firmendaten speicherst. Die Antworten schreiben die vorhandenen Angaben der [Firmendaten](#firmendaten) und den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) ab Januar des laufenden Jahres, mit denselben [Sperren](#wann-sich-die-einstellungen-ändern-lassen) wie dort. Bleiben Rechtsform oder Kleinunternehmer offen, gelten die Vorgaben (Einzelunternehmen, kein Kleinunternehmer), und die Übersicht erinnert, bis du die Firmendaten speicherst.
 
 Unter **Einstellungen › Bereiche** öffnet „Fragen erneut durchgehen“ die Fragen noch einmal mit den gespeicherten Antworten. Ändert sich dabei Rechtsform, Kleinunternehmer, Versteuerung, Voranmeldungszeitraum, Vorsteuerabzug oder Kontenrahmen, zeigt Haben die Änderungen vor dem Speichern.
 

@@ -35,9 +35,13 @@ describe.skipIf(!testDatabaseUrl)("Fragen zur Einrichtung (Postgres, #266)", () 
   });
 
   beforeEach(async () => {
-    await leeren(sql)`truncate cash_entries, journal_lines, journal_entries, vat_frequencies, vat_returns, employees, company cascade`;
+    await leeren(
+      sql,
+    )`truncate cash_entries, journal_lines, journal_entries, vat_frequencies, vat_returns, employees, einrichtung, company, seals, audit_log, audit_chain cascade`;
+    await sql`insert into audit_chain (id, seq, hash) values (1, 0, haben_audit_genesis())`;
   });
 
+  const bereiche = async () => (await company.loadEinrichtung())?.ausgeblendeteBereiche;
   const zeitraeume = async () => (await sql`select year, from_month, frequency from vat_frequencies order by year, from_month`).map((r) => ({ ...r }));
 
   it("schreibt die Antworten in die Firmendaten und den Voranmeldungszeitraum (Freiberufler, Soll, SKR04)", async () => {
@@ -62,11 +66,10 @@ describe.skipIf(!testDatabaseUrl)("Fragen zur Einrichtung (Postgres, #266)", () 
       versteuerung: "soll",
       ohneVorsteuerabzug: true,
       kontenrahmen: "SKR04",
-      ausgeblendeteBereiche: ["kasse", "personal"],
-      einrichtungOffen: [],
     });
-    expect(firma.einrichtungAt).not.toBeNull();
     expect(firma.companySavedAt).not.toBeNull();
+    expect(await company.loadEinrichtung()).toMatchObject({ ausgeblendeteBereiche: ["kasse", "personal"], offen: [] });
+    expect((await company.loadEinrichtung())?.fragenAt).not.toBeNull();
     expect(await zeitraeume()).toEqual([{ year: 2026, from_month: 1, frequency: "vierteljaehrlich" }]);
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
@@ -80,20 +83,19 @@ describe.skipIf(!testDatabaseUrl)("Fragen zur Einrichtung (Postgres, #266)", () 
       kleinunternehmer: false,
       versteuerung: "ist",
       kontenrahmen: "SKR03",
-      ausgeblendeteBereiche: [],
-      einrichtungOffen: ["rechtsform", "kleinunternehmer"],
     });
-    expect(firma.einrichtungAt).not.toBeNull();
     expect(firma.companySavedAt).toBeNull();
+    expect(await company.loadEinrichtung()).toMatchObject({ ausgeblendeteBereiche: [], offen: ["rechtsform", "kleinunternehmer"] });
     expect(await zeitraeume()).toEqual([]);
 
     // Gewerbe beantwortet, Kleinunternehmer weiter offen
     await einrichtung.einrichtungSpeichern(actor, { ...nichts, selbstaendig: "gewerbe" }, today);
-    expect(await company.loadCompany()).toMatchObject({ einkunftsart: "gewerbe", einrichtungOffen: ["kleinunternehmer"], companySavedAt: null });
+    expect(await company.loadCompany()).toMatchObject({ einkunftsart: "gewerbe", companySavedAt: null });
+    expect((await company.loadEinrichtung())?.offen).toEqual(["kleinunternehmer"]);
 
     // Wer danach die Firmendaten speichert, hat selbst entschieden: Die Startseite erinnert nicht mehr
     await guard.saveCompany(actor, company.companySchema.parse({ ...(await company.loadCompany()), name: "Musterbetrieb" }), today);
-    expect((await company.loadCompany()).einrichtungOffen).toEqual([]);
+    expect((await company.loadEinrichtung())?.offen).toEqual([]);
   });
 
   it("Kleinunternehmer: kein Voranmeldungszeitraum, Versteuerung bleibt", async () => {
@@ -102,14 +104,15 @@ describe.skipIf(!testDatabaseUrl)("Fragen zur Einrichtung (Postgres, #266)", () 
       { ...nichts, selbstaendig: "gewerbe", kleinunternehmer: true, versteuerung: "soll", voranmeldung: "vierteljaehrlich" },
       today,
     );
-    expect(await company.loadCompany()).toMatchObject({ kleinunternehmer: true, versteuerung: "ist", einrichtungOffen: [] });
+    expect(await company.loadCompany()).toMatchObject({ kleinunternehmer: true, versteuerung: "ist" });
+    expect((await company.loadEinrichtung())?.offen).toEqual([]);
     expect(await zeitraeume()).toEqual([]);
   });
 
   it("gilt mit denselben Sperren wie die Firmendaten: Nach der ersten Buchung bleibt alles, wie es war", async () => {
     await einrichtung.einrichtungSpeichern(actor, { ...nichts, selbstaendig: "freiberufler", kleinunternehmer: false }, today);
     await cash.createCashEntry(actor, { kind: "einlage", date: "2026-10-01", amount: 5_000 }, today);
-    const vorher = await company.loadCompany();
+    const vorher = await company.loadEinrichtung();
 
     await expect(
       einrichtung.einrichtungSpeichern(actor, { ...nichts, selbstaendig: "gmbh", kleinunternehmer: false, bereiche: { kasse: false } }, today),
@@ -117,14 +120,20 @@ describe.skipIf(!testDatabaseUrl)("Fragen zur Einrichtung (Postgres, #266)", () 
     await expect(
       einrichtung.einrichtungSpeichern(actor, { ...nichts, kleinunternehmer: false, versteuerung: "soll", bereiche: { kasse: false } }, today),
     ).rejects.toThrow(/^Versteuerung: Im Jahr 2026 gibt es schon Buchungen/);
-    const nachher = await company.loadCompany();
-    expect(nachher).toMatchObject({ rechtsform: "einzelunternehmen", versteuerung: "ist", ausgeblendeteBereiche: [] });
-    expect(nachher.einrichtungAt).toEqual(vorher.einrichtungAt);
+    expect(await company.loadCompany()).toMatchObject({ rechtsform: "einzelunternehmen", versteuerung: "ist" });
+    expect(await company.loadEinrichtung()).toEqual(vorher);
 
     // Bereiche und unveränderte Angaben gehen auch nach der ersten Buchung
     await einrichtung.einrichtungSpeichern(actor, { ...nichts, selbstaendig: "freiberufler", kleinunternehmer: false, bereiche: { kasse: false } }, today);
-    expect((await company.loadCompany()).ausgeblendeteBereiche).toEqual(["kasse"]);
+    expect(await bereiche()).toEqual(["kasse"]);
   }, 30_000);
+
+  it("ändert ohne Antworten zu den Firmendaten die Firmenzeile nicht", async () => {
+    const vorher = await company.loadCompany();
+    await einrichtung.einrichtungSpeichern(actor, { ...nichts, bereiche: { lastschriften: false } }, today);
+    expect(await company.loadCompany()).toEqual(vorher);
+    expect(await bereiche()).toEqual(["lastschriften"]);
+  });
 
   it("füllt beim erneuten Durchgehen vor, was gespeichert ist", async () => {
     expect((await einrichtung.einrichtungStand(today)).stand).toMatchObject({ eingerichtet: false, voranmeldung: "monatlich", ausgeblendet: [] });
@@ -139,9 +148,11 @@ describe.skipIf(!testDatabaseUrl)("Fragen zur Einrichtung (Postgres, #266)", () 
   });
 
   it("Einstellungen › Bereiche speichert sortiert und ohne Doppelte", async () => {
+    expect(await company.loadEinrichtung()).toBeNull();
     await company.saveBereiche(actor, ["personal", "kasse", "kasse"]);
-    expect((await company.loadCompany()).ausgeblendeteBereiche).toEqual(["kasse", "personal"]);
+    expect(await bereiche()).toEqual(["kasse", "personal"]);
     await company.saveBereiche(actor, []);
-    expect((await company.loadCompany()).ausgeblendeteBereiche).toEqual([]);
+    expect(await bereiche()).toEqual([]);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 {
-  "id": "702846cc-9200-4916-bbf1-d8ccc2dd4b22",
+  "id": "9df25082-41df-4c4d-93a9-ca901cba1da4",
   "prevId": "aee70645-6ad4-4a1c-a118-be00cfa2d8a7",
   "version": "7",
   "dialect": "postgresql",
@@ -3295,26 +3295,6 @@
           "notNull": true,
           "default": true
         },
-        "ausgeblendete_bereiche": {
-          "name": "ausgeblendete_bereiche",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "einrichtung_at": {
-          "name": "einrichtung_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "einrichtung_offen": {
-          "name": "einrichtung_offen",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -5730,6 +5710,58 @@
         "dunnings_level": {
           "name": "dunnings_level",
           "value": "\"dunnings\".\"level\" between 1 and 3"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.einrichtung": {
+      "name": "einrichtung",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "smallint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "ausgeblendete_bereiche": {
+          "name": "ausgeblendete_bereiche",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "fragen_at": {
+          "name": "fragen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "offen": {
+          "name": "offen",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "einrichtung_single_row": {
+          "name": "einrichtung_single_row",
+          "value": "\"einrichtung\".\"id\" = 1"
         }
       },
       "isRLSEnabled": false

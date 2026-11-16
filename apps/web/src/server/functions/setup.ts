@@ -5,7 +5,8 @@ import { db, schema } from "../db/index.ts";
 import { listCustomPages } from "../modules/eigene-seiten/index.ts";
 import { firmaInNavigation, navMark } from "../../lib/navigation.ts";
 import { hasEmployees } from "../modules/lohn/index.ts";
-import { loadCompany, logoInfo } from "../modules/stammdaten/index.ts";
+import { type Company, loadCompany, loadEinrichtung, logoInfo } from "../modules/stammdaten/index.ts";
+import { fragenFehlen, type OffeneFrage } from "../../lib/einrichtung.ts";
 import { env } from "../env.ts";
 import { andereFirmen } from "../../lib/firmen.ts";
 import { oidcPublicConfig } from "../oidc.ts";
@@ -18,6 +19,15 @@ async function initialized(): Promise<boolean> {
   if (ssoOnly()) return ssoInitialized(db, env().OIDC_ISSUER!);
   const [row] = await db.select({ n: count() }).from(schema.user);
   return (row?.n ?? 0) > 0;
+}
+
+async function einrichtungFuerNavigation(
+  company: Company | null,
+): Promise<{ ausgeblendet: string[]; einrichtung: { fehlt: boolean; offen: OffeneFrage[] } | null }> {
+  if (!company) return { ausgeblendet: [], einrichtung: null };
+  const einrichtung = await loadEinrichtung();
+  const fehlt = fragenFehlen({ eingerichtet: einrichtung?.fragenAt != null, firmendatenGespeichert: company.companySavedAt !== null, firmenname: company.name });
+  return { ausgeblendet: einrichtung?.ausgeblendeteBereiche ?? [], einrichtung: { fehlt, offen: einrichtung?.offen ?? [] } };
 }
 
 /** Öffentlich: Betriebsart, ob Haben schon eingerichtet ist und ob jemand angemeldet ist. */
@@ -38,10 +48,8 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name, url, openInNewTab }) => ({ id, name, url, openInNewTab })) : [],
     // Menüpunkt SV-Meldeportal erst mit dem ersten Mitarbeiter; die Steuerberatung hat ihre eigene Navigation
     hatMitarbeiter: user?.role === "inhaber" ? await hasEmployees() : false,
-    // Bereiche ohne Menüpunkt (#266); die Steuerberatung hat ihre eigene Navigation
-    ausgeblendet: user?.role === "inhaber" && company ? company.ausgeblendeteBereiche : [],
-    // Fragen zur Einrichtung (#266): noch nie durchgegangen bzw. mit „weiß ich nicht“ offen; daran erinnert die Startseite
-    einrichtung: company ? { fehlt: company.einrichtungAt === null, offen: company.einrichtungOffen } : null,
+    // Bereiche ohne Menüpunkt und Erinnerung an die Fragen zur Einrichtung (#266); die Steuerberatung hat ihre eigene Navigation
+    ...(await einrichtungFuerNavigation(user?.role === "inhaber" ? company : null)),
     // Firma wechseln (#504): die Instanzen der anderen Firmen, nur für den Inhaber
     firmen: user ? andereFirmen(env().HABEN_FIRMEN, env().BETTER_AUTH_URL, user.role) : [],
     // Mit Firmenportal (#504, Stufe 2) führt „Zum Firmenportal“ dorthin, ebenfalls nur für den Inhaber

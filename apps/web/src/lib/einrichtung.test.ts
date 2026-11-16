@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aenderungen, type Antworten, antwortenAus, einrichtungsAufgaben, offeneFragen, type Stand, steuerangabenNach } from "./einrichtung.ts";
+import { aenderungen, type Antworten, antwortenAus, einrichtungsAufgaben, fragenFehlen, offeneFragen, type Stand, steuerangabenNach } from "./einrichtung.ts";
 
 const neu: Stand = {
   rechtsform: "einzelunternehmen",
@@ -146,5 +146,14 @@ describe("einrichtungsAufgaben", () => {
     expect(einrichtungsAufgaben({ fehlt: true, offen: [] }).map((a) => a.to)).toEqual(["/einrichtung"]);
     expect(einrichtungsAufgaben({ fehlt: false, offen: ["kleinunternehmer"] }).map((a) => a.title)).toEqual(["Kleinunternehmer klären"]);
     expect(einrichtungsAufgaben({ fehlt: false, offen: [] })).toEqual([]);
+  });
+});
+
+describe("fragenFehlen", () => {
+  it("nur bei einer neuen Instanz, nicht bei einer von vor dem Update mit Firmendaten", () => {
+    expect(fragenFehlen({ eingerichtet: false, firmendatenGespeichert: false, firmenname: "" })).toBe(true);
+    expect(fragenFehlen({ eingerichtet: true, firmendatenGespeichert: false, firmenname: "" })).toBe(false);
+    expect(fragenFehlen({ eingerichtet: false, firmendatenGespeichert: true, firmenname: "" })).toBe(false);
+    expect(fragenFehlen({ eingerichtet: false, firmendatenGespeichert: false, firmenname: "Musterbetrieb" })).toBe(false);
   });
 });
