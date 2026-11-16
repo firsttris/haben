@@ -42,6 +42,7 @@ import { InvoiceAttachments } from "../../components/InvoiceAttachments.tsx";
 import { getQuoteDefaultAttachments } from "../../server/functions/invoice-attachments.ts";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
+import { OwnAccountsCard } from "../../components/OwnAccountsCard.tsx";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
 import { ExtractionCard } from "../../components/ExtractionCard.tsx";
@@ -79,9 +80,12 @@ import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
 import { NavMarkCard } from "../../components/NavMarkCard.tsx";
+import { getOwnAccounts } from "../../server/functions/eigene-konten.ts";
 import { SettingsHead, SettingsNav } from "../../components/SettingsNav.tsx";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
+import { UnitsCard } from "../../components/UnitsCard.tsx";
+import { getUnits } from "../../server/functions/units.ts";
 import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
@@ -115,6 +119,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
+      ownAccounts,
+      units,
     ] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
@@ -140,6 +146,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getZugaenge(),
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
+      getOwnAccounts(),
+      getUnits(),
     ]);
     return {
       ...company,
@@ -168,6 +176,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
+      ownAccounts,
+      units,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -202,6 +212,8 @@ function SettingsPage() {
     zugaenge,
     extraction,
     quoteDefaultAttachments,
+    ownAccounts,
+    units,
   } = Route.useLoaderData();
   const search = Route.useSearch();
   const bereich = search.bereich ?? "firma";
@@ -236,6 +248,7 @@ function SettingsPage() {
                 quoteRunning={company.quoteCounterRunning}
                 date={numbering.invoice.date}
               />
+              <UnitsCard units={units} />
               <PlanTemplatesCard templates={company.paymentPlanTemplates} />
               <InvoiceAttachments kind="standard" attachments={quoteDefaultAttachments} editable />
               <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} date={numbering.invoice.date} />
@@ -282,6 +295,7 @@ function SettingsPage() {
               <ExtractionCard settings={extraction} />
             </>
           )}
+          {bereich === "konten" && <OwnAccountsCard overview={ownAccounts} />}
           {bereich === "seiten" && <EigeneSeitenCard pages={customPages} />}
           {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}
           {bereich === "export" && (

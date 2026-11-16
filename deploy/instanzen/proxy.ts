@@ -66,7 +66,7 @@ export function proxyDir(k: Kontext): string {
  * steht trotzdem in der Datei, weil ein Neuaufbau (von Hand, neues Image) den Container allein aus den Dateien
  * erzeugt. Die Netze legt Compose im Projekt des Caddy an (kein external), ein fehlendes hält seinen Start so nicht auf.
  */
-function netzeDatei(netze: string[]): string {
+export function netzeDatei(netze: string[]): string {
   return [
     "# Von haben-instanzen.ts bei jedem `neu` aus den Instanzen neu geschrieben: je Instanz ein eigenes Netz zum Caddy.",
     "services:",
@@ -83,7 +83,7 @@ function netzeDatei(netze: string[]): string {
  * Wer eine Instanz von Hand umstellt, schreibt die Zeile nicht immer wie das Werkzeug; fehlte ihr Netz deshalb beim
  * Caddy, wäre sie ohne Meldung nicht mehr erreichbar.
  */
-function netzname(zeile: string): string | undefined {
+export function netzname(zeile: string): string | undefined {
   return /^\s*name:\s*(["']?)([^"'#\s]+)\1\s*(#.*)?$/.exec(zeile)?.[2];
 }
 
@@ -91,7 +91,7 @@ function netzname(zeile: string): string | undefined {
  * Instanzen hinter dem gemeinsamen Caddy (Datei in sites/), deren Override-Datei das eigene Netz nennt. Eine Instanz
  * von vor #872 hängt im gemeinsamen Netz haben-proxy aus compose.yml und fehlt hier, bis sie umgestellt ist.
  */
-async function netzeDerInstanzen(k: Kontext): Promise<string[]> {
+export async function netzeDerInstanzen(k: Kontext): Promise<string[]> {
   const namen = (await readdir(join(proxyDir(k), "sites"))).filter((d) => d.endsWith(".caddy")).map((d) => d.slice(0, -".caddy".length));
   const netze: string[] = [];
   for (const name of namen.sort()) {

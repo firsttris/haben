@@ -18,6 +18,7 @@ const STEUERBERATUNG_LIEST = [
   "documents.ts:getDocumentDetail",
   "documents.ts:getDocuments",
   "documents.ts:getDocumentSettlements",
+  "eigene-konten.ts:getOwnAccounts",
   "export.ts:getExportYears",
   "invoices.ts:getInvoiceDetail",
   "invoices.ts:getInvoiceSettlements",

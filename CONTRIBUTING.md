@@ -50,8 +50,8 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
   durch jemand anderen oder einen frischen Agenten. Im TDD-Review zählt ein Befund nur mit einem Test, der auf dem
   Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf
   ([Review](https://haben.app/mitwirken.html#review)). Bringst du es mit, reviewen wir nicht noch einmal.
-- Fehlt beides, machen wir alles selbst noch einmal, und weil jeder Merge über uns läuft, wartet dein Pull Request
-  dann länger. Gemergt wird von einem Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Ein Issue vorab
+- Fehlt eins davon oder ist es älter als dein letzter Commit, prüfen wir den Pull Request nicht und bitten dich
+  darum. Gemergt wird von einem Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Ein Issue vorab
   spart dir Arbeit an etwas, das wir nicht übernehmen können.
 
 Die vollständigen Regeln (Codestil, Geld in Cent, GoBD-Sperren, Migrationen, Modulgrenzen) stehen unter

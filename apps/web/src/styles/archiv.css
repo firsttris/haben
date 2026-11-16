@@ -20,7 +20,7 @@
 .table-scroll { overflow-x: auto; }
 .archive-fingerprint { overflow-wrap: anywhere; }
 .archive-proof { white-space: pre-wrap; overflow-wrap: anywhere; }
-.legacy-cols { grid-template-columns: 96px 140px minmax(0, 1fr) 110px 110px 60px; }
+.legacy-cols { grid-template-columns: 96px 140px minmax(0, 1fr) 110px 110px 112px; }
 /* Markierung einer Zeile unter Kontakt und Art, am Handy über die ganze Zeile: ab Kontakt wäre sie bei 320 px zu breit (LegacyVouchers.tsx) */
 .legacy-flag { grid-column: 3 / 4; margin-top: -8px; padding-bottom: 10px; }
 .archive-file-cols { grid-template-columns: 60px 170px minmax(0, 1fr) 90px 150px; }
@@ -37,3 +37,9 @@
   .archive-file-cols { grid-template-columns: 50px minmax(0, 1fr) 80px; }
   .archive-file-cols > :nth-child(2), .archive-file-cols > :nth-child(5) { display: none; }
 }
+
+/* Kennzahlen einer archivierten Voranmeldung (LegacyVatReports.tsx) */
+.vat-report-values { display: grid; gap: 2px 16px; margin: 8px 0 0; }
+.vat-report-values > div { display: flex; justify-content: space-between; gap: 16px; }
+.vat-report-values dt { color: var(--muted); }
+.vat-report-values dd { margin: 0; }

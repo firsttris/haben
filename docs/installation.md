@@ -425,6 +425,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Beim ersten Fehler hält es an |
 | `status` | Je Instanz Version (mit der Kennung des Commits, wenn das Image eine meldet, etwa `0.8.2 (0123abc)`), Erreichbarkeit unter `https://<domain>/login`, ERiC, Speicher von Datenbank und Belegen und letzte erfolgreiche Sicherung |
 | `liste` | Name, Domain und Verzeichnis |
+| `entfernen <name>` | Räumt nach dem Löschen einer Instanz den gemeinsamen Caddy auf (Datei, Netz, `caddy reload`), ohne ihn neu aufzubauen; die Instanz muss schon gelöscht sein |
 | `firmen [<name> …]` | Schreibt die Liste für [Firma wechseln](#firma-wechseln) als `HABEN_FIRMEN` in die `.env` der Instanzen und startet laufende Apps neu |
 | `portal [<domain> --oidc-…]` | Richtet beim ersten Aufruf das [Firmenportal](#firmenportal) unter `firmenportal/` hinter dem gemeinsamen Caddy ein und gleicht es danach bei jedem Aufruf mit den Instanzen mit SSO ab: Firmen, Farbe und Logo, `HABEN_FIRMENPORTAL_URL` in den Instanzen |
 
@@ -463,7 +464,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 - Beim ersten Aufruf mit der Domain des Firmenportals und dem eigenen Client beim Anmeldedienst, wie bei `neu --sso`: `portal firmenportal.example.de --oidc-issuer https://auth.example.de --oidc-client-id haben-firmenportal --oidc-client-secret-stdin`. Es legt `firmenportal/` mit `compose.yml` (die Vorlage ohne den Port auf `127.0.0.1`: der Weg führt nur über den Caddy), `.env` (eigenes `PORTAL_SECRET`, Rechte 600), Override-Datei und `logos/` an, trägt die Domain in den gemeinsamen Caddy ein (Netz `haben-proxy-firmenportal`) und nennt die Adressen, die der Client beim Anmeldedienst braucht. Das geht nur mit dem gemeinsamen Caddy; laufen die Instanzen mit `--eigener-proxy`, bricht es ab, und du richtest das Firmenportal von Hand ein (siehe [Firmenportal](#firmenportal)). Ein schon vorhandenes Compose-Projekt `firmenportal`, etwa ein von Hand eingerichtetes Firmenportal, übernimmt es nicht. Bricht der Abgleich danach ab, bleibt `firmenportal/` eingerichtet; nach dem Beheben genügt `portal` ohne Angaben.
 - Danach ohne Angaben: `portal` gleicht nur ab. Eine andere Domain oder neue `--oidc-…` lehnt es ab; die stehen in `firmenportal/.env`.
 - In `PORTAL_FIRMEN` kommen alle Instanzen mit `OIDC_ONLY=true`, je mit `HABEN_FIRMENNAME` (sonst ihr Name), `https://<DOMAIN>` und `OIDC_GROUP_INHABER` aus ihrer `.env`. Instanzen ohne SSO nennt es nur.
-- Farbe und Logo fragt es bei jeder laufenden Instanz ab (`haben status --json`); ein neues Logo holt es mit `haben kennzeichen` nach `logos/<name>.png` bzw. `.jpg`, wenn die Prüfsumme sich geändert hat. Ein Image von vor diesem Feld oder ein Logo, das nicht zur gemeldeten Prüfsumme passt, bricht nichts ab: Die Firma zeigt ihren Anfangsbuchstaben. Gestoppte Instanzen behalten Farbe und Logo von bisher.
+- Farbe und Logo fragt es bei jeder laufenden Instanz ab (`haben status --json`); ein neues Logo holt es mit `haben kennzeichen` nach `logos/<name>.png` bzw. `.jpg`, wenn die Prüfsumme sich geändert hat. Ein Image von vor diesem Feld oder ein Logo, das nicht zur gemeldeten Prüfsumme passt, bricht nichts ab: Die Firma zeigt ihren Anfangsbuchstaben. Gestoppte Instanzen und laufende, bei denen `haben status` oder `haben kennzeichen` scheitert (Fehler oder mehr als 60 Sekunden), behalten Farbe und Logo von bisher; `portal` nennt die laufenden „Nicht erreicht“. Exit-Code 3 von `haben kennzeichen` heißt „kein Logo“ und entfernt es.
 - In jede dieser Instanzen schreibt es `HABEN_FIRMENPORTAL_URL` und leert `HABEN_FIRMEN`, das die App daneben ablehnt. `firmen` lehnt Instanzen mit Firmenportal danach ab. Hat eine Instanz kein SSO mehr, nimmt es die Adresse dort wieder heraus, denn ohne `OIDC_ONLY=true` startete die App mit ihr nicht.
 - Wie `firmen` prüft der Abgleich erst alles und ändert bei einem Fehler, etwa einer fehlenden Gruppe oder einem doppelten Namen, keine Datei. Geschrieben wird nur, was sich ändert; neu gestartet nur das Firmenportal (nach einer geänderten Liste oder einem neuen Logo) und die Instanzen, deren `.env` sich geändert hat. Scheitert ein Neustart, holt ihn der nächste Lauf nach (die ausstehenden stehen in `firmenportal/.neustart-offen`). Ohne Änderung meldet es „Nichts geändert.“ Ein gestopptes Firmenportal bleibt gestoppt.
 - Zwei Läufe zugleich verhindert die Datei `firmenportal/.abgleich.lock`; bleibt sie nach einem Absturz liegen, nennt `portal` sie, und du löschst sie.
@@ -500,23 +501,22 @@ Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hä
 
 Alle Instanzen sind noch kurz nicht erreichbar (höchstens einige Sekunden), wenn der Caddy-Container neu entsteht oder neu startet:
 
-- beim ersten schlichten `docker compose up -d` in `proxy/` nach einem `neu`: Compose sieht die neuen Netze in der Datei und baut den Container einmal neu auf, auch wenn er schon in allen hängt;
+- beim ersten schlichten `docker compose up -d` in `proxy/` nach einem `neu` oder `entfernen`: Compose sieht die geänderten Netze in der Datei und baut den Container einmal neu auf, auch wenn er schon in allen hängt;
 - mit `docker compose up -d --force-recreate`, mit `docker compose up -d` nach einem `docker compose pull`, das ein neues Image des Caddy holt, und mit `docker compose restart caddy`;
-- beim Löschen einer Instanz (Schritt 3 unten) und beim ersten Start von Hand nach `--nicht-starten` oder einem Abbruch, mit den Schritten, die `neu` dann nennt;
+- beim ersten Start von Hand nach `--nicht-starten` oder einem Abbruch, mit den Schritten, die `neu` dann nennt;
 - beim Neustart von Docker oder des Rechners. Die Netze, in die `neu` den Container gehängt hat, bleiben ihm dabei erhalten.
 
 Bestehende Instanzen und ihr Caddy brauchen dafür keine Umstellung.
 
-Eine Instanz löschst du in dieser Reihenfolge. `docker compose down -v` entfernt alle Volumes der Instanz: Datenbank, Belege und, solange `RESTIC_REPOSITORY` nicht auf ein zweites System zeigt, auch das Backup im Volume `backups`. Vorher gehören deshalb der [Jahresexport](auswertungen.md#jahresexport) jedes Jahres und ein Backup an einen zweiten Ort ([Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system)); Bücher und Aufzeichnungen bewahrst du 10 Jahre auf, Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO), siehe [Aufbewahrung](auswertungen.md#aufbewahrung).
+Eine Instanz löschst du in zwei Schritten. `docker compose down -v` entfernt alle Volumes der Instanz: Datenbank, Belege und, solange `RESTIC_REPOSITORY` nicht auf ein zweites System zeigt, auch das Backup im Volume `backups`. Vorher gehören deshalb der [Jahresexport](auswertungen.md#jahresexport) jedes Jahres und ein Backup an einen zweiten Ort ([Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system)); Bücher und Aufzeichnungen bewahrst du 10 Jahre auf, Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO), siehe [Aufbewahrung](auswertungen.md#aufbewahrung).
 
 1. In ihrem Verzeichnis `docker compose down -v`, dann das Verzeichnis löschen.
-2. Ihre Datei in `proxy/sites/` und die beiden Einträge ihres Netzes in `proxy/compose.override.yml` entfernen; war es das einzige Netz darin, die Datei löschen.
-3. `docker compose up -d` in `proxy/`, dann `docker network rm haben-proxy-<name>`.
+2. `bun deploy/instanzen/haben-instanzen.ts entfernen <name>`. Das Werkzeug bricht ab, solange das Verzeichnis der Instanz (auch ohne `.env`) oder ihr Compose-Projekt in Docker noch da sind. Es entfernt ihre Datei in `proxy/sites/`, schreibt `proxy/compose.override.yml` aus den übrigen Instanzen neu (ohne Instanz fällt die Datei weg), liest bei laufendem Caddy `sites/` mit `caddy reload` neu ein, löst den Caddy vom Netz `haben-proxy-<name>` und löscht es. Der Caddy-Container bleibt dabei bestehen; ein gestoppter Caddy bleibt gestoppt.
 
-Zwei Fälle weichen bei Schritt 2 und 3 ab:
+Zwei Fälle weichen ab:
 
-- **Mit `--eigener-proxy`** gibt es kein `proxy/`: den Block der Domain und das Netz aus der Konfiguration deines Proxys entfernen, ihn neu aufbauen, dann `docker network rm haben-proxy-<name>`.
-- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `proxy/compose.override.yml` ändert sich nicht. Nach dem Entfernen ihrer Datei in `proxy/sites/` in `proxy/` `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`; sonst behält der Caddy die Domain bis zu seinem nächsten Neustart.
+- **Mit `--eigener-proxy`** gibt es kein `proxy/` und keinen Eintrag, `entfernen` gibt es dafür nicht: den Block der Domain und das Netz aus der Konfiguration deines Proxys entfernen, ihn neu aufbauen, dann `docker network rm haben-proxy-<name>`.
+- **Instanz im alten gemeinsamen Netz `haben-proxy`:** Sie hat kein eigenes Netz, `entfernen` entfernt nur ihre Datei und liest `sites/` neu ein; sonst behielte der Caddy die Domain bis zu seinem nächsten Neustart.
 
 `update`, `status` und `liste` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
 

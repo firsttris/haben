@@ -8,6 +8,7 @@ export const SETTINGS_AREAS = [
   { id: "elster", label: "ELSTER", hint: "Zertifikat und ERiC" },
   { id: "email", label: "E-Mail", hint: "Versand, Postfach für Belege" },
   { id: "bank", label: "Bank", hint: "Kontoabruf, Google Play, App Store" },
+  { id: "konten", label: "Eigene Konten", hint: "Sachkonten mit eigener Nummer" },
   { id: "sicherheit", label: "Sicherheit", hint: "Passkeys, Passwort, Zugänge" },
   { id: "waehrung", label: "Fremdwährung", hint: "USt-Umrechnungskurse des BMF" },
   { id: "ki", label: "KI-Assistenten und API", hint: "MCP, API-Tokens, Belegauslesung" },

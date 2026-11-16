@@ -68,7 +68,8 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       // PostgreSQL-Text umfasst auch Zeitstempel, Binärdaten, Hash-Kette und die gespeicherten Siegelspalten.
       const snapshot = async () => ({
         company: await sql`select (to_jsonb(c)-'ohne_vorsteuerabzug'-'archive_search'-'founded_on')::text as bytes from company c order by id`,
-        invoice: await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date')::text as bytes from invoices i order by id`,
+        invoice:
+          await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'paid_via'-'paid_on')::text as bytes from invoices i order by id`,
         invoiceLines: await sql`select to_jsonb(l)::text as bytes from invoice_lines l order by id`,
         invoiceTaxes: await sql`select to_jsonb(t)::text as bytes from invoice_taxes t order by invoice_id,rate`,
         entries: await sql`select to_jsonb(e)::text as bytes from journal_entries e order by id`,
@@ -87,7 +88,8 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       await migrate(database, { migrationsFolder: MIGRATIONS });
       expect(await sql`select founded_on from company order by id`).toEqual([{ founded_on: null }]);
       expect(await snapshot()).toEqual(old);
-      // Neu im Audit-Log ist nur die Zeile der Prüfung beim Update (Migration 0255, #1116)
+      expect(await sql`select paid_via, paid_on from invoices where id=${invoiceId}`).toEqual([{ paid_via: null, paid_on: null }]);
+      // Neu im Audit-Log ist nur die Zeile der Prüfung beim Update (Migration 0269, #1116)
       expect(await sql`select table_name, action from audit_log where seq > ${auditHead!.seq}`).toEqual([
         { table_name: "journal_umstellung", action: "INSERT" },
       ]);
@@ -123,9 +125,9 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       expect(await sql`select advance_accounting,replaces_invoice_id from invoices where id=${invoiceId}`).toEqual([
         { advance_accounting: null, replaces_invoice_id: null },
       ]);
-      expect(await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date')::text as bytes from invoices i order by id`).toEqual(
-        old.invoice,
-      );
+      expect(
+        await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'paid_via'-'paid_on')::text as bytes from invoices i order by id`,
+      ).toEqual(old.invoice);
       expect(await sql`select to_jsonb(l)::text as bytes from invoice_lines l order by id`).toEqual(old.invoiceLines);
       expect(await sql`select to_jsonb(t)::text as bytes from invoice_taxes t order by invoice_id,rate`).toEqual(old.invoiceTaxes);
       expect(await sql`select to_jsonb(e)::text as bytes from journal_entries e where id=${entryId} order by id`).toEqual(old.entries);

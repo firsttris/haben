@@ -1,0 +1,122 @@
+import { UNIT_LABEL_MAX, unitLabelIssues, UNITS } from "@haben/core";
+import { useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useState, type FormEvent } from "react";
+import { useAction } from "../lib/use-action.ts";
+import { useSubmitCheck } from "../lib/use-submit-check.ts";
+import { addUnit, archiveUnit } from "../server/functions/units.ts";
+import { Field } from "./Field.tsx";
+import { NoticeBanner } from "./NoticeBanner.tsx";
+import { ScrollTable } from "./ScrollTable.tsx";
+
+interface UnitRow {
+  id: string;
+  label: string;
+  code: string;
+  archivedAt: Date | string | null;
+}
+
+/** Eigene Mengeneinheiten (#748): anlegen mit Code nach UN/ECE Rec. 20/21, archivieren statt löschen */
+export function UnitsCard({ units }: { units: UnitRow[] }) {
+  const router = useRouter();
+  const add = useServerFn(addUnit);
+  const archive = useServerFn(archiveUnit);
+  const { busy, notice, run } = useAction();
+  const [label, setLabel] = useState("");
+  const [code, setCode] = useState("");
+  const labels = units.map((unit) => unit.label);
+  // Dubletten und Zeichen ohne Belegschrift zeigt das Feld schon beim Tippen, Fehlendes erst beim Anlegen
+  const issues = label.trim() ? unitLabelIssues(label, labels) : [];
+  const { form, error, check } = useSubmitCheck({
+    label: label.trim() === "" ? "Gib die Bezeichnung ein." : issues.join(" · ") || null,
+    // Codes nach UN/ECE Rec. 20/21 haben zwei oder drei Zeichen; ob es ihn gibt, prüft der Server gegen die Liste
+    code:
+      code.trim() === ""
+        ? "Gib den Code ein, ohne passenden C62."
+        : /^[A-Z0-9]{2,3}$/.test(code.trim())
+          ? null
+          : "Der Code hat zwei oder drei Zeichen, etwa MTK.",
+  });
+
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!check()) return;
+    void run(async () => {
+      await add({ data: { label, code } });
+      setLabel("");
+      setCode("");
+      await router.invalidate();
+    }, `Einheit „${label.trim()}“ angelegt.`);
+  };
+
+  return (
+    <section className="card" aria-labelledby="units-heading">
+      <h2 id="units-heading">Einheiten</h2>
+      <p className="small muted" style={{ margin: 0 }}>
+        Fest dabei sind {Object.keys(UNITS).join(", ")}. Eigene Einheiten stehen danach in Artikeln, Rechnungen, Angeboten und Serienrechnungen zur Auswahl. Für
+        die E-Rechnung braucht jede einen Code nach UN/ECE Recommendation 20; passt keiner, nimm C62 (Stück). Eine Einheit lässt sich nicht umbenennen oder
+        löschen, nur archivieren.
+      </p>
+      <form ref={form} onSubmit={onSubmit} className="form-row cols-2" noValidate>
+        <Field
+          label="Bezeichnung"
+          hint={`Wie auf dem Beleg, höchstens ${UNIT_LABEL_MAX} Zeichen, etwa UE oder m²`}
+          error={issues.join(" · ") || error("label")}
+        >
+          {(control) => <input {...control} value={label} maxLength={UNIT_LABEL_MAX} onChange={(e) => setLabel(e.target.value)} />}
+        </Field>
+        <Field label="Code (UN/ECE Rec. 20)" hint="Zwei oder drei Zeichen, etwa MTK für Quadratmeter; ohne passenden Code C62" error={error("code")}>
+          {(control) => <input {...control} className="mono" value={code} maxLength={3} onChange={(e) => setCode(e.target.value.toUpperCase())} />}
+        </Field>
+        <div className="actions" style={{ gridColumn: "1 / -1" }}>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            Einheit anlegen
+          </button>
+        </div>
+      </form>
+      {units.length > 0 && (
+        <ScrollTable className="report-table">
+          <thead>
+            <tr>
+              <th scope="col">Einheit</th>
+              <th scope="col">Code</th>
+              <th scope="col">
+                <span className="visually-hidden">Aktion</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {units.map((unit) => (
+              <tr key={unit.id} className={unit.archivedAt ? "muted" : undefined}>
+                <td>
+                  {unit.label}
+                  {unit.archivedAt ? " (archiviert)" : ""}
+                </td>
+                <td className="mono">{unit.code}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(
+                        async () => {
+                          await archive({ data: { id: unit.id, archived: !unit.archivedAt } });
+                          await router.invalidate();
+                        },
+                        unit.archivedAt ? `„${unit.label}“ wiederhergestellt.` : `„${unit.label}“ archiviert.`,
+                      )
+                    }
+                  >
+                    {unit.archivedAt ? "Wiederherstellen" : "Archivieren"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </ScrollTable>
+      )}
+      <NoticeBanner notice={notice} />
+    </section>
+  );
+}

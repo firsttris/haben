@@ -103,7 +103,7 @@ async function appRolleAnlegen(k: Kontext, a: NeuAngaben, dir: string): Promise<
   if (passwort === "") abbrechen(`In ${dir}/.env fehlt das Passwort der App-Rolle in DATABASE_URL.`);
   if ((await compose(k, dir, ["up", "-d", "--wait", "db"], true)).code !== 0)
     abbrechen(`Die Datenbank von ${a.name} ließ sich nicht starten; siehe: cd ${dir} && docker compose logs db`);
-  if ((await compose(k, dir, ["exec", "-T", "db", ...CREATEUSER], false, `${passwort}\n${passwort}\n`)).code !== 0)
+  if ((await compose(k, dir, ["exec", "-T", "db", ...CREATEUSER], false, { eingabe: `${passwort}\n${passwort}\n` })).code !== 0)
     abbrechen(`Die App-Rolle ${APP_ROLLE} von ${a.name} ließ sich nicht anlegen; die App ist nicht gestartet. Siehe: cd ${dir} && docker compose logs db`);
 }
 

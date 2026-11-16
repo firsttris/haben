@@ -116,7 +116,7 @@ Wiedererkannt wird ein Kontakt am Personenkonto, nicht am Namen:
 | Artikelnummer | Artikelnummer, Art.-Nr., Produktnummer | |
 | Bezeichnung | Bezeichnung, Titel, Artikelname, Name | Pflicht |
 | Beschreibung | Beschreibung, Langtext | Mehrzeilig, bis 2000 Zeichen; der Text zur Position |
-| Einheit | Einheit, Mengeneinheit | Std., Tag, Monat, Stk., Psch. oder km, auch ausgeschrieben („Stunde“, „Stück“, „pauschal“). Leer ist Stück |
+| Einheit | Einheit, Mengeneinheit | Std., Tag, Monat, Stk., Psch. oder km, auch ausgeschrieben („Stunde“, „Stück“, „pauschal“), oder eine [eigene Einheit](rechnungen.md#eigene-einheiten) mit ihrer Bezeichnung; eine neue legst du vor dem Import an. Leer ist Stück |
 | Nettopreis | Nettopreis, Preis netto, Einzelpreis, Preis | |
 | Bruttopreis | Bruttopreis, Preis brutto | Nur ohne Nettopreis: dann ein Artikel mit Endpreis |
 | Steuersatz | Umsatzsteuer, Steuersatz, Steuerart, USt, MwSt | Pflicht, ohne stille Vorgabe: Kleinunternehmer brauchen 0 %, alle anderen meist 19 % |
@@ -126,7 +126,7 @@ Die Namen folgen der [Mustervorlage für Produkte und Services](https://help.lex
 
 Stehen Netto- und Bruttopreis da, wie im Export von Lexware Office, gilt der Nettopreis, und der Bruttopreis muss auf einen Cent genau dazu passen. Sonst wäre unklar, welcher stimmt, und Haben übernimmt die Zeile nicht.
 
-Artikel aus FastBill holt Haben ohne Datei über die API, siehe [Umzug aus FastBill](fastbill.md#artikel).
+Artikel aus FastBill und sevDesk holt Haben ohne Datei über die API, siehe [Umzug aus FastBill](fastbill.md#artikel) und [Umzug aus sevDesk](sevdesk.md#artikel).
 
 ## Anlagen
 

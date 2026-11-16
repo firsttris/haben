@@ -8,6 +8,7 @@ declare namespace Bun {
     readonly stdout: ReadableStream<Uint8Array> | number | undefined;
     readonly stderr: ReadableStream<Uint8Array> | number | undefined;
     readonly exited: Promise<number>;
+    kill(signal?: number | string): void;
   }
   function spawn(
     befehl: string[],

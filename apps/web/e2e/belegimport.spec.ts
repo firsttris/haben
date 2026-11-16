@@ -299,6 +299,244 @@ test("Gemeinsame Ansichten sind auf Desktop und Handy in beiden Themes bedienbar
 
 test("Übernommene Rechnungen zeigen das tatsächliche Quellprogramm", checkImportedInvoiceSources);
 
+test("Mahnungen aus sevDesk: Stufen an der Rechnung im Archiv, nach der Übernahme im Mahnwesen", async () => {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { sha256Of, storeFile } = await import("../src/server/storage.ts");
+  const { storeLegacyVoucher, takeOverLegacyItem } = await import("../src/server/modules/archiv/index.ts");
+  const [run] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  const mahnPdf = new TextEncoder().encode("%PDF-1.4\n% Mahnung MA-2\n%%EOF");
+  const voucher = await withActor("e2e-import", async (tx) => {
+    const stored = await storeLegacyVoucher(
+      tx,
+      {
+        source: "sevdesk",
+        importId: run!.id,
+        lexofficeId: "invoice/9001",
+        type: "invoice",
+        direction: "einnahme",
+        number: "RE-MAHN-1",
+        date: "2026-01-05",
+        dueDate: "2026-01-19",
+        status: "open",
+        contactName: "Frida Import",
+        net: 20000,
+        tax: 0,
+        gross: 20000,
+        taxes: [{ rate: 0, net: 20000, tax: 0 }],
+        categories: [],
+        payment: { openAmount: 20000, paidDate: null, items: [] },
+        raw: { taxType: "vatfree" },
+      },
+      [{ role: "pdf", sourceFileId: null, filename: "RE-MAHN-1.pdf", mimeType: "application/pdf", bytes: pdf }],
+    );
+    // Aufbau wie legacy_dunnings nach dem Abruf (sevdesk-mahnungen.ts)
+    for (const [level, date] of [
+      [1, "2026-01-26"],
+      [2, "2026-02-09"],
+    ] as const) {
+      const [row] = await tx
+        .insert(schema.legacyDunnings)
+        .values({
+          externalId: `invoice/${9001 + level}`,
+          importId: run!.id,
+          invoiceExternalId: "invoice/9001",
+          level,
+          number: `MA-${level}`,
+          date,
+          dueDate: "2026-02-16",
+          status: "500",
+          contactName: "Frida Import",
+          currency: "EUR",
+          total: 20000,
+          raw: {},
+        })
+        .returning({ id: schema.legacyDunnings.id });
+      if (level === 2) {
+        await storeFile(mahnPdf);
+        await tx
+          .insert(schema.legacyDunningFiles)
+          .values({ dunningId: row!.id, filename: "MA-2.pdf", mimeType: "application/pdf", sha256: sha256Of(mahnPdf), size: mahnPdf.byteLength });
+      }
+    }
+    return stored!;
+  });
+
+  await gehe(page, `/archiv/beleg/${voucher.id}`);
+  const mahnungen = page.getByRole("region", { name: "Mahnungen" });
+  await expect(mahnungen).toContainText("Stufe 1, Frist 16.02.2026");
+  await expect(mahnungen).toContainText("Stufe 2, Frist 16.02.2026");
+  const href = await mahnungen.getByRole("link", { name: "PDF" }).getAttribute("href");
+  expect(sha256Of(new Uint8Array(await (await page.request.get(href!)).body()))).toBe(sha256Of(mahnPdf));
+
+  await takeOverLegacyItem("e2e-import", voucher.id, "2026-01-31");
+  // Die Spalte „Zuletzt“ steht nur am Desktop
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await gehe(page, "/rechnungen/mahnwesen");
+  const zeile = page.locator(".table-row").filter({ hasText: "RE-MAHN-1" });
+  await expect(zeile.getByRole("link", { name: "Stufe 2 in sevDesk" })).toBeVisible();
+  await expect(zeile.getByRole("link", { name: "Letzte Mahnung" })).toBeVisible();
+});
+
+test("Voranmeldungen aus sevDesk: im Archiv je Jahr mit Kennzahlen, Protokoll und Link zum Zeitraum in Haben", async () => {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { sha256Of, storeFile } = await import("../src/server/storage.ts");
+  const [run] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  const protokoll = new TextEncoder().encode("%PDF-1.4\n% Protokoll 2025-Q1\n%%EOF");
+  await withActor("e2e-import", async (tx) => {
+    // Aufbau wie legacy_vat_reports nach dem Abruf (sevdesk-voranmeldungen.ts), Antwort wie vat-report-zeitraeume.json
+    const [row] = await tx
+      .insert(schema.legacyVatReports)
+      .values({
+        externalId: "vatreport/e2e-1",
+        importId: run!.id,
+        year: 2025,
+        month: 41,
+        periodText: "quarterly 1",
+        submittedAt: new Date("2025-04-10T10:00:00Z"),
+        actualTaxation: true,
+        corrected: false,
+        transferTicket: "et9k3m2x7q4w8z1a",
+        kz83: 12345,
+        raw: {
+          id: "e2e-1",
+          reportingYear: "2025",
+          reportingPeriod: "1",
+          reportingPeriodCode: "quarterly",
+          reportingValues: '{"81":650,"66":"0.00","83":"123.45"}',
+        },
+      })
+      .returning({ id: schema.legacyVatReports.id });
+    await storeFile(protokoll);
+    await tx.insert(schema.legacyVatReportFiles).values({
+      vatReportId: row!.id,
+      filename: "UStVA_2025-Q1_Protokoll.pdf",
+      mimeType: "application/pdf",
+      sha256: sha256Of(protokoll),
+      size: protokoll.byteLength,
+    });
+  });
+
+  await gehe(page, "/archiv?ansicht=voranmeldungen");
+  await expect(page.getByRole("link", { name: "Voranmeldungen", exact: true })).toHaveAttribute("aria-current", "page");
+  const zeile = page.getByRole("row").filter({ hasText: "1. Quartal 2025" });
+  await expect(zeile).toContainText("Ist");
+  await expect(zeile).toContainText("123,45");
+  await expect(zeile.getByRole("link", { name: "1. Quartal 2025" })).toHaveAttribute("href", "/umsatzsteuer/2025-Q1");
+  await zeile.getByText("3 Kennzahlen").click();
+  await expect(zeile).toContainText("Kz 81");
+  await expect(zeile).toContainText("650,00");
+  await expect(zeile).toContainText("et9k3m2x7q4w8z1a");
+  const href = await zeile.getByRole("link", { name: "PDF" }).getAttribute("href");
+  expect(sha256Of(new Uint8Array(await (await page.request.get(href!)).body()))).toBe(sha256Of(protokoll));
+  expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
+});
+
+test("Beleg aus sevDesk ohne Datei: in der Belegansicht prüfen und bestätigen (#345)", async () => {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { storeLegacyVoucher } = await import("../src/server/modules/archiv/index.ts");
+  const [run] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  // Aufbau wie nach dem Abruf eines Belegs ohne `document` (sevdesk-dateien.ts)
+  const voucher = await withActor("e2e-import", async (tx) => {
+    const stored = await storeLegacyVoucher(
+      tx,
+      {
+        source: "sevdesk",
+        importId: run!.id,
+        lexofficeId: "voucher/9345",
+        type: "purchaseinvoice",
+        direction: "ausgabe",
+        number: "B-OHNE-1",
+        date: "2026-01-06",
+        status: "paid",
+        contactName: "Frida Import",
+        net: 1000,
+        tax: 0,
+        gross: 1000,
+        taxes: [{ rate: 0, net: 1000, tax: 0 }],
+        categories: [],
+        raw: { voucherType: "VOU", document: null },
+      },
+      [],
+    );
+    await tx.insert(schema.legacyFileStates).values({
+      voucherId: stored!.id,
+      importId: run!.id,
+      state: "ohne_datei",
+      message: "sevDesk nennt keine Datei. Das beweist nicht, dass es nie eine gab.",
+      createdBy: "e2e-import",
+    });
+    return stored!;
+  });
+
+  await gehe(page, `/archiv/beleg/${voucher.id}`);
+  const karte = page.getByRole("region", { name: "Dateistand" });
+  await expect(karte).toContainText("Prüfen");
+  await karte.getByLabel("Was du geprüft hast").fill("Kassenbon verloren");
+  await karte.getByRole("button", { name: "In sevDesk ohne Datei bestätigen" }).click();
+  const dialog = page.getByRole("dialog", { name: "Beleg ohne Datei bestätigen?" });
+  await expect(dialog).toContainText("Frida Import");
+  await dialog.getByRole("button", { name: "Ohne Datei bestätigen" }).click();
+  await expect(karte).toContainText("in sevDesk ohne Datei, bestätigt");
+  await expect(karte).toContainText("In sevDesk geprüft: Kassenbon verloren");
+  await expect(karte.getByRole("button", { name: "In sevDesk ohne Datei bestätigen" })).toHaveCount(0);
+});
+
+test("Beleg aus sevDesk: später hochgeladene Datei zeigt die Belegansicht als nachgeladen (#472)", async () => {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { storeLegacyVoucher } = await import("../src/server/modules/archiv/index.ts");
+  const [run] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  // Aufbau wie nach einem späteren Abruf, der die eigene Datei nachgeladen hat (sevdesk-dateien.ts); die Archivkopie nennt keine
+  const voucher = await withActor("e2e-import", async (tx) => {
+    const stored = await storeLegacyVoucher(
+      tx,
+      {
+        source: "sevdesk",
+        importId: run!.id,
+        lexofficeId: "voucher/9472",
+        type: "purchaseinvoice",
+        direction: "ausgabe",
+        number: "B-NACH-1",
+        date: "2026-01-07",
+        status: "paid",
+        contactName: "Frida Import",
+        net: 1000,
+        tax: 0,
+        gross: 1000,
+        taxes: [{ rate: 0, net: 1000, tax: 0 }],
+        categories: [],
+        raw: { voucherType: "VOU", document: null },
+      },
+      [{ role: "anhang", sourceFileId: "9602", filename: "rechnung-januar.pdf", mimeType: "application/pdf", bytes: pdf }],
+    );
+    await tx.insert(schema.legacyFileStates).values([
+      { voucherId: stored!.id, importId: run!.id, state: "ohne_datei", message: "sevDesk nennt keine Datei.", createdBy: "e2e-import" },
+      {
+        voucherId: stored!.id,
+        importId: run!.id,
+        state: "nachgeladen",
+        role: "anhang",
+        sourceFileId: "9602",
+        message: "sevDesk nennt die Datei erst nach dem ersten Abruf; ein späterer Abruf hat sie angehängt.",
+        createdBy: "e2e-import",
+      },
+    ]);
+    return stored!;
+  });
+
+  await gehe(page, `/archiv/beleg/${voucher.id}`);
+  const datei = page.getByRole("region", { name: "Datei", exact: true });
+  await expect(datei).toContainText("Nachgeladen am");
+  await expect(datei).toContainText("Ein späterer Abruf aus sevDesk hat die Datei angehängt.");
+  await expect(datei.getByRole("link", { name: "rechnung-januar.pdf herunterladen" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Dateistand" })).toContainText("sevDesk nennt die Datei erst nach dem ersten Abruf");
+  // Die PDF-Vorschau ist ein eigenes Dokument ohne Landmarke
+  expect((await new AxeBuilder({ page }).include("main").exclude(".doc-preview").analyze()).violations).toEqual([]);
+});
+
 test("Kleinunternehmer: Gründungsdatum speichern und bei 25.000 Euro warnen", async () => {
   const { createCashIncome } = await import("../src/server/modules/bank/index.ts");
   const date = currentDay();

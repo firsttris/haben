@@ -94,14 +94,24 @@ Viele Auftraggeber verlangen ihre Bestellnummer auf jeder Rechnung und weisen Re
 | Text zu Position | Optional, mehrzeilig, bis 2000 Zeichen, z. B. Leistungsumfang oder Bestellbezug. Steht im PDF in kleinerer Schrift unter der Bezeichnung, die dann halbfett ist, und im XML als Artikelbeschreibung (BT-154). Storno und Rechnungskorrektur übernehmen ihn, ebenso Rechnungen aus einem Angebot oder einer Vorlage und der Lieferschein. Angebote und wiederkehrende Rechnungen haben dasselbe Feld. |
 | Art.-Nr. | Optional, bis 50 Zeichen, z. B. `ET-1042`. Kommt beim Einfügen aus dem [Artikelkatalog](#artikelkatalog) mit und lässt sich in der Position ändern. Im PDF als Spalte „Art.-Nr.“ hinter der Position, nur wenn mindestens eine Position eine Nummer hat. Der Schalter **Artikelnummer** unter [Gestaltung](einrichtung.md#logo-und-blatt) blendet die Spalte aus, im XML bleibt die Nummer. Im XML als Artikelnummer des Verkäufers (BT-155: UBL `cac:SellersItemIdentification`, CII `ram:SellerAssignedID`), im ZUGFeRD (Profil EN 16931) ebenso. Storno, Rechnungskorrektur, Rechnung aus einem Angebot, Serienrechnung und Lieferschein übernehmen sie. Die Position merkt sich die Nummer, nicht den Artikel: Ändert sich die Nummer im Katalog, bleibt die Rechnung, wie sie ist. Angebote und wiederkehrende Rechnungen haben dasselbe Feld. |
 | Menge | Bis zu drei Nachkommastellen, z. B. `0,5` oder `152`. Muss größer als null sein. |
-| Einheit | `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.`, `km` |
+| Einheit | `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.`, `km` und die [eigenen Einheiten](#eigene-einheiten) |
 | Einzelpreis | In Euro, z. B. `95,00`. Negative Preise sind möglich, für einen Nachlass aber besser der [Rabatt](#rabatte). |
 | Rabatt | Optional, als Prozent (`10 %`) oder Betrag (`50,00`), siehe [Rabatte](#rabatte). |
 | Steuersatz | 19 %, 7 % oder 0 % |
 
 Der Zeilenbetrag ist Menge mal Einzelpreis, kaufmännisch auf Cent gerundet. Bei Nettopreisen rechnet Haben die Umsatzsteuer nach EN 16931 je Steuersatz auf die Summe der Zeilennetto, nicht als Summe der Steuer je Zeile. Bei mehreren Steuersätzen weist das PDF die Steuer je Satz mit ihrer Bemessungsgrundlage aus.
 
-Die Einheiten gehen mit ihren UN/ECE-Codes ins XML (`HUR`, `DAY`, `MON`, `H87`, `LS`, `KMT`).
+Die Einheiten gehen mit ihren UN/ECE-Codes ins XML (`HUR`, `DAY`, `MON`, `H87`, `LS`, `KMT`), eigene mit dem Code, der bei ihnen angelegt ist.
+
+### Eigene Einheiten
+
+Unter **Einstellungen › Rechnungen › Einheiten** legst du weitere Einheiten an, etwa `UE` für eine Unterrichtseinheit oder `m²`, `lfm` und `kg` im Handwerk. Danach stehen sie in Artikeln, Rechnungen, Angeboten und Serienrechnungen zur Auswahl.
+
+- **Bezeichnung:** so, wie sie auf dem Beleg steht, höchstens 10 Zeichen und nur Zeichen, die die Belegschrift kennt. Groß- und Kleinschreibung zählen nicht: Neben `m²` gibt es kein `M²`, und keine eigene Einheit heißt wie eine feste.
+- **Code:** Die E-Rechnung verlangt für jede Einheit einen Code nach [UN/ECE Recommendation 20](https://unece.org/trade/uncefact/cl-recommendations) mit Rec. 21 (BT-130, Regel BR-CL-23 der EN 16931), etwa `MTR` für Meter, `MTK` für Quadratmeter, `LM` für laufende Meter oder `KGM` für Kilogramm. Haben nimmt nur Codes aus der Liste, die die XRechnung-Prüfung zulässt. Passt keiner, etwa für eine Unterrichtseinheit, nimm `C62` (Stück).
+- **Archivieren statt löschen:** Eine Einheit lässt sich weder umbenennen noch löschen, weil Entwürfe, Artikel und Vorlagen über ihre Bezeichnung auf sie verweisen. Archiviert steht sie nicht mehr zur Auswahl, bis du sie wiederherstellst; wo sie schon steht, bleibt sie und behält ihren Code. Festgeschriebene Rechnungen haben ihr XML schon.
+- Steht in einer Position eine Einheit, die weder fest noch angelegt ist, etwa aus der [REST-API](api.md), nennt Haben das vor dem Festschreiben, statt eine E-Rechnung ohne gültigen Code zu erzeugen.
+- Auf englischen Belegen steht eine eigene Einheit wie angelegt, ohne Übersetzung.
 
 ### Nettopreise oder Bruttopreise
 

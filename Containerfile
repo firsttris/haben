@@ -28,7 +28,7 @@ RUN bun run build \
 # Laufzeit auf Wolfi statt Debian: glibc wie bisher (ERiC ist eine glibc-Bibliothek, Alpine mit musl ginge nicht),
 # aber aktuelle Upstream-Versionen, vor allem von poppler, das jedes hochgeladene PDF liest. Wolfi ist rollend; der
 # Digest hält den Build reproduzierbar, Renovate hebt ihn an.
-FROM cgr.dev/chainguard/wolfi-base:latest@sha256:b7787f1d3f29dcfb48730372d3515391ac3b218723201a765c94949922676099
+FROM cgr.dev/chainguard/wolfi-base:latest@sha256:833c48f1faf32c90e6f9501a2410a9aa28ceb2c594102edd4470053c30efa089
 # Dasselbe Bun wie in der Build-Stufe (glibc-Build); Renovate verfolgt oven/bun weiter an beiden Stellen
 COPY --from=docker.io/oven/bun:1.4.4-slim /usr/local/bin/bun /usr/local/bin/bun
 # poppler-utils: pdftotext und pdftoppm für hochgeladene PDFs (Textebene, Seitenbilder für einen eigenen KI-Dienst),

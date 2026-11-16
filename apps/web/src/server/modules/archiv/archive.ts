@@ -2,7 +2,7 @@ import { UserError } from "../../errors.ts";
 import { DatevParseError, isDatevFile, otherDatevExportName, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt } from "./datev-belegnummer.ts";
+import { datevBookingFound, datevInternalId, datevWithoutReceipt } from "./datev-belegnummer.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadFile, sha256Of, sniff, storeFile } from "../../storage.ts";
@@ -194,7 +194,12 @@ export async function loadArchiveFile(id: string) {
   return { ...row, bytes: await loadFile(row.sha256) };
 }
 
-const matchedSql = sql<boolean>`(${datevVoucherFound("datev_bookings.voucher_field1")} or ${datevGuidFound("datev_bookings.document_link")})`;
+const matchedSql = datevBookingFound({
+  number: "datev_bookings.voucher_field1",
+  link: "datev_bookings.document_link",
+  file: "datev_bookings.file_id",
+  date: "datev_bookings.date",
+});
 const internalIdSql = datevInternalId("datev_bookings.voucher_field1");
 
 export async function listDatevBookings(filter: { year: number; search: string; unmatched: boolean; page: number }) {

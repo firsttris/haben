@@ -2,7 +2,7 @@
 title: "Anlagen und AfA: Abschreibung und Anlagenverzeichnis"
 description: >-
   Anlagegüter über 800 € netto erfassen und abschreiben: lineare AfA, GWG, Sammelposten,
-  Anlagenverzeichnis (AVEÜR) und Übernahme aus Lexoffice.
+  Anlagenverzeichnis (AVEÜR) und Übernahme aus Lexoffice und sevDesk.
 ---
 
 # Anlagen und AfA
@@ -12,7 +12,7 @@ Wirtschaftsgüter, die länger als ein Jahr im Betrieb bleiben und mehr als 800 
 ## So gehst du vor
 
 1. **Neue Anschaffung:** Lade die Rechnung als [Beleg](belege.md) hoch und wähle die Kategorie **Anlagegut (wird abgeschrieben)**. Gib Bezeichnung, Art, Abschreibung und gegebenenfalls die Nutzungsdauer an und buche den Beleg. Dabei entsteht die Anlage im Verzeichnis.
-2. **Anlage aus Lexoffice oder einer anderen Buchhaltung:** Unter **Anlagen › Anlage übernehmen** trägst du sie mit dem Restbuchwert zum Übernahmestichtag ein (siehe [Übernahme](#übernahme-aus-lexoffice)). Viele auf einmal übernimmst du mit **CSV importieren** aus einer Liste ([CSV-Import](csv-import.md#anlagen)).
+2. **Anlage aus Lexoffice oder einer anderen Buchhaltung:** Unter **Anlagen › Anlage übernehmen** trägst du sie mit dem Restbuchwert zum Übernahmestichtag ein (siehe [Übernahme](#übernahme-aus-lexoffice)). Viele auf einmal übernimmst du mit **CSV importieren** aus einer Liste ([CSV-Import](csv-import.md#anlagen)). Aus sevDesk holt Haben das Anlagenverzeichnis selbst ([Umzug aus sevDesk](sevdesk.md#schritt-4-anlagen-übernehmen)).
 3. **Zum Jahresende:** Ab dem 1. Dezember buchst du unter **Anlagen** mit **AfA … buchen** die Abschreibungen des Jahres. Die Übersicht erinnert daran.
 
 In der EÜR steht die AfA schon vorher, sobald die Anlage im Verzeichnis ist.
