@@ -193,6 +193,24 @@ test("gebuchtes Anlagegut verspricht keinen Storno zum Aufteilen", async ({ brow
   await expect(page.getByText(/lässt sich stornieren/)).toHaveCount(0);
 });
 
+test("Belegliste: Status sortiert nach dem angezeigten Status, Storniert und Gebucht stehen je für sich", async ({ browser }) => {
+  // Vor dem Abschluss des Jahres weiter unten. Ein stornierter Beleg bleibt im Code „gebucht“; listDocuments liefert bei
+  // gleichem Datum den zuletzt hochgeladenen zuerst, hier also Gebucht, Storniert, Gebucht
+  const documents = await import("../src/server/modules/belege/index.ts");
+  await receipt(browser, "Statuswerk Erster", "ST-1");
+  const storniert = await receipt(browser, "Statuswerk Zweiter", "ST-2");
+  await documents.cancelDocument("e2e-storno", storniert, { reason: "", allocationIds: [] }, currentDay());
+  await receipt(browser, "Statuswerk Dritter", "ST-3");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/belege?sort=status&dir=auf");
+  const zeilen = page.locator("a.table-row.document-cols");
+  await expect(zeilen.filter({ hasText: "ST-3" })).toHaveCount(1);
+  const status = (await zeilen.locator(":scope > div:nth-child(5) .status-label").allInnerTexts()).map((t) => t.trim());
+  // Jeder angezeigte Status steht in einem Block, keiner taucht nach einem anderen noch einmal auf
+  const bloecke = status.filter((t, i) => i === 0 || status[i - 1] !== t);
+  expect(bloecke, status.join(" | ")).toEqual([...new Set(status)]);
+});
+
 test("ganze Aufteilung einschließlich weiterem Beleg vor dem Storno ausdrücklich anzeigen", async ({ browser }) => {
   const chosen = await receipt(browser, "Codewerk Lizenzen GmbH", "S-4801");
   const other = await receipt(browser, "Nordlicht Software GmbH", "S-4802");
