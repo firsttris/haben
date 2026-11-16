@@ -1,5 +1,5 @@
 import { ACCOUNTS, leistungsdatum, paidTaxShares, periodRange, splitPrivateShare, type Cents, type VatPeriod } from "@haben/core";
-import { and, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
@@ -105,8 +105,8 @@ function stornoDerSkontoAufhebung(
 export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx = db): Promise<VorsteuerNachLeistungsdatum> {
   const { start, end } = periodRange(period);
   const d = schema.documents;
-  // Belegdatum vor dem Periodenende: eine Anzahlung kann in einem früheren Monat liegen als ihre Zahlung. Ohne
-  // Leistungszeitraum zählt der Beleg nach Belegdatum; er kommt deshalb nur mit, wenn er in den Zeitraum fällt.
+  // Auch Belege nach dem Periodenende: Ein Skonto zur Vorkasse kann vor dem Rechnungsdatum liegen und mindert dann nichts
+  // (skontoOhneMinderung); ihre Zeilen liegen nie vor dem Belegdatum und fallen unten aus dem Zeitraum (#930).
   const kandidaten = await q
     .select({
       id: d.id,
@@ -130,7 +130,7 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
       and(
         eq(d.status, "gebucht"),
         isNull(d.lexofficeVoucherId),
-        lt(d.documentDate, end),
+        isNotNull(d.documentDate),
         or(isNotNull(d.serviceFrom), isNotNull(d.serviceTo)),
         // Nachweis ist die Buchung, wie im Ausgleich (vorsteuer-ausgleich.ts): Nur ein Beleg, dessen Buchung die Vorsteuer
         // auf das Zwischenkonto gelegt hat, zählt nach dem Leistungsdatum. Altbestand von vor #930, bar oder privat

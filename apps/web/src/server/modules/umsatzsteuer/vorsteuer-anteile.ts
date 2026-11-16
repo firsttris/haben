@@ -135,7 +135,7 @@ async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise
  */
 export async function vorsteuerAnteile(
   tx: Tx,
-  doc: { id: string; privateShare: number },
+  doc: { id: string; privateShare: number; documentDate?: string | null },
   totals: InvoiceTotals,
   amount: number,
   datum: string,
@@ -147,7 +147,10 @@ export async function vorsteuerAnteile(
   const ausfuehrung = await ausfuehrungMitFreigabe(tx, doc.id);
   if (ausfuehrung !== null && datum >= ausfuehrung) return null;
   if (kursdifferenz && ausfuehrung !== null && datum < ausfuehrung) return [];
-  const bisher = await bisherUmgebucht(tx, doc.id, datum);
+  // Vor dem Rechnungsdatum (Skonto zur Vorkasse) zählt die Freigabe zum Rechnungsdatum schon mit: Sie hat den bezahlten
+  // Anteil gezogen, die Abschreibung darf ihn nicht ein zweites Mal vom Zwischenkonto nehmen (#930)
+  const bis = ausfuehrung !== null && doc.documentDate && datum < doc.documentDate ? doc.documentDate : datum;
+  const bisher = await bisherUmgebucht(tx, doc.id, bis);
   // Der Privatanteil steht schon beim Buchen nicht auf dem Zwischenkonto: Der geschäftliche Teil des Ziels wird
   // deshalb vor dem Abzug der bisherigen Umbuchungen gebildet. So schreiben die Ausgleiche zusammen genau den
   // geschäftlichen Teil der Vorsteuer fort, und das Konto endet bei null statt um den Privatanteil im Soll.
