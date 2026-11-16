@@ -30,7 +30,8 @@ const PAYMENT_STATUS: Record<string, string> = {
 
 function LegacyVoucherPage() {
   const { voucher, files, dunnings, fileState } = Route.useLoaderData();
-  const [selected, setSelected] = useState(files.find((f) => f.role === "pdf")?.id ?? files[0]?.id ?? null);
+  // Die eigene Datei vor der Datei einer Vorlage, auch wenn sie erst später nachgeladen wurde
+  const [selected, setSelected] = useState(files.find((f) => f.role === "pdf")?.id ?? files.find((f) => f.role === "anhang")?.id ?? files[0]?.id ?? null);
   const file = files.find((f) => f.id === selected) ?? null;
   const src = file ? `/api/altbeleg/${file.id}` : null;
   const source = legacySource(voucher.source, voucher.sourceName);
@@ -60,6 +61,7 @@ function LegacyVoucherPage() {
                   onClick={() => setSelected(f.id)}
                 >
                   {f.role === "xml" ? "E-Rechnung (XML)" : f.role === "vorlage" ? `${f.filename} (aus der Vorlage)` : f.filename}
+                  {f.reloadedAt && f.role !== "vorlage" ? " (nachgeladen)" : ""}
                 </button>
               ))}
             </div>
@@ -70,6 +72,12 @@ function LegacyVoucherPage() {
           {file?.role === "vorlage" && (
             <p className="small muted" style={{ margin: 0 }}>
               Aus der Vorlage: {source.product} führt die Datei nur an der Vorlage des wiederkehrenden Belegs, nicht am einzelnen Beleg.
+            </p>
+          )}
+          {file?.reloadedAt && (
+            <p className="small muted" style={{ margin: 0 }}>
+              Nachgeladen am {formatDateTime(file.reloadedAt)}: Ein späterer Abruf aus {source.product} hat die Datei angehängt. Die übrigen Angaben stammen vom
+              ersten Abruf.
             </p>
           )}
           {!file || !src ? (

@@ -301,8 +301,13 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
   // Belege, die sevDesk jetzt mit eigener Datei liefert, auch wenn die Archivkopie aus einem früheren Lauf keine hat
   const withOwnFile = new Set(listed.filter((i) => i.kind === "voucher" && i.raw.document?.id != null && String(i.raw.document.id) !== "").map((i) => i.id));
   await importSevdeskTemplateFiles(actor, client, progress, signal, withOwnFile, templateFile);
-  // 5b. Dateistand früherer Belege: fehlende Dateien erneut abrufen, Abrufe vor #345 einordnen
-  await checkSevdeskFiles(actor, importId, client, progress, signal);
+  // 5b. Dateistand früherer Belege: fehlende Dateien erneut abrufen, später in sevDesk hochgeladene nachladen, Abrufe vor #345 einordnen
+  const listedDocuments = new Map(
+    listed
+      .filter((i) => i.kind === "voucher")
+      .map((i) => [i.id, i.raw.document?.id == null || String(i.raw.document.id) === "" ? null : String(i.raw.document.id)]),
+  );
+  await checkSevdeskFiles(actor, importId, client, progress, signal, listedDocuments);
   await save(true);
   // 6. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
   await importSevdeskPayments(actor, importId, client, progress, signal);
