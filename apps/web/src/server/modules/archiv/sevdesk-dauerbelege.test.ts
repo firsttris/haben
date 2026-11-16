@@ -65,6 +65,9 @@ describe.skipIf(!testDatabaseUrl)("sevDesk: Vorlagen wiederkehrender Belege als 
               case "/Invoice":
               case "/CreditNote":
               case "/Order":
+              case "/VatReport":
+              case "/Part":
+              case "/TaxSet":
               case "/CheckAccount":
               case "/CheckAccountTransactionLog":
                 return list([]);

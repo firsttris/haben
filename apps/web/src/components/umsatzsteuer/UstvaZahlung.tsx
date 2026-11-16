@@ -22,11 +22,11 @@ export function UstvaZahlung({ posten }: { posten: VatPostenStand[] }) {
               {p.betrag >= 0 ? "Zahllast" : "Erstattung"} {formatEuro(Math.abs(p.betrag))}
             </span>
             {p.offen === 0 ? (
-              <Status tone="ok" inline>
+              <Status tone="ok" inline edge>
                 Ausgeglichen
               </Status>
             ) : (
-              <Status tone="info" inline detail={formatEuro(Math.abs(p.offen))}>
+              <Status tone="info" inline edge detail={formatEuro(Math.abs(p.offen))}>
                 Offen
               </Status>
             )}

@@ -595,6 +595,22 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
   await expect(insert).toHaveValue("");
 });
 
+// Die allgemeine Regel für Knopfzeilen (Knöpfe füllen die Zeile) steht vor der des Seitenkopfs und darf sie nicht schlagen: Im
+// Kopf scrollt die Zeile am Handy seitlich, die Knöpfe schrumpfen nicht und ihre Beschriftung bricht nicht um (DESIGN.md › Seitenkopf)
+test("Handy: Knöpfe im Seitenkopf schrumpfen nicht, die Zeile scrollt seitlich", async () => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize(HANDY);
+  try {
+    await go("/bank");
+    const knoepfe = page.locator(".main > .page-head .actions > .btn");
+    await expect(knoepfe.first()).toBeVisible();
+    const schrumpfen = await knoepfe.evaluateAll((alle) => alle.map((k) => getComputedStyle(k).flexShrink));
+    expect(schrumpfen).toEqual(schrumpfen.map(() => "0"));
+  } finally {
+    if (vorher) await page.setViewportSize(vorher);
+  }
+});
+
 test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zurück, Leiste an der Markierung", async () => {
   await go("/rechnungen/neu");
   const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
@@ -2775,6 +2791,36 @@ test("Verrechnung: Korrektur gegen die Rechnung ausgleichen, Rest sinkt, Aufhebe
   await page.getByRole("button", { name: "Aufheben", exact: true }).click();
   await expect(page.getByRole("region", { name: "Verrechnung" })).toContainText(/offen sind noch\s*119,00\s*€/);
   await expect(page.getByRole("region", { name: "Verrechnung" }).getByText("Korrektur TE-1")).toHaveCount(0);
+});
+
+test("Bereits bezahlt speichert Zahlungsdienst und Datum und lässt die Rechnung offen (#1056)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Beschreibung Position 1").fill("Marktplatzbestellung");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("49,99");
+  const zahlungsart = page.getByLabel("Zahlungsart", { exact: true });
+  await zahlungsart.selectOption("bereits_bezahlt");
+  await expect(page.getByLabel("Zahlungsziel in Tagen")).toHaveCount(0);
+  const vorschau = page.getByRole("button", { name: "Vorschau", exact: true });
+  const vorschauDialog = page.getByRole("dialog", { name: "Vorschau" });
+  await vorschau.click();
+  await expect(vorschauDialog.getByText("Gib für die Vorschau an, wann und wie die Rechnung bezahlt wurde.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByLabel("Bezahlt über").fill("eBay");
+  const paidOn = day(-1);
+  await page.getByLabel("Bezahlt am").fill(paidOn);
+  await vorschau.click();
+  await expect(vorschauDialog.getByLabel("Vorschau der Rechnung")).toContainText("über eBay bezahlt");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await expect(zahlungsart).toHaveValue("bereits_bezahlt");
+  await expect(page.getByLabel("Bezahlt über")).toHaveValue("eBay");
+  await expect(page.getByLabel("Bezahlt am")).toHaveValue(paidOn);
+  await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByRole("region", { name: "Angaben" }).getByText("eBay")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Angaben" }).getByText("Fällig", { exact: true })).toHaveCount(0);
 });
 
 test("Festschreiben direkt nach „Entwurf speichern“: erst nach dem Neuladen, der Dialog bleibt offen", async () => {

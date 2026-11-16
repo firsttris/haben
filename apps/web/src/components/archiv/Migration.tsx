@@ -31,8 +31,11 @@ import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
 import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
+import { SevdeskAssets } from "./SevdeskAssets.tsx";
 import { WisoImport } from "./WisoImport.tsx";
+import { SevdeskExportImport } from "./SevdeskExportImport.tsx";
 import { FastbillReceipts } from "./FastbillReceipts.tsx";
+import { SevdeskFileFacts } from "./Dateistand.tsx";
 import { FastbillArticles, FastbillLoginFields, ImportWaitNotice } from "./FastbillTeile.tsx";
 import { Field } from "../Field.tsx";
 import { Status } from "../Status.tsx";
@@ -120,7 +123,7 @@ export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready) && data.orderArchive.withoutPdf === 0;
   const [source, setSource] = useState<Source>(() => {
     if (data.connection || data.lastImport) return "lexoffice";
-    if (data.sevdeskConnection || data.sevdeskImport) return "sevdesk";
+    if (data.sevdeskConnection || data.sevdeskImport || data.sevdeskExportImport) return "sevdesk";
     if (data.fastbillConnection || data.fastbillImport) return "fastbill";
     if (data.accountableImport) return "accountable";
     if (data.bbImport) return "buchhaltungsbutler";
@@ -128,6 +131,8 @@ export function Migration({ data }: { data: MigrationData }) {
     return "lexoffice";
   });
   const config = ALL_SOURCES[source];
+  // Das Anlagenverzeichnis liefert nur die API von sevDesk
+  const assets = source === "sevdesk" && Boolean(data.sevdeskConnection);
   const lastImport =
     source === "buchhaltungsbutler"
       ? data.bbImport
@@ -210,6 +215,7 @@ export function Migration({ data }: { data: MigrationData }) {
             connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : source === "fastbill" ? data.fastbillConnection : data.connection)}
             initial={lastImport}
           />
+          {source === "sevdesk" && <SevdeskExportImport key={`sevdesk-export-${data.sevdeskExportImport?.id ?? "neu"}`} initial={data.sevdeskExportImport} />}
           {source === "fastbill" && <FastbillReceipts receipts={data.fastbillReceipts} running={data.fastbillImport?.status === "laeuft"} />}
           {source === "fastbill" && data.fastbillConnection && <FastbillArticles />}
         </>
@@ -221,6 +227,7 @@ export function Migration({ data }: { data: MigrationData }) {
         imported={Boolean(
           data.lastImport ||
             data.sevdeskImport ||
+            data.sevdeskExportImport ||
             data.fastbillImport ||
             data.accountableImport ||
             data.bbImport ||
@@ -228,9 +235,10 @@ export function Migration({ data }: { data: MigrationData }) {
             data.externalImports.length,
         )}
       />
+      {assets && <SevdeskAssets bookingDate={data.cutoff.bookingDate} />}
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
-          <span className="step-num">4</span>
+          <span className="step-num">{assets ? 5 : 4}</span>
           <h2 id="upload-heading" style={{ margin: 0 }}>
             Exporte ablegen
           </h2>
@@ -243,14 +251,14 @@ export function Migration({ data }: { data: MigrationData }) {
       <section className="stack" aria-labelledby="check-heading">
         <div className="card stack">
           <div className="step-head">
-            <span className="step-num">5</span>
+            <span className="step-num">{assets ? 6 : 5}</span>
             <h2 id="check-heading" style={{ margin: 0 }}>
               Abgleich je Jahr
             </h2>
           </div>
           {data.years.length === 0 ? (
             <p className="small muted" style={{ margin: 0 }}>
-              Noch nichts übernommen. Der Abgleich erscheint, sobald die ersten Daten aus Schritt 2 oder 4 da sind.
+              Noch nichts übernommen. Der Abgleich erscheint, sobald die ersten Daten aus Schritt 2 oder {assets ? 5 : 4} da sind.
             </p>
           ) : (
             <div className={ready ? "banner banner-ok" : "banner banner-info"} role="status">
@@ -523,6 +531,7 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
               <span className="small muted">Dateien</span>
               <strong>{progress.files}</strong>
             </div>
+            {source === "sevdesk" && progress.sevdeskFiles && <SevdeskFileFacts files={progress.sevdeskFiles} />}
             {(progress.recurring ?? 0) > 0 && (
               <div>
                 <span className="small muted">Dauerbelege angehalten</span>
@@ -550,6 +559,15 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
                   Platzhalter von sevDesk stehen als Text darin: <span className="mono">{progress.sevdeskRecurring.placeholders.join(" ")}</span>
                 </>
               )}
+            </p>
+          )}
+          {source === "sevdesk" && (progress.vatReports ?? 0) > 0 && (
+            <p className="small" style={{ margin: 0 }}>
+              {progress.vatReports} übermittelte Voranmeldungen archiviert, zu finden unter{" "}
+              <Link to="/archiv" search={{ ansicht: "voranmeldungen" }}>
+                Voranmeldungen
+              </Link>
+              .
             </p>
           )}
           {run.error && (
@@ -616,6 +634,19 @@ const SPECIAL_COLUMNS = [
   { key: "kz87", label: "Kz 87", title: "Umsätze zu 0 % nach § 12 Abs. 3 UStG (Photovoltaik)" },
   { key: "steuerfrei", label: "Steuerfrei", title: "In der bisherigen Buchhaltung als steuerfrei markiert: Kz 48 oder Kleinunternehmer" },
   { key: "oss", label: "OSS", title: "Fernverkäufe und elektronische Dienstleistungen über das OSS-Verfahren" },
+  { key: "kz46", label: "Kz 46", title: "Bezogene sonstige Leistungen nach § 13b Abs. 1 UStG (Bemessungsgrundlage)" },
+  { key: "kz47", label: "Kz 47", title: "Steuer zu Kz 46" },
+  { key: "kz84", label: "Kz 84", title: "Andere bezogene Leistungen nach § 13b UStG (Bemessungsgrundlage)" },
+  { key: "kz85", label: "Kz 85", title: "Steuer zu Kz 84" },
+  { key: "kz67", label: "Kz 67", title: "Vorsteuer aus Leistungen nach § 13b UStG" },
+  { key: "kz89", label: "Kz 89", title: "Innergemeinschaftliche Erwerbe zu 19 % (Bemessungsgrundlage)" },
+  { key: "kz93", label: "Kz 93", title: "Innergemeinschaftliche Erwerbe zu 7 % (Bemessungsgrundlage)" },
+  { key: "kz61", label: "Kz 61", title: "Vorsteuer aus innergemeinschaftlichem Erwerb" },
+  {
+    key: "otherPurchases",
+    label: "Andere Bezüge",
+    title: "Ausgaben mit eigener Steuerart aus sevDesk, deren Kennzahlen Haben nicht kennt oder nicht abgerufen hat",
+  },
 ] as const;
 
 /** Spalten für Sonderfälle nur, wenn im Jahr etwas drinsteht */
@@ -705,7 +736,7 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
       </div>
       <div className="small muted">
         {year.sumsFrom === "datev"
-          ? `${product === BB_CONFIG.product ? "Die Belege liegen nur zum Nachschlagen im Archiv" : "Keine Belege per API"}: Summen aus dem DATEV-Buchungsstapel, nach Erlös-, Aufwands- und Steuerkonten des Kontenrahmens geschätzt. Vergleiche sie mit den Auswertungen in ${product}.`
+          ? `${product === BB_CONFIG.product || year.sevdeskExport ? "Die Belege liegen nur zum Nachschlagen im Archiv" : "Keine Belege per API"}: Summen aus dem DATEV-Buchungsstapel, nach Erlös-, Aufwands- und Steuerkonten des Kontenrahmens geschätzt. Vergleiche sie mit den Auswertungen in ${product}.`
           : year.sumsFrom === "gemischt"
             ? `Summen nach Belegdatum, dazu der Teil aus BuchhaltungsButler aus dessen DATEV-Buchungsstapel (geschätzt nach Kontenklassen). Vergleiche sie mit den Auswertungen in ${product} und BuchhaltungsButler.`
             : `Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in ${product}.`}{" "}
@@ -714,9 +745,9 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
             Buchungen ohne passenden Beleg ansehen
           </Link>
         )}{" "}
-        {year.withoutFile > 0 && (
+        {(year.withoutFile > 0 || year.files.anhangFehlt > 0) && (
           <Link to="/archiv" activeProps={{}} search={{ ansicht: "belege", jahr: year.year, ohneDatei: true }}>
-            Belege ohne Datei ansehen
+            Belege mit fehlender Datei ansehen
           </Link>
         )}
       </div>
@@ -765,10 +796,10 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
           </div>
           <p className="small muted">
             Aus den übernommenen Belegen berechnet:{" "}
-            {versteuerung === "ist" ? "Einnahmen nach Zahlungsdatum (Ist-Versteuerung)" : "Einnahmen nach Rechnungsdatum (Soll-Versteuerung)"}, Vorsteuer nach
-            Belegdatum. Kz 21, 41 und 60 zählen immer nach Belegdatum. „Steuerfrei“ gehört in Kz 48, wenn die Umsätze nach § 4 Nr. 8–28 UStG steuerfrei sind,
-            und fehlt bei Kleinunternehmern ganz; „OSS“ meldest du nicht in der Voranmeldung. Kleine Abweichungen entstehen, wenn in {product} nachträglich
-            korrigiert wurde.
+            {versteuerung === "ist" ? "Einnahmen nach Zahlungsdatum (Ist-Versteuerung)" : "Einnahmen nach Rechnungsdatum (Soll-Versteuerung)"}, Ausgaben
+            (Vorsteuer, § 13b, innergemeinschaftlicher Erwerb) nach Belegdatum. Kz 21, 41 und 60 zählen immer nach Belegdatum. „Steuerfrei“ gehört in Kz 48,
+            wenn die Umsätze nach § 4 Nr. 8–28 UStG steuerfrei sind, und fehlt bei Kleinunternehmern ganz; „OSS“ meldest du nicht in der Voranmeldung. Kleine
+            Abweichungen entstehen, wenn in {product} nachträglich korrigiert wurde.
           </p>
         </details>
       )}

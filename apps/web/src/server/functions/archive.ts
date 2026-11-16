@@ -29,7 +29,7 @@ import {
   startImport,
   startWebImport,
 } from "../modules/archiv/index.ts";
-import { openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
+import { confirmWithoutFile, decideAccountingType, openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
 import {
   accountableImportStatus,
   AccountableError,
@@ -49,6 +49,7 @@ import {
 } from "../modules/archiv/index.ts";
 import { FASTBILL_PLANS, fastbillConnectionStatus, fastbillReceiptsOverview, latestFastbillImport } from "../modules/archiv/index.ts";
 import { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "../modules/archiv/index.ts";
+import { latestSevdeskExportImport } from "../modules/archiv/index.ts";
 import { latestWisoImport, MAX_WISO_CSV_SIZE, previewWisoCsv, startWisoImport, wisoSummary } from "../modules/archiv/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
@@ -77,6 +78,7 @@ export const getMigration = createServerFn({ method: "GET" })
       fastbillConnection,
       fastbillImport,
       fastbillReceipts,
+      sevdeskExportImport,
     ] = await Promise.all([
       connectionStatus(),
       reconciliation(),
@@ -92,11 +94,13 @@ export const getMigration = createServerFn({ method: "GET" })
       fastbillConnectionStatus(),
       latestFastbillImport(),
       fastbillReceiptsOverview(),
+      latestSevdeskExportImport(),
     ]);
     return {
       connection,
       sevdeskConnection,
       sevdeskImport,
+      sevdeskExportImport,
       fastbillConnection,
       fastbillImport,
       fastbillPlans: FASTBILL_PLANS.map((p) => ({ ...p })),
@@ -319,6 +323,20 @@ export const getLegacyVoucher = createServerFn({ method: "GET" })
     if (!detail) throw notFound();
     return detail;
   });
+
+/** Beleg aus sevDesk ohne Datei: eine Person hat in sevDesk geprüft, dass es keine gibt (#345) */
+export const confirmLegacyWithoutFile = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), note: z.string().max(500).default("") }))
+  .handler(async ({ data, context }) => {
+    await confirmWithoutFile(context.user.id, data.id, data.note);
+    return { ok: true };
+  });
+
+export const decideLegacyAccountingType = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), kind: z.enum(["erloes", "aufwand"]) }))
+  .handler(async ({ data, context }) => decideAccountingType(context.user.id, data.id, data.kind));
 
 export const getDatevBookings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

@@ -27,6 +27,7 @@ import type { LetterheadDesign } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
+  INVOICE_PAYMENT_METHODS,
   PAYMENT_METHODS,
   PRICE_MODES,
   RECHTSFORM_KEYS,
@@ -1361,7 +1362,9 @@ export const invoices = pgTable(
     xmlSha256: text("xml_sha256"),
     /** Aus einer wiederkehrenden Rechnung erzeugt, mit dem Termin; je Termin genau eine Rechnung */
     /** Zahlungsart (#445): Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat; eingezogen wird am Fälligkeitstag */
-    paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull().default("ueberweisung"),
+    paymentMethod: text("payment_method", { enum: INVOICE_PAYMENT_METHODS }).notNull().default("ueberweisung"),
+    paidVia: text("paid_via"),
+    paidOn: date("paid_on", { mode: "string" }),
     sepaMandateId: uuid("sepa_mandate_id").references(() => sepaMandates.id),
     /** Gewählter Ansprechpartner des Kunden (#424); der festgeschriebene Stand steht im Käufer */
     contactPersonId: uuid("contact_person_id").references(() => contactPersons.id),
@@ -1381,7 +1384,13 @@ export const invoices = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("invoices_payment_method", sql`${t.paymentMethod} in ('ueberweisung', 'lastschrift')`),
+    check("invoices_payment_method", sql`${t.paymentMethod} in ('ueberweisung', 'lastschrift', 'bereits_bezahlt')`),
+    check(
+      "invoices_paid_payment",
+      sql`case when ${t.paymentMethod} = 'bereits_bezahlt'
+        then ${t.kind} = 'rechnung' and ${t.paidOn} is not null and ${t.paidVia} is not null and length(btrim(${t.paidVia})) between 1 and 120
+        else ${t.paidOn} is null and ${t.paidVia} is null end`,
+    ),
     // Lastschrift nur mit Mandat, Überweisung ohne
     check("invoices_lastschrift_mandat", sql`(${t.paymentMethod} = 'lastschrift') = (${t.sepaMandateId} is not null)`),
     // Externe Referenz nur vollständig: Plattform und Bestellnummer zusammen
@@ -1786,6 +1795,8 @@ export const articles = pgTable(
     priceIncludesTax: boolean("price_includes_tax").notNull().default(false),
     /** Interne Notiz, erscheint nicht auf Belegen */
     note: text("note").notNull().default(""),
+    /** Herkunft aus dem sevDesk-Abruf (GET /Part); ein neuer Abruf legt den Artikel nicht noch einmal an */
+    sevdeskId: text("sevdesk_id").unique(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -2992,7 +3003,8 @@ export const fastbillReceipts = pgTable("fastbill_receipts", {
 });
 
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import", "fastbill"] as const;
+/** `sevdesk-export`: Belege aus der Export-ZIP „Buchungsdaten & Belegbilder“ von sevDesk, ohne API-Antwort in `raw` */
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import", "fastbill", "sevdesk-export"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 /**
@@ -3020,6 +3032,38 @@ export type AccountableProgress = {
   note?: string;
 };
 
+/** Analyse und Ergebnis eines Laufs mit der Export-ZIP von sevDesk (sevdesk-export.ts); wie AccountableProgress nur serialisierbare Felder */
+export type SevdeskExportProgress = {
+  filename: string;
+  size: number;
+  /** Jahre der Belege im Export */
+  years: number[];
+  bookings: number;
+  vouchers: number;
+  /** mit Beleglink und Datei */
+  withFile: number;
+  /** mit Beleglink, die Datei fehlt im Export */
+  missingFile: number;
+  /** Belegdaten ohne Beleglink: Beleg „ohne Belegbild im Export“ */
+  withoutImage: number;
+  /** weder Erlös- noch Aufwandskonto (Darlehen, Privat, Zinsen, Steuern, Anlagen) */
+  otherAccounts: number;
+  /** Jahre mit Belegen aus der API; dort legt der Export keine Belege an */
+  apiYears: number[];
+  /** Belege in diesen Jahren */
+  inApiYears: number;
+  /** ZIP liegt schon im Archiv (gleiche Prüfsumme) */
+  zipArchived: boolean;
+  /** Stapel des Exports: schon im Archiv (gleiche Prüfsumme), Zeitraum schon von einem anderen Stapel belegt, oder neu */
+  stacks: { name: string; from: string; to: string; state: "neu" | "vorhanden" | "zeitraum"; other?: string }[];
+  /** Hinweise des Lesers, gekürzt; hintCount bleibt vollständig */
+  hints: string[];
+  hintCount: number;
+  archivedFileId?: string;
+  stackFileIds?: string[];
+  note?: string;
+};
+
 export type LexofficeImportProgress = {
   phase: "kontakte" | "liste" | "belege" | "fertig";
   contacts: number;
@@ -3035,6 +3079,8 @@ export type LexofficeImportProgress = {
   datevFileIds?: string[];
   /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */
   accountable?: AccountableProgress;
+  /** sevDesk ohne API: Analyse der Export-ZIP und Ergebnis; nur beim Lauf mit der Export-ZIP gesetzt */
+  sevdeskExport?: SevdeskExportProgress;
   /** FastBill: Startzeiten der API-Aufrufe der letzten Stunde (ms), damit ein neuer Lauf die Stundengrenze einhält */
   fastbillCalls?: number[];
   /** FastBill: wartet wegen der Stundengrenze bis zu diesem Zeitpunkt (ISO) */
@@ -3043,8 +3089,14 @@ export type LexofficeImportProgress = {
   fastbillWaiting?: number;
   /** sevDesk: in diesem Lauf archivierte Mahnungen (legacy_dunnings) */
   dunnings?: number;
+  /** sevDesk: in diesem Lauf archivierte übermittelte Voranmeldungen (legacy_vat_reports) */
+  vatReports?: number;
   /** sevDesk: Vorlagen wiederkehrender Rechnungen, pausiert übernommen, und ihre Platzhalter (#472) */
   sevdeskRecurring?: { imported: number; known: number; placeholders: string[] };
+  /** sevDesk: Artikel aus GET /Part, in diesem Lauf neu angelegt, mit vorhandenen verknüpft und schon früher übernommen */
+  sevdeskArticles?: { imported: number; linked: number; known: number };
+  /** sevDesk: Dateistand der Belege dieses Laufs nach den Zuständen in legacy_file_states (#345) */
+  sevdeskFiles?: { ohneDatei: number; abrufFehlgeschlagen: number; anhangFehlt: number; nachgeladen: number };
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
@@ -3178,6 +3230,71 @@ export const legacyDunningFiles = pgTable(
   (t) => [uniqueIndex("legacy_dunning_files_unique").on(t.dunningId, t.sha256)],
 );
 
+/**
+ * Übermittelte Umsatzsteuer-Voranmeldungen aus der bisherigen Buchhaltung (sevDesk: GET /VatReport), nur als Archiv und
+ * Nachweis. Nicht in vat_returns: Haben rechnet sie nicht neu, sendet sie nicht, und sie ersetzen oder sperren keine
+ * eigene Voranmeldung. Kennzahlen stehen unverändert in raw (reportingValues). Nur anhängen.
+ */
+export const legacyVatReports = pgTable(
+  "legacy_vat_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    externalId: text("external_id").notNull().unique(),
+    source: text("source", { enum: LEGACY_SOURCES }).notNull().default("sevdesk"),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    year: smallint("year").notNull(),
+    /** Zeitraum wie vat_returns.month: 1–12 Monat, 41–44 Quartal; null, wenn die Quelle ihn anders angibt */
+    month: smallint("month"),
+    /** Zeitraum, wie die Quelle ihn nennt, z. B. "quarterly 2" */
+    periodText: text("period_text").notNull(),
+    /** Zeitpunkt der Übermittlung laut Quelle */
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    /** true Ist-, false Soll-Versteuerung; null, wenn nicht angegeben */
+    actualTaxation: boolean("actual_taxation"),
+    corrected: boolean("corrected").notNull(),
+    transferTicket: text("transfer_ticket"),
+    /** Kz 83 in Cent, aus raw gelesen; null, wenn sie fehlt */
+    kz83: integer("kz83"),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("legacy_vat_reports_period").on(t.year, t.month)],
+);
+
+/** Übermittlungsprotokoll (PDF) einer archivierten Voranmeldung. Nur anhängen. */
+export const legacyVatReportFiles = pgTable(
+  "legacy_vat_report_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    vatReportId: uuid("vat_report_id")
+      .notNull()
+      .references(() => legacyVatReports.id),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("legacy_vat_report_files_unique").on(t.vatReportId, t.sha256)],
+);
+
+/**
+ * Steuerarten aus sevDesk (GET /TaxSet), je Abruf einmal unverändert in raw (Liste der Objekte). Der Abgleich der
+ * Umsatzsteuer liest die Kennzahlen eigener Steuerarten (taxType custom) aus dem jüngsten Abruf, auch für früher abgerufene
+ * Belege (#472). Nur anhängen.
+ */
+export const sevdeskTaxSets = pgTable("sevdesk_tax_sets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  importId: uuid("import_id")
+    .notNull()
+    .unique()
+    .references(() => lexofficeImports.id),
+  raw: jsonb("raw").$type<Record<string, unknown>[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Nachweis jedes begonnenen automatischen PDF-Abrufs, auch wenn kein PDF übernommen werden konnte. */
 export const legacyOrderPdfAttempts = pgTable(
   "legacy_order_pdf_attempts",
@@ -3287,6 +3404,29 @@ export const sevdeskAccountingTypes = pgTable(
 );
 
 /**
+ * Kontoart einer sevDesk-Gutschrift auf ein Buchungskonto, von Hand festgelegt, wenn der Kontostamm sie nicht klärt (#888).
+ * Nachtrag zur Archivkopie, die unverändert bleibt. Nur anhängen; die jüngste Entscheidung gilt. Ein Kontostamm mit
+ * erkannter Art geht vor; widerspricht er der Entscheidung, bleibt die Gutschrift unklar (sevdesk-kontoart.ts).
+ */
+export const sevdeskAccountingTypeDecisions = pgTable(
+  "sevdesk_accounting_type_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    voucherId: uuid("voucher_id")
+      .notNull()
+      .references(() => lexofficeVouchers.id),
+    kind: text("kind", { enum: ["erloes", "aufwand"] }).notNull(),
+    /** Wer entschieden hat (Benutzer-ID wie im Audit-Log) */
+    decidedBy: text("decided_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("sevdesk_accounting_type_decisions_voucher").on(t.voucherId),
+    check("sevdesk_accounting_type_decisions_kind", sql`${t.kind} in ('erloes', 'aufwand')`),
+  ],
+);
+
+/**
  * Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. Rolle „vorlage“: Datei der
  * sevDesk-Vorlage, aus der ein wiederkehrender Beleg ohne eigene Datei entstand (lexoffice_file_id ist die Datei der Vorlage).
  */
@@ -3306,6 +3446,42 @@ export const lexofficeVoucherFiles = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("lexoffice_voucher_files_unique").on(t.voucherId, t.sha256)],
+);
+
+/** Dateistand eines archivierten Belegs, soweit er von „alle Dateien da“ abweicht (#345) */
+export const LEGACY_FILE_STATES = ["ohne_datei", "abruf_fehlgeschlagen", "anhang_fehlt", "bestaetigt_ohne_datei", "nachgeladen", "kein_anhang"] as const;
+export type LegacyFileState = (typeof LEGACY_FILE_STATES)[number];
+
+/**
+ * Dateistand eines archivierten Belegs aus sevDesk (#345). Nur anhängen; es gilt die jüngste Zeile je Beleg.
+ * - ohne_datei: sevDesk nennt keine Datei (`document` leer). Das beweist nicht, dass es nie eine gab; offen, bis jemand bestätigt.
+ * - abruf_fehlgeschlagen: sevDesk nennt eine Datei (oder bei Rechnung und Gutschrift ist das PDF Pflicht), der Abruf scheiterte.
+ * - anhang_fehlt: die Hauptdatei ist da, eine weitere erwartete Datei (etwa das XML einer E-Rechnung) nicht.
+ * - bestaetigt_ohne_datei: eine Person hat in sevDesk geprüft, dass der Beleg keine Datei hat (created_by, Zeitpunkt).
+ * - nachgeladen: ein späterer Abruf hat die fehlende Datei angehängt.
+ * - kein_anhang: ein späterer Abruf sagt ohne Fehler, dass es den fehlenden Anhang nicht gibt (keine E-Rechnung).
+ */
+export const legacyFileStates = pgTable(
+  "legacy_file_states",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    voucherId: uuid("voucher_id")
+      .notNull()
+      .references(() => lexofficeVouchers.id),
+    /** Lauf, der den Stand festgestellt hat; null bei der Bestätigung durch eine Person */
+    importId: uuid("import_id").references(() => lexofficeImports.id),
+    state: text("state", { enum: LEGACY_FILE_STATES }).notNull(),
+    /** Welche Datei: pdf, xml oder anhang (Datei eines Belegs) */
+    role: text("role", { enum: ["pdf", "xml", "anhang"] }),
+    /** Kennung der Datei in der Quelle (sevDesk: Document-ID), soweit bekannt */
+    sourceFileId: text("source_file_id"),
+    /** Fehlergrund bzw. Herkunft der Bestätigung */
+    message: text("message").notNull().default(""),
+    /** Benutzer-ID wie im Audit-Log; beim Abruf die Person, die ihn gestartet hat */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("legacy_file_states_voucher").on(t.voucherId, t.createdAt)],
 );
 
 /**
