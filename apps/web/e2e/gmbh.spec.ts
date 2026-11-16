@@ -54,6 +54,14 @@ test("Einrichtung als GmbH mit SKR04", async () => {
   await page.getByRole("button", { name: "Später" }).click();
   await fragenUeberspringen(page);
 
+  // Noch ohne Firmendaten: der Hinweis vor dem Festschreiben steht einmal da, mit einem Link direkt in die Firmendaten (#1254)
+  await go("/rechnungen/neu");
+  const vorFestschreiben = page.locator(".banner", { hasText: "Vor dem Festschreiben" });
+  await expect(vorFestschreiben).toContainText("Firmendaten: Firmenname fehlt");
+  expect((await vorFestschreiben.textContent())?.match(/Vor dem Festschreiben/g)).toHaveLength(1);
+  await expect(vorFestschreiben.getByRole("link", { name: "Firmendaten ergänzen" })).toHaveAttribute("href", "/einstellungen?bereich=firma");
+  await go("/einstellungen");
+
   const firma = page.getByRole("form", { name: "Firmendaten" });
   await firma.getByLabel("Name", { exact: true }).fill("Nordlicht Software GmbH");
   await firma.getByLabel("E-Mail", { exact: true }).fill("rechnung@nordlicht.example");
