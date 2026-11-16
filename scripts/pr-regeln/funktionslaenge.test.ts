@@ -50,6 +50,12 @@ describe("functionLengths", () => {
     expect([...functionLengths("x.ts", code).keys()]).toEqual(["a", "b", "c", "d", "K › m", "K › f", "o › p", "o › q", "s › (anonym)"]);
   });
 
+  it("lässt Getter und Setter aus wie Biome", () => {
+    // nachgeprüft mit Biome 2.6.4 und maxLines 1: nur m wird gemeldet
+    const code = "class K {\n  get g() {\n    a();\n    b();\n  }\n  set s(v) {\n    a();\n    b();\n  }\n  m() {\n    a();\n    b();\n  }\n}\nconst o = {\n  get h() {\n    a();\n    b();\n  },\n};\n";
+    expect([...functionLengths("x.ts", code).keys()]).toEqual(["K › m"]);
+  });
+
   it("hält gleiche Namen auseinander", () => {
     expect([...functionLengths("x.ts", "const x = [() => {}, () => {}];").keys()]).toEqual(["x › (anonym)", "x › (anonym) #2"]);
   });
@@ -68,6 +74,23 @@ describe("functionLengthHints", () => {
     expect(reports).toEqual([
       expect.stringContaining("„a“ wächst von 80 auf 81 Zeilen, über 80: vor dem Merge teilen"),
       expect.stringContaining("„b“ wächst von 120 auf 195 Zeilen (Grenze 80): das Neue vor dem Merge in eine eigene Funktion legen"),
+    ]);
+  });
+
+  /** Rückruf ohne Namen auf oberster Ebene, etwa `beforeAll(() => {})` in einem Skript */
+  const callback = (lines: number) => `on(() => {\n${Array.from({ length: lines }, (_, i) => `  a${i}();\n`).join("")}});\n`;
+
+  it("schweigt, wenn vor einer langen Funktion eine gleichnamige eingefügt wird", () => {
+    const before = callback(100) + callback(5);
+    const after = callback(3) + callback(100) + callback(5);
+    expect(functionLengthHints([{ file: "scripts/x/y.ts", before, after }])).toEqual([]);
+  });
+
+  it("meldet eine gewachsene unter gleichnamigen Funktionen mit ihrer alten Länge", () => {
+    const before = callback(90) + callback(50);
+    const after = callback(90) + callback(95);
+    expect(functionLengthHints([{ file: "scripts/x/y.ts", before, after }]).map(({ message }) => message)).toEqual([
+      expect.stringContaining("wächst von 50 auf 95 Zeilen"),
     ]);
   });
 
