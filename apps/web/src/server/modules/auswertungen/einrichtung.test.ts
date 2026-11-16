@@ -135,6 +135,15 @@ describe.skipIf(!testDatabaseUrl)("Fragen zur Einrichtung (Postgres, #266)", () 
     expect(await bereiche()).toEqual(["lastschriften"]);
   });
 
+  it("nennt Entwürfe, die nach einem Wechsel des Voranmeldungszeitraums nicht mehr passen (#266)", async () => {
+    await einrichtung.einrichtungSpeichern(actor, { ...nichts, kleinunternehmer: false, voranmeldung: "monatlich" }, today);
+    await sql`insert into vat_returns (year, month, status) values (2026, 8, 'draft')`;
+    const ergebnis = await einrichtung.einrichtungSpeichern(actor, { ...nichts, kleinunternehmer: false, voranmeldung: "vierteljaehrlich" }, today);
+    expect(ergebnis.orphanedDrafts).toEqual(["August 2026"]);
+    // Ohne Wechsel des Zeitraums keine Meldung
+    expect((await einrichtung.einrichtungSpeichern(actor, { ...nichts, kleinunternehmer: false }, today)).orphanedDrafts).toEqual([]);
+  });
+
   it("füllt beim erneuten Durchgehen vor, was gespeichert ist", async () => {
     expect((await einrichtung.einrichtungStand(today)).stand).toMatchObject({ eingerichtet: false, voranmeldung: "monatlich", ausgeblendet: [] });
     await einrichtung.einrichtungSpeichern(
