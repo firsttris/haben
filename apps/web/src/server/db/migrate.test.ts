@@ -1,9 +1,10 @@
-import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { describe, expect, it } from "vitest";
-import { testDatabaseUrl, testTempDir } from "../test-db.ts";
+import { testDatabaseUrl } from "../test-db.ts";
 
 const MIGRATIONS = fileURLToPath(new URL("../../../drizzle", import.meta.url));
 
@@ -54,7 +55,7 @@ describe.skipIf(!testDatabaseUrl)("Update einer bestehenden Installation (Postgr
     }
 
     // Stand der Vorversion: dieselben Migrationen ohne die letzte
-    const previous = testTempDir("migrationen-");
+    const previous = mkdtempSync(join(tmpdir(), "haben-migrationen-"));
     cpSync(MIGRATIONS, previous, { recursive: true });
     const full = journal(MIGRATIONS);
     writeFileSync(join(previous, "meta", "_journal.json"), JSON.stringify({ ...full, entries: full.entries.slice(0, -1) }));
@@ -80,7 +81,7 @@ describe.skipIf(!testDatabaseUrl)("Update einer bestehenden Installation (Postgr
     } finally {
       await admin.end();
     }
-    const previous = testTempDir("migrationen-");
+    const previous = mkdtempSync(join(tmpdir(), "haben-migrationen-"));
     cpSync(MIGRATIONS, previous, { recursive: true });
     const full = journal(MIGRATIONS);
     const tokenMigration = full.entries.findIndex((entry) => entry.idx === 186);

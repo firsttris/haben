@@ -1,3 +1,6 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -21,6 +24,7 @@ describe.skipIf(!testDatabaseUrl)("SEPA-Lastschriftmandate am Kontakt (Postgres,
   });
 
   beforeAll(async () => {
+    process.env.DOCUMENTS_DIR = mkdtempSync(join(tmpdir(), "haben-mandate-"));
     sql = await setupTestDb();
     mandates = await import("./sepa-mandate.ts");
   }, 30_000);

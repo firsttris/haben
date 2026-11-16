@@ -32,11 +32,11 @@ function templateName(url: string): string {
 export const testDatabaseUrl = baseUrl && withDatabase(baseUrl, `${databaseName(baseUrl)}_${process.env.VITEST_POOL_ID ?? "1"}`);
 
 /*
- * Temp-Ordner der Tests liegen unter einem Ordner je Lauf (haben-test-<PID>-…), den `setup` anlegt und am Ende löscht.
- * Bricht ein Lauf ab, ohne aufzuräumen, löscht der nächste Lauf dessen Ordner, sobald der Prozess nicht mehr lebt.
+ * Temp-Ordner der Tests: `setup` legt je Lauf $TMPDIR/haben-test-<PID>-… an und setzt TMPDIR darauf. Worker und ihre
+ * Kindprozesse erben das, jedes `tmpdir()` zeigt also in den Ordner des Laufs, den `setup` am Ende löscht. Bricht ein
+ * Lauf ab, ohne aufzuräumen, löscht der nächste Lauf dessen Ordner, sobald der Prozess nicht mehr lebt.
  */
 const RUN_PREFIX = "haben-test-";
-const RUN_DIR_ENV = "HABEN_TEST_TMP";
 
 function processAlive(pid: number): boolean {
   try {
@@ -62,21 +62,12 @@ export function createRunDir(base = tmpdir()): { root: string; remove: () => voi
   return { root, remove: () => rmSync(root, { recursive: true, force: true }) };
 }
 
-/** Neuer leerer Temp-Ordner unter dem Ordner des Laufs; `setup` löscht ihn am Ende des Laufs mit */
-export function testTempDir(prefix: string): string {
-  const root = process.env[RUN_DIR_ENV];
-  if (!root) throw new Error(`${RUN_DIR_ENV} fehlt: Die Tests laufen nur mit dem globalSetup aus vitest.config.ts`);
-  return mkdtempSync(join(root, prefix));
-}
-
 /**
  * Belegordner des Workers: je Worker einer, beim nächsten Aufruf geleert. Ein Ordner je Testdatei sammelte sich sonst
  * bis zum Ende des Laufs an.
  */
 export function workerDocumentsDir(): string {
-  const root = process.env[RUN_DIR_ENV];
-  if (!root) throw new Error(`${RUN_DIR_ENV} fehlt: Die Tests laufen nur mit dem globalSetup aus vitest.config.ts`);
-  const dir = join(root, `belege-${process.env.VITEST_POOL_ID ?? "1"}`);
+  const dir = join(tmpdir(), `haben-belege-${process.env.VITEST_POOL_ID ?? "1"}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   return dir;
@@ -142,12 +133,13 @@ export function leeren(sql: postgres.Sql) {
 }
 
 /**
- * globalSetup von Vitest: legt den Temp-Ordner des Laufs an (die Worker erben ihn über die Umgebung) und migriert mit
- * TEST_DATABASE_URL einmal je Lauf die Vorlage. Die zurückgegebene Funktion löscht den Temp-Ordner am Ende des Laufs.
+ * globalSetup von Vitest: legt den Temp-Ordner des Laufs an und setzt TMPDIR darauf (die Worker erben die Umgebung),
+ * dann migriert es mit TEST_DATABASE_URL einmal je Lauf die Vorlage. Die zurückgegebene Funktion löscht den Temp-Ordner
+ * am Ende des Laufs.
  */
 export async function setup(): Promise<() => void> {
   const { root, remove: teardown } = createRunDir();
-  process.env[RUN_DIR_ENV] = root;
+  process.env.TMPDIR = root;
   if (!baseUrl) return teardown;
   try {
     const template = templateName(baseUrl);
