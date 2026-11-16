@@ -524,7 +524,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       taxRate: 1900,
       priceIncludesTax: true,
       note: "Lager A",
-    };
+    } as const;
 
     it("legt Artikel an und listet sie gefiltert und seitenweise", async () => {
       const schreiben = await token(["artikel:schreiben"]);
@@ -571,6 +571,24 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       const audit = await sql`select action, actor from audit_log where table_name = 'articles' and new_value->>'id' = ${id} order by seq`;
       expect(audit.map((entry) => entry.action)).toEqual(["INSERT", "UPDATE", "UPDATE"]);
       expect(audit.every((entry) => entry.actor === `api:${zugang!.id}:Shop-Automation`)).toBe(true);
+    });
+
+    it("prüft die Bezeichnung bei POST und PATCH auf eine Zeile", async () => {
+      const schreiben = await token(["artikel:schreiben"]);
+      const zweizeilig = "Mühle\nAus Buche";
+      const detail = "Holzgriff\nErsatzteile verfügbar";
+      const rejected = { status: 400, json: { error: { code: "validation_failed", issues: [expect.objectContaining({ path: "description" })] } } };
+
+      expect(await call(schreiben, "POST", "/artikel", { ...artikel, description: zweizeilig })).toMatchObject(rejected);
+      const created = await call(schreiben, "POST", "/artikel", { ...artikel, detail });
+      expect(created).toMatchObject({ status: 201, json: { detail } });
+      const path = `/artikel/${created.json!.id}`;
+      expect(await call(schreiben, "PATCH", path, { description: zweizeilig })).toMatchObject(rejected);
+      expect((await call(schreiben, "GET", path)).json).toMatchObject({ description: artikel.description, detail });
+
+      const legacy = await stammdaten.createArticle(actor, { ...artikel, description: zweizeilig });
+      const patched = await call(schreiben, "PATCH", `/artikel/${legacy.id}`, { note: "Regal B" });
+      expect(patched).toMatchObject({ status: 200, json: { description: zweizeilig, note: "Regal B" } });
     });
 
     it("prüft Artikelrechte und ungültige Daten vor dem Schreiben", async () => {
