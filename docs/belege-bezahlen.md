@@ -21,7 +21,7 @@ Unter **Bezahlung** am Beleg wählst du, wie er bezahlt wurde:
 
 Unter **Überweisungen** (Menü **Ausgaben**) stellst du offene Belege zu einer SEPA-Datei zusammen, die du im Online-Banking hochlädst. Haben bucht dabei nichts: Bezahlt ist ein Beleg erst, wenn der [Bankabgleich](bank.md#überweisungen-aus-haben) die Abbuchung zuordnet.
 
-1. **Konto, von dem das Geld abgeht** (Auftraggeberkonto) wählen: eines der Bankkonten unter [Bank](bank.md#konto), von dem das Geld abgeht. Zahlungsdienstleister stehen nicht zur Wahl.
+1. **Konto, von dem das Geld abgeht** (Auftraggeberkonto) wählen, eines der Bankkonten unter [Bank](bank.md#konto). Zahlungsdienstleister stehen nicht zur Wahl.
 2. **Ausführungsdatum** setzen, frühestens heute.
 3. Die Belege ankreuzen, einzeln oder mit **Alle auswählen**. Darunter stehen Anzahl und Summe.
 4. **SEPA-Datei erzeugen**. Der Browser lädt die Datei `HABEN-….xml` herunter; unter **Erzeugte Dateien** bleibt sie zum erneuten Herunterladen.
