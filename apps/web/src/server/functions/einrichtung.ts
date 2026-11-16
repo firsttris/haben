@@ -16,8 +16,7 @@ export const saveEinrichtung = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(einrichtungSchema)
   .handler(async ({ data, context }) => {
-    await einrichtungSpeichern(context.user.id, data, today());
-    return { ok: true };
+    return einrichtungSpeichern(context.user.id, data, today());
   });
 
 /** Einstellungen › Bereiche: welche Bereiche ohne Menüpunkt sind */

@@ -54,7 +54,7 @@ Nach dem ersten Konto stellt Haben ein paar Fragen in drei Schritten:
 
 Jede Frage hat „Weiß ich nicht“, und „Später“ überspringt alles; dann erinnert die Übersicht daran, bis du die Fragen beantwortest oder die Firmendaten speicherst. Die Antworten schreiben die vorhandenen Angaben der [Firmendaten](#firmendaten) und den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) ab Januar des laufenden Jahres, mit denselben [Sperren](#wann-sich-die-einstellungen-ändern-lassen) wie dort. „Weiß ich nicht“ lässt die bisherige Angabe stehen, beim ersten Mal die Vorgabe (Einzelunternehmen, kein Kleinunternehmer). Bleiben Rechtsform oder Kleinunternehmer so offen, erinnert die Übersicht daran, bis du sie in den Fragen beantwortest oder die Firmendaten speicherst.
 
-Unter **Einstellungen › Bereiche** öffnet „Fragen erneut durchgehen“ die Fragen noch einmal mit den gespeicherten Antworten. Ändert sich dabei Rechtsform, Einkunftsart, Kleinunternehmer, Versteuerung, Voranmeldungszeitraum, Vorsteuerabzug oder Kontenrahmen, zeigt Haben die Änderungen vor dem Speichern.
+Unter **Einstellungen › Bereiche** öffnet „Fragen erneut durchgehen“ die Fragen noch einmal mit den gespeicherten Antworten. Ändert sich dabei Rechtsform, Einkunftsart, Kleinunternehmer, Versteuerung, Voranmeldungszeitraum, Vorsteuerabzug oder Kontenrahmen, zeigt Haben die Änderungen vor dem Speichern. Passen nach einem Wechsel des Voranmeldungszeitraums Entwürfe von Voranmeldungen nicht mehr, nennt Haben sie danach; senden lassen sie sich nicht mehr.
 
 ### Bereiche ausblenden
 

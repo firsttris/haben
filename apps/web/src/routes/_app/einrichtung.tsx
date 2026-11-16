@@ -24,9 +24,12 @@ function EinrichtungPage() {
   const { stand, locks } = Route.useLoaderData();
   // Schon einmal eingerichtet oder Firmendaten gespeichert: aus den Einstellungen gekommen, zurück dorthin
   const erneut = erneutDurchgehen(stand);
+  const ziel = erneut ? ({ to: "/einstellungen", search: { bereich: "bereiche" } } as const) : ({ to: "/" } as const);
   const router = useRouter();
   const save = useServerFn(saveEinrichtung);
-  const { busy, notice, run } = useAction();
+  const { busy, notice, setNotice, run } = useAction();
+  // Nach dem Speichern mit Entwürfen, die nicht mehr zum Voranmeldungszeitraum passen: Hinweis lesen, dann „Weiter“
+  const [gespeichert, setGespeichert] = useState(false);
   const [schritt, setSchritt] = useState(0);
   const [antworten, setAntworten] = useState<Antworten>(() => antwortenAus(stand));
   // Steuerberatung und Umzug stehen nirgends gespeichert; sie öffnen nur weitere Angaben
@@ -49,9 +52,14 @@ function EinrichtungPage() {
 
   function speichern() {
     void run(async () => {
-      await save({ data: antworten });
+      const { orphanedDrafts } = await save({ data: antworten });
       await router.invalidate();
-      await router.navigate(erneut ? { to: "/einstellungen", search: { bereich: "bereiche" } } : { to: "/" });
+      if (orphanedDrafts.length === 0) return router.navigate(ziel);
+      setGespeichert(true);
+      setNotice({
+        tone: "info",
+        text: `Gespeichert. Entwürfe der Voranmeldung, die nicht mehr zum Zeitraum passen und sich nicht senden lassen: ${orphanedDrafts.join(", ")}.`,
+      });
     });
   }
 
@@ -102,25 +110,36 @@ function EinrichtungPage() {
           )}
         </section>
         <NoticeBanner notice={notice} />
-        <div className="actions form-footer">
-          {erneut ? (
-            <Link to="/einstellungen" search={{ bereich: "bereiche" }} className="btn">
-              Abbrechen
+        {gespeichert ? (
+          <div className="actions form-footer">
+            <Link to="/umsatzsteuer" className="btn">
+              Zur Umsatzsteuer
             </Link>
-          ) : (
-            <Link to="/" className="btn">
-              Später
+            <Link {...ziel} className="btn btn-primary">
+              Weiter
             </Link>
-          )}
-          {schritt > 0 && (
-            <button type="button" className="btn" onClick={() => wechseln(schritt - 1)} disabled={busy}>
-              Zurück
+          </div>
+        ) : (
+          <div className="actions form-footer">
+            {erneut ? (
+              <Link to="/einstellungen" search={{ bereich: "bereiche" }} className="btn">
+                Abbrechen
+              </Link>
+            ) : (
+              <Link to="/" className="btn">
+                Später
+              </Link>
+            )}
+            {schritt > 0 && (
+              <button type="button" className="btn" onClick={() => wechseln(schritt - 1)} disabled={busy}>
+                Zurück
+              </button>
+            )}
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              {letzter ? "Fertig" : "Weiter"}
             </button>
-          )}
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {letzter ? "Fertig" : "Weiter"}
-          </button>
-        </div>
+          </div>
+        )}
       </form>
       <ConfirmDialog
         open={rueckfrage}

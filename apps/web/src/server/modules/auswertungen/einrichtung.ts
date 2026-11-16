@@ -54,8 +54,9 @@ export async function einrichtungStand(today: string): Promise<{ stand: Stand; l
   return { stand: await standIn(today, db), locks: await settingsLocks(today) };
 }
 
-export async function einrichtungSpeichern(actor: string, antworten: Antworten, today: string): Promise<void> {
-  await withActor(actor, async (tx) => {
+/** `orphanedDrafts`: ungesendete Voranmeldungen, die nach einem Wechsel des Zeitraums nicht mehr passen (zeitraum.ts) */
+export async function einrichtungSpeichern(actor: string, antworten: Antworten, today: string): Promise<{ orphanedDrafts: string[] }> {
+  return withActor(actor, async (tx) => {
     await loadCompany(tx);
     // Firmenzeile sperren wie beim Speichern der Firmendaten: Eine gleichzeitige Änderung wartet
     await tx.select({ id: schema.company.id }).from(schema.company).where(eq(schema.company.id, 1)).for("update");
@@ -84,6 +85,7 @@ export async function einrichtungSpeichern(actor: string, antworten: Antworten, 
       offen: offeneFragen(antworten),
     });
     // Ab Januar wie auf der Seite der Voranmeldung; passt eine gesendete nicht mehr, lehnt saveFrequencyIn ab
-    if (voranmeldung !== stand.voranmeldung) await saveFrequencyIn(tx, { year: monat(today).year, fromMonth: 1, frequency: voranmeldung });
+    if (voranmeldung === stand.voranmeldung) return { orphanedDrafts: [] };
+    return saveFrequencyIn(tx, { year: monat(today).year, fromMonth: 1, frequency: voranmeldung });
   });
 }
