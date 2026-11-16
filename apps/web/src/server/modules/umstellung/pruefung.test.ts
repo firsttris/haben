@@ -221,6 +221,12 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
           ],
         });
         expect((await stand())!.ergebnis).toBe("offen");
+        // Übernommen: Wie Verprobung und gesendete Voranmeldungen prüft die Integritätsprüfung die gemeldete Bemessungsgrundlage
+        // in diesem Jahr nicht mehr; sonst meldete sie die übernommene Abweichung jede Woche wieder
+        expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
+        const jahr = await abgleich.abgleichJahr(2026, today);
+        expect(abgleich.abweichungen(jahr.zeilen)).toEqual([]);
+        expect(jahr.hinweise.join()).toMatch(/gemeldete Bemessungsgrundlage erledigter Ist-Rechnungen/);
       }, 60_000);
 
       it(`übermittelte bzw. vermerkte Jahreserklärung: gleich besteht, abweichend nennt sie Erklärung und Feld (${kr}, ${v})`, async () => {
