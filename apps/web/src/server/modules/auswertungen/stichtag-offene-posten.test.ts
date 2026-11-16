@@ -368,8 +368,9 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
   it("nimmt einen Beleg aus dem Stand, dessen Storno zurückdatiert ist", async () => {
     const beleg = await bookedDocument(4, { supplierName: "Nordlicht Papier GmbH", documentDate: "2025-12-10", net: 25_000, tax: 4_750 });
 
-    // Erfasst im Februar 2026, gebucht auf den 20.12.2025: im Journal steht der Storno im Dezember
-    await cancellation.cancelDocument(actor, beleg, { reason: "Doppelt erfasst" }, "2025-12-20");
+    // Im Februar 2026 erfasst, der Dezember ist noch nicht gemeldet: die Gegenbuchung geht auf die Belegbuchung
+    // vom 10.12.2025, im Journal steht der Storno damit im Dezember
+    await cancellation.cancelDocument(actor, beleg, { reason: "Doppelt erfasst" }, "2026-02-15");
 
     const stichtag = await reports.openPositions("2025-12-31", { bis: "2025-12-31" });
     expect(stichtag.payables).toEqual([]);
