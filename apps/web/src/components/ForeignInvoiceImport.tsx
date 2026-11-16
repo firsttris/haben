@@ -74,11 +74,13 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
   const p = read.proposal;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [number, setNumber] = useState(p.number);
-  const [issueDate, setIssueDate] = useState(p.issueDate);
-  const [dueDate, setDueDate] = useState(p.dueDate);
-  const [serviceFrom, setServiceFrom] = useState(p.serviceFrom ?? "");
-  const [serviceTo, setServiceTo] = useState(p.serviceTo ?? "");
+  const [basics, setBasics] = useState<Basics>({
+    number: p.number,
+    issueDate: p.issueDate,
+    dueDate: p.dueDate,
+    serviceFrom: p.serviceFrom ?? "",
+    serviceTo: p.serviceTo ?? "",
+  });
   const [customers, setCustomers] = useState(read.customers);
   const [contactId, setContactId] = useState(p.contactId ?? "");
   /** Offener Dialog „Neuer Kunde“ mit dem vorgetragenen Namen; null = geschlossen */
@@ -107,14 +109,14 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
     form.set(
       "rechnung",
       JSON.stringify({
-        number,
-        issueDate,
-        dueDate,
+        number: basics.number,
+        issueDate: basics.issueDate,
+        dueDate: basics.dueDate,
         contactId,
         taxTreatment: treatment,
         exemptionReason,
-        serviceFrom: serviceFrom || null,
-        serviceTo: serviceTo || null,
+        serviceFrom: basics.serviceFrom || null,
+        serviceTo: basics.serviceTo || null,
         taxes,
       }),
     );
@@ -146,48 +148,8 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
             )}
           </div>
         )}
-        <section className="form-section" aria-labelledby="fremdrechnung-basis">
-          <h2 id="fremdrechnung-basis">Rechnung</h2>
-          <div className="form-grid">
-            <Field label="Rechnungsnummer">{(control) => <input {...control} value={number} onChange={(e) => setNumber(e.target.value)} required />}</Field>
-            <Field label="Rechnungsdatum">
-              {(control) => <input {...control} type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} required />}
-            </Field>
-            <Field label="Fällig am">
-              {(control) => <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />}
-            </Field>
-            <Field
-              label="Leistung von"
-              hint="Nur wenn die Leistung in einem anderen Monat liegt als das Rechnungsdatum: Bei Soll-Versteuerung zählt der Monat der Leistung"
-            >
-              {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />}
-            </Field>
-            <Field label="Leistung bis">
-              {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => setServiceTo(e.target.value)} />}
-            </Field>
-          </div>
-        </section>
-        <section className="form-section" aria-labelledby="fremdrechnung-kunde">
-          <h2 id="fremdrechnung-kunde">Kunde</h2>
-          <Field label="Kunde" hint={p.buyerName && !p.contactId ? `Auf der Rechnung: ${p.buyerName}. Dazu gibt es keinen eindeutigen Kontakt.` : undefined}>
-            {(control) => (
-              <ContactCombobox
-                {...control}
-                rolle="kunde"
-                contacts={customers}
-                contactId={contactId}
-                required
-                onChoose={setContactId}
-                onCreate={(name) => setNewContactName(name || p.buyerName || "")}
-              />
-            )}
-          </Field>
-          <div className="actions">
-            <button type="button" className="btn btn-sm" onClick={() => setNewContactName(p.buyerName ?? "")}>
-              Neuen Kunden anlegen
-            </button>
-          </div>
-        </section>
+        <BasicsSection value={basics} onChange={setBasics} />
+        <CustomerSection proposal={p} customers={customers} contactId={contactId} onContactId={setContactId} onNewContact={setNewContactName} />
         <TaxSection
           treatment={treatment}
           onTreatment={setTreatment}
@@ -217,6 +179,80 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
         onClose={() => setNewContactName(null)}
       />
     </>
+  );
+}
+
+/** Kunde wählen oder anlegen; der Dialog „Neuer Kunde“ steht neben dem Formular (siehe ForeignInvoiceForm) */
+function CustomerSection({
+  proposal,
+  customers,
+  contactId,
+  onContactId,
+  onNewContact,
+}: {
+  proposal: Read["proposal"];
+  customers: Read["customers"];
+  contactId: string;
+  onContactId: (id: string) => void;
+  /** Öffnet den Dialog mit diesem Namen als Vorgabe */
+  onNewContact: (name: string) => void;
+}) {
+  return (
+    <section className="form-section" aria-labelledby="fremdrechnung-kunde">
+      <h2 id="fremdrechnung-kunde">Kunde</h2>
+      <Field
+        label="Kunde"
+        hint={proposal.buyerName && !proposal.contactId ? `Auf der Rechnung: ${proposal.buyerName}. Dazu gibt es keinen eindeutigen Kontakt.` : undefined}
+      >
+        {(control) => (
+          <ContactCombobox
+            {...control}
+            rolle="kunde"
+            contacts={customers}
+            contactId={contactId}
+            required
+            onChoose={onContactId}
+            onCreate={(name) => onNewContact(name || proposal.buyerName || "")}
+          />
+        )}
+      </Field>
+      <div className="actions">
+        <button type="button" className="btn btn-sm" onClick={() => onNewContact(proposal.buyerName ?? "")}>
+          Neuen Kunden anlegen
+        </button>
+      </div>
+    </section>
+  );
+}
+
+type Basics = { number: string; issueDate: string; dueDate: string; serviceFrom: string; serviceTo: string };
+
+function BasicsSection({ value, onChange }: { value: Basics; onChange: (value: Basics) => void }) {
+  const set = (patch: Partial<Basics>) => onChange({ ...value, ...patch });
+  return (
+    <section className="form-section" aria-labelledby="fremdrechnung-basis">
+      <h2 id="fremdrechnung-basis">Rechnung</h2>
+      <div className="form-grid">
+        <Field label="Rechnungsnummer">
+          {(control) => <input {...control} value={value.number} onChange={(e) => set({ number: e.target.value })} required />}
+        </Field>
+        <Field label="Rechnungsdatum">
+          {(control) => <input {...control} type="date" value={value.issueDate} onChange={(e) => set({ issueDate: e.target.value })} required />}
+        </Field>
+        <Field label="Fällig am">
+          {(control) => <input {...control} type="date" value={value.dueDate} onChange={(e) => set({ dueDate: e.target.value })} required />}
+        </Field>
+        <Field
+          label="Leistung von"
+          hint="Nur wenn die Leistung in einem anderen Monat liegt als das Rechnungsdatum: Bei Soll-Versteuerung zählt der Monat der Leistung"
+        >
+          {(control) => <input {...control} type="date" value={value.serviceFrom} onChange={(e) => set({ serviceFrom: e.target.value })} />}
+        </Field>
+        <Field label="Leistung bis">
+          {(control) => <input {...control} type="date" value={value.serviceTo} onChange={(e) => set({ serviceTo: e.target.value })} />}
+        </Field>
+      </div>
+    </section>
   );
 }
 
