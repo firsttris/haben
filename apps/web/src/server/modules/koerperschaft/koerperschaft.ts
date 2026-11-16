@@ -1,4 +1,14 @@
-import { abschluss, isKapitalgesellschaft, kapgSteuern, MINDEST_HEBESATZ, steuerKonten, type KapgSteuerAngaben, type KapgSteuern, inBasisPoints, inCents } from "@haben/core";
+import {
+  abschluss,
+  isKapitalgesellschaft,
+  kapgSteuern,
+  MINDEST_HEBESATZ,
+  steuerKonten,
+  type KapgSteuerAngaben,
+  type KapgSteuern,
+  inBasisPoints,
+  inCents,
+} from "@haben/core";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";

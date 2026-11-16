@@ -261,7 +261,9 @@ export const invoiceSchema = z
     paymentMethod: z.enum(INVOICE_PAYMENT_METHODS),
     paidVia: z.string().nullable(),
     paidOn: isoDate.nullable(),
-    skonto: z.array(z.object({ days: z.number().int(), percent: inBasisPoints(z.number().int()) })).describe("Skontostufen: Frist in Tagen, Satz in Basispunkten"),
+    skonto: z
+      .array(z.object({ days: z.number().int(), percent: inBasisPoints(z.number().int()) }))
+      .describe("Skontostufen: Frist in Tagen, Satz in Basispunkten"),
     format: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     intro: z.string(),
     note: z.string(),

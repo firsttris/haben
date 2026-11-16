@@ -17,7 +17,9 @@ export const documentTaxShape = {
         taxRate: inBasisPoints(z.number().int()).describe("Basispunkte"),
         net: inCents(z.number().int()),
         tax: inCents(z.number().int()),
-        vorsteuerAnteil: inBasisPoints(z.number().int().min(0).max(10_000)).nullable().describe("Abziehbarer Anteil in Basispunkten; null erbt den Beleganteil"),
+        vorsteuerAnteil: inBasisPoints(z.number().int().min(0).max(10_000))
+          .nullable()
+          .describe("Abziehbarer Anteil in Basispunkten; null erbt den Beleganteil"),
       }),
     )
     .describe("Beträge je Steuersatz in Euro-Cent"),

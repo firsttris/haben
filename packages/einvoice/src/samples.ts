@@ -73,7 +73,11 @@ const SAMPLE_LINES: NonNullable<SampleOptions["lines"]> = [
 export function sampleDocument(options: SampleOptions = {}): InvoiceDocument {
   const kind = options.kind ?? "rechnung";
   const sign = kind === "rechnung" ? 1 : -1;
-  const inputs = (options.lines ?? SAMPLE_LINES).map((line) => ({ ...line, unitPrice: sign * line.unitPrice, discount: sign < 0 ? negateDiscount(line.discount) : (line.discount ?? null) }));
+  const inputs = (options.lines ?? SAMPLE_LINES).map((line) => ({
+    ...line,
+    unitPrice: sign * line.unitPrice,
+    discount: sign < 0 ? negateDiscount(line.discount) : (line.discount ?? null),
+  }));
   const priceMode = options.priceMode ?? "netto";
   const discount = (sign < 0 ? negateDiscount(options.discount) : options.discount) ?? null;
   const { totals, lineNets } = computeInvoice(inputs, priceMode, discount);

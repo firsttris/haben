@@ -1,5 +1,14 @@
 import { insertCashEntry } from "./settlement-store.ts";
-import { BAREINNAHME_BEHANDLUNG_KEYS, bareinnahmeFehler, bareinnahmePosting, bareinnahmeText, type BareinnahmeAngabe, type Cents, inBasisPoints, inCents } from "@haben/core";
+import {
+  BAREINNAHME_BEHANDLUNG_KEYS,
+  bareinnahmeFehler,
+  bareinnahmePosting,
+  bareinnahmeText,
+  type BareinnahmeAngabe,
+  type Cents,
+  inBasisPoints,
+  inCents,
+} from "@haben/core";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import type { Tx } from "../../db/index.ts";
