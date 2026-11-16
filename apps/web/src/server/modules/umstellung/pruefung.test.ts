@@ -103,7 +103,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
     const [tx] = await sql`select id, amount from bank_transactions where purpose = ${purpose}`;
     await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId, amount: Number(tx!.amount) });
   }
-  async function beleg(date: string) {
+  async function beleg(date: string, payment: "privat" | "bank" = "privat") {
     docSeq++;
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, docSeq, 7, 9]), filename: `b${docSeq}.jpg` });
     await documents.updateDocument(actor, id, {
@@ -113,7 +113,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
       documentDate: date,
       dueDate: null,
       category: "edv",
-      payment: "privat",
+      payment,
       note: "",
       amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
       privateShare: 0,
@@ -254,6 +254,18 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         expect((await stand())!.ergebnis).toBe("offen");
       }, 60_000);
 
+      it(`Beleg aus 0.9 mit Leistungsdatum nach dem Belegdatum, vor #930 gebucht: Vorsteuer im Belegmonat, kein Befund (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        await beleg("2026-04-02", "bank");
+        // 0.9 erfasste den Leistungszeitraum schon (#879), buchte die Vorsteuer aber noch im Belegmonat. Solche Belege zählen
+        // weiter nach dem Belegdatum (#930, „Bestand“); erst neue Buchungen legen sie bis zur Ausführung auf das Zwischenkonto.
+        await sql.begin(async (tx) => {
+          await tx`set local session_replication_role = replica`;
+          await tx`update documents set service_from = '2026-05-10', service_to = '2026-05-20'`;
+        });
+        expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+      }, 60_000);
+
       it(`Buchung passt nicht zum Beleg, Voranmeldung schon: Beleg und Konto im Befund, nichts gespeichert (${kr}, ${v})`, async () => {
         await reset(kr, v);
         await beleg("2026-04-02");
@@ -278,6 +290,25 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         expect((await stand())!.ergebnis).toBe("offen");
       }, 60_000);
     }
+
+  it("vermerkte Umsatzsteuererklärung, danach die Voranmeldungen des Jahres vermerkt: Journal unverändert, kein Befund", async () => {
+    await reset("SKR03", "soll");
+    await invoice("2026-03-10");
+    const vorher = await annual.ustYear(2026);
+    // Erklärung außerhalb von Haben abgegeben, bevor die Voranmeldungen in Haben standen: Haben rechnete die volle Steuer als
+    // Abschlusszahlung, die Abweichung zum Protokoll (Steuer abzüglich Vorauszahlung) wurde bestätigt
+    const kz83 = (await vat.computedValues({ year: 2026, month: 3 })).kz83;
+    await erklaert("ust", "vermerk", {
+      amount: vorher.steuer - kz83,
+      berechnet: vorher.abschluss,
+      abweichung: vorher.steuer - kz83 - vorher.abschluss,
+      abweichungBestaetigt: true,
+    });
+    // Die Voranmeldung März wird nachgetragen; an den Buchungen ändert sich nichts, Haben rechnet jetzt den Betrag laut Protokoll
+    await gesendet(3);
+    expect((await annual.ustYear(2026)).abschluss).toBe(vorher.steuer - kz83);
+    expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+  }, 60_000);
 
   it("ohne Buchungen vor dem Stichjahr besteht sie sofort; ohne offene Umstellung gibt es nichts zu tun", async () => {
     await reset("SKR03", "soll");
