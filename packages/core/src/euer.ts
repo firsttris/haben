@@ -92,6 +92,8 @@ export type EuerPayment =
       amount: Cents;
       art: Steuerart;
       posten: SteuerPosten;
+      /** Nur Gegenzeilen: Richtung der ursprünglichen Zuordnung; der Betrag behält sein tatsächliches Vorzeichen. */
+      steuerErstattung?: boolean;
       group?: string;
     }
   | {
@@ -292,20 +294,22 @@ export function computeEuer(
       case "mahnerloes":
       // Zinsen sind umsatzsteuerfrei (§ 4 Nr. 8 Buchst. a UStG), Verzugszinsen und Mahngebühren nicht steuerbar
       case "zinsertrag":
-        // EÜR-Anleitung 2025, Zeilen 12/13: auch nicht steuerbare Mahnerlöse sind vollständige KU-Einnahmen.
+        // EÜR-Anleitung 2025, Zeilen 12/16: auch Guthabenzinsen und nicht steuerbare Mahnerlöse sind vollständige KU-Einnahmen.
         // https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
-        add(p.kind === "mahnerloes" ? steuerfrei : "einnahmenSteuerfrei", p.sum);
+        add(steuerfrei, p.sum);
         monthlyIn[month]! += p.sum;
         break;
-      case "steuer":
-        switch (steuerEuerWirkung(p.art, p.posten, p.sum)) {
+      case "steuer": {
+        const erstattung = p.steuerErstattung ?? p.sum > 0;
+        switch (steuerEuerWirkung(p.art, p.posten, erstattung ? 1 : -1)) {
           case "umsatzsteuer":
             // Umsatzsteuer früherer Jahre: im Jahr der Zahlung gezahlte bzw. erstattete Umsatzsteuer (§ 11 EStG)
-            if (p.sum < 0) add("gezahlteUst", -p.sum);
-            else add("erstatteteUst", p.sum);
+            if (erstattung) add("erstatteteUst", p.sum);
+            else add("gezahlteUst", -p.sum);
             break;
           case "einnahme":
-            add("einnahmenSteuerfrei", p.sum);
+            // Zeile 18 der EÜR-Anleitung: erstattete Nebenleistungen bei KU in Zeile 12; die USt-Erstattung selbst bleibt oben getrennt.
+            add(steuerfrei, p.sum);
             monthlyIn[month]! += p.sum;
             break;
           case "nebenleistung":
@@ -320,6 +324,7 @@ export function computeEuer(
             break;
         }
         break;
+      }
       case "kursdifferenz":
         // Fremdwährung: Unterschied zwischen umgerechnetem Rechnungsbetrag und Zahlung, ohne Umsatzsteuer
         if (p.sum > 0) {
