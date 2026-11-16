@@ -280,6 +280,8 @@ Stehen auf einer Rechnung Dinge, die auf verschiedene Konten gehören, etwa Hand
 5. Gibt es zur Kategorie einer Zeile ein [eigenes Konto](buchhaltung.md#eigene-konten), wählst du es in der Zeile unter **Eigenes Konto**; Betrag und Vorsteuer bleiben, nur die Kontonummer der Aufwandszeile ist eine andere.
 6. **Speichern** oder **Bestätigen und buchen** wie sonst. Mit **Aufteilung aufheben** gilt wieder eine Kategorie für den ganzen Beleg, die der ersten Zeile.
 
+Ein gebuchter Beleg lässt sich nicht mehr aufteilen: [Storniere](#stornieren-und-neu-erfassen) ihn und teile die Neuerfassung auf.
+
 Beispiel, alles zu 19 %: 100,00 € Handelsware, 50,00 € Software und 20,00 € Bürobedarf ergeben 170,00 € netto, 32,30 € Vorsteuer und 202,30 € Zahlbetrag. Gebucht wird eine Buchung (SKR04 in Klammern):
 
 | Konto | Soll | Haben |
@@ -482,7 +484,9 @@ Nicht stornieren lassen sich:
 
 ## Liste und Status
 
-Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechnung, KI oder Hand), Kategorie (bei einer Aufteilung „Aufgeteilt auf 3 Zeilen“, darunter ein [eigenes Konto](buchhaltung.md#eigene-konten), wenn der Beleg eines hat), Bruttobetrag und Status. Ungebuchte Belege stehen oben; die Zahl „… zu prüfen“ in der Kopfzeile zählt sie.
+Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechnung, KI oder Hand), Kategorie (bei einer Aufteilung „Aufgeteilt auf 3 Zeilen“, darunter ein [eigenes Konto](buchhaltung.md#eigene-konten), wenn der Beleg eines hat), Bruttobetrag und Status. Ungebuchte Belege stehen oben, solange du nicht nach einer Spalte sortierst; die Zahl „… zu prüfen“ in der Kopfzeile zählt sie.
+
+Die Spaltenköpfe Datum, Lieferant, Kategorie, Brutto und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Die Sortierung steht als `sort` und `dir` in der Adresse, lässt sich also verlinken und bleibt beim Neuladen erhalten.
 
 | Status | Bedeutung |
 | --- | --- |
