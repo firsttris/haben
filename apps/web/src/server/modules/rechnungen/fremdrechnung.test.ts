@@ -485,4 +485,29 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     // Abgelehnt werden muss die Steuerkategorie, nicht erst die reine XML-Datei
     await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId, taxTreatment: "regulaer" }, file)).rejects.toThrow(/passt nicht/);
   }, 30_000);
+
+  /*
+   * Anzahlungsrechnung (UNTDID 1001 Code 386, „Prepayment invoice“): Bei Soll entsteht die Steuer erst mit der Vereinnahmung
+   * (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG), als Rechnung gebucht stünde sie schon im Monat der Rechnung in Kz 81.
+   */
+  it("lehnt eine E-Rechnung als Anzahlungsrechnung (386) ab", async () => {
+    await company("SKR03", "soll");
+    const contactId = await customer("DE", "DE811128135");
+    const own = await invoices.finalizeInvoice(
+      actor,
+      (
+        await invoices.createDraft(actor, {
+          ...(await invoices.newDraftDefaults("2026-09-26")),
+          contactId,
+          lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
+        })
+      ).id,
+    );
+    const xml = own.xml!.replace("<ram:TypeCode>380</ram:TypeCode>", "<ram:TypeCode>386</ram:TypeCode>");
+    expect(xml).not.toBe(own.xml);
+    const file = { bytes: new TextEncoder().encode(xml), filename: "re.xml", mimeType: "application/xml" };
+    const proposal = await foreign.foreignInvoiceProposal(file);
+    expect(proposal.warnings.join(" ")).toMatch(/Anzahlung/);
+    await expect(foreign.adoptForeignInvoiceFile(actor, { ...proposal, contactId }, file)).rejects.toThrow(/Anzahlung/);
+  }, 30_000);
 });
