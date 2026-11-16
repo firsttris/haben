@@ -209,8 +209,11 @@ async function pauschalen(year: number, q: Db | Tx): Promise<VorgangZeile[]> {
   });
 }
 
-/** Rechnungen bei Ist, ganz erledigt: keine nicht fällige Umsatzsteuer mehr, ganz bezahlt die volle Bemessungsgrundlage gemeldet */
-async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<VorgangZeile[]> {
+/**
+ * Rechnungen bei Ist, ganz erledigt: keine nicht fällige Umsatzsteuer mehr, ganz bezahlt die volle Bemessungsgrundlage
+ * gemeldet (`mitBemessung`; nicht in einem beim Update übernommenen Jahr, dessen ältere Zahlungen sie nicht tragen)
+ */
+async function erledigteIstRechnungen(year: number, q: Db | Tx, mitBemessung: boolean): Promise<VorgangZeile[]> {
   const i = schema.invoices;
   const rechnungen = await q
     .select({ invoice: i })
@@ -269,7 +272,7 @@ async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<Vorgang
     // Je Buchung die Konten ihres Kontenrahmens: Nach einem Wechsel zum Jahresbeginn bucht die Zahlung im neuen Rahmen
     const rest = eigene.reduce((s, b) => s + saldo(zeilen.get(b.entry_id) ?? [], new Set(Object.values(ACCOUNTS[b.kontenrahmen].ustNichtFaellig))), 0);
     if (rest !== 0) result.push({ zeitraum: invoice.issueDate.slice(0, 7), posten: `${posten}: Umsatzsteuer nicht fällig`, journal: rest, vorgang: 0 });
-    if (summe.ausgebucht !== 0) continue;
+    if (summe.ausgebucht !== 0 || !mitBemessung) continue;
     const gemeldet = (v: "ist" | "soll", typen: (b: (typeof eigene)[number]) => boolean) =>
       eigene.filter(typen).reduce((s, b) => {
         const k = kennzahlenAusJournal(b.kontenrahmen, v, [zeilen.get(b.entry_id) ?? []]);
@@ -283,14 +286,17 @@ async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<Vorgang
   return result;
 }
 
-/** Alle Vorgänge, deren Buchung im Jahr liegt, mit Abweichungen zu ihrer Buchung */
-export async function vorgangZeilen(year: number, q: Db | Tx = db): Promise<VorgangZeile[]> {
+/**
+ * Alle Vorgänge, deren Buchung im Jahr liegt, mit Abweichungen zu ihrer Buchung. `uebernommen`: Jahr, dessen Abweichungen
+ * beim Update übernommen wurden; dort fehlt älteren Zahlungen die Bemessungsgrundlage, die gemeldete wird nicht verglichen
+ */
+export async function vorgangZeilen(year: number, q: Db | Tx = db, uebernommen = false): Promise<VorgangZeile[]> {
   const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
   return [
     ...(firma ? await belege(year, q, firma.rechtsform) : []),
     ...(await zuordnungen(year, q)),
     ...(await kasse(year, q)),
     ...(await pauschalen(year, q)),
-    ...(await erledigteIstRechnungen(year, q)),
+    ...(await erledigteIstRechnungen(year, q, !uebernommen)),
   ];
 }

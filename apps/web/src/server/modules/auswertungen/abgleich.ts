@@ -36,7 +36,8 @@ import { oposAbgleichJahr, oposYears } from "./opos-abgleich.ts";
  * - OPOS-Abgleich der Anzahlungsbestände (opos-abgleich.ts).
  * Eine Abweichung heißt: eine Buchung passt nicht zu ihrem Beleg oder zur gesendeten Anmeldung, oder Daten wurden an Haben
  * vorbei geändert. Jahre, deren Abweichung beim Update ausdrücklich übernommen wurde (journal_umstellung), prüfen
- * Verprobung und gesendete Voranmeldungen nicht; ältere Buchungen dort tragen die Bemessungsgrundlage nicht.
+ * Verprobung, gesendete Voranmeldungen und die gemeldete Bemessungsgrundlage erledigter Ist-Rechnungen nicht; ältere
+ * Buchungen dort tragen die Bemessungsgrundlage nicht.
  */
 
 export interface AbgleichZeile {
@@ -212,9 +213,10 @@ export async function abgleichJahr(year: number, today: string, q: Db | Tx = db,
   const { from, to } = yearRange(year);
   const zeilen: AbgleichZeile[] = [];
   const hinweise: string[] = [];
-  if ((uebernommen ?? (await uebernommeneJahre(q))).has(year)) {
+  const uebernommenesJahr = (uebernommen ?? (await uebernommeneJahre(q))).has(year);
+  if (uebernommenesJahr) {
     hinweise.push(
-      `Für ${year} sind beim Update auf das Journal Abweichungen zu den Nebenbüchern übernommen worden; Verprobung und gesendete Voranmeldungen werden für ${year} nicht abgeglichen.`,
+      `Für ${year} sind beim Update auf das Journal Abweichungen zu den Nebenbüchern übernommen worden; Verprobung, gesendete Voranmeldungen und die gemeldete Bemessungsgrundlage erledigter Ist-Rechnungen werden für ${year} nicht abgeglichen.`,
     );
   } else {
     const buchungen = await journalBuchungen(from, to, q);
@@ -233,7 +235,7 @@ export async function abgleichJahr(year: number, today: string, q: Db | Tx = db,
   }
   for (const b of await belegZeilen(year, q))
     zeilen.push({ bereich: "beleg", zeitraum: b.zeitraum, posten: b.posten, journal: b.journal, quelle: b.rechnung, gegen: "laut Rechnung" });
-  for (const v of await vorgangZeilen(year, q))
+  for (const v of await vorgangZeilen(year, q, uebernommenesJahr))
     zeilen.push({ bereich: "beleg", zeitraum: v.zeitraum, posten: v.posten, journal: v.journal, quelle: v.vorgang, gegen: "laut Vorgang" });
   const euer = await euerAbgleich(year, q);
   const opos = await oposAbgleichJahr(year, today, q);
