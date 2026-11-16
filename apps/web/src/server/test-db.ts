@@ -55,6 +55,13 @@ export function removeAbandonedRunDirs(base = tmpdir()): void {
   }
 }
 
+/** Legt den Temp-Ordner eines Laufs unter `base` an, nach dem Aufräumen abgebrochener Läufe; `remove` löscht ihn samt Inhalt */
+export function createRunDir(base = tmpdir()): { root: string; remove: () => void } {
+  removeAbandonedRunDirs(base);
+  const root = mkdtempSync(join(base, `${RUN_PREFIX}${process.pid}-`));
+  return { root, remove: () => rmSync(root, { recursive: true, force: true }) };
+}
+
 /** Neuer leerer Temp-Ordner unter dem Ordner des Laufs; `setup` löscht ihn am Ende des Laufs mit */
 export function testTempDir(prefix: string): string {
   const root = process.env[RUN_DIR_ENV];
@@ -139,10 +146,8 @@ export function leeren(sql: postgres.Sql) {
  * TEST_DATABASE_URL einmal je Lauf die Vorlage. Die zurückgegebene Funktion löscht den Temp-Ordner am Ende des Laufs.
  */
 export async function setup(): Promise<() => void> {
-  removeAbandonedRunDirs();
-  const root = mkdtempSync(join(tmpdir(), `${RUN_PREFIX}${process.pid}-`));
+  const { root, remove: teardown } = createRunDir();
   process.env[RUN_DIR_ENV] = root;
-  const teardown = () => rmSync(root, { recursive: true, force: true });
   if (!baseUrl) return teardown;
   try {
     const template = templateName(baseUrl);
