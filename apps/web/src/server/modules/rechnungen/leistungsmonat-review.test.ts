@@ -1,3 +1,4 @@
+import { ACCOUNTS } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -75,7 +76,21 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
         actor,
         (await invoices.createDraft(actor, { ...input(), issueDate: "2026-01-08", serviceFrom: "2025-12-01", serviceTo: "2025-12-31" })).id,
       );
-      expect(await buchungstage(final.id)).toEqual(["2025-12-31"]);
+      // Der gemeinsame Vorauszahlungsplan führt Rechnung und Steuerumbuchung getrennt. Zwei Belege am selben
+      // Leistungstag sind keine doppelten Erlöse oder Steuern (§ 13 Abs. 1 Nr. 1 a UStG).
+      expect(await buchungstage(final.id)).toEqual(["2025-12-31", "2025-12-31"]);
+      const accounts = ACCOUNTS[kr];
+      const balances = await sql`select l.account, sum(l.debit)::int as debit, sum(l.credit)::int as credit
+        from journal_entries e join journal_lines l on l.entry_id=e.id
+        where e.source_type='invoice' and e.source_id=${final.id} group by l.account order by l.account`;
+      expect(balances).toEqual(
+        [
+          { account: accounts.forderungen, debit: 119_000, credit: 0 },
+          { account: accounts.erloese[1900], debit: 0, credit: 100_000 },
+          { account: accounts.ust[1900], debit: 0, credit: 19_000 },
+          { account: accounts.ustNichtFaellig[1900], debit: 19_000, credit: 19_000 },
+        ].sort((a, b) => a.account.localeCompare(b.account)),
+      );
       expect(await vat.computeVatFigures({ year: 2025, month: 12 })).toMatchObject({ kz81: 100_000, tax81: 19_000 });
       expect(await vat.computeVatFigures({ year: 2026, month: 1 })).toMatchObject({ kz81: 0, tax81: 0 });
       expect(await abweichungen(2025, 12)).toEqual([]);
