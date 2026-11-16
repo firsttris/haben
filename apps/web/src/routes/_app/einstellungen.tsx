@@ -901,7 +901,7 @@ function TaxpayerForm() {
               b: zusammen ? person("b") : undefined,
               veranlagung,
               verheiratetSeit: zusammen && text("verheiratetSeit") ? text("verheiratetSeit") : undefined,
-              // Nur setzen, nie auf false ablegen: die Bedeutung hängt am Fehlen des Feldes
+              // Nur true ablegen: false wirkt in fristen.ts wie ein fehlendes Feld, ein false hätte dort keine Bedeutung
               keineVorauszahlungen: form.get("keineVorauszahlungen") === "on" ? true : undefined,
             }
           : { ...taxpayer, a: person("a") },
