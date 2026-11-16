@@ -147,6 +147,25 @@ describe.skipIf(!testDatabaseUrl)("Fragen zur Einrichtung (Postgres, #266)", () 
     expect(locks.rechtsform).toBeNull();
   });
 
+  it("fragt auch bei einer Instanz von vor v0.8.0 erneut nach: Firmendaten ohne Zeitpunkt des Speicherns (drizzle/0204)", async () => {
+    // Bis v0.7.0 gab es firmendaten_gespeichert_at nicht; die Migration 0204 lässt die Spalte bei allen leer
+    await guard.saveCompany(
+      actor,
+      company.companySchema.parse({ ...(await company.loadCompany()), name: "Musterbetrieb", kleinunternehmer: true, einkunftsart: "selbstaendig" }),
+      today,
+    );
+    const { withActor } = await import("../../db/actor.ts");
+    const { schema } = await import("../../db/index.ts");
+    await withActor(actor, (tx) => tx.update(schema.company).set({ companySavedAt: null }));
+    const { stand } = await einrichtung.einrichtungStand(today);
+    const { antwortenAus, erneutDurchgehen, rueckfrageAenderungen } = await import("../../../lib/einrichtung.ts");
+    expect(erneutDurchgehen(stand)).toBe(true);
+    expect(antwortenAus(stand)).toMatchObject({ selbstaendig: "freiberufler", kleinunternehmer: true });
+    expect(rueckfrageAenderungen(stand, { ...antwortenAus(stand), kleinunternehmer: false })).toEqual([
+      { feld: "Kleinunternehmer", von: "ja", nach: "nein" },
+    ]);
+  });
+
   it("Einstellungen › Bereiche speichert sortiert und ohne Doppelte", async () => {
     expect(await company.loadEinrichtung()).toBeNull();
     await company.saveBereiche(actor, ["personal", "kasse", "kasse"]);
