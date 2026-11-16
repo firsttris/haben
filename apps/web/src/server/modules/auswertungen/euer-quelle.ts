@@ -1,3 +1,4 @@
+import { kleinunternehmerForMonth } from "../stammdaten/index.ts";
 import { euerAusZeilen, euerErgebnis, leereEuerAusJournal, type Cents, type EuerLineKey, type EuerResult } from "@haben/core";
 import { and, eq, gte, lt } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
@@ -56,7 +57,13 @@ export async function mitFreienBuchungen(euer: EuerResult, q: Db | Tx): Promise<
   let bewirtung = euer.bewirtungNichtAbziehbar;
   let gewerbesteuer = euer.gewerbesteuerNichtAbziehbar;
   for (const b of frei) {
-    const summe = euerAusZeilen(b.kontenrahmen, b.zeilen, "sonst", leereEuerAusJournal());
+    const summe = euerAusZeilen(
+      b.kontenrahmen,
+      b.zeilen,
+      "sonst",
+      leereEuerAusJournal(),
+      await kleinunternehmerForMonth(euer.year, Number(b.date.slice(5, 7)), q),
+    );
     const monat = Number(b.date.slice(5, 7)) - 1;
     for (const [key, betrag] of Object.entries(summe.zeilen) as [EuerLineKey, Cents][]) {
       summen.set(key, (summen.get(key) ?? 0) + betrag);

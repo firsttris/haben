@@ -32,6 +32,8 @@ import {
   quoteInvoiceProblem,
   quoteStatus as coreQuoteStatus,
   type QuoteListStatus,
+  outgoingTaxIssues,
+  treatmentIssues,
 } from "@haben/core";
 import { buildQuotePdf, texts, type QuoteDocument, type QuoteDocumentLine } from "@haben/einvoice";
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
@@ -50,6 +52,7 @@ import { listQuoteDefaultAttachments } from "./quote-default-attachments.ts";
 import { quoteChoices, storeQuoteChoices } from "./quote-choices.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema, referencesFromQuote } from "./order-references.ts";
 import { defaultSkonto } from "./skonto.ts";
+import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
 
 /**
  * Angebote: eigener Nummernkreis (AN-2026-001), PDF mit der Rechnungsvorlage, keine Buchung.
@@ -80,6 +83,7 @@ export const quoteDraftSchema = z
     ...referenceFieldsSchema,
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
     exemptionReason: z.string().trim().max(300).default(""),
+    taxDetails: outgoingTaxDetailsSchema,
     /** Einzelpreise netto oder brutto inkl. USt; brutto nur bei regulärer Besteuerung */
     priceMode: z.enum(PRICE_MODES).default("netto"),
     /** Sprache des PDFs für den Kunden */
@@ -168,7 +172,6 @@ function lineRows(quoteId: string, input: QuoteDraftInput) {
 function draftValues(input: QuoteDraftInput) {
   const priceMode = effectivePriceMode(input);
   const { totals } = quoteCalculation(input.lines, priceMode, input.discount ?? null);
-  const treatment = input.taxTreatment ?? "regulaer";
   return {
     contactId: input.contactId,
     contactPersonId: input.contactPersonId ?? null,
@@ -179,8 +182,7 @@ function draftValues(input: QuoteDraftInput) {
     intro: input.intro ?? "",
     note: input.note,
     ...referenceColumns(input),
-    taxTreatment: treatment,
-    exemptionReason: treatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
+    ...outgoingTaxColumns(input),
     priceMode,
     language: input.language ?? "de",
     ...discountColumns(input.discount),
@@ -436,8 +438,16 @@ export async function quoteIssues(id: string): Promise<string[]> {
   const { quote, lines, contact } = data;
   const company = await loadCompany();
   const issues = sellerIssues(company).map((issue) => `Firmendaten: ${issue}`);
-  if (company.kleinunternehmer && quote.taxTreatment !== "kleinunternehmer") issues.push("Als Kleinunternehmer bietest du ohne Umsatzsteuer an (§ 19 UStG)");
-  if (!company.kleinunternehmer && quote.taxTreatment === "kleinunternehmer") issues.push("Kleinunternehmer ist in den Einstellungen nicht eingeschaltet");
+  issues.push(...outgoingTaxIssues(quote.taxTreatment, quote.taxDetails, company.kleinunternehmer));
+  issues.push(
+    ...treatmentIssues(quote.taxTreatment, {
+      rates: lines.map((line) => line.taxRate),
+      sellerUstId: company.ustId,
+      buyerUstId: contact?.ustId,
+      buyerCountry: contact?.land,
+      exemptionReason: quote.exemptionReason,
+    }),
+  );
   if (quote.taxTreatment === "steuerfrei" && !quote.exemptionReason) issues.push("Befreiungsvorschrift fehlt");
   if (!contact) issues.push("Kunde fehlt");
   if (lines.length === 0) issues.push("Keine Positionen");
@@ -585,6 +595,7 @@ export async function quoteToInvoice(
         ...referencesFromQuote(locked),
         taxTreatment: locked.taxTreatment,
         exemptionReason: locked.exemptionReason,
+        taxDetails: locked.taxDetails,
         priceMode: locked.priceMode,
         language: locked.language,
         variant,
@@ -637,6 +648,7 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
     ...referenceColumns(quote),
     taxTreatment: quote.taxTreatment,
     exemptionReason: quote.exemptionReason,
+    taxDetails: quote.taxDetails,
     priceMode: quote.priceMode,
     language: quote.language,
     discount: discountFromColumns(quote.discountPercent, quote.discountAmount),

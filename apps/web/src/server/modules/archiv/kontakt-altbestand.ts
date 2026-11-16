@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "../../db/index.ts";
 import type { LegacySource } from "../../db/schema.ts";
-import { effectiveAmount, effectiveDirection, effectiveType } from "./sevdesk-richtung.ts";
+import { effectiveAmount, effectiveDirection, effectiveType } from "../auswertungen/index.ts";
 
 /**
  * Archivierte Belege eines Kontakts für die Kontaktseite (#587): über die Kontakt-ID, mit Richtung und Art wie unter

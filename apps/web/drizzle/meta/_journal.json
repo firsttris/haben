@@ -1881,15 +1881,29 @@
     {
       "idx": 268,
       "version": "7",
-      "when": 1794809528092,
-      "tag": "0268_verfahrensdoku",
+      "when": 1794793142253,
+      "tag": "0268_vorsteuer_teilabzug",
       "breakpoints": true
     },
     {
       "idx": 269,
       "version": "7",
-      "when": 1794809536570,
-      "tag": "0269_verfahrensdoku_trigger",
+      "when": 1794802727031,
+      "tag": "0269_outgoing_tax_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 270,
+      "version": "7",
+      "when": 1794815181332,
+      "tag": "0270_verfahrensdoku",
+      "breakpoints": true
+    },
+    {
+      "idx": 271,
+      "version": "7",
+      "when": 1794815185109,
+      "tag": "0271_verfahrensdoku_trigger",
       "breakpoints": true
     }
   ]

@@ -20,7 +20,7 @@ export {
 export { datevAbschluss, type DatevAbschluss, type DatevVortrag } from "./datev-abschluss.ts";
 export { searchArchive, type ArchiveHit } from "./search.ts";
 export { exportFilename, exportYear, exportYears, toReadableStream } from "./export.ts";
-export { legacyTakeoverCutoff, openItemsOverview, openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.ts";
+export { openItemsOverview, openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.ts";
 export { legacyVouchersForContact } from "./kontakt-altbestand.ts";
 export { externalImportOverview, storeLegacyVoucher, storeLegacyOrder, type LegacyOriginalFile, type LegacyKnownPayment } from "./legacy-store.ts";
 export {

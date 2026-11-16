@@ -1,3 +1,4 @@
+import { kleinunternehmerForMonth } from "../stammdaten/index.ts";
 import {
   ACCOUNTS,
   euerAusZeilen,
@@ -148,6 +149,7 @@ function dazu(nach: EuerAusJournal, von: EuerAusJournal, vorzeichen: 1 | -1 = 1)
 /** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
 export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string): Promise<EuerJournal> {
   const e = schema.journalEntries;
+  const kuMonate = await Promise.all(Array.from({ length: 12 }, (_, i) => kleinunternehmerForMonth(year, i + 1, q)));
   const buchungenImJahr = await buchungen(
     q,
     and(gte(e.date, `${year}-01-01`), umsatzBis ? lte(e.date, umsatzBis) : lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung")),
@@ -262,9 +264,9 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     kleinunternehmerUmsatz.steuerfrei ||= beitrag.steuerfrei;
   }
 
-  function erfasse(kr: Kontenrahmen, zeilen: Zeile[], herkunft: EuerHerkunft, summe: EuerAusJournal) {
+  function erfasse(kr: Kontenrahmen, zeilen: Zeile[], herkunft: EuerHerkunft, summe: EuerAusJournal, kleinunternehmer?: boolean) {
     erfasseUmsatz(kr, zeilen, herkunft);
-    euerAusZeilen(kr, zeilen, herkunft, summe);
+    euerAusZeilen(kr, zeilen, herkunft, summe, kleinunternehmer);
   }
 
   /** Was eine Verrechnung zweier Belege bewirkt: wie eine Zahlung von `-betrag` auf den Beleg, ohne eigene Buchung */
@@ -274,8 +276,8 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     if (u.uebernommen) uebernommen++;
     if (u.gesamt === 0) return summe;
     // betrag trägt das Vorzeichen des offenen Postens wie eine Buchung, ausgeglichen ist das Umgekehrte
-    if (u.beleg && v.betrag !== u.gesamt) belegTeilzahlung(year, u.beleg, -v.betrag, summe);
-    else erfasse(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, v.betrag), u.herkunft, summe);
+    if (u.beleg && (u.beleg.effects?.has(v.id) || v.betrag !== u.gesamt)) belegTeilzahlung(year, u.beleg, -v.betrag, summe, v.id);
+    else erfasse(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, v.betrag), u.herkunft, summe, kuMonate[Number(v.date.slice(5, 7)) - 1]);
     return summe;
   }
 
@@ -283,6 +285,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   async function wirkung(b: Buchung): Promise<EuerAusJournal> {
     const summe = leereEuerAusJournal();
     const kr = b.kontenrahmen;
+    const kleinunternehmer = kuMonate[Number(b.date.slice(5, 7)) - 1];
     const ziel = zielVon.get(b.sourceId);
     const herkunft: EuerHerkunft =
       b.sourceType === "pauschale"
@@ -321,11 +324,13 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
             )
           : eigene,
         herkunft,
+        undefined,
+        kleinunternehmer,
       ),
       umkehr ? -1 : 1,
     );
     if (importAnteil) {
-      erfasse(importAnteil.kontenrahmen, alsZeilen(importAnteil.zeilen, importAnteil.anteil), "sonst", summe);
+      erfasse(importAnteil.kontenrahmen, alsZeilen(importAnteil.zeilen, importAnteil.anteil), "sonst", summe, kleinunternehmer);
       return summe;
     }
     if (!hatOffenenPosten || ausgeglichen === 0) return summe;
@@ -347,14 +352,14 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     if (u.gesamt === 0) return summe;
     const anteil = u.anteile?.get(b.id);
     // Teilzahlung auf einen Beleg mit Privatanteil oder ohne Vorsteuerabzug: gerundet wie computeEuer
-    if (!anteil && u.beleg && -ausgeglichen !== u.gesamt) {
-      belegTeilzahlung(year, u.beleg, ausgeglichen, summe);
+    if (!anteil && u.beleg && (u.beleg.effects?.has(b.sourceId) || -ausgeglichen !== u.gesamt)) {
+      belegTeilzahlung(year, u.beleg, ausgeglichen, summe, b.sourceId);
       return summe;
     }
     // Beleg: jede Zahlung für sich (paidTaxShares)
     const zeilen = anteil ? alsZeilen(u.zeilen, anteil) : zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, -ausgeglichen);
     if (!bilanzSteuer) erfasseUmsatz(u.kontenrahmen, zeilen, u.herkunft);
-    euerAusZeilen(u.kontenrahmen, zeilen, u.herkunft, summe);
+    euerAusZeilen(u.kontenrahmen, zeilen, u.herkunft, summe, kleinunternehmer);
     return summe;
   }
 }
