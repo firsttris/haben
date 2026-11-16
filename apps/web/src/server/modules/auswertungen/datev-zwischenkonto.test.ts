@@ -72,6 +72,32 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export: Zwischenkonto der Gutschrift �
     return id;
   }
 
+  /**
+   * Gebuchte Rechnung vom 10.12.2025 über 100,00 € netto zu 19 % für Januar 2026 (#693): Die Buchung parkt die Vorsteuer
+   * auf dem Zwischenkonto, die Freigabe zum Leistungsdatum zieht sie am 31.01.2026 auf die Vorsteuer
+   */
+  async function rechnungVorDerLeistung(supplierContactId: string, nummer: string) {
+    lauf++;
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, lauf % 256, 9, 2]);
+    const { id } = await documents.uploadDocument(actor, { bytes, filename: `datev-zwischenkonto-${lauf}.jpg` });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Musterpartner GmbH",
+      supplierUstId: "",
+      supplierContactId,
+      invoiceNumber: nummer,
+      documentDate: "2025-12-10",
+      dueDate: null,
+      serviceFrom: "2026-01-01",
+      serviceTo: "2026-01-31",
+      category: "buero",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+    });
+    await documents.bookDocument(actor, id);
+    return id;
+  }
+
   /** Erstattung über einen echten Bankumsatz, damit die Umbuchung entsteht */
   async function erstattung(documentId: string, betrag: number) {
     const euro = (betrag / 100).toFixed(2).replace(".", ",");
@@ -130,6 +156,22 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export: Zwischenkonto der Gutschrift �
       expect(umbuchung).toEqual([expect.objectContaining({ side: "S", amount: 1_900, buKey: "", voucherField1: "GS-100" })]);
       // Kz 66 bleibt über den Stapel stimmig: die Vorsteuer steht einmal, mit ihrem Betrag
       expect(stack.bookings.filter((b) => b.contraAccount === a.vorsteuer[1900]).reduce((s, b) => s + b.amount, 0)).toBe(1_900);
+    }, 30_000);
+
+    // Die Freigabe zum Leistungsdatum ist eine Buchung des Belegs (Quelle: der Beleg); wie die Umbuchung beim Ausgleich
+    // trägt sie dessen Belegnummer in Belegfeld 1, auch wenn die Buchung des Belegs im Vorjahr und damit nicht im Stapel
+    // steht. Ein Personenkonto braucht sie nicht, sie berührt die Verbindlichkeiten nicht
+    it(`${kontenrahmen}: die Freigabe zum Leistungsdatum trägt die Belegnummer (#693)`, async () => {
+      await reset(kontenrahmen);
+      const a = ACCOUNTS[kontenrahmen];
+      const kunde = await lieferant();
+      await rechnungVorDerLeistung(kunde.id, "RE-200");
+
+      const { bytes } = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber);
+      const freigabe = parseDatevBuchungsstapel(bytes).bookings.filter(
+        (b) => [b.account, b.contraAccount].sort().join("/") === [a.vorsteuerNochNichtAbziehbar, a.vorsteuer[1900]].sort().join("/"),
+      );
+      expect(freigabe).toEqual([expect.objectContaining({ date: "2026-01-31", amount: 1_900, buKey: "", voucherField1: "RE-200" })]);
     }, 30_000);
   }
 });

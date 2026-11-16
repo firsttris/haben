@@ -3,7 +3,8 @@ import { inArray, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 
 /*
- * Zu welcher Rechnung bzw. welchem Beleg eine Buchung gehört, für den DATEV-Export: Rechnungen und Belege direkt,
+ * Zu welcher Rechnung bzw. welchem Beleg eine Buchung gehört, für den DATEV-Export: Rechnungen, Belege und die Freigabe
+ * der Vorsteuer zum Leistungsdatum (freigabe, Quelle ist der Beleg) direkt,
  * Zahlungen (allocation), Ausbuchungen wie Skonto und Forderungsausfall (ausbuchung), Bareinnahmen im Kassenbuch
  * (kasse) über die zugeordnete Rechnung bzw. den Beleg und Verrechnungen zweier Belege (#274) über ihre Zeile in
  * `document_settlements`. Daraus kommen Belegfeld 1 und das Personenkonto (#327).
@@ -53,6 +54,9 @@ async function links(entries: readonly Entry[]): Promise<Map<string, { invoiceId
   const rows = [
     ...ids("invoice").map((id) => ({ id, invoiceId: id, documentId: null })),
     ...ids("document").map((id) => ({ id, invoiceId: null, documentId: id })),
+    // Freigabe der Vorsteuer zum Leistungsdatum (#693): Quelle ist der Beleg selbst, auch wenn dessen Buchung in einem
+    // früheren Zeitraum und damit nicht in diesem Stapel steht
+    ...ids("freigabe").map((id) => ({ id, invoiceId: null, documentId: id })),
     ...(allocationIds.length
       ? await db
           .select({ id: schema.allocations.id, invoiceId: schema.allocations.invoiceId, documentId: schema.allocations.documentId })
