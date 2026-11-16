@@ -12,7 +12,9 @@ import { vermerkPruefung } from "./vermerk.ts";
  *   gesendeten Voranmeldungen und der Dauerfristverlängerung, nicht aus dem Journal.
  * - Außerhalb von Haben abgegeben (Vermerk): Der Vermerk hält nur den Betrag laut Protokoll fest, bei einer bestätigten
  *   Abweichung dazu den damals gerechneten Wert (vermerk.ts). Verglichen wird der damals gerechnete Wert (ohne Abweichung
- *   der Betrag) mit dem, was der Vermerk heute rechnen würde (vermerkPruefung: Gewinn bzw. Abschlusszahlung).
+ *   der Betrag) mit dem, was der Vermerk heute rechnen würde (vermerkPruefung: Gewinn bzw. Abschlusszahlung). Rechnet Haben
+ *   heute den Betrag laut Protokoll, passt das Journal zur Abgabe: etwa wenn Voranmeldungen erst nach dem Vermerk
+ *   nachgetragen wurden und damit das Vorauszahlungssoll der Abschlusszahlung.
  * Die Einkommensteuer hat keine eigenen Zahlen aus dem Journal; sie folgt der EÜR.
  */
 
@@ -47,7 +49,7 @@ export async function erklaerteAbweichungen(years: readonly number[]): Promise<E
       if (damals === undefined) continue;
       const heute = (await vermerkPruefung(form, row.year, null)).berechnet;
       const feld = form === "ust" ? "abschluss" : "gewinn";
-      if (damals !== heute) result.push({ year: row.year, form, art: "vermerkt", feld, erklaert: damals, journal: heute });
+      if (damals !== heute && heute !== amount) result.push({ year: row.year, form, art: "vermerkt", feld, erklaert: damals, journal: heute });
       continue;
     }
     const heute: Record<string, number> =
