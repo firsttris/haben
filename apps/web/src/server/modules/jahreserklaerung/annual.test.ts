@@ -900,6 +900,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, arbeitszimmerMonate: 0 } } },
     });
     expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text))?.text).toContain("Bei 0 von 12 Monaten");
+    // Ohne einen Monat als Mittelpunkt sind auch die tatsächlichen Aufwendungen nicht abziehbar (§ 4 Abs. 5 Satz 1
+    // Nr. 6b Satz 1 und 2 EStG); der Hinweis darf nicht auf sie verweisen
+    const keiner = (await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text))?.text;
+    expect(keiner).not.toContain("tatsächlichen Aufwendungen");
+    expect(keiner).toContain("nicht abziehbar");
 
     // Dasselbe gegen die Tagespauschale in der EÜR: auch dort gibt es das Arbeitszimmer je Person nur einmal
     await incomeTax.saveEstAngaben(actor, 2025, {
