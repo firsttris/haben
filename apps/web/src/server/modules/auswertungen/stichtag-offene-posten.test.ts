@@ -265,4 +265,47 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     expect(heute.payables).toEqual([]);
     expect((await zahlung.ustvaPosten()).posten.find((p) => p.month === 11)?.offen).toBe(ust.kz83);
   }, 60_000);
+
+  it("zählt eine Zahlung am 01.01. nicht zum Stand 31.12.", async () => {
+    const contact = await contacts.createContact(actor, {
+      kundennummer: "",
+      name: "Alpenblick Media AG",
+      strasse: "Sonnenstraße 12",
+      plz: "80331",
+      ort: "München",
+      land: "DE",
+      email: "buchhaltung@alpenblick.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    const draft = await invoices.createDraft(actor, {
+      contactId: contact.id,
+      issueDate: "2025-12-20",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      lines: [{ description: "Beratung Dezember", quantity: 1000, unit: "Psch.", unitPrice: 50_000, taxRate: 1900 }],
+    });
+    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    // Ein Tag nach dem Stichtag bezahlt: am 31.12.2025 war der Posten noch vollständig offen
+    await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([row("01.01.26", "Alpenblick Media AG", `RE ${invoice.number}`, "595,00")]), filename: "neujahr.csv" },
+      null,
+    );
+    const [tx] = await sql`select id from bank_transactions where amount = 59500`;
+    await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id as string, invoiceId: invoice.id, amount: 59_500 });
+
+    const stichtag = await reports.openPositions("2025-12-31", { bis: "2025-12-31" });
+    expect(stichtag.receivables).toEqual([expect.objectContaining({ id: invoice.id, gross: 59_500, open: 59_500 })]);
+
+    // Im heutigen Stand ist die Rechnung bezahlt und damit nicht mehr offen
+    const heute = await reports.openPositions("2026-11-16");
+    expect(heute.receivables.find((posten) => posten.id === invoice.id)).toBeUndefined();
+  });
+
 });
