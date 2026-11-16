@@ -99,16 +99,17 @@ export async function archiveTargetSummary() {
 }
 
 /**
- * Speichert das Ziel. Eingeschaltet und mit neuer Adresse beginnt `since` neu: Haben schickt nur, was ab dann
- * festgeschrieben wird, nicht den ganzen Bestand an eine Adresse, die ihn vielleicht nicht erwartet. Fehlversuche an
- * die Adresse beginnen von vorn, damit eine korrigierte Kopfzeile gleich wirkt.
+ * Speichert das Ziel. Mit neuer Adresse beginnt `since` neu: Haben schickt nur, was ab dann festgeschrieben wird, nicht
+ * den ganzen Bestand an eine Adresse, die ihn vielleicht nicht erwartet. Aus- und Wiedereinschalten lässt `since`
+ * stehen, damit auch die Rechnungen aus der Pause ins Archiv gehen. Fehlversuche an die Adresse beginnen von vorn,
+ * damit eine korrigierte Kopfzeile gleich wirkt.
  */
 export async function saveArchiveTarget(actor: string, input: ArchiveTargetInput): Promise<void> {
   const { headerValue, linkTemplate, headerName, ...rest } = archiveTargetSchema.parse(input);
   const existing = await loadArchiveTarget();
   const keepValue = !headerValue && existing?.headerName && headerName;
   if (headerName && !headerValue && !keepValue) throw new AblageError("Wert der Kopfzeile fehlt.");
-  const restart = !existing || existing.url !== rest.url || (!existing.enabled && rest.enabled);
+  const restart = !existing || existing.url !== rest.url;
   const values = {
     ...rest,
     headerName: headerName || null,
