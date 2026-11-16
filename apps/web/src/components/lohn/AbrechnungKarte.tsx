@@ -225,7 +225,7 @@ export function AbrechnungKarte({ p, nummer, name }: { p: Abrechnung; nummer: nu
     <section className="stack" style={{ gap: 10 }} aria-label={`${titel}, ${[s.text, s.detail].filter(Boolean).join(" ")}`}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         <h3 style={{ margin: 0 }}>{titel}</h3>
-        <Status tone={s.tone} emphasis={s.emphasis} draft={s.draft} inline detail={s.detail}>
+        <Status tone={s.tone} emphasis={s.emphasis} draft={s.draft} inline edge detail={s.detail}>
           {s.text}
         </Status>
       </div>

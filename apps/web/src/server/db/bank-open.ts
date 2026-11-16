@@ -22,7 +22,14 @@ export const bankAccountIncludedSql = (accountIdColumn: string) =>
   sql.raw(`${accountIdColumn} not in (select id from bank_accounts where excluded_at is not null)`);
 
 /**
- * Für Abfragen auf `bank_transactions`: Der Umsatz ist nicht als „privat, kein Betriebsvorgang“ gekennzeichnet (#1088).
- * Ein gekennzeichneter Umsatz bleibt ungebucht, zählt aber weder im Bankabgleich noch in der Vorprüfung als offen.
+ * Für Abfragen auf `bank_transactions`: Der Umsatz gilt als „privat, kein Betriebsvorgang“ (#1088). Die Kennzeichnung
+ * wirkt nur, solange das Konto privat ist und der Umsatz ganz offen: Auf einem Geschäftskonto oder mit einer
+ * Zuordnung ist er wieder ein offener Posten; die Zeile in `bank_private_marks` bleibt und gilt wieder, wenn beides
+ * zurückkehrt.
  */
-export const bankNotPrivateMarkedSql = sql<boolean>`not exists (select 1 from ${schema.bankPrivateMarks} m where m.transaction_id = ${schema.bankTransactions}.id)`;
+export const bankPrivateMarkedSql = sql<boolean>`(exists (select 1 from ${schema.bankPrivateMarks} m where m.transaction_id = ${schema.bankTransactions}.id)
+  and exists (select 1 from bank_accounts pa where pa.id = ${schema.bankTransactions}.bank_account_id and pa.purpose = 'privat')
+  and ${bankOpenAmountSql} = ${schema.bankTransactions}.amount)`;
+
+/** Gegenteil von `bankPrivateMarkedSql`: Ein gekennzeichneter Umsatz zählt weder im Bankabgleich noch in der Vorprüfung als offen */
+export const bankNotPrivateMarkedSql = sql<boolean>`not ${bankPrivateMarkedSql}`;

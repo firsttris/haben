@@ -4,7 +4,7 @@ import { CONTACT_FIELDS } from "./contacts.ts";
 import type { ImportField } from "./mapping.ts";
 
 export { ARTICLE_FIELDS, articleCandidates, articleKeys, articleStockKeys, type ArticleRow } from "./articles.ts";
-export { ASSET_FIELDS, assetCandidates, assetKeys, takeoverProblems, type AssetRow } from "./assets.ts";
+export { ASSET_FIELDS, assetCandidates, assetKeys, assetKindFromText, takeoverProblems, type AssetRow } from "./assets.ts";
 export { CONTACT_FIELDS, contactCandidates, contactKeys, ustIdImportProblem, type ContactRow } from "./contacts.ts";
 export { datevContactCandidates, planDatevContacts, type DatevContactCandidate, type DatevContactPlan, type DatevStockContact } from "./datev-kontakte.ts";
 export { mappingProblem, normalizeColumnName, suggestMapping, type ColumnMapping, type ImportField } from "./mapping.ts";

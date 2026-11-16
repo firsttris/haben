@@ -127,6 +127,15 @@ function legacyVatMonth(m: LegacyVatMonth) {
     steuerfrei: m.steuerfrei,
     oss: m.oss,
     andereSaetze: m.otherBase,
+    kz46: m.kz46,
+    kz47: m.kz47,
+    kz84: m.kz84,
+    kz85: m.kz85,
+    kz67: m.kz67,
+    kz89: m.kz89,
+    kz93: m.kz93,
+    kz61: m.kz61,
+    andereBezuege: m.otherPurchases,
   };
   return {
     monat: m.month,

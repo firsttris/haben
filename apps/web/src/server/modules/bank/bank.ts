@@ -88,7 +88,7 @@ import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
 import { belegTotals, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 import { bankTransactionMatch } from "./search.ts";
-import { nichtPrivat, privatStand, zaehlePrivat } from "./privat-kennzeichnung.ts";
+import { nichtPrivat, privat, privatStand, zaehlePrivat } from "./privat-kennzeichnung.ts";
 
 export class BankError extends UserError {}
 
@@ -402,8 +402,8 @@ export async function listTransactions(
   if (offset !== undefined) order.push(asc(schema.bankTransactions.id));
   return db
     .select({
-      /** Auf einem privaten Konto als „kein Betriebsvorgang" gekennzeichnet (#1088) */
-      privat: sql<boolean>`exists (select 1 from ${schema.bankPrivateMarks} m where m.transaction_id = ${schema.bankTransactions.id})`,
+      /** Auf einem privaten Konto als „kein Betriebsvorgang" gekennzeichnet und ganz offen (#1088) */
+      privat: privat().mapWith(Boolean),
       id: schema.bankTransactions.id,
       bankAccountId: schema.bankTransactions.bankAccountId,
       bookingDate: schema.bankTransactions.bookingDate,

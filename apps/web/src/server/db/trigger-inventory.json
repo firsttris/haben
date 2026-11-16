@@ -1324,6 +1324,27 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.legacy_file_states",
+      "name": "legacy_file_states_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_file_states_append_only BEFORE DELETE OR UPDATE ON public.legacy_file_states FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.legacy_file_states",
+      "name": "legacy_file_states_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_file_states_audit AFTER INSERT ON public.legacy_file_states FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.legacy_file_states",
+      "name": "legacy_file_states_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_file_states_no_truncate BEFORE TRUNCATE ON public.legacy_file_states FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.legacy_order_documents",
       "name": "legacy_order_documents_append_only",
       "enabled": "O",
@@ -1384,6 +1405,48 @@
       "name": "legacy_order_pdf_attempts_no_truncate",
       "enabled": "O",
       "definition": "CREATE TRIGGER legacy_order_pdf_attempts_no_truncate BEFORE TRUNCATE ON public.legacy_order_pdf_attempts FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.legacy_vat_report_files",
+      "name": "legacy_vat_report_files_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_vat_report_files_append_only BEFORE DELETE OR UPDATE ON public.legacy_vat_report_files FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.legacy_vat_report_files",
+      "name": "legacy_vat_report_files_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_vat_report_files_audit AFTER INSERT ON public.legacy_vat_report_files FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.legacy_vat_report_files",
+      "name": "legacy_vat_report_files_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_vat_report_files_no_truncate BEFORE TRUNCATE ON public.legacy_vat_report_files FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.legacy_vat_reports",
+      "name": "legacy_vat_reports_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_vat_reports_append_only BEFORE DELETE OR UPDATE ON public.legacy_vat_reports FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.legacy_vat_reports",
+      "name": "legacy_vat_reports_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_vat_reports_audit AFTER INSERT ON public.legacy_vat_reports FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.legacy_vat_reports",
+      "name": "legacy_vat_reports_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER legacy_vat_reports_no_truncate BEFORE TRUNCATE ON public.legacy_vat_reports FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
       "function": "public.haben_reject_truncate()"
     },
     {
@@ -2164,6 +2227,27 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.sevdesk_accounting_type_decisions",
+      "name": "sevdesk_accounting_type_decisions_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_accounting_type_decisions_append_only BEFORE DELETE OR UPDATE ON public.sevdesk_accounting_type_decisions FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sevdesk_accounting_type_decisions",
+      "name": "sevdesk_accounting_type_decisions_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_accounting_type_decisions_audit AFTER INSERT ON public.sevdesk_accounting_type_decisions FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sevdesk_accounting_type_decisions",
+      "name": "sevdesk_accounting_type_decisions_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_accounting_type_decisions_no_truncate BEFORE TRUNCATE ON public.sevdesk_accounting_type_decisions FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.sevdesk_accounting_types",
       "name": "sevdesk_accounting_types_append_only",
       "enabled": "O",
@@ -2210,6 +2294,27 @@
       "name": "sevdesk_recurring_templates_no_truncate",
       "enabled": "O",
       "definition": "CREATE TRIGGER sevdesk_recurring_templates_no_truncate BEFORE TRUNCATE ON public.sevdesk_recurring_templates FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.sevdesk_tax_sets",
+      "name": "sevdesk_tax_sets_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_tax_sets_append_only BEFORE DELETE OR UPDATE ON public.sevdesk_tax_sets FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.sevdesk_tax_sets",
+      "name": "sevdesk_tax_sets_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_tax_sets_audit AFTER INSERT ON public.sevdesk_tax_sets FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.sevdesk_tax_sets",
+      "name": "sevdesk_tax_sets_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER sevdesk_tax_sets_no_truncate BEFORE TRUNCATE ON public.sevdesk_tax_sets FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
       "function": "public.haben_reject_truncate()"
     },
     {

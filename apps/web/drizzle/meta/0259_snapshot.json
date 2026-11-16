@@ -1,5 +1,5 @@
 {
-  "id": "538d1d9d-d394-4472-9a1f-7a6668552131",
+  "id": "0f798d83-3c1b-4755-a354-7ca836107bed",
   "prevId": "b9efce37-31cb-430d-be8d-268bd588d1f4",
   "version": "7",
   "dialect": "postgresql",
@@ -4435,12 +4435,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "vorsteuer_anteil": {
-          "name": "vorsteuer_anteil",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "original_net": {
           "name": "original_net",
           "type": "bigint",
@@ -4495,12 +4489,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "document_amounts_vorsteuer_anteil_range": {
-          "name": "document_amounts_vorsteuer_anteil_range",
-          "value": "\"document_amounts\".\"vorsteuer_anteil\" between 0 and 10000"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.document_cancellations": {
@@ -15031,6 +15020,86 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sevdesk_accounting_type_decisions": {
+      "name": "sevdesk_accounting_type_decisions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "voucher_id": {
+          "name": "voucher_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "sevdesk_accounting_type_decisions_voucher": {
+          "name": "sevdesk_accounting_type_decisions_voucher",
+          "columns": [
+            {
+              "expression": "voucher_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sevdesk_accounting_type_decisions_voucher_id_lexoffice_vouchers_id_fk": {
+          "name": "sevdesk_accounting_type_decisions_voucher_id_lexoffice_vouchers_id_fk",
+          "tableFrom": "sevdesk_accounting_type_decisions",
+          "tableTo": "lexoffice_vouchers",
+          "columnsFrom": [
+            "voucher_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sevdesk_accounting_type_decisions_kind": {
+          "name": "sevdesk_accounting_type_decisions_kind",
+          "value": "\"sevdesk_accounting_type_decisions\".\"kind\" in ('erloes', 'aufwand')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.sevdesk_accounting_types": {

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { formatDate } from "../../lib/format.ts";
 import type { ArchiveSearch } from "../../routes/_app/archiv/index.tsx";
 import type { getLegacyVouchers } from "../../server/functions/archive.ts";
+import { FileStatusCell } from "./Dateistand.tsx";
 import { YearSwitch } from "./YearSwitch.tsx";
 import { Status } from "../Status.tsx";
 
@@ -97,13 +98,7 @@ export function LegacyVouchers({ year, years, rows, search }: { year: number; ye
               <div className="num">{formatEuro(row.net)}</div>
               <div className="num">{formatEuro(row.gross)}</div>
               <div className="num">
-                {row.files === 0 ? (
-                  <Status tone="warn" emphasis="notice">
-                    Keine
-                  </Status>
-                ) : (
-                  row.files
-                )}
+                <FileStatusCell status={row.fileStatus} files={row.files} />
               </div>
               {/* Eigene Zeile im Raster: in der gekürzten Spalte Kontakt · Art wäre sie am Handy abgeschnitten */}
               {row.accountingTypeUnclear && (

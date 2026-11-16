@@ -140,6 +140,12 @@ networkPolicy:
 
 Andere Dienste im Cluster, etwa Paperless, rufen Haben dann über die Domain auf.
 
+Ein Ingress-Controller mit `hostNetwork: true` hat die Adresse seines Knotens, und die meisten Netzwerk-Plugins finden
+ihn nicht über `podSelector` und `namespaceSelector`
+([Kubernetes](https://kubernetes.io/docs/concepts/services-networking/network-policies/#networkpolicy-and-hostnetwork-pods)).
+Für ihn gehört meist ein `ipBlock` mit den Adressen der Knoten in `ingressFrom`; Cilium wertet ihn erst mit
+`policyCIDRMatchMode: nodes` aus ([Cilium](https://docs.cilium.io/en/stable/network/kubernetes/policy/)).
+
 ## ELSTER
 
 ERiC gibt es nur für Linux x86_64. In einem Cluster mit beiden Architekturen setzt `nodeSelector` mit
