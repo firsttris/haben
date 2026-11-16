@@ -1,14 +1,4 @@
-import {
-  addDays,
-  computeInvoice,
-  invoicePosting,
-  leistungsdatum,
-  outgoingTaxIssues,
-  TAX_TREATMENT_KEYS,
-  treatmentIssues,
-  type PriceMode,
-  type TaxTreatment,
-} from "@haben/core";
+import { addDays, invoicePosting, leistungsdatum, outgoingTaxIssues, TAX_TREATMENT_KEYS, treatmentIssues, type TaxTreatment } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
@@ -23,6 +13,7 @@ import { invoicePostingMode, invoiceVatDate } from "./invoice-tax.ts";
 import { storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { InvoiceError } from "./invoice-error.ts";
 import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
+import { rebuildInvoiceLines } from "./positionen-nachbilden.ts";
 
 /*
  * Ausgangsrechnung aus einem Fremdsystem übernehmen (#660): Die Rechnung ist dort geschrieben und verschickt worden und
@@ -71,29 +62,16 @@ export type ForeignInvoiceInput = z.input<typeof foreignInvoiceSchema>;
 
 const RATES = new Set([0, 700, 1900]);
 
-/** Eine Position je Steuersatz; erst netto nachbilden, sonst brutto, damit Steuer und Brutto centgenau zur Rechnung passen */
+/** Je Steuersatz, nicht nur in der Summe: +1 Cent bei 19 % und −1 Cent bei 7 % verschöbe sonst die Kennzahlen der Voranmeldung */
 function rebuild(taxes: { rate: number; net: number; tax: number }[], number: string) {
-  const attempt = (priceMode: PriceMode) => {
-    const lines = taxes.map((t, i) => ({
-      position: i + 1,
-      description: `Rechnung ${number}${taxes.length > 1 ? ` (${t.rate / 100} %)` : ""}`,
-      quantity: 1000,
-      unit: "Psch." as const,
-      unitPrice: priceMode === "brutto" ? t.net + t.tax : t.net,
-      taxRate: t.rate as 1900 | 700 | 0,
-    }));
-    const { totals, lineNets } = computeInvoice(lines, priceMode);
-    return { priceMode, totals, lines: lines.map((l, i) => ({ ...l, net: lineNets[i]! })) };
-  };
-  // Je Steuersatz, nicht nur in der Summe: +1 Cent bei 19 % und −1 Cent bei 7 % verschöbe sonst die Kennzahlen der Voranmeldung
-  const matches = (r: ReturnType<typeof attempt>) =>
-    taxes.every((t) => r.totals.taxes.some((x) => x.rate === t.rate && x.base === t.net && x.tax === t.tax)) && r.totals.taxes.length === taxes.length;
-  const net = attempt("netto");
-  if (matches(net)) return net;
-  const gross = attempt("brutto");
-  if (matches(gross)) return gross;
+  const result = rebuildInvoiceLines(
+    taxes,
+    (rate, mehrere) => `Rechnung ${number}${mehrere ? ` (${rate / 100} %)` : ""}`,
+    (totals) => taxes.every((t) => totals.taxes.some((x) => x.rate === t.rate && x.base === t.net && x.tax === t.tax)) && totals.taxes.length === taxes.length,
+  );
+  if (result.ok) return result;
   throw new InvoiceError(
-    `Die Steuer lässt sich nicht centgenau nachbilden (Rechnung ${taxes.reduce((n, t) => n + t.tax, 0) / 100} €, Haben ${net.totals.tax / 100} €). Netto und Steuer je Satz bitte wie auf der Rechnung eintragen.`,
+    `Die Steuer lässt sich nicht centgenau nachbilden (Rechnung ${taxes.reduce((n, t) => n + t.tax, 0) / 100} €, Haben ${result.netTax / 100} €). Netto und Steuer je Satz bitte wie auf der Rechnung eintragen.`,
   );
 }
 

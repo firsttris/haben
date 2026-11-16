@@ -1,14 +1,12 @@
 import { legacyTakeoverCutoff, TakeoverError } from "../auswertungen/index.ts";
 import {
   addDays,
-  computeInvoice,
   isLegacyVatPayment,
   legacyOpenAt,
   openingDocumentPosting,
   openingInvoicePosting,
   type ExpenseCategory,
   type LegacyOpenAt,
-  type PriceMode,
   type TakeoverCutoff,
 } from "@haben/core";
 import { and, eq, getTableColumns, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
@@ -18,7 +16,7 @@ import { ohneJit } from "../../db/ohne-jit.ts";
 import { loadSevdeskAccountCategories, sevdeskExpenseCategory, sevdeskPositionAccountsOf } from "./sevdesk-kategorie.ts";
 import { openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
-import { storeInvoiceTaxes } from "../rechnungen/index.ts";
+import { rebuildInvoiceLines, storeInvoiceTaxes } from "../rechnungen/index.ts";
 import type { LegacyCategoryRow, LegacyFileState } from "../../db/schema.ts";
 import { latestFileStates, takeoverFileIssue } from "./dateistand.ts";
 import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
@@ -350,29 +348,19 @@ async function takeOverInvoice(
   if ("problem" in tax) throw new TakeoverError(tax.problem);
   const taxTreatment = tax.treatment;
 
-  // Eine Position je Steuersatz. Die Summen müssen exakt zu Lexoffice passen, sonst stimmt die Steuer nicht,
-  // auch nicht bei einem späteren Storno: erst netto nachbilden, sonst brutto (in Lexoffice mit Endpreisen gerechnet)
+  // Eine Position je Steuersatz; die Summen müssen exakt zur Quelle passen, sonst stimmt die Steuer auch bei einem späteren Storno nicht
   const taxes = voucher.taxes.filter((t) => t.net !== 0);
-  const rebuild = (priceMode: PriceMode) => {
-    const lines = taxes.map((t, i) => ({
-      position: i + 1,
-      description: `Rechnung ${voucher.number} aus ${SOURCE_LABEL[voucher.source]}${taxes.length > 1 ? ` (${t.rate / 100} %)` : ""}`,
-      quantity: 1000,
-      unit: "Psch.",
-      unitPrice: priceMode === "brutto" ? t.net + t.tax : t.net,
-      taxRate: t.rate as 1900 | 700 | 0,
-    }));
-    const { totals, lineNets } = computeInvoice(lines, priceMode);
-    return { priceMode, totals, lines: lines.map((l, i) => ({ ...l, net: lineNets[i]! })) };
-  };
-  const matches = (r: ReturnType<typeof rebuild>) => r.totals.gross === voucher.gross && r.totals.tax === voucher.tax;
-  const netto = rebuild("netto");
-  const { priceMode, totals, lines } = matches(netto) ? netto : rebuild("brutto");
-  if (totals.gross !== voucher.gross || totals.tax !== voucher.tax) {
+  const rebuilt = rebuildInvoiceLines(
+    taxes,
+    (rate, mehrere) => `Rechnung ${voucher.number} aus ${SOURCE_LABEL[voucher.source]}${mehrere ? ` (${rate / 100} %)` : ""}`,
+    (totals) => totals.gross === voucher.gross && totals.tax === voucher.tax,
+  );
+  if (!rebuilt.ok) {
     throw new TakeoverError(
-      `Die Steuer lässt sich nicht centgenau nachbilden (${SOURCE_LABEL[voucher.source]} ${voucher.tax / 100} €, Haben ${netto.totals.tax / 100} €).`,
+      `Die Steuer lässt sich nicht centgenau nachbilden (${SOURCE_LABEL[voucher.source]} ${voucher.tax / 100} €, Haben ${rebuilt.netTax / 100} €).`,
     );
   }
+  const { priceMode, totals, lines } = rebuilt;
 
   return withActor(actor, async (tx) => {
     const covering = await lockedCovering(tx, voucher, cutoff);
