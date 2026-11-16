@@ -1,14 +1,15 @@
-import { formatEuro, parseEuro } from "@haben/core";
+import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { durchlaufSeite, einrichten, gehe, kundeWaehlen } from "./einrichtung.ts";
+import { bestaetigen, durchlaufSeite, einrichten, gehe, kundeWaehlen } from "./einrichtung.ts";
 import { HANDY, sichtbar } from "./kopfzeile.ts";
 
 /**
  * Eigener Durchlauf zu #433: frische KU-Firma ohne bestehende Buchungen einrichten, getrennt von der
- * übrigen Firmeneinrichtung. Eigene Entwürfe werden nicht festgeschrieben. SQL stellt nur historische Testdaten nach;
+ * übrigen Firmeneinrichtung. Die Editorprüfungen belassen Entwürfe; der Gesamtumsatz nutzt echte festgeschriebene und
+ * bar bezahlte Rechnungen. SQL ergänzt die unterstützte direkte KU-Bareinnahme und historische Fremddaten;
  * Audit-Akteur, GoBD-Sperren und Siegel bleiben aktiv. Der lokale Einserverlauf kann die Datenbank-URL gezielt vorgeben.
  */
 test.describe.configure({ mode: "serial" });
@@ -216,26 +217,47 @@ test("Gesamtumsatz: bekannte Einnahme, eigene Befreiungen und unbekannter histor
   const card = page.getByRole("region", { name: "Gesamtumsatz nach § 19 UStG" });
   const before = parseEuro((await card.locator(".kpi-value").textContent())!.replace(/\s*€$/, ""))!;
   expect(before).not.toBeNull();
+  const exemptInvoices: string[] = [];
+  for (const [amount, label, provision] of [
+    [7000, "Heilbehandlung", "14a"],
+    [9000, "Unterricht", "21"],
+    [11000, "EU-Leistung", null],
+  ] as const) {
+    await newDraft(editors[0]);
+    await page.getByLabel("Rechnungsdatum", { exact: true }).fill(day(0));
+    await page.getByLabel("Beschreibung Position 1", { exact: true }).fill(`${label} ${token}`);
+    await page.getByLabel(/Einzelpreis Position 1/).fill(formatDecimal(amount));
+    await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption(provision ? "steuerfrei" : "eu_sonstige");
+    if (provision) await page.getByLabel("Befreiungsvorschrift", { exact: true }).selectOption(provision);
+    else {
+      await page.getByLabel("Land des tatsächlichen Leistungsorts").fill("AT");
+      await page.getByLabel("Ausländische Umsatzsteuer", { exact: true }).selectOption("bestaetigt");
+    }
+    const id = await saveAndReopen(editors[0]);
+    await page.getByRole("button", { name: "Festschreiben", exact: true }).click();
+    await bestaetigen(page, "Festschreiben");
+    await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible();
+    await page.getByRole("region", { name: "Zahlungen" }).getByRole("link", { name: "Barzahlung in der Kasse erfassen" }).click();
+    await page.waitForURL(/\/kasse\?rechnung=/);
+    await page.waitForLoadState("networkidle");
+    const cash = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+    await cash.getByLabel("Datum", { exact: true }).fill(day(0));
+    await expect(cash.getByLabel("Betrag (€)")).toHaveValue(formatDecimal(amount));
+    await cash.getByRole("button", { name: "Buchen", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "gebucht: Bareinnahme Rechnung" })).toContainText(formatEuro(amount));
+    exemptInvoices.push(id);
+  }
   await actor(async (tx) => {
     const [last] = await tx`select coalesce(max(number), 0) as number from cash_entries`;
-    let number = Number(last!.number);
-    for (const [amount, treatment, details, label] of [
-      [12345, "kleinunternehmer", null, "Gezählte KU-Einnahme"],
-      [7000, "steuerfrei", { exemption: { number: "14", letter: "a" } }, "Heilbehandlung"],
-      [9000, "steuerfrei", { exemption: { number: "21" } }, "Unterricht"],
-      [11000, "eu_sonstige", { foreignPlace: { country: "AT", noForeignVat: true } }, "EU-Leistung"],
-    ] as const) {
-      const fullDetails = details ? { exemption: null, ancillary: null, foreignPlace: null, assetDisposal: false, ...details } : null;
-      await tx`insert into cash_entries (number, date, amount, text, kind, tax_treatment, tax_rate, tax_details)
-        values (${++number}, ${day(0)}, ${amount}, ${`${label} ${token}`}, 'einnahme', ${treatment}, 0, ${fullDetails ? JSON.stringify(fullDetails) : null}::jsonb)`;
-    }
+    await tx`insert into cash_entries (number, date, amount, text, kind, tax_treatment, tax_rate)
+      values (${Number(last!.number) + 1}, ${day(0)}, 12345, ${`Gezählte KU-Einnahme ${token}`}, 'einnahme', 'kleinunternehmer', 0)`;
     const [run] = await tx`insert into lexoffice_imports (status, progress) values ('fertig', '{}') returning id`;
     await tx`insert into lexoffice_vouchers
       (lexoffice_id, import_id, source, type, direction, number, date, status, net, tax, gross, taxes, categories, payment, raw)
       values (${crypto.randomUUID()}, ${run!.id}, 'import', 'invoice', 'einnahme', ${`Ungeklärter Altbeleg ${token}`}, ${day(0)},
         'paid', 20000, 0, 20000, '[{"rate":0,"net":20000,"tax":0}]', '[]', null, '{"taxType":"vatfree"}')`;
   });
-  await page.reload({ waitUntil: "networkidle" });
+  await gehe(page, `/auswertungen?jahr=${YEAR}`);
   await expect(card.getByText("Bekannter Teilbetrag", { exact: true })).toBeVisible();
   await expect(card.locator(".kpi-value")).toHaveText(formatEuro(before + 12345));
   await expect(card.locator(".banner-warn")).toContainText("ungeklärt");
@@ -245,8 +267,8 @@ test("Gesamtumsatz: bekannte Einnahme, eigene Befreiungen und unbekannter histor
   await expect(unknown.getByRole("cell").nth(2)).toHaveText("Ungeklärt");
   await card.getByLabel("Einordnung", { exact: true }).selectOption("all");
   await expect(card.getByRole("row").filter({ hasText: `Gezählte KU-Einnahme ${token}` })).toContainText("Einbezogen");
-  for (const label of ["Heilbehandlung", "Unterricht", "EU-Leistung"]) {
-    await expect(card.getByRole("row").filter({ hasText: `${label} ${token}` })).toContainText("Ausgenommen");
+  for (const id of exemptInvoices) {
+    await expect(card.getByRole("row").filter({ has: page.locator(`a[href="/rechnungen/${id}"]`) })).toContainText("Ausgenommen");
   }
   await page.setViewportSize(HANDY);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
