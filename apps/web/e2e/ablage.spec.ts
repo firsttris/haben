@@ -73,7 +73,10 @@ test("schickt die festgeschriebene Rechnung an das Archiv und verlinkt sie", asy
 
   await rechnungFestschreiben(page, INVOICES[0]!);
   rechnungMitLink = page.url();
-  expect(await archivStatus()).toContain("Übertragen");
+  const status = await archivStatus();
+  expect(status).toContain("Übertragen");
+  // Zeitpunkt und HTTP-Status der Übertragung (#1219, Akzeptanzkriterium 3)
+  expect(status).toContain("HTTP 201");
   await expect(page.getByRole("link", { name: "Im Archiv öffnen" })).toHaveAttribute("href", "https://archiv.example/dokumente/4711");
 
   expect(mitId.received).toHaveLength(1);
