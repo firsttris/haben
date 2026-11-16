@@ -53,7 +53,7 @@ export const planTemplateSchema = z.object({
 });
 
 const rest = (label: string, due: string): PaymentPlanRow => ({ label, share: { kind: "rest" }, due });
-const prozent = (label: string, value: number, due: string): PaymentPlanRow => ({ label, share: { kind: "prozent", value }, due });
+const prozent = (label: string, value: BasisPoints, due: string): PaymentPlanRow => ({ label, share: { kind: "prozent", value }, due });
 
 /** Vorlagen ab Werk; in den Einstellungen änderbar */
 export const DEFAULT_PLAN_TEMPLATES: PlanTemplate[] = [

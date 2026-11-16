@@ -1,9 +1,9 @@
-import { parseEuro } from "./money.ts";
+import { parseEuro, type Cents } from "./money.ts";
 
 /** Bereich in Cent, beide Grenzen eingeschlossen */
 export interface CentRange {
-  min: number;
-  max: number;
+  min: Cents;
+  max: Cents;
 }
 
 const INT4_MAX = 2_147_483_647;
@@ -31,6 +31,6 @@ export function parseEuroSearchRange(query: string): CentRange | null {
 }
 
 /** Ob ein Betrag in Cent im Bereich liegt; ohne Betrag nie */
-export function inCentRange(range: CentRange, cents: number | null | undefined): boolean {
+export function inCentRange(range: CentRange, cents: Cents | null | undefined): boolean {
   return cents !== null && cents !== undefined && cents >= range.min && cents <= range.max;
 }

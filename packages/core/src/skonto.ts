@@ -1,7 +1,7 @@
 import { z } from "zod/mini";
 import { inBasisPoints } from "./einheit-schema.ts";
 import { addDays, naechsterWerktag } from "./holidays.ts";
-import { roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts";
+import { roundHalfAwayFromZero, type BasisPoints, type Cents, type Prozent } from "./money.ts";
 import type { Bundesland } from "./steuernummer.ts";
 
 /** Eine Skontostufe aus den Zahlungsbedingungen einer E-Rechnung */
@@ -174,7 +174,7 @@ export function parsePercent(input: string, { negative = false }: { negative?: b
 }
 
 /** Ganze Prozent, etwa für Privatanteil und Hebesatz: „20“ oder „20 %“ → 20; null, wenn die Eingabe keine ganze Zahl ab 0 ist */
-export function parseWholePercent(input: string): number | null {
+export function parseWholePercent(input: string): Prozent | null {
   const value = parsePercent(input);
   return value === null || value % 100 !== 0 ? null : value / 100;
 }

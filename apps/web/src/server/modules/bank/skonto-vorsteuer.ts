@@ -7,6 +7,7 @@ import {
   type InvoiceTotals,
   type Kontenrahmen,
   type TaxShare,
+  type Prozent,
 } from "@haben/core";
 import { sql } from "drizzle-orm";
 import type { Tx } from "../../db/index.ts";
@@ -24,7 +25,7 @@ export async function belegSkontoPosting(
     vorsteuerAnteil: number | null;
     vorsteuerAbzug: boolean;
     erstattetBezahltes: boolean;
-    privateShare: number;
+    privateShare: Prozent;
   },
   amount: number,
   kr: Kontenrahmen,

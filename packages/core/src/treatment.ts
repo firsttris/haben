@@ -1,3 +1,4 @@
+import type { BasisPoints } from "./money.ts";
 import { normalizeUstId, ustIdProblem } from "./zm.ts";
 
 /**
@@ -116,7 +117,7 @@ export function treatmentNote(treatment: TaxTreatment, exemptionReason?: string 
 /** Was an einer Rechnung mit dieser Behandlung fehlt oder nicht passt; leer = in Ordnung. */
 export function treatmentIssues(
   treatment: TaxTreatment,
-  input: { rates: number[]; sellerUstId?: string; buyerUstId?: string; buyerCountry?: string; exemptionReason?: string | null },
+  input: { rates: BasisPoints[]; sellerUstId?: string; buyerUstId?: string; buyerCountry?: string; exemptionReason?: string | null },
 ): string[] {
   if (treatment === "regulaer") return [];
   const issues: string[] = [];

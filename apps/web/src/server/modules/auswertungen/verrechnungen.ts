@@ -1,3 +1,4 @@
+import type { Prozent } from "@haben/core";
 import { and, eq, gte, lt } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
@@ -16,7 +17,7 @@ export type VerrechnungImJahr = {
   amount: number;
   category: string | null;
   vorsteuerAbzug: boolean | null;
-  privateShare: number | null;
+  privateShare: Prozent | null;
 };
 
 export async function verrechnungenImJahr(start: string, end: string, q: Db | Tx = db): Promise<VerrechnungImJahr[]> {

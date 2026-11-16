@@ -42,7 +42,8 @@ export interface AssetFormValues {
   note: string;
 }
 
-const RATE_LABELS: Record<PrivateUseRate, string> = { 100: "1 %", 50: "0,5 %", 25: "0,25 %" };
+// Schlüssel als Literale: PrivateUseRate trägt die Einheit Basispunkte und taugt deshalb nicht als Schlüssel eines Record
+const RATE_LABELS: Record<100 | 50 | 25, string> = { 100: "1 %", 50: "0,5 %", 25: "0,25 %" };
 
 /**
  * Formular für eine Anlage. `locked` sperrt die Berechnungsgrundlagen (gebucht oder aus einem Beleg),
