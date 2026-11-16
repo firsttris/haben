@@ -119,6 +119,24 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     ]);
   });
 
+  // Mit bestätigter Abweichung hält der Vermerk Habens damalige Zahlen fest, nicht die abgegebenen. Rechnet Haben heute den
+  // Betrag laut Protokoll (fehlende Buchungen nachgetragen, falsche berichtigt), passt das Journal zur Abgabe; die
+  // festgehaltenen Zeilen sind dann überholt und kein Befund
+  it("bestätigte Abweichung, heute rechnet Haben den Betrag laut Protokoll: die damals gerechneten Zeilen sind kein Befund", async () => {
+    const heute = await gerechnet();
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, filed_on, note, figures, request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'ABC123456782', '2026-05-20', 'x',
+              ${JSON.stringify({
+                amount: heute,
+                berechnet: heute - 100_00,
+                abweichung: 100_00,
+                abweichungBestaetigt: true,
+                gerechnet: { gewinn: heute - 100_00, "ausgabe:software": 100_00 },
+              })}::jsonb, '', '', '')`;
+    const pruefen = await import("./erklaert-pruefen.ts");
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+  });
+
   it("nimmt bei der Einkommensteuererklärung keinen Betrag an, auch nicht Habens Schätzung (#1073)", async () => {
     // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag; eine Schätzung gehört nicht in den Vermerk
     const geschaetzt = (await annual.annualOverview(2025, TODAY)).est.prognose.verbleibend;
