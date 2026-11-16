@@ -1,14 +1,14 @@
 import { addDays, invoicePosting, leistungsdatum, outgoingTaxIssues, TAX_TREATMENT_KEYS, treatmentIssues, type TaxTreatment } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
-import { createHash } from "node:crypto";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
-import { loadCompany, sellerIssues, versteuerungForYear, type Company, type Contact } from "../stammdaten/index.ts";
+import { loadCompany, sellerIssues, type Company, type Contact } from "../stammdaten/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { buyerFrom, sellerFrom } from "./invoices.ts";
+import { buyerFrom, sellerFrom, sha256 } from "./invoices.ts";
+import { versteuerungIssues } from "./versteuerung-pruefung.ts";
 import { invoicePostingMode, invoiceVatDate } from "./invoice-tax.ts";
 import { storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { InvoiceError } from "./invoice-error.ts";
@@ -93,7 +93,7 @@ async function assertAdoptable(
   if (clash) throw new InvoiceError(`Die Rechnungsnummer ${input.number} gibt es in Haben schon.`);
   const issues = [
     ...sellerIssues(company, true).map((issue) => `Firmendaten: ${issue}`),
-    ...(await versteuerungIssues(tx, company, input.issueDate)),
+    ...(await versteuerungIssues(company, input.issueDate, tx)),
     ...outgoingTaxIssues(input.taxTreatment, null, company.kleinunternehmer),
     ...treatmentIssues(input.taxTreatment, {
       rates: totals.taxes.map((t) => t.rate),
@@ -107,18 +107,6 @@ async function assertAdoptable(
   await pruefeUmsatzgrenze(tx, { kind: "rechnung", issueDate: input.issueDate, taxTreatment: input.taxTreatment }, totals.net, company.foundedOn);
 }
 
-/** Wie beim Festschreiben: Das Jahr der Rechnung muss nach der heutigen Versteuerung gebucht sein, sonst steht die Steuer doppelt oder gar nicht in der Voranmeldung */
-async function versteuerungIssues(tx: Tx, company: Company, issueDate: string): Promise<string[]> {
-  if (company.kleinunternehmer) return [];
-  const year = Number(issueDate.slice(0, 4));
-  const booked = await versteuerungForYear(year, tx);
-  if (booked === company.versteuerung) return [];
-  const label = { soll: "Soll-Versteuerung", ist: "Ist-Versteuerung" } as const;
-  return [
-    `Das Jahr ${year} ist nach ${label[booked]} gebucht, eingestellt ist jetzt ${label[company.versteuerung]}; bitte ein Rechnungsdatum im laufenden Jahr wählen`,
-  ];
-}
-
 /**
  * Legt die Rechnung festgeschrieben an und bucht sie wie beim Festschreiben einer eigenen Rechnung.
  * Mit `xml` (eingebettetes ZUGFeRD oder XRechnung des Originals) bleibt auch die maschinenlesbare Fassung erhalten.
@@ -129,7 +117,10 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
   if (input.dueDate < input.issueDate) throw new InvoiceError("Das Fälligkeitsdatum liegt vor dem Rechnungsdatum.");
   if (Date.parse(input.dueDate) - Date.parse(input.issueDate) > 365 * 86_400_000) throw new InvoiceError("Das Zahlungsziel darf höchstens 365 Tage betragen.");
   if (input.taxes.some((t) => !RATES.has(t.rate))) throw new InvoiceError("Haben kennt für Rechnungen nur die Steuersätze 0 %, 7 % und 19 %.");
+  if (input.serviceFrom && input.serviceTo && input.serviceFrom > input.serviceTo) throw new InvoiceError("Der Leistungszeitraum endet vor seinem Beginn.");
   const { priceMode, totals, lines } = rebuild(input.taxes, input.number);
+  // Wie beim Festschreiben: eine Rechnung über 0 € gibt es nicht (und die Buchung wäre leer)
+  if (totals.gross <= 0) throw new InvoiceError("Der Gesamtbetrag muss größer als 0 sein.");
 
   try {
     return await withActor(actor, async (tx) => {
@@ -175,9 +166,9 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
           buyer: buyerFrom(contact),
           serviceDate,
           pdf: Buffer.from(pdf),
-          pdfSha256: createHash("sha256").update(pdf).digest("hex"),
+          pdfSha256: sha256(pdf),
           xml,
-          xmlSha256: xml ? createHash("sha256").update(xml).digest("hex") : null,
+          xmlSha256: xml ? sha256(xml) : null,
           lockedAt: now,
           updatedAt: now,
         })
@@ -277,6 +268,10 @@ export async function foreignInvoiceProposal(file: { bytes: Uint8Array; filename
 export async function adoptForeignInvoiceFile(actor: string, raw: ForeignInvoiceInput, file: { bytes: Uint8Array; filename: string; mimeType: string }) {
   const read = await readEInvoice(file).catch(() => null);
   if (read) {
+    // Nur Rechnungen in Euro: Gutschrift und Fremdwährung warnt schon der Vorschlag, hier wird sie abgelehnt
+    if (read.invoice.isCreditNote) throw new InvoiceError("Die E-Rechnung in der Datei ist eine Gutschrift; Haben übernimmt hier nur Rechnungen.");
+    if (read.invoice.currency !== "EUR")
+      throw new InvoiceError(`Die E-Rechnung in der Datei lautet auf ${read.invoice.currency}; Haben übernimmt hier nur Rechnungen in Euro.`);
     const problem = xmlMismatch(read.invoice, foreignInvoiceSchema.parse(raw));
     if (problem) throw new InvoiceError(`Die E-Rechnung in der Datei passt nicht zu den Angaben: ${problem}. Das Original wird so nicht übernommen.`);
   }

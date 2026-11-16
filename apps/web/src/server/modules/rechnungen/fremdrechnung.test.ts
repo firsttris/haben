@@ -294,4 +294,53 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     ).rejects.toThrow(/passt nicht zu den Angaben/);
     expect(await sql`select 1 from invoices where number = 'FREMD-1'`).toHaveLength(0);
   }, 30_000);
+
+  it("lehnt eine Rechnung über 0 € und einen Leistungszeitraum rückwärts mit Meldung ab", async () => {
+    await company("SKR03", "soll");
+    const contactId = await customer();
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1900, net: 0, tax: 0 }] }), pdf)).rejects.toThrow(/größer als 0/);
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { serviceFrom: "2026-09-30", serviceTo: "2026-09-01" }), pdf)).rejects.toThrow(
+      /Leistungszeitraum/,
+    );
+    expect(await sql`select 1 from invoices`).toHaveLength(0);
+  }, 30_000);
+
+  it("Soll: Die Steuer gehört in den Monat der Leistung, nicht in den des Rechnungsdatums", async () => {
+    await company("SKR03", "soll");
+    const contactId = await customer();
+    // Rechnung vom 2. Oktober für eine Leistung im September
+    await foreign.adoptForeignInvoice(
+      actor,
+      input(contactId, { issueDate: "2026-10-02", dueDate: "2026-10-16", serviceFrom: "2026-09-10", serviceTo: "2026-09-30" }),
+      pdf,
+    );
+    expect(await vat.computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ kz81: 400_000, tax81: 76_000 });
+    expect(await vat.computeVatFigures({ year: 2026, month: 10 })).toMatchObject({ kz81: 0, tax81: 0 });
+  }, 30_000);
+
+  it("lehnt eine E-Rechnung als Gutschrift oder in Fremdwährung beim Übernehmen ab", async () => {
+    await company("SKR03", "soll");
+    const contactId = await customer("DE", "DE811128135");
+    const draft = await invoices.createDraft(actor, {
+      ...(await invoices.newDraftDefaults("2026-09-26")),
+      contactId,
+      lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
+    });
+    const own = await invoices.finalizeInvoice(actor, draft.id);
+    const xml = own.xml!;
+    const proposal = await foreign.foreignInvoiceProposal({ bytes: new TextEncoder().encode(xml), filename: "re.xml", mimeType: "application/xml" });
+    const adopt = (text: string) =>
+      foreign.adoptForeignInvoiceFile(
+        actor,
+        { ...proposal, contactId },
+        { bytes: new TextEncoder().encode(text), filename: "re.xml", mimeType: "application/xml" },
+      );
+    const credit = xml.replace("<ram:TypeCode>380</ram:TypeCode>", "<ram:TypeCode>381</ram:TypeCode>");
+    expect(credit).not.toBe(xml);
+    await expect(adopt(credit)).rejects.toThrow(/Gutschrift/);
+    const usd = xml.replace("<ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>", "<ram:InvoiceCurrencyCode>USD</ram:InvoiceCurrencyCode>");
+    expect(usd).not.toBe(xml);
+    await expect(adopt(usd)).rejects.toThrow(/USD/);
+    expect(await sql`select 1 from invoices`).toHaveLength(1);
+  }, 30_000);
 });

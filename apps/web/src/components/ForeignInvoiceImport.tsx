@@ -77,6 +77,8 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
   const [number, setNumber] = useState(p.number);
   const [issueDate, setIssueDate] = useState(p.issueDate);
   const [dueDate, setDueDate] = useState(p.dueDate);
+  const [serviceFrom, setServiceFrom] = useState(p.serviceFrom ?? "");
+  const [serviceTo, setServiceTo] = useState(p.serviceTo ?? "");
   const [customers, setCustomers] = useState(read.customers);
   const [contactId, setContactId] = useState(p.contactId ?? "");
   /** Offener Dialog „Neuer Kunde“ mit dem vorgetragenen Namen; null = geschlossen */
@@ -111,8 +113,8 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
         contactId,
         taxTreatment: treatment,
         exemptionReason,
-        serviceFrom: p.serviceFrom,
-        serviceTo: p.serviceTo,
+        serviceFrom: serviceFrom || null,
+        serviceTo: serviceTo || null,
         taxes,
       }),
     );
@@ -153,6 +155,15 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
             </Field>
             <Field label="Fällig am">
               {(control) => <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />}
+            </Field>
+            <Field
+              label="Leistung von"
+              hint="Nur wenn die Leistung in einem anderen Monat liegt als das Rechnungsdatum: Bei Soll-Versteuerung zählt der Monat der Leistung"
+            >
+              {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />}
+            </Field>
+            <Field label="Leistung bis">
+              {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => setServiceTo(e.target.value)} />}
             </Field>
           </div>
         </section>
