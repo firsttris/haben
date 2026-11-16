@@ -175,7 +175,8 @@ describe.skipIf(!testDatabaseUrl)("Migration der Ausgangszuordnung und unveränd
 
         await migrate(database, { migrationsFolder: MIGRATIONS });
         expect(await sql`select count(*)::int as n from drizzle.__drizzle_migrations`).toEqual([{ n: full.entries.length }]);
-        expect(await sql`select hash,created_at::text from drizzle.__drizzle_migrations order by created_at desc limit 1`).toEqual([
+        // Genau diese Migration, nicht die letzte: spätere Migrationen kommen danach hinzu
+        expect(await sql`select hash,created_at::text from drizzle.__drizzle_migrations where created_at = ${addition.when}`).toEqual([
           {
             hash: createHash("sha256")
               .update(readFileSync(join(MIGRATIONS, `${addition.tag}.sql`)))
