@@ -220,7 +220,7 @@ Die Homeoffice-Pauschale gibt es je Person nur einmal im Jahr. Hast du als Perso
 
 Nicht abgebildet sind Versorgungsbezüge, ermäßigt besteuerte Entschädigungen (Abfindungen), Arbeitslohn ohne Steuerabzug oder aus dem Ausland, Kurzarbeitergeld, Fahrtkostenersatz des Arbeitgebers, Reisekosten, doppelte Haushaltsführung. Steuerfreie Zuschüsse des Arbeitgebers zur Kranken- und Pflegeversicherung (Nr. 24 a, 24 b und 24 c) stehen in der Anlage Vorsorgeaufwand, siehe [Was die Vorsorgezeilen bedeuten](#was-die-vorsorgezeilen-bedeuten).
 
-Beträge gehen in vollen Euro an ELSTER, nur die Steuern auf Kapitalerträge mit Cent. Pflicht sind die IBAN in den Firmendaten und je Kind die Familienkasse. Lohn- und Kirchensteuer einer Lohnsteuerbescheinigung schickt Haben auch mit 0, wenn das Feld leer ist; so verlangt es ELSTER.
+Beträge gehen in vollen Euro an ELSTER, mit Cent nur die Steuern auf Kapitalerträge und die Beträge der einzelnen Lohnsteuerbescheinigungen. Pflicht sind die IBAN in den Firmendaten und je Kind die Familienkasse. Lohn- und Kirchensteuer einer Lohnsteuerbescheinigung schickt Haben auch mit 0, wenn das Feld leer ist; so verlangt es ELSTER.
 
 Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester, Kinder bei Einzelveranlagung (ELSTER verlangt dann Angaben zum anderen Elternteil) sowie Kinder mit anderem Kindschaftsverhältnis oder Wohnsitz im Ausland. Brauchst du davon etwas, gibst du die Erklärung im ELSTER-Portal ab, statt sie hier zu senden; ein Nachsenden einzelner Anlagen ist nicht möglich.
 
