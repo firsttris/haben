@@ -31,8 +31,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 
 ## Die Liste sortieren
 
-Die Spaltenköpfe der Kontaktliste sortieren nach Name, E-Mail, Ort und Rechnungsformat; ein zweiter Klick dreht die
-Richtung, der Pfeil zeigt die geltende Spalte. Die Sortierung steht in der Adresse und bleibt beim Neuladen erhalten.
+Die Liste steht nach Name aufsteigend. Die Spaltenköpfe sortieren nach Name, E-Mail, Ort (nach Postleitzahl) und Rechnungsformat: Der erste Klick sortiert aufsteigend, ein zweiter auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt ↑ oder ↓, die übrigen ↕. Die Sortierung steht in der Adresse und bleibt beim Neuladen erhalten.
 
 ## Ansprechpartner
 
