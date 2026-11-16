@@ -122,8 +122,10 @@ for (const theme of THEMES) {
           await expect(zeile(page, jahr).locator("td.jahr")).toHaveText(String(jahr));
           await expect(zeile(page, jahr).locator("td.jahr")).toHaveClass(/vorjahr/);
         } else {
-          // Am Handy fehlt die Spalte; der Vermerk steht an der Fälligkeit
-          await expect(zeile(page, jahr)).toContainText(`aus ${jahr}`);
+          // Am Handy fehlt die Spalte; der Vermerk steht sichtbar an der Fälligkeit (toContainText sähe auch Verstecktes)
+          await expect(zeile(page, jahr).locator("td.jahr")).toBeHidden();
+          await expect(zeile(page, jahr).locator(".vorjahr-handy")).toBeVisible();
+          await expect(zeile(page, jahr).locator(".vorjahr-handy")).toContainText(`aus ${jahr}`);
         }
       }
 
