@@ -80,7 +80,9 @@ describe("withDedupHashes", () => {
     const kopf = zeilen.findIndex((z) => z.startsWith("Buchung;"));
     const umsaetze = zeilen.slice(kopf + 1).filter((z) => z !== "");
     // Suchergebnis mit nur dem Zahlungseingang von Nordwerk, später kommt der volle Export
-    const einer = [...zeilen.slice(0, kopf + 1), umsaetze[3]!].join("\r\n").replace("Sortierung;Datum absteigend", "Filter;Nordwerk;Sortierung;Datum absteigend");
+    const einer = [...zeilen.slice(0, kopf + 1), umsaetze[3]!]
+      .join("\r\n")
+      .replace("Sortierung;Datum absteigend", "Filter;Nordwerk;Sortierung;Datum absteigend");
     const bekannt = new Set(withDedupHashes(parseStatement(new TextEncoder().encode(einer)).transactions).map((t) => t.dedupHash));
     expect(voll.filter((t) => bekannt.has(t.dedupHash)).map((t) => t.index)).toEqual([3]);
     // Aufsteigend sortiert: dieselben Hashes
