@@ -64,7 +64,8 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
 
   beforeEach(async () => {
     await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
-      document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
+      document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts,
+      vat_return_submissions, vat_returns, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
@@ -228,6 +229,30 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     const invoice = await invoices.finalizeInvoice(actor, draft.id);
     const beleg = await bookedDocument(3, { supplierName: "Hafenwerft Druck GmbH", documentDate: "2025-12-10", net: 25_000, tax: 4_750 });
 
+    // Dezember 2025 ist schon abgegeben: ein Storno danach trägt das Datum der Erfassung, nicht das des Belegs
+    const dezember = await vat.saveDraft(
+      actor,
+      { year: 2025, month: 12 },
+      {
+        mode: "manuell",
+        kz81: 0,
+        kz86: 0,
+        kz66: 0,
+        reason: "keine Umsätze im Dezember",
+      },
+    );
+    await vermerk.vermerkeAbgabe(
+      actor,
+      dezember.id,
+      {
+        filedOn: "2026-01-05",
+        transferTicket: "et1220251201",
+        kz83: dezember.kz83,
+        file: { bytes: new TextEncoder().encode("%PDF-1.4\n% et1220251201\n%%EOF\n"), filename: "UStVA_2025-12.pdf" },
+      },
+      "2026-01-05",
+    );
+
     // Beides erst im Folgejahr aufgehoben: am 31.12.2025 waren Forderung und Verbindlichkeit offen
     await invoices.cancelInvoice(actor, invoice.id, "2026-01-10");
     await cancellation.cancelDocument(actor, beleg, { reason: "Doppelt erfasst" }, "2026-02-15");
@@ -306,5 +331,47 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     // Im heutigen Stand ist die Rechnung bezahlt und damit nicht mehr offen
     const heute = await reports.openPositions("2026-11-16");
     expect(heute.receivables.find((posten) => posten.id === invoice.id)).toBeUndefined();
+  });
+
+  it("zeigt bei einer Berichtigung den berichtigten Betrag, die Differenz mit ihrer Abgabe fällig", async () => {
+    const pdf = { bytes: new TextEncoder().encode("%PDF-1.4\n% et1220251212\n%%EOF\n"), filename: "UStVA_2025-12.pdf" };
+    // Dezember 2025: 1.000,00 € zu 19 %, abgegeben am 05.01.2026 (gesetzlich fällig 10.01.2026)
+    const dezember = { mode: "manuell" as const, kz81: 100_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" };
+    const erst = await vat.saveDraft(actor, { year: 2025, month: 12 }, dezember);
+    await vermerk.vermerkeAbgabe(actor, erst.id, { filedOn: "2026-01-05", transferTicket: "et1220251212", kz83: erst.kz83, file: pdf }, "2026-01-05");
+
+    // Im Februar berichtigt: 1.200,00 € zu 19 %, also 228,00 € Steuer und 38,00 € Differenz
+    await vat.createCorrection(actor, { year: 2025, month: 12 });
+    const berichtigt = await vat.saveDraft(
+      actor,
+      { year: 2025, month: 12 },
+      { mode: "manuell", kz81: 120_000, kz86: 0, kz66: 0, reason: "Berichtigung nach Prüfung der Belege" },
+    );
+    expect(berichtigt.kz83).toBe(22_800);
+    await vermerk.vermerkeAbgabe(
+      actor,
+      berichtigt.id,
+      { filedOn: "2026-02-05", transferTicket: "et1220251213", kz83: berichtigt.kz83, file: pdf },
+      "2026-02-05",
+    );
+
+    // Zum 31.12. steht die Steuer in der berichtigten Höhe, obwohl die Berichtigung erst im Februar kam
+    const stand = await zahlung.ustvaPosten(undefined, { bis: "2025-12-31" });
+    const dezemberPosten = stand.posten.filter((posten) => posten.year === 2025 && posten.month === 12);
+    expect(dezemberPosten.reduce((summe, posten) => summe + posten.betrag, 0)).toBe(22_800);
+    // Die Differenz ist mit der Abgabe der Berichtigung fällig, nicht mit dem Termin des Zeitraums
+    const differenz = dezemberPosten.find((posten) => posten.berichtigt);
+    expect(differenz?.betrag).toBe(3_800);
+    expect(differenz?.faellig).toBe("2026-02-05");
+  });
+
+  it("nimmt einen Beleg aus dem Stand, dessen Storno zurückdatiert ist", async () => {
+    const beleg = await bookedDocument(4, { supplierName: "Nordlicht Papier GmbH", documentDate: "2025-12-10", net: 25_000, tax: 4_750 });
+
+    // Erfasst im Februar 2026, gebucht auf den 20.12.2025: im Journal steht der Storno im Dezember
+    await cancellation.cancelDocument(actor, beleg, { reason: "Doppelt erfasst" }, "2025-12-20");
+
+    const stichtag = await reports.openPositions("2025-12-31", { bis: "2025-12-31" });
+    expect(stichtag.payables).toEqual([]);
   });
 });

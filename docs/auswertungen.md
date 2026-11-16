@@ -137,9 +137,12 @@ Auf **31.12.** rechnen alle drei Tabellen zum Jahresende:
 - **Zahlungen:** Offen ist, was bis einschließlich dieses Tages gezahlt war. Spätere Zahlungen zählen nicht, der Posten steht wieder offen.
 - **Belege und Rechnungen:** Was es damals noch nicht gab, fehlt in der Liste. Eine Rechnung gilt mit ihrem Rechnungsdatum, ein Beleg mit seinem Belegdatum, ohne Datum mit dem Tag des Hochladens.
 - **Voranmeldungen:** Sie zählen mit dem Ende ihres Zeitraums, nicht mit dem Tag der Abgabe. Die Anmeldung für Dezember oder das vierte Quartal, im Januar abgegeben, ist zum 31.12. eine offene Verbindlichkeit; die Steuer entsteht mit Ablauf des Voranmeldungszeitraums (§ 13 Abs. 1 Nr. 1 Buchst. a und b UStG).
-- **Storno und Aufhebung:** Erst nach dem Stichtag erklärt, lassen sie den Stand unverändert.
+- **Berichtigung einer Voranmeldung:** Der Stand zeigt den berichtigten Betrag, auch wenn die Berichtigung erst im Folgejahr abgegeben wird; die Steuer war mit Ablauf des Zeitraums in dieser Höhe entstanden. Die Differenz ist mit der Abgabe der Berichtigung fällig, nicht mit dem gesetzlichen Termin des Zeitraums.
+- **Storno und Aufhebung:** Maßgeblich ist das Buchungsdatum der Gegenbuchung, nicht der Tag, an dem jemand den Storno erfasst. Ein Beleg, dessen Storno im Februar erfasst und auf Dezember zurückdatiert ist, fehlt deshalb im Stand zum 31.12. wie im Journal; bei der Rechnung zählt das Datum der Stornorechnung, bei der USt-Zahlung das Datum ihrer Aufhebung.
 - **Fälligkeit:** „Fällig“ und „Überfällig“ beziehen sich auf denselben Tag.
 - **Adresse:** Der Stand steht in der Adresse (`?jahr=2025&stichtag=31.12.`). Ein Link lässt sich weitergeben, die Seite bleibt ohne JavaScript bedienbar.
+
+Eine Ausnahme von „Rechnung nach Rechnungsdatum“ sind Anzahlungsketten von GmbH und UG, deren Schlussrechnung erst nach dem Stichtag ausgestellt wird: Der noch nicht abgerechnete Rest steht als unbillte Forderung im Stand, mit der Fälligkeit, die er zum Stichtag hatte (§ 252 Abs. 1 Nr. 4 HGB).
 
 Ob ein Vorjahresposten in eine Abschlusskontrolle gehört, hängt von der Rechtsform ab: Bei GmbH und UG steht eine offene Forderung aus 2025 am 31.12.2026 in Inventar und Bilanz (§ 240 Abs. 2, § 242 HGB), in der EÜR wirkt ein offener Posten gar nicht auf den Gewinn (§ 4 Abs. 3, § 11 EStG).
 
