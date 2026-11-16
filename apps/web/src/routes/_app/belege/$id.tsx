@@ -9,6 +9,7 @@ import {
   formatExchangeRate,
   parseEuro,
   parseExchangeRate,
+  parseWholePercent,
   taxOf,
   type AssetKind,
   type AssetMethod,
@@ -386,8 +387,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     vorsteuerAnteil: parseVorsteuerAnteil(r.vorsteuerAnteil),
   }));
   // Mit Aufteilung gibt es (noch) keinen Privatanteil, siehe Grenzen in docs/belege.md
-  const privateShareValue = category === "anlage" || splitting ? 0 : Number(privateShare || 0);
-  const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
+  const privateShareValue = category === "anlage" || splitting || privateShare.trim() === "" ? 0 : parseWholePercent(privateShare);
+  const privateShareValid = privateShareValue !== null && privateShareValue <= 100;
   const currencyCode = currency.trim().toUpperCase();
   const foreign = currencyCode !== "EUR";
   const rate = exchangeRate.trim() ? parseExchangeRate(exchangeRate) : null;
@@ -513,7 +514,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           ownAccountId: splitting ? null : passendesKonto(ownAccounts, category, ownAccountId) || null,
           payment,
           note,
-          privateShare: privateShareValue,
+          privateShare: privateShareValue ?? 0,
           vorsteuerAnteil: parseVorsteuerAnteil(vorsteuerAnteil),
           // Nur an einer Gutschrift über die Bank sinnvoll; sonst schickt der Editor immer „nein“ (#786)
           erstattetBezahltes: gross !== null && gross < 0 && payment === "bank" ? erstattetBezahltes : false,
@@ -1054,7 +1055,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           company={data}
           booked={locked}
           storedDeduction={doc.vorsteuerAbzug}
-          privateShare={privateShareValue}
+          privateShare={privateShareValue ?? 0}
           asset={category === "anlage"}
           importVat={category === "einfuhrumsatzsteuer"}
           onChange={touch(setVorsteuerAnteil)}
@@ -1076,13 +1077,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             style={{ maxWidth: 220 }}
           >
             {(control) => (
-              <input
-                {...control}
-                inputMode="numeric"
-                value={privateShare}
-                placeholder="0"
-                onChange={(e) => touch(setPrivateShare)(e.target.value.replace(/\D/g, "").slice(0, 3))}
-              />
+              <input {...control} inputMode="numeric" value={privateShare} placeholder="0" onChange={(e) => touch(setPrivateShare)(e.target.value)} />
             )}
           </Field>
         )}

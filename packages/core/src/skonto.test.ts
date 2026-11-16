@@ -3,6 +3,7 @@ import {
   formatPercent,
   parsePercent,
   parseSkontoTerms,
+  parseWholePercent,
   skontoFristen,
   skontoGezogen,
   skontoOffer,
@@ -192,6 +193,37 @@ describe("parsePercent und formatPercent", () => {
     expect(parsePercent("2,555")).toBeNull();
     expect(parsePercent("-1")).toBeNull();
     expect(parsePercent("")).toBeNull();
+  });
+
+  it("ist der eine Leser für Prozentfelder: „%“ am Ende, Punkt nur wenn eindeutig, keine Tausenderpunkte (#1222)", () => {
+    for (const [text, points] of [
+      ["2,5%", 250],
+      [" 19 % ", 1900],
+      ["23.07", 2307],
+      ["0.5", 50],
+      ["100", 10_000],
+    ] as const)
+      expect(parsePercent(text), text).toBe(points);
+    for (const text of ["%", "1%2", "% 2", "1.000", "1.000,00", "0.010", "2 €", "abc", "1e2", "2,5 % %"]) expect(parsePercent(text), text).toBeNull();
+  });
+
+  it("liest negative Sätze nur auf Wunsch (Basiszinssatz)", () => {
+    expect(parsePercent("-0,88", { negative: true })).toBe(-88);
+    expect(parsePercent("−0,88 %", { negative: true })).toBe(-88);
+    expect(parsePercent("-0")).toBe(0);
+    expect(parsePercent("-0,88")).toBeNull();
+  });
+
+  it("liest ganze Prozent für Privatanteil und Hebesatz", () => {
+    for (const [text, percent] of [
+      ["20", 20],
+      ["20 %", 20],
+      ["20,00", 20],
+      ["0", 0],
+      ["400%", 400],
+    ] as const)
+      expect(parseWholePercent(text), text).toBe(percent);
+    for (const text of ["20,5", "20.5", "-5", "", "abc"]) expect(parseWholePercent(text), text).toBeNull();
   });
 
   it("schreibt Sätze ohne überflüssige Nullen", () => {

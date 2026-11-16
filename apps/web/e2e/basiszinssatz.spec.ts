@@ -123,7 +123,7 @@ test("Basiszinssatz: Unlesbares und Sätze außerhalb von −10 % bis 20 % stehe
   const field = await openDunning(page);
   const vorher = await field.inputValue();
   const speichern = page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" });
-  await field.fill("1.27");
+  await field.fill("1,275");
   await speichern.click();
   await expect(field).toBeFocused();
   await expect(field).toHaveAccessibleDescription(/etwa 1,27 oder -0,88/);

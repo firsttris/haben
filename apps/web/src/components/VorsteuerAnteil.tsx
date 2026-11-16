@@ -1,18 +1,16 @@
-import { abziehbarerAnteil, abziehbareSteuer, formatDecimal, formatEuro, gespeicherterAnteil, parseEuro, splitPrivateShare } from "@haben/core";
+import { abziehbarerAnteil, abziehbareSteuer, formatEuro, formatHundredths, gespeicherterAnteil, parsePercent, splitPrivateShare } from "@haben/core";
 import { Field } from "./Field.tsx";
 
-/** Prozenttext direkt in Basispunkte lesen, ohne Zwischenwert als Dezimalzahl. Leer übernimmt die Vorgabe. */
+/** Abziehbarer Anteil in Basispunkten über parsePercent, höchstens 100 %; null, wenn ungültig. Leer übernimmt die Vorgabe. */
 export function parseVorsteuerAnteil(value: string): number | null {
-  const text = value.trim();
-  if (!/^\d{1,3}(,\d{1,2})?$/.test(text)) return null;
-  const points = parseEuro(text);
+  const points = parsePercent(value);
   return points !== null && points <= 10_000 ? points : null;
 }
 
 export const formatVorsteuerAnteil = (value: number | null | undefined): string =>
   value == null
     ? ""
-    : formatDecimal(value)
+    : formatHundredths(value)
         .replace(/,00$/, "")
         .replace(/(,\d)0$/, "$1");
 

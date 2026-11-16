@@ -2,6 +2,7 @@ import { formatEuro, parseEuro } from "@haben/core";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
+import { anteilText, parseAnteil } from "../lib/anteil.ts";
 import { elsterNotice } from "../lib/elster.ts";
 import { useAction } from "../lib/use-action.ts";
 import { type getAnnualReturns, saveKapgErklaerung, submitKapgReturn } from "../server/functions/annual.ts";
@@ -210,13 +211,6 @@ export function GewstSection({ data }: { data: Data }) {
       <Senden form="gewst" data={data} blocked={blocked} sent={g.sent} />
     </section>
   );
-}
-
-/** Anteil als Text: 10000 → "100", 3333 → "33,33" */
-const anteilText = (anteil: number) => (anteil / 100).toLocaleString("de-DE", { maximumFractionDigits: 2 });
-function parseAnteil(text: string): number | null {
-  const n = Number(text.trim().replace(",", "."));
-  return Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 100) : null;
 }
 
 type Person = {

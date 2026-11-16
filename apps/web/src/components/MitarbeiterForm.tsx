@@ -4,7 +4,7 @@ import {
   formatHundredths,
   KONFESSIONEN,
   parseEuro,
-  parseHundredths,
+  parsePercent,
   type Beschaeftigungsart,
   type Konfession,
 } from "@haben/core";
@@ -103,7 +103,7 @@ const STEUERKLASSEN = ["I", "II", "III", "IV", "V", "VI"];
 
 type Texte = Record<"monatsgehalt" | "zusatzbeitrag" | "pkvBasisbeitrag" | "pkvZuschuss" | "u1Satz" | "u2Satz" | "faktor" | "kinderfreibetraege", string>;
 
-function texte(w: MitarbeiterWerte): Texte {
+export function texte(w: MitarbeiterWerte): Texte {
   return {
     monatsgehalt: w.monatsgehalt ? formatDecimal(w.monatsgehalt) : "",
     zusatzbeitrag: formatHundredths(w.zusatzbeitrag),
@@ -117,17 +117,17 @@ function texte(w: MitarbeiterWerte): Texte {
 }
 
 /** Werte aus den Texten; die erste Beanstandung als Text */
-function auswerten(w: MitarbeiterWerte, t: Texte): MitarbeiterWerte | string {
-  // Beträge in Cent, Sätze in Basispunkten; beide mit zwei Nachkommastellen und nicht negativ
+export function auswerten(w: MitarbeiterWerte, t: Texte): MitarbeiterWerte | string {
+  // Beträge in Cent, Sätze in Basispunkten (parsePercent wie jedes Prozentfeld); beide nicht negativ
   const lesen =
-    (parse: (text: string) => number | null) =>
+    (parse: (text: string) => number | null, was: string) =>
     (text: string, label: string, leerIstNull = true) => {
       if (leerIstNull && text.trim() === "") return 0;
       const n = parse(text);
-      return n === null || n < 0 ? `${label}: kein gültiger Betrag.` : n;
+      return n === null || n < 0 ? `${label}: ${was}.` : n;
     };
-  const euro = lesen(parseEuro);
-  const satz = lesen(parseHundredths);
+  const euro = lesen(parseEuro, "kein gültiger Betrag");
+  const satz = lesen(parsePercent, "kein gültiger Satz in Prozent, etwa 1,7");
   const werte = {
     monatsgehalt: euro(t.monatsgehalt, "Monatsgehalt", false),
     zusatzbeitrag: satz(t.zusatzbeitrag, "Zusatzbeitrag"),
