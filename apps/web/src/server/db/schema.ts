@@ -61,6 +61,9 @@ import {
   type LohnStammdaten,
   type LstaKennzahlen,
   type SvBeitraege,
+  type BasisPoints,
+  type Cents,
+  type Millis,
 } from "@haben/core";
 import type { LstbWerte } from "@haben/core";
 
@@ -175,15 +178,15 @@ export const company = pgTable(
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
     privateShares: jsonb("private_shares").$type<Record<string, number>>().notNull().default({}),
     /**
-     * Mahnwesen: Basiszinssatz in Basispunkten (null = keine Verzugszinsen), Mahngebühr je Stufe in Cent,
+     * Mahnwesen: Basiszinssatz (null = keine Verzugszinsen), Mahngebühr je Stufe,
      * Zahlungsfrist in Tagen. autoBaseRate: Basiszinssatz von der Bundesbank automatisch abrufen (ausdrücklich
      * einzuschalten); baseRateSince: Halbjahr (JJJJ-01 oder JJJJ-07), für das der Abruf den Satz bestätigt hat.
      * Beide fehlen in älteren Zeilen.
      */
     dunning: jsonb("dunning")
       .$type<{
-        baseRate: number | null;
-        fees: Record<"1" | "2" | "3", number>;
+        baseRate: BasisPoints | null;
+        fees: Record<"1" | "2" | "3", Cents>;
         deadlineDays: number;
         autoBaseRate?: boolean;
         baseRateSince?: string | null;
@@ -246,31 +249,31 @@ export const vatReturns = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     year: smallint("year").notNull(),
     month: smallint("month").notNull(),
-    kz81: integer("kz81").notNull().default(0),
-    kz86: integer("kz86").notNull().default(0),
+    kz81: integer("kz81").$type<Cents>().notNull().default(0),
+    kz86: integer("kz86").$type<Cents>().notNull().default(0),
     /** Umsätze ohne Steuer: Reverse Charge im EU-Ausland, nicht steuerbar, steuerfrei ohne Vorsteuerabzug */
-    kz21: integer("kz21").notNull().default(0),
-    kz45: integer("kz45").notNull().default(0),
-    kz48: integer("kz48").notNull().default(0),
-    kz66: integer("kz66").notNull().default(0),
+    kz21: integer("kz21").$type<Cents>().notNull().default(0),
+    kz45: integer("kz45").$type<Cents>().notNull().default(0),
+    kz48: integer("kz48").$type<Cents>().notNull().default(0),
+    kz66: integer("kz66").$type<Cents>().notNull().default(0),
     /** § 13b als Leistungsempfänger: Bemessungsgrundlagen 46/84, Steuer 47/85, Vorsteuer 67 */
-    kz46: integer("kz46").notNull().default(0),
-    kz47: integer("kz47").notNull().default(0),
-    kz84: integer("kz84").notNull().default(0),
-    kz85: integer("kz85").notNull().default(0),
-    kz67: integer("kz67").notNull().default(0),
+    kz46: integer("kz46").$type<Cents>().notNull().default(0),
+    kz47: integer("kz47").$type<Cents>().notNull().default(0),
+    kz84: integer("kz84").$type<Cents>().notNull().default(0),
+    kz85: integer("kz85").$type<Cents>().notNull().default(0),
+    kz67: integer("kz67").$type<Cents>().notNull().default(0),
     /** Steuerfreie Lieferungen mit Vorsteuerabzug: innergemeinschaftlich (41), Ausfuhr (43) */
-    kz41: integer("kz41").notNull().default(0),
-    kz43: integer("kz43").notNull().default(0),
+    kz41: integer("kz41").$type<Cents>().notNull().default(0),
+    kz43: integer("kz43").$type<Cents>().notNull().default(0),
     /** Innergemeinschaftlicher Erwerb: Bemessungsgrundlagen 89/93, Vorsteuer daraus 61 */
-    kz89: integer("kz89").notNull().default(0),
-    kz93: integer("kz93").notNull().default(0),
-    kz61: integer("kz61").notNull().default(0),
+    kz89: integer("kz89").$type<Cents>().notNull().default(0),
+    kz93: integer("kz93").$type<Cents>().notNull().default(0),
+    kz61: integer("kz61").$type<Cents>().notNull().default(0),
     /** Entstandene Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG) */
-    kz62: integer("kz62").notNull().default(0),
+    kz62: integer("kz62").$type<Cents>().notNull().default(0),
     /** Abzug der Sondervorauszahlung (Dauerfristverlängerung) in der letzten Voranmeldung des Jahres */
-    kz39: integer("kz39").notNull().default(0),
-    kz83: integer("kz83").notNull().default(0),
+    kz39: integer("kz39").$type<Cents>().notNull().default(0),
+    kz83: integer("kz83").$type<Cents>().notNull().default(0),
     status: vatReturnStatusEnum("status").notNull().default("draft"),
     /** Berichtigte Anmeldung (Kz 10) */
     berichtigt: boolean("berichtigt").notNull().default(false),
@@ -342,7 +345,7 @@ export const vatExtensions = pgTable("vat_extensions", {
   year: smallint("year").primaryKey(),
   active: boolean("active").notNull(),
   /** Angemeldete Sondervorauszahlung in Cent (volle Euro); null bei vierteljährlicher Abgabe oder ohne Anmeldung */
-  sondervorauszahlung: integer("sondervorauszahlung"),
+  sondervorauszahlung: integer("sondervorauszahlung").$type<Cents>(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -352,8 +355,8 @@ export const vatExtensionSubmissions = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     year: smallint("year").notNull(),
-    /** Gemeldete Sondervorauszahlung (Kz 38) in Cent; null beim Antrag ohne Sondervorauszahlung (vierteljährlich) */
-    kz38: integer("kz38"),
+    /** Gemeldete Sondervorauszahlung (Kz 38); null beim Antrag ohne Sondervorauszahlung (vierteljährlich) */
+    kz38: integer("kz38").$type<Cents>(),
     /** Berichtigte Anmeldung der Sondervorauszahlung (Kz 10) */
     berichtigt: boolean("berichtigt").notNull().default(false),
     kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
@@ -383,8 +386,8 @@ export const zmSubmissions = pgTable(
     month: smallint("month").notNull(),
     /** Berichtigte Meldung (meldeart 11) */
     berichtigt: boolean("berichtigt").notNull().default(false),
-    /** Gemeldete Zeilen: USt-IdNr., Art (L, S, D) und Betrag in Cent; gemeldet in vollen Euro */
-    zeilen: jsonb("zeilen").$type<{ ustId: string; art: "L" | "S" | "D"; betrag: number }[]>().notNull(),
+    /** Gemeldete Zeilen: USt-IdNr., Art (L, S, D) und Betrag; gemeldet in vollen Euro */
+    zeilen: jsonb("zeilen").$type<{ ustId: string; art: "L" | "S" | "D"; betrag: Cents }[]>().notNull(),
     kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
     ok: boolean("ok").notNull(),
     code: integer("code").notNull(),
@@ -435,7 +438,7 @@ export const vatReturnFilings = pgTable(
       .references(() => vatReturns.id),
     filedOn: date("filed_on", { mode: "string" }).notNull(),
     transferTicket: text("transfer_ticket").notNull(),
-    kz83: integer("kz83").notNull(),
+    kz83: integer("kz83").$type<Cents>().notNull(),
     filename: text("filename").notNull(),
     sha256: text("sha256").notNull(),
     size: integer("size").notNull(),
@@ -511,8 +514,7 @@ export const annualSubmissionFigures = pgTable(
       .references(() => annualSubmissions.id, { onDelete: "restrict" }),
     /** Schlüssel der Erklärung wie in der Übermittlung: `steuerpflichtig`, `base19`, `gewinn`, … */
     field: text("field").notNull(),
-    /** Betrag in Cent */
-    amount: bigint("amount", { mode: "number" }).notNull(),
+    amount: bigint("amount", { mode: "number" }).$type<Cents>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("annual_submission_figures_eindeutig").on(t.submissionId, t.field)],
@@ -594,7 +596,7 @@ export const dividends = pgTable("dividends", {
   zufluss: date("zufluss", { mode: "string" }).notNull(),
   /** Geschäftsjahr, dessen Gewinn der Beschluss ausschüttet: „für … (Zeitraum)“ in Muster II der Steuerbescheinigung; leer bei älteren Buchungen */
   geschaeftsjahr: integer("geschaeftsjahr"),
-  brutto: integer("brutto").notNull(),
+  brutto: integer("brutto").$type<Cents>().notNull(),
   empfaenger: jsonb("empfaenger").$type<AusschuettungEmpfaenger[]>().notNull(),
   entryId: uuid("entry_id")
     .notNull()
@@ -892,8 +894,8 @@ export const pauschalen = pgTable(
     /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend };
      * Entfernung: { tage, km, betriebsstaette } */
     details: jsonb("details").$type<Record<string, string | number | boolean>>().notNull(),
-    /** Cent; beim Storno negativ */
-    amount: integer("amount").notNull(),
+    /** Beim Storno negativ */
+    amount: integer("amount").$type<Cents>().notNull(),
     /** Storno: die aufgehobene Pauschale */
     reversesId: uuid("reverses_id"),
     journalEntryId: uuid("journal_entry_id")
@@ -919,8 +921,8 @@ export const cashEntries = pgTable(
     /** Lfd. Nr. im Kassenbuch, lückenlos */
     number: integer("number").notNull().unique(),
     date: date("date", { mode: "string" }).notNull(),
-    /** Cent; Eingang positiv, Ausgang negativ */
-    amount: integer("amount").notNull(),
+    /** Eingang positiv, Ausgang negativ */
+    amount: integer("amount").$type<Cents>().notNull(),
     kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung", "einnahme", "import"] }).notNull(),
     text: text("text").notNull(),
     documentId: uuid("document_id").references(() => documents.id),
@@ -934,7 +936,7 @@ export const cashEntries = pgTable(
      * packages/core/src/bareinnahme.ts; Voranmeldung und EÜR lesen sie von hier, die Gegenzeile trägt dieselben Angaben
      */
     taxTreatment: text("tax_treatment", { enum: BAREINNAHME_BEHANDLUNG_KEYS }),
-    taxRate: integer("tax_rate"),
+    taxRate: integer("tax_rate").$type<BasisPoints>(),
     /** Storno: die aufgehobene Zeile */
     reversesId: uuid("reverses_id"),
     journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
@@ -1053,8 +1055,8 @@ export const contacts = pgTable(
      */
     debitorNr: integer("debitor_nr").unique(),
     kreditorNr: integer("kreditor_nr").unique(),
-    /** Stundensatz in Cent für Leistungseinträge (#417); null = keiner hinterlegt */
-    hourlyRateCents: integer("hourly_rate_cents"),
+    /** Stundensatz für Leistungseinträge (#417); null = keiner hinterlegt */
+    hourlyRateCents: integer("hourly_rate_cents").$type<Cents>(),
     version: integer("version").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1117,7 +1119,7 @@ export const serviceEntries = pgTable(
     workedOn: date("worked_on", { mode: "string" }).notNull(),
     minutes: integer("minutes").notNull(),
     description: text("description").notNull().default(""),
-    hourlyRateCents: integer("hourly_rate_cents"),
+    hourlyRateCents: integer("hourly_rate_cents").$type<Cents>(),
     /** Erfasst, kommt aber nie in einen Rechnungsentwurf (z. B. interne Zeit) */
     nonBillable: boolean("non_billable").notNull().default(false),
     /** Abrechenbare Dauer in Minuten, wenn sie von der erfassten abweicht; null = die erfasste */
@@ -1347,14 +1349,14 @@ export const invoices = pgTable(
     /** Abschlagsrechnung zu einer Zeile des Zahlungsplans im Angebot (Index ab 0) */
     paymentPlanRow: smallint("payment_plan_row"),
     /**
-     * Gesamtrabatt wie eingegeben: Prozent in Basispunkten oder fester Betrag in Cent im Preismodus; höchstens eins. Der
+     * Gesamtrabatt wie eingegeben: Prozent oder fester Betrag im Preismodus; höchstens eins. Der
      * Abzug je Satz steckt in invoice_taxes (Bemessungsgrundlage nach Rabatt) und folgt aus Zeilennetto minus Grundlage.
      */
-    discountPercent: integer("discount_percent"),
-    discountAmount: integer("discount_amount"),
-    net: integer("net").notNull().default(0),
-    tax: integer("tax").notNull().default(0),
-    gross: integer("gross").notNull().default(0),
+    discountPercent: integer("discount_percent").$type<BasisPoints>(),
+    discountAmount: integer("discount_amount").$type<Cents>(),
+    net: integer("net").$type<Cents>().notNull().default(0),
+    tax: integer("tax").$type<Cents>().notNull().default(0),
+    gross: integer("gross").$type<Cents>().notNull().default(0),
     /** Verkäufer und Käufer, wie sie auf der festgeschriebenen Rechnung stehen */
     seller: jsonb("seller").$type<Seller>(),
     buyer: jsonb("buyer").$type<Buyer>(),
@@ -1447,19 +1449,18 @@ export const invoiceLines = pgTable(
     detail: text("detail").notNull().default(""),
     /** Artikelnummer des Verkäufers (BT-155), beim Einfügen aus dem Artikel kopiert; leer = keine (#388) */
     itemNumber: text("item_number").notNull().default(""),
-    /** Tausendstel */
-    quantity: integer("quantity").notNull(),
+    quantity: integer("quantity").$type<Millis>().notNull(),
     unit: text("unit").notNull(),
     /** Wie eingegeben: netto oder brutto, je nach Preismodus der Rechnung */
-    unitPrice: integer("unit_price").notNull(),
-    taxRate: smallint("tax_rate").notNull(),
+    unitPrice: integer("unit_price").$type<Cents>().notNull(),
+    taxRate: smallint("tax_rate").$type<BasisPoints>().notNull(),
     /** Zeilennetto; bei Bruttopreisen der Anteil an der Bemessungsgrundlage des Satzes */
-    net: integer("net").notNull(),
+    net: integer("net").$type<Cents>().notNull(),
     /** Schlussrechnung: Abzug dieser Abschlagsrechnung; erzeugt Haben, nicht der Editor */
     deductionOf: uuid("deduction_of").references(() => invoices.id),
-    /** Positionsrabatt wie eingegeben: Prozent in Basispunkten oder fester Betrag in Cent im Preismodus; net ist nach Rabatt */
-    discountPercent: integer("discount_percent"),
-    discountAmount: integer("discount_amount"),
+    /** Positionsrabatt wie eingegeben: Prozent oder fester Betrag im Preismodus; net ist nach Rabatt */
+    discountPercent: integer("discount_percent").$type<BasisPoints>(),
+    discountAmount: integer("discount_amount").$type<Cents>(),
   },
   (t) => [
     index("invoice_lines_invoice").on(t.invoiceId),
@@ -1478,13 +1479,12 @@ export const invoiceTaxes = pgTable(
     invoiceId: uuid("invoice_id")
       .notNull()
       .references(() => invoices.id, { onDelete: "cascade" }),
-    /** Basispunkte: 1900 = 19 % */
-    rate: smallint("rate").notNull(),
-    base: integer("base").notNull(),
-    tax: integer("tax").notNull(),
+    rate: smallint("rate").$type<BasisPoints>().notNull(),
+    base: integer("base").$type<Cents>().notNull(),
+    tax: integer("tax").$type<Cents>().notNull(),
     /** Nur bei Fremdwährung: Bemessungsgrundlage und Steuer in der Währung der Rechnung, wie auf PDF und XML */
-    originalBase: bigint("original_base", { mode: "number" }),
-    originalTax: bigint("original_tax", { mode: "number" }),
+    originalBase: bigint("original_base", { mode: "number" }).$type<Cents>(),
+    originalTax: bigint("original_tax", { mode: "number" }).$type<Cents>(),
   },
   (t) => [primaryKey({ columns: [t.invoiceId, t.rate] })],
 );
@@ -1561,9 +1561,9 @@ export const quotes = pgTable(
     taxDetails: jsonb("tax_details").$type<OutgoingTaxDetails>(),
     /** Preise netto oder brutto inkl. USt, wie bei der Rechnung */
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
-    net: integer("net").notNull().default(0),
-    tax: integer("tax").notNull().default(0),
-    gross: integer("gross").notNull().default(0),
+    net: integer("net").$type<Cents>().notNull().default(0),
+    tax: integer("tax").$type<Cents>().notNull().default(0),
+    gross: integer("gross").$type<Cents>().notNull().default(0),
     seller: jsonb("seller").$type<Seller>(),
     buyer: jsonb("buyer").$type<Buyer>(),
     pdf: bytea("pdf"),
@@ -1573,9 +1573,9 @@ export const quotes = pgTable(
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     /** Rechnung, die aus dem Angebot entstanden ist */
     invoiceId: uuid("invoice_id").references(() => invoices.id),
-    /** Gesamtrabatt wie bei der Rechnung: Prozent in Basispunkten oder fester Betrag in Cent, höchstens eins */
-    discountPercent: integer("discount_percent"),
-    discountAmount: integer("discount_amount"),
+    /** Gesamtrabatt wie bei der Rechnung: Prozent oder fester Betrag, höchstens eins */
+    discountPercent: integer("discount_percent").$type<BasisPoints>(),
+    discountAmount: integer("discount_amount").$type<Cents>(),
     /** Zahlungsplan: je Zeile Prozent, fester Betrag (im Preismodus) oder Rest, mit Fälligkeit als Text; leer = keiner */
     paymentPlan: jsonb("payment_plan").$type<PaymentPlanRow[]>().notNull().default([]),
     /** Zahlungsplan auch in der Auftragsbestätigung */
@@ -1611,16 +1611,15 @@ export const quoteLines = pgTable(
     detail: text("detail").notNull().default(""),
     /** Artikelnummer des Verkäufers wie bei der Rechnung; geht in die Rechnung aus dem Angebot über */
     itemNumber: text("item_number").notNull().default(""),
-    /** Tausendstel */
-    quantity: integer("quantity").notNull(),
+    quantity: integer("quantity").$type<Millis>().notNull(),
     unit: text("unit").notNull(),
-    unitPrice: integer("unit_price").notNull(),
-    taxRate: smallint("tax_rate").notNull(),
+    unitPrice: integer("unit_price").$type<Cents>().notNull(),
+    taxRate: smallint("tax_rate").$type<BasisPoints>().notNull(),
     /** Zeilennetto nach Positionsrabatt */
-    net: integer("net").notNull(),
+    net: integer("net").$type<Cents>().notNull(),
     /** Positionsrabatt wie bei der Rechnung */
-    discountPercent: integer("discount_percent"),
-    discountAmount: integer("discount_amount"),
+    discountPercent: integer("discount_percent").$type<BasisPoints>(),
+    discountAmount: integer("discount_amount").$type<Cents>(),
     /** Optionale Position oder Alternative zur Hauptposition davor; beide zählen nicht zur Angebotssumme. null = normal */
     kind: text("kind", { enum: QUOTE_LINE_KINDS }),
   },
@@ -1793,8 +1792,8 @@ export const articles = pgTable(
     /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
     detail: text("detail").notNull().default(""),
     unit: text("unit").notNull(),
-    unitPrice: integer("unit_price").notNull(),
-    taxRate: smallint("tax_rate").notNull(),
+    unitPrice: integer("unit_price").$type<Cents>().notNull(),
+    taxRate: smallint("tax_rate").$type<BasisPoints>().notNull(),
     /** Preis enthält die Umsatzsteuer; passt das nicht zur Rechnung, wird beim Einfügen umgerechnet */
     priceIncludesTax: boolean("price_includes_tax").notNull().default(false),
     /** Interne Notiz, erscheint nicht auf Belegen */
@@ -1908,16 +1907,16 @@ export const journalLines = pgTable(
       .notNull()
       .references(() => journalEntries.id),
     account: text("account").notNull(),
-    debit: integer("debit").notNull().default(0),
-    credit: integer("credit").notNull().default(0),
+    debit: integer("debit").$type<Cents>().notNull().default(0),
+    credit: integer("credit").$type<Cents>().notNull().default(0),
     taxCode: text("tax_code"),
     /**
-     * Bemessungsgrundlage zum Steuerschlüssel, wenn sie nicht der Betrag der Zeile ist, in Cent mit Vorzeichen (positiv
+     * Bemessungsgrundlage zum Steuerschlüssel, wenn sie nicht der Betrag der Zeile ist, mit Vorzeichen (positiv
      * erhöht die Kennzahl): bei Ist-Versteuerung an der Zahlung (Umbuchung der Umsatzsteuer, Anteil zu 0 % an der
      * Forderung, Anteil ohne Steuer an einer Umsatzsteuerzeile ohne Betrag), #542. Ältere Zeilen haben keine; neue Spalten
      * ändern die Siegel nicht.
      */
-    basis: integer("basis"),
+    basis: integer("basis").$type<Cents>(),
   },
   (t) => [
     check("journal_lines_one_side", sql`(${t.debit} >= 0 and ${t.credit} >= 0) and (${t.debit} = 0 or ${t.credit} = 0)`),
@@ -1952,7 +1951,7 @@ export const recurringDocuments = pgTable(
       .notNull()
       .default("bank"),
     privateShare: smallint("private_share").notNull().default(0),
-    amounts: jsonb("amounts").$type<{ taxRate: number; net: number; tax: number }[]>().notNull(),
+    amounts: jsonb("amounts").$type<{ taxRate: BasisPoints; net: Cents; tax: Cents }[]>().notNull(),
     /** Das Dokument weist die Umsatzsteuer gesondert aus (Dauerrechnung, Vertrag mit Steuerbetrag); sonst keine Vorsteuer */
     taxShown: boolean("tax_shown").notNull().default(false),
     note: text("note").notNull().default(""),
@@ -2045,19 +2044,19 @@ export const documents = pgTable(
     /** Herkunft des Kurses: USt-Umrechnungskurs des Monats, gestatteter Tageskurs oder von Hand; mit Monat bzw. Kursdatum */
     exchangeRateSource: text("exchange_rate_source", { enum: EXCHANGE_RATE_SOURCE_KEYS }),
     exchangeRateDate: date("exchange_rate_date", { mode: "string" }),
-    net: integer("net").notNull().default(0),
-    tax: integer("tax").notNull().default(0),
-    gross: integer("gross").notNull().default(0),
+    net: integer("net").$type<Cents>().notNull().default(0),
+    tax: integer("tax").$type<Cents>().notNull().default(0),
+    gross: integer("gross").$type<Cents>().notNull().default(0),
     /** Bei Kategorie „anlage“: Angaben für die Anlage, die beim Buchen entsteht */
     asset: jsonb("asset").$type<{ name: string; kind: AssetKind; method: AssetMethod; usefulLifeMonths: number | null }>(),
     /** Beim Buchen festgehalten: false ohne Vorsteuerabzug (Kleinunternehmer, Firmenvorgabe oder am Beleg), dann ist die Steuer Teil des Aufwands */
     vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
     /**
-     * Abziehbarer Anteil der Vorsteuer in Basispunkten (10000 = voll, 0 = kein Abzug); null = Vorgabe der Firmendaten.
+     * Abziehbarer Anteil der Vorsteuer (10000 = voll, 0 = kein Abzug); null = Vorgabe der Firmendaten.
      * Beim Buchen mit dem angewandten Wert festgehalten; document_amounts kann je Satz überschreiben. vorsteuerAbzug
      * hält fest, ob irgendein Satz Abzug erlaubt; ältere Belege tragen allein diesen Boolean.
      */
-    vorsteuerAnteil: smallint("vorsteuer_anteil"),
+    vorsteuerAnteil: smallint("vorsteuer_anteil").$type<BasisPoints>(),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
     privateShare: smallint("private_share").notNull().default(0),
     /**
@@ -2151,16 +2150,16 @@ export const documentAmounts = pgTable(
     documentId: uuid("document_id")
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
-    taxRate: smallint("tax_rate").notNull(),
+    taxRate: smallint("tax_rate").$type<BasisPoints>().notNull(),
     /** In Euro; bei Fremdwährung aus den Originalbeträgen umgerechnet */
-    net: integer("net").notNull(),
-    tax: integer("tax").notNull(),
+    net: integer("net").$type<Cents>().notNull(),
+    tax: integer("tax").$type<Cents>().notNull(),
     /** § 15 Abs. 4 UStG: null erbt den Beleg; beim Buchen wird der wirksame Anteil festgehalten. */
-    vorsteuerAnteil: smallint("vorsteuer_anteil"),
+    vorsteuerAnteil: smallint("vorsteuer_anteil").$type<BasisPoints>(),
     /** Nur bei Fremdwährung: Beträge in der Währung des Belegs */
     /** bigint: in Währungen wie HUF oder JPY übersteigen schon übliche Beträge den Bereich von integer */
-    originalNet: bigint("original_net", { mode: "number" }),
-    originalTax: bigint("original_tax", { mode: "number" }),
+    originalNet: bigint("original_net", { mode: "number" }).$type<Cents>(),
+    originalTax: bigint("original_tax", { mode: "number" }).$type<Cents>(),
   },
   (t) => [
     uniqueIndex("document_amounts_rate").on(t.documentId, t.taxRate),
@@ -2185,9 +2184,9 @@ export const documentSplits = pgTable(
     category: text("category").notNull(),
     /** Eigenes Sachkonto (#270) der Kategorie der Zeile */
     ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
-    taxRate: smallint("tax_rate").notNull(),
-    net: integer("net").notNull(),
-    tax: integer("tax").notNull(),
+    taxRate: smallint("tax_rate").$type<BasisPoints>().notNull(),
+    net: integer("net").$type<Cents>().notNull(),
+    tax: integer("tax").$type<Cents>().notNull(),
   },
   (t) => [uniqueIndex("document_splits_position").on(t.documentId, t.position)],
 );
@@ -2233,8 +2232,8 @@ export const bankImports = pgTable("bank_imports", {
   format: text("format").notNull(),
   periodFrom: date("period_from", { mode: "string" }),
   periodTo: date("period_to", { mode: "string" }),
-  openingBalance: integer("opening_balance"),
-  closingBalance: integer("closing_balance"),
+  openingBalance: integer("opening_balance").$type<Cents>(),
+  closingBalance: integer("closing_balance").$type<Cents>(),
   /** Neu angelegt / als Duplikat übersprungen */
   added: integer("added").notNull(),
   skipped: integer("skipped").notNull(),
@@ -2290,7 +2289,7 @@ export const bankTransactions = pgTable(
       .references(() => bankImports.id),
     bookingDate: date("booking_date", { mode: "string" }).notNull(),
     valueDate: date("value_date", { mode: "string" }),
-    amount: integer("amount").notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
     currency: text("currency").notNull().default("EUR"),
     counterpartyName: text("counterparty_name").notNull().default(""),
     counterpartyIban: text("counterparty_iban"),
@@ -2339,7 +2338,7 @@ export const sepaTransfers = pgTable("sepa_transfers", {
   messageId: text("message_id").notNull().unique(),
   executionDate: date("execution_date", { mode: "string" }).notNull(),
   numberOfTransactions: integer("number_of_transactions").notNull(),
-  controlSum: bigint("control_sum", { mode: "number" }).notNull(),
+  controlSum: bigint("control_sum", { mode: "number" }).$type<Cents>().notNull(),
   /** Die Datei, wie sie heruntergeladen wurde */
   xml: text("xml").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -2357,10 +2356,10 @@ export const sepaTransferItems = pgTable(
       .notNull()
       .references(() => documents.id),
     endToEndId: text("end_to_end_id").notNull().unique(),
-    /** Überwiesener Betrag in Cent, nach Skonto */
-    amount: integer("amount").notNull(),
-    /** Abgezogenes Skonto in Cent; 0 ohne */
-    skonto: integer("skonto").notNull().default(0),
+    /** Überwiesener Betrag nach Skonto */
+    amount: integer("amount").$type<Cents>().notNull(),
+    /** Abgezogenes Skonto; 0 ohne */
+    skonto: integer("skonto").$type<Cents>().notNull().default(0),
     creditorName: text("creditor_name").notNull(),
     creditorIban: text("creditor_iban").notNull(),
     remittance: text("remittance").notNull(),
@@ -2377,7 +2376,7 @@ export const sepaDirectDebits = pgTable("sepa_direct_debits", {
   /** MsgId der Datei, zugleich Dateiname */
   messageId: text("message_id").notNull().unique(),
   numberOfTransactions: integer("number_of_transactions").notNull(),
-  controlSum: bigint("control_sum", { mode: "number" }).notNull(),
+  controlSum: bigint("control_sum", { mode: "number" }).$type<Cents>().notNull(),
   /** Die Datei, wie sie heruntergeladen wurde */
   xml: text("xml").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -2406,8 +2405,8 @@ export const sepaDirectDebitItems = pgTable(
     scheme: text("scheme", { enum: ["CORE", "B2B"] }).notNull(),
     sequence: text("sequence", { enum: ["FRST", "RCUR"] }).notNull(),
     collectionDate: date("collection_date", { mode: "string" }).notNull(),
-    /** Eingezogener Betrag in Cent */
-    amount: integer("amount").notNull(),
+    /** Eingezogener Betrag */
+    amount: integer("amount").$type<Cents>().notNull(),
     debtorName: text("debtor_name").notNull(),
     debtorIban: text("debtor_iban").notNull(),
     remittance: text("remittance").notNull(),
@@ -2493,7 +2492,7 @@ export const loans = pgTable(
     term: text("term", { enum: DARLEHEN_LAUFZEIT_KEYS }).notNull(),
     purpose: text("purpose", { enum: DARLEHEN_ZWECK_KEYS }).notNull(),
     /** Restschuld eines übernommenen Darlehens am Stichtag; 0 bei einem neuen */
-    openingBalance: integer("opening_balance").notNull().default(0),
+    openingBalance: integer("opening_balance").$type<Cents>().notNull().default(0),
     openingDate: date("opening_date", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -2521,7 +2520,7 @@ export const allocations = pgTable(
     invoiceId: uuid("invoice_id").references(() => invoices.id),
     documentId: uuid("document_id").references(() => documents.id),
     /** Mit dem Vorzeichen des Umsatzes; Teile einer Aufteilung auch mit umgekehrtem (z. B. Gebühr in einer Auszahlung) */
-    amount: integer("amount").notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
     /** Teile einer Aufteilung (Splitbuchung) tragen dieselbe ID und werden nur zusammen aufgehoben */
     splitId: uuid("split_id"),
     reversesId: uuid("reverses_id"),
@@ -2553,7 +2552,7 @@ export const allocations = pgTable(
      * trägt dieselben Angaben. Kein Enum: Die Ausgabekategorien wachsen, gebuchte Werte bleiben gültig.
      */
     category: text("category").$type<DirektKategorie>(),
-    taxRate: integer("tax_rate"),
+    taxRate: integer("tax_rate").$type<BasisPoints>(),
     /**
      * Rücklastschrift (#445): die zurückgegebene Lastschrift. Die Zuordnung auf die Rechnung ist dann negativ und öffnet
      * sie wieder; die Gegenzeile beim Aufheben trägt denselben Bezug. Nur an Zuordnungen auf eine Rechnung.
@@ -2635,7 +2634,7 @@ export const writeOffs = pgTable(
     invoiceId: uuid("invoice_id").references(() => invoices.id),
     documentId: uuid("document_id").references(() => documents.id),
     date: date("date", { mode: "string" }).notNull(),
-    amount: integer("amount").notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
     /** Zahlung, mit der zusammen ausgebucht wurde (Rest als Skonto); wird mit deren Zuordnung aufgehoben */
     transactionId: uuid("transaction_id").references(() => bankTransactions.id),
     /** Ebenso bei einer Bareinnahme: die Zeile im Kassenbuch; wird mit deren Storno aufgehoben */
@@ -2687,7 +2686,7 @@ export const documentSettlements = pgTable(
     settlementId: uuid("settlement_id").notNull().defaultRandom(),
     date: date("date", { mode: "string" }).notNull(),
     /** Vorzeichen wie eine Zahlung: negativ beim Beleg, positiv bei der Gutschrift */
-    amount: integer("amount").notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
     note: text("note").notNull().default(""),
     reversesId: uuid("reverses_id"),
     /** Wer verrechnet bzw. aufgehoben hat (Benutzer-ID wie im Audit-Log) */
@@ -2730,7 +2729,7 @@ export const invoiceSettlements = pgTable(
     settlementId: uuid("settlement_id").notNull().defaultRandom(),
     date: date("date", { mode: "string" }).notNull(),
     /** Vorzeichen wie eine Zahlung: positiv bei der Rechnung, negativ bei der Korrektur */
-    amount: integer("amount").notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
     note: text("note").notNull().default(""),
     reversesId: uuid("reverses_id"),
     /** Wer verrechnet bzw. aufgehoben hat (Benutzer-ID wie im Audit-Log) */
@@ -2830,8 +2829,8 @@ export const datevBookings = pgTable(
     /** Zeilennummer in der Originaldatei */
     row: integer("row").notNull(),
     date: date("date", { mode: "string" }).notNull(),
-    /** Cent, immer positiv; die Richtung steht in side */
-    amount: integer("amount").notNull(),
+    /** Immer positiv; die Richtung steht in side */
+    amount: integer("amount").$type<Cents>().notNull(),
     side: text("side", { enum: ["S", "H"] }).notNull(),
     currency: text("currency").notNull().default("EUR"),
     account: text("account").notNull(),
@@ -2999,8 +2998,7 @@ export const fastbillReceipts = pgTable("fastbill_receipts", {
   number: text("number").notNull().default(""),
   date: date("date", { mode: "string" }),
   supplier: text("supplier").notNull().default(""),
-  /** Cent */
-  gross: integer("gross").notNull().default(0),
+  gross: integer("gross").$type<Cents>().notNull().default(0),
   documentUrl: text("document_url"),
   sha256: text("sha256"),
   filename: text("filename"),
@@ -3155,9 +3153,9 @@ export const legacyOrderDocuments = pgTable(
     contactId: uuid("contact_id").references(() => contacts.id),
     contactName: text("contact_name").notNull(),
     currency: text("currency").notNull(),
-    net: integer("net"),
-    tax: integer("tax"),
-    gross: integer("gross"),
+    net: integer("net").$type<Cents>(),
+    tax: integer("tax").$type<Cents>(),
+    gross: integer("gross").$type<Cents>(),
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -3212,8 +3210,8 @@ export const legacyDunnings = pgTable(
     contactId: uuid("contact_id").references(() => contacts.id),
     contactName: text("contact_name").notNull(),
     currency: text("currency").notNull(),
-    /** Gemahnter Betrag in Cent; Gebühren und Zinsen nur in raw */
-    total: integer("total"),
+    /** Gemahnter Betrag; Gebühren und Zinsen nur in raw */
+    total: integer("total").$type<Cents>(),
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -3262,8 +3260,8 @@ export const legacyVatReports = pgTable(
     actualTaxation: boolean("actual_taxation"),
     corrected: boolean("corrected").notNull(),
     transferTicket: text("transfer_ticket"),
-    /** Kz 83 in Cent, aus raw gelesen; null, wenn sie fehlt */
-    kz83: integer("kz83"),
+    /** Kz 83, aus raw gelesen; null, wenn sie fehlt */
+    kz83: integer("kz83").$type<Cents>(),
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -3343,9 +3341,9 @@ export const lexofficeVouchers = pgTable(
     contactId: uuid("contact_id").references(() => contacts.id),
     contactName: text("contact_name").notNull().default(""),
     currency: text("currency").notNull().default("EUR"),
-    net: integer("net").notNull(),
-    tax: integer("tax").notNull(),
-    gross: integer("gross").notNull(),
+    net: integer("net").$type<Cents>().notNull(),
+    tax: integer("tax").$type<Cents>().notNull(),
+    gross: integer("gross").$type<Cents>().notNull(),
     taxes: jsonb("taxes").$type<LegacyTaxRow[]>().notNull(),
     categories: jsonb("categories").$type<LegacyCategoryRow[]>().notNull(),
     payment: jsonb("payment").$type<LegacyPayment>(),
@@ -3385,7 +3383,7 @@ export const legacyVoucherPayments = pgTable(
     accountId: text("account_id"),
     accountName: text("account_name"),
     date: date("date").notNull(),
-    amount: integer("amount").notNull(),
+    amount: integer("amount").$type<Cents>().notNull(),
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -3507,10 +3505,10 @@ export const assets = pgTable(
     account: text("account").notNull(),
     acquisitionDate: date("acquisition_date", { mode: "string" }).notNull(),
     /** Anschaffungskosten netto (ohne Vorsteuerabzug brutto) */
-    cost: integer("cost").notNull(),
+    cost: integer("cost").$type<Cents>().notNull(),
     usefulLifeMonths: smallint("useful_life_months"),
-    /** Degressive AfA (§ 7 Abs. 2 EStG): fester Satz in Basispunkten, 3000 = 30 % */
-    degressiveRate: smallint("degressive_rate"),
+    /** Degressive AfA (§ 7 Abs. 2 EStG): fester Satz, 3000 = 30 % */
+    degressiveRate: smallint("degressive_rate").$type<BasisPoints>(),
     /** Degressive AfA: ab diesem Jahr linear (§ 7 Abs. 3 EStG); auch nach der ersten Buchung für spätere Jahre setzbar */
     linearFromYear: smallint("linear_from_year"),
     /** Erinnerungswert von 1 € bis zum Abgang */
@@ -3520,7 +3518,7 @@ export const assets = pgTable(
       .references(() => documents.id),
     /** Übernahme: Buchwert zum Stichtag; gebucht als Eröffnung gegen den Saldenvortrag */
     openingDate: date("opening_date", { mode: "string" }),
-    openingBookValue: integer("opening_book_value"),
+    openingBookValue: integer("opening_book_value").$type<Cents>(),
     openingEntryId: uuid("opening_entry_id"),
     disposalDate: date("disposal_date", { mode: "string" }),
     /** Firmenwagen: private Nutzung nach der Listenpreismethode */
@@ -3555,12 +3553,12 @@ export const assetDepreciations = pgTable(
       .notNull()
       .references(() => assets.id),
     year: smallint("year").notNull(),
-    depreciation: integer("depreciation").notNull(),
+    depreciation: integer("depreciation").$type<Cents>().notNull(),
     /** Restbuchwert beim Abgang */
-    disposal: integer("disposal").notNull().default(0),
+    disposal: integer("disposal").$type<Cents>().notNull().default(0),
     /** Private Kfz-Nutzung im Jahr: Entnahme und Umsatzsteuer */
-    privateUse: integer("private_use").notNull().default(0),
-    privateUseVat: integer("private_use_vat").notNull().default(0),
+    privateUse: integer("private_use").$type<Cents>().notNull().default(0),
+    privateUseVat: integer("private_use_vat").$type<Cents>().notNull().default(0),
     entryId: uuid("entry_id")
       .notNull()
       .references(() => journalEntries.id),
@@ -3596,7 +3594,7 @@ export const recurringInvoices = pgTable(
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
     /** detail: Beschreibung unter der Bezeichnung; fehlt bei Vorlagen von vor dem Feld */
     lines: jsonb("lines")
-      .$type<{ description: string; detail?: string; itemNumber?: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>()
+      .$type<{ description: string; detail?: string; itemNumber?: string; quantity: Millis; unit: string; unitPrice: Cents; taxRate: BasisPoints }[]>()
       .notNull(),
     /** Monate zwischen zwei Rechnungen: 1, 3, 6 oder 12 */
     intervalMonths: smallint("interval_months").notNull(),
@@ -3665,14 +3663,14 @@ export const dunnings = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     /** Neue Zahlungsfrist */
     dueDate: date("due_date", { mode: "string" }).notNull(),
-    open: integer("open").notNull(),
-    fee: integer("fee").notNull().default(0),
-    flatFee: integer("flat_fee").notNull().default(0),
-    interest: integer("interest").notNull().default(0),
-    /** Zinssatz in Basispunkten (Basiszinssatz plus Aufschlag) */
-    interestRate: integer("interest_rate").notNull().default(0),
+    open: integer("open").$type<Cents>().notNull(),
+    fee: integer("fee").$type<Cents>().notNull().default(0),
+    flatFee: integer("flat_fee").$type<Cents>().notNull().default(0),
+    interest: integer("interest").$type<Cents>().notNull().default(0),
+    /** Zinssatz (Basiszinssatz plus Aufschlag) */
+    interestRate: integer("interest_rate").$type<BasisPoints>().notNull().default(0),
     interestDays: integer("interest_days").notNull().default(0),
-    total: integer("total").notNull(),
+    total: integer("total").$type<Cents>().notNull(),
     intro: text("intro").notNull(),
     closing: text("closing").notNull(),
     pdf: bytea("pdf").notNull(),
@@ -3877,24 +3875,24 @@ export const employees = pgTable(
     /** Kirchensteuermerkmal (ELStAM), null ohne */
     konfession: text("konfession", { enum: Object.keys(KONFESSIONEN) as [Konfession, ...Konfession[]] }),
     art: text("art", { enum: Object.keys(BESCHAEFTIGUNGSARTEN) as [Beschaeftigungsart, ...Beschaeftigungsart[]] }).notNull(),
-    /** Vereinbartes Monatsgehalt in Cent, das regelmäßige Entgelt */
-    monatsgehalt: integer("monatsgehalt").notNull(),
+    /** Vereinbartes Monatsgehalt, das regelmäßige Entgelt */
+    monatsgehalt: integer("monatsgehalt").$type<Cents>().notNull(),
     krankenversicherung: text("krankenversicherung", { enum: ["gesetzlich", "privat"] })
       .notNull()
       .default("gesetzlich"),
     krankenkasse: text("krankenkasse").notNull().default(""),
     /** Betriebsnummer der Krankenkasse (Einzugsstelle), 8 Ziffern */
     krankenkasseBetriebsnummer: text("krankenkasse_betriebsnummer").notNull().default(""),
-    /** Kassenindividueller Zusatzbeitrag in Basispunkten */
-    zusatzbeitrag: integer("zusatzbeitrag").notNull().default(0),
-    /** Privat versichert: Beitrag zur Basiskranken- und Pflege-Pflichtversicherung im Monat und Zuschuss des Arbeitgebers, Cent */
-    pkvBasisbeitrag: integer("pkv_basisbeitrag").notNull().default(0),
-    pkvZuschuss: integer("pkv_zuschuss").notNull().default(0),
+    /** Kassenindividueller Zusatzbeitrag */
+    zusatzbeitrag: integer("zusatzbeitrag").$type<BasisPoints>().notNull().default(0),
+    /** Privat versichert: Beitrag zur Basiskranken- und Pflege-Pflichtversicherung im Monat und Zuschuss des Arbeitgebers */
+    pkvBasisbeitrag: integer("pkv_basisbeitrag").$type<Cents>().notNull().default(0),
+    pkvZuschuss: integer("pkv_zuschuss").$type<Cents>().notNull().default(0),
     kinderlosenzuschlag: boolean("kinderlosenzuschlag").notNull().default(false),
     kinderUnter25: smallint("kinder_unter_25").notNull().default(0),
-    /** Umlagesätze der Kasse in Basispunkten; U1 null ohne Teilnahme (im Minijob gelten die Sätze der Minijob-Zentrale) */
-    u1Satz: integer("u1_satz"),
-    u2Satz: integer("u2_satz").notNull().default(0),
+    /** Umlagesätze der Kasse; U1 null ohne Teilnahme (im Minijob gelten die Sätze der Minijob-Zentrale) */
+    u1Satz: integer("u1_satz").$type<BasisPoints>(),
+    u2Satz: integer("u2_satz").$type<BasisPoints>().notNull().default(0),
     rvBefreit: boolean("rv_befreit").notNull().default(false),
     pauschsteuer: boolean("pauschsteuer").notNull().default(true),
     personengruppe: text("personengruppe").notNull().default(""),
@@ -3949,20 +3947,20 @@ export const payslips = pgTable(
     zahltag: date("zahltag", { mode: "string" }).notNull(),
     mitarbeiter: jsonb("mitarbeiter").$type<PayslipMitarbeiter>().notNull(),
     bestandteile: jsonb("bestandteile").$type<Bestandteil[]>().notNull(),
-    brutto: integer("brutto").notNull(),
-    steuerBrutto: integer("steuer_brutto").notNull(),
-    svBrutto: integer("sv_brutto").notNull(),
-    pauschalBrutto: integer("pauschal_brutto").notNull(),
-    lohnsteuer: integer("lohnsteuer").notNull(),
-    soli: integer("soli").notNull(),
-    kirchensteuer: integer("kirchensteuer").notNull(),
+    brutto: integer("brutto").$type<Cents>().notNull(),
+    steuerBrutto: integer("steuer_brutto").$type<Cents>().notNull(),
+    svBrutto: integer("sv_brutto").$type<Cents>().notNull(),
+    pauschalBrutto: integer("pauschal_brutto").$type<Cents>().notNull(),
+    lohnsteuer: integer("lohnsteuer").$type<Cents>().notNull(),
+    soli: integer("soli").$type<Cents>().notNull(),
+    kirchensteuer: integer("kirchensteuer").$type<Cents>().notNull(),
     /** Anteile des Beschäftigten und Aufwand des Arbeitgebers (Anteile, Umlagen, Pauschsteuer); Einzelheiten in `sv` */
-    svArbeitnehmer: integer("sv_arbeitnehmer").notNull(),
-    svArbeitgeber: integer("sv_arbeitgeber").notNull(),
-    pauschsteuer: integer("pauschsteuer").notNull(),
+    svArbeitnehmer: integer("sv_arbeitnehmer").$type<Cents>().notNull(),
+    svArbeitgeber: integer("sv_arbeitgeber").$type<Cents>().notNull(),
+    pauschsteuer: integer("pauschsteuer").$type<Cents>().notNull(),
     sv: jsonb("sv").$type<SvBeitraege>().notNull(),
-    netto: integer("netto").notNull(),
-    auszahlung: integer("auszahlung").notNull(),
+    netto: integer("netto").$type<Cents>().notNull(),
+    auszahlung: integer("auszahlung").$type<Cents>().notNull(),
     steuertage: smallint("steuertage").notNull(),
     svTage: smallint("sv_tage").notNull(),
     stufe: text("stufe", { enum: ["A", "B", "C"] }).notNull(),
