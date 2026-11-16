@@ -58,7 +58,7 @@ Unter **Einstellungen › Bereiche** öffnet „Fragen erneut durchgehen“ die 
 
 ### Bereiche ausblenden
 
-Ein Bereich, den du mit „Nein“ beantwortest, verschwindet aus Menü und Schnellsuche: Angebote; Personal mit Lohn und SV-Meldeportal; Kasse; Lastschriften; Anlagen und Darlehen. Mehr passiert nicht: Daten, Buchungen, Auswertungen, API und direkte Links bleiben, wie sie sind. Unter **Einstellungen › Bereiche** schaltest du jeden Bereich mit einem Haken wieder ein oder aus. Rechnungen, Belege, Bank, Umsatzsteuer und Jahreserklärung stehen immer im Menü. Instanzen von vor dem Update zeigen alle Bereiche.
+Die Menüpunkte eines Bereichs, den du mit „Nein“ beantwortest, verschwinden aus dem Menü und aus den Seiten der [Schnellsuche](suche.md): Angebote; Personal mit Lohn und SV-Meldeportal; Kasse; Lastschriften; Anlagen und Darlehen. Mehr passiert nicht: Daten, Buchungen, Auswertungen, Treffer der Schnellsuche, API und direkte Links bleiben, wie sie sind. Unter **Einstellungen › Bereiche** schaltest du jeden Bereich mit einem Haken wieder ein oder aus. Rechnungen, Belege, Bank, Umsatzsteuer und Jahreserklärung stehen immer im Menü. Instanzen von vor dem Update zeigen alle Bereiche.
 
 ## Zugang für die Steuerberatung
 
