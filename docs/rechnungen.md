@@ -340,6 +340,8 @@ Ordne eine bereits eingegangene Bank- oder Barzahlung mit ihrem tatsächlichen Z
 
 Beispiel: Leistung und Rechnung am 20. Januar über 700 € netto und 133 € Steuer, Zahlung schon am 13. Dezember des Vorjahres. Im Dezember stehen bei GmbH/UG 700 € Anzahlung und 133 € fällige Steuer; der Erlös entsteht im Januar. Bei nur 119 € Vorauszahlung sind es zunächst 100 € Anzahlung und 19 € Steuer. Die verbleibende Steuer wird bei Soll mit der Leistung, bei Ist mit der Restzahlung fällig; die Vorauszahlung wird nicht erneut besteuert.
 
+Bei schon festgeschriebenen normalen Alt-Rechnungen ohne Verfahrensmarkierung lässt sich eine neue Zahlung vor dem dokumentierten Leistungstag beziehungsweise Leistungsende nicht zuordnen. Kläre den Fall über eine ausdrücklich datierte Bestandskorrektur. Original, Siegel, bisheriges Journal und bereits gemeldete Zeiträume bleiben erhalten; Haben erzeugt keine automatischen Differenzkorrekturen. Zahlungen ab der belegten Leistung bleiben auch vor dem Rechnungsdatum möglich. Fehlt ein eindeutiger Leistungsnachweis, lässt sich aus dem Rechnungsdatum keine Vorauszahlung ableiten.
+
 Ein Storno oder eine Entgeltminderung allein nimmt die Steuer auf eine bereits erhaltene Zahlung nicht zurück. Erfasse auch die tatsächliche Erstattung; erst sie mindert diese Steuer ([§ 17 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Eine zuvor abgegebene Voranmeldung bleibt gespeichert. Bei geänderten Buchungswerten führt der Hinweis in der [Umsatzsteuerseite](umsatzsteuer.md) zur Berichtigung.
 
 ## Zahlung und Mahnung

@@ -54,7 +54,7 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
     if (invoice.currency !== "EUR") throw new CashError("Bar kassieren geht nur bei Rechnungen in Euro.");
     const dateProblem = advancePaymentDateProblem(invoice, parsed.date, parsed.amount);
     if (dateProblem) throw new CashError(dateProblem);
-    // Außerhalb neuer Bilanz-Schlussketten bleibt das frühere Zahlungsdatum erlaubt (#455), wie im Bankabgleich:
+    // Eine Zahlung nach belegter Leistung bleibt auch vor dem Rechnungsdatum erlaubt (#455), wie im Bankabgleich:
     // Der Kunde hat bar bezahlt, die Rechnung kam später. Die EÜR zählt den tatsächlichen Zufluss (§ 11 Abs. 1 EStG).
     const [storno] = await tx
       .select({ id: schema.invoices.id })

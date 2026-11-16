@@ -5,8 +5,8 @@ import type { TaxTreatment } from "./treatment.ts";
 import type { Cents } from "./money.ts";
 
 /**
- * Neue Bilanz-Schlussketten unterstützen Zahlungen vor Leistung noch nicht (#853). Eine Anforderung ist dafür
- * der vorgesehene Weg; Altbelege behalten ihre Zahlungswege. § 13 Abs. 1 Nr. 1 a Satz 4 UStG und Entscheidung:
+ * Neue Bilanz-Schlussketten unterstützen Zahlungen vor Leistung noch nicht. Eine Anforderung ist dafür
+ * der vorgesehene Weg. § 13 Abs. 1 Nr. 1 a Satz 4 UStG und Entscheidung:
  * https://github.com/firsttris/haben/issues/750#issuecomment-6850907108
  */
 export function advancePaymentDateProblem(
@@ -17,10 +17,28 @@ export function advancePaymentDateProblem(
     issueDate: string;
     serviceFrom: string | null;
     serviceTo: string | null;
+    currency: string;
+    taxTreatment: TaxTreatment;
   },
   date: string,
   amount: Cents,
 ): string | null {
+  // Neue Vorauszahlungen auf unmarkierte normale Altbelege brauchen eine datierte Bestandsklärung, keine
+  // automatische Differenzbuchung. Nur das dokumentierte Leistungsdatum zählt, nie ersatzweise das Rechnungsdatum.
+  // https://github.com/firsttris/haben/issues/853#issuecomment-6910075659
+  const performance = invoice.serviceTo ?? invoice.serviceFrom;
+  if (
+    amount > 0 &&
+    invoice.kind === "rechnung" &&
+    invoice.variant === null &&
+    invoice.advanceAccounting === null &&
+    invoice.currency === "EUR" &&
+    invoice.taxTreatment === "regulaer" &&
+    performance &&
+    date < performance
+  ) {
+    return "Eine Vorauszahlung lässt sich dieser Alt-Rechnung ohne Verfahrensmarkierung nicht zuordnen. Bitte kläre dafür eine Bestandskorrektur mit ausdrücklich datiertem Vorgang.";
+  }
   if (
     amount > 0 &&
     invoice.kind === "rechnung" &&
