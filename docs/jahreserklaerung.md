@@ -197,11 +197,11 @@ Die Leistungen einer Person mindert dabei der Arbeitnehmer-Pauschbetrag von 1.23
 
 Für jede Person, die angestellt war, setzt du den Haken „hatte Arbeitslohn“ und trägst die Lohnsteuerbescheinigung ein. Die Felder tragen die Nummern der Bescheinigung:
 
-| Nr. | Angabe | Wohin |
+| Nr. | Angabe | Wohin (Vordrucke 2025) |
 | --- | --- | --- |
 | – | Steuerklasse | Anlage N; Steuerklasse 6 (zweites Dienstverhältnis) in eigene Zeilen |
-| 3 bis 7 | Bruttoarbeitslohn, Lohnsteuer, Solidaritätszuschlag, Kirchensteuer, Kirchensteuer des Ehegatten | Anlage N, Zeilen 4 bis 9 |
-| 22a, 23a | Rentenversicherung Arbeitgeber- und Arbeitnehmeranteil | Anlage Vorsorgeaufwand, Zeilen 4 und 9 |
+| 3 bis 7 | Bruttoarbeitslohn, Lohnsteuer, Solidaritätszuschlag, Kirchensteuer, Kirchensteuer des Ehegatten | Anlage N, Zeilen 5 bis 9 |
+| 22a, 23a | Rentenversicherung Arbeitgeber- und Arbeitnehmeranteil | Anlage Vorsorgeaufwand, Zeile 9 (22a) und 4 (23a) |
 | 25, 26 | Arbeitnehmerbeiträge zur Kranken- und Pflegeversicherung | Anlage Vorsorgeaufwand, Zeilen 11 und 13 |
 | 27 | Arbeitslosenversicherung | Anlage Vorsorgeaufwand, Zeile 43 |
 
@@ -210,7 +210,7 @@ Bei mehreren Arbeitgebern gibt es je Bescheinigung eine Zeile; Haben schickt jed
 Werbungskosten:
 
 - **Wege zur ersten Tätigkeitsstätte:** Anschrift, Tage dort, einfache Entfernung, optional Arbeitstage je Woche und Urlaubs- und Krankheitstage. Haben geht von Fahrten mit dem eigenen Auto aus.
-- **Homeoffice-Tage:** an denen du nicht zur Tätigkeitsstätte gefahren bist; mit dem Haken „dauerhaft kein anderer Arbeitsplatz“ in Zeile 62 statt 61.
+- **Homeoffice-Tage:** an denen du nicht zur Tätigkeitsstätte gefahren bist; mit dem Haken „dauerhaft kein anderer Arbeitsplatz“ in der Zeile für diesen Fall (2025: Zeile 59 statt 58).
 - **Häusliches Arbeitszimmer:** nur, wenn es den Mittelpunkt deiner gesamten beruflichen und betrieblichen Tätigkeit bildet: die Aufwendungen des Jahres oder stattdessen die Jahrespauschale von 1.260 €, die sich für jeden vollen Monat ohne diese Voraussetzung um 105 € mindert ([§ 4 Abs. 5 Satz 1 Nr. 6b EStG](https://www.gesetze-im-internet.de/estg/__4.html), für Arbeitnehmer über § 9 Abs. 5). Trag im Feld **Monate als Mittelpunkt** ein, in wie vielen Monaten das wenigstens zeitweise zutraf, denn gekürzt wird nur um volle Monate ohne; Haben rechnet die Pauschale dann zeitanteilig und sagt es, wenn der eingetragene Betrag darüber liegt. Die Homeoffice-Tagespauschale gibt es nicht für die Zeit, für die du das Arbeitszimmer absetzt (Nr. 6c Satz 3).
 - **Arbeitsmittel, Fortbildung, Gewerkschaft, Berufsverbände, weitere Werbungskosten** (etwa Kontoführung) als Beträge. Gewerkschaftsbeiträge zieht die Steuerschätzung ab 2026 zusätzlich zum Arbeitnehmer-Pauschbetrag ab (§ 9a Satz 3 EStG); in der Anlage N bis 2025 stehen sie mit den Berufsverbänden in einer Zeile, ab 2026 in einer eigenen. Zu den Fortbildungskosten meldet Haben ab 2026 steuerfreie Erstattungen mit 0; trag deshalb nur den Teil ein, den du selbst getragen hast.
 
