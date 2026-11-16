@@ -53,7 +53,7 @@ Belegt antwortet mit dem neuen Dokument samt `id`, an der Rechnung steht dann de
 
 ## Wann und wie oft
 
-Haben überträgt gleich nach dem Festschreiben oder Stornieren im Hintergrund und danach stündlich, was noch fehlt, auch wiederkehrende Rechnungen. Erfolg ist jede Antwort mit einem Status 2xx; danach geht die Rechnung nicht noch einmal an dieselbe Adresse. Schlägt es fehl, versucht Haben es stündlich erneut, höchstens 24-mal; **Jetzt übertragen** versucht es sofort, auch darüber hinaus, und **Speichern** setzt die Zählung zurück, etwa nach einem neuen Token.
+Haben überträgt gleich nach dem Festschreiben oder Stornieren im Hintergrund und danach stündlich, was noch fehlt, auch wiederkehrende Rechnungen. Erfolg ist jede Antwort mit einem Status 2xx; danach geht die Rechnung nicht noch einmal an dieselbe Adresse. Schlägt es fehl, versucht Haben es stündlich erneut, bis zu 24 Versuche insgesamt; **Jetzt übertragen** versucht es sofort, auch darüber hinaus, und **Speichern** setzt die Zählung zurück, etwa nach einem neuen Token.
 
 An der Rechnung steht unter **Archiv**, ob sie übertragen ist, mit Zeitpunkt, HTTP-Status und gegebenenfalls Link, oder warum es fehlschlug, mit dem HTTP-Status und dem Anfang der Antwort. Die letzten Fehlschläge stehen auch in den Einstellungen.
 
