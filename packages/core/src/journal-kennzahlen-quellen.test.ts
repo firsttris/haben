@@ -7,7 +7,8 @@ import { verprobeBuchung } from "./ust-verprobung.ts";
 /*
  * Referenzfälle mit Zahlen aus einer unabhängigen Quelle (#1116): Die Erwartungen stehen so in der Quelle, sie sind nicht
  * in Haben gerechnet. Die Buchung entsteht wie in Haben (computeInvoiceTotals, documentPosting bzw. invoicePosting), die
- * Kennzahlen kommen aus dem Journal (kennzahlenAusJournal). Weitere Fälle aus dem UStAE, DATEV oder einer zweiten Software: #1203.
+ * Kennzahlen kommen aus dem Journal (kennzahlenAusJournal). Ein Zahlenfall ohne Quelle ist als solcher benannt. Weitere
+ * Fälle aus dem UStAE, DATEV oder einer zweiten Software: #1203.
  */
 
 describe.each(["SKR03", "SKR04"] as const)("Referenzfälle aus dem UStAE (%s)", (kr) => {
@@ -21,10 +22,9 @@ describe.each(["SKR03", "SKR04"] as const)("Referenzfälle aus dem UStAE (%s)", 
     expect(verprobeBuchung(kr, v, zeilen)).toEqual([]);
   });
 
-  // UStAE 13.7, Beispiel (Stand 31.12.2025): Rechnung über „insgesamt 238 €“ mit „19 % … Umsatzsteuer in Höhe von 38 €“;
-  // „nicht beanstandet, wenn der Unternehmer die in der Rechnung ausgewiesene Steuer in voller Höhe … anmeldet“. Haben
-  // meldet die ausgewiesene Steuer bei Soll mit der Rechnung.
-  it("ausgewiesene Steuer einer Rechnung über 238 € brutto zu 19 % (soll)", () => {
+  // Gewöhnlicher Zahlenfall ohne Quelle: Das Beispiel in UStAE 13.7 betrifft zu hoch ausgewiesene Steuer (§ 14c UStG)
+  // und deren zeitliche Zuordnung, belegt diesen Fall also nicht. Bei Soll meldet Haben die Steuer mit der Rechnung.
+  it("Zahlenfall ohne Quelle: Rechnung über 238 € brutto zu 19 % (soll)", () => {
     const rechnung = computeInvoiceTotals([{ quantity: 1000, unitPrice: 238_00, taxRate: 1900 }], "brutto");
     const k = kennzahlenAusJournal(kr, "soll", [invoicePosting(rechnung, kr, "soll")]);
     expect({ kz81: k.kz81, tax81: k.tax81 }).toEqual({ kz81: 200_00, tax81: 38_00 });
