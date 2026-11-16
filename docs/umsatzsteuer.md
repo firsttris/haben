@@ -427,6 +427,8 @@ Eine Zuordnung mit Bezug geht nur zu einer abgegebenen Voranmeldung; das prüft 
 
 Eine gesendete Anmeldung ist gesperrt. Stellst du danach einen Fehler fest, legst du mit **Berichtigte Anmeldung anlegen** einen neuen Entwurf an. Er übernimmt die Werte der zuletzt gesendeten Anmeldung und trägt im XML Kz 10 = 1. War die ursprüngliche Anmeldung aus den Buchungen berechnet, rechnet Haben die berichtigte vor dem Senden neu; korrigierst du also erst die Buchungen, landen die richtigen Werte automatisch darin. Status und Verlauf zeigen „berichtigte Anmeldung“ bzw. „(berichtigt)“.
 
+In einem Jahr, dessen Abweichungen beim [Update auf das Journal](einrichtung.md#update-auf-das-journal) übernommen wurden, beginnt die Berichtigung dagegen mit den gesendeten Werten unter **Manuell überschreiben**, mit vorbelegter, änderbarer Begründung. Aus den Buchungen gerechnet würde sie sonst die übernommene Abweichung still mitberichtigen. Darüber zeigt Haben je Kennzahl den gesendeten Wert, den aus dem Journal und die Differenz; die Differenz kann aus der Übernahme stammen. Ändere nur, was sich seit der Anmeldung wirklich geändert hat.
+
 ## Zertifikat
 
 Das Zertifikat lädst du unter Einstellungen hoch. Es wird mit `HABEN_ENCRYPTION_KEY` verschlüsselt gespeichert. Trägst du dort **Gültig bis** ein, erinnert die Übersicht 30 Tage vor Ablauf („ELSTER-Zertifikat läuft bald ab“) und nach Ablauf („ELSTER-Zertifikat abgelaufen“). Ohne Datum gibt es keine Erinnerung.
