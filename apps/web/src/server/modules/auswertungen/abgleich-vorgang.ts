@@ -245,10 +245,9 @@ async function nichtFaelligeUmsatzsteuer(year: number, q: Db | Tx): Promise<Vorg
   const result: VorgangZeile[] = [];
   for (const invoice of ist) {
     if (invoice.gross === 0 || erledigt.get(invoice.id) !== invoice.gross) continue;
+    // Je Buchung die Konten ihres Kontenrahmens: Nach einem Wechsel zum Jahresbeginn bucht die Zahlung im neuen Rahmen
     const eigene = [...buchungen].filter((b) => b.invoice_id === invoice.id);
-    const kr = eigene[0]?.kontenrahmen ?? "SKR03";
-    const konten = new Set<string>(Object.values(ACCOUNTS[kr].ustNichtFaellig));
-    const rest = eigene.reduce((s, b) => s + saldo(zeilen.get(b.entry_id) ?? [], konten), 0);
+    const rest = eigene.reduce((s, b) => s + saldo(zeilen.get(b.entry_id) ?? [], new Set(Object.values(ACCOUNTS[b.kontenrahmen].ustNichtFaellig))), 0);
     if (rest !== 0)
       result.push({
         zeitraum: invoice.issueDate.slice(0, 7),
