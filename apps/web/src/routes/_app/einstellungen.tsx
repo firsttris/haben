@@ -2,14 +2,15 @@ import {
   BUNDESLAENDER,
   RECHTSFORM_KEYS,
   RECHTSFORMEN,
+  baseRateError,
   currentFilingPeriod,
   dunningFeeError,
   formatDecimal,
   formatHundredths,
   formatRateMonth,
   isKapitalgesellschaft,
+  parseBaseRate,
   parseEuro,
-  parseHundredths,
   type Bundesland,
   type Rechtsform,
 } from "@haben/core";
@@ -324,6 +325,14 @@ function SettingsPage() {
   );
 }
 
+/** Fehler der Felder im Abschnitt Mahnwesen, für useSubmitCheck */
+const dunningErrors = (baseRate: string, fees: Record<"1" | "2" | "3", string>) => ({
+  "dunning-baseRate": baseRateError(baseRate),
+  "dunning-fee-1": dunningFeeError(fees["1"]),
+  "dunning-fee-2": dunningFeeError(fees["2"]),
+  "dunning-fee-3": dunningFeeError(fees["3"]),
+});
+
 function CompanyForm() {
   const { company, issues, letterIssues, locks } = Route.useLoaderData();
   const router = useRouter();
@@ -337,16 +346,7 @@ function CompanyForm() {
   const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
   const [fees, setFees] = useState({ "1": fee("1"), "2": fee("2"), "3": fee("3") });
   const [email, setEmail] = useState(company.email);
-  const {
-    form: checkScope,
-    error,
-    check,
-  } = useSubmitCheck({
-    email: emailFehler(email),
-    "dunning-fee-1": dunningFeeError(fees["1"]),
-    "dunning-fee-2": dunningFeeError(fees["2"]),
-    "dunning-fee-3": dunningFeeError(fees["3"]),
-  });
+  const { form: checkScope, error, check } = useSubmitCheck({ email: emailFehler(email), ...dunningErrors(baseRate, fees) });
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -394,8 +394,8 @@ function CompanyForm() {
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
           taetigkeit: text("taetigkeit"),
           dunning: {
-            // Prozent mit zwei Nachkommastellen: "1,27" → 127 Basispunkte, auch negativ (§ 247 BGB), daher nicht parsePercent
-            baseRate: text("dunning-baseRate").trim() ? parseHundredths(text("dunning-baseRate")) : null,
+            // Geprüft mit baseRateError; leer heißt keine Verzugszinsen
+            baseRate: text("dunning-baseRate").trim() ? parseBaseRate(text("dunning-baseRate")) : null,
             fees: {
               "1": parseEuro(fees["1"] || "0") ?? 0,
               "2": parseEuro(fees["2"] || "0") ?? 0,
@@ -743,7 +743,7 @@ function CompanyForm() {
       <section className="form-section" aria-labelledby="company-dunning">
         <h3 id="company-dunning">Mahnwesen</h3>
         <div className="form-row cols-2">
-          <Field label="Basiszinssatz in %" describedBy="base-rate-hint">
+          <Field label="Basiszinssatz in %" describedBy="base-rate-hint" error={error("dunning-baseRate")}>
             {(control) => (
               <input
                 {...control}
