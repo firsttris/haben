@@ -729,8 +729,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               style={{ gridColumn: "1 / -1" }}
             />
           )}
-          {!splitting && locked && !data.cancellation && (
-            // Ein gebuchter Beleg ist gesperrt; statt den Knopf stillschweigend zu verstecken, sagt die Seite warum (#1112)
+          {!splitting && locked && !data.cancellation && data.cancellationIssues.length === 0 && (
+            // Ein gebuchter Beleg ist gesperrt; statt den Knopf stillschweigend zu verstecken, sagt die Seite warum (#1112).
+            // Nur, wenn er sich stornieren lässt: Bei einem Anlagegut oder einem übernommenen Beleg nennt die Seite den Grund
             <p className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
               Gebucht: Die Aufteilung auf mehrere Kategorien geht vor dem Buchen. Ein gebuchter Beleg lässt sich stornieren und die Kopie danach aufteilen.
             </p>
