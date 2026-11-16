@@ -161,9 +161,7 @@ describe.skipIf(!testDatabaseUrl)("Fragen zur Einrichtung (Postgres, #266)", () 
     const { antwortenAus, erneutDurchgehen, rueckfrageAenderungen } = await import("../../../lib/einrichtung.ts");
     expect(erneutDurchgehen(stand)).toBe(true);
     expect(antwortenAus(stand)).toMatchObject({ selbstaendig: "freiberufler", kleinunternehmer: true });
-    expect(rueckfrageAenderungen(stand, { ...antwortenAus(stand), kleinunternehmer: false })).toEqual([
-      { feld: "Kleinunternehmer", von: "ja", nach: "nein" },
-    ]);
+    expect(rueckfrageAenderungen(stand, { ...antwortenAus(stand), kleinunternehmer: false })).toEqual([{ feld: "Kleinunternehmer", von: "ja", nach: "nein" }]);
   });
 
   it("Einstellungen › Bereiche speichert sortiert und ohne Doppelte", async () => {
