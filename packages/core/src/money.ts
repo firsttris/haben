@@ -72,9 +72,10 @@ export function toCsv(rows: (string | Cents)[][]): string {
 // Vorzeichen und Währung vorn, in beliebiger Reihenfolge, die Zahl, die Währung hinten. Leerraum steht nur direkt hinter
 // Vorzeichen oder Währung, vor der Währung hinten und in der Zahl vor einer Ziffer: So fällt keiner zwei Stellen des
 // Ausdrucks zu, und eine lange Eingabe ohne Betrag scheitert in linearer Zeit statt nach allen Aufteilungen.
-const AMOUNT = /^(?:([-+])\s*)?(?:(€|EUR)\s*)?(?:([-+])\s*)?(\d(?:[\d.,]|[   ](?=\d))*)(?:\s*(€|EUR))?$/i;
-// Dezimalkomma; Tausender in Dreiergruppen, getrennt durch Punkt oder Leerzeichen, immer dasselbe Zeichen
-const GERMAN_NUMBER = /^(\d{1,3}(?:([.   ])\d{3})(?:\2\d{3})*|\d+)(?:,(\d{1,2}))?$/;
+const AMOUNT = /^(?:([-+])\s*)?(?:(€|EUR)\s*)?(?:([-+])\s*)?(\d(?:[\d.,]|[    ](?=\d))*)(?:\s*(€|EUR))?$/i;
+// Dezimalkomma; Tausender in Dreiergruppen, getrennt durch Punkt oder Leerzeichen (auch geschützt oder schmal wie U+2009),
+// immer dasselbe Zeichen
+const GERMAN_NUMBER = /^(\d{1,3}(?:([.    ])\d{3})(?:\2\d{3})*|\d+)(?:,(\d{1,2}))?$/;
 // Dezimalpunkt, nur ohne Tausender und mit einer oder zwei Ziffern dahinter: „12.50“; „1.500“ sind Tausender
 const DOT_NUMBER = /^(\d+)\.(\d{1,2})$/;
 
