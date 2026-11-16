@@ -60,7 +60,7 @@ export function ArchiveTargetCard({ data }: { data: Data }) {
       <h2 id="ablage-heading">Ablage im Dokumentenarchiv</h2>
       <p className="small muted" style={{ margin: 0 }}>
         Haben schickt jede festgeschriebene Rechnung, Stornorechnung und Korrektur einmal als Kopie an eine Adresse, die Dateien per Formular annimmt, etwa ein
-        Dokumentenarchiv. Das Original bleibt in Haben. Gesendet wird alles, was ab dem Einschalten festgeschrieben wird.
+        Dokumentenarchiv. Das Original bleibt in Haben. Gesendet wird alles, was ab dem Speichern dieser Adresse festgeschrieben wird, auch während einer Pause.
       </p>
       <TargetInputs target={t} />
       <ExtraFields fields={fields} onChange={setFields} platzhalter={data.platzhalter} />

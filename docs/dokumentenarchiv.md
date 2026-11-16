@@ -24,7 +24,7 @@ Unter **Einstellungen › Export › Ablage im Dokumentenarchiv**:
 | Datei | **E-Rechnung im Original**: das ZUGFeRD-PDF bzw. bei XRechnung das XML. **Immer das PDF**: für Archive, die kein XML annehmen |
 | Link zum Dokument | Optional. Antwortet das Archiv mit JSON und einer `id`, setzt Haben sie für `{id}` ein und zeigt an der Rechnung **Im Archiv öffnen** |
 
-Übertragen wird, was ab dem Einschalten festgeschrieben wird, nicht der Bestand davor. Eine neue Adresse beginnt ebenso neu. Rechnungen, die ein Umzug aus einem anderen Programm übernommen hat, liegen schon dort und gehen nicht mit.
+Übertragen wird, was ab dem Speichern der Adresse festgeschrieben wird, nicht der Bestand davor. Ausschalten pausiert nur: Nach dem Wiedereinschalten gehen auch die Rechnungen aus der Pause ins Archiv. Erst eine neue Adresse beginnt neu. Rechnungen, die ein Umzug aus einem anderen Programm übernommen hat, liegen schon dort und gehen nicht mit.
 
 ### Paperless-ngx
 
