@@ -18,7 +18,9 @@ import {
   sevFileResponseSchema,
   sevInvoiceSchema,
   sevOrderSchema,
+  sevPartSchema,
   sevRelatedObjectsResponseSchema,
+  sevUnitySchema,
   sevVoucherPosSchema,
   sevVatReportSchema,
   sevTaxSetSchema,
@@ -36,6 +38,8 @@ import {
   type SevFile,
   type SevInvoice,
   type SevOrder,
+  type SevPart,
+  type SevUnity,
   type SevVatReport,
   type SevTaxSet,
   type SevVoucher,
@@ -205,6 +209,16 @@ export class SevdeskClient {
   /** Anlagenverzeichnis mit eingebettetem Buchungskonto; nur lesen, sevDesk liefert keine bisherige AfA */
   assets(): AsyncGenerator<SevAsset> {
     return this.#pages("/Asset", { embed: "accountingType" }, sevAssetSchema);
+  }
+
+  /** Artikel, aktive und inaktive */
+  parts(): AsyncGenerator<SevPart> {
+    return this.#pages("/Part", {}, sevPartSchema);
+  }
+
+  /** Einheiten, feste von sevDesk und eigene; Artikel nennen sie nur als ID */
+  unities(): AsyncGenerator<SevUnity> {
+    return this.#pages("/Unity", {}, sevUnitySchema);
   }
 
   orders(): AsyncGenerator<SevOrder> {
