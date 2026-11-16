@@ -400,7 +400,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
       .where(and(eq(schema.allocations.kind, "kategorie"), gte(direktTag, start), lt(direktTag, end)));
     for (const r of rows) {
-      if (!r.category || r.taxRate === null || kategorieArt(r.category) !== "einnahme") continue;
+      // Nicht steuerbare Einnahme (#1131): kein Umsatz, keine Kennzahl (UStAE 1.3 Abs. 1)
+      if (!r.category || r.taxRate === null || kategorieArt(r.category) !== "einnahme" || r.category === "nichtSteuerbar") continue;
       const { base, tax } = kategorieAnteil({ kategorie: r.category, steuersatz: r.taxRate }, r.amount);
       revenue.push({
         type: "direkt",
