@@ -1487,7 +1487,7 @@ test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu ve
   await page.getByLabel("Kunde", { exact: true }).uncheck();
   await page.getByLabel("Lieferant", { exact: true }).check();
   await page.getByLabel("Ort").fill("Kiel");
-  await page.getByLabel("Lieferantennummer").fill("L-4711");
+  await page.getByLabel("Lieferantennummer", { exact: true }).fill("L-4711");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
 
