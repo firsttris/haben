@@ -16,6 +16,7 @@ Der Skill ordnet und verteilt nur. Die Prüfung eines Pull Requests macht `beitr
 - Wer zuletzt etwas getan hat: neue Commits oder Kommentare des Autors seit unserem letzten Kommentar? Wartet er auf uns oder wir auf ihn?
 - Migrationen im Diff mit ihrer Nummer
 - Heikel, also Steuer, Buchung, ELSTER, GoBD oder Migration auf bestehenden Daten?
+- Prüfungen des Autors (nur bei Pull Requests von jemandem ohne Schreibrecht): Selbstprüfung nach `beitrag-pruefen` und unabhängiges Review (`tdd-review` für Code, `doku-pruefen` für Markdown) als Kommentare, die den Head nennen oder per Nachtrag bis zu ihm reichen?
 
 Ist auf `main` ein Check rot, kommt das vor allem anderen: Sonst ist er in jedem Pull Request rot. Einen Fix legt der Maintainer an oder lässt ihn anlegen.
 
@@ -31,6 +32,7 @@ Von oben nach unten, wie einfach der Merge ist:
 4. **Autor hat nachgeliefert:** nur die neuen Commits gegen die offenen Befunde prüfen
 5. **Konflikt oder rote CI**, die der Pull Request selbst verursacht
 6. **Wartet auf den Autor:** Befunde stehen schon im Pull Request, seitdem nichts Neues. Nichts tun.
+7. **Prüfungen fehlen:** Selbstprüfung oder unabhängiges Review fehlt oder nennt einen älteren Head. Nicht prüfen; einmal freundlich darum bitten, mit Link auf Skill `beitrag`, Schritt 6, sonst nichts tun.
 
 Gleich einfache Pull Requests nach Alter.
 
@@ -42,7 +44,7 @@ Hat der Maintainer nur gefragt, endet der Skill hier; Schritt 3 erst auf sein Wo
 
 ## 3. Von oben nach unten
 
-Je Pull Request einen frischen Agenten mit `beitrag-pruefen` in der Rolle des Maintainers. Unabhängige Pull Requests laufen parallel. Der Auftrag an den Agenten:
+Pull Requests unter Platz 7 überspringen. Je übrigem Pull Request einen frischen Agenten mit `beitrag-pruefen` in der Rolle des Maintainers. Unabhängige Pull Requests laufen parallel. Der Auftrag an den Agenten:
 
 - eigener Worktree und eigene Test-Datenbank, nie die Compose-Instanz `haben-dev`
 - nichts posten, pushen oder mergen
