@@ -442,7 +442,7 @@ Im [Bankabgleich](bank.md#zuordnen) geht es genauso: Nach dem vollständigen Zuo
 
 ## Vorsteuer in der Voranmeldung
 
-Die Vorsteuer eines gebuchten Belegs zählt im Monat seines **Belegdatums**, auch bei Ist-Versteuerung; Ausnahmen und Herleitung stehen unter [Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66). Ungebuchte Belege zählen nicht, die [Vorprüfung](umsatzsteuer.md#vorprüfung_1) weist darauf hin. Ein Storno zählt mit umgekehrtem Vorzeichen am Datum seiner Gegenbuchung (siehe [Stornieren und neu erfassen](#stornieren-und-neu-erfassen)).
+Die Vorsteuer eines gebuchten Belegs zählt im Monat seines **Belegdatums**, auch bei Ist-Versteuerung; Ausnahmen und Herleitung stehen unter [Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66). Ungebuchte Belege zählen nicht, die [Vorprüfung](umsatzsteuer.md#vorprüfung) weist darauf hin. Ein Storno zählt mit umgekehrtem Vorzeichen am Datum seiner Gegenbuchung (siehe [Stornieren und neu erfassen](#stornieren-und-neu-erfassen)).
 
 ## Stornieren und neu erfassen
 

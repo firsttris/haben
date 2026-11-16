@@ -151,7 +151,7 @@ Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr
 
 Haben fasst alles je USt-IdNr. des Kunden und Umsatzart zusammen (in Großbuchstaben, ohne Leerzeichen; griechische Nummern mit EL statt GR) und meldet volle Euro, die Cent fallen wie in der Voranmeldung weg. Unter **Rechnungen dazu** steht jede Rechnung mit ihrem Betrag. Aus Lexoffice übernommene Rechnungen zählen nicht mit, ihre Meldung lief dort.
 
-### Vorprüfung
+### Vorprüfung der ZM
 
 | Prüfung | Folge |
 | --- | --- |
