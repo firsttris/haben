@@ -28,14 +28,14 @@ export const formatVorsteuerAnteil = (value: number | null | undefined): string 
 type Beleg = Pick<Props, "value" | "company" | "booked" | "storedDeduction">;
 
 /**
- * Abziehbarer Anteil eines Steuersatzes in Basispunkten, wie ihn Vorschau und Beschriftung lesen: ungebucht als
- * Kleinunternehmer 0, sonst der Anteil am Steuersatz, am Beleg oder die Vorgabe; gebucht der gespeicherte Anteil.
+ * Abziehbarer Anteil eines Steuersatzes in Basispunkten, wie ihn Vorschau und Beschriftung lesen. Wie beim Buchen
+ * (documents.ts): ungebucht der Anteil am Steuersatz, am Beleg oder die Vorgabe, als Kleinunternehmer 0; gebucht der
+ * gespeicherte Anteil.
  */
 export function zeilenAnteil({ value, company, booked, storedDeduction }: Beleg, satz: string): number {
-  if (!booked && company.kleinunternehmer) return 0;
-  const selected = parseVorsteuerAnteil(value);
-  const vorgabe = booked ? gespeicherterAnteil({ vorsteuerAnteil: selected, vorsteuerAbzug: storedDeduction }) : abziehbarerAnteil(company, selected);
-  return parseVorsteuerAnteil(satz) ?? vorgabe;
+  const amBeleg = parseVorsteuerAnteil(value);
+  const amSatz = parseVorsteuerAnteil(satz);
+  return booked ? gespeicherterAnteil({ vorsteuerAnteil: amBeleg, vorsteuerAbzug: storedDeduction }, amSatz) : abziehbarerAnteil(company, amSatz ?? amBeleg);
 }
 
 /**
