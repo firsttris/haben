@@ -10,6 +10,8 @@ describe("Zahlungsdatum neuer Bilanz-Schlussketten", () => {
     issueDate: "2027-01-30",
     serviceFrom: "2027-01-10" as string | null,
     serviceTo: "2027-01-20" as string | null,
+    currency: "EUR",
+    taxTreatment: "regulaer" as const,
   };
 
   it("verwendet das Leistungsende statt Beginn oder Rechnungsdatum", () => {
@@ -32,5 +34,48 @@ describe("Zahlungsdatum neuer Bilanz-Schlussketten", () => {
 
   it("behandelt Gegenbewegungen nicht als neue Vorauszahlung", () => {
     expect(advancePaymentDateProblem(invoice, "2026-12-01", -119)).toBeNull();
+  });
+});
+
+describe("Übergang normaler Alt-Rechnungen ohne Verfahrensmarker (#853)", () => {
+  const invoice = {
+    kind: "rechnung" as const,
+    variant: null,
+    advanceAccounting: null,
+    currency: "EUR",
+    taxTreatment: "regulaer" as const,
+    issueDate: "2027-01-30",
+    serviceFrom: "2027-01-10",
+    serviceTo: "2027-01-20" as string | null,
+  };
+
+  it("sperrt eine neue Vorauszahlung vor dem dokumentierten Leistungsende mit datierter Bestandsklärung", () => {
+    expect(advancePaymentDateProblem(invoice, "2027-01-19", 11_900)).toEqual(expect.stringMatching(/Alt-Rechnung.*Bestandskorrektur.*datiert/));
+    expect(advancePaymentDateProblem({ ...invoice, serviceTo: null }, "2027-01-09", 11_900)).not.toBeNull();
+  });
+
+  it("lässt Zahlung ab Leistung auch vor Rechnungsdatum und Gegenbewegungen zu", () => {
+    expect(advancePaymentDateProblem(invoice, "2027-01-20", 11_900)).toBeNull();
+    expect(advancePaymentDateProblem(invoice, "2027-01-21", 11_900)).toBeNull();
+    expect(advancePaymentDateProblem(invoice, "2027-01-09", -11_900)).toBeNull();
+    expect(advancePaymentDateProblem(invoice, "2027-01-09", 0)).toBeNull();
+  });
+
+  it("rät ohne Leistungsangabe keine Vorauszahlung aus dem Rechnungsdatum", () => {
+    expect(advancePaymentDateProblem({ ...invoice, serviceFrom: null, serviceTo: null }, "2027-01-09", 11_900)).toBeNull();
+  });
+
+  it.each([
+    { ...invoice, advanceAccounting: "deferred" as const },
+    { ...invoice, currency: "USD" },
+    { ...invoice, taxTreatment: "kleinunternehmer" as const },
+    { ...invoice, taxTreatment: "reverse_charge" as const },
+    { ...invoice, taxTreatment: "drittland" as const },
+    { ...invoice, kind: "storno" as const },
+    { ...invoice, kind: "korrektur" as const },
+    { ...invoice, variant: "abschlag" as const },
+    { ...invoice, variant: "schluss" as const },
+  ])("erweitert nur den entschiedenen normalen EUR-Inlandsaltfall: %j", (other) => {
+    expect(advancePaymentDateProblem(other, "2027-01-09", 11_900)).toBeNull();
   });
 });
