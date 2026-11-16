@@ -1,4 +1,14 @@
-import { ACCOUNTS, gleicheSalden, paymentProviderAccount, type Cents, type Kontenrahmen, type PostingLine, type Rechtsform } from "@haben/core";
+import {
+  ACCOUNTS,
+  gleicheSalden,
+  IST_NACH_ZAHLUNG,
+  kennzahlenAusJournal,
+  paymentProviderAccount,
+  type Cents,
+  type Kontenrahmen,
+  type PostingLine,
+  type Rechtsform,
+} from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { belegZeilen, loadSplits } from "../belege/index.ts";
@@ -16,7 +26,9 @@ import { invoiceTaxReader } from "../rechnungen/index.ts";
  * - Pauschale: ihr Betrag gegen das Aufwandskonto ihrer Buchung;
  * - Rechnung bei Ist, ganz erledigt: Die „nicht fällige“ Umsatzsteuer ihrer Buchungen (Rechnung, Zahlungen, Ausbuchungen,
  *   Bareinnahmen) ist auf den Cent null. So fällt auch ein systematischer Rest auf, den die Verprobung je Buchung mit ihrer
- *   Toleranz nicht sieht.
+ *   Toleranz nicht sieht. Ist sie ganz bezahlt (ohne Ausbuchung), melden ihre Buchungen bei Ist zusammen genau die
+ *   Bemessungsgrundlagen, die die Rechnung bei Soll meldet (Kz 81, 86, 43, 48, 0 %). Das findet ältere Zahlungen ohne
+ *   Bemessungsgrundlage auch auf steuerfreie Rechnungen, an denen die Verprobung mangels Steuer nichts sieht.
  *
  * Nicht verglichen: aus Lexoffice übernommene Belege und Rechnungen (gebucht gegen den Saldenvortrag), Zuordnungen auf
  * privaten Konten (sie buchen auf Privatkonten), Kassenzeilen aus dem Datenimport (sie hängen an einer Originalbuchung)
@@ -30,7 +42,7 @@ export interface VorgangZeile {
   vorgang: Cents;
 }
 
-type Zeile = { entryId: string; account: string; debit: number; credit: number; taxCode: string | null };
+type Zeile = { entryId: string; account: string; debit: number; credit: number; taxCode: string | null; basis: number | null };
 
 const saldo = (zeilen: readonly Zeile[], konten: ReadonlySet<string>) =>
   zeilen.filter((z) => konten.has(z.account)).reduce((s, z) => s + z.debit - z.credit, 0);
@@ -41,7 +53,7 @@ async function zeilenVon(q: Db | Tx, entryIds: string[]): Promise<Map<string, Ze
     const block = entryIds.slice(i, i + 5000);
     const l = schema.journalLines;
     for (const z of await q
-      .select({ entryId: l.entryId, account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode })
+      .select({ entryId: l.entryId, account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode, basis: l.basis })
       .from(l)
       .where(inArray(l.entryId, block))) {
       const liste = result.get(z.entryId) ?? [];
@@ -191,8 +203,8 @@ async function pauschalen(year: number, q: Db | Tx): Promise<VorgangZeile[]> {
   });
 }
 
-/** Rechnungen bei Ist, ganz erledigt: Die nicht fällige Umsatzsteuer ihrer Buchungen ist null */
-async function nichtFaelligeUmsatzsteuer(year: number, q: Db | Tx): Promise<VorgangZeile[]> {
+/** Rechnungen bei Ist, ganz erledigt: keine nicht fällige Umsatzsteuer mehr, ganz bezahlt die volle Bemessungsgrundlage gemeldet */
+async function erledigteIstRechnungen(year: number, q: Db | Tx): Promise<VorgangZeile[]> {
   const i = schema.invoices;
   const rechnungen = await q
     .select({ invoice: i })
@@ -220,8 +232,8 @@ async function nichtFaelligeUmsatzsteuer(year: number, q: Db | Tx): Promise<Vorg
   if (ist.length === 0) return [];
   const ids = ist.map((r) => r.id);
   // Alle Buchungen der Rechnung: sie selbst (auch Storno), Zahlungen, Ausbuchungen, Bareinnahmen
-  const buchungen = await q.execute<{ invoice_id: string; entry_id: string; kontenrahmen: Kontenrahmen }>(sql`
-    select x.invoice_id, e.id as entry_id, e.kontenrahmen from (
+  const buchungen = await q.execute<{ invoice_id: string; typ: string; entry_id: string; kontenrahmen: Kontenrahmen }>(sql`
+    select x.invoice_id, x.typ, e.id as entry_id, e.kontenrahmen from (
       select id as invoice_id, 'invoice' as typ, id as source_id from invoices where id in ${ids}
       union all select invoice_id, 'allocation', id from allocations where invoice_id in ${ids}
       union all select invoice_id, 'ausbuchung', id from write_offs where invoice_id in ${ids}
@@ -232,29 +244,35 @@ async function nichtFaelligeUmsatzsteuer(year: number, q: Db | Tx): Promise<Vorg
     [...buchungen].map((b) => b.entry_id),
   );
   // Erledigt: Zuordnungen, Ausbuchungen und Bareinnahmen decken das Brutto
-  const erledigt = new Map(
+  const summen = new Map(
     [
-      ...(await q.execute<{ id: string; summe: string }>(sql`
-      select id, sum(betrag) as summe from (
-        select invoice_id as id, amount as betrag from allocations where invoice_id in ${ids}
-        union all select invoice_id, amount from write_offs where invoice_id in ${ids}
-        union all select invoice_id, amount from cash_entries where invoice_id in ${ids}
+      ...(await q.execute<{ id: string; bezahlt: string; ausgebucht: string }>(sql`
+      select id, sum(bezahlt) as bezahlt, sum(ausgebucht) as ausgebucht from (
+        select invoice_id as id, amount as bezahlt, 0 as ausgebucht from allocations where invoice_id in ${ids}
+        union all select invoice_id, 0, amount from write_offs where invoice_id in ${ids}
+        union all select invoice_id, amount, 0 from cash_entries where invoice_id in ${ids}
       ) z group by id`)),
-    ].map((r) => [r.id, Number(r.summe)]),
+    ].map((r) => [r.id, { bezahlt: Number(r.bezahlt), ausgebucht: Number(r.ausgebucht) }]),
   );
   const result: VorgangZeile[] = [];
   for (const invoice of ist) {
-    if (invoice.gross === 0 || erledigt.get(invoice.id) !== invoice.gross) continue;
-    // Je Buchung die Konten ihres Kontenrahmens: Nach einem Wechsel zum Jahresbeginn bucht die Zahlung im neuen Rahmen
+    const summe = summen.get(invoice.id);
+    if (invoice.gross === 0 || !summe || summe.bezahlt + summe.ausgebucht !== invoice.gross) continue;
     const eigene = [...buchungen].filter((b) => b.invoice_id === invoice.id);
+    const posten = `Rechnung ${invoice.number ?? "ohne Nummer"} (Ist, ganz erledigt)`;
+    // Je Buchung die Konten ihres Kontenrahmens: Nach einem Wechsel zum Jahresbeginn bucht die Zahlung im neuen Rahmen
     const rest = eigene.reduce((s, b) => s + saldo(zeilen.get(b.entry_id) ?? [], new Set(Object.values(ACCOUNTS[b.kontenrahmen].ustNichtFaellig))), 0);
-    if (rest !== 0)
-      result.push({
-        zeitraum: invoice.issueDate.slice(0, 7),
-        posten: `Rechnung ${invoice.number ?? "ohne Nummer"} (Ist, ganz erledigt): Umsatzsteuer nicht fällig`,
-        journal: rest,
-        vorgang: 0,
-      });
+    if (rest !== 0) result.push({ zeitraum: invoice.issueDate.slice(0, 7), posten: `${posten}: Umsatzsteuer nicht fällig`, journal: rest, vorgang: 0 });
+    if (summe.ausgebucht !== 0) continue;
+    const gemeldet = (v: "ist" | "soll", typen: (b: (typeof eigene)[number]) => boolean) =>
+      eigene.filter(typen).reduce((s, b) => {
+        const k = kennzahlenAusJournal(b.kontenrahmen, v, [zeilen.get(b.entry_id) ?? []]);
+        return s + [...IST_NACH_ZAHLUNG].reduce((t, feld) => t + k[feld], 0);
+      }, 0);
+    const beiZahlung = gemeldet("ist", () => true);
+    const laut = gemeldet("soll", (b) => b.typ === "invoice");
+    if (beiZahlung !== laut)
+      result.push({ zeitraum: invoice.issueDate.slice(0, 7), posten: `${posten}: gemeldete Bemessungsgrundlage`, journal: beiZahlung, vorgang: laut });
   }
   return result;
 }
@@ -267,6 +285,6 @@ export async function vorgangZeilen(year: number, q: Db | Tx = db): Promise<Vorg
     ...(await zuordnungen(year, q)),
     ...(await kasse(year, q)),
     ...(await pauschalen(year, q)),
-    ...(await nichtFaelligeUmsatzsteuer(year, q)),
+    ...(await erledigteIstRechnungen(year, q)),
   ];
 }

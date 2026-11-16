@@ -141,7 +141,7 @@ export function leereJournalKennzahlen(): JournalKennzahlen {
  * inländische Umsätze (Kz 81, 86, 43, 48, 0 %). Reverse Charge, innergemeinschaftliche Lieferung und Drittland zählen
  * auch bei Ist mit der Rechnung (DATEV-Dok. 1080673; NACH_RECHNUNGSDATUM in vat-figures.ts).
  */
-const IST_NACH_ZAHLUNG: ReadonlySet<JournalKennzahl> = new Set(["kz81", "kz86", "kz43", "kz48", "steuerfrei"]);
+export const IST_NACH_ZAHLUNG: ReadonlySet<JournalKennzahl> = new Set(["kz81", "kz86", "kz43", "kz48", "steuerfrei"]);
 
 /**
  * Summe der Kennzahlen über die Buchungen eines Zeitraums, je Buchung ihre Zeilen. Bei Ist-Versteuerung zählt wie bei
