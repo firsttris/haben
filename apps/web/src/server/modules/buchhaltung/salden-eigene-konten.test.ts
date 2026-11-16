@@ -77,7 +77,6 @@ describe.skipIf(!testDatabaseUrl)("Saldenliste mit eigenen Konten (Postgres, #27
 
   it("eine manuelle Buchung im Einzelunternehmen auf ein eigenes Konto geht (es hat die Zeile seiner Elternkategorie in der EÜR), auf ein unbekanntes nicht", async () => {
     const manual = await import("./manual.ts");
-    await sql`update company set journal_ab = 2026, rechtsform = 'einzelunternehmen'`;
     const buchung = (account: string) => ({
       date: "2026-03-10",
       description: "Umbuchung auf das eigene Konto",

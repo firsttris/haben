@@ -1,4 +1,5 @@
 import { z } from "zod/mini";
+import { inBasisPoints, inCents } from "./einheit-schema.ts";
 import type { InvoiceTotals, PriceMode } from "./invoice.ts";
 import { formatEuro, roundHalfAwayFromZero, taxIncluded, taxOf, type BasisPoints, type Cents } from "./money.ts";
 import { distribute } from "./rabatt.ts";
@@ -33,8 +34,8 @@ export interface PlanTemplate {
 export const PLAN_ROWS_MAX = 12;
 
 export const planShareSchema = z.union([
-  z.object({ kind: z.literal("prozent"), value: z.int().check(z.minimum(1), z.maximum(10_000)) }),
-  z.object({ kind: z.literal("betrag"), value: z.int().check(z.minimum(1), z.maximum(100_000_000_00)) }),
+  z.object({ kind: z.literal("prozent"), value: inBasisPoints(z.int().check(z.minimum(1), z.maximum(10_000))) }),
+  z.object({ kind: z.literal("betrag"), value: inCents(z.int().check(z.minimum(1), z.maximum(100_000_000_00))) }),
   z.object({ kind: z.literal("rest") }),
 ]);
 

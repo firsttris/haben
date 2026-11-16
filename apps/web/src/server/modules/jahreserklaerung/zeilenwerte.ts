@@ -1,3 +1,4 @@
+import { inCents } from "@haben/core";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -15,7 +16,7 @@ import { AnnualError } from "./fehler.ts";
  */
 
 /** Ein Betrag in Cent; die Grenze hält einen Tippfehler davon ab, die Summe zu sprengen */
-const zeilenBetrag = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
+const zeilenBetrag = inCents(z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00));
 
 export const zeilenwerteSchema = z.object({
   form: zeilenForm,

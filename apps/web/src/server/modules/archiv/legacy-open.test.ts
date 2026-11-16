@@ -208,17 +208,15 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     const september = await figures.computeVatFigures({ year: 2026, month: 9 });
     expect(september.kz81).toBe(0);
     // EÜR aus dem Journal (#542): Die übernommene Rechnung steht gegen den Saldenvortrag ohne Erlöszeile; die Zahlung
-    // verteilt sich auf die Zeilen, die Haben für die Rechnung gebucht hätte, und wird je Zeile abgeglichen
+    // verteilt sich auf die Zeilen, die Haben für die Rechnung gebucht hätte. Der Gewinn nach der DATEV-Formel stimmt damit
+    const { euerForYear } = await import("../auswertungen/reports.ts");
+    const zeilen = await euerForYear(2026);
+    const zeile = (key: string) => [...zeilen.einnahmen, ...zeilen.ausgaben].find((l) => l.key === key)?.amount;
+    expect([zeile("einnahmenSteuerpflichtig"), zeile("vereinnahmteUst"), zeilen.gewinn]).toEqual([400_000, 76_000, 476_000]);
     const abgleich = await import("../auswertungen/abgleich.ts");
     const euer = await abgleich.euerAbgleich(2026);
     expect(euer.hinweise).toEqual([]);
-    expect(euer.zeilen.filter((z) => z.posten.startsWith("EÜR:")).map((z) => [z.posten, z.journal, z.quelle])).toEqual(
-      expect.arrayContaining([
-        ["EÜR: Umsatzsteuerpflichtige Betriebseinnahmen (netto)", 400_000, 400_000],
-        ["EÜR: Vereinnahmte Umsatzsteuer", 76_000, 76_000],
-        ["EÜR: Gewinn nach der DATEV-Formel", 476_000, 476_000],
-      ]),
-    );
+    expect(euer.zeilen.find((z) => z.posten === "EÜR: Gewinn nach der DATEV-Formel")).toMatchObject({ journal: 476_000, quelle: 476_000 });
     expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
   });
 
@@ -243,6 +241,28 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     ]);
     expect(await bank.openItems()).toEqual([]);
   });
+
+  // Gefunden im TDD-Review von #1144: Bei Ist steht das Netto des Stornos ohne Steuerschlüssel auf dem Saldenvortrag; der
+  // Abgleich Beleg gegen Buchung darf das nicht als abweichendes Netto der Rechnung melden
+  for (const versteuerung of ["ist", "soll"] as const)
+    it(`Storno einer übernommenen Rechnung: Abgleich Rechnung gegen Buchung ohne Abweichung (${versteuerung})`, async () => {
+      await sql`update company set versteuerung = ${versteuerung}`;
+      const id = await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: `RE1040-${versteuerung}`,
+        date: "2026-09-20",
+        net: 400_000,
+        tax: 76_000,
+        file: PDF,
+        contact: "Nordwerk Software GmbH",
+      });
+      const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+      await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
+      const abgleich = await import("../auswertungen/abgleich.ts");
+      const jahr = await abgleich.abgleichJahr(2026, "2026-11-15");
+      expect(abgleich.abweichungen(jahr.zeilen.filter((z) => z.bereich === "beleg"))).toEqual([]);
+    });
 
   it("übernimmt eine in Lexoffice brutto gerechnete Rechnung centgenau, das Storno hebt sie exakt auf", async () => {
     // 9,80 € brutto: 8,24 € netto, 1,56 € Steuer; netto nachgerechnet wären es 1,57 €

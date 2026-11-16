@@ -93,7 +93,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 | 📦 [Umzug aus Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) · [FastBill](https://haben.app/fastbill.html) · [BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html) · [Accountable](https://haben.app/accountable.html) · [JSON-Paket](https://haben.app/belegimport.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen, mit Abgleich je Jahr |
 | 🔐 [Anmeldung](https://haben.app/einrichtung.html#konto-anlegen) · [App](https://haben.app/einrichtung.html#als-app-installieren) | Passkey oder ausschließlich OpenID Connect mit Rollen aus Gruppen, Lesezugang für die [Steuerberatung](https://haben.app/steuerberatung.html), installierbar als App auf Handy und Desktop, helles und dunkles Theme |
 | 📥 [CSV-Import](https://haben.app/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, mit Spaltenzuordnung und Vorschau |
-| 🔌 [REST-API](https://haben.app/api.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich |
+| 🔌 [REST-API](https://haben.app/api.html) · [Dokumentenarchiv](https://haben.app/dokumentenarchiv.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich; festgeschriebene Rechnungen als Kopie an ein Archiv |
 | 🤖 [KI-Assistenten (MCP)](https://haben.app/ki-assistenten.html) | Haben im Gespräch mit Claude oder einem lokalen Modell abfragen („Welche Rechnungen sind überfällig?“), nur lesend |
 | 🧩 [Eigene Seiten](https://haben.app/eigene-seiten.html) | Eigene Werkzeuge, etwa aus n8n, als Menüeintrag in Haben |
 | ♿ [Barrierefreiheit](https://haben.app/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, jede Seite in der CI gegen WCAG 2.2 AA geprüft |
@@ -191,9 +191,9 @@ Du musst Haben nicht glauben, du kannst nachrechnen:
   So siehst du vor der Kündigung, ob Haben auf dieselben Zahlen kommt, siehe
   [Abgleich je Jahr](https://haben.app/lexoffice.html#schritt-5-abgleich-je-jahr).
 - **Im laufenden Jahr:** Unter jeder Kennzahl der Voranmeldung stehen die Rechnungen, Belege und Zahlungen dahinter,
-  jede Buchung im Journal führt zu ihrem Vorgang. Voranmeldung und EÜR rechnet Haben zweimal, aus dem Journal und aus
-  Rechnungen und Belegen, und zeigt, wo beides abweicht, siehe
-  [Abgleich von Journal, Umsatzsteuer und EÜR](https://haben.app/buchhaltung.html#abgleich-von-journal-umsatzsteuer-und-eür).
+  jede Buchung im Journal führt zu ihrem Vorgang. Voranmeldung und EÜR rechnet Haben aus dem Journal und prüft es gegen
+  Rechnungen, Belege, gesendete Anmeldungen und Kontoauszüge, siehe
+  [Abgleich im Journal](https://haben.app/buchhaltung.html#abgleich-im-journal).
 - **Danach:** Das Änderungsprotokoll ist eine Hashkette, festgeschriebene Daten sind versiegelt, und den Prüfwert
   bekommst du per E-Mail und im Jahresarchiv mit SHA-256-Prüfsummen, siehe
   [Hash-Kette und Siegel](https://haben.app/buchhaltung.html#manipulationserkennung-hash-kette-und-siegel).

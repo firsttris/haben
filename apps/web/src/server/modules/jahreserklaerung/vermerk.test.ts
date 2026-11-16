@@ -1,6 +1,6 @@
 import { formatEuro } from "@haben/core";
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
@@ -95,6 +95,105 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
       request_xml: "",
       response_xml: "",
       server_response_xml: "",
+    });
+  });
+
+  // Vorschlag von thomas-baumeister in #1144: Ein neuer Vermerk hält alle gerechneten Zahlen fest wie eine Übermittlung, damit
+  // die Prüfung gegen das Journal später jede Zeile vergleicht und nicht nur Gewinn bzw. Abschlusszahlung
+  it("hält alle gerechneten Zahlen fest; die Prüfung gegen das Journal vergleicht jede davon", async () => {
+    const berechnet = await gerechnet();
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456780", { amount: berechnet }), TODAY);
+    const [zeile] = await sql`select figures from annual_submissions where form = 'euer'`;
+    expect(zeile!.figures).toMatchObject({ amount: berechnet, gerechnet: expect.objectContaining({ gewinn: berechnet }) });
+    const pruefen = await import("./erklaert-pruefen.ts");
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+    // Gleicher Gewinn, aber eine Zeile anders als heute gerechnet: fällt nur über die festgehaltenen Zahlen auf
+    await leeren(sql)`truncate annual_submission_figures, annual_submissions`;
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, filed_on, note, figures, request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'ABC123456781', '2026-05-20', 'x',
+              ${JSON.stringify({ amount: berechnet, gerechnet: { gewinn: berechnet, "ausgabe:software": 100_00, einnahmen: 100_00 } })}::jsonb, '', '', '')`;
+    const befunde = await pruefen.erklaerteAbweichungen([2025]);
+    expect(befunde.sort((a, b) => a.feld.localeCompare(b.feld))).toEqual([
+      { year: 2025, form: "euer", art: "vermerkt", feld: "ausgabe:software", erklaert: 100_00, journal: 0 },
+      { year: 2025, form: "euer", art: "vermerkt", feld: "einnahmen", erklaert: 100_00, journal: 0 },
+    ]);
+  });
+
+  // Mit bestätigter Abweichung hält der Vermerk Habens damalige Zahlen fest, nicht die abgegebenen. Rechnet Haben heute den
+  // Betrag laut Protokoll (fehlende Buchungen nachgetragen, falsche berichtigt), passt das Journal zur Abgabe; die
+  // festgehaltenen Zeilen sind dann überholt und kein Befund
+  it("bestätigte Abweichung, heute rechnet Haben den Betrag laut Protokoll: die damals gerechneten Zeilen sind kein Befund", async () => {
+    const heute = await gerechnet();
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, filed_on, note, figures, request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'ABC123456782', '2026-05-20', 'x',
+              ${JSON.stringify({
+                amount: heute,
+                berechnet: heute - 100_00,
+                abweichung: 100_00,
+                abweichungBestaetigt: true,
+                gerechnet: { gewinn: heute - 100_00, "ausgabe:software": 100_00 },
+              })}::jsonb, '', '', '')`;
+    const pruefen = await import("./erklaert-pruefen.ts");
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+  });
+
+  // Befund 1 der Selbstprüfung Runde 4 in #1144: Die Abschlusszahlung der Umsatzsteuer hängt an den Vorauszahlungen aus den
+  // Voranmeldungen, nicht am Journal. Werden Voranmeldungen erst nach dem Vermerk nachgetragen, ändert sich das Journal nicht;
+  // neue Vermerke vergleichen deshalb Steuer und Zeilen, nicht die Abschlusszahlung
+  it("Umsatzsteuererklärung vermerkt, danach eine Voranmeldung nachgetragen: Journal unverändert, kein Befund", async () => {
+    await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
+    const ust = await annual.ustYear(2025);
+    await jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, eingabe("UST123456789", { amount: ust.abschluss }), TODAY);
+    await sql`insert into vat_returns (year, month, kz81, kz83, status, source, sent_at) values (2025, 12, 0, 50000, 'sent', 'berechnet', now())`;
+    expect((await annual.ustYear(2025)).abschluss).not.toBe(ust.abschluss);
+    const pruefen = await import("./erklaert-pruefen.ts");
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+    await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
+  });
+
+  // #1231: Vermerke von vor #1144 halten nur den Betrag laut Protokoll (bei bestätigter Abweichung dazu den damals gerechneten)
+  // fest. Verglichen wird dann die Steuer: Abschlusszahlung plus die Vorauszahlungen, die beim Vermerk gesendet waren
+  describe("älterer Vermerk der Umsatzsteuer ohne festgehaltene Zahlen (#1231)", () => {
+    const alterVermerk = (figures: Record<string, unknown>) =>
+      sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, filed_on, note, figures, request_xml, response_xml, server_response_xml, created_at)
+        values ('ust', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'UST123456700', '2026-05-20', 'x',
+                ${JSON.stringify(figures)}::jsonb, '', '', '', '2026-05-20T10:00:00Z')`;
+    const voranmeldung = (month: number, kz83: number, sentAt: string) =>
+      sql`insert into vat_returns (year, month, kz81, kz83, status, source, sent_at) values (2025, ${month}, 0, ${kz83}, 'sent', 'berechnet', ${sentAt})`;
+
+    beforeEach(async () => {
+      await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
+      await voranmeldung(1, 50_00, "2026-01-10T10:00:00Z");
+    });
+
+    afterEach(async () => {
+      await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
+    });
+
+    it("nach dem Vermerk eine Voranmeldung gesendet, Journal unverändert: kein Befund", async () => {
+      // Steuer 0 aus dem leeren Journal, 50 € vorausgezahlt: Abschlusszahlung laut Protokoll -50 €
+      await alterVermerk({ amount: -50_00 });
+      const pruefen = await import("./erklaert-pruefen.ts");
+      expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+      await voranmeldung(12, 500_00, "2026-09-01T10:00:00Z");
+      expect((await annual.ustYear(2025)).abschluss).toBe(-550_00);
+      expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+    });
+
+    it("die Steuer aus dem Journal weicht vom damals gerechneten Wert ab: Befund mit der Steuer", async () => {
+      // Damals gerechnet: Abschlusszahlung 100 € bei 50 € Vorauszahlung, also 150 € Steuer; heute rechnet das Journal 0 €
+      await alterVermerk({ amount: 300_00, berechnet: 100_00, abweichung: 200_00, abweichungBestaetigt: true });
+      await voranmeldung(12, 500_00, "2026-09-01T10:00:00Z");
+      const pruefen = await import("./erklaert-pruefen.ts");
+      expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([{ year: 2025, form: "ust", art: "vermerkt", feld: "steuer", erklaert: 150_00, journal: 0 }]);
+    });
+
+    it("bestätigte Abweichung, heute rechnet Haben die Steuer laut Protokoll: kein Befund", async () => {
+      // Laut Protokoll -50 € Abschlusszahlung bei 50 € Vorauszahlung, also 0 € Steuer wie heute aus dem Journal
+      await alterVermerk({ amount: -50_00, berechnet: 100_00, abweichung: -150_00, abweichungBestaetigt: true });
+      await voranmeldung(12, 500_00, "2026-09-01T10:00:00Z");
+      const pruefen = await import("./erklaert-pruefen.ts");
+      expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
     });
   });
 

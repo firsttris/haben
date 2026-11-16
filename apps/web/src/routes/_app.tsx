@@ -28,6 +28,8 @@ export const Route = createFileRoute("/_app")({
       rechtsform: state.rechtsform ?? "einzelunternehmen",
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,
+      ausgeblendet: state.ausgeblendet,
+      einrichtung: state.einrichtung,
       firma: state.firma,
       zeichen: state.zeichen,
       firmen: state.firmen,
@@ -161,7 +163,7 @@ function useMobileMenuEscape(menuOpen: boolean, paletteOpen: boolean, onClose: (
 }
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen, firmenportal, firma, oidc } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, ausgeblendet, firmen, firmenportal, firma, oidc } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -177,7 +179,7 @@ function AppLayout() {
   const toggle = useRef<HTMLButtonElement>(null);
   const firstPath = useRef(pathname);
   const sichtbareGruppen = groups
-    .map((group) => ({ ...group, links: group.links.filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })) }))
+    .map((group) => ({ ...group, links: group.links.filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter, ausgeblendet })) }))
     .filter((group) => group.links.length > 0);
   usePageHeadHeight(main);
   const scrolled = useScrolled();
@@ -252,6 +254,7 @@ function AppLayout() {
         inhaber={inhaber}
         gesellschaft={gesellschaft}
         hatMitarbeiter={hatMitarbeiter}
+        ausgeblendet={ausgeblendet}
         eigeneSeiten={eigeneSeiten}
       />
     </div>

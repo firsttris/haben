@@ -9,6 +9,7 @@ import {
   type DunningLevel,
   letterheadDesignInputSchema,
   MAX_DUNNING_FEE,
+  inCents,
 } from "@haben/core";
 import { asDraft, buildDunningDraftPdf, buildDunningPdf, type DraftPdf, type DunningDocument, dunningPdfData, dunningSheetText, texts } from "@haben/einvoice";
 import { desc, eq, inArray } from "drizzle-orm";
@@ -157,7 +158,7 @@ export const dunningInputSchema = z.object({
   invoiceId: z.uuid(),
   level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   dueDate: z.iso.date(),
-  fee: z.number().int().min(0).max(MAX_DUNNING_FEE),
+  fee: inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
   flatFee: z.boolean(),
   /** Verzugszinsen: Aufschlag auf den Basiszinssatz nach Kundenart, null = keine */
   interest: z.enum(["geschaeftskunde", "verbraucher"]).nullable(),

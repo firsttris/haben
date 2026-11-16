@@ -2,14 +2,15 @@ import {
   BUNDESLAENDER,
   RECHTSFORM_KEYS,
   RECHTSFORMEN,
+  baseRateError,
   currentFilingPeriod,
   dunningFeeError,
   formatDecimal,
   formatHundredths,
   formatRateMonth,
   isKapitalgesellschaft,
+  parseBaseRate,
   parseEuro,
-  parseHundredths,
   type Bundesland,
   type Rechtsform,
 } from "@haben/core";
@@ -17,8 +18,10 @@ import { redirect, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
+import { BereicheCard } from "../../components/BereicheCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
 import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
+import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
@@ -66,10 +69,9 @@ import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/sett
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, getExchangeRates, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import reportStyles from "../../styles/auswertungen.css?url";
-import { getDatevNumbers } from "../../server/functions/datev-export.ts";
 import { checkElsterFormats, confirmElsterPrivacy, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getCustomPages } from "../../server/functions/eigene-seiten.ts";
-import { getExportYears } from "../../server/functions/export.ts";
+import { getExportArea } from "../../server/functions/export.ts";
 import { getNumbering } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
 import { getAppVersions, getChainHead, getDatabaseAccessInfo } from "../../server/functions/integrity.ts";
@@ -80,11 +82,9 @@ import { getZugaenge } from "../../server/functions/zugang.ts";
 import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
-import { StichjahrCard } from "../../components/StichjahrCard.tsx";
 import { NavMarkCard } from "../../components/NavMarkCard.tsx";
 import { getOwnAccounts } from "../../server/functions/eigene-konten.ts";
 import { SettingsHead, SettingsNav } from "../../components/SettingsNav.tsx";
-import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UnitsCard } from "../../components/UnitsCard.tsx";
@@ -108,8 +108,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       design,
       overview,
       inbox,
-      exportYears,
-      datev,
+      exportArea,
       chainHead,
       appVersions,
       databaseAccess,
@@ -122,7 +121,6 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
-      stichjahr,
       ownAccounts,
       units,
     ] = await Promise.all([
@@ -136,8 +134,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getLetterheadDesign(),
       getLayouts(),
       getInbox(),
-      getExportYears(),
-      getDatevNumbers(),
+      getExportArea(),
       getChainHead(),
       getAppVersions(),
       getDatabaseAccessInfo(),
@@ -150,7 +147,6 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getZugaenge(),
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
-      getStichjahr(),
       getOwnAccounts(),
       getUnits(),
     ]);
@@ -167,8 +163,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       layouts: overview.layouts,
       layoutHints: overview.hints,
       inbox,
-      exportYears,
-      datev,
+      ...exportArea,
       chainHead,
       appVersions,
       databaseAccess,
@@ -181,7 +176,6 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
-      stichjahr,
       ownAccounts,
       units,
     };
@@ -193,7 +187,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { oidc } = Route.useRouteContext();
+  const { oidc, ausgeblendet } = Route.useRouteContext();
   const {
     company,
     numbering,
@@ -218,9 +212,9 @@ function SettingsPage() {
     zugaenge,
     extraction,
     quoteDefaultAttachments,
-    stichjahr,
     ownAccounts,
     units,
+    ablage,
   } = Route.useLoaderData();
   const search = Route.useSearch();
   const bereich = search.bereich ?? "firma";
@@ -240,11 +234,11 @@ function SettingsPage() {
           {bereich === "firma" && (
             <>
               <CompanyForm />
-              <StichjahrCard stand={stichjahr} />
               <NavMarkCard color={company.navColor} logo={company.navLogo} logoSha256={logo?.sha256 ?? null} />
             </>
           )}
           {bereich === "persoenlich" && <TaxpayerForm />}
+          {bereich === "bereiche" && <BereicheCard ausgeblendet={ausgeblendet} />}
           {bereich === "rechnungen" && (
             <>
               <NumberingCard numbering={numbering.invoice} />
@@ -310,6 +304,7 @@ function SettingsPage() {
             <>
               <ExportCard years={exportYears} />
               <DatevCard years={exportYears} numbers={datev} />
+              <ArchiveTargetCard data={ablage} />
               <IntegrityCard head={chainHead} />
               <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
@@ -324,6 +319,14 @@ function SettingsPage() {
   );
 }
 
+/** Fehler der Felder im Abschnitt Mahnwesen, für useSubmitCheck */
+const dunningErrors = (baseRate: string, fees: Record<"1" | "2" | "3", string>) => ({
+  "dunning-baseRate": baseRateError(baseRate),
+  "dunning-fee-1": dunningFeeError(fees["1"]),
+  "dunning-fee-2": dunningFeeError(fees["2"]),
+  "dunning-fee-3": dunningFeeError(fees["3"]),
+});
+
 function CompanyForm() {
   const { company, issues, letterIssues, locks } = Route.useLoaderData();
   const router = useRouter();
@@ -337,16 +340,7 @@ function CompanyForm() {
   const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
   const [fees, setFees] = useState({ "1": fee("1"), "2": fee("2"), "3": fee("3") });
   const [email, setEmail] = useState(company.email);
-  const {
-    form: checkScope,
-    error,
-    check,
-  } = useSubmitCheck({
-    email: emailFehler(email),
-    "dunning-fee-1": dunningFeeError(fees["1"]),
-    "dunning-fee-2": dunningFeeError(fees["2"]),
-    "dunning-fee-3": dunningFeeError(fees["3"]),
-  });
+  const { form: checkScope, error, check } = useSubmitCheck({ email: emailFehler(email), ...dunningErrors(baseRate, fees) });
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -394,8 +388,8 @@ function CompanyForm() {
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
           taetigkeit: text("taetigkeit"),
           dunning: {
-            // Prozent mit zwei Nachkommastellen: "1,27" → 127 Basispunkte, auch negativ (§ 247 BGB), daher nicht parsePercent
-            baseRate: text("dunning-baseRate").trim() ? parseHundredths(text("dunning-baseRate")) : null,
+            // Geprüft mit baseRateError; leer heißt keine Verzugszinsen
+            baseRate: text("dunning-baseRate").trim() ? parseBaseRate(text("dunning-baseRate")) : null,
             fees: {
               "1": parseEuro(fees["1"] || "0") ?? 0,
               "2": parseEuro(fees["2"] || "0") ?? 0,
@@ -743,7 +737,7 @@ function CompanyForm() {
       <section className="form-section" aria-labelledby="company-dunning">
         <h3 id="company-dunning">Mahnwesen</h3>
         <div className="form-row cols-2">
-          <Field label="Basiszinssatz in %" describedBy="base-rate-hint">
+          <Field label="Basiszinssatz in %" describedBy="base-rate-hint" error={error("dunning-baseRate")}>
             {(control) => (
               <input
                 {...control}

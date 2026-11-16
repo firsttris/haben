@@ -94,7 +94,11 @@ describe.skipIf(!testDatabaseUrl)("Kassenbuch (Postgres)", () => {
 
     // EÜR: bar bezahlter Beleg zählt am Belegdatum
     const reports = await import("../auswertungen/reports.ts");
-    const payments = (await reports.euerPayments(2026)).filter((p) => p.kind === "document");
-    expect(payments).toEqual([expect.objectContaining({ date: "2026-10-02", paid: 2_380 })]);
+    const euer = await reports.euerForYear(2026);
+    expect(euer.ausgaben.filter((l) => l.amount !== 0).map((l) => [l.key, l.amount])).toEqual([
+      ["ausgabe:buero", 2_000],
+      ["vorsteuer", 380],
+    ]);
+    expect(euer.monthly.ausgaben[9]).toBe(2_000);
   });
 });

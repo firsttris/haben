@@ -20,7 +20,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 
 | | |
 |---|---|
-| [Erste Schritte](einrichtung.md) | Konto und Passkey, als App installieren, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, KI-Auslesung, Bankkonten |
+| [Erste Schritte](einrichtung.md) | Konto und Passkey, Fragen zur Einrichtung, Bereiche ausblenden, als App installieren, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, KI-Auslesung, Bankkonten |
 | [ELSTER einrichten](einrichtung-elster.md) | Zertifikatsdatei, eigene Hersteller-ID, ERiC-Version, Unterschied zu Lexoffice |
 | [E-Mail-Versand](einrichtung-email.md) | Versand über SMTP oder Microsoft 365 (Graph) |
 | [Zugang für die Steuerberatung](steuerberatung.md) | Eigener Zugang per Einladungslink, nur lesen: Auswertungen, Journal, Konten, Belege, Rechnungen, DATEV und Jahresarchiv |
@@ -91,6 +91,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 |---|---|
 | [KI-Assistenten (MCP)](ki-assistenten.md) | Haben im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen, API-Tokens, Datenschutz |
 | [REST-API](api.md) | Kontakte und Rechnungsentwürfe aus eigenen Werkzeugen, mit Bestellnummer ohne Duplikate; Belege aus Dokumentenarchiven und Skripten; OpenAPI, Rechte je Token, Beispiele mit curl |
+| [Dokumentenarchiv](dokumentenarchiv.md) | Festgeschriebene Rechnungen als Kopie an ein Archiv wie Paperless-ngx oder Belegt, Status an der Rechnung; Belege aus dem Archiv über die REST-API |
 | [Eigene Seiten](eigene-seiten.md) | Eigene Werkzeuge wie eine Bestellübersicht aus n8n als Menüeintrag, im Rahmen angezeigt |
 
 ## Hintergrund

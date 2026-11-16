@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 
 /*
- * Einstellungen → Mahnwesen: Knopf „Bei der Bundesbank abrufen“ und Grenze der Gebühren (docs/einrichtung.md). Die echte Bundesbank fragt hier
+ * Einstellungen → Mahnwesen: Knopf „Bei der Bundesbank abrufen“, Prüfung des Basiszinssatzes und Grenze der Gebühren (docs/einrichtung.md). Die echte Bundesbank fragt hier
  * niemand ab: Der Aufruf der Server-Funktion wird im Browser abgefangen und mit einem festen Ergebnis beantwortet, im Format,
  * das TanStack Start selbst schickt (seroval-JSON, Kopfzeile x-tss-serialized). Abruf und CSV prüfen die Vitest-Tests.
  */
@@ -117,6 +117,22 @@ test("Gebühr je Stufe: mehr als 1.000 € steht am Feld, gespeichert wird nicht
   await expect(page.getByText("Firmendaten gespeichert.")).toHaveCount(0);
   await openDunning(page);
   await expect(page.getByLabel("Gebühr Zahlungserinnerung (€)")).toHaveValue(vorher);
+});
+
+test("Basiszinssatz: Unlesbares und Sätze außerhalb von −10 % bis 20 % stehen am Feld, gespeichert wird nichts (#1143)", async ({ page }) => {
+  const field = await openDunning(page);
+  const vorher = await field.inputValue();
+  const speichern = page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" });
+  await field.fill("1.27");
+  await speichern.click();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveAccessibleDescription(/etwa 1,27 oder -0,88/);
+  await field.fill("25 %");
+  await speichern.click();
+  await expect(field).toHaveAccessibleDescription(/von -10\s% bis 20\s%/);
+  await expect(page.getByText("Firmendaten gespeichert.")).toHaveCount(0);
+  await openDunning(page);
+  await expect(page.getByLabel("Basiszinssatz in %")).toHaveValue(vorher);
 });
 
 test("Firmendaten: Fehler stehen am Feld statt in der Blase des Browsers, der Fokus geht aufs erste", async ({ page }) => {

@@ -50,11 +50,9 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
     await leeren(sql)`truncate document_settlements, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
-    // Nebenbücher statt Journal: Das Journal bucht eine Verrechnung nicht (#274), die Voranmeldung rechnet sie deshalb
-    // vor dem Stichjahr aus den Nebenbüchern (docs/adr/journal-als-quelle.md).
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 2027)`;
+              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
   });
 
   type BelegBetrag = { taxRate: 1900 | 700; net: number; tax: number; originalNet?: number; originalTax?: number };
@@ -206,21 +204,18 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
     expect(imMaerz.inputTax.reduce((summe, zeile) => summe + zeile.tax, 0)).toBe(-1_757);
   }, 60_000);
 
-  it("ab dem Stichjahr rechnet die Voranmeldung aus dem Journal und kommt zum selben Ergebnis", async () => {
-    // Stichjahr auf das Buchungsjahr ziehen: die Voranmeldung rechnet dann aus dem Journal statt aus den Nebenbüchern.
+  it("Kz 66 aus dem Journal und die Erläuterung aus dem Nebenbuch zeigen dieselben Monate", async () => {
     // Die Buchung legt die Vorsteuer beim Buchen auf das Zwischenkonto und zieht sie erst beim Ausgleich auf die
-    // Vorsteuer (belegbuchung.ts, vorsteuer-ausgleich.ts) — deshalb zeigen beide Quellen dieselben Monate.
-    await sql`update company set journal_ab = 2026`;
+    // Vorsteuer (belegbuchung.ts, vorsteuer-ausgleich.ts); die Liste der Vorsteuer (inputTax) erläutert dieselben Monate.
     const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }], { erstattetBezahltes: true });
     const februar66 = (await figures.computeVatFigures(februar)).kz66;
     expect(februar66).toBe(0);
-    expect((await figures.computeVatFigures(februar)).nebenbuecher?.kz66).toBe(0);
+    expect((await figures.computeVatFigures(februar)).inputTax.reduce((summe, zeile) => summe + zeile.tax, 0)).toBe(0);
 
     await zahle("15.03.26", "Erstattung Stadtwerke", 43_956, gutschrift);
     const maerz66 = (await figures.computeVatFigures(maerz)).kz66;
     expect(maerz66).toBe(-7_018);
-    // Und die Gegenprobe aus den Nebenbüchern sagt dasselbe
-    expect((await figures.computeVatFigures(maerz)).nebenbuecher?.kz66).toBe(-7_018);
+    expect((await figures.computeVatFigures(maerz)).inputTax.reduce((summe, zeile) => summe + zeile.tax, 0)).toBe(-7_018);
   }, 60_000);
 
   it("Aus einem Umzug übernommener Beleg: die Steuer ist anderswo angemeldet, Haben mindert nichts", async () => {

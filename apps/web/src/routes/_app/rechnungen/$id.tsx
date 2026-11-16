@@ -16,6 +16,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { reverseWriteOffFn, writeOffRest } from "../../../server/functions/bank.ts";
 import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
+import { LockedAndArchived } from "../../../components/ArchiveStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
@@ -328,8 +329,7 @@ function FinalInvoice({ data }: { data: Detail }) {
                   <dd>{TAX_TREATMENTS[invoice.taxTreatment].label}</dd>
                 </>
               )}
-              <dt>Festgeschrieben</dt>
-              <dd>{invoice.lockedAt ? formatDateTime(invoice.lockedAt) : "–"}</dd>
+              <LockedAndArchived lockedAt={invoice.lockedAt} ablage={data.ablage} />
               {data.deducts.length > 0 && (
                 <>
                   <dt>Abgezogen</dt>

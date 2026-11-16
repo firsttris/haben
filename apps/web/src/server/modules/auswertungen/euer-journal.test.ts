@@ -1,4 +1,4 @@
-import { ACCOUNTS } from "@haben/core";
+import { ACCOUNTS, type EuerLine, type EuerResult } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -39,11 +39,27 @@ const ausgang = (date: string, name: string, amount: string) => [
 ];
 
 /*
- * EÜR aus dem Journal (#542, Schritt 5b) im Abgleich: Einnahmen und Ausgaben nach Zahlung, jede Zahlung anteilig auf die
- * Rechnung bzw. den Beleg verteilt, die sie ausgleicht (euer-journal.ts). Eigene Datei mit eigener Datenbank, damit die
- * Siegel der vielen Zuordnungen hier die Integritätsprüfung in abgleich.test.ts nicht über ihre Grenze je Tabelle treiben.
+ * EÜR aus dem Journal (#542, Schritt 5b; #1116): Einnahmen und Ausgaben nach Zahlung, jede Zahlung anteilig auf die
+ * Rechnung bzw. den Beleg verteilt, die sie ausgleicht (euer-journal.ts). Geprüft gegen feste Werte (ERWARTET), die bis
+ * #1116 die Nebenbücher als Gegenprobe lieferten, und gegen den Gewinn nach der DATEV-Formel im Abgleich. Eigene Datei
+ * mit eigener Datenbank, damit die Siegel der vielen Zuordnungen hier die Integritätsprüfung in abgleich.test.ts nicht
+ * über ihre Grenze je Tabelle treiben.
  */
-describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)", () => {
+
+/** Was euerForYear liefert, kurz: Zeilen mit Betrag (und Notiz), Gewinn, nachrichtliche Beträge, Monate */
+function kurz(e: EuerResult) {
+  const zeilen = (l: EuerLine[]) => l.map((z) => (z.note ? [z.key, z.amount, z.note] : [z.key, z.amount]));
+  return {
+    einnahmen: zeilen(e.einnahmen),
+    ausgaben: zeilen(e.ausgaben),
+    gewinn: e.gewinn,
+    bewirtung: e.bewirtungNichtAbziehbar,
+    gewerbesteuer: e.gewerbesteuerNichtAbziehbar,
+    monate: e.monthly,
+  };
+}
+
+describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal (Postgres)", () => {
   let abgleich: typeof import("./abgleich.ts");
   let bank: typeof import("../bank/bank.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
@@ -74,6 +90,26 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
   afterAll(async () => {
     await sql?.end();
   });
+
+  /** EÜR des Jahres gegen die festen Werte (ERWARTET), je Test und Jahr; ein zweiter Aufruf im selben Test hat „|2“ */
+  const aufrufe = new Map<string, number>();
+  async function wieErwartet(year: number) {
+    const test = `${expect.getState().currentTestName!.split(" > ").at(-1)}|${year}`;
+    const n = (aufrufe.get(test) ?? 0) + 1;
+    aufrufe.set(test, n);
+    const key = n === 1 ? test : `${test}|${n}`;
+    expect(kurz(await (await import("./reports.ts")).euerForYear(year)), key).toEqual(ERWARTET[key]);
+  }
+
+  /** Abgleich des Jahres ohne Abweichung und Hinweis, dazu die EÜR gegen ihre festen Werte (ERWARTET) */
+  const pruefe = async (...years: number[]) => {
+    for (const year of years) {
+      const euer = await abgleich.euerAbgleich(year);
+      expect(euer.hinweise, String(year)).toEqual([]);
+      expect(abgleich.abweichungen(euer.zeilen), String(year)).toEqual([]);
+      await wieErwartet(year);
+    }
+  };
 
   async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04" = "SKR03", kleinunternehmer = false) {
     await leeren(sql)`truncate document_settlements, asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
@@ -175,17 +211,13 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
         for (const t of raten) await bank.allocate(actor, { kind: "invoice", transactionId: t.id, invoiceId: a.id, amount: t.amount });
         await bank.allocate(actor, { kind: "document", transactionId: by(-5_000), documentId: doc!.id, amount: -5_000 });
 
-        for (const year of [2026, 2027]) {
-          const euer = await abgleich.euerAbgleich(year);
-          expect(euer.hinweise, String(year)).toEqual([]);
-          expect(abgleich.abweichungen(euer.zeilen), String(year)).toEqual([]);
-        }
+        await pruefe(2026, 2027);
         // Verglichen wurde wirklich: Einnahmen in beiden Jahren nach Zahlung, die Ausgabe erst 2027
-        const zeile = async (year: number, posten: string) => (await abgleich.euerAbgleich(year)).zeilen.find((z) => z.posten === posten);
-        expect((await zeile(2026, "EÜR: Umsatzsteuerpflichtige Betriebseinnahmen (netto)"))!.journal).toBeGreaterThan(0);
-        expect((await zeile(2027, "EÜR: Umsatzsteuerpflichtige Betriebseinnahmen (netto)"))!.journal).toBeGreaterThan(0);
-        expect(await zeile(2026, "EÜR: Gezahlte Vorsteuerbeträge")).toBeUndefined();
-        expect((await zeile(2027, "EÜR: Gezahlte Vorsteuerbeträge"))!.journal).toBeGreaterThan(0);
+        const zeile = async (year: number, key: string) => (await euerJournal.euerAusJournal(year)).summe.zeilen[key as "vorsteuer"];
+        expect(await zeile(2026, "einnahmenSteuerpflichtig")).toBeGreaterThan(0);
+        expect(await zeile(2027, "einnahmenSteuerpflichtig")).toBeGreaterThan(0);
+        expect(await zeile(2026, "vorsteuer")).toBeUndefined();
+        expect(await zeile(2027, "vorsteuer")).toBeGreaterThan(0);
       }, 60_000);
     }
   }
@@ -201,9 +233,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
         // Die erste Zahlung war für eine andere Rechnung gedacht und wird aufgehoben
         const [first] = await sql`select a.id from allocations a join bank_transactions t on t.id = a.transaction_id where t.booking_date = '2026-02-01'`;
         await bank.reverseAllocation(actor, first!.id);
-        const euer = await abgleich.euerAbgleich(2026);
-        expect(euer.hinweise).toEqual([]);
-        expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+        await pruefe(2026);
       }, 60_000);
 
       it(`EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (${kontenrahmen}, ${versteuerung})`, async () => {
@@ -212,11 +242,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
         const txs = await transactions([eingang("20.12.26", `RE ${a.number} Teil 1`, "39,67"), eingang("08.01.27", `RE ${a.number} Teil 2`, "39,67")]);
         // Erst die Januar-Zahlung zugeordnet, dann die vom Dezember
         for (const t of [...txs].reverse()) await bank.allocate(actor, { kind: "invoice", transactionId: t.id, invoiceId: a.id, amount: t.amount });
-        for (const year of [2026, 2027]) {
-          const euer = await abgleich.euerAbgleich(year);
-          expect(euer.hinweise, String(year)).toEqual([]);
-          expect(abgleich.abweichungen(euer.zeilen), String(year)).toEqual([]);
-        }
+        await pruefe(2026, 2027);
       }, 60_000);
 
       it(`EÜR aus dem Journal: Rest nach Teilzahlung als Forderungsausfall ausgebucht (${kontenrahmen}, ${versteuerung})`, async () => {
@@ -238,9 +264,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
           // 77 Cent bleiben offen und werden als Forderungsausfall ausgebucht
           await bank.allocateWithRest(actor, { transactionId: rest.id, target: { kind: "invoice", invoiceId: r.id }, rest: "forderungsausfall" });
         }
-        const euer = await abgleich.euerAbgleich(2026);
-        expect(euer.hinweise).toEqual([]);
-        expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+        await pruefe(2026);
       }, 60_000);
 
       it(`EÜR aus dem Journal: Teilzahlung auf einen Beleg mit Privatanteil (${kontenrahmen}, ${versteuerung})`, async () => {
@@ -248,9 +272,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
         const doc = await bookedDocument("2026-03-01", [{ taxRate: 1900, net: 5_001, tax: 950 }], { privateShare: 30, category: "telefon" });
         const [tx] = await transactions([ausgang("05.03.26", "Lieferant", "-29,75")]);
         await bank.allocate(actor, { kind: "document", transactionId: tx!.id, documentId: doc, amount: -2_975 });
-        const euer = await abgleich.euerAbgleich(2026);
-        expect(euer.hinweise).toEqual([]);
-        expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+        await pruefe(2026);
       }, 60_000);
     }
   }
@@ -267,19 +289,9 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
       await sql`update company set kontenrahmen = ${nachher} where id = 1`;
       const [tx] = await transactions([eingang("15.01.26", `RE ${a.number}`, "119,00")]);
       await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: a.id, amount: 11_900 });
-      const euer = await abgleich.euerAbgleich(2026);
-      expect(euer.hinweise).toEqual([]);
-      expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+      await pruefe(2026);
     }, 60_000);
   }
-
-  const pruefe = async (...years: number[]) => {
-    for (const year of years) {
-      const euer = await abgleich.euerAbgleich(year);
-      expect(euer.hinweise, String(year)).toEqual([]);
-      expect(abgleich.abweichungen(euer.zeilen), String(year)).toEqual([]);
-    }
-  };
 
   // Review #562, Runde 2: aufgeteilte Belege ohne Vorsteuerabzug fassen Netto und Steuer je Kategorie in einer Zeile zusammen
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
@@ -482,3 +494,992 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
     }
   }
 });
+
+/**
+ * Feste Werte der EÜR je Test und Jahr. Bis #1116 verglich der Test die EÜR aus dem Journal mit der aus den Nebenbüchern;
+ * die Werte sind die der Nebenbücher, wie sie die Rechnung aus dem Journal seither ergeben muss.
+ */
+const ERWARTET: Record<string, ReturnType<typeof kurz>> = {
+  "EÜR je Zeile aus dem Journal: Teilzahlungen über den Jahreswechsel (SKR03, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3334],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 633],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3334], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR je Zeile aus dem Journal: Teilzahlungen über den Jahreswechsel (SKR03, ist)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 6666],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1267],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:edv", 4310],
+      ["vorsteuer", 690],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 2933,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [6666, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [4310, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR je Zeile aus dem Journal: Teilzahlungen über den Jahreswechsel (SKR03, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3334],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 633],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3334], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR je Zeile aus dem Journal: Teilzahlungen über den Jahreswechsel (SKR03, soll)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 6666],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1267],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:edv", 4310],
+      ["vorsteuer", 690],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 2933,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [6666, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [4310, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR je Zeile aus dem Journal: Teilzahlungen über den Jahreswechsel (SKR04, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3334],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 633],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3334], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR je Zeile aus dem Journal: Teilzahlungen über den Jahreswechsel (SKR04, ist)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 6666],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1267],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:edv", 4310],
+      ["vorsteuer", 690],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 2933,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [6666, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [4310, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR je Zeile aus dem Journal: Teilzahlungen über den Jahreswechsel (SKR04, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3334],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 633],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3334], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR je Zeile aus dem Journal: Teilzahlungen über den Jahreswechsel (SKR04, soll)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 6666],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1267],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:edv", 4310],
+      ["vorsteuer", 690],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 2933,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [6666, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [4310, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: frühere Teilzahlung aufgehoben (SKR03, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3333],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 634],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 6667, 0, 0, 0, 0, 0, 0, 0, 0, -3334, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (SKR03, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3333],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 634],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3333], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (SKR03, ist)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3334],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 633],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [3334, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Rest nach Teilzahlung als Forderungsausfall ausgebucht (SKR03, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 59610],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 11328],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 70938,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 20004, 39606, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Teilzahlung auf einen Beleg mit Privatanteil (SKR03, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 1750],
+      ["vorsteuer", 332],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -2082,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 1750, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: frühere Teilzahlung aufgehoben (SKR03, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3333],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 634],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 6667, 0, 0, 0, 0, 0, 0, 0, 0, -3334, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (SKR03, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3333],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 634],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3333], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (SKR03, soll)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3334],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 633],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [3334, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Rest nach Teilzahlung als Forderungsausfall ausgebucht (SKR03, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 59610],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 11328],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 70938,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 20004, 39606, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Teilzahlung auf einen Beleg mit Privatanteil (SKR03, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 1750],
+      ["vorsteuer", 332],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -2082,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 1750, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: frühere Teilzahlung aufgehoben (SKR04, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3333],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 634],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 6667, 0, 0, 0, 0, 0, 0, 0, 0, -3334, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (SKR04, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3333],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 634],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3333], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (SKR04, ist)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3334],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 633],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [3334, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Rest nach Teilzahlung als Forderungsausfall ausgebucht (SKR04, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 59610],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 11328],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 70938,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 20004, 39606, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Teilzahlung auf einen Beleg mit Privatanteil (SKR04, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 1750],
+      ["vorsteuer", 332],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -2082,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 1750, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: frühere Teilzahlung aufgehoben (SKR04, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3333],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 634],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 6667, 0, 0, 0, 0, 0, 0, 0, 0, -3334, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (SKR04, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3333],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 634],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3333], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (SKR04, soll)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 3334],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 633],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 3967,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [3334, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Rest nach Teilzahlung als Forderungsausfall ausgebucht (SKR04, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 59610],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 11328],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 70938,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 20004, 39606, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Teilzahlung auf einen Beleg mit Privatanteil (SKR04, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 1750],
+      ["vorsteuer", 332],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -2082,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 1750, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Rechnung im Vorjahr in SKR03, Zahlung nach dem Wechsel zu SKR04|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Rechnung im Vorjahr in SKR04, Zahlung nach dem Wechsel zu SKR03|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Teilzahlung auf einen aufgeteilten Beleg ohne Vorsteuerabzug (Kleinunternehmer, SKR03)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:software", 284],
+      ["ausgabe:buero", 950],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1234,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 1234, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Teilzahlung auf einen aufgeteilten Beleg nach § 13b ohne Vorsteuerabzug (Kleinunternehmer, SKR03)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:software", 143],
+      ["ausgabe:buero", 476],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -619,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 619, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Teilzahlung auf einen aufgeteilten Beleg ohne Vorsteuerabzug (Kleinunternehmer, SKR04)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:software", 284],
+      ["ausgabe:buero", 950],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1234,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 1234, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "EÜR aus dem Journal: Teilzahlung auf einen aufgeteilten Beleg nach § 13b ohne Vorsteuerabzug (Kleinunternehmer, SKR04)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:software", 143],
+      ["ausgabe:buero", 476],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -619,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 619, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Bareinnahme im Vorjahr in SKR03: Storno nach dem Wechsel zu SKR04 bucht im neuen Kontenrahmen|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10000], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Bareinnahme im Vorjahr in SKR03: Storno nach dem Wechsel zu SKR04 bucht im neuen Kontenrahmen|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", -10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", -1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [-10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Ausbuchung im Vorjahr in SKR03: Aufheben nach dem Wechsel zu SKR04 bucht im neuen Kontenrahmen, Zahlung danach zuordenbar|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Ausbuchung im Vorjahr in SKR03: Aufheben nach dem Wechsel zu SKR04 bucht im neuen Kontenrahmen, Zahlung danach zuordenbar|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 10000, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gegenbuchung von vor #570 mit den Konten aus SKR03 unter SKR04: EÜR aus dem Journal ohne Abweichung|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10000], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gegenbuchung von vor #570 mit den Konten aus SKR03 unter SKR04: EÜR aus dem Journal ohne Abweichung|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", -10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", -1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [-10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Einlage im Vorjahr in SKR03: Storno nach dem Wechsel zu SKR04 bucht im neuen Kontenrahmen|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Einlage im Vorjahr in SKR03: Storno nach dem Wechsel zu SKR04 bucht im neuen Kontenrahmen|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Bareinnahme im Vorjahr in SKR04: Storno nach dem Wechsel zu SKR03 bucht im neuen Kontenrahmen|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10000], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Bareinnahme im Vorjahr in SKR04: Storno nach dem Wechsel zu SKR03 bucht im neuen Kontenrahmen|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", -10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", -1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [-10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Ausbuchung im Vorjahr in SKR04: Aufheben nach dem Wechsel zu SKR03 bucht im neuen Kontenrahmen, Zahlung danach zuordenbar|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Ausbuchung im Vorjahr in SKR04: Aufheben nach dem Wechsel zu SKR03 bucht im neuen Kontenrahmen, Zahlung danach zuordenbar|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 10000, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gegenbuchung von vor #570 mit den Konten aus SKR04 unter SKR03: EÜR aus dem Journal ohne Abweichung|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10000], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gegenbuchung von vor #570 mit den Konten aus SKR04 unter SKR03: EÜR aus dem Journal ohne Abweichung|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", -10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", -1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [-10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Einlage im Vorjahr in SKR04: Storno nach dem Wechsel zu SKR03 bucht im neuen Kontenrahmen|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Einlage im Vorjahr in SKR04: Storno nach dem Wechsel zu SKR03 bucht im neuen Kontenrahmen|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Beleg mit Privatanteil, offen über den Jahreswechsel (SKR03, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10000], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Beleg mit Privatanteil, offen über den Jahreswechsel (SKR03, ist)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 3501],
+      ["vorsteuer", 665],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -4166,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [3501, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Beleg mit Privatanteil, offen über den Jahreswechsel (SKR03, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10000], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Beleg mit Privatanteil, offen über den Jahreswechsel (SKR03, soll)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 3501],
+      ["vorsteuer", 665],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -4166,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [3501, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Hardware (GWG) als Ausgabe, nicht als Anlage (SKR03)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:hardware", 50000, "Als geringwertige Wirtschaftsgüter sofort abgezogen"],
+      ["vorsteuer", 9500],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -59500,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 50000, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Beleg mit Privatanteil, offen über den Jahreswechsel (SKR04, ist)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10000], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Beleg mit Privatanteil, offen über den Jahreswechsel (SKR04, ist)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 3501],
+      ["vorsteuer", 665],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -4166,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [3501, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Beleg mit Privatanteil, offen über den Jahreswechsel (SKR04, soll)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 10000],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1900],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11900,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10000], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Beleg mit Privatanteil, offen über den Jahreswechsel (SKR04, soll)|2027": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 3501],
+      ["vorsteuer", 665],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -4166,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [3501, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Gewinn nach der DATEV-Formel: Hardware (GWG) als Ausgabe, nicht als Anlage (SKR04)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:hardware", 50000, "Als geringwertige Wirtschaftsgüter sofort abgezogen"],
+      ["vorsteuer", 9500],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -59500,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 50000, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+};

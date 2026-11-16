@@ -1,5 +1,7 @@
 import { formatHundredths } from "@haben/core";
 import { runDueFileCheck, runDuePruefwertMail } from "./modules/auswertungen/index.ts";
+import { runDueArchiveDeliveries } from "./modules/ablage/index.ts";
+import { erklaerteAbweichungsZeilen } from "./modules/jahreserklaerung/index.ts";
 import { runDueBankSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
@@ -26,6 +28,14 @@ export async function runScheduledJobs(): Promise<void> {
     }
   } catch (error) {
     console.error("Wiederkehrende Rechnungen", error);
+  }
+  try {
+    // Nach den wiederkehrenden Rechnungen, damit deren neue gleich mitgehen
+    const result = await runDueArchiveDeliveries();
+    if (result && (result.uebertragen > 0 || result.fehler > 0))
+      console.log(`Ablage im Archiv: ${result.uebertragen} Rechnungen übertragen, ${result.fehler} fehlgeschlagen`);
+  } catch (error) {
+    console.error("Ablage im Archiv", error);
   }
   try {
     const result = await runDueDauerbelege(today());
@@ -114,7 +124,8 @@ async function runFileCheckAndPruefwertMail(): Promise<void> {
       console.error("Vollprüfung der Dateien", error);
     }
     try {
-      const result = await runDuePruefwertMail();
+      // Übermittelte Jahreserklärungen gegen das Journal: jahreserklaerung steht über auswertungen (erklaert-pruefen.ts)
+      const result = await runDuePruefwertMail(undefined, erklaerteAbweichungsZeilen);
       if (result)
         console.log(
           `Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde${result.fileProblems ? `, ${result.fileProblems} Dateien fehlen oder sind verändert` : ""}${result.rewritten ? ", Prüfwert der letzten Mail passt nicht mehr" : ""}`,

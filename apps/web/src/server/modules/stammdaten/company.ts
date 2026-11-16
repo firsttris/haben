@@ -15,6 +15,8 @@ import {
   toElsterSteuernummer,
   SteuernummerError,
   type Versteuerung,
+  inBasisPoints,
+  inCents,
 } from "@haben/core";
 import { and, desc, eq, gte, lt, lte, min, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -104,11 +106,11 @@ export const companySchema = z
     privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), z.number().int().min(0).max(100)).default({}),
     dunning: z
       .object({
-        baseRate: z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max).nullable(),
+        baseRate: inBasisPoints(z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max)).nullable(),
         fees: z.object({
-          "1": z.number().int().min(0).max(MAX_DUNNING_FEE),
-          "2": z.number().int().min(0).max(MAX_DUNNING_FEE),
-          "3": z.number().int().min(0).max(MAX_DUNNING_FEE),
+          "1": inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
+          "2": inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
+          "3": inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
         }),
         deadlineDays: z.number().int().min(1).max(60),
         /** Basiszinssatz zum 1. Januar und 1. Juli bei der Bundesbank abrufen (opt-in); fehlt = unverändert */
@@ -162,23 +164,6 @@ export async function versteuerungForYear(year: number, q: Db | Tx = db): Promis
     if (value === "ist" || value === "soll") return value;
   }
   return (await loadCompany(q)).versteuerung;
-}
-
-/**
- * Ab welchem Jahr Voranmeldung und EÜR aus dem Journal rechnen (#542, docs/adr/journal-als-quelle.md): das eingestellte
- * Stichjahr, sonst das Jahr der ersten Buchung, ohne Buchung das laufende Jahr. Bestehende Instanzen setzt die Migration
- * 0192 auf das Jahr nach dem Update.
- */
-export async function journalAbJahr(q: Db | Tx = db): Promise<number> {
-  const company = await loadCompany(q);
-  if (company.journalAb !== null) return company.journalAb;
-  const [first] = await q.select({ date: min(schema.journalEntries.date) }).from(schema.journalEntries);
-  return first?.date ? Number(first.date.slice(0, 4)) : Number(today(new Date()).slice(0, 4));
-}
-
-/** Stichjahr setzen (Vorziehen in den Einstellungen; prüft auswertungen/stichjahr.ts), in der Transaktion des Aufrufers */
-export async function setJournalAb(tx: Tx, year: number): Promise<void> {
-  await tx.update(schema.company).set({ journalAb: year, updatedAt: new Date() }).where(eq(schema.company.id, 1));
 }
 
 /**
@@ -319,4 +304,34 @@ export function letterIssues(company: Company): string[] {
 export async function setArchiveSearch(actor: string, enabled: boolean): Promise<void> {
   await loadCompany();
   await withActor(actor, (tx) => tx.update(schema.company).set({ archiveSearch: enabled, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
+}
+
+export type Einrichtung = typeof schema.einrichtung.$inferSelect;
+
+/** Fragen zur Einrichtung und Bereiche (#266); null ohne Zeile, also vor dem ersten Speichern und bei Instanzen von vor dem Update */
+export async function loadEinrichtung(q: Db | Tx = db): Promise<Einrichtung | null> {
+  const [row] = await q.select().from(schema.einrichtung).where(eq(schema.einrichtung.id, 1));
+  return row ?? null;
+}
+
+/** Schreibt die Zeile in der Transaktion des Aufrufers und legt sie beim ersten Mal an */
+export async function setEinrichtung(tx: Tx, werte: Partial<Pick<Einrichtung, "ausgeblendeteBereiche" | "fragenAt" | "offen">>): Promise<void> {
+  const set = { ...werte, updatedAt: new Date() };
+  await tx
+    .insert(schema.einrichtung)
+    .values({ id: 1, ...set })
+    .onConflictDoUpdate({ target: schema.einrichtung.id, set });
+}
+
+/** Rechtsform und Kleinunternehmer sind entschieden, etwa beim Speichern der Firmendaten; ohne offene Frage kein Eintrag im Audit-Log */
+export async function offeneFragenErledigt(tx: Tx): Promise<void> {
+  await tx.update(schema.einrichtung).set({ offen: [], updatedAt: new Date() }).where(sql`jsonb_array_length(${schema.einrichtung.offen}) > 0`);
+}
+
+/**
+ * Bereiche ohne Menüpunkt (#266). Nur die Navigation: Daten, Buchungen und Links bleiben, deshalb ohne Sperre. Die
+ * gültigen Namen prüft der Aufrufer (lib/bereiche.ts); gespeichert wird sortiert und ohne Doppelte.
+ */
+export async function saveBereiche(actor: string, ausgeblendet: readonly string[]): Promise<void> {
+  await withActor(actor, (tx) => setEinrichtung(tx, { ausgeblendeteBereiche: [...new Set(ausgeblendet)].sort() }));
 }

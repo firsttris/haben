@@ -100,14 +100,14 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
     return zuordnung!.id as string;
   }
 
-  /** Kz 66 aus dem Journal und aus den Nebenbüchern je Monat */
+  /** Kz 66 aus dem Journal und die Summe der Vorsteuer-Erläuterung aus den Belegen je Monat */
   async function beideQuellen(monate: { year: number; month: number }[]) {
     const journal: number[] = [];
     const nebenbuecher: (number | undefined)[] = [];
     for (const m of monate) {
       const f = await figures.computeVatFigures(m);
       journal.push(f.kz66);
-      nebenbuecher.push(f.nebenbuecher?.kz66);
+      nebenbuecher.push(f.inputTax.reduce((s, a) => s + a.tax, 0));
     }
     return { journal, nebenbuecher };
   }
@@ -135,7 +135,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
     const november = await figures.computeVatFigures({ year: 2026, month: 11 });
     const dezember = await figures.computeVatFigures({ year: 2026, month: 12 });
     expect({ nov: november.kz66, dez: dezember.kz66 }).toEqual({ nov: 0, dez: 616 });
-    expect({ nov: november.nebenbuecher?.kz66, dez: dezember.nebenbuecher?.kz66 }).toEqual({ nov: 0, dez: 616 });
+    expect({ nov: november.inputTax.reduce((s, a) => s + a.tax, 0), dez: dezember.inputTax.reduce((s, a) => s + a.tax, 0) }).toEqual({ nov: 0, dez: 616 });
   });
 
   // Bar oder privat bezahlt ist der Beleg mit der Buchung ausgeglichen (docs/umsatzsteuer.md, Vorsteuer Kz 66; belegbuchung.ts

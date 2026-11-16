@@ -120,6 +120,27 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.archive_deliveries",
+      "name": "archive_deliveries_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER archive_deliveries_audit AFTER INSERT OR DELETE ON public.archive_deliveries FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.archive_deliveries",
+      "name": "archive_deliveries_audit_update",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER archive_deliveries_audit_update AFTER UPDATE OF status, archive_id, link ON public.archive_deliveries FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.archive_deliveries",
+      "name": "archive_deliveries_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER archive_deliveries_no_truncate BEFORE TRUNCATE ON public.archive_deliveries FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.archive_files",
       "name": "archive_files_append_only",
       "enabled": "O",
@@ -138,6 +159,27 @@
       "name": "archive_files_no_truncate",
       "enabled": "O",
       "definition": "CREATE TRIGGER archive_files_no_truncate BEFORE TRUNCATE ON public.archive_files FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.archive_target",
+      "name": "archive_target_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER archive_target_audit AFTER INSERT OR DELETE ON public.archive_target FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.archive_target",
+      "name": "archive_target_audit_update",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER archive_target_audit_update AFTER UPDATE OF url, file_field, header_name, ciphertext, fields, file, link_template, enabled, since ON public.archive_target FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.archive_target",
+      "name": "archive_target_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER archive_target_no_truncate BEFORE TRUNCATE ON public.archive_target FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
       "function": "public.haben_reject_truncate()"
     },
     {
@@ -834,6 +876,20 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.einrichtung",
+      "name": "einrichtung_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER einrichtung_audit AFTER INSERT OR DELETE OR UPDATE ON public.einrichtung FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.einrichtung",
+      "name": "einrichtung_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER einrichtung_no_truncate BEFORE TRUNCATE ON public.einrichtung FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.elster_certificates",
       "name": "elster_certificates_audit",
       "enabled": "O",
@@ -1258,6 +1314,27 @@
       "name": "journal_lines_no_truncate",
       "enabled": "O",
       "definition": "CREATE TRIGGER journal_lines_no_truncate BEFORE TRUNCATE ON public.journal_lines FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
+      "table": "public.journal_umstellung",
+      "name": "journal_umstellung_append_only",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_umstellung_append_only BEFORE DELETE OR UPDATE ON public.journal_umstellung FOR EACH ROW EXECUTE FUNCTION public.haben_append_only()",
+      "function": "public.haben_append_only()"
+    },
+    {
+      "table": "public.journal_umstellung",
+      "name": "journal_umstellung_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_umstellung_audit AFTER INSERT ON public.journal_umstellung FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.journal_umstellung",
+      "name": "journal_umstellung_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER journal_umstellung_no_truncate BEFORE TRUNCATE ON public.journal_umstellung FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
       "function": "public.haben_reject_truncate()"
     },
     {

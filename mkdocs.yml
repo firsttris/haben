@@ -90,6 +90,7 @@ nav:
   - Schnittstellen:
       - KI-Assistenten (MCP): ki-assistenten.md
       - REST-API: api.md
+      - Dokumentenarchiv: dokumentenarchiv.md
       - Eigene Seiten: eigene-seiten.md
   - Hintergrund:
       - Buchhaltung in Haben: buchhaltung.md

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { turnoverFixtures } from "../../../test-fixtures/gesamtumsatz.ts";
 
-describe.skipIf(!testDatabaseUrl)("Steuererstattung nach Gegenaufhebung in beiden EÜR-Quellen (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Steuererstattung nach Gegenaufhebung in der EÜR aus dem Journal (Postgres)", () => {
   let sql: postgres.Sql;
   let bank: typeof import("../bank/index.ts");
   let reports: typeof import("./reports.ts");
@@ -28,9 +28,8 @@ describe.skipIf(!testDatabaseUrl)("Steuererstattung nach Gegenaufhebung in beide
     });
     const [allocation] = await sql`select id from allocations where reverses_id is null`;
     await bank.reverseAllocation("ku-zinsen-test", allocation!.id, "2026-11-06");
-    const both = await Promise.all([reports.euerForYear(2026), reports.euerAusNebenbuechern(2026)]);
+    const both = [await reports.euerForYear(2026)];
     expect(both.map((euer) => ({ einnahmen: euer.totalEinnahmen, ausgaben: euer.totalAusgaben, gewinn: euer.gewinn }))).toEqual([
-      { einnahmen: 0, ausgaben: 0, gewinn: 0 },
       { einnahmen: 0, ausgaben: 0, gewinn: 0 },
     ]);
   });
@@ -52,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Steuererstattung nach Gegenaufhebung in beide
       [2026, 1, 11],
       [2027, -1, 0],
     ] as const) {
-      const both = await Promise.all([reports.euerForYear(year), reports.euerAusNebenbuechern(year)]);
+      const both = [await reports.euerForYear(year)];
       expect(
         both.map((euer) => {
           const amount = (key: string) => euer.einnahmen.find((line) => line.key === key)?.amount ?? 0;
@@ -64,7 +63,7 @@ describe.skipIf(!testDatabaseUrl)("Steuererstattung nach Gegenaufhebung in beide
             monat: euer.monthly.einnahmen[month],
           };
         }),
-      ).toEqual(Array(2).fill({ z12: 0, z16: sign * 1_200, z18: sign * 500, gewinn: sign * 1_700, monat: sign * 1_200 }));
+      ).toEqual(Array(1).fill({ z12: 0, z16: sign * 1_200, z18: sign * 500, gewinn: sign * 1_700, monat: sign * 1_200 }));
     }
   });
 });

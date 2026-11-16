@@ -71,10 +71,10 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await leeren(sql)`truncate annual_submissions, year_closings, vat_return_filings, vat_return_submissions, vat_returns, vat_frequencies,
       vat_extension_submissions, vat_extensions, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab,
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,
               einkunftsart, taetigkeit)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 2027, 'selbstaendig', 'Softwareentwicklung')`;
+              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 'selbstaendig', 'Softwareentwicklung')`;
   }
 
   async function umsatzVom(date: string, amount: string) {
@@ -145,9 +145,10 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     gewinn: e.gewinn,
   });
   const euer = async (year: number) => zeilen(await reports.euerForYear(year));
+  /** Die EÜR aus dem Journal ist die von euerForYear, der Abgleich zeigt keine Abweichung */
   async function beideWegeGleich() {
     for (const year of [2026, 2027]) {
-      expect({ year, journal: zeilen(await quelle.euerAusDemJournal(year, db)) }).toEqual({ year, journal: zeilen(await reports.euerAusNebenbuechern(year)) });
+      expect({ year, journal: zeilen(await quelle.euerAusDemJournal(year, db)) }).toEqual({ year, journal: await euer(year) });
       expect({ year, abw: abgleich.abweichungen((await abgleich.euerAbgleich(year)).zeilen) }).toEqual({ year, abw: [] });
     }
   }
@@ -200,7 +201,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await beideWegeGleich();
   }, 60_000);
 
-  it("Zuordnung nach der Übermittlung der EÜR 2026 aufgehoben: die EÜR 2026 bleibt, beide Wege gleich", async () => {
+  it("Zuordnung nach der Übermittlung der EÜR 2026 aufgehoben: die EÜR 2026 bleibt", async () => {
     await reset();
     const dez = await dezemberMitVoranmeldung();
     await zahlung(dez.id, "08.01.27");
@@ -209,7 +210,6 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await bank.reverseAllocation(actor, a!.id as string, "2027-01-20");
     expect(await euer(2026)).toEqual(MIT_DEZEMBER);
     expect(await euer(2027)).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
-    expect(zeilen(await reports.euerAusNebenbuechern(2027))).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
     await beideWegeGleich();
   }, 60_000);
 
@@ -246,7 +246,6 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     await bank.allocate(actor, { kind: "ustva", transactionId: a!.transaction_id as string, vatReturnId: dez.id, amount: -19_000 });
     expect(await euer(2026)).toEqual(MIT_DEZEMBER);
     expect((await euer(2027)).gewinn).toBe(0);
-    expect((await reports.euerAusNebenbuechern(2027)).gewinn).toBe(0);
     expect(abgleich.abweichungen((await abgleich.euerAbgleich(2027)).zeilen)).toEqual([]);
     // Die Zahlung steckt in der übermittelten EÜR 2026; eine Berichtigung würde sie doppelt zählen
     expect(await vorauszahlungVorjahrHinweis(2027)).toBeNull();

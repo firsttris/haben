@@ -14,6 +14,7 @@ import {
   type RestlaufzeitZeile,
   type SpaetFaellig,
   type VermerkKonto,
+  inCents,
 } from "@haben/core";
 import { eq, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -34,7 +35,7 @@ import { jahresBilanzen } from "./bilanzen.ts";
 
 export class RestlaufzeitError extends UserError {}
 
-const angabe = z.object({ account: z.string().regex(/^\d{4}$/), ueber1Jahr: z.number().int().min(0).max(100_000_000_000_00) });
+const angabe = z.object({ account: z.string().regex(/^\d{4}$/), ueber1Jahr: inCents(z.number().int().min(0).max(100_000_000_000_00)) });
 export const restlaufzeitenSchema = z.object({
   jahr: z.array(angabe).max(500),
   vorjahr: z.array(angabe).max(500).nullable().default(null),
@@ -42,8 +43,8 @@ export const restlaufzeitenSchema = z.object({
 export type RestlaufzeitenInput = z.input<typeof restlaufzeitenSchema>;
 
 const gespeichertSchema = z.object({
-  jahr: z.array(z.object({ account: z.string(), betrag: z.number().int(), ueber1Jahr: z.number().int() })),
-  vorjahr: z.array(z.object({ account: z.string(), betrag: z.number().int(), ueber1Jahr: z.number().int() })).nullable(),
+  jahr: z.array(z.object({ account: z.string(), betrag: inCents(z.number().int()), ueber1Jahr: inCents(z.number().int()) })),
+  vorjahr: z.array(z.object({ account: z.string(), betrag: inCents(z.number().int()), ueber1Jahr: inCents(z.number().int()) })).nullable(),
 });
 
 async function gespeichert(year: number): Promise<{ data: z.output<typeof gespeichertSchema>; updatedAt: Date } | null> {

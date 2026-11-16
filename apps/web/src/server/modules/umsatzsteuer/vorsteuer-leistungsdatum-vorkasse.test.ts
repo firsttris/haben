@@ -97,14 +97,14 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Zahlung vor de
     return zuordnung!.id as string;
   }
 
-  /** Kz 66 je Monat aus dem Journal und aus den Nebenbüchern (Gegenprobe) */
+  /** Kz 66 je Monat aus dem Journal und die Summe der Vorsteuer-Erläuterung aus den Belegen */
   async function beideQuellen(monate: { year: number; month: number }[]) {
     const journal: number[] = [];
     const nebenbuecher: (number | undefined)[] = [];
     for (const m of monate) {
       const f = await figures.computeVatFigures(m);
       journal.push(f.kz66);
-      nebenbuecher.push(f.nebenbuecher?.kz66);
+      nebenbuecher.push(f.inputTax.reduce((s, a) => s + a.tax, 0));
     }
     return { journal, nebenbuecher };
   }

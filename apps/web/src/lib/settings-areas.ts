@@ -3,6 +3,7 @@
 export const SETTINGS_AREAS = [
   { id: "firma", label: "Firma", hint: "Anschrift, Steuern, Bank, Mahnwesen" },
   { id: "persoenlich", label: "Persönliche Angaben", hint: "Steuer-ID, Veranlagung, Ehegatte" },
+  { id: "bereiche", label: "Bereiche", hint: "Menüpunkte ein- und ausblenden" },
   { id: "rechnungen", label: "Rechnungen", hint: "Nummern, Zahlungspläne, Anhänge" },
   { id: "gestaltung", label: "Beleggestaltung", hint: "Logo, Briefpapier, Farbe, Fußzeile" },
   { id: "elster", label: "ELSTER", hint: "Zertifikat und ERiC" },
@@ -13,7 +14,7 @@ export const SETTINGS_AREAS = [
   { id: "waehrung", label: "Fremdwährung", hint: "USt-Umrechnungskurse des BMF" },
   { id: "ki", label: "KI-Assistenten und API", hint: "MCP, API-Tokens, Belegauslesung" },
   { id: "seiten", label: "Eigene Seiten", hint: "Eigene Werkzeuge im Menü" },
-  { id: "export", label: "Export", hint: "Jahresarchiv, DATEV, Backup, Prüfung" },
+  { id: "export", label: "Export", hint: "Jahresarchiv, DATEV, Ablage, Backup, Prüfung" },
 ] as const;
 
 /** Im SSO-Modus ersetzt „Zugänge“ den Bereich Sicherheit: Passkeys, Passwort und Einladungen gibt es dort nicht */

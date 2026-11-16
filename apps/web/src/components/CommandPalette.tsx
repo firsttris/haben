@@ -25,6 +25,8 @@ export interface CommandPaletteProps {
   inhaber: boolean;
   gesellschaft: boolean;
   hatMitarbeiter: boolean;
+  /** Ausgeblendete Bereiche (#266): ihre Menüpunkte fehlen hier wie in der Navigation */
+  ausgeblendet: readonly string[];
   eigeneSeiten: readonly EigeneSeiteNav[];
 }
 
@@ -209,15 +211,16 @@ function usePaletteSections(
     inhaber,
     gesellschaft,
     hatMitarbeiter,
+    ausgeblendet,
     eigeneSeiten,
     oidcOnly,
-  }: Pick<CommandPaletteProps, "inhaber" | "gesellschaft" | "hatMitarbeiter" | "eigeneSeiten" | "oidcOnly">,
+  }: Pick<CommandPaletteProps, "inhaber" | "gesellschaft" | "hatMitarbeiter" | "ausgeblendet" | "eigeneSeiten" | "oidcOnly">,
 ) {
   const { remote, loading, resetRemote } = useRemotePaletteSearch(open, trimmed);
   const recent = useRecentPalette(open && trimmed === "", inhaber);
   const pages = useMemo(
-    () => sichtbareNavSeiten({ inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten, oidcOnly }),
-    [inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten, oidcOnly],
+    () => sichtbareNavSeiten({ inhaber, gesellschaft, hatMitarbeiter, ausgeblendet, eigeneSeiten, oidcOnly }),
+    [inhaber, gesellschaft, hatMitarbeiter, ausgeblendet, eigeneSeiten, oidcOnly],
   );
   const sections = useMemo(() => {
     const pageSection = buildPageSection(pages, trimmed);
@@ -255,7 +258,7 @@ function handlePaletteNavigation(
   }
 }
 
-export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten, oidcOnly }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpen, onClose, onNavigate, ...navigation }: CommandPaletteProps) {
   const router = useRouter();
   const baseId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -266,7 +269,7 @@ export function CommandPalette({ open, onOpen, onClose, onNavigate, inhaber, ges
   const pointerActive = useRef(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const trimmed = query.trim();
-  const { sections, items, loading, resetRemote } = usePaletteSections(open, trimmed, { inhaber, gesellschaft, hatMitarbeiter, eigeneSeiten, oidcOnly });
+  const { sections, items, loading, resetRemote } = usePaletteSections(open, trimmed, navigation);
   const safeActive = items.length === 0 ? -1 : Math.min(activeIndex, items.length - 1);
   const activeItem = safeActive >= 0 ? items[safeActive] : undefined;
 

@@ -1,4 +1,14 @@
-import { abschluss, isKapitalgesellschaft, kapgSteuern, MINDEST_HEBESATZ, steuerKonten, type KapgSteuerAngaben, type KapgSteuern } from "@haben/core";
+import {
+  abschluss,
+  isKapitalgesellschaft,
+  kapgSteuern,
+  MINDEST_HEBESATZ,
+  steuerKonten,
+  type KapgSteuerAngaben,
+  type KapgSteuern,
+  inBasisPoints,
+  inCents,
+} from "@haben/core";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -14,7 +24,7 @@ import { loadCompany } from "../stammdaten/index.ts";
 
 export class KoerperschaftError extends UserError {}
 
-const cents = z.number().int().min(0).max(100_000_000_000_00);
+const cents = inCents(z.number().int().min(0).max(100_000_000_000_00));
 
 export const kapgAngabenSchema = z.object({
   hebesatz: z
@@ -34,7 +44,7 @@ const isoDate = z.iso.date("Datum im Format JJJJ-MM-TT");
 /** Angaben, die nur die Erklärungen brauchen: Anteilseigner, Verträge, Gründung, Einlagekonto */
 export const kapgErklaerungSchema = z.object({
   gruendung: isoDate.nullable().default(null),
-  einlagekonto: z.number().int().min(-100_000_000_000_00).max(100_000_000_000_00).default(0),
+  einlagekonto: inCents(z.number().int().min(-100_000_000_000_00).max(100_000_000_000_00)).default(0),
   rechteBeschraenktStpfl: cents.default(0),
   anteilseigner: z
     .array(
@@ -53,7 +63,7 @@ export const kapgErklaerungSchema = z.object({
             .optional(),
           beteiligung: cents,
           /** Hundertstel Prozent */
-          anteil: z.number().int().min(1).max(10_000),
+          anteil: inBasisPoints(z.number().int().min(1).max(10_000)),
           seit: isoDate.optional(),
           geaendert: z.boolean().default(false),
           /** Für den Abzug bei Ausschüttungen: Kirchensteuerabzugsmerkmal (KiStAM) vom Bundeszentralamt für Steuern */
