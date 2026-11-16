@@ -62,14 +62,7 @@ function ManualEntryPage() {
           <h1>Buchung erfassen</h1>
         </div>
       </div>
-      {isKapitalgesellschaft(data.rechtsform) || Number(data.today.slice(0, 4)) >= data.journalAb ? (
-        <ManualEntryForm data={data} />
-      ) : (
-        <p className="muted" style={{ maxWidth: 760 }}>
-          Im Einzelunternehmen gibt es manuelle Buchungen ab dem Stichjahr {data.journalAb}: Bis dahin rechnet die Anlage EÜR aus Rechnungen, Belegen und
-          Zahlungen, eine Buchung nur im Journal käme dort nicht an. Ab {data.journalAb} rechnen Voranmeldung und EÜR aus dem Journal.
-        </p>
-      )}
+      <ManualEntryForm data={data} />
     </>
   );
 }
@@ -85,9 +78,8 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
   const [nextKey, setNextKey] = useState(3);
 
   const gmbh = isKapitalgesellschaft(data.rechtsform);
-  const ausDemJournal = Number(date.slice(0, 4)) >= data.journalAb;
-  // Steuerschlüssel gibt es für Umbuchungen ab dem Stichjahr, nicht als Kleinunternehmer (§ 19 Abs. 1 UStG)
-  const mitSchluesseln = kind === "umbuchung" && ausDemJournal && !data.kleinunternehmer;
+  // Steuerschlüssel gibt es für Umbuchungen, nicht als Kleinunternehmer (§ 19 Abs. 1 UStG)
+  const mitSchluesseln = kind === "umbuchung" && !data.kleinunternehmer;
   const lines: ManualLine[] = rows.map((r) => ({
     account: r.account.trim(),
     debit: amountOf(r.debit),
@@ -98,7 +90,7 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
   const issues = [
     ...manualPostingIssues(lines, data.kontenrahmen, data.rechtsform, kind),
     ...(kind === "umbuchung" && (!gmbh || mitSchluessel)
-      ? freieBuchungIssues(lines, { kontenrahmen: data.kontenrahmen, rechtsform: data.rechtsform, kleinunternehmer: data.kleinunternehmer, ausDemJournal })
+      ? freieBuchungIssues(lines, { kontenrahmen: data.kontenrahmen, rechtsform: data.rechtsform, kleinunternehmer: data.kleinunternehmer })
       : []),
   ];
   const sum = (side: "debit" | "credit") => lines.reduce((s, l) => s + (Number.isFinite(l[side]) ? l[side] : 0), 0);

@@ -51,9 +51,9 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
       bank_imports, bank_accounts, journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters,
       sepa_mandate_files, sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic,
-      bank, glaeubiger_id, kontenrahmen, versteuerung, journal_ab)
+      bank, glaeubiger_id, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
-      'DE123456789', 'BY', ${iban}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${profile.kontenrahmen}, ${profile.versteuerung}, ${previousYear})`;
+      'DE123456789', 'BY', ${iban}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${profile.kontenrahmen}, ${profile.versteuerung})`;
     if (profile.gmbh) await sql`update company set rechtsform = 'gmbh', name = 'Test GmbH'`;
     const account = await bank.createAccount(actor, { name: "Geschäftskonto", iban });
     const contact = await stammdaten.createContact(actor, {
@@ -183,9 +183,6 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
             await sql`select coalesce(sum(l.credit - l.debit), 0)::int as tax from journal_lines l join journal_entries e on e.id = l.entry_id where l.account = ${annualAccount} and e.date >= ${`${year}-01-01`}`;
           expect.soft(annual!.tax).toBe(-19_000);
           expect.soft(await vat.computeVatFigures({ year, month: 2 })).toMatchObject({ kz81: base, tax81: tax });
-          const figures = await vat.kennzahlenBeiderQuellen({ year, month: 2 });
-          expect.soft(figures.journal).toMatchObject({ kz81: base, tax81: tax });
-          expect.soft(figures.nebenbuecher).toMatchObject({ kz81: base, tax81: tax });
           expect.soft(abgleich.abweichungen((await auswertungen.vatAbgleich({ year, month: 2 })).zeilen)).toEqual([]);
           const suspense = kontenrahmen === "SKR03" ? "1766" : "3816";
           const [balance] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account = ${suspense}`;
@@ -197,10 +194,7 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
             const original = await setup(profile);
             expect(original.invoice.advanceAccounting).toBe("deferred");
             expect(await totalTax(profile)).toBe(19_000);
-            expect(await vat.kennzahlenBeiderQuellen({ year: previousYear, month: 12 })).toMatchObject({
-              journal: { kz81: 100_000, tax81: 19_000 },
-              nebenbuecher: { kz81: 100_000, tax81: 19_000 },
-            });
+            expect(await vat.computeVatFigures({ year: previousYear, month: 12 })).toMatchObject({ kz81: 100_000, tax81: 19_000 });
             const credit =
               kind === "storno"
                 ? await invoices.cancelInvoice(actor, original.invoice.id, `${year}-02-08`)
@@ -209,24 +203,19 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
             // tatsächlicher Rückgewähr, auch bei Soll und nach dem Wechsel (UStAE 17.1 Abs. 8 Satz 5, § 17 UStG).
             // Amtlicher UStAE, Stand 19.10.2026, Abschnitt 17.1 Abs. 8 Satz 5 (BFH 02.09.2010, V R 34/09).
             const expected = { kz81: 0, tax81: 0 };
-            const february = await vat.kennzahlenBeiderQuellen({ year, month: 2 });
-            expect.soft(february.journal).toMatchObject(expected);
-            expect.soft(february.nebenbuecher).toMatchObject(expected);
+            const february = await vat.computeVatFigures({ year, month: 2 });
+            expect.soft(february).toMatchObject(expected);
             expect(await totalTax(profile)).toBe(19_000);
-            expect(await vat.kennzahlenBeiderQuellen({ year, month: 1 })).toMatchObject({ journal: expected, nebenbuecher: expected });
+            expect(await vat.computeVatFigures({ year, month: 1 })).toMatchObject(expected);
             if (!gmbh) expect((await auswertungen.euerForYear(year)).einnahmen.reduce((sum, line) => sum + line.amount, 0)).toBe(0);
             const refund = await transaction(`08.03.${String(year).slice(-2)}`, `Erstattung ${credit.number}`, "-1.190,00");
             await bank.allocate(actor, { kind: "invoice", transactionId: refund, invoiceId: credit.id, amount: -119_000 });
-            const march = await vat.kennzahlenBeiderQuellen({ year, month: 3 });
+            const march = await vat.computeVatFigures({ year, month: 3 });
             const paid = { kz81: -100_000, tax81: -19_000 };
-            expect.soft(march.journal).toMatchObject(paid);
-            expect.soft(march.nebenbuecher).toMatchObject(paid);
+            expect.soft(march).toMatchObject(paid);
             expect(await totalTax(profile)).toBe(0);
-            expect(await vat.kennzahlenBeiderQuellen({ year, month: 2 })).toMatchObject({ journal: expected, nebenbuecher: expected });
-            expect(await vat.kennzahlenBeiderQuellen({ year: previousYear, month: 12 })).toMatchObject({
-              journal: { kz81: 100_000, tax81: 19_000 },
-              nebenbuecher: { kz81: 100_000, tax81: 19_000 },
-            });
+            expect(await vat.computeVatFigures({ year, month: 2 })).toMatchObject(expected);
+            expect(await vat.computeVatFigures({ year: previousYear, month: 12 })).toMatchObject({ kz81: 100_000, tax81: 19_000 });
             if (!gmbh) {
               expect((await auswertungen.euerForYear(year)).einnahmen.reduce((sum, line) => sum + line.amount, 0)).toBe(-119_000);
               expect((await auswertungen.euerAbgleich(year)).zeilen.filter((row) => row.journal !== row.quelle)).toEqual([]);
@@ -250,28 +239,16 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
     const profile = { kontenrahmen: "SKR03", versteuerung: "soll", gmbh: false } as const;
     const original = await setup(profile);
     const credit = await invoices.cancelInvoice(actor, original.invoice.id, `${year}-02-08`);
-    expect(await vat.kennzahlenBeiderQuellen({ year, month: 2 })).toMatchObject({
-      journal: { kz81: 0, tax81: 0 },
-      nebenbuecher: { kz81: 0, tax81: 0 },
-    });
+    expect(await vat.computeVatFigures({ year, month: 2 })).toMatchObject({ kz81: 0, tax81: 0 });
     const part = await transaction(`08.03.${String(year).slice(-2)}`, "Teilrückgewähr", "-119,00");
     await bank.allocate(actor, { kind: "invoice", transactionId: part, invoiceId: credit.id, amount: -11_900 });
-    expect(await vat.kennzahlenBeiderQuellen({ year, month: 3 })).toMatchObject({
-      journal: { kz81: -10_000, tax81: -1900 },
-      nebenbuecher: { kz81: -10_000, tax81: -1900 },
-    });
+    expect(await vat.computeVatFigures({ year, month: 3 })).toMatchObject({ kz81: -10_000, tax81: -1900 });
     expect(await totalTax(profile)).toBe(17_100);
     const rest = await transaction(`08.04.${String(year).slice(-2)}`, "Restliche Rückgewähr", "-1.071,00");
     await bank.allocate(actor, { kind: "invoice", transactionId: rest, invoiceId: credit.id, amount: -107_100 });
-    expect(await vat.kennzahlenBeiderQuellen({ year, month: 4 })).toMatchObject({
-      journal: { kz81: -90_000, tax81: -17_100 },
-      nebenbuecher: { kz81: -90_000, tax81: -17_100 },
-    });
+    expect(await vat.computeVatFigures({ year, month: 4 })).toMatchObject({ kz81: -90_000, tax81: -17_100 });
     expect(await totalTax(profile)).toBe(0);
-    expect(await vat.kennzahlenBeiderQuellen({ year, month: 3 })).toMatchObject({
-      journal: { kz81: -10_000, tax81: -1900 },
-      nebenbuecher: { kz81: -10_000, tax81: -1900 },
-    });
+    expect(await vat.computeVatFigures({ year, month: 3 })).toMatchObject({ kz81: -10_000, tax81: -1900 });
     expect(await sql`select * from invoices where id=${original.invoice.id}`).toEqual(original.originalInvoice);
     expect(await sql`select * from journal_entries where date < ${`${year}-01-01`} order by id`).toEqual(original.originalEntries);
     expect(await sql`select * from vat_returns where id=${original.oldReturn.id}`).toEqual(original.originalReturn);

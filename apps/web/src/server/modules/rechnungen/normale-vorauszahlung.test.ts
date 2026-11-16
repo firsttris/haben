@@ -42,9 +42,9 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries,
       allocations, write_offs, bank_transactions, bank_imports, bank_accounts, cash_entries cascade`;
     await sql`insert into company (id, name, rechtsform, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban,
-      kontenrahmen, versteuerung, journal_ab)
+      kontenrahmen, versteuerung)
       values (1, 'Test GmbH', 'gmbh', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1',
-      '198/113/10010', 'BY', ${iban}, 'SKR03', 'soll', 2025)`;
+      '198/113/10010', 'BY', ${iban}, 'SKR03', 'soll')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -102,7 +102,6 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
   async function tax(year: number, month: number, base: number, amount: number) {
     const figures = await vat.computeVatFigures({ year, month });
     expect.soft(figures, `USt ${year}-${month}`).toMatchObject({ kz81: base, tax81: amount });
-    expect.soft(figures.nebenbuecher, `USt-Nebenbuch ${year}-${month}`).toMatchObject({ kz81: base, tax81: amount });
     expect.soft((await reports.vatAbgleich({ year, month })).zeilen.filter((row) => row.journal !== row.quelle)).toEqual([]);
   }
 

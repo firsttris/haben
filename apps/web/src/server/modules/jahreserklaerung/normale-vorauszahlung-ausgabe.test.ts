@@ -50,9 +50,9 @@ describe.skipIf(!testDatabaseUrl)("Normale Vorauszahlung: Ausgaben und vorhanden
       allocations, write_offs, bank_transactions, bank_imports, bank_accounts, cash_entries, annual_submissions,
       vat_return_filings, vat_return_submissions, vat_returns cascade`;
     await sql`insert into company (id, name, rechtsform, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban,
-      kontenrahmen, versteuerung, journal_ab)
+      kontenrahmen, versteuerung)
       values (1, 'Test GmbH', 'gmbh', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1',
-      '198/113/10010', 'BY', 'DE89370400440532013000', 'SKR03', 'soll', 2025)`;
+      '198/113/10010', 'BY', 'DE89370400440532013000', 'SKR03', 'soll')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",

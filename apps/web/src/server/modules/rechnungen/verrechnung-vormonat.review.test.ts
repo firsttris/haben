@@ -118,17 +118,12 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist: Teil
     await zahle(rechnung, 5_700, "2026-11-13");
 
     expect(kennzahlen(await figures.computeVatFigures(okt))).toEqual(oktoberVorher);
+    // Je Monat wie bisher aus den Nebenbüchern (#1116: die Werte der früheren Gegenprobe)
+    const erwartet = { 10: { kz81: 2_213, tax81: 420, kz86: 2_212, tax86: 155 }, 11: { kz81: -2_213, tax81: -420, kz86: 7_788, tax86: 545 } };
     const summe = { kz81: 0, tax81: 0, kz86: 0, tax86: 0 };
     for (const periode of [okt, nov]) {
-      const beide = await figures.kennzahlenBeiderQuellen(periode);
-      const journal = { kz81: beide.journal.kz81, tax81: beide.journal.tax81, kz86: beide.journal.kz86, tax86: beide.journal.tax86 };
-      expect({ monat: periode.month, ...journal }).toEqual({
-        monat: periode.month,
-        kz81: beide.nebenbuecher.kz81,
-        tax81: beide.nebenbuecher.tax81,
-        kz86: beide.nebenbuecher.kz86,
-        tax86: beide.nebenbuecher.tax86,
-      });
+      const journal = kennzahlen(await figures.computeVatFigures(periode));
+      expect({ monat: periode.month, ...journal }).toEqual({ monat: periode.month, ...erwartet[periode.month] });
       for (const feld of Object.keys(summe) as (keyof typeof summe)[]) summe[feld] += journal[feld];
     }
     // Vereinnahmt sind am Ende 107,00 € für die 7-%-Position; der 19-%-Anteil aus dem Oktober wird im November berichtigt
@@ -174,8 +169,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist: Teil
     const zeilen = (r: { einnahmen: { key: string; amount: number }[]; ausgaben: { key: string; amount: number }[] }) =>
       Object.fromEntries([...r.einnahmen, ...r.ausgaben].filter((l) => l.amount !== 0).map((l) => [l.key, l.amount]));
     const journal = zeilen(await reports.euerForYear(2026));
-    expect(journal).toMatchObject({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 700 });
-    expect(zeilen(await reports.euerAusNebenbuechern(2026))).toEqual(journal);
+    expect(journal).toEqual({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 700 });
   }, 60_000);
   it("Ist: die EÜR lässt den schon gemeldeten Vormonat stehen und berichtigt im November", async () => {
     const rechnung = await beleg(
@@ -192,14 +186,11 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung mit zwei Steuersätzen, Ist: Teil
     await zahle(rechnung, 5_700, "2026-11-13");
 
     const journal = await reports.euerForYear(2026);
-    const nebenbuecher = await reports.euerAusNebenbuechern(2026);
     // Oktober bleibt, wie er gemeldet wurde: die 5.000 € verteilten sich über die volle Rechnung, davon 4.425 € netto
-    expect(journal.monthly.einnahmen[9]).toBe(4_425);
-    expect(nebenbuecher.monthly.einnahmen).toEqual(journal.monthly.einnahmen);
+    expect(journal.monthly.einnahmen).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 4_425, 5_575, 0]);
     const zeilen = (r: { einnahmen: { key: string; amount: number }[]; ausgaben: { key: string; amount: number }[] }) =>
       Object.fromEntries([...r.einnahmen, ...r.ausgaben].filter((l) => l.amount !== 0).map((l) => [l.key, l.amount]));
     // Berichtigt wird im November: zusammen 10.000 € netto und 700 € Umsatzsteuer auf die vereinnahmten 107,00 €
-    expect(zeilen(journal)).toMatchObject({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 700 });
-    expect(zeilen(nebenbuecher)).toEqual(zeilen(journal));
+    expect(zeilen(journal)).toEqual({ einnahmenSteuerpflichtig: 10_000, vereinnahmteUst: 700 });
   }, 60_000);
 });

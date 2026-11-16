@@ -495,6 +495,8 @@ Die Detailseite zeigt das PDF, die Eckdaten (Kunde, Rechnungsdatum, Fälligkeit,
 
 Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreiben entstanden sind. Sie werden nie neu erzeugt.
 
+Ist eine [Ablage im Dokumentenarchiv](dokumentenarchiv.md) eingerichtet, steht unter den Eckdaten **Archiv**: „Wird übertragen“, „Übertragen“ mit Zeitpunkt, HTTP-Status und, falls das Archiv eine Kennung nennt, **Im Archiv öffnen**, oder „Fehlgeschlagen“ mit der Zahl der Versuche und dem Grund (HTTP-Status und Anfang der Antwort).
+
 Unter **Zahlungen** stehen die Zahlungen auf die Rechnung mit Datum und Betrag: „Bank“ für eine Zuordnung im [Bankabgleich](bank.md), „bar“ mit der Nummer im [Kassenbuch](kasse.md#rechnung-bar-bezahlt) für eine Bareinnahme. Aufgehobene und stornierte Zahlungen sind durchgestrichen. Solange die Rechnung offen ist, führt **Barzahlung in der Kasse erfassen** ins Kassenbuch, mit der Rechnung und dem offenen Betrag vorbelegt.
 
 ## Zusätzliche Anhänge

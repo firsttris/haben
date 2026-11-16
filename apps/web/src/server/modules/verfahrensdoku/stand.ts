@@ -52,6 +52,8 @@ export interface InstanzStand {
   pruefwert: { seq: number; hash: string } | null;
   pruefwertMail: string | null;
   postfach: { username: string; host: string; folder: string } | null;
+  /** Ablage festgeschriebener Rechnungen im Archiv: nur der Ursprung der Adresse, Pfad und Anfrage können Kennungen tragen */
+  ablage: { origin: string; since: Date } | null;
   elster: { validUntil: string | null } | null;
   voranmeldungenGesendet: number;
   bankkonten: { name: string; purpose: string }[];
@@ -119,6 +121,15 @@ async function postfach() {
   return row ?? null;
 }
 
+async function ablage() {
+  const a = schema.archiveTarget;
+  const [row] = await db
+    .select({ url: a.url, since: a.since })
+    .from(a)
+    .where(and(eq(a.id, 1), eq(a.enabled, true)));
+  return row ? { origin: new URL(row.url).origin, since: row.since } : null;
+}
+
 async function elster() {
   const e = schema.elsterCertificates;
   const [row] = await db.select({ validUntil: e.validUntil }).from(e).where(eq(e.active, true)).orderBy(desc(e.uploadedAt)).limit(1);
@@ -145,7 +156,7 @@ async function bankabruf() {
 }
 
 export async function readInstanzStand(now = new Date()): Promise<InstanzStand> {
-  const [firma, accounts, apiTokens, datenbank, backup, target, versionen, head, mail, inbox, cert, gesendet, konten, abruf] = await Promise.all([
+  const [firma, accounts, apiTokens, datenbank, backup, target, versionen, head, mail, inbox, archiv, cert, gesendet, konten, abruf] = await Promise.all([
     company(),
     zugaenge(),
     tokens(now),
@@ -156,6 +167,7 @@ export async function readInstanzStand(now = new Date()): Promise<InstanzStand> 
     chainHead(),
     loadMailSettings(),
     postfach(),
+    ablage(),
     elster(),
     voranmeldungenGesendet(),
     bankkonten(),
@@ -174,6 +186,7 @@ export async function readInstanzStand(now = new Date()): Promise<InstanzStand> 
     pruefwert: head && { seq: head.seq, hash: head.hash },
     pruefwertMail: mail?.pruefwertMail ? mail.reminderTo : null,
     postfach: inbox,
+    ablage: archiv,
     elster: cert,
     voranmeldungenGesendet: gesendet,
     bankkonten: konten,

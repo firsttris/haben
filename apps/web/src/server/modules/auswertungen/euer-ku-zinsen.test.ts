@@ -5,7 +5,7 @@ import { turnoverFixtures } from "../../../test-fixtures/gesamtumsatz.ts";
 
 // Amtliche Anleitung EÜR 2025, Zeilen 12/16/18; ausschließlich fiktive Zahlungen über den tatsächlichen Bankabgleich.
 // https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
-describe.skipIf(!testDatabaseUrl)("KU-Zinsen aus Bankzahlungen in beiden EÜR-Quellen (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("KU-Zinsen aus Bankzahlungen in der EÜR aus dem Journal (Postgres)", () => {
   let sql: postgres.Sql;
   let bank: typeof import("../bank/index.ts");
   let reports: typeof import("./reports.ts");
@@ -35,7 +35,7 @@ describe.skipIf(!testDatabaseUrl)("KU-Zinsen aus Bankzahlungen in beiden EÜR-Qu
         { kind: "steuer", amount: 3_000, steuer: { art: "est", jahr: 2025, posten: "zinsen233a" } },
       ],
     });
-    const readBoth = async () => Promise.all([reports.euerForYear(2026), reports.euerAusNebenbuechern(2026)]);
+    const readBoth = async () => [await reports.euerForYear(2026)];
     const rows = (euer: Awaited<ReturnType<typeof reports.euerForYear>>) => {
       const amount = (key: string) => euer.einnahmen.find((line) => line.key === key)?.amount ?? 0;
       return {
@@ -46,12 +46,12 @@ describe.skipIf(!testDatabaseUrl)("KU-Zinsen aus Bankzahlungen in beiden EÜR-Qu
         november: euer.monthly.einnahmen[10],
       };
     };
-    expect((await readBoth()).map(rows)).toEqual(Array(2).fill({ z12: 2_200, z16: 0, z18: 5_000, gewinn: 7_200, november: 2_200 }));
+    expect((await readBoth()).map(rows)).toEqual(Array(1).fill({ z12: 2_200, z16: 0, z18: 5_000, gewinn: 7_200, november: 2_200 }));
 
     const [interest] = await sql`select id from allocations where kind='zinsertrag' and reverses_id is null`;
     const [refund] = await sql`select id from allocations where kind='steuer' and tax_type='ust' and tax_item='zinsen233a' and reverses_id is null`;
     await bank.reverseAllocation(actor, interest!.id, "2026-11-06");
     await bank.reverseAllocation(actor, refund!.id, "2026-11-06");
-    expect((await readBoth()).map(rows)).toEqual(Array(2).fill({ z12: 0, z16: 0, z18: 0, gewinn: 0, november: 0 }));
+    expect((await readBoth()).map(rows)).toEqual(Array(1).fill({ z12: 0, z16: 0, z18: 0, gewinn: 0, november: 0 }));
   });
 });

@@ -8,12 +8,10 @@ import { turnoverFixtures } from "../../../test-fixtures/gesamtumsatz.ts";
 describe.skipIf(!testDatabaseUrl)("Unabhängige KU-EÜR-Gegenprobe: betriebliche Guthabenzinsen", () => {
   let sql: postgres.Sql;
   let annual: typeof import("../jahreserklaerung/annual.ts");
-  let reports: typeof import("./reports.ts");
   let bank: typeof import("../bank/bank.ts");
   beforeAll(async () => {
     sql = await setupTestDb();
     annual = await import("../jahreserklaerung/annual.ts");
-    reports = await import("./reports.ts");
     bank = await import("../bank/bank.ts");
   }, 30_000);
   afterAll(async () => {
@@ -31,12 +29,10 @@ describe.skipIf(!testDatabaseUrl)("Unabhängige KU-EÜR-Gegenprobe: betriebliche
     await sql`update bank_accounts set purpose='geschaeft' where id=${f.accountId}`;
     await bank.allocate("review-926-interest", { kind: "zinsertrag", transactionId: await f.transaction(500), amount: 500 });
     const euer = await annual.euerYear(2026);
-    const shadow = await reports.euerAusNebenbuechern(2026);
     expect({
       journalZ12: euer.figures.kleinunternehmer ?? 0,
-      nebenbuchZ12: shadow.einnahmen.find((line) => line.key === "einnahmenKleinunternehmer")?.amount ?? 0,
       z16: euer.figures.steuerfrei ?? 0,
       gewinn: euer.gewinn,
-    }).toEqual({ journalZ12: 500, nebenbuchZ12: 500, z16: 0, gewinn: 500 });
+    }).toEqual({ journalZ12: 500, z16: 0, gewinn: 500 });
   });
 });

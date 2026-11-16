@@ -96,7 +96,7 @@ Stand: 5. November 2026. PR 1 bis 6 und die Lohnsteuerbescheinigung aus PR 7 sin
 | Verbindlichkeiten soziale Sicherheit | 1742 | 3740 |
 
 - **Buchung:** Aufwand brutto und AG-Anteil an 1740/1741/1742. Bank: neue Zuordnungen „Lohn/Gehalt“, „Lohnsteuer an Finanzamt“, „SV-Beiträge an Krankenkasse“. Vorsicht: SKR03 3730 ist in Haben „Erhaltene Skonti“, nicht verwechseln.
-- **Einzelunternehmen:** Die Anlage EÜR zählt den Lohn nach dem Zufluss-/Abflussprinzip bei Zahlung, nicht bei der Abrechnung (Zeile Löhne und Gehälter). Vor dem [Stichjahr](umsatzsteuer.md#wie-die-kennzahlen-entstehen) rechnet sie aus Rechnungen, Belegen und Zahlungen, ab dem Stichjahr aus dem Journal; in beiden Fällen zählt die Zahlung der Lohnverbindlichkeiten (siehe [Lohn](lohn.md#buchung)).
+- **Einzelunternehmen:** Die Anlage EÜR zählt den Lohn nach dem Zufluss-/Abflussprinzip bei Zahlung, nicht bei der Abrechnung (Zeile Löhne und Gehälter). Sie rechnet aus dem Journal ([Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen)) und zählt die Zahlung der Lohnverbindlichkeiten (siehe [Lohn](lohn.md#buchung)).
 - **Folgen:** Posten in `hgb.ts` (Personalaufwand, sonstige Verbindlichkeiten) und `ebilanz.ts` für 1740–1742/3720–3740.
 - **Tests:** SKR03 und SKR04, Ist und Soll, GmbH und Einzelunternehmen.
 

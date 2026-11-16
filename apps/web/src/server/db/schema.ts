@@ -169,8 +169,9 @@ export const company = pgTable(
      */
     datevPersonenkontenAb: integer("datev_personenkonten_ab"),
     /**
-     * Voranmeldung und EÜR aus dem Journal ab diesem Jahr (#542, docs/adr/journal-als-quelle.md); null = ab dem Jahr der ersten
-     * Buchung. Davor rechnen sie aus den Nebenbüchern. Bestehende Instanzen beginnen mit dem Jahr nach dem Update (Migration).
+     * Früheres Stichjahr (#542). Haben liest es nicht mehr (#1116): Migration 0275 hat es nach journal_umstellung übernommen.
+     * Die Spalte bleibt, damit eine Instanz, die die Prüfung beim Update nicht besteht, auf derselben Datenbank mit der
+     * bisherigen Version weiterlaufen kann; sie entfällt mit modules/umstellung.
      */
     journalAb: integer("journal_ab"),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
@@ -4208,6 +4209,28 @@ export const appVersions = pgTable("app_versions", {
   note: text("note"),
 });
 
+/** Befund der Prüfung beim Update auf das Journal als einzige Quelle (#1116): Jahr und was abweicht */
+export interface JournalUmstellungBefund {
+  jahr: number;
+  text: string;
+}
+
+/**
+ * Umstellung von Voranmeldung und EÜR auf das Journal als einzige Quelle (#1116, docs/adr/journal-als-quelle.md): je
+ * Prüfung beim Start eine Zeile, nur anhängen und im Änderungsprotokoll. Die letzte Zeile gilt: „offen“ nach der Migration,
+ * solange Jahre vor dem früheren Stichjahr (`stichjahr_vorher`, bis dahin company.journal_ab) ungeprüft sind; „bestanden“,
+ * wenn sie aus dem Journal so herauskommen wie vorher; „uebernommen“, wenn die Abweichungen ausdrücklich übernommen sind
+ * (HABEN_ABWEICHUNG_UEBERNEHMEN), mit den Befunden.
+ */
+export const journalUmstellung = pgTable("journal_umstellung", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  stichjahrVorher: integer("stichjahr_vorher"),
+  ergebnis: text("ergebnis", { enum: ["offen", "bestanden", "uebernommen"] }).notNull(),
+  befunde: jsonb("befunde").$type<JournalUmstellungBefund[]>().notNull().default([]),
+  version: text("version"),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /**
  * Angaben zum Betrieb für die Verfahrensdokumentation (#860), genau eine Zeile (id = 1): was Haben nicht wissen kann.
  * Felder und Längen aus dem gemeinsamen Schema in @firsttris/gobd-kern/verfahrensdoku; Firma, Rechtsform und Anschrift
@@ -4227,4 +4250,64 @@ export const procedureDetails = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("procedure_details_single_row", sql`${t.id} = 1`)],
+);
+
+/**
+ * Weitergabe festgeschriebener Rechnungen an ein Dokumentenarchiv (Ablage), genau eine Zeile (id = 1): Haben
+ * schickt jede ab `since` festgeschriebene Rechnung als multipart/form-data an `url`. Ohne Produktnamen: Feldname,
+ * Kopfzeile und Zusatzfelder stellt der Inhaber so ein, wie es sein Archiv verlangt. Der Wert der Kopfzeile (meist ein
+ * Token) steht verschlüsselt in `ciphertext`, das haben_audit auslässt.
+ */
+export const archiveTarget = pgTable(
+  "archive_target",
+  {
+    id: smallint("id").primaryKey().default(1),
+    url: text("url").notNull(),
+    /** Name des Formularfelds mit der Datei, z. B. datei oder document */
+    fileField: text("file_field").notNull(),
+    /** Kopfzeile für die Anmeldung, z. B. Authorization; ihr Wert in ciphertext */
+    headerName: text("header_name"),
+    ciphertext: bytea("ciphertext"),
+    /** Feste Zusatzfelder; im Wert stehen Platzhalter wie {nummer} */
+    fields: jsonb("fields").$type<{ name: string; value: string }[]>().notNull().default([]),
+    /** original: E-Rechnung wie festgeschrieben (ZUGFeRD-PDF oder XRechnung-XML); pdf: immer das PDF */
+    file: text("file", { enum: ["original", "pdf"] })
+      .notNull()
+      .default("original"),
+    /** Link auf das Dokument im Archiv mit {id} aus der Antwort, z. B. https://archiv.example/dokumente/{id} */
+    linkTemplate: text("link_template"),
+    enabled: boolean("enabled").notNull().default(true),
+    /** Rechnungen, die ab hier festgeschrieben werden, gehen an url; neu gesetzt beim ersten Speichern und bei neuer Adresse */
+    since: timestamp("since", { withTimezone: true }).notNull().defaultNow(),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("archive_target_single_row", sql`${t.id} = 1`)],
+);
+
+/** Je Rechnung und Adresse eine Weitergabe mit ihrem Ergebnis; übertragen wird nur einmal */
+export const archiveDeliveries = pgTable(
+  "archive_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    url: text("url").notNull(),
+    filename: text("filename").notNull(),
+    /** SHA-256 der gesendeten Datei, wie an der Rechnung gespeichert */
+    sha256: text("sha256").notNull(),
+    status: text("status", { enum: ["uebertragen", "fehler"] }).notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    httpStatus: integer("http_status"),
+    /** id aus der JSON-Antwort des Archivs, falls es eine nennt */
+    archiveId: text("archive_id"),
+    /** Link auf das Dokument im Archiv, aus der Link-Vorlage beim Übertragen */
+    link: text("link"),
+    error: text("error"),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("archive_deliveries_invoice_url").on(t.invoiceId, t.url)],
 );

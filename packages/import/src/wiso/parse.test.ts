@@ -9,6 +9,19 @@ function csvBytes(lines: string[]): Uint8Array {
 }
 
 describe("previewWisoExport", () => {
+  it.each([
+    ["SKR03", "8400", "1200"],
+    ["SKR04", "4400", "1800"],
+  ] as const)("%s: lässt Leistungsdaten unbekannt und erhält die exportierten Daten", (skr, revenue, bank) => {
+    const bytes = csvBytes([
+      `81;1;15.01.2026;16.01.2026;Leistung Dezember 2025;${revenue};Erlöse;${bank};Bank;0,00;119,00;USt 19 %;19,00;Umsatzsteuer;FIKTIV-81;03.02.2026;;0`,
+    ]);
+    const item = previewWisoExport(bytes, skr).vouchers[0]!;
+    expect(item.voucher).toMatchObject({ date: "2026-01-15", serviceFrom: null, serviceTo: null, net: 10000, tax: 1900, gross: 11900 });
+    expect(item.paid).toBe(11900);
+    expect(item.raw).toMatchObject({ rows: [{ zahlungsdatum: "2026-01-15", wertstellungsdatum: "2026-01-16", buchungsdatum: "2026-02-03" }] });
+  });
+
   it("liest WISO Steuer (Modul EÜR) mit anonymisiertem Buchungsdatum und Teilbuchungen", () => {
     const bytes = csvBytes([
       "1;1;01.01.2026;01.01.2026;Saldovortrag;1200;Bank;9000;Saldenvorträge, Sachkonten;34027,99;0,00;;0,00;;;**.**.**26;;0",

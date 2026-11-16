@@ -168,14 +168,24 @@ function zwischenkontoAlsVorsteuer(kr: Kontenrahmen, zeilen: readonly Zeile[]): 
   return zeilen.filter((z) => !offenerPosten(kr, z)).map((z) => (z.account === a.vorsteuerNochNichtAbziehbar ? { ...z, account: a.vorsteuer[1900] } : z));
 }
 
-/** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
-export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string): Promise<EuerJournal> {
+/** Buchungen des Jahres bzw. bis `umsatzBis`, ohne Eröffnungen und, wenn verlangt, ohne manuelle Buchungen */
+function imZeitraum(year: number, umsatzBis: string | undefined, ohneManuelle: boolean) {
   const e = schema.journalEntries;
-  const kuMonate = await Promise.all(Array.from({ length: 12 }, (_, i) => kleinunternehmerForMonth(year, i + 1, q)));
-  const buchungenImJahr = await buchungen(
-    q,
-    and(gte(e.date, `${year}-01-01`), umsatzBis ? lte(e.date, umsatzBis) : lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung")),
+  return and(
+    gte(e.date, `${year}-01-01`),
+    umsatzBis ? lte(e.date, umsatzBis) : lt(e.date, `${year + 1}-01-01`),
+    ne(e.sourceType, "eroeffnung"),
+    ohneManuelle ? ne(e.sourceType, "manuell") : undefined,
   );
+}
+
+/**
+ * Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind.
+ * `ohneManuelle`: ohne manuelle Buchungen (GmbH und UG, dort Abschlussbuchungen, reports.ts).
+ */
+export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: string, ohneManuelle = false): Promise<EuerJournal> {
+  const kuMonate = await Promise.all(Array.from({ length: 12 }, (_, i) => kleinunternehmerForMonth(year, i + 1, q)));
+  const buchungenImJahr = await buchungen(q, imZeitraum(year, umsatzBis, ohneManuelle));
   // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
   const jahr = umsatzBis ? buchungenImJahr : await imEuerJahr(year, buchungenImJahr, q);
   const importiert = await importAnteile(q, jahr);

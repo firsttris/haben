@@ -36,10 +36,9 @@ describe.skipIf(!testDatabaseUrl)("KU-Standardkonto mit versiegeltem Bestand (Po
     ["SKR03", "ist", "8195", "8192", "1200", "1000"],
     ["SKR04", "soll", "4185", "4184", "1800", "1600"],
   ] as const)("%s/%s: neue Erlöse und unveränderte Altbuchungen im selben DATEV-Jahr", async (kr, versteuerung, alt, neu, bank, kasse) => {
-    await sql`insert into company (id,name,strasse,plz,ort,email,steuernummer,bundesland,kontenrahmen,versteuerung,kleinunternehmer,
-      journal_ab,datev_berater_nr,datev_mandant_nr) values
+    await sql`insert into company (id,name,strasse,plz,ort,email,steuernummer,bundesland,kontenrahmen,versteuerung,kleinunternehmer,datev_berater_nr,datev_mandant_nr) values
       (1,'Musterbetrieb','Beispielstraße 1','93047','Regensburg','firma@example.com','198/113/10010','BY',
-      ${kr},${versteuerung},true,2026,'29098','55003')`;
+      ${kr},${versteuerung},true,'29098','55003')`;
 
     // Bereits gebuchte Einnahme vor der Umstellung: regulär festgeschrieben und versiegelt, ohne Triggerbypass.
     const original = await withActor(actor, async (tx) =>

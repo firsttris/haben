@@ -23,8 +23,8 @@ describe.skipIf(!testDatabaseUrl)("Manuelle Buchungen einer GmbH im EÜR-Abgleic
   for (const kr of ["SKR03", "SKR04"] as const) {
     it(`Gewerbesteuerrückstellung der GmbH: keine Abweichung (${kr})`, async () => {
       await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
-      await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
-        values (1, 'Test GmbH', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'soll', 'gmbh', false, 2026)`;
+      await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer)
+        values (1, 'Test GmbH', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'soll', 'gmbh', false)`;
       await manual.createManualEntry(
         "test-user",
         {

@@ -28,9 +28,9 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
   });
   beforeEach(async () => {
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, cash_entries, vat_returns cascade`;
-    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,ust_id,bundesland,iban,versteuerung,journal_ab)
+    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,ust_id,bundesland,iban,versteuerung)
       values (1,'Testfirma','Musterstraße 1','93047','Regensburg','rechnung@example.com','0941 1','198/113/10010',
-      'DE123456789','BY','DE89370400440532013000','soll',2025)`;
+      'DE123456789','BY','DE89370400440532013000','soll')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -69,7 +69,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
   }, 30_000);
 
   it.each(["SKR03", "SKR04"] as const)(
-    "Jahreswechsel %s: Leistung im Dezember, Rechnung im Januar → Dezember, Journal = Nebenbuch",
+    "Jahreswechsel %s: Leistung im Dezember, Rechnung im Januar → Dezember mit festen Journalwerten",
     async (kr) => {
       await sql`update company set kontenrahmen = ${kr}`;
       const final = await invoices.finalizeInvoice(

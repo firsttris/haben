@@ -8,6 +8,7 @@ import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
  * FILE_REFERENCES stehen, sonst übersieht die Vollprüfung ihre Dateien und fileInUse löscht sie womöglich (#857).
  */
 const OHNE_DATEI: Record<string, string> = {
+  "archive_deliveries.sha256": "an ein Archiv gesendete Rechnungsdatei; PDF und XML stehen in invoices",
   "bank_imports.sha256": "Auszugsdatei wird nicht gespeichert",
   "beleg_layouts.sha256": "Typst-Quelltext steht in der Tabelle",
   "beleg_layouts.approved_sha256": "Freigabe des Quelltexts",
