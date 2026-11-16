@@ -618,10 +618,15 @@ async function arbeitszimmerIssues(year: number, est: EstYear): Promise<Issue[]>
     const betrag = p.werbungskosten.arbeitszimmer ?? 0;
     const grenze = arbeitszimmerPauschale(monate);
     if (monate >= 12 || betrag <= grenze) return [];
+    // Ohne einen Monat als Mittelpunkt gilt das Abzugsverbot ganz, auch für die Aufwendungen (Nr. 6b Satz 1 und 2)
+    const rest =
+      monate === 0
+        ? "Ohne einen Monat als Mittelpunkt ist das Arbeitszimmer nicht abziehbar, auch nicht mit tatsächlichen Kosten."
+        : "Höher geht nur mit tatsächlichen Aufwendungen.";
     return [
       {
         tone: "hinweis" as const,
-        text: `Arbeitszimmer: Bei ${monate} von 12 Monaten liegt die Jahrespauschale bei ${formatEuro(grenze)}; eingetragen sind ${formatEuro(betrag)}. Höher geht nur mit tatsächlichen Aufwendungen.`,
+        text: `Arbeitszimmer: Bei ${monate} von 12 Monaten liegt die Jahrespauschale bei ${formatEuro(grenze)}; eingetragen sind ${formatEuro(betrag)}. ${rest}`,
       },
     ];
   });
