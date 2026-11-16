@@ -26,6 +26,11 @@ describe("parsePlanRows", () => {
     expect(parsePlanRows([zeile(kind, value)]).valid).toBe(false);
   });
 
+  it("liest den Anteil wie jedes Prozentfeld, auch mit „%“ und Dezimalpunkt (#1222)", () => {
+    expect(parsePlanRows([zeile("prozent", "30 %")]).rows[0]?.share).toEqual({ kind: "prozent", value: 3000 });
+    expect(parsePlanRows([zeile("prozent", "33.33")]).rows[0]?.share).toEqual({ kind: "prozent", value: 3333 });
+  });
+
   it("100 % ist gültig, ein Betrag hat keine Obergrenze", () => {
     expect(parsePlanRows([zeile("prozent", "100")]).valid).toBe(true);
     expect(parsePlanRows([zeile("betrag", "250,00")]).valid).toBe(true);

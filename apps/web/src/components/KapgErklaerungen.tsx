@@ -2,6 +2,7 @@ import { formatEuro, parseEuro } from "@haben/core";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
+import { anteilText, parseAnteil } from "../lib/anteil.ts";
 import { elsterNotice } from "../lib/elster.ts";
 import { useAction } from "../lib/use-action.ts";
 import { type getAnnualReturns, saveKapgErklaerung, submitKapgReturn } from "../server/functions/annual.ts";
@@ -212,13 +213,6 @@ export function GewstSection({ data }: { data: Data }) {
   );
 }
 
-/** Anteil als Text: 10000 → "100", 3333 → "33,33" */
-const anteilText = (anteil: number) => (anteil / 100).toLocaleString("de-DE", { maximumFractionDigits: 2 });
-function parseAnteil(text: string): number | null {
-  const n = Number(text.trim().replace(",", "."));
-  return Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 100) : null;
-}
-
 type Person = {
   name: string;
   strasse: string;
@@ -284,7 +278,7 @@ export function KapgAngaben({ data }: { data: Data }) {
       anteilseigner.some((p) => p.beteiligung === null || p.anteil === null) ||
       vertragsliste.some((v) => v.verguetung === null)
     ) {
-      setNotice({ tone: "danger", text: "Beträge als Euro (z. B. 25.000,00) und Anteile in Prozent (z. B. 50) eingeben." });
+      setNotice({ tone: "danger", text: "Beträge als Euro (z. B. 25.000,00) und Anteile in Prozent (z. B. 50 oder 33,33) eingeben." });
       return;
     }
     void run(async () => {

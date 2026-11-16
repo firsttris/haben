@@ -250,6 +250,27 @@ test("Kunde mit Rechnungen auf Englisch", async () => {
   await expect(page.getByLabel("Vorschau der Rechnung")).toContainText("Invoice");
 });
 
+test("Unsere Lieferantennummer beim Kunden steht im Kopf der Rechnung (#711)", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Wohnbau Nord eG");
+  await page.getByLabel("Ort").fill("Lübeck");
+  await page.getByLabel("Unsere Lieferantennummer bei diesem Kunden").fill("70815");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await expect(page.getByLabel("Unsere Lieferantennummer bei diesem Kunden")).toHaveValue("70815");
+  // Die eigene Lieferantennummer (Gegenrichtung) bleibt leer
+  await expect(page.getByLabel("Lieferantennummer", { exact: true })).toHaveValue("");
+  const kontakt = page.url();
+
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page, "Wohnbau Nord eG · Lübeck");
+  await expect(page.getByLabel("Vorschau der Rechnung")).toContainText("Lieferantennummer: 70815");
+  // Archivieren: Die folgenden Tests rechnen nicht mit diesem Kunden
+  await go(kontakt);
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
 test("Kontakt bearbeiten: Die Meldung „Gespeichert.“ bleibt nach dem Speichern stehen", async () => {
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Speicher Testkunde GmbH");

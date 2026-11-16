@@ -195,6 +195,19 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(invalid.status).toBe(400);
     });
 
+    it("liest und schreibt unsere Lieferantennummer beim Kunden; PATCH ohne sie behält sie (#711)", async () => {
+      const t = await token(["kontakte:schreiben"]);
+      const created = await call(t, "POST", "/kontakte", { ...kunde, unsereLieferantennummer: " 70815 " });
+      expect(created.status).toBe(201);
+      const contact = schemas.contactSchema.parse(created.json);
+      expect(contact.unsereLieferantennummer).toBe("70815");
+      const patched = await call(t, "PATCH", `/kontakte/${contact.id}`, { email: "einkauf@example.com" });
+      expect(schemas.contactSchema.parse(patched.json).unsereLieferantennummer).toBe("70815");
+      const cleared = await call(t, "PATCH", `/kontakte/${contact.id}`, { unsereLieferantennummer: "" });
+      expect(schemas.contactSchema.parse(cleared.json).unsereLieferantennummer).toBe("");
+      expect(schemas.contactSchema.parse((await call(t, "POST", "/kontakte", kunde)).json).unsereLieferantennummer).toBe("");
+    });
+
     it("legt an, liest, sucht und ändert; die Antwort passt zum Schema der OpenAPI-Beschreibung", async () => {
       const t = await token(["kontakte:schreiben"]);
       const created = await call(t, "POST", "/kontakte", kunde);

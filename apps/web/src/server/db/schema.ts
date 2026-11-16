@@ -1056,6 +1056,8 @@ export const contacts = pgTable(
     ustId: text("ust_id").notNull().default(""),
     iban: text("iban").notNull().default(""),
     leitwegId: text("leitweg_id").notNull().default(""),
+    /** Unsere Lieferantennummer bei diesem Kunden, vom Kunden vergeben (#711); steht auf der Rechnung, im XML als BT-29 */
+    unsereLieferantennummer: text("unsere_lieferantennummer").notNull().default(""),
     defaultFormat: invoiceFormatEnum("default_format"),
     /** Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto */
     skonto: jsonb("skonto").$type<SkontoStufe[]>(),
@@ -4232,7 +4234,13 @@ export const appVersions = pgTable("app_versions", {
 /** Befund der Prüfung beim Update auf das Journal als einzige Quelle (#1116): Jahr und was abweicht */
 export interface JournalUmstellungBefund {
   jahr: number;
+  /** Anzeigetext wie im Abgleich; bei Befunden ohne `schluessel` (vor #1229 gespeichert) auch das Merkmal zum Wiedererkennen */
   text: string;
+  /** Seit #1229: Bereich, stabiler Schlüssel und beide Beträge des Postens (AbgleichZeile), unabhängig vom Anzeigetext */
+  bereich?: string;
+  schluessel?: string;
+  journal?: number;
+  quelle?: number;
 }
 
 /**

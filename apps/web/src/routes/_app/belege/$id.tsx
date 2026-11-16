@@ -37,11 +37,12 @@ import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { aendereBetragszeile, betragszeileAus, betragszeileGespeichert, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
+import { PRIVATANTEIL_FEHLER, parsePrivatanteil } from "../../../lib/anteil.ts";
 import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
-import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil } from "../../../components/VorsteuerAnteil.tsx";
+import { VorsteuerAnteil, formatVorsteuerAnteil, parseVorsteuerAnteil, steuerSpalte } from "../../../components/VorsteuerAnteil.tsx";
 import { Kuerzel } from "../../../components/Kuerzel.tsx";
 import { type Taste, useKuerzelText } from "../../../lib/tastatur.ts";
 
@@ -387,8 +388,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     vorsteuerAnteil: parseVorsteuerAnteil(r.vorsteuerAnteil),
   }));
   // Mit Aufteilung gibt es (noch) keinen Privatanteil, siehe Grenzen in docs/belege.md
-  const privateShareValue = category === "anlage" || splitting ? 0 : Number(privateShare || 0);
-  const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
+  const privateShareValue = category === "anlage" || splitting ? 0 : parsePrivatanteil(privateShare);
+  const privateShareValid = privateShareValue !== null;
+  const vorsteuerBeleg = { value: vorsteuerAnteil, company: data, booked: locked, storedDeduction: doc.vorsteuerAbzug };
   const currencyCode = currency.trim().toUpperCase();
   const foreign = currencyCode !== "EUR";
   const rate = exchangeRate.trim() ? parseExchangeRate(exchangeRate) : null;
@@ -425,7 +427,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     ),
     waehrung: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
     kurs: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
-    privatanteil: privateShareValid ? null : "Trag eine ganze Zahl von 0 bis 100 ein.",
+    privatanteil: privateShareValid ? null : PRIVATANTEIL_FEHLER,
     vorsteuer: vorsteuerAnteil.trim() === "" || parseVorsteuerAnteil(vorsteuerAnteil) !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein.",
   } as Record<string, string | null>);
   // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
@@ -514,7 +516,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           ownAccountId: splitting ? null : passendesKonto(ownAccounts, category, ownAccountId) || null,
           payment,
           note,
-          privateShare: privateShareValue,
+          privateShare: privateShareValue ?? 0,
           vorsteuerAnteil: parseVorsteuerAnteil(vorsteuerAnteil),
           // Nur an einer Gutschrift über die Bank sinnvoll; sonst schickt der Editor immer „nein“ (#786)
           erstattetBezahltes: gross !== null && gross < 0 && payment === "bank" ? erstattetBezahltes : false,
@@ -950,7 +952,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             <Field
               label={
                 <>
-                  {reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
+                  {steuerSpalte(reverseCharge, vorsteuerBeleg, [row])}
                   {foreign ? ` ${currencyCode}` : ""}
                   {reverseCharge ? " (automatisch)" : ""}
                 </>
@@ -1051,10 +1053,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           Gutschriften mit Minus eingeben.
         </p>
         <VorsteuerAnteil
-          value={vorsteuerAnteil}
-          company={data}
-          booked={locked}
-          storedDeduction={doc.vorsteuerAbzug}
+          {...vorsteuerBeleg}
           privateShare={privateShareValue}
           asset={category === "anlage"}
           importVat={category === "einfuhrumsatzsteuer"}
@@ -1077,13 +1076,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             style={{ maxWidth: 220 }}
           >
             {(control) => (
-              <input
-                {...control}
-                inputMode="numeric"
-                value={privateShare}
-                placeholder="0"
-                onChange={(e) => touch(setPrivateShare)(e.target.value.replace(/\D/g, "").slice(0, 3))}
-              />
+              <input {...control} inputMode="numeric" value={privateShare} placeholder="0" onChange={(e) => touch(setPrivateShare)(e.target.value)} />
             )}
           </Field>
         )}
@@ -1100,7 +1093,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             ownAccounts={ownAccounts}
             disabled={readOnly || running}
             onChange={touch(setSplitRows)}
-            taxLabel={reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
+            taxLabel={steuerSpalte(reverseCharge, vorsteuerBeleg, rows)}
             error={(feld, key) => error(`${feld === "netto" ? "aufteilung" : "kategorie"}-${key}`)}
             onDissolve={() => {
               // Zurück zu einer Kategorie: die der ersten Zeile

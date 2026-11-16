@@ -1,20 +1,50 @@
-import { abziehbarerAnteil, abziehbareSteuer, formatDecimal, formatEuro, gespeicherterAnteil, parseEuro, splitPrivateShare } from "@haben/core";
+import {
+  abziehbarerAnteil,
+  abziehbareSteuer,
+  formatEuro,
+  formatHundredths,
+  gespeicherterAnteil,
+  parsePercent,
+  splitPrivateShare,
+  type SelfAssessedTax,
+} from "@haben/core";
 import { Field } from "./Field.tsx";
 
-/** Prozenttext direkt in Basispunkte lesen, ohne Zwischenwert als Dezimalzahl. Leer übernimmt die Vorgabe. */
+/** Abziehbarer Anteil in Basispunkten über parsePercent, höchstens 100 %; null, wenn ungültig. Leer übernimmt die Vorgabe. */
 export function parseVorsteuerAnteil(value: string): number | null {
-  const text = value.trim();
-  if (!/^\d{1,3}(,\d{1,2})?$/.test(text)) return null;
-  const points = parseEuro(text);
+  const points = parsePercent(value);
   return points !== null && points <= 10_000 ? points : null;
 }
 
 export const formatVorsteuerAnteil = (value: number | null | undefined): string =>
   value == null
     ? ""
-    : formatDecimal(value)
+    : formatHundredths(value)
         .replace(/,00$/, "")
         .replace(/(,\d)0$/, "$1");
+
+type Beleg = Pick<Props, "value" | "company" | "booked" | "storedDeduction">;
+
+/**
+ * Abziehbarer Anteil eines Steuersatzes in Basispunkten, wie ihn Vorschau und Beschriftung lesen. Wie beim Buchen
+ * (documents.ts): ungebucht der Anteil am Steuersatz, am Beleg oder die Vorgabe, als Kleinunternehmer 0; gebucht der
+ * gespeicherte Anteil.
+ */
+export function zeilenAnteil({ value, company, booked, storedDeduction }: Beleg, satz: string): number {
+  const amBeleg = parseVorsteuerAnteil(value);
+  const amSatz = parseVorsteuerAnteil(satz);
+  return booked ? gespeicherterAnteil({ vorsteuerAnteil: amBeleg, vorsteuerAbzug: storedDeduction }, amSatz) : abziehbarerAnteil(company, amSatz ?? amBeleg);
+}
+
+/**
+ * Beschriftung der Steuerspalte (#978), für eine Zeile oder die ganze Aufteilung: Ist von keinem Satz etwas abziehbar, ist
+ * die Steuer auf dem Beleg die Umsatzsteuer des Lieferanten; „Vorsteuer“ legte einen Abzug nahe.
+ */
+export function steuerSpalte(reverseCharge: SelfAssessedTax | null, beleg: Beleg, saetze: { vorsteuerAnteil: string }[]): string {
+  if (reverseCharge === "ig_erwerb") return "Erwerbsteuer";
+  if (reverseCharge) return "Steuer § 13b";
+  return saetze.length > 0 && saetze.every((satz) => zeilenAnteil(beleg, satz.vorsteuerAnteil) === 0) ? "Umsatzsteuer" : "Vorsteuer";
+}
 
 interface VorsteuerRow {
   key: number;
@@ -30,7 +60,8 @@ interface Props {
   company: { kleinunternehmer: boolean; ohneVorsteuerabzug: boolean };
   booked: boolean;
   storedDeduction: boolean;
-  privateShare: number;
+  /** Privatanteil in ganzen Prozent; null, wenn die Eingabe ungültig ist, dann ohne Vorschau */
+  privateShare: number | null;
   asset: boolean;
   importVat?: boolean;
   onChange: (value: string) => void;
@@ -61,13 +92,12 @@ function AnteilField({
 }
 
 export function VorsteuerAnteil(props: Props) {
-  const { value, rows, company, booked, storedDeduction, privateShare, asset, onChange, onRateChange, importVat = false } = props;
+  const { value, rows, company, booked, privateShare, asset, onChange, onRateChange, importVat = false } = props;
   const blocked = !booked && company.kleinunternehmer;
-  const selected = parseVorsteuerAnteil(value);
-  const defaultShare = booked ? gespeicherterAnteil({ vorsteuerAnteil: selected, vorsteuerAbzug: storedDeduction }) : abziehbarerAnteil(company, selected);
+  const defaultShare = zeilenAnteil(props, "");
   const valid = [value, ...rows.map((row) => row.vorsteuerAnteil)].every((text) => text.trim() === "" || parseVorsteuerAnteil(text) !== null);
-  const preview =
-    valid && rows.every((row) => row.net !== null && row.tax !== null) && Number.isInteger(privateShare) && privateShare >= 0 && privateShare <= 100;
+  const preview = valid && rows.every((row) => row.net !== null && row.tax !== null) && privateShare !== null;
+  const privat = privateShare ?? 0;
   const importVatReady =
     !blocked &&
     privateShare === 0 &&
@@ -79,13 +109,13 @@ export function VorsteuerAnteil(props: Props) {
     ? { deductible: rows.reduce((sum, row) => sum + (row.net ?? 0) + (row.tax ?? 0), 0), excluded: 0, cost: 0 }
     : rows.reduce(
         (sum, row) => {
-          const tax = splitPrivateShare(row.tax ?? 0, privateShare).business;
-          const share = blocked ? 0 : (parseVorsteuerAnteil(row.vorsteuerAnteil) ?? defaultShare);
+          const tax = splitPrivateShare(row.tax ?? 0, privat).business;
+          const share = zeilenAnteil(props, row.vorsteuerAnteil);
           const deductible = abziehbareSteuer(tax, share);
           return {
             deductible: sum.deductible + deductible,
             excluded: sum.excluded + tax - deductible,
-            cost: sum.cost + splitPrivateShare(row.net ?? 0, privateShare).business + tax - deductible,
+            cost: sum.cost + splitPrivateShare(row.net ?? 0, privat).business + tax - deductible,
           };
         },
         { deductible: 0, excluded: 0, cost: 0 },
@@ -130,7 +160,7 @@ export function VorsteuerAnteil(props: Props) {
             Nicht abziehbare Steuer <span className="amount">{formatEuro(totals.excluded)}</span>
             {" · "}
             {asset ? "Anschaffungskosten" : "Aufwand"} <span className="amount">{formatEuro(totals.cost)}</span>
-            {privateShare > 0 && " (nach Privatanteil)"}.
+            {privat > 0 && " (nach Privatanteil)"}.
           </>
         ) : importVat && preview ? (
           "Einfuhrumsatzsteuer wird nur als reiner Steuerbetrag zu 0 % mit vollständigem Vorsteuerabzug und ohne Privatanteil unterstützt."

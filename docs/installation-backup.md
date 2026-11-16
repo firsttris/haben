@@ -52,6 +52,16 @@ AWS_ACCESS_KEY_ID=…
 AWS_SECRET_ACCESS_KEY=…
 ```
 
+#### SFTP Schritt für Schritt
+
+Am Beispiel Docker Compose; die Befehle laufen als der Benutzer, der `docker compose` startet.
+
+1. **Schlüssel anlegen:** `ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519`. Den öffentlichen Teil (`~/.ssh/id_ed25519.pub`) beim Anbieter des Ziels für den SFTP- bzw. SSH-Zugang hinterlegen.
+2. **Host in `known_hosts` eintragen:** `ssh-keyscan -t ed25519 <host> >> ~/.ssh/known_hosts`, danach einmal `ssh <benutzer>@<host>`; das muss ohne Passwortabfrage klappen.
+3. **Einhängen:** in `compose.yml` bei `backup` und `restore` die Zeile `~/.ssh:/root/.ssh:ro` einkommentieren. Zeigt `~` auf dem Server nicht auf das richtige Verzeichnis, etwa auf einem NAS, den vollen Pfad nehmen, zum Beispiel `/share/homes/<benutzer>/.ssh:/root/.ssh:ro`.
+4. **In `.env`:** `RESTIC_REPOSITORY=sftp:<benutzer>@<host>:/pfad/zum/backup`. Heißt der Schlüssel nicht `id_ed25519` oder `id_rsa`, eine `~/.ssh/config` mit `Host <host>` und `IdentityFile ~/.ssh/<name>` anlegen.
+5. **Übernehmen und testen:** `docker compose up -d`, damit der Container mit Einhängung und neuer Variable startet, dann einmal `docker compose exec backup backup.sh`. Beim ersten Lauf legt es das Repository an.
+
 Unterstützt das Ziel schreibgeschützte Stände (etwa Object Lock bei S3), schützt das Backup auch gegen jemanden, der den Server übernommen hat.
 
 ### Test-Restore
@@ -141,7 +151,7 @@ Die alten Stände zeigt `restore.sh` ohne Argument unter dem Hostnamen des Serve
 
 ## Updates
 
-Vor jedem Update ein Backup machen; nur damit lässt sich das Update zurücknehmen, siehe [Update zurücknehmen](#update-zurücknehmen). Mit Compose:
+Welche Version die neueste ist, zeigt **Einstellungen › Export › Version**. Vor jedem Update ein Backup machen; nur damit lässt sich das Update zurücknehmen, siehe [Update zurücknehmen](#update-zurücknehmen). Mit Compose:
 
 ```sh
 docker compose exec backup backup.sh   # Stand vor dem Update sichern

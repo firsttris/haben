@@ -276,7 +276,7 @@ Stehen auf einer Rechnung Dinge, die auf verschiedene Konten gehören, etwa Hand
 1. Unter **Beträge je Steuersatz** die Beträge laut Rechnung eintragen, wie ohne Aufteilung.
 2. Unter dem Feld **Kategorie** auf **Auf mehrere Kategorien aufteilen** klicken. Darunter erscheint **Aufteilung auf Kategorien** mit einer Zeile je Steuersatz (die erste mit der bisherigen Kategorie und dem Netto des Satzes) und einer leeren Zeile.
 3. Je Zeile **Kategorie**, **Satz** und **Netto** eintragen. Mit **+ Zeile** kommt eine weitere dazu, mit dem Kreuz neben der Zeile fällt sie weg (mindestens zwei bleiben). Mehrere Zeilen mit demselben Satz und auch derselben Kategorie sind erlaubt.
-4. Unter den Zeilen steht je Steuersatz, wie viel schon verteilt ist, etwa „19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen“, bis es „stimmt“. Unter jedem Netto steht der Anteil an der Vorsteuer.
+4. Unter den Zeilen steht je Steuersatz, wie viel schon verteilt ist, etwa „19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen“, bis es „stimmt“. Unter jedem Netto steht der Anteil an der Vorsteuer, oder an der **Umsatzsteuer**, wenn von keinem Steuersatz etwas abziehbar ist ([Ohne Vorsteuerabzug](#ohne-vorsteuerabzug)).
 5. Gibt es zur Kategorie einer Zeile ein [eigenes Konto](buchhaltung.md#eigene-konten), wählst du es in der Zeile unter **Eigenes Konto**; Betrag und Vorsteuer bleiben, nur die Kontonummer der Aufwandszeile ist eine andere.
 6. **Speichern** oder **Bestätigen und buchen** wie sonst. Mit **Aufteilung aufheben** gilt wieder eine Kategorie für den ganzen Beleg, die der ersten Zeile.
 
@@ -362,6 +362,8 @@ Die Zahlung selbst buchst du im Bankabgleich: Verbindlichkeiten an Bank (siehe [
 Ohne Vorsteuerabzug bucht Haben den Bruttobetrag auf das Aufwandskonto, ohne Vorsteuerzeile und mit dem Steuerschlüssel `keineVSt`; die Vorsteuer kommt nicht in Kz 66. Im Beispiel oben stünden 119,00 € auf 4964 bzw. 6837. Bei § 13b bleiben die Kennzahlen der geschuldeten Steuer (Kz 46/47 bzw. 84/85), nur wird sie Teil der Ausgabe statt Vorsteuer (Kz 67).
 
 Drei Wege führen dorthin: Als Kleinunternehmer nach § 19 UStG buchst du immer so. Mit dem Haken **Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)** in den Firmendaten gilt es als Vorgabe, etwa bei Heilbehandlung oder Unterricht. Am einzelnen Beleg gibst du dafür unter **Abziehbare Vorsteuer in %** den Wert 0 ein; die eigene Angabe geht der Firmenvorgabe vor.
+
+Ist für einen Steuersatz nichts abziehbar, heißt seine Spalte unter **Beträge je Steuersatz** **Umsatzsteuer** statt **Vorsteuer**: Es ist die Steuer, die der Lieferant ausweist.
 
 ### Anteiliger Vorsteuerabzug
 

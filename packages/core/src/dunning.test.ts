@@ -63,10 +63,12 @@ describe("Basiszinssatz prüfen (#1143)", () => {
     expect(parseBaseRate("1,27")).toBe(127);
     expect(parseBaseRate("1,27 %")).toBe(127);
     expect(parseBaseRate("1,27%")).toBe(127);
+    // Ein Punkt gilt wie bei allen Prozentfeldern, wenn er eindeutig ein Dezimaltrenner ist (#1222)
+    expect(parseBaseRate("1.27")).toBe(127);
     expect(parseBaseRate("-0,88")).toBe(-88);
     expect(parseBaseRate("−0,88 %")).toBe(-88);
     expect(parseBaseRate("2")).toBe(200);
-    for (const text of ["1.27", "1,275", "abc", "%"]) expect(parseBaseRate(text), text).toBeNull();
+    for (const text of ["1.275", "1,275", "abc", "%"]) expect(parseBaseRate(text), text).toBeNull();
   });
 
   it("lässt leer und Sätze von −10 % bis 20 % durch", () => {
@@ -74,7 +76,7 @@ describe("Basiszinssatz prüfen (#1143)", () => {
   });
 
   it("meldet Unlesbares und Sätze außerhalb von −10 % bis 20 %", () => {
-    for (const text of ["1.27", "1,275", "abc"]) expect(baseRateError(text), text).toContain("etwa 1,27");
+    for (const text of ["1.275", "1,275", "abc"]) expect(baseRateError(text), text).toContain("etwa 1,27");
     for (const text of ["-10,01", "20,01", "25 %"]) expect(baseRateError(text), text).toMatch(/von -10\s% bis 20\s%/);
   });
 });

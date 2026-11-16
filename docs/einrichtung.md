@@ -320,7 +320,7 @@ Mehr unter [Rechnungen › Mahnwesen](rechnungen-zahlung.md#mahnwesen).
 
 ## Privatanteile
 
-Nur im Einzelunternehmen; bei GmbH und UG fehlt der Abschnitt. Unter **Privatanteil Telefon in %** und **Privatanteil Internet in %** legst du fest, welcher Anteil dieser Rechnungen privat ist, z. B. 20 %. Neue Belege der Kategorien übernehmen den Wert; am einzelnen Beleg lässt er sich ändern. Mehr unter [Belege](belege.md#privatanteil).
+Nur im Einzelunternehmen; bei GmbH und UG fehlt der Abschnitt. Unter **Privatanteil Telefon in %** und **Privatanteil Internet in %** legst du fest, welcher Anteil dieser Rechnungen privat ist, z. B. 20 %. Die Felder nehmen ganze Prozent von 0 bis 100, auch mit „%“; leer oder 0 heißt kein Privatanteil. Anderes melden sie am Feld, und gespeichert wird nichts. Neue Belege der Kategorien übernehmen den Wert; am einzelnen Beleg lässt er sich ändern. Mehr unter [Belege](belege.md#privatanteil).
 
 ## Fremdwährung
 
