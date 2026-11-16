@@ -12,6 +12,10 @@ describe("Sätze im Mitarbeiterformular", () => {
 
   it("nennt bei einem ungültigen Satz den Satz, nicht einen Betrag", () => {
     expect(mit({ zusatzbeitrag: "2,9 €" })).toBe("Zusatzbeitrag: kein gültiger Satz in Prozent, etwa 1,7.");
-    expect(mit({ monatsgehalt: "viel" })).toBe("Monatsgehalt: kein gültiger Betrag.");
+  });
+
+  it("meldet einen ungültigen Betrag wie jedes Betragsfeld (#1242)", () => {
+    expect(mit({ monatsgehalt: "viel" })).toBe("Monatsgehalt: Trag den Betrag ein, etwa 1.234,56.");
+    expect(mit({ pkvZuschuss: "3€00" })).toBe("Zuschuss zur privaten Versicherung: Trag den Betrag ein, etwa 1.234,56.");
   });
 });

@@ -113,16 +113,6 @@ export function amountError(subject = "den Betrag", example: Cents = AMOUNT_EXAM
   return `Trag ${subject} ein, etwa ${formatDecimal(example)}${optional ? ", oder lass das Feld leer" : ""}.`;
 }
 
-/** Zahl mit höchstens zwei Nachkommastellen in ganzen Hundertsteln, ohne Einheit: „19,5“ → 1950. Beträge liest parseEuro. */
-export function parseHundredths(input: string): number | null {
-  const cleaned = input.replace(/\s|€/g, "").replace(/−/g, "-");
-  if (!/^-?(\d{1,3}(\.\d{3})+|\d+)(,\d{1,2})?$/.test(cleaned)) return null;
-  const negative = cleaned.startsWith("-");
-  const [whole = "0", fraction = ""] = cleaned.replace("-", "").replace(/\./g, "").split(",");
-  const hundredths = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
-  return negative ? -hundredths : hundredths;
-}
-
 /** Aufteilung eines Betrags nach Privatanteil in Prozent: privat wird gerundet, betrieblich ist der Rest */
 export function splitPrivateShare(amount: Cents, percent: number): { business: Cents; private: Cents } {
   const privatePart = roundHalfAwayFromZero((amount * percent) / 100);

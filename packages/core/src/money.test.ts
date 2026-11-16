@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { amountError, formatDeduction, formatEuro, formatHundredths, parseEuro, parseHundredths, taxOf } from "./money.ts";
+import { amountError, formatDeduction, formatEuro, formatHundredths, parseEuro, taxOf } from "./money.ts";
 
 describe("Hundertstel ohne Einheit", () => {
-  it("liest und schreibt Prozent wie Euro mit zwei Nachkommastellen", () => {
-    expect(parseHundredths("19,5 ")).toBe(1950);
+  it("schreibt Prozent wie Euro mit zwei Nachkommastellen", () => {
     expect(formatHundredths(1950)).toBe("19,50");
     expect(formatHundredths(-0)).toBe("0,00");
   });

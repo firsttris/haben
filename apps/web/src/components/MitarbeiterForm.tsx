@@ -1,4 +1,5 @@
 import {
+  amountError,
   BESCHAEFTIGUNGSARTEN,
   formatDecimal,
   formatHundredths,
@@ -118,16 +119,17 @@ export function texte(w: MitarbeiterWerte): Texte {
 
 /** Werte aus den Texten; die erste Beanstandung als Text */
 export function auswerten(w: MitarbeiterWerte, t: Texte): MitarbeiterWerte | string {
-  // Beträge in Cent, Sätze in Basispunkten (parsePercent wie jedes Prozentfeld); beide nicht negativ
+  // Beträge in Cent (parseEuro und amountError wie jedes Betragsfeld), Sätze in Basispunkten (parsePercent wie jedes
+  // Prozentfeld); beide nicht negativ
   const lesen =
-    (parse: (text: string) => number | null, was: string) =>
+    (parse: (text: string) => number | null, meldung: string) =>
     (text: string, label: string, leerIstNull = true) => {
       if (leerIstNull && text.trim() === "") return 0;
       const n = parse(text);
-      return n === null || n < 0 ? `${label}: ${was}.` : n;
+      return n === null || n < 0 ? `${label}: ${meldung}` : n;
     };
-  const euro = lesen(parseEuro, "kein gültiger Betrag");
-  const satz = lesen(parsePercent, "kein gültiger Satz in Prozent, etwa 1,7");
+  const euro = lesen(parseEuro, amountError());
+  const satz = lesen(parsePercent, "kein gültiger Satz in Prozent, etwa 1,7.");
   const werte = {
     monatsgehalt: euro(t.monatsgehalt, "Monatsgehalt", false),
     zusatzbeitrag: satz(t.zusatzbeitrag, "Zusatzbeitrag"),
