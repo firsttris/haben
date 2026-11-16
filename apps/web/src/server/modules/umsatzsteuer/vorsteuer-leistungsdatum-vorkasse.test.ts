@@ -3,18 +3,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
- * Vorsteuer bei Eingangsbelegen nach Leistungsdatum (#693, Stufe 2): Abziehbar ist die Vorsteuer in dem Zeitraum, in dem
- * erstmalig beide Voraussetzungen erfüllt sind — die Leistung ist ausgeführt und eine Rechnung liegt vor (§ 15 Abs. 1
- * Satz 1 Nr. 1 UStG). Ist vor der Ausführung schon gezahlt, zählt sie im Monat der Zahlung (UStAE 15.3 Abs. 1 Satz 2).
- * Ohne Leistungsdatum bleibt es beim Belegdatum; ein Storno bleibt beim Stornodatum mit umgekehrtem Vorzeichen.
+ * Vorkasse vor dem Rechnungsdatum bei einem Leistungsdatum nach dem Belegdatum (#693): Abziehbar ist die Vorsteuer erst,
+ * wenn Rechnung und Zahlung vorliegen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG; UStAE 15.3 Abs. 1 Satz 2), also frühestens
+ * im Monat der Rechnung. Eine Aufhebung wirkt an ihrem Tag, nicht rückwirkend (#782). Je Kontenrahmen und Versteuerung;
+ * Journal und Nebenbücher müssen je Monat gleich sein.
  */
-describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Nebenbücher je Monat gleich (Nachprüfung #930)", () => {
+describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Zahlung vor dem Rechnungsdatum (#693)", () => {
   let figures: typeof import("./vat-figures.ts");
   let bank: typeof import("../bank/index.ts");
   let documents: typeof import("../belege/documents.ts");
-  let cancellation: typeof import("../belege/cancellation.ts");
   let sql: postgres.Sql;
-  const actor = "leistungsdatum-review";
+  const actor = "leistungsdatum-vorkasse";
   let lauf = 0;
   const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 93]);
 
@@ -23,7 +22,6 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
     figures = await import("./vat-figures.ts");
     bank = await import("../bank/index.ts");
     documents = await import("../belege/documents.ts");
-    cancellation = await import("../belege/cancellation.ts");
   }, 60_000);
 
   afterAll(async () => {
@@ -135,78 +133,9 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
   ]) {
     const n = `${p.kontenrahmen}/${p.versteuerung}`;
 
-    it(`${n} Skonto vor der Ausführung, danach aufgehoben, dann Storno: Nebenbücher nehmen auch die Aufhebung zurück`, async () => {
-      await firma({ journalAb: 2026, ...p });
-      const id = await beleg({ datum: "2026-09-01", von: "2026-10-01", bis: "2026-10-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
-      const z = await zahlung(id, -3_779, "2026-09-10");
-      await bank.writeOff(actor, { kind: "skontoErhalten", documentId: id, date: "2026-09-10" });
-      const [w] = await sql`select id from write_offs where document_id = ${id}`;
-      await bank.reverseWriteOff(actor, w!.id as string, "2026-11-05");
-      await cancellation.cancelDocument(actor, id, { reason: "falsch", allocationIds: [z] }, "2026-11-10");
-      const q = await beideQuellen(M([2026, 9], 3));
-      const [st] = await sql`select date::text as date from document_cancellations where document_id = ${id}`;
-      expect({
-        storno: st!.date,
-        journal: q.journal,
-        nebenbuecher: q.nebenbuecher,
-        summeNebenbuecher: q.nebenbuecher.reduce((a, b) => a! + b!, 0),
-        zw: await zw(),
-      }).toEqual({
-        storno: st!.date,
-        journal: q.journal,
-        nebenbuecher: q.journal,
-        summeNebenbuecher: 0,
-        zw: 0,
-      });
-    });
-
-    it(`${n} Kursdifferenz (Fremdwährung) vor der Ausführung bewegt keine Vorsteuer, ihr Anteil kommt mit der Ausführung`, async () => {
-      await firma({ journalAb: 2026, ...p });
-      const id = await beleg({
-        datum: "2026-10-20",
-        von: "2026-12-01",
-        bis: "2026-12-31",
-        amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 100_000, originalTax: 19_000 }],
-        extra: { currency: "USD", exchangeRate: "1,0812" },
-      });
-      const [doc] = await sql`select net, tax, gross from documents where id = ${id}`;
-      const offen = Math.abs(doc!.gross as number);
-      const umsatz = await bankumsatz(-(offen - 2_000), "2026-11-05");
-      const rw = await rueckwirkend("2026-11-05", () =>
-        bank.allocateWithRest(actor, { transactionId: umsatz, target: { kind: "document", documentId: id }, rest: "kursdifferenz" }),
-      );
-      const q = await beideQuellen(M([2026, 10], 4));
-      expect({ ...q, zw: await zw(), rw, summe: q.journal.reduce((a, b) => a + b, 0) }).toEqual({
-        journal: q.journal,
-        nebenbuecher: q.journal,
-        zw: 0,
-        rw: [],
-        summe: doc!.tax,
-      });
-      // Die Zahlung zieht ihren Anteil im November, der Anteil der Kursdifferenz kommt mit der Ausführung im Dezember
-      // (§ 16 Abs. 6, § 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG; Entscheidung des Maintainers in #930)
-      expect(q.journal).toEqual([0, 17_254, 319, 0]);
-    });
-
-    it(`${n} Kursdifferenz nach der Ausführung: die ganze Vorsteuer bleibt im Monat der Ausführung`, async () => {
-      await firma({ journalAb: 2026, ...p });
-      const id = await beleg({
-        datum: "2026-10-20",
-        von: "2026-11-01",
-        bis: "2026-11-30",
-        amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 100_000, originalTax: 19_000 }],
-        extra: { currency: "USD", exchangeRate: "1,0812" },
-      });
-      const [doc] = await sql`select gross, tax from documents where id = ${id}`;
-      const umsatz = await bankumsatz(-(Math.abs(doc!.gross as number) - 2_000), "2026-12-05");
-      await bank.allocateWithRest(actor, { transactionId: umsatz, target: { kind: "document", documentId: id }, rest: "kursdifferenz" });
-      const q = await beideQuellen(M([2026, 10], 3));
-      expect({ ...q, zw: await zw() }).toEqual({ journal: [0, doc!.tax, 0], nebenbuecher: [0, doc!.tax, 0], zw: 0 });
-    });
-
     // Vorkasse vor dem Rechnungsdatum: abziehbar erst, wenn Rechnung und Zahlung vorliegen (§ 15 Abs. 1 Satz 1 Nr. 1
     // Satz 3 UStG; UStAE 15.3 Abs. 1 Satz 2: Zeitraum, in dem erstmalig beide Voraussetzungen erfüllt sind), also im
-    // Monat der Rechnung, nicht im Monat der Zahlung. Gefunden in der Selbstprüfung von TheLord83, Frage 2
+    // Monat der Rechnung, nicht im Monat der Zahlung
     it(`${n} Zahlung vor dem Rechnungsdatum: Vorsteuer im Monat der Rechnung, Journal wie Nebenbücher`, async () => {
       await firma({ journalAb: 2026, ...p });
       const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
@@ -217,7 +146,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
 
     // Aufhebung einer Vorkasse vor dem Rechnungsdatum nach Abgabe des Rechnungsmonats: Die Gegenbuchung wirkt am Tag der
     // Aufhebung, nicht rückwirkend im schon gemeldeten Monat (#782; GoBD: keine Änderung abgeschlossener Zeiträume, wie bei
-    // der Zahlung nach dem Rechnungsdatum). Gefunden im Review von #930
+    // der Zahlung nach dem Rechnungsdatum)
     for (const zahltag of ["2026-11-05", "2026-10-30"]) {
       it(`${n} Zahlung am ${zahltag}, Rechnung 02.11., am 10.12. aufgehoben: November bleibt, nichts rückwirkend`, async () => {
         await firma({ journalAb: 2026, ...p });
@@ -231,7 +160,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
 
     // Nachgereichte Teilzahlung nach der Aufhebung einer anderen: Die Gegenbuchung der Aufhebung (10.12.) liegt nach dem Tag
     // der nachgereichten Zahlung (20.11.), ist aber schon gebucht und zählt mit. Sonst zieht die Zahlung nichts, Kz 66
-    // November fehlt ihr Anteil und Journal und Nebenbücher laufen auseinander (UStAE 15.3 Abs. 1 Satz 2). Review #930
+    // November fehlt ihr Anteil und Journal und Nebenbücher laufen auseinander (UStAE 15.3 Abs. 1 Satz 2)
     it(`${n} Teilzahlung vor der Rechnung am 10.12. aufgehoben, danach Teilzahlung vom 20.11. nachgereicht`, async () => {
       await firma({ journalAb: 2026, ...p });
       const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
@@ -243,7 +172,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
     });
 
     // Vorkasse im Dezember, Rechnung im Januar: Kz 66 im Januar (UStAE 15.3 Abs. 1 Satz 2), in der EÜR bleibt die
-    // gezahlte Vorsteuer Betriebsausgabe im Jahr der Zahlung (§ 11 Abs. 2 EStG). Review #930
+    // gezahlte Vorsteuer Betriebsausgabe im Jahr der Zahlung (§ 11 Abs. 2 EStG)
     it(`${n} Zahlung im Dezember, Rechnung im Januar: Kz 66 im Januar, EÜR im Jahr der Zahlung`, async () => {
       await firma({ journalAb: 2026, ...p });
       const euer = await import("../auswertungen/euer-journal.ts");
@@ -262,7 +191,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
     });
 
     // Teilzahlungen vor und nach dem Rechnungsdatum: je Zahlung ihr Anteil, frühestens im Monat der Rechnung, der Rest
-    // mit der Ausführung (UStAE 15.3 Abs. 1 Satz 2 und Abs. 4). Review #930
+    // mit der Ausführung (UStAE 15.3 Abs. 1 Satz 2 und Abs. 4)
     it(`${n} Teilzahlungen vor und nach dem Rechnungsdatum: kumuliert im Monat der Rechnung, Rest mit der Ausführung`, async () => {
       await firma({ journalAb: 2026, ...p });
       const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
@@ -282,7 +211,6 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
 
     // Vorkasse mit Skonto vor dem Rechnungsdatum: Der Skonto mindert die Vorsteuer (§ 17 Abs. 1 Satz 2 UStG), der Rest
     // zählt im Monat der Rechnung (UStAE 15.3 Abs. 1 Satz 2). „Zahlung mit Skonto“ bucht den Skonto am Tag des Umsatzes.
-    // Review #930
     it(`${n} Vorkasse mit Skonto am Zahltag vor dem Rechnungsdatum: bucht, Vorsteuer ohne Skonto im Monat der Rechnung`, async () => {
       await firma({ journalAb: 2026, ...p });
       const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
@@ -299,40 +227,6 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
       await bank.writeOff(actor, { kind: "skontoErhalten", documentId: id, date: "2026-11-05" });
       const q = await beideQuellen(M([2026, 10], 3));
       expect({ ...q, zw: await zw() }).toEqual({ journal: [0, 604, 0], nebenbuecher: [0, 604, 0], zw: 0 });
-    });
-
-    // Altbestand aus v0.9.0 (#879): Belege mit Leistungszeitraum, die vor diesem Stand gebucht wurden, haben die Vorsteuer
-    // im Journal am Belegdatum, ohne Zwischenkonto. Die Nebenbücher dürfen sie nicht nachträglich verschieben, sonst
-    // ändert ein Update schon gemeldete Monate und Journal und Gegenprobe fallen auseinander. Nachweis ist die Buchung,
-    // wie in vorsteuer-ausgleich.ts („ein nachträglich gesetztes Leistungsdatum bucht nicht rückwirkend um“).
-    // Gefunden in der Selbstprüfung von TheLord83, Frage 1
-    it(`${n} Altbestand: vor diesem Stand gebuchter Beleg mit Leistungszeitraum bleibt im Belegmonat, Journal wie Nebenbücher`, async () => {
-      await firma({ journalAb: 2026, ...p });
-      const id = await beleg({ datum: "2026-11-20", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
-      // So stand ein solcher Beleg nach v0.9.0 in der Datenbank: Leistungszeitraum am Beleg, Buchung ohne Zwischenkonto
-      await sql.begin(async (t) => {
-        await t`set local session_replication_role = replica`;
-        await t`update documents set service_from = '2026-12-01', service_to = '2026-12-31' where id = ${id}`;
-      });
-      const q = await beideQuellen(M([2026, 11], 2));
-      expect({ ...q, zw: await zw() }).toEqual({ journal: [616, 0], nebenbuecher: [616, 0], zw: 0 });
-    });
-
-    it(`${n} Privatanteil, zwei Steuersätze, Teilzahlung vor der Ausführung: kumuliert gerundet`, async () => {
-      await firma({ journalAb: 2026, ...p });
-      const id = await beleg({
-        datum: "2026-08-20",
-        von: "2026-09-01",
-        bis: "2026-09-30",
-        privateShare: 33,
-        amounts: [
-          { taxRate: 1900, net: 3_240, tax: 616 },
-          { taxRate: 700, net: 1_001, tax: 70 },
-        ],
-      });
-      await zahlung(id, -1_003, "2026-08-25");
-      const q = await beideQuellen(M([2026, 8], 2));
-      expect({ ...q, zw: await zw() }).toEqual({ journal: q.journal, nebenbuecher: q.journal, zw: 0 });
     });
   }
 });

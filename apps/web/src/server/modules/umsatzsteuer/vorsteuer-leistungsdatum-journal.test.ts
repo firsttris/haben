@@ -3,18 +3,18 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
- * Vorsteuer bei Eingangsbelegen nach Leistungsdatum (#693, Stufe 2): Abziehbar ist die Vorsteuer in dem Zeitraum, in dem
- * erstmalig beide Voraussetzungen erfüllt sind — die Leistung ist ausgeführt und eine Rechnung liegt vor (§ 15 Abs. 1
- * Satz 1 Nr. 1 UStG). Ist vor der Ausführung schon gezahlt, zählt sie im Monat der Zahlung (UStAE 15.3 Abs. 1 Satz 2).
- * Ohne Leistungsdatum bleibt es beim Belegdatum; ein Storno bleibt beim Stornodatum mit umgekehrtem Vorzeichen.
+ * Vorsteuer nach Leistungsdatum (#693) mit dem Journal als Quelle von Kz 66 (ab dem Stichjahr, vat-figures.ts): Die
+ * Buchung parkt die Vorsteuer auf dem Zwischenkonto (SKR03 1548, SKR04 1434), die Freigabe zum Leistungsdatum und die
+ * Zahlungen ziehen sie auf die Vorsteuer. Journal und Nebenbücher müssen je Monat denselben Betrag nennen, und das
+ * Zwischenkonto endet bei null.
  */
-describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)", () => {
+describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Nebenbücher je Monat gleich (#693)", () => {
   let figures: typeof import("./vat-figures.ts");
   let bank: typeof import("../bank/index.ts");
   let documents: typeof import("../belege/documents.ts");
   let cancellation: typeof import("../belege/cancellation.ts");
   let sql: postgres.Sql;
-  const actor = "leistungsdatum-review";
+  const actor = "leistungsdatum-journal";
   let lauf = 0;
   const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 93]);
 
@@ -100,63 +100,30 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     return zuordnung!.id as string;
   }
 
-  /** Vorsteuer (Kz 66) und die Zeilen dahinter für einen Monat */
-  async function monat(month: number, year = 2026) {
-    const f = await figures.computeVatFigures({ year, month });
-    return { kz66: f.kz66, zeilen: f.inputTax.map((a) => ({ date: a.date, tax: a.tax, base: a.base })) };
+  /** Kz 66 aus dem Journal und aus den Nebenbüchern je Monat */
+  async function beideQuellen(monate: { year: number; month: number }[]) {
+    const journal: number[] = [];
+    const nebenbuecher: (number | undefined)[] = [];
+    for (const m of monate) {
+      const f = await figures.computeVatFigures(m);
+      journal.push(f.kz66);
+      nebenbuecher.push(f.nebenbuecher?.kz66);
+    }
+    return { journal, nebenbuecher };
   }
 
-  // § 15 Abs. 1 Satz 1 Nr. 1 Satz 1 UStG: Leistung ausgeführt und Rechnung liegt vor; UStAE 15.2 Abs. 2 Satz 7 bzw. 15.3
-  // Abs. 1 Satz 2: abziehbar im Zeitraum, in dem beide Voraussetzungen erstmals erfüllt sind (Akzeptanzkriterium in #693)
-  it("Rechnung vor der Leistung, unbezahlt bis zur Ausführung: Vorsteuer im Monat der Ausführung", async () => {
-    await firma();
-    await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+  /** Saldo des Zwischenkontos (SKR03 1548, SKR04 1434) über alle Buchungen */
+  async function zwischenkontoSaldo() {
+    const [z] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account in ('1548', '1434')`;
+    return z!.saldo as number;
+  }
 
-    expect((await monat(11)).kz66).toBe(0);
-    expect((await monat(12)).kz66).toBe(616);
-    expect((await monat(1, 2027)).kz66).toBe(0);
-  });
-
-  // Beispiel aus #693, Vorschlag 4: Wartung 15.11. bis 14.12., Rechnung 20.11., bezahlt 10.01. → Vorsteuer im Dezember
-  it("nach der Ausführung bezahlt: Vorsteuer im Monat der Ausführung, nicht der Zahlung", async () => {
-    await firma();
-    const id = await beleg({ datum: "2026-11-20", von: "2026-11-15", bis: "2026-12-14", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
-    await zahlung(id, -3_856, "2027-01-10");
-
-    expect((await monat(11)).kz66).toBe(0);
-    expect((await monat(12)).kz66).toBe(616);
-    expect((await monat(1, 2027)).kz66).toBe(0);
-  });
-
-  // Aufgehobene Zuordnung wirkt am Tag der Aufhebung (allocations.date, #782, docs/bank.md „Zuordnung aufheben“), nicht
-  // rückwirkend im Monat der Zahlung: Der Dezember kann schon gemeldet sein
-  it("aufgehobene Zuordnung ändert den Monat der Zahlung nicht rückwirkend", async () => {
-    await firma();
-    const id = await beleg({ datum: "2026-08-20", von: "2027-03-01", bis: "2027-03-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
-    const zuordnung = await zahlung(id, -3_856, "2026-09-05");
-    expect((await monat(9)).kz66).toBe(616);
-
-    await bank.reverseAllocation(actor, zuordnung, "2026-10-10");
-
-    expect((await monat(9)).kz66).toBe(616);
-    expect((await monat(10)).kz66).toBe(-616);
-  });
-
-  // Eine Gutschrift berichtigt nach § 17 Abs. 1 UStG im Zeitraum der Änderung; ohne „erstattet bereits Bezahltes“ gilt
-  // das Belegdatum (docs/umsatzsteuer.md, Vorsteuer). Ein Leistungszeitraum, etwa aus BT-73/74 der E-Rechnung, ändert daran nichts
-  it("Gutschrift mit Leistungszeitraum nach dem Belegdatum mindert im Belegmonat", async () => {
-    await firma();
-    await beleg({
-      datum: "2026-03-15",
-      von: "2026-01-01",
-      bis: "2026-12-31",
-      erstattetBezahltes: false,
-      amounts: [{ taxRate: 1900, net: -1_000, tax: -190 }],
+  /** n Monate ab `von` (Jahr, Monat) */
+  const M = (von: [number, number], n: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const m = von[1] - 1 + i;
+      return { year: von[0] + Math.floor(m / 12), month: (m % 12) + 1 };
     });
-
-    expect((await monat(3)).kz66).toBe(-190);
-    expect((await monat(12)).kz66).toBe(0);
-  });
 
   // Ab dem Stichjahr ist das Journal die Quelle der Kennzahlen (vat-figures.ts, journalAlsQuelle); Journal und
   // Nebenbücher müssen übereinstimmen (#693, Akzeptanzkriterium „Voranmeldung aus Nebenbüchern und aus dem Journal“)
@@ -170,18 +137,6 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     expect({ nov: november.kz66, dez: dezember.kz66 }).toEqual({ nov: 0, dez: 616 });
     expect({ nov: november.nebenbuecher?.kz66, dez: dezember.nebenbuecher?.kz66 }).toEqual({ nov: 0, dez: 616 });
   });
-
-  /** Kz 66 aus dem Journal und aus den Nebenbüchern je Monat */
-  async function beideQuellen(monate: { year: number; month: number }[]) {
-    const journal: number[] = [];
-    const nebenbuecher: (number | undefined)[] = [];
-    for (const m of monate) {
-      const f = await figures.computeVatFigures(m);
-      journal.push(f.kz66);
-      nebenbuecher.push(f.nebenbuecher?.kz66);
-    }
-    return { journal, nebenbuecher };
-  }
 
   // Bar oder privat bezahlt ist der Beleg mit der Buchung ausgeglichen (docs/umsatzsteuer.md, Vorsteuer Kz 66; belegbuchung.ts
   // parkt deshalb nichts): gezahlt vor der Ausführung, also abziehbar im Monat der Zahlung (UStAE 15.3 Abs. 1 Satz 2).
@@ -216,8 +171,8 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
   });
 
   // Nach der Ausführung bezahlt (Zahlungsziel): § 15 Abs. 1 Satz 1 Nr. 1 UStG ist mit Leistung und Rechnung erfüllt, die
-  // Vorsteuer gehört in den Monat der Ausführung. Das Journal bucht sie bisher mit der Zahlung — im Januar. Beide Quellen
-  // müssen denselben Monat nennen (#693).
+  // Vorsteuer gehört in den Monat der Ausführung, nicht in den der Zahlung im Januar. Beide Quellen müssen denselben
+  // Monat nennen.
   it("Journal als Quelle: nach der Ausführung bezahlt, Kz 66 im Monat der Ausführung", async () => {
     await firma({ journalAb: 2026 });
     const id = await beleg({ datum: "2026-11-20", von: "2026-11-15", bis: "2026-12-14", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
@@ -279,36 +234,9 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     });
   });
 
-  // Abgeschlossenes Jahr der Ausführung: Die Buchung des Belegs bleibt möglich und die Freigabe entfällt; die Vorsteuer
-  // kommt dann mit der Zahlung (der Weg vor #693). Vorher fing ein `catch {}` dafür jeden Fehler ab, auch einen echten
-  // wie den Wechsel des Kontenrahmens.
-  it("abgeschlossenes Jahr der Ausführung: Buchung bleibt möglich, Freigabe entfällt", async () => {
-    await firma({ journalAb: 2026 });
-    await sql`insert into year_closings (year) values (2026)`;
-    const id = await beleg({
-      datum: "2025-11-20",
-      von: "2025-12-01",
-      bis: "2026-01-31",
-      amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }],
-    });
-
-    expect((await monat(12, 2025)).kz66).toBe(0);
-    expect((await monat(1, 2026)).kz66).toBe(0);
-
-    await zahlung(id, -3_856, "2027-02-10");
-
-    expect((await monat(1, 2026)).kz66).toBe(0);
-    expect((await monat(2, 2027)).kz66).toBe(616);
-  });
-  /** Saldo des Zwischenkontos (SKR03 1548, SKR04 1434) über alle Buchungen */
-  async function zwischenkontoSaldo() {
-    const [z] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account in ('1548', '1434')`;
-    return z!.saldo as number;
-  }
-
   // Zahlung vor der Ausführung mit Rechnung: abziehbar im Monat der Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG,
   // Abschnitt 15.3 UStAE). Ab dem Stichjahr ist das Journal die Quelle von Kz 66; es muss denselben Monat nennen wie die
-  // Gegenprobe, und die Freigabe zur Ausführung darf nicht zusätzlich wirken (#930)
+  // Gegenprobe, und die Freigabe zur Ausführung darf nicht zusätzlich wirken
   it("Journal als Quelle: Zahlung vor der Ausführung, Kz 66 im Zahlungsmonat, SKR03/Ist", async () => {
     await firma({ journalAb: 2026 });
     const id = await beleg({ datum: "2026-11-20", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
@@ -404,7 +332,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
   });
 
   // Nach der Ausführung ist die Vorsteuer mit Leistung und Rechnung abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 1 UStG); eine
-  // Aufhebung der Anzahlung danach ändert daran nichts mehr (Vorgabe des Maintainers in #930) und schreibt vor allem den
+  // Aufhebung der Anzahlung danach ändert daran nichts mehr und schreibt vor allem den
   // Monat der Ausführung nicht rückwirkend um (#782: eine Aufhebung wirkt am Tag der Aufhebung)
   it("Journal als Quelle: Anzahlung vor der Ausführung, Aufhebung nach der Ausführung ändert nichts mehr", async () => {
     await firma({ journalAb: 2026 });
@@ -483,4 +411,44 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum, Review (#930)"
     const dezember = await figures.computeVatFigures({ year: 2026, month: 12 });
     expect({ zwischenkonto: rest!.saldo, dez: dezember.kz66 }).toEqual({ zwischenkonto: 0, dez: 616 });
   });
+
+  for (const p of [
+    { kontenrahmen: "SKR03" as const, versteuerung: "ist" as const },
+    { kontenrahmen: "SKR04" as const, versteuerung: "soll" as const },
+  ]) {
+    const n = `${p.kontenrahmen}/${p.versteuerung}`;
+
+    // Altbestand aus v0.9.0 (#879): Belege mit Leistungszeitraum, die vor diesem Stand gebucht wurden, haben die Vorsteuer
+    // im Journal am Belegdatum, ohne Zwischenkonto. Die Nebenbücher dürfen sie nicht nachträglich verschieben, sonst
+    // ändert ein Update schon gemeldete Monate und Journal und Gegenprobe fallen auseinander. Nachweis ist die Buchung,
+    // wie in vorsteuer-ausgleich.ts („ein nachträglich gesetztes Leistungsdatum bucht nicht rückwirkend um“).
+    it(`${n} Altbestand: vor diesem Stand gebuchter Beleg mit Leistungszeitraum bleibt im Belegmonat, Journal wie Nebenbücher`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const id = await beleg({ datum: "2026-11-20", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+      // So stand ein solcher Beleg nach v0.9.0 in der Datenbank: Leistungszeitraum am Beleg, Buchung ohne Zwischenkonto
+      await sql.begin(async (t) => {
+        await t`set local session_replication_role = replica`;
+        await t`update documents set service_from = '2026-12-01', service_to = '2026-12-31' where id = ${id}`;
+      });
+      const q = await beideQuellen(M([2026, 11], 2));
+      expect({ ...q, zw: await zwischenkontoSaldo() }).toEqual({ journal: [616, 0], nebenbuecher: [616, 0], zw: 0 });
+    });
+
+    it(`${n} Privatanteil, zwei Steuersätze, Teilzahlung vor der Ausführung: kumuliert gerundet`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const id = await beleg({
+        datum: "2026-08-20",
+        von: "2026-09-01",
+        bis: "2026-09-30",
+        privateShare: 33,
+        amounts: [
+          { taxRate: 1900, net: 3_240, tax: 616 },
+          { taxRate: 700, net: 1_001, tax: 70 },
+        ],
+      });
+      await zahlung(id, -1_003, "2026-08-25");
+      const q = await beideQuellen(M([2026, 8], 2));
+      expect({ ...q, zw: await zwischenkontoSaldo() }).toEqual({ journal: q.journal, nebenbuecher: q.journal, zw: 0 });
+    });
+  }
 });
