@@ -148,3 +148,11 @@ export { mixeNachVerrechnungen, mixNachVerrechnungen } from "./verrechnung-steue
 export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";
 
 export { invoicePaymentList, type InvoicePayment } from "./invoice-payment-history.ts";
+export {
+  adoptForeignInvoice,
+  adoptForeignInvoiceFile,
+  foreignInvoiceProposal,
+  foreignInvoiceSchema,
+  type ForeignInvoiceInput,
+  type ForeignInvoiceProposal,
+} from "./fremdrechnung.ts";

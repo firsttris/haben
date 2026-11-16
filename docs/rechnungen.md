@@ -615,6 +615,14 @@ Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskor
 
 Eigene Werkzeuge, etwa für Bestellungen aus Etsy oder eBay, legen über die [REST-API](api.md) Kontakte und Rechnungsentwürfe an. Diese Entwürfe stehen in der Rechnungsliste wie jeder andere; du prüfst sie im Editor und schreibst sie fest, die API selbst schreibt nichts fest und bucht nichts. Ein Entwurf kann die Plattform und die Bestellnummer tragen (externe Referenz): Kommt dieselbe Bestellung noch einmal, entsteht kein zweiter Entwurf. Die Referenz wird mit der Rechnung festgeschrieben.
 
+## Rechnungen aus einem Fremdsystem
+
+Schreibt ein anderes Programm deine Rechnungen, etwa ein Kundenportal oder eine Praxissoftware, übernimmst du sie laufend nach Haben: unter **Rechnungen › Aus Fremdsystem übernehmen**. Du wählst das PDF der Rechnung. Ist es eine E-Rechnung (ZUGFeRD oder XRechnung), liest Haben Nummer, Datum, Fälligkeit, Steuer je Satz und den Kunden aus der Datei und schlägt sie vor; sonst trägst du sie von Hand ein. Prüfe den Kunden und die Steuerbehandlung, bei steuerfreien Umsätzen auch die Befreiungsvorschrift, und übernimm.
+
+Die Rechnung steht danach festgeschrieben in der Liste, mit der Nummer und dem PDF aus dem Fremdsystem; beides bleibt unverändert, Haben erzeugt kein neues PDF und vergibt keine eigene Nummer. Dein Nummernkreis bleibt unberührt. Gebucht wird wie beim Festschreiben einer eigenen Rechnung: Forderung an Erlöse und Umsatzsteuer zum Rechnungsdatum, bei Ist-Versteuerung auf „Umsatzsteuer nicht fällig“, die mit dem Zahlungseingang fällig wird. Zahlung, Bankabgleich, Mahnung und Storno laufen dann wie bei jeder anderen Rechnung. Dieselbe Nummer aus derselben Quelle lässt sich nicht zweimal übernehmen.
+
+Anders als bei [übernommenen Rechnungen](#übernommene-rechnungen) aus dem Umzug gibt es keinen Stichtag: Der Erlös steht in Haben, nicht in alten Büchern. Übernimm eine Rechnung deshalb nur, wenn sie in keinem anderen Programm mehr verbucht wird. Die Beträge müssen centgenau zur Rechnung passen, sonst lehnt Haben ab. Nur Rechnungen in Euro mit 19 %, 7 % oder 0 %; Gutschriften und Fremdwährung übernimmt Haben so nicht.
+
 ## Übernommene Rechnungen
 
 Offene Rechnungen, die du beim Umzug aus Lexware Office, sevDesk, BuchhaltungsButler, Accountable oder über den [JSON-Eingang](belegimport.md) als offene Posten übernimmst ([Schritt 3](lexoffice.md#schritt-3-offene-posten-übernehmen)), erscheinen als festgeschriebene Rechnungen mit ihrer bisherigen Nummer. Unter **Format** steht die gespeicherte Herkunft, etwa „Original aus sevDesk“. Beim JSON-Eingang steht dort das im Paket genannte Quellprogramm, ohne dessen Namen „JSON-Import“. Die Rechnungsnummer entscheidet nicht über die Herkunft. Das PDF ist das Original aus dem alten Programm, ein XML gibt es nur, wenn das Programm eines geliefert hat. Haben bildet je Steuersatz eine Pauschalposition nach, damit Zahlungen im Bankabgleich zugeordnet werden können.
