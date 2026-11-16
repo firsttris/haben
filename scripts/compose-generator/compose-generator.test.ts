@@ -95,6 +95,52 @@ describe(".env", () => {
   });
 });
 
+describe("Freitext in der .env", () => {
+  // Compose liest einen Wert ohne Anführungszeichen nur bis „ #“ und ersetzt „$…“. In doppelten Anführungszeichen
+  // gelten \\, \" und $$ (mit docker compose config geprüft); in einfachen lässt sich ein \ am Ende nicht schreiben.
+  const zeile = (cfg: Config, name: string) =>
+    envFile(cfg)
+      .split("\n")
+      .find((line) => line.startsWith(`${name}=`));
+  const sso = { ...standard, oidcOnly: true };
+  const knifflig = `it's "#1" $x \\ y`;
+  const erwartet = `"it's \\"#1\\" $$x \\\\ y"`;
+
+  test.each<[string, Config]>([
+    ["DOMAIN", { ...standard, domain: knifflig }],
+    ["OIDC_ISSUER", { ...sso, oidcIssuer: knifflig }],
+    ["OIDC_CLIENT_ID", { ...sso, oidcClientId: knifflig }],
+    ["OIDC_DISPLAY_NAME", { ...sso, oidcDisplayName: knifflig }],
+    ["OIDC_GROUPS_CLAIM", { ...sso, oidcGroupsClaim: knifflig }],
+    ["OIDC_GROUP_INHABER", { ...sso, oidcGroupInhaber: knifflig }],
+    ["OIDC_GROUP_STEUERBERATUNG", { ...sso, oidcGroupSteuerberatung: knifflig }],
+    ["RESTIC_REPOSITORY", { ...standard, backupMode: "remote", resticRepository: knifflig }],
+    ["EXTRACTION_BASE_URL", { ...standard, aiMode: "openai", extractionBaseUrl: knifflig }],
+    ["EXTRACTION_MODEL", { ...standard, aiMode: "ollama", extractionModel: knifflig }],
+    ["BACKUP_TIME", { ...standard, backupTime: knifflig }],
+    ["RESTORE_CHECK_DAYS", { ...standard, restoreCheckDays: knifflig }],
+  ])("%s mit #, $, ' und \" in Anführungszeichen", (name, cfg) => {
+    expect(zeile(cfg, name)).toBe(`${name}=${erwartet}`);
+  });
+
+  test("Beispiele aus dem Review", () => {
+    expect(zeile({ ...sso, oidcDisplayName: "Login #1" }, "OIDC_DISPLAY_NAME")).toBe('OIDC_DISPLAY_NAME="Login #1"');
+    const repository = "rest:https://nutzer:pa$wort@backup.example.de/haben";
+    expect(zeile({ ...standard, backupMode: "remote", resticRepository: repository }, "RESTIC_REPOSITORY")).toBe(
+      'RESTIC_REPOSITORY="rest:https://nutzer:pa$$wort@backup.example.de/haben"',
+    );
+  });
+
+  test("Schlüssel, Adressen und der Verweis auf DB_PASSWORD bleiben ohne Anführungszeichen", () => {
+    const env = envFile({ ...standard, aiMode: "openai", extractionBaseUrl: "https://openrouter.ai/api/v1", extractionModel: "qwen/qwen2.5-vl-72b-instruct" });
+    for (const value of [standard.authSecret, standard.encryptionKey, standard.resticPassword, standard.dbPassword]) expect(env).toContain(`=${value}\n`);
+    expect(env).toContain("EXTRACTION_BASE_URL=https://openrouter.ai/api/v1\n");
+    expect(env).toContain("EXTRACTION_MODEL=qwen/qwen2.5-vl-72b-instruct\n");
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: Variable für Compose, kein Template-String
+    expect(env).toContain("MIGRATION_DATABASE_URL=postgres://haben:${DB_PASSWORD}@db:5432/haben\n");
+  });
+});
+
 describe("Passwörter und Schlüssel", () => {
   test("eigene Datenbank-Passwörter nur aus Buchstaben und Ziffern", () => {
     expect(passwordError("Abc123")).toBeNull();
