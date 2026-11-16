@@ -40,7 +40,7 @@ export function zeilenAnteil({ value, company, booked, storedDeduction }: Beleg,
 
 /**
  * Beschriftung der Steuerspalte (#978), für eine Zeile oder die ganze Aufteilung: Ist von keinem Satz etwas abziehbar, ist
- * die Steuer auf dem Beleg die Umsatzsteuer des Lieferanten und wird Aufwand; „Vorsteuer“ legte einen Abzug nahe.
+ * die Steuer auf dem Beleg die Umsatzsteuer des Lieferanten; „Vorsteuer“ legte einen Abzug nahe.
  */
 export function steuerSpalte(reverseCharge: SelfAssessedTax | null, beleg: Beleg, saetze: { vorsteuerAnteil: string }[]): string {
   if (reverseCharge === "ig_erwerb") return "Erwerbsteuer";

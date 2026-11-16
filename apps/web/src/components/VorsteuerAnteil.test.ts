@@ -78,7 +78,7 @@ describe("Beschriftung der Steuerspalte (#978)", () => {
   const kleinunternehmer = { ...beleg, company: { kleinunternehmer: true, ohneVorsteuerabzug: false } };
   const ohneAbzug = { ...beleg, company: { kleinunternehmer: false, ohneVorsteuerabzug: true } };
 
-  it("heißt ohne Vorsteuerabzug „Umsatzsteuer“: die Steuer auf dem Beleg wird Aufwand, keine Vorsteuer", () => {
+  it("heißt ohne Vorsteuerabzug „Umsatzsteuer“: die Steuer auf dem Beleg ist die des Lieferanten, keine Vorsteuer", () => {
     for (const [fall, b, satz] of [
       ["Kleinunternehmer", kleinunternehmer, ""],
       ["Kleinunternehmer mit 100 % am Steuersatz", kleinunternehmer, "100"],
