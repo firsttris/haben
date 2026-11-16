@@ -43,7 +43,8 @@ interface JournalVergleichProps {
 /**
  * Berichtigung in einem beim Update auf das Journal übernommenen Jahr (#1200): je Kennzahl die gesendete Anmeldung, die
  * Rechnung aus dem Journal und die Differenz. Die Berichtigung beginnt mit den gesendeten Werten; die Differenz kann aus der
- * Übernahme stammen und gehört dann nicht in die Berichtigung.
+ * Übernahme stammen und gehört dann nicht in die Berichtigung; zeigt sie einen falschen gesendeten Wert, schon
+ * (§ 153 Abs. 1 Satz 1 Nr. 1 AO).
  */
 export function JournalVergleich({ year, uebernommen, current, returns, journal }: JournalVergleichProps) {
   // Nur für einen Entwurf, der eine gesendete Anmeldung berichtigt, in einem übernommenen Jahr
@@ -58,7 +59,8 @@ export function JournalVergleich({ year, uebernommen, current, returns, journal 
     <div className="banner banner-info journal-vergleich" role="note">
       <p style={{ margin: 0 }}>
         {year} wurde beim Update auf das Journal mit Abweichungen übernommen. Die Berichtigung beginnt deshalb mit den gesendeten Werten, nicht mit der Rechnung
-        aus den Buchungen. Eine Differenz kann aus der Übernahme stammen; ändere nur, was sich seit der Anmeldung wirklich geändert hat.
+        aus den Buchungen. Prüfe jede Differenz: Stammt sie aus der Übernahme, etwa weil älteren Buchungen die Bemessungsgrundlage fehlt, bleibt der gesendete
+        Wert. War der gesendete Wert falsch, gehört die Korrektur in die Berichtigung (§ 153 AO).
       </p>
       <table className="vergleich-table" aria-label="Gesendet und Journal je Kennzahl">
         <thead>

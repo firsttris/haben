@@ -6,7 +6,7 @@ import { JournalVergleich } from "./JournalVergleich.tsx";
 const gesendet = { id: "a", status: "sent", berichtigt: false, correctsId: null, kz81: 100_000, kz83: 19_000 };
 const entwurf = { id: "b", status: "draft", berichtigt: true, correctsId: "a", kz81: 100_000, kz83: 19_000 };
 
-const render = (uebernommen: boolean, current = entwurf) =>
+const render = (uebernommen: boolean, current: Omit<typeof entwurf, "correctsId"> & { correctsId: string | null } = entwurf) =>
   renderToStaticMarkup(createElement(JournalVergleich, { year: 2026, uebernommen, current, returns: [current, gesendet], journal: { kz81: 0, kz83: 0 } }));
 
 describe("JournalVergleich", () => {
