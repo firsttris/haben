@@ -307,5 +307,4 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     const heute = await reports.openPositions("2026-11-16");
     expect(heute.receivables.find((posten) => posten.id === invoice.id)).toBeUndefined();
   });
-
 });
