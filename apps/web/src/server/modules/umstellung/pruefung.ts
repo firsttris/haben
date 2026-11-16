@@ -4,6 +4,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import type { JournalUmstellungBefund } from "../../db/schema.ts";
 import { abgleichJahr, abweichungen } from "../auswertungen/index.ts";
+import { erklaerteAbweichungen, erklaertText } from "../jahreserklaerung/index.ts";
 
 /*
  * Prüfung beim Update auf das Journal als einzige Quelle von Voranmeldung und EÜR (#1116, docs/adr/journal-einzige-quelle.md).
@@ -12,9 +13,10 @@ import { abgleichJahr, abweichungen } from "../auswertungen/index.ts";
  * Statt die alte Rechnung danebenzuhalten, prüft Haben diese Jahre wie der Abgleich in der Integritätsprüfung:
  * - gesendete Voranmeldungen mit ihren gespeicherten Werten gegen die Rechnung aus dem Journal (gesendet ist gesendet);
  * - die Verprobung je Buchung: Steuer ohne passende Bemessungsgrundlage fällt auf, genau die Lücke älterer Buchungen;
- * - Rechnung und Vorgang gegen ihre Buchung.
- * Offene Zeiträume und die EÜR sind noch nicht gemeldet; für sie gilt das Journal. Besteht alles, gilt die Umstellung als
- * bestanden. Sonst startet die neue Version nicht (cli.ts), bis die Abweichung ausdrücklich übernommen wird.
+ * - Rechnung und Vorgang gegen ihre Buchung;
+ * - übermittelte und vermerkte Umsatzsteuererklärungen und Anlagen EÜR gegen die Rechnung aus dem Journal.
+ * Offene Voranmeldungszeiträume und nicht abgegebene Jahreserklärungen vergleicht die Prüfung nicht mit der bisherigen
+ * Rechnung; für sie gilt ab jetzt das Journal. Besteht alles, gilt die Umstellung als bestanden. Sonst startet die neue Version nicht (cli.ts), bis die Abweichung ausdrücklich übernommen wird.
  */
 
 export const UMSTELLUNG_ACTOR = "system:umstellung";
@@ -41,7 +43,7 @@ async function jahreVor(stichjahr: number, q: Db | Tx): Promise<number[]> {
 /**
  * Was in den Jahren vor dem früheren Stichjahr nicht stimmt; leer = bestanden. Dieselben Prüfungen wie der Abgleich in der
  * Integritätsprüfung (abgleichJahr): gesendete Voranmeldungen gegen das Journal, Verprobung der Umsatzsteuer je Buchung,
- * Rechnung und Vorgang gegen ihre Buchung.
+ * Rechnung und Vorgang gegen ihre Buchung; dazu übermittelte und vermerkte Jahreserklärungen.
  */
 export async function umstellungBefunde(stichjahr: number, today: string, q: Db | Tx = db): Promise<JournalUmstellungBefund[]> {
   const befunde: JournalUmstellungBefund[] = [];
@@ -49,6 +51,7 @@ export async function umstellungBefunde(stichjahr: number, today: string, q: Db 
     const { zeilen } = await abgleichJahr(jahr, today, q, new Set());
     for (const z of abweichungen(zeilen).filter((x) => x.bereich === "ustva" || x.bereich === "beleg"))
       befunde.push({ jahr, text: `${z.zeitraum} ${z.posten}: im Journal ${formatEuro(z.journal)}, ${z.gegen} ${formatEuro(z.quelle)}` });
+    for (const x of await erklaerteAbweichungen([jahr])) befunde.push({ jahr, text: erklaertText(x) });
   }
   return befunde;
 }

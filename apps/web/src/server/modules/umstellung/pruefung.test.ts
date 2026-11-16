@@ -4,8 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
- * Prüfung beim Update auf das Journal als einzige Quelle (#1116): Jahre vor dem früheren Stichjahr müssen aus dem Journal so
- * herauskommen wie bisher; gesendete Voranmeldungen mit ihren gespeicherten Werten. Je SKR03 und SKR04, Ist und Soll.
+ * Prüfung beim Update auf das Journal als einzige Quelle (#1116): In Jahren vor dem früheren Stichjahr muss das Journal zu
+ * Gemeldetem und Gespeichertem passen (gesendete Voranmeldungen und Jahreserklärungen, Verprobung, Rechnung und Vorgang gegen
+ * Buchung). Je SKR03 und SKR04, Ist und Soll.
  */
 
 function dkbCsv(rows: string[][]) {
@@ -37,6 +38,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
   let bank: typeof import("../bank/bank.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
   let abgleich: typeof import("../auswertungen/abgleich.ts");
+  let annual: typeof import("../jahreserklaerung/annual.ts");
   const actor = "test-user";
   const today = "2026-10-04";
   let docSeq = 0;
@@ -50,6 +52,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
     bank = await import("../bank/bank.ts");
     vat = await import("../umsatzsteuer/index.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
+    annual = await import("../jahreserklaerung/annual.ts");
   }, 30_000);
   afterAll(async () => {
     await sql?.end();
@@ -57,7 +60,9 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
 
   /** Wie eine Instanz nach den Migrationen: Stichjahr 2027 übernommen, Umstellung offen */
   async function reset(kr: "SKR03" | "SKR04", v: "ist" | "soll") {
-    await leeren(sql)`truncate journal_umstellung, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports,
+    await leeren(
+      sql,
+    )`truncate journal_umstellung, annual_submission_figures, annual_submissions, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports,
       bank_accounts, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
@@ -128,6 +133,11 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
       if (v === "ist") await tx`update journal_lines set basis = null where basis is not null`;
       else await tx`update journal_lines set tax_code = null where account = ${kr === "SKR03" ? "8400" : "4400"}`;
     });
+  }
+  /** Jahreserklärung wie übermittelt bzw. vermerkt; `figures` wie in annualXml bzw. vermerkeJahresabgabe */
+  async function erklaert(form: "ust" | "euer", kind: "send" | "vermerk", figures: Record<string, unknown>) {
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, figures, request_xml, response_xml, server_response_xml)
+      values (${form}, 2026, ${kind}, true, 0, 'ok', ${crypto.randomUUID()}, ${JSON.stringify(figures)}::jsonb, '', '', '')`;
   }
   const stand = async () => (await sql`select ergebnis, stichjahr_vorher, befunde from journal_umstellung order by id desc limit 1`)[0];
 
@@ -207,6 +217,37 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
             {
               jahr: 2026,
               text: `2026-03 Rechnung ${inv.number} (Ist, ganz erledigt): gemeldete Bemessungsgrundlage: im Journal ${formatEuro(0)}, laut Vorgang ${formatEuro(100_00)}`,
+            },
+          ],
+        });
+        expect((await stand())!.ergebnis).toBe("offen");
+      }, 60_000);
+
+      it(`übermittelte bzw. vermerkte Jahreserklärung: gleich besteht, abweichend nennt sie Erklärung und Feld (${kr}, ${v})`, async () => {
+        await reset(kr, v);
+        const inv = await invoice("2026-03-10");
+        await pay(inv.id, "20.04.2026", "119,00");
+        await beleg("2026-04-02");
+        const euer = await annual.euerYear(2026);
+        const ust = await annual.ustYear(2026);
+        await erklaert("euer", "send", { ...euer.figures, gewinn: euer.gewinn, anlagen: [] });
+        await erklaert("ust", "send", { ...ust.figures, steuer: ust.steuer, abschluss: ust.abschluss });
+        expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
+        // Übermittelt mit 1 € mehr Gewinn, vermerkt mit einer bestätigten Abweichung und 2 € weniger Abschlusszahlung damals
+        await leeren(sql)`truncate annual_submission_figures, annual_submissions`;
+        await erklaert("euer", "send", { ...euer.figures, gewinn: euer.gewinn + 100 });
+        await erklaert("ust", "vermerk", { amount: 5_00, berechnet: ust.abschluss - 200, abweichung: 5_00 - ust.abschluss + 200, abweichungBestaetigt: true });
+        const ergebnis = await umstellung.umstellungPruefen(today);
+        expect(ergebnis).toEqual({
+          status: "abweichung",
+          befunde: [
+            {
+              jahr: 2026,
+              text: `Anlage EÜR 2026 (übermittelt), gewinn: übermittelt ${formatEuro(euer.gewinn + 100)}, aus dem Journal ${formatEuro(euer.gewinn)}`,
+            },
+            {
+              jahr: 2026,
+              text: `Umsatzsteuererklärung 2026 (vermerkt), abschluss: beim Vermerk gerechnet ${formatEuro(ust.abschluss - 200)}, aus dem Journal ${formatEuro(ust.abschluss)}`,
             },
           ],
         });

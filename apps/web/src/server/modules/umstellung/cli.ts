@@ -25,8 +25,8 @@ try {
     console.error(
       [
         "Haben startet nicht: Voranmeldung und EÜR rechnen ab dieser Version nur noch aus dem Journal, und für Jahre vor dem",
-        "bisherigen Stichjahr käme dort etwas anderes heraus als bisher. Buchungen und Anmeldungen sind unverändert; die",
-        "bisherige Version läuft auf dieser Datenbank weiter.",
+        "bisherigen Stichjahr passt das Journal nicht zu dem, was gemeldet ist oder gespeichert wurde. Buchungen und",
+        "Anmeldungen sind unverändert; die bisherige Version läuft auf dieser Datenbank weiter.",
         "",
         ...ergebnis.befunde.map((b) => `- ${b.text}`),
         "",
@@ -39,7 +39,7 @@ try {
   } else if (ergebnis.status === "gespeichert") {
     console.log(
       ergebnis.stand.ergebnis === "bestanden"
-        ? "Umstellung auf das Journal geprüft: alle Jahre wie bisher"
+        ? "Umstellung auf das Journal geprüft: Gemeldetes und Gespeichertes passt zum Journal"
         : `Umstellung auf das Journal: Abweichungen für ${[...new Set(ergebnis.stand.befunde.map((b) => b.jahr))].join(", ")} übernommen`,
     );
   }

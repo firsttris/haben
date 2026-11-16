@@ -353,8 +353,9 @@ Beim ersten Start nach dem Update prüft Haben diese Jahre wie der [Abgleich im 
 - Zeiträume mit gesendeter Voranmeldung: Die gesendeten Werte müssen mit der Rechnung aus dem Journal übereinstimmen; bei von Hand überschriebenen Werten die beim Speichern berechneten.
 - Die Verprobung: Jede Steuer braucht ihre Bemessungsgrundlage. Genau das fehlt älteren Buchungen ohne Steuerschlüssel oder ohne Bemessungsgrundlage an der Zahlung.
 - Rechnung und Vorgang gegen ihre Buchung.
+- Übermittelte Umsatzsteuererklärung und Anlage EÜR: jede übermittelte Zahl gegen die Rechnung aus dem Journal, außer Vorauszahlungen und Abschlusszahlung der Umsatzsteuer (sie kommen aus den gesendeten Voranmeldungen). Bei einer [vermerkten](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken) Erklärung der beim Vermerk gerechnete Gewinn bzw. die Abschlusszahlung.
 
-Offene Zeiträume rechnen ohne Vergleich aus dem Journal. Die EÜR und die Umsatzsteuererklärung vergleicht die Prüfung nicht, auch keine schon übermittelte oder [vermerkte](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken). Stimmt alles, ändert sich keine gesendete Voranmeldung, und die Prüfung läuft nie wieder. Das Ergebnis steht im Änderungsprotokoll.
+Offene Zeiträume und nicht abgegebene Jahreserklärungen rechnen ohne Vergleich aus dem Journal. Stimmt alles, ändert sich nichts, was beim Finanzamt ist, und die Prüfung läuft nie wieder. Das Ergebnis steht im Änderungsprotokoll.
 
 **Bei einer Abweichung startet Haben nicht.** Im Log stehen Jahr, Zeitraum und Befund mit beiden Beträgen. Buchungen, Anmeldungen und Firmendaten bleiben unverändert, die bisherige Version läuft auf derselben Datenbank weiter. Meist fehlen älteren Buchungen Steuerschlüssel oder Bemessungsgrundlage. Dann gibt es zwei Wege:
 
