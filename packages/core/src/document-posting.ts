@@ -152,7 +152,8 @@ function documentRatePosting(
   if (base !== 0) lines.push(side(expense, base, true, code));
   if (tax - deductible !== 0) lines.push(side(expense, tax - deductible, true, "keineVSt"));
   if (deductible !== 0) {
-    // Mit der Angabe bleibt die Vorsteuerminderung auf dem Zwischenkonto, mit Steuerschlüssel und Bemessungsgrundlage
+    // Geparkt (vorsteuerParken) steht die Vorsteuer bzw. ihre Minderung auf dem Zwischenkonto, mit Steuerschlüssel und
+    // Bemessungsgrundlage
     const konto = parken ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[vatRate(rate)];
     lines.push(side(konto, deductible, true, code));
   }
