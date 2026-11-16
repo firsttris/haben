@@ -5,7 +5,7 @@ import { schema } from "../../db/index.ts";
 import { ohneJit } from "../../db/ohne-jit.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { progressMessage } from "./lexoffice.ts";
-import { effectivePayment, paymentHistoryIssue } from "./payment-history.ts";
+import { effectivePayment, paymentHistoryIssue } from "../auswertungen/index.ts";
 
 /*
  * Einzelzahlungen aus sevDesk (#343): CheckAccountTransactionLog ordnet einen Bankumsatz mit Betrag einem Beleg zu,

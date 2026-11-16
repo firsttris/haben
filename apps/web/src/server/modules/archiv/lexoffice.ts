@@ -1,18 +1,10 @@
+import { accountingTypeKinds, type AccountingTypeKinds, accountingTypeUnclear, taxTypeOf } from "../auswertungen/index.ts";
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
 import { datevBookingFound, datevInternalId, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { SEVDESK_EXPORT_IST_CHECK, sevdeskExportIstIssue, sevdeskExportYear, voucherSourceChecks, withoutExportImage } from "./sevdesk-export-abgleich.ts";
-import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
-import {
-  accountingTypeChecks,
-  accountingTypeDecidable,
-  accountingTypeIssue,
-  accountingTypeKinds,
-  type AccountingTypeKinds,
-  accountingTypeUnclear,
-  ACCOUNTING_TYPE_VAT_ISSUE,
-  unclearAccountingTypes,
-} from "./sevdesk-kontoart.ts";
-import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
+import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "../auswertungen/index.ts";
+import { accountingTypeChecks, accountingTypeDecidable, accountingTypeIssue, ACCOUNTING_TYPE_VAT_ISSUE, unclearAccountingTypes } from "./sevdesk-kontoart.ts";
+import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "../auswertungen/index.ts";
 import {
   datevYearSums,
   LexofficeApiError,
@@ -50,7 +42,7 @@ import type { LegacyCategoryRow, LegacyFileState, LegacyPayment, LegacySource, L
 import { sniff } from "../../storage.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
 import { latestFastbillImport } from "./fastbill.ts";
-import { fastbillPartlyCanceledByYear, fastbillPartlyCanceledChecks, fastbillTaxType, fastbillWaitingChecks } from "./fastbill-abgleich.ts";
+import { fastbillPartlyCanceledByYear, fastbillPartlyCanceledChecks, fastbillWaitingChecks } from "./fastbill-abgleich.ts";
 import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 import { legacyDunningsFor } from "./mahnungen-archiv.ts";
@@ -538,24 +530,6 @@ function legacyPayments(v: { source: LegacySource; gross: number; status: string
     .map((p) => ({ date: p.date, amount: Math.sign(v.gross) * Math.abs(p.amount) }));
 }
 
-/**
- * Steuerart aus der gespeicherten API-Antwort, in den Werten von Lexoffice. Lexoffice: Rechnungsmodul unter taxConditions,
- * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
- * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt; eine eigene Steuerart (taxType custom) ordnet
- * sevdesk-steuerarten.ts über ihre Kennzahlen zu. FastBill: VAT_CASE (fastbill-abgleich.ts).
- */
-export function taxTypeOf(t: string) {
-  return sql.raw(`case when ${t}.source = 'fastbill' then ${fastbillTaxType(t)}
-    when ${t}.source = 'sevdesk' then
-      case coalesce(${t}.raw->'taxRule'->>'id', '')
-        when '1' then 'net' when '2' then 'thirdPartyCountryDelivery' when '3' then 'intraCommunitySupply'
-        when '4' then 'vatfree' when '11' then 'vatfree'
-        when '' then case coalesce(${t}.raw->>'taxType', 'default')
-          when 'default' then 'net' when 'eu' then 'intraCommunitySupply' when 'ss' then 'vatfree'
-          else 'sevdesk:' || (${t}.raw->>'taxType') end
-        else 'sevdesk:taxRule' || (${t}.raw->'taxRule'->>'id') end
-    else coalesce(${t}.raw->'taxConditions'->>'taxType', ${t}.raw->>'taxType') end`);
-}
 const TAX_TYPE = sql<string | null>`${taxTypeOf("lexoffice_vouchers")}`;
 const TAX_SUB_TYPE = sql<string | null>`lexoffice_vouchers.raw->'taxConditions'->>'taxSubType'`;
 

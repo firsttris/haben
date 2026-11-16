@@ -17,3 +17,15 @@ export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.t
 export { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
 export { runDuePruefwertMail } from "./pruefwert-mail.ts";
 export { saveCompany, settingsLocks } from "./settings-guard.ts";
+export { effectivePayment, paymentHistoryIssue, settledOn, unclearFrom, visiblePayment } from "./payment-history.ts";
+export { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
+export {
+  accountingTypeExpense,
+  accountingTypeKinds,
+  accountingTypeNumberKind,
+  accountingTypeUnclear,
+  type AccountingKind,
+  type AccountingTypeKinds,
+} from "./altbestand-kontoart.ts";
+export { taxTypeOf } from "./altbestand-steuerart.ts";
+export { lastStapelYear, legacyTakeoverCutoff, TakeoverError } from "./altbestand-stichtag.ts";

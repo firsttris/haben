@@ -1,3 +1,4 @@
+import { lastStapelYear } from "../auswertungen/index.ts";
 import {
   datevOpeningIssues,
   datevOpeningLines,
@@ -8,7 +9,7 @@ import {
   type Kontenrahmen,
   type ManualLine,
 } from "@haben/core";
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -54,11 +55,6 @@ export interface DatevEroeffnung {
   fingerprint: string;
   /** Schon gebucht: die Eröffnung aus dem Stapel im Journal */
   gebucht: { id: string; date: string } | null;
-}
-
-export async function lastStapelYear(q: Db | Tx): Promise<number | null> {
-  const [row] = await q.select({ last: sql<string | null>`max(${schema.datevBookings.date})` }).from(schema.datevBookings);
-  return row?.last ? Number(row.last.slice(0, 4)) : null;
 }
 
 /** Die Stapel-Datei des Jahres als Beleg der Eröffnung (sourceId); bei mehreren die zuletzt archivierte */

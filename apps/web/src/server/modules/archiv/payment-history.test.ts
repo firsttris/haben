@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paymentHistoryIssue, settledOn, unclearFrom, visiblePayment } from "./payment-history.ts";
+import { paymentHistoryIssue, settledOn, unclearFrom, visiblePayment } from "../auswertungen/payment-history.ts";
 
 const invoice = {
   source: "sevdesk" as const,
