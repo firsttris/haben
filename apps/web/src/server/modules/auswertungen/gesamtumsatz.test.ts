@@ -155,11 +155,21 @@ describe.skipIf(!testDatabaseUrl)("Gesamtumsatz nach vereinnahmten Nettoentgelte
       expect.objectContaining({ source: "legacy", occurredOn: null, net: null, basisSource: "unknown", decision: "unknown" }),
     );
   });
-  it("nutzt bei Zinsen eine ausdrücklich festgestellte Vorschrift und Hilfsumsatzeinordnung", async () => {
+  it("lässt betriebliche Guthabenzinsen ohne festgestellte Hilfsumsatzeinordnung ungeklärt", async () => {
+    await sql`update bank_accounts set purpose='geschaeft' where id=${f.accountId}`;
     const transaction = await f.transaction(2_500);
-    await sql`insert into allocations (transaction_id, kind, amount, tax_details)
-      values (${transaction}, 'zinsertrag', 2500, ${JSON.stringify(taxDetails({ exemption: { number: "8", letter: "a" }, ancillary: false }))}::jsonb)`;
-    expect(await read.gesamtumsatzForYear(2026)).toMatchObject({ included: 2_500, complete: true });
+    const bank = await import("../bank/index.ts");
+    await bank.allocate("umsatztest", { kind: "zinsertrag", transactionId: transaction, amount: 2_500 });
+    const result = await read.gesamtumsatzForYear(2026);
+    expect(result).toMatchObject({ included: 0, complete: false });
+    expect(result.items).toContainEqual(
+      expect.objectContaining({
+        gross: 2_500,
+        net: 2_500,
+        decision: "unknown",
+        uncertainty: "Bei betrieblichen Zinsen fehlen Vorschrift und Einordnung als Hilfsumsatz.",
+      }),
+    );
   });
   it("erhält bei alten Teilzahlungen ohne Snapshot über den Jahreswechsel den Netto-Centrest", async () => {
     const invoice = await f.invoice();

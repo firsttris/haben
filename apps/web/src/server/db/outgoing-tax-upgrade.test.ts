@@ -10,7 +10,8 @@ import { describe, expect, it } from "vitest";
 import { testDatabaseUrl } from "../test-db.ts";
 
 const MIGRATIONS = fileURLToPath(new URL("../../../drizzle", import.meta.url));
-const TABLES = ["allocations", "cash_entries", "invoices", "quotes", "recurring_invoices"];
+const TABLES = ["invoices", "quotes", "recurring_invoices"];
+const PAYMENT_TABLES = ["allocations", "cash_entries"];
 const LEGACY_REASON = "Steuerfreie Heilbehandlung nach § 4 Nr. 14 Buchst. a UStG.";
 const TAX_DETAILS = { exemption: { number: "14", letter: "a" }, ancillary: null, foreignPlace: null, assetDisposal: false };
 const PDF = Buffer.from("%PDF-1.7\nFestgeschriebenes Original vor 0260\n%%EOF");
@@ -98,8 +99,8 @@ async function snapshot(sql: postgres.Sql, ids: LegacyIds, auditSeq: string) {
     quote: await sql`select (to_jsonb(q)-'tax_details')::text as bytes from quotes q where id=${ids.quote}`,
     quoteLines: await sql`select to_jsonb(l)::text as bytes from quote_lines l where quote_id=${ids.quote} order by id`,
     recurring: await sql`select (to_jsonb(r)-'tax_details')::text as bytes from recurring_invoices r where id=${ids.recurring}`,
-    allocations: await sql`select (to_jsonb(a)-'tax_details')::text as bytes from allocations a where id=${ids.allocation}`,
-    cash: await sql`select (to_jsonb(c)-'tax_details')::text as bytes from cash_entries c where id=${ids.cash}`,
+    allocations: await sql`select to_jsonb(a)::text as bytes from allocations a where id=${ids.allocation}`,
+    cash: await sql`select to_jsonb(c)::text as bytes from cash_entries c where id=${ids.cash}`,
     bankAccounts: await sql`select to_jsonb(b)::text as bytes from bank_accounts b order by id`,
     bankImports: await sql`select to_jsonb(b)::text as bytes from bank_imports b order by id`,
     bankTransactions: await sql`select to_jsonb(b)::text as bytes from bank_transactions b order by id`,
@@ -118,9 +119,9 @@ async function expectLocked(sql: postgres.Sql, ids: LegacyIds) {
   await expect(sql`update invoice_taxes set base=1 where invoice_id=${ids.invoice}`).rejects.toThrow(/festgeschrieben/);
   await expect(sql`update journal_entries set description='geändert' where id=${ids.entries[0]!}`).rejects.toThrow(/festgeschrieben/);
   await expect(sql`update journal_lines set credit=1 where entry_id=${ids.entries[0]!} and credit>0`).rejects.toThrow(/festgeschrieben/);
-  await expect(sql`update allocations set tax_details=${JSON.stringify(TAX_DETAILS)}::jsonb where id=${ids.allocation}`).rejects.toThrow(/nur ergänzt/);
+  await expect(sql`update allocations set amount=1 where id=${ids.allocation}`).rejects.toThrow(/nur ergänzt/);
   await expect(sql`delete from allocations where id=${ids.allocation}`).rejects.toThrow(/nur ergänzt/);
-  await expect(sql`update cash_entries set tax_details=${JSON.stringify(TAX_DETAILS)}::jsonb where id=${ids.cash}`).rejects.toThrow(/nur ergänzt/);
+  await expect(sql`update cash_entries set amount=1 where id=${ids.cash}`).rejects.toThrow(/nur ergänzt/);
   await expect(sql`delete from cash_entries where id=${ids.cash}`).rejects.toThrow(/nur ergänzt/);
   await expect(sql`update quotes set tax_details=${JSON.stringify(TAX_DETAILS)}::jsonb where id=${ids.quote}`).rejects.toThrow(/festgeschrieben/);
 }
@@ -158,7 +159,7 @@ describe.skipIf(!testDatabaseUrl)("Migration der Ausgangszuordnung und unveränd
         ]);
         expect(
           await sql`select table_name from information_schema.columns where table_schema='public'
-        and table_name in ${sql(TABLES)} and column_name='tax_details'`,
+        and table_name in ${sql([...TABLES, ...PAYMENT_TABLES])} and column_name='tax_details'`,
         ).toEqual([]);
         const ids = await legacyRows(sql, kontenrahmen, versteuerung);
         const [head] = await sql`select seq::text from audit_chain`;
@@ -188,6 +189,10 @@ describe.skipIf(!testDatabaseUrl)("Migration der Ausgangszuordnung und unveränd
           await sql`select table_name,is_nullable,column_default,data_type from information_schema.columns where table_schema='public'
         and table_name in ${sql(TABLES)} and column_name='tax_details' order by table_name`,
         ).toEqual(TABLES.map((table_name) => ({ table_name, is_nullable: "YES", column_default: null, data_type: "jsonb" })));
+        expect(
+          await sql`select table_name from information_schema.columns where table_schema='public'
+        and table_name in ${sql(PAYMENT_TABLES)} and column_name='tax_details'`,
+        ).toEqual([]);
         for (const table of TABLES) {
           expect(await sql`select tax_details from ${sql(table)}`).toEqual([{ tax_details: null }]);
         }

@@ -1,5 +1,5 @@
 {
-  "id": "be2f115d-e43d-43c3-8da0-efebc23ee4a6",
+  "id": "49345326-33cd-4b40-aaee-8191ab8acd30",
   "prevId": "1f955c5a-f3d8-45bc-8eac-414de881a237",
   "version": "7",
   "dialect": "postgresql",
@@ -266,12 +266,6 @@
         "tax_rate": {
           "name": "tax_rate",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -2718,12 +2712,6 @@
         "tax_rate": {
           "name": "tax_rate",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_details": {
-          "name": "tax_details",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
