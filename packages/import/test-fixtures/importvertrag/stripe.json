@@ -1,0 +1,157 @@
+{
+  "contractVersion": 1,
+  "provider": "stripe",
+  "externalAccountId": "acct_1Beispiel",
+  "idempotencyKey": "balance-2026-10",
+  "fetchedAt": "2026-11-01T06:00:00Z",
+  "coverage": {
+    "from": "2026-10-01",
+    "to": "2026-10-31"
+  },
+  "part": {
+    "fetchId": "balance-2026-10",
+    "index": 0,
+    "last": true
+  },
+  "movements": [
+    {
+      "sourceEventId": "txn_3Pq0001",
+      "kind": "payment",
+      "bookingDate": "2026-10-06",
+      "sourceTimestamp": "2026-10-06T09:14:00.000Z",
+      "currency": "EUR",
+      "component": "main",
+      "amount": 10000,
+      "purpose": "Rechnung 2026-117",
+      "references": {
+        "providerReference": "txn_3Pq0001",
+        "eventCode": "charge"
+      }
+    },
+    {
+      "sourceEventId": "txn_3Pq0001",
+      "kind": "payment",
+      "bookingDate": "2026-10-06",
+      "sourceTimestamp": "2026-10-06T09:14:00.000Z",
+      "currency": "EUR",
+      "component": "fee",
+      "amount": -300,
+      "counterpartyName": "Stripe",
+      "purpose": "Gebühr zu txn_3Pq0001",
+      "references": {
+        "providerReference": "txn_3Pq0001",
+        "eventCode": "charge"
+      }
+    },
+    {
+      "sourceEventId": "txn_3Pq0002",
+      "kind": "payment",
+      "bookingDate": "2026-10-08",
+      "sourceTimestamp": "2026-10-08T15:40:00.000Z",
+      "currency": "EUR",
+      "component": "main",
+      "amount": 4900,
+      "purpose": "Rechnung 2026-121",
+      "references": {
+        "providerReference": "txn_3Pq0002",
+        "eventCode": "charge"
+      }
+    },
+    {
+      "sourceEventId": "txn_3Pq0002",
+      "kind": "payment",
+      "bookingDate": "2026-10-08",
+      "sourceTimestamp": "2026-10-08T15:40:00.000Z",
+      "currency": "EUR",
+      "component": "fee",
+      "amount": -171,
+      "counterpartyName": "Stripe",
+      "purpose": "Gebühr zu txn_3Pq0002",
+      "references": {
+        "providerReference": "txn_3Pq0002",
+        "eventCode": "charge"
+      }
+    },
+    {
+      "sourceEventId": "txn_3Pq0003",
+      "kind": "refund",
+      "bookingDate": "2026-10-12",
+      "sourceTimestamp": "2026-10-12T10:02:00.000Z",
+      "currency": "EUR",
+      "component": "main",
+      "amount": -2000,
+      "purpose": "REFUND FOR CHARGE (Rechnung 2026-117)",
+      "references": {
+        "providerReference": "txn_3Pq0003",
+        "eventCode": "refund"
+      }
+    },
+    {
+      "sourceEventId": "txn_1Pq0004",
+      "kind": "fee",
+      "bookingDate": "2026-10-15",
+      "sourceTimestamp": "2026-10-15T00:00:00.000Z",
+      "currency": "EUR",
+      "component": "main",
+      "amount": -50,
+      "counterpartyName": "Stripe",
+      "purpose": "Stripe Billing - Nutzungsgebühr",
+      "references": {
+        "providerReference": "txn_1Pq0004",
+        "eventCode": "fee"
+      }
+    },
+    {
+      "sourceEventId": "txn_3Pq0005",
+      "kind": "payment",
+      "bookingDate": "2026-10-20",
+      "sourceTimestamp": "2026-10-20T22:30:00.000Z",
+      "currency": "EUR",
+      "component": "main",
+      "amount": 2500,
+      "purpose": "Rechnung 2026-130",
+      "references": {
+        "providerReference": "txn_3Pq0005",
+        "eventCode": "charge"
+      }
+    },
+    {
+      "sourceEventId": "txn_3Pq0005",
+      "kind": "payment",
+      "bookingDate": "2026-10-20",
+      "sourceTimestamp": "2026-10-20T22:30:00.000Z",
+      "currency": "EUR",
+      "component": "fee",
+      "amount": -100,
+      "counterpartyName": "Stripe",
+      "purpose": "Gebühr zu txn_3Pq0005",
+      "references": {
+        "providerReference": "txn_3Pq0005",
+        "eventCode": "charge"
+      }
+    },
+    {
+      "sourceEventId": "txn_1Pq0006",
+      "kind": "payout",
+      "bookingDate": "2026-10-21",
+      "sourceTimestamp": "2026-10-21T04:00:00.000Z",
+      "currency": "EUR",
+      "component": "main",
+      "amount": -12379,
+      "counterpartyName": "Stripe",
+      "purpose": "STRIPE PAYOUT",
+      "references": {
+        "providerReference": "txn_1Pq0006",
+        "eventCode": "payout",
+        "payoutId": "po_1Pq0001"
+      }
+    }
+  ],
+  "balances": [],
+  "unsupported": [
+    {
+      "sourceEventId": "txn_1Pq0007",
+      "reason": "Kategorie nicht unterstützt: transfer."
+    }
+  ]
+}
