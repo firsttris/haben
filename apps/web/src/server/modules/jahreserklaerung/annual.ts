@@ -520,9 +520,11 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
 /**
  * Der ESt-Vermerk trägt keinen Betrag (#1073). Dann gibt es nichts zu vergleichen, und die Seite sagt das
  * auch: Ohne diesen Satz stünde Habens Schätzung allein da und sähe aus wie das Ergebnis der Veranlagung.
+ * Ist die Einkommensteuer laut Steuerprogramm als Zeile erklärt, vergleicht estAbweichungHinweis mit ihr (#1083);
+ * dann entfällt dieser Satz, sonst stünde „kein Vergleich“ neben dem Vergleich.
  */
-export function ohneBetragHinweis(vermerk: { amount: number | null } | null): Issue[] {
-  if (!vermerk || vermerk.amount !== null) return [];
+export function ohneBetragHinweis(vermerk: { amount: number | null } | null, zeilen: Record<string, number> = {}): Issue[] {
+  if (!vermerk || vermerk.amount !== null || zeilen.festgesetzteSteuer !== undefined) return [];
   return [
     {
       tone: "hinweis",
@@ -764,7 +766,7 @@ export async function annualOverview(year: number, today: string) {
       issues: [
         ...base,
         ...estIssues(company, euer),
-        ...ohneBetragHinweis(estVermerk),
+        ...ohneBetragHinweis(estVermerk, estZeilen),
         ...estAbweichungHinweis(estZeilen, est),
         ...(await homeofficeIssues(year, est)),
         ...(await arbeitszimmerIssues(year, est)),
