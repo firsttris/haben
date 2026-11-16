@@ -97,6 +97,9 @@ const KINDS: Record<string, Kind> = {
   RECOUP: "verrechnung",
 };
 
+/** Ob Haben den Typ einer Verlaufszeile kennt (Zuordnung oben); unbekannte kommen einzeln mit Hinweis */
+export const isKnownEtsyLedgerType = (ledgerType: string): boolean => Object.hasOwn(KINDS, ledgerType);
+
 /**
  * Bezeichnung der Sammelzeile je Art, in der Reihenfolge und mit den Namen der Rechnungspositionen (in Klammern).
  * Gebühren und Werbung beginnen mit „Gebühr“ (Zuordnung zur Sammelrechnung); Werbung bleibt als Art „Werbung“ wie beim
