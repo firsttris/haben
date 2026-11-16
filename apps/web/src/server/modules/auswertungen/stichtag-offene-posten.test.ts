@@ -333,7 +333,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     expect(heute.receivables.find((posten) => posten.id === invoice.id)).toBeUndefined();
   });
 
-  it("zeigt bei einer Berichtigung den berichtigten Betrag, die Differenz mit ihrer Abgabe fällig", async () => {
+  it("zeigt bei einer Berichtigung den berichtigten Betrag und die Differenz nicht vor ihrer Abgabe fällig", async () => {
     const pdf = { bytes: new TextEncoder().encode("%PDF-1.4\n% et1220251212\n%%EOF\n"), filename: "UStVA_2025-12.pdf" };
     // Dezember 2025: 1.000,00 € zu 19 %, abgegeben am 05.01.2026 (gesetzlich fällig 10.01.2026)
     const dezember = { mode: "manuell" as const, kz81: 100_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" };
@@ -359,7 +359,8 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () =>
     const stand = await zahlung.ustvaPosten(undefined, { bis: "2025-12-31" });
     const dezemberPosten = stand.posten.filter((posten) => posten.year === 2025 && posten.month === 12);
     expect(dezemberPosten.reduce((summe, posten) => summe + posten.betrag, 0)).toBe(22_800);
-    // Die Differenz ist mit der Abgabe der Berichtigung fällig, nicht mit dem Termin des Zeitraums
+    // Die Differenz ist nicht vor der Abgabe der Berichtigung fällig; weil die Abgabe nach dem gesetzlichen Termin
+    // des Zeitraums (10.01.2026) liegt, zeigt der Stand sie mit dem Abgabetag
     const differenz = dezemberPosten.find((posten) => posten.berichtigt);
     expect(differenz?.betrag).toBe(3_800);
     expect(differenz?.faellig).toBe("2026-02-05");
