@@ -25,7 +25,7 @@ export interface EstPerson {
 
 /** Beiträge einer Person zur Basisabsicherung, Anlage Vorsorgeaufwand */
 export interface EstVorsorgePerson {
-  /** Gesetzliche Rentenversicherung (Zeile 4) */
+  /** Gesetzliche Rentenversicherung ohne die Beiträge laut Lohnsteuerbescheinigung (Zeile 6, E2000601) */
   rentenversicherung?: Cents;
   /** Gesetzliche Krankenversicherung ohne Krankengeldanteil */
   gkv?: Cents;
