@@ -32,7 +32,7 @@ Von oben nach unten, wie einfach der Merge ist:
 4. **Autor hat nachgeliefert:** nur die neuen Commits gegen die offenen Befunde prüfen
 5. **Konflikt oder rote CI**, die der Pull Request selbst verursacht
 6. **Wartet auf den Autor:** Befunde stehen schon im Pull Request, seitdem nichts Neues. Nichts tun.
-7. **Prüfungen fehlen:** Selbstprüfung oder unabhängiges Review fehlt oder reicht nicht bis zum letzten Commit des Autors, auch wenn der Pull Request sonst weiter oben stünde; Nachbesserungen auf unsere Befunde stehen auf Platz 4.
+7. **Prüfungen fehlen:** Selbstprüfung oder unabhängiges Review fehlt oder reicht nicht bis zum letzten Commit des Autors, auch wenn der Pull Request sonst weiter oben stünde; Nachbesserungen auf unsere Befunde stehen auf Platz 4, reine Testdaten-Änderungen mit unabhängigem Review auf Platz 1 oder 2 (`docs/mitwirken.md`, Beiträge annehmen).
 
 Gleich einfache Pull Requests nach Alter.
 
