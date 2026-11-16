@@ -214,12 +214,12 @@ export function AssetForm({
 
       <section className="form-section" aria-labelledby="asset-depreciation">
         <h3 id="asset-depreciation">Abschreibung</h3>
-        <p className="field-hint">
-          Abschreibung: Kosten auf mehrere Jahre verteilen. Eine Anlage zählt nicht nur im Jahr des Kaufs als Ausgabe, sondern Jahr für Jahr ein Stück
-          (Fachwort: AfA, Absetzung für Abnutzung).
+        <p id="asset-depreciation-hint" className="field-hint">
+          Die Kosten einer Anlage verteilst du auf mehrere Jahre; nur bei GWG und bei Computern und Software zählen sie gleich im Jahr des Kaufs (Fachwort: AfA,
+          Absetzung für Abnutzung).
         </p>
         <div className="form-row cols-2">
-          <Field label="Abschreibung">
+          <Field label="Abschreibung" describedBy="asset-depreciation-hint method-hint">
             {(control) => (
               <select {...control} value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={methodLocked}>
                 {Object.entries(ASSET_METHODS)

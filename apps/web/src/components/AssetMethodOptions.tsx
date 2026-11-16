@@ -20,6 +20,9 @@ export function parseRatePercent(text: string): number | null {
 
 export const ratePercentText = (rate: number | null) => (rate === null ? "" : formatDegressiveRate(rate).replace(" %", ""));
 
+/** Wie die Auswahl: „800 €“ statt „800,00 €“ */
+const euro = (cents: number) => formatEuro(cents).replace(",00", "");
+
 /**
  * Erklärung in Alltagssprache zu den Methoden GWG und Sammelposten: erst was es ist, dann das Fachwort. Die Grenzen
  * kommen aus den Konstanten der Prüfung in `@haben/core`.
@@ -27,15 +30,15 @@ export const ratePercentText = (rate: number | null) => (rate === null ? "" : fo
 function MethodExplanation({ method }: { method: AssetMethod }) {
   if (method === "gwg")
     return (
-      <p className="field-hint">
-        Eine Anschaffung bis {formatEuro(GWG_LIMIT)} netto, die du im Jahr des Kaufs sofort als Kosten ansetzt, heißt geringwertiges Wirtschaftsgut (GWG).
+      <p id="method-hint" className="field-hint">
+        Eine Anschaffung bis {euro(GWG_LIMIT)} netto, die du im Jahr des Kaufs sofort als Kosten ansetzt, heißt geringwertiges Wirtschaftsgut (GWG).
       </p>
     );
   if (method === "sammelposten")
     return (
-      <p className="field-hint">
-        Anschaffungen von {formatEuro(SAMMELPOSTEN_MIN)} bis {formatEuro(SAMMELPOSTEN_MAX)} netto, die du über fünf Jahre verteilst, je ein Fünftel im Jahr,
-        heißen Sammelposten.
+      <p id="method-hint" className="field-hint">
+        Anschaffungen von {euro(SAMMELPOSTEN_MIN)} bis {euro(SAMMELPOSTEN_MAX)} netto, die du über fünf Jahre verteilst, je ein Fünftel im Jahr, heißen
+        Sammelposten.
       </p>
     );
   return null;
@@ -100,7 +103,7 @@ export function AssetMethodOptions({
             </Field>
           </div>
           <p id="rate-hint" className="field-hint">
-            Degressiv heißt: Jedes Jahr schreibst du einen festen Prozentsatz vom Restwert ab, anfangs mehr, später weniger.{" "}
+            Degressiv heißt: Jedes Jahr schreibst du einen festen Prozentsatz vom Restwert ab, nicht vom Kaufpreis.{" "}
             {max === null
               ? "Degressiv nur bei Anschaffung vom 01.01.2020 bis 31.12.2022, 01.04.2024 bis 31.12.2024 und 01.07.2025 bis 31.12.2027."
               : `Höchstens ${formatDegressiveRate(max)}; leer lassen für den Höchstsatz.`}{" "}
@@ -111,7 +114,7 @@ export function AssetMethodOptions({
       )}
       <MethodExplanation method={method} />
       {method === "elektro" && (
-        <p className="field-hint">
+        <p id="method-hint" className="field-hint">
           Nur für reine Elektrofahrzeuge, angeschafft vom 01.07.2025 bis 31.12.2027: 75 % im Anschaffungsjahr unabhängig vom Monat, danach 10, 5, 5, 3 und 2 %.
         </p>
       )}
