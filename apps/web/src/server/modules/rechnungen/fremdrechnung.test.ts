@@ -213,10 +213,85 @@ describe.skipIf(!testDatabaseUrl)("Fremde Ausgangsrechnung übernehmen (Postgres
     await expect(
       foreign.adoptForeignInvoiceFile(
         actor,
-        { ...proposal, contactId, source: "kundenlogin" },
+        { ...proposal, contactId },
         { bytes: new TextEncoder().encode(xml), filename: "re.xml", mimeType: "application/xml" },
       ),
     ).rejects.toThrow(/PDF/);
     expect(await sql`select 1 from invoices`).toHaveLength(1);
+  }, 30_000);
+  it("lehnt ab, was beim Festschreiben einer eigenen Rechnung auch scheitert: negativer Betrag, Steuerzeichen in der Nummer, Zahlungsziel, Rundung je Satz", async () => {
+    await company("SKR03", "soll");
+    const contactId = await customer();
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { taxes: [{ rate: 1900, net: -10_000, tax: -1_900 }] }), pdf)).rejects.toThrow();
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { number: "A/../B" }), pdf)).rejects.toThrow(/Rechnungsnummer/);
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { number: `A${String.fromCharCode(10)}B` }), pdf)).rejects.toThrow(/Rechnungsnummer/);
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { dueDate: "2030-01-01" }), pdf)).rejects.toThrow(/365 Tage/);
+    // Summe stimmt (+1 Cent bei 19 %, −1 Cent bei 7 %), je Satz nicht: würde die Kennzahlen der Voranmeldung verschieben
+    await expect(
+      foreign.adoptForeignInvoice(
+        actor,
+        input(contactId, {
+          taxes: [
+            { rate: 1900, net: 1_000, tax: 191 },
+            { rate: 700, net: 1_000, tax: 69 },
+          ],
+        }),
+        pdf,
+      ),
+    ).rejects.toThrow(/centgenau/);
+    expect(await sql`select 1 from invoices`).toHaveLength(0);
+  }, 30_000);
+
+  it("prüft die Firmendaten, den Wechsel der Versteuerung im Jahr und die Umsatzgrenze der Kleinunternehmer", async () => {
+    await company("SKR03", "ist");
+    const contactId = await customer();
+    await sql`update company set steuernummer = '', ust_id = '' where id = 1`;
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId), pdf)).rejects.toThrow(/Firmendaten/);
+    await sql`update company set steuernummer = '198/113/10010', ust_id = 'DE123456789' where id = 1`;
+
+    // Ist-Jahr gebucht, dann auf Soll umgestellt: eine zweite Rechnung desselben Jahres würde die Steuer doppelt melden
+    await foreign.adoptForeignInvoice(actor, input(contactId, { number: "A1", issueDate: "2025-09-25", dueDate: "2025-10-09" }), pdf);
+    await sql`update company set versteuerung = 'soll' where id = 1`;
+    await expect(foreign.adoptForeignInvoice(actor, input(contactId, { number: "A2", issueDate: "2025-09-26", dueDate: "2025-10-10" }), pdf)).rejects.toThrow(
+      /Ist-Versteuerung gebucht/,
+    );
+
+    // Kleinunternehmer: Umsatzgrenze wie beim Festschreiben
+    await sql`update company set kleinunternehmer = true, versteuerung = 'ist' where id = 1`;
+    const year = new Date().getFullYear();
+    await expect(
+      foreign.adoptForeignInvoice(
+        actor,
+        input(contactId, {
+          number: "K1",
+          issueDate: `${year}-01-10`,
+          dueDate: `${year}-01-24`,
+          taxTreatment: "kleinunternehmer",
+          exemptionReason: "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
+          taxes: [{ rate: 0, net: 12_000_000, tax: 0 }],
+        }),
+        pdf,
+      ),
+    ).rejects.toThrow();
+  }, 30_000);
+
+  it("bucht bei Soll im Monat der Leistung und nimmt keine E-Rechnung an, die zu den Angaben nicht passt", async () => {
+    await company("SKR03", "soll");
+    const contactId = await customer();
+    await foreign.adoptForeignInvoice(actor, input(contactId, { serviceFrom: "2026-08-01", serviceTo: "2026-08-31" }), pdf);
+    expect(await vat.computeVatFigures({ year: 2026, month: 8 })).toMatchObject({ kz81: 400_000, tax81: 76_000 });
+    expect(await vat.computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ kz81: 0, tax81: 0 });
+
+    // Das ZUGFeRD-PDF einer eigenen Rechnung trägt eine E-Rechnung mit anderer Nummer und anderen Beträgen
+    const draft = await invoices.createDraft(actor, {
+      ...(await invoices.newDraftDefaults("2026-09-26")),
+      contactId,
+      lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
+    });
+    const own = await invoices.finalizeInvoice(actor, draft.id);
+    await expect(
+      foreign.adoptForeignInvoiceFile(actor, input(contactId, { number: "FREMD-1" }), { bytes: own.pdf!, filename: "re.pdf", mimeType: "application/pdf" }),
+    ).rejects.toThrow(/passt nicht zu den Angaben/);
+    expect(await sql`select 1 from invoices where number = 'FREMD-1'`).toHaveLength(0);
   }, 30_000);
 });

@@ -64,6 +64,8 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
   const [number, setNumber] = useState(p.number);
   const [issueDate, setIssueDate] = useState(p.issueDate);
   const [dueDate, setDueDate] = useState(p.dueDate);
+  const [serviceFrom, setServiceFrom] = useState(p.serviceFrom ?? "");
+  const [serviceTo, setServiceTo] = useState(p.serviceTo ?? "");
   const [contactId, setContactId] = useState(p.contactId ?? "");
   const [treatment, setTreatment] = useState<TaxTreatment>(p.taxTreatment);
   const [exemptionReason, setExemptionReason] = useState("");
@@ -91,8 +93,8 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
         contactId,
         taxTreatment: treatment,
         exemptionReason,
-        serviceFrom: p.serviceFrom,
-        serviceTo: p.serviceTo,
+        serviceFrom: serviceFrom || null,
+        serviceTo: serviceTo || null,
         taxes,
       }),
     );
@@ -124,6 +126,15 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
         {(control) => <input {...control} type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} required />}
       </Field>
       <Field label="Fällig am">{(control) => <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />}</Field>
+      <Field
+        label="Leistung von (optional)"
+        hint="Bei Soll-Versteuerung entscheidet der Leistungszeitraum, in welcher Voranmeldung die Umsatzsteuer steht. Ohne Angabe gilt das Rechnungsdatum."
+      >
+        {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => setServiceFrom(e.target.value)} />}
+      </Field>
+      <Field label="Leistung bis (optional)">
+        {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => setServiceTo(e.target.value)} />}
+      </Field>
       <Field label="Kunde" hint={p.buyerName && !p.contactId ? `Auf der Rechnung: ${p.buyerName}. Dazu gibt es keinen eindeutigen Kontakt.` : undefined}>
         {(control) => (
           <select {...control} value={contactId} onChange={(e) => setContactId(e.target.value)} required>
@@ -139,11 +150,13 @@ function ForeignInvoiceForm({ file, read, onClose }: { file: File; read: Read; o
       <Field label="Steuerbehandlung">
         {(control) => (
           <select {...control} value={treatment} onChange={(e) => setTreatment(e.target.value as TaxTreatment)}>
-            {Object.entries(TAX_TREATMENTS).map(([key, t]) => (
-              <option key={key} value={key}>
-                {t.label}
-              </option>
-            ))}
+            {Object.entries(TAX_TREATMENTS)
+              .filter(([key]) => key !== "eu_sonstige")
+              .map(([key, t]) => (
+                <option key={key} value={key}>
+                  {t.label}
+                </option>
+              ))}
           </select>
         )}
       </Field>

@@ -9,20 +9,20 @@ import {
   type PriceMode,
   type TaxTreatment,
 } from "@haben/core";
-import { readEInvoice } from "@haben/einvoice";
-import { and, eq } from "drizzle-orm";
+import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
+import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
-import { loadCompany, type Company, type Contact } from "../stammdaten/index.ts";
+import { loadCompany, sellerIssues, versteuerungForYear, type Company, type Contact } from "../stammdaten/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { buyerFrom, sellerFrom } from "./invoices.ts";
 import { invoicePostingMode, invoiceVatDate } from "./invoice-tax.ts";
 import { storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { InvoiceError } from "./invoice-error.ts";
-import { outgoingTaxDetailsSchema } from "./tax-details.ts";
+import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
 
 /*
  * Ausgangsrechnung aus einem Fremdsystem übernehmen (#660): Die Rechnung ist dort geschrieben und verschickt worden und
@@ -30,30 +30,34 @@ import { outgoingTaxDetailsSchema } from "./tax-details.ts";
  * Umsatzsteuer, bei Ist-Versteuerung auf „nicht fällig“) und läuft danach durch Bankabgleich, Mahnung und Storno wie jede
  * andere. Der eigene Nummernkreis bleibt unberührt; das PDF ist das Original und wird nicht neu erzeugt.
  * Anders als die Übernahme beim Umzug (archiv/legacy-open.ts) gibt es keinen Stichtag und keine Eröffnungsbuchung.
+ *
+ * Quellen: Entstehung der Steuer nach § 13 Abs. 1 Nr. 1 Buchst. a (Soll, mit Ablauf des Voranmeldungszeitraums der Leistung)
+ * und Buchst. b (Ist, mit der Vereinnahmung) UStG, Pflichtangaben und Steuerbefreiung nach § 14 Abs. 4 UStG,
+ * Aufbewahrung der Rechnung in der Form, in der sie ausgestellt wurde, nach § 14b UStG und § 147 AO (GoBD Rn. 130 ff.).
+ * Steuerkategorien der E-Rechnung: EN 16931, Codeliste UNCL 5305 (S, Z, E, AE, K, G, O), Befreiungsgrund BT-120.
+ * https://www.gesetze-im-internet.de/ustg_1980/__13.html, https://www.gesetze-im-internet.de/ustg_1980/__14b.html
  */
 
-/** Plattformkennung wie bei der externen Referenz eines Entwurfs: Kleinbuchstaben, Ziffern, Punkt, Bindestrich, Unterstrich */
-const sourceSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(40)
-  .regex(/^[a-z0-9][a-z0-9._-]*$/, "Quelle in Kleinbuchstaben, Ziffern, Punkt, Bindestrich oder Unterstrich");
+/** Herkunft der übernommenen Rechnungen in der externen Referenz (zusammen mit der Nummer eindeutig) */
+const SOURCE = "fremdsystem";
 
-const cents = z.number().int().min(-2_147_483_647).max(2_147_483_647);
+/** Nur Rechnungen: Gutschriften sind in Haben keine Rechnung, negative Beträge also ausgeschlossen */
+const cents = z.number().int().min(0).max(2_147_483_647);
 
 export const foreignInvoiceSchema = z.object({
   /** Nummer aus dem Fremdsystem; sie bleibt unverändert */
-  number: z.string().trim().min(1, "Rechnungsnummer fehlt").max(100),
+  number: z
+    .string()
+    .trim()
+    .min(1, "Rechnungsnummer fehlt")
+    .max(100)
+    .regex(/^[^\p{Cc}/\x5c]+$/u, "Rechnungsnummer ohne Steuerzeichen, Schrägstrich und Rückstrich"),
   issueDate: z.iso.date(),
   dueDate: z.iso.date(),
   serviceFrom: z.iso.date().nullable().default(null),
   serviceTo: z.iso.date().nullable().default(null),
   contactId: z.uuid(),
-  /** Woher die Rechnung kommt; mit der Nummer zusammen eindeutig, damit sie nicht zweimal übernommen wird */
-  source: sourceSchema.default("fremdsystem"),
   taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
-  taxDetails: outgoingTaxDetailsSchema.nullable().default(null),
   /** Befreiungsvorschrift wie auf der Rechnung, z. B. „Steuerfrei nach § 4 Nr. 14 UStG“; bei steuerfreien Umsätzen Pflicht */
   exemptionReason: z.string().trim().max(500).default(""),
   /** Netto und Steuer je Steuersatz (Basispunkte), wie auf der Rechnung ausgewiesen */
@@ -81,16 +85,16 @@ function rebuild(taxes: { rate: number; net: number; tax: number }[], number: st
     const { totals, lineNets } = computeInvoice(lines, priceMode);
     return { priceMode, totals, lines: lines.map((l, i) => ({ ...l, net: lineNets[i]! })) };
   };
-  const expected = {
-    net: taxes.reduce((n, t) => n + t.net, 0),
-    tax: taxes.reduce((n, t) => n + t.tax, 0),
-  };
-  const matches = (r: ReturnType<typeof attempt>) => r.totals.net === expected.net && r.totals.tax === expected.tax;
+  // Je Steuersatz, nicht nur in der Summe: +1 Cent bei 19 % und −1 Cent bei 7 % verschöbe sonst die Kennzahlen der Voranmeldung
+  const matches = (r: ReturnType<typeof attempt>) =>
+    taxes.every((t) => r.totals.taxes.some((x) => x.rate === t.rate && x.base === t.net && x.tax === t.tax)) && r.totals.taxes.length === taxes.length;
   const net = attempt("netto");
   if (matches(net)) return net;
   const gross = attempt("brutto");
   if (matches(gross)) return gross;
-  throw new InvoiceError(`Die Steuer lässt sich nicht centgenau nachbilden (Rechnung ${expected.tax / 100} €, Haben ${net.totals.tax / 100} €).`);
+  throw new InvoiceError(
+    `Die Steuer lässt sich nicht centgenau nachbilden (Rechnung ${taxes.reduce((n, t) => n + t.tax, 0) / 100} €, Haben ${net.totals.tax / 100} €). Netto und Steuer je Satz bitte wie auf der Rechnung eintragen.`,
+  );
 }
 
 function looksLikePdf(bytes: Uint8Array): boolean {
@@ -99,19 +103,22 @@ function looksLikePdf(bytes: Uint8Array): boolean {
 
 type AdoptInput = z.output<typeof foreignInvoiceSchema>;
 
-/** Was gegen die Übernahme spricht: Nummer oder Vorgang schon da, Steuerbehandlung passt nicht zu Kunde und Firma */
-async function assertAdoptable(tx: Tx, company: Company, contact: Contact, input: AdoptInput, rates: number[]): Promise<void> {
+/** Was gegen die Übernahme spricht: Nummer schon da, Firmendaten, Versteuerung, Steuerbehandlung, Umsatzgrenze */
+async function assertAdoptable(
+  tx: Tx,
+  company: Company,
+  contact: Contact,
+  input: AdoptInput,
+  totals: { net: number; taxes: { rate: number }[] },
+): Promise<void> {
   const [clash] = await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.number, input.number));
   if (clash) throw new InvoiceError(`Die Rechnungsnummer ${input.number} gibt es in Haben schon.`);
-  const [same] = await tx
-    .select({ id: schema.invoices.id })
-    .from(schema.invoices)
-    .where(and(eq(schema.invoices.externalSource, input.source), eq(schema.invoices.externalId, input.number)));
-  if (same) throw new InvoiceError(`Die Rechnung ${input.number} aus ${input.source} ist schon übernommen.`);
   const issues = [
-    ...outgoingTaxIssues(input.taxTreatment, input.taxDetails, company.kleinunternehmer),
+    ...sellerIssues(company, true).map((issue) => `Firmendaten: ${issue}`),
+    ...(await versteuerungIssues(tx, company, input.issueDate)),
+    ...outgoingTaxIssues(input.taxTreatment, null, company.kleinunternehmer),
     ...treatmentIssues(input.taxTreatment, {
-      rates,
+      rates: totals.taxes.map((t) => t.rate),
       sellerUstId: company.ustId,
       buyerUstId: contact.ustId,
       buyerCountry: contact.land,
@@ -119,6 +126,19 @@ async function assertAdoptable(tx: Tx, company: Company, contact: Contact, input
     }),
   ];
   if (issues.length > 0) throw new InvoiceError(`Noch nicht bereit: ${issues.join(", ")}.`);
+  await pruefeUmsatzgrenze(tx, { kind: "rechnung", issueDate: input.issueDate, taxTreatment: input.taxTreatment }, totals.net, company.foundedOn);
+}
+
+/** Wie beim Festschreiben: Das Jahr der Rechnung muss nach der heutigen Versteuerung gebucht sein, sonst steht die Steuer doppelt oder gar nicht in der Voranmeldung */
+async function versteuerungIssues(tx: Tx, company: Company, issueDate: string): Promise<string[]> {
+  if (company.kleinunternehmer) return [];
+  const year = Number(issueDate.slice(0, 4));
+  const booked = await versteuerungForYear(year, tx);
+  if (booked === company.versteuerung) return [];
+  const label = { soll: "Soll-Versteuerung", ist: "Ist-Versteuerung" } as const;
+  return [
+    `Das Jahr ${year} ist nach ${label[booked]} gebucht, eingestellt ist jetzt ${label[company.versteuerung]}; bitte ein Rechnungsdatum im laufenden Jahr wählen`,
+  ];
 }
 
 /**
@@ -129,6 +149,7 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
   const input = foreignInvoiceSchema.parse(raw);
   if (!looksLikePdf(pdf)) throw new InvoiceError("Das Original muss ein PDF sein.");
   if (input.dueDate < input.issueDate) throw new InvoiceError("Das Fälligkeitsdatum liegt vor dem Rechnungsdatum.");
+  if (Date.parse(input.dueDate) - Date.parse(input.issueDate) > 365 * 86_400_000) throw new InvoiceError("Das Zahlungsziel darf höchstens 365 Tage betragen.");
   if (input.taxes.some((t) => !RATES.has(t.rate))) throw new InvoiceError("Haben kennt für Rechnungen nur die Steuersätze 0 %, 7 % und 19 %.");
   const { priceMode, totals, lines } = rebuild(input.taxes, input.number);
 
@@ -137,15 +158,9 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
       const company = await openBooks(tx);
       const [contact] = await tx.select().from(schema.contacts).where(eq(schema.contacts.id, input.contactId));
       if (!contact) throw new InvoiceError("Der Kunde fehlt.");
-      await assertAdoptable(
-        tx,
-        company,
-        contact,
-        input,
-        totals.taxes.map((t) => t.rate),
-      );
+      await assertAdoptable(tx, company, contact, input, totals);
 
-      const term = Math.max(0, Math.min(365, Math.round((Date.parse(input.dueDate) - Date.parse(input.issueDate)) / 86_400_000)));
+      const term = Math.round((Date.parse(input.dueDate) - Date.parse(input.issueDate)) / 86_400_000);
       const serviceDate = leistungsdatum({ belegdatum: input.issueDate, leistungVon: input.serviceFrom, leistungBis: input.serviceTo });
       const [draft] = await tx
         .insert(schema.invoices)
@@ -157,10 +172,9 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
           serviceTo: input.serviceTo,
           paymentTermDays: term,
           dueDate: input.dueDate,
-          note: `Aus ${input.source} übernommen; das PDF ist das Original.`,
+          note: `Aus dem Fremdsystem übernommen; das PDF ist das Original.`,
           priceMode,
           taxTreatment: input.taxTreatment,
-          taxDetails: input.taxDetails,
           exemptionReason: input.exemptionReason,
           net: totals.net,
           tax: totals.tax,
@@ -176,7 +190,7 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
         .set({
           status: "final",
           number: input.number,
-          externalSource: input.source,
+          externalSource: SOURCE,
           externalId: input.number,
           contactVersion: contact.version,
           seller: sellerFrom(company),
@@ -194,7 +208,7 @@ export async function adoptForeignInvoice(actor: string, raw: ForeignInvoiceInpu
 
       await post(tx, company, {
         date: await invoiceVatDate(invoice!, tx),
-        description: `Rechnung ${input.number} aus ${input.source} · ${contact.name}`,
+        description: `Rechnung ${input.number} aus dem Fremdsystem · ${contact.name}`,
         sourceType: "invoice",
         sourceId: id,
         lines: invoicePosting(totals, company.kontenrahmen, await invoicePostingMode(invoice!, tx), input.taxTreatment),
@@ -283,6 +297,20 @@ export async function foreignInvoiceProposal(file: { bytes: Uint8Array; filename
 
 /** Wie adoptForeignInvoice, mit der E-Rechnung aus der Datei, falls sie eine enthält und lesbar ist */
 export async function adoptForeignInvoiceFile(actor: string, raw: ForeignInvoiceInput, file: { bytes: Uint8Array; filename: string; mimeType: string }) {
-  const xml = (await readEInvoice(file).catch(() => null))?.xml ?? null;
-  return adoptForeignInvoice(actor, raw, file.bytes, xml);
+  const read = await readEInvoice(file).catch(() => null);
+  if (read) {
+    const problem = xmlMismatch(read.invoice, foreignInvoiceSchema.parse(raw));
+    if (problem) throw new InvoiceError(`Die E-Rechnung in der Datei passt nicht zu den Angaben: ${problem}. Das Original wird so nicht übernommen.`);
+  }
+  return adoptForeignInvoice(actor, raw, file.bytes, read?.xml ?? null);
+}
+
+/** Was an der eingebetteten E-Rechnung von den bestätigten Angaben abweicht, oder null; das XML wird mit der Rechnung archiviert und weitergegeben */
+function xmlMismatch(invoice: IncomingInvoice, input: AdoptInput): string | null {
+  if (invoice.number !== input.number) return `Nummer ${invoice.number} statt ${input.number}`;
+  if (invoice.issueDate !== input.issueDate) return `Rechnungsdatum ${invoice.issueDate} statt ${input.issueDate}`;
+  const same = (x: { rate: number; net: number; tax: number }) => input.taxes.some((t) => t.rate === x.rate && t.net === x.net && t.tax === x.tax);
+  const xmlTaxes = invoice.taxes.map((t) => ({ rate: t.rate, net: t.base, tax: t.tax }));
+  if (xmlTaxes.length !== input.taxes.length || !xmlTaxes.every(same)) return "Netto oder Steuer je Steuersatz weichen ab";
+  return null;
 }
