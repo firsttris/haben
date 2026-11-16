@@ -296,4 +296,60 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
     expect(integrity.problems).toEqual([]);
     expect(integrity.abgleich.abweichungen).toEqual([]);
   }, 15_000);
+
+  it("reguläre Inlandsleistung an einen AT-Kunden: Anschrift ändert weder Vorauszahlung noch gespeicherte Steuerbehandlung", async () => {
+    // Ein Gutachten zum Erwerb eines bestimmten deutschen Grundstücks liegt nach § 3a Abs. 3 Nr. 1 UStG
+    // im Inland (UStAE 3a.3 Abs. 7: Grundstückssachverständige). Die Empfängeranschrift bestimmt das nicht.
+    // Quellen: https://www.gesetze-im-internet.de/ustg_1980/__3a.html und § 13 UStG.
+    await sql`update company set ust_id = 'DE123456789'`;
+    const customer = await contacts.createContact(actor, {
+      kundennummer: "",
+      name: "Alpenwerk Immobilien GmbH",
+      strasse: "Testgasse 5",
+      plz: "1010",
+      ort: "Wien",
+      land: "AT",
+      email: "rechnung@alpenwerk.example",
+      ustId: "ATU12345678",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    const input = {
+      contactId: customer.id,
+      issueDate: "2026-01-20",
+      serviceFrom: "2026-01-20",
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd" as const,
+      currency: "EUR",
+      taxTreatment: "regulaer" as const,
+      note: "Verkehrswertgutachten für den Erwerb des Grundstücks Musterstraße 1, 93047 Regensburg, Deutschland",
+      lines: [{ description: "Grundstücksgutachten zum Erwerb, Musterstraße 1, Regensburg", quantity: 1000, unit: "Psch.", unitPrice: 70_000, taxRate: 1900 }],
+    };
+    const draft = await invoices.createDraft(actor, input);
+    expect(await invoices.finalizeIssues(draft.id)).toEqual([]);
+    const finalized = await invoices.finalizeInvoice(actor, draft.id);
+    expect(finalized).toMatchObject({ buyer: expect.objectContaining({ land: "AT" }), taxTreatment: "regulaer", currency: "EUR", net: 70_000, tax: 13_300 });
+    await pay(finalized.id, "bank", "2025-12-13", 83_300);
+    expect.soft(finalized.advanceAccounting).toBe("deferred");
+    expect.soft(await balance(ACCOUNTS.SKR03.erhalteneAnzahlungen, "2025-12-31")).toBe(-70_000);
+    expect.soft(await balance(ACCOUNTS.SKR03.forderungen, "2025-12-31")).toBe(0);
+    expect.soft(await balance(ACCOUNTS.SKR03.erloese[1900], "2025-12-31")).toBe(0);
+    await tax(2025, 12, 70_000, 13_300);
+    await tax(2026, 1, 0, 0);
+    expect.soft(await balance(ACCOUNTS.SKR03.erloese[1900], "2026-01-31")).toBe(-70_000);
+
+    // Gegenkontrolle: Eine gesondert als Reverse Charge gespeicherte EU-Leistung wird nicht zum Normalverfahren.
+    const euDraft = await invoices.createDraft(actor, {
+      ...input,
+      taxTreatment: "reverse_charge",
+      note: "Beratung für den österreichischen Geschäftsbetrieb am Empfängersitz",
+      lines: [{ ...input.lines[0]!, description: "Beratung für den österreichischen Geschäftsbetrieb", taxRate: 0 }],
+    });
+    expect(await invoices.finalizeIssues(euDraft.id)).toEqual([]);
+    expect(await invoices.finalizeInvoice(actor, euDraft.id)).toMatchObject({ advanceAccounting: null, taxTreatment: "reverse_charge", tax: 0 });
+    expect.soft(await vat.computeVatFigures({ year: 2026, month: 1 })).toMatchObject({ kz81: 0, tax81: 0, kz21: 70_000 });
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
 });
