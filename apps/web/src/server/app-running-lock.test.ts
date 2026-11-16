@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import type postgres from "postgres";
+import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { APP_RUNNING_LOCK } from "./db/app-lock.ts";
 import { prepareLocalOwner } from "./db/local-owner.ts";
@@ -9,6 +9,7 @@ import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Sperre der laufenden App nach Verbindungsabbruch (Postgres)", () => {
   let database: postgres.Sql;
+  let admin: postgres.Sql;
   let hold: typeof import("./sso-mode.ts").holdAppRunningLock;
   const userId = "owner-lock-1094";
   const issuer = "https://lock-test.invalid";
@@ -16,13 +17,15 @@ describe.skipIf(!testDatabaseUrl)("Sperre der laufenden App nach Verbindungsabbr
 
   beforeAll(async () => {
     database = await setupTestDb();
+    admin = postgres(Object.assign(new URL(testDatabaseUrl!), { pathname: "/postgres" }).toString(), { max: 1 });
     ({ holdAppRunningLock: hold } = await import("./sso-mode.ts"));
     await database`insert into "user" (id, name, email, role) values (${userId}, 'Inhaberin', 'lock@example.invalid', null)`;
   }, 60_000);
 
   afterAll(async () => {
-    await database?.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections true`);
+    await admin?.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections true`);
     await database?.end();
+    await admin?.end();
     await (await import("./db/index.ts")).closeDatabase();
   });
 
@@ -95,15 +98,15 @@ describe.skipIf(!testDatabaseUrl)("Sperre der laufenden App nach Verbindungsabbr
       const previous = await lockPid();
       expect(previous).not.toBeNull();
       // Nur diese Worker-Datenbank lehnt neue Sitzungen ab; die bestehende Kontrollverbindung bleibt erreichbar.
-      await database.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections false`);
+      await admin.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections false`);
       await database`select pg_terminate_backend(${previous!})`;
       await expect.poll(() => warning.mock.calls.length, { timeout: 10_000 }).toBeGreaterThanOrEqual(3);
       expect(await lockPid()).toBeNull();
-      await database.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections true`);
+      await admin.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections true`);
       await expect.poll(lockPid, { timeout: 10_000 }).not.toBeNull();
       await guards(true);
     } finally {
-      await database.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections true`);
+      await admin.unsafe(`alter database "${databaseName.replaceAll('"', '""')}" allow_connections true`);
       await release();
       warning.mockRestore();
     }
