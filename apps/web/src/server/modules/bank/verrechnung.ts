@@ -63,7 +63,6 @@ async function beleg(tx: Tx, id: string, sperren = false) {
   const abfrage = tx
     .select({
       id: schema.documents.id,
-      date: schema.documents.documentDate,
       documentDate: schema.documents.documentDate,
       supplier: schema.documents.supplierName,
       invoiceNumber: schema.documents.invoiceNumber,
@@ -101,8 +100,8 @@ async function pruefeVerrechnung(
   parsed: z.output<typeof settlementSchema>,
 ): Promise<{ restA: number; restB: number }> {
   for (const d of [a, b]) {
-    if (d.status !== "gebucht") throw new SettlementError(`Beleg ${d.date ?? ""} ist nicht gebucht.`);
-    if (d.payment !== "bank") throw new SettlementError(`Beleg ${d.date ?? ""} läuft nicht über die Bank und hat keinen offenen Posten.`);
+    if (d.status !== "gebucht") throw new SettlementError(`Beleg ${d.documentDate ?? ""} ist nicht gebucht.`);
+    if (d.payment !== "bank") throw new SettlementError(`Beleg ${d.documentDate ?? ""} läuft nicht über die Bank und hat keinen offenen Posten.`);
   }
   // Eine Gutschrift gleicht nur Belege desselben Lieferanten aus (docs/belege-bezahlen.md); die Kandidatenliste filtert danach,
   // der Server muss es selbst prüfen.
@@ -131,8 +130,8 @@ async function pruefeVerrechnung(
   if (parsed.amount > moeglich) {
     throw new SettlementError(`Mehr als ${formatEuro(moeglich)} lassen sich nicht verrechnen.`);
   }
-  const datumA = a.date ?? "";
-  const datumB = b.date ?? "";
+  const datumA = a.documentDate ?? "";
+  const datumB = b.documentDate ?? "";
   // Math.max taugt hier nicht: es rechnet die Datumsstrings in Zahlen um und ergibt NaN
   const juenger = datumA.localeCompare(datumB) >= 0 ? datumA : datumB;
   if (parsed.date < juenger) {
