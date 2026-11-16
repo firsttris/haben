@@ -73,6 +73,21 @@ describe("withDedupHashes", () => {
     // Die Steuerlastschrift ist im CAMT einen Tag früher gebucht und gilt daher als neuer Umsatz
     expect(camt.filter((t) => altHashes.has(t.dedupHash)).map((t) => t.index)).toEqual([0, 1, 3]);
   });
+
+  it("erkennt dieselben ING-Umsätze im gefilterten Export und in beiden Sortierungen", () => {
+    const voll = withDedupHashes(parseStatement(fixture("ing.csv")).transactions);
+    const zeilen = new TextDecoder("windows-1252").decode(fixture("ing.csv")).split("\r\n");
+    const kopf = zeilen.findIndex((z) => z.startsWith("Buchung;"));
+    const umsaetze = zeilen.slice(kopf + 1).filter((z) => z !== "");
+    // Suchergebnis mit nur dem Zahlungseingang von Nordwerk, später kommt der volle Export
+    const einer = [...zeilen.slice(0, kopf + 1), umsaetze[3]!].join("\r\n").replace("Sortierung;Datum absteigend", "Filter;Nordwerk;Sortierung;Datum absteigend");
+    const bekannt = new Set(withDedupHashes(parseStatement(new TextEncoder().encode(einer)).transactions).map((t) => t.dedupHash));
+    expect(voll.filter((t) => bekannt.has(t.dedupHash)).map((t) => t.index)).toEqual([3]);
+    // Aufsteigend sortiert: dieselben Hashes
+    const aufsteigend = [...zeilen.slice(0, kopf + 1), ...[...umsaetze].reverse()].join("\r\n");
+    const auf = withDedupHashes(parseStatement(new TextEncoder().encode(aufsteigend)).transactions);
+    expect(new Set(auf.map((t) => t.dedupHash))).toEqual(new Set(voll.map((t) => t.dedupHash)));
+  });
 });
 
 describe("checkBalanceContinuity", () => {

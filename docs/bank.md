@@ -52,7 +52,7 @@ Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand
 | N26-CSV | Komma-CSV mit Booking Date bzw. Date, Amount, Partner Name bzw. Payee | nein | nein |
 | Swan-CSV | Komma-CSV mit Kopfblock (IBAN, Alter und Neuer Kontostand, Von, Bis) und den Spalten Datum, Name, Verwendungszweck, Kredit EUR, Debit EUR | ja | Alter und Neuer Kontostand aus dem Kopfblock |
 | Commerzbank-CSV | Semikolon-CSV aus dem Online-Banking mit den Spalten Buchungstag, Umsatzart, Buchungstext, Betrag, IBAN Kontoinhaber, Sender, Empfänger, Verwendungszweck | ja, in jeder Zeile | nein |
-| ING-CSV | Umsatzanzeige: Semikolon-CSV mit Kopfblock (IBAN, Kontoname, Zeitraum, Saldo) und den Spalten Buchung, Wertstellungsdatum, Auftraggeber/Empfänger, Buchungstext, Verwendungszweck, Saldo, Betrag | ja, im Kopf | aus der Spalte „Saldo“; nicht bei einem gefilterten Export |
+| ING-CSV | Umsatzanzeige: Semikolon-CSV mit Kopfblock (IBAN, Kontoname, Zeitraum, Saldo) und den Spalten Buchung, Wertstellungsdatum (älter: Valuta), Auftraggeber/Empfänger, Buchungstext, Verwendungszweck, Saldo, Betrag | ja, im Kopf | aus der Spalte „Saldo“; nicht bei einem gefilterten Export |
 | C24-CSV | Komma-CSV mit den Spalten Transaktionstyp, Buchungsdatum, Betrag, Zahlungsempfänger, Verwendungszweck, Beschreibung, Kontonummer | nein, nur die Kontonummer | nein |
 | CAMT.053 (XML) | Tagesauszug `BkToCstmrStmt` | ja | Anfangs- und Endsaldo des Auszugs |
 | PayPal | Aktivitätenexport (CSV), Spalten deutsch (Brutto, Gebühr, Netto, Transaktionscode) oder englisch (Gross, Fee, Net, Transaction ID) | nein, in das Konto des [Zahlungsdienstleisters](bank-zahlungsdienstleister.md) | Guthaben aus den Umsätzen |

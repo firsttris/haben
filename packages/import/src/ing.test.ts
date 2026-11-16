@@ -108,6 +108,36 @@ describe("ING-CSV (Umsatzanzeige)", () => {
     expect(s.warnings.join()).toMatch(/Fremdwährung.*USD/);
   });
 
+  it("liest das ältere Format: Valuta, Kategorie, ohne Referenz, Kopf in Anführungszeichen", () => {
+    // Belegt in beancount-ing (Tests, CHANGELOG v0.4.0): „Valuta“ statt „Wertstellungsdatum“, Zeile „Letztes Update“
+    const alt = [
+      "Umsatzanzeige;Datei erstellt am: 25.07.2018 12:00",
+      ";Letztes Update: aktuell",
+      "",
+      "IBAN;DE41 5001 0517 0123 4567 89",
+      "Kontoname;Girokonto",
+      "Bank;ING-DiBa",
+      "Kunde;Erika Mustermann",
+      "Zeitraum;01.06.2018 - 30.06.2018",
+      "Saldo;734,00;EUR",
+      "",
+      "Sortierung;Datum absteigend",
+      "",
+      "In der CSV-Datei finden Sie alle bereits gebuchten Umsätze.",
+      "",
+      '"Buchung";"Valuta";"Auftraggeber/Empfänger";"Buchungstext";"Kategorie";"Verwendungszweck";"Saldo";"Währung";"Betrag";"Währung"',
+      "15.06.2018;14.06.2018;Hausverwaltung Beispiel;Lastschrift;Miete;Miete Juni;734,00;EUR;-500,00;EUR",
+      "08.06.2018;08.06.2018;Nordwerk Software GmbH;Gutschrift;;RE-2018-007;1.234,00;EUR;1.000,00;EUR",
+    ].join("\r\n");
+    const s = parseStatement(new TextEncoder().encode(alt));
+    expect(s.format).toBe("ing-csv");
+    expect(s.transactions.map((x) => [x.bookingDate, x.valueDate, x.amount, x.purpose, x.bankReference])).toEqual([
+      ["2018-06-15", "2018-06-14", -50_000, "Miete Juni", undefined],
+      ["2018-06-08", "2018-06-08", 100_000, "RE-2018-007", undefined],
+    ]);
+    expect([s.openingBalance, s.closingBalance]).toEqual([23_400, 73_400]);
+  });
+
   it("meldet einen ungültigen Betrag mit Zeile", () => {
     expect(() => parseStatement(ersetzt(";EUR;-4,90;EUR", ";EUR;vier;EUR"))).toThrow(/Ungültiger Betrag „vier“ \(Zeile 16\)/);
   });
