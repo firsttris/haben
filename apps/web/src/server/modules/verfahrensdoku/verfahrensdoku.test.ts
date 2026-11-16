@@ -9,6 +9,7 @@ const GEHEIMNISSE = {
   tokenPrefix: "hb_Zz9Q",
   zertifikat: "GEHEIMES-ZERTIFIKAT-4711",
   postfach: "POSTFACH-PASSWORT-4711",
+  ablage: "ARCHIV-TOKEN-4711",
   bank: "BANK-SITZUNG-4711",
   backup: "BACKUP-PASSWORT-4711",
 };
@@ -71,6 +72,9 @@ describe.skipIf(!testDatabaseUrl)("Verfahrensdokumentation aus der Instanz (Post
     await sql`delete from inbox_settings`;
     await sql`insert into inbox_settings (host, port, secure, username, ciphertext)
       values ('imap.example.com', 993, true, 'belege@example.com', ${Buffer.from(GEHEIMNISSE.postfach)})`;
+    await sql`delete from archive_target`;
+    await sql`insert into archive_target (url, file_field, header_name, ciphertext, since)
+      values ('https://archiv.example/api/upload?schluessel=geheim', 'datei', 'Authorization', ${Buffer.from(GEHEIMNISSE.ablage)}, '2026-11-02T09:00:00Z')`;
   }
 
   it("nennt Zugänge mit Rolle, die Datenbankrolle und das Backup-Ziel", async () => {
@@ -93,6 +97,9 @@ describe.skipIf(!testDatabaseUrl)("Verfahrensdokumentation aus der Instanz (Post
     expect(betrieb).toContain("schlug fehl: Fatal: unable to open repository at rest:https://backup.example/haben");
     expect(md).toContain("Kontenrahmen: SKR04 (DATEV). Soll-Versteuerung");
     expect(md).toContain("Postfach belege@example.com auf imap.example.com");
+    // Nur der Ursprung der Adresse: Pfad und Anfrage können Kennungen tragen
+    expect(md).toContain("seit 02.11.2026 zusätzlich als Kopie an das Dokumentenarchiv unter https://archiv.example;");
+    expect(md).not.toContain("schluessel=geheim");
     expect(md).toContain("ELSTER-Zertifikat ist hinterlegt, gültig bis 31.03.2028");
   });
 

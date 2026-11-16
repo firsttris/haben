@@ -4,7 +4,8 @@ import { useState, type FormEvent, type MouseEvent } from "react";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
-import { saveDatevNumbersFn, type getDatevNumbers } from "../server/functions/datev-export.ts";
+import { saveDatevNumbersFn } from "../server/functions/datev-export.ts";
+import type { datevNumbers } from "../server/modules/auswertungen/index.ts";
 import { Field } from "./Field.tsx";
 
 const QUARTALE = [
@@ -15,7 +16,7 @@ const QUARTALE = [
 ] as const;
 
 /** DATEV-Buchungsstapel für die Steuerberatung (Einstellungen); Jahre und Nummern kommen aus dem Loader */
-export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaited<ReturnType<typeof getDatevNumbers>> }) {
+export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaited<ReturnType<typeof datevNumbers>> }) {
   const save = useServerFn(saveDatevNumbersFn);
   const [year, setYear] = useState(() => currentYear());
   const [zeitraumKey, setZeitraumKey] = useState("");
