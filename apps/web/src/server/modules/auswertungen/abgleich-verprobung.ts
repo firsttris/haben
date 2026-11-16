@@ -122,5 +122,11 @@ export function verprobungsZeilen(
 
 /** Hinweis zur Vorsteuer eines Belegs, die von Netto mal Satz abweicht */
 export function belegVorsteuerHinweis(z: { posten: string; journal: Cents; erwartet: Cents }): string {
-  return `Bitte prüfen: ${z.posten} trägt ${formatEuro(z.journal)}, Netto mal Satz wären ${formatEuro(z.erwartet)}. Abziehbar ist nur die gesetzlich geschuldete Steuer (UStAE 15.2 Abs. 1); weist der Lieferant mehr aus, etwa weil er je Position rundet, schuldet er den Mehrbetrag (§ 14c UStG). Bei einer E-Rechnung zählen die Werte aus dem XML.`;
+  const anfang = `Bitte prüfen: ${z.posten} trägt ${formatEuro(z.journal)}, Netto mal Satz wären ${formatEuro(z.erwartet)}.`;
+  // Dem Betrag nach mehr: über das Geschuldete hinaus ist nichts abziehbar; weniger: abziehbar ist nur, was ausgewiesen ist
+  const mehr = Math.abs(z.journal) > Math.abs(z.erwartet);
+  const regel = mehr
+    ? "Abziehbar ist nur die gesetzlich geschuldete Steuer (UStAE 15.2 Abs. 1); weist der Lieferant mehr aus, etwa weil er je Position rundet, schuldet er den Mehrbetrag (§ 14c UStG)."
+    : "Abziehbar ist nur die in der Rechnung ausgewiesene Steuer (§ 15 Abs. 1 Satz 1 Nr. 1 UStG); die Buchung folgt dem Beleg, mehr ist nicht abziehbar. Steht auf dem Beleg mehr, als erfasst ist, den Beleg berichtigen.";
+  return `${anfang} ${regel} Bei einer E-Rechnung zählen die Werte aus dem XML.`;
 }

@@ -148,6 +148,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     expect((await annual.ustYear(2025)).abschluss).not.toBe(ust.abschluss);
     const pruefen = await import("./erklaert-pruefen.ts");
     expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+    await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
   });
 
   it("nimmt bei der Einkommensteuererklärung keinen Betrag an, auch nicht Habens Schätzung (#1073)", async () => {

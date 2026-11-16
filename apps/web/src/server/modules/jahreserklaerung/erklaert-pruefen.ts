@@ -48,6 +48,10 @@ function vergleich(gespeichert: Record<string, number>, heute: Record<string, nu
  */
 async function vermerkAbweichungen(year: number, form: "ust" | "euer", figures: Record<string, unknown>): Promise<ErklaertAbweichung[]> {
   const { amount, berechnet } = zahlen(figures);
+  const gerechnet = typeof figures.gerechnet === "object" && figures.gerechnet ? zahlen(figures.gerechnet as Record<string, unknown>) : null;
+  // Umsatzsteuer mit festgehaltenen Zahlen: Steuer und Zeilen statt der Abschlusszahlung, die an den Vorauszahlungen aus
+  // den Voranmeldungen hängt, nicht am Journal (Selbstprüfung Runde 4 in #1144)
+  if (form === "ust" && gerechnet) return ustVermerkZeilen(year, gerechnet, amount, berechnet);
   const damals = berechnet ?? amount;
   const result: ErklaertAbweichung[] = [];
   const feld = form === "ust" ? "abschluss" : "gewinn";
@@ -59,12 +63,22 @@ async function vermerkAbweichungen(year: number, form: "ust" | "euer", figures: 
   // Mit bestätigter Abweichung sind die festgehaltenen Zahlen Habens damalige, nicht die abgegebenen; rechnet Haben heute den
   // Betrag laut Protokoll, sind sie überholt
   const ueberholt = berechnet !== undefined && heute === amount;
-  const gerechnet = figures.gerechnet as Record<string, unknown> | undefined;
-  if (gerechnet && typeof gerechnet === "object" && !ueberholt) {
-    const abweichend = vergleich(zahlen(gerechnet), await gerechneteZahlen(form, year), new Set([...NICHT_AUS_DEM_JOURNAL, feld]));
+  if (gerechnet && !ueberholt) {
+    const abweichend = vergleich(gerechnet, await gerechneteZahlen(form, year), new Set([...NICHT_AUS_DEM_JOURNAL, feld]));
     result.push(...abweichend.map((x) => ({ year, form, art: "vermerkt" as const, ...x })));
   }
   return result;
+}
+
+/**
+ * Vermerkte Umsatzsteuererklärung mit festgehaltenen Zahlen: jede Zahl außer Vorauszahlungen und Abschlusszahlung gegen
+ * heute. Mit bestätigter Abweichung sind sie überholt, sobald Haben die Steuer laut Protokoll rechnet (Abschlusszahlung
+ * laut Protokoll plus die damaligen Vorauszahlungen).
+ */
+async function ustVermerkZeilen(year: number, gerechnet: Record<string, number>, amount?: number, berechnet?: number): Promise<ErklaertAbweichung[]> {
+  const heute = await gerechneteZahlen("ust", year);
+  if (berechnet !== undefined && amount !== undefined && heute.steuer === amount + (gerechnet.vorauszahlungen ?? 0)) return [];
+  return vergleich(gerechnet, heute, NICHT_AUS_DEM_JOURNAL).map((x) => ({ year, form: "ust" as const, art: "vermerkt" as const, ...x }));
 }
 
 /** Abweichungen der übermittelten bzw. vermerkten Umsatzsteuererklärung und Anlage EÜR der Jahre `years` */

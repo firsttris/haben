@@ -600,6 +600,9 @@ describe.skipIf(!testDatabaseUrl)("Abgleich im Journal (Postgres)", () => {
           ),
         );
         expect(jahr.hinweise).toContainEqual(hinweis);
+        // Weniger ausgewiesen als Netto mal Satz: kein Mehrbetrag nach § 14c, abziehbar ist der ausgewiesene Betrag
+        expect(jahr.hinweise.join()).toMatch(/§ 15 Abs\. 1 Satz 1 Nr\. 1 UStG/);
+        expect(jahr.hinweise.join()).not.toMatch(/§ 14c/);
         const februar = await abgleich.vatAbgleich({ year: 2026, month: 2 });
         expect(abgleich.abgleichIssues(februar)).toEqual([{ tone: "info", text: hinweis, link: "/konten" }]);
       }, 60_000);
