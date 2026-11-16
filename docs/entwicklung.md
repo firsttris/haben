@@ -224,7 +224,7 @@ bun run e2e barrierefreiheit  # eine Datei
 
 Playwright startet selbst die Server ab Port 3100 (`E2E_PORT`), leert vorher die Datenbanken und spielt die Migrationen ein; lokal ist das der Entwicklungsserver, in der CI der gebaute (`E2E_SERVER_COMMAND`). Die Datenbanken der eigenen Durchläufe legt `e2e/reset-db.ts` neben der genannten an; dafür braucht der Benutzer `CREATEDB`. Chromium kommt einmalig mit `bun --bun playwright install chromium` in `apps/web`, oder ein vorhandenes über `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
-Für den vollständigen Browserlauf mit getrennten App-Rollen braucht die eigene Testinstanz `max_connections=250`; die CI setzt dies bei der Initialisierung. Die parallelen Server und zusätzliche Server für Beenden und verzögerte Anfragen überschreiten das Standardlimit von 100 Verbindungen. Diese Einstellung betrifft nur die Testdatenbank.
+Für den vollständigen Browserlauf mit getrennten App-Rollen braucht die eigene Testinstanz `max_connections=300`; die CI setzt dies bei der Initialisierung. Jeder Durchlauf startet einen eigenen Server mit bis zu zehn Verbindungen, dazu kommen zusätzliche Server für Beenden und verzögerte Anfragen. Diese Einstellung betrifft nur die Testdatenbank.
 
 Die Tests sind auf Projekte in `apps/web/playwright.config.ts` verteilt; was eine Datei prüft, steht in ihrem Kopf:
 
