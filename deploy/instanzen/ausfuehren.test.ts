@@ -59,6 +59,14 @@ describe("bunAusfuehren", () => {
     expect(r.code).toBe(ZEITLIMIT);
   });
 
+  it("kommt nach dem Zeitlimit auch zurück, wenn der Befehl SIGTERM übergeht und die Ausgabe offen hält", async () => {
+    // Wie die docker-CLI: Sie endet beim ersten SIGTERM nicht, und das Plugin docker-compose hält stdout offen
+    const start = Date.now();
+    const r = await bunAusfuehren(["/bin/sh", "-c", "trap '' TERM; sleep 10"], { cwd: "/", env: {}, zeitlimit: 100 });
+    expect(r.code).toBe(ZEITLIMIT);
+    expect(Date.now() - start).toBeLessThan(4000);
+  });
+
   it("lässt einen Befehl innerhalb des Zeitlimits unberührt", async () => {
     expect(await bunAusfuehren(["/bin/sh", "-c", "exit 3"], { cwd: "/", env: {}, zeitlimit: 5000 })).toEqual({ code: 3, stdout: "", stderr: "" });
   });
