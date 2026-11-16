@@ -32,6 +32,9 @@ describe("parseEuro", () => {
     // Leerzeichen als Tausendertrenner ist eindeutig, wenn danach je drei Ziffern folgen
     ["1 234,56", 123456],
     ["1 234 567 €", 123456700],
+    // Auch mit schmalem Leerzeichen (U+2009), etwa aus einem PDF kopiert; bisher schon gelesen
+    ["1 234,56", 123456],
+    ["12,50 €", 1250],
     // Vorzeichen vorn, auch vor der Währung
     ["+12,50", 1250],
     ["- 12,50 €", -1250],
