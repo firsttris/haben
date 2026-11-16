@@ -141,4 +141,3 @@ export {
   type TextBlock,
   type TextBlockInput,
 } from "./text-blocks.ts";
-export { keineVorauszahlungenAusFormular } from "./taxpayer.ts";

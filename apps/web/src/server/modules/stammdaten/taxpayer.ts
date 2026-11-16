@@ -45,11 +45,3 @@ export async function saveTaxpayer(actor: string, input: TaxpayerInput): Promise
   await withActor(actor, (tx) => tx.update(schema.company).set({ taxpayer: data, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
   return data;
 }
-
-/**
- * Wert des Kästchens „Keine Einkommensteuer-Vorauszahlungen festgesetzt“ aus dem Formular. Gesetzt ist nur "on"; sonst
- * wird das Feld weggelassen, denn die Bedeutung hängt an seinem Fehlen und nicht an einem abgelegten false.
- */
-export function keineVorauszahlungenAusFormular(wert: FormDataEntryValue | null): true | undefined {
-  return wert === "on" ? true : undefined;
-}

@@ -26,7 +26,6 @@ import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
-import { keineVorauszahlungenAusFormular } from "../../server/modules/stammdaten/index.ts";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
@@ -915,7 +914,7 @@ function TaxpayerForm() {
               veranlagung,
               verheiratetSeit: zusammen && text("verheiratetSeit") ? text("verheiratetSeit") : undefined,
               // Nur setzen, nie auf false ablegen: die Bedeutung hängt am Fehlen des Feldes
-              keineVorauszahlungen: keineVorauszahlungenAusFormular(form.get("keineVorauszahlungen")),
+              keineVorauszahlungen: form.get("keineVorauszahlungen") === "on" ? true : undefined,
             }
           : { ...taxpayer, a: person("a") },
       });

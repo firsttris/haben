@@ -123,17 +123,13 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     await sql`delete from vat_frequencies where year = 2025`;
   });
 
-  it("übernimmt den Haken aus dem Formular und lässt ihn beim Abwählen weg (#1240)", async () => {
-    // Was das Formular schickt: "on" ist gesetzt, alles andere heißt weglassen
-    expect(taxpayer.keineVorauszahlungenAusFormular("on")).toBe(true);
-    expect(taxpayer.keineVorauszahlungenAusFormular(null)).toBeUndefined();
-
+  it("speichert den Haken und lässt ihn beim Abwählen weg (#1240)", async () => {
     const person = { idnr: "65929970489", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" };
-    await taxpayer.saveTaxpayer(actor, { a: person, veranlagung: "einzel", keineVorauszahlungen: taxpayer.keineVorauszahlungenAusFormular("on") });
+    await taxpayer.saveTaxpayer(actor, { a: person, veranlagung: "einzel", keineVorauszahlungen: true });
     expect((await taxpayer.loadTaxpayer()).keineVorauszahlungen).toBe(true);
 
     // Abgewählt: der Schlüssel verschwindet, die übrigen Angaben bleiben
-    await taxpayer.saveTaxpayer(actor, { a: person, veranlagung: "einzel", keineVorauszahlungen: taxpayer.keineVorauszahlungenAusFormular(null) });
+    await taxpayer.saveTaxpayer(actor, { a: person, veranlagung: "einzel", keineVorauszahlungen: undefined });
     const danach = await taxpayer.loadTaxpayer();
     expect(danach).not.toHaveProperty("keineVorauszahlungen");
     expect(danach.a?.vorname).toBe("Max");
