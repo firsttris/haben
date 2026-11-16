@@ -81,6 +81,14 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
   });
 
   it("lässt die Vorauszahlungshinweise weg, wenn keine festgesetzt sind (#1240)", async () => {
+    // Ausgangslage: alles außer den Vorauszahlungen, damit der Test auch Umsatzsteuer und Sondervorauszahlung abdeckt
+    const vorher = await fristen.listFristen("2026-10-03");
+    const andereArten = vorher
+      .filter((f) => f.art !== "vorauszahlung")
+      .map((f) => f.id)
+      .sort();
+    expect(vorher.some((f) => f.art === "vorauszahlung")).toBe(true);
+
     await taxpayer.saveTaxpayer(actor, {
       a: { idnr: "65929970489", anrede: "Herrn", vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" },
       keineVorauszahlungen: true,
@@ -89,6 +97,13 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     expect((await taxpayer.loadTaxpayer()).keineVorauszahlungen).toBe(true);
     const list = await fristen.listFristen("2026-10-03");
     expect(list.filter((f) => f.art === "vorauszahlung")).toEqual([]);
+    // Nur die Vorauszahlungen fallen weg: Umsatzsteuer-Voranmeldungen, Sondervorauszahlung und Erklärungen bleiben
+    expect(
+      list
+        .filter((f) => f.art !== "vorauszahlung")
+        .map((f) => f.id)
+        .sort(),
+    ).toEqual(andereArten);
     // Die Erklärung bleibt, nur die Zahlungshinweise fallen weg
     expect(list.some((f) => f.id === "est-2026")).toBe(true);
     // Und der Kalenderexport enthält keinen Vorauszahlungstermin
