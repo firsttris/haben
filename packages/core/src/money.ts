@@ -69,8 +69,10 @@ export function toCsv(rows: (string | Cents)[][]): string {
   return `\ufeff${rows.map((r) => r.map((v) => (typeof v === "number" ? csvDecimal(v) : csvText(v))).join(";")).join("\r\n")}\r\n`;
 }
 
-// Vorzeichen und Währung vorn, in beliebiger Reihenfolge, die Zahl, die Währung hinten; Leerzeichen dazwischen erlaubt
-const AMOUNT = /^([-+]?)\s*(€|EUR)?\s*([-+]?)\s*([\d.,   ]+?)\s*(€|EUR)?$/i;
+// Vorzeichen und Währung vorn, in beliebiger Reihenfolge, die Zahl, die Währung hinten. Leerraum steht nur direkt hinter
+// Vorzeichen oder Währung, vor der Währung hinten und in der Zahl vor einer Ziffer: So fällt keiner zwei Stellen des
+// Ausdrucks zu, und eine lange Eingabe ohne Betrag scheitert in linearer Zeit statt nach allen Aufteilungen.
+const AMOUNT = /^(?:([-+])\s*)?(?:(€|EUR)\s*)?(?:([-+])\s*)?(\d(?:[\d.,]|[   ](?=\d))*)(?:\s*(€|EUR))?$/i;
 // Dezimalkomma; Tausender in Dreiergruppen, getrennt durch Punkt oder Leerzeichen, immer dasselbe Zeichen
 const GERMAN_NUMBER = /^(\d{1,3}(?:([.   ])\d{3})(?:\2\d{3})*|\d+)(?:,(\d{1,2}))?$/;
 // Dezimalpunkt, nur ohne Tausender und mit einer oder zwei Ziffern dahinter: „12.50“; „1.500“ sind Tausender

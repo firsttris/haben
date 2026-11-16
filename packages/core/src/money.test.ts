@@ -43,6 +43,14 @@ describe("parseEuro", () => {
     expect(parseEuro(input)).toBe(cents);
   });
 
+  it("lehnt lange Eingaben ohne Betrag in kurzer Zeit ab: Die Schnellsuche liest jede Suche damit", () => {
+    const start = performance.now();
+    for (const input of [`-${" ".repeat(150)}x`, `€${" ".repeat(150)}-x`, `${"1 ".repeat(150)}x`, `12${" ".repeat(150)}x`]) {
+      expect(parseEuro(input)).toBeNull();
+    }
+    expect(performance.now() - start).toBeLessThan(100);
+  });
+
   it("liest „-0,00“ als 0, nicht als −0", () => {
     expect(Object.is(parseEuro("-0,00"), 0)).toBe(true);
   });

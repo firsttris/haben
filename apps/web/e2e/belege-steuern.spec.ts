@@ -1202,7 +1202,7 @@ test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne aus
   // Ein vertipptes Brutto sperrt das Anlegen wie ein vertipptes Netto
   await page.getByLabel("Brutto 1", { exact: true }).fill("119,005");
   await page.getByRole("button", { name: "Dauerbeleg anlegen" }).click();
-  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveAccessibleDescription(/Trag den Betrag als Zahl ein/);
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveAccessibleDescription("Trag den Betrag ein, etwa 850,00.");
   await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
   // Haken aus nach einem Brutto: Grundlage ist wieder das Netto; ein anderer Satz rechnet es nicht aus dem verborgenen Brutto neu
   await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
@@ -1735,7 +1735,7 @@ test("Dauerfristverlängerung: Sondervorauszahlung prüfen und testweise senden,
   await expect(card).toContainText("Nicht eingetragen");
   const amount = card.getByRole("textbox", { name: "Sondervorauszahlung (Kz 38, volle Euro)" });
   await amount.fill("1.234,56");
-  await expect(card.getByText("Betrag in vollen Euro, nicht negativ.")).toBeVisible();
+  await expect(card.getByText("Trag die Sondervorauszahlung in vollen Euro ein, etwa 4.000,00.")).toBeVisible();
   await amount.fill("1.234");
   const submit = card.getByRole("form", { name: "Sondervorauszahlung an ELSTER" });
   await submit.getByRole("button", { name: "Nur prüfen" }).click();
