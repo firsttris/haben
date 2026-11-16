@@ -184,12 +184,13 @@ export async function deliveryForInvoice(invoice: {
   const target = await loadArchiveTarget();
   // Die Weitergabe an die eingestellte Adresse; sonst die letzte erfolgreiche an eine frühere, denn dort liegt die Kopie.
   // Fehlschläge an eine frühere Adresse wiederholt niemand mehr, sie zählen nicht.
-  const current = target ? sql`${d.url} = ${target.url}` : sql`false`;
+  // Ohne Ziel kein konstantes `false` im ORDER BY: Postgres lehnt eine Konstante dort ab
+  const current = target ? sql`${d.url} = ${target.url}` : null;
   const [row] = await db
     .select()
     .from(d)
-    .where(and(eq(d.invoiceId, invoice.id), or(current, eq(d.status, "uebertragen"))))
-    .orderBy(sql`${current} desc`, sql`${d.lastAttemptAt} desc`)
+    .where(and(eq(d.invoiceId, invoice.id), current ? or(current, eq(d.status, "uebertragen")) : eq(d.status, "uebertragen")))
+    .orderBy(...(current ? [sql`${current} desc`] : []), sql`${d.lastAttemptAt} desc`)
     .limit(1);
   if (row?.status === "uebertragen") return { status: "uebertragen", deliveredAt: row.deliveredAt!, httpStatus: row.httpStatus, link: row.link };
   if (row) return { status: "fehler", lastAttemptAt: row.lastAttemptAt, httpStatus: row.httpStatus, error: row.error, attempts: row.attempts };
