@@ -340,10 +340,7 @@ export async function setEinrichtung(tx: Tx, werte: Partial<Pick<Einrichtung, "a
 
 /** Rechtsform und Kleinunternehmer sind entschieden, etwa beim Speichern der Firmendaten; ohne offene Frage kein Eintrag im Audit-Log */
 export async function offeneFragenErledigt(tx: Tx): Promise<void> {
-  await tx
-    .update(schema.einrichtung)
-    .set({ offen: [], updatedAt: new Date() })
-    .where(sql`jsonb_array_length(${schema.einrichtung.offen}) > 0`);
+  await tx.update(schema.einrichtung).set({ offen: [], updatedAt: new Date() }).where(sql`jsonb_array_length(${schema.einrichtung.offen}) > 0`);
 }
 
 /**

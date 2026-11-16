@@ -26,7 +26,11 @@ async function einrichtungFuerNavigation(
 ): Promise<{ ausgeblendet: string[]; einrichtung: { fehlt: boolean; offen: OffeneFrage[] } | null }> {
   if (!company) return { ausgeblendet: [], einrichtung: null };
   const einrichtung = await loadEinrichtung();
-  const fehlt = fragenFehlen({ eingerichtet: einrichtung?.fragenAt != null, firmendatenGespeichert: company.companySavedAt !== null, firmenname: company.name });
+  const fehlt = fragenFehlen({
+    eingerichtet: einrichtung?.fragenAt != null,
+    firmendatenGespeichert: company.companySavedAt !== null,
+    firmenname: company.name,
+  });
   return { ausgeblendet: einrichtung?.ausgeblendeteBereiche ?? [], einrichtung: { fehlt, offen: einrichtung?.offen ?? [] } };
 }
 
