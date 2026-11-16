@@ -204,6 +204,17 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
       expect({ ...q, zw: await zw() }).toEqual({ journal: [0, doc!.tax, 0], nebenbuecher: [0, doc!.tax, 0], zw: 0 });
     });
 
+    // Vorkasse vor dem Rechnungsdatum: abziehbar erst, wenn Rechnung und Zahlung vorliegen (§ 15 Abs. 1 Satz 1 Nr. 1
+    // Satz 3 UStG; UStAE 15.3 Abs. 1 Satz 2: Zeitraum, in dem erstmalig beide Voraussetzungen erfüllt sind), also im
+    // Monat der Rechnung, nicht im Monat der Zahlung. Gefunden in der Selbstprüfung von TheLord83, Frage 2
+    it(`${n} Zahlung vor dem Rechnungsdatum: Vorsteuer im Monat der Rechnung, Journal wie Nebenbücher`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+      await zahlung(id, -3_856, "2026-10-30");
+      const q = await beideQuellen(M([2026, 10], 3));
+      expect({ ...q, zw: await zw() }).toEqual({ journal: [0, 616, 0], nebenbuecher: [0, 616, 0], zw: 0 });
+    });
+
     it(`${n} Privatanteil, zwei Steuersätze, Teilzahlung vor der Ausführung: kumuliert gerundet`, async () => {
       await firma({ journalAb: 2026, ...p });
       const id = await beleg({
