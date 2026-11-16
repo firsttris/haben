@@ -1,4 +1,4 @@
-import type { Cents } from "@haben/core";
+import type { BasisPoints, Cents } from "@haben/core";
 import { StatementParseError } from "./errors.ts";
 
 /** Fasst Leerraum zusammen; Banken füllen Zeilenumbrüche im Verwendungszweck mit Leerzeichen auf. */
@@ -19,10 +19,10 @@ export function normalizeHeader(value: string): string {
     .replace(/[^a-z0-9äöüß]/g, "");
 }
 
-function joinCents(negative: boolean, whole: string, fraction: string): Cents {
-  const cents = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
-  if (!Number.isSafeInteger(cents)) return Number.NaN;
-  return negative && cents !== 0 ? -cents : cents;
+function joinHundredths(negative: boolean, whole: string, fraction: string): number {
+  const hundredths = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+  if (!Number.isSafeInteger(hundredths)) return Number.NaN;
+  return negative && hundredths !== 0 ? -hundredths : hundredths;
 }
 
 function stripAmount(input: string): { negative: boolean; body: string } {
@@ -48,11 +48,20 @@ function stripAmount(input: string): { negative: boolean; body: string } {
  * "23.418,72 EUR", "12,5", "100". Gibt null zurück, wenn die Eingabe kein Betrag ist.
  */
 export function parseGermanAmount(input: string): Cents | null {
+  return parseGermanHundredths(input);
+}
+
+/** Steuersatz in Prozent, geschrieben wie ein Betrag ohne „%“ ("19", "19,00", "5,5"), in Basispunkten. */
+export function parseGermanRate(input: string): BasisPoints | null {
+  return parseGermanHundredths(input);
+}
+
+function parseGermanHundredths(input: string): number | null {
   const { negative, body } = stripAmount(input);
   if (!/^(\d{1,3}(\.\d{3})+|\d+)(,\d{1,2})?$/.test(body)) return null;
   const [whole = "0", fraction = ""] = body.replace(/\./g, "").split(",");
-  const cents = joinCents(negative, whole, fraction);
-  return Number.isNaN(cents) ? null : cents;
+  const hundredths = joinHundredths(negative, whole, fraction);
+  return Number.isNaN(hundredths) ? null : hundredths;
 }
 
 /** Liest einen Betrag mit Dezimalpunkt in Cent: "-12.5", "1234.56", "1,234.56". */
@@ -60,7 +69,7 @@ export function parseDotAmount(input: string): Cents | null {
   const { negative, body } = stripAmount(input);
   if (!/^(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?$/.test(body)) return null;
   const [whole = "0", fraction = ""] = body.replace(/,/g, "").split(".");
-  const cents = joinCents(negative, whole, fraction);
+  const cents = joinHundredths(negative, whole, fraction);
   return Number.isNaN(cents) ? null : cents;
 }
 

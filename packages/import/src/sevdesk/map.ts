@@ -1,3 +1,4 @@
+import type { Cents } from "@haben/core";
 import { lexDate, lexToBasisPoints, lexToCents, type ImportedPayments, type LegacyVoucher, type LegacyVoucherType } from "../lexoffice/map.ts";
 import type {
   SevCheckAccountTransactionLog,
@@ -43,7 +44,7 @@ export function sevNumber(value: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function cents(value: string | number | null | undefined): number {
+function cents(value: string | number | null | undefined): Cents {
   return lexToCents(sevNumber(value));
 }
 
@@ -114,7 +115,7 @@ export function firstByContact<T extends { contact?: { id: string | number } | n
 
 // ------------------------------------------------------------ Steuersätze
 
-function positionAmounts(p: SevDocumentPos | SevVoucherPos): { net: number; tax: number } {
+function positionAmounts(p: SevDocumentPos | SevVoucherPos): { net: Cents; tax: Cents } {
   const net = cents(p.sumNet ?? p.sumNetAccounting);
   const grossRaw = p.sumGross ?? p.sumGrossAccounting;
   const taxRaw = p.sumTax ?? p.sumTaxAccounting;
@@ -131,7 +132,7 @@ const PAID = 1000;
  * ist payDate laut sevDesk-OpenAPI der Tag der Zahlung (https://api.sevdesk.de/openapi.yaml) und wird paidDate;
  * fehlt es, bleibt paidDate leer statt des Belegdatums.
  */
-function payments(statusCode: number, gross: number, paidAmount: string | number | null | undefined, payDate: string | null | undefined): ImportedPayments {
+function payments(statusCode: number, gross: Cents, paidAmount: string | number | null | undefined, payDate: string | null | undefined): ImportedPayments {
   const absGross = Math.abs(gross);
   let paid = Math.min(Math.abs(cents(paidAmount)), absGross);
   if (statusCode === PAID) paid = absGross;
@@ -144,13 +145,13 @@ function payments(statusCode: number, gross: number, paidAmount: string | number
   };
 }
 
-/** Einzelzahlung aus sevDesk: zugeordneter Betrag in Cent mit Vorzeichen der Zahlungsrichtung */
+/** Einzelzahlung aus sevDesk: zugeordneter Betrag mit Vorzeichen der Zahlungsrichtung */
 export interface SevPaymentItem {
   sourceId: string;
   transactionId: string | null;
   accountId: string | null;
   date: string;
-  amount: number;
+  amount: Cents;
 }
 
 const LOG_OBJECTS: Record<string, string> = { Invoice: "invoice", CreditNote: "creditnote", Voucher: "voucher" };

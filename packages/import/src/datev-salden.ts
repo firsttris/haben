@@ -1,4 +1,4 @@
-import { ACCOUNTS, postenOf } from "@haben/core";
+import { ACCOUNTS, type Cents, postenOf } from "@haben/core";
 import { AUTOMATIC, BU_RATES, datevAccountKind, isPersonenkonto, shortAccount, type DatevBooking, type Kontenrahmen } from "./datev.ts";
 
 /*
@@ -13,8 +13,8 @@ export type DatevSaldenBooking = Pick<DatevBooking, "amount" | "side" | "account
 
 export interface DatevSaldo {
   account: string;
-  /** Soll − Haben in Cent */
-  saldo: number;
+  /** Soll − Haben */
+  saldo: Cents;
 }
 
 /**
@@ -72,8 +72,8 @@ function steuerAnteil(
  * zusätzlich teilt ein BU-Schlüssel auch beim Anlagevermögen die Steuer ab, sonst stünde eine Anlage brutto in der Bilanz.
  */
 export function datevSalden(bookings: readonly DatevSaldenBooking[], kontenrahmen: Kontenrahmen): DatevSaldo[] {
-  const salden = new Map<string, number>();
-  const add = (account: string, amount: number) => salden.set(account, (salden.get(account) ?? 0) + amount);
+  const salden = new Map<string, Cents>();
+  const add = (account: string, amount: Cents) => salden.set(account, (salden.get(account) ?? 0) + amount);
   for (const b of bookings) {
     const accountLength = b.accountLength || 4;
     const buKey = b.buKey.trim().replace(/^0+/, "");

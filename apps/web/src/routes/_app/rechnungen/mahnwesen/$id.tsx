@@ -7,6 +7,7 @@ import {
   formatHundredths,
   dunningFeeError,
   parseEuro,
+  type BasisPoints,
   type CustomerType,
   type DunningLevel,
 } from "@haben/core";
@@ -33,7 +34,7 @@ export const Route = createFileRoute("/_app/rechnungen/mahnwesen/$id")({
 });
 
 /** Basispunkte als Prozent: 127 → „1,27 %“ */
-const percent = (basisPoints: number) => `${formatHundredths(basisPoints)} %`;
+const percent = (basisPoints: BasisPoints) => `${formatHundredths(basisPoints)} %`;
 
 function NewDunningPage() {
   const draft = Route.useLoaderData();
