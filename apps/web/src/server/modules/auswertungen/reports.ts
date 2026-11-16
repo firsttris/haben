@@ -482,14 +482,22 @@ function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 
-/** Erledigt je Beleg: Zuordnungen und Ausbuchungen (erhaltenes Skonto), wie im Bankabgleich */
-async function paidSums(ids: string[]) {
+/**
+ * Erledigt je Beleg: Zuordnungen und Ausbuchungen (erhaltenes Skonto), wie im Bankabgleich. Mit `bis` zählt nur, was
+ * bis einschließlich dieses Tages wirkt (Abschlussstand, #1110): Zuordnungen an ihrem eigenen Tag, sonst am Buchungstag
+ * des Umsatzes (#782), Ausbuchungen und Verrechnungen an ihrem Datum.
+ */
+async function paidSums(ids: string[], bis?: string) {
   if (ids.length === 0) return new Map<string, number>();
+  const zuordnungen = bis
+    ? sql`select a.document_id as id, a.amount from allocations a join bank_transactions b on b.id = a.transaction_id
+          where a.document_id in ${ids} and coalesce(a.date, b.booking_date) <= ${bis}`
+    : sql`select document_id as id, amount from allocations where document_id in ${ids}`;
   const rows = await db.execute<{ id: string; paid: string }>(
     sql`select id, sum(amount) as paid from (
-          select document_id as id, amount from allocations where document_id in ${ids}
-          union all select document_id as id, amount from write_offs where document_id in ${ids}
-          union all select document_id as id, amount from document_settlements where document_id in ${ids}
+          ${zuordnungen}
+          union all select document_id as id, amount from write_offs where document_id in ${ids}${bis ? sql` and date <= ${bis}` : sql``}
+          union all select document_id as id, amount from document_settlements where document_id in ${ids}${bis ? sql` and date <= ${bis}` : sql``}
         ) settled group by 1`,
   );
   return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
@@ -499,12 +507,15 @@ async function paidSums(ids: string[]) {
  * Offene Forderungen (festgeschriebene Rechnungen und Korrekturen, nicht storniert, dazu zu erstattende Beträge aus
  * Stornos bezahlter Rechnungen) und offene Verbindlichkeiten (gebuchte, über die Bank zu zahlende Belege), nach
  * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
+ *
+ * Mit `bis` gilt der Abschlussstand zum Stichtag (#1110): `today` ist dann derselbe Tag, und es zählt nur, was bis
+ * einschließlich dahin wirkt — spätere Zahlungen fehlen, Belege und Rechnungen, die es damals noch nicht gab, auch.
  */
-export async function openPositions(today: string) {
+export async function openPositions(today: string, { bis }: { bis?: string } = {}) {
   const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(today);
   const separate = new Set(invoiceIds);
   const receivables: OpenPosition[] = [
-    ...(await listInvoices(today))
+    ...(await listInvoices(today, undefined, db, bis))
       .filter((i) => i.status === "final" && i.open !== 0 && !separate.has(i.id))
       .map((i) => ({
         id: i.id,
@@ -532,8 +543,19 @@ export async function openPositions(today: string) {
     })
     .from(schema.documents)
     // Storniert ist nichts mehr zu zahlen (#237)
-    .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank"), documentNotCancelled()));
-  const documentPaid = await paidSums(documents.map((d) => d.id));
+    .where(
+      and(
+        eq(schema.documents.status, "gebucht"),
+        eq(schema.documents.payment, "bank"),
+        documentNotCancelled(),
+        // Belege, die es am Stichtag noch nicht gab, stehen im Abschlussstand nicht (#1110)
+        bis ? sql`coalesce(${schema.documents.documentDate}, (${schema.documents.uploadedAt} at time zone 'Europe/Berlin')::date) <= ${bis}` : undefined,
+      ),
+    );
+  const documentPaid = await paidSums(
+    documents.map((d) => d.id),
+    bis,
+  );
   const payables: OpenPosition[] = documents
     .map((d) => {
       const date = d.documentDate ?? todayInGermany(d.uploadedAt);
@@ -554,7 +576,7 @@ export async function openPositions(today: string) {
     .filter((d) => d.open !== 0);
 
   // Zahllast (positiv) und Erstattung (negativ) abgegebener Voranmeldungen; id ist der Zeitraum für den Link
-  const vat: OpenPosition[] = (await ustvaPosten()).posten
+  const vat: OpenPosition[] = (await ustvaPosten(db, { bis })).posten
     .filter((p) => p.offen !== 0)
     .map((p) => ({
       id: periodKey(p),

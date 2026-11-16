@@ -12,7 +12,7 @@ import {
   vatPostenLabel,
   vatPostenStand,
 } from "@haben/core";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { today } from "../../today.ts";
@@ -53,13 +53,21 @@ async function filedReturns(q: Db | Tx) {
  * Wirksame Zahlungen „Umsatzsteuer an das Finanzamt“: aufgehobene Zuordnungen und ihre Gegenzeilen fallen weg, so
  * gleicht eine aufgehobene Lastschrift keinen Posten aus.
  */
-async function vatPayments(q: Db | Tx): Promise<VatPayment[]> {
+async function vatPayments(q: Db | Tx, bis?: string): Promise<VatPayment[]> {
   const a = schema.allocations;
   const rows = await q
     .select({ id: a.id, vatReturnId: a.vatReturnId, amount: a.amount, bookingDate: schema.bankTransactions.bookingDate })
     .from(a)
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, a.transactionId))
-    .where(and(eq(a.kind, "ustVorauszahlung"), isNull(a.reversesId), sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id})`));
+    .where(
+      and(
+        eq(a.kind, "ustVorauszahlung"),
+        isNull(a.reversesId),
+        sql`not exists (select 1 from allocations r where r.reverses_id = ${a.id})`,
+        // Abschlussstand (#1110): Zahlungen nach dem Stichtag zählen nicht
+        bis ? lte(schema.bankTransactions.bookingDate, bis) : undefined,
+      ),
+    );
   return rows;
 }
 
@@ -77,10 +85,13 @@ async function altbestand(q: Db | Tx, returns: { id: string; sentAt: Date | null
  * Stand aller Posten: Betrag, Fälligkeit, Zahlungen und was offen ist. Altbestand ohne Zahlung mit Bezug fehlt
  * (ohneAltbestand); `mitAltbestand` nimmt ihn für eine ausdrückliche Zuordnung mit Bezug dazu.
  */
-export async function ustvaPosten(q: Db | Tx = db, { mitAltbestand = false } = {}): Promise<UstvaPostenUebersicht> {
+export async function ustvaPosten(
+  q: Db | Tx = db,
+  { mitAltbestand = false, bis }: { mitAltbestand?: boolean; bis?: string } = {},
+): Promise<UstvaPostenUebersicht> {
   // Nacheinander: in einer Transaktion teilen sich die Abfragen eine Verbindung
   const returns = await filedReturns(q);
-  const payments = await vatPayments(q);
+  const payments = await vatPayments(q, bis);
   const company = await loadCompany(q);
   const dauerfrist = await loadDauerfrist(q);
   const alle = vatPosten(returns, (period) => dueDate(period, company.bundesland, dauerfristActive(dauerfrist, period.year)));

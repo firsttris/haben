@@ -168,3 +168,46 @@ test("Ohne Vorjahresposten steht die Zeile nicht da", async () => {
   // Der Beleg aus dem Vorjahr ist an diesem Stichtag nicht aus einem früheren Jahr
   await expect(verbindlichkeiten(page).getByText(/Posten? aus einem früheren Jahr|Posten aus früheren Jahren/)).toHaveCount(0);
 });
+
+/*
+ * Der Schalter „Heute“ / „31.12.“ (#1110, Schritt 2): Er steht für ein vergangenes Jahr in der Jahresleiste, der Stand
+ * steht in der Adresse, und ein Wechsel des Jahres nimmt ihn mit — eine Ansicht zeigt durchgehend denselben Tag.
+ * Ob Zahlungen nach dem Stichtag zurückgerechnet werden, prüft stichtag-offene-posten.test.ts an der Datenbank;
+ * hier geht es um die Bedienung und die Adresse.
+ */
+test("Der Stichtag 31.12. steht in der Adresse und bleibt beim Jahreswechsel", async () => {
+  await page.setViewportSize(BREITEN.desktop);
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto(`/auswertungen?jahr=${BELEG_JAHR}`);
+  await page.waitForLoadState("networkidle");
+
+  const schalter = page.getByRole("group", { name: "Stand der offenen Posten" });
+  const heute = schalter.getByRole("link", { name: "Heute", exact: true });
+  const jahresende = schalter.getByRole("link", { name: `31.12.${BELEG_JAHR}`, exact: true });
+  await expect(schalter).toBeVisible();
+  await expect(heute).toHaveAttribute("aria-current", "page");
+  expect(await jahresende.getAttribute("aria-current")).toBeNull();
+
+  await jahresende.click();
+  await page.waitForLoadState("networkidle");
+  expect(new URL(page.url()).searchParams.get("stichtag")).toBe("31.12.");
+  await expect(jahresende).toHaveAttribute("aria-current", "page");
+  expect(await heute.getAttribute("aria-current")).toBeNull();
+  await expect(page.getByText(`Stand 31.12.${BELEG_JAHR}: die offenen Posten`, { exact: false })).toBeVisible();
+
+  // Der Abschlussstand zeigt dieselben Posten: am 31.12. waren Rechnung und Beleg noch offen
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(`Auswertungen ${BELEG_JAHR}`);
+  await expect(zeile(page, BELEG_JAHR)).toHaveCount(1);
+  await expect(verbindlichkeit(page)).toHaveCount(1);
+
+  // Ein anderes Jahr erbt den Stichtag; im laufenden Jahr gibt es den Schalter nicht
+  await page.getByRole("navigation", { name: "Jahr wählen" }).getByRole("link", { name: String(BELEG_JAHR - 1), exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  const adresse = new URL(page.url());
+  expect(adresse.searchParams.get("jahr")).toBe(String(BELEG_JAHR - 1));
+  expect(adresse.searchParams.get("stichtag")).toBe("31.12.");
+
+  await page.goto(`/auswertungen?jahr=${JAHR}`);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("group", { name: "Stand der offenen Posten" })).toHaveCount(0);
+});

@@ -42,7 +42,7 @@ import {
   outgoingTaxDetailConflict,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
@@ -767,8 +767,8 @@ export type { InvoiceListStatus };
  * im Bankabgleich. Mit `id` nur diese Rechnung. Rechnungsliste, offene Posten, Mahnwesen und die Sperre der
  * Firmendaten zählen über diese Funktion, damit „offen“ überall dasselbe heißt.
  */
-export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
-  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
+export function listInvoices(today: string, id?: string, q: Db | Tx = db, bis?: string) {
+  return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q, bis);
 }
 
 /** Spalten der Rechnungsliste; die Schnellsuche liest dieselben (search.ts) */
@@ -815,20 +815,23 @@ export function invoiceListQuery(fields: typeof invoiceListFields, filter: SQL |
     .$dynamic();
 }
 
-async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db) {
-  return withListStatus(await invoiceListQuery(invoiceListFields, filter, q), today, q);
+async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, bis?: string) {
+  // Abschlussstand (#1110): Rechnungen, die es am Stichtag noch nicht gab, stehen dort nicht
+  return withListStatus(await invoiceListQuery(invoiceListFields, bis ? and(filter, lte(schema.invoices.issueDate, bis)) : filter, q), today, q, bis);
 }
 
 /** Zeilen der Rechnungsliste mit Zahlungen, offenem Betrag und Status */
-export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db) {
+export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db, bis?: string) {
   if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
+    bis,
   );
   const losses = await invoiceLosses(
     rows.filter((r) => r.status === "final").map((r) => r.id),
     q,
+    bis,
   );
   const paperStornos = await paperCancellationIds(
     rows.filter((r) => r.kind === "storno").map((r) => r.id),

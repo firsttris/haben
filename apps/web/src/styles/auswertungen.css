@@ -56,6 +56,8 @@
 .open-table td.ellipsis { max-width: 260px; }
 /* Zeile über den offenen Posten: was aus früheren Jahren stammt (#1110) */
 .vorjahres-hinweis { color: var(--info-ink); }
+/* Stand zum Stichtag (#1110): der Schalter steht in der Jahresleiste, dieser Hinweis unter der Kopfzeile */
+.stand-hinweis { margin: 0 0 12px; }
 /* Spalte „Jahr“: das gewählte Jahr leise, ein Vorjahr deutlich */
 .open-table td.jahr { white-space: nowrap; color: var(--muted); }
 .open-table td.jahr.vorjahr { color: var(--ink); font-weight: 600; }

@@ -1,0 +1,159 @@
+import type postgres from "postgres";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+
+/*
+ * Offene Posten zum Stichtag 31.12. (#1110, Schritt 2): Die Ansicht zeigt den Abschlussstand des gewählten Jahres.
+ * „Offen“ und „überfällig“ rechnen dann zum Jahresende, und es zählt nur, was bis einschließlich dieses Tages wirkt:
+ * Zahlungen danach zählen nicht (der Posten ist wieder offen), Belege und Rechnungen, die es damals noch nicht gab,
+ * stehen nicht in der Liste. Der Stand von heute bleibt unverändert (ohne `bis`).
+ */
+
+function dkbCsv(rows: string[][]) {
+  const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom 01.03.2026:";"10.000,00 €"\n""\n`;
+  const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
+  const body = rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n");
+  return new TextEncoder().encode(`﻿${header}${columns}${body}\n`);
+}
+
+const row = (date: string, party: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  party,
+  party,
+  purpose,
+  amount.startsWith("-") ? "Ausgang" : "Eingang",
+  // IBAN des Gegenkontos: leer, weil der Prüfer vor dem Commit keine echten IBANs duldet
+  "",
+  amount,
+  "",
+  "",
+  "",
+];
+
+describe.skipIf(!testDatabaseUrl)("Offene Posten zum Stichtag (Postgres)", () => {
+  let bank: typeof import("../bank/bank.ts");
+  let invoices: typeof import("../rechnungen/invoices.ts");
+  let contacts: typeof import("../stammdaten/contacts.ts");
+  let documents: typeof import("../belege/documents.ts");
+  let reports: typeof import("./reports.ts");
+  let sql: postgres.Sql;
+  const actor = "test-user";
+
+  beforeAll(async () => {
+    sql = await setupTestDb();
+    bank = await import("../bank/bank.ts");
+    invoices = await import("../rechnungen/invoices.ts");
+    contacts = await import("../stammdaten/contacts.ts");
+    documents = await import("../belege/documents.ts");
+    reports = await import("./reports.ts");
+  }, 30_000);
+
+  afterAll(async () => {
+    await sql?.end();
+  });
+
+  beforeEach(async () => {
+    await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+      document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
+      values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
+              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
+  });
+
+  /** Gebuchter Beleg, über die Bank zu zahlen (`payment: "bank"`), also eine offene Verbindlichkeit */
+  async function bookedDocument(marker: number, fields: { supplierName: string; documentDate: string; net: number; tax: number }) {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, marker]), filename: `beleg-${marker}.jpg` });
+    await documents.updateDocument(actor, id, {
+      supplierName: fields.supplierName,
+      supplierUstId: "",
+      invoiceNumber: `B-${marker}`,
+      documentDate: fields.documentDate,
+      dueDate: null,
+      category: "software",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: fields.net, tax: fields.tax }],
+    });
+    await documents.bookDocument(actor, id);
+    return id;
+  }
+
+  it("rechnet zum 31.12.: Zahlungen danach zählen nicht, spätere Belege fehlen", async () => {
+    const contact = await contacts.createContact(actor, {
+      kundennummer: "",
+      name: "Nordwerk Software GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "buchhaltung@nordwerk.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    // 1.190,00 € brutto, fällig 14 Tage nach dem 03.11.2025 (Montag)
+    const draft = await invoices.createDraft(actor, {
+      contactId: contact.id,
+      issueDate: "2025-11-03",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      lines: [{ description: "Wartung Oktober", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+    });
+    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    // Beleg aus dem Dezember 2025, im Februar 2026 bezahlt
+    const altBeleg = await bookedDocument(1, { supplierName: "Hafenwerft Druck GmbH", documentDate: "2025-12-10", net: 25_000, tax: 4_750 });
+    // Beleg aus dem Januar 2026: den gab es am 31.12.2025 noch nicht
+    const neuBeleg = await bookedDocument(2, { supplierName: "JetBrains", documentDate: "2026-01-05", net: 10_000, tax: 1_900 });
+
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          // genau am Stichtag: zählt zum Abschlussstand dazu („bis einschließlich“)
+          row("31.12.25", "Nordwerk Software GmbH", `RE ${invoice.number}`, "19,00"),
+          // danach: darf den Posten am 31.12.2025 nicht ausgleichen
+          row("15.01.26", "Nordwerk Software GmbH", `RE ${invoice.number}`, "1.171,00"),
+          row("02.02.26", "Hafenwerft Druck GmbH", "MF B-1", "-297,50"),
+        ]),
+        filename: "stichtag.csv",
+      },
+      null,
+    );
+    const txs = await sql`select id, amount from bank_transactions`;
+    const tx = (amount: number) => txs.find((t) => t.amount === amount)!.id as string;
+    await bank.allocate(actor, { kind: "invoice", transactionId: tx(1_900), invoiceId: invoice.id, amount: 1_900 });
+    await bank.allocate(actor, { kind: "invoice", transactionId: tx(117_100), invoiceId: invoice.id, amount: 117_100 });
+    await bank.allocate(actor, { kind: "document", transactionId: tx(-29_750), documentId: altBeleg, amount: -29_750 });
+
+    // Abschlussstand 31.12.2025: die Zahlung am Stichtag ist drin, die danach nicht; der Januar-Beleg fehlt
+    const stichtag = await reports.openPositions("2025-12-31", { bis: "2025-12-31" });
+    expect(stichtag.receivables).toEqual([
+      expect.objectContaining({
+        id: invoice.id,
+        number: invoice.number,
+        party: "Nordwerk Software GmbH",
+        gross: 119_000,
+        open: 117_100,
+        dueDate: "2025-11-17",
+        daysOverdue: 44,
+      }),
+    ]);
+    expect(stichtag.payables).toEqual([
+      expect.objectContaining({ id: altBeleg, party: "Hafenwerft Druck GmbH", gross: 29_750, open: 29_750, dueDate: "2025-12-10", daysOverdue: 21 }),
+    ]);
+    expect(stichtag.payables.some((p) => p.id === neuBeleg)).toBe(false);
+    expect(stichtag).toMatchObject({ receivablesTotal: 117_100, payablesTotal: 29_750, receivablesOverdue: 117_100, payablesOverdue: 29_750 });
+
+    // Stand von heute: die Rechnung ist bezahlt, der Altbeleg auch, der Januar-Beleg ist offen
+    const heute = await reports.openPositions("2026-03-01");
+    expect(heute.receivables).toEqual([]);
+    expect(heute.payables).toEqual([expect.objectContaining({ id: neuBeleg, party: "JetBrains", gross: 11_900, open: 11_900, daysOverdue: 55 })]);
+    expect(heute).toMatchObject({ receivablesTotal: 0, payablesTotal: 11_900 });
+  }, 30_000);
+});
