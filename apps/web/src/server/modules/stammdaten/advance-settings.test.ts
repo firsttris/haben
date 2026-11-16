@@ -24,7 +24,7 @@ vi.mock("@haben/einvoice", async (importOriginal) => {
 describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsanforderung (Postgres)", () => {
   let sql: postgres.Sql;
   let company: typeof import("./company.ts");
-  let guard: typeof import("./settings-guard.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let contacts: typeof import("./contacts.ts");
   let invoices: typeof import("../rechnungen/index.ts");
   let database: typeof import("../../db/index.ts");
@@ -36,7 +36,7 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
   beforeAll(async () => {
     sql = await setupTestDb();
     company = await import("./company.ts");
-    guard = await import("./settings-guard.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     contacts = await import("./contacts.ts");
     invoices = await import("../rechnungen/index.ts");
     database = await import("../../db/index.ts");
@@ -48,9 +48,9 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform nach festgeschriebener Anzahlungsa
   beforeEach(async () => {
     rendering.hook = null;
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung, rechtsform, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Muster GmbH', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
-        'BY', 'DE89370400440532013000', 'SKR03', 'soll', 'gmbh', 2026)`;
+        'BY', 'DE89370400440532013000', 'SKR03', 'soll', 'gmbh')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",

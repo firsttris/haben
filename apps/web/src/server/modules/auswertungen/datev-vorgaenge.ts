@@ -3,13 +3,15 @@ import { inArray, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 
 /*
- * Zu welcher Rechnung bzw. welchem Beleg eine Buchung gehört, für den DATEV-Export: Rechnungen und Belege direkt,
+ * Zu welcher Rechnung bzw. welchem Beleg eine Buchung gehört, für den DATEV-Export: Rechnungen, Belege und die Freigabe
+ * der Vorsteuer zum Leistungsdatum (freigabe, Quelle ist der Beleg) direkt,
  * Zahlungen (allocation), Ausbuchungen wie Skonto und Forderungsausfall (ausbuchung), Bareinnahmen im Kassenbuch
  * (kasse) über die zugeordnete Rechnung bzw. den Beleg und Verrechnungen zweier Belege (#274) über ihre Zeile in
  * `document_settlements`. Daraus kommen Belegfeld 1 und das Personenkonto (#327).
- * Seit #786 bucht eine Verrechnung je Belegseite (Verbindlichkeiten gegen das Verrechnungskonto, an der Gutschrift
- * zusätzlich die Umbuchung der Vorsteuer). Jede dieser Buchungen trägt die Zeile ihrer Seite als Quelle und damit den
- * Beleg, an dem das Personenkonto hängt; eine gemeinsame Sammelbuchung ohne Beleg ginge am Personenkonto vorbei.
+ * Seit #786 bucht eine Verrechnung je Belegseite (Verbindlichkeiten gegen das Verrechnungskonto, an einem Beleg mit
+ * Vorsteuer auf dem Zwischenkonto zusätzlich die Umbuchung der Vorsteuer). Jede dieser Buchungen trägt die Zeile ihrer
+ * Seite als Quelle und damit den Beleg, an dem das Personenkonto hängt; eine gemeinsame Sammelbuchung ohne Beleg ginge
+ * am Personenkonto vorbei.
  */
 
 type Entry = Pick<typeof schema.journalEntries.$inferSelect, "sourceType" | "sourceId">;
@@ -53,6 +55,9 @@ async function links(entries: readonly Entry[]): Promise<Map<string, { invoiceId
   const rows = [
     ...ids("invoice").map((id) => ({ id, invoiceId: id, documentId: null })),
     ...ids("document").map((id) => ({ id, invoiceId: null, documentId: id })),
+    // Freigabe der Vorsteuer zum Leistungsdatum (#693): Quelle ist der Beleg selbst, auch wenn dessen Buchung in einem
+    // früheren Zeitraum und damit nicht in diesem Stapel steht
+    ...ids("freigabe").map((id) => ({ id, invoiceId: null, documentId: id })),
     ...(allocationIds.length
       ? await db
           .select({ id: schema.allocations.id, invoiceId: schema.allocations.invoiceId, documentId: schema.allocations.documentId })
@@ -83,6 +88,16 @@ async function links(entries: readonly Entry[]): Promise<Map<string, { invoiceId
             .from(schema.documentSettlements)
             .where(inArray(schema.documentSettlements.id, settlementIds))
         ).map((s) => ({ id: s.id, invoiceId: null, documentId: s.documentId }))
+      : []),
+    // Verrechnung zwischen Ausgangsrechnung und Kundenkorrektur (#877): Die Buchung je Seite hängt an ihrer Zeile in
+    // invoice_settlements, die Zeile an ihrer Rechnung
+    ...(settlementIds.length
+      ? (
+          await db
+            .select({ id: schema.invoiceSettlements.id, invoiceId: schema.invoiceSettlements.invoiceId })
+            .from(schema.invoiceSettlements)
+            .where(inArray(schema.invoiceSettlements.id, settlementIds))
+        ).map((s) => ({ id: s.id, invoiceId: s.invoiceId, documentId: null }))
       : []),
   ];
   return new Map(rows.map((r) => [r.id, { invoiceId: r.invoiceId, documentId: r.documentId }]));

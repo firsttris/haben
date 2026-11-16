@@ -1,6 +1,6 @@
 import {
   type LetterheadDesign,
-  type PaymentMethod,
+  type InvoicePaymentMethod,
   computeInvoice,
   advanceUsesPayments,
   ITEM_NUMBER_MAX,
@@ -19,6 +19,8 @@ import {
   formatEuro,
   counterCircle,
   formatDocumentNumber,
+  issueDateBeforeLastFinalized,
+  type FinalizedCircleRef,
   invoiceDueDate,
   LINE_DETAIL_MAX,
   parseEuro,
@@ -26,32 +28,35 @@ import {
   parseQuantity,
   skontoFristen,
   skontoProblem,
-  TAX_TREATMENTS,
-  UNITS,
+  outgoingTaxIssues,
+  section4Note,
+  VORJAHRESGRENZE,
   type Bundesland,
   type PriceMode,
   type SkontoStufe,
   type TaxTreatment,
+  type OutgoingTaxDetails,
   type UnitLabel,
   distinctVatRates,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
+import type { UmsatzgrenzeBestaetigung } from "../lib/kleinunternehmer.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { emptyLine, type EditorLine, type LineState, type ParsedLine, parseLine, positionsFehler, sameText, toLineState } from "../lib/editor-lines.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
-import { finalizeInvoiceDraft, removeInvoiceDraft, renderDocumentPreview, saveInvoiceDraft } from "../server/functions/invoices.ts";
+import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
 import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import type { MandateOption } from "../server/modules/stammdaten/index.ts";
-import { PaymentMethodFields } from "./PaymentMethodFields.tsx";
+import { PaymentMethodFields, PaymentTermField } from "./PaymentMethodFields.tsx";
 import { ArticleCombobox, CatalogCombobox, type ArticleOption } from "./ArticleCombobox.tsx";
 import { ArticleDialog } from "./ArticleDialog.tsx";
 import type { ArticlePrefill } from "./ArticleForm.tsx";
@@ -62,7 +67,7 @@ import { ContactPersonField, type ContactPersonOption } from "./ContactPersonFie
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
-import { RenderedSheet } from "./RenderedSheet.tsx";
+import { InvoiceEditorPreview } from "./InvoiceEditorPreview.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
 import { LineKind } from "./LineKind.tsx";
 import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFields.tsx";
@@ -72,7 +77,11 @@ import { Field } from "./Field.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { unitOptions } from "../lib/units.ts";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
+import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
+import { ActionBar } from "./ActionBar.tsx";
+import { MoreActionsMenu } from "./MoreActionsMenu.tsx";
 
 interface ContactOption {
   id: string;
@@ -103,6 +112,8 @@ export interface AbschlagOption {
   gross: number;
   rates: { rate: number; base: number; tax: number }[];
   taxTreatment: TaxTreatment;
+  taxDetails: OutgoingTaxDetails | null;
+  exemptionReason: string;
   priceMode: PriceMode;
   propertyRetention: boolean;
 }
@@ -124,7 +135,7 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
 };
 
 export function InvoiceEditor({
-  id,
+  id: initialId,
   kind,
   initial,
   contacts,
@@ -135,11 +146,13 @@ export function InvoiceEditor({
   numberCounters,
   numberFormat,
   numberRunning = false,
+  lastFinalized = {},
   corrects,
   bundesland,
   kleinunternehmer,
   articles = [],
   textBlocks = [],
+  units = [],
   abschlaege = [],
   quotes = [],
   tageskurs = false,
@@ -171,6 +184,8 @@ export function InvoiceEditor({
   numberFormat: string;
   /** Zähler läuft über den Jahreswechsel weiter (#328) */
   numberRunning?: boolean;
+  /** Zuletzt festgeschriebene Rechnung je Kreis (#713) */
+  lastFinalized?: Record<number, FinalizedCircleRef>;
   corrects: { number: string | null; issueDate: string } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
@@ -179,6 +194,8 @@ export function InvoiceEditor({
   articles?: ArticleOption[];
   /** Kopf- und Fußtexte zum Einfügen */
   textBlocks?: TextBlockOption[];
+  /** Eigene Einheiten (#748) neben den festen */
+  units?: readonly string[];
   /** Offene Abschlagsrechnungen für die Schlussrechnung */
   abschlaege?: AbschlagOption[];
   /** Festgeschriebene Angebote, für den Bezug von Abschlags- und Schlussrechnungen */
@@ -198,10 +215,19 @@ export function InvoiceEditor({
   /** Ansprechpartner aller Kunden (#424), für die Auswahl unter „Kunde“ */
   contactPersons?: ContactPersonOption[];
   /** Korrektur einer Schlussrechnung: die übernommenen Abzüge, fest; Haben behält sie beim Speichern */
-  keptDeductions?: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
+  keptDeductions?: { description: string; quantity: number; unit: string; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
 }) {
+  const [neuerEntwurf, setNeuerEntwurf] = useState<string | null>(null);
+  const id = initialId ?? neuerEntwurf;
   const router = useRouter();
+  /**
+   * Neu laden und warten, bis der neue Stand angezeigt wird. Ohne `sync` endet invalidate schon mit den alten Daten und
+   * lädt im Hintergrund nach; die Seite baut den Editor danach mit dem neuen `updatedAt` neu auf und verwirft, was
+   * inzwischen geschah, etwa den Dialog von „Festschreiben“. So bleiben die Knöpfe gesperrt, bis der Editor neu steht
+   */
+  const reload = () => router.invalidate({ sync: true });
   const navigate = useNavigate();
+  const barPreviewBtn = useRef<HTMLButtonElement>(null);
   const save = useServerFn(saveInvoiceDraft);
   const finalize = useServerFn(finalizeInvoiceDraft);
   const remove = useServerFn(removeInvoiceDraft);
@@ -232,6 +258,7 @@ export function InvoiceEditor({
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode ?? "netto");
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
+  const [taxDetails, setTaxDetails] = useState<OutgoingTaxDetails | null>(initial.taxDetails ?? null);
   const [language, setLanguage] = useState<"de" | "en">(initial.language ?? "de");
   const [currency, setCurrency] = useState(initial.currency ?? "EUR");
   const [exchangeRate, setExchangeRate] = useState(initial.exchangeRate ?? "");
@@ -242,7 +269,9 @@ export function InvoiceEditor({
   const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(initial.skonto ?? []));
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initial.paymentMethod ?? "ueberweisung");
+  const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>(initial.paymentMethod ?? "ueberweisung");
+  const [paidVia, setPaidVia] = useState(initial.paidVia ?? "");
+  const [paidOn, setPaidOn] = useState(initial.paidOn ?? "");
   const [mandateId, setMandateId] = useState(initial.sepaMandateId ?? "");
   const [discountText, setDiscountText] = useState(() => discountInput(initial.discount));
   const [planRows, setPlanRows] = useState(() => toPlanRows(initial.paymentPlan ?? []));
@@ -256,6 +285,7 @@ export function InvoiceEditor({
   const ownAction = useAction();
   const { busy, notice, setNotice, run } = sharedAction ?? ownAction;
   const [confirming, setConfirming] = useState(false);
+  const [umsatzwarnung, setUmsatzwarnung] = useState<({ id: string } & UmsatzgrenzeBestaetigung) | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const preview = useDocumentPreview();
   const designDraft = useDesignDraft(seller.design);
@@ -306,11 +336,14 @@ export function InvoiceEditor({
   const numberDate = issueDate || initial.issueDate;
   const circle = counterCircle(numberRunning, numberDate);
   const nextNumber = formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1);
+  const earlierThanLast = !quote ? issueDateBeforeLastFinalized(lastFinalized, numberRunning, numberDate) : null;
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
   const lastschrift = kind === "rechnung" && paymentMethod === "lastschrift";
-  // Bei Lastschrift wird der volle Betrag eingezogen, ohne Skonto
-  const skontoAllowed = kind === "rechnung" && !foreign && !lastschrift;
+  const alreadyPaid = kind === "rechnung" && paymentMethod === "bereits_bezahlt";
+  const paidPayment = alreadyPaid && paidVia.trim() && paidOn ? { paidVia, paidOn } : null;
+  // Skonto kommt bei Überweisung in Euro in Frage.
+  const skontoAllowed = kind === "rechnung" && !foreign && paymentMethod === "ueberweisung";
   const skonto = parseSkontoRows(skontoAllowed ? skontoRows : []);
   const skontoIssue = !skonto.valid ? "Je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben." : termValid ? skontoProblem(skonto.stufen, term) : null;
   const parsedDiscount = parseDiscount(discountText);
@@ -326,6 +359,8 @@ export function InvoiceEditor({
   const planAmounts = orderRateAmounts(previewTotals, grossPrices ? "brutto" : "netto");
   const planPreview = plan.valid && plan.rows.length > 0 ? planSchedule(plan.rows, planAmounts, grossPrices ? "brutto" : "netto") : [];
   const planIssue = !plan.valid || (plan.rows.length > 0 && planPreview.some((r) => r.rates.some((x) => x.amount < 0)));
+  const taxNote = taxTreatment === "steuerfrei" ? (section4Note(taxDetails?.exemption) ?? exemptionReason) : exemptionReason;
+  const taxIssues = editable ? outgoingTaxIssues(taxTreatment, taxDetails, kleinunternehmer) : [];
   // Je Feld ein Satz, solange etwas nicht stimmt; Skonto, Rabatt, Art und Zahlungsplan zeigen ihren Fehler selbst
   const { form, error, check } = useSubmitCheck({
     ...Object.fromEntries(lines.map((l) => [`pos-${l.key}`, positionsFehler(l)])),
@@ -338,12 +373,15 @@ export function InvoiceEditor({
         ? "Wähle den Tag, an dem die Teilleistung erbracht wurde."
         : null,
     validUntil: quote && !validUntilOk ? "Wähle, bis wann das Angebot gilt, frühestens ab seinem Datum." : null,
-    term: !quote && !termValid ? "Trag das Zahlungsziel in ganzen Tagen von 0 bis 120 ein." : null,
+    term: !quote && !alreadyPaid && !termValid ? "Trag das Zahlungsziel in ganzen Tagen von 0 bis 120 ein." : null,
+    paidVia: alreadyPaid && !paidVia.trim() ? "Gib den Zahlungsdienstleister oder „bar“ an." : null,
+    paidOn: alreadyPaid && !paidOn ? "Gib das Zahlungsdatum an." : null,
     skonto: skontoIssue,
     discount: discountIssue,
     kind: kindIssue,
     plan: planIssue ? "Zahlungsplan" : null,
-    exemption: taxTreatment === "steuerfrei" && !exemptionReason.trim() ? "Trag die Befreiungsvorschrift ein, etwa § 4 Nr. 14 UStG." : null,
+    tax: taxIssues[0] ?? null,
+    exemption: taxTreatment === "steuerfrei" && !taxNote.trim() ? "Trag die Befreiungsvorschrift ein, etwa § 4 Nr. 14 UStG." : null,
   } as Record<string, string | null>);
   /** Wie check, dazu die Markierungen an Positionen und Skonto, die bisher erst nach einem Versuch erschienen */
   const pruefe = (ohne: readonly string[] = []) => {
@@ -427,7 +465,7 @@ export function InvoiceEditor({
           },
         },
       });
-      await router.invalidate();
+      await reload();
     }, `„${p.description}“ ist jetzt im Artikelkatalog.`);
   }
 
@@ -493,7 +531,7 @@ export function InvoiceEditor({
       issueDate,
       serviceFrom: serviceFrom || null,
       serviceTo: serviceTo || null,
-      paymentTermDays: term,
+      paymentTermDays: termValid ? term : initial.paymentTermDays,
       skonto: skonto.stufen,
       format,
       intro,
@@ -501,7 +539,8 @@ export function InvoiceEditor({
       propertyRetention: !quote && propertyRetention,
       ...references,
       taxTreatment,
-      exemptionReason: special ? exemptionReason : "",
+      taxDetails,
+      exemptionReason: special ? taxNote : "",
       priceMode: grossPrices ? "brutto" : "netto",
       language,
       variant: kind === "rechnung" ? variant : null,
@@ -512,8 +551,10 @@ export function InvoiceEditor({
       exchangeRate: foreign && exchangeRate.trim() ? exchangeRate : null,
       exchangeRateDate: foreign && exchangeRate.trim() && exchangeRateDate ? exchangeRateDate : null,
       discount,
-      paymentMethod: lastschrift ? "lastschrift" : "ueberweisung",
+      paymentMethod: kind === "rechnung" ? paymentMethod : "ueberweisung",
       sepaMandateId: lastschrift ? mandateId || null : null,
+      paidVia: alreadyPaid ? paidVia : null,
+      paidOn: alreadyPaid ? paidOn || null : null,
       lines: parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, kind: _kind, ...line }) => line),
     };
   }
@@ -529,6 +570,8 @@ export function InvoiceEditor({
       quoteId: _quote,
       paymentMethod: _method,
       sepaMandateId: _mandate,
+      paidVia: _paidVia,
+      paidOn: _paidOn,
       propertyRetention: _propertyRetention,
       ...common
     } = draft();
@@ -553,10 +596,10 @@ export function InvoiceEditor({
     if (!pruefe(["contact"])) return;
     void run(async () => {
       const savedId = await persist();
-      if (id === null) {
+      if (initialId === null) {
         await openSaved(savedId);
       } else {
-        await router.invalidate();
+        await reload();
         setNotice({ tone: "ok", text: "Entwurf gespeichert." });
       }
     });
@@ -569,11 +612,26 @@ export function InvoiceEditor({
   const finalizeNow = () => {
     void run(async () => {
       const savedId = dirty || id === null ? await persist() : id;
-      await (quote ? finalizeQuote({ data: savedId }) : finalize({ data: savedId }));
-      if (id === null) await openSaved(savedId);
-      else await router.invalidate();
+      if (quote) {
+        await finalizeQuote({ data: savedId });
+        if (initialId === null) await openSaved(savedId);
+        else await reload();
+        return;
+      }
+      if (initialId === null) setNeuerEntwurf(savedId);
+      await finalizeSaved(savedId);
     });
   };
+
+  async function finalizeSaved(savedId: string, bestaetigt?: UmsatzgrenzeBestaetigung) {
+    const result = await finalize({ data: { id: savedId, bestaetigt } });
+    if (result.status === "umsatzgrenze") {
+      setUmsatzwarnung(result);
+      return;
+    }
+    if (initialId === null) await openSaved(result.id);
+    else await reload();
+  }
 
   // Entwurf als PDF aus dem gespeicherten Stand: Ungespeichertes erst speichern, damit das PDF zeigt, was im Formular steht
   const onDraftPdf = () => {
@@ -582,10 +640,10 @@ export function InvoiceEditor({
       const saving = dirty || id === null;
       const savedId = saving ? await persist() : id;
       await downloadFrom(`/api/entwurf/${quote ? "angebot" : "rechnung"}/${savedId}?download`, quote ? "Angebot-Entwurf.pdf" : "Rechnung-Entwurf.pdf");
-      if (id === null) {
+      if (initialId === null) {
         await openSaved(savedId);
       } else if (saving) {
-        await router.invalidate();
+        await reload();
         setNotice({ tone: "ok", text: "Entwurf gespeichert, das PDF ist heruntergeladen." });
       }
     });
@@ -598,7 +656,8 @@ export function InvoiceEditor({
     });
   };
 
-  const blocking = [...sellerIssues.map((i) => `Firmendaten: ${i}`), ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten")))];
+  const currentSellerIssues = alreadyPaid || (!quote && kind !== "rechnung") ? sellerIssues.filter((i) => i !== "IBAN fehlt") : sellerIssues;
+  const blocking = [...currentSellerIssues.map((i) => `Firmendaten: ${i}`), ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten")))];
 
   return (
     <>
@@ -621,11 +680,52 @@ export function InvoiceEditor({
           </>
         ) : (
           <>
+            {earlierThanLast && (
+              <div className="banner banner-warn" role="status">
+                Das Rechnungsdatum ({formatDate(numberDate)}) liegt vor der zuletzt festgeschriebenen Rechnung {earlierThanLast.number} vom{" "}
+                {formatDate(earlierThanLast.issueDate)}.
+              </div>
+            )}
             <p>PDF und XML werden erzeugt und gebucht.</p>
             <p>Danach ist die Rechnung nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
           </>
         )}
       </ConfirmDialog>
+      {umsatzwarnung && (
+        <ConfirmDialog
+          open
+          title={
+            umsatzwarnung.vorjahresumsatz === undefined
+              ? "Rechnung trotz möglicher Überschreitung der Umsatzgrenze festschreiben?"
+              : "Kleinunternehmerregelung wegen Vorjahresumsatz prüfen"
+          }
+          confirmLabel="Trotzdem festschreiben"
+          facts={[
+            ...(umsatzwarnung.vorjahresumsatz === undefined
+              ? [
+                  { label: "Dieses Jahr laut Buchungen vereinnahmt", value: formatEuro(umsatzwarnung.umsatz) },
+                  { label: "Bei vollständiger Zahlung in diesem Jahr", value: formatEuro(umsatzwarnung.umsatz + umsatzwarnung.rechnung), strong: true },
+                ]
+              : [{ label: "Im Vorjahr laut Buchungen vereinnahmt", value: formatEuro(umsatzwarnung.vorjahresumsatz), strong: true }]),
+          ]}
+          onClose={() => setUmsatzwarnung(null)}
+          onConfirm={() => void run(() => finalizeSaved(umsatzwarnung.id, umsatzwarnung))}
+        >
+          {umsatzwarnung.umsatz + umsatzwarnung.rechnung > umsatzwarnung.grenze && (
+            <p>
+              Bei vollständiger Zahlung in diesem Jahr könnte die Grenze von {formatEuro(umsatzwarnung.grenze)} überschritten werden. Ab dem Umsatz, der die
+              Grenze überschreitet, entfällt die Befreiung.
+            </p>
+          )}
+          {umsatzwarnung.vorjahresumsatz !== undefined && (
+            <p>
+              Lag dein Gesamtumsatz im Vorjahr über {formatEuro(VORJAHRESGRENZE)}, entfällt die Kleinunternehmerregelung ab dem 1. Januar des laufenden Jahres.
+            </p>
+          )}
+          <p>Prüfe vor dem Festschreiben, ob du Umsatzsteuer ausweisen musst. Als normale Rechnung erfasste Anlagenverkäufe können im Betrag enthalten sein.</p>
+          <p>Bei Abbruch bleibt die Rechnung als Entwurf gespeichert.</p>
+        </ConfirmDialog>
+      )}
       <ConfirmDialog
         open={confirmingDelete}
         title="Entwurf löschen?"
@@ -644,6 +744,7 @@ export function InvoiceEditor({
         onClose={() => setNewContactName(null)}
       />
       <ArticleDialog
+        units={units}
         open={newArticle !== null}
         prefill={newArticle?.prefill ?? {}}
         onSaved={(article) => {
@@ -682,7 +783,13 @@ export function InvoiceEditor({
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Vor dem Festschreiben: {blocking.join(", ")}. {sellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
+            Vor dem Festschreiben: {blocking.join(", ")}. {currentSellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
+            Vor dem Festschreiben: {blocking.join(", ")}.{" "}
+            {sellerIssues.length > 0 && (
+              <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                Firmendaten ergänzen
+              </Link>
+            )}
           </span>
         </div>
       )}
@@ -691,7 +798,10 @@ export function InvoiceEditor({
           <Icon name="alert" />
           <span>
             Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): {letterIssues.join(", ")}. Festschreiben geht trotzdem, der Fuß nennt dann nur, was
-            eingetragen ist. <Link to="/einstellungen">Firmendaten ergänzen</Link>
+            eingetragen ist.{" "}
+            <Link to="/einstellungen" search={{ bereich: "firma" }}>
+              Firmendaten ergänzen
+            </Link>
           </span>
         </div>
       )}
@@ -706,9 +816,8 @@ export function InvoiceEditor({
         label="Vorschau"
         caption={quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
         sheet={
-          <RenderedSheet
-            label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
-            render={renderDocumentPreview}
+          <InvoiceEditorPreview
+            alreadyPaid={alreadyPaid}
             revision={logo}
             input={{
               kind,
@@ -722,27 +831,15 @@ export function InvoiceEditor({
               contactId: contactId || null,
               contactPersonId: contactPersonId || null,
               ...references,
-              lines: [...parsed, ...deductionPreview]
-                .filter((l) => l.valid)
-                .map((l) => ({
-                  description: l.description,
-                  detail: "detail" in l ? (l.detail ?? "") : "",
-                  itemNumber: "itemNumber" in l ? (l.itemNumber ?? "") : "",
-                  quantity: l.quantity,
-                  unit: l.unit,
-                  unitPrice: l.unitPrice,
-                  taxRate: l.taxRate,
-                  discount: "discount" in l ? (l.discount ?? null) : null,
-                  kind: quote && "kind" in l ? (l.kind ?? null) : null,
-                  ...("deductionOf" in l && l.deductionOf ? { deductionOf: l.deductionOf } : {}),
-                })),
+              lines: [...parsed, ...deductionPreview],
               discount: discountIssue ? null : discount,
               plan: planIssue ? [] : plan.rows,
               intro,
               note,
               propertyRetention: !quote && propertyRetention,
               taxTreatment,
-              exemptionReason: special ? exemptionReason : "",
+              taxDetails,
+              exemptionReason: special ? taxNote : "",
               priceMode: grossPrices ? "brutto" : "netto",
               language,
               variant: kind === "rechnung" ? variant : null,
@@ -751,6 +848,7 @@ export function InvoiceEditor({
               currency: currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR",
               skonto: skonto.stufen,
               sepaMandateId: lastschrift ? mandateId || null : null,
+              ...(paidPayment ? { paidPayment } : {}),
               design: designDraft.changes,
             }}
           />
@@ -865,18 +963,8 @@ export function InvoiceEditor({
                     />
                   )}
                 </Field>
-              ) : (
-                <Field label="Zahlungsziel in Tagen" hint={<>fällig {formatDate(dueDate)}</>} error={error("term")}>
-                  {(control) => (
-                    <input
-                      {...control}
-                      inputMode="numeric"
-                      value={paymentTermDays}
-                      onChange={(e) => touch(setPaymentTermDays)(e.target.value)}
-                      aria-invalid={!termValid}
-                    />
-                  )}
-                </Field>
+              ) : alreadyPaid ? null : (
+                <PaymentTermField value={paymentTermDays} dueDate={dueDate} valid={termValid} error={error("term")} onChange={touch(setPaymentTermDays)} />
               )}
               {kind === "rechnung" && (
                 <PaymentMethodFields
@@ -885,6 +973,12 @@ export function InvoiceEditor({
                   mandateId={mandateId}
                   mandates={mandates.filter((m) => m.contactId === contactId || m.id === mandateId)}
                   contactChosen={contactId !== ""}
+                  paidVia={paidVia}
+                  paidOn={paidOn}
+                  paidViaError={error("paidVia") ?? null}
+                  paidOnError={error("paidOn") ?? null}
+                  onPaidVia={touch(setPaidVia)}
+                  onPaidOn={touch(setPaidOn)}
                   onChange={(method, mandate) => {
                     touch(setPaymentMethod)(method);
                     setMandateId(mandate);
@@ -995,38 +1089,18 @@ export function InvoiceEditor({
                   )}
                 </Field>
               )}
-              <Field
-                label="Umsatzsteuer"
-                hint={
-                  kleinunternehmer
-                    ? "In den Einstellungen als Kleinunternehmer eingetragen."
-                    : taxTreatment === "reverse_charge"
-                      ? "Nur für Leistungen an Unternehmen im EU-Ausland mit USt-IdNr.; zusätzlich in der Zusammenfassenden Meldung angeben."
-                      : taxTreatment === "ig_lieferung"
-                        ? "Nur für Ware, die zu einem Unternehmen in einem anderen EU-Land gelangt, mit dessen USt-IdNr.; Haben meldet sie in Kz 41 und in der Zusammenfassenden Meldung. Den Gelangensnachweis (§ 17a UStDV), etwa die Gelangensbestätigung oder den Versandbeleg, bewahrst du zur Rechnung auf."
-                        : taxTreatment === "ausfuhr"
-                          ? "Nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§ 8 bis § 11 UStDV), etwa dem Ausgangsvermerk aus ATLAS. Dienstleistungen ins Drittland sind „Leistung ins Nicht-EU-Ausland“."
-                          : undefined
-                }
-                style={{ gridColumn: "1 / -1" }}
-              >
-                {(control) => (
-                  <select
-                    {...control}
-                    value={taxTreatment}
-                    onChange={(e) => chooseTreatment(e.target.value as TaxTreatment)}
-                    disabled={!editable || kleinunternehmer}
-                  >
-                    {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
-                      .filter((t) => (kleinunternehmer ? t === "kleinunternehmer" : t !== "kleinunternehmer" || taxTreatment === t))
-                      .map((t) => (
-                        <option key={t} value={t}>
-                          {TAX_TREATMENTS[t].label}
-                        </option>
-                      ))}
-                  </select>
-                )}
-              </Field>
+              <OutgoingTaxFields
+                treatment={taxTreatment}
+                details={taxDetails}
+                exemptionReason={exemptionReason}
+                kleinunternehmer={kleinunternehmer}
+                disabled={!editable}
+                error={error("tax")}
+                reasonError={error("exemption")}
+                onTreatmentChange={chooseTreatment}
+                onDetailsChange={touch(setTaxDetails)}
+                onReasonChange={touch(setExemptionReason)}
+              />
               {!special && (
                 <Field
                   label="Preise"
@@ -1045,24 +1119,6 @@ export function InvoiceEditor({
                       <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
                       <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
                     </select>
-                  )}
-                </Field>
-              )}
-              {special && (
-                <Field
-                  label={taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"}
-                  error={error("exemption")}
-                  style={{ gridColumn: "1 / -1" }}
-                >
-                  {(control) => (
-                    <input
-                      {...control}
-                      value={exemptionReason}
-                      onChange={(e) => touch(setExemptionReason)(e.target.value)}
-                      maxLength={300}
-                      placeholder={TAX_TREATMENTS[taxTreatment].note ?? ""}
-                      required={taxTreatment === "steuerfrei"}
-                    />
                   )}
                 </Field>
               )}
@@ -1183,12 +1239,8 @@ export function InvoiceEditor({
                   </LineCell>
                   <LineCell label="Einheit">
                     {/* biome-ignore lint/plugin: Zeile einer Positionstabelle: Spaltenkopf und aria-label benennen die Zelle, ein Feldname je Zelle gäbe jeder Zeile eine Hülle `.field` */}
-                    <select
-                      aria-label={`Einheit Position ${index + 1}`}
-                      value={line.unit}
-                      onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
-                    >
-                      {Object.keys(UNITS).map((unit) => (
+                    <select aria-label={`Einheit Position ${index + 1}`} value={line.unit} onChange={(e) => updateLine(line.key, { unit: e.target.value })}>
+                      {unitOptions(units, line.unit).map((unit) => (
                         <option key={unit}>{unit}</option>
                       ))}
                     </select>
@@ -1375,6 +1427,38 @@ export function InvoiceEditor({
           )}
         </form>
       </PreviewLayout>
+      <ActionBar>
+        <MoreActionsMenu
+          items={[
+            {
+              key: "pdf",
+              label: dirty ? "Speichern und als PDF" : "Entwurf als PDF",
+              icon: "invoice",
+              disabled: busy,
+              onSelect: onDraftPdf,
+            },
+          ]}
+        />
+        {/* triggerRef bleibt der Knopf im Kopf: Anheften, Ausblenden und Schließen geben den Fokus dorthin zurück, und
+            anheften lässt sich nur am Laptop. Die Überblendung am Handy merkt sich den Knopf in der Leiste als Auslöser;
+            Safari fokussiert Knöpfe beim Tippen nicht, deshalb hier ausdrücklich */}
+        <PreviewButton
+          preview={{
+            ...preview,
+            triggerRef: barPreviewBtn,
+            openOverlay: () => {
+              barPreviewBtn.current?.focus({ preventScroll: true });
+              preview.openOverlay();
+            },
+          }}
+        />
+        <button type="submit" form="invoice-form" className="btn" disabled={busy || !dirty}>
+          Entwurf speichern
+        </button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={onFinalize}>
+          Festschreiben
+        </button>
+      </ActionBar>
     </>
   );
 }

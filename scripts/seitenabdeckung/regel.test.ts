@@ -11,6 +11,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/bank': typeof AppBankRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/einladung/$token': typeof EinladungTokenRoute
   '/rechnungen/$id': typeof AppRechnungenIdRoute
   '/rechnungen/': typeof AppRechnungenIndexRoute
@@ -21,7 +22,7 @@ export interface FileRoutesByTo {
 }`;
 
 describe("pagesOf", () => {
-  it("nimmt Seiten aus FileRoutesByFullPath, ohne API, Anmeldung und Einladung, Index ohne Schrägstrich", () => {
+  it("nimmt Seiten aus FileRoutesByFullPath, ohne API, OAuth-Metadaten, Anmeldung und Einladung, Index ohne Schrägstrich", () => {
     expect(pagesOf(routeTree)).toEqual(["/", "/bank", "/rechnungen/$id", "/rechnungen", "/umsatzsteuer/zm/$quartal"]);
   });
 });

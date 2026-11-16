@@ -29,7 +29,14 @@ const last = <T>(list: unknown[]) => list.at(-1) as T;
 /** Angemeldetes Konto für die API-Routen; ohne echte Sitzung (Better Auth) */
 const session = vi.hoisted(() => ({ role: "inhaber" as "inhaber" | "steuerberatung" }));
 vi.mock("../../auth.ts", () => ({
-  auth: () => ({ api: { getSession: async () => ({ user: { id: "konto", name: "Konto", email: "konto@example.com", role: session.role } }) } }),
+  auth: () => ({
+    api: {
+      getSession: async () => ({
+        session: { createdAt: new Date() },
+        user: { id: "konto", name: "Konto", email: "konto@example.com", role: session.role },
+      }),
+    },
+  }),
 }));
 
 describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", () => {

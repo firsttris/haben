@@ -157,6 +157,11 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
       });
     });
 
+    await sql`
+      insert into app_versions (version, postgres_version, started_at)
+      values ('0.8.2', '18.6', '2026-01-01T00:00:00Z')
+    `;
+
     const chunks: Uint8Array[] = [];
     for await (const chunk of exporter.exportYear(2026, new Date("2026-10-02T10:00:00Z"))) chunks.push(chunk);
     files = unzipSync(Buffer.concat(chunks));
@@ -208,6 +213,8 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
         "stammdaten/firma.json",
         "protokoll/audit.csv",
         "protokoll/pruefwert.txt",
+        "protokoll/versionen.csv",
+        "verfahrensdokumentation.md",
         "umsatzsteuer/2026-09/anmeldung.json",
         "umsatzsteuer/2026-09/übermittlungen.csv",
         `umsatzsteuer/2026-09/2026-10-02_validate_${vatSubmissionPrefix}_protokoll.pdf`,
@@ -237,7 +244,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(invoiceLines[1]).toContain(";4000,00;760,00;4760,00;EUR;;ZUGFeRD;");
 
     const belege = text(files["belege/belege.csv"]);
-    expect(belege).toContain('2026-09-29;"Müller; ""Büro"" GmbH/Filiale";DE123475223;MF-2026-09;telefon;38,57;7,33;;;;38,57;7,33;45,90;0;EUR;;;Bank;gebucht;');
+    expect(belege).toContain('2026-09-29;"Müller; ""Büro"" GmbH/Filiale";DE123475223;MF-2026-09;telefon;;38,57;7,33;;;;38,57;7,33;45,90;0;EUR;;;Bank;gebucht;');
     expect(belege).toContain('"Zeile 1\nZeile 2"');
     expect(belege).toContain(`${sha256(JPEG)};quittung foto.jpg;2026-09-29_Mueller-Buero-GmbH-Filiale_${documentId.slice(0, 8)}.jpg`);
 
@@ -276,6 +283,10 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     const [head] = await sql`select seq, encode(hash, 'hex') as hash from audit_chain`;
     expect(text(files["protokoll/pruefwert.txt"])).toMatch(/^Beim Erstellen dieses Archivs .*:\nNr\. \d+ · [0-9a-f]{64}$/m);
     expect(Number(head!.seq)).toBeGreaterThanOrEqual(Number(/Nr\. (\d+)/.exec(text(files["protokoll/pruefwert.txt"]))![1]));
+    expect(text(files["protokoll/versionen.csv"])).toBe(
+      "\uFEFFVersion;Seit;PostgreSQL;Hinweis;Versionshinweise\r\n0.8.2;2026-01-01T00:00:00.000Z;18.6;;https://github.com/firsttris/haben/releases/tag/v0.8.2\r\n",
+    );
+    expect(text(files["LIESMICH.txt"])).toContain("protokoll/versionen.csv");
 
     expect(JSON.parse(text(files["umsatzsteuer/2026-09/anmeldung.json"]))).toMatchObject({ year: 2026, month: 9, kz81: 400000, kz66: 733 });
     const uebermittlungen = text(files["umsatzsteuer/2026-09/übermittlungen.csv"]);

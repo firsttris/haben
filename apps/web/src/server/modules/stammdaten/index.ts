@@ -1,16 +1,19 @@
 /*
  * Stammdaten: Firmendaten (mit Versteuerung und Kleinunternehmer je Jahr), Kunden mit SEPA-Lastschriftmandaten, Artikel, Textbausteine, Briefkopf (Logo, Akzentfarbe), Zeichen in der Navigation, persönliche
- * Angaben, Umsatzsteuer-Umrechnungskurse und die Sperre von Kontenrahmen, Versteuerung und Kleinunternehmer (settings-guard).
+ * Angaben und Umsatzsteuer-Umrechnungskurse. Gespeichert werden die Firmendaten über auswertungen/settings-guard.ts, das
+ * Kontenrahmen, Versteuerung und Kleinunternehmer gegen Buchungen und offene Rechnungen sperrt.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { insertImportedArticles, insertImportedContacts, planArticleImport, planContactImport } from "./csv-import.ts";
-export { articleInputSchema, createArticle, listArticles, setArticleArchived, updateArticle } from "./articles.ts";
+export { applyDatevContactImport, planDatevContactImport, type DatevContactImportPlan } from "./datev-kontakte-import.ts";
+export { assertKnownUnit, createUnit, listUnits, loadUnitCodes, setUnitArchived, UnitError, type Unit } from "./units.ts";
+export { articleInputSchema, createArticle, insertArticle, listArticles, setArticleArchived, updateArticle } from "./articles.ts";
+export { searchStammdaten, type ArticleHit, type TextBlockHit } from "./search-catalog.ts";
 export {
   companyIssues,
   companySchema,
-  editorContext,
   kleinunternehmerForMonth,
   kleinunternehmerForYear,
   kleinunternehmerHistory,
@@ -18,12 +21,18 @@ export {
   lastDayOfMonth,
   letterIssues,
   loadCompany,
+  loadEinrichtung,
+  offeneFragenErledigt,
+  saveBereiche,
+  setEinrichtung,
+  type Einrichtung,
   sellerIssues,
+  setArchiveSearch,
   versteuerungForYear,
-  journalAbJahr,
-  setJournalAb,
   type Company,
+  type CompanyInput,
 } from "./company.ts";
+export { editorContext } from "./editor-context.ts";
 export {
   contactRoleProblem,
   contactSchema,
@@ -59,7 +68,17 @@ export {
 } from "./exchange-rates.ts";
 export { AccentColorError, loadDesign, loadLetterhead, saveAccentColor, saveDesign } from "./letterhead.ts";
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
-export { loadNavMark, NavMarkError, navMarkSchema, saveNavMark, type NavMarkInput, type NavMarkSetting } from "./nav-mark.ts";
+export {
+  loadNavMark,
+  NavMarkError,
+  navMarkSchema,
+  readNavMark,
+  readNavMarkLogo,
+  saveNavMark,
+  type NavMarkInput,
+  type NavMarkSetting,
+  type NavMarkStand,
+} from "./nav-mark.ts";
 export { backgroundInfo, loadBackground, MAX_BACKGROUND_BYTES, removeBackground, saveBackground } from "./background.ts";
 export { customLayoutJob, dataForVersion, layoutRenderer } from "./layout-renderer.ts";
 export { rendererFor } from "./layout-pakete.ts";
@@ -82,13 +101,12 @@ export {
 export { layoutOverview, layoutSource, listLayouts } from "./layout-liste.ts";
 export { CustomerNumberError, customerNumbering, saveCustomerNumbering } from "./customer-numbers.ts";
 export { personenkontoKey, vergibPersonenkonten } from "./personenkonten-vergabe.ts";
-export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";
 export { PlanTemplateError, planTemplatesProblem, savePlanTemplates } from "./plan-templates.ts";
-export { saveCompany, settingsLocks } from "./settings-guard.ts";
 export {
   addMandateFile,
   createMandate,
   findMandate,
+  lastCollections,
   listMandates,
   MandateError,
   mandateFile,

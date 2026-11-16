@@ -1,4 +1,3 @@
-import { UserError } from "../../errors.ts";
 import {
   computeInvoice,
   CURRENCY_CODE,
@@ -15,7 +14,7 @@ import {
   invoicePosting,
   legacyCorrectionPosting,
   lineAmount,
-  PAYMENT_METHODS,
+  INVOICE_PAYMENT_METHODS,
   PRICE_MODES,
   TAX_TREATMENT_KEYS,
   type InvoiceCalculation,
@@ -23,6 +22,7 @@ import {
   type PriceMode,
   type TaxTreatment,
   type UnitLabel,
+  UNITS,
   cancellationProblem,
   invoiceEditProblem,
   invoiceListStatus,
@@ -38,21 +38,31 @@ import {
   documentDiscountProblem,
   lineDiscountProblem,
   negateDiscount,
+  outgoingTaxIssues,
+  outgoingTaxDetailConflict,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
-import { ansprechpartnerSnapshot, type Contact, contactPersonProblem, contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
-import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
+import {
+  ansprechpartnerSnapshot,
+  type Contact,
+  contactPersonProblem,
+  contactRoleProblem,
+  loadLetterhead,
+  loadUnitCodes,
+  withCustomLayout,
+} from "../stammdaten/index.ts";
+import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "./zahlungsstand.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
 import { invoiceDraftLineSchema } from "./draft-line.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
-import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns } from "./lastschrift.ts";
+import { directDebitFor, directDebitIssues, draftMandateProblem, paidPaymentOf, paymentColumns } from "./lastschrift.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
@@ -60,7 +70,11 @@ import { advanceProcedure } from "./advance-procedure.ts";
 import { advanceInvoicePosting } from "./advance-invoice.ts";
 import { paperCancellationIds } from "./advance-payment-group.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
+import type { UmsatzgrenzeBestaetigung } from "../../../lib/kleinunternehmer.ts";
 import { today } from "../../today.ts";
+import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
+import { InvoiceError } from "./invoice-error.ts";
+import { pruefeUmsatzgrenze } from "./umsatzgrenze.ts";
 import {
   circleFor,
   countsRunning,
@@ -75,8 +89,6 @@ import {
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
-
-export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
 
@@ -98,6 +110,7 @@ export const draftSchema = z
     ...referenceFieldsSchema,
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
     exemptionReason: z.string().trim().max(300).default(""),
+    taxDetails: outgoingTaxDetailsSchema,
     /** Einzelpreise netto oder brutto inkl. USt; brutto nur bei regulärer Besteuerung */
     priceMode: z.enum(PRICE_MODES).default("netto"),
     /** Sprache des PDFs für den Kunden */
@@ -126,9 +139,10 @@ export const draftSchema = z
     lines: z.array(invoiceDraftLineSchema).max(200),
     /** Gesamtrabatt in Prozent oder als fester Betrag im Preismodus; null = keiner */
     discount: z.nullable(discountSchema).default(null),
-    /** Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat des Kunden (#445); fehlt = Überweisung */
-    paymentMethod: z.enum(PAYMENT_METHODS).default("ueberweisung"),
+    paymentMethod: z.enum(INVOICE_PAYMENT_METHODS).default("ueberweisung"),
     sepaMandateId: z.uuid().nullable().default(null),
+    paidVia: z.string().trim().max(120).nullable().default(null),
+    paidOn: isoDate.nullable().default(null),
     /** Ansprechpartner des Kunden (#424); der Stand beim Festschreiben steht im Käufer des Belegs */
     contactPersonId: z.uuid().nullable().default(null),
   })
@@ -145,6 +159,12 @@ export const draftSchema = z
     if (discountProblem) ctx.addIssue({ code: "custom", message: discountProblem, path: ["discount"] });
   })
   .superRefine((d, ctx) => {
+    if (d.paymentMethod === "bereits_bezahlt") {
+      if (!d.paidVia) ctx.addIssue({ code: "custom", message: "Zahlungsdienst oder „bar“ angeben.", path: ["paidVia"] });
+      if (!d.paidOn) ctx.addIssue({ code: "custom", message: "Zahlungsdatum angeben.", path: ["paidOn"] });
+      else if (d.paidOn > today()) ctx.addIssue({ code: "custom", message: "Das Zahlungsdatum liegt in der Zukunft.", path: ["paidOn"] });
+      return;
+    }
     if (d.skonto.length === 0) return;
     // Der Bankabgleich erkennt Skonto am Betrag in Euro; bei Fremdwährung stimmt der nach dem Kurs nicht
     if (d.currency !== "EUR") ctx.addIssue({ code: "custom", message: "Skonto gibt es nur bei Rechnungen in Euro.", path: ["skonto"] });
@@ -309,6 +329,8 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null, q: D
     advanceType: r.advanceType,
     propertyRetention: r.propertyRetention,
     taxTreatment: r.taxTreatment,
+    exemptionReason: r.exemptionReason,
+    taxDetails: r.taxDetails,
     priceMode: r.priceMode,
     net: r.net,
     tax: r.tax,
@@ -356,7 +378,7 @@ export async function abschlagLinks(invoiceId: string) {
 }
 
 /** Prüft die gewählten Abschlagsrechnungen; leere Liste = in Ordnung */
-async function deductionProblems(invoiceId: string | null, input: Pick<DraftInput, "contactId" | "deducts" | "taxTreatment">, q: Db | Tx = db) {
+async function deductionProblems(invoiceId: string | null, input: Pick<DraftInput, "contactId" | "deducts" | "taxTreatment" | "taxDetails">, q: Db | Tx = db) {
   const ids = [...new Set(input.deducts ?? [])];
   const open = await openAbschlaege(invoiceId, q);
   const problems: string[] = [];
@@ -374,7 +396,16 @@ async function deductionProblems(invoiceId: string | null, input: Pick<DraftInpu
     } else if (abschlag.contactId !== input.contactId) problems.push(`Abschlagsrechnung ${abschlag.number} gehört zu einem anderen Kunden`);
     else if (abschlag.taxTreatment !== (input.taxTreatment ?? "regulaer"))
       problems.push(`Abschlagsrechnung ${abschlag.number} hat eine andere Umsatzsteuer-Behandlung`);
-    else chosen.push(abschlag);
+    else {
+      // Ungeklärte Angaben dürfen keinen bekannten Widerspruch zwischen anderen Abschlägen verdecken.
+      // Produktgrenze: https://github.com/firsttris/haben/issues/433#issuecomment-6853419682
+      const conflict = [input.taxDetails, ...chosen.map((a) => a.taxDetails)]
+        .map((details) => outgoingTaxDetailConflict(input.taxTreatment ?? "regulaer", abschlag.taxDetails, details))
+        .find((problem) => problem !== null);
+      if (conflict === "exemption") problems.push(`Abschlagsrechnung ${abschlag.number} hat eine andere Befreiungsvorschrift`);
+      else if (conflict === "foreignPlace") problems.push(`Abschlagsrechnung ${abschlag.number} hat einen anderen tatsächlichen Leistungsort`);
+      else chosen.push(abschlag);
+    }
   }
   return { problems, chosen };
 }
@@ -547,14 +578,13 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     serviceTo: input.serviceTo,
     paymentTermDays: input.paymentTermDays,
     dueDate: invoiceDueDate(input.issueDate, input.paymentTermDays, bundesland),
-    skonto: sortSkonto(input.skonto ?? []),
+    skonto: input.paymentMethod === "bereits_bezahlt" ? [] : sortSkonto(input.skonto ?? []),
     format: input.format,
     intro: input.intro ?? "",
     note: input.note,
     propertyRetention: input.propertyRetention ?? false,
     ...referenceColumns(input),
-    taxTreatment: input.taxTreatment ?? "regulaer",
-    exemptionReason: input.taxTreatment && input.taxTreatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
+    ...outgoingTaxColumns(input),
     priceMode,
     language: input.language ?? "de",
     variant: input.variant ?? null,
@@ -741,33 +771,37 @@ export function listInvoices(today: string, id?: string, q: Db | Tx = db) {
   return selectInvoiceList(today, id ? eq(schema.invoices.id, id) : undefined, q);
 }
 
-export async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db, limit?: number, rank?: SQL) {
-  const query = q
-    .select({
-      id: schema.invoices.id,
-      kind: schema.invoices.kind,
-      variant: schema.invoices.variant,
-      status: schema.invoices.status,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      dueDate: schema.invoices.dueDate,
-      gross: schema.invoices.gross,
-      net: schema.invoices.net,
-      correctsId: schema.invoices.correctsId,
-      contactId: schema.invoices.contactId,
-      externalSource: schema.invoices.externalSource,
-      externalId: schema.invoices.externalId,
-      buyerOrderReference: schema.invoices.buyerOrderReference,
-      sellerOrderReference: schema.invoices.sellerOrderReference,
-      contactName: schema.contacts.name,
-      buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
-      cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
-      // Für die Auskunft unter dem Status: welches Storno die Rechnung aufhebt, welche Rechnung Storno oder Korrektur betrifft
-      cancelledBy: sql<
-        string | null
-      >`(select s.number from invoices s where s.kind = 'storno' and s.status = 'final' and s.corrects_id = ${schema.invoices.id} order by s.number limit 1)`,
-      correctsNumber: sql<string | null>`(select o.number from invoices o where o.id = ${schema.invoices.correctsId})`,
-    })
+/** Spalten der Rechnungsliste; die Schnellsuche liest dieselben (search.ts) */
+export const invoiceListFields = {
+  id: schema.invoices.id,
+  kind: schema.invoices.kind,
+  variant: schema.invoices.variant,
+  status: schema.invoices.status,
+  number: schema.invoices.number,
+  issueDate: schema.invoices.issueDate,
+  dueDate: schema.invoices.dueDate,
+  gross: schema.invoices.gross,
+  net: schema.invoices.net,
+  correctsId: schema.invoices.correctsId,
+  contactId: schema.invoices.contactId,
+  externalSource: schema.invoices.externalSource,
+  externalId: schema.invoices.externalId,
+  buyerOrderReference: schema.invoices.buyerOrderReference,
+  sellerOrderReference: schema.invoices.sellerOrderReference,
+  contactName: schema.contacts.name,
+  buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
+  cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
+  // Für die Auskunft unter dem Status: welches Storno die Rechnung aufhebt, welche Rechnung Storno oder Korrektur betrifft
+  cancelledBy: sql<
+    string | null
+  >`(select s.number from invoices s where s.kind = 'storno' and s.status = 'final' and s.corrects_id = ${schema.invoices.id} order by s.number limit 1)`,
+  correctsNumber: sql<string | null>`(select o.number from invoices o where o.id = ${schema.invoices.correctsId})`,
+};
+
+/** Abfrage der Rechnungsliste, noch ohne Zahlungen und Status (`withListStatus`) */
+export function invoiceListQuery(fields: typeof invoiceListFields, filter: SQL | undefined, q: Db | Tx = db, rank?: SQL) {
+  return q
+    .select(fields)
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(filter)
@@ -779,8 +813,14 @@ export async function selectInvoiceList(today: string, filter: SQL | undefined, 
       desc(schema.invoices.id),
     )
     .$dynamic();
-  const rows = await (limit === undefined ? query : query.limit(limit));
+}
 
+async function selectInvoiceList(today: string, filter: SQL | undefined, q: Db | Tx = db) {
+  return withListStatus(await invoiceListQuery(invoiceListFields, filter, q), today, q);
+}
+
+/** Zeilen der Rechnungsliste mit Zahlungen, offenem Betrag und Status */
+export async function withListStatus(rows: Awaited<ReturnType<typeof invoiceListQuery>>, today: string, q: Db | Tx = db) {
   if (rows.length === 0) return [];
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
@@ -866,6 +906,7 @@ export function buyerFrom(contact: Contact, ansprechpartner?: Buyer["ansprechpar
     ...(contact.ustId ? { ustId: contact.ustId } : {}),
     ...(contact.leitwegId ? { leitwegId: contact.leitwegId } : {}),
     ...(contact.kundennummer ? { kundennummer: contact.kundennummer } : {}),
+    ...(contact.unsereLieferantennummer ? { unsereLieferantennummer: contact.unsereLieferantennummer } : {}),
     ...(ansprechpartner ? { ansprechpartner } : {}),
   };
 }
@@ -881,7 +922,10 @@ export function documentFor(
   corrects: { number: string; issueDate: string } | null,
   deducted: { number: string; issueDate: string }[] = [],
   directDebit?: DirectDebit,
+  /** Codes eigener Einheiten (#748) aus loadUnitCodes; feste Einheiten brauchen keinen */
+  unitCodes: Readonly<Record<string, string>> = {},
 ): InvoiceDocument {
+  const paidPayment = paidPaymentOf(invoice);
   return {
     kind: invoice.kind,
     format: invoice.format as InvoiceFormat,
@@ -889,6 +933,7 @@ export function documentFor(
     issueDate: invoice.issueDate,
     dueDate: invoice.dueDate,
     paymentTermDays: invoice.paymentTermDays,
+    ...(paidPayment ? { paidPayment } : {}),
     ...(invoice.kind === "rechnung" && invoice.skonto.length > 0 ? { skonto: invoice.skonto } : {}),
     ...(invoice.serviceFrom ? { serviceFrom: invoice.serviceFrom } : {}),
     ...(invoice.serviceTo ? { serviceTo: invoice.serviceTo } : {}),
@@ -911,7 +956,8 @@ export function documentFor(
       ...(line.detail ? { detail: line.detail } : {}),
       ...(line.itemNumber ? { itemNumber: line.itemNumber } : {}),
       quantity: line.quantity,
-      unit: line.unit as UnitLabel,
+      unit: line.unit,
+      ...(!Object.hasOwn(UNITS, line.unit) && unitCodes[line.unit] ? { unitCode: unitCodes[line.unit] } : {}),
       unitPrice: line.unitPrice,
       taxRate: line.taxRate,
       net: line.net,
@@ -971,14 +1017,9 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   if (!data) return ["Rechnung nicht gefunden"];
   const { invoice, lines, contact } = data;
   const company = await loadCompany(q);
-  const issues = sellerIssues(company).map((issue) => `Firmendaten: ${issue}`);
+  const issues = sellerIssues(company, invoice.kind === "rechnung" && invoice.paymentMethod !== "bereits_bezahlt").map((issue) => `Firmendaten: ${issue}`);
   // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
-  if (invoice.kind === "rechnung" && company.kleinunternehmer && invoice.taxTreatment !== "kleinunternehmer") {
-    issues.push("Als Kleinunternehmer stellst du Rechnungen ohne Umsatzsteuer (§ 19 UStG)");
-  }
-  if (invoice.kind === "rechnung" && !company.kleinunternehmer && invoice.taxTreatment === "kleinunternehmer") {
-    issues.push("Kleinunternehmer ist in den Einstellungen nicht eingeschaltet");
-  }
+  if (invoice.kind === "rechnung") issues.push(...outgoingTaxIssues(invoice.taxTreatment, invoice.taxDetails, company.kleinunternehmer));
   // Gebucht wird nach der aktuellen Versteuerung, die Voranmeldung rechnet das Jahr aber nach der, die dort galt
   // (versteuerungForYear). Nach einem Wechsel zum Jahreswechsel stünde die Steuer einer Rechnung im Vorjahr sonst
   // zweimal in der Anmeldung (Soll → Ist) oder gar nicht (Ist → Soll).
@@ -1011,7 +1052,10 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   if (invoice.variant === "schluss") {
     const deducts = deductionIds(lines);
     if (deducts.length === 0) issues.push("Keine Abschlagsrechnung abgezogen");
-    issues.push(...(await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, q)).problems);
+    issues.push(
+      ...(await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment, taxDetails: invoice.taxDetails }, q))
+        .problems,
+    );
     if (invoice.gross < 0) issues.push("Die Abschläge übersteigen die Gesamtleistung");
   } else if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
@@ -1087,6 +1131,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
       await deductedRefs(lines, q),
       await directDebitFor(invoice, company, q),
+      await loadUnitCodes(q),
     );
     issues.push(...validateForFormat(preview));
   }
@@ -1097,12 +1142,12 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
  * Festschreiben: Nummer ziehen, PDF und XML erzeugen, sperren und buchen – alles in einer
  * Transaktion. Schlägt etwas fehl, bleibt der Entwurf ohne Nummer und es entsteht keine Lücke.
  */
-export async function finalizeInvoice(actor: string, id: string): Promise<Invoice> {
-  return withActor(actor, (tx) => finalizeDraft(tx, id));
+export async function finalizeInvoice(actor: string, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
+  return withActor(actor, (tx) => finalizeDraft(tx, id, bestaetigt));
 }
 
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
-async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
+async function finalizeDraft(tx: Tx, id: string, bestaetigt?: UmsatzgrenzeBestaetigung): Promise<Invoice> {
   // Angebote zuerst (lockQuotes): Die Prüfungen gegen andere Rechnungen desselben Angebots laufen erst unter der Sperre
   const [peek] = await tx.select({ correctsId: schema.invoices.correctsId }).from(schema.invoices).where(eq(schema.invoices.id, id));
   const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id, peek?.correctsId]));
@@ -1140,7 +1185,11 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     if (problem) throw new InvoiceError(`${problem}.`);
   }
   if (invoice.kind === "rechnung" && deducts.length > 0) {
-    const { problems } = await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, tx);
+    const { problems } = await deductionProblems(
+      id,
+      { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment, taxDetails: invoice.taxDetails },
+      tx,
+    );
     if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
   }
   invoice = { ...invoice, ...(await advanceProcedure(invoice, lines, company, tx)) };
@@ -1162,6 +1211,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   const seller = sellerFrom(company);
   const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
+  await pruefeUmsatzgrenze(tx, invoice, totals.net, company.foundedOn, bestaetigt);
   const doc = documentFor(
     invoice,
     lines,
@@ -1173,6 +1223,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null,
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
+    await loadUnitCodes(tx),
   );
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
@@ -1342,6 +1393,14 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
         "Die Rechnung ist teilweise ausgebucht (Skonto oder Forderungsausfall). Hebe die Ausbuchung zuerst auf, dann lässt sie sich stornieren.",
       );
     }
+    // Ebenso eine Verrechnung mit einer Korrektur (#877): Sie zählt als erledigt, ohne dass Geld geflossen ist, und stünde
+    // nach dem Storno als Erstattung an den Kunden und als Forderung aus der Korrektur offen
+    const verrechnet = await tx.execute(
+      sql`select 1 from invoice_settlements where invoice_id in ${[id, ...corrections.map((c) => c.id)]} group by invoice_id having sum(amount) <> 0 limit 1`,
+    );
+    if ([...verrechnet].length > 0) {
+      throw new InvoiceError("Die Rechnung ist mit einer Korrektur verrechnet. Hebe die Verrechnung zuerst auf, dann lässt sie sich stornieren.");
+    }
     const stornoOf = async (target: Invoice, targetLines: InvoiceLine[]) => {
       const draft = await insertDraft(
         tx,
@@ -1358,6 +1417,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
           ...referenceColumns(target),
           taxTreatment: target.taxTreatment,
           exemptionReason: target.exemptionReason,
+          taxDetails: target.taxDetails,
           priceMode: target.priceMode,
           language: target.language,
           lines: negatedLines(targetLines),
@@ -1397,6 +1457,7 @@ export async function createCorrection(actor: string, id: string, today: string)
       ...referenceColumns(invoice),
       taxTreatment: invoice.taxTreatment,
       exemptionReason: invoice.exemptionReason,
+      taxDetails: invoice.taxDetails,
       priceMode: invoice.priceMode,
       language: invoice.language,
       lines: negatedLines(lines),

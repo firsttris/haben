@@ -1,44 +1,53 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 
-/** Seitenkopf als direktes Kind des Inhalts; jede Seite rendert ihn als ersten Baustein */
+/** Seitenkopf und Aktionsleiste als direkte Kinder des Inhalts */
 const PAGE_HEAD = ":scope > .page-head";
+const ACTION_BAR = ":scope > .action-bar";
 
-function setPageHeadHeight(px: number): void {
-  document.documentElement.style.setProperty("--page-head-height", `${Math.ceil(px)}px`);
+function setCssHeight(name: string, px: number): void {
+  document.documentElement.style.setProperty(name, `${Math.ceil(px)}px`);
+}
+
+function observeChildHeight(container: HTMLElement, selector: string, cssVar: string): () => void {
+  let target: Element | null = null;
+  const resize = new ResizeObserver(([entry]) =>
+    setCssHeight(cssVar, entry?.borderBoxSize?.[0]?.blockSize ?? entry?.target.getBoundingClientRect().height ?? 0),
+  );
+
+  function follow() {
+    const next = container.querySelector(selector);
+    if (next === target) return;
+    if (target) resize.unobserve(target);
+    target = next;
+    if (target) resize.observe(target);
+    else setCssHeight(cssVar, 0);
+  }
+
+  follow();
+  const children = new MutationObserver(follow);
+  children.observe(container, { childList: true });
+  return () => {
+    children.disconnect();
+    resize.disconnect();
+    document.documentElement.style.removeProperty(cssVar);
+  };
 }
 
 /**
- * Fester Seitenkopf (#356): Die Höhe von `.page-head` steht als `--page-head-height` an der Wurzel, damit
- * Unternavigation, Belegansicht, Tabellenköpfe, Sprungziele und Fokus darunter beginnen statt dahinter zu
- * verschwinden. Der Kopf wechselt mit der Seite und wächst mit seinem Inhalt (umbrechende Aktionen, Meldungen);
- * deshalb wird er bei jedem Wechsel der Kinder neu gesucht und laufend gemessen.
+ * Fester Seitenkopf (#356) und feste Aktionsleiste (#396): Die Höhen stehen als `--page-head-height` und
+ * `--action-bar-height` an der Wurzel, damit Unternavigation, Belegansicht, Tabellenköpfe, Sprungziele und Fokus
+ * nicht dahinter verschwinden. Beide wechseln mit der Seite; deshalb werden sie bei jedem Wechsel der Kinder neu
+ * gesucht und laufend gemessen.
  */
 export function usePageHeadHeight(main: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const container = main.current;
     if (!container) return;
-    const root = document.documentElement;
-    let head: Element | null = null;
-    const resize = new ResizeObserver(([entry]) =>
-      setPageHeadHeight(entry?.borderBoxSize?.[0]?.blockSize ?? entry?.target.getBoundingClientRect().height ?? 0),
-    );
-
-    function follow() {
-      const next = container?.querySelector(PAGE_HEAD) ?? null;
-      if (next === head) return;
-      if (head) resize.unobserve(head);
-      head = next;
-      if (head) resize.observe(head);
-      else setPageHeadHeight(0);
-    }
-
-    follow();
-    const children = new MutationObserver(follow);
-    children.observe(container, { childList: true });
+    const stopHead = observeChildHeight(container, PAGE_HEAD, "--page-head-height");
+    const stopBar = observeChildHeight(container, ACTION_BAR, "--action-bar-height");
     return () => {
-      children.disconnect();
-      resize.disconnect();
-      root.style.removeProperty("--page-head-height");
+      stopHead();
+      stopBar();
     };
   }, [main]);
 }
@@ -54,7 +63,7 @@ export function useRevealWhen<T extends Element>(active: unknown): RefObject<T |
     // Der längere Knopf einer Rückfrage kann den Kopf im selben Moment wachsen lassen; der ResizeObserver meldet das
     // erst nach diesem Effekt, und scroll-padding-top rechnete sonst mit der alten Höhe
     const head = document.querySelector(".main > .page-head");
-    if (head) setPageHeadHeight(head.getBoundingClientRect().height);
+    if (head) setCssHeight("--page-head-height", head.getBoundingClientRect().height);
     ref.current?.scrollIntoView({ block: "nearest" });
   }, [active]);
   return ref;

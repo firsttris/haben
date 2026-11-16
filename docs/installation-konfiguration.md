@@ -45,6 +45,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `OIDC_GROUP_STEUERBERATUNG` | bei `OIDC_ONLY=true` | Gruppe für den Lesezugang der Steuerberatung; muss sich von der Inhaber-Gruppe unterscheiden | `haben-steuerberatung` |
 | `HABEN_ENCRYPTION_KEY` | ja | Genau 32 Byte, base64-kodiert. Verschlüsselt ELSTER-Zertifikat, Zugangsdaten und die API-Schlüssel für Lexoffice und sevDesk | Ausgabe von `openssl rand -base64 32` |
 | `HABEN_SETUP_CODE` | nein | Fester Einrichtungscode für das Anlegen des Kontos (mindestens 8 Zeichen). Ohne ihn erzeugt Haben bei jedem Start einen neuen und schreibt ihn ins Log, solange es kein Konto gibt | `mein-einrichtungscode` |
+| `HABEN_ABWEICHUNG_UEBERNEHMEN` | nein | Jahre (mit Komma), deren Abweichung bei der Prüfung beim Update auf das Journal ausdrücklich übernommen wird; ohne sie startet Haben bei einer Abweichung nicht, siehe [Update auf das Journal](einrichtung.md#update-auf-das-journal) | `2026` |
 | `ERIC_HOME` | nein | Verzeichnis eines von Hand entpackten ERiC-Pakets; hat Vorrang vor dem heruntergeladenen. Ohne beides werden Prüfen und Senden simuliert | `/opt/eric` |
 | `ERIC_DIR` | nein | Ziel für das von Haben heruntergeladene ERiC. Standard `data/eric`; im Image `/var/lib/haben/eric` (Volume) | `/var/lib/haben/eric` |
 | `ERIC_AUTO_INSTALL` | nein | `ja`: fehlt ERiC, lädt der Container es beim Start (Zustimmung zu den Nutzungsbedingungen) | `ja` |
@@ -69,7 +70,9 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `LAYOUTS_MAX_MB` | nein | Speicher für eigene Belegvorlagen in MB, Quelltexte und freigegebene Pakete zusammen. Ohne Angabe unbegrenzt; eine einzelne Vorlage hat höchstens 256 KB | `50` |
 | `LAYOUTS_PACKAGES_URL` | nein | Andere Quelle für die Typst-Pakete eigener Belegvorlagen, etwa ein Spiegel ohne Zugang ins Internet; darunter je Paket `<name>-<version>.tar.gz`. Standard `https://packages.typst.org/preview` | `https://spiegel.example/typst/preview` |
 | `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (u. a. wiederkehrende Rechnungen, Dauerbelege, Kontoabruf, ELSTER-Postfach, Umrechnungskurse, Belege per E-Mail, Fristen-Erinnerungen), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
+| `HABEN_UPDATE_CHECK` | nein | `off` schaltet die Abfrage der neuesten Version für Einstellungen › Export › Version ab, etwa für Instanzen ohne Internet; die Karte zeigt dann nur die installierte Version. Sonst fragt der Server höchstens einmal am Tag bei GitHub (`api.github.com`) nach dem neuesten stabilen Release, nach einem Neustart beim ersten Öffnen der Karte erneut, ohne Cookie, Token oder Angabe zur Instanz | `off` |
 | `HABEN_FIRMEN` | nein | Instanzen der eigenen Firmen für die Zeile „Firma wechseln“ in der Navigation: Name und Adresse je Firma, Format unter [Firma wechseln](installation.md#firma-wechseln) | siehe dort |
+| `HABEN_FIRMENPORTAL_URL` | nein | Nur mit SSO: Adresse des Firmenportals, in das die Zeile „Zum Firmenportal“ führt, statt „Firma wechseln“ mit der Liste aus `HABEN_FIRMEN` (nicht beides), siehe [Firmenportal](installation.md#firmenportal) | – |
 | `ENABLE_BANKING_APP_ID` | nein | Application ID der Enable-Banking-Anwendung. Schaltet zusammen mit dem Schlüssel den automatischen Kontoabruf ein. Einfacher: unter Einstellungen › Bank hochladen; das geht dann vor | `0b7c3f1e-…` |
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
 | `ENABLE_BANKING_KEY` | nein | Alternativ der Schlüssel selbst; Zeilenumbrüche als `\n` erlaubt | `-----BEGIN PRIVATE KEY-----\n…` |
@@ -78,13 +81,14 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `APP_STORE_CONNECT_URL` | nein | Andere Basis-URL von App Store Connect beim Abruf der [Finanzberichte](bank-zahlungsdienstleister.md#google-play-und-app-store), nur zum Testen. Standard `https://api.appstoreconnect.apple.com` | `http://localhost:4557` |
 | `LEXOFFICE_API_URL` | nein | Andere Basis-URL der Lexware-Office-API. Standard `https://api.lexware.io/v1` | `https://api.lexoffice.io/v1` |
 | `SEVDESK_API_URL` | nein | Andere Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert. Standard `https://my.sevdesk.de/api/v1`; Ablauf in [Umzug aus sevDesk](sevdesk.md) | `https://my.sevdesk.de/api/v1` |
+| `FASTBILL_API_URL` | nein | Andere Adresse der FastBill-API, nur zum Testen. Standard `https://my.fastbill.com/api/1.0/api.php`; Ablauf in [Umzug aus FastBill](fastbill.md) | `https://my.fastbill.com/api/1.0/api.php` |
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
 | `HABEN_COMMIT` | nein | Commit, aus dem das Image gebaut ist; `haben status` zeigt ihn hinter der Version ([Image](installation.md#image)). Im Image aus dem Build-Argument `HABEN_COMMIT` gesetzt, ohne Angabe leer | `0123abc4567def890123abc4567def890123abcd` |
 | `HABEN_EINVOICE_DIR` | nein | Verzeichnis von `packages/einvoice` (Typst-Vorlage und Schriften für das Rechnungs-PDF). Im Image gesetzt | `/app/packages/einvoice` |
 
 Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` und `MIGRATION_DATABASE_URL` wie eingetragen, ohne `DATABASE_URL` den bisherigen Zugang aus `DB_PASSWORD`; `BETTER_AUTH_URL` aus `DOMAIN`, `BETTER_AUTH_SECRET` aus `AUTH_SECRET`, `HABEN_ENCRYPTION_KEY` aus `ENCRYPTION_KEY`). Bei den Quadlets kommen die geheimen Werte aus Podman Secrets, der Rest aus `haben.env`; für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
 
-In den App-Container reicht `compose.yml` nur die Variablen durch, die dort unter `app` › `environment` stehen. Andere, etwa `HABEN_SETUP_CODE`, `HABEN_SCHEDULER`, `LEXOFFICE_API_URL` oder `SEVDESK_API_URL`, wirken in `.env` allein nicht; trag sie in der `compose.override.yml` beim Dienst `app` unter `environment` ein. Bei den Quadlets gelten alle Zeilen aus `haben.env`.
+In den App-Container reicht `compose.yml` nur die Variablen durch, die dort unter `app` › `environment` stehen. Andere, etwa `HABEN_SETUP_CODE`, `HABEN_SCHEDULER`, `HABEN_UPDATE_CHECK`, `LEXOFFICE_API_URL`, `FASTBILL_API_URL` oder `SEVDESK_API_URL`, wirken in `.env` allein nicht; trag sie in der `compose.override.yml` beim Dienst `app` unter `environment` ein. Bei den Quadlets gelten alle Zeilen aus `haben.env`.
 
 ## Datenablage
 

@@ -202,12 +202,14 @@ test("Kunden anlegen", async () => {
   for (const c of CUSTOMERS) await expect(page.getByText(c.name).first()).toBeVisible();
   // Die Suche filtert die Liste, ohne neu zu laden
   const liste = page.getByRole("region", { name: "Kontaktliste" });
+  // Zeilen sind Links auf den Kontakt; die Spaltenköpfe sind seit #1112 ebenfalls Links, deshalb der Pfad
+  const zeilen = liste.locator('a[href^="/kontakte/"]');
   await page.getByPlaceholder(/^Suchen:/).fill("hamburg");
-  await expect(liste.getByRole("link")).toHaveCount(1);
+  await expect(zeilen).toHaveCount(1);
   await expect(liste).toContainText("Nordwerk Software GmbH");
   // Auch nach der Telefonnummer (#322), die unter der E-Mail steht
   await page.getByPlaceholder(/^Suchen:/).fill("123456-0");
-  await expect(liste.getByRole("link")).toHaveCount(1);
+  await expect(zeilen).toHaveCount(1);
   await expect(liste).toContainText("+49 40 123456-0");
   await page.getByPlaceholder(/^Suchen:/).fill("gibt es nicht");
   await expect(liste).toContainText("Kein Kontakt passt");
@@ -382,6 +384,35 @@ test("Mahnung: Entwurf als PDF vor der Hauptaktion im Seitenkopf (DESIGN.md, Rei
   await expect(knoepfe.last()).toBeFocused();
 });
 
+// Die Aktionsleiste gibt es nur im Rechnungs- und Angebotseditor (#396); der Mahnungseditor hat keine und behält seine
+// Aktionen am Handy im Kopf, sonst ließe sich dort keine Mahnung erstellen
+test("Mahnung am Handy: ohne Aktionsleiste bleiben die Aktionen im Kopf", async () => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 812 });
+  try {
+    await go("/rechnungen/mahnwesen");
+    await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+    await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+    await page.waitForLoadState("networkidle");
+    const kopf = page.locator(".main > .page-head");
+    await expect(page.locator(".main > .action-bar")).toHaveCount(0);
+    await expect(kopf.getByRole("button", { name: "Vorschau", exact: true })).toBeVisible();
+    await expect(kopf.getByRole("button", { name: "Entwurf als PDF" })).toBeVisible();
+    await expect(kopf.getByRole("button", { name: "Zahlungserinnerung erstellen" })).toBeVisible();
+    // Wie bisher im Rechnungsentwurf (#401): Die Aktionen füllen am Handy die volle Breite des Kopfes
+    const innen = await kopf.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const stil = getComputedStyle(el);
+      return { links: box.left + Number.parseFloat(stil.paddingLeft), rechts: box.right - Number.parseFloat(stil.paddingRight) };
+    });
+    const zeile = await kopf.locator("> .actions").boundingBox();
+    expect(zeile?.x).toBeLessThanOrEqual(innen.links);
+    expect((zeile?.x ?? 0) + (zeile?.width ?? 0)).toBeGreaterThanOrEqual(innen.rechts);
+  } finally {
+    if (vorher) await page.setViewportSize(vorher);
+  }
+});
+
 test("Mahnung: Eine Gebühr über der Grenze steht am Feld und zählt weder in Forderung noch Vorschau", async () => {
   await go("/rechnungen/mahnwesen");
   await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
@@ -395,6 +426,18 @@ test("Mahnung: Eine Gebühr über der Grenze steht am Feld und zählt weder in F
   await expect(page.getByRole("region", { name: "Forderung" }).getByText("Mahngebühr", { exact: true })).toHaveCount(0);
   await expect(blatt.getByRole("img", { name: "Seite 1 von 1" })).toBeVisible();
   await expect(blatt.locator('[data-teil="summen"]')).not.toContainText("Mahngebühr");
+});
+
+test("Mahnung: „5€00“ als Gebühr steht am Feld, statt still 500,00 € zu werden (#1242)", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Mahngebühr (€)").fill("5€00");
+  await page.getByRole("button", { name: "Zahlungserinnerung erstellen" }).click();
+  await expect(page.getByLabel("Mahngebühr (€)")).toBeFocused();
+  await expect(page.getByLabel("Mahngebühr (€)")).toHaveAccessibleDescription("Trag die Mahngebühr ein, etwa 5,00, oder lass das Feld leer.");
+  await expect(page.getByRole("region", { name: "Forderung" }).getByText("Mahngebühr", { exact: true })).toHaveCount(0);
 });
 
 test("Mahnung: Das Zahnrad zeigt nur Schalter, die auf das Blatt wirken", async () => {
@@ -659,6 +702,19 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   // Keine Nummern, die im Belegfeld 1 zusammenfallen: kein Hinweis
   expect(response.headers()["x-haben-hinweis"]).toBeUndefined();
 
+  // Zeitraum Monat und Quartal (#960)
+  await card.getByLabel("Zeitraum").selectOption("03");
+  const maerzRes = await page.request.get((await link.getAttribute("href"))!);
+  expect(maerzRes.status()).toBe(200);
+  expect(maerzRes.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-03\.csv/);
+  await card.getByLabel("Zeitraum").selectOption("Q1");
+  const q1Res = await page.request.get((await link.getAttribute("href"))!);
+  expect(q1Res.status()).toBe(200);
+  expect(q1Res.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}-Q1\.csv/);
+  const badPeriodRes = await page.request.get("/api/datev/2026?zeitraum=ungueltig");
+  expect(badPeriodRes.status()).toBe(400);
+  await card.getByLabel("Zeitraum").selectOption("");
+
   // Mit Hinweis (#675; welche Nummern zusammenfallen, prüft datev-belegfeld.test.ts): Die Datei kommt, die Karte nennt die Nummern
   const hinweis = "„RE.2026.001“ und „RE-2026-001“ stehen im Belegfeld 1 als „RE-2026-001“; DATEV kann ihre offenen Posten verwechseln.";
   await page.route("**/api/datev/*", async (route) => {
@@ -783,7 +839,7 @@ test("Auftragsarchiv: suchen, Original-PDF nachreichen und unverändert herunter
 
 // #472: Gutschrift auf ein Buchungskonto aus sevDesk folgt dem Kontostamm; ohne erkannte Kontoart markiert Haben sie. Die Daten
 // stehen in 2019 und werden danach wieder entfernt, damit spätere Tests und Bilder das Archiv wie vorher sehen.
-test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift oder Hinweis „Buchungskonto nicht erkannt“", async ({ browser }) => {
+test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift, Hinweis „Buchungskonto nicht erkannt“ und Kontoart von Hand", async ({ browser }) => {
   const sql = postgres(databaseUrlFuer(), { max: 1 });
   const note = (id: string, accountingTypeId: string) => ({
     id,
@@ -842,10 +898,85 @@ test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift oder Hinweis „B
         ).toEqual([]);
       }
     await context.close();
+
+    // #888: Kontoart von Hand festlegen, mit Rückfrage; danach rechnet Haben wie bei einem erkannten Konto
+    await page.getByRole("button", { name: "Als Aufwandskonto festlegen" }).click();
+    const dialog = page.getByRole("dialog", { name: "Kontoart von GS-E2E-2 festlegen?" });
+    await expect(dialog).toContainText("119,00 €");
+    await expect(dialog).toContainText("Kz 66");
+    await expect(dialog.getByRole("button", { name: "Abbrechen" })).toBeFocused();
+    const dialogAxe = await new AxeBuilder({ page })
+      .include(".confirm-dialog")
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(dialogAxe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+    await dialog.getByRole("button", { name: "Als Aufwandskonto festlegen" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Als Aufwandskonto festgelegt." })).toBeFocused();
+    await expect(page.getByText("Aufwandskonto, von Hand festgelegt")).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Buchungskonto nicht erkannt" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Stattdessen als Erlöskonto festlegen" })).toBeVisible();
+    const vorher = page.viewportSize();
+    for (const width of [1440, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+      expect(
+        violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+        `von Hand festgelegt bei ${width} px`,
+      ).toEqual([]);
+    }
+    if (vorher) await page.setViewportSize(vorher);
+    await go("/archiv?ansicht=belege&jahr=2019");
+    await expect(page.getByRole("link", { name: /GS-E2E-2/ })).toContainText("Ausgabe-Gutschrift");
+    await expect(page.getByRole("link", { name: /GS-E2E-2/ })).not.toContainText("Buchungskonto nicht erkannt");
   } finally {
     if (runId)
       await sql.begin(async (tx) => {
         await tx`set local session_replication_role = replica`;
+        await tx`delete from sevdesk_accounting_type_decisions where voucher_id in (select id from lexoffice_vouchers where import_id = ${runId})`;
+        await tx`delete from sevdesk_accounting_types where import_id = ${runId}`;
+        await tx`delete from lexoffice_vouchers where import_id = ${runId}`;
+        await tx`delete from lexoffice_imports where id = ${runId}`;
+      });
+    await sql.end();
+  }
+});
+
+// #888: Widerspricht ein später abgerufener Kontostamm der Entscheidung von Hand, klärt nur noch die Art des Kontostamms;
+// die Rückfrage nennt nur Kennzahlen, die für die Gutschrift stimmen (hier 7 %: Kz 86, nicht Kz 81). Daten in 2018, danach entfernt.
+test("sevDesk-Gutschrift auf Buchungskonto: Widerspruch zum Kontostamm bietet nur dessen Art an, Rückfrage bei 7 %", async () => {
+  const sql = postgres(databaseUrlFuer(), { max: 1 });
+  let runId = "";
+  try {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('haben.actor', 'e2e', true)`;
+      const [run] = await tx`insert into lexoffice_imports (source, status, progress)
+        values ('sevdesk', 'fertig', '{"phase":"fertig","contacts":0,"contactsLinked":0,"listed":1,"imported":1,"skipped":0,"files":0,"failed":[]}') returning id`;
+      runId = run!.id as string;
+      const [voucher] =
+        await tx`insert into lexoffice_vouchers (lexoffice_id, source, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw)
+        values ('creditnote/903', 'sevdesk', ${runId}, 'creditnote', 'einnahme', 'GS-E2E-3', '2018-05-14', 'open', 'Erfundener Verlag', -10000, -700, -10700,
+        '[{"rate":700,"net":-10000,"tax":-700}]', '[]', '{"status":"open","openAmount":-10700,"paidDate":null,"items":[]}',
+        ${tx.json({ id: "903", bookingCategory: "ACCOUNTING_TYPE", accountingType: { id: "E2E-3", objectName: "AccountingType" } })}) returning id`;
+      await tx`insert into sevdesk_accounting_type_decisions (voucher_id, kind, decided_by) values (${voucher!.id as string}, 'aufwand', 'e2e')`;
+      await tx`insert into sevdesk_accounting_types (import_id, accounting_type_id, raw)
+        values (${runId}, 'E2E-3', '{"id":"E2E-3","objectName":"AccountingType","skr03":"8300","skr04":"4300"}')`;
+    });
+    await go("/archiv?ansicht=belege&jahr=2018");
+    await page.getByRole("link", { name: /GS-E2E-3/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "GS-E2E-3" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "von Hand festgelegt ist ein Aufwandskonto" })).toBeVisible();
+    // Aufwand steht schon von Hand fest; ein zweites Aufwand klärt den Widerspruch nicht
+    await expect(page.getByRole("button", { name: "Als Aufwandskonto festlegen" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Als Erlöskonto festlegen" }).click();
+    const dialog = page.getByRole("dialog", { name: "Kontoart von GS-E2E-3 festlegen?" });
+    await expect(dialog).toContainText("107,00 €");
+    await expect(dialog).not.toContainText("Kz 81");
+    await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  } finally {
+    if (runId)
+      await sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`delete from sevdesk_accounting_type_decisions where voucher_id in (select id from lexoffice_vouchers where import_id = ${runId})`;
         await tx`delete from sevdesk_accounting_types where import_id = ${runId}`;
         await tx`delete from lexoffice_vouchers where import_id = ${runId}`;
         await tx`delete from lexoffice_imports where id = ${runId}`;
@@ -921,7 +1052,8 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await expect(form.getByLabel("Adresse")).toHaveValue("");
   await expect(form.getByLabel("Öffnen")).toHaveValue("haben");
   await expect(paperless).toHaveAccessibleName("Paperless (öffnet in neuem Tab)");
-  await expect(page.getByText("Öffnet in neuem Tab")).toBeVisible();
+  // Die eingeklappte Leiste steht verborgen daneben im DOM, mit demselben Hinweis
+  await expect(page.getByText("Öffnet in neuem Tab").filter({ visible: true })).toBeVisible();
   await page.getByRole("button", { name: "Paperless bearbeiten" }).click();
   await expect(page.getByRole("form", { name: "Paperless bearbeiten" }).getByLabel("Öffnen")).toHaveValue("tab");
   await page.getByRole("button", { name: "Paperless entfernen" }).click();

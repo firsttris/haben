@@ -1,7 +1,8 @@
+import { bildFormat } from "@haben/core";
 import { join } from "node:path";
 import type { RenderJob } from "./render-protocol.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
-import { accountHolder, collectedByDirectDebit, countryName, formatIban, paymentSentence, referenceMeta } from "./format.ts";
+import { accountHolder, collectedByDirectDebit, countryName, formatIban, paidInvoicePayment, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import {
@@ -101,6 +102,7 @@ export function documentPdfData(
     "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "intro" | "note" | "priceMode" | "discount" | "options"
   >,
   t: Texts,
+  showBank = true,
 ) {
   const { seller, buyer } = doc;
   const treatment = doc.taxTreatment ?? "regulaer";
@@ -144,7 +146,7 @@ export function documentPdfData(
     note: doc.note?.trim() ? doc.note.trim() : null,
     introFormatted: doc.intro?.trim() ? parseTextFormatting(doc.intro.trim()) : null,
     noteFormatted: doc.note?.trim() ? parseTextFormatting(doc.note.trim()) : null,
-    ...footerData(seller, t, doc, treatment),
+    ...footerData(showBank ? seller : { ...seller, bank: "", iban: "", bic: "", kontoinhaber: "" }, t, doc, treatment),
   };
 }
 
@@ -165,12 +167,14 @@ export function pdfData(doc: InvoiceDocument) {
     meta.push({ label: t.serviceDate, value: date ? t.date(date) : t.serviceDateDefault });
   }
   if (showsCustomerNumber(doc)) meta.push({ label: t.customerNumber, value: buyer.kundennummer! });
+  if (buyer.unsereLieferantennummer) meta.push({ label: t.supplierNumber, value: buyer.unsereLieferantennummer });
   meta.push(...referenceMeta(doc.references, t));
   if (buyer.leitwegId) meta.push({ label: t.leitwegId, value: buyer.leitwegId });
   // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)
   if (buyer.ustId) meta.push({ label: t.buyerVatId, value: buyer.ustId });
 
-  const { totalRows, included, grossLabel, ...body } = documentPdfData(doc, t);
+  const paid = paidInvoicePayment(doc);
+  const { totalRows, included, grossLabel, ...body } = documentPdfData(doc, t, !paid);
   // Fremdwährung: die Umsatzsteuer zusätzlich in Euro (§ 14 Abs. 4 Nr. 8 UStG, Abschn. 14.5 UStAE)
   const euroTax = doc.euroTax
     ? {
@@ -199,6 +203,7 @@ export function pdfData(doc: InvoiceDocument) {
       doc.totals.gross > 0 &&
       seller.iban &&
       doc.options?.giroCode !== false &&
+      !paid &&
       !collectedByDirectDebit(doc)
         ? girocodeSvg({
             name: accountHolder(seller),
@@ -330,11 +335,9 @@ export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.d
   return { footer: runs.map((column) => column.map((line) => line.map((run) => run.text).join(""))), footerFormatted: runs, legal };
 }
 
-/** Erkennt PNG und JPEG an den ersten Bytes; anderes lehnt Haben als Logo ab */
+/** Erkennt PNG und JPEG an den ersten Bytes (bildFormat in @haben/core); anderes lehnt Haben als Logo ab */
 export function logoFormat(data: Uint8Array): Logo["format"] | null {
-  if (data.length > 8 && data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return "png";
-  if (data.length > 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "jpg";
-  return null;
+  return bildFormat(data);
 }
 
 /** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe und passende Grautöne immer, das Logo als Dateiname neben der Vorlage */

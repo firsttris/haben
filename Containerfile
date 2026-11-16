@@ -5,6 +5,7 @@ WORKDIR /app
 COPY bun.lock bunfig.toml package.json ./
 COPY apps/web/package.json apps/web/
 COPY apps/elster-helfer/package.json apps/elster-helfer/
+COPY apps/firmenportal/package.json apps/firmenportal/
 # Alle Workspace-Pakete, sonst fehlen deren Abhängigkeiten (z. B. pdf-lib in einvoice, zod in import)
 COPY packages/core/package.json packages/core/
 COPY packages/einvoice/package.json packages/einvoice/
@@ -27,7 +28,7 @@ RUN bun run build \
 # Laufzeit auf Wolfi statt Debian: glibc wie bisher (ERiC ist eine glibc-Bibliothek, Alpine mit musl ginge nicht),
 # aber aktuelle Upstream-Versionen, vor allem von poppler, das jedes hochgeladene PDF liest. Wolfi ist rollend; der
 # Digest hält den Build reproduzierbar, Renovate hebt ihn an.
-FROM cgr.dev/chainguard/wolfi-base:latest@sha256:b7787f1d3f29dcfb48730372d3515391ac3b218723201a765c94949922676099
+FROM cgr.dev/chainguard/wolfi-base:latest@sha256:833c48f1faf32c90e6f9501a2410a9aa28ceb2c594102edd4470053c30efa089
 # Dasselbe Bun wie in der Build-Stufe (glibc-Build); Renovate verfolgt oven/bun weiter an beiden Stellen
 COPY --from=docker.io/oven/bun:1.4.4-slim /usr/local/bin/bun /usr/local/bin/bun
 # poppler-utils: pdftotext und pdftoppm für hochgeladene PDFs (Textebene, Seitenbilder für einen eigenen KI-Dienst),
@@ -60,7 +61,7 @@ COPY --from=build /app/apps/web/src ./apps/web/src
 COPY --from=build /app/apps/web/package.json ./apps/web/package.json
 COPY --from=build /app/package.json ./package.json
 COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
-# haben status [--json]: Version, ERiC und letzte Sicherung, etwa für deploy/instanzen
+# haben status [--json]: Version, ERiC, letzte Sicherung und Speicher, etwa für deploy/instanzen
 COPY deploy/haben.sh /usr/local/bin/haben
 RUN mkdir -p /var/lib/haben/eric-log /var/lib/haben/eric /var/lib/haben/belege && chown -R bun:bun /var/lib/haben
 # Commit des Builds (#887) für haben status und als OCI-Label, etwa --build-arg HABEN_COMMIT="$(git rev-parse HEAD)".

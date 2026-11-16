@@ -22,7 +22,6 @@ export const Route = createFileRoute("/_app/angebote/$id")({
   }),
   component: QuotePage,
 });
-
 type Detail = Awaited<ReturnType<typeof getQuoteDetail>>;
 function QuotePage() {
   const data = Route.useLoaderData();
@@ -50,6 +49,7 @@ function QuotePage() {
           sellerOrderReference: quote.sellerOrderReference,
           despatchAdviceReference: quote.despatchAdviceReference,
           taxTreatment: quote.taxTreatment,
+          taxDetails: quote.taxDetails,
           exemptionReason: quote.exemptionReason,
           priceMode: quote.priceMode,
           language: quote.language,
@@ -82,6 +82,7 @@ function QuotePage() {
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}
         articles={data.articles}
+        units={data.units}
         textBlocks={data.textBlocks}
         attachments={<InvoiceAttachments kind="angebot" ownerId={quote.id} attachments={data.attachments} editable />}
       />

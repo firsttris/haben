@@ -4,8 +4,10 @@ import { invoiceVatDate } from "./invoice-tax.ts";
 import { leistungsmonatHinweis } from "./leistungsmonat.ts";
 
 /**
- * Hinweis zu einer festgeschriebenen Rechnung, nur wenn der Leistungstag ihre Meldung in einen schon übermittelten Zeitraum
- * verschiebt. Ist-Versteuerung, Anzahlungen, Stornos und Korrekturen meldet Haben nicht nach dem Leistungstag.
+ * Hinweis zu einer festgeschriebenen Rechnung, nur wenn der Leistungstag ihre Meldung in einen Zeitraum verschiebt, dessen
+ * zuletzt übermittelte Anmeldung vor dem Festschreiben gesendet wurde oder von Hand überschriebene Werte hatte. Ist-Versteuerung
+ * (außer EU-Leistungen mit Reverse Charge, § 18b Satz 3 UStG), Anzahlungen, Stornos und Korrekturen meldet Haben nicht nach
+ * dem Leistungstag.
  */
 export async function leistungsmonatHinweisFuer(invoice: typeof schema.invoices.$inferSelect, q: Db | Tx = db): Promise<string | null> {
   if (invoice.status !== "final" || invoice.kind !== "rechnung") return null;
@@ -16,12 +18,10 @@ export async function leistungsmonatHinweisFuer(invoice: typeof schema.invoices.
       year: schema.vatReturns.year,
       month: schema.vatReturns.month,
       sentAt: schema.vatReturns.sentAt,
+      source: schema.vatReturns.source,
     })
     .from(schema.vatReturns)
     .where(eq(schema.vatReturns.status, "sent"))
     .orderBy(schema.vatReturns.sentAt);
-  return leistungsmonatHinweis(tag, gesendet, {
-    net: invoice.net,
-    tax: invoice.tax,
-  });
+  return leistungsmonatHinweis(tag, gesendet, { net: invoice.net, tax: invoice.tax }, invoice.lockedAt);
 }

@@ -23,6 +23,7 @@ import { contactRoleProblem, loadCompany, validMandateOn, type Company } from ".
 import { createDraft, effectivePriceMode, finalizeInvoice } from "./invoices.ts";
 import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
 import { MailError } from "../mail/index.ts";
+import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
 
 export type RecurringInvoice = typeof schema.recurringInvoices.$inferSelect;
 
@@ -45,6 +46,7 @@ export const recurringInputSchema = z.object({
   propertyRetention: z.boolean().default(false),
   taxTreatment: z.enum(TAX_TREATMENT_KEYS),
   exemptionReason: z.string().trim().max(300),
+  taxDetails: outgoingTaxDetailsSchema,
   /** Einzelpreise netto oder brutto inkl. USt */
   priceMode: z.enum(PRICE_MODES).default("netto"),
   lines: z.array(draftLineSchema).min(1, "Mindestens eine Position").max(200),
@@ -66,7 +68,7 @@ function values(raw: RecurringInput) {
   if (input.endDate && input.endDate < input.nextDate) throw new RecurringError("Das Enddatum liegt vor dem nächsten Termin.");
   return {
     ...input,
-    exemptionReason: input.taxTreatment === "regulaer" ? "" : input.exemptionReason,
+    ...outgoingTaxColumns(input),
     priceMode: effectivePriceMode(input),
     sendByMail: input.mode === "festschreiben" && input.sendByMail,
     anchorDay: Number(input.nextDate.slice(8, 10)),
@@ -122,20 +124,58 @@ export async function updateRecurring(actor: string, id: string, input: Recurrin
   return withActor(actor, async (tx) => {
     const row = values(input);
     const [previous] = await tx
-      .select({ contactId: schema.recurringInvoices.contactId })
+      .select({ contactId: schema.recurringInvoices.contactId, nextDate: schema.recurringInvoices.nextDate, anchorDay: schema.recurringInvoices.anchorDay })
       .from(schema.recurringInvoices)
       .where(eq(schema.recurringInvoices.id, id))
       .for("update");
     if (!previous) throw new RecurringError("Vorlage nicht gefunden.");
     // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Vorlage
     if (row.contactId !== previous.contactId) await checkCustomer(tx, row.contactId);
+    // Unveränderter Termin: Ankertag behalten, sonst würde aus dem Monatsletzten nach dem Speichern am 30.11. der 30.
+    const anchorDay = row.nextDate === previous.nextDate ? previous.anchorDay : row.anchorDay;
     const [updated] = await tx
       .update(schema.recurringInvoices)
-      .set({ ...row, lastError: null })
+      .set({ ...row, anchorDay, lastError: null })
       .where(eq(schema.recurringInvoices.id, id))
       .returning();
     return updated!;
   });
+}
+
+/** Felder einer Vorlage aus einem Umzug; Aktiv, Ablauf, Versand und Zahlungsart setzt importRecurringPaused. */
+export type ImportedRecurring = Pick<
+  RecurringInput,
+  "name" | "contactId" | "paymentTermDays" | "intro" | "note" | "taxTreatment" | "priceMode" | "lines" | "nextDate" | "endDate" | "servicePeriod"
+> & { intervalMonths: RecurringInterval; anchorDay: number };
+
+const importedSchema = recurringInputSchema
+  .pick({ name: true, contactId: true, paymentTermDays: true, intro: true, note: true, taxTreatment: true, priceMode: true, lines: true })
+  .extend({ servicePeriod: recurringInputSchema.shape.servicePeriod, nextDate: isoDate, endDate: isoDate.nullable() });
+
+/**
+ * Vorlage aus einem Umzug (sevDesk, #472): kommt pausiert und als Entwurf an, damit Haben nichts erzeugt oder verschickt,
+ * bevor jemand sie geprüft hat. Ein Enddatum vor dem nächsten Termin bleibt stehen (beendete Vorlage), der Ankertag kommt
+ * vom Aufrufer (31 = Monatsende). Gibt die ID der neuen Vorlage zurück.
+ */
+export async function importRecurringPaused(tx: Tx, input: ImportedRecurring): Promise<string> {
+  const row = importedSchema.parse(input);
+  if (![1, 3, 6, 12].includes(input.intervalMonths)) throw new RecurringError("Intervall nicht unterstützt.");
+  if (!Number.isInteger(input.anchorDay) || input.anchorDay < 1 || input.anchorDay > 31) throw new RecurringError("Ankertag ungültig.");
+  await checkCustomer(tx, row.contactId);
+  const [created] = await tx
+    .insert(schema.recurringInvoices)
+    .values({
+      ...row,
+      exemptionReason: "",
+      intervalMonths: input.intervalMonths,
+      anchorDay: input.anchorDay,
+      active: false,
+      mode: "entwurf",
+      sendByMail: false,
+      paymentMethod: "ueberweisung",
+    })
+    .returning({ id: schema.recurringInvoices.id });
+  return created!.id;
 }
 
 /** Löschen nur, solange keine Rechnung daraus entstanden ist; sonst deaktivieren */
@@ -173,6 +213,7 @@ export function invoiceForDate(
     propertyRetention: recurring.propertyRetention,
     taxTreatment: recurring.taxTreatment,
     exemptionReason: recurring.exemptionReason,
+    taxDetails: recurring.taxDetails,
     priceMode: recurring.priceMode,
     language,
     paymentMethod: recurring.paymentMethod,

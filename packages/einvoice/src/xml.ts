@@ -8,11 +8,11 @@ import {
   skontoPaymentTerms,
   TAX_TREATMENTS,
   treatmentNote,
-  UNITS,
   type Cents,
   type Millis,
 } from "@haben/core";
 import { ciiXml } from "./cii.ts";
+import { unitCodeOf } from "./einheit-code.ts";
 import { texts } from "./i18n.ts";
 import {
   accountHolder,
@@ -22,10 +22,11 @@ import {
   invoiceSkonto,
   isCreditNote,
   paymentSentence,
+  paidInvoicePayment,
   presentReferences,
   servicePeriod,
 } from "./format.ts";
-import type { Allowance, DocumentAllowance, Invoice, InvoiceLine } from "./modell.ts";
+import type { Allowance, DocumentAllowance, Invoice, InvoiceLine, PartyIdentification } from "./modell.ts";
 import { legalLine, renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument } from "./types.ts";
 import { ublXml } from "./ubl.ts";
@@ -104,6 +105,21 @@ function sellerLegalEntity(seller: InvoiceDocument["seller"]) {
 }
 
 /**
+ * Verkäuferkennungen (BT-29, 0..n): zuerst unsere Lieferantennummer beim Kunden (#711), ohne schemeID, denn der Kunde
+ * vergibt sie selbst; das Schema (BT-29-1) ist laut EN 16931-1 optional und stammt sonst aus ISO/IEC 6523, das solche
+ * Nummern nicht kennt. BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung. Bei Lastschrift die
+ * Gläubiger-ID als Bank assigned creditor identifier (BT-90, schemeID SEPA); cii.ts setzt sie im CII als ram:CreditorReferenceID.
+ */
+function sellerIdentifiers(doc: InvoiceDocument, outOfScope: boolean): PartyIdentification[] {
+  const { seller, buyer } = doc;
+  return [
+    ...(buyer.unsereLieferantennummer ? [{ "cbc:ID": buyer.unsereLieferantennummer }] : []),
+    ...((!seller.ustId || outOfScope) && (seller.steuernummer || seller.ustId) ? [{ "cbc:ID": seller.steuernummer || seller.ustId! }] : []),
+    ...(collectedByDirectDebit(doc) ? [{ "cbc:ID": doc.directDebit.creditorId, "cbc:ID@schemeID": "SEPA" as const }] : []),
+  ];
+}
+
+/**
  * InvoiceDocument → Rechnungsmodell nach EN 16931 (modell.ts), aus dem cii.ts und ubl.ts das XML schreiben.
  * Storno und Korrektur werden als Gutschrift (381) mit umgekehrtem Vorzeichen abgebildet.
  */
@@ -116,19 +132,14 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const period = servicePeriod(doc);
   const treatment = doc.taxTreatment ?? "regulaer";
   // BR-O-02: bei nicht steuerbaren Umsätzen keine USt-IdNr. von Verkäufer und Käufer
-  const outOfScope = treatment === "drittland";
+  const outOfScope = TAX_TREATMENTS[treatment].category === "O";
   const exemption = treatment === "regulaer" ? null : TAX_TREATMENTS[treatment];
 
   const sellerTax: { "cbc:CompanyID": string; "cac:TaxScheme": { "cbc:ID": string } }[] = [];
   if (seller.ustId && !outOfScope) sellerTax.push({ "cbc:CompanyID": seller.ustId, "cac:TaxScheme": { "cbc:ID": "VAT" } });
   if (seller.steuernummer) sellerTax.push({ "cbc:CompanyID": seller.steuernummer, "cac:TaxScheme": { "cbc:ID": "FC" } });
 
-  // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29). Bei Lastschrift die Gläubiger-ID als
-  // Bank assigned creditor identifier (BT-90, schemeID SEPA); cii.ts setzt sie im CII als ram:CreditorReferenceID
-  const sellerIds = [
-    ...((!seller.ustId || outOfScope) && (seller.steuernummer || seller.ustId) ? [{ "cbc:ID": seller.steuernummer || seller.ustId! }] : []),
-    ...(collectedByDirectDebit(doc) ? [{ "cbc:ID": doc.directDebit.creditorId, "cbc:ID@schemeID": "SEPA" as const }] : []),
-  ];
+  const sellerIds = sellerIdentifiers(doc, outOfScope);
   const sellerContact: NonNullable<Invoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:Contact"]> = {
     "cbc:Name": seller.name,
     "cbc:ElectronicMail": seller.email,
@@ -154,7 +165,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     return {
       "cbc:ID": String(line.position),
       "cbc:InvoicedQuantity": quantity(qty),
-      "cbc:InvoicedQuantity@unitCode": UNITS[line.unit],
+      "cbc:InvoicedQuantity@unitCode": unitCodeOf(line)!,
       "cbc:LineExtensionAmount": amount(net),
       "cbc:LineExtensionAmount@currencyID": currency,
       ...(allowance ? { "cac:AllowanceCharge": [allowance] } : {}),
@@ -181,6 +192,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   if (!firstLine) throw new Error("Rechnung ohne Positionen");
 
   const payable = sign * doc.totals.gross;
+  const paid = paidInvoicePayment(doc);
   const invoice: Invoice = {
     "cbc:ID": doc.number,
     "cbc:IssueDate": doc.issueDate,
@@ -192,7 +204,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       "cac:Party": {
         "cbc:EndpointID": seller.email,
         "cbc:EndpointID@schemeID": "EM",
-        // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29)
+        // Verkäuferkennungen (BT-29) und Gläubiger-ID (BT-90), siehe sellerIds
         ...(sellerIds.length > 0 ? { "cac:PartyIdentification": sellerIds } : {}),
         "cac:PostalAddress": {
           "cbc:StreetName": seller.strasse,
@@ -255,7 +267,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       ...(allowances.length > 0 ? { "cbc:AllowanceTotalAmount": amount(sign * allowanceTotal), "cbc:AllowanceTotalAmount@currencyID": currency } : {}),
       "cbc:TaxInclusiveAmount": amount(payable),
       "cbc:TaxInclusiveAmount@currencyID": currency,
-      "cbc:PayableAmount": amount(payable),
+      ...(paid ? { "cbc:PrepaidAmount": amount(payable), "cbc:PrepaidAmount@currencyID": currency } : {}),
+      "cbc:PayableAmount": amount(paid ? 0 : payable),
       "cbc:PayableAmount@currencyID": currency,
     },
     "cac:InvoiceLine": [firstLine, ...otherLines],
@@ -325,7 +338,11 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     }));
   }
 
-  if (!credit) {
+  if (paid) {
+    // BT-81 nach UNTDID 4461: 10 = bar, 68 = Online-Zahlungsdienst. Bei BT-115 = 0 entfällt die Frist (BR-CO-25).
+    // https://docs.peppol.eu/poacc/billing/3.0/codelist/UNCL4461/
+    invoice["cac:PaymentMeans"] = [{ "cbc:PaymentMeansCode": paid.paidVia.toLowerCase() === "bar" ? "10" : "68" }];
+  } else if (!credit) {
     invoice["cbc:DueDate"] = doc.dueDate;
     if (collectedByDirectDebit(doc)) {
       // SEPA-Lastschrift: 59 nach UNTDID 4461, Mandat (BT-89) und Konto des Kunden (BT-91) in cac:PaymentMandate; ohne

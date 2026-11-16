@@ -36,7 +36,7 @@ export function inkOnAccent(hex: string): "#FFFFFF" | "#000000" {
 }
 
 /** Kontrast zweier Farben #RRGGBB nach WCAG 2.2, 1 bis 21 */
-function contrast(a: string, b: string): number {
+export function contrast(a: string, b: string): number {
   const [hell, dunkel] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
   return (hell + 0.05) / (dunkel + 0.05);
 }

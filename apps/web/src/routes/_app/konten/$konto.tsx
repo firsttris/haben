@@ -3,7 +3,7 @@ import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-ro
 import { Fragment } from "react";
 import { z } from "zod/mini";
 import { BalanceChart } from "../../../components/BalanceChart.tsx";
-import { JOURNAL_SOURCE, SaldoBetrag, ZEITRAEUME, lastDayBefore, shortDate } from "../../../components/Ledger.tsx";
+import { JOURNAL_SOURCE, SaldoBetrag, ZEITRAEUME, lastDayBefore, shortDate, vorgangZurHerkunft } from "../../../components/Ledger.tsx";
 import { formatDate } from "../../../lib/format.ts";
 import { getKontenblatt } from "../../../server/functions/ledger.ts";
 import styles from "../../../styles/auswertungen.css?url";
@@ -23,23 +23,24 @@ export const Route = createFileRoute("/_app/konten/$konto")({
   component: KontenblattPage,
 });
 
-function SourceLink({ type, id, reversal }: { type: string; id: string; reversal: boolean }) {
+function SourceLink({
+  type,
+  id,
+  reversal,
+  invoiceId,
+  documentId,
+}: {
+  type: string;
+  id: string;
+  reversal: boolean;
+  invoiceId: string | null;
+  documentId: string | null;
+}) {
   const label = reversal ? "Gegenbuchung" : (JOURNAL_SOURCE[type as keyof typeof JOURNAL_SOURCE] ?? type);
-  if (type === "invoice")
+  const vorgang = vorgangZurHerkunft({ sourceType: type, sourceId: id, invoiceId, documentId });
+  if (vorgang)
     return (
-      <Link to="/rechnungen/$id" params={{ id }}>
-        {label}
-      </Link>
-    );
-  if (type === "document")
-    return (
-      <Link to="/belege/$id" params={{ id }}>
-        {label}
-      </Link>
-    );
-  if (type === "asset")
-    return (
-      <Link to="/anlagen/$id" params={{ id }}>
+      <Link to={vorgang.to} params={{ id: vorgang.id }}>
         {label}
       </Link>
     );
@@ -186,7 +187,7 @@ function KontenblattPage() {
                       ))}
                     </td>
                     <td className="small" data-label="Herkunft">
-                      <SourceLink type={z.sourceType} id={z.sourceId} reversal={z.reversal} />
+                      <SourceLink type={z.sourceType} id={z.sourceId} reversal={z.reversal} invoiceId={z.invoiceId} documentId={z.documentId} />
                     </td>
                     <td className="num" data-label="Soll">
                       {z.soll ? formatEuro(z.soll) : ""}

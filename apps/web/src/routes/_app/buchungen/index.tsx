@@ -4,7 +4,7 @@ import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
 import { z } from "zod/mini";
-import { JOURNAL_SOURCE, journalSourcesFor, shortDate, type JournalSource } from "../../../components/Ledger.tsx";
+import { JOURNAL_SOURCE, journalSourcesFor, shortDate, vorgangZurHerkunft, type JournalSource } from "../../../components/Ledger.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
@@ -32,32 +32,13 @@ function nextPeriod({ year, month }: VatPeriod): VatPeriod {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 }
 
-/** Herkunft als Link auf Rechnung, Beleg, Anlage oder Bank; ein Verweis, kein Status (DESIGN.md › Status) */
+/** Herkunft als Link auf Rechnung, Beleg (auch Vorsteuerfreigabe), Anlage oder Bank; ein Verweis, kein Status (DESIGN.md › Status) */
 function SourceLink({ entry }: { entry: Entry }) {
   const label = entry.reversal ? "Gegenbuchung" : JOURNAL_SOURCE[entry.sourceType];
-  const id = entry.sourceId;
-  if (entry.sourceType === "invoice")
+  const vorgang = vorgangZurHerkunft(entry);
+  if (vorgang)
     return (
-      <Link to="/rechnungen/$id" params={{ id }} className="journal-source">
-        {label}
-      </Link>
-    );
-  if (entry.sourceType === "document")
-    return (
-      <Link to="/belege/$id" params={{ id }} className="journal-source">
-        {label}
-      </Link>
-    );
-  // Verrechnung zweier Belege (#786): je Belegseite eine Buchung, der Link führt auf ihren Beleg
-  if (entry.sourceType === "verrechnung" && entry.documentId)
-    return (
-      <Link to="/belege/$id" params={{ id: entry.documentId }} className="journal-source">
-        {label}
-      </Link>
-    );
-  if (entry.sourceType === "asset")
-    return (
-      <Link to="/anlagen/$id" params={{ id }} className="journal-source">
+      <Link to={vorgang.to} params={{ id: vorgang.id }} className="journal-source">
         {label}
       </Link>
     );
@@ -193,7 +174,6 @@ function JournalPage() {
               <Icon name="chevron-right" size={16} />
             </Link>
           )}
-          {/* Im Einzelunternehmen ab dem Stichjahr (freie Buchungen); davor erklärt die Seite, warum noch nicht */}
           {inhaber && (
             <Link to="/buchungen/neu" className="btn btn-primary">
               Buchung erfassen

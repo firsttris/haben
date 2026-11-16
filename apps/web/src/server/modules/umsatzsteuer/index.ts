@@ -5,8 +5,9 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
-export { computeVatFigures, kennzahlenBeiderQuellen, preflight, type PreflightIssue, type RevenueSource } from "./vat-figures.ts";
-export { frequencyOverview, loadFrequencies, periodProblem, saveFrequency, type FrequencyOverview } from "./zeitraum.ts";
+export { searchUmsatzsteuer, type VatReturnHit, type ZmSubmissionHit } from "./search.ts";
+export { computeVatFigures, preflight, type PreflightIssue, type RevenueSource, type VatFigures } from "./vat-figures.ts";
+export { abgegebeneZeitraeume, frequencyOverview, loadFrequencies, periodProblem, saveFrequency, saveFrequencyIn, type FrequencyOverview } from "./zeitraum.ts";
 export { computedValues, createCorrection, recentSentReturns, returnsForPeriod, saveDraft, submissionsFor, submitReturn } from "./vat.ts";
 export { meinElsterUpload, meinElsterUstvaWerte } from "./mein-elster.ts";
 export {
@@ -21,5 +22,10 @@ export {
 } from "./dauerfrist.ts";
 export { loadZmProtocol, submitZm, zmOverview, zmQuartale, zmSubmissions, type ZmOverview } from "./zm.ts";
 export { VatError } from "./vat.ts";
+export { uebernommeneJahre } from "./uebernommen.ts";
 export { filingsFor, loadFilingProtocol, vermerkeAbgabe, type VatReturnFiling, type VermerkInput } from "./vermerk.ts";
 export { assertUstvaOffen, ustvaLabels, ustvaOpenItems, ustvaPosten, ustvaPostenForPeriod, type UstvaPostenUebersicht } from "./zahlung.ts";
+export { gesendeteAbweichungen, gesendetText, type GesendetAbweichung } from "./gesendet-pruefen.ts";
+export { quartalVon, ZM_POSTEN, zmAbweichungen, zmAbweichungenImJahr, type ZmAbweichung } from "./zm-pruefen.ts";
+export { anteilZumRechnungsdatum, ausfuehrungMitFreigabe, belegTotals, vorsteuerAnteile, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
+export { freigabeAmAusfuehrung, freigabeNachziehen, freigabeStornieren } from "./vorsteuer-freigabe.ts";

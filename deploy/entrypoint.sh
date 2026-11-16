@@ -5,6 +5,8 @@ bun src/server/db/migrate.ts
 # Die Eigentümerverbindung gehört nur zum Migrationsschritt, nicht in den Server oder seine Kindprozesse.
 # Leer überschreibt auch Buns .env-Nachladen; unset würde die private Adresse erneut einlesen.
 export MIGRATION_DATABASE_URL=
+# Prüfung beim Update auf das Journal als einzige Quelle (#1116); bei einer Abweichung startet Haben nicht
+bun src/server/modules/umstellung/cli.ts
 # ERIC_AUTO_INSTALL=ja: ERiC beim Start von download.elster.de laden, falls es fehlt (Zustimmung zu den Nutzungsbedingungen)
 if [ -z "${ERIC_HOME:-}" ] && [ "${ERIC_AUTO_INSTALL:-}" = "ja" ]; then
   bun /app/packages/elster/src/install-cli.ts --lizenz-akzeptiert --nur-wenn-fehlt \

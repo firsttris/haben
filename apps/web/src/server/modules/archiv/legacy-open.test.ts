@@ -15,6 +15,7 @@ const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 8, 7]);
 
 describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () => {
   let legacy: typeof import("./legacy-open.ts");
+  let cutoffReader: typeof import("../auswertungen/altbestand-stichtag.ts");
   let bank: typeof import("../bank/bank.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
@@ -26,6 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   beforeAll(async () => {
     sql = await setupTestDb();
     legacy = await import("./legacy-open.ts");
+    cutoffReader = await import("../auswertungen/altbestand-stichtag.ts");
     bank = await import("../bank/bank.ts");
     invoices = await import("../rechnungen/invoices.ts");
     figures = await import("../umsatzsteuer/vat-figures.ts");
@@ -38,7 +40,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   });
 
   async function legacyVoucher(values: {
-    source?: "lexoffice" | "sevdesk" | "buchhaltungsbutler" | "accountable" | "import";
+    source?: "lexoffice" | "sevdesk" | "buchhaltungsbutler" | "accountable" | "wiso" | "import";
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;
@@ -95,7 +97,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     await sql`insert into lexoffice_imports (status, progress) values ('fertig', ${JSON.stringify({ phase: "fertig" })}::jsonb)`;
   });
 
-  it.each(["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import"] as const)(
+  it.each(["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "wiso", "import"] as const)(
     "liefert bei einer übernommenen Rechnung die gespeicherte Herkunft %s statt sie aus der Nummer zu erraten",
     async (source) => {
       const id = await legacyVoucher({
@@ -206,17 +208,15 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     const september = await figures.computeVatFigures({ year: 2026, month: 9 });
     expect(september.kz81).toBe(0);
     // EÜR aus dem Journal (#542): Die übernommene Rechnung steht gegen den Saldenvortrag ohne Erlöszeile; die Zahlung
-    // verteilt sich auf die Zeilen, die Haben für die Rechnung gebucht hätte, und wird je Zeile abgeglichen
+    // verteilt sich auf die Zeilen, die Haben für die Rechnung gebucht hätte. Der Gewinn nach der DATEV-Formel stimmt damit
+    const { euerForYear } = await import("../auswertungen/reports.ts");
+    const zeilen = await euerForYear(2026);
+    const zeile = (key: string) => [...zeilen.einnahmen, ...zeilen.ausgaben].find((l) => l.key === key)?.amount;
+    expect([zeile("einnahmenSteuerpflichtig"), zeile("vereinnahmteUst"), zeilen.gewinn]).toEqual([400_000, 76_000, 476_000]);
     const abgleich = await import("../auswertungen/abgleich.ts");
     const euer = await abgleich.euerAbgleich(2026);
     expect(euer.hinweise).toEqual([]);
-    expect(euer.zeilen.filter((z) => z.posten.startsWith("EÜR:")).map((z) => [z.posten, z.journal, z.quelle])).toEqual(
-      expect.arrayContaining([
-        ["EÜR: Umsatzsteuerpflichtige Betriebseinnahmen (netto)", 400_000, 400_000],
-        ["EÜR: Vereinnahmte Umsatzsteuer", 76_000, 76_000],
-        ["EÜR: Gewinn nach der DATEV-Formel", 476_000, 476_000],
-      ]),
-    );
+    expect(euer.zeilen.find((z) => z.posten === "EÜR: Gewinn nach der DATEV-Formel")).toMatchObject({ journal: 476_000, quelle: 476_000 });
     expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
   });
 
@@ -241,6 +241,28 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     ]);
     expect(await bank.openItems()).toEqual([]);
   });
+
+  // Gefunden im TDD-Review von #1144: Bei Ist steht das Netto des Stornos ohne Steuerschlüssel auf dem Saldenvortrag; der
+  // Abgleich Beleg gegen Buchung darf das nicht als abweichendes Netto der Rechnung melden
+  for (const versteuerung of ["ist", "soll"] as const)
+    it(`Storno einer übernommenen Rechnung: Abgleich Rechnung gegen Buchung ohne Abweichung (${versteuerung})`, async () => {
+      await sql`update company set versteuerung = ${versteuerung}`;
+      const id = await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: `RE1040-${versteuerung}`,
+        date: "2026-09-20",
+        net: 400_000,
+        tax: 76_000,
+        file: PDF,
+        contact: "Nordwerk Software GmbH",
+      });
+      const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+      await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
+      const abgleich = await import("../auswertungen/abgleich.ts");
+      const jahr = await abgleich.abgleichJahr(2026, "2026-11-15");
+      expect(abgleich.abweichungen(jahr.zeilen.filter((z) => z.bereich === "beleg"))).toEqual([]);
+    });
 
   it("übernimmt eine in Lexoffice brutto gerechnete Rechnung centgenau, das Storno hebt sie exakt auf", async () => {
     // 9,80 € brutto: 8,24 € netto, 1,56 € Steuer; netto nachgerechnet wären es 1,57 €
@@ -557,9 +579,9 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
           await legacy.takeOverLegacyItem(actor, juni, a);
 
           const fixed = { date: a, bookingDate: `${alt}-07-01`, fixed: expect.stringMatching(/übernommen/) };
-          expect(await legacy.legacyTakeoverCutoff()).toEqual(fixed);
-          expect(await legacy.legacyTakeoverCutoff(a)).toEqual(fixed);
-          await expect(legacy.legacyTakeoverCutoff(b)).rejects.toThrow(/Stichtag/);
+          expect(await cutoffReader.legacyTakeoverCutoff()).toEqual(fixed);
+          expect(await cutoffReader.legacyTakeoverCutoff(a)).toEqual(fixed);
+          await expect(cutoffReader.legacyTakeoverCutoff(b)).rejects.toThrow(/Stichtag/);
           await expect(legacy.takeOverLegacyItem(actor, mai, b)).rejects.toThrow(/Stichtag/);
           await expect(legacy.takeOverAll(actor, b)).rejects.toThrow(/Stichtag/);
           expect(await legacy.openItemsOverview(b)).toMatchObject({ cutoff: fixed, cutoffError: expect.stringMatching(/Stichtag/) });
@@ -675,7 +697,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
       });
       await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE-N", date: `${year}-01-10`, net: 100_000, tax: 19_000, file: PDF });
       // Reicht die alte Buchhaltung ins neue Jahr, schlägt Haben den Tag vor heute vor; hier endet sie am 31.12.
-      expect((await legacy.legacyTakeoverCutoff()).date).toBe(addDays(heute(), -1));
+      expect((await cutoffReader.legacyTakeoverCutoff()).date).toBe(addDays(heute(), -1));
       const cutoff = `${alt}-12-31`;
       expect((await legacy.openLegacyItems(cutoff)).map((i) => [i.number, i.open, i.paidAfter, i.blocker])).toEqual([
         ["RE-T1", 69_000, 0, expect.stringMatching(/^bis zum Stichtag teilweise bezahlt/)],
@@ -700,7 +722,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
         file: PDF,
       });
       expect(await legacy.openLegacyItems()).toEqual([]);
-      const cutoff = await legacy.legacyTakeoverCutoff(`${alt}-06-30`);
+      const cutoff = await cutoffReader.legacyTakeoverCutoff(`${alt}-06-30`);
       expect(cutoff).toEqual({ date: `${alt}-06-30`, bookingDate: `${alt}-07-01`, fixed: null });
       expect((await legacy.openLegacyItems(`${alt}-06-30`)).map((i) => [i.number, i.blocker])).toEqual([["RE-M", null]]);
       await expect(legacy.openLegacyItems(heute())).rejects.toThrow(/vor heute/);
@@ -713,7 +735,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
 
     it("GmbH: der Stichtag ist ein 31.12.; mit gebuchter Eröffnung steht er fest", async () => {
       await sql`update company set rechtsform = 'gmbh'`;
-      await expect(legacy.legacyTakeoverCutoff(`${alt}-06-30`)).rejects.toThrow(/31\. Dezember/);
+      await expect(cutoffReader.legacyTakeoverCutoff(`${alt}-06-30`)).rejects.toThrow(/31\. Dezember/);
       const manual = await import("../buchhaltung/manual.ts");
       await manual.createManualEntry(
         actor,
@@ -728,7 +750,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
         },
         heute(),
       );
-      expect(await legacy.legacyTakeoverCutoff(`${alt}-06-30`)).toEqual({
+      expect(await cutoffReader.legacyTakeoverCutoff(`${alt}-06-30`)).toEqual({
         date: `${alt}-12-31`,
         bookingDate: `${year}-01-01`,
         fixed: expect.stringMatching(/Eröffnung am 01\.01\./),

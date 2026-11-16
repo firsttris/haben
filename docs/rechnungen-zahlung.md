@@ -36,6 +36,12 @@ Läuft dein Konto nicht auf den Firmennamen, z. B. auf dich als Person, trag unt
 
 Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen, Rechnungen per [Lastschrift](#lastschrift) auch nicht. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen. Im [Entwurfs-PDF](rechnungen.md#entwurf-als-pdf) steht an seiner Stelle ein Platzhalter.
 
+## Bereits bezahlt
+
+Wähle im Rechnungseditor unter **Zahlungsart** **Bereits bezahlt**. Trag unter **Bezahlt über** den Namen des Zahlungsdienstleisters (etwa eBay oder PayPal) oder `bar` ein und unter **Bezahlt am** das Zahlungsdatum. Es darf vor dem Rechnungsdatum liegen.
+
+Das PDF nennt die erfolgte Zahlung und enthält weder Zahlungsfrist noch Bankverbindung oder GiroCode. In ZUGFeRD und XRechnung steht der Rechnungsbetrag als bereits gezahlt (BT-113), der Zahlbetrag (BT-115) ist null; Fälligkeit und Zahlungsbedingungen entfallen damit (BR-CO-25). Die Zahlungsart (BT-81) ist 10 bei `bar`, sonst 68 (Online-Zahlungsdienst, [UNTDID 4461](https://service.unece.org/trade/untdid/d16b/tred/tred4461.htm)). Der Vermerk bucht keinen Zahlungseingang. Die Rechnung bleibt offen, bis du die Zahlung im [Bankabgleich](bank.md) oder [Kassenbuch](kasse.md) zuordnest.
+
 ## Lastschrift
 
 Statt auf die Überweisung zu warten, ziehst du den Betrag per SEPA-Lastschrift ein. Dafür braucht es die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten) und ein gültiges [Mandat des Kunden](kontakte.md#sepa-lastschriftmandate).
@@ -77,6 +83,8 @@ Der Knopf rechts schlägt die nächste Stufe vor:
 
 Läuft die Frist der letzten Mahnung noch, ist der Knopf hell. Mahnen kannst du trotzdem.
 
+Bei einer aus sevDesk übernommenen Rechnung zählt die Mahnstufe aus sevDesk mit ([Mahnungen aus sevDesk](sevdesk.md#mahnungen)).
+
 Gemahnt wird immer der volle offene Betrag. Bot die Rechnung [Skonto](#skonto) an, ist dessen Frist bei der Mahnung vorbei (sie endet spätestens mit dem Zahlungsziel); das Schreiben sagt deshalb unter der Zahlungsaufforderung, dass das Skonto entfallen ist.
 
 Im Formular legst du fest:
@@ -94,6 +102,6 @@ Unter dem Formular siehst du die Forderung mit Gesamtbetrag. **Vorschau**, **Ent
 
 Auf der Seite der Rechnung stehen alle Mahnungen mit Link zum PDF, bei überfälligen Rechnungen auch der Knopf für die nächste Stufe.
 
-**Gebühren und Zinsen buchen:** Sie sind keine Rechnung und erhöhen nicht die Forderung. Zahlt der Kunde mehr als die Rechnung, ordnest du im Bankabgleich die Rechnung und den Rest als **Mahngebühren und Verzugszinsen** zu. Gebucht wird Bank an 2650 bzw. 7100 „Sonstige Zinsen und ähnliche Erträge“, ohne Umsatzsteuer (Schadensersatz, kein Entgelt). In der EÜR zählt das als umsatzsteuerfreie Betriebseinnahme.
+**Gebühren und Zinsen buchen:** Sie sind keine Rechnung und erhöhen nicht die Forderung. Zahlt der Kunde mehr als die Rechnung, ordnest du im Bankabgleich die Rechnung und den Rest als **Mahngebühren und Verzugszinsen** zu. Gebucht wird Bank an 2650 bzw. 7100 „Sonstige Zinsen und ähnliche Erträge“, ohne Umsatzsteuer (Schadensersatz, kein Entgelt). Zur Zuordnung in der EÜR siehe [Bruttomethode](auswertungen.md#bruttomethode).
 
 Jede Mahnung lässt sich auf der Seite der Rechnung **per E-Mail** schicken, mit dem PDF der Mahnung im Anhang (siehe [Per E-Mail versenden](rechnungen.md#per-e-mail-versenden)).

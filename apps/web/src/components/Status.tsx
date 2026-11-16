@@ -20,6 +20,8 @@ export interface StatusProps {
   detail?: ReactNode;
   /** Auskunft in derselben Zeile statt darunter, für Fließtext und Kopfzeilen von Karten; im Seitenkopf von selbst */
   inline?: boolean;
+  /** Steht rechts an der Kante einer Zeile, etwa in Karten: am Handy das Wort am Ende, die Auskunft davor (DESIGN.md › Status) */
+  edge?: boolean;
   children: ReactNode;
 }
 
@@ -27,8 +29,8 @@ export interface StatusProps {
 export type StatusLook = { text: string } & Pick<StatusProps, "tone" | "emphasis" | "draft">;
 
 /** Zustand eines Objekts: Punkt, Wort und eine Auskunft darunter */
-export function Status({ tone = "neutral", emphasis, draft = false, detail, inline = false, children }: StatusProps) {
-  const className = ["status", `status-${tone}`, emphasis && `status-${emphasis}`, draft && "status-draft", inline && "status-inline"]
+export function Status({ tone = "neutral", emphasis, draft = false, detail, inline = false, edge = false, children }: StatusProps) {
+  const className = ["status", `status-${tone}`, emphasis && `status-${emphasis}`, draft && "status-draft", inline && "status-inline", edge && "status-edge"]
     .filter(Boolean)
     .join(" ");
   return (

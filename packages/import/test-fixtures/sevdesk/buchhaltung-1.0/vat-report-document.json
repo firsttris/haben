@@ -1,0 +1,31 @@
+{
+  "objects": [
+    {
+      "id": "ID_21",
+      "objectName": "Document",
+      "additionalInformation": null,
+      "create": "2023-07-10T12:00:00+02:00",
+      "update": "2023-07-10T12:00:00+02:00",
+      "documentNumber": null,
+      "createUser": {
+        "id": "ID_4",
+        "objectName": "SevUser"
+      },
+      "updateUser": {
+        "id": "ID_4",
+        "objectName": "SevUser"
+      },
+      "mimeType": null,
+      "description": null,
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "filename": "<anon>",
+      "status": "25",
+      "extension": "pdf",
+      "filesize": "1",
+      "contentHash": null
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 export * from "./types.ts";
+export { LAENDERCODES } from "./codelisten.ts";
 export { LANGUAGES, texts, type Language } from "./i18n.ts";
 export { embedsInPdf } from "./typst-compiler.ts";
 export {
@@ -52,3 +53,4 @@ export {
   type IncomingSeller,
   type IncomingTax,
 } from "./incoming.ts";
+export { EINHEITENCODES } from "./codelisten.ts";

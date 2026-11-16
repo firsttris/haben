@@ -1,4 +1,4 @@
-import { formatEuro, parseEuroSearchCents } from "@haben/core";
+import { formatEuro, inCentRange, parseEuroSearchRange } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod/mini";
@@ -26,11 +26,11 @@ function InvoicesPage() {
     setQuery(suche ?? "");
   }, [suche]);
   const needle = query.trim().toLowerCase();
-  const cents = parseEuroSearchCents(query);
+  const range = parseEuroSearchRange(query);
   const shown = needle
     ? invoices.filter(
         (invoice) =>
-          invoice.gross === cents ||
+          (range !== null && inCentRange(range, invoice.gross)) ||
           [invoice.number, invoice.customer, invoice.contactName, invoice.buyerOrderReference, invoice.sellerOrderReference].some((v) =>
             v?.toLowerCase().includes(needle),
           ),

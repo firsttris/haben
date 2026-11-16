@@ -5,11 +5,13 @@ import {
   filingPeriodSchema,
   FREQUENCY_START_MONTHS,
   periodKey,
-  recentFilingPeriods,
   latestEndedPeriod,
+  openFilingPeriod,
+  recentFilingPeriods,
   lastMonthOfPeriod,
   VAT_FREQUENCIES,
   type VatPeriod,
+  inCents,
 } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -19,6 +21,7 @@ import {
   computeVatFigures,
   dauerfristFor,
   dauerfristOverview,
+  abgegebeneZeitraeume,
   frequencyOverview,
   kz39For,
   loadFrequencies,
@@ -36,7 +39,7 @@ import {
 } from "../modules/umsatzsteuer/index.ts";
 import { UserError } from "../errors.ts";
 import { MAX_DOCUMENT_SIZE } from "../modules/belege/index.ts";
-import { abgleichIssues, vatAbgleich } from "../modules/auswertungen/index.ts";
+import { abgleichIssues, kleinunternehmerStand, vatAbgleich } from "../modules/auswertungen/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -48,6 +51,7 @@ import {
   createCorrection,
   recentSentReturns,
   returnsForPeriod,
+  uebernommeneJahre,
   saveDraft,
   submissionsFor,
   submitReturn,
@@ -56,7 +60,7 @@ import { loadActiveCertificate } from "../modules/elster/index.ts";
 import { transitBalance } from "../modules/buchhaltung/index.ts";
 
 // Negativ möglich, etwa wenn Gutschriften im Monat überwiegen
-const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
+const centsSchema = inCents(z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00));
 
 function certificateSummary(certificate: Awaited<ReturnType<typeof loadActiveCertificate>>) {
   return certificate ? { filename: certificate.filename, validUntil: certificate.validUntil } : null;
@@ -105,6 +109,8 @@ export const getVatPeriod = createServerFn({ method: "GET" })
       today: today(),
       /** Zahllast bzw. Erstattung je abgegebener Anmeldung des Zeitraums mit Zahlungen (offener Posten) */
       posten: await ustvaPostenForPeriod(period),
+      /** Abweichungen des Jahres beim Update auf das Journal übernommen (#1200): Berichtigung mit gesendeten Werten und Vergleich */
+      uebernommen: (await uebernommeneJahre()).has(period.year),
       recent,
       certificate: certificateSummary(certificate),
       companyIssues: companyIssues(company),
@@ -119,12 +125,19 @@ export const getVatPeriod = createServerFn({ method: "GET" })
     };
   });
 
-/** Zeitraum, den /umsatzsteuer öffnet: der zuletzt abgelaufene, befreit der Vormonat */
-export const getFilingPeriodKey = createServerFn({ method: "GET" })
+/**
+ * Zeitraum, den /umsatzsteuer öffnet: der älteste abgelaufene, der noch nicht abgegeben ist, ab der ersten Abgabe in
+ * Haben (#1102); ohne Abgabe in Haben oder wenn alle abgegeben sind, der zuletzt abgelaufene. Nie der laufende
+ * (§ 18 Abs. 1 UStG). Die Auswahl ist eine reine Funktion (`openFilingPeriod` in packages/core).
+ */
+export const getOpenFilingPeriodKey = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const now = new Date();
-    return periodKey(latestEndedPeriod(await loadFrequencies(), currentMonth(now)) ?? currentFilingPeriod(now));
+    const settings = await loadFrequencies();
+    const today = currentMonth(now);
+    const offen = openFilingPeriod(settings, today, await abgegebeneZeitraeume());
+    return periodKey(offen ?? latestEndedPeriod(settings, today) ?? currentFilingPeriod(now));
   });
 
 export const getOverview = createServerFn({ method: "GET" })
@@ -150,6 +163,7 @@ export const getOverview = createServerFn({ method: "GET" })
       period,
       /** Zahllast aus den Buchungen, solange keine Anmeldung gespeichert ist */
       computedKz83: computed.kz83,
+      kleinunternehmerStand: company.kleinunternehmer ? await kleinunternehmerStand(today(now), company.foundedOn) : null,
       /** Geldtransit ohne Gegenseite (Saldo von 1360 bzw. 1460) */
       transit: await transitBalance(),
       /**
@@ -271,7 +285,7 @@ export const saveVatFrequency = createServerFn({ method: "POST" })
 
 const yearSchema = z.number().int().min(2000).max(2100);
 /** Sondervorauszahlung in Cent, volle Euro (Kz 38) */
-const svzSchema = z.number().int().min(0).max(1_000_000_000_00).multipleOf(100, "Sondervorauszahlung in vollen Euro").nullable();
+const svzSchema = inCents(z.number().int().min(0).max(1_000_000_000_00).multipleOf(100, "Sondervorauszahlung in vollen Euro")).nullable();
 
 /** Antrag auf Dauerfristverlängerung bzw. Anmeldung der Sondervorauszahlung (USt 1 H) prüfen oder übermitteln */
 export const submitVatDauerfrist = createServerFn({ method: "POST" })

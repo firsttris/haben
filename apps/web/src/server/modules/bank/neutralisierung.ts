@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
+import { bankNeutralizedSql, bankNotPrivateMarkedSql, bankOpenAmountSql, bankPrivateMarkedSql } from "../../db/bank-open.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 
@@ -31,6 +31,7 @@ async function lockPair(tx: Tx, ids: [string, string]) {
       currency: schema.bankTransactions.currency,
       open: bankOpenAmountSql.mapWith(Number),
       neutralized: bankNeutralizedSql.mapWith(Boolean),
+      privat: bankPrivateMarkedSql.mapWith(Boolean),
     })
     .from(schema.bankTransactions)
     .where(inArray(schema.bankTransactions.id, ids))
@@ -54,6 +55,8 @@ export async function neutralizeTransactions(actor: string, input: NeutralizeInp
     if (a.open !== a.amount || b.open !== b.amount) {
       throw new NeutralizationError("Einer der Umsätze ist ganz oder teilweise zugeordnet. Erst die Zuordnung aufheben.");
     }
+    // Wie beim Zuordnen (settlement-store.ts): Ein als privat gekennzeichneter Umsatz (#1088) erst nach dem Aufheben
+    if (a.privat || b.privat) throw new NeutralizationError("Einer der Umsätze ist als privat gekennzeichnet. Erst die Kennzeichnung aufheben.");
     await tx.insert(schema.bankNeutralizations).values({
       transactionId: data.transactionId,
       counterTransactionId: data.counterTransactionId,
@@ -82,7 +85,7 @@ export async function reverseNeutralization(actor: string, id: string): Promise<
   });
 }
 
-/** Gegenläufige Umsätze, mit denen sich ein Umsatz verrechnen ließe: dasselbe Konto, umgekehrter Betrag, ganz offen */
+/** Gegenläufige Umsätze, mit denen sich ein Umsatz verrechnen ließe: dasselbe Konto, umgekehrter Betrag, ganz offen, nicht privat */
 async function candidates(transaction: { id: string; bankAccountId: string; amount: number; bookingDate: string }) {
   return (
     db
@@ -100,6 +103,7 @@ async function candidates(transaction: { id: string; bankAccountId: string; amou
           eq(schema.bankTransactions.amount, -transaction.amount),
           ne(schema.bankTransactions.id, transaction.id),
           sql`${bankOpenAmountSql} = ${schema.bankTransactions.amount}`,
+          bankNotPrivateMarkedSql,
         ),
       )
       // Die zeitlich nächsten zuerst: Kartenprüfung und Rückbuchung liegen meist wenige Tage auseinander
@@ -112,7 +116,7 @@ export type NeutralizationView = Awaited<ReturnType<typeof neutralizationView>>;
 
 /**
  * Verrechnungen eines Umsatzes für den Bankabgleich: die gültige (höchstens eine), die aufgehobenen und, solange der
- * Umsatz ganz offen ist, die gegenläufigen Umsätze, mit denen er sich verrechnen ließe.
+ * Umsatz ganz offen und nicht als privat gekennzeichnet ist, die gegenläufigen Umsätze, mit denen er sich verrechnen ließe.
  */
 export async function neutralizationView(transactionId: string) {
   const [transaction] = await db
@@ -122,6 +126,7 @@ export async function neutralizationView(transactionId: string) {
       amount: schema.bankTransactions.amount,
       bookingDate: schema.bankTransactions.bookingDate,
       open: bankOpenAmountSql.mapWith(Number),
+      privat: bankPrivateMarkedSql.mapWith(Boolean),
     })
     .from(schema.bankTransactions)
     .where(eq(schema.bankTransactions.id, transactionId));
@@ -158,6 +163,6 @@ export async function neutralizationView(transactionId: string) {
   return {
     active: entries.find((e) => !e.reversed) ?? null,
     reversed: entries.filter((e) => e.reversed),
-    candidates: transaction.open === transaction.amount ? await candidates(transaction) : [],
+    candidates: transaction.open === transaction.amount && !transaction.privat ? await candidates(transaction) : [],
   };
 }

@@ -1,5 +1,9 @@
+import type { Taste } from "./tastatur.ts";
+
 export const NAV_KEY = "haben-nav";
 export const NAV_COLLAPSED_VALUE = "eingeklappt";
+/** Seitenleiste ein- und ausklappen, wie in VS Code; B liegt auf ISO-DE ohne Umschalt (DESIGN.md, Tastenkürzel) */
+export const EINKLAPP_KUERZEL: readonly Taste[] = ["mod", "B"];
 
 const NAV_EVENT = "haben:nav";
 

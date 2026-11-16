@@ -1,0 +1,2 @@
+ALTER TABLE "document_amounts" ADD COLUMN "vorsteuer_anteil" smallint;--> statement-breakpoint
+ALTER TABLE "document_amounts" ADD CONSTRAINT "document_amounts_vorsteuer_anteil_range" CHECK ("document_amounts"."vorsteuer_anteil" between 0 and 10000);

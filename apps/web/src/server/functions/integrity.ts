@@ -3,12 +3,24 @@ import { z } from "zod";
 import { databaseAccessInfo } from "../db/index.ts";
 import { UserError } from "../errors.ts";
 import { chainHead, checkIntegrity, checkPruefwert, parsePruefwert, runFileCheck } from "../modules/auswertungen/index.ts";
+import { latestStableVersion, listAppVersions } from "../modules/betrieb/index.ts";
+import { erklaerteAbweichungsZeilen } from "../modules/jahreserklaerung/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 /** Rechte der tatsächlich verwendeten Verbindung für die Einstellungen. */
 export const getDatabaseAccessInfo = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(() => databaseAccessInfo());
+
+/** Verlauf der eingesetzten Programm- und Datenbankversionen für die Einstellungen. */
+export const getAppVersions = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(() => listAppVersions());
+
+/** Neueste stabile Version für die Einstellungen; null, wenn abgeschaltet oder nicht erreichbar. */
+export const getLatestVersion = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(() => latestStableVersion());
 
 /** Kopf der Kette für die Einstellungen */
 export const getChainHead = createServerFn({ method: "GET" })
@@ -18,14 +30,14 @@ export const getChainHead = createServerFn({ method: "GET" })
 /** Prüft Kette und Siegel vollständig */
 export const runIntegrityCheck = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(() => checkIntegrity());
+  .handler(() => checkIntegrity(undefined, erklaerteAbweichungsZeilen));
 
 /** Prüft alle Dateien im Dokumentenspeicher jetzt und danach Kette und Siegel; dauert bei vielen Dateien länger */
 export const runFileAndIntegrityCheck = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async () => {
     await runFileCheck();
-    return checkIntegrity();
+    return checkIntegrity(undefined, erklaerteAbweichungsZeilen);
   });
 
 /** Vergleicht einen Prüfwert aus Mail oder Jahresarchiv mit dem Audit-Log */

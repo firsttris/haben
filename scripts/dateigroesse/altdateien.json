@@ -17,7 +17,6 @@
   "apps/web/src/server/modules/archiv/export.ts",
   "apps/web/src/server/modules/archiv/legacy-open.ts",
   "apps/web/src/server/modules/archiv/lexoffice.ts",
-  "apps/web/src/server/modules/auswertungen/reports.ts",
   "apps/web/src/server/modules/bank/bank-sync.ts",
   "apps/web/src/server/modules/bank/bank.ts",
   "apps/web/src/server/modules/belege/documents.ts",

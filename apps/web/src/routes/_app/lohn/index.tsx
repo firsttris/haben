@@ -102,7 +102,11 @@ function Abrechnen({ data }: { data: Data }) {
       </p>
       {!data.monat.bundesland && (
         <div className="banner banner-danger" role="note">
-          In den <Link to="/einstellungen">Firmendaten</Link> fehlt das Bundesland; davon hängen Kirchensteuer und Pflegeversicherung ab.
+          In den{" "}
+          <Link to="/einstellungen" search={{ bereich: "firma" }}>
+            Firmendaten
+          </Link>{" "}
+          fehlt das Bundesland; davon hängen Kirchensteuer und Pflegeversicherung ab.
         </div>
       )}
       <NoticeBanner notice={notice} />

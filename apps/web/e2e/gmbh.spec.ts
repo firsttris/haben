@@ -2,7 +2,7 @@ import { filePickerPruefen } from "./dateiauswahl.ts";
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { bestaetigen, faktenZeigen, kundeWaehlen } from "./einrichtung.ts";
+import { bestaetigen, fragenUeberspringen, faktenZeigen, kundeWaehlen } from "./einrichtung.ts";
 import { currentDay, currentYear, vorschauAnheften } from "./daten.ts";
 import { anzahlungsbilanzPruefen } from "./anzahlung-bilanz.ts";
 
@@ -52,8 +52,7 @@ test("Einrichtung als GmbH mit SKR04", async () => {
   await page.getByLabel(/Passwort/).fill(USER.password);
   await page.getByRole("button", { name: "Konto anlegen" }).click();
   await page.getByRole("button", { name: "Später" }).click();
-  await page.waitForURL("**/einstellungen");
-  await page.waitForLoadState("networkidle");
+  await fragenUeberspringen(page);
 
   const firma = page.getByRole("form", { name: "Firmendaten" });
   await firma.getByLabel("Name", { exact: true }).fill("Nordlicht Software GmbH");
@@ -253,6 +252,8 @@ test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als
   await expect(region).toContainText("Das Register berechnet eine Gebühr und für ein PDF ein Entgelt");
   await expect(region).not.toContainText("Kostenlos");
   await expect(region).toContainText("Das Registergericht fehlt in den Firmendaten.");
+  // Am Handy zeigt /einstellungen ohne ?bereich nur die Liste der Bereiche; der Link führt direkt in die Firma
+  await expect(region.getByRole("link", { name: "Einstellungen › Firmendaten" })).toHaveAttribute("href", "/einstellungen?bereich=firma");
   await expect(region.getByRole("button", { name: "Bilanz als PDF herunterladen" })).toBeDisabled();
 
   await go("/einstellungen");
@@ -367,6 +368,22 @@ test("Ausschüttung mit Gewinnvortrag buchen, Steuerbescheinigung des Gesellscha
   const pdf = await readFile((await download.path())!);
   expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   expect(await axe(), "/ausschuettungen mit Ausschüttung").toEqual([]);
+
+  // Am Handy steht „Anmelden“ rechts an der Kante des Kartenkopfs am Ende, die Frist davor (DESIGN.md › Status › Anordnung)
+  const vorher = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 812 });
+  const kopf = karte.locator(":scope > div").first();
+  const status = kopf.locator(".status");
+  await expect(status.locator(".status-detail")).toBeVisible();
+  const rand = await kopf.evaluate((e) => e.getBoundingClientRect().right);
+  const lage = await status.evaluate((e, rechts) => {
+    const wort = e.querySelector(".status-label")!.getBoundingClientRect();
+    const auskunft = e.querySelector(".status-detail")!.getBoundingClientRect();
+    return { wortZuerst: wort.left < auskunft.left, abstand: rechts - wort.right };
+  }, rand);
+  if (vorher) await page.setViewportSize(vorher);
+  expect(lage.wortZuerst).toBe(false);
+  expect(Math.abs(lage.abstand)).toBeLessThanOrEqual(8);
 });
 
 test("Archiv: Abschluss eines alten Jahres aus dem DATEV-Stapel", async () => {
@@ -546,6 +563,7 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
   // Fehlende Angaben sind ein Hinweis, keine Sperre (eine Vor-GmbH hat noch keine Registernummer)
   await go("/rechnungen/neu");
   await expect(page.locator("#letter-issues")).toContainText("Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): Geschäftsführer fehlt.");
+  await expect(page.locator("#letter-issues").getByRole("link", { name: "Firmendaten ergänzen" })).toHaveAttribute("href", "/einstellungen?bereich=firma");
   await kundeWaehlen(page, "Hafenkontor Logistik GmbH · Hamburg");
   await page.getByLabel("Beschreibung Position 1").fill("Softwarewartung");
   await page.getByLabel("Menge Position 1").fill("1");

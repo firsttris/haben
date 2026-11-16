@@ -1,8 +1,9 @@
-import { PRICE_MODES, TAX_TREATMENT_KEYS } from "@haben/core";
+import { INVOICE_PAYMENT_METHODS, PRICE_MODES, TAX_TREATMENT_KEYS, inBasisPoints, inCents, inMillis } from "@haben/core";
 import { z } from "zod";
 import { documentReferenceSchema, MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { draftSchema, externalReferenceSchema } from "../rechnungen/index.ts";
 import { contactSchema as contactInputSchema } from "../stammdaten/index.ts";
+import { documentTaxShape } from "./document-tax-schema.ts";
 
 /*
  * Schemas der REST-API: Eingaben, Antworten und Fehler. Die Eingaben bauen auf den Schemas der Module auf (contactSchema,
@@ -117,7 +118,8 @@ export const contactSchema = z
     ustId: z.string(),
     iban: z.string(),
     leitwegId: z.string(),
-    hourlyRateCents: z.number().int().nullable().describe("Stundensatz für Leistungseinträge in Cent; null: keiner hinterlegt"),
+    unsereLieferantennummer: z.string().describe("Unsere Lieferantennummer bei diesem Kunden, auf der Rechnung und im XML als BT-29; leer: keine"),
+    hourlyRateCents: inCents(z.number().int()).nullable().describe("Stundensatz für Leistungseinträge in Cent; null: keiner hinterlegt"),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
     language: z.enum(["de", "en"]),
     version: z.number().int().describe("Steigt mit jeder Änderung; alte Stände bleiben in Haben erhalten"),
@@ -149,6 +151,9 @@ const lineInputSchema = z
     ...lineFields,
     // Die Felder kommen aus @haben/core (zod/mini) und kennen kein .describe; z.describe als Prüfung gibt es für beide
     quantity: lineFields.quantity.check(z.describe("Menge in Tausendsteln: 1 Stück = 1000, 1,5 Stunden = 1500")),
+    unit: lineFields.unit.check(
+      z.describe("Einheit: Std., Tag, Monat, Stk., Psch., km oder die Bezeichnung einer eigenen Einheit (Einstellungen › Rechnungen › Einheiten)"),
+    ),
     unitPrice: lineFields.unitPrice.check(z.describe("Einzelpreis in Cent, netto oder brutto je nach priceMode")),
     taxRate: lineFields.taxRate.check(z.describe("Steuersatz in Basispunkten: 1900 = 19 %, 700 = 7 %, 0")),
     detail: lineFields.detail.describe("Mehrzeiliger Text unter der Bezeichnung (BT-154)"),
@@ -167,6 +172,9 @@ const draftApiFields = {
   serviceFrom: draftFields.serviceFrom,
   serviceTo: draftFields.serviceTo,
   paymentTermDays: draftFields.paymentTermDays.describe("Zahlungsziel in Tagen, Vorgabe aus den Firmendaten"),
+  paymentMethod: z.enum(["ueberweisung", "bereits_bezahlt"]).describe("Zahlungsart; bereits_bezahlt erfordert paidVia und paidOn"),
+  paidVia: draftFields.paidVia.describe("Bei bereits_bezahlt: Zahlungsdienstleister (z. B. eBay) oder bar"),
+  paidOn: draftFields.paidOn.describe("Bei bereits_bezahlt: Zahlungsdatum JJJJ-MM-TT, auch vor dem Rechnungsdatum"),
   skonto: draftFields.skonto.describe(
     "Skontostufen: Frist in Tagen ab Rechnungsdatum (höchstens das Zahlungsziel) und Satz in Basispunkten (200 = 2 %); [] = ohne Skonto. Vorgabe vom Kontakt, sonst aus den Firmendaten; nur in Euro",
   ),
@@ -179,6 +187,7 @@ const draftApiFields = {
   despatchAdviceReference: draftFields.despatchAdviceReference.describe("Lieferscheinnummer, in der E-Rechnung BT-16; leer = keine"),
   taxTreatment: draftFields.taxTreatment,
   exemptionReason: draftFields.exemptionReason,
+  taxDetails: draftFields.taxDetails,
   priceMode: draftFields.priceMode.describe("Einzelpreise netto oder brutto inkl. USt"),
   language: draftFields.language.describe("Sprache des PDFs, Vorgabe die des Kontakts"),
   currency: draftFields.currency.describe("Währung als dreistelliger Code, Vorgabe EUR"),
@@ -212,11 +221,11 @@ const lineSchema = z.object({
   description: z.string(),
   detail: z.string(),
   itemNumber: z.string().describe("Artikelnummer des Verkäufers (BT-155); leer = keine"),
-  quantity: z.number().int().describe("Tausendstel"),
+  quantity: inMillis(z.number().int()).describe("Tausendstel"),
   unit: z.string(),
-  unitPrice: z.number().int().describe("Cent, wie eingegeben (netto oder brutto)"),
-  taxRate: z.number().int().describe("Basispunkte"),
-  net: z.number().int().describe("Zeilennetto in Cent"),
+  unitPrice: inCents(z.number().int()).describe("Cent, wie eingegeben (netto oder brutto)"),
+  taxRate: inBasisPoints(z.number().int()).describe("Basispunkte"),
+  net: inCents(z.number().int()).describe("Zeilennetto in Cent"),
 });
 
 const LIST_STATUS = ["entwurf", "offen", "teilbezahlt", "bezahlt", "ausgebucht", "ueberfaellig", "storniert", "storno", "korrektur"] as const;
@@ -231,10 +240,10 @@ const invoiceSummaryShape = {
   customer: z.string().describe("Name des Kunden"),
   issueDate: isoDate,
   dueDate: isoDate,
-  net: z.number().int().describe(CENTS),
-  gross: z.number().int().describe(CENTS),
-  paid: z.number().int().describe(`Bezahlt laut Bankabgleich; ${CENTS}`),
-  open: z.number().int().describe(`Noch offen; ${CENTS}`),
+  net: inCents(z.number().int()).describe(CENTS),
+  gross: inCents(z.number().int()).describe(CENTS),
+  paid: inCents(z.number().int()).describe(`Bezahlt laut Bankabgleich; ${CENTS}`),
+  open: inCents(z.number().int()).describe(`Noch offen; ${CENTS}`),
   externalSource: z.string().nullable(),
   externalId: z.string().nullable(),
   url: z.url().describe("Seite der Rechnung in Haben, dort wird festgeschrieben und versendet"),
@@ -250,7 +259,12 @@ export const invoiceSchema = z
     serviceFrom: isoDate.nullable(),
     serviceTo: isoDate.nullable(),
     paymentTermDays: z.number().int(),
-    skonto: z.array(z.object({ days: z.number().int(), percent: z.number().int() })).describe("Skontostufen: Frist in Tagen, Satz in Basispunkten"),
+    paymentMethod: z.enum(INVOICE_PAYMENT_METHODS),
+    paidVia: z.string().nullable(),
+    paidOn: isoDate.nullable(),
+    skonto: z
+      .array(z.object({ days: z.number().int(), percent: inBasisPoints(z.number().int()) }))
+      .describe("Skontostufen: Frist in Tagen, Satz in Basispunkten"),
     format: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     intro: z.string(),
     note: z.string(),
@@ -261,10 +275,11 @@ export const invoiceSchema = z
     language: z.enum(["de", "en"]),
     taxTreatment: z.enum(TAX_TREATMENT_KEYS),
     exemptionReason: z.string(),
+    taxDetails: draftFields.taxDetails,
     priceMode: z.enum(PRICE_MODES),
     currency: z.string(),
     exchangeRate: z.string().nullable().describe("1 EUR = Kurs; Beträge in Cent sind bei Fremdwährung in Euro umgerechnet"),
-    tax: z.number().int().describe(CENTS),
+    tax: inCents(z.number().int()).describe(CENTS),
     lines: z.array(lineSchema),
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -334,7 +349,7 @@ const documentSummaryShape = {
   documentDate: isoDate.nullable().describe("Belegdatum"),
   category: z.string().nullable().describe("Kategorie der Ausgabe, z. B. software"),
   currency: z.string(),
-  gross: z.number().int().describe(`Brutto in Euro; ${CENTS}`),
+  gross: inCents(z.number().int()).describe(`Brutto in Euro; ${CENTS}`),
   externalSource: z.string().nullable(),
   externalId: z.string().nullable(),
   uploadedAt: timestamp,
@@ -360,11 +375,9 @@ export const documentSchema = z
     dueDate: isoDate.nullable(),
     payment: z.enum(["bank", "privat", "kasse"]),
     note: z.string(),
-    net: z.number().int().describe(`Netto in Euro; ${CENTS}`),
-    tax: z.number().int().describe(`Steuer in Euro; ${CENTS}`),
-    amounts: z
-      .array(z.object({ taxRate: z.number().int().describe("Basispunkte"), net: z.number().int(), tax: z.number().int() }))
-      .describe("Beträge je Steuersatz in Euro-Cent"),
+    net: inCents(z.number().int()).describe(`Netto in Euro; ${CENTS}`),
+    tax: inCents(z.number().int()).describe(`Steuer in Euro; ${CENTS}`),
+    ...documentTaxShape,
     issues: z.array(z.string()).describe("Was vor dem Buchen noch fehlt; leer, wenn bereit oder gebucht"),
     replacedById: z.uuid().nullable().describe("Bei einem stornierten Beleg: der neu erfasste Beleg mit derselben Datei"),
     replacesId: z.uuid().nullable().describe("Bei einer Neuerfassung: der stornierte Beleg, den dieser ersetzt"),

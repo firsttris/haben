@@ -2,7 +2,7 @@ import { expect, type Locator, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { currentDay, day, USER } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { bestaetigen, dkb, durchlaufSeite, faktenZeigen, gehe, kontaktAnlegen, rechnungFestschreiben, SETUP_CODE } from "./einrichtung.ts";
+import { bestaetigen, fragenUeberspringen, dkb, durchlaufSeite, faktenZeigen, gehe, kontaktAnlegen, rechnungFestschreiben, SETUP_CODE } from "./einrichtung.ts";
 
 /**
  * Rückfragen vor Aktionen, die früher mit einem Klick auslösten (#404), in eigener, leerer Datenbank (Projekt
@@ -73,8 +73,7 @@ test("Einrichtung als GmbH, eine Rechnung im Vorjahr und zwei im laufenden", asy
   await page.getByLabel(/Passwort/).fill(USER.password);
   await page.getByRole("button", { name: "Konto anlegen" }).click();
   await page.getByRole("button", { name: "Später" }).click();
-  await page.waitForURL("**/einstellungen");
-  await page.waitForLoadState("networkidle");
+  await fragenUeberspringen(page);
   const firma = page.getByRole("form", { name: "Firmendaten" });
   await firma.getByLabel("Name", { exact: true }).fill("Nordlicht Software GmbH");
   await firma.getByLabel("E-Mail", { exact: true }).fill("rechnung@nordlicht.example");
@@ -289,7 +288,8 @@ test("Bankabgleich: ein fremdes Konto ausschließen fragt nach, blendet es aus u
     .setInputFiles([datei("zweitfirma.csv", [["Kunde der Zweitfirma", "Rechnung 2026-17", "250,00"]])]);
   await expect(page.getByText(/zweitfirma.csv: 1 neue/)).toBeVisible({ timeout: 30_000 });
 
-  const konten = page.getByRole("navigation", { name: "Konten" }).getByRole("link");
+  // Die Reiter der Konten ohne „Alle Konten“, den es ab zwei Konten gibt (#617)
+  const konten = page.getByRole("navigation", { name: "Konten" }).getByRole("link").filter({ hasNotText: "Alle Konten" });
   await expect(konten).toHaveCount(2);
   const waehle = async (iban: string) => {
     for (let i = 0; i < (await konten.count()); i++) {
@@ -343,8 +343,31 @@ test("Bankabgleich: ein fremdes Konto ausschließen fragt nach, blendet es aus u
   await expect(konten).toHaveCount(2);
   await expect(page.getByRole("region", { name: "Ausgeschlossene Konten" })).toHaveCount(0);
   await waehle(FREMD);
-  await page.getByRole("link", { name: "Alle" }).click();
+  await page.getByRole("link", { name: "Alle", exact: true }).click();
   await expect(page.getByText("Rechnung 2026-17").first()).toBeVisible();
+});
+
+test("Schnellsuche: „Alle anzeigen“ bei Bankumsätzen öffnet die Umsätze aller Konten (#617)", async () => {
+  await go("/");
+  await page.keyboard.press("Control+k");
+  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+  await dialog.getByRole("combobox").fill("Kunde der Zweitfirma");
+  await expect(dialog.getByRole("group", { name: "Bankumsätze" }).getByRole("option", { name: /Kunde der Zweitfirma/ })).toBeVisible();
+  await dialog.getByRole("link", { name: "Alle anzeigen: Bankumsätze" }).click();
+  await page.waitForURL(/\/bank\?.*konto=alle/);
+  await page.waitForLoadState("networkidle");
+
+  const reiter = page.getByRole("navigation", { name: "Konten" }).getByRole("link", { name: /Alle Konten/ });
+  await expect(reiter).toHaveAttribute("aria-current", "page");
+  await expect(page.getByLabel("Umsätze durchsuchen")).toHaveValue("Kunde der Zweitfirma");
+  const zeilen = page.getByRole("region", { name: "Umsätze" }).getByRole("link", { name: /Kunde der Zweitfirma/ });
+  await expect(zeilen.first()).toBeVisible();
+  // Ohne Suchbegriff stehen die Umsätze beider Konten in einer Liste
+  await page.getByLabel("Umsätze durchsuchen").fill("");
+  await page.waitForURL((url) => !url.searchParams.has("suche"));
+  const umsaetze = page.getByRole("region", { name: "Umsätze" });
+  await expect(umsaetze.getByText(/Rechnung 2026-17/).first()).toBeVisible();
+  await expect(umsaetze.getByText(/Gewerbesteuer/).first()).toBeVisible();
 });
 
 test("ELSTER-Zertifikat entfernen fragt nach", async () => {
@@ -498,29 +521,6 @@ test("Postfach und E-Mail-Zugang entfernen fragen nach (#394, #404)", async () =
     await expect(karte.getByRole("status")).toHaveText(meldung);
     await expect(karte.getByRole("button", { name: knopf })).toHaveCount(0);
   }
-});
-
-test("Stichjahr vorziehen fragt nach; danach rechnet das laufende Jahr aus dem Journal", async () => {
-  const jahr = new Date().getFullYear();
-  // Wie eine bestehende Instanz nach Migration 0192: Stichjahr im nächsten Jahr
-  await sql`update company set journal_ab = ${jahr + 1}`;
-  await go("/einstellungen?bereich=firma");
-  const karte = page.getByRole("region", { name: "Voranmeldung und EÜR aus dem Journal" });
-  await expect(karte).toContainText(`Stichjahr ${jahr + 1}`);
-  await expect(karte).toContainText(`${jahr} rechnet noch aus den Nebenbüchern`);
-  const vorziehen = karte.getByRole("button", { name: `Ab ${jahr} aus dem Journal` });
-
-  await vorziehen.click();
-  await faktenZeigen(page, "Bisher", "Neu");
-  await abbrechen(`Stichjahr auf ${jahr} vorziehen?`);
-  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr + 1 }]);
-
-  await vorziehen.click();
-  await bestaetigen(page, "Vorziehen");
-  await expect(page.getByText(`Voranmeldung und EÜR rechnen jetzt ab ${jahr} aus dem Journal.`)).toBeVisible();
-  await expect(karte).toContainText(`Stichjahr ${jahr} · aus dem Journal`);
-  await expect(vorziehen).toHaveCount(0);
-  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr }]);
 });
 
 test("Logo und Briefpapier entfernen fragen nach", async () => {

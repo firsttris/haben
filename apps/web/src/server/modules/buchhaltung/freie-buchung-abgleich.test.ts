@@ -4,7 +4,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Review #585: freie Buchungen gegen Privat auf Konten, die der EÜR-Abgleich nur aus Zahlungen (sourceType allocation)
- * liest. Die Gegenprobe aus den Nebenbüchern zählt die freie Buchung (mitFreienBuchungen), das Journal im Abgleich nicht.
+ * liest. Seit #1116 rechnet die EÜR nur aus dem Journal; der Abgleich darf die freie Buchung nicht als Abweichung melden.
  */
 const KONTEN = {
   SKR03: { einlage: "1890", gewst: "4320", zinsen: "2110", zuschlag: "2107", ustVorjahr: "1790" },
@@ -30,8 +30,8 @@ describe.skipIf(!testDatabaseUrl)("Review #585: EÜR-Abgleich mit freien Buchung
     for (const art of ["gewst", "zinsen", "zuschlag", "ustVorjahr"] as const) {
       it(`${art} privat bezahlt: keine Abweichung im EÜR-Abgleich (${kr})`, async () => {
         await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
-        await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
-          values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false, 2026)`;
+        await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer)
+          values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false)`;
         await manual.createManualEntry(
           "test-user",
           {
@@ -49,8 +49,8 @@ describe.skipIf(!testDatabaseUrl)("Review #585: EÜR-Abgleich mit freien Buchung
     }
     it(`Aufwand privat bezahlt: Integrität ohne Befund (${kr})`, async () => {
       await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
-      await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
-        values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false, 2026)`;
+      await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer)
+        values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false)`;
       const id = await manual.createManualEntry(
         "test-user",
         {

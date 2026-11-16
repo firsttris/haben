@@ -1,16 +1,4 @@
-import type {
-  BasisPoints,
-  Cents,
-  Discount,
-  InvoiceTotals,
-  LegalInfo,
-  LetterheadOptions,
-  Millis,
-  PriceMode,
-  SkontoStufe,
-  TaxTreatment,
-  UnitLabel,
-} from "@haben/core";
+import type { BasisPoints, Cents, Discount, InvoiceTotals, LegalInfo, LetterheadOptions, Millis, PriceMode, SkontoStufe, TaxTreatment } from "@haben/core";
 
 /** Rechnung, Stornorechnung oder Rechnungskorrektur (Gutschrift) */
 export type InvoiceKind = "rechnung" | "storno" | "korrektur";
@@ -63,6 +51,8 @@ export interface Buyer extends Address {
   /** Leitweg-ID öffentlicher Auftraggeber (BT-10) */
   leitwegId?: string;
   kundennummer?: string;
+  /** Unsere Lieferantennummer bei diesem Kunden, vom Kunden vergeben (#711): im PDF im Kopf, im XML als Verkäuferkennung (BT-29) */
+  unsereLieferantennummer?: string;
 }
 
 /**
@@ -87,7 +77,10 @@ export interface InvoiceDocumentLine {
   /** Artikelnummer des Verkäufers (BT-155), aus dem Artikel übernommen; leer = keine */
   itemNumber?: string;
   quantity: Millis;
-  unit: UnitLabel;
+  /** Bezeichnung der Einheit auf dem Blatt: fest (UNITS) oder eigene (#748) */
+  unit: string;
+  /** Code nach UN/ECE Rec. 20/21 (BT-130) für eine eigene Einheit; bei festen Einheiten fehlt er, dann gilt UNITS */
+  unitCode?: string;
   /** Wie eingegeben: netto, bei Bruttopreisen brutto; bei Storno und Korrektur negativ */
   unitPrice: Cents;
   taxRate: BasisPoints;
@@ -184,6 +177,8 @@ export interface InvoiceDocument extends Letterhead {
   references?: OrderReferences;
   /** Einzug per SEPA-Lastschrift (#445); fehlt = Überweisung. Nur bei Rechnungen mit Zahlbetrag in Euro */
   directDebit?: DirectDebit;
+  /** Bereits vereinnahmte Zahlung, wie sie auf der Rechnung ausgewiesen wird. */
+  paidPayment?: { paidVia: string; paidOn: string };
 }
 
 /** Angaben zum Einzug: im PDF die Vorabankündigung, im XML Zahlungsart 59 mit BT-89, BT-90 und BT-91 */

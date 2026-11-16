@@ -1,11 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const VERSION = (JSON.parse(readFileSync(new URL("../../../../../../package.json", import.meta.url), "utf8")) as { version: string }).version;
 const COMMIT = "0123abc4567def890123abc4567def890123abcd";
@@ -15,6 +16,7 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
   let status: typeof import("./status.ts");
   let sql: postgres.Sql;
   let eric: string;
+  let belege: string;
   // 20. Oktober: Sommerzeit, 01:15 UTC ist 03:15 in Berlin
   const now = new Date("2026-10-20T12:00:00Z");
 
@@ -22,15 +24,18 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     sql = await setupTestDb();
     status = await import("./status.ts");
     eric = mkdtempSync(join(tmpdir(), "haben-eric-"));
+    belege = mkdtempSync(join(tmpdir(), "haben-belege-status-"));
   }, 30_000);
 
   afterAll(async () => {
     await sql?.end();
     rmSync(eric, { recursive: true, force: true });
+    rmSync(belege, { recursive: true, force: true });
   });
 
   beforeEach(async () => {
     await sql`delete from backup_status`;
+    await leeren(sql)`truncate company_logo, company cascade`;
   });
 
   async function run(kind: "backup" | "restore_check", ok: boolean, at: string) {
@@ -38,15 +43,77 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
       values (${kind}, ${ok}, ${at}, ${ok ? "a1b2c3d4" : null}, ${ok ? 1234 : null}, ${ok ? "" : "Fatal: wrong password"})`;
   }
 
-  it("ohne Sicherung und ohne ERiC: Version aus der package.json, keine Sicherung, ERiC fehlt", async () => {
-    expect(await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, commit: null })).toEqual({
+  async function datenbankBytes() {
+    const [zeile] = await sql<{ bytes: string }[]>`select pg_database_size(current_database())::text as bytes`;
+    return Number(zeile?.bytes);
+  }
+
+  it("ohne Sicherung, ohne ERiC und ohne Belege: Version aus der package.json, keine Sicherung, ERiC fehlt", async () => {
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, commit: null, belegeVerzeichnis: belege });
+    expect(s).toEqual({
       schema: 1,
       version: VERSION,
       commit: null,
       eric: { source: null, version: null },
       backup: { state: "keins", overdue: false, lastBackup: null, failed: [] },
-      summary: { eric: "fehlt", backup: "keine" },
+      speicher: { datenbankBytes: expect.any(Number), belegeBytes: 0 },
+      summary: { eric: "fehlt", backup: "keine", speicher: expect.stringMatching(/^Datenbank .+, Belege 0 B$/) },
+      zeichen: { farbe: null, logo: null },
     });
+  });
+
+  it("nennt den Speicher der Datenbank wie pg_database_size", async () => {
+    const vorher = await datenbankBytes();
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: belege });
+    // Zwischen beiden Abfragen kann Postgres Seiten anlegen, etwa für Statistiken; mehr als 1 MB Unterschied wäre ein
+    // anderer Wert als pg_database_size
+    expect(s.speicher.datenbankBytes).toBeGreaterThan(1024 * 1024);
+    expect(Math.abs(s.speicher.datenbankBytes - vorher)).toBeLessThan(1024 * 1024);
+    expect(Number.isInteger(s.speicher.datenbankBytes)).toBe(true);
+  });
+
+  it("zählt alle Dateien unter DOCUMENTS_DIR, auch in Unterordnern wie vorlagen, ohne Symlinks", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "haben-belege-summe-"));
+    try {
+      mkdirSync(join(dir, "ab"));
+      writeFileSync(join(dir, "ab", "abcdef"), Buffer.alloc(1500));
+      mkdirSync(join(dir, "vorlagen", "layout-1", "pakete"), { recursive: true });
+      writeFileSync(join(dir, "vorlagen", "layout-1", "pakete", "paket.tgz"), Buffer.alloc(2_000_000));
+      writeFileSync(join(dir, "leer"), "");
+      // Ein Link zeigt auf eine Datei, die schon zählt (oder außerhalb liegt); er belegt keinen eigenen Platz
+      symlinkSync(join(dir, "ab", "abcdef"), join(dir, "verweis"));
+      const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: dir });
+      expect(s.speicher.belegeBytes).toBe(2_001_500);
+      expect(s.summary.speicher).toMatch(/, Belege 1,9 MB$/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Als root (etwa im Container der CI) liest der Prozess auch einen Ordner mit Modus 000; dort lässt sich das nicht zeigen
+  it.skipIf(process.getuid?.() === 0)("überspringt einen Ordner, den die App nicht lesen darf (etwa lost+found), statt am Stand zu scheitern", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "haben-belege-gesperrt-"));
+    try {
+      writeFileSync(join(dir, "beleg"), Buffer.alloc(700));
+      mkdirSync(join(dir, "lost+found"));
+      writeFileSync(join(dir, "lost+found", "fremd"), Buffer.alloc(300));
+      chmodSync(join(dir, "lost+found"), 0o000);
+      const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: dir });
+      expect(s.speicher.belegeBytes).toBe(700);
+    } finally {
+      chmodSync(join(dir, "lost+found"), 0o700);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("ohne Verzeichnis für Belege (noch nichts hochgeladen): 0 Bytes statt eines Fehlers", async () => {
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: join(belege, "gibt-es-nicht") });
+    expect(s.speicher.belegeBytes).toBe(0);
+  });
+
+  it("zeigt den Speicher im Text in einer Zeile", async () => {
+    const s = await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false, belegeVerzeichnis: belege });
+    expect(status.statusAlsText(s)).toMatch(/\nSpeicher: {9}Datenbank \d+(,\d)? (KB|MB|GB), Belege 0 B$/);
   });
 
   it("mit erfolgreicher Sicherung und heruntergeladenem ERiC: Zeitpunkt in deutscher Zeit und ERiC-Version", async () => {
@@ -55,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     const s = await status.betriebsStatus({ now, ericHome: eric, ericFromEnv: false });
     expect(s.eric).toEqual({ source: "download", version: "44.3.6.0" });
     expect(s.backup).toEqual({ state: "ok", overdue: false, lastBackup: "2026-10-20T01:15:00.000Z", failed: [] });
-    expect(s.summary).toEqual({ eric: "44.3.6.0", backup: "2026-10-20 03:15" });
+    expect(s.summary).toEqual({ eric: "44.3.6.0", backup: "2026-10-20 03:15", speicher: expect.any(String) });
   });
 
   it("nach einer fehlgeschlagenen Sicherung: letzte erfolgreiche mit Hinweis auf den Fehlschlag", async () => {
@@ -119,6 +186,19 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     expect(s).toMatchObject({ version: VERSION, eric: { source: "env", version: "44.3.6.0" }, backup: { lastBackup: "2026-10-20T01:15:00.000Z" } });
   });
 
+  it("liest die Belege als Befehl aus DOCUMENTS_DIR der Umgebung", () => {
+    writeFileSync(join(belege, "datei"), Buffer.alloc(4321));
+    try {
+      const r = spawnSync(process.execPath, [CLI, "status", "--json"], { encoding: "utf8", timeout: 20_000, env: { ...process.env, DOCUMENTS_DIR: belege } });
+      expect(r.status, r.stderr).toBe(0);
+      const s = JSON.parse(r.stdout);
+      expect(s.schema).toBe(1);
+      expect(s.speicher).toEqual({ datenbankBytes: expect.any(Number), belegeBytes: 4321 });
+    } finally {
+      rmSync(join(belege, "datei"));
+    }
+  });
+
   it("liest den Commit aus HABEN_COMMIT, wie ihn das Image setzt; leer heißt null", () => {
     const mit = spawnSync(process.execPath, [CLI, "status", "--json"], { encoding: "utf8", timeout: 20_000, env: { ...process.env, HABEN_COMMIT: COMMIT } });
     expect(mit.status, mit.stderr).toBe(0);
@@ -126,6 +206,95 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
     const ohne = spawnSync(process.execPath, [CLI, "status", "--json"], { encoding: "utf8", timeout: 20_000, env: { ...process.env, HABEN_COMMIT: "" } });
     expect(ohne.status, ohne.stderr).toBe(0);
     expect(JSON.parse(ohne.stdout).commit).toBeNull();
+  });
+
+  describe("Zeichen der Firma für das Firmenportal (#1036)", () => {
+    const png = new Uint8Array(readFileSync(new URL("../../../../public/icon-192.png", import.meta.url)));
+    const sha256 = createHash("sha256").update(png).digest("hex");
+    let stammdaten: typeof import("../stammdaten/index.ts");
+    let kennzeichen: typeof import("./kennzeichen.ts");
+
+    beforeAll(async () => {
+      stammdaten = await import("../stammdaten/index.ts");
+      kennzeichen = await import("./kennzeichen.ts");
+    });
+
+    /** Ausgabe wie process.stdout, in einen Puffer */
+    function puffer(isTTY = false) {
+      const teile: Uint8Array[] = [];
+      return {
+        isTTY,
+        teile,
+        write(daten: Uint8Array, fertig: (fehler?: Error | null) => void) {
+          teile.push(daten);
+          fertig();
+          return true;
+        },
+      };
+    }
+
+    it("ab Werk weder Farbe noch Logo, ohne dabei eine Firma anzulegen", async () => {
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen).toEqual({ farbe: null, logo: null });
+      expect(await sql`select id from company`).toHaveLength(0);
+    });
+
+    it("eigene Farbe: farbe wie gespeichert, kein Logo", async () => {
+      await stammdaten.saveNavMark("test-user", { art: "farbe", farbe: "#1d4ed8" });
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen).toEqual({ farbe: "#1D4ED8", logo: null });
+    });
+
+    it("Logo als Zeichen: Format und Prüfsumme; die Farbe bleibt für den Fall, dass das Logo fehlt", async () => {
+      await stammdaten.saveNavMark("test-user", { art: "farbe", farbe: "#1D4ED8" });
+      await stammdaten.saveLogo("test-user", png);
+      await stammdaten.saveNavMark("test-user", { art: "logo" });
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen).toEqual({
+        farbe: "#1D4ED8",
+        logo: { format: "png", sha256 },
+      });
+    });
+
+    it("Logo gewählt, aber entfernt: kein Logo, wie in der Navigation", async () => {
+      await stammdaten.saveLogo("test-user", png);
+      await stammdaten.saveNavMark("test-user", { art: "logo" });
+      await stammdaten.removeLogo("test-user");
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen).toEqual({ farbe: null, logo: null });
+    });
+
+    it("Logo hochgeladen, aber nicht als Zeichen gewählt: kein Logo", async () => {
+      await stammdaten.saveLogo("test-user", png);
+      expect((await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).zeichen.logo).toBeNull();
+      const aus = puffer();
+      const meldungen: string[] = [];
+      expect(await kennzeichen.kennzeichenAusgeben(aus, (m) => meldungen.push(m))).toBe(3);
+      expect(aus.teile).toHaveLength(0);
+      expect(meldungen.join("")).toContain("Kein Logo als Zeichen gewählt");
+    });
+
+    it("haben kennzeichen schreibt das Logo unverändert nach stdout", async () => {
+      await stammdaten.saveLogo("test-user", png);
+      await stammdaten.saveNavMark("test-user", { art: "logo" });
+      const r = spawnSync(process.execPath, [CLI, "kennzeichen"], { timeout: 20_000 });
+      expect(r.status, r.stderr.toString()).toBe(0);
+      expect(new Uint8Array(r.stdout)).toEqual(png);
+      expect(createHash("sha256").update(r.stdout).digest("hex")).toBe(sha256);
+    });
+
+    it("haben kennzeichen ohne Logo als Zeichen: Exit-Code 3, nichts auf stdout", () => {
+      const r = spawnSync(process.execPath, [CLI, "kennzeichen"], { encoding: "utf8", timeout: 20_000 });
+      expect(r.status).toBe(3);
+      expect(r.stdout).toBe("");
+      expect(r.stderr).toContain("Kein Logo als Zeichen gewählt");
+    });
+
+    it("schreibt keine Binärdaten in ein Terminal und liest dann auch nichts", async () => {
+      await stammdaten.saveLogo("test-user", png);
+      await stammdaten.saveNavMark("test-user", { art: "logo" });
+      const aus = puffer(true);
+      const meldungen: string[] = [];
+      expect(await kennzeichen.kennzeichenAusgeben(aus, (m) => meldungen.push(m))).toBe(2);
+      expect(aus.teile).toHaveLength(0);
+      expect(meldungen.join("")).toContain("haben kennzeichen > logo.png");
+    });
   });
 
   it("gibt ohne --json Text aus", () => {
@@ -153,15 +322,27 @@ describe("haben ohne Datenbank", () => {
     expect(r.stderr).not.toContain("test:test");
   });
 
+  it("meldet auch bei haben kennzeichen eine nicht erreichbare Datenbank mit Exit-Code 1", () => {
+    const r = spawnSync(process.execPath, [CLI, "kennzeichen"], { encoding: "utf8", timeout: 20_000, env: umgebung });
+    expect(r.status).toBe(1);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toContain("Das Logo konnte nicht gelesen werden");
+    expect(r.stderr).not.toContain("test:test");
+  });
+
   it("zeigt die Hilfe auch ohne die Umgebung der App", () => {
     const r = spawnSync(process.execPath, [CLI, "--help"], { encoding: "utf8", timeout: 20_000, env: { PATH: process.env.PATH ?? "" } });
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toContain("Aufruf: haben status [--json]");
+    expect(r.stdout).toContain("haben kennzeichen > logo.png");
   });
 
-  it.each([[[]], [["unbekannt"]], [["status", "zuviel"]], [["status", "--jsn"]]])("lehnt %j mit dem Aufruf ab", (args) => {
-    const r = spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", timeout: 20_000, env: umgebung });
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain("Aufruf: haben status [--json]");
-  });
+  it.each([[[]], [["unbekannt"]], [["status", "zuviel"]], [["status", "--jsn"]], [["kennzeichen", "--json"]], [["kennzeichen", "logo.png"]]])(
+    "lehnt %j mit dem Aufruf ab",
+    (args) => {
+      const r = spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", timeout: 20_000, env: umgebung });
+      expect(r.status).toBe(2);
+      expect(r.stderr).toContain("Aufruf: haben status [--json]");
+    },
+  );
 });

@@ -6,6 +6,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
   let sql: postgres.Sql;
   let invoices: typeof import("./index.ts");
   let contacts: typeof import("../stammdaten/index.ts");
+  let guard: typeof import("../auswertungen/settings-guard.ts");
   let bank: typeof import("../bank/index.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
   let reports: typeof import("../auswertungen/index.ts");
@@ -16,6 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     sql = await setupTestDb();
     invoices = await import("./index.ts");
     contacts = await import("../stammdaten/index.ts");
+    guard = await import("../auswertungen/settings-guard.ts");
     bank = await import("../bank/index.ts");
     vat = await import("../umsatzsteuer/index.ts");
     reports = await import("../auswertungen/index.ts");
@@ -25,9 +27,9 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
   });
   beforeEach(async () => {
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, cash_entries, vat_returns cascade`;
-    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,ust_id,bundesland,iban,versteuerung,journal_ab)
+    await sql`insert into company (id,name,strasse,plz,ort,email,telefon,steuernummer,ust_id,bundesland,iban,versteuerung)
       values (1,'Testfirma','Musterstraße 1','93047','Regensburg','rechnung@example.com','0941 1','198/113/10010',
-      'DE123456789','BY','DE89370400440532013000','soll',2025)`;
+      'DE123456789','BY','DE89370400440532013000','soll')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -116,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
       (await invoices.createDraft(actor, { ...input(), issueDate: "2025-11-05", serviceFrom: null, serviceTo: null })).id,
     );
     await bank.createCashInvoiceEntry(actor, { invoiceId: frueher.id, date: "2025-11-05", amount: 119_000 }, "2025-11-05");
-    await contacts.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: "soll" }, "2026-01-01");
+    await guard.saveCompany(actor, { ...(await contacts.loadCompany()), versteuerung: "soll" }, "2026-01-01");
     const final = await invoices.finalizeInvoice(
       actor,
       (await invoices.createDraft(actor, { ...input(), issueDate: "2026-01-08", serviceFrom: "2025-12-01", serviceTo: "2025-12-31" })).id,
@@ -145,7 +147,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
     const meldeQ2 = () =>
       sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 0, 0, 0, 0, '2026-07-10T08:00:00Z')`;
 
-    it("führt zur berichtigten Anmeldung des Leistungszeitraums, nennt Betrag und Abgabe (§ 18b Satz 5 UStG, § 153 AO)", async () => {
+    it("führt zur berichtigten Anmeldung des Leistungszeitraums, nennt Betrag und Abgabe (§ 153 Abs. 1 AO)", async () => {
       await meldeQ2();
       const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
       const hinweis = await invoices.leistungsmonatHinweisFuer(final);
@@ -156,6 +158,20 @@ describe.skipIf(!testDatabaseUrl)("Leistungstag bei Soll: Randfälle (#694, Post
       expect(hinweis).not.toContain("nächste Voranmeldung");
       // Die nächste Voranmeldung enthält die Steuer nicht: Ein Verweis dorthin ließe sie unangemeldet
       expect(await vat.computeVatFigures({ year: 2026, month: 43 })).toMatchObject({ kz81: 0, tax81: 0 });
+    }, 30_000);
+
+    it("schweigt, wenn die Voranmeldung erst nach dem Festschreiben übermittelt wurde: Sie enthält die Rechnung", async () => {
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      await sql`insert into vat_returns (year, month, status, source, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 'berechnet', 100000, 0, 0, 19000, now() + interval '1 minute')`;
+      expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
+    }, 30_000);
+
+    it("schweigt nach der berichtigten Anmeldung des Leistungszeitraums", async () => {
+      await meldeQ2();
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input())).id);
+      expect(await invoices.leistungsmonatHinweisFuer(final)).toContain("Q2/2026");
+      await sql`insert into vat_returns (year, month, status, source, kz81, kz86, kz66, kz83, sent_at) values (2026, 42, 'sent', 'berechnet', 100000, 0, 0, 19000, now() + interval '1 minute')`;
+      expect(await invoices.leistungsmonatHinweisFuer(final)).toBeNull();
     }, 30_000);
 
     it("schweigt bei Anzahlung und Storno, die nicht nach dem Leistungstag gemeldet werden", async () => {

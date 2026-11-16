@@ -8,7 +8,6 @@ import {
   normalizeGlaeubigerId,
   RECHTSFORM_KEYS,
   isKapitalgesellschaft,
-  legalInfo,
   legalInfoGaps,
   MAX_DUNNING_FEE,
   skontoProblem,
@@ -16,20 +15,14 @@ import {
   toElsterSteuernummer,
   SteuernummerError,
   type Versteuerung,
+  inBasisPoints,
+  inCents,
+  inProzent,
 } from "@haben/core";
 import { and, desc, eq, gte, lt, lte, min, sql } from "drizzle-orm";
-import { legalLine } from "@haben/einvoice";
 import { z } from "zod";
-import { listArticles } from "./articles.ts";
-import { listTextBlocks } from "./text-blocks.ts";
-import { listContacts } from "./contacts.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { loadDesign } from "./letterhead.ts";
-import { backgroundInfo } from "./background.ts";
-import { logoInfo } from "./logo.ts";
-import { contactPersonOptions } from "./contact-persons.ts";
-import { mandateOptions } from "./sepa-mandate.ts";
 import { today } from "../../today.ts";
 
 export const companySchema = z
@@ -98,6 +91,11 @@ export const companySchema = z
     invoiceIntro: z.string().trim().max(2000).default(""),
     quoteIntro: z.string().trim().max(2000).default(""),
     kleinunternehmer: z.boolean(),
+    foundedOn: z.iso
+      .date()
+      .refine((date) => date >= "0001-01-01", "Das Gründungsdatum ist ungültig.")
+      .nullable()
+      .optional(),
     /** Nur steuerfreie Umsätze ohne Vorsteuerabzug (§ 15 Abs. 2 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
     ohneVorsteuerabzug: z.boolean().default(false),
     /** Anlage EÜR: Gewerbebetrieb oder selbständige (freiberufliche) Arbeit und Art des Betriebs */
@@ -106,14 +104,14 @@ export const companySchema = z
     /** Vorgabe für den Privatanteil je Belegkategorie in Prozent */
     /** Tageskurs statt der monatlichen USt-Umrechnungskurse, wenn das Finanzamt es gestattet hat */
     tageskurs: z.boolean().default(false),
-    privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), z.number().int().min(0).max(100)).default({}),
+    privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), inProzent(z.number().int().min(0).max(100))).default({}),
     dunning: z
       .object({
-        baseRate: z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max).nullable(),
+        baseRate: inBasisPoints(z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max)).nullable(),
         fees: z.object({
-          "1": z.number().int().min(0).max(MAX_DUNNING_FEE),
-          "2": z.number().int().min(0).max(MAX_DUNNING_FEE),
-          "3": z.number().int().min(0).max(MAX_DUNNING_FEE),
+          "1": inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
+          "2": inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
+          "3": inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
         }),
         deadlineDays: z.number().int().min(1).max(60),
         /** Basiszinssatz zum 1. Januar und 1. Juli bei der Bundesbank abrufen (opt-in); fehlt = unverändert */
@@ -145,7 +143,7 @@ export async function loadCompany(q: Db | Tx = db): Promise<Company> {
 
 /**
  * Versteuerung (Ist oder Soll), nach der ein Jahr gebucht ist. Umstellen geht nur zum Jahreswechsel, bevor im neuen
- * Jahr gebucht wird (settings-guard.ts); es gilt also, was beim Anlegen der ersten Buchung des Jahres eingestellt war.
+ * Jahr gebucht wird (auswertungen/settings-guard.ts); es gilt also, was beim Anlegen der ersten Buchung des Jahres eingestellt war.
  * Das steht im Audit-Log der Firmendaten. Ohne Buchung im Jahr gilt die aktuelle Einstellung.
  *
  * Wichtig für alles, was frühere Zeiträume rechnet: Voranmeldungen des Vorjahres und vor allem die
@@ -170,27 +168,10 @@ export async function versteuerungForYear(year: number, q: Db | Tx = db): Promis
 }
 
 /**
- * Ab welchem Jahr Voranmeldung und EÜR aus dem Journal rechnen (#542, docs/adr/journal-als-quelle.md): das eingestellte
- * Stichjahr, sonst das Jahr der ersten Buchung, ohne Buchung das laufende Jahr. Bestehende Instanzen setzt die Migration
- * 0192 auf das Jahr nach dem Update.
- */
-export async function journalAbJahr(q: Db | Tx = db): Promise<number> {
-  const company = await loadCompany(q);
-  if (company.journalAb !== null) return company.journalAb;
-  const [first] = await q.select({ date: min(schema.journalEntries.date) }).from(schema.journalEntries);
-  return first?.date ? Number(first.date.slice(0, 4)) : Number(today(new Date()).slice(0, 4));
-}
-
-/** Stichjahr setzen (Vorziehen in den Einstellungen; prüft auswertungen/stichjahr.ts), in der Transaktion des Aufrufers */
-export async function setJournalAb(tx: Tx, year: number): Promise<void> {
-  await tx.update(schema.company).set({ journalAb: year, updatedAt: new Date() }).where(eq(schema.company.id, 1));
-}
-
-/**
  * Kleinunternehmer (§ 19 UStG) an einem Tag, nach dem Änderungsprotokoll der Firmendaten. Liefert eine Funktion
  * Datum (JJJJ-MM-TT, deutsche Zeit) → Status am Ende dieses Tages; vor dem ersten Eintrag gilt der erste bekannte
  * fachlich gespeicherte Stand. Unbenutzte technische Vorgaben zählen nicht als Regelbesteuerung. Einschalten geht nur,
- * solange im Jahr nichts gebucht ist (settings-guard.ts), ausschalten jederzeit.
+ * solange im Jahr nichts gebucht ist (auswertungen/settings-guard.ts), ausschalten jederzeit.
  *
  * Für alles, was frühere Zeiträume betrifft: Wer zum Jahreswechsel auf Kleinunternehmer umstellt, schuldet die
  * Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres trotzdem.
@@ -280,73 +261,6 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
   return (await kleinunternehmerHistory())(`${year}-12-31`);
 }
 
-/** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
-export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, textBlocks, logo, background, design, mandates, contactPersons] = await Promise.all([
-    loadCompany(),
-    kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
-    listContacts(),
-    listArticles(),
-    listTextBlocks(),
-    logoInfo(),
-    backgroundInfo(),
-    loadDesign(),
-    kind === "rechnung" ? mandateOptions(today()) : Promise.resolve([]),
-    contactPersonOptions(),
-  ]);
-  const { name, strasse, plz, ort, email, telefon, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
-  return {
-    contacts,
-    /** Gültige Lastschriftmandate je Kunde (#445), für die Zahlungsart der Rechnung */
-    mandates,
-    /** Ansprechpartner aller Kunden (#424), für die Auswahl unter „Kunde“ */
-    contactPersons,
-    articles: articles.map(({ id, number, description, detail, unit, unitPrice, taxRate, priceIncludesTax }) => ({
-      id,
-      number,
-      description,
-      detail,
-      unit,
-      unitPrice,
-      taxRate,
-      priceIncludesTax,
-    })),
-    textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
-    company: {
-      name,
-      strasse,
-      plz,
-      ort,
-      email,
-      telefon,
-      steuernummer,
-      ustId,
-      iban,
-      bic,
-      bank,
-      kontoinhaber,
-      logo: logo?.sha256 ?? null,
-      background: background?.sha256 ?? null,
-      accent: design.accent,
-      design,
-      legal: legalLine(legalInfo(company)),
-    },
-    sellerIssues: sellerIssues(company),
-    letterIssues: letterIssues(company),
-    bundesland: company.bundesland,
-    kleinunternehmer: company.kleinunternehmer,
-    tageskurs: company.tageskurs,
-    /** Skonto-Vorgabe für Kunden ohne eigenes */
-    companySkonto: company.skonto,
-    /** Vorlagen für den Zahlungsplan im Angebot */
-    planTemplates: company.paymentPlanTemplates,
-    numberFormat: kind === "rechnung" ? company.invoiceNumberFormat : company.quoteNumberFormat,
-    /** Letzte Nummer je Kreis: Jahr, 0 = durchlaufender Zähler */
-    numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
-    numberRunning: kind === "rechnung" ? company.invoiceCounterRunning : company.quoteCounterRunning,
-  };
-}
-
 /** Was fehlt, bevor eine Voranmeldung gesendet werden kann. */
 export function companyIssues(company: Company): string[] {
   const issues: string[] = [];
@@ -367,13 +281,13 @@ export function companyIssues(company: Company): string[] {
 }
 
 /** Was auf einer Rechnung als Absender fehlt (§ 14 UStG und Zahlungsangaben). */
-export function sellerIssues(company: Company): string[] {
+export function sellerIssues(company: Company, requiresIban = true): string[] {
   const issues: string[] = [];
   if (!company.name) issues.push("Firmenname fehlt");
   if (!company.strasse || !company.plz || !company.ort) issues.push("Anschrift unvollständig");
   if (!company.steuernummer && !company.ustId) issues.push("Steuernummer oder USt-IdNr. fehlt");
   if (!company.email) issues.push("E-Mail-Adresse fehlt");
-  if (!company.iban) issues.push("IBAN fehlt");
+  if (requiresIban && !company.iban) issues.push("IBAN fehlt");
   return issues;
 }
 
@@ -385,4 +299,40 @@ export function sellerIssues(company: Company): string[] {
  */
 export function letterIssues(company: Company): string[] {
   return legalInfoGaps(company);
+}
+
+/** Schaltet das Durchsuchen des Umzugsarchivs in der Schnellsuche ein oder aus (#617). */
+export async function setArchiveSearch(actor: string, enabled: boolean): Promise<void> {
+  await loadCompany();
+  await withActor(actor, (tx) => tx.update(schema.company).set({ archiveSearch: enabled, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
+}
+
+export type Einrichtung = typeof schema.einrichtung.$inferSelect;
+
+/** Fragen zur Einrichtung und Bereiche (#266); null ohne Zeile, also vor dem ersten Speichern und bei Instanzen von vor dem Update */
+export async function loadEinrichtung(q: Db | Tx = db): Promise<Einrichtung | null> {
+  const [row] = await q.select().from(schema.einrichtung).where(eq(schema.einrichtung.id, 1));
+  return row ?? null;
+}
+
+/** Schreibt die Zeile in der Transaktion des Aufrufers und legt sie beim ersten Mal an */
+export async function setEinrichtung(tx: Tx, werte: Partial<Pick<Einrichtung, "ausgeblendeteBereiche" | "fragenAt" | "offen">>): Promise<void> {
+  const set = { ...werte, updatedAt: new Date() };
+  await tx
+    .insert(schema.einrichtung)
+    .values({ id: 1, ...set })
+    .onConflictDoUpdate({ target: schema.einrichtung.id, set });
+}
+
+/** Rechtsform und Kleinunternehmer sind entschieden, etwa beim Speichern der Firmendaten; ohne offene Frage kein Eintrag im Audit-Log */
+export async function offeneFragenErledigt(tx: Tx): Promise<void> {
+  await tx.update(schema.einrichtung).set({ offen: [], updatedAt: new Date() }).where(sql`jsonb_array_length(${schema.einrichtung.offen}) > 0`);
+}
+
+/**
+ * Bereiche ohne Menüpunkt (#266). Nur die Navigation: Daten, Buchungen und Links bleiben, deshalb ohne Sperre. Die
+ * gültigen Namen prüft der Aufrufer (lib/bereiche.ts); gespeichert wird sortiert und ohne Doppelte.
+ */
+export async function saveBereiche(actor: string, ausgeblendet: readonly string[]): Promise<void> {
+  await withActor(actor, (tx) => setEinrichtung(tx, { ausgeblendeteBereiche: [...new Set(ausgeblendet)].sort() }));
 }

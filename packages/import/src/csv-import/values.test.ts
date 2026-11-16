@@ -28,8 +28,17 @@ describe("parseImportAmount", () => {
     expect(value(parseImportAmount("12.345,678", "Preis"))).toMatch(/kein Betrag/);
   });
 
+  it("liest wie die Betragsfelder: Währung nur am Rand, Leerzeichen nur zwischen Dreiergruppen (#1242)", () => {
+    expect(value(parseImportAmount("12,50 EUR", "Preis"))).toBe(1250);
+    expect(value(parseImportAmount("€ 12,50", "Preis"))).toBe(1250);
+    expect(value(parseImportAmount("1 234,56", "Preis"))).toBe(123456);
+    expect(value(parseImportAmount("12€50", "Preis"))).toMatch(/kein Betrag/);
+    expect(value(parseImportAmount("12EUR50", "Preis"))).toMatch(/kein Betrag/);
+    expect(value(parseImportAmount("1 2,50", "Preis"))).toMatch(/kein Betrag/);
+  });
+
   it("lehnt englische Tausendertrenner und Text ab", () => {
-    expect(value(parseImportAmount("1,234.56", "Preis"))).toBe("Preis: „1,234.56“ ist kein Betrag wie 1.234,56");
+    expect(value(parseImportAmount("1,234.56", "Preis"))).toBe("Preis: „1,234.56“ ist kein Betrag. Trag den Betrag ein, etwa 1.234,56.");
     expect(value(parseImportAmount("zwölf", "Preis"))).toMatch(/kein Betrag/);
     expect(value(parseImportAmount("1,234", "Preis"))).toMatch(/kein Betrag/);
   });
@@ -70,6 +79,14 @@ describe("parseImportTaxRate, parseImportUnit, parseImportCountry", () => {
       "Stk.",
     ]);
     expect(value(parseImportUnit("Liter"))).toMatch(/Einheit: „Liter“/);
+  });
+
+  it("erkennt eigene Einheiten (#748) an der Bezeichnung, ohne Rücksicht auf Groß- und Kleinschreibung", () => {
+    expect(value(parseImportUnit("ue", ["UE", "m²"]))).toBe("UE");
+    expect(value(parseImportUnit("m²", ["UE", "m²"]))).toBe("m²");
+    // Geerbte Namen von Object sind keine Einheiten und keine Aliase
+    for (const raw of ["toString", "valueOf", "constructor"]) expect(value(parseImportUnit(raw))).toMatch(/Einheit:/);
+    expect(value(parseImportUnit("Karton", ["UE"]))).toMatch(/Std\., Tag, Monat, Stk\., Psch\., km, UE oder eine neue/);
   });
 
   it("liest Ländercode, ISO-Ziffern und Namen", () => {

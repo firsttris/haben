@@ -4,24 +4,20 @@ import {
   kategorieArt,
   lastMonthOfPeriod,
   monthsOfPeriod,
-  paidTaxShares,
   periodRange,
   recordedTaxShares,
-  splitPrivateShare,
   type Cents,
   type TaxTreatment,
   type VatPeriod,
-  JOURNAL_KENNZAHLEN,
-  type JournalKennzahlen,
 } from "@haben/core";
-import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
-import { journalAbJahr, kleinunternehmerForMonth } from "../stammdaten/index.ts";
-import { gutschriftAnteile } from "./gutschrift.ts";
+import { kleinunternehmerForMonth } from "../stammdaten/index.ts";
+import { vorsteuerAusBelegen } from "./vorsteuer-belege.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
-import { advanceVatPlans, invoiceTaxReader, invoiceTotalsById } from "../rechnungen/index.ts";
+import { bankAccountIncludedSql, bankNotPrivateMarkedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
+import { advanceVatPlans, invoiceTaxReader, invoiceTotalsById, mixNachVerrechnungen } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
   /**
@@ -78,8 +74,13 @@ export interface IgErwerbSource extends InputTaxSource {
  * Leistungen ins Drittland (Kz 45): DATEV weist bei Ist-Versteuerung nur steuerpflichtige und steuerfreie inländische
  * Umsätze mit der Zahlung aus, nicht steuerbare Umsätze im Drittland schon mit der Rechnung (DATEV-Dok. 1080673).
  */
-export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung", "drittland"] as const satisfies readonly TaxTreatment[];
+export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung", "drittland", "eu_sonstige"] as const satisfies readonly TaxTreatment[];
 
+/**
+ * Kennzahlen der Voranmeldung aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md). Die Listen (revenue,
+ * inputTax, …) kommen aus den Nebenbüchern; sie erläutern die Kennzahlen in Oberfläche und Vorprüfung und tragen die ZM,
+ * gerechnet wird aus ihnen nicht.
+ */
 export interface VatFigures {
   versteuerung: "ist" | "soll";
   /** Kleinunternehmer geben keine Voranmeldung ab */
@@ -119,40 +120,8 @@ export interface VatFigures {
   igErwerb: IgErwerbSource[];
   /** Belege zur Einfuhrumsatzsteuer: der ganze Betrag als Steuer */
   einfuhr: InputTaxSource[];
-  /**
-   * Woher die Kennzahlen kommen: ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md), davor aus den
-   * Nebenbüchern. Die Listen (revenue, inputTax, …) kommen immer aus den Nebenbüchern; sie erläutern die Kennzahlen.
-   */
-  quelle: "journal" | "nebenbuecher";
-  /** Ab dem Stichjahr: die Kennzahlen aus den Nebenbüchern, die Gegenprobe im Abgleich */
-  nebenbuecher?: JournalKennzahlen;
 }
 
-/**
- * Ab dem Stichjahr (journalAbJahr) sind die Kennzahlen die aus dem Journal; die Privatnutzung von Fahrzeugen kommt dazu wie
- * in den Nebenbüchern aus dem Anlagenverzeichnis. Die Kennzahlen der Nebenbücher bleiben als Gegenprobe für den Abgleich.
- */
-async function journalAlsQuelle(period: VatPeriod, figures: VatFigures, q: Db | Tx): Promise<VatFigures> {
-  if (period.year < (await journalAbJahr(q))) return figures;
-  return ausDemJournal(period, figures, q);
-}
-
-async function ausDemJournal(period: VatPeriod, figures: VatFigures, q: Db | Tx): Promise<VatFigures> {
-  const journal = await kennzahlenAusDemJournal(period, figures.versteuerung, q);
-  const entnahme = figures.revenue.filter((r) => r.type === "entnahme");
-  journal.kz81 += entnahme.reduce((s, r) => s + r.base, 0);
-  journal.tax81 += entnahme.reduce((s, r) => s + r.tax, 0);
-  // Freie Buchungen haben kein Nebenbuch; die Gegenprobe zählt sie aus der festgeschriebenen Buchung selbst
-  const manuell = await kennzahlenAusDemJournal(period, figures.versteuerung, q, true);
-  const nebenbuecher = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, figures[feld] + manuell[feld]])) as JournalKennzahlen;
-  return { ...figures, ...journal, quelle: "journal", nebenbuecher };
-}
-
-/**
- * Kennzahlen eines Monats oder Quartals aus den Buchungen; ein Quartal umfasst die Buchungen seiner drei Monate. Ist-Versteuerung: Umsatzsteuer nach Datum des
- * zugeordneten Zahlungseingangs, bei Teilzahlungen anteilig. Soll: nach Rechnungsdatum.
- * Vorsteuer in beiden Fällen nach Belegdatum.
- */
 /** Gemeinsame, auf diesen Leseaufruf begrenzte Caches, etwa für die Quartale einer ZM-Auswahl. */
 export function vatFiguresContext(q: Db | Tx = db) {
   const taxes = invoiceTaxReader(q);
@@ -170,6 +139,11 @@ export function vatFiguresContext(q: Db | Tx = db) {
   };
 }
 
+/**
+ * Voranmeldung eines Monats oder Quartals: Kennzahlen aus den Buchungen des Zeitraums, Erläuterungen aus den Nebenbüchern.
+ * Ist-Versteuerung: Umsatzsteuer nach Datum des zugeordneten Zahlungseingangs, bei Teilzahlungen anteilig. Soll: nach
+ * Rechnungsdatum. Vorsteuer in beiden Fällen nach Belegdatum.
+ */
 export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, context = vatFiguresContext(q)): Promise<VatFigures> {
   const { start, end } = periodRange(period);
   const versteuerung = await context.taxes.modeForYear(period.year);
@@ -281,12 +255,16 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
       .where(and(gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end), notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM])));
     payments.push(...differences, ...cash);
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))], q);
+    // Nach einer Verrechnung trägt die Zahlung nur noch die Sätze, die die Rechnung nach der Korrektur hat (#877, Befund 2).
+    // Sonst rechnet die Voranmeldung aus den Nebenbüchern den zurückgenommenen Satz wieder mit.
+    const mix = await mixNachVerrechnungen(totals, q);
     for (const p of payments) {
       if (advanceIds.has(p.invoiceId)) continue;
       if ((await invoiceMode(p)) !== "ist") continue;
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
       const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
-      for (const share of recordedTaxShares(totals.get(p.invoiceId)!, p.amount, stored)) {
+      const voll = totals.get(p.invoiceId)!;
+      for (const share of recordedTaxShares(voll, p.amount, stored, mix.get(p.invoiceId) ?? [voll])) {
         revenue.push({
           type: "payment",
           date: p.date,
@@ -380,11 +358,14 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
         ),
       );
     const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))], q);
+    // Nach einer Verrechnung trägt die Ausbuchung nur noch die Sätze, die die Rechnung nach der Korrektur hat (#877, Befund 2).
+    const mix = await mixNachVerrechnungen(totals, q);
     for (const r of rows) {
       if (advanceIds.has(r.invoiceId)) continue;
       if ((await invoiceMode(r)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === r.treatment)) continue;
       const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
-      const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, stored);
+      const voll = totals.get(r.invoiceId)!;
+      const shares = recordedTaxShares(voll, -r.amount, stored, mix.get(r.invoiceId) ?? [voll]);
       for (const share of shares) {
         revenue.push({
           type: "ausbuchung",
@@ -487,168 +468,25 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     }
   }
 
-  // Belege nach Belegdatum; ein Storno (#237) zählt mit umgekehrtem Vorzeichen im Monat des Stornos (§ 17 Abs. 1 UStG)
-  const documentColumns = {
-    documentId: schema.documents.id,
-    supplier: schema.documents.supplierName,
-    number: schema.documents.invoiceNumber,
-    rate: schema.documentAmounts.taxRate,
-    base: schema.documentAmounts.net,
-    tax: schema.documentAmounts.tax,
-    erstattetBezahltes: schema.documents.erstattetBezahltes,
-    privateShare: schema.documents.privateShare,
-    vorsteuerAbzug: schema.documents.vorsteuerAbzug,
-    reverseCharge: schema.documents.reverseCharge,
-    category: schema.documents.category,
-  };
-  const booked = await q
-    .select({ ...documentColumns, date: schema.documents.documentDate })
-    .from(schema.documentAmounts)
-    .innerJoin(schema.documents, eq(schema.documents.id, schema.documentAmounts.documentId))
-    .where(
-      and(
-        eq(schema.documents.status, "gebucht"),
-        gte(schema.documents.documentDate, start),
-        lt(schema.documents.documentDate, end),
-        isNull(schema.documents.lexofficeVoucherId),
-      ),
-    );
-  const cancelled = await q
-    .select({ ...documentColumns, date: schema.documentCancellations.date })
-    .from(schema.documentAmounts)
-    .innerJoin(schema.documents, eq(schema.documents.id, schema.documentAmounts.documentId))
-    .innerJoin(schema.documentCancellations, eq(schema.documentCancellations.documentId, schema.documents.id))
-    .where(and(gte(schema.documentCancellations.date, start), lt(schema.documentCancellations.date, end)));
-  const amounts = [
-    ...booked.map((a) => ({ ...a, date: a.date!, sign: 1 })),
-    ...cancelled.map((a) => ({ ...a, number: `Storno ${a.number}`.trim(), sign: -1 })),
-  ];
-  // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
-  const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
-  // Eine Gutschrift „erstattet bereits Bezahltes“ mindert die Vorsteuer erst mit dem Ausgleich (#690, #786, gutschrift.ts);
-  // ohne die Angabe gilt wie bei jedem Beleg das Belegdatum
-  const inputTax = amounts
-    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && !a.erstattetBezahltes)
-    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, erstattetBezahltes: _e, sign, category: _category, ...a }) => ({
-      ...a,
-      base: business(a.base, privateShare, sign),
-      tax: business(a.tax, privateShare, sign),
-    }))
-    .filter((a) => a.tax !== 0);
-  // Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz
-  const discounts = await q
-    .select({
-      documentId: schema.documents.id,
-      date: schema.writeOffs.date,
-      amount: schema.writeOffs.amount,
-      supplier: schema.documents.supplierName,
-      number: schema.documents.invoiceNumber,
-      net: schema.documents.net,
-      tax: schema.documents.tax,
-      gross: schema.documents.gross,
-    })
-    .from(schema.writeOffs)
-    .innerJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
-    .where(
-      and(
-        gte(schema.writeOffs.date, start),
-        lt(schema.writeOffs.date, end),
-        eq(schema.writeOffs.kind, "skontoErhalten"),
-        // Ausgebuchtes Skonto an einer Gutschrift „erstattet bereits Bezahltes“ schreibt das Zwischenkonto ab, ohne die
-        // Vorsteuer zu mindern (vorsteuer-ausgleich.ts); es zählt deshalb nicht hier (#786)
-        eq(schema.documents.erstattetBezahltes, false),
-        eq(schema.documents.vorsteuerAbzug, true),
-      ),
-    );
-  if (discounts.length > 0) {
-    const docAmounts = await q
-      .select()
-      .from(schema.documentAmounts)
-      .where(inArray(schema.documentAmounts.documentId, [...new Set(discounts.map((d) => d.documentId))]));
-    for (const d of discounts) {
-      const taxes = docAmounts
-        .filter((a) => a.documentId === d.documentId)
-        .map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }))
-        .sort((a, b) => b.rate - a.rate);
-      for (const share of paidTaxShares({ net: d.net, tax: d.tax, gross: d.gross, taxes }, -d.amount)) {
-        if (share.tax === 0) continue;
-        inputTax.push({ documentId: d.documentId, date: d.date, supplier: d.supplier, number: d.number, rate: share.rate, base: -share.base, tax: -share.tax });
-      }
-    }
-  }
-  // Erstattung oder Verrechnung einer Gutschrift: die Vorsteuer mindert sich im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG),
-  // je Zahlung, Verrechnung und Ausbuchung ein Eintrag mit deren Datum (gutschrift.ts)
-  inputTax.push(...(await gutschriftAnteile(period, q)));
-  // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
-  const reverseCharge: ReverseChargeSource[] = amounts
-    .filter((a): a is typeof a & { reverseCharge: "eu" | "drittland" } => a.reverseCharge === "eu" || a.reverseCharge === "drittland")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, erstattetBezahltes: _e, sign, ...a }) => ({
-      ...a,
-      base: sign * a.base,
-      tax: sign * a.tax,
-      reverseCharge: rc,
-      deductible: vorsteuerAbzug ? business(a.tax, privateShare, sign) : 0,
-    }));
-  // Innergemeinschaftlicher Erwerb ebenso, nach Belegdatum auch bei Ist-Versteuerung: Die Steuer entsteht mit Ausstellung
-  // der Rechnung, spätestens mit Ablauf des Folgemonats (§ 13 Abs. 1 Nr. 6 UStG), nicht mit der Zahlung
-  const igErwerb: IgErwerbSource[] = amounts
-    .filter((a) => a.reverseCharge === "ig_erwerb")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: _rc, erstattetBezahltes: _e, sign, ...a }) => ({
-      ...a,
-      base: sign * a.base,
-      tax: sign * a.tax,
-      deductible: vorsteuerAbzug ? business(a.tax, privateShare, sign) : 0,
-    }));
-  // Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG): der Betrag des Bescheids ist die Steuer, abziehbar nach Belegdatum
-  const einfuhr: InputTaxSource[] = amounts
-    .filter((a) => a.category === "einfuhrumsatzsteuer" && a.vorsteuerAbzug && !a.reverseCharge)
-    .map(({ privateShare: _p, vorsteuerAbzug: _v, reverseCharge: _rc, category: _c, erstattetBezahltes: _e, sign, ...a }) => ({
-      ...a,
-      base: 0,
-      tax: sign * (a.base + a.tax),
-    }));
-  const ige = (rate: number, key: "base" | "tax") => igErwerb.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
-  const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") => reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
-
-  const regular = revenue.filter((r) => r.treatment === "regulaer");
-  const sum = (rows: { base: Cents; tax: Cents; rate: number }[], rate: number, key: "base" | "tax") =>
-    rows.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
-  const treated = (treatment: TaxTreatment) => revenue.filter((r) => r.treatment === treatment).reduce((s, r) => s + r.base, 0);
-
-  const figures: VatFigures = {
+  // Vorsteuer, § 13b, Erwerb und Einfuhrumsatzsteuer als Erläuterung aus den Belegen (vorsteuer-belege.ts)
+  const { inputTax, reverseCharge, igErwerb, einfuhr } = await vorsteuerAusBelegen(period, q);
+  // Die Kennzahlen aus dem Journal (#542, #1116), wie bei DATEV aus Konto und Steuerschlüssel; die Privatnutzung von
+  // Fahrzeugen je Monat aus dem Anlagenverzeichnis (das Journal bucht sie erst mit der AfA)
+  const kennzahlen = await kennzahlenAusDemJournal(period, versteuerung, q);
+  const entnahme = revenue.filter((r) => r.type === "entnahme");
+  kennzahlen.kz81 += entnahme.reduce((s, r) => s + r.base, 0);
+  kennzahlen.tax81 += entnahme.reduce((s, r) => s + r.tax, 0);
+  return {
     versteuerung,
     // Stand am Ende des Zeitraums der Voranmeldung, nicht der heutige
     kleinunternehmer: await kleinunternehmerForMonth(lastMonthOfPeriod(period).year, lastMonthOfPeriod(period).month, q),
-    kz81: sum(regular, 1900, "base"),
-    tax81: sum(regular, 1900, "tax"),
-    kz86: sum(regular, 700, "base"),
-    tax86: sum(regular, 700, "tax"),
-    kz21: treated("reverse_charge"),
-    kz45: treated("drittland"),
-    kz48: treated("steuerfrei"),
-    kz66: inputTax.reduce((s, a) => s + a.tax, 0),
-    kz46: rcSum("eu", "base"),
-    kz47: rcSum("eu", "tax"),
-    kz84: rcSum("drittland", "base"),
-    kz85: rcSum("drittland", "tax"),
-    kz67: reverseCharge.reduce((s, r) => s + r.deductible, 0),
-    kz41: treated("ig_lieferung"),
-    kz43: treated("ausfuhr"),
-    kz89: ige(1900, "base"),
-    tax89: ige(1900, "tax"),
-    kz93: ige(700, "base"),
-    tax93: ige(700, "tax"),
-    kz61: igErwerb.reduce((s, r) => s + r.deductible, 0),
-    kz62: einfuhr.reduce((s, r) => s + r.tax, 0),
-    steuerfrei: sum(regular, 0, "base"),
+    ...kennzahlen,
     revenue,
     inputTax,
     reverseCharge,
     igErwerb,
     einfuhr,
-    quelle: "nebenbuecher",
   };
-  return journalAlsQuelle(period, figures, q);
 }
 
 export interface PreflightIssue {
@@ -675,6 +513,7 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
         gte(schema.bankTransactions.bookingDate, start),
         lt(schema.bankTransactions.bookingDate, end),
         sql`${open} <> 0`,
+        bankNotPrivateMarkedSql,
         bankAccountIncludedSql("bank_account_id"),
       ),
     );
@@ -722,16 +561,4 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
     });
   }
   return issues;
-}
-
-/**
- * Kennzahlen eines Zeitraums aus dem Journal und aus den Nebenbüchern, unabhängig vom Stichjahr. Für das Vorziehen des
- * Stichjahrs (auswertungen/stichjahr.ts): Es ändert keine Zahl, wenn beide gleich sind. Der Abgleich allein reicht dafür
- * nicht, er lässt ältere Buchungen ohne Bemessungsgrundlage bzw. Steuerschlüssel bewusst aus.
- */
-export async function kennzahlenBeiderQuellen(period: VatPeriod, q: Db | Tx = db): Promise<{ journal: JournalKennzahlen; nebenbuecher: JournalKennzahlen }> {
-  const figures = await computeVatFigures(period, q);
-  const beide = figures.quelle === "journal" ? figures : await ausDemJournal(period, figures, q);
-  const journal = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, beide[feld]])) as JournalKennzahlen;
-  return { journal, nebenbuecher: beide.nebenbuecher! };
 }

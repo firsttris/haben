@@ -27,7 +27,8 @@ import styles from "../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { EntfernungForm } from "../../components/EntfernungForm.tsx";
 import { Field } from "../../components/Field.tsx";
-import { Status } from "../../components/Status.tsx";
+import { MonthPicker } from "../../components/MonthPicker.tsx";
+import { PauschaleStatus } from "../../components/PauschaleStatus.tsx";
 
 export const Route = createFileRoute("/_app/pauschalen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -276,17 +277,7 @@ function HomeofficeForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) 
       </p>
       <div className="form-grid">
         <Field label="Monat" error={error("month")}>
-          {(control) => (
-            <input
-              {...control}
-              type="month"
-              value={month}
-              min={`${data.year}-01`}
-              max={defaultDate(data).slice(0, 7)}
-              onChange={(e) => setMonth(e.target.value)}
-              required
-            />
-          )}
+          {(control) => <MonthPicker {...control} value={month} min={`${data.year}-01`} max={defaultDate(data).slice(0, 7)} onChange={setMonth} />}
         </Field>
         <Field label="Tage im Homeoffice" error={error("tage")}>
           {(control) => <input {...control} value={tage} onChange={(e) => setTage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}
@@ -551,7 +542,7 @@ function Liste({ data }: { data: Data }) {
                 </td>
                 <td>
                   {e.storniert ? (
-                    <Status tone="danger">Storniert</Status>
+                    <PauschaleStatus storniert />
                   ) : (
                     <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirm(e)}>
                       Stornieren

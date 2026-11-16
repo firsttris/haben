@@ -1,11 +1,23 @@
 import { DUNNING_LEVELS, type DunningLevel, formatEuro } from "@haben/core";
 import type { IconName } from "../components/Icon.tsx";
+import { buildStufe2Sections } from "./befehlspalette-stufe2.ts";
 import { searchOptions } from "./combobox.ts";
 import { formatDate } from "./format.ts";
 import type { SichtbareSeite } from "./navigation.ts";
 import type { CommandPaletteResult } from "../server/functions/search.ts";
 
-export type MoreTarget = "/kontakte" | "/rechnungen" | "/angebote" | "/belege";
+export type MoreTarget = "/kontakte" | "/rechnungen" | "/angebote" | "/belege" | "/bank";
+
+type Hits<K extends keyof CommandPaletteResult> = CommandPaletteResult[K]["hits"][number];
+
+/** Zustand eines Treffers aus Stufe 2; PaletteListbox zeigt ihn mit der Status-Komponente, die auch seine Seite nutzt */
+export type PaletteStatus =
+  | { kind: "bank"; tx: Pick<Hits<"bankTransactions">, "hint" | "open"> }
+  | { kind: "vat"; vat: Hits<"vatReturns"> }
+  | { kind: "zm"; ok: boolean; code: number }
+  | { kind: "recurringInvoice"; active: boolean; lastError: string | null }
+  | { kind: "recurringDocument"; status: Hits<"recurringDocuments">["status"]; lastError: string | null }
+  | { kind: "pauschale"; storniert: boolean };
 
 export type PaletteItem =
   | {
@@ -28,6 +40,18 @@ export type PaletteItem =
       invoice?: CommandPaletteResult["invoices"]["hits"][number];
       quote?: CommandPaletteResult["quotes"]["hits"][number];
       document?: CommandPaletteResult["documents"]["hits"][number];
+    }
+  | {
+      id: string;
+      kind: "link";
+      title: string;
+      meta: string;
+      icon: IconName;
+      to: string;
+      params?: Record<string, string>;
+      search?: Record<string, unknown>;
+      amount?: string;
+      status?: PaletteStatus;
     };
 
 export interface PaletteSection {
@@ -35,6 +59,8 @@ export interface PaletteSection {
   label: string;
   items: PaletteItem[];
   to?: MoreTarget;
+  /** Weitere Suchparameter für „Alle anzeigen“ neben `suche` */
+  moreSearch?: Record<string, string>;
 }
 
 export function buildPageSection(pages: readonly SichtbareSeite[], query: string): PaletteSection | null {
@@ -123,7 +149,7 @@ export function buildRemoteSections(remote: CommandPaletteResult, inhaber: boole
     sections.push({ id: "belege", label: "Belege", items, to: "/belege" });
   }
 
-  return sections;
+  return [...sections, ...buildStufe2Sections(remote, inhaber)];
 }
 
 export function statusMessage(loading: boolean, queryLength: number, itemCount: number): string {

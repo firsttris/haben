@@ -16,6 +16,7 @@ Der Skill ordnet und verteilt nur. Die Prüfung eines Pull Requests macht `beitr
 - Wer zuletzt etwas getan hat: neue Commits oder Kommentare des Autors seit unserem letzten Kommentar? Wartet er auf uns oder wir auf ihn?
 - Migrationen im Diff mit ihrer Nummer
 - Heikel, also Steuer, Buchung, ELSTER, GoBD oder Migration auf bestehenden Daten?
+- Prüfungen des Autors (nur bei Pull Requests von jemandem ohne Schreibrecht): Selbstprüfung nach `beitrag-pruefen` und unabhängiges Review (`tdd-review` für Code, `doku-pruefen` für Markdown) als Kommentare, die seinen letzten Commit nennen oder per Nachtrag bis zu ihm reichen?
 
 Ist auf `main` ein Check rot, kommt das vor allem anderen: Sonst ist er in jedem Pull Request rot. Einen Fix legt der Maintainer an oder lässt ihn anlegen.
 
@@ -31,8 +32,11 @@ Von oben nach unten, wie einfach der Merge ist:
 4. **Autor hat nachgeliefert:** nur die neuen Commits gegen die offenen Befunde prüfen
 5. **Konflikt oder rote CI**, die der Pull Request selbst verursacht
 6. **Wartet auf den Autor:** Befunde stehen schon im Pull Request, seitdem nichts Neues. Nichts tun.
+7. **Prüfungen fehlen:** Selbstprüfung oder unabhängiges Review fehlt oder reicht nicht bis zum letzten Commit des Autors, auch wenn der Pull Request sonst weiter oben stünde; Nachbesserungen auf unsere Befunde stehen auf Platz 4, reine Testdaten-Änderungen mit unabhängigem Review nach ihrem Stand weiter oben (`docs/mitwirken.md`, Beiträge annehmen).
 
-Gleich einfache Pull Requests nach Alter. Belegen zwei dieselbe Migrationsnummer, kommt der fertigere zuerst; der andere erzeugt seine Migration nach dem Merge neu.
+Gleich einfache Pull Requests nach Alter.
+
+**Migrationen nacheinander:** Pull Requests mit Migration gehen einzeln durch, der fertigere zuerst; Pull Requests ohne Migration dürfen dazwischen. Erst nach dem Merge des vorigen holt der nächste `main` per Merge herein und erzeugt seine Migrationen neu, kurz vor seinem eigenen Merge, nach Prüfung und grüner CI: eigene Dateien in `apps/web/drizzle/` verwerfen, `drizzle/meta/` auf den Stand von `main` (nicht von Hand), dann `bun run db:generate`, eine eigene SQL-Migration (Trigger) mit `drizzle-kit generate --custom` und dem bisherigen SQL (`docs/entwicklung.md`, „Migrationen“). Die Rangliste nennt die Reihenfolge der Pull Requests mit Migration, der Kommentar aus Schritt 3 jedem Autor seinen Platz.
 
 Die Rangliste geht als Tabelle an den Maintainer, mit einer Zeile je Pull Request: Platz, Nummer, Titel, Stand, nächster Schritt.
 
@@ -40,7 +44,7 @@ Hat der Maintainer nur gefragt, endet der Skill hier; Schritt 3 erst auf sein Wo
 
 ## 3. Von oben nach unten
 
-Je Pull Request einen frischen Agenten mit `beitrag-pruefen` in der Rolle des Maintainers. Unabhängige Pull Requests laufen parallel. Der Auftrag an den Agenten:
+Platz 7 bekommt keinen Agenten, nur einmal eine freundliche Bitte mit Link auf Skill `beitrag`, Schritt 6. Sie nennt immer alle drei Prüfungen mit Stand: `beitrag-pruefen` (Selbstprüfung), `tdd-review` für Code und `doku-pruefen` für Markdown, je durch jemand anderen oder einen frischen Agenten und bis zum letzten Commit des Autors; was schon vorliegt oder nicht nötig ist, steht dabei. Je übrigem Pull Request einen frischen Agenten mit `beitrag-pruefen` in der Rolle des Maintainers. Unabhängige Pull Requests laufen parallel. Der Auftrag an den Agenten:
 
 - eigener Worktree und eigene Test-Datenbank, nie die Compose-Instanz `haben-dev`
 - nichts posten, pushen oder mergen

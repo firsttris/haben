@@ -19,6 +19,7 @@ export async function oposAbgleich(cutoff: string, q: Db | Tx = db): Promise<Abg
       union all select 'allocation',id from allocations where invoice_id in ${stand.invoiceIds}
       union all select 'kasse',id from cash_entries where invoice_id in ${stand.invoiceIds}
       union all select 'ausbuchung',id from write_offs where invoice_id in ${stand.invoiceIds}
+      union all select 'verrechnung',id from invoice_settlements where invoice_id in ${stand.invoiceIds}
     )
     select e.kontenrahmen,l.account,sum(l.debit-l.credit) as saldo
       from journal_entries e join journal_lines l on l.entry_id=e.id
@@ -32,7 +33,14 @@ export async function oposAbgleich(cutoff: string, q: Db | Tx = db): Promise<Abg
     if (row.account === accounts.forderungen) receivables += Number(row.saldo);
     if (row.account === accounts.erhalteneAnzahlungen) advances -= Number(row.saldo);
   }
-  const row = (posten: string, journal: number, quelle: number): AbgleichZeile => ({ bereich: "opos", zeitraum: cutoff, posten, journal, quelle });
+  const row = (posten: string, journal: number, quelle: number): AbgleichZeile => ({
+    bereich: "opos",
+    zeitraum: cutoff,
+    posten,
+    journal,
+    quelle,
+    gegen: "laut offenen Posten",
+  });
   const hinweise: string[] = [];
   if (stand.requests !== 0) hinweise.push(`${cutoff}: Unbilanzierte Anzahlungsanforderungen ${formatEuro(stand.requests)}; nicht im Forderungssaldo.`);
   if (stand.unbilled !== 0)

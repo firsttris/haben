@@ -2,7 +2,7 @@ import { formatEuro } from "@haben/core";
 import { daysUntil, formatDate, formatDayMonth, relativeDays } from "../lib/format.ts";
 import { Status, type StatusLook } from "./Status.tsx";
 
-type Hint = "vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "verrechnet";
+type Hint = "vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "privat" | "verrechnet";
 
 const HINT: Record<Hint, StatusLook> = {
   // Ein Klick erledigt den Umsatz: hebt die Zeilen hervor, die ohne Suchen gehen
@@ -13,6 +13,9 @@ const HINT: Record<Hint, StatusLook> = {
   teilweise: { text: "Teilweise", tone: "info" },
   zugeordnet: { text: "Zugeordnet", tone: "ok" },
   verrechnet: { text: "Verrechnet", tone: "ok" },
+  // Kein offener Posten, obwohl nichts gebucht ist: Auf einem privaten Konto fehlt dem Umsatz die Buchungsart (#1088)
+  // „Privat" in der Zeile, „kein Betriebsvorgang" als Unterzeile: Die Zeile bleibt schmal, die Aussage vollständig (#1088)
+  privat: { text: "Privat", tone: "neutral" },
 };
 
 const SUGGESTION_KIND = { invoice: "Rechnung", document: "Beleg", ustva: "Voranmeldung" } as const;
@@ -30,6 +33,8 @@ export function transactionStatusDetail(tx: TransactionFacts): string | null {
     return s.type === "document" ? s.partyName || `Beleg ${s.number}` : `${SUGGESTION_KIND[s.type]} ${s.number}`.trim();
   }
   if (tx.hint === "teilweise") return `noch ${formatEuro(Math.abs(tx.open))} offen`;
+  // Kein offener Posten und trotzdem nichts gebucht: Auf dem privaten Konto fehlt die Buchungsart
+  if (tx.hint === "privat") return "kein Betriebsvorgang";
   return null;
 }
 

@@ -3,20 +3,35 @@ import { ErrorBanner } from "../../../components/ErrorBanner.tsx";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod/mini";
-import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
+import { DocumentStatus, SOURCE_LABEL, documentStatusText } from "../../../components/DocumentStatus.tsx";
 import { Status } from "../../../components/Status.tsx";
 import { DocumentUpload } from "../../../components/DocumentUpload.tsx";
 import { Field } from "../../../components/Field.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
-import { parseEuroSearchCents } from "@haben/core";
+import { inCentRange, parseEuroSearchRange } from "@haben/core";
 import { getDocuments } from "../../../server/functions/documents.ts";
 
 export const Route = createFileRoute("/_app/belege/")({
-  validateSearch: z.object({ suche: z.optional(z.string()) }),
+  validateSearch: z.object({
+    suche: z.optional(z.string()),
+    /** Spaltenkopf sortiert; der Zustand steht im Link, damit er sich teilen lässt (#1112) */
+    sort: z.optional(z.enum(["datum", "lieferant", "kategorie", "brutto", "status"])),
+    dir: z.optional(z.enum(["auf", "ab"])),
+  }),
   loader: () => getDocuments(),
   head: () => ({ meta: [{ title: "Belege · Haben" }] }),
   component: DocumentsPage,
 });
+
+const richtungText = (dir: "auf" | "ab") => (dir === "ab" ? "absteigend" : "aufsteigend");
+
+/* Texte der Spalten Lieferant und Kategorie; die Sortierung nimmt dieselben, damit die Liste so sortiert ist, wie sie aussieht */
+const lieferantText = (doc: { supplierName: string; filename: string }) => doc.supplierName || doc.filename;
+const kategorieText = (doc: { category: string | null; splitCount: number }) =>
+  doc.category ? EXPENSE_CATEGORIES[doc.category as ExpenseCategory].label : doc.splitCount > 0 ? `Aufgeteilt auf ${doc.splitCount} Zeilen` : "–";
+
+const statusText = (doc: Parameters<typeof documentStatusText>[0] & { cancelledOn: string | null }) =>
+  documentStatusText({ ...doc, cancelled: doc.cancelledOn !== null });
 
 function DocumentsPage() {
   const { documents, aiAvailable, inbox } = Route.useLoaderData();
@@ -28,12 +43,51 @@ function DocumentsPage() {
     setQuery(suche ?? "");
   }, [suche]);
   const needle = query.trim().toLowerCase();
-  const cents = needle ? parseEuroSearchCents(query) : null;
+  const range = needle ? parseEuroSearchRange(query) : null;
   const shown = needle
     ? documents.filter(
-        (doc) => [doc.supplierName, doc.invoiceNumber, doc.filename].some((v) => v?.toLowerCase().includes(needle)) || (cents !== null && doc.gross === cents),
+        (doc) =>
+          [doc.supplierName, doc.invoiceNumber, doc.filename].some((v) => v?.toLowerCase().includes(needle)) ||
+          (range !== null && inCentRange(range, doc.gross)),
       )
     : documents;
+  // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#1112). Ohne gewählte Spalte
+  // bleibt die Reihenfolge von listDocuments: ungebuchte zuerst, dann nach Belegdatum, wie die Navigation am Beleg.
+  const { sort, dir = "ab" } = Route.useSearch();
+  const richtung = dir === "auf" ? 1 : -1;
+  const sorted = !sort
+    ? shown
+    : [...shown].sort((a, b) => {
+        switch (sort) {
+          case "lieferant":
+            return richtung * lieferantText(a).localeCompare(lieferantText(b), "de");
+          case "kategorie":
+            return richtung * kategorieText(a).localeCompare(kategorieText(b), "de");
+          case "brutto":
+            return richtung * (a.gross - b.gross);
+          case "status":
+            return richtung * statusText(a).localeCompare(statusText(b), "de");
+          default:
+            return richtung * (a.documentDate ?? "").localeCompare(b.documentDate ?? "");
+        }
+      });
+  const kopf = (feld: "datum" | "lieferant" | "kategorie" | "brutto" | "status", text: string, klasse = "sort-head") => {
+    const aktiv = sort === feld;
+    const naechste: "auf" | "ab" = aktiv && dir === "ab" ? "auf" : "ab";
+    return (
+      <Link
+        to="/belege"
+        search={(prev: Record<string, unknown>) => ({ ...prev, sort: feld, dir: naechste }) as { sort: typeof feld; dir: "auf" | "ab" }}
+        className={aktiv ? `${klasse} aktiv` : klasse}
+      >
+        {text}
+        {aktiv && <span aria-hidden="true">{dir === "ab" ? " \u2193" : " \u2191"}</span>}
+        {/* Die Richtung im Namen des Links wie in BankSortierKopf, aber ohne aria-label: Das träfe in getByLabel auch
+            die gleichnamigen Formularfelder (#1113) */}
+        <span className="visually-hidden">{` ${richtungText(naechste)} sortieren${aktiv ? `, zurzeit ${richtungText(dir)} sortiert` : ""}`}</span>
+      </Link>
+    );
+  };
   const running = documents.some((d) => d.extractionStatus === "laeuft");
   const open = documents.filter((d) => d.status === "neu").length;
 
@@ -110,28 +164,25 @@ function DocumentsPage() {
         ) : (
           <div className="table">
             <div className="table-row head document-cols">
-              <div>Datum</div>
-              <div>Lieferant</div>
-              <div>Kategorie</div>
-              <div className="num">Brutto</div>
-              <div>Status</div>
+              {kopf("datum", "Datum")}
+              {kopf("lieferant", "Lieferant")}
+              {kopf("kategorie", "Kategorie")}
+              {kopf("brutto", "Brutto", "sort-head num")}
+              {kopf("status", "Status")}
             </div>
-            {shown.map((doc) => (
+            {sorted.map((doc) => (
               <Link key={doc.id} to="/belege/$id" params={{ id: doc.id }} className="table-row document-cols">
                 <div className="muted small">{doc.documentDate ? formatDate(doc.documentDate) : "–"}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                  <span className="ellipsis">{doc.supplierName || doc.filename}</span>
+                  <span className="ellipsis">{lieferantText(doc)}</span>
                   <span className="small muted ellipsis">
                     {doc.invoiceNumber || doc.filename}
                     {doc.recurringDocumentId ? " · Dauerbeleg" : doc.extractedBy ? ` · ${SOURCE_LABEL[doc.extractedBy]}` : ""}
                   </span>
                 </div>
                 <div className="small">
-                  {doc.category
-                    ? EXPENSE_CATEGORIES[doc.category as ExpenseCategory].label
-                    : doc.splitCount > 0
-                      ? `Aufgeteilt auf ${doc.splitCount} Zeilen`
-                      : "–"}
+                  {kategorieText(doc)}
+                  {doc.ownAccount && <div className="muted">{doc.ownAccount}</div>}
                 </div>
                 <div className="num">{doc.gross ? formatEuro(doc.gross) : "–"}</div>
                 <div>

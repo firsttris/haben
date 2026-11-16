@@ -27,6 +27,8 @@ const ANSWER: Extraction = {
   betraege: [{ steuersatz: "19", netto: "32.40", steuer: "6.16" }],
   brutto: "38.56",
   kategorie: "edv",
+  // Der Beleg nennt keinen Reverse-Charge-Hinweis
+  reverseCharge: null,
   hinweis: null,
 };
 

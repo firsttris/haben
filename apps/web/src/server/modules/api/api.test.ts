@@ -195,6 +195,19 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(invalid.status).toBe(400);
     });
 
+    it("liest und schreibt unsere Lieferantennummer beim Kunden; PATCH ohne sie behält sie (#711)", async () => {
+      const t = await token(["kontakte:schreiben"]);
+      const created = await call(t, "POST", "/kontakte", { ...kunde, unsereLieferantennummer: " 70815 " });
+      expect(created.status).toBe(201);
+      const contact = schemas.contactSchema.parse(created.json);
+      expect(contact.unsereLieferantennummer).toBe("70815");
+      const patched = await call(t, "PATCH", `/kontakte/${contact.id}`, { email: "einkauf@example.com" });
+      expect(schemas.contactSchema.parse(patched.json).unsereLieferantennummer).toBe("70815");
+      const cleared = await call(t, "PATCH", `/kontakte/${contact.id}`, { unsereLieferantennummer: "" });
+      expect(schemas.contactSchema.parse(cleared.json).unsereLieferantennummer).toBe("");
+      expect(schemas.contactSchema.parse((await call(t, "POST", "/kontakte", kunde)).json).unsereLieferantennummer).toBe("");
+    });
+
     it("legt an, liest, sucht und ändert; die Antwort passt zum Schema der OpenAPI-Beschreibung", async () => {
       const t = await token(["kontakte:schreiben"]);
       const created = await call(t, "POST", "/kontakte", kunde);
@@ -262,6 +275,32 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(invoice.lines).toEqual([expect.objectContaining({ position: 1, quantity: 2000, unitPrice: 2_400, taxRate: 1900, net: 4_800 })]);
       expect(created.headers.get("location")).toBe(`/api/v1/rechnungen/${invoice.id}`);
     });
+
+    it("führt bereits bezahlt in REST und XML, bis zum Abgleich bleibt die Rechnung offen (#1056)", async () => {
+      const t = await token(["rechnungen:entwuerfe", "kontakte:schreiben"]);
+      const contact = (await call(t, "POST", "/kontakte", { name: "Musterkunde", strasse: "Teststraße 1", plz: "93047", ort: "Regensburg" })).json!;
+      const paid = { paymentMethod: "bereits_bezahlt", paidVia: "eBay", paidOn: `${year - 1}-12-31` };
+      expect((await call(t, "POST", "/rechnungen", draft({ ...paid, paidVia: "" }))).status).toBe(400);
+      expect((await call(t, "POST", "/rechnungen", draft({ ...paid, paidOn: `${year + 1}-01-01` }))).status).toBe(400);
+      const created = await call(t, "POST", "/rechnungen", draft({ ...paid, contactId: contact.id, issueDate: today }));
+      expect(created.status).toBe(201);
+      const invoice = schemas.invoiceSchema.parse(created.json);
+      expect(invoice).toMatchObject({ ...paid, status: "draft", paid: 0 });
+      const url = `/rechnungen/${invoice.id}`;
+      expect((await call(t, "PATCH", url, { paidVia: "PayPal" })).json).toMatchObject({ ...paid, paidVia: "PayPal" });
+      expect((await call(t, "PATCH", url, { paymentMethod: "ueberweisung" })).json).toMatchObject({ paidVia: null, paidOn: null });
+      expect((await call(t, "PATCH", url, paid)).status).toBe(200);
+
+      const final = await rechnungen.finalizeInvoice(actor, invoice.id);
+      expect(final.xml).toContain("<ram:TotalPrepaidAmount>57.12</ram:TotalPrepaidAmount>");
+      expect((await call(t, "GET", url)).json).toMatchObject({ ...paid, status: "final", listStatus: "offen", open: 5_712, paid: 0 });
+      const [seal] = await sql`select columns from seals where table_name = 'invoices' and row_id = ${invoice.id}`;
+      expect(seal!.columns.invoices).toEqual(expect.arrayContaining(["paid_via", "paid_on"]));
+      await expect(sql`update invoices set paid_via = 'geändert' where id = ${invoice.id}`).rejects.toThrow(/festgeschrieben/);
+      const correction = await rechnungen.createCorrection(actor, final.id, today);
+      expect(await rechnungen.finalizeInvoice(actor, correction.id)).toMatchObject({ kind: "korrektur", paidOn: null, paidVia: null });
+      expect(await rechnungen.cancelInvoice(actor, final.id, today)).toMatchObject({ kind: "storno", paidOn: null, paidVia: null });
+    }, 30_000);
 
     it("liest und schreibt Bestell-, Auftrags- und Lieferscheinnummer; PATCH ohne sie behält sie (#389)", async () => {
       const t = await token(["rechnungen:entwuerfe"]);

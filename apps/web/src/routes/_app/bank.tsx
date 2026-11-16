@@ -1,4 +1,5 @@
 import {
+  amountError,
   formatDecimal,
   formatEuro,
   isKapitalgesellschaft,
@@ -17,6 +18,7 @@ import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx"
 import { Icon } from "../../components/Icon.tsx";
 import { ConnectionStatus, TransactionStatus } from "../../components/BankStatus.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
+import { PrivatKennzeichnen, PrivatUmsatz } from "../../components/BankPrivat.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { BEZUGSJAHR_FEHLER, SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
@@ -32,6 +34,8 @@ import {
   allocateDirectDebitBatchFn,
   allocateDirectDebitReturnFn,
   allocateTransaction,
+  markBankTransactionPrivate,
+  unmarkBankTransactionPrivate,
   allocateTransactionWithRest,
   allocateProviderFees,
   connectBank,
@@ -59,7 +63,8 @@ import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 import { Kuerzel } from "../../components/Kuerzel.tsx";
 
 const searchSchema = z.object({
-  konto: z.optional(z.uuid()),
+  /** Ein Konto oder „alle“ (#617) */
+  konto: z.optional(z.union([z.uuid(), z.literal("alle")])),
   filter: z.optional(z.enum(["offen", "zugeordnet", "alle", "vorschlag"])),
   suche: z.optional(z.string()),
   umsatz: z.optional(z.uuid()),
@@ -218,7 +223,10 @@ function BankPage() {
   const selectedId = data.detail?.transaction.id;
   const index = data.transactions.findIndex((t) => t.id === selectedId);
   const selectedAccount = data.accounts.find((a) => a.id === data.accountId);
-  const openCount = selectedAccount?.openCount ?? 0;
+  // „Alle Konten“ zeigt die Umsätze aller Konten, etwa für „Alle anzeigen“ der Schnellsuche (#617)
+  const konto = data.allAccounts ? ("alle" as const) : (data.accountId ?? undefined);
+  const openCount = data.allAccounts ? data.accounts.reduce((sum, a) => sum + a.openCount, 0) : (selectedAccount?.openCount ?? 0);
+  const accountName = new Map(data.accounts.map((a) => [a.id, a.name]));
 
   // J/K springen zum nächsten bzw. vorigen Umsatz
   useEffect(() => {
@@ -261,6 +269,12 @@ function BankPage() {
       ) : (
         <>
           <nav className="account-tabs" aria-label="Konten">
+            {data.accounts.length > 1 && (
+              <Link to="/bank" search={{ konto: "alle", filter }} aria-current={data.allAccounts ? "page" : undefined} className="account-tab">
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Alle Konten</span>
+                <span className="small muted">{data.accounts.length} Konten</span>
+              </Link>
+            )}
             {data.accounts.map((account) => {
               const age = account.lastImport ? -daysUntil(account.lastImport.createdAt) : null;
               return (
@@ -302,7 +316,7 @@ function BankPage() {
                     <Link
                       key={f}
                       to="/bank"
-                      search={{ konto: data.accountId ?? undefined, filter: f, suche: search.suche, sort: search.sort, dir: search.dir }}
+                      search={{ konto, filter: f, suche: search.suche, sort: search.sort, dir: search.dir }}
                       className={`chip${filter === f ? " active" : ""}`}
                       aria-current={filter === f ? "page" : undefined}
                     >
@@ -311,7 +325,7 @@ function BankPage() {
                   ))}
                 </div>
                 {/* key: beim Kontowechsel leer neu aufsetzen, sonst trägt die Suche ins neue Konto */}
-                <SearchBox key={data.accountId ?? ""} initial={search.suche ?? ""} />
+                <SearchBox key={konto ?? ""} initial={search.suche ?? ""} />
               </div>
               <BankSortierKopf sort={sortierung} dir={richtung} />
               {data.transactions.length === 0 && (
@@ -334,7 +348,9 @@ function BankPage() {
                     <span className="ellipsis" style={{ fontWeight: 500 }}>
                       {tx.counterpartyName || "–"}
                     </span>
-                    <span className="small muted ellipsis">{tx.purpose}</span>
+                    <span className="small muted ellipsis">
+                      {data.allAccounts ? [accountName.get(tx.bankAccountId), tx.purpose].filter(Boolean).join(" · ") : tx.purpose}
+                    </span>
                   </div>
                   <div className="num" style={{ color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
                     {tx.amount > 0 ? "+" : "−"}
@@ -989,6 +1005,8 @@ function AllocationPanel({
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const allocateFn = useServerFn(allocateTransaction);
+  const markPrivatFn = useServerFn(markBankTransactionPrivate);
+  const unmarkPrivatFn = useServerFn(unmarkBankTransactionPrivate);
   const splitFn = useServerFn(splitTransaction);
   const restFn = useServerFn(allocateTransactionWithRest);
   const feesFn = useServerFn(allocateProviderFees);
@@ -997,7 +1015,7 @@ function AllocationPanel({
   const dauerbelegFn = useServerFn(bookAndAllocateDauerbelegFn);
   const neutralizeFn = useServerFn(neutralizeBankTransactions);
   const reverseNeutralizationFn = useServerFn(reverseBankNeutralization);
-  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege, neutralization, lastschrift } = detail;
+  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege, neutralization, lastschrift, sammelrechnung } = detail;
   const batchFn = useServerFn(allocateDirectDebitBatchFn);
   const returnFn = useServerFn(allocateDirectDebitReturnFn);
   // Eine GmbH oder UG hat kein Privat; dieselbe Zuordnung geht dort auf das Gesellschafter-Verrechnungskonto
@@ -1045,7 +1063,7 @@ function AllocationPanel({
     error,
     check,
   } = useSubmitCheck({
-    amount: parsedAmount === null ? "Trag den Betrag ein, etwa 120,50." : parsedAmount === 0 ? "Der Betrag darf nicht 0 sein." : null,
+    amount: parsedAmount === null ? amountError("den Betrag", 12_050) : parsedAmount === 0 ? "Der Betrag darf nicht 0 sein." : null,
     candidate:
       mode !== "other" || selectedCandidate
         ? null
@@ -1100,6 +1118,8 @@ function AllocationPanel({
 
   // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
   const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
+  // Den Sammelknopf gibt es bei jedem gewählten Beleg und beim besten Vorschlag, wenn dieser der Sammelbeleg des Monats ist
+  // (siehe sammelrechnungVorschlag): der Klick ordnet alle offenen Gebührenzeilen des Monats zu.
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
   const feeRest = target && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
@@ -1141,6 +1161,16 @@ function AllocationPanel({
       firstOfSplit.add(a.id);
     }
   }
+
+  // Auf einem privaten Konto ohne Buchungsart bleibt nur die Kennzeichnung: „Zuordnen", „Direkt buchen" und „Aufteilen"
+  // wären beim selben Umsatz eine zweite Aussage zum selben Vorgang — sie gelten erst, wenn die Kennzeichnung aufgehoben
+  // ist (#1088)
+  if (detail.privat)
+    return (
+      <aside ref={panel} className="card" aria-label="Umsatz" style={{ gap: 16 }}>
+        <PrivatUmsatz tx={tx} busy={busy} notice={notice} onAufheben={() => void run(() => unmarkPrivatFn({ data: { transactionId: tx.id } }))} />
+      </aside>
+    );
 
   return (
     <aside ref={panel} className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
@@ -1187,6 +1217,10 @@ function AllocationPanel({
 
       {detail.storePayout && tx.open === tx.amount && (
         <StorePayoutBox key={tx.id} view={detail.storePayout} amount={tx.amount} transactionId={tx.id} busy={busy} run={(work) => void run(work)} />
+      )}
+
+      {detail.privatKonto && tx.open !== 0 && (
+        <PrivatKennzeichnen busy={busy} onKennzeichnen={() => void run(() => markPrivatFn({ data: { transactionId: tx.id } }))} />
       )}
 
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
@@ -1420,19 +1454,28 @@ function AllocationPanel({
               </span>
             </div>
           )}
-          {mode === "other" && selectedCandidate?.type === "document" && tx.amount < 0 && tx.purpose.startsWith("Gebühr") && (
-            <div className="stack" style={{ gap: 8 }}>
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => void run(() => feesFn({ data: { transactionId: tx.id, documentId: selectedCandidate.id } }))}
-              >
-                Alle offenen Gebühren aus {formatDate(tx.bookingDate).slice(3)} diesem Beleg zuordnen
-              </button>
-              <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
-            </div>
-          )}
+          {target?.type === "document" &&
+            tx.amount < 0 &&
+            tx.purpose.startsWith("Gebühr") &&
+            (mode === "other" || target.id === sammelrechnung?.documentId) && (
+              <div className="stack" style={{ gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => void run(() => feesFn({ data: { transactionId: tx.id, documentId: target.id } }))}
+                >
+                  Alle offenen Gebühren aus {formatDate(tx.bookingDate).slice(3)} diesem Beleg zuordnen
+                </button>
+                <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
+                {sammelrechnung && target.id !== sammelrechnung.documentId && (
+                  <span className="small muted">
+                    Die offenen Gebühren von {formatDate(tx.bookingDate).slice(3)} ergeben {formatEuro(Math.abs(sammelrechnung.summe))}, der Beleg steht mit{" "}
+                    {formatEuro(Math.abs(target.open))} offen.
+                  </span>
+                )}
+              </div>
+            )}
           {exchangeDifference !== 0 && target && (
             <div className="stack" style={{ gap: 8 }}>
               <button type="button" className="btn" onClick={() => void bookRest("kursdifferenz")} disabled={busy}>
@@ -1575,7 +1618,7 @@ function SplitForm({
         [
           `betrag-${r.key}`,
           parsed[i] === null
-            ? "Trag den Betrag ein, etwa -120,50."
+            ? amountError("den Betrag", -12_050)
             : parsed[i] === 0
               ? "Der Betrag darf nicht 0 sein."
               : i === rows.length - 1 && rest !== 0

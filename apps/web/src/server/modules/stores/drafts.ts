@@ -1,4 +1,4 @@
-import { EU_COUNTRIES, formatEuro, formatRateMonth, type TaxTreatment } from "@haben/core";
+import { formatEuro, formatRateMonth, inEuVatArea, type TaxTreatment } from "@haben/core";
 import type { StoreSettlement } from "@haben/import";
 import { eq } from "drizzle-orm";
 import { createDraftForReference, newDraftDefaults, type DraftInput } from "../rechnungen/index.ts";
@@ -46,7 +46,7 @@ export interface DraftOutcome {
 export function storeTreatment(land: string): TaxTreatment | null {
   const country = land.toUpperCase();
   if (country === "DE") return null;
-  return EU_COUNTRIES.has(country) ? "reverse_charge" : "drittland";
+  return inEuVatArea(country) ? "reverse_charge" : "drittland";
 }
 
 /**

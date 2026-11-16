@@ -30,9 +30,9 @@ describe.skipIf(!testDatabaseUrl)("Gemeinsamer Belegstorno entspricht der manuel
       bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts,
       documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts,
       year_closings, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, kontenrahmen, versteuerung, rechtsform, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Prüfbetrieb', 'Teststraße 1', '93047', 'Regensburg', 'test@example.com', '+49 941 1', '198/113/10010',
-        'DE123456789', 'BY', 'DE89370400440532013000', ${profile.kr}, ${profile.taxation}, ${profile.legalForm}, 2026)`;
+        'DE123456789', 'BY', 'DE89370400440532013000', ${profile.kr}, ${profile.taxation}, ${profile.legalForm})`;
   }
 
   async function receipt() {

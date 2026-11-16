@@ -1,4 +1,4 @@
-import { isUniqueViolation, UserError } from "../../errors.ts";
+import { isUniqueViolation } from "../../errors.ts";
 import {
   firstByContact,
   isSevCreditNoteImportable,
@@ -10,11 +10,10 @@ import {
   mapSevInvoice,
   mapSevVoucher,
   SevdeskApiError,
-  SevdeskClient,
+  type SevdeskClient,
   type SevCommunicationWay,
   type SevContactAddress,
   type SevCreditNote,
-  type SevdeskClientOptions,
   type SevFile,
   type SevInvoice,
   type SevOrder,
@@ -22,36 +21,31 @@ import {
   type SevVoucher,
 } from "@haben/import";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { decrypt, encrypt } from "../../crypto.ts";
+import { encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
-import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
+import { latestFastbillImport } from "./fastbill.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
 import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
+import { importSevdeskArticles } from "./sevdesk-artikel.ts";
 import { importSevdeskAccountingTypes } from "./sevdesk-kontoart-abruf.ts";
+import { importSevdeskArchiveOnly } from "./sevdesk-nur-archiv.ts";
+import { importSevdeskRecurringVouchers } from "./sevdesk-dauerbelege.ts";
 import { importSevdeskPayments } from "./sevdesk-payments.ts";
+import { checkSevdeskFiles, fetchSevdeskFiles, recordSevdeskFinding } from "./sevdesk-dateien.ts";
+import { importSevdeskTemplateFiles } from "./sevdesk-vorlagen-dateien.ts";
+import { importSevdeskRecurringInvoices } from "./sevdesk-vorlagen.ts";
+import { apiKey, newSevdeskClient, SevdeskError } from "./sevdesk-zugang.ts";
 
 /*
  * Umzug aus sevDesk. Gleicher Ablauf und dieselben Archivtabellen wie beim Lexoffice-Import (Spalte source = "sevdesk"),
  * damit Abgleich, offene Posten, Altbelege und Jahresexport beide Quellen gleich behandeln.
  */
 
-export class SevdeskError extends UserError {}
-
-/** Für Tests austauschbar: baut den API-Client */
-let clientFactory = (options: SevdeskClientOptions) => new SevdeskClient({ baseUrl: env().SEVDESK_API_URL || undefined, ...options });
-
-export function setSevdeskClientFactory(factory: (options: SevdeskClientOptions) => SevdeskClient) {
-  clientFactory = factory;
-}
-
-async function apiKey(): Promise<string | null> {
-  const [row] = await db.select().from(schema.sevdeskConnection).where(eq(schema.sevdeskConnection.id, 1));
-  return row ? decrypt(row.ciphertext).toString("utf8") : null;
-}
+export { SevdeskError, setSevdeskClientFactory, sevdeskClient } from "./sevdesk-zugang.ts";
 
 export async function sevdeskConnectionStatus() {
   const [row] = await db
@@ -67,7 +61,7 @@ export async function saveSevdeskKey(actor: string, key: string): Promise<{ book
   if (trimmed.length < 20) throw new SevdeskError("Der API-Token ist zu kurz.");
   let bookkeepingVersion: string;
   try {
-    bookkeepingVersion = await clientFactory({ apiKey: trimmed }).bookkeepingSystemVersion();
+    bookkeepingVersion = await newSevdeskClient({ apiKey: trimmed }).bookkeepingSystemVersion();
   } catch (error) {
     throw new SevdeskError(`sevDesk lehnt den Token ab: ${progressMessage(error)}`);
   }
@@ -110,9 +104,9 @@ export async function latestSevdeskImport() {
  */
 export async function startSevdeskImport(actor: string, options: { wait?: boolean } = {}): Promise<string> {
   const key = await apiKey();
-  if (!key) throw new SevdeskError("Zuerst den API-Token hinterlegen.");
   // Der eindeutige Index gilt für beide Quellen: auch einen verwaisten Lexoffice-Lauf als abgebrochen markieren
   await latestImport();
+  await latestFastbillImport();
   const progress: LexofficeImportProgress = {
     phase: "kontakte",
     contacts: 0,
@@ -133,7 +127,7 @@ export async function startSevdeskImport(actor: string, options: { wait?: boolea
   const id = row!.id;
   const controller = new AbortController();
   running.set(id, controller);
-  const client = clientFactory({ apiKey: key, signal: controller.signal });
+  const client = newSevdeskClient({ apiKey: key, signal: controller.signal });
   const job = runImport(actor, id, client, progress, controller.signal)
     .then(() => finish(id, progress, "fertig", null))
     .catch((error: unknown) =>
@@ -223,7 +217,10 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     await save();
   }
 
-  // 2. Rechnungen, Gutschriften und Belege; Entwürfe, Vorlagen und Mahnungen bleiben draußen
+  // 1b. Artikel (GET /Part) in den Artikelkatalog, verknüpft über die sevDesk-ID
+  await importSevdeskArticles(actor, client, progress, signal);
+
+  // 2. Rechnungen, Gutschriften und Belege; Entwürfe und Vorlagen bleiben draußen, Mahnungen und Voranmeldungen folgen nach 3, nur ins Archiv (#472)
   progress.phase = "liste";
   await save(true);
   const listed: Listed[] = [];
@@ -232,7 +229,10 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     progress.listed = listed.length;
     await save();
   };
+  // Alle Rechnungen, auch Entwürfe: an den aus einer Vorlage erzeugten liest Schritt 6 ab, wie sie abrechnet
+  const invoices: SevInvoice[] = [];
   for await (const raw of client.invoices()) {
+    invoices.push(raw);
     if (isSevInvoiceImportable(raw)) await add({ kind: "invoice", id: String(raw.id), number: raw.invoiceNumber ?? "", raw });
   }
   for await (const raw of client.creditNotes()) {
@@ -268,7 +268,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     try {
       // false: ein gleichzeitiger Lauf hat den Beleg schon übernommen
-      if (await importVoucher(actor, importId, client, item, progress)) progress.imported += 1;
+      if (await importVoucher(actor, importId, client, item, progress, signal)) progress.imported += 1;
       else progress.skipped += 1;
       if (item.kind === "order") {
         try {
@@ -289,41 +289,62 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     await save();
   }
-  // 4. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
+  await importSevdeskArchiveOnly(actor, importId, client, progress, signal);
+  // Die Datei einer Vorlage brauchen Dauerbeleg und Belege aus der Vorlage; sevDesk liefert sie je Lauf nur einmal
+  const templateFiles = new Map<string, Promise<SevFile | null>>();
+  const templateFile = (documentId: string) => {
+    if (!templateFiles.has(documentId)) templateFiles.set(documentId, client.document(documentId));
+    return templateFiles.get(documentId)!;
+  };
+  // 4. Vorlagen wiederkehrender Belege als angehaltene Dauerbelege (#472)
+  const knownTemplates = new Set(
+    (await db.select({ id: schema.recurringDocuments.sevdeskId }).from(schema.recurringDocuments)).flatMap((r) => (r.id ? [r.id] : [])),
+  );
+  await importSevdeskRecurringVouchers(actor, client, progress, signal, knownTemplates, templateFile);
+  // 5. Datei der Vorlage für Belege aus wiederkehrenden Belegen, auch für früher übernommene (#472)
+  // Belege, die sevDesk jetzt mit eigener Datei liefert, auch wenn die Archivkopie aus einem früheren Lauf keine hat
+  const withOwnFile = new Set(listed.filter((i) => i.kind === "voucher" && i.raw.document?.id != null && String(i.raw.document.id) !== "").map((i) => i.id));
+  await importSevdeskTemplateFiles(actor, client, progress, signal, withOwnFile, templateFile);
+  // 5b. Dateistand früherer Belege: fehlende Dateien erneut abrufen, später in sevDesk hochgeladene nachladen, Abrufe vor #345 einordnen
+  const listedDocuments = new Map(
+    listed
+      .filter((i) => i.kind === "voucher")
+      .map((i) => [i.id, i.raw.document?.id == null || String(i.raw.document.id) === "" ? null : String(i.raw.document.id)]),
+  );
+  await checkSevdeskFiles(actor, importId, client, progress, signal, listedDocuments);
+  await save(true);
+  // 6. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
   await importSevdeskPayments(actor, importId, client, progress, signal);
-  // 5. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
+  // 7. Kontostamm der Buchungskonten von Gutschriften, ebenso für früher übernommene (#472)
   await importSevdeskAccountingTypes(actor, importId, client, progress, signal);
+  // 8. Vorlagen wiederkehrender Rechnungen, pausiert (#472)
+  await importSevdeskRecurringInvoices(actor, importId, client, invoices, progress, signal);
   await save(true);
 }
 
-async function importVoucher(actor: string, importId: string, client: SevdeskClient, item: Listed, progress: LexofficeImportProgress): Promise<boolean> {
+async function importVoucher(
+  actor: string,
+  importId: string,
+  client: SevdeskClient,
+  item: Listed,
+  progress: LexofficeImportProgress,
+  signal: AbortSignal,
+): Promise<boolean> {
   if (item.kind === "order") return importOrder(actor, importId, client, item.raw);
   let mapped: SevMappedVoucher;
   let positions: unknown[];
-  const files: { role: "pdf" | "xml" | "anhang"; fileId: string | null; file: SevFile }[] = [];
   if (item.kind === "invoice") {
     const pos = await client.invoicePositions(item.id);
-    positions = pos;
-    mapped = mapSevInvoice(item.raw, pos);
-    const pdf = await client.invoicePdf(item.id);
-    if (pdf) files.push({ role: "pdf", fileId: null, file: pdf });
-    const xml = await client.invoiceXml(item.id);
-    if (xml) files.push({ role: "xml", fileId: null, file: xml });
+    [positions, mapped] = [pos, mapSevInvoice(item.raw, pos)];
   } else if (item.kind === "creditnote") {
     const pos = await client.creditNotePositions(item.id);
-    positions = pos;
-    mapped = mapSevCreditNote(item.raw, pos);
-    const pdf = await client.creditNotePdf(item.id);
-    if (pdf) files.push({ role: "pdf", fileId: null, file: pdf });
+    [positions, mapped] = [pos, mapSevCreditNote(item.raw, pos)];
   } else {
     const pos = await client.voucherPositions(item.id);
-    positions = pos;
-    mapped = mapSevVoucher(item.raw, pos);
-    for (const fileId of mapped.voucher.fileIds) {
-      const file = await client.document(fileId);
-      if (file) files.push({ role: "anhang", fileId, file });
-    }
+    [positions, mapped] = [pos, mapSevVoucher(item.raw, pos)];
   }
+  // Dateien und ihr Stand (#345): Rechnung und Gutschrift brauchen ihr PDF, ein Beleg genau die Datei aus `document`
+  const { files, finding } = await fetchSevdeskFiles(client, item.kind, item.id, item.raw, signal);
   const { voucher, payment } = mapped;
 
   return withActor(actor, async (tx) => {
@@ -366,6 +387,7 @@ async function importVoucher(actor: string, importId: string, client: SevdeskCli
       })),
     );
     if (!row) return false;
+    await recordSevdeskFinding(tx, row.id, finding, actor, importId);
     progress.files += row.files;
     return true;
   });

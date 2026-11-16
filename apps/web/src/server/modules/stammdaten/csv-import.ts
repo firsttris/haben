@@ -16,6 +16,7 @@ import type { z } from "zod";
 import type { Db, Tx } from "../../db/index.ts";
 import { schema } from "../../db/index.ts";
 import { type ArticleInput, articleInputSchema, insertArticle } from "./articles.ts";
+import { listUnits } from "./units.ts";
 import { type ContactInput, contactSchema, insertContact } from "./contacts.ts";
 
 /*
@@ -34,9 +35,13 @@ function schemaErrors(error: z.ZodError, fields: readonly ImportField[]): string
 }
 
 /** Das Ergebnis des Schemas an die Zeile hängen: entweder der geprüfte Wert oder die Meldungen */
-function validated<T, U>(row: RowCandidate<T>, check: (value: T) => z.ZodSafeParseResult<U>, fields: readonly ImportField[]): RowCandidate<U> {
+export function validated<R extends RowCandidate<unknown>, U>(
+  row: R,
+  check: (value: NonNullable<R["value"]>) => z.ZodSafeParseResult<U>,
+  fields: readonly ImportField[],
+): Omit<R, "value"> & { value: U | null } {
   if (!row.value) return { ...row, value: null };
-  const result = check(row.value);
+  const result = check(row.value as NonNullable<R["value"]>);
   return result.success ? { ...row, value: result.data } : { ...row, value: null, errors: [...row.errors, ...schemaErrors(result.error, fields)] };
 }
 
@@ -80,7 +85,8 @@ async function articleKeysInStock(q: Db | Tx) {
 }
 
 export async function planArticleImport(q: Db | Tx, table: CsvTable, mapping: ColumnMapping): Promise<PlannedRow<z.output<typeof articleInputSchema>>[]> {
-  const candidates = articleCandidates(table, mapping).map((row) => validated(row, (a) => articleInputSchema.safeParse(a), ARTICLE_FIELDS));
+  const units = (await listUnits(q)).filter((unit) => !unit.archivedAt).map((unit) => unit.label);
+  const candidates = articleCandidates(table, mapping, units).map((row) => validated(row, (a) => articleInputSchema.safeParse(a), ARTICLE_FIELDS));
   return planRows(candidates, await articleKeysInStock(q));
 }
 

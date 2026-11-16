@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 
 /*
- * Einstellungen → Mahnwesen: Knopf „Bei der Bundesbank abrufen“ (docs/einrichtung.md). Die echte Bundesbank fragt hier
+ * Einstellungen → Firma: Knopf „Bei der Bundesbank abrufen“, Prüfung von Basiszinssatz und Privatanteilen, Grenze der Gebühren (docs/einrichtung.md). Die echte Bundesbank fragt hier
  * niemand ab: Der Aufruf der Server-Funktion wird im Browser abgefangen und mit einem festen Ergebnis beantwortet, im Format,
  * das TanStack Start selbst schickt (seroval-JSON, Kopfzeile x-tss-serialized). Abruf und CSV prüfen die Vitest-Tests.
  */
@@ -104,4 +104,57 @@ test("lässt das Feld unverändert, solange die Bundesbank nur den Satz des vori
   await lookUp(page, serverFnResult(lastYear, 987, false));
   await expect(page.getByText(/^Die Bundesbank meldet 9,87 % mit Stand 12\/\d{4}, der Satz für das neue Halbjahr steht noch nicht/)).toBeVisible();
   await expect(field).toHaveValue(before);
+});
+
+test("Gebühr je Stufe: mehr als 1.000 € steht am Feld, gespeichert wird nichts", async ({ page }) => {
+  await openDunning(page);
+  const gebuehr = page.getByLabel("Gebühr Zahlungserinnerung (€)");
+  const vorher = await gebuehr.inputValue();
+  await gebuehr.fill("1.500,00");
+  await page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" }).click();
+  await expect(gebuehr).toBeFocused();
+  await expect(gebuehr).toHaveAccessibleDescription(/höchstens 1\.000,00\s€/);
+  await expect(page.getByText("Firmendaten gespeichert.")).toHaveCount(0);
+  await openDunning(page);
+  await expect(page.getByLabel("Gebühr Zahlungserinnerung (€)")).toHaveValue(vorher);
+});
+
+test("Basiszinssatz: Unlesbares und Sätze außerhalb von −10 % bis 20 % stehen am Feld, gespeichert wird nichts (#1143)", async ({ page }) => {
+  const field = await openDunning(page);
+  const vorher = await field.inputValue();
+  const speichern = page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" });
+  await field.fill("1,275");
+  await speichern.click();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveAccessibleDescription(/etwa 1,27 oder -0,88/);
+  await field.fill("25 %");
+  await speichern.click();
+  await expect(field).toHaveAccessibleDescription(/von -10\s% bis 20\s%/);
+  await expect(page.getByText("Firmendaten gespeichert.")).toHaveCount(0);
+  await openDunning(page);
+  await expect(page.getByLabel("Basiszinssatz in %")).toHaveValue(vorher);
+});
+
+test("Privatanteil: keine ganze Zahl von 0 bis 100 steht am Feld, gespeichert wird nichts (#1221)", async ({ page }) => {
+  await openDunning(page);
+  const telefon = page.getByLabel("Privatanteil Telefon in %");
+  const vorher = await telefon.inputValue();
+  await telefon.fill("20,5");
+  await page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" }).click();
+  await expect(telefon).toBeFocused();
+  await expect(telefon).toHaveAccessibleDescription(/ganze Zahl von 0 bis 100/);
+  await expect(page.getByText("Firmendaten gespeichert.")).toHaveCount(0);
+  await openDunning(page);
+  await expect(page.getByLabel("Privatanteil Telefon in %")).toHaveValue(vorher);
+});
+
+test("Firmendaten: Fehler stehen am Feld statt in der Blase des Browsers, der Fokus geht aufs erste", async ({ page }) => {
+  await openDunning(page);
+  const email = page.getByLabel("E-Mail", { exact: true });
+  await email.fill("rechnung");
+  await page.getByLabel("Gebühr Zahlungserinnerung (€)").fill("1.500,00");
+  await page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" }).click();
+  await expect(email).toBeFocused();
+  await expect(email).toHaveAccessibleDescription(/gültige E-Mail-Adresse/);
+  await expect(page.getByLabel("Gebühr Zahlungserinnerung (€)")).toHaveAccessibleDescription(/höchstens 1\.000,00\s€/);
 });

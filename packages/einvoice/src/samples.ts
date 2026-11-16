@@ -65,15 +65,19 @@ interface SampleOptions {
   priceMode?: PriceMode;
 }
 
+const SAMPLE_LINES: NonNullable<SampleOptions["lines"]> = [
+  { description: "Softwareentwicklung September", quantity: 152000, unit: "Std.", unitPrice: 9500, taxRate: 1900 },
+  { description: "Reisekosten Hamburg", quantity: 1000, unit: "Psch.", unitPrice: 18990, taxRate: 1900 },
+];
+
 export function sampleDocument(options: SampleOptions = {}): InvoiceDocument {
   const kind = options.kind ?? "rechnung";
   const sign = kind === "rechnung" ? 1 : -1;
-  const inputs = (
-    options.lines ?? [
-      { description: "Softwareentwicklung September", quantity: 152000, unit: "Std.", unitPrice: 9500, taxRate: 1900 },
-      { description: "Reisekosten Hamburg", quantity: 1000, unit: "Psch.", unitPrice: 18990, taxRate: 1900 },
-    ]
-  ).map((line) => ({ ...line, unitPrice: sign * line.unitPrice, discount: sign < 0 ? negateDiscount(line.discount) : (line.discount ?? null) }));
+  const inputs = (options.lines ?? SAMPLE_LINES).map((line) => ({
+    ...line,
+    unitPrice: sign * line.unitPrice,
+    discount: sign < 0 ? negateDiscount(line.discount) : (line.discount ?? null),
+  }));
   const priceMode = options.priceMode ?? "netto";
   const discount = (sign < 0 ? negateDiscount(options.discount) : options.discount) ?? null;
   const { totals, lineNets } = computeInvoice(inputs, priceMode, discount);

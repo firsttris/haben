@@ -343,6 +343,16 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         .ustIssues(false, { ...basis, figures: { ...basis.figures, kz48Zeile46: 50_000, kz48Zeile47: 30_000, kz48Zeile47Nummern: "21" } }, 2025)
         .every((i) => i.tone !== "fehler"),
     ).toBe(true);
+
+    // Mit Vermerk liegt das Vorauszahlungssoll aus dem Protokoll vor; der Hinweis auf fehlende Voranmeldungen
+    // würde dem erklärten Soll widersprechen (#1077)
+    const hinweis = (vermerkt: boolean) =>
+      annual
+        .ustIssues(false, { ...basis, missingMonths: [1, 2] }, 2025, { vermerkt })
+        .map((i) => i.text)
+        .join(" | ");
+    expect(hinweis(false)).toContain("fehlt eine in Haben gesendete Voranmeldung");
+    expect(hinweis(true)).not.toContain("fehlt eine in Haben gesendete Voranmeldung");
     const gesperrt = annual.ustIssues(
       false,
       {
@@ -487,6 +497,78 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(texte).not.toMatch(/Keine Betriebseinnahmen/);
   });
 
+  it("Einkommensteuer: erklärte Zeilen aus dem Vordruck und der Abweichungshinweis (#1083)", async () => {
+    await year2025();
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
+      values ('est', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
+    const [vermerk] = (await sql`select id from annual_submissions where form = 'est' and year = 2025 and kind = 'vermerk'`) as { id: string }[];
+    if (!vermerk) throw new Error("Der Vermerk fehlt, obwohl er eben angelegt wurde.");
+    await sql`insert into annual_submission_figures (submission_id, field, amount) values (${vermerk.id}, 'festgesetzteSteuer', 2012700)`;
+
+    const overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.est.submitted).not.toBeNull();
+    expect(overview.est.erklaert.festgesetzteSteuer).toBe(2_012_700);
+
+    // Habens Schätzung trifft den Vordruck nicht, und das soll auf der Seite stehen
+    const hinweis = overview.est.issues.find((i) => i.text.includes("im Vordruck stehen"));
+    expect(hinweis?.text).toContain("20.127,00");
+  });
+
+  it("Einkommensteuer ohne Betrag vermerkt, Zeile laut Steuerprogramm erklärt: Vergleich ohne widersprechenden Hinweis (#1073, #1083)", async () => {
+    await year2025();
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
+      values ('est', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
+    const [vermerk] = (await sql`select id from annual_submissions where form = 'est' and year = 2025 and kind = 'vermerk'`) as { id: string }[];
+    if (!vermerk) throw new Error("Der Vermerk fehlt, obwohl er eben angelegt wurde.");
+    await sql`insert into annual_submission_figures (submission_id, field, amount) values (${vermerk.id}, 'festgesetzteSteuer', 2012700)`;
+
+    const overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.est.submitted?.amount).toBeNull();
+    const texte = overview.est.issues.map((i) => i.text);
+    expect(texte.some((t) => t.includes("im Vordruck stehen"))).toBe(true);
+    // Der Vergleich steht da; ein Satz, es gebe keinen, widerspräche ihm
+    expect(texte.filter((t) => t.includes("kein Vergleich"))).toEqual([]);
+  });
+
+  it("Einkommensteuer: Abweichungshinweis vergleicht die festgesetzte Einkommensteuer ohne Soli und Kirchensteuer (#1083)", async () => {
+    const taxpayer = await import("../stammdaten/taxpayer.ts");
+    const incomeTax = await import("./income-tax.ts");
+    await leeren(sql)`truncate income_tax_inputs`;
+    await year2025();
+    const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" };
+    await taxpayer.saveTaxpayer(actor, { a: { ...person, religion: "02" }, veranlagung: "einzel" });
+    await incomeTax.saveEstAngaben(actor, 2025, { arbeitnehmer: { a: { bescheinigungen: [{ steuerklasse: 1, brutto: 9_000_000 }] } } });
+    const { prognose } = (await annual.annualOverview(2025, TODAY)).est;
+    // Ohne Soli oder Kirchensteuer bewiese der Fall nichts: „gesamt“ ist Einkommensteuer + Soli + Kirchensteuer
+    expect(prognose.gesamt).toBeGreaterThan(prognose.einkommensteuer);
+
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
+      values ('est', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
+    const [vermerk] = (await sql`select id from annual_submissions where form = 'est' and year = 2025 and kind = 'vermerk'`) as { id: string }[];
+    if (!vermerk) throw new Error("Der Vermerk fehlt, obwohl er eben angelegt wurde.");
+    // Die Zeile „Festgesetzte Einkommensteuer“ trifft Habens Einkommensteuer auf den Cent: kein Unterschied zu melden
+    await sql`insert into annual_submission_figures (submission_id, field, amount) values (${vermerk.id}, 'festgesetzteSteuer', ${prognose.einkommensteuer})`;
+
+    const overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.est.issues.filter((i) => i.text.includes("im Vordruck stehen"))).toEqual([]);
+  });
+
+  it("Einkommensteuer: nennt angerechnete Kapitalertragsteuer nicht als Ursache einer abweichenden Einkommensteuer (#1083)", async () => {
+    await year2025();
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
+      values ('est', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
+    const [vermerk] = (await sql`select id from annual_submissions where form = 'est' and year = 2025 and kind = 'vermerk'`) as { id: string }[];
+    if (!vermerk) throw new Error("Der Vermerk fehlt, obwohl er eben angelegt wurde.");
+    await sql`insert into annual_submission_figures (submission_id, field, amount) values (${vermerk.id}, 'festgesetzteSteuer', 1)`;
+
+    const overview = await annual.annualOverview(2025, TODAY);
+    const hinweis = overview.est.issues.find((i) => i.text.includes("im Vordruck stehen"));
+    expect(hinweis?.text).toBeDefined();
+    // § 36 Abs. 2 Nr. 2 EStG rechnet die Kapitalertragsteuer in der Abrechnung an; sie erklärt keine andere Festsetzung
+    expect(hinweis?.text).not.toContain("einbehaltene Kapitalertragsteuer");
+    expect(hinweis?.text).toContain("im Vordruck stehen");
+  });
+
   it("Anlage EÜR: Zeilen, Gewinn wie in den Auswertungen, Entnahmen, Einlagen und Anlagenverzeichnis", async () => {
     const { car } = await year2025();
     let euer = await annual.euerYear(2025);
@@ -536,7 +618,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     await sql`update company set kontenrahmen = 'SKR03'`;
 
     await sql`update company set einkunftsart = null`;
-    expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]!.link).toBe("/einstellungen");
+    // Der Link öffnet den Bereich Firma; am Handy zeigte /einstellungen sonst nur die Liste der Bereiche
+    expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]).toMatchObject({ link: "/einstellungen", bereich: "firma" });
   });
 
   it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 wird vor dem Senden umgegliedert (#708, #933)", async () => {
@@ -813,6 +896,31 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       tone: "hinweis",
       link: "/pauschalen",
     });
+
+    // Zeitanteilige Jahrespauschale: sechs Monate Mittelpunkt ergeben 630 EUR, mehr geht nur mit tatsächlichen Aufwendungen
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, arbeitszimmerMonate: 6 } } },
+    });
+    const teil = (await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text));
+    expect(teil?.text).toContain("Bei 6 von 12 Monaten");
+    expect(teil?.text).toContain("630,00");
+
+    // Genau die Pauschale für sechs Monate ist kein Fall für den Hinweis
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 63_000, arbeitszimmerMonate: 6 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.some((i) => /Jahrespauschale/.test(i.text))).toBe(false);
+
+    // Kein Monat als Mittelpunkt: keine Jahrespauschale (Satz 4 kürzt um zwölf Zwölftel)
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: { a: { bescheinigungen: bescheinigung, werbungskosten: { arbeitszimmer: 126_000, arbeitszimmerMonate: 0 } } },
+    });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text))?.text).toContain("Bei 0 von 12 Monaten");
+    // Ohne einen Monat als Mittelpunkt sind auch die tatsächlichen Aufwendungen nicht abziehbar (§ 4 Abs. 5 Satz 1
+    // Nr. 6b Satz 1 und 2 EStG); der Hinweis darf nicht auf sie verweisen
+    const keiner = (await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Jahrespauschale/.test(i.text))?.text;
+    expect(keiner).not.toContain("tatsächlichen Aufwendungen");
+    expect(keiner).toContain("nicht abziehbar");
 
     // Dasselbe gegen die Tagespauschale in der EÜR: auch dort gibt es das Arbeitszimmer je Person nur einmal
     await incomeTax.saveEstAngaben(actor, 2025, {

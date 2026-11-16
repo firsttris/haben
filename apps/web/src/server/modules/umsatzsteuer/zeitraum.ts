@@ -50,24 +50,27 @@ export function withFrequency(settings: readonly VatFrequencySetting[], input: F
  * sich aber nicht mehr senden; `orphanedDrafts` nennt sie.
  */
 export async function saveFrequency(actor: string, input: FrequencyInput): Promise<{ orphanedDrafts: string[] }> {
-  return withActor(actor, async (tx) => {
-    const next = withFrequency(await loadFrequencies(tx), input);
-    const returns = await tx
-      .select({ id: schema.vatReturns.id, year: schema.vatReturns.year, month: schema.vatReturns.month, status: schema.vatReturns.status })
-      .from(schema.vatReturns)
-      .where(gte(schema.vatReturns.year, input.year));
-    const conflicts = returns.filter((r) => !periodMatchesFrequency(next, r));
-    const sent = conflicts.filter((r) => r.status === "sent");
-    if (sent.length > 0) {
-      const labels = [...new Set(sent.map((r) => periodLabel(r)))].join(", ");
-      throw new VatError(
-        `Für ${labels} ist schon eine Voranmeldung gesendet, die zu diesem Zeitraum nicht passt. Gesendete Voranmeldungen bleiben, wie sie sind; wähle den Wechsel ab einem späteren Quartal.`,
-      );
-    }
-    await tx.delete(schema.vatFrequencies).where(and(eq(schema.vatFrequencies.year, input.year), gte(schema.vatFrequencies.fromMonth, input.fromMonth)));
-    await tx.insert(schema.vatFrequencies).values({ ...input, updatedAt: new Date() });
-    return { orphanedDrafts: conflicts.map((r) => periodLabel(r)) };
-  });
+  return withActor(actor, (tx) => saveFrequencyIn(tx, input));
+}
+
+/** Wie saveFrequency, in der Transaktion des Aufrufers (Fragen zur Einrichtung, #266) */
+export async function saveFrequencyIn(tx: Tx, input: FrequencyInput): Promise<{ orphanedDrafts: string[] }> {
+  const next = withFrequency(await loadFrequencies(tx), input);
+  const returns = await tx
+    .select({ id: schema.vatReturns.id, year: schema.vatReturns.year, month: schema.vatReturns.month, status: schema.vatReturns.status })
+    .from(schema.vatReturns)
+    .where(gte(schema.vatReturns.year, input.year));
+  const conflicts = returns.filter((r) => !periodMatchesFrequency(next, r));
+  const sent = conflicts.filter((r) => r.status === "sent");
+  if (sent.length > 0) {
+    const labels = [...new Set(sent.map((r) => periodLabel(r)))].join(", ");
+    throw new VatError(
+      `Für ${labels} ist schon eine Voranmeldung gesendet, die zu diesem Zeitraum nicht passt. Gesendete Voranmeldungen bleiben, wie sie sind; wähle den Wechsel ab einem späteren Quartal.`,
+    );
+  }
+  await tx.delete(schema.vatFrequencies).where(and(eq(schema.vatFrequencies.year, input.year), gte(schema.vatFrequencies.fromMonth, input.fromMonth)));
+  await tx.insert(schema.vatFrequencies).values({ ...input, updatedAt: new Date() });
+  return { orphanedDrafts: conflicts.map((r) => periodLabel(r)) };
 }
 
 /** Steuer eines Jahres aus den Buchungen: Summe der Zahllast der vier Quartale, negativ = Überschuss */
@@ -121,4 +124,12 @@ export function periodProblem(settings: readonly VatFrequencySetting[], period: 
   if (frequency === "keine")
     return `Für ${periodLabel(period)} ist keine Voranmeldung eingestellt (befreit). Ändere den Voranmeldungszeitraum, wenn das nicht stimmt.`;
   return `Für ${periodLabel(period)} passt die Voranmeldung nicht zum eingestellten Zeitraum (${frequency === "vierteljaehrlich" ? "vierteljährlich" : "monatlich"}).`;
+}
+
+/**
+ * Abgegebene Voranmeldungszeiträume: über ERiC gesendet oder als außerhalb von Haben abgegeben vermerkt; der Vermerk
+ * setzt ebenso `status = sent` (vermerk.ts). Offen ist, was keins von beiden hat (#1102).
+ */
+export async function abgegebeneZeitraeume(q: Db | Tx = db): Promise<VatPeriod[]> {
+  return q.selectDistinct({ year: schema.vatReturns.year, month: schema.vatReturns.month }).from(schema.vatReturns).where(eq(schema.vatReturns.status, "sent"));
 }

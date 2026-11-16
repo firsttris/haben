@@ -97,6 +97,21 @@ export const sevInvoiceSchema = z.looseObject({
   paidAmount: numeric,
   customerInternalNote: str,
   header: str,
+  headText: str,
+  footText: str,
+  /** Rechnung, aus der diese entstand: bei SR die stornierte, bei aus einer Vorlage erzeugten die Vorlage (WKR) */
+  origin: ref,
+  /** Nur WKR: Intervall wie "P0Y1M" (ein Monat) oder "P0Y0M1W" (eine Woche) */
+  accountIntervall: str,
+  accountNextInvoice: str,
+  accountLastInvoice: str,
+  accountStartDate: str,
+  accountEndDate: str,
+  /** "1": Positionen netto, "0": brutto */
+  showNet: numeric,
+  taxType: str,
+  smallSettlement: numeric,
+  sepaMandateReference: str,
 });
 export type SevInvoice = z.infer<typeof sevInvoiceSchema>;
 
@@ -126,7 +141,13 @@ export type SevCreditNote = z.infer<typeof sevCreditNoteSchema>;
 export const sevDocumentPosSchema = z.looseObject({
   id,
   name: str,
+  /** Beschreibung unter der Bezeichnung */
+  text: str,
   quantity: numeric,
+  price: numeric,
+  priceNet: numeric,
+  priceGross: numeric,
+  discount: numeric,
   taxRate: numeric,
   sumNet: numeric,
   sumTax: numeric,
@@ -162,6 +183,16 @@ export const sevVoucherSchema = z.looseObject({
   creditDebit: str,
   /** VOU Beleg, RV wiederkehrender Beleg (Vorlage) */
   voucherType: str,
+  /** Vorlage RV: Intervall als ISO-Dauer (P0Y1M) und in Monaten; Start, nächster Beleg und Ende */
+  recurringInterval: str,
+  recurringIntervall: numeric,
+  recurringStartDate: str,
+  recurringNextVoucher: str,
+  recurringEndDate: str,
+  vatNumber: str,
+  taxType: str,
+  /** Bei Belegen aus einer Vorlage wiederkehrender Belege die Vorlage (objectName Voucher, voucherType RV) */
+  origin: ref,
   currency: str,
   paymentDeadline: str,
   deliveryDate: str,
@@ -221,6 +252,29 @@ export const sevAccountingTypeSchema = z.looseObject({
 });
 export type SevAccountingType = z.infer<typeof sevAccountingTypeSchema>;
 
+// ---------------------------------------------------------------- Anlagen
+
+/**
+ * Anlage (GET /Asset, mit embed=accountingType). Den Pfad nennt die OpenAPI nicht. Er liefert Anschaffungsdatum,
+ * Nettokaufpreis (gleich `sumNet` der Belegposition), Nutzungsdauer in Jahren und Verkaufsdatum, aber weder AfA-Methode
+ * noch bisherige Abschreibungen (test-fixtures/sevdesk). In Version 1.0 steht das Buchungskonto unter `accountingType`,
+ * in 2.0 nur ein Verweis `accountDatev`.
+ */
+export const sevAssetSchema = z.looseObject({
+  id,
+  name: str,
+  assetNumber: numeric,
+  usefulLife: numeric,
+  acquisitionDate: str,
+  purchasePrice: numeric,
+  purchasePriceAccounting: numeric,
+  status: numeric,
+  saleDate: str,
+  accountingType: z.looseObject({ id, name: str, skr03: str, skr04: str, translationCode: str, assetType: str, sevClient: ref }).nullish(),
+  accountDatev: ref,
+});
+export type SevAsset = z.infer<typeof sevAssetSchema>;
+
 // ---------------------------------------------------------------- Zahlungen
 
 /** Zahlungskonto (Bank, Kasse, Zahlungsdienst) */
@@ -266,6 +320,51 @@ export const sevRelatedObjectsResponseSchema = z.looseObject({
 // ---------------------------------------------------------------- Dateien
 
 /** getPdf und Document/download: Datei als Base64 in JSON, teils in objects verpackt */
+// ---------------------------------------------------------------- Artikel
+
+/**
+ * Artikel (GET /Part), Felder nach dem Schema Model_Part der OpenAPI (https://api.sevdesk.de/openapi.yaml).
+ * status: 100 aktiv, 50 inaktiv. price ist laut OpenAPI der Nettopreis wie priceNet.
+ */
+export const sevPartSchema = z.looseObject({
+  id,
+  objectName: str,
+  name: str,
+  partNumber: str,
+  text: str,
+  unity: ref,
+  price: numeric,
+  priceNet: numeric,
+  priceGross: numeric,
+  pricePurchase: numeric,
+  taxRate: numeric,
+  status: numeric,
+  internalComment: str,
+  stock: numeric,
+  stockEnabled: z.union([z.string(), z.number(), z.boolean()]).nullish(),
+  image: z.unknown().optional(),
+});
+export type SevPart = z.infer<typeof sevPartSchema>;
+
+/** Einheit (GET /Unity): feste von sevDesk (kleine IDs, translationCode wie UNITY_HOUR) und eigene; Code nach UN/ECE Rec. 20 */
+export const sevUnitySchema = z.looseObject({ id, objectName: str, name: str, translationCode: str, uneceTradeUnitCode: str });
+export type SevUnity = z.infer<typeof sevUnitySchema>;
+
+/** Angaben zu einer Datei (GET /Document/{id}), ohne Inhalt; create ist der Zeitpunkt des Hochladens */
+/** Übermittelte Umsatzsteuer-Voranmeldung (GET /VatReport); die Felder liest voranmeldung.ts lose, die Antwort wird unverändert archiviert. */
+export const sevVatReportSchema = z.looseObject({ id, objectName: str });
+export type SevVatReport = z.infer<typeof sevVatReportSchema>;
+
+/**
+ * Steuerart (GET /TaxSet, in der OpenAPI nicht beschrieben, Version 1.0 belegt): eigene Steuerarten des Kontos mit den Kennzahlen der Voranmeldung für
+ * Bemessungsgrundlage (vatReportFieldNet) und Steuer (vatReportFieldTax, mehrere durch Komma). Wird unverändert archiviert.
+ */
+export const sevTaxSetSchema = z.looseObject({ id, objectName: str, taxRate: numeric, vatReportFieldNet: numeric, vatReportFieldTax: numeric });
+export type SevTaxSet = z.infer<typeof sevTaxSetSchema>;
+
+export const sevDocumentSchema = z.looseObject({ id, objectName: str, create: str, update: str, filename: str, mimeType: str, filesize: numeric });
+export type SevDocument = z.infer<typeof sevDocumentSchema>;
+
 export const sevFileBodySchema = z.looseObject({
   filename: str,
   mimeType: str,

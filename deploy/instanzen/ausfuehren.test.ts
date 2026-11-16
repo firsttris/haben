@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bunAusfuehren, umgebungFuerDocker } from "./ausfuehren.ts";
+import { bunAusfuehren, umgebungFuerDocker, ZEITLIMIT } from "./ausfuehren.ts";
 
 describe("Umgebung für docker", () => {
   it("lässt nur PATH, HOME und die DOCKER-Variablen des Clients durch", () => {
@@ -38,7 +38,44 @@ describe("bunAusfuehren", () => {
     expect(r).toEqual({ code: 0, stdout: "ge$heim\nge$heim\n", stderr: "" });
   });
 
+  it("gibt mit binaer die Bytes unverändert zurück, auch solche, die kein UTF-8 sind", async () => {
+    const r = await bunAusfuehren(["/bin/sh", "-c", "printf '\\211PNG\\377\\000\\001'"], { cwd: "/", env: {}, binaer: true });
+    expect(r.code).toBe(0);
+    expect(r.stdout).toBe("");
+    expect(r.daten).toEqual(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00, 0x01]));
+  });
+
   it("meldet ein fehlendes Programm mit Code 127", async () => {
     expect((await bunAusfuehren(["haben-gibt-es-nicht"], { cwd: "/", env: { PATH: "/nirgends" } })).code).toBe(127);
+  });
+
+  it("bricht einen Befehl nach dem Zeitlimit ab und meldet ZEITLIMIT statt eines Exit-Codes", async () => {
+    const r = await bunAusfuehren(["/bin/sleep", "5"], { cwd: "/", env: {}, zeitlimit: 100 });
+    expect(r.code).toBe(ZEITLIMIT);
+  });
+
+  it("bricht auch mit binaer nach dem Zeitlimit ab", async () => {
+    const r = await bunAusfuehren(["/bin/sleep", "5"], { cwd: "/", env: {}, binaer: true, zeitlimit: 100 });
+    expect(r.code).toBe(ZEITLIMIT);
+  });
+
+  it("kommt nach dem Zeitlimit auch zurück, wenn der Befehl SIGTERM übergeht und die Ausgabe offen hält", async () => {
+    // Wie die docker-CLI: Sie endet beim ersten SIGTERM nicht, und das Plugin docker-compose hält stdout offen
+    const start = Date.now();
+    const r = await bunAusfuehren(["/bin/sh", "-c", "trap '' TERM; sleep 10"], { cwd: "/", env: {}, zeitlimit: 100 });
+    expect(r.code).toBe(ZEITLIMIT);
+    expect(Date.now() - start).toBeLessThan(4000);
+  });
+
+  it("kommt nach dem Zeitlimit auch zurück, wenn der Befehl endet, ein Kindprozess aber die Ausgabe offen hält", async () => {
+    // Das Ergebnis ist bis zum Zeitlimit nicht vollständig: Auch dann bricht das Lesen nach der Nachfrist ab
+    const start = Date.now();
+    const r = await bunAusfuehren(["/bin/sh", "-c", "sleep 10 & exit 0"], { cwd: "/", env: {}, zeitlimit: 100 });
+    expect(r.code).toBe(ZEITLIMIT);
+    expect(Date.now() - start).toBeLessThan(4000);
+  }, 15_000);
+
+  it("lässt einen Befehl innerhalb des Zeitlimits unberührt", async () => {
+    expect(await bunAusfuehren(["/bin/sh", "-c", "exit 3"], { cwd: "/", env: {}, zeitlimit: 5000 })).toEqual({ code: 3, stdout: "", stderr: "" });
   });
 });

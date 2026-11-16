@@ -1,3 +1,4 @@
+import type { BasisPoints, Cents } from "@haben/core";
 import { categoryForCode } from "./map.ts";
 import type { AccountableExpenseRow } from "./types.ts";
 
@@ -24,22 +25,22 @@ export interface AccountableSplitPosition {
   code: string;
   /** Konto in Haben; null, wenn der Code nicht zugeordnet ist */
   category: ReturnType<typeof categoryForCode>;
-  /** J in Basispunkten */
-  taxRate: number;
-  /** F in Cent */
-  net: number;
-  /** G in Cent */
-  tax: number;
+  /** J */
+  taxRate: BasisPoints;
+  /** F */
+  net: Cents;
+  /** G */
+  tax: Cents;
 }
 
 export interface AccountableSammelrechnung {
   supplierName: string;
   /** A, JJJJ-MM-TT */
   bookingDate: string;
-  /** Summe der Zeilen in Cent */
-  gross: number;
-  net: number;
-  tax: number;
+  /** Summe der Zeilen */
+  gross: Cents;
+  net: Cents;
+  tax: Cents;
   /** In der Reihenfolge des Exports */
   positions: AccountableSplitPosition[];
   /** Zeilennummern im Ausgabenblatt, die hier aufgehen */

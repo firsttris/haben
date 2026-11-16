@@ -2,10 +2,12 @@ import { formatEuro, periodKey, periodLabel } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { daysUntil, formatDate, formatDateTime, formatLongDate } from "../../lib/format.ts";
 import { InvoiceStatus } from "../../components/InvoiceStatus.tsx";
+import { KleinunternehmerHinweise } from "../../components/KleinunternehmerHinweise.tsx";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getInvoiceSummary } from "../../server/functions/invoices.ts";
 import { getOverview } from "../../server/functions/vat.ts";
 import type { SettingsArea } from "../../lib/settings-areas.ts";
+import { einrichtungsAufgaben } from "../../lib/einrichtung.ts";
 
 export const Route = createFileRoute("/_app/")({
   loader: async () => {
@@ -23,7 +25,7 @@ interface Todo {
   detail: string;
   action: string;
   tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
+  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/einrichtung" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
   /** Bereich der Einstellungen, wenn to „/einstellungen“ ist */
   bereich?: SettingsArea;
 }
@@ -47,7 +49,7 @@ function OverviewPage() {
   const certificateDays = data.certificate?.validUntil ? daysUntil(data.certificate.validUntil) : null;
   const vatRequired = !data.kleinunternehmer && !data.exempt;
 
-  const todos: Todo[] = [];
+  const todos: Todo[] = einrichtungsAufgaben(Route.useRouteContext().einrichtung);
   if (!sent && vatRequired) {
     todos.push({
       title: `Voranmeldung ${periodLabel(data.period)} senden`,
@@ -159,13 +161,8 @@ function OverviewPage() {
     });
   }
   if (data.companyIssues.length > 0 && !data.kleinunternehmer) {
-    todos.push({
-      title: "Firmendaten vervollständigen",
-      detail: data.companyIssues.join(" · "),
-      action: "Ergänzen",
-      tone: "warn",
-      to: "/einstellungen",
-    });
+    const detail = data.companyIssues.join(" · ");
+    todos.push({ title: "Firmendaten vervollständigen", detail, action: "Ergänzen", tone: "warn", to: "/einstellungen", bereich: "firma" });
   }
   if (!data.certificate) {
     if (!data.kleinunternehmer)
@@ -243,6 +240,8 @@ function OverviewPage() {
           ERiC ist nicht eingerichtet (Einstellungen › ERiC). Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.
         </div>
       )}
+
+      {data.kleinunternehmerStand && <KleinunternehmerHinweise stand={data.kleinunternehmerStand} />}
 
       <div className="grid-4">
         <Link to="/auswertungen" hash="receivables" className="card card-link">

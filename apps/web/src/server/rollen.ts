@@ -16,6 +16,8 @@ export interface SessionUser {
   name: string;
   email: string;
   role: Rolle;
+  /** Anlegen der Sitzung, also die letzte Anmeldung; für Schritte, die eine frische Anmeldung verlangen */
+  signedInAt: Date;
 }
 
 /**
@@ -38,7 +40,7 @@ export async function sessionUser(headers: Headers): Promise<SessionUser | null>
   const role = effectiveRole(session.session as SessionProof | undefined, session.user as { role?: unknown; lockedAt?: unknown });
   if (!role) return null;
   const { id, name, email } = session.user;
-  return { id, name, email, role };
+  return { id, name, email, role, signedInAt: new Date(session.session.createdAt) };
 }
 
 /**

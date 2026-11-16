@@ -48,10 +48,10 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
       const xml = '<?xml version="1.0"?><Anzahlung nummer="2026-001">357.00</Anzahlung>';
       const { oldId, entryId, contactId } = await sql.begin(async (tx) => {
         await tx`select set_config('haben.actor','transition:altbestand',true)`;
-        await tx`insert into company(id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,rechtsform,kontenrahmen,versteuerung,journal_ab,
+        await tx`insert into company(id,name,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,rechtsform,kontenrahmen,versteuerung,
           datev_berater_nr,datev_mandant_nr)
           values(1,'Muster GmbH','Musterstraße 1','93047','Regensburg','rechnung@example.com','0941 1','198/113/10010','BY',
-            'DE89370400440532013000','gmbh','SKR03','soll',2026,'12345','123')`;
+            'DE89370400440532013000','gmbh','SKR03','soll','12345','123')`;
         const [contact] = await tx`insert into contacts(name,strasse,plz,ort,land,email)
           values('Musterkunde GmbH','Musterweg 7','12345','Musterstadt','DE','kunde@example.org') returning id`;
         const [old] = await tx`insert into invoices(contact_id,issue_date,due_date,variant,advance_type,net,tax,gross,pdf,pdf_sha256,xml,xml_sha256)
@@ -71,7 +71,8 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
       });
       const [head] = await sql`select max(seq) as seq from audit_log`;
       const oldState = async () => ({
-        invoice: await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date')::text as bytes from invoices i where id=${oldId}`,
+        invoice:
+          await sql`select (to_jsonb(i)-'advance_accounting'-'replaces_invoice_id'-'service_date'-'tax_details'-'paid_via'-'paid_on')::text as bytes from invoices i where id=${oldId}`,
         invoiceLines: await sql`select to_jsonb(l)::text as bytes from invoice_lines l where invoice_id=${oldId} order by id`,
         invoiceTaxes: await sql`select to_jsonb(t)::text as bytes from invoice_taxes t where invoice_id=${oldId} order by rate`,
         entry: await sql`select to_jsonb(e)::text as bytes from journal_entries e where id=${entryId}`,
@@ -84,6 +85,7 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
       expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
       await migrate(database, { migrationsFolder: MIGRATIONS });
       expect(await oldState()).toEqual(unchanged);
+      expect(await sql`select tax_details from invoices where id=${oldId}`).toEqual([{ tax_details: null }]);
       expect(await sql`select advance_accounting from invoices where id=${oldId}`).toEqual([{ advance_accounting: null }]);
 
       ({ closeDatabase: closeAppDatabase } = await import("../../db/index.ts"));

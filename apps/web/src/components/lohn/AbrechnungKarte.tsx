@@ -1,4 +1,4 @@
-import { formatEuro, parseEuro } from "@haben/core";
+import { amountError, formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -85,7 +85,7 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
           event.preventDefault();
           const betrag = entgelt.trim() ? parseEuro(entgelt) : null;
           if (entgelt.trim() && !betrag) {
-            setNotice({ tone: "danger", text: "Das Entgelt ist kein gültiger Betrag." });
+            setNotice({ tone: "danger", text: amountError("das Entgelt") });
             return;
           }
           void run(async () => {
@@ -225,7 +225,7 @@ export function AbrechnungKarte({ p, nummer, name }: { p: Abrechnung; nummer: nu
     <section className="stack" style={{ gap: 10 }} aria-label={`${titel}, ${[s.text, s.detail].filter(Boolean).join(" ")}`}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
         <h3 style={{ margin: 0 }}>{titel}</h3>
-        <Status tone={s.tone} emphasis={s.emphasis} draft={s.draft} inline detail={s.detail}>
+        <Status tone={s.tone} emphasis={s.emphasis} draft={s.draft} inline edge detail={s.detail}>
           {s.text}
         </Status>
       </div>

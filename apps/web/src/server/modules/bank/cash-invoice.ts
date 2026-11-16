@@ -1,11 +1,11 @@
 import { insertCashEntry } from "./settlement-store.ts";
-import { advancePaymentDateProblem, formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist } from "@haben/core";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { advancePaymentDateProblem, formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist, inCents } from "@haben/core";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { schema } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { invoicePaymentPostingMode, invoiceTotalsById, lockInvoice, invoicePaymentGroup } from "../rechnungen/index.ts";
+import { invoicePaymentPostingMode, invoiceTotalsById, lockInvoice } from "../rechnungen/index.ts";
 import { bookWriteOff, invoiceTaxShares, openItems, settledOn } from "./bank.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
 import { bareinnahmeSteuerSchema, bookCashIncome } from "./cash-income.ts";
@@ -20,7 +20,7 @@ export const cashInvoiceInputSchema = z.object({
   invoiceId: z.uuid(),
   date: z.iso.date(),
   /** Cent, immer positiv: Geld kommt in die Kasse */
-  amount: z.number().int().min(1, "Betrag fehlt").max(100_000_000),
+  amount: inCents(z.number().int().min(1, "Betrag fehlt").max(100_000_000)),
   text: z.string().trim().max(300).default(""),
   /** Rest der Rechnung als gewährtes Skonto ausbuchen, mit Datum der Bareinnahme (wie „Rest als Skonto“ im Bankabgleich) */
   skonto: z.boolean().default(false),
@@ -30,7 +30,7 @@ export const cashInvoiceInputSchema = z.object({
    */
   extra: z
     .object({
-      amount: z.number().int().min(1, "Betrag der weiteren Einnahme fehlt").max(100_000_000),
+      amount: inCents(z.number().int().min(1, "Betrag der weiteren Einnahme fehlt").max(100_000_000)),
       steuer: bareinnahmeSteuerSchema,
       text: z.string().trim().max(250).default(""),
     })
@@ -135,42 +135,4 @@ export async function cashInvoiceCandidates(): Promise<CashInvoiceCandidate[]> {
     .sort((a, b) => a.number.localeCompare(b.number));
 }
 
-export interface InvoicePayment {
-  id: string;
-  date: string;
-  amount: Cents;
-  /** bank: Zuordnung eines Bankumsatzes; bar: Bareinnahme im Kassenbuch */
-  via: "bank" | "bar";
-  text: string;
-  /** Nur bar: Nummer der Zeile im Kassenbuch */
-  cashNumber: number | null;
-  reversed: boolean;
-}
-
-/** Zahlungen auf eine Rechnung, über die Bank und bar, ohne Gegenzeilen, mit Merker „storniert“ bzw. „aufgehoben“ */
-export async function invoicePaymentList(invoiceId: string): Promise<InvoicePayment[]> {
-  const invoiceIds = await invoicePaymentGroup(invoiceId);
-  const allocations = await db
-    .select({
-      id: schema.allocations.id,
-      date: schema.bankTransactions.bookingDate,
-      amount: schema.allocations.amount,
-      text: schema.bankTransactions.counterpartyName,
-      reversesId: schema.allocations.reversesId,
-    })
-    .from(schema.allocations)
-    .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
-    .where(inArray(schema.allocations.invoiceId, invoiceIds))
-    .orderBy(asc(schema.allocations.createdAt));
-  const cash = await db.select().from(schema.cashEntries).where(inArray(schema.cashEntries.invoiceId, invoiceIds)).orderBy(asc(schema.cashEntries.number));
-  const reversed = new Set([...allocations, ...cash].flatMap((r) => (r.reversesId ? [r.reversesId] : [])));
-  const payments: InvoicePayment[] = [
-    ...allocations
-      .filter((a) => !a.reversesId)
-      .map((a) => ({ id: a.id, date: a.date, amount: a.amount, via: "bank" as const, text: a.text, cashNumber: null, reversed: reversed.has(a.id) })),
-    ...cash
-      .filter((c) => !c.reversesId)
-      .map((c) => ({ id: c.id, date: c.date, amount: c.amount, via: "bar" as const, text: c.text, cashNumber: c.number, reversed: reversed.has(c.id) })),
-  ];
-  return payments.sort((a, b) => a.date.localeCompare(b.date));
-}
+export { invoicePaymentList, type InvoicePayment } from "../rechnungen/index.ts";

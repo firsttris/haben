@@ -13,8 +13,10 @@ import {
   type Kontenrahmen,
   type PostingLine,
   type TaxCode,
+  vatRate,
 } from "./posting.ts";
 import type { Rechtsform } from "./rechtsform.ts";
+import { abziehbareSteuer, buchungsAnteil } from "./vorsteuerabzug.ts";
 
 /*
  * Aufteilung eines Eingangsbelegs auf mehrere Kontierungszeilen (#271): Ein Beleg, eine Zahlung, ein offener Posten, aber
@@ -47,6 +49,7 @@ export interface DocumentRateAmount {
   taxRate: BasisPoints;
   net: Cents;
   tax: Cents;
+  vorsteuerAnteil?: BasisPoints | null;
 }
 
 const sum = (values: Cents[]) => values.reduce((s, v) => s + v, 0);
@@ -120,30 +123,46 @@ export function documentSplitPosting(
   kontenrahmen: Kontenrahmen,
   rechtsform: Rechtsform,
   payment: DocumentPayment,
-  vorsteuerAbzug = true,
+  vorsteuerAbzug: boolean | BasisPoints = true,
   reverseCharge: ReverseChargeIn | null = null,
   /** Gutschrift erstattet bereits Bezahltes (#786): Vorsteuerminderung erst mit dem Ausgleich, bis dahin Zwischenkonto */
   erstattetBezahltes = false,
+  /** Leistung beim Buchen noch nicht ausgeführt (#693): Vorsteuer auf das Zwischenkonto bis zur Freigabe oder Zahlung */
+  vorsteuerNochNichtAbziehbar = false,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   if (erstattetBezahltes) {
     if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
     if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
   }
+  if (vorsteuerNochNichtAbziehbar && reverseCharge)
+    throw new RangeError("Noch nicht abziehbare Vorsteuer gibt es nicht bei § 13b; er hat seinen eigenen Zeitpunkt");
+  const parken = erstattetBezahltes || vorsteuerNochNichtAbziehbar;
   if (reverseCharge && !(reverseCharge in REVERSE_CHARGE_IN)) throw new RangeError(`${reverseCharge} mit Aufteilung wird nicht unterstützt`);
   const rcCode = reverseCharge ? REVERSE_CHARGE_IN[reverseCharge].code : null;
   if (rcCode && totals.taxes.some((t) => t.rate !== 1900 && t.rate !== 700)) throw new RangeError("§ 13b: Steuersatz muss 19 % oder 7 % sein");
   const expenses = new Map<string, { account: string; amount: Cents; code: TaxCode }>();
-  const add = (account: string, code: TaxCode, amount: Cents) => {
-    const key = `${account}|${code}`;
+  // Der nicht abziehbare Anteil (§ 15 Abs. 4 UStG) bleibt eine eigene Zeile: Zusammen mit einer Position zu 0 % oder einem
+  // Satz ohne Abzug auf demselben Konto (beide auch keineVSt) erkennte die Verprobung den Teilabzug sonst nicht (#1230)
+  const add = (account: string, code: TaxCode, amount: Cents, nichtAbziehbar = false) => {
+    const key = `${account}|${code}|${nichtAbziehbar}`;
     const seen = expenses.get(key);
     if (seen) seen.amount += amount;
     else expenses.set(key, { account, amount, code });
   };
-  for (const line of lines) {
+  // Erst je Satz runden, danach auf die Zeilen verteilen: deren Summe bleibt exakt die abziehbare Steuer.
+  const deductible = allocateSplitTax(
+    lines,
+    totals.taxes.map((t) => ({ taxRate: t.rate, net: t.base, tax: abziehbareSteuer(t.tax, buchungsAnteil(vorsteuerAbzug, t.vorsteuerAnteil)) })),
+  );
+  for (const [i, line] of lines.entries()) {
     const account = line.account ?? EXPENSE_CATEGORIES[line.category][kontenrahmen];
-    if (vorsteuerAbzug) add(account, rcCode ?? inputTaxCode(line.taxRate), line.net);
-    else if (rcCode) {
+    const anteil = buchungsAnteil(vorsteuerAbzug, totals.taxes.find((t) => t.rate === line.taxRate)?.vorsteuerAnteil);
+    const tax = deductible[i]!.tax;
+    if (anteil > 0) {
+      add(account, rcCode ?? inputTaxCode(line.taxRate), line.net);
+      add(account, "keineVSt", line.tax - tax, true);
+    } else if (rcCode) {
       // § 13b ohne Vorsteuerabzug: Netto mit dem Steuerschlüssel, die Steuer als Aufwand daneben, damit das Journal die
       // Bemessungsgrundlage trägt (#542)
       add(account, rcCode, line.net);
@@ -151,15 +170,17 @@ export function documentSplitPosting(
     } else add(account, "keineVSt", line.net + line.tax);
   }
   const result: PostingLine[] = [...expenses.values()].map((e) => side(e.account, e.amount, true, e.code));
-  for (const { rate, tax } of totals.taxes) {
+  for (const row of totals.taxes) {
+    const { rate, tax } = row;
+    const abzugsfaehig = abziehbareSteuer(tax, buchungsAnteil(vorsteuerAbzug, row.vorsteuerAnteil));
     if (tax === 0) continue;
-    if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
+    const satz = vatRate(rate);
     if (rcCode) {
-      if (vorsteuerAbzug) result.push(side(accounts.vorsteuerRc, tax, true, "VSt13b"));
+      if (abzugsfaehig !== 0) result.push(side(accounts.vorsteuerRc, abzugsfaehig, true, "VSt13b"));
       result.push(side(accounts.ustRc, tax, false, rcCode));
-    } else if (vorsteuerAbzug) {
-      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[rate];
-      result.push(side(konto, tax, true, inputTaxCode(rate)));
+    } else if (abzugsfaehig !== 0) {
+      const konto = parken ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[satz];
+      result.push(side(konto, abzugsfaehig, true, inputTaxCode(satz)));
     }
   }
   const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;

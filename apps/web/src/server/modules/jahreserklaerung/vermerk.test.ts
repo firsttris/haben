@@ -1,6 +1,6 @@
 import { formatEuro } from "@haben/core";
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
@@ -45,6 +45,18 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   /** Der in Haben gerechnete Gewinn der EÜR im leeren Testjahr; die Abweichung hängt davon ab */
   const gerechnet = async () => (await annual.annualOverview(2025, TODAY)).euer.gewinn;
 
+  // Der ESt-Vermerk trägt keinen Betrag; dann soll die Seite das sagen und nicht vergleichen (#1073)
+  it("weist darauf hin, dass das Ergebnis erst mit dem Bescheid feststeht, statt zu vergleichen", () => {
+    const hinweis = annual.ohneBetragHinweis({ amount: null });
+    expect(hinweis).toHaveLength(1);
+    expect(hinweis[0]?.text).toContain("ohne Betrag vermerkt");
+  });
+
+  it("schweigt, wenn ein Betrag vermerkt ist oder es keinen Vermerk gibt", () => {
+    expect(annual.ohneBetragHinweis({ amount: -1_032_197 })).toHaveLength(0);
+    expect(annual.ohneBetragHinweis(null)).toHaveLength(0);
+  });
+
   it("vermerkt eine außerhalb abgegebene Erklärung und findet sie wieder", async () => {
     const berechnet = await gerechnet();
     const row = await jahresvermerk.vermerkeJahresabgabe(
@@ -86,6 +98,120 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     });
   });
 
+  // Vorschlag von thomas-baumeister in #1144: Ein neuer Vermerk hält alle gerechneten Zahlen fest wie eine Übermittlung, damit
+  // die Prüfung gegen das Journal später jede Zeile vergleicht und nicht nur Gewinn bzw. Abschlusszahlung
+  it("hält alle gerechneten Zahlen fest; die Prüfung gegen das Journal vergleicht jede davon", async () => {
+    const berechnet = await gerechnet();
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456780", { amount: berechnet }), TODAY);
+    const [zeile] = await sql`select figures from annual_submissions where form = 'euer'`;
+    expect(zeile!.figures).toMatchObject({ amount: berechnet, gerechnet: expect.objectContaining({ gewinn: berechnet }) });
+    const pruefen = await import("./erklaert-pruefen.ts");
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+    // Gleicher Gewinn, aber eine Zeile anders als heute gerechnet: fällt nur über die festgehaltenen Zahlen auf
+    await leeren(sql)`truncate annual_submission_figures, annual_submissions`;
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, filed_on, note, figures, request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'ABC123456781', '2026-05-20', 'x',
+              ${JSON.stringify({ amount: berechnet, gerechnet: { gewinn: berechnet, "ausgabe:software": 100_00, einnahmen: 100_00 } })}::jsonb, '', '', '')`;
+    const befunde = await pruefen.erklaerteAbweichungen([2025]);
+    expect(befunde.sort((a, b) => a.feld.localeCompare(b.feld))).toEqual([
+      { year: 2025, form: "euer", art: "vermerkt", feld: "ausgabe:software", erklaert: 100_00, journal: 0 },
+      { year: 2025, form: "euer", art: "vermerkt", feld: "einnahmen", erklaert: 100_00, journal: 0 },
+    ]);
+  });
+
+  // Mit bestätigter Abweichung hält der Vermerk Habens damalige Zahlen fest, nicht die abgegebenen. Rechnet Haben heute den
+  // Betrag laut Protokoll (fehlende Buchungen nachgetragen, falsche berichtigt), passt das Journal zur Abgabe; die
+  // festgehaltenen Zeilen sind dann überholt und kein Befund
+  it("bestätigte Abweichung, heute rechnet Haben den Betrag laut Protokoll: die damals gerechneten Zeilen sind kein Befund", async () => {
+    const heute = await gerechnet();
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, filed_on, note, figures, request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'ABC123456782', '2026-05-20', 'x',
+              ${JSON.stringify({
+                amount: heute,
+                berechnet: heute - 100_00,
+                abweichung: 100_00,
+                abweichungBestaetigt: true,
+                gerechnet: { gewinn: heute - 100_00, "ausgabe:software": 100_00 },
+              })}::jsonb, '', '', '')`;
+    const pruefen = await import("./erklaert-pruefen.ts");
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+  });
+
+  // Befund 1 der Selbstprüfung Runde 4 in #1144: Die Abschlusszahlung der Umsatzsteuer hängt an den Vorauszahlungen aus den
+  // Voranmeldungen, nicht am Journal. Werden Voranmeldungen erst nach dem Vermerk nachgetragen, ändert sich das Journal nicht;
+  // neue Vermerke vergleichen deshalb Steuer und Zeilen, nicht die Abschlusszahlung
+  it("Umsatzsteuererklärung vermerkt, danach eine Voranmeldung nachgetragen: Journal unverändert, kein Befund", async () => {
+    await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
+    const ust = await annual.ustYear(2025);
+    await jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, eingabe("UST123456789", { amount: ust.abschluss }), TODAY);
+    await sql`insert into vat_returns (year, month, kz81, kz83, status, source, sent_at) values (2025, 12, 0, 50000, 'sent', 'berechnet', now())`;
+    expect((await annual.ustYear(2025)).abschluss).not.toBe(ust.abschluss);
+    const pruefen = await import("./erklaert-pruefen.ts");
+    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+    await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
+  });
+
+  // #1231: Vermerke von vor #1144 halten nur den Betrag laut Protokoll (bei bestätigter Abweichung dazu den damals gerechneten)
+  // fest. Verglichen wird dann die Steuer: Abschlusszahlung plus die Vorauszahlungen, die beim Vermerk gesendet waren
+  describe("älterer Vermerk der Umsatzsteuer ohne festgehaltene Zahlen (#1231)", () => {
+    const alterVermerk = (figures: Record<string, unknown>) =>
+      sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, filed_on, note, figures, request_xml, response_xml, server_response_xml, created_at)
+        values ('ust', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'UST123456700', '2026-05-20', 'x',
+                ${JSON.stringify(figures)}::jsonb, '', '', '', '2026-05-20T10:00:00Z')`;
+    const voranmeldung = (month: number, kz83: number, sentAt: string) =>
+      sql`insert into vat_returns (year, month, kz81, kz83, status, source, sent_at) values (2025, ${month}, 0, ${kz83}, 'sent', 'berechnet', ${sentAt})`;
+
+    beforeEach(async () => {
+      await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
+      await voranmeldung(1, 50_00, "2026-01-10T10:00:00Z");
+    });
+
+    afterEach(async () => {
+      await leeren(sql)`truncate vat_return_submissions, vat_returns cascade`;
+    });
+
+    it("nach dem Vermerk eine Voranmeldung gesendet, Journal unverändert: kein Befund", async () => {
+      // Steuer 0 aus dem leeren Journal, 50 € vorausgezahlt: Abschlusszahlung laut Protokoll -50 €
+      await alterVermerk({ amount: -50_00 });
+      const pruefen = await import("./erklaert-pruefen.ts");
+      expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+      await voranmeldung(12, 500_00, "2026-09-01T10:00:00Z");
+      expect((await annual.ustYear(2025)).abschluss).toBe(-550_00);
+      expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+    });
+
+    it("die Steuer aus dem Journal weicht vom damals gerechneten Wert ab: Befund mit der Steuer", async () => {
+      // Damals gerechnet: Abschlusszahlung 100 € bei 50 € Vorauszahlung, also 150 € Steuer; heute rechnet das Journal 0 €
+      await alterVermerk({ amount: 300_00, berechnet: 100_00, abweichung: 200_00, abweichungBestaetigt: true });
+      await voranmeldung(12, 500_00, "2026-09-01T10:00:00Z");
+      const pruefen = await import("./erklaert-pruefen.ts");
+      expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([{ year: 2025, form: "ust", art: "vermerkt", feld: "steuer", erklaert: 150_00, journal: 0 }]);
+    });
+
+    it("bestätigte Abweichung, heute rechnet Haben die Steuer laut Protokoll: kein Befund", async () => {
+      // Laut Protokoll -50 € Abschlusszahlung bei 50 € Vorauszahlung, also 0 € Steuer wie heute aus dem Journal
+      await alterVermerk({ amount: -50_00, berechnet: 100_00, abweichung: -150_00, abweichungBestaetigt: true });
+      await voranmeldung(12, 500_00, "2026-09-01T10:00:00Z");
+      const pruefen = await import("./erklaert-pruefen.ts");
+      expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
+    });
+  });
+
+  it("nimmt bei der Einkommensteuererklärung keinen Betrag an, auch nicht Habens Schätzung (#1073)", async () => {
+    // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag; eine Schätzung gehört nicht in den Vermerk
+    const geschaetzt = (await annual.annualOverview(2025, TODAY)).est.prognose.verbleibend;
+    await expect(
+      jahresvermerk.vermerkeJahresabgabe(
+        actor,
+        "est",
+        2025,
+        eingabe("EST123456789", { amount: geschaetzt, note: "Einkommensteuererklärung außerhalb von Haben mit WISO abgegeben." }),
+        TODAY,
+      ),
+    ).rejects.toThrow(/keinen Betrag/);
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
+  });
+
   it("lehnt einen zweiten Vermerk für dasselbe Formular und Jahr ab", async () => {
     await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY);
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("XYZ987654321"), TODAY)).rejects.toThrow(/schon vermerkt/);
@@ -125,10 +251,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   });
 
   for (const rechtsform of ["gmbh", "ug"] as const)
-    it(`lehnt bei einer Kapitalgesellschaft (${rechtsform}) die Anlage EÜR ab, die Umsatzsteuererklärung nicht`, async () => {
+    it(`lehnt bei einer Kapitalgesellschaft (${rechtsform}) die Anlage EÜR und die Einkommensteuererklärung ab, die Umsatzsteuererklärung nicht`, async () => {
       // Kapitalgesellschaften bilanzieren (§ 6, § 238 HGB); die EÜR nach § 4 Abs. 3 EStG gibt es für sie nicht
       await sql`update company set rechtsform = ${rechtsform} where id = 1`;
       await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
+        /Kapitalgesellschaft/,
+      );
+      // Sie zahlt Körperschaftsteuer, keine Einkommensteuer (§ 1 KStG); wie beim Senden (checkAnnual) kein Vermerk (#1073)
+      await expect(jahresvermerk.vermerkeJahresabgabe(actor, "est", 2025, eingabe("GHI123456789", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
         /Kapitalgesellschaft/,
       );
       expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
@@ -220,5 +350,30 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
 
     const [zeile] = await sql`select figures from annual_submissions`;
     expect(zeile).toMatchObject({ figures: { amount: berechnet } });
+  });
+
+  /*
+   * Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Steuerbetrag (#1073). Der Vermerk belegt die Abgabe,
+   * ohne Betrag; das Ergebnis steht in den erklärten Zeilen, nicht in einem zweiten Eintrag.
+   */
+  it("vermerkt die Einkommensteuer ohne Betrag", async () => {
+    const est = await jahresvermerk.vermerkeJahresabgabe(
+      actor,
+      "est",
+      2025,
+      { filedOn: "2026-05-20", transferTicket: "EST123456789", note: "Einkommensteuererklärung im ELSTER-Portal abgegeben." },
+      TODAY,
+    );
+    expect(est.amount).toBeNull();
+
+    const uebersicht = await annual.annualOverview(2025, TODAY);
+    expect(uebersicht.est.submitted).toMatchObject({ transferTicket: "EST123456789", amount: null });
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
+  });
+
+  it("verlangt bei Umsatzsteuer und EÜR weiter einen Betrag", async () => {
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, { ...eingabe("UST123456789"), amount: undefined }, TODAY)).rejects.toThrow(
+      /Betrag laut Übermittlungsprotokoll fehlt/,
+    );
   });
 });

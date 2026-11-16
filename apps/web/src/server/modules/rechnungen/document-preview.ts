@@ -14,6 +14,9 @@ import {
   skontoStufeSchema,
   TAX_TREATMENT_KEYS,
   type UnitLabel,
+  inBasisPoints,
+  inCents,
+  inMillis,
 } from "@haben/core";
 import {
   asDraft,
@@ -52,6 +55,7 @@ import { buyerFrom, sellerFrom } from "./invoices.ts";
 import { directDebitFor } from "./lastschrift.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { quoteCalculation } from "./quotes.ts";
+import { outgoingTaxColumns, outgoingTaxDetailsSchema } from "./tax-details.ts";
 
 /*
  * Echtes Blatt für die Vorschau der Belegeditoren: dieselbe Vorlage und dieselben Daten wie beim PDF, aber aus dem
@@ -85,10 +89,10 @@ export const documentPreviewSchema = z.object({
         detail: z.string().max(LINE_DETAIL_MAX).default(""),
         itemNumber: z.string().max(ITEM_NUMBER_MAX).default(""),
         // Ganzzahlig, aber ohne Vorzeichenprüfung: Abzüge der Schlussrechnung, Storno und Korrektur sind negativ
-        quantity: z.number().int(),
+        quantity: inMillis(z.number().int()),
         unit: z.string().max(20),
-        unitPrice: z.number().int(),
-        taxRate: z.number().int(),
+        unitPrice: inCents(z.number().int()),
+        taxRate: inBasisPoints(z.number().int()),
         discount: z.nullable(discountSchema).default(null),
         kind: z.enum(QUOTE_LINE_KINDS).nullable().default(null),
         /** Abzug einer Abschlagsrechnung: zählt nicht zur Grundlage des Gesamtrabatts (discountBasis) */
@@ -103,6 +107,8 @@ export const documentPreviewSchema = z.object({
   propertyRetention: z.boolean().default(false),
   taxTreatment: z.enum(TAX_TREATMENT_KEYS),
   exemptionReason: z.string().max(600),
+  // Unfertige Ortsangaben beim Tippen blockieren die reine Vorschau nicht; gespeichert wird hier nichts.
+  taxDetails: outgoingTaxDetailsSchema.catch(null),
   priceMode: z.enum(["netto", "brutto"]),
   language: z.enum(["de", "en"]),
   variant: z.enum(["abschlag", "schluss"]).nullable(),
@@ -110,10 +116,11 @@ export const documentPreviewSchema = z.object({
   currency: z.string().max(3),
   // Beim Tippen lässt der Editor auch Fristen über 120 Tage durch; solche Stufen fehlen auf dem Blatt, wie das Speichern sie ablehnt
   skonto: z
-    .array(z.object({ days: z.number(), percent: z.number() }))
+    .array(z.object({ days: z.number(), percent: inBasisPoints(z.number()) }))
     .max(10)
     .transform((stufen) => stufen.filter((stufe) => skontoStufeSchema.safeParse(stufe).success)),
   sepaMandateId: z.uuid().nullable(),
+  paidPayment: z.object({ paidVia: z.string().trim().min(1).max(120), paidOn: z.iso.date() }).optional(),
   design: letterheadDesignInputSchema,
 });
 
@@ -146,6 +153,7 @@ function invoiceDocument(input: Input, company: Company, buyer: Buyer, letterhea
   if (input.kind === "angebot") throw new DocumentPreviewError("Ein Angebot ist keine Rechnung.");
   const { lineNets, totals } = computeInvoice(input.lines, input.priceMode, input.discount);
   const treatment = input.taxTreatment;
+  const { exemptionReason } = outgoingTaxColumns(input);
   return {
     ...letterhead,
     kind: input.kind,
@@ -181,15 +189,17 @@ function invoiceDocument(input: Input, company: Company, buyer: Buyer, letterhea
     ...(input.propertyRetention ? { propertyRetention: true } : {}),
     ...(treatment !== "regulaer" ? { taxTreatment: treatment } : {}),
     ...(input.priceMode === "brutto" ? { priceMode: input.priceMode } : {}),
-    ...(input.exemptionReason ? { exemptionReason: input.exemptionReason } : {}),
+    ...(exemptionReason ? { exemptionReason } : {}),
     language: input.language,
     ...(input.variant ? { variant: input.variant } : {}),
     ...documentReferences(referenceColumns(input)),
     ...(directDebit ? { directDebit } : {}),
+    ...(input.kind === "rechnung" && input.paidPayment ? { paidPayment: input.paidPayment } : {}),
   };
 }
 
 function quoteDocument(input: Input, company: Company, buyer: Buyer, letterhead: Letterhead): QuoteDocument {
+  const { exemptionReason } = outgoingTaxColumns(input);
   const lines = input.lines.map((line, index) => ({ ...line, position: index + 1 }));
   const calc = quoteCalculation(lines, input.priceMode, input.discount);
   const paymentPlan = input.plan.length > 0 ? planSchedule(input.plan, orderRateAmounts(calc.totals, input.priceMode), input.priceMode) : [];
@@ -223,7 +233,7 @@ function quoteDocument(input: Input, company: Company, buyer: Buyer, letterhead:
     ...(input.note ? { note: input.note } : {}),
     ...documentReferences(referenceColumns(input)),
     ...(input.taxTreatment !== "regulaer" ? { taxTreatment: input.taxTreatment } : {}),
-    ...(input.exemptionReason ? { exemptionReason: input.exemptionReason } : {}),
+    ...(exemptionReason ? { exemptionReason } : {}),
     ...(input.priceMode === "brutto" ? { priceMode: input.priceMode } : {}),
     language: input.language,
   };

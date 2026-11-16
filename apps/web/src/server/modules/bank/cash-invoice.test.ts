@@ -146,11 +146,13 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
         }
         await noDeviations();
         // EÜR: Zufluss am Tag der Bareinnahme
-        const euer = (await reports.euerPayments(2026)).filter((p) => p.kind === "invoice");
-        expect(euer.map((p) => [p.date, p.kind === "invoice" ? p.paid : 0]).sort()).toEqual([
-          ["2026-09-28", 100_000],
-          ["2026-10-02", 376_000],
+        const euer = await reports.euerForYear(2026);
+        expect(euer.einnahmen.filter((l) => l.amount !== 0).map((l) => [l.key, l.amount])).toEqual([
+          ["einnahmenSteuerpflichtig", 400_000],
+          ["vereinnahmteUst", 76_000],
         ]);
+        // Netto je Monat: 1.000,00 € brutto im September, 3.760,00 € im Oktober
+        expect(euer.monthly.einnahmen.slice(8, 10)).toEqual([84_034, 315_966]);
         expect((await cash.invoicePaymentList(invoice.id)).map((p) => [p.via, p.date, p.amount, p.cashNumber, p.reversed])).toEqual([
           ["bar", "2026-09-28", 100_000, 1, false],
           ["bar", "2026-10-02", 376_000, 2, false],
@@ -212,8 +214,12 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
         }
         await noDeviations([8, 9, 10]);
         // EÜR: Zufluss am Tag der Bareinnahme (§ 11 Abs. 1 EStG)
-        const euer = (await reports.euerPayments(2026)).filter((p) => p.kind === "invoice");
-        expect(euer.map((p) => [p.date, p.kind === "invoice" ? p.paid : 0])).toEqual([["2026-08-20", 476_000]]);
+        const euer = await reports.euerForYear(2026);
+        expect(euer.einnahmen.filter((l) => l.amount !== 0).map((l) => [l.key, l.amount])).toEqual([
+          ["einnahmenSteuerpflichtig", 400_000],
+          ["vereinnahmteUst", 76_000],
+        ]);
+        expect(euer.monthly.einnahmen.slice(7, 9)).toEqual([400_000, 0]);
         expect((await cash.invoicePaymentList(invoice.id)).map((p) => [p.via, p.date, p.amount])).toEqual([["bar", "2026-08-20", 476_000]]);
 
         // Storno wie sonst: Gegenzeile mit heutigem Datum, die Rechnung ist wieder offen

@@ -21,7 +21,7 @@ export {
   updateDocument,
   uploadDocument,
 } from "./documents.ts";
-export { searchDocuments, type DocumentHit } from "./search.ts";
+export { searchBelege, searchDocuments, type DocumentHit, type RecurringDocumentHit } from "./search.ts";
 export { type Lieferant, supplierCategory, supplierPayment } from "./vorschlaege.ts";
 export {
   cancelDocument,
@@ -34,7 +34,8 @@ export {
 } from "./cancellation.ts";
 export { extractionAvailable, extractionSettings } from "./extraction.ts";
 export { supplierSuggestion, type SupplierSuggestion } from "./lieferantenvorschlag.ts";
-export { splitsByDocument, type DocumentSplit } from "./splits.ts";
+export { loadSplits, splitsByDocument, type DocumentSplit } from "./splits.ts";
+export { belegZeilen } from "./belegbuchung.ts";
 export { supplierDocuments } from "./lieferant-belege.ts";
 export { documentReferenceSchema, type DocumentReference } from "./external-reference.ts";
 export { documentNavigation, type DocumentNavigation } from "./navigation.ts";
@@ -56,7 +57,9 @@ export {
   DauerbelegError,
   deleteDauerbeleg,
   getDauerbeleg,
+  importSevdeskDauerbeleg,
   listDauerbelege,
+  sevdeskHinweise,
   setDauerbelegStatus,
   updateDauerbeleg,
   type DauerbelegAktion,
@@ -66,6 +69,5 @@ export {
   bookAndAllocateDauerbeleg,
   bookAndAllocateSchema,
   DAUERBELEG_ACTOR,
-  dauerbelegSuggestions,
   runDueDauerbelege,
 } from "./dauerbelege-lauf.ts";

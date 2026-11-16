@@ -4,8 +4,10 @@ import {
   dunningAmounts,
   formatDecimal,
   formatEuro,
-  MAX_DUNNING_FEE,
+  formatHundredths,
+  dunningFeeError,
   parseEuro,
+  type BasisPoints,
   type CustomerType,
   type DunningLevel,
 } from "@haben/core";
@@ -32,7 +34,7 @@ export const Route = createFileRoute("/_app/rechnungen/mahnwesen/$id")({
 });
 
 /** Basispunkte als Prozent: 127 → „1,27 %“ */
-const percent = (basisPoints: number) => `${formatDecimal(basisPoints)} %`;
+const percent = (basisPoints: BasisPoints) => `${formatHundredths(basisPoints)} %`;
 
 function NewDunningPage() {
   const draft = Route.useLoaderData();
@@ -52,12 +54,7 @@ function NewDunningPage() {
   const [logo, setLogo] = useLoadedState(draft.logo);
 
   const parsedFee = fee.trim() ? parseEuro(fee) : 0;
-  const feeError =
-    parsedFee === null || parsedFee < 0
-      ? "Trag die Mahngebühr als Betrag ein, etwa 5,00, oder lass das Feld leer."
-      : parsedFee > MAX_DUNNING_FEE
-        ? `Die Mahngebühr beträgt höchstens ${formatEuro(MAX_DUNNING_FEE)}.`
-        : null;
+  const feeError = dunningFeeError(fee);
   // Eine ungültige Gebühr zählt nirgends: Forderung, Vorschau und Knöpfe gehen von derselben Gebühr aus
   const validFee = feeError === null ? (parsedFee ?? 0) : 0;
   const interestRate = interest && draft.baseRate !== null ? draft.baseRate + DEFAULT_INTEREST_MARKUP[interest] : null;
@@ -161,7 +158,11 @@ function NewDunningPage() {
                 hint={
                   draft.baseRate === null ? (
                     <>
-                      Für Zinsen den Basiszinssatz in den <Link to="/einstellungen">Einstellungen</Link> eintragen.
+                      Für Zinsen den Basiszinssatz in den{" "}
+                      <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                        Einstellungen
+                      </Link>{" "}
+                      eintragen.
                     </>
                   ) : (
                     `Basiszinssatz ${percent(draft.baseRate)}`

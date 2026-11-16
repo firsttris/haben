@@ -1,11 +1,11 @@
-import { formatEuro, parseEuro } from "@haben/core";
+import { amountError, formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
 import { formatDate, formatDateTime } from "../lib/format.ts";
 import { sammelHinweise } from "../lib/hinweise.ts";
 import { useAction } from "../lib/use-action.ts";
-import type { RestlaufzeitBlock, RestlaufzeitenAnsicht } from "../server/modules/buchhaltung/index.ts";
+import type { RestlaufzeitBlock, RestlaufzeitenAnsicht } from "../server/modules/jahreserklaerung/index.ts";
 import { saveRestlaufzeitenFn } from "../server/functions/abschluss.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
@@ -116,7 +116,7 @@ export function Restlaufzeiten({ year, data }: { year: number; data: Restlaufzei
     const j = lesen(jahr);
     const v = data.vorjahr ? lesen(vorjahr) : [];
     if (!j || !v) {
-      setNotice({ tone: "danger", text: "Bitte je Konto einen Betrag von 0,00 bis zum Saldo eingeben." });
+      setNotice({ tone: "danger", text: amountError("je Konto einen Betrag von 0,00 bis zum Saldo") });
       return;
     }
     void run(async () => {

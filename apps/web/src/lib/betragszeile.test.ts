@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { aendereBetragszeile, betragszeileAus, bruttoLesbar, bruttoZerlegen, type Betragszeile } from "./betragszeile.ts";
+import {
+  aendereBetragszeile,
+  betragszeileAus,
+  betragszeileAusVorlage,
+  betragszeileGespeichert,
+  bruttoLesbar,
+  bruttoZerlegen,
+  steuerausweisUmschalten,
+  type Betragszeile,
+} from "./betragszeile.ts";
 
 const leer = (): Betragszeile => betragszeileAus(1, 1900, 0, 0, true, false);
 
@@ -93,5 +102,79 @@ describe("aendereBetragszeile", () => {
       basis: "net",
     });
     expect(leer()).toMatchObject({ net: "", tax: "", gross: "" });
+  });
+});
+
+describe("Dauerbeleg: Haken für den Steuerausweis und gespeicherte Zeilen (#1059)", () => {
+  const brutto = (row: Betragszeile, gross: string) => aendereBetragszeile(row, { gross }, false);
+
+  it("Haken aus und wieder an lässt ein eingegebenes Brutto stehen (45,00 € zu 19 %: taxOf des Netto wäre 7,19 €)", () => {
+    let row = steuerausweisUmschalten(betragszeileAusVorlage(1, { taxRate: 1900, net: 0, tax: 0 }, false), true);
+    row = brutto(row, "45,00");
+    expect(row).toMatchObject({ net: "37,82", tax: "7,18", gross: "45,00" });
+    row = steuerausweisUmschalten(steuerausweisUmschalten(row, false), true);
+    expect(row).toMatchObject({ net: "37,82", tax: "7,18", gross: "45,00" });
+  });
+
+  it("Haken aus: Grundlage ist wieder das Netto, ein anderer Satz rechnet es nicht aus dem verborgenen Brutto", () => {
+    let row = brutto(betragszeileAusVorlage(1, { taxRate: 1900, net: 0, tax: 0 }, true), "119,00");
+    row = aendereBetragszeile(steuerausweisUmschalten(row, false), { taxRate: 700 }, false);
+    expect(row.net).toBe("100,00");
+  });
+
+  it("gespeichert ohne Steuerausweis: nach dem Setzen des Hakens folgt die Steuer dem Netto", () => {
+    let row = steuerausweisUmschalten(betragszeileAusVorlage(1, { taxRate: 1900, net: 50000, tax: 0 }, false), true);
+    expect(row).toMatchObject({ tax: "95,00", gross: "595,00" });
+    row = aendereBetragszeile(row, { net: "600,00" }, false);
+    expect(row).toMatchObject({ tax: "114,00", gross: "714,00" });
+  });
+
+  it("gespeichert aus einem Brutto (37,82 € + 7,18 €): die Steuer gilt nicht als von Hand geändert", () => {
+    const row = aendereBetragszeile(betragszeileAusVorlage(1, { taxRate: 1900, net: 3782, tax: 718 }, true), { net: "40,00" }, false);
+    expect(row).toMatchObject({ net: "40,00", tax: "7,60", gross: "47,60" });
+  });
+
+  it("gespeichert aus einem Brutto (37,82 € + 7,18 €): ein anderer Satz behält das Brutto wie am Beleg (#1099)", () => {
+    const row = aendereBetragszeile(betragszeileAusVorlage(1, { taxRate: 1900, net: 3782, tax: 718 }, true), { taxRate: 700 }, false);
+    expect(row).toMatchObject({ net: "42,06", tax: "2,94", gross: "45,00" });
+  });
+
+  it("gespeichert mit abweichender Steuer laut Vertrag: bleibt von Hand geändert", () => {
+    const row = aendereBetragszeile(betragszeileAusVorlage(1, { taxRate: 1900, net: 10000, tax: 1800 }, true), { net: "200,00" }, false);
+    expect(row).toMatchObject({ tax: "18,00", gross: "218,00" });
+  });
+});
+
+describe("Beleg: gespeicherte Zeilen beim erneuten Öffnen (#1099)", () => {
+  const geladen = (net: number, tax: number) => betragszeileGespeichert(1, 1900, net, tax, false);
+
+  it("100,00 € + 19,00 €: die Vorsteuer folgt einem neuen Netto", () => {
+    expect(aendereBetragszeile(geladen(10000, 1900), { net: "200,00" }, false)).toMatchObject({ tax: "38,00", gross: "238,00" });
+  });
+
+  it("100,00 € + 19,00 €: die Vorsteuer folgt einem anderen Satz", () => {
+    expect(aendereBetragszeile(geladen(10000, 1900), { taxRate: 700 }, false)).toMatchObject({ net: "100,00", tax: "7,00", gross: "107,00" });
+  });
+
+  it("100,00 € + 18,99 € laut Rechnung: die Vorsteuer bleibt bei Netto und Satz stehen", () => {
+    expect(aendereBetragszeile(geladen(10000, 1899), { net: "200,00" }, false)).toMatchObject({ tax: "18,99" });
+    expect(aendereBetragszeile(geladen(10000, 1899), { taxRate: 700 }, false)).toMatchObject({ tax: "18,99" });
+  });
+
+  it("aus einem Brutto gespeichert (37,82 € + 7,18 €): ein anderer Satz behält das Brutto", () => {
+    expect(aendereBetragszeile(geladen(3782, 718), { taxRate: 700 }, false)).toMatchObject({ net: "42,06", tax: "2,94", gross: "45,00" });
+  });
+
+  it("aus einem Brutto gespeichert, das Netto ergibt dieselbe Steuer (11,90 € = 10,00 € + 1,90 €): Grundlage ist das Netto", () => {
+    // Gespeichert sind nur Netto und Steuer; daraus lässt sich das Brutto als Eingabe hier nicht erkennen (docs/belege.md)
+    expect(aendereBetragszeile(geladen(1000, 190), { taxRate: 700 }, false)).toMatchObject({ net: "10,00", tax: "0,70", gross: "10,70" });
+  });
+
+  it("aus einem Brutto gespeichert: ein neues Netto ist wieder die Grundlage", () => {
+    expect(aendereBetragszeile(geladen(3782, 718), { net: "40,00" }, false)).toMatchObject({ tax: "7,60", gross: "47,60" });
+  });
+
+  it("leerer neuer Beleg: leere Felder, nichts von Hand", () => {
+    expect(betragszeileGespeichert(1, 1900, 0, 0, true)).toMatchObject({ net: "", tax: "", gross: "", taxTouched: false, basis: "net" });
   });
 });

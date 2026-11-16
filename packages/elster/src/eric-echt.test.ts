@@ -275,7 +275,10 @@ const alleAngaben = (year: number): EstAngaben => ({
       agZuschussKv: 120_000,
       agZuschussPv: 12_000,
     },
-    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000, basisrente: 100_000 },
+    // Person B ist gesetzlich versichert. Nr. 24 a gehört hierher, nicht zu Person A (privat), und
+    // ERiC-Regel 100240078 verlangt den Zuschuss zur Pflegeversicherung (24 c) dazu. 24 b und 24 c
+    // für Person A stehen oben.
+    b: { gkv: 300_000, gpv: 60_000, gkvZusatz: 20_000, basisrente: 100_000, agZuschussGkv: 84_000, agZuschussPv: 12_000 },
     sonstige: 25_000,
   },
   ersatzleistungen: {
@@ -417,6 +420,26 @@ const faelle: [string, () => string][] = [
           ...envelope(year),
           versteuerung: "ist",
           figures: { base19: 0, tax19: 0, base7: 1_000_000, tax7: 70_000, vorsteuer: 0, vorauszahlungen: 70_000 },
+        }),
+    ],
+    [
+      // Zeilen, deren Summen sich aufheben: Gutschriften zu 19 % gegen 7 %, negative Rechnungsvorsteuer gegen Einfuhrumsatzsteuer
+      `USt-Erklärung ${year} mit sich aufhebenden Zeilen`,
+      () =>
+        buildUstErklaerungXml({
+          ...envelope(year),
+          versteuerung: "soll",
+          figures: {
+            base19: -70_000,
+            tax19: -13_300,
+            base7: 190_000,
+            tax7: 13_300,
+            vorsteuer: -19_000,
+            kz62: 19_000,
+            kz47: 9_500,
+            kz46: 50_000,
+            vorauszahlungen: 9_500,
+          },
         }),
     ],
     [

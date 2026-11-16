@@ -1,3 +1,4 @@
+import type { BasisPoints } from "./money.ts";
 import { normalizeUstId, ustIdProblem } from "./zm.ts";
 
 /**
@@ -23,6 +24,15 @@ export const TAX_TREATMENTS = {
     category: "O",
     reasonCode: "VATEX-EU-O",
     note: "Im Inland nicht steuerbare Leistung (Leistungsort im Drittland).",
+  },
+  // § 3a UStG: bestätigter ausländischer Leistungsort, keine Ableitung aus der Kundenanschrift.
+  // Nur ohne auszuweisende ausländische Umsatzsteuer; EU-B2C ist kein B2B-Reverse-Charge.
+  // https://www.gesetze-im-internet.de/ustg_1980/__3a.html
+  eu_sonstige: {
+    label: "Sonstige Leistung im EU-Ausland (nicht im Inland steuerbar)",
+    category: "O",
+    reasonCode: "VATEX-EU-O",
+    note: "Im Inland nicht steuerbare sonstige Leistung (Leistungsort im EU-Ausland).",
   },
   // Lieferung eines Gegenstands an einen Unternehmer in einem anderen EU-Mitgliedstaat (§ 4 Nr. 1 Buchst. b, § 6a UStG):
   // Steuerkategorie K „Intra-community supply“ mit Befreiungscode VATEX-EU-IC (EN 16931, Codeliste VATEX)
@@ -87,6 +97,15 @@ export const EU_COUNTRIES: ReadonlySet<string> = new Set([
   "SK",
 ]);
 
+/**
+ * Liegt die Anschrift im Gemeinschaftsgebiet (§ 1 Abs. 2a UStG)? Die Mitgliedstaaten und Monaco, das als Gebiet
+ * Frankreichs gilt; Unternehmen dort haben eine französische USt-IdNr. Ohne Land: nein.
+ */
+export function inEuVatArea(country: string): boolean {
+  const code = country.toUpperCase();
+  return EU_COUNTRIES.has(code) || code === "MC";
+}
+
 export const TAX_TREATMENT_KEYS = Object.keys(TAX_TREATMENTS) as [TaxTreatment, ...TaxTreatment[]];
 
 /** Hinweis auf der Rechnung: eigener Text (z. B. die genaue Befreiungsvorschrift) oder der Standardtext */
@@ -98,7 +117,7 @@ export function treatmentNote(treatment: TaxTreatment, exemptionReason?: string 
 /** Was an einer Rechnung mit dieser Behandlung fehlt oder nicht passt; leer = in Ordnung. */
 export function treatmentIssues(
   treatment: TaxTreatment,
-  input: { rates: number[]; sellerUstId?: string; buyerUstId?: string; buyerCountry?: string; exemptionReason?: string | null },
+  input: { rates: BasisPoints[]; sellerUstId?: string; buyerUstId?: string; buyerCountry?: string; exemptionReason?: string | null },
 ): string[] {
   if (treatment === "regulaer") return [];
   const issues: string[] = [];
@@ -121,7 +140,7 @@ export function treatmentIssues(
     }
     // Nordirland gehört für Waren weiter zum Gemeinschaftsgebiet (XI-Nummer bei Ländercode GB)
     const nordirland = country === "GB" && buyerUstId.startsWith("XI");
-    if (country && (country === "DE" || !(EU_COUNTRIES.has(country) || nordirland))) {
+    if (country && (country === "DE" || !(inEuVatArea(country) || nordirland))) {
       issues.push("Innergemeinschaftliche Lieferung nur an Kunden in einem anderen EU-Mitgliedstaat");
     }
   }
@@ -129,7 +148,7 @@ export function treatmentIssues(
     // EN 16931 BR-G-02: Kategorie G verlangt die USt-IdNr. des Verkäufers (BT-31) oder seines Steuervertreters
     if (!input.sellerUstId?.trim()) issues.push("Ausfuhrlieferung braucht deine USt-IdNr. in den Firmendaten (EN 16931 BR-G-02)");
     // Haben nimmt die Anschrift des Kunden als Bestimmungsort; liegt sie in der EU, passt die Ausfuhr nicht
-    if (country && EU_COUNTRIES.has(country)) {
+    if (country && inEuVatArea(country)) {
       issues.push("Ausfuhrlieferung nur an Kunden außerhalb der EU; im Gemeinschaftsgebiet ist es eine innergemeinschaftliche Lieferung");
     }
   }

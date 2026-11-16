@@ -1,7 +1,11 @@
-import { parseEuroSearchCents } from "@haben/core";
-import { desc, eq, ilike, isNotNull, or } from "drizzle-orm";
-import { likePattern, numberRank } from "../../../lib/search.ts";
+import { parseDateSearch, parseEuroSearchRange } from "@haben/core";
+import { desc, eq, isNotNull, or } from "drizzle-orm";
+import { amountIn, likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { db, schema } from "../../db/index.ts";
+import { firstHits, partsFor, runSearchParts, searchPart } from "../../db/search-parts.ts";
+import { recurringDocumentsPart } from "./search-recurring.ts";
+
+export type { RecurringDocumentHit } from "./search-recurring.ts";
 
 export interface DocumentHit {
   id: string;
@@ -19,43 +23,61 @@ export interface DocumentHit {
   extractionStatus: typeof schema.documents.$inferSelect.extractionStatus;
 }
 
-/** Belegsuche für die Befehlspalette (#617): Lieferant, Belegnummer, Dateiname und Betrag */
-export async function searchDocuments(query: string | { id: string }, limit = 5): Promise<{ hits: DocumentHit[]; more: boolean }> {
+/** Belege für die Befehlspalette (#617): Lieferant, Belegnummer, Dateiname und Betrag */
+function documentsPart(query: string | { id: string }, limit: number) {
+  const d = schema.documents;
   const pattern = typeof query === "string" ? likePattern(query) : "";
-  const queryCents = typeof query === "string" ? parseEuroSearchCents(query) : null;
-  const rows = await db
-    .select({
-      id: schema.documents.id,
-      supplierName: schema.documents.supplierName,
-      invoiceNumber: schema.documents.invoiceNumber,
-      filename: schema.documents.filename,
-      documentDate: schema.documents.documentDate,
-      gross: schema.documents.gross,
-      currency: schema.documents.currency,
-      status: schema.documents.status,
+  const queryRange = typeof query === "string" ? parseEuroSearchRange(query) : null;
+  const queryDate = typeof query === "string" ? parseDateSearch(query) : null;
+  return searchPart(
+    {
+      id: d.id,
+      supplierName: d.supplierName,
+      invoiceNumber: d.invoiceNumber,
+      filename: d.filename,
+      documentDate: d.documentDate,
+      gross: d.gross,
+      currency: d.currency,
+      status: d.status,
       cancelled: isNotNull(schema.documentCancellations.documentId).mapWith(Boolean),
-      extractionStatus: schema.documents.extractionStatus,
+      extractionStatus: d.extractionStatus,
       cancelledOn: schema.documentCancellations.date,
-      lockedAt: schema.documents.lockedAt,
-      uploadedAt: schema.documents.uploadedAt,
-    })
-    .from(schema.documents)
-    .leftJoin(schema.documentCancellations, eq(schema.documentCancellations.documentId, schema.documents.id))
-    .where(
-      typeof query === "string"
-        ? or(
-            ilike(schema.documents.supplierName, pattern),
-            ilike(schema.documents.invoiceNumber, pattern),
-            ilike(schema.documents.filename, pattern),
-            ...(queryCents !== null ? [eq(schema.documents.gross, queryCents)] : []),
-          )
-        : eq(schema.documents.id, query.id),
-    )
-    .orderBy(
-      ...(typeof query === "string" ? [numberRank(schema.documents.invoiceNumber, query)] : []),
-      desc(schema.documents.documentDate),
-      desc(schema.documents.uploadedAt),
-    )
-    .limit(limit + 1);
-  return { hits: rows.slice(0, limit), more: rows.length > limit };
+      lockedAt: d.lockedAt,
+      uploadedAt: d.uploadedAt,
+    },
+    (fields) =>
+      db
+        .select(fields)
+        .from(d)
+        .leftJoin(schema.documentCancellations, eq(schema.documentCancellations.documentId, d.id))
+        .where(
+          typeof query === "string"
+            ? or(
+                unaccentIlike(d.supplierName, pattern),
+                unaccentIlike(d.invoiceNumber, pattern),
+                unaccentIlike(d.filename, pattern),
+                ...(queryRange !== null ? [amountIn(d.gross, queryRange)] : []),
+                ...(queryDate !== null ? [eq(d.documentDate, queryDate)] : []),
+              )
+            : eq(d.id, query.id),
+        )
+        .orderBy(...(typeof query === "string" ? [numberRank(d.invoiceNumber, query)] : []), desc(d.documentDate), desc(d.uploadedAt))
+        .limit(limit + 1),
+    (rows): { hits: DocumentHit[]; more: boolean } => firstHits(rows, limit),
+  );
+}
+
+/** Belege und Dauerbelege für die Befehlspalette in einer Abfrage, nur die gefragten Gruppen */
+export function searchBelege(query: string, groups: readonly string[], limit = 5) {
+  return runSearchParts(
+    partsFor(groups, {
+      documents: () => documentsPart(query, limit),
+      recurringDocuments: () => recurringDocumentsPart(query, limit),
+    }),
+  );
+}
+
+/** Ein Beleg für „Zuletzt angesehen“ in der Befehlspalette */
+export async function searchDocuments(query: { id: string }, limit = 1): Promise<{ hits: DocumentHit[]; more: boolean }> {
+  return (await runSearchParts({ documents: documentsPart(query, limit) })).documents;
 }

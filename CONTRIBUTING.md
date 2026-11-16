@@ -10,9 +10,10 @@ unser [Verhaltenskodex](CODE_OF_CONDUCT.md).
 Neues Issue über die Formulare: [Issue anlegen](https://github.com/firsttris/haben/issues/new/choose). Bitte vorher
 im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) nachsehen, ob das Thema schon geplant ist, und
 unter [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), ob es ausgeschlossen ist. Wie ein gutes Issue
-aufgebaut ist, steht unter [Issues schreiben](https://haben.app/mitwirken.html#issues-schreiben).
+aufgebaut ist, steht unter [Issues schreiben](https://haben.app/mitwirken.html#issues-schreiben). Fragen und Austausch
+gehen auf [Discord](https://discord.gg/CT2GQytSYH).
 
-**Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, Screenshots oder Logs. Sicherheitslücken
+**Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, auf Discord, in Screenshots oder Logs. Sicherheitslücken
 bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 
 ## Etwas übernehmen
@@ -31,7 +32,7 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
 - Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, in einem hellen und einem dunklen
   Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ vor der ersten Änderung aufnehmen und als Anhang
   hochladen (ins Textfeld ziehen).
-- Titel: `Bereich: was sich ändert (#Issue)`, die Nummer nur, falls es ein Issue gibt. Commits gern als
+- Titel: `Bereich: was sich ändert (#Issue)`, die Nummer nur, falls es ein Issue gibt, und immer für jedes `Umgesetzt #…`. Commits gern als
   `fix(bereich): …`, `test: …` mit Beschreibung auf Deutsch. Ein Entwurf ist willkommen; die CI startet mit „Ready for
   review“. Was bei einem Pull Request nur mit Doku geprüft wird, steht unter
   [Branches, Titel und Commits](https://haben.app/mitwirken.html#branches-titel-und-commits).
@@ -41,16 +42,16 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
   [Mit KI-Werkzeugen](https://haben.app/mitwirken.html#mit-ki-werkzeugen).
 - Sprache: Deutsch für Kommentare, Doku, Commits und alles, was Nutzer sehen. Bezeichner bleiben Englisch.
-- Vor „Ready for review“ die **Selbstprüfung** (mit KI-Agenten Skill `beitrag-pruefen`): passt die Änderung zu
+- Vor „Ready for review“ die erforderliche **Selbstprüfung** (mit KI-Agenten Skill `beitrag-pruefen`): passt die Änderung zu
   Haben, ist sie gegen die Quellen geprüft, die einfachste Lösung, mit Tests und Doku? Das Ergebnis kommt als
   Kommentar in den Pull Request; ein Maintainer oder Collaborator prüft es nur nach
-  ([Beiträge annehmen](https://haben.app/mitwirken.html#beiträge-annehmen)).
+  (Voraussetzungen und Ausnahmen: [Beiträge annehmen](https://haben.app/mitwirken.html#beiträge-annehmen)).
 - Vor dem Merge ein unabhängiges **TDD-Review** (`tdd-review`) für Code, eine **Doku-Prüfung** (`doku-pruefen`) für Markdown,
   durch jemand anderen oder einen frischen Agenten. Im TDD-Review zählt ein Befund nur mit einem Test, der auf dem
   Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf
   ([Review](https://haben.app/mitwirken.html#review)). Bringst du es mit, reviewen wir nicht noch einmal.
-- Fehlt beides, machen wir alles selbst noch einmal, und weil jeder Merge über uns läuft, wartet dein Pull Request
-  dann länger. Gemergt wird von einem Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Ein Issue vorab
+- Fehlt eine erforderliche Prüfung oder ist sie älter als dein letzter Commit, prüfen wir den Pull Request nicht und bitten dich
+  darum. Gemergt wird von einem Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Ein Issue vorab
   spart dir Arbeit an etwas, das wir nicht übernehmen können.
 
 Die vollständigen Regeln (Codestil, Geld in Cent, GoBD-Sperren, Migrationen, Modulgrenzen) stehen unter

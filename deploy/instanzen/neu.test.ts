@@ -55,14 +55,16 @@ describe("neu", () => {
     expect(neu.slice(vorlage.length - 1)).toEqual(["COMPOSE_PROJECT_NAME=haben-firma1", "BACKUP_HOST=haben-firma1", ""]);
   });
 
-  it("startet den Proxy vor der Instanz, baut ihn für die nächste neu auf und nennt den Einrichtungscode", async () => {
+  it("startet den Proxy vor der Instanz, hängt ihn für die nächste ohne Neuaufbau ein und nennt den Einrichtungscode", async () => {
     const erste = await t.lauf("neu", "firma1", "firma1.example.de");
     expect(erste.stdout).toContain("Einrichtungscode für https://x/setup: abcd-efgh");
     expect(t.docker.aufrufe.filter((a) => a.includes(" up -d"))).toEqual(["proxy compose up -d", "firma1 compose up -d --wait db", "firma1 compose up -d"]);
-    t.docker.z.caddyLaeuft = true;
     await t.lauf("neu", "firma2", "firma2.example.de");
-    // Kein caddy reload mehr: Erst der Neuaufbau mit up -d hängt den Caddy in das Netz der neuen Instanz (#872)
-    expect(t.docker.aufrufe.filter((a) => a.startsWith("proxy compose") && !a.includes(" ps "))).toEqual(["proxy compose up -d", "proxy compose up -d"]);
+    // Der laufende Caddy entsteht nicht neu (#1013): Netz mit --no-recreate anlegen, network connect, caddy reload
+    expect(t.docker.aufrufe.filter((a) => a.startsWith("proxy compose") && a.includes(" up "))).toEqual([
+      "proxy compose up -d",
+      "proxy compose up -d --no-recreate",
+    ]);
   });
 
   it("lässt ein vorhandenes Verzeichnis samt .env Byte für Byte unangetastet", async () => {

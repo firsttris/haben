@@ -1,3 +1,4 @@
+import { invoicePaymentList } from "./invoice-payment-history.ts";
 import { UserError } from "../../errors.ts";
 import {
   addDays,
@@ -8,6 +9,7 @@ import {
   type DunningLevel,
   letterheadDesignInputSchema,
   MAX_DUNNING_FEE,
+  inCents,
 } from "@haben/core";
 import { asDraft, buildDunningDraftPdf, buildDunningPdf, type DraftPdf, type DunningDocument, dunningPdfData, dunningSheetText, texts } from "@haben/einvoice";
 import { desc, eq, inArray } from "drizzle-orm";
@@ -18,6 +20,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { type DocumentPreview, renderPreview, withDesign } from "./document-preview.ts";
 import { listInvoices, withCurrentLegalInfo } from "./invoices.ts";
+import { importedDunnings, type ImportedDunning } from "./mahnung-altbestand.ts";
 import { loadDesign, loadLetterhead, logoInfo, withCustomLayout } from "../stammdaten/index.ts";
 
 export class DunningError extends UserError {}
@@ -52,7 +55,11 @@ export async function dunningsFor(invoiceIds: string[]): Promise<Dunning[]> {
     .orderBy(desc(schema.dunnings.date), desc(schema.dunnings.createdAt));
 }
 
-const nextLevel = (last: Pick<Dunning, "level"> | undefined): DunningLevel => Math.min((last?.level ?? 0) + 1, 3) as DunningLevel;
+/** Bisher höchste Stufe, auch aus der bisherigen Buchhaltung (mahnung-altbestand.ts); 0 = noch nicht gemahnt */
+const previousLevel = (last: Pick<Dunning, "level"> | undefined, imported: ImportedDunning | undefined): number =>
+  Math.max(last?.level ?? 0, imported?.level ?? 0);
+const nextLevel = (last: Pick<Dunning, "level"> | undefined, imported?: ImportedDunning): DunningLevel =>
+  Math.min(previousLevel(last, imported) + 1, 3) as DunningLevel;
 
 /**
  * Überfällige Rechnungen mit ihrer letzten Mahnung. „Frist läuft“, solange die Frist der letzten
@@ -60,14 +67,18 @@ const nextLevel = (last: Pick<Dunning, "level"> | undefined): DunningLevel => Ma
  */
 export async function overdueInvoices(today: string) {
   const overdue = owed(await listInvoices(today)).filter((i) => i.listStatus === "ueberfaellig" && i.open > 0);
-  const dunnings = await dunningsFor(overdue.map((i) => i.id));
+  const ids = overdue.map((i) => i.id);
+  const [dunnings, imported] = await Promise.all([dunningsFor(ids), importedDunnings(ids)]);
   return overdue.map((invoice) => {
     const last = dunnings.find((d) => d.invoiceId === invoice.id);
+    const before = imported.get(invoice.id);
     return {
       ...invoice,
       lastDunning: last ?? null,
-      nextLevel: nextLevel(last),
-      waiting: Boolean(last && last.dueDate >= today),
+      // Angezeigt, solange Haben selbst noch nicht gemahnt hat; die Stufe zählt immer
+      importedDunning: last ? null : (before ?? null),
+      nextLevel: nextLevel(last, before),
+      waiting: Boolean(last ? last.dueDate >= today : before?.dueDate && before.dueDate >= today),
     };
   });
 }
@@ -75,6 +86,11 @@ export async function overdueInvoices(today: string) {
 /**
  * Was der Kunde je Rechnung schuldet: deren offener Betrag abzüglich der noch offenen Korrekturen (Gutschriften).
  * In der Rechnungsliste stehen beide getrennt, gemahnt wird nur der Rest.
+ *
+ * Die Minderung bleibt hier und wandert nicht in die Anzeige der Liste: Eine festgeschriebene Kundenkorrektur mindert
+ * die Forderung, auch bevor jemand sie mit der Rechnung verrechnet; verrechnet wird nur, was ohne Bankumsatz
+ * ausgeglichen werden soll. Eine verrechnete Korrektur steht selbst auf 0 und zählt deshalb nicht doppelt (#877,
+ * `rechnungen.review.test.ts` und `offene-posten.test.ts` halten das fest).
  */
 function owed(list: Awaited<ReturnType<typeof listInvoices>>) {
   return list.map((invoice) => {
@@ -109,8 +125,14 @@ export async function dunningDraft(invoiceId: string, today: string) {
   const found = await finalInvoice(invoiceId, today);
   if (!found) return null;
   const invoice = assertOpen(found);
-  const [{ dunning }, [last], design, logo] = await Promise.all([loadCompany(), dunningsFor([invoiceId]), loadDesign(), logoInfo()]);
-  const level = nextLevel(last);
+  const [{ dunning }, [last], imported, design, logo] = await Promise.all([
+    loadCompany(),
+    dunningsFor([invoiceId]),
+    importedDunnings([invoiceId]),
+    loadDesign(),
+    logoInfo(),
+  ]);
+  const level = nextLevel(last, imported.get(invoiceId));
   return {
     invoice: {
       id: invoice.id,
@@ -136,7 +158,7 @@ export const dunningInputSchema = z.object({
   invoiceId: z.uuid(),
   level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   dueDate: z.iso.date(),
-  fee: z.number().int().min(0).max(MAX_DUNNING_FEE),
+  fee: inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
   flatFee: z.boolean(),
   /** Verzugszinsen: Aufschlag auf den Basiszinssatz nach Kundenart, null = keine */
   interest: z.enum(["geschaeftskunde", "verbraucher"]).nullable(),
@@ -193,10 +215,12 @@ async function dunningDocument(
     .where(eq(schema.dunnings.invoiceId, invoice.id))
     .orderBy(desc(schema.dunnings.date), desc(schema.dunnings.createdAt))
     .limit(1);
-  const allowed = nextLevel(last);
+  const imported = (await importedDunnings([invoice.id], q)).get(invoice.id);
+  const allowed = nextLevel(last, imported);
   if (input.level < allowed) {
+    const previous = DUNNING_LEVELS[previousLevel(last, imported) as DunningLevel].label;
     throw new DunningError(
-      `Die Rechnung ist schon mit „${DUNNING_LEVELS[last!.level as DunningLevel].label}“ gemahnt. Als Nächstes folgt „${DUNNING_LEVELS[allowed].label}“.`,
+      `Die Rechnung ist schon mit „${previous}“ gemahnt${last ? "" : ` (in ${imported!.source === "sevdesk" ? "sevDesk" : imported!.source})`}. Als Nächstes folgt „${DUNNING_LEVELS[allowed].label}“.`,
     );
   }
   return {
@@ -207,7 +231,8 @@ async function dunningDocument(
     seller: withCurrentLegalInfo(invoice.seller, company),
     buyer: invoice.buyer,
     // Gemahnt wird erst nach der Fälligkeit, also nach jeder Skontofrist: dann gilt der volle Betrag
-    invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate, skontoExpired: invoice.skonto.length > 0 },
+    invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate, skontoExpired: invoice.skonto.length > 0, gross: invoice.gross },
+    payments: await invoicePaymentList(invoice.id, q),
     amounts: dunningAmounts({
       open,
       dueDate: invoice.dueDate,

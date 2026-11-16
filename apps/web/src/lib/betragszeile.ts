@@ -82,3 +82,35 @@ function vonBrutto(row: Betragszeile): Betragszeile {
   const { net, tax } = bruttoZerlegen(gross, row.taxRate);
   return { ...row, net: formatDecimal(net), tax: formatDecimal(tax), taxTouched: false };
 }
+
+/**
+ * Zeile aus gespeicherten Beträgen, beim erneuten Öffnen eines Belegs (#1099) oder Dauerbelegs (#1059). Gespeichert sind nur
+ * Netto und Steuer; daraus folgt, wie die Zeile entstand. Von Hand geändert ist eine Steuer nur, wenn sie weder aus dem Netto
+ * noch aus Netto plus Steuer als Brutto folgt; dann bleibt sie stehen, etwa ein Cent Abweichung laut Rechnung. Folgt sie nur
+ * aus dem Brutto (45,00 € zu 19 %: 37,82 € + 7,18 €, aus dem Netto wären es 7,19 €), war das Brutto die Eingabe: Ein anderer
+ * Satz behält es wie direkt nach der Eingabe (docs/belege.md, Beträge).
+ */
+export function betragszeileGespeichert(key: number, taxRate: BetragsSatz, net: Cents, tax: Cents, leer: boolean): Betragszeile {
+  const ausNetto = tax === taxOf(net, taxRate);
+  const ausBrutto = tax === taxIncluded(net + tax, taxRate);
+  return { ...betragszeileAus(key, taxRate, net, tax, leer, !ausNetto && !ausBrutto), basis: ausBrutto && !ausNetto ? "gross" : "net" };
+}
+
+/**
+ * Zeile eines gespeicherten Dauerbelegs (#1059). Ohne Steuerausweis ist die gespeicherte Steuer 0 keine Eingabe: Haben rechnet
+ * sie für den Fall vor, dass der Haken gesetzt wird. Mit Steuerausweis wie am Beleg (`betragszeileGespeichert`).
+ */
+export function betragszeileAusVorlage(key: number, a: { taxRate: BetragsSatz; net: Cents; tax: Cents }, steuerAusgewiesen: boolean): Betragszeile {
+  const leer = a.net === 0 && a.tax === 0;
+  if (!steuerAusgewiesen) return betragszeileAus(key, a.taxRate, a.net, taxOf(a.net, a.taxRate), leer, false);
+  return betragszeileGespeichert(key, a.taxRate, a.net, a.tax, leer);
+}
+
+/**
+ * Haken „Das Dokument weist die Umsatzsteuer gesondert aus“ am Dauerbeleg (#1059). Aus: Das Brutto ist nicht mehr zu sehen,
+ * Grundlage ist wieder das Netto (wie bei § 13b am Beleg). An: Nichts wird neu gerechnet; die verborgene Steuer folgt dem Netto
+ * ohnehin, und ein zuvor eingegebenes Brutto bleibt auf den Cent erhalten.
+ */
+export function steuerausweisUmschalten(row: Betragszeile, an: boolean): Betragszeile {
+  return an ? row : { ...row, basis: "net" };
+}

@@ -4,7 +4,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Buchungen ins Vorjahr nach einem Wechsel von Kontenrahmen oder Versteuerung zum Jahreswechsel.
- * Umstellen erlaubt Haben, solange im neuen Jahr nichts gebucht ist (settings-guard.ts). Was danach noch ins Vorjahr
+ * Umstellen erlaubt Haben, solange im neuen Jahr nichts gebucht ist (auswertungen/settings-guard.ts). Was danach noch ins Vorjahr
  * gebucht würde, hinge von der neuen Einstellung ab, das Vorjahr rechnet aber nach der alten.
  */
 

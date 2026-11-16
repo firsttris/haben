@@ -58,6 +58,7 @@
      --page-head-height misst usePageHeadHeight; der Wert hier gilt nur, bis die Seite im Browser läuft */
   --nav-height: 0px;
   --page-head-height: 80px;
+  --action-bar-height: 0px;
   /* Unterkante des stehenden Kopfs: darunter beginnen Unternavigation, Belegansicht, Tabellenköpfe und Sprungziele */
   --below-head: calc(var(--nav-height) + var(--page-head-height));
   --main-pad-x: 40px;
@@ -72,11 +73,14 @@
    weil die Felder ihre Schrift an vielen Stellen mit höherer Spezifität setzen; Häkchen und Datei-Wähler zoomen nicht. */
 @media (pointer: coarse) { input:not([type="checkbox"], [type="radio"], [type="file"]), select, textarea { font-size: 16px !important; } }
 @media (max-width: 860px) { :root { --nav-height: 60px; --main-pad-x: 16px; } }
-/* Sprünge zu Ankern und der Fokus beim Tabben landen unter dem Kopf, nicht dahinter (WCAG 2.4.11) */
-html { scroll-padding-top: calc(var(--below-head) + 16px); }
+/* Sprünge zu Ankern und der Fokus beim Tabben landen zwischen Kopf und Aktionsleiste, nicht dahinter (WCAG 2.4.11) */
+html { scroll-padding-top: calc(var(--below-head) + 16px); scroll-padding-bottom: calc(var(--action-bar-height, 0px) + 16px); }
 /* 400 % Zoom (WCAG 1.4.10: 320×256, ein Fenster mit 1280×720 ergibt 320×180): Der Kopf füllte das Fenster, er scrollt
    hier mit. Handys quer haben mindestens 320 px Höhe und behalten ihn. */
-@media (max-height: 300px) { :root { --below-head: var(--nav-height); } }
+@media (max-height: 300px) {
+  :root { --below-head: var(--nav-height); --viewer-height: calc(100dvh - var(--below-head) - 32px); }
+  html { scroll-padding-bottom: 16px; }
+}
 
 /* Farben: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald, ohne data-mode hell. */
 :root { color-scheme: light; }
@@ -192,7 +196,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .kuerzel kbd { padding: 0 5px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 4px; font-family: var(--sans); font-size: 12px; line-height: 1.4; color: inherit; }
 /* Suche / Befehlspalette (#617) oben in der Navigation */
 .nav .nav-search-btn { display: flex; flex: none; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; min-height: 36px; margin-bottom: 4px; padding: 0 10px 0 12px; border: 1px solid var(--nav-active); border-radius: 8px; background: color-mix(in srgb, var(--nav-active) 55%, transparent); color: var(--nav-ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-.nav .nav-search-btn:hover { color: var(--nav-ink-strong); border-color: color-mix(in srgb, var(--nav-ink) 45%, transparent); background: var(--nav-active); }
+/* Mit :not(:disabled) wie .btn:hover, sonst gewinnt dessen helle Fläche, weil sie später steht */
+.nav .nav-search-btn:hover:not(:disabled) { color: var(--nav-ink-strong); border-color: color-mix(in srgb, var(--nav-ink) 45%, transparent); background: var(--nav-active); }
 .nav .nav-search-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .nav-search-label { flex: 1; }
 .nav-kbd { color: var(--nav-ink); }
@@ -201,9 +206,20 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .nav-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .nav-kbd { display: none; }
 }
-/* Desktop-Knopf zum Ein- und Ausklappen der Seitenleiste; am Handy bleibt das Menü unverändert */
-.nav-collapse-btn { width: 100%; min-height: 36px; border: 0; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+/* Ausgeklappt steht das Kürzel rechts wie bei der Schnellsuche; eingeklappt im Hinweis */
+.nav-collapse-btn > .nav-collapse-label { flex: 1; }
+.nav-tip .kuerzel { margin-left: 8px; }
+/* Desktop-Knopf zum Ein- und Ausklappen der Seitenleiste, ganz unten; am Handy bleibt das Menü unverändert */
+.nav-collapse-btn { flex: none; width: 100%; min-height: 36px; margin-top: 8px; border: 0; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+/* Ausgeklappt und eingeklappt stehen beide Fassungen im DOM; CSS zeigt eine, damit der Server sie schon richtig liefert */
+.nav-variante { display: contents; }
+.nav-variante-rail { display: none; }
+/* Hinweis mit dem Namen eines Symbols, nur eingeklappt am Desktop (NavTip) */
+.nav-tip { display: none; }
 @media not all and (max-width: 860px) {
+  /* Die stehende Leiste bildet eine eigene Stapelebene; über dem Seitenkopf (.page-head, 10), damit Hinweise und
+     Flyouts, die aus ihr herausragen, nicht unter ihm liegen */
+  .nav { z-index: 11; }
   [data-nav="collapsed"] .nav { width: 64px; padding: 20px 12px; align-items: center; overflow-x: hidden; }
   [data-nav="collapsed"] .brand { width: 40px; padding: 4px 0 16px; justify-content: center; }
   [data-nav="collapsed"] .brand-text,
@@ -214,22 +230,31 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   [data-nav="collapsed"] .nav .nav-search-btn { width: 40px; height: 40px; min-height: 40px; padding: 0; justify-content: center; }
   [data-nav="collapsed"] .nav-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   [data-nav="collapsed"] .nav-kbd { display: none; }
-  /* Vor dem Hydrieren schon verbergen, damit nichts flackert, bis die Flyout-Knöpfe stehen */
-  [data-nav="collapsed"] .nav-group,
-  [data-nav="collapsed"] .firma-wechsler,
-  [data-nav="collapsed"] .nav-foot:not(.nav-foot-rail) { display: none; }
+  [data-nav="collapsed"] .nav-variante-voll { display: none; }
+  [data-nav="collapsed"] .nav-variante-rail { display: contents; }
+  /* Fest positioniert ohne top und left bleibt der Hinweis an seinem Platz im Fluss, mitten im 40px-Symbol, und rollt
+     mit; verschoben steht er wie das Flyout bei 68px, 4px neben der Leiste. Esc setzt data-nav-tip="aus" (routes/_app.tsx) */
+  /* Die Marke zeigt ihren eigenen, sonst verborgenen Text als Hinweis: „Haben“ und die Firma, in der man bucht (#504) */
+  :root[data-nav="collapsed"]:not([data-nav-tip="aus"]) :is(.nav-tip-anker:is(:hover, :focus-visible) > .nav-tip, .brand:is(:hover, :focus-visible) > .brand-text) { display: block; height: auto; overflow: visible; clip: auto; position: fixed; z-index: 41; width: max-content; max-width: 240px; padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); color: var(--nav-ink-strong); font-size: 13px; font-weight: 500; line-height: 20px; text-align: left; white-space: normal; overflow-wrap: anywhere; transform: translateX(calc(50% + 36px)); }
+  /* Unsichtbare Brücke über die 16px bis zum Symbol, damit der Zeiger den Hinweis erreicht (WCAG 1.4.13) */
+  :root[data-nav="collapsed"]:not([data-nav-tip="aus"]) :is(.nav-tip-anker:is(:hover, :focus-visible) > .nav-tip, .brand:is(:hover, :focus-visible) > .brand-text)::before { content: ""; position: absolute; top: 0; bottom: 0; right: 100%; width: 16px; }
 }
 .nav-rail-item { position: relative; display: flex; justify-content: center; }
 .nav-rail-link,
 .nav-rail-trigger { width: 40px; min-height: 40px; padding: 0; justify-content: center; border: 0; background: none; font: inherit; cursor: pointer; }
-.nav-rail-trigger[data-active="true"],
-.nav-rail-trigger[aria-expanded="true"] { background: var(--nav-active); color: var(--nav-ink-strong); }
+/* Aktiv mit der Fläche des aktiven Menüpunkts; offen nur mit halber Fläche, damit beides zu unterscheiden bleibt */
+.nav-rail-trigger[aria-expanded="true"] { background: color-mix(in srgb, var(--nav-active) 50%, transparent); color: var(--nav-ink-strong); }
+.nav-rail-trigger[data-active="true"] { background: var(--nav-active); color: var(--nav-ink-strong); }
 .nav-foot-rail { width: 100%; align-items: center; gap: 8px; padding-top: 12px; }
-.nav-flyout { position: fixed; z-index: 40; left: 72px; top: 12px; min-width: 224px; max-width: min(296px, calc(100vw - 88px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 8px; border-radius: 12px; background: var(--nav); border: 1px solid var(--nav-active); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); color: var(--nav-ink); display: flex; flex-direction: column; gap: 4px; }
-[data-mode="dark"] .nav-flyout { border-color: var(--line-strong); }
+/* Das Flyout ist die Gruppe der ausgeklappten Leiste in einem schwebenden Menü (wie .split-menu), 4px neben der Leiste: Kopf wie
+   .nav-group-label ohne Linie, Ecken 8px, Innenabstand 4px */
+.nav-flyout { position: fixed; z-index: 40; left: 68px; top: 12px; min-width: 224px; max-width: min(296px, calc(100vw - 84px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 4px; border-radius: 8px; background: var(--nav); border: 1px solid var(--nav-active); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); color: var(--nav-ink); display: flex; flex-direction: column; }
+[data-mode="dark"] .nav-flyout { border-color: var(--line); }
 .nav-flyout[hidden] { display: none; }
-.nav-flyout-title { padding: 8px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); font-size: 12px; font-weight: 600; color: var(--nav-ink-strong); }
-.nav-flyout-links { display: flex; flex-direction: column; gap: 4px; }
+.nav-flyout-title { padding-top: 8px; }
+/* Die eigene Firma unter „Firma wechseln“, in der Schrift der Menüpunkte */
+.nav-flyout-title[data-zusatz]::after { content: attr(data-zusatz); display: block; margin-top: 4px; color: var(--nav-ink-strong); font-size: 13px; overflow-wrap: anywhere; }
+.nav-flyout-links { display: flex; flex-direction: column; gap: 2px; }
 .nav-flyout .nav-link { min-height: 36px; }
 .nav-flyout .nav-theme { margin: 8px 4px 4px; }
 .nav-flyout .nav-version { margin: 8px 8px 4px; }
@@ -280,10 +305,13 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .nav-flyout { --firma-zeile: 36px; }
 .firma-wechsler { padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-active); }
 /* Ohne Fläche, sonst sähe die offene Zeile aus wie der aktive Menüpunkt */
-.firma-wechsler-knopf { justify-content: space-between; width: 100%; min-height: var(--firma-zeile); border: 0; background: none; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.firma-wechsler-knopf { justify-content: flex-start; width: 100%; min-height: var(--firma-zeile); border: 0; background: none; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 .firma-wechsler-knopf[aria-expanded="true"] { color: var(--nav-ink-strong); }
-.firma-wechsler-knopf > svg { flex-shrink: 0; transition: transform var(--fade); }
-.firma-wechsler-knopf[aria-expanded="true"] > svg { transform: rotate(180deg); }
+/* Gebäude, Text, Pfeil: der Text füllt die Zeile, nur der Pfeil (letztes Symbol) dreht sich beim Aufklappen */
+.firma-wechsler-text { flex: 1; min-width: 0; }
+.firma-wechsler-knopf > svg { flex-shrink: 0; }
+.firma-wechsler-knopf > svg:last-child { transition: transform var(--fade); }
+.firma-wechsler-knopf[aria-expanded="true"] > svg:last-child { transform: rotate(180deg); }
 /* Sechseinhalb Zeilen: die angeschnittene zeigt, dass die Liste weiterrollt */
 .firma-liste { max-height: calc(6.5 * var(--firma-zeile)); margin: 0; padding: 0; list-style: none; overflow-y: auto; }
 /* Lange Namen brechen um; der Fokusring liegt innen, weil die rollende Liste ihn außen abschnitte */
@@ -323,6 +351,21 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .page-head > .actions, .page-head > .stack > .actions { justify-content: flex-end; }
 }
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+/* Feste Aktionsleiste am unteren Fensterrand am Handy (< 861 px) für alle Aktionen (#396, Variante E) */
+.action-bar { position: sticky; bottom: 0; z-index: 10; margin: auto calc(-1 * var(--main-pad-x)) -20px; padding: 12px var(--main-pad-x) max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--ground); box-shadow: 0 -6px 12px -10px rgb(0 0 0 / 0.3); }
+@media (min-width: 861px) { .action-bar { display: none; } }
+/* Nur wo es eine Aktionsleiste gibt (Rechnungs- und Angebotseditor), wandern die Aktionen aus dem Kopf; der Mahnungseditor behält sie */
+@media (max-width: 860px) { .main > .page-head:has(~ .action-bar) > .actions { display: none; } }
+@media (max-height: 300px) { .action-bar { position: static; } }
+.more-actions-menu { position: relative; display: inline-flex; }
+.more-actions-menu .split-menu { min-width: min(240px, calc(100vw - 2 * var(--main-pad-x))); max-width: calc(100vw - 2 * var(--main-pad-x)); }
+.action-bar .more-actions-menu .split-menu { top: auto; bottom: calc(100% + 4px); left: 0; right: auto; }
+@media (max-width: 720px) {
+  .action-bar { padding-block: 8px max(8px, env(safe-area-inset-bottom)); }
+  .action-bar > .actions { gap: 8px; }
+  .action-bar .split-btn-solo { flex: 1 1 auto; display: flex; }
+  .action-bar .split-btn-solo > .btn { flex: 1 1 auto; justify-content: center; }
+}
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-actions > .banner { flex: 0 0 100%; }
 /* Knopfzeilen (#394, DESIGN.md): Hauptaktion zuletzt im Markup; im Dialog rechtsbündig, sonst an der Kante der Felder */
@@ -339,6 +382,8 @@ dialog .form-footer, .form-dialog > form > .actions:last-child { justify-content
 @media (max-width: 720px) {
   .grid-3, .grid-4, .grid-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .grid-3 > .card, .grid-4 > .card, .grid-5 > .card { padding: 16px; }
+  /* Bei ungerader Zahl stünde die letzte Karte allein in halber Breite; sie füllt die Zeile */
+  .grid-3 > :last-child:nth-child(odd), .grid-4 > :last-child:nth-child(odd), .grid-5 > :last-child:nth-child(odd) { grid-column: 1 / -1; }
   .grid-3 .kpi-value, .grid-4 .kpi-value, .grid-5 .kpi-value { font-size: 18px !important; white-space: normal; overflow-wrap: anywhere; }
 }
 .grid-main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
@@ -401,8 +446,26 @@ dialog .form-footer, .form-dialog > form > .actions:last-child { justify-content
 select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
 /* iOS Safari zeichnet Datumsfelder sonst als Menüknopf und überschreibt dabei min-height und box-sizing
    (WebKit, RenderThemeIOS: adjustMenuListButtonStyle, adjustInputElementButtonStyle); den Wert zentriert es (html.css) */
-.field input:is([type="date"], [type="month"]) { appearance: none; }
-.field input:is([type="date"], [type="month"])::-webkit-date-and-time-value { text-align: start; }
+.field input[type="date"] { appearance: none; }
+.field input[type="date"]::-webkit-date-and-time-value { text-align: start; }
+/* Monatsauswahl (MonthPicker.tsx): einheitlich in allen Browsern */
+.month-picker { position: relative; min-width: 0; }
+.month-picker-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); cursor: pointer; text-align: left; transition: border-color var(--fade), box-shadow var(--fade); }
+.month-picker-trigger svg { flex: none; color: var(--muted); }
+.month-picker-trigger[aria-invalid="true"] { border-color: var(--danger-ink); }
+.month-picker-trigger:disabled { opacity: 0.7; cursor: not-allowed; }
+.month-picker-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.month-picker-placeholder { color: var(--muted); }
+.month-picker-popup { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; width: max(100%, 256px); max-width: calc(100vw - 32px); padding: 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); display: flex; flex-direction: column; gap: 8px; }
+.month-picker-header { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.month-picker-year { font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.month-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.month-picker-cell { min-height: var(--control-h); padding: 0 8px; border: 0; border-radius: 6px; font: inherit; font-size: 13px; color: var(--ink); background: transparent; cursor: pointer; transition: background-color var(--fade), color var(--fade); }
+.month-picker-cell:hover:not(:disabled) { background: var(--accent-tint); }
+.month-picker-cell.active { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.month-picker-cell.active:hover:not(:disabled) { background: var(--accent-hover); }
+.month-picker-cell:disabled { opacity: 0.4; cursor: not-allowed; }
+.month-picker-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 /* Lange Texte wachsen mit dem Inhalt, wo der Browser das kann */
 textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .field input, select, textarea, .combobox input { transition: border-color var(--fade), box-shadow var(--fade); }
@@ -415,26 +478,64 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 /* Bereiche bleiben mit dem Kopf stehen, nur der Inhalt rechts scrollt; reicht das Fenster nicht, scrollt die Liste selbst;
    4px Innenabstand halten dort den Fokusrahmen der Links sichtbar */
 .settings-nav { position: sticky; top: calc(var(--below-head) + 16px); max-height: calc(100dvh - var(--below-head) - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding: 4px; margin: -4px; }
-.settings-nav-link { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; font-weight: 500; border-left: 3px solid transparent; }
-.settings-nav-link:hover { background: var(--accent-tint); color: var(--ink); }
-.settings-nav-link[aria-current="page"] { background: var(--surface); border-left-color: var(--accent); box-shadow: 0 0 0 1px var(--line); }
+/* Der aktive Bereich trägt nur eine Fläche in --accent-soft, wie die Navigation nur eine Fläche hat; kein Rand, kein Ring */
+.settings-nav-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; padding: 10px 12px; border-radius: 6px; color: var(--ink); text-decoration: none; font-weight: 500; }
+.settings-nav-label, .settings-nav-hint { grid-column: 1; }
+.settings-nav-link > svg { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--muted); display: none; }
+/* Nur mit Maus: am Touchgerät bliebe die Fläche nach dem Tippen stehen, auch nach dem Zurück */
+@media (hover: hover) { .settings-nav-link:hover { background: var(--hover); color: var(--ink); } }
+.settings-nav-link:is([aria-current="page"], [data-standard]) { background: var(--accent-soft); }
+.settings-nav-link:is([aria-current="page"], [data-standard]) .settings-nav-label { color: var(--accent-ink); }
 .settings-nav-hint { font-size: 12px; font-weight: 400; color: var(--muted); }
 .settings-content { max-width: 820px; min-width: 0; }
+/* Kopf: am Desktop „Einstellungen“, das Zurück und der Name des Bereichs nur am Handy */
+.settings-back, .settings-title-area { display: none; }
+.settings-back { align-items: center; gap: 2px; min-height: 44px; margin: -10px 0 -6px -6px; padding-right: 8px; color: var(--link); font-size: 15px; font-weight: 500; text-decoration: none; }
+.settings-back:hover { color: var(--link-hover); }
+/* Safari legt beim Antippen einen dunklen Rahmen um den Link; wie bei iOS wird stattdessen die Schrift blasser */
+.settings-back { -webkit-tap-highlight-color: transparent; }
+.settings-back:active { opacity: 0.5; }
 @media (max-width: 900px) {
+  /* Am Handy ist die Liste der Bereiche eine eigene Seite (/einstellungen ohne ?bereich), wie in den Einstellungen
+     von iOS und Android: ganze Zeilen mit Untertext und Pfeil. Im Bereich führt „‹ Einstellungen“ im Kopf zurück. */
   .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  /* Bereiche als eine Zeile direkt unter dem Kopf, die seitlich scrollt und mit ihm stehen bleibt; die Trennlinie
-     wandert vom Kopf unter diese Zeile, Kopf und Bereiche wirken als ein Block */
-  /* Die Zeile hat eine feste Höhe, damit scroll-padding-top sie mit einrechnen kann: sonst bliebe ein Feld mit Fokus
-     beim Rückwärts-Tabben unter ihr verdeckt (WCAG 2.4.11) */
-  :root { --settings-nav-row: 52px; }
-  html:has(.settings-nav) { scroll-padding-top: calc(var(--below-head) + var(--settings-nav-row) + 16px); }
-  .settings-nav { top: var(--below-head); z-index: 9; height: var(--settings-nav-row); max-height: none; overflow: auto hidden; flex-direction: row; flex-wrap: nowrap; gap: 6px; margin: -12px calc(-1 * var(--main-pad-x)) 0; padding: 8px var(--main-pad-x); background: var(--ground); scrollbar-width: none; }
-  .shell[data-scrolled] .page-head:has(+ .settings-layout) { box-shadow: none; }
-  .shell[data-scrolled] .settings-nav { box-shadow: 0 1px 0 var(--line), 0 6px 12px -10px rgb(0 0 0 / 0.3); }
-  .settings-nav-link { flex: 0 0 auto; padding: 8px 14px; border-left: 0; border: 1px solid var(--line); border-radius: 18px; font-size: 13px; line-height: 18px; background: var(--surface); }
-  .settings-nav-link[aria-current="page"] { background: var(--ink); color: var(--surface); box-shadow: none; }
-  .settings-nav-hint { display: none; }
+  .settings-layout[data-uebersicht] .settings-content, .settings-layout:not([data-uebersicht]) .settings-nav { display: none; }
+  .settings-nav { position: static; max-height: none; overflow: visible; gap: 0; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  .settings-nav-link { min-height: 60px; align-content: center; padding: 10px 12px 10px 16px; border-radius: 0; font-size: 15px; line-height: 20px; }
+  .settings-nav-link:first-child { border-radius: 11px 11px 0 0; }
+  .settings-nav-link:last-child { border-radius: 0 0 11px 11px; }
+  .settings-nav-link + .settings-nav-link { border-top: 1px solid var(--line-soft); }
+  .settings-nav-link > svg { display: block; }
+  .settings-nav-link:is([aria-current="page"], [data-standard]) { background: none; }
+  .settings-nav-link:is([aria-current="page"], [data-standard]) .settings-nav-label { color: inherit; }
+  .settings-nav-link:focus-visible { outline-offset: -2px; }
+  /* Statt des eckigen Grau von Safari färbt sich die angetippte Zeile in ihrer eigenen Form */
+  .settings-nav-link { -webkit-tap-highlight-color: transparent; }
+  .settings-nav-link:active { background: var(--hover); }
+  .settings-nav-hint { font-size: 13px; line-height: 18px; }
+  /* „Haben“ steht am Handy schon in der Leiste darüber */
+  .settings-head .eyebrow, .settings-head:not([data-uebersicht]) .settings-title { display: none; }
+  .settings-head:not([data-uebersicht]) .settings-back { display: inline-flex; }
+  .settings-head:not([data-uebersicht]) .settings-title-area { display: inline; }
 }
+
+/* Seitenwechsel bleiben ohne Bewegung; nur wo die Navigation einen Typ setzt, schiebt sich am Handy die neue Seite
+   herein (SettingsNav.tsx). Die Navigation fährt nicht mit. Wischen am Rand animiert der Browser selbst. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+/* Wo sich die Seiten beim Schieben nicht decken, zeigt Safari sonst Schwarz */
+::view-transition { background: var(--ground); }
+/* Auch die Seitenleiste zwischen 861 und 900 px, wo die Einstellungen schon als Liste laufen */
+.nav { view-transition-name: hauptleiste; }
+@media (max-width: 900px) and (prefers-reduced-motion: no-preference) {
+  :root:active-view-transition-type(einstellungen-vor)::view-transition-old(root) { animation: 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both seite-nach-links; }
+  :root:active-view-transition-type(einstellungen-vor)::view-transition-new(root) { animation: 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both seite-von-rechts; }
+  :root:active-view-transition-type(einstellungen-zurueck)::view-transition-old(root) { z-index: 1; animation: 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both seite-nach-rechts; }
+  :root:active-view-transition-type(einstellungen-zurueck)::view-transition-new(root) { animation: 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both seite-von-links; }
+}
+@keyframes seite-von-rechts { from { transform: translateX(100%); } }
+@keyframes seite-nach-rechts { to { transform: translateX(100%); } }
+@keyframes seite-nach-links { to { transform: translateX(-30%); opacity: 0.6; } }
+@keyframes seite-von-links { from { transform: translateX(-30%); opacity: 0.6; } }
 
 /* Formular in Abschnitten (Kontakt, Firmendaten, Persönliche Angaben) */
 .form-card { gap: 0; padding: 0; }
@@ -466,6 +567,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 /* Betragszeile: Satz, Netto, Steuer und Platz für den Entfernen-Knopf, auch wenn er fehlt, damit die Zeilen fluchten */
 .form-row.cols-amount { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 40px; align-items: end; }
 .form-row.cols-amount.ohne-steuer { grid-template-columns: 120px minmax(0, 1fr) 40px; }
+/* Dauerbeleg mit ausgewiesener Steuer: dazu das Brutto (#1059) */
+.form-row.cols-amount.mit-brutto { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 40px; }
 .dauerbeleg-summe { margin: 0; padding-top: 12px; border-top: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
 .field-group { display: flex; flex-direction: column; gap: 8px; }
 .field-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
@@ -483,7 +586,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   .form-row.cols-amount { grid-template-columns: 96px minmax(0, 1fr) 40px; }
   .form-row.cols-server { grid-template-columns: minmax(0, 1fr) 96px; }
   .form-row.cols-server > :last-child { grid-column: 1 / -1; }
-  .form-row.cols-amount > .field:nth-child(3) { grid-column: 2; }
+  .form-row.cols-amount.mit-brutto { grid-template-columns: 96px minmax(0, 1fr) 40px; }
+  .form-row.cols-amount > .field:nth-child(3), .form-row.cols-amount > .field:nth-child(4) { grid-column: 2; }
 }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
@@ -532,8 +636,10 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) { row-gap: 4px; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child { justify-self: end; min-width: 0; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) > :last-child .status { flex-direction: row; align-items: baseline; gap: 6px; min-height: 0; max-width: 100%; }
-  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-label { flex: none; }
-  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-detail { padding-left: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-label, .status-edge .status-label { flex: none; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-detail, .status-edge .status-detail { padding-left: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Karten (Status mit edge): das Wort an der rechten Kante, die Auskunft davor, auch wenn der Status in eine eigene Zeile umbricht */
+  .status-edge { flex-direction: row-reverse; align-items: baseline; gap: 6px; max-width: 100%; margin-left: auto; }
   /* Rechnungen und Angebote: die Auskunft vorn, das Wort an der rechten Kante unter dem Betrag. Die Fläche des dringenden
      Worts ragt nach rechts in den Rand, damit das Wort mit dem Betrag fluchtet; davor etwas mehr Luft zur Auskunft */
   :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status { flex-direction: row-reverse; }
@@ -547,6 +653,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .mail-mark { margin-left: 8px; vertical-align: middle; }
 /* Merkmal: Eigenschaft ohne Zustand (Lieferant, Rolle, archiviert) */
 .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); font-size: 12px; line-height: 1; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
+/* Merkmal und Status nebeneinander (etwa „inaktiv“ und „Fehler“): auf einer Mittellinie, statt nach Grundlinie und vertical-align versetzt */
+.status-gruppe { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; max-width: 100%; vertical-align: middle; }
 
 .banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
 .banner-info { background: var(--info-soft); color: var(--info-ink); }
@@ -573,6 +681,15 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .kz-row.total { border-top: 2px solid var(--ink); font-weight: 600; }
 .kz-num { font-family: var(--mono); font-size: 13px; color: var(--muted); }
 .kz-amount { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+/* Berichtigung in einem übernommenen Jahr: gesendet, Journal und Differenz je Kennzahl (JournalVergleich, #1200) */
+.journal-vergleich { flex-direction: column; }
+@media (max-width: 720px) { .journal-vergleich { padding: 12px; } .vergleich-table { font-size: 13px; } }
+.vergleich-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.vergleich-table th, .vergleich-table td { padding: 6px 0 6px 8px; border-top: 1px solid var(--line-soft); text-align: left; font-weight: 400; }
+.vergleich-table th:first-child { padding-left: 0; }
+.vergleich-table thead th { border-top: 0; font-size: 13px; }
+.vergleich-table .num { text-align: right; }
+.vergleich-table td.num { white-space: nowrap; }
 .kz-row input { width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; font-family: var(--mono); font-size: 14px; text-align: right; color: var(--ink); background-color: var(--surface); }
 .kz-row input:read-only { border-color: transparent; background: transparent; }
 .kz-row input[aria-invalid="true"] { border-color: var(--danger-ink); }
@@ -616,6 +733,8 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .article-cols { grid-template-columns: minmax(0, 1fr) 160px 60px auto; }
 .service-cols { grid-template-columns: 90px minmax(0, 1fr) 90px 90px 100px auto; }
 .proof-cols { grid-template-columns: 90px minmax(0, 1fr) 90px; }
+.own-account-cols { grid-template-columns: 70px minmax(0, 1fr) minmax(0, 0.8fr) auto; }
+.own-account-rename input { flex: 1 1 140px; min-width: 0; }
 .contact-cols { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) 200px; }
 .table-row .row-title { font-weight: 500; color: var(--accent-ink); }
 .plan-cols { grid-template-columns: 60px repeat(5, minmax(0, 1fr)) 80px; }
@@ -672,6 +791,10 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
   .service-cols > :nth-child(1), .service-cols > :nth-child(2), .service-cols > :nth-child(6) { grid-column: 1 / -1; }
   .service-cols > :nth-child(6) { justify-content: flex-start !important; }
   .table-row.head.service-cols { display: none; }
+  .own-account-cols { grid-template-columns: 70px minmax(0, 1fr); row-gap: 6px; }
+  .own-account-cols > :nth-child(3), .own-account-cols > :nth-child(4) { grid-column: 1 / -1; }
+  .own-account-cols > :nth-child(4) { justify-content: flex-start !important; }
+  .table-row.head.own-account-cols { display: none; }
   .contact-cols { grid-template-columns: minmax(0, 1fr) auto; padding-top: 8px; padding-bottom: 8px; }
   .contact-cols > :nth-child(2), .contact-cols > :nth-child(4) { display: none; }
   .table-row.head.contact-cols { display: none; }
@@ -684,11 +807,18 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 }
 
 /* Rechnungseditor */
-/* Belegansicht so hoch wie das Fenster unter dem stehenden Seitenkopf; bleibt beim Scrollen des Formulars darunter stehen */
-:root { --viewer-height: calc(100dvh - var(--below-head) - 32px); }
-.editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: calc(var(--below-head) + 16px); }
-.editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
+/* Belegansicht so hoch wie das Fenster unter dem stehenden Seitenkopf; neben dem Formular bleibt sie beim Scrollen stehen */
+:root { --viewer-height: calc(100dvh - var(--below-head) - var(--action-bar-height, 0px) - 32px); }
+.editor-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+/* Formular und Beleg nebeneinander ab 889 px Arbeitsfläche: Es zählt die Breite von .main, nicht die des Fensters, damit
+   die eingeklappte Seitenleiste (168 px schmaler) den Platz dafür schafft. Ausgeklappt ab 1201 px Fenster, eingeklappt ab
+   1033 px (Leiste 232 bzw. 64 px, dazu 2 × 40 px Rand). Die Containment-Regeln gelten nur auf diesen Seiten */
+.main:has(> .editor-grid) { container: arbeitsflaeche / inline-size; }
+/* Der Beleg bleibt nur neben dem Formular stehen; darüber deckte er beim Scrollen das Formular zu */
+@container arbeitsflaeche (min-width: 889px) {
+  .editor-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: calc(var(--below-head) + 16px); }
+}
 /* Vorschau der Belegeditoren (#357): angeheftet als zweite Spalte, sonst hat das Formular die volle Breite. Die
    Mindestbreiten sind FORM_MIN_WIDTH und PREVIEW_MIN_WIDTH aus lib/vorschau.ts; darunter bietet der Editor kein Anheften an */
 /* clip statt hidden: kein Scrollbereich, die Vorschau bleibt sticky; die Fahrt von rechts zieht die Seite nicht in die Breite */
@@ -759,10 +889,12 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
 .split-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .split-menu [role="menuitem"] > svg { flex-shrink: 0; color: var(--muted); }
 .split-menu-text { display: flex; flex-direction: column; gap: 2px; }
-/* Beleg prüfen: nebeneinander höchstens so hoch wie die Vorschau, das Formular scrollt, die Knöpfe bleiben sichtbar */
-@media (min-width: 1201px) {
-  /* Zeile auf die Gridhöhe begrenzen, sonst wächst sie mit dem Formular und es scrollt die Seite statt der Spalte */
-  .main:has(> .doc-editor) { box-sizing: border-box; height: 100dvh; }
+/* Beleg prüfen: nebeneinander höchstens so hoch wie die Vorschau, das Formular scrollt, die Knöpfe bleiben sichtbar.
+   Zeile auf die Gridhöhe begrenzen, sonst wächst sie mit dem Formular und es scrollt die Seite statt der Spalte. Die Höhe
+   gehört .main selbst, das nicht nach seiner eigenen Breite fragen kann: dieselben 889 px als Fensterbreite je Leiste */
+@media (min-width: 1201px) { .main:has(> .doc-editor) { box-sizing: border-box; height: 100dvh; } }
+@media (min-width: 1033px) { [data-nav="collapsed"] .main:has(> .doc-editor) { box-sizing: border-box; height: 100dvh; } }
+@container arbeitsflaeche (min-width: 889px) {
   .doc-editor { flex: 1 1 0; min-height: 520px; align-items: stretch; grid-template-rows: minmax(0, 1fr); }
   .doc-editor > .doc-preview, .doc-editor > .doc-image { position: static; height: 100%; max-height: none; min-height: 0; }
   .doc-editor > .stack { min-height: 0; overflow-y: auto; padding-right: 4px; }
@@ -891,8 +1023,9 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
   .document-split-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .document-split-row .field:first-child { grid-column: 1 / -1; }
 }
-/* Neben der Vorschau (ab 1201 px) ist das Formular bis 1400 px zu schmal für drei Betragsfelder: zwei Spalten wie am Handy */
-@media (min-width: 1201px) and (max-width: 1400px) {
+/* Neben dem Beleg ist das Formular bis 1088 px Arbeitsfläche (536 px je Spalte) zu schmal für drei Betragsfelder: zwei
+   Spalten wie am Handy. Ausgeklappt bis 1400 px Fenster, eingeklappt bis 1232 px */
+@container arbeitsflaeche (min-width: 889px) and (max-width: 1088px) {
   .amount-row.with-gross { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .amount-row.with-gross > .field:first-child { grid-column: 1; grid-row: 1; }
   .amount-row.with-gross > .icon-btn { grid-column: 2; grid-row: 1; justify-self: end; }
@@ -957,9 +1090,12 @@ fieldset.card > legend + * { clear: both; }
 .kpi-value { white-space: nowrap; }
 
 @media (max-width: 720px) {
-  /* Knopfzeilen: Knöpfe füllen die Zeile, die Hauptaktion steht rechts im Daumenbereich; kleine Knöpfe in Tabellen bleiben.
-     Vor dem Kopf, damit dessen gleich spezifische Regeln gewinnen: dort scrollt die Zeile seitlich statt zu schrumpfen */
-  .actions > .btn:not(.btn-sm) { flex: 1 1 auto; }
+  /* Knopfzeilen: Knöpfe füllen die Zeile, die Hauptaktion steht rechts im Daumenbereich; kleine Knöpfe in Tabellen (auch `.table`) und
+     Bannern bleiben. Vor dem Kopf, damit dessen gleich spezifische Regeln gewinnen: dort scrollt die Zeile seitlich statt
+     zu schrumpfen; :where hält die Ausnahme dafür ohne Spezifität. In einer Zeile mit Verlauf nimmt die Knopfzeile die
+     ganze Breite statt nur die ihrer Knöpfe */
+  .actions > .btn:not(:where(table, .table, .banner) .btn-sm) { flex: 1 1 auto; }
+  .history-row > .actions { width: 100%; }
   /* Kopf kompakt, weil er stehen bleibt: Titel oben, Aktionen darunter in einer Zeile, die seitlich scrollt, statt
      mehrerer Zeilen voller Knöpfe. Wenige Knöpfe füllen die Breite wie bisher. 4px Innenabstand halten den Fokusrahmen
      in der scrollenden Zeile sichtbar */
@@ -1075,6 +1211,13 @@ summary { cursor: pointer; min-height: 24px; }
 /* Auswahl des Kunden im Angebot und Vorlagen in den Einstellungen */
 .choice-group { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .choice-group > legend:not(.visually-hidden) { padding: 0; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+/* Fragen zur Einrichtung (#266): die Frage in Textfarbe, mehr Abstand zwischen den Fragen als zwischen den Antworten */
+.einrichtung-fragen { gap: 28px; }
+.frage { gap: 0; }
+.frage > legend:not(.visually-hidden) { font-size: 14px; font-weight: 500; color: var(--ink); }
+.frage > .field-hint { margin-bottom: 4px; }
+/* Einstellungen › Bereiche */
+.bereiche-liste { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
 @media (max-width: 720px) {
   .plan-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .plan-amount { grid-column: 1 / -1; }
@@ -1249,7 +1392,12 @@ summary { cursor: pointer; min-height: 24px; }
   .cmd-option-facts { grid-column: 2 / -1; display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; column-gap: 8px; }
   .cmd-option .amount { grid-column: 1; justify-self: start; }
   .cmd-option-status { grid-column: 2; }
-  .cmd-option-status .status { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 6px; }
+  /* Am Handy steht das Statuswort immer an der rechten Kante, die Auskunft davor (wie in den Listen, DESIGN.md › Status);
+     eine zu lange Auskunft endet mit „…“ */
+  .cmd-option-status { display: flex; justify-content: flex-end; min-width: 0; }
+  .cmd-option-status .status { flex-direction: row-reverse; align-items: baseline; gap: 6px; max-width: 100%; }
+  .cmd-option-status .status-label { flex: none; }
+  .cmd-option-status .status-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cmd-option-arrow { grid-column: 3; grid-row: 1; }
   .cmd-foot { display: none; }
 }

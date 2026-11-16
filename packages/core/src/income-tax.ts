@@ -153,9 +153,11 @@ export interface PrognoseVorsorge {
   basisrente?: Cents;
   /** Privat: Wahlleistungen über der Basisabsicherung; gehört zur übrigen Vorsorge */
   pkvWahlleistungen?: Cents;
+  /** Steuerfreier Arbeitgeberzuschuss zur gesetzlichen Krankenversicherung; mindert den abzugsfähigen Betrag */
+  agZuschussGkv?: Cents;
   /** Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung; mindert den abzugsfähigen Betrag */
   agZuschussKv?: Cents;
-  /** Steuerfreier Arbeitgeberzuschuss zur privaten Pflegeversicherung; mindert den abzugsfähigen Betrag */
+  /** Steuerfreier Arbeitgeberzuschuss zur Pflegeversicherung (Nr. 24 c); mindert den abzugsfähigen Betrag */
   agZuschussPv?: Cents;
 }
 
@@ -244,6 +246,7 @@ function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbei
             lstb(an, (b) => b.pvArbeitnehmer),
           ) -
           (v.pkvErstattung ?? 0) -
+          (v.agZuschussGkv ?? 0) -
           (v.agZuschussKv ?? 0) -
           (v.agZuschussPv ?? 0)
         );

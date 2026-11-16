@@ -3,6 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { INTERNAL_ERROR, userMessage } from "../../errors.ts";
 import { authenticateMcp, hasScope, recordMcpCall, type McpAccess } from "./tokens.ts";
 import { MCP_TOOLS, todayContext } from "./tools.ts";
+import { OAUTH_SCOPE, protectedResourceMetadataUrl } from "./oauth.ts";
 
 const INSTRUCTIONS = [
   "Haben ist die Buchhaltung und Steuer eines Selbständigen in Deutschland (EÜR, Umsatzsteuer-Voranmeldung, Rechnungen, Belege, Bank, ELSTER).",
@@ -87,7 +88,8 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
   const access = await authenticateMcp(request);
   if (!access)
     return jsonError(401, "Kein gültiges API-Token. In Haben unter Einstellungen → KI-Assistenten und API anlegen.", {
-      "WWW-Authenticate": 'Bearer realm="haben"',
+      // RFC 9728: Connectors wie claude.ai finden darüber den OAuth-Weg; lokale Clients nehmen weiter ein API-Token
+      "WWW-Authenticate": `Bearer realm="haben", resource_metadata="${protectedResourceMetadataUrl()}", scope="${OAUTH_SCOPE}"`,
     });
   // Ein Token nur für die REST-API (#199) bekäme hier keine Werkzeuge
   if (!MCP_TOOLS.some((tool) => hasScope(access.scopes, tool.scope)))

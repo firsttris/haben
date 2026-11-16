@@ -1,10 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import type { RefObject } from "react";
-import type { PaletteItem, PaletteSection } from "../lib/befehlspalette.ts";
+import type { PaletteItem, PaletteSection, PaletteStatus } from "../lib/befehlspalette.ts";
+import { TransactionStatus } from "./BankStatus.tsx";
 import { DocumentStatus } from "./DocumentStatus.tsx";
 import { Icon } from "./Icon.tsx";
 import { InvoiceStatus } from "./InvoiceStatus.tsx";
+import { PauschaleStatus } from "./PauschaleStatus.tsx";
 import { QuoteStatus } from "./QuoteStatus.tsx";
+import { RecurringDocumentStatus, RecurringInvoiceStatus } from "./RecurringStatus.tsx";
+import { OutcomeStatus } from "./Status.tsx";
+import { VatStatus } from "./umsatzsteuer/VatStatus.tsx";
 
 interface PaletteListboxProps {
   baseId: string;
@@ -43,7 +48,7 @@ export function PaletteListbox({ baseId, listboxId, sections, loading, query, sa
               {section.to && (
                 <Link
                   to={section.to}
-                  search={{ suche: query }}
+                  search={{ suche: query, ...section.moreSearch }}
                   aria-label={`Alle anzeigen: ${section.label}`}
                   onClick={(event) => {
                     if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) onNavigate();
@@ -79,7 +84,7 @@ export function PaletteListbox({ baseId, listboxId, sections, loading, query, sa
                       <span className="cmd-option-title">{highlightMatch(item.title, query)}</span>
                       {item.meta && <span className="cmd-option-meta">{highlightMatch(item.meta, query)}</span>}
                     </span>
-                    {item.kind !== "page" && (item.amount !== undefined || item.document) && (
+                    {item.kind !== "page" && (item.amount !== undefined || ("document" in item && item.document) || ("status" in item && item.status)) && (
                       <div className="cmd-option-facts">
                         {item.amount !== undefined && <span className="amount">{highlightMatch(item.amount, query)}</span>}
                         <span className="cmd-option-status">
@@ -115,8 +120,27 @@ function highlightMatch(text: string, query: string) {
 }
 
 function PaletteItemStatus({ item }: { item: Exclude<PaletteItem, { kind: "page" }> }) {
-  if (item.invoice) return <InvoiceStatus invoice={item.invoice} />;
-  if (item.quote) return <QuoteStatus quote={item.quote} />;
-  if (item.document) return <DocumentStatus {...item.document} />;
+  if ("invoice" in item && item.invoice) return <InvoiceStatus invoice={item.invoice} />;
+  if ("quote" in item && item.quote) return <QuoteStatus quote={item.quote} />;
+  if ("document" in item && item.document) return <DocumentStatus {...item.document} />;
+  if ("status" in item && item.status) return <LinkStatus status={item.status} />;
   return null;
+}
+
+/** Zustand der Treffer aus Stufe 2 mit der Komponente ihrer Seite (DESIGN.md › Status) */
+function LinkStatus({ status: s }: { status: PaletteStatus }) {
+  switch (s.kind) {
+    case "bank":
+      return <TransactionStatus tx={{ ...s.tx, suggestion: null }} />;
+    case "vat":
+      return <VatStatus current={s.vat} filedOn={s.vat.filedOn} dueDate={s.vat.dueDate} />;
+    case "zm":
+      return <OutcomeStatus ok={s.ok}>{s.ok ? "OK" : `Fehler ${s.code}`}</OutcomeStatus>;
+    case "recurringInvoice":
+      return <RecurringInvoiceStatus active={s.active} lastError={s.lastError} />;
+    case "recurringDocument":
+      return <RecurringDocumentStatus status={s.status} lastError={s.lastError} />;
+    case "pauschale":
+      return <PauschaleStatus storniert={s.storniert} />;
+  }
 }

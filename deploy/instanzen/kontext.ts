@@ -17,6 +17,8 @@ export interface Kontext {
   takt: number;
   /** Eine Zeile auf die Standardausgabe */
   aus: (zeile: string) => void;
+  /** Eine Zeile auf die Fehlerausgabe, etwa eine Warnung, die auch mit > /dev/null aus cron ankommen soll */
+  fehler: (zeile: string) => void;
 }
 
 /** Bricht den Befehl mit einer Meldung ab; der Einstieg schreibt sie als „Fehler: …“ und endet mit Exit-Code 1 */

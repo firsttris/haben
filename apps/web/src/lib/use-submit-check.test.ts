@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { datumFehler, monatFehler } from "./use-submit-check.ts";
+import { datumFehler, emailFehler, monatFehler } from "./use-submit-check.ts";
 
 describe("datumFehler", () => {
   it("meldet ein leeres Feld", () => {
@@ -31,5 +31,15 @@ describe("monatFehler", () => {
   it("nennt die erlaubten Monate mit Namen", () => {
     expect(monatFehler("2025-12", "2026-01", "2026-11")).toBe("Wähle einen Monat von Januar 2026 bis November 2026.");
     expect(monatFehler("2026-12", "2026-01", "2026-01")).toBe("Wähle Januar 2026.");
+  });
+});
+
+describe("emailFehler", () => {
+  it("lässt leer und gültige Adressen durch, auch mit Leerzeichen am Rand", () => {
+    for (const value of ["", "rechnung@mustermann.example", "  a@b.example "]) expect(emailFehler(value), value).toBeNull();
+  });
+
+  it("meldet, was der Server mit z.email() ablehnt", () => {
+    for (const value of ["rechnung", "a@b", "a b@c.example"]) expect(emailFehler(value), value).toContain("E-Mail-Adresse");
   });
 });

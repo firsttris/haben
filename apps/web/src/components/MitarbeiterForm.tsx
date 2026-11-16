@@ -1,4 +1,14 @@
-import { BESCHAEFTIGUNGSARTEN, formatDecimal, KONFESSIONEN, parseEuro, type Beschaeftigungsart, type Konfession } from "@haben/core";
+import {
+  amountError,
+  BESCHAEFTIGUNGSARTEN,
+  formatDecimal,
+  formatHundredths,
+  KONFESSIONEN,
+  parseEuro,
+  parsePercent,
+  type Beschaeftigungsart,
+  type Konfession,
+} from "@haben/core";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Field } from "./Field.tsx";
 
@@ -94,34 +104,40 @@ const STEUERKLASSEN = ["I", "II", "III", "IV", "V", "VI"];
 
 type Texte = Record<"monatsgehalt" | "zusatzbeitrag" | "pkvBasisbeitrag" | "pkvZuschuss" | "u1Satz" | "u2Satz" | "faktor" | "kinderfreibetraege", string>;
 
-function texte(w: MitarbeiterWerte): Texte {
+export function texte(w: MitarbeiterWerte): Texte {
   return {
     monatsgehalt: w.monatsgehalt ? formatDecimal(w.monatsgehalt) : "",
-    zusatzbeitrag: formatDecimal(w.zusatzbeitrag),
+    zusatzbeitrag: formatHundredths(w.zusatzbeitrag),
     pkvBasisbeitrag: formatDecimal(w.pkvBasisbeitrag),
     pkvZuschuss: formatDecimal(w.pkvZuschuss),
-    u1Satz: w.u1Satz === null ? "" : formatDecimal(w.u1Satz),
-    u2Satz: formatDecimal(w.u2Satz),
+    u1Satz: w.u1Satz === null ? "" : formatHundredths(w.u1Satz),
+    u2Satz: formatHundredths(w.u2Satz),
     faktor: alsZahl(w.faktor),
     kinderfreibetraege: alsZahl(w.kinderfreibetraege),
   };
 }
 
 /** Werte aus den Texten; die erste Beanstandung als Text */
-function auswerten(w: MitarbeiterWerte, t: Texte): MitarbeiterWerte | string {
-  const euro = (text: string, label: string, leerIstNull = true) => {
-    if (leerIstNull && text.trim() === "") return 0;
-    const n = parseEuro(text);
-    return n === null || n < 0 ? `${label}: kein gültiger Betrag.` : n;
-  };
+export function auswerten(w: MitarbeiterWerte, t: Texte): MitarbeiterWerte | string {
+  // Beträge in Cent (parseEuro und amountError wie jedes Betragsfeld), Sätze in Basispunkten (parsePercent wie jedes
+  // Prozentfeld); beide nicht negativ
+  const lesen =
+    (parse: (text: string) => number | null, meldung: string) =>
+    (text: string, label: string, leerIstNull = true) => {
+      if (leerIstNull && text.trim() === "") return 0;
+      const n = parse(text);
+      return n === null || n < 0 ? `${label}: ${meldung}` : n;
+    };
+  const euro = lesen(parseEuro, amountError());
+  const satz = lesen(parsePercent, "kein gültiger Satz in Prozent, etwa 1,7.");
   const werte = {
     monatsgehalt: euro(t.monatsgehalt, "Monatsgehalt", false),
-    zusatzbeitrag: euro(t.zusatzbeitrag, "Zusatzbeitrag"),
+    zusatzbeitrag: satz(t.zusatzbeitrag, "Zusatzbeitrag"),
     pkvBasisbeitrag: euro(t.pkvBasisbeitrag, "Beitrag zur privaten Basisabsicherung"),
     pkvZuschuss: euro(t.pkvZuschuss, "Zuschuss zur privaten Versicherung"),
-    u2Satz: euro(t.u2Satz, "Umlage U2"),
+    u2Satz: satz(t.u2Satz, "Umlage U2"),
     // Im Minijob nur die Teilnahme (Kästchen), die Sätze sind die der Minijob-Zentrale
-    u1Satz: w.art !== "beschaeftigt" ? w.u1Satz : t.u1Satz.trim() === "" ? null : euro(t.u1Satz, "Umlage U1"),
+    u1Satz: w.art !== "beschaeftigt" ? w.u1Satz : t.u1Satz.trim() === "" ? null : satz(t.u1Satz, "Umlage U1"),
     faktor: parseTausendstel(t.faktor) ?? "Faktor: eine Zahl wie 0,950.",
     kinderfreibetraege: parseTausendstel(t.kinderfreibetraege) ?? "Kinderfreibeträge: eine Zahl wie 0,5 oder 1.",
   };

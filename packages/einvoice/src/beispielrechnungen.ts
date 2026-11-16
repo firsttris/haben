@@ -29,6 +29,14 @@ export const BEISPIELRECHNUNGEN: Record<string, InvoiceDocument> = {
   "rechnung-19-zugferd": sampleDocument({ note: "Vielen Dank für die gute Zusammenarbeit." }),
   "rechnung-19-xr-cii": sampleDocument({ format: "xrechnung-cii" }),
   "rechnung-19-xr-ubl": sampleDocument({ format: "xrechnung-ubl" }),
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) =>
+      (["eBay", "bar"] as const).map((paidVia) => [
+        `bereits-bezahlt-${paidVia === "bar" ? "bar" : "dienst"}-${format}`,
+        { ...sampleDocument({ format }), paidPayment: { paidVia, paidOn: "2026-10-01" } },
+      ]),
+    ),
+  ),
   // Beschreibung der Position (BT-154) unter der Bezeichnung
   ...Object.fromEntries(
     (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).map((format) => {
@@ -90,10 +98,37 @@ export const BEISPIELRECHNUNGEN: Record<string, InvoiceDocument> = {
       { ...sampleDocument({ format }), seller: { ...sampleSeller, ustId: undefined } },
     ]),
   ),
+  // Unsere Lieferantennummer beim Kunden als Verkäuferkennung (BT-29, #711); ohne USt-IdNr. zusammen mit der Steuernummer
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => {
+      const buyer = { ...sampleBuyer, unsereLieferantennummer: "70815" };
+      return [
+        [`lieferantennummer-${format}`, sampleDocument({ format, buyer })],
+        [`lieferantennummer-nur-steuernummer-${format}`, { ...sampleDocument({ format, buyer }), seller: { ...sampleSeller, ustId: undefined } }],
+      ];
+    }),
+  ),
   ...Object.fromEntries(
     (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
       [`reverse-charge-${format}`, sampleDocument({ format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "reverse_charge" })],
+      // Eigene Einheiten (#748): Code aus der Position, auch der Rückfall C62
+      [
+        `eigene-einheiten-${format}`,
+        (() => {
+          const doc = sampleDocument({ format });
+          const eigene = [
+            { unit: "UE", unitCode: "C62" },
+            { unit: "m²", unitCode: "MTK" },
+            { unit: "lfm", unitCode: "LM" },
+          ];
+          return { ...doc, lines: doc.lines.map((line, i) => ({ ...line, ...eigene[i % eigene.length] })) };
+        })(),
+      ],
       [`drittland-${format}`, sampleDocument({ format, buyer: thirdCountryBuyer, lines: zeroRateLines, taxTreatment: "drittland" })],
+      [
+        `eu-sonstige-${format}`,
+        sampleDocument({ format, buyer: { ...euBuyer, name: "Eva Beispiel", ustId: undefined }, lines: zeroRateLines, taxTreatment: "eu_sonstige" }),
+      ],
       [`ig-lieferung-${format}`, sampleDocument({ format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "ig_lieferung" })],
       [
         `ig-lieferung-lieferdatum-${format}`,

@@ -8,5 +8,4 @@
 export { CsvImportError, csvImportOptionsSchema, previewCsvImport, runCsvImport, type CsvImportOptions, type CsvImportPreview } from "./csv-import.ts";
 export { runExternalImport, type ExternalImportResult } from "./external-import.ts";
 export { ExternalImportError, validateExternalImport } from "./external-validation.ts";
-export { externalSettlementLinks } from "./external-settlement-store.ts";
 export { externalImportSchema, type ExternalImport } from "./external-schema.ts";

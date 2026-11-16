@@ -11,12 +11,14 @@ import {
   sortSkonto,
   splitEmails,
   telefonProblem,
+  inCents,
 } from "@haben/core";
-import { and, asc, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { likePattern, numberRank } from "../../../lib/search.ts";
+import { likePattern, numberRank, unaccentIlike } from "../../../lib/search.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { firstHits, runSearchParts, searchPart } from "../../db/search-parts.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { takeCustomerNumber } from "./customer-numbers.ts";
 
@@ -71,6 +73,8 @@ export const contactSchema = z.object({
       .regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen"),
   ]),
   leitwegId: z.string().trim().max(46),
+  /** Unsere Lieferantennummer beim Kunden (#711), im XML Verkäuferkennung BT-29; fehlt = leer */
+  unsereLieferantennummer: z.string().trim().max(40).default(""),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
   /**
    * Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto, fehlt = unverändert.
@@ -91,7 +95,7 @@ export const contactSchema = z.object({
   debitorNr: personenkonto("debitor"),
   kreditorNr: personenkonto("kreditor"),
   /** Stundensatz in Cent für Leistungseinträge (#417); null = keiner, fehlt = unverändert */
-  hourlyRateCents: z.optional(z.nullable(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00))),
+  hourlyRateCents: z.optional(z.nullable(inCents(z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00)))),
 });
 
 export type ContactRole = "kunde" | "lieferant";
@@ -320,27 +324,36 @@ export interface ContactHit {
   isSupplier: boolean;
 }
 
-/** Schnelle Kontaktsuche für die Befehlspalette (#617): Name, Kunden- oder Lieferantennummer, ohne archivierte */
-export async function searchContacts(query: string | { id: string }, limit = 5): Promise<{ hits: ContactHit[]; more: boolean }> {
+/** Kontakte als Teil der gemeinsamen Abfrage der Stammdaten (#617): Name, Kunden- oder Lieferantennummer, ohne archivierte */
+export function contactsPart(query: string | { id: string }, limit = 5) {
   const contacts = schema.contacts;
-  const rows = await db
-    .select({
-      id: schema.contacts.id,
-      name: schema.contacts.name,
-      kundennummer: schema.contacts.kundennummer,
-      lieferantennummer: schema.contacts.lieferantennummer,
-      ort: schema.contacts.ort,
+  return searchPart(
+    {
+      id: contacts.id,
+      name: contacts.name,
+      kundennummer: contacts.kundennummer,
+      lieferantennummer: contacts.lieferantennummer,
+      ort: contacts.ort,
       isCustomer: contacts.isCustomer,
       isSupplier: contacts.isSupplier,
-    })
-    .from(schema.contacts)
-    .where(and(isNull(schema.contacts.archivedAt), typeof query === "string" ? contactSearchFilter(query) : eq(contacts.id, query.id)))
-    .orderBy(
-      ...(typeof query === "string" ? [sql`least(${numberRank(contacts.kundennummer, query)}, ${numberRank(contacts.lieferantennummer, query)})`] : []),
-      asc(contacts.name),
-    )
-    .limit(limit + 1);
-  return { hits: rows.slice(0, limit), more: rows.length > limit };
+    },
+    (fields) =>
+      db
+        .select(fields)
+        .from(contacts)
+        .where(and(isNull(contacts.archivedAt), typeof query === "string" ? contactSearchFilter(query) : eq(contacts.id, query.id)))
+        .orderBy(
+          ...(typeof query === "string" ? [sql`least(${numberRank(contacts.kundennummer, query)}, ${numberRank(contacts.lieferantennummer, query)})`] : []),
+          asc(contacts.name),
+        )
+        .limit(limit + 1),
+    (rows): { hits: ContactHit[]; more: boolean } => firstHits(rows, limit),
+  );
+}
+
+/** Ein Kontakt für „Zuletzt angesehen“ in der Befehlspalette */
+export async function searchContacts(query: string | { id: string }, limit = 5): Promise<{ hits: ContactHit[]; more: boolean }> {
+  return (await runSearchParts({ contacts: contactsPart(query, limit) })).contacts;
 }
 
 function contactSearchFilter(query: string, listFields = false) {
@@ -348,23 +361,23 @@ function contactSearchFilter(query: string, listFields = false) {
   const persons = schema.contactPersons;
   const pattern = likePattern(query);
   return or(
-    ilike(contacts.name, pattern),
-    ilike(contacts.kundennummer, pattern),
-    ilike(contacts.lieferantennummer, pattern),
-    ilike(contacts.email, pattern),
-    ilike(contacts.ort, pattern),
-    ilike(contacts.ustId, pattern),
-    ilike(sql`${contacts.debitorNr}::text`, pattern),
-    ilike(sql`${contacts.kreditorNr}::text`, pattern),
-    /^\d{4,}$/.test(query) ? ilike(contacts.iban, `%${query}`) : undefined,
+    unaccentIlike(contacts.name, pattern),
+    unaccentIlike(contacts.kundennummer, pattern),
+    unaccentIlike(contacts.lieferantennummer, pattern),
+    unaccentIlike(contacts.email, pattern),
+    unaccentIlike(contacts.ort, pattern),
+    unaccentIlike(contacts.ustId, pattern),
+    unaccentIlike(sql`${contacts.debitorNr}::text`, pattern),
+    unaccentIlike(sql`${contacts.kreditorNr}::text`, pattern),
+    /^\d{4,}$/.test(query) ? unaccentIlike(contacts.iban, `%${query}`) : undefined,
     inArray(
       contacts.id,
       db
         .select({ id: persons.contactId })
         .from(persons)
-        .where(or(ilike(persons.name, pattern), ilike(persons.email, pattern))),
+        .where(or(unaccentIlike(persons.name, pattern), unaccentIlike(persons.email, pattern))),
     ),
-    listFields ? ilike(contacts.telefon, pattern) : undefined,
-    listFields ? ilike(contacts.plz, pattern) : undefined,
+    listFields ? unaccentIlike(contacts.telefon, pattern) : undefined,
+    listFields ? unaccentIlike(contacts.plz, pattern) : undefined,
   );
 }

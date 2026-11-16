@@ -44,7 +44,7 @@ test("findet eine Rechnung über ihre Nummer und öffnet „Alle in Rechnungen a
   const input = dialog.getByRole("combobox");
   await input.fill(nummer);
 
-  const rechnungTreffer = dialog.getByRole("option", { name: new RegExp(nummer) });
+  const rechnungTreffer = dialog.getByRole("group", { name: "Rechnungen" }).getByRole("option", { name: new RegExp(nummer) });
   await expect(rechnungTreffer.locator(".status-detail")).toHaveText(statusDetail ?? "");
   const alle = dialog.getByRole("link", { name: "Alle anzeigen: Rechnungen" });
   await expect(alle).toBeVisible();
@@ -93,4 +93,20 @@ test("Schnellsuche ist am Handy neben dem geschlossenen Menü erreichbar", async
   await dialog.getByRole("button", { name: "Abbrechen" }).click();
   await expect(dialog).toBeHidden();
   await expect(search).toBeFocused();
+});
+
+test("/ öffnet die Schnellsuche, außer der Fokus steht in einem Eingabefeld", async ({ page }) => {
+  await page.goto("/rechnungen", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+  const listSearch = page.getByLabel("Rechnungen durchsuchen");
+  await listSearch.focus();
+  await page.keyboard.press("/");
+  await expect(dialog).toBeHidden();
+
+  await page.locator("main").click();
+  await page.keyboard.press("/");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("combobox")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
 });

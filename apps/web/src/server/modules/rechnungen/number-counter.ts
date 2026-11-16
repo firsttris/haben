@@ -1,6 +1,6 @@
-import { counterCircle, formatDocumentNumber } from "@haben/core";
-import { eq, sql } from "drizzle-orm";
-import { schema, type Tx } from "../../db/index.ts";
+import { counterCircle, formatDocumentNumber, type FinalizedCircleRef } from "@haben/core";
+import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 
 /*
@@ -113,4 +113,25 @@ export async function startRunning(tx: Tx, kind: NumberKind): Promise<void> {
     .insert(counter)
     .values({ year: 0, last: latest?.last ?? 0 })
     .onConflictDoUpdate({ target: counter.year, set: { last: sql`excluded.last` }, setWhere: sql`${counter.last} < excluded.last` });
+}
+
+/** Zuletzt festgeschriebene Rechnung je Nummernkreis (`number_year`), für die Datumsprüfung beim Festschreiben (#713) */
+export async function lastFinalizedByCircle(q: Db | Tx = db): Promise<Record<number, FinalizedCircleRef>> {
+  const rows = await q
+    .selectDistinctOn([schema.invoices.numberYear], {
+      numberYear: schema.invoices.numberYear,
+      number: schema.invoices.number,
+      issueDate: schema.invoices.issueDate,
+    })
+    .from(schema.invoices)
+    .where(
+      and(
+        eq(schema.invoices.status, "final"),
+        isNotNull(schema.invoices.numberYear),
+        isNotNull(schema.invoices.numberCounter),
+        isNotNull(schema.invoices.number),
+      ),
+    )
+    .orderBy(asc(schema.invoices.numberYear), desc(schema.invoices.numberCounter));
+  return Object.fromEntries(rows.map((r) => [r.numberYear!, { number: r.number!, issueDate: r.issueDate }]));
 }

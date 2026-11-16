@@ -18,7 +18,7 @@ import { documentQuerySchema, documentUploadSchema, type documentSchema, type do
  * Haben, auf die Seite zeigt `url` in jeder Antwort.
  */
 
-type ListRow = Omit<Awaited<ReturnType<typeof listDocuments>>[number], "splitCount">;
+type ListRow = Omit<Awaited<ReturnType<typeof listDocuments>>[number], "splitCount" | "ownAccount">;
 type Loaded = NonNullable<Awaited<ReturnType<typeof getDocument>>> & Awaited<ReturnType<typeof documentCancellation>>;
 
 const DOCUMENT_NOT_FOUND = "Beleg nicht gefunden.";
@@ -62,7 +62,9 @@ function documentOut({ document, amounts, splits, cancellation, reentryId }: Loa
     note: document.note,
     net: document.net,
     tax: document.tax,
-    amounts: amounts.map(({ taxRate, net, tax }) => ({ taxRate, net, tax })),
+    vorsteuerAnteil: document.vorsteuerAnteil,
+    vorsteuerAbzug: document.vorsteuerAbzug,
+    amounts: amounts.map(({ taxRate, net, tax, vorsteuerAnteil }) => ({ taxRate, net, tax, vorsteuerAnteil })),
     issues: document.lockedAt ? [] : bookingIssues(document, amounts, request.today, splits),
     replacedById: reentryId,
     replacesId: document.replacesDocumentId,

@@ -7,7 +7,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * docs/sevdesk.md: Eine Gutschrift mit `bookingCategory` ACCOUNTING_TYPE folgt dem Konto, das in sevDesk gewählt ist (#472).
- * Mit Aufwandskonto bucht sevDesk wie Honorar (DATEV: Soll 3100, BU 9), mit Erlöskonto als Erlösminderung (Soll 8200, BU 3).
+ * Mit Aufwandskonto bucht sevDesk wie Honorar auf das gewählte Konto (DATEV: BU 9), mit Erlöskonto als Erlösminderung (Soll 8200, BU 3).
  * Die Art kommt zur Laufzeit aus der gespeicherten Antwort von GET /AccountingType/{id}: skr03 nach SKR03, skr04 nach SKR04.
  * Beträge erfunden, so gespeichert wie der Abruf sie speichert.
  */
@@ -260,7 +260,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften auf Buchungskonto nach K
 
     it("ordnet jede Kontonummer wie datevAccountKind ein", async () => {
       const { datevAccountKind } = await import("@haben/import");
-      const { accountingTypeNumberKind } = await import("./sevdesk-kontoart.ts");
+      const { accountingTypeNumberKind } = await import("../auswertungen/altbestand-kontoart.ts");
       const numbers = [
         "2999",
         "3000",

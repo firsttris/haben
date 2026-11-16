@@ -1,4 +1,4 @@
-import type { Cents, UnitLabel } from "@haben/core";
+import type { BasisPoints, Cents } from "@haben/core";
 import { type ColumnMapping, type ImportField, rowReader } from "./mapping.ts";
 import { duplicateKey, type RowCandidate } from "./plan.ts";
 import type { CsvTable } from "./read.ts";
@@ -57,7 +57,7 @@ export interface ArticleRow {
   number: string;
   description: string;
   detail: string;
-  unit: UnitLabel;
+  unit: string;
   unitPrice: Cents;
   taxRate: 0 | 700 | 1900;
   priceIncludesTax: boolean;
@@ -65,13 +65,13 @@ export interface ArticleRow {
 }
 
 /** Brutto aus Netto, kaufmännisch gerundet */
-const grossOf = (net: Cents, rate: number) => Math.round((net * (10_000 + rate)) / 10_000);
+const grossOf = (net: Cents, rate: BasisPoints) => Math.round((net * (10_000 + rate)) / 10_000);
 
 /**
  * Preis: Nettopreis, sonst Bruttopreis (Artikel mit Endpreis). Stehen beide da wie im Export von Lexware Office, gilt
  * der Nettopreis, und der Bruttopreis muss auf den Cent dazu passen; sonst wäre unklar, welcher stimmt.
  */
-function price(net: string, gross: string, rate: number | null): { unitPrice: Cents; priceIncludesTax: boolean } | string {
+function price(net: string, gross: string, rate: BasisPoints | null): { unitPrice: Cents; priceIncludesTax: boolean } | string {
   const parsedNet = net ? parseImportAmount(net, "Nettopreis") : null;
   const parsedGross = gross ? parseImportAmount(gross, "Bruttopreis") : null;
   if (parsedNet && !parsedNet.ok) return parsedNet.error;
@@ -86,7 +86,8 @@ function price(net: string, gross: string, rate: number | null): { unitPrice: Ce
   return "Preis fehlt (Netto- oder Bruttopreis)";
 }
 
-export function articleCandidates(table: CsvTable, mapping: ColumnMapping): RowCandidate<ArticleRow>[] {
+/** units: Bezeichnungen der eigenen Einheiten (#748), damit auch „UE“ oder „m²“ erkannt werden */
+export function articleCandidates(table: CsvTable, mapping: ColumnMapping, units: readonly string[] = []): RowCandidate<ArticleRow>[] {
   return table.rows.map((row) => {
     const read = rowReader(row, mapping, ARTICLE_FIELDS, table.header.length);
     const { errors } = read;
@@ -95,7 +96,7 @@ export function articleCandidates(table: CsvTable, mapping: ColumnMapping): RowC
     const detail = read.text("detail");
     const note = read.text("note");
     if (!description) errors.push("Bezeichnung fehlt");
-    const unit = parseImportUnit(read.raw("unit"));
+    const unit = parseImportUnit(read.raw("unit"), units);
     if (!unit.ok) errors.push(unit.error);
     // Ohne Angabe kein stiller Standard: Kleinunternehmer brauchen 0 %, alle anderen meist 19 %
     const rawRate = read.raw("taxRate");

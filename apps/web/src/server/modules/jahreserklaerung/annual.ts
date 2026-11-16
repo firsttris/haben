@@ -1,6 +1,9 @@
+import { kleinunternehmerAbzuege } from "./euer-ku.ts";
 import { fehlendeMonate } from "./fehlende-voranmeldungen.ts";
+import { vorauszahlungssoll, zuletztGesendet } from "./vorauszahlungen.ts";
 import {
   ACCOUNTS,
+  arbeitszimmerPauschale,
   taxOf,
   toElsterSteuernummer,
   toWholeEuros,
@@ -15,7 +18,6 @@ import {
   isKapitalgesellschaft,
   monthsOfPeriod,
   periodKey,
-  sondervorauszahlungFor,
   STEUER_KONTEN,
   type Kontenrahmen,
   type VatFrequencySetting,
@@ -55,7 +57,7 @@ import {
   zehnTageKennzeichen,
   type ZehnTageKennzeichen,
 } from "../auswertungen/index.ts";
-import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
+import { computeVatFigures, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { kz48Einordnen, type Kz48Gesperrt } from "./kz48.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
@@ -70,6 +72,8 @@ export interface Issue {
   tone: "fehler" | "hinweis";
   text: string;
   link?: "/einstellungen" | "/anlagen" | "/umsatzsteuer" | "/bank" | "/pauschalen";
+  /** Bereich der Einstellungen für den Link; am Handy zeigt /einstellungen ohne Bereich nur die Liste */
+  bereich?: "firma" | "persoenlich";
   /** Zeitraum der Umsatzsteuer für den Link („2025-Q4“); ohne Angabe leitet /umsatzsteuer auf den laufenden Zeitraum um */
   zeitraum?: string;
 }
@@ -122,13 +126,7 @@ export async function ustYear(year: number): Promise<UstYear> {
   const kz48 = kz48Einordnen(months, year);
 
   // Je Monat zählt die zuletzt gesendete Anmeldung (bei Berichtigungen die berichtigte)
-  const sent = await db
-    .select({ month: schema.vatReturns.month, kz83: schema.vatReturns.kz83, sentAt: schema.vatReturns.sentAt })
-    .from(schema.vatReturns)
-    .where(and(eq(schema.vatReturns.year, year), eq(schema.vatReturns.status, "sent")))
-    .orderBy(desc(schema.vatReturns.sentAt));
-  const latest = new Map<number, Cents>();
-  for (const row of sent) if (!latest.has(row.month)) latest.set(row.month, row.kz83);
+  const latest = await zuletztGesendet(year);
   // Ein gesendetes Quartal deckt seine drei Monate; befreite Monate fehlen nicht
   const covered = new Set([...latest.keys()].flatMap((month) => monthsOfPeriod({ year, month }).map((m) => m.month)));
   const frequencies = await loadFrequencies();
@@ -139,8 +137,7 @@ export async function ustYear(year: number): Promise<UstYear> {
     base7,
     tax7: taxOf(base7, 700),
     vorsteuer: total("kz66"),
-    // Vorauszahlungssoll einschließlich der Sondervorauszahlung: Um sie ist die Voranmeldung für Dezember gemindert (Kz 39)
-    vorauszahlungen: [...latest.values()].reduce((s, v) => s + v, 0) + sondervorauszahlungFor(await loadDauerfrist(), year),
+    vorauszahlungen: await vorauszahlungssoll(year, latest),
     // Auch hier Bemessungsgrundlagen in vollen Euro; die Steuerbeträge bleiben centgenau
     kz21: toWholeEuros(total("kz21")),
     kz45: toWholeEuros(total("kz45")),
@@ -204,7 +201,7 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
   if (!vermerkt && ustErklaerungLeer(data.figures) && data.kz48Gesperrt.length === 0) {
     issues.push({ tone: "fehler", text: "Keine Umsätze und keine Vorsteuer: eine Nullerklärung geht über das ELSTER-Portal." });
   }
-  if (data.missingMonths.length > 0 && !kleinunternehmer) {
+  if (data.missingMonths.length > 0 && !kleinunternehmer && !vermerkt) {
     issues.push({
       tone: "hinweis",
       text: `${data.missingMonths.length === 12 ? "Für keinen Monat gibt es" : `Für ${data.missingMonths.length} Monat${data.missingMonths.length === 1 ? "" : "e"} fehlt`} eine in Haben gesendete Voranmeldung. Als Vorauszahlungssoll zählen nur diese; Voranmeldungen aus einem anderen Programm fehlen darin.`,
@@ -394,6 +391,8 @@ export async function euerYear(year: number): Promise<EuerYear> {
   ]);
   // Ein negativer Saldo zwischen Zeile 58 und Zeile 18 wird umgegliedert, damit Anzeige und Übermittlung gleich sind (#933)
   const roheFiguren: EuerFigures = { ...euerFigures(euer), ...movements };
+  const kuAbzuege = await kleinunternehmerAbzuege(year);
+  if (kuAbzuege !== undefined) roheFiguren.kleinunternehmerAbzuege = kuAbzuege;
   const { figures, umgliederungen: ustUmgliederung } = euerUstUmgliedern(roheFiguren, year);
   const anlagen: AveuerAnlage[] = assets
     .filter((a) => a.year && a.method !== "gwg")
@@ -432,7 +431,7 @@ export function euerIssues(company: Company, data: EuerYear, { vermerkt = false 
   // Rückfall: bliebe danach ein negativer Betrag übrig, lehnt ERiC beim Senden ab (#708)
   for (const text of euerVorzeichenMeldungen(data.figures, data.year)) issues.push({ tone: "fehler", text, link: "/bank" });
   if (!company.einkunftsart || !company.taetigkeit.trim()) {
-    issues.push({ tone: "fehler", text: "Für die Anlage EÜR fehlen Einkunftsart und Art des Betriebs.", link: "/einstellungen" });
+    issues.push({ tone: "fehler", text: "Für die Anlage EÜR fehlen Einkunftsart und Art des Betriebs.", link: "/einstellungen", bereich: "firma" });
   }
   if (data.pendingAssets > 0) {
     issues.push({
@@ -514,17 +513,63 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
   };
 }
 
+/**
+ * Der ESt-Vermerk trägt keinen Betrag (#1073). Dann gibt es nichts zu vergleichen, und die Seite sagt das
+ * auch: Ohne diesen Satz stünde Habens Schätzung allein da und sähe aus wie das Ergebnis der Veranlagung.
+ * Ist die Einkommensteuer laut Steuerprogramm als Zeile erklärt, vergleicht estAbweichungHinweis mit ihr (#1083);
+ * dann entfällt dieser Satz, sonst stünde „kein Vergleich“ neben dem Vergleich.
+ */
+export function ohneBetragHinweis(vermerk: { amount: number | null } | null, zeilen: Record<string, number> = {}): Issue[] {
+  if (!vermerk || vermerk.amount !== null || zeilen.festgesetzteSteuer !== undefined) return [];
+  return [
+    {
+      tone: "hinweis",
+      text: "Die Einkommensteuererklärung ist ohne Betrag vermerkt. Das Ergebnis steht erst mit dem Steuerbescheid fest, deshalb steht hier kein Vergleich.",
+    },
+  ];
+}
+
+/**
+ * Die festgesetzte Steuer aus dem Vordruck gegen Habens Schätzung (#1083). Haben kennt Vorsorge und Kapitalerträge
+ * nur so weit, wie sie eingetragen sind; der Unterschied soll auf der Seite stehen und nicht im Kopf des Betreibers.
+ */
+function estAbweichungHinweis(zeilen: Record<string, number>, est: EstYear): Issue[] {
+  const erklaert = zeilen.festgesetzteSteuer;
+  if (erklaert === undefined) return [];
+  // Die Zeile ist die Einkommensteuer allein; Soli und Kirchensteuer setzt der Bescheid gesondert fest (#1083, 52dad78d)
+  const gerechnet = est.prognose.einkommensteuer;
+  if (gerechnet === erklaert) return [];
+  const abweichung = gerechnet - erklaert;
+  return [
+    {
+      tone: "hinweis",
+      text: `Einkommensteuer: Haben rechnet ${formatEuro(gerechnet)}, im Vordruck stehen ${formatEuro(erklaert)}, also ${formatEuro(Math.abs(abweichung))} ${abweichung > 0 ? "mehr" : "weniger"} bei Haben. Was nicht erfasst ist, etwa Zuschüsse, erklärt den Unterschied.`,
+    },
+  ];
+}
+
 function estIssues(company: Company, euer: EuerYear): Issue[] {
   const issues: Issue[] = [];
   const t = company.taxpayer;
-  if (!t.a) issues.push({ tone: "fehler", text: "Persönliche Angaben (Steuer-ID, Name, Geburtsdatum) fehlen.", link: "/einstellungen" });
+  if (!t.a)
+    issues.push({ tone: "fehler", text: "Persönliche Angaben (Steuer-ID, Name, Geburtsdatum) fehlen.", link: "/einstellungen", bereich: "persoenlich" });
   if (t.veranlagung === "zusammen" && (!t.b || !t.verheiratetSeit)) {
-    issues.push({ tone: "fehler", text: "Für die Zusammenveranlagung fehlen Angaben zum Ehegatten oder das Heiratsdatum.", link: "/einstellungen" });
+    issues.push({
+      tone: "fehler",
+      text: "Für die Zusammenveranlagung fehlen Angaben zum Ehegatten oder das Heiratsdatum.",
+      link: "/einstellungen",
+      bereich: "persoenlich",
+    });
   }
   if (company.strasse && !splitStrasse(company.strasse))
-    issues.push({ tone: "fehler", text: "In der Anschrift fehlt die Hausnummer.", link: "/einstellungen" });
+    issues.push({ tone: "fehler", text: "In der Anschrift fehlt die Hausnummer.", link: "/einstellungen", bereich: "firma" });
   if (!company.einkunftsart) {
-    issues.push({ tone: "fehler", text: "Einkunftsart fehlt; ohne sie weiß Haben nicht, ob der Gewinn in Anlage G oder S gehört.", link: "/einstellungen" });
+    issues.push({
+      tone: "fehler",
+      text: "Einkunftsart fehlt; ohne sie weiß Haben nicht, ob der Gewinn in Anlage G oder S gehört.",
+      link: "/einstellungen",
+      bereich: "firma",
+    });
   }
   if (euer.pendingAssets > 0) {
     issues.push({ tone: "fehler", text: "AfA bzw. Privatnutzung des Jahres ist noch nicht gebucht; der Gewinn wäre falsch.", link: "/anlagen" });
@@ -563,14 +608,34 @@ async function arbeitszimmerIssues(year: number, est: EstYear): Promise<Issue[]>
   const personen = [est.angaben.arbeitnehmer?.a, est.zusammen ? est.angaben.arbeitnehmer?.b : undefined].filter((p): p is Person =>
     Boolean(p && p.bescheinigungen.length > 0),
   );
-  if (!personen.some((p) => (p.werbungskosten.arbeitszimmer ?? 0) > 0)) return [];
+  const mitZimmer = personen.filter((p) => (p.werbungskosten.arbeitszimmer ?? 0) > 0);
+  if (mitZimmer.length === 0) return [];
+  // Zeitanteilige Jahrespauschale: für jeden vollen Monat ohne die Voraussetzung 105 EUR weniger (§ 4 Abs. 5 Satz 1 Nr. 6b)
+  const zuViel = mitZimmer.flatMap((p) => {
+    const monate = p.werbungskosten.arbeitszimmerMonate ?? 12;
+    const betrag = p.werbungskosten.arbeitszimmer ?? 0;
+    const grenze = arbeitszimmerPauschale(monate);
+    if (monate >= 12 || betrag <= grenze) return [];
+    // Ohne einen Monat als Mittelpunkt gilt das Abzugsverbot ganz, auch für die Aufwendungen (Nr. 6b Satz 1 und 2)
+    const rest =
+      monate === 0
+        ? "Ohne einen Monat als Mittelpunkt ist das Arbeitszimmer nicht abziehbar, auch nicht mit tatsächlichen Kosten."
+        : "Höher geht nur mit tatsächlichen Aufwendungen.";
+    return [
+      {
+        tone: "hinweis" as const,
+        text: `Arbeitszimmer: Bei ${monate} von 12 Monaten liegt die Jahrespauschale bei ${formatEuro(grenze)}; eingetragen sind ${formatEuro(betrag)}. ${rest}`,
+      },
+    ];
+  });
   const imN = personen.reduce((s, p) => s + (p.werbungskosten.homeofficeTage ?? 0), 0);
   const { homeoffice } = await listPauschalen(year);
-  if (imN === 0 && homeoffice.tage === 0) return [];
+  if (imN === 0 && homeoffice.tage === 0) return zuViel;
   const wo = [imN > 0 ? `${imN} Homeoffice-Tage in der Anlage N` : null, homeoffice.tage > 0 ? `${homeoffice.tage} Tage in der EÜR` : null]
     .filter(Boolean)
     .join(" und ");
   return [
+    ...zuViel,
     {
       tone: "hinweis",
       text: `Arbeitszimmer und Homeoffice-Tagespauschale: ${wo} stehen neben dem Arbeitszimmer in der Anlage N. Für dieselbe Zeit gibt es nur eines von beidem; Haben schickt beides so, wie du es eingetragen hast.`,
@@ -634,7 +699,7 @@ export async function annualOverview(year: number, today: string) {
   const est = await estYear(year, euer);
   const base = [
     ...yearIssues(year, today),
-    ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen" })),
+    ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen", bereich: "firma" })),
   ];
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
   // Eine außerhalb von Haben abgegebene Erklärung zählt als erledigt und trägt ihren Betrag (Umsatzsteuer: Abschlusszahlung, EÜR: Gewinn)
@@ -653,7 +718,22 @@ export async function annualOverview(year: number, today: string) {
   // Ein Vermerk „außerhalb von Haben abgegeben“ nimmt den Meldungen zu Habens leerem Jahr den Grund (#869)
   const ustVermerk = submitted("ust");
   const euerVermerk = submitted("euer");
-  const [ustZeilen, euerZeilen] = await Promise.all([erklaerteZeilen(ustVermerk?.id ?? null), erklaerteZeilen(euerVermerk?.id ?? null)]);
+  const estVermerk = submitted("est");
+  const [ustZeilen, euerZeilen, estZeilen] = await Promise.all([
+    erklaerteZeilen(ustVermerk?.id ?? null),
+    erklaerteZeilen(euerVermerk?.id ?? null),
+    erklaerteZeilen(estVermerk?.id ?? null),
+  ]);
+  /*
+   * Die Summenzeilen der Seite zeigen nach einem Vermerk die erklärte Zahl (#1076): Habens eigene Rechnung kennt die
+   * Veranlagung nicht, und in einem Jahr ohne Buchungen kehrt sie sogar das Vorzeichen um (0,00 - erklärtes Soll).
+   * Die gerechneten Werte bleiben daneben stehen, weil vermerkPruefung und der Abweichungshinweis sie brauchen.
+   */
+  const ustAnzeige = {
+    vorauszahlungen: ustZeilen.vorauszahlungen ?? ust.figures.vorauszahlungen,
+    abschluss: ustZeilen.abschluss ?? ust.abschluss,
+    ausVermerk: { vorauszahlungen: ustZeilen.vorauszahlungen !== undefined, abschluss: ustZeilen.abschluss !== undefined },
+  };
   return {
     year,
     ust: {
@@ -666,6 +746,7 @@ export async function annualOverview(year: number, today: string) {
       sent: sent("ust"),
       submitted: ustVermerk,
       erklaert: ustZeilen,
+      anzeige: ustAnzeige,
     },
     euer: {
       ...euer,
@@ -674,13 +755,21 @@ export async function annualOverview(year: number, today: string) {
       submitted: euerVermerk,
       erklaert: euerZeilen,
     },
-    // Für die Einkommensteuererklärung gibt es keinen Vermerk: Was außerhalb von Haben abgegeben wurde, weiß
-    // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
+    // Was außerhalb von Haben an Einkommensteuer abgegeben wurde, weiß Haben ohne Vermerk nicht. Die Seite zeigt sie
+    // deshalb nicht als offene Pflicht (#869).
     est: {
       ...est,
-      issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est)), ...(await arbeitszimmerIssues(year, est))],
+      issues: [
+        ...base,
+        ...estIssues(company, euer),
+        ...ohneBetragHinweis(estVermerk, estZeilen),
+        ...estAbweichungHinweis(estZeilen, est),
+        ...(await homeofficeIssues(year, est)),
+        ...(await arbeitszimmerIssues(year, est)),
+      ],
       sent: sent("est"),
-      submitted: submitted("est"),
+      submitted: estVermerk,
+      erklaert: estZeilen,
       verwaltet: false,
     },
     history,

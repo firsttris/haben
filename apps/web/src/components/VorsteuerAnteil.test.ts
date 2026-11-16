@@ -1,0 +1,122 @@
+import { createElement, type ComponentProps } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { VorsteuerAnteil, parseVorsteuerAnteil, steuerSpalte } from "./VorsteuerAnteil.tsx";
+
+function render(patch: Partial<ComponentProps<typeof VorsteuerAnteil>> = {}) {
+  return renderToStaticMarkup(
+    createElement(VorsteuerAnteil, {
+      value: "50",
+      rows: [{ key: 1, taxRate: 1900, net: 10_000, tax: 1_900, vorsteuerAnteil: "" }],
+      company: { kleinunternehmer: false, ohneVorsteuerabzug: false },
+      booked: false,
+      storedDeduction: true,
+      privateShare: 0,
+      asset: false,
+      onChange() {},
+      onRateChange() {},
+      ...patch,
+    }),
+  );
+}
+
+describe("Vorsteueranteil im Beleg", () => {
+  it.each([
+    ["0", 0],
+    ["100", 10_000],
+    ["12,34", 1234],
+    ["0,01", 1],
+    [" 50,5 ", 5050],
+    // Wie jedes Prozentfeld über parsePercent: „%“ am Ende und ein eindeutiger Dezimalpunkt (#1222)
+    ["50 %", 5000],
+    ["1.5", 150],
+  ])("liest %s direkt als Basispunkte", (text, points) => {
+    expect(parseVorsteuerAnteil(text as string)).toBe(points);
+  });
+  it.each(["", "100,01", "-1", "12,345", "1.000", "1e2", "50 € "])("weist ungültigen Prozenttext %s zurück", (text) => {
+    expect(parseVorsteuerAnteil(text)).toBeNull();
+  });
+  it("zeigt bei 50 % nur 9,50 € Vorsteuer und 109,50 € Aufwand", () => {
+    const html = render();
+    expect(html).toContain("9,50 €");
+    expect(html).toContain("109,50 €");
+    expect(html).toContain("Wirtschaftlich zugeordneter Anteil, unabhängig vom Privatanteil.");
+  });
+  it("übernimmt die Firmenvorgabe und lässt den Satz den Beleg überschreiben", () => {
+    expect(render({ value: "", company: { kleinunternehmer: false, ohneVorsteuerabzug: true } })).toContain("119,00 €");
+    expect(render({ rows: [{ key: 1, taxRate: 1900, net: 10_000, tax: 1_900, vorsteuerAnteil: "25" }] })).toContain("4,75 €");
+  });
+  it("sperrt KU auch bei eigenen Beleg- und Satzanteilen", () => {
+    const html = render({
+      company: { kleinunternehmer: true, ohneVorsteuerabzug: false },
+      rows: [{ key: 1, taxRate: 1900, net: 10_000, tax: 1_900, vorsteuerAnteil: "100" }],
+    });
+    expect(html).toMatch(/<input[^>]*value="0"[^>]*disabled/);
+    expect(html).toContain("119,00 €");
+    expect(html).not.toContain("Abweichend je Steuersatz");
+  });
+  it("liest alte gebuchte Belege aus ihrem Boolean und ignoriert heutige Firmendaten", () => {
+    const html = render({ value: "", booked: true, storedDeduction: false, company: { kleinunternehmer: false, ohneVorsteuerabzug: false } });
+    expect(html).toContain("Gespeicherter Beleganteil: 0 %.");
+    expect(html).toContain("119,00 €");
+    expect(html).toContain("disabled");
+    const full = render({ value: "", booked: true, company: { kleinunternehmer: true, ohneVorsteuerabzug: true } });
+    expect(full).toContain("Gespeicherter Beleganteil: 100 %.");
+    expect(full).toContain("19,00 €");
+    expect(full).toContain("100,00 €");
+  });
+  it("zieht den Privatanteil zuerst ab und rundet negative Steuer symmetrisch", () => {
+    expect(render({ privateShare: 20 })).toContain("87,60 €");
+    expect(render({ rows: [{ key: 1, taxRate: 1900, net: -10_000, tax: -1_901, vorsteuerAnteil: "" }] })).toContain("-9,51 €");
+  });
+  it("zeigt bei ungültigem Anteil keine scheinbar gültige Vorschau", () => {
+    const html = render({ value: "100,01" });
+    expect(html).toContain('aria-invalid="true"');
+    expect(html).toContain("Vorschau nach gültiger Eingabe");
+  });
+  it("zeigt bei ungültigem Privatanteil keine Vorschau, statt mit 0 % zu rechnen (#1221)", () => {
+    const html = render({ privateShare: null });
+    expect(html).toContain("Vorschau nach gültiger Eingabe");
+    expect(html).not.toContain("19,00 €");
+  });
+});
+
+describe("Beschriftung der Steuerspalte (#978)", () => {
+  const beleg = { value: "", company: { kleinunternehmer: false, ohneVorsteuerabzug: false }, booked: false, storedDeduction: true };
+  const kleinunternehmer = { ...beleg, company: { kleinunternehmer: true, ohneVorsteuerabzug: false } };
+  const ohneAbzug = { ...beleg, company: { kleinunternehmer: false, ohneVorsteuerabzug: true } };
+
+  it("heißt ohne Vorsteuerabzug „Umsatzsteuer“: die Steuer auf dem Beleg ist die des Lieferanten, keine Vorsteuer", () => {
+    for (const [fall, b, satz] of [
+      ["Kleinunternehmer", kleinunternehmer, ""],
+      ["Kleinunternehmer mit 100 % am Steuersatz", kleinunternehmer, "100"],
+      ["Vorgabe der Firmendaten", ohneAbzug, ""],
+      ["0 % am Beleg", { ...beleg, value: "0" }, ""],
+      ["0 % am Steuersatz", { ...beleg, value: "100" }, "0"],
+      ["gebucht ohne Abzug", { ...beleg, booked: true, storedDeduction: false }, ""],
+    ] as const)
+      expect(steuerSpalte(null, b, [{ vorsteuerAnteil: satz }]), fall).toBe("Umsatzsteuer");
+  });
+
+  it("bleibt mit Vorsteuerabzug „Vorsteuer“, auch bei einem Teilabzug; § 13b und Erwerb unverändert", () => {
+    for (const [fall, b, satz] of [
+      ["voller Abzug", beleg, ""],
+      ["50 % am Beleg", { ...beleg, value: "50" }, ""],
+      ["Vorgabe ohne Abzug, aber 100 % am Steuersatz", ohneAbzug, "100"],
+      ["gebucht mit Abzug, inzwischen Kleinunternehmer", { ...kleinunternehmer, booked: true }, ""],
+    ] as const)
+      expect(steuerSpalte(null, b, [{ vorsteuerAnteil: satz }]), fall).toBe("Vorsteuer");
+    for (const [art, spalte] of [
+      ["eu", "Steuer § 13b"],
+      ["drittland", "Steuer § 13b"],
+      ["ig_erwerb", "Erwerbsteuer"],
+    ] as const)
+      expect(steuerSpalte(art, kleinunternehmer, [{ vorsteuerAnteil: "" }]), art).toBe(spalte);
+  });
+
+  it("Aufteilung auf Kategorien: „Umsatzsteuer“ nur, wenn kein Steuersatz Vorsteuerabzug hat", () => {
+    const satz = (vorsteuerAnteil: string) => ({ vorsteuerAnteil });
+    expect(steuerSpalte(null, { ...beleg, value: "0" }, [satz(""), satz("")])).toBe("Umsatzsteuer");
+    expect(steuerSpalte(null, { ...beleg, value: "0" }, [satz(""), satz("100")])).toBe("Vorsteuer");
+  });
+});

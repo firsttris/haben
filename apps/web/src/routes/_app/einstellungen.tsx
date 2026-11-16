@@ -2,19 +2,27 @@ import {
   BUNDESLAENDER,
   RECHTSFORM_KEYS,
   RECHTSFORMEN,
+  baseRateError,
   currentFilingPeriod,
+  dunningFeeError,
   formatDecimal,
+  formatHundredths,
   formatRateMonth,
   isKapitalgesellschaft,
+  parseBaseRate,
   parseEuro,
   type Bundesland,
   type Rechtsform,
 } from "@haben/core";
-import { redirect, Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { redirect, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
+import { BereicheCard } from "../../components/BereicheCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
+import { PrivatanteilVorgaben, privatanteilFehler, privatanteilTexte, privatanteilWerte } from "../../components/PrivatanteilVorgaben.tsx";
+import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
+import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
@@ -24,6 +32,9 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
+import { LatestVersionCard } from "../../components/LatestVersionCard.tsx";
+import { VersionsCard } from "../../components/VersionsCard.tsx";
+import { ProcedureDocCard } from "../../components/ProcedureDocCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LetterheadBackgroundCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
 import { LayoutsCard } from "../../components/LayoutsCard.tsx";
@@ -37,6 +48,7 @@ import { InvoiceAttachments } from "../../components/InvoiceAttachments.tsx";
 import { getQuoteDefaultAttachments } from "../../server/functions/invoice-attachments.ts";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
+import { OwnAccountsCard } from "../../components/OwnAccountsCard.tsx";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
 import { ExtractionCard } from "../../components/ExtractionCard.tsx";
@@ -49,7 +61,7 @@ import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/Sk
 import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
-import { useSubmitCheck } from "../../lib/use-submit-check.ts";
+import { emailFehler, useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { getStoreConnections } from "../../server/functions/stores.ts";
@@ -59,13 +71,12 @@ import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/sett
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, getExchangeRates, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import reportStyles from "../../styles/auswertungen.css?url";
-import { getDatevNumbers } from "../../server/functions/datev-export.ts";
 import { checkElsterFormats, confirmElsterPrivacy, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getCustomPages } from "../../server/functions/eigene-seiten.ts";
-import { getExportYears } from "../../server/functions/export.ts";
+import { getExportArea } from "../../server/functions/export.ts";
 import { getNumbering } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
-import { getChainHead, getDatabaseAccessInfo } from "../../server/functions/integrity.ts";
+import { getAppVersions, getChainHead, getDatabaseAccessInfo } from "../../server/functions/integrity.ts";
 import { getBackground, getLetterheadDesign, getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getMcpSettings } from "../../server/functions/mcp.ts";
@@ -73,11 +84,13 @@ import { getZugaenge } from "../../server/functions/zugang.ts";
 import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
-import { StichjahrCard } from "../../components/StichjahrCard.tsx";
 import { NavMarkCard } from "../../components/NavMarkCard.tsx";
-import { getStichjahr } from "../../server/functions/stichjahr.ts";
+import { getOwnAccounts } from "../../server/functions/eigene-konten.ts";
+import { SettingsHead, SettingsNav } from "../../components/SettingsNav.tsx";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
+import { UnitsCard } from "../../components/UnitsCard.tsx";
+import { getUnits } from "../../server/functions/units.ts";
 import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
@@ -97,9 +110,9 @@ export const Route = createFileRoute("/_app/einstellungen")({
       design,
       overview,
       inbox,
-      exportYears,
-      datev,
+      exportArea,
       chainHead,
+      appVersions,
       databaseAccess,
       backup,
       mcp,
@@ -110,7 +123,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
-      stichjahr,
+      ownAccounts,
+      units,
     ] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
@@ -122,9 +136,9 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getLetterheadDesign(),
       getLayouts(),
       getInbox(),
-      getExportYears(),
-      getDatevNumbers(),
+      getExportArea(),
       getChainHead(),
+      getAppVersions(),
       getDatabaseAccessInfo(),
       getBackupStatus(),
       getMcpSettings(),
@@ -135,7 +149,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getZugaenge(),
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
-      getStichjahr(),
+      getOwnAccounts(),
+      getUnits(),
     ]);
     return {
       ...company,
@@ -150,9 +165,9 @@ export const Route = createFileRoute("/_app/einstellungen")({
       layouts: overview.layouts,
       layoutHints: overview.hints,
       inbox,
-      exportYears,
-      datev,
+      ...exportArea,
       chainHead,
+      appVersions,
       databaseAccess,
       backup,
       mcp,
@@ -163,7 +178,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
-      stichjahr,
+      ownAccounts,
+      units,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -173,7 +189,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { oidc } = Route.useRouteContext();
+  const { oidc, ausgeblendet } = Route.useRouteContext();
   const {
     company,
     numbering,
@@ -187,6 +203,7 @@ function SettingsPage() {
     exportYears,
     datev,
     chainHead,
+    appVersions,
     databaseAccess,
     backup,
     mcp,
@@ -197,40 +214,33 @@ function SettingsPage() {
     zugaenge,
     extraction,
     quoteDefaultAttachments,
-    stichjahr,
+    ownAccounts,
+    units,
+    ablage,
   } = Route.useLoaderData();
-  const { bereich = "firma" } = Route.useSearch();
-  const areas = settingsAreas(oidc.only);
-  const area = areas.find((a) => a.id === bereich)!;
+  const search = Route.useSearch();
+  const bereich = search.bereich ?? "firma";
+  // Ohne ?bereich zeigt das Handy nur die Liste der Bereiche, der Desktop daneben die Firma
+  const uebersicht = search.bereich === undefined;
   // Eine GmbH oder UG zahlt keine Einkommensteuer; die persönlichen Angaben braucht ELSTER dort für Nachrichten und Postfach
-  const hint = (a: ReturnType<typeof settingsAreas>[number]) =>
-    a.id === "persoenlich" && isKapitalgesellschaft(company.rechtsform) ? "Für Nachrichten an das Finanzamt" : a.hint;
+  const areas = settingsAreas(oidc.only).map((a) =>
+    a.id === "persoenlich" && isKapitalgesellschaft(company.rechtsform) ? { ...a, hint: "Für Nachrichten an das Finanzamt" } : a,
+  );
+  const area = areas.find((a) => a.id === bereich)!;
   return (
     <>
-      <div className="page-head">
-        <div>
-          <div className="eyebrow">Haben</div>
-          <h1>Einstellungen</h1>
-        </div>
-      </div>
-      <div className="settings-layout">
-        <nav className="settings-nav" aria-label="Bereiche der Einstellungen">
-          {areas.map((a) => (
-            <Link key={a.id} to="/einstellungen" search={{ bereich: a.id }} className="settings-nav-link" aria-current={a.id === bereich ? "page" : undefined}>
-              <span>{a.label}</span>
-              <span className="settings-nav-hint">{hint(a)}</span>
-            </Link>
-          ))}
-        </nav>
+      <SettingsHead area={area} uebersicht={uebersicht} />
+      <div className="settings-layout" data-uebersicht={uebersicht || undefined}>
+        <SettingsNav areas={areas} current={bereich} uebersicht={uebersicht} />
         <div className="stack settings-content" aria-label={area.label}>
           {bereich === "firma" && (
             <>
               <CompanyForm />
-              <StichjahrCard stand={stichjahr} />
               <NavMarkCard color={company.navColor} logo={company.navLogo} logoSha256={logo?.sha256 ?? null} />
             </>
           )}
           {bereich === "persoenlich" && <TaxpayerForm />}
+          {bereich === "bereiche" && <BereicheCard ausgeblendet={ausgeblendet} />}
           {bereich === "rechnungen" && (
             <>
               <NumberingCard numbering={numbering.invoice} />
@@ -242,6 +252,7 @@ function SettingsPage() {
                 quoteRunning={company.quoteCounterRunning}
                 date={numbering.invoice.date}
               />
+              <UnitsCard units={units} />
               <PlanTemplatesCard templates={company.paymentPlanTemplates} />
               <InvoiceAttachments kind="standard" attachments={quoteDefaultAttachments} editable />
               <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} date={numbering.invoice.date} />
@@ -288,15 +299,21 @@ function SettingsPage() {
               <ExtractionCard settings={extraction} />
             </>
           )}
+          {bereich === "konten" && <OwnAccountsCard overview={ownAccounts} />}
           {bereich === "seiten" && <EigeneSeitenCard pages={customPages} />}
           {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}
           {bereich === "export" && (
             <>
               <ExportCard years={exportYears} />
               <DatevCard years={exportYears} numbers={datev} />
+              <ArchiveTargetCard data={ablage} />
               <IntegrityCard head={chainHead} />
+              <LatestVersionCard />
+              <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
+              <ProcedureDocCard />
+              <ArchiveSearchCard enabled={company.archiveSearch} />
             </>
           )}
         </div>
@@ -304,6 +321,14 @@ function SettingsPage() {
     </>
   );
 }
+
+/** Fehler der Felder im Abschnitt Mahnwesen, für useSubmitCheck */
+const dunningErrors = (baseRate: string, fees: Record<"1" | "2" | "3", string>) => ({
+  "dunning-baseRate": baseRateError(baseRate),
+  "dunning-fee-1": dunningFeeError(fees["1"]),
+  "dunning-fee-2": dunningFeeError(fees["2"]),
+  "dunning-fee-3": dunningFeeError(fees["3"]),
+});
 
 function CompanyForm() {
   const { company, issues, letterIssues, locks } = Route.useLoaderData();
@@ -314,10 +339,24 @@ function CompanyForm() {
   const [rechtsform, setRechtsform] = useState<Rechtsform>(company.rechtsform);
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(company.skonto));
-  const [baseRate, setBaseRate] = useState(company.dunning.baseRate === null ? "" : formatDecimal(company.dunning.baseRate));
+  const [baseRate, setBaseRate] = useState(company.dunning.baseRate === null ? "" : formatHundredths(company.dunning.baseRate));
+  const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
+  const [fees, setFees] = useState({ "1": fee("1"), "2": fee("2"), "3": fee("3") });
+  const [email, setEmail] = useState(company.email);
+  const [privatanteile, setPrivatanteile] = useState(() => privatanteilTexte(company.privateShares));
+  const {
+    form: checkScope,
+    error,
+    check,
+  } = useSubmitCheck({
+    email: emailFehler(email),
+    ...dunningErrors(baseRate, fees),
+    ...privatanteilFehler(privatanteile, gesellschaft),
+  });
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!check()) return;
     const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "");
     const skonto = parseSkontoRows(skontoRows);
@@ -355,36 +394,31 @@ function CompanyForm() {
           invoiceIntro: text("invoiceIntro"),
           quoteIntro: text("quoteIntro"),
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          foundedOn: text("foundedOn") || null,
           ohneVorsteuerabzug: form.get("ohneVorsteuerabzug") === "on",
           tageskurs: form.get("tageskurs") === "on",
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
           taetigkeit: text("taetigkeit"),
           dunning: {
-            // Prozent mit zwei Nachkommastellen wie ein Eurobetrag lesen: "1,27" → 127 Basispunkte
-            baseRate: text("dunning-baseRate").trim() ? parseEuro(text("dunning-baseRate")) : null,
+            // Geprüft mit baseRateError; leer heißt keine Verzugszinsen
+            baseRate: text("dunning-baseRate").trim() ? parseBaseRate(text("dunning-baseRate")) : null,
             fees: {
-              "1": parseEuro(text("dunning-fee-1") || "0") ?? 0,
-              "2": parseEuro(text("dunning-fee-2") || "0") ?? 0,
-              "3": parseEuro(text("dunning-fee-3") || "0") ?? 0,
+              "1": parseEuro(fees["1"] || "0") ?? 0,
+              "2": parseEuro(fees["2"] || "0") ?? 0,
+              "3": parseEuro(fees["3"] || "0") ?? 0,
             },
             deadlineDays: Number(text("dunning-deadlineDays") || 10),
             autoBaseRate: form.get("dunning-autoBaseRate") === "on",
           },
-          privateShares: Object.fromEntries(
-            (["telefon", "internet"] as const)
-              .map((key) => [key, Number(text(`privateShare-${key}`) || 0)] as const)
-              .filter(([, value]) => Number.isInteger(value) && value > 0 && value <= 100),
-          ),
+          privateShares: privatanteilWerte(privatanteile, gesellschaft),
         },
       });
       await router.invalidate();
     }, "Firmendaten gespeichert.");
   }
 
-  const fee = (level: "1" | "2" | "3") => (company.dunning.fees[level] ? formatDecimal(company.dunning.fees[level]) : "");
-
   return (
-    <form className="card form-card" onSubmit={onSubmit} aria-labelledby="company-heading">
+    <form ref={checkScope} className="card form-card" onSubmit={onSubmit} aria-labelledby="company-heading" noValidate>
       <div className="form-card-head">
         <h2 id="company-heading">Firmendaten</h2>
         {issues.length > 0 && <div className="banner">Für ELSTER fehlt noch: {issues.join(", ")}.</div>}
@@ -399,11 +433,16 @@ function CompanyForm() {
           </Field>
         </div>
         <div className="form-row cols-2">
-          <Field label="E-Mail">{(control) => <input {...control} name="email" type="email" defaultValue={company.email} autoComplete="email" />}</Field>
+          <Field label="E-Mail" error={error("email")}>
+            {(control) => <input {...control} name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />}
+          </Field>
           <Field label="Telefon (Pflicht für XRechnung)">
             {(control) => <input {...control} name="telefon" type="tel" defaultValue={company.telefon} autoComplete="tel" />}
           </Field>
         </div>
+        <Field label="Gründungsdatum" hint="Datum, an dem du deine unternehmerische Tätigkeit aufgenommen hast.">
+          {(control) => <input {...control} name="foundedOn" type="date" min="0001-01-01" defaultValue={company.foundedOn ?? ""} />}
+        </Field>
       </section>
 
       <section className="form-section" aria-labelledby="company-address">
@@ -681,32 +720,12 @@ function CompanyForm() {
         </p>
       </section>
 
-      {!gesellschaft && (
-        <section className="form-section" aria-labelledby="company-private">
-          <h3 id="company-private">Privatanteile</h3>
-          <div className="form-row cols-2">
-            <Field label="Privatanteil Telefon in %" describedBy="private-share-hint">
-              {(control) => (
-                <input {...control} name="privateShare-telefon" inputMode="numeric" defaultValue={company.privateShares.telefon ?? ""} placeholder="0" />
-              )}
-            </Field>
-            <Field label="Privatanteil Internet in %" describedBy="private-share-hint">
-              {(control) => (
-                <input {...control} name="privateShare-internet" inputMode="numeric" defaultValue={company.privateShares.internet ?? ""} placeholder="0" />
-              )}
-            </Field>
-          </div>
-          <p id="private-share-hint" className="field-hint">
-            Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme. Am einzelnen
-            Beleg lässt sich der Anteil ändern.
-          </p>
-        </section>
-      )}
+      {!gesellschaft && <PrivatanteilVorgaben texte={privatanteile} onChange={setPrivatanteile} error={error} />}
 
       <section className="form-section" aria-labelledby="company-dunning">
         <h3 id="company-dunning">Mahnwesen</h3>
         <div className="form-row cols-2">
-          <Field label="Basiszinssatz in %" describedBy="base-rate-hint">
+          <Field label="Basiszinssatz in %" describedBy="base-rate-hint" error={error("dunning-baseRate")}>
             {(control) => (
               <input
                 {...control}
@@ -739,14 +758,41 @@ function CompanyForm() {
           </span>
         </div>
         <div className="form-row cols-3">
-          <Field label="Gebühr Zahlungserinnerung (€)">
-            {(control) => <input {...control} name="dunning-fee-1" inputMode="decimal" defaultValue={fee("1")} placeholder="0,00" />}
+          <Field label="Gebühr Zahlungserinnerung (€)" error={error("dunning-fee-1")}>
+            {(control) => (
+              <input
+                {...control}
+                name="dunning-fee-1"
+                inputMode="decimal"
+                value={fees["1"]}
+                onChange={(e) => setFees((current) => ({ ...current, "1": e.target.value }))}
+                placeholder="0,00"
+              />
+            )}
           </Field>
-          <Field label="Gebühr 1. Mahnung (€)">
-            {(control) => <input {...control} name="dunning-fee-2" inputMode="decimal" defaultValue={fee("2")} placeholder="0,00" />}
+          <Field label="Gebühr 1. Mahnung (€)" error={error("dunning-fee-2")}>
+            {(control) => (
+              <input
+                {...control}
+                name="dunning-fee-2"
+                inputMode="decimal"
+                value={fees["2"]}
+                onChange={(e) => setFees((current) => ({ ...current, "2": e.target.value }))}
+                placeholder="0,00"
+              />
+            )}
           </Field>
-          <Field label="Gebühr letzte Mahnung (€)">
-            {(control) => <input {...control} name="dunning-fee-3" inputMode="decimal" defaultValue={fee("3")} placeholder="0,00" />}
+          <Field label="Gebühr letzte Mahnung (€)" error={error("dunning-fee-3")}>
+            {(control) => (
+              <input
+                {...control}
+                name="dunning-fee-3"
+                inputMode="decimal"
+                value={fees["3"]}
+                onChange={(e) => setFees((current) => ({ ...current, "3": e.target.value }))}
+                placeholder="0,00"
+              />
+            )}
           </Field>
         </div>
       </section>

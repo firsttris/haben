@@ -13,15 +13,16 @@ import {
   type Cents,
   type Kontenrahmen,
   type PostingLine,
+  inCents,
 } from "@haben/core";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { openBooks, openingCash, post } from "../buchhaltung/index.ts";
+import { openBooks, openingCash, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { journalAbJahr, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
+import { loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
 import { invoiceTotalsById, lockInvoice } from "../rechnungen/index.ts";
-import { negatedShares, reverseLinesIn, reverseWriteOffRow } from "./bank.ts";
+import { negatedShares, reverseWriteOffRow } from "./bank.ts";
 
 /**
  * Kassenbuch: fortlaufend nummeriert, nur anhängen, Korrektur per Storno. Der Bestand darf an keinem
@@ -47,7 +48,7 @@ export const cashInputSchema = z.object({
   kind: z.enum(Object.keys(CASH_BOOKINGS) as [CashBooking, ...CashBooking[]]),
   date: z.iso.date(),
   /** Cent, immer positiv; die Richtung folgt aus der Art */
-  amount: z.number().int().min(1, "Betrag fehlt").max(100_000_000),
+  amount: inCents(z.number().int().min(1, "Betrag fehlt").max(100_000_000)),
   text: z.string().trim().max(300).default(""),
 });
 
@@ -225,13 +226,13 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
 }
 
 /**
- * Zeilen einer Bareinnahme auf eine Rechnung aus der Zeit vor dem Stichjahr, wie Haben sie heute bucht (bei Ist mit der
- * Bemessungsgrundlage, #552), wenn sie auf jedem Konto dasselbe ergeben; sonst wie gebucht (zeilenWieHeute). Der Anteil
- * je Satz wie in der Voranmeldung aus dem Kassenbuch (recordedTaxShares).
+ * Zeilen einer Bareinnahme auf eine Rechnung, wie Haben sie heute bucht (bei Ist mit der Bemessungsgrundlage, #552), wenn
+ * sie auf jedem Konto dasselbe ergeben; sonst wie gebucht (zeilenWieHeute). So trägt auch der Storno einer älteren Buchung
+ * ohne Bemessungsgrundlage sie (#1116). Der Anteil je Satz wie in der Voranmeldung aus dem Kassenbuch (recordedTaxShares).
  */
 async function cashLinesWieHeute(tx: Tx, original: CashEntry, kontenrahmen: Kontenrahmen, gebucht: PostingLine[]): Promise<PostingLine[]> {
   const year = Number(original.date.slice(0, 4));
-  if (!original.invoiceId || year >= (await journalAbJahr(tx))) return gebucht;
+  if (!original.invoiceId) return gebucht;
   const [invoice] = await tx.select({ taxTreatment: schema.invoices.taxTreatment }).from(schema.invoices).where(eq(schema.invoices.id, original.invoiceId));
   const totals = (await invoiceTotalsById([original.invoiceId], tx)).get(original.invoiceId);
   if (!invoice || !totals) return gebucht;

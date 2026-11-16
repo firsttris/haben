@@ -12,4 +12,4 @@ check their own pull request first, maintainers and collaborators then judge it)
 and sources, short, every rule in one place), `fork-pushen` (push to someone else's fork, from the cloud through a
 session with the fork as source), `prs-abarbeiten` (all open pull requests as a ranking from easiest to merge, then one by one), `issue-schreiben`, `pr-screenshots`, `belegvorlage` (own
 Typst layouts for documents, with the field contract), `board-pflegen` (the roadmap board on GitHub), `jahreswerte` (official yearly values, ERiC and laws after a
-`jahreswerte` issue) and `release` (choose and check a release, trigger it only with the maintainer's approval).
+`jahreswerte` issue), `schnellsuche-erweitern` (a new group or field in the quick search) and `release` (choose and check a release, trigger it only with the maintainer's approval).

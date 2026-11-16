@@ -108,6 +108,21 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     expect(zeilen[0]).toMatchObject({ amount: 2_000 });
   }, 30_000);
 
+  // Die Herkunft einer Verrechnungsbuchung führt auch auf dem Kontenblatt auf den Beleg je Seite (#786, #877)
+  it("führt im Kontenblatt des Verrechnungskontos auf beide Belege", async () => {
+    const ledger = await import("../buchhaltung/ledger.ts");
+    await firma();
+    const rechnung = await beleg("2026-02-10", 10_000, 1_900);
+    const gutschrift = await beleg("2026-02-16", -3_000, -570);
+    await verrechnung.settleDocuments(actor, { documentId: rechnung, counterDocumentId: gutschrift, amount: 2_000, date: "2026-02-16", note: "Gutschrift" });
+
+    // SKR03 1590 Durchlaufende Posten: je Belegseite eine Zeile, zusammen auf null
+    const zeilen = (await ledger.kontenblatt("1590", ledger.ledgerRange(2026, "m02"))).zeilen.filter((z) => z.sourceType === "verrechnung");
+    expect(zeilen).toHaveLength(2);
+    expect(zeilen.map((z) => z.documentId).sort()).toEqual([rechnung, gutschrift].sort());
+    expect(zeilen.every((z) => z.invoiceId === null)).toBe(true);
+  }, 30_000);
+
   it("hebt eine Verrechnung per Gegenzeile auf", async () => {
     await firma();
     const rechnung = await beleg("2026-03-10", 5_000, 950);

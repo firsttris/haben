@@ -134,7 +134,6 @@ describe.skipIf(!testDatabaseUrl)("Gutschrift „erstattet bereits Bezahltes“ 
     const p = { kr: "SKR03", versteuerung: "ist" } as const;
     await firma(p);
     // Stichjahr 2027: 2026 rechnet die Voranmeldung aus den Nebenbüchern (gutschrift.ts), das Journal steht daneben
-    await sql`update company set journal_ab = 2027 where id = 1`;
     const k = KONTEN.SKR03;
     const id = await beleg(50);
 

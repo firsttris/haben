@@ -17,11 +17,11 @@ import { einlagekontoJahr } from "../ausschuettung/index.ts";
 import { jahresabschluss } from "../buchhaltung/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 import { companyIssues, loadCompany, type Company } from "../stammdaten/index.ts";
-import { kapgErklaerungAngaben, kapgSteuernJahr, KoerperschaftError, type KapgErklaerungAngaben } from "./koerperschaft.ts";
+import { kapgErklaerungAngaben, kapgSteuernJahr, KoerperschaftError, type KapgErklaerungAngaben } from "../koerperschaft/index.ts";
 
 /*
  * Körperschaft- und Gewerbesteuererklärung einer GmbH oder UG über ELSTER: Werte aus der Steuerberechnung des Jahres
- * (koerperschaft.ts), dazu die Angaben zur Erklärung (Anteilseigner, Verträge, Gründung). Prüfen, Test und Senden wie
+ * (koerperschaft/koerperschaft.ts), dazu die Angaben zur Erklärung (Anteilseigner, Verträge, Gründung). Prüfen, Test und Senden wie
  * die anderen Jahreserklärungen über das ELSTER-Gateway, Protokoll in annual_submissions (Formular kst bzw. gewst).
  * Echt gesendet wird erst, wenn das Jahr abgeschlossen ist: Die Erklärung beruht auf dem Jahresabschluss.
  */
@@ -32,6 +32,8 @@ export interface KapgHinweis {
   tone: "fehler" | "hinweis";
   text: string;
   link?: "/einstellungen" | "/abschluss";
+  /** Bereich der Einstellungen für den Link; am Handy zeigt /einstellungen ohne Bereich nur die Liste */
+  bereich?: "firma";
 }
 
 const FORM_NAME: Record<KapgForm, string> = { kst: "Körperschaftsteuererklärung", gewst: "Gewerbesteuererklärung" };
@@ -75,13 +77,18 @@ function issuesFor(form: KapgForm, year: number, g: Grundlagen): KapgHinweis[] {
     ...(JAHRE[form].includes(year)
       ? []
       : [{ tone: "fehler" as const, text: `Die ${FORM_NAME[form]} kennt Haben für ${JAHRE[form].join(" und ")}, nicht für ${year}.` }]),
-    ...companyIssues(g.company).map((text) => ({ tone: "fehler" as const, text: `Firmendaten: ${text}`, link: "/einstellungen" as const })),
+    ...companyIssues(g.company).map((text) => ({
+      tone: "fehler" as const,
+      text: `Firmendaten: ${text}`,
+      link: "/einstellungen" as const,
+      bereich: "firma" as const,
+    })),
     ...g.abschlussFehler.map((text) => ({ tone: "fehler" as const, text, link: "/abschluss" as const })),
   ];
   if (!g.steuern) issues.push({ tone: "fehler", text: "Hebesatz und Verlustvorträge fehlen; sie stehen beim Jahresabschluss.", link: "/abschluss" });
   if (form === "kst" && g.erklaerung.anteilseigner.length === 0) issues.push({ tone: "fehler", text: "Die Anteilseigner fehlen." });
   if (form === "gewst" && !g.company.taetigkeit.trim()) {
-    issues.push({ tone: "fehler", text: "Der Gegenstand des Unternehmens (Art des Betriebs) fehlt.", link: "/einstellungen" });
+    issues.push({ tone: "fehler", text: "Der Gegenstand des Unternehmens (Art des Betriebs) fehlt.", link: "/einstellungen", bereich: "firma" });
   }
   if (!g.closed) issues.push({ tone: "hinweis", text: `Echt senden lässt sich die Erklärung erst, wenn ${year} abgeschlossen ist.`, link: "/abschluss" });
   return issues;

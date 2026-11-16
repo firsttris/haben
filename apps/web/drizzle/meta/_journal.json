@@ -1674,6 +1674,286 @@
       "when": 1794692093538,
       "tag": "0238_jahreserklaerung_zeilenwerte_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 239,
+      "version": "7",
+      "when": 1794694652955,
+      "tag": "0239_app_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 240,
+      "version": "7",
+      "when": 1794694658816,
+      "tag": "0240_app_versions_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 241,
+      "version": "7",
+      "when": 1794718530726,
+      "tag": "0241_rechnung_verrechnung_korrektur",
+      "breakpoints": true
+    },
+    {
+      "idx": 242,
+      "version": "7",
+      "when": 1794718531726,
+      "tag": "0242_rechnung_verrechnung_korrektur_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 243,
+      "version": "7",
+      "when": 1794733876948,
+      "tag": "0243_fastbill",
+      "breakpoints": true
+    },
+    {
+      "idx": 244,
+      "version": "7",
+      "when": 1794733884835,
+      "tag": "0244_fastbill_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 245,
+      "version": "7",
+      "when": 1794736111385,
+      "tag": "0245_mcp_oauth",
+      "breakpoints": true
+    },
+    {
+      "idx": 246,
+      "version": "7",
+      "when": 1794745098644,
+      "tag": "0246_search_unaccent",
+      "breakpoints": true
+    },
+    {
+      "idx": 247,
+      "version": "7",
+      "when": 1794745106907,
+      "tag": "0247_search_stufe2_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 248,
+      "version": "7",
+      "when": 1794750748349,
+      "tag": "0248_kleinunternehmer_gruendungsdatum",
+      "breakpoints": true
+    },
+    {
+      "idx": 249,
+      "version": "7",
+      "when": 1794756475655,
+      "tag": "0249_bank_private_marks",
+      "breakpoints": true
+    },
+    {
+      "idx": 250,
+      "version": "7",
+      "when": 1794756478045,
+      "tag": "0250_bank_private_marks_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 251,
+      "version": "7",
+      "when": 1794762523750,
+      "tag": "0251_sevdesk_wkr_vorlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 252,
+      "version": "7",
+      "when": 1794762524880,
+      "tag": "0252_sevdesk_wkr_vorlagen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 253,
+      "version": "7",
+      "when": 1794768072654,
+      "tag": "0253_dauerbelege_aus_sevdesk",
+      "breakpoints": true
+    },
+    {
+      "idx": 254,
+      "version": "7",
+      "when": 1794768439174,
+      "tag": "0254_sevdesk_mahnungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 255,
+      "version": "7",
+      "when": 1794768440022,
+      "tag": "0255_sevdesk_mahnungen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 256,
+      "version": "7",
+      "when": 1794771101800,
+      "tag": "0256_eigene_einheiten",
+      "breakpoints": true
+    },
+    {
+      "idx": 257,
+      "version": "7",
+      "when": 1794771106000,
+      "tag": "0257_eigene_einheiten_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 258,
+      "version": "7",
+      "when": 1794772658049,
+      "tag": "0258_rechnungen_bereits_bezahlt",
+      "breakpoints": true
+    },
+    {
+      "idx": 259,
+      "version": "7",
+      "when": 1794774987042,
+      "tag": "0259_sevdesk_kontoart_von_hand",
+      "breakpoints": true
+    },
+    {
+      "idx": 260,
+      "version": "7",
+      "when": 1794774988136,
+      "tag": "0260_sevdesk_kontoart_von_hand_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 261,
+      "version": "7",
+      "when": 1794776739217,
+      "tag": "0261_dateistand_umzug",
+      "breakpoints": true
+    },
+    {
+      "idx": 262,
+      "version": "7",
+      "when": 1794776740117,
+      "tag": "0262_dateistand_umzug_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 263,
+      "version": "7",
+      "when": 1794777454228,
+      "tag": "0263_sevdesk_voranmeldungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 264,
+      "version": "7",
+      "when": 1794777455362,
+      "tag": "0264_sevdesk_voranmeldungen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 265,
+      "version": "7",
+      "when": 1794783408405,
+      "tag": "0265_sevdesk_steuerarten",
+      "breakpoints": true
+    },
+    {
+      "idx": 266,
+      "version": "7",
+      "when": 1794783409485,
+      "tag": "0266_sevdesk_steuerarten_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 267,
+      "version": "7",
+      "when": 1794787595377,
+      "tag": "0267_sevdesk_artikel",
+      "breakpoints": true
+    },
+    {
+      "idx": 268,
+      "version": "7",
+      "when": 1794793142253,
+      "tag": "0268_vorsteuer_teilabzug",
+      "breakpoints": true
+    },
+    {
+      "idx": 269,
+      "version": "7",
+      "when": 1794802727031,
+      "tag": "0269_outgoing_tax_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 270,
+      "version": "7",
+      "when": 1794815181332,
+      "tag": "0270_verfahrensdoku",
+      "breakpoints": true
+    },
+    {
+      "idx": 271,
+      "version": "7",
+      "when": 1794815185109,
+      "tag": "0271_verfahrensdoku_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 272,
+      "version": "7",
+      "when": 1794821932784,
+      "tag": "0272_ablage",
+      "breakpoints": true
+    },
+    {
+      "idx": 273,
+      "version": "7",
+      "when": 1794821936749,
+      "tag": "0273_ablage_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 274,
+      "version": "7",
+      "when": 1794830228866,
+      "tag": "0274_journal_umstellung",
+      "breakpoints": true
+    },
+    {
+      "idx": 275,
+      "version": "7",
+      "when": 1794830232051,
+      "tag": "0275_journal_umstellung_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 276,
+      "version": "7",
+      "when": 1794833452626,
+      "tag": "0276_einrichtung",
+      "breakpoints": true
+    },
+    {
+      "idx": 277,
+      "version": "7",
+      "when": 1794833455977,
+      "tag": "0277_einrichtung_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 278,
+      "version": "7",
+      "when": 1794838416307,
+      "tag": "0278_unsere_lieferantennummer",
+      "breakpoints": true
     }
   ]
 }

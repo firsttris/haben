@@ -12,12 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known/oauth-authorization-server'
+import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAusschuettungenRouteImport } from './routes/_app/ausschuettungen'
 import { Route as AppAuswertungenRouteImport } from './routes/_app/auswertungen'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppCsvImportRouteImport } from './routes/_app/csv-import'
 import { Route as AppDarlehenRouteImport } from './routes/_app/darlehen'
+import { Route as AppEinrichtungRouteImport } from './routes/_app/einrichtung'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
 import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
@@ -35,6 +38,8 @@ import { Route as ApiKennzeichenRouteImport } from './routes/api/kennzeichen'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as EinladungTokenRouteImport } from './routes/einladung.$token'
+import { Route as OauthAutorisierenRouteImport } from './routes/oauth/autorisieren'
+import { Route as DotwellKnownOauthProtectedResourceSplatRouteImport } from './routes/[.]well-known/oauth-protected-resource.$'
 import { Route as AppAbschlussIndexRouteImport } from './routes/_app/abschluss/index'
 import { Route as AppAbschlussJahrRouteImport } from './routes/_app/abschluss/$jahr'
 import { Route as AppAngeboteIndexRouteImport } from './routes/_app/angebote/index'
@@ -52,6 +57,7 @@ import { Route as AppBuchungenNeuRouteImport } from './routes/_app/buchungen/neu
 import { Route as AppDauerbelegeIndexRouteImport } from './routes/_app/dauerbelege/index'
 import { Route as AppDauerbelegeIdRouteImport } from './routes/_app/dauerbelege/$id'
 import { Route as AppDauerbelegeNeuRouteImport } from './routes/_app/dauerbelege/neu'
+import { Route as AppEinstellungenVerfahrensdokumentationRouteImport } from './routes/_app/einstellungen_.verfahrensdokumentation'
 import { Route as AppJahreserklaerungIndexRouteImport } from './routes/_app/jahreserklaerung/index'
 import { Route as AppJahreserklaerungJahrRouteImport } from './routes/_app/jahreserklaerung/$jahr'
 import { Route as AppKontakteIndexRouteImport } from './routes/_app/kontakte/index'
@@ -86,6 +92,8 @@ import { Route as ApiKontenJahrRouteImport } from './routes/api/konten/$jahr'
 import { Route as ApiLastschriftIdRouteImport } from './routes/api/lastschrift/$id'
 import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiMandatIdRouteImport } from './routes/api/mandat/$id'
+import { Route as ApiOauthRegisterRouteImport } from './routes/api/oauth/register'
+import { Route as ApiOauthTokenRouteImport } from './routes/api/oauth/token'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as ApiRechnungsanhangIdRouteImport } from './routes/api/rechnungsanhang/$id'
@@ -109,6 +117,8 @@ import { Route as AppRechnungenWiederkehrendIdRouteImport } from './routes/_app/
 import { Route as AppRechnungenWiederkehrendNeuRouteImport } from './routes/_app/rechnungen/wiederkehrend/neu'
 import { Route as AppUmsatzsteuerZmQuartalRouteImport } from './routes/_app/umsatzsteuer/zm.$quartal'
 import { Route as ApiArchivAuftragsdateiIdRouteImport } from './routes/api/archiv/auftragsdatei.$id'
+import { Route as ApiArchivMahnungsdateiIdRouteImport } from './routes/api/archiv/mahnungsdatei.$id'
+import { Route as ApiArchivVoranmeldungsdateiIdRouteImport } from './routes/api/archiv/voranmeldungsdatei.$id'
 import { Route as ApiDokumentArtIdRouteImport } from './routes/api/dokument/$art.$id'
 import { Route as ApiEntwurfAngebotIdRouteImport } from './routes/api/entwurf/angebot.$id'
 import { Route as ApiEntwurfRechnungIdRouteImport } from './routes/api/entwurf/rechnung.$id'
@@ -132,6 +142,18 @@ const SetupRoute = SetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotwellKnownOauthAuthorizationServerRoute =
+  DotwellKnownOauthAuthorizationServerRouteImport.update({
+    id: '/.well-known/oauth-authorization-server',
+    path: '/.well-known/oauth-authorization-server',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownOauthProtectedResourceRoute =
+  DotwellKnownOauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -160,6 +182,11 @@ const AppCsvImportRoute = AppCsvImportRouteImport.update({
 const AppDarlehenRoute = AppDarlehenRouteImport.update({
   id: '/darlehen',
   path: '/darlehen',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEinrichtungRoute = AppEinrichtungRouteImport.update({
+  id: '/einrichtung',
+  path: '/einrichtung',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
@@ -247,6 +274,17 @@ const EinladungTokenRoute = EinladungTokenRouteImport.update({
   path: '/einladung/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OauthAutorisierenRoute = OauthAutorisierenRouteImport.update({
+  id: '/oauth/autorisieren',
+  path: '/oauth/autorisieren',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotwellKnownOauthProtectedResourceSplatRoute =
+  DotwellKnownOauthProtectedResourceSplatRouteImport.update({
+    id: '/$',
+    path: '/$',
+    getParentRoute: () => DotwellKnownOauthProtectedResourceRoute,
+  } as any)
 const AppAbschlussIndexRoute = AppAbschlussIndexRouteImport.update({
   id: '/abschluss/',
   path: '/abschluss/',
@@ -332,6 +370,12 @@ const AppDauerbelegeNeuRoute = AppDauerbelegeNeuRouteImport.update({
   path: '/dauerbelege/neu',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEinstellungenVerfahrensdokumentationRoute =
+  AppEinstellungenVerfahrensdokumentationRouteImport.update({
+    id: '/einstellungen_/verfahrensdokumentation',
+    path: '/einstellungen/verfahrensdokumentation',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppJahreserklaerungIndexRoute =
   AppJahreserklaerungIndexRouteImport.update({
     id: '/jahreserklaerung/',
@@ -503,6 +547,16 @@ const ApiMandatIdRoute = ApiMandatIdRouteImport.update({
   path: '/api/mandat/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOauthRegisterRoute = ApiOauthRegisterRouteImport.update({
+  id: '/api/oauth/register',
+  path: '/api/oauth/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthTokenRoute = ApiOauthTokenRouteImport.update({
+  id: '/api/oauth/token',
+  path: '/api/oauth/token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPostfachIdRoute = ApiPostfachIdRouteImport.update({
   id: '/api/postfach/$id',
   path: '/api/postfach/$id',
@@ -627,6 +681,18 @@ const ApiArchivAuftragsdateiIdRoute =
     path: '/api/archiv/auftragsdatei/$id',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiArchivMahnungsdateiIdRoute =
+  ApiArchivMahnungsdateiIdRouteImport.update({
+    id: '/api/archiv/mahnungsdatei/$id',
+    path: '/api/archiv/mahnungsdatei/$id',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiArchivVoranmeldungsdateiIdRoute =
+  ApiArchivVoranmeldungsdateiIdRouteImport.update({
+    id: '/api/archiv/voranmeldungsdatei/$id',
+    path: '/api/archiv/voranmeldungsdatei/$id',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDokumentArtIdRoute = ApiDokumentArtIdRouteImport.update({
   id: '/api/dokument/$art/$id',
   path: '/api/dokument/$art/$id',
@@ -675,11 +741,14 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/ausschuettungen': typeof AppAusschuettungenRoute
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
   '/csv-import': typeof AppCsvImportRoute
   '/darlehen': typeof AppDarlehenRoute
+  '/einrichtung': typeof AppEinrichtungRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -697,6 +766,8 @@ export interface FileRoutesByFullPath {
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/einladung/$token': typeof EinladungTokenRoute
+  '/oauth/autorisieren': typeof OauthAutorisierenRoute
+  '/.well-known/oauth-protected-resource/$': typeof DotwellKnownOauthProtectedResourceSplatRoute
   '/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
@@ -706,6 +777,7 @@ export interface FileRoutesByFullPath {
   '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
   '/dauerbelege/neu': typeof AppDauerbelegeNeuRoute
+  '/einstellungen/verfahrensdokumentation': typeof AppEinstellungenVerfahrensdokumentationRoute
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -733,6 +805,8 @@ export interface FileRoutesByFullPath {
   '/api/lastschrift/$id': typeof ApiLastschriftIdRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/mandat/$id': typeof ApiMandatIdRoute
+  '/api/oauth/register': typeof ApiOauthRegisterRoute
+  '/api/oauth/token': typeof ApiOauthTokenRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
@@ -768,6 +842,8 @@ export interface FileRoutesByFullPath {
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
+  '/api/archiv/mahnungsdatei/$id': typeof ApiArchivMahnungsdateiIdRoute
+  '/api/archiv/voranmeldungsdatei/$id': typeof ApiArchivVoranmeldungsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/entwurf/angebot/$id': typeof ApiEntwurfAngebotIdRoute
   '/api/entwurf/rechnung/$id': typeof ApiEntwurfRechnungIdRoute
@@ -783,11 +859,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/ausschuettungen': typeof AppAusschuettungenRoute
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
   '/csv-import': typeof AppCsvImportRoute
   '/darlehen': typeof AppDarlehenRoute
+  '/einrichtung': typeof AppEinrichtungRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -805,7 +884,9 @@ export interface FileRoutesByTo {
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/einladung/$token': typeof EinladungTokenRoute
+  '/oauth/autorisieren': typeof OauthAutorisierenRoute
   '/': typeof AppIndexRoute
+  '/.well-known/oauth-protected-resource/$': typeof DotwellKnownOauthProtectedResourceSplatRoute
   '/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
@@ -815,6 +896,7 @@ export interface FileRoutesByTo {
   '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
   '/dauerbelege/neu': typeof AppDauerbelegeNeuRoute
+  '/einstellungen/verfahrensdokumentation': typeof AppEinstellungenVerfahrensdokumentationRoute
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -842,6 +924,8 @@ export interface FileRoutesByTo {
   '/api/lastschrift/$id': typeof ApiLastschriftIdRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/mandat/$id': typeof ApiMandatIdRoute
+  '/api/oauth/register': typeof ApiOauthRegisterRoute
+  '/api/oauth/token': typeof ApiOauthTokenRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
@@ -877,6 +961,8 @@ export interface FileRoutesByTo {
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
+  '/api/archiv/mahnungsdatei/$id': typeof ApiArchivMahnungsdateiIdRoute
+  '/api/archiv/voranmeldungsdatei/$id': typeof ApiArchivVoranmeldungsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/entwurf/angebot/$id': typeof ApiEntwurfAngebotIdRoute
   '/api/entwurf/rechnung/$id': typeof ApiEntwurfRechnungIdRoute
@@ -894,11 +980,14 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/_app/ausschuettungen': typeof AppAusschuettungenRoute
   '/_app/auswertungen': typeof AppAuswertungenRoute
   '/_app/bank': typeof AppBankRoute
   '/_app/csv-import': typeof AppCsvImportRoute
   '/_app/darlehen': typeof AppDarlehenRoute
+  '/_app/einrichtung': typeof AppEinrichtungRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/finanzamt': typeof AppFinanzamtRoute
   '/_app/fristen': typeof AppFristenRoute
@@ -916,7 +1005,9 @@ export interface FileRoutesById {
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/einladung/$token': typeof EinladungTokenRoute
+  '/oauth/autorisieren': typeof OauthAutorisierenRoute
   '/_app/': typeof AppIndexRoute
+  '/.well-known/oauth-protected-resource/$': typeof DotwellKnownOauthProtectedResourceSplatRoute
   '/_app/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/_app/angebote/$id': typeof AppAngeboteIdRoute
   '/_app/angebote/neu': typeof AppAngeboteNeuRoute
@@ -926,6 +1017,7 @@ export interface FileRoutesById {
   '/_app/buchungen/neu': typeof AppBuchungenNeuRoute
   '/_app/dauerbelege/$id': typeof AppDauerbelegeIdRoute
   '/_app/dauerbelege/neu': typeof AppDauerbelegeNeuRoute
+  '/_app/einstellungen_/verfahrensdokumentation': typeof AppEinstellungenVerfahrensdokumentationRoute
   '/_app/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/_app/kontakte/$id': typeof AppKontakteIdRoute
   '/_app/kontakte/neu': typeof AppKontakteNeuRoute
@@ -953,6 +1045,8 @@ export interface FileRoutesById {
   '/api/lastschrift/$id': typeof ApiLastschriftIdRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/mandat/$id': typeof ApiMandatIdRoute
+  '/api/oauth/register': typeof ApiOauthRegisterRoute
+  '/api/oauth/token': typeof ApiOauthTokenRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
@@ -988,6 +1082,8 @@ export interface FileRoutesById {
   '/_app/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/_app/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
+  '/api/archiv/mahnungsdatei/$id': typeof ApiArchivMahnungsdateiIdRoute
+  '/api/archiv/voranmeldungsdatei/$id': typeof ApiArchivVoranmeldungsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/entwurf/angebot/$id': typeof ApiEntwurfAngebotIdRoute
   '/api/entwurf/rechnung/$id': typeof ApiEntwurfRechnungIdRoute
@@ -1006,11 +1102,14 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
     | '/ausschuettungen'
     | '/auswertungen'
     | '/bank'
     | '/csv-import'
     | '/darlehen'
+    | '/einrichtung'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -1028,6 +1127,8 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/mcp'
     | '/einladung/$token'
+    | '/oauth/autorisieren'
+    | '/.well-known/oauth-protected-resource/$'
     | '/abschluss/$jahr'
     | '/angebote/$id'
     | '/angebote/neu'
@@ -1037,6 +1138,7 @@ export interface FileRouteTypes {
     | '/buchungen/neu'
     | '/dauerbelege/$id'
     | '/dauerbelege/neu'
+    | '/einstellungen/verfahrensdokumentation'
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -1064,6 +1166,8 @@ export interface FileRouteTypes {
     | '/api/lastschrift/$id'
     | '/api/mahnung/$id'
     | '/api/mandat/$id'
+    | '/api/oauth/register'
+    | '/api/oauth/token'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
@@ -1099,6 +1203,8 @@ export interface FileRouteTypes {
     | '/rechnungen/wiederkehrend/neu'
     | '/umsatzsteuer/zm/$quartal'
     | '/api/archiv/auftragsdatei/$id'
+    | '/api/archiv/mahnungsdatei/$id'
+    | '/api/archiv/voranmeldungsdatei/$id'
     | '/api/dokument/$art/$id'
     | '/api/entwurf/angebot/$id'
     | '/api/entwurf/rechnung/$id'
@@ -1114,11 +1220,14 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/setup'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
     | '/ausschuettungen'
     | '/auswertungen'
     | '/bank'
     | '/csv-import'
     | '/darlehen'
+    | '/einrichtung'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -1136,7 +1245,9 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/mcp'
     | '/einladung/$token'
+    | '/oauth/autorisieren'
     | '/'
+    | '/.well-known/oauth-protected-resource/$'
     | '/abschluss/$jahr'
     | '/angebote/$id'
     | '/angebote/neu'
@@ -1146,6 +1257,7 @@ export interface FileRouteTypes {
     | '/buchungen/neu'
     | '/dauerbelege/$id'
     | '/dauerbelege/neu'
+    | '/einstellungen/verfahrensdokumentation'
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -1173,6 +1285,8 @@ export interface FileRouteTypes {
     | '/api/lastschrift/$id'
     | '/api/mahnung/$id'
     | '/api/mandat/$id'
+    | '/api/oauth/register'
+    | '/api/oauth/token'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
@@ -1208,6 +1322,8 @@ export interface FileRouteTypes {
     | '/rechnungen/wiederkehrend/neu'
     | '/umsatzsteuer/zm/$quartal'
     | '/api/archiv/auftragsdatei/$id'
+    | '/api/archiv/mahnungsdatei/$id'
+    | '/api/archiv/voranmeldungsdatei/$id'
     | '/api/dokument/$art/$id'
     | '/api/entwurf/angebot/$id'
     | '/api/entwurf/rechnung/$id'
@@ -1224,11 +1340,14 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/setup'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
     | '/_app/ausschuettungen'
     | '/_app/auswertungen'
     | '/_app/bank'
     | '/_app/csv-import'
     | '/_app/darlehen'
+    | '/_app/einrichtung'
     | '/_app/einstellungen'
     | '/_app/finanzamt'
     | '/_app/fristen'
@@ -1246,7 +1365,9 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/mcp'
     | '/einladung/$token'
+    | '/oauth/autorisieren'
     | '/_app/'
+    | '/.well-known/oauth-protected-resource/$'
     | '/_app/abschluss/$jahr'
     | '/_app/angebote/$id'
     | '/_app/angebote/neu'
@@ -1256,6 +1377,7 @@ export interface FileRouteTypes {
     | '/_app/buchungen/neu'
     | '/_app/dauerbelege/$id'
     | '/_app/dauerbelege/neu'
+    | '/_app/einstellungen_/verfahrensdokumentation'
     | '/_app/jahreserklaerung/$jahr'
     | '/_app/kontakte/$id'
     | '/_app/kontakte/neu'
@@ -1283,6 +1405,8 @@ export interface FileRouteTypes {
     | '/api/lastschrift/$id'
     | '/api/mahnung/$id'
     | '/api/mandat/$id'
+    | '/api/oauth/register'
+    | '/api/oauth/token'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
@@ -1318,6 +1442,8 @@ export interface FileRouteTypes {
     | '/_app/rechnungen/wiederkehrend/neu'
     | '/_app/umsatzsteuer/zm/$quartal'
     | '/api/archiv/auftragsdatei/$id'
+    | '/api/archiv/mahnungsdatei/$id'
+    | '/api/archiv/voranmeldungsdatei/$id'
     | '/api/dokument/$art/$id'
     | '/api/entwurf/angebot/$id'
     | '/api/entwurf/rechnung/$id'
@@ -1335,6 +1461,8 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
+  DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   ApiBelegvorlagenRoute: typeof ApiBelegvorlagenRoute
   ApiBriefpapierRoute: typeof ApiBriefpapierRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -1342,6 +1470,7 @@ export interface RootRouteChildren {
   ApiLogoRoute: typeof ApiLogoRoute
   ApiMcpRoute: typeof ApiMcpRoute
   EinladungTokenRoute: typeof EinladungTokenRoute
+  OauthAutorisierenRoute: typeof OauthAutorisierenRoute
   ApiAltbelegIdRoute: typeof ApiAltbelegIdRoute
   ApiAngebotIdRoute: typeof ApiAngebotIdRoute
   ApiAngebotsanhangIdRoute: typeof ApiAngebotsanhangIdRoute
@@ -1361,6 +1490,8 @@ export interface RootRouteChildren {
   ApiLastschriftIdRoute: typeof ApiLastschriftIdRoute
   ApiMahnungIdRoute: typeof ApiMahnungIdRoute
   ApiMandatIdRoute: typeof ApiMandatIdRoute
+  ApiOauthRegisterRoute: typeof ApiOauthRegisterRoute
+  ApiOauthTokenRoute: typeof ApiOauthTokenRoute
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiRechnungsanhangIdRoute: typeof ApiRechnungsanhangIdRoute
@@ -1371,6 +1502,8 @@ export interface RootRouteChildren {
   ApiV1SplatRoute: typeof ApiV1SplatRoute
   ApiVastIdRoute: typeof ApiVastIdRoute
   ApiArchivAuftragsdateiIdRoute: typeof ApiArchivAuftragsdateiIdRoute
+  ApiArchivMahnungsdateiIdRoute: typeof ApiArchivMahnungsdateiIdRoute
+  ApiArchivVoranmeldungsdateiIdRoute: typeof ApiArchivVoranmeldungsdateiIdRoute
   ApiDokumentArtIdRoute: typeof ApiDokumentArtIdRoute
   ApiEntwurfAngebotIdRoute: typeof ApiEntwurfAngebotIdRoute
   ApiEntwurfRechnungIdRoute: typeof ApiEntwurfRechnungIdRoute
@@ -1402,6 +1535,20 @@ declare module '@tanstack/react-router' {
       path: '/setup'
       fullPath: '/setup'
       preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-authorization-server': {
+      id: '/.well-known/oauth-authorization-server'
+      path: '/.well-known/oauth-authorization-server'
+      fullPath: '/.well-known/oauth-authorization-server'
+      preLoaderRoute: typeof DotwellKnownOauthAuthorizationServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -1444,6 +1591,13 @@ declare module '@tanstack/react-router' {
       path: '/darlehen'
       fullPath: '/darlehen'
       preLoaderRoute: typeof AppDarlehenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/einrichtung': {
+      id: '/_app/einrichtung'
+      path: '/einrichtung'
+      fullPath: '/einrichtung'
+      preLoaderRoute: typeof AppEinrichtungRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/einstellungen': {
@@ -1565,6 +1719,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EinladungTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/oauth/autorisieren': {
+      id: '/oauth/autorisieren'
+      path: '/oauth/autorisieren'
+      fullPath: '/oauth/autorisieren'
+      preLoaderRoute: typeof OauthAutorisierenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource/$': {
+      id: '/.well-known/oauth-protected-resource/$'
+      path: '/$'
+      fullPath: '/.well-known/oauth-protected-resource/$'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceSplatRouteImport
+      parentRoute: typeof DotwellKnownOauthProtectedResourceRoute
+    }
     '/_app/abschluss/': {
       id: '/_app/abschluss/'
       path: '/abschluss'
@@ -1682,6 +1850,13 @@ declare module '@tanstack/react-router' {
       path: '/dauerbelege/neu'
       fullPath: '/dauerbelege/neu'
       preLoaderRoute: typeof AppDauerbelegeNeuRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/einstellungen_/verfahrensdokumentation': {
+      id: '/_app/einstellungen_/verfahrensdokumentation'
+      path: '/einstellungen/verfahrensdokumentation'
+      fullPath: '/einstellungen/verfahrensdokumentation'
+      preLoaderRoute: typeof AppEinstellungenVerfahrensdokumentationRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/jahreserklaerung/': {
@@ -1922,6 +2097,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMandatIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/oauth/register': {
+      id: '/api/oauth/register'
+      path: '/api/oauth/register'
+      fullPath: '/api/oauth/register'
+      preLoaderRoute: typeof ApiOauthRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/token': {
+      id: '/api/oauth/token'
+      path: '/api/oauth/token'
+      fullPath: '/api/oauth/token'
+      preLoaderRoute: typeof ApiOauthTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/postfach/$id': {
       id: '/api/postfach/$id'
       path: '/api/postfach/$id'
@@ -2083,6 +2272,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiArchivAuftragsdateiIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/archiv/mahnungsdatei/$id': {
+      id: '/api/archiv/mahnungsdatei/$id'
+      path: '/api/archiv/mahnungsdatei/$id'
+      fullPath: '/api/archiv/mahnungsdatei/$id'
+      preLoaderRoute: typeof ApiArchivMahnungsdateiIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/archiv/voranmeldungsdatei/$id': {
+      id: '/api/archiv/voranmeldungsdatei/$id'
+      path: '/api/archiv/voranmeldungsdatei/$id'
+      fullPath: '/api/archiv/voranmeldungsdatei/$id'
+      preLoaderRoute: typeof ApiArchivVoranmeldungsdateiIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/dokument/$art/$id': {
       id: '/api/dokument/$art/$id'
       path: '/api/dokument/$art/$id'
@@ -2148,6 +2351,7 @@ interface AppRouteChildren {
   AppBankRoute: typeof AppBankRoute
   AppCsvImportRoute: typeof AppCsvImportRoute
   AppDarlehenRoute: typeof AppDarlehenRoute
+  AppEinrichtungRoute: typeof AppEinrichtungRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppFinanzamtRoute: typeof AppFinanzamtRoute
   AppFristenRoute: typeof AppFristenRoute
@@ -2168,6 +2372,7 @@ interface AppRouteChildren {
   AppBuchungenNeuRoute: typeof AppBuchungenNeuRoute
   AppDauerbelegeIdRoute: typeof AppDauerbelegeIdRoute
   AppDauerbelegeNeuRoute: typeof AppDauerbelegeNeuRoute
+  AppEinstellungenVerfahrensdokumentationRoute: typeof AppEinstellungenVerfahrensdokumentationRoute
   AppJahreserklaerungJahrRoute: typeof AppJahreserklaerungJahrRoute
   AppKontakteIdRoute: typeof AppKontakteIdRoute
   AppKontakteNeuRoute: typeof AppKontakteNeuRoute
@@ -2212,6 +2417,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBankRoute: AppBankRoute,
   AppCsvImportRoute: AppCsvImportRoute,
   AppDarlehenRoute: AppDarlehenRoute,
+  AppEinrichtungRoute: AppEinrichtungRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppFinanzamtRoute: AppFinanzamtRoute,
   AppFristenRoute: AppFristenRoute,
@@ -2232,6 +2438,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppBuchungenNeuRoute: AppBuchungenNeuRoute,
   AppDauerbelegeIdRoute: AppDauerbelegeIdRoute,
   AppDauerbelegeNeuRoute: AppDauerbelegeNeuRoute,
+  AppEinstellungenVerfahrensdokumentationRoute:
+    AppEinstellungenVerfahrensdokumentationRoute,
   AppJahreserklaerungJahrRoute: AppJahreserklaerungJahrRoute,
   AppKontakteIdRoute: AppKontakteIdRoute,
   AppKontakteNeuRoute: AppKontakteNeuRoute,
@@ -2272,10 +2480,29 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface DotwellKnownOauthProtectedResourceRouteChildren {
+  DotwellKnownOauthProtectedResourceSplatRoute: typeof DotwellKnownOauthProtectedResourceSplatRoute
+}
+
+const DotwellKnownOauthProtectedResourceRouteChildren: DotwellKnownOauthProtectedResourceRouteChildren =
+  {
+    DotwellKnownOauthProtectedResourceSplatRoute:
+      DotwellKnownOauthProtectedResourceSplatRoute,
+  }
+
+const DotwellKnownOauthProtectedResourceRouteWithChildren =
+  DotwellKnownOauthProtectedResourceRoute._addFileChildren(
+    DotwellKnownOauthProtectedResourceRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  DotwellKnownOauthAuthorizationServerRoute:
+    DotwellKnownOauthAuthorizationServerRoute,
+  DotwellKnownOauthProtectedResourceRoute:
+    DotwellKnownOauthProtectedResourceRouteWithChildren,
   ApiBelegvorlagenRoute: ApiBelegvorlagenRoute,
   ApiBriefpapierRoute: ApiBriefpapierRoute,
   ApiHealthRoute: ApiHealthRoute,
@@ -2283,6 +2510,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLogoRoute: ApiLogoRoute,
   ApiMcpRoute: ApiMcpRoute,
   EinladungTokenRoute: EinladungTokenRoute,
+  OauthAutorisierenRoute: OauthAutorisierenRoute,
   ApiAltbelegIdRoute: ApiAltbelegIdRoute,
   ApiAngebotIdRoute: ApiAngebotIdRoute,
   ApiAngebotsanhangIdRoute: ApiAngebotsanhangIdRoute,
@@ -2302,6 +2530,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLastschriftIdRoute: ApiLastschriftIdRoute,
   ApiMahnungIdRoute: ApiMahnungIdRoute,
   ApiMandatIdRoute: ApiMandatIdRoute,
+  ApiOauthRegisterRoute: ApiOauthRegisterRoute,
+  ApiOauthTokenRoute: ApiOauthTokenRoute,
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiRechnungsanhangIdRoute: ApiRechnungsanhangIdRoute,
@@ -2312,6 +2542,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1SplatRoute: ApiV1SplatRoute,
   ApiVastIdRoute: ApiVastIdRoute,
   ApiArchivAuftragsdateiIdRoute: ApiArchivAuftragsdateiIdRoute,
+  ApiArchivMahnungsdateiIdRoute: ApiArchivMahnungsdateiIdRoute,
+  ApiArchivVoranmeldungsdateiIdRoute: ApiArchivVoranmeldungsdateiIdRoute,
   ApiDokumentArtIdRoute: ApiDokumentArtIdRoute,
   ApiEntwurfAngebotIdRoute: ApiEntwurfAngebotIdRoute,
   ApiEntwurfRechnungIdRoute: ApiEntwurfRechnungIdRoute,

@@ -71,6 +71,8 @@ const PAGES = [
   "/archiv?ansicht=belege&richtung=ausgabe&ohneDatei=true",
   "/textbausteine",
   "/einstellungen",
+  "/einstellungen?bereich=bereiche",
+  "/einrichtung",
   "/einstellungen?bereich=rechnungen",
   "/einstellungen?bereich=gestaltung",
   "/einstellungen?bereich=elster",
@@ -78,6 +80,8 @@ const PAGES = [
   "/einstellungen?bereich=bank",
   "/einstellungen?bereich=ki",
   "/einstellungen?bereich=export",
+  "/einstellungen/verfahrensdokumentation",
+  "/einstellungen?bereich=konten",
   "/einstellungen?bereich=seiten",
   "/einstellungen?bereich=sicherheit",
   "/einstellungen?bereich=persoenlich",
@@ -538,7 +542,8 @@ test.describe("Kontrollkästchen mit Hinweis am Handy", () => {
 
   // Auf Touchgeräten sind Felder und Zeilen mit Kästchen 44px hoch (DESIGN.md); der Hinweis darunter nimmt davon nichts weg
   test("Die Zeile mit dem Kästchen ist mindestens 44px hoch", async ({ page }) => {
-    await open(page, "/einstellungen");
+    // Am Handy zeigt /einstellungen nur die Liste der Bereiche
+    await open(page, "/einstellungen?bereich=firma");
     for (const name of [
       "Kleinunternehmer nach § 19 UStG",
       "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",

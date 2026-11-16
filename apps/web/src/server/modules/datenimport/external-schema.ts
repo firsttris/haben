@@ -1,9 +1,9 @@
-import { LEGACY_TAX_TYPES, type TaxCode } from "@haben/core";
+import { LEGACY_TAX_TYPES, type TaxCode, inBasisPoints, inCents } from "@haben/core";
 import { z } from "zod";
 
-const cents = z.number().int().min(-2_147_483_647).max(2_147_483_647);
+const cents = inCents(z.number().int().min(-2_147_483_647).max(2_147_483_647));
 const key = z.string().trim().min(1).max(200);
-const tax = z.strictObject({ rate: z.number().int().min(0).max(10000), net: cents, tax: cents });
+const tax = z.strictObject({ rate: inBasisPoints(z.number().int().min(0).max(10000)), net: cents, tax: cents });
 const original = {
   externalId: key,
   number: key,
@@ -78,6 +78,7 @@ const taxCodes = [
   "frei",
   "RC",
   "Drittland",
+  "NichtSteuerbar",
   "Steuerfrei",
   "KU",
   "VSt19",

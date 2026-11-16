@@ -3,7 +3,7 @@ import { buildSteuerbescheinigungPdf } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import type { AusschuettungEmpfaenger } from "../../db/schema.ts";
-import { kapgErklaerungAngaben, type KapgErklaerungAngaben } from "../jahreserklaerung/index.ts";
+import { kapgErklaerungAngaben, type KapgErklaerungAngaben } from "../koerperschaft/index.ts";
 import { loadCompany, loadLetterhead, type Company } from "../stammdaten/index.ts";
 import { AusschuettungError, dividendsOfYear, isReversed } from "./ausschuettung.ts";
 

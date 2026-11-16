@@ -1,0 +1,446 @@
+{
+  "belegMitDatei": {
+    "voucher": {
+      "id": "ID_1",
+      "objectName": "Voucher",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "sevClient": {
+        "id": "ID_2",
+        "objectName": "SevClient"
+      },
+      "createUser": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "voucherDate": "2024-01-15T12:00:00+01:00",
+      "supplier": {
+        "id": "ID_4",
+        "objectName": "Contact"
+      },
+      "supplierName": null,
+      "description": "B-2024-0001",
+      "document": {
+        "id": "ID_5",
+        "objectName": "Document"
+      },
+      "resultDisdar": "<anon>",
+      "payDate": "2024-01-15T12:00:00+01:00",
+      "status": "1000",
+      "currency": "EUR",
+      "sumNet": "100",
+      "sumTax": "0",
+      "sumGross": "100",
+      "sumNetAccounting": "100",
+      "sumTaxAccounting": "0",
+      "sumGrossAccounting": "100",
+      "showNet": "1",
+      "paidAmount": 100,
+      "taxType": "custom",
+      "creditDebit": "D",
+      "hidden": "0",
+      "voucherType": "VOU",
+      "recurringIntervall": null,
+      "recurringInterval": null,
+      "recurringStartDate": null,
+      "recurringNextVoucher": null,
+      "recurringLastVoucher": null,
+      "recurringEndDate": null,
+      "enshrined": null,
+      "sendType": null,
+      "inSource": null,
+      "taxSet": {
+        "id": "128172",
+        "objectName": "TaxSet"
+      },
+      "iban": "<anon>",
+      "accountingSpecialCase": null,
+      "paymentDeadline": null,
+      "tip": "0",
+      "mileageRate": "0",
+      "selectedForPaymentFile": "0",
+      "supplierNameAtSave": "<anon>",
+      "taxmaroStockAccount": null,
+      "vatNumber": null,
+      "deliveryDate": "2024-01-15T12:00:00+01:00",
+      "deliveryDateUntil": null,
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0"
+    },
+    "dokument": {
+      "id": "ID_5",
+      "objectName": "Document",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "documentNumber": null,
+      "createUser": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "updateUser": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "mimeType": null,
+      "description": null,
+      "sevClient": {
+        "id": "ID_2",
+        "objectName": "SevClient"
+      },
+      "filename": "<anon>",
+      "status": "50",
+      "extension": "pdf",
+      "filesize": "100",
+      "contentHash": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "belegOhneDatei": {
+    "voucher": {
+      "id": "ID_6",
+      "objectName": "Voucher",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "sevClient": {
+        "id": "ID_2",
+        "objectName": "SevClient"
+      },
+      "createUser": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "voucherDate": "2024-01-15T12:00:00+01:00",
+      "supplier": {
+        "id": "ID_7",
+        "objectName": "Contact"
+      },
+      "supplierName": null,
+      "description": "B-2024-0002",
+      "resultDisdar": null,
+      "payDate": "2024-01-15T12:00:00+01:00",
+      "status": "1000",
+      "object": {
+        "id": "ID_8",
+        "objectName": "Contact"
+      },
+      "currency": "EUR",
+      "sumNet": "100",
+      "sumTax": "100",
+      "sumGross": "100",
+      "sumNetAccounting": "100",
+      "sumTaxAccounting": "100",
+      "sumGrossAccounting": "100",
+      "showNet": "0",
+      "paidAmount": 100,
+      "taxType": "default",
+      "creditDebit": "C",
+      "hidden": "0",
+      "voucherType": "VOU",
+      "recurringIntervall": null,
+      "recurringInterval": null,
+      "recurringStartDate": null,
+      "recurringNextVoucher": null,
+      "recurringLastVoucher": null,
+      "recurringEndDate": null,
+      "enshrined": null,
+      "sendType": null,
+      "inSource": null,
+      "iban": null,
+      "accountingSpecialCase": null,
+      "paymentDeadline": "2024-01-15T12:00:00+01:00",
+      "tip": "0",
+      "mileageRate": "0",
+      "selectedForPaymentFile": "0",
+      "supplierNameAtSave": "<anon>",
+      "taxmaroStockAccount": null,
+      "vatNumber": null,
+      "deliveryDate": "2024-01-15T12:00:00+01:00",
+      "deliveryDateUntil": null,
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0"
+    }
+  },
+  "rechnungMitDokument": {
+    "invoice": {
+      "id": "ID_9",
+      "objectName": "Invoice",
+      "additionalInformation": null,
+      "invoiceNumber": "RE-2024-0001",
+      "contact": {
+        "id": "ID_10",
+        "objectName": "Contact"
+      },
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "sevClient": {
+        "id": "ID_2",
+        "objectName": "SevClient"
+      },
+      "invoiceDate": "2024-01-15T12:00:00+01:00",
+      "header": "<anon>",
+      "headText": "<anon>",
+      "footText": "<anon>",
+      "timeToPay": "10",
+      "discountTime": "0",
+      "discount": "0",
+      "addressName": "<anon>",
+      "addressStreet": "<anon>",
+      "addressZip": "<anon>",
+      "addressCity": "<anon>",
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": "2024-01-15T12:00:00+01:00",
+      "createUser": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "deliveryDate": "2024-01-15T12:00:00+01:00",
+      "status": "1000",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": "0",
+      "dunningLevel": null,
+      "addressParentName": null,
+      "taxType": "default",
+      "paymentMethod": {
+        "id": "ID_11",
+        "objectName": "PaymentMethod"
+      },
+      "sendDate": "2024-01-15T12:00:00+01:00",
+      "invoiceType": "RE",
+      "accountIntervall": null,
+      "accountLastInvoice": null,
+      "accountNextInvoice": null,
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": "0",
+      "addressParentName2": null,
+      "addressName2": null,
+      "addressGender": null,
+      "accountStartDate": null,
+      "accountEndDate": null,
+      "address": "<anon>",
+      "currency": "EUR",
+      "sumNet": "100",
+      "sumTax": "100",
+      "sumGross": "100",
+      "sumDiscounts": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountsForeignCurrency": "0",
+      "sumNetAccounting": "100",
+      "sumTaxAccounting": "100",
+      "sumGrossAccounting": "100",
+      "paidAmount": 100,
+      "customerInternalNote": null,
+      "einvoiceReference": null,
+      "sepaMandateReference": null,
+      "sepaCreditorId": null,
+      "sepaPayerIban": null,
+      "showNet": "0",
+      "enshrined": null,
+      "sendType": "VPDF",
+      "deliveryDateUntil": null,
+      "sendPaymentReceivedNotificationDate": null,
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0"
+    },
+    "dokument": {
+      "id": "ID_12",
+      "objectName": "Document",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "object": {
+        "id": "ID_10",
+        "objectName": "Contact"
+      },
+      "documentNumber": null,
+      "baseObject": {
+        "id": "ID_9",
+        "objectName": "Invoice"
+      },
+      "createUser": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "updateUser": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "mimeType": "application/pdf",
+      "description": null,
+      "sevClient": {
+        "id": "ID_2",
+        "objectName": "SevClient"
+      },
+      "folder": {
+        "id": "ID_13",
+        "objectName": "DocumentFolder"
+      },
+      "filename": "<anon>",
+      "status": "100",
+      "extension": "pdf",
+      "filesize": "100",
+      "contentHash": null
+    }
+  },
+  "rechnungsentwurfOhneDokument": {
+    "invoice": {
+      "id": "ID_14",
+      "objectName": "Invoice",
+      "additionalInformation": null,
+      "invoiceNumber": "RE-2024-0002",
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "sevClient": {
+        "id": "ID_2",
+        "objectName": "SevClient"
+      },
+      "invoiceDate": "2024-01-15T12:00:00+01:00",
+      "header": "<anon>",
+      "headText": "<anon>",
+      "footText": "<anon>",
+      "timeToPay": "14",
+      "discountTime": "0",
+      "discount": "0",
+      "addressName": null,
+      "addressStreet": null,
+      "addressZip": null,
+      "addressCity": null,
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": null,
+      "createUser": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "deliveryDate": "2024-01-15T12:00:00+01:00",
+      "status": "100",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_3",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": "0",
+      "dunningLevel": null,
+      "addressParentName": null,
+      "taxType": "default",
+      "paymentMethod": {
+        "id": "ID_11",
+        "objectName": "PaymentMethod"
+      },
+      "sendDate": null,
+      "invoiceType": "RE",
+      "accountIntervall": null,
+      "accountLastInvoice": null,
+      "accountNextInvoice": null,
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": "0",
+      "addressParentName2": null,
+      "addressName2": null,
+      "addressGender": null,
+      "accountStartDate": null,
+      "accountEndDate": null,
+      "address": null,
+      "currency": "EUR",
+      "sumNet": "0",
+      "sumTax": "0",
+      "sumGross": "0",
+      "sumDiscounts": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountsForeignCurrency": "0",
+      "sumNetAccounting": "0",
+      "sumTaxAccounting": "0",
+      "sumGrossAccounting": "0",
+      "paidAmount": 0,
+      "customerInternalNote": null,
+      "einvoiceReference": null,
+      "sepaMandateReference": null,
+      "sepaCreditorId": null,
+      "sepaPayerIban": null,
+      "showNet": "0",
+      "enshrined": null,
+      "sendType": null,
+      "deliveryDateUntil": null,
+      "sendPaymentReceivedNotificationDate": null,
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0"
+    }
+  },
+  "dokumentOhneBezug": {
+    "id": "ID_15",
+    "objectName": "Document",
+    "additionalInformation": null,
+    "create": "2024-01-15T12:00:00+01:00",
+    "update": "2024-01-15T12:00:00+01:00",
+    "documentNumber": null,
+    "createUser": {
+      "id": "ID_3",
+      "objectName": "SevUser"
+    },
+    "updateUser": {
+      "id": "ID_3",
+      "objectName": "SevUser"
+    },
+    "mimeType": "application/pdf",
+    "description": null,
+    "sevClient": {
+      "id": "ID_2",
+      "objectName": "SevClient"
+    },
+    "filename": "<anon>",
+    "status": "100",
+    "extension": "pdf",
+    "filesize": "100",
+    "contentHash": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "dokumenteZumBeleg": {
+    "objects": []
+  },
+  "getDocuments": {
+    "status": 404,
+    "antwort": {
+      "error": {
+        "exceptionUUID": "00000000-0000-0000-0000-000000000000",
+        "message": "Method getDocuments does not exist on object Model_Voucher",
+        "errorCode": 0,
+        "code": 157,
+        "data": [],
+        "responseCode": 404
+      },
+      "objects": null
+    }
+  }
+}

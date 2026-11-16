@@ -58,6 +58,7 @@ describe.skipIf(!testDatabaseUrl)("Angaben zur Einkommensteuer (Postgres)", () =
           agZuschussKv: 240_000,
           agZuschussPv: 20_000,
         },
+        b: { gkv: 300_000, agZuschussGkv: 84_000, agZuschussPv: 12_000 },
       },
     });
     expect((await incomeTax.loadEstAngaben(2022)).vorsorge?.a).toMatchObject({
@@ -66,6 +67,7 @@ describe.skipIf(!testDatabaseUrl)("Angaben zur Einkommensteuer (Postgres)", () =
       agZuschussKv: 240_000,
       agZuschussPv: 20_000,
     });
+    expect((await incomeTax.loadEstAngaben(2022)).vorsorge?.b).toMatchObject({ agZuschussGkv: 84_000, agZuschussPv: 12_000 });
   });
 
   it("verwirft gespeicherte Angaben nicht, die ein verschärftes Schema ablehnt", async () => {

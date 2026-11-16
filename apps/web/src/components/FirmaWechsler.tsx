@@ -98,13 +98,33 @@ export function FirmaWechsler({ andere }: { andere: Firma[] }) {
   return (
     <div className="firma-wechsler" ref={root}>
       <button ref={button} type="button" className="nav-link firma-wechsler-knopf" aria-expanded={open} aria-controls={auswahlId} onClick={toggle}>
-        Firma wechseln
+        {/* Das Gebäude wie eingeklappt und bei den Menüpunkten; der Name der Zeile bleibt der Text (Symbol aria-hidden) */}
+        <Icon name="company" />
+        <span className="firma-wechsler-text">Firma wechseln</span>
         <Icon name="chevron-down" size={16} />
       </button>
       {/* Bleibt im Dokument, damit aria-controls immer ein Ziel hat */}
       <div ref={auswahl} id={auswahlId} role="group" aria-label="Firma wechseln" hidden={!open}>
         <FirmaListe key={renderKey} andere={andere} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Mit Firmenportal (#504, Stufe 2, HABEN_FIRMENPORTAL_URL) steht an der Stelle von „Firma wechseln“ ein Link ins
+ * Firmenportal im selben Tab. Er heißt „Zum Firmenportal“, weil er nichts aufklappt, sondern aus Haben hinausführt.
+ * Welche Firmen es gibt, weiß nur das Firmenportal, aus den Gruppen beim Anmeldedienst; mit ?von=haben zeigt es die
+ * Liste auch dann, wenn es nur diese eine Firma gibt, statt gleich hierher zurückzuleiten.
+ */
+export function ZumFirmenportal({ url }: { url: string }) {
+  return (
+    <div className="firma-wechsler">
+      <a href={`${url}/?von=haben`} className="nav-link firma-wechsler-knopf">
+        <Icon name="company" />
+        <span className="firma-wechsler-text">Zum Firmenportal</span>
+        <Icon name="chevron-right" size={16} />
+      </a>
     </div>
   );
 }

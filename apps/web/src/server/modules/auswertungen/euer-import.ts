@@ -1,7 +1,7 @@
 import type { Kontenrahmen } from "@haben/core";
 import { inArray } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
-import { externalSettlementLinks } from "../datenimport/index.ts";
+import { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
 import { offenerSaldo, rechnungsAnteile } from "./euer-journal-anteile.ts";
 import { bloecke, buchungen, offenerPosten, type Buchung, type Zeile } from "./euer-journal-buchungen.ts";
 

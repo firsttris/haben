@@ -1,11 +1,26 @@
 import { Link } from "@tanstack/react-router";
+import type { KeyboardEvent, ReactNode } from "react";
+import { EINKLAPP_KUERZEL } from "../lib/nav-rail.ts";
+import { ariaKuerzel } from "../lib/tastatur.ts";
 import type { Firma } from "../lib/firmen.ts";
 import type { EigeneSeiteNav as EigeneSeite, NavGroup } from "../lib/navigation.ts";
+import { releaseNotesUrl } from "../lib/release-notes.ts";
 import { STEUERBERATUNG_START } from "../lib/rollen.ts";
-import { FirmaListe, FirmaWechsler } from "./FirmaWechsler.tsx";
+import { FirmaListe, FirmaWechsler, ZumFirmenportal } from "./FirmaWechsler.tsx";
 import { Icon } from "./Icon.tsx";
-import { NavFlyout } from "./NavFlyout.tsx";
+import { Kuerzel } from "./Kuerzel.tsx";
+import { type FlyoutWeg, NavFlyout, weiter } from "./NavFlyout.tsx";
 import { ThemePicker } from "./ThemePicker.tsx";
+
+/** Name eines Symbols der eingeklappten Leiste, beim Überfahren und mit Fokus (styles.css, .nav-tip); der Name für
+ * Hilfstechnik steht im aria-label des Elements */
+export function NavTip({ children }: { children: ReactNode }) {
+  return (
+    <span className="nav-tip" aria-hidden="true">
+      {children}
+    </span>
+  );
+}
 
 interface CollapseButtonProps {
   collapsed: boolean;
@@ -16,30 +31,45 @@ function CollapseSidebarButton({ collapsed, onToggleCollapse }: CollapseButtonPr
   return (
     <button
       type="button"
-      className="nav-link nav-collapse-btn"
+      className="nav-link nav-collapse-btn nav-tip-anker"
       aria-expanded={!collapsed}
-      aria-label={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
-      title={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"}
+      // Ausgeklappt kommt der Name aus dem Text, sonst passte das sichtbare Kürzel nicht zu einem aria-label
+      // (axe: label-content-name-mismatch, WCAG 2.5.3); das Kürzel steht in aria-keyshortcuts
+      aria-label={collapsed ? "Seitenleiste ausklappen" : undefined}
+      aria-keyshortcuts={ariaKuerzel(EINKLAPP_KUERZEL)}
       onClick={onToggleCollapse}
     >
-      <Icon name={collapsed ? "chevron-right" : "chevron-left"} />
-      <span className="nav-collapse-label">Einklappen</span>
+      <Icon name={collapsed ? "sidebar-open" : "sidebar-close"} />
+      <span className="nav-collapse-label">
+        <span className="visually-hidden">Seitenleiste </span>Einklappen
+      </span>
+      {!collapsed && <Kuerzel tasten={EINKLAPP_KUERZEL} className="nav-kbd" aria-hidden="true" />}
+      {collapsed && (
+        <NavTip>
+          Seitenleiste ausklappen <Kuerzel tasten={EINKLAPP_KUERZEL} />
+        </NavTip>
+      )}
     </button>
   );
 }
 
 interface NavBodyProps extends CollapseButtonProps {
   inhaber: boolean;
+  /** Name aus den Firmendaten; eingeklappt steht er im Kopf von „Firma wechseln“ (#504) */
+  firma: string | null;
   pathname: string;
   firmen: Firma[];
+  /** HABEN_FIRMENPORTAL_URL, nur für den Inhaber (#504, Stufe 2); dann statt der Liste ein Link dorthin */
+  firmenportal: string | null;
   sichtbareGruppen: readonly NavGroup[];
   eigeneSeiten: readonly EigeneSeite[];
   userName: string;
   userInitial: string;
   userMeta: string;
-  openFlyout: string | null;
-  onFlyoutToggle: (key: string) => void;
-  onFlyoutClose: () => void;
+  openFlyout: { key: string; weg: FlyoutWeg } | null;
+  onFlyoutOpen: (key: string, weg: FlyoutWeg) => void;
+  /** Schließt nur das Flyout mit diesem Schlüssel, nie ein inzwischen geöffnetes anderes */
+  onFlyoutClose: (key: string) => void;
   onSignOut: () => void;
 }
 
@@ -82,7 +112,7 @@ function NavAccountActions({ onSignOut }: { onSignOut: () => void }) {
         Abmelden
       </button>
       <ThemePicker />
-      <a className="nav-version" href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`} title="Versionshinweise auf GitHub">
+      <a className="nav-version" href={releaseNotesUrl(__HABEN_VERSION__)} title="Versionshinweise auf GitHub">
         Haben {__HABEN_VERSION__}
       </a>
     </>
@@ -95,31 +125,41 @@ export function NavRailBody({
   inhaber,
   pathname,
   firmen,
+  firmenportal,
   sichtbareGruppen,
   eigeneSeiten,
   userName,
   userInitial,
   userMeta,
+  firma,
   openFlyout,
-  onFlyoutToggle,
+  onFlyoutOpen,
   onFlyoutClose,
   onSignOut,
 }: NavBodyProps) {
+  const flyout = (key: string) => ({
+    open: openFlyout?.key === key ? openFlyout.weg : null,
+    onOpen: (weg: FlyoutWeg) => onFlyoutOpen(key, weg),
+    onClose: () => onFlyoutClose(key),
+  });
   return (
     <>
-      {firmen.length > 0 && (
-        <NavFlyout label="Firma wechseln" icon="company" open={openFlyout === "firma"} onToggle={() => onFlyoutToggle("firma")} onClose={onFlyoutClose}>
-          <FirmaListe key={openFlyout === "firma" ? "open" : "closed"} andere={firmen} />
-        </NavFlyout>
+      {firmenportal ? (
+        // Kein Flyout: Der Link führt aus Haben hinaus, die Liste der Firmen kennt nur das Ziel
+        <a href={`${firmenportal}/?von=haben`} className="nav-link nav-rail-link nav-tip-anker" aria-label="Zum Firmenportal">
+          <Icon name="company" />
+          <NavTip>Zum Firmenportal</NavTip>
+        </a>
+      ) : (
+        firmen.length > 0 && (
+          <NavFlyout label="Firma wechseln" icon="company" zusatz={firma} {...flyout("firma")}>
+            <FirmaListe key={openFlyout?.key === "firma" ? "open" : "closed"} andere={firmen} />
+          </NavFlyout>
+        )
       )}
-      <Link
-        to={inhaber ? "/" : STEUERBERATUNG_START}
-        className="nav-link nav-rail-link"
-        aria-label="Übersicht"
-        title="Übersicht"
-        activeOptions={{ exact: true }}
-      >
+      <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link nav-rail-link nav-tip-anker" aria-label="Übersicht" activeOptions={{ exact: true }}>
         <Icon name="overview" />
+        <NavTip>Übersicht</NavTip>
       </Link>
       {sichtbareGruppen.map((group) => (
         <NavFlyout
@@ -127,9 +167,7 @@ export function NavRailBody({
           label={group.label}
           icon={group.icon}
           active={group.links.some((link) => routeAktiv(pathname, link.to))}
-          open={openFlyout === group.label}
-          onToggle={() => onFlyoutToggle(group.label)}
-          onClose={onFlyoutClose}
+          {...flyout(group.label)}
         >
           {group.links.map((link) => (
             <Link key={link.to} to={link.to} className="nav-link">
@@ -140,31 +178,22 @@ export function NavRailBody({
         </NavFlyout>
       ))}
       {eigeneSeiten.length > 0 && (
-        <NavFlyout
-          label="Eigene Seiten"
-          icon="embed"
-          active={pathname.startsWith("/seiten/")}
-          open={openFlyout === "eigene-seiten"}
-          onToggle={() => onFlyoutToggle("eigene-seiten")}
-          onClose={onFlyoutClose}
-        >
+        <NavFlyout label="Eigene Seiten" icon="embed" active={pathname.startsWith("/seiten/")} {...flyout("eigene-seiten")}>
           <EigeneSeitenLinks seiten={eigeneSeiten} />
         </NavFlyout>
       )}
       <div className="nav-spacer" />
-      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
       <div className="nav-foot nav-foot-rail">
         {inhaber && (
-          <Link to="/einstellungen" className="nav-link nav-rail-link" aria-label="Einstellungen" title="Einstellungen">
+          <Link to="/einstellungen" className="nav-link nav-rail-link nav-tip-anker" aria-label="Einstellungen">
             <Icon name="settings" />
+            <NavTip>Einstellungen</NavTip>
           </Link>
         )}
         <NavFlyout
           label={`${userName} · Konto & Darstellung`}
           icon="info"
-          open={openFlyout === "konto"}
-          onToggle={() => onFlyoutToggle("konto")}
-          onClose={onFlyoutClose}
+          {...flyout("konto")}
           triggerContent={
             <span className="nav-avatar" aria-hidden="true">
               {userInitial}
@@ -183,6 +212,8 @@ export function NavRailBody({
           <NavAccountActions onSignOut={onSignOut} />
         </NavFlyout>
       </div>
+      {/* Ganz unten, an derselben Stelle wie ausgeklappt */}
+      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
     </>
   );
 }
@@ -192,17 +223,18 @@ export function NavExpandedBody({
   onToggleCollapse,
   inhaber,
   firmen,
+  firmenportal,
   sichtbareGruppen,
   eigeneSeiten,
   userName,
   userInitial,
   userMeta,
   onSignOut,
-}: Omit<NavBodyProps, "pathname" | "openFlyout" | "onFlyoutToggle" | "onFlyoutClose">) {
+}: Omit<NavBodyProps, "pathname" | "firma" | "openFlyout" | "onFlyoutOpen" | "onFlyoutClose">) {
   return (
     <>
-      {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im rollenden Menü */}
-      {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
+      {/* Firma wechseln (#504), mit HABEN_FIRMENPORTAL_URL stattdessen der Link „Zum Firmenportal“; sonst nur mit anderen Firmen. Als Erstes im rollenden Menü */}
+      {firmenportal ? <ZumFirmenportal url={firmenportal} /> : firmen.length > 0 && <FirmaWechsler andere={firmen} />}
       <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
         <Icon name="overview" />
         <span className="nav-collapse-label">Übersicht</span>
@@ -230,7 +262,6 @@ export function NavExpandedBody({
         </div>
       )}
       <div className="nav-spacer" />
-      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
       <div className="nav-foot">
         <div className="nav-user">
           <span className="nav-avatar" aria-hidden="true">
@@ -248,6 +279,41 @@ export function NavExpandedBody({
           </Link>
         )}
         <NavAccountActions onSignOut={onSignOut} />
+      </div>
+      {/* Ganz unten, wie eingeklappt; am Handy verborgen */}
+      <CollapseSidebarButton collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
+    </>
+  );
+}
+
+// Die Symbole der eingeklappten Leiste von oben nach unten: Marke und Lupe stehen vor den Fassungen in der Navigation
+const SYMBOLE = ".brand, .nav-search-btn, .nav-variante-rail :is(.nav-rail-trigger, .nav-rail-link, .nav-collapse-btn)";
+
+/** Eingeklappt am Desktop wandern ↑/↓ von Symbol zu Symbol, Marke und Lupe eingeschlossen; im Flyout übernimmt NavFlyout.
+ * Kein Pfeil aus der Leiste erreicht die Seite (die Beleg-Ansicht blättert sonst mit ← →). An der Navigation (`<nav>`) */
+export function symbolWechseln(event: KeyboardEvent<HTMLElement>) {
+  if (!event.key.startsWith("Arrow") || !document.documentElement.dataset.nav || !window.matchMedia("(min-width: 861px)").matches) return;
+  const ziel = event.target as HTMLElement;
+  const symbole = [...event.currentTarget.querySelectorAll<HTMLElement>(SYMBOLE)].filter((symbol) => !symbol.closest(".nav-flyout"));
+  const amSymbol = symbole.includes(ziel);
+  if (!amSymbol && !ziel.closest(".nav-flyout")) return;
+  event.stopPropagation();
+  const schritt = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+  if (!schritt || !amSymbol) return;
+  event.preventDefault();
+  weiter(symbole, schritt);
+}
+
+/** Beide Fassungen im DOM, CSS zeigt eine (display: contents, die Kinder bleiben Teil von .nav-body); so liefert der
+ * Server die eingeklappte Leiste schon fertig */
+export function NavVarianten(props: NavBodyProps) {
+  return (
+    <>
+      <div className="nav-variante nav-variante-voll">
+        <NavExpandedBody {...props} />
+      </div>
+      <div className="nav-variante nav-variante-rail">
+        <NavRailBody {...props} />
       </div>
     </>
   );

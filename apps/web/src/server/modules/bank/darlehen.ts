@@ -12,6 +12,7 @@ import {
   type DarlehenTeil,
   type Kontenrahmen,
   type PostingLine,
+  inCents,
 } from "@haben/core";
 import { asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -34,7 +35,7 @@ export const loanSchema = z.object({
   term: z.enum(DARLEHEN_LAUFZEIT_KEYS),
   purpose: z.enum(DARLEHEN_ZWECK_KEYS),
   /** Restschuld eines laufenden Darlehens am Stichtag; 0 bei einem neuen, das im Bankabgleich ausgezahlt wird */
-  openingBalance: z.number().int().min(0),
+  openingBalance: inCents(z.number().int().min(0)),
   openingDate: z.iso.date().nullable(),
 });
 
@@ -49,7 +50,7 @@ export async function createLoan(actor: string, input: z.input<typeof loanSchema
 }
 
 /** Bestand je Darlehen: Restschuld beim Anlegen plus Auszahlungen, minus Tilgungen (Vorzeichen wie auf dem Konto) */
-async function bestaende(ids: string[], q: Db | Tx): Promise<Map<string, Cents>> {
+export async function bestaende(ids: string[], q: Db | Tx): Promise<Map<string, Cents>> {
   if (ids.length === 0) return new Map();
   const rows = await q
     .select({ loanId: schema.allocations.loanId, summe: sql<number>`coalesce(sum(${schema.allocations.amount}), 0)`.mapWith(Number) })

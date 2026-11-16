@@ -33,6 +33,14 @@ export function kuerzelText(tasten: readonly Taste[], apple: boolean): string {
   return tastenNamen(tasten, apple).join("+");
 }
 
+/**
+ * Textform für Screenreader, etwa in versteckten Hinweisen: „Befehlstaste plus Enter“ bzw. „Strg plus Enter“. Das Zeichen
+ * ⌘ liest nicht jeder Screenreader als Taste vor, das Wort schon.
+ */
+export function kuerzelSprache(tasten: readonly Taste[], apple: boolean): string {
+  return tasten.map((taste) => (taste === "mod" ? (apple ? "Befehlstaste" : "Strg") : taste)).join(" plus ");
+}
+
 /** Wert für aria-keyshortcuts: „mod“ gilt mit Strg und mit der Befehlstaste, wie die Tastaturbehandlung (ctrlKey || metaKey) */
 export function ariaKuerzel(tasten: readonly Taste[]): string {
   if (!tasten.includes("mod")) return tasten.join("+");

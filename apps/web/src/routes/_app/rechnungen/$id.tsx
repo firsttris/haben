@@ -16,10 +16,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { reverseWriteOffFn, writeOffRest } from "../../../server/functions/bank.ts";
 import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
+import { LockedAndArchived } from "../../../components/ArchiveStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { InvoiceServiceEntries } from "../../../components/InvoiceServiceEntries.tsx";
+import { RechnungVerrechnung } from "../../../components/RechnungVerrechnung.tsx";
 import { SendMailForm } from "../../../components/SendMail.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
@@ -74,6 +76,7 @@ function InvoicePage() {
             sellerOrderReference: invoice.sellerOrderReference,
             despatchAdviceReference: invoice.despatchAdviceReference,
             taxTreatment: invoice.taxTreatment,
+            taxDetails: invoice.taxDetails,
             exemptionReason: invoice.exemptionReason,
             priceMode: invoice.priceMode,
             language: invoice.language,
@@ -93,6 +96,8 @@ function InvoicePage() {
             quoteId: invoice.quoteId,
             discount: discountFromColumns(invoice.discountPercent, invoice.discountAmount),
             paymentMethod: invoice.paymentMethod,
+            paidVia: invoice.paidVia,
+            paidOn: invoice.paidOn,
             sepaMandateId: invoice.sepaMandateId,
             // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
             lines: data.lines
@@ -116,6 +121,7 @@ function InvoicePage() {
           numberCounters={data.numberCounters}
           numberRunning={data.numberRunning}
           numberFormat={data.numberFormat}
+          lastFinalized={data.lastFinalized}
           corrects={data.corrects}
           bundesland={data.bundesland}
           kleinunternehmer={data.kleinunternehmer}
@@ -123,6 +129,7 @@ function InvoicePage() {
           mandates={data.mandates}
           contactPersons={data.contactPersons}
           articles={data.articles}
+          units={data.units}
           textBlocks={data.textBlocks}
           abschlaege={data.abschlaege}
           quotes={data.quotes}
@@ -268,8 +275,19 @@ function FinalInvoice({ data }: { data: Detail }) {
               <dd>{formatDate(invoice.issueDate)}</dd>
               {invoice.kind === "rechnung" && (
                 <>
-                  <dt>Fällig</dt>
-                  <dd>{formatDate(invoice.dueDate)}</dd>
+                  {invoice.paymentMethod === "bereits_bezahlt" && invoice.paidOn ? (
+                    <>
+                      <dt>Bezahlt am</dt>
+                      <dd>{formatDate(invoice.paidOn)}</dd>
+                      <dt>Bezahlt über</dt>
+                      <dd>{invoice.paidVia}</dd>
+                    </>
+                  ) : (
+                    <>
+                      <dt>Fällig</dt>
+                      <dd>{formatDate(invoice.dueDate)}</dd>
+                    </>
+                  )}
                 </>
               )}
               <dt>Netto</dt>
@@ -311,8 +329,7 @@ function FinalInvoice({ data }: { data: Detail }) {
                   <dd>{TAX_TREATMENTS[invoice.taxTreatment].label}</dd>
                 </>
               )}
-              <dt>Festgeschrieben</dt>
-              <dd>{invoice.lockedAt ? formatDateTime(invoice.lockedAt) : "–"}</dd>
+              <LockedAndArchived lockedAt={invoice.lockedAt} ablage={data.ablage} />
               {data.deducts.length > 0 && (
                 <>
                   <dt>Abgezogen</dt>
@@ -467,6 +484,8 @@ function FinalInvoice({ data }: { data: Detail }) {
           {inhaber && invoice.kind !== "storno" && (data.open > 0 || data.writeOffs.length > 0) && (
             <WriteOffs invoiceId={invoice.id} open={data.open} writeOffs={data.writeOffs} today={data.today} />
           )}
+
+          {invoice.status === "final" && invoice.kind !== "storno" && <RechnungVerrechnung invoiceId={invoice.id} readOnly={!inhaber} />}
 
           {correctedBy.length > 0 && (
             <section className="card" aria-labelledby="related-heading">

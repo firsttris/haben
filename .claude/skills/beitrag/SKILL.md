@@ -32,6 +32,7 @@ Als Datei (im Scratchpad), auf Deutsch:
 ## 4. Vor dem Push
 
 - `bun scripts/pr-regeln/pruefen.ts --titel "<Titel>" --beschreibung <datei>` (unter einer Sekunde, nur git): jeden Fehler und Hinweis nach `docs/mitwirken.md`, „Wenn eine Prüfung anschlägt“, beheben oder den Grund in die Beschreibung schreiben. So bleibt der Kommentar von „PR-Regeln“ meist leer.
+- Lange Funktionen: `bun run lint` zeigt alle als Info `noExcessiveLinesPerFunction`, auch alte; zu teilen sind vor dem Push nur die, die `pruefen.ts` als neu oder gewachsen nennt (`docs/mitwirken.md`, „Wenn eine Prüfung anschlägt“, Funktionslänge).
 - Gibt es zum Branch schon einen Pull Request, prüfen, ob er noch offen ist (`gh pr view <branch> --json state`, sonst auf GitHub nachsehen oder die Person fragen). Ist er gemergt, neu von `origin/main` beginnen, die eigenen Commits darauf setzen und einen neuen Pull Request anlegen; nie auf einen gemergten Branch weiterpushen.
 - Force-Push nur mit `--force-with-lease` auf den eigenen Branch.
 

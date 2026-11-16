@@ -33,6 +33,8 @@ import {
   providerAccountSchema,
   importStatement,
   listAccounts,
+  hebePrivatAuf,
+  markierePrivat,
   excludeAccount,
   excludeBlocker,
   includeAccount,
@@ -68,7 +70,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(
     z.object({
-      konto: z.uuid().optional(),
+      /** Ein Konto oder „alle“: Umsätze aller Konten, wohin „Alle anzeigen“ der Schnellsuche führt (#617) */
+      konto: z.union([z.uuid(), z.literal("alle")]).optional(),
       filter: z.enum(["offen", "zugeordnet", "alle", "vorschlag"]).default("offen"),
       suche: z.string().max(100).default(""),
       umsatz: z.uuid().optional(),
@@ -78,23 +81,28 @@ export const getBankOverview = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const accounts = await listAccounts();
-    const account = accounts.find((a) => a.id === data.konto) ?? accounts[0] ?? null;
-    const transactions = account ? await umsatzauswahl(account, data.filter, data.suche, { feld: data.sort, richtung: data.dir }) : [];
-    const excludeBlockedBy = account ? await excludeBlocker(account.id) : null;
+    // „Alle Konten“ erst ab zwei Konten; mit einem zeigt die Seite dieses
+    const allAccounts = data.konto === "alle" && accounts.length > 1;
+    const shown = allAccounts ? accounts : [accounts.find((a) => a.id === data.konto) ?? accounts[0]].filter((a) => a !== undefined);
+    const transactions = shown.length > 0 ? await umsatzauswahl(shown, data.filter, data.suche, { feld: data.sort, richtung: data.dir }) : [];
     const selectedId = data.umsatz ?? transactions.find((t) => t.open !== 0)?.id ?? transactions[0]?.id;
-    const detail = selectedId ? await transactionDetail(selectedId) : null;
+    const found = selectedId ? await transactionDetail(selectedId) : null;
+    const detail = found && shown.some((a) => a.id === found.transaction.bankAccountId) ? found : null;
+    // Das gewählte Konto; in „Alle Konten“ das des gewählten Umsatzes, nach dessen Zweck sich die Buchungsarten richten
+    const account = allAccounts ? (accounts.find((a) => a.id === detail?.transaction.bankAccountId) ?? null) : (shown[0] ?? null);
+    const excludeBlockedBy = account && !allAccounts ? await excludeBlocker(account.id) : null;
     return {
       accounts,
       /** Monate mit abgegebener Voranmeldung: danach ist der Tag der Aufhebung vorbelegt (#782) */
       gemeldeteMonate: await gemeldeteVoranmeldungen(),
-      accountId: account?.id ?? null,
+      accountId: allAccounts ? null : (account?.id ?? null),
+      allAccounts,
       excludeBlockedBy,
       excludedAccounts: (await listExcludedAccounts()).map((a) => ({ ...a, excludedAt: a.excludedAt?.toISOString() ?? null })),
       transactions,
-      detail:
-        detail && detail.transaction.bankAccountId === account?.id
-          ? { ...detail, neutralization: await neutralizationView(detail.transaction.id), storePayout: await storePayoutView(detail.transaction.id) }
-          : null,
+      detail: detail
+        ? { ...detail, neutralization: await neutralizationView(detail.transaction.id), storePayout: await storePayoutView(detail.transaction.id) }
+        : null,
       directKinds: await (async () => {
         const { rechtsform } = await loadCompany();
         // Auf einem privaten Konto entfallen vier Angebote (#873)
@@ -191,6 +199,22 @@ export const updateBankAccount = createServerFn({ method: "POST" })
   .validator(accountSettingsSchema)
   .handler(async ({ data, context }) => {
     await updateAccount(context.user.id, data);
+    return { ok: true };
+  });
+
+export const markBankTransactionPrivate = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ transactionId: z.uuid(), note: z.string().max(500).optional() }))
+  .handler(async ({ data, context }) => {
+    await markierePrivat(context.user.id, data.transactionId, data.note ?? "");
+    return { ok: true };
+  });
+
+export const unmarkBankTransactionPrivate = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ transactionId: z.uuid() }))
+  .handler(async ({ data, context }) => {
+    await hebePrivatAuf(context.user.id, data.transactionId);
     return { ok: true };
   });
 

@@ -274,6 +274,31 @@ typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage
 | `total` | `object` | ja | ja | Zu zahlen |
 | `total.label` | `string` | ja |  | Bezeichnung, links |
 | `total.value` | `string` | ja |  | Wert, rechts |
+| `paymentDetails` | `object` | nein |  | Zahlungsanweisung als einzelne Felder |
+| `paymentDetails.amount` | `string` | ja |  | Zahlbetrag einschließlich angesetzter Kosten, wie total.value |
+| `paymentDetails.dueDate` | `string` | ja |  | Neue Zahlungsfrist der Mahnung |
+| `paymentDetails.reference` | `string` | ja |  | Verwendungszweck, wie im GiroCode |
+| `paymentDetails.accountHolder` | `string` | ja |  | Kontoinhaber, ersatzweise Firmenname |
+| `paymentDetails.bank` | `string` | ja |  | Name der Bank, leer ohne Angabe |
+| `paymentDetails.iban` | `string` | ja |  | IBAN in Vierergruppen, leer ohne Angabe |
+| `paymentDetails.bic` | `string` | ja |  | BIC, leer ohne Angabe |
+| `paymentHistory` | `object[]` | nein |  | Zugeordnete Bank- und Barzahlungen nach Datum, ohne Gegenzeilen; keine Verrechnungen oder Ausbuchungen |
+| `paymentHistory[].date` | `string` | ja |  | Buchungsdatum der Bankzahlung bzw. Datum der Bareinnahme |
+| `paymentHistory[].amount` | `string` | ja |  | Zugeordneter Zahlbetrag; Erstattung negativ |
+| `paymentHistory[].effect` | `null \| string` | ja |  | Wirkung auf die Forderung: Zahlung negativ, Erstattung positiv; null bei Aufhebung |
+| `paymentHistory[].method` | `string` | ja |  | Zahlungsweg: Bank oder Bar |
+| `paymentHistory[].note` | `string` | ja |  | Bank: Name der Gegenpartei; Bar: Buchungstext |
+| `paymentHistory[].reversed` | `boolean` | ja |  | Bankzuordnung aufgehoben bzw. Bareinnahme storniert |
+| `claimDetails` | `object` | nein |  | Forderungsbestandteile aus der bestehenden Berechnung; keine neue Berechnung im Layout |
+| `claimDetails.originalAmount` | `null \| string` | ja |  | Bruttobetrag der gemahnten Rechnung; null, wenn der Aufrufer ihn nicht liefert |
+| `claimDetails.openAmount` | `string` | ja |  | Aktueller offener Betrag nach Zahlungen, Korrekturen und sonstigem Ausgleich |
+| `claimDetails.fee` | `null \| string` | ja |  | Angesetzte Mahngebühr nach Anrechnung auf die Pauschale; null ohne |
+| `claimDetails.flatFee` | `null \| string` | ja |  | Angesetzte Verzugspauschale; null ohne |
+| `claimDetails.interest` | `null \| string` | ja |  | Berechnete Verzugszinsen; null ohne |
+| `claimDetails.interestRate` | `null \| string` | ja |  | Jährlicher Zinssatz mit Prozentzeichen; null ohne Zinsen |
+| `claimDetails.interestDays` | `string` | ja |  | Anzahl der Zinstage |
+| `claimDetails.invoiceDueDate` | `string` | ja |  | Fälligkeit der Rechnung |
+| `claimDetails.calculatedOn` | `string` | ja |  | Datum der Mahnung und Zinsberechnung |
 | `closing` | `string` | ja | ja | Schlusstext ohne Auszeichnungszeichen |
 | `closingFormatted` | `object[]` | ja | ja | Schlusstext mit Auszeichnungen |
 | `closingFormatted[].text` | `string` | ja |  | Text des Abschnitts |

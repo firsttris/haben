@@ -9,6 +9,8 @@ import type { Cents } from "@haben/core";
 export interface EuerFigures {
   // Betriebseinnahmen
   kleinunternehmer?: Cents;
+  /** In Zeile 12 enthaltene nicht steuerbare Umsätze und Abzüge nach § 19 Abs. 2 UStG; nur nachrichtlich. */
+  kleinunternehmerAbzuege?: Cents;
   steuerpflichtig?: Cents;
   steuerfrei?: Cents;
   /** Vereinnahmte Umsatzsteuer und Umsatzsteuer auf unentgeltliche Wertabgaben */
@@ -117,10 +119,12 @@ export type EuerFigureKey = (typeof EUER_EINNAHMEN)[number] | (typeof EUER_AUSGA
 
 /** Zeile der Anlage EÜR 2025 und amtlicher Text, für die Vorschau */
 export const EUER_FIELDS: Record<
-  EuerFigureKey | "bewirtungNichtAbziehbar" | "gewerbesteuerNichtAbziehbar" | "entnahmen" | "einlagen",
+  EuerFigureKey | "kleinunternehmerAbzuege" | "bewirtungNichtAbziehbar" | "gewerbesteuerNichtAbziehbar" | "entnahmen" | "einlagen",
   { kz: string; label: string }
 > = {
   kleinunternehmer: { kz: "E6000101", label: "Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer" },
+  // Schema E77-2025.xsd, /EUER/BEin/Umsatz_nicht_steuerbar/Sum/E6000201; Zeile 13, kein zusätzlicher Einnahmenposten.
+  kleinunternehmerAbzuege: { kz: "E6000201", label: "Nicht steuerbare Umsätze und Abzüge nach § 19 Abs. 2 UStG (nachrichtlich)" },
   steuerpflichtig: { kz: "E6000401", label: "Umsatzsteuerpflichtige Betriebseinnahmen" },
   steuerfrei: {
     kz: "E6000501",

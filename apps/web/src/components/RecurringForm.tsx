@@ -12,14 +12,15 @@ import {
   RECURRING_PLACEHOLDERS,
   SERVICE_PERIOD_MODES,
   servicePeriodFor,
-  TAX_TREATMENTS,
-  UNITS,
+  outgoingTaxIssues,
+  section4Note,
+  treatmentNote,
   type PaymentMethod,
   type PriceMode,
   type RecurringInterval,
   type ServicePeriodMode,
   type TaxTreatment,
-  type UnitLabel,
+  type OutgoingTaxDetails,
 } from "@haben/core";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
@@ -34,7 +35,9 @@ import { NewContactDialog } from "./NewContactDialog.tsx";
 import { positionsFehler } from "../lib/editor-lines.ts";
 import { useSubmitCheck } from "../lib/use-submit-check.ts";
 import { Field } from "./Field.tsx";
+import { unitOptions } from "../lib/units.ts";
 import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
+import { OutgoingTaxFields } from "./OutgoingTaxFields.tsx";
 
 type Rate = 1900 | 700 | 0;
 
@@ -49,8 +52,9 @@ export interface RecurringValues {
   propertyRetention: boolean;
   taxTreatment: TaxTreatment;
   exemptionReason: string;
+  taxDetails: OutgoingTaxDetails | null;
   priceMode: PriceMode;
-  lines: { description: string; detail: string; itemNumber?: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: Rate }[];
+  lines: { description: string; detail: string; itemNumber?: string; quantity: number; unit: string; unitPrice: number; taxRate: Rate }[];
   intervalMonths: RecurringInterval;
   nextDate: string;
   endDate: string | null;
@@ -69,7 +73,7 @@ interface LineState {
   /** Artikelnummer (BT-155), geht in jede Rechnung aus der Vorlage */
   itemNumber: string;
   quantity: string;
-  unit: UnitLabel;
+  unit: string;
   unitPrice: string;
   taxRate: Rate;
 }
@@ -81,6 +85,7 @@ export function RecurringForm({
   initial,
   contacts,
   textBlocks = [],
+  units = [],
   kleinunternehmer,
   busy,
   submitLabel,
@@ -91,6 +96,8 @@ export function RecurringForm({
   contacts: ContactChoice[];
   /** Kopf- und Fußtexte zum Einfügen */
   textBlocks?: TextBlockOption[];
+  /** Eigene Einheiten (#748) neben den festen */
+  units?: readonly string[];
   kleinunternehmer: boolean;
   busy: boolean;
   submitLabel: string;
@@ -108,6 +115,7 @@ export function RecurringForm({
   const [propertyRetention, setPropertyRetention] = useState(initial.propertyRetention);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment);
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason);
+  const [taxDetails, setTaxDetails] = useState<OutgoingTaxDetails | null>(initial.taxDetails ?? null);
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode);
   const [intervalMonths, setIntervalMonths] = useState<RecurringInterval>(initial.intervalMonths);
   const [nextDate, setNextDate] = useState(initial.nextDate);
@@ -148,6 +156,8 @@ export function RecurringForm({
     };
   });
   const term = Number(paymentTermDays);
+  const taxNote = taxTreatment === "steuerfrei" ? (section4Note(taxDetails?.exemption) ?? exemptionReason) : exemptionReason;
+  const taxIssues = outgoingTaxIssues(taxTreatment, taxDetails, kleinunternehmer);
   const valid =
     name.trim() !== "" &&
     contactId !== "" &&
@@ -158,7 +168,8 @@ export function RecurringForm({
     parsed.length > 0 &&
     parsed.every((l) => l.valid) &&
     (!endDate || endDate >= nextDate) &&
-    (taxTreatment !== "steuerfrei" || exemptionReason.trim() !== "");
+    taxIssues.length === 0 &&
+    (taxTreatment !== "steuerfrei" || taxNote.trim() !== "");
 
   const { form, error, check } = useSubmitCheck({
     ...Object.fromEntries(lines.map((l) => [`pos-${l.key}`, positionsFehler(l)])),
@@ -167,7 +178,8 @@ export function RecurringForm({
     nextDate: nextDate ? null : "Wähle den Tag der nächsten Rechnung.",
     endDate: endDate && endDate < nextDate ? "Wähle einen Tag ab der nächsten Rechnung." : null,
     term: Number.isInteger(term) && term >= 0 && term <= 120 ? null : "Trag das Zahlungsziel in ganzen Tagen von 0 bis 120 ein.",
-    exemption: taxTreatment === "steuerfrei" && !exemptionReason.trim() ? "Trag die Befreiungsvorschrift ein, etwa § 4 Nr. 14 UStG." : null,
+    tax: taxIssues[0] ?? null,
+    exemption: taxTreatment === "steuerfrei" && !taxNote.trim() ? "Trag die Befreiungsvorschrift ein, etwa § 4 Nr. 14 UStG." : null,
   } as Record<string, string | null>);
 
   const period = nextDate ? servicePeriodFor(nextDate, intervalMonths, servicePeriod) : null;
@@ -191,7 +203,8 @@ export function RecurringForm({
       note,
       propertyRetention,
       taxTreatment,
-      exemptionReason: special ? exemptionReason : "",
+      taxDetails,
+      exemptionReason: special ? taxNote : "",
       priceMode: grossPrices ? "brutto" : "netto",
       lines: parsed.map(({ valid: _valid, ...line }) => line),
       intervalMonths,
@@ -317,19 +330,17 @@ export function RecurringForm({
               )}
             </Field>
             <div className="form-row cols-2">
-              <Field label="Umsatzsteuer">
-                {(control) => (
-                  <select {...control} value={taxTreatment} onChange={(e) => setTaxTreatment(e.target.value as TaxTreatment)} disabled={kleinunternehmer}>
-                    {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
-                      .filter((t) => (kleinunternehmer ? t === "kleinunternehmer" : t !== "kleinunternehmer" || taxTreatment === t))
-                      .map((t) => (
-                        <option key={t} value={t}>
-                          {TAX_TREATMENTS[t].label}
-                        </option>
-                      ))}
-                  </select>
-                )}
-              </Field>
+              <OutgoingTaxFields
+                treatment={taxTreatment}
+                details={taxDetails}
+                exemptionReason={exemptionReason}
+                kleinunternehmer={kleinunternehmer}
+                error={error("tax")}
+                reasonError={error("exemption")}
+                onTreatmentChange={setTaxTreatment}
+                onDetailsChange={setTaxDetails}
+                onReasonChange={setExemptionReason}
+              />
               {!special && (
                 <Field label="Preise">
                   {(control) => (
@@ -337,19 +348,6 @@ export function RecurringForm({
                       <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
                       <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
                     </select>
-                  )}
-                </Field>
-              )}
-              {special && (
-                <Field label={taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"} error={error("exemption")}>
-                  {(control) => (
-                    <input
-                      {...control}
-                      value={exemptionReason}
-                      onChange={(e) => setExemptionReason(e.target.value)}
-                      maxLength={300}
-                      placeholder={TAX_TREATMENTS[taxTreatment].note ?? ""}
-                    />
                   )}
                 </Field>
               )}
@@ -448,12 +446,8 @@ export function RecurringForm({
                 </LineCell>
                 <LineCell label="Einheit">
                   {/* biome-ignore lint/plugin: Zeile einer Positionstabelle: Spaltenkopf und aria-label benennen die Zelle, ein Feldname je Zelle gäbe jeder Zeile eine Hülle `.field` */}
-                  <select
-                    aria-label={`Einheit Position ${index + 1}`}
-                    value={line.unit}
-                    onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
-                  >
-                    {Object.keys(UNITS).map((unit) => (
+                  <select aria-label={`Einheit Position ${index + 1}`} value={line.unit} onChange={(e) => updateLine(line.key, { unit: e.target.value })}>
+                    {unitOptions(units, line.unit).map((unit) => (
                       <option key={unit}>{unit}</option>
                     ))}
                   </select>
@@ -565,6 +559,11 @@ export function RecurringForm({
                   </li>
                 ))}
             </ul>
+            {special && (
+              <p className="small" style={{ margin: 0 }}>
+                {treatmentNote(taxTreatment, taxNote)}
+              </p>
+            )}
           </section>
         )}
 

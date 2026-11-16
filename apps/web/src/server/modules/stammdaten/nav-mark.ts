@@ -2,9 +2,11 @@ import { ACCENT_PATTERN } from "@haben/core";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { schema } from "../../db/index.ts";
+import type { Logo } from "@haben/einvoice";
+import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { loadCompany } from "./company.ts";
+import { loadLogo, logoInfo } from "./logo.ts";
 
 /*
  * Zeichen der Firma in der Navigation (#504): Wer mehrere Firmen als eigene Instanzen führt, erkennt die Firma an einer
@@ -57,4 +59,30 @@ export async function saveNavMark(actor: string, input: NavMarkInput): Promise<v
       .set({ ...set, updatedAt: new Date() })
       .where(eq(schema.company.id, 1));
   });
+}
+
+/** Das Zeichen für Betreiber (#1036): `haben status --json` gibt es aus, das Instanzen-Werkzeug bringt es ins Firmenportal */
+export interface NavMarkStand {
+  /** Eigene Farbe (#RRGGBB); bleibt auch bei „Logo“ gesetzt und gilt, wenn das Logo fehlt */
+  farbe: string | null;
+  /** Logo als Zeichen gewählt und vorhanden; an der Prüfsumme erkennt das Werkzeug ein neues Logo, ohne es zu laden */
+  logo: { format: "png" | "jpg"; sha256: string } | null;
+}
+
+/** Wahl der Firma, nur lesend: Anders als `loadCompany` legt das keine Firma an, `haben status` schreibt nichts */
+async function gewaehlt(): Promise<{ navColor: string | null; navLogo: boolean } | undefined> {
+  const [row] = await db.select({ navColor: schema.company.navColor, navLogo: schema.company.navLogo }).from(schema.company).where(eq(schema.company.id, 1));
+  return row;
+}
+
+/** Wie die Navigation (`navMark` in lib/navigation.ts): das Logo nur, wenn es gewählt ist und es eins gibt */
+export async function readNavMark(): Promise<NavMarkStand> {
+  const wahl = await gewaehlt();
+  const info = wahl?.navLogo ? await logoInfo() : null;
+  return { farbe: wahl?.navColor ?? null, logo: info ? { format: info.format, sha256: info.sha256 } : null };
+}
+
+/** Das Logo als Zeichen für `haben kennzeichen`; undefined, wenn es nicht gewählt ist oder fehlt (wie /api/kennzeichen) */
+export async function readNavMarkLogo(): Promise<Logo | undefined> {
+  return (await gewaehlt())?.navLogo ? await loadLogo() : undefined;
 }

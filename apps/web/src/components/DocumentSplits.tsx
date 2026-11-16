@@ -1,4 +1,5 @@
 import { allocateSplitTax, formatDecimal, formatEuro, parseEuro, type ExpenseCategory } from "@haben/core";
+import { EigenesKontoWahl, passendesKonto, type OwnAccountChoice } from "./EigenesKontoWahl.tsx";
 import { Field } from "./Field.tsx";
 
 /*
@@ -14,19 +15,21 @@ export interface SplitRowState {
   category: ExpenseCategory | "";
   taxRate: Rate;
   net: string;
+  /** Eigenes Sachkonto der Zeile (#270); leer = das Konto der Kategorie */
+  ownAccountId: string;
 }
 
 let nextSplitKey = 1;
 
-export function splitRow(category: ExpenseCategory | "", taxRate: Rate, net: string): SplitRowState {
-  return { key: nextSplitKey++, category, taxRate, net };
+export function splitRow(category: ExpenseCategory | "", taxRate: Rate, net: string, ownAccountId = ""): SplitRowState {
+  return { key: nextSplitKey++, category, taxRate, net, ownAccountId };
 }
 
 /** Eingegebene Zeilen als Daten; null, wenn eine Zeile noch keine Kategorie oder kein lesbares Netto hat */
-export function parseSplitRows(rows: SplitRowState[]): { category: ExpenseCategory; taxRate: Rate; net: number }[] | null {
-  const parsed = rows.map((row) => ({ category: row.category, taxRate: row.taxRate, net: parseEuro(row.net || "0") }));
+export function parseSplitRows(rows: SplitRowState[]): { category: ExpenseCategory; taxRate: Rate; net: number; ownAccountId: string | null }[] | null {
+  const parsed = rows.map((row) => ({ category: row.category, taxRate: row.taxRate, net: parseEuro(row.net || "0"), ownAccountId: row.ownAccountId || null }));
   if (parsed.some((p) => p.category === "" || p.net === null)) return null;
-  return parsed.map((p) => ({ category: p.category as ExpenseCategory, taxRate: p.taxRate, net: p.net! }));
+  return parsed.map((p) => ({ category: p.category as ExpenseCategory, taxRate: p.taxRate, net: p.net!, ownAccountId: p.ownAccountId }));
 }
 
 const percent = (rate: number) => `${rate / 100} %`;
@@ -35,6 +38,7 @@ export function DocumentSplits({
   rows,
   amounts,
   categories,
+  ownAccounts = [],
   disabled,
   onChange,
   onDissolve,
@@ -45,6 +49,8 @@ export function DocumentSplits({
   /** Beträge des Belegs je Satz in Euro; null, solange ein Betrag oben nicht lesbar ist */
   amounts: { taxRate: Rate; net: number; tax: number }[] | null;
   categories: { value: string; label: string }[];
+  /** Eigene Sachkonten (#270), je Zeile zur Kategorie wählbar */
+  ownAccounts?: OwnAccountChoice[];
   /** Gebucht oder während der Auslesung: nur ansehen */
   disabled: boolean;
   onChange: (rows: SplitRowState[]) => void;
@@ -52,7 +58,7 @@ export function DocumentSplits({
   onDissolve: () => void;
   /** Fehler je Zeile aus der Prüfung beim Buchen (useSubmitCheck), erst danach zu sehen */
   error?: (feld: "kategorie" | "netto", key: number) => string | undefined;
-  /** Steuer je Zeile: Vorsteuer, bei § 13b (#508) die selbst geschuldete Steuer */
+  /** Steuer je Zeile: Vorsteuer, ohne Abzug Umsatzsteuer (#978), bei § 13b (#508) die selbst geschuldete Steuer */
   taxLabel?: string;
 }) {
   const parsed = rows.map((row) => parseEuro(row.net || "0"));
@@ -75,7 +81,16 @@ export function DocumentSplits({
         <div className="document-split-row" key={row.key}>
           <Field label="Kategorie" error={error("kategorie", row.key)}>
             {(control) => (
-              <select {...control} value={row.category} onChange={(e) => update(row.key, { category: e.target.value as ExpenseCategory | "" })}>
+              <select
+                {...control}
+                value={row.category}
+                onChange={(e) =>
+                  update(row.key, {
+                    category: e.target.value as ExpenseCategory | "",
+                    ownAccountId: passendesKonto(ownAccounts, e.target.value, row.ownAccountId),
+                  })
+                }
+              >
                 <option value="">Bitte wählen</option>
                 {options.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -117,6 +132,13 @@ export function DocumentSplits({
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
+          <EigenesKontoWahl
+            accounts={ownAccounts}
+            category={row.category}
+            value={row.ownAccountId}
+            onChange={(ownAccountId) => update(row.key, { ownAccountId })}
+            style={{ gridColumn: "1 / -1" }}
+          />
         </div>
       ))}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>

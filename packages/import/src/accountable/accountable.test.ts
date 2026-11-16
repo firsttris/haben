@@ -257,11 +257,11 @@ describe("Accountable-Export lesen", () => {
 describe("Kontobewegungen als Kontoauszug", () => {
   const bewegung = (date: string, amount: number, matched: boolean, row: number) => ({
     date,
-    account: "DE42100140009610447304",
+    account: "DE02120300000000202051",
     purpose: "Zweck",
     amount,
     counterparty: "Vodafone",
-    counterpartyAccount: "DE13380700590045335700",
+    counterpartyAccount: "DE75512108001245126199",
     matched,
     row,
   });
@@ -271,7 +271,7 @@ describe("Kontobewegungen als Kontoauszug", () => {
       bankMovements: [bewegung("2026-10-29", -4499, true, 2), bewegung("2026-07-06", 14875, true, 3)],
     } as unknown as AccountableExport);
     expect(stmt?.format).toBe("accountable-xlsx");
-    expect(stmt?.accountIban).toBe("DE42100140009610447304");
+    expect(stmt?.accountIban).toBe("DE02120300000000202051");
     expect(stmt?.transactions.map((t) => [t.bookingDate, t.amount])).toEqual([
       ["2026-10-29", -4499],
       ["2026-07-06", 14875],
@@ -295,13 +295,13 @@ describe("Kontobewegungen als Kontoauszug", () => {
 
   it("macht je eigenem Konto einen eigenen Auszug", () => {
     const auszuege = accountableStatements({
-      bankMovements: [bewegung("2026-10-29", -4499, true, 2), { ...bewegung("2026-10-30", -100, true, 3), account: "DE02120300000000202051" }],
+      bankMovements: [bewegung("2026-10-29", -4499, true, 2), { ...bewegung("2026-10-30", -100, true, 3), account: "DE44500105175407324931" }],
     } as unknown as AccountableExport);
     expect(auszuege).toHaveLength(2);
     const jeKonto = Object.fromEntries(auszuege.map((a) => [a.accountIban, a.transactions.map((t) => t.amount)]));
     expect(jeKonto).toEqual({
-      DE42100140009610447304: [-4499],
-      DE02120300000000202051: [-100],
+      DE02120300000000202051: [-4499],
+      DE44500105175407324931: [-100],
     });
   });
 });

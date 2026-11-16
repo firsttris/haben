@@ -15,7 +15,7 @@ Ein Update lässt sich nicht einfach zurücknehmen: Migrationen ändern die Date
 | Zeitplan | Dienst `backup`, täglich um `BACKUP_TIME` (Standard 03:15, Zeitzone Europe/Berlin) | `haben-backup.timer` startet `haben-backup.container` täglich um 03:15 Uhr, ein verpasster Lauf wird nachgeholt (`Persistent=true`) |
 | Backup jetzt | `docker compose exec backup backup.sh` | `systemctl --user start haben-backup` |
 | Protokoll | `docker compose logs backup` | `journalctl --user -u haben-backup` |
-| Stand | `docker compose exec app haben status`: Version (mit Commit, wenn das Image ihn kennt), ERiC und letzte erfolgreiche Sicherung, mit Hinweis, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner gelang (`--json` für Skripte) | `podman exec haben-app haben status` |
+| Stand | `docker compose exec app haben status`: Version (mit Commit, wenn das Image ihn kennt), ERiC, letzte erfolgreiche Sicherung, mit Hinweis, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner gelang, und Speicher von Datenbank und Belegen (`--json` für Skripte, dort auch das [Zeichen der Firma](installation.md#firmenportal)) | `podman exec haben-app haben status` |
 | Passwort des Backups | `RESTIC_PASSWORD` in `.env` | Secret `haben-restic-password` |
 | Repository auf einem zweiten System | `RESTIC_REPOSITORY` in `.env` | `RESTIC_REPOSITORY` in `~/.config/haben/backup.env` |
 | Test-Restore | alle `RESTORE_CHECK_DAYS` Tage (`.env`, Standard 7) | alle `RESTORE_CHECK_DAYS` Tage (`backup.env`, Standard 7) |
@@ -26,7 +26,7 @@ Ein Lauf
 2. erzeugt mit `pg_dump` über das Netz einen SQL-Dump der Datenbank, packt ihn mit gzip und prüft ihn: Das Archiv muss sich entpacken lassen und mit der Abschlusszeile von `pg_dump` enden, sonst bricht das Backup mit Fehler ab,
 3. sichert den Dump und die Belegdateien (Volume `belege` bzw. `haben-belege`, nur lesend eingehängt) verschlüsselt mit `restic backup --tag haben`,
 4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die längste Aufbewahrungsfrist ab, 10 Jahre für Bücher und Aufzeichnungen (§ 147 Abs. 3 AO),
-5. trägt das Ergebnis in die Datenbank ein; die App zeigt es unter Einstellungen › Export und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
+5. trägt das Ergebnis in die Datenbank ein, mit dem Repository ohne Nutzer und Passwort für die [Verfahrensdokumentation](verfahrensdokumentation.md); die App zeigt es unter Einstellungen › Export und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
 6. spielt alle `RESTORE_CHECK_DAYS` Tage (Standard 7) das neue Backup probeweise ein (siehe [Test-Restore](#test-restore)).
 
 Die Volumes `caddy`, `eric` und `eric-log` und die Schlüssel sind nicht dabei. Mit Compose zeigt `docker compose ps` den Dienst `backup` als `unhealthy`, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief.
@@ -51,6 +51,16 @@ RESTIC_REPOSITORY=s3:https://fsn1.your-objectstorage.com/bucket/haben
 AWS_ACCESS_KEY_ID=…
 AWS_SECRET_ACCESS_KEY=…
 ```
+
+#### SFTP Schritt für Schritt
+
+Am Beispiel Docker Compose; die Befehle laufen als der Benutzer, der `docker compose` startet.
+
+1. **Schlüssel anlegen:** `ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519`. Den öffentlichen Teil (`~/.ssh/id_ed25519.pub`) beim Anbieter des Ziels für den SFTP- bzw. SSH-Zugang hinterlegen.
+2. **Host in `known_hosts` eintragen:** `ssh-keyscan -t ed25519 <host> >> ~/.ssh/known_hosts`, danach einmal `ssh <benutzer>@<host>`; das muss ohne Passwortabfrage klappen.
+3. **Einhängen:** in `compose.yml` bei `backup` und `restore` die Zeile `~/.ssh:/root/.ssh:ro` einkommentieren. Zeigt `~` auf dem Server nicht auf das richtige Verzeichnis, etwa auf einem NAS, den vollen Pfad nehmen, zum Beispiel `/share/homes/<benutzer>/.ssh:/root/.ssh:ro`.
+4. **In `.env`:** `RESTIC_REPOSITORY=sftp:<benutzer>@<host>:/pfad/zum/backup`. Heißt der Schlüssel nicht `id_ed25519` oder `id_rsa`, eine `~/.ssh/config` mit `Host <host>` und `IdentityFile ~/.ssh/<name>` anlegen.
+5. **Übernehmen und testen:** `docker compose up -d`, damit der Container mit Einhängung und neuer Variable startet, dann einmal `docker compose exec backup backup.sh`. Beim ersten Lauf legt es das Repository an.
 
 Unterstützt das Ziel schreibgeschützte Stände (etwa Object Lock bei S3), schützt das Backup auch gegen jemanden, der den Server übernommen hat.
 
@@ -141,7 +151,7 @@ Die alten Stände zeigt `restore.sh` ohne Argument unter dem Hostnamen des Serve
 
 ## Updates
 
-Vor jedem Update ein Backup machen; nur damit lässt sich das Update zurücknehmen, siehe [Update zurücknehmen](#update-zurücknehmen). Mit Compose:
+Welche Version die neueste ist, zeigt **Einstellungen › Export › Version**. Vor jedem Update ein Backup machen; nur damit lässt sich das Update zurücknehmen, siehe [Update zurücknehmen](#update-zurücknehmen). Mit Compose:
 
 ```sh
 docker compose exec backup backup.sh   # Stand vor dem Update sichern
@@ -200,4 +210,4 @@ systemctl --user restart haben-db haben-app
 journalctl --user -u haben-db -n 20    # „Upgrade auf PostgreSQL 18 fertig“
 ```
 
-Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an; erst danach startet der Server. Schlägt eine Migration fehl, startet die App nicht, und der Fehler steht im Log.
+Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an, dann einmalig die Prüfung beim [Update auf das Journal](einrichtung.md#update-auf-das-journal); erst danach startet der Server. Schlägt eine Migration oder die Prüfung fehl, startet die App nicht, und der Grund steht im Log.

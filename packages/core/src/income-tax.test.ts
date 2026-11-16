@@ -154,6 +154,51 @@ describe("steuerPrognose", () => {
     expect(steuerPrognose(zuViel).vorsorge).toBe(0);
   });
 
+  it("zieht den Zuschuss zur gesetzlichen KV (Nr. 24 a) bei freiwillig Versicherten ab (§ 10 Abs. 2 Satz 1 Nr. 1 EStG)", () => {
+    // Selbstzahler: Beiträge in Zeile 16 (gkv), Zuschüsse laut Nr. 24 a und 24 c der Lohnsteuerbescheinigung
+    const ohne: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: { ...base.angaben, vorsorge: { a: { gkv: 4_000_00, gpv: 1_000_00 } } },
+    };
+    expect(steuerPrognose(ohne).vorsorge).toBe(5_000_00);
+    const mitZuschuss: PrognoseInput = {
+      ...ohne,
+      angaben: { ...ohne.angaben, vorsorge: { a: { gkv: 4_000_00, gpv: 1_000_00, agZuschussGkv: 2_000_00, agZuschussPv: 500_00 } } },
+    };
+    expect(steuerPrognose(mitZuschuss).vorsorge).toBe(2_500_00);
+  });
+
+  it("zieht den Zuschuss zur gesetzlichen KV in voller Höhe ab, auch neben Beiträgen mit Krankengeldanteil", () => {
+    // Freiwillig gesetzlich versichert: Beiträge laut Nr. 25 der Bescheinigung, Zuschuss laut Nr. 24 a.
+    // Die 4 % Krankengeldanteil kürzen nur den Beitrag (§ 10 Abs. 1 Nr. 3 Buchst. a EStG), der Zuschuss
+    // mindert die Basisabsicherung vollständig und wird nicht aufgeteilt (§ 10 Abs. 2 Satz 1 Nr. 1 EStG,
+    // BFH 2.9.2014, IX R 43/13).
+    // Die Beiträge liegen über dem Höchstbetrag von 1.900 €, damit nur die Basisabsicherung zählt: Darunter
+    // ergäbe jede Reihenfolge von Kürzung und Zuschuss dieselbe Summe aus Basis und übriger Vorsorge.
+    const bescheinigung = { brutto: 60_000_00, kvArbeitnehmer: 4_000_00, pvArbeitnehmer: 1_000_00 };
+    const ohne: PrognoseInput = {
+      ...base,
+      year: 2025,
+      zusammen: false,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: {} },
+        arbeitnehmer: { a: { bescheinigungen: [bescheinigung], werbungskosten: {} } },
+      },
+    };
+    // Basis 3.840 € + 1.000 €, der Krankengeldanteil von 160 € fällt unter den Höchstbetrag
+    expect(steuerPrognose(ohne).vorsorge).toBe(4_840_00);
+    const mitZuschuss: PrognoseInput = {
+      ...ohne,
+      angaben: { ...ohne.angaben, vorsorge: { a: { agZuschussGkv: 2_000_00 } } },
+    };
+    // In voller Höhe: 3.840 + 1.000 − 2.000 = 2.840. Zöge man den Zuschuss vor der Kürzung ab oder teilte ihn
+    // 96 : 4 auf, wären es (4.000 − 2.000) × 96 % + 1.000 = 2.920
+    expect(steuerPrognose(mitZuschuss).vorsorge).toBe(2_840_00);
+  });
+
   it("rechnet Einkommensersatzleistungen über den Progressionsvorbehalt ein", () => {
     const ohne: PrognoseInput = {
       ...base,

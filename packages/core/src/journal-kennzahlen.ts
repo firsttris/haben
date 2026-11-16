@@ -65,6 +65,7 @@ const BEMESSUNG: Record<string, Ziel> = {
   USt7: { feld: "kz86", seite: "haben" },
   RC: { feld: "kz21", seite: "haben" },
   Drittland: { feld: "kz45", seite: "haben" },
+  NichtSteuerbar: { feld: "kz45", seite: "haben" },
   Steuerfrei: { feld: "kz48", seite: "haben" },
   IGL: { feld: "kz41", seite: "haben" },
   Ausfuhr: { feld: "kz43", seite: "haben" },
@@ -141,7 +142,7 @@ export function leereJournalKennzahlen(): JournalKennzahlen {
  * inländische Umsätze (Kz 81, 86, 43, 48, 0 %). Reverse Charge, innergemeinschaftliche Lieferung und Drittland zählen
  * auch bei Ist mit der Rechnung (DATEV-Dok. 1080673; NACH_RECHNUNGSDATUM in vat-figures.ts).
  */
-const IST_NACH_ZAHLUNG: ReadonlySet<JournalKennzahl> = new Set(["kz81", "kz86", "kz43", "kz48", "steuerfrei"]);
+export const IST_NACH_ZAHLUNG: ReadonlySet<JournalKennzahl> = new Set(["kz81", "kz86", "kz43", "kz48", "steuerfrei"]);
 
 /**
  * Summe der Kennzahlen über die Buchungen eines Zeitraums, je Buchung ihre Zeilen. Bei Ist-Versteuerung zählt wie bei

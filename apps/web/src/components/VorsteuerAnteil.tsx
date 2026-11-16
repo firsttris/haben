@@ -1,0 +1,174 @@
+import {
+  abziehbarerAnteil,
+  abziehbareSteuer,
+  formatEuro,
+  formatHundredths,
+  gespeicherterAnteil,
+  parsePercent,
+  splitPrivateShare,
+  type Prozent,
+  type SelfAssessedTax,
+} from "@haben/core";
+import { Field } from "./Field.tsx";
+
+/** Abziehbarer Anteil in Basispunkten über parsePercent, höchstens 100 %; null, wenn ungültig. Leer übernimmt die Vorgabe. */
+export function parseVorsteuerAnteil(value: string): number | null {
+  const points = parsePercent(value);
+  return points !== null && points <= 10_000 ? points : null;
+}
+
+export const formatVorsteuerAnteil = (value: number | null | undefined): string =>
+  value == null
+    ? ""
+    : formatHundredths(value)
+        .replace(/,00$/, "")
+        .replace(/(,\d)0$/, "$1");
+
+type Beleg = Pick<Props, "value" | "company" | "booked" | "storedDeduction">;
+
+/**
+ * Abziehbarer Anteil eines Steuersatzes in Basispunkten, wie ihn Vorschau und Beschriftung lesen. Wie beim Buchen
+ * (documents.ts): ungebucht der Anteil am Steuersatz, am Beleg oder die Vorgabe, als Kleinunternehmer 0; gebucht der
+ * gespeicherte Anteil.
+ */
+export function zeilenAnteil({ value, company, booked, storedDeduction }: Beleg, satz: string): number {
+  const amBeleg = parseVorsteuerAnteil(value);
+  const amSatz = parseVorsteuerAnteil(satz);
+  return booked ? gespeicherterAnteil({ vorsteuerAnteil: amBeleg, vorsteuerAbzug: storedDeduction }, amSatz) : abziehbarerAnteil(company, amSatz ?? amBeleg);
+}
+
+/**
+ * Beschriftung der Steuerspalte (#978), für eine Zeile oder die ganze Aufteilung: Ist von keinem Satz etwas abziehbar, ist
+ * die Steuer auf dem Beleg die Umsatzsteuer des Lieferanten; „Vorsteuer“ legte einen Abzug nahe.
+ */
+export function steuerSpalte(reverseCharge: SelfAssessedTax | null, beleg: Beleg, saetze: { vorsteuerAnteil: string }[]): string {
+  if (reverseCharge === "ig_erwerb") return "Erwerbsteuer";
+  if (reverseCharge) return "Steuer § 13b";
+  return saetze.length > 0 && saetze.every((satz) => zeilenAnteil(beleg, satz.vorsteuerAnteil) === 0) ? "Umsatzsteuer" : "Vorsteuer";
+}
+
+interface VorsteuerRow {
+  key: number;
+  taxRate: number;
+  vorsteuerAnteil: string;
+  net: number | null;
+  tax: number | null;
+}
+
+interface Props {
+  value: string;
+  rows: VorsteuerRow[];
+  company: { kleinunternehmer: boolean; ohneVorsteuerabzug: boolean };
+  booked: boolean;
+  storedDeduction: boolean;
+  /** Privatanteil in ganzen Prozent; null, wenn die Eingabe ungültig ist, dann ohne Vorschau */
+  privateShare: Prozent | null;
+  asset: boolean;
+  importVat?: boolean;
+  onChange: (value: string) => void;
+  onRateChange: (key: number, value: string) => void;
+}
+
+function AnteilField({
+  label,
+  value,
+  hint,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const invalid = value.trim() !== "" && parseVorsteuerAnteil(value) === null;
+  return (
+    <Field label={label} hint={hint} error={invalid ? "0 bis 100 % mit höchstens zwei Nachkommastellen eingeben." : undefined}>
+      {(control) => (
+        <input {...control} inputMode="decimal" value={value} placeholder="Vorgabe" disabled={disabled} onChange={(event) => onChange(event.target.value)} />
+      )}
+    </Field>
+  );
+}
+
+export function VorsteuerAnteil(props: Props) {
+  const { value, rows, company, booked, privateShare, asset, onChange, onRateChange, importVat = false } = props;
+  const blocked = !booked && company.kleinunternehmer;
+  const defaultShare = zeilenAnteil(props, "");
+  const valid = [value, ...rows.map((row) => row.vorsteuerAnteil)].every((text) => text.trim() === "" || parseVorsteuerAnteil(text) !== null);
+  const preview = valid && rows.every((row) => row.net !== null && row.tax !== null) && privateShare !== null;
+  const privat = privateShare ?? 0;
+  const importVatReady =
+    !blocked &&
+    privateShare === 0 &&
+    rows.length > 0 &&
+    rows.every((row) => row.taxRate === 0 && row.tax === 0 && (parseVorsteuerAnteil(row.vorsteuerAnteil) ?? defaultShare) === 10_000);
+  // Der Zollbetrag selbst ist Vorsteuer ohne Aufwand (§ 15 Abs. 1 Satz 1 Nr. 2 UStG), nicht die Steuer auf diesen Betrag.
+  // Quelle: https://www.gesetze-im-internet.de/ustg_1980/__15.html. Die bestehende EUSt-Grenze erlaubt hier keinen Teilabzug.
+  const totals = importVat
+    ? { deductible: rows.reduce((sum, row) => sum + (row.net ?? 0) + (row.tax ?? 0), 0), excluded: 0, cost: 0 }
+    : rows.reduce(
+        (sum, row) => {
+          const tax = splitPrivateShare(row.tax ?? 0, privat).business;
+          const share = zeilenAnteil(props, row.vorsteuerAnteil);
+          const deductible = abziehbareSteuer(tax, share);
+          return {
+            deductible: sum.deductible + deductible,
+            excluded: sum.excluded + tax - deductible,
+            cost: sum.cost + splitPrivateShare(row.net ?? 0, privat).business + tax - deductible,
+          };
+        },
+        { deductible: 0, excluded: 0, cost: 0 },
+      );
+  return (
+    <div className="stack" style={{ gap: 12 }}>
+      <AnteilField
+        label="Abziehbare Vorsteuer in %"
+        value={blocked ? "0" : value}
+        disabled={blocked || booked}
+        onChange={onChange}
+        hint={
+          blocked
+            ? "Als Kleinunternehmer ist kein Vorsteuerabzug möglich."
+            : booked
+              ? `Gespeicherter Beleganteil: ${formatVorsteuerAnteil(defaultShare)} %.`
+              : `Leer = Firmenvorgabe (${company.ohneVorsteuerabzug ? "0" : "100"} %). Wirtschaftlich zugeordneter Anteil, unabhängig vom Privatanteil.`
+        }
+      />
+      {!blocked && (
+        <details open={rows.some((row) => row.vorsteuerAnteil !== "") || undefined}>
+          <summary className="small">Abweichend je Steuersatz</summary>
+          <div className="form-grid" style={{ marginTop: 12 }}>
+            {rows.map((row) => (
+              <AnteilField
+                key={row.key}
+                label={`Vorsteueranteil bei ${row.taxRate / 100} % in %`}
+                value={row.vorsteuerAnteil}
+                disabled={booked}
+                onChange={(text) => onRateChange(row.key, text)}
+                hint={`Leer = Beleganteil (${formatVorsteuerAnteil(defaultShare)} %).`}
+              />
+            ))}
+          </div>
+        </details>
+      )}
+      <p className="small" role="status" aria-label="Vorsteuervorschau" style={{ margin: 0 }}>
+        {preview && (!importVat || importVatReady) ? (
+          <>
+            Abziehbare Vorsteuer <strong className="amount">{formatEuro(totals.deductible)}</strong>
+            {" · "}
+            Nicht abziehbare Steuer <span className="amount">{formatEuro(totals.excluded)}</span>
+            {" · "}
+            {asset ? "Anschaffungskosten" : "Aufwand"} <span className="amount">{formatEuro(totals.cost)}</span>
+            {privat > 0 && " (nach Privatanteil)"}.
+          </>
+        ) : importVat && preview ? (
+          "Einfuhrumsatzsteuer wird nur als reiner Steuerbetrag zu 0 % mit vollständigem Vorsteuerabzug und ohne Privatanteil unterstützt."
+        ) : (
+          "Vorschau nach gültiger Eingabe der Beträge und Anteile."
+        )}
+      </p>
+    </div>
+  );
+}

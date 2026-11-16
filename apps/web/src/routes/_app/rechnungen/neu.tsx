@@ -27,6 +27,8 @@ function NewInvoicePage() {
           format: contact.defaultFormat ?? (contact.leitwegId ? ("xrechnung-cii" as const) : data.draft.format),
           skonto: (contact.skonto ?? data.companySkonto).filter((s) => s.days <= data.draft.paymentTermDays),
           taxTreatment: abschlag.taxTreatment,
+          taxDetails: abschlag.taxDetails,
+          exemptionReason: abschlag.exemptionReason,
           priceMode: abschlag.priceMode,
           propertyRetention: abschlag.propertyRetention,
           variant: "schluss" as const,
@@ -48,11 +50,13 @@ function NewInvoicePage() {
       numberCounters={data.numberCounters}
       numberRunning={data.numberRunning}
       numberFormat={data.numberFormat}
+      lastFinalized={data.lastFinalized}
       corrects={null}
       bundesland={data.bundesland}
       kleinunternehmer={data.kleinunternehmer}
       companySkonto={data.companySkonto}
       articles={data.articles}
+      units={data.units}
       textBlocks={data.textBlocks}
       abschlaege={data.abschlaege}
       quotes={data.quotes}

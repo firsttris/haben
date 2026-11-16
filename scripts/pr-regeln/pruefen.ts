@@ -2,7 +2,8 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { countLines, grownOldFiles } from "../dateigroesse/regel.ts";
-import { checkBody, checkTitle, countWords, docPageHints, growthHints, hints, isBot, type Report, reviewHint } from "./regel.ts";
+import { checksFunctions, functionLengthHints } from "./funktionslaenge.ts";
+import { checkBody, checkTitle, checkTitleIssues, countWords, docPageHints, growthHints, hints, isBot, type Report, reviewHint } from "./regel.ts";
 
 /*
  * Prüft einen Pull Request nach regel.ts. Läuft in .github/workflows/pr-regeln.yml mit dem Ereignis aus
@@ -71,17 +72,19 @@ const linesAt = (sha: string) =>
   );
 const grown = grownOldFiles(linesAt(mergeBase), linesAt(pr.head.sha), oldFiles);
 
-// Wörter der geänderten Seiten unter docs/ vorher und nachher, für den Hinweis auf zu lange Seiten
-const wordsAt = (sha: string, file: string) => {
+// Inhalt einer Datei in einem Stand; null, wenn es sie dort nicht gibt
+const contentAt = (sha: string, file: string) => {
   try {
-    return countWords(git("show", `${sha}:${file}`));
+    return git("show", `${sha}:${file}`);
   } catch {
-    return 0; // in diesem Stand gibt es die Seite nicht
+    return null;
   }
 };
-// Eine umbenannte Seite zählt vorher unter ihrem alten Namen, sonst gälte sie als neu (Review von #854)
+// Wörter der geänderten Seiten unter docs/ vorher und nachher, für den Hinweis auf zu lange Seiten
+const wordsAt = (sha: string, file: string) => countWords(contentAt(sha, file) ?? "");
+// Eine umbenannte Datei zählt vorher unter ihrem alten Namen, sonst gälte sie als neu (Review von #854)
 const renamedFrom: Record<string, string> = Object.fromEntries(
-  git("diff", "--name-status", "-M", range, "--", "docs/")
+  git("diff", "--name-status", "-M", range)
     .split("\n")
     .map((line) => line.split("\t"))
     .filter(([status]) => status?.startsWith("R"))
@@ -91,11 +94,18 @@ const docPages = files
   .filter((file) => file.startsWith("docs/") && file.endsWith(".md"))
   .map((file) => ({ file, before: wordsAt(mergeBase, renamedFrom[file] ?? file), after: wordsAt(pr.head.sha, file) }));
 
+// Code vorher und nachher, für den Hinweis auf neue oder gewachsene lange Funktionen
+const functionChanges = files.filter(checksFunctions).flatMap((file) => {
+  const after = contentAt(pr.head.sha, file);
+  return after === null ? [] : [{ file, before: contentAt(mergeBase, renamedFrom[file] ?? file), after }];
+});
+
 const reports: Report[] = [
-  ...(isBot(pr.user) || pr.title === null ? [] : [...checkTitle(pr.title), ...checkBody(pr.body)]),
+  ...(isBot(pr.user) || pr.title === null ? [] : [...checkTitle(pr.title), ...checkTitleIssues(pr.title, pr.body), ...checkBody(pr.body)]),
   ...hints(files, subjects),
   ...growthHints(grown),
   ...docPageHints(docPages),
+  ...functionLengthHints(functionChanges),
   ...reviewHint(pr, files),
 ];
 

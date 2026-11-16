@@ -2,6 +2,7 @@ import { type SettingsArea, settingsAreas } from "./settings-areas.ts";
 import { ACCENT_PATTERN, inkOnAccent, needsEdgeOnNav } from "@haben/core";
 import type { IconName } from "../components/Icon.tsx";
 import { STEUERBERATUNG_START } from "./rollen.ts";
+import { ausgeblendeteSeiten } from "./bereiche.ts";
 
 /** Bedingungen, unter denen ein Menüpunkt der Hauptnavigation erscheint */
 export interface NavBedingung {
@@ -15,9 +16,12 @@ export interface NavKontext {
   /** GmbH oder UG */
   gesellschaft: boolean;
   hatMitarbeiter: boolean;
+  /** Ausgeblendete Bereiche (#266, lib/bereiche.ts); fehlt = alle sichtbar */
+  ausgeblendet?: readonly string[];
 }
 
-export function navLinkSichtbar(link: NavBedingung, { gesellschaft, hatMitarbeiter }: NavKontext): boolean {
+export function navLinkSichtbar(link: NavBedingung & { to?: string }, { gesellschaft, hatMitarbeiter, ausgeblendet = [] }: NavKontext): boolean {
+  if (link.to && ausgeblendeteSeiten(ausgeblendet).has(link.to)) return false;
   if (gesellschaft && link.nurEinzelunternehmen) return false;
   if (!gesellschaft && link.nurKapitalgesellschaft) return false;
   return !(link.nurMitMitarbeitern && !hatMitarbeiter);
@@ -60,11 +64,11 @@ export interface NavGroup {
 export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: "Verkauf",
-    icon: "invoice",
+    icon: "store",
     links: [
       { to: "/angebote", icon: "quote", label: "Angebote" },
       { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
-      { to: "/lastschriften", icon: "bank", label: "Lastschriften" },
+      { to: "/lastschriften", icon: "debit", label: "Lastschriften" },
       { to: "/kontakte", icon: "contacts", label: "Kontakte" },
       { to: "/artikel", icon: "article", label: "Artikel" },
       { to: "/leistungen", icon: "calendar", label: "Leistungen" },
@@ -73,11 +77,11 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Ausgaben",
-    icon: "receipt",
+    icon: "cart",
     links: [
       { to: "/belege", icon: "receipt", label: "Belege" },
       { to: "/dauerbelege", icon: "calendar", label: "Dauerbelege" },
-      { to: "/ueberweisungen", icon: "bank", label: "Überweisungen" },
+      { to: "/ueberweisungen", icon: "transfer", label: "Überweisungen" },
       // Pauschalen ersetzen Ausgaben des Inhabers, eine GmbH oder UG hat sie nicht
       { to: "/pauschalen", icon: "pauschale", label: "Pauschalen", nurEinzelunternehmen: true },
       { to: "/anlagen", icon: "assets", label: "Anlagen" },
@@ -85,16 +89,16 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Geld",
-    icon: "bank",
+    icon: "wallet",
     links: [
       { to: "/bank", icon: "bank", label: "Bank" },
       { to: "/kasse", icon: "cash", label: "Kasse" },
-      { to: "/darlehen", icon: "bank", label: "Darlehen" },
+      { to: "/darlehen", icon: "loan", label: "Darlehen" },
     ],
   },
   {
     label: "Personal",
-    icon: "payroll",
+    icon: "badge",
     links: [
       { to: "/lohn", icon: "payroll", label: "Lohn" },
       // Lohn bleibt immer sichtbar, dort entsteht der erste Mitarbeiter
@@ -103,7 +107,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Steuern",
-    icon: "vat",
+    icon: "calculator",
     links: [
       { to: "/umsatzsteuer", icon: "vat", label: "Umsatzsteuer" },
       { to: "/jahreserklaerung", icon: "annual", label: "Jahreserklärung" },
@@ -115,7 +119,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: "Buchhaltung",
-    icon: "reports",
+    icon: "book",
     links: [
       { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
       { to: "/buchungen", icon: "journal", label: "Buchungen" },
@@ -131,7 +135,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 export const STEUERBERATUNG_NAV: readonly NavGroup[] = [
   {
     label: "Steuerberatung",
-    icon: "ledger",
+    icon: "briefcase",
     links: [
       { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
       { to: "/buchungen", icon: "journal", label: "Buchungen" },
@@ -161,11 +165,12 @@ export interface EigeneSeiteNav {
   openInNewTab: boolean;
 }
 
-/** Dieselben Seiten wie in der Navigation, gefiltert nach Rolle, Rechtsform, Mitarbeitern und eigenen Seiten (#617) */
+/** Dieselben Seiten wie in der Navigation, gefiltert nach Rolle, Rechtsform, Mitarbeitern, Bereichen und eigenen Seiten (#617) */
 export function sichtbareNavSeiten({
   inhaber,
   gesellschaft,
   hatMitarbeiter,
+  ausgeblendet,
   eigeneSeiten,
   oidcOnly = false,
 }: NavKontext & { inhaber: boolean; eigeneSeiten: readonly EigeneSeiteNav[]; oidcOnly?: boolean }): SichtbareSeite[] {
@@ -181,7 +186,7 @@ export function sichtbareNavSeiten({
   ];
   for (const group of gruppen) {
     for (const link of group.links) {
-      if (!navLinkSichtbar(link, { gesellschaft, hatMitarbeiter })) continue;
+      if (!navLinkSichtbar(link, { gesellschaft, hatMitarbeiter, ausgeblendet })) continue;
       seiten.push({ key: link.to, label: link.label, group: group.label, icon: link.icon, to: link.to });
     }
   }

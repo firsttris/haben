@@ -45,6 +45,34 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
     );
   }
 
+  it("nimmt Zeilen der Einkommensteuer an einem Vermerk ohne Betrag auf (#1149)", async () => {
+    // Das Übermittlungsprotokoll der Einkommensteuer nennt keinen Betrag (#1073); der Vermerk bleibt ohne, die
+    // Zeilen der Anlagen hängen trotzdem an ihm
+    await jahresvermerk.vermerkeJahresabgabe(
+      actor,
+      "est",
+      2025,
+      { filedOn: "2026-05-20", transferTicket: "EST123456789", note: "Außerhalb von Haben mit WISO abgegeben." },
+      TODAY,
+    );
+
+    const anzahl = await zeilen.speichereErklaerteZeilen(actor, "est", 2025, [
+      { field: "werbungskostenArbeitsmittel", amount: 11_300 },
+      { field: "werbungskostenArbeitszimmer", amount: 119_800 },
+      { field: "werbungskostenUebrige", amount: 1_900 },
+      { field: "werbungskosten", amount: 133_000 },
+    ]);
+    expect(anzahl).toBe(4);
+
+    const uebersicht = await annual.annualOverview(2025, TODAY);
+    expect(uebersicht.est.erklaert).toEqual({
+      werbungskostenArbeitsmittel: 11_300,
+      werbungskostenArbeitszimmer: 119_800,
+      werbungskostenUebrige: 1_900,
+      werbungskosten: 133_000,
+    });
+  });
+
   it("speichert Zeilen zu einem Vermerk und liest sie in der Jahreserklärung wieder", async () => {
     await vermerken("ust", "ABC123456789");
 
@@ -57,6 +85,45 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: erklärte Zeilenwerte (Po
 
     const uebersicht = await annual.annualOverview(2025, TODAY);
     expect(uebersicht.ust.erklaert).toEqual({ base19: 70_000, vorsteuer: 95_546, abschluss: -50_368 });
+  });
+
+  it("zeigt in den Schlusszeilen die erklärten Beträge und kennzeichnet nur sie als laut Vermerk (#1076)", async () => {
+    await vermerken("ust", "ABC123456789");
+    const gerechnet = (await annual.annualOverview(2025, TODAY)).ust;
+
+    // Nur das Vorauszahlungssoll ist erklärt: der Abschluss bleibt Habens Rechnung und trägt kein „laut Vermerk“
+    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "vorauszahlungen", amount: -24_552 }]);
+    expect((await annual.annualOverview(2025, TODAY)).ust.anzeige).toEqual({
+      vorauszahlungen: -24_552,
+      abschluss: gerechnet.abschluss,
+      ausVermerk: { vorauszahlungen: true, abschluss: false },
+    });
+
+    // Der erklärte Abschluss gilt mit seinem Vorzeichen: eine Erstattung bleibt eine Erstattung
+    await zeilen.speichereErklaerteZeilen(actor, "ust", 2025, [{ field: "abschluss", amount: -50_368 }]);
+    expect((await annual.annualOverview(2025, TODAY)).ust.anzeige).toEqual({
+      vorauszahlungen: -24_552,
+      abschluss: -50_368,
+      ausVermerk: { vorauszahlungen: true, abschluss: true },
+    });
+  });
+
+  it("behält das Vorzeichen der Erstattung in der Einkommensteuer (#1083)", async () => {
+    // Gespeichert und angezeigt wird der Betrag so, wie er eingetragen ist, samt Vorzeichen — keine Umkehrung
+    await jahresvermerk.vermerkeJahresabgabe(
+      actor,
+      "est",
+      2025,
+      { filedOn: "2026-05-20", transferTicket: "EST987654321", note: "Außerhalb von Haben mit WISO abgegeben." },
+      TODAY,
+    );
+    await zeilen.speichereErklaerteZeilen(actor, "est", 2025, [
+      { field: "festgesetzteSteuer", amount: 2_012_700 },
+      { field: "erstattung", amount: -29_149 },
+    ]);
+
+    const uebersicht = await annual.annualOverview(2025, TODAY);
+    expect(uebersicht.est.erklaert.erstattung).toBe(-29_149);
   });
 
   it("lehnt eine Feldkennung ab, die nicht zu dieser Erklärung gehört", async () => {

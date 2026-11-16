@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { formatDate } from "../lib/format.ts";
-import type { HinterlegungStand } from "../server/modules/buchhaltung/index.ts";
+import type { HinterlegungStand } from "../server/modules/jahreserklaerung/index.ts";
 import { Icon } from "./Icon.tsx";
 import { Field } from "./Field.tsx";
 
@@ -85,7 +85,11 @@ export function Hinterlegung({ year, stand, closed }: { year: number; stand: Hin
             {stand.maengel.some((m) => m.includes("Firmendaten")) && (
               <>
                 {" "}
-                Sitz, Registergericht und Registernummer trägst du unter <Link to="/einstellungen">Einstellungen › Firmendaten</Link> ein.
+                Sitz, Registergericht und Registernummer trägst du unter{" "}
+                <Link to="/einstellungen" search={{ bereich: "firma" }}>
+                  Einstellungen › Firmendaten
+                </Link>{" "}
+                ein.
               </>
             )}
             {stand.maengel.some((m) => m.includes("Restlaufzeiten")) && " Die Restlaufzeiten bestätigst du oben unter „Restlaufzeiten“."}
