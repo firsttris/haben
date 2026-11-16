@@ -1136,13 +1136,14 @@ test("Beleg am Laptop: Netto, Vorsteuer und Brutto sind neben der Vorschau ganz 
   await context.close();
 });
 
-test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#1059)", async () => {
+test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne ausgewiesene Steuer kein Brutto (#1059, #1100)", async () => {
   await go("/dauerbelege/neu");
   // Ohne ausgewiesene Steuer ist der Betrag zugleich das Brutto; ein eigenes Feld gibt es dann nicht
   await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveCount(0);
+  // Ein neuer Dauerbeleg beginnt mit 0 %; der Haken setzt den Satz auf 19 % (#1100)
+  await expect(page.getByLabel("Steuersatz 1", { exact: true })).toHaveValue("0");
   await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
-  // Ein neuer Dauerbeleg beginnt mit 0 %
-  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("1900");
+  await expect(page.getByLabel("Steuersatz 1", { exact: true })).toHaveValue("1900");
   await page.getByLabel("Brutto 1", { exact: true }).fill("119,00");
   await expect(page.getByLabel("Netto 1", { exact: true })).toHaveValue("100,00");
   await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("19,00");
@@ -1175,6 +1176,19 @@ test("Dauerbeleg mit Bruttobetrag: Netto und Umsatzsteuer vorgerechnet, ohne aus
   await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
   await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("7,18");
   await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("45,00");
+  // Ohne Haken 100,00 € zu 0 %, dann Haken: 19 % und die Steuer aus dem Netto (#1100)
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("0");
+  await page.getByLabel("Netto 1", { exact: true }).fill("100,00");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).check();
+  await expect(page.getByLabel("Steuersatz 1", { exact: true })).toHaveValue("1900");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("19,00");
+  await expect(page.getByLabel("Brutto 1", { exact: true })).toHaveValue("119,00");
+  // 0 % bleibt mit Haken wählbar; Haken aus ändert den Satz nicht
+  await page.getByLabel("Steuersatz 1", { exact: true }).selectOption("0");
+  await expect(page.getByLabel("Umsatzsteuer 1", { exact: true })).toHaveValue("0,00");
+  await page.getByLabel(/^Das Dokument weist die Umsatzsteuer gesondert aus/).uncheck();
+  await expect(page.getByLabel("Steuersatz 1", { exact: true })).toHaveValue("0");
 });
 
 test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
