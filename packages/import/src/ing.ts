@@ -51,16 +51,21 @@ interface Row {
   balance: Cents | null;
 }
 
-/** Salden, wenn die Spalte „Saldo“ lückenlos aufgeht, in der Reihenfolge der Datei oder umgekehrt (Sortierung). */
+/** Salden, wenn die Spalte „Saldo“ lückenlos aufgeht; älteste Buchung zuerst, Richtung aus den Buchungstagen. */
 function balancesOf(rows: Row[]): { opening: Cents; closing: Cents } | undefined {
-  for (const order of [rows, [...rows].reverse()]) {
-    if (order.some((r) => r.balance === null)) return undefined;
-    const ok = order.every((r, i) => i === 0 || order[i - 1]!.balance! + r.tx.amount === r.balance);
-    const first = order[0];
-    const last = order[order.length - 1];
-    if (ok && first && last) return { opening: first.balance! - first.tx.amount, closing: last.balance! };
-  }
-  return undefined;
+  if (rows.length === 0 || rows.some((r) => r.balance === null)) return undefined;
+  const first = rows[0]!.tx.bookingDate;
+  const last = rows[rows.length - 1]!.tx.bookingDate;
+  const reversed = [...rows].reverse();
+  // Bei „Datum absteigend“ steht die neueste Buchung oben; nur an einem einzigen Tag sind beide Richtungen möglich.
+  // Sonst ginge etwa Lastschrift und Rückgabe auch falsch herum auf (x, −x).
+  const orders = first < last ? [rows] : first > last ? [reversed] : [rows, reversed];
+  const found = orders
+    .filter((o) => o.every((r, i) => i === 0 || o[i - 1]!.balance! + r.tx.amount === r.balance))
+    .map((o) => ({ opening: o[0]!.balance! - o[0]!.tx.amount, closing: o[o.length - 1]!.balance! }));
+  if (found.length === 0) return undefined;
+  if (found.some((f) => f.opening !== found[0]!.opening || f.closing !== found[0]!.closing)) return undefined;
+  return found[0];
 }
 
 export function parseIng(rows: string[][], headerRow: number): ParsedStatement {
