@@ -118,6 +118,15 @@ describe("mapFintsTransaction", () => {
     expect(mapFintsTransaction(tx({ amount: 1.005 }), "EUR", 0)).toBeNull();
     expect(mapFintsTransaction(tx({ entryDate: new Date(Number.NaN), valueDate: new Date(Number.NaN) }), "EUR", 0)).toBeNull();
   });
+
+  it("behält bei CAMT das Jahr des Buchungstags, auch wenn die Wertstellung über ein halbes Jahr zurückliegt", () => {
+    // Erstattung einer nicht autorisierten Lastschrift: anzuzeigen bis 13 Monate nach der Belastung, wertgestellt
+    // spätestens zum Tag der Belastung (Richtlinie (EU) 2015/2366, Art. 71 Abs. 1 und Art. 73 Abs. 1). CAMT nennt
+    // BookgDt und ValDt mit Jahr; lib-fints legt Tage ohne Uhrzeit auf lokalen Mittag.
+    const erstattung = (gebucht: Date, wertgestellt: Date) => mapFintsTransaction(tx({ amount: 49.99, entryDate: gebucht, valueDate: wertgestellt }), "EUR", 0);
+    expect(erstattung(new Date(2026, 10, 16, 12), new Date(2026, 2, 2, 12))).toMatchObject({ bookingDate: "2026-11-16", valueDate: "2026-03-02" });
+    expect(erstattung(new Date(2027, 1, 10, 12), new Date(2026, 3, 1, 12))).toMatchObject({ bookingDate: "2027-02-10", valueDate: "2026-04-01" });
+  });
 });
 
 describe("fintsStatement", () => {
