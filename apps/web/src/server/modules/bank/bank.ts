@@ -74,7 +74,7 @@ import {
   unbilledAdvanceRequest,
 } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "./dauerbeleg-vorschlaege.ts";
-import { freigabeNachziehen } from "../umsatzsteuer/index.ts";
+import { belegTotals, freigabeNachziehen } from "../umsatzsteuer/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
@@ -86,7 +86,7 @@ import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darl
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
 import { sammelrechnungVorschlag } from "./sammelrechnung.ts";
-import { belegTotals, vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
+import { vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 import { bankTransactionMatch } from "./search.ts";
 import { nichtPrivat, privatStand, zaehlePrivat } from "./privat-kennzeichnung.ts";

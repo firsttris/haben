@@ -1,7 +1,7 @@
 import { ACCOUNTS, leistungsdatum, vorsteuerAusgleichPosting, type TaxCode, type TaxShare } from "@haben/core";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
-import { anteilZumRechnungsdatum, belegTotals } from "../bank/vorsteuer-ausgleich.ts";
+import { anteilZumRechnungsdatum, belegTotals } from "./vorsteuer-anteile.ts";
 import { post } from "../buchhaltung/index.ts";
 
 /** Buchhaltungsrahmen, wie `post` ihn erwartet (Kontenrahmen und Rechtsform der Firma) */

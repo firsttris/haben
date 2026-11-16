@@ -1,161 +1,33 @@
-import {
-  ACCOUNTS,
-  leistungsdatum,
-  paidTaxShares,
-  splitPrivateShare,
-  vorsteuerAusgleichPosting,
-  type Cents,
-  type InvoiceTotals,
-  type Kontenrahmen,
-  type PostingLine,
-  type TaxShare,
-} from "@haben/core";
-import { and, eq, sql } from "drizzle-orm";
-import { schema, type Tx } from "../../db/index.ts";
+import { vorsteuerAusgleichPosting, type InvoiceTotals, type Kontenrahmen, type PostingLine, type TaxShare } from "@haben/core";
+import type { Tx } from "../../db/index.ts";
+import { ausfuehrungMitFreigabe, vorsteuerAnteile } from "../umsatzsteuer/index.ts";
 
 /*
  * Vorsteuer, die beim Buchen auf dem Zwischenkonto steht (SKR03 1548, SKR04 1434): bei der Gutschrift, die bereits
  * Bezahltes erstattet (#786), und bei der Rechnung, deren Leistung beim Buchen noch nicht ausgeführt ist (#693). Erst der
  * Ausgleich — Bankerstattung, Zahlung, Verrechnung, Kursdifferenz — zieht den Anteil auf die Vorsteuer um (§ 15 Abs. 1
- * Satz 1 Nr. 1 UStG, § 17 Abs. 1 Satz 2 und 8 UStG), damit Kz 66 den Betrag genau dann sieht. Der Anteil ist anteilig je
- * Steuersatz und wird fortgeschrieben wie bei den Rechnungen (settlementTaxShares): Ziel kumuliert minus dem, was die
- * bisherigen Ausgleiche schon umgebucht haben. So ergeben alle Ausgleiche zusammen genau die Vorsteuer des Belegs.
+ * Satz 1 Nr. 1 UStG, § 17 Abs. 1 Satz 2 und 8 UStG), damit Kz 66 den Betrag genau dann sieht.
+ *
+ * Wie viel das ist, rechnet umsatzsteuer/vorsteuer-anteile.ts aus (dort steht auch, warum der Nachweis die Buchung ist
+ * und was eine Kursdifferenz vor der Ausführung nicht zieht); hier wird nur gebucht.
  *
  * Bei Zuordnung, Ausbuchung und Kursdifferenz hängt die Umbuchung an der Buchung des Ausgleichs: Aufheben und Storno
  * drehen dann dieselben Zeilen mit um, ohne eigenen Weg und ohne Rückwirkung (reverseLines). Die Verrechnung bucht sonst
  * nichts und bekommt deshalb eine eigene Buchung, die ihre Gegenzeile mit umdreht.
- *
- * Ob der Beleg überhaupt etwas auf dem Zwischenkonto hat, sagt das Journal und nicht die Angabe am Beleg: Der Nachweis
- * ist die Buchung selbst, damit Altbestand, Kleinunternehmer und 0 % unberührt bleiben und ein nachträglich gesetztes
- * Leistungsdatum nicht rückwirkend umbucht.
- *
- * Eine Kursdifferenz vor der Ausführung zieht nichts (#930, Entscheidung des Maintainers): Sie ist weder Zahlung noch
- * Entgeltminderung, die Vorsteuer bemisst sich nach dem Kurs der Rechnung (§ 16 Abs. 6 UStG) und wird nur durch
- * tatsächliche Zahlung vorgezogen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG). Ihr Anteil bleibt auf dem Zwischenkonto und
- * wird mit der Ausführung frei (umsatzsteuer/vorsteuer-freigabe.ts), wie in den Nebenbüchern.
  *
  * Ausgebuchtes Skonto zählt hier nicht mit: Es erstattet nichts, sondern erlässt den Rest. Seine Steuer wird deshalb
  * nicht gezogen, sondern vom Zwischenkonto abgeschrieben (documentWriteOffPosting mit der Angabe), sonst stünde die
  * Vorsteuer für Geld, das nie zurückkommt.
  */
 
-/** Beträge des Belegs je Steuersatz, wie sie auf der Rechnung stehen (nicht nachgerechnet) */
-export async function belegTotals(tx: Tx, doc: { id: string; net: number; tax: number; gross: number }): Promise<InvoiceTotals> {
-  const rows = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, doc.id));
-  const taxes = rows.map((r) => ({ rate: r.taxRate, base: r.net, tax: r.tax })).sort((a, b) => b.rate - a.rate);
-  return { net: doc.net, tax: doc.tax, gross: doc.gross, taxes };
-}
-
-/** Der geschäftliche Teil eines Betrags, gerundet wie beim Buchen (splitPrivateShare) */
-function geschaeftlich(betrag: Cents, privateShare: number): Cents {
-  return privateShare === 0 ? betrag : splitPrivateShare(betrag, privateShare).business;
-}
-
-/** Steuersatz zum Steuerschlüssel der Vorsteuer; das Zwischenkonto trägt nur 19 % und 7 % */
-function satzZumSchluessel(code: string | null): number | null {
-  if (code === "VSt19") return 1900;
-  if (code === "VSt7") return 700;
-  return null;
-}
-
-/**
- * Beide Konten dieses Zwischenkontos: SKR03 1548 und SKR04 1434. Nach einem Wechsel des Kontenrahmens zum Jahreswechsel
- * steht die Buchung des Belegs noch im alten Rahmen; gesucht wird deshalb in beiden, gebucht wird im eingestellten.
- */
-const ZWISCHENKONTEN = [ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar];
-
-/** Steht die Vorsteuer dieses Belegs auf dem Zwischenkonto? Die Buchung selbst ist der Beleg dafür */
-async function aufDemZwischenkonto(tx: Tx, documentId: string): Promise<boolean> {
-  const [row] = await tx.execute<{ anzahl: number }>(sql`
-    select count(*)::int as anzahl
-      from journal_lines l
-      join journal_entries e on e.id = l.entry_id
-     where (l.account = ${ZWISCHENKONTEN[0]!} or l.account = ${ZWISCHENKONTEN[1]!}) and e.source_type = 'document' and e.source_id = ${documentId} and e.reverses_id is null`);
-  return Number(row?.anzahl ?? 0) > 0;
-}
-
-/**
- * Erledigter Betrag, der die Vorsteuer berichtigt: Zuordnungen, Verrechnungen und Kursdifferenzen, ohne ausgebuchtes
- * Skonto und ohne Kursdifferenzen vor `ausfuehrung` (sie ziehen nichts, siehe oben). Vorzeichen wie in `settledOn`
- * (Gutschrift positiv).
- */
-async function steuerlichAusgeglichen(tx: Tx, documentId: string, ausfuehrung: string | null): Promise<number> {
-  const [row] = await tx.execute<{ summe: number }>(sql`
-    select coalesce(sum(amount), 0)::int as summe from (
-      select amount from allocations where document_id = ${documentId}
-      union all select amount from document_settlements where document_id = ${documentId}
-      union all select amount from write_offs where document_id = ${documentId} and kind <> 'skontoErhalten'
-        and not (kind = 'kursdifferenz' and ${ausfuehrung}::date is not null and date < ${ausfuehrung}::date)
-    ) ausgeglichen`);
-  return Number(row?.summe ?? 0);
-}
-
-/**
- * Tag der Ausführung, wenn der Beleg eine Freigabe zum Leistungsdatum trägt oder trug (#693); sonst null, etwa bei der
- * Gutschrift „erstattet bereits Bezahltes“ (#786), deren Kursdifferenz weiter ausgleicht
- */
-async function ausfuehrungMitFreigabe(tx: Tx, documentId: string): Promise<string | null> {
-  const [doc] = await tx
-    .select({ documentDate: schema.documents.documentDate, serviceFrom: schema.documents.serviceFrom, serviceTo: schema.documents.serviceTo })
-    .from(schema.documents)
-    .where(eq(schema.documents.id, documentId));
-  if (!doc?.documentDate) return null;
-  const [freigabe] = await tx
-    .select({ id: schema.journalEntries.id })
-    .from(schema.journalEntries)
-    .where(and(eq(schema.journalEntries.sourceType, "freigabe"), eq(schema.journalEntries.sourceId, documentId)))
-    .limit(1);
-  if (!freigabe) return null;
-  return leistungsdatum({ belegdatum: doc.documentDate, leistungVon: doc.serviceFrom, leistungBis: doc.serviceTo });
-}
-
-/**
- * Was die bisherigen Ausgleiche dieses Belegs schon vom Zwischenkonto auf die Vorsteuer umgebucht haben, je Steuersatz,
- * mit Gegenbuchungen (Aufhebung) netto. Gelesen wird das Journal, nicht aus den Beträgen gerechnet: So stimmt der
- * fortgeschriebene Anteil auch dann, wenn ein Ausgleich vor dieser Umbuchung lag — der Saldo des Kontos ist die Wahrheit
- * über das, was noch offen ist.
- *
- * Eine Freigabe nach dem Tag des Ausgleichs (`bis`) zählt nicht mit: Sie steht schon ab dem Buchen im Journal, datiert
- * auf einen Tag, der noch kommen kann (#693, #930), und eine Zahlung vor der Ausführung zöge ihren Anteil sonst ein
- * zweites Mal — bei Teilzahlungen mit negativem Vorzeichen. Alle anderen Buchungen zählen unabhängig vom Datum: Ein
- * nachgereichter, älterer Auszug soll den Anteil nicht neu verteilen.
- */
-async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise<TaxShare[]> {
-  const rows = await tx.execute<{ tax_code: string | null; bewegt: number; basis: number }>(sql`
-    select l.tax_code, sum(l.debit - l.credit)::int as bewegt, sum(coalesce(l.basis, 0))::int as basis
-      from journal_lines l
-      join journal_entries e on e.id = l.entry_id
-     where (l.account = ${ZWISCHENKONTEN[0]!} or l.account = ${ZWISCHENKONTEN[1]!})
-       and ((e.source_type = 'allocation' and e.source_id in (select id from allocations where document_id = ${documentId}))
-         or (e.source_type = 'verrechnung' and e.source_id in (select id from document_settlements where document_id = ${documentId}))
-         or (e.source_type = 'ausbuchung' and e.source_id in
-               (select id from write_offs where document_id = ${documentId} and kind <> 'skontoErhalten'))
-         -- Beim Buchen schon freigegeben (#693): Der Ausgleich darf dieselbe Steuer nicht ein zweites Mal ziehen
-         or (e.source_type = 'freigabe' and e.source_id = ${documentId}))
-       -- Nur die Freigabe trägt ein Datum, das noch kommen kann; alles andere zählt, auch wenn es nachgereicht wurde
-       and not (e.source_type = 'freigabe' and e.date > ${bis})
-     group by l.tax_code`);
-  return [...rows].flatMap((r) => {
-    const rate = satzZumSchluessel(r.tax_code);
-    return rate === null ? [] : [{ rate, base: Number(r.basis), tax: Number(r.bewegt) }];
-  });
-}
-
 /**
  * Zeilen der Umbuchung für einen Ausgleich dieses Belegs; leer, wenn seine Buchung nichts auf das Zwischenkonto gelegt
- * hat (Altbestand, Kleinunternehmer, 0 %, kein Leistungsdatum nach dem Belegdatum) oder auf diesen Ausgleich kein Anteil
- * entfällt. `amount` trägt das Vorzeichen des Ausgleichs (Zuordnung, Kursdifferenz, Verrechnung), wie in `settledOn`,
- * `datum` ist der Tag seiner Buchung; erst nach dem Sperren von Beleg und Umsatz aufrufen.
+ * hat oder auf diesen Ausgleich kein Anteil entfällt.
  *
- * Vor der Ausführung gezahlt zieht die Zahlung ihren Anteil hier schon ab (#930); die Freigabe zum Ausführungsdatum
- * schreibt umsatzsteuer/vorsteuer-freigabe.ts danach für den Rest fort. Ein Ausgleich nach der Ausführung zieht nichts mehr, weil die
- * Freigabe dann steht (siehe `vorsteuerRest`). `kursdifferenz`: Der Ausgleich ist eine Kursdifferenz; vor der Ausführung
- * zieht sie nichts.
- *
- * Liegt der Tag des Ausgleichs vor dem Rechnungsdatum, zieht er ebenfalls nichts: Abziehbar ist die Vorsteuer erst, wenn
- * Rechnung und Zahlung vorliegen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2; Befund der
- * Selbstprüfung in #930). Den Anteil gibt umsatzsteuer/vorsteuer-freigabe.ts mit eigener Freigabe zum Rechnungsdatum
- * frei, damit er nicht rückwirkend in einem Zeitraum steht, in dem die Rechnung noch nicht vorlag.
+ * Liegt der Tag des Ausgleichs vor dem Rechnungsdatum, zieht er nichts: Abziehbar ist die Vorsteuer erst, wenn Rechnung
+ * und Zahlung vorliegen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2; Befund der Selbstprüfung in
+ * #930). Den Anteil gibt umsatzsteuer/vorsteuer-freigabe.ts mit eigener Freigabe zum Rechnungsdatum frei, damit er nicht
+ * rückwirkend in einem Zeitraum steht, in dem die Rechnung noch nicht vorlag.
  */
 export async function vorsteuerAusgleich(
   tx: Tx,
@@ -170,7 +42,7 @@ export async function vorsteuerAusgleich(
   // zieht. Nur bei einem Beleg, der seine Vorsteuer über eine Freigabe führt; ohne sie (Jahr der Ausführung
   // abgeschlossen) bleibt es beim Ausgleich mit der Zahlung, sonst wäre die Steuer nirgends mehr abziehbar.
   if (doc.documentDate && datum < doc.documentDate && (await ausfuehrungMitFreigabe(tx, doc.id)) !== null) return [];
-  const anteile = await vorsteuerRest(tx, doc, totals, amount, datum, kursdifferenz);
+  const anteile = await vorsteuerAnteile(tx, doc, totals, amount, datum, kursdifferenz);
   return anteile === null ? [] : vorsteuerAusgleichPosting(anteile, kontenrahmen);
 }
 
@@ -188,60 +60,6 @@ export async function vorsteuerAbschreibung(
   amount: number,
   datum: string,
 ): Promise<TaxShare[] | null> {
-  const anteile = await vorsteuerRest(tx, doc, totals, amount, datum);
+  const anteile = await vorsteuerAnteile(tx, doc, totals, amount, datum);
   return anteile?.map((s) => ({ rate: s.rate, base: -s.base, tax: -s.tax })) ?? null;
-}
-
-/** Der Anteil dieses Ausgleichs je Steuersatz, mit dem Vorzeichen des Ausgleichs; null ohne Zwischenkonto-Buchung */
-async function vorsteuerRest(
-  tx: Tx,
-  doc: { id: string; privateShare: number },
-  totals: InvoiceTotals,
-  amount: number,
-  datum: string,
-  kursdifferenz = false,
-): Promise<TaxShare[] | null> {
-  // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; die Umbuchung selbst
-  // bucht dann im eingestellten Rahmen, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht
-  if (!(await aufDemZwischenkonto(tx, doc.id))) return null;
-  // Ab der Ausführung ist die ganze Vorsteuer abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 UStG, Leistung und Rechnung liegen
-  // vor): Ein Ausgleich an oder nach ihrem Tag bucht nichts mehr um, auch eine Teilzahlung nicht, und ein Skonto mindert
-  // die Vorsteuer wie bei jedem Beleg (§ 17 Abs. 1 Satz 2 UStG). Maßgeblich ist die Ausführung selbst, nicht der Tag der
-  // Freigabe: Eine Zahlung vor dem Rechnungsdatum wird schon zum Rechnungsdatum freigegeben (#930), abziehbar wird die
-  // ganze Steuer aber erst mit der Leistung.
-  const ausfuehrung = await ausfuehrungMitFreigabe(tx, doc.id);
-  if (ausfuehrung !== null && datum >= ausfuehrung) return null;
-  if (kursdifferenz && ausfuehrung !== null && datum < ausfuehrung) return [];
-  const bisher = await bisherUmgebucht(tx, doc.id, datum);
-  // Der Privatanteil steht schon beim Buchen nicht auf dem Zwischenkonto: Der geschäftliche Teil des Ziels wird
-  // deshalb vor dem Abzug der bisherigen Umbuchungen gebildet. So schreiben die Ausgleiche zusammen genau den
-  // geschäftlichen Teil der Vorsteuer fort, und das Konto endet bei null statt um den Privatanteil im Soll.
-  const ziel = paidTaxShares(totals, (await steuerlichAusgeglichen(tx, doc.id, ausfuehrung)) + amount).map((s) => ({
-    rate: s.rate,
-    base: geschaeftlich(s.base, doc.privateShare),
-    tax: geschaeftlich(s.tax, doc.privateShare),
-  }));
-  return ziel.map((t) => {
-    const recorded = bisher.filter((r) => r.rate === t.rate);
-    return {
-      rate: t.rate,
-      base: t.base - recorded.reduce((sum, r) => sum + r.base, 0),
-      tax: t.tax - recorded.reduce((sum, r) => sum + r.tax, 0),
-    };
-  });
-}
-
-/**
- * Anteil einer Zahlung, die vor dem Rechnungsdatum liegt (#930): Er ist mit der Rechnung abziehbar, nicht schon mit der
- * Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2), und deshalb bucht ihn
- * umsatzsteuer/vorsteuer-freigabe.ts als eigene Freigabe zum Rechnungsdatum. Zurück kommt, was die Ausgleiche nach dem
- * Rechnungsdatum schon gezogen haben nicht mehr — also genau der noch offene Vorkasse-Anteil; leer, wenn es keinen gibt.
- */
-export async function anteilZumRechnungsdatum(
-  tx: Tx,
-  doc: { id: string; privateShare: number; documentDate: string | null },
-  totals: InvoiceTotals,
-): Promise<TaxShare[]> {
-  if (!doc.documentDate) return [];
-  return (await vorsteuerRest(tx, doc, totals, 0, doc.documentDate)) ?? [];
 }

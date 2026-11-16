@@ -8,8 +8,8 @@ import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
 import { openBooks, post, reverseLinesIn } from "../buchhaltung/index.ts";
 import { settledOn } from "./bank.ts";
-import { freigabeNachziehen } from "../umsatzsteuer/index.ts";
-import { belegTotals, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
+import { belegTotals, freigabeNachziehen } from "../umsatzsteuer/index.ts";
+import { vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 
 /*
  * Verrechnung zweier Eingangsbelege ohne Zahlung (#274): eine Gutschrift des Lieferanten gleicht eine
@@ -61,7 +61,6 @@ async function beleg(tx: Tx, id: string, sperren = false) {
     .select({
       id: schema.documents.id,
       date: schema.documents.documentDate,
-      // Rechnungsdatum für den Vorsteuerzeitpunkt: Der Ausgleich zieht nichts, wenn die Zahlung davor liegt (#930)
       documentDate: schema.documents.documentDate,
       supplier: schema.documents.supplierName,
       invoiceNumber: schema.documents.invoiceNumber,
