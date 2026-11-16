@@ -24,13 +24,16 @@ export interface EnableBankingBatchInput {
   fetchId: string;
 }
 
+/** Teil des Grunds für einen gebuchten Umsatz ohne entry_reference, zum Zählen in der Meldung des Abrufs */
+export const OHNE_ENTRY_REFERENCE = "ohne entry_reference";
+
 /** Bewegung aus einem gebuchten Umsatz mit entry_reference, sonst der Grund, warum er keine ist */
 function movement(t: EbTransaction, index: number): ImportMovement | string {
   if (t.status === "PDNG") return "Vorgemerkt (PDNG); folgt, sobald die Bank ihn bucht.";
   if (t.status && t.status !== "BOOK") return `Status ${t.status}.`;
   const mapped = mapEnableBankingTransaction(t, index);
   if (!mapped) return "Ohne gültiges Datum oder Betrag.";
-  if (!t.entry_reference) return `Gebuchter Umsatz vom ${mapped.bookingDate} ohne entry_reference; transaction_id kann sich ändern und ist kein Ersatz.`;
+  if (!t.entry_reference) return `Gebuchter Umsatz vom ${mapped.bookingDate} ${OHNE_ENTRY_REFERENCE}; transaction_id kann sich ändern und ist kein Ersatz.`;
   return {
     sourceEventId: t.entry_reference,
     component: "main",
@@ -47,7 +50,11 @@ function movement(t: EbTransaction, index: number): ImportMovement | string {
   };
 }
 
-/** Lieferung für `validateBatch`; Status, Saldo und Abbildung je Umsatz wie `enableBankingStatement` */
+/**
+ * Lieferung für `validateBatch`; Status und Abbildung je Umsatz wie `enableBankingStatement`. Saldo: der gebuchte
+ * (bevorzugt CLBD, sonst ITBD, `bookedBalance`) mit seinem Stichtag, ohne Abstimmung auf den letzten Buchungstag wie
+ * im Kontoauszug; die Lieferung nennt ihn als Saldo zu diesem Tag, ohne Stichtag gar nicht.
+ */
 export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch {
   const movements: ImportMovement[] = [];
   const unsupported: ImportBatch["unsupported"] = [];

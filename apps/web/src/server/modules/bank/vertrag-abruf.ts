@@ -1,9 +1,12 @@
-import { type EbBalance, type EbTransaction, enableBankingBatch, validateBatch } from "@haben/import";
+import { type EbBalance, type EbTransaction, enableBankingBatch, OHNE_ENTRY_REFERENCE, validateBatch } from "@haben/import";
 
 /*
  * Schritt 2 aus #306: Jeder Abruf über Enable Banking läuft zusätzlich durch den Importvertrag. Die Prüfung meldet nur,
  * gespeichert wird weiter über `enableBankingStatement` und `storeStatement` wie bisher; verbindlich wird sie mit der
- * Quellenbindung in Schritt 3. Bis dahin ist die Kontokennung die IBAN, über die Haben das Konto heute schon zuordnet.
+ * Quellenbindung in Schritt 3. Bis dahin ist die Kontokennung die IBAN, über die Haben das Konto heute schon zuordnet:
+ * Den `identification_hash` speichert die Verbindung noch nicht (`BankConnectionAccount`), und mit dem Schlüssel wird
+ * hier nichts gespeichert. Ab Schritt 3 gilt der Hash (`importvertrag/types.ts`), weil `entry_reference` nur je Hash
+ * eindeutig ist und eine IBAN auch ein Unterkonto in Fremdwährung abdecken kann.
  */
 
 /** Zeitpunkt mit Uhrzeit und Offset in Deutschland, damit sein Tag zum abgerufenen Fenster passt (`today()`) */
@@ -45,7 +48,7 @@ export function vertragHinweise(abruf: {
   });
   const result = validateBatch(batch, { provider: "enablebanking", externalAccountId: abruf.iban, accountKind: "bank" });
   if (!result.ok) return [`Prüfung nach dem Importvertrag (#306): ${result.problems.join(" ")}`];
-  const ohneReferenz = abruf.transactions.filter((t) => (!t.status || t.status === "BOOK") && !t.entry_reference).length;
+  const ohneReferenz = batch.unsupported.filter((u) => u.reason.includes(OHNE_ENTRY_REFERENCE)).length;
   const hinweise: string[] = [];
   if (ohneReferenz > 0) {
     hinweise.push(
