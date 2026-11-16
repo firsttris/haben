@@ -108,11 +108,12 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     const pruefen = await import("./erklaert-pruefen.ts");
     expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([]);
     // Gleicher Gewinn, aber eine Zeile anders als heute gerechnet: fällt nur über die festgehaltenen Zahlen auf
-    await leeren(sql)`truncate annual_submissions`;
+    await leeren(sql)`truncate annual_submission_figures, annual_submissions`;
     await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, filed_on, note, figures, request_xml, response_xml, server_response_xml)
       values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'ABC123456781', '2026-05-20', 'x',
               ${JSON.stringify({ amount: berechnet, gerechnet: { gewinn: berechnet, "ausgabe:software": 100_00, einnahmen: 100_00 } })}::jsonb, '', '', '')`;
-    expect(await pruefen.erklaerteAbweichungen([2025])).toEqual([
+    const befunde = await pruefen.erklaerteAbweichungen([2025]);
+    expect(befunde.sort((a, b) => a.feld.localeCompare(b.feld))).toEqual([
       { year: 2025, form: "euer", art: "vermerkt", feld: "ausgabe:software", erklaert: 100_00, journal: 0 },
       { year: 2025, form: "euer", art: "vermerkt", feld: "einnahmen", erklaert: 100_00, journal: 0 },
     ]);

@@ -2,7 +2,7 @@ import type { Cents } from "@haben/core";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import type { AbgleichZeile } from "../auswertungen/index.ts";
-import { euerYear, ustYear } from "./annual.ts";
+import { gerechneteZahlen, zahlen } from "./gerechnete-zahlen.ts";
 import { vermerkPruefung } from "./vermerk.ts";
 
 /*
@@ -11,8 +11,9 @@ import { vermerkPruefung } from "./vermerk.ts";
  * - Über Haben übermittelt: jede gespeicherte Zahl der Erklärung (annual_submissions.figures) gegen heute. Nicht
  *   verglichen werden die Vorauszahlungen der Umsatzsteuererklärung und die Abschlusszahlung daraus: Sie kommen aus den
  *   gesendeten Voranmeldungen und der Dauerfristverlängerung, nicht aus dem Journal.
- * - Außerhalb von Haben abgegeben (Vermerk): Der Vermerk hält nur den Betrag laut Protokoll fest, bei einer bestätigten
- *   Abweichung dazu den damals gerechneten Wert (vermerk.ts). Verglichen wird der damals gerechnete Wert (ohne Abweichung
+ * - Außerhalb von Haben abgegeben (Vermerk): Der Vermerk hält den Betrag laut Protokoll fest, bei einer bestätigten
+ *   Abweichung dazu den damals gerechneten Wert (vermerk.ts); seit #1144 auch alle gerechneten Zahlen (`gerechnet`), die
+ *   dann wie bei einer Übermittlung verglichen werden. Verglichen wird der damals gerechnete Wert (ohne Abweichung
  *   der Betrag) mit dem, was der Vermerk heute rechnen würde (vermerkPruefung: Gewinn bzw. Abschlusszahlung). Rechnet Haben
  *   heute den Betrag laut Protokoll, passt das Journal zur Abgabe: etwa wenn Voranmeldungen erst nach dem Vermerk
  *   nachgetragen wurden und damit das Vorauszahlungssoll der Abschlusszahlung.
@@ -34,7 +35,33 @@ export interface ErklaertAbweichung {
 
 const NICHT_AUS_DEM_JOURNAL = new Set(["vorauszahlungen", "abschluss"]);
 
-const zahlen = (werte: Record<string, unknown>) => Object.fromEntries(Object.entries(werte).filter((e): e is [string, number] => typeof e[1] === "number"));
+/** Felder, die festgehalten anders sind als heute gerechnet, ohne `ausser` */
+function vergleich(gespeichert: Record<string, number>, heute: Record<string, number>, ausser: ReadonlySet<string>) {
+  return [...new Set([...Object.keys(gespeichert), ...Object.keys(heute)])]
+    .filter((feld) => !ausser.has(feld) && (gespeichert[feld] ?? 0) !== (heute[feld] ?? 0))
+    .map((feld) => ({ feld, erklaert: gespeichert[feld] ?? 0, journal: heute[feld] ?? 0 }));
+}
+
+/**
+ * Ein Vermerk: der damals gerechnete Gewinn bzw. die Abschlusszahlung gegen heute (kein Befund, wenn Haben heute den Betrag
+ * laut Protokoll rechnet); hält er die gerechneten Zahlen fest (seit #1144), dazu jede davon
+ */
+async function vermerkAbweichungen(year: number, form: "ust" | "euer", figures: Record<string, unknown>): Promise<ErklaertAbweichung[]> {
+  const { amount, berechnet } = zahlen(figures);
+  const damals = berechnet ?? amount;
+  const result: ErklaertAbweichung[] = [];
+  const feld = form === "ust" ? "abschluss" : "gewinn";
+  if (damals !== undefined) {
+    const heute = (await vermerkPruefung(form, year, null)).berechnet;
+    if (damals !== heute && heute !== amount) result.push({ year, form, art: "vermerkt", feld, erklaert: damals, journal: heute });
+  }
+  const gerechnet = figures.gerechnet as Record<string, unknown> | undefined;
+  if (gerechnet && typeof gerechnet === "object") {
+    const abweichend = vergleich(zahlen(gerechnet), await gerechneteZahlen(form, year), new Set([...NICHT_AUS_DEM_JOURNAL, feld]));
+    result.push(...abweichend.map((x) => ({ year, form, art: "vermerkt" as const, ...x })));
+  }
+  return result;
+}
 
 /** Abweichungen der übermittelten bzw. vermerkten Umsatzsteuererklärung und Anlage EÜR der Jahre `years` */
 export async function erklaerteAbweichungen(years: readonly number[]): Promise<ErklaertAbweichung[]> {
@@ -49,25 +76,11 @@ export async function erklaerteAbweichungen(years: readonly number[]): Promise<E
   for (const row of rows) {
     const form = row.form as "ust" | "euer";
     if (row.kind === "vermerk") {
-      const { amount, berechnet } = zahlen(row.figures);
-      const damals = berechnet ?? amount;
-      if (damals === undefined) continue;
-      const heute = (await vermerkPruefung(form, row.year, null)).berechnet;
-      const feld = form === "ust" ? "abschluss" : "gewinn";
-      if (damals !== heute && heute !== amount) result.push({ year: row.year, form, art: "vermerkt", feld, erklaert: damals, journal: heute });
+      result.push(...(await vermerkAbweichungen(row.year, form, row.figures)));
       continue;
     }
-    const heute: Record<string, number> =
-      form === "ust"
-        ? await ustYear(row.year).then((u) => ({ ...zahlen(u.figures as unknown as Record<string, unknown>), steuer: u.steuer }))
-        : await euerYear(row.year).then((e) => ({ ...zahlen(e.figures as unknown as Record<string, unknown>), gewinn: e.gewinn }));
-    const gespeichert = zahlen(row.figures);
-    for (const feld of new Set([...Object.keys(gespeichert), ...Object.keys(heute)])) {
-      if (NICHT_AUS_DEM_JOURNAL.has(feld)) continue;
-      const erklaert = gespeichert[feld] ?? 0;
-      const journal = heute[feld] ?? 0;
-      if (erklaert !== journal) result.push({ year: row.year, form, art: "übermittelt", feld, erklaert, journal });
-    }
+    const abweichend = vergleich(zahlen(row.figures), await gerechneteZahlen(form, row.year), NICHT_AUS_DEM_JOURNAL);
+    result.push(...abweichend.map((x) => ({ year: row.year, form, art: "übermittelt" as const, ...x })));
   }
   return result;
 }
