@@ -255,22 +255,28 @@ export async function freigabeNachziehen(tx: Tx, documentId: string, books: Book
   }
 
   // 1. Die Freigaben zum Ausführungsdatum zurücknehmen, in ihrem eigenen Monat: Sie deckten den Stand von vor diesem
-  //    Ereignis. Rückwirkend gemindert wird dabei nichts — Aufhebung und neue Freigabe stehen am selben Tag.
-  for (const freigabe of await offeneFreigaben(tx, doc.id)) await freigabeUmkehren(tx, books, doc.id, freigabe, freigabe.date);
+  //    Ereignis. Rückwirkend gemindert wird dabei nichts — Aufhebung und neue Freigabe stehen am selben Tag. Die Freigaben
+  //    zum Rechnungsdatum (früher datiert) bleiben stehen; ihr Monat kann schon gemeldet sein.
+  for (const freigabe of await offeneFreigaben(tx, doc.id)) {
+    if (freigabe.date >= am) await freigabeUmkehren(tx, books, doc.id, freigabe, freigabe.date);
+  }
 
   // 2. Vorkasse vor dem Rechnungsdatum (#930): Der Ausgleich hat nichts gezogen, weil die Rechnung noch nicht vorlag
   //    (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2). Der bezahlte Anteil wird deshalb mit eigener
-  //    Freigabe zum Rechnungsdatum abziehbar; Heben der Zahlung nimmt sie über `offeneFreigaben` wieder zurück.
-  if (doc.documentDate && !(await jahrGeschlossen(tx, doc.documentDate))) {
-    const bezahlt = await anteilZumRechnungsdatum(tx, doc, await belegTotals(tx, doc));
-    if (bezahlt.some((a) => a.tax !== 0)) {
+  //    Freigabe zum Rechnungsdatum abziehbar. Ändert ein späteres Ereignis diesen Anteil (Aufhebung, weitere Vorkasse),
+  //    bucht es nur den Unterschied, an seinem eigenen Tag, frühestens zum Rechnungsdatum: Eine Aufhebung wirkt an ihrem
+  //    Tag (#782) und ändert keinen schon gemeldeten Monat.
+  const tag = datum > doc.documentDate ? datum : doc.documentDate;
+  if (!(await jahrGeschlossen(tx, tag))) {
+    const unterschied = await anteilZumRechnungsdatum(tx, doc, await belegTotals(tx, doc), tag);
+    if (unterschied.some((a) => a.tax !== 0)) {
       await post(tx, books, {
-        date: doc.documentDate,
+        date: tag,
         description: `Vorsteuer aus Leistungszeitraum zum Rechnungsdatum: ${doc.supplierName ?? "Beleg"}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
         sourceType: "freigabe",
         sourceId: doc.id,
         // Vorzeichen wie beim Ausgleich: negativ heißt frei. Die Freigabe bucht damit Haben Zwischenkonto, Soll Vorsteuer
-        lines: vorsteuerAusgleichPosting(bezahlt, books.kontenrahmen),
+        lines: vorsteuerAusgleichPosting(unterschied, books.kontenrahmen),
       });
     }
   }

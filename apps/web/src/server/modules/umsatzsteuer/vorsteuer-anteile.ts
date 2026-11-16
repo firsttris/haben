@@ -167,16 +167,18 @@ export async function vorsteuerAnteile(
 }
 
 /**
- * Anteil einer Zahlung, die vor dem Rechnungsdatum liegt (#930): Er ist mit der Rechnung abziehbar, nicht schon mit der
+ * Anteil der Zahlungen, die vor dem Rechnungsdatum liegen (#930): Er ist mit der Rechnung abziehbar, nicht schon mit der
  * Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG, UStAE 15.3 Abs. 1 Satz 2), und deshalb bucht ihn
- * umsatzsteuer/vorsteuer-freigabe.ts als eigene Freigabe zum Rechnungsdatum. Zurück kommt, was die Ausgleiche nach dem
- * Rechnungsdatum schon gezogen haben, nicht mehr — also genau der noch offene Vorkasse-Anteil; leer, wenn es keinen gibt.
+ * umsatzsteuer/vorsteuer-freigabe.ts als eigene Freigabe zum Rechnungsdatum. Zurück kommt, was die Ausgleiche und die
+ * Freigaben bis `tag` (frühestens das Rechnungsdatum) noch nicht gezogen haben — also der noch offene Unterschied, nach
+ * einer Aufhebung mit positivem Vorzeichen; leer, wenn es keinen gibt.
  */
 export async function anteilZumRechnungsdatum(
   tx: Tx,
   doc: { id: string; privateShare: number; documentDate: string | null },
   totals: InvoiceTotals,
+  tag: string,
 ): Promise<TaxShare[]> {
   if (!doc.documentDate) return [];
-  return (await vorsteuerAnteile(tx, doc, totals, 0, doc.documentDate)) ?? [];
+  return (await vorsteuerAnteile(tx, doc, totals, 0, tag)) ?? [];
 }
