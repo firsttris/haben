@@ -1,4 +1,14 @@
-import { addDays, formatEuro, invoicePosting, leistungsdatum, outgoingTaxIssues, TAX_TREATMENT_KEYS, treatmentIssues, type TaxTreatment } from "@haben/core";
+import {
+  addDays,
+  formatEuro,
+  invoicePosting,
+  leistungsdatum,
+  outgoingTaxIssues,
+  TAX_TREATMENT_KEYS,
+  TAX_TREATMENTS,
+  treatmentIssues,
+  type TaxTreatment,
+} from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -307,5 +317,22 @@ function xmlMismatch(invoice: IncomingInvoice, input: AdoptInput): string | null
   const same = (x: { rate: number; net: number; tax: number }) => given.some((t) => t.rate === x.rate && t.net === x.net && t.tax === x.tax);
   const xmlTaxes = groupByRate(invoice.taxes.map((t) => ({ rate: t.rate, net: t.base, tax: t.tax })));
   if (xmlTaxes.length !== given.length || !xmlTaxes.every(same)) return "Netto oder Steuer je Steuersatz weichen ab";
+  const category = invoice.taxes.map((t) => t.category).find((c) => !TREATMENTS_OF_CATEGORY[c]?.includes(input.taxTreatment));
+  if (category !== undefined) return `Steuerkategorie ${category} statt ${TAX_TREATMENTS[input.taxTreatment].label}`;
   return null;
 }
+
+/**
+ * Welche Behandlungen zur Steuerkategorie einer Zeile passen (EN 16931, UNCL 5305): S und Z sind regulär, E steuerfrei
+ * oder § 19 UStG. Eine Rechnung mit S und E zugleich passt so zu keiner Behandlung; regulär zu 0 % gebucht stünde der
+ * steuerfreie Teil in keiner Kennzahl statt in Kz 48 (§ 4 Nr. 8 bis 29 UStG). Andere Kategorien (L, M, B) bildet Haben nicht ab.
+ */
+const TREATMENTS_OF_CATEGORY: Record<string, readonly TaxTreatment[]> = {
+  S: ["regulaer"],
+  Z: ["regulaer"],
+  E: ["steuerfrei", "kleinunternehmer"],
+  AE: ["reverse_charge"],
+  K: ["ig_lieferung"],
+  G: ["ausfuhr"],
+  O: ["drittland", "eu_sonstige"],
+};
