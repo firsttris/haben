@@ -76,7 +76,9 @@ function fakeApi() {
               tx("a1", "2026-09-05", "100.00", "CRDT", "Altbestand"),
               tx("a2", "2026-09-20", "49.99", "DBIT", "Telefon 9/2026"),
               tx("a3", "2026-09-28", "200.00", "CRDT", "RE-1"),
-              ...(state.ohneReferenz ? [{ ...tx("", today(), "5.00", "DBIT", "Kontoführung ohne Referenz"), entry_reference: null, transaction_id: "T-1" }] : []),
+              ...(state.ohneReferenz
+                ? [{ ...tx("", today(), "5.00", "DBIT", "Kontoführung ohne Referenz"), entry_reference: null, transaction_id: "T-1" }]
+                : []),
             ]
           : [tx("b1", "2026-09-30", "10.00", "CRDT", "Zinsen")];
       return json({ transactions: all.filter((t) => t.booking_date >= from), continuation_key: null });
