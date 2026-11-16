@@ -23,8 +23,9 @@ export { listSettlements, openAmount, settlementCandidates } from "./verrechnung
  * Gebucht wird je Belegseite eine eigene Buchung, jede mit ihrem Beleg (source_type 'verrechnung',
  * source_id der Zeile in `document_settlements`): Verbindlichkeiten gegen das Verrechnungskonto. Erst damit
  * trägt die Verrechnung einen Vorgangsbezug, den der DATEV-Export für das Personenkonto braucht; eine
- * gemeinsame Sammelbuchung über zwei Belege (früher #785) hätte ihn nicht. Die Seite der Gutschrift trägt
- * zusätzlich die Umbuchung der Vorsteuer aus dem Zwischenkonto (#786).
+ * gemeinsame Sammelbuchung über zwei Belege (früher #785) hätte ihn nicht. Jede Seite, deren Beleg Vorsteuer auf dem
+ * Zwischenkonto hat (Gutschrift „erstattet bereits Bezahltes“, #786; Leistung nach dem Belegdatum, #693), trägt
+ * zusätzlich die Umbuchung der Vorsteuer.
  *
  * Beide Zeilen einer Verrechnung tragen dieselbe `settlement_id`: Aufheben trifft damit genau dieses Paar,
  * auch wenn zwischen denselben Belegen mehrfach derselbe Betrag verrechnet wurde. Die Gegenzeilen einer
@@ -169,7 +170,8 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
     // wäre es falsch, sobald der geöffnete Beleg die Gutschrift ist (negativer Rest) und der Rest wüchse auf beiden Seiten.
     const betraege = [-Math.sign(restA) * parsed.amount, -Math.sign(restB) * parsed.amount];
     // Vorsteuer vom Zwischenkonto auf die Vorsteuer: geparkte Vorsteuer einer noch nicht ausgeführten Leistung (#693)
-    // und eine Gutschrift „erstattet bereits Bezahltes“ (#786). Die Aufrechnung ist der Ausgleich, der sie mindert
+    // und eine Gutschrift „erstattet bereits Bezahltes“ (#786). Die Aufrechnung steht der Zahlung gleich: Sie macht den
+    // Anteil vor der Ausführung abziehbar (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 3 UStG) bzw. mindert die Vorsteuer der Gutschrift
     // (§ 17 Abs. 1 Satz 2 und 8 UStG); ohne Buchung auf dem Zwischenkonto kommt nichts dazu. Die Zeilen stehen vor dem
     // Einfügen der Verrechnung fest: sonst zählte der verrechnete Betrag schon als erledigt.
     const steuer: PostingLine[][] = [];
@@ -184,7 +186,7 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
       ])
       .returning({ id: schema.documentSettlements.id });
     // Zwei Buchungen, je Belegseite eine (#786): Die Zeile in document_settlements ist ihre Quelle, damit der DATEV-Export
-    // den Beleg und daran das Personenkonto findet. Die Steuerzeilen der Gutschrift stehen in derselben Buchung; so dreht
+    // den Beleg und daran das Personenkonto findet. Die Steuerzeilen eines Belegs stehen in derselben Buchung; so dreht
     // eine Aufhebung beide zusammen um.
     for (const [seite, doc] of [a, b].entries()) {
       await post(tx, company, {

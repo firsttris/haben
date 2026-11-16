@@ -8,9 +8,10 @@ import { db, schema } from "../../db/index.ts";
  * Zahlungen (allocation), Ausbuchungen wie Skonto und Forderungsausfall (ausbuchung), Bareinnahmen im Kassenbuch
  * (kasse) über die zugeordnete Rechnung bzw. den Beleg und Verrechnungen zweier Belege (#274) über ihre Zeile in
  * `document_settlements`. Daraus kommen Belegfeld 1 und das Personenkonto (#327).
- * Seit #786 bucht eine Verrechnung je Belegseite (Verbindlichkeiten gegen das Verrechnungskonto, an der Gutschrift
- * zusätzlich die Umbuchung der Vorsteuer). Jede dieser Buchungen trägt die Zeile ihrer Seite als Quelle und damit den
- * Beleg, an dem das Personenkonto hängt; eine gemeinsame Sammelbuchung ohne Beleg ginge am Personenkonto vorbei.
+ * Seit #786 bucht eine Verrechnung je Belegseite (Verbindlichkeiten gegen das Verrechnungskonto, an einem Beleg mit
+ * Vorsteuer auf dem Zwischenkonto zusätzlich die Umbuchung der Vorsteuer). Jede dieser Buchungen trägt die Zeile ihrer
+ * Seite als Quelle und damit den Beleg, an dem das Personenkonto hängt; eine gemeinsame Sammelbuchung ohne Beleg ginge
+ * am Personenkonto vorbei.
  */
 
 type Entry = Pick<typeof schema.journalEntries.$inferSelect, "sourceType" | "sourceId">;
