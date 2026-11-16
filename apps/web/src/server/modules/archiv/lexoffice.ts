@@ -47,7 +47,7 @@ import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 import { legacyDunningsFor } from "./mahnungen-archiv.ts";
 import { customTaxSetId, legacyTaxSetFields, vatFieldsOf } from "./sevdesk-steuerarten.ts";
-import { ohneDateiBestaetigbar } from "./ohne-datei.ts";
+import { ohneBelegGrund, ohneDateiBestaetigbar } from "./ohne-datei.ts";
 import { FILE_STATUS_LABELS, fileCheck, fileCounts, fileStateHistory, latestFileStateSql, legacyFileStatus, OPEN_FILE_STATUSES } from "./dateistand.ts";
 
 export class LexofficeError extends UserError {}
@@ -528,11 +528,7 @@ export async function legacyVoucherDetail(id: string) {
       history: fileStates,
       canConfirmWithoutFile,
       // Warum keine Datei da ist, hängt an der Beleg-GUID und an der Quelle (#1235)
-      ohneBelegGrund: !voucher.rawGuid
-        ? ("kein_beleglink" as const)
-        : voucher.source === "accountable"
-          ? ("datei_fehlt_im_export" as const)
-          : ("quelle_ohne_beleg" as const),
+      ohneBelegGrund: ohneBelegGrund({ source: voucher.source, guid: voucher.rawGuid }),
     },
   };
 }

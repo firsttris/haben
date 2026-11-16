@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { ohneBelegGrund, ohneDateiBestaetigbar } from "./ohne-datei.ts";
 
 /*
  * #1235: Ein Beleg aus dem Accountable-Stapel kommt ohne Beleg-GUID und damit ohne Datei. Er steht als „Buchung ohne
@@ -95,4 +96,19 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Beleg ohne Datei bestätigen", ()
     const voucher = await beleg("accountable/row/913", "purchaseinvoice", false);
     await expect(dateistand.confirmWithoutFile("test-user", voucher, "")).rejects.toThrow("Erst ein Abruf");
   });
+});
+
+it("nennt den Grund je Quelle und Beleg-GUID (#1235)", async () => {
+  // Ohne Beleglink: der Stapel nennt keine GUID, bestätigen ist erlaubt
+  const ohneLink = ohneBelegGrund({ source: "accountable", guid: null });
+  expect(ohneLink).toBe("kein_beleglink");
+  expect(ohneDateiBestaetigbar({ source: "accountable", lexofficeId: "accountable/row/1", type: "purchaseinvoice", guid: null })).toBe(true);
+
+  // Mit GUID: die Datei fehlt nur im Export, bestätigen ist gesperrt
+  expect(ohneBelegGrund({ source: "accountable", guid: "a1b2c3" })).toBe("datei_fehlt_im_export");
+  expect(ohneDateiBestaetigbar({ source: "accountable", lexofficeId: "accountable/row/2", type: "purchaseinvoice", guid: "a1b2c3" })).toBe(false);
+
+  // WISO und die Lexoffice-Sicherung setzen das Merkmal ohne GUID
+  expect(ohneBelegGrund({ source: "wiso", guid: null })).toBe("quelle_ohne_beleg");
+  expect(ohneBelegGrund({ source: "lexoffice", guid: null })).toBe("quelle_ohne_beleg");
 });

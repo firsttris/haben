@@ -9,3 +9,14 @@ export function ohneDateiBestaetigbar(v: { source: string; lexofficeId: string; 
   if (v.source === "accountable") return v.lexofficeId.startsWith("accountable/row/") && v.type === "purchaseinvoice" && !v.guid;
   return false;
 }
+
+/**
+ * Warum zu einer Buchung keine Datei da ist (#1235). Nur der erste Fall lädt zum Bestätigen ein; bei WISO und der
+ * Lexoffice-Sicherung setzt der Import das Merkmal ohne Beleg-GUID, über einen Einzelbeleg sagt das nichts.
+ */
+export type OhneBelegGrund = "kein_beleglink" | "datei_fehlt_im_export" | "quelle_ohne_beleg";
+
+export function ohneBelegGrund(v: { source: string; guid?: string | null }): OhneBelegGrund {
+  if (v.source !== "accountable") return "quelle_ohne_beleg";
+  return v.guid ? "datei_fehlt_im_export" : "kein_beleglink";
+}

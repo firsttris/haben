@@ -19,7 +19,7 @@ const SPALTEN =
   "Umsatz (ohne Soll/Haben-Kz);Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basis-Umsatz;WKZ Basis-Umsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext;Beleglink";
 
 const zeile = (betrag: string, gegen: string, bu: string, ttmm: string, nr: string, text: string, link = "") =>
-  [betrag, "H", "EUR", "", betrag, "EUR", "1200", gegen, bu, ttmm, nr, ttmm + "2025", "", text, link].join(";");
+  [betrag, "H", "EUR", "", betrag, "EUR", "1200", gegen, bu, ttmm, nr, `${ttmm}2025`, "", text, link].join(";");
 
 const BUCHUNGEN = [
   // Ohne Beleglink: der Arbeitszimmer-Anteil, für den es keinen Einzelbeleg gibt

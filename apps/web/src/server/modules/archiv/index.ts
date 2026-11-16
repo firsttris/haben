@@ -4,6 +4,7 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
+export { ohneBelegGrund, ohneDateiBestaetigbar, type OhneBelegGrund } from "./ohne-datei.ts";
 export {
   accountTotals,
   addArchiveFile,

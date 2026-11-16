@@ -8,7 +8,9 @@
  * - Quelle ohne Beleg: WISO und die Lexoffice-Sicherung setzen das Merkmal ohne Beleg-GUID. Über einen Einzelbeleg
  *   sagt das nichts, bestätigen lässt sich auch nichts.
  */
-export type OhneBelegGrund = "kein_beleglink" | "datei_fehlt_im_export" | "quelle_ohne_beleg";
+import type { OhneBelegGrund } from "../../server/modules/archiv/index.ts";
+
+export type { OhneBelegGrund };
 
 export function ohneBelegText(grund: OhneBelegGrund, product: string, bestaetigbar: boolean): string {
   if (grund === "kein_beleglink" && bestaetigbar) {
