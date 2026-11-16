@@ -1595,6 +1595,13 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await go(`/jahreserklaerung/${YEAR - 1}`);
   await expect(page.getByRole("heading", { name: /Steuerjahr/ })).toBeVisible();
+  // Mit Cent gehen Kapitalertragsteuern und Lohnsteuerbescheinigungen (LStB_1_5_Einz: GeldBetragMitCent), nur die
+  // Summe des Bruttoarbeitslohns (E0200201) ohne Cent; Jahresdokumentation E10 2025, ERiC 45.1.5.0
+  await expect(
+    page
+      .getByRole("form", { name: "Angaben zur Einkommensteuer" })
+      .getByText(/mit Cent nur die Steuern auf Kapitalerträge und die Lohnsteuerbescheinigungen außer der Summe des Bruttoarbeitslohns/),
+  ).toBeVisible();
   // Ohne eigene Hersteller-ID: Werte für die Erweiterung, die Mein ELSTER ausfüllt
   await expect(
     page.getByRole("region", { name: /^Anlage EÜR \d{4} in Mein ELSTER$/ }).getByRole("button", { name: "Werte für Mein ELSTER kopieren" }),
