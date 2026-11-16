@@ -118,7 +118,7 @@ Gebucht wird wie jeder Beleg, im Beispiel 1.000 € Miete zuzüglich 19 % mit de
 | 1576 (1406) Vorsteuer 19 % | 190,00 | |
 | 1600 (3300) Verbindlichkeiten | | 1.190,00 |
 
-Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist- und Soll-Versteuerung gleich (siehe [Vorsteuer in der Voranmeldung](#vorsteuer-in-der-voranmeldung)). Eine Gutschrift mit der Angabe „erstattet bereits Bezahltes“ ist die Ausnahme: ihre Vorsteuer mindert sich erst, wenn sie ausgeglichen ist. Ohne die Angabe gilt auch für sie das Belegdatum.
+Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist- und Soll-Versteuerung gleich (siehe [Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66)).
 
 ### Ändern, pausieren, beenden
 
