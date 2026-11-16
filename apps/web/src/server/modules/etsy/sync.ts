@@ -5,6 +5,7 @@ import { today as todayInGermany } from "../../today.ts";
 import { abrufFaellig, dayOf, type EtsyRhythmus, gebuehrenBisAm, laenderHinweis, naechsterAbrufStart } from "./abruf-regeln.ts";
 import { etsyClientFor, EtsyError, loadEtsyConnection, storeEtsySecret } from "./connections.ts";
 import { importEtsyLedger, type EtsyImportResult } from "./import.ts";
+import { etsyVertragHinweise } from "./vertrag.ts";
 
 /*
  * Abruf des Etsy-Zahlungsverlaufs: holt die Zeilen seit dem letzten Anlauf, löst zu Verkäufen und Erstattungen die
@@ -90,6 +91,16 @@ async function syncEtsyEinmal(actor: string, now: Date): Promise<EtsySyncResult>
     result.added = imported.added;
     result.accountName = imported.accountName;
     result.messages.push(...imported.messages);
+    // Nach dem Speichern: die Prüfung nach dem Importvertrag meldet nur und hält nichts auf (vertrag.ts)
+    result.messages.push(
+      ...etsyVertragHinweise({
+        shopId: connection.row.shopId,
+        entries,
+        fetchFrom: connection.row.fetchFrom,
+        now,
+        orderFor: (referenceId) => orders.get(referenceId),
+      }),
+    );
     const hinweis = laenderHinweis(bestellungen, laender);
     if (hinweis) result.messages.push(hinweis);
     neuerStart = naechsterAbrufStart(entries.map(dayOf), connection.row.fetchFrom, gebuehrenBis);
