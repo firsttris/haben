@@ -243,6 +243,39 @@ describe.skipIf(!testDatabaseUrl)("Ablage im Archiv (Postgres)", () => {
     expect(ohneId.received.map((r) => r.files.document!.name)).toEqual([`Rechnung-${neu.number}.pdf`]);
   });
 
+  it("schickt nach Aus- und Wiedereinschalten auch, was in der Pause festgeschrieben wurde", async () => {
+    await ablage.saveArchiveTarget(actor, zielMitId());
+    const [{ since }] = (await sql`select since from archive_target`) as unknown as [{ since: Date }];
+    await ablage.saveArchiveTarget(actor, { ...zielMitId(), enabled: false });
+    const inDerPause = await festschreiben();
+    await ablage.saveArchiveTarget(actor, zielMitId());
+    expect((await sql`select since from archive_target`)[0]!.since).toEqual(since);
+    expect(await ablage.deliveryForInvoice(inDerPause)).toEqual({ status: "wartet" });
+    expect(await ablage.deliverInvoices(actor)).toEqual({ uebertragen: 1, fehler: 0 });
+    expect(mitId.received.map((r) => r.files.datei!.name)).toEqual([`Rechnung-${inDerPause.number}.pdf`]);
+  });
+
+  it("speichert keinen Wert der Kopfzeile, den das Archiv in seiner Fehlerantwort wiederholt", async () => {
+    await ablage.saveArchiveTarget(actor, zielMitId());
+    const invoice = await festschreiben();
+    // Ganz oder nur das Token nach „Bearer“
+    mitId.queue.push({ status: 401, body: { kopfzeile: "Bearer archiv_geheim_1", fehler: "Token archiv_geheim_1 ungültig" } });
+    expect(await ablage.deliverInvoices(actor)).toEqual({ uebertragen: 0, fehler: 1 });
+    const status = (await ablage.deliveryForInvoice(invoice)) as { error: string };
+    expect(status.error).toContain("HTTP 401");
+    expect(status.error).not.toContain("archiv_geheim_1");
+    expect((await zeile(invoice.id))!.error).not.toContain("archiv_geheim_1");
+  });
+
+  it("schickt bei gleichzeitigem Lauf nach dem Festschreiben und stündlichem Lauf jede Rechnung einmal", async () => {
+    await ablage.saveArchiveTarget(actor, zielMitId());
+    await festschreiben();
+    await festschreiben();
+    const [a, b, c] = await Promise.all([ablage.runDueArchiveDeliveries(), ablage.runDueArchiveDeliveries(), ablage.deliverInvoices(actor, true)]);
+    expect([a, b, c].reduce((sum, r) => sum + (r?.uebertragen ?? 0), 0)).toBe(2);
+    expect(mitId.received).toHaveLength(2);
+  });
+
   it("lehnt ungültige Einstellungen ab", async () => {
     const fehler = (input: object) => ablage.saveArchiveTarget(actor, { ...zielMitId(), ...input });
     await expect(fehler({ url: "ftp://archiv.example/upload" })).rejects.toThrow(/http/);
