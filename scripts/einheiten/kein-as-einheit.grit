@@ -3,9 +3,9 @@ language js(typescript, jsx);
 // Kein `as Cents`, `as BasisPoints`, `as Millis` oder `as Prozent` (#1132, docs/entwicklung.md, Konventionen, Einheit im Typ).
 // Die Typen sind Flavors: Eine schlichte Zahl passt ohne `as` (`const betrag: Cents = …`). `as` deutet dagegen auch eine
 // Zahl anderer Einheit um, etwa Basispunkte als Cent, und der Compiler sieht den Fehler nicht mehr. Erfasst auch
-// `as unknown as Cents`, `as Cents | null`, `as Cents[]`, `as readonly Cents[]`, `as Array<Cents>` und `<Cents>wert`;
-// `Object.entries(…) as [Key, Cents][]` bleibt erlaubt, weil dort nur der Schlüssel enger wird.
+// `as unknown as Cents`, `as Cents | null`, `as Cents[]`, `as (Cents | null)[]`, `as readonly Cents[]`, `as Array<Cents>`
+// und `<Cents>wert`; `Object.entries(…) as [Key, Cents][]` bleibt erlaubt, weil dort nur der Schlüssel enger wird.
 or { TsAsExpression(ty = $typ), TsTypeAssertionExpression(ty = $typ) } where {
-    $typ <: r"^\s*(?:(?:null|undefined)\s*\|\s*)*(?:(?:readonly\s+)?(?:Cents|BasisPoints|Millis|Prozent)(?:\s*\[\s*\])*|(?:Readonly)?Array\s*<\s*(?:Cents|BasisPoints|Millis|Prozent)\s*>)(?:\s*\|\s*(?:null|undefined))*\s*$",
+    $typ <: r"^\s*(?:(?:null|undefined)\s*\|\s*)*(?:readonly\s+)?(?:(?:Cents|BasisPoints|Millis|Prozent)|\(\s*(?:(?:null|undefined)\s*\|\s*)*(?:Cents|BasisPoints|Millis|Prozent)(?:\s*\|\s*(?:null|undefined))*\s*\)|(?:Readonly)?Array\s*<\s*(?:(?:null|undefined)\s*\|\s*)*(?:Cents|BasisPoints|Millis|Prozent)(?:\s*\|\s*(?:null|undefined))*\s*>)(?:\s*\[\s*\])*(?:\s*\|\s*(?:null|undefined))*\s*$",
     register_diagnostic(span=$typ, message="as mit Einheit: Eine Zahl passt ohne as (const betrag: Cents = …), as deutet auch eine andere Einheit um. Einheit an der Quelle setzen: Spalte mit .$type<Cents>(), Zod mit inCents, Rechnung über taxOf (docs/entwicklung.md, Einheit im Typ).", severity="error")
 }

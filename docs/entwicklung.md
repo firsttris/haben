@@ -294,7 +294,7 @@ Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskett
 - **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
 - **Steuersätze in Basispunkten** (`BasisPoints`): 1900 = 19 %, 700 = 7 %.
 - **Mengen in Tausendsteln** (`Millis`): 152 Stunden = 152000, 0,5 Tage = 500.
-- **Privatanteil und Hebesatz in ganzen Prozent** (`Prozent`): 20 = 20 %; bei Basispunkten ist 100 = 1 %.
+- **Privatanteil, Hebesatz und Kirchensteuersatz der Ausschüttung in ganzen Prozent** (`Prozent`): 20 = 20 %; bei Basispunkten ist 100 = 1 %.
 - **Einheit im Typ:** `Cents`, `BasisPoints`, `Millis` und `Prozent` tragen ihre Einheit (`packages/core/src/einheit.ts`, #1132), verschiedene Einheiten passen nicht zueinander. Eine schlichte Zahl passt weiter, auch ohne `as`. `as Cents` deutet dagegen auch eine andere Einheit um; `bun run lint` meldet es für alle vier.
     - Spalten für Beträge, Sätze und Mengen tragen sie in `apps/web/src/server/db/schema.ts` mit `.$type<Cents>()`, `.$type<BasisPoints>()`, `.$type<Millis>()` oder `.$type<Prozent>()`, Felder in JSON-Spalten mit denselben Typen; eine Migration entsteht dadurch nicht.
     - Zod-Schemas bekommen sie über `inCents`, `inBasisPoints`, `inMillis` und `inProzent` (`packages/core/src/einheit-schema.ts`): `inCents(z.number().int().min(0)).nullable()`; Prüfung, Meldungen und JSON-Schema bleiben gleich.

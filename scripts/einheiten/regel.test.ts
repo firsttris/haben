@@ -34,6 +34,10 @@ describe("Kein as mit Einheit", () => {
     ["[wert] as readonly BasisPoints[]", "Array nur zum Lesen"],
     ["[wert] as Array<Millis>", "Array in Langform"],
     ["[wert] as ReadonlyArray<Prozent> | null", "ReadonlyArray, nullbar"],
+    ["[wert] as (Cents | null)[]", "Array nullbarer Einheiten"],
+    ["[wert] as readonly (BasisPoints | undefined)[]", "Array nullbarer Einheiten nur zum Lesen"],
+    ["[wert] as Array<Cents | null>", "Array in Langform, nullbar"],
+    ["[[wert]] as Array<Cents>[]", "Array von Arrays"],
   ])("meldet %s (%s)", (expression) => {
     expect(findings(expression)).toBe(1);
   });

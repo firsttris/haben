@@ -63,6 +63,7 @@ import {
   type SvBeitraege,
   type BasisPoints,
   type Cents,
+  type KirchensteuerSatz,
   type Millis,
   type Prozent,
 } from "@haben/core";
@@ -600,7 +601,7 @@ export interface AusschuettungEmpfaenger {
   soli: Cents;
   kist: Cents;
   netto: Cents;
-  kirchensteuer: 0 | 8 | 9;
+  kirchensteuer: KirchensteuerSatz;
   religionsschluessel: string | null;
 }
 

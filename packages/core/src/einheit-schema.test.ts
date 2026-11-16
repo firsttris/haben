@@ -3,6 +3,7 @@ import { z } from "zod";
 import { z as zm } from "zod/mini";
 import type { maxDegressiveRate } from "./afa-methoden.ts";
 import type { ScheduleAsset } from "./afa.ts";
+import type { KirchensteuerSatz } from "./ausschuettung.ts";
 import type { PublishedBaseRate } from "./base-rate.ts";
 import type { DauerbelegBetrag } from "./dauerbeleg.ts";
 import { type dunningAmounts, lateInterest } from "./dunning.ts";
@@ -18,6 +19,7 @@ import { discountColumns, discountFromColumns, type DiscountableLine, type disco
 import type { CentRange } from "./search-money.ts";
 import type { skontoStufeSchema } from "./skonto.ts";
 import type { treatmentIssues } from "./treatment.ts";
+import type { VerprobungsAbweichung } from "./ust-verprobung.ts";
 
 // Die Typen prüft der Typecheck (`bun run typecheck`): expectTypeOf tut zur Laufzeit nichts, und kompiliert eine Zeile unter
 // `@ts-expect-error` doch, meldet tsc die Direktive als unbenutzt (#1132).
@@ -95,6 +97,15 @@ describe("Privatanteil in Prozent und die übrigen Felder in core", () => {
     expectTypeOf<DiscountableLine["quantity"]>().toEqualTypeOf<Millis>();
     expectTypeOf<KapgSteuerAngaben["hebesatz"]>().toEqualTypeOf<Prozent>();
     expectTypeOf<PrivateUseRate>().toEqualTypeOf<BasisPoints & (100 | 50 | 25)>();
+    expectTypeOf<NonNullable<VerprobungsAbweichung["satz"]>>().toEqualTypeOf<BasisPoints & (1900 | 700)>();
+  });
+
+  it("Kirchensteuersatz der Ausschüttung in ganzen Prozent, nicht in Basispunkten wie beim Lohn", () => {
+    expectTypeOf<KirchensteuerSatz>().toEqualTypeOf<Prozent & (0 | 8 | 9)>();
+    const kirchensteuer: KirchensteuerSatz = 9;
+    // @ts-expect-error 9 % Kirchensteuer der Ausschüttung sind keine 9 Basispunkte
+    const alsBasispunkte: BasisPoints = kirchensteuer;
+    expect(alsBasispunkte).toBe(9);
   });
 
   it("Steuersätze der Körperschaft, Basiszinssatz, Suchbereich und Eingaben der Prüfungen", () => {
