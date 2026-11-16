@@ -7,6 +7,7 @@ import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/ind
 import { computeVatFigures } from "./vat-figures.ts";
 import { loadFrequencies, periodProblem } from "./zeitraum.ts";
 import { kz39For } from "./dauerfrist.ts";
+import { uebernommenBegruendung, uebernommeneJahre } from "./uebernommen.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
@@ -143,7 +144,11 @@ export async function saveDraft(actor: string, period: VatPeriod, input: DraftIn
   });
 }
 
-/** Berichtigte Anmeldung (Kz 10) als neuer Entwurf mit den Werten der letzten gesendeten. */
+/**
+ * Berichtigte Anmeldung (Kz 10) als neuer Entwurf mit den Werten der letzten gesendeten. In einem beim Update auf das
+ * Journal übernommenen Jahr (#1200) im Modus „manuell“ mit vorbelegter Begründung: Aus den Buchungen gerechnet würde die
+ * Berichtigung die übernommene Abweichung still mitberichtigen. `computed` hält daneben die Rechnung aus dem Journal fest.
+ */
 export async function createCorrection(actor: string, period: VatPeriod): Promise<VatReturn> {
   return withActor(actor, async (tx) => {
     const [latest] = await tx
@@ -162,6 +167,7 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
       .where(and(eq(schema.vatReturns.year, period.year), eq(schema.vatReturns.month, period.month), eq(schema.vatReturns.status, "draft")))
       .limit(1);
     if (openDraft) throw new VatError("Für diesen Zeitraum gibt es schon eine Voranmeldung als Entwurf. Sende oder lösche sie zuerst.");
+    const uebernommen = latest.source === "berechnet" && (await uebernommeneJahre(tx)).has(period.year);
     const [created] = await tx
       .insert(schema.vatReturns)
       .values({
@@ -186,9 +192,9 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
         kz62: latest.kz62,
         kz39: latest.kz39,
         kz83: latest.kz83,
-        source: latest.source,
-        overrideReason: latest.overrideReason,
-        computed: latest.computed,
+        source: uebernommen ? "manuell" : latest.source,
+        overrideReason: uebernommen ? uebernommenBegruendung(period.year) : latest.overrideReason,
+        computed: uebernommen ? await computedValues(period, tx) : latest.computed,
         berichtigt: true,
         correctsId: latest.id,
       })

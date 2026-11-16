@@ -32,6 +32,7 @@ export const DURCHLAEUFE = {
   ablage: 24,
   // Fragen zur Einrichtung und ausgeblendete Bereiche (#266): braucht eine Ersteinrichtung ohne Firmendaten
   einrichtung: 25,
+  umstellung: 26,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
