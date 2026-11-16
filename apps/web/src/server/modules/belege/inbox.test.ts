@@ -263,6 +263,27 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     expect(await inbox.fetchInbox(actor)).toMatchObject({ messages: 1, documents: 1, rejected: 0 });
   });
 
+  it("weist denselben Ordner für Eingang und Ausgang ab, auch in anderer Schreibweise", async () => {
+    await expect(inbox.saveInboxSettings(actor, { ...settings, outboundFolder: "Belege" })).rejects.toThrow(/verschieden/);
+    await expect(inbox.saveInboxSettings(actor, { ...settings, folder: "INBOX", outboundFolder: "inbox" })).rejects.toThrow(/verschieden/);
+    await inbox.saveInboxSettings(actor, { ...settings, outboundFolder: "Ausgang" });
+  });
+
+  it("protokolliert abgelehnte Mails ohne Message-ID auch bei gleicher UID nach einem Ordnerwechsel", async () => {
+    const ohneId = async (from: string, subject: string) => {
+      const source = await build({ from, subject, text: "x" });
+      return Buffer.from(source.toString("utf8").replace(/^Message-ID:.*\r\n/im, ""));
+    };
+    await inbox.saveInboxSettings(actor, { ...settings, allowedSenders: ["lieferant.example"] });
+    box.set(1, { source: await ohneId("a@fremd.example", "Erste"), seen: false });
+    await inbox.fetchInbox(actor);
+    await inbox.saveInboxSettings(actor, { ...settings, folder: "Neu", allowedSenders: ["lieferant.example"] });
+    box = new Map([[1, { source: await ohneId("b@fremd.example", "Zweite"), seen: false }]]);
+    await inbox.fetchInbox(actor);
+    const rows = await sql`select subject from inbox_messages order by subject`;
+    expect(rows.map((r) => r.subject)).toEqual(["Erste", "Zweite"]);
+  });
+
   it("liest den Ausgangsordner nur mit Übernahme, getrennt vom Eingang und ohne Eingangsbeleg", async () => {
     await inbox.saveInboxSettings(actor, { ...settings, outboundFolder: "Ausgang" });
     expect((await inbox.inboxSummary()).settings).toMatchObject({ outboundFolder: "Ausgang" });

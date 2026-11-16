@@ -223,7 +223,8 @@ function OrdnerFelder({ settings }: { settings: Settings }) {
           label="Ordner für Ausgangsrechnungen (optional)"
           hint={
             <>
-              <Tag>noch ohne Wirkung</Tag> Für Rechnungen aus Shop oder Fremdsystem. Haben liest den Ordner erst mit #660.
+              <Tag>noch ohne Wirkung</Tag> Für Rechnungen aus Shop oder Fremdsystem. Haben liest den Ordner erst, wenn die Übernahme fremder Ausgangsrechnungen
+              eingebaut ist (#660); er muss ein anderer sein als der Eingangsordner.
             </>
           }
         >

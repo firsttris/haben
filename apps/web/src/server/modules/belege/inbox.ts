@@ -31,35 +31,40 @@ const IMAP_PRESETS = {
   mailbox: { label: "mailbox.org", host: "imap.mailbox.org", port: 993, secure: true },
 } as const;
 
-export const inboxSettingsSchema = z.object({
-  host: z
-    .string()
-    .trim()
-    .min(1, "Server fehlt")
-    .max(253)
-    .regex(/^[A-Za-z0-9.-]+$/, "Nur der Servername, z. B. imap.gmail.com"),
-  port: z.number().int().min(1).max(65535),
-  secure: z.boolean(),
-  username: z.string().trim().min(1, "Benutzername fehlt").max(320),
-  /** leer: das gespeicherte Passwort behalten */
-  password: z.string().max(500).optional(),
-  folder: z.string().trim().min(1, "Ordner fehlt").max(200).default("INBOX"),
-  /** Ordner für Ausgangsrechnungen aus Fremdsystemen; leer: aus */
-  outboundFolder: z
-    .string()
-    .trim()
-    .max(200)
-    .nullish()
-    .transform((value) => value || null),
-  /** Adresse oder Domain je Eintrag; leer: jeder Absender */
-  allowedSenders: z
-    .array(z.string().max(320))
-    .max(200)
-    .default([])
-    .transform(normalizeSenders)
-    .refine((list) => list.every((entry) => /^[^\s,;<>]+$/.test(entry)), "Je Eintrag eine Adresse oder Domain ohne Leerzeichen"),
-  enabled: z.boolean().default(true),
-});
+export const inboxSettingsSchema = z
+  .object({
+    host: z
+      .string()
+      .trim()
+      .min(1, "Server fehlt")
+      .max(253)
+      .regex(/^[A-Za-z0-9.-]+$/, "Nur der Servername, z. B. imap.gmail.com"),
+    port: z.number().int().min(1).max(65535),
+    secure: z.boolean(),
+    username: z.string().trim().min(1, "Benutzername fehlt").max(320),
+    /** leer: das gespeicherte Passwort behalten */
+    password: z.string().max(500).optional(),
+    folder: z.string().trim().min(1, "Ordner fehlt").max(200).default("INBOX"),
+    /** Ordner für Ausgangsrechnungen aus Fremdsystemen; leer: aus */
+    outboundFolder: z
+      .string()
+      .trim()
+      .max(200)
+      .nullish()
+      .transform((value) => value || null),
+    /** Adresse oder Domain je Eintrag; leer: jeder Absender */
+    allowedSenders: z
+      .array(z.string().max(320))
+      .max(200)
+      .default([])
+      .transform(normalizeSenders)
+      .refine((list) => list.every((entry) => /^[^\s,;<>]+$/.test(entry)), "Je Eintrag eine Adresse oder Domain ohne Leerzeichen"),
+    enabled: z.boolean().default(true),
+  })
+  .refine((s) => !s.outboundFolder || s.outboundFolder.toLowerCase() !== s.folder.toLowerCase(), {
+    path: ["outboundFolder"],
+    message: "Ausgangsordner und Eingangsordner müssen verschieden sein",
+  });
 
 export type InboxSettingsInput = z.input<typeof inboxSettingsSchema>;
 type InboxSettings = typeof schema.inboxSettings.$inferSelect;
@@ -286,8 +291,14 @@ async function recordFailure(actor: string, richtung: Richtung, bytes: Buffer, e
  * Mail eines nicht freigegebenen Absenders: nur der Umschlag wird gelesen, die Mail bleibt ungelesen
  * im Postfach und wird beim nächsten Abruf nicht noch einmal protokolliert.
  */
-async function recordRejected(actor: string, richtung: Richtung, uid: number, head: MailEnvelope) {
-  const id = clean(head.messageId).trim() || `uid:${uid}`;
+/** Ohne Message-ID: Hash aus Absender, Betreff und Datum; die UID allein gilt nur je Ordner und Gültigkeitsstand */
+const ersatzId = (head: MailEnvelope) =>
+  `ohne-id:${createHash("sha256")
+    .update(`${head.address}\n${head.subject}\n${head.date?.toISOString() ?? ""}`)
+    .digest("hex")}`;
+
+async function recordRejected(actor: string, richtung: Richtung, head: MailEnvelope) {
+  const id = clean(head.messageId).trim() || ersatzId(head);
   await withActor(actor, (tx) =>
     tx
       .insert(schema.inboxMessages)
@@ -322,7 +333,7 @@ async function fetchFolder(
       if (handled >= MAX_MESSAGES) break;
       const head = await connection.envelope(uid);
       if (!senderAllowed(head.address, settings.allowedSenders)) {
-        await recordRejected(actor, richtung, uid, head);
+        await recordRejected(actor, richtung, head);
         result.rejected++;
         continue;
       }
