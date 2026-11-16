@@ -215,6 +215,79 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum: Journal und Ne
       expect({ ...q, zw: await zw() }).toEqual({ journal: [0, 616, 0], nebenbuecher: [0, 616, 0], zw: 0 });
     });
 
+    // Aufhebung einer Vorkasse vor dem Rechnungsdatum nach Abgabe des Rechnungsmonats: Die Gegenbuchung wirkt am Tag der
+    // Aufhebung, nicht rückwirkend im schon gemeldeten Monat (#782; GoBD: keine Änderung abgeschlossener Zeiträume, wie bei
+    // der Zahlung nach dem Rechnungsdatum). Gefunden im Review von #930
+    for (const zahltag of ["2026-11-05", "2026-10-30"]) {
+      it(`${n} Zahlung am ${zahltag}, Rechnung 02.11., am 10.12. aufgehoben: November bleibt, nichts rückwirkend`, async () => {
+        await firma({ journalAb: 2026, ...p });
+        const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+        const z = await zahlung(id, -3_856, zahltag);
+        const rw = await rueckwirkend("2026-12-10", () => bank.reverseAllocation(actor, z, "2026-12-10"));
+        const q = await beideQuellen(M([2026, 10], 3));
+        expect({ ...q, zw: await zw(), rw }).toEqual({ journal: [0, 616, 0], nebenbuecher: [0, 616, 0], zw: 0, rw: [] });
+      });
+    }
+
+    // Vorkasse im Dezember, Rechnung im Januar: Kz 66 im Januar (UStAE 15.3 Abs. 1 Satz 2), in der EÜR bleibt die
+    // gezahlte Vorsteuer Betriebsausgabe im Jahr der Zahlung (§ 11 Abs. 2 EStG). Review #930
+    it(`${n} Zahlung im Dezember, Rechnung im Januar: Kz 66 im Januar, EÜR im Jahr der Zahlung`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const euer = await import("../auswertungen/euer-journal.ts");
+      const id = await beleg({ datum: "2027-01-05", von: "2027-02-01", bis: "2027-02-28", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+      await zahlung(id, -3_856, "2026-12-15");
+      const q = await beideQuellen(M([2026, 12], 3));
+      const e2026 = (await euer.euerAusJournal(2026)).summe.zeilen;
+      const e2027 = (await euer.euerAusJournal(2027)).summe.zeilen;
+      expect({ ...q, zw: await zw(), vst2026: e2026.vorsteuer, vst2027: e2027.vorsteuer }).toEqual({
+        journal: [0, 616, 0],
+        nebenbuecher: [0, 616, 0],
+        zw: 0,
+        vst2026: 616,
+        vst2027: undefined,
+      });
+    });
+
+    // Teilzahlungen vor und nach dem Rechnungsdatum: je Zahlung ihr Anteil, frühestens im Monat der Rechnung, der Rest
+    // mit der Ausführung (UStAE 15.3 Abs. 1 Satz 2 und Abs. 4). Review #930
+    it(`${n} Teilzahlungen vor und nach dem Rechnungsdatum: kumuliert im Monat der Rechnung, Rest mit der Ausführung`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+      await zahlung(id, -1_928, "2026-10-30");
+      const a = await beideQuellen(M([2026, 10], 3));
+      await zahlung(id, -1_000, "2026-10-31");
+      const b = await beideQuellen(M([2026, 10], 3));
+      await zahlung(id, -928, "2026-11-20");
+      const c = await beideQuellen(M([2026, 10], 3));
+      expect({ a, b, c, zw: await zw() }).toEqual({
+        a: { journal: [0, 308, 308], nebenbuecher: [0, 308, 308] },
+        b: { journal: [0, 468, 148], nebenbuecher: [0, 468, 148] },
+        c: { journal: [0, 616, 0], nebenbuecher: [0, 616, 0] },
+        zw: 0,
+      });
+    });
+
+    // Vorkasse mit Skonto vor dem Rechnungsdatum: Der Skonto mindert die Vorsteuer (§ 17 Abs. 1 Satz 2 UStG), der Rest
+    // zählt im Monat der Rechnung (UStAE 15.3 Abs. 1 Satz 2). „Zahlung mit Skonto“ bucht den Skonto am Tag des Umsatzes.
+    // Review #930
+    it(`${n} Vorkasse mit Skonto am Zahltag vor dem Rechnungsdatum: bucht, Vorsteuer ohne Skonto im Monat der Rechnung`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+      const umsatz = await bankumsatz(-3_779, "2026-10-30");
+      await bank.allocateWithRest(actor, { transactionId: umsatz, target: { kind: "document", documentId: id }, rest: "skontoErhalten" });
+      const q = await beideQuellen(M([2026, 10], 3));
+      expect({ ...q, zw: await zw() }).toEqual({ journal: [0, 604, 0], nebenbuecher: [0, 604, 0], zw: 0 });
+    });
+
+    it(`${n} Vorkasse vor dem Rechnungsdatum, Skonto danach: Vorsteuer ohne Skonto im Monat der Rechnung`, async () => {
+      await firma({ journalAb: 2026, ...p });
+      const id = await beleg({ datum: "2026-11-02", von: "2026-12-01", bis: "2026-12-31", amounts: [{ taxRate: 1900, net: 3_240, tax: 616 }] });
+      await zahlung(id, -3_779, "2026-10-30");
+      await bank.writeOff(actor, { kind: "skontoErhalten", documentId: id, date: "2026-11-05" });
+      const q = await beideQuellen(M([2026, 10], 3));
+      expect({ ...q, zw: await zw() }).toEqual({ journal: [0, 604, 0], nebenbuecher: [0, 604, 0], zw: 0 });
+    });
+
     // Altbestand aus v0.9.0 (#879): Belege mit Leistungszeitraum, die vor diesem Stand gebucht wurden, haben die Vorsteuer
     // im Journal am Belegdatum, ohne Zwischenkonto. Die Nebenbücher dürfen sie nicht nachträglich verschieben, sonst
     // ändert ein Update schon gemeldete Monate und Journal und Gegenprobe fallen auseinander. Nachweis ist die Buchung,
