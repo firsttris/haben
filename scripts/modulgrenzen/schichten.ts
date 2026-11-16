@@ -26,6 +26,7 @@ export const SCHICHTEN = [
   "jahreserklaerung",
   "umstellung",
   "finanzamt",
+  "verfahrensdoku",
   "archiv",
   "datenimport",
   "stores",

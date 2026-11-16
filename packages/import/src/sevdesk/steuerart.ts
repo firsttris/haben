@@ -1,11 +1,11 @@
+import type { BasisPoints } from "@haben/core";
 import type { SevTaxSet } from "./types.ts";
 
 /* Eigene Steuerart aus sevDesk (GET /TaxSet), gelesen für den Abgleich der Umsatzsteuer je Monat. */
 
 export interface SevTaxSetFields {
   id: string;
-  /** Steuersatz in Basispunkten */
-  rate: number;
+  rate: BasisPoints;
   /** Kennzahl der Bemessungsgrundlage, z. B. "46"; null ohne Angabe */
   net: string | null;
   /** Kennzahlen der Steuer, z. B. ["47", "67"] bei § 13b (Steuer und Vorsteuer) */

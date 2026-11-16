@@ -224,6 +224,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `protokoll/audit.csv` | Änderungsprotokoll des Jahres mit altem und neuem Wert als JSON, in der Reihenfolge der Hash-Kette mit Ketten-Nr., Vorgänger-Hash und Hash |
 | `protokoll/pruefwert.txt` | Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am Ende des Jahres, zum Aufbewahren außerhalb des Servers |
 | `protokoll/versionen.csv` | Eingesetzte Haben- und PostgreSQL-Versionen im Jahr mit Startzeitpunkt, Bestands-Hinweis (sofern vorhanden) und Link auf die Versionshinweise, einschließlich eines noch aus dem Vorjahr laufenden Stands |
+| `verfahrensdokumentation.md` | [Verfahrensdokumentation](verfahrensdokumentation.md) in der Fassung vom Tag der Erstellung, mit Stand und Haben-Version |
 | `FEHLER.txt` | Nur wenn eine Datei nicht lesbar war, mit Liste der betroffenen Belege |
 | `index.xml` | Beschreibung aller CSV-Dateien für die Prüfsoftware, siehe [index.xml für die Prüfsoftware](#indexxml-für-die-prüfsoftware) |
 | `pruefsummen.sha256` | SHA-256 jeder anderen Datei im Archiv |

@@ -91,7 +91,7 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
       expect(await sql`select ohne_vorsteuerabzug from company where id=1`).toEqual([{ ohne_vorsteuerabzug: false }]);
       expect(await sql`select tax_details from invoices where id=${invoiceId}`).toEqual([{ tax_details: null }]);
       expect(await sql`select paid_via, paid_on from invoices where id=${invoiceId}`).toEqual([{ paid_via: null, paid_on: null }]);
-      // Neu im Audit-Log ist nur die Zeile der Prüfung beim Update (Migration 0271, #1116)
+      // Neu im Audit-Log ist nur die Zeile der Prüfung beim Update (Migration 0273, #1116)
       expect(await sql`select table_name, action from audit_log where seq > ${auditHead!.seq}`).toEqual([
         { table_name: "journal_umstellung", action: "INSERT" },
       ]);

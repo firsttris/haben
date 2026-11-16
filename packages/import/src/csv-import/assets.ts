@@ -1,4 +1,14 @@
-import { ASSET_KINDS, assetIssues, type AssetKind, type AssetMethod, type Cents, formatDecimal, maxDegressiveRate, usesUsefulLife } from "@haben/core";
+import {
+  ASSET_KINDS,
+  assetIssues,
+  type AssetKind,
+  type AssetMethod,
+  type BasisPoints,
+  type Cents,
+  formatDecimal,
+  maxDegressiveRate,
+  usesUsefulLife,
+} from "@haben/core";
 import { type ColumnMapping, type ImportField, rowReader } from "./mapping.ts";
 import { duplicateKey, type RowCandidate } from "./plan.ts";
 import type { CsvTable } from "./read.ts";
@@ -71,8 +81,8 @@ export interface AssetRow {
   acquisitionDate: string;
   cost: Cents;
   usefulLifeMonths: number | null;
-  /** Nur bei degressiv, in Basispunkten; null = Höchstsatz */
-  degressiveRate: number | null;
+  /** Nur bei degressiv; null = Höchstsatz */
+  degressiveRate: BasisPoints | null;
   openingDate: string;
   openingBookValue: Cents;
   note: string;
@@ -117,7 +127,7 @@ function parseMethod(raw: string, kind: AssetKind): Parsed<AssetMethod> {
 }
 
 /** Degressiver Satz in Prozent („25“, „23,07 %“) als Basispunkte */
-function parseRate(raw: string): Parsed<number> | null {
+function parseRate(raw: string): Parsed<BasisPoints> | null {
   const value = raw.replace("%", "").trim();
   if (!value) return null;
   const match = /^(\d{1,2})(?:,(\d{1,2}))?$/.exec(value);

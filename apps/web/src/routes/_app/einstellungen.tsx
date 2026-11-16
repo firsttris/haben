@@ -29,6 +29,7 @@ import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { DatabaseAccessCard } from "../../components/DatabaseAccessCard.tsx";
 import { VersionsCard } from "../../components/VersionsCard.tsx";
+import { ProcedureDocCard } from "../../components/ProcedureDocCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LetterheadBackgroundCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
 import { LayoutsCard } from "../../components/LayoutsCard.tsx";
@@ -306,6 +307,7 @@ function SettingsPage() {
               <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />
               <BackupCard status={backup} />
+              <ProcedureDocCard />
               <ArchiveSearchCard enabled={company.archiveSearch} />
             </>
           )}

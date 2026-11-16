@@ -12,10 +12,10 @@ const journal = (folder: string) => JSON.parse(readFileSync(join(folder, "meta",
 /*
  * Migration 0192 (#542, Stichjahr für Voranmeldung und EÜR aus dem Journal) auf einer bestehenden Instanz: mit Buchungen
  * das Jahr nach dem Update in deutscher Zeit, ohne Buchungen leer; die Hash-Kette bleibt intakt (Fälle aus dem TDD-Review
- * von Pull Request #575). Seit #1116 übernimmt Migration 0271 das Stichjahr in journal_umstellung, offen nur mit Buchungen
+ * von Pull Request #575). Seit #1116 übernimmt Migration 0273 das Stichjahr in journal_umstellung, offen nur mit Buchungen
  * davor; die Spalte bleibt für die bisherige Version.
  */
-describe.skipIf(!testDatabaseUrl)("Migration 0192 und 0271: Stichjahr auf einer bestehenden Instanz (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Migration 0192 und 0273: Stichjahr auf einer bestehenden Instanz (Postgres)", () => {
   async function bis0191(): Promise<postgres.Sql> {
     const name = decodeURIComponent(new URL(testDatabaseUrl!).pathname.slice(1));
     const admin = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });

@@ -1,4 +1,4 @@
-import { TAX_RATES, type RecurringInterval, type ServicePeriodMode, type TaxTreatment } from "@haben/core";
+import { type Cents, type Millis, TAX_RATES, type RecurringInterval, type ServicePeriodMode, type TaxTreatment } from "@haben/core";
 import { lexDate, lexToBasisPoints, lexToCents } from "../lexoffice/map.ts";
 import { sevNumber } from "./map.ts";
 import type { SevDocumentPos, SevInvoice } from "./types.ts";
@@ -18,11 +18,10 @@ export interface SevRecurringLine {
   description: string;
   detail: string;
   itemNumber: string;
-  /** Tausendstel */
-  quantity: number;
+  quantity: Millis;
   unit: "Stk.";
-  /** Cent, netto oder brutto nach priceMode */
-  unitPrice: number;
+  /** Netto oder brutto nach priceMode */
+  unitPrice: Cents;
   /** Basispunkte */
   taxRate: (typeof TAX_RATES)[number];
 }

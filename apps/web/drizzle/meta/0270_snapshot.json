@@ -1,5 +1,5 @@
 {
-  "id": "7ad894c4-1835-42b4-983e-ad151f97568e",
+  "id": "d2e5b194-9329-49c2-9177-089369e20ef3",
   "prevId": "49345326-33cd-4b40-aaee-8191ab8acd30",
   "version": "7",
   "dialect": "postgresql",
@@ -1640,6 +1640,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "target": {
+          "name": "target",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -8755,57 +8761,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.journal_umstellung": {
-      "name": "journal_umstellung",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "bigserial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "stichjahr_vorher": {
-          "name": "stichjahr_vorher",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ergebnis": {
-          "name": "ergebnis",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "befunde": {
-          "name": "befunde",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "version": {
-          "name": "version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "at": {
-          "name": "at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.kapest_submissions": {
       "name": "kapest_submissions",
       "schema": "",
@@ -12863,6 +12818,87 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.procedure_details": {
+      "name": "procedure_details",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "smallint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "verantwortlich": {
+          "name": "verantwortlich",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "datensicherung": {
+          "name": "datensicherung",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "aufbewahrungsort": {
+          "name": "aufbewahrungsort",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "papierbelege": {
+          "name": "papierbelege",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "serverbetrieb": {
+          "name": "serverbetrieb",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "schluesselablage": {
+          "name": "schluesselablage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "ergaenzungen": {
+          "name": "ergaenzungen",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "procedure_details_single_row": {
+          "name": "procedure_details_single_row",
+          "value": "\"procedure_details\".\"id\" = 1"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.quote_attachments": {

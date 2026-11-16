@@ -122,6 +122,7 @@ export default defineConfig({
         "seiten.spec.ts",
         "status-anordnung.spec.ts",
         "steuerberatung.spec.ts",
+        "verfahrensdokumentation.spec.ts",
         "vorschau.spec.ts",
         "zz-doku-screenshots.spec.ts",
       ],

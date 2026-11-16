@@ -1,3 +1,4 @@
+import type { BasisPoints, Cents } from "@haben/core";
 import { XMLParser } from "fast-xml-parser";
 import { unzipSync } from "fflate";
 import { parseDatevBuchungsstapel, type DatevStack } from "../datev.ts";
@@ -207,7 +208,7 @@ function revenuesOf(xlsx: Uint8Array): AccountableRevenue[] {
  * Betrag mit Vorzeichen in Cent: „-44.99“ → −4499. `euros` nimmt nur Beträge ohne Vorzeichen,
  * hier ist das Minus die Richtung der Zahlung und darf nicht verloren gehen.
  */
-function signedEuros(value: string | undefined): number | null {
+function signedEuros(value: string | undefined): Cents | null {
   const raw = (value ?? "").trim().replace(/\s/g, "");
   if (raw === "") return null;
   const negative = raw.startsWith("-");
@@ -230,7 +231,7 @@ function isoDate(value: string | undefined): string | null {
 }
 
 /** „45,49“ oder „1.234,56“ → Cent; leer → null */
-function euros(value: string | undefined): number | null {
+function euros(value: string | undefined): Cents | null {
   const amount = decimal(value);
   return amount === null ? null : Math.round(amount * 100);
 }
@@ -239,7 +240,7 @@ function euros(value: string | undefined): number | null {
  * „0,19“ bzw. „0.19“ → 1900 Basispunkte. Ein Wert über 1 ist schon Prozent (19 → 1900), denn die
  * Spalte ist in der echten Datei ein Bruchteil, in von Hand gepflegten Tabellen aber Prozent.
  */
-function basisPoints(value: string | undefined): number | null {
+function basisPoints(value: string | undefined): BasisPoints | null {
   const rate = decimal(value);
   if (rate === null) return null;
   return Math.round(rate > 1 ? rate * 100 : rate * 10000);

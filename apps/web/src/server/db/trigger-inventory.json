@@ -1905,6 +1905,20 @@
       "function": "public.haben_reject_truncate()"
     },
     {
+      "table": "public.procedure_details",
+      "name": "procedure_details_audit",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER procedure_details_audit AFTER INSERT OR DELETE OR UPDATE ON public.procedure_details FOR EACH ROW EXECUTE FUNCTION public.haben_audit()",
+      "function": "public.haben_audit()"
+    },
+    {
+      "table": "public.procedure_details",
+      "name": "procedure_details_no_truncate",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER procedure_details_no_truncate BEFORE TRUNCATE ON public.procedure_details FOR EACH STATEMENT EXECUTE FUNCTION public.haben_reject_truncate()",
+      "function": "public.haben_reject_truncate()"
+    },
+    {
       "table": "public.quote_attachments",
       "name": "quote_attachments_audit",
       "enabled": "O",
