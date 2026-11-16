@@ -11,11 +11,13 @@ import { erklaerteAbweichungen, erklaertZeile } from "../jahreserklaerung/index.
  * tragen dort teils keine Bemessungsgrundlage oder keinen Steuerschlüssel; aus dem Journal käme dann etwas anderes heraus.
  * Statt die alte Rechnung danebenzuhalten, prüft Haben diese Jahre wie der Abgleich in der Integritätsprüfung:
  * - gesendete Voranmeldungen mit ihren gespeicherten Werten gegen die Rechnung aus dem Journal (gesendet ist gesendet);
+ * - gesendete ZM gegen Kz 21 und 41 des Quartals aus dem Journal (zm-pruefen.ts);
  * - die Verprobung je Buchung: Steuer ohne passende Bemessungsgrundlage fällt auf, genau die Lücke älterer Buchungen;
  * - Rechnung und Vorgang gegen ihre Buchung;
  * - übermittelte und vermerkte Umsatzsteuererklärungen und Anlagen EÜR gegen die Rechnung aus dem Journal.
  * Offene Voranmeldungszeiträume und nicht abgegebene Jahreserklärungen vergleicht die Prüfung nicht mit der bisherigen
- * Rechnung; für sie gilt ab jetzt das Journal. Besteht alles, gilt die Umstellung als bestanden. Sonst startet die neue Version nicht (cli.ts), bis die Abweichung ausdrücklich übernommen wird.
+ * Rechnung; für sie gilt ab jetzt das Journal. Besteht alles, gilt die Umstellung als bestanden. Sonst startet die neue
+ * Version nicht (cli.ts), bis die Abweichung ausdrücklich übernommen wird.
  */
 
 export const UMSTELLUNG_ACTOR = "system:umstellung";
@@ -41,7 +43,7 @@ async function jahreVor(stichjahr: number, q: Db | Tx): Promise<number[]> {
 
 /**
  * Was in den Jahren vor dem früheren Stichjahr nicht stimmt; leer = bestanden. Dieselben Prüfungen wie der Abgleich in der
- * Integritätsprüfung (abgleichJahr): gesendete Voranmeldungen gegen das Journal, Verprobung der Umsatzsteuer je Buchung,
+ * Integritätsprüfung (abgleichJahr): gesendete Voranmeldungen und ZM gegen das Journal, Verprobung der Umsatzsteuer je Buchung,
  * Rechnung und Vorgang gegen ihre Buchung; dazu übermittelte und vermerkte Jahreserklärungen.
  */
 export async function umstellungBefunde(stichjahr: number, today: string, q: Db | Tx = db): Promise<JournalUmstellungBefund[]> {
