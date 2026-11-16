@@ -91,3 +91,12 @@ test("unveränderter Stand speichert ohne Berichtigungshinweis", async () => {
   await expect(card.getByRole("status")).not.toContainText("EÜR");
   expect(await sql`select * from annual_submissions`).toEqual(originalFiling);
 });
+
+test("Kennzahl und Sondervorauszahlung stehen zuerst in Klartext, der Paragraf danach", async () => {
+  await page.goto("/umsatzsteuer/2026-12");
+  await expect(page.getByText("Kz = Kennzahl, die Nummer der Zeile im ELSTER-Formular.")).toBeVisible();
+  const card = page.getByRole("region", { name: "Dauerfristverlängerung 2026", exact: true });
+  const text = (await card.textContent()) ?? "";
+  expect(text.indexOf("Einen Monat mehr Zeit")).toBeGreaterThanOrEqual(0);
+  expect(text.indexOf("Einen Monat mehr Zeit")).toBeLessThan(text.indexOf("§ 47, 48 UStDV"));
+});

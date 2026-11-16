@@ -82,8 +82,8 @@ export function DauerfristCard({ overview, setup }: { overview: Overview; setup:
       {monthly ? (
         <>
           <p className="small muted" style={{ margin: 0 }}>
-            Bei monatlicher Abgabe meldest du jedes Jahr bis zum 10. Februar eine Sondervorauszahlung an und zahlst sie (§ 47, 48 UStDV). Abgezogen wird sie in
-            der Voranmeldung für Dezember (Kz 39).
+            Einen Monat mehr Zeit, dafür zahlst du einmal im Jahr vorab ein Elftel der Vorauszahlungen des Vorjahres: die Sondervorauszahlung (§ 47, 48 UStDV).
+            Melde und zahle sie bis zum 10. Februar; in der Voranmeldung für Dezember wird sie abgezogen (Kz 39).
           </p>
           <Field
             label="Sondervorauszahlung (Kz 38, volle Euro)"
