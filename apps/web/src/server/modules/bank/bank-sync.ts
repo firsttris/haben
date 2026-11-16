@@ -4,6 +4,7 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
+import { vertragHinweise } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -448,6 +449,10 @@ export async function syncConnection(actor: string, connectionId: string, today 
         dateFrom,
         dateTo: today,
       });
+      // Importvertrag (#306, Schritt 2): nur Hinweise, gespeichert wird wie bisher
+      statement.warnings.push(
+        ...vertragHinweise({ iban: account.iban, transactions, balances, dateFrom, dateTo: today, now: new Date(), fetchId: randomBytes(8).toString("hex") }),
+      );
       const stored = await withActor(actor, (tx) =>
         storeStatement(
           tx,
