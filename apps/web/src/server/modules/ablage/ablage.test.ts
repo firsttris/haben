@@ -276,6 +276,11 @@ describe.skipIf(!testDatabaseUrl)("Ablage im Archiv (Postgres)", () => {
     expect(mitId.received).toHaveLength(2);
   });
 
+  it("zeigt an einer festgeschriebenen Rechnung ohne eingerichtete Ablage keinen Stand", async () => {
+    const invoice = await festschreiben();
+    expect(await ablage.deliveryForInvoice(invoice)).toBeNull();
+  });
+
   it("lehnt ungültige Einstellungen ab", async () => {
     const fehler = (input: object) => ablage.saveArchiveTarget(actor, { ...zielMitId(), ...input });
     await expect(fehler({ url: "ftp://archiv.example/upload" })).rejects.toThrow(/http/);
