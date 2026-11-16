@@ -280,7 +280,16 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       // Im Jahr der Zahlung (§ 11 EStG), unabhängig vom Bezugsjahr; Teil und Steuerart bestimmen die Zeile
       // Je Zuordnung, nicht je Umsatz: Die Wirkung hängt am Vorzeichen jedes Teils (Erstattungszinsen sind Einnahme,
       // Nachzahlungszinsen zur Gewerbesteuer nicht); nur Zuordnung und Gegenzeile heben sich auf
-      payments.push({ kind: "steuer", date: a.date, amount: a.amount, art: a.taxType, posten: a.taxItem, group: a.reversesId ?? a.id });
+      payments.push({
+        kind: "steuer",
+        date: a.date,
+        amount: a.amount,
+        art: a.taxType,
+        posten: a.taxItem,
+        group: a.reversesId ?? a.id,
+        // Wie ustAbfluss oben: Nur die echte Gegenzeile erhält die ursprüngliche Richtung (EÜR-Anleitung, Zeilen 18/58).
+        ...(a.reversesId ? { steuerErstattung: a.amount < 0 } : {}),
+      });
     } else if (a.kind === "darlehen" && a.loanPart && a.loanPurpose) {
       // Zinsen und Gebühren als Schuldzinsen, wenn sie abfließen; Auszahlung und Tilgung sind erfolgsneutral
       payments.push({ kind: "darlehen", date: a.date, amount: a.amount, zweck: a.loanPurpose, teil: a.loanPart, group });
