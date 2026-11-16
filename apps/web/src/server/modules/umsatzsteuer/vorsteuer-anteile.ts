@@ -94,12 +94,13 @@ export async function ausfuehrungMitFreigabe(tx: Tx, documentId: string): Promis
  * fortgeschriebene Anteil auch dann, wenn ein Ausgleich vor dieser Umbuchung lag — der Saldo des Kontos ist die Wahrheit
  * über das, was noch offen ist.
  *
- * Eine Freigabe nach dem Tag des Ausgleichs (`bis`) zählt nicht mit: Sie steht schon ab dem Buchen im Journal, datiert
- * auf einen Tag, der noch kommen kann (#693, #930), und eine Zahlung vor der Ausführung zöge ihren Anteil sonst ein
- * zweites Mal — bei Teilzahlungen mit negativem Vorzeichen. Alle anderen Buchungen zählen unabhängig vom Datum: Ein
- * nachgereichter, älterer Auszug soll den Anteil nicht neu verteilen.
+ * Die Freigabe zum Ausführungsdatum (`ausfuehrung`) zählt nicht mit: Sie steht schon ab dem Buchen im Journal, datiert
+ * auf einen Tag, der noch kommen kann (#693), und eine Zahlung vor der Ausführung zöge ihren Anteil sonst ein zweites
+ * Mal — bei Teilzahlungen mit negativem Vorzeichen. Alle anderen Buchungen zählen unabhängig vom Datum, auch die Freigabe
+ * zum Rechnungsdatum vor einem Skonto zur Vorkasse und die Gegenbuchung einer Aufhebung nach dem Tag des Ausgleichs: Ein
+ * nachgereichter, älterer Auszug soll den Anteil nicht neu verteilen (#930).
  */
-async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise<TaxShare[]> {
+async function bisherUmgebucht(tx: Tx, documentId: string, ausfuehrung: string | null): Promise<TaxShare[]> {
   const rows = await tx.execute<{ tax_code: string | null; bewegt: number; basis: number }>(sql`
     select l.tax_code, sum(l.debit - l.credit)::int as bewegt, sum(coalesce(l.basis, 0))::int as basis
       from journal_lines l
@@ -111,8 +112,8 @@ async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise
                (select id from write_offs where document_id = ${documentId} and kind <> 'skontoErhalten'))
          -- Beim Buchen schon freigegeben (#693): Der Ausgleich darf dieselbe Steuer nicht ein zweites Mal ziehen
          or (e.source_type = 'freigabe' and e.source_id = ${documentId}))
-       -- Nur die Freigabe trägt ein Datum, das noch kommen kann; alles andere zählt, auch wenn es nachgereicht wurde
-       and not (e.source_type = 'freigabe' and e.date > ${bis})
+       -- Nur die Freigabe zum Ausführungsdatum trägt ein Datum, das noch kommen kann; alles andere zählt, auch nachgereicht
+       and not (e.source_type = 'freigabe' and ${ausfuehrung}::date is not null and e.date >= ${ausfuehrung}::date)
      group by l.tax_code`);
   return [...rows].flatMap((r) => {
     const rate = satzZumSchluessel(r.tax_code);
@@ -135,7 +136,7 @@ async function bisherUmgebucht(tx: Tx, documentId: string, bis: string): Promise
  */
 export async function vorsteuerAnteile(
   tx: Tx,
-  doc: { id: string; privateShare: number; documentDate?: string | null },
+  doc: { id: string; privateShare: number },
   totals: InvoiceTotals,
   amount: number,
   datum: string,
@@ -147,10 +148,7 @@ export async function vorsteuerAnteile(
   const ausfuehrung = await ausfuehrungMitFreigabe(tx, doc.id);
   if (ausfuehrung !== null && datum >= ausfuehrung) return null;
   if (kursdifferenz && ausfuehrung !== null && datum < ausfuehrung) return [];
-  // Vor dem Rechnungsdatum (Skonto zur Vorkasse) zählt die Freigabe zum Rechnungsdatum schon mit: Sie hat den bezahlten
-  // Anteil gezogen, die Abschreibung darf ihn nicht ein zweites Mal vom Zwischenkonto nehmen (#930)
-  const bis = ausfuehrung !== null && doc.documentDate && datum < doc.documentDate ? doc.documentDate : datum;
-  const bisher = await bisherUmgebucht(tx, doc.id, bis);
+  const bisher = await bisherUmgebucht(tx, doc.id, ausfuehrung);
   // Der Privatanteil steht schon beim Buchen nicht auf dem Zwischenkonto: Der geschäftliche Teil des Ziels wird
   // deshalb vor dem Abzug der bisherigen Umbuchungen gebildet. So schreiben die Ausgleiche zusammen genau den
   // geschäftlichen Teil der Vorsteuer fort, und das Konto endet bei null statt um den Privatanteil im Soll.

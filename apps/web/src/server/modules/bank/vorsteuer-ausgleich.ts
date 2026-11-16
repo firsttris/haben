@@ -55,7 +55,7 @@ export async function vorsteuerAusgleich(
  */
 export async function vorsteuerAbschreibung(
   tx: Tx,
-  doc: { id: string; privateShare: number; documentDate: string | null },
+  doc: { id: string; privateShare: number },
   totals: InvoiceTotals,
   amount: number,
   datum: string,
