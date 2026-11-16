@@ -490,26 +490,24 @@ function daysBetween(from: string, to: string): number {
  * Mit `bis` gilt der Abschlussstand zum Stichtag (#1110): `today` ist dann derselbe Tag, und es zählt nur, was bis
  * einschließlich dahin wirkt — spätere Zahlungen fehlen, Belege und Rechnungen, die es damals noch nicht gab, auch.
  */
-export async function openPositions(today: string, { bis }: { bis?: string } = {}) {
-  // Auch die Anzahlungen und ihre Forderungen rechnen zum Stichtag, wenn einer gesetzt ist (#1110)
-  const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(bis ?? today);
-  const separate = new Set(invoiceIds);
-  const receivables: OpenPosition[] = [
-    ...(await listInvoices(today, undefined, db, bis))
-      .filter((i) => i.status === "final" && i.open !== 0 && !separate.has(i.id))
-      .map((i) => ({
-        id: i.id,
-        number: i.number ?? "",
-        party: i.customer,
-        date: i.issueDate,
-        dueDate: i.dueDate,
-        gross: i.gross,
-        open: i.open,
-        daysOverdue: daysBetween(i.dueDate, today),
-      })),
-    ...newReceivables,
-  ];
+/** Offene Forderungen: festgeschriebene Rechnungen, die die Rechnungsliste als offen zeigt; `bis` ist der Stichtag des Abschlussstands (#1110) */
+async function openReceivables(today: string, bis: string | undefined, separate: Set<string>): Promise<OpenPosition[]> {
+  return (await listInvoices(today, undefined, db, bis))
+    .filter((i) => i.status === "final" && i.open !== 0 && !separate.has(i.id))
+    .map((i) => ({
+      id: i.id,
+      number: i.number ?? "",
+      party: i.customer,
+      date: i.issueDate,
+      dueDate: i.dueDate,
+      gross: i.gross,
+      open: i.open,
+      daysOverdue: daysBetween(i.dueDate, today),
+    }));
+}
 
+/** Offene Verbindlichkeiten: gebuchte, über die Bank zu zahlende Belege, die es am Stichtag schon gab und nicht storniert waren */
+async function openPayables(today: string, bis: string | undefined): Promise<OpenPosition[]> {
   const documents = await db
     .select({
       id: schema.documents.id,
@@ -522,7 +520,7 @@ export async function openPositions(today: string, { bis }: { bis?: string } = {
       gross: schema.documents.gross,
     })
     .from(schema.documents)
-    // Storniert ist nichts mehr zu zahlen (#237)
+    // Storniert ist nichts mehr zu zahlen (#237); im Abschlussstand erst, wenn das Storno bis zum Stichtag erklärt war (#1110)
     .where(
       and(
         eq(schema.documents.status, "gebucht"),
@@ -539,7 +537,7 @@ export async function openPositions(today: string, { bis }: { bis?: string } = {
     db,
     bis,
   );
-  const payables: OpenPosition[] = documents
+  return documents
     .map((d) => {
       const date = d.documentDate ?? todayInGermany(d.uploadedAt);
       const dueDate = d.dueDate ?? date;
@@ -557,9 +555,11 @@ export async function openPositions(today: string, { bis }: { bis?: string } = {
       };
     })
     .filter((d) => d.open !== 0);
+}
 
-  // Zahllast (positiv) und Erstattung (negativ) abgegebener Voranmeldungen; id ist der Zeitraum für den Link
-  const vat: OpenPosition[] = (await ustvaPosten(db, { bis })).posten
+/** Zahllast (positiv) und Erstattung (negativ) abgegebener Voranmeldungen; id ist der Zeitraum für den Link */
+async function openVatPosten(today: string, bis: string | undefined): Promise<OpenPosition[]> {
+  return (await ustvaPosten(db, { bis })).posten
     .filter((p) => p.offen !== 0)
     .map((p) => ({
       id: periodKey(p),
@@ -572,6 +572,15 @@ export async function openPositions(today: string, { bis }: { bis?: string } = {
       // Eine Erstattung ist nicht überfällig: Wann sie kommt, entscheidet das Finanzamt
       daysOverdue: p.offen > 0 ? daysBetween(p.faellig, today) : -1,
     }));
+}
+
+export async function openPositions(today: string, { bis }: { bis?: string } = {}) {
+  // Auch die Anzahlungen und ihre Forderungen rechnen zum Stichtag, wenn einer gesetzt ist (#1110)
+  const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(bis ?? today);
+  const separate = new Set(invoiceIds);
+  const receivables: OpenPosition[] = [...(await openReceivables(today, bis, separate)), ...newReceivables];
+  const payables = await openPayables(today, bis);
+  const vat = await openVatPosten(today, bis);
 
   const byDue = (a: OpenPosition, b: OpenPosition) => a.dueDate.localeCompare(b.dueDate) || a.number.localeCompare(b.number);
   receivables.sort(byDue);
