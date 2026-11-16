@@ -1,3 +1,4 @@
+import type { EuerLine, EuerResult } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -10,6 +11,19 @@ function dkbCsv(rows: string[][]) {
 
 const PDF = new TextEncoder().encode("%PDF-1.4\n% RE1019 aus Lexoffice\n%%EOF\n");
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 8, 7]);
+
+/** Was euerForYear liefert, kurz: Zeilen mit Betrag (und Notiz), Gewinn, nachrichtliche Beträge, Monate */
+function kurz(e: EuerResult) {
+  const zeilen = (l: EuerLine[]) => l.map((z) => (z.note ? [z.key, z.amount, z.note] : [z.key, z.amount]));
+  return {
+    einnahmen: zeilen(e.einnahmen),
+    ausgaben: zeilen(e.ausgaben),
+    gewinn: e.gewinn,
+    bewirtung: e.bewirtungNichtAbziehbar,
+    gewerbesteuer: e.gewerbesteuerNichtAbziehbar,
+    monate: e.monthly,
+  };
+}
 
 describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten mit mehreren Steuersätzen in der EÜR aus dem Journal (Postgres)", () => {
   let legacy: typeof import("./legacy-open.ts");
@@ -31,6 +45,16 @@ describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten mit mehreren St
     await sql?.end();
   });
 
+  /** EÜR des Jahres gegen die festen Werte (ERWARTET), je Test und Jahr; ein zweiter Aufruf im selben Test hat „|2“ */
+  const aufrufe = new Map<string, number>();
+  async function wieErwartet(year: number) {
+    const test = `${expect.getState().currentTestName!.split(" > ").at(-1)}|${year}`;
+    const n = (aufrufe.get(test) ?? 0) + 1;
+    aufrufe.set(test, n);
+    const key = n === 1 ? test : `${test}|${n}`;
+    expect(kurz(await reports.euerForYear(year)), key).toEqual(ERWARTET[key]);
+  }
+
   let versteuerung = "ist";
   let kontenrahmen = "SKR03";
   const reset = async () => {
@@ -44,7 +68,7 @@ describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten mit mehreren St
   };
 
   const gleich = async (year: number) => {
-    expect(await reports.euerForYear(year)).toEqual(await reports.euerAusNebenbuechern(year));
+    await wieErwartet(year);
   };
   const zeile = (date: string, name: string, purpose: string, amount: string, eingang: boolean) => [
     date,
@@ -142,3 +166,146 @@ describe.skipIf(!testDatabaseUrl)("Übernommene Lexoffice-Posten mit mehreren St
     }
   }
 });
+
+/**
+ * Feste Werte der EÜR je Test und Jahr. Bis #1116 verglich der Test die EÜR aus dem Journal mit der aus den Nebenbüchern;
+ * die Werte sind die der Nebenbücher, wie sie die Rechnung aus dem Journal seither ergeben muss.
+ */
+const ERWARTET: Record<string, ReturnType<typeof kurz>> = {
+  "Teilzahlungen auf übernommene Rechnung und Beleg mit 7 % und 19 % (SKR03, ist, Bürobedarf)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 12122],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1212],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:buero", 1716],
+      ["vorsteuer", 172],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11446,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 12122, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1716, 0, 0] },
+  },
+  "Teilzahlungen auf übernommene Rechnung und Beleg mit 7 % und 19 % (SKR03, ist, Bewirtung)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 12122],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1212],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1201, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 172],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11961,
+    bewirtung: 515,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 12122, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1201, 0, 0] },
+  },
+  "Teilzahlungen auf übernommene Rechnung und Beleg mit 7 % und 19 % (SKR03, soll, Bürobedarf)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 12122],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1212],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:buero", 1716],
+      ["vorsteuer", 172],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11446,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 12122, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1716, 0, 0] },
+  },
+  "Teilzahlungen auf übernommene Rechnung und Beleg mit 7 % und 19 % (SKR03, soll, Bewirtung)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 12122],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1212],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1201, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 172],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11961,
+    bewirtung: 515,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 12122, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1201, 0, 0] },
+  },
+  "Teilzahlungen auf übernommene Rechnung und Beleg mit 7 % und 19 % (SKR04, ist, Bürobedarf)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 12122],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1212],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:buero", 1716],
+      ["vorsteuer", 172],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11446,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 12122, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1716, 0, 0] },
+  },
+  "Teilzahlungen auf übernommene Rechnung und Beleg mit 7 % und 19 % (SKR04, ist, Bewirtung)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 12122],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1212],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1201, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 172],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11961,
+    bewirtung: 515,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 12122, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1201, 0, 0] },
+  },
+  "Teilzahlungen auf übernommene Rechnung und Beleg mit 7 % und 19 % (SKR04, soll, Bürobedarf)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 12122],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1212],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:buero", 1716],
+      ["vorsteuer", 172],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11446,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 12122, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1716, 0, 0] },
+  },
+  "Teilzahlungen auf übernommene Rechnung und Beleg mit 7 % und 19 % (SKR04, soll, Bewirtung)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 12122],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1212],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1201, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 172],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 11961,
+    bewirtung: 515,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 12122, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1201, 0, 0] },
+  },
+};

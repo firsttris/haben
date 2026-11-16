@@ -73,8 +73,6 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer mit § 4 Nr. 14 a in der EÜ
     const final = await invoices.finalizeInvoice(actor, draft.id);
     await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-10-10", amount: 100_00 }, "2026-10-10");
 
-    const nebenbuch = await reports.euerAusNebenbuechern(2026);
-    expect(nebenbuch.einnahmen.find((l) => l.key === "einnahmenKleinunternehmer")?.amount).toBe(100_00);
     expect((await annual.euerYear(2026)).figures).toMatchObject({ kleinunternehmer: 100_00, kleinunternehmerAbzuege: 100_00 });
     const euer = await reports.euerForYear(2026);
     const betrag = (key: string) => euer.einnahmen.find((l) => l.key === key)?.amount ?? 0;

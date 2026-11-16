@@ -94,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum mit Teilabzug, 
 
   const MONATE = [8, 9, 10, 11, 12];
 
-  /** Kz 66 je Monat aus Journal und Nebenbüchern, Zwischenkonto, EÜR-Vorsteuer, Summe der Ausgaben und Abweichungen */
+  /** Kz 66 je Monat aus dem Journal und aus der Vorsteuer-Erläuterung, Zwischenkonto, EÜR-Vorsteuer, Summe der Ausgaben und Abweichungen */
   async function stand() {
     const journal: number[] = [];
     const nebenbuecher: (number | undefined)[] = [];
@@ -102,7 +102,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer nach Leistungsdatum mit Teilabzug, 
     for (const month of MONATE) {
       const f = await figures.computeVatFigures({ year: 2026, month });
       journal.push(f.kz66);
-      nebenbuecher.push(f.nebenbuecher?.kz66);
+      nebenbuecher.push(f.inputTax.reduce((s, a) => s + a.tax, 0));
       vat.push(...abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month })).zeilen));
     }
     const [z] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account in ('1548', '1434')`;

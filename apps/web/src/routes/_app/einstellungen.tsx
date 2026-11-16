@@ -81,11 +81,9 @@ import { getZugaenge } from "../../server/functions/zugang.ts";
 import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
-import { StichjahrCard } from "../../components/StichjahrCard.tsx";
 import { NavMarkCard } from "../../components/NavMarkCard.tsx";
 import { getOwnAccounts } from "../../server/functions/eigene-konten.ts";
 import { SettingsHead, SettingsNav } from "../../components/SettingsNav.tsx";
-import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UnitsCard } from "../../components/UnitsCard.tsx";
@@ -122,7 +120,6 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
-      stichjahr,
       ownAccounts,
       units,
     ] = await Promise.all([
@@ -149,7 +146,6 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getZugaenge(),
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
-      getStichjahr(),
       getOwnAccounts(),
       getUnits(),
     ]);
@@ -179,7 +175,6 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
-      stichjahr,
       ownAccounts,
       units,
     };
@@ -216,7 +211,6 @@ function SettingsPage() {
     zugaenge,
     extraction,
     quoteDefaultAttachments,
-    stichjahr,
     ownAccounts,
     units,
     ablage,
@@ -239,7 +233,6 @@ function SettingsPage() {
           {bereich === "firma" && (
             <>
               <CompanyForm />
-              <StichjahrCard stand={stichjahr} />
               <NavMarkCard color={company.navColor} logo={company.navLogo} logoSha256={logo?.sha256 ?? null} />
             </>
           )}

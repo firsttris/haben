@@ -1919,6 +1919,20 @@
       "when": 1794821936749,
       "tag": "0273_ablage_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 274,
+      "version": "7",
+      "when": 1794830228866,
+      "tag": "0274_journal_umstellung",
+      "breakpoints": true
+    },
+    {
+      "idx": 275,
+      "version": "7",
+      "when": 1794830232051,
+      "tag": "0275_journal_umstellung_trigger",
+      "breakpoints": true
     }
   ]
 }

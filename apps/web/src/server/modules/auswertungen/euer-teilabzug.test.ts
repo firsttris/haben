@@ -91,7 +91,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug: Journal und Nebenbücher (Pos
     [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
 
   async function compare(year: number, expense: number, vorsteuer: number) {
-    for (const euer of [await reports.euerAusNebenbuechern(year, db), await quelle.euerAusDemJournal(year, db)]) {
+    for (const euer of [await quelle.euerAusDemJournal(year, db)]) {
       expect(amount(euer, "ausgabe:software")).toBe(expense);
       expect(amount(euer, "vorsteuer")).toBe(vorsteuer);
     }
@@ -150,10 +150,9 @@ describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug: Journal und Nebenbücher (Pos
     await compare(2026, 10_000, 0);
     const zahlung = await transaction("20.10.26", "-9,50");
     await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: zahlung.id, amount: zahlung.amount });
-    const nebenbuch = await reports.euerAusNebenbuechern(2026, db);
     const journal = await quelle.euerAusDemJournal(2026, db);
-    expect([nebenbuch.totalAusgaben, journal.totalAusgaben]).toEqual([10_950, 10_950]);
-    expect(amount(nebenbuch, "gezahlteUst")).toBe(950);
+    expect(journal.totalAusgaben).toBe(10_950);
+    expect(amount(journal, "gezahlteUst")).toBe(950);
     await compare(2026, 10_000, 0);
   });
 });

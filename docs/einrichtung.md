@@ -109,8 +109,6 @@ Die Umrechnung der Steuernummer prüft die Länge je Bundesland. Passt sie nicht
 
 Mehr zu den Pflichtangaben auf Rechnungen steht in [Rechnungen](rechnungen.md).
 
-Unter dem Formular steht die Karte **Voranmeldung und EÜR aus dem Journal**. Sie zeigt das Stichjahr, ab dem Haben Voranmeldung und EÜR wie DATEV aus dem Journal rechnet, und ob das laufende Jahr noch aus Rechnungen, Belegen und Zahlungen rechnet. Liegt das Stichjahr nach dem laufenden Jahr, lässt es sich mit **Ab ‹Jahr› aus dem Journal** auf das laufende Jahr vorziehen, solange für das Jahr keine Voranmeldung gesendet ist und sich dadurch keine Zahl ändert; sonst nennt die Karte die Gründe. Zurück geht es nicht. Einzelheiten: [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen).
-
 ### Zeichen in der Navigation
 
 Unter **Einstellungen › Firma › Zeichen in der Navigation** wählst du, woran du die Firma oben links in der Navigation erkennst. Das hilft vor allem, wenn du [mehrere Firmen als eigene Instanzen](installation.md#mehrere-instanzen) führst.
@@ -210,7 +208,7 @@ Die Rechtsform bestimmt, wohin Geld zwischen dem Unternehmen und dir gebucht wir
 | Anlage EÜR, Einkommensteuer, [Belege von ELSTER](jahreserklaerung.md#belege-von-elster), [Herabsetzung der Einkommensteuer-Vorauszahlungen](finanzamt.md#vorauszahlungen-herabsetzen) | ja | nein |
 | [Gesellschafter-Geschäftsführer](lohn.md#was-haben-abrechnet) im Lohn | nein | ja |
 | Voranmeldung, Umsatzsteuererklärung, DATEV-Export | ja | ja |
-| [Manuelle und freie Buchungen](buchhaltung.md#manuelle-und-freie-buchungen) | ab dem Stichjahr | ja |
+| [Manuelle und freie Buchungen](buchhaltung.md#manuelle-und-freie-buchungen) | ja | ja |
 | [Saldenvortrag, Eröffnungsbuchung](gmbh-abschluss.md#saldenvortrag-und-eröffnung-gmbh-und-ug) | nein, jedes Jahr beginnt bei null | ja |
 | [Jahresabschluss](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug): Bilanz und GuV (Entwurf), Jahr abschließen | nein | ja |
 | [Körperschaft- und Gewerbesteuer](gmbh-abschluss.md#körperschaft--und-gewerbesteuer-gmbh-und-ug) rechnen, Rückstellungen buchen | nein | ja |
@@ -345,6 +343,25 @@ Ins Vorjahr buchen geht nach einem Wechsel nur noch, wo es nicht von der Einstel
 Kläre einen Wechsel vorher mit deiner Steuerberatung.
 
 Lehnt die Datenbank eine Umstellung ab, weil gleichzeitig gebucht wurde, siehst du ihre Begründung statt „Interner Fehler“.
+
+## Update auf das Journal
+
+Seit [#1116](https://github.com/firsttris/haben/issues/1116) rechnet Haben Voranmeldung und EÜR für alle Jahre aus dem Journal. Bis dahin rechneten Jahre vor einem Stichjahr aus Rechnungen, Belegen und Zahlungen; das betrifft nur Instanzen, die vor Version 0.7.0 gebucht haben, und dort 2026 und Jahre, die per [Datenimport](belegimport.md) ins Journal kamen.
+
+Beim ersten Start nach dem Update prüft Haben diese Jahre wie der [Abgleich im Journal](buchhaltung.md#abgleich-im-journal), nach den Migrationen und bevor der Server startet:
+
+- Zeiträume mit gesendeter Voranmeldung: Die gesendeten Werte müssen mit der Rechnung aus dem Journal übereinstimmen; bei von Hand überschriebenen Werten die beim Speichern berechneten.
+- Die Verprobung: Jede Steuer braucht ihre Bemessungsgrundlage. Genau das fehlt älteren Buchungen ohne Steuerschlüssel oder ohne Bemessungsgrundlage an der Zahlung.
+- Gesendete [Zusammenfassende Meldungen](umsatzsteuer.md#zusammenfassende-meldung) gegen Kz 21 und 41 des Quartals aus dem Journal.
+- Rechnung und Vorgang gegen ihre Buchung.
+- Übermittelte Umsatzsteuererklärung und Anlage EÜR: jede übermittelte Zahl gegen die Rechnung aus dem Journal, außer Vorauszahlungen und Abschlusszahlung der Umsatzsteuer (sie kommen aus den gesendeten Voranmeldungen). Bei einer [vermerkten](jahreserklaerung.md#abgabe-außerhalb-von-haben-vermerken) Erklärung der beim Vermerk gerechnete Gewinn bzw. die Abschlusszahlung, bei neueren Vermerken jede damals gerechnete Zahl.
+
+Offene Zeiträume und nicht abgegebene Jahreserklärungen rechnen ohne Vergleich aus dem Journal. Stimmt alles, ändert sich nichts, was beim Finanzamt ist, und die Prüfung läuft nie wieder. Das Ergebnis steht im Änderungsprotokoll.
+
+**Bei einer Abweichung startet Haben nicht.** Im Log stehen Jahr, Zeitraum und Befund mit beiden Beträgen. Buchungen, Anmeldungen und Firmendaten bleiben unverändert, die bisherige Version läuft auf derselben Datenbank weiter. Meist fehlen älteren Buchungen Steuerschlüssel oder Bemessungsgrundlage. Dann gibt es zwei Wege:
+
+- **Auf der bisherigen Version bleiben**, bis das Jahr erklärt ist: das [Image](installation.md#image) auf die letzte Version vor dem Update festsetzen (`tristanteu/haben:x.y.z` statt `:latest`; die Version nennt die Release-Notiz). Eine Berichtigung eines solchen Jahres geht nur mit dieser Version.
+- **Die Abweichung übernehmen:** `HABEN_ABWEICHUNG_UEBERNEHMEN=2026` setzen (mehrere Jahre mit Komma) und neu starten. Gesendete Voranmeldungen bleiben, wie sie gesendet sind; alles Offene rechnet aus dem Journal. Die Befunde stehen im Änderungsprotokoll; der [Abgleich](buchhaltung.md#abgleich-im-journal) meldet genau diese nicht wieder, jede neue Abweichung schon. Kläre das vorher mit deiner Steuerberatung: Ergibt das Journal für ein gemeldetes Jahr etwas anderes als die Meldung, prüfe, ob die damals gemeldeten Werte unrichtig waren. Kann es dadurch zu einer Verkürzung von Steuern kommen oder ist es dazu gekommen und läuft die Festsetzungsfrist noch, ist das unverzüglich anzuzeigen und die Voranmeldung bzw. Erklärung zu berichtigen ([§ 153 Abs. 1 Satz 1 Nr. 1 AO](https://www.gesetze-im-internet.de/ao_1977/__153.html)).
 
 ## Rechnungsnummern
 

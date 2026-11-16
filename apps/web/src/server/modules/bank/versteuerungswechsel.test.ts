@@ -51,9 +51,9 @@ describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Verst
       bank_imports, bank_accounts, journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters,
       sepa_mandate_files, sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic,
-      bank, glaeubiger_id, kontenrahmen, versteuerung, journal_ab)
+      bank, glaeubiger_id, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
-      'DE123456789', 'BY', ${iban}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${profile.kontenrahmen}, ${profile.versteuerung}, ${previousYear})`;
+      'DE123456789', 'BY', ${iban}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${profile.kontenrahmen}, ${profile.versteuerung})`;
     if (profile.gmbh) await sql`update company set rechtsform = 'gmbh', name = 'Test GmbH'`;
     const account = await bank.createAccount(actor, { name: "Geschäftskonto", iban });
     const contact = await stammdaten.createContact(actor, {

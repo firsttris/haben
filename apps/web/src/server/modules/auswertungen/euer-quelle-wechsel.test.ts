@@ -1,3 +1,4 @@
+import type { EuerLine, EuerResult } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -38,10 +39,23 @@ const ausgang = (date: string, name: string, amount: string) => [
 ];
 
 /*
- * EÜR ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md, Entscheidung 3): euerForYear rechnet aus dem
- * Journal (euer-quelle.ts), die Nebenbücher sind die Gegenprobe im Abgleich. Gleiche Zeilen, gleicher Gewinn, gleiche Monate.
+ * EÜR aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md): euerForYear rechnet aus dem Journal (euer-quelle.ts).
+ * Zeilen, Gewinn und Monate gegen feste Werte (ERWARTET), die bis #1116 die Nebenbücher als Gegenprobe lieferten.
  */
-describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Stichjahr und mit Anlagen (Postgres)", () => {
+/** Was euerForYear liefert, kurz: Zeilen mit Betrag (und Notiz), Gewinn, nachrichtliche Beträge, Monate */
+function kurz(e: EuerResult) {
+  const zeilen = (l: EuerLine[]) => l.map((z) => (z.note ? [z.key, z.amount, z.note] : [z.key, z.amount]));
+  return {
+    einnahmen: zeilen(e.einnahmen),
+    ausgaben: zeilen(e.ausgaben),
+    gewinn: e.gewinn,
+    bewirtung: e.bewirtungNichtAbziehbar,
+    gewerbesteuer: e.gewerbesteuerNichtAbziehbar,
+    monate: e.monthly,
+  };
+}
+
+describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Jahreswechsel und mit Anlagen (Postgres)", () => {
   let reports: typeof import("./reports.ts");
   let assets: typeof import("../buchhaltung/assets.ts");
   let bank: typeof import("../bank/bank.ts");
@@ -67,19 +81,28 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Stichja
     await sql?.end();
   });
 
+  /** EÜR des Jahres gegen die festen Werte (ERWARTET), je Test und Jahr; ein zweiter Aufruf im selben Test hat „|2“ */
+  const aufrufe = new Map<string, number>();
+  async function wieErwartet(year: number) {
+    const test = `${expect.getState().currentTestName!.split(" > ").at(-1)}|${year}`;
+    const n = (aufrufe.get(test) ?? 0) + 1;
+    aufrufe.set(test, n);
+    const key = n === 1 ? test : `${test}|${n}`;
+    expect(kurz(await reports.euerForYear(year)), key).toEqual(ERWARTET[key]);
+  }
+
   async function reset(
     versteuerung: "ist" | "soll",
     kontenrahmen: "SKR03" | "SKR04" = "SKR03",
     kleinunternehmer = false,
     rechtsform: "einzelunternehmen" | "gmbh" = "einzelunternehmen",
-    journalAb: number | null = null,
   ) {
     await leeren(sql)`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
       cash_entries, write_offs, year_closings, loans, journal_lines, journal_entries, document_splits, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer, rechtsform, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer, rechtsform)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer}, ${rechtsform}, ${journalAb})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer}, ${rechtsform})`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -149,14 +172,11 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Stichja
       { id: string; booking_date: string; amount: number }[]
     >`select id, booking_date::text, amount from bank_transactions order by booking_date, amount`;
   }
-  beforeAll(async () => {});
-
-  /** Alles, was euerForYear liefert: Zeilen mit Bezeichnung und Notiz, Summen, Gewinn, Monate, nachrichtliche Beträge */
 
   /** Alles, was euerForYear liefert */
   const gleich = async (...years: number[]) => {
     for (const year of years) {
-      expect(await reports.euerForYear(year), String(year)).toEqual(await reports.euerAusNebenbuechern(year));
+      await wieErwartet(year);
     }
   };
 
@@ -165,8 +185,8 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Stichja
       [true, false],
       [false, true],
     ] as const) {
-      it(`Kleinunternehmer ${vorher} → ${nachher} zum Stichjahr: offene Rechnung und offener Beleg aus dem Vorjahr, im Stichjahr in Teilen bezahlt (${kontenrahmen})`, async () => {
-        await reset("ist", kontenrahmen, vorher, "einzelunternehmen", 2026);
+      it(`Kleinunternehmer ${vorher} → ${nachher} zum Jahreswechsel: offene Rechnung und offener Beleg aus dem Vorjahr, im Folgejahr in Teilen bezahlt (${kontenrahmen})`, async () => {
+        await reset("ist", kontenrahmen, vorher);
         const draft = await invoices.createDraft(actor, {
           contactId,
           issueDate: "2025-12-10",
@@ -192,8 +212,8 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Stichja
     ["SKR03", "SKR04"],
     ["SKR04", "SKR03"],
   ] as const) {
-    it(`Kontenrahmenwechsel ${vorher} → ${nachher} zum Stichjahr: Restzahlungen auf Rechnungen und Belege (Privatanteil, Bewirtung, 7 %) aus dem Vorjahr`, async () => {
-      await reset("ist", vorher, false, "einzelunternehmen", 2025);
+    it(`Kontenrahmenwechsel ${vorher} → ${nachher} zum Jahreswechsel: Restzahlungen auf Rechnungen und Belege (Privatanteil, Bewirtung, 7 %) aus dem Vorjahr`, async () => {
+      await reset("ist", vorher, false);
       const a = await invoice("2025-11-10", [{ net: 33_333, rate: 1900 }]);
       const b = await bookedDocument("2025-11-12", [{ taxRate: 1900, net: 5_001, tax: 950 }], { privateShare: 30, category: "telefon" });
       await assets.createAsset(actor, {
@@ -235,7 +255,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Stichja
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const ku of [false, true]) {
       it(`Anlagen: Abgang im Jahr, Sammelposten, GWG, Elektro-Kfz mit Privatnutzung, gebucht (${kontenrahmen}, Kleinunternehmer ${ku})`, async () => {
-        await reset("ist", kontenrahmen, ku, "einzelunternehmen", 2026);
+        await reset("ist", kontenrahmen, ku);
         const base = { usefulLifeMonths: null, disposalDate: null, privateUse: null, note: "" };
         await assets.createAsset(actor, {
           ...base,
@@ -301,3 +321,390 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal bei Wechseln zum Stichja
     }
   }
 });
+
+/**
+ * Feste Werte der EÜR je Test und Jahr. Bis #1116 verglich der Test die EÜR aus dem Journal mit der aus den Nebenbüchern;
+ * die Werte sind die der Nebenbücher, wie sie die Rechnung aus dem Journal seither ergeben muss.
+ */
+const ERWARTET: Record<string, ReturnType<typeof kurz>> = {
+  "Kleinunternehmer true → false zum Jahreswechsel: offene Rechnung und offener Beleg aus dem Vorjahr, im Folgejahr in Teilen bezahlt (SKR03)|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer true → false zum Jahreswechsel: offene Rechnung und offener Beleg aus dem Vorjahr, im Folgejahr in Teilen bezahlt (SKR03)|2026": {
+    einnahmen: [
+      ["einnahmenKleinunternehmer", 10001],
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 2333, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 7668,
+    bewirtung: 1000,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 10001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 2333, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer false → true zum Jahreswechsel: offene Rechnung und offener Beleg aus dem Vorjahr, im Folgejahr in Teilen bezahlt (SKR03)|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer false → true zum Jahreswechsel: offene Rechnung und offener Beleg aus dem Vorjahr, im Folgejahr in Teilen bezahlt (SKR03)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 8404],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1597],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1961, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 532],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 7508,
+    bewirtung: 840,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 8404, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 1961, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer true → false zum Jahreswechsel: offene Rechnung und offener Beleg aus dem Vorjahr, im Folgejahr in Teilen bezahlt (SKR04)|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer true → false zum Jahreswechsel: offene Rechnung und offener Beleg aus dem Vorjahr, im Folgejahr in Teilen bezahlt (SKR04)|2026": {
+    einnahmen: [
+      ["einnahmenKleinunternehmer", 10001],
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 2333, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 7668,
+    bewirtung: 1000,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 10001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 2333, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer false → true zum Jahreswechsel: offene Rechnung und offener Beleg aus dem Vorjahr, im Folgejahr in Teilen bezahlt (SKR04)|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 0,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kleinunternehmer false → true zum Jahreswechsel: offene Rechnung und offener Beleg aus dem Vorjahr, im Folgejahr in Teilen bezahlt (SKR04)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 8404],
+      ["einnahmenSteuerfrei", 0],
+      ["vereinnahmteUst", 1597],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:bewirtung", 1961, "Abziehbarer Teil (70 %)"],
+      ["vorsteuer", 532],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: 7508,
+    bewirtung: 840,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 8404, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 1961, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kontenrahmenwechsel SKR03 → SKR04 zum Jahreswechsel: Restzahlungen auf Rechnungen und Belege (Privatanteil, Bewirtung, 7 %) aus dem Vorjahr|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 11519],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 480000],
+      ["vereinnahmteUst", 1815],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 1148],
+      ["ausgabe:bewirtung", 727, "Abziehbarer Teil (70 %)"],
+      ["afa", 600000],
+      ["vorsteuer", 291],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -108832,
+    bewirtung: 311,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8404, 3115], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1148, 727] },
+  },
+  "Kontenrahmenwechsel SKR03 → SKR04 zum Jahreswechsel: Restzahlungen auf Rechnungen und Belege (Privatanteil, Bewirtung, 7 %) aus dem Vorjahr|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 32925],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 480000],
+      ["vereinnahmteUst", 5296],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 2353],
+      ["afa", 600000],
+      ["vorsteuer", 447],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -84579,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [32925, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [2353, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Kontenrahmenwechsel SKR04 → SKR03 zum Jahreswechsel: Restzahlungen auf Rechnungen und Belege (Privatanteil, Bewirtung, 7 %) aus dem Vorjahr|2025": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 11519],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 480000],
+      ["vereinnahmteUst", 1815],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 1148],
+      ["ausgabe:bewirtung", 727, "Abziehbarer Teil (70 %)"],
+      ["afa", 600000],
+      ["vorsteuer", 291],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -108832,
+    bewirtung: 311,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8404, 3115], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1148, 727] },
+  },
+  "Kontenrahmenwechsel SKR04 → SKR03 zum Jahreswechsel: Restzahlungen auf Rechnungen und Belege (Privatanteil, Bewirtung, 7 %) aus dem Vorjahr|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 32925],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 480000],
+      ["vereinnahmteUst", 5296],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["ausgabe:telefon", 2353],
+      ["afa", 600000],
+      ["vorsteuer", 447],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -84579,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [32925, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [2353, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen: Abgang im Jahr, Sammelposten, GWG, Elektro-Kfz mit Privatnutzung, gebucht (SKR03, Kleinunternehmer false)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 614400],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1376721],
+      ["gwg", 70001],
+      ["sammelposten", 11111],
+      ["restbuchwert", 900002],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1743435,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen: Abgang im Jahr, Sammelposten, GWG, Elektro-Kfz mit Privatnutzung, gebucht (SKR03, Kleinunternehmer false)|2026|2": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 614400],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1376721],
+      ["gwg", 70001],
+      ["sammelposten", 11111],
+      ["restbuchwert", 900002],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1743435,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen: Abgang im Jahr, Sammelposten, GWG, Elektro-Kfz mit Privatnutzung, gebucht (SKR03, Kleinunternehmer true)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 614400],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1376721],
+      ["gwg", 70001],
+      ["sammelposten", 11111],
+      ["restbuchwert", 900002],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1743435,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen: Abgang im Jahr, Sammelposten, GWG, Elektro-Kfz mit Privatnutzung, gebucht (SKR03, Kleinunternehmer true)|2026|2": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 614400],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1376721],
+      ["gwg", 70001],
+      ["sammelposten", 11111],
+      ["restbuchwert", 900002],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1743435,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen: Abgang im Jahr, Sammelposten, GWG, Elektro-Kfz mit Privatnutzung, gebucht (SKR04, Kleinunternehmer false)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 614400],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1376721],
+      ["gwg", 70001],
+      ["sammelposten", 11111],
+      ["restbuchwert", 900002],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1743435,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen: Abgang im Jahr, Sammelposten, GWG, Elektro-Kfz mit Privatnutzung, gebucht (SKR04, Kleinunternehmer false)|2026|2": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 614400],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1376721],
+      ["gwg", 70001],
+      ["sammelposten", 11111],
+      ["restbuchwert", 900002],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1743435,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen: Abgang im Jahr, Sammelposten, GWG, Elektro-Kfz mit Privatnutzung, gebucht (SKR04, Kleinunternehmer true)|2026": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 614400],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1376721],
+      ["gwg", 70001],
+      ["sammelposten", 11111],
+      ["restbuchwert", 900002],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1743435,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+  "Anlagen: Abgang im Jahr, Sammelposten, GWG, Elektro-Kfz mit Privatnutzung, gebucht (SKR04, Kleinunternehmer true)|2026|2": {
+    einnahmen: [
+      ["einnahmenSteuerpflichtig", 0],
+      ["einnahmenSteuerfrei", 0],
+      ["privateKfz", 614400],
+      ["vereinnahmteUst", 0],
+      ["erstatteteUst", 0],
+    ],
+    ausgaben: [
+      ["afa", 1376721],
+      ["gwg", 70001],
+      ["sammelposten", 11111],
+      ["restbuchwert", 900002],
+      ["vorsteuer", 0],
+      ["gezahlteUst", 0],
+    ],
+    gewinn: -1743435,
+    bewirtung: 0,
+    gewerbesteuer: 0,
+    monate: { einnahmen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ausgaben: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  },
+};

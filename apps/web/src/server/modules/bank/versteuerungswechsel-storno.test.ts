@@ -51,9 +51,9 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
       bank_imports, bank_accounts, journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters,
       sepa_mandate_files, sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic,
-      bank, glaeubiger_id, kontenrahmen, versteuerung, journal_ab)
+      bank, glaeubiger_id, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
-      'DE123456789', 'BY', ${iban}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${profile.kontenrahmen}, ${profile.versteuerung}, ${previousYear})`;
+      'DE123456789', 'BY', ${iban}, 'COBADEFFXXX', 'Commerzbank', 'DE98ZZZ09999999999', ${profile.kontenrahmen}, ${profile.versteuerung})`;
     if (profile.gmbh) await sql`update company set rechtsform = 'gmbh', name = 'Test GmbH'`;
     const account = await bank.createAccount(actor, { name: "Geschäftskonto", iban });
     const contact = await stammdaten.createContact(actor, {
@@ -177,9 +177,6 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
             await sql`select coalesce(sum(l.credit - l.debit), 0)::int as tax from journal_lines l join journal_entries e on e.id = l.entry_id where l.account = ${annualAccount} and e.date >= ${`${year}-01-01`}`;
           expect.soft(annual!.tax).toBe(-19_000);
           expect.soft(await vat.computeVatFigures({ year, month: 2 })).toMatchObject({ kz81: base, tax81: tax });
-          const figures = await vat.kennzahlenBeiderQuellen({ year, month: 2 });
-          expect.soft(figures.journal).toMatchObject({ kz81: base, tax81: tax });
-          expect.soft(figures.nebenbuecher).toMatchObject({ kz81: base, tax81: tax });
           expect.soft(abgleich.abweichungen((await auswertungen.vatAbgleich({ year, month: 2 })).zeilen)).toEqual([]);
           const suspense = kontenrahmen === "SKR03" ? "1766" : "3816";
           const [balance] = await sql`select coalesce(sum(debit - credit), 0)::int as saldo from journal_lines where account = ${suspense}`;
@@ -194,15 +191,11 @@ describe.skipIf(!testDatabaseUrl)("Storno und Korrektur nach Versteuerungswechse
                 ? await invoices.cancelInvoice(actor, original.invoice.id, `${year}-02-08`)
                 : await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, original.invoice.id, `${year}-02-08`)).id);
             const expected = versteuerung === "ist" ? { kz81: 0, tax81: 0 } : { kz81: -100_000, tax81: -19_000 };
-            const february = await vat.kennzahlenBeiderQuellen({ year, month: 2 });
-            expect.soft(february.journal).toMatchObject(expected);
-            expect.soft(february.nebenbuecher).toMatchObject(expected);
+            expect.soft(await vat.computeVatFigures({ year, month: 2 })).toMatchObject(expected);
             const refund = await transaction(`08.03.${String(year).slice(-2)}`, `Erstattung ${credit.number}`, "-1.190,00");
             await bank.allocate(actor, { kind: "invoice", transactionId: refund, invoiceId: credit.id, amount: -119_000 });
-            const march = await vat.kennzahlenBeiderQuellen({ year, month: 3 });
             const paid = versteuerung === "ist" ? { kz81: -100_000, tax81: -19_000 } : { kz81: 0, tax81: 0 };
-            expect.soft(march.journal).toMatchObject(paid);
-            expect.soft(march.nebenbuecher).toMatchObject(paid);
+            expect.soft(await vat.computeVatFigures({ year, month: 3 })).toMatchObject(paid);
             expect.soft(abgleich.abweichungen((await auswertungen.vatAbgleich({ year, month: 3 })).zeilen)).toEqual([]);
             await expectDatevMatchesJournal();
             expect(await sql`select * from invoices where id = ${original.invoice.id}`).toEqual(original.originalInvoice);

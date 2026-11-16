@@ -25,8 +25,8 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
   beforeEach(async () => {
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, bank_accounts, cash_entries cascade`;
     await sql`insert into company (id,name,rechtsform,strasse,plz,ort,email,telefon,steuernummer,bundesland,iban,ust_id,
-      kontenrahmen,versteuerung,journal_ab) values (1,'Test GmbH','gmbh','Musterstraße 1','93047','Regensburg',
-      'rechnung@example.com','0941 1','198/113/10010','BY','DE89370400440532013000','DE123456789','SKR03','soll',2026)`;
+      kontenrahmen,versteuerung) values (1,'Test GmbH','gmbh','Musterstraße 1','93047','Regensburg',
+      'rechnung@example.com','0941 1','198/113/10010','BY','DE89370400440532013000','DE123456789','SKR03','soll')`;
     const contacts = await import("../stammdaten/index.ts");
     contactId = (
       await contacts.createContact(actor, {
@@ -116,11 +116,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     const { request, final } = await chain(treatment);
     const december = await vat.computeVatFigures({ year: 2026, month: 12 });
     const january = await vat.computeVatFigures({ year: 2027, month: 1 });
-    expect({ december: december[field], january: january[field], source: january.nebenbuecher?.[field] }).toEqual({
-      december: 0,
-      january: 100_000,
-      source: 100_000,
-    });
+    expect({ december: december[field], january: january[field] }).toEqual({ december: 0, january: 100_000 });
     await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2027-01-25", amount: 10_000 }, "2027-01-25");
     if (treatment !== "drittland") {
       expect((await vat.zmOverview({ year: 2027, month: 41 })).zeilen).toEqual([
@@ -138,12 +134,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     await chain("reverse_charge", true);
     const december = await vat.computeVatFigures({ year: 2026, month: 12 });
     const january = await vat.computeVatFigures({ year: 2027, month: 1 });
-    expect({ december: december.kz21, sourceDecember: december.nebenbuecher?.kz21, january: january.kz21, sourceJanuary: january.nebenbuecher?.kz21 }).toEqual({
-      december: 0,
-      sourceDecember: 0,
-      january: 99_400,
-      sourceJanuary: 99_400,
-    });
+    expect({ december: december.kz21, january: january.kz21 }).toEqual({ december: 0, january: 99_400 });
   });
 
   it("Korrektur der EU-Schlussleistung mindert im Änderungsmonat, eine spätere Zahlung meldet nichts doppelt", async () => {
@@ -152,11 +143,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     await invoices.finalizeInvoice(actor, correction.id);
     await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2027-03-12", amount: 70_000 }, "2027-03-12");
     const periods = await Promise.all([1, 2, 3].map((month) => vat.computeVatFigures({ year: 2027, month })));
-    expect(periods.map((period) => ({ journal: period.kz21, source: period.nebenbuecher?.kz21 }))).toEqual([
-      { journal: 100_000, source: 100_000 },
-      { journal: -70_000, source: -70_000 },
-      { journal: 0, source: 0 },
-    ]);
+    expect(periods.map((period) => ({ journal: period.kz21 }))).toEqual([{ journal: 100_000 }, { journal: -70_000 }, { journal: 0 }]);
     expect((await vat.zmOverview({ year: 2027, month: 41 })).zeilen).toEqual([{ ustId: "ATU12345678", art: "S", betrag: 30_000 }]);
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
@@ -166,20 +153,14 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     const { final } = await chain("reverse_charge");
     await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: final.id, date: "2027-02-12", amount: 500 });
     const periods = await Promise.all([1, 2].map((month) => vat.computeVatFigures({ year: 2027, month })));
-    expect(periods.map((period) => ({ journal: period.kz21, source: period.nebenbuecher?.kz21 }))).toEqual([
-      { journal: 100_000, source: 100_000 },
-      { journal: -500, source: -500 },
-    ]);
+    expect(periods.map((period) => ({ journal: period.kz21 }))).toEqual([{ journal: 100_000 }, { journal: -500 }]);
     expect((await vat.zmOverview({ year: 2027, month: 41 })).zeilen).toEqual([{ ustId: "ATU12345678", art: "S", betrag: 99_500 }]);
   });
 
   it("IGL: Januarerlös und erst im Februar ausgestellte Schlussrechnung behalten unterschiedliche Meldezeitpunkte", async () => {
     await chain("ig_lieferung", false, "2027-02-10");
     const periods = await Promise.all([1, 2].map((month) => vat.computeVatFigures({ year: 2027, month })));
-    expect(periods.map((period) => ({ journal: period.kz41, source: period.nebenbuecher?.kz41 }))).toEqual([
-      { journal: 0, source: 0 },
-      { journal: 100_000, source: 100_000 },
-    ]);
+    expect(periods.map((period) => ({ journal: period.kz41 }))).toEqual([{ journal: 0 }, { journal: 100_000 }]);
     const [january] = await sql`select sum(l.credit-l.debit)::int as revenue from journal_entries e join journal_lines l on l.entry_id=e.id
       where e.date >= '2027-01-01' and e.date < '2027-02-01' and l.account='8125'`;
     expect(january!.revenue).toBe(100_000);
@@ -194,10 +175,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
         { year: 2027, month: 1 },
       ].map((period) => vat.computeVatFigures(period)),
     );
-    expect(periods.map((period) => ({ journal: period.kz41, source: period.nebenbuecher?.kz41 }))).toEqual([
-      { journal: 0, source: 0 },
-      { journal: 100_000, source: 100_000 },
-    ]);
+    expect(periods.map((period) => ({ journal: period.kz41 }))).toEqual([{ journal: 0 }, { journal: 100_000 }]);
     expect((await vat.zmOverview({ year: 2027, month: 41 })).zeilen).toEqual([{ ustId: "ATU12345678", art: "L", betrag: 100_000 }]);
   });
 
@@ -205,10 +183,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     await sql`update company set kontenrahmen='SKR04', versteuerung='ist'`;
     await chain("ig_lieferung", false, "2027-02-10", "2027-01-20", 30_000);
     const periods = await Promise.all([1, 2].map((month) => vat.computeVatFigures({ year: 2027, month })));
-    expect(periods.map((period) => ({ journal: period.kz41, source: period.nebenbuecher?.kz41 }))).toEqual([
-      { journal: 0, source: 0 },
-      { journal: 30_000, source: 30_000 },
-    ]);
+    expect(periods.map((period) => ({ journal: period.kz41 }))).toEqual([{ journal: 0 }, { journal: 30_000 }]);
     const [january] = await sql`select sum(l.credit-l.debit)::int as revenue from journal_entries e join journal_lines l on l.entry_id=e.id
       where e.date >= '2027-01-01' and e.date < '2027-02-01' and l.account='4125'`;
     expect(january!.revenue).toBe(30_000);
@@ -222,11 +197,7 @@ describe.skipIf(!testDatabaseUrl)("Review #813: Anzahlungsanteil einer EU-Leistu
     await bank.reverseCashEntry(actor, cash!.id, "2027-02-12");
     await bank.createCashInvoiceEntry(actor, { invoiceId: request.id, date: "2027-03-12", amount: 30_000 }, "2027-03-12");
     const periods = await Promise.all([1, 2, 3].map((month) => vat.computeVatFigures({ year: 2027, month })));
-    expect(periods.map((period) => ({ journal: period.kz21, source: period.nebenbuecher?.kz21 }))).toEqual([
-      { journal: 99_400, source: 99_400 },
-      { journal: 600, source: 600 },
-      { journal: 0, source: 0 },
-    ]);
+    expect(periods.map((period) => ({ journal: period.kz21 }))).toEqual([{ journal: 99_400 }, { journal: 600 }, { journal: 0 }]);
     expect((await vat.zmOverview({ year: 2027, month: 41 })).zeilen).toEqual([{ ustId: "ATU12345678", art: "S", betrag: 100_000 }]);
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
