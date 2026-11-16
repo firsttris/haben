@@ -45,6 +45,20 @@ describe.skipIf(!testDatabaseUrl)("Backup-Container trägt das Ziel ein (Postgre
     expect(row).toMatchObject({ kind: "backup", ok: true, snapshot: "a1b2c3d4", message: "3 Dateien", target: "rest:https://backup.example:8000/haben" });
   });
 
+  it("entfernt auch ein Passwort mit @ und Zugangsdaten in rclone- und sftp-Formen", async () => {
+    recordStatus("rest:https://nutzer:ge@heim@backup.example:8000/haben", "");
+    recordStatus("rclone::sftp,host=backup.example,user=nutzer,pass=GEHEIM:haben", "");
+    recordStatus("rclone:fern,pass='a:GEHEIM':haben", "");
+    recordStatus("sftp:nutzer@backup.example:/srv/restic", "");
+    const rows = await sql`select target from backup_status order by id`;
+    expect(rows.map((r) => r.target)).toEqual([
+      "rest:https://backup.example:8000/haben",
+      "rclone::sftp:haben",
+      "rclone:fern:haben",
+      "sftp:backup.example:/srv/restic",
+    ]);
+  });
+
   it("lässt ein Ziel ohne Zugangsdaten unverändert und ein leeres weg", async () => {
     recordStatus("s3:s3.example.com/haben-backup", "");
     recordStatus("", "");
