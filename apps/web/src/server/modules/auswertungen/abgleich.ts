@@ -119,14 +119,25 @@ export const befundText = (z: AbgleichZeile) => `${z.zeitraum} ${z.posten}: im J
 /** Ohne den Zeitraum vorn: Die Vorprüfung eines Quartals nennt dieselbe Buchung mit dem Quartal statt dem Monat */
 const ohneZeitraum = (text: string) => text.slice(text.indexOf(" ") + 1);
 
-/** Je Jahr die Befunde, die beim Update auf das Journal ausdrücklich übernommen wurden (#1116), ohne Zeitraum */
+/**
+ * Zeile der Verprobung: Ihr Posten nennt Buchung und Tag, der Zeitraum ist darin enthalten. Nur sie wird auch ohne
+ * Zeitraum wiedererkannt; bei den übrigen (etwa einer gesendeten Voranmeldung) steht der Monat nur im Zeitraum.
+ */
+const mitTag = (posten: string) => posten.includes(": Buchung „");
+
+/** Je Jahr die Befunde, die beim Update auf das Journal ausdrücklich übernommen wurden (#1116): Texte wie gespeichert und, für die Verprobung, ohne Zeitraum */
 export type Uebernommen = Map<number, Set<string>>;
 
 async function uebernommeneBefunde(q: Db | Tx): Promise<Uebernommen> {
   const [stand] = await q.select().from(schema.journalUmstellung).orderBy(desc(schema.journalUmstellung.id)).limit(1);
   const result: Uebernommen = new Map();
   if (stand?.ergebnis !== "uebernommen") return result;
-  for (const b of stand.befunde) result.set(b.jahr, (result.get(b.jahr) ?? new Set()).add(ohneZeitraum(b.text)));
+  for (const b of stand.befunde) {
+    const texte = result.get(b.jahr) ?? new Set<string>();
+    texte.add(b.text);
+    if (mitTag(b.text)) texte.add(ohneZeitraum(b.text));
+    result.set(b.jahr, texte);
+  }
   return result;
 }
 
@@ -137,8 +148,9 @@ async function uebernommeneBefunde(q: Db | Tx): Promise<Uebernommen> {
 function ohneUebernommene(year: number, abgleich: Abgleich, uebernommen: Uebernommen): Abgleich {
   const texte = uebernommen.get(year);
   if (!texte) return abgleich;
-  const zeilen = abgleich.zeilen.filter((z) => z.journal === z.quelle || !texte.has(ohneZeitraum(befundText(z))));
-  const n = texte.size;
+  const bekannt = (z: AbgleichZeile) => texte.has(befundText(z)) || (mitTag(z.posten) && texte.has(ohneZeitraum(befundText(z))));
+  const zeilen = abgleich.zeilen.filter((z) => z.journal === z.quelle || !bekannt(z));
+  const n = [...texte].filter((t) => /^\d{4}/.test(t)).length;
   return {
     zeilen,
     hinweise: [
