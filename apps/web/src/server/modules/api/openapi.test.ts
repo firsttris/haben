@@ -59,6 +59,7 @@ describe("OpenAPI-Beschreibung der REST-API", () => {
       post: {
         security: [{ token: ["artikel:schreiben"] }],
         requestBody: { content: { "application/json": { schema: { $ref: "#/components/schemas/ArticleCreate" } } } },
+        responses: { 422: { description: "Die Einheit ist in Haben nicht bekannt" } },
       },
     });
     expect(doc.paths["/artikel/{id}"]).toMatchObject({
@@ -66,6 +67,7 @@ describe("OpenAPI-Beschreibung der REST-API", () => {
       patch: {
         security: [{ token: ["artikel:schreiben"] }],
         requestBody: { content: { "application/json": { schema: { $ref: "#/components/schemas/ArticlePatch" } } } },
+        responses: { 422: { description: "Die Einheit ist in Haben nicht bekannt" } },
       },
     });
     expect(doc.components.schemas.ArticleCreate).toMatchObject({

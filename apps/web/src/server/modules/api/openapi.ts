@@ -65,11 +65,11 @@ function errorResponses(route: ApiRoute): Record<string, unknown> {
     401: errorResponse("Kein gültiges Token, oder der Zugang ist in Haben ausgeschaltet"),
     403: errorResponse(`Dem Token fehlt das Recht ${route.scope}`),
     ...(route.path.includes("{id}") ? { 404: errorResponse("Nicht gefunden") } : {}),
-    ...Object.fromEntries(Object.entries(route.errors ?? {}).map(([status, description]) => [status, errorResponse(description)])),
     ...(withBody ? bodyErrors : {}),
     ...(route.method !== "GET" ? { 422: errorResponse("Fachlich abgelehnt, z. B. unbekannter Kontakt") } : {}),
     429: errorResponse("Mehr als 120 Anfragen je Minute und Token"),
     500: errorResponse("Interner Fehler, Details im Server-Log"),
+    ...Object.fromEntries(Object.entries(route.errors ?? {}).map(([status, description]) => [status, errorResponse(description)])),
   };
 }
 
