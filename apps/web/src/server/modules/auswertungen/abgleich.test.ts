@@ -271,14 +271,67 @@ describe.skipIf(!testDatabaseUrl)("Abgleich im Journal (Postgres)", () => {
         quelle: 76_000 + 7_000 + 100,
         gegen: "laut Rechnung",
       }),
+      // Je Konto: Vorsteuer und Verbindlichkeit der Buchung gegen die Zeilen aus den Beträgen des Belegs
       expect.objectContaining({
         zeitraum: "2026-01",
-        posten: expect.stringMatching(/^Beleg R\d+ \(Lieferant\): Vorsteuer$/),
+        posten: expect.stringMatching(/^Beleg R\d+ \(Lieferant\): Konto 1576$/),
         journal: 616,
         quelle: 600,
-        gegen: "laut Beleg",
+        gegen: "laut Vorgang",
+      }),
+      expect.objectContaining({
+        zeitraum: "2026-01",
+        posten: expect.stringMatching(/^Beleg R\d+ \(Lieferant\): Konto 1600$/),
+        journal: -3_856,
+        quelle: -3_840,
+        gegen: "laut Vorgang",
       }),
     ]);
+  }, 60_000);
+
+  it("Vorgang gegen Buchung: Zuordnung, Kassenbuch und Pauschale gegen ihre Buchung", async () => {
+    await reset("ist");
+    await geschaeftsjahr();
+    const cash = await import("../bank/cash-income.ts");
+    await leeren(sql)`truncate cash_entries cascade`;
+    await cash.createCashIncome(
+      actor,
+      { date: "2026-02-11", amount: 11_900, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 1900 } },
+      "2026-12-31",
+    );
+    expect((await gefunden()).filter((z) => z.bereich === "beleg")).toEqual([]);
+    // An Haben vorbei: Betrag einer Zuordnung, einer Kassenzeile und einer Pauschale geändert
+    const [zuordnung] = await sql`select id, amount from allocations where kind = 'ustVorauszahlung'`;
+    await bypass((tx) => tx`update allocations set amount = amount - 100 where id = ${zuordnung!.id}`);
+    await bypass((tx) => tx`update cash_entries set amount = amount + 100`);
+    const [pauschale] = await sql`select id from pauschalen where art = 'homeoffice'`;
+    await bypass((tx) => tx`update pauschalen set amount = amount + 100 where id = ${pauschale!.id}`);
+    const found = (await gefunden()).filter((z) => z.bereich === "beleg");
+    expect(found.map((z) => [z.zeitraum, z.posten.replace(/ \(.*\)/, ""), z.journal - z.quelle])).toEqual([
+      ["2026-02", "Zuordnung vom 2026-02-10: Konto 1200", 100],
+      ["2026-02", "Kassenbuch Nr. 1: Konto 1000", -100],
+      ["2026-01", "Pauschale vom 2026-01-31: Aufwand", -100],
+    ]);
+  }, 60_000);
+
+  it("Ist: Nach der letzten Zahlung bleibt keine Umsatzsteuer „nicht fällig“, auch nicht ein Cent", async () => {
+    await reset("ist");
+    const { b } = await geschaeftsjahr();
+    expect((await gefunden()).filter((z) => z.bereich === "beleg")).toEqual([]);
+    // An Haben vorbei: Die Umbuchung der Zahlung auf Rechnung b um einen Cent zu klein (die Verprobung lässt einen Cent zu)
+    const [zeile] = await sql`select l.id from journal_lines l join journal_entries e on e.id = l.entry_id join allocations a on a.id = e.source_id
+      where e.source_type = 'allocation' and a.invoice_id = ${b.id} and l.account = '1766' limit 1`;
+    await bypass((tx) => tx`update journal_lines set debit = debit - 1 where id = ${zeile!.id}`);
+    await bypass(
+      (tx) =>
+        tx`update journal_lines set credit = credit - 1 where entry_id = (select entry_id from journal_lines where id = ${zeile!.id}) and account = '1776'`,
+    );
+    const found = (await gefunden()).filter((z) => z.bereich === "beleg");
+    expect(found).toEqual([
+      expect.objectContaining({ posten: `Rechnung ${b.number} (Ist, ganz erledigt): Umsatzsteuer nicht fällig`, journal: -1, quelle: 0 }),
+    ]);
+    // Die Verprobung je Buchung sieht den einen Cent nicht
+    expect((await gefunden()).filter((z) => z.bereich === "ustva")).toEqual([]);
   }, 60_000);
 
   it("gesendete Voranmeldung: findet eine Abweichung zur Rechnung aus dem Journal, mit Abweichung in der Integritätsprüfung", async () => {

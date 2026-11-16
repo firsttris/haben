@@ -153,7 +153,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         const ergebnis = await umstellung.umstellungPruefen(today);
         expect(ergebnis).toEqual({
           status: "abweichung",
-          befunde: [{ jahr: 2026, text: expect.stringMatching(/^Voranmeldung März 2026, Kz 81: gesendet .* aus dem Journal/) }],
+          befunde: [{ jahr: 2026, text: expect.stringMatching(/^2026-03 Gesendete Voranmeldung, Kz 81: im Journal .*, gesendet /) }],
         });
         expect((await stand())!.ergebnis).toBe("offen");
         // Ein anderes Jahr zu übernehmen reicht nicht
@@ -166,7 +166,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         expect(jahr.hinweise.join()).toMatch(/Für 2026 sind beim Update auf das Journal Abweichungen/);
       }, 60_000);
 
-      it(`ältere Buchungen ohne Steuerschlüssel bzw. Bemessungsgrundlage: Monat und Kennzahl im Befund (${kr}, ${v})`, async () => {
+      it(`ältere Buchungen ohne Steuerschlüssel bzw. Bemessungsgrundlage: die Verprobung nennt Monat und Buchung (${kr}, ${v})`, async () => {
         await reset(kr, v);
         const inv = await invoice("2026-03-10");
         await pay(inv.id, "20.04.2026", "119,00");
@@ -174,17 +174,24 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         const ergebnis = await umstellung.umstellungPruefen(today);
         expect(ergebnis.status).toBe("abweichung");
         const befunde = (ergebnis as { befunde: { jahr: number; text: string }[] }).befunde;
-        expect(befunde).toEqual([
-          { jahr: 2026, text: `Voranmeldung ${v === "ist" ? "April" : "März"} 2026: Kz 81 bisher ${formatEuro(100_00)}, aus dem Journal ${formatEuro(0)}` },
-        ]);
+        // Steuer ohne passende Bemessungsgrundlage: 19 € Umsatzsteuer auf 0 € (bei Ist an der Zahlung im April, bei Soll an der
+        // Rechnung im März)
+        expect(befunde).toContainEqual({
+          jahr: 2026,
+          text: expect.stringMatching(
+            new RegExp(
+              `^2026-${v === "ist" ? "04" : "03"} Umsatzsteuer 19 % zur Bemessungsgrundlage ${formatEuro(0)}: Buchung .*: im Journal ${formatEuro(19_00)}, aus der Bemessungsgrundlage ${formatEuro(0)}$`,
+            ),
+          ),
+        });
         expect((await stand())!.ergebnis).toBe("offen");
       }, 60_000);
 
-      it(`EÜR weicht ab, Voranmeldung nicht: Jahr und Zeile im Befund, nichts gespeichert (${kr}, ${v})`, async () => {
+      it(`Buchung passt nicht zum Beleg, Voranmeldung schon: Beleg und Konto im Befund, nichts gespeichert (${kr}, ${v})`, async () => {
         await reset(kr, v);
         await beleg("2026-04-02");
         // An Haben vorbei: der Aufwand des privat bezahlten Belegs im Journal um 1 € höher (Gegenbuchung auf das Privatkonto).
-        // Die Vorsteuer und damit die Voranmeldung bleibt gleich, die EÜR aus dem Journal nicht.
+        // Die Vorsteuer und damit die Voranmeldung bleibt gleich, die EÜR aus dem Journal nicht; das zeigt „Vorgang gegen Buchung“.
         await sql.begin(async (tx) => {
           await tx`set local session_replication_role = replica`;
           const [aufwand] = await tx`select l.id, l.entry_id from journal_lines l join journal_entries e on e.id = l.entry_id
@@ -193,9 +200,13 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
           await tx`update journal_lines set credit = credit + 100 where entry_id = ${aufwand!.entry_id} and credit > 0`;
         });
         const ergebnis = await umstellung.umstellungPruefen(today);
-        expect(ergebnis).toEqual({
-          status: "abweichung",
-          befunde: [{ jahr: 2026, text: expect.stringMatching(/^EÜR 2026: .* bisher .*, aus dem Journal .*; Gewinn bisher .*, aus dem Journal /) }],
+        expect(ergebnis.status).toBe("abweichung");
+        const aufwandskonto = kr === "SKR03" ? "4806" : "6495";
+        expect((ergebnis as { befunde: unknown[] }).befunde).toContainEqual({
+          jahr: 2026,
+          text: expect.stringMatching(
+            new RegExp(`^2026-04 Beleg R\\d+ \\(Lieferant\\): Konto ${aufwandskonto}: im Journal ${formatEuro(101_00)}, laut Vorgang ${formatEuro(100_00)}$`),
+          ),
         });
         expect((await stand())!.ergebnis).toBe("offen");
       }, 60_000);

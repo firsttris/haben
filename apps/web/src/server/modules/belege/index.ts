@@ -34,7 +34,8 @@ export {
 } from "./cancellation.ts";
 export { extractionAvailable, extractionSettings } from "./extraction.ts";
 export { supplierSuggestion, type SupplierSuggestion } from "./lieferantenvorschlag.ts";
-export { splitsByDocument, type DocumentSplit } from "./splits.ts";
+export { loadSplits, splitsByDocument, type DocumentSplit } from "./splits.ts";
+export { belegZeilen } from "./belegbuchung.ts";
 export { supplierDocuments } from "./lieferant-belege.ts";
 export { documentReferenceSchema, type DocumentReference } from "./external-reference.ts";
 export { documentNavigation, type DocumentNavigation } from "./navigation.ts";

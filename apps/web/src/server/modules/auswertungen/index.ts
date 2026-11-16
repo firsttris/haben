@@ -5,7 +5,7 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
-export { abgleichIssues, euerAbgleich, vatAbgleich } from "./abgleich.ts";
+export { abgleichIssues, abgleichJahr, abweichungen, euerAbgleich, vatAbgleich } from "./abgleich.ts";
 export { datevExport, DatevExportError, datevNumbersSchema, gebuchteJahre, saveDatevNumbers } from "./datev-export.ts";
 export { chainHead, checkIntegrity, checkPruefwert, formatPruefwert, parsePruefwert, type IntegrityReport } from "./integrity.ts";
 export { runDueFileCheck, runFileCheck, type FileCheck, type FileProblem } from "./file-integrity.ts";
@@ -15,7 +15,3 @@ export { kleinunternehmerStand, vereinnahmterUmsatz } from "./kleinunternehmer.t
 export { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
 export { runDuePruefwertMail } from "./pruefwert-mail.ts";
 export { saveCompany, settingsLocks } from "./settings-guard.ts";
-// Nur für die eingefrorene Rechnung aus den Nebenbüchern in der Prüfung beim Update (modules/umstellung, #1116)
-export { buchungen } from "./euer-journal-buchungen.ts";
-export { euerVerschiebung } from "./euer-jahreswechsel.ts";
-export { verrechnungenImJahr } from "./verrechnungen.ts";

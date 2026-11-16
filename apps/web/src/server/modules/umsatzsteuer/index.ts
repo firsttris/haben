@@ -7,7 +7,6 @@
  */
 export { searchUmsatzsteuer, type VatReturnHit, type ZmSubmissionHit } from "./search.ts";
 export { computeVatFigures, preflight, type PreflightIssue, type RevenueSource, type VatFigures } from "./vat-figures.ts";
-export { kennzahlenAusDemJournal } from "./vat-journal.ts";
 export { abgegebeneZeitraeume, frequencyOverview, loadFrequencies, periodProblem, saveFrequency, type FrequencyOverview } from "./zeitraum.ts";
 export { computedValues, createCorrection, recentSentReturns, returnsForPeriod, saveDraft, submissionsFor, submitReturn } from "./vat.ts";
 export { meinElsterUpload, meinElsterUstvaWerte } from "./mein-elster.ts";

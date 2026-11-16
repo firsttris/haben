@@ -220,7 +220,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal (Postgres)", () => {
       }, 60_000);
     }
 
-    it(`es zählt, was im Journal steht; die Verprobung zeigt die Änderung (${kontenrahmen})`, async () => {
+    it(`es zählt, was im Journal steht; Verprobung und Beleg gegen Buchung zeigen die Änderung (${kontenrahmen})`, async () => {
       await reset("ist", kontenrahmen);
       await bookedDocument("2026-03-01", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { payment: "privat" });
       // An Haben vorbei: der Aufwand im Journal um 1 € erhöht
@@ -238,6 +238,14 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal (Postgres)", () => {
           journal: 1_900,
           quelle: 1_919,
           posten: expect.stringMatching(/^Vorsteuer 19 % zur Bemessungsgrundlage /),
+        }),
+        // Und die Buchung passt nicht mehr zum Beleg: 101 € Aufwand statt 100 €
+        expect.objectContaining({
+          bereich: "beleg",
+          zeitraum: "2026-03",
+          journal: 10_100,
+          quelle: 10_000,
+          posten: expect.stringMatching(new RegExp(`^Beleg .*: Konto ${kontenrahmen === "SKR03" ? "4806" : "6495"}$`)),
         }),
       ]);
     }, 60_000);

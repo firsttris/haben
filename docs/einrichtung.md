@@ -348,15 +348,15 @@ Lehnt die Datenbank eine Umstellung ab, weil gleichzeitig gebucht wurde, siehst 
 
 Seit [#1116](https://github.com/firsttris/haben/issues/1116) rechnet Haben Voranmeldung und EÜR für alle Jahre aus dem Journal. Bis dahin rechneten Jahre vor einem Stichjahr aus Rechnungen, Belegen und Zahlungen; das betrifft nur Instanzen, die vor Version 0.7.0 gebucht haben, und dort 2026 und Jahre, die per [Datenimport](belegimport.md) ins Journal kamen.
 
-Beim ersten Start nach dem Update prüft Haben diese Jahre, nach den Migrationen und bevor der Server startet:
+Beim ersten Start nach dem Update prüft Haben diese Jahre wie der [Abgleich im Journal](buchhaltung.md#abgleich-im-journal), nach den Migrationen und bevor der Server startet:
 
 - Zeiträume mit gesendeter Voranmeldung: Die gesendeten Werte müssen mit der Rechnung aus dem Journal übereinstimmen; bei von Hand überschriebenen Werten die beim Speichern berechneten.
-- Die übrigen Monate: Die Kennzahlen aus dem Journal müssen dieselben sein wie bisher aus Rechnungen, Belegen und Zahlungen.
-- Im Einzelunternehmen die EÜR des Jahres ebenso.
+- Die Verprobung: Jede Steuer braucht ihre Bemessungsgrundlage. Genau das fehlt älteren Buchungen ohne Steuerschlüssel oder ohne Bemessungsgrundlage an der Zahlung.
+- Rechnung und Vorgang gegen ihre Buchung.
 
-Stimmt alles, ändert sich keine Zahl, und die Prüfung läuft nie wieder. Das Ergebnis steht im Änderungsprotokoll.
+Offene Zeiträume und die EÜR sind noch nicht gemeldet; für sie gilt das Journal. Stimmt alles, ändert sich keine angemeldete Zahl, und die Prüfung läuft nie wieder. Das Ergebnis steht im Änderungsprotokoll.
 
-**Bei einer Abweichung startet Haben nicht.** Im Log stehen Jahr, Zeitraum und Kennzahl mit beiden Beträgen. Buchungen, Anmeldungen und Firmendaten bleiben unverändert, die bisherige Version läuft auf derselben Datenbank weiter. Meist fehlen älteren Buchungen Steuerschlüssel oder Bemessungsgrundlage. Dann gibt es zwei Wege:
+**Bei einer Abweichung startet Haben nicht.** Im Log stehen Jahr, Zeitraum und Befund mit beiden Beträgen. Buchungen, Anmeldungen und Firmendaten bleiben unverändert, die bisherige Version läuft auf derselben Datenbank weiter. Meist fehlen älteren Buchungen Steuerschlüssel oder Bemessungsgrundlage. Dann gibt es zwei Wege:
 
 - **Auf der bisherigen Version bleiben**, bis das Jahr erklärt ist: das [Image](installation.md#image) auf die letzte Version vor dem Update festsetzen (`tristanteu/haben:x.y.z` statt `:latest`; die Version nennt die Release-Notiz). Eine Berichtigung eines solchen Jahres geht nur mit dieser Version.
 - **Die Abweichung übernehmen:** `HABEN_ABWEICHUNG_UEBERNEHMEN=2026` setzen (mehrere Jahre mit Komma) und neu starten. Gesendete Voranmeldungen bleiben, wie sie gesendet sind; alles Offene rechnet aus dem Journal. Die Befunde stehen im Änderungsprotokoll, und der [Abgleich](buchhaltung.md#abgleich-im-journal) prüft Verprobung und gesendete Voranmeldungen für dieses Jahr nicht mehr und sagt das als Hinweis. Kläre das vorher mit deiner Steuerberatung.

@@ -14,7 +14,8 @@ import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhalt
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { versteuerungForYear } from "../stammdaten/index.ts";
 import { bankZeilen } from "./abgleich-bank.ts";
-import { belegVorsteuerZeilen, belegZeilen } from "./abgleich-beleg.ts";
+import { belegZeilen } from "./abgleich-beleg.ts";
+import { vorgangZeilen } from "./abgleich-vorgang.ts";
 import { journalBuchungen, verprobungsZeilen, type JournalBuchung } from "./abgleich-verprobung.ts";
 import { gewinnNachDatevFormel } from "./euer-formel.ts";
 import { euerAusJournal } from "./euer-journal.ts";
@@ -27,8 +28,9 @@ import { oposAbgleichJahr, oposYears } from "./opos-abgleich.ts";
  * Nebenbüchern zu rechnen, prüft der Abgleich gespeicherte Daten gegen das Journal und das Journal in sich:
  * - Umsatzsteuer-Verprobung: je Buchung die Steuer gegen Bemessungsgrundlage mal Satz (abgleich-verprobung.ts);
  * - gesendete Voranmeldungen: die Werte in vat_returns gegen die Rechnung aus dem Journal (umsatzsteuer/gesendet-pruefen.ts);
- * - Beleg gegen Buchung: Steuerzeilen festgeschriebener Rechnungen und Vorsteuer gebuchter Belege gegen ihre Buchung
- *   (abgleich-beleg.ts);
+ * - Beleg gegen Buchung: Steuerzeilen festgeschriebener Rechnungen gegen ihre Buchung (abgleich-beleg.ts); jeder gespeicherte
+ *   Vorgang (Beleg, Zuordnung, Kassenbuch, Pauschale) gegen seine Buchung, bei Ist die nicht fällige Umsatzsteuer erledigter
+ *   Rechnungen (abgleich-vorgang.ts);
  * - Bank: Endsaldo des letzten Kontoauszugs gegen die gebuchten Zahlungen (abgleich-bank.ts);
  * - EÜR: AfA und Privatnutzung gegen das Anlagenverzeichnis, der Gewinn nach der DATEV-Formel gegen den Gewinn der Zeilen;
  * - OPOS-Abgleich der Anzahlungsbestände (opos-abgleich.ts).
@@ -231,8 +233,8 @@ export async function abgleichJahr(year: number, today: string, q: Db | Tx = db,
   }
   for (const b of await belegZeilen(year, q))
     zeilen.push({ bereich: "beleg", zeitraum: b.zeitraum, posten: b.posten, journal: b.journal, quelle: b.rechnung, gegen: "laut Rechnung" });
-  for (const b of await belegVorsteuerZeilen(year, q))
-    zeilen.push({ bereich: "beleg", zeitraum: b.zeitraum, posten: b.posten, journal: b.journal, quelle: b.rechnung, gegen: "laut Beleg" });
+  for (const v of await vorgangZeilen(year, q))
+    zeilen.push({ bereich: "beleg", zeitraum: v.zeitraum, posten: v.posten, journal: v.journal, quelle: v.vorgang, gegen: "laut Vorgang" });
   const euer = await euerAbgleich(year, q);
   const opos = await oposAbgleichJahr(year, today, q);
   return { zeilen: [...zeilen, ...euer.zeilen, ...opos.zeilen], hinweise: [...hinweise, ...euer.hinweise, ...opos.hinweise] };
