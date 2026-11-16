@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createRunDir, removeAbandonedRunDirs, workerDocumentsDir } from "./test-db.ts";
+import { createRunDir, redirectTempDirs, removeAbandonedRunDirs, workerDocumentsDir } from "./test-db.ts";
 
 // Testläufe ließen je Testdatei einen Belegordner in $TMPDIR liegen (zuletzt rund 46.000 Ordner, 25 GB)
 describe("Temp-Ordner der Tests", () => {
@@ -11,6 +11,19 @@ describe("Temp-Ordner der Tests", () => {
     expect(basename(tmpdir())).toMatch(/^haben-test-\d+-/);
     const kind = spawnSync(process.execPath, ["-e", "console.log(require('node:os').tmpdir())"], { encoding: "utf8" });
     expect(kind.stdout.trim()).toBe(tmpdir());
+  });
+
+  it("lenkt TMPDIR, TMP und TEMP um und stellt sie danach wieder her (Windows liest TEMP, Watch-Neustart)", () => {
+    const vorher = { TMPDIR: process.env.TMPDIR, TMP: process.env.TMP, TEMP: process.env.TEMP };
+    const ziel = mkdtempSync(join(tmpdir(), "umlenken-"));
+    const zurueck = redirectTempDirs(ziel);
+    try {
+      expect([process.env.TMPDIR, process.env.TMP, process.env.TEMP]).toEqual([ziel, ziel, ziel]);
+      expect(tmpdir()).toBe(ziel);
+    } finally {
+      zurueck();
+    }
+    expect({ TMPDIR: process.env.TMPDIR, TMP: process.env.TMP, TEMP: process.env.TEMP }).toEqual(vorher);
   });
 
   it("legt den Ordner des Laufs an und löscht ihn am Ende samt Inhalt", () => {

@@ -32,7 +32,7 @@ function templateName(url: string): string {
 export const testDatabaseUrl = baseUrl && withDatabase(baseUrl, `${databaseName(baseUrl)}_${process.env.VITEST_POOL_ID ?? "1"}`);
 
 /*
- * Temp-Ordner der Tests: `setup` legt je Lauf $TMPDIR/haben-test-<PID>-… an und setzt TMPDIR darauf. Worker und ihre
+ * Temp-Ordner der Tests: `setup` legt je Lauf $TMPDIR/haben-test-<PID>-… an und setzt TMPDIR, TMP und TEMP darauf. Worker und ihre
  * Kindprozesse erben das, jedes `tmpdir()` zeigt also in den Ordner des Laufs, den `setup` am Ende löscht. Bricht ein
  * Lauf ab, ohne aufzuräumen, löscht der nächste Lauf dessen Ordner, sobald der Prozess nicht mehr lebt.
  */
@@ -60,6 +60,18 @@ export function createRunDir(base = tmpdir()): { root: string; remove: () => voi
   removeAbandonedRunDirs(base);
   const root = mkdtempSync(join(base, `${RUN_PREFIX}${process.pid}-`));
   return { root, remove: () => rmSync(root, { recursive: true, force: true }) };
+}
+
+/** TMPDIR, TMP und TEMP zeigen auf `dir` (Windows liest TEMP und TMP); die Rückgabe stellt die alten Werte wieder her */
+export function redirectTempDirs(dir: string): () => void {
+  const names = ["TMPDIR", "TMP", "TEMP"] as const;
+  const before = names.map((name) => process.env[name]);
+  for (const name of names) process.env[name] = dir;
+  return () =>
+    names.forEach((name, i) => {
+      if (before[i] === undefined) delete process.env[name];
+      else process.env[name] = before[i];
+    });
 }
 
 /**
@@ -133,13 +145,18 @@ export function leeren(sql: postgres.Sql) {
 }
 
 /**
- * globalSetup von Vitest: legt den Temp-Ordner des Laufs an und setzt TMPDIR darauf (die Worker erben die Umgebung),
+ * globalSetup von Vitest: legt den Temp-Ordner des Laufs an und lenkt TMPDIR, TMP und TEMP dorthin (die Worker erben das),
  * dann migriert es mit TEST_DATABASE_URL einmal je Lauf die Vorlage. Die zurückgegebene Funktion löscht den Temp-Ordner
  * am Ende des Laufs.
  */
 export async function setup(): Promise<() => void> {
-  const { root, remove: teardown } = createRunDir();
-  process.env.TMPDIR = root;
+  const { root, remove } = createRunDir();
+  const restore = redirectTempDirs(root);
+  // Vitest ruft im Watch-Modus nach einer Änderung der Konfiguration erst teardown, dann wieder setup im selben Prozess
+  const teardown = () => {
+    restore();
+    remove();
+  };
   if (!baseUrl) return teardown;
   try {
     const template = templateName(baseUrl);
