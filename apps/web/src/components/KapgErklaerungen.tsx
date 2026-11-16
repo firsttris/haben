@@ -278,7 +278,7 @@ export function KapgAngaben({ data }: { data: Data }) {
       anteilseigner.some((p) => p.beteiligung === null || p.anteil === null) ||
       vertragsliste.some((v) => v.verguetung === null)
     ) {
-      setNotice({ tone: "danger", text: "Beträge als Euro (z. B. 25.000,00) und Anteile in Prozent (z. B. 50) eingeben." });
+      setNotice({ tone: "danger", text: "Beträge als Euro (z. B. 25.000,00) und Anteile in Prozent (z. B. 50 oder 33,33) eingeben." });
       return;
     }
     void run(async () => {

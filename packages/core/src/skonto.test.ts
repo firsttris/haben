@@ -199,6 +199,7 @@ describe("parsePercent und formatPercent", () => {
     for (const [text, points] of [
       ["2,5%", 250],
       [" 19 % ", 1900],
+      ["2,5\u00a0%", 250],
       ["23.07", 2307],
       ["0.5", 50],
       ["100", 10_000],

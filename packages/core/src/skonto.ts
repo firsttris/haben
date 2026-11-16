@@ -162,10 +162,7 @@ export function skontoGezogen(fristen: readonly SkontoZahlfrist[] | undefined, p
  * mit höchstens zwei Nachkommastellen ist. Grenzen wie 0 bis 100 % prüft das Feld.
  */
 export function parsePercent(input: string, { negative = false }: { negative?: boolean } = {}): BasisPoints | null {
-  let text = input
-    .replace(/[\s\u00a0\u202f]/g, "")
-    .replace(/\u2212/g, "-")
-    .replace(/%$/, "");
+  let text = input.replace(/\s/g, "").replace(/−/g, "-").replace(/%$/, "");
   if (/^-?\d+\.\d{1,2}$/.test(text)) text = text.replace(".", ",");
   const match = /^(-?)(\d+)(?:,(\d{1,2}))?$/.exec(text);
   if (!match) return null;
