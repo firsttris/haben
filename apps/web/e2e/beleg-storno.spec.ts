@@ -41,7 +41,7 @@ test.beforeAll(async ({ browser }) => {
   closeDatabase = (await import("../src/server/db/index.ts")).closeDatabase;
 });
 
-async function receipt(browser: Browser, supplier: string, number: string, date = currentDay(), book = true) {
+async function receipt(browser: Browser, supplier: string, number: string, date = currentDay(), book = true, category = "software") {
   const documents = await import("../src/server/modules/belege/index.ts");
   const image = await browser.newPage({ viewport: { width: 620, height: 400 } });
   await image.setContent(`<body style="font: 16px sans-serif; padding: 32px"><h2>${supplier}</h2>
@@ -56,7 +56,7 @@ async function receipt(browser: Browser, supplier: string, number: string, date 
     invoiceNumber: number,
     documentDate: date,
     dueDate: null,
-    category: "software",
+    category,
     payment: "bank",
     note: "",
     amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
@@ -167,6 +167,32 @@ test("gebuchter Beleg erklärt die Aufteilung über Storno, ein stornierter nich
   await expect(page.getByText(/lässt sich stornieren/)).toHaveCount(0);
 });
 
+test("gebuchtes Anlagegut verspricht keinen Storno zum Aufteilen", async ({ browser }) => {
+  // Anlagegüter lassen sich weder stornieren noch aufteilen (docs/belege.md, „Nicht stornieren lassen sich“)
+  const documents = await import("../src/server/modules/belege/index.ts");
+  const image = await browser.newPage({ viewport: { width: 620, height: 400 } });
+  await image.setContent(`<body style="font: 16px sans-serif; padding: 32px"><h2>Rechenwerk Hardware</h2><p>Notebook 1.000,00 €</p></body>`);
+  const bytes = await image.screenshot({ type: "jpeg", quality: 80 });
+  await image.close();
+  const { id } = await documents.uploadDocument("e2e-storno", { bytes, filename: "A-900.jpg" });
+  await documents.updateDocument("e2e-storno", id, {
+    supplierName: "Rechenwerk Hardware",
+    supplierUstId: "",
+    invoiceNumber: "A-900",
+    documentDate: currentDay(),
+    dueDate: null,
+    category: "anlage",
+    asset: { name: "Notebook", kind: "edv", method: "digital", usefulLifeMonths: null },
+    payment: "bank",
+    note: "",
+    amounts: [{ taxRate: 1900, net: 100_000, tax: 19_000 }],
+  });
+  await documents.bookDocument("e2e-storno", id);
+  await page.goto(`/belege/${id}`);
+  await expect(page.getByText("Belege zu Anlagegütern lassen sich nicht stornieren.", { exact: false })).toBeVisible();
+  await expect(page.getByText(/lässt sich stornieren/)).toHaveCount(0);
+});
+
 test("ganze Aufteilung einschließlich weiterem Beleg vor dem Storno ausdrücklich anzeigen", async ({ browser }) => {
   const chosen = await receipt(browser, "Codewerk Lizenzen GmbH", "S-4801");
   const other = await receipt(browser, "Nordlicht Software GmbH", "S-4802");
@@ -274,6 +300,40 @@ test("Belegliste: ohne Sortierung ungebuchte zuerst, Spaltenkopf sortiert und ne
   await expect(zeilen.first()).toContainText(ersterName);
 });
 
+/** Die Texte einer Spalte der Belegliste, je Zeile die erste Zeile der Zelle (darunter stehen Nummer oder eigenes Konto) */
+async function belegSpalte(n: number) {
+  const zeilen = page.locator("a.table-row.document-cols");
+  return (await zeilen.locator(`:scope > div:nth-child(${n})`).allInnerTexts()).map((t) => (t.split("\n")[0] ?? "").trim());
+}
+const aufsteigend = (texte: string[]) => texte.every((t, i) => i === 0 || (texte[i - 1] ?? "").localeCompare(t, "de") <= 0);
+
+test("Belegliste: Lieferant sortiert nach dem angezeigten Text, ohne Lieferant nach dem Dateinamen", async ({ browser }) => {
+  // Ohne Lieferant zeigt die Liste den Dateinamen (supplierName ist dann leer, nicht null)
+  const documents = await import("../src/server/modules/belege/index.ts");
+  const image = await browser.newPage({ viewport: { width: 620, height: 400 } });
+  await image.setContent("<body><h2>Zettel</h2></body>");
+  const bytes = await image.screenshot({ type: "jpeg", quality: 80 });
+  await image.close();
+  await documents.uploadDocument("e2e-storno", { bytes, filename: "Zettel ohne Angaben.jpg" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/belege?sort=lieferant&dir=auf");
+  await expect(page.locator("a.table-row.document-cols").filter({ hasText: "Zettel ohne Angaben.jpg" })).toHaveCount(1);
+  const namen = await belegSpalte(2);
+  expect(aufsteigend(namen), namen.join(" | ")).toBe(true);
+});
+
+test("Belegliste: Kategorie sortiert nach dem angezeigten Namen, nicht nach dem Schlüssel", async ({ browser }) => {
+  // Entwürfe, das Jahr ist weiter oben abgeschlossen. Schlüssel „beratung“ vor „buchfuehrung“, angezeigt
+  // „Buchführung und Steuerberatung“ vor „Rechts- und Beratungskosten“
+  await receipt(browser, "Kanzlei Klar", "K-1", currentDay(), false, "beratung");
+  await receipt(browser, "Steuerbüro Stark", "K-2", currentDay(), false, "buchfuehrung");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/belege?sort=kategorie&dir=auf");
+  await expect(page.locator("a.table-row.document-cols").filter({ hasText: "Rechts- und Beratungskosten" })).toHaveCount(1);
+  const kategorien = await belegSpalte(3);
+  expect(aufsteigend(kategorien), kategorien.join(" | ")).toBe(true);
+});
+
 test("Kontaktliste: Spaltenkopf sortiert und nennt die Richtung (#1112)", async () => {
   const stammdaten = await import("../src/server/modules/stammdaten/index.ts");
   const kontakt = (name: string, plz: string, ort: string) =>
@@ -303,4 +363,30 @@ test("Kontaktliste: Spaltenkopf sortiert und nennt die Richtung (#1112)", async 
   await page.getByRole("link", { name: "Ort aufsteigend sortieren" }).click();
   await expect(page).toHaveURL(/sort=ort&dir=auf/);
   await expect(zeilen.first()).toContainText("Zeisig Druck GmbH");
+});
+
+test("Kontaktliste: Rechnungsformat sortiert nach dem angezeigten Text", async () => {
+  const stammdaten = await import("../src/server/modules/stammdaten/index.ts");
+  const kontakt = (name: string, leitwegId: string, defaultFormat: "zugferd" | null) =>
+    stammdaten.createContact("e2e-storno", {
+      kundennummer: "",
+      name,
+      strasse: "",
+      plz: "",
+      ort: "",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId,
+      defaultFormat,
+    });
+  // Mit Leitweg-ID zeigt die Spalte „XRechnung (Leitweg-ID)“, auch ohne eigenes Format
+  await kontakt("Amt Aalen", "08136088-12345-06", null);
+  await kontakt("Bäckerei Berger", "", "zugferd");
+  await page.goto("/kontakte?sort=format&dir=auf");
+  const zeilen = page.getByRole("region", { name: "Kontaktliste" }).locator('a[href^="/kontakte/"]');
+  const formate = (await zeilen.locator(":scope > div:nth-child(4)").allInnerTexts()).map((t) => t.trim());
+  expect(formate).toContain("XRechnung (Leitweg-ID)");
+  expect(formate).toEqual([...formate].sort((a, b) => a.localeCompare(b, "de")));
 });
