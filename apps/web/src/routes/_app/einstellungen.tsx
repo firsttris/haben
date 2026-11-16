@@ -25,6 +25,7 @@ import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
 import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
+import { FintsCard } from "../../components/FintsCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
@@ -64,6 +65,7 @@ import { useAction } from "../../lib/use-action.ts";
 import { emailFehler, useSubmitCheck } from "../../lib/use-submit-check.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
+import { getFintsSettings } from "../../server/functions/fints.ts";
 import { getStoreConnections } from "../../server/functions/stores.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
@@ -118,6 +120,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       mcp,
       rates,
       enableBanking,
+      fints,
       stores,
       customPages,
       zugaenge,
@@ -144,6 +147,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getMcpSettings(),
       getExchangeRates(),
       getEnableBankingSettings(),
+      getFintsSettings(),
       getStoreConnections(),
       getCustomPages(),
       getZugaenge(),
@@ -173,6 +177,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       mcp,
       rates,
       enableBanking,
+      fints,
       stores,
       customPages,
       zugaenge,
@@ -209,6 +214,7 @@ function SettingsPage() {
     mcp,
     rates,
     enableBanking,
+    fints,
     stores,
     customPages,
     zugaenge,
@@ -282,6 +288,7 @@ function SettingsPage() {
           {bereich === "bank" && (
             <>
               <EnableBankingCard data={enableBanking} />
+              <FintsCard configured={fints.configured} />
               <StoreReportsCard connections={stores.connections} contacts={stores.contacts} />
             </>
           )}

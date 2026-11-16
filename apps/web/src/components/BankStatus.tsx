@@ -57,6 +57,23 @@ const CONNECTION_STATUS: Record<"aktiv" | "abgelaufen" | "fehler" | "widerrufen"
   wartet: { text: "Wartet auf Bank", tone: "info" },
 };
 
+const FINTS_STATUS: Record<"aktiv" | "tan" | "fehler", StatusLook> = {
+  aktiv: { text: "Aktiv", tone: "ok" },
+  // Der nächtliche Abruf wartet, bis jemand mit TAN abruft
+  tan: { text: "TAN nötig", tone: "warn", emphasis: "urgent" },
+  fehler: { text: "Fehler", tone: "danger", emphasis: "urgent" },
+};
+
+/** Zustand einer Verbindung zum Abruf über FinTS (#654) */
+export function FintsStatus({ status }: { status: keyof typeof FINTS_STATUS }) {
+  const { text, ...look } = FINTS_STATUS[status];
+  return (
+    <Status {...look} inline>
+      {text}
+    </Status>
+  );
+}
+
 /** Zustand einer Verbindung zum automatischen Abruf; läuft die Zustimmung bald ab, ist das dringend */
 export function ConnectionStatus({ connection: c }: { connection: { status: keyof typeof CONNECTION_STATUS; renewSoon: boolean; validUntil: string | null } }) {
   if (c.renewSoon)
