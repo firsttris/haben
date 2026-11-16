@@ -30,6 +30,10 @@ describe("Kein as mit Einheit", () => {
     ["wert as Cents | null", "nullbar"],
     ["wert as undefined | BasisPoints", "undefined vorn"],
     ["<Cents>wert", "spitze Klammern"],
+    ["[wert] as Cents[]", "Array"],
+    ["[wert] as readonly BasisPoints[]", "Array nur zum Lesen"],
+    ["[wert] as Array<Millis>", "Array in Langform"],
+    ["[wert] as ReadonlyArray<Prozent> | null", "ReadonlyArray, nullbar"],
   ])("meldet %s (%s)", (expression) => {
     expect(findings(expression)).toBe(1);
   });
@@ -39,6 +43,8 @@ describe("Kein as mit Einheit", () => {
     ["Object.entries({}) as [K, Cents][]", "nur der Schlüssel wird enger"],
     ["{ betrag: wert } satisfies { betrag: Cents }", "satisfies prüft nur"],
     ["wert as CentsProZeile", "anderer Name, der mit Cents beginnt"],
+    ["[wert] as number[]", "Array ohne Einheit"],
+    ["[wert] as Array<CentsProZeile>", "Array eines anderen Typs"],
   ])("lässt %s zu (%s)", (expression) => {
     expect(findings(expression)).toBe(0);
   });

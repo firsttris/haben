@@ -13,7 +13,7 @@ interface DegressiveWindow {
   /** Höchstens das Vielfache des linearen Satzes … */
   factor: number;
   /** … und höchstens dieser Satz in Basispunkten (3000 = 30 %) */
-  cap: number;
+  cap: BasisPoints;
   source: string;
 }
 

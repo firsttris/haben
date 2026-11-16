@@ -3,16 +3,21 @@ import { z } from "zod";
 import { z as zm } from "zod/mini";
 import type { maxDegressiveRate } from "./afa-methoden.ts";
 import type { ScheduleAsset } from "./afa.ts";
+import type { PublishedBaseRate } from "./base-rate.ts";
 import type { DauerbelegBetrag } from "./dauerbeleg.ts";
 import { type dunningAmounts, lateInterest } from "./dunning.ts";
 import { inBasisPoints, inCents, inMillis, inProzent } from "./einheit-schema.ts";
 import type { EuerPayment } from "./euer.ts";
 import type { invoiceLineInputSchema, Millis, TaxRate } from "./invoice.ts";
-import type { KapgSteuerAngaben } from "./koerperschaft.ts";
+import type { KST_SATZ, KapgSteuerAngaben } from "./koerperschaft.ts";
+import type { WarteAngabe } from "./leistungsdatum.ts";
+import type { VorjahresStand } from "./offene-posten-vorjahre.ts";
 import { splitPrivateShare, type BasisPoints, type Cents, type Prozent } from "./money.ts";
 import type { PrivateUseRate } from "./private-use.ts";
 import { discountColumns, discountFromColumns, type DiscountableLine, type discountSchema } from "./rabatt.ts";
+import type { CentRange } from "./search-money.ts";
 import type { skontoStufeSchema } from "./skonto.ts";
+import type { treatmentIssues } from "./treatment.ts";
 
 // Die Typen prüft der Typecheck (`bun run typecheck`): expectTypeOf tut zur Laufzeit nichts, und kompiliert eine Zeile unter
 // `@ts-expect-error` doch, meldet tsc die Direktive als unbenutzt (#1132).
@@ -90,5 +95,14 @@ describe("Privatanteil in Prozent und die übrigen Felder in core", () => {
     expectTypeOf<DiscountableLine["quantity"]>().toEqualTypeOf<Millis>();
     expectTypeOf<KapgSteuerAngaben["hebesatz"]>().toEqualTypeOf<Prozent>();
     expectTypeOf<PrivateUseRate>().toEqualTypeOf<BasisPoints & (100 | 50 | 25)>();
+  });
+
+  it("Steuersätze der Körperschaft, Basiszinssatz, Suchbereich und Eingaben der Prüfungen", () => {
+    expectTypeOf<typeof KST_SATZ>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<PublishedBaseRate["basisPoints"]>().toEqualTypeOf<BasisPoints>();
+    expectTypeOf<CentRange["min"]>().toEqualTypeOf<Cents>();
+    expectTypeOf<VorjahresStand["betrag"]>().toEqualTypeOf<Cents>();
+    expectTypeOf<WarteAngabe["gross"]>().toEqualTypeOf<Cents>();
+    expectTypeOf<Parameters<typeof treatmentIssues>[1]["rates"]>().toEqualTypeOf<BasisPoints[]>();
   });
 });
