@@ -15,8 +15,6 @@ Neben dem Titel steht der Stand der Abgabe: „Übermittelt“ mit dem Datum der
 
 Oben auf der Seite steht **Stand der Erklärungen** als Tabelle mit einer Zeile je Erklärung: der Stand als Pille und der Betrag, sofern ein Vermerk ihn festhält. Die Namen verlinken auf ihren Abschnitt, sodass du von der Übersicht direkt bei der Erklärung landest. Bei einer GmbH oder UG entfällt sie.
 
-Die Gewinnzeile der Anlage EÜR steht nur da, wenn Haben aus den Buchungen einen Gewinn hat. Die Meldung über ein leeres Jahr entfällt, sobald die Erklärung außerhalb von Haben vermerkt ist; das gilt für die Umsatzsteuer und die Anlage EÜR.
-
 Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](gmbh-abschluss.md#e-bilanz-gmbh-und-ug).
 
 ## Ablauf
@@ -150,6 +148,8 @@ Die Einkommensteuererklärung (Datenart ESt, Vordruck E10) setzt Haben aus drei 
 | Hauptvordruck ESt 1 A | [Persönliche Angaben](einrichtung.md#persönliche-angaben) (Steuer-ID, Name, Geburtsdatum, Religion, Beruf, bei Zusammenveranlagung Ehegatte und Heiratsdatum), Anschrift, Telefon und IBAN aus den Firmendaten |
 | Anlage S oder G | Gewinn laut Anlage EÜR des Jahres in vollen Euro, Tätigkeit aus „Art des Betriebs“; selbständige Arbeit geht in Anlage S, Gewerbe in Anlage G |
 | Übrige Anlagen | Angaben, die du auf der Seite einträgst und speicherst |
+
+Die Zeile „Gewinn laut EÜR“ steht nur da, wenn Haben aus den Buchungen einen Gewinn oder Verlust hat.
 
 Die eingetragenen Angaben speichert Haben je Jahr; jede Änderung steht im Audit-Log. Übermittelt wird, was gespeichert ist. Leere Anlagen schickt Haben nicht mit.
 
