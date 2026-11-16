@@ -50,4 +50,22 @@ describe("vertragHinweise", () => {
       "Prüfung nach dem Importvertrag (#306): ER-1/main: Buchungstag 2026-10-12 liegt außerhalb des Fensters 2026-10-01 bis 2026-10-09.",
     ]);
   });
+
+  it("nennt die Umsätze ohne entry_reference auch dann, wenn der Vertrag die ganze Lieferung ablehnt", () => {
+    expect(vertragHinweise(abruf([tx({ entry_reference: null }), tx({ entry_reference: "ER-2", booking_date: "2026-09-30" })]))).toEqual([
+      "1 Umsatz ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.",
+      "Prüfung nach dem Importvertrag (#306): ER-2/main: Buchungstag 2026-09-30 liegt außerhalb des Fensters 2026-10-01 bis 2026-10-09.",
+    ]);
+  });
+
+  it("zählt eine leere entry_reference wie eine fehlende", () => {
+    expect(vertragHinweise(abruf([tx({ entry_reference: " " })]))).toEqual([
+      "1 Umsatz ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.",
+    ]);
+  });
+
+  it("lässt einen Saldo mit einem Tag, den es nicht gibt, weg, statt die Lieferung abzulehnen", () => {
+    const balances = [{ balance_amount: { currency: "EUR", amount: "1.00" }, balance_type: "CLBD", reference_date: "2026-02-30" }];
+    expect(vertragHinweise(abruf([tx()], { balances }))).toEqual([]);
+  });
 });
