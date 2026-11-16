@@ -145,7 +145,7 @@ describe.skipIf(!testDatabaseUrl)("Migration der Ausgangszuordnung und unveränd
       const full = JSON.parse(readFileSync(join(MIGRATIONS, "meta/_journal.json"), "utf8")) as {
         entries: { idx: number; tag: string; when: number }[];
       };
-      const addition = full.entries.find((entry) => entry.tag === "0260_outgoing_tax_details");
+      const addition = full.entries.find((entry) => entry.tag === "0269_outgoing_tax_details");
       if (!addition) throw new Error("Migration der Ausgangszuordnung fehlt.");
       const older = full.entries.filter((entry) => entry.idx < addition.idx);
       writeFileSync(join(previous, "meta/_journal.json"), JSON.stringify({ ...full, entries: older }));
