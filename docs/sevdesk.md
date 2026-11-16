@@ -152,6 +152,17 @@ In allen anderen Fällen bleibt die Gutschrift, wie gespeichert, eine Minderung 
 
 Ist sevDesk schon gekündigt oder klärt auch ein neuer Abruf das Konto nicht, legst du die Kontoart in der Belegansicht der Gutschrift **von Hand** fest: **Als Erlöskonto festlegen** oder **Als Aufwandskonto festlegen**, nachdem du in sevDesk oder im DATEV-Export nachgesehen hast, auf welches Konto gebucht ist ([#888](https://github.com/firsttris/haben/issues/888)). Danach rechnet Haben wie mit einem erkannten Konto, der Punkt im Abgleich und die Sperre fallen weg, und die Belegansicht nennt das Buchungskonto „von Hand festgelegt“. Die Archivkopie bleibt unverändert; die Entscheidung ist ein eigener Nachtrag im Änderungsprotokoll, und eine spätere ersetzt sie. Ein Kontostamm mit erkannter Art, den ein späterer Abruf bringt, geht vor: Nennt er dieselbe Art, gilt sie; nennt er eine andere, bleibt die Gutschrift unklar, bis du seine Art festlegst, und die Belegansicht nennt beide.
 
+**Kategorien** folgen dem Buchungskonto je Position ([#472](https://github.com/firsttris/haben/issues/472)). Die Position nennt nur die ID des Kontos; seine Nummern holt Haben wie bei den Gutschriften über `GET /AccountingType/{id}`, je Konto einmal, in Buchhaltungsversion 2.0 nicht. Die Nummern zählen wie oben nach SKR03 bzw. SKR04; beide müssen dasselbe ergeben.
+
+| Nummer des Kontos | Kategorie in Haben |
+| --- | --- |
+| Konto einer Ausgabenkategorie außer Anlagegut und Einfuhrumsatzsteuer, etwa SKR03 4930 / SKR04 6815 | diese Kategorie, hier Bürobedarf |
+| Verbindlichkeiten gegenüber Gesellschaftern, Gezeichnetes Kapital, Darlehen, Körperschaft-, Gewerbesteuer und Soli, Privatentnahmen, -einlagen und -steuern | Name des DATEV-Kontos; bei GmbH und UG [eingeordnet](lexoffice.md#einordnung-bei-gmbh-und-ug) wie in Lexoffice |
+| Erlöskonto | Erlöse |
+| anderes Konto, keine Nummer, Widerspruch, keine Antwort | „Sonstiges“, in der Belegansicht mit dem Konto |
+
+Ein übernommener offener Ausgabebeleg bekommt die Kategorie der Position mit dem größten Nettobetrag, wenn sie eine Ausgabenkategorie ist, sonst „Sonstiges“. Die Archivkopie bleibt unverändert; Bestand aus einem früheren Abruf bekommt seine Kategorien mit **Erneut abrufen**.
+
 sevDesk lässt bei vielen Belegen den Namen des Lieferanten leer (`supplierName`). Haben zeigt dann den Namen, den der Beleg beim Speichern trug (`supplierNameAtSave`), und erst ohne ihn den Namen des verknüpften Kontakts. So bleibt ein alter Beleg richtig, wenn der Kontakt später umbenannt wird. Die Archivkopie bleibt unverändert.
 
 Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer. Fehlen die Positionen, leitet Haben den Satz aus Netto und Steuer im Kopf ab (19 oder 7 %, die Sätze 16 und 5 % aus 2020 nur, wenn beide nicht passen); auch das gilt für schon abgerufene Belege. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
@@ -297,7 +308,7 @@ Ein neuer Abruf überspringt übernommene Vorlagen, auch wenn du sie in Haben ge
 ### Grenzen des aktuellen Imports
 
 - **Keine Buchungen und keine Bankumsätze.** Lade den DATEV-Export aus sevDesk hoch (Schritt 5).
-- **Keine Kategorienamen.** Je Beleg-Position steht nur die ID des Buchungskontos. Übernommene offene Ausgabebelege bekommen deshalb die Kategorie „Sonstiges“; ändere sie bei Bedarf in Haben. Aus demselben Grund erkennt der Abgleich bei GmbH und UG Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen aus sevDesk nicht ([Einordnung](lexoffice.md#einordnung-bei-gmbh-und-ug)); sie zählen dort als Einnahme bzw. Ausgabe. Ziehe sie beim Vergleich mit sevDesk selbst ab.
+- **Kategorien nur aus Buchungskonten mit Nummer.** Eigene Konten ohne Nummer und Konten aus Buchhaltungsversion 2.0 (`accountDatev`) bleiben „Sonstiges“; ändere übernommene Belege bei Bedarf in Haben. Bei GmbH und UG zählen solche Positionen im Abgleich als Einnahme bzw. Ausgabe; ziehe Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen darunter beim Vergleich mit sevDesk selbst ab.
 - Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ausgeschlossen.
 
 ## Schritt 4: Anlagen übernehmen

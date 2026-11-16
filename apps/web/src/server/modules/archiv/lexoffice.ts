@@ -43,6 +43,7 @@ import { loadCompany } from "../stammdaten/index.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { ohneJit } from "../../db/ohne-jit.ts";
+import { loadSevdeskAccountCategories, sevdeskCategories, sevdeskPositionAccounts } from "./sevdesk-kategorie.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LegacyCategoryRow, LegacyFileState, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
@@ -474,6 +475,7 @@ export async function legacyVoucherDetail(id: string) {
       createdAt: schema.lexofficeVouchers.createdAt,
       accountingType: accountingTypeKinds("lexoffice_vouchers"),
       ohneBeleg: WITHOUT_RECEIPT,
+      positionAccounts: sevdeskPositionAccounts("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
     .where(eq(schema.lexofficeVouchers.id, id));
@@ -495,9 +497,12 @@ export async function legacyVoucherDetail(id: string) {
   const fileStates = await fileStateHistory(id);
   const fileStatus = legacyFileStatus(fileStates.at(-1)?.state ?? null, files.length, voucher.ohneBeleg);
   const canConfirmWithoutFile = fileStatus === "ohne_datei_offen" && voucher.source === "sevdesk" && voucher.lexofficeId.startsWith("voucher/");
+  const { positionAccounts, ...shown } = voucher;
+  const categories = positionAccounts ? sevdeskCategories(voucher.categories, positionAccounts, await loadSevdeskAccountCategories()) : voucher.categories;
   return {
     voucher: {
-      ...voucher,
+      ...shown,
+      categories,
       payment: visiblePayment(voucher),
       paymentHistoryIssue: paymentHistoryIssue(voucher),
       accountingTypeIssue: accountingTypeIssue(voucher.accountingType),
@@ -591,6 +596,7 @@ export async function reconciliation() {
         privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
         bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
         accountingTypeUnclear: accountingTypeUnclear("lexoffice_vouchers"),
+        positionAccounts: sevdeskPositionAccounts("lexoffice_vouchers"),
         // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
         files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
       })
@@ -598,7 +604,11 @@ export async function reconciliation() {
   );
   // Archiviert, aber weder Einnahme noch Ausgabe: im Einzelunternehmen Privates und Geldtransit, in GmbH und UG
   // Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen; sie stehen je Jahr getrennt (neutral)
-  const classified = voucherRows.map((v) => ({ ...v, neutral: neutralKindOf(v, company.rechtsform) ?? (v.bbNeutral ? ("geldtransit" as const) : null) }));
+  const known = await loadSevdeskAccountCategories();
+  const classified = voucherRows.map((v) => {
+    const categories = sevdeskCategories(v.categories, v.positionAccounts, known);
+    return { ...v, categories, neutral: neutralKindOf({ ...v, categories }, company.rechtsform) ?? (v.bbNeutral ? ("geldtransit" as const) : null) };
+  });
   // BuchhaltungsButler-Belege nur als Archiv (Suche, PDF): Einnahme, Ausgabe oder neutral ließe sich aus den Konten nur
   // schätzen. Summen und Steuer kommen für diese Jahre aus dem DATEV-Buchungsstapel desselben Exports. Ebenso die Belege aus
   // der Export-ZIP von sevDesk: Darlehen, Privates, Steuern und Zinsen stehen dort als Beleg ohne Kategorie (#1105).
@@ -903,13 +913,15 @@ export async function legacyVouchersForPeriod(filter: {
       tax_sub_type: string | null;
       files: number;
       accounting_type: AccountingTypeKinds | null;
+      position_accounts: (string | null)[] | null;
     }>(sql`
     select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "tax")} as tax, ${effectiveAmount("v", "gross")} as gross,
       ${effectiveTaxes("v")} as taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files, ${latestFileStateSql("v")} as file_state,
-      coalesce((v.raw->>'ohneBeleg')::boolean, false) as ohne_beleg, ${accountingTypeKinds("v")} as accounting_type
+      coalesce((v.raw->>'ohneBeleg')::boolean, false) as ohne_beleg, ${accountingTypeKinds("v")} as accounting_type,
+      ${sevdeskPositionAccounts("v")} as position_accounts
     from lexoffice_vouchers v
     where (v.date::text like ${like}
       ${
@@ -930,7 +942,11 @@ export async function legacyVouchersForPeriod(filter: {
   );
   // Was weder Einnahme noch Ausgabe ist, geht nicht in die Umsatzsteuer ein, wie im Abgleich; es steht summiert daneben
   const { rechtsform } = await loadCompany();
-  const classified = [...rows].map((r) => ({ ...r, neutral: neutralKindOf(r, rechtsform) }));
+  const known = await loadSevdeskAccountCategories();
+  const classified = [...rows].map((r) => ({
+    ...r,
+    neutral: neutralKindOf({ ...r, categories: sevdeskCategories(r.categories, r.position_accounts, known) }, rechtsform),
+  }));
   const neutral = legacyNeutralSums(classified.flatMap((r) => (r.neutral ? [{ kind: r.neutral, direction: r.direction, gross: Number(r.gross) }] : [])));
   const all = classified
     .filter((r) => !r.neutral)
