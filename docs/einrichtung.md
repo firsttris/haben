@@ -20,7 +20,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 5. Nächste Rechnungsnummer setzen
 6. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert Tage bis Wochen, siehe [Was du brauchst](einrichtung-elster.md#was-du-brauchst)
 7. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken, siehe [Schritte](einrichtung-elster.md#schritte)
-8. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
+8. Für die Anlage EÜR Art des Betriebs eintragen und die Einkunftsart prüfen, siehe [Jahreserklärungen](jahreserklaerung.md)
 9. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
 10. Optional: KI-Auslesung für Belege einschalten, mit Claude oder einem Modell über eine OpenAI-kompatible Schnittstelle (selbst betrieben oder ein Cloud-Dienst wie OpenRouter)
 11. Optional: deine Steuerberatung mit einem [eigenen Zugang](#zugang-für-die-steuerberatung) einladen
@@ -48,13 +48,13 @@ Unter **Einstellungen › Sicherheit › Passwort ändern** gibst du dein bisher
 
 Nach dem ersten Konto stellt Haben ein paar Fragen in drei Schritten:
 
-- **Dein Unternehmen:** freiberuflich, mit Gewerbe, GmbH oder UG; Kleinunternehmer; ohne Kleinunternehmer Ist- oder Soll-Versteuerung und ob du die Voranmeldung monatlich oder vierteljährlich abgibst; nur steuerfreie Umsätze ohne Vorsteuerabzug; mit Steuerberatung deren Kontenrahmen.
+- **Dein Unternehmen:** freiberuflich (Einkunftsart selbständige Arbeit), mit Gewerbe (Gewerbebetrieb), GmbH oder UG; Kleinunternehmer; ohne Kleinunternehmer Ist- oder Soll-Versteuerung und ob du die Voranmeldung monatlich oder vierteljährlich abgibst; nur steuerfreie Umsätze ohne Vorsteuerabzug; mit Steuerberatung deren Kontenrahmen.
 - **Start in Haben:** Wer von einem anderen Programm wechselt, findet hier den Weg zum Umzug im Archiv.
 - **Bereiche:** ob du Angebote schreibst, Angestellte hast, Bargeld einnimmst, per Lastschrift einziehst und Anlagen oder Darlehen hast.
 
 Jede Frage hat „Weiß ich nicht“, und „Später“ überspringt alles; dann erinnert die Übersicht daran, bis du die Fragen beantwortest oder die Firmendaten speicherst. Die Antworten schreiben die vorhandenen Angaben der [Firmendaten](#firmendaten) und den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) ab Januar des laufenden Jahres, mit denselben [Sperren](#wann-sich-die-einstellungen-ändern-lassen) wie dort. „Weiß ich nicht“ lässt die bisherige Angabe stehen, beim ersten Mal die Vorgabe (Einzelunternehmen, kein Kleinunternehmer). Bleiben Rechtsform oder Kleinunternehmer so offen, erinnert die Übersicht daran, bis du sie in den Fragen beantwortest oder die Firmendaten speicherst.
 
-Unter **Einstellungen › Bereiche** öffnet „Fragen erneut durchgehen“ die Fragen noch einmal mit den gespeicherten Antworten. Ändert sich dabei Rechtsform, Kleinunternehmer, Versteuerung, Voranmeldungszeitraum, Vorsteuerabzug oder Kontenrahmen, zeigt Haben die Änderungen vor dem Speichern.
+Unter **Einstellungen › Bereiche** öffnet „Fragen erneut durchgehen“ die Fragen noch einmal mit den gespeicherten Antworten. Ändert sich dabei Rechtsform, Einkunftsart, Kleinunternehmer, Versteuerung, Voranmeldungszeitraum, Vorsteuerabzug oder Kontenrahmen, zeigt Haben die Änderungen vor dem Speichern.
 
 ### Bereiche ausblenden
 
