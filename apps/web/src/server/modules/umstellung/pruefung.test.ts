@@ -242,7 +242,14 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         const befunde = (await stand())!.befunde as { jahr: number; text: string; schluessel?: string }[];
         const verprobung = befunde.filter((b) => b.schluessel?.endsWith(":umsatzsteuer:1900"));
         expect(verprobung).toHaveLength(1);
-        const offen = async () => abgleich.abweichungen((await abgleich.abgleichJahr(2026, today)).zeilen).filter((z) => z.posten.includes(": Buchung „"));
+        const mitBuchung = (zeilen: Parameters<typeof abgleich.abweichungen>[0]) =>
+          abgleich.abweichungen(zeilen).filter((z) => z.posten.includes(": Buchung „"));
+        // Im Jahr je Monat und in der Vorprüfung des Quartals (der Schlüssel nennt keinen Zeitraum)
+        const quartal = { year: 2026, month: v === "ist" ? 42 : 41 };
+        const offen = async () => [
+          ...mitBuchung((await abgleich.abgleichJahr(2026, today)).zeilen),
+          ...mitBuchung((await abgleich.vatAbgleich(quartal)).zeilen),
+        ];
         expect(await offen()).toEqual([]);
         const uebernommen = (liste: unknown[]) =>
           sql`insert into journal_umstellung (stichjahr_vorher, ergebnis, befunde) values (2027, 'uebernommen', ${JSON.stringify(liste)}::jsonb)`;
@@ -251,7 +258,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         expect(await offen()).toEqual([]);
         // Gleicher Text, aber eine andere Buchung: ein neuer Befund
         await uebernommen(befunde.map((b) => ({ ...b, schluessel: b.schluessel?.replace(/^buchung:[^:]+/, "buchung:00000000-0000-0000-0000-000000000000") })));
-        expect(await offen()).toHaveLength(1);
+        expect(await offen()).toHaveLength(2);
         // Gespeichert vor #1229, nur mit Text: weiter am Text erkannt
         await uebernommen(befunde.map(({ jahr, text }) => ({ jahr, text })));
         expect(await offen()).toEqual([]);
