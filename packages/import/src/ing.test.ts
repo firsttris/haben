@@ -108,6 +108,32 @@ describe("ING-CSV (Umsatzanzeige)", () => {
     expect(s.warnings.join()).toMatch(/Fremdwährung.*USD/);
   });
 
+  it("absteigend sortiert mit Lastschrift und Rückgabe: Salden in zeitlicher Reihenfolge", () => {
+    const tabelle = zeilen.findIndex((z) => z.startsWith("Buchung;"));
+    const zwei = [
+      ...zeilen.slice(0, tabelle + 1),
+      // Neueste zuerst: die Rückgabe am 16.10. hebt die Lastschrift vom 15.10. auf
+      "16.10.2026;16.10.2026;VISA BEISPIEL SOFTWARE;Gutschrift;Rueckgabe Lastschrift;;4.910,00;EUR;21,42;EUR",
+      "15.10.2026;14.10.2026;VISA BEISPIEL SOFTWARE;Lastschrift;Kaufumsatz;;4.888,58;EUR;-21,42;EUR",
+    ].join("\r\n");
+    const s = parseStatement(new TextEncoder().encode(zwei));
+    // Vor der Lastschrift 4.910,00, danach 4.888,58, nach der Rückgabe wieder 4.910,00
+    expect([s.openingBalance, s.closingBalance]).toEqual([491_000, 491_000]);
+    expect(s.warnings).toEqual([]);
+  });
+
+  it("gleicher Tag, Reihenfolge der Salden nicht eindeutig: keine Salden und ein Hinweis", () => {
+    const tabelle = zeilen.findIndex((z) => z.startsWith("Buchung;"));
+    const zwei = [
+      ...zeilen.slice(0, tabelle + 1),
+      "15.10.2026;15.10.2026;VISA BEISPIEL SOFTWARE;Gutschrift;Rueckgabe Lastschrift;;4.910,00;EUR;21,42;EUR",
+      "15.10.2026;14.10.2026;VISA BEISPIEL SOFTWARE;Lastschrift;Kaufumsatz;;4.888,58;EUR;-21,42;EUR",
+    ].join("\r\n");
+    const s = parseStatement(new TextEncoder().encode(zwei));
+    expect(s.openingBalance).toBeUndefined();
+    expect(s.warnings).toEqual(["Die Spalte „Saldo“ geht nicht lückenlos auf; Salden werden nicht übernommen."]);
+  });
+
   it("liest das ältere Format: Valuta, Kategorie, ohne Referenz, Kopf in Anführungszeichen", () => {
     // Belegt in beancount-ing (Tests, CHANGELOG v0.4.0): „Valuta“ statt „Wertstellungsdatum“, Zeile „Letztes Update“
     const alt = [
