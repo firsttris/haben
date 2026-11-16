@@ -55,7 +55,7 @@ describe.skipIf(!testDatabaseUrl)("Migration der Satzanteile ohne Änderung des 
     const added = journal.entries.find((e) => e.tag === "0268_vorsteuer_teilabzug");
     if (!added) throw new Error("Migration der Satzanteile fehlt.");
     writeFileSync(join(previous, "meta/_journal.json"), JSON.stringify({ ...journal, entries: journal.entries.filter((e) => e.idx < added.idx) }));
-    // Bis einschließlich dieser Migration: Spätere (etwa 0273 mit ihrer eigenen Zeile im Änderungsprotokoll) prüft der Test nicht
+    // Bis einschließlich dieser Migration: Spätere (etwa 0275 mit ihrer eigenen Zeile im Änderungsprotokoll) prüft der Test nicht
     const bis = mkdtempSync(join(tmpdir(), "haben-0259-upgrade-bis-"));
     cpSync(MIGRATIONS, bis, { recursive: true });
     writeFileSync(join(bis, "meta/_journal.json"), JSON.stringify({ ...journal, entries: journal.entries.filter((e) => e.idx <= added.idx) }));

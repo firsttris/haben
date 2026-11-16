@@ -176,7 +176,7 @@ describe.skipIf(!testDatabaseUrl)("Migration der Ausgangszuordnung und unveränd
         expect(old.audit.length).toBeGreaterThan(20);
         expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
 
-        // Bis einschließlich dieser Migration: Spätere Migrationen (etwa 0273 mit ihrer eigenen Zeile im Änderungsprotokoll)
+        // Bis einschließlich dieser Migration: Spätere Migrationen (etwa 0275 mit ihrer eigenen Zeile im Änderungsprotokoll)
         // gehören nicht zu dem, was hier geprüft wird
         await migrate(database, { migrationsFolder: bis });
         expect(await sql`select count(*)::int as n from drizzle.__drizzle_migrations`).toEqual([{ n: older.length + 1 }]);

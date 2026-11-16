@@ -19,6 +19,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
 import { ArchiveSearchCard } from "../../components/ArchiveSearchCard.tsx";
+import { ArchiveTargetCard } from "../../components/ArchiveTargetCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
@@ -66,10 +67,9 @@ import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/sett
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, getExchangeRates, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import reportStyles from "../../styles/auswertungen.css?url";
-import { getDatevNumbers } from "../../server/functions/datev-export.ts";
 import { checkElsterFormats, confirmElsterPrivacy, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getCustomPages } from "../../server/functions/eigene-seiten.ts";
-import { getExportYears } from "../../server/functions/export.ts";
+import { getExportArea } from "../../server/functions/export.ts";
 import { getNumbering } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
 import { getAppVersions, getChainHead, getDatabaseAccessInfo } from "../../server/functions/integrity.ts";
@@ -106,8 +106,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       design,
       overview,
       inbox,
-      exportYears,
-      datev,
+      exportArea,
       chainHead,
       appVersions,
       databaseAccess,
@@ -133,8 +132,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getLetterheadDesign(),
       getLayouts(),
       getInbox(),
-      getExportYears(),
-      getDatevNumbers(),
+      getExportArea(),
       getChainHead(),
       getAppVersions(),
       getDatabaseAccessInfo(),
@@ -163,8 +161,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       layouts: overview.layouts,
       layoutHints: overview.hints,
       inbox,
-      exportYears,
-      datev,
+      ...exportArea,
       chainHead,
       appVersions,
       databaseAccess,
@@ -215,6 +212,7 @@ function SettingsPage() {
     quoteDefaultAttachments,
     ownAccounts,
     units,
+    ablage,
   } = Route.useLoaderData();
   const search = Route.useSearch();
   const bereich = search.bereich ?? "firma";
@@ -303,6 +301,7 @@ function SettingsPage() {
             <>
               <ExportCard years={exportYears} />
               <DatevCard years={exportYears} numbers={datev} />
+              <ArchiveTargetCard data={ablage} />
               <IntegrityCard head={chainHead} />
               <VersionsCard versions={appVersions} />
               <DatabaseAccessCard access={databaseAccess} />

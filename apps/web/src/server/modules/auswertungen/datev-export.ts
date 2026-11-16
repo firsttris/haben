@@ -28,6 +28,18 @@ export const datevNumbersSchema = z.object({
   bestaetigt: z.boolean().optional(),
 });
 
+/** Berater- und Mandantennummer mit Kontenrahmen und gebuchten Jahren für die Karte DATEV-Export der Einstellungen */
+export async function datevNumbers() {
+  const company = await loadCompany();
+  return {
+    beraterNr: company.datevBeraterNr,
+    mandantNr: company.datevMandantNr,
+    kontenrahmen: company.kontenrahmen,
+    personenkontenAb: company.datevPersonenkontenAb,
+    gebuchteJahre: await gebuchteJahre(),
+  };
+}
+
 /** Jahre mit Buchungen; für die Bestätigung beim Schalter „DATEV-Personenkonten“ */
 export async function gebuchteJahre(): Promise<number[]> {
   const rows = await db.selectDistinct({ year: sql<number>`extract(year from ${schema.journalEntries.date})::int` }).from(schema.journalEntries);

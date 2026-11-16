@@ -493,10 +493,14 @@ export async function legacyVoucherDetail(id: string) {
   const canConfirmWithoutFile = fileStatus === "ohne_datei_offen" && voucher.source === "sevdesk" && voucher.lexofficeId.startsWith("voucher/");
   const { positionAccounts, ...shown } = voucher;
   const categories = positionAccounts ? sevdeskCategories(voucher.categories, positionAccounts, await loadSevdeskAccountCategories()) : voucher.categories;
+  // Frühere WISO-Importe setzten das Zahlungsdatum als Leistung, obwohl die Quelle sie nicht belegt (#565).
+  // Nur lesend korrigieren; die unveränderliche Archivzeile bleibt erhalten. Quelle: https://github.com/firsttris/haben/issues/565
   return {
     voucher: {
       ...shown,
       categories,
+      serviceFrom: voucher.source === "wiso" ? null : voucher.serviceFrom,
+      serviceTo: voucher.source === "wiso" ? null : voucher.serviceTo,
       payment: visiblePayment(voucher),
       paymentHistoryIssue: paymentHistoryIssue(voucher),
       accountingTypeIssue: accountingTypeIssue(voucher.accountingType),

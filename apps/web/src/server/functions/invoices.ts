@@ -5,6 +5,7 @@ import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { invoicePaymentList, listAccounts, listWriteOffs } from "../modules/bank/index.ts";
 import { openPositions } from "../modules/auswertungen/index.ts";
+import { deliverSoon, deliveryForInvoice } from "../modules/ablage/index.ts";
 import { serviceEntriesOfInvoice } from "../modules/leistungen/index.ts";
 import { editorContext } from "../modules/stammdaten/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
@@ -145,6 +146,8 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
       attachments: (await listInvoiceAttachments(data)).map(({ id, filename, size }) => ({ id, filename, size })),
       dunnings: await dunningsFor([data]),
       mails: result.invoice.status === "final" ? await mailsForInvoice(data) : [],
+      /** Weitergabe an das Dokumentenarchiv (Einstellungen › Export) */
+      ablage: result.invoice.status === "final" ? await deliveryForInvoice(result.invoice) : null,
       overdue: listed?.listStatus === "ueberfaellig",
       // Angebot der Rechnung: über invoices.quote_id oder (ältere Rechnungen aus dem Angebot) über quotes.invoice_id
       fromQuote:
@@ -229,6 +232,7 @@ export const finalizeInvoiceDraft = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     try {
       const invoice = await finalizeInvoice(context.user.id, data.id, data.bestaetigt);
+      deliverSoon();
       return { status: "final" as const, id: invoice.id };
     } catch (error) {
       if (!(error instanceof UmsatzgrenzeError)) throw error;
@@ -248,6 +252,7 @@ export const cancelFinalInvoice = createServerFn({ method: "POST" })
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
     const storno = await cancelInvoice(context.user.id, data, today());
+    deliverSoon();
     return { id: storno.id, number: storno.number };
   });
 

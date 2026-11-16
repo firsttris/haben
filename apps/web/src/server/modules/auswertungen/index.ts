@@ -6,7 +6,7 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { abgleichIssues, abgleichJahr, abweichungen, befundText, euerAbgleich, ohneUebernommeneZeilen, vatAbgleich, type AbgleichZeile } from "./abgleich.ts";
-export { datevExport, DatevExportError, datevNumbersSchema, gebuchteJahre, saveDatevNumbers } from "./datev-export.ts";
+export { datevExport, DatevExportError, datevNumbers, datevNumbersSchema, gebuchteJahre, saveDatevNumbers } from "./datev-export.ts";
 export { chainHead, checkIntegrity, checkPruefwert, formatPruefwert, parsePruefwert, type IntegrityReport } from "./integrity.ts";
 export { runDueFileCheck, runFileCheck, type FileCheck, type FileProblem } from "./file-integrity.ts";
 export { vorauszahlungVorjahrHinweis, ZEHN_TAGE_REGEL, zehnTageKennzeichen, type ZehnTageKennzeichen } from "./euer-jahreswechsel.ts";
