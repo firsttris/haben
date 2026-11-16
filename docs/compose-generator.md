@@ -11,7 +11,7 @@ hide:
 
 <link rel="stylesheet" href="assets/stylesheets/compose-generator.css">
 
-Hier entstehen `.env`, bei Bedarf `compose.override.yml` und die Befehle für den ersten Start nach [Docker Compose](installation.md#docker-compose). Passwörter und Schlüssel erzeugt dein Browser; sie verlassen dein Gerät nicht. `compose.yml` lädst du unverändert aus dem Repository, damit ein Update sie einfach ersetzen kann; alles, was du hier abweichend wählst, steht im Override.
+Hier entstehen `.env`, bei Bedarf `compose.override.yml` und die Befehle für den ersten Start nach [Docker Compose](installation.md#docker-compose). Passwörter und Schlüssel erzeugt dein Browser; sie verlassen dein Gerät nicht. `compose.yml` lädst du unverändert aus dem Repository, damit ein Update sie ersetzen kann; alles, was du hier abweichend wählst, steht im Override.
 
 > [!IMPORTANT]
 > **Schlüssel sichern:** Speichere `ENCRYPTION_KEY` und `RESTIC_PASSWORD` aus `.env` zusätzlich in deinem Passwortmanager; ohne beide ist das Backup wertlos, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
@@ -82,7 +82,7 @@ Hier entstehen `.env`, bei Bedarf `compose.override.yml` und die Befehle für de
       <div id="cg-proxy-network-wrap" class="cg-field cg-hidden" style="margin-top: 0.75rem;">
         <label for="cg-proxy-network">Name des Proxy-Docker-Netzes</label>
         <input id="cg-proxy-network" class="cg-input cg-input--mono" type="text" value="proxy" placeholder="proxy">
-        <span class="cg-hint">Den Namen zeigt <code>docker inspect DEIN_PROXY -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'</code>.</span>
+        <span class="cg-hint">Den Namen zeigt <code>docker inspect DEIN_PROXY_CONTAINER -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'</code>.</span>
       </div>
     </fieldset>
 
