@@ -112,7 +112,7 @@ Fehlt einem Beleg eine Datei, hält Haben fest, warum. Fortschritt, Belegliste, 
 
 | Stand | Wann | Im Abgleich |
 | --- | --- | --- |
-| Abruf fehlgeschlagen | sevDesk nennt eine Datei (`document`), gibt sie aber nicht heraus, oder eine Rechnung bzw. Gutschrift kommt ohne PDF | offen; ein neuer Abruf versucht es noch einmal |
+| Abruf fehlgeschlagen | sevDesk nennt eine Datei (`document`), gibt sie aber nicht heraus, oder eine Rechnung bzw. Gutschrift kommt ohne PDF | offen; ein neuer Abruf versucht es noch einmal. Nennt sevDesk die Datei dann nicht mehr, ist nichts mehr offen, wenn der Beleg eine andere Datei hat; sonst gilt „Ohne Datei, zu prüfen“, auch nach einer früheren Bestätigung |
 | Ohne Datei, zu prüfen | Ein Beleg nennt keine Datei | offen, bis du es bestätigst |
 | Ohne Datei, bestätigt | Du hast in sevDesk nachgesehen und es in der Belegansicht bestätigt | zählt getrennt, blockiert nicht |
 | Anhang fehlt | Das PDF ist da, das XML der E-Rechnung kam mit einem Fehler | offen; ein neuer Abruf versucht es noch einmal, meldet sevDesk dann ohne Fehler kein XML, ist nichts mehr offen |
