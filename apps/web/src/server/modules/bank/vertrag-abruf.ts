@@ -46,8 +46,6 @@ export function vertragHinweise(abruf: {
     fetchedAt: berlinTimestamp(abruf.now),
     fetchId: abruf.fetchId,
   });
-  const result = validateBatch(batch, { provider: "enablebanking", externalAccountId: abruf.iban, accountKind: "bank" });
-  if (!result.ok) return [`Prüfung nach dem Importvertrag (#306): ${result.problems.join(" ")}`];
   const ohneReferenz = batch.unsupported.filter((u) => u.reason.includes(OHNE_ENTRY_REFERENCE)).length;
   const hinweise: string[] = [];
   if (ohneReferenz > 0) {
@@ -55,5 +53,7 @@ export function vertragHinweise(abruf: {
       `${ohneReferenz} ${ohneReferenz === 1 ? "Umsatz" : "Umsätze"} ohne Referenz der Bank (entry_reference): gespeichert wie bisher; ein späterer Abruf über den Importvertrag (#306) erkennt sie nicht sicher wieder.`,
     );
   }
+  const result = validateBatch(batch, { provider: "enablebanking", externalAccountId: abruf.iban, accountKind: "bank" });
+  if (!result.ok) return [...hinweise, `Prüfung nach dem Importvertrag (#306): ${result.problems.join(" ")}`];
   return [...hinweise, ...result.hints];
 }

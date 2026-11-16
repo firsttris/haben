@@ -1,4 +1,5 @@
 import { IMPORT_CONTRACT_VERSION, type ImportBatch, type ImportMovement } from "../importvertrag/types.ts";
+import { parseDate } from "../text.ts";
 import type { EbBalance, EbTransaction } from "./client.ts";
 import { bookedBalance, mapEnableBankingTransaction } from "./map.ts";
 
@@ -27,15 +28,19 @@ export interface EnableBankingBatchInput {
 /** Teil des Grunds für einen gebuchten Umsatz ohne entry_reference, zum Zählen in der Meldung des Abrufs */
 export const OHNE_ENTRY_REFERENCE = "ohne entry_reference";
 
+/** entry_reference ohne Leerzeichen; leer zählt wie fehlend */
+const referenz = (t: EbTransaction) => t.entry_reference?.trim() || undefined;
+
 /** Bewegung aus einem gebuchten Umsatz mit entry_reference, sonst der Grund, warum er keine ist */
 function movement(t: EbTransaction, index: number): ImportMovement | string {
   if (t.status === "PDNG") return "Vorgemerkt (PDNG); folgt, sobald die Bank ihn bucht.";
   if (t.status && t.status !== "BOOK") return `Status ${t.status}.`;
   const mapped = mapEnableBankingTransaction(t, index);
   if (!mapped) return "Ohne gültiges Datum oder Betrag.";
-  if (!t.entry_reference) return `Gebuchter Umsatz vom ${mapped.bookingDate} ${OHNE_ENTRY_REFERENCE}; transaction_id kann sich ändern und ist kein Ersatz.`;
+  const ref = referenz(t);
+  if (!ref) return `Gebuchter Umsatz vom ${mapped.bookingDate} ${OHNE_ENTRY_REFERENCE}; transaction_id kann sich ändern und ist kein Ersatz.`;
   return {
-    sourceEventId: t.entry_reference,
+    sourceEventId: ref,
     component: "main",
     kind: "payment",
     bookingDate: mapped.bookingDate,
@@ -46,7 +51,7 @@ function movement(t: EbTransaction, index: number): ImportMovement | string {
     ...(mapped.counterpartyName ? { counterpartyName: mapped.counterpartyName } : {}),
     ...(mapped.counterpartyIban ? { counterpartyIban: mapped.counterpartyIban } : {}),
     purpose: mapped.purpose,
-    references: { providerReference: t.entry_reference },
+    references: { providerReference: ref },
   };
 }
 
@@ -61,7 +66,7 @@ export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch 
   input.transactions.forEach((t, index) => {
     const m = movement(t, index);
     if (typeof m !== "string") movements.push(m);
-    else unsupported.push({ ...(t.entry_reference ? { sourceEventId: t.entry_reference } : {}), reason: m });
+    else unsupported.push({ ...(referenz(t) ? { sourceEventId: referenz(t) } : {}), reason: m });
   });
   const balance = bookedBalance(input.balances);
   return {
@@ -73,7 +78,8 @@ export function enableBankingBatch(input: EnableBankingBatchInput): ImportBatch 
     coverage: { from: input.dateFrom, to: input.dateTo },
     part: { fetchId: input.fetchId, index: 0, last: true },
     movements,
-    balances: balance?.date ? [{ date: balance.date, amount: balance.amount, currency: "EUR" }] : [],
+    // Nur ein Stichtag, den es gibt: Ein falscher Tag der Bank soll nicht die ganze Lieferung ablehnen
+    balances: balance?.date && parseDate(balance.date) === balance.date ? [{ date: balance.date, amount: balance.amount, currency: "EUR" }] : [],
     unsupported,
   };
 }
