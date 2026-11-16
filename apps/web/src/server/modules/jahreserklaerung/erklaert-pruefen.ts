@@ -132,6 +132,7 @@ export const erklaertZeile = (x: ErklaertAbweichung): AbgleichZeile => ({
   bereich: x.form === "ust" ? "ustva" : "euer",
   zeitraum: String(x.year),
   posten: `${FORM[x.form]} (${x.art}), ${x.feld}`,
+  schluessel: `erklaert:${x.year}:${x.form}:${x.art}:${x.feld}`,
   journal: x.journal,
   quelle: x.erklaert,
   gegen: x.art === "übermittelt" ? "übermittelt" : "beim Vermerk gerechnet",

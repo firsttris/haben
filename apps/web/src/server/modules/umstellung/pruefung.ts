@@ -2,7 +2,7 @@ import { desc, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import type { JournalUmstellungBefund } from "../../db/schema.ts";
-import { abgleichJahr, abweichungen, befundText } from "../auswertungen/index.ts";
+import { abgleichJahr, abweichungen, befundText, type AbgleichZeile } from "../auswertungen/index.ts";
 import { erklaerteAbweichungen, erklaertZeile } from "../jahreserklaerung/index.ts";
 
 /*
@@ -41,6 +41,16 @@ async function jahreVor(stichjahr: number, q: Db | Tx): Promise<number[]> {
   return rows.map((r) => Number(r.year));
 }
 
+/** Ein Befund wie gespeichert: Text zum Lesen, dazu Bereich, Schlüssel und Beträge zum Wiedererkennen (#1229) */
+const befund = (jahr: number, z: AbgleichZeile): JournalUmstellungBefund => ({
+  jahr,
+  text: befundText(z),
+  bereich: z.bereich,
+  ...(z.schluessel === undefined ? {} : { schluessel: z.schluessel }),
+  journal: z.journal,
+  quelle: z.quelle,
+});
+
 /**
  * Was in den Jahren vor dem früheren Stichjahr nicht stimmt; leer = bestanden. Dieselben Prüfungen wie der Abgleich in der
  * Integritätsprüfung (abgleichJahr): gesendete Voranmeldungen und ZM gegen das Journal, Verprobung der Umsatzsteuer je Buchung,
@@ -50,8 +60,11 @@ export async function umstellungBefunde(stichjahr: number, today: string, q: Db 
   const befunde: JournalUmstellungBefund[] = [];
   for (const jahr of await jahreVor(stichjahr, q)) {
     const { zeilen } = await abgleichJahr(jahr, today, q, new Map());
-    for (const z of abweichungen(zeilen).filter((x) => x.bereich === "ustva" || x.bereich === "beleg")) befunde.push({ jahr, text: befundText(z) });
-    for (const x of await erklaerteAbweichungen([jahr])) befunde.push({ jahr, text: befundText(erklaertZeile(x)) });
+    const zeilenDesJahres = [
+      ...abweichungen(zeilen).filter((x) => x.bereich === "ustva" || x.bereich === "beleg"),
+      ...(await erklaerteAbweichungen([jahr])).map(erklaertZeile),
+    ];
+    befunde.push(...zeilenDesJahres.map((z) => befund(jahr, z)));
   }
   return befunde;
 }
