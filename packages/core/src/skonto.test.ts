@@ -205,7 +205,8 @@ describe("parsePercent und formatPercent", () => {
       ["100", 10_000],
     ] as const)
       expect(parsePercent(text), text).toBe(points);
-    for (const text of ["%", "1%2", "% 2", "1.000", "1.000,00", "0.010", "2 €", "abc", "1e2", "2,5 % %"]) expect(parsePercent(text), text).toBeNull();
+    for (const text of ["%", "1%2", "% 2", "1.000", "1.000,00", "0.010", "2 €", "abc", "1e2", "2,5 % %", "2 5", "1 000", "2, 5"])
+      expect(parsePercent(text), text).toBeNull();
   });
 
   it("liest negative Sätze nur auf Wunsch (Basiszinssatz)", () => {

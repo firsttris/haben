@@ -156,13 +156,14 @@ export function skontoGezogen(fristen: readonly SkontoZahlfrist[] | undefined, p
 }
 
 /**
- * Der eine Leser für Prozentfelder (#1222): „2“, „2,5 %“ oder „23.07“ → Basispunkte. Ein „%“ nur am Ende, Komma als
- * Dezimaltrenner, ein Punkt nur, wenn er eindeutig einer ist (eine oder zwei Ziffern dahinter, kein Komma); Tausenderpunkte
- * gibt es bei Prozent nicht. Negativ nur mit `negative` (Basiszinssatz, § 247 BGB). null, wenn die Eingabe so kein Satz
- * mit höchstens zwei Nachkommastellen ist. Grenzen wie 0 bis 100 % prüft das Feld.
+ * Der eine Leser für Prozentfelder (#1222): „2“, „2,5 %“ oder „23.07“ → Basispunkte. Ein „%“ nur am Ende, Leerzeichen
+ * nur am Rand und vor dem „%“ („2 5“ ist kein Satz), Komma als Dezimaltrenner, ein Punkt nur, wenn er eindeutig einer ist
+ * (eine oder zwei Ziffern dahinter, kein Komma); Tausenderpunkte gibt es bei Prozent nicht. Negativ nur mit `negative`
+ * (Basiszinssatz, § 247 BGB). null, wenn die Eingabe so kein Satz mit höchstens zwei Nachkommastellen ist. Grenzen wie 0
+ * bis 100 % prüft das Feld.
  */
 export function parsePercent(input: string, { negative = false }: { negative?: boolean } = {}): BasisPoints | null {
-  let text = input.replace(/\s/g, "").replace(/−/g, "-").replace(/%$/, "");
+  let text = input.trim().replace(/−/g, "-").replace(/\s*%$/, "");
   if (/^-?\d+\.\d{1,2}$/.test(text)) text = text.replace(".", ",");
   const match = /^(-?)(\d+)(?:,(\d{1,2}))?$/.exec(text);
   if (!match) return null;

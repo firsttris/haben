@@ -77,7 +77,7 @@ export function parseEuro(input: string): Cents | null {
   return parseHundredths(input);
 }
 
-/** Zahl mit höchstens zwei Nachkommastellen in ganzen Hundertsteln, ohne Einheit: „19,5“ → 1950 (Euro in Cent, Prozent in Basispunkten) */
+/** Zahl mit höchstens zwei Nachkommastellen in ganzen Hundertsteln, ohne Einheit: „19,5“ → 1950; Leser hinter parseEuro, Prozentfelder lesen über parsePercent */
 export function parseHundredths(input: string): number | null {
   const cleaned = input.replace(/\s|€/g, "").replace(/−/g, "-");
   if (!/^-?(\d{1,3}(\.\d{3})+|\d+)(,\d{1,2})?$/.test(cleaned)) return null;
