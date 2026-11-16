@@ -4,7 +4,7 @@ import { type FormEvent, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { BereichFragen, StartFrage, UnternehmenFragen } from "../../components/EinrichtungFragen.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
-import { type Antworten, antwortenAus, rueckfrageAenderungen, steuerangabenNach } from "../../lib/einrichtung.ts";
+import { type Antworten, antwortenAus, erneutDurchgehen, rueckfrageAenderungen, steuerangabenNach } from "../../lib/einrichtung.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { getEinrichtung, saveEinrichtung } from "../../server/functions/einrichtung.ts";
 
@@ -22,13 +22,15 @@ const SCHRITTE = ["Dein Unternehmen", "Start in Haben", "Bereiche"] as const;
 
 function EinrichtungPage() {
   const { stand, locks } = Route.useLoaderData();
+  // Schon einmal eingerichtet oder Firmendaten gespeichert: aus den Einstellungen gekommen, zurück dorthin
+  const erneut = erneutDurchgehen(stand);
   const router = useRouter();
   const save = useServerFn(saveEinrichtung);
   const { busy, notice, run } = useAction();
   const [schritt, setSchritt] = useState(0);
   const [antworten, setAntworten] = useState<Antworten>(() => antwortenAus(stand));
   // Steuerberatung und Umzug stehen nirgends gespeichert; sie öffnen nur weitere Angaben
-  const [steuerberatung, setSteuerberatung] = useState<boolean | null>(stand.eingerichtet && stand.kontenrahmen === "SKR04" ? true : null);
+  const [steuerberatung, setSteuerberatung] = useState<boolean | null>(erneut && stand.kontenrahmen === "SKR04" ? true : null);
   const [wechsel, setWechsel] = useState<boolean | null>(null);
   const [rueckfrage, setRueckfrage] = useState(false);
   const titel = useRef<HTMLHeadingElement>(null);
@@ -49,7 +51,7 @@ function EinrichtungPage() {
     void run(async () => {
       await save({ data: antworten });
       await router.invalidate();
-      await router.navigate(stand.eingerichtet ? { to: "/einstellungen", search: { bereich: "bereiche" } } : { to: "/" });
+      await router.navigate(erneut ? { to: "/einstellungen", search: { bereich: "bereiche" } } : { to: "/" });
     });
   }
 
@@ -64,8 +66,8 @@ function EinrichtungPage() {
     <>
       <div className="page-head">
         <div>
-          <div className="eyebrow">{stand.eingerichtet ? "Einstellungen" : "Willkommen"}</div>
-          <h1>{stand.eingerichtet ? "Fragen zur Einrichtung" : "Haben einrichten"}</h1>
+          <div className="eyebrow">{erneut ? "Einstellungen" : "Willkommen"}</div>
+          <h1>{erneut ? "Fragen zur Einrichtung" : "Haben einrichten"}</h1>
         </div>
       </div>
       <form className="card form-card form-narrow einrichtung" onSubmit={onSubmit} aria-labelledby="einrichtung-schritt" noValidate>
@@ -101,7 +103,7 @@ function EinrichtungPage() {
         </section>
         <NoticeBanner notice={notice} />
         <div className="actions form-footer">
-          {stand.eingerichtet ? (
+          {erneut ? (
             <Link to="/einstellungen" search={{ bereich: "bereiche" }} className="btn">
               Abbrechen
             </Link>

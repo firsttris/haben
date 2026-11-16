@@ -57,9 +57,17 @@ function selbstaendigAus(rechtsform: Rechtsform, einkunftsart: Einkunftsart | nu
   return einkunftsart;
 }
 
+/**
+ * Die Angaben sind schon einmal bewusst gemacht, in den Fragen oder in den Firmendaten, auch bei jeder Instanz von vor
+ * #266. Dann sind die Fragen ein erneutes Durchgehen: vorausgefüllt, mit Rückfrage vor jeder Änderung.
+ */
+export function erneutDurchgehen(stand: Pick<Stand, "eingerichtet" | "firmendatenGespeichert">): boolean {
+  return stand.eingerichtet || stand.firmendatenGespeichert;
+}
+
 /** Antworten zum Vorausfüllen: beim ersten Mal nur, was schon feststeht, danach die gespeicherten Angaben */
 export function antwortenAus(stand: Stand): Antworten {
-  const entschieden = stand.eingerichtet || stand.firmendatenGespeichert;
+  const entschieden = erneutDurchgehen(stand);
   const offen = (frage: OffeneFrage) => !entschieden || stand.einrichtungOffen.includes(frage);
   const bereiche: Partial<Record<BereichId, boolean>> = {};
   for (const { id } of BEREICHE) {
@@ -121,7 +129,7 @@ export function aenderungen(vorher: Steuerangaben, nachher: Steuerangaben): { fe
 
 /** Was die Rückfrage vor dem Speichern nennt; beim ersten Mal ersetzen die Antworten nur Vorgaben, die niemand gewählt hat */
 export function rueckfrageAenderungen(stand: Stand, antworten: Antworten): { feld: string; von: string; nach: string }[] {
-  return stand.eingerichtet ? aenderungen(stand, steuerangabenNach(stand, antworten)) : [];
+  return erneutDurchgehen(stand) ? aenderungen(stand, steuerangabenNach(stand, antworten)) : [];
 }
 
 /** Woran die Startseite erinnert: was mit „weiß ich nicht“ offen bleibt */
