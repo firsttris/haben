@@ -11,7 +11,8 @@ import { umstellungPruefen } from "./pruefung.ts";
  */
 
 /** Wer eine Abweichung übernimmt, erkennt, dass eine Meldung falsch gewesen sein kann (Hinweis von Dudeplayz in #1144) */
-const BERICHTIGUNG = "Prüfe, ob die damals gemeldeten Werte falsch waren. Dann ist eine berichtigte Voranmeldung bzw. Erklärung abzugeben (§ 153 AO).";
+const BERICHTIGUNG =
+  "Prüfe, ob die damals gemeldeten Werte unrichtig waren. Kann es dadurch zu einer Verkürzung von Steuern kommen oder ist es dazu gekommen und läuft die Festsetzungsfrist noch, ist das unverzüglich anzuzeigen und die Voranmeldung bzw. Erklärung zu berichtigen (§ 153 Abs. 1 Satz 1 Nr. 1 AO).";
 
 const uebernehmen = (process.env.HABEN_ABWEICHUNG_UEBERNEHMEN ?? "")
   .split(",")
