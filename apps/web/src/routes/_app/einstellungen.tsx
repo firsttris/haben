@@ -330,13 +330,17 @@ const dunningErrors = (baseRate: string, fees: Record<"1" | "2" | "3", string>) 
   "dunning-fee-3": dunningFeeError(fees["3"]),
 });
 
-/** Klartext unter den Feldern Versteuerung und Kontenrahmen; ist das Feld gesperrt, steht statt des Sperrsatzes der genaue Grund */
+/**
+ * Klartext unter den Feldern Versteuerung und Kontenrahmen; ist das Feld gesperrt, steht statt des Sperrsatzes der genaue Grund.
+ * Quelle: Ist-Versteuerung gestattet das Finanzamt auf Antrag (§ 20 UStG, docs/einrichtung.md: Versteuerung); die Sperren
+ * stehen in settings-guard.ts (docs/einrichtung.md: Wann sich die Einstellungen ändern lassen).
+ */
 const VERSTEUERUNG_HINT =
   "Ist: Die Umsatzsteuer zählt, wenn der Kunde zahlt. Soll: schon mit der Rechnung. Ob Ist für dich erlaubt ist, entscheidet das Finanzamt; im Zweifel fragst du deine Steuerberatung.";
-const VERSTEUERUNG_SPERRE = "Nach der ersten Buchung im Jahr gesperrt bis zum Jahreswechsel, ebenso solange Rechnungen offen sind.";
+const VERSTEUERUNG_SPERRE = "Nach der ersten Buchung im Jahr gesperrt, ebenso solange Rechnungen offen sind.";
 const KONTENRAHMEN_HINT =
   "Legt fest, auf welche Kontonummern Haben bucht (SKR03 oder SKR04). Nimm denselben wie bisher in Lexoffice oder bei deiner Steuerberatung.";
-const KONTENRAHMEN_SPERRE = "Nach der ersten Buchung im Jahr gesperrt bis zum Jahreswechsel.";
+const KONTENRAHMEN_SPERRE = "Nach der ersten Buchung im Jahr gesperrt; bei GmbH und UG dauerhaft, dann nur über die Steuerberatung.";
 
 function CompanyForm() {
   const { company, issues, letterIssues, locks } = Route.useLoaderData();

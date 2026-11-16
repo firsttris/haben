@@ -11,8 +11,8 @@ export const SETTINGS_AREAS = [
   { id: "bank", label: "Bank", hint: "Kontoabruf, Google Play, App Store" },
   { id: "konten", label: "Eigene Konten", hint: "Sachkonten mit eigener Nummer" },
   { id: "sicherheit", label: "Sicherheit", hint: "Passkeys, Passwort, Zugänge" },
-  { id: "waehrung", label: "Fremdwährung", hint: "Umrechnungskurse für die Umsatzsteuer (BMF)" },
-  { id: "ki", label: "KI-Assistenten und API", hint: "Assistenten (MCP), Zugangsschlüssel (Token), Belege auslesen" },
+  { id: "waehrung", label: "Fremdwährung", hint: "Umrechnungskurse für die Umsatzsteuer (USt, BMF)" },
+  { id: "ki", label: "KI-Assistenten und API", hint: "Assistenten (MCP), Zugangsschlüssel (API-Tokens), Belege auslesen (Belegauslesung)" },
   { id: "seiten", label: "Eigene Seiten", hint: "Eigene Werkzeuge im Menü" },
   { id: "export", label: "Export", hint: "Jahresarchiv, Steuerberatung (DATEV), Ablage, Backup, Prüfung, Version" },
 ] as const;

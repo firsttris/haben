@@ -99,6 +99,22 @@ describe("Befehlspalette-Ergebnisse (#617)", () => {
     expect(buildPageSection(seiten, "zzzz-nicht-vorhanden")).toBeNull();
   });
 
+  // Die Untertitel der Einstellungsbereiche sind die Suchwörter; Fachwörter, die jemand eintippt, müssen den Bereich weiter finden (#1253)
+  it.each([
+    ["ust", "waehrung"],
+    ["tokens", "ki"],
+    ["api-token", "ki"],
+    ["belegauslesung", "ki"],
+    ["eric", "elster"],
+    ["mcp", "ki"],
+    ["bmf", "waehrung"],
+    ["datev", "export"],
+    ["zertifikat", "elster"],
+  ])("findet bei „%s“ den Einstellungsbereich %s", (suche, bereich) => {
+    const bereiche = seiten.filter((s) => s.settingsArea);
+    expect(buildPageSection(bereiche, suche)?.items.map((item) => item.id) ?? []).toContain(`page-einstellungen-${bereich}`);
+  });
+
   it("baut für Inhaber alle vier Gruppen jeweils mit Link zur gefilterten Liste", () => {
     const sections = buildRemoteSections(sampleResult, true);
     expect(sections.map((s) => s.label)).toEqual(["Kontakte", "Rechnungen", "Angebote", "Belege"]);
