@@ -74,4 +74,9 @@ describe("Vorsteueranteil im Beleg", () => {
     expect(html).toContain('aria-invalid="true"');
     expect(html).toContain("Vorschau nach gültiger Eingabe");
   });
+  it("zeigt bei ungültigem Privatanteil keine Vorschau, statt mit 0 % zu rechnen (#1221)", () => {
+    const html = render({ privateShare: null });
+    expect(html).toContain("Vorschau nach gültiger Eingabe");
+    expect(html).not.toContain("19,00 €");
+  });
 });

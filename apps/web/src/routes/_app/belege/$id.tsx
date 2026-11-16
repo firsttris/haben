@@ -1055,7 +1055,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           company={data}
           booked={locked}
           storedDeduction={doc.vorsteuerAbzug}
-          privateShare={privateShareValue ?? 0}
+          privateShare={privateShareValue}
           asset={category === "anlage"}
           importVat={category === "einfuhrumsatzsteuer"}
           onChange={touch(setVorsteuerAnteil)}
