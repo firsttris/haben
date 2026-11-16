@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 
 /*
- * Einstellungen → Mahnwesen: Knopf „Bei der Bundesbank abrufen“, Prüfung des Basiszinssatzes und Grenze der Gebühren (docs/einrichtung.md). Die echte Bundesbank fragt hier
+ * Einstellungen → Firma: Knopf „Bei der Bundesbank abrufen“, Prüfung von Basiszinssatz und Privatanteilen, Grenze der Gebühren (docs/einrichtung.md). Die echte Bundesbank fragt hier
  * niemand ab: Der Aufruf der Server-Funktion wird im Browser abgefangen und mit einem festen Ergebnis beantwortet, im Format,
  * das TanStack Start selbst schickt (seroval-JSON, Kopfzeile x-tss-serialized). Abruf und CSV prüfen die Vitest-Tests.
  */
@@ -123,7 +123,7 @@ test("Basiszinssatz: Unlesbares und Sätze außerhalb von −10 % bis 20 % stehe
   const field = await openDunning(page);
   const vorher = await field.inputValue();
   const speichern = page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" });
-  await field.fill("1.27");
+  await field.fill("1,275");
   await speichern.click();
   await expect(field).toBeFocused();
   await expect(field).toHaveAccessibleDescription(/etwa 1,27 oder -0,88/);
@@ -133,6 +133,19 @@ test("Basiszinssatz: Unlesbares und Sätze außerhalb von −10 % bis 20 % stehe
   await expect(page.getByText("Firmendaten gespeichert.")).toHaveCount(0);
   await openDunning(page);
   await expect(page.getByLabel("Basiszinssatz in %")).toHaveValue(vorher);
+});
+
+test("Privatanteil: keine ganze Zahl von 0 bis 100 steht am Feld, gespeichert wird nichts (#1221)", async ({ page }) => {
+  await openDunning(page);
+  const telefon = page.getByLabel("Privatanteil Telefon in %");
+  const vorher = await telefon.inputValue();
+  await telefon.fill("20,5");
+  await page.getByRole("form", { name: "Firmendaten" }).getByRole("button", { name: "Speichern" }).click();
+  await expect(telefon).toBeFocused();
+  await expect(telefon).toHaveAccessibleDescription(/ganze Zahl von 0 bis 100/);
+  await expect(page.getByText("Firmendaten gespeichert.")).toHaveCount(0);
+  await openDunning(page);
+  await expect(page.getByLabel("Privatanteil Telefon in %")).toHaveValue(vorher);
 });
 
 test("Firmendaten: Fehler stehen am Feld statt in der Blase des Browsers, der Fokus geht aufs erste", async ({ page }) => {

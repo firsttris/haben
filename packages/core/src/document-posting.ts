@@ -1,5 +1,5 @@
 import type { InvoiceTotals } from "./invoice.ts";
-import { splitPrivateShare, type BasisPoints } from "./money.ts";
+import { splitPrivateShare, type BasisPoints, type Prozent } from "./money.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
 import { abziehbareSteuer, buchungsAnteil } from "./vorsteuerabzug.ts";
 import {
@@ -57,7 +57,7 @@ export function documentPosting(
   /** Abweichendes Konto statt des Kategoriekontos, z. B. das Anlagekonto einer Anlage */
   account?: string,
   /** Privatanteil in Prozent, z. B. beim Handyvertrag: nur der betriebliche Teil ist Aufwand und Vorsteuer */
-  privateShare = 0,
+  privateShare: Prozent = 0,
   /**
    * § 13b: Die Steuer in totals schuldest du selbst, gezahlt wird nur netto (totals.gross = Netto).
    * Gebucht wird die Steuer als Umsatzsteuer und, mit Vorsteuerabzug, im selben Betrag als Vorsteuer.
@@ -109,7 +109,7 @@ function documentRatePosting(
     expense: string;
     kontenrahmen: Kontenrahmen;
     vorsteuerAbzug: boolean | BasisPoints;
-    privateShare: number;
+    privateShare: Prozent;
     reverseCharge: SelfAssessedTax | null;
     /** Vorsteuer auf das Zwischenkonto, siehe vorsteuerParken */
     parken: boolean;
@@ -167,7 +167,7 @@ function documentRatePosting(
 export function einfuhrumsatzsteuerIssues(
   totals: Pick<InvoiceTotals, "taxes">,
   vorsteuerAbzug: boolean,
-  privateShare: number,
+  privateShare: Prozent,
   reverseCharge: SelfAssessedTax | null,
 ): string[] {
   const issues: string[] = [];
@@ -185,7 +185,7 @@ function einfuhrumsatzsteuerPosting(
   rechtsform: Rechtsform,
   payment: DocumentPayment,
   vorsteuerAbzug: boolean,
-  privateShare: number,
+  privateShare: Prozent,
   reverseCharge: SelfAssessedTax | null,
 ): PostingLine[] {
   const issues = einfuhrumsatzsteuerIssues(totals, vorsteuerAbzug, privateShare, reverseCharge);

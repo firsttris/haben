@@ -58,7 +58,7 @@ export function DocumentSplits({
   onDissolve: () => void;
   /** Fehler je Zeile aus der Prüfung beim Buchen (useSubmitCheck), erst danach zu sehen */
   error?: (feld: "kategorie" | "netto", key: number) => string | undefined;
-  /** Steuer je Zeile: Vorsteuer, bei § 13b (#508) die selbst geschuldete Steuer */
+  /** Steuer je Zeile: Vorsteuer, ohne Abzug Umsatzsteuer (#978), bei § 13b (#508) die selbst geschuldete Steuer */
   taxLabel?: string;
 }) {
   const parsed = rows.map((row) => parseEuro(row.net || "0"));

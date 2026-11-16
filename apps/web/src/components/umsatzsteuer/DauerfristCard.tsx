@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
+import { amountError, formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -87,7 +87,7 @@ export function DauerfristCard({ overview, setup }: { overview: Overview; setup:
           </p>
           <Field
             label="Sondervorauszahlung (Kz 38, volle Euro)"
-            error={parsed === null ? "Betrag in vollen Euro, nicht negativ." : undefined}
+            error={parsed === null ? amountError("die Sondervorauszahlung in vollen Euro", 400_000) : undefined}
             hint={
               parsed === null
                 ? undefined

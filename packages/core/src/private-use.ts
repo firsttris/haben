@@ -1,4 +1,4 @@
-import { taxOf, type Cents } from "./money.ts";
+import { taxOf, type BasisPoints, type Cents } from "./money.ts";
 import { ACCOUNTS, type Kontenrahmen, type PostingLine } from "./posting.ts";
 
 /**
@@ -21,7 +21,7 @@ export type CarDrive = keyof typeof CAR_DRIVES;
 export const CAR_DRIVE_KEYS = Object.keys(CAR_DRIVES) as [CarDrive, ...CarDrive[]];
 
 /** Monatlicher Satz in Hundertstel Prozent: 100 = 1 %, 50 = 0,5 %, 25 = 0,25 % */
-export type PrivateUseRate = 100 | 50 | 25;
+export type PrivateUseRate = BasisPoints & (100 | 50 | 25);
 
 export interface CarPrivateUse {
   /** Bruttolistenpreis inklusive Sonderausstattung und Umsatzsteuer, in Cent */

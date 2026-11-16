@@ -1,4 +1,4 @@
-import { billableAmount, formatDecimal, formatDuration, parseDuration, parseEuro } from "@haben/core";
+import { amountError, billableAmount, formatDecimal, formatDuration, parseDuration, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -41,7 +41,7 @@ export function ServiceEntryForm({
     const billable = billableText === "" ? null : parseDuration(billableText);
     if (billableText !== "" && billable === null) return setError("Die abrechenbare Dauer ist nicht lesbar. Schreibe sie als 1:30, 1,5 oder 90 min.");
     const rate = text("rate") === "" ? undefined : parseEuro(text("rate"));
-    if (rate === null || (rate !== undefined && rate < 0)) return setError("Der Stundensatz ist kein gültiger Betrag.");
+    if (rate === null || (rate !== undefined && rate < 0)) return setError(amountError("den Stundensatz", 9_500));
     setBusy(true);
     setError(null);
     try {

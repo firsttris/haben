@@ -82,7 +82,31 @@ export function vorsteuerPruefen(getPage: () => Page) {
       await sql.end();
     }
   });
+  steuerspaltePruefen(getPage);
   einfuhrumsatzsteuerPruefen(getPage);
+  privatanteilVorschauPruefen(getPage);
+}
+
+function privatanteilVorschauPruefen(getPage: () => Page) {
+  test("Privatanteil: ein ungültiger Anteil zeigt keine scheinbar gültige Vorsteuervorschau (#1221)", async ({ browser }) => {
+    const page = getPage();
+    const route = await belegAnlegen(page, browser);
+    try {
+      const preview = page.getByRole("status", { name: "Vorsteuervorschau" });
+      const privat = page.getByLabel("Privatanteil in %", { exact: true });
+      await expect(preview).toContainText("Abziehbare Vorsteuer 19,00");
+      await privat.fill("20");
+      await expect(preview).toContainText("Abziehbare Vorsteuer 15,20");
+      await expect(preview).toContainText("(nach Privatanteil)");
+      // Mehr als 100 % ist kein Privatanteil: Die Vorschau rechnet nicht still mit 0 %, sondern wartet auf eine gültige Eingabe
+      await privat.fill("150");
+      await expect(preview).toHaveText("Vorschau nach gültiger Eingabe der Beträge und Anteile.");
+    } finally {
+      await page.locator(".doc-actions").getByRole("button", { name: "Löschen", exact: true }).click();
+      await bestaetigen(page, "Beleg löschen");
+      await page.waitForURL((url) => url.pathname !== route && /^\/belege(?:\/[0-9a-f-]{36})?$/.test(url.pathname));
+    }
+  });
 }
 
 function einfuhrumsatzsteuerPruefen(getPage: () => Page) {
@@ -150,4 +174,30 @@ async function belegAnlegen(page: Page, browser: Browser): Promise<string> {
   await page.getByLabel("Kategorie").selectOption("software");
   await page.getByLabel("Netto", { exact: true }).fill("100,00");
   return new URL(page.url()).pathname;
+}
+
+function steuerspaltePruefen(getPage: () => Page) {
+  test("Ohne Vorsteuerabzug heißt die Steuerspalte „Umsatzsteuer“, auch in der Aufteilung (#978)", async ({ browser }) => {
+    const page = getPage();
+    const route = await belegAnlegen(page, browser);
+    try {
+      const share = page.getByLabel("Abziehbare Vorsteuer in %", { exact: true });
+      const split = page.locator("#aufteilung");
+      await expect(page.getByLabel("Vorsteuer", { exact: true })).toHaveValue("19,00");
+      // 0 % abziehbar: Die Steuer auf dem Beleg wird Aufwand, die Spalte darf keinen Vorsteuerabzug nahelegen
+      await share.fill("0");
+      await expect(page.getByLabel("Umsatzsteuer", { exact: true })).toHaveValue("19,00");
+      await expect(page.getByLabel("Vorsteuer", { exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
+      await expect(split).toContainText("Die Umsatzsteuer verteilt Haben anteilig");
+      // Ein Teilabzug bleibt Vorsteuer
+      await share.fill("50");
+      await expect(page.getByLabel("Vorsteuer", { exact: true })).toHaveValue("19,00");
+      await expect(split).toContainText("Die Vorsteuer verteilt Haben anteilig");
+    } finally {
+      await page.locator(".doc-actions").getByRole("button", { name: "Löschen", exact: true }).click();
+      await bestaetigen(page, "Beleg löschen");
+      await page.waitForURL((url) => url.pathname !== route && /^\/belege(?:\/[0-9a-f-]{36})?$/.test(url.pathname));
+    }
+  });
 }

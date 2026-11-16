@@ -3,7 +3,7 @@
  * im Intervall Eingangsbelege an. Termine wie bei wiederkehrenden Rechnungen (recurring.ts): Ankertag, der 31. wird in
  * kürzeren Monaten zum Monatsende und springt danach zurück, verpasste Termine werden nachgeholt.
  */
-import type { Cents } from "./money.ts";
+import type { BasisPoints, Cents } from "./money.ts";
 import { addMonthsAnchored, dueDates, type RecurringInterval } from "./recurring.ts";
 
 /** aktiv = legt Belege an, pausiert = vorübergehend nicht, beendet = endgültig (Enddatum erreicht oder von Hand) */
@@ -25,7 +25,7 @@ export interface DauerbelegTermine {
 }
 
 export interface DauerbelegBetrag {
-  taxRate: number;
+  taxRate: BasisPoints;
   net: Cents;
   tax: Cents;
 }
