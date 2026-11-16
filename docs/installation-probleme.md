@@ -16,7 +16,7 @@ description: >-
 
 **„Haben ist bereits eingerichtet.“** Im Standardmodus hat Haben genau einen Inhaber. Ein zweites Konto entsteht nur über einen Einladungslink für die [Steuerberatung](steuerberatung.md), weder mit dem Einrichtungscode noch über die API.
 
-**Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** Unter **Einstellungen › ELSTER › ERiC** herunterladen. Hast du ERiC von Hand eingebunden, ist `ERIC_HOME` in der App nicht gesetzt; prüfe `.env` bzw. `haben.env` und starte die App neu.
+**Die Oberfläche meldet „ERiC ist nicht eingerichtet“ (in der Übersicht: „Senden an das Finanzamt ist noch nicht eingerichtet“).** Unter **Einstellungen › ELSTER › ERiC** herunterladen. Hast du ERiC von Hand eingebunden, ist `ERIC_HOME` in der App nicht gesetzt; prüfe `.env` bzw. `haben.env` und starte die App neu.
 
 **Der ERiC-Download scheitert.** Die Meldung steht unter **Einstellungen › ELSTER › ERiC**. „Gibt es nicht (mehr)“ heißt: Die Version ist zu alt oder vertippt; die aktuelle steht auf der Infoseite. Der Server muss `download.elster.de` per HTTPS erreichen und während der Installation rund 800 MB im Volume `eric` bzw. `haben-eric` frei haben (siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden)).
 

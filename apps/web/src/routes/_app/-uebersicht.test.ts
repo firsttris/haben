@@ -63,7 +63,7 @@ describe("Übersicht: relevante Voranmeldungshinweise (#691)", () => {
     const html = render();
     expect(html).not.toContain("Voranmeldung Oktober 2026");
     expect(html).not.toContain("USt-Zahllast");
-    expect(html).not.toContain("ERiC ist nicht eingerichtet");
+    expect(html).not.toContain("Senden an das Finanzamt ist noch nicht eingerichtet");
     expect(html).not.toContain("Letzte Voranmeldungen");
     expect(html).not.toContain("ELSTER-Zertifikat");
     expect(html).toContain("Offene Forderungen");
@@ -77,7 +77,7 @@ describe("Übersicht: relevante Voranmeldungshinweise (#691)", () => {
     expect(html).toContain("Voranmeldung Oktober 2026 senden");
     expect(html).toContain("Voranmeldung fällig 10.11.2026");
     expect(html).toContain("USt-Zahllast Oktober 2026");
-    expect(html).toContain("ERiC ist nicht eingerichtet");
+    expect(html).toContain("Senden an das Finanzamt ist noch nicht eingerichtet");
   });
 
   it("bei Befreiung ohne vorhandene Anmeldung entsteht keine Voranmeldungsaufforderung", () => {
@@ -86,7 +86,7 @@ describe("Übersicht: relevante Voranmeldungshinweise (#691)", () => {
     const html = render();
     expect(html).not.toContain("Voranmeldung Oktober 2026");
     expect(html).not.toContain("USt-Zahllast");
-    expect(html).not.toContain("ERiC ist nicht eingerichtet");
+    expect(html).not.toContain("Senden an das Finanzamt ist noch nicht eingerichtet");
   });
 
   it("vorhandene übermittelte Anmeldung bleibt auch für einen Kleinunternehmer erreichbar", () => {
@@ -146,5 +146,34 @@ describe("Übersicht: Fragen zur Einrichtung", () => {
     const html = render();
     expect(html).not.toContain("Haben einrichten");
     expect(html).not.toContain("Kleinunternehmer klären");
+  });
+});
+
+// Hinweise in Alltagssprache (#1253): Fachwort bleibt erkennbar, Ziel (Link) bleibt
+describe("Übersicht: Hinweise in Klartext", () => {
+  beforeEach(() => {
+    state.data = fixture();
+    state.einrichtung = null;
+  });
+
+  it("Geldtransit: sagt, was zwischen den Konten fehlt, in beiden Richtungen", () => {
+    state.data.transit = 50000;
+    let html = render();
+    expect(html).toContain("Umbuchung zwischen deinen Konten ist nicht ausgeglichen");
+    expect(html).toContain("500,00");
+    expect(html).toContain("abgegangen, aber auf keinem deiner Konten angekommen");
+    expect(html).toContain("Zum Geldtransit fehlt die Gegenbuchung");
+    expect(html).toContain('href="/bank"');
+    state.data.transit = -50000;
+    html = render();
+    expect(html).toContain("angekommen, ohne dass es woanders abgegangen ist");
+  });
+
+  it("AfA: Abschreibung ausgeschrieben, AfA in Klammern, Ziel bleibt das Anlagenverzeichnis", () => {
+    state.data.afaPending = [{ year: 2025, count: 2 }];
+    const html = render();
+    expect(html).toContain("Abschreibung (AfA) 2025 buchen");
+    expect(html).toContain("Für 2 Anlagen im Anlagenverzeichnis ist sie noch nicht gebucht");
+    expect(html).toContain('href="/anlagen"');
   });
 });
