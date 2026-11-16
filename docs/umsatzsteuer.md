@@ -235,7 +235,7 @@ Vereinbarte **Teilleistungen** (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 2 und 3 UStG) 
 
 ### Vorsteuer (Kz 66)
 
-Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung.
+Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung. Bei [anteiligem Vorsteuerabzug](belege.md#anteiliger-vorsteuerabzug) zählt nur der beim Buchen festgehaltene abziehbare Teil.
 
 Zwei Vorgänge verschieben die Minderung. Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG). Eine **Gutschrift mit der Angabe „erstattet bereits Bezahltes“** erstattet ein schon bezahltes Entgelt; ihre Vorsteuer mindert sich erst, wenn das Geld tatsächlich zurückkommt oder der Posten verrechnet wird, je Zahlung, Verrechnung und Kursdifferenz anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum. Ohne die Angabe gilt auch für eine Gutschrift das Belegdatum; die Angabe gibt es nur an Gutschriften, die über die Bank laufen ([Gutschrift für schon Bezahltes](belege.md#gutschrift-für-schon-bezahltes)).
 
@@ -251,7 +251,7 @@ Aus [Belegen mit § 13b](belege-ausland.md#reverse-charge-als-leistungsempfänge
 | --- | --- |
 | 46 / 47 | Sonstige Leistungen eines Unternehmers aus dem EU-Ausland (§ 13b Abs. 1): Netto in vollen Euro, Steuer centgenau |
 | 84 / 85 | Andere Leistungen nach § 13b Abs. 2, hier Leistungen von Unternehmern aus dem Drittland: Netto in vollen Euro, Steuer centgenau |
-| 67 | Vorsteuer aus diesen Leistungen, bei Privatanteil nur der betriebliche Teil; ohne Vorsteuerabzug 0 |
+| 67 | Vorsteuer aus diesen Leistungen, bei Privatanteil nur der betriebliche Teil, bei anteiligem Abzug nur der abziehbare Teil; ohne Vorsteuerabzug 0 |
 
 Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst. Ein [auf mehrere Kategorien aufgeteilter Beleg](belege.md#auf-mehrere-kategorien-aufteilen) zählt mit seinen Beträgen je Satz, genau wie ohne Aufteilung.
 
@@ -263,7 +263,7 @@ Aus [Belegen mit innergemeinschaftlichem Erwerb](belege-ausland.md#innergemeinsc
 | --- | --- |
 | 89 | Steuerpflichtige innergemeinschaftliche Erwerbe zu 19 %: Netto in vollen Euro, die Steuer rechnet das Formular daraus wie bei Kz 81 |
 | 93 | Steuerpflichtige innergemeinschaftliche Erwerbe zu 7 %: ebenso |
-| 61 | Vorsteuer aus dem innergemeinschaftlichen Erwerb (§ 15 Abs. 1 Satz 1 Nr. 3 UStG), centgenau; bei Privatanteil nur der betriebliche Teil |
+| 61 | Vorsteuer aus dem innergemeinschaftlichen Erwerb (§ 15 Abs. 1 Satz 1 Nr. 3 UStG), centgenau; bei Privatanteil nur der betriebliche Teil, bei anteiligem Abzug nur der abziehbare Teil |
 
 Bei vollem Vorsteuerabzug heben sich Erwerbsteuer und Kz 61 auf, bis auf die Rundung der Bemessungsgrundlage auf volle Euro. Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst.
 

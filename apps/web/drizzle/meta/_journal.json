@@ -1877,6 +1877,20 @@
       "when": 1794787595377,
       "tag": "0267_sevdesk_artikel",
       "breakpoints": true
+    },
+    {
+      "idx": 268,
+      "version": "7",
+      "when": 1794793142253,
+      "tag": "0268_vorsteuer_teilabzug",
+      "breakpoints": true
+    },
+    {
+      "idx": 269,
+      "version": "7",
+      "when": 1794802727031,
+      "tag": "0269_outgoing_tax_details",
+      "breakpoints": true
     }
   ]
 }

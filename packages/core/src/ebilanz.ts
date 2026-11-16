@@ -292,6 +292,7 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     // Leistungsort im Ausland: in Deutschland nicht steuerbar
     [a.erloeseSonder.reverse_charge, [`${GS}.untaxable`]],
     [a.erloeseSonder.drittland, [`${GS}.untaxable`]],
+    [a.erloeseSonder.eu_sonstige, [`${GS}.untaxable`]],
     // Steuerfreie Lieferungen mit Vorsteuerabzug: innergemeinschaftlich an Abnehmer mit USt-IdNr. und Ausfuhr
     [a.erloeseSonder.ig_lieferung, [`${GS}.taxExemptUStG4_1b.VIES_ID`]],
     [a.erloeseSonder.ausfuhr, [`${GS}.taxExemptUStG4_1a`]],

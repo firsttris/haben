@@ -113,7 +113,7 @@ const POSTEN: { feld: JournalKennzahl; posten: string; beiIst: BeiIst }[] = [
   { feld: "kz21", posten: "Reverse Charge, Leistung ins EU-Ausland (Kz 21)", beiIst: "immer" },
   { feld: "kz41", posten: "Innergemeinschaftliche Lieferung (Kz 41)", beiIst: "immer" },
   { feld: "kz43", posten: "Ausfuhrlieferung (Kz 43)", beiIst: "nie" },
-  { feld: "kz45", posten: "Leistung ins Drittland, nicht steuerbar (Kz 45)", beiIst: "immer" },
+  { feld: "kz45", posten: "Übrige nicht im Inland steuerbare Umsätze (Kz 45)", beiIst: "immer" },
   { feld: "kz48", posten: "Steuerfrei ohne Vorsteuerabzug (Kz 48)", beiIst: "nie" },
   { feld: "kz46", posten: "Bemessungsgrundlage § 13b EU-Ausland (Kz 46)", beiIst: "immer" },
   { feld: "kz84", posten: "Bemessungsgrundlage § 13b Drittland (Kz 84)", beiIst: "immer" },

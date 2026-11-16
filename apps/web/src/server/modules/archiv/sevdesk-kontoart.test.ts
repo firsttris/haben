@@ -260,7 +260,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften auf Buchungskonto nach K
 
     it("ordnet jede Kontonummer wie datevAccountKind ein", async () => {
       const { datevAccountKind } = await import("@haben/import");
-      const { accountingTypeNumberKind } = await import("./sevdesk-kontoart.ts");
+      const { accountingTypeNumberKind } = await import("../auswertungen/altbestand-kontoart.ts");
       const numbers = [
         "2999",
         "3000",

@@ -75,6 +75,7 @@ function RecurringDetailPage() {
             note: recurring.note,
             propertyRetention: recurring.propertyRetention,
             taxTreatment: recurring.taxTreatment as TaxTreatment,
+            taxDetails: recurring.taxDetails,
             exemptionReason: recurring.exemptionReason,
             priceMode: recurring.priceMode,
             lines: recurring.lines.map((l) => ({ ...l, detail: l.detail ?? "", unit: l.unit as UnitLabel, taxRate: l.taxRate as 1900 | 700 | 0 })),

@@ -1,3 +1,4 @@
+import { kleinunternehmerAbzuege } from "./euer-ku.ts";
 import { fehlendeMonate } from "./fehlende-voranmeldungen.ts";
 import {
   ACCOUNTS,
@@ -397,6 +398,8 @@ export async function euerYear(year: number): Promise<EuerYear> {
   ]);
   // Ein negativer Saldo zwischen Zeile 58 und Zeile 18 wird umgegliedert, damit Anzeige und Übermittlung gleich sind (#933)
   const roheFiguren: EuerFigures = { ...euerFigures(euer), ...movements };
+  const kuAbzuege = await kleinunternehmerAbzuege(year);
+  if (kuAbzuege !== undefined) roheFiguren.kleinunternehmerAbzuege = kuAbzuege;
   const { figures, umgliederungen: ustUmgliederung } = euerUstUmgliedern(roheFiguren, year);
   const anlagen: AveuerAnlage[] = assets
     .filter((a) => a.year && a.method !== "gwg")
