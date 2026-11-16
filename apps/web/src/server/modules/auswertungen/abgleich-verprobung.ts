@@ -106,13 +106,14 @@ export function verprobungsZeilen(
   period: VatPeriod,
   buchungen: readonly JournalBuchung[],
   versteuerung: Versteuerung,
-): { posten: string; journal: Cents; erwartet: Cents; beleg: boolean }[] {
+): { posten: string; schluessel: string; journal: Cents; erwartet: Cents; beleg: boolean }[] {
   const months = new Set(monthsOfPeriod(period).map((m) => m.month));
   return buchungen
     .filter((b) => months.has(b.month) && b.sourceType !== "asset")
     .flatMap((b) =>
       verprobeBuchung(b.kontenrahmen, b.versteuerung ?? versteuerung, b.zeilen).map((a) => ({
         posten: `${ART[a.art]} ${a.satz / 100} % zur Bemessungsgrundlage ${formatEuro(a.bemessung)}: Buchung „${b.description}“ vom ${datum(b.date)}`,
+        schluessel: `buchung:${b.id}:${a.art}:${a.satz}`,
         journal: a.steuer,
         erwartet: a.erwartet,
         beleg: a.art === "vorsteuer" && b.sourceType === "document",
