@@ -175,7 +175,7 @@ Arbeitslohn (Anlage N) je Person, Vorsorgeaufwand, Sonderausgaben, haushaltsnahe
 | Kind | Je Kind Vorname, Geburtsdatum, Steuer-ID, Familienkasse und Kinderbetreuungskosten; leibliches Kind beider Ehegatten bzw. der steuerpflichtigen Person, Wohnsitz im Inland im ganzen Jahr bzw. ab Geburt |
 | KAP | Erträge mit und ohne inländischen Steuerabzug, ausländische Erträge, genutzter Sparer-Pauschbetrag, einbehaltene Kapitalertragsteuer, Solidaritätszuschlag und Kirchensteuer, Antrag auf Günstigerprüfung |
 
-Unter den Angaben zeigt Haben das geschätzte zu versteuernde Einkommen und die voraussichtliche Steuer, berechnet wie die [Steuerprognose](finanzamt.md#steuerprognose) mit dem tatsächlichen Gewinn des Jahres. Mit Arbeitslohn kommen die bereits einbehaltene Lohnsteuer samt Soli und Kirchensteuer und die voraussichtliche Nachzahlung bzw. Erstattung dazu.
+Über den Angaben zeigt Haben das geschätzte zu versteuernde Einkommen und die voraussichtliche Steuer, berechnet wie die [Steuerprognose](finanzamt.md#steuerprognose) mit dem tatsächlichen Gewinn des Jahres. Mit Arbeitslohn kommen die bereits einbehaltene Lohnsteuer samt Soli und Kirchensteuer und die voraussichtliche Nachzahlung bzw. Erstattung dazu.
 
 ### Was die Vorsorgezeilen bedeuten
 
