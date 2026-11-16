@@ -1,3 +1,4 @@
+import type { Cents } from "@haben/core";
 import { lexDate, lexToCents } from "../lexoffice/map.ts";
 import { sevNumber } from "./map.ts";
 import type { SevInvoice } from "./types.ts";
@@ -28,8 +29,8 @@ export interface SevMappedDunning {
   contactSevdeskId: string | null;
   contactName: string;
   currency: string;
-  /** Gemahnter Betrag in Cent (reminderTotal); null, wenn er fehlt */
-  total: number | null;
+  /** Gemahnter Betrag (reminderTotal); null, wenn er fehlt */
+  total: Cents | null;
 }
 
 type Loose = Record<string, unknown>;

@@ -1,33 +1,35 @@
-/* Aufteilung eines sevDesk-Belegs nach Steuersatz; Sätze in Basispunkten, Beträge in Cent. */
+import type { BasisPoints, Cents } from "@haben/core";
 
-type Bucket = { rate: number; net: number; tax: number };
+/* Aufteilung eines sevDesk-Belegs nach Steuersatz. */
+
+type Bucket = { rate: BasisPoints; net: Cents; tax: Cents };
 
 /** Sätze, die der Kopf eines Belegs ohne Positionen tragen kann: 19 % und 7 %, dazu 16 % und 5 % aus dem zweiten Halbjahr 2020. */
 export const SEV_HEAD_RATES = [1900, 700, 1600, 500] as const;
 
 /** Die Sätze aus 2020 zählen erst, wenn 19 % und 7 % nicht passen: Bei wenigen Cent läge sonst ein längst ungültiger Satz am nächsten. */
-export const SEV_TEMPORARY_HEAD_RATES: readonly number[] = [1600, 500];
+export const SEV_TEMPORARY_HEAD_RATES: readonly BasisPoints[] = [1600, 500];
 
 /**
  * Satz aus Netto und Steuer des Kopfs, in ganzen Zahlen; passt keiner auf einen Cent genau, bleibt 0. Von mehreren passenden
  * gilt der nächstliegende: Bei kleinen Beträgen liegen die Sätze innerhalb eines Cents. Der Cent bleibt als Grenze, denn vom
  * Brutto gerechnete Rechnungen weichen um mehr als einen halben Cent ab.
  */
-function rateFromHead(net: number, tax: number): number {
+function rateFromHead(net: Cents, tax: Cents): BasisPoints {
   if (tax === 0) return 0;
-  const distance = (rate: number) => Math.abs(net * rate - tax * 10_000);
+  const distance = (rate: BasisPoints) => Math.abs(net * rate - tax * 10_000);
   const matching = SEV_HEAD_RATES.filter((rate) => distance(rate) <= 10_000);
   const regular = matching.filter((rate) => !SEV_TEMPORARY_HEAD_RATES.includes(rate));
   const candidates = regular.length > 0 ? regular : matching;
-  return candidates.reduce<number>((best, rate) => (distance(rate) < distance(best) ? rate : best), candidates[0] ?? 0);
+  return candidates.reduce<BasisPoints>((best, rate) => (distance(rate) < distance(best) ? rate : best), candidates[0] ?? 0);
 }
 
 /**
  * Netto und Steuer je Steuersatz aus den Positionen. Maßgeblich sind die Summen des Belegs:
  * Rundungsdifferenzen zwischen Positionen und Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer.
  */
-export function taxesFromPositions(positions: { rate: number; net: number; tax: number }[], net: number, tax: number): Bucket[] {
-  const byRate = new Map<number, Bucket>();
+export function taxesFromPositions(positions: Bucket[], net: Cents, tax: Cents): Bucket[] {
+  const byRate = new Map<BasisPoints, Bucket>();
   for (const p of positions) {
     const b = byRate.get(p.rate) ?? { rate: p.rate, net: 0, tax: 0 };
     b.net += p.net;

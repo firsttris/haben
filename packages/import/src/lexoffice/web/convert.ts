@@ -1,3 +1,4 @@
+import type { Cents } from "@haben/core";
 import { lexToCents } from "../map.ts";
 import type {
   LexBookkeepingVoucherType,
@@ -58,7 +59,7 @@ export function webStatus(status: string | null | undefined): string {
   return status === "sepa_debit" ? "sepadebit" : (status ?? "");
 }
 
-const euro = (cents: number) => cents / 100;
+const euro = (cents: Cents) => cents / 100;
 
 // ------------------------------------------------------------ Kontakte
 
@@ -218,7 +219,7 @@ export function webSalesDocument(entry: WebEntry): LexSalesDocument {
  * rechnet Haben daraus wie Lexware Office: aus dem Bruttobetrag herausgerechnet bzw. auf den Nettobetrag
  * aufgeschlagen, kaufmännisch gerundet.
  */
-export function itemTax(cents: number, percent: number, gross: boolean): number {
+export function itemTax(cents: Cents, percent: number, gross: boolean): Cents {
   const share = gross ? percent / (100 + percent) : percent / 100;
   return Math.sign(cents) * Math.round(Math.abs(cents) * share) + 0;
 }

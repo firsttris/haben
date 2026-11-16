@@ -1,4 +1,4 @@
-import type { ExpenseCategory } from "@haben/core";
+import type { BasisPoints, Cents, ExpenseCategory } from "@haben/core";
 import { BU_RATES, type DatevBooking } from "../datev.ts";
 import type { AccountableExport } from "./source.ts";
 import type { AccountableExpenseRow, AccountableInvoice, AccountableVoucher } from "./types.ts";
@@ -75,7 +75,7 @@ export const ACCOUNTABLE_CATEGORY_BY_CODE: Readonly<Record<string, ExpenseCatego
 };
 
 /** Grenze für geringwertige Wirtschaftsgüter (§ 6 Abs. 2 EStG): bis 800 € netto sofort Aufwand */
-export const GWG_LIMIT = 800_00;
+export const GWG_LIMIT: Cents = 800_00;
 
 /**
  * Kategorie zu einem Buchungscode; null heißt, Haben kennt den Code nicht.
@@ -84,7 +84,7 @@ export const GWG_LIMIT = 800_00;
  * SKR03 0480), darüber ein Anlagegut (`anlage`, SKR03 0490), das abgeschrieben wird. Beides sind
  * verschiedene Zeilen in EÜR und Bilanz, deshalb wird hier nicht pauschal `hardware` gesetzt.
  */
-export function categoryForCode(code: string, net: number): ExpenseCategory | null {
+export function categoryForCode(code: string, net: Cents): ExpenseCategory | null {
   // 0480 ist das GWG-Konto, dort steht nie ein Anlagegut
   if (code === "0480") return "hardware";
   if (code === "0490") return net > GWG_LIMIT ? "anlage" : "hardware";
@@ -111,7 +111,7 @@ export function supplierFromText(text: string): string | null {
 }
 
 /** Cent aus einem DATEV-Betrag; der Leser liefert bereits Cent */
-export function taxFromGross(gross: number, rate: number): { net: number; tax: number } {
+export function taxFromGross(gross: Cents, rate: BasisPoints): { net: Cents; tax: Cents } {
   const tax = Math.round((gross * rate) / (10000 + rate));
   return { net: gross - tax, tax };
 }
@@ -189,7 +189,7 @@ export function mapAccountableExport(exp: AccountableExport): AccountableMapping
 }
 
 /** 1234 → „12,34 €“ für Hinweise */
-const euro = (cents: number) => `${(cents / 100).toFixed(2).replace(".", ",")} €`;
+const euro = (cents: Cents) => `${(cents / 100).toFixed(2).replace(".", ",")} €`;
 
 /** Zeilen aus `Daten.xlsx`, nachschlagbar über Belegfeld 1 und ersatzweise über Datum und Betrag */
 function expenseBook(rows: AccountableExpenseRow[]) {

@@ -1,5 +1,6 @@
 import { decodeText } from "./decode.ts";
-import { parseGermanAmount } from "./text.ts";
+import type { BasisPoints, Cents } from "@haben/core";
+import { parseGermanAmount, parseGermanRate } from "./text.ts";
 
 /** Die Datei ist kein DATEV-Buchungsstapel oder ist beschädigt. */
 export class DatevParseError extends Error {
@@ -31,8 +32,8 @@ export interface DatevHeader {
 export interface DatevBooking {
   /** Zeilennummer in der Datei (1-basiert), für Verweise auf das Original */
   row: number;
-  /** Cent, immer positiv; die Richtung steht in side */
-  amount: number;
+  /** Immer positiv; die Richtung steht in side */
+  amount: Cents;
   side: "S" | "H";
   currency: string;
   account: string;
@@ -46,8 +47,7 @@ export interface DatevBooking {
   costCenter1: string;
   costCenter2: string;
   euVatId: string;
-  /** Basispunkte: 19 % → 1900 */
-  euTaxRate: number | null;
+  euTaxRate: BasisPoints | null;
   /** Alle nicht leeren Spalten nach Spaltenname, unverändert */
   raw: Record<string, string>;
 }
@@ -350,9 +350,9 @@ export function parseDatevBuchungsstapel(bytes: Uint8Array): DatevStack {
     if (contraAccount === "") throw new DatevParseError(`${where}: Gegenkonto fehlt.`);
 
     const taxRateText = taxRateOf(fields);
-    let euTaxRate: number | null = null;
+    let euTaxRate: BasisPoints | null = null;
     if (taxRateText !== "") {
-      euTaxRate = parseGermanAmount(taxRateText);
+      euTaxRate = parseGermanRate(taxRateText);
       if (euTaxRate === null || euTaxRate < 0) {
         throw new DatevParseError(`${where}: ungültiger EU-Steuersatz „${taxRateText}“.`);
       }
@@ -392,8 +392,8 @@ export function parseDatevBuchungsstapel(bytes: Uint8Array): DatevStack {
  * Reine Umsatzliste: bei Automatikkonten oder BU-Schlüssel sind die Beträge brutto, die
  * Steuer wird nicht auf ein Steuerkonto aufgeteilt.
  */
-export function datevAccountTotals(bookings: DatevBooking[]): { account: string; debit: number; credit: number }[] {
-  const totals = new Map<string, { account: string; debit: number; credit: number }>();
+export function datevAccountTotals(bookings: DatevBooking[]): { account: string; debit: Cents; credit: Cents }[] {
+  const totals = new Map<string, { account: string; debit: Cents; credit: Cents }>();
   const entry = (account: string) => {
     let t = totals.get(account);
     if (!t) {
@@ -447,8 +447,8 @@ export function datevAccountKind(kontenrahmen: Kontenrahmen, account: string, ac
 }
 
 export interface DatevYearSums {
-  einnahmen: { net: number; tax: number };
-  ausgaben: { net: number; tax: number };
+  einnahmen: { net: Cents; tax: Cents };
+  ausgaben: { net: Cents; tax: Cents };
 }
 
 /**

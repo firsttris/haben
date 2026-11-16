@@ -6,10 +6,12 @@
  * Zeile im Journal steht und DATEV sie sonst ein zweites Mal herausrechnen würde.
  */
 
+import type { Cents } from "@haben/core";
+
 export interface DatevExportLine {
   account: string;
-  debit: number;
-  credit: number;
+  debit: Cents;
+  credit: Cents;
 }
 
 export interface DatevExportEntry {
@@ -37,7 +39,7 @@ export interface DatevExportHeader {
 }
 
 export interface DatevBookingRow {
-  amount: number;
+  amount: Cents;
   side: "S" | "H";
   account: string;
   contraAccount: string;
@@ -177,7 +179,7 @@ export const DATEV_COLUMNS = [
 
 const text = (value: string) => `"${value.replace(/"/g, '""').replace(/[\r\n]+/g, " ")}"`;
 const compact = (iso: string) => iso.replace(/-/g, "");
-const amount = (cents: number) => `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
+const amount = (cents: Cents) => `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
 /**
  * Belegfeld 1 erlaubt nur Ziffern, Buchstaben und $ & % * + - /, höchstens 36 Zeichen; unzulässig sind „insbesondere
  * Leerzeichen, Umlaute, Punkt, Komma, Semikolon und Doppelpunkt“ (DATEV „ASCII-Import: Feldbeschreibungen für

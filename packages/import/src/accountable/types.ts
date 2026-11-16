@@ -7,7 +7,7 @@
  * die im Stapel fehlen.
  */
 
-import type { ExpenseCategory } from "@haben/core";
+import type { BasisPoints, Cents, ExpenseCategory } from "@haben/core";
 
 /** Eine Belegdatei aus dem Export, verknüpft über die GUID aus `document.xml` */
 export interface AccountableReceipt {
@@ -27,12 +27,12 @@ export interface AccountableVoucher {
   supplierName: string | null;
   /** Gegenkonto des Stapels, also das Aufwandskonto */
   account: string;
-  /** Bruttobetrag in Cent; bei BU-Schlüssel ist der Umsatz brutto */
-  gross: number;
-  net: number;
-  tax: number;
-  /** Basispunkte: 1900 = 19 %, 700 = 7 %, 0 = ohne Steuerautomatik */
-  taxRate: number;
+  /** Bruttobetrag; bei BU-Schlüssel ist der Umsatz brutto */
+  gross: Cents;
+  net: Cents;
+  tax: Cents;
+  /** 0 = ohne Steuerautomatik */
+  taxRate: BasisPoints;
   /** GUID des Belegs, falls die Buchung einen Beleglink hat */
   guid: string | null;
   text: string;
@@ -67,12 +67,12 @@ export interface AccountableExpenseRow {
   bookingDate: string | null;
   /** C */
   supplierName: string | null;
-  /** E in Cent; null, wenn die Zelle leer ist (etwa bei Fremdwährung ohne Eurobetrag) */
-  gross: number | null;
-  /** F in Cent */
-  net: number | null;
-  /** G in Cent */
-  tax: number | null;
+  /** E; null, wenn die Zelle leer ist (etwa bei Fremdwährung ohne Eurobetrag) */
+  gross: Cents | null;
+  /** F */
+  net: Cents | null;
+  /** G */
+  tax: Cents | null;
   /** H; leer heißt Euro. Beträge in anderer Währung sind nicht die des Stapels */
   currency: string;
   /**
@@ -81,8 +81,8 @@ export interface AccountableExpenseRow {
    * Steuersatz raten: Rechnungen ohne Netto-Spalte sehen genauso aus.
    */
   taxStatus: string;
-  /** J in Basispunkten: 1900 = 19 % */
-  taxRate: number | null;
+  /** J */
+  taxRate: BasisPoints | null;
   /** M; führende Nullen bleiben erhalten („0490“) */
   code: string;
   /** N */
@@ -119,8 +119,8 @@ export interface AccountableBankMovement {
   account: string;
   /** D */
   purpose: string;
-  /** E in Cent mit Vorzeichen: negativ ist eine Ausgabe */
-  amount: number | null;
+  /** E mit Vorzeichen: negativ ist eine Ausgabe */
+  amount: Cents | null;
   /** F */
   counterparty: string;
   /** G, IBAN der Gegenseite */
@@ -149,18 +149,18 @@ export interface AccountableRevenue {
   paidDate: string | null;
   /** H */
   customer: string;
-  /** I in Cent */
-  net: number | null;
-  /** J in Cent */
-  tax: number | null;
-  /** K in Cent */
-  gross: number | null;
+  /** I */
+  net: Cents | null;
+  /** J */
+  tax: Cents | null;
+  /** K */
+  gross: Cents | null;
   /** L */
   currency: string;
   /** M */
   item: string;
-  /** P in Basispunkten */
-  taxRate: number | null;
+  /** P */
+  taxRate: BasisPoints | null;
   /** Zeile im Sheet, 1-basiert */
   row: number;
 }
@@ -169,7 +169,7 @@ export interface AccountableRevenue {
 export interface AccountableInvoice {
   number: string;
   documentDate: string;
-  gross: number;
+  gross: Cents;
   text: string;
   row: number;
 }

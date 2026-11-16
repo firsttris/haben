@@ -1,7 +1,9 @@
+import type { BasisPoints } from "@haben/core";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { checkBalanceContinuity, detectStatementFormat, parseDotAmount, parseGermanAmount, parseStatement, StatementParseError } from "./index.ts";
 import { parseCsv } from "./csv.ts";
+import { parseGermanRate } from "./text.ts";
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
 
@@ -39,6 +41,29 @@ describe("parseGermanAmount", () => {
   it("rechnet ohne Gleitkommafehler", () => {
     expect(parseGermanAmount("0,29")).toBe(29);
     expect(parseGermanAmount("1.000.000,01")).toBe(100000001);
+  });
+});
+
+describe("parseGermanRate", () => {
+  it.each([
+    ["19", 1900],
+    ["19,00", 1900],
+    ["7,0", 700],
+    ["5,5", 550],
+    ["0", 0],
+  ])("%s → %i", (input, rate) => {
+    expect(parseGermanRate(input)).toBe(rate);
+  });
+
+  it.each(["", "abc", "19 %"])("lehnt %j ab", (input) => {
+    expect(parseGermanRate(input)).toBeNull();
+  });
+
+  it("liefert Basispunkte, wo parseGermanAmount Cent liefert", () => {
+    // Geprüft im Typecheck: Kompiliert die Zeile doch, meldet tsc die Direktive als unbenutzt (#1132)
+    // @ts-expect-error Cent sind keine Basispunkte
+    const rate: BasisPoints | null = parseGermanAmount("19");
+    expect(rate).toBe(parseGermanRate("19"));
   });
 });
 

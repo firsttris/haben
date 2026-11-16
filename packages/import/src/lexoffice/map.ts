@@ -1,3 +1,4 @@
+import type { BasisPoints, Cents } from "@haben/core";
 import type { LexContact, LexPayments, LexSalesDocument, LexSalesDocumentType, LexVoucher } from "./types.ts";
 
 /*
@@ -50,14 +51,14 @@ export interface LegacyVoucher {
   contactLexofficeId: string | null;
   contactName: string;
   currency: string;
-  /** Cent; Gutschriften negativ. net + tax === gross gilt immer. */
-  net: number;
-  tax: number;
-  gross: number;
-  /** je Steuersatz (Basispunkte), gleiche Vorzeichenregel */
-  taxes: { rate: number; net: number; tax: number }[];
+  /** Gutschriften negativ. net + tax === gross gilt immer. */
+  net: Cents;
+  tax: Cents;
+  gross: Cents;
+  /** je Steuersatz, gleiche Vorzeichenregel */
+  taxes: { rate: BasisPoints; net: Cents; tax: Cents }[];
   /** nur Buchhaltungsbelege, sonst [] */
-  categories: { categoryId: string; net: number; tax: number; rate: number }[];
+  categories: { categoryId: string; net: Cents; tax: Cents; rate: BasisPoints }[];
   /** Datei-IDs der Buchhaltungsbelege; bei Rechnungsmodul-Belegen [] */
   fileIds: string[];
   remark: string;
@@ -65,11 +66,10 @@ export interface LegacyVoucher {
 
 export interface ImportedPayments {
   status: string;
-  /** Cent */
-  openAmount: number;
+  openAmount: Cents;
   paidDate: string | null;
   /** account: Konto oder Zahlungsweg, soweit die Quelle ihn nennt */
-  items: { type: string; date: string; amount: number; account?: string | null }[];
+  items: { type: string; date: string; amount: Cents; account?: string | null }[];
 }
 
 // ------------------------------------------------------------ Grundbausteine
@@ -78,13 +78,13 @@ export interface ImportedPayments {
  * Euro → Cent. `x * 100` ist binär oft knapp daneben (1.005 * 100 = 100.4999…),
  * daher erst auf 6 Nachkommastellen glätten, dann kaufmännisch (vom Nullpunkt weg) runden.
  */
-export function lexToCents(x: number): number {
+export function lexToCents(x: number): Cents {
   const scaled = Number((Math.abs(x) * 100).toFixed(6));
   return Math.sign(x) * Math.round(scaled) + 0; // + 0 macht aus -0 eine 0
 }
 
 /** Prozent → Basispunkte (19 → 1900, 7 → 700, 5.5 → 550). */
-export function lexToBasisPoints(percent: number): number {
+export function lexToBasisPoints(percent: number): BasisPoints {
   return Math.round(percent * 100) + 0;
 }
 
@@ -109,7 +109,7 @@ function neg(n: number): number {
   return -n + 0;
 }
 
-function signed<T extends { net: number; tax: number }>(items: T[], negative: boolean): T[] {
+function signed<T extends { net: Cents; tax: Cents }>(items: T[], negative: boolean): T[] {
   return negative ? items.map((i) => ({ ...i, net: neg(i.net), tax: neg(i.tax) })) : items;
 }
 
@@ -183,7 +183,7 @@ export function mapSalesDocument(type: LexSalesDocumentType, d: LexSalesDocument
   // abgeleitet, damit net + tax === gross auch dann exakt gilt, wenn die drei
   // Einzelwerte getrennt gerundet wurden (sonst entstehen Cent-Differenzen in der Buchhaltung).
   let tax = tp?.totalTaxAmount != null ? lexToCents(tp.totalTaxAmount) : perRate.reduce((s, t) => s + t.tax, 0);
-  let gross: number;
+  let gross: Cents;
   if (tp?.totalGrossAmount != null) gross = lexToCents(tp.totalGrossAmount);
   else if (tp?.totalNetAmount != null) gross = lexToCents(tp.totalNetAmount) + tax;
   else gross = perRate.reduce((s, t) => s + t.net + t.tax, 0);
@@ -210,7 +210,7 @@ export function mapSalesDocument(type: LexSalesDocumentType, d: LexSalesDocument
   if (taxes.length === 0) {
     // Kleinunternehmer / steuerfrei: keine taxAmounts. Ein Eintrag aus den Summen.
     // Falls doch Steuer ausgewiesen ist, den Satz aus den Positionen ableiten, wenn eindeutig.
-    let rate = 0;
+    let rate: BasisPoints = 0;
     if (tax !== 0) {
       const rates = new Set((d.lineItems ?? []).map((li) => li.unitPrice?.taxRatePercentage).filter((r): r is number => typeof r === "number"));
       if (rates.size === 1) rate = lexToBasisPoints([...rates][0]!);
@@ -282,7 +282,7 @@ export function mapVoucher(v: LexVoucher, id: string): LegacyVoucher {
   const gross = v.totalGrossAmount != null ? lexToCents(v.totalGrossAmount) : itemGross;
   const net = gross - tax;
 
-  const byRate = new Map<number, { rate: number; net: number; tax: number }>();
+  const byRate = new Map<BasisPoints, { rate: BasisPoints; net: Cents; tax: Cents }>();
   for (const c of categories) {
     const t = byRate.get(c.rate) ?? { rate: c.rate, net: 0, tax: 0 };
     t.net += c.net;
