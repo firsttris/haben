@@ -47,6 +47,7 @@ import { fastbillWaitingByYear } from "./fastbill-belege.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 import { legacyDunningsFor } from "./mahnungen-archiv.ts";
 import { customTaxSetId, legacyTaxSetFields, vatFieldsOf } from "./sevdesk-steuerarten.ts";
+import { ohneDateiBestaetigbar } from "./ohne-datei.ts";
 import { FILE_STATUS_LABELS, fileCheck, fileCounts, fileStateHistory, latestFileStateSql, legacyFileStatus, OPEN_FILE_STATUSES } from "./dateistand.ts";
 
 export class LexofficeError extends UserError {}
@@ -467,6 +468,7 @@ export async function legacyVoucherDetail(id: string) {
       createdAt: schema.lexofficeVouchers.createdAt,
       accountingType: accountingTypeKinds("lexoffice_vouchers"),
       ohneBeleg: WITHOUT_RECEIPT,
+      rawGuid: sql<string | null>`${schema.lexofficeVouchers.raw}->>'guid'`,
       positionAccounts: sevdeskPositionAccounts("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
@@ -487,10 +489,16 @@ export async function legacyVoucherDetail(id: string) {
     .orderBy(schema.lexofficeVoucherFiles.createdAt, schema.lexofficeVoucherFiles.id);
   // Mahnstufen der Rechnung aus der Quelle; nur Archiv, ohne Wirkung auf Betrag und Zahlungsstand
   const dunnings = voucher.direction === "einnahme" ? await legacyDunningsFor([voucher.lexofficeId]) : [];
-  // Dateistand mit Verlauf (#345); bestätigen lässt sich nur ein Beleg aus sevDesk mit dem offenen Stand „ohne Datei“
+  // Dateistand mit Verlauf (#345); bestätigen lässt sich ein Beleg mit offenem Stand „ohne Datei“, Quelle siehe ohneDateiBestaetigbar
   const fileStates = await fileStateHistory(id);
   const fileStatus = legacyFileStatus(fileStates.at(-1)?.state ?? null, files.length, voucher.ohneBeleg);
-  const canConfirmWithoutFile = fileStatus === "ohne_datei_offen" && voucher.source === "sevdesk" && voucher.lexofficeId.startsWith("voucher/");
+  // Ein Beleg ohne Datei lässt sich bestätigen, wenn die Quelle das hergibt: sevDesk nach dem Abruf,
+  // Accountable, wenn der Stapel keine Beleg-GUID nennt
+  // Offener Stand „ohne Datei“ oder eine Buchung ohne Beleg-GUID aus dem Accountable-Stapel (#1235)
+  const canConfirmWithoutFile =
+    (fileStatus === "ohne_datei_offen" || fileStatus === "ohne_beleg") &&
+    files.length === 0 &&
+    ohneDateiBestaetigbar({ source: voucher.source, lexofficeId: voucher.lexofficeId, type: voucher.type, guid: voucher.rawGuid });
   const { positionAccounts, ...shown } = voucher;
   const categories = positionAccounts ? sevdeskCategories(voucher.categories, positionAccounts, await loadSevdeskAccountCategories()) : voucher.categories;
   // Frühere WISO-Importe setzten das Zahlungsdatum als Leistung, obwohl die Quelle sie nicht belegt (#565).

@@ -123,6 +123,8 @@ Unter „Umzug aus Accountable“ wählst du eine oder mehrere Exportdateien und
 
 Fehlende Belege (`document.xml` ohne Datei, GUID ohne Eintrag) und private Zeilen stehen als Hinweis am Lauf. Abbrechen geht jederzeit, schon Übernommenes bleibt.
 
+Buchungen ohne Beleg-GUID kommen ohne Datei an und stehen als „Buchung ohne Beleg“ im Archiv. In der Belegansicht lässt sich das bestätigen: wer geprüft hat, dass es keinen Einzelbeleg gibt, hält das mit Zeitpunkt und Benutzer fest. Eine Buchung mit Beleg-GUID lässt sich nicht bestätigen, auch wenn die Datei im Export fehlt: dort kann es einen Einzelbeleg geben. Und wer bestätigt, hält nur fest, dass es keinen gibt; für den Vorsteuerabzug braucht es weiter die Rechnung.
+
 ## Schritt 3 bis 5
 
 Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzug aus Lexoffice](lexoffice.md#schritt-3-offene-posten-übernehmen). Unterschiede:

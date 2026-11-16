@@ -18,6 +18,7 @@ type FileState = Awaited<ReturnType<typeof getLegacyVoucher>>["fileState"];
 type FileStatus = FileState["status"];
 
 const LOOK: Partial<Record<FileStatus, { word: string; tone: "warn" | "danger" | "neutral"; emphasis?: "notice" }>> = {
+  ohne_beleg: { word: "Ohne Beleg", tone: "warn", emphasis: "notice" },
   ohne_datei: { word: "Keine", tone: "warn", emphasis: "notice" },
   ohne_datei_offen: { word: "Prüfen", tone: "warn", emphasis: "notice" },
   ohne_datei_bestaetigt: { word: "Keine", tone: "neutral" },
@@ -27,6 +28,8 @@ const LOOK: Partial<Record<FileStatus, { word: string; tone: "warn" | "danger" |
 
 /** Spalte „Dateien“ in der Liste: Zahl der Dateien oder der Stand, wenn etwas fehlt */
 export function FileStatusCell({ status, files }: { status: FileStatus; files: number }) {
+  // „Ohne Beleg“ ist ein Merkmal des Imports und kann auch eine Buchung treffen, an der eine Datei hängt; dann zählt die Zahl
+  if (status === "ohne_beleg" && files > 0) return <>{files}</>;
   const look = LOOK[status];
   if (!look) return <>{files}</>;
   return (
@@ -54,6 +57,13 @@ export function MissingFileBanner({ status, product }: { status: FileStatus; pro
       );
     case "ohne_datei_bestaetigt":
       return <div className="banner banner-info">In {product} ohne Datei, bestätigt. Ein Rechnungsoriginal für den Vorsteuerabzug ersetzt das nicht.</div>;
+    case "ohne_beleg":
+      return (
+        <div className="banner banner-info">
+          Diese Buchung kommt ohne Einzelbeleg; {product} führt dazu keine Datei. Wer das geprüft hat, hält es hier fest. Für den Vorsteuerabzug braucht es
+          weiter die Rechnung (§ 15 Abs. 1 Nr. 1 UStG).
+        </div>
+      );
     default:
       return <div className="banner banner-info">Zu diesem Beleg hat {product} keine Datei geliefert.</div>;
   }
@@ -61,7 +71,8 @@ export function MissingFileBanner({ status, product }: { status: FileStatus; pro
 
 /** Karte mit Stand, Verlauf und der Bestätigung „ohne Datei“ */
 export function FileStateCard({ voucherId, fileState, product, facts }: { voucherId: string; fileState: FileState; product: string; facts: ConfirmFact[] }) {
-  if (fileState.history.length === 0) return null;
+  // Ohne Verlauf gibt es nichts zu zeigen, außer es lässt sich etwas bestätigen (Buchung ohne Beleg aus dem Stapel)
+  if (fileState.history.length === 0 && !fileState.canConfirmWithoutFile) return null;
   const look = LOOK[fileState.status];
   return (
     <section className="card stack" aria-labelledby="file-state-heading">
@@ -77,12 +88,14 @@ export function FileStateCard({ voucherId, fileState, product, facts }: { vouche
           {h.by ? ` (${h.by})` : ""}
         </div>
       ))}
-      {fileState.canConfirmWithoutFile && <ConfirmWithoutFile voucherId={voucherId} product={product} facts={facts} />}
+      {fileState.canConfirmWithoutFile && (
+        <ConfirmWithoutFile voucherId={voucherId} product={product} facts={facts} ohneBeleg={fileState.status === "ohne_beleg"} />
+      )}
     </section>
   );
 }
 
-function ConfirmWithoutFile({ voucherId, product, facts }: { voucherId: string; product: string; facts: ConfirmFact[] }) {
+function ConfirmWithoutFile({ voucherId, product, facts, ohneBeleg }: { voucherId: string; product: string; facts: ConfirmFact[]; ohneBeleg: boolean }) {
   const router = useRouter();
   const confirm = useServerFn(confirmLegacyWithoutFile);
   const action = useAction();
@@ -106,7 +119,7 @@ function ConfirmWithoutFile({ voucherId, product, facts }: { voucherId: string; 
         </Field>
         <div className="actions">
           <button type="submit" className="btn" disabled={action.busy}>
-            In {product} ohne Datei bestätigen
+            {ohneBeleg ? "Buchung ohne Beleg bestätigen" : `In ${product} ohne Datei bestätigen`}
           </button>
         </div>
       </form>
@@ -120,8 +133,10 @@ function ConfirmWithoutFile({ voucherId, product, facts }: { voucherId: string; 
         onClose={() => setOpen(false)}
       >
         <p>
-          Du bestätigst, dass es in {product} zu diesem Beleg keine Datei gibt. Haben hält das mit deinem Namen und der Uhrzeit fest; der Abgleich zählt den
-          Beleg dann nicht mehr als fehlende Datei. Für den Vorsteuerabzug braucht es weiter die Rechnung (§ 15 Abs. 1 Nr. 1 UStG).
+          {ohneBeleg
+            ? "Du bestätigst, dass es zu dieser Buchung keinen Einzelbeleg gibt. Haben hält das mit deinem Namen und der Uhrzeit fest."
+            : `Du bestätigst, dass es in ${product} zu diesem Beleg keine Datei gibt. Haben hält das mit deinem Namen und der Uhrzeit fest; der Abgleich zählt den Beleg dann nicht mehr als fehlende Datei.`}
+          Für den Vorsteuerabzug braucht es weiter die Rechnung (§ 15 Abs. 1 Nr. 1 UStG).
         </p>
       </ConfirmDialog>
     </>

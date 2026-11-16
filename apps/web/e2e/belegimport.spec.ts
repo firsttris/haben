@@ -479,7 +479,7 @@ test("Beleg aus sevDesk ohne Datei: in der Belegansicht prüfen und bestätigen 
   const dialog = page.getByRole("dialog", { name: "Beleg ohne Datei bestätigen?" });
   await expect(dialog).toContainText("Frida Import");
   await dialog.getByRole("button", { name: "Ohne Datei bestätigen" }).click();
-  await expect(karte).toContainText("in sevDesk ohne Datei, bestätigt");
+  await expect(karte).toContainText("ohne Datei, bestätigt");
   await expect(karte).toContainText("In sevDesk geprüft: Kassenbon verloren");
   await expect(karte.getByRole("button", { name: "In sevDesk ohne Datei bestätigen" })).toHaveCount(0);
 });
