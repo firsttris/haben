@@ -8,16 +8,32 @@ status_table() {
   [ "$(psql -X -At -c "SELECT to_regclass('public.backup_status') IS NOT NULL" 2> /dev/null)" = t ]
 }
 
+# Hat backup_status die Spalte target (App ab der Verfahrensdokumentation, #860)?
+target_column() {
+  [ "$(psql -X -At -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'backup_status' AND column_name = 'target')" 2> /dev/null)" = t ]
+}
+
+# Ziel der Sicherung für die Verfahrensdokumentation, ohne Zugangsdaten in der Adresse (rest:https://nutzer:passwort@…)
+target_without_credentials() {
+  sed -E 's#(://)[^/@]*@#\1#' <<< "${RESTIC_REPOSITORY:-}"
+}
+
 # record_status <backup|restore_check> <true|false> <snapshot> <bytes> <meldung>
 record_status() {
   if ! status_table; then
     echo "Tabelle backup_status fehlt (App älter als dieses Image); Ergebnis nicht in der App eingetragen." >&2
     return 0
   fi
-  psql -X -q -v ON_ERROR_STOP=1 -v kind="$1" -v ok="$2" -v snapshot="$3" -v bytes="$4" -v message="$5" > /dev/null <<'SQL' \
+  local columns="kind, ok, snapshot, bytes, message" values=":'kind', :'ok'::boolean, nullif(:'snapshot', ''), nullif(:'bytes', '')::bigint, :'message'"
+  if target_column; then
+    columns="$columns, target"
+    values="$values, nullif(:'target', '')"
+  fi
+  psql -X -q -v ON_ERROR_STOP=1 -v kind="$1" -v ok="$2" -v snapshot="$3" -v bytes="$4" -v message="$5" \
+    -v target="$(target_without_credentials)" > /dev/null <<SQL \
     || echo "Ergebnis konnte nicht in backup_status eingetragen werden." >&2
-INSERT INTO backup_status (kind, ok, snapshot, bytes, message)
-VALUES (:'kind', :'ok'::boolean, nullif(:'snapshot', ''), nullif(:'bytes', '')::bigint, :'message');
+INSERT INTO backup_status ($columns) VALUES ($values);
 SQL
 }
 

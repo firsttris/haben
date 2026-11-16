@@ -1877,6 +1877,20 @@
       "when": 1794787595377,
       "tag": "0267_sevdesk_artikel",
       "breakpoints": true
+    },
+    {
+      "idx": 268,
+      "version": "7",
+      "when": 1794809528092,
+      "tag": "0268_verfahrensdoku",
+      "breakpoints": true
+    },
+    {
+      "idx": 269,
+      "version": "7",
+      "when": 1794809536570,
+      "tag": "0269_verfahrensdoku_trigger",
+      "breakpoints": true
     }
   ]
 }

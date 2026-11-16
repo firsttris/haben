@@ -33,6 +33,7 @@ import { dunningFiles } from "./mahnungen-export.ts";
 import { vatReportFiles } from "./voranmeldungen-export.ts";
 import { RECHNUNGSVERRECHNUNGEN_HEADER, rechnungsVerrechnungenFuerArchiv, VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 import { VERSIONEN_HEADER, versionenFuerArchiv } from "./versionen.ts";
+import { procedureMarkdown } from "../verfahrensdoku/index.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -1295,6 +1296,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   yield { path: "protokoll/audit.csv", content: auditCsv(year), compress: true };
   yield { path: "protokoll/pruefwert.txt", content: encoder.encode(await pruefwertText(year, now)), compress: true };
   yield { path: "protokoll/versionen.csv", content: csv(VERSIONEN_HEADER, await versionenFuerArchiv(year)), compress: true };
+  // Die Fassung beim Erstellen des Archivs (#860, GoBD Rz. 154), wie unter Einstellungen › Export
+  yield { path: "verfahrensdokumentation.md", content: encoder.encode(await procedureMarkdown(now)), compress: true };
 
   if (problems.length > 0) {
     yield { path: "FEHLER.txt", content: encoder.encode(`Beim Erstellen des Archivs fehlten Dateien:\n\n${problems.join("\n")}\n`), compress: true };
@@ -1846,6 +1849,9 @@ protokoll/pruefwert.txt  Prüfwert (Kopf der Hash-Kette) beim Erstellen des Arch
                          Ende des Jahres.
 protokoll/versionen.csv  Eingesetzte Haben- und PostgreSQL-Versionen im Jahr mit Startzeitpunkt
                          (einschließlich fortgeführtem Vorjahresstand und Verweis auf Hinweise).
+verfahrensdokumentation.md
+                         Verfahrensdokumentation in der Fassung beim Erstellen des Archivs
+                         (Markdown), mit Stand und Haben-Version.
 index.xml                Beschreibung aller CSV-Dateien (Pfad, Zeichensatz, Trenner, Spalten,
                          Beträge und Daten) nach dem Beschreibungsstandard der Finanzverwaltung
                          (GDPdU), mit der eine Prüfsoftware die Dateien einliest. Die DTD
