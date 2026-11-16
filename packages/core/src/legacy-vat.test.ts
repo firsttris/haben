@@ -35,7 +35,31 @@ const creditNote: LegacyVatVoucher = {
   payments: [{ date: "2025-04-05", amount: -11_900 }],
 };
 
-const EMPTY = { kz81: 0, tax81: 0, kz86: 0, tax86: 0, kz87: 0, kz41: 0, kz43: 0, kz21: 0, kz45: 0, kz60: 0, steuerfrei: 0, oss: 0, otherBase: 0, kz66: 0 };
+const EMPTY = {
+  kz81: 0,
+  tax81: 0,
+  kz86: 0,
+  tax86: 0,
+  kz87: 0,
+  kz41: 0,
+  kz43: 0,
+  kz21: 0,
+  kz45: 0,
+  kz60: 0,
+  steuerfrei: 0,
+  oss: 0,
+  otherBase: 0,
+  kz66: 0,
+  kz46: 0,
+  kz47: 0,
+  kz84: 0,
+  kz85: 0,
+  kz67: 0,
+  kz89: 0,
+  kz93: 0,
+  kz61: 0,
+  otherPurchases: 0,
+};
 
 function zeroRated(taxType: string, date: string, net: number, extra: Partial<LegacyVatVoucher> = {}): LegacyVatVoucher {
   return {

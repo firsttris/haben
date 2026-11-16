@@ -118,6 +118,34 @@ spec:
             readTimeout: 600s
 ```
 
+### NetworkPolicy
+
+Ohne NetworkPolicy erreicht jeder Pod im Cluster Port 3000 der App und kann `X-Forwarded-For` fälschen.
+`networkPolicy.enabled: true` lässt wie das eigene Netz in Compose nur die Pods aus `networkPolicy.ingressFrom` an die
+App und nur App und Wiederherstellen an die mitgelieferte Datenbank; ausgehend bleibt alles offen. Eine eigene
+Datenbank braucht eine eigene Richtlinie. Das Netzwerk-Plugin des Clusters muss NetworkPolicy umsetzen, in k3s ist das
+eingebaut. Für Traefik in k3s:
+
+```yaml
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+```
+
+Andere Dienste im Cluster, etwa Paperless, rufen Haben dann über die Domain auf.
+
+Ein Ingress-Controller mit `hostNetwork: true` hat die Adresse seines Knotens, und die meisten Netzwerk-Plugins finden
+ihn nicht über `podSelector` und `namespaceSelector`
+([Kubernetes](https://kubernetes.io/docs/concepts/services-networking/network-policies/#networkpolicy-and-hostnetwork-pods)).
+Für ihn gehört meist ein `ipBlock` mit den Adressen der Knoten in `ingressFrom`; Cilium wertet ihn erst mit
+`policyCIDRMatchMode: nodes` aus ([Cilium](https://docs.cilium.io/en/stable/network/kubernetes/policy/)).
+
 ## ELSTER
 
 ERiC gibt es nur für Linux x86_64. In einem Cluster mit beiden Architekturen setzt `nodeSelector` mit

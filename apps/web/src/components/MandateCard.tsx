@@ -27,26 +27,26 @@ function statusPill(status: MandatStatus) {
   switch (status.art) {
     case "gueltig":
       return (
-        <Status tone="ok" inline detail={`bis ${formatDate(status.bis)}`}>
+        <Status tone="ok" inline edge detail={`bis ${formatDate(status.bis)}`}>
           Gültig
         </Status>
       );
     case "abgelaufen":
       // Ohne gültiges Mandat geht keine Lastschrift
       return (
-        <Status tone="warn" emphasis="urgent" inline detail={`seit ${formatDate(status.seit)}`}>
+        <Status tone="warn" emphasis="urgent" inline edge detail={`seit ${formatDate(status.seit)}`}>
           Abgelaufen
         </Status>
       );
     case "widerrufen":
       return (
-        <Status tone="danger" inline detail={`ab ${formatDate(status.seit)}`}>
+        <Status tone="danger" inline edge detail={`ab ${formatDate(status.seit)}`}>
           Widerrufen
         </Status>
       );
     case "noch-nicht":
       return (
-        <Status tone="info" inline detail={`ab ${formatDate(status.ab)}`}>
+        <Status tone="info" inline edge detail={`ab ${formatDate(status.ab)}`}>
           Noch nicht gültig
         </Status>
       );
