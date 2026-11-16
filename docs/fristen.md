@@ -31,7 +31,7 @@ Rechts steht der Status jeder Frist: **Offen** mit den Tagen bis zur Frist, **Hi
 
 Fällt eine Frist auf ein Wochenende oder einen Feiertag im Bundesland der Firma, gilt der nächste Werktag (§ 108 Abs. 3 AO). Die Liste reicht ein Jahr voraus; Offenes aus der Vergangenheit bleibt stehen, bis es erledigt ist, Erledigtes der letzten 60 Tage steht eingeklappt darunter. Ein Klick auf eine Frist führt zur Seite, auf der sie sich erledigen lässt.
 
-Die Einkommensteuererklärung erscheint, sobald [persönliche Angaben](einrichtung.md#persönliche-angaben) hinterlegt sind; die Einkommensteuer-Vorauszahlungen nur, solange der Haken „Keine Einkommensteuer-Vorauszahlungen festgesetzt“ nicht sitzt. Mit Steuerberater gelten längere Fristen; die kennt Haben nicht.
+Die Einkommensteuererklärung erscheint, sobald [persönliche Angaben](einrichtung.md#persönliche-angaben) hinterlegt sind; die Einkommensteuer-Vorauszahlungen zusätzlich nur, solange die persönlichen Angaben hinterlegt sind und der Haken „Keine Einkommensteuer-Vorauszahlungen festgesetzt“ nicht sitzt. Mit Steuerberater gelten längere Fristen; die kennt Haben nicht.
 
 ## Kalender-Abo
 

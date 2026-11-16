@@ -81,8 +81,16 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
   });
 
   it("lässt die Vorauszahlungshinweise weg, wenn keine festgesetzt sind (#1240)", async () => {
+    // Monatliche Abgabe mit Dauerfristverlängerung und angemeldeter Sondervorauszahlung, damit die Liste auch einen
+    // Sondervorauszahlungstermin enthält und der Test zeigen kann, dass der Haken ihn stehen lässt
+    await sql`insert into vat_frequencies (year, from_month, frequency) values (2025, 1, 'monatlich')
+      on conflict (year, from_month) do update set frequency = 'monatlich'`;
+    await sql`insert into vat_extensions (year, active, sondervorauszahlung) values (2025, true, 10000)
+      on conflict (year) do update set active = true, sondervorauszahlung = 10000`;
+
     // Ausgangslage: alles außer den Vorauszahlungen, damit der Test auch Umsatzsteuer und Sondervorauszahlung abdeckt
     const vorher = await fristen.listFristen("2026-10-03");
+    expect(vorher.some((f) => f.id.startsWith("svz-"))).toBe(true);
     const andereArten = vorher
       .filter((f) => f.art !== "vorauszahlung")
       .map((f) => f.id)
@@ -107,7 +115,29 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     // Die Erklärung bleibt, nur die Zahlungshinweise fallen weg
     expect(list.some((f) => f.id === "est-2026")).toBe(true);
     // Und der Kalenderexport enthält keinen Vorauszahlungstermin
-    expect(fristen.fristenToIcs(list, "https://haben.example")).not.toContain("Vorauszahlung");
+    // "Sondervorauszahlung" enthält das Wort auch; gemeint ist der Einkommensteuer-Hinweis
+    expect(fristen.fristenToIcs(list, "https://haben.example")).not.toContain("Einkommensteuer-Vorauszahlung");
+
+    // Die Zeilen gehören nur diesem Fall; die übrigen Tests rechnen ohne Dauerfristverlängerung
+    await sql`delete from vat_extensions where year = 2025`;
+    await sql`delete from vat_frequencies where year = 2025`;
+  });
+
+  it("übernimmt den Haken aus dem Formular und lässt ihn beim Abwählen weg (#1240)", async () => {
+    // Was das Formular schickt: "on" ist gesetzt, alles andere heißt weglassen
+    expect(taxpayer.keineVorauszahlungenAusFormular("on")).toBe(true);
+    expect(taxpayer.keineVorauszahlungenAusFormular(null)).toBeUndefined();
+
+    const person = { idnr: "65929970489", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" };
+    await taxpayer.saveTaxpayer(actor, { a: person, veranlagung: "einzel", keineVorauszahlungen: taxpayer.keineVorauszahlungenAusFormular("on") });
+    expect((await taxpayer.loadTaxpayer()).keineVorauszahlungen).toBe(true);
+
+    // Abgewählt: der Schlüssel verschwindet, die übrigen Angaben bleiben
+    await taxpayer.saveTaxpayer(actor, { a: person, veranlagung: "einzel", keineVorauszahlungen: taxpayer.keineVorauszahlungenAusFormular(null) });
+    const danach = await taxpayer.loadTaxpayer();
+    expect(danach).not.toHaveProperty("keineVorauszahlungen");
+    expect(danach.a?.vorname).toBe("Max");
+    expect(danach.veranlagung).toBe("einzel");
   });
 
   it("GmbH: Voranmeldungen, Umsatz-, Körperschaft- und Gewerbesteuererklärung und E-Bilanz, keine EÜR, Einkommensteuer oder Vorauszahlungen dafür", async () => {
