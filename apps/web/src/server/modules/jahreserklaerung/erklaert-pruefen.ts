@@ -51,12 +51,16 @@ async function vermerkAbweichungen(year: number, form: "ust" | "euer", figures: 
   const damals = berechnet ?? amount;
   const result: ErklaertAbweichung[] = [];
   const feld = form === "ust" ? "abschluss" : "gewinn";
+  let heute: number | undefined;
   if (damals !== undefined) {
-    const heute = (await vermerkPruefung(form, year, null)).berechnet;
+    heute = (await vermerkPruefung(form, year, null)).berechnet;
     if (damals !== heute && heute !== amount) result.push({ year, form, art: "vermerkt", feld, erklaert: damals, journal: heute });
   }
+  // Mit bestätigter Abweichung sind die festgehaltenen Zahlen Habens damalige, nicht die abgegebenen; rechnet Haben heute den
+  // Betrag laut Protokoll, sind sie überholt
+  const ueberholt = berechnet !== undefined && heute === amount;
   const gerechnet = figures.gerechnet as Record<string, unknown> | undefined;
-  if (gerechnet && typeof gerechnet === "object") {
+  if (gerechnet && typeof gerechnet === "object" && !ueberholt) {
     const abweichend = vergleich(zahlen(gerechnet), await gerechneteZahlen(form, year), new Set([...NICHT_AUS_DEM_JOURNAL, feld]));
     result.push(...abweichend.map((x) => ({ year, form, art: "vermerkt" as const, ...x })));
   }
