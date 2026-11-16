@@ -41,7 +41,7 @@ test.beforeAll(async ({ browser }) => {
   closeDatabase = (await import("../src/server/db/index.ts")).closeDatabase;
 });
 
-async function receipt(browser: Browser, supplier: string, number: string, book = true) {
+async function receipt(browser: Browser, supplier: string, number: string, date = currentDay(), book = true, category = "software") {
   const documents = await import("../src/server/modules/belege/index.ts");
   const image = await browser.newPage({ viewport: { width: 620, height: 400 } });
   await image.setContent(`<body style="font: 16px sans-serif; padding: 32px"><h2>${supplier}</h2>
@@ -54,9 +54,9 @@ async function receipt(browser: Browser, supplier: string, number: string, book 
     supplierName: supplier,
     supplierUstId: "",
     invoiceNumber: number,
-    documentDate: currentDay(),
+    documentDate: date,
     dueDate: null,
-    category: "software",
+    category,
     payment: "bank",
     note: "",
     amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
@@ -85,7 +85,7 @@ test.afterAll(async () => {
 });
 
 test("Beleg speichern, dann „Bestätigen und buchen“: der Dialog bleibt nach dem Neuladen offen", async ({ browser }) => {
-  const id = await receipt(browser, "Review Flake GmbH", "R-1", false);
+  const id = await receipt(browser, "Review Flake GmbH", "R-1", currentDay(), false);
   await page.goto(`/belege/${id}`);
   await page.waitForLoadState("networkidle");
   let neuGeladen = false;
@@ -158,6 +158,59 @@ test("Bankzuordnung im Stornodialog bestätigen und zusammen mit dem Beleg zurü
   await expect(page.getByText(/Storno: Beleg L-4711/)).toBeVisible();
 });
 
+test("gebuchter Beleg erklärt die Aufteilung über Storno, ein stornierter nicht mehr (#1112)", async () => {
+  await page.goto(`/belege/${unpaidDocumentId}`);
+  await expect(page.getByText("Die Aufteilung auf mehrere Kategorien geht vor dem Buchen.")).toBeVisible();
+  // Der Beleg aus dem ersten Test ist storniert: Er lässt sich nicht noch einmal stornieren, der Weg ist die Neuerfassung
+  await page.goto(`/belege/${documentId}`);
+  await expect(page.locator(".page-head").getByText("Storniert", { exact: true })).toBeVisible();
+  await expect(page.getByText(/lässt sich stornieren/)).toHaveCount(0);
+});
+
+test("gebuchtes Anlagegut verspricht keinen Storno zum Aufteilen", async ({ browser }) => {
+  // Anlagegüter lassen sich weder stornieren noch aufteilen (docs/belege.md, „Nicht stornieren lassen sich“)
+  const documents = await import("../src/server/modules/belege/index.ts");
+  const image = await browser.newPage({ viewport: { width: 620, height: 400 } });
+  await image.setContent(`<body style="font: 16px sans-serif; padding: 32px"><h2>Rechenwerk Hardware</h2><p>Notebook 1.000,00 €</p></body>`);
+  const bytes = await image.screenshot({ type: "jpeg", quality: 80 });
+  await image.close();
+  const { id } = await documents.uploadDocument("e2e-storno", { bytes, filename: "A-900.jpg" });
+  await documents.updateDocument("e2e-storno", id, {
+    supplierName: "Rechenwerk Hardware",
+    supplierUstId: "",
+    invoiceNumber: "A-900",
+    documentDate: currentDay(),
+    dueDate: null,
+    category: "anlage",
+    asset: { name: "Notebook", kind: "edv", method: "digital", usefulLifeMonths: null },
+    payment: "bank",
+    note: "",
+    amounts: [{ taxRate: 1900, net: 100_000, tax: 19_000 }],
+  });
+  await documents.bookDocument("e2e-storno", id);
+  await page.goto(`/belege/${id}`);
+  await expect(page.getByText("Belege zu Anlagegütern lassen sich nicht stornieren.", { exact: false })).toBeVisible();
+  await expect(page.getByText(/lässt sich stornieren/)).toHaveCount(0);
+});
+
+test("Belegliste: Status sortiert nach dem angezeigten Status, Storniert und Gebucht stehen je für sich", async ({ browser }) => {
+  // Vor dem Abschluss des Jahres weiter unten. Ein stornierter Beleg bleibt im Code „gebucht“; listDocuments liefert bei
+  // gleichem Datum den zuletzt hochgeladenen zuerst, hier also Gebucht, Storniert, Gebucht
+  const documents = await import("../src/server/modules/belege/index.ts");
+  await receipt(browser, "Statuswerk Erster", "ST-1");
+  const storniert = await receipt(browser, "Statuswerk Zweiter", "ST-2");
+  await documents.cancelDocument("e2e-storno", storniert, { reason: "", allocationIds: [] }, currentDay());
+  await receipt(browser, "Statuswerk Dritter", "ST-3");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/belege?sort=status&dir=auf");
+  const zeilen = page.locator("a.table-row.document-cols");
+  await expect(zeilen.filter({ hasText: "ST-3" })).toHaveCount(1);
+  const status = (await zeilen.locator(":scope > div:nth-child(5) .status-label").allInnerTexts()).map((t) => t.trim());
+  // Jeder angezeigte Status steht in einem Block, keiner taucht nach einem anderen noch einmal auf
+  const bloecke = status.filter((t, i) => i === 0 || status[i - 1] !== t);
+  expect(bloecke, status.join(" | ")).toEqual([...new Set(status)]);
+});
+
 test("ganze Aufteilung einschließlich weiterem Beleg vor dem Storno ausdrücklich anzeigen", async ({ browser }) => {
   const chosen = await receipt(browser, "Codewerk Lizenzen GmbH", "S-4801");
   const other = await receipt(browser, "Nordlicht Software GmbH", "S-4802");
@@ -221,4 +274,137 @@ test("Fehlermeldung bei abgeschlossenem Jahr bleibt vor der Aktionsleiste vollst
     counts,
   );
   expect(hidden).toEqual([]);
+});
+
+test("Belegliste: ohne Sortierung ungebuchte zuerst, Spaltenkopf sortiert und nennt die Richtung (#1112)", async ({ browser }) => {
+  // Ein ungebuchter Beleg aus dem Vorjahr: Nach Datum stünde er unten, die Liste zeigt offene zuerst (docs/belege.md, Liste und Status)
+  await receipt(browser, "Altpapier Ahrens", "A-1", `${Number(currentDay().slice(0, 4)) - 1}-01-15`, false);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/belege");
+  const zeilen = page.locator("a.table-row.document-cols");
+  // Ohne Sortierung stehen ungebuchte Belege oben, auch wenn ihr Datum älter ist (docs/belege.md, „Liste und Status“).
+  // Mehrere ungebuchte Belege sind möglich, deshalb die Reihenfolge prüfen statt den ersten Namen:
+  const texte = await zeilen.allInnerTexts();
+  const altpapier = texte.findIndex((t) => t.includes("Altpapier Ahrens"));
+  const gebuchtL4711 = texte.findIndex((t) => t.includes("L-4711"));
+  expect(altpapier).toBeGreaterThanOrEqual(0);
+  expect(gebuchtL4711).toBeGreaterThan(altpapier);
+
+  // Die Richtung steht im Namen des Links wie in der Bankliste (BankSortierKopf), damit Screenreader sie vorlesen.
+  // Keine festen Namen: in dieser Datei entstehen im Lauf mehrere Belege, teils mit gleichem Lieferanten (R-2 steht zu
+  // Recht vor „Nordlicht“, S-4801/S-4802 verdoppeln Codewerk und Nordlicht). Geprüft wird die Ordnung selbst, nicht wer oben steht.
+  const lieferanten = async () => (await zeilen.locator(":scope > div:nth-child(2) > span:first-child").allInnerTexts()).map((name) => name.trim());
+  /** „ab“/„auf“: die Spalte steht in dieser Richtung sortiert; „gleich“, wenn alle Namen gleich sind */
+  const ordnung = (namen: string[]) => {
+    const auf = namen.slice(1).every((name, i) => (namen[i] ?? "").localeCompare(name, "de") <= 0);
+    const ab = namen.slice(1).every((name, i) => (namen[i] ?? "").localeCompare(name, "de") >= 0);
+    return auf && ab ? "gleich" : auf ? "auf" : ab ? "ab" : "gemischt";
+  };
+  await page.getByRole("link", { name: "Lieferant absteigend sortieren" }).click();
+  await expect(page).toHaveURL(/sort=lieferant&dir=ab/);
+  // Die Adresse steht früher als die neu gezeichnete Tabelle, deshalb auf die Ordnung warten statt einmal zu lesen
+  await expect.poll(async () => ordnung(await lieferanten())).toBe("ab");
+  const absteigend = await lieferanten();
+  expect(absteigend.length).toBeGreaterThan(1);
+  await page.getByRole("link", { name: "Lieferant aufsteigend sortieren, zurzeit absteigend sortiert" }).click();
+  await expect(page).toHaveURL(/sort=lieferant&dir=auf/);
+  await expect.poll(async () => ordnung(await lieferanten())).toBe("auf");
+  const aufsteigend = await lieferanten();
+  // Dieselben Belege, nur andersherum: der Kopf dreht die Richtung, er filtert nichts weg
+  expect([...aufsteigend].sort()).toEqual([...absteigend].sort());
+  const ersterName = aufsteigend[0] ?? "";
+  expect(ersterName.length).toBeGreaterThan(0);
+  await page.reload();
+  await expect(zeilen.first()).toContainText(ersterName);
+});
+
+/** Die Texte einer Spalte der Belegliste, je Zeile die erste Zeile der Zelle (darunter stehen Nummer oder eigenes Konto) */
+async function belegSpalte(n: number) {
+  const zeilen = page.locator("a.table-row.document-cols");
+  return (await zeilen.locator(`:scope > div:nth-child(${n})`).allInnerTexts()).map((t) => (t.split("\n")[0] ?? "").trim());
+}
+const aufsteigend = (texte: string[]) => texte.every((t, i) => i === 0 || (texte[i - 1] ?? "").localeCompare(t, "de") <= 0);
+
+test("Belegliste: Lieferant sortiert nach dem angezeigten Text, ohne Lieferant nach dem Dateinamen", async ({ browser }) => {
+  // Ohne Lieferant zeigt die Liste den Dateinamen (supplierName ist dann leer, nicht null)
+  const documents = await import("../src/server/modules/belege/index.ts");
+  const image = await browser.newPage({ viewport: { width: 620, height: 400 } });
+  await image.setContent("<body><h2>Zettel</h2></body>");
+  const bytes = await image.screenshot({ type: "jpeg", quality: 80 });
+  await image.close();
+  await documents.uploadDocument("e2e-storno", { bytes, filename: "Zettel ohne Angaben.jpg" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/belege?sort=lieferant&dir=auf");
+  await expect(page.locator("a.table-row.document-cols").filter({ hasText: "Zettel ohne Angaben.jpg" })).toHaveCount(1);
+  const namen = await belegSpalte(2);
+  expect(aufsteigend(namen), namen.join(" | ")).toBe(true);
+});
+
+test("Belegliste: Kategorie sortiert nach dem angezeigten Namen, nicht nach dem Schlüssel", async ({ browser }) => {
+  // Entwürfe, das Jahr ist weiter oben abgeschlossen. Schlüssel „beratung“ vor „buchfuehrung“, angezeigt
+  // „Buchführung und Steuerberatung“ vor „Rechts- und Beratungskosten“
+  await receipt(browser, "Kanzlei Klar", "K-1", currentDay(), false, "beratung");
+  await receipt(browser, "Steuerbüro Stark", "K-2", currentDay(), false, "buchfuehrung");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/belege?sort=kategorie&dir=auf");
+  await expect(page.locator("a.table-row.document-cols").filter({ hasText: "Rechts- und Beratungskosten" })).toHaveCount(1);
+  const kategorien = await belegSpalte(3);
+  expect(aufsteigend(kategorien), kategorien.join(" | ")).toBe(true);
+});
+
+test("Kontaktliste: Spaltenkopf sortiert und nennt die Richtung (#1112)", async () => {
+  const stammdaten = await import("../src/server/modules/stammdaten/index.ts");
+  const kontakt = (name: string, plz: string, ort: string) =>
+    stammdaten.createContact("e2e-storno", {
+      kundennummer: "",
+      name,
+      strasse: "",
+      plz,
+      ort,
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+  await kontakt("Anker Werft GmbH", "80331", "München");
+  await kontakt("Zeisig Druck GmbH", "20095", "Hamburg");
+  await page.goto("/kontakte");
+  const zeilen = page.getByRole("region", { name: "Kontaktliste" }).locator('a[href^="/kontakte/"]');
+  // Ohne Auswahl nach Name aufsteigend; der Kopf sagt, was der nächste Klick tut
+  await expect(zeilen.first()).toContainText("Anker Werft GmbH");
+  await page.getByRole("link", { name: "Name absteigend sortieren, zurzeit aufsteigend sortiert" }).click();
+  await expect(page).toHaveURL(/sort=name&dir=ab/);
+  await expect(zeilen.first()).toContainText("Zeisig Druck GmbH");
+  // Ort sortiert nach Postleitzahl und Ort, der erste Klick aufsteigend
+  await page.getByRole("link", { name: "Ort aufsteigend sortieren" }).click();
+  await expect(page).toHaveURL(/sort=ort&dir=auf/);
+  await expect(zeilen.first()).toContainText("Zeisig Druck GmbH");
+});
+
+test("Kontaktliste: Rechnungsformat sortiert nach dem angezeigten Text", async () => {
+  const stammdaten = await import("../src/server/modules/stammdaten/index.ts");
+  const kontakt = (name: string, leitwegId: string, defaultFormat: "zugferd" | null) =>
+    stammdaten.createContact("e2e-storno", {
+      kundennummer: "",
+      name,
+      strasse: "",
+      plz: "",
+      ort: "",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId,
+      defaultFormat,
+    });
+  // Mit Leitweg-ID zeigt die Spalte „XRechnung (Leitweg-ID)“, auch ohne eigenes Format
+  await kontakt("Amt Aalen", "08136088-12345-06", null);
+  await kontakt("Bäckerei Berger", "", "zugferd");
+  await page.goto("/kontakte?sort=format&dir=auf");
+  const zeilen = page.getByRole("region", { name: "Kontaktliste" }).locator('a[href^="/kontakte/"]');
+  const formate = (await zeilen.locator(":scope > div:nth-child(4)").allInnerTexts()).map((t) => t.trim());
+  expect(formate).toContain("XRechnung (Leitweg-ID)");
+  expect(formate).toEqual([...formate].sort((a, b) => a.localeCompare(b, "de")));
 });

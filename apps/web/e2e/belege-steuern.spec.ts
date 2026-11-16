@@ -1596,6 +1596,12 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await go(`/jahreserklaerung/${YEAR - 1}`);
   await expect(page.getByRole("heading", { name: /Steuerjahr/ })).toBeVisible();
+  // Mit Cent gehen Kapitalertragsteuern und Nr. 3 bis 7 der Lohnsteuerbescheinigungen (LStB_1_5_Einz: GeldBetragMitCent),
+  // die Summe des Bruttoarbeitslohns (E0200201) ohne Cent; die Sozialversicherung laut Nr. 22 bis 27 geht in die Anlage
+  // Vorsorgeaufwand, ebenfalls ohne Cent (E2000401, E2000801: GeldBetragOhneCent); Jahresdokumentation E10 2025, ERiC 45.1.5.0
+  const centHinweis = page.getByRole("form", { name: "Angaben zur Einkommensteuer" }).getByText(/ELSTER bekommt volle Euro/);
+  await expect(centHinweis).toContainText("mit Cent nur die Steuern auf Kapitalerträge und Nr. 3 bis 7 der Lohnsteuerbescheinigungen");
+  await expect(centHinweis).toContainText("die Summe des Bruttoarbeitslohns ohne Cent");
   // Ohne eigene Hersteller-ID: Werte für die Erweiterung, die Mein ELSTER ausfüllt
   await expect(
     page.getByRole("region", { name: /^Anlage EÜR \d{4} in Mein ELSTER$/ }).getByRole("button", { name: "Werte für Mein ELSTER kopieren" }),
@@ -3151,6 +3157,74 @@ test("Leistungszeitraum: zwei Felder am Beleg, gespeichert und wieder angezeigt 
   await belegdatum.waitFor({ state: "visible", timeout: 30_000 });
   await expect(page.getByLabel("Leistung von")).toHaveValue(day(-24));
   await expect(page.getByLabel("Leistung bis")).toHaveValue(day(-9));
+});
+
+test("Jahreserklärung: Speichern sperrt die Einkommensteuer-Maske wieder (#1098)", async () => {
+  const jahr = YEAR - 1;
+  await go(`/jahreserklaerung/${jahr}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+
+  // Vermerkt ist die Maske zu. Ohne Vermerk gäbe es nichts zu sperren, deshalb legt der Test ihn hier an.
+  const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Einkommensteuererklärung ${jahr}` });
+  const vermerken = karte.getByRole("button", { name: "Abgabe vermerken" });
+  if (await vermerken.isVisible().catch(() => false)) {
+    await vermerken.click();
+    const dialog = page.getByRole("dialog", { name: `Einkommensteuererklärung ${jahr} als abgegeben vermerken` });
+    await dialog.getByLabel("Tag der Abgabe").fill(`${jahr + 1}-01-05`);
+    await dialog.getByLabel("Transferticket").fill("et9f3k2m7q1xb");
+    await dialog.getByLabel("Begründung").fill("Einkommensteuererklärung außerhalb von Haben mit WISO abgegeben.");
+    // Der ESt-Vermerk trägt keinen Betrag (#1073): den gibt es erst mit dem Bescheid, deshalb steht im Dialog kein Feld
+    await expect(dialog.getByLabel("Betrag")).toHaveCount(0);
+    const haken = dialog.getByLabel("Abweichung geprüft und bewusst übernommen");
+    if (await haken.count()) await haken.check();
+    await dialog.getByRole("button", { name: "Vermerken" }).click();
+  }
+
+  // Nur die Felder der Maske: die Aufstellung der erklärten Zeilen steht mit einem Vermerk davor und hat eigene,
+  // immer bedienbare Eingaben (#1149)
+  const feld = form.locator("fieldset input").first();
+  const bearbeiten = form.getByRole("button", { name: "Angaben bearbeiten" });
+  // Sperren kann die Maske nur, was vermerkt ist; den Vermerk legt der Test oben selbst an. Kein Selbst-Überspringen:
+  // Fehlt der Vermerk oder die Karte dazu, ist das ein echter Fehler und der Lauf gehört rot (#1098).
+  await expect(bearbeiten).toBeVisible();
+  await expect(feld).toBeDisabled();
+
+  // Mit Vermerk und noch keiner gespeicherten Zeile muss die Eingabe offen stehen, sonst ließen sich die Anlagen
+  // der Einkommensteuer nie erfassen (#1149)
+  await expect(form.getByText("Zeilenwerte aus dem Übermittlungsprotokoll")).toBeVisible();
+  await expect(form.getByText("noch nicht erfasst")).toBeVisible();
+
+  // Die Aufstellung bringt kein eigenes <form> mit. Ein <form> im <form> ist nach HTML ungültig: der Browser wirft
+  // das innere Start-Tag weg, sein </form> schließt das äußere, und fieldset, Hinweis und der Fuß mit „Angaben
+  // speichern" lägen außerhalb (#1084). Geprüft wird das ausgelieferte HTML, so wie der Browser es liest — nicht der
+  // nach der Hydration zusammengesetzte Baum, in dem ein verschachteltes Formular stehen bliebe.
+  const ausgeliefert = await (await page.request.get(page.url())).text();
+  const formular = await page.evaluate((html) => {
+    const geparst = new DOMParser().parseFromString(html, "text/html");
+    return { forms: geparst.querySelectorAll("form").length, verschachtelt: geparst.querySelectorAll("form form").length };
+  }, ausgeliefert);
+  expect(formular.forms).toBeGreaterThan(0);
+  expect(formular.verschachtelt).toBe(0);
+
+  // Aufgeschlossen wird nur gelesen, bis jemand speichert. Der Klick geht als Zeigerklick dorthin, wo der Mensch
+  // klickt: „Angaben bearbeiten“ steht rechts im Fuß, „Angaben speichern“ links. Stünden beide an derselben Stelle,
+  // träfe das Loslassen schon den Absende-Knopf, und die leere Maske speicherte und sperrte sich selbst (#1098, #1141).
+  await bearbeiten.scrollIntoViewIfNeeded();
+  const kasten = await bearbeiten.boundingBox();
+  if (!kasten) throw new Error("„Angaben bearbeiten“ hat keine Fläche");
+  await page.mouse.move(kasten.x + kasten.width / 2, kasten.y + kasten.height / 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(form.getByRole("button", { name: "Angaben speichern" })).toBeVisible();
+  await expect(feld).toBeEnabled();
+  // Der Fehlklick speichert nichts: der Hinweis kommt erst mit dem Speichern weiter unten
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toHaveCount(0);
+
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  // Nach dem Speichern wieder zu: kein Dauerbearbeiten, der Knopf heißt wieder „Angaben bearbeiten"
+  await expect(bearbeiten).toBeVisible();
+  await expect(feld).toBeDisabled();
 });
 
 test("Zeilenwerte aus dem Übermittlungsprotokoll ersetzen Habens Rechnung (#997)", async () => {

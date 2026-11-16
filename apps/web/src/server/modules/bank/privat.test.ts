@@ -52,7 +52,7 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
   }
 
   it("nimmt einen Umsatz auf dem privaten Konto aus den offenen Posten, ohne zu buchen", async () => {
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const id = await umsatz(privatKonto, "2026-11-11", 1_032_197);
 
     const vorher = (await bank.listAccounts()).find((a) => a.id === privatKonto);
@@ -73,7 +73,7 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
   });
 
   it("lässt sich auf einem Geschäftskonto nicht setzen", async () => {
-    const geschaeft = await konto("geschaeft", "Geschäftskonto", "DE42100140009610447304");
+    const geschaeft = await konto("geschaeft", "Geschäftskonto", "DE02120300000000202051");
     const id = await umsatz(geschaeft, "2026-11-11", 1_032_197);
     await expect(privat.markierePrivat(actor, id)).rejects.toThrow(/nur auf einem privaten Konto/);
   });
@@ -83,7 +83,7 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
    * gekennzeichneter Umsatz steht jetzt als „privat, kein Betriebsvorgang" in der Liste.
    */
   it("zeigt einen gekennzeichneten Umsatz als privat statt offen", async () => {
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const id = await umsatz(privatKonto, "2026-11-11", 1_032_197);
     const sortierung = { feld: "datum", richtung: "ab" } as const;
 
@@ -99,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
   });
 
   it("steht mit Kennzeichnen und Aufheben im Änderungsprotokoll (CLAUDE.md: neue Tabelle mit Audit-Trigger)", async () => {
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const id = await umsatz(privatKonto, "2026-11-11", 1_032_197);
     await leeren(sql)`truncate audit_log`;
 
@@ -116,7 +116,7 @@ describe.skipIf(!testDatabaseUrl)("Privater Umsatz ohne Buchungsart (Postgres)",
 
   it("fehlt nach dem Kennzeichnen auch in der Vorprüfung der Voranmeldung", async () => {
     const november = { year: 2026, month: 11 } as const;
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const id = await umsatz(privatKonto, "2026-11-11", 1_032_197);
     const vorpruefung = async () => (await figures.preflight(november, await figures.computeVatFigures(november))).map((i) => i.text);
     expect(await vorpruefung()).toEqual([expect.stringContaining("1 Zahlungseingang im Zeitraum noch nicht zugeordnet")]);

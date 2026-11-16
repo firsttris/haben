@@ -56,7 +56,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
   // BankPrivat.tsx: „Zuordnen", „Direkt buchen" und „Aufteilen" gelten erst, wenn die Kennzeichnung aufgehoben ist.
   // Sonst ist der Umsatz zugleich gebucht und „privat, kein Betriebsvorgang", und ein Rest bleibt unsichtbar offen.
   it("lehnt eine Zuordnung auf einen gekennzeichneten Umsatz ab, solange die Kennzeichnung besteht", async () => {
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const id = await umsatz(privatKonto, "2026-11-11", 119_00, "Kunde zahlt auf Privatkonto");
     await privat.markierePrivat(actor, id, "versehentlich");
 
@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
   });
 
   it("zeigt einen teilweise gebuchten Umsatz nicht als privat, sondern weiter mit offenem Rest", async () => {
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const id = await umsatz(privatKonto, "2026-11-11", 119_00, "Kunde zahlt auf Privatkonto");
     await privat.markierePrivat(actor, id);
     // Wird die Zuordnung (anders als erwartet) angenommen, darf der Rest nicht aus den offenen Posten fallen
@@ -87,7 +87,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
   // ist ein offener Eingang dort wieder ein offener Posten; die Vorprüfung der Voranmeldung muss ihn nennen.
   it("zählt einen gekennzeichneten Eingang wieder als offen, wenn das Konto zum Geschäftskonto wird", async () => {
     const november = { year: 2026, month: 11 } as const;
-    const kontoId = await konto("privat", "Girokonto", "DE13120300000012099776");
+    const kontoId = await konto("privat", "Girokonto", "DE44500105175407324931");
     const id = await umsatz(kontoId, "2026-11-11", 1_032_197);
     await privat.markierePrivat(actor, id);
 
@@ -102,7 +102,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
   // Ist-Versteuerung ein offener Eingang, dem sonst Umsatzsteuer fehlt (vat-figures.ts, preflight).
   it("zählt einen teilweise zugeordneten Eingang nach dem Wechsel zurück auf privat als offen (Ist)", async () => {
     const november = { year: 2026, month: 11 } as const;
-    const kontoId = await konto("privat", "Girokonto", "DE13120300000012099776");
+    const kontoId = await konto("privat", "Girokonto", "DE44500105175407324931");
     const id = await umsatz(kontoId, "2026-11-11", 119_00, "Kunde zahlt auf Privatkonto");
     await privat.markierePrivat(actor, id);
     await bank.updateAccount(actor, { id: kontoId, name: "Girokonto", purpose: "geschaeft" });
@@ -118,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
 
   // search.ts: Der Hinweis der Schnellsuche soll wie `mitHinweisen` in umsatzauswahl.ts sein (TransactionStatus)
   it("zeigt in der Schnellsuche denselben Status wie in der Umsatzliste", async () => {
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const id = await umsatz(privatKonto, "2026-11-11", 1_032_197);
     await privat.markierePrivat(actor, id);
 
@@ -130,7 +130,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
   // Der Bankabgleich bietet einen gekennzeichneten Umsatz als Gegenstück einer Verrechnung an (neutralisierung.ts,
   // candidates); danach ist er zugleich verrechnet und „privat". Wie die Zuordnung gilt das erst nach dem Aufheben.
   it("bietet einen gekennzeichneten Umsatz nicht zur Verrechnung an und lehnt sie ab", async () => {
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const erstattung = await umsatz(privatKonto, "2026-11-11", 250_00);
     const ueberweisung = await umsatz(privatKonto, "2026-11-12", -250_00, "Übertrag Sparkonto");
     await privat.markierePrivat(actor, erstattung);
@@ -144,7 +144,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
   // Ein Umsatz, dessen Zuordnung aufgehoben wurde, ist wieder ganz offen (bankOpenAmountSql) und muss sich
   // kennzeichnen lassen; das gilt ebenso nach einer aufgehobenen Verrechnung (privat.ts, `hindernis`).
   it("kennzeichnet einen Umsatz, dessen Zuordnung aufgehoben wurde", async () => {
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const id = await umsatz(privatKonto, "2026-11-11", 119_00, "Kunde zahlt auf Privatkonto");
     await bank.allocate(actor, { kind: "kategorie", transactionId: id, amount: 119_00, kategorie: { kategorie: "erloese", steuersatz: 1900 } });
     const [al] = await sql`select id from allocations where transaction_id = ${id} and reverses_id is null`;
@@ -156,7 +156,7 @@ describe.skipIf(!testDatabaseUrl)("Nachprüfung: privater Umsatz ohne Buchungsar
   });
 
   it("kennzeichnet einen Umsatz, dessen Verrechnung aufgehoben wurde", async () => {
-    const privatKonto = await konto("privat", "Privatkonto", "DE13120300000012099776");
+    const privatKonto = await konto("privat", "Privatkonto", "DE44500105175407324931");
     const a = await umsatz(privatKonto, "2026-11-11", 250_00);
     const b = await umsatz(privatKonto, "2026-11-12", -250_00, "Übertrag");
     await verrechnung.neutralizeTransactions(actor, { transactionId: a, counterTransactionId: b, note: "hebt sich auf" });

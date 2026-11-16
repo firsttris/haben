@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { bunAusfuehren } from "./ausfuehren.ts";
 import { standardeingabe } from "./eingabe.ts";
+import { entfernen } from "./entfernen.ts";
 import { firmen } from "./firmen.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
 import { liste } from "./liste.ts";
@@ -28,6 +29,11 @@ export const HILFE = `Mehrere Instanzen von Haben nebeneinander, je Firma eine (
   bun deploy/instanzen/haben-instanzen.ts firmen [<name> …]
                      Liste für „Firma wechseln“ (HABEN_FIRMEN) in alle bzw. die genannten Instanzen schreiben,
                      laufende Apps neu starten; vorher geprüft wie von der App, bei einem Fehler nichts geändert
+  bun deploy/instanzen/haben-instanzen.ts entfernen <name>
+                     Proxy-Seite einer gelöschten Instanz wegnehmen: Eintrag in proxy/sites/, Netz des Caddy, ohne
+                     ihn neu aufzubauen. Vorher selbst docker compose down -v und das Verzeichnis der Instanz
+                     löschen; das Werkzeug löscht keine Daten. Bei --eigener-proxy entfernt es nichts: Block und
+                     Netz nimmst du aus deinem Proxy (siehe Meldung)
   bun deploy/instanzen/haben-instanzen.ts portal [<domain> --oidc-issuer URL --oidc-client-id ID --oidc-client-secret-…]
                      Firmenportal beim ersten Aufruf unter <basis>/firmenportal einrichten, danach mit den Instanzen
                      mit SSO abgleichen: Firmen, Farbe und Logo, HABEN_FIRMENPORTAL_URL; startet nur neu, was sich
@@ -178,12 +184,12 @@ export async function main(args: string[], a: Abhaengigkeiten): Promise<number> 
       await portal(k, portalAngaben(werte, rest, a));
       return 0;
     }
-    const befehle: Record<string, (k: Kontext, namen: string[]) => Promise<void>> = { update, status, liste, firmen };
+    const befehle: Record<string, (k: Kontext, namen: string[]) => Promise<void>> = { update, status, liste, firmen, entfernen };
     const ausfuehren = befehle[befehl];
-    if (!ausfuehren) abbrechen(`Unbekannter Befehl: ${befehl} (neu, update, status, liste, firmen, portal)`);
+    if (!ausfuehren) abbrechen(`Unbekannter Befehl: ${befehl} (neu, update, status, liste, firmen, portal, entfernen)`);
     const nurNeu = Object.keys(werte).filter((o) => o !== "basis" && o !== "help");
     if (nurNeu.length > 0) abbrechen(`--${nurNeu[0]} gilt nur für neu.`);
-    if (rest.length > 0 && befehl !== "firmen") abbrechen(`${befehl} nimmt keine weiteren Angaben: ${rest.join(" ")}`);
+    if (rest.length > 0 && befehl !== "firmen" && befehl !== "entfernen") abbrechen(`${befehl} nimmt keine weiteren Angaben: ${rest.join(" ")}`);
     await ausfuehren(k, rest);
     return 0;
   } catch (error) {

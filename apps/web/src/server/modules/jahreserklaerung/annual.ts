@@ -523,13 +523,34 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
 /**
  * Der ESt-Vermerk trägt keinen Betrag (#1073). Dann gibt es nichts zu vergleichen, und die Seite sagt das
  * auch: Ohne diesen Satz stünde Habens Schätzung allein da und sähe aus wie das Ergebnis der Veranlagung.
+ * Ist die Einkommensteuer laut Steuerprogramm als Zeile erklärt, vergleicht estAbweichungHinweis mit ihr (#1083);
+ * dann entfällt dieser Satz, sonst stünde „kein Vergleich“ neben dem Vergleich.
  */
-export function ohneBetragHinweis(vermerk: { amount: number | null } | null): Issue[] {
-  if (!vermerk || vermerk.amount !== null) return [];
+export function ohneBetragHinweis(vermerk: { amount: number | null } | null, zeilen: Record<string, number> = {}): Issue[] {
+  if (!vermerk || vermerk.amount !== null || zeilen.festgesetzteSteuer !== undefined) return [];
   return [
     {
       tone: "hinweis",
       text: "Die Einkommensteuererklärung ist ohne Betrag vermerkt. Das Ergebnis steht erst mit dem Steuerbescheid fest, deshalb steht hier kein Vergleich.",
+    },
+  ];
+}
+
+/**
+ * Die festgesetzte Steuer aus dem Vordruck gegen Habens Schätzung (#1083). Haben kennt Vorsorge und Kapitalerträge
+ * nur so weit, wie sie eingetragen sind; der Unterschied soll auf der Seite stehen und nicht im Kopf des Betreibers.
+ */
+function estAbweichungHinweis(zeilen: Record<string, number>, est: EstYear): Issue[] {
+  const erklaert = zeilen.festgesetzteSteuer;
+  if (erklaert === undefined) return [];
+  // Die Zeile ist die Einkommensteuer allein; Soli und Kirchensteuer setzt der Bescheid gesondert fest (#1083, 52dad78d)
+  const gerechnet = est.prognose.einkommensteuer;
+  if (gerechnet === erklaert) return [];
+  const abweichung = gerechnet - erklaert;
+  return [
+    {
+      tone: "hinweis",
+      text: `Einkommensteuer: Haben rechnet ${formatEuro(gerechnet)}, im Vordruck stehen ${formatEuro(erklaert)}, also ${formatEuro(Math.abs(abweichung))} ${abweichung > 0 ? "mehr" : "weniger"} bei Haben. Was nicht erfasst ist, etwa Zuschüsse, erklärt den Unterschied.`,
     },
   ];
 }
@@ -602,10 +623,15 @@ async function arbeitszimmerIssues(year: number, est: EstYear): Promise<Issue[]>
     const betrag = p.werbungskosten.arbeitszimmer ?? 0;
     const grenze = arbeitszimmerPauschale(monate);
     if (monate >= 12 || betrag <= grenze) return [];
+    // Ohne einen Monat als Mittelpunkt gilt das Abzugsverbot ganz, auch für die Aufwendungen (Nr. 6b Satz 1 und 2)
+    const rest =
+      monate === 0
+        ? "Ohne einen Monat als Mittelpunkt ist das Arbeitszimmer nicht abziehbar, auch nicht mit tatsächlichen Kosten."
+        : "Höher geht nur mit tatsächlichen Aufwendungen.";
     return [
       {
         tone: "hinweis" as const,
-        text: `Arbeitszimmer: Bei ${monate} von 12 Monaten liegt die Jahrespauschale bei ${formatEuro(grenze)}; eingetragen sind ${formatEuro(betrag)}. Höher geht nur mit tatsächlichen Aufwendungen.`,
+        text: `Arbeitszimmer: Bei ${monate} von 12 Monaten liegt die Jahrespauschale bei ${formatEuro(grenze)}; eingetragen sind ${formatEuro(betrag)}. ${rest}`,
       },
     ];
   });
@@ -700,7 +726,11 @@ export async function annualOverview(year: number, today: string) {
   const ustVermerk = submitted("ust");
   const euerVermerk = submitted("euer");
   const estVermerk = submitted("est");
-  const [ustZeilen, euerZeilen] = await Promise.all([erklaerteZeilen(ustVermerk?.id ?? null), erklaerteZeilen(euerVermerk?.id ?? null)]);
+  const [ustZeilen, euerZeilen, estZeilen] = await Promise.all([
+    erklaerteZeilen(ustVermerk?.id ?? null),
+    erklaerteZeilen(euerVermerk?.id ?? null),
+    erklaerteZeilen(estVermerk?.id ?? null),
+  ]);
   /*
    * Die Summenzeilen der Seite zeigen nach einem Vermerk die erklärte Zahl (#1076): Habens eigene Rechnung kennt die
    * Veranlagung nicht, und in einem Jahr ohne Buchungen kehrt sie sogar das Vorzeichen um (0,00 - erklärtes Soll).
@@ -739,12 +769,14 @@ export async function annualOverview(year: number, today: string) {
       issues: [
         ...base,
         ...estIssues(company, euer),
-        ...ohneBetragHinweis(estVermerk),
+        ...ohneBetragHinweis(estVermerk, estZeilen),
+        ...estAbweichungHinweis(estZeilen, est),
         ...(await homeofficeIssues(year, est)),
         ...(await arbeitszimmerIssues(year, est)),
       ],
       sent: sent("est"),
       submitted: estVermerk,
+      erklaert: estZeilen,
       verwaltet: false,
     },
     history,
