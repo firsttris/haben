@@ -18,7 +18,11 @@ async function affectedAdvances(tx: Tx, invoiceId: string) {
   if (!invoice) return [];
   const original = await invoiceTaxReader(tx).original(invoice);
   // KU hat keine Anzahlungs-USt, benötigt bei GmbH/UG aber denselben Bilanzierungsanschluss.
-  if (original.advanceType === "anzahlung" && original.id) return [{ id: original.id }];
+  if (
+    original.id &&
+    (original.advanceType === "anzahlung" || (original.variant === null && (original.advanceAccounting === "deferred" || original.status === "draft")))
+  )
+    return [{ id: original.id }];
   const referenced = await tx
     .selectDistinct({ invoice: schema.invoices })
     .from(schema.invoiceLines)

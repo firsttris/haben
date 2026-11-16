@@ -52,7 +52,7 @@ export function advanceVatDifference(before: readonly AdvanceVatChange[], after:
  * Die Anteile stammen aus den gespeicherten Belegen und Zahlungen, nicht aus neu gerundeten Prozentsätzen.
  * Quelle: § 13 Abs. 1 Nr. 1 a UStG, https://www.gesetze-im-internet.de/ustg_1980/__13.html
  */
-export function advanceVatPlan(total: readonly TaxShare[], events: readonly AdvanceVatEvent[]): AdvanceVatChange[] {
+export function advanceVatPlan(total: readonly TaxShare[], events: readonly AdvanceVatEvent[], preserveReceived = false): AdvanceVatChange[] {
   const byDate = new Map<string, AdvanceVatEvent[]>();
   for (const event of events) byDate.set(event.date, [...(byDate.get(event.date) ?? []), event]);
   const rates = [...new Set([...total, ...events.flatMap((e) => [...(e.paid ?? []), ...(e.writtenOff ?? []), ...(e.correction ?? [])])].map((s) => s.rate))];
@@ -70,11 +70,15 @@ export function advanceVatPlan(total: readonly TaxShare[], events: readonly Adva
       amount.push(...(e.correction ?? []));
       performed += e.performance ?? 0;
     }
-    const target = rates.map((rate) => ({
-      rate,
-      base: performed > 0 ? sum(amount, rate, "base") - sum(writtenOff, rate, "base") : sum(paid, rate, "base"),
-      tax: performed > 0 ? sum(amount, rate, "tax") - sum(writtenOff, rate, "tax") : sum(paid, rate, "tax"),
-    }));
+    // Neue normale Rechnungen: Eine Entgeltminderung senkt bereits vereinnahmte Steuer erst mit der Rückgewähr
+    // (UStAE 17.1 Abs. 2/7, § 17 UStG). Bestehende Anzahlungspläne behalten ihr gespeichertes Verfahren.
+    const taxable = (rate: number, key: "base" | "tax") => {
+      const received = sum(paid, rate, key);
+      if (performed <= 0) return received;
+      const accrued = sum(amount, rate, key) - sum(writtenOff, rate, key);
+      return preserveReceived ? Math.max(accrued, received) : accrued;
+    };
+    const target = rates.map((rate) => ({ rate, base: taxable(rate, "base"), tax: taxable(rate, "tax") }));
     const shares = target
       .map((s) => ({ rate: s.rate, base: s.base - sum(previous, s.rate, "base"), tax: s.tax - sum(previous, s.rate, "tax") }))
       .filter((s) => s.base !== 0 || s.tax !== 0);

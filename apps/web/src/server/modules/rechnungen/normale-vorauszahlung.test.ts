@@ -256,7 +256,9 @@ describe.skipIf(!testDatabaseUrl)("Vorauszahlung auf normale EUR-Inlandsrechnung
     expect.soft(await balance(ACCOUNTS.SKR03.erhalteneAnzahlungen, "2026-01-31")).toBe(-70_000);
     expect.soft((await reports.openPositions("2026-01-31")).advanceRefunds).toMatchObject([{ open: -83_300 }]);
     expect(await sql`select to_jsonb(i)::text as snapshot from invoices i where id = ${finalized.id}`).toEqual(original);
-    expect(await sql`select id, to_jsonb(e)::text as snapshot from journal_entries e where id in ${sql(journal.map((row) => row.id))} order by id`).toEqual(journal);
+    expect(await sql`select id, to_jsonb(e)::text as snapshot from journal_entries e where id in ${sql(journal.map((row) => row.id))} order by id`).toEqual(
+      journal,
+    );
     await pay(cancellation.id, "bank", "2026-02-13", -83_300);
     await tax(2026, 2, -70_000, -13_300);
     expect(await balance(ACCOUNTS.SKR03.erhalteneAnzahlungen, "2026-02-28")).toBe(0);

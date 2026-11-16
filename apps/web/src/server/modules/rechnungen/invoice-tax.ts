@@ -129,7 +129,10 @@ export function invoiceTaxReader(q: Db | Tx = db) {
   }
   async function managedAdvance(invoice: Reference): Promise<Reference | null> {
     const first = await original(invoice);
-    return first.advanceType === "anzahlung" && advanceUsesPayments(first.taxTreatment ?? "regulaer") ? first : null;
+    return (first.advanceType === "anzahlung" || (first.variant === null && first.advanceAccounting === "deferred")) &&
+      advanceUsesPayments(first.taxTreatment ?? "regulaer")
+      ? first
+      : null;
   }
   // "ist" bedeutet hier Steuer zunächst nicht fällig buchen, nicht die Firmen-Versteuerung wechseln.
   async function postingMode(invoice: Reference): Promise<Versteuerung> {
@@ -148,6 +151,7 @@ export function invoiceTaxReader(q: Db | Tx = db) {
     const current = await snapshot(invoice);
     const first = await original(current);
     if (first.advanceAccounting !== "deferred") return true;
+    if (first.variant === null) return false;
     return first.advanceType !== "anzahlung" && !current.replacesInvoiceId && !(current.kind === "storno" && first.variant === "schluss");
   }
   async function date(invoice: Invoice): Promise<string> {

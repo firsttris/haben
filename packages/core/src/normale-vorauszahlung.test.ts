@@ -19,7 +19,10 @@ function balances(lines: readonly PostingLine[]) {
 describe.each(["SKR03", "SKR04"] as const)("Normale Vorauszahlung %s ohne Datenbank", (frame) => {
   it.each(["ist", "soll"] as const)("119 € vor Leistung und 714 € danach bei %s", (mode) => {
     const accounts = ACCOUNTS[frame];
-    const payments = [{ date: "2025-12-13", paid: part }, { date: "2026-02-13", paid: rest }];
+    const payments = [
+      { date: "2025-12-13", paid: part },
+      { date: "2026-02-13", paid: rest },
+    ];
     const tax = advanceVatPlan(total, [...payments, ...(mode === "soll" ? [performance] : [])]);
     expect(tax).toEqual([
       { date: "2025-12-13", shares: part },
@@ -44,4 +47,20 @@ describe.each(["SKR03", "SKR04"] as const)("Normale Vorauszahlung %s ohne Datenb
     });
     expect(at("2026-02-28")).toEqual({ [accounts.bank]: 83_300, [accounts.erloese[1900]]: -70_000, [accounts.ust[1900]]: -13_300 });
   });
+});
+
+it("datierte Korrektur mindert im neuen Verfahren erhaltene Steuer erst mit der gespeicherten Erstattung", () => {
+  const negative = (shares: TaxShare[]) => shares.map((share) => ({ ...share, base: -share.base, tax: -share.tax }));
+  expect(
+    advanceVatPlan(
+      total,
+      [{ date: "2025-12-13", paid: part }, performance, { date: "2026-01-25", correction: negative(total) }, { date: "2026-02-13", paid: negative(part) }],
+      true,
+    ),
+  ).toEqual([
+    { date: "2025-12-13", shares: part },
+    { date: "2026-01-20", shares: rest },
+    { date: "2026-01-25", shares: negative(rest) },
+    { date: "2026-02-13", shares: negative(part) },
+  ]);
 });

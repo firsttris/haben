@@ -1,6 +1,7 @@
 import {
   advanceBalancePlan,
   advanceUsesPayments,
+  isKapitalgesellschaft,
   advanceVatPlan,
   advanceVatDifference,
   recordedTaxShares,
@@ -116,16 +117,36 @@ export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db |
     q,
   );
   const events = await paymentEvents(invoices, q);
-  const performance = await performanceEvents(original, q, taxes);
+  const normal = original.variant === null && original.advanceAccounting === "deferred";
+  const cancellation = normal ? invoices.find((invoice) => invoice.kind === "storno" && invoice.correctsId === original.id) : undefined;
+  // Ein Storno vor der Leistung hebt auch die bereits vordatierte Realisierung durch neue Gegenbuchungen auf.
+  // Nach Leistung bleiben echte Entgeltkorrekturen datiert; erhaltene Zahlungen bleiben bis zur Rückzahlung besteuert
+  // (UStAE 17.1 Abs. 2/7). Die Papier-Schlusskette aus #750 behält ihren eigenen bestätigten Ablauf.
+  const performed =
+    original.status === "final" && original.serviceDate && (!cancellation || cancellation.issueDate > original.serviceDate)
+      ? [{ date: original.serviceDate, performance: 1 as const }]
+      : [];
+  const performance = normal
+    ? {
+        vat:
+          (await taxes.companyMode(original)) === "soll"
+            ? [...performed, ...(performed.length && cancellation ? [{ date: cancellation.issueDate, performance: -1 as const }] : [])]
+            : [],
+        balance: performed,
+      }
+    : await performanceEvents(original, q, taxes);
   for (const invoice of invoices) {
     if (invoice.id !== original.id) events.push({ date: invoice.issueDate, correction: totals.get(invoice.id)!.taxes });
   }
   const total = totals.get(original.id)!.taxes;
-  const [company] = await q.select({ kontenrahmen: schema.company.kontenrahmen }).from(schema.company).where(eq(schema.company.id, 1));
+  const [company] = await q
+    .select({ kontenrahmen: schema.company.kontenrahmen, rechtsform: schema.company.rechtsform })
+    .from(schema.company)
+    .where(eq(schema.company.id, 1));
   // Sonderumsätze verwenden denselben Plan, aber keine Zahlungsereignisse (§ 18b UStG).
   const special = original.advanceAccounting === "deferred" && ["reverse_charge", "ig_lieferung", "drittland"].includes(original.taxTreatment);
   const changes = advanceUsesPayments(original.taxTreatment)
-    ? advanceVatPlan(total, [...events, ...performance.vat])
+    ? advanceVatPlan(total, [...events, ...performance.vat], normal)
     : special
       ? advanceVatPlan(total, [...events.filter((event) => !event.paid), ...performance.vat])
       : [];
@@ -138,7 +159,7 @@ export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db |
     changes,
     postingChanges: special ? advanceVatDifference(normalWriteOffs, changes) : changes,
     balanceChanges:
-      original.advanceAccounting === "deferred"
+      original.advanceAccounting === "deferred" && isKapitalgesellschaft(company!.rechtsform)
         ? advanceBalancePlan(total, [...events, ...performance.balance], company!.kontenrahmen, original.taxTreatment)
         : [],
   };
@@ -151,12 +172,15 @@ export async function advanceVatPlans(q: Db | Tx, year: number, taxes = invoiceT
   // Vorjahresanzahlungen zählen, wenn im Zieljahr Zahlung, Korrektur oder Schlussleistung anfällt. Nicht die komplette
   // Historie je Quartal ausrechnen: Nur Kandidaten-IDs ermitteln, dann deren zusammenhängenden Plan laden.
   const candidates = await q.execute<{ id: string }>(sql`with recursive family(root_id, id) as (
-    select id, id from invoices where advance_type = 'anzahlung' and status = 'final'
-      and (tax_treatment in ('regulaer', 'steuerfrei', 'ausfuhr')
-        or (advance_accounting = 'deferred' and tax_treatment in ('reverse_charge', 'ig_lieferung', 'drittland')))
+    select id, id from invoices where status = 'final' and (
+      (advance_type = 'anzahlung' and (tax_treatment in ('regulaer', 'steuerfrei', 'ausfuhr')
+        or (advance_accounting = 'deferred' and tax_treatment in ('reverse_charge', 'ig_lieferung', 'drittland'))))
+      or (variant is null and corrects_id is null and advance_accounting = 'deferred')
+    )
     union all select f.root_id, i.id from family f join invoices i on i.corrects_id = f.id where i.status = 'final'
   ), relevant as (
-    select f.root_id from family f join invoices i on i.id = f.id where i.issue_date >= ${start} and i.issue_date < ${end}
+    select f.root_id from family f join invoices i on i.id = f.id
+      where (i.issue_date >= ${start} and i.issue_date < ${end}) or (i.service_date >= ${start} and i.service_date < ${end})
     union select f.root_id from family f join allocations a on a.invoice_id = f.id
       join bank_transactions b on b.id = a.transaction_id
       where coalesce(a.date, b.booking_date) >= ${start} and coalesce(a.date, b.booking_date) < ${end}
