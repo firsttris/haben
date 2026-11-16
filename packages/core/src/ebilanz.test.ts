@@ -89,6 +89,9 @@ describe("ebilanzPosition", () => {
     // Anlagevermögen ohne Anlagenspiegel und Steuern ohne Art: keine
     ["SKR04", "0010", 1, null],
     ["SKR04", "7640", 1, null],
+    // Nicht steuerbare Einnahme (#1131): Auffangposition der sonstigen Erträge, wie die übrigen Konten dieses Postens
+    ["SKR03", "2742", -1_250, "is.netIncome.regular.operatingTC.otherOpRevenue.nonAllocable"],
+    ["SKR04", "4970", -1_250, "is.netIncome.regular.operatingTC.otherOpRevenue.nonAllocable"],
   ] as const)("%s %s Saldo %i → %s", (kontenrahmen, account, saldo, position) => {
     expect(ebilanzPosition(kontenrahmen, account, saldo)).toBe(position);
   });

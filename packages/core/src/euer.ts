@@ -348,7 +348,10 @@ export function computeEuer(
         // Zufluss bzw. Abfluss am Tag der Zahlung (§ 11 EStG); die Gegenrichtung (Erstattung) mindert die Zeile
         const { base, tax } = kategorieAnteil({ kategorie: p.kategorie, steuersatz: p.steuersatz }, p.sum);
         if (kategorieArt(p.kategorie) === "einnahme") {
-          add(p.steuersatz === 0 ? "einnahmenKleinunternehmer" : "einnahmenSteuerpflichtig", base);
+          // Nicht steuerbare Einnahme (#1131) ohne Umsatzsteuer in Zeile 16, wie im Journal (journal-euer.ts)
+          const zeile =
+            p.kategorie === "nichtSteuerbar" ? "einnahmenSteuerfrei" : p.steuersatz === 0 ? "einnahmenKleinunternehmer" : "einnahmenSteuerpflichtig";
+          add(zeile, base);
           add("vereinnahmteUst", tax);
           monthlyIn[month]! += base;
         } else if (kategorieArt(p.kategorie) === "ausgabe") {
