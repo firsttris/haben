@@ -67,7 +67,7 @@ test("Ersteinrichtung fragt Rechtsform und Bereiche, „weiß ich nicht“ erinn
   await gehe(page, "/einstellungen?bereich=firma");
   const firma = page.getByRole("form", { name: "Firmendaten" });
   await expect(firma.getByLabel("Einkunftsart (für die Anlage EÜR)")).toHaveValue("gewerbe");
-  await expect(firma.getByLabel("Kontenrahmen (wie in Lexoffice)")).toHaveValue("SKR04");
+  await expect(firma.getByLabel("Kontenrahmen")).toHaveValue("SKR04");
   await expect(firma.getByLabel("Kleinunternehmer nach § 19 UStG")).not.toBeChecked();
 });
 

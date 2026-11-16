@@ -6,15 +6,15 @@ export const SETTINGS_AREAS = [
   { id: "bereiche", label: "Bereiche", hint: "Menüpunkte ein- und ausblenden" },
   { id: "rechnungen", label: "Rechnungen", hint: "Nummern, Zahlungspläne, Anhänge" },
   { id: "gestaltung", label: "Beleggestaltung", hint: "Logo, Briefpapier, Farbe, Fußzeile" },
-  { id: "elster", label: "ELSTER", hint: "Zertifikat und ERiC" },
+  { id: "elster", label: "ELSTER", hint: "Zertifikat und Übermittlung (ERiC)" },
   { id: "email", label: "E-Mail", hint: "Versand, Postfach für Belege" },
   { id: "bank", label: "Bank", hint: "Kontoabruf, Google Play, App Store" },
   { id: "konten", label: "Eigene Konten", hint: "Sachkonten mit eigener Nummer" },
   { id: "sicherheit", label: "Sicherheit", hint: "Passkeys, Passwort, Zugänge" },
-  { id: "waehrung", label: "Fremdwährung", hint: "USt-Umrechnungskurse des BMF" },
-  { id: "ki", label: "KI-Assistenten und API", hint: "MCP, API-Tokens, Belegauslesung" },
+  { id: "waehrung", label: "Fremdwährung", hint: "Umrechnungskurse für die Umsatzsteuer (BMF)" },
+  { id: "ki", label: "KI-Assistenten und API", hint: "Assistenten (MCP), Zugangsschlüssel (Token), Belege auslesen" },
   { id: "seiten", label: "Eigene Seiten", hint: "Eigene Werkzeuge im Menü" },
-  { id: "export", label: "Export", hint: "Jahresarchiv, DATEV, Ablage, Backup, Prüfung, Version" },
+  { id: "export", label: "Export", hint: "Jahresarchiv, Steuerberatung (DATEV), Ablage, Backup, Prüfung, Version" },
 ] as const;
 
 /** Im SSO-Modus ersetzt „Zugänge“ den Bereich Sicherheit: Passkeys, Passwort und Einladungen gibt es dort nicht */

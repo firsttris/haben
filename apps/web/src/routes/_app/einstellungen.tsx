@@ -330,6 +330,14 @@ const dunningErrors = (baseRate: string, fees: Record<"1" | "2" | "3", string>) 
   "dunning-fee-3": dunningFeeError(fees["3"]),
 });
 
+/** Klartext unter den Feldern Versteuerung und Kontenrahmen; ist das Feld gesperrt, steht statt des Sperrsatzes der genaue Grund */
+const VERSTEUERUNG_HINT =
+  "Ist: Die Umsatzsteuer zählt, wenn der Kunde zahlt. Soll: schon mit der Rechnung. Ob Ist für dich erlaubt ist, entscheidet das Finanzamt; im Zweifel fragst du deine Steuerberatung.";
+const VERSTEUERUNG_SPERRE = "Nach der ersten Buchung im Jahr gesperrt bis zum Jahreswechsel, ebenso solange Rechnungen offen sind.";
+const KONTENRAHMEN_HINT =
+  "Legt fest, auf welche Kontonummern Haben bucht (SKR03 oder SKR04). Nimm denselben wie bisher in Lexoffice oder bei deiner Steuerberatung.";
+const KONTENRAHMEN_SPERRE = "Nach der ersten Buchung im Jahr gesperrt bis zum Jahreswechsel.";
+
 function CompanyForm() {
   const { company, issues, letterIssues, locks } = Route.useLoaderData();
   const router = useRouter();
@@ -568,7 +576,7 @@ function CompanyForm() {
           </div>
         )}
         <div className="form-row cols-2">
-          <Field label="Versteuerung" hint={locks.versteuerung}>
+          <Field label="Versteuerung" hint={`${VERSTEUERUNG_HINT} ${locks.versteuerung ?? VERSTEUERUNG_SPERRE}`}>
             {(control) => (
               <>
                 {locks.versteuerung && <input type="hidden" name="versteuerung" value={company.versteuerung} />}
@@ -584,7 +592,7 @@ function CompanyForm() {
               </>
             )}
           </Field>
-          <Field label="Kontenrahmen (wie in Lexoffice)" hint={locks.kontenrahmen}>
+          <Field label="Kontenrahmen" hint={`${KONTENRAHMEN_HINT} ${locks.kontenrahmen ?? KONTENRAHMEN_SPERRE}`}>
             {(control) => (
               <>
                 {/* Gesperrte Felder werden nicht mitgeschickt; der Wert kommt dann aus dem versteckten Feld */}
