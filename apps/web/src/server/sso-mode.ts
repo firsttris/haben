@@ -1,6 +1,4 @@
 import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
-import postgres from "postgres";
-import { APP_RUNNING_LOCK } from "./db/app-lock.ts";
 import { db, schema, type Db } from "./db/index.ts";
 import { env } from "./env.ts";
 import { ssoOnly } from "./sso-policy.ts";
@@ -61,13 +59,4 @@ export function modeStartupProblem(): Promise<string | null> {
   return startupCheck;
 }
 
-/** Hält den geteilten Lock bis zum Prozessende auf einer eigenen Verbindung */
-export async function holdAppRunningLock(): Promise<() => Promise<void>> {
-  const client = postgres(env().DATABASE_URL, { max: 1, idle_timeout: 0 });
-  const reserved = await client.reserve();
-  await reserved`select pg_advisory_lock_shared(${APP_RUNNING_LOCK})`;
-  return async () => {
-    reserved.release();
-    await client.end({ timeout: 5 });
-  };
-}
+export { holdAppRunningLock } from "./app-running-lock.ts";
