@@ -576,14 +576,17 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
     it("prüft die Bezeichnung bei POST und PATCH auf eine Zeile", async () => {
       const schreiben = await token(["artikel:schreiben"]);
       const zweizeilig = "Mühle\nAus Buche";
+      const mehrzeiligeBezeichnungen = [zweizeilig, "Mühle\rAus Buche", "Mühle\u2028Aus Buche", "Mühle\u2029Aus Buche"];
       const detail = "Holzgriff\nErsatzteile verfügbar";
       const rejected = { status: 400, json: { error: { code: "validation_failed", issues: [expect.objectContaining({ path: "description" })] } } };
 
-      expect(await call(schreiben, "POST", "/artikel", { ...artikel, description: zweizeilig })).toMatchObject(rejected);
       const created = await call(schreiben, "POST", "/artikel", { ...artikel, detail });
       expect(created).toMatchObject({ status: 201, json: { detail } });
       const path = `/artikel/${created.json!.id}`;
-      expect(await call(schreiben, "PATCH", path, { description: zweizeilig })).toMatchObject(rejected);
+      for (const description of mehrzeiligeBezeichnungen) {
+        expect(await call(schreiben, "POST", "/artikel", { ...artikel, description })).toMatchObject(rejected);
+        expect(await call(schreiben, "PATCH", path, { description })).toMatchObject(rejected);
+      }
       expect((await call(schreiben, "GET", path)).json).toMatchObject({ description: artikel.description, detail });
 
       const legacy = await stammdaten.createArticle(actor, { ...artikel, description: zweizeilig });

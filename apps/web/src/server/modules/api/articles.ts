@@ -3,7 +3,7 @@ import { articleInputSchema, articlePatchSchema, createArticle, getArticle, list
 import { notFound, ok, validate, type ApiRequest, type ApiResult } from "./http.ts";
 import { page, pageQuery, requestSchemas, responseSchemas, timestamp } from "./schemas.ts";
 
-const articleDescription = articleInputSchema.shape.description.regex(/^[^\r\n]+$/, "Die Bezeichnung muss in einer Zeile stehen.");
+const articleDescription = articleInputSchema.shape.description.regex(/^[^\r\n\u2028\u2029]+$/, "Die Bezeichnung muss in einer Zeile stehen.");
 const articleCreateSchema = articleInputSchema.extend({ description: articleDescription }).strict().register(requestSchemas, { id: "ArticleCreate" });
 const articleUpdateSchema = articlePatchSchema.extend({ description: articleDescription.optional() }).register(requestSchemas, { id: "ArticlePatch" });
 
