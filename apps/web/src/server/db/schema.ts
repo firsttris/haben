@@ -935,8 +935,6 @@ export const cashEntries = pgTable(
      */
     taxTreatment: text("tax_treatment", { enum: BAREINNAHME_BEHANDLUNG_KEYS }),
     taxRate: integer("tax_rate"),
-    /** Fachliche Ausgangszuordnung; null bei ungeklärten Bestandszeilen, Gegenzeilen übernehmen dieselben Angaben. */
-    taxDetails: jsonb("tax_details").$type<OutgoingTaxDetails>(),
     /** Storno: die aufgehobene Zeile */
     reversesId: uuid("reverses_id"),
     journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
@@ -2556,8 +2554,6 @@ export const allocations = pgTable(
      */
     category: text("category").$type<DirektKategorie>(),
     taxRate: integer("tax_rate"),
-    /** Ausgangszuordnung einer direkten Einnahme, nicht aus Kategorie oder Kundenland erraten. */
-    taxDetails: jsonb("tax_details").$type<OutgoingTaxDetails>(),
     /**
      * Rücklastschrift (#445): die zurückgegebene Lastschrift. Die Zuordnung auf die Rechnung ist dann negativ und öffnet
      * sie wieder; die Gegenzeile beim Aufheben trägt denselben Bezug. Nur an Zuordnungen auf eine Rechnung.

@@ -130,7 +130,7 @@ function allocationItem(row: Allocation, date: string, data: PaymentData, cancel
       ...item,
       net: kategorieAnteil({ kategorie: "erloese", steuersatz: row.taxRate }, row.amount).base,
       basisSource: "derived",
-      classification: outgoingTaxClassification(row.taxRate === 0 ? "kleinunternehmer" : "regulaer", row.taxDetails),
+      classification: outgoingTaxClassification(row.taxRate === 0 ? "kleinunternehmer" : "regulaer", null),
       label: "Direkte Einnahme",
       uncertainty: undefined,
     };
@@ -152,7 +152,7 @@ function allocationItem(row: Allocation, date: string, data: PaymentData, cancel
       ...item,
       net: row.amount,
       basisSource: "stored",
-      classification: outgoingTaxClassification("steuerfrei", row.taxDetails),
+      classification: null,
       uncertainty: "Bei betrieblichen Zinsen fehlen Vorschrift und Einordnung als Hilfsumsatz.",
     };
   return { ...item, classification: { kind: "not_turnover" } };
@@ -167,7 +167,7 @@ function cashItem(row: Cash, data: PaymentData): GesamtumsatzItem | null {
       ...item,
       net: bareinnahmeAnteil({ behandlung: row.taxTreatment, steuersatz: row.taxRate }, row.amount).base,
       basisSource: "derived",
-      classification: outgoingTaxClassification(row.taxTreatment, row.taxDetails),
+      classification: outgoingTaxClassification(row.taxTreatment, null),
       uncertainty: undefined,
     };
   return { ...item, classification: { kind: "not_turnover" } };
