@@ -23,6 +23,7 @@ const EMPTY: ContactInput = {
   ustId: "",
   iban: "",
   leitwegId: "",
+  unsereLieferantennummer: "",
   defaultFormat: null,
   language: "de",
   isCustomer: true,
@@ -120,6 +121,7 @@ export function ContactForm({
         ustId: text("ustId").replace(/\s/g, "").toUpperCase(),
         iban: text("iban").replace(/\s/g, "").toUpperCase(),
         leitwegId: text("leitwegId"),
+        unsereLieferantennummer: text("unsereLieferantennummer"),
         defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
         language: text("language") === "en" ? "en" : "de",
         skonto: ownSkonto ? skonto.stufen : null,
@@ -287,6 +289,7 @@ export function ContactForm({
 
       <section className="form-section" aria-labelledby="contact-invoices">
         <h2 id="contact-invoices">Rechnungen</h2>
+        <UnsereLieferantennummerField defaultValue={initial.unsereLieferantennummer ?? ""} />
         <div className="form-row cols-2">
           <Field label="Standardformat für Rechnungen">
             {(control) => (
@@ -349,6 +352,18 @@ export function ContactForm({
         </button>
       </div>
     </form>
+  );
+}
+
+/** Die Nummer, unter der uns der Kunde führt (#711); nicht die Lieferantennummer oben, die meint die Gegenrichtung */
+function UnsereLieferantennummerField({ defaultValue }: { defaultValue: string }) {
+  return (
+    <Field
+      label="Unsere Lieferantennummer bei diesem Kunden"
+      hint="Vom Kunden vergeben. Steht im Kopf der Rechnung und in der E-Rechnung als Verkäuferkennung (BT-29)."
+    >
+      {(control) => <input {...control} name="unsereLieferantennummer" defaultValue={defaultValue} placeholder="optional" />}
+    </Field>
   );
 }
 

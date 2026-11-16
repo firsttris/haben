@@ -167,6 +167,7 @@ export function pdfData(doc: InvoiceDocument) {
     meta.push({ label: t.serviceDate, value: date ? t.date(date) : t.serviceDateDefault });
   }
   if (showsCustomerNumber(doc)) meta.push({ label: t.customerNumber, value: buyer.kundennummer! });
+  if (buyer.unsereLieferantennummer) meta.push({ label: t.supplierNumber, value: buyer.unsereLieferantennummer });
   meta.push(...referenceMeta(doc.references, t));
   if (buyer.leitwegId) meta.push({ label: t.leitwegId, value: buyer.leitwegId });
   // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)

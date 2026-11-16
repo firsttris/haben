@@ -118,6 +118,7 @@ export const contactSchema = z
     ustId: z.string(),
     iban: z.string(),
     leitwegId: z.string(),
+    unsereLieferantennummer: z.string().describe("Unsere Lieferantennummer bei diesem Kunden, auf der Rechnung und im XML als BT-29; leer: keine"),
     hourlyRateCents: inCents(z.number().int()).nullable().describe("Stundensatz für Leistungseinträge in Cent; null: keiner hinterlegt"),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
     language: z.enum(["de", "en"]),
