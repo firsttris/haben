@@ -61,7 +61,7 @@ export function baseRateError(text: string): string | null {
   const rate = parseBaseRate(text);
   if (rate === null) return "Trag den Basiszinssatz in Prozent ein, etwa 1,27 oder -0,88, oder lass das Feld leer.";
   if (rate < BASE_RATE_LIMITS.min || rate > BASE_RATE_LIMITS.max) {
-    return `Haben nimmt einen Basiszinssatz von ${formatPercent(BASE_RATE_LIMITS.min)} bis ${formatPercent(BASE_RATE_LIMITS.max)} an.`;
+    return `Trag einen Basiszinssatz von ${formatPercent(BASE_RATE_LIMITS.min)} bis ${formatPercent(BASE_RATE_LIMITS.max)} ein oder lass das Feld leer.`;
   }
   return null;
 }
