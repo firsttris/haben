@@ -362,6 +362,23 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
 });
 
+test("Version: installierte Version ohne Fehlermeldung, Update-Anleitung verlinkt (#1239)", async () => {
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("region", { name: "Version", exact: true });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText(/Installiert: v\d+\.\d+\.\d+/);
+  await expect(card.getByRole("alert")).toHaveCount(0);
+  await expect(card.getByRole("link", { name: "Versionshinweise" })).toHaveAttribute(
+    "href",
+    /^https:\/\/github\.com\/firsttris\/haben\/releases\/tag\/v\d+\.\d+\.\d+/,
+  );
+  await card.getByText("So aktualisierst du").click();
+  await expect(card.getByRole("link", { name: "Docker Compose und Podman Quadlets" })).toHaveAttribute(
+    "href",
+    "https://haben.app/installation-backup.html#updates",
+  );
+});
+
 test("Eingesetzte Versionen: Verlauf und Versionshinweise anzeigen (#841)", async () => {
   await go("/einstellungen?bereich=export");
   const card = page.getByRole("region", { name: "Eingesetzte Versionen" });
@@ -1487,7 +1504,7 @@ test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu ve
   await page.getByLabel("Kunde", { exact: true }).uncheck();
   await page.getByLabel("Lieferant", { exact: true }).check();
   await page.getByLabel("Ort").fill("Kiel");
-  await page.getByLabel("Lieferantennummer").fill("L-4711");
+  await page.getByLabel("Lieferantennummer", { exact: true }).fill("L-4711");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
 

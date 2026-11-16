@@ -281,6 +281,8 @@ Zusätzlich stehen in `rechnungen.csv` und `belege.csv` die SHA-256-Werte, die H
 
 Unter **Einstellungen › Export › Änderungsprotokoll prüfen** rechnet „Kette prüfen“ die Hash-Kette des Audit-Logs und die Siegel aller festgeschriebenen Datensätze nach, prüft die Trigger und Funktionen von Haben und gleicht das Journal mit Umsatzsteuer und EÜR ab ([Abgleich](buchhaltung.md#abgleich-im-journal)). In das Feld darunter fügst du einen aufbewahrten Prüfwert ein, etwa aus `protokoll/pruefwert.txt` oder aus der wöchentlichen Mail, und vergleichst ihn mit dem Protokoll. Was die Prüfung erkennt und was nicht, steht unter [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel).
 
+Die Karte **Version** zeigt die installierte und die neueste stabile Version mit Links zu den Versionshinweisen und zu den Anleitungen zum Aktualisieren. Wie du die Abfrage abschaltest, steht bei `HABEN_UPDATE_CHECK` unter [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen).
+
 Darunter zeigt **Eingesetzte Versionen** den protokollierten Verlauf der Haben- und PostgreSQL-Versionen mit Startzeitpunkt und Link zu den Versionshinweisen. Bei Bestandsinstanzen gilt die Aufzeichnung erst ab der Einführung dieser Funktion; für frühere Zeiträume liegt kein Verlauf vor (vermerkt im ersten Eintrag).
 
 ### Keine Geheimnisse im Export

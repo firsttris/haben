@@ -17,7 +17,7 @@ import { splitPrivateShare, type BasisPoints, type Cents, type Prozent } from ".
 import type { PrivateUseRate } from "./private-use.ts";
 import { discountColumns, discountFromColumns, type DiscountableLine, type discountSchema } from "./rabatt.ts";
 import type { CentRange } from "./search-money.ts";
-import type { skontoStufeSchema } from "./skonto.ts";
+import type { parseWholePercent, skontoStufeSchema } from "./skonto.ts";
 import type { treatmentIssues } from "./treatment.ts";
 import type { VerprobungsAbweichung } from "./ust-verprobung.ts";
 
@@ -85,6 +85,7 @@ describe("Privatanteil in Prozent und die übrigen Felder in core", () => {
     // @ts-expect-error 20 % in Basispunkten sind kein Privatanteil in Prozent: privat wären 2000 %
     expect(splitPrivateShare(10_000, satz)).toEqual({ business: -190_000, private: 200_000 });
     expectTypeOf<z.output<typeof prozentSchema>>().toEqualTypeOf<Prozent>();
+    expectTypeOf<ReturnType<typeof parseWholePercent>>().toEqualTypeOf<Prozent | null>();
   });
 
   it("Sätze, Mengen und Hebesatz tragen ihre Einheit", () => {

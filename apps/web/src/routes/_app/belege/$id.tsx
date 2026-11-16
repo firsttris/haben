@@ -36,6 +36,7 @@ import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { aendereBetragszeile, betragszeileAus, betragszeileGespeichert, bruttoLesbar, type Betragszeile, type BetragsSatz } from "../../../lib/betragszeile.ts";
+import { PRIVATANTEIL_FEHLER, parsePrivatanteil } from "../../../lib/anteil.ts";
 import { useSubmitCheck } from "../../../lib/use-submit-check.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
@@ -386,8 +387,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     vorsteuerAnteil: parseVorsteuerAnteil(r.vorsteuerAnteil),
   }));
   // Mit Aufteilung gibt es (noch) keinen Privatanteil, siehe Grenzen in docs/belege.md
-  const privateShareValue = category === "anlage" || splitting ? 0 : Number(privateShare || 0);
-  const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
+  const privateShareValue = category === "anlage" || splitting ? 0 : parsePrivatanteil(privateShare);
+  const privateShareValid = privateShareValue !== null;
   const vorsteuerBeleg = { value: vorsteuerAnteil, company: data, booked: locked, storedDeduction: doc.vorsteuerAbzug };
   const currencyCode = currency.trim().toUpperCase();
   const foreign = currencyCode !== "EUR";
@@ -425,7 +426,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     ),
     waehrung: CURRENCY_CODE.test(currencyCode) ? null : "Trag den Code der Währung mit drei Buchstaben ein, etwa USD.",
     kurs: foreign && exchangeRate.trim() && rate === null ? "Trag den Kurs als Zahl ein, etwa 1,0812." : null,
-    privatanteil: privateShareValid ? null : "Trag eine ganze Zahl von 0 bis 100 ein.",
+    privatanteil: privateShareValid ? null : PRIVATANTEIL_FEHLER,
     vorsteuer: vorsteuerAnteil.trim() === "" || parseVorsteuerAnteil(vorsteuerAnteil) !== null ? null : "Trag einen Vorsteueranteil von 0 bis 100 % ein.",
   } as Record<string, string | null>);
   // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
@@ -514,7 +515,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           ownAccountId: splitting ? null : passendesKonto(ownAccounts, category, ownAccountId) || null,
           payment,
           note,
-          privateShare: privateShareValue,
+          privateShare: privateShareValue ?? 0,
           vorsteuerAnteil: parseVorsteuerAnteil(vorsteuerAnteil),
           // Nur an einer Gutschrift über die Bank sinnvoll; sonst schickt der Editor immer „nein“ (#786)
           erstattetBezahltes: gross !== null && gross < 0 && payment === "bank" ? erstattetBezahltes : false,
@@ -1074,13 +1075,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             style={{ maxWidth: 220 }}
           >
             {(control) => (
-              <input
-                {...control}
-                inputMode="numeric"
-                value={privateShare}
-                placeholder="0"
-                onChange={(e) => touch(setPrivateShare)(e.target.value.replace(/\D/g, "").slice(0, 3))}
-              />
+              <input {...control} inputMode="numeric" value={privateShare} placeholder="0" onChange={(e) => touch(setPrivateShare)(e.target.value)} />
             )}
           </Field>
         )}

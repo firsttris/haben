@@ -27,10 +27,13 @@ describe("Vorsteueranteil im Beleg", () => {
     ["12,34", 1234],
     ["0,01", 1],
     [" 50,5 ", 5050],
+    // Wie jedes Prozentfeld über parsePercent: „%“ am Ende und ein eindeutiger Dezimalpunkt (#1222)
+    ["50 %", 5000],
+    ["1.5", 150],
   ])("liest %s direkt als Basispunkte", (text, points) => {
     expect(parseVorsteuerAnteil(text as string)).toBe(points);
   });
-  it.each(["", "100,01", "-1", "12,345", "1.5", "1.000", "1e2"])("weist ungültigen Prozenttext %s zurück", (text) => {
+  it.each(["", "100,01", "-1", "12,345", "1.000", "1e2", "50 € "])("weist ungültigen Prozenttext %s zurück", (text) => {
     expect(parseVorsteuerAnteil(text)).toBeNull();
   });
   it("zeigt bei 50 % nur 9,50 € Vorsteuer und 109,50 € Aufwand", () => {
@@ -70,6 +73,11 @@ describe("Vorsteueranteil im Beleg", () => {
     const html = render({ value: "100,01" });
     expect(html).toContain('aria-invalid="true"');
     expect(html).toContain("Vorschau nach gültiger Eingabe");
+  });
+  it("zeigt bei ungültigem Privatanteil keine Vorschau, statt mit 0 % zu rechnen (#1221)", () => {
+    const html = render({ privateShare: null });
+    expect(html).toContain("Vorschau nach gültiger Eingabe");
+    expect(html).not.toContain("19,00 €");
   });
 });
 

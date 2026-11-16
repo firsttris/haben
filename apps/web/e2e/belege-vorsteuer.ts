@@ -84,6 +84,29 @@ export function vorsteuerPruefen(getPage: () => Page) {
   });
   steuerspaltePruefen(getPage);
   einfuhrumsatzsteuerPruefen(getPage);
+  privatanteilVorschauPruefen(getPage);
+}
+
+function privatanteilVorschauPruefen(getPage: () => Page) {
+  test("Privatanteil: ein ungültiger Anteil zeigt keine scheinbar gültige Vorsteuervorschau (#1221)", async ({ browser }) => {
+    const page = getPage();
+    const route = await belegAnlegen(page, browser);
+    try {
+      const preview = page.getByRole("status", { name: "Vorsteuervorschau" });
+      const privat = page.getByLabel("Privatanteil in %", { exact: true });
+      await expect(preview).toContainText("Abziehbare Vorsteuer 19,00");
+      await privat.fill("20");
+      await expect(preview).toContainText("Abziehbare Vorsteuer 15,20");
+      await expect(preview).toContainText("(nach Privatanteil)");
+      // Mehr als 100 % ist kein Privatanteil: Die Vorschau rechnet nicht still mit 0 %, sondern wartet auf eine gültige Eingabe
+      await privat.fill("150");
+      await expect(preview).toHaveText("Vorschau nach gültiger Eingabe der Beträge und Anteile.");
+    } finally {
+      await page.locator(".doc-actions").getByRole("button", { name: "Löschen", exact: true }).click();
+      await bestaetigen(page, "Beleg löschen");
+      await page.waitForURL((url) => url.pathname !== route && /^\/belege(?:\/[0-9a-f-]{36})?$/.test(url.pathname));
+    }
+  });
 }
 
 function einfuhrumsatzsteuerPruefen(getPage: () => Page) {
