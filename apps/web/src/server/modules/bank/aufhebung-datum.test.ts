@@ -47,9 +47,9 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
     await leeren(sql)`truncate document_settlements, document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, vat_returns, year_closings, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 2026)`;
+              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
   });
 
   async function setKontenrahmen(kontenrahmen: (typeof KONTENRAHMEN)[number]) {
@@ -152,10 +152,11 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
     // der Abgleich meldete den März als Abweichung zum Journal
     const maerzNachher = await vat.computeVatFigures({ year: 2026, month: 3 });
     expect({ kz81: maerzNachher.kz81, tax81: maerzNachher.tax81 }).toEqual({ kz81: 100_000, tax81: 19_000 });
-    expect(maerzNachher.nebenbuecher?.kz81).toBe(100_000);
+    // Die Erläuterungen aus den Nebenbüchern ebenso
+    expect(maerzNachher.revenue.reduce((sum, r) => sum + r.base, 0)).toBe(100_000);
     const juli = await vat.computeVatFigures({ year: 2026, month: 7 });
     expect({ kz81: juli.kz81, tax81: juli.tax81 }).toEqual({ kz81: -100_000, tax81: -19_000 });
-    expect(juli.nebenbuecher?.kz81).toBe(-100_000);
+    expect(juli.revenue.reduce((sum, r) => sum + r.base, 0)).toBe(-100_000);
     for (const month of [3, 7]) expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month })).zeilen)).toEqual([]);
   }, 60_000);
 
@@ -362,9 +363,10 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
     const allocationIds = (await bank.documentBankAllocations(id)).map((a) => a.id);
     const reports = await import("../auswertungen/reports.ts");
     const vat = await import("../umsatzsteuer/index.ts");
-    const imOktober = async () => (await reports.euerPayments(2026)).filter((p) => p.date >= "2026-10-01" && p.date < "2026-11-01");
+    // Ausgaben der EÜR im Oktober (aus dem Journal): Der Beleg wirkt erst mit der Zahlung im November
+    const imOktober = async () => (await reports.euerForYear(2026)).monthly.ausgaben[9];
     const oktoberVorher = await imOktober();
-    expect(oktoberVorher).toEqual([]);
+    expect(oktoberVorher).toBe(0);
     expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(1_900);
 
     // Der Oktober ist noch nicht gemeldet: Der Belegstorno selbst fällt in den Zeitraum des Belegs (28.10.). Die
@@ -379,7 +381,7 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
       where e.source_type = 'allocation' and a.reverses_id is not null`;
     expect(gegenbuchungen.map((r) => r.date)).toEqual(["2026-11-02"]);
     // Der Oktober behält nur den Belegstorno (Vorsteuer 0), keine Bankzahlung; die Gegenzeile steht im November
-    expect(await imOktober()).toEqual(oktoberVorher);
+    expect(await imOktober()).toBe(oktoberVorher);
     expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(0);
     const [dezember] = await sql`select count(*)::int as n from journal_entries where date = '2026-11-02'`;
     expect(dezember?.n).toBeGreaterThan(0);

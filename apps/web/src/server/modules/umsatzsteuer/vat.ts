@@ -8,7 +8,7 @@ import { computeVatFigures } from "./vat-figures.ts";
 import { loadFrequencies, periodProblem } from "./zeitraum.ts";
 import { kz39For } from "./dauerfrist.ts";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
 export type VatReturn = typeof schema.vatReturns.$inferSelect;
 
@@ -94,8 +94,8 @@ function stored(ustva: ReturnType<typeof computeUstva>) {
 export type DraftInput = { mode: "berechnet" } | ({ mode: "manuell"; reason?: string } & FiguresInput);
 
 /** Berechnete Kennzahlen in der Form der Voranmeldung (Bemessungsgrundlagen auf volle Euro) */
-export async function computedValues(period: VatPeriod) {
-  const [figures, kz39] = await Promise.all([computeVatFigures(period), kz39For(period)]);
+export async function computedValues(period: VatPeriod, q: Db | Tx = db) {
+  const [figures, kz39] = await Promise.all([computeVatFigures(period, q), kz39For(period, q)]);
   return stored(computeUstva({ ...figures, kz39 }));
 }
 

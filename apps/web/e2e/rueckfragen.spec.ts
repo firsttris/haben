@@ -524,29 +524,6 @@ test("Postfach und E-Mail-Zugang entfernen fragen nach (#394, #404)", async () =
   }
 });
 
-test("Stichjahr vorziehen fragt nach; danach rechnet das laufende Jahr aus dem Journal", async () => {
-  const jahr = new Date().getFullYear();
-  // Wie eine bestehende Instanz nach Migration 0192: Stichjahr im nächsten Jahr
-  await sql`update company set journal_ab = ${jahr + 1}`;
-  await go("/einstellungen?bereich=firma");
-  const karte = page.getByRole("region", { name: "Voranmeldung und EÜR aus dem Journal" });
-  await expect(karte).toContainText(`Stichjahr ${jahr + 1}`);
-  await expect(karte).toContainText(`${jahr} rechnet noch aus den Nebenbüchern`);
-  const vorziehen = karte.getByRole("button", { name: `Ab ${jahr} aus dem Journal` });
-
-  await vorziehen.click();
-  await faktenZeigen(page, "Bisher", "Neu");
-  await abbrechen(`Stichjahr auf ${jahr} vorziehen?`);
-  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr + 1 }]);
-
-  await vorziehen.click();
-  await bestaetigen(page, "Vorziehen");
-  await expect(page.getByText(`Voranmeldung und EÜR rechnen jetzt ab ${jahr} aus dem Journal.`)).toBeVisible();
-  await expect(karte).toContainText(`Stichjahr ${jahr} · aus dem Journal`);
-  await expect(vorziehen).toHaveCount(0);
-  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr }]);
-});
-
 test("Logo und Briefpapier entfernen fragen nach", async () => {
   await go("/einstellungen?bereich=gestaltung");
   const logo = page.getByRole("region", { name: "Logo und Blatt" });

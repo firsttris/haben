@@ -15,6 +15,8 @@ import {
   toElsterSteuernummer,
   SteuernummerError,
   type Versteuerung,
+  inBasisPoints,
+  inCents,
 } from "@haben/core";
 import { and, desc, eq, gte, lt, lte, min, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -104,11 +106,11 @@ export const companySchema = z
     privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), z.number().int().min(0).max(100)).default({}),
     dunning: z
       .object({
-        baseRate: z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max).nullable(),
+        baseRate: inBasisPoints(z.number().int().min(BASE_RATE_LIMITS.min).max(BASE_RATE_LIMITS.max)).nullable(),
         fees: z.object({
-          "1": z.number().int().min(0).max(MAX_DUNNING_FEE),
-          "2": z.number().int().min(0).max(MAX_DUNNING_FEE),
-          "3": z.number().int().min(0).max(MAX_DUNNING_FEE),
+          "1": inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
+          "2": inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
+          "3": inCents(z.number().int().min(0).max(MAX_DUNNING_FEE)),
         }),
         deadlineDays: z.number().int().min(1).max(60),
         /** Basiszinssatz zum 1. Januar und 1. Juli bei der Bundesbank abrufen (opt-in); fehlt = unverändert */
@@ -162,23 +164,6 @@ export async function versteuerungForYear(year: number, q: Db | Tx = db): Promis
     if (value === "ist" || value === "soll") return value;
   }
   return (await loadCompany(q)).versteuerung;
-}
-
-/**
- * Ab welchem Jahr Voranmeldung und EÜR aus dem Journal rechnen (#542, docs/adr/journal-als-quelle.md): das eingestellte
- * Stichjahr, sonst das Jahr der ersten Buchung, ohne Buchung das laufende Jahr. Bestehende Instanzen setzt die Migration
- * 0192 auf das Jahr nach dem Update.
- */
-export async function journalAbJahr(q: Db | Tx = db): Promise<number> {
-  const company = await loadCompany(q);
-  if (company.journalAb !== null) return company.journalAb;
-  const [first] = await q.select({ date: min(schema.journalEntries.date) }).from(schema.journalEntries);
-  return first?.date ? Number(first.date.slice(0, 4)) : Number(today(new Date()).slice(0, 4));
-}
-
-/** Stichjahr setzen (Vorziehen in den Einstellungen; prüft auswertungen/stichjahr.ts), in der Transaktion des Aufrufers */
-export async function setJournalAb(tx: Tx, year: number): Promise<void> {
-  await tx.update(schema.company).set({ journalAb: year, updatedAt: new Date() }).where(eq(schema.company.id, 1));
 }
 
 /**

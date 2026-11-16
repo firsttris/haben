@@ -25,6 +25,7 @@ export const SCHICHTEN = [
   "koerperschaft",
   "ausschuettung",
   "jahreserklaerung",
+  "umstellung",
   "finanzamt",
   "verfahrensdoku",
   "archiv",

@@ -4,11 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
- * Voranmeldung und EÜR über den Jahreswechsel 2026/2027 (#542, docs/adr/journal-als-quelle.md): Eine bestehende
- * Installation (Stichjahr 2027, Migration 0192) rechnet Dezember 2026 aus den Nebenbüchern und Januar 2027 aus dem
- * Journal; eine neue rechnet beide aus dem Journal. Geprüft wird gegen von Hand gerechnete Werte, nicht nur Quelle gegen
- * Quelle: Jeder Euro Umsatzsteuer wird genau einmal gemeldet, die EÜR zählt nach Zufluss (§ 11 Abs. 1 EStG), und der
- * Abgleich findet in keinem der beiden Zeiträume eine Abweichung.
+ * Voranmeldung und EÜR über den Jahreswechsel 2026/2027 (#542, #1116, docs/adr/journal-als-quelle.md), beide Monate aus
+ * dem Journal. Geprüft wird gegen von Hand gerechnete Werte: Jeder Euro Umsatzsteuer wird genau einmal gemeldet, die EÜR
+ * zählt nach Zufluss (§ 11 Abs. 1 EStG), und der Abgleich findet in keinem der beiden Zeiträume eine Abweichung.
  *
  * Erwartung je Versteuerung (docs/buchhaltung.md „Ist- und Soll-Versteuerung“): Soll nach Rechnungsdatum (§ 13 Abs. 1
  * Nr. 1 Buchst. a Satz 1 UStG), Ist mit der Zahlung (§ 13 Abs. 1 Nr. 1 Buchst. b UStG); Skonto mindert bei Soll im Monat
@@ -68,14 +66,13 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Rechnungen, Zahlunge
     await sql?.end();
   });
 
-  /** Bestehende Installation: Stichjahr 2027; neue: leer, also ab der ersten Buchung (2026) aus dem Journal */
-  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04", journalAb: 2027 | null) {
+  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04") {
     await leeren(sql)`truncate vat_return_filings, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports,
       bank_accounts, cash_entries, journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts,
       company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${journalAb})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen})`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -129,7 +126,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Rechnungen, Zahlunge
     const f = await figures.computeVatFigures(period);
     const werte: Kennzahlen = {};
     for (const k of JOURNAL_KENNZAHLEN) if (f[k] !== 0) werte[k] = f[k];
-    return { quelle: f.quelle, ...werte };
+    return werte;
   }
   /** Zeilen der EÜR ungleich 0 und der Gewinn */
   async function euer(year: number) {
@@ -144,137 +141,130 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Rechnungen, Zahlunge
       expect({ year, abw: abgleich.abweichungen(e.zeilen), hinweise: e.hinweise }).toEqual({ year, abw: [], hinweise: [] });
     }
   }
-  const quelle = (journalAb: 2027 | null) => (journalAb === 2027 ? "nebenbuecher" : "journal");
   const VOLL: Kennzahlen = { kz81: 100_000, tax81: 19_000, kz86: 50_000, tax86: 3_500 };
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      const fall = `${versteuerung}, ${kontenrahmen}`;
+      const dez = (k: Kennzahlen) => ({ ...k });
+      const jan = (k: Kennzahlen) => ({ ...k });
 
-  for (const journalAb of [2027, null] as const) {
-    const inst = journalAb ? "bestehende Installation, Stichjahr 2027" : "neue Installation";
-    for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
-      for (const versteuerung of ["ist", "soll"] as const) {
-        const fall = `${versteuerung}, ${kontenrahmen}, ${inst}`;
-        const dez = (k: Kennzahlen) => ({ quelle: quelle(journalAb), ...k });
-        const jan = (k: Kennzahlen) => ({ quelle: "journal", ...k });
+      it(`Rechnung 19 % und 7 % im Dezember, Zahlung im Januar (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const inv = await gemischt("2026-12-10");
+        await zahlung(inv.id, "05.01.27", "1.725,00");
+        expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : {}));
+        expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? VOLL : {}));
+        expect(await euer(2026)).toEqual({ gewinn: 0 });
+        expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 150_000, vereinnahmteUst: 22_500, gewinn: 172_500 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Rechnung 19 % und 7 % im Dezember, Zahlung im Januar (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const inv = await gemischt("2026-12-10");
-          await zahlung(inv.id, "05.01.27", "1.725,00");
-          expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : {}));
-          expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? VOLL : {}));
-          expect(await euer(2026)).toEqual({ gewinn: 0 });
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 150_000, vereinnahmteUst: 22_500, gewinn: 172_500 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`Teilzahlung am 31.12., Rest am 1.1. (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const inv = await gemischt("2026-12-10");
+        await zahlung(inv.id, "31.12.26", "1.000,00");
+        await zahlung(inv.id, "01.01.27", "725,00");
+        expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : { kz81: 57_971, tax81: 11_014, kz86: 28_986, tax86: 2_029 }));
+        expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? { kz81: 42_029, tax81: 7_986, kz86: 21_014, tax86: 1_471 } : {}));
+        expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 86_957, vereinnahmteUst: 13_043, gewinn: 100_000 });
+        expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 63_043, vereinnahmteUst: 9_457, gewinn: 72_500 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Teilzahlung am 31.12., Rest am 1.1. (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const inv = await gemischt("2026-12-10");
-          await zahlung(inv.id, "31.12.26", "1.000,00");
-          await zahlung(inv.id, "01.01.27", "725,00");
-          expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : { kz81: 57_971, tax81: 11_014, kz86: 28_986, tax86: 2_029 }));
-          expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? { kz81: 42_029, tax81: 7_986, kz86: 21_014, tax86: 1_471 } : {}));
-          expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 86_957, vereinnahmteUst: 13_043, gewinn: 100_000 });
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 63_043, vereinnahmteUst: 9_457, gewinn: 72_500 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`Teilzahlung 150,00 € am 31.12. mit Rundungsrest, Rest am 1.1. (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const inv = await gemischt("2026-12-10");
+        await zahlung(inv.id, "31.12.26", "150,00");
+        await zahlung(inv.id, "01.01.27", "1.575,00");
+        // Steuer gesamt 225 × 150 / 1725 = 19,57 €; je Satz 16,52 € und 3,04 € (19,56 €): der Cent Rest geht an den
+        // größten Posten (19 %), ebenso beim Netto (86,96 € + 43,48 € = 130,44 € statt 130,43 €), paidTaxShares
+        expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : { kz81: 8_695, tax81: 1_653, kz86: 4_348, tax86: 304 }));
+        expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? { kz81: 91_305, tax81: 17_347, kz86: 45_652, tax86: 3_196 } : {}));
+        expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 13_043, vereinnahmteUst: 1_957, gewinn: 15_000 });
+        expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 136_957, vereinnahmteUst: 20_543, gewinn: 157_500 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Teilzahlung 150,00 € am 31.12. mit Rundungsrest, Rest am 1.1. (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const inv = await gemischt("2026-12-10");
-          await zahlung(inv.id, "31.12.26", "150,00");
-          await zahlung(inv.id, "01.01.27", "1.575,00");
-          // Steuer gesamt 225 × 150 / 1725 = 19,57 €; je Satz 16,52 € und 3,04 € (19,56 €): der Cent Rest geht an den
-          // größten Posten (19 %), ebenso beim Netto (86,96 € + 43,48 € = 130,44 € statt 130,43 €), paidTaxShares
-          expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : { kz81: 8_695, tax81: 1_653, kz86: 4_348, tax86: 304 }));
-          expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? { kz81: 91_305, tax81: 17_347, kz86: 45_652, tax86: 3_196 } : {}));
-          expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 13_043, vereinnahmteUst: 1_957, gewinn: 15_000 });
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 136_957, vereinnahmteUst: 20_543, gewinn: 157_500 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`Zahlung im Januar mit 3 % Skonto (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const inv = await gemischt("2026-12-10");
+        // 1.725,00 € − 3 % = 1.673,25 €; Skonto 51,75 €, davon 6,75 € Steuer (5,70 € zu 19 %, 1,05 € zu 7 %)
+        const tx = await umsatzVom("07.01.27", "1.673,25");
+        await bank.allocateWithRest(actor, { transactionId: tx.id, target: { kind: "invoice", invoiceId: inv.id }, rest: "skonto" } as never);
+        expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : {}));
+        expect(await va(JAN)).toEqual(
+          jan(versteuerung === "ist" ? { kz81: 97_000, tax81: 18_430, kz86: 48_500, tax86: 3_395 } : { kz81: -3_000, tax81: -570, kz86: -1_500, tax86: -105 }),
+        );
+        expect(await euer(2026)).toEqual({ gewinn: 0 });
+        expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 145_500, vereinnahmteUst: 21_825, gewinn: 167_325 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Zahlung im Januar mit 3 % Skonto (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const inv = await gemischt("2026-12-10");
-          // 1.725,00 € − 3 % = 1.673,25 €; Skonto 51,75 €, davon 6,75 € Steuer (5,70 € zu 19 %, 1,05 € zu 7 %)
-          const tx = await umsatzVom("07.01.27", "1.673,25");
-          await bank.allocateWithRest(actor, { transactionId: tx.id, target: { kind: "invoice", invoiceId: inv.id }, rest: "skonto" } as never);
-          expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : {}));
-          expect(await va(JAN)).toEqual(
-            jan(
-              versteuerung === "ist" ? { kz81: 97_000, tax81: 18_430, kz86: 48_500, tax86: 3_395 } : { kz81: -3_000, tax81: -570, kz86: -1_500, tax86: -105 },
-            ),
-          );
-          expect(await euer(2026)).toEqual({ gewinn: 0 });
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 145_500, vereinnahmteUst: 21_825, gewinn: 167_325 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`Storno im Januar einer unbezahlten Rechnung aus dem Dezember (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const inv = await gemischt("2026-12-10");
+        await invoices.cancelInvoice(actor, inv.id, "2027-01-10");
+        expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : {}));
+        // § 17 Abs. 1 und 2 Nr. 2 UStG: bei Soll Minderung im Monat des Stornos; bei Ist war nie etwas gemeldet
+        expect(await va(JAN)).toEqual(jan(versteuerung === "soll" ? { kz81: -100_000, tax81: -19_000, kz86: -50_000, tax86: -3_500 } : {}));
+        expect(await euer(2026)).toEqual({ gewinn: 0 });
+        expect(await euer(2027)).toEqual({ gewinn: 0 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Storno im Januar einer unbezahlten Rechnung aus dem Dezember (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const inv = await gemischt("2026-12-10");
-          await invoices.cancelInvoice(actor, inv.id, "2027-01-10");
-          expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : {}));
-          // § 17 Abs. 1 und 2 Nr. 2 UStG: bei Soll Minderung im Monat des Stornos; bei Ist war nie etwas gemeldet
-          expect(await va(JAN)).toEqual(jan(versteuerung === "soll" ? { kz81: -100_000, tax81: -19_000, kz86: -50_000, tax86: -3_500 } : {}));
-          expect(await euer(2026)).toEqual({ gewinn: 0 });
-          expect(await euer(2027)).toEqual({ gewinn: 0 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`Storno im Januar einer im Dezember bezahlten Rechnung, Rückzahlung im Januar (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const inv = await gemischt("2026-12-10");
+        await zahlung(inv.id, "18.12.26", "1.725,00");
+        const storno = await invoices.cancelInvoice(actor, inv.id, "2027-01-10");
+        await zahlung(storno.id, "12.01.27", "-1.725,00");
+        const minus: Kennzahlen = { kz81: -100_000, tax81: -19_000, kz86: -50_000, tax86: -3_500 };
+        expect(await va(DEZ)).toEqual(dez(VOLL));
+        expect(await va(JAN)).toEqual(jan(minus));
+        expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 150_000, vereinnahmteUst: 22_500, gewinn: 172_500 });
+        expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: -150_000, vereinnahmteUst: -22_500, gewinn: -172_500 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Storno im Januar einer im Dezember bezahlten Rechnung, Rückzahlung im Januar (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const inv = await gemischt("2026-12-10");
-          await zahlung(inv.id, "18.12.26", "1.725,00");
-          const storno = await invoices.cancelInvoice(actor, inv.id, "2027-01-10");
-          await zahlung(storno.id, "12.01.27", "-1.725,00");
-          const minus: Kennzahlen = { kz81: -100_000, tax81: -19_000, kz86: -50_000, tax86: -3_500 };
-          expect(await va(DEZ)).toEqual(dez(VOLL));
-          expect(await va(JAN)).toEqual(jan(minus));
-          expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 150_000, vereinnahmteUst: 22_500, gewinn: 172_500 });
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: -150_000, vereinnahmteUst: -22_500, gewinn: -172_500 });
-          await abgleichSauber();
-        }, 60_000);
+      it(`Rechnungskorrektur im Januar (Gutschrift 200,00 € zu 19 %), Zahlung des Rests im Januar (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const inv = await invoice("2026-12-10", [{ net: 100_000, rate: 1900 }]);
+        const korrektur = await invoices.createCorrection(actor, inv.id, "2027-01-10");
+        await invoices.updateDraft(actor, korrektur.id, { ...draftInput("2027-01-10", [{ net: -20_000, rate: 1900 }]), paymentTermDays: 0 });
+        await invoices.finalizeInvoice(actor, korrektur.id);
+        // 800,00 € + 152,00 € = 952,00 €
+        await zahlung(inv.id, "20.01.27", "952,00");
+        expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? { kz81: 100_000, tax81: 19_000 } : {}));
+        expect(await va(JAN)).toEqual(jan(versteuerung === "soll" ? { kz81: -20_000, tax81: -3_800 } : { kz81: 80_000, tax81: 15_200 }));
+        expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 80_000, vereinnahmteUst: 15_200, gewinn: 95_200 });
+        await abgleichSauber();
+      }, 60_000);
 
-        it(`Rechnungskorrektur im Januar (Gutschrift 200,00 € zu 19 %), Zahlung des Rests im Januar (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const inv = await invoice("2026-12-10", [{ net: 100_000, rate: 1900 }]);
-          const korrektur = await invoices.createCorrection(actor, inv.id, "2027-01-10");
-          await invoices.updateDraft(actor, korrektur.id, { ...draftInput("2027-01-10", [{ net: -20_000, rate: 1900 }]), paymentTermDays: 0 });
-          await invoices.finalizeInvoice(actor, korrektur.id);
-          // 800,00 € + 152,00 € = 952,00 €
-          await zahlung(inv.id, "20.01.27", "952,00");
-          expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? { kz81: 100_000, tax81: 19_000 } : {}));
-          expect(await va(JAN)).toEqual(jan(versteuerung === "soll" ? { kz81: -20_000, tax81: -3_800 } : { kz81: 80_000, tax81: 15_200 }));
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 80_000, vereinnahmteUst: 15_200, gewinn: 95_200 });
-          await abgleichSauber();
-        }, 60_000);
-
-        it(`Zahlung aus dem Dezember im Januar aufgehoben und einer anderen Rechnung zugeordnet (${fall})`, async () => {
-          await reset(versteuerung, kontenrahmen, journalAb);
-          const a = await invoice("2026-12-01", [{ net: 100_000, rate: 1900 }]);
-          const b = await invoice("2026-12-02", [{ net: 100_000, rate: 700 }]);
-          // 1.070,00 € gehören zu B (7 %), zuerst falsch auf A gebucht (1.190,00 € offen)
-          const txId = await zahlung(a.id, "22.12.26", "1.070,00");
-          const [alloc] = await sql`select id from allocations where transaction_id = ${txId}`;
-          // Die Aufhebung wirkt im Januar (#782): Der Dezember behält die falsche Zuordnung, der Januar nimmt sie zurück
-          await bank.reverseAllocation(actor, alloc!.id, "2027-01-15");
-          await bank.allocate(actor, { kind: "invoice", transactionId: txId, invoiceId: b.id, amount: 107_000 });
-          await zahlung(a.id, "15.01.27", "1.190,00");
-          // Ist: der Dezember trägt die falsche Zuordnung auf A (107.000 von 119.000, anteilig 89.916 + 17.084 USt) und
-          // die richtige auf B; der Januar die Gegenzeile zu A und die Zahlung auf A (100.000 + 19.000)
-          expect(await va(DEZ)).toEqual(
-            dez(
-              versteuerung === "soll"
-                ? { kz81: 100_000, tax81: 19_000, kz86: 100_000, tax86: 7_000 }
-                : { kz81: 89_916, tax81: 17_084, kz86: 100_000, tax86: 7_000 },
-            ),
-          );
-          expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? { kz81: 10_084, tax81: 1_916 } : {}));
-          expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 189_916, vereinnahmteUst: 24_084, gewinn: 214_000 });
-          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 10_084, vereinnahmteUst: 1_916, gewinn: 12_000 });
-          await abgleichSauber();
-        }, 60_000);
-      }
+      it(`Zahlung aus dem Dezember im Januar aufgehoben und einer anderen Rechnung zugeordnet (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const a = await invoice("2026-12-01", [{ net: 100_000, rate: 1900 }]);
+        const b = await invoice("2026-12-02", [{ net: 100_000, rate: 700 }]);
+        // 1.070,00 € gehören zu B (7 %), zuerst falsch auf A gebucht (1.190,00 € offen)
+        const txId = await zahlung(a.id, "22.12.26", "1.070,00");
+        const [alloc] = await sql`select id from allocations where transaction_id = ${txId}`;
+        // Die Aufhebung wirkt im Januar (#782): Der Dezember behält die falsche Zuordnung, der Januar nimmt sie zurück
+        await bank.reverseAllocation(actor, alloc!.id, "2027-01-15");
+        await bank.allocate(actor, { kind: "invoice", transactionId: txId, invoiceId: b.id, amount: 107_000 });
+        await zahlung(a.id, "15.01.27", "1.190,00");
+        // Ist: der Dezember trägt die falsche Zuordnung auf A (107.000 von 119.000, anteilig 89.916 + 17.084 USt) und
+        // die richtige auf B; der Januar die Gegenzeile zu A und die Zahlung auf A (100.000 + 19.000)
+        expect(await va(DEZ)).toEqual(
+          dez(
+            versteuerung === "soll"
+              ? { kz81: 100_000, tax81: 19_000, kz86: 100_000, tax86: 7_000 }
+              : { kz81: 89_916, tax81: 17_084, kz86: 100_000, tax86: 7_000 },
+          ),
+        );
+        expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? { kz81: 10_084, tax81: 1_916 } : {}));
+        expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 189_916, vereinnahmteUst: 24_084, gewinn: 214_000 });
+        expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 10_084, vereinnahmteUst: 1_916, gewinn: 12_000 });
+        await abgleichSauber();
+      }, 60_000);
     }
   }
 });

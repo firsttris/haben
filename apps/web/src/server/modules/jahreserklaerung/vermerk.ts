@@ -1,4 +1,4 @@
-import { formatEuro, isKapitalgesellschaft, type Cents } from "@haben/core";
+import { formatEuro, isKapitalgesellschaft, type Cents, inCents } from "@haben/core";
 import { ERSTES_ERKLAERUNGSJAHR, transferticketProblem } from "@haben/elster";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -11,6 +11,7 @@ import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { underSendLock } from "../elster/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { AnnualError, annualOverview } from "./annual.ts";
+import { gerechneteZahlen } from "./gerechnete-zahlen.ts";
 
 /*
  * Abgabe vermerken: Eine Jahreserklärung (Umsatzsteuererklärung, Anlage EÜR oder Einkommensteuererklärung), die
@@ -45,7 +46,7 @@ export interface JahresvermerkInput {
 }
 
 /** Betrag in Cent; die Grenze hält einen Tippfehler davon ab, den Jahresüberblick zu sprengen */
-export const vermerkBetrag = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
+export const vermerkBetrag = inCents(z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00));
 
 /**
  * Die Feldregeln des Vermerks an einer Stelle: Der Validator der Server-Funktion (functions/annual.ts) und das Modul
@@ -174,6 +175,9 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
     // Wie bei der Übermittlung: Welche Januarzahlungen die abgegebene EÜR verschiebt, bleibt fest (ZEHN_TAGE_REGEL, #583);
     // die Einkommensteuererklärung enthält deren Gewinn und hält es ebenso fest (#1073)
     const zehnTage = form !== "ust" ? { [ZEHN_TAGE_REGEL]: await zehnTageKennzeichen(year) } : {};
+    // Alle gerechneten Zahlen wie bei einer Übermittlung, damit die Prüfung gegen das Journal später jede Zeile vergleicht
+    // (erklaert-pruefen.ts; Vorschlag von thomas-baumeister in #1144). Die Einkommensteuer hat keine eigenen.
+    const gerechnet = form === "est" ? {} : { gerechnet: await gerechneteZahlen(form, year) };
 
     return withActor(actor, async (tx) => {
       const [row] = await tx
@@ -191,6 +195,7 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
             ...(data.amount === undefined ? {} : { amount: data.amount }),
             ...(pruefung && abweichung !== 0 ? { berechnet: pruefung.berechnet, abweichung, abweichungBestaetigt: true } : {}),
             ...zehnTage,
+            ...gerechnet,
           },
           filedOn: data.filedOn,
           note: data.note,

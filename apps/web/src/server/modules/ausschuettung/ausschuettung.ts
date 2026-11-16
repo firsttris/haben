@@ -7,6 +7,7 @@ import {
   toElsterSteuernummer,
   VORTRAG_ACCOUNTS,
   type Cents,
+  inCents,
 } from "@haben/core";
 import { buildKapEStAXml, KAPESTA_JAHRE, KAPESTA_JAHRE_TEXT, tagDanach, zuflussTag, type ElsterClient, type ElsterResult } from "@haben/elster";
 import { and, asc, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
@@ -40,7 +41,7 @@ export const ausschuettungSchema = z.object({
     .int("Geschäftsjahr der Ausschüttung ist kein gültiges Jahr")
     .min(1900, "Geschäftsjahr der Ausschüttung ist kein gültiges Jahr")
     .max(2999, "Geschäftsjahr der Ausschüttung ist kein gültiges Jahr"),
-  brutto: z.number().int().min(1, "Betrag der Ausschüttung fehlt").max(100_000_000_000_00),
+  brutto: inCents(z.number().int().min(1, "Betrag der Ausschüttung fehlt").max(100_000_000_000_00)),
 });
 
 export type AusschuettungInput = z.input<typeof ausschuettungSchema>;

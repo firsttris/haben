@@ -46,7 +46,7 @@ describe("Prüfbericht", () => {
     const beides = integrityNotice(bericht({ files, abgleich: { abweichungen: [abweichung], hinweise: [] } }));
     expect(beides.tone).toBe("danger");
     expect(beides.text).toContain("2 Dateien fehlen oder sind verändert");
-    expect(beides.text).toContain("an einer Stelle voneinander ab");
+    expect(beides.text).toContain("Der Abgleich im Journal zeigt eine Abweichung.");
   });
 
   it("bleibt grün ohne Befund, auch wenn die Dateien noch nie geprüft wurden", () => {

@@ -96,7 +96,7 @@ Die WISO-Kontaktliste und die Buchungsdateien liefern derzeit keinen importierba
 
 Kläre vor der ersten Zahlung mit der Steuerberatung, wie diese Posten in Haben erfasst und ausgeglichen werden, besonders bei Teilzahlungen und schon berücksichtigter Vorsteuer. Lege keine alte Rechnung als neue Leistung an und erfinde keine Zahlung für den bereits in WISO bezahlten Teil. Die [Grenzen freier Buchungen](buchhaltung.md#manuelle-und-freie-buchungen) gelten auch beim Umzug: Eine Journalbuchung ersetzt keinen offenen Posten im Nebenbuch.
 
-Die laufenden Werte entstehen aus der Buchhaltung in Haben; ab dem eingestellten Stichjahr rechnen [EÜR](auswertungen.md#eür-nach-zufluss-und-abfluss) und [Voranmeldung](umsatzsteuer.md#wie-die-kennzahlen-entstehen) aus dem Journal.
+Die laufenden Werte entstehen aus der Buchhaltung in Haben; [EÜR](auswertungen.md#eür-nach-zufluss-und-abfluss) und [Voranmeldung](umsatzsteuer.md#wie-die-kennzahlen-entstehen) rechnen aus dem Journal.
 
 ## Vor dem endgültigen Wechsel
 

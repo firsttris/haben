@@ -7,6 +7,7 @@ import {
   type KategorieAngabe,
   type Kontenrahmen,
   type PostingLine,
+  inBasisPoints,
 } from "@haben/core";
 import { z } from "zod";
 import { UserError } from "../../errors.ts";
@@ -23,7 +24,7 @@ export class KategorieError extends UserError {}
 /** Welche Kategorien es gibt, prüft kategorieFehler; die Ausgabekategorien wachsen, gebuchte bleiben gültig */
 export const kategorieAngabeSchema = z.object({
   kategorie: z.string().min(1).max(40),
-  steuersatz: z.number().int().min(0).max(10_000),
+  steuersatz: inBasisPoints(z.number().int().min(0).max(10_000)),
 });
 
 export interface Kategoriebuchung {

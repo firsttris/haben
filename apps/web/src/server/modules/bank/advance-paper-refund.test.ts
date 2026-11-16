@@ -27,9 +27,9 @@ describe.skipIf(!testDatabaseUrl)("Bankerstattung bei Anzahlungs- und Schlusssto
     await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries,
       allocations, write_offs, bank_transactions, bank_imports, bank_accounts, cash_entries cascade`;
     await sql`insert into company (id, name, rechtsform, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban,
-      kontenrahmen, versteuerung, journal_ab)
+      kontenrahmen, versteuerung)
       values (1, 'Test GmbH', 'gmbh', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1',
-      '198/113/10010', 'BY', ${iban}, 'SKR03', 'ist', 2026)`;
+      '198/113/10010', 'BY', ${iban}, 'SKR03', 'ist')`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",

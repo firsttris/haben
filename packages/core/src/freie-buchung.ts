@@ -11,7 +11,7 @@ import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
  * Erlöszeile einen Steuerschlüssel trägt. Wie die DATEV-Automatik teilt Haben den Bruttobetrag in Netto und Steuer; die
  * Netto-Zeile trägt den Schlüssel (Bemessungsgrundlage), die Steuer geht auf das Umsatzsteuerkonto des Satzes. Keine
  * Vorsteuer: Eine freie Buchung ist ein Eigenbeleg, der Vorsteuerabzug braucht eine Rechnung (§ 15 Abs. 1 Nr. 1 Satz 2
- * UStG); dafür gibt es Belege. Nur ab dem Stichjahr, wenn Voranmeldung und EÜR aus dem Journal rechnen.
+ * UStG); dafür gibt es Belege. Voranmeldung und EÜR rechnen aus dem Journal und sehen sie deshalb (#1116).
  */
 
 export interface FreieBuchungKontext {
@@ -19,27 +19,19 @@ export interface FreieBuchungKontext {
   rechtsform: Rechtsform;
   /** Kleinunternehmer am Buchungstag: dann keine Umsatzsteuer (§ 19 Abs. 1 UStG) */
   kleinunternehmer: boolean;
-  /** Voranmeldung und EÜR rechnen im Jahr der Buchung aus dem Journal (Jahr ≥ Stichjahr) */
-  ausDemJournal: boolean;
   /** Eigene Sachkonten (#270) des Kontenrahmens: Nummer → Elternkategorie; sie haben die Zeile der EÜR ihrer Elternkategorie */
   eigene?: ReadonlyMap<string, ExpenseCategory>;
 }
 
 /**
  * Was einer manuellen Buchung als freie Buchung fehlt, zusätzlich zu manualPostingIssues; leer = buchbar. Im Einzelunternehmen
- * braucht jede Buchung das Stichjahr (davor rechnet die EÜR aus den Nebenbüchern und sähe sie nicht); jedes Erfolgskonto
- * muss eine Zeile der EÜR haben. Mit Steuerschlüssel ist das Gegenkonto ein Erfolgs- oder Privatkonto, in GmbH und UG ein
+ * muss jedes Erfolgskonto eine Zeile der EÜR haben. Mit Steuerschlüssel ist das Gegenkonto ein Erfolgs- oder Privatkonto, in GmbH und UG ein
  * Erfolgskonto oder das Gesellschafter-Verrechnungskonto.
  */
 export function freieBuchungIssues(lines: readonly ManualLine[], k: FreieBuchungKontext): string[] {
   const issues: string[] = [];
   const mitSchluessel = lines.some((l) => l.taxCode);
   const gmbh = isKapitalgesellschaft(k.rechtsform);
-  if (!gmbh && !k.ausDemJournal) {
-    issues.push("Im Einzelunternehmen gibt es manuelle Buchungen erst ab dem Stichjahr, wenn die EÜR aus dem Journal rechnet");
-  } else if (mitSchluessel && !k.ausDemJournal) {
-    issues.push("Buchungen mit Steuerschlüssel gibt es erst ab dem Stichjahr, wenn die Voranmeldung aus dem Journal rechnet");
-  }
   if (mitSchluessel && k.kleinunternehmer) issues.push("Als Kleinunternehmer bucht Haben keine Umsatzsteuer (§ 19 Abs. 1 UStG)");
   const erfolg = (account: string) => kontoart(k.kontenrahmen, account) !== "bestand";
   for (const [index, line] of lines.entries()) {

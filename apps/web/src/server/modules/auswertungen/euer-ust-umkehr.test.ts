@@ -23,9 +23,9 @@ describe.skipIf(!testDatabaseUrl)("USt-Zuordnung in der EÜR aufheben (Postgres)
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
     await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, journal_ab)
+    await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung)
       values (1, 'Musterbetrieb', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY',
-              ${kontenrahmen}, ${versteuerung}, 2026)`;
+              ${kontenrahmen}, ${versteuerung})`;
   }
 
   async function transactions(rows: [string, string][]) {
@@ -68,7 +68,6 @@ describe.skipIf(!testDatabaseUrl)("USt-Zuordnung in der EÜR aufheben (Postgres)
       const lines = [...result.einnahmen, ...result.ausgaben];
       return { paid: lines.find((l) => l.key === "gezahlteUst")?.amount ?? 0, refunded: lines.find((l) => l.key === "erstatteteUst")?.amount ?? 0 };
     };
-    expect(amounts(await reports.euerAusNebenbuechern(year))).toEqual({ paid, refunded });
     expect(amounts(await reports.euerForYear(year))).toEqual({ paid, refunded });
     const result = await abgleich.euerAbgleich(year);
     expect(result.hinweise).toEqual([]);

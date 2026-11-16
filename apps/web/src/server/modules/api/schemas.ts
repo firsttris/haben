@@ -1,4 +1,4 @@
-import { INVOICE_PAYMENT_METHODS, PRICE_MODES, TAX_TREATMENT_KEYS } from "@haben/core";
+import { INVOICE_PAYMENT_METHODS, PRICE_MODES, TAX_TREATMENT_KEYS, inBasisPoints, inCents, inMillis } from "@haben/core";
 import { z } from "zod";
 import { documentReferenceSchema, MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { draftSchema, externalReferenceSchema } from "../rechnungen/index.ts";
@@ -118,7 +118,7 @@ export const contactSchema = z
     ustId: z.string(),
     iban: z.string(),
     leitwegId: z.string(),
-    hourlyRateCents: z.number().int().nullable().describe("Stundensatz für Leistungseinträge in Cent; null: keiner hinterlegt"),
+    hourlyRateCents: inCents(z.number().int()).nullable().describe("Stundensatz für Leistungseinträge in Cent; null: keiner hinterlegt"),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
     language: z.enum(["de", "en"]),
     version: z.number().int().describe("Steigt mit jeder Änderung; alte Stände bleiben in Haben erhalten"),
@@ -220,11 +220,11 @@ const lineSchema = z.object({
   description: z.string(),
   detail: z.string(),
   itemNumber: z.string().describe("Artikelnummer des Verkäufers (BT-155); leer = keine"),
-  quantity: z.number().int().describe("Tausendstel"),
+  quantity: inMillis(z.number().int()).describe("Tausendstel"),
   unit: z.string(),
-  unitPrice: z.number().int().describe("Cent, wie eingegeben (netto oder brutto)"),
-  taxRate: z.number().int().describe("Basispunkte"),
-  net: z.number().int().describe("Zeilennetto in Cent"),
+  unitPrice: inCents(z.number().int()).describe("Cent, wie eingegeben (netto oder brutto)"),
+  taxRate: inBasisPoints(z.number().int()).describe("Basispunkte"),
+  net: inCents(z.number().int()).describe("Zeilennetto in Cent"),
 });
 
 const LIST_STATUS = ["entwurf", "offen", "teilbezahlt", "bezahlt", "ausgebucht", "ueberfaellig", "storniert", "storno", "korrektur"] as const;
@@ -239,10 +239,10 @@ const invoiceSummaryShape = {
   customer: z.string().describe("Name des Kunden"),
   issueDate: isoDate,
   dueDate: isoDate,
-  net: z.number().int().describe(CENTS),
-  gross: z.number().int().describe(CENTS),
-  paid: z.number().int().describe(`Bezahlt laut Bankabgleich; ${CENTS}`),
-  open: z.number().int().describe(`Noch offen; ${CENTS}`),
+  net: inCents(z.number().int()).describe(CENTS),
+  gross: inCents(z.number().int()).describe(CENTS),
+  paid: inCents(z.number().int()).describe(`Bezahlt laut Bankabgleich; ${CENTS}`),
+  open: inCents(z.number().int()).describe(`Noch offen; ${CENTS}`),
   externalSource: z.string().nullable(),
   externalId: z.string().nullable(),
   url: z.url().describe("Seite der Rechnung in Haben, dort wird festgeschrieben und versendet"),
@@ -261,7 +261,9 @@ export const invoiceSchema = z
     paymentMethod: z.enum(INVOICE_PAYMENT_METHODS),
     paidVia: z.string().nullable(),
     paidOn: isoDate.nullable(),
-    skonto: z.array(z.object({ days: z.number().int(), percent: z.number().int() })).describe("Skontostufen: Frist in Tagen, Satz in Basispunkten"),
+    skonto: z
+      .array(z.object({ days: z.number().int(), percent: inBasisPoints(z.number().int()) }))
+      .describe("Skontostufen: Frist in Tagen, Satz in Basispunkten"),
     format: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     intro: z.string(),
     note: z.string(),
@@ -276,7 +278,7 @@ export const invoiceSchema = z
     priceMode: z.enum(PRICE_MODES),
     currency: z.string(),
     exchangeRate: z.string().nullable().describe("1 EUR = Kurs; Beträge in Cent sind bei Fremdwährung in Euro umgerechnet"),
-    tax: z.number().int().describe(CENTS),
+    tax: inCents(z.number().int()).describe(CENTS),
     lines: z.array(lineSchema),
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -346,7 +348,7 @@ const documentSummaryShape = {
   documentDate: isoDate.nullable().describe("Belegdatum"),
   category: z.string().nullable().describe("Kategorie der Ausgabe, z. B. software"),
   currency: z.string(),
-  gross: z.number().int().describe(`Brutto in Euro; ${CENTS}`),
+  gross: inCents(z.number().int()).describe(`Brutto in Euro; ${CENTS}`),
   externalSource: z.string().nullable(),
   externalId: z.string().nullable(),
   uploadedAt: timestamp,
@@ -372,8 +374,8 @@ export const documentSchema = z
     dueDate: isoDate.nullable(),
     payment: z.enum(["bank", "privat", "kasse"]),
     note: z.string(),
-    net: z.number().int().describe(`Netto in Euro; ${CENTS}`),
-    tax: z.number().int().describe(`Steuer in Euro; ${CENTS}`),
+    net: inCents(z.number().int()).describe(`Netto in Euro; ${CENTS}`),
+    tax: inCents(z.number().int()).describe(`Steuer in Euro; ${CENTS}`),
     ...documentTaxShape,
     issues: z.array(z.string()).describe("Was vor dem Buchen noch fehlt; leer, wenn bereit oder gebucht"),
     replacedById: z.uuid().nullable().describe("Bei einem stornierten Beleg: der neu erfasste Beleg mit derselben Datei"),

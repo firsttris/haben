@@ -10,7 +10,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * in diesen zehn Tagen auch fällig sein (BFH X R 2/21): ohne Dauerfristverlängerung am 10.01. (§ 18 Abs. 1 Satz 4 UStG), mit
  * ihr am 10.02. (§ 46 UStDV), dann zählt die Zahlung im Jahr der Zahlung (BFH VIII R 25/20). Der 10.01.2027 ist ein Sonntag;
  * die Verschiebung nach § 108 Abs. 3 AO zählt für § 11 EStG nicht (BFH X R 44/16). Eine Erstattung bleibt im Jahr des Zuflusses.
- * Stichjahr 2027: die EÜR 2026 aus den Nebenbüchern, 2027 aus dem Journal; beide Wege müssen dasselbe ergeben.
+ * Die EÜR beider Jahre kommt aus dem Journal (#1116); die festen Werte lieferte bis dahin auch die Rechnung aus den Nebenbüchern.
  */
 
 function dkbCsv(rows: string[][]) {
@@ -85,10 +85,10 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
     await leeren(sql)`truncate annual_submissions, year_closings, vat_return_filings, vat_return_submissions, vat_returns, vat_frequencies,
       vat_extension_submissions, vat_extensions, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab,
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,
               einkunftsart, taetigkeit)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, 2027, 'selbstaendig', 'Softwareentwicklung')`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, 'selbstaendig', 'Softwareentwicklung')`;
   }
 
   async function umsatzVom(date: string, amount: string) {
@@ -176,13 +176,10 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
   async function euer(year: number) {
     return zeilen(await reports.euerForYear(year));
   }
-  /** Nebenbücher und Journal ergeben dieselbe EÜR, der Abgleich zeigt keine Abweichung */
+  /** Die EÜR aus dem Journal ist die von euerForYear, der Abgleich zeigt keine Abweichung */
   async function beideWegeGleich() {
     for (const year of [2026, 2027]) {
-      expect({ year, journal: zeilen(await quelle.euerAusDemJournal(year, db)) }).toEqual({
-        year,
-        journal: zeilen(await reports.euerAusNebenbuechern(year)),
-      });
+      expect({ year, journal: zeilen(await quelle.euerAusDemJournal(year, db)) }).toEqual({ year, journal: await euer(year) });
       const e = await abgleich.euerAbgleich(year);
       expect({ year, abw: abgleich.abweichungen(e.zeilen), hinweise: e.hinweise }).toEqual({ year, abw: [], hinweise: [] });
     }
@@ -331,7 +328,6 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
       for (const year of [2026, 2027]) {
         const erwartet = year === 2026 ? { einnahmen: 100_000, ust: 0, gewinn: 119_000 } : { einnahmen: 0, ust: 0, gewinn: 0 };
         expect(saldo(await quelle.euerAusDemJournal(year, db))).toEqual(erwartet);
-        expect(saldo(await reports.euerAusNebenbuechern(year))).toEqual(erwartet);
         expect(abgleich.abweichungen((await abgleich.euerAbgleich(year)).zeilen)).toEqual([]);
       }
     },

@@ -1,4 +1,5 @@
 import { z } from "zod/mini";
+import { inBasisPoints, inCents } from "./einheit-schema.ts";
 import type { InvoiceTotals, PriceMode } from "./invoice.ts";
 import { formatEuro, parseEuro, roundHalfAwayFromZero, taxIncluded, type BasisPoints, type Cents } from "./money.ts";
 import { formatPercent, parsePercent } from "./skonto.ts";
@@ -18,8 +19,8 @@ import { formatPercent, parsePercent } from "./skonto.ts";
 export type Discount = { kind: "prozent"; value: BasisPoints } | { kind: "betrag"; value: Cents };
 
 export const discountSchema = z.union([
-  z.object({ kind: z.literal("prozent"), value: z.int().check(z.minimum(1), z.maximum(10_000)) }),
-  z.object({ kind: z.literal("betrag"), value: z.int().check(z.minimum(-100_000_000_00), z.maximum(100_000_000_00)) }),
+  z.object({ kind: z.literal("prozent"), value: inBasisPoints(z.int().check(z.minimum(1), z.maximum(10_000))) }),
+  z.object({ kind: z.literal("betrag"), value: inCents(z.int().check(z.minimum(-100_000_000_00), z.maximum(100_000_000_00))) }),
 ]);
 
 /**
@@ -49,14 +50,14 @@ export function discountInput(discount: Discount | null | undefined): string {
 }
 
 /** Aus den Spalten discount_percent und discount_amount; höchstens eine ist gesetzt (Check in der Datenbank) */
-export function discountFromColumns(percent: number | null, amount: number | null): Discount | null {
+export function discountFromColumns(percent: BasisPoints | null, amount: Cents | null): Discount | null {
   if (percent !== null) return { kind: "prozent", value: percent };
   if (amount !== null) return { kind: "betrag", value: amount };
   return null;
 }
 
 /** Für die Spalten discount_percent und discount_amount */
-export function discountColumns(discount: Discount | null | undefined): { discountPercent: number | null; discountAmount: number | null } {
+export function discountColumns(discount: Discount | null | undefined): { discountPercent: BasisPoints | null; discountAmount: Cents | null } {
   return {
     discountPercent: discount?.kind === "prozent" ? discount.value : null,
     discountAmount: discount?.kind === "betrag" ? discount.value : null,

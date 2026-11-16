@@ -3,18 +3,19 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
- * Kz 66 muss in beiden Quellen dasselbe sagen (#786). Die Buchung legt die Vorsteuer einer Gutschrift „erstattet
- * bereits Bezahltes“ beim Buchen auf das Zwischenkonto (SKR03 1548, SKR04 1434) und zieht sie erst beim Ausgleich auf
- * die Vorsteuer; die Voranmeldung aus den Nebenbüchern verteilt sie über gutschrift.ts nach derselben Regel.
+ * Kz 66 je Monat (#786, #1116). Die Buchung legt die Vorsteuer einer Gutschrift „erstattet bereits Bezahltes“ beim Buchen
+ * auf das Zwischenkonto (SKR03 1548, SKR04 1434) und zieht sie erst beim Ausgleich auf die Vorsteuer; die Voranmeldung
+ * rechnet Kz 66 aus dem Journal.
  *
- * Geprüft wird je Monat die Zeile „Vorsteuer (Kz 66)“ des Abgleichs: Journal gegen Nebenbücher, über alle Wege, die
- * den Ausgleich herstellen (Bankerstattung, Verrechnung, Teilerstattung, ausgebuchtes Skonto, Kursdifferenz), über die
- * Jahresgrenze und in beiden Kontenrahmen mit beiden Versteuerungsarten. Weichen die beiden Seiten um einen Cent ab,
- * ist das ein Befund, keine Rundung.
+ * Geprüft wird je Monat Kz 66 gegen feste Werte (KZ66), über alle Wege, die den Ausgleich herstellen (Bankerstattung,
+ * Verrechnung, Teilerstattung, ausgebuchtes Skonto, Kursdifferenz), über die Jahresgrenze und in beiden Kontenrahmen mit
+ * beiden Versteuerungsarten. Die Werte lieferte bis #1116 die Voranmeldung aus den Nebenbüchern (gutschrift.ts) als
+ * Gegenprobe; ein Cent Abweichung ist ein Befund, keine Rundung.
  */
 
-describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat gleich (Postgres, #786)", () => {
+describe.skipIf(!testDatabaseUrl)("Kz 66 je Monat aus dem Journal (Postgres, #786)", () => {
   let abgleich: typeof import("./abgleich.ts");
+  let vat: typeof import("../umsatzsteuer/index.ts");
   let bank: typeof import("../bank/bank.ts");
   let verrechnung: typeof import("../bank/verrechnung.ts");
   let documents: typeof import("../belege/documents.ts");
@@ -25,6 +26,7 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
   beforeAll(async () => {
     sql = await setupTestDb();
     abgleich = await import("./abgleich.ts");
+    vat = await import("../umsatzsteuer/index.ts");
     bank = await import("../bank/bank.ts");
     verrechnung = await import("../bank/verrechnung.ts");
     documents = await import("../belege/documents.ts");
@@ -34,15 +36,15 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
     await sql?.end();
   });
 
-  /** Firma mit Stichjahr 2027: 2026 und Januar 2027 rechnet die Voranmeldung aus den Nebenbüchern */
+  /** Firma, Einzelunternehmen */
   async function firma(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
     await leeren(sql)`truncate document_cancellations, document_settlements, vat_returns, write_offs, allocations,
       bank_transactions, bank_imports, bank_accounts, cash_entries, journal_lines, journal_entries, document_amounts,
       document_splits, documents, invoice_lines, invoices, invoice_number_counters, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban,
-        versteuerung, kontenrahmen, rechtsform, payment_term_days, journal_ab)
+        versteuerung, kontenrahmen, rechtsform, payment_term_days)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, 'einzelunternehmen', 14, 2027)`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, 'einzelunternehmen', 14)`;
   }
 
   type Betrag = { taxRate: 1900 | 700; net: number; tax: number; originalNet?: number; originalTax?: number };
@@ -157,17 +159,17 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
     await zahle("2027-01-09", "Erstattung Dezember", 11_900, dezember);
   }
 
-  const zeile = (a: Awaited<ReturnType<typeof abgleich.vatAbgleich>>, posten: string) => a.zeilen.find((z) => z.posten === posten)!;
+  const kz66 = async (year: number, month: number) => (await vat.computeVatFigures({ year, month })).kz66;
 
-  /** Prüft die Kz-66-Zeile aller Monate eines Jahres auf Übereinstimmung und gibt die Werte zurück */
+  /** Kz 66 aller Monate eines Jahres gegen die festen Werte (KZ66) */
   async function pruefeJahr(jahr: number, monate = 12) {
-    const werte: { monat: number; journal: number; quelle: number }[] = [];
-    for (let monat = 1; monat <= monate; monat++) {
-      const a = await abgleich.vatAbgleich({ year: jahr, month: monat });
-      const kz66 = zeile(a, "Vorsteuer (Kz 66)");
-      expect({ monat, journal: kz66.journal, quelle: kz66.quelle }).toEqual({ monat, journal: kz66.quelle, quelle: kz66.quelle });
-      werte.push({ monat, journal: kz66.journal, quelle: kz66.quelle });
-    }
+    const werte: { monat: number; journal: number }[] = [];
+    for (let monat = 1; monat <= monate; monat++) werte.push({ monat, journal: await kz66(jahr, monat) });
+    const key = `${expect.getState().currentTestName!.split(" > ").at(-1)}|${jahr}`;
+    expect(
+      werte.map((w) => w.journal),
+      key,
+    ).toEqual(KZ66[key]);
     return werte;
   }
 
@@ -208,26 +210,26 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
     }
   }
 
-  it("eine Gutschrift ohne die Angabe zählt im Belegmonat — in beiden Quellen", async () => {
+  it("eine Gutschrift ohne die Angabe zählt im Belegmonat", async () => {
     await firma("SKR03", "ist");
     await beleg("2026-05-11", [{ taxRate: 1900, net: -10_000, tax: -1_900 }], { nummer: "GS-OHNE-1" });
 
-    const a = await abgleich.vatAbgleich({ year: 2026, month: 5 });
-    const kz66 = zeile(a, "Vorsteuer (Kz 66)");
-    expect({ journal: kz66.journal, quelle: kz66.quelle }).toEqual({ journal: -1_900, quelle: -1_900 });
-    expect(zeile(await abgleich.vatAbgleich({ year: 2026, month: 6 }), "Vorsteuer (Kz 66)")).toMatchObject({ journal: 0, quelle: 0 });
+    expect(await kz66(2026, 5)).toBe(-1_900);
+    expect(await kz66(2026, 6)).toBe(0);
+    expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: 5 })).zeilen)).toEqual([]);
   }, 60_000);
 
-  it("der Jahresabgleich nennt keine Abweichung mehr in Kz 66", async () => {
+  it("der Jahresabgleich nennt keine Abweichung, auch nicht in der Verprobung der Vorsteuer", async () => {
     await firma("SKR03", "soll");
     await jahr2026();
 
+    // Dieselben Monatswerte wie im Durchlauf aller Ausgleichswege
+    const werte = [];
+    for (let monat = 1; monat <= 12; monat++) werte.push(await kz66(2026, monat));
+    expect(werte).toEqual(KZ66["SKR03, soll: alle Ausgleichswege stimmen je Monat überein|2026"]);
     const jahr = await abgleich.abgleichJahr(2026, "2026-12-31");
-    const kz66 = jahr.zeilen.filter((z) => z.posten === "Vorsteuer (Kz 66)");
-    expect(kz66.length).toBeGreaterThan(0);
-    for (const z of kz66) expect(z).toEqual({ ...z, journal: z.quelle });
-    const abweichungen = abgleich.abgleichIssues(jahr).filter((i) => i.tone === "warn" && i.text.includes("Vorsteuer (Kz 66)"));
-    expect(abweichungen).toEqual([]);
+    expect(abgleich.abweichungen(jahr.zeilen)).toEqual([]);
+    expect(abgleich.abgleichIssues(jahr).filter((i) => i.tone === "warn")).toEqual([]);
   }, 120_000);
   it("eine später zugeordnete, frühere Teilerstattung verschiebt keinen Cent zwischen den Monaten", async () => {
     await firma("SKR03", "ist");
@@ -239,7 +241,7 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
     const werte = await pruefeJahr(2026, 5);
     expect(summe(werte)).toBe(-1_900);
   }, 60_000);
-  it("eine aufgehobene frühere Teilerstattung nimmt im Nebenbuch genau ihren eigenen Anteil zurück", async () => {
+  it("eine aufgehobene frühere Teilerstattung nimmt genau ihren eigenen Anteil zurück", async () => {
     await firma("SKR03", "ist");
     const id = await beleg("2026-01-15", [{ taxRate: 1900, net: -10_000, tax: -1_900 }], { erstattetBezahltes: true, nummer: "GS-AUF-1" });
     const februar = await zahle("2026-02-20", "Drittel Februar", 3_967, id);
@@ -263,7 +265,7 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
     await zahle("2026-03-20", "Erstattung März", 3_966, gutschrift);
 
     // Die Februar-Erstattung war falsch und wird erst im Mai aufgehoben: Die Gegenzeile mindert die Vorsteuer im Mai,
-    // nicht rückwirkend im Februar — im Journal wie in den Nebenbüchern
+    // nicht rückwirkend im Februar
     const [zuordnung] = await sql`select id from allocations where transaction_id = ${februar} and reverses_id is null`;
     await bank.reverseAllocation(actor, zuordnung!.id as string, "2026-05-20");
 
@@ -275,3 +277,18 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
     expect(summe(werte)).toBe(-634);
   }, 60_000);
 });
+
+/** Kz 66 je Monat und Test, wie sie bis #1116 die Voranmeldung aus den Nebenbüchern als Gegenprobe ergab */
+const KZ66: Record<string, number[]> = {
+  "SKR03, ist: alle Ausgleichswege stimmen je Monat überein|2026": [0, 0, -7018, 950, 0, -570, 0, -9850, 0, 0, -1757, 0],
+  "SKR03, ist: alle Ausgleichswege stimmen je Monat überein|2027": [-1900],
+  "SKR03, soll: alle Ausgleichswege stimmen je Monat überein|2026": [0, 0, -7018, 950, 0, -570, 0, -9850, 0, 0, -1757, 0],
+  "SKR03, soll: alle Ausgleichswege stimmen je Monat überein|2027": [-1900],
+  "SKR04, ist: alle Ausgleichswege stimmen je Monat überein|2026": [0, 0, -7018, 950, 0, -570, 0, -9850, 0, 0, -1757, 0],
+  "SKR04, ist: alle Ausgleichswege stimmen je Monat überein|2027": [-1900],
+  "SKR04, soll: alle Ausgleichswege stimmen je Monat überein|2026": [0, 0, -7018, 950, 0, -570, 0, -9850, 0, 0, -1757, 0],
+  "SKR04, soll: alle Ausgleichswege stimmen je Monat überein|2027": [-1900],
+  "eine später zugeordnete, frühere Teilerstattung verschiebt keinen Cent zwischen den Monaten|2026": [0, -634, 0, -798, -468],
+  "eine aufgehobene frühere Teilerstattung nimmt genau ihren eigenen Anteil zurück|2026": [0, -633, -634, 0, -1266, 633, 0, 0, 0, 0, 0, 0],
+  "eine Aufhebung wirkt auch bei der Gutschrift am Tag der Aufhebung|2026": [0, -633, -634, 0, 633],
+};

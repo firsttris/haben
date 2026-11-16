@@ -45,6 +45,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `OIDC_GROUP_STEUERBERATUNG` | bei `OIDC_ONLY=true` | Gruppe für den Lesezugang der Steuerberatung; muss sich von der Inhaber-Gruppe unterscheiden | `haben-steuerberatung` |
 | `HABEN_ENCRYPTION_KEY` | ja | Genau 32 Byte, base64-kodiert. Verschlüsselt ELSTER-Zertifikat, Zugangsdaten und die API-Schlüssel für Lexoffice und sevDesk | Ausgabe von `openssl rand -base64 32` |
 | `HABEN_SETUP_CODE` | nein | Fester Einrichtungscode für das Anlegen des Kontos (mindestens 8 Zeichen). Ohne ihn erzeugt Haben bei jedem Start einen neuen und schreibt ihn ins Log, solange es kein Konto gibt | `mein-einrichtungscode` |
+| `HABEN_ABWEICHUNG_UEBERNEHMEN` | nein | Jahre (mit Komma), deren Abweichung bei der Prüfung beim Update auf das Journal ausdrücklich übernommen wird; ohne sie startet Haben bei einer Abweichung nicht, siehe [Update auf das Journal](einrichtung.md#update-auf-das-journal) | `2026` |
 | `ERIC_HOME` | nein | Verzeichnis eines von Hand entpackten ERiC-Pakets; hat Vorrang vor dem heruntergeladenen. Ohne beides werden Prüfen und Senden simuliert | `/opt/eric` |
 | `ERIC_DIR` | nein | Ziel für das von Haben heruntergeladene ERiC. Standard `data/eric`; im Image `/var/lib/haben/eric` (Volume) | `/var/lib/haben/eric` |
 | `ERIC_AUTO_INSTALL` | nein | `ja`: fehlt ERiC, lädt der Container es beim Start (Zustimmung zu den Nutzungsbedingungen) | `ja` |

@@ -14,14 +14,12 @@ import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
- * Kennzahlen der Voranmeldung aus dem Journal (#542, docs/adr/journal-als-quelle.md): ab dem Stichjahr die Quelle der
- * Voranmeldung, wie bei DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum (kennzahlenAusJournal). Ohne
+ * Kennzahlen der Voranmeldung aus dem Journal (#542, #1116, docs/adr/journal-als-quelle.md): die Quelle der Voranmeldung,
+ * wie bei DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum (kennzahlenAusJournal). Ohne
  * Eröffnungen (vorgetragen, im Vorjahr angemeldet) und ohne die Buchungen des Anlagenverzeichnisses: Die Privatnutzung von
  * Fahrzeugen rechnet die Voranmeldung je Monat aus dem Anlagenverzeichnis, das Journal bucht sie erst mit der AfA.
- * `nurManuell`: nur die manuellen Buchungen (freie Buchungen, #502); sie haben kein Nebenbuch, ihr Beleg ist die
- * festgeschriebene Buchung selbst, und sie zählen deshalb auch in der Gegenprobe aus den Nebenbüchern.
  */
-export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: Versteuerung, q: Db | Tx, nurManuell = false): Promise<JournalKennzahlen> {
+export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: Versteuerung, q: Db | Tx): Promise<JournalKennzahlen> {
   const { start, end } = periodRange(period);
   const e = schema.journalEntries;
   const l = schema.journalLines;
@@ -47,7 +45,7 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     .innerJoin(e, eq(e.id, l.entryId))
     .leftJoin(schema.writeOffs, and(eq(e.sourceType, "ausbuchung"), eq(e.sourceId, schema.writeOffs.id)))
     .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
-    .where(and(gte(e.date, start), lt(e.date, end), nurManuell ? eq(e.sourceType, "manuell") : notInArray(e.sourceType, ["eroeffnung", "asset"])))
+    .where(and(gte(e.date, start), lt(e.date, end), notInArray(e.sourceType, ["eroeffnung", "asset"])))
     .orderBy(asc(e.id));
   const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; zeilen: JournalZeile[] }>();
   const taxes = invoiceTaxReader(q);

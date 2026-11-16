@@ -11,6 +11,14 @@ import { Field } from "./Field.tsx";
 
 type Head = Awaited<ReturnType<typeof getChainHead>>;
 
+const BEREICH: Record<IntegrityReport["abgleich"]["abweichungen"][number]["bereich"], string> = {
+  ustva: "Voranmeldung",
+  euer: "EÜR",
+  opos: "Anzahlungsbestände",
+  beleg: "Beleg",
+  bank: "Bank",
+};
+
 const TABELLEN: Record<string, string> = {
   audit_log: "Audit-Log",
   audit_chain: "Kopf der Kette",
@@ -154,14 +162,14 @@ export function IntegrityCard({ head }: { head: Head }) {
       {report && <FileCheckResult files={report.files} />}
       {report && (report.abgleich.abweichungen.length > 0 || report.abgleich.hinweise.length > 0) && (
         <div className="small">
-          <div className="muted">Abgleich von Journal, Umsatzsteuer, EÜR und Anzahlungsbeständen</div>
+          <div className="muted">Abgleich im Journal: Umsatzsteuer, gesendete Voranmeldungen, Rechnungen, Bank, EÜR und Anzahlungsbestände</div>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
             {report.abgleich.abweichungen.map((a, i) => (
               <li key={i}>
                 <strong>
-                  {a.bereich === "ustva" ? "Voranmeldung" : a.bereich === "opos" ? "Anzahlungsbestände" : "EÜR"} {a.zeitraum}
+                  {BEREICH[a.bereich]} {a.zeitraum}
                 </strong>
-                , {a.posten}: Journal {formatEuro(a.journal)}, laut Rechnungen, Belegen und Zahlungen {formatEuro(a.quelle)}
+                , {a.posten}: Journal {formatEuro(a.journal)}, {a.gegen} {formatEuro(a.quelle)}
               </li>
             ))}
             {report.abgleich.hinweise.map((h) => (

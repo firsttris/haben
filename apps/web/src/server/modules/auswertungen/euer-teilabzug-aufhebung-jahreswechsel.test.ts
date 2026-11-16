@@ -10,7 +10,6 @@ describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug bei Aufhebung im Folgejahr", (
   let sql: postgres.Sql;
   let documents: typeof import("../belege/documents.ts");
   let bank: typeof import("../bank/bank.ts");
-  let reports: typeof import("./reports.ts");
   let journal: typeof import("./euer-quelle.ts");
   let db: typeof import("../../db/index.ts").db;
   let seq = 0;
@@ -21,7 +20,6 @@ describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug bei Aufhebung im Folgejahr", (
     db = (await import("../../db/index.ts")).db;
     documents = await import("../belege/documents.ts");
     bank = await import("../bank/bank.ts");
-    reports = await import("./reports.ts");
     journal = await import("./euer-quelle.ts");
   }, 30_000);
   afterAll(async () => {
@@ -40,7 +38,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug bei Aufhebung im Folgejahr", (
   }
 
   async function values(year: number) {
-    const results = [await reports.euerAusNebenbuechern(year, db), await journal.euerAusDemJournal(year, db)];
+    const results = [await journal.euerAusDemJournal(year, db)];
     return results.map((result) => ["ausgabe:software", "vorsteuer"].map((key) => result.ausgaben.find((line) => line.key === key)?.amount ?? 0));
   }
 
@@ -77,21 +75,12 @@ describe.skipIf(!testDatabaseUrl)("EÜR-Teilabzug bei Aufhebung im Folgejahr", (
       await documents.bookDocument(actor, id);
       const first = await pay(id, "2025-09-20", -payment);
       await pay(id, "2025-10-20", -payment);
-      expect(await values(2025)).toEqual([
-        [expense, inputTax],
-        [expense, inputTax],
-      ]);
+      expect(await values(2025)).toEqual([[expense, inputTax]]);
       await bank.reverseAllocation(actor, first, "2026-02-20");
       // Die zweite 2025er Zahlung ist unverändert; die Gegenzeile gehört ausschließlich nach 2026.
       expect({ previous: await values(2025), current: await values(2026) }).toEqual({
-        previous: [
-          [expense, inputTax],
-          [expense, inputTax],
-        ],
-        current: [
-          [reversedExpense, reversedTax],
-          [reversedExpense, reversedTax],
-        ],
+        previous: [[expense, inputTax]],
+        current: [[reversedExpense, reversedTax]],
       });
     },
   );
