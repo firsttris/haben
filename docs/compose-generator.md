@@ -14,7 +14,7 @@ hide:
 Hier entstehen `.env`, bei Bedarf `compose.override.yml` und die Befehle für den ersten Start nach [Docker Compose](installation.md#docker-compose). Passwörter und Schlüssel erzeugt dein Browser; sie verlassen dein Gerät nicht. `compose.yml` lädst du unverändert aus dem Repository, damit ein Update sie einfach ersetzen kann; alles, was du hier abweichend wählst, steht im Override.
 
 > [!IMPORTANT]
-> **Schlüssel sichern:** Speichere `ENCRYPTION_KEY` und `RESTIC_PASSWORD` aus `.env` zusätzlich in deinem Passwortmanager. Ohne `ENCRYPTION_KEY` sind ELSTER-Zertifikat und API-Schlüssel nach einer Wiederherstellung verloren; ohne `RESTIC_PASSWORD` lässt sich kein Backup entschlüsseln.
+> **Schlüssel sichern:** Speichere `ENCRYPTION_KEY` und `RESTIC_PASSWORD` aus `.env` zusätzlich in deinem Passwortmanager; ohne beide ist das Backup wertlos, siehe [Backup und Wiederherstellen](installation-backup.md#backup-und-wiederherstellen).
 
 <div id="cg-app" class="cg-layout">
   <form class="cg-panel" onsubmit="return false;">
