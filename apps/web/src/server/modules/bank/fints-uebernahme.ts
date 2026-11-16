@@ -15,3 +15,10 @@ export async function fintsKontenAbgeben(tx: Tx, bankAccountIds: Set<string>): P
     if (bleiben.length < v.accounts.length) await tx.update(schema.fintsConnections).set({ accounts: bleiben }).where(eq(schema.fintsConnections.id, v.id));
   }
 }
+
+/** Kennungen der Konten eines neuen Abrufs über Enable Banking; dieselben Konten fallen dabei aus jeder FinTS-Verbindung */
+export async function kontenUebernehmen(tx: Tx, accounts: { bankAccountId: string }[]): Promise<Set<string>> {
+  const ids = new Set(accounts.map((a) => a.bankAccountId));
+  await fintsKontenAbgeben(tx, ids);
+  return ids;
+}

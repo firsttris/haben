@@ -124,124 +124,162 @@ function nachricht(dialogId: string, msgNr: number, segmente: string[]): string 
   return `${kopf(laenge)}'${ohneKopf}`;
 }
 
-export async function startFintsTestbank(optionen: FintsTestbankOptionen): Promise<FintsTestbank> {
-  const blz = optionen.blz ?? "12030000";
-  const benutzer = optionen.benutzer ?? "max";
-  const pin = optionen.pin ?? "12345";
-  const tan = optionen.tan ?? "123456";
-  const konten = optionen.konten ?? [];
-  const zustand: FintsTestbank["zustand"] = { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false, anfragen: [] };
-  const offen = new Map<string, { art: "HKIDN" | "HKKAZ"; iban?: string; von?: string; bis?: string }>();
-  let zaehler = 0;
+/** Zustand der nachgebauten Bank über alle Dialoge */
+interface Bank {
+  blz: string;
+  benutzer: string;
+  pin: string;
+  tan: string;
+  optionen: FintsTestbankOptionen;
+  konten: FintsTestbankKonto[];
+  zustand: FintsTestbank["zustand"];
+  /** Aufträge, die auf TAN oder Freigabe warten, nach Auftragsreferenz */
+  offen: Map<string, { art: "HKIDN" | "HKKAZ"; iban?: string; von?: string; bis?: string }>;
+  zaehler: number;
+}
 
-  const bpd = (ref: number) => [
-    `HIBPA:{n}:3:${ref}+1+280:${blz}+${esc(optionen.bankname ?? "Testbank")}+1+1+300`,
-    `HITANS:{n}:7:${ref}+1+1+0+J:N:0:${PUSH}:2:pushTAN2.0:Decoupled::pushTAN 2.0:::Freigabe:2048:N:2:N:0:0:N:N:00:0:N:1:60:1:1:J:J:${CHIPTAN}:2:HHD1.3.0:HHD:1.3.0:chipTAN manuell:6:1:TAN-Nummer:2048:N:2:N:0:0:N:N:00:0:N:1`,
-    `HIPINS:{n}:1:${ref}+1+1+0+5:20:6:Anmeldename:Kunden-ID:HKKAZ:J:HKSAL:N:HKTAN:N:HKIDN:J:HKTAB:N`,
-    `HIKAZS:{n}:7:${ref}+1+1+0+90:N:N`,
-  ];
-  const upd = (ref: number) => [
-    `HIUPA:{n}:4:${ref}+${esc(benutzer)}+1+0`,
-    ...konten.map(
-      (k) => `HIUPD:{n}:6:${ref}+${k.nummer}::280:${blz}+${k.iban}+${esc(benutzer)}+1+${k.waehrung ?? "EUR"}+Max Mustermann++${esc(k.name)}++HKKAZ:1+HKSAL:1`,
-    ),
-  ];
-  const umsatzAntwort = (ref: number, iban = "", von = "2000-01-01", bis = "2099-12-31") => {
-    const konto = konten.find((k) => k.iban === iban);
-    if (!konto) return [`HIRMS:{n}:2:${ref}+9210::Konto unbekannt.`];
-    const daten = mt940(blz, konto, optionen.umsaetze?.[iban] ?? [], von, bis);
-    return [`HIRMS:{n}:2:${ref}+0020::Der Auftrag wurde ausgeführt.`, `HIKAZ:{n}:7:${ref}+@${Buffer.byteLength(daten, "latin1")}@${daten}`];
-  };
-  const tanAnfrage = (ref: number, referenz: string, entkoppelt: boolean, code = "0030") => [
-    `HIRMS:{n}:2:${ref}+${code}::${entkoppelt ? "Bitte in der App freigeben." : "Auftrag empfangen - Sicherheitsfreigabe erforderlich."}`,
-    `HITAN:{n}:7:${ref}+4++${referenz}+${entkoppelt ? "Bitte bestätigen Sie den Zugriff in Ihrer Banking-App." : "Bitte geben Sie die TAN ein."}`,
-  ];
+type Antwort = { dialogId: string; segmente: string[] };
 
-  function antworte(segmente: Seg[], anfrage: FintsTestbankAnfrage): { dialogId: string; segmente: string[] } {
-    const kopf = feld<{ dialogId: string }>(segmente, "HNHBK");
-    const idn = feld<{ customerId: string; bank: { bankId: string }; systemId: string }>(segmente, "HKIDN");
-    const vvb = feld<{ productId: string; bpdVersion: number; updVersion: number }>(segmente, "HKVVB");
-    const syn = feld(segmente, "HKSYN");
-    const hktan = feld<{ tanProcess: string; segId?: string; orderRef?: string }>(segmente, "HKTAN");
-    const kaz = feld<{ account: { iban?: string }; from?: Date; to?: Date }>(segmente, "HKKAZ");
-    const ende = feld(segmente, "HKEND");
-    const dialogId = idn ? `D${++zaehler}` : (kopf?.dialogId ?? "0");
-    const ref = (s: Seg | undefined) => s?.header.segNr ?? 0;
-    const ok = "HIRMG:{n}:2+0010::Nachricht entgegengenommen.";
+const OK = "HIRMG:{n}:2+0010::Nachricht entgegengenommen.";
+const ref = (s: Seg | undefined) => s?.header.segNr ?? 0;
 
-    if (anfrage.pin !== pin || (idn && (idn.customerId !== benutzer || idn.bank.bankId !== blz))) {
-      return { dialogId, segmente: ["HIRMG:{n}:2+9800::Dialog abgebrochen.", "HIRMS:{n}:2+9931::Anmeldename oder PIN ist falsch."] };
-    }
-    if (idn) {
-      const verfahren = anfrage.verfahren ?? 999;
-      const antwort = [ok, `HIRMS:{n}:2:${ref(vvb)}+3920::Zugelassene Zwei-Schritt-Verfahren für den Benutzer.:${PUSH}:${CHIPTAN}+0020::Dialog initialisiert.`];
-      if (!vvb || vvb.bpdVersion < 1) antwort.push(...bpd(ref(vvb)));
-      if (syn) antwort.push(`HISYN:{n}:4:${ref(syn)}+SYS${zaehler}`);
-      if (verfahren === 999 || !hktan) return { dialogId, segmente: antwort };
-      if (zustand.scaBeiAnmeldung) {
-        const referenz = `REF${zaehler}`;
-        offen.set(referenz, { art: "HKIDN" });
-        return { dialogId, segmente: [...antwort, ...tanAnfrage(ref(hktan), referenz, verfahren === PUSH)] };
-      }
-      return { dialogId, segmente: [...antwort, `HIRMS:{n}:2:${ref(hktan)}+3076::Starke Kundenauthentifizierung nicht notwendig.`, ...upd(ref(vvb))] };
-    }
-    if (hktan && (hktan.tanProcess === "2" || hktan.tanProcess === "S")) {
-      const auftrag = offen.get(hktan.orderRef ?? "");
-      if (!auftrag) return { dialogId, segmente: ["HIRMG:{n}:2+9050::Teilweise fehlerhaft.", `HIRMS:{n}:2:${ref(hktan)}+9210::Auftragsreferenz unbekannt.`] };
-      if (hktan.tanProcess === "S" && !zustand.freigegeben) {
-        return { dialogId, segmente: [ok, ...tanAnfrage(ref(hktan), hktan.orderRef!, true, "3956")] };
-      }
-      if (hktan.tanProcess === "2" && anfrage.tan !== tan) {
-        return { dialogId, segmente: ["HIRMG:{n}:2+9050::Teilweise fehlerhaft.", `HIRMS:{n}:2:${ref(hktan)}+9941::TAN ungültig.`] };
-      }
-      offen.delete(hktan.orderRef!);
-      zustand.freigegeben = false;
-      if (auftrag.art === "HKIDN") {
-        zustand.scaBeiAnmeldung = false;
-        return { dialogId, segmente: [ok, `HIRMS:{n}:2:${ref(hktan)}+0020::Freigabe erteilt.`, ...upd(ref(hktan))] };
-      }
-      zustand.scaBeiUmsaetzen = false;
-      return { dialogId, segmente: [ok, ...umsatzAntwort(ref(hktan), auftrag.iban, auftrag.von, auftrag.bis)] };
-    }
-    if (kaz) {
-      const iban = kaz.account.iban;
-      const von = fintsDay(kaz.from);
-      const bis = fintsDay(kaz.to);
-      Object.assign(anfrage, { iban, von, bis });
-      if (hktan && zustand.scaBeiUmsaetzen) {
-        const referenz = `REF${++zaehler}`;
-        offen.set(referenz, { art: "HKKAZ", iban, von, bis });
-        return { dialogId, segmente: [ok, ...tanAnfrage(ref(hktan), referenz, anfrage.verfahren === PUSH)] };
-      }
-      return { dialogId, segmente: [ok, ...umsatzAntwort(ref(kaz), iban, von, bis)] };
-    }
-    if (ende) return { dialogId, segmente: [ok, `HIRMS:{n}:2:${ref(ende)}+0100::Dialog beendet.`] };
-    return { dialogId, segmente: ["HIRMG:{n}:2+9010::Nachricht nicht verstanden."] };
+/** BPD: Bank, TAN-Verfahren (pushTAN entkoppelt, chipTAN mit TAN), PIN/TAN-Geschäftsvorfälle und HKKAZ */
+const bpd = (bank: Bank, r: number) => [
+  `HIBPA:{n}:3:${r}+1+280:${bank.blz}+${esc(bank.optionen.bankname ?? "Testbank")}+1+1+300`,
+  `HITANS:{n}:7:${r}+1+1+0+J:N:0:${PUSH}:2:pushTAN2.0:Decoupled::pushTAN 2.0:::Freigabe:2048:N:2:N:0:0:N:N:00:0:N:1:60:1:1:J:J:${CHIPTAN}:2:HHD1.3.0:HHD:1.3.0:chipTAN manuell:6:1:TAN-Nummer:2048:N:2:N:0:0:N:N:00:0:N:1`,
+  `HIPINS:{n}:1:${r}+1+1+0+5:20:6:Anmeldename:Kunden-ID:HKKAZ:J:HKSAL:N:HKTAN:N:HKIDN:J:HKTAB:N`,
+  `HIKAZS:{n}:7:${r}+1+1+0+90:N:N`,
+];
+
+const upd = (bank: Bank, r: number) => [
+  `HIUPA:{n}:4:${r}+${esc(bank.benutzer)}+1+0`,
+  ...bank.konten.map(
+    (k) =>
+      `HIUPD:{n}:6:${r}+${k.nummer}::280:${bank.blz}+${k.iban}+${esc(bank.benutzer)}+1+${k.waehrung ?? "EUR"}+Max Mustermann++${esc(k.name)}++HKKAZ:1+HKSAL:1`,
+  ),
+];
+
+function umsatzAntwort(bank: Bank, r: number, iban = "", von = "2000-01-01", bis = "2099-12-31"): string[] {
+  const konto = bank.konten.find((k) => k.iban === iban);
+  if (!konto) return [`HIRMS:{n}:2:${r}+9210::Konto unbekannt.`];
+  const daten = mt940(bank.blz, konto, bank.optionen.umsaetze?.[iban] ?? [], von, bis);
+  return [`HIRMS:{n}:2:${r}+0020::Der Auftrag wurde ausgeführt.`, `HIKAZ:{n}:7:${r}+@${Buffer.byteLength(daten, "latin1")}@${daten}`];
+}
+
+const tanAnfrage = (r: number, referenz: string, entkoppelt: boolean, code = "0030") => [
+  `HIRMS:{n}:2:${r}+${code}::${entkoppelt ? "Bitte in der App freigeben." : "Auftrag empfangen - Sicherheitsfreigabe erforderlich."}`,
+  `HITAN:{n}:7:${r}+4++${referenz}+${entkoppelt ? "Bitte bestätigen Sie den Zugriff in Ihrer Banking-App." : "Bitte geben Sie die TAN ein."}`,
+];
+
+/** Dialogaufbau (HKIDN, HKVVB, HKSYN, HKTAN): ohne TAN-Verfahren nur BPD, mit Verfahren je nach SCA TAN oder UPD */
+function anmeldung(bank: Bank, segmente: Seg[], anfrage: FintsTestbankAnfrage, dialogId: string): Antwort {
+  const vvb = feld<{ bpdVersion: number }>(segmente, "HKVVB");
+  const syn = feld(segmente, "HKSYN");
+  const hktan = feld(segmente, "HKTAN");
+  const verfahren = anfrage.verfahren ?? 999;
+  const antwort = [OK, `HIRMS:{n}:2:${ref(vvb)}+3920::Zugelassene Zwei-Schritt-Verfahren für den Benutzer.:${PUSH}:${CHIPTAN}+0020::Dialog initialisiert.`];
+  if (!vvb || vvb.bpdVersion < 1) antwort.push(...bpd(bank, ref(vvb)));
+  if (syn) antwort.push(`HISYN:{n}:4:${ref(syn)}+SYS${bank.zaehler}`);
+  if (verfahren === 999 || !hktan) return { dialogId, segmente: antwort };
+  if (bank.zustand.scaBeiAnmeldung) {
+    const referenz = `REF${bank.zaehler}`;
+    bank.offen.set(referenz, { art: "HKIDN" });
+    return { dialogId, segmente: [...antwort, ...tanAnfrage(ref(hktan), referenz, verfahren === PUSH)] };
   }
+  return { dialogId, segmente: [...antwort, `HIRMS:{n}:2:${ref(hktan)}+3076::Starke Kundenauthentifizierung nicht notwendig.`, ...upd(bank, ref(vvb))] };
+}
 
+/** HKTAN Prozess 2 (TAN) oder S (Status bei pushTAN) zu einem wartenden Auftrag */
+function tanFortsetzung(bank: Bank, hktan: Seg & { tanProcess: string; orderRef?: string }, anfrage: FintsTestbankAnfrage, dialogId: string): Antwort {
+  const auftrag = bank.offen.get(hktan.orderRef ?? "");
+  if (!auftrag) return { dialogId, segmente: ["HIRMG:{n}:2+9050::Teilweise fehlerhaft.", `HIRMS:{n}:2:${ref(hktan)}+9210::Auftragsreferenz unbekannt.`] };
+  if (hktan.tanProcess === "S" && !bank.zustand.freigegeben) {
+    return { dialogId, segmente: [OK, ...tanAnfrage(ref(hktan), hktan.orderRef!, true, "3956")] };
+  }
+  if (hktan.tanProcess === "2" && anfrage.tan !== bank.tan) {
+    return { dialogId, segmente: ["HIRMG:{n}:2+9050::Teilweise fehlerhaft.", `HIRMS:{n}:2:${ref(hktan)}+9941::TAN ungültig.`] };
+  }
+  bank.offen.delete(hktan.orderRef!);
+  bank.zustand.freigegeben = false;
+  if (auftrag.art === "HKIDN") {
+    bank.zustand.scaBeiAnmeldung = false;
+    return { dialogId, segmente: [OK, `HIRMS:{n}:2:${ref(hktan)}+0020::Freigabe erteilt.`, ...upd(bank, ref(hktan))] };
+  }
+  bank.zustand.scaBeiUmsaetzen = false;
+  return { dialogId, segmente: [OK, ...umsatzAntwort(bank, ref(hktan), auftrag.iban, auftrag.von, auftrag.bis)] };
+}
+
+/** HKKAZ: Umsätze als MT940, oder mit SCA erst eine TAN-Anfrage */
+function umsatzAbruf(bank: Bank, segmente: Seg[], anfrage: FintsTestbankAnfrage, dialogId: string): Antwort {
+  const kaz = feld<{ account: { iban?: string }; from?: Date; to?: Date }>(segmente, "HKKAZ")!;
+  const hktan = feld(segmente, "HKTAN");
+  const iban = kaz.account.iban;
+  const von = fintsDay(kaz.from);
+  const bis = fintsDay(kaz.to);
+  Object.assign(anfrage, { iban, von, bis });
+  if (hktan && bank.zustand.scaBeiUmsaetzen) {
+    const referenz = `REF${++bank.zaehler}`;
+    bank.offen.set(referenz, { art: "HKKAZ", iban, von, bis });
+    return { dialogId, segmente: [OK, ...tanAnfrage(ref(hktan), referenz, anfrage.verfahren === PUSH)] };
+  }
+  return { dialogId, segmente: [OK, ...umsatzAntwort(bank, ref(kaz), iban, von, bis)] };
+}
+
+function antworte(bank: Bank, segmente: Seg[], anfrage: FintsTestbankAnfrage): Antwort {
+  const idn = feld<{ customerId: string; bank: { bankId: string } }>(segmente, "HKIDN");
+  const hktan = feld<{ tanProcess: string; orderRef?: string }>(segmente, "HKTAN");
+  const ende = feld(segmente, "HKEND");
+  const dialogId = idn ? `D${++bank.zaehler}` : (feld<{ dialogId: string }>(segmente, "HNHBK")?.dialogId ?? "0");
+  if (anfrage.pin !== bank.pin || (idn && (idn.customerId !== bank.benutzer || idn.bank.bankId !== bank.blz))) {
+    return { dialogId, segmente: ["HIRMG:{n}:2+9800::Dialog abgebrochen.", "HIRMS:{n}:2+9931::Anmeldename oder PIN ist falsch."] };
+  }
+  if (idn) return anmeldung(bank, segmente, anfrage, dialogId);
+  if (hktan && (hktan.tanProcess === "2" || hktan.tanProcess === "S")) return tanFortsetzung(bank, hktan, anfrage, dialogId);
+  if (feld(segmente, "HKKAZ")) return umsatzAbruf(bank, segmente, anfrage, dialogId);
+  if (ende) return { dialogId, segmente: [OK, `HIRMS:{n}:2:${ref(ende)}+0100::Dialog beendet.`] };
+  return { dialogId, segmente: ["HIRMG:{n}:2+9010::Nachricht nicht verstanden."] };
+}
+
+/** Liest eine Nachricht von lib-fints (base64, latin1) und antwortet wie eine Bank */
+function beantworten(bank: Bank, body: Buffer): string {
+  const text = Buffer.from(body.toString("utf8"), "base64").toString("latin1");
+  const segmente = Message.decode(text).segments as Seg[];
+  const unterschrift = feld<{ customSignature?: { pin: string; tan?: string } }>(segmente, "HNSHA");
+  const anfrage: FintsTestbankAnfrage = {
+    segmente: segmente.map((s) => s.header.segId),
+    produktId: feld<{ productId: string }>(segmente, "HKVVB")?.productId,
+    pin: unterschrift?.customSignature?.pin,
+    tan: unterschrift?.customSignature?.tan,
+    verfahren: feld<{ secFunc: number }>(segmente, "HNSHK")?.secFunc,
+  };
+  bank.zustand.anfragen.push(anfrage);
+  const msgNr = feld<{ msgNr: number }>(segmente, "HNHBK")?.msgNr ?? 1;
+  const { dialogId, segmente: antwort } = antworte(bank, segmente, anfrage);
+  return Buffer.from(nachricht(dialogId, msgNr, antwort), "latin1").toString("base64");
+}
+
+export async function startFintsTestbank(optionen: FintsTestbankOptionen): Promise<FintsTestbank> {
+  const bank: Bank = {
+    blz: optionen.blz ?? "12030000",
+    benutzer: optionen.benutzer ?? "max",
+    pin: optionen.pin ?? "12345",
+    tan: optionen.tan ?? "123456",
+    optionen,
+    konten: optionen.konten ?? [],
+    zustand: { scaBeiAnmeldung: false, scaBeiUmsaetzen: false, freigegeben: false, nichtErreichbar: false, anfragen: [] },
+    offen: new Map(),
+    zaehler: 0,
+  };
   const server: Server = createServer((request, response) => {
     const chunks: Buffer[] = [];
     request.on("data", (c: Buffer) => chunks.push(c));
     request.on("end", () => {
-      if (zustand.nichtErreichbar) {
+      if (bank.zustand.nichtErreichbar) {
         response.writeHead(503).end("Wartung");
         return;
       }
-      const text = Buffer.from(Buffer.concat(chunks).toString("utf8"), "base64").toString("latin1");
-      const segmente = Message.decode(text).segments as Seg[];
-      const unterschrift = feld<{ customSignature?: { pin: string; tan?: string } }>(segmente, "HNSHA");
-      const anfrage: FintsTestbankAnfrage = {
-        segmente: segmente.map((s) => s.header.segId),
-        produktId: feld<{ productId: string }>(segmente, "HKVVB")?.productId,
-        pin: unterschrift?.customSignature?.pin,
-        tan: unterschrift?.customSignature?.tan,
-        verfahren: feld<{ secFunc: number }>(segmente, "HNSHK")?.secFunc,
-      };
-      zustand.anfragen.push(anfrage);
-      const msgNr = feld<{ msgNr: number }>(segmente, "HNHBK")?.msgNr ?? 1;
-      const { dialogId, segmente: antwort } = antworte(segmente, anfrage);
       response.writeHead(200, { "content-type": "text/plain" });
-      response.end(Buffer.from(nachricht(dialogId, msgNr, antwort), "latin1").toString("base64"));
+      response.end(beantworten(bank, Buffer.concat(chunks)));
     });
   });
   await new Promise<void>((resolve) => server.listen(optionen.port ?? 0, "127.0.0.1", resolve));
@@ -249,7 +287,7 @@ export async function startFintsTestbank(optionen: FintsTestbankOptionen): Promi
   const port = typeof address === "object" && address ? address.port : optionen.port;
   return {
     url: `http://127.0.0.1:${port}/fints`,
-    zustand,
+    zustand: bank.zustand,
     schliessen: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }

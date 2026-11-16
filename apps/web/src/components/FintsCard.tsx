@@ -1,3 +1,5 @@
+import type { getEnableBankingSettings } from "../server/functions/bank.ts";
+import { EnableBankingCard } from "./EnableBankingCard.tsx";
 import { FINTS_ANLEITUNG } from "./FintsAbruf.tsx";
 
 /**
@@ -25,5 +27,15 @@ export function FintsCard({ configured }: { configured: boolean }) {
         </div>
       )}
     </section>
+  );
+}
+
+/** Einstellungen › Bank: die beiden Wege zum Kontoabruf, Enable Banking und FinTS */
+export function KontoabrufKarten({ data }: { data: Awaited<ReturnType<typeof getEnableBankingSettings>> }) {
+  return (
+    <>
+      <EnableBankingCard data={data} />
+      <FintsCard configured={data.fints} />
+    </>
   );
 }

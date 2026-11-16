@@ -338,9 +338,10 @@ export const disconnectBank = createServerFn({ method: "POST" })
   });
 
 /** Zugang zu Enable Banking (Einstellungen › Bank) */
+/** Zugang zu Enable Banking und, ob FinTS eingerichtet ist (#654); nie die Registrierungsnummer */
 export const getEnableBankingSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => enableBankingSettingsSummary());
+  .handler(async () => ({ ...(await enableBankingSettingsSummary()), fints: fintsConfigured() }));
 
 export const saveEnableBanking = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

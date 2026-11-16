@@ -4,7 +4,7 @@ import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, typ
 import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
-import { fintsKontenAbgeben } from "./fints-uebernahme.ts";
+import { kontenUebernehmen } from "./fints-uebernahme.ts";
 import { vertragHinweise } from "./vertrag-abruf.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
@@ -294,9 +294,8 @@ export async function completeConnection(
         ...accountFetchFrom(previous, connection.fetchFrom),
       });
     }
-    const ids = new Set(accounts.map((a) => a.bankAccountId));
     // Ein Konto kommt aus einem Abruf: Dieselben Konten aus einer FinTS-Verbindung holt ab jetzt Enable Banking
-    await fintsKontenAbgeben(tx, ids);
+    const ids = await kontenUebernehmen(tx, accounts);
     for (const other of others) {
       const remaining = other.accounts.filter((a) => !ids.has(a.bankAccountId));
       if (remaining.length === other.accounts.length) continue;

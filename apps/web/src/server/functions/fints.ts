@@ -1,22 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import {
-  fintsAbrufen,
-  fintsConfigured,
-  fintsFortsetzen,
-  fintsVerbinden,
-  fintsVerbindenSchema,
-  fintsVerwerfen,
-  removeFintsConnection,
-} from "../modules/bank/index.ts";
+import { fintsAbrufen, fintsFortsetzen, fintsVerbinden, fintsVerbindenSchema, fintsVerwerfen, removeFintsConnection } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 /** Kontoabruf über FinTS (#654): Verbinden, TAN und Verfahren, Abruf auf Knopfdruck, Trennen */
-
-/** Für Einstellungen › Bank: nur ob FINTS_PRODUKT_ID gesetzt ist, nie die Nummer */
-export const getFintsSettings = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async () => ({ configured: fintsConfigured() }));
 
 export const connectFints = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
