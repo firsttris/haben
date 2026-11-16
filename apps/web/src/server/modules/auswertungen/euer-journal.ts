@@ -161,10 +161,11 @@ function dazu(nach: EuerAusJournal, von: EuerAusJournal, vorzeichen: 1 | -1 = 1)
  * der EÜR ist gezahlte Vorsteuer Betriebsausgabe im Jahr der Zahlung (§ 11 Abs. 2 EStG), gleich, ob sie bis zur Ausführung
  * geparkt ist. Die Umbuchung vom Zwischenkonto auf die Vorsteuer (Freigabe, Zahlung vor der Ausführung) hebt sich so auf;
  * eine Zahlung zieht ihren Anteil an der geparkten Steuer, gerundet wie die Steuer der Nebenbücher (zahlungsStand).
+ * Liefert die Zeilen ohne Forderungen und Verbindlichkeiten (offenerPosten).
  */
-function zwischenkontoAlsVorsteuer(kr: Kontenrahmen, zeilen: Zeile[]): Zeile[] {
+function zwischenkontoAlsVorsteuer(kr: Kontenrahmen, zeilen: readonly Zeile[]): Zeile[] {
   const a = ACCOUNTS[kr];
-  return zeilen.map((z) => (z.account === a.vorsteuerNochNichtAbziehbar ? { ...z, account: a.vorsteuer[1900] } : z));
+  return zeilen.filter((z) => !offenerPosten(kr, z)).map((z) => (z.account === a.vorsteuerNochNichtAbziehbar ? { ...z, account: a.vorsteuer[1900] } : z));
 }
 
 /** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
@@ -245,12 +246,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     const istUebernommen = gebucht.length === 0 || alle.some((z) => z.account === ACCOUNTS[kontenrahmen].saldenvortrag);
     // Aus Lexoffice übernommen: verteilt wird auf die Zeilen, die Haben gebucht hätte
     const ersatz = istUebernommen ? await uebernommeneZeilen(q, typ, id, kontenrahmen) : null;
-    const zeilen =
-      ersatz?.zeilen ??
-      zwischenkontoAlsVorsteuer(
-        kontenrahmen,
-        alle.filter((z) => !offenerPosten(kontenrahmen, z)),
-      );
+    const zeilen = ersatz?.zeilen ?? zwischenkontoAlsVorsteuer(kontenrahmen, alle);
     const gesamt = ersatz ? ersatz.gesamt : alle.filter((z) => offenerPosten(kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0);
     const herkunft: EuerHerkunft = typ === "document" && anlagen.has(id) ? "anlage" : "sonst";
     const u: Ursprung = {
@@ -328,10 +324,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
       return summe;
     if (ausbuchungOhneZahlung(b)) return summe;
     // Eigene Zeilen der Buchung (Kursdifferenz, Umbuchung der Umsatzsteuer, die sich aufhebt) nach ihren Konten
-    const eigene = zwischenkontoAlsVorsteuer(
-      kr,
-      b.zeilen.filter((z) => !offenerPosten(kr, z)),
-    );
+    const eigene = zwischenkontoAlsVorsteuer(kr, b.zeilen);
     if (b.sourceType !== "invoice" || !bilanzRechnungen.has(b.sourceId))
       erfasseUmsatz(kr, eigene, b.sourceType === "document" && anlagen.has(b.sourceId) ? "anlage" : herkunft);
     const umkehr = b.sourceType === "allocation" && b.reversesId !== null;
