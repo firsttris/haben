@@ -256,7 +256,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
         await erklaert("euer", "send", { ...euer.figures, gewinn: euer.gewinn, anlagen: [] });
         await erklaert("ust", "send", { ...ust.figures, steuer: ust.steuer, abschluss: ust.abschluss });
         expect(await umstellung.umstellungBefunde(2027, today)).toEqual([]);
-        // Übermittelt mit 1 € mehr Gewinn, vermerkt mit einer bestätigten Abweichung und 2 € weniger Abschlusszahlung damals
+        // Übermittelt mit 1 € mehr Gewinn, vermerkt mit einer bestätigten Abweichung und 2 € weniger Abschlusszahlung damals, also 2 € weniger Steuer
         await leeren(sql)`truncate annual_submission_figures, annual_submissions`;
         await erklaert("euer", "send", { ...euer.figures, gewinn: euer.gewinn + 100 });
         await erklaert("ust", "vermerk", { amount: 5_00, berechnet: ust.abschluss - 200, abweichung: 5_00 - ust.abschluss + 200, abweichungBestaetigt: true });
@@ -270,7 +270,8 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
             },
             {
               jahr: 2026,
-              text: `2026 Umsatzsteuererklärung (vermerkt), abschluss: im Journal ${formatEuro(ust.abschluss)}, beim Vermerk gerechnet ${formatEuro(ust.abschluss - 200)}`,
+              // Älterer Vermerk ohne festgehaltene Zahlen: verglichen wird die Steuer, damals Abschlusszahlung plus Vorauszahlungen (#1231)
+              text: `2026 Umsatzsteuererklärung (vermerkt), steuer: im Journal ${formatEuro(ust.steuer)}, beim Vermerk gerechnet ${formatEuro(ust.steuer - 200)}`,
             },
           ],
         });
@@ -283,7 +284,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfung beim Update auf das Journal (Postgre
           (await integrity.checkIntegrity(today, jahreserklaerung.erklaerteAbweichungsZeilen)).abgleich.abweichungen.filter(
             (z) => z.zeitraum === "2026" && z.posten.includes("("),
           );
-        expect((await erklaerte()).map((z) => z.posten)).toEqual(["Anlage EÜR (übermittelt), gewinn", "Umsatzsteuererklärung (vermerkt), abschluss"]);
+        expect((await erklaerte()).map((z) => z.posten)).toEqual(["Anlage EÜR (übermittelt), gewinn", "Umsatzsteuererklärung (vermerkt), steuer"]);
         expect((await umstellung.umstellungPruefen(today, [2026])).status).toBe("gespeichert");
         expect(await erklaerte()).toEqual([]);
       }, 60_000);
