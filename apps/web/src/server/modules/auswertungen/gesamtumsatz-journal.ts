@@ -1,4 +1,4 @@
-import { ACCOUNTS, settlementTaxShares, type InvoiceTotals, type Kontenrahmen, type TaxShare } from "@haben/core";
+import { ACCOUNTS, KLEINUNTERNEHMER_FRUEHERE_KONTEN, settlementTaxShares, type InvoiceTotals, type Kontenrahmen, type TaxShare } from "@haben/core";
 import { and, asc, eq, gte, inArray, lt, type SQL } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { externalSettlementLinks } from "./import-zahlungsbezuege.ts";
@@ -115,9 +115,42 @@ function monetaryAccount(account: string, kr: Kontenrahmen) {
   return [own.bank, own.kasse, own.geldtransit].some((value) => value === account);
 }
 
+/**
+ * § 19 Abs. 2 UStG: https://www.gesetze-im-internet.de/ustg_1980/__19.html — vereinnahmtes Entgelt, keine Forderung.
+ * Bestätigter enger Nachweis: https://github.com/firsttris/haben/pull/926#issuecomment-6904783330.
+ * Erst die manuelle Kassen-/Erlösbuchung samt ausdrücklichem KU-Schlüssel belegt die Inlandsleistung; das Konto allein nicht.
+ */
+function manualKuCashAmount(entry: Journal): number | null {
+  if (entry.sourceType !== "manuell") return null;
+  const a = ACCOUNTS[entry.kontenrahmen];
+  const cash = entry.lines.filter((line) => line.account === a.kasse);
+  const revenue = entry.lines.filter((line) => line.account !== a.kasse);
+  const domesticRevenue = new Set<string>([
+    ...Object.values(a.erloese),
+    a.erloeseSonder.kleinunternehmer,
+    KLEINUNTERNEHMER_FRUEHERE_KONTEN[entry.kontenrahmen],
+  ]);
+  if (!cash.length || !revenue.length || cash.some((line) => line.taxCode)) return null;
+  if (!revenue.every((line) => domesticRevenue.has(line.account) && line.taxCode === "KU")) return null;
+  const amount = cash.reduce((sum, line) => sum + line.debit - line.credit, 0);
+  return amount !== 0 && amount === revenue.reduce((sum, line) => sum + line.credit - line.debit, 0) ? amount : null;
+}
+
 function journalItem(entry: Journal): GesamtumsatzItem | null {
   const accounts = ACCOUNTS[entry.kontenrahmen];
   if (entry.lines.some((line) => line.account === accounts.saldenvortrag)) return null;
+  const kuCash = manualKuCashAmount(entry);
+  if (kuCash !== null)
+    return {
+      source: "journal",
+      sourceId: entry.id,
+      label: entry.description,
+      occurredOn: entry.date,
+      gross: kuCash,
+      net: kuCash,
+      basisSource: "derived",
+      classification: { kind: "domestic" },
+    };
   const outgoing = entry.lines.some((line) => line.taxCode && outgoingCodes.has(line.taxCode));
   const incoming = entry.lines.some((line) => line.taxCode && incomingCodes.has(line.taxCode));
   const money = entry.lines.filter((line) => monetaryAccount(line.account, entry.kontenrahmen));
