@@ -59,6 +59,8 @@ type Found = { functions: { path: string[]; body: Node }[]; noToken: [number, nu
  */
 function collect(program: Node): Found {
   const found: Found = { functions: [], noToken: [] };
+  // Getter und Setter prüft Biome nicht, Funktionen in ihnen schon
+  const accessors = new Set<unknown>();
   const walk = (value: unknown, path: string[], named: boolean): void => {
     if (Array.isArray(value)) {
       for (const item of value) walk(item, path, false);
@@ -69,10 +71,11 @@ function collect(program: Node): Found {
       walk(value.expression, path, named);
       return;
     }
+    if ((value.type === "MethodDefinition" || value.type === "Property") && (value.kind === "get" || value.kind === "set")) accessors.add(value.value);
     if (value.type === "TemplateElement") found.noToken.push([value.start + 1, value.end - 1]);
     if (value.type === "JSXText") found.noToken.push([value.start, value.end]);
     let inner = path;
-    if (FUNCTIONS.has(value.type) && isNode(value.body)) {
+    if (FUNCTIONS.has(value.type) && isNode(value.body) && !accessors.has(value)) {
       inner = named ? path : [...path, keyName(value.id) ?? "(anonym)"];
       found.functions.push({ path: inner, body: value.body });
     }
