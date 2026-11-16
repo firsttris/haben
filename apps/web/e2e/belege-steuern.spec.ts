@@ -296,6 +296,47 @@ test("Einkommensersatzleistungen: eintragen, speichern, nach dem Neuladen wieder
   await expect(feld("Arbeitslosengeld")).toHaveValue("");
 });
 
+test("Finanzamt: Hinweis nur auf weggelassene Vorjahresleistungen (#1008)", async () => {
+  const jahr = currentYear();
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  const vorher = await sql`select * from income_tax_inputs where year in (${jahr - 1}, ${jahr})`;
+  const hinweis = `Einkommensersatzleistungen aus ${jahr - 1} sind in dieser Schätzung für ${jahr} nicht enthalten.`;
+  const basis = page.getByRole("region", { name: `Einkommensteuer-Vorauszahlungen ${jahr}` });
+  const angaben = { vorsorge: { a: {} }, sonderausgaben: {}, haushaltsnah: {}, kinder: [] };
+  const speichern = async (year: number, ersatzleistungen: Record<string, { art: string; betrag: number }[]>) => {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('haben.actor', 'e2e-test', true)`;
+      await tx`insert into income_tax_inputs (year, data) values (${year}, ${JSON.stringify({ ...angaben, ersatzleistungen })}::jsonb)
+        on conflict (year) do update set data = excluded.data`;
+    });
+    await go("/finanzamt");
+    await expect(basis).toBeVisible();
+  };
+  try {
+    await sql`delete from income_tax_inputs where year in (${jahr - 1}, ${jahr})`;
+    await speichern(jahr - 1, { b: [{ art: "Krankengeld", betrag: 600_000 }] });
+    await expect(basis).toContainText(hinweis);
+    await expect(basis.getByRole("link", { name: "Angaben bearbeiten" })).toHaveAttribute("href", `/jahreserklaerung/${jahr}`);
+    for (const leistungen of [{}, { a: [], b: [] }, { a: [{ art: "Elterngeld", betrag: 0 }] }]) {
+      await speichern(jahr - 1, leistungen);
+      await expect(basis).not.toContainText(hinweis);
+    }
+    await speichern(jahr - 1, { a: [{ art: "Elterngeld", betrag: 1_000_000 }] });
+    await expect(basis).toContainText(hinweis);
+    await speichern(jahr, { a: [{ art: "Elterngeld", betrag: 1_000_000 }] });
+    await expect(basis).not.toContainText(hinweis);
+  } finally {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('haben.actor', 'e2e-test', true)`;
+      await tx`delete from income_tax_inputs where year in (${jahr - 1}, ${jahr})`;
+      for (const row of vorher) {
+        await tx`insert into income_tax_inputs (year, data, updated_at) values (${row.year}, ${JSON.stringify(row.data)}::jsonb, ${row.updated_at})`;
+      }
+    });
+    await sql.end();
+  }
+});
+
 test("Seiten nur von derselben Origin einbettbar", async () => {
   // Clickjacking-Schutz kommt von der App selbst, damit der Proxy SAMEORIGIN statt DENY setzen kann
   const html = await page.request.get("/rechnungen");

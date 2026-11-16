@@ -52,6 +52,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresangaben in der Vorauszahlungsprognose (
     // Splitting 2026 (§ 32a Abs. 1, 5 EStG): 2 × floor((173,10 × 0,905 + 2.397) × 0,905 + 1.034,87) = 6.690 €.
     // Die Übernahme betrifft nur die Prognose für 2026, nicht die Veranlagung 2025 (§ 32b EStG).
     expect(basis.angabenAus).toBe(2025);
+    expect(basis.priorBenefitsOmitted).toBe(true);
     expect(basis.prognose).toMatchObject({
       einkuenfteArbeit: 5_877_000,
       vorsorge: 500_000,
@@ -73,6 +74,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresangaben in der Vorauszahlungsprognose (
     await incomeTax.saveEstAngaben(actor, 2026, { ...angaben, ersatzleistungen });
     const mit = await finanzamt.prepaymentBasis("2026-07-02");
     expect(mit.angabenAus).toBe(2026);
+    expect(mit.priorBenefitsOmitted).toBe(false);
     expect(mit.prognose.vorsorge).toBe(500_000);
     expect(mit.prognose.zvE).toBe(ohne.prognose.zvE);
     expect(mit.prognose.einkommensteuer).toBeGreaterThan(ohne.prognose.einkommensteuer);
@@ -97,10 +99,10 @@ describe.skipIf(!testDatabaseUrl)("Jahresangaben in der Vorauszahlungsprognose (
   });
 
   it("rechnet ohne Angaben und mit leeren oder fehlenden Vorjahresleistungen", async () => {
-    expect((await finanzamt.prepaymentBasis("2026-07-02")).angabenAus).toBeNull();
+    expect(await finanzamt.prepaymentBasis("2026-07-02")).toMatchObject({ angabenAus: null, priorBenefitsOmitted: false });
     for (const leistungen of [undefined, {}, { a: [], b: [] }, { a: [{ art: "Elterngeld", betrag: 0 }] }]) {
       await incomeTax.saveEstAngaben(actor, 2025, { ...angaben, ersatzleistungen: leistungen });
-      expect((await finanzamt.prepaymentBasis("2026-07-02")).prognose.einkommensteuer).toBe(669_000);
+      expect(await finanzamt.prepaymentBasis("2026-07-02")).toMatchObject({ priorBenefitsOmitted: false, prognose: { einkommensteuer: 669_000 } });
     }
   });
 });
