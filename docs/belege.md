@@ -363,6 +363,8 @@ Ohne Vorsteuerabzug bucht Haben den Bruttobetrag auf das Aufwandskonto, ohne Vor
 
 Drei Wege führen dorthin: Als Kleinunternehmer nach § 19 UStG buchst du immer so. Mit dem Haken **Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)** in den Firmendaten gilt es als Vorgabe, etwa bei Heilbehandlung oder Unterricht. Am einzelnen Beleg gibst du dafür unter **Abziehbare Vorsteuer in %** den Wert 0 ein; die eigene Angabe geht der Firmenvorgabe vor.
 
+Ist für einen Steuersatz nichts abziehbar, heißt seine Spalte unter **Beträge je Steuersatz** **Umsatzsteuer** statt **Vorsteuer**: Es ist die Steuer, die der Lieferant ausweist, und sie wird Aufwand. Bei einer Aufteilung auf mehrere Kategorien gilt das, wenn kein Steuersatz abziehbar ist.
+
 ### Anteiliger Vorsteuerabzug
 
 Verwendest du einen Einkauf auch für Umsätze ohne Vorsteuerberechtigung, erfasst du den **abziehbaren Anteil** zwischen 0 und 100 %, mit bis zu zwei Nachkommastellen. Der Anteil gilt für den Beleg; je Steuersatz kannst du ihn gesondert festlegen. Ohne eigene Angabe gilt die Firmenvorgabe, beim Steuersatz der Anteil des Belegs. Den wirtschaftlich passenden Schlüssel bestimmst du nach [§ 15 Abs. 2–4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__15.html); Haben leitet ihn nicht aus deinem Umsatzverhältnis ab.
