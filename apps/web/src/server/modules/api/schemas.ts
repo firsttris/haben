@@ -3,6 +3,7 @@ import { z } from "zod";
 import { documentReferenceSchema, MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { draftSchema, externalReferenceSchema } from "../rechnungen/index.ts";
 import { contactSchema as contactInputSchema } from "../stammdaten/index.ts";
+import { documentTaxShape } from "./document-tax-schema.ts";
 
 /*
  * Schemas der REST-API: Eingaben, Antworten und Fehler. Die Eingaben bauen auf den Schemas der Module auf (contactSchema,
@@ -373,24 +374,7 @@ export const documentSchema = z
     note: z.string(),
     net: z.number().int().describe(`Netto in Euro; ${CENTS}`),
     tax: z.number().int().describe(`Steuer in Euro; ${CENTS}`),
-    vorsteuerAnteil: z
-      .number()
-      .int()
-      .min(0)
-      .max(10_000)
-      .nullable()
-      .describe("Abziehbarer Anteil in Basispunkten; bei Entwürfen null = Firmenvorgabe, gebucht historisch festgehalten"),
-    vorsteuerAbzug: z.boolean().describe("Gespeichert: wenigstens ein Steuersatz erlaubt Vorsteuerabzug; Rückfall für Altbelege ohne Anteil"),
-    amounts: z
-      .array(
-        z.object({
-          taxRate: z.number().int().describe("Basispunkte"),
-          net: z.number().int(),
-          tax: z.number().int(),
-          vorsteuerAnteil: z.number().int().min(0).max(10_000).nullable().describe("Abziehbarer Anteil in Basispunkten; null erbt den Beleganteil"),
-        }),
-      )
-      .describe("Beträge je Steuersatz in Euro-Cent"),
+    ...documentTaxShape,
     issues: z.array(z.string()).describe("Was vor dem Buchen noch fehlt; leer, wenn bereit oder gebucht"),
     replacedById: z.uuid().nullable().describe("Bei einem stornierten Beleg: der neu erfasste Beleg mit derselben Datei"),
     replacesId: z.uuid().nullable().describe("Bei einer Neuerfassung: der stornierte Beleg, den dieser ersetzt"),
