@@ -86,6 +86,9 @@ export function anwender(s: InstanzStand, angaben: ProcedureDetails): Verfahrens
       s.postfach
         ? `Belege kommen außerdem aus dem Postfach ${s.postfach.username} auf ${s.postfach.host} (Ordner ${s.postfach.folder}); jede abgerufene Mail wird nur einmal übernommen.`
         : "",
+      s.ablage
+        ? `Festgeschriebene Rechnungen schickt Haben seit ${tag(s.ablage.since)} zusätzlich als Kopie an das Dokumentenarchiv unter ${s.ablage.origin}; das Original bleibt in Haben, jede Übertragung steht mit Zeitpunkt und Ergebnis an der Rechnung.`
+        : "",
       ...papier.absaetze,
       ...bank(s),
       elster(s),
