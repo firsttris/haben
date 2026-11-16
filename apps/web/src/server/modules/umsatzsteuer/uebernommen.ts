@@ -14,4 +14,4 @@ export async function uebernommeneJahre(q: Db | Tx = db): Promise<Set<number>> {
 
 /** Vorbelegte Begründung einer Berichtigung in einem übernommenen Jahr (#1200); in der Oberfläche änderbar */
 export const uebernommenBegruendung = (year: number) =>
-  `Jahr ${year} beim Update auf das Journal übernommen: Die Berichtigung beginnt mit den gesendeten Werten, nicht mit der Rechnung aus dem Journal. Abweichung zum Journal geprüft.`;
+  `Jahr ${year} beim Update auf das Journal übernommen: Die Berichtigung beginnt mit den gesendeten Werten, nicht mit der Rechnung aus dem Journal.`;
