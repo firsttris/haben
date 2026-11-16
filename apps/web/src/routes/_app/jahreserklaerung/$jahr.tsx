@@ -817,7 +817,8 @@ function EstSection({ data }: { data: Data }) {
           })()}
         </fieldset>
         <p className="small muted" style={{ margin: 0 }}>
-          Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
+          Beträge in Euro; ELSTER bekommt volle Euro, mit Cent nur die Steuern auf Kapitalerträge und die Lohnsteuerbescheinigungen außer der Summe des
+          Bruttoarbeitslohns. Übermittelt werden die gespeicherten Angaben.
         </p>
         {/* Speichern bleibt unten sichtbar; der Hinweis steht davor, weil der Footer mit negativem Rand darüber liegt.
             Beide Knöpfe stehen an verschiedener Stelle: „Angaben speichern“ links, „Angaben bearbeiten“ rechts. Teilen
