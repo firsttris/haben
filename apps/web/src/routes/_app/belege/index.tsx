@@ -3,7 +3,7 @@ import { ErrorBanner } from "../../../components/ErrorBanner.tsx";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod/mini";
-import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
+import { DocumentStatus, SOURCE_LABEL, documentStatusText } from "../../../components/DocumentStatus.tsx";
 import { Status } from "../../../components/Status.tsx";
 import { DocumentUpload } from "../../../components/DocumentUpload.tsx";
 import { Field } from "../../../components/Field.tsx";
@@ -29,6 +29,9 @@ const richtungText = (dir: "auf" | "ab") => (dir === "ab" ? "absteigend" : "aufs
 const lieferantText = (doc: { supplierName: string; filename: string }) => doc.supplierName || doc.filename;
 const kategorieText = (doc: { category: string | null; splitCount: number }) =>
   doc.category ? EXPENSE_CATEGORIES[doc.category as ExpenseCategory].label : doc.splitCount > 0 ? `Aufgeteilt auf ${doc.splitCount} Zeilen` : "–";
+
+const statusText = (doc: Parameters<typeof documentStatusText>[0] & { cancelledOn: string | null }) =>
+  documentStatusText({ ...doc, cancelled: doc.cancelledOn !== null });
 
 function DocumentsPage() {
   const { documents, aiAvailable, inbox } = Route.useLoaderData();
@@ -63,7 +66,7 @@ function DocumentsPage() {
           case "brutto":
             return richtung * (a.gross - b.gross);
           case "status":
-            return richtung * a.status.localeCompare(b.status);
+            return richtung * statusText(a).localeCompare(statusText(b), "de");
           default:
             return richtung * (a.documentDate ?? "").localeCompare(b.documentDate ?? "");
         }
