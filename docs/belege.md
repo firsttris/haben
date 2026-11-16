@@ -382,7 +382,7 @@ dem Steuerschlüssel des Satzes:
 | 1548 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 1434 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | | 19,00 |
 | 1600 Verbindlichkeiten | 3300 Verbindlichkeiten | 119,00 | |
 
-Das Konto steht wie „Umsatzsteuer nicht fällig“ (1766/1761) auf der Erlösseite in keiner Kennzahl: Kz 66 mindert erst
+Das Konto steht wie „Umsatzsteuer nicht fällig“ (SKR03 1766 und 1761, SKR04 3816 und 3811) auf der Erlösseite in keiner Kennzahl: Kz 66 mindert erst
 die Umbuchung beim Ausgleich. Ohne den Haken bleibt alles wie bisher, die Gutschrift mindert die Vorsteuer im
 Belegmonat. Den Haken setzt du ausdrücklich; Haben leitet ihn nicht aus dem Zahlungsstand ab, denn der kann sich nach
 dem Belegdatum noch ändern.
