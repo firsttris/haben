@@ -12,11 +12,16 @@ import { z } from "zod";
  * Zeile 17 statt Kz 15) und deckte die Zeilen nicht ab, die Haben selbst übermittelt.
  */
 
-/** Eine Zeile, die außerhalb von Haben erklärt wurde: Schlüssel der Erklärung und Zeilentext */
+/** Eine Zeile, die außerhalb von Haben erklärt wurde: Schlüssel der Erklärung, Zeilentext und Anlage */
 export interface ErklaerteZeile {
   /** Schlüssel wie in der Übermittlung: `steuerpflichtig`, `base19`, `gewinn`, … */
   field: string;
   text: string;
+  /**
+   * Anlage des Vordrucks, in der die Zeile steht: „Anlage N“, „Anlage Vorsorgeaufwand“, … Leer, wo die Aufstellung
+   * keine Anlagen kennt (Umsatzsteuererklärung, Anlage EÜR).
+   */
+  gruppe?: string;
 }
 
 const euerZeile = (field: keyof typeof EUER_FIELDS): ErklaerteZeile => ({ field, text: EUER_FIELDS[field].label });
@@ -32,14 +37,103 @@ const EUER_SUMMEN = {
 } as const satisfies Record<string, ErklaerteZeile>;
 
 /**
- * Aufwendungen für ein häusliches Arbeitszimmer, Spalte „abziehbar“ (E6003101, im ERiC-Prüfplugin der Anlage EÜR
- * unter /EUER/BAus/Beschr_abziehbar/Abziehbar/Arbeitszimmer). Sie hat in `EUER_FIELDS` kein Feld, weil Haben sie
- * nicht übermittelt; für eine außerhalb von Haben abgegebene Erklärung steht sie trotzdem im Protokoll (#1072).
+ * Zeilen der Einkommensteuererklärung, nach den Anlagen des Vordrucks (#1083, #1149).
+ *
+ * Haben schickt die Erklärung auf viele Anlagen verteilt; für eine Erklärung, die außerhalb von Haben abgegeben
+ * wurde, trägt der Betreiber die Zeilen aus dem Vordruck nach. Die Reihenfolge folgt dem Vordruck: erst die Anlagen,
+ * in denen die Beträge entstehen, dann die Berechnung, die sie zusammenführt. Die Anlage steht am Feld, weil
+ * `annual_submission_figures` nur Feldkennung und Betrag speichert. Die Schlüssel bleiben ASCII, die Texte sind die
+ * des Vordrucks.
  */
-const EUER_ARBEITSZIMMER = {
-  field: "arbeitszimmer",
-  text: "Aufwendungen für ein häusliches Arbeitszimmer (abziehbar)",
-} as const satisfies ErklaerteZeile;
+const EST_ANLAGEN: readonly { anlage: string; felder: Readonly<Record<string, string>> }[] = [
+  {
+    anlage: "Anlage N",
+    felder: {
+      bruttoarbeitslohn: "Bruttoarbeitslohn",
+      werbungskostenArbeitsmittel: "Aufwendungen für Arbeitsmittel",
+      werbungskostenArbeitszimmer: "Aufwendungen für ein häusliches Arbeitszimmer",
+      werbungskostenUebrige: "Übrige Werbungskosten",
+      werbungskostenBewerbung: "davon Bewerbungskosten",
+      werbungskostenSonstige: "davon weitere Werbungskosten",
+      werbungskosten: "Werbungskosten insgesamt",
+      einkuenfteNichtselbstaendig: "Einkünfte aus nichtselbständiger Arbeit",
+    },
+  },
+  {
+    anlage: "Anlage S",
+    felder: {
+      einkuenfteSelbstaendigLaufend: "Laufende Gewinne, darin Gewinne aus freiberuflicher Tätigkeit",
+      einkuenfteSelbstaendig: "Einkünfte aus selbständiger Arbeit",
+    },
+  },
+  {
+    anlage: "Anlage Vorsorgeaufwand",
+    felder: {
+      altersvorsorgeArbeitnehmeranteil: "Arbeitnehmeranteil zu gesetzlichen Rentenversicherungen",
+      altersvorsorgeEigeneVertraege: "Eigene kapitalgedeckte Rentenversicherungen",
+      altersvorsorgeArbeitgeberanteil: "Arbeitgeberanteil zu gesetzlichen Rentenversicherungen",
+      altersvorsorgeSumme: "Summe der Altersvorsorgeaufwendungen",
+      altersvorsorgeHoechstbetrag: "Höchstbetrag nach § 10 Abs. 3 EStG",
+      altersvorsorgeAbziehbar: "Abziehbare Altersvorsorgebeiträge",
+      basisabsicherung: "Basisabsicherungen (Nr. 3)",
+      pflegePflichtversicherung: "Pflege-Pflichtversicherungen (Nr. 3)",
+      vorsorgeZuschuesse: "Zuschüsse und Erstattungen (Nr. 3)",
+      vorsorgeAufwendungenNr3: "Summe der übrigen Vorsorgeaufwendungen (Nr. 3)",
+      krankenPflegeUebrige: "Übrige Kranken- und Pflegeversicherungen (Nr. 3a)",
+      arbeitslosenversicherung: "Arbeitslosenversicherungen (Nr. 3a)",
+      berufsunfaehigkeit: "Erwerbs- und Berufsunfähigkeitsversicherungen (Nr. 3a)",
+      unfallHaftpflicht: "Unfall-, Haftpflicht- und Risikoversicherungen (Nr. 3a)",
+      vorsorgeAufwendungenNr3a: "Summe der übrigen Vorsorgeaufwendungen (Nr. 3a)",
+      vorsorgeAufwendungenNr3aAbziehbar: "davon abziehbar",
+      vorsorgeaufwendungen: "Summe der abziehbaren Vorsorgeaufwendungen",
+    },
+  },
+  {
+    anlage: "Sonderausgaben",
+    felder: {
+      sonderausgabenPauschbetrag: "Sonderausgaben-Pauschbetrag",
+      erstattungsueberhang: "Erstattungsüberhang bei Beiträgen der Basisversorgung (§ 10 Abs. 4b EStG)",
+    },
+  },
+  {
+    anlage: "Anlage KAP",
+    felder: {
+      kapitalertraege: "Kapitalerträge",
+      sparerPauschbetrag: "Sparer-Pauschbetrag",
+      kapitalertraegeMassgeblich: "Maßgebliche Einkünfte nach § 32d EStG",
+      abgeltungsteuer: "Steuern nach § 32d EStG (Abgeltungsteuer)",
+      kapitalertragsteuer: "Einbehaltene Kapitalertragsteuer",
+      kapitalertragsteuerSoli: "Solidaritätszuschlag auf Kapitalerträge",
+    },
+  },
+  {
+    anlage: "Progressionsvorbehalt",
+    felder: {
+      einkuenfteProgressionsvorbehalt: "Einkünfte unter Progressionsvorbehalt (§ 32b EStG)",
+    },
+  },
+  {
+    anlage: "Berechnung",
+    felder: {
+      summeEinkuenfte: "Summe der Einkünfte",
+      gesamtbetrag: "Gesamtbetrag der Einkünfte",
+      zuVersteuerndesEinkommen: "Zu versteuerndes Einkommen",
+      // § 32b EStG ändert nur den Steuersatz; die tarifliche Einkommensteuer entsteht in der Berechnung, nicht
+      // im Progressionsvorbehalt. Die Zeile steht deshalb hier, hinter dem zu versteuernden Einkommen (#1084)
+      tariflicheEinkommensteuer: "Tarifliche Einkommensteuer",
+      // In der Erklärung setzt niemand etwas fest: Die Zahl kommt aus dem Steuerprogramm, festgesetzt wird sie erst im
+      // Bescheid. Die Beschriftung sagt deshalb, woher sie stammt (#1084)
+      festgesetzteSteuer: "Einkommensteuer laut Steuerprogramm",
+      soli: "Solidaritätszuschlag laut Steuerprogramm",
+      // Die Richtung steht im Vordruck nur im Vorzeichen: negativ ist eine Erstattung, positiv eine Nachzahlung (#1083)
+      erstattung: "Erstattung oder Nachzahlung laut Steuerprogramm",
+    },
+  },
+];
+
+const EST_ZEILEN: readonly ErklaerteZeile[] = EST_ANLAGEN.flatMap(({ anlage, felder }) =>
+  Object.entries(felder).map(([field, text]) => ({ field, text, gruppe: anlage })),
+);
 
 type UstBetrag = Exclude<keyof UstErklaerungFigures, "kz48Zeile47Nummern">;
 
@@ -104,6 +198,16 @@ const UST_REIHENFOLGE = [
 
 const ustZeile = (field: keyof typeof UST_FELDER): ErklaerteZeile => ({ field, text: UST_FELDER[field] });
 
+/**
+ * Aufwendungen für ein häusliches Arbeitszimmer, Spalte „abziehbar“ (E6003101, im ERiC-Prüfplugin der Anlage EÜR
+ * unter /EUER/BAus/Beschr_abziehbar/Abziehbar/Arbeitszimmer). Sie hat in `EUER_FIELDS` kein Feld, weil Haben sie
+ * nicht übermittelt; für eine außerhalb von Haben abgegebene Erklärung steht sie trotzdem im Protokoll (#1072).
+ */
+const EUER_ARBEITSZIMMER = {
+  field: "arbeitszimmer",
+  text: "Aufwendungen für ein häusliches Arbeitszimmer (abziehbar)",
+} as const satisfies ErklaerteZeile;
+
 /** Zeilen je Erklärungsart, in der Reihenfolge der amtlichen Vordrucke */
 export const ERKLAERTE_ZEILEN = {
   ust: UST_REIHENFOLGE.map(ustZeile),
@@ -120,11 +224,12 @@ export const ERKLAERTE_ZEILEN = {
     euerZeile("entnahmen"),
     euerZeile("einlagen"),
   ],
+  est: EST_ZEILEN,
 } as const satisfies Record<string, readonly ErklaerteZeile[]>;
 
 export type ZeilenForm = keyof typeof ERKLAERTE_ZEILEN;
 
-export const zeilenForm = z.enum(["ust", "euer"]);
+export const zeilenForm = z.enum(["ust", "euer", "est"]);
 
 /** Die Feldkennungen, die zu dieser Erklärungsart gehören */
 export function zeilenFelder(form: ZeilenForm): readonly string[] {
