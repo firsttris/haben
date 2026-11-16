@@ -110,7 +110,7 @@ export function supplierFromText(text: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-/** Cent aus einem DATEV-Betrag; der Leser liefert bereits Cent */
+/** Netto und Steuer aus einem Bruttobetrag des DATEV-Stapels */
 export function taxFromGross(gross: Cents, rate: BasisPoints): { net: Cents; tax: Cents } {
   const tax = Math.round((gross * rate) / (10000 + rate));
   return { net: gross - tax, tax };
