@@ -335,6 +335,7 @@ function xmlMismatch(invoice: IncomingInvoice, input: AdoptInput): string | null
  * Welche Behandlungen zur Steuerkategorie einer Zeile passen (EN 16931, UNCL 5305): S und Z sind regulär, E steuerfrei
  * oder § 19 UStG. Eine Rechnung mit S und E zugleich passt so zu keiner Behandlung; regulär zu 0 % gebucht stünde der
  * steuerfreie Teil in keiner Kennzahl statt in Kz 48 (§ 4 Nr. 8 bis 29 UStG). Andere Kategorien (L, M, B) bildet Haben nicht ab.
+ * § 19 UStG: EN 16931 (UNCL 5305) sieht E vor, manche Erzeuger schreiben O; beides gilt als Kleinunternehmer.
  */
 const TREATMENTS_OF_CATEGORY: Record<string, readonly TaxTreatment[]> = {
   S: ["regulaer"],
@@ -343,5 +344,5 @@ const TREATMENTS_OF_CATEGORY: Record<string, readonly TaxTreatment[]> = {
   AE: ["reverse_charge"],
   K: ["ig_lieferung"],
   G: ["ausfuhr"],
-  O: ["drittland", "eu_sonstige"],
+  O: ["drittland", "eu_sonstige", "kleinunternehmer"],
 };
