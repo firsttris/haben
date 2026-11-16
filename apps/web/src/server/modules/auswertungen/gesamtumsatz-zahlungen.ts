@@ -90,9 +90,39 @@ function cancelledAllocations(rows: Allocation[]) {
   return cancelled;
 }
 
-function allocationItem(row: Allocation, date: string, data: PaymentData, cancelled: Set<string>): GesamtumsatzItem {
+function ustRefundInterest(row: Allocation, original?: Allocation): boolean {
+  if (row.kind !== "steuer" || row.taxType !== "ust" || row.taxItem !== "zinsen233a") return false;
+  if (!row.reversesId) return row.amount > 0;
+  return (
+    row.date !== null &&
+    original?.kind === "steuer" &&
+    original.taxType === "ust" &&
+    original.taxItem === "zinsen233a" &&
+    original.reversesId === null &&
+    original.transactionId === row.transactionId &&
+    original.amount > 0 &&
+    original.amount === -row.amount
+  );
+}
+
+function allocationItem(row: Allocation, date: string, data: PaymentData, cancelled: Set<string>, original?: Allocation): GesamtumsatzItem {
+  const refundInterest = ustRefundInterest(row, original);
+  if (refundInterest) date = row.date ?? date;
   const item = unknownTurnover("bank", row.id, "Bankzuordnung", date, row.amount, "Die Ausgangsleistung oder ihre Umsatzart ist ungeklärt.");
   item.transactionId = row.transactionId;
+  // EÜR-Anleitung 2025, Zeile 18: belegte USt-Erstattungsnebenleistungen bei KU in 12 UND 13; kein §-19-Umsatz.
+  // https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025; § 3 Abs. 4 Nr. 4 AO (§§ 233–237).
+  // Vor der allgemeinen Aufhebungszerlegung: Die Gegenzeile mindert erst an ihrem eigenen Tag, auch im Folgejahr.
+  if (refundInterest)
+    return {
+      ...item,
+      net: row.amount,
+      basisSource: "stored",
+      classification: { kind: "not_turnover" },
+      nonTaxableIncome: true,
+      label: "Erstattungszinsen zur Umsatzsteuer",
+      uncertainty: undefined,
+    };
   if (cancelled.has(row.id)) return { ...item, net: 0, basisSource: "stored", classification: { kind: "not_turnover" }, label: "Aufgehobene Bankzuordnung" };
   if (row.kind === "invoice") return { ...invoicePayment("bank", row, date, data), transactionId: row.transactionId };
   if (row.kind === "kategorie" && row.category === "erloese" && row.taxRate !== null) {
@@ -174,14 +204,16 @@ export async function nativeTurnoverItems(year: number, q: Db | Tx): Promise<Ges
     invoices.totals,
   );
   const data = { ...invoices, bases };
+  const allocations = new Map(bank.map((row) => [row.allocation.id, row.allocation]));
   const items = bank
-    .filter((row) => row.date >= start)
     .map((row) => {
-      const item = allocationItem(row.allocation, row.date, data, cancelled);
+      const original = row.allocation.reversesId ? allocations.get(row.allocation.reversesId) : undefined;
+      const item = allocationItem(row.allocation, row.date, data, cancelled, original);
       return row.currency === "EUR"
         ? item
         : { ...item, net: null, basisSource: "unknown" as const, uncertainty: "Der Zahlungseingang ist nicht in Euro belegt." };
-    });
+    })
+    .filter((item) => item.occurredOn! >= start && item.occurredOn! < end);
   for (const row of cash) {
     if (row.date < start) continue;
     const item = cashItem(row, data);
