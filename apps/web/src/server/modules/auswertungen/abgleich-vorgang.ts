@@ -94,21 +94,27 @@ async function belege(year: number, q: Db | Tx, rechtsform: Rechtsform): Promise
   for (const r of rows) {
     const gebucht = (zeilen.get(r.entryId) ?? []) as PostingLine[];
     let erwartet: PostingLine[];
+    let bestand: PostingLine[];
     try {
       const splits = await loadSplits(r.doc.id, q);
-      erwartet = belegZeilen(
-        r.doc,
-        amounts.filter((a) => a.documentId === r.doc.id),
-        splits,
-        { kontenrahmen: r.kontenrahmen as Kontenrahmen, rechtsform },
-        r.doc.vorsteuerAbzug,
-        eigene,
-      );
+      const zeilenFuer = (doc: typeof r.doc) =>
+        belegZeilen(
+          doc,
+          amounts.filter((a) => a.documentId === r.doc.id),
+          splits,
+          { kontenrahmen: r.kontenrahmen as Kontenrahmen, rechtsform },
+          r.doc.vorsteuerAbzug,
+          eigene,
+        );
+      erwartet = zeilenFuer(r.doc);
+      // Vor #930 gebucht, mit Leistungszeitraum aus 0.9 (#879): Die Vorsteuer steht im Belegmonat statt auf dem Zwischenkonto
+      // und zählt weiter nach dem Belegdatum (#930, „Bestand“); so gebucht ist der Beleg richtig
+      bestand = zeilenFuer({ ...r.doc, serviceFrom: null, serviceTo: null });
     } catch {
       // Die heutige Buchungslogik nimmt den Beleg nicht mehr an (eine später verschärfte Regel): nichts zu vergleichen
       continue;
     }
-    if (gleicheSalden(gebucht, erwartet)) continue;
+    if (gleicheSalden(gebucht, erwartet) || gleicheSalden(gebucht, bestand)) continue;
     const konten = new Set([...gebucht, ...erwartet].map((z) => z.account));
     for (const konto of [...konten].sort()) {
       const k = new Set([konto]);
