@@ -444,7 +444,7 @@ Im [Bankabgleich](bank.md#zuordnen) geht es genauso: Nach dem vollständigen Zuo
 
 ## Vorsteuer in der Voranmeldung
 
-Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Eine Gutschrift mit der Angabe „erstattet bereits Bezahltes“ zählt nicht im Belegmonat: Ihre Vorsteuer mindert sich erst, wenn das Entgelt zurückkommt oder der Posten verrechnet wird, anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Ein Storno zählt mit umgekehrtem Vorzeichen im Monat des Stornos. Siehe [umsatzsteuer.md](umsatzsteuer.md).
+Die Vorsteuer eines gebuchten Belegs zählt im Monat seines **Belegdatums**, auch bei Ist-Versteuerung; Ausnahmen und Herleitung stehen unter [Vorsteuer (Kz 66)](umsatzsteuer.md#vorsteuer-kz-66). Ungebuchte Belege zählen nicht, die [Vorprüfung](umsatzsteuer.md#vorprüfung_1) weist darauf hin. Ein Storno zählt mit umgekehrtem Vorzeichen am Datum seiner Gegenbuchung (siehe [Stornieren und neu erfassen](#stornieren-und-neu-erfassen)).
 
 ## Stornieren und neu erfassen
 
