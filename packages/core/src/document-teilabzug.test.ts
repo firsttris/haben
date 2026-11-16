@@ -47,4 +47,39 @@ describe("Teilvorsteuer und Kontierung (#433)", () => {
     expect(saldo(book(-1), ACCOUNTS.SKR04.vorsteuer[1900])).toBe(-1);
     expect(saldo(book(-1), "6837")).toBe(-12);
   });
+
+  // Leistung beim Buchen noch nicht ausgeführt (#693): Auf das Zwischenkonto kommt nur der abziehbare Teil
+  // (§ 15 Abs. 4 UStG), der Rest ist sofort Aufwand
+  it.each(["SKR03", "SKR04"] as const)("%s: noch nicht abziehbar und 50 %% Abzug parkt nur den abziehbaren Teil", (kr) => {
+    const totals = {
+      net: 13_000,
+      tax: 2_110,
+      gross: 15_110,
+      taxes: [
+        { rate: 1900, base: 10_000, tax: 1_900, vorsteuerAnteil: 5_000 },
+        { rate: 700, base: 3_000, tax: 210, vorsteuerAnteil: 2_500 },
+      ],
+    };
+    const einfach = documentPosting(totals, "software", kr, "einzelunternehmen", "bank", true, undefined, 0, null, false, true);
+    const geteilt = documentSplitPosting(
+      totals,
+      [
+        { category: "software", taxRate: 1900, net: 10_000, tax: 1_900 },
+        { category: "software", taxRate: 700, net: 3_000, tax: 210 },
+      ],
+      kr,
+      "einzelunternehmen",
+      "bank",
+      true,
+      null,
+      false,
+      true,
+    );
+    for (const lines of [einfach, geteilt]) {
+      expect(saldo(lines, ACCOUNTS[kr].vorsteuerNochNichtAbziehbar)).toBe(950 + 53);
+      expect(saldo(lines, ACCOUNTS[kr].vorsteuer[1900]) + saldo(lines, ACCOUNTS[kr].vorsteuer[700])).toBe(0);
+      expect(saldo(lines, EXPENSE_CATEGORIES.software[kr])).toBe(13_000 + 950 + 157);
+      expect(saldo(lines, ACCOUNTS[kr].verbindlichkeiten)).toBe(-15_110);
+    }
+  });
 });

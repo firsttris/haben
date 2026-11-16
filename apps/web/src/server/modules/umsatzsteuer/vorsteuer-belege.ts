@@ -2,24 +2,31 @@ import { ACCOUNTS, abziehbareSteuer, gespeicherterAnteil, paidTaxShares, periodR
 import { and, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { gutschriftAnteile } from "./gutschrift.ts";
+import { ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
+import { vorsteuerNachLeistungsdatum } from "./vorsteuer-leistungsdatum.ts";
 import type { InputTaxSource, ReverseChargeSource, IgErwerbSource } from "./vat-figures.ts";
 
 /** Vorsteuer-Nebenbuch: Originalsteuer und historisch festgehaltene Abzugsanteile, unabhängig von heutigen Firmendaten. */
 export async function vorsteuerAusBelegen(period: VatPeriod, q: Db | Tx) {
   const amounts = await belegBetraege(period, q);
+  // Leistungsdatum nach dem Belegdatum (#693): Die Vorsteuer zählt im Monat der Ausführung, ein vorher gezahlter Anteil
+  // im Monat der Zahlung, frühestens in dem der Rechnung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG, UStAE 15.3). Diese Zeilen
+  // kommen aus vorsteuer-leistungsdatum.ts; die gewöhnliche Abfrage lässt die Belege aus, sonst zählten sie doppelt
+  const nachLeistungsdatum = await vorsteuerNachLeistungsdatum(period, q);
   // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
   const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
   // Eine Gutschrift „erstattet bereits Bezahltes“ mindert die Vorsteuer erst mit dem Ausgleich (#690, #786, gutschrift.ts);
   // ohne die Angabe gilt wie bei jedem Beleg das Belegdatum
   const inputTax = amounts
-    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && !a.erstattetBezahltes)
+    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && !a.erstattetBezahltes && !nachLeistungsdatum.belege.has(a.documentId))
     .map(({ privateShare, vorsteuerAbzug, vorsteuerAnteil, satzAnteil, reverseCharge: _rc, erstattetBezahltes: _e, sign, category: _category, ...a }) => ({
       ...a,
       base: business(a.base, privateShare, sign),
       tax: abziehbareSteuer(business(a.tax, privateShare, sign), gespeicherterAnteil({ vorsteuerAbzug, vorsteuerAnteil }, satzAnteil)),
     }))
     .filter((a) => a.tax !== 0);
-  inputTax.push(...(await skontoVorsteuerAnteile(period, q)));
+  inputTax.push(...nachLeistungsdatum.zeilen);
+  inputTax.push(...(await skontoVorsteuerAnteile(period, q, nachLeistungsdatum.skontoOhneMinderung)));
   // Erstattung oder Verrechnung einer Gutschrift: die Vorsteuer mindert sich im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG),
   // je Zahlung, Verrechnung und Ausbuchung ein Eintrag mit deren Datum (gutschrift.ts)
   inputTax.push(...(await gutschriftAnteile(period, q)));
@@ -98,8 +105,26 @@ async function belegBetraege(period: VatPeriod, q: Db | Tx) {
   return amounts;
 }
 
+/**
+ * Gebuchte Minderung der Vorsteuer eines Skontos oder seiner Aufhebung zu diesem Satz (Haben positiv). Mit dem
+ * Zwischenkonto: Die Aufhebung eines Skontos vor der Ausführung (#693) bucht dorthin zurück, und die Freigabe am Tag der
+ * Aufhebung zieht den Betrag als Vorsteuer (vorsteuer-freigabe.ts). Das Skonto selbst lässt `ohneMinderung` aus.
+ */
+function gebuchteSkontoSteuer(
+  recorded: { account: string; debit: number; credit: number; code: string | null; kontenrahmen: keyof typeof ACCOUNTS }[],
+  rate: number,
+): number {
+  return recorded
+    .filter(
+      (l) =>
+        (Object.values(ACCOUNTS[l.kontenrahmen].vorsteuer).some((konto) => konto === l.account) || ZWISCHENKONTEN.includes(l.account)) &&
+        l.code === (rate === 1900 ? "VSt19" : "VSt7"),
+    )
+    .reduce((sum, l) => sum + l.credit - l.debit, 0);
+}
+
 /** § 17 UStG: bei neuen Belegen genau die kumuliert gerundete Berichtigung aus der Buchung. */
-async function skontoVorsteuerAnteile(period: VatPeriod, q: Db | Tx): Promise<InputTaxSource[]> {
+async function skontoVorsteuerAnteile(period: VatPeriod, q: Db | Tx, ohneMinderung: ReadonlySet<string>): Promise<InputTaxSource[]> {
   const { start, end } = periodRange(period);
   const result: InputTaxSource[] = [];
   // Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz
@@ -155,7 +180,8 @@ async function skontoVorsteuerAnteile(period: VatPeriod, q: Db | Tx): Promise<In
       .select()
       .from(schema.documentAmounts)
       .where(inArray(schema.documentAmounts.documentId, [...new Set(discounts.map((d) => d.documentId))]));
-    for (const d of discounts) {
+    // Skonto vor der Ausführung (vorsteuer-leistungsdatum.ts): Seine Steuer war noch nicht abgezogen, es mindert nichts
+    for (const d of discounts.filter((x) => !ohneMinderung.has(x.id))) {
       const taxes = docAmounts
         .filter((a) => a.documentId === d.documentId)
         .map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax, vorsteuerAnteil: a.vorsteuerAnteil }))
@@ -164,13 +190,7 @@ async function skontoVorsteuerAnteile(period: VatPeriod, q: Db | Tx): Promise<In
         const recorded = journal.filter((l) => l.id === d.id);
         const tax =
           d.vorsteuerAnteil !== null && recorded.length > 0
-            ? recorded
-                .filter(
-                  (l) =>
-                    Object.values(ACCOUNTS[l.kontenrahmen].vorsteuer).some((konto) => konto === l.account) &&
-                    l.code === (share.rate === 1900 ? "VSt19" : "VSt7"),
-                )
-                .reduce((sum, l) => sum + l.credit - l.debit, 0)
+            ? gebuchteSkontoSteuer(recorded, share.rate)
             : abziehbareSteuer(share.tax, gespeicherterAnteil(d, taxes.find((t) => t.rate === share.rate)?.vorsteuerAnteil));
         if (tax === 0) continue;
         result.push({ documentId: d.documentId, date: d.date, supplier: d.supplier, number: d.number, rate: share.rate, base: -share.base, tax: -tax });

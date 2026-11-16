@@ -38,6 +38,7 @@ import { contactRoleProblem, loadCompany, resolveExchangeRate, type Company } fr
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
+import { freigabeAmAusfuehrung } from "../umsatzsteuer/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { fileInUse } from "../../db/file-in-use.ts";
 import { today } from "../../today.ts";
@@ -50,7 +51,7 @@ import { pdfTextLines } from "./pdf-text.ts";
 import { supplierCategory, supplierPayment } from "./vorschlaege.ts";
 import { loadSplits, replaceSplits, splitBookingIssues, splitInputSchema, type DocumentSplit } from "./splits.ts";
 import { euroAmounts } from "./belegbetraege.ts";
-import { belegSummen, belegZeilen, totalsOf } from "./belegbuchung.ts";
+import { belegSummen, belegZeilen, totalsOf, leistungNochNichtAusgefuehrt } from "./belegbuchung.ts";
 
 export type Document = typeof schema.documents.$inferSelect;
 export type DocumentAmount = typeof schema.documentAmounts.$inferSelect;
@@ -785,6 +786,9 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
     sourceId: id,
     lines,
   });
+  // Leistung beim Buchen noch nicht ausgeführt: Die Vorsteuer verlässt das Zwischenkonto im Monat der Ausführung (#693),
+  // nicht erst mit der Zahlung. Die Freigabe entsteht als eigene Buchung, damit der Beleg selbst unverändert bleibt.
+  if (leistungNochNichtAusgefuehrt(doc)) await freigabeAmAusfuehrung(tx, doc, company);
   // Bar aus der Kasse: Zeile im Kassenbuch; lehnt ab, wenn der Bestand dadurch negativ würde
   if (doc.payment === "kasse") {
     await addDocumentCashEntry(tx, {

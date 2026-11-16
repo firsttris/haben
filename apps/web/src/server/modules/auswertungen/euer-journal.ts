@@ -52,6 +52,16 @@ interface Ziel {
   zahlung?: Pick<typeof schema.allocations.$inferSelect, "amount" | "taxShares" | "taxSharesInvoiceId">;
 }
 
+/** Herkunft einer Buchung in der EÜR: Pauschale, Anlage, Zahlung auf ein Darlehen für Anlagevermögen oder sonst */
+const herkunftVon = (b: Buchung, ziel: Ziel | undefined, anlageDarlehen: ReadonlySet<string>): EuerHerkunft =>
+  b.sourceType === "pauschale"
+    ? "pauschale"
+    : b.sourceType === "asset"
+      ? "asset"
+      : ziel?.loanId && anlageDarlehen.has(ziel.loanId)
+        ? "darlehenAnlagevermoegen"
+        : "sonst";
+
 /** Rechnung bzw. Beleg, den eine Zahlung, Ausbuchung oder Bareinnahme ausgleicht, je Herkunft der Buchung */
 async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
   const result = new Map<string, Ziel>();
@@ -146,6 +156,18 @@ function dazu(nach: EuerAusJournal, von: EuerAusJournal, vorzeichen: 1 | -1 = 1)
   nach.gewerbesteuerNichtAbziehbar += vorzeichen * von.gewerbesteuerNichtAbziehbar;
 }
 
+/**
+ * Das Zwischenkonto der noch nicht abziehbaren Vorsteuer (SKR03 1548, SKR04 1434; #693, #786) zählt wie die Vorsteuer: In
+ * der EÜR ist gezahlte Vorsteuer Betriebsausgabe im Jahr der Zahlung (§ 11 Abs. 2 EStG), gleich, ob sie bis zur Ausführung
+ * geparkt ist. Die Umbuchung vom Zwischenkonto auf die Vorsteuer (Freigabe, Zahlung vor der Ausführung) hebt sich so auf;
+ * eine Zahlung zieht ihren Anteil an der geparkten Steuer, gerundet wie die Steuer der Nebenbücher (zahlungsStand).
+ * Liefert die Zeilen ohne Forderungen und Verbindlichkeiten (offenerPosten).
+ */
+function zwischenkontoAlsVorsteuer(kr: Kontenrahmen, zeilen: readonly Zeile[]): Zeile[] {
+  const a = ACCOUNTS[kr];
+  return zeilen.filter((z) => !offenerPosten(kr, z)).map((z) => (z.account === a.vorsteuerNochNichtAbziehbar ? { ...z, account: a.vorsteuer[1900] } : z));
+}
+
 /** Buchungen des Jahres bzw. bis `umsatzBis`, ohne Eröffnungen und, wenn verlangt, ohne manuelle Buchungen */
 function imZeitraum(year: number, umsatzBis: string | undefined, ohneManuelle: boolean) {
   const e = schema.journalEntries;
@@ -234,7 +256,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
     const istUebernommen = gebucht.length === 0 || alle.some((z) => z.account === ACCOUNTS[kontenrahmen].saldenvortrag);
     // Aus Lexoffice übernommen: verteilt wird auf die Zeilen, die Haben gebucht hätte
     const ersatz = istUebernommen ? await uebernommeneZeilen(q, typ, id, kontenrahmen) : null;
-    const zeilen = ersatz?.zeilen ?? alle.filter((z) => !offenerPosten(kontenrahmen, z));
+    const zeilen = ersatz?.zeilen ?? zwischenkontoAlsVorsteuer(kontenrahmen, alle);
     const gesamt = ersatz ? ersatz.gesamt : alle.filter((z) => offenerPosten(kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0);
     const herkunft: EuerHerkunft = typ === "document" && anlagen.has(id) ? "anlage" : "sonst";
     const u: Ursprung = {
@@ -294,17 +316,12 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
   /** Was eine Buchung in der EÜR bewirkt */
   async function wirkung(b: Buchung): Promise<EuerAusJournal> {
     const summe = leereEuerAusJournal();
+    // Freigabe zum Leistungsdatum (#693): nur eine Umbuchung vom Zwischenkonto auf die Vorsteuer, kein Abfluss
+    if (b.sourceType === "freigabe") return summe;
     const kr = b.kontenrahmen;
     const kleinunternehmer = kuMonate[Number(b.date.slice(5, 7)) - 1];
     const ziel = zielVon.get(b.sourceId);
-    const herkunft: EuerHerkunft =
-      b.sourceType === "pauschale"
-        ? "pauschale"
-        : b.sourceType === "asset"
-          ? "asset"
-          : ziel?.loanId && anlageDarlehen.has(ziel.loanId)
-            ? "darlehenAnlagevermoegen"
-            : "sonst";
+    const herkunft = herkunftVon(b, ziel, anlageDarlehen);
     const ausgeglichen = offen(b);
     const hatOffenenPosten = b.zeilen.some((z) => offenerPosten(kr, z));
     const importAnteil = importiert.get(b.id);
@@ -317,7 +334,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db, umsatzBis?: 
       return summe;
     if (ausbuchungOhneZahlung(b)) return summe;
     // Eigene Zeilen der Buchung (Kursdifferenz, Umbuchung der Umsatzsteuer, die sich aufhebt) nach ihren Konten
-    const eigene = b.zeilen.filter((z) => !offenerPosten(kr, z));
+    const eigene = zwischenkontoAlsVorsteuer(kr, b.zeilen);
     if (b.sourceType !== "invoice" || !bilanzRechnungen.has(b.sourceId))
       erfasseUmsatz(kr, eigene, b.sourceType === "document" && anlagen.has(b.sourceId) ? "anlage" : herkunft);
     const umkehr = b.sourceType === "allocation" && b.reversesId !== null;

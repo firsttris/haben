@@ -127,12 +127,17 @@ export function documentSplitPosting(
   reverseCharge: ReverseChargeIn | null = null,
   /** Gutschrift erstattet bereits Bezahltes (#786): Vorsteuerminderung erst mit dem Ausgleich, bis dahin Zwischenkonto */
   erstattetBezahltes = false,
+  /** Leistung beim Buchen noch nicht ausgeführt (#693): Vorsteuer auf das Zwischenkonto bis zur Freigabe oder Zahlung */
+  vorsteuerNochNichtAbziehbar = false,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   if (erstattetBezahltes) {
     if (totals.gross >= 0) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg");
     if (reverseCharge) throw new RangeError("„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb");
   }
+  if (vorsteuerNochNichtAbziehbar && reverseCharge)
+    throw new RangeError("Noch nicht abziehbare Vorsteuer gibt es nicht bei § 13b; er hat seinen eigenen Zeitpunkt");
+  const parken = erstattetBezahltes || vorsteuerNochNichtAbziehbar;
   if (reverseCharge && !(reverseCharge in REVERSE_CHARGE_IN)) throw new RangeError(`${reverseCharge} mit Aufteilung wird nicht unterstützt`);
   const rcCode = reverseCharge ? REVERSE_CHARGE_IN[reverseCharge].code : null;
   if (rcCode && totals.taxes.some((t) => t.rate !== 1900 && t.rate !== 700)) throw new RangeError("§ 13b: Steuersatz muss 19 % oder 7 % sein");
@@ -172,7 +177,7 @@ export function documentSplitPosting(
       if (abzugsfaehig !== 0) result.push(side(accounts.vorsteuerRc, abzugsfaehig, true, "VSt13b"));
       result.push(side(accounts.ustRc, tax, false, rcCode));
     } else if (abzugsfaehig !== 0) {
-      const konto = erstattetBezahltes ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[satz];
+      const konto = parken ? accounts.vorsteuerNochNichtAbziehbar : accounts.vorsteuer[satz];
       result.push(side(konto, abzugsfaehig, true, inputTaxCode(satz)));
     }
   }

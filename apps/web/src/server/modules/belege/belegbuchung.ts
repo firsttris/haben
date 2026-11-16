@@ -1,4 +1,13 @@
-import { assetAccount, documentPosting, documentSplitPosting, type ExpenseCategory, type Kontenrahmen, type PostingLine, type Rechtsform } from "@haben/core";
+import {
+  assetAccount,
+  documentPosting,
+  documentSplitPosting,
+  type ExpenseCategory,
+  type Kontenrahmen,
+  type PostingLine,
+  type Rechtsform,
+  vorsteuerWartetAufAusfuehrung,
+} from "@haben/core";
 import type { schema } from "../../db/index.ts";
 import { splitLines, type DocumentSplit } from "./splits.ts";
 
@@ -25,6 +34,27 @@ export function belegSummen(doc: Pick<Document, "reverseCharge">, amounts: Amoun
   };
 }
 
+/**
+ * Die Leistung ist beim Buchen noch nicht ausgeführt (#693): Die Vorsteuer kommt auf das Zwischenkonto und wird im Monat
+ * der Ausführung frei, bei Zahlung vorher mit der Zahlung (umsatzsteuer/vorsteuer-freigabe.ts). Nur über die Bank: bar
+ * und privat ist der Beleg mit der Buchung bezahlt, da gäbe es kein Ereignis, das sie nachzieht. Welche Belege
+ * überhaupt warten, sagt vorsteuerWartetAufAusfuehrung.
+ */
+export function leistungNochNichtAusgefuehrt(doc: Document): boolean {
+  return (
+    doc.payment === "bank" &&
+    vorsteuerWartetAufAusfuehrung({
+      belegdatum: doc.documentDate,
+      leistungVon: doc.serviceFrom,
+      leistungBis: doc.serviceTo,
+      reverseCharge: doc.reverseCharge,
+      category: doc.category,
+      gross: doc.gross,
+      erstattetBezahltes: doc.erstattetBezahltes,
+    })
+  );
+}
+
 /** Die Zeilen der Belegbuchung; `vorsteuerAbzug` wie am Beleg festgehalten (Kleinunternehmer ziehen keine Vorsteuer ab) */
 export function belegZeilen(
   doc: Document,
@@ -41,6 +71,7 @@ export function belegZeilen(
   const eigenesKonto = doc.ownAccountId ? eigene.get(doc.ownAccountId) : undefined;
   const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, books.kontenrahmen) : eigenesKonto;
   // Aufgeteilt (#271): eine Buchung mit einer Aufwandszeile je Kategorie; sonst über die Kategorie des Belegs
+  const spaeter = leistungNochNichtAusgefuehrt(doc);
   return splits.length > 0
     ? documentSplitPosting(
         totals,
@@ -53,6 +84,8 @@ export function belegZeilen(
         doc.reverseCharge === "eu" || doc.reverseCharge === "drittland" ? doc.reverseCharge : null,
         // Gutschrift, die bereits Bezahltes erstattet: Vorsteuerminderung erst mit dem Ausgleich (#786)
         doc.erstattetBezahltes,
+        // Leistung beim Buchen noch nicht ausgeführt: Vorsteuer auf das Zwischenkonto bis zur Freigabe oder Zahlung (#693)
+        spaeter,
       )
     : documentPosting(
         totals,
@@ -65,5 +98,6 @@ export function belegZeilen(
         doc.privateShare,
         doc.reverseCharge,
         doc.erstattetBezahltes,
+        spaeter,
       );
 }

@@ -63,6 +63,14 @@ Ein eigenes Layout soll mit jeder neuen Version von Haben weiter funktionieren. 
 
 Für Beiträge: Jedes neue Feld bekommt im Feldvertrag (`packages/einvoice/src/layout-schema.ts`) eine Beschreibung, danach schreibt `bun scripts/feldvertrag/schreiben.ts` Skill und Feldtabellen neu (siehe [Entwicklung](entwicklung.md#konventionen)).
 
+## Zahlungsdaten auf Mahnungen
+
+Eigene Mahnlayouts können Zahlungsbetrag, neue Zahlungsfrist, Verwendungszweck und Bankverbindung aus `paymentDetails` einzeln anordnen. `claimDetails` enthält den ursprünglichen Rechnungsbetrag, den aktuellen offenen Betrag und die angesetzten Kosten aus Habens Mahnberechnung.
+
+`paymentHistory` enthält zugeordnete Bank- und Barzahlungen nach Datum. Aufgehobene Zahlungen bleiben mit `reversed: true` erhalten; ihre Forderungswirkung `effect` ist `null`. Verrechnungen, Korrekturen und Ausbuchungen stehen nicht in dieser Liste. Deshalb ist für die Restforderung `claimDetails.openAmount` maßgeblich; sie lässt sich nicht allein aus der Zahlungsliste herleiten. Mahnungen beziehen sich weiterhin auf eine einzelne Rechnung.
+
+Die drei Felder sind Ergänzungen zu Version 1. Für ältere Daten in Typst etwa `d.at("paymentHistory", default: ())` verwenden; `payment`, `rows` und `total` bleiben verfügbar.
+
 ## Felder
 
 Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst mit `d.at("feld", default: none)` lesen.
@@ -244,6 +252,31 @@ Feldvertrag Version 1. Ein Feld mit „Immer da: nein“ kann fehlen; in Typst m
 | `total` | `object` | ja | ja | Zu zahlen |
 | `total.label` | `string` | ja |  | Bezeichnung, links |
 | `total.value` | `string` | ja |  | Wert, rechts |
+| `paymentDetails` | `object` | nein |  | Zahlungsanweisung als einzelne Felder |
+| `paymentDetails.amount` | `string` | ja |  | Zahlbetrag einschließlich angesetzter Kosten, wie total.value |
+| `paymentDetails.dueDate` | `string` | ja |  | Neue Zahlungsfrist der Mahnung |
+| `paymentDetails.reference` | `string` | ja |  | Verwendungszweck, wie im GiroCode |
+| `paymentDetails.accountHolder` | `string` | ja |  | Kontoinhaber, ersatzweise Firmenname |
+| `paymentDetails.bank` | `string` | ja |  | Name der Bank, leer ohne Angabe |
+| `paymentDetails.iban` | `string` | ja |  | IBAN in Vierergruppen, leer ohne Angabe |
+| `paymentDetails.bic` | `string` | ja |  | BIC, leer ohne Angabe |
+| `paymentHistory` | `object[]` | nein |  | Zugeordnete Bank- und Barzahlungen nach Datum, ohne Gegenzeilen; keine Verrechnungen oder Ausbuchungen |
+| `paymentHistory[].date` | `string` | ja |  | Buchungsdatum der Bankzahlung bzw. Datum der Bareinnahme |
+| `paymentHistory[].amount` | `string` | ja |  | Zugeordneter Zahlbetrag; Erstattung negativ |
+| `paymentHistory[].effect` | `null \| string` | ja |  | Wirkung auf die Forderung: Zahlung negativ, Erstattung positiv; null bei Aufhebung |
+| `paymentHistory[].method` | `string` | ja |  | Zahlungsweg: Bank oder Bar |
+| `paymentHistory[].note` | `string` | ja |  | Bank: Name der Gegenpartei; Bar: Buchungstext |
+| `paymentHistory[].reversed` | `boolean` | ja |  | Bankzuordnung aufgehoben bzw. Bareinnahme storniert |
+| `claimDetails` | `object` | nein |  | Forderungsbestandteile aus der bestehenden Berechnung; keine neue Berechnung im Layout |
+| `claimDetails.originalAmount` | `null \| string` | ja |  | Bruttobetrag der gemahnten Rechnung; null, wenn der Aufrufer ihn nicht liefert |
+| `claimDetails.openAmount` | `string` | ja |  | Aktueller offener Betrag nach Zahlungen, Korrekturen und sonstigem Ausgleich |
+| `claimDetails.fee` | `null \| string` | ja |  | Angesetzte Mahngebühr nach Anrechnung auf die Pauschale; null ohne |
+| `claimDetails.flatFee` | `null \| string` | ja |  | Angesetzte Verzugspauschale; null ohne |
+| `claimDetails.interest` | `null \| string` | ja |  | Berechnete Verzugszinsen; null ohne |
+| `claimDetails.interestRate` | `null \| string` | ja |  | Jährlicher Zinssatz mit Prozentzeichen; null ohne Zinsen |
+| `claimDetails.interestDays` | `string` | ja |  | Anzahl der Zinstage |
+| `claimDetails.invoiceDueDate` | `string` | ja |  | Fälligkeit der Rechnung |
+| `claimDetails.calculatedOn` | `string` | ja |  | Datum der Mahnung und Zinsberechnung |
 | `closing` | `string` | ja | ja | Schlusstext ohne Auszeichnungszeichen |
 | `closingFormatted` | `object[]` | ja | ja | Schlusstext mit Auszeichnungen |
 | `closingFormatted[].text` | `string` | ja |  | Text des Abschnitts |

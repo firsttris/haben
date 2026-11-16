@@ -29,6 +29,8 @@ export function SaldoBetrag({ kontenrahmen, account, saldo }: { kontenrahmen: Ko
 
 /** Herkunft einer Journalbuchung */
 export const JOURNAL_SOURCE = {
+  // Eigene Buchung neben dem Beleg, wenn dessen Leistung beim Buchen noch nicht ausgeführt war (#693)
+  freigabe: "Vorsteuerfreigabe",
   invoice: "Rechnung",
   document: "Beleg",
   allocation: "Bank",
@@ -44,6 +46,24 @@ export const JOURNAL_SOURCE = {
   verrechnung: "Verrechnung",
 } as const;
 export type JournalSource = keyof typeof JOURNAL_SOURCE;
+
+/** Detailseite des Vorgangs hinter einer Buchung */
+export type Vorgang = { to: "/rechnungen/$id" | "/belege/$id" | "/anlagen/$id"; id: string };
+
+/**
+ * Vorgang zur Herkunft einer Buchung, wenn er eine eigene Detailseite hat (Journal und Kontenblatt); sonst null, dann
+ * führt die Seite auf die Übersicht (Bank, Kasse, Lohn, …) oder zeigt nur die Herkunft.
+ */
+export function vorgangZurHerkunft(e: { sourceType: string; sourceId: string; invoiceId: string | null; documentId: string | null }): Vorgang | null {
+  if (e.sourceType === "invoice") return { to: "/rechnungen/$id", id: e.sourceId };
+  // Freigabe der Vorsteuer zum Leistungsdatum (#693): Quelle ist der Beleg selbst (vorsteuer-freigabe.ts)
+  if (e.sourceType === "document" || e.sourceType === "freigabe") return { to: "/belege/$id", id: e.sourceId };
+  // Verrechnung mit einer Kundenkorrektur (#877) bzw. zweier Belege (#786): auf den Vorgang, nicht auf die Bank
+  if (e.sourceType === "verrechnung" && e.invoiceId) return { to: "/rechnungen/$id", id: e.invoiceId };
+  if (e.sourceType === "verrechnung" && e.documentId) return { to: "/belege/$id", id: e.documentId };
+  if (e.sourceType === "asset") return { to: "/anlagen/$id", id: e.sourceId };
+  return null;
+}
 
 /** Herkünfte, die es nur in einer Rechtsform gibt: Pauschalen im Einzelunternehmen, die übrigen in GmbH und UG (docs/einrichtung.md) */
 const NUR_EINZELUNTERNEHMEN: readonly JournalSource[] = ["pauschale"];

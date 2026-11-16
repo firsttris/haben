@@ -8,6 +8,7 @@ import { documentBankAllocations, lockCash, reverseAllocationIn, reverseDocument
 import { loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { belegZeilen } from "./belegbuchung.ts";
+import { freigabeStornieren, ZWISCHENKONTEN } from "../umsatzsteuer/index.ts";
 
 export { vatPeriodsOf } from "../buchhaltung/index.ts";
 import { DocumentError, type Document } from "./documents.ts";
@@ -67,6 +68,20 @@ async function reverseConfirmedAllocations(tx: Tx, doc: Pick<Document, "id" | "p
   // Originale bleiben nachvollziehbar (§ 146 Abs. 4 AO); scheitert der Storno, werden auch die Bankgegenzeilen zurückgerollt.
   // https://www.gesetze-im-internet.de/ao_1977/__146.html
   for (const allocationId of groups.values()) await reverseAllocationIn(tx, allocationId, date);
+}
+
+/**
+ * Steht die Vorsteuer des Belegs auf dem Zwischenkonto (Leistung beim Buchen noch nicht ausgeführt, #693, oder Gutschrift
+ * „erstattet bereits Bezahltes“, #786), hat jede Zahlung ihren Anteil auf die Vorsteuer umgebucht, und ihre Aufhebung
+ * nimmt ihn am Tag des Stornos zurück. Der Storno liegt dann nie vor der jüngsten aufgehobenen Zahlung: Sonst minderte er
+ * die Vorsteuer in einem Zeitraum, in dem sie noch nicht zählte (§ 17 Abs. 1 UStG, Berichtigung im Zeitraum der Änderung).
+ */
+async function nieVorDerUmbuchung(tx: Tx, entryId: string, doc: Pick<Document, "id" | "payment">, allocationIds: string[], date: string) {
+  if (doc.payment !== "bank" || allocationIds.length === 0) return date;
+  const zeilen = await tx.select({ account: schema.journalLines.account }).from(schema.journalLines).where(eq(schema.journalLines.entryId, entryId));
+  if (!zeilen.some((z) => ZWISCHENKONTEN.includes(z.account))) return date;
+  const tage = (await documentBankAllocations(doc.id, tx)).filter((a) => allocationIds.includes(a.id)).map((a) => a.date);
+  return tage.reduce((spaetester, tag) => (tag.localeCompare(spaetester) > 0 ? tag : spaetester), date);
 }
 
 /** Die Buchung des Belegs; ein Storno hat reverses_id und zählt nicht */
@@ -149,7 +164,13 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
     const original = await documentEntry(tx, id);
     // Das Datum des Stornos gilt auch für die mit aufgehobenen Bankzuordnungen (#782): eine Gegenbuchung, ein Zeitraum.
     // Es steht deshalb fest, bevor reverseAllocationIn die Zuordnungen zurücknimmt.
-    const date = await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
+    const date = await nieVorDerUmbuchung(
+      tx,
+      original.id,
+      doc,
+      allocationIds,
+      await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate),
+    );
     await reverseConfirmedAllocations(tx, doc, allocationIds, date);
     if (doc.payment === "bank" && (await settled(tx, id)) !== 0) {
       throw new DocumentError("Dem Beleg ist noch eine separate Ausbuchung zugeordnet. Hebe diese im Bankabgleich auf, dann stornierst du ihn.");
@@ -194,6 +215,9 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
         journalEntryId,
       });
     }
+    // Eine beim Buchen freigegebene Vorsteuer (#693) nimmt der Storno mit zurück; sonst bliebe sie auf dem Vorsteuerkonto,
+    // ohne dass der Beleg noch steht
+    await freigabeStornieren(tx, books, id, date);
     const [row] = await tx.insert(schema.documentCancellations).values({ documentId: id, date, reason, journalEntryId }).returning();
     return row!;
   });
