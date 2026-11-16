@@ -4254,7 +4254,7 @@ export const archiveTarget = pgTable(
     /** Link auf das Dokument im Archiv mit {id} aus der Antwort, z. B. https://archiv.example/dokumente/{id} */
     linkTemplate: text("link_template"),
     enabled: boolean("enabled").notNull().default(true),
-    /** Rechnungen, die ab hier festgeschrieben werden, gehen an url; neu gesetzt beim Einschalten und bei neuer Adresse */
+    /** Rechnungen, die ab hier festgeschrieben werden, gehen an url; neu gesetzt beim ersten Speichern und bei neuer Adresse */
     since: timestamp("since", { withTimezone: true }).notNull().defaultNow(),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
