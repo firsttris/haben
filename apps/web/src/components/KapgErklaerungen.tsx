@@ -26,7 +26,7 @@ type Hinweis = Kapg["kst"]["issues"][number];
 const LINK_LABEL = { "/einstellungen": "Zu den Einstellungen", "/abschluss": "Zum Jahresabschluss" } as const;
 const euro = (cents: number) => formatEuro(cents).replace(/\s*€$/, "");
 const ganzeEuro = (euros: number) => formatEuro(euros * 100);
-const ANGABEN_FEHLER = "Beträge als Euro (z. B. 25.000,00) und Anteile in Prozent mit höchstens zwei Nachkommastellen (z. B. 50 oder 33,33) eingeben.";
+const ANGABEN_FEHLER = "Beträge als Euro (z. B. 25.000,00) und Anteile über 0 bis 100 % mit höchstens zwei Nachkommastellen (z. B. 50 oder 33,33) eingeben.";
 
 /** Hinweise einer Erklärung: je Ton ein Kasten, mehrere als Liste darin, statt eines Kastens je Hinweis */
 function Hinweise({ issues }: { issues: Hinweis[] }) {

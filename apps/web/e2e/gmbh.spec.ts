@@ -299,6 +299,10 @@ test("Jahreserklärung der GmbH: Körperschaft- und Gewerbesteuer, Anteilseigner
   await form.getByLabel("PLZ und Ort Anteilseigner 1").fill("28217 Bremen");
   await form.getByLabel("Identifikationsnummer oder Steuernummer (13 Ziffern) Anteilseigner 1").fill("86095742719");
   await form.getByLabel("Beteiligung in Euro Anteilseigner 1").fill("25.000,00");
+  // Mehr als zwei Nachkommastellen rundet Haben nicht still, die Meldung nennt die Grenze (#1222)
+  await form.getByLabel("Anteil in Prozent Anteilseigner 1").fill("33,333");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(page.getByText(/Anteile über 0 bis 100 % mit höchstens zwei Nachkommastellen/)).toBeVisible();
   await form.getByLabel("Anteil in Prozent Anteilseigner 1").fill("100");
   await form.getByRole("button", { name: "Angaben speichern" }).click();
   await expect(page.getByText("Angaben gespeichert.")).toBeVisible();
