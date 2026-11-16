@@ -1,5 +1,5 @@
-import { leistungsdatum, paidTaxShares, periodRange, splitPrivateShare, type Cents, type VatPeriod } from "@haben/core";
-import { and, eq, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
+import { ACCOUNTS, leistungsdatum, paidTaxShares, periodRange, splitPrivateShare, type Cents, type VatPeriod } from "@haben/core";
+import { and, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
@@ -126,7 +126,20 @@ export async function vorsteuerNachLeistungsdatum(period: VatPeriod, q: Db | Tx 
       gross: d.gross,
     })
     .from(d)
-    .where(and(eq(d.status, "gebucht"), isNull(d.lexofficeVoucherId), lt(d.documentDate, end), or(isNotNull(d.serviceFrom), isNotNull(d.serviceTo))));
+    .where(
+      and(
+        eq(d.status, "gebucht"),
+        isNull(d.lexofficeVoucherId),
+        lt(d.documentDate, end),
+        or(isNotNull(d.serviceFrom), isNotNull(d.serviceTo)),
+        // Nachweis ist die Buchung, wie im Ausgleich (vorsteuer-ausgleich.ts): Nur ein Beleg, dessen Buchung die Vorsteuer
+        // auf das Zwischenkonto gelegt hat, zählt nach dem Leistungsdatum. Altbestand von vor #930, bar oder privat
+        // bezahlte Belege bleiben beim Belegdatum wie im Journal; ein Update ändert keine gemeldeten Monate
+        sql`exists (select 1 from journal_entries e join journal_lines l on l.entry_id = e.id
+                     where e.source_type = 'document' and e.source_id = ${d.id} and e.reverses_id is null
+                       and l.account in (${ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar}, ${ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar}))`,
+      ),
+    );
 
   const vorzeitig = kandidaten.filter((k) => {
     if (!k.datum) return false;
