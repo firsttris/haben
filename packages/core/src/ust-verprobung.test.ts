@@ -29,6 +29,9 @@ describe.each(["SKR03", "SKR04"] as const)("Umsatzsteuer-Verprobung %s", (kr: Ko
       { rate: 700, base: 200_00, tax: 14_00 },
     ]);
     expect(verprobeBuchung(kr, "soll", documentPosting(zwei, "buero", kr, "einzelunternehmen", "bank"))).toEqual([]);
+    // Gutschrift dazu: alle Beträge negativ
+    const gutschrift = totalsFromTaxes([{ rate: 1900, base: -1_000_00, tax: -190_00, vorsteuerAnteil: 6000 }]);
+    expect(verprobeBuchung(kr, "soll", documentPosting(gutschrift, "buero", kr, "einzelunternehmen", "bank"))).toEqual([]);
   });
 
   it("anteiliger Vorsteuerabzug: mehr Vorsteuer als Bemessungsgrundlage mal Satz fällt weiter auf", () => {

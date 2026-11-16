@@ -14,8 +14,10 @@ import { ACCOUNTS, type Kontenrahmen, type Versteuerung } from "./posting.ts";
  * Geprüft wird, wo Steuerschlüssel und Steuerkonto den Satz eindeutig nennen: Umsatzsteuer 19 % und 7 % (Kz 81/86, bei Ist
  * erst mit der Zahlung wie kennzahlenAusJournal), Erwerbsteuer (Kz 89/93) und die Vorsteuer 19 % und 7 % (VSt19, VSt7 auf der
  * Aufwandszeile gegen das Vorsteuerkonto des Satzes). Nicht geprüft: § 13b (der Schlüssel nennt keinen Satz), die
- * Einfuhrumsatzsteuer (der Bescheid nennt die Steuer, keine Bemessungsgrundlage) und die Vorsteuer einer Gutschrift, die
- * bereits Bezahltes erstattet (Zwischenkonto, #786).
+ * Einfuhrumsatzsteuer (der Bescheid nennt die Steuer, keine Bemessungsgrundlage) und Buchungen über das Zwischenkonto der
+ * noch nicht abziehbaren Vorsteuer (Gutschrift, die bereits Bezahltes erstattet, #786; Leistung nach dem Belegdatum, #930).
+ * Bei anteiligem Vorsteuerabzug (§ 15 Abs. 4 UStG, #926) steht der nicht abziehbare Teil mit „keineVSt“ auf dem Aufwand,
+ * ohne Satz; dann darf die Vorsteuer je Satz nur nicht höher sein als Bemessungsgrundlage mal Satz.
  */
 
 export interface VerprobungsAbweichung {
@@ -67,6 +69,11 @@ export function verprobeBuchung(kontenrahmen: Kontenrahmen, versteuerung: Verste
     return { satz, bemessung, steuer, erwartet: steuerZu(bemessung, satz) };
   });
   const erlaubt = toleranz(vorsteuer);
-  for (const v of vorsteuer) if (Math.abs(v.steuer - v.erwartet) > erlaubt) result.push({ ...v, art: "vorsteuer" });
+  const anteilig = zeilen.some((z) => z.taxCode === "keineVSt" && !steuerkonten.has(z.account));
+  for (const v of vorsteuer) {
+    // Anteilig: dem Betrag nach höchstens die volle Steuer, mit gleichem Vorzeichen (eine Gutschrift dreht beide)
+    const zuViel = Math.abs(v.steuer) - Math.abs(v.erwartet) > erlaubt || v.steuer * v.erwartet < 0;
+    if (anteilig ? zuViel : Math.abs(v.steuer - v.erwartet) > erlaubt) result.push({ ...v, art: "vorsteuer" });
+  }
   return result;
 }
