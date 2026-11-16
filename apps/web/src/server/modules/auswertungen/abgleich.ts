@@ -20,7 +20,15 @@ import { belegVorsteuerHinweis, journalBuchungen, verprobungsZeilen, type Journa
 import { gewinnNachDatevFormel } from "./euer-formel.ts";
 import { euerAusJournal } from "./euer-journal.ts";
 import { euerForYear } from "./reports.ts";
-import { gesendeteAbweichungen, type PreflightIssue } from "../umsatzsteuer/index.ts";
+import {
+  gesendeteAbweichungen,
+  quartalVon,
+  ZM_POSTEN,
+  zmAbweichungen,
+  zmAbweichungenImJahr,
+  type PreflightIssue,
+  type ZmAbweichung,
+} from "../umsatzsteuer/index.ts";
 import { oposAbgleichJahr, oposYears } from "./opos-abgleich.ts";
 
 /*
@@ -95,6 +103,16 @@ function saldo(sums: Summe[], accounts: (kr: Kontenrahmen) => string[], filter: 
 
 const yearRange = (year: number) => ({ from: `${year}-01-01`, to: `${year + 1}-01-01` });
 
+/** Gesendete ZM gegen Kz 21 bzw. 41 aus dem Journal, in vollen Euro (zm-pruefen.ts) */
+const zmZeile = (a: ZmAbweichung): AbgleichZeile => ({
+  bereich: "ustva",
+  zeitraum: periodKey(a.period),
+  posten: ZM_POSTEN[a.art],
+  journal: a.journal * 100,
+  quelle: a.gemeldet * 100,
+  gegen: "laut ZM",
+});
+
 /** Text einer Abweichung, wie ihn die Prüfung beim Update als Befund speichert (journal_umstellung.befunde) */
 export const befundText = (z: AbgleichZeile) => `${z.zeitraum} ${z.posten}: im Journal ${formatEuro(z.journal)}, ${z.gegen} ${formatEuro(z.quelle)}`;
 
@@ -152,6 +170,8 @@ function vatRows(period: VatPeriod, buchungen: readonly JournalBuchung[], verste
 export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
   const { from, to } = yearRange(period.year);
   const abgleich = vatRows(period, await journalBuchungen(from, to), await versteuerungForYear(period.year));
+  // Ist die ZM des Quartals schon gesendet, prüft die Vorprüfung sie gegen das Quartal aus dem Journal
+  abgleich.zeilen.push(...(await zmAbweichungen(quartalVon(period))).map(zmZeile));
   return ohneUebernommene(period.year, abgleich, await uebernommeneBefunde(db));
 }
 
@@ -264,6 +284,7 @@ export async function abgleichJahr(year: number, today: string, q: Db | Tx = db,
       quelle: a.gesendet,
       gegen: "gesendet",
     });
+  zeilen.push(...(await zmAbweichungenImJahr(year, q)).map(zmZeile));
   for (const b of await belegZeilen(year, q))
     zeilen.push({ bereich: "beleg", zeitraum: b.zeitraum, posten: b.posten, journal: b.journal, quelle: b.rechnung, gegen: "laut Rechnung" });
   for (const v of await vorgangZeilen(year, q))

@@ -25,5 +25,6 @@ export { VatError } from "./vat.ts";
 export { filingsFor, loadFilingProtocol, vermerkeAbgabe, type VatReturnFiling, type VermerkInput } from "./vermerk.ts";
 export { assertUstvaOffen, ustvaLabels, ustvaOpenItems, ustvaPosten, ustvaPostenForPeriod, type UstvaPostenUebersicht } from "./zahlung.ts";
 export { gesendeteAbweichungen, gesendetText, type GesendetAbweichung } from "./gesendet-pruefen.ts";
+export { quartalVon, ZM_POSTEN, zmAbweichungen, zmAbweichungenImJahr, type ZmAbweichung } from "./zm-pruefen.ts";
 export { anteilZumRechnungsdatum, ausfuehrungMitFreigabe, belegTotals, vorsteuerAnteile, ZWISCHENKONTEN } from "./vorsteuer-anteile.ts";
 export { freigabeAmAusfuehrung, freigabeNachziehen, freigabeStornieren } from "./vorsteuer-freigabe.ts";

@@ -79,7 +79,7 @@ export interface ZmIssue {
 }
 
 /** Echt übermittelte Meldungen eines Zeitraums in der Reihenfolge des Sendens */
-async function sentMeldungen(period: VatPeriod, q: Db | Tx) {
+export async function sentMeldungen(period: VatPeriod, q: Db | Tx) {
   return q
     .select({ berichtigt: schema.zmSubmissions.berichtigt, zeilen: schema.zmSubmissions.zeilen })
     .from(schema.zmSubmissions)

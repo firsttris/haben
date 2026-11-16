@@ -303,10 +303,19 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
         // Berichtigung, die eine Lieferung mit 200 € weniger meldet
         await melden(true, [{ ustId: "FR12345678901", art: "L", betrag: 300_000 }]);
         expect(await zmZeilen()).toEqual([
-          { bereich: "ustva", zeitraum: "2026-Q3", posten: "Gesendete ZM, innergemeinschaftliche Lieferungen gegen Kz 41", journal: 500_000, quelle: 300_000, gegen: "laut ZM" },
+          {
+            bereich: "ustva",
+            zeitraum: "2026-Q3",
+            posten: "Gesendete ZM, innergemeinschaftliche Lieferungen gegen Kz 41",
+            journal: 500_000,
+            quelle: 300_000,
+            gegen: "laut ZM",
+          },
         ]);
         // Vor dem Senden der Voranmeldung für September (das Quartal ist dann vollständig) warnt die Vorprüfung
         const issues = abgleich.abgleichIssues(await abgleich.vatAbgleich({ year: 2026, month: 9 }));
-        expect(issues).toContainEqual(expect.objectContaining({ tone: "warn", text: expect.stringContaining("Gesendete ZM, innergemeinschaftliche Lieferungen gegen Kz 41") }));
+        expect(issues).toContainEqual(
+          expect.objectContaining({ tone: "warn", text: expect.stringContaining("Gesendete ZM, innergemeinschaftliche Lieferungen gegen Kz 41") }),
+        );
       }, 60_000);
 });
