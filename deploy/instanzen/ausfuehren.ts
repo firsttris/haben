@@ -89,9 +89,9 @@ export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar, ei
     zeitlimit === undefined
       ? undefined
       : setTimeout(() => {
-          if (beendet) return;
+          // Bis hierher kam kein vollständiges Ergebnis; endete der Befehl schon, hält ein Kindprozess die Ausgabe offen
           abgelaufen = true;
-          prozess.kill();
+          if (!beendet) prozess.kill();
           nachfassen = setTimeout(() => {
             if (!beendet) prozess.kill("SIGKILL");
             aus.abbrechen();
