@@ -4,6 +4,7 @@ import { db, schema } from "../../db/index.ts";
 import type { AbgleichZeile } from "../auswertungen/index.ts";
 import { gerechneteZahlen, zahlen } from "./gerechnete-zahlen.ts";
 import { vermerkPruefung } from "./vermerk.ts";
+import { vorauszahlungssoll, zuletztGesendet } from "./vorauszahlungen.ts";
 
 /*
  * Übermittelte und vermerkte Jahreserklärungen gegen die Rechnung aus dem Journal (#1116), wie die gesendeten
@@ -14,9 +15,10 @@ import { vermerkPruefung } from "./vermerk.ts";
  * - Außerhalb von Haben abgegeben (Vermerk): Der Vermerk hält den Betrag laut Protokoll fest, bei einer bestätigten
  *   Abweichung dazu den damals gerechneten Wert (vermerk.ts); seit #1144 auch alle gerechneten Zahlen (`gerechnet`), die
  *   dann wie bei einer Übermittlung verglichen werden. Verglichen wird der damals gerechnete Wert (ohne Abweichung
- *   der Betrag) mit dem, was der Vermerk heute rechnen würde (vermerkPruefung: Gewinn bzw. Abschlusszahlung). Rechnet Haben
- *   heute den Betrag laut Protokoll, passt das Journal zur Abgabe: etwa wenn Voranmeldungen erst nach dem Vermerk
- *   nachgetragen wurden und damit das Vorauszahlungssoll der Abschlusszahlung.
+ *   der Betrag) mit dem, was der Vermerk heute rechnen würde (vermerkPruefung: Gewinn). Rechnet Haben heute den Betrag
+ *   laut Protokoll, passt das Journal zur Abgabe. Bei älteren Vermerken der Umsatzsteuer ohne festgehaltene Zahlen
+ *   zählt die Steuer, nicht die Abschlusszahlung: damals die Abschlusszahlung plus die Vorauszahlungen, die beim
+ *   Vermerk gesendet waren (#1231). Eine danach gesendete Voranmeldung ändert sonst die Abschlusszahlung, nicht das Journal.
  * Die Einkommensteuer hat keine eigenen Zahlen aus dem Journal; sie folgt der EÜR.
  *
  * Läuft bei der Prüfung beim Update und jede Woche mit der Integritätsprüfung (erklaerteAbweichungsZeilen, übergeben von
@@ -43,21 +45,22 @@ function vergleich(gespeichert: Record<string, number>, heute: Record<string, nu
 }
 
 /**
- * Ein Vermerk: der damals gerechnete Gewinn bzw. die Abschlusszahlung gegen heute (kein Befund, wenn Haben heute den Betrag
- * laut Protokoll rechnet); hält er die gerechneten Zahlen fest (seit #1144), dazu jede davon
+ * Ein Vermerk: der damals gerechnete Gewinn gegen heute (kein Befund, wenn Haben heute den Betrag laut Protokoll rechnet);
+ * hält er die gerechneten Zahlen fest (seit #1144), dazu jede davon. Die Umsatzsteuer vergleicht die Steuer statt der
+ * Abschlusszahlung (ustVermerkZeilen, ustVermerkSteuer).
  */
-async function vermerkAbweichungen(year: number, form: "ust" | "euer", figures: Record<string, unknown>): Promise<ErklaertAbweichung[]> {
+async function vermerkAbweichungen(year: number, form: "ust" | "euer", figures: Record<string, unknown>, vermerktAm: Date): Promise<ErklaertAbweichung[]> {
   const { amount, berechnet } = zahlen(figures);
   const gerechnet = typeof figures.gerechnet === "object" && figures.gerechnet ? zahlen(figures.gerechnet as Record<string, unknown>) : null;
-  // Umsatzsteuer mit festgehaltenen Zahlen: Steuer und Zeilen statt der Abschlusszahlung, die an den Vorauszahlungen aus
-  // den Voranmeldungen hängt, nicht am Journal (Selbstprüfung Runde 4 in #1144)
-  if (form === "ust" && gerechnet) return ustVermerkZeilen(year, gerechnet, amount, berechnet);
+  // Umsatzsteuer: Steuer (und Zeilen, wo festgehalten) statt der Abschlusszahlung, die an den Vorauszahlungen aus den
+  // Voranmeldungen hängt, nicht am Journal (Selbstprüfung Runde 4 in #1144, #1231)
+  if (form === "ust") return gerechnet ? ustVermerkZeilen(year, gerechnet, amount, berechnet) : ustVermerkSteuer(year, vermerktAm, amount, berechnet);
   const damals = berechnet ?? amount;
   const result: ErklaertAbweichung[] = [];
-  const feld = form === "ust" ? "abschluss" : "gewinn";
+  const feld = "gewinn";
   let heute: number | undefined;
   if (damals !== undefined) {
-    heute = (await vermerkPruefung(form, year, null)).berechnet;
+    heute = (await vermerkPruefung("euer", year, null)).berechnet;
     if (damals !== heute && heute !== amount) result.push({ year, form, art: "vermerkt", feld, erklaert: damals, journal: heute });
   }
   // Mit bestätigter Abweichung sind die festgehaltenen Zahlen Habens damalige, nicht die abgegebenen; rechnet Haben heute den
@@ -81,12 +84,28 @@ async function ustVermerkZeilen(year: number, gerechnet: Record<string, number>,
   return vergleich(gerechnet, heute, NICHT_AUS_DEM_JOURNAL).map((x) => ({ year, form: "ust" as const, art: "vermerkt" as const, ...x }));
 }
 
+/**
+ * Älterer Vermerk der Umsatzsteuer (vor #1144), der nur den Betrag laut Protokoll festhält, bei bestätigter Abweichung dazu
+ * die damals gerechnete Abschlusszahlung: die Steuer damals (Abschlusszahlung plus Vorauszahlungen bis zum Vermerk) gegen
+ * die Steuer heute. Kein Befund, wenn Haben heute die Steuer laut Protokoll rechnet. Die Sondervorauszahlung zählt mit dem
+ * heutigen Stand der Dauerfristverlängerung; einen früheren hält Haben nicht fest.
+ */
+async function ustVermerkSteuer(year: number, vermerktAm: Date, amount?: number, berechnet?: number): Promise<ErklaertAbweichung[]> {
+  const abschlussDamals = berechnet ?? amount;
+  if (abschlussDamals === undefined) return [];
+  const vorauszahlungen = await vorauszahlungssoll(year, await zuletztGesendet(year, vermerktAm));
+  const damals = abschlussDamals + vorauszahlungen;
+  const heute = (await gerechneteZahlen("ust", year)).steuer ?? 0;
+  if (damals === heute || (amount !== undefined && heute === amount + vorauszahlungen)) return [];
+  return [{ year, form: "ust", art: "vermerkt", feld: "steuer", erklaert: damals, journal: heute }];
+}
+
 /** Abweichungen der übermittelten bzw. vermerkten Umsatzsteuererklärung und Anlage EÜR der Jahre `years` */
 export async function erklaerteAbweichungen(years: readonly number[]): Promise<ErklaertAbweichung[]> {
   if (years.length === 0) return [];
   const a = schema.annualSubmissions;
   const rows = await db
-    .select({ year: a.year, form: a.form, kind: a.kind, figures: a.figures })
+    .select({ year: a.year, form: a.form, kind: a.kind, figures: a.figures, createdAt: a.createdAt })
     .from(a)
     .where(and(inArray(a.year, [...years]), inArray(a.form, ["ust", "euer"]), inArray(a.kind, ["send", "vermerk"]), eq(a.ok, true)))
     .orderBy(a.year, a.form, desc(a.createdAt));
@@ -94,7 +113,7 @@ export async function erklaerteAbweichungen(years: readonly number[]): Promise<E
   for (const row of rows) {
     const form = row.form as "ust" | "euer";
     if (row.kind === "vermerk") {
-      result.push(...(await vermerkAbweichungen(row.year, form, row.figures)));
+      result.push(...(await vermerkAbweichungen(row.year, form, row.figures, row.createdAt)));
       continue;
     }
     const abweichend = vergleich(zahlen(row.figures), await gerechneteZahlen(form, row.year), NICHT_AUS_DEM_JOURNAL);
