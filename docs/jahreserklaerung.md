@@ -39,7 +39,14 @@ Gibst du die Umsatzsteuererklärung, die Anlage EÜR oder die Einkommensteuererk
 
 Bei der Einkommensteuererklärung fragt der Dialog nach keinem Betrag: Das Übermittlungsprotokoll nennt keinen Steuerbetrag, und eine Schätzung von Haben gehört nicht in den Vermerk. Statt eines Vergleichs sagt die Seite, dass das Ergebnis erst mit dem Steuerbescheid feststeht.
 
-Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung: Die Frist ist erledigt, das Jahr nimmt keine rückdatierten Buchungen mehr an, die Karte zeigt Datum, Ticket und Betrag statt des Knopfs, und Begründung wie Protokoll stehen darunter in einer Tabelle, die erst aufklappt, und eine Übermittlung aus Haben ist nicht mehr vorgesehen; der Kasten dafür verschwindet von der Seite. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf. Meldungen, die Haben aus seinen eigenen Daten ableitet — etwa die Nullerklärung oder „Keine Betriebseinnahmen und -ausgaben im Jahr“ —, treten mit dem Vermerk zurück; sie würden ihm sonst auf derselben Seite widersprechen.
+Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung:
+
+- Die Frist ist erledigt, und das Jahr nimmt keine rückdatierten Buchungen mehr an.
+- Die Karte zeigt Datum, Ticket und Betrag statt des Knopfs; Begründung und Protokoll klappen darunter auf.
+- Der Kasten zum Übermitteln verschwindet; eine Übermittlung aus Haben ist nicht mehr vorgesehen.
+- Meldungen, die Haben aus seinen eigenen Daten ableitet, treten zurück, weil sie dem Vermerk sonst widersprächen: die Nullerklärung, „Keine Betriebseinnahmen und -ausgaben im Jahr“ und der Hinweis auf fehlende Voranmeldungen.
+
+Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Das Ticket besteht aus Buchstaben und Ziffern, wie es im Übermittlungsprotokoll steht; Haben prüft es mit demselben Muster wie bei der Voranmeldung. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf.
 
 ### Zeilenwerte aus dem Übermittlungsprotokoll
 
